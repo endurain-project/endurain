@@ -1,0 +1,71 @@
+"""Internal identity-provider link data contracts."""
+
+import uuid
+from datetime import datetime
+from typing import Protocol
+
+from pydantic import BaseModel, ConfigDict
+
+
+class IdentityProviderDetails(Protocol):
+    """Display data required to enrich a linked identity provider."""
+
+    @property
+    def id(self) -> uuid.UUID:
+        """The provider's id."""
+        ...
+
+    @property
+    def name(self) -> str:
+        """The provider's display name."""
+        ...
+
+    @property
+    def slug(self) -> str:
+        """The provider's URL slug."""
+        ...
+
+    @property
+    def icon(self) -> str | None:
+        """The provider's icon, or ``None``."""
+        ...
+
+    @property
+    def icon_uploaded(self) -> bool:
+        """Whether the icon is an uploaded file."""
+        ...
+
+    @property
+    def provider_type(self) -> str:
+        """The protocol the provider speaks."""
+        ...
+
+
+class IdentityLinkRead(BaseModel):
+    """Persisted identity-link data."""
+
+    id: uuid.UUID
+    user_id: uuid.UUID
+    idp_id: uuid.UUID
+    idp_subject: str
+    linked_at: datetime
+    last_login: datetime | None
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class IdpSessionTokenRead(BaseModel):
+    """Persisted identity-provider sign-in of one Endurain session, including its encrypted refresh and ID tokens."""
+
+    id: uuid.UUID
+    session_id: uuid.UUID
+    user_id: uuid.UUID
+    idp_id: uuid.UUID
+    refresh_token: str | None
+    id_token: str | None
+    idp_sid: str | None
+    access_token_expires_at: datetime | None
+    refresh_token_updated_at: datetime | None
+    created_at: datetime
+
+    model_config = ConfigDict(from_attributes=True)

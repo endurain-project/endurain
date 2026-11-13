@@ -1,5 +1,6 @@
 """Password reset token database models."""
 
+import uuid
 from datetime import datetime as datetime_type
 
 from sqlalchemy import DateTime, ForeignKey, String
@@ -9,11 +10,10 @@ from core.database import Base
 
 
 class PasswordResetToken(Base):
-    """
-    Password reset token database model.
+    """Password reset token database model.
 
     Attributes:
-        id: Unique token identifier (string, 64 chars).
+        id: Unique token identifier (a random UUID).
         user_id: ID of the user who owns the token.
         token_hash: Hashed password reset token.
         created_at: Token creation date.
@@ -23,8 +23,8 @@ class PasswordResetToken(Base):
 
     __tablename__ = "password_reset_tokens"
 
-    id: Mapped[str] = mapped_column(String(64), primary_key=True)
-    user_id: Mapped[int] = mapped_column(
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    user_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("users.id", ondelete="CASCADE"),
         nullable=False,
         index=True,
@@ -33,6 +33,8 @@ class PasswordResetToken(Base):
     token_hash: Mapped[str] = mapped_column(
         String(128),
         nullable=False,
+        unique=True,
+        index=True,
         comment="Hashed password reset token",
     )
     created_at: Mapped[datetime_type] = mapped_column(
@@ -43,6 +45,7 @@ class PasswordResetToken(Base):
     expires_at: Mapped[datetime_type] = mapped_column(
         DateTime(timezone=True),
         nullable=False,
+        index=True,
         comment="Token expiration date (datetime)",
     )
     used: Mapped[bool] = mapped_column(

@@ -1,35 +1,33 @@
 """Gear components database models."""
 
+import uuid
 from datetime import date as date_type
+from datetime import datetime
 from decimal import Decimal
-from typing import TYPE_CHECKING
 
 from sqlalchemy import (
     Date,
+    DateTime,
     ForeignKey,
+    Index,
     Numeric,
     String,
 )
 from sqlalchemy.orm import (
     Mapped,
     mapped_column,
-    relationship,
 )
 from sqlalchemy.sql import func
 
+import core.sync as core_sync
 from core.database import Base
 
-if TYPE_CHECKING:
-    from modules.gears.gear.models import Gear
-    from modules.users.users.models import Users
 
-
-class GearComponents(Base):
-    """
-    Gear component data model.
+class GearComponents(core_sync.UpdatedAtMixin, Base):
+    """Gear component data model.
 
     Attributes:
-        id: Primary key.
+        id: Primary key, a random UUID.
         user_id: Foreign key to users table.
         gear_id: Foreign key to gear table.
         type: Type of gear component.
@@ -38,24 +36,22 @@ class GearComponents(Base):
         purchase_date: Purchase date (calendar date, no time of day).
         retired_date: Retired date (calendar date, no time of day).
         active: Whether component is active.
-        expected_kms: Expected kilometers.
+        expected_usage: Wear threshold in meters for a distance-tracked gear and in seconds for a time-tracked one.
         purchase_value: Purchase value.
-        users: Relationship to Users model.
-        gear: Relationship to Gear model.
+        version: Optimistic-concurrency counter.
+        created_at: When the component was created.
+        updated_at: When the component last changed.
     """
 
     __tablename__ = "gear_components"
 
-    id: Mapped[int] = mapped_column(
-        primary_key=True,
-        autoincrement=True,
-    )
-    user_id: Mapped[int] = mapped_column(
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    user_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("users.id", ondelete="CASCADE"),
         nullable=False,
         comment=("User ID that the gear component belongs to"),
     )
-    gear_id: Mapped[int] = mapped_column(
+    gear_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("gear.id", ondelete="CASCADE"),
         nullable=False,
         index=True,
@@ -92,19 +88,49 @@ class GearComponents(Base):
         default=False,
         comment=("Whether the gear component is active (true - yes, false - no)"),
     )
-    expected_kms: Mapped[int | None] = mapped_column(
+    expected_usage: Mapped[int | None] = mapped_column(
         nullable=True,
-        comment=("Expected kilometers of the gear component"),
+        comment=(
+            "Wear threshold of the gear component: meters for a distance-tracked gear, seconds for a time-tracked one"
+        ),
     )
     purchase_value: Mapped[Decimal | None] = mapped_column(
         Numeric(precision=11, scale=2),
         nullable=True,
         comment=("Purchase value of the gear component"),
     )
+    version: Mapped[int] = mapped_column(
+        nullable=False,
+        server_default="1",
+        default=1,
+        comment="Optimistic-concurrency counter, surfaced to clients as the ETag",
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+        nullable=False,
+        comment="When the component was created",
+    )
 
-    users: Mapped["Users"] = relationship(
-        back_populates="gear_components",
-    )
-    gear: Mapped["Gear"] = relationship(
-        back_populates="gear_components",
-    )
+    # SQLAlchemy bumps ``version`` on each ORM flush and adds it to the UPDATE's
+    # WHERE clause, raising StaleDataError when the row moved underneath.
+    __mapper_args__ = {"version_id_col": version}  # noqa: RUF012
+
+    __table_args__ = (Index("ix_gear_components_user_id_updated_at_id", "user_id", "updated_at", "id"),)
+
+
+class GearComponentDeletion(core_sync.TombstoneMixin, Base):
+    """Tombstone of a deleted gear component, read by incremental sync.
+
+    Attributes:
+        id: Primary key, a random UUID.
+        user_id: Owner of the deleted component.
+        record_id: The id the component had.
+        deleted_at: When the component was deleted.
+    """
+
+    __tablename__ = "gear_component_deletions"
+
+    __table_args__ = (Index("ix_gear_component_deletions_user_id_deleted_at_id", "user_id", "deleted_at", "id"),)
+
+    record_id: Mapped[uuid.UUID] = mapped_column(nullable=False, comment="The id the deleted record had")

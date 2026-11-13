@@ -1,18 +1,32 @@
 import contextlib
+import uuid
+from datetime import UTC, datetime, timedelta
 from importlib import import_module
 from unittest.mock import MagicMock
 
+import httpx2
 import pytest
 from fastapi import FastAPI, Request
 from fastapi.testclient import TestClient
+from sqlalchemy import CursorResult
 from sqlalchemy.orm import Session
 
-import modules.auth._internal.internal_dependencies as auth_internal_dependencies
-import modules.auth._internal.password_hasher as auth_password_hasher
-import modules.auth._internal.security_stores as auth_security_stores
-import modules.auth._internal.token_manager as auth_token_manager
+import core.exceptions as core_exceptions
+import modules.auth.access_tokens.service as auth_token_manager
+import modules.auth.authentication.dependencies as authentication_dependencies
+import modules.auth.constants as auth_constants
+import modules.auth.contracts as auth_contracts
+import modules.auth.credentials.integration_service as auth_password_hasher
 import modules.auth.dependencies as auth_dependencies
+import modules.auth.mfa.dependencies as auth_mfa_dependencies
+import modules.auth.security_generation.integration_service as security_generation_integration
+import modules.server_settings.contracts as server_settings_contracts
 import modules.users.users.schema as user_schema
+from tests._helpers.auth import MOCK_USER_ID, OTHER_USER_ID
+from tests._helpers.security_generation import FakeSecurityGenerations
+
+#: The id of the session the test app's overridden principal and token overrides carry.
+MOCK_SESSION_ID = uuid.UUID("00000000-0000-4000-8000-0000000000a1")
 
 # Variables and constants
 DEFAULT_ROUTER_MODULES = [
@@ -22,12 +36,27 @@ DEFAULT_ROUTER_MODULES = [
     "modules.health.health_targets.router",
     "modules.health.health_weight.router",
     "modules.users.users_goals.router",
-    "modules.auth.api_keys.router",
+    "modules.auth.account_security.api_keys_router",
+    "modules.auth.account_security.devices_router",
+    "modules.auth.account_security.admin_api_keys_router",
 ]
 
 PUBLIC_ROUTER_MODULES = [
     "modules.server_settings.public_router",
 ]
+
+
+@pytest.fixture(autouse=True)
+def _no_breach_range_requests(monkeypatch):
+    """Keep a test from reaching the real breach range API: every range request answers with no matches.
+
+    A test of the breached-password check patches ``httpx2.get`` itself.
+    """
+
+    def no_matches(url, *_args, **_kwargs):
+        return httpx2.Response(200, text="", request=httpx2.Request("GET", url))
+
+    monkeypatch.setattr(httpx2, "get", no_matches)
 
 
 @pytest.fixture(autouse=True)
@@ -40,11 +69,35 @@ def _publish_local_platform(tmp_path):
     other process-wide slot JASIL installs so one test cannot leak into the next.
     The ORM mapping is deliberately left alone — ``core.database`` maps it once
     at import and the model modules capture the base then.
+
+    The audit catalog is registered as the entrypoints register it, with writes
+    off: ``jasil.testing.capture_audit`` still sees every row, and no test needs
+    the audit tables or a database for its own session.
     """
+    import jasil.settings as jasil_settings
     import jasil.testing as jasil_testing
 
-    yield jasil_testing.install_test_platform(tmp_path)
+    import module_registry as runtime_module_registry
+
+    platform = jasil_testing.install_test_platform(
+        tmp_path, settings=jasil_settings.JasilSettings(audit=jasil_settings.AuditSettings(enabled=False))
+    )
+    runtime_module_registry.configure_audit()
+    yield platform
     jasil_testing.reset_all()
+
+
+@pytest.fixture(autouse=True)
+def security_generations(monkeypatch) -> FakeSecurityGenerations:
+    """Replace the account security generations with an in-memory store, so a mocked session can stamp and check.
+
+    The tests of the generations themselves and the PostgreSQL tests override this fixture to use the real ones.
+    """
+    fake = FakeSecurityGenerations()
+    monkeypatch.setattr(security_generation_integration, "current_generation", fake.current_generation)
+    monkeypatch.setattr(security_generation_integration, "stage_bump", fake.stage_bump)
+    monkeypatch.setattr(security_generation_integration, "matches_locked", fake.matches_locked)
+    return fake
 
 
 @pytest.fixture
@@ -59,14 +112,24 @@ def password_hasher() -> auth_password_hasher.PasswordHasher:
 
 
 @pytest.fixture
-def token_manager() -> auth_token_manager.TokenManager:
-    """
-    Creates and returns a auth_token_manager.TokenManager instance configured with a test secret key.
+def session_policy() -> server_settings_contracts.SessionPolicy:
+    """The default session policy: 15-minute access, 7-day refresh, no idle timeout, 30-day absolute timeout."""
+    return server_settings_contracts.SessionPolicy(
+        access_token_ttl=timedelta(minutes=15),
+        refresh_token_ttl=timedelta(days=7),
+        idle_timeout=None,
+        absolute_timeout=timedelta(hours=720),
+        api_key_max_lifetime=timedelta(days=365),
+    )
 
-    Returns:
-        auth_token_manager.TokenManager: An instance of auth_token_manager.TokenManager initialized with a test secret key for use in testing.
-    """
-    return auth_token_manager.TokenManager(secret_key="test-secret-key-for-testing-only-min-32-chars")
+
+@pytest.fixture
+def token_manager() -> auth_token_manager.TokenManager:
+    """A token manager with one test key for access tokens and another for refresh tokens."""
+    return auth_token_manager.TokenManager(
+        access_keys=["test-access-key-for-testing-only-min-32-chars"],
+        refresh_keys=["test-refresh-key-for-testing-only-min-32-chars"],
+    )
 
 
 @pytest.fixture
@@ -77,19 +140,24 @@ def mock_db() -> MagicMock:
     Returns:
         MagicMock: A mock object with the specification of a SQLAlchemy Session.
     """
-    return MagicMock(spec=Session)
+    db = MagicMock(spec=Session)
+    # A DML statement yields a CursorResult, which carries the row count; it also answers every Result read.
+    db.execute.return_value = MagicMock(spec=CursorResult)
+    # A real savepoint rolls back and re-raises; a bare mock context manager would swallow the error.
+    db.begin_nested.return_value.__exit__.return_value = False
+    return db
 
 
 @pytest.fixture
-def sample_user_read() -> user_schema.UsersRead:
+def sample_user_read() -> user_schema.UserRead:
     """
-    Creates and returns a sample instance of UsersRead for testing purposes.
+    Creates and returns a sample instance of UserRead for testing purposes.
 
     Returns:
-        user_schema.UsersRead: A sample user object with predefined attributes.
+        user_schema.UserRead: A sample user object with predefined attributes.
     """
-    return user_schema.UsersRead(
-        id=1,
+    return user_schema.UserRead(
+        id=MOCK_USER_ID,
         name="Test User",
         username="testuser",
         email="test@example.com",
@@ -104,10 +172,10 @@ def sample_inactive_user():
     Creates and returns a sample inactive user instance for testing purposes.
 
     Returns:
-        user_schema.UsersRead: An instance representing an inactive user with predefined attributes.
+        user_schema.UserRead: An instance representing an inactive user with predefined attributes.
     """
-    return user_schema.UsersRead(
-        id=2,
+    return user_schema.UserRead(
+        id=OTHER_USER_ID,
         name="Inactive User",
         username="inactive",
         email="inactive@example.com",
@@ -161,8 +229,12 @@ def _include_router_if_exists(app: FastAPI, dotted: str):
                 app.include_router(router, prefix="/health_weight")
             elif dotted == "modules.users.users_goals.router":
                 app.include_router(router, prefix="/user_goals")
-            elif dotted == "modules.auth.api_keys.router":
-                app.include_router(router, prefix="/api_keys")
+            elif dotted == "modules.auth.account_security.api_keys_router":
+                app.include_router(router, prefix="/api-keys")
+            elif dotted == "modules.auth.account_security.devices_router":
+                app.include_router(router, prefix="/devices")
+            elif dotted == "modules.auth.account_security.admin_api_keys_router":
+                app.include_router(router, prefix="/users")
             elif dotted == "modules.server_settings.public_router":
                 app.include_router(router, prefix="/server_settings/public")
             else:
@@ -209,6 +281,7 @@ def fast_api_app(password_hasher, token_manager, mock_db) -> FastAPI:
     """
 
     app = FastAPI()
+    core_exceptions.register_exception_handlers(app)
 
     # Include any routers you have configured
     for dotted in DEFAULT_ROUTER_MODULES:
@@ -233,15 +306,14 @@ def fast_api_app(password_hasher, token_manager, mock_db) -> FastAPI:
         Primarily used for testing purposes to simulate the behavior of a pending MFA store.
 
         Attributes:
-            calls (list): A list that records each call to add_pending_login as a tuple of (username, user_id).
-            _store (dict): Internal storage mapping usernames to user IDs for pending logins.
+            calls (list): The user ID of each call to add_pending_login.
+            _store (dict): Internal storage mapping challenges to user IDs for pending logins.
 
         Methods:
-            add_pending_login(username, user_id):
-            get_pending_login(username):
-            claim_pending_login(username):
-            delete_pending_login(username):
-            has_pending_login(username):
+            add_pending_login(user_id):
+            get_pending_login(challenge):
+            claim_pending_login(challenge):
+            delete_pending_login(challenge):
             clear_all():
         """
 
@@ -252,19 +324,20 @@ def fast_api_app(password_hasher, token_manager, mock_db) -> FastAPI:
             self.calls = []
             self._store = {}
 
-        def add_pending_login(self, username, user_id):
+        def add_pending_login(self, pending):
             """
-            Adds a pending login attempt to the internal calls list and store.
+            Adds a pending login and returns the challenge that names it.
 
             Args:
-                username (str): The username of the user attempting to log in.
-                user_id (Any): The unique identifier of the user.
+                pending (PendingLogin): The login that waits for its second factor.
 
             Returns:
-                None
+                str: The challenge.
             """
-            self.calls.append((username, user_id))
-            self._store[username] = user_id
+            challenge = f"challenge-{len(self.calls)}"
+            self.calls.append(pending.user_id)
+            self._store[challenge] = pending
+            return challenge
 
         def get_pending_login(self, username: str):
             """
@@ -303,17 +376,17 @@ def fast_api_app(password_hasher, token_manager, mock_db) -> FastAPI:
             if username in self._store:
                 del self._store[username]
 
-        def has_pending_login(self, username: str):
+        def record_wrong_code(self, challenge: str) -> bool:
             """
-            Checks if the given username has a pending login session.
+            Leave the challenge live; the cap is covered against the real store.
 
             Args:
-                username (str): The username to check for a pending login.
+                challenge (str): The challenge the wrong code was presented with.
 
             Returns:
-                bool: True if the username has a pending login, False otherwise.
+                bool: Always False.
             """
-            return username in self._store
+            return False
 
         def clear_all(self):
             """
@@ -322,29 +395,14 @@ def fast_api_app(password_hasher, token_manager, mock_db) -> FastAPI:
             self._store.clear()
             self.calls.clear()
 
-        def clear_for_user(self, user_id: int) -> int:
-            """
-            Remove pending login entries for the given user ID.
-
-            Args:
-                user_id (int): The user ID to remove pending logins for.
-
-            Returns:
-                int: Number of entries removed.
-            """
-            matching = [username for username, entry_user_id in self._store.items() if entry_user_id == user_id]
-            for username in matching:
-                del self._store[username]
-            return len(matching)
-
     fake_store = FakePendingMFAStore()
     app.state.fake_store = fake_store
 
     # Create mock values for security dependencies
     app.state.mock_access_token = "mock_access_token"
     app.state.mock_refresh_token = "mock_refresh_token"
-    app.state.mock_user_id = 1
-    app.state.mock_session_id = "mock_session_id"
+    app.state.mock_user_id = MOCK_USER_ID
+    app.state.mock_session_id = MOCK_SESSION_ID
 
     # Security dependency overrides for testing authenticated endpoints
     def _mock_validate_access_token():
@@ -355,9 +413,17 @@ def fast_api_app(password_hasher, token_manager, mock_db) -> FastAPI:
         """Mock validation that always passes"""
         return None
 
-    def _mock_get_access_token():
-        """Return mock access token"""
-        return app.state.mock_access_token
+    def _mock_get_principal():
+        """Return a signed-in caller holding every scope"""
+        return auth_contracts.Principal(
+            user_id=app.state.mock_user_id,
+            username="mock-user",
+            email="mock-user@example.com",
+            is_active=True,
+            is_superuser=False,
+            scopes=frozenset(auth_constants.ADMIN_ACCESS_SCOPE),
+            credential=auth_contracts.AccessTokenCred(session_id=app.state.mock_session_id),
+        )
 
     def _mock_get_refresh_token():
         """Return mock refresh token"""
@@ -379,6 +445,10 @@ def fast_api_app(password_hasher, token_manager, mock_db) -> FastAPI:
         """Return mock session ID from refresh token"""
         return app.state.mock_session_id
 
+    def _mock_get_exp_from_refresh_token():
+        """Return a mock expiry from refresh token"""
+        return datetime.now(UTC) + timedelta(days=7)
+
     def _mock_get_and_return_refresh_token():
         """Return mock refresh token"""
         return app.state.mock_refresh_token
@@ -387,47 +457,36 @@ def fast_api_app(password_hasher, token_manager, mock_db) -> FastAPI:
         """Mock scope check that always passes"""
         return None
 
-    app.dependency_overrides[auth_internal_dependencies.header_client_type_scheme] = _client_type_override
-    app.dependency_overrides[auth_security_stores.get_pending_mfa_store] = lambda: fake_store
+    app.dependency_overrides[authentication_dependencies.get_client_type] = _client_type_override
+    app.dependency_overrides[auth_mfa_dependencies.get_pending_mfa_store] = lambda: fake_store
 
     # Override auth-internal dependencies for auth router endpoint tests.
-    app.dependency_overrides[auth_internal_dependencies.validate_access_token_expiration] = _mock_validate_access_token
-    app.dependency_overrides[auth_internal_dependencies.validate_refresh_token] = _mock_validate_refresh_token
-    app.dependency_overrides[auth_internal_dependencies.get_access_token] = _mock_get_access_token
-    app.dependency_overrides[auth_internal_dependencies.get_refresh_token] = _mock_get_refresh_token
-    app.dependency_overrides[auth_internal_dependencies.get_sub_from_access_token] = _mock_get_sub_from_access_token
-    app.dependency_overrides[auth_internal_dependencies.get_sid_from_access_token] = _mock_get_sid_from_access_token
-    app.dependency_overrides[auth_internal_dependencies.get_sub_from_refresh_token] = _mock_get_sub_from_refresh_token
-    app.dependency_overrides[auth_internal_dependencies.get_sid_from_refresh_token] = _mock_get_sid_from_refresh_token
-    app.dependency_overrides[auth_internal_dependencies.get_and_return_refresh_token] = (
+    app.dependency_overrides[authentication_dependencies.validate_refresh_token] = _mock_validate_refresh_token
+    app.dependency_overrides[auth_dependencies.get_principal] = _mock_get_principal
+    app.dependency_overrides[authentication_dependencies.get_refresh_token] = _mock_get_refresh_token
+    app.dependency_overrides[auth_dependencies.get_current_user_id] = _mock_get_sub_from_access_token
+    app.dependency_overrides[auth_dependencies.get_sid_from_access_token] = _mock_get_sid_from_access_token
+    app.dependency_overrides[authentication_dependencies.get_sub_from_refresh_token] = _mock_get_sub_from_refresh_token
+    app.dependency_overrides[authentication_dependencies.get_sid_from_refresh_token] = _mock_get_sid_from_refresh_token
+    app.dependency_overrides[authentication_dependencies.get_exp_from_refresh_token] = _mock_get_exp_from_refresh_token
+    app.dependency_overrides[authentication_dependencies.get_and_return_refresh_token] = (
         _mock_get_and_return_refresh_token
     )
     app.dependency_overrides[auth_dependencies.check_scopes] = _mock_check_scopes
 
     # Override public auth dependencies used by non-auth routers
-    with contextlib.suppress(Exception):
-        app.dependency_overrides[auth_internal_dependencies.get_sub_from_access_token] = _mock_get_sub_from_access_token
-        app.dependency_overrides[auth_dependencies.check_scopes] = _mock_check_scopes
-        app.dependency_overrides[auth_dependencies.get_sub_from_access_token] = _mock_get_sub_from_access_token
-        app.dependency_overrides[auth_dependencies.validate_access_token] = _mock_validate_access_token
-        app.dependency_overrides[auth_dependencies.validate_access_token_or_api_key] = lambda: (
-            auth_dependencies.AuthContext(
-                user_id=app.state.mock_user_id,
-                scopes=["*"],
-                auth_type="jwt",
-            )
-        )
-        app.dependency_overrides[auth_dependencies.get_user_id_from_auth] = _mock_get_sub_from_access_token
-        app.dependency_overrides[auth_dependencies.check_auth_scopes] = _mock_check_scopes
+    app.dependency_overrides[auth_dependencies.authenticate] = _mock_validate_access_token
 
     # Generic overrides
     _override_if_exists(
         app,
-        "modules.auth._internal.password_hasher",
+        "modules.auth.credentials.integration_service",
         "get_password_hasher",
         lambda: password_hasher,
     )
-    _override_if_exists(app, "modules.auth._internal.token_manager", "get_token_manager", lambda: token_manager)
+    _override_if_exists(
+        app, "modules.auth.access_tokens.integration_service", "get_token_manager", lambda: token_manager
+    )
     _override_if_exists(app, "session.auth_token_manager", "get_token_manager", lambda: token_manager)
     _override_if_exists(app, "core.database", "get_db", lambda: mock_db) or _override_if_exists(
         app, "core_database", "get_db", lambda: mock_db
@@ -505,11 +564,13 @@ def fast_api_app_public(password_hasher, token_manager, mock_db) -> FastAPI:
     # Generic overrides
     _override_if_exists(
         app,
-        "modules.auth._internal.password_hasher",
+        "modules.auth.credentials.integration_service",
         "get_password_hasher",
         lambda: password_hasher,
     )
-    _override_if_exists(app, "modules.auth._internal.token_manager", "get_token_manager", lambda: token_manager)
+    _override_if_exists(
+        app, "modules.auth.access_tokens.integration_service", "get_token_manager", lambda: token_manager
+    )
     _override_if_exists(app, "core.database", "get_db", lambda: mock_db) or _override_if_exists(
         app, "core_database", "get_db", lambda: mock_db
     ) or _override_if_exists(app, "app.core.database", "get_db", lambda: mock_db)

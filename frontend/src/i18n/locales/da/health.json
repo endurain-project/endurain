@@ -1,6 +1,12 @@
 {
   "title": "Helbred",
   "subtitle": "Se alle dine helbredsdata ét sted",
+  "chartBucket": {
+    "week": "Ugentlige gennemsnit: hver søjle er gennemsnitsdagen i den uge.",
+    "month": "Månedlige gennemsnit: hver søjle er gennemsnitsdagen i den måned."
+  },
+  "targetInvalid": "Angiv en værdi større end 0, eller lad feltet stå tomt for at fjerne målet.",
+  "chartError": "Kunne ikke indlæse diagrammet for dette tidsrum.",
   "nav": {
     "label": "Helbredssektioner",
     "soon": "Snart",
@@ -34,6 +40,7 @@
     "stepsTargetLabel": "skridt",
     "poopTargetLabel": "/ dag",
     "noWeightData": "Ingen vægtdata",
+    "noHeightData": "Tilføj din højde i din profil for at se dit BMI.",
     "bmiUnderweight": "Undervægtig",
     "bmiNormalWeight": "Normalvægtig",
     "bmiOverweight": "Overvægtig",
@@ -88,7 +95,6 @@
       "weightRequired": "Indtast venligst din vægt.",
       "weightInvalid": "Indtast en vægt større end nul.",
       "bodyComposition": "Kropssammensætning (valgfrit)",
-      "bmi": "BMI",
       "bodyFat": "Kropsfedt (%)",
       "bodyWater": "Kropsvand (%)",
       "boneMass": "Knoglemasse",
@@ -256,6 +262,8 @@
     "scorePoor": "Dårlig",
     "detail": {
       "tabsLabel": "Søvndetaljesektioner",
+      "stagesLoading": "Indlæser søvnstadierne",
+      "stagesError": "Kunne ikke indlæse søvnstadierne",
       "tabScore": "Søvnscore",
       "tabDetails": "Søvndetaljer",
       "deep": "Dyb",
@@ -301,6 +309,8 @@
     "form": {
       "addTitle": "Registrér søvn",
       "editTitle": "Redigér søvnpost",
+      "loading": "Indlæser søvnposten",
+      "loadError": "Kunne ikke indlæse søvnposten",
       "description": "Registrér din søvnvarighed og eventuelt fordelingen på stadier og målinger.",
       "date": "Dato",
       "dateRequired": "Vælg venligst en dato.",
@@ -308,6 +318,8 @@
       "totalSleepRequired": "Indtast venligst, hvor længe du sov.",
       "hours": "Timer",
       "minutes": "Minutter",
+      "hoursOf": "{field}, timer",
+      "minutesOf": "{field}, minutter",
       "stageBreakdown": "Fordeling på stadier (valgfrit)",
       "deep": "Dyb søvn",
       "light": "Let søvn",
@@ -350,7 +362,11 @@
       "close": "Luk",
       "createSuccess": "Søvn registreret.",
       "updateSuccess": "Søvnpost opdateret.",
-      "saveError": "Kunne ikke gemme din søvnpost. Prøv venligst igen."
+      "saveError": "Kunne ikke gemme din søvnpost. Prøv venligst igen.",
+      "numberRange": "Indtast en værdi mellem {min} og {max}.",
+      "numberMin": "Indtast {min} eller mere.",
+      "stagesExceedTotal": "Dyb søvn, let søvn og REM-søvn udgør tilsammen mere end totalen.",
+      "inconsistentError": "Disse søvntal stemmer ikke overens. Kontrollér, at faserne og totalen passer inden for søvntiderne."
     },
     "target": {
       "title": "Sæt søvnmål",
@@ -419,7 +435,8 @@
       "close": "Luk",
       "createSuccess": "Vand registreret.",
       "updateSuccess": "Vandpost opdateret.",
-      "saveError": "Kunne ikke gemme din vandpost. Prøv venligst igen."
+      "saveError": "Kunne ikke gemme din vandpost. Prøv venligst igen.",
+      "dayTakenError": "Der findes allerede en vandregistrering for den dag. Rediger den i stedet for at tilføje en ny."
     },
     "target": {
       "title": "Sæt vandmål",
@@ -596,6 +613,8 @@
       "startTime": "Starttidspunkt",
       "startTimeRequired": "Vælg venligst et starttidspunkt.",
       "endTime": "Sluttidspunkt",
+      "endBeforeStart": "Sluttidspunktet må ikke ligge før starttidspunktet.",
+      "endWhileInProgress": "En faste i gang kan ikke have et sluttidspunkt.",
       "status": "Status",
       "notes": "Noter",
       "create": "Start",
@@ -604,7 +623,9 @@
       "close": "Luk",
       "createSuccess": "Faste startet.",
       "updateSuccess": "Fastesession opdateret.",
-      "saveError": "Kunne ikke gemme din fastesession. Prøv venligst igen."
+      "saveError": "Kunne ikke gemme din fastesession. Prøv venligst igen.",
+      "overlapError": "Denne faste overlapper en anden fasteperiode, eller en anden faste er allerede i gang.",
+      "invalidTimesError": "En faste kan ikke slutte, før den begynder, en fuldført eller brudt faste skal have et sluttidspunkt, og en faste i gang kan ikke have et."
     },
     "target": {
       "title": "Sæt fastemål",
@@ -621,6 +642,20 @@
     "complete": {
       "success": "Faste afsluttet.",
       "error": "Kunne ikke afslutte din faste. Prøv venligst igen."
+    },
+    "endConfirm": {
+      "broken": {
+        "title": "Bryde denne faste?",
+        "body": "Fasten slutter nu og gemmes som brudt. Dette kan ikke fortrydes.",
+        "confirm": "Bryd fasten"
+      },
+      "cancelled": {
+        "title": "Annullere denne faste?",
+        "body": "Fasten slutter nu og gemmes som annulleret. Dette kan ikke fortrydes.",
+        "confirm": "Annullér fasten"
+      },
+      "cancel": "Fortsæt med at faste",
+      "close": "Luk"
     },
     "empty": {
       "title": "Ingen faster endnu",

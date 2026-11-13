@@ -5,10 +5,12 @@
   "unread": "Olvasatlan",
   "markRead": "Megjelölés olvasottként",
   "markAllRead": "Összes megjelölése olvasottként",
+  "dismiss": "Értesítés elvetése",
+  "dismissError": "Az értesítést nem sikerült elvetni. Próbáld újra.",
   "seeAll": "Összes megtekintése",
   "loadMore": "Több betöltése",
   "loading": "Betöltés…",
-  "badge": "{count} olvasatlan értesítés",
+  "badge": "{count} olvasatlan értesítés | {count} olvasatlan értesítés",
   "empty": {
     "title": "Mindennel naprakész vagy",
     "description": "A tevékenységeiddel, követőiddel és integrációiddal kapcsolatos frissítések itt jelennek meg."
@@ -39,9 +41,122 @@
       "title": "A Garmin Connect figyelmet igényel",
       "body": "A Garmin Connect munkameneted lejárt. Csatlakoztasd újra a szinkronizálás folytatásához."
     },
+    "stravaTokenExpired": {
+      "title": "A Strava figyelmet igényel",
+      "body": "A Strava elutasította a kapcsolatodat. Csatlakoztasd újra a szinkronizálás folytatásához.",
+      "bodyRevoked": "A Strava-hozzáférés megszűnt. A Stravával szinkronizált tevékenységeid és felszerelésed {date} napon törlődik, ha nem csatlakozol újra."
+    },
+    "stravaDataDeleted": {
+      "title": "Strava-adatok törölve",
+      "body": "A Stravával szinkronizált tevékenységeid és felszerelésed törlődött, mert a Strava-hozzáférés megszűnt, és nem csatlakoztál újra."
+    },
+    "idpLinked": {
+      "title": "Új bejelentkezési szolgáltató összekapcsolva",
+      "body": "A(z) {name} összekapcsolva a fiókoddal. Ha nem te voltál, ellenőrizd a biztonsági beállításaidat.",
+      "bodyGeneric": "Egy bejelentkezési szolgáltató összekapcsolva a fiókoddal. Ha nem te voltál, ellenőrizd a biztonsági beállításaidat."
+    },
+    "accountSecurityChanged": {
+      "passwordChanged": {
+        "title": "Jelszó módosítva",
+        "body": "A jelszavadat módosítottuk. Ha nem te voltál, állítsd vissza a jelszavadat, és ellenőrizd a biztonsági beállításaidat."
+      },
+      "passwordReset": {
+        "title": "Jelszó visszaállítva",
+        "body": "A jelszavadat egy visszaállító hivatkozással állítottuk vissza. Ha nem te voltál, állítsd vissza újra a jelszavadat, és ellenőrizd a biztonsági beállításaidat. Any API keys were revoked and any pending email change was cancelled."
+      },
+      "passwordSetByAdmin": {
+        "title": "A rendszergazda jelszót állított be",
+        "body": "A rendszergazda új jelszót állított be a fiókodhoz. Ha nem számítottál rá, fordulj a rendszergazdához. Any API keys were revoked and any pending email change was cancelled."
+      },
+      "mfaEnabled": {
+        "title": "Kétfaktoros hitelesítés bekapcsolva",
+        "body": "A fiókodnál bekapcsoltuk a kétfaktoros hitelesítést. Ha nem te voltál, állítsd vissza a jelszavadat, és ellenőrizd a biztonsági beállításaidat."
+      },
+      "mfaDisabled": {
+        "title": "Kétfaktoros hitelesítés kikapcsolva",
+        "body": "A fiókodnál kikapcsoltuk a kétfaktoros hitelesítést. Ha nem te voltál, állítsd vissza a jelszavadat, és ellenőrizd a biztonsági beállításaidat."
+      },
+      "mfaResetByAdmin": {
+        "title": "A rendszergazda visszaállította a kétfaktoros hitelesítést",
+        "body": "A rendszergazda visszaállította a fiókod kétfaktoros hitelesítését, és minden eszközről kijelentkeztetett. Állítsd be újra a biztonsági beállításokban. Ha nem számítottál erre, fordulj a rendszergazdához."
+      },
+      "passwordChangeRequiredByAdmin": {
+        "title": "A rendszergazda jelszómódosítást írt elő",
+        "body": "A rendszergazda jelszómódosítást írt elő számodra, és minden eszközről kijelentkeztetett. Legközelebb, amikor jelszóval jelentkezel be, új jelszót kell választanod. Ha nem számítottál erre, fordulj a rendszergazdához."
+      },
+      "backupCodesGenerated": {
+        "title": "Új tartalék kódok létrehozva",
+        "body": "A fiókodhoz új tartalék kódokat hoztunk létre. Ha nem te voltál, állítsd vissza a jelszavadat, és ellenőrizd a biztonsági beállításaidat."
+      },
+      "apiKeyCreated": {
+        "title": "Új API-kulcs létrehozva",
+        "body": "A fiókodhoz új API-kulcsot hoztak létre. Ha nem te voltál, állítsd vissza a jelszavadat, és ellenőrizd a biztonsági beállításaidat."
+      },
+      "apiKeysRevokedByAdmin": {
+        "title": "Egy adminisztrátor visszavonta az API-kulcsokat",
+        "body": "Egy adminisztrátor visszavonta egy vagy több API-kulcsodat, így semmi, ami használja őket, nem fér hozzá többé a fiókodhoz. Ha nem számítottál erre, fordulj az adminisztrátorodhoz."
+      },
+      "identityProviderUnlinked": {
+        "title": "Bejelentkezési szolgáltató leválasztva",
+        "body": "A(z) {name} leválasztva a fiókodról. Ha nem te voltál, állítsd vissza a jelszavadat, és ellenőrizd a biztonsági beállításaidat.",
+        "bodyGeneric": "Egy bejelentkezési szolgáltató leválasztva a fiókodról. Ha nem te voltál, állítsd vissza a jelszavadat, és ellenőrizd a biztonsági beállításaidat."
+      },
+      "accountLocked": {
+        "title": "Fiók zárolva",
+        "body": "A fiókodat 100 egymást követő sikertelen bejelentkezési kísérlet után zároltuk. Azok a böngészők és alkalmazások, amelyekből az utolsó biztonsági módosítás óta bejelentkeztél, továbbra is be tudnak jelentkezni. Ha nem te próbálkoztál, módosítsd vagy állítsd vissza a jelszavadat, ami a zárolást is feloldja."
+      },
+      "mfaLocked": {
+        "title": "Kétlépéses ellenőrzés zárolva",
+        "body": "A fiókodat 100 egymást követő hibás kétlépéses ellenőrző kód után zároltuk, tehát valaki ismeri a jelszavadat. Azok a böngészők és alkalmazások, amelyekből az utolsó biztonsági módosítás óta bejelentkeztél, továbbra is be tudnak jelentkezni. Ha nem te próbálkoztál, módosítsd a jelszavadat."
+      },
+      "stepUpSessionEnded": {
+        "title": "Munkamenet kijelentkeztetve",
+        "body": "A fiókod egyik munkamenetéből kijelentkeztettünk, miután egy érzékeny művelet megerősítéséhez egymás után 15 hibás jelszót vagy kétfaktoros hitelesítési kódot adtak meg. A többi munkamenetedet ez nem érintette. Ha nem te voltál, változtasd meg a jelszavadat."
+      },
+      "stepUpLocked": {
+        "title": "Az érzékeny műveletek megerősítése zárolva",
+        "body": "Az érzékeny műveletek, például a jelszóváltoztatás vagy API-kulcs létrehozása megerősítését 30 napra zároltuk, miután a munkameneteid között 100 hibás megerősítés történt. Ha nem te voltál, állítsd vissza a jelszavadat, ami a zárolást is feloldja."
+      },
+      "backupCodeUsed": {
+        "title": "Tartalékkód felhasználva",
+        "body": "A fiókodnál felhasználtak egy tartalékkódot a kétfaktoros hitelesítéshez. Ha nem te voltál, változtasd meg a jelszavadat, és generálj új tartalékkódokat.",
+        "bodyRemaining": "A fiókodnál felhasználtak egy tartalékkódot a kétfaktoros hitelesítéshez. Fel nem használt tartalékkódok: {count}. Ha nem te voltál, változtasd meg a jelszavadat, és generálj új tartalékkódokat.",
+        "bodyNone": "A fiókodnál felhasználtak egy tartalékkódot a kétfaktoros hitelesítéshez. Nincs több fel nem használt tartalékkódod, ezért generálj újakat a biztonsági beállításokban. Ha nem te voltál, változtasd meg a jelszavadat."
+      },
+      "refreshTokenReuseDetected": {
+        "title": "Munkamenet megszakítva",
+        "body": "A fiókod egyik bejelentkezési munkamenetét megszakítottuk, mert egy már felhasznált tokent újra bemutattak, ami azt jelentheti, hogy a munkamenetet lemásolták. A többi munkamenetedet ez nem érintette. Ha nem számítottál erre, változtasd meg a jelszavadat."
+      },
+      "roleChangedByAdmin": {
+        "title": "A hozzáférésedet egy adminisztrátor módosította",
+        "body": "Egy adminisztrátor módosította a fiókod hozzáférési típusát, és minden eszközről kijelentkeztetett. Ha nem számítottál erre, fordulj az adminisztrátorodhoz.",
+        "bodyAdmin": "Egy adminisztrátor a fiókod hozzáférési típusát adminisztrátorra módosította, és minden eszközről kijelentkeztetett. Ha nem számítottál erre, fordulj az adminisztrátorodhoz.",
+        "bodyRegular": "Egy adminisztrátor a fiókod hozzáférési típusát átlagos felhasználóra módosította, és minden eszközről kijelentkeztetett. Ha nem számítottál erre, fordulj az adminisztrátorodhoz."
+      },
+      "accountDeactivatedByAdmin": {
+        "title": "A fiókodat egy adminisztrátor deaktiválta",
+        "body": "Egy adminisztrátor deaktiválta a fiókodat, és minden eszközről kijelentkeztetett. Addig nem tudsz bejelentkezni, amíg egy adminisztrátor újra nem aktiválja."
+      },
+      "unknown": {
+        "title": "A fiók biztonsága megváltozott",
+        "body": "A fiókod egyik biztonsági beállítása megváltozott. Ha nem te voltál, állítsd vissza a jelszavadat, és ellenőrizd a biztonsági beállításaidat."
+      },
+      "usernameChanged": {
+        "title": "Felhasználónév megváltoztatva",
+        "body": "A felhasználóneved megváltozott. Ha nem te voltál, állítsd vissza a jelszavadat, és ellenőrizd a biztonsági beállításaidat."
+      }
+    },
+    "newDeviceSignIn": {
+      "title": "Új bejelentkezés",
+      "body": "Új bejelentkezés ebből: {browser}, rendszer: {os} ({ip}). Ha nem te voltál, változtasd meg a jelszavadat, és jelentkezz ki a többi munkamenetből."
+    },
     "adminSignUpApproval": {
       "title": "Új regisztráció vár jóváhagyásra",
       "body": "{name} ({'@'}{username}) a fiók jóváhagyására vár."
+    },
+    "adminUserPromoted": {
+      "title": "Egy felhasználó adminisztrátor lett",
+      "body": "{name} ({'@'}{username}) adminisztrátori hozzáférést kapott."
     },
     "unknown": {
       "title": "Értesítés",

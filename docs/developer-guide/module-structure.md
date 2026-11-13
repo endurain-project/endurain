@@ -5,8 +5,8 @@ make each module **replaceable**. A module can move to another distribution, or
 be replaced by another implementation, because callers import only surfaces the
 module deliberately publishes.
 
-`modules/activities` is a composition namespace containing several independent
-modules (`activity`, `activity_laps`, `activity_streams`, and so on).
+`modules/activities` and `modules/health` are composition namespaces containing several independent
+modules (`activity`, `activity_laps`, `activity_streams`, `health_weight`, `health_sleep`, and so on).
 `modules/followers` is the reference for a module that stays flat. A new module
 follows one of these shapes; the existing modules are converted one at a time as
 they are reworked (see [Known debt](#known-debt)).
@@ -66,15 +66,17 @@ rather than that its name is on a list. Ending a transaction (`commit`,
 | `models.py` | persistence | SQLAlchemy ORM. The only place a table is declared. |
 | `query.py` | persistence | Reusable SQL expression fragments. No session, no I/O. |
 | `crud.py` | persistence | The **only** file that opens a `Session` against its own tables. Stages writes (`flush`), never commits or rolls back. Returns schemas/DTOs, never ORM rows. |
+| `store.py` | application | Short-lived shared state (claims, one-time codes, rate-limit flags, sync status) over the platform `StateProvider`. Never opens a `Session` and never keeps state in process memory. Qualified as `<thing>_store.py`. |
 | `serializers.py` | persistence | ORM ↔ schema transformation, both directions. Called by `crud` at its edges. |
 | `service.py` | application | Decides access, orchestrates, publishes events, owns transaction boundaries. |
 | `router.py` / `public_router.py` | transport | Validate, delegate to `service`, return. No domain rule. |
-| `dependencies.py` | transport | FastAPI DI and typed request-parameter aliases (`Annotated[int, Path(gt=0)]`, enums); validation is declared on the type, not raised by hand. |
+| `dependencies.py` | transport | FastAPI DI and typed request-parameter aliases (`Annotated[uuid.UUID, Path()]`, enums); validation is declared on the type, not raised by hand. |
 | `schema.py` | contract | Pydantic request/response shapes. Serialized to clients. |
 | `contracts.py` | contract | Inter-module DTOs and typed seams. Never serialized. |
 | `constants.py` | contract | Domain constants and mapping tables. |
 | `events.py` | contract | Event-type names and validated payload models. |
 | `event_publishers.py` | application | Publishes this package's domain events. |
+| `audit_actions.py` | **composition surface** | The package's audit actions (`jasil.audit.AuditAction`) and their `details` models. Registered in the audit catalog by `app/module_registry.py`; the package's own services write the rows ([Audit trail](audit-trail.md)). |
 | `subscribers.py` | application | Handles events. Registered from `subscriber_registry`. |
 | `integration_service.py` | **module surface** | The curated set of operations other modules may call. |
 | `contributors.py` | **namespace contract** | Typed callbacks installed by app composition for generic ingestion/profile orchestration. |
@@ -128,15 +130,10 @@ paragraph rules out.
 "registered in the API but not the worker" is a diff in one file, and the file
 that holds the handlers can be split without touching the entrypoints.
 
-`modules.auth` is the one module whose behavioural surface is not called
-`integration_service.py`. It publishes `identity_service.py` (plus
-`dependencies.py`), because its boundary is not "what may you call?" but "what
-may you learn about the caller?" — a distinction the
-[auth boundary guide](auth-boundary.md) states and a dedicated `auth-boundary`
-contract enforces structurally. The inconsistency is real and is the cost of
-that: `auth` answers "what may I depend on?" with a different filename than
-every other module. It is recorded here rather than smoothed over, and no other
-module may follow it.
+Auth publishes authentication and account-security operations through
+`modules.auth.dependencies` and the relevant child's `integration_service.py`.
+See the [auth boundary guide](auth-boundary.md) for identity ownership and the
+published package surfaces.
 
 `subscriber_registry.py` is also where a module declares its **reconciliation
 nets**. A durable subscriber derives state from an event, and delivery is
@@ -157,20 +154,24 @@ calls no module. `modules/activities/contributors.py` defines the activity
 ingestion/profile callback contracts (it depends only on the activity schema), while `contributor_registry.py`
 stores only the contributors explicitly installed by `app/module_registry.py`.
 Child packages return contributor objects from `integration_service.py`; package
-imports never register themselves as a side effect.
+imports never register themselves as a side effect. The activity profile contributors are consumed inside
+`activities/activity_profile_transfer`, which answers `users` as one profile section.
 
 ### 2. Composition surface — imported only while assembling the application
 
 `router.py`, `public_router.py`, `subscriber_registry.py`, `scheduled_jobs.py`,
-and `model_registry.py` are collected by `api.py`, `main.py`, `worker.py`,
+`model_registry.py` and `audit_actions.py` are collected by `api.py`, `main.py`, `worker.py`,
 Alembic, or the namespace-level activities registries. Business modules do not
-call them. `scheduled_jobs.py` also holds the job runners.
+call them. `scheduled_jobs.py` also holds the job runners, and a package's own
+services stage the rows for its `audit_actions.py`.
 
 Every persistence-owning package declares its model module in
-`model_registry.py`. `app/model_registry.py` collects converted modules
-explicitly. Its filesystem scan exists only for unconverted legacy modules and
-shrinks as those modules adopt this structure. `core.database` never discovers
-or imports domain models.
+`model_registry.py`. `app/model_registry.py` collects those declarations
+explicitly. `core.database` never discovers or imports domain models.
+
+`app/migrations` is application-level orchestration that consumes each module's
+`migration_service`; it is not itself a module.
+Its tracking CRUD stages changes, while the migration service owns the commit.
 
 ### 3. Migration-only surface — imported only by `app/migrations`
 
@@ -187,7 +188,7 @@ wrapper is not a substitute for that.
 
 ### 4. Package-private — importable only from inside its own module
 
-`service.py`, `query.py`, `crud.py`, `models.py`, `serializers.py`, `utils.py`,
+`service.py`, `store.py`, `query.py`, `crud.py`, `models.py`, `serializers.py`, `utils.py`,
 `signing.py`, `subscribers.py`, `event_publishers.py`, and every unlisted helper.
 Sibling activity modules are outside callers for this rule. A derived subsystem
 that needs the activity row asks `activity.integration_service`, never
@@ -268,14 +269,9 @@ Two choices in that table are deliberate:
   (`core.database.get_db` on a request, the job or subscriber that opened the
   session elsewhere) rolls back.
 
-  One accepted exception: `@handle_db_errors`, which wraps `crud` functions,
-  rolls the whole session back on a database error and on an escaping
-  `IntegrityError`. That is the same decision made implicitly, and it is kept
-  only because unconverted modules still rely on it. A `crud` that translates
-  `IntegrityError` into a `ConflictError` itself is not rolled back by it. Do not
-  add new reliance on the decorator's rollback; the transaction owner is
-  responsible, and the decorator's rollback is removed when the last unconverted
-  module is converted.
+  A `crud` that translates `IntegrityError` into a `ConflictError` does so at
+  the persistence boundary. Other database errors propagate to the transaction
+  owner, which rolls back the session.
 
 ### Surface writes stage, the caller commits
 
@@ -329,9 +325,11 @@ to make a *domain* decision from it — mapping `IntegrityError` to `ConflictErr
 is the precedent — never to re-raise a generic one.
 
 `test_crud_does_not_end_transactions` enforces it: a `crud`-role file in a
-converted module may not call `commit` or `rollback`. Files that still do are
-listed in `_CRUD_TRANSACTION_DEBT`, and the test fails on an entry that no longer
-offends so the register shrinks rather than lingers.
+converted module may not call `commit` or `rollback`, and there is no exception
+list. `test_only_transaction_owners_end_transactions` states the same rule for
+every file: only `service`, `migration_service`, `subscribers` and
+`scheduled_jobs` may end a transaction, so a file whose name declares no role
+cannot slip past it.
 
 ## What a module may depend on
 
@@ -437,9 +435,11 @@ it rather than the platform importing it. Three worked examples live in the tree
 | --- | --- |
 | The scheduler needed each module's recurring jobs | Each module declares `scheduled_jobs.recurring_jobs()`; `main.py` collects and hands the list to `start_scheduler`. |
 | Ingestion needed to pull from Strava and Garmin | Providers call `activity_ingestion.integration_service.register_activity_provider`; the private registry names no provider. |
-| Bulk import needed Strava-export semantics | `BulkImportFormat` is a registered layout (which members are activity files, the drop folder, how to build the source); `modules.strava.bulk_import_source` registers one and `StravaBulkImportSource` subclasses `BulkImportSource`. |
-| Activity ingestion/profile restore needed child records | Each child returns typed contributor objects from `integration_service`; `app/module_registry.py` installs them in `activities.contributor_registry`. |
+| Bulk import needed Strava-export semantics | `BulkImportFormat` is a registered layout (which members are activity files, the drop folder, how to build the source); `modules.strava.bulk_import_service` registers one and `StravaBulkImportSource` subclasses `BulkImportSource`. |
+| Activity ingestion needed child records | Each child returns typed contributor objects from `integration_service`; `app/module_registry.py` installs them in `activities.contributor_registry`. |
+| Profile export and import needed each module's data, and account creation and height changes needed health | `users` states the questions in `users/contributors.py` (`UserLifecycleHooks`, `ProfileReaders`) and the section contracts in `users_profile/contracts.py` (`ProfileRecordsSection`, `ProfileArchiveSection`); `module_registry.configure_user_contributors` installs the health hooks, the followers reader and the sections in import order: gears, gear components, activities, then the health packages. `users_profile` keeps the zip, counts, limits, the user's own settings and images, the single import transaction and the post-commit file phase. |
 | Returning an activity needed its thumbnail's URL | `activity.service` asks `contributor_registry.resolve_thumbnail_url` for each activity it hands a client; `activity_thumbnail` registers the resolver at composition time. The stored key never leaves the server. |
+| Gear totals needed the distance and time activities recorded, and activities needs gear ownership checks | `gears` sits below activities. It states the questions in `gears/contributors.py` and keeps the answers in `gears/contributor_registry.py`; `module_registry.configure_gear_contributors` installs the activities readers in both entrypoints. |
 
 The shape is always the same: the lower layer owns the *seam* (a registry, a base
 class, a protocol), the higher layer owns the *implementation*, and a composition
@@ -485,6 +485,12 @@ process and across replicas alike. Tests do not enforce them yet, so review does
   on a small background pool (`app/module_registry.py`); on Redis, on the consumer thread. Either
   way a subscriber opens its own session, assumes it may run twice or not at all, and relies on
   its reconciliation net. Nothing may assume a subscriber finished before the response.
+- **In-process work is bounded.** Without a durable worker, background work runs on a `core.local_pool.BoundedPool`,
+  which counts running and queued jobs and refuses one past its bound. A request that would start background work
+  (`users_profile` import and export, `activity_ingestion`, Garmin Connect link and sync) refuses up front with 503,
+  before it stages anything or creates a job row, and closes the job as failed if the pool fills after that. A
+  best-effort subscriber past the bound is dropped and left to its reconciliation net. Long jobs get a pool of
+  their own, never the subscriber pool.
 - **Threads inherit context.** Work handed to a pool runs under `contextvars.copy_context()`, so
   the request id reaches its logs and events.
 - **Every storage area has an owner, a lifecycle and an erasure path.** The domain that writes an
@@ -501,8 +507,8 @@ Two mechanisms, deliberately:
 
 **`backend/.importlinter`** — what import-linter is good at: external packages
 (`redis`, `requests`, `fastapi` in the parsers), the platform direction
-(`core` never imports `modules`), the auth boundary, the migration surface and a
-few named design seams. Run in CI by `.github/workflows/test-backend.yml`:
+(`core` never imports `modules`), the migration surface and a few named design
+seams. Run in CI by `.github/workflows/test-backend.yml`:
 
 ```bash
 cd backend && PYTHONPATH=app uv run lint-imports
@@ -577,9 +583,13 @@ when it goes stale, not an exemption in the rule.
    `ingestion_contributor`, `profile_contributor`, or
    `profile_global_contributor` factory to `integration_service.py`, then register
    that factory in `app/module_registry.py`. Do not register at import time.
-8. Add the module to the source lists of the cross-module contracts in
+8. A module that keeps per-user data registers a profile section in
+   `module_registry.configure_user_contributors`, in import order: a `ProfileRecordsSection` for one
+   `data/<key>.json` of plain rows, a `ProfileArchiveSection` when it writes its own entries or files.
+   `users_profile` is forbidden from importing the module (`users-profile-owns-no-sections`).
+9. Add the module to the source lists of the cross-module contracts in
    `backend/.importlinter`.
-9. Add a new top-level bounded context to `CONVERTED_MODULES` in
+10. Add a new top-level bounded context to `CONVERTED_MODULES` in
    `backend/tests/_helpers/module_roles.py`; the architecture and logging tests
    both read it from there. A module that is in neither `CONVERTED_MODULES` nor
    `UNCONVERTED_MODULES` fails `TestModuleInventory`, so a module cannot be added
@@ -592,10 +602,17 @@ one pattern. Recorded here so a review does not reopen them.
 
 **Settled (follow these in a new module):**
 
-- **Event publishers.** `publish_<fact>(<ids>, db, *, commit, <extras>)`: `db` and
-  `commit` are required and `commit` is keyword-only. A publisher with an optional
-  `commit` has a best-effort path that lets a caller publish outside the
-  transaction, which is what `publish_committing` exists to prevent.
+- **Event publishers.** Two shapes, chosen by who owns the commit at the call:
+  - `publish_<fact>(<ids>, db, *, commit, <extras>)` wraps `jasil.publisher.publish_committing`, for a
+    service that arranges the write and ends the transaction itself. `db` and `commit` are required and
+    `commit` is keyword-only, so there is no path that publishes outside the transaction.
+  - `publish_<fact>(<ids>, db, <extras>)` wraps `publish_on_commit`, for a write that is staged and committed
+    by someone else: the activity ingestion pipeline, and the surface writes that stage and leave the commit to
+    their caller (`clear_activities_gear`, `delete_all_activities_for_user`). It takes no `commit`, and the event
+    follows whichever commit ends the transaction.
+
+  A publisher takes `source` as a parameter when more than one route raises the same fact
+  (`publish_activity_created`, `publish_follower_request_removed`) and states it as a constant otherwise.
 - **Import aliases.** An alias is the *containing package* plus the role, so the
   name says whose file it is and which side of the visibility rule a call site is
   on. A peer's surface is `<package>_integration` (`activity_laps_integration`,
@@ -629,6 +646,12 @@ one pattern. Recorded here so a review does not reopen them.
   (what a file "used to" do, a ratio of removed duplication, a refactor's
   motivation) belongs in the commit message or PR, where it can be dated and
   corrected, not in the source, where it goes stale.
+- **Log levels.** ERROR is a failure nobody asked for, with its traceback. WARNING is a refusal or a
+  degraded path the operator may need to see (a denied caller, a dropped subscriber, a provider that
+  refused); an expected user mistake such as a wrong password carries no traceback. INFO is a state
+  change someone would audit: an account created, approved, deleted or linked, settings changed, a
+  background job queued or finished. DEBUG is everything routine: a record stored, edited or deleted,
+  a follow, a re-sync that skips what it already holds, and the progress inside a job.
 - **Logging.** A service function that refuses a caller (`PermissionDeniedError`)
   or ends a transaction logs in the same function; a service that only delegates
   has no such function and logs nothing. A file with no role logs only when it is
@@ -654,8 +677,19 @@ one pattern. Recorded here so a review does not reopen them.
 - **Access decisions are service.** A helper that decides what a caller may see and
   logs the refusal (`activity/child_collection_service.py`) is named
   `<thing>_service.py`, even when other services consume it.
+- **Versioned writes.** A resource that two clients can edit carries a `version` column
+  (`version_id_col`), returned as the `ETag` of its reads and writes. Its `PATCH`/`PUT` takes
+  `core.dependencies.IfMatch`, so a request without the header is refused with 428 and a stale one with 412
+  (`core.etag.require_if_match`). `If-Match: *` is the explicit "overwrite whatever is there", used by data
+  migrations and by a surface that is a system writer (the profile importer, the Garmin sync). Today that covers
+  activities, gears, gear components, identity-provider configuration, server and mail settings, every health
+  table, and the users, privacy settings, default gear and goals tables. A full-record write is a `PUT` and a partial
+  one a `PATCH`; a singleton the caller owns (`/health/targets`, `/profile`, `/profile/privacy`,
+  `/profile/default-gear`) names no id.
+  How each layer takes part, and the checklist for a new resource, is in
+  [Versioned writes](optimistic-concurrency.md).
 - **Request parameters.** A path or query parameter's constraint is part of its type
-  (`core.dependencies.PositiveId`, an enum for a closed set, `AfterValidator` for a
+  (`core.dependencies.UuidId`, an enum for a closed set, `AfterValidator` for a
   vocabulary lookup), so FastAPI validates it, answers with the validation problem
   document and publishes the accepted values in OpenAPI. A `dependencies.py` does not
   raise `HTTPException`, and a child router declares the shared alias
@@ -681,9 +715,10 @@ one pattern. Recorded here so a review does not reopen them.
   a parser or an archive rather than a client is `<Thing>Create` in `contracts.py`. A
   `<Thing>Read` is never accepted as input (`TestReadModelsAreStoredRows`).
 - **Collections.** A list a client receives is a `core.pagination.Page`; a
-  collection that is absent is `[]`, never `None`. The two exceptions are the
-  exercise-title reference table (`/all`, read whole by design) and the response
-  to a bulk import (the handles of the jobs that POST created).
+  collection that is absent is `[]`, never `None`. The exceptions are fixed
+  catalogues built into the code, which a client reads whole: the identity-provider
+  templates and the tile-map templates. `test_a_collection_is_a_page` enforces the
+  rule and names the exceptions.
   `None` is kept only where it is a distinct signal: the ingestion store
   functions return `None` for "this file failed" and a list for "it parsed".
 
@@ -717,75 +752,80 @@ one pattern. Recorded here so a review does not reopen them.
   hand their contributor plain dicts, so they have none.
 - **`activity_file_storage` has no `service.py`.** It is a leaf over
   `StorageProvider` with no decision to arrange, so a service would only forward.
+- **Registration seams.** `RuntimeModule` in `app/module_registry.py` is the per-module manifest for bus,
+  realtime and durable subscribers, nets, recurring jobs, startup tasks, audit actions and the shutdown of the
+  module's in-process pools. Routers (`api.py`) and models (`model_registry.py`) remain separate composition
+  surfaces for the HTTP app and Alembic.
+- **Namespace-level code in `health`.** `health` publishes `constants.py` (the shared `Interval`),
+  `computation.py` (pure date helpers, the unexecuted `select` builders for a user's records by id, existence,
+  count and list, the generic `to_read_schema`/`to_read_schemas` that replace a per-package `serializers.py`,
+  and `upsert_for_day`, the same-day upsert the weight, steps and sleep services share) and `record_crud.py`
+  (the persistence steps every per-user record runs identically: load by id and owner, count, page, create,
+  edit under `If-Match`, delete). A package describes its record once with a `RecordSpec` (model, read schema,
+  error labels) and its `crud` delegates to `record_crud`, keeping only what is specific to the record.
+  `record_service.py` is the service-layer counterpart: `commit_write` commits and logs a staged write under
+  the version-race guard, and `chart` charts a metric over an interval; each package `service` passes its
+  `crud.SPEC` and the callables that stage or read what is specific to it.
+  `restore_archived_records` validates the archived rows of a profile import and stages them through the
+  package's own callable.
+  Persistence may import a namespace's `computation` like a data shape (`_PERSISTENCE_SHARED_ROLES`) and the
+  `crud`-role file directly under its own namespace (`_PERSISTENCE_NAMESPACE_ROLES`): neither declares a table.
+  Anything that resolves a value through another module, such as the user's "today", stays in the
+  package `service` that calls these helpers.
 
 ## Known debt
 
-Tracked here so it is visible rather than discovered. Each item is enumerated in
-the conformance test's allowlist.
+Tracked here so it is visible rather than discovered. No test records these items, so an entry is updated
+by hand when the code it describes changes.
 
 ### Runtime rules not yet met
 
-- **Storage lifecycle.** The `bulk_import_errors` area has no sweep, retention or account-deletion
-  removal, and the thumbnail reconciliation lists its whole area each pass.
-- **Timeouts.** The pool (20 + 40, 30 s wait) and the absence of a `statement_timeout` are
-  constants in `core/database.py`, not settings, so an operator cannot bound them.
-- **Observability.** Logs are the only signal; queue depth, job
-  duration and dead-letter counts are not exported as metrics.
-- **Visibility across modules.** The followee set reaches `activity.crud` as an id list, which
-  grows with the follow count. A peer-published, read-only query fragment (a followee subquery)
-  would avoid the list but needs its own allowed-import entry and test, so it is undecided.
+- **Storage lifecycle.** The hourly thumbnail reconciliation and the daily orphan sweep each walk the whole
+  thumbnail area: its keys are flat `{id}.webp`, so no prefix narrows the walk.
+- **Creates carry no `Idempotency-Key`.** Of the 27 `POST` routes that answer `201`, only the activity upload
+  accepts an `Idempotency-Key`. Most of the others refuse a repeated create through a unique constraint, but a
+  retried poop record, gear component or completed fasting session after a lost response is a duplicate. The
+  upload keeps its key on the ingestion job row, with no expiry, and its fingerprint and replay are specific to
+  an uploaded file. A general key needs a stored-result design (a claim and response held through the platform
+  `StateProvider` with a TTL, replay and conflict rules), and no client sends one yet, so it waits for one.
+  `Location` (`core.location.set_location`) is sent by the creates whose resource has a GET-by-id route: gear,
+  poop, fasting and users; the other created records have no such route to name.
+- **Broad exception handling.** The 88 `except Exception` and `BaseException` handlers outside the migrations
+  sit in `core` and `main.py` (24), `activities` (21, mostly ingestion), `users` (17, mostly the profile export
+  and import), `auth` (16, mostly the identity providers) and the provider services of `strava` (8) and `garmin`
+  (2); `followers`, `gears`, `health`, `notifications`, `server_settings` and `websocket` have none. The
+  migrations hold 38 more. Many are deliberate boundaries (a job records a failure and re-raises, a
+  provider call degrades to a warning), but each should name the errors it expects. Narrowing them in bulk
+  risks hiding a real failure as an expected one, so they are narrowed as the code around them is touched.
+  The ones that swallow the error (no `raise` in the handler) are counted per file in
+  `tests/architecture/test_broad_except.py`, which fails on a new one and on a count that is not lowered when
+  a handler is narrowed; ruff's `BLE001` is not used because it accepts a handler that logs with `exc_info`.
 
-### Pilot status and what the next conversion owns
+### Accepted limitations
 
-`activities` and `followers` are the only modules converted so far. The
-remaining modules are listed in `UNCONVERTED_MODULES` so that
-`TestModuleInventory` keeps them visible rather than silently exempt, and are
-converted one at a time with the `convert-module` skill. The items below need
-changes outside the two converted modules, so they are recorded here as accepted
-limitations rather than half-done:
+These constraints remain visible until a coordinated design change resolves them:
 
-- **Top-level cycles.** `users` ⇄ `activities` (profile export/import consumes
-  activities; activities consumes `users.integration_service`) and, by the
-  contracts' own description, `gears` ⇄ `activities`. The planned fix is the
-  contributor pattern the activity children already use: `users_profile`
-  export/import asks each module for its section instead of importing them.
-  A `layers` contract (core, identity, followers/gears/health, activities,
-  providers) then states the module-level direction once. Every edge that closes
-  a cycle lives in `users` or `gears`; the activities side already publishes the
-  contributor surface, so the cycles stay until those modules are changed.
-- **Layer rules for unconverted modules.** `TestLayerRules` covers converted
-  modules only. An unconverted module is outside it until converted, and the
-  `auth-boundary` contract is the one generic rule over every module:
-  `TestAuthBoundaryCoverage` fails when its source list differs from the set of
-  top-level modules, so a new module cannot start unconstrained.
-- **Registration seams.** `RuntimeModule` in `app/module_registry.py` is the
-  per-module manifest for subscribers, durable handlers, nets, recurring jobs and
-  startup tasks. Routers (`api.py`) and models (`model_registry.py`) stay
-  separate composition surfaces on purpose: they have different consumers
-  (the HTTP app and Alembic), and the legacy model scan keeps the model seam
-  distinct until the unconverted modules are gone.
-- **Namespace-level code in `health`.** `health` has `router.py`, `schema.py`
-  and `utils.py` beside its sub-packages, which conflicts with "a composition
-  namespace is not an implementation boundary".
-- **`auth` naming.** `identity_service.py` and `_internal/` instead of
-  `integration_service.py` and the filename vocabulary, as described above.
-  The generic boundary rule needs a special case until it is aligned.
-
-- **Persistence layers calling other modules.** Converted modules ask nothing of
-  another bounded context below `service` (`TestLayerRules`). The unconverted ones still do,
-  for example `health.*.crud` reaching `users.users.utils` and
-  `notifications.utils` reaching `users` and `websocket`.
-- **Persistence ending transactions.** Converted modules stage with `flush()` and
-  let `service` (or the job, importer or `migration_service` that owns the unit of
-  work) commit. Unconverted modules (`auth`, `users`, `gears`, …) are outside
-  `test_crud_does_not_end_transactions`; `_CRUD_TRANSACTION_DEBT` is empty and is
-  where a module being converted lists its files.
-- **Subscribers reaching past a surface.** Followers holds no subscribers; its
-  notification handlers live in `modules/notifications` and subscribe to
-  `followers.events` (`TestLayerRules`). `garmin`, `strava`,
-  `auth.sign_up_tokens` and `users.users_profile` still import another module's
-  `utils`/`manager` directly.
-- **Legacy model scan.** Converted modules declare their ORM module in
-  `model_registry.py` and use scalar foreign keys with database `ON DELETE`
-  behaviour. `app/model_registry.py` keeps a filesystem scan only for modules not
-  converted yet.
+- **Top-level cycles.** Four pairs import each other, and seven modules form one strongly connected set:
+  `activities`, `auth`, `followers`, `gears`, `server_settings`, `users` and `websocket` (`followers`, `gears` and
+  `websocket` join through longer loops: they import `auth.dependencies` or users surfaces, and `activities` or
+  `users` import them). `health`, `notifications`, `garmin` and `strava` are outside it.
+  - `users` ⇄ `auth`: users account workflows call auth integration surfaces, while auth credential, session and
+    identity-provider flows read or update users through `users.integration_service`.
+  - `users` ⇄ `activities`: goal progress (`users_goals/progress_service.py`) and the profile overview summary
+    read activities, and `users_profile/schema.py` uses the activity schema, while activities consumes
+    `users.integration_service`. Account deletion and profile export/import do not close this cycle: `users` asks
+    for activity erasure and the activity profile section through `users/contributors.py` and
+    `users_profile/contracts.py`, and `module_registry.configure_user_contributors` installs the answers, so
+    erasure runs in the deletion's own transaction. `gears` sits below activities (`_MUST_NOT_IMPORT`) and
+    declares its usage questions in `gears/contributors.py`; `module_registry.configure_gear_contributors`
+    installs the activities answers.
+  - `auth` ⇄ `server_settings`: auth services read server settings, whose routers use auth dependencies.
+  - `users` ⇄ `server_settings`: user creation reads the server settings and the users schema uses their units and
+    currency, while the settings router reads the admin user for the test email and the mail service uses a users
+    schema.
+- **Followee id list.** The followee set reaches `activity.crud` as an id list
+  (`followers.integration_service.list_accepted_followee_ids`), which grows with the follow count and is passed
+  again for every page of the following feed. Accepting a follow enforces `MAX_ACCEPTED_FOLLOWEES` (1000), which
+  bounds the list; relationships accepted before the cap existed may exceed it. A followee subquery published by
+  `followers` would avoid the list, but it would be the first SQL fragment to cross a module surface, so the
+  bounded list is kept.

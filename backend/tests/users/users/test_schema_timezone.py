@@ -13,7 +13,7 @@ def _user(**overrides):
         "email": "test@example.com",
     }
     fields.update(overrides)
-    return users_schema.UsersBase(**fields)
+    return users_schema.UserBase(**fields)
 
 
 class TestUserTimezone:

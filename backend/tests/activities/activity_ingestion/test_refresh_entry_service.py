@@ -9,6 +9,7 @@ imported here, which is the point.
 from datetime import UTC, datetime, timedelta
 
 import pytest
+from tests._helpers.auth import MOCK_USER_ID
 
 import core.exceptions as core_exceptions
 import modules.activities.activity_ingestion.provider_registry as provider_registry
@@ -42,14 +43,14 @@ class TestSyncLinkedProviders:
         _provider("a", ["s1"])
         _provider("b", ["g1"])
 
-        assert refresh_entry_service.sync_linked_providers(7) == ["s1", "g1"]
+        assert refresh_entry_service.sync_linked_providers(MOCK_USER_ID) == ["s1", "g1"]
 
     def test_an_unlinked_provider_returns_nothing_rather_than_failing(self):
         """One unlinked integration must not fail the whole refresh."""
         _provider("a", None)
         _provider("b", ["g1"])
 
-        assert refresh_entry_service.sync_linked_providers(7) == ["g1"]
+        assert refresh_entry_service.sync_linked_providers(MOCK_USER_ID) == ["g1"]
 
     def test_a_failing_provider_does_not_take_the_others_down_but_fails_the_sync(self):
         """The others still run, and the sync raises so the job is retried."""
@@ -57,22 +58,75 @@ class TestSyncLinkedProviders:
         healthy = _provider("b", ["g1"])
 
         with pytest.raises(core_exceptions.ProcessingError):
-            refresh_entry_service.sync_linked_providers(7)
+            refresh_entry_service.sync_linked_providers(MOCK_USER_ID)
 
         assert healthy[0] is not None
 
+    def test_a_rate_limited_provider_defers_the_sync_instead_of_failing_it(self):
+        clears = datetime.now(UTC) + timedelta(minutes=10)
+        _provider("a", raises=core_exceptions.TooManyRequestsError("limit", retry_at=clears))
+        healthy = _provider("b", ["g1"])
+
+        with pytest.raises(refresh_entry_service.RefreshDeferredError) as deferred:
+            refresh_entry_service.sync_linked_providers(MOCK_USER_ID)
+
+        assert deferred.value.retry_at == clears
+        assert healthy[0] is not None
+
+    def test_the_sync_waits_for_the_last_limit_to_clear(self):
+        soon = datetime.now(UTC) + timedelta(minutes=5)
+        later = datetime.now(UTC) + timedelta(hours=5)
+        _provider("a", raises=core_exceptions.TooManyRequestsError("limit", retry_at=soon))
+        _provider("b", raises=core_exceptions.TooManyRequestsError("limit", retry_at=later))
+
+        with pytest.raises(refresh_entry_service.RefreshDeferredError) as deferred:
+            refresh_entry_service.sync_linked_providers(MOCK_USER_ID)
+
+        assert deferred.value.retry_at == later
+
+    def test_a_limit_with_no_known_end_waits_for_the_default_deferral(self):
+        _provider("a", raises=core_exceptions.TooManyRequestsError("limit"))
+        before = datetime.now(UTC)
+
+        with pytest.raises(refresh_entry_service.RefreshDeferredError) as deferred:
+            refresh_entry_service.sync_linked_providers(MOCK_USER_ID)
+
+        assert deferred.value.retry_at >= before + refresh_entry_service._DEFAULT_DEFERRAL
+
+    def test_a_real_failure_wins_over_a_deferral_so_the_job_still_retries(self):
+        _provider("a", raises=core_exceptions.TooManyRequestsError("limit", retry_at=datetime.now(UTC)))
+        _provider("b", raises=RuntimeError("provider down"))
+
+        with pytest.raises(core_exceptions.ProcessingError):
+            refresh_entry_service.sync_linked_providers(MOCK_USER_ID)
+
+    def test_a_rate_limit_is_logged_as_a_warning_not_an_error(self):
+        from unittest.mock import patch
+
+        _provider("a", raises=core_exceptions.TooManyRequestsError("limit", retry_at=datetime.now(UTC)))
+
+        with (
+            patch.object(refresh_entry_service.logger, "warning") as warning,
+            patch.object(refresh_entry_service.logger, "error") as error,
+            pytest.raises(refresh_entry_service.RefreshDeferredError),
+        ):
+            refresh_entry_service.sync_linked_providers(MOCK_USER_ID)
+
+        warning.assert_called_once()
+        error.assert_not_called()
+
     def test_no_registered_providers_is_not_an_error(self):
-        assert refresh_entry_service.sync_linked_providers(7) == []
+        assert refresh_entry_service.sync_linked_providers(MOCK_USER_ID) == []
 
     def test_asks_every_provider_for_the_same_default_window(self):
         first = _provider("a")
         second = _provider("b")
 
-        refresh_entry_service.sync_linked_providers(7)
+        refresh_entry_service.sync_linked_providers(MOCK_USER_ID)
 
         assert first[0] == second[0]
         user_id, window_start, window_end = first[0]
-        assert user_id == 7
+        assert user_id == MOCK_USER_ID
         assert window_end - window_start == refresh_entry_service._REFRESH_WINDOW
 
     def test_an_explicit_window_is_passed_through_unchanged(self):
@@ -80,15 +134,15 @@ class TestSyncLinkedProviders:
         start = datetime(2026, 1, 1, tzinfo=UTC)
         end = start + timedelta(days=30)
 
-        refresh_entry_service.sync_linked_providers(7, start, end)
+        refresh_entry_service.sync_linked_providers(MOCK_USER_ID, start, end)
 
-        assert seen == [(7, start, end)]
+        assert seen == [(MOCK_USER_ID, start, end)]
 
     def test_a_named_provider_is_the_only_one_asked(self):
         wanted = _provider("a", ["s1"])
         other = _provider("b", ["g1"])
 
-        assert refresh_entry_service.sync_linked_providers(7, provider="a") == ["s1"]
+        assert refresh_entry_service.sync_linked_providers(MOCK_USER_ID, provider="a") == ["s1"]
         assert len(wanted) == 1
         assert other == []
 
@@ -97,7 +151,7 @@ class TestSyncLinkedProviders:
         _provider("a", ["s1"])
 
         with pytest.raises(core_exceptions.ProcessingError):
-            refresh_entry_service.sync_linked_providers(7, provider="garminconnect")
+            refresh_entry_service.sync_linked_providers(MOCK_USER_ID, provider="garminconnect")
 
 
 class TestRegistry:

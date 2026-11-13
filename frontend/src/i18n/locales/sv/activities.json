@@ -11,7 +11,7 @@
     "subtitle": "Bläddra, filtrera och sortera alla dina aktiviteter.",
     "searchPlaceholder": "Sök på namn eller plats",
     "clearSearch": "Rensa sökning",
-    "resultCount": "{count} aktiviteter",
+    "resultCount": "{count} aktivitet | {count} aktiviteter",
     "filters": {
       "type": "Aktivitetstyp",
       "allTypes": "Alla typer",
@@ -184,10 +184,13 @@
   },
   "edit": {
     "title": "Redigera aktivitet",
+    "loading": "Laddar aktiviteten",
+    "loadError": "Kunde inte ladda aktiviteten",
     "save": "Spara ändringar",
     "cancel": "Avbryt",
     "close": "Stäng",
     "name": "Namn",
+    "nameRequired": "Ange ett namn på aktiviteten",
     "type": "Aktivitetstyp",
     "description": "Beskrivning",
     "privateNotes": "Privata anteckningar",
@@ -208,7 +211,7 @@
     "hideGear": "Dölj utrustning",
     "success": "Aktivitet uppdaterad",
     "error": "Kunde inte uppdatera aktiviteten",
-    "staleError": "This activity was changed elsewhere while you were editing. Your changes were not saved. Reopen it to see the current version."
+    "staleError": "Den här aktiviteten ändrades någon annanstans medan du redigerade den. Dina ändringar sparades inte. Öppna den igen för att se den aktuella versionen."
   },
   "alerts": {
     "hidden": "Den här aktiviteten är dold. Bara du kan se den.",
@@ -242,7 +245,7 @@
     "alpineSki": "Utförsåkning",
     "nordicSki": "Längdskidåkning",
     "snowboard": "Snowboard",
-    "transition": "Transition",
+    "transition": "Övergång",
     "strengthTraining": "Styrketräning",
     "crossfit": "Crossfit",
     "tennis": "Tennis",
@@ -256,7 +259,7 @@
     "mixedSurfaceRide": "Blandad underlagscykling",
     "windsurf": "Windsurf",
     "indoorWalk": "Inomhuspromenad",
-    "standUpPaddling": "Stand-up paddling",
+    "standUpPaddling": "Stand up paddle",
     "surf": "Surfing",
     "trackRun": "Banlopp",
     "ebikeRide": "Elcykling",

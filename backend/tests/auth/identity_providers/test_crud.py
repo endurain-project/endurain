@@ -1,765 +1,279 @@
-"""Tests for identity_providers.crud module."""
+"""Tests for stage-only identity-provider persistence."""
 
-from unittest.mock import MagicMock, patch
+import uuid
+from datetime import UTC, datetime
+from types import SimpleNamespace
+from unittest.mock import patch
 
 import pytest
-from fastapi import HTTPException
-from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy.exc import IntegrityError
 
+import core.etag as core_etag
 import core.exceptions as core_exceptions
-from modules.auth.identity_providers import crud as idp_crud
-from modules.auth.identity_providers.models import IdentityProvider
-from modules.auth.identity_providers.schema import (
-    IdentityProviderCreate,
-    IdentityProviderUpdate,
-)
+import modules.auth.identity_providers.crud as idp_crud
+import modules.auth.identity_providers.models as idp_models
+import modules.auth.identity_providers.schema as idp_schema
+from tests._helpers.db import create_sqlite_session
+
+IDP_ID = uuid.uuid4()
+
+
+def _row(**overrides):
+    values = {
+        "id": IDP_ID,
+        "name": "Provider",
+        "slug": "provider",
+        "provider_type": "oidc",
+        "enabled": True,
+        "client_id": "encrypted-client-id",
+        "client_secret": "encrypted-client-secret",
+        "issuer_url": None,
+        "authorization_endpoint": None,
+        "token_endpoint": None,
+        "userinfo_endpoint": None,
+        "scopes": "openid profile email",
+        "icon": None,
+        "icon_uploaded": False,
+        "auto_create_users": True,
+        "sync_user_info": True,
+        "sync_email": False,
+        "link_by_email": False,
+        "user_mapping": None,
+        "created_at": datetime.now(UTC),
+        "updated_at": datetime.now(UTC),
+        "version": 1,
+    }
+    values.update(overrides)
+    return SimpleNamespace(**values)
 
 
-class TestGetIdentityProvider:
-    """Test suite for get_identity_provider function."""
+def test_get_provider_returns_internal_contract(mock_db):
+    mock_db.execute.return_value.scalar_one_or_none.return_value = _row()
 
-    def test_get_identity_provider_success(self, mock_db):
-        """Test successfully retrieving an identity provider by ID.
+    state = idp_crud.get_identity_provider(IDP_ID, mock_db)
 
-        Args:
-            mock_db: Mocked database session
+    assert state.id == IDP_ID
+    assert state.client_id == "encrypted-client-id"
 
-        Asserts:
-            - Correct database query is executed
-            - Identity provider is returned
-        """
-        # Arrange
-        mock_idp = MagicMock(spec=IdentityProvider)
-        mock_idp.id = 1
-        mock_idp.name = "Test Provider"
-        mock_db.execute.return_value.scalar_one_or_none.return_value = mock_idp
 
-        # Act
-        result = idp_crud.get_identity_provider(1, mock_db)
+def test_create_provider_stages_and_returns_encrypted_state(mock_db):
+    data = idp_schema.IdentityProviderCreate(
+        name="Provider",
+        slug="provider",
+        issuer_url="https://idp.example.com",
+        client_id="client-id",
+        client_secret="client-secret",
+    )
 
-        # Assert
-        assert result == mock_idp
-        mock_db.execute.assert_called_once()
+    def flush():
+        row = mock_db.add.call_args.args[0]
+        row.id = IDP_ID
+        row.created_at = datetime.now(UTC)
+        row.updated_at = datetime.now(UTC)
+        row.version = 1
 
-    def test_get_identity_provider_not_found(self, mock_db):
-        """Test retrieving non-existent identity provider.
+    mock_db.flush.side_effect = flush
 
-        Args:
-            mock_db: Mocked database session
+    state = idp_crud.create_identity_provider(data, mock_db)
 
-        Asserts:
-            - None is returned when provider not found
-        """
-        # Arrange
-        mock_db.execute.return_value.scalar_one_or_none.return_value = None
+    mock_db.add.assert_called_once()
+    mock_db.flush.assert_called_once()
+    mock_db.commit.assert_not_called()
+    assert state.slug == "provider"
+    assert state.client_id != "client-id"
+    assert state.client_secret != "client-secret"
 
-        # Act
-        result = idp_crud.get_identity_provider(999, mock_db)
 
-        # Assert
-        assert result is None
+def test_update_provider_stages_without_committing(mock_db):
+    row = _row()
+    mock_db.execute.return_value.scalar_one_or_none.return_value = row
+    data = idp_schema.IdentityProviderUpdate(
+        name="Updated",
+        slug="updated",
+        client_id="new-client-id",
+    )
 
-    def test_get_identity_provider_database_error(self, mock_db):
-        """Test get_identity_provider handles database errors.
+    state = idp_crud.update_identity_provider(IDP_ID, data, mock_db, if_match='"1"')
 
-        Args:
-            mock_db: Mocked database session
+    assert state.name == "Updated"
+    assert state.slug == "updated"
+    assert state.client_id != "new-client-id"
+    mock_db.flush.assert_called_once()
+    mock_db.commit.assert_not_called()
 
-        Asserts:
-            - HTTPException with 500 status is raised on database error
-        """
-        # Arrange
-        mock_db.execute.side_effect = SQLAlchemyError("Database error")
 
-        # Act & Assert
-        with pytest.raises(core_exceptions.ProcessingError) as exc_info:
-            idp_crud.get_identity_provider(1, mock_db)
+def test_update_provider_without_credentials_keeps_the_stored_ones(mock_db):
+    row = _row()
+    mock_db.execute.return_value.scalar_one_or_none.return_value = row
+    data = idp_schema.IdentityProviderUpdate(name="Updated", slug="updated")
 
-        assert exc_info.value.status_code == 500
-        assert "Database error" in exc_info.value.detail
+    state = idp_crud.update_identity_provider(IDP_ID, data, mock_db, if_match='"1"')
 
+    assert state.client_id == "encrypted-client-id"
+    assert state.client_secret == "encrypted-client-secret"
 
-class TestGetIdentityProviderBySlug:
-    """Test suite for get_identity_provider_by_slug function."""
 
-    def test_get_identity_provider_by_slug_success(self, mock_db):
-        """Test successfully retrieving an identity provider by slug.
+def test_update_provider_checks_the_version_before_mutating(mock_db):
+    import pytest
 
-        Args:
-            mock_db: Mocked database session
+    import core.exceptions as core_exceptions
 
-        Asserts:
-            - Correct database query is executed
-            - Identity provider is returned
-        """
-        # Arrange
-        mock_idp = MagicMock(spec=IdentityProvider)
-        mock_idp.slug = "test-provider"
-        mock_db.execute.return_value.scalar_one_or_none.return_value = mock_idp
+    row = _row(version=2)
+    mock_db.execute.return_value.scalar_one_or_none.return_value = row
+    data = idp_schema.IdentityProviderUpdate(name="Stale", slug="provider")
 
-        # Act
-        result = idp_crud.get_identity_provider_by_slug("test-provider", mock_db)
+    with pytest.raises(core_exceptions.PreconditionFailedError):
+        idp_crud.update_identity_provider(IDP_ID, data, mock_db, if_match='"1"')
 
-        # Assert
-        assert result == mock_idp
-        mock_db.execute.assert_called_once()
+    assert row.name == "Provider"
+    mock_db.flush.assert_not_called()
+    mock_db.commit.assert_not_called()
 
-    def test_get_identity_provider_by_slug_not_found(self, mock_db):
-        """Test retrieving non-existent identity provider by slug.
 
-        Args:
-            mock_db: Mocked database session
+def test_delete_provider_stages_without_committing(mock_db):
+    row = _row()
+    mock_db.execute.return_value.scalar_one_or_none.return_value = row
 
-        Asserts:
-            - None is returned when provider not found
-        """
-        # Arrange
-        mock_db.execute.return_value.scalar_one_or_none.return_value = None
+    deleted = idp_crud.delete_identity_provider(IDP_ID, mock_db, if_match='"1"')
 
-        # Act
-        result = idp_crud.get_identity_provider_by_slug("nonexistent", mock_db)
+    assert deleted is True
+    mock_db.delete.assert_called_once_with(row)
+    mock_db.flush.assert_called_once()
+    mock_db.commit.assert_not_called()
 
-        # Assert
-        assert result is None
 
-    def test_get_identity_provider_by_slug_database_error(self, mock_db):
-        """Test get_identity_provider_by_slug handles database errors.
+def test_delete_provider_checks_the_version_before_deleting(mock_db):
+    import pytest
 
-        Args:
-            mock_db: Mocked database session
+    import core.exceptions as core_exceptions
 
-        Asserts:
-            - HTTPException with 500 status is raised on database error
-        """
-        # Arrange
-        mock_db.execute.side_effect = SQLAlchemyError("Database error")
+    mock_db.execute.return_value.scalar_one_or_none.return_value = _row(version=2)
 
-        # Act & Assert
-        with pytest.raises(core_exceptions.ProcessingError) as exc_info:
-            idp_crud.get_identity_provider_by_slug("test", mock_db)
+    with pytest.raises(core_exceptions.PreconditionFailedError):
+        idp_crud.delete_identity_provider(IDP_ID, mock_db, if_match='"1"')
 
-        assert exc_info.value.status_code == 500
+    mock_db.delete.assert_not_called()
 
 
-class TestGetAllIdentityProviders:
-    """Test suite for get_all_identity_providers function."""
+def test_set_icon_uploaded_flags_the_row_and_returns_its_version(mock_db):
+    row = _row(icon_uploaded=False, version=3)
+    mock_db.execute.return_value.scalar_one_or_none.return_value = row
 
-    def test_get_all_identity_providers_success(self, mock_db):
-        """Test successfully retrieving all identity providers.
+    with patch.object(idp_crud, "flag_modified") as flag_modified:
+        staged = idp_crud.set_icon_uploaded(IDP_ID, True, mock_db)
 
-        Args:
-            mock_db: Mocked database session
+    assert staged == (3, False)
+    assert row.icon_uploaded is True
+    # Re-flagging forces the UPDATE that bumps the version, which is the icon's entity tag.
+    flag_modified.assert_called_once_with(row, "icon_uploaded")
+    mock_db.flush.assert_called_once()
+    mock_db.commit.assert_not_called()
 
-        Asserts:
-            - All providers are returned ordered by name
-        """
-        # Arrange
-        mock_idps = [MagicMock(spec=IdentityProvider) for _ in range(3)]
-        mock_db.execute.return_value.scalars.return_value.all.return_value = mock_idps
 
-        # Act
-        result = idp_crud.get_all_identity_providers(mock_db)
+def test_set_icon_uploaded_on_a_missing_row_is_none(mock_db):
+    mock_db.execute.return_value.scalar_one_or_none.return_value = None
 
-        # Assert
-        assert result == mock_idps
-        assert len(result) == 3
-        mock_db.execute.assert_called_once()
+    assert idp_crud.set_icon_uploaded(IDP_ID, True, mock_db) is None
 
-    def test_get_all_identity_providers_empty(self, mock_db):
-        """Test retrieving all identity providers when none exist.
 
-        Args:
-            mock_db: Mocked database session
-
-        Asserts:
-            - Empty list is returned
-        """
-        # Arrange
-        mock_db.query.return_value.order_by.return_value.all.return_value = []
-
-        # Act
-        result = idp_crud.get_all_identity_providers(mock_db)
-
-        # Assert
-        assert result == []
-
-    def test_get_all_identity_providers_database_error(self, mock_db):
-        """Test get_all_identity_providers handles database errors.
-
-        Args:
-            mock_db: Mocked database session
-
-        Asserts:
-            - HTTPException with 500 status is raised on database error
-        """
-        # Arrange
-        mock_db.execute.side_effect = SQLAlchemyError("Database error")
-
-        # Act & Assert
-        with pytest.raises(core_exceptions.ProcessingError) as exc_info:
-            idp_crud.get_all_identity_providers(mock_db)
-
-        assert exc_info.value.status_code == 500
-
-
-class TestGetEnabledProviders:
-    """Test suite for get_enabled_identity_providers function."""
-
-    def test_get_enabled_providers_success(self, mock_db):
-        """Test successfully retrieving enabled identity providers.
-
-        Args:
-            mock_db: Mocked database session
-
-        Asserts:
-            - Only enabled providers are returned
-            - Results are ordered by name
-        """
-        # Arrange
-        mock_idps = [MagicMock(spec=IdentityProvider) for _ in range(2)]
-        mock_db.execute.return_value.scalars.return_value.all.return_value = mock_idps
-
-        # Act
-        result = idp_crud.get_enabled_identity_providers(mock_db)
-
-        # Assert
-        assert result == mock_idps
-        assert len(result) == 2
-        mock_db.execute.assert_called_once()
-
-    def test_get_enabled_providers_empty(self, mock_db):
-        """Test retrieving enabled providers when none exist.
-
-        Args:
-            mock_db: Mocked database session
-
-        Asserts:
-            - Empty list is returned
-        """
-        # Arrange
-        (mock_db.query.return_value.filter.return_value.order_by.return_value.all.return_value) = []
-
-        # Act
-        result = idp_crud.get_enabled_identity_providers(mock_db)
-
-        # Assert
-        assert result == []
-
-    def test_get_enabled_providers_database_error(self, mock_db):
-        """Test get_enabled_identity_providers handles database errors.
-
-        Args:
-            mock_db: Mocked database session
-
-        Asserts:
-            - HTTPException with 500 status is raised on database error
-        """
-        # Arrange
-        mock_db.execute.side_effect = SQLAlchemyError("Database error")
-
-        # Act & Assert
-        with pytest.raises(core_exceptions.ProcessingError) as exc_info:
-            idp_crud.get_enabled_identity_providers(mock_db)
-
-        assert exc_info.value.status_code == 500
-
-
-class TestGetIdentityProvidersByIds:
-    """Test suite for get_identity_providers_by_ids function."""
-
-    def test_get_identity_providers_by_ids_success(self, mock_db):
-        """Test successfully retrieving multiple identity providers by IDs.
-
-        Args:
-            mock_db: Mocked database session
-
-        Asserts:
-            - All requested providers are returned
-            - Query uses correct filter
-        """
-        # Arrange
-        mock_idps = [
-            MagicMock(spec=IdentityProvider, id=1, name="Provider 1"),
-            MagicMock(spec=IdentityProvider, id=2, name="Provider 2"),
-            MagicMock(spec=IdentityProvider, id=3, name="Provider 3"),
-        ]
-        mock_db.execute.return_value.scalars.return_value.all.return_value = mock_idps
-
-        # Act
-        result = idp_crud.get_identity_providers_by_ids([1, 2, 3], mock_db)
-
-        # Assert
-        assert result == mock_idps
-        assert len(result) == 3
-        mock_db.execute.assert_called_once()
-
-    def test_get_identity_providers_by_ids_empty_list(self, mock_db):
-        """Test behavior when given an empty list of IDs.
-
-        Args:
-            mock_db: Mocked database session
-
-        Asserts:
-            - Empty list is returned without querying database
-        """
-        # Act
-        result = idp_crud.get_identity_providers_by_ids([], mock_db)
-
-        # Assert
-        assert result == []
-        mock_db.query.assert_not_called()
-
-    def test_get_identity_providers_by_ids_partial_results(self, mock_db):
-        """Test retrieving providers when only some IDs exist.
-
-        Args:
-            mock_db: Mocked database session
-
-        Asserts:
-            - Only existing providers are returned
-        """
-        # Arrange
-        mock_idps = [
-            MagicMock(spec=IdentityProvider, id=1),
-            MagicMock(spec=IdentityProvider, id=3),
-        ]
-        mock_db.execute.return_value.scalars.return_value.all.return_value = mock_idps
-
-        # Act
-        result = idp_crud.get_identity_providers_by_ids([1, 2, 3], mock_db)
-
-        # Assert
-        assert result == mock_idps
-        assert len(result) == 2
-
-    def test_get_identity_providers_by_ids_no_results(self, mock_db):
-        """Test retrieving providers when no IDs match.
-
-        Args:
-            mock_db: Mocked database session
-
-        Asserts:
-            - Empty list is returned
-        """
-        # Arrange
-        mock_db.query.return_value.filter.return_value.all.return_value = []
-
-        # Act
-        result = idp_crud.get_identity_providers_by_ids([999, 1000], mock_db)
-
-        # Assert
-        assert result == []
-
-    def test_get_identity_providers_by_ids_database_error(self, mock_db):
-        """Test get_identity_providers_by_ids handles database errors.
-
-        Args:
-            mock_db: Mocked database session
-
-        Asserts:
-            - HTTPException with 500 status is raised on database error
-        """
-        # Arrange
-        mock_db.execute.side_effect = SQLAlchemyError("Database error")
-
-        # Act & Assert
-        with pytest.raises(core_exceptions.ProcessingError) as exc_info:
-            idp_crud.get_identity_providers_by_ids([1, 2, 3], mock_db)
-
-        assert exc_info.value.status_code == 500
-        assert "Database error" in exc_info.value.detail
-
-    def test_get_identity_providers_by_ids_single_id(self, mock_db):
-        """Test retrieving a single provider by ID using batch function.
-
-        Args:
-            mock_db: Mocked database session
-
-        Asserts:
-            - Single provider is returned correctly
-        """
-        # Arrange
-        mock_idp = MagicMock(spec=IdentityProvider, id=1, name="Provider 1")
-        mock_db.execute.return_value.scalars.return_value.all.return_value = [mock_idp]
-
-        # Act
-        result = idp_crud.get_identity_providers_by_ids([1], mock_db)
-
-        # Assert
-        assert result == [mock_idp]
-        assert len(result) == 1
-
-
-class TestCreateIdentityProvider:
-    """Test suite for create_identity_provider function."""
-
-    @patch("modules.auth.identity_providers.crud.idp_models.IdentityProvider")
-    @patch("modules.auth.identity_providers.crud.core_cryptography.encrypt_token_fernet")
-    @patch("modules.auth.identity_providers.crud.get_identity_provider_by_slug")
-    def test_create_identity_provider_success(self, mock_get_by_slug, mock_encrypt, mock_idp_model, mock_db):
-        """Test successfully creating a new identity provider.
-
-        Args:
-            mock_get_by_slug: Mocked get_identity_provider_by_slug function
-            mock_encrypt: Mocked encryption function
-            mock_idp_model: Mocked IdentityProvider model
-            mock_db: Mocked database session
-
-        Asserts:
-            - Identity provider is created with encrypted credentials
-            - Database commit and refresh are called
-        """
-        # Arrange
-        mock_get_by_slug.return_value = None  # No existing provider
-        mock_encrypt.side_effect = lambda x: f"encrypted_{x}"
-
-        mock_idp_instance = MagicMock()
-        mock_idp_instance.id = 1
-        mock_idp_instance.name = "Test Provider"
-        mock_idp_model.return_value = mock_idp_instance
-
-        idp_data = IdentityProviderCreate(
-            name="Test Provider",
-            slug="test-provider",
-            client_id="test-client-id",
-            client_secret="test-secret",
+def test_get_ids_with_icon_returns_only_the_given_providers_that_have_an_uploaded_icon():
+    db = create_sqlite_session()
+    ids = [uuid.uuid4() for _ in range(3)]
+    for idp_id, icon_uploaded in zip(ids, (True, False, True), strict=True):
+        db.add(
+            idp_models.IdentityProvider(
+                id=idp_id,
+                name=f"Provider {idp_id}",
+                slug=f"provider-{idp_id}",
+                provider_type="oidc",
+                icon_uploaded=icon_uploaded,
+            )
         )
+    db.commit()
 
-        # Act
-        result = idp_crud.create_identity_provider(idp_data, mock_db)
+    assert idp_crud.get_ids_with_icon([ids[0], ids[1], uuid.uuid4()], db) == {ids[0]}
+    db.close()
 
-        # Assert
-        mock_get_by_slug.assert_called_once_with("test-provider", mock_db)
-        assert mock_encrypt.call_count == 2  # Called for client_id and client_secret
-        mock_db.add.assert_called_once()
-        mock_db.commit.assert_called_once()
-        mock_db.refresh.assert_called_once()
-        assert result == mock_idp_instance
 
-    @patch("modules.auth.identity_providers.crud.get_identity_provider_by_slug")
-    def test_create_identity_provider_slug_exists(self, mock_get_by_slug, mock_db):
-        """Test creating identity provider with existing slug.
-
-        Args:
-            mock_get_by_slug: Mocked get_identity_provider_by_slug function
-            mock_db: Mocked database session
-
-        Asserts:
-            - HTTPException with 409 status is raised
-            - Error message indicates slug conflict
-        """
-        # Arrange
-        mock_existing = MagicMock(spec=IdentityProvider)
-        mock_get_by_slug.return_value = mock_existing
-
-        idp_data = IdentityProviderCreate(
-            name="Test Provider",
-            slug="existing-slug",
-            client_id="test-client-id",
-            client_secret="test-secret",
+def _db_with_providers():
+    db = create_sqlite_session()
+    for name, enabled in (("Zitadel", True), ("Authelia", False), ("Keycloak", True)):
+        db.add(
+            idp_models.IdentityProvider(
+                id=uuid.uuid4(), name=name, slug=name.lower(), provider_type="oidc", enabled=enabled
+            )
         )
-
-        # Act & Assert
-        with pytest.raises(HTTPException) as exc_info:
-            idp_crud.create_identity_provider(idp_data, mock_db)
-
-        assert exc_info.value.status_code == 409
-        assert "already exists" in str(exc_info.value.detail)
-
-    @patch("modules.auth.identity_providers.crud.core_cryptography.encrypt_token_fernet")
-    @patch("modules.auth.identity_providers.crud.get_identity_provider_by_slug")
-    def test_create_identity_provider_database_error(self, mock_get_by_slug, mock_encrypt, mock_db):
-        """Test create_identity_provider handles database errors.
-
-        Args:
-            mock_get_by_slug: Mocked get_identity_provider_by_slug function
-            mock_encrypt: Mocked encryption function
-            mock_db: Mocked database session
-
-        Asserts:
-            - HTTPException with 500 status is raised
-            - Database rollback is called
-        """
-        # Arrange
-        mock_get_by_slug.return_value = None
-        mock_encrypt.side_effect = lambda x: f"encrypted_{x}"
-        mock_db.commit.side_effect = SQLAlchemyError("Database error")
-
-        idp_data = IdentityProviderCreate(
-            name="Test",
-            slug="test",
-            client_id="client-id",
-            client_secret="secret",
-        )
-
-        # Act & Assert
-        with pytest.raises(core_exceptions.ProcessingError) as exc_info:
-            idp_crud.create_identity_provider(idp_data, mock_db)
-
-        assert exc_info.value.status_code == 500
-        mock_db.rollback.assert_called_once()
+    db.commit()
+    return db
 
 
-class TestUpdateIdentityProvider:
-    """Test suite for update_identity_provider function."""
+def test_providers_page_is_ordered_by_name_and_windowed():
+    db = _db_with_providers()
 
-    @patch("modules.auth.identity_providers.crud.core_cryptography.encrypt_token_fernet")
-    @patch("modules.auth.identity_providers.crud.get_identity_provider_by_slug")
-    @patch("modules.auth.identity_providers.crud.get_identity_provider")
-    def test_update_identity_provider_success(self, mock_get, mock_get_by_slug, mock_encrypt, mock_db):
-        """Test successfully updating an identity provider.
+    first = idp_crud.get_identity_providers_page(db, enabled_only=False, limit=2, offset=0)
+    second = idp_crud.get_identity_providers_page(db, enabled_only=False, limit=2, offset=2)
 
-        Args:
-            mock_get: Mocked get_identity_provider function
-            mock_get_by_slug: Mocked get_identity_provider_by_slug function
-            mock_encrypt: Mocked encryption function
-            mock_db: Mocked database session
-
-        Asserts:
-            - Identity provider is updated
-            - Encrypted fields are encrypted
-            - Database commit and refresh are called
-        """
-        # Arrange
-        mock_idp = MagicMock(spec=IdentityProvider)
-        mock_idp.id = 1
-        mock_idp.slug = "original-slug"
-        mock_get.return_value = mock_idp
-        mock_get_by_slug.return_value = None
-        mock_encrypt.side_effect = lambda x: f"encrypted_{x}"
-
-        idp_data = IdentityProviderUpdate(
-            name="Updated Provider",
-            slug="updated-slug",
-            client_id="new-client-id",
-            client_secret="new-secret",
-        )
-
-        # Act
-        idp_crud.update_identity_provider(1, idp_data, mock_db)
-
-        # Assert
-        mock_get.assert_called_once_with(1, mock_db)
-        mock_get_by_slug.assert_called_once_with("updated-slug", mock_db)
-        assert mock_encrypt.call_count == 2
-        mock_db.commit.assert_called_once()
-        mock_db.refresh.assert_called_once()
-
-    @patch("modules.auth.identity_providers.crud.get_identity_provider")
-    def test_update_identity_provider_not_found(self, mock_get, mock_db):
-        """Test updating non-existent identity provider.
-
-        Args:
-            mock_get: Mocked get_identity_provider function
-            mock_db: Mocked database session
-
-        Asserts:
-            - HTTPException with 404 status is raised
-        """
-        # Arrange
-        mock_get.return_value = None
-        idp_data = IdentityProviderUpdate(name="Updated", slug="updated-slug", client_id="client-123")
-
-        # Act & Assert
-        with pytest.raises(HTTPException) as exc_info:
-            idp_crud.update_identity_provider(999, idp_data, mock_db)
-
-        assert exc_info.value.status_code == 404
-        assert "not found" in str(exc_info.value.detail)
-
-    @patch("modules.auth.identity_providers.crud.get_identity_provider_by_slug")
-    @patch("modules.auth.identity_providers.crud.get_identity_provider")
-    def test_update_identity_provider_slug_conflict(self, mock_get, mock_get_by_slug, mock_db):
-        """Test updating identity provider with conflicting slug.
-
-        Args:
-            mock_get: Mocked get_identity_provider function
-            mock_get_by_slug: Mocked get_identity_provider_by_slug function
-            mock_db: Mocked database session
-
-        Asserts:
-            - HTTPException with 409 status is raised
-        """
-        # Arrange
-        mock_idp = MagicMock(spec=IdentityProvider)
-        mock_idp.slug = "original-slug"
-        mock_get.return_value = mock_idp
-
-        mock_existing = MagicMock(spec=IdentityProvider)
-        mock_existing.slug = "existing-slug"
-        mock_get_by_slug.return_value = mock_existing
-
-        idp_data = IdentityProviderUpdate(name="Test", slug="existing-slug", client_id="client-123")
-
-        # Act & Assert
-        with pytest.raises(HTTPException) as exc_info:
-            idp_crud.update_identity_provider(1, idp_data, mock_db)
-
-        assert exc_info.value.status_code == 409
-        assert "already exists" in str(exc_info.value.detail)
-
-    @patch("modules.auth.identity_providers.crud.core_cryptography.encrypt_token_fernet")
-    @patch("modules.auth.identity_providers.crud.get_identity_provider")
-    def test_update_identity_provider_without_slug_change(self, mock_get, mock_encrypt, mock_db):
-        """Test updating identity provider without changing slug.
-
-        Args:
-            mock_get: Mocked get_identity_provider function
-            mock_encrypt: Mocked encryption function
-            mock_db: Mocked database session
-
-        Asserts:
-            - get_identity_provider_by_slug is not called
-            - Update succeeds
-        """
-        # Arrange
-        mock_idp = MagicMock(spec=IdentityProvider)
-        mock_idp.slug = "test-slug"
-        mock_get.return_value = mock_idp
-        mock_encrypt.side_effect = lambda x: f"encrypted_{x}"
-
-        idp_data = IdentityProviderUpdate(name="Updated Name", slug="test-slug", client_id="client-123")
-
-        # Act
-        idp_crud.update_identity_provider(1, idp_data, mock_db)
-
-        # Assert
-        mock_get.assert_called_once_with(1, mock_db)
-        mock_db.commit.assert_called_once()
-
-    @patch("modules.auth.identity_providers.crud.core_cryptography.encrypt_token_fernet")
-    @patch("modules.auth.identity_providers.crud.get_identity_provider")
-    def test_update_identity_provider_database_error(self, mock_get, mock_encrypt, mock_db):
-        """Test update_identity_provider handles database errors.
-
-        Args:
-            mock_get: Mocked get_identity_provider function
-            mock_encrypt: Mocked encryption function
-            mock_db: Mocked database session
-
-        Asserts:
-            - HTTPException with 500 status is raised
-            - Database rollback is called
-        """
-        # Arrange
-        mock_idp = MagicMock(spec=IdentityProvider)
-        mock_idp.slug = "test-slug"
-        mock_get.return_value = mock_idp
-        mock_encrypt.side_effect = lambda x: f"encrypted_{x}"
-        mock_db.commit.side_effect = SQLAlchemyError("Database error")
-
-        # Use same slug to avoid conflict check
-        idp_data = IdentityProviderUpdate(name="Updated", slug="test-slug", client_id="client-123")
-
-        # Act & Assert
-        with pytest.raises(core_exceptions.ProcessingError) as exc_info:
-            idp_crud.update_identity_provider(1, idp_data, mock_db)
-
-        assert exc_info.value.status_code == 500
+    assert [state.name for state in first] == ["Authelia", "Keycloak"]
+    assert [state.name for state in second] == ["Zitadel"]
+    assert idp_crud.count_identity_providers(db, enabled_only=False) == 3
+    db.close()
 
 
-class TestDeleteIdentityProvider:
-    """Test suite for delete_identity_provider function."""
+def test_enabled_providers_page_leaves_out_disabled_providers():
+    db = _db_with_providers()
 
-    @patch("modules.auth.identity_providers.crud.auth_identity_links_crud.check_user_identity_providers_by_idp_id")
-    @patch("modules.auth.identity_providers.crud.get_identity_provider")
-    def test_delete_identity_provider_success(self, mock_get, mock_check_users, mock_db):
-        """Test successfully deleting an identity provider.
+    page = idp_crud.get_identity_providers_page(db, enabled_only=True, limit=25, offset=0)
 
-        Args:
-            mock_get: Mocked get_identity_provider function
-            mock_check_users: Mocked check for user links
-            mock_db: Mocked database session
+    assert [state.name for state in page] == ["Keycloak", "Zitadel"]
+    assert idp_crud.count_identity_providers(db, enabled_only=True) == 2
+    db.close()
 
-        Asserts:
-            - Identity provider is deleted
-            - Database commit is called
-        """
-        # Arrange
-        mock_idp = MagicMock(spec=IdentityProvider)
-        mock_idp.id = 1
-        mock_idp.name = "Test Provider"
-        mock_get.return_value = mock_idp
-        mock_check_users.return_value = None  # No linked users
 
-        # Act
-        idp_crud.delete_identity_provider(1, mock_db)
+def _provider(slug, issuer):
+    return idp_schema.IdentityProviderCreate(
+        name=slug, slug=slug, client_id="c", client_secret="s", provider_type="oauth2", issuer_url=issuer
+    )
 
-        # Assert
-        mock_get.assert_called_once_with(1, mock_db)
-        mock_check_users.assert_called_once_with(1, mock_db)
-        mock_db.delete.assert_called_once_with(mock_idp)
-        mock_db.commit.assert_called_once()
 
-    @patch("modules.auth.identity_providers.crud.get_identity_provider")
-    def test_delete_identity_provider_not_found(self, mock_get, mock_db):
-        """Test deleting non-existent identity provider.
+@pytest.mark.parametrize("second", ["https://a.example.com", "https://a.example.com/", "https://a.example.com//"])
+def test_create_provider_with_a_shared_issuer_raises_issuer_in_use(second):
+    db = create_sqlite_session()
+    try:
+        idp_crud.create_identity_provider(_provider("one", "https://a.example.com/"), db)
+        with pytest.raises(core_exceptions.IssuerInUseError):
+            idp_crud.create_identity_provider(_provider("two", second), db)
+        assert [row.slug for row in db.query(idp_models.IdentityProvider)] == ["one"]
+    finally:
+        db.close()
 
-        Args:
-            mock_get: Mocked get_identity_provider function
-            mock_db: Mocked database session
 
-        Asserts:
-            - HTTPException with 404 status is raised
-        """
-        # Arrange
-        mock_get.return_value = None
+def test_update_provider_to_a_shared_issuer_raises_issuer_in_use():
+    db = create_sqlite_session()
+    try:
+        idp_crud.create_identity_provider(_provider("one", "https://a.example.com"), db)
+        other = idp_crud.create_identity_provider(_provider("two", "https://b.example.com"), db)
+        data = idp_schema.IdentityProviderUpdate(name="two", slug="two", issuer_url="https://a.example.com/")
+        with pytest.raises(core_exceptions.IssuerInUseError):
+            idp_crud.update_identity_provider(other.id, data, db, if_match=core_etag.format_etag(other.version))
+    finally:
+        db.close()
 
-        # Act & Assert
-        with pytest.raises(HTTPException) as exc_info:
-            idp_crud.delete_identity_provider(999, mock_db)
 
-        assert exc_info.value.status_code == 404
-        assert "not found" in str(exc_info.value.detail)
+def test_providers_without_an_issuer_do_not_conflict():
+    db = create_sqlite_session()
+    try:
+        idp_crud.create_identity_provider(_provider("one", None), db)
+        idp_crud.create_identity_provider(_provider("two", None), db)
+        assert db.query(idp_models.IdentityProvider).count() == 2
+    finally:
+        db.close()
 
-    @patch("modules.auth.identity_providers.crud.auth_identity_links_crud.check_user_identity_providers_by_idp_id")
-    @patch("modules.auth.identity_providers.crud.get_identity_provider")
-    def test_delete_identity_provider_with_linked_users(self, mock_get, mock_check_users, mock_db):
-        """Test deleting identity provider with linked users.
 
-        Args:
-            mock_get: Mocked get_identity_provider function
-            mock_check_users: Mocked check for user links
-            mock_db: Mocked database session
-
-        Asserts:
-            - HTTPException with 409 status is raised
-            - Error message indicates linked users
-        """
-        # Arrange
-        mock_idp = MagicMock(spec=IdentityProvider)
-        mock_get.return_value = mock_idp
-        mock_check_users.return_value = True  # Has linked users
-
-        # Act & Assert
-        with pytest.raises(HTTPException) as exc_info:
-            idp_crud.delete_identity_provider(1, mock_db)
-
-        assert exc_info.value.status_code == 409
-        assert "linked users" in str(exc_info.value.detail)
-
-    @patch("modules.auth.identity_providers.crud.auth_identity_links_crud.check_user_identity_providers_by_idp_id")
-    @patch("modules.auth.identity_providers.crud.get_identity_provider")
-    def test_delete_identity_provider_database_error(self, mock_get, mock_check_users, mock_db):
-        """Test delete_identity_provider handles database errors.
-
-        Args:
-            mock_get: Mocked get_identity_provider function
-            mock_check_users: Mocked check for user links
-            mock_db: Mocked database session
-
-        Asserts:
-            - HTTPException with 500 status is raised
-            - Database rollback is called
-        """
-        # Arrange
-        mock_idp = MagicMock(spec=IdentityProvider)
-        mock_get.return_value = mock_idp
-        mock_check_users.return_value = None
-        mock_db.delete.side_effect = SQLAlchemyError("Database error")
-
-        # Act & Assert
-        with pytest.raises(core_exceptions.ProcessingError) as exc_info:
-            idp_crud.delete_identity_provider(1, mock_db)
-
-        assert exc_info.value.status_code == 500
+def test_another_integrity_error_is_not_reported_as_a_shared_issuer():
+    db = create_sqlite_session()
+    try:
+        idp_crud.create_identity_provider(_provider("one", "https://a.example.com"), db)
+        with pytest.raises(IntegrityError):
+            idp_crud.create_identity_provider(_provider("one", "https://b.example.com"), db)
+    finally:
+        db.close()

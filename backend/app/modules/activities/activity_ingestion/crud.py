@@ -4,13 +4,14 @@ Pure persistence: staging, parsing and executor choice live in ``service``,
 so this module never touches the filesystem and never publishes events.
 """
 
-from collections.abc import Sequence
+import uuid
+from collections.abc import Collection, Sequence
 from datetime import UTC, datetime, timedelta
-from typing import Any, cast
 
-from sqlalchemy import CursorResult, delete, func, or_, select, update
+from sqlalchemy import and_, delete, func, or_, select, tuple_, update
 from sqlalchemy.orm import Session
 
+import core.database as core_database
 import modules.activities.activity_ingestion.constants as activity_ingestion_constants
 import modules.activities.activity_ingestion.contracts as activity_ingestion_contracts
 import modules.activities.activity_ingestion.models as activity_ingestion_models
@@ -18,7 +19,7 @@ import modules.activities.activity_ingestion.schema as activity_ingestion_schema
 import modules.activities.activity_ingestion.serializers as activity_ingestion_serializers
 
 
-def _get_open_job_for_update(job_id: str, db: Session) -> activity_ingestion_models.ActivityIngestionJob | None:
+def _get_open_job_for_update(job_id: uuid.UUID, db: Session) -> activity_ingestion_models.ActivityIngestionJob | None:
     """Load a job row under a row lock, unless it is unknown or already terminal.
 
     The lock serializes concurrent writers of the same job across processes, and
@@ -40,8 +41,8 @@ def _get_open_job_for_update(job_id: str, db: Session) -> activity_ingestion_mod
 
 
 def create_ingestion_job(
-    job_id: str,
-    user_id: int,
+    job_id: uuid.UUID,
+    user_id: uuid.UUID,
     kind: activity_ingestion_constants.IngestionJobKind,
     db: Session,
     *,
@@ -58,7 +59,7 @@ def create_ingestion_job(
     """Stage an accepted ingestion request in the pending state (not committed).
 
     Args:
-        job_id: Caller-generated job identifier (UUIDv4 string).
+        job_id: Caller-generated job identifier (UUIDv4).
         user_id: Owner of the request.
         kind: Whether this job imports an upload or syncs from providers.
         db: Database session.
@@ -107,8 +108,8 @@ def create_ingestion_job(
 
 
 def get_ingestion_job(
-    job_id: str,
-    user_id: int,
+    job_id: uuid.UUID,
+    user_id: uuid.UUID,
     db: Session,
 ) -> activity_ingestion_schema.ActivityIngestionJobRead | None:
     """Retrieve one ingestion job belonging to a user.
@@ -133,7 +134,38 @@ def get_ingestion_job(
     return activity_ingestion_serializers.to_read_schema(orm_job) if orm_job else None
 
 
-def get_job_work_item(job_id: str, db: Session) -> tuple[int, str] | None:
+def list_ingestion_jobs(
+    user_id: uuid.UUID,
+    kinds: Collection[activity_ingestion_constants.IngestionJobKind],
+    statuses: Collection[activity_ingestion_constants.IngestionJobStatus] | None,
+    before: tuple[datetime, uuid.UUID] | None,
+    limit: int,
+    db: Session,
+) -> list[activity_ingestion_schema.ActivityIngestionJobRead]:
+    """List a user's ingestion jobs newest first, by ``(created_at, id)``.
+
+    Args:
+        user_id: The owner.
+        kinds: Only jobs of these kinds.
+        statuses: Only jobs in these stored statuses, or ``None`` for any.
+        before: Only jobs strictly older than this ``(created_at, id)`` position, or ``None`` from the newest.
+        limit: The most jobs to return.
+        db: Database session.
+
+    Returns:
+        The jobs, at most ``limit``.
+    """
+    model = activity_ingestion_models.ActivityIngestionJob
+    stmt = select(model).where(model.user_id == user_id, model.kind.in_([kind.value for kind in kinds]))
+    if statuses is not None:
+        stmt = stmt.where(model.status.in_([status.value for status in statuses]))
+    if before is not None:
+        stmt = stmt.where(tuple_(model.created_at, model.id) < before)
+    stmt = stmt.order_by(model.created_at.desc(), model.id.desc()).limit(limit)
+    return [activity_ingestion_serializers.to_read_schema(orm_job) for orm_job in db.scalars(stmt)]
+
+
+def get_job_work_item(job_id: uuid.UUID, db: Session) -> tuple[uuid.UUID, str] | None:
     """Read the owner and staged key of a job, for the background executor.
 
     Not user-scoped, unlike :func:`get_ingestion_job`: the caller here is the
@@ -157,7 +189,7 @@ def get_job_work_item(job_id: str, db: Session) -> tuple[int, str] | None:
 
 def get_job_for_idempotency(
     idempotency_key: str,
-    user_id: int,
+    user_id: uuid.UUID,
     kind: activity_ingestion_constants.IngestionJobKind,
     db: Session,
 ) -> tuple[activity_ingestion_schema.ActivityIngestionJobRead, str | None] | None:
@@ -190,7 +222,7 @@ def get_job_for_idempotency(
     return (activity_ingestion_serializers.to_read_schema(orm_job), orm_job.request_fingerprint) if orm_job else None
 
 
-def release_idempotency_key(job_id: str, db: Session) -> None:
+def release_idempotency_key(job_id: uuid.UUID, db: Session) -> None:
     """Stage freeing a job's idempotency key so a new request can use it (not committed).
 
     The job row stays, so its history is intact; only the key (and the fingerprint
@@ -205,7 +237,7 @@ def release_idempotency_key(job_id: str, db: Session) -> None:
     db.flush()
 
 
-def get_job_owner(job_id: str, db: Session) -> int | None:
+def get_job_owner(job_id: uuid.UUID, db: Session) -> uuid.UUID | None:
     """Read the owner of a job, for the background executor.
 
     Not user-scoped, unlike :func:`get_ingestion_job`: the caller is the worker
@@ -224,7 +256,9 @@ def get_job_owner(job_id: str, db: Session) -> int | None:
     return orm_job.user_id if orm_job else None
 
 
-def get_refresh_scope(job_id: str, db: Session) -> tuple[int, str | None, datetime | None, datetime | None] | None:
+def get_refresh_scope(
+    job_id: uuid.UUID, db: Session
+) -> tuple[uuid.UUID, str | None, datetime | None, datetime | None] | None:
     """Read what a refresh job was asked to sync, for the background executor.
 
     Not user-scoped, for the same reason as :func:`get_job_owner`: the owner and
@@ -245,7 +279,7 @@ def get_refresh_scope(job_id: str, db: Session) -> tuple[int, str | None, dateti
     return orm_job.user_id, orm_job.provider, orm_job.window_start, orm_job.window_end
 
 
-def get_user_ids_with_active_refresh(user_ids: Sequence[int], db: Session) -> set[int]:
+def get_user_ids_with_active_refresh(user_ids: Sequence[uuid.UUID], db: Session) -> set[uuid.UUID]:
     """Return which of the given users already have a refresh queued or running.
 
     Lets the scheduled fan-out skip a user whose previous refresh has not finished
@@ -256,7 +290,7 @@ def get_user_ids_with_active_refresh(user_ids: Sequence[int], db: Session) -> se
         db: Database session.
 
     Returns:
-        The subset with a pending or processing refresh job.
+        The subset with a pending, processing or deferred refresh job.
     """
     if not user_ids:
         return set()
@@ -269,7 +303,7 @@ def get_user_ids_with_active_refresh(user_ids: Sequence[int], db: Session) -> se
     return set(db.scalars(stmt).all())
 
 
-def get_active_bulk_import_job_id(user_id: int, db: Session) -> str | None:
+def get_active_bulk_import_job_id(user_id: uuid.UUID, db: Session) -> uuid.UUID | None:
     """Return the id of the user's bulk import that has not finished, if any.
 
     Args:
@@ -288,7 +322,7 @@ def get_active_bulk_import_job_id(user_id: int, db: Session) -> str | None:
     return db.scalars(stmt).first()
 
 
-def get_bulk_import_state(job_id: str, db: Session) -> activity_ingestion_contracts.BulkImportState | None:
+def get_bulk_import_state(job_id: uuid.UUID, db: Session) -> activity_ingestion_contracts.BulkImportState | None:
     """Read a bulk-import job's resume state, for the background executor.
 
     Not user-scoped, for the same reason as :func:`get_job_owner`.
@@ -316,7 +350,7 @@ def get_bulk_import_state(job_id: str, db: Session) -> activity_ingestion_contra
     )
 
 
-def attach_bulk_archive(job_id: str, staged_key: str, files_total: int, db: Session) -> None:
+def attach_bulk_archive(job_id: uuid.UUID, staged_key: str, files_total: int, db: Session) -> bool:
     """Stage recording the archive a bulk import will read (not committed).
 
     Args:
@@ -324,18 +358,36 @@ def attach_bulk_archive(job_id: str, staged_key: str, files_total: int, db: Sess
         staged_key: Storage key of the staged archive.
         files_total: Importable files it holds.
         db: Database session.
+
+    Returns:
+        True when the archive was attached; False when the job is gone or already terminal (the
+        stale-job reaper closed it while its folder was being packed), so nothing will read the archive.
     """
-    orm_job = db.get(activity_ingestion_models.ActivityIngestionJob, job_id)
+    orm_job = _get_open_job_for_update(job_id, db)
     if orm_job is None:
-        return
+        return False
     orm_job.staged_key = staged_key
     orm_job.files_total = files_total
     orm_job.updated_at = func.now()
     db.flush()
+    return True
+
+
+def touch_job(job_id: uuid.UUID, db: Session) -> None:
+    """Stage a sign of life on a job that has not finished (not committed).
+
+    Args:
+        job_id: The job identifier.
+        db: Database session.
+    """
+    orm_job = _get_open_job_for_update(job_id, db)
+    if orm_job is not None:
+        orm_job.updated_at = func.now()
+        db.flush()
 
 
 def record_bulk_progress(
-    job_id: str,
+    job_id: uuid.UUID,
     cursor: str | None,
     files_done: int,
     files_failed: int,
@@ -369,7 +421,7 @@ def record_bulk_progress(
     db.flush()
 
 
-def mark_bulk_completed(job_id: str, cursor: str | None, files_done: int, files_failed: int, db: Session) -> None:
+def mark_bulk_completed(job_id: uuid.UUID, cursor: str | None, files_done: int, files_failed: int, db: Session) -> None:
     """Stage a bulk import as finished (not committed).
 
     A finished import with failed files is still ``completed``: the counters say
@@ -397,7 +449,7 @@ def mark_bulk_completed(job_id: str, cursor: str | None, files_done: int, files_
     db.flush()
 
 
-def mark_processing(job_id: str, db: Session, *, lease: timedelta) -> bool:
+def mark_processing(job_id: uuid.UUID, db: Session, *, lease: timedelta) -> bool:
     """Stage the claim of a job for execution (not committed).
 
     One conditional ``UPDATE``, so of two concurrent deliveries of the same job
@@ -435,12 +487,12 @@ def mark_processing(job_id: str, db: Session, *, lease: timedelta) -> bool:
             updated_at=func.now(),
         )
     )
-    result = cast("CursorResult[Any]", db.execute(stmt))
+    matched = core_database.rowcount(db, stmt)
     db.flush()
-    return result.rowcount == 1
+    return matched == 1
 
 
-def release_job(job_id: str, db: Session) -> None:
+def release_job(job_id: uuid.UUID, db: Session) -> None:
     """Stage returning a claimed job to ``pending`` so a retry can claim it (not committed).
 
     Args:
@@ -461,7 +513,68 @@ def release_job(job_id: str, db: Session) -> None:
     db.flush()
 
 
-def mark_completed(job_id: str, activity_ids: list[int], db: Session) -> None:
+def mark_deferred(job_id: uuid.UUID, retry_after: datetime, db: Session) -> None:
+    """Stage a claimed refresh waiting until a provider's rate limit clears (not committed).
+
+    Args:
+        job_id: The job identifier.
+        retry_after: When the refresh may run again.
+        db: Database session.
+    """
+    model = activity_ingestion_models.ActivityIngestionJob
+    stmt = (
+        update(model)
+        .where(
+            model.id == job_id,
+            model.completed_at.is_(None),
+            model.status == activity_ingestion_constants.IngestionJobStatus.PROCESSING.value,
+        )
+        .values(
+            status=activity_ingestion_constants.IngestionJobStatus.DEFERRED.value,
+            retry_after=retry_after,
+            updated_at=func.now(),
+        )
+    )
+    db.execute(stmt)
+    db.flush()
+
+
+def release_due_deferred_jobs(limit: int, db: Session) -> list[tuple[uuid.UUID, uuid.UUID]]:
+    """Stage returning deferred refreshes whose wait is over to ``pending`` (not committed).
+
+    The due test uses the database clock, like :func:`mark_processing`, so replicas with skewed
+    clocks agree on what is due. Rows another replica is releasing right now are skipped.
+
+    Args:
+        limit: The most jobs to release in one call.
+        db: Database session.
+
+    Returns:
+        ``(job id, user id)`` for each job released, oldest wait first.
+    """
+    model = activity_ingestion_models.ActivityIngestionJob
+    stmt = (
+        select(model)
+        .where(
+            model.status == activity_ingestion_constants.IngestionJobStatus.DEFERRED.value,
+            model.completed_at.is_(None),
+            model.retry_after <= func.now(),
+        )
+        .order_by(model.retry_after)
+        .limit(limit)
+        .with_for_update(skip_locked=True)
+    )
+    released: list[tuple[uuid.UUID, uuid.UUID]] = []
+    for orm_job in db.scalars(stmt).all():
+        orm_job.status = activity_ingestion_constants.IngestionJobStatus.PENDING.value
+        orm_job.retry_after = None
+        orm_job.updated_at = datetime.now(UTC)
+        released.append((orm_job.id, orm_job.user_id))
+    db.flush()
+    return released
+
+
+def mark_completed(job_id: uuid.UUID, activity_ids: list[uuid.UUID], db: Session) -> None:
     """Stage a move of a job to the completed state and record what it created.
 
     Args:
@@ -474,7 +587,7 @@ def mark_completed(job_id: str, activity_ids: list[int], db: Session) -> None:
         return
     now = datetime.now(UTC)
     orm_job.status = activity_ingestion_constants.IngestionJobStatus.COMPLETED.value
-    orm_job.activity_ids = activity_ids
+    orm_job.activity_ids = [str(activity_id) for activity_id in activity_ids]
     orm_job.error_code = None
     orm_job.staged_key = None
     orm_job.updated_at = now
@@ -496,54 +609,117 @@ def _fail(
 
 
 def mark_failed(
-    job_id: str,
+    job_id: uuid.UUID,
     error_code: activity_ingestion_constants.IngestionJobErrorCode,
     db: Session,
-) -> None:
+) -> tuple[uuid.UUID, activity_ingestion_constants.IngestionJobKind] | None:
     """Stage a move of a job to the failed state with a sanitized reason.
 
     Args:
         job_id: The job identifier.
         error_code: Sanitized failure reason shown to the owner.
         db: Database session.
+
+    Returns:
+        The owner's user id and the job's kind, or ``None`` when the job is unknown or already terminal
+        (nothing changed).
     """
     orm_job = _get_open_job_for_update(job_id, db)
     if orm_job is None:
-        return
+        return None
     _fail(orm_job, error_code, datetime.now(UTC))
     db.flush()
+    return orm_job.user_id, activity_ingestion_constants.IngestionJobKind(orm_job.kind)
 
 
 def fail_jobs_idle_since(
     cutoff: datetime,
     error_code: activity_ingestion_constants.IngestionJobErrorCode,
+    limit: int,
     db: Session,
-) -> list[tuple[str, str | None]]:
-    """Stage the failure of non-terminal jobs that have not changed state since a cutoff.
+    *,
+    unstaged_bulk_cutoff: datetime | None = None,
+) -> list[tuple[uuid.UUID, str | None]]:
+    """Stage the failure of up to ``limit`` non-terminal jobs that have not changed state since a cutoff.
 
     Args:
-        cutoff: Pending or processing jobs last updated before this are failed.
+        cutoff: Pending or processing jobs last updated before this are failed; deferred ones are not.
         error_code: Sanitized failure reason shown to the owner.
+        limit: The most jobs to fail in one call; a failed job no longer matches, so the caller repeats
+            until fewer than ``limit`` come back.
         db: Database session.
+        unstaged_bulk_cutoff: A bulk import still packing its folder (no staged archive yet) is failed
+            when last updated before this, which may be later than ``cutoff``: the packing node
+            touches the job while it works, so a quiet one has been lost.
 
     Returns:
         ``(job id, staged key)`` for each failed job; the key is the staged upload
         the job still held, or ``None``.
     """
+    # A deferred refresh is waiting on purpose, possibly for a day, so it is not idle.
     stmt = select(activity_ingestion_models.ActivityIngestionJob).where(
         activity_ingestion_models.ActivityIngestionJob.completed_at.is_(None),
-        activity_ingestion_models.ActivityIngestionJob.updated_at < cutoff,
+        activity_ingestion_models.ActivityIngestionJob.status
+        != activity_ingestion_constants.IngestionJobStatus.DEFERRED.value,
     )
+    idle = activity_ingestion_models.ActivityIngestionJob.updated_at < cutoff
+    if unstaged_bulk_cutoff is not None:
+        idle = or_(
+            idle,
+            and_(
+                activity_ingestion_models.ActivityIngestionJob.kind
+                == activity_ingestion_constants.IngestionJobKind.BULK_IMPORT.value,
+                activity_ingestion_models.ActivityIngestionJob.staged_key.is_(None),
+                activity_ingestion_models.ActivityIngestionJob.updated_at < unstaged_bulk_cutoff,
+            ),
+        )
+    stmt = stmt.where(idle)
     # Rows a worker is writing right now are skipped: they are not idle, and
     # failing them would overwrite the outcome the worker is about to commit.
-    stmt = stmt.with_for_update(skip_locked=True)
+    stmt = stmt.limit(limit).with_for_update(skip_locked=True)
     now = datetime.now(UTC)
-    failed: list[tuple[str, str | None]] = []
+    failed: list[tuple[uuid.UUID, str | None]] = []
     for orm_job in db.scalars(stmt).all():
         failed.append((orm_job.id, orm_job.staged_key))
         _fail(orm_job, error_code, now)
     db.flush()
     return failed
+
+
+def fail_open_refresh_jobs(error_code: activity_ingestion_constants.IngestionJobErrorCode, db: Session) -> int:
+    """Stage the failure of every refresh that is still pending or processing (not committed).
+
+    A deferred refresh is left alone: it waits in the row, not in a worker's memory.
+
+    Args:
+        error_code: Sanitized failure reason shown to the owner.
+        db: Database session.
+
+    Returns:
+        The number of jobs failed.
+    """
+    model = activity_ingestion_models.ActivityIngestionJob
+    now = datetime.now(UTC)
+    stmt = (
+        update(model)
+        .where(
+            model.kind == activity_ingestion_constants.IngestionJobKind.REFRESH.value,
+            model.completed_at.is_(None),
+            model.status.in_(
+                (
+                    activity_ingestion_constants.IngestionJobStatus.PENDING.value,
+                    activity_ingestion_constants.IngestionJobStatus.PROCESSING.value,
+                )
+            ),
+        )
+        .values(
+            status=activity_ingestion_constants.IngestionJobStatus.FAILED.value,
+            error_code=error_code.value,
+            updated_at=now,
+            completed_at=now,
+        )
+    )
+    return core_database.rowcount(db, stmt)
 
 
 def get_referenced_staged_keys(staged_keys: Sequence[str], db: Session) -> set[str]:
@@ -578,6 +754,6 @@ def delete_jobs_before(cutoff: datetime, db: Session) -> int:
         activity_ingestion_models.ActivityIngestionJob.completed_at.is_not(None),
         activity_ingestion_models.ActivityIngestionJob.completed_at < cutoff,
     )
-    result = cast("CursorResult[Any]", db.execute(stmt))
+    matched = core_database.rowcount(db, stmt)
     db.flush()
-    return result.rowcount
+    return matched

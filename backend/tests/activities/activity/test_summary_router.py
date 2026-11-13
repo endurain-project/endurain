@@ -27,7 +27,7 @@ def stub_user_local_today():
 def stub_user_preferences():
     """Provide the configured week start used by summary buckets."""
     with patch(
-        f"{_SERVICE}.users_integration.get_user",
+        f"{_SERVICE}.users_integration.require_user",
         return_value=SimpleNamespace(first_day_of_week="sunday", timezone="UTC"),
     ) as mock:
         yield mock
@@ -52,7 +52,7 @@ def _build_app(mock_db):
         return 1
 
     app.dependency_overrides[auth_deps.check_scopes] = _mock
-    app.dependency_overrides[auth_deps.get_sub_from_access_token] = _uid
+    app.dependency_overrides[auth_deps.get_current_user_id] = _uid
     app.dependency_overrides[core_db.get_db] = lambda: mock_db
     return app
 
@@ -91,6 +91,13 @@ class TestReadWeeklySummary:
         response = TestClient(_build_app(mock_db)).get(
             "/activities/summaries?period=fortnight",
             headers={"Authorization": "Bearer x"},
+        )
+        assert response.status_code == 422
+
+    @pytest.mark.parametrize("query", ["type=curling", "type=1", "year=1899", "year=10000", "year=abc"])
+    def test_an_unknown_type_and_an_out_of_range_year_are_rejected(self, mock_db, query):
+        response = TestClient(_build_app(mock_db)).get(
+            f"/activities/summaries?period=year&{query}", headers={"Authorization": "Bearer x"}
         )
         assert response.status_code == 422
 

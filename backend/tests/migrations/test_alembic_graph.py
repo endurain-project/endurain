@@ -11,8 +11,8 @@ test run.
 from pathlib import Path
 
 import pytest
-from alembic.config import Config
 from alembic.script import ScriptDirectory
+from tests._helpers import alembic_chain
 
 _APP_DIR = Path(__file__).resolve().parents[2] / "app"
 
@@ -20,10 +20,7 @@ _APP_DIR = Path(__file__).resolve().parents[2] / "app"
 @pytest.fixture(scope="module")
 def script_directory() -> ScriptDirectory:
     """Load the Alembic revision graph from the app's alembic.ini."""
-    config = Config(str(_APP_DIR / "alembic.ini"))
-    # script_location is relative to the app dir, not to pytest's cwd.
-    config.set_main_option("script_location", str(_APP_DIR / "alembic"))
-    return ScriptDirectory.from_config(config)
+    return alembic_chain.script_directory()
 
 
 def test_revision_graph_has_exactly_one_head(script_directory: ScriptDirectory) -> None:
@@ -33,6 +30,15 @@ def test_revision_graph_has_exactly_one_head(script_directory: ScriptDirectory) 
         "A new revision must chain onto the current head — check that its "
         "down_revision is the head of the ACTIVE release directory, not a closed one."
     )
+
+
+def test_the_head_is_revision_92() -> None:
+    assert alembic_chain.script_directory().get_heads() == ["1087a5442836"]
+
+
+def test_the_v0_21_chain_starts_from_the_v0_20_head() -> None:
+    script = alembic_chain.script_directory()
+    assert script.get_revision("c5cfe02a11c2").down_revision == alembic_chain.V0_20_HEAD
 
 
 def test_every_down_revision_resolves(script_directory: ScriptDirectory) -> None:
@@ -61,3 +67,5 @@ def test_registered_data_migration_ids_are_unique() -> None:
                 f"Data migration id {migration_id} is registered twice: {seen[migration_id].name} and {path.name}"
             )
             seen[migration_id] = path
+    assert "11" in seen, "Migration 11 must be registered by an Alembic revision"
+    assert "12" in seen, "Migration 12 must be registered by an Alembic revision"

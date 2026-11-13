@@ -1,63 +1,40 @@
 """Gear database models."""
 
-from datetime import datetime as datetime_type
+import uuid
+from datetime import date
 from decimal import Decimal
-from typing import TYPE_CHECKING
 
-from sqlalchemy import DateTime, ForeignKey, Numeric, String
-from sqlalchemy.orm import Mapped, mapped_column, relationship
+from sqlalchemy import Date, ForeignKey, Index, Numeric, String, UniqueConstraint
+from sqlalchemy.orm import Mapped, mapped_column
 from sqlalchemy.sql import func
 
+import core.sync as core_sync
 from core.database import Base
 
-if TYPE_CHECKING:
-    from modules.gears.gear_components.models import GearComponents
-    from modules.users.users.models import Users
-    from modules.users.users_default_gear.models import UsersDefaultGear
 
-
-class Gear(Base):
-    """
-    Gear data model.
+class Gear(core_sync.UpdatedAtMixin, Base):
+    """Gear data model.
 
     Attributes:
-        id: Primary key.
+        id: Primary key, a random UUID.
         brand: Gear brand name.
         model: Gear model name.
         nickname: Gear nickname.
         gear_type: Gear type identifier.
         user_id: Foreign key to users table.
-        created_at: Gear creation timestamp.
+        acquired_on: Date the user acquired the gear.
         active: Whether the gear is active.
-        initial_kms: Initial kilometers.
+        initial_distance: Distance the gear had before it was tracked, in meters.
         purchase_value: Gear purchase value.
         strava_gear_id: Strava gear ID.
         garminconnect_gear_id: Garmin gear ID.
-        users: Relationship to Users model.
-        gear_components: Components relationship.
-        users_default_run_gear: Default run gear.
-        users_default_trail_run_gear: Trail run.
-        users_default_virtual_run_gear: Virtual run.
-        users_default_ride_gear: Default ride.
-        users_default_gravel_ride_gear: Gravel ride.
-        users_default_mtb_ride_gear: MTB ride.
-        users_default_virtual_ride_gear: Virtual ride.
-        users_default_ows_gear: Open water swim.
-        users_default_walk_gear: Default walk gear.
-        users_default_hike_gear: Default hike gear.
-        users_default_tennis_gear: Tennis gear.
-        users_default_alpine_ski_gear: Alpine ski.
-        users_default_nordic_ski_gear: Nordic ski.
-        users_default_snowboard_gear: Snowboard.
-        users_default_windsurf_gear: Windsurf.
+        version: Optimistic-concurrency counter.
+        updated_at: When the gear last changed.
     """
 
     __tablename__ = "gear"
 
-    id: Mapped[int] = mapped_column(
-        primary_key=True,
-        autoincrement=True,
-    )
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
     brand: Mapped[str | None] = mapped_column(
         String(250),
         nullable=True,
@@ -70,7 +47,6 @@ class Gear(Base):
     )
     nickname: Mapped[str] = mapped_column(
         String(250),
-        index=True,
         nullable=False,
         comment=("Gear nickname (May include spaces)"),
     )
@@ -84,27 +60,28 @@ class Gear(Base):
             " 8 - water sports board)"
         ),
     )
-    user_id: Mapped[int] = mapped_column(
+    user_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("users.id", ondelete="CASCADE"),
         nullable=False,
         comment=("User ID that the gear belongs to"),
     )
-    created_at: Mapped[datetime_type] = mapped_column(
-        DateTime(timezone=True),
+    acquired_on: Mapped[date] = mapped_column(
+        Date,
         nullable=False,
-        default=func.now(),
-        comment="Gear creation date (DateTime)",
+        default=func.current_date(),
+        server_default=func.current_date(),
+        comment="Date the user acquired the gear (today when not given)",
     )
     active: Mapped[bool] = mapped_column(
         nullable=False,
         default=True,
         comment=("Whether the gear is active (true - yes, false - no)"),
     )
-    initial_kms: Mapped[Decimal] = mapped_column(
-        Numeric(precision=11, scale=2),
+    initial_distance: Mapped[Decimal] = mapped_column(
+        Numeric(precision=14, scale=2),
         nullable=False,
         default=0,
-        comment=("Initial kilometers of the gear"),
+        comment=("Distance of the gear before it was tracked, in meters"),
     )
     purchase_value: Mapped[Decimal | None] = mapped_column(
         Numeric(precision=11, scale=2),
@@ -113,83 +90,49 @@ class Gear(Base):
     )
     strava_gear_id: Mapped[str | None] = mapped_column(
         String(45),
-        unique=True,
         nullable=True,
         comment="Strava gear ID",
     )
     garminconnect_gear_id: Mapped[str | None] = mapped_column(
         String(45),
-        unique=True,
         nullable=True,
         comment="Garmin Connect gear ID",
     )
+    version: Mapped[int] = mapped_column(
+        nullable=False,
+        server_default="1",
+        default=1,
+        comment="Optimistic-concurrency counter, surfaced to clients as the ETag",
+    )
 
-    # Define a relationship to the Users model
-    users: Mapped["Users"] = relationship(back_populates="gear")
-    # Establish a one-to-many relationship with 'gear_components'
-    gear_components: Mapped[list["GearComponents"]] = relationship(
-        back_populates="gear",
-        cascade="all, delete-orphan",
-        foreign_keys="[GearComponents.gear_id]",
+    # SQLAlchemy bumps ``version`` on each ORM flush and adds it to the UPDATE's
+    # WHERE clause, raising StaleDataError when the row moved underneath.
+    __mapper_args__ = {"version_id_col": version}  # noqa: RUF012
+
+    # A provider gear ID is unique per user, never across users.
+    __table_args__ = (
+        UniqueConstraint("user_id", "strava_gear_id", name="uq_gear_user_strava_gear_id"),
+        UniqueConstraint("user_id", "garminconnect_gear_id", name="uq_gear_user_garminconnect_gear_id"),
+        Index("ix_gear_user_id_updated_at_id", "user_id", "updated_at", "id"),
     )
-    # Establish a one-to-many relationship with 'users_default_gear'
-    users_default_run_gear: Mapped[list["UsersDefaultGear"]] = relationship(
-        back_populates="run_gear",
-        foreign_keys="[UsersDefaultGear.run_gear_id]",
-    )
-    users_default_trail_run_gear: Mapped[list["UsersDefaultGear"]] = relationship(
-        back_populates="trail_run_gear",
-        foreign_keys="[UsersDefaultGear.trail_run_gear_id]",
-    )
-    users_default_virtual_run_gear: Mapped[list["UsersDefaultGear"]] = relationship(
-        back_populates="virtual_run_gear",
-        foreign_keys="[UsersDefaultGear.virtual_run_gear_id]",
-    )
-    users_default_ride_gear: Mapped[list["UsersDefaultGear"]] = relationship(
-        back_populates="ride_gear",
-        foreign_keys="[UsersDefaultGear.ride_gear_id]",
-    )
-    users_default_gravel_ride_gear: Mapped[list["UsersDefaultGear"]] = relationship(
-        back_populates="gravel_ride_gear",
-        foreign_keys="[UsersDefaultGear.gravel_ride_gear_id]",
-    )
-    users_default_mtb_ride_gear: Mapped[list["UsersDefaultGear"]] = relationship(
-        back_populates="mtb_ride_gear",
-        foreign_keys="[UsersDefaultGear.mtb_ride_gear_id]",
-    )
-    users_default_virtual_ride_gear: Mapped[list["UsersDefaultGear"]] = relationship(
-        back_populates="virtual_ride_gear",
-        foreign_keys="[UsersDefaultGear.virtual_ride_gear_id]",
-    )
-    users_default_ows_gear: Mapped[list["UsersDefaultGear"]] = relationship(
-        back_populates="ows_gear",
-        foreign_keys="[UsersDefaultGear.ows_gear_id]",
-    )
-    users_default_walk_gear: Mapped[list["UsersDefaultGear"]] = relationship(
-        back_populates="walk_gear",
-        foreign_keys="[UsersDefaultGear.walk_gear_id]",
-    )
-    users_default_hike_gear: Mapped[list["UsersDefaultGear"]] = relationship(
-        back_populates="hike_gear",
-        foreign_keys="[UsersDefaultGear.hike_gear_id]",
-    )
-    users_default_tennis_gear: Mapped[list["UsersDefaultGear"]] = relationship(
-        back_populates="tennis_gear",
-        foreign_keys="[UsersDefaultGear.tennis_gear_id]",
-    )
-    users_default_alpine_ski_gear: Mapped[list["UsersDefaultGear"]] = relationship(
-        back_populates="alpine_ski_gear",
-        foreign_keys="[UsersDefaultGear.alpine_ski_gear_id]",
-    )
-    users_default_nordic_ski_gear: Mapped[list["UsersDefaultGear"]] = relationship(
-        back_populates="nordic_ski_gear",
-        foreign_keys="[UsersDefaultGear.nordic_ski_gear_id]",
-    )
-    users_default_snowboard_gear: Mapped[list["UsersDefaultGear"]] = relationship(
-        back_populates="snowboard_gear",
-        foreign_keys="[UsersDefaultGear.snowboard_gear_id]",
-    )
-    users_default_windsurf_gear: Mapped[list["UsersDefaultGear"]] = relationship(
-        back_populates="windsurf_gear",
-        foreign_keys="[UsersDefaultGear.windsurf_gear_id]",
-    )
+
+
+#: One nickname per user, compared case-insensitively like the nickname lookup.
+Index("uq_gear_user_nickname", Gear.user_id, func.lower(Gear.nickname), unique=True)
+
+
+class GearDeletion(core_sync.TombstoneMixin, Base):
+    """Tombstone of a deleted gear, read by incremental sync.
+
+    Attributes:
+        id: Primary key, a random UUID.
+        user_id: Owner of the deleted gear.
+        record_id: The id the gear had.
+        deleted_at: When the gear was deleted.
+    """
+
+    __tablename__ = "gear_deletions"
+
+    __table_args__ = (Index("ix_gear_deletions_user_id_deleted_at_id", "user_id", "deleted_at", "id"),)
+
+    record_id: Mapped[uuid.UUID] = mapped_column(nullable=False, comment="The id the deleted record had")

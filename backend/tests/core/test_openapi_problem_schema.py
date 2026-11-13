@@ -8,18 +8,17 @@ RFC 9457 handlers were installed.
 
 import json
 
-from fastapi import FastAPI, Query
+from fastapi import Query
 
 import core.problem_details as core_problem_details
 
 
-def _schema_of(app: FastAPI) -> dict:
-    core_problem_details.install_problem_schema(app)
+def _schema_of(app: core_problem_details.ProblemDetailsFastAPI) -> dict:
     return app.openapi()
 
 
-def _app_with_validated_route() -> FastAPI:
-    app = FastAPI()
+def _app_with_validated_route() -> core_problem_details.ProblemDetailsFastAPI:
+    app = core_problem_details.ProblemDetailsFastAPI()
 
     @app.get("/thing")
     def _thing(count: int = Query()):
@@ -47,6 +46,13 @@ class TestErrorResponsesAreProblemDocuments:
         assert response["content"][core_problem_details.PROBLEM_CONTENT_TYPE]["schema"] == {
             "$ref": "#/components/schemas/ProblemDetail"
         }
+
+    def test_the_field_error_schema_is_a_component_the_problem_detail_references(self):
+        """A nested ``$defs`` entry would leave the ``$ref`` to it unresolvable for the generated client."""
+        schemas = _schema_of(_app_with_validated_route())["components"]["schemas"]
+
+        assert "FieldError" in schemas
+        assert "$defs" not in schemas["ProblemDetail"]
 
     def test_superseded_schemas_are_removed(self):
         """Left behind they would generate dead types in the frontend client."""

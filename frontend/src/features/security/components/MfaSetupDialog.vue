@@ -3,21 +3,27 @@ import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { LoaderCircle } from '@lucide/vue'
 
-import type { MfaSetup } from '@/features/security/types'
+import type { IdpReauth, MfaSetup } from '@/features/security/types'
 
+import IdpStepUpSection from '@/features/security/components/IdpStepUpSection.vue'
 import PasswordInput from '@/features/security/components/PasswordInput.vue'
 import { FormDialog } from '@/components/ui/form-dialog'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { Switch } from '@/components/ui/switch'
 import {
   useEnableMfaMutation,
   useSetupMfaMutation,
 } from '@/features/security/composables/useSecurity'
 
 const open = defineModel<boolean>('open', { required: true })
+// The identity-provider sign-in proof, used when the account has no password.
+const reauth = defineModel<IdpReauth | null>('reauth', { default: null })
+// Whether enabling MFA signs out the other devices; the parent keeps it across the identity-provider round-trip.
+const revokeOtherSessions = defineModel<boolean>('revokeOtherSessions', { default: true })
 
 const props = defineProps<{
-  /** Whether a step-up password is required (the account has a local password). */
+  /** Whether a step-up password is required; when not, the account signs in again with its identity provider. */
   requirePassword: boolean
 }>()
 
@@ -45,12 +51,18 @@ const canSubmit = computed(
 )
 
 // Begin enrolment when the dialog opens (fetch the secret + QR), and reset on
-// close. A setup failure closes the dialog with an error toast.
-watch(open, async (isOpen) => {
+// close. An account without a password signs in again with its identity
+// provider first, so enrolment starts once that sign-in has returned. A setup
+// failure closes the dialog with an error toast.
+watch([open, reauth], async ([isOpen, proof]) => {
   if (!isOpen) {
     setup.value = null
     code.value = ''
     password.value = ''
+    return
+  }
+  if (!props.requirePassword && !proof) {
+    setup.value = null
     return
   }
   setup.value = null
@@ -69,8 +81,10 @@ async function onSubmit(): Promise<void> {
   }
   try {
     const codes = await enableMutation.mutateAsync({
-      mfaCode: code.value.trim(),
+      mfaCode: code.value.replace(/\s+/g, ''),
       currentPassword: props.requirePassword ? password.value : null,
+      idpReauth: props.requirePassword ? null : reauth.value,
+      revokeOtherSessions: revokeOtherSessions.value,
     })
     open.value = false
     emit('enabled', codes)
@@ -93,14 +107,21 @@ async function onSubmit(): Promise<void> {
     @submit="onSubmit"
   >
     <div class="flex flex-col gap-3">
+      <IdpStepUpSection
+        v-if="!requirePassword"
+        v-model:reauth="reauth"
+        action="mfa_enable"
+        :pending-context="{ revokeOtherSessions }"
+        :disabled="enableMutation.isPending.value"
+      />
       <div
-        v-if="setupMutation.isPending.value || !setup"
+        v-if="(requirePassword || reauth) && (setupMutation.isPending.value || !setup)"
         class="flex items-center justify-center py-10"
       >
         <LoaderCircle class="size-6 animate-spin text-muted-foreground" aria-hidden="true" />
       </div>
 
-      <template v-else>
+      <template v-else-if="setup">
         <ol class="flex list-decimal flex-col gap-1.5 pl-5 text-body">
           <li>{{ t('settings.security.mfa.step1') }}</li>
           <li>{{ t('settings.security.mfa.step2') }}</li>
@@ -141,12 +162,17 @@ async function onSubmit(): Promise<void> {
             id="mfa-enable-code"
             v-model="code"
             inputmode="numeric"
+            maxlength="7"
             autocomplete="one-time-code"
             :placeholder="t('settings.security.mfaCodePlaceholder')"
             :disabled="enableMutation.isPending.value"
             class="w-full"
           />
         </div>
+
+        <Switch v-model="revokeOtherSessions" :disabled="enableMutation.isPending.value">
+          {{ t('settings.security.password.revokeOthers') }}
+        </Switch>
       </template>
     </div>
   </FormDialog>

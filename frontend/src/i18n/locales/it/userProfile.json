@@ -82,5 +82,13 @@
       "ownTitle": "Non hai ancora nessun follower.",
       "otherTitle": "Ancora nessun follower."
     }
+  },
+  "block": {
+    "block": "Blocca",
+    "unblock": "Sblocca",
+    "confirmTitle": "Bloccare {name}?",
+    "confirmBody": "{name} non potrà chiederti di seguirti e qualsiasi follow tra voi viene rimosso. L'utente non viene avvisato.",
+    "blockError": "Impossibile bloccare questo utente. Riprova.",
+    "unblockError": "Impossibile sbloccare questo utente. Riprova."
   }
 }

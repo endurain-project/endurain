@@ -5,10 +5,12 @@
   "unread": "Lukematon",
   "markRead": "Merkitse luetuksi",
   "markAllRead": "Merkitse kaikki luetuiksi",
+  "dismiss": "Hylkää ilmoitus",
+  "dismissError": "Ilmoituksen hylkääminen epäonnistui. Yritä uudelleen.",
   "seeAll": "Näytä kaikki",
   "loadMore": "Lataa lisää",
   "loading": "Ladataan…",
-  "badge": "{count} lukematonta ilmoitusta",
+  "badge": "{count} lukematon ilmoitus | {count} lukematonta ilmoitusta",
   "empty": {
     "title": "Olet ajan tasalla",
     "description": "Päivitykset aktiviteeteistasi, seuraajistasi ja integraatioistasi näkyvät täällä."
@@ -39,9 +41,122 @@
       "title": "Garmin Connect vaatii huomiota",
       "body": "Garmin Connect -istuntosi vanheni. Yhdistä se uudelleen jatkaaksesi synkronointia."
     },
+    "stravaTokenExpired": {
+      "title": "Stravan yhteys vaatii huomiotasi",
+      "body": "Strava hylkäsi yhteytesi. Yhdistä se uudelleen, jotta synkronointi jatkuu.",
+      "bodyRevoked": "Stravan käyttöoikeus on päättynyt. Stravan kanssa synkronoidut aktiviteettisi ja varusteesi poistetaan {date}, ellet yhdistä uudelleen."
+    },
+    "stravaDataDeleted": {
+      "title": "Stravan tiedot poistettu",
+      "body": "Stravan kanssa synkronoidut aktiviteettisi ja varusteesi poistettiin, koska Stravan käyttöoikeus päättyi etkä yhdistänyt uudelleen."
+    },
+    "idpLinked": {
+      "title": "Uusi kirjautumispalvelu linkitetty",
+      "body": "{name} linkitettiin tiliisi. Jos et tehnyt tätä itse, tarkista turvallisuusasetuksesi.",
+      "bodyGeneric": "Kirjautumispalvelu linkitettiin tiliisi. Jos et tehnyt tätä itse, tarkista turvallisuusasetuksesi."
+    },
+    "accountSecurityChanged": {
+      "passwordChanged": {
+        "title": "Salasana vaihdettu",
+        "body": "Salasanasi vaihdettiin. Jos et tehnyt tätä itse, nollaa salasanasi ja tarkista turvallisuusasetuksesi."
+      },
+      "passwordReset": {
+        "title": "Salasana nollattu",
+        "body": "Salasanasi nollattiin nollauslinkin avulla. Jos et tehnyt tätä itse, nollaa salasanasi uudelleen ja tarkista turvallisuusasetuksesi. Any API keys were revoked and any pending email change was cancelled."
+      },
+      "passwordSetByAdmin": {
+        "title": "Ylläpitäjä asetti salasanan",
+        "body": "Ylläpitäjä asetti tilillesi uuden salasanan. Jos et odottanut tätä, ota yhteyttä ylläpitäjääsi. Any API keys were revoked and any pending email change was cancelled."
+      },
+      "mfaEnabled": {
+        "title": "Kaksivaiheinen todennus otettu käyttöön",
+        "body": "Tilillesi otettiin käyttöön kaksivaiheinen todennus. Jos et tehnyt tätä itse, nollaa salasanasi ja tarkista turvallisuusasetuksesi."
+      },
+      "mfaDisabled": {
+        "title": "Kaksivaiheinen todennus poistettu käytöstä",
+        "body": "Tililtäsi poistettiin käytöstä kaksivaiheinen todennus. Jos et tehnyt tätä itse, nollaa salasanasi ja tarkista turvallisuusasetuksesi."
+      },
+      "mfaResetByAdmin": {
+        "title": "Ylläpitäjä nollasi kaksivaiheisen todennuksen",
+        "body": "Ylläpitäjä nollasi tilisi kaksivaiheisen todennuksen ja kirjasi sinut ulos kaikilta laitteilta. Ota se uudelleen käyttöön tietoturva-asetuksistasi. Jos et odottanut tätä, ota yhteyttä ylläpitäjääsi."
+      },
+      "passwordChangeRequiredByAdmin": {
+        "title": "Ylläpitäjä vaati salasanan vaihtamista",
+        "body": "Ylläpitäjä vaati sinua vaihtamaan salasanasi ja kirjasi sinut ulos kaikilta laitteilta. Valitset uuden salasanan seuraavalla kerralla, kun kirjaudut sisään salasanallasi. Jos et odottanut tätä, ota yhteyttä ylläpitäjääsi."
+      },
+      "backupCodesGenerated": {
+        "title": "Uudet varakoodit luotu",
+        "body": "Tilillesi luotiin uudet varakoodit. Jos et tehnyt tätä itse, nollaa salasanasi ja tarkista turvallisuusasetuksesi."
+      },
+      "apiKeyCreated": {
+        "title": "Uusi API-avain luotu",
+        "body": "Tilillesi luotiin uusi API-avain. Jos et tehnyt tätä itse, nollaa salasanasi ja tarkista turvallisuusasetuksesi."
+      },
+      "apiKeysRevokedByAdmin": {
+        "title": "Ylläpitäjä peruutti API-avaimet",
+        "body": "Ylläpitäjä peruutti yhden tai useamman API-avaimistasi, joten mikään niitä käyttävä ei enää pääse tilillesi. Jos et odottanut tätä, ota yhteyttä ylläpitäjääsi."
+      },
+      "identityProviderUnlinked": {
+        "title": "Kirjautumispalvelun linkitys poistettu",
+        "body": "{name} irrotettiin tilistäsi. Jos et tehnyt tätä itse, nollaa salasanasi ja tarkista turvallisuusasetuksesi.",
+        "bodyGeneric": "Kirjautumispalvelu irrotettiin tilistäsi. Jos et tehnyt tätä itse, nollaa salasanasi ja tarkista turvallisuusasetuksesi."
+      },
+      "accountLocked": {
+        "title": "Tili lukittu",
+        "body": "Tilisi lukittiin 100 peräkkäisen epäonnistuneen kirjautumisyrityksen jälkeen. Selaimet ja sovellukset, joista olet kirjautunut viimeisimmän tietoturvamuutoksen jälkeen, voivat yhä kirjautua sisään. Jos yritykset eivät olleet sinun, vaihda tai nollaa salasanasi, mikä myös poistaa lukituksen."
+      },
+      "mfaLocked": {
+        "title": "Kaksivaiheinen vahvistus lukittu",
+        "body": "Tilisi lukittiin 100 peräkkäisen väärän kaksivaiheisen vahvistuskoodin jälkeen, joten joku tietää salasanasi. Selaimet ja sovellukset, joista olet kirjautunut viimeisimmän tietoturvamuutoksen jälkeen, voivat yhä kirjautua sisään. Jos yritykset eivät olleet sinun, vaihda salasanasi."
+      },
+      "stepUpSessionEnded": {
+        "title": "Istunto kirjattiin ulos",
+        "body": "Tilisi yksi istunto kirjattiin ulos, kun arkaluonteisen toiminnon vahvistamiseksi syötettiin peräkkäin 15 väärää salasanaa tai kaksivaiheisen todennuksen koodia. Muut istuntosi eivät vaikuttuneet. Jos nämä yritykset eivät olleet sinun, vaihda salasanasi."
+      },
+      "stepUpLocked": {
+        "title": "Arkaluonteisten toimintojen vahvistus lukittu",
+        "body": "Arkaluonteisten toimintojen, kuten salasanan vaihtamisen tai API-avaimen luomisen, vahvistaminen lukittiin 30 päiväksi 100 väärän vahvistuksen jälkeen istunnoissasi. Jos nämä yritykset eivät olleet sinun, palauta salasanasi, mikä myös poistaa lukituksen."
+      },
+      "backupCodeUsed": {
+        "title": "Varakoodia käytettiin",
+        "body": "Tilisi kaksivaiheisessa todennuksessa käytettiin varakoodia. Jos se et ollut sinä, vaihda salasanasi ja luo uudet varakoodit.",
+        "bodyRemaining": "Tilisi kaksivaiheisessa todennuksessa käytettiin varakoodia. Käyttämättömiä varakoodeja on jäljellä: {count}. Jos se et ollut sinä, vaihda salasanasi ja luo uudet varakoodit.",
+        "bodyNone": "Tilisi kaksivaiheisessa todennuksessa käytettiin varakoodia. Käyttämättömiä varakoodeja ei ole enää jäljellä, joten luo uudet tietoturva-asetuksissasi. Jos se et ollut sinä, vaihda salasanasi."
+      },
+      "refreshTokenReuseDetected": {
+        "title": "Istunto päätettiin",
+        "body": "Tilisi kirjautumisistunto päätettiin, koska jo käytetty tunnus esitettiin uudelleen, mikä voi tarkoittaa, että istunto kopioitiin. Muut istuntosi eivät vaikuttuneet. Jos et odottanut tätä, vaihda salasanasi."
+      },
+      "roleChangedByAdmin": {
+        "title": "Ylläpitäjä muutti käyttöoikeuksia",
+        "body": "Ylläpitäjä muutti tilisi käyttöoikeuksia ja kirjasi sinut ulos kaikilta laitteilta. Jos et odottanut tätä, ota yhteyttä ylläpitäjääsi.",
+        "bodyAdmin": "Ylläpitäjä muutti tilisi käyttöoikeudet ylläpitäjäksi ja kirjasi sinut ulos kaikilta laitteilta. Jos et odottanut tätä, ota yhteyttä ylläpitäjääsi.",
+        "bodyRegular": "Ylläpitäjä muutti tilisi käyttöoikeudet tavalliseksi käyttäjäksi ja kirjasi sinut ulos kaikilta laitteilta. Jos et odottanut tätä, ota yhteyttä ylläpitäjääsi."
+      },
+      "accountDeactivatedByAdmin": {
+        "title": "Ylläpitäjä poisti tilin käytöstä",
+        "body": "Ylläpitäjä poisti tilisi käytöstä ja kirjasi sinut ulos kaikilta laitteilta. Et voi kirjautua sisään, ennen kuin ylläpitäjä ottaa sen uudelleen käyttöön."
+      },
+      "unknown": {
+        "title": "Tilin turvallisuus muuttui",
+        "body": "Tilisi turvallisuusasetus muuttui. Jos et tehnyt tätä itse, nollaa salasanasi ja tarkista turvallisuusasetuksesi."
+      },
+      "usernameChanged": {
+        "title": "Käyttäjänimi muutettu",
+        "body": "Käyttäjänimesi muutettiin. Jos et tehnyt sitä itse, nollaa salasanasi ja tarkista suojausasetuksesi."
+      }
+    },
+    "newDeviceSignIn": {
+      "title": "Uusi kirjautuminen",
+      "body": "Uusi kirjautuminen selaimella {browser} järjestelmässä {os} ({ip}). Jos et tehnyt tätä itse, vaihda salasanasi ja kirjaudu ulos muista istunnoistasi."
+    },
     "adminSignUpApproval": {
       "title": "Uusi rekisteröityminen vaatii hyväksynnän",
       "body": "{name} ({'@'}{username}) odottaa tilin hyväksyntää."
+    },
+    "adminUserPromoted": {
+      "title": "Käyttäjä ylennettiin ylläpitäjäksi",
+      "body": "Käyttäjälle {name} ({'@'}{username}) annettiin ylläpitäjän käyttöoikeudet."
     },
     "unknown": {
       "title": "Ilmoitus",

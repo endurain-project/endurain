@@ -38,8 +38,10 @@ withDefaults(
     canSubmit?: boolean
     /** Extra classes for the dialog surface (e.g. a wider `max-w-*`). */
     contentClass?: string
+    /** Whether the submit action is destructive (renders the submit button in the destructive style). */
+    destructive?: boolean
   }>(),
-  { submitting: false, canSubmit: true, contentClass: undefined },
+  { submitting: false, canSubmit: true, contentClass: undefined, destructive: false },
 )
 
 const emit = defineEmits<{
@@ -65,7 +67,11 @@ const emit = defineEmits<{
           <Button type="button" variant="ghost" :disabled="submitting" @click="open = false">
             {{ cancelLabel }}
           </Button>
-          <Button type="submit" :disabled="submitting || !canSubmit">
+          <Button
+            type="submit"
+            :variant="destructive ? 'destructive' : 'default'"
+            :disabled="submitting || !canSubmit"
+          >
             <LoaderCircle v-if="submitting" class="size-4 animate-spin" aria-hidden="true" />
             <span>{{ submitLabel }}</span>
           </Button>

@@ -9,6 +9,7 @@ import type {
 
 import { resolveAvatarUrl } from '@/features/auth/services/mappers'
 import { apiFetch } from '@/services/http'
+import { ifMatchHeaders, rowVersion } from '@/services/ifMatch'
 
 /**
  * Maps the privacy subset of a `/profile` payload to {@link PrivacySettings},
@@ -20,9 +21,10 @@ import { apiFetch } from '@/services/http'
  */
 export function mapPrivacySettings(dto: ProfileDto): PrivacySettings {
   return {
+    version: rowVersion(dto.privacy_settings_version),
     defaultActivityVisibility:
       (dto.default_activity_visibility as PrivacySettings['defaultActivityVisibility'] | null) ??
-      'public',
+      'private',
     hideStartTime: dto.hide_activity_start_time ?? false,
     hideLocation: dto.hide_activity_location ?? false,
     hideMap: dto.hide_activity_map ?? false,
@@ -35,11 +37,12 @@ export function mapPrivacySettings(dto: ProfileDto): PrivacySettings {
     hideLaps: dto.hide_activity_laps ?? false,
     hideWorkoutSetsSteps: dto.hide_activity_workout_sets_steps ?? false,
     hideGear: dto.hide_activity_gear ?? false,
+    discoverable: dto.discoverable ?? true,
   }
 }
 
 /**
- * Maps a raw `/profile` (`UsersMe`) payload to the clean {@link ProfileDetails}
+ * Maps a raw `/profile` (`UserMe`) payload to the clean {@link ProfileDetails}
  * model — the single boundary where the backend wire format is normalized.
  *
  * @param dto - Raw `/profile` payload from the backend.
@@ -48,13 +51,17 @@ export function mapPrivacySettings(dto: ProfileDto): PrivacySettings {
 export function mapProfileDetails(dto: ProfileDto): ProfileDetails {
   return {
     id: dto.id,
+    version: rowVersion(dto.version),
     name: dto.name,
     username: dto.username,
     email: dto.email,
+    pendingEmail: dto.pending_email ?? null,
+    pendingEmailExpiresAt: dto.pending_email_expires_at ?? null,
     city: dto.city ?? null,
     birthdate: dto.birthdate ?? null,
     gender: dto.gender,
     units: dto.units,
+    weightUnits: dto.weight_units ?? null,
     currency: dto.currency,
     height: dto.height ?? null,
     maxHeartRate: dto.max_heart_rate ?? null,
@@ -62,9 +69,13 @@ export function mapProfileDetails(dto: ProfileDto): ProfileDetails {
     firstDayOfWeek: dto.first_day_of_week,
     timezone: dto.timezone ?? null,
     accessType: dto.access_type,
-    hasLocalPassword: dto.has_local_password ?? true,
-    stravaLinked: dto.is_strava_linked === 1,
-    garminLinked: dto.is_garminconnect_linked === 1,
+    hasLocalPassword: dto.has_local_password,
+    mfaEnabled: dto.mfa_enabled,
+    integrationsVersion: rowVersion(dto.integrations_version),
+    stravaLinked: dto.is_strava_linked ?? false,
+    stravaRevokedAt: dto.strava_revoked_at ?? null,
+    stravaDataDeletionAt: dto.strava_data_deletion_at ?? null,
+    garminLinked: dto.is_garminconnect_linked ?? false,
     photoPath: dto.photo_path ?? null,
     avatarUrl: resolveAvatarUrl(dto.photo_path),
     privacy: mapPrivacySettings(dto),
@@ -87,17 +98,20 @@ export async function fetchProfile(signal?: AbortSignal): Promise<ProfileDetails
  * Updates the authenticated user's editable identity fields.
  *
  * @param input - The clean profile edit input.
- * @throws {HttpError} When the request fails (e.g. duplicate username/email).
+ * @param version - The profile version the form was loaded at, for `If-Match`.
+ * @throws {HttpError} When the request fails, including 412 when stale.
  */
-export async function updateProfile(input: ProfileEditInput): Promise<void> {
+export async function updateProfile(
+  input: Partial<ProfileEditInput>,
+  version: number,
+): Promise<void> {
   const payload: ProfileUpdateDto = {
     name: input.name,
-    username: input.username,
-    email: input.email,
     city: input.city,
     birthdate: input.birthdate,
     gender: input.gender,
     units: input.units,
+    weight_units: input.weightUnits,
     currency: input.currency,
     height: input.height,
     max_heart_rate: input.maxHeartRate,
@@ -106,17 +120,17 @@ export async function updateProfile(input: ProfileEditInput): Promise<void> {
     timezone: input.timezone,
   }
   await apiFetch('/profile', {
-    method: 'PUT',
+    method: 'PATCH',
+    headers: ifMatchHeaders(version),
     body: JSON.stringify(payload),
-    responseType: 'void',
   })
 }
 
 /**
  * Updates the authenticated user's privacy settings.
  *
- * @param privacy - The clean privacy settings.
- * @throws {HttpError} When the request fails.
+ * @param privacy - The clean privacy settings, carrying the version they were loaded at.
+ * @throws {HttpError} When the request fails, including 412 when stale.
  */
 export async function updatePrivacySettings(privacy: PrivacySettings): Promise<void> {
   const payload: PrivacyUpdateDto = {
@@ -133,11 +147,12 @@ export async function updatePrivacySettings(privacy: PrivacySettings): Promise<v
     hide_activity_laps: privacy.hideLaps,
     hide_activity_workout_sets_steps: privacy.hideWorkoutSetsSteps,
     hide_activity_gear: privacy.hideGear,
+    discoverable: privacy.discoverable,
   }
   await apiFetch('/profile/privacy', {
-    method: 'PUT',
+    method: 'PATCH',
+    headers: ifMatchHeaders(privacy.version),
     body: JSON.stringify(payload),
-    responseType: 'void',
   })
 }
 
@@ -152,7 +167,7 @@ export async function updatePrivacySettings(privacy: PrivacySettings): Promise<v
 export async function uploadProfilePhoto(file: File): Promise<void> {
   const formData = new FormData()
   formData.append('file', file, file.name)
-  await apiFetch('/profile/image', { method: 'POST', body: formData, timeoutMs: 0 })
+  await apiFetch('/profile/photo', { method: 'PUT', body: formData, timeoutMs: 0 })
 }
 
 /**
@@ -161,5 +176,5 @@ export async function uploadProfilePhoto(file: File): Promise<void> {
  * @throws {HttpError} When the request fails.
  */
 export async function deleteProfilePhoto(): Promise<void> {
-  await apiFetch('/profile/photo', { method: 'PUT', responseType: 'void' })
+  await apiFetch('/profile/photo', { method: 'DELETE', responseType: 'void' })
 }

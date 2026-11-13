@@ -1,6 +1,7 @@
 import type { MetricPillVariants } from '@/components/ui/metric-pill'
+import type { UnitKey } from '@/i18n'
 
-import type { Activity } from '../types'
+import type { ActivitySummary, ActivityType } from '../types'
 import {
   activityTypeIsCycling,
   activityTypeIsDistanceBased,
@@ -11,14 +12,15 @@ import {
   activityTypeUsesPace,
 } from './activityType'
 import {
-  combineMetric,
   formatDistance,
   formatElevation,
   formatHmsDuration,
   formatPace,
   formatSpeed,
+  type FormattedMetric,
   type Units,
 } from './format'
+import { formatNumber } from '@/utils/formatNumber'
 
 /** Which privacy-gated metrics the current viewer is allowed to see. */
 export interface MetricVisibility {
@@ -38,8 +40,8 @@ export interface MetricTile {
   labelKey: string
   /** Formatted value. */
   value: string
-  /** Unit suffix (may be empty). */
-  unit: string
+  /** Unit key, or `null` for a unitless value. */
+  unit: UnitKey | null
   /** Semantic colour accent for the value. */
   accent: NonNullable<MetricPillVariants['accent']>
 }
@@ -57,7 +59,7 @@ function has(value: number | null | undefined): value is number {
  * @param activity - The activity domain model.
  * @returns The duration in seconds, or `null` when neither time is positive.
  */
-export function activityDuration(activity: Activity): number | null {
+export function activityDuration(activity: ActivitySummary): number | null {
   for (const seconds of [activity.totalTimerTime, activity.totalElapsedTime]) {
     if (has(seconds) && seconds > 0) {
       return seconds
@@ -73,7 +75,7 @@ export function activityDuration(activity: Activity): number | null {
  * @param activity - The activity domain model.
  * @returns The elapsed time in seconds, or `null` when absent or equal to the duration.
  */
-export function distinctElapsedTime(activity: Activity): number | null {
+export function distinctElapsedTime(activity: ActivitySummary): number | null {
   const elapsed = activity.totalElapsedTime
   const duration = activityDuration(activity)
   if (
@@ -99,7 +101,7 @@ export function distinctElapsedTime(activity: Activity): number | null {
  * @returns The ordered tiles to render (≤ 6 for distance activities, up to 5 otherwise).
  */
 export function buildActivityMetrics(
-  activity: Activity,
+  activity: ActivitySummary,
   units: Units,
   visibility: MetricVisibility,
 ): MetricTile[] {
@@ -113,7 +115,7 @@ export function buildActivityMetrics(
         key: 'time',
         labelKey: 'activities.metrics.time',
         value: formatHmsDuration(duration),
-        unit: '',
+        unit: null,
         accent: 'ink',
       })
     }
@@ -127,7 +129,7 @@ export function buildActivityMetrics(
         key: 'elapsedTime',
         labelKey: 'activities.metrics.elapsedTime',
         value: formatHmsDuration(elapsed),
-        unit: '',
+        unit: null,
         accent: 'ink',
       })
     }
@@ -137,7 +139,7 @@ export function buildActivityMetrics(
       tiles.push({
         key: 'calories',
         labelKey: 'activities.metrics.calories',
-        value: String(Math.round(activity.calories)),
+        value: formatNumber(activity.calories),
         unit: 'kcal',
         accent: 'effort',
       })
@@ -184,8 +186,8 @@ export function buildActivityMetrics(
       tiles.push({
         key: 'avgPower',
         labelKey: 'activities.metrics.avgPower',
-        value: String(Math.round(activity.averagePower)),
-        unit: 'W',
+        value: formatNumber(activity.averagePower),
+        unit: 'w',
         accent: 'effort',
       })
     }
@@ -195,7 +197,7 @@ export function buildActivityMetrics(
       tiles.push({
         key: 'avgHr',
         labelKey: 'activities.metrics.avgHr',
-        value: String(Math.round(activity.averageHr)),
+        value: formatNumber(activity.averageHr),
         unit: 'bpm',
         accent: 'hr',
       })
@@ -206,7 +208,7 @@ export function buildActivityMetrics(
       tiles.push({
         key: 'maxHr',
         labelKey: 'activities.metrics.maxHr',
-        value: String(Math.round(activity.maxHr)),
+        value: formatNumber(activity.maxHr),
         unit: 'bpm',
         accent: 'hr',
       })
@@ -220,8 +222,8 @@ export function buildActivityMetrics(
       tiles.push({
         key: 'jumps',
         labelKey: 'activities.metrics.jumps',
-        value: String(Math.round(activity.totalCycles)),
-        unit: '',
+        value: formatNumber(activity.totalCycles),
+        unit: null,
         accent: 'brand',
       })
     }
@@ -285,20 +287,16 @@ export function buildActivityMetrics(
  * @param enhancedAvgSpeed - Lap average speed in metres per second.
  * @param activityType - Numeric activity type.
  * @param units - The user's unit system.
- * @returns A combined `value unit` string, or `--`.
+ * @returns The split pace or speed metric, or `null` when the lap has no reading.
  */
 export function formatLapTempo(
   enhancedAvgPace: number | null,
   enhancedAvgSpeed: number | null,
-  activityType: number,
+  activityType: ActivityType,
   units: Units,
-): string {
+): FormattedMetric | null {
   if (activityTypeUsesPace(activityType)) {
-    return enhancedAvgPace === null
-      ? '--'
-      : combineMetric(formatPace(enhancedAvgPace, activityType, units))
+    return enhancedAvgPace === null ? null : formatPace(enhancedAvgPace, activityType, units)
   }
-  return enhancedAvgSpeed === null
-    ? '--'
-    : combineMetric(formatSpeed(enhancedAvgSpeed, activityType, units))
+  return enhancedAvgSpeed === null ? null : formatSpeed(enhancedAvgSpeed, activityType, units)
 }

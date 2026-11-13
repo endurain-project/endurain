@@ -1,0 +1,402 @@
+"""Administration of identity-provider configuration."""
+
+import uuid
+from typing import Any
+
+import jasil.audit as jasil_audit
+import jasil.providers as platform_providers
+from sqlalchemy.orm import Session
+
+import core.cryptography as core_cryptography
+import core.etag as core_etag
+import core.exceptions as core_exceptions
+import core.key_rotation as core_key_rotation
+import core.logger as core_logger
+import core.network as core_network
+import core.pagination as core_pagination
+import modules.auth.identity_provider_links.integration_service as identity_provider_links_integration
+import modules.auth.identity_providers.audit_actions as idp_audit_actions
+import modules.auth.identity_providers.constants as identity_provider_constants
+import modules.auth.identity_providers.contracts as identity_provider_contracts
+import modules.auth.identity_providers.crud as idp_crud
+import modules.auth.identity_providers.icon_service as idp_icon_service
+import modules.auth.identity_providers.oidc_client_service as oidc_client_service
+import modules.auth.identity_providers.schema as identity_provider_schema
+import modules.auth.identity_providers.serializers as identity_provider_serializers
+import modules.auth.identity_providers.utils as idp_utils
+import modules.auth.schema as auth_schema
+
+logger = core_logger.get_logger(__name__)
+
+_URL_FIELDS = ("issuer_url", "authorization_endpoint", "token_endpoint", "userinfo_endpoint")
+
+
+def _issuer_changes(current: str | None, new: str | None) -> bool:
+    """Return whether an issuer URL edit names a different issuer, ignoring a trailing slash."""
+    if current is None or new is None:
+        return current != new
+    return idp_utils.normalize_issuer_url(current) != idp_utils.normalize_issuer_url(new)
+
+
+def _refuse_shared_issuer(issuer_url: str | None, exclude_id: uuid.UUID | None, db: Session) -> None:
+    """Refuse an issuer URL another provider already uses.
+
+    Args:
+        issuer_url: The issuer URL being set; ``None`` is never shared.
+        exclude_id: The provider being edited, left out of the lookup.
+        db: Database session.
+
+    Raises:
+        IssuerInUseError: If another provider already uses the issuer.
+    """
+    if issuer_url and idp_crud.get_identity_provider_by_issuer(issuer_url, db, exclude_id=exclude_id) is not None:
+        raise core_exceptions.IssuerInUseError()
+
+
+def list_identity_providers(
+    page: core_pagination.PageParams, db: Session
+) -> identity_provider_schema.IdentityProviderPage:
+    """Return one page of the configured providers for the admin interface."""
+    states = idp_crud.get_identity_providers_page(
+        db, enabled_only=False, limit=page.num_records, offset=(page.page_number - 1) * page.num_records
+    )
+    total = idp_crud.count_identity_providers(db, enabled_only=False)
+    return identity_provider_schema.IdentityProviderPage.build(
+        [identity_provider_serializers.to_read_schema(state) for state in states],
+        total,
+        page.page_number,
+        page.num_records,
+    )
+
+
+def get_identity_provider(idp_id: uuid.UUID, db: Session) -> identity_provider_schema.IdentityProviderRead:
+    """Return one configured provider for the admin interface.
+
+    Args:
+        idp_id: Identity-provider row to read.
+        db: Database session.
+
+    Returns:
+        The provider, without its client secret.
+
+    Raises:
+        NotFoundError: When the provider does not exist.
+    """
+    state = idp_crud.get_identity_provider(idp_id, db)
+    if state is None:
+        raise core_exceptions.NotFoundError("Identity provider not found")
+    return identity_provider_serializers.to_read_schema(state)
+
+
+def get_enabled_identity_providers(
+    page: core_pagination.PageParams, db: Session
+) -> identity_provider_schema.IdentityProviderPublicPage:
+    """Return one page of the enabled providers, public fields only."""
+    states = idp_crud.get_identity_providers_page(
+        db, enabled_only=True, limit=page.num_records, offset=(page.page_number - 1) * page.num_records
+    )
+    total = idp_crud.count_identity_providers(db, enabled_only=True)
+    return identity_provider_schema.IdentityProviderPublicPage.build(
+        [
+            identity_provider_schema.IdentityProviderPublicRead(
+                id=state.id, name=state.name, slug=state.slug, icon=state.icon, icon_uploaded=state.icon_uploaded
+            )
+            for state in states
+        ],
+        total,
+        page.page_number,
+        page.num_records,
+    )
+
+
+def get_idp_templates() -> list[identity_provider_schema.IdentityProviderTemplateRead]:
+    """Return the built-in provider templates.
+
+    Returns:
+        One ``IdentityProviderTemplateRead`` per entry of ``IDP_TEMPLATES``.
+    """
+    return [
+        identity_provider_schema.IdentityProviderTemplateRead(template_id=template_id, **template_data)
+        for template_id, template_data in identity_provider_constants.IDP_TEMPLATES.items()
+    ]
+
+
+def _reject_unsafe_urls(values: dict[str, object]) -> None:
+    """Refuse a provider URL the server must not dial.
+
+    That is plain http to a host outside SSRF_ALLOWED_HOSTS, or a non-public address. Resolves DNS, so callers
+    run it before any write.
+
+    Args:
+        values: The fields being set, by name; unset and empty URL fields are skipped.
+
+    Raises:
+        InvalidInputError: Naming the first URL field that is refused.
+    """
+    for field in _URL_FIELDS:
+        url = values.get(field)
+        if not url or not isinstance(url, str):
+            continue
+        reason = core_network.url_rejection_reason_bounded(url, purpose="oidc_configuration", require_tls=True)
+        if reason is not None:
+            logger.warning("Refused an identity provider URL", extra=core_logger.context(field=field, reason=reason))
+            raise core_exceptions.InvalidInputError(f"{field}: {reason}")
+
+
+def _require_oidc_requirements(
+    current: identity_provider_contracts.IdentityProviderState, values: dict[str, Any]
+) -> None:
+    """Refuse an edit that leaves an ``oidc`` provider without an issuer URL or the ``openid`` scope.
+
+    The stored provider and the request are merged first, so an edit of one field is checked against the stored
+    others. An edit whose merged ``provider_type``, ``issuer_url`` and ``scopes`` equal the stored ones is not
+    checked, so a stored provider that already breaks the rule can still be renamed or disabled even when the
+    client re-sends the whole record.
+
+    Args:
+        current: The provider as stored.
+        values: The fields the client sent, by name.
+
+    Raises:
+        InvalidInputError: If the merged provider is ``oidc``, lacks the issuer URL or the ``openid`` scope, and
+            differs from the stored one in those fields.
+    """
+    fields = ("provider_type", "issuer_url", "scopes")
+    stored = {field: getattr(current, field) for field in fields}
+    merged = {field: values.get(field, stored[field]) for field in fields}
+    if merged == stored:
+        return
+    problem = idp_utils.oidc_requirements_problem(**merged)
+    if problem is not None:
+        raise core_exceptions.InvalidInputError(problem)
+
+
+def _changed_fields(
+    before: identity_provider_contracts.IdentityProviderState,
+    after: identity_provider_contracts.IdentityProviderState,
+    requested: dict[str, object],
+) -> list[str]:
+    """Name the requested fields whose stored value differs between two states.
+
+    The client id is stored encrypted with a fresh nonce each time, so it is compared decrypted. The client secret
+    is never read back: it is never sent to a client, so a secret in the request is one the administrator set.
+
+    Args:
+        before: The provider as stored before the update.
+        after: The provider as stored after the update.
+        requested: The fields the client sent, by name.
+
+    Returns:
+        The names of the fields whose value changed, sorted.
+    """
+    changed: list[str] = []
+    for field, value in requested.items():
+        if field == "client_secret":
+            if value is not None:
+                changed.append(field)
+            continue
+        old, new = getattr(before, field), getattr(after, field)
+        if field == "client_id":
+            old, new = core_cryptography.decrypt_token_fernet(old), core_cryptography.decrypt_token_fernet(new)
+        if old != new:
+            changed.append(field)
+    return sorted(changed)
+
+
+def create_identity_provider(
+    data: identity_provider_schema.IdentityProviderCreate,
+    step_up: auth_schema.StepUpVerification,
+    verify_step_up: identity_provider_contracts.StepUpVerifier,
+    db: Session,
+) -> identity_provider_schema.IdentityProviderRead:
+    """Create a provider after the administrator's step-up and a check of its URLs and its normalized slug.
+
+    A rogue provider can claim accounts, so the step-up is verified before anything else is checked or written.
+
+    Args:
+        data: The new provider.
+        step_up: The administrator's step-up verification.
+        verify_step_up: Verifies the step-up for the calling administrator.
+        db: Database session.
+
+    Returns:
+        The created provider.
+
+    Raises:
+        StepUpFailedError: If the step-up does not verify.
+        InvalidInputError: If a URL field is plain http to a host outside SSRF_ALLOWED_HOSTS, or resolves to a
+            non-public address.
+        ConflictError: If the slug is already in use.
+        IssuerInUseError: If another provider already uses the issuer.
+    """
+    verify_step_up(step_up, identity_provider_constants.StepUpAction.ADMIN_IDP_CREATE)
+    _reject_unsafe_urls(data.model_dump())
+    slug = data.slug.lower()
+    if idp_crud.get_identity_provider_by_slug(slug, db) is not None:
+        raise core_exceptions.ConflictError(f"Identity provider with slug '{slug}' already exists")
+    _refuse_shared_issuer(data.issuer_url, None, db)
+    state = idp_crud.create_identity_provider(data, db)
+    jasil_audit.stage(
+        db,
+        idp_audit_actions.IDENTITY_PROVIDER_CREATE,
+        target_type="identity_provider",
+        target_id=str(state.id),
+        details=idp_audit_actions.IdentityProviderDetails(provider_type=state.provider_type),
+    )
+    db.commit()
+    logger.info("Created identity provider", extra=core_logger.context(idp_id=state.id))
+    return identity_provider_serializers.to_read_schema(state)
+
+
+def update_identity_provider(
+    idp_id: uuid.UUID,
+    data: identity_provider_schema.IdentityProviderUpdate,
+    step_up: auth_schema.StepUpVerification,
+    verify_step_up: identity_provider_contracts.StepUpVerifier,
+    oidc: oidc_client_service.OidcClientService,
+    db: Session,
+    *,
+    if_match: str,
+) -> identity_provider_schema.IdentityProviderRead:
+    """Update a provider after the administrator's step-up, only when the client's version is current.
+
+    Disabling a provider ends the sessions it signed in, in the same transaction, and the audit row counts them.
+    Drops the provider's cached discovery document afterwards. A rogue provider configuration can claim accounts,
+    so the step-up is verified before anything else is checked or written.
+
+    Args:
+        idp_id: Identity-provider row to update.
+        data: Replacement fields.
+        step_up: The administrator's step-up verification.
+        verify_step_up: Verifies the step-up for the calling administrator.
+        oidc: The identity-provider client whose cached discovery document for the provider is dropped.
+        db: Database session.
+        if_match: Version tag the client read.
+
+    Returns:
+        The updated provider.
+
+    Raises:
+        StepUpFailedError: When the step-up does not verify.
+        InvalidInputError: When a URL field being set is plain http to a host outside SSRF_ALLOWED_HOSTS, or
+            resolves to a non-public address, or when the edit leaves an ``oidc`` provider without an issuer URL
+            or the ``openid`` scope.
+        NotFoundError: When the provider is missing or removed during the update.
+        PreconditionFailedError: When the provider changed since the client read it.
+        ConflictError: When the new slug is already in use.
+        IssuerInUseError: When another provider already uses the new issuer.
+        IssuerLockedError: When the issuer changes while users are linked to the provider.
+    """
+    verify_step_up(step_up, identity_provider_constants.StepUpAction.ADMIN_IDP_EDIT)
+    values = data.model_dump(exclude_unset=True)
+    _reject_unsafe_urls(values)
+    current = idp_crud.get_identity_provider(idp_id, db)
+    if current is None:
+        raise core_exceptions.NotFoundError("Identity provider not found")
+    _require_oidc_requirements(current, values)
+    slug = values.get("slug")
+    if slug and slug.lower() != current.slug and idp_crud.get_identity_provider_by_slug(slug.lower(), db):
+        raise core_exceptions.ConflictError(f"Identity provider with slug '{slug.lower()}' already exists")
+    if "issuer_url" in values and _issuer_changes(current.issuer_url, values["issuer_url"]):
+        if identity_provider_links_integration.check_user_identity_providers_by_idp_id(idp_id, db):
+            raise core_exceptions.IssuerLockedError()
+        _refuse_shared_issuer(values["issuer_url"], idp_id, db)
+    with core_etag.refuse_stale_write(
+        db,
+        "identity provider",
+        lambda: idp_crud.identity_provider_exists(idp_id, db),
+        "Identity provider not found",
+    ):
+        state = idp_crud.update_identity_provider(idp_id, data, db, if_match=if_match)
+        if state is None:
+            raise core_exceptions.NotFoundError("Identity provider not found")
+        changed_fields = _changed_fields(current, state, values)
+        sessions_ended = (
+            identity_provider_links_integration.end_all_idp_sessions(idp_id, db)
+            if current.enabled and not state.enabled
+            else 0
+        )
+        if changed_fields:
+            jasil_audit.stage(
+                db,
+                idp_audit_actions.IDENTITY_PROVIDER_UPDATE,
+                target_type="identity_provider",
+                target_id=str(idp_id),
+                details=idp_audit_actions.IdentityProviderUpdateDetails(
+                    changed_fields=changed_fields, sessions_ended=sessions_ended
+                ),
+            )
+        db.commit()
+    oidc.forget_discovery(idp_id)
+    logger.info("Updated identity provider", extra=core_logger.context(idp_id=state.id))
+    return identity_provider_serializers.to_read_schema(state)
+
+
+def delete_identity_provider(
+    idp_id: uuid.UUID,
+    step_up: auth_schema.StepUpVerification,
+    verify_step_up: identity_provider_contracts.StepUpVerifier,
+    storage: platform_providers.StorageProvider,
+    oidc: oidc_client_service.OidcClientService,
+    db: Session,
+    *,
+    if_match: str,
+) -> None:
+    """Delete an unlinked provider after the administrator's step-up and remove its icon.
+
+    The change is committed first, then the provider's cached discovery document is dropped. Removing a
+    provider can lock out every user who signs in through it, so the step-up is verified before anything is
+    read or written.
+
+    Args:
+        idp_id: The provider to delete.
+        step_up: The administrator's step-up verification.
+        verify_step_up: Verifies the step-up for the calling administrator.
+        storage: The platform storage provider.
+        oidc: The identity-provider client whose cached discovery document for the provider is dropped.
+        db: Database session.
+        if_match: The ``If-Match`` precondition.
+
+    Raises:
+        StepUpFailedError: If the step-up does not verify.
+        NotFoundError: If the provider does not exist.
+        ConflictError: If users are still linked to the provider.
+        PreconditionFailedError: If the provider changed since the client read it.
+    """
+    verify_step_up(step_up, identity_provider_constants.StepUpAction.ADMIN_IDP_DELETE)
+    current = idp_crud.get_identity_provider(idp_id, db)
+    if current is None:
+        raise core_exceptions.NotFoundError("Identity provider not found")
+    if identity_provider_links_integration.check_user_identity_providers_by_idp_id(idp_id, db):
+        raise core_exceptions.ConflictError("Cannot delete identity provider with linked users")
+    with core_etag.refuse_stale_write(
+        db,
+        "identity provider",
+        lambda: idp_crud.identity_provider_exists(idp_id, db),
+        "Identity provider not found",
+    ):
+        if not idp_crud.delete_identity_provider(idp_id, db, if_match=if_match):
+            raise core_exceptions.NotFoundError("Identity provider not found")
+        jasil_audit.stage(
+            db,
+            idp_audit_actions.IDENTITY_PROVIDER_DELETE,
+            target_type="identity_provider",
+            target_id=str(idp_id),
+            details=idp_audit_actions.IdentityProviderDetails(provider_type=current.provider_type),
+        )
+        db.commit()
+    oidc.forget_discovery(idp_id)
+    if current.icon_uploaded:
+        idp_icon_service.delete_blob(idp_id, storage)
+    logger.info("Deleted identity provider", extra=core_logger.context(idp_id=idp_id))
+
+
+def reencrypt_stored_secrets(db: Session) -> None:
+    """Re-encrypt this module's stored secrets under the first FERNET_KEY; does nothing while one key is configured.
+
+    Args:
+        db: SQLAlchemy database session.
+    """
+    core_key_rotation.reencrypt_in_batches(
+        "identity_providers", lambda after_id, limit: idp_crud.stage_reencrypt_batch_providers(after_id, limit, db), db
+    )

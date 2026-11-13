@@ -1,7 +1,7 @@
 """Application-layer orchestration for activity workout sets.
 
-Declares *what* an activity's sets are — the parent flag that hides them and the
-two CRUD calls that read them — and delegates *how* the paged read runs to the
+Declares *what* an activity's sets are — the parent flag that hides them, the
+two CRUD calls that read them and the fields the parent's other flags hide — and delegates *how* the paged read runs to the
 shared :mod:`modules.activities.activity.child_collection_service` seam, which owns the
 access gate and the rule that a refusal and an empty collection answer alike.
 
@@ -10,27 +10,39 @@ unpaged read would put no bound on the work or the payload one request could ask
 for.
 """
 
+import uuid
+
 from sqlalchemy.orm import Session
 
 import core.pagination as core_pagination
 import modules.activities.activity.integration_service as activity_integration
+import modules.activities.activity.schema as activity_schema
 import modules.activities.activity_sets.crud as activity_sets_crud
 import modules.activities.activity_sets.schema as activity_sets_schema
 
-_COLLECTION: activity_integration.ChildCollection[activity_sets_schema.ActivitySetsPage] = (
-    activity_integration.ChildCollection(
-        name="workout sets",
-        hide_attr="hide_workout_sets_steps",
-        fetch=activity_sets_crud.get_activity_sets,
-        count=activity_sets_crud.count_activity_sets,
-        build=activity_sets_schema.ActivitySetsPage.build,
-    )
+#: The set fields each parent ``hide_*`` flag withholds from a non-owner, matching what the flag
+#: clears on the activity itself. A set carries its own start instant, which places the activity in
+#: time as precisely as the activity's own start, so serving it whole would undo ``hide_start_time``.
+_FIELDS_BY_HIDE_FLAG: dict[str, tuple[str, ...]] = {
+    "hide_start_time": ("start_time",),
+}
+
+
+_COLLECTION: activity_integration.ChildCollection[
+    activity_sets_schema.ActivitySetsRead, activity_sets_schema.ActivitySetsPage
+] = activity_integration.ChildCollection(
+    name="workout sets",
+    hide_attr="hide_workout_sets_steps",
+    fetch=activity_sets_crud.get_activity_sets,
+    count=activity_sets_crud.count_activity_sets,
+    build=activity_sets_schema.ActivitySetsPage.build,
+    fields_by_hide_flag=_FIELDS_BY_HIDE_FLAG,
 )
 
 
 def list_activity_sets(
-    activity_id: int,
-    requester_user_id: int,
+    activity_id: uuid.UUID,
+    requester_user_id: uuid.UUID,
     db: Session,
     *,
     page_number: int = 1,
@@ -61,7 +73,7 @@ def list_activity_sets(
 
 
 def list_public_activity_sets(
-    activity_id: int,
+    activity_id: uuid.UUID,
     db: Session,
     *,
     page_number: int = 1,
@@ -80,3 +92,27 @@ def list_public_activity_sets(
         publicly visible.
     """
     return _COLLECTION.list_public(activity_id, db, page_number=page_number, num_records=num_records)
+
+
+def list_for_activity(
+    activity: activity_schema.ActivityRead,
+    requester_user_id: uuid.UUID | None,
+    db: Session,
+) -> activity_sets_schema.ActivitySetsPage:
+    """Return the first page of an activity's sets for a viewer who may already see the activity.
+
+    Args:
+        activity: The parent activity, as the viewer is allowed to see it.
+        requester_user_id: The authenticated viewer, or ``None`` for an anonymous one.
+        db: Database session.
+
+    Returns:
+        The page envelope, empty when the sets are hidden from this viewer.
+    """
+    return _COLLECTION.list_for_activity(
+        activity,
+        requester_user_id,
+        db,
+        page_number=1,
+        num_records=core_pagination.DEFAULT_CHILD_NUM_RECORDS,
+    )

@@ -28,16 +28,23 @@ Every error leaves the API as an RFC 9457 problem document — see
 """
 
 import http
+import math
+import uuid
+from collections.abc import Awaitable, Callable
+from datetime import UTC, datetime
 
-from fastapi import FastAPI, HTTPException, Request, status
+from fastapi import FastAPI, HTTPException, Request, Response, status
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
-from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy.exc import IntegrityError, OperationalError, SQLAlchemyError
+from sqlalchemy.exc import TimeoutError as SQLAlchemyTimeoutError
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
+import core.job_status as core_job_status
 import core.logger as core_logger
 import core.middleware_request_id as core_middleware_request_id
 import core.problem_details as core_problem_details
+import core.security_headers as core_security_headers
 
 logger = core_logger.get_logger(__name__)
 
@@ -52,8 +59,13 @@ class DomainError(Exception):
         title: Short human-readable summary of the error *kind*. Constant per
             subclass; the per-occurrence message is ``detail``.
         detail: Caller-safe message returned in the response body.
+        headers: Response headers the error adds (``WWW-Authenticate``, ``Retry-After``); ``None`` when it adds none.
+        extensions: RFC 9457 extension members the error adds to its problem document (the scopes a credential is
+            missing); ``None`` when it adds none.
     """
 
+    headers: dict[str, str] | None = None
+    extensions: dict[str, object] | None = None
     status_code: int = status.HTTP_500_INTERNAL_SERVER_ERROR
     code: str = "internal-error"
     title: str = "Internal Server Error"
@@ -105,6 +117,59 @@ class PermissionDeniedError(DomainError):
     default_detail = "Forbidden"
 
 
+class StepUpFailedError(PermissionDeniedError):
+    """A sensitive operation's re-authentication did not verify.
+
+    The answer is the same whichever factor failed (password, ticket or MFA code), so it never confirms a correct
+    password. It is a ``403``, not a ``401``: the access token is fine, so the client must not refresh it or take
+    the user to the sign-in page.
+    """
+
+    code = "step-up-failed"
+    default_detail = "Step-up verification failed"
+
+
+class UnauthenticatedError(DomainError):
+    """The caller did not provide valid authentication credentials."""
+
+    status_code = status.HTTP_401_UNAUTHORIZED
+    code = "unauthorized"
+    title = "Unauthorized"
+    default_detail = "Not authenticated"
+
+    def __init__(self, detail: str | None = None, *, scheme: str = "Bearer") -> None:
+        """Initialise the error with the authentication challenge to return.
+
+        Args:
+            detail: Message returned to the client.
+            scheme: Authentication scheme named by ``WWW-Authenticate``.
+        """
+        super().__init__(detail)
+        self.headers = {"WWW-Authenticate": scheme}
+
+
+class InvalidTokenError(UnauthenticatedError):
+    """The bearer token is missing, expired, malformed or its session ended.
+
+    Clients branch on the ``invalid-token`` problem type to refresh their tokens and send the request again; every
+    other ``401`` is final. The challenge follows RFC 6750: ``error="invalid_token"``, and no error code when the
+    request carried no token.
+    """
+
+    code = "invalid-token"
+    default_detail = "Invalid or expired token"
+
+    def __init__(self, detail: str | None = None, *, scheme: str = 'Bearer error="invalid_token"') -> None:
+        """Initialise the error with the authentication challenge to return.
+
+        Args:
+            detail: Message returned to the client.
+            scheme: Authentication challenge for ``WWW-Authenticate``; pass ``"Bearer"`` when the request carried
+                no token.
+        """
+        super().__init__(detail, scheme=scheme)
+
+
 class InvalidInputError(DomainError):
     """The request is well-formed but semantically unusable."""
 
@@ -114,6 +179,95 @@ class InvalidInputError(DomainError):
     default_detail = "Bad Request"
 
 
+class InvalidMfaCodeError(InvalidInputError):
+    """A submitted MFA code did not verify.
+
+    Renders as a ``400`` with the ``invalid-mfa-code`` problem type, so a client can tell a wrong code from other
+    input failures; code that catches :class:`InvalidInputError` still catches it.
+    """
+
+    code = "invalid-mfa-code"
+    default_detail = "Invalid MFA code"
+
+
+class ProviderScopeInsufficientError(InvalidInputError):
+    """The user granted an external provider fewer permissions than the integration needs.
+
+    Clients branch on the ``provider-scope-insufficient`` problem type to tell the user to authorize again and
+    grant every requested permission.
+    """
+
+    code = "provider-scope-insufficient"
+    default_detail = "The provider authorization is missing a required permission"
+
+
+class MfaRequiredError(PermissionDeniedError):
+    """The account has MFA enabled and the request carried no MFA code.
+
+    Clients branch on the ``mfa-required`` problem type to ask for a code and send the same request again.
+    """
+
+    code = "mfa-required"
+    default_detail = "MFA verification required"
+
+
+class MfaEnrolmentRequiredError(PermissionDeniedError):
+    """The server requires MFA of this account, which has not enrolled a second factor.
+
+    Renders as ``403``. Clients branch on the ``mfa-enrolment-required`` problem type to send the user to enrol; the
+    account may still make the requests enrolment needs, and sign out. It is not the ``mfa-required`` problem, which
+    asks for a code from an account that has MFA.
+    """
+
+    code = "mfa-enrolment-required"
+    default_detail = "Set up two-step verification to continue"
+
+
+class EmailVerificationDisabledError(PermissionDeniedError):
+    """A sign-up confirmation arrived while email verification is turned off on this server.
+
+    Renders as ``403``. Clients branch on the ``email-verification-disabled`` problem type to tell the user the
+    link cannot be used here; retrying never succeeds.
+    """
+
+    code = "email-verification-disabled"
+    default_detail = "Email verification is not enabled on this server"
+
+
+class PasswordRequiredError(InvalidInputError):
+    """A request arrived without the password the server needs: a sign-up while email verification is off, or an
+    account an administrator creates while mail is not configured to invite its owner.
+
+    Clients branch on the ``password-required`` problem type to ask for a password and send the same request again.
+    """
+
+    code = "password-required"
+    default_detail = "A password is required"
+
+
+class IdpReauthRequiredError(UnauthenticatedError):
+    """The account has no local password and the request carried no proof of a fresh identity-provider sign-in.
+
+    Clients branch on the ``idp-reauth-required`` problem type to send the user through their identity provider
+    and send the same request again with the proof. The challenge follows RFC 9470.
+    """
+
+    code = "idp-reauth-required"
+    default_detail = "Sign in again with your identity provider to continue"
+
+    def __init__(self, max_age: int, detail: str | None = None) -> None:
+        """Initialise the error with the freshness the new sign-in must meet.
+
+        Args:
+            max_age: Seconds within which the identity-provider sign-in must have happened.
+            detail: Message returned to the client.
+        """
+        super().__init__(
+            detail,
+            scheme=f'Bearer error="insufficient_user_authentication", max_age="{max_age}"',
+        )
+
+
 class ConflictError(DomainError):
     """The action conflicts with the resource's current state."""
 
@@ -121,6 +275,108 @@ class ConflictError(DomainError):
     code = "conflict"
     title = "Conflict"
     default_detail = "Conflict"
+
+
+class LastSignInMethodError(ConflictError):
+    """Unlinking an identity provider would leave the account with no way to sign in.
+
+    Renders as ``409``. Clients branch on the ``last-sign-in-method`` problem type to tell the user to set a
+    password or link another provider first.
+    """
+
+    code = "last-sign-in-method"
+    default_detail = "This is the account's only sign-in method"
+
+
+class LastAdministratorError(ConflictError):
+    """A change would leave the server without an active administrator.
+
+    Renders as ``409``. Clients branch on the ``last-administrator`` problem type to tell the user to make
+    another user an administrator first.
+    """
+
+    code = "last-administrator"
+    default_detail = "The only administrator cannot be changed"
+
+
+class ApprovalPendingError(ConflictError):
+    """An edit would activate a user who is awaiting administrator approval.
+
+    Renders as ``409``. Clients branch on the ``approval-pending`` problem type to tell the administrator to use the
+    approve action instead.
+    """
+
+    code = "approval-pending"
+    default_detail = "User is awaiting approval"
+
+
+class IssuerInUseError(ConflictError):
+    """Another identity provider already uses the issuer URL being set.
+
+    Renders as ``409``. Clients branch on the ``issuer-in-use`` problem type to tell the administrator to pick a
+    different issuer URL.
+    """
+
+    code = "issuer-in-use"
+    default_detail = "Another identity provider already uses this issuer"
+
+
+class IssuerLockedError(ConflictError):
+    """An identity provider's issuer URL cannot change while users are linked to it.
+
+    Renders as ``409``. Clients branch on the ``issuer-locked`` problem type to tell the administrator to unlink the
+    users or add a new provider instead.
+    """
+
+    code = "issuer-locked"
+    default_detail = "The issuer cannot change while users are linked to this provider"
+
+
+class ApiKeyLimitError(ConflictError):
+    """The user already holds the most active API keys one account may have.
+
+    Renders as ``409``. Clients branch on the ``api-key-limit`` problem type to tell the user to revoke or delete a
+    key first.
+    """
+
+    code = "api-key-limit"
+    default_detail = "The account already has the maximum number of active API keys"
+
+
+class ComponentsOutsideGearTypeError(ConflictError):
+    """A gear's type cannot change while it has components the new type does not allow.
+
+    Renders as ``409``. Clients branch on the ``components-outside-gear-type`` problem type to tell the user to remove
+    the components that do not fit the new type first.
+    """
+
+    code = "components-outside-gear-type"
+    default_detail = "Remove the components that do not fit the new gear type first"
+
+
+class JobAlreadyRunningError(ConflictError):
+    """A start route refused a second run of work that is still running.
+
+    Renders as the same ``409`` and ``conflict`` problem as :class:`ConflictError`, plus, when the running job
+    can be named, a ``Content-Location`` header pointing at ``GET /jobs/{job_id}`` and a ``job_id`` member, so a
+    client that lost the ``202`` of the first request can pick the run up again.
+
+    Attributes:
+        job_id: The id of the running job, or None when it cannot be named.
+    """
+
+    def __init__(self, detail: str | None = None, *, job_id: uuid.UUID | None) -> None:
+        """Initialise the error with the job in progress.
+
+        Args:
+            detail: Message returned to the client.
+            job_id: The id of the running job, or None when it cannot be named (it finished meanwhile, or the
+                previous release started it).
+        """
+        super().__init__(detail)
+        self.job_id = job_id
+        if job_id is not None:
+            self.extensions = {"job_id": str(job_id)}
 
 
 class PreconditionFailedError(DomainError):
@@ -137,13 +393,64 @@ class PreconditionFailedError(DomainError):
     default_detail = "Precondition Failed"
 
 
+class SyncExpiredError(DomainError):
+    """A sync cursor is older than the deletions the server remembers.
+
+    Renders as ``410``. A deletion that happened before the cursor's position may already be forgotten, so the
+    client's copy cannot be brought up to date from it; clients branch on the ``sync-expired`` problem type to
+    discard their copy and sync again from the start.
+    """
+
+    status_code = status.HTTP_410_GONE
+    code = "sync-expired"
+    title = "Sync Expired"
+    default_detail = "The sync cursor has expired; sync again from the start"
+
+
+class PreconditionRequiredError(DomainError):
+    """The request must be conditional and carries no ``If-Match`` header.
+
+    A write to a versioned resource without a precondition is last-writer-wins,
+    so the caller is told to read the resource and send the tag it got.
+    """
+
+    status_code = status.HTTP_428_PRECONDITION_REQUIRED
+    code = "precondition-required"
+    title = "Precondition Required"
+    default_detail = "This request must be conditional; send the ETag you read in an If-Match header"
+
+
+class TooManyRequestsError(DomainError):
+    """A per-resource limit is reached, as opposed to the caller's request rate.
+
+    Attributes:
+        retry_at: When the limit clears, when the raiser knows it; a job that hit a provider's
+            limit waits until then instead of retrying into it.
+    """
+
+    status_code = status.HTTP_429_TOO_MANY_REQUESTS
+    code = "too-many-requests"
+    title = "Too Many Requests"
+    default_detail = "Too Many Requests"
+
+    def __init__(self, detail: str | None = None, *, retry_at: datetime | None = None) -> None:
+        """Initialise the error with an optional message and the time the limit clears.
+
+        Args:
+            detail: Message returned to the client.
+            retry_at: When the limit clears, if known.
+        """
+        super().__init__(detail)
+        self.retry_at = retry_at
+
+
 class UnsupportedFormatError(DomainError):
     """The supplied payload is in a format this endpoint cannot process."""
 
-    status_code = status.HTTP_406_NOT_ACCEPTABLE
+    status_code = status.HTTP_415_UNSUPPORTED_MEDIA_TYPE
     code = "unsupported-format"
-    title = "Not Acceptable"
-    default_detail = "Not Acceptable"
+    title = "Unsupported Media Type"
+    default_detail = "Unsupported Media Type"
 
 
 class UnsupportedMediaTypeError(DomainError):
@@ -182,6 +489,15 @@ class UpstreamError(DomainError):
     default_detail = "Bad Gateway"
 
 
+class DependencyFailedError(DomainError):
+    """A request depends on an external system that rejected it or is not linked."""
+
+    status_code = status.HTTP_424_FAILED_DEPENDENCY
+    code = "dependency-failed"
+    title = "Failed Dependency"
+    default_detail = "Failed Dependency"
+
+
 class ProcessingError(DomainError):
     """An internal step failed; the caller can do nothing about it.
 
@@ -193,6 +509,21 @@ class ProcessingError(DomainError):
     code = "internal-error"
     title = "Internal Server Error"
     default_detail = "Internal Server Error"
+
+
+class CryptographyError(ProcessingError):
+    """Encrypting or decrypting a secret failed, or the configured key cannot be used.
+
+    The response is as opaque as :class:`ProcessingError`: the cause belongs in the log.
+    """
+
+
+class UndecryptableError(CryptographyError):
+    """A stored secret was not produced by the configured key, or is corrupt.
+
+    Unlike a missing or malformed key, this concerns one value: the secret has to be entered
+    again, and retrying the same operation meets the same answer.
+    """
 
 
 def build_problem_response(
@@ -265,11 +596,21 @@ async def domain_error_handler(request: Request, exc: DomainError) -> JSONRespon
         method=request.method,
         status_code=exc.status_code,
         error=type(exc).__name__,
+        detail=exc.detail,
     )
     if exc.status_code >= status.HTTP_500_INTERNAL_SERVER_ERROR:
-        logger.error(f"Unhandled domain error on {request.method} {request.url.path}", exc_info=exc, extra=log_context)
+        logger.error("Unhandled domain error", exc_info=exc, extra=log_context)
     else:
-        logger.debug(f"Domain error on {request.method} {request.url.path}: {exc.detail}", extra=log_context)
+        logger.debug("Domain error", extra=log_context)
+
+    headers = exc.headers
+    if isinstance(exc, TooManyRequestsError) and exc.retry_at is not None:
+        # Rendered when the response is built, so the seconds count from the moment the client is told.
+        seconds = max(0, math.ceil((exc.retry_at - datetime.now(UTC)).total_seconds()))
+        headers = {**(headers or {}), "Retry-After": str(seconds)}
+    if isinstance(exc, JobAlreadyRunningError) and exc.job_id is not None:
+        location = request.url_for(core_job_status.JOB_ROUTE, job_id=str(exc.job_id)).path
+        headers = {**(headers or {}), "Content-Location": location}
 
     return build_problem_response(
         request=request,
@@ -277,17 +618,45 @@ async def domain_error_handler(request: Request, exc: DomainError) -> JSONRespon
         code=exc.code,
         title=exc.title,
         detail=exc.detail,
+        headers=headers,
+        **(exc.extensions or {}),
     )
 
 
+#: PostgreSQL SQLSTATEs for a lock wait (``lock_timeout``) and a cancelled statement (``statement_timeout``).
+_TRANSIENT_DB_SQLSTATES = frozenset({"55P03", "57014"})
+#: Seconds a client is told to wait before retrying a request the database could not serve.
+_DB_RETRY_AFTER_SECONDS = 5
+
+
+def _is_database_unavailable(exc: SQLAlchemyError) -> bool:
+    """Tell whether a database error means the database could not take the request right now.
+
+    Args:
+        exc: The database error.
+
+    Returns:
+        True for an exhausted connection pool, a lock timeout or a statement timeout.
+    """
+    if isinstance(exc, SQLAlchemyTimeoutError):
+        return True
+    if isinstance(exc, OperationalError):
+        return getattr(exc.orig, "sqlstate", None) in _TRANSIENT_DB_SQLSTATES
+    return False
+
+
 async def database_error_handler(request: Request, exc: SQLAlchemyError) -> JSONResponse:
-    """Render a database error that reached the boundary as an opaque 500.
+    """Render a database error that reached the boundary as a problem document.
 
     The one place a database failure raised outside ``crud`` is translated. A
-    ``service`` owns the commit, so a failed commit is raised there rather than
-    inside a ``handle_db_errors``-wrapped persistence function; wrapping every
-    ``db.commit()`` in its own ``try`` would repeat this in each service.
+    ``service`` owns the commit, so a failed commit reaches this boundary;
+    wrapping every ``db.commit()`` in its own ``try`` would repeat this in each
+    service.
     The session has already been rolled back by ``core.database.get_db``.
+
+    An exhausted connection pool, a lock timeout and a statement timeout are transient, so they answer 503 with
+    ``Retry-After``; an ``IntegrityError`` is a unique or foreign-key conflict that only surfaced at commit, so it
+    answers 409. Both are logged as warnings. Anything else is an opaque 500 logged as an error.
 
     Only the exception class goes in the log message: SQLAlchemy error strings
     embed the SQL statement and its parameters (OWASP A09), so they are never
@@ -298,23 +667,65 @@ async def database_error_handler(request: Request, exc: SQLAlchemyError) -> JSON
         exc: The database error raised by the application layer.
 
     Returns:
+        The problem document for the failure.
+    """
+    log_context = core_logger.context(path=request.url.path, method=request.method, error=type(exc).__name__)
+    message = f"Database error on {request.method} {request.url.path}: {type(exc).__name__}"
+    headers: dict[str, str] | None = None
+    if _is_database_unavailable(exc):
+        logger.warning(message, extra=log_context)
+        error: type[DomainError] = ServiceUnavailableError
+        headers = {"Retry-After": str(_DB_RETRY_AFTER_SECONDS)}
+    elif isinstance(exc, IntegrityError):
+        logger.warning(message, extra=log_context)
+        error = ConflictError
+    else:
+        logger.error(message, exc_info=exc, extra=log_context)
+        error = ProcessingError
+    return build_problem_response(
+        request=request,
+        status_code=error.status_code,
+        code=error.code,
+        title=error.title,
+        detail=error.default_detail,
+        headers=headers,
+    )
+
+
+async def unhandled_error_handler(request: Request, exc: Exception) -> JSONResponse:
+    """Render an error nothing else handled as the same opaque problem document.
+
+    Without it Starlette answers a plain-text 500, so clients would see a second error shape. Only the
+    exception class is logged in the message; the traceback goes in ``exc_info``.
+
+    Args:
+        request: The incoming request (used for log context and ``instance``).
+        exc: The unhandled exception.
+
+    Returns:
         The same problem document a :class:`ProcessingError` produces.
     """
     logger.error(
-        f"Database error on {request.method} {request.url.path}: {type(exc).__name__}",
+        f"Unhandled error on {request.method} {request.url.path}: {type(exc).__name__}",
         exc_info=exc,
         extra=core_logger.context(path=request.url.path, method=request.method, error=type(exc).__name__),
     )
-    return build_problem_response(
+    # Starlette's outermost layer calls this handler, outside every middleware, so the response header and the
+    # security headers are set here.
+    request_id = core_middleware_request_id.get_request_id()
+    response = build_problem_response(
         request=request,
         status_code=ProcessingError.status_code,
         code=ProcessingError.code,
         title=ProcessingError.title,
         detail=ProcessingError.default_detail,
+        headers={"X-Request-ID": request_id} if request_id else None,
     )
+    core_security_headers.apply(response)
+    return response
 
 
-async def http_exception_handler(request: Request, exc: HTTPException) -> JSONResponse:
+async def http_exception_handler(request: Request, exc: StarletteHTTPException) -> JSONResponse:
     """Render a bare ``HTTPException`` as a problem document.
 
     Registered so that a module which has not yet moved to domain errors still
@@ -390,6 +801,51 @@ def _slug(phrase: str) -> str:
     return phrase.lower().replace(" ", "-")
 
 
+def register_handler[E: Exception](
+    app: FastAPI, exc_class: type[E], handler: Callable[[Request, E], Awaitable[Response]]
+) -> None:
+    """Register an exception handler typed by the exception class it renders.
+
+    Starlette types every handler as taking any ``Exception``, though it only calls one with an instance
+    of the class it was registered for. The registered function checks that instance once, so each
+    handler can name the exception it actually receives.
+
+    Args:
+        app: The FastAPI application to register the handler on.
+        exc_class: The exception class, subclasses included, the handler renders.
+        handler: The coroutine that renders the exception as a response.
+    """
+
+    async def handle(request: Request, exc: Exception) -> Response:
+        if not isinstance(exc, exc_class):
+            raise exc
+        return await handler(request, exc)
+
+    app.add_exception_handler(exc_class, handle)
+
+
+def register_sync_handler[E: Exception](
+    app: FastAPI, exc_class: type[E], handler: Callable[[Request, E], Response]
+) -> None:
+    """Register a synchronous exception handler typed by the exception class it renders.
+
+    The registered function stays synchronous, so Starlette runs it in the threadpool and the rate-limit
+    middleware, which only calls a synchronous handler, can still call it.
+
+    Args:
+        app: The FastAPI application to register the handler on.
+        exc_class: The exception class, subclasses included, the handler renders.
+        handler: The function that renders the exception as a response.
+    """
+
+    def handle(request: Request, exc: Exception) -> Response:
+        if not isinstance(exc, exc_class):
+            raise exc
+        return handler(request, exc)
+
+    app.add_exception_handler(exc_class, handle)
+
+
 def register_exception_handlers(app: FastAPI) -> None:
     """Wire the RFC 9457 error boundary onto a FastAPI application.
 
@@ -405,8 +861,9 @@ def register_exception_handlers(app: FastAPI) -> None:
     Returns:
         None.
     """
-    app.add_exception_handler(DomainError, domain_error_handler)  # type: ignore[arg-type]
-    app.add_exception_handler(SQLAlchemyError, database_error_handler)  # type: ignore[arg-type]
-    app.add_exception_handler(HTTPException, http_exception_handler)  # type: ignore[arg-type]
-    app.add_exception_handler(StarletteHTTPException, http_exception_handler)  # type: ignore[arg-type]
-    app.add_exception_handler(RequestValidationError, validation_error_handler)  # type: ignore[arg-type]
+    register_handler(app, DomainError, domain_error_handler)
+    register_handler(app, SQLAlchemyError, database_error_handler)
+    register_handler(app, HTTPException, http_exception_handler)
+    register_handler(app, StarletteHTTPException, http_exception_handler)
+    register_handler(app, RequestValidationError, validation_error_handler)
+    register_handler(app, Exception, unhandled_error_handler)

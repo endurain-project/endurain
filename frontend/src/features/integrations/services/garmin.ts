@@ -1,5 +1,8 @@
 import type {
+  ActivityRefreshJob,
   DateRange,
+  GarminSyncStatus,
+  GarminLinkStatus,
   GarminLoginDto,
   GarminLoginInput,
   GarminMfaDto,
@@ -8,14 +11,15 @@ import type {
 import { apiFetch } from '@/services/http'
 
 /**
- * Begins linking a Garmin Connect account. When the account has MFA enabled the
- * backend signals `MFA_REQUIRED` over the realtime channel and this request
- * stays pending until the code is supplied via {@link submitGarminMfa}.
+ * Starts linking a Garmin Connect account. The login runs in the background, so this
+ * returns at once; follow the returned job with `useGarminLinkQuery`. When the account has MFA
+ * the job turns `mfa_required` and the code goes through {@link submitGarminMfa}.
  *
  * @param input - The Garmin Connect username and password.
- * @throws {HttpError} When authentication fails.
+ * @returns The queued link job.
+ * @throws {HttpError} When the request fails, including 409 while another link is running.
  */
-export async function linkGarmin(input: GarminLoginInput): Promise<void> {
+export async function linkGarmin(input: GarminLoginInput): Promise<GarminLinkStatus> {
   const payload: GarminLoginDto = {
     username: input.username,
     password: input.password,
@@ -23,22 +27,21 @@ export async function linkGarmin(input: GarminLoginInput): Promise<void> {
     // region; the dialog's toggle drives this flag.
     is_cn: input.isCn,
   }
-  await apiFetch('/garminconnect/link', {
+  return apiFetch<GarminLinkStatus>('/garmin/link', {
     method: 'POST',
     body: JSON.stringify(payload),
-    responseType: 'void',
   })
 }
 
 /**
- * Submits the Garmin Connect MFA code, unblocking a pending {@link linkGarmin}.
+ * Submits the Garmin Connect MFA code the link attempt asked for.
  *
  * @param code - The MFA code from the user's authenticator/SMS.
  * @throws {HttpError} When the request fails.
  */
 export async function submitGarminMfa(code: string): Promise<void> {
   const payload: GarminMfaDto = { mfa_code: code }
-  await apiFetch('/garminconnect/mfa', {
+  await apiFetch('/garmin/mfa', {
     method: 'POST',
     body: JSON.stringify(payload),
     responseType: 'void',
@@ -49,34 +52,37 @@ export async function submitGarminMfa(code: string): Promise<void> {
  * Kicks off a background import of Garmin Connect activities in the given window.
  *
  * @param range - The inclusive date window to import.
+ * @returns The queued sync job.
  * @throws {HttpError} When the request fails.
  */
-export async function retrieveGarminActivities(range: DateRange): Promise<void> {
-  await apiFetch(
-    `/garminconnect/activities?start_date=${encodeURIComponent(range.startDate)}&end_date=${encodeURIComponent(range.endDate)}`,
-    { responseType: 'void' },
+export async function retrieveGarminActivities(range: DateRange): Promise<ActivityRefreshJob> {
+  return apiFetch<ActivityRefreshJob>(
+    `/garmin/activities?start_date=${encodeURIComponent(range.startDate)}&end_date=${encodeURIComponent(range.endDate)}`,
+    { method: 'POST' },
   )
 }
 
 /**
  * Kicks off a background import of the user's Garmin Connect gear.
  *
- * @throws {HttpError} When the request fails.
+ * @returns The queued sync job.
+ * @throws {HttpError} When the request fails, including 409 while a gear sync is running.
  */
-export async function retrieveGarminGear(): Promise<void> {
-  await apiFetch('/garminconnect/gear', { responseType: 'void' })
+export async function retrieveGarminGear(): Promise<GarminSyncStatus> {
+  return apiFetch<GarminSyncStatus>('/garmin/gear', { method: 'POST' })
 }
 
 /**
  * Kicks off a background import of Garmin Connect health data in the given window.
  *
  * @param range - The inclusive date window to import.
- * @throws {HttpError} When the request fails.
+ * @returns The queued sync job.
+ * @throws {HttpError} When the request fails, including 409 while a health sync is running.
  */
-export async function retrieveGarminHealth(range: DateRange): Promise<void> {
-  await apiFetch(
-    `/garminconnect/health?start_date=${encodeURIComponent(range.startDate)}&end_date=${encodeURIComponent(range.endDate)}`,
-    { responseType: 'void' },
+export async function retrieveGarminHealth(range: DateRange): Promise<GarminSyncStatus> {
+  return apiFetch<GarminSyncStatus>(
+    `/garmin/health?start_date=${encodeURIComponent(range.startDate)}&end_date=${encodeURIComponent(range.endDate)}`,
+    { method: 'POST' },
   )
 }
 
@@ -86,5 +92,5 @@ export async function retrieveGarminHealth(range: DateRange): Promise<void> {
  * @throws {HttpError} When the request fails.
  */
 export async function unlinkGarmin(): Promise<void> {
-  await apiFetch('/garminconnect/unlink', { method: 'DELETE', responseType: 'void' })
+  await apiFetch('/garmin/link', { method: 'DELETE', responseType: 'void' })
 }

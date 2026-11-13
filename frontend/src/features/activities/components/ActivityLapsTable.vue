@@ -3,17 +3,19 @@ import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import type { Activity, ActivityLap } from '@/features/activities/types'
-import type { Units } from '@/features/activities/utils/format'
+import type { FormattedMetric, Units } from '@/features/activities/utils/format'
 
 import { activityTypeIsSwimming, lapCyclesLabelKey } from '@/features/activities/utils/activityType'
 import {
-  combineMetric,
   formatDistance,
   formatElevation,
   formatHmsDuration,
 } from '@/features/activities/utils/format'
 import { normalizeLaps, summarizeActiveLaps } from '@/features/activities/utils/laps'
 import { formatLapTempo } from '@/features/activities/utils/metrics'
+
+import { useUnitFormat } from '@/composables/useUnitFormat'
+import { formatNumber } from '@/utils/formatNumber'
 
 const props = defineProps<{
   laps: ActivityLap[]
@@ -22,6 +24,12 @@ const props = defineProps<{
 }>()
 
 const { t } = useI18n()
+const { unitLabel, formatMetric } = useUnitFormat()
+
+/** Renders a split metric as `value unit`, or `--` when the lap has no reading. */
+function metricLabel(metric: FormattedMetric | null): string {
+  return metric === null ? '--' : formatMetric(metric)
+}
 
 const isSwimming = computed(() => activityTypeIsSwimming(props.activity.activityType))
 // Swimming hides elevation and shows stroke rate in its place (v1 parity).
@@ -49,21 +57,18 @@ const activeSummary = computed(() => {
     return null
   }
   return {
-    distance: combineMetric(
+    distance: metricLabel(
       formatDistance(summary.totalDistance, props.activity.activityType, props.units),
     ),
     time: formatHmsDuration(summary.totalElapsedTime),
-    tempo: formatLapTempo(
-      summary.avgPace,
-      summary.avgSpeed,
-      props.activity.activityType,
-      props.units,
+    tempo: metricLabel(
+      formatLapTempo(summary.avgPace, summary.avgSpeed, props.activity.activityType, props.units),
     ),
   }
 })
 
 interface LapRow {
-  id: number
+  id: string
   index: number
   intensity: string | null
   distance: string
@@ -85,27 +90,30 @@ const rows = computed<LapRow[]>(() =>
       id: lap.id,
       index: index + 1,
       intensity: lap.intensity,
-      distance: combineMetric(
+      distance: metricLabel(
         formatDistance(lap.totalDistance, props.activity.activityType, props.units),
       ),
       time: formatHmsDuration(lap.totalElapsedTime),
       // Rest laps record idle drift, so their pace is meaningless — blank it.
       tempo: entry.isRest
         ? '--'
-        : formatLapTempo(
-            lap.enhancedAvgPace,
-            lap.enhancedAvgSpeed,
-            props.activity.activityType,
-            props.units,
+        : metricLabel(
+            formatLapTempo(
+              lap.enhancedAvgPace,
+              lap.enhancedAvgSpeed,
+              props.activity.activityType,
+              props.units,
+            ),
           ),
       tempoScore: entry.isRest ? null : entry.normalizedScore,
       elevation:
         lap.totalAscent === null
           ? '--'
-          : combineMetric(formatElevation(lap.totalAscent, props.units)),
-      strokeRate: lap.avgCadence === null ? '--' : `${Math.round(lap.avgCadence)}`,
+          : metricLabel(formatElevation(lap.totalAscent, props.units)),
+      strokeRate: lap.avgCadence === null ? '--' : formatNumber(lap.avgCadence),
       cycles: lap.totalCycles === null ? '--' : `${lap.totalCycles}`,
-      hr: lap.avgHeartRate === null ? '--' : `${Math.round(lap.avgHeartRate)} bpm`,
+      hr:
+        lap.avgHeartRate === null ? '--' : `${formatNumber(lap.avgHeartRate)} ${unitLabel('bpm')}`,
       isRest: entry.isRest,
     }
   }),

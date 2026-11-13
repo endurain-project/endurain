@@ -4,6 +4,7 @@
     "uploading": "Качване…",
     "success": "Активността е качена успешно",
     "error": "Файлът с активността не можа да се качи",
+    "tooLarge": "Файлът е твърде голям",
     "timeout": "Файлът ви все още се импортира. Ще се появи, когато приключи.",
     "failed": {
       "unsupported_format": "Този тип файл не се поддържа",
@@ -46,7 +47,6 @@
     "thisWeek": "Тази седмица",
     "thisMonth": "Този месец",
     "empty": "Няма активност в този период",
-    "caloriesUnit": "kcal",
     "metric": {
       "distance": "Разстояние",
       "time": "Време",
@@ -63,12 +63,13 @@
     "snow_ski": "Ски",
     "snowboard": "Сноуборд",
     "windsurf": "Уиндсърф",
-    "stand_up_paddleboarding": "Падълборд",
-    "surfing": "Сърф",
+    "stand_up_paddling": "Падълборд",
+    "surf": "Сърф",
     "kayaking": "Каяк",
     "sailing": "Ветроходство",
-    "snowshoeing": "Ходене със снегоходки",
-    "inline_skating": "Ролкови кънки"
+    "snow_shoeing": "Ходене със снегоходки",
+    "inline_skating": "Ролкови кънки",
+    "other": "Други"
   },
   "goals": {
     "title": "Цели",

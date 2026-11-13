@@ -1,6 +1,12 @@
 {
   "title": "Salut",
   "subtitle": "Veu totes les teves dades de salut en un sol lloc",
+  "chartBucket": {
+    "week": "Mitjanes setmanals: cada barra és el dia mitjà d'aquella setmana.",
+    "month": "Mitjanes mensuals: cada barra és el dia mitjà d'aquell mes."
+  },
+  "targetInvalid": "Introdueix un valor superior a 0 o deixa-ho buit per treure l'objectiu.",
+  "chartError": "No s'ha pogut carregar el gràfic d'aquest interval de temps.",
   "nav": {
     "label": "Seccions de salut",
     "soon": "Aviat",
@@ -34,6 +40,7 @@
     "stepsTargetLabel": "passos",
     "poopTargetLabel": "/ dia",
     "noWeightData": "Sense dades de pes",
+    "noHeightData": "Afegeix la teva alçada al perfil per veure el teu BMI.",
     "bmiUnderweight": "Baix pes",
     "bmiNormalWeight": "Pes normal",
     "bmiOverweight": "Sobrepès",
@@ -88,7 +95,6 @@
       "weightRequired": "Introdueix el teu pes.",
       "weightInvalid": "Introdueix un pes superior a zero.",
       "bodyComposition": "Composició corporal (opcional)",
-      "bmi": "BMI",
       "bodyFat": "Greix corporal (%)",
       "bodyWater": "Aigua corporal (%)",
       "boneMass": "Massa òssia",
@@ -256,6 +262,8 @@
     "scorePoor": "Deficient",
     "detail": {
       "tabsLabel": "Seccions de detall del son",
+      "stagesLoading": "Carregant les fases del son",
+      "stagesError": "No s'han pogut carregar les fases del son",
       "tabScore": "Puntuació del son",
       "tabDetails": "Detalls del son",
       "deep": "Profund",
@@ -301,6 +309,8 @@
     "form": {
       "addTitle": "Registra el son",
       "editTitle": "Edita l'entrada de son",
+      "loading": "Carregant l'entrada de son",
+      "loadError": "No s'ha pogut carregar l'entrada de son",
       "description": "Registra la durada del teu son i, opcionalment, el desglossament de fases i les mètriques.",
       "date": "Data",
       "dateRequired": "Tria una data.",
@@ -308,6 +318,8 @@
       "totalSleepRequired": "Introdueix quant temps has dormit.",
       "hours": "Hores",
       "minutes": "Minuts",
+      "hoursOf": "{field}, hores",
+      "minutesOf": "{field}, minuts",
       "stageBreakdown": "Desglossament de fases (opcional)",
       "deep": "Son profund",
       "light": "Son lleuger",
@@ -350,7 +362,11 @@
       "close": "Tanca",
       "createSuccess": "Son registrat.",
       "updateSuccess": "Entrada de son actualitzada.",
-      "saveError": "No s'ha pogut desar l'entrada de son. Torna-ho a intentar."
+      "saveError": "No s'ha pogut desar l'entrada de son. Torna-ho a intentar.",
+      "numberRange": "Introdueix un valor entre {min} i {max}.",
+      "numberMin": "Introdueix {min} o més.",
+      "stagesExceedTotal": "El son profund, lleuger i REM sumen més que el total.",
+      "inconsistentError": "Aquestes dades de son no quadren. Comprova que les fases i el total càpiguen dins de l'horari de son."
     },
     "target": {
       "title": "Estableix l'objectiu de son",
@@ -419,7 +435,8 @@
       "close": "Tanca",
       "createSuccess": "Aigua registrada.",
       "updateSuccess": "Entrada d'aigua actualitzada.",
-      "saveError": "No s'ha pogut desar l'entrada d'aigua. Torna-ho a intentar."
+      "saveError": "No s'ha pogut desar l'entrada d'aigua. Torna-ho a intentar.",
+      "dayTakenError": "Ja existeix un registre d'aigua per a aquest dia. Edita'l en lloc d'afegir-ne un altre."
     },
     "target": {
       "title": "Estableix l'objectiu d'aigua",
@@ -596,6 +613,8 @@
       "startTime": "Hora d'inici",
       "startTimeRequired": "Tria una hora d'inici.",
       "endTime": "Hora de fi",
+      "endBeforeStart": "L'hora de finalització no pot ser anterior a l'hora d'inici.",
+      "endWhileInProgress": "Un dejuni en curs no pot tenir hora de fi.",
       "status": "Estat",
       "notes": "Notes",
       "create": "Inicia",
@@ -604,7 +623,9 @@
       "close": "Tanca",
       "createSuccess": "Dejuni iniciat.",
       "updateSuccess": "Sessió de dejuni actualitzada.",
-      "saveError": "No s'ha pogut desar la teva sessió de dejuni. Torna-ho a intentar."
+      "saveError": "No s'ha pogut desar la teva sessió de dejuni. Torna-ho a intentar.",
+      "overlapError": "Aquest dejuni se superposa amb una altra sessió de dejuni, o ja hi ha un altre dejuni en curs.",
+      "invalidTimesError": "Un dejuni no pot acabar abans de començar, un dejuni completat o trencat necessita una hora de fi, i un dejuni en curs no en pot tenir."
     },
     "target": {
       "title": "Estableix l'objectiu de dejuni",
@@ -621,6 +642,20 @@
     "complete": {
       "success": "Dejuni finalitzat.",
       "error": "No s'ha pogut finalitzar el teu dejuni. Torna-ho a intentar."
+    },
+    "endConfirm": {
+      "broken": {
+        "title": "Trencar aquest dejuni?",
+        "body": "El dejuni acaba ara i es desa com a trencat. No es pot desfer.",
+        "confirm": "Trenca el dejuni"
+      },
+      "cancelled": {
+        "title": "Cancel·lar aquest dejuni?",
+        "body": "El dejuni acaba ara i es desa com a cancel·lat. No es pot desfer.",
+        "confirm": "Cancel·la el dejuni"
+      },
+      "cancel": "Continua el dejuni",
+      "close": "Tanca"
     },
     "empty": {
       "title": "Encara no hi ha dejunis",

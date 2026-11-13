@@ -24,12 +24,10 @@
     "waterSports": "Vandsport",
     "skating": "Skøjteløb"
   },
-  "results": {
-    "inactive": "Inaktiv"
-  },
   "idle": {
     "title": "Søg i Endurain",
-    "description": "Vælg, hvad du vil finde, og begynd at skrive for at se resultater."
+    "description": "Vælg, hvad du vil finde, og begynd at skrive for at se resultater.",
+    "usersDescription": "Skriv mindst {min} tegn for at søge efter brugere."
   },
   "empty": {
     "title": "Ingen resultater fundet",

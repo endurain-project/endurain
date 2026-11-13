@@ -6,11 +6,11 @@ user dropped files into on the server. The archive is staged in the platform
 does constant work however many files it holds, and any worker can run it.
 
 The job is processed in short batches rather than as one long task. Each batch
-imports files until a time or count budget is spent, records how far it got on the
-job row and, on the durable profile, queues its own continuation in the same
-transaction, which sends it to the back of the queue. A large import therefore
-interleaves with everyone else's work instead of holding a worker, never outlives a
-job lease, and resumes from its cursor after a crash. Importing a file is idempotent
+imports files until a time or count budget is spent and records how far it got on the
+job row. A batch that leaves files over reports it to its caller, and the durable
+subscriber ends the pass with ``ContinueJob`` so the same job runs the next batch.
+A large import therefore interleaves with everyone else's work instead of holding a
+worker, never outlives a job lease, and resumes from its cursor after a crash. Importing a file is idempotent
 (a content-derived dedup key), so a batch that is repeated after a crash costs
 nothing but time.
 
@@ -20,21 +20,30 @@ no budget on the in-process pool.
 Provider exports register a :class:`BulkImportFormat`; this module names none.
 """
 
+import contextlib
+import hashlib
+import lzma
 import os
 import tempfile
+import threading
 import time
 import uuid
 import zipfile
+import zlib
+from collections.abc import Iterator
 
+import jasil.audit as jasil_audit
 import jasil.providers as platform_providers
-from sqlalchemy.exc import IntegrityError
+from sqlalchemy.exc import IntegrityError, InterfaceError, OperationalError, SQLAlchemyError
 from sqlalchemy.orm import Session
 
 import core.config as core_config
 import core.database as core_database
 import core.exceptions as core_exceptions
 import core.file_uploads as core_file_uploads
+import core.local_pool as core_local_pool
 import core.logger as core_logger
+import modules.activities.activity_ingestion.audit_actions as activity_ingestion_audit_actions
 import modules.activities.activity_ingestion.constants as activity_ingestion_constants
 import modules.activities.activity_ingestion.contracts as activity_ingestion_contracts
 import modules.activities.activity_ingestion.crud as activity_ingestion_crud
@@ -51,8 +60,27 @@ logger = core_logger.get_logger(__name__)
 
 GENERIC_FORMAT_NAME = "generic"
 
-#: Where the bytes of a file that could not be imported are kept for the operator.
-BULK_IMPORT_ERROR_STORAGE_AREA = "bulk_import_errors"
+#: Domain errors that mean the server, not the user's file, failed.
+_OPERATOR_ERRORS = (
+    core_exceptions.ProcessingError,
+    core_exceptions.ServiceUnavailableError,
+    core_exceptions.DependencyFailedError,
+    core_exceptions.UpstreamError,
+)
+
+#: Failures of the database or the storage backend, not of one file: a batch that meets one is retried.
+_OUTAGE_ERRORS = (OperationalError, InterfaceError, platform_providers.StorageBackendUnavailableError)
+
+#: What reading a damaged, unsupported or encrypted archive member raises besides ``DomainError``
+#: (``RuntimeError`` is an encrypted member, and the base of ``StorageBackendUnavailableError``).
+_UNREADABLE_MEMBER_ERRORS = (
+    zipfile.BadZipFile,
+    zlib.error,
+    lzma.LZMAError,
+    EOFError,
+    NotImplementedError,
+    RuntimeError,
+)
 
 _ARCHIVE_KEY_PREFIX = "bulk-"
 
@@ -62,6 +90,47 @@ _BATCH_MAX_FILES = 200
 _PROGRESS_EVERY_FILES = 10
 _MIN_BATCH_SECONDS = 30
 _LEASE_FRACTION = 3
+
+# While a folder is packed and staged, the job is touched this often. The stale-job reaper fails a
+# folder import that has been quiet for longer than a few of these, so it must stay well below that.
+_HEARTBEAT_SECONDS = 60.0
+
+
+@contextlib.contextmanager
+def _heartbeat(job_id: uuid.UUID) -> Iterator[None]:
+    """Keep a job's ``updated_at`` fresh on a background thread while the body runs.
+
+    A folder import has no batch checkpoints while it is packed, so this is what tells the stale-job
+    reaper the node is alive. A touch that fails is logged and retried at the next beat.
+
+    Args:
+        job_id: The job to keep alive.
+
+    Yields:
+        Nothing; the beat stops when the block exits.
+    """
+    stop = threading.Event()
+
+    def beat() -> None:
+        while not stop.wait(_HEARTBEAT_SECONDS):
+            try:
+                with core_database.SessionLocal() as db:
+                    activity_ingestion_crud.touch_job(job_id, db)
+                    db.commit()
+            except SQLAlchemyError as err:
+                logger.warning(
+                    "Could not touch a bulk import that is being packed",
+                    exc_info=err,
+                    extra=core_logger.context(job_id=job_id),
+                )
+
+    thread = threading.Thread(target=beat, name=f"bulk-import-heartbeat-{job_id}", daemon=True)
+    thread.start()
+    try:
+        yield
+    finally:
+        stop.set()
+        thread.join()
 
 
 def _is_supported_member(member_name: str) -> bool:
@@ -116,7 +185,7 @@ def resolve_format(name: str) -> activity_ingestion_contracts.BulkImportFormat:
     return found
 
 
-def _archive_key(job_id: str) -> str:
+def _archive_key(job_id: uuid.UUID) -> str:
     """Return the staged-upload key a job's archive is held under.
 
     Args:
@@ -129,7 +198,22 @@ def _archive_key(job_id: str) -> str:
     return f"{_ARCHIVE_KEY_PREFIX}{job_id}.zip"
 
 
-def _ensure_none_running(user_id: int, db: Session) -> None:
+def _already_running(running_id: uuid.UUID | None) -> core_exceptions.ConflictError:
+    """Build the refusal of a second bulk import, naming the one that is running.
+
+    Args:
+        running_id: The running import's job id, or ``None`` when it finished after the refusal was decided.
+
+    Returns:
+        A conflict that carries the running job's id, or a plain one without an id.
+    """
+    detail = "A bulk import is already running"
+    if running_id is None:
+        return core_exceptions.ConflictError(detail)
+    return core_exceptions.JobAlreadyRunningError(detail, job_id=running_id)
+
+
+def _ensure_none_running(user_id: uuid.UUID, db: Session) -> None:
     """Refuse a second bulk import while the user has one running.
 
     Args:
@@ -137,24 +221,73 @@ def _ensure_none_running(user_id: int, db: Session) -> None:
         db: Database session.
 
     Raises:
-        ConflictError: When an import is already running.
+        ConflictError: When an import is already running; it names the running job.
     """
-    if activity_ingestion_crud.get_active_bulk_import_job_id(user_id, db) is not None:
-        raise core_exceptions.ConflictError("A bulk import is already running")
+    running_id = activity_ingestion_crud.get_active_bulk_import_job_id(user_id, db)
+    if running_id is not None:
+        raise _already_running(running_id)
+
+
+def _stage_import_request(
+    job_id: uuid.UUID,
+    user_id: uuid.UUID,
+    source: activity_ingestion_audit_actions.ImportSource,
+    file_count: int | None,
+    db: Session,
+) -> None:
+    """Stage the audit row of a bulk import request in the transaction that queues the job.
+
+    Args:
+        job_id: The queued bulk-import job.
+        user_id: The importing user.
+        source: Where the files come from.
+        file_count: How many importable files were found, or None when it is not known yet.
+        db: The session holding the staged job row.
+    """
+    jasil_audit.stage(
+        db,
+        activity_ingestion_audit_actions.IMPORT_REQUEST,
+        target_type="activity_ingestion_job",
+        target_id=str(job_id),
+        target_owner_id=str(user_id),
+        details=activity_ingestion_audit_actions.ImportRequestDetails(source=source, file_count=file_count),
+    )
+
+
+def _request_fingerprint(archive_path: str, source: str) -> str:
+    """Fingerprint a bulk import request: the archive's bytes and the layout they are read as.
+
+    The same archive read as another source is another import, so a reused key must not replay it.
+
+    Args:
+        archive_path: The received archive on local disk.
+        source: The archive format the request names.
+
+    Returns:
+        A hex SHA-256 digest.
+    """
+    digest = core_file_uploads.sha256_file(archive_path)
+    return hashlib.sha256(f"{source}:{digest}".encode()).hexdigest()
 
 
 def accept_archive(
-    user_id: int,
+    user_id: uuid.UUID,
     filename: str | None,
     save_upload: activity_ingestion_upload_entry_service.UploadSaver,
     source: str,
     storage: platform_providers.StorageProvider,
     db: Session,
+    *,
+    idempotency_key: str | None = None,
 ) -> activity_ingestion_schema.ActivityIngestionJobRead:
     """Stage an uploaded archive and queue it for import.
 
     The request validates the archive's shape from its directory listing only; no
     member is read. The import itself runs on a worker.
+
+    When the caller supplies an ``Idempotency-Key``, a replay of the same archive and source returns the
+    original job in whatever state it has now, even while that import is the one running, and the same
+    key with a different archive or source is refused. A key is kept for as long as its job row is.
 
     Args:
         user_id: The importing user.
@@ -163,29 +296,54 @@ def accept_archive(
         source: The archive format to read (``generic`` or a provider export).
         storage: The blob-storage provider the archive is staged in.
         db: Database session.
+        idempotency_key: Client-supplied key identifying this request.
 
     Returns:
-        The accepted import, in the pending state.
+        The accepted import, in the pending state, or the import the same key was accepted with before.
 
     Raises:
         InvalidInputError: For an unknown source, a non-ZIP name or an archive
             with nothing importable.
-        ConflictError: When the user already has an import running.
+        ConflictError: When the user already has an import running, or the key was already used for a
+            different archive.
         DomainError: When the shared upload validators or the archive caps reject it.
+        PoolFullError: On the local profile, when the in-process pool is full.
     """
+    activity_ingestion_dispatch_service.require_capacity()
     bulk_format = resolve_format(source)
     if filename is None or os.path.splitext(filename)[1].lower() != ".zip":
         raise core_exceptions.InvalidInputError("A bulk import takes a .zip archive")
-    _ensure_none_running(user_id, db)
+    # A repeat of a request that is the running import must be answered with that import, so the key is
+    # looked up before the running-import refusal. Whether it is a repeat is decided once the archive is read.
+    prior = (
+        activity_ingestion_crud.get_job_for_idempotency(
+            idempotency_key, user_id, activity_ingestion_constants.IngestionJobKind.BULK_IMPORT, db
+        )
+        if idempotency_key
+        else None
+    )
+    if prior is None:
+        _ensure_none_running(user_id, db)
+    # The check read, which holds a pooled connection until the transaction ends; the archive can be
+    # 500 MiB, so staging it must not keep that connection.
+    db.commit()
 
     incoming_path = save_upload(
         kind=core_file_uploads.UploadKind.ZIP,
         upload_dir=core_config.FILES_UPLOAD_INCOMING_DIR,
         filename=f"{uuid.uuid4().hex}.zip",
     )
-    job_id = str(uuid.uuid4())
+    job_id = uuid.uuid4()
     key = _archive_key(job_id)
     try:
+        fingerprint = _request_fingerprint(incoming_path, bulk_format.name) if idempotency_key else None
+        if prior is not None:
+            activity_ingestion_service.require_same_request(prior[1], fingerprint)
+            logger.info(
+                "Replayed bulk import returned the original job",
+                extra=core_logger.context(user_id=user_id, job_id=prior[0].id),
+            )
+            return prior[0]
         members = core_file_uploads.list_zip_members(incoming_path)
         files_total = sum(1 for member in members if bulk_format.is_activity_member(member.name))
         if files_total == 0:
@@ -209,7 +367,10 @@ def accept_archive(
             staged_key=key,
             import_source=bulk_format.name,
             files_total=files_total,
+            idempotency_key=idempotency_key,
+            request_fingerprint=fingerprint,
         )
+        _stage_import_request(job_id, user_id, activity_ingestion_audit_actions.ImportSource.ARCHIVE, files_total, db)
         activity_ingestion_dispatch_service.commit_or_publish(
             db,
             publish=lambda commit: activity_ingestion_event_publishers.publish_bulk_import_continue(
@@ -217,16 +378,26 @@ def accept_archive(
             ),
         )
     except IntegrityError as err:
-        # Two requests passed the check above together; the partial unique index
-        # decides which one runs.
+        # Two requests passed the check above together; the unique index on the key, or the one on the
+        # running import, decides which one runs.
         db.rollback()
         activity_ingestion_upload_entry_service.discard_staged_upload(key, storage)
-        raise core_exceptions.ConflictError("A bulk import is already running") from err
+        raced = (
+            activity_ingestion_crud.get_job_for_idempotency(
+                idempotency_key, user_id, activity_ingestion_constants.IngestionJobKind.BULK_IMPORT, db
+            )
+            if idempotency_key
+            else None
+        )
+        if raced is not None:
+            activity_ingestion_service.require_same_request(raced[1], fingerprint)
+            return raced[0]
+        raise _already_running(activity_ingestion_crud.get_active_bulk_import_job_id(user_id, db)) from err
     except Exception:
         activity_ingestion_upload_entry_service.discard_staged_upload(key, storage)
         raise
 
-    activity_ingestion_dispatch_service.run_in_background(run_bulk_import_job, job_id, storage)
+    activity_ingestion_service.run_in_background_or_fail(run_bulk_import_job, job_id, storage)
     logger.info(
         "Bulk import accepted",
         extra=core_logger.context(console=True, user_id=user_id, job_id=job_id, files=files_total),
@@ -235,7 +406,7 @@ def accept_archive(
 
 
 def start_from_directory(
-    user_id: int,
+    user_id: uuid.UUID,
     source: str,
     storage: platform_providers.StorageProvider,
     db: Session,
@@ -259,7 +430,9 @@ def start_from_directory(
     Raises:
         InvalidInputError: For an unknown source or an empty folder.
         ConflictError: When the user already has an import running.
+        PoolFullError: When the in-process pool is full.
     """
+    activity_ingestion_dispatch_service.require_node_capacity()
     bulk_format = resolve_format(source)
     _ensure_none_running(user_id, db)
     directory = bulk_format.drop_directory(user_id)
@@ -267,7 +440,7 @@ def start_from_directory(
     if not _folder_has_importable_file(directory, bulk_format):
         raise core_exceptions.InvalidInputError("There is nothing to import in your import folder")
 
-    job_id = str(uuid.uuid4())
+    job_id = uuid.uuid4()
     try:
         activity_ingestion_crud.create_ingestion_job(
             job_id,
@@ -276,14 +449,21 @@ def start_from_directory(
             db,
             import_source=bulk_format.name,
         )
+        _stage_import_request(job_id, user_id, activity_ingestion_audit_actions.ImportSource.SERVER_DIRECTORY, None, db)
         db.commit()
     except IntegrityError as err:
         db.rollback()
-        raise core_exceptions.ConflictError("A bulk import is already running") from err
+        raise _already_running(activity_ingestion_crud.get_active_bulk_import_job_id(user_id, db)) from err
 
-    activity_ingestion_dispatch_service.run_on_this_node(
-        feed_archive_from_directory, job_id, user_id, bulk_format.name, directory, storage
-    )
+    try:
+        activity_ingestion_dispatch_service.run_on_this_node(
+            feed_archive_from_directory, job_id, user_id, bulk_format.name, directory, storage
+        )
+    except core_local_pool.PoolFullError:
+        activity_ingestion_service.fail_ingestion_job(
+            job_id, activity_ingestion_constants.IngestionJobErrorCode.PROCESSING_FAILED, storage
+        )
+        raise
     logger.info(
         "Bulk import from the import folder accepted",
         extra=core_logger.context(console=True, user_id=user_id, job_id=job_id),
@@ -310,8 +490,8 @@ def _folder_has_importable_file(directory: str, bulk_format: activity_ingestion_
 
 
 def feed_archive_from_directory(
-    job_id: str,
-    user_id: int,
+    job_id: uuid.UUID,
+    user_id: uuid.UUID,
     source: str,
     directory: str,
     storage: platform_providers.StorageProvider,
@@ -330,32 +510,37 @@ def feed_archive_from_directory(
     """
     packed: list[str] = []
     try:
-        bulk_format = resolve_format(source)
-        key = _archive_key(job_id)
-        with tempfile.TemporaryDirectory(prefix="bulk-import-pack-") as work_dir:
-            archive_path = os.path.join(work_dir, "import.zip")
-            files_total = _pack_directory(directory, archive_path, bulk_format, packed)
-            core_file_uploads.list_zip_members(archive_path)
-            with open(archive_path, "rb") as handle:
-                storage.save_stream(
-                    activity_ingestion_upload_entry_service.UPLOAD_STAGING_STORAGE_AREA,
-                    activity_ingestion_upload_entry_service.upload_staging_storage_key(key),
-                    handle,
+        with _heartbeat(job_id):
+            bulk_format = resolve_format(source)
+            key = _archive_key(job_id)
+            with tempfile.TemporaryDirectory(prefix="bulk-import-pack-") as work_dir:
+                archive_path = os.path.join(work_dir, "import.zip")
+                files_total = _pack_directory(directory, archive_path, bulk_format, packed)
+                core_file_uploads.list_zip_members(archive_path)
+                with open(archive_path, "rb") as handle:
+                    storage.save_stream(
+                        activity_ingestion_upload_entry_service.UPLOAD_STAGING_STORAGE_AREA,
+                        activity_ingestion_upload_entry_service.upload_staging_storage_key(key),
+                        handle,
+                    )
+            with core_database.SessionLocal() as db:
+                if not activity_ingestion_crud.attach_bulk_archive(job_id, key, files_total, db):
+                    # The reaper closed the job while the folder was packed: nothing will read the archive, and
+                    # the user's files stay where they put them.
+                    activity_ingestion_upload_entry_service.discard_staged_upload(key, storage)
+                    logger.warning(
+                        "Bulk import folder was packed after its job was closed; the files were left in place",
+                        extra=core_logger.context(user_id=user_id, job_id=job_id),
+                    )
+                    return
+                activity_ingestion_dispatch_service.commit_or_publish(
+                    db,
+                    publish=lambda commit: activity_ingestion_event_publishers.publish_bulk_import_continue(
+                        job_id, user_id, db, commit=commit
+                    ),
                 )
-        with core_database.SessionLocal() as db:
-            activity_ingestion_crud.attach_bulk_archive(job_id, key, files_total, db)
-            activity_ingestion_dispatch_service.commit_or_publish(
-                db,
-                publish=lambda commit: activity_ingestion_event_publishers.publish_bulk_import_continue(
-                    job_id, user_id, db, commit=commit
-                ),
-            )
     except Exception as err:
-        logger.error(
-            "Could not stage the bulk import folder",
-            exc_info=err,
-            extra=core_logger.context(console=True, user_id=user_id, job_id=job_id),
-        )
+        _log_bulk_failure("Could not stage the bulk import folder", err, user_id=user_id, job_id=job_id)
         activity_ingestion_service.fail_ingestion_job(
             job_id,
             activity_ingestion_constants.IngestionJobErrorCode.PROCESSING_FAILED,
@@ -428,7 +613,7 @@ def _pack_directory(
     return importable
 
 
-def _job_view(job_id: str, user_id: int, db: Session) -> activity_ingestion_schema.ActivityIngestionJobRead:
+def _job_view(job_id: uuid.UUID, user_id: uuid.UUID, db: Session) -> activity_ingestion_schema.ActivityIngestionJobRead:
     """Read an accepted job back for the response.
 
     Args:
@@ -445,23 +630,26 @@ def _job_view(job_id: str, user_id: int, db: Session) -> activity_ingestion_sche
     return job
 
 
-def run_bulk_import_job(job_id: str, storage: platform_providers.StorageProvider) -> None:
+def run_bulk_import_job(job_id: uuid.UUID, storage: platform_providers.StorageProvider) -> bool:
     """Work one batch of a bulk import, recording the outcome on the job row.
 
     The job body for both executors. On the durable profile a batch that leaves
-    files over has already queued its continuation, in the same transaction that
-    recorded its progress, and returns so the worker is free; otherwise the single
-    unbudgeted pass finishes the import.
+    files over has recorded its progress and released the job, and returns True so
+    the caller can run the next batch; otherwise the single unbudgeted pass finishes
+    the import.
 
     Args:
         job_id: The ``activity_ingestion_jobs`` row to continue.
         storage: The blob-storage provider the archive is staged in.
 
+    Returns:
+        True when the batch stopped at its budget with files left to import.
+
     Raises:
         Exception: Whatever the batch raised, so the durable runner can retry.
     """
     try:
-        _run_batch(job_id, storage)
+        return _run_batch(job_id, storage)
     except Exception:
         if not activity_ingestion_dispatch_service.worker_retries():
             activity_ingestion_service.fail_ingestion_job(
@@ -485,28 +673,31 @@ def _batch_budget() -> tuple[int, float | None]:
     return _BATCH_MAX_FILES, float(max(_MIN_BATCH_SECONDS, lease // _LEASE_FRACTION))
 
 
-def _run_batch(job_id: str, storage: platform_providers.StorageProvider) -> None:
+def _run_batch(job_id: uuid.UUID, storage: platform_providers.StorageProvider) -> bool:
     """Import files from the job's archive until the batch budget is spent.
 
     Args:
         job_id: The job to continue.
         storage: The blob-storage provider.
+
+    Returns:
+        True when files are left over after a checkpoint; False when the import ended or was not run.
     """
     with core_database.SessionLocal() as db:
         state = activity_ingestion_crud.get_bulk_import_state(job_id, db)
         if state is None or state.finished:
             logger.debug("Skipping a bulk import that is unknown or finished", extra=core_logger.context(job_id=job_id))
-            return
+            return False
         if state.staged_key is None:
             # The folder is still being packed; the continuation is queued once it is.
-            return
+            return False
         if not activity_ingestion_crud.mark_processing(
             job_id, db, lease=activity_ingestion_dispatch_service.claim_lease()
         ):
             logger.debug(
                 "Skipping a bulk import batch that is claimed elsewhere", extra=core_logger.context(job_id=job_id)
             )
-            return
+            return False
         db.commit()
 
     try:
@@ -515,7 +706,7 @@ def _run_batch(job_id: str, storage: platform_providers.StorageProvider) -> None
         activity_ingestion_service.fail_ingestion_job(
             job_id, activity_ingestion_constants.IngestionJobErrorCode.PROCESSING_FAILED, storage, state.staged_key
         )
-        return
+        return False
 
     max_files, seconds = _batch_budget()
     deadline = None if seconds is None else time.monotonic() + seconds
@@ -531,7 +722,7 @@ def _run_batch(job_id: str, storage: platform_providers.StorageProvider) -> None
             activity_ingestion_service.fail_ingestion_job(
                 job_id, activity_ingestion_constants.IngestionJobErrorCode.INVALID_FILE, storage, state.staged_key
             )
-            return
+            return False
 
         members = sorted(
             member.name
@@ -544,14 +735,14 @@ def _run_batch(job_id: str, storage: platform_providers.StorageProvider) -> None
             try:
                 source = bulk_format.build_source(state.user_id, state.created_at.isoformat(), _member_reader(archive))
             except core_exceptions.DomainError as err:
-                logger.error(
+                logger.warning(
                     "Bulk import archive is not a valid export",
                     extra=core_logger.context(console=True, job_id=job_id, reason=err.detail),
                 )
                 activity_ingestion_service.fail_ingestion_job(
                     job_id, activity_ingestion_service.error_code_for(err), storage, state.staged_key
                 )
-                return
+                return False
 
             done, failed, cursor, handled = state.files_done, state.files_failed, state.cursor, 0
             for name in pending:
@@ -567,17 +758,21 @@ def _run_batch(job_id: str, storage: platform_providers.StorageProvider) -> None
                     _save_progress(job_id, cursor, done, failed)
 
     if handled < len(pending):
-        _checkpoint_and_continue(job_id, state.user_id, cursor, done, failed)
-        return
+        _checkpoint(job_id, cursor, done, failed)
+        return True
 
     with core_database.SessionLocal() as db:
         activity_ingestion_crud.mark_bulk_completed(job_id, cursor, done, failed, db)
         db.commit()
+    activity_ingestion_service.announce_job(
+        state.user_id, job_id, activity_ingestion_constants.IngestionJobKind.BULK_IMPORT
+    )
     activity_ingestion_upload_entry_service.discard_staged_upload(state.staged_key, storage)
     logger.info(
         "Bulk import finished",
         extra=core_logger.context(console=True, user_id=state.user_id, job_id=job_id, done=done, failed=failed),
     )
+    return False
 
 
 def _member_reader(archive: zipfile.ZipFile) -> activity_ingestion_contracts.ArchiveMemberReader:
@@ -591,6 +786,17 @@ def _member_reader(archive: zipfile.ZipFile) -> activity_ingestion_contracts.Arc
     """
 
     def read(member_name: str) -> bytes | None:
+        """Read one archive member.
+
+        Args:
+            member_name: The member's name in the archive.
+
+        Returns:
+            The member's bytes, or ``None`` when it is absent.
+
+        Raises:
+            PayloadTooLargeError: When the member is larger than the read limit.
+        """
         try:
             info = archive.getinfo(member_name)
         except KeyError:
@@ -602,15 +808,36 @@ def _member_reader(archive: zipfile.ZipFile) -> activity_ingestion_contracts.Arc
     return read
 
 
+def _log_bulk_failure(message: str, err: Exception, **fields: object) -> None:
+    """Log why a bulk import step failed, at the level its cause calls for.
+
+    A file the pipeline or the archive checks refuse is the user's input and is a warning without a
+    traceback; a processing, storage or dependency failure, or a bug, needs an operator and is an error.
+
+    Args:
+        message: The log message.
+        err: The failure.
+        **fields: Context fields for the record.
+    """
+    if isinstance(err, core_exceptions.DomainError) and not isinstance(err, _OPERATOR_ERRORS):
+        logger.warning(message, extra=core_logger.context(console=True, detail=err.detail, **fields))
+        return
+    logger.error(message, exc_info=err, extra=core_logger.context(console=True, **fields))
+
+
 def _import_member(
     archive: zipfile.ZipFile,
     member_name: str,
-    user_id: int,
+    user_id: uuid.UUID,
     source: activity_ingestion_contracts.BulkImportSource,
-    job_id: str,
+    job_id: uuid.UUID,
     storage: platform_providers.StorageProvider,
 ) -> bool:
-    """Import one archive member, never raising: one bad file must not stop the rest.
+    """Import one archive member; a bad file is counted failed, an outage is raised.
+
+    One bad file must not stop the rest, so any failure of the file itself is logged and its bytes are
+    kept. A database or storage outage is not the file's fault and would fail every following file
+    too, so it is raised for the batch's caller to retry from its cursor.
 
     Args:
         archive: The open archive.
@@ -622,6 +849,11 @@ def _import_member(
 
     Returns:
         True when the file was imported (or was already), False when it failed.
+
+    Raises:
+        OperationalError: When the database is unreachable.
+        InterfaceError: When the database connection is unusable.
+        StorageBackendUnavailableError: When the storage backend is unreachable.
     """
     base_name = os.path.basename(member_name)
     with tempfile.TemporaryDirectory(prefix="bulk-member-") as member_dir:
@@ -635,11 +867,11 @@ def _import_member(
                 activity_ingestion_pipeline_service.validate_prepare_and_store_file(
                     user_id, path, db, source=source, storage=storage
                 )
+        except _OUTAGE_ERRORS:
+            raise
         except Exception as err:
-            logger.error(
-                "Bulk import: a file could not be imported",
-                exc_info=err,
-                extra=core_logger.context(console=True, user_id=user_id, job_id=job_id, file=base_name),
+            _log_bulk_failure(
+                "Bulk import: a file could not be imported", err, user_id=user_id, job_id=job_id, file=base_name
             )
             _keep_failed_member(archive, member_name, user_id, job_id, storage)
             return False
@@ -649,8 +881,8 @@ def _import_member(
 def _keep_failed_member(
     archive: zipfile.ZipFile,
     member_name: str,
-    user_id: int,
-    job_id: str,
+    user_id: uuid.UUID,
+    job_id: uuid.UUID,
     storage: platform_providers.StorageProvider,
 ) -> None:
     """Keep a failed file's bytes where the operator can recover them.
@@ -668,11 +900,17 @@ def _keep_failed_member(
             core_file_uploads.copy_zip_member(archive, member_name, path)
             with open(path, "rb") as handle:
                 storage.save_stream(
-                    BULK_IMPORT_ERROR_STORAGE_AREA,
-                    f"{int(user_id)}/{job_id}/{os.path.basename(member_name)}",
+                    activity_ingestion_constants.BULK_IMPORT_ERROR_STORAGE_AREA,
+                    f"{activity_ingestion_constants.bulk_import_error_prefix(user_id)}{job_id}/{os.path.basename(member_name)}",
                     handle,
                 )
-    except Exception as err:
+    except (
+        core_exceptions.DomainError,
+        *_UNREADABLE_MEMBER_ERRORS,
+        OSError,
+        ValueError,
+    ) as err:
+        # Best-effort: an escape here would abort the batch for one file's leftovers.
         logger.warning(
             "Bulk import: could not keep a failed file",
             exc_info=err,
@@ -680,7 +918,7 @@ def _keep_failed_member(
         )
 
 
-def _save_progress(job_id: str, cursor: str | None, done: int, failed: int) -> None:
+def _save_progress(job_id: uuid.UUID, cursor: str | None, done: int, failed: int) -> None:
     """Record a bulk import's resume point in its own short transaction.
 
     Args:
@@ -695,27 +933,20 @@ def _save_progress(job_id: str, cursor: str | None, done: int, failed: int) -> N
     logger.debug("Bulk import progress saved", extra=core_logger.context(job_id=job_id, done=done, failed=failed))
 
 
-def _checkpoint_and_continue(job_id: str, user_id: int, cursor: str | None, done: int, failed: int) -> None:
-    """End a batch that left files over: record progress and queue the next batch.
+def _checkpoint(job_id: uuid.UUID, cursor: str | None, done: int, failed: int) -> None:
+    """End a batch that left files over: record progress and release the job's claim.
 
-    On the durable profile the progress and the continuation event are one
-    transaction. Without durable jobs the budget is unbounded, so a batch only
-    reaches here if it stopped for another reason, and the next scheduled attempt
-    is the stale-job reaper.
+    Releasing returns the job to ``pending`` so the next batch can claim it. Without
+    durable jobs the budget is unbounded, so a batch only reaches here if it stopped
+    for another reason, and the next attempt is the stale-job reaper.
 
     Args:
         job_id: The job identifier.
-        user_id: The importing user.
         cursor: The last member handled.
         done: Files imported so far.
         failed: Files that failed.
     """
     with core_database.SessionLocal() as db:
         activity_ingestion_crud.record_bulk_progress(job_id, cursor, done, failed, db, release=True)
-        activity_ingestion_dispatch_service.commit_or_publish(
-            db,
-            publish=lambda commit: activity_ingestion_event_publishers.publish_bulk_import_continue(
-                job_id, user_id, db, commit=commit
-            ),
-        )
-    logger.debug("Bulk import batch finished; continuation queued", extra=core_logger.context(job_id=job_id))
+        db.commit()
+    logger.debug("Bulk import batch finished; files left", extra=core_logger.context(job_id=job_id))

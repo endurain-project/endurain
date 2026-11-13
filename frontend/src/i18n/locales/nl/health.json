@@ -1,6 +1,12 @@
 {
   "title": "Gezondheid",
   "subtitle": "Bekijk al je gezondheidsgegevens op één plek",
+  "chartBucket": {
+    "week": "Weekgemiddelden: elke balk is de gemiddelde dag van die week.",
+    "month": "Maandgemiddelden: elke balk is de gemiddelde dag van die maand."
+  },
+  "targetInvalid": "Voer een waarde groter dan 0 in, of laat het veld leeg om het doel te verwijderen.",
+  "chartError": "De grafiek voor dit tijdsbereik kon niet worden geladen.",
   "nav": {
     "label": "Gezondheidsonderdelen",
     "soon": "Binnenkort",
@@ -34,6 +40,7 @@
     "stepsTargetLabel": "stappen",
     "poopTargetLabel": "/ dag",
     "noWeightData": "Geen gewichtsgegevens",
+    "noHeightData": "Voeg je lengte toe aan je profiel om je BMI te zien.",
     "bmiUnderweight": "Ondergewicht",
     "bmiNormalWeight": "Normaal gewicht",
     "bmiOverweight": "Overgewicht",
@@ -58,7 +65,7 @@
     "toggleDetails": "Lichaamssamenstelling tonen/verbergen",
     "chartTitle": "Gewichtstrend",
     "chartWeightSeries": "Gewicht",
-    "chartTargetSeries": "Target",
+    "chartTargetSeries": "Doel",
     "interval": {
       "label": "Tijdsperiode",
       "last_7_days": "Afgelopen 7 dagen",
@@ -88,7 +95,6 @@
       "weightRequired": "Voer je gewicht in.",
       "weightInvalid": "Voer een gewicht groter dan nul in.",
       "bodyComposition": "Lichaamssamenstelling (optioneel)",
-      "bmi": "BMI",
       "bodyFat": "Lichaamsvet (%)",
       "bodyWater": "Lichaamswater (%)",
       "boneMass": "Botmassa",
@@ -139,7 +145,7 @@
     "sourceGarmin": "Van Garmin Connect",
     "chartTitle": "Stappentrend",
     "chartStepsSeries": "Stappen",
-    "chartTargetSeries": "Target",
+    "chartTargetSeries": "Doel",
     "interval": {
       "label": "Tijdsperiode",
       "last_7_days": "Afgelopen 7 dagen",
@@ -232,7 +238,7 @@
     "toggleDetails": "Slaapdetails tonen/verbergen",
     "chartTitle": "Slaaptrend",
     "chartSleepSeries": "Slaap",
-    "chartTargetSeries": "Target",
+    "chartTargetSeries": "Doel",
     "interval": {
       "label": "Tijdsperiode",
       "last_7_days": "Afgelopen 7 dagen",
@@ -256,6 +262,8 @@
     "scorePoor": "Slecht",
     "detail": {
       "tabsLabel": "Slaapdetailonderdelen",
+      "stagesLoading": "Slaapfasen worden geladen",
+      "stagesError": "Slaapfasen konden niet worden geladen",
       "tabScore": "Slaapscore",
       "tabDetails": "Slaapdetails",
       "deep": "Diep",
@@ -301,6 +309,8 @@
     "form": {
       "addTitle": "Slaap registreren",
       "editTitle": "Slaapvermelding bewerken",
+      "loading": "Slaapvermelding wordt geladen",
+      "loadError": "Slaapvermelding kon niet worden geladen",
       "description": "Registreer je slaapduur en optioneel de faseindeling en statistieken.",
       "date": "Datum",
       "dateRequired": "Kies een datum.",
@@ -308,6 +318,8 @@
       "totalSleepRequired": "Voer in hoe lang je hebt geslapen.",
       "hours": "Uren",
       "minutes": "Minuten",
+      "hoursOf": "{field}, uren",
+      "minutesOf": "{field}, minuten",
       "stageBreakdown": "Faseindeling (optioneel)",
       "deep": "Diepe slaap",
       "light": "Lichte slaap",
@@ -350,7 +362,11 @@
       "close": "Sluiten",
       "createSuccess": "Slaap geregistreerd.",
       "updateSuccess": "Slaapvermelding bijgewerkt.",
-      "saveError": "Slaapvermelding kon niet worden opgeslagen. Probeer het opnieuw."
+      "saveError": "Slaapvermelding kon niet worden opgeslagen. Probeer het opnieuw.",
+      "numberRange": "Voer een waarde in tussen {min} en {max}.",
+      "numberMin": "Voer {min} of meer in.",
+      "stagesExceedTotal": "Diepe slaap, lichte slaap en REM-slaap zijn samen meer dan het totaal.",
+      "inconsistentError": "Deze slaapgegevens kloppen niet. Controleer of de fasen en het totaal binnen de slaaptijden passen."
     },
     "target": {
       "title": "Slaaptarget instellen",
@@ -391,7 +407,7 @@
     "sourceGarmin": "Van Garmin Connect",
     "chartTitle": "Waterinname-trend",
     "chartWaterSeries": "Water",
-    "chartTargetSeries": "Target",
+    "chartTargetSeries": "Doel",
     "interval": {
       "label": "Tijdsperiode",
       "last_7_days": "Afgelopen 7 dagen",
@@ -419,7 +435,8 @@
       "close": "Sluiten",
       "createSuccess": "Water geregistreerd.",
       "updateSuccess": "Watervermelding bijgewerkt.",
-      "saveError": "Watervermelding kon niet worden opgeslagen. Probeer het opnieuw."
+      "saveError": "Watervermelding kon niet worden opgeslagen. Probeer het opnieuw.",
+      "dayTakenError": "Voor die dag bestaat al een waterregistratie. Bewerk die in plaats van een nieuwe toe te voegen."
     },
     "target": {
       "title": "Waterinname-target instellen",
@@ -458,7 +475,7 @@
     "targetButton": "Target instellen",
     "chartTitle": "Dagelijkse frequentie",
     "chartCountSeries": "Stoelgang",
-    "chartTargetSeries": "Target",
+    "chartTargetSeries": "Doel",
     "interval": {
       "label": "Tijdsperiode",
       "last_7_days": "Afgelopen 7 dagen",
@@ -542,7 +559,7 @@
     "active": {
       "title": "Vasten bezig",
       "started": "Gestart",
-      "target": "Target",
+      "target": "Doel",
       "complete": "Afronden",
       "break": "Vasten verbreken",
       "cancel": "Annuleren",
@@ -596,6 +613,8 @@
       "startTime": "Starttijd",
       "startTimeRequired": "Kies een starttijd.",
       "endTime": "Eindtijd",
+      "endBeforeStart": "De eindtijd mag niet voor de starttijd liggen.",
+      "endWhileInProgress": "Een vasten dat bezig is kan geen eindtijd hebben.",
       "status": "Status",
       "notes": "Notities",
       "create": "Starten",
@@ -604,7 +623,9 @@
       "close": "Sluiten",
       "createSuccess": "Vasten gestart.",
       "updateSuccess": "Vastensessie bijgewerkt.",
-      "saveError": "Vastensessie kon niet worden opgeslagen. Probeer het opnieuw."
+      "saveError": "Vastensessie kon niet worden opgeslagen. Probeer het opnieuw.",
+      "overlapError": "Deze vastenperiode overlapt met een andere vastensessie, of er loopt al een andere vastenperiode.",
+      "invalidTimesError": "Een vasten kan niet eindigen voordat het begint, een voltooid of verbroken vasten heeft een eindtijd nodig en een vasten dat bezig is kan er geen hebben."
     },
     "target": {
       "title": "Vastentarget instellen",
@@ -621,6 +642,20 @@
     "complete": {
       "success": "Vasten beëindigd.",
       "error": "Vasten kon niet worden beëindigd. Probeer het opnieuw."
+    },
+    "endConfirm": {
+      "broken": {
+        "title": "Deze vastenperiode afbreken?",
+        "body": "Het vasten eindigt nu en wordt opgeslagen als afgebroken. Dit kan niet ongedaan worden gemaakt.",
+        "confirm": "Vasten afbreken"
+      },
+      "cancelled": {
+        "title": "Deze vastenperiode annuleren?",
+        "body": "Het vasten eindigt nu en wordt opgeslagen als geannuleerd. Dit kan niet ongedaan worden gemaakt.",
+        "confirm": "Vasten annuleren"
+      },
+      "cancel": "Doorgaan met vasten",
+      "close": "Sluiten"
     },
     "empty": {
       "title": "Nog geen vastens",

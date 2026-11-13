@@ -9,6 +9,7 @@ import { isAdminUser } from '@/features/auth/composables/useCurrentUser'
 import { useAuthStore } from '@/features/auth/stores/auth'
 import { accessibleSettingsZones } from '@/features/settings/settingsNav'
 import { queryClient } from '@/plugins/vueQuery'
+import { fetchOnboardingStatus } from '@/features/auth/services/onboarding'
 import { queryKeys } from '@/services/queryKeys'
 
 declare module 'vue-router' {
@@ -48,6 +49,12 @@ const router = createRouter({
       meta: { requiresAuth: false, guestOnly: true, bare: true },
     },
     {
+      path: '/onboarding',
+      name: 'onboarding',
+      component: () => import('@/features/auth/views/OnboardingView.vue'),
+      meta: { requiresAuth: false, guestOnly: true, bare: true },
+    },
+    {
       path: '/signup',
       name: 'signup',
       component: () => import('@/features/auth/views/SignUpView.vue'),
@@ -60,10 +67,35 @@ const router = createRouter({
       meta: { requiresAuth: false, bare: true },
     },
     {
-      path: '/verify-email',
-      name: 'verify-email',
-      component: () => import('@/features/auth/views/EmailVerificationView.vue'),
+      path: '/account-deleted',
+      name: 'account-deleted',
+      component: () => import('@/features/auth/views/AccountDeletedView.vue'),
       meta: { requiresAuth: false, bare: true },
+    },
+    {
+      path: '/signup/confirm',
+      name: 'sign-up-confirm',
+      component: () => import('@/features/auth/views/SignUpConfirmView.vue'),
+      meta: { requiresAuth: false, bare: true },
+    },
+    {
+      path: '/confirm-email-change',
+      name: 'confirm-email-change',
+      component: () => import('@/features/auth/views/ConfirmEmailChangeView.vue'),
+      meta: { requiresAuth: false, bare: true },
+    },
+    {
+      path: '/cancel-email-change',
+      name: 'cancel-email-change',
+      component: () => import('@/features/auth/views/CancelEmailChangeView.vue'),
+      meta: { requiresAuth: false, bare: true },
+    },
+    {
+      path: '/mfa-enrolment',
+      name: 'mfa-enrolment',
+      component: () => import('@/features/security/views/MfaEnrolmentView.vue'),
+      // Bare: the app chrome would fetch data the server refuses until the account has MFA.
+      meta: { requiresAuth: true, bare: true },
     },
     {
       path: '/activities',
@@ -267,7 +299,32 @@ const router = createRouter({
 })
 
 /**
- * Global navigation guard. Restores the session on first navigation, enforces
+ * Tells whether the installation still needs its first administrator. The
+ * status only ever goes from required to done, so a cached `false` is final
+ * and never refetched, while a cached `true` is re-checked on every call.
+ * A failed request counts as "not required": an outage must neither trap users
+ * on the onboarding screen nor show it to an existing installation.
+ *
+ * @returns `true` only when the backend confirms no account exists yet.
+ */
+async function isOnboardingRequired(): Promise<boolean> {
+  try {
+    const status = await queryClient.fetchQuery({
+      queryKey: queryKeys.public.onboarding(),
+      queryFn: fetchOnboardingStatus,
+      staleTime: (query) => (query.state.data?.onboardingRequired === false ? Infinity : 0),
+      retry: false,
+    })
+    return status.onboardingRequired
+  } catch {
+    return false
+  }
+}
+
+/**
+ * Global navigation guard. Restores the session on first navigation, sends visitors to
+ * first-run onboarding while no account exists, keeps an account the server requires MFA of on the
+ * enrolment page until it has enrolled, enforces
  * feature-flag gating, and applies auth/guest-only access rules.
  *
  * @param to - The target route being navigated to.
@@ -279,6 +336,27 @@ export async function authGuard(to: RouteLocationNormalized) {
 
   if (!auth.isReady) {
     await auth.restoreSession()
+  }
+
+  // The session could not be checked (App.vue shows a retry), so neither onboarding nor login applies.
+  if (auth.restoreFailed) {
+    return true
+  }
+
+  // An authenticated session proves an account exists, so only visitors are checked.
+  if (!auth.isAuthenticated) {
+    const onboardingRequired = await isOnboardingRequired()
+    if (onboardingRequired && to.name !== 'onboarding') {
+      return { name: 'onboarding' }
+    }
+    if (!onboardingRequired && to.name === 'onboarding') {
+      return { name: 'login' }
+    }
+  }
+
+  // While the server requires MFA of this account and it has none, the enrolment page is the only place to go.
+  if (auth.isAuthenticated && auth.mfaEnrolmentRequired && to.name !== 'mfa-enrolment') {
+    return { name: 'mfa-enrolment' }
   }
 
   if (to.meta.feature && !isEnabled(to.meta.feature)) {
@@ -308,7 +386,7 @@ export async function authGuard(to: RouteLocationNormalized) {
 
   // An in-progress SSO handoff to the mobile app must be allowed to finish
   // even when the browser already has an authenticated session: this callback
-  // only forwards the session_id to the native app's custom scheme redirect,
+  // only forwards the session_id to the native app's redirect address (a custom scheme or a claimed https link),
   // it never touches the browser session, so it shouldn't be treated as a
   // "guest-only" login attempt.
   const isExternalSsoHandoff = to.query.sso === 'success' && to.query.external_redirect === 'true'

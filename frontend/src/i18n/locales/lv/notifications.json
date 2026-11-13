@@ -5,10 +5,12 @@
   "unread": "Nelasīts",
   "markRead": "Atzīmēt kā lasītu",
   "markAllRead": "Atzīmēt visus kā lasītus",
+  "dismiss": "Noraidīt paziņojumu",
+  "dismissError": "Neizdevās noraidīt paziņojumu. Mēģiniet vēlreiz.",
   "seeAll": "Skatīt visus",
   "loadMore": "Ielādēt vairāk",
   "loading": "Notiek ielāde…",
-  "badge": "{count} nelasīti paziņojumi",
+  "badge": "{count} nelasīti paziņojumi | {count} nelasīts paziņojums | {count} nelasīti paziņojumi",
   "empty": {
     "title": "Viss ir izskatīts",
     "description": "Šeit parādīsies atjauninājumi par jūsu aktivitātēm, sekotājiem un integrācijām."
@@ -39,9 +41,122 @@
       "title": "Garmin Connect nepieciešama uzmanība",
       "body": "Jūsu Garmin Connect sesijai beidzies derīgums. Atjaunojiet savienojumu, lai turpinātu sinhronizāciju."
     },
+    "stravaTokenExpired": {
+      "title": "Strava nepieciešama uzmanība",
+      "body": "Strava noraidīja jūsu savienojumu. Pievienojiet to atkārtoti, lai turpinātu sinhronizāciju.",
+      "bodyRevoked": "Piekļuve Strava ir beigusies. Ar Strava sinhronizētās aktivitātes un aprīkojums tiks dzēsti {date}, ja nepievienosies atkārtoti."
+    },
+    "stravaDataDeleted": {
+      "title": "Strava dati izdzēsti",
+      "body": "Ar Strava sinhronizētās aktivitātes un aprīkojums tika izdzēsti, jo piekļuve Strava beidzās un tu nepievienojies atkārtoti."
+    },
+    "idpLinked": {
+      "title": "Piesaistīts jauns pieteikšanās pakalpojuma sniedzējs",
+      "body": "{name} tika piesaistīts jūsu kontam. Ja tas neesat bijis Jūs, pārskatiet drošības iestatījumus.",
+      "bodyGeneric": "Jūsu kontam tika piesaistīts pieteikšanās pakalpojuma sniedzējs. Ja tas neesat bijis Jūs, pārskatiet drošības iestatījumus."
+    },
+    "accountSecurityChanged": {
+      "passwordChanged": {
+        "title": "Parole nomainīta",
+        "body": "Jūsu parole tika nomainīta. Ja tas neesat bijis Jūs, atiestatiet paroli un pārskatiet drošības iestatījumus."
+      },
+      "passwordReset": {
+        "title": "Parole atiestatīta",
+        "body": "Jūsu parole tika atiestatīta, izmantojot atiestatīšanas saiti. Ja tas neesat bijis Jūs, atkal atiestatiet paroli un pārskatiet drošības iestatījumus. Any API keys were revoked and any pending email change was cancelled."
+      },
+      "passwordSetByAdmin": {
+        "title": "Administrators iestatīja paroli",
+        "body": "Administrators iestatīja jūsu kontam jaunu paroli. Ja negaidījāt to, sazinieties ar administratoru. Any API keys were revoked and any pending email change was cancelled."
+      },
+      "mfaEnabled": {
+        "title": "Divfaktoru autentifikācija ieslēgta",
+        "body": "Jūsu kontam tika ieslēgta divfaktoru autentifikācija. Ja tas neesat bijis Jūs, atiestatiet paroli un pārskatiet drošības iestatījumus."
+      },
+      "mfaDisabled": {
+        "title": "Divfaktoru autentifikācija izslēgta",
+        "body": "Jūsu kontam tika izslēgta divfaktoru autentifikācija. Ja tas neesat bijis Jūs, atiestatiet paroli un pārskatiet drošības iestatījumus."
+      },
+      "mfaResetByAdmin": {
+        "title": "Administrators atiestatīja divfaktoru autentifikāciju",
+        "body": "Administrators atiestatīja Jūsu konta divfaktoru autentifikāciju un izrakstīja Jūs visās ierīcēs. Iestatiet to vēlreiz drošības iestatījumos. Ja to negaidījāt, sazinieties ar administratoru."
+      },
+      "passwordChangeRequiredByAdmin": {
+        "title": "Administrators pieprasīja paroles maiņu",
+        "body": "Administrators pieprasīja, lai nomainītu paroli, un izrakstīja Jūs visās ierīcēs. Jauno paroli izvēlēsieties nākamreiz, kad pieteiksieties ar paroli. Ja to negaidījāt, sazinieties ar administratoru."
+      },
+      "backupCodesGenerated": {
+        "title": "Izveidoti jauni rezerves kodi",
+        "body": "Jūsu kontam tika izveidoti jauni rezerves kodi. Ja tas neesat bijis Jūs, atiestatiet paroli un pārskatiet drošības iestatījumus."
+      },
+      "apiKeyCreated": {
+        "title": "Izveidota jauna API atslēga",
+        "body": "Jūsu kontam tika izveidota jauna API atslēga. Ja tas neesat bijis Jūs, atiestatiet paroli un pārskatiet drošības iestatījumus."
+      },
+      "apiKeysRevokedByAdmin": {
+        "title": "Administrators atsauca API atslēgas",
+        "body": "Administrators atsauca vienu vai vairākas jūsu API atslēgas, tāpēc nekas, kas tās izmanto, vairs nevar piekļūt jūsu kontam. Ja to negaidījāt, sazinieties ar savu administratoru."
+      },
+      "identityProviderUnlinked": {
+        "title": "Pieteikšanās pakalpojuma sniedzējs atsaistīts",
+        "body": "{name} tika atsaistīts no jūsu konta. Ja tas neesat bijis Jūs, atiestatiet paroli un pārskatiet drošības iestatījumus.",
+        "bodyGeneric": "Pieteikšanās pakalpojuma sniedzējs tika atsaistīts no jūsu konta. Ja tas neesat bijis Jūs, atiestatiet paroli un pārskatiet drošības iestatījumus."
+      },
+      "accountLocked": {
+        "title": "Konts bloķēts",
+        "body": "Jūsu konts tika bloķēts pēc 100 neveiksmīgiem pieteikšanās mēģinājumiem pēc kārtas. Pārlūkprogrammas un lietotnes, no kurām pieteicāties kopš pēdējām drošības izmaiņām, joprojām var pieteikties. Ja šie mēģinājumi nebija Jūsu, nomainiet vai atiestatiet paroli, kas arī noņem bloķēšanu."
+      },
+      "mfaLocked": {
+        "title": "Divpakāpju verifikācija bloķēta",
+        "body": "Jūsu konts tika bloķēts pēc 100 nepareiziem divpakāpju verifikācijas kodiem pēc kārtas, tātad kāds zina Jūsu paroli. Pārlūkprogrammas un lietotnes, no kurām pieteicāties kopš pēdējām drošības izmaiņām, joprojām var pieteikties. Ja šie mēģinājumi nebija Jūsu, nomainiet paroli."
+      },
+      "stepUpSessionEnded": {
+        "title": "Sesija izrakstīta",
+        "body": "Viena Jūsu konta sesija tika izrakstīta pēc tam, kad jūtīgas darbības apstiprināšanai pēc kārtas tika ievadītas 15 nepareizas paroles vai divfaktoru autentifikācijas kodi. Pārējās Jūsu sesijas netika ietekmētas. Ja šos mēģinājumus veicāt nevis Jūs, nomainiet paroli."
+      },
+      "stepUpLocked": {
+        "title": "Jūtīgu darbību apstiprināšana bloķēta",
+        "body": "Jūtīgu darbību, piemēram, paroles maiņas vai API atslēgas izveides, apstiprināšana tika bloķēta uz 30 dienām pēc 100 nepareiziem apstiprinājumiem visās Jūsu sesijās. Ja šos mēģinājumus veicāt nevis Jūs, atiestatiet paroli, kas arī noņem bloķējumu."
+      },
+      "backupCodeUsed": {
+        "title": "Izmantots rezerves kods",
+        "body": "Jūsu konta divfaktoru autentifikācijai tika izmantots rezerves kods. Ja tas nebijāt Jūs, nomainiet paroli un izveidojiet jaunus rezerves kodus.",
+        "bodyRemaining": "Jūsu konta divfaktoru autentifikācijai tika izmantots rezerves kods. Atlikuši neizmantoti rezerves kodi: {count}. Ja tas nebijāt Jūs, nomainiet paroli un izveidojiet jaunus rezerves kodus.",
+        "bodyNone": "Jūsu konta divfaktoru autentifikācijai tika izmantots rezerves kods. Jums vairs nav neizmantotu rezerves kodu, tāpēc izveidojiet jaunus drošības iestatījumos. Ja tas nebijāt Jūs, nomainiet paroli."
+      },
+      "refreshTokenReuseDetected": {
+        "title": "Sesija beigta",
+        "body": "Jūsu konta pieteikšanās sesija tika beigta, jo jau izmantots marķieris tika uzrādīts atkārtoti, kas var nozīmēt, ka sesija ir nokopēta. Pārējās Jūsu sesijas netika ietekmētas. Ja to negaidījāt, nomainiet paroli."
+      },
+      "roleChangedByAdmin": {
+        "title": "Administrators mainīja piekļuvi",
+        "body": "Administrators mainīja Jūsu konta piekļuvi un izrakstīja Jūs visās ierīcēs. Ja to negaidījāt, sazinieties ar savu administratoru.",
+        "bodyAdmin": "Administrators mainīja Jūsu konta piekļuvi uz administratora un izrakstīja Jūs visās ierīcēs. Ja to negaidījāt, sazinieties ar savu administratoru.",
+        "bodyRegular": "Administrators mainīja Jūsu konta piekļuvi uz parasta lietotāja un izrakstīja Jūs visās ierīcēs. Ja to negaidījāt, sazinieties ar savu administratoru."
+      },
+      "accountDeactivatedByAdmin": {
+        "title": "Administrators deaktivizēja kontu",
+        "body": "Administrators deaktivizēja Jūsu kontu un izrakstīja Jūs visās ierīcēs. Jūs nevarēsiet pieteikties, kamēr administrators to atkal neaktivizēs."
+      },
+      "unknown": {
+        "title": "Konta drošība mainīta",
+        "body": "Mainīts kāds jūsu konta drošības iestatījums. Ja tas neesat bijis Jūs, atiestatiet paroli un pārskatiet drošības iestatījumus."
+      },
+      "usernameChanged": {
+        "title": "Lietotājvārds mainīts",
+        "body": "Jūsu lietotājvārds tika mainīts. Ja tas nebijāt jūs, atiestatiet paroli un pārskatiet drošības iestatījumus."
+      }
+    },
+    "newDeviceSignIn": {
+      "title": "Jauna pieteikšanās",
+      "body": "Jauna pieteikšanās no {browser} sistēmā {os} ({ip}). Ja tas neesat bijis Jūs, nomainiet paroli un izrakstieties no citām sesijām."
+    },
     "adminSignUpApproval": {
       "title": "Jaunai reģistrācijai nepieciešams apstiprinājums",
       "body": "{name} ({'@'}{username}) gaida konta apstiprinājumu."
+    },
+    "adminUserPromoted": {
+      "title": "Lietotājs paaugstināts par administratoru",
+      "body": "{name} ({'@'}{username}) tika piešķirta administratora piekļuve."
     },
     "unknown": {
       "title": "Paziņojums",

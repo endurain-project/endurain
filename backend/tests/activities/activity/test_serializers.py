@@ -1,10 +1,15 @@
 """Tests for ``activities.activity.serializers`` (ORM→schema + visibility masking)."""
 
+import uuid
 from datetime import UTC, datetime
 from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
 import pytest
+
+_USER_1 = uuid.UUID(int=1)
+
+_ACTIVITY_ID = uuid.uuid4()
 
 
 def _activity_orm_stub():
@@ -16,8 +21,8 @@ def _activity_orm_stub():
     the whole mapper registry configured.
     """
     return SimpleNamespace(
-        id=1,
-        user_id=1,
+        id=_ACTIVITY_ID,
+        user_id=_USER_1,
         distance=1000,
         name="Ride",
         activity_type=5,
@@ -99,7 +104,7 @@ class TestApplyVisibilityMask:
         schema.town = "Town"
         schema.country = "Country"
         schema.hide_gear = True
-        schema.gear_id = 1
+        schema.gear_id = uuid.uuid4()
         schema.strava_gear_id = "g1"
         schema.garminconnect_gear_id = "g2"
         schema.hide_hr = False
@@ -123,14 +128,15 @@ class TestApplyVisibilityMask:
         schema.start_time = "2024-01-15T08:00:00"
         schema.hide_location = False
         schema.city = "City"
+        gear_id = uuid.uuid4()
         schema.hide_gear = False
-        schema.gear_id = 1
+        schema.gear_id = gear_id
 
         result = apply_visibility_mask(schema, is_owner=False)
 
         assert result.start_time == "2024-01-15T08:00:00"
         assert result.city == "City"
-        assert result.gear_id == 1
+        assert result.gear_id == gear_id
 
     def test_mask_private_notes_false_allows_notes(self):
         from modules.activities.activity.serializers import apply_visibility_mask
@@ -175,17 +181,19 @@ class TestApplyVisibilityMask:
 
         assert result.map_thumbnail_path == "42.webp"
 
-    def test_hide_start_time_clears_both_timestamps(self):
+    def test_hide_start_time_clears_every_timestamp(self):
+        """``created_at`` is the import time, which places the hidden start within minutes."""
         from modules.activities.activity.schema import ActivityRead
         from modules.activities.activity.serializers import apply_visibility_mask
 
         schema = ActivityRead(
-            id=1,
+            id=_ACTIVITY_ID,
             distance=1000,
             name="Ride",
             activity_type=5,
             start_time=datetime(2024, 1, 15, 8, 0, 0, tzinfo=UTC),
             end_time=datetime(2024, 1, 15, 9, 0, 0, tzinfo=UTC),
+            created_at=datetime(2024, 1, 15, 9, 5, 0, tzinfo=UTC),
             hide_start_time=True,
         )
 
@@ -193,6 +201,7 @@ class TestApplyVisibilityMask:
 
         assert schema.start_time is None
         assert schema.end_time is None
+        assert schema.created_at is None
 
     @pytest.mark.parametrize(
         ("flag", "fields"),
@@ -210,7 +219,7 @@ class TestApplyVisibilityMask:
         from modules.activities.activity.serializers import apply_visibility_mask
 
         values = dict.fromkeys(fields, 10)
-        schema = ActivityRead(id=1, distance=1000, name="Ride", activity_type=5, **values, **{flag: True})
+        schema = ActivityRead(id=_ACTIVITY_ID, distance=1000, name="Ride", activity_type=5, **values, **{flag: True})
 
         apply_visibility_mask(schema, is_owner=False)
 
@@ -220,8 +229,10 @@ class TestApplyVisibilityMask:
         from modules.activities.activity.schema import ActivityRead
         from modules.activities.activity.serializers import apply_visibility_mask
 
-        non_owner = ActivityRead(id=1, distance=1000, name="Ride", activity_type=5, average_hr=150, average_power=200)
-        owner = ActivityRead(id=1, distance=1000, name="Ride", activity_type=5, average_hr=150, hide_hr=True)
+        non_owner = ActivityRead(
+            id=_ACTIVITY_ID, distance=1000, name="Ride", activity_type=5, average_hr=150, average_power=200
+        )
+        owner = ActivityRead(id=_ACTIVITY_ID, distance=1000, name="Ride", activity_type=5, average_hr=150, hide_hr=True)
 
         apply_visibility_mask(non_owner, is_owner=False)
         apply_visibility_mask(owner, is_owner=True)
@@ -235,24 +246,97 @@ class TestApplyVisibilityMask:
         from modules.activities.activity.serializers import apply_visibility_mask
 
         schema = ActivityRead(
-            id=1,
+            id=_ACTIVITY_ID,
             distance=1000,
             name="Ride",
             activity_type=5,
             start_time=datetime(2024, 1, 15, 8, 0, 0, tzinfo=UTC),
+            created_at=datetime(2024, 1, 15, 9, 5, 0, tzinfo=UTC),
             hide_start_time=True,
         )
 
         apply_visibility_mask(schema, is_owner=True)
 
         assert schema.start_time == datetime(2024, 1, 15, 8, 0, 0, tzinfo=UTC)
+        assert schema.created_at == datetime(2024, 1, 15, 9, 5, 0, tzinfo=UTC)
 
 
 class TestThumbnailKeyIsServerSide:
     def test_the_stored_key_is_never_serialized(self):
         from modules.activities.activity.schema import ActivityRead
 
-        activity = ActivityRead(id=1, distance=0, name="Run", activity_type=1, map_thumbnail_path="1.webp")
+        activity = ActivityRead(id=_ACTIVITY_ID, distance=0, name="Run", activity_type=1, map_thumbnail_path="1.webp")
 
         assert activity.map_thumbnail_path == "1.webp"
         assert "map_thumbnail_path" not in activity.model_dump()
+
+
+_PROVIDER_FIELDS = {
+    "garminconnect_activity_id": 123,
+    "strava_activity_id": 456,
+    "garminconnect_gear_id": "g1",
+    "strava_gear_id": "b1",
+    "import_info": {"file": "a.fit"},
+}
+
+
+class TestProviderIdentifierMasking:
+    def _schema(self, **extra):
+        from modules.activities.activity.schema import ActivityRead
+
+        return ActivityRead(
+            id=_ACTIVITY_ID,
+            distance=1000,
+            name="Ride",
+            activity_type=5,
+            timezone="Asia/Tokyo",
+            **_PROVIDER_FIELDS,
+            **extra,
+        )
+
+    @pytest.mark.parametrize("field", list(_PROVIDER_FIELDS))
+    def test_non_owner_never_receives_a_provider_identifier(self, field):
+        from modules.activities.activity.serializers import apply_visibility_mask
+
+        schema = self._schema(hide_gear=False)
+
+        apply_visibility_mask(schema, is_owner=False)
+
+        assert getattr(schema, field) is None
+
+    @pytest.mark.parametrize("field", list(_PROVIDER_FIELDS))
+    def test_owner_keeps_every_provider_identifier(self, field):
+        from modules.activities.activity.serializers import apply_visibility_mask
+
+        schema = self._schema()
+
+        apply_visibility_mask(schema, is_owner=True)
+
+        assert getattr(schema, field) == _PROVIDER_FIELDS[field]
+
+    def test_hide_location_also_clears_the_timezone(self):
+        from modules.activities.activity.serializers import apply_visibility_mask
+
+        schema = self._schema(hide_location=True)
+
+        apply_visibility_mask(schema, is_owner=False)
+
+        assert schema.timezone is None
+
+    def test_timezone_is_kept_when_location_is_visible(self):
+        from modules.activities.activity.serializers import apply_visibility_mask
+
+        schema = self._schema(hide_location=False)
+
+        apply_visibility_mask(schema, is_owner=False)
+
+        assert schema.timezone == "Asia/Tokyo"
+
+    def test_owner_keeps_the_timezone_when_location_is_hidden(self):
+        from modules.activities.activity.serializers import apply_visibility_mask
+
+        schema = self._schema(hide_location=True)
+
+        apply_visibility_mask(schema, is_owner=True)
+
+        assert schema.timezone == "Asia/Tokyo"

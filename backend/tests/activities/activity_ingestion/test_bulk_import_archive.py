@@ -5,24 +5,38 @@ replaced, because what is under test is the orchestration around it: what is sta
 what is counted, where a batch stops, and what survives a crash.
 """
 
+import logging
+import lzma
 import os
+import time
+import uuid
 import zipfile
+import zlib
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
+import jasil.providers as platform_providers
 import pytest
 from jasil.backends.storage_local import LocalStorage
+from sqlalchemy.exc import InterfaceError, OperationalError
+from tests._helpers.auth import MOCK_USER_ID, OTHER_USER_ID
 from tests._helpers.db import create_sqlite_session_factory, ensure_user
 
 import core.exceptions as core_exceptions
+import core.local_pool as core_local_pool
 import modules.activities.activity_ingestion.bulk_import_service as bulk
 import modules.activities.activity_ingestion.constants as ingestion_constants
 import modules.activities.activity_ingestion.contracts as ingestion_contracts
+import modules.activities.activity_ingestion.crud as ingestion_crud
 import modules.activities.activity_ingestion.models as ingestion_models
 import modules.activities.activity_ingestion.provider_registry as provider_registry
+import modules.activities.activity_ingestion.service as ingestion_service
 import modules.activities.activity_ingestion.upload_entry_service as upload_entry_service
 
-_USER = 7
+_JOB_1 = uuid.UUID("00000000-0000-4000-8000-0000000000a1")
+
+_USER = MOCK_USER_ID
 
 
 def _commit_through(*_args, **kwargs):
@@ -74,14 +88,14 @@ def _saver(archive: Path):
     return save
 
 
-def _job(factory, job_id: str):
+def _job(factory, job_id: uuid.UUID):
     with factory() as db:
         row = db.get(ingestion_models.ActivityIngestionJob, job_id)
         db.expunge(row)
         return row
 
 
-def _only_job_id(factory) -> str:
+def _only_job_id(factory) -> uuid.UUID:
     with factory() as db:
         return db.query(ingestion_models.ActivityIngestionJob).one().id
 
@@ -115,7 +129,7 @@ class TestAcceptArchive:
         ):
             job = bulk.accept_archive(_USER, "export.zip", _saver(archive), "generic", storage, factory())
 
-        assert job.kind is ingestion_constants.IngestionJobKind.BULK_IMPORT
+        assert job.kind == "activity_bulk_import"
         assert (job.import_source, job.files_total, job.files_done, job.files_failed) == ("generic", 2, 0, 0)
         row = _job(factory, job.id)
         # The archive is the only thing that travelled: held in storage under the job's key.
@@ -201,6 +215,25 @@ class TestRunLocally:
         assert row.staged_key is None
         assert list(storage.iter_objects(upload_entry_service.UPLOAD_STAGING_STORAGE_AREA, "")) == []
 
+    def test_a_finished_import_tells_its_owner_after_the_outcome_is_committed(
+        self, tmp_path, factory, storage, pipeline
+    ):
+        job_id = self._accept(tmp_path, factory, storage, {"a.fit": b"1"})
+        seen: list[str] = []
+
+        def announce(user_id: uuid.UUID, announced_job: uuid.UUID, kind) -> None:
+            seen.append(_job(factory, job_id).status)
+            assert (user_id, announced_job, kind) == (_USER, job_id, ingestion_constants.IngestionJobKind.BULK_IMPORT)
+
+        with (
+            patch.object(bulk.core_config.settings, "JOBS_ENABLED", False),
+            patch.object(bulk.activity_ingestion_service, "announce_job", side_effect=announce) as hint,
+        ):
+            bulk.run_bulk_import_job(job_id, storage)
+
+        hint.assert_called_once_with(_USER, job_id, ingestion_constants.IngestionJobKind.BULK_IMPORT)
+        assert seen == ["completed"]
+
     def test_one_bad_file_is_counted_kept_and_does_not_stop_the_rest(self, tmp_path, factory, storage, pipeline):
         job_id = self._accept(tmp_path, factory, storage, {"a.fit": b"1", "bad.fit": b"BAD", "c.fit": b"3"})
 
@@ -212,7 +245,7 @@ class TestRunLocally:
         assert (row.status, row.files_done, row.files_failed) == ("completed", 2, 1)
         assert pipeline == ["a.fit", "c.fit"]
         kept = f"{_USER}/{job_id}/bad.fit"
-        assert storage.get(bulk.BULK_IMPORT_ERROR_STORAGE_AREA, kept) == b"BAD"
+        assert storage.get(ingestion_constants.BULK_IMPORT_ERROR_STORAGE_AREA, kept) == b"BAD"
 
     def test_a_file_name_repeated_in_two_folders_is_imported_twice(self, tmp_path, factory, storage, pipeline):
         job_id = self._accept(tmp_path, factory, storage, {"2023/ride.fit": b"1", "2024/ride.fit": b"2"})
@@ -222,9 +255,32 @@ class TestRunLocally:
 
         assert pipeline == ["ride.fit", "ride.fit"]
 
+    def test_the_unbudgeted_pass_reports_nothing_left(self, tmp_path, factory, storage, pipeline):
+        job_id = self._accept(tmp_path, factory, storage, {"a.fit": b"1", "b.gpx": b"2"})
+
+        with patch.object(bulk.core_config.settings, "JOBS_ENABLED", False):
+            assert bulk.run_bulk_import_job(job_id, storage) is False
+
+    def test_an_outage_fails_the_job_and_drops_the_archive_since_nothing_retries(self, tmp_path, factory, storage):
+        job_id = self._accept(tmp_path, factory, storage, {"a.fit": b"1"})
+
+        with (
+            patch.object(bulk.core_config.settings, "JOBS_ENABLED", False),
+            patch.object(
+                bulk.activity_ingestion_pipeline_service,
+                "validate_prepare_and_store_file",
+                side_effect=OperationalError("stmt", {}, Exception("db down")),
+            ),
+            pytest.raises(OperationalError),
+        ):
+            bulk.run_bulk_import_job(job_id, storage)
+
+        assert _job(factory, job_id).status == "failed"
+        assert list(storage.iter_objects(upload_entry_service.UPLOAD_STAGING_STORAGE_AREA, "")) == []
+
 
 class TestBatches:
-    """On the durable profile a batch yields: it records progress and queues the next."""
+    """On the durable profile a batch yields: it records progress and reports that files are left."""
 
     def _accept(self, tmp_path, factory, storage, members):
         archive = _zip(tmp_path, members)
@@ -238,7 +294,9 @@ class TestBatches:
         ):
             return bulk.accept_archive(_USER, "export.zip", _saver(archive), "generic", storage, factory()).id
 
-    def test_a_batch_stops_at_its_budget_and_queues_its_continuation(self, tmp_path, factory, storage, pipeline):
+    def test_a_batch_stops_at_its_budget_and_reports_files_left_without_publishing(
+        self, tmp_path, factory, storage, pipeline
+    ):
         job_id = self._accept(tmp_path, factory, storage, {f"{n}.fit": b"x" for n in "abcde"})
 
         with (
@@ -250,14 +308,14 @@ class TestBatches:
                 side_effect=_commit_through,
             ) as publish,
         ):
-            bulk.run_bulk_import_job(job_id, storage)
+            more = bulk.run_bulk_import_job(job_id, storage)
 
         row = _job(factory, job_id)
+        assert more is True
         assert (row.status, row.files_done, row.cursor) == ("pending", 2, "b.fit")
         assert pipeline == ["a.fit", "b.fit"]
-        # The progress and the continuation are one transaction.
-        publish.assert_called_once()
-        assert publish.call_args.args[1] == {"job_id": job_id}
+        # The same job runs the next batch, so no event is queued for it.
+        publish.assert_not_called()
         assert storage.exists(upload_entry_service.UPLOAD_STAGING_STORAGE_AREA, f"upload_staging/{row.staged_key}")
 
     def test_the_next_batch_resumes_after_the_cursor_and_finishes(self, tmp_path, factory, storage, pipeline):
@@ -272,10 +330,10 @@ class TestBatches:
                 side_effect=_commit_through,
             ),
         ):
-            for _ in range(3):
-                bulk.run_bulk_import_job(job_id, storage)
+            results = [bulk.run_bulk_import_job(job_id, storage) for _ in range(3)]
 
         row = _job(factory, job_id)
+        assert results == [True, True, False]
         assert (row.status, row.files_done, row.files_failed) == ("completed", 5, 0)
         # Each file exactly once, in order, however the batches fell.
         assert pipeline == ["a.fit", "b.fit", "c.fit", "d.fit", "e.fit"]
@@ -293,14 +351,43 @@ class TestBatches:
         job_id = self._accept(tmp_path, factory, storage, {"a.fit": b"x"})
         with (
             patch.object(bulk.core_config.settings, "JOBS_ENABLED", True),
-            patch.object(bulk, "_import_member", side_effect=RuntimeError("storage down")),
-            pytest.raises(RuntimeError),
+            patch.object(
+                bulk, "_import_member", side_effect=platform_providers.StorageBackendUnavailableError("storage down")
+            ),
+            pytest.raises(platform_providers.StorageBackendUnavailableError),
         ):
             bulk.run_bulk_import_job(job_id, storage)
 
         # Durable: the runner retries it, so it is not closed here, and it is
         # released so the retry can claim it.
         assert _job(factory, job_id).status == "pending"
+
+    def test_an_outage_resumes_from_the_cursor_without_counting_the_file_twice(self, tmp_path, factory, storage):
+        job_id = self._accept(tmp_path, factory, storage, {"a.fit": b"1", "b.fit": b"2", "c.fit": b"3"})
+        seen: list[str] = []
+        outage = [True]
+
+        def fake(user_id, file_path, db, *, source, storage):
+            name = os.path.basename(file_path)
+            if name == "b.fit" and outage:
+                raise OperationalError("stmt", {}, Exception("db down"))
+            seen.append(name)
+            return []
+
+        with (
+            patch.object(bulk.core_config.settings, "JOBS_ENABLED", True),
+            patch.object(bulk.activity_ingestion_pipeline_service, "validate_prepare_and_store_file", side_effect=fake),
+        ):
+            with pytest.raises(OperationalError):
+                bulk.run_bulk_import_job(job_id, storage)
+            assert _job(factory, job_id).status == "pending"
+
+            outage.clear()
+            assert bulk.run_bulk_import_job(job_id, storage) is False
+
+        row = _job(factory, job_id)
+        assert (row.status, row.files_done, row.files_failed) == ("completed", 3, 0)
+        assert seen == ["a.fit", "a.fit", "b.fit", "c.fit"]
 
 
 class TestProviderFormat:
@@ -375,6 +462,23 @@ class TestFromFolder:
         with factory() as db:
             assert db.query(ingestion_models.ActivityIngestionJob).count() == 0
 
+    def test_a_full_pool_closes_the_folder_job_so_the_user_can_try_again(self, tmp_path, factory, storage):
+        folder = self._folder(tmp_path, {"a.fit": b"1"})
+        with (
+            patch.object(
+                bulk.activity_ingestion_dispatch_service.activity_ingestion_background,
+                "submit",
+                side_effect=core_local_pool.PoolFullError("full"),
+            ),
+            pytest.raises(core_local_pool.PoolFullError),
+        ):
+            bulk.start_from_directory(_USER, "generic", storage, factory())
+
+        with factory() as db:
+            row = db.query(ingestion_models.ActivityIngestionJob).one()
+        assert (row.status, row.error_code) == ("failed", "processing_failed")
+        assert (folder / "a.fit").exists()
+
     def test_the_folder_is_packed_staged_and_only_then_consumed(self, tmp_path, factory, storage, pipeline):
         folder = self._folder(tmp_path, {"a.fit": b"1", "sub/b.gpx": b"2", "notes.txt": b"n"})
         with (
@@ -412,7 +516,7 @@ class TestFromFolder:
 
     def test_another_users_folder_is_neither_imported_nor_consumed(self, tmp_path, factory, storage, pipeline):
         mine = self._folder(tmp_path, {"mine.fit": b"1"})
-        other = tmp_path / "drop" / str(_USER + 1)
+        other = tmp_path / "drop" / str(OTHER_USER_ID)
         other.mkdir(parents=True)
         (other / "theirs.fit").write_bytes(b"2")
         with (
@@ -449,3 +553,294 @@ class TestFromFolder:
             bulk.start_from_directory(_USER, "generic", storage, factory())
             with pytest.raises(core_exceptions.ConflictError):
                 bulk.start_from_directory(_USER, "generic", storage, factory())
+
+
+class TestLostFolderPack:
+    """A folder import whose packing was lost mid-way frees the user's slot soon, not after a day."""
+
+    def _folder_job(self, factory, storage, tmp_path, *, idle_minutes: int) -> str:
+        folder = tmp_path / "drop" / str(_USER)
+        folder.mkdir(parents=True)
+        (folder / "a.fit").write_bytes(b"1")
+        with patch.object(bulk.activity_ingestion_dispatch_service.activity_ingestion_background, "submit"):
+            job = bulk.start_from_directory(_USER, "generic", storage, factory())
+        stamp = datetime.now(UTC) - timedelta(minutes=idle_minutes)
+        with factory() as db:
+            db.get(ingestion_models.ActivityIngestionJob, job.id).updated_at = stamp
+            db.commit()
+        return job.id
+
+    def _reap(self, factory, storage) -> None:
+        platform = MagicMock()
+        platform.clock.now.return_value = datetime.now(UTC)
+        with patch.object(ingestion_service.core_database, "SessionLocal", factory):
+            ingestion_service.fail_stale_ingestion_jobs(platform.clock, storage)
+
+    def test_a_pack_that_stopped_beating_is_failed_so_the_user_can_import_again(self, tmp_path, factory, storage):
+        job_id = self._folder_job(factory, storage, tmp_path, idle_minutes=60)
+
+        self._reap(factory, storage)
+
+        assert _job(factory, job_id).status == "failed"
+        with factory() as db:
+            assert ingestion_crud.get_active_bulk_import_job_id(_USER, db) is None
+
+    def test_a_pack_that_is_still_beating_is_left_running(self, tmp_path, factory, storage):
+        job_id = self._folder_job(factory, storage, tmp_path, idle_minutes=1)
+
+        self._reap(factory, storage)
+
+        assert _job(factory, job_id).status == "pending"
+
+    def test_a_staged_import_waiting_in_the_queue_is_not_failed_early(self, tmp_path, factory, storage):
+        archive = _zip(tmp_path, {"a.fit": b"1"})
+        with patch.object(bulk.activity_ingestion_dispatch_service.activity_ingestion_background, "submit"):
+            job = bulk.accept_archive(_USER, "x.zip", _saver(archive), "generic", storage, factory())
+        with factory() as db:
+            db.get(ingestion_models.ActivityIngestionJob, job.id).updated_at = datetime.now(UTC) - timedelta(hours=2)
+            db.commit()
+
+        self._reap(factory, storage)
+
+        assert _job(factory, job.id).status == "pending"
+
+    def test_packing_keeps_the_job_beating(self, tmp_path, factory, storage):
+        job_id = self._folder_job(factory, storage, tmp_path, idle_minutes=60)
+        before = _job(factory, job_id).updated_at
+
+        with patch.object(bulk, "_HEARTBEAT_SECONDS", 0.01), bulk._heartbeat(job_id):
+            deadline = time.monotonic() + 5
+            while _job(factory, job_id).updated_at == before and time.monotonic() < deadline:
+                time.sleep(0.02)
+
+        assert _job(factory, job_id).updated_at != before
+
+    def test_a_pack_finishing_after_the_job_was_failed_neither_imports_nor_consumes_the_files(
+        self, tmp_path, factory, storage, pipeline
+    ):
+        job_id = self._folder_job(factory, storage, tmp_path, idle_minutes=60)
+        self._reap(factory, storage)
+        folder = tmp_path / "drop" / str(_USER)
+
+        with patch.object(bulk.core_config.settings, "JOBS_ENABLED", False):
+            bulk.feed_archive_from_directory(job_id, _USER, "generic", str(folder), storage)
+
+        assert (folder / "a.fit").exists()
+        assert pipeline == []
+        assert _job(factory, job_id).status == "failed"
+        assert not storage.exists(
+            upload_entry_service.UPLOAD_STAGING_STORAGE_AREA,
+            upload_entry_service.upload_staging_storage_key(f"bulk-{job_id}.zip"),
+        )
+
+
+class TestNoConnectionHeldWhileStoring:
+    """A request's session holds a pooled connection once it has read, so storage writes must follow the commit."""
+
+    def test_the_archive_is_staged_after_the_running_check_has_ended_its_transaction(self):
+        db = MagicMock()
+        order = MagicMock()
+        order.attach_mock(db.commit, "commit")
+        save_upload = MagicMock(side_effect=RuntimeError("stop here"))
+        order.attach_mock(save_upload, "save_upload")
+
+        with (
+            patch.object(bulk.activity_ingestion_dispatch_service, "require_capacity"),
+            patch.object(bulk.activity_ingestion_crud, "get_active_bulk_import_job_id", return_value=None),
+            pytest.raises(RuntimeError, match="stop here"),
+        ):
+            bulk.accept_archive(_USER, "export.zip", save_upload, "generic", MagicMock(), db)
+
+        assert [call[0] for call in order.mock_calls] == ["commit", "save_upload"]
+
+
+class TestFailureLogLevels:
+    """A user's bad file is a warning; a failure the operator must act on is an error."""
+
+    @staticmethod
+    def _member(tmp_path):
+        path = tmp_path / "export.zip"
+        with zipfile.ZipFile(path, "w") as archive:
+            archive.writestr("a.fit", b"x")
+        return zipfile.ZipFile(path)
+
+    def _import(self, tmp_path, caplog, error):
+        with (
+            caplog.at_level(logging.DEBUG, logger=bulk.logger.name),
+            self._member(tmp_path) as archive,
+            patch.object(
+                bulk.activity_ingestion_pipeline_service, "validate_prepare_and_store_file", side_effect=error
+            ),
+            patch.object(bulk, "_keep_failed_member"),
+        ):
+            assert bulk._import_member(archive, "a.fit", _USER, MagicMock(), _JOB_1, MagicMock()) is False
+        return [record for record in caplog.records if record.levelno >= logging.WARNING]
+
+    @pytest.mark.parametrize(
+        "error",
+        [
+            core_exceptions.InvalidInputError("not a fit file"),
+            core_exceptions.UnsupportedFormatError("format"),
+            core_exceptions.PayloadTooLargeError("big"),
+            core_exceptions.ConflictError("duplicate"),
+        ],
+        ids=lambda error: type(error).__name__,
+    )
+    def test_a_file_the_pipeline_refuses_is_a_warning_without_a_traceback(self, tmp_path, caplog, error):
+        records = self._import(tmp_path, caplog, error)
+
+        assert [record.levelno for record in records] == [logging.WARNING]
+        assert records[0].exc_info is None
+
+    @pytest.mark.parametrize(
+        "error",
+        [RuntimeError("bug"), core_exceptions.ProcessingError("failed to save")],
+        ids=lambda error: type(error).__name__,
+    )
+    def test_an_internal_failure_is_an_error_with_a_traceback(self, tmp_path, caplog, error):
+        records = self._import(tmp_path, caplog, error)
+
+        assert [record.levelno for record in records] == [logging.ERROR]
+        assert records[0].exc_info is not None
+
+    def _feed(self, caplog, error):
+        with (
+            caplog.at_level(logging.DEBUG, logger=bulk.logger.name),
+            patch.object(bulk, "resolve_format", return_value=MagicMock()),
+            patch.object(bulk, "_pack_directory", side_effect=error),
+            patch.object(bulk.activity_ingestion_service, "fail_ingestion_job"),
+        ):
+            bulk.feed_archive_from_directory(_JOB_1, _USER, "strava", "/nowhere", MagicMock())
+        return [record for record in caplog.records if record.levelno >= logging.WARNING]
+
+    def test_a_folder_the_user_filled_wrongly_is_a_warning(self, caplog):
+        records = self._feed(caplog, core_exceptions.InvalidInputError("Invalid ZIP archive"))
+
+        assert [record.levelno for record in records] == [logging.WARNING]
+        assert records[0].exc_info is None
+
+    def test_a_staging_failure_is_an_error(self, caplog):
+        records = self._feed(caplog, OSError("disk full"))
+
+        assert [record.levelno for record in records] == [logging.ERROR]
+
+
+class TestImportMemberOutage:
+    """A bad file is counted failed; an outage ends the batch so it is retried from its cursor."""
+
+    @staticmethod
+    def _import(tmp_path, error):
+        path = tmp_path / "export.zip"
+        with zipfile.ZipFile(path, "w") as writer:
+            writer.writestr("a.fit", b"x")
+        with (
+            zipfile.ZipFile(path) as archive,
+            patch.object(
+                bulk.activity_ingestion_pipeline_service, "validate_prepare_and_store_file", side_effect=error
+            ),
+            patch.object(bulk, "_keep_failed_member") as keep,
+        ):
+            return bulk._import_member(archive, "a.fit", _USER, MagicMock(), _JOB_1, MagicMock()), keep
+
+    @pytest.mark.parametrize(
+        "error",
+        [
+            OperationalError("stmt", {}, Exception("db down")),
+            InterfaceError("stmt", {}, Exception("connection closed")),
+            platform_providers.StorageBackendUnavailableError("storage down"),
+        ],
+        ids=lambda error: type(error).__name__,
+    )
+    def test_an_outage_is_raised_and_the_file_is_neither_counted_nor_kept(self, tmp_path, error):
+        path = tmp_path / "export.zip"
+        with zipfile.ZipFile(path, "w") as writer:
+            writer.writestr("a.fit", b"x")
+        with (
+            zipfile.ZipFile(path) as archive,
+            patch.object(
+                bulk.activity_ingestion_pipeline_service, "validate_prepare_and_store_file", side_effect=error
+            ),
+            patch.object(bulk, "_keep_failed_member") as keep,
+            pytest.raises(type(error)),
+        ):
+            bulk._import_member(archive, "a.fit", _USER, MagicMock(), _JOB_1, MagicMock())
+
+        keep.assert_not_called()
+
+    @pytest.mark.parametrize(
+        "error",
+        [core_exceptions.InvalidInputError("bad"), ValueError("bad"), RuntimeError("bug")],
+        ids=lambda error: type(error).__name__,
+    )
+    def test_a_bad_file_is_still_counted_failed_and_kept(self, tmp_path, error):
+        imported, keep = self._import(tmp_path, error)
+
+        assert imported is False
+        keep.assert_called_once()
+
+
+class TestKeepFailedMember:
+    @staticmethod
+    def _keep(tmp_path, storage_error=None, copy_error=None):
+        path = tmp_path / "export.zip"
+        with zipfile.ZipFile(path, "w") as writer:
+            writer.writestr("a.fit", b"x")
+        storage = MagicMock()
+        storage.save_stream.side_effect = storage_error
+        with (
+            zipfile.ZipFile(path) as archive,
+            patch.object(bulk.core_file_uploads, "copy_zip_member", side_effect=copy_error),
+        ):
+            bulk._keep_failed_member(archive, "a.fit", _USER, _JOB_1, storage)
+
+    @pytest.mark.parametrize(
+        "error",
+        [
+            platform_providers.StorageBackendUnavailableError("down"),
+            OSError("disk full"),
+            ValueError("bad key"),
+        ],
+        ids=lambda error: type(error).__name__,
+    )
+    def test_a_storage_failure_is_logged_not_raised(self, tmp_path, error):
+        self._keep(tmp_path, storage_error=error)
+
+    @pytest.mark.parametrize(
+        "error",
+        [
+            core_exceptions.PayloadTooLargeError("big"),
+            zipfile.BadZipFile("bad crc"),
+            zlib.error("bad data"),
+            EOFError(),
+            NotImplementedError("compression"),
+            RuntimeError("encrypted"),
+            lzma.LZMAError("bad data"),
+        ],
+        ids=lambda error: type(error).__name__,
+    )
+    def test_a_member_that_cannot_be_read_is_logged_not_raised(self, tmp_path, error):
+        self._keep(tmp_path, copy_error=error)
+
+    def test_a_bug_is_not_swallowed(self, tmp_path):
+        with pytest.raises(AttributeError):
+            self._keep(tmp_path, copy_error=AttributeError("bug"))
+
+
+class TestHeartbeatFailure:
+    def test_a_database_failure_is_logged_and_the_beat_goes_on(self, tmp_path, factory, storage):
+        calls: list[int] = []
+
+        def touch(*_args):
+            calls.append(1)
+            raise OperationalError("stmt", {}, Exception("db down"))
+
+        with (
+            patch.object(bulk, "_HEARTBEAT_SECONDS", 0.01),
+            patch.object(bulk.activity_ingestion_crud, "touch_job", side_effect=touch),
+            bulk._heartbeat(_JOB_1),
+        ):
+            deadline = time.monotonic() + 5
+            while len(calls) < 2 and time.monotonic() < deadline:
+                time.sleep(0.02)
+
+        assert len(calls) >= 2

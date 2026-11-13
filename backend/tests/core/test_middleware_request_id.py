@@ -72,3 +72,30 @@ class TestRequestIdMiddleware:
         response = client.get("/", headers={"X-Request-ID": "echo-test-id"})
 
         assert response.headers.get("X-Request-ID") == "echo-test-id"
+
+
+class TestUnhandledErrorCarriesRequestId:
+    """An unhandled error is answered outside the middleware, yet still names the request."""
+
+    def _client(self):
+        from fastapi import FastAPI
+
+        import core.exceptions as core_exceptions
+        from core.middleware_request_id import RequestIdMiddleware
+
+        app = FastAPI()
+        core_exceptions.register_exception_handlers(app)
+
+        @app.get("/boom")
+        def boom():
+            raise RuntimeError("boom")
+
+        app.add_middleware(RequestIdMiddleware)
+        return TestClient(app, raise_server_exceptions=False)
+
+    def test_the_problem_document_and_header_carry_the_request_id(self):
+        response = self._client().get("/boom", headers={"X-Request-ID": "trace-me-1"})
+
+        assert response.status_code == 500
+        assert response.json()["request_id"] == "trace-me-1"
+        assert response.headers.get("X-Request-ID") == "trace-me-1"

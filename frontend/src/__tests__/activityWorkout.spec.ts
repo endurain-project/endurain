@@ -18,6 +18,7 @@ import {
   mapActivityWorkoutStep,
 } from '@/features/activities/services/activities'
 import { expandWorkoutSteps, resolveExerciseName } from '@/features/activities/utils/workout'
+import { activityUuid } from './fixtures/activity'
 
 vi.mock('@/services/http', () => ({ apiFetch: vi.fn<typeof apiFetch>() }))
 
@@ -80,13 +81,13 @@ describe('resolveExerciseName', () => {
 describe('workout mappers', () => {
   it('maps a workout step', () => {
     const dto: ActivityWorkoutStepDto = {
-      activity_id: 5,
+      activity_id: activityUuid(5),
       duration_type: 'reps',
       duration_value: 12,
       exercise_category: 1,
       exercise_name: 5,
       exercise_weight: 40,
-      id: 7,
+      id: activityUuid(7),
       intensity: 'active',
       message_index: 0,
       notes: null,
@@ -111,18 +112,18 @@ describe('workout mappers', () => {
 
   it('maps a workout set', () => {
     const dto: ActivitySetDto = {
-      activity_id: 5,
+      activity_id: activityUuid(5),
       category: 1,
       category_subtype: 5,
       duration: 60,
-      id: 9,
+      id: activityUuid(9),
       repetitions: 12,
       set_type: 'active',
       start_time: '2024-01-01T00:00:00Z',
       weight: 40,
     }
     expect(mapActivitySet(dto)).toEqual({
-      id: 9,
+      id: activityUuid(9),
       category: 1,
       categorySubtype: 5,
       duration: 60,
@@ -150,39 +151,51 @@ describe('workout mappers', () => {
 describe('workout fetchers', () => {
   it('fetches workout steps from the authenticated endpoint', async () => {
     vi.mocked(apiFetch).mockResolvedValueOnce({ items: [], next: null })
-    await fetchActivityWorkoutSteps(5, { authenticated: true })
-    expect(apiFetch).toHaveBeenCalledWith('/activities/5/workout-steps?page_number=1', {
-      auth: true,
-      signal: undefined,
-    })
+    await fetchActivityWorkoutSteps(activityUuid(5), { authenticated: true })
+    expect(apiFetch).toHaveBeenCalledWith(
+      `/activities/${activityUuid(5)}/workout-steps?num_records=200&page_number=1`,
+      {
+        auth: true,
+        signal: undefined,
+      },
+    )
   })
 
   it('fetches workout sets from the public endpoint when anonymous', async () => {
     vi.mocked(apiFetch).mockResolvedValueOnce(null)
-    const sets = await fetchActivitySets(5, { authenticated: false })
-    expect(apiFetch).toHaveBeenCalledWith('/public/activities/5/sets?page_number=1', {
-      auth: false,
-      signal: undefined,
-    })
+    const sets = await fetchActivitySets(activityUuid(5), { authenticated: false })
+    expect(apiFetch).toHaveBeenCalledWith(
+      `/public/activities/${activityUuid(5)}/sets?num_records=200&page_number=1`,
+      {
+        auth: false,
+        signal: undefined,
+      },
+    )
     expect(sets).toEqual([])
   })
 
   it('fetches the exercise-title catalogue (authenticated)', async () => {
-    vi.mocked(apiFetch).mockResolvedValueOnce([])
+    vi.mocked(apiFetch).mockResolvedValueOnce({ items: [], next: null })
     await fetchActivityExerciseTitles({ authenticated: true })
-    expect(apiFetch).toHaveBeenCalledWith('/activities/exercise-titles/all', {
-      auth: true,
-      signal: undefined,
-    })
+    expect(apiFetch).toHaveBeenCalledWith(
+      '/activities/exercise-titles?num_records=200&page_number=1',
+      {
+        auth: true,
+        signal: undefined,
+      },
+    )
   })
 
   it('fetches the public exercise-title catalogue when anonymous', async () => {
     vi.mocked(apiFetch).mockResolvedValueOnce(null)
     const titles = await fetchActivityExerciseTitles({ authenticated: false })
-    expect(apiFetch).toHaveBeenCalledWith('/public/activities/exercise-titles/all', {
-      auth: false,
-      signal: undefined,
-    })
+    expect(apiFetch).toHaveBeenCalledWith(
+      '/public/activities/exercise-titles?num_records=200&page_number=1',
+      {
+        auth: false,
+        signal: undefined,
+      },
+    )
     expect(titles).toEqual([])
   })
 })

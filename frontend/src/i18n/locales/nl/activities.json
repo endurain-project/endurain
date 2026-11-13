@@ -11,7 +11,7 @@
     "subtitle": "Blader, filter en sorteer al je activiteiten.",
     "searchPlaceholder": "Zoek op naam of locatie",
     "clearSearch": "Zoekterm wissen",
-    "resultCount": "{count} activiteiten",
+    "resultCount": "{count} activiteit | {count} activiteiten",
     "filters": {
       "type": "Activiteitstype",
       "allTypes": "Alle types",
@@ -184,10 +184,13 @@
   },
   "edit": {
     "title": "Activiteit bewerken",
+    "loading": "Activiteit wordt geladen",
+    "loadError": "Activiteit kon niet worden geladen",
     "save": "Wijzigingen opslaan",
     "cancel": "Annuleren",
     "close": "Sluiten",
     "name": "Naam",
+    "nameRequired": "Voer een naam in voor de activiteit",
     "type": "Activiteitstype",
     "description": "Beschrijving",
     "privateNotes": "Privénotities",
@@ -208,7 +211,7 @@
     "hideGear": "Uitrusting verbergen",
     "success": "Activiteit bijgewerkt",
     "error": "Activiteit kon niet worden bijgewerkt",
-    "staleError": "This activity was changed elsewhere while you were editing. Your changes were not saved. Reopen it to see the current version."
+    "staleError": "Deze activiteit is elders gewijzigd terwijl je hem bewerkte. Je wijzigingen zijn niet opgeslagen. Open hem opnieuw om de huidige versie te zien."
   },
   "alerts": {
     "hidden": "Deze activiteit is verborgen. Alleen jij kunt hem zien.",

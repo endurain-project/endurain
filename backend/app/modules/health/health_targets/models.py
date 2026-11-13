@@ -1,45 +1,41 @@
+"""SQLAlchemy ORM model for per-user health targets."""
+
+import uuid
 from decimal import Decimal
-from typing import TYPE_CHECKING
 
-from sqlalchemy import ForeignKey, Numeric
-from sqlalchemy.orm import Mapped, mapped_column, relationship
+from sqlalchemy import ForeignKey, Index, Numeric
+from sqlalchemy.orm import Mapped, mapped_column
 
+import core.sync as core_sync
 from core.database import Base
 
-if TYPE_CHECKING:
-    from modules.users.users.models import Users
 
-
-class HealthTargets(Base):
-    """
-    User health targets configuration.
+class HealthTargets(core_sync.UpdatedAtMixin, Base):
+    """User health targets configuration.
 
     Attributes:
-        id: Primary key.
+        id: Primary key, a random UUID.
         user_id: Foreign key to users table (unique).
-        weight: Target weight in kg.
+        weight_kg: Target weight in kg.
         steps: Target daily steps count.
-        sleep: Target sleep duration in seconds.
-        fasting: Target fasting duration in seconds.
+        sleep_seconds: Target sleep duration in seconds.
+        fasting_seconds: Target fasting duration in seconds.
         water_ml: Target daily water intake in milliliters.
         poop_count: Target daily bowel movement count.
-        user: Relationship to Users model.
     """
 
     __tablename__ = "health_targets"
+    __table_args__ = (Index("ix_health_targets_user_updated_at_id", "user_id", "updated_at", "id"),)
 
-    id: Mapped[int] = mapped_column(
-        primary_key=True,
-        autoincrement=True,
-    )
-    user_id: Mapped[int] = mapped_column(
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    user_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("users.id", ondelete="CASCADE"),
         nullable=False,
         unique=True,
         index=True,
         comment="User ID that the health_target belongs",
     )
-    weight: Mapped[Decimal | None] = mapped_column(
+    weight_kg: Mapped[Decimal | None] = mapped_column(
         Numeric(precision=10, scale=2),
         nullable=True,
         comment="Weight in kg",
@@ -48,11 +44,11 @@ class HealthTargets(Base):
         nullable=True,
         comment="Number of steps taken",
     )
-    sleep: Mapped[int | None] = mapped_column(
+    sleep_seconds: Mapped[int | None] = mapped_column(
         nullable=True,
-        comment="Number of hours slept in seconds",
+        comment="Target sleep duration in seconds",
     )
-    fasting: Mapped[int | None] = mapped_column(
+    fasting_seconds: Mapped[int | None] = mapped_column(
         nullable=True,
         comment="Target fasting duration in seconds",
     )
@@ -66,5 +62,13 @@ class HealthTargets(Base):
         comment="Target daily bowel movement count",
     )
 
-    # Define a relationship to the Users model
-    users: Mapped["Users"] = relationship(back_populates="health_targets")
+    version: Mapped[int] = mapped_column(
+        nullable=False,
+        server_default="1",
+        default=1,
+        comment="Optimistic-concurrency counter, surfaced to clients as the ETag",
+    )
+
+    # SQLAlchemy bumps ``version`` on each ORM flush and adds it to the UPDATE's
+    # WHERE clause, raising StaleDataError when the row moved underneath.
+    __mapper_args__ = {"version_id_col": version}  # noqa: RUF012

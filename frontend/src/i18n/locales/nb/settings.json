@@ -31,7 +31,9 @@
       "admin": "Administrator",
       "inactive": "Inaktiv",
       "unverified": "Ubekreftet e-post",
+      "pendingEmail": "Venter på endring av e-post",
       "pending": "Venter på godkjenning",
+      "deleting": "Slettes",
       "externalAuth": "Ekstern autentisering"
     },
     "actions": {
@@ -64,18 +66,22 @@
       "email": "E-post",
       "emailRequired": "E-post er obligatorisk",
       "emailInvalid": "Skriv inn en gyldig e-postadresse",
+      "emailChangeHint": "En bekreftelseslenke sendes til den nye adressen, og den erstatter den nåværende når den er bekreftet. Brukeren logges av på alle enheter. Merk i stedet den nye adressen som bekreftet for å ta den i bruk nå.",
       "accessType": "Tilgangstype",
       "accessTypeRegular": "Vanlig bruker",
       "accessTypeAdmin": "Administrator",
       "password": "Passord",
       "passwordHint": "Minst 8 tegn",
-      "passwordHintStrict": "Minst {min} tegn, med store og små bokstaver, et tall og et spesialtegn",
-      "passwordHintLength": "Minst {min} tegn",
       "passwordRequired": "Passord er obligatorisk",
-      "passwordInvalid": "Det passordet oppfyller ikke kravene",
       "confirmPassword": "Bekreft passord",
+      "mustChangePasswordHint": "Brukeren må velge et nytt passord ved neste innlogging.",
       "confirmPasswordRequired": "Bekreft passord",
-      "passwordMismatch": "Passordene stemmer ikke overens",
+      "passwordMode": "Hvordan brukeren får et passord",
+      "passwordModeInvitation": "Send en invitasjon på e-post for å velge et passord",
+      "passwordModePassword": "Angi et passord nå",
+      "passwordModeHint": "Brukeren får en e-post med en lenke, gyldig i 24 timer, for å velge sitt eget passord.",
+      "invitationNeedsActive": "En inaktiv konto kan ikke inviteres. Angi et passord i stedet.",
+      "inviteSuccess": "Bruker lagt til og invitasjon sendt",
       "preferredLanguage": "Foretrukket språk",
       "languages": {
         "ca": "Katalansk",
@@ -118,14 +124,16 @@
       "units": "Enheter",
       "unitsMetric": "Metrisk",
       "unitsImperial": "Imperisk",
+      "weightUnits": "Vektenheter",
+      "weightUnitsDefault": "Følg enheter",
+      "weightUnitsMetric": "Kilogram (kg)",
+      "weightUnitsImperial": "Pund (lb)",
       "height": "Høyde",
-      "unitCm": "cm",
-      "unitFeet": "ft",
-      "unitInches": "in",
+      "heightInvalid": "Høyden må være mellom 50 og 272 cm",
+      "maxHeartRateInvalid": "Makspuls må være mellom 30 og 250 slag/min",
       "feetInvalid": "Fot må være mellom 0 og 10",
       "inchesInvalid": "Tommer må være mellom 0 og 11",
       "maxHeartRate": "Maks puls",
-      "unitBpm": "bpm",
       "currency": "Valuta",
       "currencies": {
         "euro": "Euro",
@@ -134,6 +142,8 @@
       },
       "firstDayOfWeek": "Første dag i uken",
       "timezone": "Tidssone",
+      "timezoneNotSet": "Ikke angitt",
+      "timezoneUseBrowser": "Bruk nettleserens tidssone ({timezone})",
       "timezoneHint": "Brukes for aktiviteter registrert uten GPS, for eksempel løping på tredemølle og innendørs sykling.",
       "weekdays": {
         "sunday": "Søndag",
@@ -149,7 +159,8 @@
       "statusLegend": "Kontostatus",
       "active": "Aktiv",
       "emailVerified": "E-post bekreftet",
-      "pendingAdminApproval": "Venter på godkjenning fra administrator",
+      "emailVerifiedCurrentHint": "Dette er statusen til den nåværende adressen.",
+      "newEmailVerified": "Merk den nye adressen som bekreftet",
       "requiredField": "Obligatorisk felt",
       "create": "Legg til bruker",
       "save": "Lagre endringer",
@@ -158,7 +169,13 @@
       "createSuccess": "Bruker lagt til",
       "updateSuccess": "Bruker oppdatert",
       "conflict": "Det brukernavnet eller den e-posten er allerede i bruk",
-      "saveError": "Kunne ikke lagre brukeren. Vennligst prøv igjen."
+      "lastAdministrator": "Den eneste administratoren kan ikke degraderes eller deaktiveres",
+      "saveError": "Kunne ikke lagre brukeren. Vennligst prøv igjen.",
+      "stepUpTitle": "Bekreft identiteten din",
+      "stepUpDescription": "Hvis du endrer e-postadressen, tilgangstypen eller aktivstatusen til {username}, logges brukeren ut overalt. Bekreft at det er deg for å fortsette.",
+      "stepUpCreateDescription": "Å opprette en administratorkonto gir full tilgang. Bekreft at det er deg for å fortsette.",
+      "stepUpConfirm": "Lagre endringer",
+      "approvalPending": "Denne brukeren venter på godkjenning. Godkjenn brukeren i stedet for å aktivere den her."
     },
     "delete": {
       "title": "Slett bruker",
@@ -167,10 +184,12 @@
       "cancel": "Avbryt",
       "close": "Lukk",
       "success": "Bruker slettet",
-      "error": "Kunne ikke slette brukeren. Vennligst prøv igjen."
+      "error": "Kunne ikke slette brukeren. Vennligst prøv igjen.",
+      "failed": "Sletting av brukeren mislyktes. Kontoen forblir deaktivert; slett den på nytt for å prøve igjen."
     },
     "detail": {
       "back": "Tilbake til brukere",
+      "pendingEmail": "Venter på endring av e-post til {email}, lenken utløper {date}",
       "notFoundTitle": "Bruker ikke funnet",
       "notFoundDescription": "Denne kontoen kan ha blitt slettet",
       "securityTitle": "Sikkerhet",
@@ -184,19 +203,33 @@
     "password": {
       "button": "Tilbakestill passord",
       "title": "Tilbakestill passord",
-      "description": "Sett et nytt passord for {username}",
+      "description": "Sett et nytt passord for {username} All of their sessions, unused reset links, pending email change and API keys end. They are notified.",
       "newLabel": "Nytt passord",
-      "hintLength": "Minst {min} tegn",
-      "hintStrict": "Minst {min} tegn, med store og små bokstaver, et tall og et spesialtegn",
       "confirmLabel": "Bekreft nytt passord",
-      "mismatch": "Passordene stemmer ikke overens",
       "required": "Passord er obligatorisk",
       "submit": "Tilbakestill passord",
       "cancel": "Avbryt",
       "close": "Lukk",
       "success": "Passord oppdatert",
-      "invalid": "Det passordet oppfyller ikke kravene",
       "error": "Kunne ikke oppdatere passordet. Vennligst prøv igjen."
+    },
+    "mfaReset": {
+      "button": "Tilbakestill MFA",
+      "title": "Tilbakestill tofaktorautentisering",
+      "description": "Dette slår av tofaktorautentisering for {username} og fjerner reservekodene. Alle øktene avsluttes, så brukeren logges ut på alle enheter, og må sette opp tofaktorautentisering på nytt etter innlogging. Brukeren får beskjed. Bekreft at det er deg for å fortsette.",
+      "confirm": "Tilbakestill MFA",
+      "success": "Tofaktorautentisering tilbakestilt",
+      "refused": "Tofaktorautentisering er ikke slått på for denne brukeren.",
+      "error": "Kunne ikke tilbakestille tofaktorautentisering. Vennligst prøv igjen."
+    },
+    "requirePasswordChange": {
+      "button": "Krev passordendring",
+      "title": "Krev en passordendring",
+      "description": "{username} beholder det nåværende passordet, men må velge et nytt neste gang vedkommende logger inn med det. Alle øktene avsluttes, så brukeren logges ut på alle enheter. Innlogging via en leverandør for enkel pålogging påvirkes ikke. Brukeren får beskjed. Bekreft at det er deg for å fortsette.",
+      "confirm": "Krev endring",
+      "success": "Passordendring kreves",
+      "refused": "Denne brukeren har ikke noe passord å endre.",
+      "error": "Kunne ikke kreve passordendring. Vennligst prøv igjen."
     },
     "sessions": {
       "title": "Økter",
@@ -205,6 +238,7 @@
       "error": "Kunne ikke laste økter",
       "retry": "Prøv igjen",
       "lastActive": "Sist aktiv {date}",
+      "viaApp": "Logget inn via appen: {address}",
       "current": "Nåværende økt",
       "revokeOthers": "Tilbakekall andre økter",
       "revokeOthersTitle": "Tilbakekall andre økter",
@@ -216,10 +250,28 @@
       "revokeTitle": "Tilbakekall økt",
       "revokeBody": "Dette logger ut enheten, og de må logge inn på nytt",
       "revokeConfirm": "Tilbakekall",
-      "revokeCancel": "Avbryt",
-      "revokeClose": "Lukk",
       "revokeSuccess": "Økt tilbakekalt",
       "revokeError": "Kunne ikke tilbakekalle økten. Vennligst prøv igjen."
+    },
+    "apiKeys": {
+      "title": "API-nøkler",
+      "subtitle": "API-nøkler denne brukeren har opprettet for skript og tredjepartsverktøy",
+      "error": "Kunne ikke laste API-nøklene",
+      "retry": "Prøv igjen",
+      "empty": "Denne brukeren har ingen API-nøkler",
+      "revoke": "Tilbakekall",
+      "revokeTitle": "Tilbakekalle denne API-nøkkelen?",
+      "revokeBody": "Nøkkelen slutter å virke umiddelbart, og brukeren får beskjed.",
+      "revokeConfirm": "Tilbakekall nøkkel",
+      "revokeSuccess": "API-nøkkel tilbakekalt",
+      "revokeError": "Kunne ikke tilbakekalle API-nøkkelen. Prøv igjen.",
+      "revokeNotFound": "Den API-nøkkelen finnes ikke lenger.",
+      "revokeAll": "Tilbakekall alle nøkler",
+      "revokeAllTitle": "Tilbakekalle alle API-nøkler?",
+      "revokeAllBody": "Hver aktive API-nøkkel for denne brukeren slutter å virke umiddelbart, og brukeren får beskjed.",
+      "revokeAllConfirm": "Tilbakekall alle nøkler",
+      "revokeAllSuccess": "API-nøkler tilbakekalt",
+      "revokeAllError": "Kunne ikke tilbakekalle API-nøklene. Prøv igjen."
     },
     "photo": {
       "upload": "Last opp bilde",
@@ -277,6 +329,34 @@
     "saving": "Lagrer…",
     "saveSuccess": "Serverinnstillinger oppdatert",
     "saveError": "Kunne ikke oppdatere serverinnstillingene. Vennligst prøv igjen.",
+    "staleError": "Disse innstillingene ble endret av noen andre mens du redigerte. Endringene dine ble ikke lagret. Last inn siden på nytt for å se gjeldende verdier.",
+    "stepUpTitle": "Bekreft identiteten din",
+    "stepUpDescription": "Disse endringene påvirker hvem som kan registrere seg, logge inn eller beholde en økt på denne serveren, hvor lenge revisjonsloggen oppbevares, eller om offentlige lenker viser hvem som delte dem. Bekreft at det er deg for å fortsette.",
+    "envLocked": "Angitt av {name}",
+    "envSection": "Noen innstillinger her angis av miljøvariabler ({names}). Fjern dem fra miljøet for å redigere dem her.",
+    "unsaved": "Ulagrede endringer",
+    "fixErrors": "Rett opp feilene ovenfor for å lagre",
+    "discard": "Forkast",
+    "tabs": {
+      "label": "Seksjoner i serverinnstillingene",
+      "general": "Generelt",
+      "access": "Tilgang og sikkerhet",
+      "maps": "Kart og posisjon",
+      "email": "E-post",
+      "logs": "Logger",
+      "unsaved": "Har ulagrede endringer"
+    },
+    "search": {
+      "placeholder": "Søk i innstillinger…",
+      "noResults": "Fant ingen innstillinger"
+    },
+    "leave": {
+      "title": "Forlate uten å lagre?",
+      "description": "Du har ulagrede endringer. Hvis du forlater siden, går de tapt.",
+      "confirm": "Forlat uten å lagre",
+      "stay": "Bli på siden",
+      "close": "Lukk"
+    },
     "loadError": {
       "title": "Kunne ikke laste serverinnstillinger",
       "description": "Noe gikk galt under lasting av serverinnstillingene. Du kan prøve igjen.",
@@ -293,17 +373,49 @@
       "currencyPound": "Pund (£)",
       "numRecords": "Oppføringer per side"
     },
+    "mfa": {
+      "title": "Tofaktorautentisering",
+      "require": "Krev tofaktorautentisering",
+      "requireHint": "En konto som omfattes, og som ikke har satt opp tofaktorautentisering, må sette den opp før den kan gjøre noe annet. Inntil da kan den bare sette den opp og logge ut. Kravet gjelder fra kontoens neste forespørsel.",
+      "options": {
+        "off": "Ikke påkrevd",
+        "administrators": "Bare administratorer",
+        "everyone": "Alle"
+      },
+      "enabledWarning": "Kontoer som omfattes av denne innstillingen og ikke har satt opp tofaktorautentisering, muligens også din, blir sendt til oppsett ved sin neste forespørsel."
+    },
     "password": {
       "title": "Passordretningslinjer",
-      "type": "Retningslinje",
-      "typeStrict": "Streng (kompleksitet påkrevd)",
-      "typeLengthOnly": "Kun lengde",
       "lengthRegular": "Minimumslengde for vanlige brukere",
-      "lengthAdmin": "Minimumslengde for administratorbrukere"
+      "lengthAdmin": "Minimumslengde for administratorbrukere",
+      "breachCheck": "Avvis passord som finnes i kjente datainnbrudd",
+      "breachCheckHint": "Sjekker hvert nye eller endrede passord mot haveibeenpwned.com. Bare de første 5 tegnene i passordets SHA-1-hash sendes, aldri selve passordet. Hvis tjenesten ikke kan nås, godtas passordet."
+    },
+    "session": {
+      "title": "Økter",
+      "description": "Endringer gjelder for nye innlogginger og ved neste fornyelse av token. Token som allerede er utstedt beholder levetiden sin.",
+      "idleTimeoutEnabled": "Håndhev tidsavbrudd ved inaktivitet",
+      "idleHours": "Tidsavbrudd ved inaktivitet (timer)",
+      "idleHoursHint": "Når dette er påslått, avsluttes en økt etter så mange timer uten aktivitet.",
+      "absoluteHours": "Absolutt tidsavbrudd (timer)",
+      "absoluteHoursHint": "En økt avsluttes så mange timer etter innlogging, uansett aktivitet. Gjelder alltid. Kan ikke være kortere enn tidsavbruddet ved inaktivitet.",
+      "accessMinutes": "Levetid for tilgangstoken (minutter)",
+      "refreshDays": "Levetid for oppdateringstoken (dager)",
+      "apiKeyDays": "Maksimal levetid for API-nøkkel (dager)",
+      "apiKeyDaysHint": "En ny API-nøkkel utløper etter dette antallet dager, med mindre eieren velger en tidligere dato.",
+      "invalidRange": "Skriv inn et heltall mellom {min} og {max}.",
+      "absoluteBelowIdle": "Kan ikke være kortere enn tidsavbruddet ved inaktivitet.",
+      "accessNotBelowIdle": "Må være kortere enn tidsavbruddet ved inaktivitet."
+    },
+    "retention": {
+      "title": "Datalagring",
+      "readNotifications": "Slett leste varsler etter (dager)",
+      "readNotificationsHint": "0 beholder leste varsler for alltid. Uleste varsler slettes aldri."
     },
     "signup": {
       "title": "Registrering",
       "enabled": "Tillat nye brukerregistreringer",
+      "ssoEnabled": "Tillat nye brukerregistreringer via enkel pålogging",
       "adminApproval": "Krev godkjenning fra administrator for nye registreringer",
       "emailVerification": "Krev e-postbekreftelse for nye registreringer"
     },
@@ -336,12 +448,33 @@
       "attribution": "Attribusjon",
       "apiKey": "API-nøkkel for flisserver",
       "apiKeyWarning": "API-nøkkelen lagres kryptert. La stå tom hvis flisserveren din ikke trenger en.",
+      "apiKeyStored": "En nøkkel er lagret",
+      "apiKeyRemove": "Fjern den lagrede API-nøkkelen",
       "backgroundColor": "Bakgrunnsfarge for kart",
       "regenerateThumbnails": "Generer aktivitetsminiatyrer på nytt når kartinnstillingene endres"
+    },
+    "geocoding": {
+      "title": "Omvendt geokoding",
+      "description": "Gjør aktivitetskoordinater om til stedsnavn. Endringer gjelder uten omstart.",
+      "service": "Tjeneste",
+      "serviceNominatim": "Nominatim",
+      "servicePhoton": "Photon",
+      "serviceGeocode": "geocode.maps.co",
+      "host": "Vert",
+      "hostHint": "Vertsnavn med valgfri port, uten skjema. En vert på et privat nettverk må være oppført i SSRF_ALLOWED_HOSTS.",
+      "useHttps": "Koble til via HTTPS",
+      "rateLimit": "Forespørsler per sekund",
+      "rateLimitHint": "0 slår av begrensning. Behold 1 for de offentlige tjenestene Nominatim og Photon.",
+      "rateLimitInvalid": "Skriv inn et tall mellom 0 og 100.",
+      "apiKey": "API-nøkkel",
+      "apiKeyStored": "En nøkkel er lagret. La feltet stå tomt for å beholde den.",
+      "apiKeyRemove": "Fjern den lagrede API-nøkkelen",
+      "apiKeyRequired": "geocode.maps.co trenger en API-nøkkel."
     },
     "photo": {
       "title": "Innloggingsbilde",
       "description": "Et egendefinert bilde som vises på innloggingsskjermen",
+      "previewAlt": "Gjeldende påloggingsbilde",
       "add": "Last opp innloggingsbilde",
       "replace": "Erstatt innloggingsbilde",
       "delete": "Fjern innloggingsbilde",
@@ -355,10 +488,33 @@
       "cancel": "Avbryt",
       "close": "Lukk"
     },
+    "logs": {
+      "title": "Serverlogger",
+      "description": "De nyeste oppføringene i applikasjonsloggen. Logger fra installasjoner som kjører flere prosesser samles inn av plattformen din i stedet.",
+      "level": "Minimumsnivå",
+      "allLevels": "Alle nivåer",
+      "search": "Søk",
+      "searchPlaceholder": "Tekst, logger eller forespørsels-ID…",
+      "live": "Direkte",
+      "refresh": "Oppdater",
+      "download": "Last ned",
+      "downloadError": "Kunne ikke laste ned loggfilen.",
+      "clear": "Tøm",
+      "cleared": "Loggene er tømt",
+      "clearError": "Kunne ikke tømme loggene.",
+      "clearConfirm": {
+        "title": "Tømme serverloggene?",
+        "description": "Dette sletter loggfilen og de roterte sikkerhetskopiene permanent. Last ned loggen først hvis du kan trenge den. Selve handlingen registreres i den nye loggen.",
+        "confirm": "Tøm logger",
+        "cancel": "Avbryt",
+        "close": "Lukk"
+      },
+      "loadError": "Kunne ikke laste loggene.",
+      "empty": "Ingen loggoppføringer funnet"
+    },
     "email": {
       "title": "E-post",
       "description": "Endurain sender e-poster for tilbakestilling av passord og registrering via SMTP-serveren som er konfigurert i miljøet.",
-      "statusLoadError": "E-postkonfigurasjonen kunne ikke kontrolleres.",
       "configured": "E-post er konfigurert.",
       "notConfigured": "E-post er ikke konfigurert:",
       "send": "Send test-e-post",
@@ -366,7 +522,28 @@
       "sendHint": "Test-e-posten sendes til din egen adresse.",
       "sent": "Test-e-post sendt",
       "failed": "Test-e-posten kunne ikke sendes",
-      "failedUnknown": "Se serverloggene for detaljer."
+      "failedUnknown": "Se serverloggene for detaljer.",
+      "settingsLoadError": "Kunne ikke laste e-postinnstillingene.",
+      "host": "Vert",
+      "hostHint": "La stå tomt for å slå av e-post.",
+      "port": "Port",
+      "portInvalid": "Skriv inn en port mellom 1 og 65535.",
+      "security": "Tilkoblingssikkerhet",
+      "securityStarttls": "STARTTLS",
+      "securitySsl": "SSL/TLS",
+      "securityNone": "Ingen (kun privat relé)",
+      "securityNoneWarning": "Uten kryptering godtas bare en e-postserver på en privat adresse eller loopback-adresse, og brukernavn og passord kan ikke brukes.",
+      "username": "Brukernavn",
+      "password": "Passord",
+      "passwordStored": "Et passord er lagret. La feltet stå tomt for å beholde det.",
+      "passwordRemove": "Fjern det lagrede passordet",
+      "fromAddress": "Avsenderadresse",
+      "fromAddressHint": "La stå tomt for å bruke brukernavnet.",
+      "save": "Lagre e-postinnstillinger",
+      "saveSuccess": "E-postinnstillingene er lagret",
+      "saveError": "E-postinnstillingene kunne ikke lagres",
+      "stepUpTitle": "Bekreft identiteten din",
+      "stepUpDescription": "E-postserveren mottar hver lenke for tilbakestilling av passord. Bekreft at det er deg for å fortsette."
     }
   },
   "idp": {
@@ -374,6 +551,8 @@
     "subtitle": "Konfigurer SSO-leverandører for enkel pålogging",
     "buttonAdd": "Legg til leverandør",
     "toggleError": "Kunne ikke endre leverandøren. Vennligst prøv igjen.",
+    "toggleStepUpDescription": "Om {name} er aktivert, avgjør hvem som kan logge inn på denne serveren. Bekreft at det er deg for å fortsette.",
+    "toggleStepUpConfirm": "Bekreft",
     "enableSuccess": "Leverandør aktivert",
     "disableSuccess": "Leverandør deaktivert",
     "type": {
@@ -399,8 +578,6 @@
       "title": "Slett leverandør",
       "body": "Er du sikker på at du vil slette «{name}»? Dette kan ikke angres.",
       "confirm": "Slett",
-      "cancel": "Avbryt",
-      "close": "Lukk",
       "success": "Leverandør slettet",
       "error": "Kunne ikke slette leverandøren. Den kan fortsatt ha koblede brukere."
     },
@@ -422,12 +599,14 @@
       "slugRequired": "Slug er obligatorisk",
       "slugTooLong": "Slug må være 50 tegn eller færre",
       "slugInvalid": "Bruk bare små bokstaver, tall og bindestreker",
+      "slugReserved": "Denne sluggen er reservert; velg en annen",
       "providerType": "Leverandørtype",
       "typeOidc": "OpenID Connect (OIDC)",
       "typeOauth2": "OAuth 2.0",
       "issuerUrl": "Utsteder-URL",
       "issuerUrlHint": "Leverandørens OIDC-utsteder- eller discovery-URL",
       "issuerUrlRequired": "Utsteder-URL er obligatorisk",
+      "issuerUrlRefused": "Leverandørens URL ble avvist. Den må bruke https:// og kunne løses fra serveren, og en leverandør på et privat nettverk må være oppført i SSRF_ALLOWED_HOSTS.",
       "issuerUrlTooLong": "Utsteder-URL må være 500 tegn eller færre",
       "clientId": "Klient-ID",
       "clientIdRequired": "Klient-ID er obligatorisk",
@@ -440,17 +619,34 @@
       "scopes": "Omfang",
       "scopesHint": "Mellomromsadskilte OAuth-omfang",
       "scopesTooLong": "Omfang må være 500 tegn eller færre",
+      "scopesOpenidRequired": "En OIDC-leverandør trenger scopet openid",
       "icon": "Ikon",
       "iconNone": "Ingen",
-      "iconCustom": "Egendefinert URL",
-      "customIconUrl": "URL til egendefinert ikon",
-      "customIconUrlHint": "Lenke til et bilde som vises på innloggingsknappen",
+      "iconUpload": "Last opp et bilde",
+      "iconFileHint": "Et PNG-, JPEG- eller WebP-bilde på opptil 1 MB, vist på innloggingsknappen",
+      "iconChoose": "Velg bilde",
+      "iconReplace": "Bytt ut bilde",
+      "iconPreviewAlt": "Forhåndsvisning av ikon",
+      "iconFileRequired": "Velg et bilde å laste opp",
+      "iconFileInvalidType": "Ikonet må være et PNG-, JPEG- eller WebP-bilde",
+      "iconFileTooLarge": "Ikonet kan være maks 1 MB",
+      "iconSaveError": "Leverandøren ble lagret, men ikonet kunne ikke oppdateres. Rediger leverandøren for å prøve igjen.",
       "enabled": "Aktivert",
       "autoCreateUsers": "Opprett brukere automatisk ved første innlogging",
+      "linkByEmail": "Koble til en eksisterende konto via e-post",
+      "linkByEmailHint": "Lar en første innlogging slutte seg til kontoen som har samme bekreftede e-postadresse. Når den er av, avvises innloggingen, og brukeren kobler til leverandøren fra innstillingene sine. Av som standard for en ny leverandør.",
       "syncUserInfo": "Synkroniser profilinformasjon ved hver innlogging",
+      "syncUserInfoHint": "Kopierer det tilordnede navnet fra leverandøren. E-postadressen er ikke med.",
+      "syncEmail": "Synkroniser e-post ved hver innlogging",
+      "syncEmailHint": "Kopierer e-postadressen leverandøren har bekreftet over til kontoen, logger endringen i revisjonsloggen og varsler den forrige adressen. Av som standard for en ny leverandør.",
       "createSuccess": "Leverandør lagt til",
       "updateSuccess": "Leverandør oppdatert",
+      "stepUpTitle": "Bekreft identiteten din",
+      "stepUpDescription": "Identitetsleverandører avgjør hvem som kan logge inn på denne serveren. Bekreft at det er deg for å fortsette.",
       "slugConflict": "Den slug-en er allerede i bruk",
+      "issuerInUse": "En annen identitetsleverandør bruker allerede denne utsteder-URL-en",
+      "issuerLocked": "Utsteder-URL-en kan ikke endres så lenge brukere er koblet til denne leverandøren. Koble dem fra, eller legg til en ny leverandør i stedet.",
+      "staleError": "Denne leverandøren ble endret et annet sted. Endringene dine ble ikke lagret. Lukk og åpne den på nytt for å laste de gjeldende innstillingene.",
       "saveError": "Kunne ikke lagre leverandøren. Vennligst prøv igjen."
     }
   },
@@ -458,7 +654,7 @@
     "title": "Mine mål",
     "subtitle": "Sett mål for aktivitetene dine og følg fremgangen din",
     "buttonAdd": "Legg til mål",
-    "count": "Det er totalt {count} mål:",
+    "count": "Det er totalt {count} mål: | Det er totalt {count} mål:",
     "filters": "Filtre",
     "filter": {
       "all": "Alle",
@@ -492,13 +688,6 @@
       "elevation": "Stigning",
       "duration": "Varighet"
     },
-    "unit": {
-      "calories": "kcal",
-      "km": "km",
-      "miles": "mi",
-      "meters": "m",
-      "feet": "ft"
-    },
     "list": {
       "edit": "Rediger {name}-mål",
       "delete": "Slett {name}-mål"
@@ -522,6 +711,7 @@
       "error": "Kunne ikke slette målet. Vennligst prøv igjen."
     },
     "form": {
+      "targetInvalid": "Skriv inn en verdi større enn 0.",
       "addTitle": "Legg til mål",
       "editTitle": "Rediger mål",
       "description": "Sett et mål for en aktivitet over en gjentakende periode",
@@ -549,6 +739,14 @@
     "hidePassword": "Skjul passord",
     "mfaCode": "Autentiseringskode",
     "mfaCodePlaceholder": "123456",
+    "confirmPhrase": "Skriv {phrase} for å bekrefte",
+    "mfaEnrolment": {
+      "title": "Sett opp tofaktorautentisering",
+      "description": "Denne serveren krever tofaktorautentisering. Sett den opp for å fortsette å bruke Endurain, eller logg ut.",
+      "done": "Tofaktorautentisering er satt opp. Du kan fortsette.",
+      "continue": "Fortsett",
+      "signOut": "Logg ut"
+    },
     "loadError": {
       "title": "Kunne ikke laste sikkerhetsinnstillingene dine",
       "description": "Noe gikk galt. Du kan prøve igjen."
@@ -559,10 +757,7 @@
       "current": "Nåværende passord",
       "new": "Nytt passord",
       "confirm": "Bekreft nytt passord",
-      "requirementsStrict": "Minst {length} tegn, inkludert en stor bokstav, en liten bokstav, et tall og et symbol.",
-      "requirementsLength": "Minst {length} tegn.",
-      "mismatch": "Passordene stemmer ikke overens.",
-      "revokeOthers": "Logg ut av alle andre enheter",
+      "revokeOthers": "Logg ut av alle andre økter",
       "submit": "Endre passord",
       "success": "Passord endret",
       "invalidCredentials": "Det nåværende passordet eller koden din er feil.",
@@ -575,7 +770,7 @@
       "disabledDescription": "Tofaktorautentisering er av. Slå den på for å beskytte kontoen din bedre.",
       "enable": "Aktiver tofaktor",
       "enabledDescription": "Tofaktorautentisering er på.",
-      "backupRemaining": "{unused} av {total} reservekoder gjenstår.",
+      "backupRemaining": "{unused} av {total} reservekode gjenstår. | {unused} av {total} reservekoder gjenstår.",
       "regenerate": "Generer reservekoder på nytt",
       "disable": "Deaktiver",
       "setupTitle": "Aktiver tofaktorautentisering",
@@ -616,18 +811,51 @@
       "empty": "Ingen aktive økter.",
       "current": "Denne enheten",
       "lastActive": "Sist aktiv {date}",
+      "viaApp": "Logget inn via appen: {address}",
       "revoke": "Logg ut denne økten",
       "revokeTitle": "Logge ut denne økten?",
       "revokeBody": "Den enheten vil bli logget ut og må logge inn på nytt.",
       "revokeConfirm": "Logg ut",
       "revokeSuccess": "Økt logget ut",
       "revokeError": "Kunne ikke logge ut den økten. Vennligst prøv igjen.",
-      "revokeOthers": "Logg ut andre enheter",
-      "revokeOthersTitle": "Logge ut alle andre enheter?",
-      "revokeOthersBody": "Alle enheter unntatt denne vil bli logget ut og må logge inn på nytt.",
+      "revokeOthers": "Logg ut andre økter",
+      "revokeOthersTitle": "Logge ut alle andre økter?",
+      "revokeOthersBody": "Alle økter unntatt denne blir logget ut og må logge inn igjen.",
       "revokeOthersConfirm": "Logg ut andre",
       "revokeOthersSuccess": "Andre økter logget ut",
-      "revokeOthersError": "Kunne ikke logge ut de andre øktene. Vennligst prøv igjen."
+      "revokeOthersError": "Kunne ikke logge ut de andre øktene. Vennligst prøv igjen.",
+      "signOutEverywhere": "Logg ut overalt",
+      "signOutEverywhereTitle": "Logge ut overalt?",
+      "signOutEverywhereBody": "Alle enheter, inkludert denne, blir logget ut og må logge inn på nytt.",
+      "signOutEverywhereConfirm": "Logg ut overalt",
+      "signOutEverywhereError": "Kunne ikke logge ut av alle øktene. Vennligst prøv igjen."
+    },
+    "devices": {
+      "title": "Kjente enheter",
+      "subtitle": "Nettlesere og apper du har logget inn fra siden din siste sikkerhetsendring. Innlogging fra en annen enhet sender deg et varsel.",
+      "empty": "Ingen kjente enheter",
+      "error": "Kunne ikke laste kjente enheter",
+      "current": "Denne enheten",
+      "unknown": "Ukjent enhet",
+      "lastSeen": "Sist innlogget {date}",
+      "forget": "Glem denne enheten",
+      "forgetTitle": "Glemme denne enheten?",
+      "forgetDescription": "Hvis du glemmer denne enheten, blir den også logget ut. Neste innlogging fra denne enheten regnes som en ny enhet og sender deg et varsel.",
+      "forgetConfirm": "Glem enhet",
+      "forgetSuccess": "Enheten er glemt",
+      "forgetError": "Kunne ikke glemme enheten. Vennligst prøv igjen.",
+      "forgetNotFound": "Den enheten er ikke lenger kjent.",
+      "forgetOthers": "Glem andre enheter",
+      "forgetOthersTitle": "Glemme alle andre enheter?",
+      "forgetOthersDescription": "Alle enheter unntatt denne blir glemt og logget ut. Neste pålogging fra hver av dem teller som en ny enhet og sender deg et varsel.",
+      "forgetOthersConfirm": "Glem enheter",
+      "forgetOthersSuccess": "Andre enheter glemt",
+      "forgetOthersError": "Kunne ikke glemme de andre enhetene. Prøv igjen.",
+      "forgetAll": "Glem alle enheter",
+      "forgetAllTitle": "Glemme alle enheter?",
+      "forgetAllDescription": "Alle enheter, inkludert denne, blir glemt og logget ut, og du sendes til påloggingssiden. Neste pålogging fra hver av dem teller som en ny enhet og sender deg et varsel.",
+      "forgetAllConfirm": "Glem enheter",
+      "forgetAllError": "Kunne ikke glemme enhetene. Prøv igjen."
     },
     "linked": {
       "title": "Koblede kontoer",
@@ -649,7 +877,51 @@
       "unlinkError": "Kunne ikke koble fra kontoen. Vennligst prøv igjen.",
       "invalidCredentials": "Passordet eller koden din er feil.",
       "alreadyLinked": "Den kontoen er allerede koblet til.",
-      "lastMethodError": "Du kan ikke koble fra den eneste innloggingsmetoden din. Sett et passord først."
+      "lastMethodError": "Du kan ikke koble fra den eneste innloggingsmetoden din. Sett et passord først.",
+      "linkedOn": "Koblet {date}"
+    },
+    "email": {
+      "title": "E-postadresse",
+      "subtitle": "Dette er hit passordtilbakestillinger og varsler sendes. Ved endring må du bekrefte identiteten din, og den nye adressen gjelder først når du bekrefter den via en lenke vi sender dit.",
+      "current": "Gjeldende e-post",
+      "action": "Endre e-post",
+      "new": "Ny e-post",
+      "invalid": "Skriv inn en gyldig e-postadresse.",
+      "sameAsCurrent": "Dette er allerede e-postadressen din.",
+      "success": "Bekreftelseslenke er sendt til den nye adressen. E-posten din endres når du bekrefter den.",
+      "appliedSuccess": "E-post endret.",
+      "pending": "Venter på endring til {email}",
+      "pendingExpires": "Bekreftelseslenken utløper {date}.",
+      "resend": "Send lenken på nytt",
+      "cancel": "Avbryt endringen",
+      "resendSuccess": "Hvis en endring venter, er en ny lenke på vei til den nye adressen.",
+      "resendError": "Kunne ikke sende lenken på nytt. Vennligst prøv igjen.",
+      "cancelSuccess": "Endringen av e-post er avbrutt.",
+      "cancelError": "Kunne ikke avbryte endringen. Vennligst prøv igjen.",
+      "conflict": "Denne e-postadressen er allerede i bruk.",
+      "error": "Kunne ikke endre e-posten din. Vennligst prøv igjen."
+    },
+    "username": {
+      "title": "Brukernavn",
+      "subtitle": "Du logger inn med brukernavnet ditt. For å endre det må du bekrefte identiteten din, og endringen trer i kraft med en gang.",
+      "current": "Nåværende brukernavn",
+      "action": "Endre brukernavn",
+      "new": "Nytt brukernavn",
+      "sameAsCurrent": "Dette er allerede brukernavnet ditt.",
+      "success": "Brukernavnet er endret.",
+      "conflict": "Det brukernavnet er allerede i bruk.",
+      "error": "Kunne ikke endre brukernavnet ditt. Prøv igjen."
+    },
+    "deleteAccount": {
+      "title": "Slett kontoen min",
+      "subtitle": "Slett kontoen din og alle dataene dine, inkludert aktiviteter og filene deres, helsedata, utstyr, mål, integrasjoner og økter. Du logges ut på alle enheter og kontoen deaktiveres umiddelbart, deretter slettes dataene dine i bakgrunnen. Det finnes ingen betenkningstid: Bare en administrator kan stoppe det ved å aktivere kontoen på nytt før slettingen er ferdig. Eksporter dataene dine først hvis du vil beholde en kopi.",
+      "action": "Slett kontoen min",
+      "dialogTitle": "Slette kontoen din?",
+      "dialogDescription": "Dette logger deg ut på alle enheter, deaktiverer kontoen din og starter slettingen av alle dataene dine. Bare en administrator kan stoppe det før det er ferdig. Bekreft identiteten din for å fortsette.",
+      "confirm": "Slett kontoen min",
+      "error": "Kunne ikke slette kontoen din. Vennligst prøv igjen.",
+      "onlyAdminError": "Du er den eneste administratoren. Gjør en annen bruker til administrator før du sletter kontoen din.",
+      "pendingError": "Sletting av denne kontoen pågår allerede."
     },
     "apiKeys": {
       "title": "API-nøkler",
@@ -661,13 +933,43 @@
       "namePlaceholder": "f.eks. Garmin-opplastingsskript",
       "scopes": "Tillatelser",
       "scopesHint": "Velg hva denne nøkkelen har lov til å gjøre. Minst én er påkrevd.",
+      "scopeGroups": {
+        "account": "Konto",
+        "activities": "Aktiviteter",
+        "followers": "Følgere",
+        "gears": "Utstyr",
+        "health": "Helse",
+        "healthTargets": "Helsemål",
+        "notifications": "Varsler",
+        "users": "Brukere"
+      },
+      "scopeLabels": {
+        "account": "Administrer profilen, bildet, målene, personvernet og standardutstyret ditt",
+        "activitiesRead": "Lese aktiviteter",
+        "activitiesWrite": "Opprette, redigere og slette aktiviteter",
+        "activitiesUpload": "Laste opp aktivitetsfiler",
+        "followersRead": "Se hvem du følger og hvem som følger deg",
+        "followersWrite": "Endre hvem du følger og hvem som følger deg",
+        "gearsRead": "Lese utstyr",
+        "gearsWrite": "Opprette, redigere og slette utstyr",
+        "healthRead": "Lese helsedata",
+        "healthWrite": "Skrive helsedata",
+        "healthTargetsRead": "Lese helsemål",
+        "healthTargetsWrite": "Endre helsemål",
+        "notificationsRead": "Lese varsler",
+        "notificationsWrite": "Administrere varsler",
+        "usersRead": "Slå opp andre brukeres offentlige profiler"
+      },
       "expiry": "Utløp (valgfritt)",
-      "expiryHint": "La stå tomt for en nøkkel som aldri utløper.",
+      "expiryHint": "La stå tomt for å bruke den lengste levetiden serveren tillater. En senere dato avvises.",
       "createTitle": "Opprett API-nøkkel",
       "createDescription": "Bekreft identiteten din for å lage en ny API-nøkkel.",
       "createSuccess": "API-nøkkel opprettet",
       "createError": "Kunne ikke opprette API-nøkkelen. Vennligst prøv igjen.",
+      "apiKeyLimit": "Du har nådd grensen på 25 aktive API-nøkler. Tilbakekall eller slett en, og prøv igjen.",
+      "expiryTooLate": "Denne utløpsdatoen er senere enn serveren tillater. Velg en tidligere dato, eller la feltet stå tomt.",
       "invalidCredentials": "Passordet eller koden din er feil.",
+      "expiryNotFuture": "Den utløpsdatoen er ikke i fremtiden. Velg en senere dato.",
       "invalidScopes": "De tillatelsene er ikke tillatt for API-nøkler.",
       "revealTitle": "Kopier API-nøkkelen din",
       "revealDescription": "Dette er den eneste gangen hele nøkkelen vises.",
@@ -683,7 +985,6 @@
       "lastUsed": "Sist brukt {date}",
       "neverUsed": "Aldri brukt",
       "expires": "Utløper {date}",
-      "neverExpires": "Utløper aldri",
       "revoke": "Tilbakekall",
       "revokeTitle": "Tilbakekalle API-nøkkel?",
       "revokeBody": "{name} vil slutte å fungere umiddelbart. Dette kan ikke angres.",
@@ -694,6 +995,26 @@
       "deleteBody": "{name} vil bli slettet permanent. Dette kan ikke angres.",
       "deleteSuccess": "API-nøkkel slettet",
       "deleteError": "Kunne ikke slette API-nøkkelen. Vennligst prøv igjen."
+    },
+    "stepUp": {
+      "passwordLabel": "Ditt passord",
+      "passwordHint": "Skriv inn ditt eget passord for å bekrefte at det er deg.",
+      "prompt": "Kontoen din har ikke noe passord. Logg inn på nytt med en tilkoblet identitetsleverandør for å bekrefte at det er deg.",
+      "continueWith": "Fortsett med {name}",
+      "ready": "Innlogging med identitetsleverandør bekreftet.",
+      "restart": "Logg inn på nytt",
+      "noProviders": "Ingen tilkoblet identitetsleverandør er tilgjengelig for å bekrefte identiteten din.",
+      "startError": "Kunne ikke starte innloggingen med identitetsleverandøren. Vennligst prøv igjen.",
+      "tooManyAttempts": "For mange forsøk. Vennligst prøv igjen senere.",
+      "reauthRequired": "Bekreft identiteten din hos identitetsleverandøren for å fortsette.",
+      "failed": "Ny innlogging med identitetsleverandøren mislyktes. Vennligst prøv igjen.",
+      "notFresh": "Identitetsleverandøren ba deg ikke om å logge inn på nytt. Kontakt administratoren din."
+    },
+    "tabs": {
+      "label": "Sikkerhetsseksjoner",
+      "account": "Konto",
+      "sessions": "Økter og tilgang",
+      "danger": "Faresone"
     }
   },
   "integrations": {
@@ -733,6 +1054,7 @@
       "clientIdPlaceholder": "123456",
       "clientSecret": "Klienthemmelighet",
       "connectError": "Kunne ikke koble til Strava. Vennligst sjekk detaljene dine og prøv igjen.",
+      "scopeError": "Strava fikk ikke alle tillatelsene Endurain trenger. Koble til på nytt, og la alle tillatelser være avkrysset.",
       "completing": "Fullfører Strava-tilkoblingen…",
       "linkSuccess": "Strava tilkoblet",
       "retrieveActivitiesTitle": "Hent Strava-aktiviteter",
@@ -741,9 +1063,10 @@
       "retrievingGear": "Henter Strava-utstyret ditt i bakgrunnen…",
       "retrieveGearError": "Kunne ikke starte henting av Strava-utstyr. Vennligst prøv igjen.",
       "unlinkTitle": "Koble fra Strava?",
-      "unlinkBody": "Endurain vil slutte å importere fra Strava. De eksisterende aktivitetene dine beholdes.",
+      "unlinkBody": "Endurain slutter å importere fra Strava og sletter aktivitetene og utstyret som er synkronisert fra Strava. Aktiviteter fra andre kilder, også opplastede Strava-eksportfiler, beholdes.",
       "unlinkSuccess": "Strava frakoblet",
-      "unlinkError": "Kunne ikke koble fra Strava. Vennligst prøv igjen."
+      "unlinkError": "Kunne ikke koble fra Strava. Vennligst prøv igjen.",
+      "revokedNotice": "Tilgangen til Strava opphørte {revokedAt}. Aktiviteter og utstyr som er synkronisert med Strava, slettes {deletionAt} med mindre du kobler til igjen."
     },
     "garmin": {
       "title": "Garmin Connect",
@@ -774,7 +1097,10 @@
       "unlinkBody": "Endurain vil slutte å importere fra Garmin Connect. De eksisterende dataene dine beholdes.",
       "unlinkSuccess": "Garmin Connect frakoblet",
       "unlinkError": "Kunne ikke koble fra Garmin Connect. Vennligst prøv igjen."
-    }
+    },
+    "retrieveFinished": "Hentingen av dataene dine fra {provider} er fullført.",
+    "retrieveFailed": "Hentingen av dataene dine fra {provider} mislyktes. Vennligst prøv igjen.",
+    "retrieveAlreadyRunning": "En henting fra {provider} pågår allerede. Du får beskjed når den er ferdig."
   },
   "import": {
     "title": "Importer",
@@ -807,15 +1133,25 @@
     },
     "job": {
       "preparing": "Forbereder importen…",
-      "progress": "Importert {done} av {total} filer ({failed} mislyktes)…",
-      "finished": "Importen er ferdig: {done} av {total} filer importert, {failed} mislyktes.",
-      "failed": "Importen kunne ikke fullføres."
+      "progress": "Importert {done} av {total} fil ({failed} mislyktes)… | Importert {done} av {total} filer ({failed} mislyktes)…",
+      "finished": "Importen er ferdig: {done} av {total} fil importert, {failed} mislyktes. | Importen er ferdig: {done} av {total} filer importert, {failed} mislyktes.",
+      "failed": "Importen kunne ikke fullføres.",
+      "failure": {
+        "unsupported_format": "Importen mislyktes: filene har et format som ikke støttes.",
+        "invalid_file": "Importen mislyktes: filen er ugyldig.",
+        "no_activities_found": "Importen mislyktes: ingen aktiviteter ble funnet.",
+        "processing_failed": "Importen mislyktes under behandlingen av filene.",
+        "provider_unavailable": "Importen mislyktes: leverandøren er utilgjengelig. Prøv igjen senere."
+      }
     }
   },
   "profile": {
     "title": "Min profil",
     "subtitle": "Administrer kontodetaljene og personvernet ditt",
     "notSet": "Ikke satt",
+    "emailManagedIn": "E-posten din endres i sikkerhetsinnstillingene.",
+    "securitySettingsLink": "Åpne sikkerhetsinnstillingene",
+    "usernameManagedIn": "Brukernavnet ditt endres i sikkerhetsinnstillingene.",
     "error": {
       "title": "Kunne ikke laste profilen din",
       "description": "Noe gikk galt under lasting av profilen din. Du kan prøve igjen.",
@@ -826,7 +1162,6 @@
       "title": "Rediger profil",
       "description": "Oppdater kontodetaljene dine",
       "success": "Profil oppdatert",
-      "conflict": "Det brukernavnet eller den e-posten er allerede i bruk",
       "error": "Kunne ikke oppdatere profilen din. Vennligst prøv igjen."
     },
     "photo": {
@@ -874,6 +1209,8 @@
       "hideLaps": "Runder",
       "hideWorkoutSetsSteps": "Treningssett og -trinn",
       "hideGear": "Utstyr",
+      "discoverable": "La andre finne meg i søk",
+      "discoverableHint": "Andre brukere kan finne deg på brukernavn når de søker. Profilen din er fortsatt tilgjengelig via en direkte lenke.",
       "save": "Lagre personvern",
       "saving": "Lagrer…",
       "saveSuccess": "Personverninnstillinger oppdatert",
@@ -921,10 +1258,59 @@
       "export": "Eksporter data",
       "import": "Importer data",
       "invalidType": "Vennligst velg et .zip-arkiv.",
-      "exportSuccess": "Eksport klar, nedlastingen din bør starte snart",
+      "download": "Last ned eksport",
+      "downloadSuccess": "Nedlastingen starter om et øyeblikk",
+      "downloadError": "Kunne ikke laste ned eksporten. Vennligst prøv igjen.",
+      "exportQueued": "Eksporten er startet. Du kan forlate denne siden.",
       "exportError": "Kunne ikke eksportere dataene dine. Vennligst prøv igjen.",
-      "importSuccess": "Data importert",
-      "importError": "Kunne ikke importere arkivet. Vennligst sjekk filen og prøv igjen."
+      "exportInProgress": "En eksport pågår allerede.",
+      "exportStepUp": {
+        "title": "Bekreft at det er deg",
+        "description": "Eksporten kopierer alle dataene dine, så bekreft identiteten din først."
+      },
+      "exportStatus": {
+        "queued": "Venter på at eksporten skal starte…",
+        "running": "Forbereder eksporten din…",
+        "succeeded": "Eksporten din er klar til nedlasting. Den er tilgjengelig i to timer.",
+        "failed": "Eksporten ble ikke fullført: {reason}"
+      },
+      "exportFailure": {
+        "timed_out": "det tok for lang tid. Du kan prøve igjen.",
+        "processing_failed": "noe gikk galt. Du kan prøve igjen."
+      },
+      "importQueued": "Importen er startet. Du kan forlate denne siden.",
+      "importError": "Kunne ikke importere arkivet. Vennligst sjekk filen og prøv igjen.",
+      "importInProgress": "En import pågår allerede.",
+      "status": {
+        "queued": "Venter på at importen skal starte…",
+        "running": "Importerer dataene dine…",
+        "succeeded": "Importen er ferdig: {activities} aktivitet importert, utstyr: {gears}. | Importen er ferdig: {activities} aktiviteter importert, utstyr: {gears}.",
+        "failed": "Importen ble ikke fullført: {reason}"
+      },
+      "failure": {
+        "invalid_file": "arkivet er ikke en gyldig Endurain-eksport. Ingenting ble importert.",
+        "too_large": "arkivet er for stort. Ingenting ble importert.",
+        "too_many_activities": "arkivet har for mange aktiviteter. Ingenting ble importert.",
+        "timed_out": "det tok for lang tid. Ingenting ble importert, så du kan prøve igjen.",
+        "files_incomplete": "dataene dine ble importert, men noen filer mangler. Ikke importer på nytt, da det ville duplisere dataene dine.",
+        "processing_failed": "noe gikk galt. Ingenting ble importert, så du kan prøve igjen.",
+        "wrong_account": "arkivet ble eksportert fra en annen konto. Ingenting ble importert.",
+        "older_version": "arkivet ble eksportert av en eldre Endurain-versjon. Ingenting ble importert."
+      }
+    },
+    "blockedUsers": {
+      "title": "Blokkerte brukere",
+      "subtitle": "Blokkerte brukere kan ikke be om å følge deg. Når du blokkerer noen, fjernes også all følging mellom dere.",
+      "empty": "Du har ikke blokkert noen.",
+      "unblock": "Opphev blokkering",
+      "unblockError": "Kunne ikke oppheve blokkeringen av denne brukeren. Prøv igjen.",
+      "loadError": "Kunne ikke laste inn de blokkerte brukerne dine.",
+      "retry": "Prøv igjen"
+    },
+    "tabs": {
+      "label": "Profilseksjoner",
+      "profile": "Profil",
+      "privacy": "Personvern og data"
     }
   }
 }

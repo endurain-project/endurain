@@ -104,7 +104,7 @@ def store_parsed_activity(
                 continue
             contributor = activities_contributor_registry.get_activity_ingestion_contributor(key)
             if contributor is None:
-                logger.error(
+                logger.debug(
                     "No activity ingestion contributor is registered for a parsed component",
                     extra=core_logger.context(component=key),
                 )
@@ -127,14 +127,14 @@ def store_parsed_activity(
         created_activity = activity_crud.create_activity(parsed.activity, db, dedup_key=dedup_key)
 
         if created_activity is None:
-            logger.error(
+            logger.debug(
                 "store_parsed_activity: create_activity returned no activity",
                 extra=core_logger.context(user_id=parsed.activity.user_id, dedup_key=dedup_key),
             )
             raise core_exceptions.ProcessingError("Error creating activity")
 
         if created_activity.user_id is None:
-            logger.error(
+            logger.debug(
                 "store_parsed_activity: created activity has no owner",
                 extra=core_logger.context(activity_id=created_activity.id, dedup_key=dedup_key),
             )
@@ -188,7 +188,7 @@ def store_parsed_activity(
         # winner rather than surfacing a 500 for a successful import.
         db.rollback()
         if dedup_key is None or parsed.activity.user_id is None:
-            logger.error(
+            logger.debug(
                 "Integrity error in store_parsed_activity: no dedup key to resolve the conflict",
                 exc_info=err,
                 extra=core_logger.context(user_id=parsed.activity.user_id, dedup_key=dedup_key),
@@ -198,7 +198,7 @@ def store_parsed_activity(
         winner = activity_crud.get_activity_by_dedup_key(dedup_key, parsed.activity.user_id, db)
         if winner is None:
             # The integrity error was not the dedup race (some other constraint).
-            logger.error(
+            logger.debug(
                 "Integrity error in store_parsed_activity: not a dedup-key race",
                 exc_info=err,
                 extra=core_logger.context(user_id=parsed.activity.user_id, dedup_key=dedup_key),

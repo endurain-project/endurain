@@ -1,5 +1,8 @@
 """Activity laps CRUD operations."""
 
+import uuid
+from collections.abc import Mapping, Sequence
+
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
@@ -9,7 +12,7 @@ import modules.activities.activity_laps.serializers as activity_laps_serializers
 
 
 def get_activity_laps(
-    activity_id: int,
+    activity_id: uuid.UUID,
     db: Session,
     *,
     page_number: int = 1,
@@ -32,9 +35,8 @@ def get_activity_laps(
     stmt = (
         select(activity_laps_models.ActivityLaps)
         .where(activity_laps_models.ActivityLaps.activity_id == activity_id)
-        # Ordered so paging is stable; the id is the insertion order the parser
-        # produced, which is the order the laps were recorded in.
-        .order_by(activity_laps_models.ActivityLaps.id)
+        # Laps are recorded in start order; the id only breaks a tie so paging is stable.
+        .order_by(activity_laps_models.ActivityLaps.start_time, activity_laps_models.ActivityLaps.id)
         .offset((page_number - 1) * num_records)
         .limit(num_records)
     )
@@ -43,7 +45,7 @@ def get_activity_laps(
     return [activity_laps_serializers.to_read_schema(lap) for lap in activity_laps]
 
 
-def count_activity_laps(activity_id: int, db: Session) -> int:
+def count_activity_laps(activity_id: uuid.UUID, db: Session) -> int:
     """Count an activity's laps.
 
     Args:
@@ -62,7 +64,7 @@ def count_activity_laps(activity_id: int, db: Session) -> int:
 
 
 def get_activities_laps(
-    activity_ids: list[int],
+    activity_ids: list[uuid.UUID],
     db: Session,
 ) -> list[activity_laps_schema.ActivityLapsRead]:
     """Retrieve the laps of several activities at once.
@@ -88,15 +90,14 @@ def get_activities_laps(
 
 
 def create_activity_laps(
-    activity_laps: list[dict],
-    activity_id: int,
+    activity_laps: Sequence[Mapping[str, object]],
+    activity_id: uuid.UUID,
     db: Session,
 ) -> None:
     """Stage activity laps for an activity (flushed, not committed).
 
     Args:
-        activity_laps: List of lap dicts from
-            file parsers.
+        activity_laps: Lap rows from a parser, a provider or a profile archive.
         activity_id: The parent activity ID.
         db: Database session.
     """

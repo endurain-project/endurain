@@ -1,1 +1,1 @@
-"""Gears package for managing user equipment."""
+"""Gears composition namespace: the gear aggregate and its components."""

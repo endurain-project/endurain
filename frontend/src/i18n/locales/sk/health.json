@@ -1,6 +1,12 @@
 {
   "title": "Zdravie",
   "subtitle": "Pozrite si všetky svoje zdravotné údaje na jednom mieste",
+  "chartBucket": {
+    "week": "Týždenné priemery: každý stĺpec je priemerný deň daného týždňa.",
+    "month": "Mesačné priemery: každý stĺpec je priemerný deň daného mesiaca."
+  },
+  "targetInvalid": "Zadajte hodnotu väčšiu ako 0 alebo políčko nechajte prázdne, aby sa cieľ odstránil.",
+  "chartError": "Graf pre toto časové obdobie sa nepodarilo načítať.",
   "nav": {
     "label": "Sekcie zdravia",
     "soon": "Čoskoro",
@@ -34,6 +40,7 @@
     "stepsTargetLabel": "krokov",
     "poopTargetLabel": "/ deň",
     "noWeightData": "Žiadne údaje o hmotnosti",
+    "noHeightData": "Pridajte do profilu svoju výšku, aby ste videli svoje BMI.",
     "bmiUnderweight": "Podváha",
     "bmiNormalWeight": "Normálna hmotnosť",
     "bmiOverweight": "Nadváha",
@@ -88,7 +95,6 @@
       "weightRequired": "Zadajte svoju hmotnosť.",
       "weightInvalid": "Zadajte hmotnosť väčšiu ako nula.",
       "bodyComposition": "Zloženie tela (voliteľné)",
-      "bmi": "BMI",
       "bodyFat": "Telesný tuk (%)",
       "bodyWater": "Voda v tele (%)",
       "boneMass": "Kostná hmota",
@@ -256,6 +262,8 @@
     "scorePoor": "Slabé",
     "detail": {
       "tabsLabel": "Sekcie detailov spánku",
+      "stagesLoading": "Načítavanie fáz spánku",
+      "stagesError": "Fázy spánku sa nepodarilo načítať",
       "tabScore": "Skóre spánku",
       "tabDetails": "Detaily spánku",
       "deep": "Hlboký",
@@ -301,6 +309,8 @@
     "form": {
       "addTitle": "Zaznamenať spánok",
       "editTitle": "Upraviť záznam spánku",
+      "loading": "Načítavanie záznamu spánku",
+      "loadError": "Záznam spánku sa nepodarilo načítať",
       "description": "Zaznamenajte dĺžku svojho spánku a voliteľne rozpis fáz a metriky.",
       "date": "Dátum",
       "dateRequired": "Vyberte dátum.",
@@ -308,6 +318,8 @@
       "totalSleepRequired": "Zadajte, ako dlho ste spali.",
       "hours": "Hodiny",
       "minutes": "Minúty",
+      "hoursOf": "{field}, hodiny",
+      "minutesOf": "{field}, minúty",
       "stageBreakdown": "Rozpis fáz (voliteľné)",
       "deep": "Hlboký spánok",
       "light": "Ľahký spánok",
@@ -350,7 +362,11 @@
       "close": "Zavrieť",
       "createSuccess": "Spánok zaznamenaný.",
       "updateSuccess": "Záznam spánku aktualizovaný.",
-      "saveError": "Váš záznam spánku sa nepodarilo uložiť. Skúste to znova."
+      "saveError": "Váš záznam spánku sa nepodarilo uložiť. Skúste to znova.",
+      "numberRange": "Zadajte hodnotu medzi {min} a {max}.",
+      "numberMin": "Zadajte {min} alebo viac.",
+      "stagesExceedTotal": "Hlboký spánok, ľahký spánok a REM spolu presahujú celkový čas spánku.",
+      "inconsistentError": "Tieto údaje o spánku si neodpovedajú. Skontrolujte, či sa fázy a celkový čas zmestia do časov spánku."
     },
     "target": {
       "title": "Nastaviť cieľ spánku",
@@ -419,7 +435,8 @@
       "close": "Zavrieť",
       "createSuccess": "Voda zaznamenaná.",
       "updateSuccess": "Záznam vody aktualizovaný.",
-      "saveError": "Váš záznam vody sa nepodarilo uložiť. Skúste to znova."
+      "saveError": "Váš záznam vody sa nepodarilo uložiť. Skúste to znova.",
+      "dayTakenError": "Záznam o vode pre tento deň už existuje. Upravte ho namiesto pridania ďalšieho."
     },
     "target": {
       "title": "Nastaviť cieľ vody",
@@ -596,6 +613,8 @@
       "startTime": "Čas začiatku",
       "startTimeRequired": "Vyberte čas začiatku.",
       "endTime": "Čas konca",
+      "endBeforeStart": "Čas ukončenia nesmie byť pred časom začiatku.",
+      "endWhileInProgress": "Prebiehajúci pôst nemôže mať čas konca.",
       "status": "Stav",
       "notes": "Poznámky",
       "create": "Začať",
@@ -604,7 +623,9 @@
       "close": "Zavrieť",
       "createSuccess": "Pôst začatý.",
       "updateSuccess": "Pôstová relácia aktualizovaná.",
-      "saveError": "Vašu pôstovú reláciu sa nepodarilo uložiť. Skúste to znova."
+      "saveError": "Vašu pôstovú reláciu sa nepodarilo uložiť. Skúste to znova.",
+      "overlapError": "Tento pôst sa prekrýva s iným pôstom, alebo už prebieha iný pôst.",
+      "invalidTimesError": "Pôst nemôže skončiť skôr, než začne, dokončený alebo prerušený pôst potrebuje čas konca a prebiehajúci pôst ho mať nemôže."
     },
     "target": {
       "title": "Nastaviť cieľ pôstu",
@@ -621,6 +642,20 @@
     "complete": {
       "success": "Pôst ukončený.",
       "error": "Váš pôst sa nepodarilo ukončiť. Skúste to znova."
+    },
+    "endConfirm": {
+      "broken": {
+        "title": "Prerušiť tento pôst?",
+        "body": "Pôst sa teraz skončí a uloží sa ako prerušený. Túto akciu nie je možné vrátiť späť.",
+        "confirm": "Prerušiť pôst"
+      },
+      "cancelled": {
+        "title": "Zrušiť tento pôst?",
+        "body": "Pôst sa teraz skončí a uloží sa ako zrušený. Túto akciu nie je možné vrátiť späť.",
+        "confirm": "Zrušiť pôst"
+      },
+      "cancel": "Pokračovať v pôste",
+      "close": "Zavrieť"
     },
     "empty": {
       "title": "Zatiaľ žiadne pôsty",

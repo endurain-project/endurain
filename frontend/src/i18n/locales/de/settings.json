@@ -31,7 +31,9 @@
       "admin": "Admin",
       "inactive": "Inaktiv",
       "unverified": "E-Mail nicht bestätigt",
+      "pendingEmail": "Ausstehende E-Mail-Änderung",
       "pending": "Genehmigung ausstehend",
+      "deleting": "Wird gelöscht",
       "externalAuth": "Externe Auth"
     },
     "actions": {
@@ -64,18 +66,22 @@
       "email": "E-Mail",
       "emailRequired": "E-Mail ist erforderlich",
       "emailInvalid": "Gib eine gültige E-Mail-Adresse ein",
+      "emailChangeHint": "An die neue Adresse wird ein Bestätigungslink gesendet; sie ersetzt die aktuelle, sobald sie bestätigt wurde. Der Benutzer wird auf allen Geräten abgemeldet. Markiere die neue Adresse als bestätigt, um sie stattdessen sofort zu übernehmen.",
       "accessType": "Zugriffstyp",
       "accessTypeRegular": "Normaler Benutzer",
       "accessTypeAdmin": "Administrator",
       "password": "Passwort",
       "passwordHint": "Mindestens 8 Zeichen",
-      "passwordHintStrict": "Mindestens {min} Zeichen, mit Groß- und Kleinbuchstaben, einer Zahl und einem Sonderzeichen",
-      "passwordHintLength": "Mindestens {min} Zeichen",
       "passwordRequired": "Passwort ist erforderlich",
-      "passwordInvalid": "Dieses Passwort erfüllt die Anforderungen nicht",
       "confirmPassword": "Passwort bestätigen",
+      "mustChangePasswordHint": "Der Benutzer muss bei der nächsten Anmeldung ein neues Passwort wählen.",
       "confirmPasswordRequired": "Passwort bestätigen",
-      "passwordMismatch": "Passwörter stimmen nicht überein",
+      "passwordMode": "Wie der Benutzer ein Passwort erhält",
+      "passwordModeInvitation": "Einladung per E-Mail zum Wählen eines Passworts senden",
+      "passwordModePassword": "Jetzt ein Passwort festlegen",
+      "passwordModeHint": "Der Benutzer erhält eine E-Mail mit einem 24 Stunden gültigen Link, um sein eigenes Passwort zu wählen.",
+      "invitationNeedsActive": "Ein inaktives Konto kann nicht eingeladen werden. Lege stattdessen ein Passwort fest.",
+      "inviteSuccess": "Benutzer hinzugefügt und Einladung gesendet",
       "preferredLanguage": "Bevorzugte Sprache",
       "languages": {
         "ca": "Katalanisch",
@@ -118,14 +124,16 @@
       "units": "Einheiten",
       "unitsMetric": "Metrisch",
       "unitsImperial": "Imperial",
+      "weightUnits": "Gewichtseinheit",
+      "weightUnitsDefault": "Einheiten übernehmen",
+      "weightUnitsMetric": "Kilogramm (kg)",
+      "weightUnitsImperial": "Pfund (lb)",
       "height": "Körpergröße",
-      "unitCm": "cm",
-      "unitFeet": "ft",
-      "unitInches": "in",
+      "heightInvalid": "Die Größe muss zwischen 50 und 272 cm liegen",
+      "maxHeartRateInvalid": "Die maximale Herzfrequenz muss zwischen 30 und 250 bpm liegen",
       "feetInvalid": "Fuß muss zwischen 0 und 10 liegen",
       "inchesInvalid": "Zoll muss zwischen 0 und 11 liegen",
       "maxHeartRate": "Maximale Herzfrequenz",
-      "unitBpm": "bpm",
       "currency": "Währung",
       "currencies": {
         "euro": "Euro",
@@ -134,6 +142,8 @@
       },
       "firstDayOfWeek": "Erster Tag der Woche",
       "timezone": "Zeitzone",
+      "timezoneNotSet": "Nicht festgelegt",
+      "timezoneUseBrowser": "Zeitzone meines Browsers verwenden ({timezone})",
       "timezoneHint": "Wird für Aktivitäten ohne GPS verwendet, z. B. Laufband- oder Indoor-Radeinheiten.",
       "weekdays": {
         "sunday": "Sonntag",
@@ -149,7 +159,8 @@
       "statusLegend": "Kontostatus",
       "active": "Aktiv",
       "emailVerified": "E-Mail bestätigt",
-      "pendingAdminApproval": "Admin-Genehmigung ausstehend",
+      "emailVerifiedCurrentHint": "Dies ist der Status der aktuellen Adresse.",
+      "newEmailVerified": "Neue Adresse als bestätigt markieren",
       "requiredField": "Pflichtfeld",
       "create": "Benutzer hinzufügen",
       "save": "Änderungen speichern",
@@ -158,7 +169,13 @@
       "createSuccess": "Benutzer hinzugefügt",
       "updateSuccess": "Benutzer aktualisiert",
       "conflict": "Dieser Benutzername oder diese E-Mail wird bereits verwendet",
-      "saveError": "Benutzer konnte nicht gespeichert werden. Bitte versuche es erneut."
+      "lastAdministrator": "Der einzige Administrator kann nicht herabgestuft oder deaktiviert werden",
+      "saveError": "Benutzer konnte nicht gespeichert werden. Bitte versuche es erneut.",
+      "stepUpTitle": "Bestätige deine Identität",
+      "stepUpDescription": "Wenn du die E-Mail-Adresse, den Zugriffstyp oder den Aktivstatus von {username} änderst, wird die Person überall abgemeldet. Bestätige, dass du es bist, um fortzufahren.",
+      "stepUpCreateDescription": "Das Erstellen eines Administratorkontos gewährt vollen Zugriff. Bestätige, dass du es bist, um fortzufahren.",
+      "stepUpConfirm": "Änderungen speichern",
+      "approvalPending": "Dieser Benutzer wartet auf Genehmigung. Genehmige ihn, statt ihn hier zu aktivieren."
     },
     "delete": {
       "title": "Benutzer löschen",
@@ -167,10 +184,12 @@
       "cancel": "Abbrechen",
       "close": "Schließen",
       "success": "Benutzer gelöscht",
-      "error": "Benutzer konnte nicht gelöscht werden. Bitte versuche es erneut."
+      "error": "Benutzer konnte nicht gelöscht werden. Bitte versuche es erneut.",
+      "failed": "Das Löschen des Benutzers ist fehlgeschlagen. Das Konto bleibt deaktiviert; lösche es erneut, um es noch einmal zu versuchen."
     },
     "detail": {
       "back": "Zurück zu den Benutzern",
+      "pendingEmail": "Ausstehende E-Mail-Änderung zu {email}, Link läuft am {date} ab",
       "notFoundTitle": "Benutzer nicht gefunden",
       "notFoundDescription": "Dieses Konto wurde möglicherweise gelöscht",
       "securityTitle": "Sicherheit",
@@ -184,19 +203,33 @@
     "password": {
       "button": "Passwort zurücksetzen",
       "title": "Passwort zurücksetzen",
-      "description": "Neues Passwort für {username} festlegen",
+      "description": "Neues Passwort für {username} festlegen All of their sessions, unused reset links, pending email change and API keys end. They are notified.",
       "newLabel": "Neues Passwort",
-      "hintLength": "Mindestens {min} Zeichen",
-      "hintStrict": "Mindestens {min} Zeichen, mit Groß- und Kleinbuchstaben, einer Zahl und einem Sonderzeichen",
       "confirmLabel": "Neues Passwort bestätigen",
-      "mismatch": "Passwörter stimmen nicht überein",
       "required": "Passwort ist erforderlich",
       "submit": "Passwort zurücksetzen",
       "cancel": "Abbrechen",
       "close": "Schließen",
       "success": "Passwort aktualisiert",
-      "invalid": "Dieses Passwort erfüllt die Anforderungen nicht",
       "error": "Passwort konnte nicht aktualisiert werden. Bitte versuche es erneut."
+    },
+    "mfaReset": {
+      "button": "MFA zurücksetzen",
+      "title": "Zwei-Faktor-Authentifizierung zurücksetzen",
+      "description": "Dadurch wird die Zwei-Faktor-Authentifizierung für {username} deaktiviert und die Backup-Codes werden entfernt. Alle Sitzungen enden, sodass die Person auf allen Geräten abgemeldet wird und nach der Anmeldung die Zwei-Faktor-Authentifizierung erneut einrichten muss. Sie wird benachrichtigt. Bestätige, dass du es bist, um fortzufahren.",
+      "confirm": "MFA zurücksetzen",
+      "success": "Zwei-Faktor-Authentifizierung zurückgesetzt",
+      "refused": "Die Zwei-Faktor-Authentifizierung ist für diesen Benutzer nicht aktiviert.",
+      "error": "Die Zwei-Faktor-Authentifizierung konnte nicht zurückgesetzt werden. Bitte versuche es erneut."
+    },
+    "requirePasswordChange": {
+      "button": "Passwortänderung verlangen",
+      "title": "Eine Passwortänderung verlangen",
+      "description": "{username} behält das aktuelle Passwort, muss aber bei der nächsten Anmeldung damit ein neues wählen. Alle Sitzungen enden, sodass die Person auf allen Geräten abgemeldet wird. Die Anmeldung über einen Single-Sign-On-Anbieter ist nicht betroffen. Sie wird benachrichtigt. Bestätige, dass du es bist, um fortzufahren.",
+      "confirm": "Änderung verlangen",
+      "success": "Passwortänderung verlangt",
+      "refused": "Dieser Benutzer hat kein Passwort, das geändert werden könnte.",
+      "error": "Die Passwortänderung konnte nicht verlangt werden. Bitte versuche es erneut."
     },
     "sessions": {
       "title": "Sitzungen",
@@ -205,6 +238,7 @@
       "error": "Sitzungen konnten nicht geladen werden",
       "retry": "Erneut versuchen",
       "lastActive": "Zuletzt aktiv am {date}",
+      "viaApp": "Über die App angemeldet: {address}",
       "current": "Aktuelle Sitzung",
       "revokeOthers": "Andere Sitzungen widerrufen",
       "revokeOthersTitle": "Andere Sitzungen widerrufen",
@@ -216,10 +250,28 @@
       "revokeTitle": "Sitzung widerrufen",
       "revokeBody": "Das Gerät wird abgemeldet und muss sich erneut anmelden",
       "revokeConfirm": "Widerrufen",
-      "revokeCancel": "Abbrechen",
-      "revokeClose": "Schließen",
       "revokeSuccess": "Sitzung widerrufen",
       "revokeError": "Sitzung konnte nicht widerrufen werden. Bitte versuche es erneut."
+    },
+    "apiKeys": {
+      "title": "API-Schlüssel",
+      "subtitle": "API-Schlüssel, die dieser Benutzer für Skripte und Tools von Drittanbietern erstellt hat",
+      "error": "API-Schlüssel konnten nicht geladen werden",
+      "retry": "Erneut versuchen",
+      "empty": "Dieser Benutzer hat keine API-Schlüssel",
+      "revoke": "Widerrufen",
+      "revokeTitle": "Diesen API-Schlüssel widerrufen?",
+      "revokeBody": "Der Schlüssel funktioniert sofort nicht mehr und der Benutzer wird benachrichtigt.",
+      "revokeConfirm": "Schlüssel widerrufen",
+      "revokeSuccess": "API-Schlüssel widerrufen",
+      "revokeError": "Der API-Schlüssel konnte nicht widerrufen werden. Bitte versuche es erneut.",
+      "revokeNotFound": "Dieser API-Schlüssel existiert nicht mehr.",
+      "revokeAll": "Alle Schlüssel widerrufen",
+      "revokeAllTitle": "Alle API-Schlüssel widerrufen?",
+      "revokeAllBody": "Jeder aktive API-Schlüssel dieses Benutzers funktioniert sofort nicht mehr und der Benutzer wird benachrichtigt.",
+      "revokeAllConfirm": "Alle Schlüssel widerrufen",
+      "revokeAllSuccess": "API-Schlüssel widerrufen",
+      "revokeAllError": "Die API-Schlüssel konnten nicht widerrufen werden. Bitte versuche es erneut."
     },
     "photo": {
       "upload": "Foto hochladen",
@@ -277,6 +329,34 @@
     "saving": "Wird gespeichert…",
     "saveSuccess": "Servereinstellungen aktualisiert",
     "saveError": "Servereinstellungen konnten nicht aktualisiert werden. Bitte versuche es erneut.",
+    "staleError": "Diese Einstellungen wurden von jemand anderem geändert, während du sie bearbeitet hast. Deine Änderungen wurden nicht gespeichert. Lade die Seite neu, um die aktuellen Werte zu sehen.",
+    "stepUpTitle": "Bestätige deine Identität",
+    "stepUpDescription": "Diese Änderungen betreffen, wer sich auf diesem Server registrieren, anmelden oder eine Sitzung behalten kann, wie lange das Audit-Protokoll aufbewahrt wird oder ob öffentliche Links anzeigen, wer sie geteilt hat. Bestätige, dass du es bist, um fortzufahren.",
+    "envLocked": "Festgelegt durch {name}",
+    "envSection": "Einige Einstellungen hier werden durch Umgebungsvariablen ({names}) festgelegt. Entferne sie aus der Umgebung, um diese Einstellungen hier zu bearbeiten.",
+    "unsaved": "Nicht gespeicherte Änderungen",
+    "fixErrors": "Behebe die Fehler oben, um zu speichern",
+    "discard": "Verwerfen",
+    "tabs": {
+      "label": "Bereiche der Servereinstellungen",
+      "general": "Allgemein",
+      "access": "Zugang & Sicherheit",
+      "maps": "Karten & Standort",
+      "email": "E-Mail",
+      "logs": "Protokolle",
+      "unsaved": "Enthält nicht gespeicherte Änderungen"
+    },
+    "search": {
+      "placeholder": "Einstellungen suchen…",
+      "noResults": "Keine Einstellungen gefunden"
+    },
+    "leave": {
+      "title": "Ohne Speichern verlassen?",
+      "description": "Du hast nicht gespeicherte Änderungen. Wenn du diese Seite verlässt, gehen sie verloren.",
+      "confirm": "Ohne Speichern verlassen",
+      "stay": "Auf der Seite bleiben",
+      "close": "Schließen"
+    },
     "loadError": {
       "title": "Servereinstellungen konnten nicht geladen werden",
       "description": "Beim Laden der Servereinstellungen ist etwas schiefgelaufen. Du kannst es erneut versuchen.",
@@ -293,17 +373,49 @@
       "currencyPound": "Pfund (£)",
       "numRecords": "Einträge pro Seite"
     },
+    "mfa": {
+      "title": "Zwei-Faktor-Authentifizierung",
+      "require": "Zwei-Faktor-Authentifizierung verlangen",
+      "requireHint": "Ein davon betroffenes Konto, das die Zwei-Faktor-Authentifizierung noch nicht eingerichtet hat, muss sie einrichten, bevor es etwas anderes tun kann. Bis dahin kann es sie nur einrichten und sich abmelden. Die Anforderung gilt ab der nächsten Anfrage des Kontos.",
+      "options": {
+        "off": "Nicht erforderlich",
+        "administrators": "Nur Administratoren",
+        "everyone": "Alle"
+      },
+      "enabledWarning": "Von dieser Einstellung betroffene Konten, die die Zwei-Faktor-Authentifizierung noch nicht eingerichtet haben, möglicherweise auch deins, werden bei ihrer nächsten Anfrage zur Einrichtung weitergeleitet."
+    },
     "password": {
       "title": "Passwortrichtlinie",
-      "type": "Richtlinie",
-      "typeStrict": "Streng (Komplexität erforderlich)",
-      "typeLengthOnly": "Nur Länge",
       "lengthRegular": "Mindestlänge für normale Benutzer",
-      "lengthAdmin": "Mindestlänge für Administratoren"
+      "lengthAdmin": "Mindestlänge für Administratoren",
+      "breachCheck": "Passwörter aus bekannten Datenlecks ablehnen",
+      "breachCheckHint": "Prüft jedes neue oder geänderte Passwort mit haveibeenpwned.com. Es werden nur die ersten 5 Zeichen des SHA-1-Hashes des Passworts gesendet, nie das Passwort selbst. Ist der Dienst nicht erreichbar, wird das Passwort akzeptiert."
+    },
+    "session": {
+      "title": "Sitzungen",
+      "description": "Änderungen gelten für neue Anmeldungen und für die nächste Token-Erneuerung. Bereits ausgestellte Token behalten ihre Gültigkeitsdauer.",
+      "idleTimeoutEnabled": "Inaktivitäts-Timeout erzwingen",
+      "idleHours": "Inaktivitäts-Timeout (Stunden)",
+      "idleHoursHint": "Wenn erzwungen, endet eine Sitzung nach dieser Anzahl von Stunden ohne Aktivität.",
+      "absoluteHours": "Absolutes Timeout (Stunden)",
+      "absoluteHoursHint": "Eine Sitzung endet nach dieser Anzahl von Stunden nach der Anmeldung, unabhängig von der Aktivität. Gilt immer. Nicht kürzer als das Inaktivitäts-Timeout.",
+      "accessMinutes": "Gültigkeit des Zugriffstokens (Minuten)",
+      "refreshDays": "Gültigkeit des Aktualisierungstokens (Tage)",
+      "apiKeyDays": "Maximale Gültigkeit eines API-Schlüssels (Tage)",
+      "apiKeyDaysHint": "Ein neuer API-Schlüssel läuft nach dieser Anzahl Tage ab, sofern sein Besitzer kein früheres Datum wählt.",
+      "invalidRange": "Gib eine ganze Zahl zwischen {min} und {max} ein.",
+      "absoluteBelowIdle": "Darf nicht kürzer sein als das Inaktivitäts-Timeout.",
+      "accessNotBelowIdle": "Muss kürzer sein als das Inaktivitäts-Timeout."
+    },
+    "retention": {
+      "title": "Datenaufbewahrung",
+      "readNotifications": "Gelesene Benachrichtigungen löschen nach (Tage)",
+      "readNotificationsHint": "Bei 0 bleiben gelesene Benachrichtigungen für immer erhalten. Ungelesene Benachrichtigungen werden nie gelöscht."
     },
     "signup": {
       "title": "Registrierung",
       "enabled": "Neue Benutzerregistrierungen erlauben",
+      "ssoEnabled": "Neue Benutzerregistrierungen über Single Sign-On erlauben",
       "adminApproval": "Admin-Genehmigung für neue Registrierungen erforderlich",
       "emailVerification": "E-Mail-Bestätigung für neue Registrierungen erforderlich"
     },
@@ -336,12 +448,33 @@
       "attribution": "Quellenangabe",
       "apiKey": "Kachelserver-API-Schlüssel",
       "apiKeyWarning": "Der API-Schlüssel wird verschlüsselt gespeichert. Leer lassen, wenn dein Kachelserver keinen benötigt.",
+      "apiKeyStored": "Ein Schlüssel ist gespeichert",
+      "apiKeyRemove": "Gespeicherten API-Schlüssel entfernen",
       "backgroundColor": "Karten-Hintergrundfarbe",
       "regenerateThumbnails": "Aktivitäts-Vorschaubilder bei Karteneinstellungsänderungen neu generieren"
+    },
+    "geocoding": {
+      "title": "Reverse-Geocoding",
+      "description": "Wandelt Aktivitätskoordinaten in Ortsnamen um. Änderungen gelten ohne Neustart.",
+      "service": "Dienst",
+      "serviceNominatim": "Nominatim",
+      "servicePhoton": "Photon",
+      "serviceGeocode": "geocode.maps.co",
+      "host": "Host",
+      "hostHint": "Hostname mit optionalem Port, ohne Schema. Ein Host in einem privaten Netzwerk muss in SSRF_ALLOWED_HOSTS aufgeführt sein.",
+      "useHttps": "Über HTTPS verbinden",
+      "rateLimit": "Anfragen pro Sekunde",
+      "rateLimitHint": "Bei 0 ist die Drosselung deaktiviert. Behalte 1 für die öffentlichen Dienste Nominatim und Photon bei.",
+      "rateLimitInvalid": "Gib eine Zahl zwischen 0 und 100 ein.",
+      "apiKey": "API-Schlüssel",
+      "apiKeyStored": "Ein Schlüssel ist gespeichert. Leer lassen, um ihn beizubehalten.",
+      "apiKeyRemove": "Gespeicherten API-Schlüssel entfernen",
+      "apiKeyRequired": "geocode.maps.co benötigt einen API-Schlüssel."
     },
     "photo": {
       "title": "Anmeldefoto",
       "description": "Ein benutzerdefiniertes Bild auf dem Anmeldebildschirm",
+      "previewAlt": "Aktuelles Anmeldefoto",
       "add": "Anmeldefoto hochladen",
       "replace": "Anmeldefoto ersetzen",
       "delete": "Anmeldefoto entfernen",
@@ -355,10 +488,33 @@
       "cancel": "Abbrechen",
       "close": "Schließen"
     },
+    "logs": {
+      "title": "Serverprotokolle",
+      "description": "Die neuesten Einträge des Anwendungsprotokolls. Protokolle von Deployments mit mehreren Prozessen werden stattdessen von deiner Plattform gesammelt.",
+      "level": "Mindestlevel",
+      "allLevels": "Alle Level",
+      "search": "Suche",
+      "searchPlaceholder": "Text, Logger oder Anfrage-ID…",
+      "live": "Live",
+      "refresh": "Aktualisieren",
+      "download": "Herunterladen",
+      "downloadError": "Die Protokolldatei konnte nicht heruntergeladen werden.",
+      "clear": "Leeren",
+      "cleared": "Protokolle geleert",
+      "clearError": "Die Protokolle konnten nicht geleert werden.",
+      "clearConfirm": {
+        "title": "Serverprotokolle leeren?",
+        "description": "Dadurch werden die Protokolldatei und ihre rotierten Sicherungen dauerhaft gelöscht. Lade das Protokoll vorher herunter, falls du es noch brauchst. Die Aktion selbst wird im neuen Protokoll festgehalten.",
+        "confirm": "Protokolle leeren",
+        "cancel": "Abbrechen",
+        "close": "Schließen"
+      },
+      "loadError": "Die Protokolle konnten nicht geladen werden.",
+      "empty": "Keine Protokolleinträge gefunden"
+    },
     "email": {
       "title": "E-Mail",
       "description": "Endurain versendet E-Mails zum Zurücksetzen des Passworts und zur Registrierung über den in der Umgebung konfigurierten SMTP-Server.",
-      "statusLoadError": "Die E-Mail-Konfiguration konnte nicht geprüft werden.",
       "configured": "E-Mail ist konfiguriert.",
       "notConfigured": "E-Mail ist nicht konfiguriert:",
       "send": "Test-E-Mail senden",
@@ -366,7 +522,28 @@
       "sendHint": "Die Test-E-Mail wird an deine eigene Adresse gesendet.",
       "sent": "Test-E-Mail gesendet",
       "failed": "Die Test-E-Mail konnte nicht gesendet werden",
-      "failedUnknown": "Details findest du in den Serverlogs."
+      "failedUnknown": "Details findest du in den Serverlogs.",
+      "settingsLoadError": "Die E-Mail-Einstellungen konnten nicht geladen werden.",
+      "host": "Host",
+      "hostHint": "Leer lassen, um E-Mail zu deaktivieren.",
+      "port": "Port",
+      "portInvalid": "Gib einen Port zwischen 1 und 65535 ein.",
+      "security": "Verbindungssicherheit",
+      "securityStarttls": "STARTTLS",
+      "securitySsl": "SSL/TLS",
+      "securityNone": "Keine (nur privates Relay)",
+      "securityNoneWarning": "Ohne Verschlüsselung wird nur ein Mailserver mit privater oder Loopback-Adresse akzeptiert, und Benutzername und Passwort können nicht verwendet werden.",
+      "username": "Benutzername",
+      "password": "Passwort",
+      "passwordStored": "Ein Passwort ist gespeichert. Leer lassen, um es beizubehalten.",
+      "passwordRemove": "Gespeichertes Passwort entfernen",
+      "fromAddress": "Absenderadresse",
+      "fromAddressHint": "Leer lassen, um den Benutzernamen zu verwenden.",
+      "save": "E-Mail-Einstellungen speichern",
+      "saveSuccess": "E-Mail-Einstellungen gespeichert",
+      "saveError": "Die E-Mail-Einstellungen konnten nicht gespeichert werden",
+      "stepUpTitle": "Bestätige deine Identität",
+      "stepUpDescription": "Der Mailserver erhält jeden Link zum Zurücksetzen von Passwörtern. Bestätige, dass du es bist, um fortzufahren."
     }
   },
   "idp": {
@@ -374,6 +551,8 @@
     "subtitle": "SSO-Anbieter für Single Sign-On konfigurieren",
     "buttonAdd": "Anbieter hinzufügen",
     "toggleError": "Anbieter konnte nicht geändert werden. Bitte versuche es erneut.",
+    "toggleStepUpDescription": "Ob {name} aktiviert ist, entscheidet darüber, wer sich an diesem Server anmelden kann. Bestätige, dass du es bist, um fortzufahren.",
+    "toggleStepUpConfirm": "Bestätigen",
     "enableSuccess": "Anbieter aktiviert",
     "disableSuccess": "Anbieter deaktiviert",
     "type": {
@@ -399,8 +578,6 @@
       "title": "Anbieter löschen",
       "body": "Bist du sicher, dass du \"{name}\" löschen möchtest? Dies kann nicht rückgängig gemacht werden.",
       "confirm": "Löschen",
-      "cancel": "Abbrechen",
-      "close": "Schließen",
       "success": "Anbieter gelöscht",
       "error": "Anbieter konnte nicht gelöscht werden. Er hat möglicherweise noch verknüpfte Benutzer."
     },
@@ -422,12 +599,14 @@
       "slugRequired": "Slug ist erforderlich",
       "slugTooLong": "Slug darf maximal 50 Zeichen lang sein",
       "slugInvalid": "Verwende nur Kleinbuchstaben, Zahlen und Bindestriche",
+      "slugReserved": "Dieser Slug ist reserviert; wähle einen anderen",
       "providerType": "Anbietertyp",
       "typeOidc": "OpenID Connect (OIDC)",
       "typeOauth2": "OAuth 2.0",
       "issuerUrl": "Aussteller-URL",
       "issuerUrlHint": "Die OIDC-Aussteller- oder Erkennungs-URL des Anbieters",
       "issuerUrlRequired": "Aussteller-URL ist erforderlich",
+      "issuerUrlRefused": "Die Anbieter-URL wurde abgelehnt. Sie muss https:// verwenden und vom Server aus auflösbar sein, und ein Anbieter in einem privaten Netzwerk muss in SSRF_ALLOWED_HOSTS aufgeführt sein.",
       "issuerUrlTooLong": "Aussteller-URL darf maximal 500 Zeichen lang sein",
       "clientId": "Client-ID",
       "clientIdRequired": "Client-ID ist erforderlich",
@@ -440,17 +619,34 @@
       "scopes": "Scopes",
       "scopesHint": "Leerzeichen-getrennte OAuth-Scopes",
       "scopesTooLong": "Scopes dürfen maximal 500 Zeichen lang sein",
+      "scopesOpenidRequired": "Ein OIDC-Anbieter benötigt den Scope openid",
       "icon": "Symbol",
       "iconNone": "Kein",
-      "iconCustom": "Benutzerdefinierte URL",
-      "customIconUrl": "Benutzerdefinierte Symbol-URL",
-      "customIconUrlHint": "Link zu einem Bild, das auf dem Anmelde-Button angezeigt wird",
+      "iconUpload": "Bild hochladen",
+      "iconFileHint": "Ein PNG-, JPEG- oder WebP-Bild bis 1 MB, das auf der Anmeldeschaltfläche angezeigt wird",
+      "iconChoose": "Bild auswählen",
+      "iconReplace": "Bild ersetzen",
+      "iconPreviewAlt": "Symbolvorschau",
+      "iconFileRequired": "Wähle ein Bild zum Hochladen aus",
+      "iconFileInvalidType": "Das Symbol muss ein PNG-, JPEG- oder WebP-Bild sein",
+      "iconFileTooLarge": "Das Symbol darf höchstens 1 MB groß sein",
+      "iconSaveError": "Der Anbieter wurde gespeichert, aber sein Symbol konnte nicht aktualisiert werden. Bearbeite den Anbieter, um es erneut zu versuchen.",
       "enabled": "Aktiviert",
       "autoCreateUsers": "Benutzer bei erster Anmeldung automatisch erstellen",
+      "linkByEmail": "Per E-Mail mit einem bestehenden Konto verknüpfen",
+      "linkByEmailHint": "Lässt eine erste Anmeldung dem Konto mit derselben bestätigten E-Mail-Adresse beitreten. Ist die Option aus, wird diese Anmeldung abgelehnt und der Benutzer verknüpft den Anbieter in seinen Einstellungen. Bei einem neuen Anbieter standardmäßig aus.",
       "syncUserInfo": "Profilinformationen bei jeder Anmeldung synchronisieren",
+      "syncUserInfoHint": "Übernimmt den zugeordneten Namen vom Anbieter. Die E-Mail-Adresse ist nicht enthalten.",
+      "syncEmail": "E-Mail bei jeder Anmeldung synchronisieren",
+      "syncEmailHint": "Übernimmt die vom Anbieter bestätigte E-Mail-Adresse in das Konto, protokolliert die Änderung im Audit-Protokoll und benachrichtigt die vorherige Adresse. Bei einem neuen Anbieter standardmäßig aus.",
       "createSuccess": "Anbieter hinzugefügt",
       "updateSuccess": "Anbieter aktualisiert",
+      "stepUpTitle": "Bestätige deine Identität",
+      "stepUpDescription": "Identitätsanbieter entscheiden, wer sich an diesem Server anmelden kann. Bestätige, dass du es bist, um fortzufahren.",
       "slugConflict": "Dieser Slug wird bereits verwendet",
+      "issuerInUse": "Ein anderer Identitätsanbieter verwendet diese Aussteller-URL bereits",
+      "issuerLocked": "Die Aussteller-URL kann nicht geändert werden, solange Benutzer mit diesem Anbieter verknüpft sind. Hebe die Verknüpfungen auf oder füge stattdessen einen neuen Anbieter hinzu.",
+      "staleError": "Dieser Anbieter wurde anderswo geändert. Deine Änderungen wurden nicht gespeichert. Schließe ihn und öffne ihn erneut, um die aktuellen Einstellungen zu laden.",
       "saveError": "Anbieter konnte nicht gespeichert werden. Bitte versuche es erneut."
     }
   },
@@ -458,7 +654,7 @@
     "title": "Meine Ziele",
     "subtitle": "Lege Ziele für deine Aktivitäten fest und verfolge deinen Fortschritt",
     "buttonAdd": "Ziel hinzufügen",
-    "count": "Es gibt insgesamt {count} Ziel(e):",
+    "count": "Es gibt insgesamt {count} Ziel: | Es gibt insgesamt {count} Ziele:",
     "filters": "Filter",
     "filter": {
       "all": "Alle",
@@ -492,13 +688,6 @@
       "elevation": "Höhe",
       "duration": "Dauer"
     },
-    "unit": {
-      "calories": "kcal",
-      "km": "km",
-      "miles": "mi",
-      "meters": "m",
-      "feet": "ft"
-    },
     "list": {
       "edit": "Ziel {name} bearbeiten",
       "delete": "Ziel {name} löschen"
@@ -522,6 +711,7 @@
       "error": "Ziel konnte nicht gelöscht werden. Bitte versuche es erneut."
     },
     "form": {
+      "targetInvalid": "Gib einen Wert größer als 0 ein.",
       "addTitle": "Ziel hinzufügen",
       "editTitle": "Ziel bearbeiten",
       "description": "Lege ein Ziel für eine Aktivität über einen wiederkehrenden Zeitraum fest",
@@ -549,6 +739,14 @@
     "hidePassword": "Passwort verbergen",
     "mfaCode": "Authentifizierungscode",
     "mfaCodePlaceholder": "123456",
+    "confirmPhrase": "Gib {phrase} zur Bestätigung ein",
+    "mfaEnrolment": {
+      "title": "Zwei-Faktor-Authentifizierung einrichten",
+      "description": "Dieser Server verlangt die Zwei-Faktor-Authentifizierung. Richte sie ein, um Endurain weiter zu nutzen, oder melde dich ab.",
+      "done": "Die Zwei-Faktor-Authentifizierung ist eingerichtet. Du kannst fortfahren.",
+      "continue": "Weiter",
+      "signOut": "Abmelden"
+    },
     "loadError": {
       "title": "Deine Sicherheitseinstellungen konnten nicht geladen werden",
       "description": "Etwas ist schiefgelaufen. Du kannst es erneut versuchen."
@@ -559,10 +757,7 @@
       "current": "Aktuelles Passwort",
       "new": "Neues Passwort",
       "confirm": "Neues Passwort bestätigen",
-      "requirementsStrict": "Mindestens {length} Zeichen, einschließlich Großbuchstabe, Kleinbuchstabe, Zahl und Symbol.",
-      "requirementsLength": "Mindestens {length} Zeichen.",
-      "mismatch": "Die Passwörter stimmen nicht überein.",
-      "revokeOthers": "Von allen anderen Geräten abmelden",
+      "revokeOthers": "Von allen anderen Sitzungen abmelden",
       "submit": "Passwort ändern",
       "success": "Passwort geändert",
       "invalidCredentials": "Dein aktuelles Passwort oder Code ist falsch.",
@@ -575,7 +770,7 @@
       "disabledDescription": "Zwei-Faktor-Authentifizierung ist deaktiviert. Aktiviere sie, um dein Konto besser zu schützen.",
       "enable": "Zwei-Faktor aktivieren",
       "enabledDescription": "Zwei-Faktor-Authentifizierung ist aktiviert.",
-      "backupRemaining": "{unused} von {total} Backup-Codes verbleibend.",
+      "backupRemaining": "{unused} von {total} Backup-Code verbleibend. | {unused} von {total} Backup-Codes verbleibend.",
       "regenerate": "Backup-Codes neu generieren",
       "disable": "Deaktivieren",
       "setupTitle": "Zwei-Faktor-Authentifizierung aktivieren",
@@ -616,18 +811,51 @@
       "empty": "Keine aktiven Sitzungen.",
       "current": "Dieses Gerät",
       "lastActive": "Zuletzt aktiv am {date}",
+      "viaApp": "Über die App angemeldet: {address}",
       "revoke": "Diese Sitzung abmelden",
       "revokeTitle": "Diese Sitzung abmelden?",
       "revokeBody": "Das Gerät wird abgemeldet und muss sich erneut anmelden.",
       "revokeConfirm": "Abmelden",
       "revokeSuccess": "Sitzung abgemeldet",
       "revokeError": "Diese Sitzung konnte nicht abgemeldet werden. Bitte versuche es erneut.",
-      "revokeOthers": "Andere Geräte abmelden",
-      "revokeOthersTitle": "Alle anderen Geräte abmelden?",
-      "revokeOthersBody": "Alle Geräte außer diesem werden abgemeldet und müssen sich erneut anmelden.",
+      "revokeOthers": "Andere Sitzungen abmelden",
+      "revokeOthersTitle": "Alle anderen Sitzungen abmelden?",
+      "revokeOthersBody": "Alle Sitzungen außer dieser werden abgemeldet und müssen sich erneut anmelden.",
       "revokeOthersConfirm": "Andere abmelden",
       "revokeOthersSuccess": "Andere Sitzungen abgemeldet",
-      "revokeOthersError": "Die anderen Sitzungen konnten nicht abgemeldet werden. Bitte versuche es erneut."
+      "revokeOthersError": "Die anderen Sitzungen konnten nicht abgemeldet werden. Bitte versuche es erneut.",
+      "signOutEverywhere": "Überall abmelden",
+      "signOutEverywhereTitle": "Überall abmelden?",
+      "signOutEverywhereBody": "Alle Geräte, einschließlich dieses, werden abgemeldet und müssen sich erneut anmelden.",
+      "signOutEverywhereConfirm": "Überall abmelden",
+      "signOutEverywhereError": "Es konnte nicht von allen Sitzungen abgemeldet werden. Bitte versuche es erneut."
+    },
+    "devices": {
+      "title": "Bekannte Geräte",
+      "subtitle": "Browser und Apps, mit denen du dich seit deiner letzten Sicherheitsänderung angemeldet hast. Eine Anmeldung von einem anderen Gerät löst eine Benachrichtigung aus.",
+      "empty": "Keine bekannten Geräte",
+      "error": "Bekannte Geräte konnten nicht geladen werden",
+      "current": "Dieses Gerät",
+      "unknown": "Unbekanntes Gerät",
+      "lastSeen": "Zuletzt angemeldet {date}",
+      "forget": "Dieses Gerät vergessen",
+      "forgetTitle": "Dieses Gerät vergessen?",
+      "forgetDescription": "Wenn du dieses Gerät vergisst, wird es auch abgemeldet. Die nächste Anmeldung von diesem Gerät zählt als neues Gerät und löst eine Benachrichtigung aus.",
+      "forgetConfirm": "Gerät vergessen",
+      "forgetSuccess": "Gerät vergessen",
+      "forgetError": "Das Gerät konnte nicht vergessen werden. Bitte versuche es erneut.",
+      "forgetNotFound": "Dieses Gerät ist nicht mehr bekannt.",
+      "forgetOthers": "Andere Geräte vergessen",
+      "forgetOthersTitle": "Alle anderen Geräte vergessen?",
+      "forgetOthersDescription": "Alle Geräte außer diesem werden vergessen und abgemeldet. Die nächste Anmeldung von jedem dieser Geräte gilt als neues Gerät und sendet dir eine Benachrichtigung.",
+      "forgetOthersConfirm": "Geräte vergessen",
+      "forgetOthersSuccess": "Andere Geräte vergessen",
+      "forgetOthersError": "Die anderen Geräte konnten nicht vergessen werden. Bitte versuche es erneut.",
+      "forgetAll": "Alle Geräte vergessen",
+      "forgetAllTitle": "Alle Geräte vergessen?",
+      "forgetAllDescription": "Alle Geräte, einschließlich dieses, werden vergessen und abgemeldet, und du wirst zur Anmeldeseite weitergeleitet. Die nächste Anmeldung von jedem dieser Geräte gilt als neues Gerät und sendet dir eine Benachrichtigung.",
+      "forgetAllConfirm": "Geräte vergessen",
+      "forgetAllError": "Die Geräte konnten nicht vergessen werden. Bitte versuche es erneut."
     },
     "linked": {
       "title": "Verknüpfte Konten",
@@ -649,7 +877,51 @@
       "unlinkError": "Das Konto konnte nicht getrennt werden. Bitte versuche es erneut.",
       "invalidCredentials": "Dein Passwort oder Code ist falsch.",
       "alreadyLinked": "Dieses Konto ist bereits verknüpft.",
-      "lastMethodError": "Du kannst deine einzige Anmeldemethode nicht trennen. Setze zuerst ein Passwort."
+      "lastMethodError": "Du kannst deine einzige Anmeldemethode nicht trennen. Setze zuerst ein Passwort.",
+      "linkedOn": "Verknüpft am {date}"
+    },
+    "email": {
+      "title": "E-Mail-Adresse",
+      "subtitle": "Hierhin werden Passwort-Zurücksetzungen und Benachrichtigungen gesendet. Für eine Änderung musst du deine Identität bestätigen, und die neue Adresse gilt erst, wenn du sie über einen Link bestätigst, den wir dorthin senden.",
+      "current": "Aktuelle E-Mail",
+      "action": "E-Mail ändern",
+      "new": "Neue E-Mail",
+      "invalid": "Gib eine gültige E-Mail-Adresse ein.",
+      "sameAsCurrent": "Das ist bereits deine E-Mail-Adresse.",
+      "success": "Bestätigungslink an die neue Adresse gesendet. Deine E-Mail-Adresse wird geändert, sobald du sie bestätigst.",
+      "appliedSuccess": "E-Mail-Adresse geändert.",
+      "pending": "Ausstehende Änderung zu {email}",
+      "pendingExpires": "Der Bestätigungslink läuft am {date} ab.",
+      "resend": "Link erneut senden",
+      "cancel": "Änderung abbrechen",
+      "resendSuccess": "Falls eine Änderung aussteht, ist ein neuer Link auf dem Weg zur neuen Adresse.",
+      "resendError": "Der Link konnte nicht erneut gesendet werden. Bitte versuche es erneut.",
+      "cancelSuccess": "E-Mail-Änderung abgebrochen.",
+      "cancelError": "Die Änderung konnte nicht abgebrochen werden. Bitte versuche es erneut.",
+      "conflict": "Diese E-Mail-Adresse wird bereits verwendet.",
+      "error": "Deine E-Mail konnte nicht geändert werden. Bitte versuche es erneut."
+    },
+    "username": {
+      "title": "Benutzername",
+      "subtitle": "Mit deinem Benutzernamen meldest du dich an. Für eine Änderung musst du deine Identität bestätigen, und sie gilt sofort.",
+      "current": "Aktueller Benutzername",
+      "action": "Benutzername ändern",
+      "new": "Neuer Benutzername",
+      "sameAsCurrent": "Das ist bereits dein Benutzername.",
+      "success": "Benutzername geändert.",
+      "conflict": "Dieser Benutzername wird bereits verwendet.",
+      "error": "Dein Benutzername konnte nicht geändert werden. Bitte versuche es erneut."
+    },
+    "deleteAccount": {
+      "title": "Mein Konto löschen",
+      "subtitle": "Lösche dein Konto und alle deine Daten, darunter Aktivitäten und ihre Dateien, Gesundheitsdaten, Ausrüstung, Ziele, Integrationen und Sitzungen. Du wirst auf allen Geräten abgemeldet und das Konto wird sofort deaktiviert, danach werden deine Daten im Hintergrund gelöscht. Es gibt keine Karenzzeit: Nur ein Administrator kann das stoppen, indem er das Konto reaktiviert, bevor die Löschung abgeschlossen ist. Exportiere zuerst deine Daten, wenn du eine Kopie behalten möchtest.",
+      "action": "Mein Konto löschen",
+      "dialogTitle": "Dein Konto löschen?",
+      "dialogDescription": "Dadurch wirst du auf allen Geräten abgemeldet, dein Konto wird deaktiviert und das Löschen aller deiner Daten beginnt. Nur ein Administrator kann es stoppen, bevor es abgeschlossen ist. Bestätige deine Identität, um fortzufahren.",
+      "confirm": "Mein Konto löschen",
+      "error": "Dein Konto konnte nicht gelöscht werden. Bitte versuche es erneut.",
+      "onlyAdminError": "Du bist der einzige Administrator. Mache einen anderen Benutzer zum Administrator, bevor du dein Konto löschst.",
+      "pendingError": "Das Löschen dieses Kontos läuft bereits."
     },
     "apiKeys": {
       "title": "API-Schlüssel",
@@ -661,13 +933,43 @@
       "namePlaceholder": "z.B. Garmin-Upload-Skript",
       "scopes": "Berechtigungen",
       "scopesHint": "Wähle, was dieser Schlüssel tun darf. Mindestens eine ist erforderlich.",
+      "scopeGroups": {
+        "account": "Konto",
+        "activities": "Aktivitäten",
+        "followers": "Follower",
+        "gears": "Ausrüstung",
+        "health": "Gesundheit",
+        "healthTargets": "Gesundheitsziele",
+        "notifications": "Benachrichtigungen",
+        "users": "Benutzer"
+      },
+      "scopeLabels": {
+        "account": "Profil, Foto, Ziele, Datenschutz und Standardausrüstung verwalten",
+        "activitiesRead": "Aktivitäten lesen",
+        "activitiesWrite": "Aktivitäten erstellen, bearbeiten und löschen",
+        "activitiesUpload": "Aktivitätsdateien hochladen",
+        "followersRead": "Sehen, wem du folgst und wer dir folgt",
+        "followersWrite": "Ändern, wem du folgst und wer dir folgt",
+        "gearsRead": "Ausrüstung lesen",
+        "gearsWrite": "Ausrüstung erstellen, bearbeiten und löschen",
+        "healthRead": "Gesundheitsdaten lesen",
+        "healthWrite": "Gesundheitsdaten schreiben",
+        "healthTargetsRead": "Gesundheitsziele lesen",
+        "healthTargetsWrite": "Gesundheitsziele ändern",
+        "notificationsRead": "Benachrichtigungen lesen",
+        "notificationsWrite": "Benachrichtigungen verwalten",
+        "usersRead": "Öffentliche Profile anderer Benutzer nachschlagen"
+      },
       "expiry": "Ablauf (optional)",
-      "expiryHint": "Leer lassen für einen Schlüssel, der nie abläuft.",
+      "expiryHint": "Leer lassen, um die längste vom Server erlaubte Gültigkeit zu verwenden. Ein späteres Datum wird abgelehnt.",
       "createTitle": "API-Schlüssel erstellen",
       "createDescription": "Bestätige deine Identität, um einen neuen API-Schlüssel zu erstellen.",
       "createSuccess": "API-Schlüssel erstellt",
       "createError": "Der API-Schlüssel konnte nicht erstellt werden. Bitte versuche es erneut.",
+      "apiKeyLimit": "Du hast das Limit von 25 aktiven API-Schlüsseln erreicht. Widerrufe oder lösche einen und versuche es erneut.",
+      "expiryTooLate": "Dieses Ablaufdatum liegt später, als der Server erlaubt. Wähle ein früheres Datum oder lass das Feld leer.",
       "invalidCredentials": "Dein Passwort oder Code ist falsch.",
+      "expiryNotFuture": "Dieses Ablaufdatum liegt nicht in der Zukunft. Wähle ein späteres Datum.",
       "invalidScopes": "Diese Berechtigungen sind für API-Schlüssel nicht erlaubt.",
       "revealTitle": "Deinen API-Schlüssel kopieren",
       "revealDescription": "Dies ist das einzige Mal, dass der vollständige Schlüssel angezeigt wird.",
@@ -683,7 +985,6 @@
       "lastUsed": "Zuletzt verwendet am {date}",
       "neverUsed": "Noch nie verwendet",
       "expires": "Läuft ab am {date}",
-      "neverExpires": "Läuft nie ab",
       "revoke": "Widerrufen",
       "revokeTitle": "API-Schlüssel widerrufen?",
       "revokeBody": "{name} hört sofort auf zu funktionieren. Dies kann nicht rückgängig gemacht werden.",
@@ -694,6 +995,26 @@
       "deleteBody": "{name} wird dauerhaft gelöscht. Dies kann nicht rückgängig gemacht werden.",
       "deleteSuccess": "API-Schlüssel gelöscht",
       "deleteError": "Der API-Schlüssel konnte nicht gelöscht werden. Bitte versuche es erneut."
+    },
+    "stepUp": {
+      "passwordLabel": "Dein Passwort",
+      "passwordHint": "Gib dein eigenes Passwort ein, um zu bestätigen, dass du es bist.",
+      "prompt": "Dein Konto hat kein Passwort. Melde dich erneut mit einem verknüpften Identitätsanbieter an, um zu bestätigen, dass du es bist.",
+      "continueWith": "Weiter mit {name}",
+      "ready": "Anmeldung beim Identitätsanbieter bestätigt.",
+      "restart": "Erneut anmelden",
+      "noProviders": "Es ist kein verknüpfter Identitätsanbieter verfügbar, um deine Identität zu bestätigen.",
+      "startError": "Die Anmeldung beim Identitätsanbieter konnte nicht gestartet werden. Bitte versuche es erneut.",
+      "tooManyAttempts": "Zu viele Versuche. Bitte versuche es später erneut.",
+      "reauthRequired": "Bestätige deine Identität bei deinem Identitätsanbieter, um fortzufahren.",
+      "failed": "Die erneute Anmeldung bei deinem Identitätsanbieter ist fehlgeschlagen. Bitte versuche es erneut.",
+      "notFresh": "Dein Identitätsanbieter hat dich nicht zur erneuten Anmeldung aufgefordert. Wende dich an deinen Administrator."
+    },
+    "tabs": {
+      "label": "Sicherheitsbereiche",
+      "account": "Konto",
+      "sessions": "Sitzungen & Zugriff",
+      "danger": "Gefahrenzone"
     }
   },
   "integrations": {
@@ -733,6 +1054,7 @@
       "clientIdPlaceholder": "123456",
       "clientSecret": "Client-Geheimnis",
       "connectError": "Verbindung zu Strava fehlgeschlagen. Bitte überprüfe deine Angaben und versuche es erneut.",
+      "scopeError": "Strava hat nicht alle Berechtigungen erhalten, die Endurain braucht. Verbinde dich erneut und lass alle Berechtigungen angehakt.",
       "completing": "Strava-Verbindung wird abgeschlossen…",
       "linkSuccess": "Strava verbunden",
       "retrieveActivitiesTitle": "Strava-Aktivitäten abrufen",
@@ -741,9 +1063,10 @@
       "retrievingGear": "Deine Strava-Ausrüstung wird im Hintergrund abgerufen…",
       "retrieveGearError": "Das Abrufen der Strava-Ausrüstung konnte nicht gestartet werden. Bitte versuche es erneut.",
       "unlinkTitle": "Strava trennen?",
-      "unlinkBody": "Endurain stoppt den Import von Strava. Deine bestehenden Aktivitäten bleiben erhalten.",
+      "unlinkBody": "Endurain stoppt den Import von Strava und löscht die von Strava synchronisierten Aktivitäten und Ausrüstung. Aktivitäten aus anderen Quellen, auch hochgeladene Strava-Exportdateien, bleiben erhalten.",
       "unlinkSuccess": "Strava getrennt",
-      "unlinkError": "Strava konnte nicht getrennt werden. Bitte versuche es erneut."
+      "unlinkError": "Strava konnte nicht getrennt werden. Bitte versuche es erneut.",
+      "revokedNotice": "Der Strava-Zugriff wurde am {revokedAt} beendet. Mit Strava synchronisierte Aktivitäten und Ausrüstung werden am {deletionAt} gelöscht, sofern du dich nicht erneut verbindest."
     },
     "garmin": {
       "title": "Garmin Connect",
@@ -774,7 +1097,10 @@
       "unlinkBody": "Endurain stoppt den Import von Garmin Connect. Deine bestehenden Daten bleiben erhalten.",
       "unlinkSuccess": "Garmin Connect getrennt",
       "unlinkError": "Garmin Connect konnte nicht getrennt werden. Bitte versuche es erneut."
-    }
+    },
+    "retrieveFinished": "Der Abruf deiner Daten von {provider} ist abgeschlossen.",
+    "retrieveFailed": "Der Abruf deiner Daten von {provider} ist fehlgeschlagen. Bitte versuche es erneut.",
+    "retrieveAlreadyRunning": "Ein Abruf von {provider} läuft bereits. Du wirst benachrichtigt, sobald er abgeschlossen ist."
   },
   "import": {
     "title": "Import",
@@ -807,15 +1133,25 @@
     },
     "job": {
       "preparing": "Import wird vorbereitet…",
-      "progress": "{done} von {total} Dateien importiert ({failed} fehlgeschlagen)…",
-      "finished": "Import abgeschlossen: {done} von {total} Dateien importiert, {failed} fehlgeschlagen.",
-      "failed": "Der Import konnte nicht abgeschlossen werden."
+      "progress": "{done} von {total} Datei importiert ({failed} fehlgeschlagen)… | {done} von {total} Dateien importiert ({failed} fehlgeschlagen)…",
+      "finished": "Import abgeschlossen: {done} von {total} Datei importiert, {failed} fehlgeschlagen. | Import abgeschlossen: {done} von {total} Dateien importiert, {failed} fehlgeschlagen.",
+      "failed": "Der Import konnte nicht abgeschlossen werden.",
+      "failure": {
+        "unsupported_format": "Der Import ist fehlgeschlagen: Die Dateien haben ein nicht unterstütztes Format.",
+        "invalid_file": "Der Import ist fehlgeschlagen: Die Datei ist ungültig.",
+        "no_activities_found": "Der Import ist fehlgeschlagen: Es wurden keine Aktivitäten gefunden.",
+        "processing_failed": "Der Import ist bei der Verarbeitung der Dateien fehlgeschlagen.",
+        "provider_unavailable": "Der Import ist fehlgeschlagen: Der Anbieter ist nicht erreichbar. Versuche es später erneut."
+      }
     }
   },
   "profile": {
     "title": "Mein Profil",
     "subtitle": "Verwalte deine Kontodaten und Datenschutz",
     "notSet": "Nicht festgelegt",
+    "emailManagedIn": "Deine E-Mail änderst du in den Sicherheitseinstellungen.",
+    "securitySettingsLink": "Sicherheitseinstellungen öffnen",
+    "usernameManagedIn": "Deinen Benutzernamen änderst du in den Sicherheitseinstellungen.",
     "error": {
       "title": "Dein Profil konnte nicht geladen werden",
       "description": "Beim Laden deines Profils ist etwas schiefgelaufen. Du kannst es erneut versuchen.",
@@ -826,7 +1162,6 @@
       "title": "Profil bearbeiten",
       "description": "Deine Kontodaten aktualisieren",
       "success": "Profil aktualisiert",
-      "conflict": "Dieser Benutzername oder diese E-Mail wird bereits verwendet",
       "error": "Dein Profil konnte nicht aktualisiert werden. Bitte versuche es erneut."
     },
     "photo": {
@@ -874,6 +1209,8 @@
       "hideLaps": "Runden",
       "hideWorkoutSetsSteps": "Trainingssätze und -schritte",
       "hideGear": "Ausrüstung",
+      "discoverable": "Anderen erlauben, mich in der Suche zu finden",
+      "discoverableHint": "Andere Nutzer können dich bei der Suche anhand deines Benutzernamens finden. Dein Profil bleibt über einen direkten Link erreichbar.",
       "save": "Datenschutz speichern",
       "saving": "Wird gespeichert…",
       "saveSuccess": "Datenschutzeinstellungen aktualisiert",
@@ -921,10 +1258,59 @@
       "export": "Daten exportieren",
       "import": "Daten importieren",
       "invalidType": "Bitte wähle ein .zip-Archiv.",
-      "exportSuccess": "Export bereit, dein Download sollte in Kürze beginnen",
+      "download": "Export herunterladen",
+      "downloadSuccess": "Dein Download sollte in Kürze beginnen",
+      "downloadError": "Der Export konnte nicht heruntergeladen werden. Bitte versuche es erneut.",
+      "exportQueued": "Export gestartet. Du kannst diese Seite verlassen.",
       "exportError": "Deine Daten konnten nicht exportiert werden. Bitte versuche es erneut.",
-      "importSuccess": "Daten importiert",
-      "importError": "Das Archiv konnte nicht importiert werden. Bitte überprüfe die Datei und versuche es erneut."
+      "exportInProgress": "Ein Export läuft bereits.",
+      "exportStepUp": {
+        "title": "Bestätige, dass du es bist",
+        "description": "Der Export kopiert alle deine Daten. Bestätige deshalb zuerst deine Identität."
+      },
+      "exportStatus": {
+        "queued": "Warten auf den Start des Exports…",
+        "running": "Dein Export wird vorbereitet…",
+        "succeeded": "Dein Export steht zum Download bereit. Er bleibt zwei Stunden lang verfügbar.",
+        "failed": "Der Export wurde nicht abgeschlossen: {reason}"
+      },
+      "exportFailure": {
+        "timed_out": "er hat zu lange gedauert. Du kannst es erneut versuchen.",
+        "processing_failed": "etwas ist schiefgelaufen. Du kannst es erneut versuchen."
+      },
+      "importQueued": "Import gestartet. Du kannst diese Seite verlassen.",
+      "importError": "Das Archiv konnte nicht importiert werden. Bitte überprüfe die Datei und versuche es erneut.",
+      "importInProgress": "Ein Import läuft bereits.",
+      "status": {
+        "queued": "Warten auf den Start des Imports…",
+        "running": "Deine Daten werden importiert…",
+        "succeeded": "Import abgeschlossen: {activities} Aktivität importiert, Ausrüstung: {gears}. | Import abgeschlossen: {activities} Aktivitäten importiert, Ausrüstung: {gears}.",
+        "failed": "Der Import wurde nicht abgeschlossen: {reason}"
+      },
+      "failure": {
+        "invalid_file": "das Archiv ist kein gültiger Endurain-Export. Es wurde nichts importiert.",
+        "too_large": "das Archiv ist zu groß. Es wurde nichts importiert.",
+        "too_many_activities": "das Archiv enthält zu viele Aktivitäten. Es wurde nichts importiert.",
+        "timed_out": "er hat zu lange gedauert. Es wurde nichts importiert, daher kannst du es erneut versuchen.",
+        "files_incomplete": "deine Daten wurden importiert, aber einige Dateien fehlen. Importiere sie nicht erneut, sonst würden deine Daten doppelt vorhanden sein.",
+        "processing_failed": "etwas ist schiefgelaufen. Es wurde nichts importiert, daher kannst du es erneut versuchen.",
+        "wrong_account": "das Archiv wurde von einem anderen Konto exportiert. Es wurde nichts importiert.",
+        "older_version": "das Archiv wurde mit einer älteren Endurain-Version exportiert. Es wurde nichts importiert."
+      }
+    },
+    "blockedUsers": {
+      "title": "Blockierte Nutzer",
+      "subtitle": "Blockierte Nutzer können keine Follow-Anfragen an dich senden. Wenn du jemanden blockierst, wird auch jedes bestehende Follow zwischen euch entfernt.",
+      "empty": "Du hast niemanden blockiert.",
+      "unblock": "Blockierung aufheben",
+      "unblockError": "Die Blockierung dieses Nutzers konnte nicht aufgehoben werden. Bitte versuche es erneut.",
+      "loadError": "Deine blockierten Nutzer konnten nicht geladen werden.",
+      "retry": "Erneut versuchen"
+    },
+    "tabs": {
+      "label": "Profilbereiche",
+      "profile": "Profil",
+      "privacy": "Datenschutz & Daten"
     }
   }
 }

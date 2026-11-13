@@ -1,45 +1,41 @@
+"""SQLAlchemy ORM model for health steps records."""
+
+import uuid
 from datetime import date as date_type
-from typing import TYPE_CHECKING
 
-from sqlalchemy import ForeignKey, String
-from sqlalchemy.orm import Mapped, mapped_column, relationship
+from sqlalchemy import ForeignKey, Index, String, UniqueConstraint
+from sqlalchemy.orm import Mapped, mapped_column
 
+import core.sync as core_sync
 from core.database import Base
 
-if TYPE_CHECKING:
-    from modules.users.users.models import Users
 
-
-class HealthSteps(Base):
-    """
-    SQLAlchemy model representing daily step count data for users.
+class HealthSteps(core_sync.UpdatedAtMixin, Base):
+    """SQLAlchemy model representing daily step count data for users.
 
     This model stores health and fitness tracking data related to the number of steps
     taken by a user on a specific date. It includes information about the data source
-    and maintains a relationship with the Users model.
+    and belongs to a user through ``user_id``.
 
     Attributes:
-        id: Primary key, auto-incremented unique identifier.
+        id: Primary key, a random UUID.
         user_id: Foreign key referencing users.id.
         date: Calendar date for which the step count is recorded.
         steps: Total number of steps taken on the date.
         source: Source of the step data (e.g., fitness device, app).
-        user: Relationship to the Users model.
 
     Table:
         health_steps
-
-    Relationships:
-        - Many-to-One with Users model through user_id
     """
 
     __tablename__ = "health_steps"
-
-    id: Mapped[int] = mapped_column(
-        primary_key=True,
-        autoincrement=True,
+    __table_args__ = (
+        UniqueConstraint("user_id", "date", name="uq_health_steps_user_date"),
+        Index("ix_health_steps_user_updated_at_id", "user_id", "updated_at", "id"),
     )
-    user_id: Mapped[int] = mapped_column(
+
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    user_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("users.id", ondelete="CASCADE"),
         nullable=False,
         index=True,
@@ -54,11 +50,21 @@ class HealthSteps(Base):
         nullable=False,
         comment="Number of steps taken",
     )
-    source: Mapped[str | None] = mapped_column(
+    source: Mapped[str] = mapped_column(
         String(250),
-        nullable=True,
+        nullable=False,
+        server_default="manual",
+        default="manual",
         comment="Source of the health steps data",
     )
 
-    # Define a relationship to the Users model
-    users: Mapped["Users"] = relationship(back_populates="health_steps")
+    version: Mapped[int] = mapped_column(
+        nullable=False,
+        server_default="1",
+        default=1,
+        comment="Optimistic-concurrency counter, surfaced to clients as the ETag",
+    )
+
+    # SQLAlchemy bumps ``version`` on each ORM flush and adds it to the UPDATE's
+    # WHERE clause, raising StaleDataError when the row moved underneath.
+    __mapper_args__ = {"version_id_col": version}  # noqa: RUF012

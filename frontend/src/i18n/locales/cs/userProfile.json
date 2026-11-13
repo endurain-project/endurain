@@ -82,5 +82,13 @@
       "ownTitle": "Zatím nemáte žádné sledující.",
       "otherTitle": "Zatím žádní sledující."
     }
+  },
+  "block": {
+    "block": "Blokovat",
+    "unblock": "Odblokovat",
+    "confirmTitle": "Zablokovat uživatele {name}?",
+    "confirmBody": "Uživatel {name} vás nebude moci požádat o sledování a veškeré sledování mezi vámi bude zrušeno. Nebude o tom informován.",
+    "blockError": "Tohoto uživatele se nepodařilo zablokovat. Zkuste to prosím znovu.",
+    "unblockError": "Tohoto uživatele se nepodařilo odblokovat. Zkuste to prosím znovu."
   }
 }

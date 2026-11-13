@@ -119,27 +119,6 @@ class TestReturnFrontendIndex:
         assert result == "response"
 
 
-class TestReturnServerImgPath:
-    """Tests for return_server_img_path."""
-
-    def test_calls_serve_from_with_server_images_dir(self):
-        from core.utils import return_server_img_path
-
-        mock_core_config = MagicMock()
-        mock_core_config.SERVER_IMAGES_DIR = "/mock/server_images"
-        mock_serve_from = MagicMock(return_value="response")
-
-        with patch.multiple(
-            "core.utils",
-            core_config=mock_core_config,
-            _serve_from=mock_serve_from,
-        ):
-            result = return_server_img_path("banner.jpg")
-
-        mock_serve_from.assert_called_once_with("/mock/server_images", "banner.jpg")
-        assert result == "response"
-
-
 class TestNoBlobPathHelpers:
     """Private blobs must have no filename-addressed serve helper.
 

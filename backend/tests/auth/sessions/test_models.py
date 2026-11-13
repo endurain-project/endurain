@@ -1,3 +1,7 @@
+import uuid
+
+from sqlalchemy import CheckConstraint
+
 import modules.auth.sessions.models as users_session_models
 
 
@@ -92,6 +96,8 @@ class TestUsersSessionsModel:
         assert model.oauth_state_id.nullable is True
         assert model.last_rotation_at.nullable is True
         assert model.csrf_token_hash.nullable is True
+        assert model.app_redirect_uri.nullable is True
+        assert model.app_redirect_uri.type.length == 500
 
     def test_users_sessions_model_column_types(self):
         """
@@ -101,13 +107,13 @@ class TestUsersSessionsModel:
         model = users_session_models.UsersSessions
 
         # Assert
-        assert model.id.type.python_type is str
+        assert model.id.type.python_type is uuid.UUID
         assert model.refresh_token.type.python_type is str
         assert model.ip_address.type.python_type is str
         assert model.device_type.type.python_type is str
         assert model.operating_system.type.python_type is str
         assert model.browser.type.python_type is str
-        assert model.token_family_id.type.python_type is str
+        assert model.token_family_id.type.python_type is uuid.UUID
 
     def test_users_sessions_model_string_lengths(self):
         """
@@ -117,7 +123,6 @@ class TestUsersSessionsModel:
         model = users_session_models.UsersSessions
 
         # Assert
-        assert model.id.type.length == 36
         assert model.refresh_token.type.length == 255
         assert model.ip_address.type.length == 45
         assert model.device_type.type.length == 45
@@ -132,8 +137,8 @@ class TestUsersSessionsModel:
         model = users_session_models.UsersSessions
 
         # Assert
-        assert hasattr(model, "oauth_state")
-        assert hasattr(model, "rotated_refresh_tokens")
+        assert not hasattr(model, "oauth_state")
+        assert not hasattr(model, "rotated_refresh_tokens")
 
     def test_users_sessions_model_tokens_exchanged_default(self):
         """
@@ -156,3 +161,16 @@ class TestUsersSessionsModel:
         # Assert
         assert column.default is not None
         assert column.default.arg == 0
+
+    def test_the_client_type_is_required_and_limited_to_the_client_types(self):
+        """A session records the client it was created for, one of ``ClientType``."""
+        column = users_session_models.UsersSessions.client_type
+        checks = {
+            constraint.name: str(constraint.sqltext)
+            for constraint in users_session_models.UsersSessions.__table__.constraints
+            if isinstance(constraint, CheckConstraint)
+        }
+
+        assert column.nullable is False
+        assert column.type.length == 10
+        assert checks["ck_users_sessions_client_type"] == "client_type IN ('web', 'mobile')"

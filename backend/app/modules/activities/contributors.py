@@ -6,12 +6,16 @@ archive names and how one archived record becomes a stored row; the parent-id
 guard and the re-keying filter live here once.
 """
 
+import uuid
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from typing import Any, Protocol
 
+from pydantic import BaseModel, TypeAdapter
 from sqlalchemy.orm import Session
 
 import modules.activities.activity.schema as activity_schema
+import modules.users.users_profile.contracts as users_profile_contracts
 
 
 class PersistActivityComponent(Protocol):
@@ -23,14 +27,14 @@ class PersistActivityComponent(Protocol):
 
     def __call__(
         self,
-        data: Any,
+        data: object,
         activity: activity_schema.ActivityRead,
         db: Session,
     ) -> None:
         """Stage the component for a newly created activity.
 
         Args:
-            data: The parsed component payload.
+            data: The parsed component payload, which the contributor checks is the shape it stores.
             activity: The newly created activity.
             db: Database session.
         """
@@ -39,11 +43,11 @@ class PersistActivityComponent(Protocol):
 class PersistFileComponent(Protocol):
     """Persist one file-scoped parsed component."""
 
-    def __call__(self, data: Any, db: Session) -> None:
+    def __call__(self, data: object, db: Session) -> None:
         """Persist the file-scoped component.
 
         Args:
-            data: The parsed component payload.
+            data: The parsed component payload, which the contributor checks is the shape it stores.
             db: Database session.
         """
 
@@ -51,7 +55,7 @@ class PersistFileComponent(Protocol):
 class ExportActivityRecords(Protocol):
     """Export profile records scoped to activity identifiers."""
 
-    def __call__(self, activity_ids: list[int], db: Session) -> list[Any]:
+    def __call__(self, activity_ids: list[uuid.UUID], db: Session) -> Sequence[BaseModel]:
         """Return the records for the given activities.
 
         Args:
@@ -69,7 +73,7 @@ class RestoreActivityRecords(Protocol):
     def __call__(
         self,
         records: list[dict[str, Any]],
-        original_activity_id: int,
+        original_activity_id: uuid.UUID,
         new_activity: activity_schema.ActivityRead,
         db: Session,
     ) -> int:
@@ -77,7 +81,7 @@ class RestoreActivityRecords(Protocol):
 
         Args:
             records: Profile records to restore.
-            original_activity_id: The activity's ID in the exported archive.
+            original_activity_id: The activity's archive-local key (its UUID in the archive).
             new_activity: The activity the records are restored onto.
             db: Database session.
 
@@ -89,7 +93,7 @@ class RestoreActivityRecords(Protocol):
 class ExportGlobalRecords(Protocol):
     """Export file-global profile records."""
 
-    def __call__(self, db: Session) -> list[Any]:
+    def __call__(self, db: Session) -> Sequence[BaseModel]:
         """Return the file-global records.
 
         Args:
@@ -118,7 +122,7 @@ class RestoreGlobalRecords(Protocol):
 class ThumbnailUrlResolver(Protocol):
     """Resolve an activity's stored thumbnail key to a servable URL."""
 
-    def __call__(self, key: str | None, activity_id: int) -> str | None:
+    def __call__(self, key: str | None, activity_id: uuid.UUID) -> str | None:
         """Return the servable URL for a thumbnail key.
 
         Args:
@@ -127,6 +131,23 @@ class ThumbnailUrlResolver(Protocol):
 
         Returns:
             The URL, or None when there is no thumbnail.
+        """
+
+
+class ActivityMediaResolver(Protocol):
+    """Resolve the media of several activities to their client-facing read models."""
+
+    def __call__(
+        self, activity_ids: list[uuid.UUID], db: Session
+    ) -> Mapping[uuid.UUID, Sequence[activity_schema.ActivityMediaEmbedded]]:
+        """Return the media of the given activities in one query.
+
+        Args:
+            activity_ids: IDs of the activities, already scoped to the requester.
+            db: Database session.
+
+        Returns:
+            The media keyed by activity ID; an activity without media has no entry.
         """
 
 
@@ -172,7 +193,7 @@ class ProfileGlobalContributor:
 class StoreChildRecords[R](Protocol):
     """Stage rows of type ``R`` for one activity through the child package's CRUD."""
 
-    def __call__(self, records: R, activity_id: int, db: Session, /) -> None:
+    def __call__(self, records: R, activity_id: uuid.UUID, db: Session, /) -> None:
         """Stage the rows for the activity.
 
         Args:
@@ -185,7 +206,7 @@ class StoreChildRecords[R](Protocol):
 class ParseChildRecord[R](Protocol):
     """Turn one archived profile record into a row of type ``R``."""
 
-    def __call__(self, record: dict[str, Any], activity_id: int, /) -> R:
+    def __call__(self, record: dict[str, Any], activity_id: uuid.UUID, /) -> R:
         """Validate one archived record for a restored activity.
 
         Args:
@@ -197,23 +218,35 @@ class ParseChildRecord[R](Protocol):
         """
 
 
-def child_ingestion_contributor(
+def child_ingestion_contributor[R](
     *,
     key: str,
-    store: StoreChildRecords[Any],
+    payload: TypeAdapter[R],
+    store: StoreChildRecords[R],
 ) -> ActivityIngestionContributor:
     """Build the ingestion contribution for a plain child collection.
 
     Args:
         key: The parsed component key the contribution persists.
+        payload: The shape of the parsed rows ``store`` takes.
         store: Stages the parsed rows for an activity.
 
     Returns:
         The contributor.
     """
 
-    def persist(data: Any, activity: activity_schema.ActivityRead, db: Session) -> None:
-        store(data, activity.id, db)
+    def persist(data: object, activity: activity_schema.ActivityRead, db: Session) -> None:
+        """Stage the parsed rows for the stored activity.
+
+        Args:
+            data: The parsed component rows.
+            activity: The stored activity they belong to.
+            db: Database session.
+
+        Raises:
+            ValidationError: When the parser handed rows of another shape, before anything is staged.
+        """
+        store(payload.validate_python(data), activity.id, db)
 
     return ActivityIngestionContributor(key=key, persist=persist)
 
@@ -249,13 +282,24 @@ def child_profile_contributor[R](
 
     def restore(
         records: list[dict[str, Any]],
-        original_activity_id: int,
+        original_activity_id: uuid.UUID,
         new_activity: activity_schema.ActivityRead,
         db: Session,
     ) -> int:
+        """Re-key the archived records of the original activity onto the restored one and stage them.
+
+        Args:
+            records: The archived records of the whole profile.
+            original_activity_id: The archive-local key of the activity id the records were exported under.
+            new_activity: The restored activity.
+            db: Database session.
+
+        Returns:
+            The number of records restored.
+        """
         restored: list[R] = []
         for record in records:
-            if record.get("activity_id") != original_activity_id:
+            if users_profile_contracts.archived_id(record.get("activity_id")) != original_activity_id:
                 continue
             data = dict(record)
             data.pop("id", None)

@@ -1,52 +1,60 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
-import { RouterLink, useRoute, useRouter } from 'vue-router'
+import { RouterLink, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { LoaderCircle } from '@lucide/vue'
 
 import AppLogo from '@/components/AppLogo.vue'
+import { useQueryCredential } from '@/composables/useRouteQuery'
 import { Alert } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import { ErrorState } from '@/components/ui/error-state'
 import { Label } from '@/components/ui/label'
+import { LoadingState } from '@/components/ui/loading-state'
 import { usePublicServerSettings } from '@/features/config/composables/usePublicServerSettings'
 import PasswordInput from '@/features/security/components/PasswordInput.vue'
-import { HttpError } from '@/services/http'
-import { confirmPasswordReset } from '@/features/auth/services/passwordReset'
-import { buildPasswordRequirements, isValidPassword } from '@/utils/validation'
+import PasswordStrengthMeter from '@/features/security/components/PasswordStrengthMeter.vue'
+import {
+  usePasswordConfirmation,
+  usePasswordPolicy,
+} from '@/features/security/composables/usePasswordPolicy'
+import { isProblem } from '@/services/problems'
+import {
+  confirmPasswordReset,
+  validatePasswordResetToken,
+} from '@/features/auth/services/passwordReset'
 
-const route = useRoute()
 const router = useRouter()
 const { t } = useI18n()
-const { serverSettings, load } = usePublicServerSettings()
+const { load } = usePublicServerSettings()
 
 /** Reset token from the emailed link; empty when absent or malformed. */
-const token = computed(() => (typeof route.query.token === 'string' ? route.query.token : ''))
+const resetCredential = useQueryCredential('token')
+const token = ref(resetCredential.value)
+
+/** Whether the emailed token is being checked, usable, or refused. */
+const linkStatus = ref<'checking' | 'valid' | 'invalid'>(
+  token.value.length > 0 ? 'checking' : 'invalid',
+)
 
 const password = ref('')
 const confirmPassword = ref('')
 const isLoading = ref(false)
 const alert = ref<{ kind: 'error'; message: string } | null>(null)
 
-const passwordRequirements = computed(() =>
-  buildPasswordRequirements(
-    serverSettings.value.password_type,
-    serverSettings.value.password_length_regular_users,
-  ),
+// The account tier is unknown before submitting; see the 422 handling below.
+const { hint: passwordHint, isValid: isValidPassword, policyError } = usePasswordPolicy('regular')
+const { matches: passwordsMatch, error: confirmError } = usePasswordConfirmation(
+  password,
+  confirmPassword,
 )
 
 const isPasswordValid = computed(
-  () => password.value.length === 0 || isValidPassword(password.value, passwordRequirements.value),
-)
-const passwordsMatch = computed(
-  () => confirmPassword.value.length === 0 || password.value === confirmPassword.value,
+  () => password.value.length === 0 || isValidPassword(password.value),
 )
 
 const canSubmit = computed(
-  () =>
-    token.value.length > 0 &&
-    isValidPassword(password.value, passwordRequirements.value) &&
-    password.value === confirmPassword.value,
+  () => token.value.length > 0 && isValidPassword(password.value) && passwordsMatch.value,
 )
 
 /**
@@ -62,7 +70,8 @@ async function submitForm(): Promise<void> {
   alert.value = null
 
   try {
-    await confirmPasswordReset({ token: token.value, new_password: password.value })
+    await confirmPasswordReset({ token: token.value, password: password.value })
+    resetCredential.clear()
     await router.replace({ name: 'login', query: { passwordResetSuccess: 'true' } })
   } catch (error) {
     // The client only knows the regular-user length policy (the token's
@@ -72,12 +81,13 @@ async function submitForm(): Promise<void> {
     // from an invalid/expired token (400) so this doesn't show as the wrong
     // error.
     let message = t('resetPassword.errorGeneral')
-    if (error instanceof HttpError) {
-      if (error.status === 400) {
-        message = t('resetPassword.errorInvalidToken')
-      } else if (error.status === 422) {
-        message = t('resetPassword.errorWeakPassword')
-      }
+    if (isProblem(error, 'invalid-input')) {
+      resetCredential.clear()
+      message = t('resetPassword.errorInvalidToken')
+    } else {
+      message =
+        policyError(error) ??
+        (isProblem(error, 'validation-failed') ? t('resetPassword.errorWeakPassword') : message)
     }
     alert.value = { kind: 'error', message }
   } finally {
@@ -85,16 +95,40 @@ async function submitForm(): Promise<void> {
   }
 }
 
+/**
+ * Asks the backend whether the emailed token is still usable. Only a refusal
+ * (400) invalidates the link; other failures keep the form, since the submit
+ * answers authoritatively.
+ */
+async function checkLink(): Promise<void> {
+  try {
+    await validatePasswordResetToken(token.value)
+    linkStatus.value = 'valid'
+  } catch (error) {
+    if (isProblem(error, 'invalid-input')) {
+      resetCredential.clear()
+      linkStatus.value = 'invalid'
+      return
+    }
+    linkStatus.value = 'valid'
+  }
+}
+
 onMounted(() => {
   void load()
+  if (linkStatus.value === 'checking') {
+    void checkLink()
+  }
 })
 </script>
 
 <template>
   <section class="mx-auto w-full max-w-md">
     <div class="rounded-card border border-border bg-card p-6 sm:p-8">
+      <LoadingState v-if="linkStatus === 'checking'" :label="t('resetPassword.checkingLink')" />
+
       <ErrorState
-        v-if="token.length === 0"
+        v-else-if="linkStatus === 'invalid'"
         :title="t('resetPassword.invalidLinkTitle')"
         :description="t('resetPassword.invalidLinkBody')"
       >
@@ -127,11 +161,12 @@ onMounted(() => {
             autocomplete="new-password"
             :aria-invalid="!isPasswordValid"
           />
+          <PasswordStrengthMeter :password="password" />
           <p class="text-hint">
-            {{ t('resetPassword.passwordHelp', { min: passwordRequirements.minLength }) }}
+            {{ passwordHint }}
           </p>
           <p v-if="!isPasswordValid" class="text-field-error">
-            {{ t('resetPassword.weakPassword') }}
+            {{ t('app.password.invalid') }}
           </p>
         </div>
 
@@ -142,10 +177,10 @@ onMounted(() => {
             v-model="confirmPassword"
             name="confirm-password"
             autocomplete="new-password"
-            :aria-invalid="!passwordsMatch"
+            :aria-invalid="confirmError !== undefined"
           />
-          <p v-if="!passwordsMatch" class="text-field-error">
-            {{ t('resetPassword.mismatch') }}
+          <p v-if="confirmError" class="text-field-error">
+            {{ confirmError }}
           </p>
         </div>
 

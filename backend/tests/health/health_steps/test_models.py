@@ -1,3 +1,4 @@
+import uuid
 from datetime import date as datetime_date
 
 import modules.health.health_steps.models as health_steps_models
@@ -35,7 +36,7 @@ class TestHealthStepsModel:
 
         # Assert
         assert id_column.primary_key is True
-        assert id_column.autoincrement is True
+        assert id_column.type.python_type is uuid.UUID
 
     def test_health_steps_model_foreign_key(self):
         """
@@ -53,7 +54,7 @@ class TestHealthStepsModel:
         Test HealthSteps model nullable fields.
         """
         # Assert
-        assert health_steps_models.HealthSteps.source.nullable is True
+        assert health_steps_models.HealthSteps.source.nullable is False
 
     def test_health_steps_model_required_fields(self):
         """
@@ -69,18 +70,11 @@ class TestHealthStepsModel:
         Test HealthSteps model column types.
         """
         # Assert
-        assert health_steps_models.HealthSteps.id.type.python_type is int
-        assert health_steps_models.HealthSteps.user_id.type.python_type is int
+        assert health_steps_models.HealthSteps.id.type.python_type is uuid.UUID
+        assert health_steps_models.HealthSteps.user_id.type.python_type is uuid.UUID
         assert health_steps_models.HealthSteps.date.type.python_type is datetime_date
         assert health_steps_models.HealthSteps.steps.type.python_type is int
         assert health_steps_models.HealthSteps.source.type.python_type is str
-
-    def test_health_steps_model_relationship(self):
-        """
-        Test HealthSteps model has relationship to User.
-        """
-        # Assert
-        assert hasattr(health_steps_models.HealthSteps, "users")
 
     def test_health_steps_model_source_max_length(self):
         """

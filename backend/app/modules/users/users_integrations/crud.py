@@ -1,41 +1,27 @@
 """CRUD operations for user integrations."""
 
+import uuid
 from datetime import UTC, datetime
+from typing import Any
 
-from fastapi import HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 import core.cryptography as core_cryptography
-import core.decorators as core_decorators
+import core.etag as core_etag
+import core.exceptions as core_exceptions
+import core.key_rotation as core_key_rotation
+import modules.users.users_integrations.contracts as user_integrations_contracts
 import modules.users.users_integrations.models as user_integrations_models
 import modules.users.users_integrations.schema as user_integrations_schema
-
-# Private internal helpers
-
-
-def _transform_users_integrations(
-    users: user_integrations_models.UsersIntegrations,
-) -> user_integrations_schema.UsersIntegrationsRead:
-    """
-    Transform a user integrations instance to a Pydantic schema.
-
-    Args:
-        users: The user integrations ORM instance.
-
-    Returns:
-        The user integrations as a schema.
-    """
-    return user_integrations_schema.UsersIntegrationsRead.model_validate(users)
+import modules.users.users_integrations.serializers as user_integrations_serializers
 
 
-@core_decorators.handle_db_errors
 def _get_user_integrations_model_by_user_id_or_404(
-    user_id: int, db: Session
+    user_id: uuid.UUID, db: Session
 ) -> user_integrations_models.UsersIntegrations:
-    """
-    Retrieve integrations for a specific user.
+    """Retrieve integrations for a specific user.
 
     Args:
         user_id: The ID of the user to fetch integrations for.
@@ -45,8 +31,7 @@ def _get_user_integrations_model_by_user_id_or_404(
         The UsersIntegrations ORM model for the user.
 
     Raises:
-        HTTPException: 404 error if integrations not found.
-        HTTPException: 500 error if database query fails.
+        NotFoundError: If the user has no integrations.
     """
     # Get the user integrations by the user id
     stmt = select(user_integrations_models.UsersIntegrations).where(
@@ -55,48 +40,36 @@ def _get_user_integrations_model_by_user_id_or_404(
     db_user_integrations = db.execute(stmt).scalar_one_or_none()
 
     if not db_user_integrations:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="User integrations not found",
-        )
+        raise core_exceptions.NotFoundError("User integrations not found")
 
     return db_user_integrations
 
 
-# Public CRUD functions
-
-
-@core_decorators.handle_db_errors
 def get_user_integrations_by_user_id(
-    user_id: int, db: Session
-) -> user_integrations_schema.UsersIntegrationsRead | None:
-    """
-    Retrieve integrations for a specific user.
+    user_id: uuid.UUID, db: Session
+) -> user_integrations_schema.UserIntegrationsRead | None:
+    """Retrieve integrations for a specific user.
 
     Args:
         user_id: The ID of the user to fetch integrations for.
         db: SQLAlchemy database session.
 
     Returns:
-        The UsersIntegrationsRead schema for the user.
-
-    Raises:
-        HTTPException: 404 error if integrations not found.
-        HTTPException: 500 error if database query fails.
+        The UserIntegrationsRead schema for the user, or None if the user has none.
     """
     # Get the user integrations by the user id
     stmt = select(user_integrations_models.UsersIntegrations).where(
         user_integrations_models.UsersIntegrations.user_id == user_id
     )
     user_integrations = db.execute(stmt).scalar_one_or_none()
-    return _transform_users_integrations(user_integrations) if user_integrations else None
+    return user_integrations_serializers.to_read_schema(user_integrations) if user_integrations else None
 
 
-def list_user_ids_with_strava_linked(after_id: int, limit: int, db: Session) -> list[int]:
+def list_user_ids_with_strava_linked(after_id: uuid.UUID | None, limit: int, db: Session) -> list[uuid.UUID]:
     """List the users who have linked Strava, ascending, a page at a time.
 
     Args:
-        after_id: Return only users with an id greater than this.
+        after_id: Return only users with an id greater than this; None starts from the first user.
         limit: Maximum number of user ids to return.
         db: SQLAlchemy database session.
 
@@ -105,17 +78,16 @@ def list_user_ids_with_strava_linked(after_id: int, limit: int, db: Session) -> 
     """
     stmt = (
         select(user_integrations_models.UsersIntegrations.user_id)
-        .where(
-            user_integrations_models.UsersIntegrations.user_id > after_id,
-            user_integrations_models.UsersIntegrations.strava_token.is_not(None),
-        )
+        .where(user_integrations_models.UsersIntegrations.strava_token.is_not(None))
         .order_by(user_integrations_models.UsersIntegrations.user_id)
         .limit(limit)
     )
+    if after_id is not None:
+        stmt = stmt.where(user_integrations_models.UsersIntegrations.user_id > after_id)
     return list(db.scalars(stmt).all())
 
 
-def list_user_ids_with_garminconnect_linked(after_id: int, limit: int, db: Session) -> list[int]:
+def list_user_ids_with_garminconnect_linked(after_id: uuid.UUID | None, limit: int, db: Session) -> list[uuid.UUID]:
     """List the users who have linked Garmin Connect, ascending, a page at a time.
 
     The token is a JSON column, and unlinking assigns ``None``, which is stored as
@@ -124,14 +96,14 @@ def list_user_ids_with_garminconnect_linked(after_id: int, limit: int, db: Sessi
     decoded value until a page is full.
 
     Args:
-        after_id: Return only users with an id greater than this.
+        after_id: Return only users with an id greater than this; None starts from the first user.
         limit: Maximum number of user ids to return.
         db: SQLAlchemy database session.
 
     Returns:
         User ids with a stored Garmin Connect token, ascending.
     """
-    linked: list[int] = []
+    linked: list[uuid.UUID] = []
     cursor = after_id
     while len(linked) < limit:
         stmt = (
@@ -139,10 +111,11 @@ def list_user_ids_with_garminconnect_linked(after_id: int, limit: int, db: Sessi
                 user_integrations_models.UsersIntegrations.user_id,
                 user_integrations_models.UsersIntegrations.garminconnect_token,
             )
-            .where(user_integrations_models.UsersIntegrations.user_id > cursor)
             .order_by(user_integrations_models.UsersIntegrations.user_id)
             .limit(limit)
         )
+        if cursor is not None:
+            stmt = stmt.where(user_integrations_models.UsersIntegrations.user_id > cursor)
         rows = db.execute(stmt).all()
         if not rows:
             break
@@ -151,46 +124,18 @@ def list_user_ids_with_garminconnect_linked(after_id: int, limit: int, db: Sessi
     return linked[:limit]
 
 
-@core_decorators.handle_db_errors
-def get_user_integrations_by_strava_state(
-    strava_state: str, db: Session
-) -> user_integrations_schema.UsersIntegrationsRead | None:
-    """
-    Retrieve integrations by Strava OAuth state token.
-
-    Args:
-        strava_state: The Strava OAuth state to search for.
-        db: SQLAlchemy database session.
-
-    Returns:
-        The UsersIntegrationsRead schema if found, None otherwise.
-
-    Raises:
-        HTTPException: 500 error if database query fails.
-    """
-    # Get user integrations based on the strava state
-    stmt = select(user_integrations_models.UsersIntegrations).where(
-        user_integrations_models.UsersIntegrations.strava_state == strava_state
-    )
-    user_integrations = db.execute(stmt).scalar_one_or_none()
-    return _transform_users_integrations(user_integrations) if user_integrations else None
-
-
-@core_decorators.handle_db_errors
-def create_user_integrations(user_id: int, db: Session) -> user_integrations_schema.UsersIntegrationsRead:
-    """
-    Create integration settings for a user.
+def create_user_integrations(user_id: uuid.UUID, db: Session) -> user_integrations_schema.UserIntegrationsRead:
+    """Create integration settings for a user (flushed, not committed).
 
     Args:
         user_id: The ID of the user to create integrations for.
         db: SQLAlchemy database session.
 
     Returns:
-        The created UsersIntegrationsRead schema.
+        The created UserIntegrationsRead schema.
 
     Raises:
-        HTTPException: 409 error if integrations already exist.
-        HTTPException: 500 error if database operation fails.
+        ConflictError: If integrations already exist.
     """
     try:
         # Create a new user integrations with model defaults
@@ -200,42 +145,26 @@ def create_user_integrations(user_id: int, db: Session) -> user_integrations_sch
 
         # Add the user integrations to the database
         db.add(user_integrations)
-        db.commit()
+        db.flush()
         db.refresh(user_integrations)
 
         # Return the user integrations
-        return _transform_users_integrations(user_integrations)
-    except IntegrityError as integrity_error:
-        # Rollback the transaction
-        db.rollback()
-
-        # Raise an HTTPException with a 409 Conflict status code
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail="Integrations already exist for this user",
-        ) from integrity_error
+        return user_integrations_serializers.to_read_schema(user_integrations)
+    except IntegrityError as err:
+        raise core_exceptions.ConflictError("Integrations already exist for this user") from err
 
 
-@core_decorators.handle_db_errors
 def link_strava_account(
-    user_id: int,
-    tokens: dict,
+    user_id: uuid.UUID,
+    tokens: user_integrations_contracts.StravaTokens,
     db: Session,
 ) -> None:
-    """
-    Link a Strava account by storing OAuth tokens.
+    """Link a Strava account by storing OAuth tokens (flushed, not committed).
 
     Args:
         user_id: The ID of the user to update.
-        tokens: Dictionary containing access_token,
-            refresh_token, and expires_at.
+        tokens: The tokens Strava returned.
         db: SQLAlchemy database session.
-
-    Returns:
-        None
-
-    Raises:
-        HTTPException: 500 error if database operation fails.
     """
     # Get the user integrations by the user id
     db_user_integrations = _get_user_integrations_model_by_user_id_or_404(user_id, db)
@@ -244,122 +173,220 @@ def link_strava_account(
     db_user_integrations.strava_token = core_cryptography.encrypt_token_fernet(tokens["access_token"])
     db_user_integrations.strava_refresh_token = core_cryptography.encrypt_token_fernet(tokens["refresh_token"])
     db_user_integrations.strava_token_expires_at = datetime.fromtimestamp(tokens["expires_at"], tz=UTC)
+    db_user_integrations.strava_revoked_at = None
 
-    # Set the strava state to None
-    db_user_integrations.strava_state = None
-
-    # Commit the changes to the database
-    db.commit()
+    db.flush()
     db.refresh(db_user_integrations)
 
 
-@core_decorators.handle_db_errors
-def unlink_strava_account(user_id: int, db: Session) -> None:
+#: The encrypted values inside ``garminconnect_token``; the Garmin module writes them and owns the other keys.
+_GARMIN_TOKEN_SECRET_KEYS = ("di_token", "di_refresh_token")
+
+
+def _same_garmin_token(stored: dict[str, Any] | None, expected: dict[str, Any]) -> bool:
+    """Report whether a stored Garmin token is the one the caller read, comparing its secrets by what they decrypt to.
+
+    Args:
+        stored: The token on the row, or None when none is linked.
+        expected: The token the caller read.
+
+    Returns:
+        True when every value matches, a secret matching when it decrypts to the same value.
     """
-    Unlink a Strava account by clearing OAuth tokens.
+    if not stored or stored.keys() != expected.keys():
+        return False
+    return all(
+        core_cryptography.same_secret(value, expected[key])
+        if key in _GARMIN_TOKEN_SECRET_KEYS
+        else value == expected[key]
+        for key, value in stored.items()
+    )
+
+
+def replace_strava_tokens_if_refresh_token(
+    user_id: uuid.UUID, old_refresh_token: str, tokens: user_integrations_contracts.StravaTokens, db: Session
+) -> bool:
+    """Store refreshed Strava tokens only while the stored refresh token is still the one they came from.
+
+    Strava rotates the refresh token on every refresh. The row is locked while the token is
+    compared (by what it decrypts to, so a re-encryption under a new key is not a change), so a refresh that raced another, or a relink made in the meantime, is never
+    overwritten. The caller commits.
+
+    Args:
+        user_id: The ID of the user.
+        old_refresh_token: The stored (encrypted) refresh token the new tokens were refreshed from.
+        tokens: The tokens Strava returned.
+        db: SQLAlchemy database session.
+
+    Returns:
+        True when the tokens were replaced, False when the stored refresh token has changed or is cleared.
+    """
+    stmt = (
+        select(user_integrations_models.UsersIntegrations)
+        .where(user_integrations_models.UsersIntegrations.user_id == user_id)
+        .with_for_update()
+    )
+    db_user_integrations = db.execute(stmt).scalar_one_or_none()
+
+    if db_user_integrations is None or not core_cryptography.same_secret(
+        db_user_integrations.strava_refresh_token, old_refresh_token
+    ):
+        return False
+
+    db_user_integrations.strava_token = core_cryptography.encrypt_token_fernet(tokens["access_token"])
+    db_user_integrations.strava_refresh_token = core_cryptography.encrypt_token_fernet(tokens["refresh_token"])
+    db_user_integrations.strava_token_expires_at = datetime.fromtimestamp(tokens["expires_at"], tz=UTC)
+    return True
+
+
+def unlink_strava_account(user_id: uuid.UUID, db: Session) -> None:
+    """Unlink a Strava account by clearing OAuth tokens (flushed, not committed).
 
     Args:
         user_id: The ID of the user to unlink.
         db: SQLAlchemy database session.
 
-    Returns:
-        None
-
     Raises:
-        HTTPException: 404 error if integrations not found.
-        HTTPException: 500 error if database operation fails.
+        NotFoundError: If the user has no integrations.
     """
     # Get the user integrations by the user id
     db_user_integrations = _get_user_integrations_model_by_user_id_or_404(user_id, db)
 
     # Clear all Strava integration data
-    db_user_integrations.strava_state = None
     db_user_integrations.strava_token = None
     db_user_integrations.strava_refresh_token = None
     db_user_integrations.strava_token_expires_at = None
     db_user_integrations.strava_sync_gear = False
     db_user_integrations.strava_client_id = None
     db_user_integrations.strava_client_secret = None
+    db_user_integrations.strava_revoked_at = None
 
-    # Commit the changes to the database
-    db.commit()
+    db.flush()
     db.refresh(db_user_integrations)
 
 
-@core_decorators.handle_db_errors
-def set_user_strava_client(user_id: int, client_id: str, client_secret: str, db: Session) -> None:
+def unlink_strava_tokens_if_refresh_token(
+    user_id: uuid.UUID, refresh_token: str, db: Session, *, revoked_at: datetime | None = None
+) -> bool:
+    """Clear a user's Strava tokens only while they still hold the given refresh token.
+
+    The client id and secret are kept, so the user relinks without entering them again. When
+    ``revoked_at`` is given it is stored in the same update, marking the tokens as revoked on Strava. The
+    row is locked while the token is compared (by what it decrypts to, so a re-encryption under a new key is not a change), so a link or refresh made in the meantime is
+    never cleared by a caller that holds the previous token. The caller commits.
+
+    Args:
+        user_id: The ID of the user to unlink.
+        refresh_token: The stored (encrypted) refresh token the caller found to be rejected.
+        db: SQLAlchemy database session.
+        revoked_at: When Strava refused the refresh token, or ``None`` when the token was only rejected.
+
+    Returns:
+        True when the tokens were cleared, False when the stored refresh token has changed or
+        is already cleared.
     """
-    Set Strava client credentials for a user.
+    stmt = (
+        select(user_integrations_models.UsersIntegrations)
+        .where(user_integrations_models.UsersIntegrations.user_id == user_id)
+        .with_for_update()
+    )
+    db_user_integrations = db.execute(stmt).scalar_one_or_none()
+
+    if db_user_integrations is None or not core_cryptography.same_secret(
+        db_user_integrations.strava_refresh_token, refresh_token
+    ):
+        return False
+
+    db_user_integrations.strava_token = None
+    db_user_integrations.strava_refresh_token = None
+    db_user_integrations.strava_token_expires_at = None
+    db_user_integrations.strava_sync_gear = False
+    if revoked_at is not None:
+        db_user_integrations.strava_revoked_at = revoked_at
+    return True
+
+
+def list_user_ids_with_strava_revoked_before(
+    cutoff: datetime, after_id: uuid.UUID | None, limit: int, db: Session
+) -> list[uuid.UUID]:
+    """List the users whose Strava access was revoked before a moment and who have not relinked.
+
+    Args:
+        cutoff: Return only users revoked before this moment.
+        after_id: Return only users with an id greater than this; None starts from the first user.
+        limit: Maximum number of user ids to return.
+        db: SQLAlchemy database session.
+
+    Returns:
+        The user ids, ascending.
+    """
+    stmt = (
+        select(user_integrations_models.UsersIntegrations.user_id)
+        .where(
+            user_integrations_models.UsersIntegrations.strava_revoked_at < cutoff,
+            user_integrations_models.UsersIntegrations.strava_token.is_(None),
+        )
+        .order_by(user_integrations_models.UsersIntegrations.user_id)
+        .limit(limit)
+    )
+    if after_id is not None:
+        stmt = stmt.where(user_integrations_models.UsersIntegrations.user_id > after_id)
+    return list(db.scalars(stmt).all())
+
+
+def clear_strava_revoked_at(user_id: uuid.UUID, db: Session) -> None:
+    """Clear the Strava revocation mark once the user's Strava data was deleted (flushed, not committed).
+
+    Args:
+        user_id: The ID of the user.
+        db: SQLAlchemy database session.
+
+    Raises:
+        NotFoundError: If the user has no integrations.
+    """
+    db_user_integrations = _get_user_integrations_model_by_user_id_or_404(user_id, db)
+    db_user_integrations.strava_revoked_at = None
+    db.flush()
+
+
+def set_user_strava_client(
+    user_id: uuid.UUID, client_id: str, client_secret: str, db: Session, *, if_match: str
+) -> None:
+    """Set Strava client credentials for a user (flushed, not committed).
 
     Args:
         user_id: The ID of the user.
         client_id: Strava client ID to encrypt and store.
         client_secret: Strava client secret to encrypt and store.
         db: SQLAlchemy database session.
-
-    Returns:
-        None
+        if_match: The ``If-Match`` precondition.
 
     Raises:
-        HTTPException: 404 error if integrations not found.
-        HTTPException: 500 error if database operation fails.
+        NotFoundError: If the user has no integrations.
+        PreconditionFailedError: When ``if_match`` does not name the row's version.
     """
     # Get the user integrations by the user id
     db_user_integrations = _get_user_integrations_model_by_user_id_or_404(user_id, db)
+    core_etag.require_if_match(if_match, db_user_integrations.version, "Strava client")
 
     # Encrypt and store Strava client credentials
     db_user_integrations.strava_client_id = core_cryptography.encrypt_token_fernet(client_id)
     db_user_integrations.strava_client_secret = core_cryptography.encrypt_token_fernet(client_secret)
 
-    # Commit the changes to the database
-    db.commit()
+    db.flush()
     db.refresh(db_user_integrations)
 
 
-@core_decorators.handle_db_errors
-def set_user_strava_state(user_id: int, state: str | None, db: Session) -> None:
-    """
-    Set or clear Strava OAuth state for a user.
-
-    Args:
-        user_id: The ID of the user.
-        state: Strava OAuth state to set, or None to clear.
-        db: SQLAlchemy database session.
-
-    Returns:
-        None
-
-    Raises:
-        HTTPException: 404 error if integrations not found.
-        HTTPException: 500 error if database operation fails.
-    """
-    # Get the user integrations by the user id
-    db_user_integrations = _get_user_integrations_model_by_user_id_or_404(user_id, db)
-
-    # Set the user Strava state
-    db_user_integrations.strava_state = None if state in ("null", None) else state
-
-    # Commit the changes to the database
-    db.commit()
-    db.refresh(db_user_integrations)
-
-
-@core_decorators.handle_db_errors
-def set_user_strava_sync_gear(user_id: int, strava_sync_gear: bool, db: Session) -> None:
-    """
-    Set Strava gear synchronization preference for a user.
+def set_user_strava_sync_gear(user_id: uuid.UUID, strava_sync_gear: bool, db: Session) -> None:
+    """Set Strava gear synchronization preference for a user (flushed, not committed).
 
     Args:
         user_id: The ID of the user.
         strava_sync_gear: Whether to sync gear from Strava.
         db: SQLAlchemy database session.
 
-    Returns:
-        None
-
     Raises:
-        HTTPException: 404 error if integrations not found.
-        HTTPException: 500 error if database operation fails.
+        NotFoundError: If the user has no integrations.
     """
     # Get the user integrations by the user id
     db_user_integrations = _get_user_integrations_model_by_user_id_or_404(user_id, db)
@@ -367,31 +394,26 @@ def set_user_strava_sync_gear(user_id: int, strava_sync_gear: bool, db: Session)
     # Set the Strava gear sync preference
     db_user_integrations.strava_sync_gear = strava_sync_gear
 
-    # Commit the changes to the database
-    db.commit()
+    db.flush()
     db.refresh(db_user_integrations)
 
 
-@core_decorators.handle_db_errors
 def link_garminconnect_account(
-    user_id: int,
-    token: dict,
+    user_id: uuid.UUID,
+    token: dict[str, Any],
     db: Session,
 ) -> None:
-    """
-    Link a Garmin Connect account by storing token.
+    """Link a Garmin Connect account by storing token.
+
+    The caller commits.
 
     Args:
         user_id: The ID of the user.
         token: Garmin Connect token data.
         db: SQLAlchemy database session.
 
-    Returns:
-        None
-
     Raises:
-        HTTPException: 404 error if integrations not found.
-        HTTPException: 500 error if database operation fails.
+        NotFoundError: If the user has no integrations.
     """
     # Get the user integrations by the user id
     db_user_integrations = _get_user_integrations_model_by_user_id_or_404(user_id, db)
@@ -399,15 +421,9 @@ def link_garminconnect_account(
     # Store Garmin Connect token
     db_user_integrations.garminconnect_token = token
 
-    # Commit the changes to the database
-    db.commit()
-    db.refresh(db_user_integrations)
 
-
-@core_decorators.handle_db_errors
-def set_user_garminconnect_sync_gear(user_id: int, garminconnect_sync_gear: bool, db: Session) -> None:
-    """
-    Set Garmin Connect gear synchronization preference.
+def set_user_garminconnect_sync_gear(user_id: uuid.UUID, garminconnect_sync_gear: bool, db: Session) -> None:
+    """Set Garmin Connect gear synchronization preference (flushed, not committed).
 
     Args:
         user_id: The ID of the user.
@@ -415,12 +431,8 @@ def set_user_garminconnect_sync_gear(user_id: int, garminconnect_sync_gear: bool
             Garmin Connect.
         db: SQLAlchemy database session.
 
-    Returns:
-        None
-
     Raises:
-        HTTPException: 404 error if integrations not found.
-        HTTPException: 500 error if database operation fails.
+        NotFoundError: If the user has no integrations.
     """
     # Get the user integrations by the user id
     db_user_integrations = _get_user_integrations_model_by_user_id_or_404(user_id, db)
@@ -428,26 +440,21 @@ def set_user_garminconnect_sync_gear(user_id: int, garminconnect_sync_gear: bool
     # Set the Garmin Connect gear sync preference
     db_user_integrations.garminconnect_sync_gear = garminconnect_sync_gear
 
-    # Commit the changes to the database
-    db.commit()
+    db.flush()
     db.refresh(db_user_integrations)
 
 
-@core_decorators.handle_db_errors
-def unlink_garminconnect_account(user_id: int, db: Session) -> None:
-    """
-    Unlink a Garmin Connect account by clearing OAuth tokens.
+def unlink_garminconnect_account(user_id: uuid.UUID, db: Session) -> None:
+    """Unlink a Garmin Connect account by clearing OAuth tokens.
+
+    The caller commits.
 
     Args:
         user_id: The ID of the user to unlink.
         db: SQLAlchemy database session.
 
-    Returns:
-        None
-
     Raises:
-        HTTPException: 404 error if integrations not found.
-        HTTPException: 500 error if database operation fails.
+        NotFoundError: If the user has no integrations.
     """
     # Get the user integrations by the user id
     db_user_integrations = _get_user_integrations_model_by_user_id_or_404(user_id, db)
@@ -456,19 +463,74 @@ def unlink_garminconnect_account(user_id: int, db: Session) -> None:
     db_user_integrations.garminconnect_token = None
     db_user_integrations.garminconnect_sync_gear = False
 
-    # Commit the changes to the database
-    db.commit()
-    db.refresh(db_user_integrations)
 
+def unlink_garminconnect_account_if_token(user_id: uuid.UUID, token: dict[str, Any], db: Session) -> bool:
+    """Unlink a Garmin Connect account only while it still holds the given token.
 
-@core_decorators.handle_db_errors
-def edit_user_integrations(
-    user_integrations: user_integrations_schema.UsersIntegrationsUpdate,
-    user_id: int,
-    db: Session,
-) -> user_integrations_schema.UsersIntegrationsRead:
+    The row is locked while the token is compared, so a link made in the meantime is
+    never cleared by a caller that holds the previous token. The caller commits.
+
+    Args:
+        user_id: The ID of the user to unlink.
+        token: The stored token the caller found to be rejected.
+        db: SQLAlchemy database session.
+
+    Returns:
+        True when the account was unlinked, False when the stored token has changed or
+        is already cleared.
     """
-    Update user integration settings.
+    stmt = (
+        select(user_integrations_models.UsersIntegrations)
+        .where(user_integrations_models.UsersIntegrations.user_id == user_id)
+        .with_for_update()
+    )
+    db_user_integrations = db.execute(stmt).scalar_one_or_none()
+
+    if db_user_integrations is None or not _same_garmin_token(db_user_integrations.garminconnect_token, token):
+        return False
+
+    db_user_integrations.garminconnect_token = None
+    db_user_integrations.garminconnect_sync_gear = False
+    return True
+
+
+def replace_garminconnect_token_if_token(
+    user_id: uuid.UUID, old_token: dict[str, Any], new_token: dict[str, Any], db: Session
+) -> bool:
+    """Replace a Garmin Connect token only while it is still the given one.
+
+    The row is locked while the token is compared, so a token refreshed by a finished sync never
+    overwrites one linked in the meantime. The caller commits.
+
+    Args:
+        user_id: The ID of the user.
+        old_token: The stored token the new one was refreshed from.
+        new_token: The refreshed token to store.
+        db: SQLAlchemy database session.
+
+    Returns:
+        True when the token was replaced, False when the stored token has changed or is cleared.
+    """
+    stmt = (
+        select(user_integrations_models.UsersIntegrations)
+        .where(user_integrations_models.UsersIntegrations.user_id == user_id)
+        .with_for_update()
+    )
+    db_user_integrations = db.execute(stmt).scalar_one_or_none()
+
+    if db_user_integrations is None or not _same_garmin_token(db_user_integrations.garminconnect_token, old_token):
+        return False
+
+    db_user_integrations.garminconnect_token = new_token
+    return True
+
+
+def edit_user_integrations(
+    user_integrations: user_integrations_schema.UserIntegrationsUpdate,
+    user_id: uuid.UUID,
+    db: Session,
+) -> user_integrations_schema.UserIntegrationsRead:
+    """Update user integration settings (flushed, not committed).
 
     Args:
         user_integrations: Schema with fields to update.
@@ -479,8 +541,7 @@ def edit_user_integrations(
         The updated UsersIntegrations model.
 
     Raises:
-        HTTPException: 404 error if integrations not found.
-        HTTPException: 500 error if database operation fails.
+        NotFoundError: If the user has no integrations.
     """
     # Get the user integrations from the database
     db_user_integrations = _get_user_integrations_model_by_user_id_or_404(user_id, db)
@@ -491,7 +552,71 @@ def edit_user_integrations(
     for key, value in user_integrations_data.items():
         setattr(db_user_integrations, key, value)
 
-    # Commit the transaction
-    db.commit()
+    db.flush()
     db.refresh(db_user_integrations)
-    return _transform_users_integrations(db_user_integrations)
+    return user_integrations_serializers.to_read_schema(db_user_integrations)
+
+
+def stage_reencrypt_batch_strava(
+    after_id: uuid.UUID | None, limit: int, db: Session
+) -> core_key_rotation.BatchResult[uuid.UUID]:
+    """Stage the re-encryption of up to ``limit`` strava rows after ``after_id`` (flushed, not committed)."""
+    model = user_integrations_models.UsersIntegrations
+    return core_key_rotation.stage_reencrypt_batch(
+        model,
+        model.id,
+        (
+            model.strava_client_id,
+            model.strava_client_secret,
+            model.strava_token,
+            model.strava_refresh_token,
+        ),
+        after_id,
+        limit,
+        db,
+    )
+
+
+def stage_reencrypt_batch_garmin(
+    after_id: uuid.UUID | None, limit: int, db: Session
+) -> core_key_rotation.BatchResult[uuid.UUID]:
+    """Stage the re-encryption of the secrets in up to ``limit`` Garmin tokens after ``after_id``.
+
+    The rows are locked while they are read, so a concurrent token write waits for the batch and is never
+    overwritten. A secret no configured key decrypts is left as it is.
+
+    Args:
+        after_id: Keyset cursor; only rows with a greater id are read, and None reads from the first row.
+        limit: Maximum number of rows to read.
+        db: SQLAlchemy database session.
+
+    Returns:
+        The last id read and the secrets rewritten or left undecryptable.
+    """
+    model = user_integrations_models.UsersIntegrations
+    query = select(model)
+    if after_id is not None:
+        query = query.where(model.id > after_id)
+    rows = db.execute(query.order_by(model.id).limit(limit).with_for_update())
+    rotated = undecryptable = 0
+    last_id = None
+    for row in rows.scalars():
+        last_id = row.id
+        if not row.garminconnect_token:
+            continue
+        token = dict(row.garminconnect_token)
+        for key in _GARMIN_TOKEN_SECRET_KEYS:
+            if not token.get(key):
+                continue
+            try:
+                new = core_cryptography.reencrypt_to_primary_key(token[key])
+            except core_exceptions.UndecryptableError:
+                undecryptable += 1
+                continue
+            if new is not None:
+                token[key] = new
+                rotated += 1
+        if token != row.garminconnect_token:
+            row.garminconnect_token = token
+    db.flush()
+    return core_key_rotation.BatchResult(last_id, core_key_rotation.RotationCounts(rotated, undecryptable))

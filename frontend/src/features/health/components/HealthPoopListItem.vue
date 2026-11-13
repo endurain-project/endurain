@@ -4,6 +4,7 @@ import { useI18n } from 'vue-i18n'
 import { Pencil, Trash2 } from '@lucide/vue'
 
 import type { PoopColor, PoopEntry } from '@/features/health/types'
+import { bristolNumber } from '@/features/health/utils/bristol'
 
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -42,7 +43,7 @@ const hasDetails = computed(() => props.entry.bristolType !== null || props.entr
       <div class="flex min-w-0 flex-col gap-1">
         <div class="flex flex-wrap items-center gap-1.5">
           <Badge v-if="entry.bristolType !== null" variant="secondary">
-            {{ t('health.poop.list.bristolBadge', { type: entry.bristolType }) }}
+            {{ t('health.poop.list.bristolBadge', { type: bristolNumber(entry.bristolType) }) }}
           </Badge>
           <Badge v-if="entry.color" variant="outline" class="gap-1">
             <span

@@ -1,53 +1,12 @@
+"""The health domain: everything about a user's body and daily habits.
+
+A composition namespace of independent packages rather than one flat module, because
+health is several aggregates: ``health_sleep``, ``health_weight``, ``health_steps``,
+``health_fasting``, ``health_water``, ``health_poop`` and ``health_targets``, plus the
+read-only ``health_dashboard`` that consolidates today's values.
+
+The namespace publishes only ``constants`` (the shared ``Interval`` enum),
+``computation`` (pure date and SQL helpers) and ``schema`` (the shared list-response
+base). The structure and import rules are in ``docs/developer-guide/module-structure.md``.
+Importing this package pulls in nothing; reach for the sub-package you need.
 """
-Health module aggregating all health-related sub-modules.
-
-This module provides a unified interface for health tracking,
-including sleep, weight, steps, fasting, water intake, bowel
-movements, and health targets.
-
-Sub-modules:
-    - health_sleep: Sleep tracking and scoring
-    - health_weight: Weight and body composition tracking
-    - health_steps: Daily step count tracking
-    - health_fasting: Fasting session tracking
-    - health_water: Daily water intake tracking
-    - health_poop: Bowel movement tracking
-    - health_targets: User health goal targets
-
-Top-level exports:
-    - Constants: Interval
-    - Utils: get_start_date_for_interval
-    - Schemas: HealthListResponse, HealthDashboardResponse,
-      HealthSleepDashboard, HealthWeightDashboard,
-      HealthStepsDashboard, HealthFastingDashboard,
-      HealthWaterDashboard, HealthPoopDashboard
-"""
-
-from .constants import Interval
-from .schema import (
-    HealthDashboardResponse,
-    HealthFastingDashboard,
-    HealthListResponse,
-    HealthPoopDashboard,
-    HealthSleepDashboard,
-    HealthStepsDashboard,
-    HealthWaterDashboard,
-    HealthWeightDashboard,
-)
-from .utils import get_start_date_for_interval
-
-__all__ = [
-    "HealthDashboardResponse",
-    "HealthFastingDashboard",
-    # Shared schemas
-    "HealthListResponse",
-    "HealthPoopDashboard",
-    "HealthSleepDashboard",
-    "HealthStepsDashboard",
-    "HealthWaterDashboard",
-    "HealthWeightDashboard",
-    # Constants
-    "Interval",
-    # Utilities
-    "get_start_date_for_interval",
-]

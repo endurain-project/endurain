@@ -8,6 +8,8 @@ import type { FastingEntry, FastingStatus } from '@/features/health/types'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { INTEGRATION_LOGOS } from '@/constants/integrationLogos'
+import { useUnitFormat } from '@/composables/useUnitFormat'
+import { fastingTypeLabel } from '@/features/health/utils/fastingType'
 import { formatHoursMinutes } from '@/features/health/utils/healthFormat'
 import { formatMediumDateTime } from '@/utils/datetime'
 
@@ -18,6 +20,7 @@ const props = defineProps<{
 const emit = defineEmits<{ edit: [entry: FastingEntry]; delete: [entry: FastingEntry] }>()
 
 const { t, locale } = useI18n()
+const { duration } = useUnitFormat()
 
 /** Badge colour per fasting status. */
 const STATUS_VARIANTS: Record<FastingStatus, 'default' | 'info' | 'warning' | 'outline'> = {
@@ -34,7 +37,7 @@ const statusVariant = computed(() =>
 /** Recorded length of the fast, shown in parentheses after the type. */
 const durationLabel = computed(() =>
   props.entry.actualDurationSeconds != null
-    ? formatHoursMinutes(props.entry.actualDurationSeconds)
+    ? formatHoursMinutes(props.entry.actualDurationSeconds, duration)
     : null,
 )
 
@@ -61,7 +64,7 @@ const fromGarmin = computed(() => props.entry.source === 'garmin')
       <div class="flex min-w-0 flex-col gap-1">
         <div class="flex flex-wrap items-center gap-1.5">
           <p class="text-item-title">
-            {{ entry.fastingType ?? '—' }}
+            {{ entry.fastingType ? fastingTypeLabel(t, entry.fastingType) : '—' }}
             <span v-if="durationLabel" class="text-hint">({{ durationLabel }})</span>
           </p>
           <Badge v-if="entry.status" :variant="statusVariant">

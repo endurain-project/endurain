@@ -4,10 +4,9 @@ import type { LinkedProviderDto, StepUpInput } from '@/features/security/types'
 
 import { apiFetch } from '@/services/http'
 import {
-  buildLinkStartUrl,
   fetchLinkedProviders,
-  generateLinkToken,
   mapLinkedProvider,
+  startProviderLink,
   unlinkProvider,
 } from '@/features/security/services/linkedAccounts'
 
@@ -17,24 +16,26 @@ vi.mock('@/services/http', () => ({
 }))
 
 const linkedDto: LinkedProviderDto = {
-  id: 3,
-  user_id: 7,
-  idp_id: 2,
+  id: '00000000-0000-4000-8000-000000000003',
+  user_id: '00000000-0000-4000-8000-000000000007',
+  idp_id: '00000000-0000-4000-8000-000000000002',
   idp_subject: 'sub-abc',
   idp_name: 'Keycloak',
   idp_slug: 'keycloak',
   idp_icon: 'keycloak',
+  idp_icon_uploaded: false,
   idp_provider_type: 'oidc',
   linked_at: '2026-01-01T00:00:00Z',
   last_login: '2026-01-02T00:00:00Z',
 }
 
 const mappedLinked = {
-  id: 3,
-  idpId: 2,
+  id: '00000000-0000-4000-8000-000000000003',
+  idpId: '00000000-0000-4000-8000-000000000002',
   name: 'Keycloak',
   slug: 'keycloak',
   icon: 'keycloak',
+  iconUploaded: false,
   providerType: 'oidc',
   subject: 'sub-abc',
   linkedAt: '2026-01-01T00:00:00Z',
@@ -51,18 +52,20 @@ describe('mapLinkedProvider', () => {
   it('collapses absent enriched fields to null', () => {
     expect(
       mapLinkedProvider({
-        id: 1,
-        user_id: 1,
-        idp_id: 9,
+        id: '00000000-0000-4000-8000-000000000001',
+        user_id: '00000000-0000-4000-8000-000000000001',
+        idp_id: '00000000-0000-4000-8000-000000000009',
+        idp_icon_uploaded: false,
         idp_subject: 'x',
         linked_at: '2026-01-01',
       }),
     ).toEqual({
-      id: 1,
-      idpId: 9,
+      id: '00000000-0000-4000-8000-000000000001',
+      idpId: '00000000-0000-4000-8000-000000000009',
       name: null,
       slug: null,
       icon: null,
+      iconUploaded: false,
       providerType: null,
       subject: 'x',
       linkedAt: '2026-01-01',
@@ -76,56 +79,72 @@ describe('linked-accounts service requests', () => {
     vi.clearAllMocks()
   })
 
-  it('fetchLinkedProviders reads /profile/idp and maps the records', async () => {
-    vi.mocked(apiFetch).mockResolvedValue([linkedDto])
+  it('fetchLinkedProviders reads /profile/identity-providers and maps the records', async () => {
+    vi.mocked(apiFetch).mockResolvedValue({ items: [linkedDto], next: null })
 
     expect(await fetchLinkedProviders()).toEqual([mappedLinked])
     expect(apiFetch).toHaveBeenCalledWith(
-      '/profile/idp',
-      expect.objectContaining({ signal: undefined }),
+      '/profile/identity-providers?num_records=200&page_number=1',
+      {
+        signal: undefined,
+      },
     )
   })
 
-  it('maps a null payload to an empty array', async () => {
-    vi.mocked(apiFetch).mockResolvedValue(null)
-    await expect(fetchLinkedProviders()).resolves.toEqual([])
+  it('startProviderLink POSTs the step-up body and return path and returns the provider URL', async () => {
+    vi.mocked(apiFetch).mockResolvedValue({ authorization_url: 'https://idp.example.com/auth' })
+
+    const url = await startProviderLink('00000000-0000-4000-8000-000000000002', stepUp, true)
+
+    expect(apiFetch).toHaveBeenCalledWith(
+      '/profile/identity-providers/00000000-0000-4000-8000-000000000002/link',
+      {
+        method: 'POST',
+        body: JSON.stringify({
+          redirect: '/settings/security',
+          revoke_other_sessions: true,
+          step_up: { current_password: 'pw', mfa_code: '123456' },
+        }),
+      },
+    )
+    expect(url).toBe('https://idp.example.com/auth')
   })
 
-  it('generateLinkToken POSTs the step-up body and returns the token', async () => {
-    vi.mocked(apiFetch).mockResolvedValue({ token: 'tok-1', expires_at: '2026-01-01T00:01:00Z' })
+  it('startProviderLink honors an explicit return path', async () => {
+    vi.mocked(apiFetch).mockResolvedValue({ authorization_url: 'https://idp.example.com/auth' })
 
-    const token = await generateLinkToken(2, stepUp)
+    await startProviderLink(
+      '00000000-0000-4000-8000-000000000003',
+      stepUp,
+      false,
+      '/settings/security?foo=bar',
+    )
 
-    expect(apiFetch).toHaveBeenCalledWith('/profile/idp/2/link/token', {
-      method: 'POST',
-      body: JSON.stringify({ current_password: 'pw', mfa_code: '123456' }),
-    })
-    expect(token).toBe('tok-1')
+    expect(apiFetch).toHaveBeenCalledWith(
+      '/profile/identity-providers/00000000-0000-4000-8000-000000000003/link',
+      {
+        method: 'POST',
+        body: JSON.stringify({
+          redirect: '/settings/security?foo=bar',
+          revoke_other_sessions: false,
+          step_up: { current_password: 'pw', mfa_code: '123456' },
+        }),
+      },
+    )
   })
 
   it('unlinkProvider POSTs the step-up body to the unlink path', async () => {
     vi.mocked(apiFetch).mockResolvedValue(undefined)
 
-    await unlinkProvider(2, stepUp)
+    await unlinkProvider('00000000-0000-4000-8000-000000000002', stepUp)
 
-    expect(apiFetch).toHaveBeenCalledWith('/profile/idp/2/unlink', {
-      method: 'POST',
-      body: JSON.stringify({ current_password: 'pw', mfa_code: '123456' }),
-      responseType: 'void',
-    })
-  })
-})
-
-describe('buildLinkStartUrl', () => {
-  it('builds the link-start URL with the encoded token and default return path', () => {
-    expect(buildLinkStartUrl(2, 'tok 1')).toBe(
-      '/api/v1/profile/idp/2/link?link_token=tok+1&redirect=%2Fsettings%2Fsecurity',
-    )
-  })
-
-  it('honors an explicit return path', () => {
-    expect(buildLinkStartUrl(3, 'abc', '/settings/security?foo=bar')).toBe(
-      '/api/v1/profile/idp/3/link?link_token=abc&redirect=%2Fsettings%2Fsecurity%3Ffoo%3Dbar',
+    expect(apiFetch).toHaveBeenCalledWith(
+      '/profile/identity-providers/00000000-0000-4000-8000-000000000002/unlink',
+      {
+        method: 'POST',
+        body: JSON.stringify({ step_up: { current_password: 'pw', mfa_code: '123456' } }),
+        responseType: 'void',
+      },
     )
   })
 })

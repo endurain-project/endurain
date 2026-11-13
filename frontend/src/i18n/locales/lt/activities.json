@@ -11,7 +11,7 @@
     "subtitle": "Naršykite, filtruokite ir rūšiuokite visas savo veiklas.",
     "searchPlaceholder": "Ieškoti pagal pavadinimą ar vietą",
     "clearSearch": "Išvalyti paiešką",
-    "resultCount": "{count} veiklų",
+    "resultCount": "{count} veikla | {count} veiklos | {count} veiklų",
     "filters": {
       "type": "Veiklos tipas",
       "allTypes": "Visi tipai",
@@ -184,10 +184,13 @@
   },
   "edit": {
     "title": "Redaguoti veiklą",
+    "loading": "Įkeliama veikla",
+    "loadError": "Nepavyko įkelti veiklos",
     "save": "Išsaugoti pakeitimus",
     "cancel": "Atšaukti",
     "close": "Uždaryti",
     "name": "Pavadinimas",
+    "nameRequired": "Įveskite veiklos pavadinimą",
     "type": "Veiklos tipas",
     "description": "Aprašymas",
     "privateNotes": "Privačios pastabos",
@@ -208,7 +211,7 @@
     "hideGear": "Slėpti įrangą",
     "success": "Veikla atnaujinta",
     "error": "Nepavyko atnaujinti veiklos",
-    "staleError": "This activity was changed elsewhere while you were editing. Your changes were not saved. Reopen it to see the current version."
+    "staleError": "Ši veikla buvo pakeista kitur, kol ją redagavote. Jūsų pakeitimai neišsaugoti. Atidarykite ją iš naujo, kad pamatytumėte dabartinę versiją."
   },
   "alerts": {
     "hidden": "Ši veikla paslėpta. Tik jūs galite ją matyti.",

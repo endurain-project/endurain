@@ -1,22 +1,18 @@
 """SQLAlchemy ORM model for OAuth/SSO flow state persistence."""
 
+import uuid
 from datetime import datetime
-from typing import TYPE_CHECKING
 
-from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, String
-from sqlalchemy.orm import Mapped, mapped_column, relationship
-from sqlalchemy.sql import func
+from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, String, Text
+from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.sql import expression, func
 
+import modules.auth.oauth_state.constants as oauth_state_constants
 from core.database import Base
-
-if TYPE_CHECKING:
-    from modules.auth.identity_providers.models import IdentityProvider
-    from modules.auth.sessions.models import UsersSessions
 
 
 class OAuthState(Base):
-    """
-    Server-side storage for OAuth/SSO flow state.
+    """Server-side storage for OAuth/SSO flow state.
 
     This replaces cookie-based state with database persistence
     for enhanced security and mobile support. Stores PKCE
@@ -25,18 +21,22 @@ class OAuthState(Base):
     Attributes:
         id: Primary key, state parameter itself (random URL-safe token).
         idp_id: Foreign key to identity_provider.
-        user_id: Foreign key to users (for link mode, nullable).
+        user_id: Foreign key to users (the signed-in user of a link or step-up flow, nullable).
         code_challenge: PKCE challenge (base64url-encoded).
         code_challenge_method: PKCE method (always S256).
-        nonce: OIDC nonce for ID token validation.
+        nonce: Fernet-encrypted OIDC nonce for ID token validation.
         redirect_path: Frontend path after login.
         client_type: web or mobile.
         ip_address: Client IP for optional validation.
         created_at: Timestamp for expiry calculation.
         expires_at: Hard expiry at 10 minutes.
         used: Prevents replay attacks.
-        identity_provider: Relationship to IdentityProvider model.
-        users_sessions: Relationship to UsersSessions model.
+        browser_binding_hash: SHA-256 of the secret the browser that started a login, link or step-up holds in a cookie.
+        idp_code_verifier: Fernet-encrypted PKCE verifier this server sends the identity provider at the token exchange.
+        purpose: The flow the state belongs to (``OAuthStatePurpose``).
+        session_id: The session that started a link or step-up flow.
+        ends_other_sessions: Whether a link's callback ends the user's other sessions.
+        action: The sensitive operation a step-up flow authorises.
     """
 
     __tablename__ = "oauth_states"
@@ -48,16 +48,14 @@ class OAuthState(Base):
         comment="State parameter itself (secrets.token_urlsafe(32))",
     )
 
-    idp_id: Mapped[int | None] = mapped_column(
-        Integer,
+    idp_id: Mapped[uuid.UUID | None] = mapped_column(
         ForeignKey("identity_providers.id", ondelete="CASCADE"),
         nullable=True,
         index=True,
         comment="Identity provider ID (may be null if mobile logic)",
     )
 
-    user_id: Mapped[int | None] = mapped_column(
-        Integer,
+    user_id: Mapped[uuid.UUID | None] = mapped_column(
         ForeignKey("users.id", ondelete="CASCADE"),
         nullable=True,
         index=True,
@@ -77,13 +75,13 @@ class OAuthState(Base):
     )
 
     nonce: Mapped[str] = mapped_column(
-        String(64),
+        Text,
         nullable=False,
-        comment="OIDC nonce for ID token validation",
+        comment="Fernet-encrypted OIDC nonce for ID token validation",
     )
 
     redirect_path: Mapped[str | None] = mapped_column(
-        String(500),
+        String(oauth_state_constants.REDIRECT_MAX_LENGTH),
         nullable=True,
         comment="Frontend path after login",
     )
@@ -122,8 +120,45 @@ class OAuthState(Base):
         comment="True when state is consumed (prevents replay)",
     )
 
-    # Relationships
-    identity_provider: Mapped["IdentityProvider | None"] = relationship(
-        "IdentityProvider", back_populates="oauth_states"
+    browser_binding_hash: Mapped[str | None] = mapped_column(
+        String(64),
+        nullable=True,
+        comment="SHA-256 of the browser-binding cookie (link and step-up flows)",
     )
-    users_sessions: Mapped[list["UsersSessions"]] = relationship("UsersSessions", back_populates="oauth_state")
+
+    purpose: Mapped[str] = mapped_column(
+        String(16),
+        nullable=False,
+        comment="Flow the state belongs to: login, link or step_up",
+    )
+
+    session_id: Mapped[uuid.UUID | None] = mapped_column(
+        nullable=True,
+        comment="Session that started a link or step-up flow",
+    )
+
+    ends_other_sessions: Mapped[bool] = mapped_column(
+        Boolean,
+        nullable=False,
+        default=False,
+        server_default=expression.false(),
+        comment="Whether the callback of a link ends the user's other sessions",
+    )
+
+    action: Mapped[str | None] = mapped_column(
+        String(32),
+        nullable=True,
+        comment="Sensitive operation a step-up flow authorises (step-up only)",
+    )
+
+    idp_code_verifier: Mapped[str | None] = mapped_column(
+        Text,
+        nullable=True,
+        comment="Fernet-encrypted PKCE verifier sent to the identity provider at the token exchange",
+    )
+
+    security_generation: Mapped[int | None] = mapped_column(
+        Integer,
+        nullable=True,
+        comment="Account security generation the flow was started under; it is redeemed only while still current",
+    )

@@ -10,6 +10,7 @@
   "settings": "Ayarlar",
   "profile": "Profil",
   "logout": "Çıkış",
+  "logoutFailed": "Oturumunuz kapatılamadı. Bağlantınızı kontrol edip tekrar deneyin.",
   "userMenu": "Kullanıcı menüsü",
   "menu": "Menü",
   "primary": "Birincil gezinme",

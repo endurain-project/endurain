@@ -5,10 +5,12 @@
   "unread": "Ulest",
   "markRead": "Merk som lest",
   "markAllRead": "Merk alle som lest",
+  "dismiss": "Avvis varsel",
+  "dismissError": "Kunne ikke avvise varselet. Prøv igjen.",
   "seeAll": "Se alle",
   "loadMore": "Last inn mer",
   "loading": "Laster…",
-  "badge": "{count} uleste varsler",
+  "badge": "{count} ulest varsel | {count} uleste varsler",
   "empty": {
     "title": "Du er à jour",
     "description": "Oppdateringer om aktivitetene, følgerne og integrasjonene dine vises her."
@@ -39,9 +41,122 @@
       "title": "Garmin Connect trenger oppmerksomhet",
       "body": "Garmin Connect-økten din utløp. Koble til på nytt for å fortsette synkroniseringen."
     },
+    "stravaTokenExpired": {
+      "title": "Strava trenger oppmerksomhet",
+      "body": "Strava avviste tilkoblingen din. Koble til på nytt for å fortsette synkroniseringen.",
+      "bodyRevoked": "Tilgangen til Strava har opphørt. Aktivitetene og utstyret ditt som er synkronisert med Strava, slettes {date} med mindre du kobler til igjen."
+    },
+    "stravaDataDeleted": {
+      "title": "Strava-data slettet",
+      "body": "Aktivitetene og utstyret ditt som var synkronisert med Strava, ble slettet fordi tilgangen til Strava opphørte og du ikke koblet til igjen."
+    },
+    "idpLinked": {
+      "title": "Ny innloggingsleverandør koblet til",
+      "body": "{name} ble koblet til kontoen din. Hvis dette ikke var deg, bør du gå gjennom sikkerhetsinnstillingene dine.",
+      "bodyGeneric": "En innloggingsleverandør ble koblet til kontoen din. Hvis dette ikke var deg, bør du gå gjennom sikkerhetsinnstillingene dine."
+    },
+    "accountSecurityChanged": {
+      "passwordChanged": {
+        "title": "Passord endret",
+        "body": "Passordet ditt ble endret. Hvis dette ikke var deg, tilbakestill passordet og gå gjennom sikkerhetsinnstillingene dine."
+      },
+      "passwordReset": {
+        "title": "Passord tilbakestilt",
+        "body": "Passordet ditt ble tilbakestilt med en tilbakestillingslenke. Hvis dette ikke var deg, tilbakestill passordet på nytt og gå gjennom sikkerhetsinnstillingene dine. Any API keys were revoked and any pending email change was cancelled."
+      },
+      "passwordSetByAdmin": {
+        "title": "Passord satt av en administrator",
+        "body": "En administrator har satt et nytt passord for kontoen din. Hvis du ikke ventet dette, kontakt administratoren din. Any API keys were revoked and any pending email change was cancelled."
+      },
+      "mfaEnabled": {
+        "title": "Tofaktorautentisering slått på",
+        "body": "Tofaktorautentisering ble slått på for kontoen din. Hvis dette ikke var deg, tilbakestill passordet og gå gjennom sikkerhetsinnstillingene dine."
+      },
+      "mfaDisabled": {
+        "title": "Tofaktorautentisering slått av",
+        "body": "Tofaktorautentisering ble slått av for kontoen din. Hvis dette ikke var deg, tilbakestill passordet og gå gjennom sikkerhetsinnstillingene dine."
+      },
+      "mfaResetByAdmin": {
+        "title": "Tofaktorautentisering tilbakestilt av en administrator",
+        "body": "En administrator har tilbakestilt tofaktorautentiseringen for kontoen din og logget deg ut på alle enheter. Sett den opp på nytt fra sikkerhetsinnstillingene dine. Hvis du ikke ventet dette, kontakt administratoren din."
+      },
+      "passwordChangeRequiredByAdmin": {
+        "title": "Passordendring kreves av en administrator",
+        "body": "En administrator har krevd at du endrer passordet ditt, og logget deg ut på alle enheter. Du velger et nytt passord neste gang du logger inn med passordet ditt. Hvis du ikke ventet dette, kontakt administratoren din."
+      },
+      "backupCodesGenerated": {
+        "title": "Nye reservekoder generert",
+        "body": "Nye reservekoder ble generert for kontoen din. Hvis dette ikke var deg, tilbakestill passordet og gå gjennom sikkerhetsinnstillingene dine."
+      },
+      "apiKeyCreated": {
+        "title": "Ny API-nøkkel opprettet",
+        "body": "En ny API-nøkkel ble opprettet for kontoen din. Hvis dette ikke var deg, tilbakestill passordet og gå gjennom sikkerhetsinnstillingene dine."
+      },
+      "apiKeysRevokedByAdmin": {
+        "title": "API-nøkler tilbakekalt av en administrator",
+        "body": "En administrator har tilbakekalt én eller flere av API-nøklene dine, så ingenting som bruker dem har lenger tilgang til kontoen din. Hvis du ikke forventet dette, kontakt administratoren din."
+      },
+      "identityProviderUnlinked": {
+        "title": "Innloggingsleverandør frakoblet",
+        "body": "{name} ble koblet fra kontoen din. Hvis dette ikke var deg, tilbakestill passordet og gå gjennom sikkerhetsinnstillingene dine.",
+        "bodyGeneric": "En innloggingsleverandør ble koblet fra kontoen din. Hvis dette ikke var deg, tilbakestill passordet og gå gjennom sikkerhetsinnstillingene dine."
+      },
+      "accountLocked": {
+        "title": "Kontoen er låst",
+        "body": "Kontoen din ble låst etter 100 mislykkede innloggingsforsøk på rad. Nettlesere og apper du har logget inn fra siden din siste sikkerhetsendring, kan fortsatt logge inn. Hvis disse forsøkene ikke var dine, endre eller tilbakestill passordet ditt, noe som også opphever låsen."
+      },
+      "mfaLocked": {
+        "title": "Tofaktorbekreftelse låst",
+        "body": "Kontoen din ble låst etter 100 feil tofaktorkoder på rad, så noen kjenner passordet ditt. Nettlesere og apper du har logget inn fra siden din siste sikkerhetsendring, kan fortsatt logge inn. Hvis disse forsøkene ikke var dine, endre passordet ditt."
+      },
+      "stepUpSessionEnded": {
+        "title": "Økt logget ut",
+        "body": "En økt på kontoen din ble logget ut etter at feil passord eller feil tofaktorkoder ble skrevet inn 15 ganger på rad for å bekrefte en sensitiv handling. De andre øktene dine ble ikke påvirket. Hvis det ikke var deg, endre passordet ditt."
+      },
+      "stepUpLocked": {
+        "title": "Bekreftelse av sensitive handlinger låst",
+        "body": "Bekreftelse av sensitive handlinger, som å endre passordet ditt eller opprette en API-nøkkel, ble låst i 30 dager etter 100 feil bekreftelser på tvers av øktene dine. Hvis det ikke var deg, tilbakestill passordet ditt, noe som også opphever låsen."
+      },
+      "backupCodeUsed": {
+        "title": "Reservekode brukt",
+        "body": "En reservekode ble brukt til tofaktorautentisering på kontoen din. Hvis det ikke var deg, endre passordet ditt og generer nye reservekoder.",
+        "bodyRemaining": "En reservekode ble brukt til tofaktorautentisering på kontoen din. Ubrukte reservekoder igjen: {count}. Hvis det ikke var deg, endre passordet ditt og generer nye reservekoder.",
+        "bodyNone": "En reservekode ble brukt til tofaktorautentisering på kontoen din. Du har ingen ubrukte reservekoder igjen, så generer nye i sikkerhetsinnstillingene dine. Hvis det ikke var deg, endre passordet ditt."
+      },
+      "refreshTokenReuseDetected": {
+        "title": "Økt avsluttet",
+        "body": "En innloggingsøkt på kontoen din ble avsluttet fordi et token som allerede var brukt, ble lagt fram på nytt, noe som kan bety at økten er kopiert. De andre øktene dine ble ikke påvirket. Hvis du ikke ventet dette, endre passordet ditt."
+      },
+      "roleChangedByAdmin": {
+        "title": "Tilgang endret av en administrator",
+        "body": "En administrator endret tilgangen til kontoen din og logget deg ut på alle enheter. Hvis du ikke ventet dette, kontakt administratoren din.",
+        "bodyAdmin": "En administrator endret tilgangen til kontoen din til administrator og logget deg ut på alle enheter. Hvis du ikke ventet dette, kontakt administratoren din.",
+        "bodyRegular": "En administrator endret tilgangen til kontoen din til vanlig bruker og logget deg ut på alle enheter. Hvis du ikke ventet dette, kontakt administratoren din."
+      },
+      "accountDeactivatedByAdmin": {
+        "title": "Konto deaktivert av en administrator",
+        "body": "En administrator deaktiverte kontoen din og logget deg ut på alle enheter. Du kan ikke logge inn før en administrator aktiverer den på nytt."
+      },
+      "unknown": {
+        "title": "Kontosikkerheten ble endret",
+        "body": "En sikkerhetsinnstilling på kontoen din ble endret. Hvis dette ikke var deg, tilbakestill passordet og gå gjennom sikkerhetsinnstillingene dine."
+      },
+      "usernameChanged": {
+        "title": "Brukernavn endret",
+        "body": "Brukernavnet ditt ble endret. Hvis det ikke var deg, tilbakestill passordet og gå gjennom sikkerhetsinnstillingene dine."
+      }
+    },
+    "newDeviceSignIn": {
+      "title": "Ny innlogging",
+      "body": "Ny innlogging fra {browser} på {os} ({ip}). Hvis dette ikke var deg, bytt passord og logg ut av de andre øktene dine."
+    },
     "adminSignUpApproval": {
       "title": "Ny registrering trenger godkjenning",
       "body": "{name} ({'@'}{username}) venter på godkjenning av konto."
+    },
+    "adminUserPromoted": {
+      "title": "Bruker gjort til administrator",
+      "body": "{name} ({'@'}{username}) fikk administratortilgang."
     },
     "unknown": {
       "title": "Varsel",

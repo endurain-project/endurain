@@ -1,15 +1,23 @@
 """Tests for accepting, running and pruning activity upload jobs."""
 
+import uuid
 from datetime import UTC, datetime
 from unittest.mock import ANY, MagicMock, patch
 
 import pytest
+from sqlalchemy.exc import OperationalError
+from tests._helpers.auth import MOCK_USER_ID
 
 import core.exceptions as core_exceptions
 import modules.activities.activity_ingestion.constants as activity_ingestion_constants
 import modules.activities.activity_ingestion.events as ingestion_events
 import modules.activities.activity_ingestion.service as ingestion_jobs
 import modules.activities.activity_ingestion.upload_entry_service as upload_entry_service
+
+_JOB_1 = uuid.UUID("00000000-0000-4000-8000-0000000000a1")
+
+_ID_A = uuid.UUID("00000000-0000-4000-8000-00000000000a")
+_ID_B = uuid.UUID("00000000-0000-4000-8000-00000000000b")
 
 
 def _received(fingerprint: str = "abc123") -> upload_entry_service.ReceivedUpload:
@@ -44,7 +52,7 @@ class TestAcceptUpload:
                 ingestion_jobs.activity_ingestion_dispatch_service.activity_ingestion_background, "submit"
             ) as submit,
         ):
-            result = ingestion_jobs.accept_upload(7, *_upload(), "storage", db)
+            result = ingestion_jobs.accept_upload(MOCK_USER_ID, *_upload(), "storage", db)
 
         assert result == "job-view"
         # The row is staged, not committed, so it lands in the same transaction
@@ -53,7 +61,7 @@ class TestAcceptUpload:
         publish.assert_called_once()
         assert publish.call_args.kwargs["commit"] == db.commit
         # The payload carries only the job id: the key and owner are columns.
-        assert publish.call_args.args[1] == {"job_id": create.call_args.args[0]}
+        assert publish.call_args.args[1] == {"job_id": str(create.call_args.args[0])}
         assert publish.call_args.kwargs["schema_version"] == ingestion_events.UploadedFilePayload.SCHEMA_VERSION
         submit.assert_not_called()
 
@@ -76,7 +84,7 @@ class TestAcceptUpload:
                 ingestion_jobs.activity_ingestion_dispatch_service.activity_ingestion_background, "submit"
             ) as submit,
         ):
-            ingestion_jobs.accept_upload(7, *_upload(), "storage", db)
+            ingestion_jobs.accept_upload(MOCK_USER_ID, *_upload(), "storage", db)
 
         # Same client contract either way — only the executor differs.
         publish.assert_not_called()
@@ -95,7 +103,7 @@ class TestAcceptUpload:
             patch.object(ingestion_jobs.activity_ingestion_crud, "create_ingestion_job") as create,
             pytest.raises(core_exceptions.UnsupportedFormatError),
         ):
-            ingestion_jobs.accept_upload(7, *_upload("ride.txt"), "storage", db)
+            ingestion_jobs.accept_upload(MOCK_USER_ID, *_upload("ride.txt"), "storage", db)
 
         create.assert_not_called()
 
@@ -119,17 +127,19 @@ class TestAcceptUpload:
             patch.object(ingestion_jobs.activity_ingestion_upload_entry_service, "discard_staged_upload") as discard,
             pytest.raises(RuntimeError),
         ):
-            ingestion_jobs.accept_upload(7, *_upload(), "storage", db)
+            ingestion_jobs.accept_upload(MOCK_USER_ID, *_upload(), "storage", db)
 
         discard.assert_called_once_with("abc.gpx", ANY)
 
 
 class TestRunUploadJob:
     def test_marks_completed_with_the_created_activity_ids(self):
-        created = [MagicMock(id=11), MagicMock(id=12)]
+        created = [MagicMock(id=_ID_A), MagicMock(id=_ID_B)]
         with (
             patch.object(ingestion_jobs.core_database, "SessionLocal") as session_local,
-            patch.object(ingestion_jobs.activity_ingestion_crud, "get_job_work_item", return_value=(7, "abc.gpx")),
+            patch.object(
+                ingestion_jobs.activity_ingestion_crud, "get_job_work_item", return_value=(MOCK_USER_ID, "abc.gpx")
+            ),
             patch.object(ingestion_jobs.activity_ingestion_crud, "mark_processing") as processing,
             patch.object(ingestion_jobs.activity_ingestion_crud, "mark_completed") as completed,
             patch.object(
@@ -137,13 +147,51 @@ class TestRunUploadJob:
             ),
         ):
             session_local.return_value.__enter__.return_value = MagicMock()
-            ingestion_jobs.run_upload_job("job-1", "storage")
+            ingestion_jobs.run_upload_job(_JOB_1, MagicMock())
 
         processing.assert_called_once()
-        assert completed.call_args.args[0] == "job-1"
-        assert completed.call_args.args[1] == [11, 12]
+        assert completed.call_args.args[0] == _JOB_1
+        assert completed.call_args.args[1] == [_ID_A, _ID_B]
 
-    @pytest.mark.parametrize("created", [[MagicMock(id=11)], []], ids=["imported", "nothing_parsed"])
+    def test_the_owner_is_told_when_the_import_completes(self):
+        with (
+            patch.object(ingestion_jobs.core_database, "SessionLocal") as session_local,
+            patch.object(
+                ingestion_jobs.activity_ingestion_crud, "get_job_work_item", return_value=(MOCK_USER_ID, "abc.gpx")
+            ),
+            patch.object(ingestion_jobs.activity_ingestion_crud, "mark_processing"),
+            patch.object(ingestion_jobs.activity_ingestion_crud, "mark_completed"),
+            patch.object(
+                ingestion_jobs.activity_ingestion_upload_entry_service,
+                "process_staged_upload",
+                return_value=[MagicMock(id=_ID_A)],
+            ),
+            patch.object(ingestion_jobs.websocket_integration, "push_job_changed") as push,
+        ):
+            session_local.return_value.__enter__.return_value = MagicMock()
+            ingestion_jobs.run_upload_job(_JOB_1, MagicMock())
+
+        push.assert_called_once_with(MOCK_USER_ID, _JOB_1, "activity_upload")
+
+    def test_the_owner_is_told_when_nothing_could_be_parsed(self):
+        with (
+            patch.object(ingestion_jobs.core_database, "SessionLocal") as session_local,
+            patch.object(
+                ingestion_jobs.activity_ingestion_crud, "get_job_work_item", return_value=(MOCK_USER_ID, "abc.gpx")
+            ),
+            patch.object(ingestion_jobs.activity_ingestion_crud, "mark_processing"),
+            patch.object(ingestion_jobs.activity_ingestion_crud, "mark_failed"),
+            patch.object(
+                ingestion_jobs.activity_ingestion_upload_entry_service, "process_staged_upload", return_value=None
+            ),
+            patch.object(ingestion_jobs.websocket_integration, "push_job_changed") as push,
+        ):
+            session_local.return_value.__enter__.return_value = MagicMock()
+            ingestion_jobs.run_upload_job(_JOB_1, MagicMock())
+
+        push.assert_called_once_with(MOCK_USER_ID, _JOB_1, "activity_upload")
+
+    @pytest.mark.parametrize("created", [[MagicMock(id=_ID_A)], []], ids=["imported", "nothing_parsed"])
     def test_the_blob_is_discarded_only_after_the_outcome_is_committed(self, created):
         """A crash before the commit must retry against the blob, not find it gone."""
         events: list[str] = []
@@ -151,7 +199,9 @@ class TestRunUploadJob:
         db.commit.side_effect = lambda: events.append("commit")
         with (
             patch.object(ingestion_jobs.core_database, "SessionLocal") as session_local,
-            patch.object(ingestion_jobs.activity_ingestion_crud, "get_job_work_item", return_value=(7, "abc.gpx")),
+            patch.object(
+                ingestion_jobs.activity_ingestion_crud, "get_job_work_item", return_value=(MOCK_USER_ID, "abc.gpx")
+            ),
             patch.object(ingestion_jobs.activity_ingestion_crud, "mark_processing"),
             patch.object(ingestion_jobs.activity_ingestion_crud, "mark_completed"),
             patch.object(ingestion_jobs.activity_ingestion_crud, "mark_failed"),
@@ -165,7 +215,7 @@ class TestRunUploadJob:
             ),
         ):
             session_local.return_value.__enter__.return_value = db
-            ingestion_jobs.run_upload_job("job-1", "storage")
+            ingestion_jobs.run_upload_job(_JOB_1, MagicMock())
 
         # The first commit is ``processing``; the outcome's commit must precede the discard.
         assert events == ["commit", "commit", "discard"]
@@ -175,19 +225,21 @@ class TestRunUploadJob:
         db.commit.side_effect = [None, RuntimeError("db down")]
         with (
             patch.object(ingestion_jobs.core_database, "SessionLocal") as session_local,
-            patch.object(ingestion_jobs.activity_ingestion_crud, "get_job_work_item", return_value=(7, "abc.gpx")),
+            patch.object(
+                ingestion_jobs.activity_ingestion_crud, "get_job_work_item", return_value=(MOCK_USER_ID, "abc.gpx")
+            ),
             patch.object(ingestion_jobs.activity_ingestion_crud, "mark_processing"),
             patch.object(ingestion_jobs.activity_ingestion_crud, "mark_completed"),
             patch.object(
                 ingestion_jobs.activity_ingestion_upload_entry_service,
                 "process_staged_upload",
-                return_value=[MagicMock(id=11)],
+                return_value=[MagicMock(id=_ID_A)],
             ),
             patch.object(ingestion_jobs.activity_ingestion_upload_entry_service, "discard_staged_upload") as discard,
             pytest.raises(RuntimeError),
         ):
             session_local.return_value.__enter__.return_value = db
-            ingestion_jobs.run_upload_job("job-1", "storage")
+            ingestion_jobs.run_upload_job(_JOB_1, MagicMock())
 
         discard.assert_not_called()
 
@@ -199,14 +251,16 @@ class TestRunUploadJob:
             patch.object(ingestion_jobs.activity_ingestion_upload_entry_service, "process_staged_upload") as process,
         ):
             session_local.return_value.__enter__.return_value = MagicMock()
-            ingestion_jobs.run_upload_job("job-1", "storage")
+            ingestion_jobs.run_upload_job(_JOB_1, MagicMock())
 
         process.assert_not_called()
 
     def test_an_unparseable_file_fails_with_a_specific_code(self):
         with (
             patch.object(ingestion_jobs.core_database, "SessionLocal") as session_local,
-            patch.object(ingestion_jobs.activity_ingestion_crud, "get_job_work_item", return_value=(7, "abc.gpx")),
+            patch.object(
+                ingestion_jobs.activity_ingestion_crud, "get_job_work_item", return_value=(MOCK_USER_ID, "abc.gpx")
+            ),
             patch.object(ingestion_jobs.activity_ingestion_crud, "mark_processing"),
             patch.object(ingestion_jobs.activity_ingestion_crud, "mark_failed") as failed,
             patch.object(
@@ -214,7 +268,7 @@ class TestRunUploadJob:
             ),
         ):
             session_local.return_value.__enter__.return_value = MagicMock()
-            ingestion_jobs.run_upload_job("job-1", "storage")
+            ingestion_jobs.run_upload_job(_JOB_1, MagicMock())
 
         assert failed.call_args.args[1] == activity_ingestion_constants.IngestionJobErrorCode.NO_ACTIVITIES_FOUND
 
@@ -223,7 +277,9 @@ class TestRunUploadJob:
         with (
             patch.object(ingestion_jobs.core_config.settings, "JOBS_ENABLED", True),
             patch.object(ingestion_jobs.core_database, "SessionLocal") as session_local,
-            patch.object(ingestion_jobs.activity_ingestion_crud, "get_job_work_item", return_value=(7, "abc.gz")),
+            patch.object(
+                ingestion_jobs.activity_ingestion_crud, "get_job_work_item", return_value=(MOCK_USER_ID, "abc.gz")
+            ),
             patch.object(ingestion_jobs.activity_ingestion_crud, "mark_processing"),
             patch.object(ingestion_jobs, "fail_ingestion_job") as fail,
             patch.object(
@@ -235,7 +291,7 @@ class TestRunUploadJob:
             session_local.return_value.__enter__.return_value = MagicMock()
             # Recorded as terminal and returned, not raised: raising would hand the
             # runner a job it would retry and then find already finished.
-            ingestion_jobs.run_upload_job("job-1", "storage")
+            ingestion_jobs.run_upload_job(_JOB_1, "storage")
 
         assert fail.call_args.args[1] == activity_ingestion_constants.IngestionJobErrorCode.INVALID_FILE
         assert fail.call_args.args[2] == "storage"
@@ -246,7 +302,9 @@ class TestRunUploadJob:
         with (
             patch.object(ingestion_jobs.core_config.settings, "JOBS_ENABLED", True),
             patch.object(ingestion_jobs.core_database, "SessionLocal") as session_local,
-            patch.object(ingestion_jobs.activity_ingestion_crud, "get_job_work_item", return_value=(7, "abc.gpx")),
+            patch.object(
+                ingestion_jobs.activity_ingestion_crud, "get_job_work_item", return_value=(MOCK_USER_ID, "abc.gpx")
+            ),
             patch.object(ingestion_jobs.activity_ingestion_crud, "mark_processing"),
             patch.object(ingestion_jobs, "fail_ingestion_job") as fail,
             patch.object(
@@ -257,7 +315,7 @@ class TestRunUploadJob:
             pytest.raises(core_exceptions.ProcessingError),
         ):
             session_local.return_value.__enter__.return_value = MagicMock()
-            ingestion_jobs.run_upload_job("job-1", "storage")
+            ingestion_jobs.run_upload_job(_JOB_1, MagicMock())
 
         fail.assert_not_called()
 
@@ -266,7 +324,9 @@ class TestRunUploadJob:
         with (
             patch.object(ingestion_jobs.core_config.settings, "JOBS_ENABLED", False),
             patch.object(ingestion_jobs.core_database, "SessionLocal") as session_local,
-            patch.object(ingestion_jobs.activity_ingestion_crud, "get_job_work_item", return_value=(7, "abc.gpx")),
+            patch.object(
+                ingestion_jobs.activity_ingestion_crud, "get_job_work_item", return_value=(MOCK_USER_ID, "abc.gpx")
+            ),
             patch.object(ingestion_jobs.activity_ingestion_crud, "mark_processing"),
             patch.object(ingestion_jobs, "fail_ingestion_job") as fail,
             patch.object(
@@ -277,7 +337,7 @@ class TestRunUploadJob:
             pytest.raises(core_exceptions.ProcessingError),
         ):
             session_local.return_value.__enter__.return_value = MagicMock()
-            ingestion_jobs.run_upload_job("job-1", "storage")
+            ingestion_jobs.run_upload_job(_JOB_1, MagicMock())
 
         assert fail.call_args.args[1] == activity_ingestion_constants.IngestionJobErrorCode.PROCESSING_FAILED
 
@@ -291,7 +351,7 @@ class TestFailUploadJob:
         ):
             session_local.return_value.__enter__.return_value = MagicMock()
             ingestion_jobs.fail_ingestion_job(
-                "job-1",
+                _JOB_1,
                 activity_ingestion_constants.IngestionJobErrorCode.PROCESSING_FAILED,
                 "storage",
                 "abc.gpx",
@@ -304,35 +364,75 @@ class TestFailUploadJob:
         """The dead-letter path only knows the job id."""
         with (
             patch.object(ingestion_jobs.core_database, "SessionLocal") as session_local,
-            patch.object(ingestion_jobs.activity_ingestion_crud, "get_job_work_item", return_value=(7, "abc.gpx")),
+            patch.object(
+                ingestion_jobs.activity_ingestion_crud, "get_job_work_item", return_value=(MOCK_USER_ID, "abc.gpx")
+            ),
             patch.object(ingestion_jobs.activity_ingestion_crud, "mark_failed"),
             patch.object(ingestion_jobs.activity_ingestion_upload_entry_service, "discard_staged_upload") as discard,
         ):
             session_local.return_value.__enter__.return_value = MagicMock()
             ingestion_jobs.fail_ingestion_job(
-                "job-1", activity_ingestion_constants.IngestionJobErrorCode.PROCESSING_FAILED, "storage"
+                _JOB_1, activity_ingestion_constants.IngestionJobErrorCode.PROCESSING_FAILED, "storage"
             )
 
         discard.assert_called_once_with("abc.gpx", "storage")
 
-    def test_a_bookkeeping_failure_never_propagates(self):
-        """It must not mask the original import failure."""
+    def test_a_database_failure_never_propagates_and_keeps_the_blob(self):
+        """It must not mask the original import failure, and the row still names the blob."""
         with (
-            patch.object(ingestion_jobs.core_database, "SessionLocal", side_effect=RuntimeError("db down")),
-            patch.object(ingestion_jobs.activity_ingestion_upload_entry_service, "discard_staged_upload"),
+            patch.object(
+                ingestion_jobs.core_database,
+                "SessionLocal",
+                side_effect=OperationalError("stmt", {}, Exception("down")),
+            ),
+            patch.object(ingestion_jobs.activity_ingestion_upload_entry_service, "discard_staged_upload") as discard,
         ):
             ingestion_jobs.fail_ingestion_job(
-                "job-1",
+                _JOB_1,
                 activity_ingestion_constants.IngestionJobErrorCode.PROCESSING_FAILED,
                 "storage",
                 "abc.gpx",
             )
 
+        discard.assert_not_called()
+
+    def test_a_failed_commit_keeps_the_blob(self):
+        with (
+            patch.object(ingestion_jobs.core_database, "SessionLocal") as session_local,
+            patch.object(ingestion_jobs.activity_ingestion_crud, "mark_failed"),
+            patch.object(ingestion_jobs.activity_ingestion_upload_entry_service, "discard_staged_upload") as discard,
+        ):
+            session_local.return_value.__enter__.return_value.commit.side_effect = OperationalError(
+                "stmt", {}, Exception("down")
+            )
+            ingestion_jobs.fail_ingestion_job(
+                _JOB_1,
+                activity_ingestion_constants.IngestionJobErrorCode.PROCESSING_FAILED,
+                "storage",
+                "abc.gpx",
+            )
+
+        discard.assert_not_called()
+
+
+class TestReleaseIngestionJob:
+    def test_a_database_failure_is_logged_not_raised(self):
+        with patch.object(
+            ingestion_jobs.core_database, "SessionLocal", side_effect=OperationalError("stmt", {}, Exception("down"))
+        ):
+            ingestion_jobs.release_ingestion_job(_JOB_1)
+
+    def test_an_unexpected_error_propagates(self):
+        with (
+            patch.object(ingestion_jobs.core_database, "SessionLocal", side_effect=RuntimeError("bug")),
+            pytest.raises(RuntimeError),
+        ):
+            ingestion_jobs.release_ingestion_job(_JOB_1)
+
 
 class TestPruneExpiredUploadJobs:
-    def _platform(self, acquired: bool = True) -> MagicMock:
+    def _platform(self) -> MagicMock:
         platform = MagicMock()
-        platform.lock.try_acquire.return_value.__enter__.return_value = acquired
         platform.clock.now.return_value = datetime(2026, 7, 28, tzinfo=UTC)
         return platform
 
@@ -344,37 +444,52 @@ class TestPruneExpiredUploadJobs:
         ):
             platform = self._platform()
             session_local.return_value.__enter__.return_value = MagicMock()
-            ingestion_jobs.prune_expired_ingestion_jobs(platform.lock, platform.clock)
+            ingestion_jobs.prune_expired_ingestion_jobs(platform.clock)
 
         # The cutoff is the window applied to the platform clock, not wall time.
         assert delete.call_args.args[0] == datetime(2026, 4, 29, tzinfo=UTC)
 
     def test_is_inert_when_retention_is_disabled(self):
         platform = self._platform()
-        with patch.object(ingestion_jobs.core_config.settings, "JOBS_RETENTION_DAYS", 0):
-            ingestion_jobs.prune_expired_ingestion_jobs(platform.lock, platform.clock)
-
-        platform.lock.try_acquire.assert_not_called()
-
-    def test_skips_when_another_replica_holds_the_lock(self):
-        platform = self._platform(acquired=False)
         with (
-            patch.object(ingestion_jobs.core_config.settings, "JOBS_RETENTION_DAYS", 90),
-            patch.object(ingestion_jobs.activity_ingestion_crud, "delete_jobs_before") as delete,
+            patch.object(ingestion_jobs.core_config.settings, "JOBS_RETENTION_DAYS", 0),
+            patch.object(ingestion_jobs.core_database, "SessionLocal") as session_local,
         ):
-            ingestion_jobs.prune_expired_ingestion_jobs(platform.lock, platform.clock)
+            ingestion_jobs.prune_expired_ingestion_jobs(platform.clock)
 
-        delete.assert_not_called()
+        session_local.assert_not_called()
 
 
 class TestFailStaleIngestionJobs:
-    def test_skips_when_another_replica_holds_the_lock(self):
+    def test_a_backlog_larger_than_one_batch_is_failed_a_batch_per_transaction(self):
+        batch = ingestion_jobs._STALE_JOB_BATCH_SIZE
+        full = [(f"job-{i}", None) for i in range(batch)]
+        last = [("job-last", "staged.gpx")]
         platform = MagicMock()
-        platform.lock.try_acquire.return_value.__enter__.return_value = False
-        with patch.object(ingestion_jobs.activity_ingestion_crud, "fail_jobs_idle_since") as fail:
-            ingestion_jobs.fail_stale_ingestion_jobs(platform.lock, platform.clock, platform.storage)
+        sessions = MagicMock()
+        with (
+            patch.object(ingestion_jobs.core_database, "SessionLocal", sessions),
+            patch.object(
+                ingestion_jobs.activity_ingestion_crud, "fail_jobs_idle_since", side_effect=[full, last]
+            ) as fail,
+            patch.object(ingestion_jobs.activity_ingestion_upload_entry_service, "discard_staged_upload") as discard,
+        ):
+            ingestion_jobs.fail_stale_ingestion_jobs(platform.clock, platform.storage)
 
-        fail.assert_not_called()
+        assert fail.call_count == 2
+        assert all(call.args[2] == batch for call in fail.call_args_list)
+        assert sessions.return_value.__enter__.return_value.commit.call_count == 2
+        discard.assert_called_once_with("staged.gpx", platform.storage)
+
+    def test_a_single_short_batch_ends_the_pass(self):
+        platform = MagicMock()
+        with (
+            patch.object(ingestion_jobs.core_database, "SessionLocal"),
+            patch.object(ingestion_jobs.activity_ingestion_crud, "fail_jobs_idle_since", return_value=[]) as fail,
+        ):
+            ingestion_jobs.fail_stale_ingestion_jobs(platform.clock, platform.storage)
+
+        fail.assert_called_once()
 
     def test_runs_on_the_schedule(self):
         import modules.activities.activity_ingestion.scheduled_jobs as scheduled_jobs
@@ -405,27 +520,23 @@ class TestErrorCodeFor:
         assert code == activity_ingestion_constants.IngestionJobErrorCode.PROCESSING_FAILED
 
 
-class TestGetJob:
-    """The status read is scoped to the caller in the service, not the route."""
+class TestFailIngestionJobTellsTheOwner:
+    def _fail(self, failed):
+        with (
+            patch.object(ingestion_jobs.core_database, "SessionLocal"),
+            patch.object(ingestion_jobs.activity_ingestion_crud, "mark_failed", return_value=failed),
+            patch.object(ingestion_jobs.activity_ingestion_upload_entry_service, "discard_staged_upload"),
+            patch.object(ingestion_jobs.websocket_integration, "push_job_changed") as push,
+        ):
+            ingestion_jobs.fail_ingestion_job(
+                _JOB_1, activity_ingestion_constants.IngestionJobErrorCode.INVALID_FILE, "storage", "abc.gpx"
+            )
+        return push
 
-    @patch("modules.activities.activity_ingestion.service.activity_ingestion_crud")
-    def test_returns_the_caller_s_job(self, mock_crud):
-        import modules.activities.activity_ingestion.service as ingestion_jobs
+    def test_the_owner_of_the_failed_job_is_told(self):
+        self._fail((MOCK_USER_ID, activity_ingestion_constants.IngestionJobKind.BULK_IMPORT)).assert_called_once_with(
+            MOCK_USER_ID, _JOB_1, "activity_bulk_import"
+        )
 
-        db = MagicMock()
-        job = MagicMock()
-        mock_crud.get_ingestion_job.return_value = job
-
-        assert ingestion_jobs.get_job("job-1", 7, db) is job
-        mock_crud.get_ingestion_job.assert_called_once_with("job-1", 7, db)
-
-    @patch("modules.activities.activity_ingestion.service.activity_ingestion_crud")
-    def test_another_user_s_job_is_absent_not_forbidden(self, mock_crud):
-        """404 rather than 403, so the endpoint cannot confirm an id exists."""
-        import core.exceptions as core_exceptions
-        import modules.activities.activity_ingestion.service as ingestion_jobs
-
-        mock_crud.get_ingestion_job.return_value = None
-
-        with pytest.raises(core_exceptions.NotFoundError):
-            ingestion_jobs.get_job("someone-elses-job", 7, MagicMock())
+    def test_nobody_is_told_when_the_job_was_already_terminal(self):
+        self._fail(None).assert_not_called()

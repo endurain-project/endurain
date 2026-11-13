@@ -3,11 +3,12 @@ import { useI18n } from 'vue-i18n'
 
 import type { ManagedUser } from '@/features/users/types'
 
+import UserDeletionBadge from '@/features/users/components/UserDeletionBadge.vue'
 import { Badge } from '@/components/ui/badge'
 
 /**
  * The status/identity badges for a managed user (self, access tier, account
- * state, external auth). Shared by the users list row and the user detail page
+ * state, queued deletion, external auth). Shared by the users list row and the user detail page
  * so both stay in sync.
  */
 defineProps<{
@@ -27,8 +28,12 @@ const { t } = useI18n()
       t('settings.users.list.admin')
     }}</Badge>
     <Badge v-if="!user.active" variant="destructive">{{ t('settings.users.list.inactive') }}</Badge>
+    <UserDeletionBadge v-if="user.deletionRequestedAt" />
     <Badge v-if="!user.emailVerified" variant="warning">{{
       t('settings.users.list.unverified')
+    }}</Badge>
+    <Badge v-if="user.pendingEmail" variant="warning">{{
+      t('settings.users.list.pendingEmail')
     }}</Badge>
     <Badge v-if="user.pendingAdminApproval" variant="warning">{{
       t('settings.users.list.pending')

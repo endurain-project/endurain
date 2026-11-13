@@ -10,15 +10,20 @@ import type { Schemas } from '@/types'
 /** Bristol Stool Scale type (1–7), the backend's stool-consistency classification. */
 export type BristolType = Schemas['BristolType']
 
+/** The stage of a sleep segment, as the backend names it. */
+export type SleepStageType = Schemas['SleepStageType']
+
 /** A stool colour from the backend's fixed palette. */
 export type PoopColor = Schemas['Color']
 
 /** The user's configured health goals; `null` means "no target set". */
 export interface HealthTargets {
   /** The targets record id (needed to PUT updates in later phases). */
-  id: number
+  id: string
   /** The owning user's id. */
-  userId: number
+  userId: string
+  /** The row version, sent back in `If-Match` so an edit of a stale copy is refused. */
+  version: number
   /** Target sleep duration in seconds, or `null`. */
   sleepSeconds: number | null
   /** Target daily step count, or `null`. */
@@ -65,6 +70,8 @@ export interface HealthDashboard {
   waterMl: number | null
   /** Today's bowel-movement count, or `null`. */
   poopCount: number | null
+  /** User-configured targets, or `null` when none exist. */
+  targets: HealthTargets | null
 }
 
 /** The time window a paginated health history can be filtered to. */
@@ -74,15 +81,39 @@ export type HealthInterval =
 /** The time window the weight history can be filtered to. */
 export type WeightInterval = HealthInterval
 
+/** Span one chart point aggregates: a day, an ISO week (dated its Monday) or a month (dated its first day). */
+export type HealthChartBucket = Schemas['ChartBucket']
+
+/** Health metrics that serve an aggregated chart series beside their paginated list. */
+export type HealthChartMetric = 'sleep' | 'rhr' | 'steps' | 'weight' | 'water' | 'poop'
+
+/** One aggregated chart point, in the metric's stored unit (kg, ml, seconds, bpm, steps or movements per day). */
+export interface HealthChartPoint {
+  /** First day of the bucket as `yyyy-mm-dd`. */
+  date: string
+  /** The bucket's aggregated value. */
+  value: number
+}
+
+/** A metric aggregated over an interval, oldest bucket first. */
+export interface HealthChartSeries {
+  /** The span each point aggregates. */
+  bucket: HealthChartBucket
+  /** The buckets that hold data. */
+  points: HealthChartPoint[]
+}
+
 /**
  * A single weight measurement. All masses are stored in kilograms (the backend
  * canonical unit); the UI converts to the viewer's units at the boundary.
  */
 export interface WeightEntry {
   /** The record id (needed to edit/delete). */
-  id: number
+  id: string
   /** The owning user's id (echoed back on edit). */
-  userId: number
+  userId: string
+  /** The row version, sent back in `If-Match` so an edit of a stale copy is refused. */
+  version: number
   /** Measurement date as a `yyyy-mm-dd` string, or `null`. */
   date: string | null
   /** Body weight in kilograms, or `null`. */
@@ -108,10 +139,8 @@ export interface WeightEntry {
 export interface WeightEntryInput {
   /** Measurement date as a `yyyy-mm-dd` string, or `null`. */
   date: string | null
-  /** Body weight in kilograms, or `null`. */
-  weightKg: number | null
-  /** Body Mass Index, or `null`. */
-  bmi: number | null
+  /** Body weight in kilograms. */
+  weightKg: number
   /** Body fat as a percentage, or `null`. */
   bodyFatPct: number | null
   /** Body water as a percentage, or `null`. */
@@ -133,9 +162,11 @@ export interface WeightPage {
 /** A single daily step-count measurement. */
 export interface StepsEntry {
   /** The record id (needed to edit/delete). */
-  id: number
+  id: string
   /** The owning user's id (echoed back on edit). */
-  userId: number
+  userId: string
+  /** The row version, sent back in `If-Match` so an edit of a stale copy is refused. */
+  version: number
   /** Measurement date as a `yyyy-mm-dd` string, or `null`. */
   date: string | null
   /** Step count for the day, or `null`. */
@@ -148,8 +179,8 @@ export interface StepsEntry {
 export interface StepsEntryInput {
   /** Measurement date as a `yyyy-mm-dd` string, or `null`. */
   date: string | null
-  /** Step count for the day, or `null`. */
-  steps: number | null
+  /** Step count for the day. */
+  steps: number
 }
 
 /** One page of the paginated steps history. */
@@ -163,9 +194,11 @@ export interface StepsPage {
 /** A single daily water-intake measurement (stored in millilitres). */
 export interface WaterEntry {
   /** The record id (needed to edit/delete). */
-  id: number
+  id: string
   /** The owning user's id (echoed back on edit). */
-  userId: number
+  userId: string
+  /** The row version, sent back in `If-Match` so an edit of a stale copy is refused. */
+  version: number
   /** Measurement date as a `yyyy-mm-dd` string, or `null`. */
   date: string | null
   /** Water consumed for the day in millilitres, or `null`. */
@@ -178,8 +211,8 @@ export interface WaterEntry {
 export interface WaterEntryInput {
   /** Measurement date as a `yyyy-mm-dd` string, or `null`. */
   date: string | null
-  /** Water consumed for the day in millilitres, or `null`. */
-  amountMl: number | null
+  /** Water consumed for the day in millilitres. */
+  amountMl: number
 }
 
 /** One page of the paginated water history. */
@@ -198,9 +231,11 @@ export interface WaterPage {
  */
 export interface PoopEntry {
   /** The record id (needed to edit/delete). */
-  id: number
+  id: string
   /** The owning user's id (echoed back on edit). */
-  userId: number
+  userId: string
+  /** The row version, sent back in `If-Match` so an edit of a stale copy is refused. */
+  version: number
   /** ISO timestamp of the bowel movement, or `null`. */
   dateTime: string | null
   /** Bristol Stool Scale type (1–7), or `null` when not recorded. */
@@ -213,8 +248,8 @@ export interface PoopEntry {
 
 /** Fields captured by the add/edit poop form, decoupled from the wire payload. */
 export interface PoopEntryInput {
-  /** ISO timestamp of the bowel movement, or `null`. */
-  dateTime: string | null
+  /** ISO timestamp of the bowel movement. */
+  dateTime: string
   /** Bristol Stool Scale type (1–7), or `null`. */
   bristolType: BristolType | null
   /** Stool colour, or `null`. */
@@ -238,7 +273,7 @@ export interface PoopPage {
  */
 export interface RestingHeartRateEntry {
   /** The underlying sleep record id (used as the list key). */
-  id: number
+  id: string
   /** Measurement date as a `yyyy-mm-dd` string, or `null`. */
   date: string | null
   /** Resting heart rate in beats per minute, or `null`. */
@@ -268,9 +303,11 @@ export type FastingStatus = Schemas['FastingStatus']
  */
 export interface FastingEntry {
   /** The record id (needed to edit/delete/complete). */
-  id: number
+  id: string
   /** The owning user's id (echoed back on edit). */
-  userId: number
+  userId: string
+  /** The row version, sent back in `If-Match` so an edit of a stale copy is refused. */
+  version: number
   /** ISO start timestamp of the fast, or `null`. */
   fastStartTime: string | null
   /** ISO end timestamp of the fast, or `null` while ongoing. */
@@ -291,20 +328,18 @@ export interface FastingEntry {
 
 /**
  * Fields captured by the start/edit fasting form, decoupled from the wire
- * payload. The end time, status, and actual duration are only meaningful when
+ * payload. The end time and status are only meaningful when
  * editing an existing fast (a freshly started fast is still in progress).
  */
 export interface FastingEntryInput {
-  /** ISO start timestamp of the fast, or `null`. */
-  fastStartTime: string | null
+  /** ISO start timestamp of the fast. */
+  fastStartTime: string
   /** ISO end timestamp of the fast, or `null`. */
   fastEndTime: string | null
   /** The fasting protocol, or `null`. */
   fastingType: FastingType | null
   /** Target fasting duration in seconds, or `null`. */
   targetDurationSeconds: number | null
-  /** Actual elapsed duration in seconds, or `null`. */
-  actualDurationSeconds: number | null
   /** Lifecycle status, or `null` (only set when editing). */
   status: FastingStatus | null
   /** Optional free-text notes, or `null`. */
@@ -337,12 +372,11 @@ export interface FastingStats {
 
 /**
  * One stage segment of a night's sleep (a contiguous span in a single stage).
- * Drives the hypnogram timeline. `stageType` follows the backend enum:
- * `0` deep, `1` light, `2` REM, `3` awake.
+ * Drives the hypnogram timeline.
  */
 export interface SleepStage {
-  /** Stage classification (`0` deep, `1` light, `2` REM, `3` awake), or `null`. */
-  stageType: number | null
+  /** Stage classification, or `null`. */
+  stageType: SleepStageType | null
   /** ISO start timestamp of the segment (GMT), or `null`. */
   startTimeGmt: string | null
   /** ISO end timestamp of the segment (GMT), or `null`. */
@@ -352,16 +386,18 @@ export interface SleepStage {
 }
 
 /**
- * A single night's sleep session. The backend captures a rich set of metrics
- * (stage breakdown, heart rate, SpO2, respiration, sub-scores, the stage
- * timeline) that Garmin populates and a manual entry can fill in part. All
- * durations are stored in seconds.
+ * A night's sleep session as the history list returns it. The backend captures a rich set of
+ * metrics (stage breakdown, heart rate, SpO2, respiration, sub-scores) that Garmin populates and a
+ * manual entry can fill in part. All durations are stored in seconds. The stage timeline is left
+ * out of the list; {@link SleepEntry} carries it.
  */
-export interface SleepEntry {
+export interface SleepListEntry {
   /** The record id (needed to edit/delete). */
-  id: number
+  id: string
   /** The owning user's id (echoed back on edit). */
-  userId: number
+  userId: string
+  /** The row version, sent back in `If-Match` so an edit of a stale copy is refused. */
+  version: number
   /** Calendar date of the session as a `yyyy-mm-dd` string, or `null`. */
   date: string | null
   /** Local start-of-sleep timestamp (`yyyy-mm-ddThh:mm`), or `null`. */
@@ -420,10 +456,16 @@ export interface SleepEntry {
   avgSleepStress: number | null
   /** Number of times awake during the night, or `null`. */
   awakeCount: number | null
-  /** Per-stage timeline driving the hypnogram. Empty when none recorded. */
-  sleepStages: SleepStage[]
+  /** Whether the night has a stage timeline; the stages come from the single-record read. */
+  hasSleepStages: boolean
   /** Integration that supplied the record (e.g. `garmin`), or `null` if manual. */
   source: string | null
+}
+
+/** A single night's sleep session as the single-record read returns it: the list row plus its stages. */
+export interface SleepEntry extends Omit<SleepListEntry, 'hasSleepStages'> {
+  /** Per-stage timeline driving the hypnogram. Empty when none recorded. */
+  sleepStages: SleepStage[]
 }
 
 /** Fields captured by the add/edit sleep form, decoupled from the wire payload. */
@@ -473,7 +515,7 @@ export interface SleepEntryInput {
 /** One page of the paginated sleep history. */
 export interface SleepPage {
   /** The sleep entries on this page (newest first). */
-  records: SleepEntry[]
+  records: SleepListEntry[]
   /** Total entries across all pages, for pagination. */
   total: number
 }

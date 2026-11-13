@@ -10,7 +10,7 @@ import { hasHiddenFields, isActivityOwner } from '@/features/activities/utils/pr
 const props = defineProps<{
   activity: Activity
   /** The viewer's user id, or `null` when unauthenticated. */
-  currentUserId: number | null
+  currentUserId: string | null
 }>()
 
 const { t } = useI18n()

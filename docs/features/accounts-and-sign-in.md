@@ -1,0 +1,133 @@
+# Accounts, sign-up and password reset
+
+This page describes how an account is created, how a forgotten password is recovered, and how you secure your account. Administrators set the rules in [Server settings](server-settings.md); [user management](user-management.md) covers what they can do to accounts.
+
+## Signing up
+
+Sign-up is available only when an administrator has enabled it. With **Allow sign-up** off, the form, the confirmation of a pending sign-up's verification link and a request for a new verification email are all refused, and the answer to the form and the request is the same whatever the address. Accounts that signed up earlier and are still unconfirmed stay that way, with their links still usable, until sign-up is turned on again, or until an administrator activates them in [user management](user-management.md); an activated account that has no password yet can still choose one from its link, and an email-change link still works. The rules for new accounts are two independent switches:
+
+| Switch | Effect |
+| ------ | ------ |
+| Require email verification | The new user must click a link sent to their address before they can sign in |
+| Require admin approval | An administrator must approve the new user before they can sign in |
+
+With neither switch on, the new account is active at once. With either on, it starts inactive.
+
+Accounts created by [single sign-on](single-sign-on.md#sign-up-rules-for-new-accounts) have their own switch, **Allow new user sign-ups through single sign-on**, and follow the same two switches. Turning it on does not open the sign-up form.
+
+```mermaid
+flowchart TD
+    A[User submits the sign-up form] --> B[Account created, inactive if any switch is on]
+    B --> C{Email verification required?}
+    C -- no --> F
+    C -- yes --> D[Verification email, link valid 24 hours]
+    D --> E[User opens the link]
+    E --> F{Admin approval required?}
+    F -- no --> G[Account active: user can sign in]
+    F -- yes --> H[Admins get an email and a notification]
+    H --> I[An admin approves the user]
+    I --> J[User gets an approved email]
+    J --> G
+```
+
+Details that matter:
+
+- The form's response never reveals whether an email address is already registered. A sign-up with a registered address looks exactly like a successful one, and the address's owner gets an email saying that someone tried to sign up (when mail is configured, at most once an hour per account) and that nothing changed. A taken username is reported whatever address comes with it, because usernames are visible to every signed-in user and the check must not reveal whether the address is registered. Changing your email address to one another account uses looks the same too: the address's holder gets an email saying that someone tried to use it, and nothing changes.
+- Emails need a working mail server. Without one, verification and approval emails cannot be sent; configure it in [Server settings](server-settings.md#email).
+- An administrator can only approve a user whose email is verified. If only admin approval is required, no verification email is sent, so the account stays unverified until an administrator marks the email verified in [user management](user-management.md#approving-sign-ups). Turn email verification on together with approval to avoid this.
+- The verification link opens the sign-up confirmation page of the web app (`/signup/confirm`), where the new user chooses a password; the link of an email change opens a different page (`/confirm-email-change`), and each page refuses the other kind of link. Links mailed before an upgrade to this version stop working: sign up again, or ask for a new email. The verification link is valid for 24 hours. Endurain removes a sign-up that has not been verified once its link has expired, checked hourly, so the person signs up again. It keeps an account that has a password or a linked sign-in provider, one an administrator deactivated or queued for deletion, and one that has a valid link from a resend. An account that signed up with a password and awaits approval stays for an administrator to approve.
+- A new account starts with default settings: privacy settings, health targets, empty default gear and integration slots.
+
+## Signing in
+
+You sign in with your username and password. If your account has two-step verification, Endurain asks for a code as a second step. The step must be finished within five minutes, from the same network, and three wrong codes end it, so you sign in again. If an administrator set your password, Endurain then asks you to choose a new one before it signs you in; see [Password set by an administrator](user-management.md#password-set-by-an-administrator). If an administrator has enabled single sign-on, the login page also shows a button per identity provider; see [Single Sign-On](single-sign-on.md).
+
+After repeated wrong passwords the account is locked for a while, with longer locks for more failures. Each client network counts separately (an IPv6 address by its /64), so one client cannot lock you out for everyone. If 100 wrong passwords in a row reach the account from any addresses, the account is locked for 30 days (the count belongs to the account, so changing the username does not drop it), except for [known devices](#security-notifications): browsers and apps you have signed in from since the account's last security change can still sign in with the right password. The count restarts when you sign in, and the lock ends when you sign in from a known device, complete a password reset, change your password from a signed-in device, or an administrator sets your password. You get an email and a notification when the account locks. This lock is intended, and it can be used against you: anyone who knows a username can trigger it with about 100 wrong passwords from five or more networks, and each network is first held by its own, shorter lock. Your known devices keep working, and a password reset ends the lock. A security change other than a password change, a password reset or an administrator setting the password (signing out everywhere, turning two-step verification on or off, changing the email) forgets the known devices without ending the lock, so during the lock only those three get you back in. On an install with no mail server and a single administrator there is no self-service way out of the lock for that administrator, apart from a known device, since a password reset needs email and no other administrator can set the password. The way out for that administrator is the server: the 30-day locks are kept in the shared state store (`STATE_URI`, falling back to `REDIS_URL`), not in the database. With the default in-memory store, which a single-process install uses, restarting Endurain clears every lock and every failure count. With Redis they survive a restart, so delete the keys that start with `endurain:auth:login_account:` (the 100 wrong passwords lock), `endurain:auth:login_account_unknown:`, `endurain:auth:mfa_account:` (the 100 wrong codes lock) and `endurain:auth:step_up_account:` (the lock on confirming sensitive changes), for example with `redis-cli --scan --pattern 'endurain:auth:login_account:*'` piped to `redis-cli del`. The shorter locks of one client network use the keys that start with `endurain:auth:login:attempts:` and `endurain:auth:login:lockout:`, `endurain:auth:mfa:attempts:` and `endurain:auth:mfa:lockout:`, and `endurain:auth:step_up:attempts:` and `endurain:auth:step_up:lockout:`; do not delete everything under `endurain:auth:mfa:`, which also holds setup secrets, pending sign-ins, challenge attempts and the replay guard for used codes. The keys carry a hash of the username or network, so a lock cannot be found by name and deleting the whole prefix lifts the lock for every account and network. Likewise, a single administrator who loses both the authenticator and the backup codes has no self-service or offline way back in, because only another administrator can reset two-step verification. Wrong two-step verification codes lock the second step the same way, each client network counting separately, and 100 wrong codes in a row for the account from any addresses lock two-step sign-in for 30 days, again except for known devices (browsers and apps you have signed in from since the last security change), which still need the right code. The count restarts when you sign in with a code, and the 30-day lock ends when you do, when you turn two-step verification off or set it up again, or when an administrator resets it; changing or resetting your password does not end it. The shorter lock of a single network is not lifted by those: it ends by itself within two hours, or when you sign in with a code from that network. You get an email and a notification when it locks. The limits are in [Account security](../integrate/account-security.md#progressive-account-lockout).
+
+## Forgotten password
+
+On the login page choose the forgotten password link and enter your email.
+
+```mermaid
+sequenceDiagram
+    participant U as You
+    participant S as Server
+    participant M as Your mailbox
+    U->>S: Request a reset for your email
+    S-->>U: Same answer whether or not the address exists
+    S-->>M: Email with a reset link, if an active account has that address
+    U->>S: Open the link and choose a new password
+    S-->>U: Password changed
+```
+
+- The reset link is valid for one hour and works once. It is sent to the address the account currently has, not to a new address still waiting for confirmation.
+- The answer on the page is always the same. This stops anyone from using the form to find out which emails have accounts.
+- Inactive accounts (not yet verified or approved, or deactivated) get no email.
+- Accounts without a local password (they sign in through an identity provider) get no email, and an already-issued reset link no longer works for them. An administrator can [set a password](user-management.md#resetting-a-password).
+- When an administrator turned off [local username and password login](single-sign-on.md#auto-redirect-to-sso), resets and password sign-in are refused for regular users, answered like a wrong password. Administrators keep both.
+- An account is emailed at most once every five minutes, so the form cannot be used to flood an inbox. A second request inside that time gets the same answer and no new email; use the link from the first one, or ask again afterwards.
+- If the server has no mail configured, the request is answered with a "service unavailable" error. Ask an administrator to reset the password in [user management](user-management.md#resetting-a-password).
+- The new password must satisfy the server's password policy.
+
+### What a password change or reset ends
+
+A change that could mean the account was in someone else's hands ends what that person could have started. A pending email change is the one to watch: the person who requested it could otherwise confirm it after you recover the account and take over the address that password resets are mailed to.
+
+| What happens | Sessions | Unused reset links | Pending email change | [API keys](../integrate/api-keys.md) |
+| ------------ | -------- | ------------------ | -------------------- | ------------------------------------ |
+| You reset your password with the emailed link | All end | End | Ends | Revoked |
+| An administrator sets your password | All end | End | Ends | Revoked |
+| You change your password | Others end, unless you turn the switch off | End | Ends | Kept |
+| You choose **Sign out everywhere** | All end | Kept | Ends | Kept |
+| You press **This wasn't me** in the notice about a requested email change | All end | End | Ends | Revoked |
+
+The email and notification you get after a reset or an administrator's password set say that keys were revoked and a pending email change was cancelled. **This wasn't me** does not change the password, because the person who requested the change knew it. Reset it right afterwards. The link works once, for 7 days after the change was requested, whatever has happened to the change since: confirmed, still waiting for confirmation, replaced by a later request or expired unconfirmed after its 24 hours. Using it cancels that change and every later change of the address still inside its 7 days, and makes every unconfirmed email-change link of the account useless, so a change that is still waiting can no longer be confirmed. When any of those changes was confirmed, the link puts the address it was mailed to back and the page tells you so, unless another account holds that address now. Either way the account is signed out everywhere, its API keys are revoked and its unused password-reset links end. A link that is malformed, more than 7 days old or belongs to a change that was already cancelled answers like an expired link, which includes using the same link twice and using the link of a later change after an earlier link cancelled it. Create new API keys after a reset or an administrator's password set; the revoked ones stay in the list as inactive for 30 days. When you change your password or sign out everywhere while signed in, revoke any key you do not recognise under **Settings → Security**.
+
+## Password rules
+
+Passwords follow [NIST SP 800-63B-4](https://pages.nist.gov/800-63-4/sp800-63b.html): length matters, character mixes do not. A new password must:
+
+- be at least as long as the minimum an administrator set for the account type, 15 characters by default (8 to 128). Every character counts, including spaces and non-Latin letters;
+- not be a commonly used or breached password. Endurain checks it against a list of about 75,000 such passwords shipped with the server, ignoring case;
+- not appear in a known data breach, if an administrator turned on the [breach check](server-settings.md#password-policy). It is off by default; when on, Endurain sends only the first 5 characters of the password's SHA-1 hash to haveibeenpwned.com, and accepts the password if that service cannot be reached;
+- not equal the account's username, email address, the part of the email before the `@`, or "endurain", ignoring case. A password that only contains one of them is accepted.
+
+No upper-case letters, digits or symbols are required. The form shows a strength meter as a guide; only the rules above can refuse a password, and the message says which one. Passwords are compared in Unicode NFC form, so the same text typed on different devices is the same password. Existing passwords keep working when the rules change; the rules apply the next time a password is set.
+
+## Securing your account
+
+Under **Settings → Security** you can:
+
+- change your password, username and email. All ask you to confirm with your current password, and with a code if two-step verification is on. A new email takes effect when you follow the link sent to it, valid for 24 hours. Until then your current address stays in place, and Settings shows the pending address with buttons to resend the link or cancel the change. The moment you request a change, your current address gets a notice with a **This wasn't me** link, and once the change is confirmed it gets another notice with the same link, which keeps working until 7 days after the request. Once the change is confirmed, your previous address is reserved for your account until that link can no longer be used: nobody else can sign up with it, be given it by an administrator, change to it or link to it through a sign-in provider, and the people who try are answered as they are for any address in use. An administrator's request for a new address notifies your current address at once, without a link, and says to contact your administrator if you did not expect it. When the change is confirmed, and when a sign-in provider changes the address, the notice has no link either. The link is the quickest way to stop a change you did not ask for; see [What a password change or reset ends](#what-a-password-change-or-reset-ends). If the server has no mail configured, a new email takes effect at once, unverified;
+- turn two-step verification (a TOTP authenticator app) on or off, and regenerate its ten one-time backup codes. Each code has the form `XXXX-XXXX` and works once, and generating new ones invalidates the old;
+- see your signed-in sessions and sign out of any of them, of all the others, or **Sign out everywhere**, which also ends the one you are using and takes you to the sign-in page;
+- link or unlink identity providers;
+- create and revoke [API keys](../integrate/api-keys.md), which can read and change your own data (activities, gear, health, followers and notifications, never your sign-in, your export or your provider links) and always expire, after at most the lifetime the administrator allows (365 days by default);
+- delete your account.
+
+Changing your password, turning two-step verification on or off, regenerating its backup codes or linking an identity provider signs you out of your other devices, and keeps the one you are using. Each of these forms has a switch, **Sign out of all other devices**, which is on by default; turn it off to keep your other sessions. Changing your username has the same switch, on by default, and changing your email has it too, on by default.
+
+Every such change asks you to confirm with your password (or, without one, a fresh sign-in with your identity provider), and with a code if two-step verification is on. Wrong confirmations are limited. Each session is held for a while after 5 wrong ones, longer after 10, and after 15 the session is signed out, so the next thing you do there takes you to the sign-in page. Wrong confirmations from all your sessions also add up: after 100 in a row, confirming sensitive changes is locked for 30 days in every session, whatever you enter. A successful confirmation restarts the count, and completing a password reset or an administrator setting your password lifts the lock. You get an email and a notification when a session is signed out and when the lock applies. The limits are in [Account security](../integrate/account-security.md#step-up-lockout-policy).
+
+### Required two-step verification
+
+An administrator can require two-step verification of administrators only, or of everyone (**Settings → Server → Access**, off by default; see [Server settings](server-settings.md#two-step-verification)). An account that requirement covers and that has not set up two-step verification can still sign in, but Endurain then shows only a page that explains the requirement and lets it set up two-step verification or sign out. Every other request is refused until it has set it up, with the `mfa-enrolment-required` error; see [Errors and limits](../integrate/errors-and-limits.md). This includes the account's API keys. After setting it up the account continues as usual, in the same session. The requirement is checked on every request, so it applies to a signed-in account at its next request, and an account that turns two-step verification off again, or an administrator who resets it, is sent back to set it up.
+
+Accounts that sign in only through single sign-on have no local password. They cannot change a password themselves, and they confirm sensitive changes by signing in again with their identity provider; see [Single Sign-On](single-sign-on.md#confirming-sensitive-changes-without-a-password).
+
+Deleting an account signs you out of every device and deactivates it at once, then deletes its data in the background (when the erasure starts, you get an email at your address if the server has mail configured; there is no in-app notice, since the account is erased), including activities, photos, thumbnails and stored files. The request answers `202` and there is no progress to follow: the account is already signed out and deactivated, so you cannot check it, and an administrator can follow the job at `GET /jobs/{job_id}`. How long it takes depends on how many activities the account has. If it fails, Endurain queues it again every hour, up to five times; see [Background operations](../integrate/background-operations.md#delete-your-account). The only administrator of a server cannot delete or demote themselves; make another user an administrator first.
+
+### Security notifications
+
+Endurain tells you when the way you sign in changes: your password is changed, reset, or set by an administrator; your account is locked by 100 wrong passwords in a row; two-step verification is locked by 100 wrong codes in a row; two-step verification is turned on or off; new backup codes are generated; your username is changed; an API key is created; an administrator revokes API keys of your account; an identity provider is linked or unlinked; a backup code is used (the notice says how many are left); a refresh token that was already used is presented again, which ends that session; a session is signed out after 15 wrong confirmations of a sensitive change; confirming sensitive changes is locked for 30 days after 100 wrong confirmations; an administrator changes your access type or deactivates your account; or an administrator deactivates your account, which reaches you although the account is then deactivated. When a user is made an administrator, every other active administrator gets the same pair of notices, naming the user. You get an email at your current address, if the server has mail configured, and a notification in the app. If you did not make the change, reset your password and review **Settings → Security**, or contact your administrator for a change made by one.
+
+The email is the notice that counts: someone who has taken over a session can read and dismiss in-app notifications, but not your mailbox.
+
+Signing in from a new device sends the same pair of notices: when it happened, the browser and operating system, the IP address, and whether you used your password or a sign-in provider. If it was not you, change your password and sign out of your other sessions in **Settings → Security**.
+
+- **Web:** Endurain recognises a browser by a random id it keeps in an `endurain_device` cookie (`__Host-endurain_device` when the server runs in production or demo; HttpOnly, `SameSite=Strict`, kept for 400 days from the last sign-in). The server stores only a hash of it. Signing in again from a browser you have used before sends nothing. A browser without the cookie, after clearing cookies or in a private window, counts as new. A device unused for 400 days is forgotten.
+- **First device:** the first device of an account created in the last 24 hours gets no notice. Any other first device does: an account that never signed in, or whose devices were all forgotten after 400 days. After upgrading to this version, a user's first sign-in within 24 hours of the upgrade is not announced, so existing users are not all emailed at once; a later one is.
+- **Mobile app:** the app keeps a device id the server gave it and sends it as `X-Device-Id`; it behaves like the web cookie. An app that has no id yet, after a reinstall or a cleared storage, counts as new and is given one.
+- **Security changes:** a password change or reset, turning two-step verification on or off, changing the email, unlinking an identity provider, signing out everywhere, and an administrator setting the password, requiring a password change, ending your sessions or editing the account forget every known device. The next sign-in from each, this one included, counts as new and sends the notice, and no device is exempt from an account lock until it has signed in again.
+- **Known devices list:** **Settings → Security → Known devices** lists the devices known now, with browser and operating system (or device type) and when each was last used, and marks the one you are using. Forgetting a device asks you to confirm your identity, signs that device out and makes its next sign-in count as new. The device you are using cannot be forgotten on its own. **Forget other devices** forgets every device but the one you are using and signs them all out, while you stay signed in. **Forget all devices** forgets every device, this one included, and signs you out everywhere. A session that was already open when you upgraded to this version is not tied to a device, so forgetting its device does not sign it out; revoke it from the sessions list. A device registered before the list existed shows no description until it signs in again.
+- **Locked account:** a known device can still sign in while the account is locked by 100 wrong passwords in a row, or while two-step verification is locked by 100 wrong codes in a row; see [Signing in](#signing-in).

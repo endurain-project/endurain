@@ -4,6 +4,7 @@
     "uploading": "Importing…",
     "success": "Activity uploaded successfully",
     "error": "Could not upload the activity file",
+    "tooLarge": "That file is too large",
     "timeout": "Your file is still importing. It will appear once it finishes.",
     "failed": {
       "unsupported_format": "That file type is not supported",
@@ -46,7 +47,6 @@
     "thisWeek": "This week",
     "thisMonth": "This month",
     "empty": "No activity in this period",
-    "caloriesUnit": "kcal",
     "metric": {
       "distance": "Distance",
       "time": "Time",
@@ -63,12 +63,13 @@
     "snow_ski": "Skiing",
     "snowboard": "Snowboarding",
     "windsurf": "Windsurfing",
-    "stand_up_paddleboarding": "Paddleboarding",
-    "surfing": "Surfing",
+    "stand_up_paddling": "Paddleboarding",
+    "surf": "Surfing",
     "kayaking": "Kayaking",
     "sailing": "Sailing",
-    "snowshoeing": "Snowshoeing",
-    "inline_skating": "Inline skating"
+    "snow_shoeing": "Snowshoeing",
+    "inline_skating": "Inline skating",
+    "other": "Other"
   },
   "goals": {
     "title": "Goals",

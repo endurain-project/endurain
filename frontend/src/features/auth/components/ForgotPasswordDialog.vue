@@ -15,7 +15,7 @@ import {
 import { FormField } from '@/components/ui/form-field'
 import { Input } from '@/components/ui/input'
 import { useForm } from '@/composables/useForm'
-import { HttpError } from '@/services/http'
+import { isProblem, retryWaitMessage } from '@/services/problems'
 import { requestPasswordReset } from '@/features/auth/services/passwordReset'
 import { compose, email, required } from '@/utils/validators'
 
@@ -45,7 +45,10 @@ async function submitForm(values: ForgotPasswordFormValues): Promise<void> {
     open.value = false
     emit('success', t('login.forgotPasswordRequestSuccess'))
   } catch (error) {
-    if (error instanceof HttpError && error.status === 503) {
+    const wait = retryWaitMessage(error, t)
+    if (wait !== null) {
+      emit('error', wait)
+    } else if (isProblem(error, 'service-unavailable')) {
       emit('error', t('login.forgotPasswordEmailNotConfigured'))
     } else {
       emit('error', t('login.forgotPasswordRequestError'))

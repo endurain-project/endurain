@@ -2,28 +2,43 @@
 import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
-import type { ApiKeyCreateInput } from '@/features/security/types'
+import type {
+  ApiKeyCreateInput,
+  ApiKeyDraft,
+  ApiKeyScope,
+  IdpReauth,
+} from '@/features/security/types'
 
+import IdpStepUpSection from '@/features/security/components/IdpStepUpSection.vue'
 import PasswordInput from '@/features/security/components/PasswordInput.vue'
 import { FormDialog } from '@/components/ui/form-dialog'
 import { Input } from '@/components/ui/input'
 import { inputFieldClass } from '@/components/ui/input/fieldClasses'
 import { Label } from '@/components/ui/label'
+import { normalizeMfaCode } from '@/features/auth/utils/mfaCode'
 import { Switch } from '@/components/ui/switch'
-import { API_KEY_SCOPES } from '@/features/security/services/security'
+import {
+  API_KEY_SCOPE_GROUPS,
+  apiKeyScopeLabelKey,
+  apiKeyScopesOf,
+} from '@/features/security/services/security'
 
 const open = defineModel<boolean>('open', { required: true })
+// The identity-provider sign-in proof, used when the account has no password.
+const reauth = defineModel<IdpReauth | null>('reauth', { default: null })
 
 const props = withDefaults(
   defineProps<{
-    /** Whether a password is required (the account has a local password). */
+    /** Whether a password is required; when not, the account signs in again with its identity provider. */
     requirePassword: boolean
+    /** Form values to restore after an identity-provider sign-in. */
+    draft?: ApiKeyDraft | null
     /** Whether an MFA/backup code is required (MFA is enabled). */
     requireMfa?: boolean
     /** Whether the create request is in flight. */
     pending: boolean
   }>(),
-  { requireMfa: true },
+  { requireMfa: true, draft: null },
 )
 
 const emit = defineEmits<{
@@ -36,10 +51,10 @@ const name = ref('')
 const expiresAt = ref('')
 const password = ref('')
 const mfaCode = ref('')
-const selectedScopes = ref<string[]>([])
+const selectedScopes = ref<ApiKeyScope[]>([])
 
 /** Adds or removes a scope from the granted set. */
-function toggleScope(scope: string, granted: boolean): void {
+function toggleScope(scope: ApiKeyScope, granted: boolean): void {
   selectedScopes.value = granted
     ? [...selectedScopes.value, scope]
     : selectedScopes.value.filter((value) => value !== scope)
@@ -62,17 +77,25 @@ const canSubmit = computed(
     name.value.trim().length > 0 &&
     selectedScopes.value.length > 0 &&
     (!props.requirePassword || password.value.length > 0) &&
+    (props.requirePassword || reauth.value !== null) &&
     (!props.requireMfa || mfaCode.value.trim().length > 0),
 )
+
+// Restored with the draft so the identity-provider round-trip loses nothing typed.
+const pendingContext = computed<ApiKeyDraft>(() => ({
+  name: name.value.trim(),
+  scopes: selectedScopes.value,
+  expiresAt: expiresAt.value || null,
+}))
 
 // Reset every field each time the dialog opens.
 watch(open, (isOpen) => {
   if (isOpen) {
-    name.value = ''
-    expiresAt.value = ''
+    name.value = props.draft?.name ?? ''
+    expiresAt.value = props.draft?.expiresAt ?? ''
     password.value = ''
     mfaCode.value = ''
-    selectedScopes.value = []
+    selectedScopes.value = props.draft?.scopes ?? []
   }
 })
 
@@ -83,7 +106,8 @@ function onSubmit(): void {
     scopes: selectedScopes.value,
     expiresAt: expiresAt.value || null,
     currentPassword: props.requirePassword ? password.value : null,
-    mfaCode: props.requireMfa ? mfaCode.value.trim() : null,
+    mfaCode: props.requireMfa ? normalizeMfaCode(mfaCode.value) : null,
+    idpReauth: props.requirePassword ? null : reauth.value,
   })
 }
 </script>
@@ -115,15 +139,25 @@ function onSubmit(): void {
 
       <div class="flex flex-col gap-2">
         <Label>{{ t('settings.security.apiKeys.scopes') }}</Label>
-        <Switch
-          v-for="scope in API_KEY_SCOPES"
-          :key="scope"
-          :model-value="selectedScopes.includes(scope)"
-          :disabled="pending"
-          @update:model-value="(granted) => toggleScope(scope, granted)"
-        >
-          <span class="font-mono text-sm">{{ scope }}</span>
-        </Switch>
+        <div v-for="group in API_KEY_SCOPE_GROUPS" :key="group" class="flex flex-col gap-2">
+          <h4 class="text-sm font-medium text-muted-foreground">
+            {{ t(`settings.security.apiKeys.scopeGroups.${group}`) }}
+          </h4>
+          <Switch
+            v-for="scope in apiKeyScopesOf(group)"
+            :key="scope"
+            :model-value="selectedScopes.includes(scope)"
+            :disabled="pending"
+            @update:model-value="(granted) => toggleScope(scope, granted)"
+          >
+            <span class="flex flex-col">
+              <span class="text-sm">
+                {{ t(`settings.security.apiKeys.scopeLabels.${apiKeyScopeLabelKey(scope)}`) }}
+              </span>
+              <span class="font-mono text-xs text-muted-foreground">{{ scope }}</span>
+            </span>
+          </Switch>
+        </div>
         <p class="text-hint">{{ t('settings.security.apiKeys.scopesHint') }}</p>
       </div>
 
@@ -140,6 +174,14 @@ function onSubmit(): void {
         <p class="text-hint">{{ t('settings.security.apiKeys.expiryHint') }}</p>
       </div>
 
+      <IdpStepUpSection
+        v-if="!requirePassword"
+        v-model:reauth="reauth"
+        action="api_key_create"
+        :pending-context="pendingContext"
+        :disabled="pending"
+      />
+
       <div v-if="requirePassword" class="flex flex-col gap-1.5">
         <Label for="apikey-password">{{ t('settings.security.password.current') }}</Label>
         <PasswordInput
@@ -150,7 +192,7 @@ function onSubmit(): void {
         />
       </div>
 
-      <div v-if="requireMfa" class="flex flex-col gap-1.5">
+      <div v-if="requireMfa && (requirePassword || reauth)" class="flex flex-col gap-1.5">
         <Label for="apikey-mfa">{{ t('settings.security.mfaCode') }}</Label>
         <Input
           id="apikey-mfa"

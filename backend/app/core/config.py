@@ -14,39 +14,58 @@ mocks (``mock.patch("...core_config.ATTR")``) keep
 working unchanged.
 """
 
-import functools
 import ipaddress
 import os
-import re
-import socket
 import stat
-from email.utils import parseaddr
+import uuid
+from collections.abc import Iterable
 from pathlib import Path
 from tempfile import gettempdir
 from typing import Annotated, Self
+from urllib.parse import urlsplit
 
 import jasil.capabilities as platform_capabilities
 import jasil.profile as platform_profile
 from cryptography.fernet import Fernet
-from pydantic import field_validator, model_validator
+from pydantic import Field, field_validator, model_validator
 from pydantic_settings import BaseSettings, NoDecode, SettingsConfigDict
 
+import core.environment as core_environment
 import core.logger as core_logger
 import core.network as core_network
+import core.redirect_schemes as core_redirect_schemes
 
 logger = core_logger.get_logger(__name__)
 
 # Pure constants — neither env-driven nor derived from settings.
-API_VERSION = "v0.20.2"
+API_VERSION = "v0.21.0-beta1"
 LICENSE_NAME = "GNU Affero General Public License v3.0 or later"
 LICENSE_IDENTIFIER = "AGPL-3.0-or-later"
 LICENSE_URL = "https://spdx.org/licenses/AGPL-3.0-or-later.html"
 ROOT_PATH = "/api/v1"
 
-SERVER_IMAGES_URL_PATH = "server_images"
+#: The shortest ``SECRET_KEY`` accepted; ``openssl rand -hex 32``, which the docs prescribe, gives 64.
+MIN_SECRET_KEY_LENGTH = 32
 
-STRAVA_BULK_IMPORT_ACTIVITIES_FILE = "activities.csv"
-STRAVA_BULK_IMPORT_SHOES_UNNAMED_SHOE = "Unnamed Shoe "
+#: The fewest distinct characters a ``SECRET_KEY`` may use; ``openssl rand -hex 32`` always clears it (16 symbols).
+MIN_SECRET_KEY_DISTINCT_CHARACTERS = 10
+
+# Secrets published in ``.env.example``. A deployment that keeps one runs with a value anyone can read, so startup
+# refuses it. Each maps to the command that generates a replacement.
+PUBLISHED_EXAMPLE_SECRETS: dict[str, tuple[frozenset[str], str]] = {
+    "SECRET_KEY": (
+        frozenset({"69b85208190c96821050d4ba980a8a95d928ab7e0ebf1a40b8ef6d09fd8367d3"}),
+        "openssl rand -hex 32",
+    ),
+    "FERNET_KEY": (frozenset({"7NfMMRSCWcoNDSjqBX8WoYH9nTFk1VdQOdZY13po53Y="}), "openssl rand -base64 32"),
+    "DB_PASSWORD": (
+        frozenset({"aee5c0d342f5a88dfe657bff3d21ddb31643cdbedd21177e20ec8524b15e3648"}),
+        "openssl rand -hex 32",
+    ),
+}
+
+
+SERVER_IMAGES_URL_PATH = "server_images"
 
 SUPPORTED_FILE_FORMATS = [
     ".fit",
@@ -56,43 +75,7 @@ SUPPORTED_FILE_FORMATS = [
 ]  # used to screen bulk import files
 
 
-# RFC 3986 URI scheme, lower-cased: a letter, then letters, digits, "+", "-" or ".".
-# Must match the frontend check in src/composables/useSafeRedirect.ts.
-URI_SCHEME_PATTERN = re.compile(r"[a-z][a-z0-9+.-]*")
-
 # Settings — every value driven by an environment variable.
-# RFC 1123 hostname: dot-separated labels of letters, digits and inner hyphens.
-_HOSTNAME_PATTERN = re.compile(
-    r"(?=.{1,253}$)[A-Za-z0-9]([A-Za-z0-9-]{0,61}[A-Za-z0-9])?(\.[A-Za-z0-9]([A-Za-z0-9-]{0,61}[A-Za-z0-9])?)*"
-)
-
-
-def _is_plain_address(value: str) -> bool:
-    """Whether ``value`` is a single ``addr`` or ``Name <addr>`` email address."""
-    _, address = parseaddr(value)
-    return bool(address) and "@" in address and not any(c in value for c in "\r\n,;")
-
-
-def _is_valid_smtp_host(host: str) -> bool:
-    """Whether ``host`` is a hostname or an IP literal safe to place in a ``scheme://host:port`` URI."""
-    try:
-        ipaddress.ip_address(host)
-    except ValueError:
-        return bool(_HOSTNAME_PATTERN.fullmatch(host))
-    return True
-
-
-@functools.cache
-def _is_private_host(host: str) -> bool:
-    """Whether ``host`` resolves only to private, loopback or link-local addresses."""
-    try:
-        infos = socket.getaddrinfo(host, None, type=socket.SOCK_STREAM)
-    except OSError:
-        return False
-    addresses = [ipaddress.ip_address(info[4][0].split("%")[0]) for info in infos]
-    return bool(addresses) and all(a.is_private or a.is_loopback or a.is_link_local for a in addresses)
-
-
 class Settings(BaseSettings):
     """Environment-driven configuration values.
 
@@ -110,7 +93,9 @@ class Settings(BaseSettings):
 
     # --- Logging / environment ---
     LOG_LEVEL: str = "info"
-    ENVIRONMENT: str = "production"
+    # Websocket PING/PONG keepalive frames are logged at DEBUG; hidden unless enabled.
+    LOG_WEBSOCKET_FRAMES: bool = False
+    ENVIRONMENT: core_environment.Environment = "production"
     TZ: str = "UTC"
 
     # --- Deployment shape ---
@@ -145,7 +130,10 @@ class Settings(BaseSettings):
     # comma-separated env value (e.g. "a,b,c") rather than
     # JSON. Without this pydantic-settings would attempt
     # ``json.loads`` first and raise on plain strings.
-    ALLOWED_REDIRECT_SCHEMES: Annotated[set[str], NoDecode] = {"endurain"}
+    # Exact redirect addresses native apps may use (custom-scheme or claimed-https); any other redirect that carries a
+    # scheme is refused. The default is the Endurain mobile app's callback, its applicationId in reverse-DNS form
+    # (RFC 8252 7.1).
+    ALLOWED_REDIRECT_URIS: Annotated[set[str], NoDecode] = {"com.endurain.endurain:/auth/sso/callback"}
     TRUSTED_PROXIES: Annotated[list[str], NoDecode] = []
     # Narrow SSRF exception list for admin-configured
     # outbound calls (currently OIDC discovery / JWKS).
@@ -165,6 +153,10 @@ class Settings(BaseSettings):
     # (bare "*", scheme-only "https:") are dropped at startup
     # because they would defeat the connect-src protection.
     CSP_ADDITIONAL_CONNECT_SRC: Annotated[list[str], NoDecode] = []
+    # Adds ``preload`` to the Strict-Transport-Security header sent in
+    # deployed environments. It only matters once the operator submits the
+    # domain to hstspreload.org, and removal from the list is slow.
+    HSTS_PRELOAD: bool = False
 
     # --- Internal caches (populated at startup) ---
     # Hostnames from TRUSTED_PROXIES, resolved to IPs at startup and cached.
@@ -222,6 +214,15 @@ class Settings(BaseSettings):
     # status. Set to 0 (or negative) to disable pruning and keep rows forever.
     EVENT_LOG_RETENTION_DAYS: int = 90
 
+    # --- Audit trail (jasil_audit_log) ---
+    # Append-only record of security-relevant actions, written in the same
+    # transaction as the change it describes. The trail is kept for the
+    # platform's default retention (90 days) with no legal hold.
+    # Optional write-once copy of every audit checkpoint, kept outside the
+    # database: file:///absolute/directory or s3://bucket/prefix. The signing
+    # key (AUDIT_SIGNING_KEY) is a secret and read separately via ``read_secret``.
+    AUDIT_EXTERNAL_SINK_URI: str | None = None
+
     # --- Coordination lock (scheduler/backfill single-runner) ---
     # noop:// always acquires (single process); postgres-advisory:// uses
     # pg_try_advisory_lock on the main database so only one replica runs a
@@ -263,6 +264,13 @@ class Settings(BaseSettings):
     # for operator review). Set to 0 (or negative) to disable pruning.
     JOBS_RETENTION_DAYS: int = 90
 
+    # --- Notifications ---
+    # Age in days after which read notifications are purged by a scheduled
+    # cleanup (daily). Unread notifications are never purged. Set to 0 to disable
+    # pruning and keep them forever.
+    # Deprecated: imported into ``server_settings`` on boot, removed in v0.22.0.
+    READ_NOTIFICATION_RETENTION_DAYS: int = Field(default=90, ge=0, le=3650)
+
     # --- API key delivery ---
     # Allow API keys to be passed as a ``?api_key=`` query parameter.
     # Disabled by default because query-string credentials appear in
@@ -270,7 +278,17 @@ class Settings(BaseSettings):
     # Enable only if you have integrations that cannot set custom headers.
     ALLOW_API_KEY_QUERY_PARAM: bool = False
 
+    # --- Session and token policy ---
+    # Deprecated: imported into ``server_settings`` on boot, removed in v0.22.0.
+    # The bounds are the ones the database schema enforces, so whatever is accepted here is storable.
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = Field(default=15, ge=1, le=1440)
+    REFRESH_TOKEN_EXPIRE_DAYS: int = Field(default=7, ge=1, le=365)
+    SESSION_IDLE_TIMEOUT_ENABLED: bool = False
+    SESSION_IDLE_TIMEOUT_HOURS: int = Field(default=1, ge=1, le=8760)
+    SESSION_ABSOLUTE_TIMEOUT_HOURS: int = Field(default=24, ge=1, le=8760)
+
     # --- Reverse-geocoding providers ---
+    # Deprecated: imported into ``server_settings`` on boot, removed in v0.22.0.
     REVERSE_GEO_PROVIDER: str = "nominatim"
     PHOTON_API_HOST: str = "photon.komoot.io"
     PHOTON_API_USE_HTTPS: bool = True
@@ -280,6 +298,7 @@ class Settings(BaseSettings):
     REVERSE_GEO_RATE_LIMIT: float = 1.0
 
     # --- Email (SMTP) ---
+    # Deprecated: imported into the ``mail_settings`` table on boot, removed in v0.22.0.
     # SMTP_PASSWORD is read separately via ``read_secret``
     # so it inherits the Docker-secrets ``_FILE`` contract
     # used by DB_PASSWORD / SECRET_KEY / FERNET_KEY and is
@@ -306,13 +325,15 @@ class Settings(BaseSettings):
 
     @field_validator("DEPLOYMENT_PROFILE", mode="before")
     @classmethod
-    def _parse_deployment_profile(cls, v):
+    def _parse_deployment_profile(
+        cls, v: str | platform_profile.DeploymentProfile | None
+    ) -> platform_profile.DeploymentProfile:
         """Normalise DEPLOYMENT_PROFILE to a DeploymentProfile (raises on typo)."""
         return platform_profile.parse_profile(v)
 
     @field_validator("WEB_WORKERS", mode="before")
     @classmethod
-    def _parse_web_workers(cls, v):
+    def _parse_web_workers(cls, v: str | int | None) -> int:
         """Coerce WEB_WORKERS to an int >= 1, tolerating blank/invalid input."""
         if v is None or v == "":
             return 1
@@ -333,7 +354,7 @@ class Settings(BaseSettings):
 
     @field_validator("SMTP_SECURE_TYPE", mode="before")
     @classmethod
-    def _smtp_secure_type_lower(cls, v):
+    def _smtp_secure_type_lower(cls, v: object) -> str:
         """Normalise to lower-case and validate against the
         allowed connection types (``starttls``, ``ssl``). Falls
         back to ``starttls`` on garbage input with a warning
@@ -352,30 +373,93 @@ class Settings(BaseSettings):
             return "starttls"
         return normalised
 
-    @field_validator("ALLOWED_REDIRECT_SCHEMES", mode="before")
+    @field_validator("ENDURAIN_HOST")
     @classmethod
-    def _parse_allowed_schemes(cls, v):
+    def _validate_endurain_host(cls, v: str) -> str:
+        """Require the public address to be an origin: ``http(s)://host[:port]``, and return it in canonical form.
+
+        The canonical form is the one a browser sends as ``Origin`` (RFC 6454): lower-case scheme and host, the default
+        port of the scheme dropped. It is the token ``iss`` and ``aud`` and the CORS and websocket origin.
+
+        Returns:
+            The origin with a lower-case scheme and host and no default port.
+
+        Raises:
+            ValueError: If the value has no scheme or host, a scheme other than http or https, user info, a path
+                (a trailing slash included), a query or a fragment, or an invalid port.
+        """
+        message = f"ENDURAIN_HOST '{v}' must look like https://host[:port], with no user info, path, query or fragment"
+        if any(char.isspace() or char in "\\?#@" for char in v):
+            raise ValueError(message)
+        try:
+            parts = urlsplit(v)
+            _ = parts.port
+        except ValueError as err:
+            raise ValueError(message) from err
+        if parts.scheme not in ("http", "https") or not parts.hostname or parts.path:
+            raise ValueError(message)
+        host = f"[{parts.hostname}]" if ":" in parts.hostname else parts.hostname
+        default_port = 443 if parts.scheme == "https" else 80
+        port = parts.port
+        return f"{parts.scheme}://{host}" if port is None or port == default_port else f"{parts.scheme}://{host}:{port}"
+
+    @field_validator("ALLOWED_REDIRECT_URIS", mode="before")
+    @classmethod
+    def _parse_allowed_redirect_uris(cls, v: str | Iterable[object] | None) -> set[str]:
         """Accept comma-separated env value or already-parsed iterable.
 
-        Entries are lower-cased. An entry that is not a valid URI scheme is dropped with a warning:
-        a browser cannot open a redirect that uses it.
+        Each entry is a ``scheme:target`` address, the ``//`` optional (RFC 3986); its scheme is lower-cased and the
+        rest is kept as written. An ``https`` entry must be ``https://host/...`` with a host, no userinfo and a valid
+        port.
+
+        Raises:
+            ValueError: If an entry has a control character, is not ``scheme:target``, has an unsafe scheme
+                (``core.redirect_schemes``), or is a malformed ``https`` address.
         """
         if v is None or v == "":
             return set()
-        entries = v.split(",") if isinstance(v, str) else (str(s) for s in v)
-        schemes = {s.strip().lower() for s in entries if s.strip()}
-        invalid = sorted(s for s in schemes if not URI_SCHEME_PATTERN.fullmatch(s))
-        if invalid:
-            logger.warning(
-                "Ignoring ALLOWED_REDIRECT_SCHEMES entries that are not valid URI schemes "
-                f"(letters, digits, '+', '-' and '.' only, starting with a letter): {', '.join(invalid)}",
-                extra=core_logger.context(console=True),
-            )
-        return schemes.difference(invalid)
+        entries = v.split(",") if isinstance(v, str) else [str(entry) for entry in v]
+        uris: set[str] = set()
+        for entry in (e.strip() for e in entries):
+            if not entry:
+                continue
+            if any(ord(char) < 0x20 or ord(char) == 0x7F for char in entry):
+                raise ValueError("ALLOWED_REDIRECT_URIS must not contain control characters")
+            scheme = core_redirect_schemes.uri_scheme(entry)
+            if scheme is None or not entry[len(scheme) + 1 :].removeprefix("//"):
+                raise ValueError(f"ALLOWED_REDIRECT_URIS entry '{entry}' must look like scheme:target")
+            if scheme in core_redirect_schemes.UNSAFE_REDIRECT_SCHEMES:
+                raise ValueError(f"ALLOWED_REDIRECT_URIS must not contain unsafe schemes: {scheme}")
+            address = core_redirect_schemes.normalise_redirect_uri(entry)
+            if scheme == "https" and not cls._is_https_address_with_host(address):
+                raise ValueError(
+                    f"ALLOWED_REDIRECT_URIS https entry '{entry}' must look like https://host/path, "
+                    "with a host, no user info and a valid port"
+                )
+            uris.add(address)
+        return uris
+
+    @staticmethod
+    def _is_https_address_with_host(address: str) -> bool:
+        """Report whether an ``https`` address is ``https://host...`` without userinfo and with a valid port.
+
+        Args:
+            address: The address, its scheme already lower-cased.
+
+        Returns:
+            True when the address has an authority with a host, no ``@``, no whitespace or backslash, and a parsable port.
+        """
+        if not address.startswith("https://") or any(char.isspace() or char == "\\" for char in address):
+            return False
+        try:
+            parts = urlsplit(address)
+            return bool(parts.hostname) and "@" not in parts.netloc and (parts.port is None or parts.port > 0)
+        except ValueError:
+            return False
 
     @field_validator("TRUSTED_PROXIES", mode="before")
     @classmethod
-    def _parse_trusted_proxies(cls, v):
+    def _parse_trusted_proxies(cls, v: str | list[str] | None) -> list[str]:
         """Accept comma-separated env value or already-parsed iterable."""
         if v is None or v == "":
             return []
@@ -385,7 +469,7 @@ class Settings(BaseSettings):
 
     @field_validator("TRUSTED_PROXIES", mode="after")
     @classmethod
-    def _validate_trusted_proxies(cls, v):
+    def _validate_trusted_proxies(cls, v: list[str]) -> list[str]:
         """Validate TRUSTED_PROXIES entries are valid IPs, CIDRs, hostnames, or '*'.
 
         Entries may be:
@@ -427,7 +511,7 @@ class Settings(BaseSettings):
 
     @field_validator("CSP_ADDITIONAL_CONNECT_SRC", mode="before")
     @classmethod
-    def _parse_csp_additional_connect_src(cls, v):
+    def _parse_csp_additional_connect_src(cls, v: str | Iterable[object] | None) -> list[str]:
         """Parse the extra CSP ``connect-src`` origins.
 
         Accepts a comma-separated env value or an already
@@ -477,7 +561,7 @@ class Settings(BaseSettings):
 
     @field_validator("SSRF_ALLOWED_HOSTS", mode="before")
     @classmethod
-    def _parse_ssrf_allowed_hosts(cls, v):
+    def _parse_ssrf_allowed_hosts(cls, v: str | Iterable[object] | None) -> list[str]:
         """Parse and validate the SSRF allowlist.
 
         Accepts a comma-separated env value or an already
@@ -563,18 +647,21 @@ class Settings(BaseSettings):
 
     @field_validator("REVERSE_GEO_RATE_LIMIT", mode="before")
     @classmethod
-    def _parse_geo_rate(cls, v):
+    def _parse_geo_rate(cls, v: str | float | None) -> float:
         """Tolerate non-numeric strings instead of failing startup."""
         if v is None or v == "":
             return 1.0
         try:
-            return float(v)
+            rate = float(v)
         except (TypeError, ValueError):
+            rate = -1.0
+        if not 0 <= rate <= 100:
             logger.warning(
-                "Invalid REVERSE_GEO_RATE_LIMIT value, expected a number; defaulting to 1.0",
+                "Invalid REVERSE_GEO_RATE_LIMIT value, expected a number from 0 to 100; defaulting to 1.0",
                 extra=core_logger.context(console=True),
             )
             return 1.0
+        return rate
 
     @model_validator(mode="after")
     def _fill_filesystem_defaults(self) -> Self:
@@ -585,8 +672,6 @@ class Settings(BaseSettings):
             self.LOGS_DIR = f"{self.BACKEND_DIR}/logs"
         if not self.FILES_DIR:
             self.FILES_DIR = f"{self.DATA_DIR}/activity_files"
-        if not self.TRUSTED_PROXIES and self.ENVIRONMENT == "development" and "TRUSTED_PROXIES" not in os.environ:
-            self.TRUSTED_PROXIES = ["*"]
         return self
 
     @property
@@ -641,64 +726,6 @@ class Settings(BaseSettings):
         return "noop://"
 
     @property
-    def smtp_sender(self) -> str | None:
-        """Sender address: ``SMTP_FROM``, falling back to ``SMTP_USERNAME``."""
-        return self.SMTP_FROM or self.SMTP_USERNAME or None
-
-    @property
-    def mail_problems(self) -> list[str]:
-        """Reasons the SMTP settings cannot be used, empty when mail is usable or unset.
-
-        Mirrors what the mail backend rejects at platform build time, so an invalid
-        setting disables email with a warning instead of stopping the application.
-        Messages name the setting, never its value.
-        """
-        if not self.SMTP_HOST:
-            return []
-        problems: list[str] = []
-        if not _is_valid_smtp_host(self.SMTP_HOST):
-            problems.append("SMTP_HOST is not a valid hostname or IP address")
-        sender = self.smtp_sender
-        if not sender:
-            problems.append("neither SMTP_FROM nor SMTP_USERNAME is set, so there is no sender address")
-        elif not _is_plain_address(sender):
-            problems.append("the sender address (SMTP_FROM or SMTP_USERNAME) is not a valid email address")
-        password = read_secret("SMTP_PASSWORD")
-        if bool(self.SMTP_USERNAME) != bool(password):
-            problems.append("SMTP_USERNAME and SMTP_PASSWORD must be set together")
-        if not ((self.SMTP_USERNAME or "").isascii() and (password or "").isascii()):
-            problems.append("SMTP_USERNAME and SMTP_PASSWORD must contain only ASCII characters")
-        if not 0 < self.SMTP_PORT < 65536:
-            problems.append("SMTP_PORT must be between 1 and 65535")
-        if not self.SMTP_SECURE:
-            if self.SMTP_USERNAME or password:
-                problems.append(
-                    "SMTP_SECURE=false cannot be used with SMTP_USERNAME/SMTP_PASSWORD (credentials are never sent without TLS)"
-                )
-            elif _is_valid_smtp_host(self.SMTP_HOST) and not _is_private_host(self.SMTP_HOST):
-                problems.append("SMTP_SECURE=false is only allowed for a private or loopback SMTP_HOST")
-        return problems
-
-    @property
-    def mail_configured(self) -> bool:
-        """Whether outgoing email is configured and usable."""
-        return bool(self.SMTP_HOST) and not self.mail_problems
-
-    @property
-    def smtp_uri(self) -> str | None:
-        """Mail backend URI, or ``None`` when mail is not configured or unusable.
-
-        ``smtps://`` is implicit TLS; ``smtp://`` is STARTTLS (or cleartext when
-        ``SMTP_SECURE`` is false).
-        """
-        if not self.mail_configured:
-            return None
-        scheme = "smtps" if self.SMTP_SECURE and self.SMTP_SECURE_TYPE == "ssl" else "smtp"
-        # An IPv6 literal needs brackets inside a URI authority.
-        host = f"[{self.SMTP_HOST}]" if ":" in self.SMTP_HOST else self.SMTP_HOST
-        return f"{scheme}://{host}:{self.SMTP_PORT}"
-
-    @property
     def job_worker_mode(self) -> platform_profile.JobWorkerMode:
         """Where durable-job consumers run.
 
@@ -716,6 +743,23 @@ class Settings(BaseSettings):
         return platform_profile.resolve_topology(
             profile=self.DEPLOYMENT_PROFILE, web_workers=self.WEB_WORKERS, job_worker_mode=self.job_worker_mode
         )
+
+    @property
+    def single_log_writer(self) -> bool:
+        """Whether one process alone writes ``{LOGS_DIR}/app.log``.
+
+        Only then can the file be rotated safely and read back as the whole log.
+        """
+        return not self.resolved_deployment_topology.multi_process
+
+    @property
+    def logs_viewer_enabled(self) -> bool:
+        """Whether admins may read the application log through the API.
+
+        Off for the public demo and wherever several processes write logs, which
+        belong in the platform's log collection rather than in one local file.
+        """
+        return self.ENVIRONMENT != "demo" and self.single_log_writer
 
     # The ``substrate_*_uri`` properties below are what the platform substrate is
     # handed; the ``resolved_*`` ones above fold in the host's fallbacks for the
@@ -808,9 +852,9 @@ class Settings(BaseSettings):
         substrate's can never be the one that fires. ``tests/core`` pins that —
         anything ``Settings`` accepts, the substrate must resolve.
 
-        ``development`` is never fatal, and the ``custom`` profile is exempt from
-        the consistency rules (it promises no defaults, so nothing can contradict
-        one) though not from naming its capabilities. Multi-worker ``local``
+        ``development`` is never fatal. The ``custom`` profile promises no
+        defaults, but a process-local backend still contradicts the processes it
+        declares, so it is held to the same rules. Multi-worker ``local``
         keeps local storage (shared host disk) but still needs a shared lock. The
         ``distributed`` profile also requires ``JOBS_ENABLED``: best-effort Redis
         delivery can lose events when a consumer crashes.
@@ -872,10 +916,9 @@ FILES_BULK_IMPORT_DIR = f"{settings.FILES_DIR}/bulk_import"
 # on S3. Kept under DATA_DIR rather than the system temp dir because an
 # activity file can be up to 200 MiB.
 FILES_UPLOAD_INCOMING_DIR = f"{settings.FILES_DIR}/upload_incoming"
-STRAVA_BULK_IMPORT_DIR = f"{settings.FILES_DIR}/strava_import"
 
 
-def bulk_import_dir_for(user_id: int) -> str:
+def bulk_import_dir_for(user_id: uuid.UUID) -> str:
     """Return the bulk-import drop directory belonging to one user.
 
     Bulk import used to scan a single shared directory, so on a multi-user
@@ -885,30 +928,12 @@ def bulk_import_dir_for(user_id: int) -> str:
     construction rather than by convention.
 
     Args:
-        user_id: The owning user's id. Coerced to ``int`` so the value can only
-            ever be a single path segment.
+        user_id: The owning user's id. The UUID type keeps the value to one path segment.
 
     Returns:
         Absolute path of that user's bulk-import directory.
     """
-    return f"{FILES_BULK_IMPORT_DIR}/{int(user_id)}"
-
-
-def strava_bulk_import_dir_for(user_id: int) -> str:
-    """Return the Strava-export drop directory belonging to one user.
-
-    Per user for the same reason as :func:`bulk_import_dir_for`: one shared
-    directory would attribute whatever any user left there to whoever started the
-    import.
-
-    Args:
-        user_id: The owning user's id. Coerced to ``int`` so the value can only
-            ever be a single path segment.
-
-    Returns:
-        Absolute path of that user's Strava-export directory.
-    """
-    return f"{STRAVA_BULK_IMPORT_DIR}/{int(user_id)}"
+    return f"{FILES_BULK_IMPORT_DIR}/{user_id}"
 
 
 # Secret loading and environment validation
@@ -945,16 +970,18 @@ def read_secret(
 
             # Security: Validate file path to prevent path traversal
             if not _is_safe_path(file_path):
-                logger.error(f"Unsafe file path detected for {file_env_var}", extra=core_logger.context(console=True))
+                logger.error(
+                    "Unsafe secret file path detected", extra=core_logger.context(console=True, env_var=file_env_var)
+                )
                 raise OSError(f"Unsafe file path for {file_env_var}")
 
             # Check if file exists and is readable
             if not file_path.exists():
-                logger.error(f"Secret file not found for {file_env_var}", extra=core_logger.context(console=True))
+                logger.error("Secret file not found", extra=core_logger.context(console=True, env_var=file_env_var))
                 raise OSError(f"Secret file not found for {file_env_var}")
 
             if not file_path.is_file():
-                logger.error(f"Secret path is not a file for {file_env_var}", extra=core_logger.context(console=True))
+                logger.error("Secret path is not a file", extra=core_logger.context(console=True, env_var=file_env_var))
                 raise OSError(f"Secret path is not a file for {file_env_var}")
 
             # Security: Check file permissions (should not be world-readable)
@@ -966,7 +993,7 @@ def read_secret(
 
             # Security: limit file size to prevent memory exhaustion.
             if file_stat.st_size > 65536:  # 64KB
-                logger.error(f"Secret file too large for {file_env_var}", extra=core_logger.context(console=True))
+                logger.error("Secret file too large", extra=core_logger.context(console=True, env_var=file_env_var))
                 raise OSError(f"Secret file too large for {file_env_var}")
 
             # Read the secret file
@@ -980,7 +1007,9 @@ def read_secret(
                     )
                     return content
                 else:
-                    logger.warning(f"Secret file is empty for {file_env_var}", extra=core_logger.context(console=True))
+                    logger.warning(
+                        "Secret file is empty", extra=core_logger.context(console=True, env_var=file_env_var)
+                    )
 
         except (OSError, UnicodeDecodeError) as e:
             # Log error without exposing file path details
@@ -1034,36 +1063,51 @@ def _is_safe_path(file_path: Path) -> bool:
         return False
 
 
-def validate_fernet_key(fernet_key: str | None) -> bool:
+def parse_key_list(raw_keys: str, name: str) -> list[str]:
     """
-    Validate Fernet encryption key format.
+    Split a comma-separated key list into its trimmed keys.
+
+    The first key signs or encrypts and every key verifies or decrypts, so a list lets the key be rotated.
 
     Args:
-        fernet_key: Fernet key to validate.
+        raw_keys: Comma-separated keys; a single key is a list of one.
+        name: The environment variable the list came from, for the error message.
 
     Returns:
-        True if key is valid, False otherwise.
+        The keys in order, whitespace removed.
+
+    Raises:
+        ValueError: If an entry is empty.
+    """
+    keys = [key.strip() for key in raw_keys.split(",")]
+    if not all(keys):
+        raise ValueError(f"{name} contains an empty entry")
+    return keys
+
+
+def validate_fernet_key(fernet_key: str | None) -> bool:
+    """
+    Validate the Fernet encryption key, or every key of a comma-separated list.
+
+    Args:
+        fernet_key: Fernet key, or comma-separated Fernet keys, to validate.
+
+    Returns:
+        True if every key is valid, False otherwise.
     """
     if not fernet_key:
         logger.error("FERNET_KEY is not set or empty", extra=core_logger.context(console=True))
         return False
 
     try:
-        # Attempt to create a Fernet cipher with the key
-        fernet_key_bytes = fernet_key.encode("utf-8")
-        Fernet(fernet_key_bytes)
+        for key in parse_key_list(fernet_key, "FERNET_KEY"):
+            Fernet(key.encode("utf-8"))
 
         logger.debug("FERNET_KEY validation successful", extra=core_logger.context(console=True))
         return True
     except ValueError as err:
         logger.error(
             f"FERNET_KEY validation failed: Invalid key format ({type(err).__name__})",
-            extra=core_logger.context(console=True),
-        )
-        return False
-    except Exception as err:
-        logger.error(
-            f"FERNET_KEY validation failed: Unexpected error ({type(err).__name__})",
             extra=core_logger.context(console=True),
         )
         return False
@@ -1091,7 +1135,7 @@ def validate_log_level(log_level: str) -> bool:
         return False
 
 
-def check_required_env_vars():
+def check_required_env_vars() -> None:
     """
     Validate required environment variables are set.
 
@@ -1105,19 +1149,6 @@ def check_required_env_vars():
     required_env_vars = [
         "ENDURAIN_HOST",
     ]
-
-    # Email is optional; say clearly whether it is on, off or disabled by a bad setting.
-    if not settings.SMTP_HOST:
-        logger.info("Email not configured (SMTP_HOST is not set). Password reset and sign-up emails will not be sent.")
-    elif settings.mail_problems:
-        for problem in settings.mail_problems:
-            logger.warning(
-                f"Email disabled: {problem}. Password reset and sign-up emails will not be sent until "
-                "the SMTP settings are fixed.",
-                extra=core_logger.context(console=True),
-            )
-    else:
-        logger.info(f"Email enabled via {settings.smtp_uri}")
 
     # Check secret variables. Direct env var or _FILE must be present.
     for var in secret_vars:
@@ -1134,6 +1165,16 @@ def check_required_env_vars():
             logger.error(message, extra=core_logger.context(console=True))
             raise OSError(message)
 
+    for var, (published, command) in PUBLISHED_EXAMPLE_SECRETS.items():
+        value = read_secret(var)
+        if value is not None and not published.isdisjoint(key.strip() for key in value.split(",")):
+            message = (
+                f"{var} is the example value published in .env.example, which anyone can read. "
+                f"Generate a new value with '{command}'."
+            )
+            logger.error(message, extra=core_logger.context(console=True))
+            raise ValueError(message)
+
     # Validate FERNET_KEY if it's available
     fernet_key = read_secret("FERNET_KEY")
     if fernet_key:
@@ -1143,10 +1184,56 @@ def check_required_env_vars():
             logger.warning(message, extra=core_logger.context(console=True))
             raise ValueError(message)
 
+    secret_key = read_secret("SECRET_KEY")
+    if secret_key is not None:
+        try:
+            secret_keys = parse_key_list(secret_key, "SECRET_KEY")
+        except ValueError as err:
+            logger.error(str(err), extra=core_logger.context(console=True))
+            raise
+        if any(len(key) < MIN_SECRET_KEY_LENGTH for key in secret_keys):
+            message = (
+                f"SECRET_KEY must be at least {MIN_SECRET_KEY_LENGTH} characters. "
+                "Generate one with 'openssl rand -hex 32'."
+            )
+            logger.error(message, extra=core_logger.context(console=True))
+            raise ValueError(message)
+        if any(len(set(key)) < MIN_SECRET_KEY_DISTINCT_CHARACTERS for key in secret_keys):
+            message = (
+                f"SECRET_KEY must use at least {MIN_SECRET_KEY_DISTINCT_CHARACTERS} distinct characters; "
+                "a key with so few distinct characters is easy to guess. Generate one with 'openssl rand -hex 32'."
+            )
+            logger.error(message, extra=core_logger.context(console=True))
+            raise ValueError(message)
+
     validate_log_level(settings.LOG_LEVEL)
 
 
-# Environment variables retired in v0.19.x and v0.20.0. Maps the removed variable
+#: Hosts for which plain ``http`` is not worth a warning.
+LOOPBACK_HOSTS: frozenset[str] = frozenset({"localhost", "127.0.0.1", "::1"})
+
+
+def warn_unsafe_settings() -> None:
+    """Log the startup settings that are accepted but unwise, or that no longer take effect.
+
+    Plain ``http`` for ``ENDURAIN_HOST`` is allowed except on a loopback host, and a leftover ``ALGORITHM`` (or
+    ``ALGORITHM_FILE``) is ignored because the signing algorithm is fixed.
+    """
+    parts = urlsplit(settings.ENDURAIN_HOST)
+    if parts.scheme == "http" and parts.hostname not in LOOPBACK_HOSTS:
+        logger.warning(
+            "ENDURAIN_HOST uses plain http: tokens, cookies and links travel unencrypted. Serve Endurain over https.",
+            extra=core_logger.context(console=True),
+        )
+    for name in ("ALGORITHM", "ALGORITHM_FILE"):
+        if name in os.environ:
+            logger.warning(
+                f"{name} is ignored and will be removed: tokens are always signed with HS256.",
+                extra=core_logger.context(console=True),
+            )
+
+
+# Environment variables retired in v0.19.x, v0.20.0 and v0.21.0. Maps the removed variable
 # name to a short, actionable remediation string. These are validated by
 # ``check_deprecated_env_vars`` at startup: because ``Settings`` uses
 # ``extra="ignore"``, a stale value would otherwise be silently dropped, leaving
@@ -1181,6 +1268,12 @@ DEPRECATED_ENV_VARS: dict[str, str] = {
         "serves rate-limit counters, auth lockout, pending MFA and websocket "
         "tickets. Set REDIS_URL to the value this held."
     ),
+    # Retired in v0.21.0. A scheme list said which apps could receive a sign-in redirect; ignoring a leftover value
+    # would leave the operator believing it still limits them.
+    "ALLOWED_REDIRECT_SCHEMES": (
+        "removed. List the exact redirect addresses in ALLOWED_REDIRECT_URIS instead, for example "
+        "ALLOWED_REDIRECT_URIS=com.endurain.endurain:/auth/sso/callback."
+    ),
 }
 
 
@@ -1188,7 +1281,7 @@ def check_deprecated_env_vars() -> None:
     """
     Abort startup when retired environment variables are still set.
 
-    Variables removed in v0.19.x and v0.20.0 are silently ignored by ``Settings``
+    Variables removed in v0.19.x, v0.20.0 and v0.21.0 are silently ignored by ``Settings``
     (``extra="ignore"``), so a leftover value would give the operator no
     feedback. Every offending variable is collected and reported together
     so the deployment can be fixed in a single pass rather than one restart
@@ -1219,7 +1312,7 @@ def check_deprecated_env_vars() -> None:
     raise OSError(message)
 
 
-def check_required_dirs():
+def check_required_dirs() -> None:
     """
     Ensure required directories exist and are valid.
 

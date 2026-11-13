@@ -1,10 +1,17 @@
 {
-  "repository": "Repozitorijs",
+  "releaseNotes": "{version} laidiena piezīmes",
+  "project": "Projekts",
+  "website": "Tīmekļa vietne",
   "documentation": "Dokumentācija",
+  "sourceCode": "Pirmkods",
+  "community": "Kopiena",
   "mastodon": "Endurain Mastodon konts",
   "bluesky": "Endurain Bluesky profils",
   "discord": "Endurain Discord serveris",
   "linkedin": "Endurain LinkedIn lapa",
+  "externalLink": "atveras jaunā cilnē",
+  "trademarkNotice": "Endurain® ir João Vitória Silva reģistrēta preču zīme.",
+  "trademarkPolicy": "Preču zīmes politika",
   "compatibleStrava": "Saderīgs ar Strava",
   "worksGarmin": "Darbojas ar Garmin Connect"
 }

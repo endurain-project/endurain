@@ -1,5 +1,7 @@
 """Tests for user goals database models."""
 
+import uuid
+
 import modules.users.users_goals.models as user_goals_models
 
 
@@ -31,7 +33,6 @@ class TestUserGoalModel:
         assert hasattr(model, "goal_distance")
         assert hasattr(model, "goal_elevation")
         assert hasattr(model, "goal_duration")
-        assert hasattr(model, "users")
 
     def test_user_goal_model_primary_key(self):
         """
@@ -42,7 +43,7 @@ class TestUserGoalModel:
 
         # Assert
         assert id_column.primary_key is True
-        assert id_column.autoincrement is True
+        assert id_column.type.python_type is uuid.UUID
 
     def test_user_goal_model_foreign_key(self):
         """
@@ -90,8 +91,20 @@ class TestUserGoalModel:
         model = user_goals_models.UsersGoal
 
         # Assert
-        assert model.id.type.python_type is int
-        assert model.user_id.type.python_type is int
+        assert model.id.type.python_type is uuid.UUID
+        assert model.user_id.type.python_type is uuid.UUID
         assert model.interval.type.python_type is str
         assert model.activity_type.type.python_type is str
         assert model.goal_type.type.python_type is str
+
+    def test_user_goal_model_created_at_is_required_and_stamped_by_the_database(self):
+        """
+        Test UsersGoal records when the goal was created.
+        """
+        # Arrange
+        column = user_goals_models.UsersGoal.__table__.c["created_at"]
+
+        # Assert
+        assert column.nullable is False
+        assert column.server_default is not None
+        assert column.comment == "When the goal was created"

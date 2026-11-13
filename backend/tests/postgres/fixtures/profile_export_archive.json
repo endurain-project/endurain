@@ -1,0 +1,1297 @@
+{
+ "activity_files/1.gpx": {
+  "base64": "PD94bWwgdmVyc2lvbj0iMS4wIiBlbmNvZGluZz0iVVRGLTgiPz4KPGdweCB2ZXJzaW9uPSIxLjEiIGNyZWF0b3I9ImVuZHVyYWluLXRlc3QiIHhtbG5zPSJodHRwOi8vd3d3LnRvcG9ncmFmaXguY29tL0dQWC8xLzEiPjx0cms+PG5hbWU+U2VlZDwvbmFtZT48dHJrc2VnPjx0cmtwdCBsYXQ9IjM4LjciIGxvbj0iLTkuMSI+PGVsZT4xMDwvZWxlPjx0aW1lPjIwMjYtMDctMjhUMDk6MDA6MDBaPC90aW1lPjwvdHJrcHQ+PHRya3B0IGxhdD0iMzguOCIgbG9uPSItOS4yIj48ZWxlPjEyPC9lbGU+PHRpbWU+MjAyNi0wNy0yOFQwOTowMDoxMFo8L3RpbWU+PC90cmtwdD48L3Rya3NlZz48L3Ryaz48L2dweD4="
+ },
+ "activity_files/3.gpx": {
+  "base64": "PD94bWwgdmVyc2lvbj0iMS4wIiBlbmNvZGluZz0iVVRGLTgiPz4KPGdweCB2ZXJzaW9uPSIxLjEiIGNyZWF0b3I9ImVuZHVyYWluLXRlc3QiIHhtbG5zPSJodHRwOi8vd3d3LnRvcG9ncmFmaXguY29tL0dQWC8xLzEiPjx0cms+PG5hbWU+U2VlZDwvbmFtZT48dHJrc2VnPjx0cmtwdCBsYXQ9IjM4LjciIGxvbj0iLTkuMSI+PGVsZT4xMDwvZWxlPjx0aW1lPjIwMjYtMDctMjhUMDk6MDA6MDBaPC90aW1lPjwvdHJrcHQ+PHRya3B0IGxhdD0iMzguOCIgbG9uPSItOS4yIj48ZWxlPjEyPC9lbGU+PHRpbWU+MjAyNi0wNy0yOFQwOTowMDoxMFo8L3RpbWU+PC90cmtwdD48L3Rya3NlZz48L3Ryaz48L2dweD4="
+ },
+ "activity_media/1_seed0.png": {
+  "base64": "iVBORw0KGgoAAAANSUhEUgAAAAIAAAACCAIAAAD91JpzAAAADklEQVR4nGNIAQMGCAUAIN4EsWejomQAAAAASUVORK5CYII="
+ },
+ "activity_media/2_seed1.png": {
+  "base64": "iVBORw0KGgoAAAANSUhEUgAAAAIAAAACCAIAAAD91JpzAAAADklEQVR4nGNIBQMGCAUAITIEvX+6AJQAAAAASUVORK5CYII="
+ },
+ "activity_media/3_seed2.png": {
+  "base64": "iVBORw0KGgoAAAANSUhEUgAAAAIAAAACCAIAAAD91JpzAAAADklEQVR4nGNIAwMGCAUAIYYEyeebkzoAAAAASUVORK5CYII="
+ },
+ "counts.json": {
+  "json": [
+   {
+    "media": 3,
+    "activity_files": 2,
+    "activities": 3,
+    "activity_laps": 6,
+    "activity_sets": 6,
+    "activity_streams": 6,
+    "activity_workout_steps": 6,
+    "activity_media": 3,
+    "activity_exercise_titles": 2,
+    "gears": 2,
+    "gear_components": 2,
+    "health_weight": 3,
+    "health_targets": 1,
+    "health_sleep": 3,
+    "health_steps": 3,
+    "health_water": 3,
+    "health_fasting": 1,
+    "health_poop": 1,
+    "user_images": 1,
+    "user": 1,
+    "user_default_gear": 1,
+    "user_goals": 2,
+    "user_identity_providers": 0,
+    "user_integrations": 1,
+    "user_privacy_settings": 1,
+    "activity_laps_000": 2,
+    "activity_laps_001": 2,
+    "activity_laps_002": 2,
+    "activity_sets_000": 2,
+    "activity_sets_001": 2,
+    "activity_sets_002": 2,
+    "activity_streams_000": 2,
+    "activity_streams_001": 2,
+    "activity_streams_002": 2,
+    "counts": 1
+   }
+  ]
+ },
+ "data/activities.json": {
+  "json": [
+   {
+    "user_id": 1,
+    "description": "Seed activity 2",
+    "private_notes": null,
+    "distance": 12000,
+    "name": "Ride 2",
+    "activity_type": 4,
+    "start_time": "2026-07-22T09:00:00Z",
+    "end_time": "2026-07-22T10:00:00Z",
+    "timezone": "Europe/Lisbon",
+    "total_elapsed_time": 3600.0,
+    "total_timer_time": 3540.0,
+    "city": null,
+    "town": null,
+    "country": null,
+    "created_at": "2026-11-04T17:23:23.560482Z",
+    "elevation_gain": 122,
+    "elevation_loss": null,
+    "pace": null,
+    "average_speed": null,
+    "max_speed": null,
+    "average_power": null,
+    "max_power": null,
+    "normalized_power": null,
+    "average_hr": null,
+    "max_hr": null,
+    "average_cad": null,
+    "max_cad": null,
+    "workout_feeling": null,
+    "workout_rpe": null,
+    "calories": 502,
+    "visibility": 2,
+    "gear_id": 1,
+    "strava_gear_id": null,
+    "strava_activity_id": null,
+    "garminconnect_activity_id": null,
+    "garminconnect_gear_id": null,
+    "import_info": null,
+    "is_hidden": false,
+    "hide_start_time": true,
+    "hide_location": true,
+    "hide_map": true,
+    "hide_hr": true,
+    "hide_power": true,
+    "hide_cadence": true,
+    "hide_elevation": true,
+    "hide_speed": true,
+    "hide_pace": true,
+    "hide_laps": true,
+    "hide_workout_sets_steps": true,
+    "hide_gear": true,
+    "tracker_manufacturer": null,
+    "tracker_model": null,
+    "total_cycles": null,
+    "id": 3,
+    "map_thumbnail_url": null,
+    "version": 1,
+    "media": []
+   },
+   {
+    "user_id": 1,
+    "description": "Seed activity 1",
+    "private_notes": null,
+    "distance": 11000,
+    "name": "Ride 1",
+    "activity_type": 1,
+    "start_time": "2026-07-21T09:00:00Z",
+    "end_time": "2026-07-21T10:00:00Z",
+    "timezone": "Europe/Lisbon",
+    "total_elapsed_time": 3600.0,
+    "total_timer_time": 3540.0,
+    "city": null,
+    "town": null,
+    "country": null,
+    "created_at": "2026-11-04T17:23:23.560482Z",
+    "elevation_gain": 121,
+    "elevation_loss": null,
+    "pace": null,
+    "average_speed": null,
+    "max_speed": null,
+    "average_power": null,
+    "max_power": null,
+    "normalized_power": null,
+    "average_hr": null,
+    "max_hr": null,
+    "average_cad": null,
+    "max_cad": null,
+    "workout_feeling": null,
+    "workout_rpe": null,
+    "calories": 501,
+    "visibility": 2,
+    "gear_id": 2,
+    "strava_gear_id": null,
+    "strava_activity_id": null,
+    "garminconnect_activity_id": null,
+    "garminconnect_gear_id": null,
+    "import_info": null,
+    "is_hidden": false,
+    "hide_start_time": false,
+    "hide_location": false,
+    "hide_map": false,
+    "hide_hr": false,
+    "hide_power": false,
+    "hide_cadence": false,
+    "hide_elevation": false,
+    "hide_speed": false,
+    "hide_pace": false,
+    "hide_laps": false,
+    "hide_workout_sets_steps": false,
+    "hide_gear": false,
+    "tracker_manufacturer": null,
+    "tracker_model": null,
+    "total_cycles": null,
+    "id": 2,
+    "map_thumbnail_url": null,
+    "version": 1,
+    "media": []
+   },
+   {
+    "user_id": 1,
+    "description": "Seed activity 0",
+    "private_notes": null,
+    "distance": 10000,
+    "name": "Ride 0",
+    "activity_type": 4,
+    "start_time": "2026-07-20T09:00:00Z",
+    "end_time": "2026-07-20T10:00:00Z",
+    "timezone": "Europe/Lisbon",
+    "total_elapsed_time": 3600.0,
+    "total_timer_time": 3540.0,
+    "city": null,
+    "town": null,
+    "country": null,
+    "created_at": "2026-11-04T17:23:23.560482Z",
+    "elevation_gain": 120,
+    "elevation_loss": null,
+    "pace": null,
+    "average_speed": null,
+    "max_speed": null,
+    "average_power": null,
+    "max_power": null,
+    "normalized_power": null,
+    "average_hr": null,
+    "max_hr": null,
+    "average_cad": null,
+    "max_cad": null,
+    "workout_feeling": null,
+    "workout_rpe": null,
+    "calories": 500,
+    "visibility": 2,
+    "gear_id": 1,
+    "strava_gear_id": null,
+    "strava_activity_id": null,
+    "garminconnect_activity_id": null,
+    "garminconnect_gear_id": null,
+    "import_info": null,
+    "is_hidden": false,
+    "hide_start_time": false,
+    "hide_location": false,
+    "hide_map": false,
+    "hide_hr": false,
+    "hide_power": false,
+    "hide_cadence": false,
+    "hide_elevation": false,
+    "hide_speed": false,
+    "hide_pace": false,
+    "hide_laps": false,
+    "hide_workout_sets_steps": false,
+    "hide_gear": false,
+    "tracker_manufacturer": null,
+    "tracker_model": null,
+    "total_cycles": null,
+    "id": 1,
+    "map_thumbnail_url": null,
+    "version": 1,
+    "media": []
+   }
+  ]
+ },
+ "data/activity_exercise_titles.json": {
+  "json": [
+   {
+    "exercise_category": 1,
+    "exercise_name": 2,
+    "wkt_step_name": "Bench",
+    "id": 1
+   },
+   {
+    "exercise_category": 3,
+    "exercise_name": 4,
+    "wkt_step_name": "Row",
+    "id": 2
+   }
+  ]
+ },
+ "data/activity_laps_000.json": {
+  "json": [
+   {
+    "start_position_lat": null,
+    "start_position_long": null,
+    "end_position_lat": null,
+    "end_position_long": null,
+    "total_elapsed_time": null,
+    "total_timer_time": null,
+    "total_distance": 5000.0,
+    "total_cycles": null,
+    "total_calories": 0,
+    "avg_heart_rate": null,
+    "max_heart_rate": null,
+    "avg_cadence": null,
+    "max_cadence": null,
+    "avg_power": null,
+    "max_power": null,
+    "total_ascent": null,
+    "total_descent": null,
+    "intensity": null,
+    "lap_trigger": null,
+    "sport": null,
+    "sub_sport": null,
+    "normalized_power": null,
+    "total_work": null,
+    "avg_vertical_oscillation": null,
+    "avg_stance_time": null,
+    "avg_fractional_cadence": null,
+    "max_fractional_cadence": null,
+    "enhanced_avg_pace": null,
+    "enhanced_avg_speed": null,
+    "enhanced_max_pace": null,
+    "enhanced_max_speed": null,
+    "enhanced_min_altitude": null,
+    "enhanced_max_altitude": null,
+    "avg_vertical_ratio": null,
+    "avg_step_length": null,
+    "id": 3,
+    "activity_id": 2,
+    "start_time": "2026-07-21T09:00:00Z"
+   },
+   {
+    "start_position_lat": null,
+    "start_position_long": null,
+    "end_position_lat": null,
+    "end_position_long": null,
+    "total_elapsed_time": null,
+    "total_timer_time": null,
+    "total_distance": 5001.0,
+    "total_cycles": null,
+    "total_calories": 1,
+    "avg_heart_rate": null,
+    "max_heart_rate": null,
+    "avg_cadence": null,
+    "max_cadence": null,
+    "avg_power": null,
+    "max_power": null,
+    "total_ascent": null,
+    "total_descent": null,
+    "intensity": null,
+    "lap_trigger": null,
+    "sport": null,
+    "sub_sport": null,
+    "normalized_power": null,
+    "total_work": null,
+    "avg_vertical_oscillation": null,
+    "avg_stance_time": null,
+    "avg_fractional_cadence": null,
+    "max_fractional_cadence": null,
+    "enhanced_avg_pace": null,
+    "enhanced_avg_speed": null,
+    "enhanced_max_pace": null,
+    "enhanced_max_speed": null,
+    "enhanced_min_altitude": null,
+    "enhanced_max_altitude": null,
+    "avg_vertical_ratio": null,
+    "avg_step_length": null,
+    "id": 4,
+    "activity_id": 2,
+    "start_time": "2026-07-21T09:00:00Z"
+   }
+  ]
+ },
+ "data/activity_laps_001.json": {
+  "json": [
+   {
+    "start_position_lat": null,
+    "start_position_long": null,
+    "end_position_lat": null,
+    "end_position_long": null,
+    "total_elapsed_time": null,
+    "total_timer_time": null,
+    "total_distance": 5000.0,
+    "total_cycles": null,
+    "total_calories": 0,
+    "avg_heart_rate": null,
+    "max_heart_rate": null,
+    "avg_cadence": null,
+    "max_cadence": null,
+    "avg_power": null,
+    "max_power": null,
+    "total_ascent": null,
+    "total_descent": null,
+    "intensity": null,
+    "lap_trigger": null,
+    "sport": null,
+    "sub_sport": null,
+    "normalized_power": null,
+    "total_work": null,
+    "avg_vertical_oscillation": null,
+    "avg_stance_time": null,
+    "avg_fractional_cadence": null,
+    "max_fractional_cadence": null,
+    "enhanced_avg_pace": null,
+    "enhanced_avg_speed": null,
+    "enhanced_max_pace": null,
+    "enhanced_max_speed": null,
+    "enhanced_min_altitude": null,
+    "enhanced_max_altitude": null,
+    "avg_vertical_ratio": null,
+    "avg_step_length": null,
+    "id": 5,
+    "activity_id": 3,
+    "start_time": "2026-07-22T09:00:00Z"
+   },
+   {
+    "start_position_lat": null,
+    "start_position_long": null,
+    "end_position_lat": null,
+    "end_position_long": null,
+    "total_elapsed_time": null,
+    "total_timer_time": null,
+    "total_distance": 5001.0,
+    "total_cycles": null,
+    "total_calories": 1,
+    "avg_heart_rate": null,
+    "max_heart_rate": null,
+    "avg_cadence": null,
+    "max_cadence": null,
+    "avg_power": null,
+    "max_power": null,
+    "total_ascent": null,
+    "total_descent": null,
+    "intensity": null,
+    "lap_trigger": null,
+    "sport": null,
+    "sub_sport": null,
+    "normalized_power": null,
+    "total_work": null,
+    "avg_vertical_oscillation": null,
+    "avg_stance_time": null,
+    "avg_fractional_cadence": null,
+    "max_fractional_cadence": null,
+    "enhanced_avg_pace": null,
+    "enhanced_avg_speed": null,
+    "enhanced_max_pace": null,
+    "enhanced_max_speed": null,
+    "enhanced_min_altitude": null,
+    "enhanced_max_altitude": null,
+    "avg_vertical_ratio": null,
+    "avg_step_length": null,
+    "id": 6,
+    "activity_id": 3,
+    "start_time": "2026-07-22T09:00:00Z"
+   }
+  ]
+ },
+ "data/activity_laps_002.json": {
+  "json": [
+   {
+    "start_position_lat": null,
+    "start_position_long": null,
+    "end_position_lat": null,
+    "end_position_long": null,
+    "total_elapsed_time": null,
+    "total_timer_time": null,
+    "total_distance": 5000.0,
+    "total_cycles": null,
+    "total_calories": 0,
+    "avg_heart_rate": null,
+    "max_heart_rate": null,
+    "avg_cadence": null,
+    "max_cadence": null,
+    "avg_power": null,
+    "max_power": null,
+    "total_ascent": null,
+    "total_descent": null,
+    "intensity": null,
+    "lap_trigger": null,
+    "sport": null,
+    "sub_sport": null,
+    "normalized_power": null,
+    "total_work": null,
+    "avg_vertical_oscillation": null,
+    "avg_stance_time": null,
+    "avg_fractional_cadence": null,
+    "max_fractional_cadence": null,
+    "enhanced_avg_pace": null,
+    "enhanced_avg_speed": null,
+    "enhanced_max_pace": null,
+    "enhanced_max_speed": null,
+    "enhanced_min_altitude": null,
+    "enhanced_max_altitude": null,
+    "avg_vertical_ratio": null,
+    "avg_step_length": null,
+    "id": 1,
+    "activity_id": 1,
+    "start_time": "2026-07-20T09:00:00Z"
+   },
+   {
+    "start_position_lat": null,
+    "start_position_long": null,
+    "end_position_lat": null,
+    "end_position_long": null,
+    "total_elapsed_time": null,
+    "total_timer_time": null,
+    "total_distance": 5001.0,
+    "total_cycles": null,
+    "total_calories": 1,
+    "avg_heart_rate": null,
+    "max_heart_rate": null,
+    "avg_cadence": null,
+    "max_cadence": null,
+    "avg_power": null,
+    "max_power": null,
+    "total_ascent": null,
+    "total_descent": null,
+    "intensity": null,
+    "lap_trigger": null,
+    "sport": null,
+    "sub_sport": null,
+    "normalized_power": null,
+    "total_work": null,
+    "avg_vertical_oscillation": null,
+    "avg_stance_time": null,
+    "avg_fractional_cadence": null,
+    "max_fractional_cadence": null,
+    "enhanced_avg_pace": null,
+    "enhanced_avg_speed": null,
+    "enhanced_max_pace": null,
+    "enhanced_max_speed": null,
+    "enhanced_min_altitude": null,
+    "enhanced_max_altitude": null,
+    "avg_vertical_ratio": null,
+    "avg_step_length": null,
+    "id": 2,
+    "activity_id": 1,
+    "start_time": "2026-07-20T09:00:00Z"
+   }
+  ]
+ },
+ "data/activity_media.json": {
+  "json": [
+   {
+    "id": 2,
+    "activity_id": 2,
+    "media_path": "2_seed1.png",
+    "media_type": 1,
+    "content_hash": null
+   },
+   {
+    "id": 3,
+    "activity_id": 3,
+    "media_path": "3_seed2.png",
+    "media_type": 1,
+    "content_hash": null
+   },
+   {
+    "id": 1,
+    "activity_id": 1,
+    "media_path": "1_seed0.png",
+    "media_type": 1,
+    "content_hash": null
+   }
+  ]
+ },
+ "data/activity_sets_000.json": {
+  "json": [
+   {
+    "duration": 30.5,
+    "repetitions": 10,
+    "weight": 20.0,
+    "set_type": "active",
+    "category": 1,
+    "category_subtype": 2,
+    "id": 3,
+    "activity_id": 2,
+    "start_time": "2026-07-21T09:00:00Z"
+   },
+   {
+    "duration": 31.5,
+    "repetitions": 10,
+    "weight": 20.0,
+    "set_type": "active",
+    "category": 1,
+    "category_subtype": 2,
+    "id": 4,
+    "activity_id": 2,
+    "start_time": "2026-07-21T09:01:00Z"
+   }
+  ]
+ },
+ "data/activity_sets_001.json": {
+  "json": [
+   {
+    "duration": 30.5,
+    "repetitions": 10,
+    "weight": 20.0,
+    "set_type": "active",
+    "category": 1,
+    "category_subtype": 2,
+    "id": 5,
+    "activity_id": 3,
+    "start_time": "2026-07-22T09:00:00Z"
+   },
+   {
+    "duration": 31.5,
+    "repetitions": 10,
+    "weight": 20.0,
+    "set_type": "active",
+    "category": 1,
+    "category_subtype": 2,
+    "id": 6,
+    "activity_id": 3,
+    "start_time": "2026-07-22T09:01:00Z"
+   }
+  ]
+ },
+ "data/activity_sets_002.json": {
+  "json": [
+   {
+    "duration": 30.5,
+    "repetitions": 10,
+    "weight": 20.0,
+    "set_type": "active",
+    "category": 1,
+    "category_subtype": 2,
+    "id": 1,
+    "activity_id": 1,
+    "start_time": "2026-07-20T09:00:00Z"
+   },
+   {
+    "duration": 31.5,
+    "repetitions": 10,
+    "weight": 20.0,
+    "set_type": "active",
+    "category": 1,
+    "category_subtype": 2,
+    "id": 2,
+    "activity_id": 1,
+    "start_time": "2026-07-20T09:01:00Z"
+   }
+  ]
+ },
+ "data/activity_streams_000.json": {
+  "json": [
+   {
+    "activity_id": 2,
+    "stream_type": 1,
+    "stream_waypoints": [
+     {
+      "time": "2026-07-21T09:00:00",
+      "hr": 121
+     },
+     {
+      "time": "2026-07-21T09:00:01",
+      "hr": 122
+     }
+    ],
+    "strava_activity_stream_id": null,
+    "id": 3,
+    "zone_percentages": null
+   },
+   {
+    "activity_id": 2,
+    "stream_type": 2,
+    "stream_waypoints": [
+     {
+      "time": "2026-07-21T09:00:00",
+      "hr": 122
+     },
+     {
+      "time": "2026-07-21T09:00:01",
+      "hr": 123
+     }
+    ],
+    "strava_activity_stream_id": null,
+    "id": 4,
+    "zone_percentages": null
+   }
+  ]
+ },
+ "data/activity_streams_001.json": {
+  "json": [
+   {
+    "activity_id": 3,
+    "stream_type": 1,
+    "stream_waypoints": [
+     {
+      "time": "2026-07-22T09:00:00",
+      "hr": 121
+     },
+     {
+      "time": "2026-07-22T09:00:01",
+      "hr": 122
+     }
+    ],
+    "strava_activity_stream_id": null,
+    "id": 5,
+    "zone_percentages": null
+   },
+   {
+    "activity_id": 3,
+    "stream_type": 2,
+    "stream_waypoints": [
+     {
+      "time": "2026-07-22T09:00:00",
+      "hr": 122
+     },
+     {
+      "time": "2026-07-22T09:00:01",
+      "hr": 123
+     }
+    ],
+    "strava_activity_stream_id": null,
+    "id": 6,
+    "zone_percentages": null
+   }
+  ]
+ },
+ "data/activity_streams_002.json": {
+  "json": [
+   {
+    "activity_id": 1,
+    "stream_type": 1,
+    "stream_waypoints": [
+     {
+      "time": "2026-07-20T09:00:00",
+      "hr": 121
+     },
+     {
+      "time": "2026-07-20T09:00:01",
+      "hr": 122
+     }
+    ],
+    "strava_activity_stream_id": null,
+    "id": 1,
+    "zone_percentages": null
+   },
+   {
+    "activity_id": 1,
+    "stream_type": 2,
+    "stream_waypoints": [
+     {
+      "time": "2026-07-20T09:00:00",
+      "hr": 122
+     },
+     {
+      "time": "2026-07-20T09:00:01",
+      "hr": 123
+     }
+    ],
+    "strava_activity_stream_id": null,
+    "id": 2,
+    "zone_percentages": null
+   }
+  ]
+ },
+ "data/activity_workout_steps.json": {
+  "json": [
+   {
+    "message_index": 0,
+    "duration_type": "time",
+    "duration_value": 60.0,
+    "target_type": null,
+    "target_value": null,
+    "intensity": "active",
+    "notes": null,
+    "exercise_category": null,
+    "exercise_name": null,
+    "exercise_weight": null,
+    "weight_display_unit": null,
+    "secondary_target_value": null,
+    "id": 3,
+    "activity_id": 2
+   },
+   {
+    "message_index": 1,
+    "duration_type": "time",
+    "duration_value": 61.0,
+    "target_type": null,
+    "target_value": null,
+    "intensity": "active",
+    "notes": null,
+    "exercise_category": null,
+    "exercise_name": null,
+    "exercise_weight": null,
+    "weight_display_unit": null,
+    "secondary_target_value": null,
+    "id": 4,
+    "activity_id": 2
+   },
+   {
+    "message_index": 0,
+    "duration_type": "time",
+    "duration_value": 60.0,
+    "target_type": null,
+    "target_value": null,
+    "intensity": "active",
+    "notes": null,
+    "exercise_category": null,
+    "exercise_name": null,
+    "exercise_weight": null,
+    "weight_display_unit": null,
+    "secondary_target_value": null,
+    "id": 5,
+    "activity_id": 3
+   },
+   {
+    "message_index": 1,
+    "duration_type": "time",
+    "duration_value": 61.0,
+    "target_type": null,
+    "target_value": null,
+    "intensity": "active",
+    "notes": null,
+    "exercise_category": null,
+    "exercise_name": null,
+    "exercise_weight": null,
+    "weight_display_unit": null,
+    "secondary_target_value": null,
+    "id": 6,
+    "activity_id": 3
+   },
+   {
+    "message_index": 0,
+    "duration_type": "time",
+    "duration_value": 60.0,
+    "target_type": null,
+    "target_value": null,
+    "intensity": "active",
+    "notes": null,
+    "exercise_category": null,
+    "exercise_name": null,
+    "exercise_weight": null,
+    "weight_display_unit": null,
+    "secondary_target_value": null,
+    "id": 1,
+    "activity_id": 1
+   },
+   {
+    "message_index": 1,
+    "duration_type": "time",
+    "duration_value": 61.0,
+    "target_type": null,
+    "target_value": null,
+    "intensity": "active",
+    "notes": null,
+    "exercise_category": null,
+    "exercise_name": null,
+    "exercise_weight": null,
+    "weight_display_unit": null,
+    "secondary_target_value": null,
+    "id": 2,
+    "activity_id": 1
+   }
+  ]
+ },
+ "data/gear_components.json": {
+  "json": [
+   {
+    "type": "chain",
+    "brand": "Shimano",
+    "model": "XT",
+    "purchase_date": "2026-01-05",
+    "retired_date": null,
+    "active": true,
+    "expected_usage": 3000,
+    "purchase_value": 45.5,
+    "gear_id": 1,
+    "version": 1,
+    "id": 1,
+    "user_id": 1,
+    "current_distance": 0.0,
+    "current_time": 0.0
+   },
+   {
+    "type": "cassette",
+    "brand": "SRAM",
+    "model": "XG",
+    "purchase_date": "2026-11-04",
+    "retired_date": null,
+    "active": true,
+    "expected_usage": null,
+    "purchase_value": null,
+    "gear_id": 1,
+    "version": 1,
+    "id": 2,
+    "user_id": 1,
+    "current_distance": 0.0,
+    "current_time": 0.0
+   }
+  ]
+ },
+ "data/gears.json": {
+  "json": [
+   {
+    "brand": "Canyon",
+    "model": "Endurace",
+    "nickname": "Road Bike",
+    "gear_type": 1,
+    "acquired_on": "2026-11-04",
+    "active": true,
+    "initial_kms": 12.5,
+    "purchase_value": null,
+    "user_id": 1,
+    "strava_gear_id": null,
+    "garminconnect_gear_id": null,
+    "id": 1,
+    "version": 1
+   },
+   {
+    "brand": "Hoka",
+    "model": null,
+    "nickname": "Trail Shoes",
+    "gear_type": 2,
+    "acquired_on": "2026-11-04",
+    "active": true,
+    "initial_kms": 0.0,
+    "purchase_value": null,
+    "user_id": 1,
+    "strava_gear_id": null,
+    "garminconnect_gear_id": null,
+    "id": 2,
+    "version": 1
+   }
+  ]
+ },
+ "data/health_fasting.json": {
+  "json": [
+   {
+    "fast_start_time": "2026-07-01T20:00:00Z",
+    "fast_end_time": "2026-07-02T12:00:00Z",
+    "target_duration_seconds": 57600,
+    "fasting_type": null,
+    "status": "completed",
+    "notes": "16:8",
+    "source": "manual",
+    "id": 1,
+    "user_id": 1,
+    "actual_duration_seconds": 57600,
+    "version": 1
+   }
+  ]
+ },
+ "data/health_poop.json": {
+  "json": [
+   {
+    "date_time": "2026-07-01T08:00:00Z",
+    "bristol_type": 4,
+    "color": null,
+    "notes": "ok",
+    "source": "manual",
+    "id": 1,
+    "user_id": 1,
+    "version": 1
+   }
+  ]
+ },
+ "data/health_sleep.json": {
+  "json": [
+   {
+    "date": "2026-07-03",
+    "sleep_start_time_gmt": "2026-07-03T22:00:00Z",
+    "sleep_end_time_gmt": "2026-07-04T06:00:00Z",
+    "sleep_start_time_local": null,
+    "sleep_end_time_local": null,
+    "total_sleep_seconds": 27003,
+    "nap_time_seconds": null,
+    "unmeasurable_sleep_seconds": null,
+    "deep_sleep_seconds": 5000,
+    "light_sleep_seconds": null,
+    "rem_sleep_seconds": null,
+    "awake_sleep_seconds": null,
+    "avg_heart_rate": null,
+    "min_heart_rate": null,
+    "max_heart_rate": null,
+    "avg_spo2": null,
+    "lowest_spo2": null,
+    "highest_spo2": null,
+    "avg_respiration": null,
+    "lowest_respiration": null,
+    "highest_respiration": null,
+    "avg_stress_level": null,
+    "awake_count": null,
+    "restless_moments_count": null,
+    "sleep_score_overall": 83,
+    "sleep_score_duration": null,
+    "sleep_score_quality": null,
+    "garminconnect_sleep_id": null,
+    "sleep_stages": null,
+    "source": null,
+    "hrv_status": null,
+    "resting_heart_rate": null,
+    "avg_skin_temp_deviation": null,
+    "awake_count_score": null,
+    "rem_percentage_score": null,
+    "deep_percentage_score": null,
+    "light_percentage_score": null,
+    "avg_sleep_stress": null,
+    "sleep_stress_score": null,
+    "id": 3,
+    "user_id": 1,
+    "version": 1
+   },
+   {
+    "date": "2026-07-02",
+    "sleep_start_time_gmt": "2026-07-02T22:00:00Z",
+    "sleep_end_time_gmt": "2026-07-03T06:00:00Z",
+    "sleep_start_time_local": null,
+    "sleep_end_time_local": null,
+    "total_sleep_seconds": 27002,
+    "nap_time_seconds": null,
+    "unmeasurable_sleep_seconds": null,
+    "deep_sleep_seconds": 5000,
+    "light_sleep_seconds": null,
+    "rem_sleep_seconds": null,
+    "awake_sleep_seconds": null,
+    "avg_heart_rate": null,
+    "min_heart_rate": null,
+    "max_heart_rate": null,
+    "avg_spo2": null,
+    "lowest_spo2": null,
+    "highest_spo2": null,
+    "avg_respiration": null,
+    "lowest_respiration": null,
+    "highest_respiration": null,
+    "avg_stress_level": null,
+    "awake_count": null,
+    "restless_moments_count": null,
+    "sleep_score_overall": 82,
+    "sleep_score_duration": null,
+    "sleep_score_quality": null,
+    "garminconnect_sleep_id": null,
+    "sleep_stages": null,
+    "source": null,
+    "hrv_status": null,
+    "resting_heart_rate": null,
+    "avg_skin_temp_deviation": null,
+    "awake_count_score": null,
+    "rem_percentage_score": null,
+    "deep_percentage_score": null,
+    "light_percentage_score": null,
+    "avg_sleep_stress": null,
+    "sleep_stress_score": null,
+    "id": 2,
+    "user_id": 1,
+    "version": 1
+   },
+   {
+    "date": "2026-07-01",
+    "sleep_start_time_gmt": "2026-07-01T22:00:00Z",
+    "sleep_end_time_gmt": "2026-07-02T06:00:00Z",
+    "sleep_start_time_local": null,
+    "sleep_end_time_local": null,
+    "total_sleep_seconds": 27001,
+    "nap_time_seconds": null,
+    "unmeasurable_sleep_seconds": null,
+    "deep_sleep_seconds": 5000,
+    "light_sleep_seconds": null,
+    "rem_sleep_seconds": null,
+    "awake_sleep_seconds": null,
+    "avg_heart_rate": null,
+    "min_heart_rate": null,
+    "max_heart_rate": null,
+    "avg_spo2": null,
+    "lowest_spo2": null,
+    "highest_spo2": null,
+    "avg_respiration": null,
+    "lowest_respiration": null,
+    "highest_respiration": null,
+    "avg_stress_level": null,
+    "awake_count": null,
+    "restless_moments_count": null,
+    "sleep_score_overall": 81,
+    "sleep_score_duration": null,
+    "sleep_score_quality": null,
+    "garminconnect_sleep_id": null,
+    "sleep_stages": null,
+    "source": null,
+    "hrv_status": null,
+    "resting_heart_rate": null,
+    "avg_skin_temp_deviation": null,
+    "awake_count_score": null,
+    "rem_percentage_score": null,
+    "deep_percentage_score": null,
+    "light_percentage_score": null,
+    "avg_sleep_stress": null,
+    "sleep_stress_score": null,
+    "id": 1,
+    "user_id": 1,
+    "version": 1
+   }
+  ]
+ },
+ "data/health_steps.json": {
+  "json": [
+   {
+    "date": "2026-07-03",
+    "steps": 8003,
+    "source": null,
+    "id": 3,
+    "user_id": 1,
+    "version": 1
+   },
+   {
+    "date": "2026-07-02",
+    "steps": 8002,
+    "source": null,
+    "id": 2,
+    "user_id": 1,
+    "version": 1
+   },
+   {
+    "date": "2026-07-01",
+    "steps": 8001,
+    "source": null,
+    "id": 1,
+    "user_id": 1,
+    "version": 1
+   }
+  ]
+ },
+ "data/health_targets.json": {
+  "json": [
+   {
+    "weight": 68.0,
+    "steps": 10000,
+    "sleep": 28800,
+    "fasting": null,
+    "water_ml": 2000.0,
+    "poop_count": 1,
+    "id": 1,
+    "user_id": 1,
+    "version": 2
+   }
+  ]
+ },
+ "data/health_water.json": {
+  "json": [
+   {
+    "date": "2026-07-03",
+    "amount_ml": 1503.0,
+    "source": null,
+    "id": 3,
+    "user_id": 1,
+    "version": 1
+   },
+   {
+    "date": "2026-07-02",
+    "amount_ml": 1502.0,
+    "source": null,
+    "id": 2,
+    "user_id": 1,
+    "version": 1
+   },
+   {
+    "date": "2026-07-01",
+    "amount_ml": 1501.0,
+    "source": null,
+    "id": 1,
+    "user_id": 1,
+    "version": 1
+   }
+  ]
+ },
+ "data/health_weight.json": {
+  "json": [
+   {
+    "date": "2026-07-03",
+    "weight": 73.0,
+    "bmi": 23.04,
+    "body_fat": 15.5,
+    "body_water": null,
+    "bone_mass": null,
+    "muscle_mass": null,
+    "physique_rating": null,
+    "visceral_fat": null,
+    "metabolic_age": null,
+    "source": "garmin",
+    "id": 3,
+    "user_id": 1,
+    "version": 1
+   },
+   {
+    "date": "2026-07-02",
+    "weight": 72.0,
+    "bmi": 22.72,
+    "body_fat": 15.5,
+    "body_water": null,
+    "bone_mass": null,
+    "muscle_mass": null,
+    "physique_rating": null,
+    "visceral_fat": null,
+    "metabolic_age": null,
+    "source": "garmin",
+    "id": 2,
+    "user_id": 1,
+    "version": 1
+   },
+   {
+    "date": "2026-07-01",
+    "weight": 71.0,
+    "bmi": 22.41,
+    "body_fat": 15.5,
+    "body_water": null,
+    "bone_mass": null,
+    "muscle_mass": null,
+    "physique_rating": null,
+    "visceral_fat": null,
+    "metabolic_age": null,
+    "source": "garmin",
+    "id": 1,
+    "user_id": 1,
+    "version": 1
+   }
+  ]
+ },
+ "data/user.json": {
+  "json": [
+   {
+    "name": "Round Trip",
+    "username": "roundtrip",
+    "email": "round.trip@example.com",
+    "city": "Lisbon",
+    "birthdate": "1990-05-17",
+    "preferred_language": "en",
+    "gender": "unspecified",
+    "units": "metric",
+    "weight_units": null,
+    "height": 178,
+    "max_heart_rate": 185,
+    "first_day_of_week": "monday",
+    "currency": "euro",
+    "timezone": null,
+    "id": 1,
+    "photo_path": "/api/v1/users/1/photo",
+    "external_auth_count": 0,
+    "version": 3,
+    "pending_email": null,
+    "pending_email_expires_at": null
+   }
+  ]
+ },
+ "data/user_default_gear.json": {
+  "json": [
+   {
+    "run_gear_id": 2,
+    "trail_run_gear_id": null,
+    "virtual_run_gear_id": null,
+    "ride_gear_id": 1,
+    "gravel_ride_gear_id": null,
+    "mtb_ride_gear_id": null,
+    "virtual_ride_gear_id": null,
+    "ows_gear_id": null,
+    "walk_gear_id": null,
+    "hike_gear_id": null,
+    "tennis_gear_id": null,
+    "alpine_ski_gear_id": null,
+    "nordic_ski_gear_id": null,
+    "snowboard_gear_id": null,
+    "windsurf_gear_id": null,
+    "id": 1,
+    "user_id": 1,
+    "version": 2
+   }
+  ]
+ },
+ "data/user_goals.json": {
+  "json": [
+   {
+    "interval": "weekly",
+    "activity_type": "run",
+    "goal_type": "calories",
+    "goal_calories": 5000,
+    "goal_activities_number": null,
+    "goal_distance": null,
+    "goal_elevation": null,
+    "goal_duration": null,
+    "id": 1,
+    "user_id": 1,
+    "version": 1
+   },
+   {
+    "interval": "weekly",
+    "activity_type": "run",
+    "goal_type": "distance",
+    "goal_calories": null,
+    "goal_activities_number": null,
+    "goal_distance": 40000,
+    "goal_elevation": null,
+    "goal_duration": null,
+    "id": 2,
+    "user_id": 1,
+    "version": 1
+   }
+  ]
+ },
+ "data/user_integrations.json": {
+  "json": [
+   {
+    "strava_sync_gear": true,
+    "garminconnect_sync_gear": true
+   }
+  ]
+ },
+ "data/user_privacy_settings.json": {
+  "json": [
+   {
+    "default_activity_visibility": "public",
+    "hide_activity_start_time": false,
+    "hide_activity_location": false,
+    "hide_activity_map": true,
+    "hide_activity_hr": true,
+    "hide_activity_power": false,
+    "hide_activity_cadence": false,
+    "hide_activity_elevation": false,
+    "hide_activity_speed": false,
+    "hide_activity_pace": false,
+    "hide_activity_laps": false,
+    "hide_activity_workout_sets_steps": false,
+    "hide_activity_gear": false,
+    "id": 1,
+    "user_id": 1,
+    "version": 2
+   }
+  ]
+ },
+ "user_images/1.png": {
+  "base64": "iVBORw0KGgoAAAANSUhEUgAAAAgAAAAICAIAAABLbSncAAAAD0lEQVR4nGMwwgEYhpYEAKeaJYFOqQ3UAAAAAElFTkSuQmCC"
+ }
+}

@@ -5,10 +5,12 @@
   "unread": "Necitite",
   "markRead": "Marchează ca citit",
   "markAllRead": "Marchează toate ca citite",
+  "dismiss": "Respinge notificarea",
+  "dismissError": "Notificarea nu a putut fi respinsă. Încearcă din nou.",
   "seeAll": "Vezi toate",
   "loadMore": "Încarcă mai multe",
   "loading": "Se încarcă…",
-  "badge": "{count} notificări necitite",
+  "badge": "{count} notificare necitită | {count} notificări necitite | {count} de notificări necitite",
   "empty": {
     "title": "Ești la zi cu toate",
     "description": "Actualizările despre activitățile, urmăritorii și integrările tale vor apărea aici."
@@ -39,9 +41,122 @@
       "title": "Garmin Connect necesită atenție",
       "body": "Sesiunea ta Garmin Connect a expirat. Reconectează-o pentru a continua sincronizarea."
     },
+    "stravaTokenExpired": {
+      "title": "Strava necesită atenție",
+      "body": "Strava ți-a respins conexiunea. Reconecteaz-o pentru a continua sincronizarea.",
+      "bodyRevoked": "Accesul la Strava a luat sfârșit. Activitățile și echipamentul sincronizate cu Strava vor fi șterse la {date}, dacă nu te reconectezi."
+    },
+    "stravaDataDeleted": {
+      "title": "Datele Strava au fost șterse",
+      "body": "Activitățile și echipamentul sincronizate cu Strava au fost șterse deoarece accesul la Strava a luat sfârșit și nu te-ai reconectat."
+    },
+    "idpLinked": {
+      "title": "Furnizor de autentificare nou asociat",
+      "body": "{name} a fost asociat contului tău. Dacă nu ai fost tu, verifică setările de securitate.",
+      "bodyGeneric": "Un furnizor de autentificare a fost asociat contului tău. Dacă nu ai fost tu, verifică setările de securitate."
+    },
+    "accountSecurityChanged": {
+      "passwordChanged": {
+        "title": "Parolă schimbată",
+        "body": "Parola ta a fost schimbată. Dacă nu ai fost tu, resetează-ți parola și verifică setările de securitate."
+      },
+      "passwordReset": {
+        "title": "Parolă resetată",
+        "body": "Parola ta a fost resetată printr-un link de resetare. Dacă nu ai fost tu, resetează-ți din nou parola și verifică setările de securitate. Any API keys were revoked and any pending email change was cancelled."
+      },
+      "passwordSetByAdmin": {
+        "title": "Parolă setată de un administrator",
+        "body": "Un administrator a setat o parolă nouă pentru contul tău. Dacă nu te așteptai la asta, contactează administratorul. Any API keys were revoked and any pending email change was cancelled."
+      },
+      "mfaEnabled": {
+        "title": "Verificare în doi pași activată",
+        "body": "Verificarea în doi pași a fost activată pentru contul tău. Dacă nu ai fost tu, resetează-ți parola și verifică setările de securitate."
+      },
+      "mfaDisabled": {
+        "title": "Verificare în doi pași dezactivată",
+        "body": "Verificarea în doi pași a fost dezactivată pentru contul tău. Dacă nu ai fost tu, resetează-ți parola și verifică setările de securitate."
+      },
+      "mfaResetByAdmin": {
+        "title": "Autentificarea în doi pași a fost resetată de un administrator",
+        "body": "Un administrator a resetat autentificarea în doi pași pentru contul tău și te-a deconectat de pe toate dispozitivele. Configureaz-o din nou din setările de securitate. Dacă nu te așteptai la asta, contactează administratorul."
+      },
+      "passwordChangeRequiredByAdmin": {
+        "title": "Un administrator a cerut schimbarea parolei",
+        "body": "Un administrator ți-a cerut să îți schimbi parola și te-a deconectat de pe toate dispozitivele. Vei alege o parolă nouă la următoarea autentificare cu parola. Dacă nu te așteptai la asta, contactează administratorul."
+      },
+      "backupCodesGenerated": {
+        "title": "Au fost generate coduri de rezervă noi",
+        "body": "Au fost generate coduri de rezervă noi pentru contul tău. Dacă nu ai fost tu, resetează-ți parola și verifică setările de securitate."
+      },
+      "apiKeyCreated": {
+        "title": "A fost creată o cheie API nouă",
+        "body": "A fost creată o cheie API nouă pentru contul tău. Dacă nu ai fost tu, resetează-ți parola și verifică setările de securitate."
+      },
+      "apiKeysRevokedByAdmin": {
+        "title": "Chei API revocate de un administrator",
+        "body": "Un administrator a revocat una sau mai multe dintre cheile tale API, așa că nimic din ce le folosește nu mai poate accesa contul tău. Dacă nu te așteptai la asta, contactează administratorul."
+      },
+      "identityProviderUnlinked": {
+        "title": "Furnizor de autentificare dezasociat",
+        "body": "{name} a fost dezasociat de la contul tău. Dacă nu ai fost tu, resetează-ți parola și verifică setările de securitate.",
+        "bodyGeneric": "Un furnizor de autentificare a fost dezasociat de la contul tău. Dacă nu ai fost tu, resetează-ți parola și verifică setările de securitate."
+      },
+      "accountLocked": {
+        "title": "Cont blocat",
+        "body": "Contul tău a fost blocat după 100 de încercări de autentificare eșuate la rând. Browserele și aplicațiile din care te-ai autentificat de la ultima modificare de securitate se pot autentifica în continuare. Dacă aceste încercări nu au fost ale tale, schimbă sau resetează-ți parola, ceea ce ridică și blocarea."
+      },
+      "mfaLocked": {
+        "title": "Verificarea în doi pași a fost blocată",
+        "body": "Contul tău a fost blocat după 100 de coduri greșite de verificare în doi pași la rând, deci cineva îți știe parola. Browserele și aplicațiile din care te-ai autentificat de la ultima modificare de securitate se pot autentifica în continuare. Dacă aceste încercări nu au fost ale tale, schimbă-ți parola."
+      },
+      "stepUpSessionEnded": {
+        "title": "Sesiune deconectată",
+        "body": "O sesiune a contului tău a fost deconectată după ce au fost introduse 15 parole sau coduri de autentificare în doi pași greșite la rând pentru a confirma o acțiune sensibilă. Celelalte sesiuni ale tale nu au fost afectate. Dacă nu tu ai încercat, schimbă-ți parola."
+      },
+      "stepUpLocked": {
+        "title": "Confirmarea acțiunilor sensibile blocată",
+        "body": "Confirmarea acțiunilor sensibile, precum schimbarea parolei sau crearea unei chei API, a fost blocată pentru 30 de zile după 100 de confirmări greșite în sesiunile tale. Dacă nu tu ai încercat, resetează-ți parola, ceea ce ridică și blocarea."
+      },
+      "backupCodeUsed": {
+        "title": "Cod de rezervă folosit",
+        "body": "A fost folosit un cod de rezervă pentru autentificarea în doi pași pe contul tău. Dacă nu tu l-ai folosit, schimbă-ți parola și generează coduri de rezervă noi.",
+        "bodyRemaining": "A fost folosit un cod de rezervă pentru autentificarea în doi pași pe contul tău. Coduri de rezervă nefolosite rămase: {count}. Dacă nu tu l-ai folosit, schimbă-ți parola și generează coduri de rezervă noi.",
+        "bodyNone": "A fost folosit un cod de rezervă pentru autentificarea în doi pași pe contul tău. Nu mai ai coduri de rezervă nefolosite, așa că generează altele noi în setările de securitate. Dacă nu tu l-ai folosit, schimbă-ți parola."
+      },
+      "refreshTokenReuseDetected": {
+        "title": "Sesiune încheiată",
+        "body": "O sesiune de autentificare a contului tău a fost încheiată deoarece un token deja folosit a fost prezentat din nou, ceea ce poate însemna că sesiunea a fost copiată. Celelalte sesiuni ale tale nu au fost afectate. Dacă nu te așteptai la asta, schimbă-ți parola."
+      },
+      "roleChangedByAdmin": {
+        "title": "Acces schimbat de un administrator",
+        "body": "Un administrator a schimbat tipul de acces al contului tău și te-a deconectat de pe toate dispozitivele. Dacă nu te așteptai la asta, contactează administratorul tău.",
+        "bodyAdmin": "Un administrator a schimbat tipul de acces al contului tău în administrator și te-a deconectat de pe toate dispozitivele. Dacă nu te așteptai la asta, contactează administratorul tău.",
+        "bodyRegular": "Un administrator a schimbat tipul de acces al contului tău în utilizator obișnuit și te-a deconectat de pe toate dispozitivele. Dacă nu te așteptai la asta, contactează administratorul tău."
+      },
+      "accountDeactivatedByAdmin": {
+        "title": "Cont dezactivat de un administrator",
+        "body": "Un administrator ți-a dezactivat contul și te-a deconectat de pe toate dispozitivele. Nu te poți autentifica până când un administrator nu îl reactivează."
+      },
+      "unknown": {
+        "title": "Securitatea contului a fost modificată",
+        "body": "O setare de securitate a contului tău a fost modificată. Dacă nu ai fost tu, resetează-ți parola și verifică setările de securitate."
+      },
+      "usernameChanged": {
+        "title": "Nume de utilizator schimbat",
+        "body": "Numele tău de utilizator a fost schimbat. Dacă nu ai fost tu, resetează parola și verifică setările de securitate."
+      }
+    },
+    "newDeviceSignIn": {
+      "title": "Autentificare nouă",
+      "body": "Autentificare nouă din {browser} pe {os} ({ip}). Dacă nu ai fost tu, schimbă-ți parola și deconectează-te din celelalte sesiuni."
+    },
     "adminSignUpApproval": {
       "title": "O înscriere nouă necesită aprobare",
       "body": "{name} ({'@'}{username}) așteaptă aprobarea contului."
+    },
+    "adminUserPromoted": {
+      "title": "Utilizator promovat la administrator",
+      "body": "{name} ({'@'}{username}) a primit acces de administrator."
     },
     "unknown": {
       "title": "Notificare",

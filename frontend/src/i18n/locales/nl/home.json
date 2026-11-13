@@ -4,6 +4,7 @@
     "uploading": "Uploaden…",
     "success": "Activiteit succesvol geüpload",
     "error": "Het activiteitsbestand kon niet worden geüpload",
+    "tooLarge": "Het bestand is te groot",
     "timeout": "Je bestand wordt nog geïmporteerd. Het verschijnt zodra het klaar is.",
     "failed": {
       "unsupported_format": "Dit bestandstype wordt niet ondersteund",
@@ -46,7 +47,6 @@
     "thisWeek": "Deze week",
     "thisMonth": "Deze maand",
     "empty": "Geen activiteit in deze periode",
-    "caloriesUnit": "kcal",
     "metric": {
       "distance": "Afstand",
       "time": "Tijd",
@@ -63,12 +63,13 @@
     "snow_ski": "Skiën",
     "snowboard": "Snowboarden",
     "windsurf": "Windsurfen",
-    "stand_up_paddleboarding": "Paddleboarden",
-    "surfing": "Surfen",
+    "stand_up_paddling": "Paddleboarden",
+    "surf": "Surfen",
     "kayaking": "Kajakken",
     "sailing": "Zeilen",
-    "snowshoeing": "Sneeuwschoenwandelen",
-    "inline_skating": "Inline skaten"
+    "snow_shoeing": "Sneeuwschoenwandelen",
+    "inline_skating": "Inline skaten",
+    "other": "Overig"
   },
   "goals": {
     "title": "Doelen",

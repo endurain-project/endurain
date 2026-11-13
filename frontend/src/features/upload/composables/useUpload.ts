@@ -6,14 +6,27 @@ import {
 } from '@tanstack/vue-query'
 
 import { fetchActivity } from '@/features/activities/services/activities'
-import type { Activity } from '@/features/activities/types'
+import type { Activity, ActivityFeedSlice, ActivitySummary } from '@/features/activities/types'
+import {
+  pinActivities,
+  updatePinnedActivities,
+} from '@/features/upload/composables/usePinnedActivities'
 import {
   clearAwaitingThumbnail,
   markAwaitingThumbnail,
 } from '@/features/upload/composables/usePendingThumbnails'
-import { fetchIngestionJob, uploadActivityFile } from '@/features/upload/services/upload'
-import { type ActivityIngestionJob, isTerminalIngestionJob } from '@/features/upload/types'
+import { uploadActivityFile } from '@/features/upload/services/upload'
+import type { ActivityIngestionJob } from '@/features/upload/types'
+import { invalidateActivityData } from '@/composables/useInvalidatingMutation'
+import { isProblem, retryWaitMessage } from '@/services/problems'
+import { followJob, JobTimeoutError } from '@/services/jobStatus'
 import { queryKeys } from '@/services/queryKeys'
+
+/** Key prefixes of the home feeds, which an upload updates by hand. */
+const HOME_FEED_KEYS = [
+  ['activities', 'list', { scope: 'user-feed' }],
+  ['activities', 'list', { scope: 'followers-feed' }],
+] as const
 
 /** How long to wait between upload-job status polls. */
 const POLL_INTERVAL_MS = 1500
@@ -60,7 +73,41 @@ export class IngestionJobTimeoutError extends Error {
 }
 
 /**
- * Waits for a queued import to reach a terminal state.
+ * Maps an upload failure to a user-facing message. The request itself can be refused (too large,
+ * unsupported, throttled), the background parse reports a closed set of sanitized codes, and a
+ * timeout is not a failure because the import may still succeed.
+ *
+ * @param error - The error the upload mutation rejected with.
+ * @param t - The translate function.
+ * @returns The localized message to show.
+ */
+export function uploadErrorMessage(
+  error: unknown,
+  t: (key: string, params?: { seconds: number }) => string,
+): string {
+  if (error instanceof IngestionJobTimeoutError) {
+    return t('home.upload.timeout')
+  }
+  if (error instanceof IngestionJobFailedError && error.code) {
+    return t(`home.upload.failed.${error.code}`)
+  }
+  if (isProblem(error, 'payload-too-large')) {
+    return t('home.upload.tooLarge')
+  }
+  if (isProblem(error, 'unsupported-format', 'unsupported-media-type')) {
+    return t('home.upload.failed.unsupported_format')
+  }
+  if (isProblem(error, 'invalid-input')) {
+    return t('home.upload.failed.invalid_file')
+  }
+  if (isProblem(error, 'rate-limited')) {
+    return retryWaitMessage(error, t) ?? t('home.upload.error')
+  }
+  return t('home.upload.error')
+}
+
+/**
+ * Follows a queued import until it reaches a terminal state.
  *
  * @param jobId - The job returned by the upload request.
  * @param options - Optional abort signal, polling interval, and timeout.
@@ -68,27 +115,24 @@ export class IngestionJobTimeoutError extends Error {
  * @throws {IngestionJobFailedError} When the import finished unsuccessfully.
  * @throws {IngestionJobTimeoutError} When it is still running at the deadline.
  */
-export async function pollIngestionJob(
+export async function followIngestionJob(
   jobId: string,
   options: { signal?: AbortSignal; intervalMs?: number; timeoutMs?: number } = {},
 ): Promise<ActivityIngestionJob> {
-  const intervalMs = options.intervalMs ?? POLL_INTERVAL_MS
-  const timeoutMs = options.timeoutMs ?? POLL_TIMEOUT_MS
-  const deadline = Date.now() + timeoutMs
-
-  for (;;) {
-    const job = await fetchIngestionJob(jobId, { signal: options.signal })
-    if (isTerminalIngestionJob(job)) {
-      if (job.status === 'failed') {
-        throw new IngestionJobFailedError(job.error_code)
-      }
-      return job
-    }
-    if (Date.now() >= deadline) {
-      throw new IngestionJobTimeoutError()
-    }
-    await new Promise((resolve) => setTimeout(resolve, intervalMs))
+  let job: ActivityIngestionJob
+  try {
+    job = await followJob<'activity_upload' | 'activity_refresh'>(jobId, {
+      signal: options.signal,
+      intervalMs: options.intervalMs ?? POLL_INTERVAL_MS,
+      timeoutMs: options.timeoutMs ?? POLL_TIMEOUT_MS,
+    })
+  } catch (error) {
+    throw error instanceof JobTimeoutError ? new IngestionJobTimeoutError() : error
   }
+  if (job.status === 'failed') {
+    throw new IngestionJobFailedError(job.error_code)
+  }
+  return job
 }
 
 /**
@@ -119,18 +163,25 @@ function activityListScope(queryKey: readonly unknown[]): string | undefined {
  * @returns The updated feed value, or `undefined` when there was nothing cached.
  */
 export function prependActivitiesToFeed(
-  data: InfiniteData<Activity[]> | undefined,
-  activities: Activity[],
-): InfiniteData<Activity[]> | undefined {
-  if (!data || data.pages.length === 0 || activities.length === 0) {
+  data: InfiniteData<ActivityFeedSlice> | undefined,
+  activities: ActivitySummary[],
+): InfiniteData<ActivityFeedSlice> | undefined {
+  const [first, ...rest] = data?.pages ?? []
+  if (!data || !first || activities.length === 0) {
     return data
   }
   const newIds = new Set(activities.map((activity) => activity.id))
-  const dedupedPages = data.pages.map((page) => page.filter((activity) => !newIds.has(activity.id)))
-  const firstPage = dedupedPages[0] ?? []
+  const withoutNew = (slice: ActivityFeedSlice): ActivityFeedSlice => ({
+    ...slice,
+    items: slice.items.filter((activity) => !newIds.has(activity.id)),
+  })
+  const firstSlice = withoutNew(first)
   return {
     ...data,
-    pages: [[...activities, ...firstPage], ...dedupedPages.slice(1)],
+    pages: [
+      { ...firstSlice, items: [...activities, ...firstSlice.items] },
+      ...rest.map(withoutNew),
+    ],
   }
 }
 
@@ -144,16 +195,19 @@ export function prependActivitiesToFeed(
  * @returns The updated feed value, or `undefined` when there was nothing cached.
  */
 export function replaceActivitiesInFeed(
-  data: InfiniteData<Activity[]> | undefined,
-  activities: Activity[],
-): InfiniteData<Activity[]> | undefined {
+  data: InfiniteData<ActivityFeedSlice> | undefined,
+  activities: ActivitySummary[],
+): InfiniteData<ActivityFeedSlice> | undefined {
   if (!data || activities.length === 0) {
     return data
   }
   const byId = new Map(activities.map((activity) => [activity.id, activity]))
   return {
     ...data,
-    pages: data.pages.map((page) => page.map((activity) => byId.get(activity.id) ?? activity)),
+    pages: data.pages.map((slice) => ({
+      ...slice,
+      items: slice.items.map((activity) => byId.get(activity.id) ?? activity),
+    })),
   }
 }
 
@@ -164,8 +218,9 @@ export function replaceActivitiesInFeed(
  * @param activities - The refreshed activities to swap in.
  * @returns Nothing.
  */
-function patchUserFeed(queryClient: QueryClient, activities: Activity[]): void {
-  queryClient.setQueriesData<InfiniteData<Activity[]>>(
+function patchUserFeed(queryClient: QueryClient, activities: ActivitySummary[]): void {
+  updatePinnedActivities(activities)
+  queryClient.setQueriesData<InfiniteData<ActivityFeedSlice>>(
     {
       queryKey: queryKeys.activities.lists(),
       predicate: (query) => activityListScope(query.queryKey) === 'user-feed',
@@ -191,7 +246,7 @@ function patchUserFeed(queryClient: QueryClient, activities: Activity[]): void {
  */
 async function backfillMissingThumbnails(
   queryClient: QueryClient,
-  activityIds: number[],
+  activityIds: string[],
 ): Promise<void> {
   let awaiting = activityIds
   markAwaitingThumbnail(awaiting)
@@ -199,14 +254,16 @@ async function backfillMissingThumbnails(
     for (const delayMs of THUMBNAIL_RETRY_DELAYS_MS) {
       await new Promise((resolve) => setTimeout(resolve, delayMs))
       const refreshed = (
-        await Promise.all(
-          awaiting.map((id) => fetchActivity(id, { authenticated: true }).catch(() => null)),
-        )
+        await Promise.all(awaiting.map((id) => fetchActivity(id).catch(() => null)))
       ).filter((activity): activity is Activity => activity !== null)
 
+      // Patch every re-read row, not only the ones with a map: the location is
+      // filled in by a separate background job and may land first.
+      if (refreshed.length > 0) {
+        patchUserFeed(queryClient, refreshed)
+      }
       const ready = refreshed.filter((activity) => activity.mapThumbnailUrl !== null)
       if (ready.length > 0) {
-        patchUserFeed(queryClient, ready)
         const readyIds = ready.map((activity) => activity.id)
         clearAwaitingThumbnail(readyIds)
         const resolved = new Set(readyIds)
@@ -259,25 +316,24 @@ export function useUploadActivityFileMutation() {
       // 401-refresh retry inside apiFetch today, a mutation retry later — is
       // answered with the original job instead of importing the file twice.
       const job = await uploadActivityFile(file, { idempotencyKey: crypto.randomUUID() })
-      return pollIngestionJob(job.id)
+      return followIngestionJob(job.id)
     },
     onSuccess: async (job) => {
       // The job reports what it created, so fetch exactly those rows rather
       // than refetching the whole feed. A failed fetch drops that one row from
       // the optimistic pin; the settle-time invalidation still corrects it.
       const created = (
-        await Promise.all(
-          job.activity_ids.map((id) =>
-            fetchActivity(id, { authenticated: true }).catch(() => null),
-          ),
-        )
+        await Promise.all(job.activity_ids.map((id) => fetchActivity(id).catch(() => null)))
       ).filter((activity): activity is Activity => activity !== null)
       if (created.length === 0) {
         return
       }
       // Pin the new activities to the top of the viewer's own feed ("user-feed"
-      // scope). The followers feed never contains the viewer's own uploads.
-      queryClient.setQueriesData<InfiniteData<Activity[]>>(
+      // scope). The followers feed never contains the viewer's own uploads. The
+      // pin outlives the cache write: the feed query floats pinned activities
+      // above whatever a refetch returns (see `floatPinnedActivities`).
+      pinActivities(created)
+      queryClient.setQueriesData<InfiniteData<ActivityFeedSlice>>(
         {
           queryKey: queryKeys.activities.lists(),
           predicate: (query) => activityListScope(query.queryKey) === 'user-feed',
@@ -301,13 +357,7 @@ export function useUploadActivityFileMutation() {
       // Refresh every activities query except the home feeds, which were just
       // updated by hand; refetching them would drop the new activity from the
       // top before the viewer sees it (a reload restores server ordering).
-      void queryClient.invalidateQueries({
-        queryKey: queryKeys.activities.all(),
-        predicate: (query) => {
-          const scope = activityListScope(query.queryKey)
-          return scope !== 'user-feed' && scope !== 'followers-feed'
-        },
-      })
+      void invalidateActivityData(queryClient, HOME_FEED_KEYS)
     },
   })
 }

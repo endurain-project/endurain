@@ -1,16 +1,31 @@
 """Comprehensive tests for profile.router endpoints."""
 
+import io
+import os
+import uuid
 from datetime import UTC, datetime
-from unittest.mock import AsyncMock, MagicMock, patch
+from typing import ClassVar
+from unittest.mock import MagicMock, patch
 
 import pytest
 from fastapi import HTTPException
+from tests._helpers.auth import MOCK_USER_ID
+from tests.users.users_profile.conftest import MOCK_SESSION_ID
 
 import core.config as core_config
+import core.dependencies as core_dependencies
+import core.exceptions as core_exceptions
+import core.pagination as core_pagination
+import modules.activities.activity.constants as activity_constants
+import modules.auth.credentials.contracts as credentials_contracts
+import modules.auth.identity_providers.constants as identity_providers_constants
 import modules.auth.mfa.schema as mfa_schema
-import modules.users.users_profile.exceptions as profile_exceptions
+import modules.auth.sessions.schema as auth_sessions_schema
+import modules.users.users.schema as users_schema
+import modules.users.users_privacy_settings.schema as users_privacy_settings_schema
 
 PREFIX = core_config.ROOT_PATH + "/profile"  # /api/v1/profile
+IDP_ID = uuid.UUID(int=1)
 
 
 # ---------------------------------------------------------------------------
@@ -18,60 +33,49 @@ PREFIX = core_config.ROOT_PATH + "/profile"  # /api/v1/profile
 # ---------------------------------------------------------------------------
 
 
-def _make_user_mock() -> MagicMock:
-    user = MagicMock()
-    user.id = 1
-    user.name = "Test User"
-    user.username = "testuser"
-    user.email = "test@example.com"
-    user.city = None
-    user.birthdate = None
-    user.preferred_language = "en"
-    user.gender = "unspecified"
-    user.units = "metric"
-    user.height = None
-    user.max_heart_rate = None
-    user.first_day_of_week = "monday"
-    user.currency = "euro"
-    user.timezone = None
-    user.access_type = "regular"
-    user.photo_path = None
-    user.active = True
-    user.mfa_enabled = False
-    user.email_verified = True
-    user.pending_admin_approval = False
-    user.external_auth_count = 0
-    user.is_strava_linked = 0
-    user.is_garminconnect_linked = 0
-    user.default_activity_visibility = "public"
-    user.hide_activity_start_time = False
-    user.hide_activity_location = False
-    user.hide_activity_map = False
-    user.hide_activity_hr = False
-    user.hide_activity_power = False
-    user.hide_activity_cadence = False
-    user.hide_activity_elevation = False
-    user.hide_activity_speed = False
-    user.hide_activity_pace = False
-    user.hide_activity_laps = False
-    user.hide_activity_workout_sets_steps = False
-    user.hide_activity_gear = False
-    # Mirror the ORM: no has_local_password attribute, so
-    # UsersMe.model_validate falls back to the default (None)
-    # before the router overrides it via IdentityService.
-    user.has_local_password = None
-    return user
+_JOB_ID = uuid.UUID(int=501)
+
+
+def _make_user_mock() -> users_schema.UserRead:
+    """Return the user as ``users_integration.require_user`` serves it."""
+    return users_schema.UserRead(
+        id=MOCK_USER_ID,
+        version=1,
+        name="Test User",
+        username="testuser",
+        email="test@example.com",
+        city=None,
+        birthdate=None,
+        preferred_language="en",
+        gender="unspecified",
+        units="metric",
+        height=None,
+        max_heart_rate=None,
+        first_day_of_week="monday",
+        currency="euro",
+        timezone=None,
+        access_type="regular",
+        photo_path=None,
+        active=True,
+        mfa_enabled=False,
+        email_verified=True,
+        pending_admin_approval=False,
+        external_auth_count=0,
+    )
 
 
 def _make_integration_mock() -> MagicMock:
     integ = MagicMock()
+    integ.version = 2
     integ.strava_token = None
+    integ.strava_revoked_at = None
     integ.garminconnect_token = None
     return integ
 
 
 def _make_privacy_mock() -> MagicMock:
     p = MagicMock()
+    p.version = 1
     p.default_activity_visibility = "public"
     p.hide_activity_start_time = False
     p.hide_activity_location = False
@@ -85,10 +89,11 @@ def _make_privacy_mock() -> MagicMock:
     p.hide_activity_laps = False
     p.hide_activity_workout_sets_steps = False
     p.hide_activity_gear = False
+    p.discoverable = True
     return p
 
 
-def _make_session_mock(session_id: str = "session-1") -> MagicMock:
+def _make_session_mock(session_id: uuid.UUID = MOCK_SESSION_ID) -> MagicMock:
     s = MagicMock()
     s.id = session_id
     s.ip_address = "127.0.0.1"
@@ -100,11 +105,12 @@ def _make_session_mock(session_id: str = "session-1") -> MagicMock:
     s.created_at = datetime.now(UTC)
     s.last_activity_at = datetime.now(UTC)
     s.expires_at = datetime.now(UTC)
-    s.user_id = 1
+    s.user_id = MOCK_USER_ID
+    s.app_redirect_uri = None
     return s
 
 
-def _make_idp_mock(idp_id: int = 1) -> MagicMock:
+def _make_idp_mock(idp_id: uuid.UUID = IDP_ID) -> MagicMock:
     idp = MagicMock()
     idp.id = idp_id
     idp.name = "TestIdP"
@@ -123,37 +129,91 @@ def _make_idp_mock(idp_id: int = 1) -> MagicMock:
 class TestReadUsersMe:
     """Tests for GET /profile — read_users_me."""
 
-    @patch("modules.users.users_profile.router.users_privacy_settings_crud.get_user_privacy_settings_by_user_id")
-    @patch("modules.users.users_profile.router.user_integrations_crud.get_user_integrations_by_user_id")
-    @patch("modules.users.users_profile.router.users_crud.get_user_by_id")
+    @patch("modules.users.users_profile.service.users_privacy_settings_integration.get_privacy_settings")
+    @patch("modules.users.users_profile.service.user_integrations_integration.get_user_integrations")
+    @patch("modules.users.users_profile.service.users_integration.require_user")
+    def test_the_profile_carries_the_users_version_as_its_etag(
+        self, mock_get_user, mock_get_integrations, mock_get_privacy, profile_client, mock_auth_services
+    ):
+        mock_get_user.return_value = _make_user_mock()
+        mock_get_user.return_value = mock_get_user.return_value.model_copy(update={"version": 8})
+        mock_get_integrations.return_value = _make_integration_mock()
+        mock_get_privacy.return_value = _make_privacy_mock()
+        mock_auth_services.has_local_password.return_value = True
+        mock_auth_services.get_mfa_status.return_value = mfa_schema.MFAStatusRead(mfa_enabled=False)
+
+        response = profile_client.get(PREFIX)
+
+        assert response.headers["ETag"] == '"8"'
+        assert response.json()["integrations_version"] == 2
+
+    @patch("modules.users.users_profile.service.users_privacy_settings_integration.get_privacy_settings")
+    @patch("modules.users.users_profile.service.user_integrations_integration.get_user_integrations")
+    @patch("modules.users.users_profile.service.users_integration.require_user")
+    def test_a_revoked_strava_access_carries_the_day_its_data_is_deleted(
+        self, mock_get_user, mock_get_integrations, mock_get_privacy, profile_client, mock_auth_services
+    ):
+        mock_get_user.return_value = _make_user_mock()
+        integrations = _make_integration_mock()
+        integrations.strava_revoked_at = datetime(2026, 11, 5, 9, 30, tzinfo=UTC)
+        mock_get_integrations.return_value = integrations
+        mock_get_privacy.return_value = _make_privacy_mock()
+        mock_auth_services.has_local_password.return_value = True
+        mock_auth_services.get_mfa_status.return_value = mfa_schema.MFAStatusRead(mfa_enabled=False)
+
+        data = profile_client.get(PREFIX).json()
+
+        assert data["strava_revoked_at"].startswith("2026-11-05T09:30:00")
+        assert data["strava_data_deletion_at"].startswith("2026-11-12T09:30:00")
+
+    @patch("modules.users.users_profile.service.users_privacy_settings_integration.get_privacy_settings")
+    @patch("modules.users.users_profile.service.user_integrations_integration.get_user_integrations")
+    @patch("modules.users.users_profile.service.users_integration.require_user")
+    def test_intact_strava_access_has_no_revocation_dates(
+        self, mock_get_user, mock_get_integrations, mock_get_privacy, profile_client, mock_auth_services
+    ):
+        mock_get_user.return_value = _make_user_mock()
+        mock_get_integrations.return_value = _make_integration_mock()
+        mock_get_privacy.return_value = _make_privacy_mock()
+        mock_auth_services.has_local_password.return_value = True
+        mock_auth_services.get_mfa_status.return_value = mfa_schema.MFAStatusRead(mfa_enabled=False)
+
+        data = profile_client.get(PREFIX).json()
+
+        assert data["strava_revoked_at"] is None
+        assert data["strava_data_deletion_at"] is None
+
+    @patch("modules.users.users_profile.service.users_privacy_settings_integration.get_privacy_settings")
+    @patch("modules.users.users_profile.service.user_integrations_integration.get_user_integrations")
+    @patch("modules.users.users_profile.service.users_integration.require_user")
     def test_success(
         self,
         mock_get_user,
         mock_get_integrations,
         mock_get_privacy,
         profile_client,
-        mock_identity_service,
+        mock_auth_services,
     ):
         """Happy path: all data found."""
         mock_get_user.return_value = _make_user_mock()
         mock_get_integrations.return_value = _make_integration_mock()
         mock_get_privacy.return_value = _make_privacy_mock()
-        mock_identity_service.has_local_password.return_value = True
-        mock_identity_service.get_mfa_status.return_value = mfa_schema.MFAStatusResponse(mfa_enabled=True)
+        mock_auth_services.has_local_password.return_value = True
+        mock_auth_services.get_mfa_status.return_value = mfa_schema.MFAStatusRead(mfa_enabled=True)
 
         response = profile_client.get(PREFIX)
 
         assert response.status_code == 200
         data = response.json()
-        assert data["id"] == 1
+        assert data["id"] == str(MOCK_USER_ID)
         assert data["name"] == "Test User"
-        assert data["is_strava_linked"] == 0
+        assert data["is_strava_linked"] is False
         assert data["has_local_password"] is True
         assert data["mfa_enabled"] is True
 
-    @patch("modules.users.users_profile.router.users_privacy_settings_crud.get_user_privacy_settings_by_user_id")
-    @patch("modules.users.users_profile.router.user_integrations_crud.get_user_integrations_by_user_id")
-    @patch("modules.users.users_profile.router.users_crud.get_user_by_id")
+    @patch("modules.users.users_profile.service.users_privacy_settings_integration.get_privacy_settings")
+    @patch("modules.users.users_profile.service.user_integrations_integration.get_user_integrations")
+    @patch("modules.users.users_profile.service.users_integration.require_user")
     def test_user_not_found(
         self,
         mock_get_user,
@@ -162,16 +222,16 @@ class TestReadUsersMe:
         profile_client,
     ):
         """Error: user not found → 404."""
-        mock_get_user.return_value = None
+        mock_get_user.side_effect = core_exceptions.NotFoundError("User not found")
 
         response = profile_client.get(PREFIX)
 
         assert response.status_code == 404
         assert response.json()["detail"] == "User not found"
 
-    @patch("modules.users.users_profile.router.users_privacy_settings_crud.get_user_privacy_settings_by_user_id")
-    @patch("modules.users.users_profile.router.user_integrations_crud.get_user_integrations_by_user_id")
-    @patch("modules.users.users_profile.router.users_crud.get_user_by_id")
+    @patch("modules.users.users_profile.service.users_privacy_settings_integration.get_privacy_settings")
+    @patch("modules.users.users_profile.service.user_integrations_integration.get_user_integrations")
+    @patch("modules.users.users_profile.service.users_integration.require_user")
     def test_integrations_not_found(
         self,
         mock_get_user,
@@ -186,11 +246,11 @@ class TestReadUsersMe:
         response = profile_client.get(PREFIX)
 
         assert response.status_code == 404
-        assert response.json()["detail"] == "Could not validate credentials (user integrations not found)"
+        assert response.json()["detail"] == "User integrations not found"
 
-    @patch("modules.users.users_profile.router.users_privacy_settings_crud.get_user_privacy_settings_by_user_id")
-    @patch("modules.users.users_profile.router.user_integrations_crud.get_user_integrations_by_user_id")
-    @patch("modules.users.users_profile.router.users_crud.get_user_by_id")
+    @patch("modules.users.users_profile.service.users_privacy_settings_integration.get_privacy_settings")
+    @patch("modules.users.users_profile.service.user_integrations_integration.get_user_integrations")
+    @patch("modules.users.users_profile.service.users_integration.require_user")
     def test_privacy_not_found(
         self,
         mock_get_user,
@@ -217,230 +277,343 @@ class TestReadUsersMe:
 class TestReadSessionsMe:
     """Tests for GET /profile/sessions — read_sessions_me."""
 
-    def test_success(self, profile_client, mock_identity_service):
+    def test_success(self, profile_client, mock_auth_services):
         """Happy path: returns sessions."""
-        mock_identity_service.get_user_sessions.return_value = [_make_session_mock()]
+        mock_auth_services.list_user_sessions.return_value = auth_sessions_schema.UserSessionsPage.build(
+            [auth_sessions_schema.UserSessionsRead.model_validate(_make_session_mock())], 3, 2, 1
+        )
 
-        response = profile_client.get(PREFIX + "/sessions")
+        response = profile_client.get(PREFIX + "/sessions?page_number=2&num_records=1")
 
         assert response.status_code == 200
         data = response.json()
-        assert len(data) == 1
-        assert data[0]["id"] == "session-1"
+        assert [item["id"] for item in data["items"]] == [str(MOCK_SESSION_ID)]
+        assert (data["total"], data["page"], data["num_records"], data["next"]) == (3, 2, 1, 3)
+        assert mock_auth_services.list_user_sessions.call_args.args == (MOCK_USER_ID, core_pagination.PageParams(2, 1))
 
-    def test_demo_environment(self, profile_client, mock_identity_service):
+    def test_rejects_an_oversized_page(self, profile_client):
+        """A page size above the cap is a validation error."""
+        response = profile_client.get(PREFIX + "/sessions?num_records=201")
+
+        assert response.status_code == 422
+
+    def test_demo_environment(self, profile_client, mock_auth_services):
         """Demo environment returns empty list."""
-        mock_identity_service.get_user_sessions.return_value = []
+        mock_auth_services.list_user_sessions.return_value = auth_sessions_schema.UserSessionsPage.build([], 0, 1, 25)
 
         response = profile_client.get(PREFIX + "/sessions")
 
         assert response.status_code == 200
-        assert response.json() == []
+        assert response.json()["items"] == []
+        assert mock_auth_services.list_user_sessions.call_args.args == (MOCK_USER_ID, core_pagination.PageParams(1, 25))
 
 
 # ===================================================================
-# POST /profile/idp/{idp_id}/link/token
-# ===================================================================
-
-
-class TestGenerateLinkToken:
-    """Tests for POST /profile/idp/{idp_id}/link/token — generate_link_token."""
-
-    def test_success(self, profile_client, mock_identity_service):
-        """Happy path: generates a link token."""
-        mock_identity_service.generate_link_token.return_value = {
-            "token": "tok-1",
-            "expires_at": datetime(2025, 1, 1, tzinfo=UTC),
-        }
-
-        response = profile_client.post(
-            PREFIX + "/idp/1/link/token",
-            json={"current_password": "pass123"},
-        )
-
-        assert response.status_code == 201
-        assert response.json()["token"] == "tok-1"
-
-    def test_step_up_fails(self, profile_client, mock_identity_service):
-        """Error: step-up verification fails."""
-        mock_identity_service.generate_link_token.side_effect = HTTPException(
-            status_code=401,
-            detail="Invalid credentials",
-        )
-
-        response = profile_client.post(
-            PREFIX + "/idp/1/link/token",
-            json={"current_password": "wrong"},
-        )
-
-        assert response.status_code == 401
-
-    def test_idp_not_found(self, profile_client, mock_identity_service):
-        """Error: IDP not found → 404."""
-        mock_identity_service.generate_link_token.side_effect = HTTPException(
-            status_code=404,
-            detail="Identity provider not found or disabled",
-        )
-
-        response = profile_client.post(
-            PREFIX + "/idp/1/link/token",
-            json={"current_password": "pass123"},
-        )
-
-        assert response.status_code == 404
-        assert "not found" in response.json()["detail"]
-
-    def test_idp_disabled(self, profile_client, mock_identity_service):
-        """Error: IDP disabled → 404."""
-        mock_identity_service.generate_link_token.side_effect = HTTPException(
-            status_code=404,
-            detail="Identity provider not found or disabled",
-        )
-
-        response = profile_client.post(
-            PREFIX + "/idp/1/link/token",
-            json={"current_password": "pass123"},
-        )
-
-        assert response.status_code == 404
-        assert "not found" in response.json()["detail"]
-
-    def test_already_linked(self, profile_client, mock_identity_service):
-        """Error: already linked → 409."""
-        mock_identity_service.generate_link_token.side_effect = HTTPException(
-            status_code=409,
-            detail="already linked",
-        )
-
-        response = profile_client.post(
-            PREFIX + "/idp/1/link/token",
-            json={"current_password": "pass123"},
-        )
-
-        assert response.status_code == 409
-        assert "already linked" in response.json()["detail"]
-
-    def test_idp_not_found_none_return(self, profile_client, mock_identity_service):
-        """Error: IDP get returns None (second branch)."""
-        mock_identity_service.generate_link_token.side_effect = HTTPException(
-            status_code=404,
-            detail="Identity provider not found or disabled",
-        )
-
-        response = profile_client.post(
-            PREFIX + "/idp/1/link/token",
-            json={"current_password": "pass123"},
-        )
-
-        assert response.status_code == 404
-
-
-# ===================================================================
-# POST /profile/image
+# POST /profile/photo
 # ===================================================================
 
 
 class TestUploadProfileImage:
-    """Tests for POST /profile/image — upload_profile_image."""
+    """Tests for PUT /profile/photo — put_profile_image."""
 
-    @patch("modules.users.users_profile.router.users_utils.save_user_image_file", new_callable=AsyncMock)
-    def test_success(self, mock_save, profile_client):
-        """Happy path: upload profile image."""
-        mock_save.return_value = "photo.jpg"
+    @pytest.mark.parametrize(("replaced", "status_code"), [(False, 201), (True, 200)])
+    @patch("modules.users.users_profile.router.users_integration.require_user")
+    @patch("modules.users.users_profile.router.users_integration.upload_user_photo")
+    def test_success(self, mock_save, mock_require, replaced, status_code, profile_client):
+        """Happy path: 201 for a first photo, 200 for a replacement, with the servable photo URL."""
+        mock_save.return_value = replaced
+        mock_require.return_value = MagicMock(photo_path=f"/users/{MOCK_USER_ID}/photo?t=x")
 
-        response = profile_client.post(
-            PREFIX + "/image",
+        response = profile_client.put(
+            PREFIX + "/photo",
             files={"file": ("photo.jpg", b"image-data", "image/jpeg")},
         )
 
-        assert response.status_code == 201
-        assert response.json() == "photo.jpg"
+        assert response.status_code == status_code
+        assert response.json() == {"photo_path": f"/users/{MOCK_USER_ID}/photo?t=x"}
 
 
 # ===================================================================
-# PUT /profile
+# PATCH /profile
 # ===================================================================
 
 
 class TestEditUser:
-    """Tests for PUT /profile — edit_user."""
+    """Tests for PATCH /profile — edit_user."""
 
-    @patch("modules.users.users_profile.router.users_crud.edit_profile_user", new_callable=AsyncMock)
-    def test_success(self, mock_edit, profile_client):
-        """Happy path: update profile."""
-        response = profile_client.put(
+    @patch("modules.users.users_profile.service.users_privacy_settings_integration.get_privacy_settings")
+    @patch("modules.users.users_profile.service.user_integrations_integration.get_user_integrations")
+    @patch("modules.users.users_profile.service.users_integration.require_user")
+    @patch("modules.users.users_profile.service.users_integration.edit_profile")
+    def test_success(
+        self,
+        mock_edit,
+        mock_get_user,
+        mock_get_integrations,
+        mock_get_privacy,
+        profile_client,
+        mock_auth_services,
+    ):
+        """Happy path: the edit answers 200 with the updated profile and its new ETag."""
+        updated = _make_user_mock().model_copy(update={"name": "Updated Name", "version": 3})
+        mock_edit.return_value = updated
+        mock_get_user.return_value = updated
+        mock_get_integrations.return_value = _make_integration_mock()
+        mock_get_privacy.return_value = _make_privacy_mock()
+        mock_auth_services.has_local_password.return_value = True
+        mock_auth_services.get_mfa_status.return_value = mfa_schema.MFAStatusRead(mfa_enabled=False)
+
+        response = profile_client.patch(
             PREFIX,
             json={"name": "Updated Name"},
+            headers={"If-Match": '"1"'},
         )
 
         assert response.status_code == 200
-        assert "updated successfully" in response.json()["message"]
+        assert response.json()["name"] == "Updated Name"
+        assert response.headers["ETag"] == '"3"'
+        mock_edit.assert_called_once()
+
+    @patch("modules.users.users_profile.service.users_integration.edit_profile")
+    def test_an_unknown_weight_unit_is_refused(self, mock_edit, profile_client):
+        response = profile_client.patch(PREFIX, json={"weight_units": "stone"}, headers={"If-Match": '"1"'})
+
+        assert response.status_code == 422
+        mock_edit.assert_not_called()
 
 
 # ===================================================================
-# PUT /profile/privacy
+# PATCH /profile/privacy
 # ===================================================================
+
+
+class TestEditProfileEmail:
+    """Tests for POST /profile/email/change — edit_profile_email."""
+
+    @patch("modules.users.users_profile.service.users_privacy_settings_integration.get_privacy_settings")
+    @patch("modules.users.users_profile.service.user_integrations_integration.get_user_integrations")
+    @patch(
+        "modules.users.users_profile.service.sign_up_tokens_integration.request_self_service_email_change",
+        return_value=True,
+    )
+    @patch("modules.users.users_profile.service.users_integration.require_user")
+    def test_success_runs_the_step_up_and_answers_with_the_profile_and_its_etag(
+        self,
+        mock_require,
+        mock_request,
+        mock_integrations,
+        mock_privacy,
+        profile_client,
+        mock_auth_services,
+    ):
+        mock_require.return_value = _make_user_mock().model_copy(update={"version": 4})
+        mock_integrations.return_value = _make_integration_mock()
+        mock_privacy.return_value = _make_privacy_mock()
+        mock_auth_services.has_local_password.return_value = True
+        mock_auth_services.get_mfa_status.return_value = mfa_schema.MFAStatusRead(mfa_enabled=False)
+
+        response = profile_client.post(
+            PREFIX + "/email/change",
+            json={"email": "new@example.com", "step_up": {"current_password": "pw", "mfa_code": None}},
+        )
+
+        assert response.status_code == 200
+        assert response.json()["email"] == "test@example.com"
+        assert response.headers["ETag"] == '"4"'
+        mock_auth_services.verify_step_up.assert_called_once()
+        assert mock_request.call_args.args[:3] == (MOCK_USER_ID, "new@example.com", "test@example.com")
+
+    @patch("modules.users.users_profile.service.sign_up_tokens_integration.request_self_service_email_change")
+    def test_step_up_fails(self, mock_request, profile_client, mock_auth_services):
+        mock_auth_services.verify_step_up.side_effect = HTTPException(status_code=401, detail="Invalid credentials")
+
+        response = profile_client.post(
+            PREFIX + "/email/change",
+            json={"email": "new@example.com", "step_up": {"current_password": "wrong"}},
+        )
+
+        assert response.status_code == 401
+        mock_request.assert_not_called()
+
+    def test_the_address_must_be_valid(self, profile_client):
+        response = profile_client.post(
+            PREFIX + "/email/change", json={"email": "not-an-email", "step_up": {"current_password": "pw"}}
+        )
+
+        assert response.status_code == 422
+
+    def test_the_plain_profile_edit_refuses_an_email(self, profile_client):
+        response = profile_client.patch(PREFIX, json={"email": "new@example.com"}, headers={"If-Match": '"1"'})
+
+        assert response.status_code == 422
+
+
+class TestResendProfileEmailChange:
+    """Tests for POST /profile/email/change/resend — resend_profile_email_change."""
+
+    @patch("modules.users.users_profile.service.sign_up_tokens_integration.request_email_change_resend")
+    def test_answers_204_and_asks_for_a_resend(self, mock_resend, profile_client, local_mock_db):
+        response = profile_client.post(PREFIX + "/email/change/resend")
+
+        assert response.status_code == 204
+        assert mock_resend.call_args.args[0] == MOCK_USER_ID
+        local_mock_db.commit.assert_called_once()
+
+
+class TestCancelProfileEmailChange:
+    """Tests for DELETE /profile/email/change — cancel_profile_email_change."""
+
+    @patch("modules.users.users_profile.service.sign_up_tokens_integration.revoke_pending_tokens")
+    def test_answers_204_and_revokes_the_pending_tokens(self, mock_revoke, profile_client, local_mock_db):
+        response = profile_client.delete(PREFIX + "/email/change")
+
+        assert response.status_code == 204
+        mock_revoke.assert_called_once_with(MOCK_USER_ID, local_mock_db)
+        local_mock_db.commit.assert_called_once()
+
+
+class TestReadProfilePrivacySettings:
+    """Tests for GET /profile/privacy — read_profile_privacy_settings."""
+
+    @patch("modules.users.users_profile.service.users_privacy_settings_integration.get_privacy_settings")
+    def test_success_etag_is_the_version_patch_needs(self, mock_get, profile_client):
+        """Happy path: the settings come with the ETag a following PATCH sends as If-Match."""
+        mock_get.return_value = users_privacy_settings_schema.UserPrivacySettingsRead(
+            id=uuid.uuid4(), user_id=MOCK_USER_ID, version=4
+        )
+
+        response = profile_client.get(PREFIX + "/privacy")
+
+        assert response.status_code == 200
+        assert response.json()["version"] == 4
+        assert response.headers["ETag"] == '"4"'
+
+    @patch("modules.users.users_profile.service.users_privacy_settings_integration.get_privacy_settings")
+    @patch("modules.users.users_profile.service.users_privacy_settings_integration.edit_privacy_settings")
+    def test_patch_with_the_read_etag_succeeds(self, mock_edit, mock_get, profile_client):
+        """The ETag of the read is accepted as If-Match by PATCH."""
+        current = users_privacy_settings_schema.UserPrivacySettingsRead(
+            id=uuid.uuid4(), user_id=MOCK_USER_ID, version=4
+        )
+        mock_get.return_value = current
+        mock_edit.return_value = users_privacy_settings_schema.UserPrivacySettingsRead(
+            id=uuid.uuid4(), user_id=MOCK_USER_ID, version=5, hide_activity_map=True
+        )
+        etag = profile_client.get(PREFIX + "/privacy").headers["ETag"]
+
+        response = profile_client.patch(
+            PREFIX + "/privacy", json={"hide_activity_map": True}, headers={"If-Match": etag}
+        )
+
+        assert response.status_code == 200
+        assert response.headers["ETag"] == '"5"'
+        assert mock_edit.call_args.kwargs["if_match"] == etag
+
+    @patch("modules.users.users_profile.service.users_privacy_settings_integration.get_privacy_settings")
+    def test_not_found(self, mock_get, profile_client):
+        """Error: the user has no privacy settings, so 404."""
+        mock_get.return_value = None
+
+        response = profile_client.get(PREFIX + "/privacy")
+
+        assert response.status_code == 404
+
+    def test_requires_the_profile_scope(self):
+        """The route is guarded by the profile scope."""
+        import modules.users.users_profile.router as profile_router
+
+        route = next(r for r in profile_router.router.routes if r.path == "/privacy" and "GET" in r.methods)
+        scopes = {scope for dep in route.dependant.dependencies for scope in dep.own_oauth_scopes or []}
+
+        assert scopes == {"account"}
 
 
 class TestEditProfilePrivacySettings:
-    """Tests for PUT /profile/privacy — edit_profile_privacy_settings."""
+    """Tests for PATCH /profile/privacy — edit_profile_privacy_settings."""
 
-    @patch("modules.users.users_profile.router.users_privacy_settings_crud.edit_user_privacy_settings")
-    def test_success(self, mock_edit, profile_client):
-        """Happy path: update privacy settings."""
-        response = profile_client.put(
+    @patch("modules.users.users_profile.service.users_privacy_settings_integration.get_privacy_settings")
+    @patch("modules.users.users_profile.service.users_privacy_settings_integration.edit_privacy_settings")
+    def test_success(self, mock_edit, mock_get, profile_client):
+        """Happy path: update privacy settings, answering with the version the edit produced."""
+        mock_get.return_value = users_privacy_settings_schema.UserPrivacySettingsRead(
+            id=uuid.uuid4(), user_id=MOCK_USER_ID, version=4
+        )
+        mock_edit.return_value = users_privacy_settings_schema.UserPrivacySettingsRead(
+            id=uuid.uuid4(),
+            user_id=MOCK_USER_ID,
+            version=5,
+            default_activity_visibility=activity_constants.ActivityVisibility.FOLLOWERS,
+        )
+        response = profile_client.patch(
             PREFIX + "/privacy",
             json={"default_activity_visibility": "followers"},
+            headers={"If-Match": '"1"'},
         )
 
         assert response.status_code == 200
-        assert "privacy settings updated" in response.json()["message"]
+        assert response.json()["default_activity_visibility"] == "followers"
+        assert response.headers["ETag"] == '"5"'
 
 
 # ===================================================================
-# PUT /profile/password
+# POST /profile/password/change
 # ===================================================================
 
 
 class TestEditProfilePassword:
-    """Tests for PUT /profile/password — edit_profile_password."""
+    """Tests for POST /profile/password/change — edit_profile_password."""
+
+    @pytest.fixture(autouse=True)
+    def _breach_check_off(self):
+        with patch(
+            "modules.users.users_profile.service.server_settings_integration.get_server_settings",
+            return_value=MagicMock(password_breach_check_enabled=False),
+        ):
+            yield
 
     def test_success(
         self,
         profile_client,
-        mock_identity_service,
+        mock_auth_services,
     ):
         """Happy path: update password."""
-        response = profile_client.put(
-            PREFIX + "/password",
+        response = profile_client.post(
+            PREFIX + "/password/change",
             json={
-                "current_password": "oldpass",
                 "password": "NewPass123!",
-                "mfa_code": None,
+                "step_up": {"current_password": "oldpass", "mfa_code": None},
             },
         )
 
-        assert response.status_code == 200
-        assert "password updated successfully" in response.json()["message"]
-        mock_identity_service.change_own_password.assert_called_once()
+        assert response.status_code == 204
+        mock_auth_services.change_own_password.assert_called_once()
+
+    def test_a_short_password_is_the_typed_password_too_short_problem(self, profile_client, mock_auth_services):
+        mock_auth_services.change_own_password.side_effect = credentials_contracts.PasswordTooShortError("short")
+
+        response = profile_client.post(
+            PREFIX + "/password/change", json={"password": "short", "step_up": {"current_password": "oldpass"}}
+        )
+
+        assert response.status_code == 422
+        assert response.json()["type"] == "urn:endurain:error:password-too-short"
 
     def test_step_up_fails(
         self,
         profile_client,
-        mock_identity_service,
+        mock_auth_services,
     ):
         """Error: step-up verification fails."""
-        mock_identity_service.change_own_password.side_effect = HTTPException(
+        mock_auth_services.change_own_password.side_effect = HTTPException(
             status_code=401,
             detail="Invalid credentials",
         )
 
-        response = profile_client.put(
-            PREFIX + "/password",
+        response = profile_client.post(
+            PREFIX + "/password/change",
             json={
-                "current_password": "wrong",
                 "password": "NewPass123!",
-                "mfa_code": None,
+                "step_up": {"current_password": "wrong", "mfa_code": None},
             },
         )
 
@@ -448,21 +621,20 @@ class TestEditProfilePassword:
 
 
 # ===================================================================
-# PUT /profile/photo
+# DELETE /profile/photo
 # ===================================================================
 
 
 class TestDeleteProfilePhoto:
-    """Tests for PUT /profile/photo — delete_profile_photo."""
+    """Tests for DELETE /profile/photo — delete_profile_photo."""
 
-    @patch("modules.users.users_profile.router.users_crud.update_user_photo", new_callable=AsyncMock)
+    @patch("modules.users.users_profile.router.users_integration.delete_user_photo")
     def test_success(self, mock_update, profile_client):
         """Happy path: delete profile photo."""
-        mock_update.return_value = None
-
-        response = profile_client.put(PREFIX + "/photo")
+        response = profile_client.delete(PREFIX + "/photo")
 
         assert response.status_code == 204
+        mock_update.assert_called_once()
 
 
 # ===================================================================
@@ -475,158 +647,140 @@ class TestDeleteProfileSession:
 
     def test_success(self, profile_client):
         """Happy path: delete session."""
-        response = profile_client.delete(PREFIX + "/sessions/session-1")
+        response = profile_client.delete(PREFIX + f"/sessions/{MOCK_SESSION_ID}")
 
         assert response.status_code == 204
 
 
 # ===================================================================
-# DELETE /profile/sessions
+# POST /profile/sessions/revoke
 # ===================================================================
 
 
-class TestDeleteProfileOtherSessions:
-    """Tests for DELETE /profile/sessions — delete_profile_other_sessions."""
+class TestRevokeProfileSessions:
+    """Tests for POST /profile/sessions/revoke — revoke_profile_sessions."""
 
-    def test_success(self, profile_client, mock_identity_service):
-        """Happy path: revokes other sessions, keeping the caller's current one."""
+    def test_ends_every_session_and_clears_the_refresh_cookie(self, profile_client, mock_auth_services):
+        response = profile_client.post(PREFIX + "/sessions/revoke")
+
+        assert response.status_code == 204
+        mock_auth_services.sign_out_everywhere.assert_called_once_with(MOCK_USER_ID)
+        mock_auth_services.delete_other_user_sessions.assert_not_called()
+        assert "endurain_refresh_token=" in response.headers["set-cookie"]
+        assert "Max-Age=0" in response.headers["set-cookie"]
+
+    def test_keep_current_false_ends_every_session(self, profile_client, mock_auth_services):
+        response = profile_client.post(PREFIX + "/sessions/revoke?keep_current=false")
+
+        assert response.status_code == 204
+        mock_auth_services.sign_out_everywhere.assert_called_once_with(MOCK_USER_ID)
+        assert "Max-Age=0" in response.headers["set-cookie"]
+
+    def test_keep_current_ends_the_other_sessions_and_keeps_the_cookie(self, profile_client, mock_auth_services):
+        response = profile_client.post(PREFIX + "/sessions/revoke?keep_current=true")
+
+        assert response.status_code == 204
+        mock_auth_services.delete_other_user_sessions.assert_called_once_with(MOCK_USER_ID, MOCK_SESSION_ID)
+        mock_auth_services.sign_out_everywhere.assert_not_called()
+        assert "set-cookie" not in response.headers
+
+    def test_the_bulk_delete_route_is_gone(self, profile_client, mock_auth_services):
         response = profile_client.delete(PREFIX + "/sessions")
 
-        assert response.status_code == 204
-        mock_identity_service.delete_other_user_sessions.assert_called_once_with(1, "session-1")
+        assert response.status_code == 405
+        mock_auth_services.delete_other_user_sessions.assert_not_called()
 
 
 # ===================================================================
-# GET /profile/export
+# POST /profile/export, GET /profile/export, GET /profile/export/download
 # ===================================================================
 
 
 class TestExportProfileData:
-    """Tests for GET /profile/export — export_profile_data."""
+    """Tests for POST /profile/export — export_profile_data."""
 
-    @patch("modules.users.users_profile.router.profile_export_service.ExportService")
-    @patch("modules.users.users_profile.router.profile_utils.sqlalchemy_obj_to_dict")
-    @patch("modules.users.users_profile.router.users_crud.get_user_by_id")
-    def test_success(
-        self,
-        mock_get_user,
-        mock_to_dict,
-        mock_export_service,
-        profile_client,
-    ):
-        """Happy path: returns streaming ZIP."""
-        mock_get_user.return_value = _make_user_mock()
-        mock_to_dict.return_value = {"name": "Test", "password": "secret"}
-        mock_instance = mock_export_service.return_value
-        mock_instance.generate_export_archive.return_value = iter([b"zip-data"])
+    _PUBLISH = "modules.users.users_profile.export_job_service.profile_event_publishers.publish_export_requested"
 
-        response = profile_client.get(PREFIX + "/export")
+    _BODY: ClassVar[dict[str, dict[str, str]]] = {
+        "step_up": {"current_password": "secret-password", "mfa_code": "123456"}
+    }
+
+    def test_queues_the_export_and_answers_at_once(self, profile_client, export_states, mock_auth_services):
+        with patch(self._PUBLISH) as publish:
+            response = profile_client.post(PREFIX + "/export", json=self._BODY)
+
+        assert response.status_code == 202
+        body = response.json()
+        assert response.headers["Content-Location"].endswith(f"/jobs/{body['id']}")
+        assert body == {
+            "id": body["id"],
+            "kind": "profile_export",
+            "status": "queued",
+            "error_code": None,
+            "created_at": body["created_at"],
+            "finished_at": None,
+            "size_bytes": None,
+            "expires_at": None,
+        }
+        assert publish.call_args.args[0] == MOCK_USER_ID
+        assert export_states.get(MOCK_USER_ID).status == "queued"
+        step_up, user_id, session_id, action, _store = mock_auth_services.verify_step_up.call_args.args
+        assert step_up.current_password == "secret-password"
+        assert step_up.mfa_code == "123456"
+        assert (user_id, session_id, action) == (
+            MOCK_USER_ID,
+            MOCK_SESSION_ID,
+            identity_providers_constants.StepUpAction.PROFILE_EXPORT,
+        )
+
+    def test_a_refused_step_up_queues_nothing(self, profile_client, export_states, mock_auth_services):
+        mock_auth_services.verify_step_up.side_effect = HTTPException(status_code=401, detail="Invalid credentials")
+
+        with patch(self._PUBLISH) as publish:
+            response = profile_client.post(PREFIX + "/export", json={"step_up": {"current_password": "wrong"}})
+
+        assert response.status_code == 401
+        publish.assert_not_called()
+        assert export_states.get(MOCK_USER_ID) is None
+
+    def test_an_export_without_a_body_is_refused(self, profile_client):
+        with patch(self._PUBLISH) as publish:
+            response = profile_client.post(PREFIX + "/export")
+
+        assert response.status_code == 422
+        publish.assert_not_called()
+
+    def test_a_second_export_while_one_is_pending_is_a_conflict(self, profile_client):
+        with patch(self._PUBLISH):
+            first = profile_client.post(PREFIX + "/export", json=self._BODY)
+            second = profile_client.post(PREFIX + "/export", json=self._BODY)
+
+        assert (first.status_code, second.status_code) == (202, 409)
+
+
+class TestDownloadProfileExport:
+    """Tests for GET /profile/export/download — download_profile_export."""
+
+    def test_streams_the_finished_archive(self, profile_app, profile_client, export_states):
+        export_states.begin(MOCK_USER_ID, conflict="held")
+        export_states.set_status(MOCK_USER_ID, "succeeded", size_bytes=8)
+        storage = MagicMock()
+        storage.open_stream.return_value = io.BytesIO(b"zip-data")
+        profile_app.dependency_overrides[core_dependencies.get_storage] = lambda: storage
+
+        response = profile_client.get(PREFIX + "/export/download")
 
         assert response.status_code == 200
         assert response.content == b"zip-data"
+        assert response.headers["content-length"] == "8"
+        assert response.headers["cache-control"] == "no-store"
+        assert response.headers["pragma"] == "no-cache"
+        storage.open_stream.assert_called_once_with("profile_export_staging", f"{MOCK_USER_ID}.zip")
 
-    @patch("modules.users.users_profile.router.profile_export_service.ExportService")
-    @patch("modules.users.users_profile.router.profile_utils.sqlalchemy_obj_to_dict")
-    @patch("modules.users.users_profile.router.users_crud.get_user_by_id")
-    def test_user_not_found(
-        self,
-        mock_get_user,
-        mock_to_dict,
-        mock_export_service,
-        profile_client,
-    ):
-        """Error: user not found → 404."""
-        mock_get_user.return_value = None
+    def test_is_not_found_before_the_export_has_finished(self, profile_client, export_states):
+        export_states.begin(MOCK_USER_ID, conflict="held")
 
-        response = profile_client.get(PREFIX + "/export")
-
-        assert response.status_code == 404
-        assert response.json()["detail"] == "User not found"
-
-    @patch("modules.users.users_profile.router.profile_export_service.ExportService")
-    @patch("modules.users.users_profile.router.profile_utils.sqlalchemy_obj_to_dict")
-    @patch("modules.users.users_profile.router.users_crud.get_user_by_id")
-    def test_sensitive_fields_stripped(
-        self,
-        mock_get_user,
-        mock_to_dict,
-        mock_export_service,
-        profile_client,
-    ):
-        """Verify sensitive fields are stripped from export dict."""
-        mock_get_user.return_value = _make_user_mock()
-        mock_to_dict.return_value = {
-            "name": "Test",
-            "password": "secret",
-            "mfa_secret": "sec",
-            "access_type": "admin",
-        }
-        mock_instance = mock_export_service.return_value
-        mock_instance.generate_export_archive.return_value = iter([b"data"])
-
-        response = profile_client.get(PREFIX + "/export")
-
-        assert response.status_code == 200
-        # Verify sensitive fields were popped before passing to service
-        passed_dict = mock_instance.generate_export_archive.call_args[0][0]
-        assert "password" not in passed_dict
-        assert "mfa_secret" not in passed_dict
-        assert "access_type" not in passed_dict
-        assert passed_dict["name"] == "Test"
-
-    @pytest.mark.parametrize(
-        "exception_cls,expected_status",
-        [
-            (profile_exceptions.DatabaseConnectionError, 503),
-            (profile_exceptions.FileSystemError, 507),
-            (profile_exceptions.ZipCreationError, 422),
-            (profile_exceptions.MemoryAllocationError, 507),
-            (profile_exceptions.DataCollectionError, 422),
-            (profile_exceptions.ExportTimeoutError, 408),
-        ],
-    )
-    @patch("modules.users.users_profile.router.profile_export_service.ExportService")
-    @patch("modules.users.users_profile.router.profile_utils.sqlalchemy_obj_to_dict")
-    @patch("modules.users.users_profile.router.users_crud.get_user_by_id")
-    def test_export_exceptions(
-        self,
-        mock_get_user,
-        mock_to_dict,
-        mock_export_service,
-        exception_cls,
-        expected_status,
-        profile_client,
-    ):
-        """Each export exception is translated to the correct HTTP error via handle_import_export_exception."""
-        mock_get_user.return_value = _make_user_mock()
-        mock_to_dict.return_value = {"name": "Test"}
-        mock_instance = mock_export_service.return_value
-        mock_instance.generate_export_archive.side_effect = exception_cls("test error")
-
-        response = profile_client.get(PREFIX + "/export")
-
-        assert response.status_code == expected_status
-
-    @patch("modules.users.users_profile.router.profile_export_service.ExportService")
-    @patch("modules.users.users_profile.router.profile_utils.sqlalchemy_obj_to_dict")
-    @patch("modules.users.users_profile.router.users_crud.get_user_by_id")
-    def test_unexpected_exception(
-        self,
-        mock_get_user,
-        mock_to_dict,
-        mock_export_service,
-        profile_client,
-    ):
-        """Unexpected exception → 500."""
-        mock_get_user.return_value = _make_user_mock()
-        mock_to_dict.return_value = {"name": "Test"}
-        mock_instance = mock_export_service.return_value
-        mock_instance.generate_export_archive.side_effect = RuntimeError("unexpected")
-
-        response = profile_client.get(PREFIX + "/export")
-
-        assert response.status_code == 500
-        assert response.json()["detail"] == "Internal Server Error"
+        assert profile_client.get(PREFIX + "/export/download").status_code == 404
 
 
 # ===================================================================
@@ -634,199 +788,65 @@ class TestExportProfileData:
 # ===================================================================
 
 
+def _write_upload(_file, *, kind, upload_dir, filename):
+    """Stand in for the shared validator: write the archive where it would."""
+    path = os.path.join(upload_dir, filename)
+    with open(path, "wb") as out:
+        out.write(b"zip-data")
+    return path
+
+
 class TestImportProfileData:
     """Tests for POST /profile/import — import_profile_data."""
 
-    @patch("modules.users.users_profile.router.profile_import_service.ImportService")
-    @patch("modules.users.users_profile.router.core_file_uploads.validate_upload", new_callable=AsyncMock)
-    def test_success(
-        self,
-        mock_validate,
-        mock_import_service,
-        profile_client,
-    ):
-        """Happy path: import ZIP data."""
-        mock_validate.return_value = None
-        mock_instance = mock_import_service.return_value
-        mock_instance.import_from_zip_data = AsyncMock(
-            return_value={
-                "imported": {"activities": 5},
-            }
-        )
+    _PUBLISH = "modules.users.users_profile.import_job_service.profile_event_publishers.publish_import_requested"
 
-        response = profile_client.post(
-            PREFIX + "/import",
-            files={"file": ("test.zip", b"zip-data", "application/zip")},
-        )
+    @patch("modules.users.users_profile.router.core_file_uploads.save_validated_upload_sync", side_effect=_write_upload)
+    def test_accepts_the_archive_and_queues_it(self, mock_validate, profile_client, import_states):
+        with patch(self._PUBLISH) as publish:
+            response = profile_client.post(
+                PREFIX + "/import",
+                files={"file": ("test.zip", b"zip-data", "application/zip")},
+            )
 
-        assert response.status_code == 201
-        assert response.json()["imported"]["activities"] == 5
+        assert response.status_code == 202
+        body = response.json()
+        assert response.headers["Content-Location"].endswith(f"/jobs/{body['id']}")
+        assert body == {
+            "id": body["id"],
+            "kind": "profile_import",
+            "status": "queued",
+            "error_code": None,
+            "created_at": body["created_at"],
+            "finished_at": None,
+            "imported": None,
+        }
+        publish.assert_called_once()
+        assert publish.call_args.args[0] == MOCK_USER_ID
+        assert publish.call_args.args[1].startswith(f"{MOCK_USER_ID}/")
+        assert import_states.get(MOCK_USER_ID).status == "queued"
 
-    @pytest.mark.parametrize(
-        "exc,expected_status",
-        [
-            (profile_exceptions.ImportValidationError("test"), 400),
-            (profile_exceptions.FileFormatError("test"), 400),
-            (profile_exceptions.FileSizeError("test"), 413),
-            (profile_exceptions.ActivityLimitError("test"), 413),
-            (profile_exceptions.ZipStructureError("test"), 400),
-            (profile_exceptions.JSONParseError("test"), 400),
-            (profile_exceptions.SchemaValidationError("test"), 400),
-        ],
-    )
-    @patch("modules.users.users_profile.router.profile_import_service.ImportService")
-    @patch("modules.users.users_profile.router.core_file_uploads.validate_upload", new_callable=AsyncMock)
-    def test_import_validation_exceptions(
-        self,
-        mock_validate,
-        mock_import_service,
-        exc,
-        expected_status,
-        profile_client,
-    ):
-        """Import validation errors mapped to correct HTTP status."""
-        mock_validate.return_value = None
-        mock_instance = mock_import_service.return_value
-        mock_instance.import_from_zip_data = AsyncMock(side_effect=exc)
+    @patch("modules.users.users_profile.router.core_file_uploads.save_validated_upload_sync", side_effect=_write_upload)
+    def test_a_second_import_while_one_is_pending_is_a_conflict(self, mock_validate, profile_client):
+        files = {"file": ("test.zip", b"zip-data", "application/zip")}
 
-        response = profile_client.post(
-            PREFIX + "/import",
-            files={"file": ("test.zip", b"data", "application/zip")},
-        )
+        with patch(self._PUBLISH) as publish:
+            first = profile_client.post(PREFIX + "/import", files=files)
+            second = profile_client.post(PREFIX + "/import", files=files)
 
-        assert response.status_code == expected_status
+        assert (first.status_code, second.status_code) == (202, 409)
+        publish.assert_called_once()
 
-    @pytest.mark.parametrize(
-        "exc,expected_status",
-        [
-            (profile_exceptions.DataIntegrityError("test"), 422),
-            (profile_exceptions.ImportTimeoutError("test"), 408),
-            (profile_exceptions.DiskSpaceError("test"), 507),
-        ],
-    )
-    @patch("modules.users.users_profile.router.profile_import_service.ImportService")
-    @patch("modules.users.users_profile.router.core_file_uploads.validate_upload", new_callable=AsyncMock)
-    def test_import_operation_exceptions(
-        self,
-        mock_validate,
-        mock_import_service,
-        exc,
-        expected_status,
-        profile_client,
-    ):
-        """Import operation errors mapped to correct HTTP status."""
-        mock_validate.return_value = None
-        mock_instance = mock_import_service.return_value
-        mock_instance.import_from_zip_data = AsyncMock(side_effect=exc)
+    @patch("modules.users.users_profile.router.core_file_uploads.save_validated_upload_sync", side_effect=_write_upload)
+    def test_a_queueing_failure_frees_the_user_to_retry(self, mock_validate, profile_client, import_states):
+        files = {"file": ("test.zip", b"zip-data", "application/zip")}
 
-        response = profile_client.post(
-            PREFIX + "/import",
-            files={"file": ("test.zip", b"data", "application/zip")},
-        )
+        with patch(self._PUBLISH, side_effect=RuntimeError("outbox down")), pytest.raises(RuntimeError):
+            profile_client.post(PREFIX + "/import", files=files)
 
-        assert response.status_code == expected_status
-
-    @patch("modules.users.users_profile.router.profile_import_service.ImportService")
-    @patch("modules.users.users_profile.router.core_file_uploads.validate_upload", new_callable=AsyncMock)
-    def test_value_error(
-        self,
-        mock_validate,
-        mock_import_service,
-        profile_client,
-    ):
-        """ValueError → 400."""
-        mock_validate.return_value = None
-        mock_instance = mock_import_service.return_value
-        mock_instance.import_from_zip_data = AsyncMock(side_effect=ValueError("bad data"))
-
-        response = profile_client.post(
-            PREFIX + "/import",
-            files={"file": ("test.zip", b"data", "application/zip")},
-        )
-
-        assert response.status_code == 400
-
-    @pytest.mark.parametrize(
-        "exc,expected_status",
-        [
-            (profile_exceptions.MemoryAllocationError("test"), 507),
-            (MemoryError("test"), 500),
-        ],
-    )
-    @patch("modules.users.users_profile.router.profile_import_service.ImportService")
-    @patch("modules.users.users_profile.router.core_file_uploads.validate_upload", new_callable=AsyncMock)
-    def test_memory_errors(
-        self,
-        mock_validate,
-        mock_import_service,
-        exc,
-        expected_status,
-        profile_client,
-    ):
-        """Memory errors mapped to correct HTTP status."""
-        mock_validate.return_value = None
-        mock_instance = mock_import_service.return_value
-        mock_instance.import_from_zip_data = AsyncMock(side_effect=exc)
-
-        response = profile_client.post(
-            PREFIX + "/import",
-            files={"file": ("test.zip", b"data", "application/zip")},
-        )
-
-        assert response.status_code == expected_status
-
-    @pytest.mark.parametrize(
-        "exc,expected_status",
-        [
-            (profile_exceptions.DatabaseConnectionError("test"), 503),
-            (profile_exceptions.FileSystemError("test"), 507),
-            (profile_exceptions.ZipCreationError("test"), 422),
-            (profile_exceptions.DataCollectionError("test"), 422),
-            (profile_exceptions.ExportTimeoutError("test"), 408),
-        ],
-    )
-    @patch("modules.users.users_profile.router.profile_import_service.ImportService")
-    @patch("modules.users.users_profile.router.core_file_uploads.validate_upload", new_callable=AsyncMock)
-    def test_import_system_errors(
-        self,
-        mock_validate,
-        mock_import_service,
-        exc,
-        expected_status,
-        profile_client,
-    ):
-        """Import system errors (overlap with export) → mapped status."""
-        mock_validate.return_value = None
-        mock_instance = mock_import_service.return_value
-        mock_instance.import_from_zip_data = AsyncMock(side_effect=exc)
-
-        response = profile_client.post(
-            PREFIX + "/import",
-            files={"file": ("test.zip", b"data", "application/zip")},
-        )
-
-        assert response.status_code == expected_status
-
-    @patch("modules.users.users_profile.router.profile_import_service.ImportService")
-    @patch("modules.users.users_profile.router.core_file_uploads.validate_upload", new_callable=AsyncMock)
-    def test_unexpected_exception(
-        self,
-        mock_validate,
-        mock_import_service,
-        profile_client,
-    ):
-        """Unexpected exception → 500."""
-        mock_validate.return_value = None
-        mock_instance = mock_import_service.return_value
-        mock_instance.import_from_zip_data = AsyncMock(side_effect=RuntimeError("boom"))
-
-        response = profile_client.post(
-            PREFIX + "/import",
-            files={"file": ("test.zip", b"data", "application/zip")},
-        )
-
-        assert response.status_code == 500
-        assert "Import failed" in response.json()["detail"]
+        assert import_states.get(MOCK_USER_ID).status == "failed"
+        with patch(self._PUBLISH):
+            assert profile_client.post(PREFIX + "/import", files=files).status_code == 202
 
 
 # ===================================================================
@@ -837,18 +857,18 @@ class TestImportProfileData:
 class TestGetMFAStatus:
     """Tests for GET /profile/mfa/status — get_mfa_status."""
 
-    def test_enabled(self, profile_client, mock_identity_service):
+    def test_enabled(self, profile_client, mock_auth_services):
         """Returns enabled=True."""
-        mock_identity_service.get_mfa_status.return_value = {"mfa_enabled": True}
+        mock_auth_services.get_mfa_status.return_value = {"mfa_enabled": True}
 
         response = profile_client.get(PREFIX + "/mfa/status")
 
         assert response.status_code == 200
         assert response.json()["mfa_enabled"] is True
 
-    def test_disabled(self, profile_client, mock_identity_service):
+    def test_disabled(self, profile_client, mock_auth_services):
         """Returns enabled=False."""
-        mock_identity_service.get_mfa_status.return_value = {"mfa_enabled": False}
+        mock_auth_services.get_mfa_status.return_value = {"mfa_enabled": False}
 
         response = profile_client.get(PREFIX + "/mfa/status")
 
@@ -864,9 +884,9 @@ class TestGetMFAStatus:
 class TestGetBackupCodeStatus:
     """Tests for GET /profile/mfa/backup-codes/status — get_backup_code_status."""
 
-    def test_no_codes(self, profile_client, mock_identity_service):
+    def test_no_codes(self, profile_client, mock_auth_services):
         """No backup codes → has_codes=False."""
-        mock_identity_service.get_backup_code_status.return_value = {
+        mock_auth_services.get_backup_code_status.return_value = {
             "has_codes": False,
             "total": 0,
             "unused": 0,
@@ -881,9 +901,9 @@ class TestGetBackupCodeStatus:
         assert data["has_codes"] is False
         assert data["total"] == 0
 
-    def test_has_codes(self, profile_client, mock_identity_service):
+    def test_has_codes(self, profile_client, mock_auth_services):
         """Has backup codes with usage counts."""
-        mock_identity_service.get_backup_code_status.return_value = {
+        mock_auth_services.get_backup_code_status.return_value = {
             "has_codes": True,
             "total": 2,
             "unused": 1,
@@ -909,9 +929,9 @@ class TestGetBackupCodeStatus:
 class TestSetupMFA:
     """Tests for POST /profile/mfa/setup — setup_mfa."""
 
-    def test_success(self, profile_client, fake_mfa_secret_store, mock_identity_service):
+    def test_success(self, profile_client, fake_mfa_secret_store, mock_auth_services):
         """Happy path: create MFA setup."""
-        mock_identity_service.setup_mfa.return_value = mfa_schema.MFASetupResponse(
+        mock_auth_services.setup_mfa.return_value = mfa_schema.MFASetupRead(
             secret="SECRETKEY",
             qr_code="base64qr",
             app_name="Endurain",
@@ -924,11 +944,11 @@ class TestSetupMFA:
         assert data["secret"] == "SECRETKEY"
         assert data["qr_code"] == "base64qr"
 
-    def test_store_unavailable(self, profile_client, fake_mfa_secret_store, mock_identity_service):
+    def test_store_unavailable(self, profile_client, fake_mfa_secret_store, mock_auth_services):
         """MFA secret store unavailable → 503."""
         from modules.auth.mfa.setup_store import MFASecretStoreUnavailableError
 
-        mock_identity_service.setup_mfa.side_effect = MFASecretStoreUnavailableError("store down")
+        mock_auth_services.setup_mfa.side_effect = MFASecretStoreUnavailableError("MFA secret storage is unavailable")
 
         response = profile_client.post(PREFIX + "/mfa/setup")
 
@@ -944,86 +964,83 @@ class TestSetupMFA:
 class TestEnableMFA:
     """Tests for PUT /profile/mfa/enable — enable_mfa."""
 
-    def test_success(self, profile_client, mock_identity_service):
+    def test_success(self, profile_client, mock_auth_services):
         """Happy path: enable MFA."""
-        mock_identity_service.enable_mfa.return_value = {
-            "message": "MFA enabled successfully",
-            "backup_codes": ["code1", "code2"],
+        mock_auth_services.enable_mfa.return_value = {
+            "codes": ["code1", "code2"],
+            "created_at": datetime(2026, 1, 1, tzinfo=UTC),
         }
 
-        response = profile_client.put(
+        response = profile_client.post(
             PREFIX + "/mfa/enable",
-            json={"mfa_code": "123456", "current_password": "pass123"},
+            json={"totp_code": "123456", "step_up": {"current_password": "pass123"}},
         )
 
         assert response.status_code == 200
         data = response.json()
-        assert data["message"] == "MFA enabled successfully"
-        assert data["backup_codes"] == ["code1", "code2"]
+        assert data["codes"] == ["code1", "code2"]
 
-    def test_step_up_fails(self, profile_client, mock_identity_service):
+    def test_step_up_fails(self, profile_client, mock_auth_services):
         """Step-up fails before enabling."""
-        mock_identity_service.enable_mfa.side_effect = HTTPException(status_code=401, detail="Invalid")
+        mock_auth_services.enable_mfa.side_effect = HTTPException(status_code=401, detail="Invalid")
 
-        response = profile_client.put(
+        response = profile_client.post(
             PREFIX + "/mfa/enable",
-            json={"mfa_code": "123456", "current_password": "wrong"},
+            json={"totp_code": "123456", "step_up": {"current_password": "wrong"}},
         )
 
         assert response.status_code == 401
 
-    def test_no_setup_in_progress(self, profile_client, mock_identity_service):
+    def test_no_setup_in_progress(self, profile_client, mock_auth_services):
         """No setup in progress → 400."""
-        mock_identity_service.enable_mfa.side_effect = HTTPException(
-            status_code=400,
-            detail="No MFA setup in progress. Please run setup first.",
+        mock_auth_services.enable_mfa.side_effect = core_exceptions.ConflictError(
+            "No MFA setup in progress. Please run setup first."
         )
 
-        response = profile_client.put(
+        response = profile_client.post(
             PREFIX + "/mfa/enable",
-            json={"mfa_code": "123456", "current_password": "pass123"},
+            json={"totp_code": "123456", "step_up": {"current_password": "pass123"}},
         )
 
-        assert response.status_code == 400
+        assert response.status_code == 409
+        assert response.json()["type"] == "urn:endurain:error:conflict"
         assert "No MFA setup in progress" in response.json()["detail"]
 
-    def test_get_secret_store_unavailable(self, profile_client, mock_identity_service):
+    def test_get_secret_store_unavailable(self, profile_client, mock_auth_services):
         """get_secret raises MFASecretStoreUnavailableError → 503."""
         from modules.auth.mfa.setup_store import MFASecretStoreUnavailableError
 
-        mock_identity_service.enable_mfa.side_effect = MFASecretStoreUnavailableError("store down")
+        mock_auth_services.enable_mfa.side_effect = MFASecretStoreUnavailableError("MFA secret storage is unavailable")
 
-        response = profile_client.put(
+        response = profile_client.post(
             PREFIX + "/mfa/enable",
-            json={"mfa_code": "123456", "current_password": "pass123"},
+            json={"totp_code": "123456", "step_up": {"current_password": "pass123"}},
         )
 
         assert response.status_code == 503
 
-    def test_invalid_mfa_code(self, profile_client, mock_identity_service):
+    def test_invalid_mfa_code(self, profile_client, mock_auth_services):
         """Invalid MFA code → 400."""
-        mock_identity_service.enable_mfa.side_effect = HTTPException(
-            status_code=400,
-            detail="Invalid MFA code",
-        )
+        mock_auth_services.enable_mfa.side_effect = core_exceptions.InvalidMfaCodeError()
 
-        response = profile_client.put(
+        response = profile_client.post(
             PREFIX + "/mfa/enable",
-            json={"mfa_code": "000000", "current_password": "pass123"},
+            json={"totp_code": "000000", "step_up": {"current_password": "pass123"}},
         )
 
         assert response.status_code == 400
+        assert response.json()["type"] == "urn:endurain:error:invalid-mfa-code"
 
-    def test_other_http_exception(self, profile_client, mock_identity_service):
+    def test_other_http_exception(self, profile_client, mock_auth_services):
         """Other HTTPException (not wrong code) → re-raised."""
-        mock_identity_service.enable_mfa.side_effect = HTTPException(
+        mock_auth_services.enable_mfa.side_effect = HTTPException(
             status_code=409,
             detail="MFA already enabled",
         )
 
-        response = profile_client.put(
+        response = profile_client.post(
             PREFIX + "/mfa/enable",
-            json={"mfa_code": "123456", "current_password": "pass123"},
+            json={"totp_code": "123456", "step_up": {"current_password": "pass123"}},
         )
 
         assert response.status_code == 409
@@ -1037,61 +1054,43 @@ class TestEnableMFA:
 class TestDisableMFA:
     """Tests for PUT /profile/mfa/disable — disable_mfa."""
 
-    def test_success(self, profile_client, mock_identity_service):
+    def test_success(self, profile_client, mock_auth_services):
         """Happy path: disable MFA."""
-        mock_identity_service.disable_mfa.return_value = {"message": "MFA disabled successfully"}
+        mock_auth_services.disable_mfa.return_value = None
 
-        response = profile_client.put(
+        response = profile_client.post(
             PREFIX + "/mfa/disable",
-            json={"mfa_code": "123456", "current_password": "pass123"},
+            json={"step_up": {"mfa_code": "123456", "current_password": "pass123"}},
         )
 
-        assert response.status_code == 200
-        assert response.json()["message"] == "MFA disabled successfully"
+        assert response.status_code == 204
+        assert response.content == b""
+        assert mock_auth_services.disable_mfa.call_args.kwargs["revoke_other_sessions"] is True
 
-    def test_step_up_fails(self, profile_client, mock_identity_service):
+    def test_step_up_fails(self, profile_client, mock_auth_services):
         """Step-up fails before disable."""
-        mock_identity_service.disable_mfa.side_effect = HTTPException(status_code=401, detail="Invalid")
+        mock_auth_services.disable_mfa.side_effect = HTTPException(status_code=401, detail="Invalid")
 
-        response = profile_client.put(
+        response = profile_client.post(
             PREFIX + "/mfa/disable",
-            json={"mfa_code": "000000", "current_password": "wrong"},
+            json={"step_up": {"mfa_code": "000000", "current_password": "wrong"}},
         )
 
         assert response.status_code == 401
 
 
 # ===================================================================
-# POST /profile/mfa/verify
+# POST /profile/mfa/verify (removed)
 # ===================================================================
 
 
-class TestVerifyMFA:
-    """Tests for POST /profile/mfa/verify — verify_mfa."""
+class TestVerifyMFARemoved:
+    """POST /profile/mfa/verify grants nothing, so it is not a route."""
 
-    def test_valid_code(self, profile_client, mock_identity_service):
-        """Valid MFA code → success."""
-        mock_identity_service.verify_mfa.return_value = {"message": "MFA code verified successfully"}
+    def test_route_is_gone(self, profile_client):
+        response = profile_client.post(PREFIX + "/mfa/verify", json={"mfa_code": "123456"})
 
-        response = profile_client.post(
-            PREFIX + "/mfa/verify",
-            json={"mfa_code": "123456"},
-        )
-
-        assert response.status_code == 200
-        assert response.json()["message"] == "MFA code verified successfully"
-
-    def test_invalid_code(self, profile_client, mock_identity_service):
-        """Invalid MFA code → 400."""
-        mock_identity_service.verify_mfa.side_effect = HTTPException(status_code=400, detail="Invalid MFA code")
-
-        response = profile_client.post(
-            PREFIX + "/mfa/verify",
-            json={"mfa_code": "000000"},
-        )
-
-        assert response.status_code == 400
-        assert response.json()["detail"] == "Invalid MFA code"
+        assert response.status_code == 404
 
 
 # ===================================================================
@@ -1102,16 +1101,16 @@ class TestVerifyMFA:
 class TestGenerateMFABackupCodes:
     """Tests for POST /profile/mfa/backup-codes — generate_mfa_backup_codes."""
 
-    def test_success(self, profile_client, mock_identity_service):
+    def test_success(self, profile_client, mock_auth_services):
         """Happy path: generate backup codes."""
-        mock_identity_service.generate_backup_codes.return_value = {
+        mock_auth_services.generate_backup_codes.return_value = {
             "codes": ["code1", "code2"],
             "created_at": datetime(2025, 1, 1, tzinfo=UTC),
         }
 
         response = profile_client.post(
             PREFIX + "/mfa/backup-codes",
-            json={"current_password": "pass123"},
+            json={"step_up": {"current_password": "pass123"}},
         )
 
         assert response.status_code == 201
@@ -1119,180 +1118,327 @@ class TestGenerateMFABackupCodes:
         assert data["codes"] == ["code1", "code2"]
         assert "created_at" in data
 
-    def test_user_not_found(self, profile_client, mock_identity_service):
+    def test_user_not_found(self, profile_client, mock_auth_services):
         """User not found → 404."""
-        mock_identity_service.generate_backup_codes.side_effect = HTTPException(
-            status_code=404, detail="User not found"
-        )
+        mock_auth_services.generate_backup_codes.side_effect = HTTPException(status_code=404, detail="User not found")
 
         response = profile_client.post(
             PREFIX + "/mfa/backup-codes",
-            json={"current_password": "pass123"},
+            json={"step_up": {"current_password": "pass123"}},
         )
 
         assert response.status_code == 404
 
-    def test_mfa_not_enabled(self, profile_client, mock_identity_service):
+    def test_mfa_not_enabled(self, profile_client, mock_auth_services):
         """MFA not enabled → 400."""
-        mock_identity_service.generate_backup_codes.side_effect = HTTPException(
-            status_code=400,
-            detail="MFA must be enabled to generate backup codes",
+        mock_auth_services.generate_backup_codes.side_effect = core_exceptions.ConflictError(
+            "MFA must be enabled to generate backup codes"
         )
 
         response = profile_client.post(
             PREFIX + "/mfa/backup-codes",
-            json={"current_password": "pass123"},
+            json={"step_up": {"current_password": "pass123"}},
         )
 
-        assert response.status_code == 400
+        assert response.status_code == 409
+        assert response.json()["type"] == "urn:endurain:error:conflict"
         assert "MFA must be enabled" in response.json()["detail"]
 
-    def test_step_up_fails(self, profile_client, mock_identity_service):
+    def test_step_up_fails(self, profile_client, mock_auth_services):
         """Step-up fails → 401."""
-        mock_identity_service.generate_backup_codes.side_effect = HTTPException(status_code=401, detail="Invalid")
+        mock_auth_services.generate_backup_codes.side_effect = HTTPException(status_code=401, detail="Invalid")
 
         response = profile_client.post(
             PREFIX + "/mfa/backup-codes",
-            json={"current_password": "wrong"},
+            json={"step_up": {"current_password": "wrong"}},
         )
 
         assert response.status_code == 401
 
 
 # ===================================================================
-# GET /profile/idp
+# GET /profile/identity-providers
 # ===================================================================
 
 
 class TestGetMyIdentityProviders:
-    """Tests for GET /profile/idp — get_my_identity_providers."""
+    """Tests for GET /profile/identity-providers — get_my_identity_providers."""
 
     def test_success(
         self,
         profile_client,
-        mock_identity_service,
+        mock_auth_services,
     ):
-        """Happy path: returns enriched IdP links."""
-        mock_identity_service.get_user_identity_provider_links.return_value = [
-            {
-                "id": 1,
-                "user_id": 1,
-                "idp_id": 1,
-                "idp_subject": "sub",
-                "linked_at": "2025-01-01T00:00:00",
-                "last_login": None,
-                "idp_access_token_expires_at": None,
-                "idp_refresh_token_updated_at": None,
-                "idp_name": "TestIdP",
-                "idp_slug": "testidp",
-                "idp_icon": "icon.png",
-                "idp_provider_type": "oauth2",
-            }
-        ]
+        """Happy path: returns one page of enriched IdP links for the requested window."""
+        link = {
+            "id": str(uuid.uuid4()),
+            "user_id": str(MOCK_USER_ID),
+            "idp_id": str(IDP_ID),
+            "idp_subject": "sub",
+            "linked_at": "2025-01-01T00:00:00",
+            "last_login": None,
+            "idp_name": "TestIdP",
+            "idp_slug": "testidp",
+            "idp_icon": "icon.png",
+            "idp_provider_type": "oauth2",
+        }
+        mock_auth_services.get_user_identity_provider_links.return_value = {
+            "items": [link],
+            "total": 3,
+            "page": 2,
+            "num_records": 1,
+            "next": 3,
+        }
 
-        response = profile_client.get(PREFIX + "/idp")
+        response = profile_client.get(PREFIX + "/identity-providers", params={"page_number": 2, "num_records": 1})
 
         assert response.status_code == 200
         data = response.json()
-        assert len(data) == 1
-        assert data[0]["idp_name"] == "TestIdP"
+        assert [item["idp_name"] for item in data["items"]] == ["TestIdP"]
+        assert (data["total"], data["next"]) == (3, 3)
+        mock_auth_services.get_user_identity_provider_links.assert_called_once_with(
+            MOCK_USER_ID, core_pagination.PageParams(2, 1)
+        )
 
     def test_no_links(
         self,
         profile_client,
-        mock_identity_service,
+        mock_auth_services,
     ):
-        """No IdP links → empty list."""
-        mock_identity_service.get_user_identity_provider_links.return_value = []
+        """No IdP links → an empty page."""
+        mock_auth_services.get_user_identity_provider_links.return_value = {
+            "items": [],
+            "total": 0,
+            "page": 1,
+            "num_records": 25,
+        }
 
-        response = profile_client.get(PREFIX + "/idp")
+        response = profile_client.get(PREFIX + "/identity-providers")
 
         assert response.status_code == 200
-        assert response.json() == []
+        assert response.json()["items"] == []
 
 
 # ===================================================================
-# POST /profile/idp/{idp_id}/unlink
+# POST /profile/identity-providers/{idp_id}/unlink
 # ===================================================================
 
 
 class TestDeleteMyIdentityProvider:
-    """Tests for POST /profile/idp/{idp_id}/unlink — delete_my_identity_provider."""
+    """Tests for POST /profile/identity-providers/{idp_id}/unlink — delete_my_identity_provider."""
 
-    def test_success(self, profile_client, mock_identity_service):
+    def test_success(self, profile_client, mock_auth_services):
         """Happy path: unlink IdP."""
         response = profile_client.post(
-            PREFIX + "/idp/1/unlink",
-            json={"current_password": "pass123"},
+            PREFIX + f"/identity-providers/{IDP_ID}/unlink",
+            json={"step_up": {"current_password": "pass123"}},
         )
 
         assert response.status_code == 204
-        mock_identity_service.delete_identity_provider_link.assert_called_once()
+        mock_auth_services.delete_identity_provider_link.assert_called_once()
 
-    def test_step_up_fails(self, profile_client, mock_identity_service):
-        """Step-up fails → 401."""
-        mock_identity_service.delete_identity_provider_link.side_effect = HTTPException(
-            status_code=401, detail="Invalid"
+    def test_a_malformed_provider_id_is_422(self, profile_client, mock_auth_services):
+        """A provider id that is not a UUID is refused before the service runs."""
+        response = profile_client.post(
+            PREFIX + "/identity-providers/1/unlink",
+            json={"step_up": {"current_password": "pass123"}},
         )
 
+        assert response.status_code == 422
+        mock_auth_services.delete_identity_provider_link.assert_not_called()
+
+    def test_step_up_fails(self, profile_client, mock_auth_services):
+        """Step-up fails → 401."""
+        mock_auth_services.delete_identity_provider_link.side_effect = HTTPException(status_code=401, detail="Invalid")
+
         response = profile_client.post(
-            PREFIX + "/idp/1/unlink",
-            json={"current_password": "wrong"},
+            PREFIX + f"/identity-providers/{IDP_ID}/unlink",
+            json={"step_up": {"current_password": "wrong"}},
         )
 
         assert response.status_code == 401
 
-    def test_idp_not_found(self, profile_client, mock_identity_service):
+    def test_idp_not_found(self, profile_client, mock_auth_services):
         """IDP not found → 404."""
-        mock_identity_service.delete_identity_provider_link.side_effect = HTTPException(
+        mock_auth_services.delete_identity_provider_link.side_effect = HTTPException(
             status_code=404, detail="Identity provider not found"
         )
 
         response = profile_client.post(
-            PREFIX + "/idp/1/unlink",
-            json={"current_password": "pass123"},
+            PREFIX + f"/identity-providers/{IDP_ID}/unlink",
+            json={"step_up": {"current_password": "pass123"}},
         )
 
         assert response.status_code == 404
 
-    def test_link_not_found(self, profile_client, mock_identity_service):
+    def test_link_not_found(self, profile_client, mock_auth_services):
         """Link not found for user → 404."""
-        mock_identity_service.delete_identity_provider_link.side_effect = HTTPException(
+        mock_auth_services.delete_identity_provider_link.side_effect = HTTPException(
             status_code=404, detail="Identity provider link missing"
         )
 
         response = profile_client.post(
-            PREFIX + "/idp/1/unlink",
-            json={"current_password": "pass123"},
+            PREFIX + f"/identity-providers/{IDP_ID}/unlink",
+            json={"step_up": {"current_password": "pass123"}},
         )
 
         assert response.status_code == 404
 
-    def test_account_lockout(self, profile_client, mock_identity_service):
+    def test_account_lockout(self, profile_client, mock_auth_services):
         """Unlinking last auth method → 400."""
-        mock_identity_service.delete_identity_provider_link.side_effect = HTTPException(
+        mock_auth_services.delete_identity_provider_link.side_effect = HTTPException(
             status_code=400,
             detail="Cannot unlink last authentication method. Please set a password first.",
         )
 
         response = profile_client.post(
-            PREFIX + "/idp/1/unlink",
-            json={"current_password": "pass123"},
+            PREFIX + f"/identity-providers/{IDP_ID}/unlink",
+            json={"step_up": {"current_password": "pass123"}},
         )
 
         assert response.status_code == 400
         assert "Cannot unlink" in response.json()["detail"]
 
-    def test_deletion_fails(self, profile_client, mock_identity_service):
+    def test_deletion_fails(self, profile_client, mock_auth_services):
         """Deletion returns False → 500."""
-        mock_identity_service.delete_identity_provider_link.side_effect = HTTPException(
+        mock_auth_services.delete_identity_provider_link.side_effect = HTTPException(
             status_code=500, detail="Failed to unlink identity provider"
         )
 
         response = profile_client.post(
-            PREFIX + "/idp/1/unlink",
-            json={"current_password": "pass123"},
+            PREFIX + f"/identity-providers/{IDP_ID}/unlink",
+            json={"step_up": {"current_password": "pass123"}},
         )
 
         assert response.status_code == 500
         assert "Failed to unlink" in response.json()["detail"]
+
+
+# ===================================================================
+# POST /profile/delete-account
+# ===================================================================
+
+
+class TestDeleteMyAccount:
+    """Tests for POST /profile/delete-account — delete_my_account."""
+
+    @patch("modules.users.users_profile.router.profile_service.delete_account")
+    @patch("modules.users.users_profile.router.authentication_dependencies.clear_refresh_token_cookies")
+    def test_success(self, mock_clear_cookies, mock_delete, profile_client, mock_auth_services):
+        mock_delete.return_value = users_schema.UserDeletionStatus(
+            id=_JOB_ID, kind="user_deletion", created_at=datetime(2026, 1, 1, tzinfo=UTC), status="queued"
+        )
+        response = profile_client.post(
+            PREFIX + "/delete-account",
+            json={"step_up": {"current_password": "secret-password", "mfa_code": "123456"}},
+        )
+
+        assert response.status_code == 202
+        assert "Content-Location" not in response.headers
+        assert response.json() == {
+            "id": str(_JOB_ID),
+            "kind": "user_deletion",
+            "created_at": "2026-01-01T00:00:00Z",
+            "finished_at": None,
+            "error_code": None,
+            "status": "queued",
+        }
+        assert mock_delete.call_args.args[0] == MOCK_USER_ID
+        assert mock_delete.call_args.args[1] == MOCK_SESSION_ID
+        assert mock_delete.call_args.args[2].current_password == "secret-password"
+        mock_clear_cookies.assert_called_once()
+
+    @patch("modules.users.users_profile.router.profile_service.delete_account")
+    def test_the_only_administrator_is_refused(self, mock_delete, profile_client, mock_auth_services):
+        mock_delete.side_effect = core_exceptions.LastAdministratorError("The only administrator cannot be deleted")
+
+        response = profile_client.post(
+            PREFIX + "/delete-account", json={"step_up": {"current_password": "secret-password"}}
+        )
+
+        assert response.status_code == 409
+        assert response.json()["type"] == "urn:endurain:error:last-administrator"
+
+    @patch("modules.users.users_profile.router.profile_service.delete_account")
+    def test_step_up_failure_is_returned(self, mock_delete, profile_client):
+        mock_delete.side_effect = HTTPException(status_code=401, detail="Invalid credentials")
+
+        response = profile_client.post(PREFIX + "/delete-account", json={"step_up": {"current_password": "wrong"}})
+
+        assert response.status_code == 401
+
+
+class TestProfileEditsNeedIfMatch:
+    """The profile and privacy edits are conditional on the version the client read."""
+
+    @pytest.mark.parametrize("path", ["", "/privacy"])
+    def test_an_edit_without_if_match_is_428(self, path, profile_client):
+        response = profile_client.patch(PREFIX + path, json={})
+
+        assert response.status_code == 428
+
+
+class TestEditProfileUsername:
+    """Tests for POST /profile/username/change — edit_profile_username."""
+
+    @patch("modules.users.users_profile.service.users_privacy_settings_integration.get_privacy_settings")
+    @patch("modules.users.users_profile.service.user_integrations_integration.get_user_integrations")
+    @patch("modules.users.users_profile.service.users_integration.stage_username_change", return_value=True)
+    @patch("modules.users.users_profile.service.users_integration.require_user")
+    def test_success_runs_the_step_up_and_answers_with_the_profile_and_its_etag(
+        self,
+        mock_require,
+        mock_stage,
+        mock_integrations,
+        mock_privacy,
+        profile_client,
+        mock_auth_services,
+    ):
+        mock_require.return_value = _make_user_mock().model_copy(update={"version": 4})
+        mock_integrations.return_value = _make_integration_mock()
+        mock_privacy.return_value = _make_privacy_mock()
+        mock_auth_services.has_local_password.return_value = True
+        mock_auth_services.get_mfa_status.return_value = mfa_schema.MFAStatusRead(mfa_enabled=False)
+
+        response = profile_client.post(
+            PREFIX + "/username/change",
+            json={"username": "New.Name", "step_up": {"current_password": "pw", "mfa_code": None}},
+        )
+
+        assert response.status_code == 200
+        assert response.headers["ETag"] == '"4"'
+        mock_auth_services.verify_step_up.assert_called_once()
+        assert mock_stage.call_args.args[:2] == (MOCK_USER_ID, "New.Name")
+
+    @patch("modules.users.users_profile.service.users_integration.stage_username_change")
+    def test_step_up_fails(self, mock_stage, profile_client, mock_auth_services):
+        mock_auth_services.verify_step_up.side_effect = HTTPException(status_code=401, detail="Invalid credentials")
+
+        response = profile_client.post(
+            PREFIX + "/username/change", json={"username": "new", "step_up": {"current_password": "wrong"}}
+        )
+
+        assert response.status_code == 401
+        mock_stage.assert_not_called()
+
+    @patch("modules.users.users_profile.service.users_integration.stage_username_change")
+    def test_a_taken_username_is_a_conflict(self, mock_stage, profile_client, mock_auth_services):
+        mock_stage.side_effect = core_exceptions.ConflictError("taken")
+
+        response = profile_client.post(
+            PREFIX + "/username/change", json={"username": "taken", "step_up": {"current_password": "pw"}}
+        )
+
+        assert response.status_code == 409
+
+    def test_the_username_must_be_valid(self, profile_client):
+        response = profile_client.post(
+            PREFIX + "/username/change", json={"username": "no spaces", "step_up": {"current_password": "pw"}}
+        )
+
+        assert response.status_code == 422
+
+    def test_the_plain_profile_edit_refuses_a_username(self, profile_client):
+        response = profile_client.patch(PREFIX, json={"username": "new"}, headers={"If-Match": '"1"'})
+
+        assert response.status_code == 422

@@ -7,17 +7,25 @@ from jasil.providers import EventBusProvider
 import modules.notifications.subscribers as notification_subscribers
 
 
-def register_all_notification_bus_subscribers(events: EventBusProvider) -> None:
-    """Register every notification bus subscriber."""
-    notification_subscribers.register_notification_subscribers(events)
+def register_bus_subscribers(events: EventBusProvider) -> None:
+    """Register the notification bus subscribers.
+
+    Args:
+        events: The event bus to subscribe on.
+    """
+    notification_subscribers.register_bus_subscribers(events)
 
 
-def register_all_notification_durable_handlers(registry: JobHandlerRegistry) -> None:
-    """Register every notification durable handler."""
-    notification_subscribers.register_notification_durable_handlers(registry)
+def register_durable_handlers(registry: JobHandlerRegistry) -> None:
+    """Register the notification durable handlers.
+
+    Args:
+        registry: The durable-handler registry to register on.
+    """
+    notification_subscribers.register_durable_handlers(registry)
 
 
-NOTIFICATION_DURABLE_SUBSCRIBER_NETS: tuple[DurableSubscriberNet, ...] = (
+DURABLE_SUBSCRIBER_NETS: tuple[DurableSubscriberNet, ...] = (
     DurableSubscriberNet(
         notification_subscribers.ACTIVITY_NOTIFICATION_SUBSCRIBER_ID,
         None,
@@ -40,6 +48,110 @@ NOTIFICATION_DURABLE_SUBSCRIBER_NETS: tuple[DurableSubscriberNet, ...] = (
         exempt_reason=(
             "The accepted follow row is the source of truth; its notification is "
             "a transient reaction with no independently reconcilable state."
+        ),
+    ),
+    DurableSubscriberNet(
+        notification_subscribers.FOLLOWER_REQUEST_REMOVED_NOTIFICATION_SUBSCRIBER_ID,
+        None,
+        exempt_reason=(
+            "The follow row is the source of truth; clearing its request notification is "
+            "an idempotent reaction with no independently reconcilable state."
+        ),
+    ),
+    DurableSubscriberNet(
+        notification_subscribers.IDP_LINKED_NOTIFICATION_SUBSCRIBER_ID,
+        None,
+        exempt_reason=(
+            "The identity-provider link row is the source of truth; its notification is "
+            "a transient reaction with no independently reconcilable state."
+        ),
+    ),
+    DurableSubscriberNet(
+        notification_subscribers.ACCOUNT_SECURITY_CHANGED_NOTIFICATION_SUBSCRIBER_ID,
+        None,
+        exempt_reason=(
+            "The account change is stored and audited at its source; its notification is "
+            "a transient reaction with no independently reconcilable state."
+        ),
+    ),
+    DurableSubscriberNet(
+        notification_subscribers.PASSWORD_RESET_COMPLETED_NOTIFICATION_SUBSCRIBER_ID,
+        None,
+        exempt_reason=(
+            "The reset is stored and audited at its source; its notification is "
+            "a transient reaction with no independently reconcilable state."
+        ),
+    ),
+    DurableSubscriberNet(
+        notification_subscribers.ACCOUNT_LOCKED_NOTIFICATION_SUBSCRIBER_ID,
+        None,
+        exempt_reason=(
+            "The lock is audited at its source; its notification is a transient reaction "
+            "with no independently reconcilable state."
+        ),
+    ),
+    DurableSubscriberNet(
+        notification_subscribers.MFA_LOCKED_NOTIFICATION_SUBSCRIBER_ID,
+        None,
+        exempt_reason=(
+            "The lock is audited at its source; its notification is a transient reaction "
+            "with no independently reconcilable state."
+        ),
+    ),
+    DurableSubscriberNet(
+        notification_subscribers.STEP_UP_SESSION_ENDED_NOTIFICATION_SUBSCRIBER_ID,
+        None,
+        exempt_reason=(
+            "The session end is audited at its source; its notification is a transient reaction "
+            "with no independently reconcilable state."
+        ),
+    ),
+    DurableSubscriberNet(
+        notification_subscribers.STEP_UP_LOCKED_NOTIFICATION_SUBSCRIBER_ID,
+        None,
+        exempt_reason=(
+            "The lock is audited at its source; its notification is a transient reaction "
+            "with no independently reconcilable state."
+        ),
+    ),
+    DurableSubscriberNet(
+        notification_subscribers.NEW_DEVICE_SIGN_IN_NOTIFICATION_SUBSCRIBER_ID,
+        None,
+        exempt_reason=(
+            "The sign-in is audited at its source; its notification is a transient reaction "
+            "with no independently reconcilable state."
+        ),
+    ),
+    DurableSubscriberNet(
+        notification_subscribers.ADMIN_SIGN_UP_APPROVAL_NOTIFICATION_SUBSCRIBER_ID,
+        None,
+        exempt_reason=(
+            "The pending user is the source of truth and is listed for admins; the notification is "
+            "a transient reaction with no independently reconcilable state."
+        ),
+    ),
+    DurableSubscriberNet(
+        notification_subscribers.BACKUP_CODE_USED_NOTIFICATION_SUBSCRIBER_ID,
+        None,
+        exempt_reason=(
+            "The use is audited at its source; its notification is a transient reaction "
+            "with no independently reconcilable state."
+        ),
+    ),
+    DurableSubscriberNet(
+        notification_subscribers.REFRESH_REUSE_NOTIFICATION_SUBSCRIBER_ID,
+        None,
+        exempt_reason=(
+            "The reuse is audited at its source; its notification is a transient reaction "
+            "with no independently reconcilable state."
+        ),
+    ),
+    DurableSubscriberNet(
+        notification_subscribers.ADMIN_USER_PROMOTED_NOTIFICATION_SUBSCRIBER_ID,
+        None,
+        exempt_reason=(
+            "The promotion is stored and audited at its source; its notification is a transient "
+            "reaction with no independently reconcilable state."
         ),
     ),
 )

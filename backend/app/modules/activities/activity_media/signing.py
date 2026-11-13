@@ -17,21 +17,18 @@ activity. Its lifetime is :data:`core.signing.DEFAULT_TOKEN_MAX_AGE_SECONDS`,
 shared with the thumbnail and user-photo signers.
 """
 
+import uuid
+
 import core.signing as core_signing
+import modules.activities.activity_media.constants as activity_media_constants
 
 # Namespaces this signer from any other ``SECRET_KEY`` use (e.g. JWT signing, and
 # the activity-thumbnail signer): a media token can never be replayed as a
-# thumbnail token even though both bind a bare integer id.
+# thumbnail token even though both bind a bare id.
 _SIGNER = core_signing.CapabilitySigner(salt="activity-media")
 
-# The storage area (domain-owned namespace) activity media lives under. For the
-# ``local`` backend this maps to ``{DATA_DIR}/activity_media`` — the exact
-# directory the files were already written to — so existing installs keep their
-# photos; for S3 it is the object key prefix.
-MEDIA_STORAGE_AREA = "activity_media"
 
-
-def sign_media_token(media_id: int) -> str:
+def sign_media_token(media_id: uuid.UUID) -> str:
     """Return a signed token binding a media URL to ``media_id``.
 
     Args:
@@ -40,10 +37,10 @@ def sign_media_token(media_id: int) -> str:
     Returns:
         An unforgeable, URL-safe token.
     """
-    return _SIGNER.sign(media_id)
+    return _SIGNER.sign(str(media_id))
 
 
-def verify_media_token(media_id: int, token: str) -> bool:
+def verify_media_token(media_id: uuid.UUID, token: str) -> bool:
     """Return whether ``token`` is a valid, unexpired signature for ``media_id``.
 
     Args:
@@ -53,10 +50,10 @@ def verify_media_token(media_id: int, token: str) -> bool:
     Returns:
         True if the token is authentic, bound to ``media_id``, and unexpired.
     """
-    return _SIGNER.verify(media_id, token)
+    return _SIGNER.verify(str(media_id), token)
 
 
-def media_url(key: str, activity_id: int, media_id: int) -> str:
+def media_url(key: str, activity_id: uuid.UUID, media_id: uuid.UUID) -> str:
     """Resolve a stored media key to a signed, ``<img>``-compatible URL.
 
     Args:
@@ -68,7 +65,7 @@ def media_url(key: str, activity_id: int, media_id: int) -> str:
         A servable URL.
     """
     return core_signing.blob_url(
-        MEDIA_STORAGE_AREA,
+        activity_media_constants.MEDIA_STORAGE_AREA,
         key,
         local_path=f"/activities/{activity_id}/media/{media_id}/file",
         token=sign_media_token(media_id),

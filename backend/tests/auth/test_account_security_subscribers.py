@@ -1,0 +1,471 @@
+"""Tests for the account-security email service function and subscribers."""
+
+import uuid
+from datetime import UTC, datetime
+from unittest.mock import MagicMock, patch
+
+import jasil.events as platform_events
+import jasil.providers as platform_providers
+import pytest
+
+import modules.auth.account_security.account_security_service as account_security_service
+import modules.auth.account_security.events as account_security_events
+import modules.auth.account_security.subscriber_registry as account_security_subscriber_registry
+import modules.auth.account_security.subscribers as account_security_subscribers
+import modules.auth.authentication.events as authentication_events
+import modules.auth.identity_providers.events as idp_events
+import modules.auth.known_devices.events as known_devices_events
+import modules.auth.password_reset_tokens.events as password_reset_events
+
+SERVICE = "modules.auth.account_security.account_security_service"
+SUBSCRIBERS = "modules.auth.account_security.subscribers"
+USER_ID = uuid.UUID(int=4)
+IDP_ID = uuid.UUID(int=7)
+HOST = "https://endurain.example.com"
+
+
+def _user(active=True):
+    user = MagicMock()
+    user.name = "Alice"
+    user.email = "alice@example.test"
+    user.preferred_language = "en"
+    user.active = active
+    return user
+
+
+class TestPrepareSecurityChangeEmail:
+    @pytest.mark.parametrize("change", [change.value for change in account_security_events.AccountSecurityChange])
+    def test_prepares_a_message_for_each_change(self, change, mock_db):
+        with (
+            patch(f"{SERVICE}.users_integration.get_user", return_value=_user()),
+            patch(f"{SERVICE}.identity_providers_integration.get_identity_provider", return_value=None),
+        ):
+            message = account_security_service.prepare_security_change_email(USER_ID, change, None, HOST, mock_db)
+
+        assert message is not None
+        recipient, subject, html_body, text_body = message
+        assert recipient == "alice@example.test"
+        assert subject and html_body and text_body
+
+    def test_an_unlink_names_the_provider(self, mock_db):
+        idp = MagicMock()
+        idp.name = "Authentik"
+        with (
+            patch(f"{SERVICE}.users_integration.get_user", return_value=_user()),
+            patch(f"{SERVICE}.identity_providers_integration.get_identity_provider", return_value=idp) as get_idp,
+        ):
+            message = account_security_service.prepare_security_change_email(
+                USER_ID, "identity_provider_unlinked", IDP_ID, HOST, mock_db
+            )
+
+        get_idp.assert_called_once_with(IDP_ID, mock_db)
+        assert "Authentik" in message[2]
+
+    def test_a_deleted_provider_leaves_the_name_out(self, mock_db):
+        with (
+            patch(f"{SERVICE}.users_integration.get_user", return_value=_user()),
+            patch(f"{SERVICE}.identity_providers_integration.get_identity_provider", return_value=None),
+        ):
+            message = account_security_service.prepare_security_change_email(
+                USER_ID, "identity_provider_unlinked", IDP_ID, HOST, mock_db
+            )
+
+        assert message is not None
+        assert "None" not in message[2]
+
+    def test_a_missing_user_sends_nothing(self, mock_db):
+        with patch(f"{SERVICE}.users_integration.get_user", return_value=None):
+            assert (
+                account_security_service.prepare_security_change_email(USER_ID, "mfa_enabled", None, HOST, mock_db)
+                is None
+            )
+
+    def test_an_inactive_user_sends_nothing(self, mock_db):
+        with patch(f"{SERVICE}.users_integration.get_user", return_value=_user(active=False)):
+            assert (
+                account_security_service.prepare_security_change_email(USER_ID, "mfa_enabled", None, HOST, mock_db)
+                is None
+            )
+
+
+def _changed_event(change, idp_id=None):
+    payload = {"user_id": str(USER_ID), "change": change}
+    if idp_id is not None:
+        payload["idp_id"] = str(idp_id)
+    return platform_events.new_event(account_security_events.ACCOUNT_SECURITY_CHANGED, payload, source="test")
+
+
+class TestSecurityChangedHandler:
+    @patch(f"{SUBSCRIBERS}.core_mail.send_email", return_value=True)
+    @patch(f"{SUBSCRIBERS}.account_security_service.prepare_security_change_email")
+    @patch(f"{SUBSCRIBERS}.platform_runtime.get_active_platform")
+    @patch(f"{SUBSCRIBERS}.core_database.SessionLocal")
+    def test_prepares_in_a_session_and_sends_afterward(self, session_local, get_platform, prepare, send_email):
+        db = session_local.return_value.__enter__.return_value
+        prepare.return_value = ("alice@example.test", "subject", "html", "text")
+
+        account_security_subscribers.send_security_changed_email_for_event(
+            _changed_event("identity_provider_unlinked", IDP_ID)
+        )
+
+        prepare.assert_called_once_with(
+            USER_ID,
+            "identity_provider_unlinked",
+            IDP_ID,
+            account_security_subscribers.core_config.settings.ENDURAIN_HOST,
+            db,
+            access_type=None,
+        )
+        session_local.return_value.__exit__.assert_called_once()
+        send_email.assert_called_once_with(get_platform.return_value.mail, *prepare.return_value)
+
+    @patch(f"{SUBSCRIBERS}.core_mail.send_email")
+    @patch(f"{SUBSCRIBERS}.account_security_service.prepare_security_change_email", return_value=None)
+    @patch(f"{SUBSCRIBERS}.platform_runtime.get_active_platform")
+    @patch(f"{SUBSCRIBERS}.core_database.SessionLocal")
+    def test_a_missing_user_sends_nothing(self, _session_local, _get_platform, _prepare, send_email):
+        account_security_subscribers.send_security_changed_email_for_event(_changed_event("mfa_enabled"))
+
+        send_email.assert_not_called()
+
+    @patch(
+        f"{SUBSCRIBERS}.core_mail.send_email",
+        side_effect=platform_providers.MailError("Mail delivery failed"),
+    )
+    @patch(f"{SUBSCRIBERS}.account_security_service.prepare_security_change_email")
+    @patch(f"{SUBSCRIBERS}.platform_runtime.get_active_platform")
+    @patch(f"{SUBSCRIBERS}.core_database.SessionLocal")
+    def test_the_durable_handler_raises_a_transient_mail_failure(self, _session_local, _platform, prepare, _send):
+        prepare.return_value = ("alice@example.test", "subject", "html", "text")
+
+        with pytest.raises(platform_providers.MailError):
+            account_security_subscribers.send_security_changed_email_for_event(_changed_event("mfa_enabled"))
+
+
+class TestIdpLinkedHandler:
+    @patch(f"{SUBSCRIBERS}.core_mail.send_email", return_value=True)
+    @patch(f"{SUBSCRIBERS}.account_security_service.prepare_security_change_email")
+    @patch(f"{SUBSCRIBERS}.platform_runtime.get_active_platform")
+    @patch(f"{SUBSCRIBERS}.core_database.SessionLocal")
+    def test_prepares_a_link_message_and_sends_it(self, session_local, get_platform, prepare, send_email):
+        db = session_local.return_value.__enter__.return_value
+        prepare.return_value = ("alice@example.test", "subject", "html", "text")
+        event = platform_events.new_event(
+            idp_events.IDP_LINKED, {"user_id": str(USER_ID), "idp_id": str(IDP_ID)}, source="test"
+        )
+
+        account_security_subscribers.send_idp_linked_email_for_event(event)
+
+        prepare.assert_called_once_with(
+            USER_ID,
+            "identity_provider_linked",
+            IDP_ID,
+            account_security_subscribers.core_config.settings.ENDURAIN_HOST,
+            db,
+        )
+        send_email.assert_called_once_with(get_platform.return_value.mail, *prepare.return_value)
+
+
+class TestPasswordResetCompletedHandler:
+    @patch(f"{SUBSCRIBERS}.core_mail.send_email", return_value=True)
+    @patch(f"{SUBSCRIBERS}.account_security_service.prepare_security_change_email")
+    @patch(f"{SUBSCRIBERS}.platform_runtime.get_active_platform")
+    @patch(f"{SUBSCRIBERS}.core_database.SessionLocal")
+    def test_sends_the_password_reset_notice(self, session_local, get_platform, prepare, send_email):
+        db = session_local.return_value.__enter__.return_value
+        prepare.return_value = ("alice@example.test", "subject", "html", "text")
+        event = platform_events.new_event(
+            password_reset_events.PASSWORD_RESET_COMPLETED, {"user_id": str(USER_ID)}, source="test"
+        )
+
+        account_security_subscribers.send_password_reset_completed_email_for_event(event)
+
+        prepare.assert_called_once_with(
+            USER_ID, "password_reset", None, account_security_subscribers.core_config.settings.ENDURAIN_HOST, db
+        )
+        send_email.assert_called_once_with(get_platform.return_value.mail, *prepare.return_value)
+
+    @patch(f"{SUBSCRIBERS}.core_mail.send_email", return_value=True)
+    @patch(f"{SUBSCRIBERS}.account_security_service.prepare_security_change_email")
+    @patch(f"{SUBSCRIBERS}.platform_runtime.get_active_platform")
+    @patch(f"{SUBSCRIBERS}.core_database.SessionLocal")
+    def test_an_outbox_event_published_as_an_account_security_change_is_still_handled(
+        self, _session_local, _get_platform, prepare, _send_email
+    ):
+        prepare.return_value = ("alice@example.test", "subject", "html", "text")
+
+        account_security_subscribers.send_security_changed_email_for_event(_changed_event("password_reset"))
+
+        assert prepare.call_args.args[:3] == (USER_ID, "password_reset", None)
+
+
+class TestAccountLockedHandler:
+    @patch(f"{SUBSCRIBERS}.core_mail.send_email", return_value=True)
+    @patch(f"{SUBSCRIBERS}.account_security_service.prepare_security_change_email")
+    @patch(f"{SUBSCRIBERS}.platform_runtime.get_active_platform")
+    @patch(f"{SUBSCRIBERS}.core_database.SessionLocal")
+    def test_sends_the_account_locked_notice(self, session_local, get_platform, prepare, send_email):
+        db = session_local.return_value.__enter__.return_value
+        prepare.return_value = ("alice@example.test", "subject", "html", "text")
+        event = platform_events.new_event(
+            authentication_events.ACCOUNT_LOCKED, {"user_id": str(USER_ID)}, source="test"
+        )
+
+        account_security_subscribers.send_account_locked_email_for_event(event)
+
+        prepare.assert_called_once_with(
+            USER_ID, "account_locked", None, account_security_subscribers.core_config.settings.ENDURAIN_HOST, db
+        )
+        send_email.assert_called_once_with(get_platform.return_value.mail, *prepare.return_value)
+
+    def test_the_event_has_a_bus_subscriber_and_a_durable_handler(self):
+        events = MagicMock()
+        registry = MagicMock()
+
+        account_security_subscribers.register_bus_subscribers(events)
+        account_security_subscribers.register_durable_handlers(registry)
+
+        events.subscribe.assert_any_call(
+            authentication_events.ACCOUNT_LOCKED, account_security_subscribers.on_account_locked
+        )
+        registry.register.assert_any_call(
+            authentication_events.ACCOUNT_LOCKED,
+            "auth.send_account_locked_email",
+            account_security_subscribers.send_account_locked_email_for_event,
+        )
+
+
+class TestMfaLockedHandler:
+    @patch(f"{SUBSCRIBERS}.core_mail.send_email", return_value=True)
+    @patch(f"{SUBSCRIBERS}.account_security_service.prepare_security_change_email")
+    @patch(f"{SUBSCRIBERS}.platform_runtime.get_active_platform")
+    @patch(f"{SUBSCRIBERS}.core_database.SessionLocal")
+    def test_sends_the_mfa_locked_notice(self, session_local, get_platform, prepare, send_email):
+        db = session_local.return_value.__enter__.return_value
+        prepare.return_value = ("alice@example.test", "subject", "html", "text")
+        event = platform_events.new_event(authentication_events.MFA_LOCKED, {"user_id": str(USER_ID)}, source="test")
+
+        account_security_subscribers.send_mfa_locked_email_for_event(event)
+
+        prepare.assert_called_once_with(
+            USER_ID, "mfa_locked", None, account_security_subscribers.core_config.settings.ENDURAIN_HOST, db
+        )
+        send_email.assert_called_once_with(get_platform.return_value.mail, *prepare.return_value)
+
+    def test_the_event_has_a_bus_subscriber_and_a_durable_handler(self):
+        events = MagicMock()
+        registry = MagicMock()
+
+        account_security_subscribers.register_bus_subscribers(events)
+        account_security_subscribers.register_durable_handlers(registry)
+
+        events.subscribe.assert_any_call(authentication_events.MFA_LOCKED, account_security_subscribers.on_mfa_locked)
+        registry.register.assert_any_call(
+            authentication_events.MFA_LOCKED,
+            "auth.send_mfa_locked_email",
+            account_security_subscribers.send_mfa_locked_email_for_event,
+        )
+
+
+class TestStepUpHandlers:
+    @pytest.mark.parametrize(
+        ("channel", "change", "handler", "bus", "subscriber_id"),
+        [
+            (
+                account_security_events.STEP_UP_SESSION_ENDED,
+                "step_up_session_ended",
+                "send_step_up_session_ended_email_for_event",
+                "on_step_up_session_ended",
+                "auth.send_step_up_session_ended_email",
+            ),
+            (
+                account_security_events.STEP_UP_LOCKED,
+                "step_up_locked",
+                "send_step_up_locked_email_for_event",
+                "on_step_up_locked",
+                "auth.send_step_up_locked_email",
+            ),
+        ],
+    )
+    @patch(f"{SUBSCRIBERS}.core_mail.send_email", return_value=True)
+    @patch(f"{SUBSCRIBERS}.account_security_service.prepare_security_change_email")
+    @patch(f"{SUBSCRIBERS}.platform_runtime.get_active_platform")
+    @patch(f"{SUBSCRIBERS}.core_database.SessionLocal")
+    def test_sends_the_notice_and_is_registered(
+        self, session_local, get_platform, prepare, send_email, channel, change, handler, bus, subscriber_id
+    ):
+        db = session_local.return_value.__enter__.return_value
+        prepare.return_value = ("alice@example.test", "subject", "html", "text")
+        event = platform_events.new_event(channel, {"user_id": str(USER_ID)}, source="test")
+
+        getattr(account_security_subscribers, handler)(event)
+
+        prepare.assert_called_once_with(
+            USER_ID, change, None, account_security_subscribers.core_config.settings.ENDURAIN_HOST, db
+        )
+        send_email.assert_called_once_with(get_platform.return_value.mail, *prepare.return_value)
+        events = MagicMock()
+        registry = MagicMock()
+        account_security_subscribers.register_bus_subscribers(events)
+        account_security_subscribers.register_durable_handlers(registry)
+        events.subscribe.assert_any_call(channel, getattr(account_security_subscribers, bus))
+        registry.register.assert_any_call(channel, subscriber_id, getattr(account_security_subscribers, handler))
+
+
+class TestRegistration:
+    def test_the_password_reset_completed_event_has_a_bus_subscriber_and_a_durable_handler(self):
+        events = MagicMock()
+        registry = MagicMock()
+
+        account_security_subscribers.register_bus_subscribers(events)
+        account_security_subscribers.register_durable_handlers(registry)
+
+        events.subscribe.assert_any_call(
+            password_reset_events.PASSWORD_RESET_COMPLETED, account_security_subscribers.on_password_reset_completed
+        )
+        registry.register.assert_any_call(
+            password_reset_events.PASSWORD_RESET_COMPLETED,
+            "auth.send_password_reset_completed_email",
+            account_security_subscribers.send_password_reset_completed_email_for_event,
+        )
+
+    def test_both_events_are_registered_on_the_bus_and_as_durable_handlers_with_distinct_ids(self):
+        events = MagicMock()
+        registry = MagicMock()
+
+        account_security_subscribers.register_bus_subscribers(events)
+        account_security_subscribers.register_durable_handlers(registry)
+
+        events.subscribe.assert_any_call(
+            account_security_events.ACCOUNT_SECURITY_CHANGED, account_security_subscribers.on_security_changed
+        )
+        events.subscribe.assert_any_call(idp_events.IDP_LINKED, account_security_subscribers.on_idp_linked)
+        registry.register.assert_any_call(
+            account_security_events.ACCOUNT_SECURITY_CHANGED,
+            "auth.send_account_security_changed_email",
+            account_security_subscribers.send_security_changed_email_for_event,
+        )
+        registry.register.assert_any_call(
+            idp_events.IDP_LINKED,
+            "auth.send_idp_linked_email",
+            account_security_subscribers.send_idp_linked_email_for_event,
+        )
+
+
+_SIGNED_IN_AT = datetime(2026, 11, 1, 12, 5, tzinfo=UTC)
+
+
+class TestPrepareNewDeviceSignInEmail:
+    def _prepare(self, user, mock_db):
+        with patch(f"{SERVICE}.users_integration.get_user", return_value=user):
+            return account_security_service.prepare_new_device_sign_in_email(
+                USER_ID, "Firefox", "Linux", "203.0.113.7", "password", _SIGNED_IN_AT, HOST, mock_db
+            )
+
+    def test_prepares_the_message_in_the_users_timezone(self, mock_db):
+        user = _user()
+        user.timezone = "Europe/Berlin"
+
+        recipient, subject, html_body, text_body = self._prepare(user, mock_db)
+
+        assert recipient == "alice@example.test"
+        assert subject
+        assert "2026-11-01 13:05 CET" in html_body
+        assert "Firefox on Linux" in text_body
+
+    def test_a_user_without_a_timezone_gets_the_servers(self, mock_db):
+        user = _user()
+        user.timezone = None
+
+        with patch.object(account_security_service.core_timezone.core_config.settings, "TZ", "UTC"):
+            message = self._prepare(user, mock_db)
+
+        assert "2026-11-01 12:05 UTC" in message[2]
+
+    def test_a_missing_user_sends_nothing(self, mock_db):
+        assert self._prepare(None, mock_db) is None
+
+    def test_an_inactive_user_sends_nothing(self, mock_db):
+        assert self._prepare(_user(active=False), mock_db) is None
+
+
+def _new_device_event():
+    payload = {
+        "user_id": str(USER_ID),
+        "browser": "Firefox",
+        "operating_system": "Linux",
+        "device_type": "PC",
+        "ip_address": "203.0.113.7",
+        "method": "identity_provider",
+        "signed_in_at": _SIGNED_IN_AT.isoformat(),
+    }
+    return platform_events.new_event(known_devices_events.NEW_DEVICE_SIGN_IN, payload, source="test")
+
+
+class TestNewDeviceSignInHandler:
+    @patch(f"{SUBSCRIBERS}.core_mail.send_email", return_value=True)
+    @patch(f"{SUBSCRIBERS}.account_security_service.prepare_new_device_sign_in_email")
+    @patch(f"{SUBSCRIBERS}.platform_runtime.get_active_platform")
+    @patch(f"{SUBSCRIBERS}.core_database.SessionLocal")
+    def test_prepares_in_a_session_and_sends_afterward(self, session_local, get_platform, prepare, send_email):
+        db = session_local.return_value.__enter__.return_value
+        prepare.return_value = ("alice@example.test", "subject", "html", "text")
+
+        account_security_subscribers.send_new_device_sign_in_email_for_event(_new_device_event())
+
+        prepare.assert_called_once_with(
+            USER_ID,
+            "Firefox",
+            "Linux",
+            "203.0.113.7",
+            "identity_provider",
+            _SIGNED_IN_AT,
+            account_security_subscribers.core_config.settings.ENDURAIN_HOST,
+            db,
+        )
+        session_local.return_value.__exit__.assert_called_once()
+        send_email.assert_called_once_with(get_platform.return_value.mail, *prepare.return_value)
+
+    @patch(f"{SUBSCRIBERS}.core_mail.send_email")
+    @patch(f"{SUBSCRIBERS}.account_security_service.prepare_new_device_sign_in_email", return_value=None)
+    @patch(f"{SUBSCRIBERS}.platform_runtime.get_active_platform")
+    @patch(f"{SUBSCRIBERS}.core_database.SessionLocal")
+    def test_a_missing_user_sends_nothing(self, _session_local, _get_platform, _prepare, send_email):
+        account_security_subscribers.send_new_device_sign_in_email_for_event(_new_device_event())
+
+        send_email.assert_not_called()
+
+    @patch(f"{SUBSCRIBERS}.core_mail.send_email", side_effect=platform_providers.MailError("Mail delivery failed"))
+    @patch(f"{SUBSCRIBERS}.account_security_service.prepare_new_device_sign_in_email")
+    @patch(f"{SUBSCRIBERS}.platform_runtime.get_active_platform")
+    @patch(f"{SUBSCRIBERS}.core_database.SessionLocal")
+    def test_the_durable_handler_raises_a_transient_mail_failure(self, _session_local, _platform, prepare, _send):
+        prepare.return_value = ("alice@example.test", "subject", "html", "text")
+
+        with pytest.raises(platform_providers.MailError):
+            account_security_subscribers.send_new_device_sign_in_email_for_event(_new_device_event())
+
+    def test_is_registered_on_the_bus_and_as_a_durable_handler(self):
+        events = MagicMock()
+        registry = MagicMock()
+
+        account_security_subscribers.register_bus_subscribers(events)
+        account_security_subscribers.register_durable_handlers(registry)
+
+        events.subscribe.assert_any_call(
+            known_devices_events.NEW_DEVICE_SIGN_IN, account_security_subscribers.on_new_device_sign_in
+        )
+        registry.register.assert_any_call(
+            known_devices_events.NEW_DEVICE_SIGN_IN,
+            "auth.send_new_device_sign_in_email",
+            account_security_subscribers.send_new_device_sign_in_email_for_event,
+        )
+
+    def test_its_net_is_exempt_with_a_reason(self):
+        net = next(
+            net
+            for net in account_security_subscriber_registry.DURABLE_SUBSCRIBER_NETS
+            if net.subscriber_id == "auth.send_new_device_sign_in_email"
+        )
+
+        assert net.exempt_reason

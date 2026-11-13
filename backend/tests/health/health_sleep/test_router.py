@@ -1,487 +1,237 @@
+import uuid
 from datetime import date as datetime_date
-from datetime import datetime
-from unittest.mock import ANY, MagicMock, patch
+from unittest.mock import patch
 
-from fastapi import HTTPException, status
+from tests._helpers.auth import MOCK_USER_ID
 
-import modules.health.health_sleep.models as health_sleep_models
+import core.exceptions as core_exceptions
+import core.pagination as core_pagination
 import modules.health.health_sleep.schema as health_sleep_schema
+
+_USER_ID = MOCK_USER_ID
+_SERVICE = "modules.health.health_sleep.router.health_sleep_service"
+_HEADERS = {"Authorization": "Bearer mock_token"}
+_IF_MATCH_HEADERS = {**_HEADERS, "If-Match": '"1"'}
+_ID = uuid.uuid4()
+_OTHER_ID = uuid.uuid4()
+
+
+def _record(record_id: uuid.UUID = _ID, day: int = 15, seconds: int = 28800) -> health_sleep_schema.HealthSleepRead:
+    return health_sleep_schema.HealthSleepRead(
+        updated_at="2024-01-01T00:00:00Z",
+        id=record_id,
+        user_id=_USER_ID,
+        date=datetime_date(2024, 1, day),
+        total_sleep_seconds=seconds,
+    )
+
+
+def _item(record_id: uuid.UUID = _ID, *, has_stages: bool = False) -> health_sleep_schema.HealthSleepListItem:
+    return health_sleep_schema.HealthSleepListItem(
+        updated_at="2024-01-01T00:00:00Z",
+        id=record_id,
+        user_id=_USER_ID,
+        date=datetime_date(2024, 1, 15),
+        has_sleep_stages=has_stages,
+    )
+
+
+def _item_with(record_id: uuid.UUID, seconds: int) -> health_sleep_schema.HealthSleepListItem:
+    return health_sleep_schema.HealthSleepListItem(
+        updated_at="2024-01-01T00:00:00Z",
+        id=record_id,
+        user_id=_USER_ID,
+        date=datetime_date(2024, 1, 15),
+        total_sleep_seconds=seconds,
+        has_sleep_stages=False,
+    )
 
 
 class TestReadHealthSleepAll:
-    """
-    Test suite for read_health_sleep_all endpoint.
-    """
-
-    @patch("modules.health.health_sleep.router.health_sleep_crud.get_health_sleep_number_by_user_id")
-    @patch("modules.health.health_sleep.router.health_sleep_crud.get_health_sleep_by_user_id")
-    def test_read_health_sleep_all_success(self, mock_get_all, mock_get_number, fast_api_client, fast_api_app):
-        """
-        Test successful retrieval of all health sleep records with total count.
-        """
-        # Arrange
-        mock_sleep1 = MagicMock(spec=health_sleep_models.HealthSleep)
-        mock_sleep1.id = 1
-        mock_sleep1.user_id = 1
-        mock_sleep1.date = datetime_date(2024, 1, 15)
-        mock_sleep1.sleep_start_time_gmt = datetime(2024, 1, 14, 22, 0, 0)
-        mock_sleep1.sleep_end_time_gmt = datetime(2024, 1, 15, 6, 0, 0)
-        mock_sleep1.sleep_start_time_local = None
-        mock_sleep1.sleep_end_time_local = None
-        mock_sleep1.total_sleep_seconds = 28800
-        mock_sleep1.nap_time_seconds = None
-        mock_sleep1.unmeasurable_sleep_seconds = None
-        mock_sleep1.deep_sleep_seconds = 7200
-        mock_sleep1.light_sleep_seconds = 14400
-        mock_sleep1.rem_sleep_seconds = 7200
-        mock_sleep1.awake_sleep_seconds = 0
-        mock_sleep1.avg_heart_rate = 55
-        mock_sleep1.min_heart_rate = 45
-        mock_sleep1.max_heart_rate = 75
-        mock_sleep1.avg_spo2 = 97
-        mock_sleep1.lowest_spo2 = 95
-        mock_sleep1.highest_spo2 = 99
-        mock_sleep1.avg_respiration = None
-        mock_sleep1.lowest_respiration = None
-        mock_sleep1.highest_respiration = None
-        mock_sleep1.avg_stress_level = None
-        mock_sleep1.awake_count = 2
-        mock_sleep1.restless_moments_count = 5
-        mock_sleep1.sleep_score_overall = 85
-        mock_sleep1.sleep_score_duration = "GOOD"
-        mock_sleep1.sleep_score_quality = "GOOD"
-        mock_sleep1.garminconnect_sleep_id = None
-        mock_sleep1.sleep_stages = None
-        mock_sleep1.source = None
-        mock_sleep1.hrv_status = None
-        mock_sleep1.resting_heart_rate = 50
-        mock_sleep1.avg_skin_temp_deviation = None
-        mock_sleep1.awake_count_score = None
-        mock_sleep1.rem_percentage_score = None
-        mock_sleep1.deep_percentage_score = None
-        mock_sleep1.light_percentage_score = None
-        mock_sleep1.avg_sleep_stress = None
-        mock_sleep1.sleep_stress_score = None
-
-        mock_get_all.return_value = [mock_sleep1]
-        mock_get_number.return_value = 1
-
-        # Act
-        response = fast_api_client.get(
-            "/health_sleep",
-            headers={"Authorization": "Bearer mock_token"},
+    @patch(f"{_SERVICE}.list_health_sleep")
+    def test_items_carry_the_stage_flag_not_the_stages(self, mock_list, fast_api_client, fast_api_app):
+        mock_list.return_value = core_pagination.Page(
+            items=[_item(_ID, has_stages=True), _item(_OTHER_ID, has_stages=False)], total=2, page=1, num_records=25
         )
 
-        # Assert
-        assert response.status_code == 200
-        data = response.json()
-        assert data["total"] == 1
-        assert len(data["records"]) == 1
+        response = fast_api_client.get("/health_sleep", headers=_HEADERS)
 
-    @patch("modules.health.health_sleep.router.health_sleep_crud.get_health_sleep_number_by_user_id")
-    @patch("modules.health.health_sleep.router.health_sleep_crud.get_health_sleep_by_user_id")
-    def test_read_health_sleep_all_empty(self, mock_get_all, mock_get_number, fast_api_client, fast_api_app):
-        """
-        Test retrieval when user has no health sleep records.
-        """
-        # Arrange
-        mock_get_all.return_value = []
-        mock_get_number.return_value = 0
+        items = response.json()["items"]
+        assert all("sleep_stages" not in item for item in items)
+        assert [item["has_sleep_stages"] for item in items] == [True, False]
 
-        # Act
-        response = fast_api_client.get(
-            "/health_sleep",
-            headers={"Authorization": "Bearer mock_token"},
+    @patch(f"{_SERVICE}.list_health_sleep")
+    def test_returns_the_page_and_total(self, mock_list, fast_api_client, fast_api_app):
+        mock_list.return_value = core_pagination.Page(
+            items=[_item_with(_ID, 28800), _item_with(_OTHER_ID, 30000)], total=2, page=1, num_records=25
         )
 
-        # Assert
+        response = fast_api_client.get("/health_sleep", headers=_HEADERS)
+
         assert response.status_code == 200
         data = response.json()
-        assert data["total"] == 0
-        assert data["records"] == []
+        assert data["total"] == 2
+        assert [r["total_sleep_seconds"] for r in data["items"]] == [28800, 30000]
 
+    @patch(f"{_SERVICE}.list_health_sleep")
+    def test_empty(self, mock_list, fast_api_client, fast_api_app):
+        mock_list.return_value = core_pagination.Page(items=[], total=0, page=1, num_records=25)
 
-class TestReadHealthSleepAllPagination:
-    """
-    Test suite for read_health_sleep_all_pagination endpoint.
-    """
+        response = fast_api_client.get("/health_sleep", headers=_HEADERS)
 
-    @patch("modules.health.health_sleep.router.health_sleep_crud.get_health_sleep_number_by_user_id")
-    @patch("modules.health.health_sleep.router.health_sleep_crud.get_health_sleep_by_user_id")
-    def test_read_health_sleep_all_pagination_success(
-        self, mock_get_paginated, mock_get_number, fast_api_client, fast_api_app
-    ):
-        """
-        Test successful retrieval of paginated health sleep records with total count.
-        """
-        # Arrange
-        mock_sleep1 = MagicMock(spec=health_sleep_models.HealthSleep)
-        mock_sleep1.id = 1
-        mock_sleep1.user_id = 1
-        mock_sleep1.date = datetime_date(2024, 1, 15)
-        mock_sleep1.sleep_start_time_gmt = None
-        mock_sleep1.sleep_end_time_gmt = None
-        mock_sleep1.sleep_start_time_local = None
-        mock_sleep1.sleep_end_time_local = None
-        mock_sleep1.total_sleep_seconds = 28800
-        mock_sleep1.nap_time_seconds = None
-        mock_sleep1.unmeasurable_sleep_seconds = None
-        mock_sleep1.deep_sleep_seconds = None
-        mock_sleep1.light_sleep_seconds = None
-        mock_sleep1.rem_sleep_seconds = None
-        mock_sleep1.awake_sleep_seconds = None
-        mock_sleep1.avg_heart_rate = None
-        mock_sleep1.min_heart_rate = None
-        mock_sleep1.max_heart_rate = None
-        mock_sleep1.avg_spo2 = None
-        mock_sleep1.lowest_spo2 = None
-        mock_sleep1.highest_spo2 = None
-        mock_sleep1.avg_respiration = None
-        mock_sleep1.lowest_respiration = None
-        mock_sleep1.highest_respiration = None
-        mock_sleep1.avg_stress_level = None
-        mock_sleep1.awake_count = None
-        mock_sleep1.restless_moments_count = None
-        mock_sleep1.sleep_score_overall = None
-        mock_sleep1.sleep_score_duration = None
-        mock_sleep1.sleep_score_quality = None
-        mock_sleep1.garminconnect_sleep_id = None
-        mock_sleep1.sleep_stages = None
-        mock_sleep1.source = None
-        mock_sleep1.hrv_status = None
-        mock_sleep1.resting_heart_rate = None
-        mock_sleep1.avg_skin_temp_deviation = None
-        mock_sleep1.awake_count_score = None
-        mock_sleep1.rem_percentage_score = None
-        mock_sleep1.deep_percentage_score = None
-        mock_sleep1.light_percentage_score = None
-        mock_sleep1.avg_sleep_stress = None
-        mock_sleep1.sleep_stress_score = None
+        assert response.status_code == 200
+        assert response.json()["items"] == []
 
-        mock_get_paginated.return_value = [mock_sleep1]
-        mock_get_number.return_value = 10
+    @patch(f"{_SERVICE}.list_health_sleep")
+    def test_passes_pagination_and_interval_through(self, mock_list, fast_api_client, fast_api_app):
+        mock_list.return_value = core_pagination.Page(items=[], total=0, page=2, num_records=10)
 
-        # Act
         response = fast_api_client.get(
-            "/health_sleep?page_number=1&num_records=5",
-            headers={"Authorization": "Bearer mock_token"},
+            "/health_sleep?page_number=2&num_records=10&interval=last_30_days", headers=_HEADERS
         )
 
-        # Assert
         assert response.status_code == 200
-        data = response.json()
-        assert data["total"] == 10
-        assert data["num_records"] == 5
-        assert data["page_number"] == 1
-        assert len(data["records"]) == 1
+        args = mock_list.call_args
+        assert args.args[0] == _USER_ID
+        assert (args.kwargs["page_number"], args.kwargs["num_records"]) == (2, 10)
+        assert args.kwargs["interval"].value == "last_30_days"
+        assert args.kwargs["has_resting_heart_rate"] is None
 
-    @patch("modules.health.health_sleep.router.health_sleep_crud.get_health_sleep_number_by_user_id")
-    @patch("modules.health.health_sleep.router.health_sleep_crud.get_health_sleep_by_user_id")
-    def test_read_health_sleep_all_pagination_different_page(
-        self, mock_get_paginated, mock_get_number, fast_api_client, fast_api_app
-    ):
-        """
-        Test paginated retrieval with different page numbers.
-        """
-        # Arrange
-        mock_get_paginated.return_value = []
-        mock_get_number.return_value = 20
+    @patch(f"{_SERVICE}.list_health_sleep")
+    def test_passes_the_resting_heart_rate_filter_through(self, mock_list, fast_api_client, fast_api_app):
+        mock_list.return_value = core_pagination.Page(items=[], total=0, page=1, num_records=25)
 
-        # Act
-        response = fast_api_client.get(
-            "/health_sleep?page_number=2&num_records=10",
-            headers={"Authorization": "Bearer mock_token"},
-        )
+        response = fast_api_client.get("/health_sleep?has_resting_heart_rate=true", headers=_HEADERS)
 
-        # Assert
         assert response.status_code == 200
-        data = response.json()
-        assert data["total"] == 20
-        assert data["num_records"] == 10
-        assert data["page_number"] == 2
-        assert data["records"] == []
-        mock_get_paginated.assert_called_once_with(1, ANY, 2, 10, None)
+        assert mock_list.call_args.kwargs["has_resting_heart_rate"] is True
 
 
 class TestCreateHealthSleep:
-    """
-    Test suite for create_health_sleep endpoint.
-    """
+    @patch(f"{_SERVICE}.create_health_sleep")
+    def test_creates(self, mock_create, fast_api_client, fast_api_app):
+        mock_create.return_value = _record()
 
-    @patch("modules.health.health_sleep.router.health_sleep_crud.create_health_sleep")
-    @patch("modules.health.health_sleep.router.health_sleep_crud.get_health_sleep_by_date_and_user_id")
-    def test_create_health_sleep_success(
-        self,
-        mock_get_by_date,
-        mock_create,
-        fast_api_client,
-        fast_api_app,
-    ):
-        """
-        Test successful creation of health sleep entry.
-        """
-        # Arrange
-        mock_get_by_date.return_value = None
-        created_sleep = health_sleep_schema.HealthSleepRead(
-            id=1,
-            user_id=1,
-            date=datetime_date(2024, 1, 15),
-            total_sleep_seconds=28800,
+        response = fast_api_client.post(
+            "/health_sleep", json={"date": "2024-01-15", "total_sleep_seconds": 28800}, headers=_HEADERS
         )
-        mock_create.return_value = created_sleep
 
-        # Act
+        assert response.status_code == 201
+        assert response.json()["total_sleep_seconds"] == 28800
+
+    @patch(f"{_SERVICE}.create_health_sleep")
+    def test_missing_date_is_left_to_the_service(self, mock_create, fast_api_client, fast_api_app):
+        mock_create.return_value = _record()
+
+        response = fast_api_client.post("/health_sleep", json={"total_sleep_seconds": 28800}, headers=_HEADERS)
+
+        assert response.status_code == 201
+        assert mock_create.call_args.args[1].date is None
+
+    @patch(f"{_SERVICE}.create_health_sleep")
+    def test_conflict_is_409(self, mock_create, fast_api_client, fast_api_app):
+        mock_create.side_effect = core_exceptions.ConflictError("Duplicate entry error")
+
+        response = fast_api_client.post(
+            "/health_sleep", json={"date": "2024-01-15", "total_sleep_seconds": 28800}, headers=_HEADERS
+        )
+
+        assert response.status_code == 409
+
+    @patch(f"{_SERVICE}.create_health_sleep")
+    def test_an_inverted_mixed_offset_pair_is_422(self, mock_create, fast_api_client, fast_api_app):
         response = fast_api_client.post(
             "/health_sleep",
             json={
                 "date": "2024-01-15",
-                "total_sleep_seconds": 28800,
+                "sleep_start_time_gmt": "2024-01-15T22:00:00Z",
+                "sleep_end_time_gmt": "2024-01-15T06:00:00",
             },
-            headers={"Authorization": "Bearer mock_token"},
+            headers=_HEADERS,
         )
 
-        # Assert
-        assert response.status_code == 201
-        data = response.json()
-        assert data["total_sleep_seconds"] == 28800
-
-    @patch("modules.health.health_sleep.router.health_sleep_crud.edit_health_sleep")
-    @patch("modules.health.health_sleep.router.health_sleep_crud.get_health_sleep_by_date_and_user_id")
-    def test_create_health_sleep_updates_existing(self, mock_get_by_date, mock_edit, fast_api_client, fast_api_app):
-        """
-        Test creating health sleep when entry exists updates it.
-        """
-        # Arrange
-        existing_sleep = MagicMock()
-        existing_sleep.id = 1
-        mock_get_by_date.return_value = existing_sleep
-
-        updated_sleep = health_sleep_schema.HealthSleepRead(
-            id=1,
-            user_id=1,
-            date=datetime_date(2024, 1, 15),
-            total_sleep_seconds=32400,
-        )
-        mock_edit.return_value = updated_sleep
-
-        # Act
-        response = fast_api_client.post(
-            "/health_sleep",
-            json={
-                "date": "2024-01-15",
-                "total_sleep_seconds": 32400,
-            },
-            headers={"Authorization": "Bearer mock_token"},
-        )
-
-        # Assert
-        assert response.status_code == 201
-        mock_edit.assert_called_once()
-
-    @patch("modules.health.health_sleep.router.health_sleep_crud.create_health_sleep")
-    @patch("modules.health.health_sleep.router.health_sleep_crud.get_health_sleep_by_date_and_user_id")
-    def test_create_health_sleep_missing_date_uses_today(
-        self, mock_get_by_date, mock_create, fast_api_client, fast_api_app
-    ):
-        """
-        Test creating health sleep without date uses today's date automatically.
-        """
-        # Arrange
-        mock_get_by_date.return_value = None
-        created_sleep = health_sleep_schema.HealthSleepRead(
-            id=1,
-            user_id=1,
-            date=datetime_date.today(),
-            total_sleep_seconds=28800,
-        )
-        mock_create.return_value = created_sleep
-
-        # Act
-        response = fast_api_client.post(
-            "/health_sleep",
-            json={
-                "total_sleep_seconds": 28800,
-            },
-            headers={"Authorization": "Bearer mock_token"},
-        )
-
-        # Assert - Now succeeds since HealthSleepCreate auto-fills date
-        assert response.status_code == 201
-        mock_create.assert_called_once()
-
-    @patch("modules.health.health_sleep.sleep_scoring._calculate_and_set_sleep_scores")
-    @patch("modules.health.health_sleep.router.health_sleep_crud.create_health_sleep")
-    @patch("modules.health.health_sleep.router.health_sleep_crud.get_health_sleep_by_date_and_user_id")
-    def test_create_health_sleep_calls_scoring(
-        self, mock_get_by_date, mock_create, mock_scoring, fast_api_client, fast_api_app
-    ):
-        """
-        Test creating health sleep calls sleep scoring function.
-        """
-        # Arrange
-        mock_get_by_date.return_value = None
-        created_sleep = health_sleep_schema.HealthSleepRead(
-            id=1,
-            user_id=1,
-            date=datetime_date(2024, 1, 15),
-            total_sleep_seconds=28800,
-        )
-        mock_create.return_value = created_sleep
-
-        # Act
-        response = fast_api_client.post(
-            "/health_sleep",
-            json={
-                "date": "2024-01-15",
-                "total_sleep_seconds": 28800,
-            },
-            headers={"Authorization": "Bearer mock_token"},
-        )
-
-        # Assert
-        assert response.status_code == 201
-        mock_scoring.assert_called_once()
+        assert response.status_code == 422
+        mock_create.assert_not_called()
 
 
 class TestEditHealthSleep:
-    """
-    Test suite for edit_health_sleep endpoint.
-    """
+    @patch(f"{_SERVICE}.edit_health_sleep")
+    def test_edits(self, mock_edit, fast_api_client, fast_api_app):
+        mock_edit.return_value = _record(seconds=32400)
 
-    @patch("modules.health.health_sleep.router.health_sleep_crud.edit_health_sleep")
-    def test_edit_health_sleep_success(self, mock_edit, fast_api_client, fast_api_app):
-        """
-        Test successful edit of health sleep entry.
-        """
-        # Arrange
-        updated_sleep = health_sleep_schema.HealthSleepRead(
-            id=1,
-            user_id=1,
-            date=datetime_date(2024, 1, 15),
-            total_sleep_seconds=32400,
-        )
-        mock_edit.return_value = updated_sleep
-
-        # Act
-        response = fast_api_client.put(
-            "/health_sleep",
-            json={
-                "id": 1,
-                "user_id": 1,
-                "date": "2024-01-15",
-                "total_sleep_seconds": 32400,
-            },
-            headers={"Authorization": "Bearer mock_token"},
+        response = fast_api_client.patch(
+            f"/health_sleep/{_ID}",
+            json={"date": "2024-01-15", "total_sleep_seconds": 32400},
+            headers={**_HEADERS, "If-Match": '"1"'},
         )
 
-        # Assert
         assert response.status_code == 200
-        data = response.json()
-        assert data["total_sleep_seconds"] == 32400
+        assert response.json()["total_sleep_seconds"] == 32400
 
-    @patch("modules.health.health_sleep.router.health_sleep_crud.edit_health_sleep")
-    def test_edit_health_sleep_not_found(self, mock_edit, fast_api_client, fast_api_app):
-        """
-        Test edit when health sleep not found.
-        """
-        # Arrange
-        mock_edit.side_effect = HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Health sleep not found",
+    @patch(f"{_SERVICE}.edit_health_sleep")
+    def test_not_found_is_404(self, mock_edit, fast_api_client, fast_api_app):
+        mock_edit.side_effect = core_exceptions.NotFoundError("Health sleep not found")
+
+        response = fast_api_client.patch(
+            f"/health_sleep/{_OTHER_ID}",
+            json={"date": "2024-01-15", "total_sleep_seconds": 32400},
+            headers={**_HEADERS, "If-Match": '"1"'},
         )
 
-        # Act
-        response = fast_api_client.put(
-            "/health_sleep",
-            json={
-                "id": 999,
-                "user_id": 1,
-                "date": "2024-01-15",
-                "total_sleep_seconds": 32400,
-            },
-            headers={"Authorization": "Bearer mock_token"},
-        )
-
-        # Assert
         assert response.status_code == 404
-
-
-class TestEditHealthSleepScoringIntegration:
-    """
-    Test suite for edit_health_sleep endpoint scoring integration.
-    """
-
-    @patch("modules.health.health_sleep.sleep_scoring._calculate_and_set_sleep_scores")
-    @patch("modules.health.health_sleep.router.health_sleep_crud.edit_health_sleep")
-    def test_edit_health_sleep_calls_scoring(self, mock_edit, mock_scoring, fast_api_client, fast_api_app):
-        """
-        Test editing health sleep calls sleep scoring function.
-        """
-        # Arrange
-        updated_sleep = health_sleep_schema.HealthSleepRead(
-            id=1,
-            user_id=1,
-            date=datetime_date(2024, 1, 15),
-            total_sleep_seconds=32400,
-        )
-        mock_edit.return_value = updated_sleep
-
-        # Act
-        response = fast_api_client.put(
-            "/health_sleep",
-            json={
-                "id": 1,
-                "user_id": 1,
-                "date": "2024-01-15",
-                "total_sleep_seconds": 32400,
-            },
-            headers={"Authorization": "Bearer mock_token"},
-        )
-
-        # Assert
-        assert response.status_code == 200
-        mock_scoring.assert_called_once()
 
 
 class TestDeleteHealthSleep:
-    """
-    Test suite for delete_health_sleep endpoint.
-    """
+    @patch(f"{_SERVICE}.delete_health_sleep")
+    def test_deletes(self, mock_delete, fast_api_client, fast_api_app):
+        response = fast_api_client.delete(f"/health_sleep/{_ID}", headers=_IF_MATCH_HEADERS)
 
-    @patch("modules.health.health_sleep.router.health_sleep_crud.delete_health_sleep")
-    def test_delete_health_sleep_success(self, mock_delete, fast_api_client, fast_api_app):
-        """
-        Test successful deletion of health sleep entry.
-        """
-        # Arrange
-        mock_delete.return_value = None
-
-        # Act
-        response = fast_api_client.delete(
-            "/health_sleep/1",
-            headers={"Authorization": "Bearer mock_token"},
-        )
-
-        # Assert
         assert response.status_code == 204
-        mock_delete.assert_called_once_with(1, 1, ANY)
+        assert mock_delete.call_args.args[:2] == (_USER_ID, _ID)
+        assert mock_delete.call_args.kwargs == {"if_match": '"1"'}
 
-    @patch("modules.health.health_sleep.router.health_sleep_crud.delete_health_sleep")
-    def test_delete_health_sleep_not_found(self, mock_delete, fast_api_client, fast_api_app):
-        """
-        Test deletion when health sleep not found.
-        """
-        # Arrange
-        mock_delete.side_effect = HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Health sleep with id 999 for user 1 not found",
-        )
+    @patch(f"{_SERVICE}.delete_health_sleep")
+    def test_not_found_is_404(self, mock_delete, fast_api_client, fast_api_app):
+        mock_delete.side_effect = core_exceptions.NotFoundError("Health sleep not found")
 
-        # Act
-        response = fast_api_client.delete(
-            "/health_sleep/999",
-            headers={"Authorization": "Bearer mock_token"},
-        )
+        response = fast_api_client.delete(f"/health_sleep/{_OTHER_ID}", headers=_IF_MATCH_HEADERS)
 
-        # Assert
         assert response.status_code == 404
+
+
+class TestReadHealthSleepById:
+    @patch(f"{_SERVICE}.get_health_sleep")
+    def test_returns_the_record_with_its_etag(self, mock_get, fast_api_client, fast_api_app):
+        mock_get.return_value = _record()
+
+        response = fast_api_client.get(f"/health_sleep/{_ID}", headers=_HEADERS)
+
+        assert response.status_code == 200
+        assert response.headers["ETag"] == '"1"'
+        assert mock_get.call_args.args[:2] == (_USER_ID, _ID)
+
+    @patch(f"{_SERVICE}.get_health_sleep")
+    def test_a_record_the_user_does_not_have_is_404(self, mock_get, fast_api_client, fast_api_app):
+        mock_get.side_effect = core_exceptions.NotFoundError("Health sleep not found")
+
+        response = fast_api_client.get(f"/health_sleep/{_OTHER_ID}", headers=_HEADERS)
+
+        assert response.status_code == 404
+
+
+class TestCreateHealthSleepHeaders:
+    @patch(f"{_SERVICE}.create_health_sleep")
+    def test_create_names_the_record_and_its_version(self, mock_create, fast_api_client, fast_api_app):
+        mock_create.return_value = _record(record_id=_OTHER_ID)
+
+        response = fast_api_client.post(
+            "/health_sleep", json={"date": "2024-01-15", "total_sleep_seconds": 28800}, headers=_HEADERS
+        )
+
+        assert response.headers["Location"] == f"/health_sleep/{_OTHER_ID}"
+        assert response.headers["ETag"] == '"1"'
+
+
+class TestMalformedId:
+    def test_a_malformed_id_is_422(self, fast_api_client, fast_api_app):
+        assert fast_api_client.get("/health_sleep/not-a-uuid", headers=_HEADERS).status_code == 422

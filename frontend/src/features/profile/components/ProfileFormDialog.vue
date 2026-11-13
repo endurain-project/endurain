@@ -1,23 +1,28 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
+import { RouterLink } from 'vue-router'
 
 import type { ProfileDetails, ProfileEditInput } from '@/features/profile/types'
 import type { Schemas } from '@/types'
 
 import { FormDialog } from '@/components/ui/form-dialog'
+import { Button } from '@/components/ui/button'
 import { FormField } from '@/components/ui/form-field'
 import { Input } from '@/components/ui/input'
 import { inputFieldClass } from '@/components/ui/input/fieldClasses'
 import { Select } from '@/components/ui/select'
 import { useForm } from '@/composables/useForm'
-import { HttpError } from '@/services/http'
+import { applyServerFieldErrors } from '@/services/fieldErrors'
+import { isStaleWrite } from '@/services/ifMatch'
 import { toNumberOrNull } from '@/utils/number'
 import { cmToFeetInches } from '@/utils/units'
-import { compose, email, maxLength, pattern, required } from '@/utils/validators'
+import { compose, maxLength, required } from '@/utils/validators'
 import {
   CURRENCY_OPTIONS,
   GENDER_OPTIONS,
+  heightCmValidator,
+  maxHeartRateValidator,
   numberRange,
   resolveHeightCm,
   sortLanguageCodes,
@@ -49,12 +54,11 @@ const updateMutation = useUpdateProfileMutation()
 /** Form shape — the user's editable identity fields. Height is captured per unit. */
 interface ProfileFormValues {
   name: string
-  username: string
-  email: string
   city: string
   birthdate: string
   gender: Schemas['Gender']
   units: Schemas['Units']
+  weightUnits: 'default' | Schemas['Units']
   currency: Schemas['Currency']
   heightCm: number | null
   heightFeet: number | null
@@ -82,29 +86,43 @@ const TIMEZONE_OPTIONS: readonly string[] = (() => {
   }
 })()
 
-/** The viewer's own timezone, used to seed the field when the profile has none. */
+/** The viewer's own timezone, offered as a choice for the field. */
 function detectBrowserTimezone(): string {
   return Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC'
 }
 
+/** The read-only identity fields, each with the hint that points to where it is changed. */
+const managedFields = computed(() => [
+  {
+    name: 'username',
+    value: props.profile.username,
+    hintKey: 'settings.profile.usernameManagedIn',
+  },
+  { name: 'email', value: props.profile.email, hintKey: 'settings.profile.emailManagedIn' },
+])
+
 /**
  * Persists the profile, emitting the outcome to the parent and closing on
- * success. A duplicate username/email (`409`) is surfaced specifically; other
- * failures fall back to a generic message so the dialog stays open.
+ * success. A stale write closes the dialog; other failures show a generic
+ * message and keep it open.
  *
  * @param values - The validated form values.
  */
 async function submitForm(values: ProfileFormValues): Promise<void> {
+  // Nothing changed: skip the request and just close.
+  if (!isDirty.value) {
+    open.value = false
+    return
+  }
   const input: ProfileEditInput = {
     name: values.name.trim(),
-    username: values.username.trim(),
-    email: values.email.trim(),
     city: values.city.trim() ? values.city.trim() : null,
     birthdate: values.birthdate || null,
     gender: values.gender,
     units: values.units,
+    weightUnits: values.weightUnits === 'default' ? null : values.weightUnits,
     currency: values.currency,
-    height: resolveHeightCm(values),
+    height: resolveHeightCm(values, props.profile.height),
     // `v-model.number` leaves a stale '' in place instead of `null` when a
     // cleared field can't parse as a finite number.
     maxHeartRate: toNumberOrNull(values.maxHeartRate ?? ''),
@@ -113,12 +131,20 @@ async function submitForm(values: ProfileFormValues): Promise<void> {
     timezone: values.timezone || null,
   }
   try {
-    await updateMutation.mutateAsync(input)
+    await updateMutation.mutateAsync({ input, version: props.profile.version })
     emit('success', t('settings.profile.edit.success'))
     open.value = false
   } catch (error) {
-    if (error instanceof HttpError && error.status === 409) {
-      emit('error', t('settings.profile.edit.conflict'))
+    if (
+      applyServerFieldErrors(error, setErrors, t, FORM_KEYS, {
+        height: values.units === 'metric' ? 'heightCm' : 'heightFeet',
+      })
+    ) {
+      return
+    }
+    if (isStaleWrite(error)) {
+      open.value = false
+      emit('error', t('app.staleError'))
     } else {
       emit('error', t('settings.profile.edit.error'))
     }
@@ -131,54 +157,69 @@ async function submitForm(values: ProfileFormValues): Promise<void> {
 // a circular reference TypeScript rejects.
 const activeUnits = ref<Schemas['Units']>('metric')
 
-const { values, errors, isValid, isSubmitting, handleSubmit, handleBlur, reset } =
-  useForm<ProfileFormValues>({
-    initialValues: {
-      name: '',
-      username: '',
-      email: '',
-      city: '',
-      birthdate: '',
-      gender: 'unspecified',
-      units: 'metric',
-      currency: 'euro',
-      heightCm: null,
-      heightFeet: null,
-      heightInches: null,
-      maxHeartRate: null,
-      preferredLanguage: 'en',
-      firstDayOfWeek: 'monday',
-      timezone: detectBrowserTimezone(),
-    },
-    validators: {
-      name: compose(
-        required(t('settings.users.form.nameRequired')),
-        maxLength(TEXT_MAX, t('settings.users.form.nameTooLong')),
-      ),
-      username: compose(
-        required(t('settings.users.form.usernameRequired')),
-        maxLength(TEXT_MAX, t('settings.users.form.usernameTooLong')),
-        pattern(/^[a-zA-Z0-9._-]+$/, t('settings.users.form.usernameInvalid')),
-      ),
-      email: compose(
-        required(t('settings.users.form.emailRequired')),
-        email(t('settings.users.form.emailInvalid')),
-      ),
-      // Height is captured per unit system and only the active system's inputs
-      // are rendered. Skip the imperial validators in metric mode (and vice
-      // versa) so a hidden field's seed value can't silently fail validation and
-      // disable submit with no visible error.
-      heightFeet: (value: number | null) =>
-        activeUnits.value === 'metric'
-          ? null
-          : numberRange(10, t('settings.users.form.feetInvalid'))(value),
-      heightInches: (value: number | null) =>
-        activeUnits.value === 'metric'
-          ? null
-          : numberRange(11, t('settings.users.form.inchesInvalid'))(value),
-    },
-    onSubmit: submitForm,
-  })
+const FORM_KEYS = [
+  'name',
+  'city',
+  'birthdate',
+  'heightCm',
+  'heightFeet',
+  'maxHeartRate',
+  'timezone',
+] as const
+
+const {
+  values,
+  errors,
+  isValid,
+  isSubmitting,
+  handleSubmit,
+  handleBlur,
+  reset,
+  isDirty,
+  markPristine,
+  setErrors,
+} = useForm<ProfileFormValues>({
+  initialValues: {
+    name: '',
+    city: '',
+    birthdate: '',
+    gender: 'unspecified',
+    units: 'metric',
+    weightUnits: 'default',
+    currency: 'euro',
+    heightCm: null,
+    heightFeet: null,
+    heightInches: null,
+    maxHeartRate: null,
+    preferredLanguage: 'en',
+    firstDayOfWeek: 'monday',
+    timezone: '',
+  },
+  validators: {
+    name: compose(
+      required(t('settings.users.form.nameRequired')),
+      maxLength(TEXT_MAX, t('settings.users.form.nameTooLong')),
+    ),
+    heightCm: heightCmValidator(t('settings.users.form.heightInvalid')),
+    maxHeartRate: maxHeartRateValidator(t('settings.users.form.maxHeartRateInvalid')),
+    // Height is captured per unit system and only the active system's inputs
+    // are rendered. Skip the imperial validators in metric mode (and vice
+    // versa) so a hidden field's seed value can't silently fail validation and
+    // disable submit with no visible error.
+    heightFeet: (value: number | null) =>
+      activeUnits.value === 'metric'
+        ? null
+        : numberRange(10, t('settings.users.form.feetInvalid'))(value),
+    heightInches: (value: number | null) =>
+      activeUnits.value === 'metric'
+        ? null
+        : numberRange(11, t('settings.users.form.inchesInvalid'))(value),
+  },
+  onSubmit: submitForm,
+})
+
+/** The viewer's browser timezone, offered by the "use my browser's timezone" action. */
+const browserTimezone = detectBrowserTimezone()
 
 const isMetric = computed(() => values.units === 'metric')
 
@@ -197,25 +238,24 @@ function populate(): void {
   reset()
   const profile = props.profile
   values.name = profile.name
-  values.username = profile.username
-  values.email = profile.email
   values.city = profile.city ?? ''
   values.birthdate = profile.birthdate ?? ''
   values.gender = profile.gender
   values.units = profile.units
+  values.weightUnits = profile.weightUnits ?? 'default'
   values.currency = profile.currency
   values.heightCm = profile.height
   values.maxHeartRate = profile.maxHeartRate
   values.preferredLanguage = profile.preferredLanguage
   values.firstDayOfWeek = profile.firstDayOfWeek
-  // Seed from the browser when the account predates this setting, so saving the
-  // form once stops GPS-less activities inheriting the server's timezone.
-  values.timezone = profile.timezone ?? detectBrowserTimezone()
+  // An unset timezone stays empty so saving the form keeps it unset.
+  values.timezone = profile.timezone ?? ''
   if (profile.height !== null) {
     const { feet, inches } = cmToFeetInches(profile.height)
     values.heightFeet = feet
     values.heightInches = inches
   }
+  markPristine()
 }
 
 watch(open, (isOpen) => {
@@ -259,39 +299,29 @@ watch(open, (isOpen) => {
         </template>
       </FormField>
 
-      <FormField :label="t('settings.users.form.username')" :error="errors.username" required>
-        <template #default="{ fieldId, describedBy, invalid }">
+      <FormField
+        v-for="field in managedFields"
+        :key="field.name"
+        :label="t(`settings.users.form.${field.name}`)"
+      >
+        <template #default="{ fieldId }">
           <Input
             :id="fieldId"
-            v-model="values.username"
-            :aria-describedby="describedBy"
-            :aria-invalid="invalid"
-            name="username"
-            maxlength="250"
-            :disabled="isSubmitting"
-            @blur="handleBlur('username')"
+            :model-value="field.value"
+            :name="field.name"
+            :type="field.name === 'email' ? 'email' : 'text'"
+            disabled
           />
+          <p class="text-hint">
+            {{ t(field.hintKey) }}
+            <RouterLink :to="{ name: 'settings-security' }" class="underline" @click="open = false">
+              {{ t('settings.profile.securitySettingsLink') }}
+            </RouterLink>
+          </p>
         </template>
       </FormField>
 
-      <FormField :label="t('settings.users.form.email')" :error="errors.email" required>
-        <template #default="{ fieldId, describedBy, invalid }">
-          <Input
-            :id="fieldId"
-            v-model="values.email"
-            :aria-describedby="describedBy"
-            :aria-invalid="invalid"
-            name="email"
-            type="email"
-            maxlength="250"
-            autocomplete="email"
-            :disabled="isSubmitting"
-            @blur="handleBlur('email')"
-          />
-        </template>
-      </FormField>
-
-      <FormField :label="t('settings.users.form.city')">
+      <FormField :label="t('settings.users.form.city')" :error="errors.city">
         <template #default="{ fieldId }">
           <Input
             :id="fieldId"
@@ -305,7 +335,7 @@ watch(open, (isOpen) => {
         </template>
       </FormField>
 
-      <FormField :label="t('settings.users.form.birthdate')">
+      <FormField :label="t('settings.users.form.birthdate')" :error="errors.birthdate">
         <template #default="{ fieldId }">
           <input
             :id="fieldId"
@@ -350,14 +380,27 @@ watch(open, (isOpen) => {
 
       <FormField
         :label="t('settings.users.form.timezone')"
+        :error="errors.timezone"
         :hint="t('settings.users.form.timezoneHint')"
       >
         <template #default="{ fieldId }">
           <Select :id="fieldId" v-model="values.timezone" :disabled="isSubmitting">
+            <option value="">{{ t('settings.users.form.timezoneNotSet') }}</option>
             <option v-for="zone in TIMEZONE_OPTIONS" :key="zone" :value="zone">
               {{ zone }}
             </option>
           </Select>
+          <Button
+            v-if="values.timezone !== browserTimezone"
+            type="button"
+            variant="link"
+            size="sm"
+            class="h-auto max-w-full self-start text-left whitespace-normal"
+            :disabled="isSubmitting"
+            @click="values.timezone = browserTimezone"
+          >
+            {{ t('settings.users.form.timezoneUseBrowser', { timezone: browserTimezone }) }}
+          </Button>
         </template>
       </FormField>
 
@@ -366,6 +409,16 @@ watch(open, (isOpen) => {
           <Select :id="fieldId" v-model="values.units" :disabled="isSubmitting">
             <option value="metric">{{ t('settings.users.form.unitsMetric') }}</option>
             <option value="imperial">{{ t('settings.users.form.unitsImperial') }}</option>
+          </Select>
+        </template>
+      </FormField>
+
+      <FormField :label="t('settings.users.form.weightUnits')">
+        <template #default="{ fieldId }">
+          <Select :id="fieldId" v-model="values.weightUnits" :disabled="isSubmitting">
+            <option value="default">{{ t('settings.users.form.weightUnitsDefault') }}</option>
+            <option value="metric">{{ t('settings.users.form.weightUnitsMetric') }}</option>
+            <option value="imperial">{{ t('settings.users.form.weightUnitsImperial') }}</option>
           </Select>
         </template>
       </FormField>
@@ -380,17 +433,21 @@ watch(open, (isOpen) => {
         </template>
       </FormField>
 
-      <FormField v-if="isMetric" :label="t('settings.users.form.height')">
-        <template #default="{ fieldId }">
+      <FormField v-if="isMetric" :label="t('settings.users.form.height')" :error="errors.heightCm">
+        <template #default="{ fieldId, describedBy, invalid }">
           <input
             :id="fieldId"
             v-model.number="values.heightCm"
             :class="inputFieldClass"
+            :aria-describedby="describedBy"
+            :aria-invalid="invalid"
             name="heightCm"
             type="number"
-            min="0"
-            :placeholder="t('settings.users.form.unitCm')"
+            min="50"
+            max="272"
+            :placeholder="t('units.cm')"
             :disabled="isSubmitting"
+            @blur="handleBlur('heightCm')"
           />
         </template>
       </FormField>
@@ -409,13 +466,13 @@ watch(open, (isOpen) => {
               min="0"
               max="10"
               step="1"
-              :placeholder="t('settings.users.form.unitFeet')"
+              :placeholder="t('units.ft')"
               :disabled="isSubmitting"
               @blur="handleBlur('heightFeet')"
             />
           </template>
         </FormField>
-        <FormField :label="t('settings.users.form.unitInches')" :error="errors.heightInches">
+        <FormField :label="t('units.in')" :error="errors.heightInches">
           <template #default="{ fieldId, describedBy, invalid }">
             <input
               :id="fieldId"
@@ -428,7 +485,7 @@ watch(open, (isOpen) => {
               min="0"
               max="11"
               step="1"
-              :placeholder="t('settings.users.form.unitInches')"
+              :placeholder="t('units.in')"
               :disabled="isSubmitting"
               @blur="handleBlur('heightInches')"
             />
@@ -436,17 +493,21 @@ watch(open, (isOpen) => {
         </FormField>
       </div>
 
-      <FormField :label="t('settings.users.form.maxHeartRate')">
-        <template #default="{ fieldId }">
+      <FormField :label="t('settings.users.form.maxHeartRate')" :error="errors.maxHeartRate">
+        <template #default="{ fieldId, describedBy, invalid }">
           <input
             :id="fieldId"
             v-model.number="values.maxHeartRate"
             :class="inputFieldClass"
+            :aria-describedby="describedBy"
+            :aria-invalid="invalid"
             name="maxHeartRate"
             type="number"
-            min="0"
-            :placeholder="t('settings.users.form.unitBpm')"
+            min="30"
+            max="250"
+            :placeholder="t('units.bpm')"
             :disabled="isSubmitting"
+            @blur="handleBlur('maxHeartRate')"
           />
         </template>
       </FormField>

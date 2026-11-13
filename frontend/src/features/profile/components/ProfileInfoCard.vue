@@ -6,11 +6,13 @@ import { ImageUp, Trash2, UserPen } from '@lucide/vue'
 import type { ProfileDetails } from '@/features/profile/types'
 
 import ProfileFormDialog from '@/features/profile/components/ProfileFormDialog.vue'
+import { IMAGE_ACCEPTED_TYPES } from '@/lib/imageTypes'
 import UserAvatar from '@/components/UserAvatar.vue'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 import { useToasts } from '@/composables/useToasts'
+import { formatMediumDate } from '@/utils/datetime'
 import { cmToFeetInches } from '@/utils/units'
 import {
   useDeleteProfilePhotoMutation,
@@ -22,7 +24,7 @@ const props = defineProps<{
   profile: ProfileDetails
 }>()
 
-const { t } = useI18n()
+const { t, locale } = useI18n()
 const toasts = useToasts()
 const uploadMutation = useUploadProfilePhotoMutation()
 const deleteMutation = useDeleteProfilePhotoMutation()
@@ -37,17 +39,22 @@ const heightDisplay = computed<string | null>(() => {
     return null
   }
   if (props.profile.units === 'metric') {
-    return `${props.profile.height} ${t('settings.users.form.unitCm')}`
+    return `${props.profile.height} ${t('units.cm')}`
   }
   const { feet, inches } = cmToFeetInches(props.profile.height)
-  return `${feet}' ${inches}"`
+  return `${feet} ${t('units.ft')} ${inches} ${t('units.in')}`
 })
 
 /** The read-only profile fields, in display order, pre-formatted. */
 const fields = computed<{ label: string; value: string | null }[]>(() => [
   { label: t('settings.users.form.email'), value: props.profile.email },
   { label: t('settings.users.form.city'), value: props.profile.city },
-  { label: t('settings.users.form.birthdate'), value: props.profile.birthdate },
+  {
+    label: t('settings.users.form.birthdate'),
+    value: props.profile.birthdate
+      ? formatMediumDate(props.profile.birthdate, locale.value, 'UTC')
+      : null,
+  },
   {
     label: t('settings.users.form.gender'),
     value: t(`settings.users.form.genders.${props.profile.gender}`),
@@ -59,6 +66,15 @@ const fields = computed<{ label: string; value: string | null }[]>(() => [
         ? t('settings.users.form.unitsMetric')
         : t('settings.users.form.unitsImperial'),
   },
+  // Weight units follow the units setting above unless an override is set.
+  {
+    label: t('settings.users.form.weightUnits'),
+    value: t(
+      (props.profile.weightUnits ?? props.profile.units) === 'imperial'
+        ? 'settings.users.form.weightUnitsImperial'
+        : 'settings.users.form.weightUnitsMetric',
+    ),
+  },
   {
     label: t('settings.users.form.currency'),
     value: t(`settings.users.form.currencies.${props.profile.currency}`),
@@ -66,9 +82,7 @@ const fields = computed<{ label: string; value: string | null }[]>(() => [
   { label: t('settings.users.form.height'), value: heightDisplay.value },
   {
     label: t('settings.users.form.maxHeartRate'),
-    value: props.profile.maxHeartRate
-      ? `${props.profile.maxHeartRate} ${t('settings.users.form.unitBpm')}`
-      : null,
+    value: props.profile.maxHeartRate ? `${props.profile.maxHeartRate} ${t('units.bpm')}` : null,
   },
   {
     label: t('settings.users.form.preferredLanguage'),
@@ -138,7 +152,9 @@ function confirmDeletePhoto(): void {
           icon-class="size-12"
         />
         <div class="text-center">
-          <p class="font-medium text-foreground">{{ profile.name }}</p>
+          <p class="font-medium text-foreground">
+            <bdi>{{ profile.name }}</bdi>
+          </p>
           <p class="text-hint">@{{ profile.username }}</p>
         </div>
       </div>
@@ -153,7 +169,13 @@ function confirmDeletePhoto(): void {
       </dl>
     </div>
 
-    <input ref="fileInput" type="file" accept="image/*" class="sr-only" @change="onPhotoChange" />
+    <input
+      ref="fileInput"
+      type="file"
+      :accept="IMAGE_ACCEPTED_TYPES.join(',')"
+      class="sr-only"
+      @change="onPhotoChange"
+    />
 
     <div class="flex flex-col gap-3 sm:flex-row sm:flex-wrap">
       <Button class="w-full sm:w-auto" @click="isEditOpen = true">

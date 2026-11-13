@@ -18,6 +18,17 @@
     "help": "Pārbaudiet, vai ENDURAIN_HOST norāda uz URL, kurā ir sasniedzama jūsu Endurain instance (piemēram, https://endurain.example.com) un vai aizmugursistēma darbojas, pēc tam pārlādējiet lapu.",
     "reload": "Pārlādēt"
   },
+  "staleError": "Šis tika mainīts citur, kamēr to skatījāties, tāpēc nekas netika saglabāts. Ir ielādēta pašreizējā versija. Pārskatiet to un mēģiniet vēlreiz.",
+  "sessionRestoreError": "Neizdevās pārbaudīt, vai esat pierakstījies. Serveris vai jūsu savienojums var nebūt pieejams.",
+  "fieldError": {
+    "required": "Šis lauks ir obligāts",
+    "tooShort": "Šī vērtība ir pārāk īsa",
+    "tooLong": "Šī vērtība ir pārāk gara",
+    "tooLarge": "Šī vērtība ir pārāk liela",
+    "tooSmall": "Šī vērtība ir pārāk maza",
+    "invalidFormat": "Šīs vērtības formāts nav derīgs",
+    "invalid": "Šī vērtība nav derīga"
+  },
   "dismiss": "Aizvērt",
   "language": "Valoda",
   "theme": {
@@ -35,5 +46,28 @@
     "edit": "Rediģēt",
     "supported": "Markdown tiek atbalstīts",
     "empty": "Nav ko priekšskatīt"
+  },
+  "password": {
+    "hintLength": "Vismaz {min} rakstzīmes.",
+    "invalid": "Parole neatbilst prasībām",
+    "mismatch": "Paroles nesakrīt",
+    "tooShort": "Šī parole ir pārāk īsa. Izmantojiet vismaz {min} rakstzīmes.",
+    "tooCommon": "Šī parole ir pārāk izplatīta. Izvēlieties grūtāk uzminamu.",
+    "breached": "Šī parole parādījās zināmā datu noplūdē. Izvēlieties citu.",
+    "matchesAccount": "Neizmantojiet lietotājvārdu vai e-pasta adresi kā paroli.",
+    "blank": "Parole nevar sastāvēt tikai no atstarpēm.",
+    "unchanged": "Izvēlieties paroli, kas atšķiras no pašreizējās.",
+    "strength": {
+      "label": "Paroles stiprums: {level}",
+      "tooWeak": "Pārāk vāja",
+      "weak": "Vāja",
+      "fair": "Vidēja",
+      "good": "Laba",
+      "strong": "Stipra"
+    }
+  },
+  "retryAfter": {
+    "tooManyAttempts": "Pārāk daudz mēģinājumu. Mēģiniet vēlreiz pēc {seconds} s.",
+    "unavailable": "Autentifikācija īslaicīgi nav pieejama. Mēģiniet vēlreiz pēc {seconds} s."
   }
 }

@@ -28,9 +28,12 @@ import {
   fetchActiveFasting,
   fetchFastingEntries,
   fetchFastingStats,
+  fetchHealthChart,
+  fetchHealthDashboard,
   fetchPoopEntries,
   fetchRhrEntries,
   fetchSleepEntries,
+  fetchSleepEntry,
   fetchStepsEntries,
   fetchWaterEntries,
   fetchWeightEntries,
@@ -48,26 +51,71 @@ import {
   updateWeightTarget,
 } from '@/features/health/services/health'
 import { formatBodyMass, formatHealthEntryDate } from '@/features/health/utils/healthFormat'
+import type { UnitKey } from '@/i18n'
 import { kgToLbs, lbsToKg } from '@/utils/units'
 
 vi.mock('@/services/http', () => ({
   apiFetch: vi.fn<typeof apiFetch>(),
 }))
 
+/** Shared server-owned timestamp carried by every read payload. */
+const UPDATED_AT = '2026-06-25T09:00:00Z'
+
+describe('health dashboard service', () => {
+  beforeEach(() => vi.mocked(apiFetch).mockReset())
+
+  it('maps dashboard metrics and targets from one response', async () => {
+    const targets: Schemas['HealthTargetsRead'] = {
+      id: '00000000-0000-4000-8000-000000000002',
+      user_id: '00000000-0000-4000-8000-000000000009',
+      version: 3,
+      updated_at: UPDATED_AT,
+      sleep_seconds: 28800,
+      steps: 8000,
+      weight_kg: 70,
+      fasting_seconds: 57600,
+      water_ml: 2000,
+      poop_count: 1,
+    }
+    vi.mocked(apiFetch).mockResolvedValueOnce({
+      steps: { steps: 7500 },
+      targets,
+    })
+
+    const dashboard = await fetchHealthDashboard()
+
+    expect(apiFetch).toHaveBeenCalledExactlyOnceWith('/health/stats/daily', { signal: undefined })
+    expect(dashboard.steps).toBe(7500)
+    expect(dashboard.targets).toEqual({
+      id: '00000000-0000-4000-8000-000000000002',
+      userId: '00000000-0000-4000-8000-000000000009',
+      version: 3,
+      sleepSeconds: 28800,
+      steps: 8000,
+      weightKg: 70,
+      fastingSeconds: 57600,
+      waterMl: 2000,
+      poopCount: 1,
+    })
+  })
+})
+
 /** Builds a full HealthWeightRead wire payload, overridable per case. */
 function makeWeightDto(
   overrides: Partial<Schemas['HealthWeightRead']> = {},
 ): Schemas['HealthWeightRead'] {
   return {
-    id: 5,
-    user_id: 9,
+    id: '00000000-0000-4000-8000-000000000005',
+    user_id: '00000000-0000-4000-8000-000000000009',
+    version: 1,
+    updated_at: UPDATED_AT,
     date: '2026-06-25',
-    weight: 72.5,
+    weight_kg: 72.5,
     bmi: 22.1,
-    body_fat: 18.4,
-    body_water: 55.2,
-    bone_mass: 3.2,
-    muscle_mass: 34.1,
+    body_fat_percent: 18.4,
+    body_water_percent: 55.2,
+    bone_mass_kg: 3.2,
+    muscle_mass_kg: 34.1,
     metabolic_age: 30,
     physique_rating: 5,
     visceral_fat: 7,
@@ -80,7 +128,6 @@ function makeWeightDto(
 const input: WeightEntryInput = {
   date: '2026-06-25',
   weightKg: 72.5,
-  bmi: 22.1,
   bodyFatPct: 18.4,
   bodyWaterPct: 55.2,
   boneMassKg: 3.2,
@@ -113,13 +160,16 @@ describe('formatHealthEntryDate', () => {
   })
 })
 
+/** Wraps the unit key so a test can tell the resolver supplied the symbol. */
+const label = (unit: UnitKey): string => `<${unit}>`
+
 describe('formatBodyMass', () => {
   it('formats kilograms to two decimals for metric users', () => {
-    expect(formatBodyMass(3.2, 'metric')).toBe('3.20 kg')
+    expect(formatBodyMass(3.2, 'metric', label)).toBe('3.20 <kg>')
   })
 
   it('converts to pounds for imperial users', () => {
-    expect(formatBodyMass(5, 'imperial')).toBe(`${kgToLbs(5).toFixed(2)} lb`)
+    expect(formatBodyMass(5, 'imperial', label)).toBe(`${kgToLbs(5).toFixed(2)} <lb>`)
   })
 })
 
@@ -131,8 +181,18 @@ describe('weight service requests', () => {
   it('fetchWeightEntries builds the paginated, filtered URL and maps records', async () => {
     vi.mocked(apiFetch).mockResolvedValue({
       total: 2,
-      records: [makeWeightDto(), makeWeightDto({ id: 6, source: null, weight: null, bmi: null })],
-    } satisfies Schemas['HealthWeightListResponse'])
+      page: 2,
+      num_records: 25,
+      items: [
+        makeWeightDto(),
+        makeWeightDto({
+          id: '00000000-0000-4000-8000-000000000006',
+          source: 'manual',
+          weight_kg: null,
+          bmi: null,
+        }),
+      ],
+    } satisfies Schemas['Page_HealthWeightRead_'])
 
     const page = await fetchWeightEntries({ page: 2, numRecords: 25, interval: 'last_30_days' })
 
@@ -142,8 +202,9 @@ describe('weight service requests', () => {
     )
     expect(page.total).toBe(2)
     expect(page.records[0]).toEqual({
-      id: 5,
-      userId: 9,
+      id: '00000000-0000-4000-8000-000000000005',
+      userId: '00000000-0000-4000-8000-000000000009',
+      version: 1,
       date: '2026-06-25',
       weightKg: 72.5,
       bmi: 22.1,
@@ -153,7 +214,12 @@ describe('weight service requests', () => {
       muscleMassKg: 34.1,
       source: 'garmin',
     })
-    expect(page.records[1]).toMatchObject({ id: 6, weightKg: null, bmi: null, source: null })
+    expect(page.records[1]).toMatchObject({
+      id: '00000000-0000-4000-8000-000000000006',
+      weightKg: null,
+      bmi: null,
+      source: 'manual',
+    })
   })
 
   it('createWeightEntry POSTs the snake-cased payload as a JSON string', async () => {
@@ -165,33 +231,30 @@ describe('weight service requests', () => {
       method: 'POST',
       body: JSON.stringify({
         date: '2026-06-25',
-        weight: 72.5,
-        bmi: 22.1,
-        body_fat: 18.4,
-        body_water: 55.2,
-        bone_mass: 3.2,
-        muscle_mass: 34.1,
+        weight_kg: 72.5,
+        body_fat_percent: 18.4,
+        body_water_percent: 55.2,
+        bone_mass_kg: 3.2,
+        muscle_mass_kg: 34.1,
       }),
     })
   })
 
-  it('updateWeightEntry PUTs with id and user_id echoed back', async () => {
+  it('updateWeightEntry PATCHes the record path with only the changed fields', async () => {
     vi.mocked(apiFetch).mockResolvedValue(makeWeightDto())
 
-    await updateWeightEntry(5, 9, input)
+    await updateWeightEntry('00000000-0000-4000-8000-000000000005', input, 3)
 
-    expect(apiFetch).toHaveBeenCalledWith('/health/weight', {
-      method: 'PUT',
+    expect(apiFetch).toHaveBeenCalledWith('/health/weight/00000000-0000-4000-8000-000000000005', {
+      method: 'PATCH',
+      headers: { 'If-Match': '"3"' },
       body: JSON.stringify({
-        id: 5,
-        user_id: 9,
         date: '2026-06-25',
-        weight: 72.5,
-        bmi: 22.1,
-        body_fat: 18.4,
-        body_water: 55.2,
-        bone_mass: 3.2,
-        muscle_mass: 34.1,
+        weight_kg: 72.5,
+        body_fat_percent: 18.4,
+        body_water_percent: 55.2,
+        bone_mass_kg: 3.2,
+        muscle_mass_kg: 34.1,
       }),
     })
   })
@@ -199,40 +262,47 @@ describe('weight service requests', () => {
   it('deleteWeightEntry DELETEs the entry path (void)', async () => {
     vi.mocked(apiFetch).mockResolvedValue(undefined)
 
-    await deleteWeightEntry(5)
+    await deleteWeightEntry('00000000-0000-4000-8000-000000000005', 3)
 
-    expect(apiFetch).toHaveBeenCalledWith('/health/weight/5', {
+    expect(apiFetch).toHaveBeenCalledWith('/health/weight/00000000-0000-4000-8000-000000000005', {
       method: 'DELETE',
+      headers: { 'If-Match': '"3"' },
       responseType: 'void',
     })
   })
 
-  it('updateWeightTarget PUTs only id, user_id, and weight', async () => {
+  it('updateWeightTarget PATCHes only weight', async () => {
     vi.mocked(apiFetch).mockResolvedValue({
-      id: 3,
-      user_id: 9,
-      weight: 70,
+      id: '00000000-0000-4000-8000-000000000003',
+      user_id: '00000000-0000-4000-8000-000000000009',
+      version: 1,
+      updated_at: UPDATED_AT,
+      weight_kg: 70,
     } satisfies Schemas['HealthTargetsRead'])
 
-    await updateWeightTarget(3, 9, 70)
+    await updateWeightTarget(3, 70)
 
     expect(apiFetch).toHaveBeenCalledWith('/health/targets', {
-      method: 'PUT',
-      body: JSON.stringify({ id: 3, user_id: 9, weight: 70 }),
+      method: 'PATCH',
+      headers: { 'If-Match': '"3"' },
+      body: JSON.stringify({ weight_kg: 70 }),
     })
   })
 
   it('updateWeightTarget sends null to clear the target', async () => {
     vi.mocked(apiFetch).mockResolvedValue({
-      id: 3,
-      user_id: 9,
+      id: '00000000-0000-4000-8000-000000000003',
+      user_id: '00000000-0000-4000-8000-000000000009',
+      version: 1,
+      updated_at: UPDATED_AT,
     } satisfies Schemas['HealthTargetsRead'])
 
-    await updateWeightTarget(3, 9, null)
+    await updateWeightTarget(3, null)
 
     expect(apiFetch).toHaveBeenCalledWith('/health/targets', {
-      method: 'PUT',
-      body: JSON.stringify({ id: 3, user_id: 9, weight: null }),
+      method: 'PATCH',
+      headers: { 'If-Match': '"3"' },
+      body: JSON.stringify({ weight_kg: null }),
     })
   })
 })
@@ -242,8 +312,10 @@ function makeStepsDto(
   overrides: Partial<Schemas['HealthStepsRead']> = {},
 ): Schemas['HealthStepsRead'] {
   return {
-    id: 5,
-    user_id: 9,
+    id: '00000000-0000-4000-8000-000000000005',
+    user_id: '00000000-0000-4000-8000-000000000009',
+    version: 1,
+    updated_at: UPDATED_AT,
     date: '2026-06-25',
     steps: 8500,
     source: 'garmin',
@@ -265,8 +337,13 @@ describe('steps service requests', () => {
   it('fetchStepsEntries builds the paginated, filtered URL and maps records', async () => {
     vi.mocked(apiFetch).mockResolvedValue({
       total: 2,
-      records: [makeStepsDto(), makeStepsDto({ id: 6, source: null, steps: null })],
-    } satisfies Schemas['HealthStepsListResponse'])
+      page: 2,
+      num_records: 25,
+      items: [
+        makeStepsDto(),
+        makeStepsDto({ id: '00000000-0000-4000-8000-000000000006', source: 'manual', steps: null }),
+      ],
+    } satisfies Schemas['Page_HealthStepsRead_'])
 
     const page = await fetchStepsEntries({ page: 2, numRecords: 25, interval: 'last_30_days' })
 
@@ -276,13 +353,18 @@ describe('steps service requests', () => {
     )
     expect(page.total).toBe(2)
     expect(page.records[0]).toEqual({
-      id: 5,
-      userId: 9,
+      id: '00000000-0000-4000-8000-000000000005',
+      userId: '00000000-0000-4000-8000-000000000009',
+      version: 1,
       date: '2026-06-25',
       steps: 8500,
       source: 'garmin',
     })
-    expect(page.records[1]).toMatchObject({ id: 6, steps: null, source: null })
+    expect(page.records[1]).toMatchObject({
+      id: '00000000-0000-4000-8000-000000000006',
+      steps: null,
+      source: 'manual',
+    })
   })
 
   it('createStepsEntry POSTs the snake-cased payload as a JSON string', async () => {
@@ -296,54 +378,62 @@ describe('steps service requests', () => {
     })
   })
 
-  it('updateStepsEntry PUTs with id and user_id echoed back', async () => {
+  it('updateStepsEntry PATCHes the record path with only the changed fields', async () => {
     vi.mocked(apiFetch).mockResolvedValue(makeStepsDto())
 
-    await updateStepsEntry(5, 9, stepsInput)
+    await updateStepsEntry('00000000-0000-4000-8000-000000000005', stepsInput, 3)
 
-    expect(apiFetch).toHaveBeenCalledWith('/health/steps', {
-      method: 'PUT',
-      body: JSON.stringify({ id: 5, user_id: 9, date: '2026-06-25', steps: 8500 }),
+    expect(apiFetch).toHaveBeenCalledWith('/health/steps/00000000-0000-4000-8000-000000000005', {
+      method: 'PATCH',
+      headers: { 'If-Match': '"3"' },
+      body: JSON.stringify({ date: '2026-06-25', steps: 8500 }),
     })
   })
 
   it('deleteStepsEntry DELETEs the entry path (void)', async () => {
     vi.mocked(apiFetch).mockResolvedValue(undefined)
 
-    await deleteStepsEntry(5)
+    await deleteStepsEntry('00000000-0000-4000-8000-000000000005', 3)
 
-    expect(apiFetch).toHaveBeenCalledWith('/health/steps/5', {
+    expect(apiFetch).toHaveBeenCalledWith('/health/steps/00000000-0000-4000-8000-000000000005', {
       method: 'DELETE',
+      headers: { 'If-Match': '"3"' },
       responseType: 'void',
     })
   })
 
-  it('updateStepsTarget PUTs only id, user_id, and steps', async () => {
+  it('updateStepsTarget PATCHes only steps', async () => {
     vi.mocked(apiFetch).mockResolvedValue({
-      id: 3,
-      user_id: 9,
+      id: '00000000-0000-4000-8000-000000000003',
+      user_id: '00000000-0000-4000-8000-000000000009',
+      version: 1,
+      updated_at: UPDATED_AT,
       steps: 10000,
     } satisfies Schemas['HealthTargetsRead'])
 
-    await updateStepsTarget(3, 9, 10000)
+    await updateStepsTarget(3, 10000)
 
     expect(apiFetch).toHaveBeenCalledWith('/health/targets', {
-      method: 'PUT',
-      body: JSON.stringify({ id: 3, user_id: 9, steps: 10000 }),
+      method: 'PATCH',
+      headers: { 'If-Match': '"3"' },
+      body: JSON.stringify({ steps: 10000 }),
     })
   })
 
   it('updateStepsTarget sends null to clear the target', async () => {
     vi.mocked(apiFetch).mockResolvedValue({
-      id: 3,
-      user_id: 9,
+      id: '00000000-0000-4000-8000-000000000003',
+      user_id: '00000000-0000-4000-8000-000000000009',
+      version: 1,
+      updated_at: UPDATED_AT,
     } satisfies Schemas['HealthTargetsRead'])
 
-    await updateStepsTarget(3, 9, null)
+    await updateStepsTarget(3, null)
 
     expect(apiFetch).toHaveBeenCalledWith('/health/targets', {
-      method: 'PUT',
-      body: JSON.stringify({ id: 3, user_id: 9, steps: null }),
+      method: 'PATCH',
+      headers: { 'If-Match': '"3"' },
+      body: JSON.stringify({ steps: null }),
     })
   })
 })
@@ -353,8 +443,10 @@ function makeWaterDto(
   overrides: Partial<Schemas['HealthWaterRead']> = {},
 ): Schemas['HealthWaterRead'] {
   return {
-    id: 5,
-    user_id: 9,
+    id: '00000000-0000-4000-8000-000000000005',
+    user_id: '00000000-0000-4000-8000-000000000009',
+    version: 1,
+    updated_at: UPDATED_AT,
     date: '2026-06-25',
     amount_ml: 1500,
     source: 'garmin',
@@ -376,8 +468,17 @@ describe('water service requests', () => {
   it('fetchWaterEntries builds the paginated, filtered URL and maps records', async () => {
     vi.mocked(apiFetch).mockResolvedValue({
       total: 2,
-      records: [makeWaterDto(), makeWaterDto({ id: 6, source: null, amount_ml: null })],
-    } satisfies Schemas['HealthWaterListResponse'])
+      page: 2,
+      num_records: 25,
+      items: [
+        makeWaterDto(),
+        makeWaterDto({
+          id: '00000000-0000-4000-8000-000000000006',
+          source: 'manual',
+          amount_ml: null,
+        }),
+      ],
+    } satisfies Schemas['Page_HealthWaterRead_'])
 
     const page = await fetchWaterEntries({ page: 2, numRecords: 25, interval: 'last_30_days' })
 
@@ -387,13 +488,18 @@ describe('water service requests', () => {
     )
     expect(page.total).toBe(2)
     expect(page.records[0]).toEqual({
-      id: 5,
-      userId: 9,
+      id: '00000000-0000-4000-8000-000000000005',
+      userId: '00000000-0000-4000-8000-000000000009',
+      version: 1,
       date: '2026-06-25',
       amountMl: 1500,
       source: 'garmin',
     })
-    expect(page.records[1]).toMatchObject({ id: 6, amountMl: null, source: null })
+    expect(page.records[1]).toMatchObject({
+      id: '00000000-0000-4000-8000-000000000006',
+      amountMl: null,
+      source: 'manual',
+    })
   })
 
   it('createWaterEntry POSTs the snake-cased payload as a JSON string', async () => {
@@ -407,54 +513,62 @@ describe('water service requests', () => {
     })
   })
 
-  it('updateWaterEntry PUTs with id and user_id echoed back', async () => {
+  it('updateWaterEntry PATCHes the record path with only the changed fields', async () => {
     vi.mocked(apiFetch).mockResolvedValue(makeWaterDto())
 
-    await updateWaterEntry(5, 9, waterInput)
+    await updateWaterEntry('00000000-0000-4000-8000-000000000005', waterInput, 3)
 
-    expect(apiFetch).toHaveBeenCalledWith('/health/water', {
-      method: 'PUT',
-      body: JSON.stringify({ id: 5, user_id: 9, date: '2026-06-25', amount_ml: 1500 }),
+    expect(apiFetch).toHaveBeenCalledWith('/health/water/00000000-0000-4000-8000-000000000005', {
+      method: 'PATCH',
+      headers: { 'If-Match': '"3"' },
+      body: JSON.stringify({ date: '2026-06-25', amount_ml: 1500 }),
     })
   })
 
   it('deleteWaterEntry DELETEs the entry path (void)', async () => {
     vi.mocked(apiFetch).mockResolvedValue(undefined)
 
-    await deleteWaterEntry(5)
+    await deleteWaterEntry('00000000-0000-4000-8000-000000000005', 3)
 
-    expect(apiFetch).toHaveBeenCalledWith('/health/water/5', {
+    expect(apiFetch).toHaveBeenCalledWith('/health/water/00000000-0000-4000-8000-000000000005', {
       method: 'DELETE',
+      headers: { 'If-Match': '"3"' },
       responseType: 'void',
     })
   })
 
-  it('updateWaterTarget PUTs only id, user_id, and water_ml', async () => {
+  it('updateWaterTarget PATCHes only water_ml', async () => {
     vi.mocked(apiFetch).mockResolvedValue({
-      id: 3,
-      user_id: 9,
+      id: '00000000-0000-4000-8000-000000000003',
+      user_id: '00000000-0000-4000-8000-000000000009',
+      version: 1,
+      updated_at: UPDATED_AT,
       water_ml: 2000,
     } satisfies Schemas['HealthTargetsRead'])
 
-    await updateWaterTarget(3, 9, 2000)
+    await updateWaterTarget(3, 2000)
 
     expect(apiFetch).toHaveBeenCalledWith('/health/targets', {
-      method: 'PUT',
-      body: JSON.stringify({ id: 3, user_id: 9, water_ml: 2000 }),
+      method: 'PATCH',
+      headers: { 'If-Match': '"3"' },
+      body: JSON.stringify({ water_ml: 2000 }),
     })
   })
 
   it('updateWaterTarget sends null to clear the target', async () => {
     vi.mocked(apiFetch).mockResolvedValue({
-      id: 3,
-      user_id: 9,
+      id: '00000000-0000-4000-8000-000000000003',
+      user_id: '00000000-0000-4000-8000-000000000009',
+      version: 1,
+      updated_at: UPDATED_AT,
     } satisfies Schemas['HealthTargetsRead'])
 
-    await updateWaterTarget(3, 9, null)
+    await updateWaterTarget(3, null)
 
     expect(apiFetch).toHaveBeenCalledWith('/health/targets', {
-      method: 'PUT',
-      body: JSON.stringify({ id: 3, user_id: 9, water_ml: null }),
+      method: 'PATCH',
+      headers: { 'If-Match': '"3"' },
+      body: JSON.stringify({ water_ml: null }),
     })
   })
 })
@@ -464,10 +578,12 @@ function makePoopDto(
   overrides: Partial<Schemas['HealthPoopRead']> = {},
 ): Schemas['HealthPoopRead'] {
   return {
-    id: 5,
-    user_id: 9,
+    id: '00000000-0000-4000-8000-000000000005',
+    user_id: '00000000-0000-4000-8000-000000000009',
+    version: 1,
+    updated_at: UPDATED_AT,
     date_time: '2026-06-25T08:30:00',
-    bristol_type: 4,
+    bristol_type: 'type_4',
     color: 'brown',
     notes: 'Normal',
     source: 'manual',
@@ -478,7 +594,7 @@ function makePoopDto(
 /** A clean poop input mirroring {@link makePoopDto}. */
 const poopInput: PoopEntryInput = {
   dateTime: '2026-06-25T08:30:00',
-  bristolType: 4,
+  bristolType: 'type_4',
   color: 'brown',
   notes: 'Normal',
 }
@@ -491,11 +607,18 @@ describe('poop service requests', () => {
   it('fetchPoopEntries builds the paginated, filtered URL and maps records', async () => {
     vi.mocked(apiFetch).mockResolvedValue({
       total: 2,
-      records: [
+      page: 2,
+      num_records: 25,
+      items: [
         makePoopDto(),
-        makePoopDto({ id: 6, bristol_type: null, color: null, notes: null }),
+        makePoopDto({
+          id: '00000000-0000-4000-8000-000000000006',
+          bristol_type: null,
+          color: null,
+          notes: null,
+        }),
       ],
-    } satisfies Schemas['HealthPoopListResponse'])
+    } satisfies Schemas['Page_HealthPoopRead_'])
 
     const page = await fetchPoopEntries({ page: 2, numRecords: 25, interval: 'last_30_days' })
 
@@ -505,14 +628,20 @@ describe('poop service requests', () => {
     )
     expect(page.total).toBe(2)
     expect(page.records[0]).toEqual({
-      id: 5,
-      userId: 9,
+      id: '00000000-0000-4000-8000-000000000005',
+      userId: '00000000-0000-4000-8000-000000000009',
+      version: 1,
       dateTime: '2026-06-25T08:30:00',
-      bristolType: 4,
+      bristolType: 'type_4',
       color: 'brown',
       notes: 'Normal',
     })
-    expect(page.records[1]).toMatchObject({ id: 6, bristolType: null, color: null, notes: null })
+    expect(page.records[1]).toMatchObject({
+      id: '00000000-0000-4000-8000-000000000006',
+      bristolType: null,
+      color: null,
+      notes: null,
+    })
   })
 
   it('createPoopEntry POSTs the snake-cased payload as a JSON string', async () => {
@@ -524,25 +653,24 @@ describe('poop service requests', () => {
       method: 'POST',
       body: JSON.stringify({
         date_time: '2026-06-25T08:30:00',
-        bristol_type: 4,
+        bristol_type: 'type_4',
         color: 'brown',
         notes: 'Normal',
       }),
     })
   })
 
-  it('updatePoopEntry PUTs with id and user_id echoed back', async () => {
+  it('updatePoopEntry PATCHes the record path with only the changed fields', async () => {
     vi.mocked(apiFetch).mockResolvedValue(makePoopDto())
 
-    await updatePoopEntry(5, 9, poopInput)
+    await updatePoopEntry('00000000-0000-4000-8000-000000000005', poopInput, 3)
 
-    expect(apiFetch).toHaveBeenCalledWith('/health/poop', {
-      method: 'PUT',
+    expect(apiFetch).toHaveBeenCalledWith('/health/poop/00000000-0000-4000-8000-000000000005', {
+      method: 'PATCH',
+      headers: { 'If-Match': '"3"' },
       body: JSON.stringify({
-        id: 5,
-        user_id: 9,
         date_time: '2026-06-25T08:30:00',
-        bristol_type: 4,
+        bristol_type: 'type_4',
         color: 'brown',
         notes: 'Normal',
       }),
@@ -552,51 +680,61 @@ describe('poop service requests', () => {
   it('deletePoopEntry DELETEs the entry path (void)', async () => {
     vi.mocked(apiFetch).mockResolvedValue(undefined)
 
-    await deletePoopEntry(5)
+    await deletePoopEntry('00000000-0000-4000-8000-000000000005', 3)
 
-    expect(apiFetch).toHaveBeenCalledWith('/health/poop/5', {
+    expect(apiFetch).toHaveBeenCalledWith('/health/poop/00000000-0000-4000-8000-000000000005', {
       method: 'DELETE',
+      headers: { 'If-Match': '"3"' },
       responseType: 'void',
     })
   })
 
-  it('updatePoopTarget PUTs only id, user_id, and poop_count', async () => {
+  it('updatePoopTarget PATCHes only poop_count', async () => {
     vi.mocked(apiFetch).mockResolvedValue({
-      id: 3,
-      user_id: 9,
+      id: '00000000-0000-4000-8000-000000000003',
+      user_id: '00000000-0000-4000-8000-000000000009',
+      version: 1,
+      updated_at: UPDATED_AT,
       poop_count: 2,
     } satisfies Schemas['HealthTargetsRead'])
 
-    await updatePoopTarget(3, 9, 2)
+    await updatePoopTarget(3, 2)
 
     expect(apiFetch).toHaveBeenCalledWith('/health/targets', {
-      method: 'PUT',
-      body: JSON.stringify({ id: 3, user_id: 9, poop_count: 2 }),
+      method: 'PATCH',
+      headers: { 'If-Match': '"3"' },
+      body: JSON.stringify({ poop_count: 2 }),
     })
   })
 
   it('updatePoopTarget sends null to clear the target', async () => {
     vi.mocked(apiFetch).mockResolvedValue({
-      id: 3,
-      user_id: 9,
+      id: '00000000-0000-4000-8000-000000000003',
+      user_id: '00000000-0000-4000-8000-000000000009',
+      version: 1,
+      updated_at: UPDATED_AT,
     } satisfies Schemas['HealthTargetsRead'])
 
-    await updatePoopTarget(3, 9, null)
+    await updatePoopTarget(3, null)
 
     expect(apiFetch).toHaveBeenCalledWith('/health/targets', {
-      method: 'PUT',
-      body: JSON.stringify({ id: 3, user_id: 9, poop_count: null }),
+      method: 'PATCH',
+      headers: { 'If-Match': '"3"' },
+      body: JSON.stringify({ poop_count: null }),
     })
   })
 })
 
 /** Builds a HealthSleepRead payload with the RHR-relevant fields, overridable per case. */
 function makeSleepDto(
-  overrides: Partial<Schemas['HealthSleepRead']> = {},
-): Schemas['HealthSleepRead'] {
+  overrides: Partial<Schemas['HealthSleepListItem']> = {},
+): Schemas['HealthSleepListItem'] {
   return {
-    id: 5,
-    user_id: 9,
+    id: '00000000-0000-4000-8000-000000000005',
+    has_sleep_stages: false,
+    user_id: '00000000-0000-4000-8000-000000000009',
+    version: 1,
+    updated_at: UPDATED_AT,
     date: '2026-06-25',
     resting_heart_rate: 52,
     source: 'garmin',
@@ -612,41 +750,76 @@ describe('resting heart rate service requests', () => {
   it('fetchRhrEntries reads the sleep history and maps records', async () => {
     vi.mocked(apiFetch).mockResolvedValue({
       total: 2,
-      records: [makeSleepDto(), makeSleepDto({ id: 6, source: null })],
-    } satisfies Schemas['HealthSleepListResponse'])
+      page: 2,
+      num_records: 25,
+      items: [
+        makeSleepDto(),
+        makeSleepDto({ id: '00000000-0000-4000-8000-000000000006', source: 'manual' }),
+      ],
+    } satisfies Schemas['Page_HealthSleepListItem_'])
 
     const page = await fetchRhrEntries({ page: 2, numRecords: 25, interval: 'last_30_days' })
 
     expect(apiFetch).toHaveBeenCalledWith(
-      '/health/sleep?page_number=2&num_records=25&interval=last_30_days',
+      '/health/sleep?page_number=2&num_records=25&interval=last_30_days&has_resting_heart_rate=true',
       { signal: undefined },
     )
     expect(page.total).toBe(2)
     expect(page.records[0]).toEqual({
-      id: 5,
+      id: '00000000-0000-4000-8000-000000000005',
       date: '2026-06-25',
       restingHeartRate: 52,
       source: 'garmin',
     })
-    expect(page.records[1]).toMatchObject({ id: 6, restingHeartRate: 52, source: null })
+    expect(page.records[1]).toMatchObject({
+      id: '00000000-0000-4000-8000-000000000006',
+      restingHeartRate: 52,
+      source: 'manual',
+    })
   })
 
-  it('fetchRhrEntries drops sleep records without a resting heart rate but keeps the total', async () => {
+  it('fetchRhrEntries returns the page and total the server filtered', async () => {
     vi.mocked(apiFetch).mockResolvedValue({
       total: 3,
-      records: [
+      page: 1,
+      num_records: 2,
+      items: [
         makeSleepDto(),
-        makeSleepDto({ id: 6, resting_heart_rate: null }),
-        makeSleepDto({ id: 7, resting_heart_rate: undefined }),
+        makeSleepDto({ id: '00000000-0000-4000-8000-000000000006', resting_heart_rate: 50 }),
       ],
-    } satisfies Schemas['HealthSleepListResponse'])
+    } satisfies Schemas['Page_HealthSleepListItem_'])
 
-    const page = await fetchRhrEntries({ page: 1, numRecords: 25, interval: 'all_time' })
+    const page = await fetchRhrEntries({ page: 1, numRecords: 2, interval: 'all_time' })
 
-    // Only the record carrying an RHR survives, but the total stays the sleep total.
-    expect(page.records).toHaveLength(1)
-    expect(page.records[0]).toMatchObject({ id: 5, restingHeartRate: 52 })
+    // The server keeps only nights with a resting heart rate, so the page is full and the total is theirs.
+    expect(page.records.map((entry) => entry.id)).toEqual([
+      '00000000-0000-4000-8000-000000000005',
+      '00000000-0000-4000-8000-000000000006',
+    ])
     expect(page.total).toBe(3)
+  })
+})
+
+describe('health chart service', () => {
+  beforeEach(() => vi.mocked(apiFetch).mockReset())
+
+  it.each([
+    ['sleep', '/health/sleep/chart?interval=last_year'],
+    ['rhr', '/health/sleep/chart/resting-heart-rate?interval=last_year'],
+    ['steps', '/health/steps/chart?interval=last_year'],
+    ['weight', '/health/weight/chart?interval=last_year'],
+    ['water', '/health/water/chart?interval=last_year'],
+    ['poop', '/health/poop/chart?interval=last_year'],
+  ] as const)('fetches the %s series from its own endpoint', async (metric, path) => {
+    vi.mocked(apiFetch).mockResolvedValue({
+      bucket: 'week',
+      points: [{ date: '2026-06-22', value: 7.5 }],
+    } satisfies Schemas['HealthChartSeries'])
+
+    const series = await fetchHealthChart(metric, 'last_year')
+
+    expect(apiFetch).toHaveBeenCalledExactlyOnceWith(path, { signal: undefined })
+    expect(series).toEqual({ bucket: 'week', points: [{ date: '2026-06-22', value: 7.5 }] })
   })
 })
 
@@ -655,8 +828,10 @@ function makeFastingDto(
   overrides: Partial<Schemas['HealthFastingRead']> = {},
 ): Schemas['HealthFastingRead'] {
   return {
-    id: 5,
-    user_id: 9,
+    id: '00000000-0000-4000-8000-000000000005',
+    user_id: '00000000-0000-4000-8000-000000000009',
+    version: 1,
+    updated_at: UPDATED_AT,
     fast_start_time: '2026-06-25T08:00:00.000Z',
     fast_end_time: '2026-06-25T22:00:00.000Z',
     fasting_type: '16:8',
@@ -675,7 +850,6 @@ const fastingInput: FastingEntryInput = {
   fastEndTime: '2026-06-25T22:00:00.000Z',
   fastingType: '16:8',
   targetDurationSeconds: 57600,
-  actualDurationSeconds: 50400,
   status: 'completed',
   notes: 'Felt good',
 }
@@ -688,8 +862,17 @@ describe('fasting service requests', () => {
   it('fetchFastingEntries builds the paginated, filtered URL and maps records', async () => {
     vi.mocked(apiFetch).mockResolvedValue({
       total: 2,
-      records: [makeFastingDto(), makeFastingDto({ id: 6, notes: null, source: 'garmin' })],
-    } satisfies Schemas['HealthFastingListResponse'])
+      page: 2,
+      num_records: 25,
+      items: [
+        makeFastingDto(),
+        makeFastingDto({
+          id: '00000000-0000-4000-8000-000000000006',
+          notes: null,
+          source: 'garmin',
+        }),
+      ],
+    } satisfies Schemas['Page_HealthFastingRead_'])
 
     const page = await fetchFastingEntries({ page: 2, numRecords: 25, interval: 'last_30_days' })
 
@@ -699,8 +882,9 @@ describe('fasting service requests', () => {
     )
     expect(page.total).toBe(2)
     expect(page.records[0]).toEqual({
-      id: 5,
-      userId: 9,
+      id: '00000000-0000-4000-8000-000000000005',
+      userId: '00000000-0000-4000-8000-000000000009',
+      version: 1,
       fastStartTime: '2026-06-25T08:00:00.000Z',
       fastEndTime: '2026-06-25T22:00:00.000Z',
       fastingType: '16:8',
@@ -710,7 +894,11 @@ describe('fasting service requests', () => {
       notes: 'Felt good',
       source: 'manual',
     })
-    expect(page.records[1]).toMatchObject({ id: 6, notes: null, source: 'garmin' })
+    expect(page.records[1]).toMatchObject({
+      id: '00000000-0000-4000-8000-000000000006',
+      notes: null,
+      source: 'garmin',
+    })
   })
 
   it('fetchActiveFasting maps the in-progress session', async () => {
@@ -722,8 +910,9 @@ describe('fasting service requests', () => {
 
     expect(apiFetch).toHaveBeenCalledWith('/health/fasting/active', { signal: undefined })
     expect(active).toMatchObject({
-      id: 5,
-      userId: 9,
+      id: '00000000-0000-4000-8000-000000000005',
+      userId: '00000000-0000-4000-8000-000000000009',
+      version: 1,
       status: 'in_progress',
       fastEndTime: null,
       actualDurationSeconds: null,
@@ -762,7 +951,7 @@ describe('fasting service requests', () => {
     })
   })
 
-  it('createFastingEntry POSTs the snake-cased payload with manual source', async () => {
+  it('createFastingEntry POSTs the snake-cased payload without a source', async () => {
     vi.mocked(apiFetch).mockResolvedValue(makeFastingDto())
 
     await createFastingEntry(fastingInput)
@@ -774,26 +963,23 @@ describe('fasting service requests', () => {
         fasting_type: '16:8',
         target_duration_seconds: 57600,
         notes: 'Felt good',
-        source: 'manual',
       }),
     })
   })
 
-  it('updateFastingEntry PUTs with id and user_id echoed back and no source', async () => {
+  it('updateFastingEntry PATCHes the record path with only the changed fields and no source', async () => {
     vi.mocked(apiFetch).mockResolvedValue(makeFastingDto())
 
-    await updateFastingEntry(5, 9, fastingInput)
+    await updateFastingEntry('00000000-0000-4000-8000-000000000005', fastingInput, 3)
 
-    expect(apiFetch).toHaveBeenCalledWith('/health/fasting', {
-      method: 'PUT',
+    expect(apiFetch).toHaveBeenCalledWith('/health/fasting/00000000-0000-4000-8000-000000000005', {
+      method: 'PATCH',
+      headers: { 'If-Match': '"3"' },
       body: JSON.stringify({
-        id: 5,
-        user_id: 9,
         fast_start_time: '2026-06-25T08:00:00.000Z',
         fast_end_time: '2026-06-25T22:00:00.000Z',
         fasting_type: '16:8',
         target_duration_seconds: 57600,
-        actual_duration_seconds: 50400,
         status: 'completed',
         notes: 'Felt good',
       }),
@@ -803,51 +989,67 @@ describe('fasting service requests', () => {
   it('completeFastingEntry POSTs the end time and status to the complete path', async () => {
     vi.mocked(apiFetch).mockResolvedValue(makeFastingDto())
 
-    await completeFastingEntry(5, '2026-06-25T22:00:00.000Z', 'broken')
+    await completeFastingEntry(
+      '00000000-0000-4000-8000-000000000005',
+      '2026-06-25T22:00:00.000Z',
+      'broken',
+      3,
+    )
 
-    expect(apiFetch).toHaveBeenCalledWith('/health/fasting/5/complete', {
-      method: 'POST',
-      body: JSON.stringify({ fast_end_time: '2026-06-25T22:00:00.000Z', status: 'broken' }),
-    })
+    expect(apiFetch).toHaveBeenCalledWith(
+      '/health/fasting/00000000-0000-4000-8000-000000000005/complete',
+      {
+        method: 'POST',
+        headers: { 'If-Match': '"3"' },
+        body: JSON.stringify({ fast_end_time: '2026-06-25T22:00:00.000Z', status: 'broken' }),
+      },
+    )
   })
 
   it('deleteFastingEntry DELETEs the entry path (void)', async () => {
     vi.mocked(apiFetch).mockResolvedValue(undefined)
 
-    await deleteFastingEntry(5)
+    await deleteFastingEntry('00000000-0000-4000-8000-000000000005', 3)
 
-    expect(apiFetch).toHaveBeenCalledWith('/health/fasting/5', {
+    expect(apiFetch).toHaveBeenCalledWith('/health/fasting/00000000-0000-4000-8000-000000000005', {
       method: 'DELETE',
+      headers: { 'If-Match': '"3"' },
       responseType: 'void',
     })
   })
 
-  it('updateFastingTarget PUTs only id, user_id, and fasting', async () => {
+  it('updateFastingTarget PATCHes only fasting', async () => {
     vi.mocked(apiFetch).mockResolvedValue({
-      id: 3,
-      user_id: 9,
-      fasting: 57600,
+      id: '00000000-0000-4000-8000-000000000003',
+      user_id: '00000000-0000-4000-8000-000000000009',
+      version: 1,
+      updated_at: UPDATED_AT,
+      fasting_seconds: 57600,
     } satisfies Schemas['HealthTargetsRead'])
 
-    await updateFastingTarget(3, 9, 57600)
+    await updateFastingTarget(3, 57600)
 
     expect(apiFetch).toHaveBeenCalledWith('/health/targets', {
-      method: 'PUT',
-      body: JSON.stringify({ id: 3, user_id: 9, fasting: 57600 }),
+      method: 'PATCH',
+      headers: { 'If-Match': '"3"' },
+      body: JSON.stringify({ fasting_seconds: 57600 }),
     })
   })
 
   it('updateFastingTarget sends null to clear the target', async () => {
     vi.mocked(apiFetch).mockResolvedValue({
-      id: 3,
-      user_id: 9,
+      id: '00000000-0000-4000-8000-000000000003',
+      user_id: '00000000-0000-4000-8000-000000000009',
+      version: 1,
+      updated_at: UPDATED_AT,
     } satisfies Schemas['HealthTargetsRead'])
 
-    await updateFastingTarget(3, 9, null)
+    await updateFastingTarget(3, null)
 
     expect(apiFetch).toHaveBeenCalledWith('/health/targets', {
-      method: 'PUT',
-      body: JSON.stringify({ id: 3, user_id: 9, fasting: null }),
+      method: 'PATCH',
+      headers: { 'If-Match': '"3"' },
+      body: JSON.stringify({ fasting_seconds: null }),
     })
   })
 })
@@ -857,8 +1059,10 @@ function makeFullSleepDto(
   overrides: Partial<Schemas['HealthSleepRead']> = {},
 ): Schemas['HealthSleepRead'] {
   return {
-    id: 5,
-    user_id: 9,
+    id: '00000000-0000-4000-8000-000000000005',
+    user_id: '00000000-0000-4000-8000-000000000009',
+    version: 1,
+    updated_at: UPDATED_AT,
     date: '2026-06-25',
     sleep_start_time_local: '2026-06-24T23:00',
     sleep_end_time_local: '2026-06-25T07:00',
@@ -880,9 +1084,9 @@ function makeFullSleepDto(
     max_heart_rate: 72,
     avg_skin_temp_deviation: 0.3,
     hrv_status: 'BALANCED',
-    avg_spo2: 96,
-    lowest_spo2: 92,
-    highest_spo2: 99,
+    avg_spo2_percent: 96,
+    lowest_spo2_percent: 92,
+    highest_spo2_percent: 99,
     avg_respiration: 14,
     lowest_respiration: 11,
     highest_respiration: 18,
@@ -890,13 +1094,13 @@ function makeFullSleepDto(
     awake_count: 3,
     sleep_stages: [
       {
-        stage_type: 0,
+        stage_type: 'deep',
         start_time_gmt: '2026-06-24T23:00:00',
         end_time_gmt: '2026-06-25T00:30:00',
         duration_seconds: 5400,
       },
       {
-        stage_type: 2,
+        stage_type: 'rem',
         start_time_gmt: '2026-06-25T00:30:00',
         end_time_gmt: '2026-06-25T01:15:00',
         duration_seconds: 2700,
@@ -905,6 +1109,14 @@ function makeFullSleepDto(
     source: 'garmin',
     ...overrides,
   }
+}
+
+/** Builds a HealthSleepListItem wire payload: the full record without stages, plus the flag. */
+function makeSleepListDto(
+  overrides: Partial<Schemas['HealthSleepListItem']> = {},
+): Schemas['HealthSleepListItem'] {
+  const { sleep_stages: stages, ...fields } = makeFullSleepDto()
+  return { ...fields, has_sleep_stages: (stages ?? []).length > 0, ...overrides }
 }
 
 /** A clean sleep input mirroring {@link makeFullSleepDto}, in seconds. */
@@ -930,7 +1142,7 @@ const sleepInput: SleepEntryInput = {
   awakeCount: 3,
   sleepStages: [
     {
-      stageType: 0,
+      stageType: 'deep',
       startTimeGmt: '2026-06-24T23:00',
       endTimeGmt: '2026-06-25T00:30',
       durationSeconds: 5400,
@@ -946,8 +1158,18 @@ describe('sleep service requests', () => {
   it('fetchSleepEntries builds the paginated, filtered URL and maps records', async () => {
     vi.mocked(apiFetch).mockResolvedValue({
       total: 2,
-      records: [makeFullSleepDto(), makeFullSleepDto({ id: 6, source: null, hrv_status: null })],
-    } satisfies Schemas['HealthSleepListResponse'])
+      page: 2,
+      num_records: 25,
+      items: [
+        makeSleepListDto(),
+        makeSleepListDto({
+          id: '00000000-0000-4000-8000-000000000006',
+          source: 'manual',
+          hrv_status: null,
+          has_sleep_stages: false,
+        }),
+      ],
+    } satisfies Schemas['Page_HealthSleepListItem_'])
 
     const page = await fetchSleepEntries({ page: 2, numRecords: 25, interval: 'last_30_days' })
 
@@ -957,8 +1179,9 @@ describe('sleep service requests', () => {
     )
     expect(page.total).toBe(2)
     expect(page.records[0]).toEqual({
-      id: 5,
-      userId: 9,
+      id: '00000000-0000-4000-8000-000000000005',
+      userId: '00000000-0000-4000-8000-000000000009',
+      version: 1,
       date: '2026-06-25',
       sleepStartTimeLocal: '2026-06-24T23:00',
       sleepEndTimeLocal: '2026-06-25T07:00',
@@ -988,23 +1211,43 @@ describe('sleep service requests', () => {
       highestRespiration: 18,
       avgSleepStress: 25,
       awakeCount: 3,
-      sleepStages: [
-        {
-          stageType: 0,
-          startTimeGmt: '2026-06-24T23:00:00',
-          endTimeGmt: '2026-06-25T00:30:00',
-          durationSeconds: 5400,
-        },
-        {
-          stageType: 2,
-          startTimeGmt: '2026-06-25T00:30:00',
-          endTimeGmt: '2026-06-25T01:15:00',
-          durationSeconds: 2700,
-        },
-      ],
+      hasSleepStages: true,
       source: 'garmin',
     })
-    expect(page.records[1]).toMatchObject({ id: 6, source: null, hrvStatus: null })
+    expect(page.records[0]).not.toHaveProperty('sleepStages')
+    expect(page.records[1]).toMatchObject({
+      id: '00000000-0000-4000-8000-000000000006',
+      source: 'manual',
+      hrvStatus: null,
+      hasSleepStages: false,
+    })
+  })
+
+  it('fetchSleepEntry reads the record by id with its stages and version', async () => {
+    vi.mocked(apiFetch).mockResolvedValue(makeFullSleepDto({ version: 4 }))
+    const controller = new AbortController()
+
+    const entry = await fetchSleepEntry('00000000-0000-4000-8000-000000000005', controller.signal)
+
+    expect(apiFetch).toHaveBeenCalledWith('/health/sleep/00000000-0000-4000-8000-000000000005', {
+      signal: controller.signal,
+    })
+    expect(entry.version).toBe(4)
+    expect(entry.sleepStages).toEqual([
+      {
+        stageType: 'deep',
+        startTimeGmt: '2026-06-24T23:00:00',
+        endTimeGmt: '2026-06-25T00:30:00',
+        durationSeconds: 5400,
+      },
+      {
+        stageType: 'rem',
+        startTimeGmt: '2026-06-25T00:30:00',
+        endTimeGmt: '2026-06-25T01:15:00',
+        durationSeconds: 2700,
+      },
+    ])
+    expect(entry).not.toHaveProperty('hasSleepStages')
   })
 
   it('createSleepEntry POSTs the snake-cased payload (no source)', async () => {
@@ -1029,14 +1272,14 @@ describe('sleep service requests', () => {
         min_heart_rate: 48,
         max_heart_rate: 72,
         avg_skin_temp_deviation: 0.3,
-        avg_spo2: 96,
-        lowest_spo2: 92,
-        highest_spo2: 99,
+        avg_spo2_percent: 96,
+        lowest_spo2_percent: 92,
+        highest_spo2_percent: 99,
         awake_count: 3,
         avg_sleep_stress: 25,
         sleep_stages: [
           {
-            stage_type: 0,
+            stage_type: 'deep',
             start_time_gmt: '2026-06-24T23:00',
             end_time_gmt: '2026-06-25T00:30',
             duration_seconds: 5400,
@@ -1046,16 +1289,15 @@ describe('sleep service requests', () => {
     })
   })
 
-  it('updateSleepEntry PUTs with id and user_id echoed back', async () => {
+  it('updateSleepEntry PATCHes the record path with only the changed fields', async () => {
     vi.mocked(apiFetch).mockResolvedValue(makeFullSleepDto())
 
-    await updateSleepEntry(5, 9, sleepInput)
+    await updateSleepEntry('00000000-0000-4000-8000-000000000005', sleepInput, 3)
 
-    expect(apiFetch).toHaveBeenCalledWith('/health/sleep', {
-      method: 'PUT',
+    expect(apiFetch).toHaveBeenCalledWith('/health/sleep/00000000-0000-4000-8000-000000000005', {
+      method: 'PATCH',
+      headers: { 'If-Match': '"3"' },
       body: JSON.stringify({
-        id: 5,
-        user_id: 9,
         date: '2026-06-25',
         sleep_start_time_local: '2026-06-24T23:00',
         sleep_end_time_local: '2026-06-25T07:00',
@@ -1070,14 +1312,14 @@ describe('sleep service requests', () => {
         min_heart_rate: 48,
         max_heart_rate: 72,
         avg_skin_temp_deviation: 0.3,
-        avg_spo2: 96,
-        lowest_spo2: 92,
-        highest_spo2: 99,
+        avg_spo2_percent: 96,
+        lowest_spo2_percent: 92,
+        highest_spo2_percent: 99,
         awake_count: 3,
         avg_sleep_stress: 25,
         sleep_stages: [
           {
-            stage_type: 0,
+            stage_type: 'deep',
             start_time_gmt: '2026-06-24T23:00',
             end_time_gmt: '2026-06-25T00:30',
             duration_seconds: 5400,
@@ -1090,40 +1332,47 @@ describe('sleep service requests', () => {
   it('deleteSleepEntry DELETEs the entry path (void)', async () => {
     vi.mocked(apiFetch).mockResolvedValue(undefined)
 
-    await deleteSleepEntry(5)
+    await deleteSleepEntry('00000000-0000-4000-8000-000000000005', 3)
 
-    expect(apiFetch).toHaveBeenCalledWith('/health/sleep/5', {
+    expect(apiFetch).toHaveBeenCalledWith('/health/sleep/00000000-0000-4000-8000-000000000005', {
       method: 'DELETE',
+      headers: { 'If-Match': '"3"' },
       responseType: 'void',
     })
   })
 
-  it('updateSleepTarget PUTs only id, user_id, and sleep', async () => {
+  it('updateSleepTarget PATCHes only sleep', async () => {
     vi.mocked(apiFetch).mockResolvedValue({
-      id: 3,
-      user_id: 9,
-      sleep: 28800,
+      id: '00000000-0000-4000-8000-000000000003',
+      user_id: '00000000-0000-4000-8000-000000000009',
+      version: 1,
+      updated_at: UPDATED_AT,
+      sleep_seconds: 28800,
     } satisfies Schemas['HealthTargetsRead'])
 
-    await updateSleepTarget(3, 9, 28800)
+    await updateSleepTarget(3, 28800)
 
     expect(apiFetch).toHaveBeenCalledWith('/health/targets', {
-      method: 'PUT',
-      body: JSON.stringify({ id: 3, user_id: 9, sleep: 28800 }),
+      method: 'PATCH',
+      headers: { 'If-Match': '"3"' },
+      body: JSON.stringify({ sleep_seconds: 28800 }),
     })
   })
 
   it('updateSleepTarget sends null to clear the target', async () => {
     vi.mocked(apiFetch).mockResolvedValue({
-      id: 3,
-      user_id: 9,
+      id: '00000000-0000-4000-8000-000000000003',
+      user_id: '00000000-0000-4000-8000-000000000009',
+      version: 1,
+      updated_at: UPDATED_AT,
     } satisfies Schemas['HealthTargetsRead'])
 
-    await updateSleepTarget(3, 9, null)
+    await updateSleepTarget(3, null)
 
     expect(apiFetch).toHaveBeenCalledWith('/health/targets', {
-      method: 'PUT',
-      body: JSON.stringify({ id: 3, user_id: 9, sleep: null }),
+      method: 'PATCH',
+      headers: { 'If-Match': '"3"' },
+      body: JSON.stringify({ sleep_seconds: null }),
     })
   })
 })

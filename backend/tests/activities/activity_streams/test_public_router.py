@@ -1,9 +1,13 @@
+import uuid
 from unittest.mock import patch
 
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
 import core.exceptions as core_exceptions
+
+ACTIVITY_ID = uuid.UUID("aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa")
+STREAM_ID = uuid.UUID("bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb")
 
 
 def _build_app(mock_db):
@@ -26,10 +30,10 @@ class TestReadPublicActivityStreams:
         from modules.activities.activity_streams.schema import ActivityStreamsPage, ActivityStreamsRead
 
         client = TestClient(_build_app(mock_db))
-        stream = ActivityStreamsRead(id=1, activity_id=1, stream_type=1, stream_waypoints=[{"x": 1}])
+        stream = ActivityStreamsRead(id=STREAM_ID, activity_id=ACTIVITY_ID, stream_type=1, stream_waypoints=[{"x": 1}])
         mock_get.return_value = ActivityStreamsPage.build([stream], 1, 1, 200)
 
-        response = client.get("/public/activities/1/streams")
+        response = client.get(f"/public/activities/{ACTIVITY_ID}/streams")
         assert response.status_code == 200
         assert response.json()["total"] == 1
 
@@ -43,7 +47,7 @@ class TestReadPublicActivityStreams:
         # activities exist.
         mock_get.return_value = ActivityStreamsPage.build([], 0, 1, 200)
 
-        response = client.get("/public/activities/999/streams")
+        response = client.get(f"/public/activities/{ACTIVITY_ID}/streams")
         assert response.status_code == 200
         assert response.json() == {"items": [], "total": 0, "page": 1, "num_records": 200, "next": None}
 
@@ -52,9 +56,11 @@ class TestReadPublicActivityStreams:
         from modules.activities.activity_streams.schema import ActivityStreamsRead
 
         client = TestClient(_build_app(mock_db))
-        mock_get.return_value = ActivityStreamsRead(id=1, activity_id=1, stream_type=1, stream_waypoints=[{"x": 1}])
+        mock_get.return_value = ActivityStreamsRead(
+            id=STREAM_ID, activity_id=ACTIVITY_ID, stream_type=1, stream_waypoints=[{"x": 1}]
+        )
 
-        response = client.get("/public/activities/1/streams/1")
+        response = client.get(f"/public/activities/{ACTIVITY_ID}/streams/heart_rate")
         assert response.status_code == 200
 
     @patch("modules.activities.activity_streams.public_router.activity_streams_service.get_public_activity_stream")
@@ -62,9 +68,43 @@ class TestReadPublicActivityStreams:
         client = TestClient(_build_app(mock_db))
         mock_get.side_effect = core_exceptions.NotFoundError("Activity stream not found")
 
-        response = client.get("/public/activities/999/streams/1")
+        response = client.get(f"/public/activities/{ACTIVITY_ID}/streams/heart_rate")
         # Missing, not public, and public-links-disabled are one answer: this
         # endpoint is unauthenticated, so distinguishing them would let anyone
         # enumerate activity ids.
         assert response.status_code == 404
         assert response.json()["detail"] == "Activity stream not found"
+
+
+class TestStreamTypePath:
+    """The single-stream route accepts every type the list route can return."""
+
+    @patch("modules.activities.activity_streams.public_router.activity_streams_service.get_public_activity_stream")
+    def test_every_stored_type_is_accepted(self, mock_get, mock_db):
+        from modules.activities.activity_streams import constants
+        from modules.activities.activity_streams.schema import ActivityStreamsRead
+
+        client = TestClient(_build_app(mock_db))
+        stored = list(constants.ActivityStreamType)
+        for stream_type in stored:
+            mock_get.return_value = ActivityStreamsRead(
+                id=STREAM_ID, activity_id=ACTIVITY_ID, stream_type=stream_type.stored, stream_waypoints=[]
+            )
+
+            response = client.get(f"/public/activities/{ACTIVITY_ID}/streams/{stream_type.value}")
+
+            assert response.status_code == 200, stream_type
+
+    def test_an_unknown_type_and_the_stored_integer_are_rejected(self, mock_db):
+        client = TestClient(_build_app(mock_db))
+
+        assert client.get(f"/public/activities/{ACTIVITY_ID}/streams/0").status_code == 422
+        assert client.get(f"/public/activities/{ACTIVITY_ID}/streams/1").status_code == 422
+
+
+class TestMalformedActivityId:
+    def test_a_malformed_activity_id_is_422(self, mock_db):
+        client = TestClient(_build_app(mock_db))
+
+        assert client.get("/public/activities/1/streams").status_code == 422
+        assert client.get("/public/activities/1/streams/heart_rate").status_code == 422

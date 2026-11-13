@@ -1,67 +1,75 @@
 """Service-level tests for auth.identity_link_service."""
 
+import uuid
+from datetime import UTC, datetime
 from unittest.mock import MagicMock, patch
 
 import pytest
-from fastapi import HTTPException
 
-import modules.auth._internal.services.identity_link_service as identity_link_service
+import core.exceptions as core_exceptions
+import core.pagination as core_pagination
+import modules.auth.account_security.identity_link_service as identity_link_service
+import modules.auth.identity_provider_links.schema as auth_identity_links_schema
+import modules.auth.identity_providers.constants as identity_providers_constants
+import modules.users.users.schema as users_schema
+from tests._helpers.auth import MOCK_USER_ID, OTHER_USER_ID
+
+_SID = uuid.UUID("00000000-0000-4000-8000-0000000000a1")
+
+IDP_ID = uuid.UUID(int=1)
 
 
 class TestGetUserIdentityProviderLinks:
-    """get_user_identity_provider_links: returns enriched links for a user."""
+    """get_user_identity_provider_links: one page of a user's links, enriched with provider details."""
 
-    def test_returns_enriched_links(self, mock_db):
-        mock_link = MagicMock()
-        enriched = [MagicMock()]
+    def test_enriches_the_requested_window_and_counts_every_link(self, mock_db):
+        link = MagicMock()
+        enriched = auth_identity_links_schema.IdentityProviderLinkRead(
+            id=uuid.UUID(int=1),
+            user_id=MOCK_USER_ID,
+            idp_id=IDP_ID,
+            idp_subject="sub",
+            linked_at=datetime(2026, 1, 1, tzinfo=UTC),
+        )
+        links = identity_link_service.identity_provider_links_integration
 
         with (
-            patch(
-                "modules.auth._internal.services.identity_link_service.auth_identity_links_crud.get_user_identity_providers_by_user_id",
-                return_value=[mock_link],
-            ),
-            patch(
-                "modules.auth._internal.services.identity_link_service.auth_identity_links_utils.enrich_user_identity_providers",
-                return_value=enriched,
-            ),
+            patch.object(links, "get_identity_links_page", return_value=[link]) as get_page,
+            patch.object(links, "count_identity_links", return_value=3),
+            patch.object(
+                identity_link_service.identity_providers_integration,
+                "enrich_user_identity_providers",
+                return_value=[enriched],
+            ) as enrich,
         ):
-            result = identity_link_service.get_user_identity_provider_links(1, mock_db)
+            result = identity_link_service.get_user_identity_provider_links(
+                MOCK_USER_ID, core_pagination.PageParams(2, 1), mock_db
+            )
 
-        assert result is enriched
-
-    def test_returns_empty_list_when_no_links(self, mock_db):
-        with (
-            patch(
-                "modules.auth._internal.services.identity_link_service.auth_identity_links_crud.get_user_identity_providers_by_user_id",
-                return_value=[],
-            ),
-            patch(
-                "modules.auth._internal.services.identity_link_service.auth_identity_links_utils.enrich_user_identity_providers",
-                return_value=[],
-            ),
-        ):
-            result = identity_link_service.get_user_identity_provider_links(1, mock_db)
-
-        assert result == []
+        get_page.assert_called_once_with(MOCK_USER_ID, mock_db, limit=1, offset=1)
+        enrich.assert_called_once_with([link], MOCK_USER_ID, mock_db)
+        assert result == auth_identity_links_schema.IdentityProviderLinkPage.build([enriched], 3, 2, 1)
 
 
 class TestGetIdentityLinkCountsForUsers:
     """get_identity_link_counts_for_users: delegates to CRUD batch query."""
 
     def test_delegates_to_crud(self, mock_db):
-        expected = {1: 2, 2: 1}
+        expected = {MOCK_USER_ID: 2, OTHER_USER_ID: 1}
         with patch(
-            "modules.auth._internal.services.identity_link_service.auth_identity_links_crud.get_identity_link_counts_for_users",
+            "modules.auth.account_security.identity_link_service.identity_provider_links_integration.get_identity_link_counts_for_users",
             return_value=expected,
         ) as mock_crud:
-            result = identity_link_service.get_identity_link_counts_for_users([1, 2], mock_db)
+            result = identity_link_service.get_identity_link_counts_for_users([MOCK_USER_ID, OTHER_USER_ID], mock_db)
 
         assert result == expected
-        mock_crud.assert_called_once_with([1, 2], mock_db)
+        mock_crud.assert_called_once_with([MOCK_USER_ID, OTHER_USER_ID], mock_db)
 
 
-class TestGenerateLinkToken:
-    """generate_link_token: step-up verified before issuing IdP link token."""
+class TestStartIdpLink:
+    """start_idp_link: step-up verified before the browser link is staged."""
+
+    _MODULE = "modules.auth.account_security.identity_link_service"
 
     def _make_idp(self, enabled=True, name="TestIDP"):
         idp = MagicMock()
@@ -69,101 +77,190 @@ class TestGenerateLinkToken:
         idp.name = name
         return idp
 
-    def test_returns_token_on_success(self, mock_db):
-        mock_token = MagicMock()
-        identity_service = MagicMock()
-        step_up_store = MagicMock()
-        link_request = MagicMock()
-        link_request.current_password = "pass"
-        link_request.mfa_code = None
-        request = MagicMock()
-        request.client.host = "127.0.0.1"
+    def _link(self, redirect="/settings/security"):
+        return users_schema.IdentityProviderLinkStart(step_up={"current_password": "pass"}, redirect=redirect)
 
+    def test_commits_the_state_before_building_the_provider_url(self, mock_db):
+        order = MagicMock()
+        order.attach_mock(mock_db.commit, "commit")
+        link = self._link()
         with (
-            patch("modules.auth._internal.services.identity_link_service.step_up_service.verify_step_up_credentials"),
+            patch(f"{self._MODULE}.step_up_service.verify_step_up_credentials") as verify,
             patch(
-                "modules.auth._internal.services.identity_link_service.idp_crud.get_identity_provider",
-                return_value=self._make_idp(),
+                f"{self._MODULE}.identity_providers_integration.get_identity_provider", return_value=self._make_idp()
             ),
             patch(
-                "modules.auth._internal.services.identity_link_service.auth_identity_links_crud.get_user_identity_provider_by_user_id_and_idp_id",
+                f"{self._MODULE}.identity_provider_links_integration.get_user_identity_provider_by_user_id_and_idp_id",
                 return_value=None,
             ),
             patch(
-                "modules.auth._internal.services.identity_link_service.idp_link_token_utils.generate_idp_link_token",
-                return_value=mock_token,
-            ),
+                f"{self._MODULE}.identity_providers_integration.stage_browser_link",
+                return_value=MagicMock(browser_binding="binding"),
+            ) as stage,
+            patch(
+                f"{self._MODULE}.identity_providers_integration.authorization_url",
+                return_value="https://idp.example.com/auth",
+            ) as build,
         ):
-            result = identity_link_service.generate_link_token(
-                1, link_request, request, 10, identity_service, step_up_store, mock_db
+            order.attach_mock(build, "build_url")
+            flow = identity_link_service.start_idp_link(
+                IDP_ID, link, "127.0.0.1", MOCK_USER_ID, _SID, MagicMock(), mock_db
             )
 
-        assert result is mock_token
+        verify.assert_called_once()
+        assert verify.call_args.kwargs["action"] == identity_providers_constants.StepUpAction.IDP_LINK
+        stage.assert_called_once_with(
+            MOCK_USER_ID, IDP_ID, "/settings/security", "127.0.0.1", _SID, True, mock_db, security_generation=0
+        )
+        assert [call[0] for call in order.mock_calls] == ["commit", "build_url"]
+        assert flow.authorization_url == "https://idp.example.com/auth"
+        assert flow.browser_binding == "binding"
+
+    def test_the_generation_is_read_before_the_step_up_and_is_the_one_stamped(self, mock_db, security_generations):
+        security_generations.generations[MOCK_USER_ID] = 3
+        order = MagicMock()
+        with (
+            patch(f"{self._MODULE}.step_up_service.verify_step_up_credentials") as verify,
+            patch(
+                f"{self._MODULE}.identity_providers_integration.get_identity_provider", return_value=self._make_idp()
+            ),
+            patch(
+                f"{self._MODULE}.identity_provider_links_integration.get_user_identity_provider_by_user_id_and_idp_id",
+                return_value=None,
+            ),
+            patch(
+                f"{self._MODULE}.identity_providers_integration.stage_browser_link",
+                return_value=MagicMock(browser_binding="binding"),
+            ) as stage,
+            patch(f"{self._MODULE}.identity_providers_integration.authorization_url", return_value="https://x"),
+            patch(f"{self._MODULE}.security_generation_integration.current_generation", return_value=3) as read,
+        ):
+            order.attach_mock(read, "read_generation")
+            order.attach_mock(verify, "step_up")
+            # A security change that commits during the step-up must not reach the stamp.
+            verify.side_effect = lambda *args, **kwargs: security_generations.stage_bump(MOCK_USER_ID, mock_db)
+            identity_link_service.start_idp_link(
+                IDP_ID, self._link(), "127.0.0.1", MOCK_USER_ID, _SID, MagicMock(), mock_db
+            )
+
+        assert [call[0] for call in order.mock_calls][:2] == ["read_generation", "step_up"]
+        assert stage.call_args.kwargs["security_generation"] == 3
+
+    @pytest.mark.parametrize("revoke", [True, False])
+    def test_the_starting_session_and_the_choice_to_end_the_others_travel_with_the_state(self, mock_db, revoke):
+        link = users_schema.IdentityProviderLinkStart(
+            step_up={"current_password": "pass"}, redirect="/settings/security", revoke_other_sessions=revoke
+        )
+        with (
+            patch(f"{self._MODULE}.step_up_service.verify_step_up_credentials"),
+            patch(
+                f"{self._MODULE}.identity_providers_integration.get_identity_provider", return_value=self._make_idp()
+            ),
+            patch(
+                f"{self._MODULE}.identity_provider_links_integration.get_user_identity_provider_by_user_id_and_idp_id",
+                return_value=None,
+            ),
+            patch(
+                f"{self._MODULE}.identity_providers_integration.stage_browser_link",
+                return_value=MagicMock(browser_binding="binding"),
+            ) as stage,
+            patch(f"{self._MODULE}.identity_providers_integration.authorization_url", return_value="https://idp"),
+        ):
+            identity_link_service.start_idp_link(IDP_ID, link, "127.0.0.1", MOCK_USER_ID, _SID, MagicMock(), mock_db)
+
+        assert stage.call_args.args[4:6] == (_SID, revoke)
+
+    def test_a_bad_redirect_is_refused_before_step_up_runs(self, mock_db):
+        with (
+            patch(f"{self._MODULE}.step_up_service.verify_step_up_credentials") as verify_step_up,
+            patch(f"{self._MODULE}.identity_providers_integration.stage_browser_link") as stage,
+            pytest.raises(core_exceptions.DomainError) as exc,
+        ):
+            identity_link_service.start_idp_link(
+                IDP_ID,
+                self._link(redirect="https://evil.example.com"),
+                "127.0.0.1",
+                MOCK_USER_ID,
+                _SID,
+                MagicMock(),
+                mock_db,
+            )
+
+        assert exc.value.status_code == 400
+        verify_step_up.assert_not_called()
+        stage.assert_not_called()
 
     def test_raises_404_when_idp_not_found(self, mock_db):
         with (
-            patch("modules.auth._internal.services.identity_link_service.step_up_service.verify_step_up_credentials"),
-            patch(
-                "modules.auth._internal.services.identity_link_service.idp_crud.get_identity_provider",
-                return_value=None,
-            ),
-            pytest.raises(HTTPException) as exc,
+            patch(f"{self._MODULE}.step_up_service.verify_step_up_credentials") as verify_step_up,
+            patch(f"{self._MODULE}.identity_providers_integration.get_identity_provider", return_value=None),
+            pytest.raises(core_exceptions.DomainError) as exc,
         ):
-            identity_link_service.generate_link_token(
-                1, MagicMock(), MagicMock(), 10, MagicMock(), MagicMock(), mock_db
+            identity_link_service.start_idp_link(
+                IDP_ID, self._link(), "127.0.0.1", MOCK_USER_ID, _SID, MagicMock(), mock_db
             )
 
         assert exc.value.status_code == 404
+        verify_step_up.assert_not_called()
 
     def test_raises_404_when_idp_disabled(self, mock_db):
         with (
-            patch("modules.auth._internal.services.identity_link_service.step_up_service.verify_step_up_credentials"),
+            patch(f"{self._MODULE}.step_up_service.verify_step_up_credentials") as verify_step_up,
             patch(
-                "modules.auth._internal.services.identity_link_service.idp_crud.get_identity_provider",
+                f"{self._MODULE}.identity_providers_integration.get_identity_provider",
                 return_value=self._make_idp(enabled=False),
             ),
-            pytest.raises(HTTPException) as exc,
+            pytest.raises(core_exceptions.DomainError) as exc,
         ):
-            identity_link_service.generate_link_token(
-                1, MagicMock(), MagicMock(), 10, MagicMock(), MagicMock(), mock_db
+            identity_link_service.start_idp_link(
+                IDP_ID, self._link(), "127.0.0.1", MOCK_USER_ID, _SID, MagicMock(), mock_db
             )
 
         assert exc.value.status_code == 404
+        verify_step_up.assert_not_called()
 
     def test_raises_409_when_already_linked(self, mock_db):
-        existing_link = MagicMock()
         with (
-            patch("modules.auth._internal.services.identity_link_service.step_up_service.verify_step_up_credentials"),
+            patch(f"{self._MODULE}.step_up_service.verify_step_up_credentials") as verify_step_up,
             patch(
-                "modules.auth._internal.services.identity_link_service.idp_crud.get_identity_provider",
-                return_value=self._make_idp(),
+                f"{self._MODULE}.identity_providers_integration.get_identity_provider", return_value=self._make_idp()
             ),
             patch(
-                "modules.auth._internal.services.identity_link_service.auth_identity_links_crud.get_user_identity_provider_by_user_id_and_idp_id",
-                return_value=existing_link,
+                f"{self._MODULE}.identity_provider_links_integration.get_user_identity_provider_by_user_id_and_idp_id",
+                return_value=MagicMock(),
             ),
-            pytest.raises(HTTPException) as exc,
+            pytest.raises(core_exceptions.DomainError) as exc,
         ):
-            identity_link_service.generate_link_token(
-                1, MagicMock(), MagicMock(), 10, MagicMock(), MagicMock(), mock_db
+            identity_link_service.start_idp_link(
+                IDP_ID, self._link(), "127.0.0.1", MOCK_USER_ID, _SID, MagicMock(), mock_db
             )
 
         assert exc.value.status_code == 409
+        verify_step_up.assert_not_called()
 
-    def test_step_up_failure_propagates(self, mock_db):
-        """Step-up 401/429 from verify_step_up_credentials propagates to caller."""
+    def test_step_up_failure_stages_nothing(self, mock_db):
         with (
             patch(
-                "modules.auth._internal.services.identity_link_service.step_up_service.verify_step_up_credentials",
-                side_effect=HTTPException(status_code=401, detail="Step-up verification failed"),
+                f"{self._MODULE}.identity_providers_integration.get_identity_provider", return_value=self._make_idp()
             ),
-            pytest.raises(HTTPException) as exc,
+            patch(
+                f"{self._MODULE}.identity_provider_links_integration.get_user_identity_provider_by_user_id_and_idp_id",
+                return_value=None,
+            ),
+            patch(
+                f"{self._MODULE}.step_up_service.verify_step_up_credentials",
+                side_effect=core_exceptions.StepUpFailedError(),
+            ),
+            patch(f"{self._MODULE}.identity_providers_integration.stage_browser_link") as stage,
+            pytest.raises(core_exceptions.DomainError) as exc,
         ):
-            identity_link_service.generate_link_token(
-                1, MagicMock(), MagicMock(), 10, MagicMock(), MagicMock(), mock_db
+            identity_link_service.start_idp_link(
+                IDP_ID, self._link(), "127.0.0.1", MOCK_USER_ID, _SID, MagicMock(), mock_db
             )
 
-        assert exc.value.status_code == 401
+        assert exc.value.status_code == 403
+        stage.assert_not_called()
+        mock_db.commit.assert_not_called()
 
 
 class TestDeleteIdentityProviderLink:
@@ -174,83 +271,105 @@ class TestDeleteIdentityProviderLink:
         existing_links = [MagicMock(), MagicMock()]  # 2 links, so one can be removed
 
         with (
-            patch("modules.auth._internal.services.identity_link_service.step_up_service.verify_step_up_credentials"),
+            patch("modules.auth.account_security.identity_link_service.step_up_service.verify_step_up_credentials"),
             patch(
-                "modules.auth._internal.services.identity_link_service.idp_crud.get_identity_provider",
+                "modules.auth.account_security.identity_link_service.identity_providers_integration.get_identity_provider",
                 return_value=MagicMock(name="TestIDP"),
             ),
             patch(
-                "modules.auth._internal.services.identity_link_service.auth_identity_links_crud.get_user_identity_provider_by_user_id_and_idp_id",
+                "modules.auth.account_security.identity_link_service.identity_provider_links_integration.get_user_identity_provider_by_user_id_and_idp_id",
                 return_value=MagicMock(),
             ),
             patch(
-                "modules.auth._internal.services.identity_link_service.auth_identity_links_crud.get_user_identity_providers_by_user_id",
+                "modules.auth.account_security.identity_link_service.identity_provider_links_integration.get_user_identity_providers_by_user_id",
                 return_value=existing_links,
             ),
             patch(
-                "modules.auth._internal.services.identity_link_service.auth_identity_links_crud.delete_user_identity_provider",
+                "modules.auth.account_security.identity_link_service.identity_provider_links_integration.delete_user_identity_provider",
+                return_value=True,
+            ),
+            patch(
+                "modules.auth.account_security.identity_link_service.credentials_integration.has_local_password",
                 return_value=True,
             ),
         ):
-            identity_link_service.delete_identity_provider_link(1, step_up, 10, MagicMock(), MagicMock(), mock_db)
+            identity_link_service.delete_identity_provider_link(
+                IDP_ID, step_up, MOCK_USER_ID, _SID, MagicMock(), mock_db
+            )
 
     def test_raises_404_when_idp_not_found(self, mock_db):
         with (
-            patch("modules.auth._internal.services.identity_link_service.step_up_service.verify_step_up_credentials"),
             patch(
-                "modules.auth._internal.services.identity_link_service.idp_crud.get_identity_provider",
+                "modules.auth.account_security.identity_link_service.step_up_service.verify_step_up_credentials"
+            ) as verify_step_up,
+            patch(
+                "modules.auth.account_security.identity_link_service.identity_providers_integration.get_identity_provider",
                 return_value=None,
             ),
-            pytest.raises(HTTPException) as exc,
+            pytest.raises(core_exceptions.DomainError) as exc,
         ):
-            identity_link_service.delete_identity_provider_link(1, MagicMock(), 10, MagicMock(), MagicMock(), mock_db)
+            identity_link_service.delete_identity_provider_link(
+                IDP_ID, MagicMock(), MOCK_USER_ID, _SID, MagicMock(), mock_db
+            )
 
         assert exc.value.status_code == 404
+        verify_step_up.assert_not_called()
 
     def test_raises_404_when_link_not_found(self, mock_db):
         with (
-            patch("modules.auth._internal.services.identity_link_service.step_up_service.verify_step_up_credentials"),
             patch(
-                "modules.auth._internal.services.identity_link_service.idp_crud.get_identity_provider",
+                "modules.auth.account_security.identity_link_service.step_up_service.verify_step_up_credentials"
+            ) as verify_step_up,
+            patch(
+                "modules.auth.account_security.identity_link_service.identity_providers_integration.get_identity_provider",
                 return_value=MagicMock(),
             ),
             patch(
-                "modules.auth._internal.services.identity_link_service.auth_identity_links_crud.get_user_identity_provider_by_user_id_and_idp_id",
+                "modules.auth.account_security.identity_link_service.identity_provider_links_integration.get_user_identity_provider_by_user_id_and_idp_id",
                 return_value=None,
             ),
-            pytest.raises(HTTPException) as exc,
+            pytest.raises(core_exceptions.DomainError) as exc,
         ):
-            identity_link_service.delete_identity_provider_link(1, MagicMock(), 10, MagicMock(), MagicMock(), mock_db)
+            identity_link_service.delete_identity_provider_link(
+                IDP_ID, MagicMock(), MOCK_USER_ID, _SID, MagicMock(), mock_db
+            )
 
         assert exc.value.status_code == 404
+        verify_step_up.assert_not_called()
 
     def test_raises_400_when_last_auth_method(self, mock_db):
         """Cannot unlink the last IdP when the user has no password."""
-        identity_service = MagicMock()
-        identity_service.has_local_password.return_value = False  # SSO-only
 
         with (
-            patch("modules.auth._internal.services.identity_link_service.step_up_service.verify_step_up_credentials"),
             patch(
-                "modules.auth._internal.services.identity_link_service.idp_crud.get_identity_provider",
+                "modules.auth.account_security.identity_link_service.step_up_service.verify_step_up_credentials"
+            ) as verify_step_up,
+            patch(
+                "modules.auth.account_security.identity_link_service.identity_providers_integration.get_identity_provider",
                 return_value=MagicMock(),
             ),
             patch(
-                "modules.auth._internal.services.identity_link_service.auth_identity_links_crud.get_user_identity_provider_by_user_id_and_idp_id",
+                "modules.auth.account_security.identity_link_service.identity_provider_links_integration.get_user_identity_provider_by_user_id_and_idp_id",
                 return_value=MagicMock(),
             ),
             patch(
-                "modules.auth._internal.services.identity_link_service.auth_identity_links_crud.get_user_identity_providers_by_user_id",
+                "modules.auth.account_security.identity_link_service.identity_provider_links_integration.get_user_identity_providers_by_user_id",
                 return_value=[MagicMock()],  # exactly 1 link → remaining_idp_count == 0
             ),
-            pytest.raises(HTTPException) as exc,
+            patch(
+                "modules.auth.account_security.identity_link_service.credentials_integration.has_local_password",
+                return_value=False,
+            ),
+            pytest.raises(core_exceptions.DomainError) as exc,
         ):
             identity_link_service.delete_identity_provider_link(
-                1, MagicMock(), 10, identity_service, MagicMock(), mock_db
+                IDP_ID, MagicMock(), MOCK_USER_ID, _SID, MagicMock(), mock_db
             )
 
-        assert exc.value.status_code == 400
+        assert isinstance(exc.value, core_exceptions.LastSignInMethodError)
+        assert exc.value.status_code == 409
         assert "Cannot unlink last authentication method" in exc.value.detail
+        verify_step_up.assert_not_called()
 
 
 class TestAdminDeleteIdentityProviderLink:
@@ -261,55 +380,55 @@ class TestAdminDeleteIdentityProviderLink:
 
         with (
             patch(
-                "modules.auth._internal.services.identity_link_service.idp_crud.get_identity_provider",
+                "modules.auth.account_security.identity_link_service.identity_providers_integration.get_identity_provider",
                 return_value=MagicMock(name="TestIDP"),
             ),
             patch(
-                "modules.auth._internal.services.identity_link_service.auth_identity_links_crud.get_user_identity_provider_by_user_id_and_idp_id",
+                "modules.auth.account_security.identity_link_service.identity_provider_links_integration.get_user_identity_provider_by_user_id_and_idp_id",
                 return_value=MagicMock(),
             ),
             patch(
-                "modules.auth._internal.services.identity_link_service.auth_identity_links_crud.get_user_identity_providers_by_user_id",
+                "modules.auth.account_security.identity_link_service.identity_provider_links_integration.get_user_identity_providers_by_user_id",
                 return_value=existing_links,
             ),
             patch(
-                "modules.auth._internal.services.identity_link_service.auth_credentials_crud.get_credential",
-                return_value=None,  # no password, but more than one link remains
+                "modules.auth.account_security.identity_link_service.credentials_integration.has_local_password",
+                return_value=False,  # no password, but more than one link remains
             ),
             patch(
-                "modules.auth._internal.services.identity_link_service.auth_identity_links_crud.delete_user_identity_provider",
+                "modules.auth.account_security.identity_link_service.identity_provider_links_integration.delete_user_identity_provider",
                 return_value=True,
             ) as mock_delete,
         ):
-            identity_link_service.admin_delete_identity_provider_link(5, 1, mock_db)
+            identity_link_service.admin_delete_identity_provider_link(MOCK_USER_ID, IDP_ID, mock_db)
 
-        mock_delete.assert_called_once_with(5, 1, mock_db)
+        mock_delete.assert_called_once_with(MOCK_USER_ID, IDP_ID, mock_db)
 
     def test_raises_404_when_idp_not_found(self, mock_db):
         with (
             patch(
-                "modules.auth._internal.services.identity_link_service.idp_crud.get_identity_provider",
+                "modules.auth.account_security.identity_link_service.identity_providers_integration.get_identity_provider",
                 return_value=None,
             ),
-            pytest.raises(HTTPException) as exc,
+            pytest.raises(core_exceptions.DomainError) as exc,
         ):
-            identity_link_service.admin_delete_identity_provider_link(5, 1, mock_db)
+            identity_link_service.admin_delete_identity_provider_link(MOCK_USER_ID, IDP_ID, mock_db)
 
         assert exc.value.status_code == 404
 
     def test_raises_404_when_link_not_found(self, mock_db):
         with (
             patch(
-                "modules.auth._internal.services.identity_link_service.idp_crud.get_identity_provider",
+                "modules.auth.account_security.identity_link_service.identity_providers_integration.get_identity_provider",
                 return_value=MagicMock(),
             ),
             patch(
-                "modules.auth._internal.services.identity_link_service.auth_identity_links_crud.get_user_identity_provider_by_user_id_and_idp_id",
+                "modules.auth.account_security.identity_link_service.identity_provider_links_integration.get_user_identity_provider_by_user_id_and_idp_id",
                 return_value=None,
             ),
-            pytest.raises(HTTPException) as exc,
+            pytest.raises(core_exceptions.DomainError) as exc,
         ):
-            identity_link_service.admin_delete_identity_provider_link(5, 1, mock_db)
+            identity_link_service.admin_delete_identity_provider_link(MOCK_USER_ID, IDP_ID, mock_db)
 
         assert exc.value.status_code == 404
 
@@ -317,29 +436,34 @@ class TestAdminDeleteIdentityProviderLink:
         """Admin cannot unlink the last IdP when the user has no password."""
         with (
             patch(
-                "modules.auth._internal.services.identity_link_service.idp_crud.get_identity_provider",
+                "modules.auth.account_security.identity_link_service.identity_providers_integration.get_identity_provider",
                 return_value=MagicMock(),
             ),
             patch(
-                "modules.auth._internal.services.identity_link_service.auth_identity_links_crud.get_user_identity_provider_by_user_id_and_idp_id",
+                "modules.auth.account_security.identity_link_service.identity_provider_links_integration.get_user_identity_provider_by_user_id_and_idp_id",
                 return_value=MagicMock(),
             ),
             patch(
-                "modules.auth._internal.services.identity_link_service.auth_identity_links_crud.get_user_identity_providers_by_user_id",
+                "modules.auth.account_security.identity_link_service.identity_provider_links_integration.get_user_identity_providers_by_user_id",
                 return_value=[MagicMock()],  # exactly 1 link → remaining_idp_count == 0
             ),
             patch(
-                "modules.auth._internal.services.identity_link_service.auth_credentials_crud.get_credential",
-                return_value=None,  # SSO-only, no local password
+                "modules.auth.account_security.identity_link_service.credentials_integration.has_local_password",
+                return_value=False,
             ),
             patch(
-                "modules.auth._internal.services.identity_link_service.auth_identity_links_crud.delete_user_identity_provider",
+                "modules.auth.account_security.identity_link_service.credentials_integration.has_local_password",
+                return_value=False,  # SSO-only, no local password
+            ),
+            patch(
+                "modules.auth.account_security.identity_link_service.identity_provider_links_integration.delete_user_identity_provider",
             ) as mock_delete,
-            pytest.raises(HTTPException) as exc,
+            pytest.raises(core_exceptions.DomainError) as exc,
         ):
-            identity_link_service.admin_delete_identity_provider_link(5, 1, mock_db)
+            identity_link_service.admin_delete_identity_provider_link(MOCK_USER_ID, IDP_ID, mock_db)
 
-        assert exc.value.status_code == 400
+        assert isinstance(exc.value, core_exceptions.LastSignInMethodError)
+        assert exc.value.status_code == 409
         assert "Cannot unlink last authentication method" in exc.value.detail
         mock_delete.assert_not_called()
 
@@ -347,178 +471,151 @@ class TestAdminDeleteIdentityProviderLink:
         """Removing the last IdP is allowed when a local password exists."""
         with (
             patch(
-                "modules.auth._internal.services.identity_link_service.idp_crud.get_identity_provider",
+                "modules.auth.account_security.identity_link_service.identity_providers_integration.get_identity_provider",
                 return_value=MagicMock(),
             ),
             patch(
-                "modules.auth._internal.services.identity_link_service.auth_identity_links_crud.get_user_identity_provider_by_user_id_and_idp_id",
+                "modules.auth.account_security.identity_link_service.identity_provider_links_integration.get_user_identity_provider_by_user_id_and_idp_id",
                 return_value=MagicMock(),
             ),
             patch(
-                "modules.auth._internal.services.identity_link_service.auth_identity_links_crud.get_user_identity_providers_by_user_id",
+                "modules.auth.account_security.identity_link_service.identity_provider_links_integration.get_user_identity_providers_by_user_id",
                 return_value=[MagicMock()],  # only 1 link → remaining_idp_count == 0
             ),
             patch(
-                "modules.auth._internal.services.identity_link_service.auth_credentials_crud.get_credential",
-                return_value=MagicMock(),  # has local password
+                "modules.auth.account_security.identity_link_service.credentials_integration.has_local_password",
+                return_value=True,  # has local password
             ),
             patch(
-                "modules.auth._internal.services.identity_link_service.auth_identity_links_crud.delete_user_identity_provider",
+                "modules.auth.account_security.identity_link_service.identity_provider_links_integration.delete_user_identity_provider",
                 return_value=True,
             ) as mock_delete,
         ):
-            identity_link_service.admin_delete_identity_provider_link(5, 1, mock_db)
+            identity_link_service.admin_delete_identity_provider_link(MOCK_USER_ID, IDP_ID, mock_db)
 
-        mock_delete.assert_called_once_with(5, 1, mock_db)
+        mock_delete.assert_called_once_with(MOCK_USER_ID, IDP_ID, mock_db)
 
     def test_raises_500_when_delete_fails(self, mock_db):
         with (
             patch(
-                "modules.auth._internal.services.identity_link_service.idp_crud.get_identity_provider",
+                "modules.auth.account_security.identity_link_service.identity_providers_integration.get_identity_provider",
                 return_value=MagicMock(),
             ),
             patch(
-                "modules.auth._internal.services.identity_link_service.auth_identity_links_crud.get_user_identity_provider_by_user_id_and_idp_id",
+                "modules.auth.account_security.identity_link_service.identity_provider_links_integration.get_user_identity_provider_by_user_id_and_idp_id",
                 return_value=MagicMock(),
             ),
             patch(
-                "modules.auth._internal.services.identity_link_service.auth_identity_links_crud.get_user_identity_providers_by_user_id",
+                "modules.auth.account_security.identity_link_service.identity_provider_links_integration.get_user_identity_providers_by_user_id",
                 return_value=[MagicMock(), MagicMock()],
             ),
             patch(
-                "modules.auth._internal.services.identity_link_service.auth_credentials_crud.get_credential",
-                return_value=MagicMock(),
+                "modules.auth.account_security.identity_link_service.credentials_integration.has_local_password",
+                return_value=True,
             ),
             patch(
-                "modules.auth._internal.services.identity_link_service.auth_identity_links_crud.delete_user_identity_provider",
+                "modules.auth.account_security.identity_link_service.identity_provider_links_integration.delete_user_identity_provider",
                 return_value=False,
             ),
-            pytest.raises(HTTPException) as exc,
+            pytest.raises(core_exceptions.DomainError) as exc,
         ):
-            identity_link_service.admin_delete_identity_provider_link(5, 1, mock_db)
+            identity_link_service.admin_delete_identity_provider_link(MOCK_USER_ID, IDP_ID, mock_db)
 
         assert exc.value.status_code == 500
 
 
-class TestValidateAndClaimBrowserLinkToken:
-    """validate_and_claim_browser_link_token: token validation and atomic claim."""
+_P = "modules.auth.account_security.identity_link_service."
 
-    def test_returns_user_id_on_success(self, mock_db):
-        db_token = MagicMock()
-        db_token.idp_id = 1
-        db_token.ip_address = "127.0.0.1"
-        db_token.user_id = 42
 
+class TestUnlinkBumpsTheSecurityGeneration:
+    """Unlinking a provider, by the owner or an administrator, advances the security generation."""
+
+    def _unlink_patches(self):
+        return (
+            patch(_P + "identity_providers_integration.get_identity_provider", return_value=MagicMock()),
+            patch(
+                _P + "identity_provider_links_integration.get_user_identity_provider_by_user_id_and_idp_id",
+                return_value=MagicMock(),
+            ),
+            patch(
+                _P + "identity_provider_links_integration.get_user_identity_providers_by_user_id",
+                return_value=[MagicMock(), MagicMock()],
+            ),
+            patch(_P + "identity_provider_links_integration.delete_user_identity_provider", return_value=True),
+            patch(_P + "credentials_integration.has_local_password", return_value=True),
+        )
+
+    def test_the_owner_unlinking_stages_through_the_shared_step(self, mock_db):
+        get_idp, get_link, get_links, delete, has_password = self._unlink_patches()
         with (
-            patch(
-                "modules.auth._internal.services.identity_link_service.idp_link_token_utils.hash_idp_link_token",
-                return_value="hash",
-            ),
-            patch(
-                "modules.auth._internal.services.identity_link_service.idp_link_token_crud.get_idp_link_token_by_hash",
-                return_value=db_token,
-            ),
-            patch(
-                "modules.auth._internal.services.identity_link_service.auth_identity_links_crud.get_user_identity_provider_by_user_id_and_idp_id",
-                return_value=None,
-            ),
-            patch(
-                "modules.auth._internal.services.identity_link_service.idp_link_token_crud.mark_token_as_used",
-                return_value=True,
-            ),
+            patch(_P + "step_up_service.verify_step_up_credentials"),
+            get_idp,
+            get_link,
+            get_links,
+            delete,
+            has_password,
+            patch(_P + "_stage_unlink") as stage_unlink,
         ):
-            result = identity_link_service.validate_and_claim_browser_link_token("tok", 1, "127.0.0.1", mock_db)
+            identity_link_service.delete_identity_provider_link(
+                IDP_ID, MagicMock(), MOCK_USER_ID, _SID, MagicMock(), mock_db
+            )
 
-        assert result == 42
+        stage_unlink.assert_called_once_with(MOCK_USER_ID, IDP_ID, mock_db)
 
-    def test_raises_401_when_token_not_found(self, mock_db):
+    def test_the_owner_unlinking_bumps_before_the_link_is_deleted(self, mock_db):
+        get_idp, get_link, get_links, delete, has_password = self._unlink_patches()
+        order = MagicMock()
         with (
-            patch(
-                "modules.auth._internal.services.identity_link_service.idp_link_token_utils.hash_idp_link_token",
-                return_value="hash",
-            ),
-            patch(
-                "modules.auth._internal.services.identity_link_service.idp_link_token_crud.get_idp_link_token_by_hash",
-                return_value=None,
-            ),
-            pytest.raises(HTTPException) as exc,
+            patch(_P + "step_up_service.verify_step_up_credentials"),
+            get_idp,
+            get_link,
+            get_links,
+            delete as delete_link,
+            has_password,
+            patch(_P + "_stage_unlink"),
+            patch(_P + "security_generation_integration.stage_bump") as bump,
         ):
-            identity_link_service.validate_and_claim_browser_link_token("bad-token", 1, None, mock_db)
+            order.attach_mock(bump, "bump")
+            order.attach_mock(delete_link, "delete_link")
+            identity_link_service.delete_identity_provider_link(
+                IDP_ID, MagicMock(), MOCK_USER_ID, _SID, MagicMock(), mock_db
+            )
 
-        assert exc.value.status_code == 401
+        bump.assert_called_once_with(MOCK_USER_ID, mock_db)
+        assert [call[0] for call in order.mock_calls] == ["bump", "delete_link"]
 
-    def test_raises_401_when_idp_mismatch(self, mock_db):
-        db_token = MagicMock()
-        db_token.idp_id = 2  # different from requested idp_id=1
-        db_token.ip_address = None
-
+    def test_an_administrator_unlinking_bumps_before_the_link_is_deleted(self, mock_db):
+        get_idp, get_link, get_links, delete, has_password = self._unlink_patches()
+        order = MagicMock()
         with (
-            patch(
-                "modules.auth._internal.services.identity_link_service.idp_link_token_utils.hash_idp_link_token",
-                return_value="hash",
-            ),
-            patch(
-                "modules.auth._internal.services.identity_link_service.idp_link_token_crud.get_idp_link_token_by_hash",
-                return_value=db_token,
-            ),
-            pytest.raises(HTTPException) as exc,
+            get_idp,
+            get_link,
+            get_links,
+            delete as delete_link,
+            has_password,
+            patch(_P + "_stage_unlink"),
+            patch(_P + "security_generation_integration.stage_bump") as bump,
         ):
-            identity_link_service.validate_and_claim_browser_link_token("tok", 1, None, mock_db)
+            order.attach_mock(bump, "bump")
+            order.attach_mock(delete_link, "delete_link")
+            identity_link_service.admin_delete_identity_provider_link(MOCK_USER_ID, IDP_ID, mock_db)
 
-        assert exc.value.status_code == 401
+        bump.assert_called_once_with(MOCK_USER_ID, mock_db)
+        assert [call[0] for call in order.mock_calls] == ["bump", "delete_link"]
 
-    def test_raises_409_when_already_linked(self, mock_db):
-        db_token = MagicMock()
-        db_token.idp_id = 1
-        db_token.ip_address = None
-        db_token.user_id = 42
+    def test_an_administrator_unlinking_stages_through_the_shared_step(self, mock_db):
+        get_idp, get_link, get_links, delete, has_password = self._unlink_patches()
+        with get_idp, get_link, get_links, delete, has_password, patch(_P + "_stage_unlink") as stage_unlink:
+            identity_link_service.admin_delete_identity_provider_link(MOCK_USER_ID, IDP_ID, mock_db)
 
+        stage_unlink.assert_called_once_with(MOCK_USER_ID, IDP_ID, mock_db)
+
+    def test_a_refused_unlink_does_not_bump(self, mock_db):
         with (
-            patch(
-                "modules.auth._internal.services.identity_link_service.idp_link_token_utils.hash_idp_link_token",
-                return_value="hash",
-            ),
-            patch(
-                "modules.auth._internal.services.identity_link_service.idp_link_token_crud.get_idp_link_token_by_hash",
-                return_value=db_token,
-            ),
-            patch(
-                "modules.auth._internal.services.identity_link_service.auth_identity_links_crud.get_user_identity_provider_by_user_id_and_idp_id",
-                return_value=MagicMock(),  # already exists
-            ),
-            pytest.raises(HTTPException) as exc,
+            patch(_P + "identity_providers_integration.get_identity_provider", return_value=None),
+            patch(_P + "security_generation_integration.stage_bump") as bump,
+            pytest.raises(core_exceptions.NotFoundError),
         ):
-            identity_link_service.validate_and_claim_browser_link_token("tok", 1, None, mock_db)
+            identity_link_service.admin_delete_identity_provider_link(MOCK_USER_ID, IDP_ID, mock_db)
 
-        assert exc.value.status_code == 409
-
-    def test_raises_400_on_replay(self, mock_db):
-        """Token that has already been used (mark_token_as_used returns False) raises 400."""
-        db_token = MagicMock()
-        db_token.idp_id = 1
-        db_token.ip_address = None
-        db_token.user_id = 42
-        db_token.id = 7
-
-        with (
-            patch(
-                "modules.auth._internal.services.identity_link_service.idp_link_token_utils.hash_idp_link_token",
-                return_value="hash",
-            ),
-            patch(
-                "modules.auth._internal.services.identity_link_service.idp_link_token_crud.get_idp_link_token_by_hash",
-                return_value=db_token,
-            ),
-            patch(
-                "modules.auth._internal.services.identity_link_service.auth_identity_links_crud.get_user_identity_provider_by_user_id_and_idp_id",
-                return_value=None,
-            ),
-            patch(
-                "modules.auth._internal.services.identity_link_service.idp_link_token_crud.mark_token_as_used",
-                return_value=False,  # already used (race/replay)
-            ),
-            pytest.raises(HTTPException) as exc,
-        ):
-            identity_link_service.validate_and_claim_browser_link_token("tok", 1, None, mock_db)
-
-        assert exc.value.status_code == 400
+        bump.assert_not_called()

@@ -1,4 +1,4 @@
-import { createI18n } from 'vue-i18n'
+import { createI18n, type PluralizationRule } from 'vue-i18n'
 
 import { getStorageItem, setStorageItem } from '@/lib/storage'
 import enApp from './locales/en/app.json'
@@ -17,6 +17,7 @@ import enSearch from './locales/en/search.json'
 import enUserProfile from './locales/en/userProfile.json'
 import enSummary from './locales/en/summary.json'
 import enHealth from './locales/en/health.json'
+import enUnits from './locales/en/units.json'
 
 /**
  * English message set, assembled from one file per feature namespace. The
@@ -40,6 +41,7 @@ const en = {
   userProfile: enUserProfile,
   summary: enSummary,
   health: enHealth,
+  units: enUnits,
 }
 
 /**
@@ -47,6 +49,13 @@ const en = {
  * `en` is the source of truth; every other locale must match this schema.
  */
 export type MessageSchema = typeof en
+
+/**
+ * A measurement unit symbol under `units.*` (e.g. `km`, `kg`, `bpm`). Formatters
+ * return these keys so they stay free of i18n; the view resolves them through
+ * `useUnitFormat`.
+ */
+export type UnitKey = Exclude<keyof MessageSchema['units'], 'duration'>
 
 /** Locales the app can switch to, in display order. */
 export const SUPPORTED_LOCALES = [
@@ -89,9 +98,68 @@ export const DEFAULT_LOCALE: LocaleCode = 'en'
 const STORAGE_KEY = 'locale'
 
 declare module 'vue-i18n' {
-  // Make `t()` keys fully type-safe against the English schema.
+  // Gives `t()` key autocomplete against the English schema. It does not reject unknown keys; the key check in
+  // `src/__tests__/i18nKeys.spec.ts` does.
   // eslint-disable-next-line @typescript-eslint/no-empty-object-type
   export interface DefineLocaleMessage extends MessageSchema {}
+}
+
+const PLURAL_CATEGORY_ORDER: Intl.LDMLPluralRule[] = ['zero', 'one', 'two', 'few', 'many', 'other']
+const pluralFormsCache = new Map<string, Intl.LDMLPluralRule[]>()
+const pluralSelectorCache = new Map<string, Intl.PluralRules>()
+
+/**
+ * Returns the plural forms a locale uses for whole numbers, in CLDR order
+ * (`zero, one, two, few, many, other`). They are the categories
+ * `Intl.PluralRules` returns for 0 to 1000.
+ *
+ * Translators follow this convention: each plural message lists the forms its
+ * language uses for whole numbers, in the order zero, one, two, few, many,
+ * other, separated by ` | `. English is `one | other`; Polish is
+ * `one | few | many`; Chinese has the single form `other`.
+ *
+ * @param locale - A supported locale code.
+ * @returns The locale's plural categories, in message order.
+ */
+export function pluralForms(locale: string): Intl.LDMLPluralRule[] {
+  let forms = pluralFormsCache.get(locale)
+  if (!forms) {
+    const rules = pluralSelector(locale)
+    const used = new Set<Intl.LDMLPluralRule>()
+    for (let n = 0; n <= 1000; n++) {
+      used.add(rules.select(n))
+    }
+    forms = PLURAL_CATEGORY_ORDER.filter((category) => used.has(category))
+    pluralFormsCache.set(locale, forms)
+  }
+  return forms
+}
+
+function pluralSelector(locale: string): Intl.PluralRules {
+  let rules = pluralSelectorCache.get(locale)
+  if (!rules) {
+    rules = new Intl.PluralRules(locale)
+    pluralSelectorCache.set(locale, rules)
+  }
+  return rules
+}
+
+/**
+ * Builds the vue-i18n plural rule for a locale: the index of the form that
+ * `Intl.PluralRules` selects, among {@link pluralForms}. A category outside the
+ * forms (a fraction, or French `many` for 1,000,000) uses the last form, and the
+ * index never exceeds the message's own form count, so a message with fewer
+ * forms than the locale degrades to its last form.
+ *
+ * @param locale - A supported locale code.
+ * @returns The plural rule for `locale`.
+ */
+function pluralRuleFor(locale: string): PluralizationRule {
+  return (choice, choicesLength) => {
+    const forms = pluralForms(locale)
+    const index = forms.indexOf(pluralSelector(locale).select(choice))
+    return Math.min(index === -1 ? forms.length - 1 : index, choicesLength - 1)
+  }
 }
 
 const i18n = createI18n<false>({
@@ -107,6 +175,7 @@ const i18n = createI18n<false>({
     default: [DEFAULT_LOCALE],
   },
   messages: { en },
+  pluralRules: Object.fromEntries(SUPPORTED_LOCALES.map(({ code }) => [code, pluralRuleFor(code)])),
 })
 
 export default i18n

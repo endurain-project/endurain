@@ -1,6 +1,12 @@
 {
   "title": "Zdravlje",
   "subtitle": "Pogledajte sve svoje zdravstvene podatke na jednom mestu",
+  "chartBucket": {
+    "week": "Nedeljni proseci: svaki stubac prikazuje prosečan dan te nedelje.",
+    "month": "Mesečni proseci: svaki stubac prikazuje prosečan dan tog meseca."
+  },
+  "targetInvalid": "Unesite vrednost veću od 0 ili ostavite prazno da biste uklonili cilj.",
+  "chartError": "Grafikon za ovaj period nije mogao da se učita.",
   "nav": {
     "label": "Zdravstveni odeljci",
     "soon": "Uskoro",
@@ -34,6 +40,7 @@
     "stepsTargetLabel": "koraka",
     "poopTargetLabel": "/ dan",
     "noWeightData": "Nema podataka o težini",
+    "noHeightData": "Dodajte svoju visinu u profil da biste videli svoj BMI.",
     "bmiUnderweight": "Pothranjenost",
     "bmiNormalWeight": "Normalna težina",
     "bmiOverweight": "Prekomerna težina",
@@ -88,7 +95,6 @@
       "weightRequired": "Unesite svoju težinu.",
       "weightInvalid": "Unesite težinu veću od nule.",
       "bodyComposition": "Telesni sastav (opciono)",
-      "bmi": "BMI",
       "bodyFat": "Telesne masti (%)",
       "bodyWater": "Telesna voda (%)",
       "boneMass": "Masa kostiju",
@@ -256,6 +262,8 @@
     "scorePoor": "Loše",
     "detail": {
       "tabsLabel": "Odeljci detalja sna",
+      "stagesLoading": "Učitavanje faza sna",
+      "stagesError": "Nije moguće učitati faze sna",
       "tabScore": "Rezultat sna",
       "tabDetails": "Detalji sna",
       "deep": "Dubok",
@@ -301,6 +309,8 @@
     "form": {
       "addTitle": "Zabeleži san",
       "editTitle": "Izmeni unos sna",
+      "loading": "Učitavanje unosa sna",
+      "loadError": "Nije moguće učitati unos sna",
       "description": "Zabeležite trajanje sna i, opciono, raščlanjivanje faza i metrike.",
       "date": "Datum",
       "dateRequired": "Izaberite datum.",
@@ -308,6 +318,8 @@
       "totalSleepRequired": "Unesite koliko dugo ste spavali.",
       "hours": "Sati",
       "minutes": "Minuti",
+      "hoursOf": "{field}, sati",
+      "minutesOf": "{field}, minuti",
       "stageBreakdown": "Raščlanjivanje faza (opciono)",
       "deep": "Dubok san",
       "light": "Lagan san",
@@ -350,7 +362,11 @@
       "close": "Zatvori",
       "createSuccess": "San je zabeležen.",
       "updateSuccess": "Unos sna je ažuriran.",
-      "saveError": "Nije moguće sačuvati unos sna. Pokušajte ponovo."
+      "saveError": "Nije moguće sačuvati unos sna. Pokušajte ponovo.",
+      "numberRange": "Unesite vrednost između {min} i {max}.",
+      "numberMin": "Unesite {min} ili više.",
+      "stagesExceedTotal": "Dubok san, lagan san i REM zajedno premašuju ukupno trajanje.",
+      "inconsistentError": "Ovi podaci o snu se ne slažu. Proverite da li se faze i ukupno trajanje uklapaju u vreme spavanja."
     },
     "target": {
       "title": "Postavi cilj sna",
@@ -419,7 +435,8 @@
       "close": "Zatvori",
       "createSuccess": "Voda je zabeležena.",
       "updateSuccess": "Unos vode je ažuriran.",
-      "saveError": "Nije moguće sačuvati unos vode. Pokušajte ponovo."
+      "saveError": "Nije moguće sačuvati unos vode. Pokušajte ponovo.",
+      "dayTakenError": "Unos vode za taj dan već postoji. Izmenite ga umesto dodavanja novog."
     },
     "target": {
       "title": "Postavi cilj vode",
@@ -596,6 +613,8 @@
       "startTime": "Vreme početka",
       "startTimeRequired": "Izaberite vreme početka.",
       "endTime": "Vreme završetka",
+      "endBeforeStart": "Vreme završetka ne sme biti pre vremena početka.",
+      "endWhileInProgress": "Post u toku ne može da ima vreme završetka.",
       "status": "Status",
       "notes": "Beleške",
       "create": "Započni",
@@ -604,7 +623,9 @@
       "close": "Zatvori",
       "createSuccess": "Post je započet.",
       "updateSuccess": "Sesija posta je ažurirana.",
-      "saveError": "Nije moguće sačuvati sesiju posta. Pokušajte ponovo."
+      "saveError": "Nije moguće sačuvati sesiju posta. Pokušajte ponovo.",
+      "overlapError": "Ovaj post se preklapa sa drugim postom ili je neki drugi post već u toku.",
+      "invalidTimesError": "Post ne može da se završi pre nego što počne, završen ili prekinut post zahteva vreme završetka, a post u toku ne može da ga ima."
     },
     "target": {
       "title": "Postavi cilj posta",
@@ -621,6 +642,20 @@
     "complete": {
       "success": "Post je završen.",
       "error": "Nije moguće završiti vaš post. Pokušajte ponovo."
+    },
+    "endConfirm": {
+      "broken": {
+        "title": "Prekinuti ovaj post?",
+        "body": "Post se završava sada i čuva se kao prekinut. Ovo se ne može poništiti.",
+        "confirm": "Prekini post"
+      },
+      "cancelled": {
+        "title": "Otkazati ovaj post?",
+        "body": "Post se završava sada i čuva se kao otkazan. Ovo se ne može poništiti.",
+        "confirm": "Otkaži post"
+      },
+      "cancel": "Nastavi sa postom",
+      "close": "Zatvori"
     },
     "empty": {
       "title": "Još nema postova",

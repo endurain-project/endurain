@@ -31,7 +31,9 @@
       "admin": "Admin",
       "inactive": "Inactive",
       "unverified": "Unverified email",
+      "pendingEmail": "Pending email change",
       "pending": "Pending approval",
+      "deleting": "Being deleted",
       "externalAuth": "External auth"
     },
     "actions": {
@@ -64,18 +66,22 @@
       "email": "Email",
       "emailRequired": "Email is required",
       "emailInvalid": "Enter a valid email address",
+      "emailChangeHint": "A confirmation link is sent to the new address and it replaces the current one once confirmed. The user is signed out of every device. Mark the new address as verified to apply it now instead.",
       "accessType": "Access type",
       "accessTypeRegular": "Regular user",
       "accessTypeAdmin": "Administrator",
       "password": "Password",
       "passwordHint": "At least 8 characters",
-      "passwordHintStrict": "At least {min} characters, with uppercase, lowercase, a number, and a special character",
-      "passwordHintLength": "At least {min} characters",
       "passwordRequired": "Password is required",
-      "passwordInvalid": "That password doesn't meet the requirements",
       "confirmPassword": "Confirm password",
+      "mustChangePasswordHint": "The user will have to choose a new password at their next sign-in.",
       "confirmPasswordRequired": "Confirm the password",
-      "passwordMismatch": "Passwords don't match",
+      "passwordMode": "How the user gets a password",
+      "passwordModeInvitation": "Email an invitation to choose a password",
+      "passwordModePassword": "Set a password now",
+      "passwordModeHint": "The user receives an email with a link, valid for 24 hours, to choose their own password.",
+      "invitationNeedsActive": "An inactive account cannot be invited. Set a password instead.",
+      "inviteSuccess": "User added and invitation sent",
       "preferredLanguage": "Preferred language",
       "languages": {
         "ca": "Catalan",
@@ -118,14 +124,16 @@
       "units": "Units",
       "unitsMetric": "Metric",
       "unitsImperial": "Imperial",
+      "weightUnits": "Weight units",
+      "weightUnitsDefault": "Follow units",
+      "weightUnitsMetric": "Kilograms (kg)",
+      "weightUnitsImperial": "Pounds (lb)",
       "height": "Height",
-      "unitCm": "cm",
-      "unitFeet": "ft",
-      "unitInches": "in",
+      "heightInvalid": "Height must be between 50 and 272 cm",
+      "maxHeartRateInvalid": "Maximum heart rate must be between 30 and 250 bpm",
       "feetInvalid": "Feet must be between 0 and 10",
       "inchesInvalid": "Inches must be between 0 and 11",
       "maxHeartRate": "Max heart rate",
-      "unitBpm": "bpm",
       "currency": "Currency",
       "currencies": {
         "euro": "Euro",
@@ -134,6 +142,8 @@
       },
       "firstDayOfWeek": "First day of the week",
       "timezone": "Timezone",
+      "timezoneNotSet": "Not set",
+      "timezoneUseBrowser": "Use my browser's timezone ({timezone})",
       "timezoneHint": "Used for activities recorded without GPS, such as treadmill runs and indoor rides.",
       "weekdays": {
         "sunday": "Sunday",
@@ -149,7 +159,8 @@
       "statusLegend": "Account status",
       "active": "Active",
       "emailVerified": "Email verified",
-      "pendingAdminApproval": "Pending admin approval",
+      "emailVerifiedCurrentHint": "This is the status of the current address.",
+      "newEmailVerified": "Mark the new address as verified",
       "requiredField": "Required field",
       "create": "Add user",
       "save": "Save changes",
@@ -158,7 +169,13 @@
       "createSuccess": "User added",
       "updateSuccess": "User updated",
       "conflict": "That username or email is already in use",
-      "saveError": "Couldn't save the user. Please try again."
+      "lastAdministrator": "The only administrator cannot be demoted or deactivated",
+      "saveError": "Couldn't save the user. Please try again.",
+      "stepUpTitle": "Confirm your identity",
+      "stepUpDescription": "Changing the email, access type or active status of {username} signs them out everywhere. Confirm it is you to continue.",
+      "stepUpCreateDescription": "Creating an administrator account grants full access. Confirm it is you to continue.",
+      "stepUpConfirm": "Save changes",
+      "approvalPending": "This user is awaiting approval. Approve them instead of activating them here."
     },
     "delete": {
       "title": "Delete user",
@@ -166,11 +183,13 @@
       "confirm": "Delete",
       "cancel": "Cancel",
       "close": "Close",
-      "success": "User deleted",
-      "error": "Couldn't delete the user. Please try again."
+      "success": "User signed out and queued for deletion",
+      "error": "Couldn't delete the user. Please try again.",
+      "failed": "Deleting the user failed. The account stays deactivated; delete it again to retry."
     },
     "detail": {
       "back": "Back to users",
+      "pendingEmail": "Pending email change to {email}, link expires {date}",
       "notFoundTitle": "User not found",
       "notFoundDescription": "This account may have been deleted",
       "securityTitle": "Security",
@@ -184,19 +203,33 @@
     "password": {
       "button": "Reset password",
       "title": "Reset password",
-      "description": "Set a new password for {username}",
+      "description": "Set a new password for {username}. All of their sessions, unused reset links, pending email change and API keys end. They are notified.",
       "newLabel": "New password",
-      "hintLength": "At least {min} characters",
-      "hintStrict": "At least {min} characters, with uppercase, lowercase, a number, and a special character",
       "confirmLabel": "Confirm new password",
-      "mismatch": "Passwords don't match",
       "required": "Password is required",
       "submit": "Reset password",
       "cancel": "Cancel",
       "close": "Close",
       "success": "Password updated",
-      "invalid": "That password doesn't meet the requirements",
       "error": "Couldn't update the password. Please try again."
+    },
+    "mfaReset": {
+      "button": "Reset MFA",
+      "title": "Reset two-factor authentication",
+      "description": "This turns off two-factor authentication for {username} and removes their backup codes. All of their sessions end, so they sign out of every device, and they must set up two-factor authentication again after signing in. They are notified. Confirm it is you to continue.",
+      "confirm": "Reset MFA",
+      "success": "Two-factor authentication reset",
+      "refused": "Two-factor authentication is not turned on for this user.",
+      "error": "Couldn't reset two-factor authentication. Please try again."
+    },
+    "requirePasswordChange": {
+      "button": "Require password change",
+      "title": "Require a password change",
+      "description": "{username} keeps their current password but must choose a new one the next time they sign in with it. All of their sessions end, so they sign out of every device. Signing in through a single sign-on provider is not affected. They are notified. Confirm it is you to continue.",
+      "confirm": "Require change",
+      "success": "Password change required",
+      "refused": "This user has no password to change.",
+      "error": "Couldn't require a password change. Please try again."
     },
     "sessions": {
       "title": "Sessions",
@@ -205,21 +238,40 @@
       "error": "Couldn't load sessions",
       "retry": "Try again",
       "lastActive": "Last active {date}",
+      "viaApp": "Signed in through app: {address}",
       "current": "Current session",
       "revokeOthers": "Revoke other sessions",
       "revokeOthersTitle": "Revoke other sessions",
-      "revokeOthersBody": "This signs out all other devices for this account",
+      "revokeOthersBody": "This signs out all other devices for this account. Confirm it is you to continue.",
       "revokeOthersConfirm": "Revoke others",
       "revokeOthersSuccess": "Other sessions revoked",
       "revokeOthersError": "Couldn't revoke the other sessions. Please try again.",
       "revoke": "Revoke session",
       "revokeTitle": "Revoke session",
-      "revokeBody": "This signs the device out, they'll need to sign in again",
+      "revokeBody": "This signs the device out, they'll need to sign in again. Confirm it is you to continue.",
       "revokeConfirm": "Revoke",
-      "revokeCancel": "Cancel",
-      "revokeClose": "Close",
       "revokeSuccess": "Session revoked",
       "revokeError": "Couldn't revoke the session. Please try again."
+    },
+    "apiKeys": {
+      "title": "API keys",
+      "subtitle": "API keys this user created for scripts and third-party tools",
+      "error": "Couldn't load API keys",
+      "retry": "Try again",
+      "empty": "This user has no API keys",
+      "revoke": "Revoke",
+      "revokeTitle": "Revoke this API key?",
+      "revokeBody": "The key stops working right away and the user is notified.",
+      "revokeConfirm": "Revoke key",
+      "revokeSuccess": "API key revoked",
+      "revokeError": "Couldn't revoke the API key. Please try again.",
+      "revokeNotFound": "That API key no longer exists.",
+      "revokeAll": "Revoke all keys",
+      "revokeAllTitle": "Revoke all API keys?",
+      "revokeAllBody": "Every active API key of this user stops working right away and the user is notified.",
+      "revokeAllConfirm": "Revoke all keys",
+      "revokeAllSuccess": "API keys revoked",
+      "revokeAllError": "Couldn't revoke the API keys. Please try again."
     },
     "photo": {
       "upload": "Upload photo",
@@ -277,6 +329,34 @@
     "saving": "Saving…",
     "saveSuccess": "Server settings updated",
     "saveError": "Couldn't update the server settings. Please try again.",
+    "staleError": "These settings were changed by someone else while you were editing. Your changes were not saved. Reload the page to see the current values.",
+    "stepUpTitle": "Confirm your identity",
+    "stepUpDescription": "These changes affect who can sign up, sign in or keep a session on this server, how long the audit trail is kept, or whether public links show who shared them. Confirm it is you to continue.",
+    "envLocked": "Set by {name}",
+    "envSection": "Some settings here are set by environment variables ({names}). Remove them from the environment to edit those settings here.",
+    "unsaved": "Unsaved changes",
+    "fixErrors": "Fix the errors above to save",
+    "discard": "Discard",
+    "tabs": {
+      "label": "Server settings sections",
+      "general": "General",
+      "access": "Access & security",
+      "maps": "Maps & location",
+      "email": "Email",
+      "logs": "Logs",
+      "unsaved": "Has unsaved changes"
+    },
+    "search": {
+      "placeholder": "Search settings…",
+      "noResults": "No settings found"
+    },
+    "leave": {
+      "title": "Leave without saving?",
+      "description": "You have unsaved changes. If you leave this page they will be lost.",
+      "confirm": "Leave without saving",
+      "stay": "Stay on page",
+      "close": "Close"
+    },
     "loadError": {
       "title": "Couldn't load server settings",
       "description": "Something went wrong while loading the server settings. You can try again.",
@@ -293,17 +373,49 @@
       "currencyPound": "Pound (£)",
       "numRecords": "Records per page"
     },
+    "mfa": {
+      "title": "Two-step verification",
+      "require": "Require two-step verification",
+      "requireHint": "An account this covers that has not set up two-step verification must set up two-step verification before it can do anything else. Until then it can only set it up and sign out. The requirement applies from the account's next request.",
+      "options": {
+        "off": "Not required",
+        "administrators": "Administrators only",
+        "everyone": "Everyone"
+      },
+      "enabledWarning": "Accounts covered by this setting that have not set up two-step verification, possibly including yours, are sent to set it up on their next request."
+    },
     "password": {
       "title": "Password policy",
-      "type": "Policy",
-      "typeStrict": "Strict (complexity required)",
-      "typeLengthOnly": "Length only",
       "lengthRegular": "Minimum length regular users",
-      "lengthAdmin": "Minimum length admin users"
+      "lengthAdmin": "Minimum length admin users",
+      "breachCheck": "Refuse passwords found in known data breaches",
+      "breachCheckHint": "Checks each new or changed password with haveibeenpwned.com. Only the first 5 characters of the password's SHA-1 hash are sent, never the password. If the service cannot be reached, the password is accepted."
+    },
+    "session": {
+      "title": "Sessions",
+      "description": "Changes apply to new sign-ins and to the next token refresh. Tokens already issued keep their lifetime.",
+      "idleTimeoutEnabled": "Enforce idle timeout",
+      "idleHours": "Idle timeout (hours)",
+      "idleHoursHint": "When enforced, a session ends after this many hours without activity.",
+      "absoluteHours": "Absolute timeout (hours)",
+      "absoluteHoursHint": "A session ends this many hours after sign-in, whatever its activity. Always applies. Not shorter than the idle timeout.",
+      "accessMinutes": "Access token lifetime (minutes)",
+      "refreshDays": "Refresh token lifetime (days)",
+      "apiKeyDays": "API key maximum lifetime (days)",
+      "apiKeyDaysHint": "A new API key expires after this many days unless its owner chooses an earlier date.",
+      "invalidRange": "Enter a whole number between {min} and {max}.",
+      "absoluteBelowIdle": "Must not be shorter than the idle timeout.",
+      "accessNotBelowIdle": "Must be shorter than the idle timeout."
+    },
+    "retention": {
+      "title": "Data retention",
+      "readNotifications": "Delete read notifications after (days)",
+      "readNotificationsHint": "0 keeps read notifications forever. Unread notifications are never deleted."
     },
     "signup": {
       "title": "Registration",
       "enabled": "Allow new user sign-ups",
+      "ssoEnabled": "Allow new user sign-ups through single sign-on",
       "adminApproval": "Require admin approval for new sign-ups",
       "emailVerification": "Require email verification for new sign-ups"
     },
@@ -335,13 +447,34 @@
       "urlInvalid": "URL must include the z, x and y tile placeholders",
       "attribution": "Attribution",
       "apiKey": "Tile server API key",
-      "apiKeyWarning": "The API key is stored encrypted. Leave blank if your tile server doesn't need one.",
+      "apiKeyWarning": "The API key is stored encrypted and never shown again. Leave blank to keep the current key, or if your tile server doesn't need one.",
+      "apiKeyStored": "A key is stored",
+      "apiKeyRemove": "Remove the stored API key",
       "backgroundColor": "Map background color",
       "regenerateThumbnails": "Regenerate activity thumbnails when map settings change"
+    },
+    "geocoding": {
+      "title": "Reverse geocoding",
+      "description": "Turns activity coordinates into place names. Changes apply without a restart.",
+      "service": "Service",
+      "serviceNominatim": "Nominatim",
+      "servicePhoton": "Photon",
+      "serviceGeocode": "geocode.maps.co",
+      "host": "Host",
+      "hostHint": "Hostname with an optional port, without a scheme. A host on a private network must be listed in SSRF_ALLOWED_HOSTS.",
+      "useHttps": "Connect over HTTPS",
+      "rateLimit": "Requests per second",
+      "rateLimitHint": "0 turns throttling off. Keep 1 for the public Nominatim and Photon services.",
+      "rateLimitInvalid": "Enter a number between 0 and 100.",
+      "apiKey": "API key",
+      "apiKeyStored": "A key is stored. Leave empty to keep it.",
+      "apiKeyRemove": "Remove the stored API key",
+      "apiKeyRequired": "geocode.maps.co needs an API key."
     },
     "photo": {
       "title": "Login photo",
       "description": "A custom image shown on the login screen",
+      "previewAlt": "Current login photo",
       "add": "Upload login photo",
       "replace": "Replace login photo",
       "delete": "Remove login photo",
@@ -355,10 +488,33 @@
       "cancel": "Cancel",
       "close": "Close"
     },
+    "logs": {
+      "title": "Server logs",
+      "description": "The newest records of the application log. Logs from deployments that run several processes are collected by your platform instead.",
+      "level": "Minimum level",
+      "allLevels": "All levels",
+      "search": "Search",
+      "searchPlaceholder": "Text, logger or request ID…",
+      "live": "Live",
+      "refresh": "Refresh",
+      "download": "Download",
+      "downloadError": "Couldn't download the log file.",
+      "clear": "Clear",
+      "cleared": "Logs cleared",
+      "clearError": "Couldn't clear the logs.",
+      "clearConfirm": {
+        "title": "Clear the server logs?",
+        "description": "This permanently deletes the log file and its rotated backups. Download the log first if you may need it. The action itself is recorded in the new log.",
+        "confirm": "Clear logs",
+        "cancel": "Cancel",
+        "close": "Close"
+      },
+      "loadError": "Couldn't load the logs.",
+      "empty": "No log records found"
+    },
     "email": {
       "title": "Email",
-      "description": "Endurain sends password reset and sign-up emails through the SMTP server configured in the environment.",
-      "statusLoadError": "Couldn't check the email configuration.",
+      "description": "Endurain sends password reset and sign-up emails through the mail server configured here.",
       "configured": "Email is configured.",
       "notConfigured": "Email is not configured:",
       "send": "Send test email",
@@ -366,7 +522,28 @@
       "sendHint": "The test email is sent to your own address.",
       "sent": "Test email sent",
       "failed": "The test email could not be sent",
-      "failedUnknown": "Check the server logs for details."
+      "failedUnknown": "Check the server logs for details.",
+      "settingsLoadError": "Couldn't load the mail settings.",
+      "host": "Host",
+      "hostHint": "Leave empty to turn email off.",
+      "port": "Port",
+      "portInvalid": "Enter a port between 1 and 65535.",
+      "security": "Connection security",
+      "securityStarttls": "STARTTLS",
+      "securitySsl": "SSL/TLS",
+      "securityNone": "None (private relay only)",
+      "securityNoneWarning": "Without encryption, only a mail server on a private or loopback address is accepted, and a username and password cannot be used.",
+      "username": "Username",
+      "password": "Password",
+      "passwordStored": "A password is stored. Leave empty to keep it.",
+      "passwordRemove": "Remove the stored password",
+      "fromAddress": "Sender address",
+      "fromAddressHint": "Leave empty to use the username.",
+      "save": "Save mail settings",
+      "saveSuccess": "Mail settings saved",
+      "saveError": "The mail settings could not be saved",
+      "stepUpTitle": "Confirm your identity",
+      "stepUpDescription": "The mail server receives every password-reset link. Confirm it is you to continue."
     }
   },
   "idp": {
@@ -374,6 +551,8 @@
     "subtitle": "Configure SSO providers for single sign-on",
     "buttonAdd": "Add provider",
     "toggleError": "Couldn't change the provider. Please try again.",
+    "toggleStepUpDescription": "Changing whether {name} is enabled decides who can sign in to this server. Confirm it is you to continue.",
+    "toggleStepUpConfirm": "Confirm",
     "enableSuccess": "Provider enabled",
     "disableSuccess": "Provider disabled",
     "type": {
@@ -399,8 +578,6 @@
       "title": "Delete provider",
       "body": "Are you sure you want to delete \"{name}\"? This can't be undone.",
       "confirm": "Delete",
-      "cancel": "Cancel",
-      "close": "Close",
       "success": "Provider deleted",
       "error": "Couldn't delete the provider. It may still have linked users."
     },
@@ -422,12 +599,14 @@
       "slugRequired": "Slug is required",
       "slugTooLong": "Slug must be 50 characters or fewer",
       "slugInvalid": "Use only lowercase letters, numbers and hyphens",
+      "slugReserved": "This slug is reserved; choose another",
       "providerType": "Provider type",
       "typeOidc": "OpenID Connect (OIDC)",
       "typeOauth2": "OAuth 2.0",
       "issuerUrl": "Issuer URL",
       "issuerUrlHint": "The provider's OIDC issuer or discovery URL",
       "issuerUrlRequired": "Issuer URL is required",
+      "issuerUrlRefused": "The provider URL was refused. It must use https:// and resolve from the server, and a provider on a private network must be listed in SSRF_ALLOWED_HOSTS.",
       "issuerUrlTooLong": "Issuer URL must be 500 characters or fewer",
       "clientId": "Client ID",
       "clientIdRequired": "Client ID is required",
@@ -440,17 +619,34 @@
       "scopes": "Scopes",
       "scopesHint": "Space-separated OAuth scopes",
       "scopesTooLong": "Scopes must be 500 characters or fewer",
+      "scopesOpenidRequired": "An OIDC provider needs the openid scope",
       "icon": "Icon",
       "iconNone": "None",
-      "iconCustom": "Custom URL",
-      "customIconUrl": "Custom icon URL",
-      "customIconUrlHint": "Link to an image shown on the login button",
+      "iconUpload": "Upload an image",
+      "iconFileHint": "A PNG, JPEG or WebP image up to 1 MB, shown on the login button",
+      "iconChoose": "Choose image",
+      "iconReplace": "Replace image",
+      "iconPreviewAlt": "Icon preview",
+      "iconFileRequired": "Choose an image to upload",
+      "iconFileInvalidType": "The icon must be a PNG, JPEG or WebP image",
+      "iconFileTooLarge": "The icon must be 1 MB or smaller",
+      "iconSaveError": "The provider was saved, but its icon could not be updated. Edit the provider to try again.",
       "enabled": "Enabled",
-      "autoCreateUsers": "Auto-create users on first login",
+      "autoCreateUsers": "Auto-create users on first login (also needs sign-ups through single sign-on in Server settings)",
+      "linkByEmail": "Link to an existing account by email",
+      "linkByEmailHint": "Lets a first sign-in join the account that has the same verified email. Off, that sign-in is refused and the user links the provider from their settings. Off by default for a new provider.",
       "syncUserInfo": "Sync profile info on each login",
+      "syncUserInfoHint": "Copies the mapped name from the provider. It does not include the email.",
+      "syncEmail": "Sync email on each login",
+      "syncEmailHint": "Copies the email the provider verified onto the account, audits the change and notifies the previous address. Off by default for a new provider.",
       "createSuccess": "Provider added",
       "updateSuccess": "Provider updated",
+      "stepUpTitle": "Confirm your identity",
+      "stepUpDescription": "Identity providers decide who can sign in to this server. Confirm it is you to continue.",
       "slugConflict": "That slug is already in use",
+      "issuerInUse": "Another identity provider already uses this issuer URL",
+      "issuerLocked": "The issuer URL can't change while users are linked to this provider. Unlink them or add a new provider instead.",
+      "staleError": "This provider changed elsewhere. Your changes weren't saved. Close and reopen it to load the current settings.",
       "saveError": "Couldn't save the provider. Please try again."
     }
   },
@@ -458,7 +654,7 @@
     "title": "My goals",
     "subtitle": "Set targets for your activities and track your progress",
     "buttonAdd": "Add goal",
-    "count": "There is a total of {count} goal(s):",
+    "count": "There is a total of {count} goal: | There is a total of {count} goals:",
     "filters": "Filters",
     "filter": {
       "all": "All",
@@ -492,13 +688,6 @@
       "elevation": "Elevation",
       "duration": "Duration"
     },
-    "unit": {
-      "calories": "kcal",
-      "km": "km",
-      "miles": "mi",
-      "meters": "m",
-      "feet": "ft"
-    },
     "list": {
       "edit": "Edit {name} goal",
       "delete": "Delete {name} goal"
@@ -522,6 +711,7 @@
       "error": "Couldn't delete the goal. Please try again."
     },
     "form": {
+      "targetInvalid": "Enter a value greater than 0.",
       "addTitle": "Add goal",
       "editTitle": "Edit goal",
       "description": "Set a target for an activity over a recurring period",
@@ -549,6 +739,14 @@
     "hidePassword": "Hide password",
     "mfaCode": "Authentication code",
     "mfaCodePlaceholder": "123456",
+    "confirmPhrase": "Type {phrase} to confirm",
+    "mfaEnrolment": {
+      "title": "Set up two-step verification",
+      "description": "This server requires two-step verification. Set it up to continue using Endurain, or sign out.",
+      "done": "Two-step verification is set up. You can continue.",
+      "continue": "Continue",
+      "signOut": "Sign out"
+    },
     "loadError": {
       "title": "Couldn't load your security settings",
       "description": "Something went wrong. You can try again."
@@ -559,10 +757,7 @@
       "current": "Current password",
       "new": "New password",
       "confirm": "Confirm new password",
-      "requirementsStrict": "At least {length} characters, including an uppercase letter, a lowercase letter, a number and a symbol.",
-      "requirementsLength": "At least {length} characters.",
-      "mismatch": "The passwords don't match.",
-      "revokeOthers": "Sign out of all other devices",
+      "revokeOthers": "Sign out of all other sessions",
       "submit": "Change password",
       "success": "Password changed",
       "invalidCredentials": "Your current password or code is incorrect.",
@@ -575,7 +770,7 @@
       "disabledDescription": "Two-factor authentication is off. Turn it on to better protect your account.",
       "enable": "Enable two-factor",
       "enabledDescription": "Two-factor authentication is on.",
-      "backupRemaining": "{unused} of {total} backup codes remaining.",
+      "backupRemaining": "{unused} of {total} backup code remaining. | {unused} of {total} backup codes remaining.",
       "regenerate": "Regenerate backup codes",
       "disable": "Disable",
       "setupTitle": "Enable two-factor authentication",
@@ -616,18 +811,51 @@
       "empty": "No active sessions.",
       "current": "This device",
       "lastActive": "Last active {date}",
+      "viaApp": "Signed in through app: {address}",
       "revoke": "Sign out this session",
       "revokeTitle": "Sign out this session?",
       "revokeBody": "That device will be signed out and need to sign in again.",
       "revokeConfirm": "Sign out",
       "revokeSuccess": "Session signed out",
       "revokeError": "Couldn't sign out that session. Please try again.",
-      "revokeOthers": "Sign out other devices",
-      "revokeOthersTitle": "Sign out all other devices?",
-      "revokeOthersBody": "Every device except this one will be signed out and need to sign in again.",
+      "revokeOthers": "Sign out other sessions",
+      "revokeOthersTitle": "Sign out all other sessions?",
+      "revokeOthersBody": "Every session except this one will be signed out and need to sign in again.",
       "revokeOthersConfirm": "Sign out others",
       "revokeOthersSuccess": "Other sessions signed out",
-      "revokeOthersError": "Couldn't sign out the other sessions. Please try again."
+      "revokeOthersError": "Couldn't sign out the other sessions. Please try again.",
+      "signOutEverywhere": "Sign out everywhere",
+      "signOutEverywhereTitle": "Sign out everywhere?",
+      "signOutEverywhereBody": "Every device, including this one, will be signed out and need to sign in again.",
+      "signOutEverywhereConfirm": "Sign out everywhere",
+      "signOutEverywhereError": "Couldn't sign out of every session. Please try again."
+    },
+    "devices": {
+      "title": "Known devices",
+      "subtitle": "Browsers and apps you have signed in from since your last security change. Signing in from any other device sends you a notice.",
+      "empty": "No known devices",
+      "error": "Couldn't load known devices",
+      "current": "This device",
+      "unknown": "Unknown device",
+      "lastSeen": "Last signed in {date}",
+      "forget": "Forget this device",
+      "forgetTitle": "Forget this device?",
+      "forgetDescription": "Forgetting this device also signs it out. The next sign-in from it counts as a new device and sends you a notice.",
+      "forgetConfirm": "Forget device",
+      "forgetSuccess": "Device forgotten",
+      "forgetError": "Couldn't forget the device. Please try again.",
+      "forgetNotFound": "That device is no longer known.",
+      "forgetOthers": "Forget other devices",
+      "forgetOthersTitle": "Forget all other devices?",
+      "forgetOthersDescription": "Every device except this one will be forgotten and signed out. The next sign-in from each counts as a new device and sends you a notice.",
+      "forgetOthersConfirm": "Forget devices",
+      "forgetOthersSuccess": "Other devices forgotten",
+      "forgetOthersError": "Couldn't forget the other devices. Please try again.",
+      "forgetAll": "Forget all devices",
+      "forgetAllTitle": "Forget all devices?",
+      "forgetAllDescription": "Every device, including this one, will be forgotten and signed out, and you will be sent to the login page. The next sign-in from each counts as a new device and sends you a notice.",
+      "forgetAllConfirm": "Forget all devices",
+      "forgetAllError": "Couldn't forget the devices. Please try again."
     },
     "linked": {
       "title": "Linked accounts",
@@ -649,7 +877,51 @@
       "unlinkError": "Couldn't unlink the account. Please try again.",
       "invalidCredentials": "Your password or code is incorrect.",
       "alreadyLinked": "That account is already linked.",
-      "lastMethodError": "You can't unlink your only sign-in method. Set a password first."
+      "lastMethodError": "You can't unlink your only sign-in method. Set a password first.",
+      "linkedOn": "Linked on {date}"
+    },
+    "email": {
+      "title": "Email address",
+      "subtitle": "This is where password resets and notices are sent. Changing it requires you to confirm your identity, and the new address takes effect once you confirm it from a link we send there.",
+      "current": "Current email",
+      "action": "Change email",
+      "new": "New email",
+      "invalid": "Enter a valid email address.",
+      "sameAsCurrent": "This is already your email address.",
+      "success": "Confirmation link sent to the new address. Your email changes once you confirm it.",
+      "appliedSuccess": "Email changed.",
+      "pending": "Pending change to {email}",
+      "pendingExpires": "The confirmation link expires {date}.",
+      "resend": "Resend link",
+      "cancel": "Cancel change",
+      "resendSuccess": "If a change is pending, a new link is on its way to the new address.",
+      "resendError": "Couldn't resend the link. Please try again.",
+      "cancelSuccess": "Email change cancelled.",
+      "cancelError": "Couldn't cancel the change. Please try again.",
+      "conflict": "That email is already in use.",
+      "error": "Couldn't change your email. Please try again."
+    },
+    "username": {
+      "title": "Username",
+      "subtitle": "Your username is what you sign in with. Changing it requires you to confirm your identity, and it takes effect immediately.",
+      "current": "Current username",
+      "action": "Change username",
+      "new": "New username",
+      "sameAsCurrent": "This is already your username.",
+      "success": "Username changed.",
+      "conflict": "That username is already in use.",
+      "error": "Couldn't change your username. Please try again."
+    },
+    "deleteAccount": {
+      "title": "Delete my account",
+      "subtitle": "Delete your account and all of your data, including activities and their files, health records, gear, goals, integrations and sessions. You are signed out of all devices and the account is deactivated at once, then your data is erased in the background. There is no grace period: only an administrator can stop it, by reactivating the account before the erasure finishes. Export your data first if you want to keep a copy.",
+      "action": "Delete my account",
+      "dialogTitle": "Delete your account?",
+      "dialogDescription": "This signs you out of all devices, deactivates your account and starts erasing all of your data. Only an administrator can stop it before it finishes. Confirm your identity to continue.",
+      "confirm": "Delete my account",
+      "error": "Couldn't delete your account. Please try again.",
+      "onlyAdminError": "You are the only administrator. Make another user an administrator before deleting your account.",
+      "pendingError": "A deletion of this account is already in progress."
     },
     "apiKeys": {
       "title": "API keys",
@@ -661,13 +933,43 @@
       "namePlaceholder": "e.g. Garmin upload script",
       "scopes": "Permissions",
       "scopesHint": "Choose what this key is allowed to do. At least one is required.",
+      "scopeGroups": {
+        "account": "Account",
+        "activities": "Activities",
+        "followers": "Followers",
+        "gears": "Gear",
+        "health": "Health",
+        "healthTargets": "Health targets",
+        "notifications": "Notifications",
+        "users": "Users"
+      },
+      "scopeLabels": {
+        "account": "Manage your profile, photo, goals, privacy and default gear",
+        "activitiesRead": "Read activities",
+        "activitiesWrite": "Create, edit and delete activities",
+        "activitiesUpload": "Upload activity files",
+        "followersRead": "See who you follow and who follows you",
+        "followersWrite": "Change who you follow and who follows you",
+        "gearsRead": "Read gear",
+        "gearsWrite": "Create, edit and delete gear",
+        "healthRead": "Read health data",
+        "healthWrite": "Write health data",
+        "healthTargetsRead": "Read health targets",
+        "healthTargetsWrite": "Change health targets",
+        "notificationsRead": "Read notifications",
+        "notificationsWrite": "Manage notifications",
+        "usersRead": "Look up other users' public profiles"
+      },
       "expiry": "Expiry (optional)",
-      "expiryHint": "Leave empty for a key that never expires.",
+      "expiryHint": "Leave empty to use the longest lifetime the server allows. A later date is refused.",
       "createTitle": "Create API key",
       "createDescription": "Confirm your identity to mint a new API key.",
       "createSuccess": "API key created",
       "createError": "Couldn't create the API key. Please try again.",
+      "apiKeyLimit": "You have reached the limit of 25 active API keys. Revoke or delete one and try again.",
+      "expiryTooLate": "That expiry is later than the server allows. Choose an earlier date or leave it empty.",
       "invalidCredentials": "Your password or code is incorrect.",
+      "expiryNotFuture": "That expiry is not in the future. Choose a later date.",
       "invalidScopes": "Those permissions aren't allowed for API keys.",
       "revealTitle": "Copy your API key",
       "revealDescription": "This is the only time the full key is shown.",
@@ -683,7 +985,6 @@
       "lastUsed": "Last used {date}",
       "neverUsed": "Never used",
       "expires": "Expires {date}",
-      "neverExpires": "Never expires",
       "revoke": "Revoke",
       "revokeTitle": "Revoke API key?",
       "revokeBody": "{name} will stop working immediately. This can't be undone.",
@@ -694,6 +995,26 @@
       "deleteBody": "{name} will be permanently deleted. This can't be undone.",
       "deleteSuccess": "API key deleted",
       "deleteError": "Couldn't delete the API key. Please try again."
+    },
+    "stepUp": {
+      "passwordLabel": "Your password",
+      "passwordHint": "Enter your own password to confirm it's you.",
+      "prompt": "Your account has no password. Sign in again with a linked identity provider to confirm it's you.",
+      "continueWith": "Continue with {name}",
+      "ready": "Identity provider sign-in confirmed.",
+      "restart": "Sign in again",
+      "noProviders": "No linked identity provider is available to confirm your identity.",
+      "startError": "Couldn't start the identity provider sign-in. Please try again.",
+      "tooManyAttempts": "Too many attempts. Please try again later.",
+      "reauthRequired": "Confirm your identity with your identity provider to continue.",
+      "failed": "Signing in again with your identity provider failed. Please try again.",
+      "notFresh": "Your identity provider did not ask you to sign in again. Contact your administrator."
+    },
+    "tabs": {
+      "label": "Security sections",
+      "account": "Account",
+      "sessions": "Sessions & access",
+      "danger": "Danger zone"
     }
   },
   "integrations": {
@@ -733,6 +1054,7 @@
       "clientIdPlaceholder": "123456",
       "clientSecret": "Client secret",
       "connectError": "Couldn't connect to Strava. Please check your details and try again.",
+      "scopeError": "Strava didn't get every permission Endurain needs. Connect again and keep all permissions ticked.",
       "completing": "Finishing the Strava connection…",
       "linkSuccess": "Strava connected",
       "retrieveActivitiesTitle": "Retrieve Strava activities",
@@ -741,9 +1063,10 @@
       "retrievingGear": "Retrieving your Strava gear in the background…",
       "retrieveGearError": "Couldn't start retrieving Strava gear. Please try again.",
       "unlinkTitle": "Disconnect Strava?",
-      "unlinkBody": "Endurain will stop importing from Strava. Your existing activities are kept.",
+      "unlinkBody": "Endurain will stop importing from Strava and delete the activities and gear it synced from Strava. Activities from other sources, including uploaded Strava export files, are kept.",
       "unlinkSuccess": "Strava disconnected",
-      "unlinkError": "Couldn't disconnect Strava. Please try again."
+      "unlinkError": "Couldn't disconnect Strava. Please try again.",
+      "revokedNotice": "Strava access ended on {revokedAt}. Strava-synced activities and gear will be deleted on {deletionAt} unless you reconnect."
     },
     "garmin": {
       "title": "Garmin Connect",
@@ -774,7 +1097,10 @@
       "unlinkBody": "Endurain will stop importing from Garmin Connect. Your existing data is kept.",
       "unlinkSuccess": "Garmin Connect disconnected",
       "unlinkError": "Couldn't disconnect Garmin Connect. Please try again."
-    }
+    },
+    "retrieveFinished": "Finished retrieving your data from {provider}.",
+    "retrieveFailed": "Retrieving your data from {provider} failed. Please try again.",
+    "retrieveAlreadyRunning": "A retrieval from {provider} is already running. You will be notified when it finishes."
   },
   "import": {
     "title": "Import",
@@ -807,15 +1133,25 @@
     },
     "job": {
       "preparing": "Preparing the import…",
-      "progress": "Imported {done} of {total} files ({failed} failed)…",
-      "finished": "Import finished: {done} of {total} files imported, {failed} failed.",
-      "failed": "The import could not be completed."
+      "progress": "Imported {done} of {total} file ({failed} failed)… | Imported {done} of {total} files ({failed} failed)…",
+      "finished": "Import finished: {done} of {total} file imported, {failed} failed. | Import finished: {done} of {total} files imported, {failed} failed.",
+      "failed": "The import could not be completed.",
+      "failure": {
+        "unsupported_format": "The import failed: the files are in an unsupported format.",
+        "invalid_file": "The import failed: the file is not valid.",
+        "no_activities_found": "The import failed: no activities were found.",
+        "processing_failed": "The import failed while processing the files.",
+        "provider_unavailable": "The import failed: the provider is unavailable. Try again later."
+      }
     }
   },
   "profile": {
     "title": "My profile",
     "subtitle": "Manage your account details and privacy",
     "notSet": "Not set",
+    "emailManagedIn": "Your email is changed in Security settings.",
+    "securitySettingsLink": "Open Security settings",
+    "usernameManagedIn": "Your username is changed in Security settings.",
     "error": {
       "title": "Couldn't load your profile",
       "description": "Something went wrong while loading your profile. You can try again.",
@@ -826,7 +1162,6 @@
       "title": "Edit profile",
       "description": "Update your account details",
       "success": "Profile updated",
-      "conflict": "That username or email is already in use",
       "error": "Couldn't update your profile. Please try again."
     },
     "photo": {
@@ -874,6 +1209,8 @@
       "hideLaps": "Laps",
       "hideWorkoutSetsSteps": "Workout sets and steps",
       "hideGear": "Gear",
+      "discoverable": "Let others find me in search",
+      "discoverableHint": "Other users can find you by username when they search. Your profile stays reachable from a direct link.",
       "save": "Save privacy",
       "saving": "Saving…",
       "saveSuccess": "Privacy settings updated",
@@ -921,10 +1258,59 @@
       "export": "Export data",
       "import": "Import data",
       "invalidType": "Please choose a .zip archive.",
-      "exportSuccess": "Export ready. Your download should begin shortly",
-      "exportError": "Couldn't export your data. Please try again.",
-      "importSuccess": "Data imported",
-      "importError": "Couldn't import the archive. Please check the file and try again."
+      "download": "Download export",
+      "downloadSuccess": "Your download should begin shortly",
+      "downloadError": "Couldn't download the export. Please try again.",
+      "exportQueued": "Export started. You can leave this page.",
+      "exportError": "Couldn't start the export. Please try again.",
+      "exportInProgress": "An export is already in progress.",
+      "exportStepUp": {
+        "title": "Confirm it's you",
+        "description": "Exporting copies all of your data, so confirm your identity first."
+      },
+      "exportStatus": {
+        "queued": "Waiting for the export to start…",
+        "running": "Preparing your export…",
+        "succeeded": "Your export is ready to download. It stays available for two hours.",
+        "failed": "The export didn't complete: {reason}"
+      },
+      "exportFailure": {
+        "timed_out": "it took too long. You can try again.",
+        "processing_failed": "something went wrong. You can try again."
+      },
+      "importQueued": "Import started. You can leave this page.",
+      "importError": "Couldn't start the import. Please check the file and try again.",
+      "importInProgress": "An import is already in progress.",
+      "status": {
+        "queued": "Waiting for the import to start…",
+        "running": "Importing your data…",
+        "succeeded": "Import finished: {activities} activity and {gears} gear imported. | Import finished: {activities} activities and {gears} gear imported.",
+        "failed": "The import didn't complete: {reason}"
+      },
+      "failure": {
+        "invalid_file": "the archive isn't a valid Endurain export. Nothing was imported.",
+        "too_large": "the archive is too large. Nothing was imported.",
+        "too_many_activities": "the archive has too many activities. Nothing was imported.",
+        "timed_out": "it took too long. Nothing was imported, so you can try again.",
+        "files_incomplete": "your data was imported but some files are missing. Don't import it again; it would duplicate your data.",
+        "processing_failed": "something went wrong. Nothing was imported, so you can try again.",
+        "wrong_account": "the archive was exported from a different account. Nothing was imported.",
+        "older_version": "the archive was exported by an older Endurain version. Nothing was imported."
+      }
+    },
+    "blockedUsers": {
+      "title": "Blocked users",
+      "subtitle": "Blocked users can't ask to follow you. Blocking someone also removes any follow between you.",
+      "empty": "You haven't blocked anyone.",
+      "unblock": "Unblock",
+      "unblockError": "Couldn't unblock this user. Please try again.",
+      "loadError": "Couldn't load your blocked users.",
+      "retry": "Try again"
+    },
+    "tabs": {
+      "label": "Profile sections",
+      "profile": "Profile",
+      "privacy": "Privacy & data"
     }
   }
 }

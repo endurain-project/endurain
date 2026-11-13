@@ -8,8 +8,8 @@
 import type { Schemas } from '@/types'
 
 import { toNumberOrNull } from '@/utils/number'
-import { feetAndInchesToCm } from '@/utils/units'
-import type { Validator } from '@/utils/validators'
+import { cmToFeetInches, feetAndInchesToCm } from '@/utils/units'
+import { numberBetween, type Validator } from '@/utils/validators'
 
 /** Maximum length for free-text account fields (name, username, email, city). */
 export const TEXT_MAX = 250
@@ -80,26 +80,46 @@ export const WEEKDAY_OPTIONS: ReadonlyArray<Schemas['WeekDay']> = [
 export const CURRENCY_OPTIONS: ReadonlyArray<Schemas['Currency']> = ['euro', 'dollar', 'pound']
 
 /**
- * Builds a validator for an optional whole-number field: an empty value passes,
- * otherwise it must fall within an inclusive `0..max` range.
- *
- * `value` is typed `number | null`, but `<input type="number">` with
- * `v-model.number` actually yields the raw string back when it can't parse to
- * a finite number (e.g. the field was just cleared), so it's coerced through
- * `toNumberOrNull` rather than compared directly.
+ * Builds a validator for an optional whole-number field within `0..max`.
  *
  * @param max - Largest allowed value.
  * @param message - Error message when out of range.
  * @returns A validator for the numeric field.
  */
 export function numberRange(max: number, message: string): Validator<number | null> {
-  return (value) => {
-    const parsed = toNumberOrNull(value ?? '')
-    if (parsed === null) {
-      return null
-    }
-    return parsed >= 0 && parsed <= max ? null : message
-  }
+  return numberBetween(0, max, message)
+}
+
+/** Smallest height in centimetres the backend accepts. */
+const HEIGHT_CM_MIN = 50
+
+/** Largest height in centimetres the backend accepts. */
+const HEIGHT_CM_MAX = 272
+
+/** Smallest max heart rate in bpm the backend accepts. */
+const MAX_HEART_RATE_MIN = 30
+
+/** Largest max heart rate in bpm the backend accepts. */
+const MAX_HEART_RATE_MAX = 250
+
+/**
+ * Builds the validator for the height field in centimetres.
+ *
+ * @param message - Error message when the height is outside the accepted range.
+ * @returns A validator for the height in centimetres.
+ */
+export function heightCmValidator(message: string): Validator<string | number | null> {
+  return numberBetween(HEIGHT_CM_MIN, HEIGHT_CM_MAX, message)
+}
+
+/**
+ * Builds the validator for the max heart rate field in bpm.
+ *
+ * @param message - Error message when the max heart rate is outside the accepted range.
+ * @returns A validator for the max heart rate.
+ */
+export function maxHeartRateValidator(message: string): Validator<string | number | null> {
+  return numberBetween(MAX_HEART_RATE_MIN, MAX_HEART_RATE_MAX, message)
 }
 
 /** The unit-aware height fields shared by the account/profile edit forms. */
@@ -117,10 +137,19 @@ export interface HeightUnitFields {
  * leaves the raw (empty) string in place instead of `null` when a cleared
  * field fails to parse as a finite number.
  *
+ * The imperial fields show the stored height rounded to a whole inch, so
+ * converting them back would rewrite a height that was not edited (172 cm shows
+ * as 5 ft 8 in, which is 173 cm). Fields that still hold what the stored height
+ * displays as resolve to the stored height itself.
+ *
  * @param fields - The submitted height fields.
+ * @param storedCm - The height the account has stored, or `null` when it has none.
  * @returns Height in centimetres, or `null` when not provided.
  */
-export function resolveHeightCm(fields: HeightUnitFields): number | null {
+export function resolveHeightCm(
+  fields: HeightUnitFields,
+  storedCm: number | null = null,
+): number | null {
   if (fields.units === 'metric') {
     return toNumberOrNull(fields.heightCm ?? '')
   }
@@ -128,6 +157,12 @@ export function resolveHeightCm(fields: HeightUnitFields): number | null {
   const inches = toNumberOrNull(fields.heightInches ?? '')
   if (feet === null && inches === null) {
     return null
+  }
+  if (storedCm !== null) {
+    const stored = cmToFeetInches(storedCm)
+    if (feet === stored.feet && inches === stored.inches) {
+      return storedCm
+    }
   }
   return feetAndInchesToCm(feet ?? 0, inches ?? 0)
 }

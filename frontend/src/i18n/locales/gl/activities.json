@@ -11,7 +11,7 @@
     "subtitle": "Explora, filtra e ordena todas as túas actividades.",
     "searchPlaceholder": "Buscar por nome ou localización",
     "clearSearch": "Limpar busca",
-    "resultCount": "{count} actividades",
+    "resultCount": "{count} actividade | {count} actividades",
     "filters": {
       "type": "Tipo de actividade",
       "allTypes": "Todos os tipos",
@@ -184,10 +184,13 @@
   },
   "edit": {
     "title": "Editar actividade",
+    "loading": "Cargando a actividade",
+    "loadError": "Non se puido cargar a actividade",
     "save": "Gardar cambios",
     "cancel": "Cancelar",
     "close": "Pechar",
     "name": "Nome",
+    "nameRequired": "Introduce un nome para a actividade",
     "type": "Tipo de actividade",
     "description": "Descrición",
     "privateNotes": "Notas privadas",
@@ -208,7 +211,7 @@
     "hideGear": "Ocultar equipamento",
     "success": "Actividade actualizada",
     "error": "Non se puido actualizar a actividade",
-    "staleError": "This activity was changed elsewhere while you were editing. Your changes were not saved. Reopen it to see the current version."
+    "staleError": "Esta actividade foi modificada noutro lugar mentres a editabas. Os teus cambios non se gardaron. Ábrea de novo para ver a versión actual."
   },
   "alerts": {
     "hidden": "Esta actividade está oculta. Só ti podes vela.",

@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { clearAuthTokens, getAccessToken, getCsrfToken, setAuthTokens } from '@/services/authTokens'
 import { apiFetch, HttpError } from '@/services/http'
+import { onMfaEnrolmentRequired } from '@/services/mfaEnrolment'
 import { onSessionExpired } from '@/services/sessionExpiry'
 
 vi.mock('@/services/runtime', () => ({
@@ -31,10 +32,12 @@ function jsonResponse(body: unknown, status = 200): Response {
   })
 }
 
+const INVALID_TOKEN = 'urn:endurain:error:invalid-token'
+
 const refreshTokenResponse = {
   access_token: 'access-new',
   csrf_token: 'csrf-new',
-  session_id: 'session-1',
+  session_id: '00000000-0000-4000-8000-0000000000f1',
   token_type: 'bearer',
   expires_in: 900,
   refresh_token_expires_in: 604_800,
@@ -54,6 +57,7 @@ beforeEach(() => {
 afterEach(() => {
   vi.unstubAllGlobals()
   onSessionExpired(null)
+  onMfaEnrolmentRequired(null)
 })
 
 describe('apiFetch', () => {
@@ -110,7 +114,9 @@ describe('apiFetch', () => {
       }
       dataAttempts += 1
       return Promise.resolve(
-        dataAttempts === 1 ? jsonResponse({}, 401) : jsonResponse({ ok: true }),
+        dataAttempts === 1
+          ? jsonResponse({ type: INVALID_TOKEN }, 401)
+          : jsonResponse({ ok: true }),
       )
     })
 
@@ -130,7 +136,9 @@ describe('apiFetch', () => {
         return Promise.resolve(jsonResponse(refreshTokenResponse))
       }
       attempts[url] = (attempts[url] ?? 0) + 1
-      return Promise.resolve(attempts[url] === 1 ? jsonResponse({}, 401) : jsonResponse({ url }))
+      return Promise.resolve(
+        attempts[url] === 1 ? jsonResponse({ type: INVALID_TOKEN }, 401) : jsonResponse({ url }),
+      )
     })
 
     await Promise.all([apiFetch('/a'), apiFetch('/b')])
@@ -139,7 +147,9 @@ describe('apiFetch', () => {
   })
 
   it('clears tokens and rejects when the refresh itself fails', async () => {
-    fetchMock.mockImplementation(() => Promise.resolve(jsonResponse({ detail: 'expired' }, 401)))
+    fetchMock.mockImplementation(() =>
+      Promise.resolve(jsonResponse({ type: INVALID_TOKEN, detail: 'expired' }, 401)),
+    )
 
     await expect(apiFetch('/data')).rejects.toBeInstanceOf(HttpError)
     expect(clearAuthTokens).toHaveBeenCalled()
@@ -148,10 +158,147 @@ describe('apiFetch', () => {
   it('signals session expiry when a mid-session refresh fails', async () => {
     const onExpired = vi.fn<() => void>()
     onSessionExpired(onExpired)
-    fetchMock.mockImplementation(() => Promise.resolve(jsonResponse({ detail: 'expired' }, 401)))
+    fetchMock.mockImplementation(() =>
+      Promise.resolve(jsonResponse({ type: INVALID_TOKEN, detail: 'expired' }, 401)),
+    )
 
     await expect(apiFetch('/data')).rejects.toBeInstanceOf(HttpError)
     expect(onExpired).toHaveBeenCalledTimes(1)
+  })
+
+  describe('when the refresh fails for a reason other than a rejected session', () => {
+    /**
+     * Makes the original request return an expired-token 401 and the refresh
+     * answer as `refresh` dictates.
+     *
+     * @param refresh - Produces the outcome of the `/auth/refresh` call.
+     */
+    function expireSessionThenRefreshWith(refresh: () => Promise<Response>): void {
+      fetchMock.mockImplementation((url: string) => {
+        if (url === '/auth/refresh') return refresh()
+        return Promise.resolve(jsonResponse({ type: INVALID_TOKEN, detail: 'expired' }, 401))
+      })
+    }
+
+    it('keeps the tokens and does not signal expiry on a network error', async () => {
+      const onExpired = vi.fn<() => void>()
+      onSessionExpired(onExpired)
+      const networkError = new TypeError('Failed to fetch')
+      expireSessionThenRefreshWith(() => Promise.reject(networkError))
+
+      await expect(apiFetch('/data')).rejects.toBe(networkError)
+      expect(clearAuthTokens).not.toHaveBeenCalled()
+      expect(onExpired).not.toHaveBeenCalled()
+    })
+
+    it('keeps the tokens and does not signal expiry on a 500', async () => {
+      const onExpired = vi.fn<() => void>()
+      onSessionExpired(onExpired)
+      expireSessionThenRefreshWith(() => Promise.resolve(jsonResponse({ detail: 'boom' }, 500)))
+
+      await expect(apiFetch('/data')).rejects.toMatchObject({ status: 500 })
+      expect(clearAuthTokens).not.toHaveBeenCalled()
+      expect(onExpired).not.toHaveBeenCalled()
+    })
+
+    it('keeps the tokens and does not signal expiry on a 429', async () => {
+      const onExpired = vi.fn<() => void>()
+      onSessionExpired(onExpired)
+      expireSessionThenRefreshWith(() =>
+        Promise.resolve(jsonResponse({ detail: 'slow down' }, 429)),
+      )
+
+      await expect(apiFetch('/data')).rejects.toMatchObject({ status: 429 })
+      expect(clearAuthTokens).not.toHaveBeenCalled()
+      expect(onExpired).not.toHaveBeenCalled()
+    })
+
+    it('keeps the tokens and does not signal expiry on a timeout', async () => {
+      const onExpired = vi.fn<() => void>()
+      onSessionExpired(onExpired)
+      const timeout = new DOMException('The operation timed out.', 'TimeoutError')
+      expireSessionThenRefreshWith(() => Promise.reject(timeout))
+
+      await expect(apiFetch('/data')).rejects.toBe(timeout)
+      expect(clearAuthTokens).not.toHaveBeenCalled()
+      expect(onExpired).not.toHaveBeenCalled()
+    })
+
+    it('keeps the tokens and does not signal expiry on an abort', async () => {
+      const onExpired = vi.fn<() => void>()
+      onSessionExpired(onExpired)
+      const abort = new DOMException('The operation was aborted.', 'AbortError')
+      expireSessionThenRefreshWith(() => Promise.reject(abort))
+
+      await expect(apiFetch('/data')).rejects.toBe(abort)
+      expect(clearAuthTokens).not.toHaveBeenCalled()
+      expect(onExpired).not.toHaveBeenCalled()
+    })
+
+    it('clears the tokens and signals expiry once on a 403', async () => {
+      const onExpired = vi.fn<() => void>()
+      onSessionExpired(onExpired)
+      expireSessionThenRefreshWith(() =>
+        Promise.resolve(jsonResponse({ detail: 'User is deactivated' }, 403)),
+      )
+
+      await expect(apiFetch('/data')).rejects.toMatchObject({ status: 403 })
+      expect(clearAuthTokens).toHaveBeenCalledTimes(1)
+      expect(onExpired).toHaveBeenCalledTimes(1)
+    })
+  })
+
+  it('sends the CSRF token on writes but never on the refresh request', async () => {
+    const csrfByUrl: Record<string, string | null> = {}
+    fetchMock.mockImplementation((url: string, init: RequestInit) => {
+      csrfByUrl[url] = (init.headers as Headers).get('X-CSRF-Token')
+      return Promise.resolve(jsonResponse(url === '/auth/refresh' ? refreshTokenResponse : {}))
+    })
+
+    await apiFetch('/data', { method: 'POST' })
+    await apiFetch('/auth/refresh', { method: 'POST', retryOnUnauthorized: false })
+
+    expect(csrfByUrl['/data']).toBe('csrf-old')
+    expect(csrfByUrl['/auth/refresh']).toBeNull()
+  })
+
+  it('omits the CSRF token from the refresh triggered by a 401', async () => {
+    let refreshCsrf: string | null = 'unset'
+    let dataAttempts = 0
+    fetchMock.mockImplementation((url: string, init: RequestInit) => {
+      if (url === '/auth/refresh') {
+        refreshCsrf = (init.headers as Headers).get('X-CSRF-Token')
+        return Promise.resolve(jsonResponse(refreshTokenResponse))
+      }
+      dataAttempts += 1
+      return Promise.resolve(
+        dataAttempts === 1 ? jsonResponse({ type: INVALID_TOKEN }, 401) : jsonResponse({}),
+      )
+    })
+
+    await apiFetch('/data', { method: 'POST' })
+
+    expect(refreshCsrf).toBeNull()
+  })
+
+  it('returns a 401 with another problem type as-is, without refreshing or replaying', async () => {
+    const onExpired = vi.fn<() => void>()
+    onSessionExpired(onExpired)
+    const calls: string[] = []
+    fetchMock.mockImplementation((url: string) => {
+      calls.push(url)
+      return Promise.resolve(
+        jsonResponse({ type: 'urn:endurain:error:unauthorized', detail: 'Invalid password' }, 401),
+      )
+    })
+
+    await expect(apiFetch('/data', { method: 'POST' })).rejects.toMatchObject({
+      status: 401,
+      type: 'urn:endurain:error:unauthorized',
+    })
+    expect(calls).toEqual(['/data'])
+    expect(onExpired).not.toHaveBeenCalled()
+    expect(clearAuthTokens).not.toHaveBeenCalled()
   })
 
   it('does not attempt a refresh for the login endpoint', async () => {
@@ -209,6 +356,50 @@ describe('apiFetch', () => {
   })
 })
 
+describe('Retry-After', () => {
+  /**
+   * Builds an empty error response carrying a `Retry-After` header.
+   *
+   * @param status - HTTP status code.
+   * @param retryAfter - Header value, or `null` for none.
+   * @returns A Response instance.
+   */
+  function throttled(status: number, retryAfter: string | null): Response {
+    const headers = retryAfter === null ? undefined : { 'Retry-After': retryAfter }
+    return new Response(null, { status, headers })
+  }
+
+  it.each([429, 503])('reads delta-seconds from a %i', async (status) => {
+    fetchMock.mockResolvedValue(throttled(status, '30'))
+
+    const error = await apiFetch('/data').catch((caught: unknown) => caught)
+
+    expect((error as HttpError).retryAfterSeconds).toBe(30)
+  })
+
+  it('reads an HTTP-date as the seconds left until it', async () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date('2026-11-10T12:00:00Z'))
+    fetchMock.mockResolvedValue(throttled(429, 'Tue, 10 Nov 2026 12:01:30 GMT'))
+
+    const error = await apiFetch('/data').catch((caught: unknown) => caught)
+    vi.useRealTimers()
+
+    expect((error as HttpError).retryAfterSeconds).toBe(90)
+  })
+
+  it.each([null, 'soon', '-5', 'Tue, 10 Nov 2020 12:00:00 GMT'])(
+    'has no wait time for %j',
+    async (value) => {
+      fetchMock.mockResolvedValue(throttled(429, value))
+
+      const error = await apiFetch('/data').catch((caught: unknown) => caught)
+
+      expect((error as HttpError).retryAfterSeconds).toBeNull()
+    },
+  )
+})
+
 describe('RFC 9457 problem documents', () => {
   it('carries the problem type and request id onto HttpError', async () => {
     vi.mocked(fetch).mockResolvedValueOnce(
@@ -233,6 +424,25 @@ describe('RFC 9457 problem documents', () => {
     })
   })
 
+  it('carries the running job a 409 names as jobId, and null when it names none', async () => {
+    const conflict = (body: object) =>
+      new Response(JSON.stringify({ type: 'urn:endurain:error:conflict', ...body }), {
+        status: 409,
+        headers: { 'Content-Type': 'application/problem+json' },
+      }) as Response
+    vi.mocked(fetch).mockResolvedValueOnce(
+      conflict({ job_id: '00000000-0000-4000-8000-0000000000a9' }),
+    )
+    await expect(apiFetch('/profile/export', { method: 'POST' })).rejects.toMatchObject({
+      jobId: '00000000-0000-4000-8000-0000000000a9',
+    })
+
+    vi.mocked(fetch).mockResolvedValueOnce(conflict({}))
+    await expect(apiFetch('/profile/export', { method: 'POST' })).rejects.toMatchObject({
+      jobId: null,
+    })
+  })
+
   it('tolerates a non-conforming error body', async () => {
     // A gateway or proxy error page must not become an unhandled parse failure.
     vi.mocked(fetch).mockResolvedValueOnce(
@@ -244,5 +454,37 @@ describe('RFC 9457 problem documents', () => {
       type: null,
       requestId: null,
     })
+  })
+})
+
+describe('apiFetch when the server requires MFA enrolment', () => {
+  const ENROLMENT_REQUIRED = 'urn:endurain:error:mfa-enrolment-required'
+
+  it('signals once and still rejects with the problem type', async () => {
+    const onRequired = vi.fn<() => void>()
+    onMfaEnrolmentRequired(onRequired)
+    fetchMock.mockResolvedValue(jsonResponse({ type: ENROLMENT_REQUIRED, detail: 'Set up' }, 403))
+
+    await expect(apiFetch('/data')).rejects.toMatchObject({ status: 403, type: ENROLMENT_REQUIRED })
+    expect(onRequired).toHaveBeenCalledTimes(1)
+    // It is not a token problem: nothing is refreshed.
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+  })
+
+  it('does not signal for any other 403', async () => {
+    const onRequired = vi.fn<() => void>()
+    onMfaEnrolmentRequired(onRequired)
+    fetchMock.mockResolvedValue(
+      jsonResponse({ type: 'urn:endurain:error:permission-denied', detail: 'no' }, 403),
+    )
+
+    await expect(apiFetch('/data')).rejects.toMatchObject({ status: 403 })
+    expect(onRequired).not.toHaveBeenCalled()
+  })
+
+  it('does nothing when no handler is registered', async () => {
+    fetchMock.mockResolvedValue(jsonResponse({ type: ENROLMENT_REQUIRED, detail: 'Set up' }, 403))
+
+    await expect(apiFetch('/data')).rejects.toBeInstanceOf(HttpError)
   })
 })

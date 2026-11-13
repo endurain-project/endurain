@@ -31,7 +31,9 @@
       "admin": "Administrator",
       "inactive": "Inactiv",
       "unverified": "E-mail neverificat",
+      "pendingEmail": "Schimbare de e-mail în așteptare",
       "pending": "În așteptarea aprobării",
+      "deleting": "Se șterge",
       "externalAuth": "Autentificare externă"
     },
     "actions": {
@@ -64,18 +66,22 @@
       "email": "E-mail",
       "emailRequired": "E-mailul este obligatoriu",
       "emailInvalid": "Introdu o adresă de e-mail validă",
+      "emailChangeHint": "Un link de confirmare este trimis la noua adresă, iar aceasta înlocuiește adresa actuală după confirmare. Utilizatorul este deconectat de pe toate dispozitivele. Marchează noua adresă ca verificată pentru a o aplica imediat.",
       "accessType": "Tip de acces",
       "accessTypeRegular": "Utilizator obișnuit",
       "accessTypeAdmin": "Administrator",
       "password": "Parolă",
       "passwordHint": "Cel puțin 8 caractere",
-      "passwordHintStrict": "Cel puțin {min} caractere, cu majusculă, minusculă, o cifră și un caracter special",
-      "passwordHintLength": "Cel puțin {min} caractere",
       "passwordRequired": "Parola este obligatorie",
-      "passwordInvalid": "Acea parolă nu îndeplinește cerințele",
       "confirmPassword": "Confirmă parola",
+      "mustChangePasswordHint": "Utilizatorul va trebui să aleagă o parolă nouă la următoarea autentificare.",
       "confirmPasswordRequired": "Confirmă parola",
-      "passwordMismatch": "Parolele nu coincid",
+      "passwordMode": "Cum primește utilizatorul parola",
+      "passwordModeInvitation": "Trimite o invitație prin e-mail pentru alegerea unei parole",
+      "passwordModePassword": "Setează o parolă acum",
+      "passwordModeHint": "Utilizatorul primește un e-mail cu un link, valabil 24 de ore, pentru a-și alege propria parolă.",
+      "invitationNeedsActive": "Un cont inactiv nu poate fi invitat. Setează în schimb o parolă.",
+      "inviteSuccess": "Utilizator adăugat și invitație trimisă",
       "preferredLanguage": "Limbă preferată",
       "languages": {
         "ca": "Catalană",
@@ -118,14 +124,16 @@
       "units": "Unități",
       "unitsMetric": "Metric",
       "unitsImperial": "Imperial",
+      "weightUnits": "Unități de greutate",
+      "weightUnitsDefault": "Urmează unitățile",
+      "weightUnitsMetric": "Kilograme (kg)",
+      "weightUnitsImperial": "Livre (lb)",
       "height": "Înălțime",
-      "unitCm": "cm",
-      "unitFeet": "ft",
-      "unitInches": "in",
+      "heightInvalid": "Înălțimea trebuie să fie între 50 și 272 cm",
+      "maxHeartRateInvalid": "Frecvența cardiacă maximă trebuie să fie între 30 și 250 bpm",
       "feetInvalid": "Picioarele trebuie să fie între 0 și 10",
       "inchesInvalid": "Inchii trebuie să fie între 0 și 11",
       "maxHeartRate": "Puls maxim",
-      "unitBpm": "bpm",
       "currency": "Monedă",
       "currencies": {
         "euro": "Euro",
@@ -134,6 +142,8 @@
       },
       "firstDayOfWeek": "Prima zi a săptămânii",
       "timezone": "Fus orar",
+      "timezoneNotSet": "Nesetat",
+      "timezoneUseBrowser": "Folosește fusul orar al browserului meu ({timezone})",
       "timezoneHint": "Folosit pentru activitățile înregistrate fără GPS, precum alergarea pe bandă și ciclismul în interior.",
       "weekdays": {
         "sunday": "Duminică",
@@ -149,7 +159,8 @@
       "statusLegend": "Stare cont",
       "active": "Activ",
       "emailVerified": "E-mail verificat",
-      "pendingAdminApproval": "În așteptarea aprobării administratorului",
+      "emailVerifiedCurrentHint": "Aceasta este starea adresei actuale.",
+      "newEmailVerified": "Marchează noua adresă ca verificată",
       "requiredField": "Câmp obligatoriu",
       "create": "Adaugă utilizator",
       "save": "Salvează modificările",
@@ -158,7 +169,13 @@
       "createSuccess": "Utilizator adăugat",
       "updateSuccess": "Utilizator actualizat",
       "conflict": "Acel nume de utilizator sau e-mail este deja folosit",
-      "saveError": "Nu am putut salva utilizatorul. Te rugăm să încerci din nou."
+      "lastAdministrator": "Singurul administrator nu poate fi retrogradat sau dezactivat",
+      "saveError": "Nu am putut salva utilizatorul. Te rugăm să încerci din nou.",
+      "stepUpTitle": "Confirmă-ți identitatea",
+      "stepUpDescription": "Schimbarea e-mailului, a tipului de acces sau a stării active pentru {username} îl deconectează peste tot. Confirmă că ești tu pentru a continua.",
+      "stepUpCreateDescription": "Crearea unui cont de administrator acordă acces complet. Confirmă că ești tu pentru a continua.",
+      "stepUpConfirm": "Salvează modificările",
+      "approvalPending": "Acest utilizator așteaptă aprobarea. Aprobă-l în loc să îl activezi aici."
     },
     "delete": {
       "title": "Șterge utilizatorul",
@@ -167,10 +184,12 @@
       "cancel": "Anulează",
       "close": "Închide",
       "success": "Utilizator șters",
-      "error": "Nu am putut șterge utilizatorul. Te rugăm să încerci din nou."
+      "error": "Nu am putut șterge utilizatorul. Te rugăm să încerci din nou.",
+      "failed": "Ștergerea utilizatorului a eșuat. Contul rămâne dezactivat; șterge-l din nou pentru a reîncerca."
     },
     "detail": {
       "back": "Înapoi la utilizatori",
+      "pendingEmail": "Schimbare de e-mail în așteptare la {email}, linkul expiră {date}",
       "notFoundTitle": "Utilizatorul nu a fost găsit",
       "notFoundDescription": "Acest cont poate să fi fost șters",
       "securityTitle": "Securitate",
@@ -184,19 +203,33 @@
     "password": {
       "button": "Resetează parola",
       "title": "Resetează parola",
-      "description": "Setează o parolă nouă pentru {username}",
+      "description": "Setează o parolă nouă pentru {username} All of their sessions, unused reset links, pending email change and API keys end. They are notified.",
       "newLabel": "Parolă nouă",
-      "hintLength": "Cel puțin {min} caractere",
-      "hintStrict": "Cel puțin {min} caractere, cu majusculă, minusculă, o cifră și un caracter special",
       "confirmLabel": "Confirmă parola nouă",
-      "mismatch": "Parolele nu coincid",
       "required": "Parola este obligatorie",
       "submit": "Resetează parola",
       "cancel": "Anulează",
       "close": "Închide",
       "success": "Parolă actualizată",
-      "invalid": "Acea parolă nu îndeplinește cerințele",
       "error": "Nu am putut actualiza parola. Te rugăm să încerci din nou."
+    },
+    "mfaReset": {
+      "button": "Resetează MFA",
+      "title": "Resetează autentificarea în doi pași",
+      "description": "Aceasta dezactivează autentificarea în doi pași pentru {username} și îi elimină codurile de rezervă. Toate sesiunile lui se încheie, deci este deconectat de pe toate dispozitivele și trebuie să configureze din nou autentificarea în doi pași după autentificare. Este notificat. Confirmă că ești tu pentru a continua.",
+      "confirm": "Resetează MFA",
+      "success": "Autentificarea în doi pași a fost resetată",
+      "refused": "Autentificarea în doi pași nu este activată pentru acest utilizator.",
+      "error": "Nu s-a putut reseta autentificarea în doi pași. Încearcă din nou."
+    },
+    "requirePasswordChange": {
+      "button": "Cere schimbarea parolei",
+      "title": "Cere schimbarea parolei",
+      "description": "{username} își păstrează parola actuală, dar trebuie să aleagă una nouă la următoarea autentificare cu ea. Toate sesiunile lui se încheie, deci este deconectat de pe toate dispozitivele. Autentificarea printr-un furnizor single sign-on nu este afectată. Este notificat. Confirmă că ești tu pentru a continua.",
+      "confirm": "Cere schimbarea",
+      "success": "Schimbarea parolei este cerută",
+      "refused": "Acest utilizator nu are o parolă de schimbat.",
+      "error": "Nu s-a putut cere schimbarea parolei. Încearcă din nou."
     },
     "sessions": {
       "title": "Sesiuni",
@@ -205,6 +238,7 @@
       "error": "Nu am putut încărca sesiunile",
       "retry": "Încearcă din nou",
       "lastActive": "Activ ultima dată {date}",
+      "viaApp": "Autentificat prin aplicație: {address}",
       "current": "Sesiunea curentă",
       "revokeOthers": "Revocă celelalte sesiuni",
       "revokeOthersTitle": "Revocă celelalte sesiuni",
@@ -216,10 +250,28 @@
       "revokeTitle": "Revocă sesiunea",
       "revokeBody": "Aceasta deconectează dispozitivul; va trebui să se autentifice din nou",
       "revokeConfirm": "Revocă",
-      "revokeCancel": "Anulează",
-      "revokeClose": "Închide",
       "revokeSuccess": "Sesiune revocată",
       "revokeError": "Nu am putut revoca sesiunea. Te rugăm să încerci din nou."
+    },
+    "apiKeys": {
+      "title": "Chei API",
+      "subtitle": "Chei API create de acest utilizator pentru scripturi și instrumente terțe",
+      "error": "Nu s-au putut încărca cheile API",
+      "retry": "Încearcă din nou",
+      "empty": "Acest utilizator nu are chei API",
+      "revoke": "Revocă",
+      "revokeTitle": "Revoci această cheie API?",
+      "revokeBody": "Cheia nu mai funcționează imediat, iar utilizatorul este notificat.",
+      "revokeConfirm": "Revocă cheia",
+      "revokeSuccess": "Cheia API a fost revocată",
+      "revokeError": "Nu s-a putut revoca cheia API. Încearcă din nou.",
+      "revokeNotFound": "Această cheie API nu mai există.",
+      "revokeAll": "Revocă toate cheile",
+      "revokeAllTitle": "Revoci toate cheile API?",
+      "revokeAllBody": "Fiecare cheie API activă a acestui utilizator nu mai funcționează imediat, iar utilizatorul este notificat.",
+      "revokeAllConfirm": "Revocă toate cheile",
+      "revokeAllSuccess": "Cheile API au fost revocate",
+      "revokeAllError": "Nu s-au putut revoca cheile API. Încearcă din nou."
     },
     "photo": {
       "upload": "Încarcă fotografia",
@@ -277,6 +329,34 @@
     "saving": "Se salvează…",
     "saveSuccess": "Setările serverului au fost actualizate",
     "saveError": "Nu am putut actualiza setările serverului. Te rugăm să încerci din nou.",
+    "staleError": "Aceste setări au fost modificate de altcineva cât timp le editai. Modificările tale nu au fost salvate. Reîncarcă pagina pentru a vedea valorile curente.",
+    "stepUpTitle": "Confirmă-ți identitatea",
+    "stepUpDescription": "Aceste modificări afectează cine se poate înregistra, autentifica sau păstra o sesiune pe acest server, cât timp este păstrat jurnalul de audit sau dacă linkurile publice arată cine le-a partajat. Confirmă că ești tu pentru a continua.",
+    "envLocked": "Setat de {name}",
+    "envSection": "Unele setări de aici sunt definite de variabile de mediu ({names}). Elimină-le din mediu pentru a edita aceste setări aici.",
+    "unsaved": "Modificări nesalvate",
+    "fixErrors": "Remediază erorile de mai sus pentru a salva",
+    "discard": "Renunță",
+    "tabs": {
+      "label": "Secțiunile setărilor serverului",
+      "general": "General",
+      "access": "Acces și securitate",
+      "maps": "Hărți și locație",
+      "email": "E-mail",
+      "logs": "Jurnale",
+      "unsaved": "Conține modificări nesalvate"
+    },
+    "search": {
+      "placeholder": "Caută în setări…",
+      "noResults": "Nu s-a găsit nicio setare"
+    },
+    "leave": {
+      "title": "Părăsești pagina fără salvare?",
+      "description": "Ai modificări nesalvate. Dacă părăsești această pagină, vor fi pierdute.",
+      "confirm": "Părăsește fără salvare",
+      "stay": "Rămâi pe pagină",
+      "close": "Închide"
+    },
     "loadError": {
       "title": "Nu am putut încărca setările serverului",
       "description": "Ceva nu a mers bine la încărcarea setărilor serverului. Poți încerca din nou.",
@@ -293,17 +373,49 @@
       "currencyPound": "Liră (£)",
       "numRecords": "Înregistrări pe pagină"
     },
+    "mfa": {
+      "title": "Autentificare în doi pași",
+      "require": "Cere autentificarea în doi pași",
+      "requireHint": "Un cont vizat care nu a configurat autentificarea în doi pași trebuie să o configureze înainte de a putea face orice altceva. Până atunci o poate doar configura și se poate deconecta. Cerința se aplică de la următoarea solicitare a contului.",
+      "options": {
+        "off": "Nu este cerută",
+        "administrators": "Doar administratorii",
+        "everyone": "Toți"
+      },
+      "enabledWarning": "Conturile vizate de această setare care nu au configurat autentificarea în doi pași, posibil inclusiv al tău, sunt trimise să o configureze la următoarea solicitare."
+    },
     "password": {
       "title": "Politica parolelor",
-      "type": "Politică",
-      "typeStrict": "Strictă (complexitate necesară)",
-      "typeLengthOnly": "Doar lungimea",
       "lengthRegular": "Lungime minimă pentru utilizatorii obișnuiți",
-      "lengthAdmin": "Lungime minimă pentru utilizatorii administratori"
+      "lengthAdmin": "Lungime minimă pentru utilizatorii administratori",
+      "breachCheck": "Refuză parolele găsite în breșe de date cunoscute",
+      "breachCheckHint": "Verifică fiecare parolă nouă sau schimbată cu haveibeenpwned.com. Sunt trimise doar primele 5 caractere ale hash-ului SHA-1 al parolei, niciodată parola. Dacă serviciul nu poate fi contactat, parola este acceptată."
+    },
+    "session": {
+      "title": "Sesiuni",
+      "description": "Modificările se aplică autentificărilor noi și următoarei reînnoiri a tokenului. Tokenurile deja emise își păstrează durata.",
+      "idleTimeoutEnabled": "Aplică expirarea la inactivitate",
+      "idleHours": "Expirare la inactivitate (ore)",
+      "idleHoursHint": "Când este aplicată, o sesiune se încheie după acest număr de ore fără activitate.",
+      "absoluteHours": "Expirare absolută (ore)",
+      "absoluteHoursHint": "O sesiune se încheie după acest număr de ore de la autentificare, indiferent de activitate. Se aplică întotdeauna. Nu poate fi mai scurtă decât expirarea la inactivitate.",
+      "accessMinutes": "Durata tokenului de acces (minute)",
+      "refreshDays": "Durata tokenului de reînnoire (zile)",
+      "apiKeyDays": "Durata maximă a unei chei API (zile)",
+      "apiKeyDaysHint": "O cheie API nouă expiră după acest număr de zile, dacă proprietarul nu alege o dată anterioară.",
+      "invalidRange": "Introdu un număr întreg între {min} și {max}.",
+      "absoluteBelowIdle": "Nu poate fi mai scurtă decât expirarea la inactivitate.",
+      "accessNotBelowIdle": "Trebuie să fie mai scurtă decât expirarea la inactivitate."
+    },
+    "retention": {
+      "title": "Păstrarea datelor",
+      "readNotifications": "Șterge notificările citite după (zile)",
+      "readNotificationsHint": "0 păstrează notificările citite pentru totdeauna. Notificările necitite nu sunt șterse niciodată."
     },
     "signup": {
       "title": "Înregistrare",
       "enabled": "Permite înscrierea de noi utilizatori",
+      "ssoEnabled": "Permite înregistrarea de utilizatori noi prin single sign-on",
       "adminApproval": "Necesită aprobarea administratorului pentru noile înscrieri",
       "emailVerification": "Necesită verificarea e-mailului pentru noile înscrieri"
     },
@@ -336,12 +448,33 @@
       "attribution": "Atribuire",
       "apiKey": "Cheie API server de plăci",
       "apiKeyWarning": "Cheia API este stocată criptat. Lasă gol dacă serverul tău de plăci nu are nevoie de una.",
+      "apiKeyStored": "Este stocată o cheie",
+      "apiKeyRemove": "Elimină cheia API stocată",
       "backgroundColor": "Culoare de fundal a hărții",
       "regenerateThumbnails": "Regenerează miniaturile activităților când se schimbă setările hărții"
+    },
+    "geocoding": {
+      "title": "Geocodare inversă",
+      "description": "Transformă coordonatele activităților în nume de locuri. Modificările se aplică fără repornire.",
+      "service": "Serviciu",
+      "serviceNominatim": "Nominatim",
+      "servicePhoton": "Photon",
+      "serviceGeocode": "geocode.maps.co",
+      "host": "Gazdă",
+      "hostHint": "Numele gazdei cu un port opțional, fără schemă. O gazdă dintr-o rețea privată trebuie inclusă în SSRF_ALLOWED_HOSTS.",
+      "useHttps": "Conectare prin HTTPS",
+      "rateLimit": "Cereri pe secundă",
+      "rateLimitHint": "0 dezactivează limitarea. Păstrează 1 pentru serviciile publice Nominatim și Photon.",
+      "rateLimitInvalid": "Introdu un număr între 0 și 100.",
+      "apiKey": "Cheie API",
+      "apiKeyStored": "Este stocată o cheie. Lasă gol pentru a o păstra.",
+      "apiKeyRemove": "Elimină cheia API stocată",
+      "apiKeyRequired": "geocode.maps.co necesită o cheie API."
     },
     "photo": {
       "title": "Fotografie de autentificare",
       "description": "O imagine personalizată afișată pe ecranul de autentificare",
+      "previewAlt": "Fotografia curentă de autentificare",
       "add": "Încarcă fotografia de autentificare",
       "replace": "Înlocuiește fotografia de autentificare",
       "delete": "Elimină fotografia de autentificare",
@@ -355,10 +488,33 @@
       "cancel": "Anulează",
       "close": "Închide"
     },
+    "logs": {
+      "title": "Jurnalele serverului",
+      "description": "Cele mai recente înregistrări din jurnalul aplicației. Jurnalele implementărilor cu mai multe procese sunt colectate de platforma ta.",
+      "level": "Nivel minim",
+      "allLevels": "Toate nivelurile",
+      "search": "Căutare",
+      "searchPlaceholder": "Text, logger sau ID cerere…",
+      "live": "În direct",
+      "refresh": "Reîmprospătează",
+      "download": "Descarcă",
+      "downloadError": "Nu am putut descărca fișierul de jurnal.",
+      "clear": "Golește",
+      "cleared": "Jurnalele au fost golite",
+      "clearError": "Nu am putut goli jurnalele.",
+      "clearConfirm": {
+        "title": "Golești jurnalele serverului?",
+        "description": "Aceasta șterge definitiv fișierul de jurnal și copiile sale rotite. Descarcă mai întâi jurnalul dacă s-ar putea să ai nevoie de el. Acțiunea în sine este înregistrată în noul jurnal.",
+        "confirm": "Golește jurnalele",
+        "cancel": "Anulează",
+        "close": "Închide"
+      },
+      "loadError": "Nu am putut încărca jurnalele.",
+      "empty": "Nu s-a găsit nicio înregistrare de jurnal"
+    },
     "email": {
       "title": "E-mail",
       "description": "Endurain trimite e-mailurile de resetare a parolei și de înregistrare prin serverul SMTP configurat în mediu.",
-      "statusLoadError": "Configurarea e-mailului nu a putut fi verificată.",
       "configured": "E-mailul este configurat.",
       "notConfigured": "E-mailul nu este configurat:",
       "send": "Trimite e-mail de test",
@@ -366,7 +522,28 @@
       "sendHint": "E-mailul de test este trimis la propria ta adresă.",
       "sent": "E-mail de test trimis",
       "failed": "E-mailul de test nu a putut fi trimis",
-      "failedUnknown": "Consultă jurnalele serverului pentru detalii."
+      "failedUnknown": "Consultă jurnalele serverului pentru detalii.",
+      "settingsLoadError": "Nu am putut încărca setările de e-mail.",
+      "host": "Gazdă",
+      "hostHint": "Lasă gol pentru a dezactiva e-mailul.",
+      "port": "Port",
+      "portInvalid": "Introdu un port între 1 și 65535.",
+      "security": "Securitatea conexiunii",
+      "securityStarttls": "STARTTLS",
+      "securitySsl": "SSL/TLS",
+      "securityNone": "Niciuna (doar releu privat)",
+      "securityNoneWarning": "Fără criptare, este acceptat doar un server de e-mail aflat la o adresă privată sau de loopback, și nu se poate folosi nume de utilizator și parolă.",
+      "username": "Nume de utilizator",
+      "password": "Parolă",
+      "passwordStored": "Este stocată o parolă. Lasă gol pentru a o păstra.",
+      "passwordRemove": "Elimină parola stocată",
+      "fromAddress": "Adresa expeditorului",
+      "fromAddressHint": "Lasă gol pentru a folosi numele de utilizator.",
+      "save": "Salvează setările de e-mail",
+      "saveSuccess": "Setările de e-mail au fost salvate",
+      "saveError": "Setările de e-mail nu au putut fi salvate",
+      "stepUpTitle": "Confirmă-ți identitatea",
+      "stepUpDescription": "Serverul de e-mail primește fiecare link de resetare a parolei. Confirmă că ești tu pentru a continua."
     }
   },
   "idp": {
@@ -374,6 +551,8 @@
     "subtitle": "Configurează furnizorii SSO pentru autentificarea unică",
     "buttonAdd": "Adaugă furnizor",
     "toggleError": "Nu am putut modifica furnizorul. Te rugăm să încerci din nou.",
+    "toggleStepUpDescription": "Schimbarea stării de activare a {name} decide cine se poate autentifica pe acest server. Confirmă că ești tu pentru a continua.",
+    "toggleStepUpConfirm": "Confirmă",
     "enableSuccess": "Furnizor activat",
     "disableSuccess": "Furnizor dezactivat",
     "type": {
@@ -399,8 +578,6 @@
       "title": "Șterge furnizorul",
       "body": "Sigur dorești să ștergi „{name}”? Acțiunea nu poate fi anulată.",
       "confirm": "Șterge",
-      "cancel": "Anulează",
-      "close": "Închide",
       "success": "Furnizor șters",
       "error": "Nu am putut șterge furnizorul. Este posibil să aibă încă utilizatori asociați."
     },
@@ -422,14 +599,16 @@
       "slugRequired": "Slug-ul este obligatoriu",
       "slugTooLong": "Slug-ul trebuie să aibă cel mult 50 de caractere",
       "slugInvalid": "Folosește doar litere mici, cifre și cratime",
+      "slugReserved": "Acest slug este rezervat; alege altul",
       "providerType": "Tip de furnizor",
       "typeOidc": "OpenID Connect (OIDC)",
       "typeOauth2": "OAuth 2.0",
       "issuerUrl": "URL emitent",
       "issuerUrlHint": "URL-ul emitentului OIDC sau de descoperire al furnizorului",
       "issuerUrlRequired": "URL-ul emitentului este obligatoriu",
+      "issuerUrlRefused": "URL-ul furnizorului a fost refuzat. Trebuie să folosească https:// și să se rezolve de pe server, iar un furnizor dintr-o rețea privată trebuie inclus în SSRF_ALLOWED_HOSTS.",
       "issuerUrlTooLong": "URL-ul emitentului trebuie să aibă cel mult 500 de caractere",
-      "clientId": "Client ID",
+      "clientId": "ID client",
       "clientIdRequired": "Client ID-ul este obligatoriu",
       "clientIdTooLong": "Client ID-ul trebuie să aibă cel mult 512 caractere",
       "clientSecret": "Secret client",
@@ -440,17 +619,34 @@
       "scopes": "Domenii",
       "scopesHint": "Domenii OAuth separate prin spații",
       "scopesTooLong": "Domeniile trebuie să aibă cel mult 500 de caractere",
+      "scopesOpenidRequired": "Un furnizor OIDC necesită domeniul openid",
       "icon": "Pictogramă",
       "iconNone": "Niciuna",
-      "iconCustom": "URL personalizat",
-      "customIconUrl": "URL pictogramă personalizată",
-      "customIconUrlHint": "Link către o imagine afișată pe butonul de autentificare",
+      "iconUpload": "Încarcă o imagine",
+      "iconFileHint": "O imagine PNG, JPEG sau WebP de până la 1 MB, afișată pe butonul de autentificare",
+      "iconChoose": "Alege imaginea",
+      "iconReplace": "Înlocuiește imaginea",
+      "iconPreviewAlt": "Previzualizarea pictogramei",
+      "iconFileRequired": "Alege o imagine de încărcat",
+      "iconFileInvalidType": "Pictograma trebuie să fie o imagine PNG, JPEG sau WebP",
+      "iconFileTooLarge": "Pictograma trebuie să aibă cel mult 1 MB",
+      "iconSaveError": "Furnizorul a fost salvat, dar pictograma lui nu a putut fi actualizată. Editează furnizorul pentru a încerca din nou.",
       "enabled": "Activat",
       "autoCreateUsers": "Creează automat utilizatori la prima autentificare",
+      "linkByEmail": "Asociază cu un cont existent după e-mail",
+      "linkByEmailHint": "Permite ca o primă autentificare să se alăture contului care are același e-mail verificat. Dezactivat, acea autentificare este refuzată, iar utilizatorul asociază furnizorul din setările sale. Dezactivat implicit pentru un furnizor nou.",
       "syncUserInfo": "Sincronizează informațiile de profil la fiecare autentificare",
+      "syncUserInfoHint": "Copiază numele mapat de la furnizor. Nu include e-mailul.",
+      "syncEmail": "Sincronizează e-mailul la fiecare autentificare",
+      "syncEmailHint": "Copiază pe cont e-mailul verificat de furnizor, auditează modificarea și notifică adresa anterioară. Dezactivat implicit pentru un furnizor nou.",
       "createSuccess": "Furnizor adăugat",
       "updateSuccess": "Furnizor actualizat",
+      "stepUpTitle": "Confirmă-ți identitatea",
+      "stepUpDescription": "Furnizorii de identitate decid cine se poate autentifica pe acest server. Confirmă că ești tu pentru a continua.",
       "slugConflict": "Acel slug este deja folosit",
+      "issuerInUse": "Un alt furnizor de identitate folosește deja acest URL de emitent",
+      "issuerLocked": "URL-ul emitentului nu poate fi schimbat cât timp există utilizatori asociați cu acest furnizor. Disociază-i sau adaugă în schimb un furnizor nou.",
+      "staleError": "Acest furnizor a fost modificat în altă parte. Modificările tale nu au fost salvate. Închide-l și redeschide-l pentru a încărca setările curente.",
       "saveError": "Nu am putut salva furnizorul. Te rugăm să încerci din nou."
     }
   },
@@ -458,7 +654,7 @@
     "title": "Obiectivele mele",
     "subtitle": "Setează ținte pentru activitățile tale și urmărește-ți progresul",
     "buttonAdd": "Adaugă obiectiv",
-    "count": "Există un total de {count} obiectiv(e):",
+    "count": "Există un total de {count} obiectiv: | Există un total de {count} obiective: | Există un total de {count} de obiective:",
     "filters": "Filtre",
     "filter": {
       "all": "Toate",
@@ -492,13 +688,6 @@
       "elevation": "Diferență de nivel",
       "duration": "Durată"
     },
-    "unit": {
-      "calories": "kcal",
-      "km": "km",
-      "miles": "mi",
-      "meters": "m",
-      "feet": "ft"
-    },
     "list": {
       "edit": "Editează obiectivul {name}",
       "delete": "Șterge obiectivul {name}"
@@ -522,6 +711,7 @@
       "error": "Nu am putut șterge obiectivul. Te rugăm să încerci din nou."
     },
     "form": {
+      "targetInvalid": "Introduceți o valoare mai mare decât 0.",
       "addTitle": "Adaugă obiectiv",
       "editTitle": "Editează obiectivul",
       "description": "Setează o țintă pentru o activitate pe o perioadă recurentă",
@@ -549,6 +739,14 @@
     "hidePassword": "Ascunde parola",
     "mfaCode": "Cod de autentificare",
     "mfaCodePlaceholder": "123456",
+    "confirmPhrase": "Scrie {phrase} pentru a confirma",
+    "mfaEnrolment": {
+      "title": "Configurează autentificarea în doi pași",
+      "description": "Acest server cere autentificarea în doi pași. Configureaz-o pentru a continua să folosești Endurain sau deconectează-te.",
+      "done": "Autentificarea în doi pași este configurată. Poți continua.",
+      "continue": "Continuă",
+      "signOut": "Deconectează-te"
+    },
     "loadError": {
       "title": "Nu am putut încărca setările tale de securitate",
       "description": "Ceva nu a mers bine. Poți încerca din nou."
@@ -559,10 +757,7 @@
       "current": "Parola curentă",
       "new": "Parolă nouă",
       "confirm": "Confirmă parola nouă",
-      "requirementsStrict": "Cel puțin {length} caractere, incluzând o literă mare, o literă mică, o cifră și un simbol.",
-      "requirementsLength": "Cel puțin {length} caractere.",
-      "mismatch": "Parolele nu coincid.",
-      "revokeOthers": "Deconectează toate celelalte dispozitive",
+      "revokeOthers": "Deconectează toate celelalte sesiuni",
       "submit": "Schimbă parola",
       "success": "Parolă schimbată",
       "invalidCredentials": "Parola sau codul tău curent este incorect.",
@@ -575,7 +770,7 @@
       "disabledDescription": "Autentificarea în doi pași este dezactivată. Activeaz-o pentru a-ți proteja mai bine contul.",
       "enable": "Activează autentificarea în doi pași",
       "enabledDescription": "Autentificarea în doi pași este activată.",
-      "backupRemaining": "{unused} din {total} coduri de rezervă rămase.",
+      "backupRemaining": "Rămase: {unused} din {total} cod de rezervă. | Rămase: {unused} din {total} coduri de rezervă. | Rămase: {unused} din {total} de coduri de rezervă.",
       "regenerate": "Regenerează codurile de rezervă",
       "disable": "Dezactivează",
       "setupTitle": "Activează autentificarea în doi pași",
@@ -616,18 +811,51 @@
       "empty": "Nicio sesiune activă.",
       "current": "Acest dispozitiv",
       "lastActive": "Activ ultima dată {date}",
+      "viaApp": "Autentificat prin aplicație: {address}",
       "revoke": "Deconectează această sesiune",
       "revokeTitle": "Deconectezi această sesiune?",
       "revokeBody": "Acel dispozitiv va fi deconectat și va trebui să se autentifice din nou.",
       "revokeConfirm": "Deconectează",
       "revokeSuccess": "Sesiune deconectată",
       "revokeError": "Nu am putut deconecta acea sesiune. Te rugăm să încerci din nou.",
-      "revokeOthers": "Deconectează celelalte dispozitive",
-      "revokeOthersTitle": "Deconectezi toate celelalte dispozitive?",
-      "revokeOthersBody": "Fiecare dispozitiv în afară de acesta va fi deconectat și va trebui să se autentifice din nou.",
+      "revokeOthers": "Deconectează celelalte sesiuni",
+      "revokeOthersTitle": "Deconectezi toate celelalte sesiuni?",
+      "revokeOthersBody": "Toate sesiunile, în afară de aceasta, vor fi deconectate și vor trebui să se autentifice din nou.",
       "revokeOthersConfirm": "Deconectează celelalte",
       "revokeOthersSuccess": "Celelalte sesiuni au fost deconectate",
-      "revokeOthersError": "Nu am putut deconecta celelalte sesiuni. Te rugăm să încerci din nou."
+      "revokeOthersError": "Nu am putut deconecta celelalte sesiuni. Te rugăm să încerci din nou.",
+      "signOutEverywhere": "Deconectează-te peste tot",
+      "signOutEverywhereTitle": "Te deconectezi peste tot?",
+      "signOutEverywhereBody": "Toate dispozitivele, inclusiv acesta, vor fi deconectate și va trebui să te autentifici din nou.",
+      "signOutEverywhereConfirm": "Deconectează-te peste tot",
+      "signOutEverywhereError": "Nu s-a putut face deconectarea din toate sesiunile. Încearcă din nou."
+    },
+    "devices": {
+      "title": "Dispozitive cunoscute",
+      "subtitle": "Browsere și aplicații din care te-ai autentificat de la ultima modificare de securitate. Autentificarea de pe orice alt dispozitiv îți trimite o notificare.",
+      "empty": "Niciun dispozitiv cunoscut",
+      "error": "Nu s-au putut încărca dispozitivele cunoscute",
+      "current": "Acest dispozitiv",
+      "unknown": "Dispozitiv necunoscut",
+      "lastSeen": "Ultima autentificare {date}",
+      "forget": "Uită acest dispozitiv",
+      "forgetTitle": "Uiți acest dispozitiv?",
+      "forgetDescription": "Uitarea acestui dispozitiv îl și deconectează. Următoarea autentificare de pe acest dispozitiv va conta ca dispozitiv nou și îți va trimite o notificare.",
+      "forgetConfirm": "Uită dispozitivul",
+      "forgetSuccess": "Dispozitiv uitat",
+      "forgetError": "Nu s-a putut uita dispozitivul. Încearcă din nou.",
+      "forgetNotFound": "Acel dispozitiv nu mai este cunoscut.",
+      "forgetOthers": "Uită celelalte dispozitive",
+      "forgetOthersTitle": "Uiți toate celelalte dispozitive?",
+      "forgetOthersDescription": "Toate dispozitivele, în afară de acesta, vor fi uitate și deconectate. Următoarea autentificare de pe fiecare va conta ca dispozitiv nou și îți va trimite o notificare.",
+      "forgetOthersConfirm": "Uită dispozitivele",
+      "forgetOthersSuccess": "Celelalte dispozitive au fost uitate",
+      "forgetOthersError": "Nu s-au putut uita celelalte dispozitive. Încearcă din nou.",
+      "forgetAll": "Uită toate dispozitivele",
+      "forgetAllTitle": "Uiți toate dispozitivele?",
+      "forgetAllDescription": "Toate dispozitivele, inclusiv acesta, vor fi uitate și deconectate, iar vei fi trimis la pagina de autentificare. Următoarea autentificare de pe fiecare va conta ca dispozitiv nou și îți va trimite o notificare.",
+      "forgetAllConfirm": "Uită dispozitivele",
+      "forgetAllError": "Nu s-au putut uita dispozitivele. Încearcă din nou."
     },
     "linked": {
       "title": "Conturi asociate",
@@ -649,7 +877,51 @@
       "unlinkError": "Nu am putut dezasocia contul. Te rugăm să încerci din nou.",
       "invalidCredentials": "Parola sau codul tău este incorect.",
       "alreadyLinked": "Acel cont este deja asociat.",
-      "lastMethodError": "Nu îți poți dezasocia singura metodă de autentificare. Setează mai întâi o parolă."
+      "lastMethodError": "Nu îți poți dezasocia singura metodă de autentificare. Setează mai întâi o parolă.",
+      "linkedOn": "Asociat la {date}"
+    },
+    "email": {
+      "title": "Adresă de e-mail",
+      "subtitle": "Aici sunt trimise resetările parolei și notificările. Pentru modificare trebuie să îți confirmi identitatea, iar noua adresă intră în vigoare după ce o confirmi printr-un link pe care îl trimitem acolo.",
+      "current": "E-mail curent",
+      "action": "Schimbă e-mailul",
+      "new": "E-mail nou",
+      "invalid": "Introdu o adresă de e-mail validă.",
+      "sameAsCurrent": "Aceasta este deja adresa ta de e-mail.",
+      "success": "Linkul de confirmare a fost trimis la noua adresă. E-mailul tău se va schimba după ce îl confirmi.",
+      "appliedSuccess": "Adresa de e-mail a fost schimbată.",
+      "pending": "Schimbare în așteptare la {email}",
+      "pendingExpires": "Linkul de confirmare expiră la {date}.",
+      "resend": "Retrimite linkul",
+      "cancel": "Anulează schimbarea",
+      "resendSuccess": "Dacă există o schimbare în așteptare, un link nou este pe drum către noua adresă.",
+      "resendError": "Nu am putut retrimite linkul. Te rugăm să încerci din nou.",
+      "cancelSuccess": "Schimbarea adresei de e-mail a fost anulată.",
+      "cancelError": "Nu am putut anula schimbarea. Te rugăm să încerci din nou.",
+      "conflict": "Acest e-mail este deja folosit.",
+      "error": "Nu am putut schimba e-mailul. Te rugăm să încerci din nou."
+    },
+    "username": {
+      "title": "Nume de utilizator",
+      "subtitle": "Te autentifici cu numele de utilizator. Pentru a-l schimba trebuie să îți confirmi identitatea, iar schimbarea se aplică imediat.",
+      "current": "Numele de utilizator actual",
+      "action": "Schimbă numele de utilizator",
+      "new": "Nume de utilizator nou",
+      "sameAsCurrent": "Acesta este deja numele tău de utilizator.",
+      "success": "Numele de utilizator a fost schimbat.",
+      "conflict": "Acest nume de utilizator este deja folosit.",
+      "error": "Numele de utilizator nu a putut fi schimbat. Încearcă din nou."
+    },
+    "deleteAccount": {
+      "title": "Șterge-mi contul",
+      "subtitle": "Șterge-ți contul și toate datele tale, inclusiv activitățile și fișierele lor, datele de sănătate, echipamentul, obiectivele, integrările și sesiunile. Ești deconectat de pe toate dispozitivele, iar contul este dezactivat imediat, apoi datele tale sunt șterse în fundal. Nu există o perioadă de grație: doar un administrator poate opri operațiunea, reactivând contul înainte de finalizarea ștergerii. Exportă-ți mai întâi datele dacă vrei să păstrezi o copie.",
+      "action": "Șterge-mi contul",
+      "dialogTitle": "Îți ștergi contul?",
+      "dialogDescription": "Aceasta te deconectează de pe toate dispozitivele, îți dezactivează contul și începe ștergerea tuturor datelor tale. Doar un administrator o poate opri înainte de finalizare. Confirmă-ți identitatea pentru a continua.",
+      "confirm": "Șterge-mi contul",
+      "error": "Nu am putut șterge contul. Te rugăm să încerci din nou.",
+      "onlyAdminError": "Ești singurul administrator. Fă un alt utilizator administrator înainte de a-ți șterge contul.",
+      "pendingError": "Ștergerea acestui cont este deja în curs."
     },
     "apiKeys": {
       "title": "Chei API",
@@ -661,13 +933,43 @@
       "namePlaceholder": "de ex. script de încărcare Garmin",
       "scopes": "Permisiuni",
       "scopesHint": "Alege ce are voie să facă această cheie. Este necesară cel puțin una.",
+      "scopeGroups": {
+        "account": "Cont",
+        "activities": "Activități",
+        "followers": "Urmăritori",
+        "gears": "Echipament",
+        "health": "Sănătate",
+        "healthTargets": "Obiective de sănătate",
+        "notifications": "Notificări",
+        "users": "Utilizatori"
+      },
+      "scopeLabels": {
+        "account": "Gestionează profilul, fotografia, obiectivele, confidențialitatea și echipamentul implicit",
+        "activitiesRead": "Citirea activităților",
+        "activitiesWrite": "Crearea, editarea și ștergerea activităților",
+        "activitiesUpload": "Încărcarea fișierelor de activitate",
+        "followersRead": "Vezi pe cine urmărești și cine te urmărește",
+        "followersWrite": "Schimbă pe cine urmărești și cine te urmărește",
+        "gearsRead": "Citirea echipamentului",
+        "gearsWrite": "Crearea, editarea și ștergerea echipamentului",
+        "healthRead": "Citirea datelor de sănătate",
+        "healthWrite": "Scrierea datelor de sănătate",
+        "healthTargetsRead": "Citirea obiectivelor de sănătate",
+        "healthTargetsWrite": "Modificarea obiectivelor de sănătate",
+        "notificationsRead": "Citirea notificărilor",
+        "notificationsWrite": "Gestionarea notificărilor",
+        "usersRead": "Căutarea profilurilor publice ale altor utilizatori"
+      },
       "expiry": "Expirare (opțional)",
-      "expiryHint": "Lasă gol pentru o cheie care nu expiră niciodată.",
+      "expiryHint": "Lasă gol pentru a folosi cea mai lungă durată permisă de server. O dată ulterioară este refuzată.",
       "createTitle": "Creează cheie API",
       "createDescription": "Confirmă-ți identitatea pentru a genera o nouă cheie API.",
       "createSuccess": "Cheie API creată",
       "createError": "Nu am putut crea cheia API. Te rugăm să încerci din nou.",
+      "apiKeyLimit": "Ați atins limita de 25 de chei API active. Revocați sau ștergeți una și încercați din nou.",
+      "expiryTooLate": "Această expirare este ulterioară celei permise de server. Alege o dată anterioară sau lasă gol.",
       "invalidCredentials": "Parola sau codul tău este incorect.",
+      "expiryNotFuture": "Acea expirare nu este în viitor. Alege o dată ulterioară.",
       "invalidScopes": "Acele permisiuni nu sunt permise pentru cheile API.",
       "revealTitle": "Copiază cheia ta API",
       "revealDescription": "Aceasta este singura dată când este afișată cheia completă.",
@@ -683,7 +985,6 @@
       "lastUsed": "Folosită ultima dată {date}",
       "neverUsed": "Niciodată folosită",
       "expires": "Expiră {date}",
-      "neverExpires": "Nu expiră niciodată",
       "revoke": "Revocă",
       "revokeTitle": "Revoci cheia API?",
       "revokeBody": "{name} va înceta să funcționeze imediat. Acțiunea nu poate fi anulată.",
@@ -694,6 +995,26 @@
       "deleteBody": "{name} va fi ștearsă definitiv. Acțiunea nu poate fi anulată.",
       "deleteSuccess": "Cheie API ștearsă",
       "deleteError": "Nu am putut șterge cheia API. Te rugăm să încerci din nou."
+    },
+    "stepUp": {
+      "passwordLabel": "Parola ta",
+      "passwordHint": "Introdu propria parolă pentru a confirma că ești tu.",
+      "prompt": "Contul tău nu are parolă. Autentifică-te din nou cu un furnizor de identitate asociat pentru a confirma că ești tu.",
+      "continueWith": "Continuă cu {name}",
+      "ready": "Autentificarea prin furnizorul de identitate a fost confirmată.",
+      "restart": "Autentifică-te din nou",
+      "noProviders": "Nu este disponibil niciun furnizor de identitate asociat pentru a-ți confirma identitatea.",
+      "startError": "Nu am putut porni autentificarea prin furnizorul de identitate. Te rugăm să încerci din nou.",
+      "tooManyAttempts": "Prea multe încercări. Te rugăm să încerci din nou mai târziu.",
+      "reauthRequired": "Confirmă-ți identitatea prin furnizorul tău de identitate pentru a continua.",
+      "failed": "Autentificarea repetată prin furnizorul de identitate a eșuat. Te rugăm să încerci din nou.",
+      "notFresh": "Furnizorul tău de identitate nu ți-a cerut să te autentifici din nou. Contactează administratorul."
+    },
+    "tabs": {
+      "label": "Secțiunile de securitate",
+      "account": "Cont",
+      "sessions": "Sesiuni și acces",
+      "danger": "Zonă periculoasă"
     }
   },
   "integrations": {
@@ -729,10 +1050,11 @@
       "connectTitle": "Conectează Strava",
       "connectDescription": "Introdu client id-ul și secretul aplicației tale API Strava pentru a începe.",
       "connectHint": "Vei fi trimis la Strava pentru a autoriza accesul, apoi vei fi adus înapoi aici.",
-      "clientId": "Client ID",
+      "clientId": "ID client",
       "clientIdPlaceholder": "123456",
       "clientSecret": "Secret client",
       "connectError": "Nu am putut conecta la Strava. Te rugăm să-ți verifici detaliile și să încerci din nou.",
+      "scopeError": "Strava nu a primit toate permisiunile de care are nevoie Endurain. Conectează-te din nou și lasă toate permisiunile bifate.",
       "completing": "Se finalizează conexiunea Strava…",
       "linkSuccess": "Strava conectat",
       "retrieveActivitiesTitle": "Preia activitățile Strava",
@@ -741,9 +1063,10 @@
       "retrievingGear": "Se preia echipamentul tău Strava în fundal…",
       "retrieveGearError": "Nu am putut începe preluarea echipamentului Strava. Te rugăm să încerci din nou.",
       "unlinkTitle": "Deconectezi Strava?",
-      "unlinkBody": "Endurain va înceta să importe din Strava. Activitățile tale existente sunt păstrate.",
+      "unlinkBody": "Endurain va înceta importul din Strava și va șterge activitățile și echipamentul sincronizate din Strava. Activitățile din alte surse, inclusiv fișierele de export Strava încărcate, sunt păstrate.",
       "unlinkSuccess": "Strava deconectat",
-      "unlinkError": "Nu am putut deconecta Strava. Te rugăm să încerci din nou."
+      "unlinkError": "Nu am putut deconecta Strava. Te rugăm să încerci din nou.",
+      "revokedNotice": "Accesul la Strava a luat sfârșit la {revokedAt}. Activitățile și echipamentul sincronizate cu Strava vor fi șterse la {deletionAt}, dacă nu te reconectezi."
     },
     "garmin": {
       "title": "Garmin Connect",
@@ -774,7 +1097,10 @@
       "unlinkBody": "Endurain va înceta să importe din Garmin Connect. Datele tale existente sunt păstrate.",
       "unlinkSuccess": "Garmin Connect deconectat",
       "unlinkError": "Nu am putut deconecta Garmin Connect. Te rugăm să încerci din nou."
-    }
+    },
+    "retrieveFinished": "Preluarea datelor tale din {provider} s-a încheiat.",
+    "retrieveFailed": "Preluarea datelor tale din {provider} a eșuat. Încearcă din nou.",
+    "retrieveAlreadyRunning": "O preluare din {provider} este deja în curs. Vei fi notificat când se încheie."
   },
   "import": {
     "title": "Import",
@@ -807,15 +1133,25 @@
     },
     "job": {
       "preparing": "Se pregătește importul…",
-      "progress": "Importate {done} din {total} fișiere ({failed} eșuate)…",
-      "finished": "Import finalizat: {done} din {total} fișiere importate, {failed} eșuate.",
-      "failed": "Importul nu a putut fi finalizat."
+      "progress": "Importate {done} din {total} fișier ({failed} eșuate)… | Importate {done} din {total} fișiere ({failed} eșuate)… | Importate {done} din {total} de fișiere ({failed} eșuate)…",
+      "finished": "Import finalizat: {done} din {total} fișier importate, {failed} eșuate. | Import finalizat: {done} din {total} fișiere importate, {failed} eșuate. | Import finalizat: {done} din {total} de fișiere importate, {failed} eșuate.",
+      "failed": "Importul nu a putut fi finalizat.",
+      "failure": {
+        "unsupported_format": "Importul a eșuat: fișierele au un format neacceptat.",
+        "invalid_file": "Importul a eșuat: fișierul nu este valid.",
+        "no_activities_found": "Importul a eșuat: nu au fost găsite activități.",
+        "processing_failed": "Importul a eșuat în timpul procesării fișierelor.",
+        "provider_unavailable": "Importul a eșuat: furnizorul nu este disponibil. Încearcă din nou mai târziu."
+      }
     }
   },
   "profile": {
     "title": "Profilul meu",
     "subtitle": "Gestionează-ți detaliile contului și confidențialitatea",
     "notSet": "Nesetat",
+    "emailManagedIn": "E-mailul se schimbă din setările de Securitate.",
+    "securitySettingsLink": "Deschide setările de Securitate",
+    "usernameManagedIn": "Numele de utilizator se schimbă din setările de Securitate.",
     "error": {
       "title": "Nu am putut încărca profilul tău",
       "description": "Ceva nu a mers bine la încărcarea profilului tău. Poți încerca din nou.",
@@ -826,7 +1162,6 @@
       "title": "Editează profilul",
       "description": "Actualizează-ți detaliile contului",
       "success": "Profil actualizat",
-      "conflict": "Acel nume de utilizator sau e-mail este deja folosit",
       "error": "Nu am putut actualiza profilul tău. Te rugăm să încerci din nou."
     },
     "photo": {
@@ -874,6 +1209,8 @@
       "hideLaps": "Ture",
       "hideWorkoutSetsSteps": "Seturile și pașii antrenamentului",
       "hideGear": "Echipament",
+      "discoverable": "Permite altora să mă găsească în căutare",
+      "discoverableHint": "Alți utilizatori te pot găsi după numele de utilizator când caută. Profilul tău rămâne accesibil printr-un link direct.",
       "save": "Salvează confidențialitatea",
       "saving": "Se salvează…",
       "saveSuccess": "Setările de confidențialitate au fost actualizate",
@@ -921,10 +1258,59 @@
       "export": "Exportă datele",
       "import": "Importă datele",
       "invalidType": "Te rugăm să alegi o arhivă .zip.",
-      "exportSuccess": "Export pregătit, descărcarea ta ar trebui să înceapă în curând",
+      "download": "Descarcă exportul",
+      "downloadSuccess": "Descărcarea ar trebui să înceapă în scurt timp",
+      "downloadError": "Nu am putut descărca exportul. Te rugăm să încerci din nou.",
+      "exportQueued": "Exportul a început. Poți părăsi această pagină.",
       "exportError": "Nu am putut exporta datele tale. Te rugăm să încerci din nou.",
-      "importSuccess": "Date importate",
-      "importError": "Nu am putut importa arhiva. Te rugăm să verifici fișierul și să încerci din nou."
+      "exportInProgress": "Un export este deja în desfășurare.",
+      "exportStepUp": {
+        "title": "Confirmă că ești tu",
+        "description": "Exportul copiază toate datele tale, așa că confirmă mai întâi identitatea."
+      },
+      "exportStatus": {
+        "queued": "Se așteaptă începerea exportului…",
+        "running": "Se pregătește exportul…",
+        "succeeded": "Exportul este gata de descărcat. Rămâne disponibil timp de două ore.",
+        "failed": "Exportul nu s-a finalizat: {reason}"
+      },
+      "exportFailure": {
+        "timed_out": "a durat prea mult. Poți încerca din nou.",
+        "processing_failed": "ceva nu a mers bine. Poți încerca din nou."
+      },
+      "importQueued": "Importul a început. Poți părăsi această pagină.",
+      "importError": "Nu am putut importa arhiva. Te rugăm să verifici fișierul și să încerci din nou.",
+      "importInProgress": "Un import este deja în desfășurare.",
+      "status": {
+        "queued": "Se așteaptă începerea importului…",
+        "running": "Se importă datele tale…",
+        "succeeded": "Import finalizat: a fost importată {activities} activitate, echipamente: {gears}. | Import finalizat: au fost importate {activities} activități, echipamente: {gears}. | Import finalizat: au fost importate {activities} de activități, echipamente: {gears}.",
+        "failed": "Importul nu s-a finalizat: {reason}"
+      },
+      "failure": {
+        "invalid_file": "arhiva nu este un export Endurain valid. Nu s-a importat nimic.",
+        "too_large": "arhiva este prea mare. Nu s-a importat nimic.",
+        "too_many_activities": "arhiva conține prea multe activități. Nu s-a importat nimic.",
+        "timed_out": "a durat prea mult. Nu s-a importat nimic, deci poți încerca din nou.",
+        "files_incomplete": "datele tale au fost importate, dar lipsesc unele fișiere. Nu le importa din nou; ți-ar duplica datele.",
+        "processing_failed": "ceva nu a mers bine. Nu s-a importat nimic, deci poți încerca din nou.",
+        "wrong_account": "arhiva a fost exportată dintr-un alt cont. Nu s-a importat nimic.",
+        "older_version": "arhiva a fost exportată de o versiune mai veche de Endurain. Nu s-a importat nimic."
+      }
+    },
+    "blockedUsers": {
+      "title": "Utilizatori blocați",
+      "subtitle": "Utilizatorii blocați nu pot cere să te urmărească. Blocarea cuiva elimină și orice urmărire dintre voi.",
+      "empty": "Nu ai blocat pe nimeni.",
+      "unblock": "Deblochează",
+      "unblockError": "Nu s-a putut debloca acest utilizator. Încearcă din nou.",
+      "loadError": "Nu s-au putut încărca utilizatorii blocați.",
+      "retry": "Încearcă din nou"
+    },
+    "tabs": {
+      "label": "Secțiunile profilului",
+      "profile": "Profil",
+      "privacy": "Confidențialitate și date"
     }
   }
 }

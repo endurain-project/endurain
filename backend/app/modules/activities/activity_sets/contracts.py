@@ -4,7 +4,9 @@ Separate from ``schema.py`` (the client-facing set payloads) because these never
 reach a client: they carry parsed or archived sets into persistence.
 """
 
-from pydantic import StrictInt
+import uuid
+
+from pydantic import StrictStr
 
 import modules.activities.activity_sets.schema as activity_sets_schema
 
@@ -14,6 +16,8 @@ class ActivitySetsCreate(activity_sets_schema.ActivitySetsBase):
 
     Attributes:
         activity_id: Parent activity ID.
+        start_time: Set start time ISO string.
     """
 
-    activity_id: StrictInt
+    activity_id: uuid.UUID
+    start_time: StrictStr

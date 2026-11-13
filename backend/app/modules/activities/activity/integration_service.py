@@ -6,12 +6,18 @@ Writes that publish events (bulk deletes, bulk re-gearing, ingestion) delegate t
 ``activity.service``, which owns their transaction.
 """
 
-from collections.abc import Sequence
-from datetime import datetime
+import uuid
+from collections.abc import Mapping, Sequence
+from datetime import date, datetime
 
+from jasil.providers import StateProvider
 from sqlalchemy.orm import Session
 
+import core.job_status as core_job_status
 import core.pagination as core_pagination
+import core.sync as core_sync
+import modules.activities.activity.bulk_edit_job_service as activity_bulk_edit_job_service
+import modules.activities.activity.bulk_edit_state_store as bulk_edit_state_store
 import modules.activities.activity.child_access_service as activity_child_access_service
 import modules.activities.activity.child_collection_service as activity_child_collection_service
 import modules.activities.activity.contracts as activity_contracts
@@ -19,13 +25,14 @@ import modules.activities.activity.crud as activity_crud
 import modules.activities.activity.ingestion_service as activity_ingestion_service
 import modules.activities.activity.schema as activity_schema
 import modules.activities.activity.service as activity_service
+import modules.gears.contracts as gears_contracts
 
 ChildCollection = activity_child_collection_service.ChildCollection
 
 
 def get_activity_by_strava_id(
     strava_activity_id: int,
-    user_id: int,
+    user_id: uuid.UUID,
     db: Session,
 ) -> activity_schema.ActivityRead | None:
     """Return the user's activity imported from the given Strava activity id.
@@ -43,7 +50,7 @@ def get_activity_by_strava_id(
 
 def get_activity_by_garminconnect_id(
     garminconnect_activity_id: int,
-    user_id: int,
+    user_id: uuid.UUID,
     db: Session,
 ) -> activity_schema.ActivityRead | None:
     """Return the user's activity imported from the given Garmin Connect activity id.
@@ -59,38 +66,31 @@ def get_activity_by_garminconnect_id(
     return activity_crud.get_activity_by_garminconnect_id_from_user_id(garminconnect_activity_id, user_id, db)
 
 
-def list_user_activities(user_id: int, db: Session) -> list[activity_schema.ActivityRead]:
-    """Return all of a user's activities (used by provider gear reconciliation).
-
-    Args:
-        user_id: The owning user id.
-        db: Database session.
-
-    Returns:
-        The user's activities (empty when they have none).
-    """
-    return activity_crud.get_user_activities(user_id, db, user_is_owner=True)
-
-
-def list_user_activities_with_garminconnect_gear(
-    user_id: int,
+def list_garminconnect_gear_activity_refs(
+    user_id: uuid.UUID,
     db: Session,
-) -> list[activity_schema.ActivityRead]:
-    """Return a user's activities that carry a Garmin Connect gear id.
+    *,
+    after_id: uuid.UUID | None = None,
+    limit: int = core_pagination.DEFAULT_MAINTENANCE_BATCH_SIZE,
+) -> list[activity_contracts.ActivityGarminGearRef]:
+    """Return one bounded page of a user's activities that carry a Garmin Connect gear id.
 
     Args:
         user_id: The owning user id.
         db: Database session.
+        after_id: Return only activities with an id greater than this; pass the last id of the
+            previous page to continue.
+        limit: Maximum number of rows to return.
 
     Returns:
-        The matching activities, or ``None`` when there are none.
+        The activity id and Garmin gear id of each match, in id order; empty when the page is past the end.
     """
-    return activity_crud.get_user_activities_by_user_id_and_garminconnect_gear_set(user_id, db)
+    return activity_crud.get_garminconnect_gear_activity_refs(user_id, db, after_id=after_id, limit=limit)
 
 
 def bulk_set_activities_gear(
-    user_id: int,
-    gear_assignments: dict[int, int | None],
+    user_id: uuid.UUID,
+    gear_assignments: Mapping[uuid.UUID, uuid.UUID | None],
     db: Session,
 ) -> int:
     """Assign gear to many of a user's activities at once.
@@ -113,7 +113,21 @@ def bulk_set_activities_gear(
     )
 
 
-def get_gear_usage_totals(gear_id: int, user_id: int, db: Session) -> activity_contracts.ActivityUsageTotals:
+def clear_activities_gear(gear_id: uuid.UUID, user_id: uuid.UUID, db: Session) -> int:
+    """Unassign a gear from every activity of a user that carries it; the caller commits.
+
+    Args:
+        gear_id: The gear being removed.
+        user_id: The owning user id.
+        db: Database session.
+
+    Returns:
+        The number of activities updated.
+    """
+    return activity_service.clear_activities_gear(gear_id, user_id, db, source="api:delete_gear")
+
+
+def get_gear_usage_totals(gear_id: uuid.UUID, user_id: uuid.UUID, db: Session) -> gears_contracts.UsageTotals:
     """Return the total distance and moving time a user recorded against a gear.
 
     Args:
@@ -128,11 +142,11 @@ def get_gear_usage_totals(gear_id: int, user_id: int, db: Session) -> activity_c
 
 
 def get_gear_usage_totals_by_window(
-    gear_id: int,
-    user_id: int,
-    windows: Sequence[activity_contracts.GearUsageWindow],
+    gear_id: uuid.UUID,
+    user_id: uuid.UUID,
+    windows: Sequence[gears_contracts.UsageWindow],
     db: Session,
-) -> dict[int, activity_contracts.ActivityUsageTotals]:
+) -> dict[uuid.UUID, gears_contracts.UsageTotals]:
     """Return per-window usage totals for one gear, in a single query.
 
     Used to attribute a gear's activities to whichever component was fitted at
@@ -154,7 +168,7 @@ def get_gear_usage_totals_by_window(
 
 
 def list_user_activities_page(
-    user_id: int,
+    user_id: uuid.UUID,
     db: Session,
     *,
     page_number: int,
@@ -186,19 +200,20 @@ def list_user_activities_page(
     )
 
 
-def list_user_activities_in_timeframe_by_types(
-    user_id: int,
+def total_user_activities_in_timeframe_by_types(
+    user_id: uuid.UUID,
     activity_types: list[int],
     start: datetime,
     end: datetime,
     db: Session,
     *,
     exclude_hidden: bool = True,
-) -> list[activity_schema.ActivityRead]:
-    """Return a user's own activities of the given types within a window.
+) -> activity_contracts.ActivityTotals:
+    """Add up a user's own activities of the given types within a window.
 
     Used by goal progress. Hidden activities are excluded by default so a
     duplicate import from a second source cannot count twice towards a goal.
+    The database does the summing, so the cost does not grow with the activities.
 
     Args:
         user_id: The owning user id.
@@ -209,17 +224,37 @@ def list_user_activities_in_timeframe_by_types(
         exclude_hidden: Whether to skip activities marked hidden.
 
     Returns:
-        The matching activities, empty when there are none.
+        The count and the sums; all zero when there are none.
     """
-    return activity_crud.get_user_activities_per_timeframe_and_activity_types(
+    return activity_crud.sum_user_activities_per_timeframe_and_activity_types(
         user_id,
         activity_types,
         start,
         end,
         db,
-        user_is_owner=True,
         exclude_hidden=exclude_hidden,
     )
+
+
+def get_user_profile_summary(
+    user_id: uuid.UUID,
+    requester_user_id: uuid.UUID,
+    db: Session,
+    *,
+    anchor: date | None = None,
+) -> activity_contracts.UserProfileActivitySummary:
+    """Return the activity summaries shown on a user's profile.
+
+    Args:
+        user_id: The profile owner's user ID.
+        requester_user_id: The authenticated caller.
+        db: Database session.
+        anchor: The caller's local calendar date, or None to resolve it server-side.
+
+    Returns:
+        The current-week and current-month visible stats and activity count.
+    """
+    return activity_service.user_profile_summary(user_id, requester_user_id, db, anchor=anchor)
 
 
 def restore_activity(
@@ -270,8 +305,8 @@ def store_parsed_activity(
 
 
 def resolve_readable_parent(
-    activity_id: int,
-    requester_user_id: int,
+    activity_id: uuid.UUID,
+    requester_user_id: uuid.UUID,
     db: Session,
 ) -> activity_schema.ActivityRead | None:
     """Return the parent activity when an authenticated caller may read it.
@@ -287,7 +322,7 @@ def resolve_readable_parent(
     return activity_child_access_service.resolve_readable_parent(activity_id, requester_user_id, db)
 
 
-def resolve_public_parent(activity_id: int, db: Session) -> activity_schema.ActivityRead | None:
+def resolve_public_parent(activity_id: uuid.UUID, db: Session) -> activity_schema.ActivityRead | None:
     """Return the parent activity when it is publicly shareable.
 
     Args:
@@ -300,7 +335,7 @@ def resolve_public_parent(activity_id: int, db: Session) -> activity_schema.Acti
     return activity_child_access_service.resolve_public_parent(activity_id, db)
 
 
-def owns_activity(activity_id: int, user_id: int, db: Session) -> bool:
+def owns_activity(activity_id: uuid.UUID, user_id: uuid.UUID, db: Session) -> bool:
     """Return whether a user owns an activity.
 
     Args:
@@ -321,7 +356,7 @@ def owns_activity(activity_id: int, user_id: int, db: Session) -> bool:
 # when it is durable, so one call can never end another module's transaction.
 
 
-def set_thumbnail_key(activity_id: int, key: str | None, db: Session, *, expected_key: str | None = None) -> bool:
+def set_thumbnail_key(activity_id: uuid.UUID, key: str | None, db: Session, *, expected_key: str | None = None) -> bool:
     """Stage recording or clearing an activity's stored thumbnail key.
 
     The caller commits.
@@ -353,7 +388,7 @@ def clear_all_thumbnail_keys(db: Session) -> None:
 def list_activities_with_thumbnail(
     db: Session,
     *,
-    after_id: int = 0,
+    after_id: uuid.UUID | None = None,
     limit: int = core_pagination.DEFAULT_MAINTENANCE_BATCH_SIZE,
 ) -> list[activity_contracts.ActivityThumbnailRef]:
     """Return one bounded page of activity references carrying a stored thumbnail key.
@@ -373,7 +408,7 @@ def list_activities_without_thumbnail(
     db: Session,
     *,
     due_at: datetime,
-    after_id: int = 0,
+    after_id: uuid.UUID | None = None,
     limit: int = core_pagination.DEFAULT_MAINTENANCE_BATCH_SIZE,
 ) -> list[activity_contracts.ActivityThumbnailRef]:
     """Return one bounded page of activities with no stored thumbnail key that are due an attempt.
@@ -390,7 +425,7 @@ def list_activities_without_thumbnail(
     return activity_crud.get_activities_without_thumbnail(db, due_at=due_at, after_id=after_id, limit=limit)
 
 
-def defer_thumbnail_attempts(activity_ids: Sequence[int], retry_at: datetime, db: Session) -> None:
+def defer_thumbnail_attempts(activity_ids: Sequence[uuid.UUID], retry_at: datetime, db: Session) -> None:
     """Stage when activities that did not get a thumbnail may be tried again.
 
     The caller commits.
@@ -407,7 +442,7 @@ def list_activities_missing_location(
     db: Session,
     *,
     due_at: datetime,
-    after_id: int = 0,
+    after_id: uuid.UUID | None = None,
     limit: int = core_pagination.DEFAULT_EXTERNAL_IO_BATCH_SIZE,
 ) -> list[activity_contracts.ActivityLocationRef]:
     """Return one id-ordered page of activities whose location is unresolved and due a lookup.
@@ -424,7 +459,7 @@ def list_activities_missing_location(
     return activity_crud.get_activities_missing_location(db, due_at=due_at, after_id=after_id, limit=limit)
 
 
-def defer_location_lookups(activity_ids: Sequence[int], retry_at: datetime, db: Session) -> None:
+def defer_location_lookups(activity_ids: Sequence[uuid.UUID], retry_at: datetime, db: Session) -> None:
     """Stage when activities whose location did not resolve may be looked up again.
 
     The caller commits.
@@ -438,7 +473,7 @@ def defer_location_lookups(activity_ids: Sequence[int], retry_at: datetime, db: 
 
 
 def set_activity_location(
-    activity_id: int,
+    activity_id: uuid.UUID,
     city: str | None,
     town: str | None,
     country: str | None,
@@ -461,8 +496,8 @@ def set_activity_location(
     return activity_crud.update_activity_location(activity_id, city, town, country, db)
 
 
-def delete_all_strava_activities(user_id: int, db: Session) -> int:
-    """Delete all of a user's Strava-sourced activities.
+def delete_all_strava_activities(user_id: uuid.UUID, db: Session, *, limit: int) -> int:
+    """Delete up to ``limit`` of a user's Strava-sourced activities.
 
     Emits one ``activity.deleted`` per removed activity so the thumbnail and
     source-file cleanup subscribers reclaim the blobs each one owned. The caller
@@ -471,31 +506,35 @@ def delete_all_strava_activities(user_id: int, db: Session) -> int:
     Args:
         user_id: The owning user id.
         db: Database session.
+        limit: The most activities to delete in this call.
 
     Returns:
-        The number of activities deleted.
+        The number of activities deleted; fewer than ``limit`` means none are left.
     """
-    return activity_service.delete_all_strava_activities(user_id, db, source="api:delete_all_strava_activities")
+    return activity_service.delete_all_strava_activities(
+        user_id, db, source="api:delete_all_strava_activities", limit=limit
+    )
 
 
-def delete_all_activities_for_user(user_id: int, db: Session) -> int:
-    """Delete every activity owned by a user, emitting cleanup events.
+def delete_activities_batch_for_user(user_id: uuid.UUID, limit: int, db: Session) -> int:
+    """Delete up to ``limit`` of a user's activities, emitting cleanup events.
 
-    The account-deletion path. Deleting the user row alone would let the database
-    FK cascade remove the activities silently, orphaning every thumbnail and
-    stored source file the user ever produced. The caller commits.
+    The account-deletion path, repeated until it returns 0. Deleting the user row alone would let the
+    database FK cascade remove the activities silently, orphaning every thumbnail and stored source
+    file the user ever produced. The caller commits.
 
     Args:
         user_id: The owning user id.
+        limit: The most activities to delete.
         db: Database session.
 
     Returns:
         The number of activities deleted.
     """
-    return activity_service.delete_all_activities_for_user(user_id, db, source="api:delete_user")
+    return activity_service.delete_activities_batch_for_user(user_id, limit, db, source="api:delete_user")
 
 
-def filter_existing_activity_ids(activity_ids: Sequence[int], db: Session) -> set[int]:
+def filter_existing_activity_ids(activity_ids: Sequence[uuid.UUID], db: Session) -> set[uuid.UUID]:
     """Return which of the given activity IDs still have a row.
 
     Used by storage sweeps to tell a live blob from one whose activity is gone.
@@ -508,3 +547,126 @@ def filter_existing_activity_ids(activity_ids: Sequence[int], db: Session) -> se
         The subset of ``activity_ids`` that exist.
     """
     return activity_crud.get_existing_activity_ids(activity_ids, db)
+
+
+def get_readable_activity(
+    activity_id: uuid.UUID, requester_user_id: uuid.UUID, db: Session
+) -> activity_schema.ActivityRead:
+    """Return an activity the requester owns or may see, masked as they may see it.
+
+    Args:
+        activity_id: The activity to read.
+        requester_user_id: The authenticated caller.
+        db: Database session.
+
+    Returns:
+        The activity, with its thumbnail URL and the caller's visibility masking applied.
+
+    Raises:
+        NotFoundError: When the activity does not exist or is not visible to the caller.
+    """
+    return activity_service.get_activity(activity_id, requester_user_id, db)
+
+
+def with_media(
+    activity: activity_schema.ActivityRead, requester_user_id: uuid.UUID, db: Session
+) -> activity_schema.ActivityRead:
+    """Set an activity's media as list responses do: the requester's own photos, empty for anyone else's.
+
+    Args:
+        activity: A masked activity about to be returned to a client.
+        requester_user_id: The authenticated caller.
+        db: Database session.
+
+    Returns:
+        The same activity, with ``media`` set when the requester owns it and it has photos.
+    """
+    return activity_service.with_media([activity], requester_user_id, db)[0]
+
+
+def get_public_activity(activity_id: uuid.UUID, db: Session) -> activity_schema.ActivityRead:
+    """Return a publicly shared activity, masked as an anonymous viewer may see it.
+
+    Args:
+        activity_id: The activity to read.
+        db: Database session.
+
+    Returns:
+        The activity.
+
+    Raises:
+        NotFoundError: When the activity does not exist or is not publicly shareable.
+    """
+    return activity_service.get_public_activity(activity_id, db)
+
+
+def shutdown_bulk_edit_pool() -> None:
+    """Stop the in-process pool bulk activity edits run on, without waiting for them."""
+    activity_bulk_edit_job_service.shutdown_pool()
+
+
+def read_bulk_edit_job(
+    job: core_job_status.JobRef, state: StateProvider
+) -> activity_schema.ActivitiesBulkEditStatus | None:
+    """Read the bulk edit a job reference names.
+
+    Args:
+        job: The job's reference.
+        state: The platform state provider.
+
+    Returns:
+        The edit's status, or ``None`` when its record has expired or belongs to a later edit.
+    """
+    stored = bulk_edit_state_store.ActivityBulkEditStateStore(state).read_job(job)
+    if stored is None:
+        return None
+    current, edit_state = stored
+    return activity_schema.ActivitiesBulkEditStatus.model_validate({**current.envelope(), "status": edit_state.status})
+
+
+def touch_activity(activity_id: uuid.UUID, db: Session) -> None:
+    """Stamp an activity's ``updated_at`` after a change to what its owner reads, such as its media.
+
+    Leaves ``version`` alone: the change is not an edit of the activity.
+
+    Args:
+        activity_id: The activity that changed.
+        db: Database session; the caller commits.
+    """
+    activity_crud.touch_activity(activity_id, db)
+
+
+def list_changed_activities(
+    user_id: uuid.UUID, after: core_sync.Position | None, until: datetime, limit: int, db: Session
+) -> list[activity_schema.ActivityRead]:
+    """List the user's activities changed after a position, as the owner reads them.
+
+    Args:
+        user_id: The owner.
+        after: Return activities strictly after this ``(updated_at, id)``; None from the first.
+        until: Return only activities changed before this instant.
+        limit: The most activities to return.
+        db: Database session.
+
+    Returns:
+        The activities in ``(updated_at, id)`` order, each with its thumbnail URL and media.
+    """
+    return activity_service.list_changed_activities(user_id, after, until, limit, db)
+
+
+def list_activity_deletions(
+    user_id: uuid.UUID, after: core_sync.Position | None, until: datetime, limit: int, db: Session
+) -> list[core_sync.Deletion]:
+    """List the user's deleted activities after a position.
+
+    Args:
+        user_id: The owner.
+        after: Return deletions strictly after this ``(deleted_at, id)``; None from the first.
+        until: Return only deletions before this instant.
+        limit: The most deletions to return.
+        db: Database session.
+
+    Returns:
+        The deletions in ``(deleted_at, id)`` order.
+    """
+    return activity_crud.get_activity_deletions(user_id, after, until, limit, db)

@@ -1,53 +1,78 @@
+"""Pydantic request and response shapes for health sleep records."""
+
+import uuid
+from collections.abc import Sequence
 from datetime import date as datetime_date
 from datetime import datetime
 from enum import Enum
+from typing import Annotated, ClassVar
 
 from pydantic import (
+    AliasChoices,
     BaseModel,
+    BeforeValidator,
     ConfigDict,
     Field,
     StrictFloat,
     StrictInt,
     StrictStr,
+    TypeAdapter,
+    field_serializer,
     model_validator,
 )
 
-import core.config as core_config
+import core.partial_update as core_partial_update
 import core.timezone as core_timezone
-import modules.health.schema as health_schema
+import core.types as core_types
+from core.stored_enum import StoredStrEnum
+
+_DATETIME = TypeAdapter(datetime)
+
+_LOCAL_START_DESCRIPTION = (
+    "Wall-clock time the sleep started in the athlete's own zone, sent without a UTC offset. "
+    "The server keeps the reading as given and does not convert it."
+)
+_LOCAL_END_DESCRIPTION = (
+    "Wall-clock time the sleep ended in the athlete's own zone, sent without a UTC offset. "
+    "The server keeps the reading as given and does not convert it."
+)
 
 
 class Source(Enum):
-    """
-    Enum representing the source of sleep health data.
+    """Enum representing the source of sleep health data.
 
     Attributes:
+        MANUAL: Sleep data entered manually.
         GARMIN: Sleep data sourced from Garmin devices or services.
     """
 
+    MANUAL = "manual"
     GARMIN = "garmin"
 
 
-class SleepStageType(Enum):
-    """
-    Enum representing different stages of sleep.
+class SleepStageType(StoredStrEnum):
+    """The stages of a sleep session; ``stored`` is the Garmin activity level kept in the sleep stages.
 
     Attributes:
-        DEEP (int): Deep sleep stage, value 0. Characterized by slow brain waves and muscle relaxation.
-        LIGHT (int): Light sleep stage, value 1. Transitional sleep between wakefulness and deep sleep.
-        REM (int): Rapid Eye Movement sleep stage, value 2. Associated with vivid dreams and mental activity.
-        AWAKE (int): Awake state, value 3. The stage when the person is conscious and not sleeping.
+        DEEP: Deep sleep, characterized by slow brain waves and muscle relaxation.
+        LIGHT: Light sleep, the transition between wakefulness and deep sleep.
+        REM: Rapid Eye Movement sleep, associated with vivid dreams and mental activity.
+        AWAKE: Awake, the stage when the person is conscious and not sleeping.
     """
 
-    DEEP = 0
-    LIGHT = 1
-    REM = 2
-    AWAKE = 3
+    DEEP = ("deep", 0)
+    LIGHT = ("light", 1)
+    REM = ("rem", 2)
+    AWAKE = ("awake", 3)
+
+
+#: The stage type of a stored row, a provider sync or an archive written before the types were strings, which
+#: hand over the stored number. A client writes the plain enum, which refuses the number.
+StoredSleepStageType = Annotated[SleepStageType, BeforeValidator(SleepStageType.accept_stored)]
 
 
 class HRVStatus(Enum):
-    """
-    Enum representing the Heart Rate Variability (HRV) status classification.
+    """Enum representing the Heart Rate Variability (HRV) status classification.
 
     Attributes:
         BALANCED: Indicates healthy HRV levels with good cardiovascular autonomic balance.
@@ -63,8 +88,7 @@ class HRVStatus(Enum):
 
 
 class SleepScore(Enum):
-    """
-    Enumeration of sleep quality score levels.
+    """Enumeration of sleep quality score levels.
 
     Attributes:
         EXCELLENT (str): Represents excellent sleep quality.
@@ -80,8 +104,7 @@ class SleepScore(Enum):
 
 
 class HealthSleepStage(BaseModel):
-    """
-    Represents a sleep stage with timing and duration information.
+    """Represents a sleep stage with timing and duration information.
 
     This model captures details about individual sleep stages within a sleep session,
     including the type of stage, when it occurred, and how long it lasted.
@@ -93,7 +116,7 @@ class HealthSleepStage(BaseModel):
         duration_seconds: The length of the sleep stage in seconds. Must be non-negative.
     """
 
-    stage_type: SleepStageType | None = Field(default=None, description="Type of sleep stage")
+    stage_type: StoredSleepStageType | None = Field(default=None, description="Type of sleep stage")
     start_time_gmt: datetime | None = Field(default=None, description="Start time of the stage in GMT")
     end_time_gmt: datetime | None = Field(default=None, description="End time of the stage in GMT")
     duration_seconds: StrictInt | None = Field(default=None, ge=0, description="Duration of the stage in seconds")
@@ -102,13 +125,23 @@ class HealthSleepStage(BaseModel):
         from_attributes=True,
         extra="forbid",
         validate_assignment=True,
-        use_enum_values=True,
     )
 
+    @field_serializer("start_time_gmt", "end_time_gmt")
+    def serialize_time(self, value: datetime | None) -> str | None:
+        """Dump a stage time as ISO 8601 text in every mode, as the JSON column that stores the stages requires.
 
-class HealthSleepBase(BaseModel):
-    """
-    Pydantic model representing the base schema for health sleep data.
+        Args:
+            value: The time, or ``None``.
+
+        Returns:
+            The time as the API writes it in JSON, or ``None``.
+        """
+        return None if value is None else _DATETIME.dump_python(value, mode="json")
+
+
+class HealthSleepCore(BaseModel):
+    """Pydantic model representing the sleep fields every sleep schema shares, without the sleep stages.
 
     This model defines the structure and validation rules for sleep-related health metrics,
     including sleep duration, quality scores, heart rate variability, oxygen saturation,
@@ -130,9 +163,9 @@ class HealthSleepBase(BaseModel):
         avg_heart_rate (StrictInt | None): Average heart rate during sleep (20-220 bpm).
         min_heart_rate (StrictInt | None): Minimum heart rate during sleep (20-220 bpm).
         max_heart_rate (StrictInt | None): Maximum heart rate during sleep (20-220 bpm).
-        avg_spo2 (StrictInt | None): Average SpO2 oxygen saturation percentage (70-100%).
-        lowest_spo2 (StrictInt | None): Lowest SpO2 reading during sleep (70-100%).
-        highest_spo2 (StrictInt | None): Highest SpO2 reading during sleep (70-100%).
+        avg_spo2_percent (StrictInt | None): Average SpO2 oxygen saturation percentage (70-100%).
+        lowest_spo2_percent (StrictInt | None): Lowest SpO2 reading during sleep (70-100%).
+        highest_spo2_percent (StrictInt | None): Highest SpO2 reading during sleep (70-100%).
         avg_respiration (StrictInt | None): Average respiration rate (>= 0).
         lowest_respiration (StrictInt | None): Lowest respiration rate (>= 0).
         highest_respiration (StrictInt | None): Highest respiration rate (>= 0).
@@ -142,9 +175,7 @@ class HealthSleepBase(BaseModel):
         sleep_score_overall (StrictInt | None): Overall sleep score (0-100).
         sleep_score_duration (SleepScore | None): Sleep duration score.
         sleep_score_quality (SleepScore | None): Sleep quality score.
-        garminconnect_sleep_id (StrictStr | None): Garmin Connect sleep record ID.
         sleep_stages (list[SleepStage] | None): List of sleep stages.
-        source (Source | None): Source of the sleep data.
         hrv_status (HRVStatus | None): Heart rate variability status.
         resting_heart_rate (StrictInt | None): Resting heart rate (20-220 bpm).
         avg_skin_temp_deviation (StrictFloat | None): Average skin temperature deviation.
@@ -169,8 +200,8 @@ class HealthSleepBase(BaseModel):
     date: datetime_date | None = Field(default=None, description="Calendar date of the sleep session")
     sleep_start_time_gmt: datetime | None = Field(default=None, description="Start time of sleep in GMT")
     sleep_end_time_gmt: datetime | None = Field(default=None, description="End time of sleep in GMT")
-    sleep_start_time_local: datetime | None = Field(default=None, description="Start time of sleep in local time")
-    sleep_end_time_local: datetime | None = Field(default=None, description="End time of sleep in local time")
+    sleep_start_time_local: datetime | None = Field(default=None, description=_LOCAL_START_DESCRIPTION)
+    sleep_end_time_local: datetime | None = Field(default=None, description=_LOCAL_END_DESCRIPTION)
     total_sleep_seconds: StrictInt | None = Field(default=None, ge=0, description="Total duration of sleep in seconds")
     nap_time_seconds: StrictInt | None = Field(default=None, ge=0, description="Duration of naps in seconds")
     unmeasurable_sleep_seconds: StrictInt | None = Field(
@@ -180,21 +211,39 @@ class HealthSleepBase(BaseModel):
     light_sleep_seconds: StrictInt | None = Field(default=None, ge=0, description="Duration of light sleep in seconds")
     rem_sleep_seconds: StrictInt | None = Field(default=None, ge=0, description="Duration of REM sleep in seconds")
     awake_sleep_seconds: StrictInt | None = Field(default=None, ge=0, description="Duration of awake time in seconds")
-    avg_heart_rate: StrictInt | None = Field(default=None, ge=20, le=220, description="Average heart rate during sleep")
-    min_heart_rate: StrictInt | None = Field(default=None, ge=20, le=220, description="Minimum heart rate during sleep")
-    max_heart_rate: StrictInt | None = Field(default=None, ge=20, le=220, description="Maximum heart rate during sleep")
-    avg_spo2: StrictInt | None = Field(
+    avg_heart_rate: StrictInt | None = Field(
+        default=None, ge=20, le=220, description="Average heart rate during sleep in beats per minute"
+    )
+    min_heart_rate: StrictInt | None = Field(
+        default=None, ge=20, le=220, description="Minimum heart rate during sleep in beats per minute"
+    )
+    max_heart_rate: StrictInt | None = Field(
+        default=None, ge=20, le=220, description="Maximum heart rate during sleep in beats per minute"
+    )
+    avg_spo2_percent: StrictInt | None = Field(
         default=None,
         ge=70,
         le=100,
-        description="Average SpO2 oxygen saturation percentage",
+        description="Average SpO2 oxygen saturation as a percentage (70-100)",
     )
-    lowest_spo2: StrictInt | None = Field(default=None, ge=70, le=100, description="Lowest SpO2 reading during sleep")
-    highest_spo2: StrictInt | None = Field(default=None, ge=70, le=100, description="Highest SpO2 reading during sleep")
-    avg_respiration: StrictInt | None = Field(default=None, ge=0, description="Average respiration rate")
-    lowest_respiration: StrictInt | None = Field(default=None, ge=0, description="Lowest respiration rate")
-    highest_respiration: StrictInt | None = Field(default=None, ge=0, description="Highest respiration rate")
-    avg_stress_level: StrictInt | None = Field(default=None, ge=0, le=100, description="Average stress level")
+    lowest_spo2_percent: StrictInt | None = Field(
+        default=None, ge=70, le=100, description="Lowest SpO2 reading during sleep as a percentage (70-100)"
+    )
+    highest_spo2_percent: StrictInt | None = Field(
+        default=None, ge=70, le=100, description="Highest SpO2 reading during sleep as a percentage (70-100)"
+    )
+    avg_respiration: StrictInt | None = Field(
+        default=None, ge=0, description="Average respiration rate in breaths per minute"
+    )
+    lowest_respiration: StrictInt | None = Field(
+        default=None, ge=0, description="Lowest respiration rate in breaths per minute"
+    )
+    highest_respiration: StrictInt | None = Field(
+        default=None, ge=0, description="Highest respiration rate in breaths per minute"
+    )
+    avg_stress_level: StrictInt | None = Field(
+        default=None, ge=0, le=100, description="Average stress level, a score from 0 to 100"
+    )
     awake_count: StrictInt | None = Field(default=None, ge=0, description="Number of times awake during sleep")
     restless_moments_count: StrictInt | None = Field(
         default=None, ge=0, description="Number of restless moments during sleep"
@@ -202,19 +251,20 @@ class HealthSleepBase(BaseModel):
     sleep_score_overall: StrictInt | None = Field(default=None, ge=0, le=100, description="Overall sleep score (0-100)")
     sleep_score_duration: SleepScore | None = Field(default=None, description="Sleep duration score")
     sleep_score_quality: SleepScore | None = Field(default=None, description="Sleep quality score")
-    garminconnect_sleep_id: StrictStr | None = Field(
-        default=None, min_length=1, description="Garmin Connect sleep record ID"
-    )
-    sleep_stages: list[HealthSleepStage] | None = Field(default=None, description="List of sleep stages")
-    source: Source | None = Field(default=None, description="Source of the sleep data")
     hrv_status: HRVStatus | None = Field(default=None, description="Heart rate variability status")
-    resting_heart_rate: StrictInt | None = Field(default=None, ge=20, le=220, description="Resting heart rate")
-    avg_skin_temp_deviation: StrictFloat | None = Field(default=None, description="Average skin temperature deviation")
+    resting_heart_rate: StrictInt | None = Field(
+        default=None, ge=20, le=220, description="Resting heart rate in beats per minute"
+    )
+    avg_skin_temp_deviation: StrictFloat | None = Field(
+        default=None, description="Average skin temperature deviation from the baseline in degrees Celsius"
+    )
     awake_count_score: SleepScore | None = Field(default=None, description="Awake count score")
     rem_percentage_score: SleepScore | None = Field(default=None, description="REM percentage score")
     deep_percentage_score: SleepScore | None = Field(default=None, description="Deep sleep percentage score")
     light_percentage_score: SleepScore | None = Field(default=None, description="Light sleep percentage score")
-    avg_sleep_stress: StrictInt | None = Field(default=None, ge=0, le=100, description="Average sleep stress")
+    avg_sleep_stress: StrictInt | None = Field(
+        default=None, ge=0, le=100, description="Average sleep stress, a score from 0 to 100"
+    )
     sleep_stress_score: SleepScore | None = Field(default=None, description="Sleep stress score")
 
     model_config = ConfigDict(
@@ -225,89 +275,180 @@ class HealthSleepBase(BaseModel):
     )
 
     @model_validator(mode="after")
-    def validate_sleep_times(self) -> "HealthSleepBase":
-        """Validate sleep start < end."""
-        # Validate sleep start < sleep end (GMT)
+    def validate_sleep_times(self) -> "HealthSleepCore":
+        """Validate sleep start < end, reading a time without an offset as UTC."""
         if (
-            self.sleep_start_time_gmt is not None and self.sleep_end_time_gmt is not None
-        ) and self.sleep_start_time_gmt >= self.sleep_end_time_gmt:
+            self.sleep_start_time_gmt is not None
+            and self.sleep_end_time_gmt is not None
+            and core_timezone.to_utc_aware(self.sleep_start_time_gmt)
+            >= core_timezone.to_utc_aware(self.sleep_end_time_gmt)
+        ):
             raise ValueError("Sleep start time must be before sleep end time")
 
-        # Validate sleep start < sleep end (Local)
         if (
-            self.sleep_start_time_local is not None and self.sleep_end_time_local is not None
-        ) and self.sleep_start_time_local >= self.sleep_end_time_local:
+            self.sleep_start_time_local is not None
+            and self.sleep_end_time_local is not None
+            and core_timezone.to_utc_aware(self.sleep_start_time_local)
+            >= core_timezone.to_utc_aware(self.sleep_end_time_local)
+        ):
             raise ValueError("Sleep start time (local) must be before sleep end time (local)")
 
         return self
 
 
-class HealthSleepCreate(HealthSleepBase):
-    """
-    Validator for HealthSleepCreate model that automatically sets the date field.
-
-    This validator runs after model initialization to ensure that if no date
-    is provided, it defaults to today's date.
-    """
-
-    @model_validator(mode="after")
-    def set_default_date(self) -> "HealthSleepCreate":
-        """
-        Set date to today if not provided.
-
-        Clients should always send their own local date — the request carries no
-        timezone, so this fallback can only use the server's configured zone and
-        will file an entry logged near local midnight under the wrong day for an
-        athlete elsewhere. Resolved through ``settings.TZ`` explicitly rather
-        than ``date.today()``, which silently depends on the container's clock.
-
-        Returns:
-            The validated model instance with date set.
-        """
-        if self.date is None:
-            self.date = core_timezone.today_in(core_config.settings.TZ)
-        return self
-
-
-class HealthSleepRead(HealthSleepBase):
-    """
-    Read schema for health sleep records.
-
-    Extends the base health sleep schema with an identifier field for retrieving
-    or referencing existing sleep records in the database.
+class HealthSleepBase(HealthSleepCore):
+    """The sleep fields with the sleep stages, the base of every schema that carries them.
 
     Attributes:
-        user_id (StrictInt): Foreign key reference to the user.
-        id (StrictInt): Unique identifier for the sleep record to update or retrieve.
+        sleep_stages (list[HealthSleepStage] | None): List of sleep stages.
     """
 
-    id: StrictInt = Field(..., description="Unique identifier for the sleep record to update")
-    user_id: StrictInt = Field(..., description="Foreign key reference to the user")
+    sleep_stages: Sequence[HealthSleepStage] | None = Field(default=None, description="List of sleep stages")
 
 
-class HealthSleepUpdate(HealthSleepRead):
+class HealthSleepStageWrite(HealthSleepStage):
+    """A sleep stage a client writes: its times carry a UTC offset and are bounded, which a stored stage read back need not be."""
+
+    stage_type: SleepStageType | None = Field(default=None, description="Type of sleep stage")
+    start_time_gmt: core_types.RecordInstant | None = Field(
+        default=None, description="Start time of the stage, with a UTC offset"
+    )
+    end_time_gmt: core_types.RecordInstant | None = Field(
+        default=None, description="End time of the stage, with a UTC offset"
+    )
+
+
+class HealthSleepStageImport(HealthSleepStageWrite):
+    """A sleep stage the server writes: a provider sync or a profile import, which may hand over the stored number."""
+
+    stage_type: StoredSleepStageType | None = Field(default=None, description="Type of sleep stage")
+    start_time_gmt: core_types.ImportedInstant | None = Field(default=None, description="Start time of the stage")
+    end_time_gmt: core_types.ImportedInstant | None = Field(default=None, description="End time of the stage")
+
+
+class HealthSleepWrite(HealthSleepBase):
+    """Sleep fields a client writes: the date and times are bounded, which a stored row read back need not be."""
+
+    date: core_types.RecordDate | None = Field(default=None, description="Calendar date of the sleep session")
+    sleep_start_time_gmt: core_types.RecordInstant | None = Field(
+        default=None, description="Start time of sleep as an instant, with a UTC offset"
+    )
+    sleep_end_time_gmt: core_types.RecordInstant | None = Field(
+        default=None, description="End time of sleep as an instant, with a UTC offset"
+    )
+    sleep_start_time_local: core_types.RecordLocalDateTime | None = Field(
+        default=None, description=_LOCAL_START_DESCRIPTION
+    )
+    sleep_end_time_local: core_types.RecordLocalDateTime | None = Field(
+        default=None, description=_LOCAL_END_DESCRIPTION
+    )
+    sleep_stages: Sequence[HealthSleepStageWrite] | None = Field(default=None, description="List of sleep stages")
+
+
+class HealthSleepCreate(HealthSleepWrite):
+    """Schema for creating a health sleep record.
+
+    The date is optional; ``service`` fills it in when the client sends none.
     """
-    Schema for updating health sleep records.
-
-    Inherits all fields from HealthSleepRead, allowing clients to update
-    existing sleep data while maintaining consistency with the read schema.
-
-    Used in PUT/PATCH requests to modify sleep tracking information such as
-    sleep duration, quality, and related health metrics.
-    """
 
 
-class HealthSleepListResponse(health_schema.HealthListResponse):
-    """
-    Response model for listing health sleep records.
-
-    Extends the base HealthListResponse to provide a typed response containing
-    a list of sleep records. This model is used when returning multiple sleep
-    entries from API endpoints.
+class HealthSleepIdentity(HealthSleepCore):
+    """The stored identity and provenance every sleep read carries, with the sleep fields but not the stages.
 
     Attributes:
-        records: A list of HealthSleepRead objects representing individual
-            sleep records.
+        garminconnect_sleep_id (StrictStr | None): Garmin Connect sleep record ID.
+        source (Source | None): Source of the sleep data.
+        user_id (uuid.UUID): Foreign key reference to the user.
+        id (uuid.UUID): Unique identifier for the sleep record to update or retrieve.
+        version (StrictInt): Optimistic-concurrency counter, also sent as the ETag.
     """
 
-    records: list[HealthSleepRead] = Field(..., description="List of health sleep records")
+    garminconnect_sleep_id: StrictStr | None = Field(
+        default=None, min_length=1, description="Garmin Connect sleep record ID"
+    )
+    source: Source = Field(default=Source.MANUAL, validate_default=True, description="Source of the sleep data")
+    id: uuid.UUID = Field(..., description="Unique identifier for the sleep record to update")
+    user_id: uuid.UUID = Field(..., description="Foreign key reference to the user")
+    version: StrictInt = Field(default=1, ge=1, description="Optimistic-concurrency counter, also sent as the ETag")
+    updated_at: datetime = Field(..., description="When the record last changed, set by the server")
+
+
+class HealthSleepRead(HealthSleepIdentity, HealthSleepBase):
+    """Read schema for a health sleep record, with its sleep stages."""
+
+
+def _has_stages(value: object) -> bool:
+    """Tell whether a stored list of sleep stages holds at least one stage.
+
+    Args:
+        value: The stages, or ``None``; a flag already computed passes through.
+
+    Returns:
+        ``True`` when there is at least one stage.
+    """
+    return value if isinstance(value, bool) else bool(value)
+
+
+class HealthSleepListItem(HealthSleepIdentity):
+    """A sleep record as the list returns it: no stages, only whether the record has any.
+
+    The stages are on ``GET /health/sleep/{health_sleep_id}``.
+
+    Attributes:
+        has_sleep_stages (bool): Whether the record has at least one sleep stage. Read from a stored row's
+            ``sleep_stages``.
+    """
+
+    has_sleep_stages: Annotated[bool, BeforeValidator(_has_stages)] = Field(
+        validation_alias=AliasChoices("has_sleep_stages", "sleep_stages"),
+        description="Whether the record has at least one sleep stage; the stages are on the record itself",
+    )
+
+
+class HealthSleepUpdate(core_partial_update.NotClearable, HealthSleepWrite):
+    """Schema for the fields a PATCH changes on a sleep record.
+
+    The record is named by the path, so the body carries neither an id nor an owner; only the
+    fields present are changed.
+    """
+
+    not_clearable: ClassVar[tuple[str, ...]] = ("date",)
+
+
+class HealthSleepImport(HealthSleepCreate):
+    """Sleep record written by the server itself: a provider sync or a profile import.
+
+    Unlike :class:`HealthSleepCreate` it carries the provenance, which a client never sets. Every
+    server-side writer of ``source`` takes ``Health<Kind>Import`` (create) or ``Health<Kind>ImportUpdate``.
+
+    Attributes:
+        garminconnect_sleep_id (StrictStr | None): Garmin Connect sleep record ID.
+        source (Source): The source the record came from; ``manual`` when none is given.
+    """
+
+    garminconnect_sleep_id: StrictStr | None = Field(
+        default=None, min_length=1, description="Garmin Connect sleep record ID"
+    )
+    source: Source = Field(default=Source.MANUAL, validate_default=True, description="Source of the sleep data")
+    sleep_start_time_gmt: core_types.ImportedInstant | None = Field(default=None, description="Start time of sleep")
+    sleep_end_time_gmt: core_types.ImportedInstant | None = Field(default=None, description="End time of sleep")
+    sleep_stages: Sequence[HealthSleepStageImport] | None = Field(default=None, description="List of sleep stages")
+
+
+class HealthSleepImportUpdate(HealthSleepUpdate):
+    """Fields a provider sync or a profile import changes on a sleep record, provenance included.
+
+    Attributes:
+        garminconnect_sleep_id (StrictStr | None): Garmin Connect sleep record ID.
+        source (Source | None): The source the record came from.
+    """
+
+    not_clearable: ClassVar[tuple[str, ...]] = (*HealthSleepUpdate.not_clearable, "source")
+
+    garminconnect_sleep_id: StrictStr | None = Field(
+        default=None, min_length=1, description="Garmin Connect sleep record ID"
+    )
+    source: Source | None = Field(default=None, description="Source of the sleep data")
+    sleep_start_time_gmt: core_types.ImportedInstant | None = Field(default=None, description="Start time of sleep")
+    sleep_end_time_gmt: core_types.ImportedInstant | None = Field(default=None, description="End time of sleep")
+    sleep_stages: Sequence[HealthSleepStageImport] | None = Field(default=None, description="List of sleep stages")

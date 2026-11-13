@@ -37,7 +37,13 @@ function providerTypeLabel(type: string): string {
 
 <template>
   <div class="flex items-center gap-3 px-4 py-3">
-    <ProviderLogo :icon="provider.icon" :name="provider.name" />
+    <ProviderLogo
+      :icon="provider.icon"
+      :name="provider.name"
+      :slug="provider.slug"
+      :icon-uploaded="provider.iconUploaded"
+      :version="provider.version"
+    />
 
     <div class="min-w-0 flex-1">
       <div class="flex items-center gap-2">

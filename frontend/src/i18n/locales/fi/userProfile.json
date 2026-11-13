@@ -82,5 +82,13 @@
       "ownTitle": "Sinulla ei ole vielä yhtään seuraajaa.",
       "otherTitle": "Ei vielä seuraajia."
     }
+  },
+  "block": {
+    "block": "Estä",
+    "unblock": "Poista esto",
+    "confirmTitle": "Estetäänkö {name}?",
+    "confirmBody": "{name} ei voi pyytää lupaa seurata sinua, ja kaikki teidän väliset seuraamiset poistetaan. Häntä ei ilmoiteta asiasta.",
+    "blockError": "Käyttäjän estäminen epäonnistui. Yritä uudelleen.",
+    "unblockError": "Käyttäjän eston poistaminen epäonnistui. Yritä uudelleen."
   }
 }

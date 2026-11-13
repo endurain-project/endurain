@@ -11,7 +11,7 @@
     "subtitle": "Browse, filter, and sort all your activities.",
     "searchPlaceholder": "Search by name or location",
     "clearSearch": "Clear search",
-    "resultCount": "{count} activities",
+    "resultCount": "{count} activity | {count} activities",
     "filters": {
       "type": "Activity type",
       "allTypes": "All types",
@@ -184,10 +184,13 @@
   },
   "edit": {
     "title": "Edit activity",
+    "loading": "Loading the activity",
+    "loadError": "Couldn't load the activity",
     "save": "Save changes",
     "cancel": "Cancel",
     "close": "Close",
     "name": "Name",
+    "nameRequired": "Enter a name for the activity",
     "type": "Activity type",
     "description": "Description",
     "privateNotes": "Private notes",

@@ -1,5 +1,6 @@
 """Tests for the activity ingestion contract (ActivityCore, ParsedActivity)."""
 
+import uuid
 from datetime import UTC, datetime, timedelta, timezone
 
 import pytest
@@ -7,10 +8,12 @@ from pydantic import ValidationError
 
 from modules.activities.activity.contracts import ActivityCore, ParsedActivity
 
+_USER_1 = uuid.UUID(int=1)
+
 
 def _core(start, end, **overrides):
     data = {
-        "user_id": 1,
+        "user_id": _USER_1,
         "distance": 1000,
         "name": "Test",
         "activity_type": 1,
@@ -71,11 +74,11 @@ class TestActivityCoreStrictRequired:
 
     def test_missing_start_time_rejected(self):
         with pytest.raises(ValidationError):
-            ActivityCore(user_id=1, distance=1000, name="Test", activity_type=1, end_time="2026-06-20T09:00:00")
+            ActivityCore(user_id=_USER_1, distance=1000, name="Test", activity_type=1, end_time="2026-06-20T09:00:00")
 
     def test_missing_end_time_rejected(self):
         with pytest.raises(ValidationError):
-            ActivityCore(user_id=1, distance=1000, name="Test", activity_type=1, start_time="2026-06-20T08:00:00")
+            ActivityCore(user_id=_USER_1, distance=1000, name="Test", activity_type=1, start_time="2026-06-20T08:00:00")
 
     def test_missing_user_id_rejected(self):
         with pytest.raises(ValidationError):
@@ -115,7 +118,7 @@ class TestServerOwnedFieldsAreNotIngestionInputs:
         with pytest.raises(ValidationError) as exc:
             ActivityCore(
                 **core.model_dump(),
-                id=999,
+                id=uuid.uuid4(),
                 map_thumbnail_path="thumbnails/999.png",
             )
 

@@ -1,5 +1,8 @@
 """The typed request parameters reject a bad value through FastAPI's own validation (422)."""
 
+import uuid
+
+import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
@@ -34,11 +37,12 @@ class TestActivityTypeFilter:
     def test_a_known_type_and_no_filter_are_accepted(self):
         client = _client()
 
-        assert client.get("/list", params={"type": 1}).json()["type"] == 1
+        assert client.get("/list", params={"type": "trail_run"}).json()["type"] == "trail_run"
         assert client.get("/list").json()["type"] is None
 
-    def test_an_unknown_type_is_a_validation_error(self):
-        response = _client().get("/list", params={"type": 9999})
+    @pytest.mark.parametrize("value", ["nope", "1", "9999"])
+    def test_an_unknown_type_and_the_stored_integer_are_validation_errors(self, value):
+        response = _client().get("/list", params={"type": value})
 
         assert response.status_code == 422
         assert response.json()["errors"][0]["field"] == "query.type"
@@ -68,11 +72,11 @@ class TestSortParameters:
 
 
 class TestActivityId:
-    def test_a_positive_id_is_accepted(self):
-        assert _client().get("/7").json() == {"id": 7}
+    def test_a_uuid_is_accepted(self):
+        activity_id = uuid.uuid4()
 
-    def test_zero_and_negative_ids_are_rejected(self):
-        client = _client()
+        assert _client().get(f"/{activity_id}").json() == {"id": str(activity_id)}
 
-        assert client.get("/0").status_code == 422
-        assert client.get("/-3").status_code == 422
+    @pytest.mark.parametrize("value", ["1", "0", "-3", "not-a-uuid"])
+    def test_a_value_that_is_not_a_uuid_is_rejected(self, value):
+        assert _client().get(f"/{value}").status_code == 422

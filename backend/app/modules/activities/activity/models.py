@@ -1,7 +1,9 @@
 """Activity database models."""
 
+import uuid
 from datetime import datetime
 from decimal import Decimal
+from typing import Any
 
 from sqlalchemy import (
     DECIMAL,
@@ -15,13 +17,14 @@ from sqlalchemy import (
 from sqlalchemy.orm import Mapped, mapped_column
 
 from core.database import Base
+from core.sync import TombstoneMixin, UpdatedAtMixin
 
 
-class Activity(Base):
+class Activity(UpdatedAtMixin, Base):
     """Fitness activity record.
 
     Attributes:
-        id: Primary key.
+        id: Primary key, a random UUID.
         user_id: Owner user ID.
         name: Activity name.
         description: Public description.
@@ -53,7 +56,7 @@ class Activity(Base):
         workout_rpe: Workout RPE (10-100).
         calories: Calories consumed (kcal).
         visibility: 0 - public, 1 - followers, 2 - private.
-        gear_id: Associated gear ID.
+        gear_id: Associated gear ID, a UUID.
         strava_gear_id: Strava gear ID.
         strava_activity_id: Strava activity ID.
         garminconnect_activity_id: Garmin Connect activity ID.
@@ -78,6 +81,7 @@ class Activity(Base):
         dedup_key: Stable idempotency key (provider id now, content hash later) used to no-op re-imports.
         location_next_lookup_at: Earliest time the location backfill may look this activity up again.
         thumbnail_next_attempt_at: Earliest time the thumbnail backfill may try this activity again.
+        updated_at: When the activity last changed, including a derived change such as its thumbnail or media.
     """
 
     __tablename__ = "activities"
@@ -93,13 +97,11 @@ class Activity(Base):
         # no-op. NULL dedup_keys stay unconstrained (Postgres treats NULLs as
         # distinct), so activities with no stable identity are unaffected.
         Index("uq_activities_user_dedup_key", "user_id", "dedup_key", unique=True),
+        Index("ix_activities_user_id_updated_at_id", "user_id", "updated_at", "id"),
     )
 
-    id: Mapped[int] = mapped_column(
-        primary_key=True,
-        autoincrement=True,
-    )
-    user_id: Mapped[int] = mapped_column(
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    user_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("users.id", ondelete="CASCADE"),
         nullable=False,
         index=True,
@@ -257,7 +259,7 @@ class Activity(Base):
         default=0,
         comment="0 - public, 1 - followers, 2 - private",
     )
-    gear_id: Mapped[int | None] = mapped_column(
+    gear_id: Mapped[uuid.UUID | None] = mapped_column(
         ForeignKey("gear.id", ondelete="SET NULL"),
         nullable=True,
         index=True,
@@ -284,7 +286,7 @@ class Activity(Base):
         nullable=True,
         comment="Garmin Connect gear ID",
     )
-    import_info: Mapped[dict | None] = mapped_column(
+    import_info: Mapped[dict[str, Any] | None] = mapped_column(
         JSON,
         default=None,
         nullable=True,
@@ -379,3 +381,20 @@ class Activity(Base):
         nullable=True,
         comment="Earliest time the thumbnail backfill retries an activity that has no thumbnail",
     )
+
+
+class ActivityDeletion(TombstoneMixin, Base):
+    """A deleted activity, kept so a syncing client learns of the deletion.
+
+    Attributes:
+        id: Primary key, a random UUID.
+        user_id: Owner of the deleted activity.
+        record_id: The id the activity had.
+        deleted_at: When the activity was deleted.
+    """
+
+    __tablename__ = "activity_deletions"
+
+    __table_args__ = (Index("ix_activity_deletions_user_id_deleted_at_id", "user_id", "deleted_at", "id"),)
+
+    record_id: Mapped[uuid.UUID] = mapped_column(nullable=False, comment="The id the deleted record had")

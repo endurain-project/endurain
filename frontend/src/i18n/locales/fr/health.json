@@ -1,6 +1,12 @@
 {
   "title": "Santé",
   "subtitle": "Toutes vos données de santé en un seul endroit",
+  "chartBucket": {
+    "week": "Moyennes hebdomadaires : chaque barre représente la journée moyenne de cette semaine.",
+    "month": "Moyennes mensuelles : chaque barre représente la journée moyenne de ce mois."
+  },
+  "targetInvalid": "Saisissez une valeur supérieure à 0, ou laissez le champ vide pour supprimer l'objectif.",
+  "chartError": "Impossible de charger le graphique pour cette période.",
   "nav": {
     "label": "Sections santé",
     "soon": "Bientôt",
@@ -34,6 +40,7 @@
     "stepsTargetLabel": "pas",
     "poopTargetLabel": "/ jour",
     "noWeightData": "Aucune donnée de poids",
+    "noHeightData": "Ajoutez votre taille dans votre profil pour voir votre IMC.",
     "bmiUnderweight": "Insuffisance pondérale",
     "bmiNormalWeight": "Poids normal",
     "bmiOverweight": "Surpoids",
@@ -88,7 +95,6 @@
       "weightRequired": "Veuillez saisir votre poids.",
       "weightInvalid": "Entrez un poids supérieur à zéro.",
       "bodyComposition": "Composition corporelle (facultatif)",
-      "bmi": "IMC",
       "bodyFat": "Masse grasse (%)",
       "bodyWater": "Eau corporelle (%)",
       "boneMass": "Masse osseuse",
@@ -256,6 +262,8 @@
     "scorePoor": "Mauvais",
     "detail": {
       "tabsLabel": "Sections de détail du sommeil",
+      "stagesLoading": "Chargement des phases de sommeil",
+      "stagesError": "Impossible de charger les phases de sommeil",
       "tabScore": "Score de sommeil",
       "tabDetails": "Détails du sommeil",
       "deep": "Profond",
@@ -301,6 +309,8 @@
     "form": {
       "addTitle": "Enregistrer le sommeil",
       "editTitle": "Modifier l'entrée de sommeil",
+      "loading": "Chargement de l'entrée de sommeil",
+      "loadError": "Impossible de charger l'entrée de sommeil",
       "description": "Enregistrez la durée de votre sommeil et, facultativement, la répartition des phases et les métriques.",
       "date": "Date",
       "dateRequired": "Veuillez choisir une date.",
@@ -308,6 +318,8 @@
       "totalSleepRequired": "Veuillez indiquer la durée de votre sommeil.",
       "hours": "Heures",
       "minutes": "Minutes",
+      "hoursOf": "{field}, heures",
+      "minutesOf": "{field}, minutes",
       "stageBreakdown": "Répartition des phases (facultatif)",
       "deep": "Sommeil profond",
       "light": "Sommeil léger",
@@ -350,7 +362,11 @@
       "close": "Fermer",
       "createSuccess": "Sommeil enregistré.",
       "updateSuccess": "Entrée de sommeil mise à jour.",
-      "saveError": "Impossible d'enregistrer votre sommeil. Veuillez réessayer."
+      "saveError": "Impossible d'enregistrer votre sommeil. Veuillez réessayer.",
+      "numberRange": "Saisissez une valeur comprise entre {min} et {max}.",
+      "numberMin": "Saisissez {min} ou plus.",
+      "stagesExceedTotal": "Le sommeil profond, léger et paradoxal totalisent plus que la durée totale.",
+      "inconsistentError": "Ces données de sommeil sont incohérentes. Vérifiez que les phases et la durée totale tiennent dans les heures de sommeil."
     },
     "target": {
       "title": "Définir un objectif de sommeil",
@@ -419,7 +435,8 @@
       "close": "Fermer",
       "createSuccess": "Eau enregistrée.",
       "updateSuccess": "Entrée d'eau mise à jour.",
-      "saveError": "Impossible d'enregistrer votre consommation d'eau. Veuillez réessayer."
+      "saveError": "Impossible d'enregistrer votre consommation d'eau. Veuillez réessayer.",
+      "dayTakenError": "Une entrée d'eau existe déjà pour ce jour. Modifiez-la au lieu d'en ajouter une autre."
     },
     "target": {
       "title": "Définir un objectif d'hydratation",
@@ -596,6 +613,8 @@
       "startTime": "Heure de démarrage",
       "startTimeRequired": "Veuillez choisir une heure de démarrage.",
       "endTime": "Heure de fin",
+      "endBeforeStart": "L'heure de fin ne doit pas précéder l'heure de début.",
+      "endWhileInProgress": "Un jeûne en cours ne peut pas avoir d'heure de fin.",
       "status": "Statut",
       "notes": "Notes",
       "create": "Démarrer",
@@ -604,7 +623,9 @@
       "close": "Fermer",
       "createSuccess": "Jeûne démarré.",
       "updateSuccess": "Session de jeûne mise à jour.",
-      "saveError": "Impossible d'enregistrer votre session de jeûne. Veuillez réessayer."
+      "saveError": "Impossible d'enregistrer votre session de jeûne. Veuillez réessayer.",
+      "overlapError": "Ce jeûne chevauche une autre session de jeûne, ou un autre jeûne est déjà en cours.",
+      "invalidTimesError": "Un jeûne ne peut pas se terminer avant de commencer, un jeûne terminé ou rompu nécessite une heure de fin, et un jeûne en cours ne peut pas en avoir."
     },
     "target": {
       "title": "Définir un objectif de jeûne",
@@ -621,6 +642,20 @@
     "complete": {
       "success": "Jeûne terminé.",
       "error": "Impossible de terminer votre jeûne. Veuillez réessayer."
+    },
+    "endConfirm": {
+      "broken": {
+        "title": "Interrompre ce jeûne ?",
+        "body": "Le jeûne se termine maintenant et est enregistré comme interrompu. Cette action est irréversible.",
+        "confirm": "Interrompre le jeûne"
+      },
+      "cancelled": {
+        "title": "Annuler ce jeûne ?",
+        "body": "Le jeûne se termine maintenant et est enregistré comme annulé. Cette action est irréversible.",
+        "confirm": "Annuler le jeûne"
+      },
+      "cancel": "Continuer le jeûne",
+      "close": "Fermer"
     },
     "empty": {
       "title": "Aucun jeûne pour l'instant",

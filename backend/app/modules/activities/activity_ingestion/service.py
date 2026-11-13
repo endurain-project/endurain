@@ -17,17 +17,20 @@ from a future CLI or scheduled trigger without constructing an HTTP response.
 """
 
 import uuid
-from collections.abc import Iterator
+from collections.abc import Callable, Collection, Iterator
 from datetime import UTC, datetime, timedelta
 from itertools import batched
 
 import jasil.providers as platform_providers
-from sqlalchemy.exc import IntegrityError
+from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from sqlalchemy.orm import Session
 
+import core.blob_sweep as core_blob_sweep
 import core.config as core_config
 import core.database as core_database
 import core.exceptions as core_exceptions
+import core.job_status as core_job_status
+import core.local_pool as core_local_pool
 import core.logger as core_logger
 import modules.activities.activity.integration_service as activity_integration
 import modules.activities.activity_ingestion.constants as activity_ingestion_constants
@@ -38,6 +41,7 @@ import modules.activities.activity_ingestion.provider_registry as activity_inges
 import modules.activities.activity_ingestion.refresh_entry_service as activity_ingestion_refresh_entry_service
 import modules.activities.activity_ingestion.schema as activity_ingestion_schema
 import modules.activities.activity_ingestion.upload_entry_service as activity_ingestion_upload_entry_service
+import modules.websocket.integration_service as websocket_integration
 
 logger = core_logger.get_logger(__name__)
 
@@ -79,13 +83,29 @@ def _created_activities_are_gone(job: activity_ingestion_schema.ActivityIngestio
     Returns:
         True when the job completed having created activities and none remain.
     """
-    if job.status != activity_ingestion_constants.IngestionJobStatus.COMPLETED or not job.activity_ids:
+    if job.status != core_job_status.JobState.SUCCEEDED or not job.activity_ids:
         return False
     return not activity_integration.filter_existing_activity_ids(job.activity_ids, db)
 
 
+def require_same_request(stored_fingerprint: str | None, fingerprint: str | None) -> None:
+    """Refuse an ``Idempotency-Key`` that comes back with different content.
+
+    Answering with the first job would tell the client the second request was accepted when it never will be.
+
+    Args:
+        stored_fingerprint: The fingerprint the key was first used with.
+        fingerprint: The fingerprint of the request being checked.
+
+    Raises:
+        ConflictError: When the two differ.
+    """
+    if stored_fingerprint != fingerprint:
+        raise core_exceptions.ConflictError("This Idempotency-Key was already used for a different request")
+
+
 def accept_upload(
-    token_user_id: int,
+    token_user_id: uuid.UUID,
     filename: str | None,
     save_upload: activity_ingestion_upload_entry_service.UploadSaver,
     storage: platform_providers.StorageProvider,
@@ -133,23 +153,26 @@ def accept_upload(
         UnsupportedFormatError: When the extension is not a supported format.
         ConflictError: When the key was already used for different content.
         DomainError: When the shared upload validators reject the payload.
+        PoolFullError: On the local profile, when the in-process pool is full.
     """
+    activity_ingestion_dispatch_service.require_capacity()
     received = activity_ingestion_upload_entry_service.receive_upload(
         filename, save_upload, fingerprint=idempotency_key is not None
     )
 
+    release_staged = False
     if idempotency_key:
         try:
             prior = activity_ingestion_crud.get_job_for_idempotency(
                 idempotency_key, token_user_id, activity_ingestion_constants.IngestionJobKind.UPLOAD, db
             )
             if prior is not None:
-                if prior[1] != received.fingerprint:
-                    raise core_exceptions.ConflictError("This Idempotency-Key was already used for a different file")
+                require_same_request(prior[1], received.fingerprint)
                 if _created_activities_are_gone(prior[0], db):
                     # Staged here and committed with the new job below, so the key
                     # is never left free without a job holding it.
                     activity_ingestion_crud.release_idempotency_key(prior[0].id, db)
+                    release_staged = True
                     logger.info(
                         "Released the idempotency key of an upload whose activities were deleted",
                         extra=core_logger.context(user_id=token_user_id, job_id=prior[0].id),
@@ -168,8 +191,12 @@ def accept_upload(
             )
             return replayed
 
+    if idempotency_key and not release_staged:
+        # The lookup read, which holds a pooled connection until the transaction ends, and the staged
+        # upload can be 200 MiB. A staged key release stays pending: it commits with the new job.
+        db.rollback()
     staged_key = activity_ingestion_upload_entry_service.store_received_upload(received, storage)
-    job_id = str(uuid.uuid4())
+    job_id = uuid.uuid4()
 
     try:
         activity_ingestion_crud.create_ingestion_job(
@@ -208,8 +235,7 @@ def accept_upload(
         if prior is None:
             raise
         replayed, fingerprint = prior
-        if fingerprint != received.fingerprint:
-            raise core_exceptions.ConflictError("This Idempotency-Key was already used for a different file") from None
+        require_same_request(fingerprint, received.fingerprint)
         return replayed
     except Exception:
         # The row is gone (or never committed), so nothing will consume the
@@ -220,7 +246,7 @@ def accept_upload(
     # No durable worker drains the queue on the local profile, so the parse runs
     # on the background pool and leaves the request threadpool alone. In-flight
     # work is lost on restart, which is the reliability gap durable jobs close.
-    activity_ingestion_dispatch_service.run_in_background(run_upload_job, job_id, storage)
+    run_in_background_or_fail(run_upload_job, job_id, storage)
 
     logger.info(
         "Activity upload accepted for background import",
@@ -232,7 +258,7 @@ def accept_upload(
 
 
 def _pending_view(
-    job_id: str,
+    job_id: uuid.UUID,
     kind: activity_ingestion_constants.IngestionJobKind,
     filename: str | None = None,
 ) -> activity_ingestion_schema.ActivityIngestionJobRead:
@@ -252,46 +278,48 @@ def _pending_view(
     now = datetime.now(UTC)
     return activity_ingestion_schema.ActivityIngestionJobRead(
         id=job_id,
-        kind=kind,
+        kind=kind.job_kind,
         filename=filename,
-        status=activity_ingestion_constants.IngestionJobStatus.PENDING,
+        status=core_job_status.JobState.QUEUED,
         created_at=now,
         updated_at=now,
     )
 
 
-def get_job(
-    job_id: str,
-    token_user_id: int,
+def list_jobs(
+    user_id: uuid.UUID,
     db: Session,
-) -> activity_ingestion_schema.ActivityIngestionJobRead:
-    """Return one of the caller's ingestion jobs.
+    *,
+    kinds: Collection[str],
+    status: core_job_status.JobState | None,
+    before: tuple[datetime, uuid.UUID] | None,
+    limit: int,
+) -> list[activity_ingestion_schema.ActivityIngestionJobRead]:
+    """List a user's ingestion jobs, newest first.
 
     Args:
-        job_id: The job identifier returned by the upload or refresh route.
-        token_user_id: The authenticated caller.
+        user_id: The job owner.
         db: Database session.
+        kinds: The job kinds to list, as clients name them (``activity_upload``).
+        status: Only jobs in this state, or ``None`` for any.
+        before: Only jobs strictly older than this ``(created_at, id)`` position, or ``None`` from the newest.
+        limit: The most jobs to return.
 
     Returns:
-        The ingestion job.
-
-    Raises:
-        NotFoundError: When no such job belongs to the caller. A job owned by
-            someone else is reported as missing rather than forbidden, so the
-            endpoint does not confirm that an id exists.
+        The jobs, at most ``limit``.
     """
-    job = activity_ingestion_crud.get_ingestion_job(job_id, token_user_id, db)
-    if job is None:
-        logger.debug(
-            "Ingestion job read resolved to nothing for this caller",
-            extra=core_logger.context(job_id=job_id, user_id=token_user_id),
-        )
-        raise core_exceptions.NotFoundError("Upload job not found")
-    return job
+    return activity_ingestion_crud.list_ingestion_jobs(
+        user_id,
+        [activity_ingestion_constants.IngestionJobKind.from_job_kind(kind) for kind in kinds],
+        activity_ingestion_constants.statuses_for_state(status) if status is not None else None,
+        before,
+        limit,
+        db,
+    )
 
 
 def accept_refresh(
-    token_user_id: int,
+    token_user_id: uuid.UUID,
     storage: platform_providers.StorageProvider,
     db: Session,
     *,
@@ -313,8 +341,12 @@ def accept_refresh(
 
     Returns:
         The accepted refresh job, in the pending state.
+
+    Raises:
+        PoolFullError: On the local profile, when the in-process pool is full.
     """
-    job_id = str(uuid.uuid4())
+    activity_ingestion_dispatch_service.require_capacity()
+    job_id = uuid.uuid4()
 
     activity_ingestion_crud.create_ingestion_job(
         job_id,
@@ -331,7 +363,7 @@ def accept_refresh(
             job_id, token_user_id, db, commit=commit
         ),
     )
-    activity_ingestion_dispatch_service.run_in_background(run_refresh_job, job_id, storage)
+    run_in_background_or_fail(run_refresh_job, job_id, storage)
 
     logger.info(
         "Provider refresh accepted for background sync",
@@ -342,7 +374,7 @@ def accept_refresh(
     )
 
 
-def run_refresh_job(job_id: str, storage: platform_providers.StorageProvider) -> None:
+def run_refresh_job(job_id: uuid.UUID, storage: platform_providers.StorageProvider) -> None:
     """Pull the job's window from the linked providers, recording the outcome.
 
     The job body for both executors. It is synchronous and runs on a worker
@@ -353,6 +385,9 @@ def run_refresh_job(job_id: str, storage: platform_providers.StorageProvider) ->
     Args:
         job_id: The ``activity_ingestion_jobs`` row to process.
         storage: The blob-storage provider, for discarding a staged upload.
+
+    A provider that is rate limited defers the job instead: its row records when the limit
+    clears and this returns, so a retry never runs into the limit.
 
     Raises:
         Exception: Whatever the provider sync raised, so the caller can retry.
@@ -377,6 +412,11 @@ def run_refresh_job(job_id: str, storage: platform_providers.StorageProvider) ->
         activities = activity_ingestion_refresh_entry_service.sync_linked_providers(
             owner, window_start, window_end, provider=provider
         )
+    except activity_ingestion_refresh_entry_service.RefreshDeferredError as deferral:
+        # Not a failure and not a retry: the durable job ends here without using an attempt, and
+        # redispatch_deferred_refreshes queues the refresh again once the limit has cleared.
+        defer_ingestion_job(job_id, deferral.retry_at)
+        return
     except Exception:
         if not activity_ingestion_dispatch_service.worker_retries():
             # Nothing will retry, so leave the caller a terminal state
@@ -390,6 +430,7 @@ def run_refresh_job(job_id: str, storage: platform_providers.StorageProvider) ->
     with core_database.SessionLocal() as db:
         activity_ingestion_crud.mark_completed(job_id, activity_ids, db)
         db.commit()
+    announce_job(owner, job_id, activity_ingestion_constants.IngestionJobKind.REFRESH)
     logger.info(
         "Refresh job synced provider activities",
         extra=core_logger.context(user_id=owner, job_id=job_id, activity_count=len(activity_ids)),
@@ -398,12 +439,10 @@ def run_refresh_job(job_id: str, storage: platform_providers.StorageProvider) ->
 
 # One scheduler replica enqueues the periodic refreshes; the jobs themselves are
 # claimed by any worker.
-_REFRESH_FANOUT_LOCK_NAME = "activity_ingestion_scheduled_refresh"
 _REFRESH_FANOUT_BATCH_SIZE = 200
 
 
 def enqueue_scheduled_refreshes(
-    lock: platform_providers.LockProvider,
     storage: platform_providers.StorageProvider,
 ) -> int:
     """Queue one refresh job per user who has linked a provider.
@@ -418,29 +457,24 @@ def enqueue_scheduled_refreshes(
     default window overlaps the next run, so a skipped user loses nothing.
 
     Args:
-        lock: The platform lock provider.
         storage: The blob-storage provider handed to the in-process fallback.
 
     Returns:
         The number of refresh jobs queued.
     """
     queued = 0
-    with lock.try_acquire(_REFRESH_FANOUT_LOCK_NAME) as acquired:
-        if not acquired:
-            logger.debug("Scheduled refresh: another replica holds the fan-out lock; skipping")
-            return 0
-        seen: set[int] = set()
-        for provider in activity_ingestion_provider_registry.registered():
-            after_id = 0
-            while True:
-                user_ids = provider.linked_user_ids(after_id, _REFRESH_FANOUT_BATCH_SIZE)
-                if not user_ids:
-                    break
-                after_id = user_ids[-1]
-                fresh = [user_id for user_id in user_ids if user_id not in seen]
-                seen.update(fresh)
-                if fresh:
-                    queued += _queue_refresh_batch(fresh, storage)
+    seen: set[uuid.UUID] = set()
+    for provider in activity_ingestion_provider_registry.registered():
+        after_id: uuid.UUID | None = None
+        while True:
+            user_ids = provider.linked_user_ids(after_id, _REFRESH_FANOUT_BATCH_SIZE)
+            if not user_ids:
+                break
+            after_id = user_ids[-1]
+            fresh = [user_id for user_id in user_ids if user_id not in seen]
+            seen.update(fresh)
+            if fresh:
+                queued += _queue_refresh_batch(fresh, storage)
 
     if queued:
         logger.info("Scheduled refresh queued provider syncs", extra=core_logger.context(queued=queued))
@@ -449,7 +483,7 @@ def enqueue_scheduled_refreshes(
     return queued
 
 
-def _queue_refresh_batch(user_ids: list[int], storage: platform_providers.StorageProvider) -> int:
+def _queue_refresh_batch(user_ids: list[uuid.UUID], storage: platform_providers.StorageProvider) -> int:
     """Create and dispatch refresh jobs for a batch of users in one transaction.
 
     Args:
@@ -462,27 +496,79 @@ def _queue_refresh_batch(user_ids: list[int], storage: platform_providers.Storag
     """
     with core_database.SessionLocal() as db:
         busy = activity_ingestion_crud.get_user_ids_with_active_refresh(user_ids, db)
-        jobs = [(str(uuid.uuid4()), user_id) for user_id in user_ids if user_id not in busy]
+        jobs = [(uuid.uuid4(), user_id) for user_id in user_ids if user_id not in busy]
         if not jobs:
             return 0
         for job_id, user_id in jobs:
             activity_ingestion_crud.create_ingestion_job(
                 job_id, user_id, activity_ingestion_constants.IngestionJobKind.REFRESH, db
             )
-        activity_ingestion_dispatch_service.commit_or_publish(
-            db,
-            publish=lambda commit: activity_ingestion_event_publishers.publish_refresh_requests(
-                jobs, db, commit=commit
-            ),
-        )
-
-    for job_id, _user_id in jobs:
-        activity_ingestion_dispatch_service.run_in_background(run_refresh_job, job_id, storage)
+        _dispatch_refresh_jobs(jobs, storage, db)
     logger.debug("Queued a batch of provider refresh jobs", extra=core_logger.context(count=len(jobs)))
     return len(jobs)
 
 
-def run_upload_job(job_id: str, storage: platform_providers.StorageProvider) -> None:
+def _dispatch_refresh_jobs(
+    jobs: list[tuple[uuid.UUID, uuid.UUID]], storage: platform_providers.StorageProvider, db: Session
+) -> None:
+    """Make staged refresh jobs durable and start them: a worker event, or the in-process pool.
+
+    Args:
+        jobs: ``(job id, user id)`` of each staged job.
+        storage: The blob-storage provider handed to the in-process fallback.
+        db: The session holding the staged rows; committed here.
+    """
+    activity_ingestion_dispatch_service.commit_or_publish(
+        db,
+        publish=lambda commit: activity_ingestion_event_publishers.publish_refresh_requests(jobs, db, commit=commit),
+    )
+    for job_id, _user_id in jobs:
+        try:
+            run_in_background_or_fail(run_refresh_job, job_id, storage)
+        except core_local_pool.PoolFullError:
+            logger.warning(
+                "A provider refresh was dropped: the in-process pool is full",
+                extra=core_logger.context(job_id=job_id),
+            )
+
+
+# One scheduler replica releases deferred refreshes; the jobs themselves are claimed by any worker.
+_DEFERRED_REDISPATCH_BATCH_SIZE = 200
+
+
+def redispatch_deferred_refreshes(
+    storage: platform_providers.StorageProvider,
+) -> int:
+    """Queue again the refreshes whose provider rate limit has cleared.
+
+    A refresh that hit a rate limit ended as ``deferred`` with the time the limit clears. This
+    returns each one whose time has passed to ``pending`` and hands it to a worker, or to the
+    in-process pool without durable jobs, so a rate-limited sync resumes by itself on either profile.
+    A job released here but lost before it ran (the pool dropped it, or the process stopped) is
+    failed by the stale-job sweep, and the scheduled refresh covers the window again.
+
+    Args:
+        storage: The blob-storage provider handed to the in-process fallback.
+
+    Returns:
+        The number of refresh jobs queued again.
+    """
+    released = 0
+    while True:
+        with core_database.SessionLocal() as db:
+            jobs = activity_ingestion_crud.release_due_deferred_jobs(_DEFERRED_REDISPATCH_BATCH_SIZE, db)
+            if not jobs:
+                break
+            _dispatch_refresh_jobs(jobs, storage, db)
+        released += len(jobs)
+        if len(jobs) < _DEFERRED_REDISPATCH_BATCH_SIZE:
+            break
+    if released:
+        logger.info("Deferred provider refreshes queued again", extra=core_logger.context(count=released))
+    return released
+
+
+def run_upload_job(job_id: uuid.UUID, storage: platform_providers.StorageProvider) -> None:
     """Import a staged upload, recording the outcome on the job row.
 
     The job body for both executors. Opens its own session because neither the
@@ -568,6 +654,7 @@ def run_upload_job(job_id: str, storage: platform_providers.StorageProvider) -> 
                 db,
             )
             db.commit()
+            announce_job(user_id, job_id, activity_ingestion_constants.IngestionJobKind.UPLOAD)
             # After the outcome is committed: a crash before this line retries
             # against the blob rather than finding it gone.
             activity_ingestion_upload_entry_service.discard_staged_upload(staged_key, storage)
@@ -578,6 +665,7 @@ def run_upload_job(job_id: str, storage: platform_providers.StorageProvider) -> 
             return
         activity_ingestion_crud.mark_completed(job_id, activity_ids, db)
         db.commit()
+        announce_job(user_id, job_id, activity_ingestion_constants.IngestionJobKind.UPLOAD)
         activity_ingestion_upload_entry_service.discard_staged_upload(staged_key, storage)
         logger.info(
             "Upload job imported activities",
@@ -585,7 +673,7 @@ def run_upload_job(job_id: str, storage: platform_providers.StorageProvider) -> 
         )
 
 
-def release_ingestion_job(job_id: str) -> None:
+def release_ingestion_job(job_id: uuid.UUID) -> None:
     """Return a failed attempt's job to ``pending`` so the runner's retry can claim it.
 
     Separate session because the caller's may be in a failed transaction. A
@@ -598,7 +686,7 @@ def release_ingestion_job(job_id: str) -> None:
         with core_database.SessionLocal() as db:
             activity_ingestion_crud.release_job(job_id, db)
             db.commit()
-    except Exception as err:
+    except SQLAlchemyError as err:
         logger.error(
             "Could not release an ingestion job for retry",
             exc_info=err,
@@ -606,15 +694,69 @@ def release_ingestion_job(job_id: str) -> None:
         )
 
 
+def defer_ingestion_job(job_id: uuid.UUID, retry_at: datetime) -> None:
+    """Record that a claimed refresh waits for a provider's rate limit to clear.
+
+    Args:
+        job_id: The job identifier.
+        retry_at: When the refresh may run again.
+    """
+    with core_database.SessionLocal() as db:
+        activity_ingestion_crud.mark_deferred(job_id, retry_at, db)
+        db.commit()
+    logger.warning(
+        "Provider refresh deferred until the rate limit clears",
+        extra=core_logger.context(job_id=job_id, retry_at=retry_at),
+    )
+
+
+def run_in_background_or_fail(
+    run: Callable[[uuid.UUID, platform_providers.StorageProvider], object],
+    job_id: uuid.UUID,
+    storage: platform_providers.StorageProvider,
+) -> None:
+    """Run a committed job on the in-process pool, closing it when the pool turns it away.
+
+    Args:
+        run: The job body.
+        job_id: The committed job.
+        storage: The blob-storage provider handed to the job.
+
+    Raises:
+        PoolFullError: When the pool filled after the request was admitted. The job is failed
+            first, so it does not sit pending and block the user's next one.
+    """
+    try:
+        activity_ingestion_dispatch_service.run_in_background(run, job_id, storage)
+    except core_local_pool.PoolFullError:
+        fail_ingestion_job(job_id, activity_ingestion_constants.IngestionJobErrorCode.PROCESSING_FAILED, storage)
+        raise
+
+
+def announce_job(user_id: uuid.UUID, job_id: uuid.UUID, kind: activity_ingestion_constants.IngestionJobKind) -> None:
+    """Tell the job's owner it reached a terminal state, so their client stops waiting for its poll.
+
+    Call it after the state is committed.
+
+    Args:
+        user_id: The job's owner.
+        job_id: The job identifier.
+        kind: What the job ingests.
+    """
+    websocket_integration.push_job_changed(user_id, job_id, kind.job_kind)
+
+
 def fail_ingestion_job(
-    job_id: str,
+    job_id: uuid.UUID,
     error_code: activity_ingestion_constants.IngestionJobErrorCode,
     storage: platform_providers.StorageProvider,
     staged_key: str | None = None,
 ) -> None:
     """Record a terminal failure on a job and drop its staged upload.
 
-    Separate session because the caller's may be in a failed transaction.
+    Separate session because the caller's may be in a failed transaction. A
+    database failure is logged, not raised, so it never masks the failure being
+    recorded; the staged upload is then kept, because its row still names it.
 
     Args:
         job_id: The job identifier.
@@ -628,16 +770,19 @@ def fail_ingestion_job(
             if staged_key is None:
                 work_item = activity_ingestion_crud.get_job_work_item(job_id, db)
                 staged_key = work_item[1] if work_item else None
-            activity_ingestion_crud.mark_failed(job_id, error_code, db)
+            failed = activity_ingestion_crud.mark_failed(job_id, error_code, db)
             db.commit()
-    except Exception as err:
+    except SQLAlchemyError as err:
         # Never mask the original failure with a bookkeeping one.
         logger.error(
             "Could not mark an upload job failed",
             exc_info=err,
             extra=core_logger.context(job_id=job_id),
         )
+        return
 
+    if failed is not None:
+        announce_job(failed[0], job_id, failed[1])
     # After the row is terminal, so a crash in between leaves a readable blob
     # rather than a job pointing at bytes that are gone.
     if staged_key is not None:
@@ -646,11 +791,9 @@ def fail_ingestion_job(
 
 # Single-runner lock name: the deletes are idempotent, but the lock keeps the
 # work from being duplicated across replicas.
-_PRUNE_LOCK_NAME = "activity_ingestion_jobs_prune"
 
 
 def prune_expired_ingestion_jobs(
-    lock: platform_providers.LockProvider,
     clock: platform_providers.ClockProvider,
 ) -> None:
     """Prune finished upload jobs older than the durable-job retention window.
@@ -669,21 +812,16 @@ def prune_expired_ingestion_jobs(
     poller and the staged blob.
 
     Args:
-        lock: The platform lock provider.
         clock: The platform clock provider.
     """
     retention_days = core_config.settings.JOBS_RETENTION_DAYS
     if retention_days <= 0:
         return
 
-    with lock.try_acquire(_PRUNE_LOCK_NAME) as acquired:
-        if not acquired:
-            logger.debug("Ingestion job prune: another replica holds the lock; skipping")
-            return
-        cutoff = clock.now() - timedelta(days=retention_days)
-        with core_database.SessionLocal() as db:
-            deleted = activity_ingestion_crud.delete_jobs_before(cutoff, db)
-            db.commit()
+    cutoff = clock.now() - timedelta(days=retention_days)
+    with core_database.SessionLocal() as db:
+        deleted = activity_ingestion_crud.delete_jobs_before(cutoff, db)
+        db.commit()
 
     if deleted:
         logger.info(
@@ -694,17 +832,55 @@ def prune_expired_ingestion_jobs(
         logger.debug("Ingestion job prune: nothing to delete")
 
 
+def sweep_stale_bulk_import_errors(storage: platform_providers.StorageProvider) -> int:
+    """Delete failed bulk-import files kept past the job retention window.
+
+    The files are kept for the user to inspect, so they follow ``JOBS_RETENTION_DAYS``
+    like the job history they belong to. A non-positive setting keeps them.
+
+    Args:
+        storage: The platform storage provider.
+
+    Returns:
+        How many files were removed.
+    """
+    retention_days = core_config.settings.JOBS_RETENTION_DAYS
+    if retention_days <= 0:
+        return 0
+
+    removed = core_blob_sweep.sweep_aged_blobs(
+        storage, activity_ingestion_constants.BULK_IMPORT_ERROR_STORAGE_AREA, retention_days * 86400
+    )
+    if removed:
+        logger.info(
+            "Removed stale failed bulk-import files",
+            extra=core_logger.context(removed=removed, retention_days=retention_days),
+        )
+    else:
+        logger.debug("Failed bulk-import file sweep: nothing to delete")
+    return removed
+
+
 # A pending or processing job that has not changed state for this long is no
 # longer being worked on: the local pool lost it in a restart, or its loop died.
 # Generous on purpose: a large local bulk import leaves later files ``pending``
 # for hours, and a durable job can sit out its retries and backoff. A job that
 # was in fact still queued and runs later overwrites this outcome with its own.
 _STALE_JOB_AGE = timedelta(hours=24)
-_STALE_LOCK_NAME = "activity_ingestion_jobs_fail_stale"
+
+# A folder import is packed on one node's in-process pool, which a restart discards, and holds the
+# user's one import slot until it is closed. The packing node touches the job while it works, so a job
+# quiet for this long was lost and does not need to wait out ``_STALE_JOB_AGE``.
+_STALE_UNSTAGED_BULK_AGE = timedelta(minutes=15)
+
+#: Stale jobs failed per transaction, so one pass over a long backlog never holds them all at once.
+_STALE_JOB_BATCH_SIZE = 200
+
+#: Job ids named in the pass's log line; the count says how many there were.
+_STALE_JOB_LOGGED_IDS = 50
 
 
 def fail_stale_ingestion_jobs(
-    lock: platform_providers.LockProvider,
     clock: platform_providers.ClockProvider,
     storage: platform_providers.StorageProvider,
 ) -> None:
@@ -715,38 +891,72 @@ def fail_stale_ingestion_jobs(
     upload would stay in storage.
 
     Args:
-        lock: The platform lock provider.
         clock: The platform clock provider.
         storage: The blob-storage provider the uploads were staged in.
     """
-    with lock.try_acquire(_STALE_LOCK_NAME) as acquired:
-        if not acquired:
-            logger.debug("Stale ingestion jobs: another replica holds the lock; skipping")
-            return
+    failed_count = 0
+    failed_ids: list[uuid.UUID] = []
+    now = clock.now()
+    cutoff = now - _STALE_JOB_AGE
+    unstaged_bulk_cutoff = now - _STALE_UNSTAGED_BULK_AGE
+    while True:
         with core_database.SessionLocal() as db:
             failed = activity_ingestion_crud.fail_jobs_idle_since(
-                clock.now() - _STALE_JOB_AGE,
+                cutoff,
                 activity_ingestion_constants.IngestionJobErrorCode.PROCESSING_FAILED,
+                _STALE_JOB_BATCH_SIZE,
                 db,
+                unstaged_bulk_cutoff=unstaged_bulk_cutoff,
             )
             db.commit()
 
-    # After the rows are terminal, matching ``fail_ingestion_job``.
-    for _job_id, staged_key in failed:
-        if staged_key is not None:
-            activity_ingestion_upload_entry_service.discard_staged_upload(staged_key, storage)
+        # After the rows are terminal, matching ``fail_ingestion_job``.
+        for job_id, staged_key in failed:
+            if staged_key is not None:
+                activity_ingestion_upload_entry_service.discard_staged_upload(staged_key, storage)
+            if len(failed_ids) < _STALE_JOB_LOGGED_IDS:
+                failed_ids.append(job_id)
+        failed_count += len(failed)
+        if len(failed) < _STALE_JOB_BATCH_SIZE:
+            break
 
-    if failed:
+    if failed_count:
         logger.warning(
             "Failed ingestion jobs that stopped progressing",
             extra=core_logger.context(
-                failed=len(failed),
-                job_ids=[job_id for job_id, _ in failed],
+                failed=failed_count,
+                job_ids=[str(failed_id) for failed_id in failed_ids],
                 idle_hours=_STALE_JOB_AGE.total_seconds() / 3600,
             ),
         )
     else:
         logger.debug("Stale ingestion jobs: none found")
+
+
+def fail_orphaned_local_refreshes() -> int:
+    """Fail the refreshes a restart cost the in-process pool, so the next run queues them again.
+
+    Without durable jobs a pending or processing refresh lives only in the pool, which a restart
+    discards. Its row would otherwise make the fan-out skip the user until the stale-job reaper
+    fails it a day later. Does nothing when a durable worker or a sibling web worker may still own
+    the row.
+
+    Returns:
+        The number of refreshes failed.
+    """
+    if not activity_ingestion_dispatch_service.pool_owns_jobs():
+        logger.debug("Orphaned refresh cleanup: the in-process pool does not own the jobs")
+        return 0
+    with core_database.SessionLocal() as db:
+        failed = activity_ingestion_crud.fail_open_refresh_jobs(
+            activity_ingestion_constants.IngestionJobErrorCode.PROCESSING_FAILED, db
+        )
+        db.commit()
+    if failed:
+        logger.warning(
+            "Failed provider refreshes lost with the in-process pool", extra=core_logger.context(failed=failed)
+        )
+    return failed
 
 
 # Staged blobs are normally removed with their job. This sweeps what a crash, a
@@ -755,7 +965,6 @@ def fail_stale_ingestion_jobs(
 # a day.
 _STAGED_UPLOAD_MIN_AGE = timedelta(days=2)
 _STAGED_BLOB_BATCH_SIZE = 500
-_STAGED_SWEEP_LOCK_NAME = "activity_ingestion_staged_blob_sweep"
 
 
 def _aged_keys(storage: platform_providers.StorageProvider, area: str, prefix: str, older_than: float) -> Iterator[str]:
@@ -773,7 +982,6 @@ def _aged_keys(storage: platform_providers.StorageProvider, area: str, prefix: s
 
 
 def sweep_stale_staged_blobs(
-    lock: platform_providers.LockProvider,
     clock: platform_providers.ClockProvider,
     storage: platform_providers.StorageProvider,
 ) -> int:
@@ -781,9 +989,10 @@ def sweep_stale_staged_blobs(
 
     A staged blob is removed with its job, but a crash between committing the
     outcome and deleting it, or a failed delete, leaves one that no row names.
+    Each batch is looked up in a short session of its own that closes before the
+    listing goes on or a blob is deleted, so no connection waits on object storage.
 
     Args:
-        lock: The platform lock provider.
         clock: The platform clock provider.
         storage: The blob-storage provider.
 
@@ -791,22 +1000,18 @@ def sweep_stale_staged_blobs(
         The number of blobs deleted.
     """
     removed = 0
-    with lock.try_acquire(_STAGED_SWEEP_LOCK_NAME) as acquired:
-        if not acquired:
-            logger.debug("Staged blob sweep: another replica holds the lock; skipping")
-            return 0
-        prefix = activity_ingestion_upload_entry_service.UPLOAD_STAGING_KEY_PREFIX
-        area = activity_ingestion_upload_entry_service.UPLOAD_STAGING_STORAGE_AREA
-        upload_keys = _aged_keys(storage, area, prefix, (clock.now() - _STAGED_UPLOAD_MIN_AGE).timestamp())
+    prefix = activity_ingestion_upload_entry_service.UPLOAD_STAGING_KEY_PREFIX
+    area = activity_ingestion_upload_entry_service.UPLOAD_STAGING_STORAGE_AREA
+    upload_keys = _aged_keys(storage, area, prefix, (clock.now() - _STAGED_UPLOAD_MIN_AGE).timestamp())
+    for batch in batched(upload_keys, _STAGED_BLOB_BATCH_SIZE, strict=False):
         with core_database.SessionLocal() as db:
-            for batch in batched(upload_keys, _STAGED_BLOB_BATCH_SIZE, strict=False):
-                referenced = activity_ingestion_crud.get_referenced_staged_keys(
-                    [key.removeprefix(prefix) for key in batch], db
-                )
-                for key in batch:
-                    if key.removeprefix(prefix) not in referenced:
-                        storage.delete(area, key)
-                        removed += 1
+            referenced = activity_ingestion_crud.get_referenced_staged_keys(
+                [key.removeprefix(prefix) for key in batch], db
+            )
+        for key in batch:
+            if key.removeprefix(prefix) not in referenced:
+                storage.delete(area, key)
+                removed += 1
 
     if removed:
         logger.info("Removed stale staged ingestion blobs", extra=core_logger.context(removed=removed))

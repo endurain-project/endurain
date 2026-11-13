@@ -1,16 +1,20 @@
-"""Entry point for provider syncs: store one downloaded activity file, never raising.
+"""Entry point for provider syncs: store one downloaded activity file.
 
-Garmin Connect downloads a file per activity and hands it here. A failure is logged
-and reported as ``None`` so the sync moves on to the next activity instead of
-aborting the window. Bulk imports do not come through here: they work a staged
-archive in batches (:mod:`bulk_import_service`) and count their own failures.
+Garmin Connect downloads a file per activity and hands it here. A file the pipeline
+refuses (a :class:`~core.exceptions.DomainError`) is logged and reported as ``None``
+so the sync moves on to the next activity. Any other failure, such as a database or
+storage outage, propagates to the provider's window, which records it, finishes the
+window and re-raises it so the refresh job is retried. Bulk imports do not come through
+here: they work a staged archive in batches (:mod:`bulk_import_service`) and count their own failures.
 """
 
+import uuid
 from pathlib import Path
 
 import jasil.providers as platform_providers
 from sqlalchemy.orm import Session
 
+import core.exceptions as core_exceptions
 import core.logger as core_logger
 import modules.activities.activity.schema as activity_schema
 import modules.activities.activity_ingestion.contracts as activity_ingestion_contracts
@@ -20,14 +24,14 @@ logger = core_logger.get_logger(__name__)
 
 
 def store_activity_file(
-    token_user_id: int,
+    token_user_id: uuid.UUID,
     file_path: str,
     storage: platform_providers.StorageProvider,
     db: Session,
     *,
     source: activity_ingestion_contracts.IngestionSource,
 ) -> list[activity_schema.ActivityRead] | None:
-    """Validate an on-disk activity file and persist it, returning ``None`` on failure.
+    """Validate an on-disk activity file and persist it, returning ``None`` when the file is refused.
 
     Supports .gpx, .tcx, .fit, and .gz files. Must be called from a worker thread
     with no running event loop, because file validation runs a private event loop
@@ -41,8 +45,12 @@ def store_activity_file(
         source: Where the file came from, and any source-specific metadata.
 
     Returns:
-        List of created activity schema objects, or None if the file could not be
-        parsed or persisted.
+        List of created activity schema objects, or None if the file was refused
+        as unparseable or invalid.
+
+    Raises:
+        Exception: Any failure that is not a refusal of the file (a database or
+            storage outage, a bug).
     """
     try:
         return activity_ingestion_pipeline_service.validate_prepare_and_store_file(
@@ -52,9 +60,8 @@ def store_activity_file(
             source=source,
             storage=storage,
         )
-    except Exception as err:
-        # This entry swallows the failure so the caller's loop continues on the
-        # same session, so it is the one that has to leave that session usable.
+    except core_exceptions.DomainError as err:
+        # The refusal is swallowed, so the session is rolled back here to stay usable.
         db.rollback()
         logger.error(
             "Error in store_activity_file",

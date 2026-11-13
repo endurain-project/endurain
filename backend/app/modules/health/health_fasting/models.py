@@ -1,28 +1,24 @@
-"""
-SQLAlchemy models for health fasting tracking.
+"""SQLAlchemy models for health fasting tracking.
 
 This module defines the database models for storing user fasting sessions,
 including timing, duration, type, and status information.
 """
 
+import uuid
 from datetime import datetime
-from typing import TYPE_CHECKING
 
-from sqlalchemy import DateTime, ForeignKey, String
-from sqlalchemy.orm import Mapped, mapped_column, relationship
+from sqlalchemy import DateTime, ForeignKey, Index, String, text
+from sqlalchemy.orm import Mapped, mapped_column
 
+import core.sync as core_sync
 from core.database import Base
 
-if TYPE_CHECKING:
-    from modules.users.users.models import Users
 
-
-class HealthFasting(Base):
-    """
-    User fasting session tracking data.
+class HealthFasting(core_sync.UpdatedAtMixin, Base):
+    """User fasting session tracking data.
 
     Attributes:
-        id: Primary key.
+        id: Primary key, a random UUID.
         user_id: Foreign key to users table.
         fast_start_time: Start time of fast.
         fast_end_time: End time of fast (null if ongoing).
@@ -32,16 +28,22 @@ class HealthFasting(Base):
         status: Current status of the fasting session.
         notes: Optional notes about the fasting session.
         source: Data source for the record.
-        user: Relationship to Users model.
     """
 
     __tablename__ = "health_fasting"
-
-    id: Mapped[int] = mapped_column(
-        primary_key=True,
-        autoincrement=True,
+    __table_args__ = (
+        Index("ix_health_fasting_user_updated_at_id", "user_id", "updated_at", "id"),
+        Index(
+            "uq_health_fasting_one_in_progress_per_user",
+            "user_id",
+            unique=True,
+            postgresql_where=text("status = 'in_progress'"),
+            sqlite_where=text("status = 'in_progress'"),
+        ),
     )
-    user_id: Mapped[int] = mapped_column(
+
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    user_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("users.id", ondelete="CASCADE"),
         nullable=False,
         index=True,
@@ -81,11 +83,21 @@ class HealthFasting(Base):
         nullable=True,
         comment="Optional notes about the fasting session",
     )
-    source: Mapped[str | None] = mapped_column(
+    source: Mapped[str] = mapped_column(
         String(20),
-        nullable=True,
+        nullable=False,
+        server_default="manual",
+        default="manual",
         comment="Data source (manual, garmin, etc.)",
     )
 
-    # Define a relationship to the Users model
-    users: Mapped["Users"] = relationship(back_populates="health_fasting")
+    version: Mapped[int] = mapped_column(
+        nullable=False,
+        server_default="1",
+        default=1,
+        comment="Optimistic-concurrency counter, surfaced to clients as the ETag",
+    )
+
+    # SQLAlchemy bumps ``version`` on each ORM flush and adds it to the UPDATE's
+    # WHERE clause, raising StaleDataError when the row moved underneath.
+    __mapper_args__ = {"version_id_col": version}  # noqa: RUF012

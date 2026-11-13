@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
+import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { Ban, Check, Clock, Square } from '@lucide/vue'
 
@@ -8,6 +8,9 @@ import type { FastingEntry, FastingStatus } from '@/features/health/types'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
+import { useNow } from '@/composables/useNow'
+import { useUnitFormat } from '@/composables/useUnitFormat'
+import { fastingTypeLabel } from '@/features/health/utils/fastingType'
 import { formatElapsedClock, formatHoursMinutes } from '@/features/health/utils/healthFormat'
 import { formatMediumDateTime } from '@/utils/datetime'
 
@@ -21,21 +24,10 @@ const props = defineProps<{
 const emit = defineEmits<{ complete: [status: FastingStatus] }>()
 
 const { t, locale } = useI18n()
+const { duration, percent } = useUnitFormat()
 
-// Ticking clock: a 1s interval drives `now` so the elapsed time updates live.
-const now = ref(Date.now())
-let timer: ReturnType<typeof setInterval> | undefined
-
-onMounted(() => {
-  timer = setInterval(() => {
-    now.value = Date.now()
-  }, 1000)
-})
-onBeforeUnmount(() => {
-  if (timer) {
-    clearInterval(timer)
-  }
-})
+// The card only renders while a fast is in progress, so the clock ticks every second.
+const now = useNow(1000)
 
 /** Epoch milliseconds of the fast's start, or `null` when unparseable. */
 const startMs = computed(() => {
@@ -76,7 +68,9 @@ const startedLabel = computed(() =>
   props.entry.fastStartTime ? formatMediumDateTime(props.entry.fastStartTime, locale.value) : '',
 )
 const targetLabel = computed(() =>
-  hasTarget.value ? formatHoursMinutes(props.entry.targetDurationSeconds as number) : null,
+  hasTarget.value
+    ? formatHoursMinutes(props.entry.targetDurationSeconds as number, duration)
+    : null,
 )
 </script>
 
@@ -87,7 +81,9 @@ const targetLabel = computed(() =>
         <Clock class="size-4 text-brand-mid" aria-hidden="true" />
         <h2 class="text-section-heading">{{ t('health.fasting.active.title') }}</h2>
       </div>
-      <Badge v-if="entry.fastingType" variant="info">{{ entry.fastingType }}</Badge>
+      <Badge v-if="entry.fastingType" variant="info">{{
+        fastingTypeLabel(t, entry.fastingType)
+      }}</Badge>
     </div>
 
     <div class="flex flex-col items-center gap-1 py-2">
@@ -102,7 +98,7 @@ const targetLabel = computed(() =>
     <div v-if="hasTarget" class="flex flex-col gap-1">
       <div class="flex items-center justify-between text-hint">
         <span>{{ t('health.fasting.active.target') }}: {{ targetLabel }}</span>
-        <span class="tabular-nums">{{ progressPct }}%</span>
+        <span class="tabular-nums">{{ percent(progressPct) }}</span>
       </div>
       <div
         class="h-2 overflow-hidden rounded-full bg-muted"

@@ -1,4 +1,5 @@
 import { computed, type MaybeRefOrGetter, toValue } from 'vue'
+import { resolveUserId } from '@/utils/userId'
 import { storeToRefs } from 'pinia'
 import { keepPreviousData, useQuery } from '@tanstack/vue-query'
 
@@ -9,15 +10,8 @@ import {
   type ActivitySortBy,
   type ActivitySortOrder,
   fetchUserActivitiesPage,
-  fetchUserActivityTypeCodes,
-  fetchUserActivityTypeMap,
+  fetchUserActivityTypes,
 } from '@/features/activities/services/activities'
-
-/** Resolves a reactive user id to a positive number, or `0` when unavailable. */
-function resolveUserId(userId: MaybeRefOrGetter<number | null>): number {
-  const value = toValue(userId)
-  return value !== null && Number.isFinite(value) && value > 0 ? value : 0
-}
 
 /**
  * One filtered, sorted page of the authenticated user's own activities, backing
@@ -35,7 +29,7 @@ function resolveUserId(userId: MaybeRefOrGetter<number | null>): number {
  * @returns The TanStack query result for the current activities page.
  */
 export function useUserActivitiesQuery(
-  userId: MaybeRefOrGetter<number | null>,
+  userId: MaybeRefOrGetter<string | null>,
   page: MaybeRefOrGetter<number>,
   pageSize: MaybeRefOrGetter<number>,
   filters: MaybeRefOrGetter<ActivityListFilters>,
@@ -70,41 +64,22 @@ export function useUserActivitiesQuery(
         signal,
       ),
     placeholderData: keepPreviousData,
-    enabled: computed(() => isAuthenticated.value && id.value > 0),
+    enabled: computed(() => isAuthenticated.value && id.value !== ''),
   })
 }
 
 /**
- * The distinct activity-type codes the authenticated user owns, ascending,
- * powering the activity-type filter so it only offers types the user has.
- * Cached under the shared `activities.types` key; gated on authentication.
+ * The distinct activity types the authenticated user owns, powering the activity-type
+ * filters so they only offer types the user has; gated on authentication.
  *
- * @returns The TanStack query result for the user's activity-type codes.
+ * @returns The TanStack query result for the user's activity types.
  */
 export function useUserActivityTypesQuery() {
   const { isAuthenticated } = storeToRefs(useAuthStore())
 
   return useQuery({
     queryKey: queryKeys.activities.types(),
-    queryFn: ({ signal }) => fetchUserActivityTypeCodes(signal),
-    enabled: isAuthenticated,
-  })
-}
-
-/**
- * The authenticated user's owned activity types as a reactive `code → name`
- * map, backing the summary view's type filter: the dropdown options come from
- * the keys and the name-based summary endpoint is given the resolved value.
- * Cached under the shared `activities.typeNames` key; gated on authentication.
- *
- * @returns The TanStack query result for the user's activity-type map.
- */
-export function useUserActivityTypeMapQuery() {
-  const { isAuthenticated } = storeToRefs(useAuthStore())
-
-  return useQuery({
-    queryKey: queryKeys.activities.typeNames(),
-    queryFn: ({ signal }) => fetchUserActivityTypeMap(signal),
+    queryFn: ({ signal }) => fetchUserActivityTypes(signal),
     enabled: isAuthenticated,
   })
 }

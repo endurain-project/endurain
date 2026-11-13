@@ -5,10 +5,12 @@
   "unread": "Ungelesen",
   "markRead": "Als gelesen markieren",
   "markAllRead": "Alle als gelesen markieren",
+  "dismiss": "Benachrichtigung verwerfen",
+  "dismissError": "Die Benachrichtigung konnte nicht verworfen werden. Bitte versuche es erneut.",
   "seeAll": "Alle anzeigen",
   "loadMore": "Mehr laden",
   "loading": "Lädt…",
-  "badge": "{count} ungelesene Benachrichtigungen",
+  "badge": "{count} ungelesene Benachrichtigung | {count} ungelesene Benachrichtigungen",
   "empty": {
     "title": "Alles auf dem neuesten Stand",
     "description": "Updates zu deinen Aktivitäten, Followern und Integrationen werden hier angezeigt."
@@ -39,9 +41,122 @@
       "title": "Garmin Connect benötigt Aufmerksamkeit",
       "body": "Deine Garmin Connect-Sitzung ist abgelaufen. Verbinde es erneut, um die Synchronisierung fortzusetzen."
     },
+    "stravaTokenExpired": {
+      "title": "Strava braucht deine Aufmerksamkeit",
+      "body": "Strava hat deine Verbindung abgelehnt. Verbinde dich erneut, damit die Synchronisierung weiterläuft.",
+      "bodyRevoked": "Der Strava-Zugriff wurde beendet. Deine mit Strava synchronisierten Aktivitäten und Ausrüstung werden am {date} gelöscht, sofern du dich nicht erneut verbindest."
+    },
+    "stravaDataDeleted": {
+      "title": "Strava-Daten gelöscht",
+      "body": "Deine mit Strava synchronisierten Aktivitäten und Ausrüstung wurden gelöscht, weil der Strava-Zugriff beendet wurde und du dich nicht erneut verbunden hast."
+    },
+    "idpLinked": {
+      "title": "Neuer Anmeldeanbieter verknüpft",
+      "body": "{name} wurde mit Ihrem Konto verknüpft. Falls Sie das nicht waren, prüfen Sie Ihre Sicherheitseinstellungen.",
+      "bodyGeneric": "Ein Anmeldeanbieter wurde mit Ihrem Konto verknüpft. Falls Sie das nicht waren, prüfen Sie Ihre Sicherheitseinstellungen."
+    },
+    "accountSecurityChanged": {
+      "passwordChanged": {
+        "title": "Passwort geändert",
+        "body": "Dein Passwort wurde geändert. Wenn du das nicht warst, setze dein Passwort zurück und prüfe deine Sicherheitseinstellungen."
+      },
+      "passwordReset": {
+        "title": "Passwort zurückgesetzt",
+        "body": "Dein Passwort wurde über einen Link zum Zurücksetzen zurückgesetzt. Wenn du das nicht warst, setze dein Passwort erneut zurück und prüfe deine Sicherheitseinstellungen. Any API keys were revoked and any pending email change was cancelled."
+      },
+      "passwordSetByAdmin": {
+        "title": "Passwort von einem Administrator festgelegt",
+        "body": "Ein Administrator hat ein neues Passwort für dein Konto festgelegt. Wenn du das nicht erwartet hast, wende dich an deinen Administrator. Any API keys were revoked and any pending email change was cancelled."
+      },
+      "mfaEnabled": {
+        "title": "Zwei-Faktor-Authentifizierung aktiviert",
+        "body": "Die Zwei-Faktor-Authentifizierung wurde für dein Konto aktiviert. Wenn du das nicht warst, setze dein Passwort zurück und prüfe deine Sicherheitseinstellungen."
+      },
+      "mfaDisabled": {
+        "title": "Zwei-Faktor-Authentifizierung deaktiviert",
+        "body": "Die Zwei-Faktor-Authentifizierung wurde für dein Konto deaktiviert. Wenn du das nicht warst, setze dein Passwort zurück und prüfe deine Sicherheitseinstellungen."
+      },
+      "mfaResetByAdmin": {
+        "title": "Zwei-Faktor-Authentifizierung von einem Administrator zurückgesetzt",
+        "body": "Ein Administrator hat die Zwei-Faktor-Authentifizierung für dein Konto zurückgesetzt und dich auf allen Geräten abgemeldet. Richte sie in deinen Sicherheitseinstellungen erneut ein. Wenn du das nicht erwartet hast, wende dich an deinen Administrator."
+      },
+      "passwordChangeRequiredByAdmin": {
+        "title": "Passwortänderung von einem Administrator verlangt",
+        "body": "Ein Administrator hat verlangt, dass du dein Passwort änderst, und dich auf allen Geräten abgemeldet. Du wählst ein neues Passwort, wenn du dich das nächste Mal mit deinem Passwort anmeldest. Wenn du das nicht erwartet hast, wende dich an deinen Administrator."
+      },
+      "backupCodesGenerated": {
+        "title": "Neue Backup-Codes erstellt",
+        "body": "Für dein Konto wurden neue Backup-Codes erstellt. Wenn du das nicht warst, setze dein Passwort zurück und prüfe deine Sicherheitseinstellungen."
+      },
+      "apiKeyCreated": {
+        "title": "Neuer API-Schlüssel erstellt",
+        "body": "Für dein Konto wurde ein neuer API-Schlüssel erstellt. Wenn du das nicht warst, setze dein Passwort zurück und prüfe deine Sicherheitseinstellungen."
+      },
+      "apiKeysRevokedByAdmin": {
+        "title": "API-Schlüssel von einem Administrator widerrufen",
+        "body": "Ein Administrator hat einen oder mehrere deiner API-Schlüssel widerrufen, sodass nichts, was sie verwendet, noch auf dein Konto zugreifen kann. Wenn du das nicht erwartet hast, wende dich an deinen Administrator."
+      },
+      "identityProviderUnlinked": {
+        "title": "Anmeldeanbieter getrennt",
+        "body": "{name} wurde von deinem Konto getrennt. Wenn du das nicht warst, setze dein Passwort zurück und prüfe deine Sicherheitseinstellungen.",
+        "bodyGeneric": "Ein Anmeldeanbieter wurde von deinem Konto getrennt. Wenn du das nicht warst, setze dein Passwort zurück und prüfe deine Sicherheitseinstellungen."
+      },
+      "accountLocked": {
+        "title": "Konto gesperrt",
+        "body": "Dein Konto wurde nach 100 fehlgeschlagenen Anmeldeversuchen in Folge gesperrt. Browser und Apps, mit denen du dich seit deiner letzten Sicherheitsänderung angemeldet hast, können sich weiterhin anmelden. Wenn diese Versuche nicht von dir stammten, ändere oder setze dein Passwort zurück, wodurch auch die Sperre aufgehoben wird."
+      },
+      "mfaLocked": {
+        "title": "Zwei-Schritt-Verifizierung gesperrt",
+        "body": "Dein Konto wurde nach 100 falschen Codes der Zwei-Schritt-Verifizierung in Folge gesperrt, also kennt jemand dein Passwort. Browser und Apps, mit denen du dich seit deiner letzten Sicherheitsänderung angemeldet hast, können sich weiterhin anmelden. Wenn diese Versuche nicht von dir stammten, ändere dein Passwort."
+      },
+      "stepUpSessionEnded": {
+        "title": "Sitzung abgemeldet",
+        "body": "Eine Sitzung deines Kontos wurde abgemeldet, nachdem 15 Mal hintereinander falsche Passwörter oder Zwei-Faktor-Codes eingegeben wurden, um eine sensible Aktion zu bestätigen. Deine anderen Sitzungen waren nicht betroffen. Wenn du das nicht warst, ändere dein Passwort."
+      },
+      "stepUpLocked": {
+        "title": "Bestätigung sensibler Aktionen gesperrt",
+        "body": "Die Bestätigung sensibler Aktionen, etwa das Ändern deines Passworts oder das Erstellen eines API-Schlüssels, wurde für 30 Tage gesperrt, nachdem über deine Sitzungen hinweg 100 Mal falsch bestätigt wurde. Wenn du das nicht warst, setze dein Passwort zurück; dadurch wird die Sperre ebenfalls aufgehoben."
+      },
+      "backupCodeUsed": {
+        "title": "Backup-Code verwendet",
+        "body": "Für die Zwei-Faktor-Authentifizierung deines Kontos wurde ein Backup-Code verwendet. Wenn du das nicht warst, ändere dein Passwort und erstelle neue Backup-Codes.",
+        "bodyRemaining": "Für die Zwei-Faktor-Authentifizierung deines Kontos wurde ein Backup-Code verwendet. Verbleibende ungenutzte Backup-Codes: {count}. Wenn du das nicht warst, ändere dein Passwort und erstelle neue Backup-Codes.",
+        "bodyNone": "Für die Zwei-Faktor-Authentifizierung deines Kontos wurde ein Backup-Code verwendet. Du hast keine ungenutzten Backup-Codes mehr, erstelle daher in deinen Sicherheitseinstellungen neue. Wenn du das nicht warst, ändere dein Passwort."
+      },
+      "refreshTokenReuseDetected": {
+        "title": "Sitzung beendet",
+        "body": "Eine Anmeldesitzung deines Kontos wurde beendet, weil ein bereits verwendetes Token erneut vorgelegt wurde, was bedeuten kann, dass die Sitzung kopiert wurde. Deine anderen Sitzungen waren nicht betroffen. Wenn du das nicht erwartet hast, ändere dein Passwort."
+      },
+      "roleChangedByAdmin": {
+        "title": "Zugriff von einem Administrator geändert",
+        "body": "Ein Administrator hat den Zugriff deines Kontos geändert und dich auf allen Geräten abgemeldet. Wenn du das nicht erwartet hast, wende dich an deinen Administrator.",
+        "bodyAdmin": "Ein Administrator hat den Zugriff deines Kontos auf Administrator geändert und dich auf allen Geräten abgemeldet. Wenn du das nicht erwartet hast, wende dich an deinen Administrator.",
+        "bodyRegular": "Ein Administrator hat den Zugriff deines Kontos auf normaler Benutzer geändert und dich auf allen Geräten abgemeldet. Wenn du das nicht erwartet hast, wende dich an deinen Administrator."
+      },
+      "accountDeactivatedByAdmin": {
+        "title": "Konto von einem Administrator deaktiviert",
+        "body": "Ein Administrator hat dein Konto deaktiviert und dich auf allen Geräten abgemeldet. Du kannst dich erst wieder anmelden, wenn ein Administrator es reaktiviert."
+      },
+      "unknown": {
+        "title": "Kontosicherheit geändert",
+        "body": "Eine Sicherheitseinstellung deines Kontos wurde geändert. Wenn du das nicht warst, setze dein Passwort zurück und prüfe deine Sicherheitseinstellungen."
+      },
+      "usernameChanged": {
+        "title": "Benutzername geändert",
+        "body": "Dein Benutzername wurde geändert. Falls du das nicht warst, setze dein Passwort zurück und überprüfe deine Sicherheitseinstellungen."
+      }
+    },
+    "newDeviceSignIn": {
+      "title": "Neue Anmeldung",
+      "body": "Neue Anmeldung von {browser} auf {os} ({ip}). Wenn du das nicht warst, ändere dein Passwort und melde dich von deinen anderen Sitzungen ab."
+    },
     "adminSignUpApproval": {
       "title": "Neue Registrierung benötigt Genehmigung",
       "body": "{name} ({'@'}{username}) wartet auf Kontogenehmigung."
+    },
+    "adminUserPromoted": {
+      "title": "Benutzer zum Administrator befördert",
+      "body": "{name} ({'@'}{username}) wurde Administratorzugriff gewährt."
     },
     "unknown": {
       "title": "Benachrichtigung",

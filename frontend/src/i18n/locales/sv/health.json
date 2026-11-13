@@ -1,6 +1,12 @@
 {
   "title": "Hälsa",
   "subtitle": "Se all din hälsodata på ett ställe",
+  "chartBucket": {
+    "week": "Veckomedelvärden: varje stapel är genomsnittsdagen i den veckan.",
+    "month": "Månadsmedelvärden: varje stapel är genomsnittsdagen i den månaden."
+  },
+  "targetInvalid": "Ange ett värde större än 0, eller lämna fältet tomt för att ta bort målet.",
+  "chartError": "Kunde inte ladda diagrammet för det här tidsintervallet.",
   "nav": {
     "label": "Hälsosektioner",
     "soon": "Snart",
@@ -34,6 +40,7 @@
     "stepsTargetLabel": "steg",
     "poopTargetLabel": "/ dag",
     "noWeightData": "Ingen viktdata",
+    "noHeightData": "Lägg till din längd i din profil för att se ditt BMI.",
     "bmiUnderweight": "Undervikt",
     "bmiNormalWeight": "Normalvikt",
     "bmiOverweight": "Övervikt",
@@ -88,7 +95,6 @@
       "weightRequired": "Ange din vikt.",
       "weightInvalid": "Ange en vikt större än noll.",
       "bodyComposition": "Kroppssammansättning (valfritt)",
-      "bmi": "BMI",
       "bodyFat": "Kroppsfett (%)",
       "bodyWater": "Kroppsvätska (%)",
       "boneMass": "Benmassa",
@@ -256,6 +262,8 @@
     "scorePoor": "Dålig",
     "detail": {
       "tabsLabel": "Sömndetaljsektioner",
+      "stagesLoading": "Laddar sömnfaserna",
+      "stagesError": "Kunde inte ladda sömnfaserna",
       "tabScore": "Sömnpoäng",
       "tabDetails": "Sömndetaljer",
       "deep": "Djup",
@@ -301,6 +309,8 @@
     "form": {
       "addTitle": "Logga sömn",
       "editTitle": "Redigera sömnpost",
+      "loading": "Laddar sömnposten",
+      "loadError": "Kunde inte ladda sömnposten",
       "description": "Registrera sömnlängd och eventuellt fasuppdelning och mätvärden.",
       "date": "Datum",
       "dateRequired": "Välj ett datum.",
@@ -308,6 +318,8 @@
       "totalSleepRequired": "Ange hur länge du sov.",
       "hours": "Timmar",
       "minutes": "Minuter",
+      "hoursOf": "{field}, timmar",
+      "minutesOf": "{field}, minuter",
       "stageBreakdown": "Fasuppdelning (valfritt)",
       "deep": "Djup sömn",
       "light": "Lätt sömn",
@@ -350,7 +362,11 @@
       "close": "Stäng",
       "createSuccess": "Sömn loggad.",
       "updateSuccess": "Sömnpost uppdaterad.",
-      "saveError": "Kunde inte spara din sömnpost. Försök igen."
+      "saveError": "Kunde inte spara din sömnpost. Försök igen.",
+      "numberRange": "Ange ett värde mellan {min} och {max}.",
+      "numberMin": "Ange {min} eller mer.",
+      "stagesExceedTotal": "Djup sömn, lätt sömn och REM-sömn summerar till mer än totalen.",
+      "inconsistentError": "Sömnvärdena stämmer inte. Kontrollera att faserna och totalen ryms inom sömntiderna."
     },
     "target": {
       "title": "Ange sömnmål",
@@ -419,7 +435,8 @@
       "close": "Stäng",
       "createSuccess": "Vatten loggat.",
       "updateSuccess": "Vattenpost uppdaterad.",
-      "saveError": "Kunde inte spara din vattenpost. Försök igen."
+      "saveError": "Kunde inte spara din vattenpost. Försök igen.",
+      "dayTakenError": "Det finns redan en vattenpost för den dagen. Redigera den i stället för att lägga till en till."
     },
     "target": {
       "title": "Ange vattenmål",
@@ -596,6 +613,8 @@
       "startTime": "Starttid",
       "startTimeRequired": "Välj en starttid.",
       "endTime": "Sluttid",
+      "endBeforeStart": "Sluttiden får inte vara före starttiden.",
+      "endWhileInProgress": "En fasta som pågår kan inte ha en sluttid.",
       "status": "Status",
       "notes": "Anteckningar",
       "create": "Starta",
@@ -604,7 +623,9 @@
       "close": "Stäng",
       "createSuccess": "Fasta startad.",
       "updateSuccess": "Fastsession uppdaterad.",
-      "saveError": "Kunde inte spara din fastsession. Försök igen."
+      "saveError": "Kunde inte spara din fastsession. Försök igen.",
+      "overlapError": "Fastan överlappar en annan fasta, eller så pågår redan en annan fasta.",
+      "invalidTimesError": "En fasta kan inte sluta innan den börjar, en slutförd eller avbruten fasta måste ha en sluttid, och en fasta som pågår kan inte ha någon."
     },
     "target": {
       "title": "Ange fastemål",
@@ -621,6 +642,20 @@
     "complete": {
       "success": "Fasta avslutad.",
       "error": "Kunde inte avsluta din fasta. Försök igen."
+    },
+    "endConfirm": {
+      "broken": {
+        "title": "Bryta den här fastan?",
+        "body": "Fastan avslutas nu och sparas som bruten. Det går inte att ångra.",
+        "confirm": "Bryt fastan"
+      },
+      "cancelled": {
+        "title": "Avbryta den här fastan?",
+        "body": "Fastan avslutas nu och sparas som avbruten. Det går inte att ångra.",
+        "confirm": "Avbryt fastan"
+      },
+      "cancel": "Fortsätt fasta",
+      "close": "Stäng"
     },
     "empty": {
       "title": "Inga fastor än",

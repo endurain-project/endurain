@@ -3,15 +3,17 @@ import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { Pencil, Trash2 } from '@lucide/vue'
 
-import type { GearComponent } from '@/features/gears/types'
+import type { GearComponent, GearType } from '@/features/gears/types'
+import type { UnitKey } from '@/i18n'
 import type { Schemas } from '@/types'
 
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
+import { useUnitFormat } from '@/composables/useUnitFormat'
 import {
   currencySymbol,
-  formatDuration,
   metersToDisplayDistance,
+  splitDuration,
 } from '@/features/gears/utils/format'
 import {
   componentWearPercent,
@@ -23,7 +25,7 @@ const props = defineProps<{
   /** The component to render. */
   component: GearComponent
   /** The parent gear's numeric type, selecting distance- vs time-based wear. */
-  gearType: number
+  gearType: GearType
   /** The viewer's measurement system. */
   units: Schemas['Units']
   /** The viewer's currency. */
@@ -33,19 +35,27 @@ const props = defineProps<{
 const emit = defineEmits<{ edit: [component: GearComponent]; delete: [component: GearComponent] }>()
 
 const { t, locale } = useI18n()
+const { withUnit, duration, percent } = useUnitFormat()
 
 const title = computed(() => `${props.component.brand} ${props.component.model}`.trim())
 const typeLabel = computed(() => humanizeComponentType(props.component.type))
 const timeBased = computed(() => isTimeBasedGear(props.gearType))
-const distanceUnit = computed(() =>
-  props.units === 'imperial' ? t('gears.unitMi') : t('gears.unitKm'),
-)
+const distanceUnit = computed<UnitKey>(() => (props.units === 'imperial' ? 'mi' : 'km'))
+
+/** Renders a duration in seconds as `Xh Ym` / `Ym`. */
+function formatTime(seconds: number): string {
+  const { hours, minutes } = splitDuration(seconds)
+  return duration(hours, minutes)
+}
 
 /** Accumulated usage, rendered as a duration (racquet) or distance + unit. */
 const currentDisplay = computed(() =>
   timeBased.value
-    ? formatDuration(props.component.currentTime)
-    : `${metersToDisplayDistance(props.component.currentDistance, props.units)} ${distanceUnit.value}`,
+    ? formatTime(props.component.currentTime)
+    : withUnit(
+        `${metersToDisplayDistance(props.component.currentDistance, props.units)}`,
+        distanceUnit.value,
+      ),
 )
 
 const hasExpected = computed(
@@ -59,8 +69,8 @@ const expectedDisplay = computed(() => {
     return ''
   }
   return timeBased.value
-    ? formatDuration(base)
-    : `${metersToDisplayDistance(base, props.units)} ${distanceUnit.value}`
+    ? formatTime(base)
+    : withUnit(`${metersToDisplayDistance(base, props.units)}`, distanceUnit.value)
 })
 
 const usageText = computed(() =>
@@ -134,7 +144,9 @@ const metaLabel = computed(() => {
 
     <div class="flex items-center justify-between gap-2 text-hint">
       <span class="truncate">{{ usageText }}</span>
-      <span v-if="wearPercent !== null" class="shrink-0 tabular-nums">{{ wearPercent }}%</span>
+      <span v-if="wearPercent !== null" class="shrink-0 tabular-nums">{{
+        percent(wearPercent)
+      }}</span>
     </div>
     <div
       v-if="hasExpected"

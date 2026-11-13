@@ -1,14 +1,18 @@
 """Extra tests for core configuration module."""
 
 import os
+import uuid
 from pathlib import Path
 from tempfile import gettempdir
 from unittest.mock import patch
 
 import pytest
 from cryptography.fernet import Fernet
+from pydantic import ValidationError
 
 import core.config as core_config
+from core.config import Settings
+from tests._helpers.auth import MOCK_USER_ID, OTHER_USER_ID
 
 
 class TestLookLikeIp:
@@ -44,6 +48,7 @@ class TestSettings:
 
         s = Settings(_env_file=None)
         assert s.LOG_LEVEL == "info"
+        assert s.LOG_WEBSOCKET_FRAMES is False
         assert s.ENVIRONMENT == "production"
         assert s.TZ == "UTC"
         assert s.ENDURAIN_HOST == "http://localhost:8080"
@@ -67,35 +72,84 @@ class TestSettings:
         assert s.PHOTON_API_HOST == "photon.example.com"
         assert s.NOMINATIM_API_HOST == "nominatim.example.org"
 
-    def test_allowed_redirect_schemes_comma_separated(self):
-        from core.config import Settings
+    def test_allowed_redirect_uris_default_is_the_mobile_app_callback(self):
+        s = Settings(_env_file=None)
+        assert {"com.endurain.endurain:/auth/sso/callback"} == s.ALLOWED_REDIRECT_URIS
 
-        s = Settings(_env_file=None, ALLOWED_REDIRECT_SCHEMES="http,https,myapp")
-        assert {"http", "https", "myapp"} == s.ALLOWED_REDIRECT_SCHEMES
+    def test_allowed_redirect_uris_comma_separated_with_lowercased_scheme(self):
+        s = Settings(_env_file=None, ALLOWED_REDIRECT_URIS="Endurain://oauth/Callback, gadgetbridge://auth ,")
+        assert {"endurain://oauth/Callback", "gadgetbridge://auth"} == s.ALLOWED_REDIRECT_URIS
 
-    def test_allowed_redirect_schemes_drops_invalid_scheme_syntax(self):
-        from core.config import Settings
+    def test_allowed_redirect_uris_accepts_an_address_without_an_authority(self):
+        """RFC 3986 ends the scheme at the first ':'; only the scheme is lower-cased (RFC 8252 7.1 callbacks)."""
+        s = Settings(_env_file=None, ALLOWED_REDIRECT_URIS="Com.Example.App:/OAuth2Redirect,endurain:Callback")
+        assert {"com.example.app:/OAuth2Redirect", "endurain:Callback"} == s.ALLOWED_REDIRECT_URIS
 
+    @pytest.mark.parametrize("value", ["", None])
+    def test_allowed_redirect_uris_empty(self, value):
+        s = Settings(_env_file=None, ALLOWED_REDIRECT_URIS=value)
+        assert set() == s.ALLOWED_REDIRECT_URIS
+
+    @pytest.mark.parametrize(
+        "uri",
+        [
+            "HTTP://evil.example/cb",
+            "javascript://x",
+            "data://x",
+            "file://etc/passwd",
+            "vbscript://x",
+            "blob://x",
+            "javascript:alert(1)",
+            "data:text/html,x",
+            "http:evil.example",
+        ],
+    )
+    def test_allowed_redirect_uris_refuses_unsafe_scheme(self, uri):
+        with pytest.raises(ValidationError, match="unsafe scheme"):
+            Settings(_env_file=None, ALLOWED_REDIRECT_URIS=f"endurain://cb,{uri}")
+
+    def test_allowed_redirect_uris_accepts_an_exact_https_address(self):
         s = Settings(
             _env_file=None,
-            ALLOWED_REDIRECT_SCHEMES=(
-                "endurain,nodomain.freeyourgadget.gadgetbridge.nightly_nopebble,"
-                "nodomain.freeyourgadget.gadgetbridge.nightly-nopebble,1app,my app"
-            ),
+            ALLOWED_REDIRECT_URIS="HTTPS://app.example.org/auth/sso/callback, https://app.example.org:8443/cb?x=1#f",
         )
-        assert {"endurain", "nodomain.freeyourgadget.gadgetbridge.nightly-nopebble"} == s.ALLOWED_REDIRECT_SCHEMES
+        assert {
+            "https://app.example.org/auth/sso/callback",
+            "https://app.example.org:8443/cb?x=1#f",
+        } == s.ALLOWED_REDIRECT_URIS
 
-    def test_allowed_redirect_schemes_empty(self):
-        from core.config import Settings
+    @pytest.mark.parametrize(
+        "uri",
+        [
+            "https://",
+            "https:///callback",
+            "https:host/callback",
+            "https:/callback",
+            "https://user@app.example.org/cb",
+            "https://user:pw@app.example.org/cb",
+            "https://@app.example.org/cb",
+            "https://app.example.org:abc/cb",
+            "https://app.example.org:99999/cb",
+            "https://[::1/cb",
+            "https://app example.org/cb",
+            "https://app.example.org\\cb",
+        ],
+    )
+    def test_allowed_redirect_uris_refuses_a_malformed_https_address(self, uri):
+        with pytest.raises(ValidationError, match="ALLOWED_REDIRECT_URIS"):
+            Settings(_env_file=None, ALLOWED_REDIRECT_URIS=f"endurain://cb,{uri}")
 
-        s = Settings(_env_file=None, ALLOWED_REDIRECT_SCHEMES="")
-        assert set() == s.ALLOWED_REDIRECT_SCHEMES
+    @pytest.mark.parametrize(
+        "uri", ["/relative", "cb", "endurain:", "1app://cb", "my app://cb", "my_app:/cb", "endurain://"]
+    )
+    def test_allowed_redirect_uris_refuses_an_address_that_is_not_scheme_and_target(self, uri):
+        with pytest.raises(ValidationError, match="ALLOWED_REDIRECT_URIS"):
+            Settings(_env_file=None, ALLOWED_REDIRECT_URIS=uri)
 
-    def test_allowed_redirect_schemes_none(self):
-        from core.config import Settings
-
-        s = Settings(_env_file=None, ALLOWED_REDIRECT_SCHEMES=None)
-        assert set() == s.ALLOWED_REDIRECT_SCHEMES
+    @pytest.mark.parametrize("char", ["\n", "\t", "\x00", "\x7f"])
+    def test_allowed_redirect_uris_refuses_control_characters(self, char):
+        with pytest.raises(ValidationError, match="control characters"):
+            Settings(_env_file=None, ALLOWED_REDIRECT_URIS=f"endurain://cb{char}x")
 
     def test_trusted_proxies_comma_separated(self):
         from core.config import Settings
@@ -179,11 +233,19 @@ class TestSettings:
         assert s.DATA_DIR == "/custom/data"
         assert s.FILES_DIR == "/custom/data/activity_files"
 
-    def test_development_trusted_proxies_default(self):
+    def test_development_trusts_no_proxy_by_default(self, monkeypatch):
         from core.config import Settings
 
+        monkeypatch.delenv("TRUSTED_PROXIES", raising=False)
         s = Settings(_env_file=None, ENVIRONMENT="development")
-        assert s.TRUSTED_PROXIES == ["*"]
+        assert s.TRUSTED_PROXIES == []
+
+    def test_development_trusted_proxies_can_be_set_explicitly(self, monkeypatch):
+        from core.config import Settings
+
+        monkeypatch.setenv("TRUSTED_PROXIES", "10.0.0.0/8")
+        s = Settings(_env_file=None, ENVIRONMENT="development")
+        assert s.TRUSTED_PROXIES == ["10.0.0.0/8"]
 
     def test_trusted_proxies_with_hostname(self):
         from core.config import Settings
@@ -645,12 +707,21 @@ class TestValidateFernetKey:
 
         assert validate_fernet_key("not-a-valid-fernet-key") is False
 
-    def test_unexpected_exception_during_fernet_validation_returns_false(self):
+    def test_key_list(self):
         from core.config import validate_fernet_key
 
-        with patch("core.config.logger"):
-            result = validate_fernet_key(b"some bytes")
-        assert result is False
+        keys = [Fernet.generate_key().decode(), Fernet.generate_key().decode()]
+        assert validate_fernet_key(f"{keys[0]}, {keys[1]}") is True
+
+    def test_key_list_with_invalid_entry(self):
+        from core.config import validate_fernet_key
+
+        assert validate_fernet_key(f"{Fernet.generate_key().decode()},not-a-valid-fernet-key") is False
+
+    def test_key_list_with_empty_entry(self):
+        from core.config import validate_fernet_key
+
+        assert validate_fernet_key(f"{Fernet.generate_key().decode()},") is False
 
 
 class TestValidateLogLevel:
@@ -674,13 +745,18 @@ class TestValidateLogLevel:
         assert validate_log_level("invalid") is False
 
 
+# Keys of 32 characters that use 16 distinct ones.
+_VARIED_KEY = "3f9a1c7e5b2d8046a1e3c9f7b5d20846"
+_VARIED_KEY_2 = "c81d4f6a2e90b753d1a8f4c6e2b09753"
+
+
 class TestCheckRequiredEnvVars:
     """check_required_env_vars: startup validation."""
 
     def _minimal_env(self, **overrides):
         env = {
             "DB_PASSWORD": "dbpass",
-            "SECRET_KEY": "secretkey",
+            "SECRET_KEY": _VARIED_KEY,
             "FERNET_KEY": Fernet.generate_key().decode(),
             "ENDURAIN_HOST": "http://localhost:8080",
         }
@@ -726,18 +802,6 @@ class TestCheckRequiredEnvVars:
             pytest.raises(ValueError, match="FERNET_KEY validation failed"),
         ):
             check_required_env_vars()
-
-    def test_email_not_configured(self):
-        from core.config import check_required_env_vars
-
-        with (
-            patch.dict(os.environ, self._minimal_env(), clear=True),
-            patch("core.config.logger") as mock_log,
-        ):
-            check_required_env_vars()
-
-        info_calls = [c for c in mock_log.method_calls if "Email not configured" in str(c)]
-        assert len(info_calls) >= 1
 
     def test_secret_via_file_variant(self):
         from core.config import check_required_env_vars
@@ -802,7 +866,7 @@ class TestModuleLevelConstants:
     def test_api_version(self):
         from core.config import API_VERSION
 
-        assert API_VERSION == "v0.20.2"
+        assert API_VERSION == "v0.21.0-beta1"
 
     def test_license_constants(self):
         from core.config import LICENSE_IDENTIFIER, LICENSE_NAME, LICENSE_URL
@@ -907,6 +971,19 @@ class TestCheckDeprecatedEnvVars:
         # One header line plus one line per offending variable.
         assert len(mock_log.method_calls) == 4
 
+    @patch.dict(os.environ, {"ALLOWED_REDIRECT_SCHEMES": "endurain"}, clear=True)
+    def test_allowed_redirect_schemes_aborts_pointing_to_allowed_redirect_uris(self):
+        from core.config import check_deprecated_env_vars
+
+        with (
+            patch("core.config.logger") as mock_log,
+            pytest.raises(OSError, match="ALLOWED_REDIRECT_SCHEMES"),
+        ):
+            check_deprecated_env_vars()
+
+        logged = " ".join(str(call) for call in mock_log.method_calls)
+        assert "ALLOWED_REDIRECT_URIS" in logged
+
     def test_mapping_contains_expected_keys(self):
         from core.config import DEPRECATED_ENV_VARS
 
@@ -916,6 +993,7 @@ class TestCheckDeprecatedEnvVars:
             "FRONTEND_PROTOCOL",
             "RATE_LIMIT_STORAGE_URI",
             "AUTH_SECURITY_STORAGE_URI",
+            "ALLOWED_REDIRECT_SCHEMES",
         }
         assert all(isinstance(hint, str) and hint for hint in DEPRECATED_ENV_VARS.values())
 
@@ -935,16 +1013,219 @@ class TestCheckDeprecatedEnvVars:
 
 class TestBulkImportDirectoriesArePerUser:
     def test_each_user_gets_their_own_directory_under_the_base(self):
-        with (
-            patch("core.config.FILES_BULK_IMPORT_DIR", "/data/bulk_import"),
-            patch("core.config.STRAVA_BULK_IMPORT_DIR", "/data/strava_import"),
-        ):
-            assert core_config.bulk_import_dir_for(1) == "/data/bulk_import/1"
-            assert core_config.bulk_import_dir_for(2) == "/data/bulk_import/2"
-            assert core_config.strava_bulk_import_dir_for(2) == "/data/strava_import/2"
-
-    def test_the_id_can_only_be_a_single_path_segment(self):
         with patch("core.config.FILES_BULK_IMPORT_DIR", "/data/bulk_import"):
-            assert core_config.bulk_import_dir_for("7") == "/data/bulk_import/7"
-            with pytest.raises(ValueError):
-                core_config.bulk_import_dir_for("../2")
+            assert core_config.bulk_import_dir_for(MOCK_USER_ID) == f"/data/bulk_import/{MOCK_USER_ID}"
+            assert core_config.bulk_import_dir_for(OTHER_USER_ID) == f"/data/bulk_import/{OTHER_USER_ID}"
+
+    def test_the_id_is_a_single_path_segment(self):
+        with patch("core.config.FILES_BULK_IMPORT_DIR", "/data/bulk_import"):
+            directory = core_config.bulk_import_dir_for(uuid.uuid4())
+        assert directory.count("/") == "/data/bulk_import".count("/") + 1
+
+
+class TestSessionPolicySettings:
+    """The deprecated session and token variables keep the bounds the database enforces."""
+
+    def test_defaults_are_the_documented_ones(self):
+        s = Settings(_env_file=None)
+        assert (s.ACCESS_TOKEN_EXPIRE_MINUTES, s.REFRESH_TOKEN_EXPIRE_DAYS) == (15, 7)
+        assert (s.SESSION_IDLE_TIMEOUT_ENABLED, s.SESSION_IDLE_TIMEOUT_HOURS, s.SESSION_ABSOLUTE_TIMEOUT_HOURS) == (
+            False,
+            1,
+            24,
+        )
+
+    @pytest.mark.parametrize(
+        ("name", "value"),
+        [
+            ("ACCESS_TOKEN_EXPIRE_MINUTES", 0),
+            ("ACCESS_TOKEN_EXPIRE_MINUTES", 1441),
+            ("REFRESH_TOKEN_EXPIRE_DAYS", 0),
+            ("REFRESH_TOKEN_EXPIRE_DAYS", 366),
+            ("READ_NOTIFICATION_RETENTION_DAYS", -1),
+            ("READ_NOTIFICATION_RETENTION_DAYS", 3651),
+            ("SESSION_IDLE_TIMEOUT_HOURS", 0),
+            ("SESSION_IDLE_TIMEOUT_HOURS", 8761),
+            ("SESSION_ABSOLUTE_TIMEOUT_HOURS", 0),
+            ("SESSION_ABSOLUTE_TIMEOUT_HOURS", 8761),
+        ],
+    )
+    def test_out_of_range_values_fail_settings_construction(self, name, value):
+        with pytest.raises(ValidationError):
+            Settings(_env_file=None, **{name: value})
+
+    def test_values_are_read_from_the_environment(self):
+        with patch.dict(os.environ, {"ACCESS_TOKEN_EXPIRE_MINUTES": "30", "SESSION_IDLE_TIMEOUT_ENABLED": "true"}):
+            s = Settings(_env_file=None)
+        assert s.ACCESS_TOKEN_EXPIRE_MINUTES == 30
+        assert s.SESSION_IDLE_TIMEOUT_ENABLED is True
+        assert {"ACCESS_TOKEN_EXPIRE_MINUTES", "SESSION_IDLE_TIMEOUT_ENABLED"} <= s.model_fields_set
+
+
+class TestEnvironmentValidation:
+    """ENVIRONMENT is one of the documented values; a typo must not silently disable production hardening."""
+
+    def test_a_typo_is_rejected_at_settings_load(self):
+        from pydantic import ValidationError
+
+        from core.config import Settings
+
+        with pytest.raises(ValidationError, match="ENVIRONMENT"):
+            Settings(_env_file=None, ENVIRONMENT="prod")
+
+    @pytest.mark.parametrize("value", ["production", "demo", "development"])
+    def test_documented_values_are_accepted(self, value):
+        from core.config import Settings
+
+        assert value == Settings(_env_file=None, ENVIRONMENT=value).ENVIRONMENT
+
+    @pytest.mark.parametrize(("value", "deployed"), [("production", True), ("demo", True), ("development", False)])
+    def test_the_deployed_check_is_defined_once(self, value, deployed):
+        from core.environment import is_deployed_environment
+
+        assert is_deployed_environment(value) is deployed
+
+
+class TestSecretKeyLength:
+    """SECRET_KEY must be at least 32 characters, as the docs require."""
+
+    def test_the_distinct_character_floor_is_ten(self):
+        from core.config import MIN_SECRET_KEY_DISTINCT_CHARACTERS
+
+        assert MIN_SECRET_KEY_DISTINCT_CHARACTERS == 10
+
+    def test_a_short_key_stops_startup(self):
+        from core.config import check_required_env_vars
+
+        env = TestCheckRequiredEnvVars()._minimal_env(SECRET_KEY="short")
+        with (
+            patch.dict(os.environ, env, clear=True),
+            patch("core.config.logger"),
+            pytest.raises(ValueError, match="SECRET_KEY must be at least 32 characters"),
+        ):
+            check_required_env_vars()
+
+    def test_every_key_of_a_list_must_be_long_enough(self):
+        from core.config import check_required_env_vars
+
+        env = TestCheckRequiredEnvVars()._minimal_env(SECRET_KEY=f"{_VARIED_KEY},short")
+        with (
+            patch.dict(os.environ, env, clear=True),
+            patch("core.config.logger"),
+            pytest.raises(ValueError, match="SECRET_KEY must be at least 32 characters"),
+        ):
+            check_required_env_vars()
+
+    def test_a_list_of_long_keys_starts(self):
+        from core.config import check_required_env_vars
+
+        env = TestCheckRequiredEnvVars()._minimal_env(SECRET_KEY=f"{_VARIED_KEY}, {_VARIED_KEY_2}")
+        with patch.dict(os.environ, env, clear=True), patch("core.config.logger"):
+            check_required_env_vars()
+
+    def test_an_empty_entry_stops_startup(self):
+        from core.config import check_required_env_vars
+
+        env = TestCheckRequiredEnvVars()._minimal_env(SECRET_KEY=f"{_VARIED_KEY},")
+        with (
+            patch.dict(os.environ, env, clear=True),
+            patch("core.config.logger"),
+            pytest.raises(ValueError, match="SECRET_KEY contains an empty entry"),
+        ):
+            check_required_env_vars()
+
+
+class TestSecretKeyVariety:
+    """SECRET_KEY must use at least 10 distinct characters, so a repeated or patterned key does not start."""
+
+    @staticmethod
+    def _start(secret_key):
+        from core.config import check_required_env_vars
+
+        env = TestCheckRequiredEnvVars()._minimal_env(SECRET_KEY=secret_key)
+        with patch.dict(os.environ, env, clear=True), patch("core.config.logger"):
+            check_required_env_vars()
+
+    @pytest.mark.parametrize(
+        "key",
+        ["x" * 32, "ab" * 16, "012345678" * 4, "abcdefghi" * 4],
+        ids=["one-character", "two-characters", "nine-digits", "nine-letters"],
+    )
+    def test_a_long_key_with_fewer_than_ten_distinct_characters_stops_startup(self, key):
+        assert len(key) >= 32
+        with pytest.raises(ValueError, match="at least 10 distinct characters"):
+            self._start(key)
+
+    def test_the_error_says_why_and_shows_the_generator(self):
+        with pytest.raises(ValueError) as error:
+            self._start("x" * 32)
+
+        assert "SECRET_KEY" in str(error.value)
+        assert "distinct characters" in str(error.value)
+        assert "openssl rand -hex 32" in str(error.value)
+
+    def test_every_key_of_a_list_needs_the_variety(self):
+        with pytest.raises(ValueError, match="at least 10 distinct characters"):
+            self._start(f"{_VARIED_KEY}, {'x' * 32}")
+
+    def test_ten_distinct_characters_start(self):
+        self._start("0123456789" * 4)
+
+    def test_a_generated_hex_key_starts(self):
+        import secrets
+
+        self._start(secrets.token_hex(32))
+
+
+class TestPublishedExampleSecrets:
+    """The secrets shipped in .env.example are public, so a deployment that keeps one must not start."""
+
+    _SECRET_KEY = "69b85208190c96821050d4ba980a8a95d928ab7e0ebf1a40b8ef6d09fd8367d3"
+    _FERNET_KEY = "7NfMMRSCWcoNDSjqBX8WoYH9nTFk1VdQOdZY13po53Y="
+    _DB_PASSWORD = "aee5c0d342f5a88dfe657bff3d21ddb31643cdbedd21177e20ec8524b15e3648"
+
+    @pytest.mark.parametrize(
+        ("name", "value", "hint"),
+        [
+            ("SECRET_KEY", _SECRET_KEY, "openssl rand -hex 32"),
+            ("SECRET_KEY", f"{'x' * 32}, {_SECRET_KEY}", "openssl rand -hex 32"),
+            ("FERNET_KEY", _FERNET_KEY, "openssl rand -base64 32"),
+            ("FERNET_KEY", f"{Fernet.generate_key().decode()},{_FERNET_KEY}", "openssl rand -base64 32"),
+            ("DB_PASSWORD", _DB_PASSWORD, "openssl rand -hex 32"),
+        ],
+    )
+    def test_a_published_value_stops_startup(self, name, value, hint):
+        from core.config import check_required_env_vars
+
+        env = TestCheckRequiredEnvVars()._minimal_env(**{name: value})
+        with (
+            patch.dict(os.environ, env, clear=True),
+            patch("core.config.logger"),
+            pytest.raises(ValueError, match=name) as raised,
+        ):
+            check_required_env_vars()
+        assert hint in str(raised.value)
+
+    def test_a_published_value_read_from_a_file_stops_startup(self, tmp_path):
+        from core.config import check_required_env_vars
+
+        secret_file = tmp_path / "db_password"
+        secret_file.write_text(self._DB_PASSWORD)
+        secret_file.chmod(0o400)
+        env = TestCheckRequiredEnvVars()._minimal_env()
+        del env["DB_PASSWORD"]
+        env["DB_PASSWORD_FILE"] = str(secret_file)
+        with (
+            patch.dict(os.environ, env, clear=True),
+            patch("core.config.logger"),
+            patch("core.config._is_safe_path", return_value=True),
+            pytest.raises(ValueError, match="DB_PASSWORD"),
+        ):
+            check_required_env_vars()
+
+    def test_other_values_start(self):
+        from core.config import check_required_env_vars
+
+        env = TestCheckRequiredEnvVars()._minimal_env()
+        with patch.dict(os.environ, env, clear=True), patch("core.config.logger"):
+            check_required_env_vars()

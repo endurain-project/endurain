@@ -4,6 +4,7 @@
     "uploading": "上傳中…",
     "success": "活動已成功上傳",
     "error": "無法上傳活動檔案",
+    "tooLarge": "該檔案過大",
     "timeout": "您的檔案仍在匯入中，完成後將會顯示。",
     "failed": {
       "unsupported_format": "不支援此檔案類型",
@@ -46,7 +47,6 @@
     "thisWeek": "本週",
     "thisMonth": "本月",
     "empty": "此時段無活動",
-    "caloriesUnit": "大卡",
     "metric": {
       "distance": "距離",
       "time": "時間",
@@ -63,12 +63,13 @@
     "snow_ski": "滑雪",
     "snowboard": "單板滑雪",
     "windsurf": "風帆衝浪",
-    "stand_up_paddleboarding": "立式划槳",
-    "surfing": "衝浪",
+    "stand_up_paddling": "立式划槳",
+    "surf": "衝浪",
     "kayaking": "独木舟",
     "sailing": "帆船",
-    "snowshoeing": "雪鸋健行",
-    "inline_skating": "直排輪滑冰"
+    "snow_shoeing": "雪鸋健行",
+    "inline_skating": "直排輪滑冰",
+    "other": "其他"
   },
   "goals": {
     "title": "目標",

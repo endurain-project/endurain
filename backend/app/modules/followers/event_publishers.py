@@ -7,6 +7,7 @@ follow service calls these instead of building events itself, so it stays
 ignorant of the substrate and of who subscribes.
 """
 
+import uuid
 from collections.abc import Callable
 
 import jasil.publisher as platform_publisher
@@ -17,8 +18,8 @@ import modules.followers.events as followers_events
 
 
 def publish_follower_requested(
-    requester_user_id: int,
-    target_user_id: int,
+    requester_user_id: uuid.UUID,
+    target_user_id: uuid.UUID,
     db: Session,
     *,
     commit: Callable[[], None],
@@ -40,9 +41,9 @@ def publish_follower_requested(
     )
     platform_publisher.publish_committing(
         followers_events.FOLLOWER_REQUESTED,
-        payload.model_dump(),
-        source="api:create_follower",
-        metadata={core_event_metadata.META_USER_ID: target_user_id},
+        payload.model_dump(mode="json"),
+        source="api:follow_user",
+        metadata={core_event_metadata.META_USER_ID: str(target_user_id)},
         db=db,
         commit=commit,
         schema_version=payload.SCHEMA_VERSION,
@@ -50,8 +51,8 @@ def publish_follower_requested(
 
 
 def publish_follower_accepted(
-    accepter_user_id: int,
-    requester_user_id: int,
+    accepter_user_id: uuid.UUID,
+    requester_user_id: uuid.UUID,
     db: Session,
     *,
     commit: Callable[[], None],
@@ -71,9 +72,43 @@ def publish_follower_accepted(
     )
     platform_publisher.publish_committing(
         followers_events.FOLLOWER_ACCEPTED,
-        payload.model_dump(),
-        source="api:accept_follower",
-        metadata={core_event_metadata.META_USER_ID: requester_user_id},
+        payload.model_dump(mode="json"),
+        source="api:accept_follow_request",
+        metadata={core_event_metadata.META_USER_ID: str(requester_user_id)},
+        db=db,
+        commit=commit,
+        schema_version=payload.SCHEMA_VERSION,
+    )
+
+
+def publish_follower_request_removed(
+    requester_user_id: uuid.UUID,
+    target_user_id: uuid.UUID,
+    db: Session,
+    *,
+    commit: Callable[[], None],
+    source: str,
+) -> None:
+    """Publish ``follower.request_removed`` after a pending request is deleted unaccepted.
+
+    Args:
+        requester_user_id: The user whose follow request was removed.
+        target_user_id: The user the request was addressed to. Carried in the payload
+            (the subscriber clears their notification) and mirrored into the metadata
+            for correlation.
+        db: The producer's DB session (see :func:`publish_follower_requested`).
+        commit: Commit the deletion and outbox event together.
+        source: Origin label: the route that removed the request.
+    """
+    payload = followers_events.FollowerRequestRemovedPayload(
+        requester_user_id=requester_user_id,
+        target_user_id=target_user_id,
+    )
+    platform_publisher.publish_committing(
+        followers_events.FOLLOWER_REQUEST_REMOVED,
+        payload.model_dump(mode="json"),
+        source=source,
+        metadata={core_event_metadata.META_USER_ID: str(target_user_id)},
         db=db,
         commit=commit,
         schema_version=payload.SCHEMA_VERSION,

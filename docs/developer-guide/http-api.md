@@ -1,0 +1,205 @@
+# HTTP API conventions
+
+Every route follows one resource model, so a client that has learned one resource can use the next without reading
+its code. This page is the reference for the shape of the HTTP API: URLs, methods, status codes, headers, request
+and response bodies, uploads, the OpenAPI contract and the client documentation.
+
+Related pages go deeper on one topic each:
+
+- versioned writes: [Optimistic concurrency](optimistic-concurrency.md);
+- who the caller is: [Auth boundary](auth-boundary.md);
+- what to record: [Audit trail](audit-trail.md);
+- how ingestion jobs run: [Activity ingestion](activity-ingestion.md).
+
+Rules marked **(test)** are enforced by `backend/tests/architecture/test_api_contract.py` or
+`test_route_conventions.py`. A route that broke a rule before the test existed is listed in that test's register
+with the change that will fix it. A register only shrinks: the test fails on a new violation, and on an entry that
+no longer violates. Rules the code does not meet yet are listed under [Not yet met](#not-yet-met).
+
+## Resources and URLs
+
+A resource has a collection and an item:
+
+| URL | Method | Does |
+| --- | --- | --- |
+| `/things` | `GET` | One page of the caller's things (`core.pagination.Page`) |
+| `/things` | `POST` | Creates a thing |
+| `/things/{thing_id}` | `GET` | Reads one thing, with its `ETag` |
+| `/things/{thing_id}` | `PATCH` | Edits it, with `If-Match` |
+| `/things/{thing_id}` | `DELETE` | Removes it, with `If-Match` |
+
+- An item that can be edited or deleted can also be read by id **(test)**. Not counted as items: revocations from a
+  list (API keys, sessions), relationships (follows, linked identity providers) and items served only as files.
+- Paths are plural, kebab-case nouns. A resource has one item URL; a different view of it is a projection decided by
+  the caller's scope, not a second path. Two second paths are allowed: a composite read
+  (`/activities/{activity_id}/detail`) that returns the item with the first page of the children a screen shows with
+  it, and the caller's own collection (`/activities`) beside the same collection for any user
+  (`/users/{user_id}/activities`).
+- Filtering and search are query parameters on the collection, never path segments: `<field>_contains` for text,
+  `active=<bool>` or `has_<field>=<bool>` for a state, and `start_date`/`end_date` for an inclusive range of local
+  dates.
+- When at most one item can be in a state, that item is a named singleton (`/health/fasting/active`) that returns it
+  with its `ETag`, or `null`, rather than a filter that returns a page of one.
+- A child collection sits under its parent only when the child cannot exist without it
+  (`/activities/{activity_id}/laps`). A link between two top-level resources is a filter on one of them
+  (`gear_id=` on `/activities`), not a nested path.
+- A route that obtains, renews or ends a session (`/auth/login`, `/auth/mfa/verify`, `/auth/password-change`, `/auth/sessions/{session_id}/tokens`, `/auth/refresh`, `/auth/logout`) lives under `/auth`; every other route callable without signing in lives under `/public` **(test)**. The routes that stay outside, with the reason, are listed in the test.
+
+## Methods
+
+- `PATCH` is a partial edit: an omitted field is kept, `null` clears a nullable field, and `not_clearable` lists the
+  fields that cannot be cleared (`core.partial_update.NotClearable`).
+- `PUT` replaces the whole resource: a field left out of the body is cleared. The only field kept when omitted is a
+  write-only secret the server never returns. Every optional field of a `PUT` body is listed in the test with which
+  of the two it is **(test)**. A partial edit is a `PATCH`.
+- An action that is neither a replacement nor a partial edit is `POST /things/{thing_id}/<verb>` (`approve`,
+  `revoke`, `read`, `complete`) **(test)**.
+- A `POST` that creates a resource answers `201`. The exception is the public sign-up request (`POST /public/sign-up/request`): it answers `200` with a `next_step`, because it answers from the server's policy alone and must not reveal whether the address is registered, so it has no resource to return.
+- Removing a thing that needs the caller's step-up in the body is `POST /things/{thing_id}/delete`, `.../unlink` or `.../revoke`, not `DELETE`, which carries no body: `POST /profile/delete-account`, `POST /profile/identity-providers/{idp_id}/unlink`, `POST /users/{user_id}/delete` and `POST /users/{user_id}/identity-providers/{idp_id}/unlink`, `POST /users/{user_id}/sessions/{session_id}/revoke` and `POST /users/{user_id}/sessions/revoke`. `POST /users/{user_id}/delete` keeps `If-Match` and the `202` job of a delete.
+
+## Status codes
+
+| Code | When | Must carry |
+| --- | --- | --- |
+| `200` | A read, an edit that returns the resource, an action answered at once | `ETag` for a versioned resource |
+| `201` | A resource was created | The resource, `Location` and `ETag` when it can be read by id **(test)** |
+| `202` | Work was accepted for a background job | The job (a `core.job_status.JobStatus`: `id`, `kind`, `status` `queued`, `running`, `succeeded` or `failed`, `error_code`, `created_at`, `finished_at`), `Content-Location: /jobs/{job_id}` and `Retry-After` **(test)**. Every job is read at `GET /jobs/{job_id}`, `422` for an id that is not a UUID, `404` for an unknown, expired or foreign id, and listed at `GET /jobs`; there is no per-operation status route. A refused second start is `409` naming the running job in `job_id` and `Content-Location` |
+| `204` | A write with nothing to return | No body. A body that only carries a message is a `204` **(test)** |
+| `400` | Input the schema accepted but the domain refuses | Problem document |
+| `401` | The credential is missing, invalid or no longer valid (expired session, deleted or deactivated user) | `WWW-Authenticate` |
+| `403` | Signed in but not allowed (missing scope, a refusal the caller may know about) | `WWW-Authenticate: Bearer error="insufficient_scope", scope="a b"` for a scope, and the `missing_scopes` member |
+| `404` | Missing, or concealed from this caller (the same answer for both) | Problem document |
+| `409` | Conflicts with the current state, including "already running" | The running job's `Content-Location` for "already running" |
+| `412` / `428` | Stale or missing `If-Match` ([Optimistic concurrency](optimistic-concurrency.md)) | Problem document |
+| `413` | The body is too large | Problem document |
+| `415` | The uploaded file is a type the route does not accept | Problem document |
+| `422` | The request does not match the schema | Problem document with `errors[]` |
+| `429` | Rate limit or lockout | `Retry-After`: the seconds until a retry can succeed (a `TooManyRequestsError` with `retry_at` sets it) |
+| `503` | A dependency is unavailable for a moment | `Retry-After` |
+
+`406` is only for `Accept` negotiation, never for an upload.
+
+## Headers
+
+- **`ETag`** on every read and every write that returns a versioned resource; writes require `If-Match`.
+- **`Location`** on a `201` whose resource has a `GET /{id}`: `core.location.set_location` writes the path.
+- **`Content-Location` and `Retry-After`** on every `202` and on a status read that is not finished.
+- **`Cache-Control: no-store`** on a response that carries a token or a secret: tokens, a new API key, an MFA secret
+  or backup codes, a websocket ticket, a profile export. Other JSON is `private, no-cache` by default (`core.middleware.GetSemanticsMiddleware`). The `ETag` is the version for `If-Match`, not a validator of the body, so an authenticated read never answers `304`.
+- A header a browser client must read is listed in `CORS_EXPOSE_HEADERS`, and one it must send in
+  `CORS_ALLOW_HEADERS` (`core/middleware.py`).
+
+## Errors
+
+- Raise a `core.exceptions` error; the handler renders it as an RFC 9457 problem document. Never build an error body
+  by hand: no `JSONResponse` with a 4xx or 5xx status outside `core/exceptions.py` and `core/problem_details.py`
+  **(test)**.
+- `detail` is a sentence for a person. Data a client acts on (missing scopes, a retry time) goes in an extension
+  member, never as a Python repr in `detail`.
+- A refusal that must not reveal whether something exists answers the same `404` as a missing record.
+
+## Naming new fields
+
+These rules are for new fields and parameters; existing names are not renamed to fit them.
+
+- A boolean is `is_<state>` for a state the resource is in (`is_blocked`), `has_<thing>` for the presence of
+  something (`has_local_password`), and a plain adjective when the field is a setting, filter or attribute that
+  reads naturally as one (`active`, `read`, `discoverable`). Never a negation, and never `hide_*`/`show_*` for a
+  new flag: state what is on.
+- An instant is `<event>_at` and carries a UTC offset (`created_at`, `declined_at`).
+- A calendar date is `<event>_date`, or `date` when the resource is about one day.
+- A wall-clock time without a zone is `<event>_local`, as the request-bodies rule says.
+- A measurement puts its unit in the name when the name can carry it (`weight_kg`, `sleep_seconds`, `*_percent`).
+- A text filter on a collection is `<field>_contains`, naming the field it matches (`name_contains`,
+  `message_contains`), and a state filter is `active=<bool>`.
+
+## Request bodies
+
+- Request schemas set `extra="forbid"` and bound every string and number.
+- A request schema never accepts a field the server owns: `id`, `user_id`, `version`, `created_at`, `updated_at`,
+  `source` or a provider id (`strava_*_id`, `garminconnect_*_id`) **(test)**. The resource comes from the path, the
+  owner from the token, provenance from the code path that writes.
+- Step-up credentials travel in a `step_up` object (`StepUpVerification`); no other request field carries
+  `current_password` or `idp_reauth` **(test)**.
+- A datetime is an instant and requires a UTC offset (`pydantic.AwareDatetime`) **(test)**. A wall-clock time is a
+  `*_local` field documented as such.
+
+## Response bodies
+
+- An enum is a string, and a flag named `is_*` or `has_*` is a boolean **(test)**.
+- A measurement states its unit in the field description: metres, seconds, metres per second, kilograms. A new field
+  whose name can carry the unit does (`*_seconds`, `*_ml`). Money is a decimal string next to its currency.
+- A timestamp is UTC with an offset.
+- A list is a `Page` or a `CursorPage` **(test)**. A list a client scrolls without page numbers (a feed, a history)
+  is a `CursorPage`, because new rows at the head would shift an offset page; a list with page numbers or a sort the
+  client chooses is a `Page`. The only bare arrays are fixed catalogues read whole, named in the test.
+- A page's `total` counts exactly the rows its filters keep. A filter a client needs is a query parameter, so no
+  client has to drop rows from a page and correct the total.
+- A list item leaves out heavy fields (nested arrays, long text, per-sample data); the item read carries them.
+- A count a screen always shows is a field of the read that screen already makes, not a page of one record read for
+  its `total`.
+- Optional data that is not shown to a caller is `null` or absent for that caller; what a non-owner sees is decided
+  in the serializer, not left to the client.
+
+## Uploads
+
+- Every upload goes through `core/file_uploads.py` (`AGENTS.md`), and only that module imports `PIL` or
+  `safeuploads` (import-linter `images-through-file-uploads`). One allow-list per upload kind lives there.
+- Check that the caller owns the target before reading the body.
+- A route that takes a file declares its body cap with `openapi_extra=core_middleware_body_limit.upload_limit(<its
+  largest file>)`, reusing the constant its validator uses; the middleware refuses a bigger body before the route
+  runs **(test)**.
+
+## OpenAPI contract
+
+- An endpoint docstring is the public OpenAPI description: what the endpoint does for a client, with no `Args:`,
+  `Returns:` or `Raises:` sections and no internal parameter names **(test)**.
+- `core.problem_details.ProblemDetailsFastAPI` names an operation by its handler (`operationId` is the function name), so
+  the id and a generated client's method name do not change when a route moves; two handlers never share a name
+  **(test)**. Rename the handler, never add a suffix.
+- `core/openapi_contract.py` cuts an operation's description at the first Google section, so a docstring that still
+  carries `Args:` or `Returns:` does not reach a client; a new route has none.
+- A route that returns bytes declares its media types with `core.openapi_contract.binary_response` and
+  `response_class=Response`.
+- `core/openapi_contract.py` derives the rest for every operation: `401`/`403` from the security requirement, `404` from a
+  path parameter, `413`/`415`/`409` from a body, an upload or a write, `429`/`503` for all, a required `If-Match` with
+  `400`/`412`/`428`, `ETag` and `Location` on a versioned success response, and `readOnly` on `id`, `version`,
+  `created_at` and `updated_at` of a schema a client does not send. A `202` lists `ACCEPTED_RESPONSE` and a response
+  whose version is not a body field lists `ETAG_HEADERS` itself **(test)**.
+
+## Client documentation
+
+- `docs/integrate/` is the contract client authors build against. A change to a route, a status code or a body
+  updates it in the same change.
+- An API path written in `docs/integrate/`, `docs/reference/` or an endpoint docstring must exist **(test)**.
+- A list that comes from the code (scopes, error types, rate limits) is a generated table
+  ([Writing the documentation](writing-docs.md#tables-generated-from-the-code)), not a hand-copied one.
+- A privacy or security default stated in `docs/features/` (visibility, session lifetime) is pinned by a test, so
+  changing the default fails until the page changes too.
+
+## Incremental sync
+
+A client that keeps a local copy (a mobile app) refreshes it from `GET /sync`, one keyset walk over every synced
+record type (`modules/sync`, client docs in `docs/integrate/sync.md`). A record type a client keeps a copy of:
+
+- carries `updated_at` from `core.sync.UpdatedAtMixin`, stamped by the database on every write, a derived one
+  included (`version` moves only on an editable change);
+- records each deletion as a tombstone on `core.sync.TombstoneMixin`, in the delete's own transaction, and prunes
+  tombstones past `core.sync.TOMBSTONE_RETENTION`;
+- publishes `list_changed_<type>` and `list_<type>_deletions` on its `integration_service`, paged in
+  `(stamp, id)` order through `core.sync`, and is added to `modules/sync/service.py`.
+
+A list route takes no `updated_since`: offset paging over a changing order skips rows, so a copy is kept through
+`GET /sync` alone.
+
+## Not yet met
+
+These rules are not met everywhere yet. Each is tracked in the test registers above, or here when no test covers it:
+
+- Several resources that can be edited have no `GET /{id}`, and their creates send no `Location`; no create sends an
+  `ETag` yet.
+- The one `202` whose job the caller cannot read is the account owner's `POST /profile/delete-account`.
+- Some secret-bearing responses lack `no-store`.
+- Uploaded images are stored as received, with their metadata.
+- Some enums are integers and some request schemas accept server-owned fields.
+- Most endpoint docstrings still carry Google sections. The OpenAPI document cuts them, but the source should lose them.

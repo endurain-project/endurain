@@ -1,3 +1,6 @@
+import type { GearType } from '@/features/gears/types'
+import type { Schemas } from '@/types'
+
 /**
  * Centralised TanStack Query key factories — the single source of truth for
  * every server-state cache key in the app.
@@ -36,6 +39,8 @@ export const queryKeys = {
   public: {
     serverSettings: () => ['public-server-settings'] as const,
     identityProviders: () => ['public-identity-providers'] as const,
+    /** Whether the installation still needs its first administrator. */
+    onboarding: () => ['public-onboarding'] as const,
   },
 
   /**
@@ -50,6 +55,12 @@ export const queryKeys = {
     targets: () => ['health', 'targets'] as const,
     /** The consolidated daily dashboard stats (today's metrics + last weight). */
     dashboard: () => ['health', 'dashboard'] as const,
+    /**
+     * @param metric - The charted health metric.
+     * @param interval - The charted time window.
+     * @returns An aggregated chart-series key for the metric and window.
+     */
+    chart: (metric: string, interval: string) => ['health', 'chart', metric, interval] as const,
     /** Broad prefix for every paginated weight-history query. */
     weightLists: () => ['health', 'weight'] as const,
     /**
@@ -103,6 +114,11 @@ export const queryKeys = {
      * @returns A sleep-history list key scoped to the given filters.
      */
     sleep: (filters: Record<string, unknown> = {}) => ['health', 'sleep', filters] as const,
+    /**
+     * @param id - The sleep record id.
+     * @returns The key of one sleep record read with its stage timeline.
+     */
+    sleepItem: (id: string) => ['health', 'sleep', 'item', id] as const,
   },
 
   /** Reference domain factory — copy this shape for activities, gears, etc. */
@@ -127,7 +143,7 @@ export const queryKeys = {
      * @param id - Notification identifier.
      * @returns A detail query key for a single notification.
      */
-    detail: (id: number) => ['notifications', 'detail', id] as const,
+    detail: (id: string) => ['notifications', 'detail', id] as const,
   },
 
   /**
@@ -139,6 +155,10 @@ export const queryKeys = {
   activities: {
     /** Broad prefix; invalidating this cascades to every activities query. */
     all: () => ['activities'] as const,
+    /** Prefix for combined user-profile reads that depend on activity data. */
+    profileOverviews: () => ['activities', 'profile-overview'] as const,
+    /** The profile overview depends on this user's visible activity aggregates. */
+    profileOverview: (userId: string) => ['activities', 'profile-overview', userId] as const,
     lists: () => ['activities', 'list'] as const,
     /**
      * @param filters - Serializable list filters (paging, type, etc.).
@@ -155,31 +175,36 @@ export const queryKeys = {
      * @param id - Activity identifier.
      * @returns A detail query key for a single activity.
      */
-    detail: (id: number) => ['activities', 'detail', id] as const,
+    detail: (id: string) => ['activities', 'detail', id] as const,
+    /**
+     * @param id - Activity identifier.
+     * @returns A key for the full activity (with private notes) read before an edit from a list row.
+     */
+    full: (id: string) => ['activities', 'detail', id, 'full'] as const,
     /**
      * @param id - Activity identifier.
      * @returns A query key for an activity's metric streams.
      */
-    streams: (id: number) => ['activities', 'detail', id, 'streams'] as const,
+    streams: (id: string) => ['activities', 'detail', id, 'streams'] as const,
     /**
      * @param id - Activity identifier.
      * @returns A query key for an activity's laps.
      */
-    laps: (id: number) => ['activities', 'detail', id, 'laps'] as const,
+    laps: (id: string) => ['activities', 'detail', id, 'laps'] as const,
     /** Planned workout steps for one activity. */
-    workoutSteps: (id: number) => ['activities', 'detail', id, 'workout-steps'] as const,
+    workoutSteps: (id: string) => ['activities', 'detail', id, 'workout-steps'] as const,
     /** Performed workout sets for one activity. */
-    sets: (id: number) => ['activities', 'detail', id, 'sets'] as const,
+    sets: (id: string) => ['activities', 'detail', id, 'sets'] as const,
     /** The exercise-name catalogue (shared across activities). */
     exerciseTitles: () => ['activities', 'exercise-titles'] as const,
     /** Media (photos) attached to one activity. */
-    media: (id: number) => ['activities', 'detail', id, 'media'] as const,
+    media: (id: string) => ['activities', 'detail', id, 'media'] as const,
+    /** Every activity owner's identity; prefix of {@link owner}. */
+    owners: () => ['activities', 'owner'] as const,
     /** The activity's owner user (public or authenticated), keyed by user id. */
-    owner: (userId: number) => ['activities', 'owner', userId] as const,
-    /** The distinct activity-type codes the user owns (type-filter options). */
+    owner: (userId: string) => ['activities', 'owner', userId] as const,
+    /** The user's activity-type code→name map (type filter options and summary type filter). */
     types: () => ['activities', 'types'] as const,
-    /** The user's activity-type code→name map (summary type filter). */
-    typeNames: () => ['activities', 'type-names'] as const,
     /**
      * An aggregated activity summary for a view type + period + optional type
      * filter (the `/summary` view). Under the `activities` prefix so an `all()`
@@ -199,7 +224,7 @@ export const queryKeys = {
      *   query keys on size, not page number, so all pages share one entry).
      * @returns A list query key for the user's home feed.
      */
-    userFeed: (userId: number, pageSize: number) =>
+    userFeed: (userId: string, pageSize: number) =>
       ['activities', 'list', { scope: 'user-feed', userId, pageSize }] as const,
     /**
      * The home dashboard's feed of activities from people the user follows.
@@ -208,7 +233,7 @@ export const queryKeys = {
      * @param pageSize - Records per page.
      * @returns A list query key for the followed-users feed.
      */
-    followersFeed: (userId: number, pageSize: number) =>
+    followersFeed: (userId: string, pageSize: number) =>
       ['activities', 'list', { scope: 'followers-feed', userId, pageSize }] as const,
     /**
      * A user's per-sport aggregated stats for a timeframe (home dashboard).
@@ -217,25 +242,19 @@ export const queryKeys = {
      * @param timeframe - `week` or `month`.
      * @returns A stats query key.
      */
-    stats: (userId: number, timeframe: 'week' | 'month') =>
+    stats: (userId: string, timeframe: 'week' | 'month') =>
       ['activities', 'stats', userId, timeframe] as const,
-    /**
-     * A user's activity count for the current month (public-profile header).
-     *
-     * @param userId - The user whose monthly count to key.
-     * @returns A query key for the user's this-month activity count.
-     */
-    monthCount: (userId: number) => ['activities', 'month-count', userId] as const,
     /**
      * A user's activities for a configured week (public-profile week browser).
      * Under the `list` prefix so an `all()` invalidation refetches it.
      *
      * @param userId - The profile owner's user id.
      * @param week - Week offset (0 = this week).
+     * @param firstDayOfWeek - The viewer's first weekday, which sets the week's bounds.
      * @returns A list query key for that week's activities.
      */
-    weekActivities: (userId: number, week: number) =>
-      ['activities', 'list', { scope: 'user-week', userId, week }] as const,
+    weekActivities: (userId: string, week: number, firstDayOfWeek: string) =>
+      ['activities', 'list', { scope: 'user-week', userId, week, firstDayOfWeek }] as const,
   },
 
   /**
@@ -263,20 +282,20 @@ export const queryKeys = {
      * @param id - Gear identifier.
      * @returns A detail query key for a single gear.
      */
-    detail: (id: number) => ['gears', 'detail', id] as const,
+    detail: (id: string) => ['gears', 'detail', id] as const,
     /** Broad prefix for every gear-components query (all gears). */
     componentsLists: () => ['gears', 'components'] as const,
     /**
      * @param gearId - Parent gear identifier.
      * @returns A query key for one gear's component list.
      */
-    components: (gearId: number) => ['gears', 'components', gearId] as const,
+    components: (gearId: string) => ['gears', 'components', gearId] as const,
     /** The static component-type catalogues (cached for the session). */
     componentTypes: () => ['gears', 'component-types'] as const,
     /** Gears grouped by type for the default-gear selectors (under the gears prefix so gear writes refresh it). */
     typeOptions: () => ['gears', 'type-options'] as const,
     /** Gears of a single type, for the per-activity gear picker. */
-    byType: (gearType: number) => ['gears', 'by-type', gearType] as const,
+    byType: (gearType: GearType) => ['gears', 'by-type', gearType] as const,
     /** Broad prefix for every gear-activities query (all gears). */
     activitiesLists: () => ['gears', 'activities'] as const,
     /**
@@ -284,7 +303,7 @@ export const queryKeys = {
      * @param filters - Serializable list filters (paging).
      * @returns A query key for one gear's paginated activities list.
      */
-    activities: (gearId: number, filters: Record<string, unknown> = {}) =>
+    activities: (gearId: string, filters: Record<string, unknown> = {}) =>
       ['gears', 'activities', gearId, filters] as const,
   },
 
@@ -314,7 +333,7 @@ export const queryKeys = {
      * @param id - The user id.
      * @returns A query key for a single user's detail.
      */
-    detail: (id: number) => ['users', 'detail', id] as const,
+    detail: (id: string) => ['users', 'detail', id] as const,
     /**
      * A user's public-facing profile (name/username/city/avatar), as shown on
      * the `/user/:id` page and in follower/following lists. Distinct from
@@ -324,17 +343,22 @@ export const queryKeys = {
      * @param id - The user id.
      * @returns A query key for a single user's public profile.
      */
-    publicProfile: (id: number) => ['users', 'public-profile', id] as const,
+    publicProfile: (id: string) => ['users', 'public-profile', id] as const,
     /**
      * @param userId - The session owner's id.
      * @returns A query key for a user's active-sessions list.
      */
-    sessions: (userId: number) => ['users', 'sessions', userId] as const,
+    sessions: (userId: string) => ['users', 'sessions', userId] as const,
+    /**
+     * @param userId - The key owner's id.
+     * @returns A query key for a user's API-keys list.
+     */
+    apiKeys: (userId: string) => ['users', 'api-keys', userId] as const,
     /**
      * @param userId - The user whose identity-provider links to key.
      * @returns A query key for a user's linked identity providers.
      */
-    identityProviders: (userId: number) => ['users', 'identity-providers', userId] as const,
+    identityProviders: (userId: string) => ['users', 'identity-providers', userId] as const,
   },
 
   /**
@@ -353,28 +377,14 @@ export const queryKeys = {
      * @param userId - The profile owner whose followers to key.
      * @returns A query key for a user's followers list.
      */
-    followersList: (userId: number) => ['followers', 'followers', userId] as const,
+    followersList: (userId: string) => ['followers', 'followers', userId] as const,
     /**
      * The people a user follows (the user's following list).
      *
      * @param userId - The profile owner whose following list to key.
      * @returns A query key for a user's following list.
      */
-    followingList: (userId: number) => ['followers', 'following', userId] as const,
-    /**
-     * A user's accepted-followers count (public-profile header).
-     *
-     * @param userId - The profile owner whose follower count to key.
-     * @returns A query key for a user's accepted-followers count.
-     */
-    followersCount: (userId: number) => ['followers', 'followers-count', userId] as const,
-    /**
-     * A user's accepted-following count (public-profile header).
-     *
-     * @param userId - The profile owner whose following count to key.
-     * @returns A query key for a user's accepted-following count.
-     */
-    followingCount: (userId: number) => ['followers', 'following-count', userId] as const,
+    followingList: (userId: string) => ['followers', 'following', userId] as const,
     /**
      * The viewer → target follow relationship state, backing the follow button.
      *
@@ -382,8 +392,10 @@ export const queryKeys = {
      * @param targetId - The profile owner's id.
      * @returns A query key for the viewer's relationship to the target.
      */
-    state: (viewerId: number, targetId: number) =>
+    state: (viewerId: string, targetId: string) =>
       ['followers', 'state', viewerId, targetId] as const,
+    /** The users the viewer has blocked. */
+    blocked: () => ['followers', 'blocked'] as const,
   },
 
   /**
@@ -398,21 +410,29 @@ export const queryKeys = {
     detail: () => ['server-settings', 'detail'] as const,
     /** The static catalogue of selectable tile-server presets. */
     tileTemplates: () => ['server-settings', 'tile-templates'] as const,
-    /** Whether outgoing email is usable (SMTP settings valid). */
-    email: () => ['server-settings', 'email'] as const,
+    /** The editable mail server settings. */
+    mail: () => ['server-settings', 'mail'] as const,
+    /** Broad prefix of every accumulated server-log tail. */
+    logsAll: () => ['server-settings', 'logs'] as const,
+    /** The accumulated server-log tail for one set of filters. */
+    logs: (level: string | null, search: string) =>
+      ['server-settings', 'logs', level, search] as const,
   },
 
-  /**
-   * Bulk imports. A running import is one ingestion job polled until it is
-   * terminal; it creates activities rather than caching any, so it has no
-   * invalidation role of its own.
-   */
-  bulkImport: {
+  /** Background jobs: every job, whatever its kind, is read through `GET /jobs/{id}`. */
+  jobs: {
+    /** Broad prefix; invalidating this cascades to every background-job query. */
+    all: () => ['jobs'] as const,
     /**
-     * @param jobId - The ingestion job returned when the import was accepted.
-     * @returns A query key for that job's progress.
+     * @param id - The job id the request that started it returned.
+     * @returns A query key for one background job's state.
      */
-    job: (jobId: string) => ['bulk-import', 'job', jobId] as const,
+    detail: (id: string) => ['jobs', 'detail', id] as const,
+    /**
+     * @param kind - What the job does.
+     * @returns A query key for the caller's newest job of that kind.
+     */
+    latest: (kind: Schemas['JobKind']) => ['jobs', 'latest', kind] as const,
   },
 
   /**
@@ -486,9 +506,22 @@ export const queryKeys = {
     backupCodeStatus: () => ['security', 'backup-code-status'] as const,
     /** The user's active sessions. */
     sessions: () => ['security', 'sessions'] as const,
+    /** The devices the user is known to sign in from. */
+    devices: () => ['security', 'devices'] as const,
     /** The user's linked identity providers. */
     linkedProviders: () => ['security', 'linked-providers'] as const,
     /** The user's API keys. */
     apiKeys: () => ['security', 'api-keys'] as const,
   },
 } as const
+
+/**
+ * Activity cache entries that a change to activity rows (an edit, a delete, a new activity)
+ * cannot change: each activity's own detail with its sub-resources, the owners' identities,
+ * and the static exercise-title catalogue. Left out of an `activities` invalidation so it does not refetch them.
+ */
+export const ACTIVITY_ROW_INDEPENDENT_KEYS = [
+  queryKeys.activities.details(),
+  queryKeys.activities.owners(),
+  queryKeys.activities.exerciseTitles(),
+] as const

@@ -3,29 +3,28 @@ import type { InfiniteData } from '@tanstack/vue-query'
 
 import {
   prependActivitiesToFeed,
-  pollIngestionJob,
+  followIngestionJob,
   replaceActivitiesInFeed,
   IngestionJobFailedError,
   IngestionJobTimeoutError,
+  uploadErrorMessage,
 } from '@/features/upload/composables/useUpload'
+import { HttpError } from '@/services/http'
 import {
   clearAwaitingThumbnail,
   isAwaitingThumbnail,
   markAwaitingThumbnail,
 } from '@/features/upload/composables/usePendingThumbnails'
-import {
-  assertValidActivityFile,
-  fetchIngestionJob,
-  uploadActivityFile,
-} from '@/features/upload/services/upload'
+import { assertValidActivityFile, uploadActivityFile } from '@/features/upload/services/upload'
 import {
   ACTIVITY_FILE_ACCEPT,
   type ActivityIngestionJob,
   UploadValidationError,
 } from '@/features/upload/types'
-import type { Activity } from '@/features/activities/types'
+import type { Activity, ActivityFeedSlice } from '@/features/activities/types'
+import * as realtime from '@/composables/useRealtime'
 
-import { makeActivity } from './fixtures/activity'
+import { makeActivity, activityUuid } from './fixtures/activity'
 
 vi.mock('@/services/runtime', () => ({
   getApiBaseUrl: () => '',
@@ -62,10 +61,10 @@ function jsonResponse(body: unknown, status = 201): Response {
  */
 function uploadJob(overrides: Partial<ActivityIngestionJob> = {}): ActivityIngestionJob {
   return {
-    id: 'job-1',
-    kind: 'upload',
+    id: '00000000-0000-4000-8000-0000000000a1',
+    kind: 'activity_upload',
     filename: 'ride.gpx',
-    status: 'pending',
+    status: 'queued',
     activity_ids: [],
     created_at: '2026-07-28T10:00:00Z',
     updated_at: '2026-07-28T10:00:00Z',
@@ -178,8 +177,8 @@ describe('uploadActivityFile', () => {
     expect(headers.get('Content-Type')).toBeNull()
 
     // A handle to poll, not the parsed activities: parsing happens on a worker.
-    expect(result.id).toBe('job-1')
-    expect(result.status).toBe('pending')
+    expect(result.id).toBe('00000000-0000-4000-8000-0000000000a1')
+    expect(result.status).toBe('queued')
   })
 
   it('never interpolates a hostile filename into the request URL', async () => {
@@ -204,29 +203,65 @@ describe('uploadActivityFile', () => {
   })
 })
 
-describe('fetchIngestionJob', () => {
-  it('encodes the job id into the path', async () => {
-    fetchMock.mockResolvedValueOnce(jsonResponse(uploadJob()))
+describe('followIngestionJob', () => {
+  it('follows the hints of its own job', async () => {
+    const watch = vi.spyOn(realtime, 'watchJob')
+    fetchMock
+      .mockResolvedValueOnce(jsonResponse(uploadJob({ status: 'running' })))
+      .mockResolvedValueOnce(
+        jsonResponse(uploadJob({ status: 'succeeded', activity_ids: [activityUuid(7)] })),
+      )
 
-    await fetchIngestionJob('../admin/jobs')
+    await followIngestionJob('00000000-0000-4000-8000-0000000000a1', { intervalMs: 0 })
 
-    const [url] = fetchMock.mock.calls[0] as [string, RequestInit]
-    // A hostile id must not climb out of the ingestion-jobs namespace.
-    expect(url).toBe('/activities/ingestion-jobs/..%2Fadmin%2Fjobs')
+    expect(watch).toHaveBeenCalledExactlyOnceWith('00000000-0000-4000-8000-0000000000a1')
+    watch.mockRestore()
   })
-})
 
-describe('pollIngestionJob', () => {
+  it('stops following the hints once the import fails', async () => {
+    const stop = vi.fn<() => void>()
+    const watch = vi
+      .spyOn(realtime, 'watchJob')
+      .mockReturnValue({ wait: () => Promise.resolve(), stop })
+    fetchMock.mockResolvedValueOnce(jsonResponse(uploadJob({ status: 'failed' })))
+
+    await expect(
+      followIngestionJob('00000000-0000-4000-8000-0000000000a1', { intervalMs: 0 }),
+    ).rejects.toThrow('Activity import failed')
+
+    expect(stop).toHaveBeenCalledOnce()
+    watch.mockRestore()
+  })
+
   it('polls until the import reaches a terminal state', async () => {
     fetchMock
-      .mockResolvedValueOnce(jsonResponse(uploadJob({ status: 'pending' })))
-      .mockResolvedValueOnce(jsonResponse(uploadJob({ status: 'processing' })))
-      .mockResolvedValueOnce(jsonResponse(uploadJob({ status: 'completed', activity_ids: [7, 8] })))
+      .mockResolvedValueOnce(jsonResponse(uploadJob({ status: 'queued' })))
+      .mockResolvedValueOnce(jsonResponse(uploadJob({ status: 'running' })))
+      .mockResolvedValueOnce(
+        jsonResponse(
+          uploadJob({ status: 'succeeded', activity_ids: [activityUuid(7), activityUuid(8)] }),
+        ),
+      )
 
-    const job = await pollIngestionJob('job-1', { intervalMs: 0 })
+    const job = await followIngestionJob('00000000-0000-4000-8000-0000000000a1', { intervalMs: 0 })
 
     expect(fetchMock).toHaveBeenCalledTimes(3)
-    expect(job.activity_ids).toEqual([7, 8])
+    expect(job.activity_ids).toEqual([activityUuid(7), activityUuid(8)])
+  })
+
+  it('keeps polling a refresh that is waiting for a provider rate limit to clear', async () => {
+    fetchMock
+      .mockResolvedValueOnce(
+        jsonResponse(uploadJob({ status: 'queued', retry_after: '2026-01-01T12:00:00Z' })),
+      )
+      .mockResolvedValueOnce(
+        jsonResponse(uploadJob({ status: 'succeeded', activity_ids: [activityUuid(3)] })),
+      )
+
+    const job = await followIngestionJob('00000000-0000-4000-8000-0000000000a1', { intervalMs: 0 })
+
+    expect(fetchMock).toHaveBeenCalledTimes(2)
+    expect(job.activity_ids).toEqual([activityUuid(3)])
   })
 
   it('surfaces the sanitized failure code', async () => {
@@ -234,18 +269,20 @@ describe('pollIngestionJob', () => {
       jsonResponse(uploadJob({ status: 'failed', error_code: 'invalid_file' })),
     )
 
-    const error = await pollIngestionJob('job-1', { intervalMs: 0 }).catch((err: unknown) => err)
+    const error = await followIngestionJob('00000000-0000-4000-8000-0000000000a1', {
+      intervalMs: 0,
+    }).catch((err: unknown) => err)
 
     expect(error).toBeInstanceOf(IngestionJobFailedError)
     expect((error as IngestionJobFailedError).code).toBe('invalid_file')
   })
 
   it('gives up once the deadline passes', async () => {
-    fetchMock.mockResolvedValue(jsonResponse(uploadJob({ status: 'processing' })))
+    fetchMock.mockResolvedValue(jsonResponse(uploadJob({ status: 'running' })))
 
-    await expect(pollIngestionJob('job-1', { intervalMs: 0, timeoutMs: 0 })).rejects.toBeInstanceOf(
-      IngestionJobTimeoutError,
-    )
+    await expect(
+      followIngestionJob('00000000-0000-4000-8000-0000000000a1', { intervalMs: 0, timeoutMs: 0 }),
+    ).rejects.toBeInstanceOf(IngestionJobTimeoutError)
   })
 })
 
@@ -255,26 +292,38 @@ describe('pollIngestionJob', () => {
  * @param pages - The feed pages, newest-first.
  * @returns An {@link InfiniteData} value keyed by 1-based page number.
  */
-function feed(pages: Activity[][]): InfiniteData<Activity[]> {
-  return { pages, pageParams: pages.map((_, index) => index + 1) }
+function feed(pages: Activity[][]): InfiniteData<ActivityFeedSlice> {
+  return {
+    pages: pages.map((items) => ({ items, nextCursor: null, owners: new Map() })),
+    pageParams: pages.map((_, index) => index + 1),
+  }
 }
 
 describe('prependActivitiesToFeed', () => {
   it('pins the new activities to the top of the first page', () => {
-    const result = prependActivitiesToFeed(feed([[makeActivity({ id: 1 })]]), [
-      makeActivity({ id: 2 }),
+    const result = prependActivitiesToFeed(feed([[makeActivity({ id: activityUuid(1) })]]), [
+      makeActivity({ id: activityUuid(2) }),
     ])
 
-    expect(result?.pages[0]?.map((activity) => activity.id)).toEqual([2, 1])
+    expect(result?.pages[0]?.items.map((activity) => activity.id)).toEqual([
+      activityUuid(2),
+      activityUuid(1),
+    ])
   })
 
   it('removes an existing copy from any page before pinning it to the top', () => {
-    const data = feed([[makeActivity({ id: 1 })], [makeActivity({ id: 2 })]])
+    const data = feed([
+      [makeActivity({ id: activityUuid(1) })],
+      [makeActivity({ id: activityUuid(2) })],
+    ])
 
-    const result = prependActivitiesToFeed(data, [makeActivity({ id: 2 })])
+    const result = prependActivitiesToFeed(data, [makeActivity({ id: activityUuid(2) })])
 
-    expect(result?.pages[0]?.map((activity) => activity.id)).toEqual([2, 1])
-    expect(result?.pages[1]).toEqual([])
+    expect(result?.pages[0]?.items.map((activity) => activity.id)).toEqual([
+      activityUuid(2),
+      activityUuid(1),
+    ])
+    expect(result?.pages[1]?.items).toEqual([])
   })
 
   it('returns the value untouched when there is nothing cached', () => {
@@ -282,7 +331,7 @@ describe('prependActivitiesToFeed', () => {
   })
 
   it('returns the value untouched when there are no new activities', () => {
-    const data = feed([[makeActivity({ id: 1 })]])
+    const data = feed([[makeActivity({ id: activityUuid(1) })]])
 
     expect(prependActivitiesToFeed(data, [])).toBe(data)
   })
@@ -290,25 +339,40 @@ describe('prependActivitiesToFeed', () => {
 
 describe('replaceActivitiesInFeed', () => {
   it('swaps the matching row in place, on any page', () => {
-    const data = feed([[makeActivity({ id: 1 })], [makeActivity({ id: 2 })]])
-
-    const result = replaceActivitiesInFeed(data, [
-      makeActivity({ id: 2, mapThumbnailUrl: '/api/v1/activities/2/thumbnail?t=x' }),
+    const data = feed([
+      [makeActivity({ id: activityUuid(1) })],
+      [makeActivity({ id: activityUuid(2) })],
     ])
 
-    expect(result?.pages[0]?.map((activity) => activity.id)).toEqual([1])
-    expect(result?.pages[1]?.[0]?.mapThumbnailUrl).toBe('/api/v1/activities/2/thumbnail?t=x')
+    const result = replaceActivitiesInFeed(data, [
+      makeActivity({
+        id: activityUuid(2),
+        mapThumbnailUrl: `/api/v1/activities/${activityUuid(2)}/thumbnail?t=x`,
+      }),
+    ])
+
+    expect(result?.pages[0]?.items.map((activity) => activity.id)).toEqual([activityUuid(1)])
+    expect(result?.pages[1]?.items[0]?.mapThumbnailUrl).toBe(
+      `/api/v1/activities/${activityUuid(2)}/thumbnail?t=x`,
+    )
   })
 
   it('leaves rows it has no replacement for untouched', () => {
-    const data = feed([[makeActivity({ id: 1 }), makeActivity({ id: 2 })]])
-
-    const result = replaceActivitiesInFeed(data, [
-      makeActivity({ id: 2, mapThumbnailUrl: '/api/v1/activities/2/thumbnail?t=x' }),
+    const data = feed([
+      [makeActivity({ id: activityUuid(1) }), makeActivity({ id: activityUuid(2) })],
     ])
 
-    expect(result?.pages[0]?.[0]?.mapThumbnailUrl).toBeNull()
-    expect(result?.pages[0]?.[1]?.mapThumbnailUrl).toBe('/api/v1/activities/2/thumbnail?t=x')
+    const result = replaceActivitiesInFeed(data, [
+      makeActivity({
+        id: activityUuid(2),
+        mapThumbnailUrl: `/api/v1/activities/${activityUuid(2)}/thumbnail?t=x`,
+      }),
+    ])
+
+    expect(result?.pages[0]?.items[0]?.mapThumbnailUrl).toBeNull()
+    expect(result?.pages[0]?.items[1]?.mapThumbnailUrl).toBe(
+      `/api/v1/activities/${activityUuid(2)}/thumbnail?t=x`,
+    )
   })
 
   it('returns the value untouched when there is nothing cached', () => {
@@ -316,7 +380,7 @@ describe('replaceActivitiesInFeed', () => {
   })
 
   it('returns the value untouched when there are no replacements', () => {
-    const data = feed([[makeActivity({ id: 1 })]])
+    const data = feed([[makeActivity({ id: activityUuid(1) })]])
 
     expect(replaceActivitiesInFeed(data, [])).toBe(data)
   })
@@ -324,27 +388,50 @@ describe('replaceActivitiesInFeed', () => {
 
 describe('pending thumbnails', () => {
   afterEach(() => {
-    clearAwaitingThumbnail([1, 2])
+    clearAwaitingThumbnail([activityUuid(1), activityUuid(2)])
   })
 
   it('reports nothing as awaiting by default', () => {
-    expect(isAwaitingThumbnail(1)).toBe(false)
+    expect(isAwaitingThumbnail(activityUuid(1))).toBe(false)
   })
 
   it('reports marked activities as awaiting', () => {
-    markAwaitingThumbnail([1, 2])
+    markAwaitingThumbnail([activityUuid(1), activityUuid(2)])
 
-    expect(isAwaitingThumbnail(1)).toBe(true)
-    expect(isAwaitingThumbnail(2)).toBe(true)
-    expect(isAwaitingThumbnail(3)).toBe(false)
+    expect(isAwaitingThumbnail(activityUuid(1))).toBe(true)
+    expect(isAwaitingThumbnail(activityUuid(2))).toBe(true)
+    expect(isAwaitingThumbnail(activityUuid(3))).toBe(false)
   })
 
   it('stops reporting an activity once it is cleared', () => {
-    markAwaitingThumbnail([1, 2])
+    markAwaitingThumbnail([activityUuid(1), activityUuid(2)])
 
-    clearAwaitingThumbnail([1])
+    clearAwaitingThumbnail([activityUuid(1)])
 
-    expect(isAwaitingThumbnail(1)).toBe(false)
-    expect(isAwaitingThumbnail(2)).toBe(true)
+    expect(isAwaitingThumbnail(activityUuid(1))).toBe(false)
+    expect(isAwaitingThumbnail(activityUuid(2))).toBe(true)
+  })
+})
+
+describe('uploadErrorMessage', () => {
+  const t = (key: string, params?: Record<string, unknown>) =>
+    params ? `${key}:${params.seconds}` : key
+  const problem = (status: number, code: string, retryAfter: number | null = null) =>
+    new HttpError(status, 'x', null, `urn:endurain:error:${code}`, null, [], retryAfter)
+
+  it.each([
+    [problem(413, 'payload-too-large'), 'home.upload.tooLarge'],
+    [problem(415, 'unsupported-format'), 'home.upload.failed.unsupported_format'],
+    [problem(415, 'unsupported-media-type'), 'home.upload.failed.unsupported_format'],
+    [problem(400, 'invalid-input'), 'home.upload.failed.invalid_file'],
+    [problem(429, 'rate-limited', 12), 'app.retryAfter.tooManyAttempts:12'],
+    [problem(429, 'rate-limited'), 'home.upload.error'],
+    [problem(500, 'internal-error'), 'home.upload.error'],
+    [problem(503, 'service-unavailable', 30), 'home.upload.error'],
+    [new Error('x'), 'home.upload.error'],
+    [new IngestionJobTimeoutError(), 'home.upload.timeout'],
+    [new IngestionJobFailedError('no_activities_found'), 'home.upload.failed.no_activities_found'],
+  ])('words %o as %s', (error, expected) => {
+    expect(uploadErrorMessage(error, t)).toBe(expected)
   })
 })

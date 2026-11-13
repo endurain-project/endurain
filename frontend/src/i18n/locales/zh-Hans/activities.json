@@ -184,10 +184,13 @@
   },
   "edit": {
     "title": "编辑活动",
+    "loading": "正在加载活动",
+    "loadError": "无法加载活动",
     "save": "保存更改",
     "cancel": "取消",
     "close": "关闭",
     "name": "名称",
+    "nameRequired": "请输入活动名称",
     "type": "活动类型",
     "description": "描述",
     "privateNotes": "私人备注",
@@ -208,7 +211,7 @@
     "hideGear": "隐藏装备",
     "success": "活动已更新",
     "error": "无法更新活动",
-    "staleError": "This activity was changed elsewhere while you were editing. Your changes were not saved. Reopen it to see the current version."
+    "staleError": "编辑期间，此活动已在别处被修改。您的更改未保存。请重新打开以查看当前版本。"
   },
   "alerts": {
     "hidden": "此活动已隐藏，只有您可以看到。",

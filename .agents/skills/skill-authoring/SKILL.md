@@ -50,4 +50,4 @@ Goal: the least text loaded per task that still prevents the mistakes the skill 
 - `wc -l` the body and each reference; reconsider anything over about 100 lines.
 - Confirm the symlink resolves: `ls -L .claude/skills/<name>/SKILL.md`.
 - Invoke the skill on a real task and confirm it reads the reference it should.
-- Skills under `.claude/` and `.agents/` may be untracked; add them to git only when asked.
+- Skills under `.agents/` and their `.claude/skills` symlinks are tracked; stage a new skill and its symlink together.

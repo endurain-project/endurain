@@ -1,13 +1,16 @@
 """CRUD operations for follower relationships."""
 
-from typing import Any, cast
+import uuid
+from datetime import datetime
 
-from sqlalchemy import CursorResult, delete, func, select, update
+from sqlalchemy import Select, and_, delete, exists, func, or_, select, text, update
 from sqlalchemy.exc import IntegrityError
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import InstrumentedAttribute, Session
 
+import core.database as core_database
 import core.exceptions as core_exceptions
 import core.pagination as core_pagination
+import core.timezone as core_timezone
 import modules.followers.constants as followers_constants
 import modules.followers.models as followers_models
 import modules.followers.schema as followers_schema
@@ -18,8 +21,17 @@ import modules.followers.serializers as followers_serializers
 # so the cache cannot outlive the request that filled it.
 _FOLLOWEE_CACHE_KEY = "followers.accepted_followee_ids"
 
+#: Advisory-lock namespace of a user's pending follow requests, kept apart from every other advisory lock.
+_PENDING_LOCK_NAMESPACE = 7301
+
+#: Advisory-lock namespace of a user's accepted followees, kept apart from every other advisory lock.
+_ACCEPTED_LOCK_NAMESPACE = 7302
+
 #: The name of the model's unique (follower, followee) constraint.
 _UNIQUE_PAIR_CONSTRAINT = "uq_followers_follower_followee"
+
+#: The name of the block model's unique (blocker, blocked) constraint.
+_UNIQUE_BLOCK_CONSTRAINT = "uq_follower_blocks_blocker_blocked"
 
 
 def _invalidate_followee_cache(db: Session) -> None:
@@ -41,14 +53,96 @@ def _is_duplicate_pair(err: IntegrityError) -> bool:
         True for the unique-pair violation; False for anything else, which for
         this insert is the foreign key to ``users``.
     """
-    constraint = getattr(getattr(err.orig, "diag", None), "constraint_name", None)
+    constraint = core_database.violated_constraint(err)
     if constraint is not None:
         return constraint == _UNIQUE_PAIR_CONSTRAINT
     return "unique" in str(err.orig).lower()
 
 
+def _filtered(
+    column: InstrumentedAttribute[uuid.UUID],
+    user_id: uuid.UUID,
+    accepted_only: bool,
+    pending_only: bool,
+) -> Select[tuple[followers_models.Follower]]:
+    """Select the follow rows where ``column`` is the user, optionally of one status.
+
+    Args:
+        column: ``followee_id`` to list a user's followers, ``follower_id`` to list who they follow.
+        user_id: The user the rows belong to.
+        accepted_only: Keep only accepted relationships.
+        pending_only: Keep only pending requests.
+
+    Returns:
+        The unordered, unpaged select.
+    """
+    stmt = select(followers_models.Follower).where(column == user_id)
+    if accepted_only:
+        stmt = stmt.where(followers_models.Follower.status == followers_constants.FollowStatus.ACCEPTED.value)
+    if pending_only:
+        stmt = stmt.where(followers_models.Follower.status == followers_constants.FollowStatus.PENDING.value)
+    return stmt
+
+
+def _page(
+    column: InstrumentedAttribute[uuid.UUID],
+    user_id: uuid.UUID,
+    db: Session,
+    *,
+    page_number: int,
+    num_records: int,
+    accepted_only: bool = False,
+    pending_only: bool = False,
+) -> list[followers_schema.FollowRelationshipRead]:
+    """Load one page of follow rows, ordered by creation time, then ``id``, so paging is stable.
+
+    Args:
+        column: See :func:`_filtered`.
+        user_id: The user the rows belong to.
+        db: Database session.
+        page_number: 1-based page number.
+        num_records: Page size.
+        accepted_only: Keep only accepted relationships.
+        pending_only: Keep only pending requests.
+
+    Returns:
+        The follow relationships on this page (empty list if none).
+    """
+    stmt = (
+        _filtered(column, user_id, accepted_only, pending_only)
+        .order_by(followers_models.Follower.created_at, followers_models.Follower.id)
+        .offset((page_number - 1) * num_records)
+        .limit(num_records)
+    )
+    return [followers_serializers.to_read_schema(follower) for follower in db.scalars(stmt).all()]
+
+
+def _count(
+    column: InstrumentedAttribute[uuid.UUID],
+    user_id: uuid.UUID,
+    db: Session,
+    *,
+    accepted_only: bool = False,
+    pending_only: bool = False,
+) -> int:
+    """Count follow rows without loading them.
+
+    Args:
+        column: See :func:`_filtered`.
+        user_id: The user the rows belong to.
+        db: Database session.
+        accepted_only: Count only accepted relationships.
+        pending_only: Count only pending requests.
+
+    Returns:
+        The number of matching relationships.
+    """
+    stmt = select(func.count()).select_from(_filtered(column, user_id, accepted_only, pending_only).subquery())
+    return db.scalar(stmt) or 0
+
+
 def get_all_followers_by_user_id(
-    user_id: int,
+    user_id: uuid.UUID,
     db: Session,
     *,
     page_number: int = 1,
@@ -71,15 +165,18 @@ def get_all_followers_by_user_id(
     Returns:
         The follow relationships on this page (empty list if none).
     """
-    stmt = select(followers_models.Follower).where(followers_models.Follower.followee_id == user_id)
-    if accepted_only:
-        stmt = stmt.where(followers_models.Follower.status == followers_constants.FollowStatus.ACCEPTED.value)
-    stmt = stmt.order_by(followers_models.Follower.id).offset((page_number - 1) * num_records).limit(num_records)
-    return [followers_serializers.to_read_schema(follower) for follower in db.scalars(stmt).all()]
+    return _page(
+        followers_models.Follower.followee_id,
+        user_id,
+        db,
+        page_number=page_number,
+        num_records=num_records,
+        accepted_only=accepted_only,
+    )
 
 
 def get_all_following_by_user_id(
-    user_id: int,
+    user_id: uuid.UUID,
     db: Session,
     *,
     page_number: int = 1,
@@ -89,7 +186,7 @@ def get_all_following_by_user_id(
     """Retrieve one page of follow records where the user is the follower.
 
     Paginated for the same reason as :func:`get_all_followers_by_user_id`, and
-    ordered by ``id`` so paging is stable.
+    ordered by creation time, then ``id``, so paging is stable.
 
     Args:
         user_id: ID of the user whose following list to retrieve.
@@ -101,15 +198,18 @@ def get_all_following_by_user_id(
     Returns:
         The follow relationships on this page (empty list if none).
     """
-    stmt = select(followers_models.Follower).where(followers_models.Follower.follower_id == user_id)
-    if accepted_only:
-        stmt = stmt.where(followers_models.Follower.status == followers_constants.FollowStatus.ACCEPTED.value)
-    stmt = stmt.order_by(followers_models.Follower.id).offset((page_number - 1) * num_records).limit(num_records)
-    return [followers_serializers.to_read_schema(follower) for follower in db.scalars(stmt).all()]
+    return _page(
+        followers_models.Follower.follower_id,
+        user_id,
+        db,
+        page_number=page_number,
+        num_records=num_records,
+        accepted_only=accepted_only,
+    )
 
 
 def get_pending_requests_for_user_id(
-    user_id: int,
+    user_id: uuid.UUID,
     db: Session,
     *,
     page_number: int = 1,
@@ -126,20 +226,57 @@ def get_pending_requests_for_user_id(
     Returns:
         The pending requests (empty list if none).
     """
-    stmt = (
-        select(followers_models.Follower)
-        .where(
-            followers_models.Follower.followee_id == user_id,
-            followers_models.Follower.status == followers_constants.FollowStatus.PENDING.value,
-        )
-        .order_by(followers_models.Follower.id)
-        .offset((page_number - 1) * num_records)
-        .limit(num_records)
+    return _page(
+        followers_models.Follower.followee_id,
+        user_id,
+        db,
+        page_number=page_number,
+        num_records=num_records,
+        pending_only=True,
     )
-    return [followers_serializers.to_read_schema(follower) for follower in db.scalars(stmt).all()]
 
 
-def count_pending_requests_for_user_id(user_id: int, db: Session) -> int:
+def _advisory_xact_lock(namespace: int, user_id: uuid.UUID, db: Session) -> None:
+    """Take a transaction-scoped advisory lock keyed by a user, released on commit or rollback.
+
+    Args:
+        namespace: The lock namespace, so unrelated locks on the same user do not collide.
+        user_id: The user the lock is keyed by.
+        db: Database session.
+    """
+    db.execute(
+        text("SELECT pg_advisory_xact_lock(:namespace, hashtext(:user_id))"),
+        {"namespace": namespace, "user_id": str(user_id)},
+    )
+
+
+def lock_pending_requests(user_id: uuid.UUID, db: Session) -> None:
+    """Serialise the writers that add a pending request for a user, until the transaction ends.
+
+    A cap read with ``count`` and then enforced by an insert lets concurrent requests each see room
+    and all insert, so the writer takes this lock first. It blocks only requests for the same user.
+
+    Args:
+        user_id: The user the requests are addressed to.
+        db: Database session.
+    """
+    _advisory_xact_lock(_PENDING_LOCK_NAMESPACE, user_id, db)
+
+
+def lock_accepted_followees(follower_id: uuid.UUID, db: Session) -> None:
+    """Serialise the writers that accept a follow for a follower, until the transaction ends.
+
+    Same reasoning as :func:`lock_pending_requests`, keyed by the follower whose accepted followees
+    are capped, so concurrent accepts by different followees cannot each see room and all succeed.
+
+    Args:
+        follower_id: The user whose request is being accepted.
+        db: Database session.
+    """
+    _advisory_xact_lock(_ACCEPTED_LOCK_NAMESPACE, follower_id, db)
+
+
+def count_pending_requests_for_user_id(user_id: uuid.UUID, db: Session) -> int:
     """Count the pending follow requests addressed to a user.
 
     Args:
@@ -149,14 +286,10 @@ def count_pending_requests_for_user_id(user_id: int, db: Session) -> int:
     Returns:
         The number of pending requests.
     """
-    stmt = select(func.count(followers_models.Follower.id)).where(
-        followers_models.Follower.followee_id == user_id,
-        followers_models.Follower.status == followers_constants.FollowStatus.PENDING.value,
-    )
-    return db.scalar(stmt) or 0
+    return _count(followers_models.Follower.followee_id, user_id, db, pending_only=True)
 
 
-def count_followers_by_user_id(user_id: int, db: Session, *, accepted_only: bool = False) -> int:
+def count_followers_by_user_id(user_id: uuid.UUID, db: Session, *, accepted_only: bool = False) -> int:
     """Count followers for a user without loading the full rowset.
 
     Args:
@@ -167,17 +300,10 @@ def count_followers_by_user_id(user_id: int, db: Session, *, accepted_only: bool
     Returns:
         Number of follow relationships.
     """
-    stmt = (
-        select(func.count())
-        .select_from(followers_models.Follower)
-        .where(followers_models.Follower.followee_id == user_id)
-    )
-    if accepted_only:
-        stmt = stmt.where(followers_models.Follower.status == followers_constants.FollowStatus.ACCEPTED.value)
-    return db.scalar(stmt) or 0
+    return _count(followers_models.Follower.followee_id, user_id, db, accepted_only=accepted_only)
 
 
-def count_following_by_user_id(user_id: int, db: Session, *, accepted_only: bool = False) -> int:
+def count_following_by_user_id(user_id: uuid.UUID, db: Session, *, accepted_only: bool = False) -> int:
     """Count users a given user is following without loading the rowset.
 
     Args:
@@ -188,18 +314,11 @@ def count_following_by_user_id(user_id: int, db: Session, *, accepted_only: bool
     Returns:
         Number of follow relationships.
     """
-    stmt = (
-        select(func.count())
-        .select_from(followers_models.Follower)
-        .where(followers_models.Follower.follower_id == user_id)
-    )
-    if accepted_only:
-        stmt = stmt.where(followers_models.Follower.status == followers_constants.FollowStatus.ACCEPTED.value)
-    return db.scalar(stmt) or 0
+    return _count(followers_models.Follower.follower_id, user_id, db, accepted_only=accepted_only)
 
 
 def get_follower_for_user_id_and_target_user_id(
-    user_id: int, target_user_id: int, db: Session
+    user_id: uuid.UUID, target_user_id: uuid.UUID, db: Session
 ) -> followers_schema.FollowRelationshipRead | None:
     """Retrieve a single follow relationship between two users.
 
@@ -219,7 +338,7 @@ def get_follower_for_user_id_and_target_user_id(
     return followers_serializers.to_read_schema(follower) if follower is not None else None
 
 
-def list_accepted_followee_ids(user_id: int, db: Session) -> list[int]:
+def list_accepted_followee_ids(user_id: uuid.UUID, db: Session) -> list[uuid.UUID]:
     """List the ids of users the given user follows with an accepted relationship.
 
     This is the clean read interface the activities feed and visibility filter
@@ -233,6 +352,10 @@ def list_accepted_followee_ids(user_id: int, db: Session) -> list[int]:
     the cache (:func:`_invalidate_followee_cache`), so a request that accepts a
     follow and then reads a feed still sees its own write.
 
+    Bounded by ``MAX_ACCEPTED_FOLLOWEES``, which the accept path enforces, so callers may use the
+    result in an ``IN (...)`` list. Relationships accepted before the cap existed may exceed it;
+    they are still returned.
+
     Args:
         user_id: The follower whose accepted followees to list.
         db: Database session.
@@ -240,7 +363,7 @@ def list_accepted_followee_ids(user_id: int, db: Session) -> list[int]:
     Returns:
         The followee user ids (empty list if none).
     """
-    cache: dict[int, list[int]] = db.info.setdefault(_FOLLOWEE_CACHE_KEY, {})
+    cache: dict[uuid.UUID, list[uuid.UUID]] = db.info.setdefault(_FOLLOWEE_CACHE_KEY, {})
     if user_id in cache:
         return cache[user_id]
 
@@ -254,8 +377,8 @@ def list_accepted_followee_ids(user_id: int, db: Session) -> list[int]:
 
 
 def create_follower(
-    user_id: int,
-    target_user_id: int,
+    user_id: uuid.UUID,
+    target_user_id: uuid.UUID,
     db: Session,
 ) -> followers_schema.FollowRelationshipRead:
     """Stage a new follow request between two users.
@@ -307,8 +430,8 @@ def create_follower(
 
 
 def accept_follower(
-    user_id: int,
-    target_user_id: int,
+    user_id: uuid.UUID,
+    target_user_id: uuid.UUID,
     db: Session,
 ) -> followers_schema.FollowRelationshipRead:
     """Stage the acceptance of a pending follow request from another user.
@@ -355,12 +478,12 @@ def accept_follower(
 
 
 def delete_follower(
-    user_id: int,
-    target_user_id: int,
+    user_id: uuid.UUID,
+    target_user_id: uuid.UUID,
     db: Session,
     *,
     status: followers_constants.FollowStatus | None = None,
-) -> None:
+) -> followers_constants.FollowStatus:
     """Stage the deletion of a follow relationship between two users.
 
     Flushes without committing, like :func:`create_follower` and
@@ -373,19 +496,190 @@ def delete_follower(
         status: When given, only delete the row if it is in this state. Declining
             a request must not double as removing an accepted follower.
 
+    Returns:
+        The status the deleted row had, read from the delete itself so it cannot
+        differ from what was removed.
+
     Raises:
         NotFoundError: If no matching follower record exists.
     """
-    stmt = delete(followers_models.Follower).where(
-        followers_models.Follower.follower_id == user_id,
-        followers_models.Follower.followee_id == target_user_id,
+    stmt = (
+        delete(followers_models.Follower)
+        .where(
+            followers_models.Follower.follower_id == user_id,
+            followers_models.Follower.followee_id == target_user_id,
+        )
+        .returning(followers_models.Follower.status)
     )
     if status is not None:
         stmt = stmt.where(followers_models.Follower.status == status.value)
-    result = cast("CursorResult[Any]", db.execute(stmt))
-
-    if result.rowcount == 0:
+    deleted_status = db.execute(stmt).scalar_one_or_none()
+    if deleted_status is None:
         raise core_exceptions.NotFoundError("Follower record not found")
-
     db.flush()
     _invalidate_followee_cache(db)
+    return followers_constants.FollowStatus(deleted_status)
+
+
+def delete_follows_between(
+    user_id: uuid.UUID, other_user_id: uuid.UUID, db: Session
+) -> list[followers_schema.FollowRelationshipRead]:
+    """Stage the deletion of the follow rows between two users, in both directions.
+
+    Args:
+        user_id: One of the two users.
+        other_user_id: The other user.
+        db: Database session.
+
+    Returns:
+        The rows that were deleted, with the status each had (empty list when the users were unrelated).
+    """
+    stmt = (
+        delete(followers_models.Follower)
+        .where(
+            or_(
+                and_(
+                    followers_models.Follower.follower_id == user_id,
+                    followers_models.Follower.followee_id == other_user_id,
+                ),
+                and_(
+                    followers_models.Follower.follower_id == other_user_id,
+                    followers_models.Follower.followee_id == user_id,
+                ),
+            )
+        )
+        .returning(followers_models.Follower)
+        .execution_options(synchronize_session="fetch")
+    )
+    deleted = [followers_serializers.to_read_schema(row) for row in db.execute(stmt).scalars().all()]
+    db.flush()
+    _invalidate_followee_cache(db)
+    return deleted
+
+
+def record_decline(follower_id: uuid.UUID, followee_id: uuid.UUID, declined_at: datetime, db: Session) -> None:
+    """Stage the time a follow request was declined, replacing an earlier decline of the same pair.
+
+    Declining deletes the pending request first, so two declines of one pair cannot run at once.
+
+    Args:
+        follower_id: The requester whose request was declined.
+        followee_id: The user who declined it.
+        declined_at: When the request was declined.
+        db: Database session.
+    """
+    db.execute(
+        delete(followers_models.FollowRequestDecline).where(
+            followers_models.FollowRequestDecline.follower_id == follower_id,
+            followers_models.FollowRequestDecline.followee_id == followee_id,
+        )
+    )
+    db.add(
+        followers_models.FollowRequestDecline(follower_id=follower_id, followee_id=followee_id, declined_at=declined_at)
+    )
+    db.flush()
+
+
+def get_last_decline_at(follower_id: uuid.UUID, followee_id: uuid.UUID, db: Session) -> datetime | None:
+    """Return when the followee last declined a request from the follower.
+
+    Args:
+        follower_id: The requester.
+        followee_id: The user the request was addressed to.
+        db: Database session.
+
+    Returns:
+        The UTC time of the decline, or None when no request was declined.
+    """
+    stmt = select(followers_models.FollowRequestDecline.declined_at).where(
+        followers_models.FollowRequestDecline.follower_id == follower_id,
+        followers_models.FollowRequestDecline.followee_id == followee_id,
+    )
+    return core_timezone.to_utc_aware(db.scalar(stmt))
+
+
+def is_blocked(blocker_id: uuid.UUID, blocked_id: uuid.UUID, db: Session) -> bool:
+    """Tell whether one user has blocked another.
+
+    Args:
+        blocker_id: The user who may have blocked.
+        blocked_id: The user who may be blocked.
+        db: Database session.
+
+    Returns:
+        True when the block exists.
+    """
+    stmt = select(
+        exists().where(
+            followers_models.FollowerBlock.blocker_id == blocker_id,
+            followers_models.FollowerBlock.blocked_id == blocked_id,
+        )
+    )
+    return bool(db.scalar(stmt))
+
+
+def create_block(blocker_id: uuid.UUID, blocked_id: uuid.UUID, db: Session) -> bool:
+    """Stage a block, leaving an existing one as it is.
+
+    Args:
+        blocker_id: The user who blocks.
+        blocked_id: The user who is blocked; must exist.
+        db: Database session.
+
+    Returns:
+        True when the block was created, False when it already existed.
+    """
+    if is_blocked(blocker_id, blocked_id, db):
+        return False
+    try:
+        # A savepoint keeps the caller's transaction usable when a concurrent block wins the unique pair.
+        with db.begin_nested():
+            db.add(followers_models.FollowerBlock(blocker_id=blocker_id, blocked_id=blocked_id))
+            db.flush()
+    except IntegrityError as err:
+        if core_database.violated_constraint(err) == _UNIQUE_BLOCK_CONSTRAINT:
+            return False
+        raise
+    return True
+
+
+def delete_block(blocker_id: uuid.UUID, blocked_id: uuid.UUID, db: Session) -> None:
+    """Stage the removal of a block.
+
+    Args:
+        blocker_id: The user who blocked.
+        blocked_id: The user who is blocked.
+        db: Database session.
+
+    Raises:
+        NotFoundError: If the user has not blocked that user.
+    """
+    stmt = (
+        delete(followers_models.FollowerBlock)
+        .where(
+            followers_models.FollowerBlock.blocker_id == blocker_id,
+            followers_models.FollowerBlock.blocked_id == blocked_id,
+        )
+        .returning(followers_models.FollowerBlock.id)
+    )
+    if db.execute(stmt).scalar_one_or_none() is None:
+        raise core_exceptions.NotFoundError("Blocked user not found")
+    db.flush()
+
+
+def list_blocked_user_ids(blocker_id: uuid.UUID, db: Session) -> list[uuid.UUID]:
+    """List the ids of the users a user has blocked, most recently blocked first.
+
+    Args:
+        blocker_id: The user who blocked.
+        db: Database session.
+
+    Returns:
+        Every blocked user id.
+    """
+    stmt = (
+        select(followers_models.FollowerBlock.blocked_id)
+        .where(followers_models.FollowerBlock.blocker_id == blocker_id)
+        .order_by(followers_models.FollowerBlock.created_at.desc(), followers_models.FollowerBlock.id.desc())
+    )
+    return list(db.scalars(stmt).all())

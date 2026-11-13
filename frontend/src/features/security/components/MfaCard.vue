@@ -1,9 +1,10 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { RefreshCw, ShieldCheck, Smartphone } from '@lucide/vue'
 
-import type { StepUpInput } from '@/features/security/types'
+import type { IdpReauth, StepUpInput } from '@/features/security/types'
+import type { IdpStepUpResume } from '@/features/security/composables/useIdpStepUp'
 
 import BackupCodesDialog from '@/features/security/components/BackupCodesDialog.vue'
 import MfaSetupDialog from '@/features/security/components/MfaSetupDialog.vue'
@@ -12,7 +13,13 @@ import { Alert } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
+import { Switch } from '@/components/ui/switch'
 import { useToasts } from '@/composables/useToasts'
+import {
+  isStepUpFailed,
+  isStepUpLocked,
+  useIdpReauthChallenge,
+} from '@/features/security/composables/useIdpStepUp'
 import {
   useBackupCodeStatusQuery,
   useDisableMfaMutation,
@@ -20,13 +27,16 @@ import {
   useRegenerateBackupCodesMutation,
 } from '@/features/security/composables/useSecurity'
 
-defineProps<{
+const props = defineProps<{
   /** Whether the account has a local password (gates step-up password fields). */
   hasLocalPassword: boolean
+  /** The identity-provider sign-in the browser just returned from, if any. */
+  resume: IdpStepUpResume | null
 }>()
 
 const { t } = useI18n()
 const toasts = useToasts()
+const handleIdpChallenge = useIdpReauthChallenge()
 
 const statusQuery = useMfaStatusQuery()
 const enabled = computed(() => statusQuery.data.value?.enabled ?? false)
@@ -40,36 +50,110 @@ const disableOpen = ref(false)
 const regenerateOpen = ref(false)
 const backupCodesOpen = ref(false)
 const backupCodes = ref<string[]>([])
+// Each dialog keeps its own sign-in proof: a ticket works for one action only.
+const setupReauth = ref<IdpReauth | null>(null)
+const disableReauth = ref<IdpReauth | null>(null)
+const regenerateReauth = ref<IdpReauth | null>(null)
+// Whether each action signs out the other devices; not a secret, so it survives the identity-provider
+// round-trip, and every dialog starts checked again once closed.
+const setupRevokeOthers = ref(true)
+const disableRevokeOthers = ref(true)
+const regenerateRevokeOthers = ref(true)
+
+watch(setupOpen, (isOpen) => {
+  if (!isOpen) {
+    setupRevokeOthers.value = true
+  }
+})
+watch(disableOpen, (isOpen) => {
+  if (!isOpen) {
+    disableRevokeOthers.value = true
+  }
+})
+watch(regenerateOpen, (isOpen) => {
+  if (!isOpen) {
+    regenerateRevokeOthers.value = true
+  }
+})
+
+/** Reopens the dialog the identity-provider sign-in was started for. */
+onMounted(() => {
+  const { resume } = props
+  if (resume?.action === 'mfa_enable') {
+    setupReauth.value = resume.reauth
+    setupRevokeOthers.value = resume.pending.revokeOtherSessions !== false
+    setupOpen.value = true
+  } else if (resume?.action === 'mfa_disable') {
+    disableReauth.value = resume.reauth
+    disableRevokeOthers.value = resume.pending.revokeOtherSessions !== false
+    disableOpen.value = true
+  } else if (resume?.action === 'mfa_backup_codes') {
+    regenerateReauth.value = resume.reauth
+    regenerateRevokeOthers.value = resume.pending.revokeOtherSessions !== false
+    regenerateOpen.value = true
+  }
+})
 
 /** Shows the freshly issued codes once enrolment completes. */
 function onEnabled(codes: string[]): void {
   backupCodes.value = codes
   backupCodesOpen.value = true
+  setupReauth.value = null
   toasts.success(t('settings.security.mfa.enableSuccess'))
 }
 
 /** Disables MFA with the collected step-up credentials. */
 function confirmDisable(input: StepUpInput): void {
-  disableMutation.mutate(input, {
-    onSuccess: () => {
-      disableOpen.value = false
-      toasts.success(t('settings.security.mfa.disableSuccess'))
+  disableMutation.mutate(
+    { input, revokeOtherSessions: disableRevokeOthers.value },
+    {
+      onSuccess: () => {
+        disableOpen.value = false
+        disableReauth.value = null
+        toasts.success(t('settings.security.mfa.disableSuccess'))
+      },
+      onError: (error) => {
+        if (handleIdpChallenge(error)) {
+          return
+        }
+        toasts.error(
+          isStepUpLocked(error)
+            ? t('settings.security.stepUp.tooManyAttempts')
+            : isStepUpFailed(error)
+              ? t('settings.security.linked.invalidCredentials')
+              : t('settings.security.mfa.disableError'),
+        )
+      },
     },
-    onError: () => toasts.error(t('settings.security.mfa.disableError')),
-  })
+  )
 }
 
 /** Regenerates the backup codes, then shows the new set. */
 function confirmRegenerate(input: StepUpInput): void {
-  regenerateMutation.mutate(input, {
-    onSuccess: (result) => {
-      regenerateOpen.value = false
-      backupCodes.value = result.codes
-      backupCodesOpen.value = true
-      toasts.success(t('settings.security.mfa.regenerateSuccess'))
+  regenerateMutation.mutate(
+    { input, revokeOtherSessions: regenerateRevokeOthers.value },
+    {
+      onSuccess: (result) => {
+        regenerateOpen.value = false
+        regenerateReauth.value = null
+        backupCodes.value = result.codes
+        backupCodesOpen.value = true
+        toasts.success(t('settings.security.mfa.regenerateSuccess'))
+      },
+      onError: (error) => {
+        if (handleIdpChallenge(error)) {
+          return
+        }
+        toasts.error(
+          isStepUpLocked(error)
+            ? t('settings.security.stepUp.tooManyAttempts')
+            : isStepUpFailed(error)
+              ? t('settings.security.linked.invalidCredentials')
+              : t('settings.security.mfa.regenerateError'),
+        )
+      },
     },
-    onError: () => toasts.error(t('settings.security.mfa.regenerateError')),
-  })
+  )
 }
 </script>
 
@@ -117,6 +201,7 @@ function confirmRegenerate(input: StepUpInput): void {
             t('settings.security.mfa.backupRemaining', {
               unused: backupStatusQuery.data.value.unused,
               total: backupStatusQuery.data.value.total,
+              count: backupStatusQuery.data.value.total,
             })
           }}
         </p>
@@ -134,28 +219,44 @@ function confirmRegenerate(input: StepUpInput): void {
 
     <MfaSetupDialog
       v-model:open="setupOpen"
+      v-model:reauth="setupReauth"
+      v-model:revoke-other-sessions="setupRevokeOthers"
       :require-password="hasLocalPassword"
       @enabled="onEnabled"
       @error="(message) => toasts.error(message)"
     />
     <StepUpDialog
       v-model:open="disableOpen"
+      v-model:reauth="disableReauth"
+      action="mfa_disable"
       :title="t('settings.security.mfa.disableTitle')"
       :description="t('settings.security.mfa.disableDescription')"
       :confirm-label="t('settings.security.mfa.disable')"
       :require-password="hasLocalPassword"
+      :pending-context="{ revokeOtherSessions: disableRevokeOthers }"
       :pending="disableMutation.isPending.value"
       @confirm="confirmDisable"
-    />
+    >
+      <Switch v-model="disableRevokeOthers" :disabled="disableMutation.isPending.value">
+        {{ t('settings.security.password.revokeOthers') }}
+      </Switch>
+    </StepUpDialog>
     <StepUpDialog
       v-model:open="regenerateOpen"
+      v-model:reauth="regenerateReauth"
+      action="mfa_backup_codes"
       :title="t('settings.security.mfa.regenerateTitle')"
       :description="t('settings.security.mfa.regenerateDescription')"
       :confirm-label="t('settings.security.mfa.regenerate')"
       :require-password="hasLocalPassword"
+      :pending-context="{ revokeOtherSessions: regenerateRevokeOthers }"
       :pending="regenerateMutation.isPending.value"
       @confirm="confirmRegenerate"
-    />
+    >
+      <Switch v-model="regenerateRevokeOthers" :disabled="regenerateMutation.isPending.value">
+        {{ t('settings.security.password.revokeOthers') }}
+      </Switch>
+    </StepUpDialog>
     <BackupCodesDialog v-model:open="backupCodesOpen" :codes="backupCodes" />
   </Card>
 </template>

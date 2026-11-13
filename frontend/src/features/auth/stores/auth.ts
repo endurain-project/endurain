@@ -7,6 +7,7 @@ import type { LoginResponse, User } from '@/features/auth/types'
 import { useTelemetry } from '@/composables/useTelemetry'
 import { useRealtime } from '@/composables/useRealtime'
 import { getLocaleForBackendLanguage, loadLocaleMessages, setI18nLocale } from '@/i18n'
+import { broadcastSessionEnded } from '@/lib/sessionChannel'
 import { clearUserScopedStorage } from '@/lib/storage'
 import { queryClient } from '@/plugins/vueQuery'
 import { clearAuthTokens, setAuthTokens } from '@/services/authTokens'
@@ -14,6 +15,7 @@ import { HttpError } from '@/services/http'
 import { queryKeys } from '@/services/queryKeys'
 import { fetchCurrentUser } from '@/features/auth/services/profile'
 import {
+  changePasswordAtLogin,
   loginWithPassword,
   logoutSession,
   refreshSession,
@@ -27,20 +29,53 @@ export interface AuthCompletedResult {
 
 export interface MfaRequiredResult {
   status: 'mfa-required'
-  username: string
+  /** Names this login; the MFA step must send it back. */
+  challenge: string
 }
 
-export type LoginResult = AuthCompletedResult | MfaRequiredResult
+export interface PasswordChangeRequiredResult {
+  status: 'password-change-required'
+  /** Names this login; the password-change step must send it back. */
+  challenge: string
+}
+
+/** The server asked for a step this client does not know, so the sign-in cannot continue. */
+export interface UnsupportedStepResult {
+  status: 'unsupported-step'
+}
+
+export type LoginResult =
+  AuthCompletedResult | MfaRequiredResult | PasswordChangeRequiredResult | UnsupportedStepResult
+
+type LoginMethod = 'password' | 'mfa' | 'password_change'
 
 /**
- * Checks whether an auth error is an expected, non-reportable outcome (an
- * unauthenticated or absent session) rather than a real fault worth capturing.
+ * Checks whether the server refused the session itself (HTTP 401 or 403), as opposed to a
+ * network error, a timeout, a 429 or a 5xx, which say nothing about whether the session is valid.
  *
  * @param error - The caught error.
- * @returns Whether the error is an expected 401/404 auth response.
+ * @returns Whether the server ruled the session invalid.
  */
-function isExpectedAuthError(error: unknown): boolean {
-  return error instanceof HttpError && [401, 404].includes(error.status)
+function isSessionRefused(error: unknown): boolean {
+  return error instanceof HttpError && (error.status === 401 || error.status === 403)
+}
+
+/**
+ * Accepts only an absolute `https:` URL, so a malformed or non-TLS value from
+ * the server never becomes a navigation target.
+ *
+ * @param url - Candidate URL, or `null`.
+ * @returns The URL when it is `https:`, otherwise `null`.
+ */
+function httpsUrlOrNull(url: string | null): string | null {
+  if (!url) {
+    return null
+  }
+  try {
+    return new URL(url).protocol === 'https:' ? url : null
+  } catch {
+    return null
+  }
 }
 
 let restorePromise: Promise<void> | null = null
@@ -60,18 +95,6 @@ async function applyPreferredLocale(nextUser: User): Promise<void> {
 }
 
 /**
- * Checks whether a login response is an MFA challenge.
- *
- * @param response - Login response from the backend.
- * @returns Whether MFA is required.
- */
-function isMfaRequiredResponse(
-  response: LoginResponse,
-): response is Extract<LoginResponse, { mfa_required: true }> {
-  return 'mfa_required' in response && response.mfa_required === true
-}
-
-/**
  * Authentication *session authority* for the app shell. The store owns only
  * client-side session state (`isAuthenticated`, `sessionId`, `isReady`) plus
  * the credential lifecycle (login, refresh, logout). The authenticated user's
@@ -83,6 +106,10 @@ export const useAuthStore = defineStore('auth', () => {
   const sessionId = ref<string | null>(null)
   const isReady = ref(false)
   const isAuthenticated = ref(false)
+  /** Set when the page-load restore failed for a reason other than a refused session. */
+  const restoreFailed = ref(false)
+  /** Set while the server requires MFA of this account and it has none: the app shows only the enrolment page. */
+  const mfaEnrolmentRequired = ref(false)
 
   /**
    * Completes a token response by storing tokens and hydrating the profile.
@@ -117,41 +144,85 @@ export const useAuthStore = defineStore('auth', () => {
   }
 
   /**
+   * Continues a sign-in from the answer of the server, by its `next_step`. An
+   * unknown step (a newer server) ends the attempt without touching the
+   * session, so a later step can be added without breaking this client.
+   *
+   * @param response - Answer of the login, MFA or password-change request.
+   * @param method - The step that produced the answer, for telemetry.
+   * @returns Authenticated result, or the next step to show.
+   */
+  async function continueLogin(response: LoginResponse, method: LoginMethod): Promise<LoginResult> {
+    switch (response.next_step) {
+      case 'mfa':
+        return { status: 'mfa-required', challenge: response.mfa_challenge }
+      case 'password_change':
+        return {
+          status: 'password-change-required',
+          challenge: response.password_change_challenge,
+        }
+      case 'tokens': {
+        // The web client sends `X-Client-Type: web`, so the tokens carry a CSRF token.
+        if (!('csrf_token' in response)) {
+          return { status: 'unsupported-step' }
+        }
+        const result = await completeTokenLogin(response)
+        useTelemetry().trackEvent('login_succeeded', { method })
+        return result
+      }
+      default:
+        return { status: 'unsupported-step' }
+    }
+  }
+
+  /**
    * Authenticates with username/password.
    *
    * @param username - Username supplied by the user.
    * @param password - Password supplied by the user.
-   * @returns Login result, including an MFA-required state when needed.
+   * @returns Login result, including the MFA or password-change step when one is needed.
    * @throws {HttpError} When credentials are invalid or auth is unavailable.
    */
   async function login(username: string, password: string): Promise<LoginResult> {
-    const response = await loginWithPassword(username, password)
-
-    if (isMfaRequiredResponse(response)) {
-      return { status: 'mfa-required', username: response.username }
-    }
-
-    const result = await completeTokenLogin(response)
-    useTelemetry().trackEvent('login_succeeded', { method: 'password' })
-    return result
+    return continueLogin(await loginWithPassword(username, password), 'password')
   }
 
   /**
    * Completes a pending MFA login.
    *
-   * @param username - Username returned by the MFA challenge.
+   * @param challenge - The challenge the password step returned.
    * @param mfaCode - TOTP or backup code.
-   * @returns Authenticated result containing the current user.
-   * @throws {HttpError} When the MFA code is invalid or expired.
+   * @returns Authenticated result, or the password-change step when the account needs one.
+   * @throws {HttpError} 400 when the MFA code is wrong and the challenge is still live; 401 when the challenge is
+   * unknown, expired, ended after three wrong codes, or presented from another network or client type, so the
+   * sign-in starts again.
    */
-  async function verifyMfa(username: string, mfaCode: string): Promise<AuthCompletedResult> {
-    const result = await completeTokenLogin(await verifyMfaLogin({ username, mfa_code: mfaCode }))
-    useTelemetry().trackEvent('login_succeeded', { method: 'mfa' })
-    return result
+  async function verifyMfa(challenge: string, mfaCode: string): Promise<LoginResult> {
+    return continueLogin(
+      await verifyMfaLogin({ mfa_challenge: challenge, mfa_code: mfaCode }),
+      'mfa',
+    )
   }
 
   /**
-   * Restores a session after page reload using the HTTP-only refresh cookie.
+   * Chooses the new password an administrator-set password requires and completes the sign-in.
+   *
+   * @param challenge - The challenge the earlier step returned.
+   * @param password - The new password.
+   * @returns Authenticated result.
+   * @throws {HttpError} 401 when the challenge is unknown or expired; 422 when the password is refused.
+   */
+  async function changePassword(challenge: string, password: string): Promise<LoginResult> {
+    return continueLogin(
+      await changePasswordAtLogin({ password_change_challenge: challenge, password }),
+      'password_change',
+    )
+  }
+
+  /**
+   * Restores a session after page reload using the HTTP-only refresh cookie. Only the server
+   * refusing the session (401 or 403) ends it; any other failure leaves the session as it is
+   * and sets {@link restoreFailed}, so the user is offered a retry instead of being signed out.
    */
   async function restoreSession(): Promise<void> {
     if (isReady.value) {
@@ -163,10 +234,12 @@ export const useAuthStore = defineStore('auth', () => {
         await completeTokenLogin(response)
       })
       .catch((error: unknown) => {
-        clearLocalSession()
-        if (!isExpectedAuthError(error)) {
-          useTelemetry().captureError(error, { scope: 'restoreSession' })
+        if (isSessionRefused(error)) {
+          clearLocalSession()
+          return
         }
+        restoreFailed.value = true
+        useTelemetry().captureError(error, { scope: 'restoreSession' })
       })
       .finally(() => {
         isReady.value = true
@@ -182,11 +255,22 @@ export const useAuthStore = defineStore('auth', () => {
    */
   function clearLocalSession(): void {
     isAuthenticated.value = false
+    mfaEnrolmentRequired.value = false
     sessionId.value = null
     clearAuthTokens()
     clearUserScopedStorage()
     useRealtime().disconnect()
     queryClient.clear()
+  }
+
+  /** Records that the server requires MFA of this account, so navigation is limited to the enrolment page. */
+  function requireMfaEnrolment(): void {
+    mfaEnrolmentRequired.value = true
+  }
+
+  /** Records that the account has MFA now, so the whole app is open to it again. */
+  function completeMfaEnrolment(): void {
+    mfaEnrolmentRequired.value = false
   }
 
   /**
@@ -205,31 +289,61 @@ export const useAuthStore = defineStore('auth', () => {
   }
 
   /**
-   * Logs out from the backend and always clears local auth state.
+   * Handles a session that expired in this tab: drops it here and tells the other tabs.
+   *
+   * @returns Whether a user session was active when it expired.
    */
-  async function logout(): Promise<void> {
-    try {
-      await logoutSession()
-    } catch (error) {
-      if (!isExpectedAuthError(error)) {
-        useTelemetry().captureError(error, { scope: 'logout' })
-      }
-    } finally {
-      clearLocalSession()
-      isReady.value = true
-      useTelemetry().trackEvent('logout')
+  function expireSession(): boolean {
+    const wasAuthenticated = handleSessionExpired()
+    if (wasAuthenticated) {
+      broadcastSessionEnded()
     }
+    return wasAuthenticated
+  }
+
+  /**
+   * Logs out from the backend, clears local auth state and tells the other tabs.
+   *
+   * The server answers a logout with a dead refresh token like any other, so every answer that
+   * reaches here has ended the session. Any failure (network error, 403, 429, 5xx) leaves the
+   * server session alive, and its HTTP-only refresh cookie would restore it on the next page
+   * load, so the local session is kept and the error is thrown for the caller to report.
+   *
+   * @returns The identity provider's end-session URL when the session signed in
+   *   through a provider and the URL is `https:`, otherwise `null`.
+   * @throws {unknown} The logout failure when the server may still hold the session.
+   */
+  async function logout(): Promise<string | null> {
+    let idpLogoutUrl: string | null
+    try {
+      idpLogoutUrl = httpsUrlOrNull((await logoutSession()).idp_logout_url)
+    } catch (error) {
+      useTelemetry().captureError(error, { scope: 'logout' })
+      throw error
+    }
+    clearLocalSession()
+    isReady.value = true
+    broadcastSessionEnded()
+    useTelemetry().trackEvent('logout')
+    return idpLogoutUrl
   }
 
   return {
     sessionId,
     isReady,
     isAuthenticated,
+    restoreFailed,
+    mfaEnrolmentRequired,
+    requireMfaEnrolment,
+    completeMfaEnrolment,
     completeTokenLogin,
     login,
     verifyMfa,
+    changePassword,
     restoreSession,
     handleSessionExpired,
+    expireSession,
+    clearLocalSession,
     logout,
   }
 })

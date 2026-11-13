@@ -1,9 +1,14 @@
 """Tests for user management router functions."""
 
-from unittest.mock import MagicMock
+import uuid
+from unittest.mock import MagicMock, patch
 
+import modules.auth.account_security.integration_service as account_security_integration
 import modules.users.users.router as users_router
 import modules.users.users.schema as users_schema
+import modules.users.users.service as users_service
+
+_SID_7 = uuid.UUID(int=107)
 
 
 class TestEditUserPassword:
@@ -15,21 +20,27 @@ class TestEditUserPassword:
         """
         Test admin password resets delete existing target sessions.
         """
-        user_id = 42
+        user_id = uuid.UUID(int=42)
         new_password = "new-secure-password"
-        identity_service = MagicMock()
-        user_attributes = users_schema.UsersAdminEditPassword(password=new_password)
-
-        result = users_router.edit_user_password(
-            user_id=user_id,
-            _validate_id=MagicMock(),
-            user_attributes=user_attributes,
-            _check_scope=MagicMock(),
-            identity_service=identity_service,
+        user_attributes = users_schema.UserAdminEditPassword(
+            password=new_password, step_up={"current_password": "admin-password"}
         )
+        db = MagicMock()
 
-        identity_service.change_managed_user_password.assert_called_once_with(
-            user_id,
-            new_password,
-        )
-        assert result == {"message": f"User ID {user_id} password updated successfully"}
+        with (
+            patch.object(users_service.server_settings_integration, "get_server_settings"),
+            patch.object(users_service.credentials_integration, "reject_breached_password"),
+            patch.object(account_security_integration, "verify_step_up"),
+            patch.object(account_security_integration, "change_managed_user_password") as change_password,
+        ):
+            users_router.edit_user_password(
+                request=MagicMock(),
+                user_id=user_id,
+                user_attributes=user_attributes,
+                token_user_id=uuid.UUID(int=7),
+                token_session_id=_SID_7,
+                step_up_store=MagicMock(),
+                db=db,
+            )
+
+        change_password.assert_called_once_with(user_id, new_password, db)

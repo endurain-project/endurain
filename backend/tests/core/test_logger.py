@@ -5,15 +5,26 @@ import logging
 import sys
 from unittest.mock import MagicMock, patch
 
+import jasil.correlation as jasil_correlation
+import pytest
+
 import core.logger as core_logger
+import core.middleware_request_id as core_middleware_request_id
 
 
 class TestRequestIdFilter:
     """Tests for RequestIdFilter class."""
 
-    def test_adds_request_id_to_record(self):
-        filter_ = core_logger.RequestIdFilter()
-        record = logging.LogRecord(
+    @pytest.fixture(autouse=True)
+    def _isolated_correlation(self):
+        jasil_correlation.reset()
+        jasil_correlation.configure_provider(lambda: core_middleware_request_id.get_request_id() or None)
+        yield
+        jasil_correlation.reset()
+
+    @staticmethod
+    def _record() -> logging.LogRecord:
+        return logging.LogRecord(
             name="test",
             level=logging.INFO,
             pathname="/f.py",
@@ -22,10 +33,43 @@ class TestRequestIdFilter:
             args=(),
             exc_info=None,
         )
-        with patch("core.logger.core_middleware_request_id.get_request_id", return_value="req-abc"):
-            result = filter_.filter(record)
+
+    def test_adds_request_id_to_record(self):
+        record = self._record()
+        token = core_middleware_request_id.request_id_ctx.set("req-abc")
+        try:
+            result = core_logger.RequestIdFilter().filter(record)
+        finally:
+            core_middleware_request_id.request_id_ctx.reset(token)
         assert result is True
         assert record.request_id == "req-abc"
+
+    def test_correlation_scope_wins_over_the_request_id(self):
+        record = self._record()
+        token = core_middleware_request_id.request_id_ctx.set("req-abc")
+        try:
+            with jasil_correlation.correlation_scope("abc"):
+                core_logger.RequestIdFilter().filter(record)
+        finally:
+            core_middleware_request_id.request_id_ctx.reset(token)
+        assert record.request_id == "abc"
+
+    def test_correlation_scope_without_a_request(self):
+        record = self._record()
+        with jasil_correlation.correlation_scope("abc"):
+            core_logger.RequestIdFilter().filter(record)
+        assert record.request_id == "abc"
+
+    def test_empty_without_a_request_or_scope(self):
+        record = self._record()
+        core_logger.RequestIdFilter().filter(record)
+        assert record.request_id == ""
+
+    def test_empty_when_no_provider_is_installed(self):
+        jasil_correlation.reset()
+        record = self._record()
+        core_logger.RequestIdFilter().filter(record)
+        assert record.request_id == ""
 
 
 class TestJsonFormatter:
@@ -185,6 +229,37 @@ class TestBuildHandlers:
         assert isinstance(console_handler, logging.StreamHandler)
         assert any(isinstance(f, core_logger.ConsoleMirrorFilter) for f in console_handler.filters)
 
+    def test_development_console_mirror_shows_the_record_context(self, tmp_path):
+        with (
+            patch("core.config.settings.ENVIRONMENT", "development"),
+            patch("core.config.settings.LOGS_DIR", str(tmp_path)),
+        ):
+            console_handler = core_logger._build_handlers(logging.DEBUG)[1]
+        record = logging.LogRecord("test", logging.WARNING, "/f.py", 1, "Onboarding required", (), None)
+        record.__dict__.update(core_logger.context(console=True, setup_token="abc"))
+
+        assert console_handler.format(record) == "WARNING:     Onboarding required | setup_token='abc'"
+
+    def test_single_writer_rotates_the_log_file(self, tmp_path):
+        with (
+            patch("core.config.settings.ENVIRONMENT", "development"),
+            patch("core.config.settings.LOGS_DIR", str(tmp_path)),
+            patch("core.config.Settings.single_log_writer", True),
+        ):
+            file_handler = core_logger._build_handlers(logging.DEBUG)[0]
+        assert isinstance(file_handler, logging.handlers.RotatingFileHandler)
+        assert file_handler.maxBytes == core_logger.LOG_FILE_MAX_BYTES
+        assert file_handler.backupCount == core_logger.LOG_FILE_BACKUP_COUNT
+
+    def test_several_writers_do_not_rotate_the_log_file(self, tmp_path):
+        with (
+            patch("core.config.settings.ENVIRONMENT", "development"),
+            patch("core.config.settings.LOGS_DIR", str(tmp_path)),
+            patch("core.config.Settings.single_log_writer", False),
+        ):
+            file_handler = core_logger._build_handlers(logging.DEBUG)[0]
+        assert not isinstance(file_handler, logging.handlers.RotatingFileHandler)
+
 
 class TestReplaceHandlers:
     """Tests for _replace_handlers function."""
@@ -286,6 +361,11 @@ class TestContext:
     def test_console_absent_by_default(self):
         assert core_logger.CONSOLE_FIELD not in core_logger.context(user_id=1)
 
+    def test_fields_named_at_run_time_are_attached_like_keyword_fields(self):
+        extra = core_logger.context({"strava_activity_id": 9, "lap": None, "module": "strava"}, user_id=1)
+
+        assert extra == {"strava_activity_id": 9, "ctx_module": "strava", "user_id": 1}
+
 
 class TestConsoleMirrorFilter:
     """Tests for ConsoleMirrorFilter class."""
@@ -309,6 +389,56 @@ class TestConsoleMirrorFilter:
 
     def test_rejects_unflagged_record(self):
         assert core_logger.ConsoleMirrorFilter().filter(self._record()) is False
+
+
+class TestWebSocketKeepaliveFilter:
+    """Tests for WebSocketKeepaliveFilter and its wiring in setup_main_logger."""
+
+    def _record(self, msg, *args):
+        return logging.LogRecord(
+            name="uvicorn.error",
+            level=logging.DEBUG,
+            pathname="/f.py",
+            lineno=1,
+            msg=msg,
+            args=args,
+            exc_info=None,
+        )
+
+    def test_drops_keepalive_frames(self):
+        filter_ = core_logger.WebSocketKeepaliveFilter()
+        for msg, frame in (
+            ("> %s", "PING 62 54 ea a6 [binary, 4 bytes]"),
+            ("< %s", "PONG 62 54 ea a6 [binary, 4 bytes]"),
+        ):
+            assert filter_.filter(self._record(msg, frame)) is False
+
+    def test_keeps_other_records(self):
+        filter_ = core_logger.WebSocketKeepaliveFilter()
+        assert filter_.filter(self._record("< %s", "TEXT 'hi' [2 bytes]")) is True
+        assert filter_.filter(self._record("WebSocket connection made")) is True
+
+    def _setup(self, tmp_path, frames):
+        with (
+            patch("core.config.settings.ENVIRONMENT", "development"),
+            patch("core.config.settings.LOG_LEVEL", "debug"),
+            patch("core.config.settings.LOGS_DIR", str(tmp_path)),
+            patch("core.config.settings.LOG_WEBSOCKET_FRAMES", frames),
+        ):
+            core_logger.setup_main_logger()
+
+    def test_setup_attaches_filter_by_default(self, tmp_path):
+        uvicorn_logger = logging.getLogger("uvicorn.error")
+        self._setup(tmp_path, frames=False)
+        self._setup(tmp_path, frames=False)
+        assert uvicorn_logger.filters.count(core_logger._WEBSOCKET_KEEPALIVE_FILTER) == 1
+        uvicorn_logger.removeFilter(core_logger._WEBSOCKET_KEEPALIVE_FILTER)
+
+    def test_setup_leaves_frames_when_enabled(self, tmp_path):
+        uvicorn_logger = logging.getLogger("uvicorn.error")
+        self._setup(tmp_path, frames=False)
+        self._setup(tmp_path, frames=True)
+        assert core_logger._WEBSOCKET_KEEPALIVE_FILTER not in uvicorn_logger.filters
 
 
 class TestEndToEnd:
@@ -343,3 +473,21 @@ class TestEndToEnd:
         assert record.activity_id == 42
         assert not hasattr(record, "gear_id")
         assert json.loads(core_logger.JsonFormatter().format(record))["context"] == {"activity_id": 42}
+
+
+class TestSlowapiLimitExceededFilter:
+    """slowapi's per-request line duplicates the 429 handler's log; its outage lines must stay."""
+
+    @staticmethod
+    def _record(message: str) -> logging.LogRecord:
+        return logging.LogRecord("slowapi", logging.WARNING, __file__, 1, message, None, None)
+
+    def test_drops_the_limit_exceeded_line(self):
+        record = self._record("ratelimit %s (%s) exceeded at endpoint: %s")
+
+        assert core_logger._SlowapiLimitExceededFilter().filter(record) is False
+
+    def test_keeps_the_storage_outage_line(self):
+        record = self._record("Rate limit storage unreachable - falling back to in-memory storage")
+
+        assert core_logger._SlowapiLimitExceededFilter().filter(record) is True

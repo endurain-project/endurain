@@ -1,0 +1,206 @@
+import { ref } from 'vue'
+import { flushPromises, mount } from '@vue/test-utils'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { QueryClient, VueQueryPlugin } from '@tanstack/vue-query'
+
+import i18n from '@/i18n'
+import OnboardingView from '@/features/auth/views/OnboardingView.vue'
+import { HttpError } from '@/services/http'
+
+const { replace, completeOnboarding, toastError, login } = vi.hoisted(() => ({
+  replace: vi.fn<(to: unknown) => Promise<void>>(() => Promise.resolve()),
+  login: vi.fn<(username: string, password: string) => Promise<unknown>>(),
+  completeOnboarding: vi.fn<(request: unknown) => Promise<void>>(),
+  toastError: vi.fn<(message: string) => void>(),
+}))
+
+vi.mock('vue-router', () => ({ useRouter: () => ({ replace }) }))
+vi.mock('@/features/auth/services/onboarding', () => ({ completeOnboarding }))
+vi.mock('@/features/auth/stores/auth', () => ({ useAuthStore: () => ({ login }) }))
+vi.mock('@/composables/useToasts', () => ({ useToasts: () => ({ error: toastError }) }))
+vi.mock('@/features/config/composables/usePublicServerSettings', () => ({
+  usePublicServerSettings: () => ({
+    serverSettings: ref({ password_length_admin_users: 12 }),
+    loginImageUrl: ref('/login.png'),
+    load: vi.fn<() => Promise<void>>(),
+  }),
+}))
+
+/**
+ * Mounts the view and fills every field with valid values.
+ *
+ * @returns The mounted wrapper, ready to submit.
+ */
+async function mountFilled() {
+  const wrapper = mount(OnboardingView, {
+    global: {
+      plugins: [i18n, [VueQueryPlugin, { queryClient: new QueryClient() }]],
+      stubs: {
+        MfaSetupDialog: {
+          props: ['open'],
+          emits: ['enabled'],
+          template:
+            '<button v-if="open" data-test="enroll" @click="$emit(\'enabled\', [\'CODE-1\'])" />',
+        },
+        BackupCodesDialog: {
+          props: ['open', 'codes'],
+          emits: ['update:open'],
+          template:
+            '<button v-if="open" data-test="codes-done" @click="$emit(\'update:open\', false)" />',
+        },
+      },
+    },
+  })
+  await wrapper.get('input[name="setup-token"]').setValue(' tok ')
+  await wrapper.get('input[name="name"]').setValue('Ada Lovelace')
+  await wrapper.get('input[name="username"]').setValue('Ada')
+  await wrapper.get('input[name="email"]').setValue('Ada@Example.com')
+  await wrapper.get('input[name="new-password"]').setValue('long-enough-pass')
+  await wrapper.get('input[name="confirm-password"]').setValue('long-enough-pass')
+  return wrapper
+}
+
+describe('OnboardingView', () => {
+  beforeEach(() => {
+    replace.mockClear()
+    completeOnboarding.mockReset()
+    login.mockReset()
+    login.mockResolvedValue({ status: 'authenticated' })
+    toastError.mockClear()
+  })
+
+  it('keeps submit disabled until the admin password policy is met and confirmed', async () => {
+    const wrapper = await mountFilled()
+    const submit = wrapper.get('button[type="submit"]')
+    expect(submit.attributes('disabled')).toBeUndefined()
+
+    await wrapper.get('input[name="new-password"]').setValue('short')
+    expect(submit.attributes('disabled')).toBeDefined()
+  })
+
+  it('explains a password that misses the policy once the field is left', async () => {
+    const wrapper = await mountFilled()
+    const password = wrapper.get('input[name="new-password"]')
+    await password.setValue('short')
+    await password.trigger('blur')
+
+    expect(wrapper.text()).toContain(i18n.global.t('app.password.invalid'))
+  })
+
+  it('submits normalised values and signs the new administrator in', async () => {
+    completeOnboarding.mockResolvedValue()
+    const wrapper = await mountFilled()
+
+    await wrapper.get('form').trigger('submit')
+    await flushPromises()
+
+    expect(completeOnboarding.mock.calls[0]?.[0]).toEqual({
+      token: 'tok',
+      name: 'Ada Lovelace',
+      username: 'ada',
+      email: 'ada@example.com',
+      password: 'long-enough-pass',
+    })
+    expect(login).toHaveBeenCalledWith('ada', 'long-enough-pass')
+    expect(replace).not.toHaveBeenCalled()
+    expect(wrapper.text()).toContain(i18n.global.t('login.onboarding.mfaTitle'))
+  })
+
+  it('goes to the app when the administrator skips MFA', async () => {
+    completeOnboarding.mockResolvedValue()
+    const wrapper = await mountFilled()
+    await wrapper.get('form').trigger('submit')
+    await flushPromises()
+
+    await wrapper.get('[data-test="mfa-skip"]').trigger('click')
+
+    expect(replace).toHaveBeenCalledWith({ name: 'home' })
+  })
+
+  it('shows the backup codes after enrolment and goes to the app once they are closed', async () => {
+    completeOnboarding.mockResolvedValue()
+    const wrapper = await mountFilled()
+    await wrapper.get('form').trigger('submit')
+    await flushPromises()
+
+    await wrapper.get('[data-test="mfa-setup"]').trigger('click')
+    await wrapper.get('[data-test="enroll"]').trigger('click')
+    expect(replace).not.toHaveBeenCalled()
+
+    await wrapper.get('[data-test="codes-done"]').trigger('click')
+    expect(replace).toHaveBeenCalledWith({ name: 'home' })
+  })
+
+  it.each([
+    ['rejects', () => login.mockRejectedValue(new HttpError(500, 'err'))],
+    ['needs another step', () => login.mockResolvedValue({ status: 'mfa-required' })],
+  ])('falls back to the sign-in page when the automatic sign-in %s', async (_name, arrange) => {
+    completeOnboarding.mockResolvedValue()
+    arrange()
+    const wrapper = await mountFilled()
+
+    await wrapper.get('form').trigger('submit')
+    await flushPromises()
+
+    expect(replace).toHaveBeenCalledWith({ name: 'login', query: { onboardingComplete: 'true' } })
+  })
+
+  it.each([
+    [400, 'invalid-input', 'The setup token is invalid'],
+    [422, 'validation-failed', 'The details were rejected'],
+    [429, 'rate-limited', 'Too many attempts'],
+    [503, 'service-unavailable', 'temporarily unavailable'],
+    [500, 'internal-error', 'Could not create the administrator'],
+  ])('shows a message for a %i response and stays on the page', async (status, code, text) => {
+    completeOnboarding.mockRejectedValue(
+      new HttpError(status, 'err', null, `urn:endurain:error:${code}`),
+    )
+    const wrapper = await mountFilled()
+
+    await wrapper.get('form').trigger('submit')
+    await flushPromises()
+
+    expect(wrapper.text()).toContain(text)
+    expect(replace).not.toHaveBeenCalled()
+  })
+
+  it('tells the user how long to wait when onboarding is throttled', async () => {
+    completeOnboarding.mockRejectedValue(
+      new HttpError(429, 'err', null, 'urn:endurain:error:rate-limited', null, [], 30),
+    )
+    const wrapper = await mountFilled()
+
+    await wrapper.get('form').trigger('submit')
+    await flushPromises()
+
+    expect(wrapper.text()).toContain(
+      i18n.global.t('app.retryAfter.tooManyAttempts', { seconds: 30 }),
+    )
+  })
+
+  it('shows the specific message when the password matches the account details', async () => {
+    completeOnboarding.mockRejectedValue(
+      new HttpError(422, 'Unprocessable', null, 'urn:endurain:error:password-matches-account'),
+    )
+    const wrapper = await mountFilled()
+
+    await wrapper.get('form').trigger('submit')
+    await flushPromises()
+
+    expect(wrapper.text()).toContain(i18n.global.t('app.password.matchesAccount'))
+    expect(wrapper.text()).not.toContain('The details were rejected')
+  })
+
+  it('explains and redirects to login when an account already exists', async () => {
+    completeOnboarding.mockRejectedValue(
+      new HttpError(409, 'Conflict', null, 'urn:endurain:error:conflict'),
+    )
+    const wrapper = await mountFilled()
+
+    await wrapper.get('form').trigger('submit')
+    await flushPromises()
+
+    expect(toastError).toHaveBeenCalledWith(expect.stringContaining('already complete'))
+    expect(replace).toHaveBeenCalledWith({ name: 'login' })
+  })
+})

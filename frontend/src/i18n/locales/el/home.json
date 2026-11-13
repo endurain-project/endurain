@@ -4,6 +4,7 @@
     "uploading": "Μεταφόρτωση…",
     "success": "Η δραστηριότητα μεταφορτώθηκε με επιτυχία",
     "error": "Δεν ήταν δυνατή η μεταφόρτωση του αρχείου δραστηριότητας",
+    "tooLarge": "Το αρχείο είναι πολύ μεγάλο",
     "timeout": "Το αρχείο σας εισάγεται ακόμη. Θα εμφανιστεί μόλις ολοκληρωθεί.",
     "failed": {
       "unsupported_format": "Αυτός ο τύπος αρχείου δεν υποστηρίζεται",
@@ -46,7 +47,6 @@
     "thisWeek": "Αυτή την εβδομάδα",
     "thisMonth": "Αυτόν τον μήνα",
     "empty": "Καμία δραστηριότητα σε αυτήν την περίοδο",
-    "caloriesUnit": "kcal",
     "metric": {
       "distance": "Απόσταση",
       "time": "Χρόνος",
@@ -63,12 +63,13 @@
     "snow_ski": "Σκι",
     "snowboard": "Σνόουμπορντ",
     "windsurf": "Γουίντσερφ",
-    "stand_up_paddleboarding": "Paddleboarding",
-    "surfing": "Σερφ",
+    "stand_up_paddling": "Κωπηλασία όρθια (paddleboard)",
+    "surf": "Σερφ",
     "kayaking": "Καγιάκ",
     "sailing": "Ιστιοπλοΐα",
-    "snowshoeing": "Πεζοπορία με χιονοπέδιλα",
-    "inline_skating": "Πατινάζ με ρόλερ"
+    "snow_shoeing": "Πεζοπορία με χιονοπέδιλα",
+    "inline_skating": "Πατινάζ με ρόλερ",
+    "other": "Άλλα"
   },
   "goals": {
     "title": "Στόχοι",

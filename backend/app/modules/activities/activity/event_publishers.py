@@ -12,7 +12,8 @@ the domain rows; otherwise the event dispatches on the bus after the outermost
 commit and is dropped on rollback.
 """
 
-from collections.abc import Iterable, Sequence
+import uuid
+from collections.abc import Callable, Iterable, Sequence
 
 import jasil.publisher as platform_publisher
 from sqlalchemy.orm import Session
@@ -22,8 +23,8 @@ import modules.activities.activity.events as activity_events
 
 
 def publish_activity_created(
-    activity_id: int,
-    user_id: int,
+    activity_id: uuid.UUID,
+    user_id: uuid.UUID,
     db: Session,
     *,
     source: str,
@@ -52,12 +53,12 @@ def publish_activity_created(
         duplicate_start_time=duplicate_start_time,
     )
     metadata = {
-        core_event_metadata.META_ACTIVITY_ID: activity_id,
-        core_event_metadata.META_USER_ID: user_id,
+        core_event_metadata.META_ACTIVITY_ID: str(activity_id),
+        core_event_metadata.META_USER_ID: str(user_id),
     }
     platform_publisher.publish_on_commit(
         activity_events.ACTIVITY_CREATED,
-        payload.model_dump(),
+        payload.model_dump(mode="json"),
         source=source,
         metadata=metadata,
         db=db,
@@ -66,8 +67,8 @@ def publish_activity_created(
 
 
 def publish_activity_updated(
-    activity_id: int,
-    user_id: int | None,
+    activity_id: uuid.UUID,
+    user_id: uuid.UUID | None,
     db: Session,
     *,
     changed_fields: Iterable[str],
@@ -91,12 +92,12 @@ def publish_activity_updated(
         changed_fields=sorted(changed_fields),
     )
     metadata = {
-        core_event_metadata.META_ACTIVITY_ID: activity_id,
-        core_event_metadata.META_USER_ID: user_id,
+        core_event_metadata.META_ACTIVITY_ID: str(activity_id),
+        core_event_metadata.META_USER_ID: str(user_id),
     }
     platform_publisher.publish_on_commit(
         activity_events.ACTIVITY_UPDATED,
-        payload.model_dump(),
+        payload.model_dump(mode="json"),
         source="api:edit_activity",
         metadata=metadata,
         db=db,
@@ -105,8 +106,8 @@ def publish_activity_updated(
 
 
 def publish_activities_updated(
-    activity_ids: Sequence[int],
-    user_id: int | None,
+    activity_ids: Sequence[uuid.UUID],
+    user_id: uuid.UUID | None,
     db: Session,
     *,
     changed_fields: Iterable[str],
@@ -138,13 +139,13 @@ def publish_activities_updated(
         [
             activity_events.ActivityUpdatedPayload(
                 activity_id=activity_id, user_id=user_id, changed_fields=fields
-            ).model_dump()
+            ).model_dump(mode="json")
             for activity_id in activity_ids
         ],
         source=source,
         metadata_for=lambda payload: {
             core_event_metadata.META_ACTIVITY_ID: payload["activity_id"],
-            core_event_metadata.META_USER_ID: user_id,
+            core_event_metadata.META_USER_ID: str(user_id),
         },
         db=db,
         schema_version=activity_events.ActivityUpdatedPayload.SCHEMA_VERSION,
@@ -152,8 +153,8 @@ def publish_activities_updated(
 
 
 def publish_activity_deleted(
-    activity_id: int,
-    user_id: int | None,
+    activity_id: uuid.UUID,
+    user_id: uuid.UUID | None,
     db: Session,
 ) -> None:
     """Publish ``activity.deleted`` after an activity row has been removed.
@@ -166,12 +167,12 @@ def publish_activity_deleted(
     """
     deleted = activity_events.ActivityDeletedPayload(activity_id=activity_id)
     metadata = {
-        core_event_metadata.META_ACTIVITY_ID: activity_id,
-        core_event_metadata.META_USER_ID: user_id,
+        core_event_metadata.META_ACTIVITY_ID: str(activity_id),
+        core_event_metadata.META_USER_ID: str(user_id),
     }
     platform_publisher.publish_on_commit(
         activity_events.ACTIVITY_DELETED,
-        deleted.model_dump(),
+        deleted.model_dump(mode="json"),
         source="api:delete_activity",
         metadata=metadata,
         db=db,
@@ -180,8 +181,8 @@ def publish_activity_deleted(
 
 
 def publish_activities_deleted(
-    activity_ids: Sequence[int],
-    user_id: int | None,
+    activity_ids: Sequence[uuid.UUID],
+    user_id: uuid.UUID | None,
     db: Session,
     *,
     source: str,
@@ -208,12 +209,41 @@ def publish_activities_deleted(
     """
     platform_publisher.publish_many_on_commit(
         activity_events.ACTIVITY_DELETED,
-        [activity_events.ActivityDeletedPayload(activity_id=activity_id).model_dump() for activity_id in activity_ids],
+        [
+            activity_events.ActivityDeletedPayload(activity_id=activity_id).model_dump(mode="json")
+            for activity_id in activity_ids
+        ],
         source=source,
         metadata_for=lambda payload: {
             core_event_metadata.META_ACTIVITY_ID: payload["activity_id"],
-            core_event_metadata.META_USER_ID: user_id,
+            core_event_metadata.META_USER_ID: str(user_id),
         },
         db=db,
         schema_version=activity_events.ActivityDeletedPayload.SCHEMA_VERSION,
+    )
+
+
+def publish_visibility_edit_requested(
+    user_id: uuid.UUID, visibility: int, db: Session, *, commit: Callable[[], None]
+) -> None:
+    """Publish ``activities.visibility_edit_requested`` so a durable worker applies the edit.
+
+    The event is the work, so it is staged in the transactional outbox on ``db`` and a staging failure
+    propagates.
+
+    Args:
+        user_id: The user whose activities to edit.
+        visibility: The visibility to apply.
+        db: The session to stage the event on.
+        commit: Zero-arg commit callable that ends the caller's transaction.
+    """
+    payload = activity_events.VisibilityEditRequestedPayload(user_id=user_id, visibility=visibility)
+    platform_publisher.publish_committing(
+        activity_events.ACTIVITIES_VISIBILITY_EDIT_REQUESTED,
+        payload.model_dump(mode="json"),
+        source="api:bulk_edit_activities",
+        db=db,
+        commit=commit,
+        metadata={core_event_metadata.META_USER_ID: str(user_id)},
+        schema_version=payload.SCHEMA_VERSION,
     )

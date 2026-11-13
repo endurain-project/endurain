@@ -1,13 +1,13 @@
 import type { Schemas } from '@/types'
 
 /** Change-password request body (snake_case wire shape). */
-export type PasswordChangeDto = Schemas['UsersEditPassword']
+export type PasswordChangeDto = Schemas['UserEditPassword']
 
 /** Raw MFA status payload. */
-export type MfaStatusDto = Schemas['MFAStatusResponse']
+export type MfaStatusDto = Schemas['MFAStatusRead']
 
 /** Raw MFA setup payload (TOTP secret + QR image). */
-export type MfaSetupDto = Schemas['MFASetupResponse']
+export type MfaSetupDto = Schemas['MFASetupRead']
 
 /** Enable-MFA request body. */
 export type MfaEnableDto = Schemas['MFASetupRequest']
@@ -15,17 +15,32 @@ export type MfaEnableDto = Schemas['MFASetupRequest']
 /** Disable-MFA request body. */
 export type MfaDisableDto = Schemas['MFADisableRequest']
 
+/** Regenerate-backup-codes request body. */
+export type MfaBackupCodesDto = Schemas['MFABackupCodesRequest']
+
 /** Raw backup-code status payload. */
-export type BackupCodeStatusDto = Schemas['MFABackupCodeStatus']
+export type BackupCodeStatusDto = Schemas['MFABackupCodeStatusRead']
 
 /** Raw regenerated backup-codes payload. */
-export type BackupCodesDto = Schemas['MFABackupCodesResponse']
+export type BackupCodesDto = Schemas['MFABackupCodesRead']
 
 /** Step-up verification body shared by sensitive self-service actions. */
 export type StepUpDto = Schemas['StepUpVerification']
 
+/** Request body of an action that needs only a step-up verification. */
+export type StepUpRequestDto = Schemas['StepUpRequest']
+
+/** Email-change request body: the new address plus the step-up credentials. */
+export type EmailChangeDto = Schemas['EmailChange']
+
+/** Username-change request body: the new username plus the step-up credentials. */
+export type UsernameChangeDto = Schemas['UsernameChange']
+
+/** Profile payload the email-change request answers with. */
+export type EmailChangeResultDto = Schemas['UserMe']
+
 /** Raw session payload (snake_case wire shape). */
-export type SecuritySessionDto = Schemas['UsersSessionsRead']
+export type SecuritySessionDto = Schemas['UserSessionsRead']
 
 /**
  * The clean inputs the change-password form collects. The MFA code is only
@@ -52,18 +67,57 @@ export interface MfaSetup {
   qrCode: string
 }
 
-/** Credentials proving control of the account before a sensitive change. */
-export interface StepUpInput {
-  /** The current password, or `null` for SSO-only accounts. */
-  currentPassword: string | null
-  /** A TOTP or backup code, or `null` when MFA is not enabled. */
-  mfaCode: string | null
+/** A sensitive operation a step-up re-authentication authorises. */
+export type StepUpAction = Schemas['StepUpAction']
+
+/** Wire shape of the identity-provider re-authentication proof. */
+export type IdpReauthDto = Schemas['IdpReauthProof']
+
+/** Body that starts an identity-provider step-up. */
+export type StepUpStartDto = Schemas['StepUpStartRequest']
+
+/** Response of the step-up start endpoint. */
+export type StepUpStartResultDto = Schemas['BrowserFlowStartRead']
+
+/**
+ * Proof of a fresh identity-provider sign-in.
+ *
+ * @property ticket - The single-use ticket the identity-provider callback returned.
+ * @property codeVerifier - The PKCE verifier whose challenge started the step-up.
+ */
+export interface IdpReauth {
+  ticket: string
+  codeVerifier: string
 }
 
-/** Completes MFA enrolment: the first valid code plus optional step-up password. */
+/**
+ * Credentials proving control of the account before a sensitive change.
+ *
+ * @property currentPassword - The current password, or `null` for SSO-only accounts.
+ * @property mfaCode - A TOTP or backup code, or `null` when MFA is not enabled.
+ * @property idpReauth - Fresh identity-provider sign-in proof, for accounts without a password.
+ */
+export interface StepUpInput {
+  currentPassword: string | null
+  mfaCode: string | null
+  idpReauth?: IdpReauth | null
+}
+
+/**
+ * Completes MFA enrolment: the first valid code plus the step-up password or sign-in proof.
+ * `revokeOtherSessions` signs out every other device on success.
+ */
 export interface MfaEnableInput {
   mfaCode: string
   currentPassword: string | null
+  idpReauth?: IdpReauth | null
+  revokeOtherSessions: boolean
+}
+
+/** A step-up action plus whether it signs out every other device on success. */
+export interface StepUpWithSessions {
+  input: StepUpInput
+  revokeOtherSessions: boolean
 }
 
 /** The remaining-backup-codes summary shown while MFA is enabled. */
@@ -94,6 +148,7 @@ export interface BackupCodesResult {
  * @property createdAt - When the session was created (ISO).
  * @property lastActivityAt - When the session was last active (ISO).
  * @property expiresAt - When the session expires (ISO).
+ * @property appRedirectUri - Redirect address of the native app the session was signed in through, or null.
  */
 export interface SecuritySession {
   id: string
@@ -106,16 +161,41 @@ export interface SecuritySession {
   createdAt: string
   lastActivityAt: string
   expiresAt: string
+  appRedirectUri: string | null
+}
+
+/** Raw known-device payload (snake_case wire shape). */
+export type KnownDeviceDto = Schemas['KnownDeviceRead']
+
+/**
+ * A device the user is known to sign in from, mapped from {@link KnownDeviceDto}.
+ *
+ * @property id - Device id (also the forget key).
+ * @property browser - Browser of the last sign-in, or null for a device registered before it was recorded.
+ * @property operatingSystem - Operating system of the last sign-in, or null as above.
+ * @property deviceType - Device class of the last sign-in, or null as above.
+ * @property createdAt - When the device was registered (ISO).
+ * @property lastSeenAt - When the user last signed in from it (ISO).
+ * @property current - Whether this request comes from the device.
+ */
+export interface KnownDevice {
+  id: string
+  browser: string | null
+  operatingSystem: string | null
+  deviceType: string | null
+  createdAt: string
+  lastSeenAt: string
+  current: boolean
 }
 
 /** Raw linked identity-provider payload (snake_case wire shape). */
-export type LinkedProviderDto = Schemas['UsersIdentityProviderResponse']
+export type LinkedProviderDto = Schemas['IdentityProviderLinkRead']
 
-/** Raw link-token payload from the generate-link-token step. */
-export type LinkTokenDto = Schemas['IdpLinkTokenResponse']
+/** Request body that starts linking an identity provider. */
+export type IdentityProviderLinkStartDto = Schemas['IdentityProviderLinkStart']
 
 /** A provider a user can link to (an enabled public provider). */
-export type AvailableProvider = Schemas['IdentityProviderPublic']
+export type AvailableProvider = Schemas['IdentityProviderPublicRead']
 
 /**
  * A clean linked identity-provider model for the security zone. Mapped from
@@ -132,36 +212,39 @@ export type AvailableProvider = Schemas['IdentityProviderPublic']
  * @property lastLogin - Last login via this provider (ISO), or `null`.
  */
 export interface LinkedProvider {
-  id: number
-  idpId: number
+  id: string
+  idpId: string
   name: string | null
   slug: string | null
   icon: string | null
+  iconUploaded: boolean
   providerType: string | null
   subject: string
   linkedAt: string
   lastLogin: string | null
 }
 
-/** Raw API-key payload (snake_case wire shape; `scopes` is a JSON string). */
-export type ApiKeyDto = Schemas['UsersApiKeyRead']
+/** Raw API-key payload (snake_case wire shape). */
+export type ApiKeyDto = Schemas['UserApiKeyRead']
 
 /** Raw create-API-key response, including the one-time raw `key`. */
-export type ApiKeyCreatedDto = Schemas['UsersApiKeyCreated']
+export type ApiKeyCreatedDto = Schemas['UserApiKeyCreatedRead']
 
 /** Create-API-key request body. */
-export type ApiKeyCreateDto = Schemas['UsersApiKeyCreate']
+export type ApiKeyCreateDto = Schemas['UserApiKeyCreate']
+
+/** A permission an API key can be granted. */
+export type ApiKeyScope = Schemas['ApiKeyScope']
 
 /**
  * A clean, camel-cased API-key model for the security zone. Mapped from
- * {@link ApiKeyDto} at the service boundary, where the JSON-encoded `scopes`
- * string is parsed into an array.
+ * {@link ApiKeyDto} at the service boundary.
  *
  * @property id - Stable key identifier (UUID; also the revoke/delete key).
  * @property name - User-friendly label.
  * @property keyPrefix - First characters of the key, shown for identification.
- * @property scopes - The granted scopes (parsed from the wire JSON string).
- * @property expiresAt - When the key expires (ISO), or `null` for no expiry.
+ * @property scopes - The granted scopes.
+ * @property expiresAt - When the key expires (ISO).
  * @property lastUsedAt - When the key was last used (ISO), or `null`.
  * @property createdAt - When the key was created (ISO).
  * @property isActive - Whether the key is active (not revoked).
@@ -171,7 +254,7 @@ export interface ApiKey {
   name: string
   keyPrefix: string
   scopes: string[]
-  expiresAt: string | null
+  expiresAt: string
   lastUsedAt: string | null
   createdAt: string
   isActive: boolean
@@ -181,12 +264,16 @@ export interface ApiKey {
  * The clean inputs the create-API-key dialog collects. Step-up credentials are
  * required because minting a key is a persistent grant of account access.
  *
- * @property expiresAt - A `YYYY-MM-DD` date, or `null` for a key that never expires.
+ * @property expiresAt - A `YYYY-MM-DD` date, or `null` for the longest lifetime the server allows.
  */
 export interface ApiKeyCreateInput {
   name: string
-  scopes: string[]
+  scopes: ApiKeyScope[]
   expiresAt: string | null
   currentPassword: string | null
   mfaCode: string | null
+  idpReauth?: IdpReauth | null
 }
+
+/** The non-secret create-API-key form values kept across an identity-provider sign-in. */
+export type ApiKeyDraft = Pick<ApiKeyCreateInput, 'name' | 'scopes' | 'expiresAt'>

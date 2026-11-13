@@ -13,38 +13,40 @@ the token-gated route, not pinned to one node's disk.
 
 import re
 import uuid
+from collections.abc import Callable
 from pathlib import PurePosixPath
 
 import jasil.providers as platform_providers
 from sqlalchemy.orm import Session
 
+import core.blob_sweep as core_blob_sweep
 import core.exceptions as core_exceptions
+import core.file_uploads as core_file_uploads
 import core.hashing as core_hashing
 import core.logger as core_logger
 import core.pagination as core_pagination
 import modules.activities.activity.integration_service as activity_integration
+import modules.activities.activity_media.constants as activity_media_constants
 import modules.activities.activity_media.contracts as activity_media_contracts
 import modules.activities.activity_media.crud as activity_media_crud
 import modules.activities.activity_media.schema as activity_media_schema
 import modules.activities.activity_media.signing as activity_media_signing
-import modules.activities.orphan_sweep as activities_orphan_sweep
 
 logger = core_logger.get_logger(__name__)
 
-# Allow-list of safe image extensions for activity media uploads. The upload is
-# also magic-number validated by safeuploads; this only bounds the extension we
-# are willing to record in a storage key.
-_ALLOWED_MEDIA_EXTENSIONS: frozenset[str] = frozenset({".jpg", ".jpeg", ".png", ".webp", ".heic", ".heif"})
+# A stored key is ``{activity_id}_{suffix}`` with the canonical lowercase UUID layout; ``suffix`` is a flat file
+# name. An integer-layout key belongs to the data migration that renames it and never matches.
+_FLAT_SUFFIX_PATTERN = re.compile(r"[^/\\]+")
+_MEDIA_KEY_PATTERN = re.compile(
+    r"(?P<activity_id>[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})_(?P<suffix>[^/\\]+)"
+)
 
-# A stored key is ``{activity_id}_{suffix}``; ``suffix`` is a flat file name.
-_MEDIA_KEY_PATTERN = re.compile(r"(?P<activity_id>\d+)_(?P<suffix>[^/\\]+)")
 
-
-def _key_prefix(activity_id: int) -> str:
+def _key_prefix(activity_id: uuid.UUID) -> str:
     """Return the prefix shared by every storage key of one activity.
 
-    ``activity_id`` is an int, so the prefix carries no metacharacters. The
-    trailing underscore keeps activity 42 from matching activity 421's keys.
+    ``activity_id`` is a UUID, so the prefix carries no metacharacters. The
+    trailing underscore ends the id, so one activity's prefix never matches another's keys.
 
     Args:
         activity_id: ID of the activity the media belongs to.
@@ -55,7 +57,7 @@ def _key_prefix(activity_id: int) -> str:
     return f"{activity_id}_"
 
 
-def _media_key(activity_id: int, suffix: str) -> str:
+def media_key(activity_id: uuid.UUID, suffix: str) -> str:
     """Return the storage key for ``suffix`` under an activity.
 
     Args:
@@ -68,7 +70,7 @@ def _media_key(activity_id: int, suffix: str) -> str:
     return f"{_key_prefix(activity_id)}{suffix}"
 
 
-def _require_owned_activity(activity_id: int, requester_user_id: int, db: Session) -> None:
+def _require_owned_activity(activity_id: uuid.UUID, requester_user_id: uuid.UUID, db: Session) -> None:
     """Raise :class:`NotFoundError` unless ``requester_user_id`` owns ``activity_id``.
 
     "Not found" rather than "forbidden" so a caller cannot use the media endpoints
@@ -91,7 +93,7 @@ def _require_owned_activity(activity_id: int, requester_user_id: int, db: Sessio
         raise core_exceptions.NotFoundError("Activity not found")
 
 
-def _build_storage_key(activity_id: int, original_name: str | None) -> str:
+def _build_storage_key(activity_id: uuid.UUID, original_name: str | None) -> str:
     """Build a storage key for an uploaded media file.
 
     The original filename is reduced to its basename and its extension checked
@@ -113,14 +115,14 @@ def _build_storage_key(activity_id: int, original_name: str | None) -> str:
     base_name = PurePosixPath(original_name or "").name
     extension = PurePosixPath(base_name).suffix.lower()
 
-    if extension not in _ALLOWED_MEDIA_EXTENSIONS:
+    if extension not in core_file_uploads.IMAGE_CONTENT_TYPES:
         logger.debug(
             "Rejected an activity media upload with an unsupported extension",
             extra=core_logger.context(activity_id=activity_id, extension=extension or None),
         )
         raise core_exceptions.UnsupportedMediaTypeError("Unsupported media file type")
 
-    return _media_key(activity_id, f"{uuid.uuid4().hex}{extension}")
+    return media_key(activity_id, f"{uuid.uuid4().hex}{extension}")
 
 
 def _content_type_for(storage_key: str) -> str:
@@ -131,19 +133,21 @@ def _content_type_for(storage_key: str) -> str:
     stored object's metadata (a ``.jpg`` uploaded as ``text/html``).
 
     Args:
-        storage_key: The key the blob is stored under, carrying an extension
-            already checked against :data:`_ALLOWED_MEDIA_EXTENSIONS`.
+        storage_key: The key the blob is stored under. New keys carry an extension
+            checked against :data:`core.file_uploads.IMAGE_CONTENT_TYPES`.
 
     Returns:
-        An ``image/*`` media type.
+        The ``image/*`` media type of an accepted extension; ``application/octet-stream`` for a key stored
+        under an extension no longer accepted, so it is served as a download rather than rendered.
     """
-    extension = PurePosixPath(storage_key).suffix.lower().lstrip(".")
-    # ``jpg`` is the only allowed extension whose media subtype is not the suffix.
-    subtype = "jpeg" if extension == "jpg" else extension
-    return f"image/{subtype}"
+    return core_file_uploads.IMAGE_CONTENT_TYPES.get(
+        PurePosixPath(storage_key).suffix.lower(), "application/octet-stream"
+    )
 
 
-def _cleanup_orphaned_blob(storage: platform_providers.StorageProvider, storage_key: str, activity_id: int) -> None:
+def _cleanup_orphaned_blob(
+    storage: platform_providers.StorageProvider, storage_key: str, activity_id: uuid.UUID
+) -> None:
     """Best-effort delete of a blob whose database row was never created.
 
     Args:
@@ -152,8 +156,8 @@ def _cleanup_orphaned_blob(storage: platform_providers.StorageProvider, storage_
         activity_id: The activity it was being attached to, for the log context.
     """
     try:
-        storage.delete(activity_media_signing.MEDIA_STORAGE_AREA, storage_key)
-    except Exception as storage_err:
+        storage.delete(activity_media_constants.MEDIA_STORAGE_AREA, storage_key)
+    except platform_providers.StorageBackendUnavailableError as storage_err:
         logger.warning(
             "Failed to clean up an orphaned activity media blob",
             exc_info=storage_err,
@@ -162,18 +166,22 @@ def _cleanup_orphaned_blob(storage: platform_providers.StorageProvider, storage_
 
 
 def _persist_media_bytes(
-    activity_id: int,
+    activity_id: uuid.UUID,
     original_filename: str | None,
     data: bytes,
     storage: platform_providers.StorageProvider,
     db: Session,
 ) -> activity_media_contracts.ActivityMediaRecord:
-    """Store validated image bytes, no-op'ing a byte-for-byte repeat.
+    """Store validated image bytes without their metadata, no-op'ing a byte-for-byte repeat.
 
     Shared by the multipart upload and server-side ingestion paths — both hand
     over already-validated bytes for one activity, and neither should create a
     second row for a photo already stored there (a retried upload, or a Strava
     bulk-export re-run reprocessing files it already imported).
+
+    The duplicate check and the recorded hash use the bytes as received, before the metadata is
+    stripped, so a re-import of the same original photo is recognised, including one stored before
+    the strip existed. The blob holds the stripped bytes.
 
     Args:
         activity_id: The activity to attach the media to.
@@ -188,6 +196,7 @@ def _persist_media_bytes(
 
     Raises:
         UnsupportedMediaTypeError: For an unsupported extension.
+        InvalidInputError: If the bytes are not a decodable image.
         ConflictError: On a ``media_path`` collision (astronomically unlikely —
             the key is a server-generated UUID — so not a content duplicate).
     """
@@ -201,10 +210,19 @@ def _persist_media_bytes(
         return existing
 
     storage_key = _build_storage_key(activity_id, original_filename)
-    storage.save(activity_media_signing.MEDIA_STORAGE_AREA, storage_key, data, _content_type_for(storage_key))
+    # The check above read, which holds a pooled connection until the transaction ends; the write is slow
+    # on object storage, and the row is committed after it either way.
+    db.commit()
+    storage.save(
+        activity_media_constants.MEDIA_STORAGE_AREA,
+        storage_key,
+        core_file_uploads.strip_image_metadata(data),
+        _content_type_for(storage_key),
+    )
 
     try:
         record = activity_media_crud.create_activity_media(activity_id, storage_key, db, content_hash=content_hash)
+        activity_integration.touch_activity(activity_id, db)
         db.commit()
         return record
     except core_exceptions.ConflictError:
@@ -253,9 +271,31 @@ def _to_read_model(
     )
 
 
+def list_media_for_activities(
+    activity_ids: list[uuid.UUID],
+    db: Session,
+) -> dict[uuid.UUID, list[activity_media_schema.ActivityMediaRead]]:
+    """Resolve the media of several activities, oldest first, in one query.
+
+    Performs no ownership check: the caller passes only activities whose media the
+    requester may see, as :func:`list_activity_media` decides for one.
+
+    Args:
+        activity_ids: The activities to read, already scoped to the requester.
+        db: Database session.
+
+    Returns:
+        The read models keyed by activity ID; an activity without media has no entry.
+    """
+    media: dict[uuid.UUID, list[activity_media_schema.ActivityMediaRead]] = {}
+    for record in activity_media_crud.get_media_for_owned_activities(activity_ids, db):
+        media.setdefault(record.activity_id, []).append(_to_read_model(record))
+    return media
+
+
 def list_activity_media(
-    activity_id: int,
-    requester_user_id: int,
+    activity_id: uuid.UUID,
+    requester_user_id: uuid.UUID,
     db: Session,
     *,
     page_number: int = 1,
@@ -296,8 +336,8 @@ def list_activity_media(
 
 
 def read_activity_media_blob(
-    activity_id: int,
-    media_id: int,
+    activity_id: uuid.UUID,
+    media_id: uuid.UUID,
     token: str,
     storage: platform_providers.StorageProvider,
     db: Session,
@@ -338,7 +378,11 @@ def read_activity_media_blob(
     if media is None or media.activity_id != activity_id:
         raise core_exceptions.NotFoundError("Activity media not found")
 
-    data = storage.get(activity_media_signing.MEDIA_STORAGE_AREA, media.media_path)
+    media_path = media.media_path
+    # The lookup read, which holds a pooled connection until the transaction ends; fetching the blob can be
+    # slow on object storage.
+    db.commit()
+    data = storage.get(activity_media_constants.MEDIA_STORAGE_AREA, media_path)
     if data is None:
         logger.warning(
             "Activity media row has no blob behind its storage key",
@@ -346,21 +390,22 @@ def read_activity_media_blob(
         )
         raise core_exceptions.NotFoundError("Activity media not found")
 
-    return data, _content_type_for(media.media_path)
+    return data, _content_type_for(media_path)
 
 
 def store_activity_media(
-    activity_id: int,
-    requester_user_id: int,
+    activity_id: uuid.UUID,
+    requester_user_id: uuid.UUID,
     original_filename: str | None,
-    data: bytes,
+    read_data: Callable[[], bytes],
     storage: platform_providers.StorageProvider,
     db: Session,
 ) -> activity_media_schema.ActivityMediaRead:
     """Persist an uploaded image and register it against an activity.
 
-    The caller has already validated the bytes (magic number and size). They are
-    written through the storage provider under a server-generated key. If the
+    The activity is checked before ``read_data`` is called, so a request for an activity that is not the
+    caller's reads no upload. The bytes ``read_data`` returns are already validated (magic number and size);
+    they are written through the storage provider under a server-generated key. If the
     database row cannot be created the blob is removed again, so a failed upload
     leaves nothing behind.
 
@@ -368,7 +413,7 @@ def store_activity_media(
         activity_id: The activity to attach the media to.
         requester_user_id: The authenticated user, who must own the activity.
         original_filename: The uploaded filename, used only for its extension.
-        data: The validated image bytes.
+        read_data: Reads and validates the uploaded image, returning its bytes.
         storage: The blob-storage provider.
         db: Database session.
 
@@ -379,10 +424,12 @@ def store_activity_media(
 
     Raises:
         NotFoundError: When the activity is not the user's.
+        DomainError: Whatever ``read_data`` raises when the upload fails validation.
         UnsupportedMediaTypeError: For an unsupported extension.
         ConflictError: On a duplicate key.
     """
     _require_owned_activity(activity_id, requester_user_id, db)
+    data = read_data()
 
     created = _persist_media_bytes(activity_id, original_filename, data, storage, db)
 
@@ -394,7 +441,7 @@ def store_activity_media(
 
 
 def store_activity_media_bytes(
-    activity_id: int,
+    activity_id: uuid.UUID,
     original_filename: str | None,
     data: bytes,
     storage: platform_providers.StorageProvider,
@@ -427,7 +474,7 @@ def store_activity_media_bytes(
         UnsupportedMediaTypeError: For an unsupported extension.
     """
     created = _persist_media_bytes(activity_id, original_filename, data, storage, db)
-    logger.info(
+    logger.debug(
         "Stored activity media from a server-side import",
         extra=core_logger.context(activity_id=activity_id, media_id=created.id),
     )
@@ -435,9 +482,9 @@ def store_activity_media_bytes(
 
 
 def delete_activity_media(
-    activity_id: int,
-    media_id: int,
-    requester_user_id: int,
+    activity_id: uuid.UUID,
+    media_id: uuid.UUID,
+    requester_user_id: uuid.UUID,
     storage: platform_providers.StorageProvider,
     db: Session,
 ) -> None:
@@ -463,14 +510,15 @@ def delete_activity_media(
     _require_owned_activity(media.activity_id, requester_user_id, db)
 
     activity_media_crud.delete_activity_media(media_id, db)
+    activity_integration.touch_activity(activity_id, db)
     db.commit()
 
     if media.media_path:
         # Best-effort: the row is the source of truth, and a stray blob is
         # harmless because nothing serves it without a signed token.
         try:
-            storage.delete(activity_media_signing.MEDIA_STORAGE_AREA, media.media_path)
-        except Exception as storage_err:
+            storage.delete(activity_media_constants.MEDIA_STORAGE_AREA, media.media_path)
+        except platform_providers.StorageBackendUnavailableError as storage_err:
             logger.warning(
                 "Failed to remove the stored blob for a deleted activity media record",
                 exc_info=storage_err,
@@ -483,7 +531,7 @@ def delete_activity_media(
     )
 
 
-def delete_media_files_for_activity(activity_id: int, storage: platform_providers.StorageProvider) -> int:
+def delete_media_files_for_activity(activity_id: uuid.UUID, storage: platform_providers.StorageProvider) -> int:
     """Remove every stored media blob belonging to one activity.
 
     Used by the ``activity.deleted`` cleanup subscriber. It works from the
@@ -493,7 +541,8 @@ def delete_media_files_for_activity(activity_id: int, storage: platform_provider
     gone. Keys are ``{activity_id}_{uuid}{ext}``, so the id is enough to list them
     back off the provider.
 
-    Idempotent, and safe to run for an activity that never had media.
+    Idempotent, and safe to run for an activity that never had media. A storage
+    failure propagates so the durable runner retries the remaining blobs.
 
     Args:
         activity_id: The deleted activity whose media blobs to remove.
@@ -501,18 +550,14 @@ def delete_media_files_for_activity(activity_id: int, storage: platform_provider
 
     Returns:
         The number of blobs removed.
+
+    Raises:
+        StorageBackendUnavailableError: When the backend cannot list or delete.
     """
     removed = 0
-    for key in storage.list_keys(activity_media_signing.MEDIA_STORAGE_AREA, _key_prefix(activity_id)):
-        try:
-            storage.delete(activity_media_signing.MEDIA_STORAGE_AREA, key)
-            removed += 1
-        except Exception as storage_err:
-            logger.warning(
-                "Failed to remove an activity media blob",
-                exc_info=storage_err,
-                extra=core_logger.context(activity_id=activity_id, storage_key=key),
-            )
+    for key in storage.list_keys(activity_media_constants.MEDIA_STORAGE_AREA, _key_prefix(activity_id)):
+        storage.delete(activity_media_constants.MEDIA_STORAGE_AREA, key)
+        removed += 1
 
     if removed:
         logger.info(
@@ -522,12 +567,12 @@ def delete_media_files_for_activity(activity_id: int, storage: platform_provider
     return removed
 
 
-def list_media_blobs(activity_id: int, storage: platform_providers.StorageProvider) -> list[tuple[str, bytes]]:
+def list_media_blobs(activity_id: uuid.UUID, storage: platform_providers.StorageProvider) -> list[tuple[str, bytes]]:
     """Return every readable media blob attached to an activity.
 
-    Best-effort for the profile export: a storage failure listing the keys yields
-    an empty result, and a blob that cannot be read is skipped, so one bad object
-    never aborts the whole export.
+    Best-effort per blob for the profile export: a blob that cannot be read is
+    skipped, so one bad object never aborts the whole export. A failure listing
+    the keys propagates; the export caller skips that activity's media.
 
     Args:
         activity_id: The activity whose blobs to read.
@@ -535,22 +580,17 @@ def list_media_blobs(activity_id: int, storage: platform_providers.StorageProvid
 
     Returns:
         ``(storage_key, bytes)`` pairs for the blobs that could be read.
+
+    Raises:
+        StorageBackendUnavailableError: When the backend cannot list the keys.
     """
-    try:
-        keys = storage.list_keys(activity_media_signing.MEDIA_STORAGE_AREA, _key_prefix(activity_id))
-    except Exception as err:
-        logger.warning(
-            "Could not list an activity's media blobs",
-            exc_info=err,
-            extra=core_logger.context(activity_id=activity_id),
-        )
-        return []
+    keys = storage.list_keys(activity_media_constants.MEDIA_STORAGE_AREA, _key_prefix(activity_id))
 
     blobs: list[tuple[str, bytes]] = []
     for key in keys:
         try:
-            data = storage.get(activity_media_signing.MEDIA_STORAGE_AREA, key)
-        except Exception as err:
+            data = storage.get(activity_media_constants.MEDIA_STORAGE_AREA, key)
+        except platform_providers.StorageBackendUnavailableError as err:
             logger.warning(
                 "Could not read a media blob; skipping it",
                 exc_info=err,
@@ -565,7 +605,7 @@ def list_media_blobs(activity_id: int, storage: platform_providers.StorageProvid
 
 
 def store_media_blob(
-    activity_id: int,
+    activity_id: uuid.UUID,
     suffix: str,
     extension: str,
     data: bytes,
@@ -583,29 +623,30 @@ def store_media_blob(
     Returns:
         The storage key the blob was saved under.
     """
-    key = _media_key(activity_id, f"{suffix}{extension}")
-    storage.save(activity_media_signing.MEDIA_STORAGE_AREA, key, data)
+    key = media_key(activity_id, f"{suffix}{extension}")
+    storage.save(activity_media_constants.MEDIA_STORAGE_AREA, key, data)
     return key
 
 
-def rekey_media_path(old_key: str, new_activity_id: int) -> str | None:
+def rekey_media_path(old_key: str, archived_activity_id: uuid.UUID, new_activity_id: uuid.UUID) -> str | None:
     """Return an exported media key re-addressed to a restored activity.
 
     Args:
         old_key: The ``media_path`` recorded in a profile archive.
+        archived_activity_id: The id of the activity the record was exported under.
         new_activity_id: The activity the record is being restored onto.
 
     Returns:
         The key under the new activity, or ``None`` when ``old_key`` is not a
-        flat ``{activity_id}_{suffix}`` key (the archive is untrusted).
+        flat ``{archived_activity_id}_{suffix}`` key (the archive is untrusted).
     """
-    match = _MEDIA_KEY_PATTERN.fullmatch(old_key)
-    if match is None:
+    suffix = old_key.removeprefix(f"{archived_activity_id}_")
+    if suffix == old_key or _FLAT_SUFFIX_PATTERN.fullmatch(suffix) is None:
         return None
-    return _media_key(new_activity_id, match.group("suffix"))
+    return media_key(new_activity_id, suffix)
 
 
-def _activity_id_of_media_key(key: str) -> int | None:
+def _activity_id_of_media_key(key: str) -> uuid.UUID | None:
     """Return the activity id a flat ``{activity_id}_{suffix}`` media key names.
 
     Args:
@@ -615,32 +656,32 @@ def _activity_id_of_media_key(key: str) -> int | None:
         The activity id, or ``None`` when the key does not match the layout.
     """
     match = _MEDIA_KEY_PATTERN.fullmatch(key)
-    return int(match.group("activity_id")) if match else None
+    return uuid.UUID(match.group("activity_id")) if match else None
 
 
-def sweep_orphaned_media(storage: platform_providers.StorageProvider, db: Session) -> int:
+def sweep_orphaned_media(storage: platform_providers.StorageProvider) -> int:
     """Delete media blobs that no longer belong to anything.
 
     The storage-side net for the cleanup paths. A blob is swept when its activity
     is gone (a dropped ``activity.deleted`` event, since the media rows cascade
     with the activity) or when no media row names it (a failed best-effort delete
-    after the row was removed). Only a scan of the area finds either.
+    after the row was removed). Only a scan of the area finds either. The lookups
+    run in their own short sessions, so none is open during a storage call.
 
     Args:
         storage: The blob-storage provider.
-        db: Database session.
 
     Returns:
         The number of blobs deleted.
     """
-    removed = activities_orphan_sweep.sweep_orphaned_blobs(
+    removed = core_blob_sweep.sweep_orphaned_blobs(
         storage,
-        activity_media_signing.MEDIA_STORAGE_AREA,
-        lambda ids: activity_integration.filter_existing_activity_ids(ids, db),
+        activity_media_constants.MEDIA_STORAGE_AREA,
+        activity_integration.filter_existing_activity_ids,
         _activity_id_of_media_key,
     )
-    return removed + activities_orphan_sweep.sweep_unreferenced_blobs(
+    return removed + core_blob_sweep.sweep_unreferenced_blobs(
         storage,
-        activity_media_signing.MEDIA_STORAGE_AREA,
-        lambda keys: activity_media_crud.get_existing_media_paths(keys, db),
+        activity_media_constants.MEDIA_STORAGE_AREA,
+        activity_media_crud.get_existing_media_paths,
     )

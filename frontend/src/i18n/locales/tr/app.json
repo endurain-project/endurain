@@ -18,6 +18,17 @@
     "help": "ENDURAIN_HOST değerinin Endurain örneğinizin erişilebilir olduğu URL'yi (örneğin https://endurain.example.com) işaret ettiğini ve arka ucun çalıştığını doğrulayın, ardından sayfayı yeniden yükleyin.",
     "reload": "Yeniden yükle"
   },
+  "staleError": "Bunu baktığınız sırada başka bir yerde değiştirildi, bu yüzden hiçbir şey kaydedilmedi. Güncel sürüm yüklendi. Gözden geçirin ve yeniden deneyin.",
+  "sessionRestoreError": "Oturum açıp açmadığınızı kontrol edemedik. Sunucu veya bağlantınız kullanılamıyor olabilir.",
+  "fieldError": {
+    "required": "Bu alan zorunludur",
+    "tooShort": "Bu değer çok kısa",
+    "tooLong": "Bu değer çok uzun",
+    "tooLarge": "Bu değer çok büyük",
+    "tooSmall": "Bu değer çok küçük",
+    "invalidFormat": "Bu değerin biçimi geçersiz",
+    "invalid": "Bu değer geçersiz"
+  },
   "dismiss": "Kapat",
   "language": "Dil",
   "theme": {
@@ -35,5 +46,28 @@
     "edit": "Düzenle",
     "supported": "Markdown destekleniyor",
     "empty": "Önizlenecek bir şey yok"
+  },
+  "password": {
+    "hintLength": "En az {min} karakter.",
+    "invalid": "Parola gereksinimleri karşılamıyor",
+    "mismatch": "Parolalar eşleşmiyor",
+    "tooShort": "Bu parola çok kısa. En az {min} karakter kullanın.",
+    "tooCommon": "Bu parola çok yaygın. Tahmin edilmesi daha zor bir parola seçin.",
+    "breached": "Bu parola bilinen bir veri ihlalinde yer aldı. Lütfen başka bir parola seçin.",
+    "matchesAccount": "Kullanıcı adınızı veya e-posta adresinizi parola olarak kullanmayın.",
+    "blank": "Parola yalnızca boşluklardan oluşamaz.",
+    "unchanged": "Geçerli parolanızdan farklı bir parola seçin.",
+    "strength": {
+      "label": "Parola gücü: {level}",
+      "tooWeak": "Çok zayıf",
+      "weak": "Zayıf",
+      "fair": "Orta",
+      "good": "İyi",
+      "strong": "Güçlü"
+    }
+  },
+  "retryAfter": {
+    "tooManyAttempts": "Çok fazla deneme. {seconds} saniye sonra tekrar deneyin.",
+    "unavailable": "Kimlik doğrulama geçici olarak kullanılamıyor. {seconds} saniye sonra tekrar deneyin."
   }
 }

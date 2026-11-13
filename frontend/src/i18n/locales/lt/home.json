@@ -4,6 +4,7 @@
     "uploading": "Įkeliama…",
     "success": "Veikla sėkmingai įkelta",
     "error": "Nepavyko įkelti veiklos failo",
+    "tooLarge": "Failas per didelis",
     "timeout": "Jūsų failas dar importuojamas. Jis atsiras, kai importavimas baigsis.",
     "failed": {
       "unsupported_format": "Šio tipo failas nepalaikomas",
@@ -46,7 +47,6 @@
     "thisWeek": "Šią savaitę",
     "thisMonth": "Šį mėnesį",
     "empty": "Šiuo laikotarpiu veiklų nėra",
-    "caloriesUnit": "kcal",
     "metric": {
       "distance": "Atstumas",
       "time": "Laikas",
@@ -63,12 +63,13 @@
     "snow_ski": "Slidinėjimas",
     "snowboard": "Snieglentės",
     "windsurf": "Burlentės",
-    "stand_up_paddleboarding": "Irklenčių sportas",
-    "surfing": "Banglentės",
+    "stand_up_paddling": "Irklenčių sportas",
+    "surf": "Banglentės",
     "kayaking": "Baidarių sportas",
     "sailing": "Buriavimas",
-    "snowshoeing": "Ėjimas su sniegbačiais",
-    "inline_skating": "Riedučių sportas"
+    "snow_shoeing": "Ėjimas su sniegbačiais",
+    "inline_skating": "Riedučių sportas",
+    "other": "Kita"
   },
   "goals": {
     "title": "Tikslai",

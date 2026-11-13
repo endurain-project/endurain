@@ -16,7 +16,11 @@ import { FormField } from '@/components/ui/form-field'
 import { Select } from '@/components/ui/select'
 import { inputFieldClass } from '@/components/ui/input/fieldClasses'
 import { useForm } from '@/composables/useForm'
+import { applyServerFieldErrors } from '@/services/fieldErrors'
+import { useUnitFormat } from '@/composables/useUnitFormat'
+import { isStaleWrite } from '@/services/ifMatch'
 import { toNumberOrNull } from '@/utils/number'
+import { baseValueUnlessEdited } from '@/utils/units'
 import {
   ACTIVITY_TYPE_LABEL_KEYS,
   GOAL_ACTIVITY_TYPES,
@@ -29,8 +33,8 @@ import {
   hoursMinutesToSeconds,
   metersToDistanceValue,
   metersToElevationValue,
-  secondsToHoursMinutes,
 } from '@/features/goals/utils/goalFormat'
+import { secondsToHoursMinutes } from '@/utils/datetime'
 import { useCreateGoalMutation, useUpdateGoalMutation } from '@/features/goals/composables/useGoals'
 
 const open = defineModel<boolean>('open', { required: true })
@@ -51,6 +55,7 @@ const emit = defineEmits<{
 }>()
 
 const { t } = useI18n()
+const { unitLabel } = useUnitFormat()
 
 const createMutation = useCreateGoalMutation()
 const updateMutation = useUpdateGoalMutation()
@@ -104,7 +109,15 @@ function targetBaseUnits(values: GoalFormValues): number | null {
       return toIntOrNull(values.activitiesNumber)
     case 'distance': {
       const parsed = toNumberOrNull(values.distance)
-      return parsed === null ? null : distanceValueToMeters(parsed, props.units)
+      const stored = props.goal?.distanceMeters
+      return parsed === null
+        ? null
+        : baseValueUnlessEdited(
+            values.distance,
+            stored != null ? String(metersToDistanceValue(stored, props.units)) : '',
+            stored,
+            () => distanceValueToMeters(parsed, props.units),
+          )
     }
     case 'elevation': {
       const parsed = toNumberOrNull(values.elevation)
@@ -115,7 +128,15 @@ function targetBaseUnits(values: GoalFormValues): number | null {
         toNumberOrNull(values.durationHours) ?? 0,
         toNumberOrNull(values.durationMinutes) ?? 0,
       )
-      return seconds > 0 ? seconds : null
+      const stored = props.goal?.durationSeconds
+      const seeded = stored != null ? secondsToHoursMinutes(stored) : null
+      const target = baseValueUnlessEdited(
+        `${values.durationHours}:${values.durationMinutes}`,
+        seeded ? `${seeded.hours}:${seeded.minutes}` : '',
+        stored,
+        () => seconds,
+      )
+      return target > 0 ? target : null
     }
   }
   return null
@@ -142,25 +163,57 @@ function buildInput(values: GoalFormValues): GoalInput {
  * @param values - The validated form values.
  */
 async function submitForm(values: GoalFormValues): Promise<void> {
+  // Nothing changed: skip the request and just close.
+  if (props.goal && !isDirty.value) {
+    open.value = false
+    return
+  }
   const input = buildInput(values)
   try {
     if (props.goal) {
-      await updateMutation.mutateAsync({ id: props.goal.id, userId: props.goal.userId, input })
+      await updateMutation.mutateAsync({ id: props.goal.id, input, version: props.goal.version })
       emit('success', t('settings.goals.form.updateSuccess'))
     } else {
       await createMutation.mutateAsync(input)
       emit('success', t('settings.goals.form.createSuccess'))
     }
     open.value = false
-  } catch {
-    emit('error', t('settings.goals.form.saveError'))
+  } catch (error) {
+    if (applyServerFieldErrors(error, setErrors, t, FORM_KEYS, GOAL_TARGET_FIELDS)) {
+      return
+    }
+    if (isStaleWrite(error)) {
+      open.value = false
+    }
+    emit('error', isStaleWrite(error) ? t('app.staleError') : t('settings.goals.form.saveError'))
   }
 }
 
-const { values, isSubmitting, handleSubmit, reset } = useForm<GoalFormValues>({
-  initialValues: defaultValues(),
-  onSubmit: submitForm,
-})
+/** The form key each metric's target is shown under. */
+const TARGET_KEY_BY_METRIC = {
+  calories: 'calories',
+  activities: 'activitiesNumber',
+  distance: 'distance',
+  elevation: 'elevation',
+  duration: 'durationHours',
+} as const satisfies Record<GoalMetric, keyof GoalFormValues>
+
+/** API goal fields mapped to the form key of the target they set. */
+const GOAL_TARGET_FIELDS = {
+  goal_calories: 'calories',
+  goal_activities_number: 'activitiesNumber',
+  goal_distance: 'distance',
+  goal_elevation: 'elevation',
+  goal_duration: 'durationHours',
+} as const
+
+const FORM_KEYS = Object.values(TARGET_KEY_BY_METRIC)
+
+const { values, errors, isSubmitting, handleSubmit, reset, isDirty, markPristine, setErrors } =
+  useForm<GoalFormValues>({
+    initialValues: defaultValues(),
+    onSubmit: submitForm,
+  })
 
 const isEditing = computed(() => props.goal !== null)
 const dialogTitle = computed(() =>
@@ -173,12 +226,17 @@ const canSubmit = computed(() => {
   return base !== null && base > 0
 })
 
-const distanceUnit = computed(() =>
-  props.units === 'imperial' ? t('settings.goals.unit.miles') : t('settings.goals.unit.km'),
-)
-const elevationUnit = computed(() =>
-  props.units === 'imperial' ? t('settings.goals.unit.feet') : t('settings.goals.unit.meters'),
-)
+/** Explains why Save is disabled, or why the server refused the target. */
+const targetError = computed(() => {
+  const base = targetBaseUnits(values)
+  if (base !== null && base <= 0) {
+    return t('settings.goals.form.targetInvalid')
+  }
+  return errors.value[TARGET_KEY_BY_METRIC[values.goalType]]
+})
+
+const distanceUnit = computed(() => unitLabel(props.units === 'imperial' ? 'mi' : 'km'))
+const elevationUnit = computed(() => unitLabel(props.units === 'imperial' ? 'ft' : 'm'))
 const distanceLabel = computed(
   () => `${t('settings.goals.metric.distance')} (${distanceUnit.value})`,
 )
@@ -186,7 +244,7 @@ const elevationLabel = computed(
   () => `${t('settings.goals.metric.elevation')} (${elevationUnit.value})`,
 )
 const caloriesLabel = computed(
-  () => `${t('settings.goals.metric.calories')} (${t('settings.goals.unit.calories')})`,
+  () => `${t('settings.goals.metric.calories')} (${unitLabel('kcal')})`,
 )
 
 /** Seeds the form from the goal being edited, or pristine defaults. */
@@ -214,6 +272,7 @@ function populate(): void {
     values.durationHours = String(hours)
     values.durationMinutes = String(minutes)
   }
+  markPristine()
 }
 
 // Re-seed each time the dialog opens; the parent sets `goal` before opening.
@@ -271,6 +330,7 @@ watch(open, (isOpen) => {
         v-if="values.goalType === 'calories'"
         class="sm:col-span-2"
         :label="caloriesLabel"
+        :error="targetError"
         required
       >
         <template #default="{ fieldId }">
@@ -291,6 +351,7 @@ watch(open, (isOpen) => {
         v-else-if="values.goalType === 'activities'"
         class="sm:col-span-2"
         :label="t('settings.goals.metric.activities')"
+        :error="targetError"
         required
       >
         <template #default="{ fieldId }">
@@ -311,6 +372,7 @@ watch(open, (isOpen) => {
         v-else-if="values.goalType === 'distance'"
         class="sm:col-span-2"
         :label="distanceLabel"
+        :error="targetError"
         required
       >
         <template #default="{ fieldId }">
@@ -331,6 +393,7 @@ watch(open, (isOpen) => {
         v-else-if="values.goalType === 'elevation'"
         class="sm:col-span-2"
         :label="elevationLabel"
+        :error="targetError"
         required
       >
         <template #default="{ fieldId }">
@@ -348,7 +411,7 @@ watch(open, (isOpen) => {
       </FormField>
 
       <template v-else-if="values.goalType === 'duration'">
-        <FormField :label="t('settings.goals.form.durationHours')" required>
+        <FormField :label="t('settings.goals.form.durationHours')" :error="targetError" required>
           <template #default="{ fieldId }">
             <input
               :id="fieldId"

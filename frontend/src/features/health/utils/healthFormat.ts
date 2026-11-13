@@ -1,29 +1,40 @@
 /**
  * Health display formatters — pure functions that turn raw metric values into
  * the strings shown on the dashboard cards. Unit-system-aware values (weight,
- * water) convert via the shared `@/utils/units` helpers; threshold logic (BMI
- * category, HRV status) returns i18n key suffixes the view resolves to labels,
- * keeping the cutoffs unit-testable and out of the template.
+ * water) convert via the shared `@/utils/units` helpers; formatters that print a
+ * unit symbol or a duration take the resolver from `useUnitFormat()` so the text
+ * comes from the active locale; threshold logic (BMI category, HRV status)
+ * returns i18n key suffixes the view resolves to labels, keeping the cutoffs
+ * unit-testable and out of the template.
  */
 
+import type { UnitKey } from '@/i18n'
 import type { Schemas } from '@/types'
-import type { FastingSnapshot } from '@/features/health/types'
+import type { FastingSnapshot, HealthChartBucket } from '@/features/health/types'
 
+import { secondsToHoursMinutes, todayIsoDate } from '@/utils/datetime'
+import { formatFixed, formatNumber } from '@/utils/formatNumber'
 import { kgToLbs, mlToFlOz } from '@/utils/units'
 
 type Units = Schemas['Units']
 
+/** Resolves a unit key to its localized symbol (`useUnitFormat().unitLabel`). */
+type UnitLabel = (unit: UnitKey) => string
+
+/** Formats an hours-and-minutes duration (`useUnitFormat().duration`). */
+type DurationFormat = (hours: number, minutes: number, showZeroHours?: boolean) => string
+
 /**
- * Formats a duration in seconds as a compact `Hh Mm` string (e.g. `8h 5m`).
+ * Formats a duration in seconds as a compact localized hours-and-minutes string
+ * (e.g. `8h 5m`), always showing the hours part (`0h 5m`).
  *
  * @param seconds - Duration in seconds (clamped to zero if negative).
- * @returns The `Hh Mm` representation.
+ * @param duration - The localized hours-and-minutes formatter.
+ * @returns The hours-and-minutes representation.
  */
-export function formatHoursMinutes(seconds: number): string {
-  const totalMinutes = Math.max(0, Math.round(seconds / 60))
-  const hours = Math.floor(totalMinutes / 60)
-  const minutes = totalMinutes % 60
-  return `${hours}h ${minutes}m`
+export function formatHoursMinutes(seconds: number, duration: DurationFormat): string {
+  const { hours, minutes } = secondsToHoursMinutes(seconds)
+  return duration(hours, minutes, true)
 }
 
 /**
@@ -46,49 +57,62 @@ export function formatElapsedClock(seconds: number): string {
  * Formats a resting heart rate as `52 bpm`.
  *
  * @param bpm - Resting heart rate in beats per minute.
+ * @param unitLabel - The unit symbol resolver.
  * @returns The formatted heart rate.
  */
-export function formatRestingHeartRate(bpm: number): string {
-  return `${Math.round(bpm)} bpm`
+export function formatRestingHeartRate(bpm: number, unitLabel: UnitLabel): string {
+  return `${formatNumber(bpm)} ${unitLabel('bpm')}`
 }
 
 /**
- * Formats a skin-temperature deviation to one decimal place in °C.
+ * Formats a skin-temperature deviation to one decimal place. A deviation is a
+ * temperature difference, so the Fahrenheit value scales by 9/5 with no offset.
  *
  * @param celsius - Deviation in degrees Celsius (may be negative).
- * @returns The formatted deviation.
+ * @param units - The unit system the user reads temperatures in.
+ * @param unitLabel - The unit symbol resolver.
+ * @returns The formatted deviation (`-1.2 °C`, `+0.4 °C` or `-2.2 °F`; positive values carry a `+`).
  */
-export function formatSkinTempDeviation(celsius: number): string {
-  return `${celsius.toFixed(1)} °C`
+export function formatSkinTempDeviation(
+  celsius: number,
+  units: Units,
+  unitLabel: UnitLabel,
+): string {
+  const imperial = units === 'imperial'
+  const value = imperial ? (celsius * 9) / 5 : celsius
+  const sign = Math.round(value * 10) > 0 ? '+' : ''
+  return `${sign}${formatFixed(value, 1)} ${unitLabel(imperial ? 'fahrenheit' : 'celsius')}`
 }
 
 /**
- * Formats a weight, converting to pounds for imperial users.
+ * Formats a weight, converting to pounds when the user weighs in imperial.
  *
  * @param weightKg - Weight in kilograms.
- * @param units - The user's unit system.
+ * @param weightUnits - The unit system the user weighs in.
+ * @param unitLabel - The unit symbol resolver.
  * @returns The formatted weight (`72.0 kg` or `158.7 lb`).
  */
-export function formatWeight(weightKg: number, units: Units): string {
-  if (units === 'imperial') {
-    return `${kgToLbs(weightKg).toFixed(1)} lb`
+export function formatWeight(weightKg: number, weightUnits: Units, unitLabel: UnitLabel): string {
+  if (weightUnits === 'imperial') {
+    return `${formatFixed(kgToLbs(weightKg), 1)} ${unitLabel('lb')}`
   }
-  return `${weightKg.toFixed(1)} kg`
+  return `${formatFixed(weightKg, 1)} ${unitLabel('kg')}`
 }
 
 /**
- * Formats a mass (bone/muscle), converting to pounds for imperial users, to two
- * decimal places.
+ * Formats a mass (bone/muscle), converting to pounds when the user weighs in
+ * imperial, to two decimal places.
  *
  * @param massKg - Mass in kilograms.
- * @param units - The user's unit system.
+ * @param weightUnits - The unit system the user weighs in.
+ * @param unitLabel - The unit symbol resolver.
  * @returns The formatted mass (`5.20 kg` or `11.46 lb`).
  */
-export function formatBodyMass(massKg: number, units: Units): string {
-  if (units === 'imperial') {
-    return `${kgToLbs(massKg).toFixed(2)} lb`
+export function formatBodyMass(massKg: number, weightUnits: Units, unitLabel: UnitLabel): string {
+  if (weightUnits === 'imperial') {
+    return `${formatFixed(kgToLbs(massKg), 2)} ${unitLabel('lb')}`
   }
-  return `${massKg.toFixed(2)} kg`
+  return `${formatFixed(massKg, 2)} ${unitLabel('kg')}`
 }
 
 /**
@@ -112,23 +136,45 @@ export function formatHealthEntryDate(date: string | null, locale = 'en'): strin
 }
 
 /**
+ * Formats the first day of a chart bucket for an axis label: the month and year for a monthly
+ * bucket (e.g. `Jun 2026`), the medium date otherwise (a week is labelled by its Monday).
+ *
+ * @param date - The bucket's first day as `yyyy-mm-dd`.
+ * @param bucket - The span the bucket aggregates.
+ * @param locale - BCP-47 locale tag controlling the output language.
+ * @returns The localized label, or an empty string when `date` is unparseable.
+ */
+export function formatHealthChartLabel(
+  date: string,
+  bucket: HealthChartBucket,
+  locale = 'en',
+): string {
+  if (bucket !== 'month') return formatHealthEntryDate(date, locale)
+  const [year, month] = date.split('-').map(Number)
+  if (!year || !month) return ''
+  return new Intl.DateTimeFormat(locale, { month: 'short', year: 'numeric' }).format(
+    new Date(year, month - 1, 1),
+  )
+}
+
+/**
  * Formats a Body Mass Index to one decimal place.
  *
  * @param bmi - The BMI value.
  * @returns The formatted BMI.
  */
 export function formatBmi(bmi: number): string {
-  return bmi.toFixed(1)
+  return formatFixed(bmi, 1)
 }
 
 /**
- * Formats a step count with locale-aware thousands separators.
+ * Formats a step count with the app language's thousands separators.
  *
  * @param steps - The step count.
  * @returns The formatted step count.
  */
 export function formatSteps(steps: number): string {
-  return Math.round(steps).toLocaleString()
+  return formatNumber(steps)
 }
 
 /**
@@ -136,13 +182,14 @@ export function formatSteps(steps: number): string {
  *
  * @param amountMl - Volume in millilitres.
  * @param units - The user's unit system.
+ * @param unitLabel - The unit symbol resolver.
  * @returns The formatted volume (`1500 ml` or `50.7 fl oz`).
  */
-export function formatWater(amountMl: number, units: Units): string {
+export function formatWater(amountMl: number, units: Units, unitLabel: UnitLabel): string {
   if (units === 'imperial') {
-    return `${mlToFlOz(amountMl).toFixed(1)} fl oz`
+    return `${formatFixed(mlToFlOz(amountMl), 1)} ${unitLabel('flOz')}`
   }
-  return `${Math.round(amountMl)} ml`
+  return `${formatNumber(amountMl)} ${unitLabel('ml')}`
 }
 
 /**
@@ -235,6 +282,16 @@ export function nowDateTimeLocalInput(): string {
 }
 
 /**
+ * Last minute of the viewer's local day as a `yyyy-mm-ddTHH:mm` value, for the `max` of an
+ * `<input type="datetime-local">` so a future day cannot be picked.
+ *
+ * @returns Today's local date at 23:59 in `datetime-local` form.
+ */
+export function todayDateTimeLocalMax(): string {
+  return `${todayIsoDate()}T23:59`
+}
+
+/**
  * Converts a stored UTC instant to the `datetime-local` value for the viewer.
  *
  * @param value - ISO 8601 instant from the API.
@@ -268,6 +325,18 @@ export function dateTimeLocalToIso(local: string): string | null {
   }
   const ms = new Date(local).getTime()
   return Number.isNaN(ms) ? null : new Date(ms).toISOString()
+}
+
+/**
+ * Converts a `datetime-local` value a form requires back to a UTC ISO instant,
+ * read as local time like {@link dateTimeLocalToIso}.
+ *
+ * @param local - The `yyyy-mm-ddTHH:mm` input value, already validated as present.
+ * @returns A UTC ISO string.
+ * @throws {RangeError} When the value is not a date-time.
+ */
+export function requiredDateTimeLocalToIso(local: string): string {
+  return new Date(local).toISOString()
 }
 
 /**

@@ -82,5 +82,13 @@
       "ownTitle": "您目前沒有追蹤者。",
       "otherTitle": "尚無追蹤者。"
     }
+  },
+  "block": {
+    "block": "封鎖",
+    "unblock": "解除封鎖",
+    "confirmTitle": "封鎖 {name}？",
+    "confirmBody": "{name} 將無法要求追蹤你，你們之間的所有追蹤關係也會被移除。對方不會收到通知。",
+    "blockError": "無法封鎖此使用者，請重試。",
+    "unblockError": "無法解除封鎖此使用者，請重試。"
   }
 }

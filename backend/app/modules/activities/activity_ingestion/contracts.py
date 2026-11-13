@@ -6,11 +6,12 @@ expressed, and the questions the pipeline asks ("where do failed files go?",
 "what metadata applies to this file?") are answered by the source itself.
 
 :class:`BulkImportSource` is the **extension point**, not a Strava switch. A
-provider *subclasses* it (``modules.strava.bulk_import_source``), so the
+provider *subclasses* it (``modules.strava.bulk_import_service``), so the
 dependency runs one way, from provider to activities, and adding a second export
 format means adding a subclass rather than another branch in here.
 """
 
+import uuid
 from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import datetime
@@ -21,6 +22,15 @@ from sqlalchemy.orm import Session
 import modules.activities.activity.contracts as activity_contracts
 import modules.activities.activity.schema as activity_schema
 
+
+class WindowStoppedError(Exception):
+    """Raised by an activity processor to end the window early, keeping what was already processed.
+
+    For a provider that has dealt with the cause itself, such as unlinking an account whose token was
+    rejected, so none of the activities that follow would succeed.
+    """
+
+
 #: Fetch a user's activities recorded in ``[window_start, window_end]``, storing
 #: each through the ingestion seam and returning what it stored. Returns an empty
 #: list (or ``None``) when the user has not linked this provider — an unlinked
@@ -30,14 +40,14 @@ import modules.activities.activity.schema as activity_schema
 #: opens a short session per unit of work so no transaction is held open across
 #: a network call.
 FetchWindow = Callable[
-    [int, datetime, datetime],
+    [uuid.UUID, datetime, datetime],
     list[activity_schema.ActivityRead] | None,
 ]
 
 #: The ids of users who have linked this provider, ascending, those greater than
 #: ``after_id``, at most ``limit``. Lets the scheduler enqueue one refresh per
 #: linked user instead of walking every user.
-LinkedUserIds = Callable[[int, int], list[int]]
+LinkedUserIds = Callable[[uuid.UUID | None, int], list[uuid.UUID]]
 
 
 def build_import_record(import_initiated_time: str, source_label: str = "Basic bulk import") -> dict[str, Any]:
@@ -59,7 +69,7 @@ def build_import_record(import_initiated_time: str, source_label: str = "Basic b
 
 def apply_bulk_import_metadata(
     activity: activity_contracts.ActivityCore,
-    activity_metadata: dict,
+    activity_metadata: dict[str, Any],
 ) -> None:
     """Apply a bulk import's supplemental metadata to a parsed activity, in place.
 
@@ -109,7 +119,7 @@ class GarminSource:
         activity_name: Optional override for the parsed activity's name.
     """
 
-    gear_id: int | None = None
+    gear_id: uuid.UUID | None = None
     provider_gear_id: str | None = None
     activity_name: str | None = None
 
@@ -131,11 +141,11 @@ class BulkImportSource:
     """
 
     import_initiated_time: str | None = None
-    user_id: int | None = None
+    user_id: uuid.UUID | None = None
 
     kind = "bulk_import"
 
-    def metadata_for(self, file_base_name: str) -> dict:
+    def metadata_for(self, file_base_name: str) -> dict[str, Any]:
         """Build the supplemental metadata to apply to activities from one file.
 
         Args:
@@ -152,7 +162,7 @@ class BulkImportSource:
     def should_import(
         self,
         activity: activity_contracts.ActivityCore,
-        activity_metadata: dict,
+        activity_metadata: dict[str, Any],
         *,
         activities_in_file: int,
     ) -> bool:
@@ -172,7 +182,7 @@ class BulkImportSource:
     def apply_metadata(
         self,
         activity: activity_contracts.ActivityCore,
-        activity_metadata: dict,
+        activity_metadata: dict[str, Any],
     ) -> None:
         """Apply this import's supplemental metadata to a parsed activity, in place.
 
@@ -237,8 +247,8 @@ class BulkImportFormat:
     name: str
     is_activity_member: Callable[[str], bool]
     is_export_member: Callable[[str], bool]
-    drop_directory: Callable[[int], str]
-    build_source: Callable[[int, str, ArchiveMemberReader], BulkImportSource]
+    drop_directory: Callable[[uuid.UUID], str]
+    build_source: Callable[[uuid.UUID, str, ArchiveMemberReader], BulkImportSource]
 
 
 @dataclass(frozen=True)
@@ -258,7 +268,7 @@ class BulkImportState:
         finished: Whether the job already reached a terminal state.
     """
 
-    user_id: int
+    user_id: uuid.UUID
     import_source: str
     staged_key: str | None
     cursor: str | None

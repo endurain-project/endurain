@@ -1,36 +1,31 @@
-"""The curated read interface other modules consume instead of the users internals.
+"""The users surface other modules may call.
 
-Mirrors the pattern the activities module already exposes
-(``activity/integration_service.py``) and the followers module established with
-``list_accepted_followee_ids``: a consumer asks the owning module a question, it
-never reaches into that module's CRUD, ORM or utility grab-bag.
-
-Before this existed, activities imported ``users.users.utils``,
-``users.users.crud``, ``users_privacy_settings.crud/utils`` and
-``users_default_gear.utils`` directly — four entry points into another module's
-internals, one of which (``users.users.utils``) also drags in FastAPI, the file-
-upload helpers and the health-targets CRUD for callers that only wanted a
-timezone. Narrowing it to the functions below is what lets the outbound-reach
-rule in ``docs/developer-guide/module-structure.md`` hold the line.
-
-Everything here returns schemas or primitives; no ORM row and no ``users``
-internal type crosses the boundary.
+A consumer asks the owning module a question; it never reaches into this module's CRUD, ORM or
+helpers. Everything here returns schemas or primitives: no ORM row and no internal type crosses
+the boundary. Writes stage and the caller commits, except the listed units of work.
 """
 
-from datetime import date
+import uuid
+from collections.abc import Collection, Sequence
+from datetime import date, datetime
 
+import jasil.providers as platform_providers
+from fastapi import UploadFile
+from pydantic import BaseModel
+from sqlalchemy import Select
 from sqlalchemy.orm import Session
 
+import core.job_status as core_job_status
+import modules.server_settings.schema as server_settings_schema
 import modules.users.users.crud as users_crud
+import modules.users.users.deletion_job_service as users_deletion_job_service
+import modules.users.users.deletion_state_store as users_deletion_state_store
+import modules.users.users.photo_service as users_photo_service
 import modules.users.users.schema as users_schema
-import modules.users.users.utils as users_utils
-import modules.users.users_default_gear.utils as users_default_gear_utils
-import modules.users.users_privacy_settings.crud as users_privacy_settings_crud
-import modules.users.users_privacy_settings.schema as users_privacy_settings_schema
-import modules.users.users_privacy_settings.utils as users_privacy_settings_utils
+import modules.users.users.service as users_service
 
 
-def get_user(user_id: int, db: Session) -> users_schema.UsersRead | None:
+def get_user(user_id: uuid.UUID, db: Session) -> users_schema.UserRead | None:
     """Return a user by id, or ``None`` when there is no such user.
 
     Args:
@@ -43,26 +38,516 @@ def get_user(user_id: int, db: Session) -> users_schema.UsersRead | None:
     return users_crud.get_user_by_id(user_id, db)
 
 
-def get_privacy_settings(user_id: int, db: Session) -> users_privacy_settings_schema.UsersPrivacySettingsRead | None:
-    """Return a user's privacy settings, or ``None`` when they have none.
+def require_user(user_id: uuid.UUID, db: Session) -> users_schema.UserRead:
+    """Return a user by id, which must exist.
 
     Args:
-        user_id: The owner whose defaults to read.
+        user_id: The user to look up.
         db: Database session.
 
     Returns:
-        The privacy settings, or ``None``.
+        The user record.
+
+    Raises:
+        NotFoundError: If the user does not exist.
     """
-    return users_privacy_settings_crud.get_user_privacy_settings_by_user_id(user_id, db)
+    return users_service.require_user(user_id, db)
 
 
-def local_today(user_id: int, db: Session) -> date:
+def list_public_profiles(user_ids: Collection[uuid.UUID], db: Session) -> dict[uuid.UUID, users_schema.UserPublicRead]:
+    """Return the public projection of several users in one read, keyed by user ID.
+
+    A user who is missing, inactive or awaiting approval has no entry, as a single lookup of
+    that user would answer not found.
+
+    Args:
+        user_ids: The users to look up.
+        db: Database session.
+
+    Returns:
+        The public projection of each visible user, keyed by ID.
+    """
+    return users_service.list_public_profiles(user_ids, db)
+
+
+def get_public_profile(user_id: uuid.UUID, db: Session) -> users_schema.UserPublicRead:
+    """Return the signed-in viewer's public projection of a user.
+
+    Args:
+        user_id: The user to look up.
+        db: Database session.
+
+    Returns:
+        The public projection.
+
+    Raises:
+        NotFoundError: If the user does not exist, is inactive or awaits approval.
+    """
+    return users_service.get_public_profile(user_id, db)
+
+
+def get_public_user(user_id: uuid.UUID, db: Session) -> users_schema.UserPublicRead:
+    """Return a user's public projection for an anonymous viewer, when sharing allows it.
+
+    Args:
+        user_id: The user to look up.
+        db: Database session.
+
+    Returns:
+        The public projection.
+
+    Raises:
+        NotFoundError: If public user info is not shared, or the user does not exist, is inactive
+            or awaits approval.
+    """
+    return users_service.get_public_user(user_id, db)
+
+
+def require_active_user(user: users_schema.UserRead) -> None:
+    """Require a user to be active.
+
+    Args:
+        user: The user to check.
+
+    Raises:
+        PermissionDeniedError: If the user is not active.
+    """
+    users_service.require_active_user(user)
+
+
+def get_user_by_email(email: str, db: Session) -> users_schema.UserRead | None:
+    """Return a user by email address, or ``None`` when no user has it.
+
+    Args:
+        email: The email address (case-insensitive).
+        db: Database session.
+
+    Returns:
+        The user record, or ``None``.
+    """
+    return users_crud.get_user_by_email(email, db)
+
+
+def get_user_by_username(username: str, db: Session) -> users_schema.UserRead | None:
+    """Return a user by exact username, or ``None`` when no user has it.
+
+    Args:
+        username: The username.
+        db: Database session.
+
+    Returns:
+        The user record, or ``None``.
+    """
+    return users_crud.get_user_by_username(username, db)
+
+
+def require_admin_users(db: Session) -> list[users_schema.UserRead]:
+    """Return every admin user, of which there must be at least one.
+
+    Args:
+        db: Database session.
+
+    Returns:
+        The admin users.
+
+    Raises:
+        NotFoundError: If there are no admin users.
+    """
+    return users_service.require_admin_users(db)
+
+
+def any_user_exists(db: Session) -> bool:
+    """Tell whether at least one user exists.
+
+    Args:
+        db: Database session.
+
+    Returns:
+        True when the installation has an account.
+    """
+    return users_crud.any_user_exists(db)
+
+
+def stage_first_admin(admin: users_schema.FirstAdminCreate, db: Session) -> users_schema.UserRead:
+    """Stage the first administrator, with their password and default data; the caller commits.
+
+    Takes the first-administrator advisory lock for the caller's transaction and refuses when a user exists.
+
+    Args:
+        admin: The administrator's name, username, email and plain text password.
+        db: Database session.
+
+    Returns:
+        The staged administrator.
+
+    Raises:
+        ConflictError: If a user already exists, or the username or email is already taken.
+        PasswordPolicyError: If the password fails the administrator policy.
+    """
+    return users_service.stage_first_admin(admin, db)
+
+
+def stage_signup_user(
+    user: users_schema.UserSignup,
+    server_settings: server_settings_schema.ServerSettingsRead,
+    db: Session,
+) -> users_schema.UserRead:
+    """Stage a user through sign-up, with their default data; the caller commits.
+
+    Args:
+        user: User sign-up data.
+        server_settings: Server config for sign-up requirements.
+        db: Database session.
+
+    Returns:
+        The created user.
+
+    Raises:
+        ConflictError: If the username or email is already taken.
+    """
+    return users_service.stage_signup_user(user, server_settings, db)
+
+
+def create_sso_user(
+    profile: users_schema.UserBase,
+    server_settings: server_settings_schema.ServerSettingsRead,
+    db: Session,
+    *,
+    email_verified: bool,
+) -> users_schema.UserRead:
+    """Create an SSO-only user through the users module, its email verified only as the provider asserted."""
+    return users_service.create_sso_user(profile, server_settings, db, email_verified=email_verified)
+
+
+def is_deactivated(user_id: uuid.UUID, db: Session) -> bool:
+    """Tell whether an administrator or a deletion request deactivated a user.
+
+    Args:
+        user_id: The user to check.
+        db: Database session.
+
+    Returns:
+        True for a deactivated account, False for an active one and for a sign-up awaiting verification
+        or approval.
+
+    Raises:
+        NotFoundError: If the user does not exist.
+    """
+    return users_service.is_deactivated(user_id, db)
+
+
+def was_created_after(user_id: uuid.UUID, moment: datetime, db: Session) -> bool:
+    """Tell whether a user's account was created after a moment.
+
+    Args:
+        user_id: The user to check.
+        moment: The instant to compare the creation time with.
+        db: Database session.
+
+    Returns:
+        True when the account was created after the moment; False when it was not and when the user does not exist.
+    """
+    return users_crud.was_created_after(user_id, moment, db)
+
+
+def stage_email_verification(
+    user_id: uuid.UUID,
+    server_settings: server_settings_schema.ServerSettingsRead,
+    db: Session,
+) -> None:
+    """Stage a user's email as verified, activating them unless admin approval is pending.
+
+    Args:
+        user_id: The user to verify.
+        server_settings: Server config that decides whether approval is still required.
+        db: Database session.
+
+    Raises:
+        NotFoundError: If the user does not exist.
+    """
+    users_service.stage_email_verification(user_id, server_settings, db)
+
+
+def edit_user(user_id: uuid.UUID, user: users_schema.UserEdit, db: Session, *, if_match: str) -> users_schema.UserRead:
+    """Stage an administrative edit of a user.
+
+    Args:
+        user_id: The user to update.
+        user: The user data to apply.
+        db: Database session.
+        if_match: The ``If-Match`` precondition, or ``*`` to overwrite (a system writer).
+
+    Returns:
+        The updated user.
+
+    Raises:
+        NotFoundError: If the user does not exist.
+        ConflictError: If the username or email is already taken.
+        PreconditionFailedError: When ``if_match`` does not name the row's version.
+    """
+    return users_service.stage_user_edit(user_id, user, db, if_match=if_match)
+
+
+def edit_profile(
+    user_id: uuid.UUID, profile: users_schema.ProfileUpdate, db: Session, *, if_match: str
+) -> users_schema.UserRead:
+    """Stage a self-service profile update, keeping only the allow-listed fields.
+
+    Args:
+        user_id: The authenticated user.
+        profile: The validated self-service payload.
+        db: Database session.
+        if_match: The ``If-Match`` precondition, or ``*`` to overwrite (the profile importer).
+
+    Returns:
+        The updated user.
+
+    Raises:
+        NotFoundError: If the user does not exist.
+        PreconditionFailedError: When ``if_match`` does not name the row's version.
+    """
+    return users_service.stage_profile_edit(user_id, profile, db, if_match=if_match)
+
+
+def changed_field_names(before: BaseModel, after: BaseModel, names: Collection[str]) -> list[str]:
+    """Name the fields, among those a write submitted, whose stored value differs after it.
+
+    Args:
+        before: The record before the write.
+        after: The record after the write.
+        names: The field names the write submitted.
+
+    Returns:
+        The submitted names whose value changed, in submission order.
+    """
+    return users_service.changed_field_names(before, after, names)
+
+
+def stage_username_change(user_id: uuid.UUID, username: str, db: Session) -> bool:
+    """Stage a new username for a user, stored in lower case.
+
+    Args:
+        user_id: The user whose username changes.
+        username: The new username, in any case.
+        db: Database session.
+
+    Returns:
+        True when the username changed, False when it was already the user's.
+
+    Raises:
+        NotFoundError: If the user does not exist.
+        ConflictError: If another account uses the username.
+    """
+    return users_service.stage_username_change(user_id, username, db)
+
+
+def stage_email_change(user_id: uuid.UUID, email: str, db: Session) -> bool:
+    """Stage a new email address for a user and mark it unverified.
+
+    Args:
+        user_id: The user whose email changes.
+        email: The new email address.
+        db: Database session.
+
+    Returns:
+        True when the address changed, False when it was already the user's.
+
+    Raises:
+        NotFoundError: If the user does not exist.
+        ConflictError: If the email is already taken.
+    """
+    return users_service.stage_email_change(user_id, email, db)
+
+
+def is_email_available(user_id: uuid.UUID | None, email: str, db: Session) -> bool:
+    """Tell whether an address can be given to a user: no other account uses it or has it reserved.
+
+    Args:
+        user_id: The user who wants the address, or None for an account not yet created.
+        email: The address, in any case.
+        db: Database session.
+
+    Returns:
+        False when another account uses the address or has it reserved for an email-change revert.
+    """
+    return users_service.is_email_available(user_id, email, db)
+
+
+def stage_confirmed_email_change(user_id: uuid.UUID, email: str, db: Session) -> None:
+    """Stage a confirmed email address for a user and mark it verified.
+
+    Args:
+        user_id: The user whose email changes.
+        email: The confirmed email address.
+        db: Database session.
+
+    Raises:
+        NotFoundError: If the user does not exist.
+        ConflictError: If another account uses the email.
+    """
+    users_service.stage_confirmed_email_change(user_id, email, db)
+
+
+def stage_synced_email_change(user_id: uuid.UUID, email: str, db: Session) -> None:
+    """Stage an email address a sign-in provider verified as the user's, and tell the previous address.
+
+    Args:
+        user_id: The user whose email changes.
+        email: The address the provider verified.
+        db: Database session.
+
+    Raises:
+        NotFoundError: If the user does not exist.
+        ConflictError: If another account uses the email.
+    """
+    users_service.stage_synced_email_change(user_id, email, db)
+
+
+def upload_user_photo(
+    user_id: uuid.UUID,
+    file: UploadFile,
+    storage: platform_providers.StorageProvider,
+    db: Session,
+) -> bool:
+    """Validate and store a user's photo, record its key and commit.
+
+    Args:
+        user_id: The user whose photo is being saved.
+        file: The uploaded image.
+        storage: The platform storage provider.
+        db: Database session.
+
+    Returns:
+        The storage key of the saved photo.
+
+    Raises:
+        NotFoundError: If the user does not exist.
+        InvalidInputError: If the upload has no filename.
+        UnsupportedMediaTypeError: If the extension is not an allowed image type.
+    """
+    return users_photo_service.upload_photo(user_id, file, storage, db)
+
+
+def store_user_photo(
+    user_id: uuid.UUID,
+    extension: str,
+    data: bytes,
+    storage: platform_providers.StorageProvider,
+    db: Session,
+) -> str:
+    """Store an already validated photo for a user, record its key and commit.
+
+    Args:
+        user_id: The user whose photo is being saved.
+        extension: The image extension including the dot.
+        data: The validated image bytes.
+        storage: The platform storage provider.
+        db: Database session.
+
+    Returns:
+        The storage key of the saved photo.
+
+    Raises:
+        NotFoundError: If the user does not exist.
+        UnsupportedMediaTypeError: If the extension is not an allowed image type.
+    """
+    return users_photo_service.store_photo(user_id, extension, data, storage, db)
+
+
+def delete_user_photo(user_id: uuid.UUID, storage: platform_providers.StorageProvider, db: Session) -> None:
+    """Clear a user's photo reference, commit, then delete the stored blobs.
+
+    Args:
+        user_id: The user whose photo to delete.
+        storage: The platform storage provider.
+        db: Database session.
+
+    Raises:
+        NotFoundError: If the user does not exist.
+    """
+    users_photo_service.delete_photo(user_id, storage, db)
+
+
+def request_user_deletion(
+    user_id: uuid.UUID,
+    state: platform_providers.StateProvider,
+    storage: platform_providers.StorageProvider,
+    mail: platform_providers.MailProvider,
+    db: Session,
+) -> users_schema.UserDeletionStatus:
+    """Queue the erasure of a user's account and data, and commit.
+
+    Signs the user out, deactivates the account and hands the erasure to a worker.
+
+    Args:
+        user_id: The user to delete.
+        state: The platform state provider.
+        storage: The platform storage provider.
+        mail: The platform mail provider.
+        db: Database session.
+
+    Returns:
+        The deletion's initial status, with the id of the job that reads it.
+
+    Raises:
+        NotFoundError: If the user does not exist.
+        LastAdministratorError: If the user is the only administrator.
+        JobAlreadyRunningError: If a deletion is already pending.
+    """
+    # The account owner confirmed with step-up and names no version, so the wildcard overwrites whatever is there.
+    return users_deletion_job_service.request_deletion(
+        user_id, user_id, users_deletion_state_store.UserDeletionStateStore(state), storage, mail, db, if_match="*"
+    )
+
+
+def read_deletion_job(
+    job: core_job_status.JobRef, state: platform_providers.StateProvider
+) -> users_schema.UserDeletionStatus | None:
+    """Read the account deletion a job reference names.
+
+    Args:
+        job: The job's reference.
+        state: The platform state provider.
+
+    Returns:
+        The deletion's status, or None when its record is gone or belongs to a later deletion.
+    """
+    read = users_deletion_state_store.UserDeletionStateStore(state).read_job(job)
+    if read is None:
+        return None
+    ref, deletion = read
+    return users_schema.UserDeletionStatus.model_validate({**ref.envelope(), "status": deletion.status})
+
+
+def stage_unverified_sign_up_purge(
+    created_before: datetime, held_user_ids: Sequence[Select[tuple[uuid.UUID]]], limit: int, db: Session
+) -> int:
+    """Stage the deletion of up to ``limit`` unverified self sign-ups created before ``created_before``.
+
+    Args:
+        created_before: Only accounts created before this instant qualify.
+        held_user_ids: Queries for the ids of the users that must be kept, such as those with a credential.
+        limit: The most accounts to delete.
+        db: Database session; the caller commits.
+
+    Returns:
+        How many accounts were staged for deletion.
+    """
+    return users_deletion_job_service.stage_unverified_sign_up_purge(created_before, held_user_ids, limit, db)
+
+
+def shutdown_deletion_pool() -> None:
+    """Stop the in-process pool account deletions run on, without waiting for them."""
+    users_deletion_job_service.shutdown_deletion_pool()
+
+
+def local_today(user_id: uuid.UUID, db: Session) -> date:
     """Return today's calendar date in the user's own timezone.
 
-    "Which day is it?" is a local question the server cannot answer from its own
-    clock, and the answer belongs to the users module because the timezone does.
-    Consumers that bucket by day (activity summaries, week/month stats) resolve
-    it here rather than reading ``users.timezone`` themselves.
+    "Which day is it?" is a local question the server cannot answer from its own clock, and
+    the answer belongs to the users module because the timezone does. Consumers that bucket by
+    day (activity summaries, week/month stats) resolve it here rather than reading
+    ``users.timezone`` themselves.
 
     Args:
         user_id: The user whose "today" to resolve.
@@ -71,14 +556,30 @@ def local_today(user_id: int, db: Session) -> date:
     Returns:
         The user's current calendar date.
     """
-    return users_utils.user_local_today(user_id, db)
+    return users_service.user_local_today(user_id, db)
+
+
+def resolve_timezone(user_id: uuid.UUID, db: Session) -> str:
+    """Return the user's IANA timezone, falling back to the server default.
+
+    Consumers that bucket timestamps into calendar days (health entries) resolve the zone here
+    instead of reading ``users.timezone`` themselves.
+
+    Args:
+        user_id: The user whose timezone to resolve.
+        db: Database session.
+
+    Returns:
+        An IANA timezone name.
+    """
+    return users_service.resolve_user_timezone(user_id, db)
 
 
 def timezone_or_default(timezone: str | None) -> str:
     """Return the given IANA timezone, or the server default when it is unset.
 
-    ``users.timezone`` is nullable, so a consumer holding a user record still has
-    to resolve the fallback; doing it here keeps the fallback rule in one place.
+    ``users.timezone`` is nullable, so a consumer holding a user record still has to resolve the
+    fallback; doing it here keeps the fallback rule in one place.
 
     Args:
         timezone: An IANA timezone name, or ``None``.
@@ -86,32 +587,4 @@ def timezone_or_default(timezone: str | None) -> str:
     Returns:
         An IANA timezone name.
     """
-    return users_utils.timezone_or_default(timezone)
-
-
-def default_visibility_to_int(
-    visibility: str | users_privacy_settings_schema.ActivityVisibility | None,
-) -> int:
-    """Normalise a user's configured default activity visibility to its int code.
-
-    Args:
-        visibility: The stored privacy-settings visibility value.
-
-    Returns:
-        The integer visibility code (0=public, 1=followers, 2=private).
-    """
-    return users_privacy_settings_utils.visibility_to_int(visibility)
-
-
-def get_default_gear_for_activity_type(user_id: int, activity_type: int, db: Session) -> int | None:
-    """Return the user's default gear id for an activity type, if they set one.
-
-    Args:
-        user_id: The owning user.
-        activity_type: The numeric sport type.
-        db: Database session.
-
-    Returns:
-        The gear id, or ``None`` when the user has no default for this type.
-    """
-    return users_default_gear_utils.get_user_default_gear_by_activity_type(user_id, activity_type, db)
+    return users_service.timezone_or_default(timezone)

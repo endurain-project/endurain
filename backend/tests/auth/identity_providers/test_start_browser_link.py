@@ -1,0 +1,158 @@
+"""Tests for staging a browser identity-provider link flow and building its provider URL."""
+
+import uuid
+from datetime import UTC, datetime
+from unittest.mock import MagicMock, patch
+
+import pytest
+
+import core.exceptions as core_exceptions
+import core.hashing as core_hashing
+import modules.auth.identity_providers.contracts as identity_provider_contracts
+import modules.auth.oauth_state.constants as oauth_state_constants
+from modules.auth.identity_providers import authorization_service, integration_service
+from tests._helpers.auth import MOCK_USER_ID
+
+IDP_ID = uuid.uuid4()
+SESSION_ID = uuid.UUID("11111111-2222-3333-4444-555555555555")
+
+_UNSET = object()
+
+
+def _idp(enabled: bool = True) -> identity_provider_contracts.IdentityProviderState:
+    now = datetime.now(UTC)
+    return identity_provider_contracts.IdentityProviderState(
+        id=IDP_ID,
+        name="Test IdP",
+        slug="test",
+        provider_type="oidc",
+        enabled=enabled,
+        client_id=None,
+        client_secret=None,
+        issuer_url=None,
+        authorization_endpoint="https://idp.example.com/auth",
+        token_endpoint=None,
+        userinfo_endpoint=None,
+        scopes=None,
+        icon=None,
+        icon_uploaded=False,
+        auto_create_users=False,
+        sync_user_info=False,
+        sync_email=False,
+        link_by_email=False,
+        user_mapping=None,
+        created_at=now,
+        updated_at=now,
+        version=1,
+    )
+
+
+def _stage(*, redirect=None, provider=_UNSET, session_id=SESSION_ID, ends_other_sessions=False, generation=0):
+    if provider is _UNSET:
+        provider = _idp()
+    db = MagicMock()
+    service = authorization_service.AuthorizationService(MagicMock(), "https://app.example")
+    with (
+        patch.object(authorization_service.idp_crud, "get_identity_provider", return_value=provider),
+        patch.object(
+            integration_service.identity_providers_authorization, "AuthorizationService", return_value=service
+        ),
+        patch.object(integration_service, "_oidc_client"),
+        patch.object(
+            authorization_service.oauth_state_integration,
+            "create_state_id_and_nonce",
+            return_value=("state", "nonce"),
+        ),
+        patch.object(authorization_service.oauth_state_integration, "create_oauth_state") as create_state,
+    ):
+        staged = integration_service.stage_browser_link(
+            MOCK_USER_ID,
+            IDP_ID,
+            redirect,
+            "10.0.0.1",
+            session_id,
+            ends_other_sessions,
+            db,
+            security_generation=generation,
+        )
+    return staged, service, create_state
+
+
+def test_stage_browser_link_stages_a_link_state_for_the_claimed_user():
+    staged, _, create_state = _stage()
+
+    assert staged.purpose == oauth_state_constants.OAuthStatePurpose.LINK
+    assert staged.state_id == "state"
+    assert staged.nonce == "nonce"
+    assert create_state.call_args.kwargs["user_id"] == MOCK_USER_ID
+    assert create_state.call_args.kwargs["purpose"] == oauth_state_constants.OAuthStatePurpose.LINK
+
+
+def test_authorization_url_is_built_from_the_staged_flow_without_the_database():
+    staged, service, _ = _stage()
+
+    with (
+        patch.object(
+            integration_service.identity_providers_authorization, "AuthorizationService", return_value=service
+        ),
+        patch.object(integration_service, "_oidc_client"),
+        patch.object(service, "_build_authorization_url", return_value="https://idp.example.com/auth?x=1") as build,
+    ):
+        url = integration_service.authorization_url(staged)
+
+    assert url == "https://idp.example.com/auth?x=1"
+    build.assert_called_once_with(staged.idp, "state", "nonce", staged.idp_code_verifier, {})
+
+
+def test_the_state_stores_only_a_digest_of_a_fresh_browser_binding():
+    """The browser keeps the binding; the row keeps its digest, so the row alone cannot reproduce it."""
+    first, _, create_state = _stage()
+    second, _, _ = _stage()
+
+    assert len(first.browser_binding) >= 43
+    assert first.browser_binding != second.browser_binding
+    assert create_state.call_args.kwargs["browser_binding_hash"] == core_hashing.sha256_hex(first.browser_binding)
+
+
+def test_a_link_state_keeps_a_fresh_pkce_verifier_for_the_provider():
+    _, _, first = _stage()
+    _, _, second = _stage()
+
+    verifier = first.call_args.kwargs["idp_code_verifier"]
+    assert 43 <= len(verifier) <= 128
+    assert verifier != second.call_args.kwargs["idp_code_verifier"]
+
+
+@pytest.mark.parametrize("ends_other_sessions", [True, False])
+def test_a_link_state_always_records_its_starting_session_and_whether_it_ends_the_others(ends_other_sessions):
+    _, _, create_state = _stage(session_id=SESSION_ID, ends_other_sessions=ends_other_sessions)
+
+    assert create_state.call_args.kwargs["session_id"] == SESSION_ID
+    assert create_state.call_args.kwargs["ends_other_sessions"] is ends_other_sessions
+
+
+def test_a_link_state_records_the_generation_the_caller_read(security_generations):
+    security_generations.generations[MOCK_USER_ID] = 9
+
+    _, _, create_state = _stage(generation=4)
+
+    assert create_state.call_args.kwargs["security_generation"] == 4
+
+
+def test_stage_browser_link_preserves_redirect_and_client_type():
+    _, _, create_state = _stage(redirect="/settings/security")
+    assert create_state.call_args.kwargs["redirect_path"] == "/settings/security"
+    assert create_state.call_args.kwargs["client_type"] == "web"
+
+
+def test_bad_redirect_is_rejected():
+    with pytest.raises(core_exceptions.DomainError) as exc:
+        _stage(redirect="https://evil.example.com")
+    assert exc.value.status_code == 400
+
+
+def test_missing_or_disabled_provider_is_not_found():
+    for provider in (None, _idp(enabled=False)):
+        with pytest.raises(core_exceptions.DomainError) as exc:
+            _stage(provider=provider)
+        assert getattr(exc.value, "status_code", None) == 404

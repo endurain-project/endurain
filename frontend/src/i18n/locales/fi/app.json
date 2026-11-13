@@ -18,6 +18,17 @@
     "help": "Tarkista, että ENDURAIN_HOST osoittaa osoitteeseen, josta Endurain-instanssisi on tavoitettavissa (esimerkiksi https://endurain.example.com) ja että taustapalvelu on käynnissä, ja lataa sitten sivu uudelleen.",
     "reload": "Lataa uudelleen"
   },
+  "staleError": "Tätä muutettiin muualla, kun katselit sitä, joten mitään ei tallennettu. Nykyinen versio on ladattu. Tarkista se ja yritä uudelleen.",
+  "sessionRestoreError": "Emme voineet tarkistaa, oletko kirjautunut sisään. Palvelin tai yhteytesi ei ehkä ole käytettävissä.",
+  "fieldError": {
+    "required": "Tämä kenttä on pakollinen",
+    "tooShort": "Tämä arvo on liian lyhyt",
+    "tooLong": "Tämä arvo on liian pitkä",
+    "tooLarge": "Tämä arvo on liian suuri",
+    "tooSmall": "Tämä arvo on liian pieni",
+    "invalidFormat": "Tämän arvon muoto on virheellinen",
+    "invalid": "Tämä arvo on virheellinen"
+  },
   "dismiss": "Hylkää",
   "language": "Kieli",
   "theme": {
@@ -35,5 +46,28 @@
     "edit": "Muokkaa",
     "supported": "Markdown tuettu",
     "empty": "Ei mitään esikatseltavaa"
+  },
+  "password": {
+    "hintLength": "Vähintään {min} merkkiä.",
+    "invalid": "Salasana ei täytä vaatimuksia",
+    "mismatch": "Salasanat eivät täsmää",
+    "tooShort": "Tämä salasana on liian lyhyt. Käytä vähintään {min} merkkiä.",
+    "tooCommon": "Tämä salasana on liian yleinen. Valitse vaikeammin arvattava.",
+    "breached": "Tämä salasana on esiintynyt tunnetussa tietovuodossa. Valitse toinen.",
+    "matchesAccount": "Älä käytä käyttäjänimeäsi tai sähköpostiosoitettasi salasanana.",
+    "blank": "Salasana ei voi koostua pelkistä välilyönneistä.",
+    "unchanged": "Valitse nykyisestä salasanastasi poikkeava salasana.",
+    "strength": {
+      "label": "Salasanan vahvuus: {level}",
+      "tooWeak": "Liian heikko",
+      "weak": "Heikko",
+      "fair": "Kohtalainen",
+      "good": "Hyvä",
+      "strong": "Vahva"
+    }
+  },
+  "retryAfter": {
+    "tooManyAttempts": "Liian monta yritystä. Yritä uudelleen {seconds} sekunnin kuluttua.",
+    "unavailable": "Todennus ei ole tilapäisesti käytettävissä. Yritä uudelleen {seconds} sekunnin kuluttua."
   }
 }

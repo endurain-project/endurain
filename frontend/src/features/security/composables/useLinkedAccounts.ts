@@ -8,7 +8,7 @@ import { fetchEnabledIdentityProviders } from '@/services/identityProviders'
 import { useAuthStore } from '@/features/auth/stores/auth'
 import {
   fetchLinkedProviders,
-  generateLinkToken,
+  startProviderLink,
   unlinkProvider,
 } from '@/features/security/services/linkedAccounts'
 
@@ -49,32 +49,39 @@ export function useAvailableProvidersQuery() {
 
 /**
  * Unlink mutation. Invalidates the linked-providers and public-providers caches
- * on success so both lists reflect the change.
+ * on success so both lists reflect the change, and the known devices, which an
+ * unlink forgets as a security change.
  *
  * @returns The TanStack Query mutation for unlinking a provider.
  */
 export function useUnlinkProviderMutation() {
   const client = useQueryClient()
 
-  return useMutation<void, Error, { idpId: number; input: StepUpInput }>({
+  return useMutation<void, Error, { idpId: string; input: StepUpInput }>({
     mutationKey: queryKeys.security.all(),
     mutationFn: ({ idpId, input }) => unlinkProvider(idpId, input),
     onSuccess: () => {
       void client.invalidateQueries({ queryKey: queryKeys.security.linkedProviders() })
       void client.invalidateQueries({ queryKey: queryKeys.public.identityProviders() })
+      void client.invalidateQueries({ queryKey: queryKeys.security.devices() })
     },
   })
 }
 
 /**
- * Generate-link-token mutation. Resolves to the one-time token; the caller then
- * navigates the browser to the link-start URL to begin the OAuth round-trip.
+ * Start-link mutation. Resolves to the provider's authorization URL; the caller
+ * then navigates the browser there to begin the OAuth round-trip.
  *
- * @returns The TanStack Query mutation for generating a link token.
+ * @returns The TanStack Query mutation for starting a provider link.
  */
-export function useGenerateLinkTokenMutation() {
-  return useMutation<string, Error, { idpId: number; input: StepUpInput }>({
+export function useStartProviderLinkMutation() {
+  return useMutation<
+    string,
+    Error,
+    { idpId: string; input: StepUpInput; revokeOtherSessions: boolean }
+  >({
     mutationKey: queryKeys.security.all(),
-    mutationFn: ({ idpId, input }) => generateLinkToken(idpId, input),
+    mutationFn: ({ idpId, input, revokeOtherSessions }) =>
+      startProviderLink(idpId, input, revokeOtherSessions),
   })
 }

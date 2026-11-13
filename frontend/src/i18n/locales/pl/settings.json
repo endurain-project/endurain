@@ -31,7 +31,9 @@
       "admin": "Administrator",
       "inactive": "Nieaktywny",
       "unverified": "Niezweryfikowany e-mail",
+      "pendingEmail": "Oczekująca zmiana e-maila",
       "pending": "Oczekuje na zatwierdzenie",
+      "deleting": "Usuwanie w toku",
       "externalAuth": "Uwierzytelnianie zewnętrzne"
     },
     "actions": {
@@ -64,18 +66,22 @@
       "email": "E-mail",
       "emailRequired": "E-mail jest wymagany",
       "emailInvalid": "Wprowadź prawidłowy adres e-mail",
+      "emailChangeHint": "Link potwierdzający zostaje wysłany na nowy adres, który zastąpi obecny po potwierdzeniu. Użytkownik zostaje wylogowany ze wszystkich urządzeń. Aby zastosować zmianę od razu, oznacz nowy adres jako zweryfikowany.",
       "accessType": "Typ dostępu",
       "accessTypeRegular": "Zwykły użytkownik",
       "accessTypeAdmin": "Administrator",
       "password": "Hasło",
       "passwordHint": "Co najmniej 8 znaków",
-      "passwordHintStrict": "Co najmniej {min} znaków, z wielką literą, małą literą, cyfrą i znakiem specjalnym",
-      "passwordHintLength": "Co najmniej {min} znaków",
       "passwordRequired": "Hasło jest wymagane",
-      "passwordInvalid": "To hasło nie spełnia wymagań",
       "confirmPassword": "Potwierdź hasło",
+      "mustChangePasswordHint": "Użytkownik będzie musiał wybrać nowe hasło przy następnym logowaniu.",
       "confirmPasswordRequired": "Potwierdź hasło",
-      "passwordMismatch": "Hasła nie są zgodne",
+      "passwordMode": "Jak użytkownik otrzymuje hasło",
+      "passwordModeInvitation": "Wyślij e-mailem zaproszenie do wyboru hasła",
+      "passwordModePassword": "Ustaw hasło teraz",
+      "passwordModeHint": "Użytkownik otrzymuje e-mail z linkiem ważnym 24 godziny, aby wybrać własne hasło.",
+      "invitationNeedsActive": "Nieaktywnego konta nie można zaprosić. Ustaw hasło.",
+      "inviteSuccess": "Użytkownik dodany, zaproszenie wysłane",
       "preferredLanguage": "Preferowany język",
       "languages": {
         "ca": "Kataloński",
@@ -118,14 +124,16 @@
       "units": "Jednostki",
       "unitsMetric": "Metryczne",
       "unitsImperial": "Imperialne",
+      "weightUnits": "Jednostki wagi",
+      "weightUnitsDefault": "Zgodnie z jednostkami",
+      "weightUnitsMetric": "Kilogramy (kg)",
+      "weightUnitsImperial": "Funty (lb)",
       "height": "Wzrost",
-      "unitCm": "cm",
-      "unitFeet": "ft",
-      "unitInches": "in",
+      "heightInvalid": "Wzrost musi mieścić się w przedziale od 50 do 272 cm",
+      "maxHeartRateInvalid": "Maksymalne tętno musi mieścić się w przedziale od 30 do 250 uderzeń na minutę",
       "feetInvalid": "Stopy muszą być z zakresu od 0 do 10",
       "inchesInvalid": "Cale muszą być z zakresu od 0 do 11",
       "maxHeartRate": "Maksymalne tętno",
-      "unitBpm": "bpm",
       "currency": "Waluta",
       "currencies": {
         "euro": "Euro",
@@ -134,6 +142,8 @@
       },
       "firstDayOfWeek": "Pierwszy dzień tygodnia",
       "timezone": "Strefa czasowa",
+      "timezoneNotSet": "Nie ustawiono",
+      "timezoneUseBrowser": "Użyj strefy czasowej mojej przeglądarki ({timezone})",
       "timezoneHint": "Używana dla aktywności zarejestrowanych bez GPS, takich jak bieganie na bieżni i jazda na rowerze w pomieszczeniu.",
       "weekdays": {
         "sunday": "Niedziela",
@@ -149,7 +159,8 @@
       "statusLegend": "Status konta",
       "active": "Aktywne",
       "emailVerified": "E-mail zweryfikowany",
-      "pendingAdminApproval": "Oczekuje na zatwierdzenie administratora",
+      "emailVerifiedCurrentHint": "To jest status obecnego adresu.",
+      "newEmailVerified": "Oznacz nowy adres jako zweryfikowany",
       "requiredField": "Pole wymagane",
       "create": "Dodaj użytkownika",
       "save": "Zapisz zmiany",
@@ -158,7 +169,13 @@
       "createSuccess": "Dodano użytkownika",
       "updateSuccess": "Zaktualizowano użytkownika",
       "conflict": "Ta nazwa użytkownika lub e-mail są już używane",
-      "saveError": "Nie udało się zapisać użytkownika. Spróbuj ponownie."
+      "lastAdministrator": "Jedynego administratora nie można zdegradować ani dezaktywować",
+      "saveError": "Nie udało się zapisać użytkownika. Spróbuj ponownie.",
+      "stepUpTitle": "Potwierdź swoją tożsamość",
+      "stepUpDescription": "Zmiana adresu e-mail, typu dostępu lub statusu aktywności użytkownika {username} wyloguje go wszędzie. Potwierdź, że to Ty, aby kontynuować.",
+      "stepUpCreateDescription": "Utworzenie konta administratora daje pełny dostęp. Potwierdź, że to Ty, aby kontynuować.",
+      "stepUpConfirm": "Zapisz zmiany",
+      "approvalPending": "Ten użytkownik czeka na zatwierdzenie. Zatwierdź go zamiast aktywować go tutaj."
     },
     "delete": {
       "title": "Usuń użytkownika",
@@ -167,10 +184,12 @@
       "cancel": "Anuluj",
       "close": "Zamknij",
       "success": "Usunięto użytkownika",
-      "error": "Nie udało się usunąć użytkownika. Spróbuj ponownie."
+      "error": "Nie udało się usunąć użytkownika. Spróbuj ponownie.",
+      "failed": "Nie udało się usunąć użytkownika. Konto pozostaje dezaktywowane; usuń je ponownie, aby spróbować jeszcze raz."
     },
     "detail": {
       "back": "Powrót do użytkowników",
+      "pendingEmail": "Oczekująca zmiana e-maila na {email}, link wygasa {date}",
       "notFoundTitle": "Nie znaleziono użytkownika",
       "notFoundDescription": "To konto mogło zostać usunięte",
       "securityTitle": "Bezpieczeństwo",
@@ -184,19 +203,33 @@
     "password": {
       "button": "Resetuj hasło",
       "title": "Resetuj hasło",
-      "description": "Ustaw nowe hasło dla {username}",
+      "description": "Ustaw nowe hasło dla {username} All of their sessions, unused reset links, pending email change and API keys end. They are notified.",
       "newLabel": "Nowe hasło",
-      "hintLength": "Co najmniej {min} znaków",
-      "hintStrict": "Co najmniej {min} znaków, z wielką literą, małą literą, cyfrą i znakiem specjalnym",
       "confirmLabel": "Potwierdź nowe hasło",
-      "mismatch": "Hasła nie są zgodne",
       "required": "Hasło jest wymagane",
       "submit": "Resetuj hasło",
       "cancel": "Anuluj",
       "close": "Zamknij",
       "success": "Zaktualizowano hasło",
-      "invalid": "To hasło nie spełnia wymagań",
       "error": "Nie udało się zaktualizować hasła. Spróbuj ponownie."
+    },
+    "mfaReset": {
+      "button": "Zresetuj MFA",
+      "title": "Zresetuj uwierzytelnianie dwuskładnikowe",
+      "description": "To wyłącza uwierzytelnianie dwuskładnikowe dla {username} i usuwa jego kody zapasowe. Wszystkie jego sesje się kończą, więc zostaje wylogowany ze wszystkich urządzeń i po zalogowaniu musi ponownie skonfigurować uwierzytelnianie dwuskładnikowe. Użytkownik zostanie powiadomiony. Potwierdź, że to Ty, aby kontynuować.",
+      "confirm": "Zresetuj MFA",
+      "success": "Zresetowano uwierzytelnianie dwuskładnikowe",
+      "refused": "Uwierzytelnianie dwuskładnikowe nie jest włączone dla tego użytkownika.",
+      "error": "Nie udało się zresetować uwierzytelniania dwuskładnikowego. Spróbuj ponownie."
+    },
+    "requirePasswordChange": {
+      "button": "Wymagaj zmiany hasła",
+      "title": "Wymagaj zmiany hasła",
+      "description": "{username} zachowuje obecne hasło, ale przy następnym logowaniu nim musi wybrać nowe. Wszystkie jego sesje się kończą, więc zostaje wylogowany ze wszystkich urządzeń. Logowanie przez dostawcę logowania jednokrotnego nie jest dotknięte. Użytkownik zostanie powiadomiony. Potwierdź, że to Ty, aby kontynuować.",
+      "confirm": "Wymagaj zmiany",
+      "success": "Wymagana zmiana hasła",
+      "refused": "Ten użytkownik nie ma hasła do zmiany.",
+      "error": "Nie udało się wymusić zmiany hasła. Spróbuj ponownie."
     },
     "sessions": {
       "title": "Sesje",
@@ -205,6 +238,7 @@
       "error": "Nie udało się wczytać sesji",
       "retry": "Spróbuj ponownie",
       "lastActive": "Ostatnia aktywność {date}",
+      "viaApp": "Zalogowano przez aplikację: {address}",
       "current": "Bieżąca sesja",
       "revokeOthers": "Unieważnij inne sesje",
       "revokeOthersTitle": "Unieważnij inne sesje",
@@ -216,10 +250,28 @@
       "revokeTitle": "Unieważnij sesję",
       "revokeBody": "Spowoduje to wylogowanie urządzenia, które będzie musiało zalogować się ponownie",
       "revokeConfirm": "Unieważnij",
-      "revokeCancel": "Anuluj",
-      "revokeClose": "Zamknij",
       "revokeSuccess": "Unieważniono sesję",
       "revokeError": "Nie udało się unieważnić sesji. Spróbuj ponownie."
+    },
+    "apiKeys": {
+      "title": "Klucze API",
+      "subtitle": "Klucze API utworzone przez tego użytkownika dla skryptów i narzędzi zewnętrznych",
+      "error": "Nie udało się wczytać kluczy API",
+      "retry": "Spróbuj ponownie",
+      "empty": "Ten użytkownik nie ma kluczy API",
+      "revoke": "Unieważnij",
+      "revokeTitle": "Unieważnić ten klucz API?",
+      "revokeBody": "Klucz natychmiast przestaje działać, a użytkownik zostaje powiadomiony.",
+      "revokeConfirm": "Unieważnij klucz",
+      "revokeSuccess": "Klucz API został unieważniony",
+      "revokeError": "Nie udało się unieważnić klucza API. Spróbuj ponownie.",
+      "revokeNotFound": "Ten klucz API już nie istnieje.",
+      "revokeAll": "Unieważnij wszystkie klucze",
+      "revokeAllTitle": "Unieważnić wszystkie klucze API?",
+      "revokeAllBody": "Każdy aktywny klucz API tego użytkownika natychmiast przestaje działać, a użytkownik zostaje powiadomiony.",
+      "revokeAllConfirm": "Unieważnij wszystkie klucze",
+      "revokeAllSuccess": "Klucze API zostały unieważnione",
+      "revokeAllError": "Nie udało się unieważnić kluczy API. Spróbuj ponownie."
     },
     "photo": {
       "upload": "Prześlij zdjęcie",
@@ -277,6 +329,34 @@
     "saving": "Zapisywanie…",
     "saveSuccess": "Zaktualizowano ustawienia serwera",
     "saveError": "Nie udało się zaktualizować ustawień serwera. Spróbuj ponownie.",
+    "staleError": "Te ustawienia zostały zmienione przez kogoś innego podczas edycji. Twoje zmiany nie zostały zapisane. Odśwież stronę, aby zobaczyć aktualne wartości.",
+    "stepUpTitle": "Potwierdź swoją tożsamość",
+    "stepUpDescription": "Te zmiany wpływają na to, kto może się zarejestrować, zalogować lub utrzymać sesję na tym serwerze, jak długo przechowywany jest dziennik audytu oraz czy publiczne linki pokazują, kto je udostępnił. Potwierdź, że to Ty, aby kontynuować.",
+    "envLocked": "Ustawione przez {name}",
+    "envSection": "Niektóre ustawienia tutaj są ustawiane przez zmienne środowiskowe ({names}). Usuń je ze środowiska, aby edytować te ustawienia tutaj.",
+    "unsaved": "Niezapisane zmiany",
+    "fixErrors": "Popraw powyższe błędy, aby zapisać",
+    "discard": "Odrzuć",
+    "tabs": {
+      "label": "Sekcje ustawień serwera",
+      "general": "Ogólne",
+      "access": "Dostęp i bezpieczeństwo",
+      "maps": "Mapy i lokalizacja",
+      "email": "E-mail",
+      "logs": "Dzienniki",
+      "unsaved": "Zawiera niezapisane zmiany"
+    },
+    "search": {
+      "placeholder": "Szukaj ustawień…",
+      "noResults": "Nie znaleziono ustawień"
+    },
+    "leave": {
+      "title": "Opuścić stronę bez zapisywania?",
+      "description": "Masz niezapisane zmiany. Jeśli opuścisz tę stronę, zostaną utracone.",
+      "confirm": "Opuść bez zapisywania",
+      "stay": "Zostań na stronie",
+      "close": "Zamknij"
+    },
     "loadError": {
       "title": "Nie udało się wczytać ustawień serwera",
       "description": "Coś poszło nie tak podczas wczytywania ustawień serwera. Możesz spróbować ponownie.",
@@ -293,17 +373,49 @@
       "currencyPound": "Funt (£)",
       "numRecords": "Rekordów na stronę"
     },
+    "mfa": {
+      "title": "Uwierzytelnianie dwuskładnikowe",
+      "require": "Wymagaj uwierzytelniania dwuskładnikowego",
+      "requireHint": "Konto objęte tym ustawieniem, które nie skonfigurowało uwierzytelniania dwuskładnikowego, musi je skonfigurować, zanim będzie mogło zrobić cokolwiek innego. Do tego czasu może je tylko skonfigurować i się wylogować. Wymóg obowiązuje od następnego żądania konta.",
+      "options": {
+        "off": "Niewymagane",
+        "administrators": "Tylko administratorzy",
+        "everyone": "Wszyscy"
+      },
+      "enabledWarning": "Konta objęte tym ustawieniem, które nie skonfigurowały uwierzytelniania dwuskładnikowego, być może także Twoje, zostaną skierowane do jego konfiguracji przy następnym żądaniu."
+    },
     "password": {
       "title": "Zasady haseł",
-      "type": "Zasada",
-      "typeStrict": "Ścisła (wymagana złożoność)",
-      "typeLengthOnly": "Tylko długość",
       "lengthRegular": "Minimalna długość dla zwykłych użytkowników",
-      "lengthAdmin": "Minimalna długość dla administratorów"
+      "lengthAdmin": "Minimalna długość dla administratorów",
+      "breachCheck": "Odrzucaj hasła znalezione w znanych wyciekach danych",
+      "breachCheckHint": "Sprawdza każde nowe lub zmienione hasło w haveibeenpwned.com. Wysyłanych jest tylko pierwszych 5 znaków skrótu SHA-1 hasła, nigdy samo hasło. Jeśli usługa jest niedostępna, hasło jest akceptowane."
+    },
+    "session": {
+      "title": "Sesje",
+      "description": "Zmiany dotyczą nowych logowań i następnego odświeżenia tokenu. Już wydane tokeny zachowują swój czas ważności.",
+      "idleTimeoutEnabled": "Wymuszaj limit czasu bezczynności",
+      "idleHours": "Limit czasu bezczynności (godziny)",
+      "idleHoursHint": "Po włączeniu sesja kończy się po tylu godzinach bez aktywności.",
+      "absoluteHours": "Bezwzględny limit czasu (godziny)",
+      "absoluteHoursHint": "Sesja kończy się po tylu godzinach od zalogowania, niezależnie od aktywności. Obowiązuje zawsze. Nie krótszy niż limit czasu bezczynności.",
+      "accessMinutes": "Czas ważności tokenu dostępu (minuty)",
+      "refreshDays": "Czas ważności tokenu odświeżania (dni)",
+      "apiKeyDays": "Maksymalny czas ważności klucza API (dni)",
+      "apiKeyDaysHint": "Nowy klucz API wygasa po tylu dniach, chyba że jego właściciel wybierze wcześniejszą datę.",
+      "invalidRange": "Wpisz liczbę całkowitą od {min} do {max}.",
+      "absoluteBelowIdle": "Nie może być krótszy niż limit czasu bezczynności.",
+      "accessNotBelowIdle": "Musi być krótszy niż limit czasu bezczynności."
+    },
+    "retention": {
+      "title": "Przechowywanie danych",
+      "readNotifications": "Usuwaj przeczytane powiadomienia po (dniach)",
+      "readNotificationsHint": "0 oznacza, że przeczytane powiadomienia są przechowywane bez końca. Nieprzeczytane powiadomienia nigdy nie są usuwane."
     },
     "signup": {
       "title": "Rejestracja",
       "enabled": "Zezwalaj na rejestrację nowych użytkowników",
+      "ssoEnabled": "Zezwalaj na rejestrację nowych użytkowników przez logowanie jednokrotne",
       "adminApproval": "Wymagaj zatwierdzenia administratora dla nowych rejestracji",
       "emailVerification": "Wymagaj weryfikacji e-maila dla nowych rejestracji"
     },
@@ -336,12 +448,33 @@
       "attribution": "Atrybucja",
       "apiKey": "Klucz API serwera kafelków",
       "apiKeyWarning": "Klucz API jest przechowywany w postaci zaszyfrowanej. Pozostaw puste, jeśli Twój serwer kafelków go nie wymaga.",
+      "apiKeyStored": "Klucz jest zapisany",
+      "apiKeyRemove": "Usuń zapisany klucz API",
       "backgroundColor": "Kolor tła mapy",
       "regenerateThumbnails": "Wygeneruj ponownie miniatury aktywności przy zmianie ustawień mapy"
+    },
+    "geocoding": {
+      "title": "Odwrotne geokodowanie",
+      "description": "Zamienia współrzędne aktywności na nazwy miejsc. Zmiany obowiązują bez restartu.",
+      "service": "Usługa",
+      "serviceNominatim": "Nominatim",
+      "servicePhoton": "Photon",
+      "serviceGeocode": "geocode.maps.co",
+      "host": "Host",
+      "hostHint": "Nazwa hosta z opcjonalnym portem, bez schematu. Host w sieci prywatnej musi być wpisany w SSRF_ALLOWED_HOSTS.",
+      "useHttps": "Połącz przez HTTPS",
+      "rateLimit": "Żądania na sekundę",
+      "rateLimitHint": "0 wyłącza ograniczanie. Dla publicznych usług Nominatim i Photon zostaw 1.",
+      "rateLimitInvalid": "Wpisz liczbę od 0 do 100.",
+      "apiKey": "Klucz API",
+      "apiKeyStored": "Klucz jest zapisany. Zostaw puste, aby go zachować.",
+      "apiKeyRemove": "Usuń zapisany klucz API",
+      "apiKeyRequired": "geocode.maps.co wymaga klucza API."
     },
     "photo": {
       "title": "Zdjęcie logowania",
       "description": "Niestandardowy obraz wyświetlany na ekranie logowania",
+      "previewAlt": "Aktualne zdjęcie logowania",
       "add": "Prześlij zdjęcie logowania",
       "replace": "Zastąp zdjęcie logowania",
       "delete": "Usuń zdjęcie logowania",
@@ -355,10 +488,33 @@
       "cancel": "Anuluj",
       "close": "Zamknij"
     },
+    "logs": {
+      "title": "Dzienniki serwera",
+      "description": "Najnowsze wpisy dziennika aplikacji. Dzienniki z wdrożeń uruchamiających wiele procesów zbiera zamiast tego Twoja platforma.",
+      "level": "Minimalny poziom",
+      "allLevels": "Wszystkie poziomy",
+      "search": "Szukaj",
+      "searchPlaceholder": "Tekst, logger lub identyfikator żądania…",
+      "live": "Na żywo",
+      "refresh": "Odśwież",
+      "download": "Pobierz",
+      "downloadError": "Nie udało się pobrać pliku dziennika.",
+      "clear": "Wyczyść",
+      "cleared": "Dzienniki wyczyszczone",
+      "clearError": "Nie udało się wyczyścić dzienników.",
+      "clearConfirm": {
+        "title": "Wyczyścić dzienniki serwera?",
+        "description": "To trwale usuwa plik dziennika i jego rotowane kopie. Jeśli możesz go potrzebować, najpierw pobierz dziennik. Sama ta czynność jest zapisywana w nowym dzienniku.",
+        "confirm": "Wyczyść dzienniki",
+        "cancel": "Anuluj",
+        "close": "Zamknij"
+      },
+      "loadError": "Nie udało się wczytać dzienników.",
+      "empty": "Nie znaleziono wpisów dziennika"
+    },
     "email": {
       "title": "E-mail",
       "description": "Endurain wysyła e-maile z resetowaniem hasła i rejestracją przez serwer SMTP skonfigurowany w środowisku.",
-      "statusLoadError": "Nie udało się sprawdzić konfiguracji e-maila.",
       "configured": "E-mail jest skonfigurowany.",
       "notConfigured": "E-mail nie jest skonfigurowany:",
       "send": "Wyślij wiadomość testową",
@@ -366,7 +522,28 @@
       "sendHint": "Wiadomość testowa jest wysyłana na Twój własny adres.",
       "sent": "Wiadomość testowa wysłana",
       "failed": "Nie udało się wysłać wiadomości testowej",
-      "failedUnknown": "Szczegóły znajdziesz w logach serwera."
+      "failedUnknown": "Szczegóły znajdziesz w logach serwera.",
+      "settingsLoadError": "Nie udało się wczytać ustawień poczty.",
+      "host": "Host",
+      "hostHint": "Zostaw puste, aby wyłączyć e-mail.",
+      "port": "Port",
+      "portInvalid": "Wpisz port od 1 do 65535.",
+      "security": "Zabezpieczenie połączenia",
+      "securityStarttls": "STARTTLS",
+      "securitySsl": "SSL/TLS",
+      "securityNone": "Brak (tylko prywatny przekaźnik)",
+      "securityNoneWarning": "Bez szyfrowania akceptowany jest tylko serwer poczty o adresie prywatnym lub pętli zwrotnej, a nazwy użytkownika i hasła nie można używać.",
+      "username": "Nazwa użytkownika",
+      "password": "Hasło",
+      "passwordStored": "Hasło jest zapisane. Zostaw puste, aby je zachować.",
+      "passwordRemove": "Usuń zapisane hasło",
+      "fromAddress": "Adres nadawcy",
+      "fromAddressHint": "Zostaw puste, aby użyć nazwy użytkownika.",
+      "save": "Zapisz ustawienia poczty",
+      "saveSuccess": "Ustawienia poczty zapisane",
+      "saveError": "Nie udało się zapisać ustawień poczty",
+      "stepUpTitle": "Potwierdź swoją tożsamość",
+      "stepUpDescription": "Serwer poczty otrzymuje każdy link do resetowania hasła. Potwierdź, że to Ty, aby kontynuować."
     }
   },
   "idp": {
@@ -374,6 +551,8 @@
     "subtitle": "Skonfiguruj dostawców SSO do logowania jednokrotnego",
     "buttonAdd": "Dodaj dostawcę",
     "toggleError": "Nie udało się zmienić dostawcy. Spróbuj ponownie.",
+    "toggleStepUpDescription": "To, czy {name} jest włączony, decyduje o tym, kto może się zalogować na tym serwerze. Potwierdź, że to Ty, aby kontynuować.",
+    "toggleStepUpConfirm": "Potwierdź",
     "enableSuccess": "Włączono dostawcę",
     "disableSuccess": "Wyłączono dostawcę",
     "type": {
@@ -399,8 +578,6 @@
       "title": "Usuń dostawcę",
       "body": "Czy na pewno chcesz usunąć \"{name}\"? Tej operacji nie można cofnąć.",
       "confirm": "Usuń",
-      "cancel": "Anuluj",
-      "close": "Zamknij",
       "success": "Usunięto dostawcę",
       "error": "Nie udało się usunąć dostawcy. Może on nadal mieć powiązanych użytkowników."
     },
@@ -422,12 +599,14 @@
       "slugRequired": "Slug jest wymagany",
       "slugTooLong": "Slug może mieć maksymalnie 50 znaków",
       "slugInvalid": "Używaj tylko małych liter, cyfr i myślników",
+      "slugReserved": "Ten slug jest zarezerwowany; wybierz inny",
       "providerType": "Typ dostawcy",
       "typeOidc": "OpenID Connect (OIDC)",
       "typeOauth2": "OAuth 2.0",
       "issuerUrl": "URL wystawcy",
       "issuerUrlHint": "URL wystawcy OIDC lub URL odkrywania dostawcy",
       "issuerUrlRequired": "URL wystawcy jest wymagany",
+      "issuerUrlRefused": "Adres URL dostawcy został odrzucony. Musi używać https://, być rozpoznawalny z serwera, a dostawca w sieci prywatnej musi być wpisany w SSRF_ALLOWED_HOSTS.",
       "issuerUrlTooLong": "URL wystawcy może mieć maksymalnie 500 znaków",
       "clientId": "Identyfikator klienta",
       "clientIdRequired": "Identyfikator klienta jest wymagany",
@@ -440,17 +619,34 @@
       "scopes": "Zakresy",
       "scopesHint": "Zakresy OAuth oddzielone spacjami",
       "scopesTooLong": "Zakresy mogą mieć maksymalnie 500 znaków",
+      "scopesOpenidRequired": "Dostawca OIDC wymaga zakresu openid",
       "icon": "Ikona",
       "iconNone": "Brak",
-      "iconCustom": "Niestandardowy URL",
-      "customIconUrl": "Niestandardowy URL ikony",
-      "customIconUrlHint": "Link do obrazu wyświetlanego na przycisku logowania",
+      "iconUpload": "Prześlij obraz",
+      "iconFileHint": "Obraz PNG, JPEG lub WebP do 1 MB, wyświetlany na przycisku logowania",
+      "iconChoose": "Wybierz obraz",
+      "iconReplace": "Zamień obraz",
+      "iconPreviewAlt": "Podgląd ikony",
+      "iconFileRequired": "Wybierz obraz do przesłania",
+      "iconFileInvalidType": "Ikona musi być obrazem PNG, JPEG lub WebP",
+      "iconFileTooLarge": "Ikona może mieć co najwyżej 1 MB",
+      "iconSaveError": "Dostawca został zapisany, ale nie udało się zaktualizować jego ikony. Edytuj dostawcę, aby spróbować ponownie.",
       "enabled": "Włączony",
       "autoCreateUsers": "Automatycznie twórz użytkowników przy pierwszym logowaniu",
+      "linkByEmail": "Połącz z istniejącym kontem według adresu e-mail",
+      "linkByEmailHint": "Pozwala, aby pierwsze logowanie dołączyło do konta z tym samym zweryfikowanym adresem e-mail. Po wyłączeniu to logowanie jest odrzucane, a użytkownik łączy dostawcę w swoich ustawieniach. Domyślnie wyłączone dla nowego dostawcy.",
       "syncUserInfo": "Synchronizuj informacje profilowe przy każdym logowaniu",
+      "syncUserInfoHint": "Kopiuje zmapowaną nazwę od dostawcy. Nie obejmuje adresu e-mail.",
+      "syncEmail": "Synchronizuj e-mail przy każdym logowaniu",
+      "syncEmailHint": "Kopiuje adres e-mail zweryfikowany przez dostawcę na konto, rejestruje zmianę w dzienniku audytu i powiadamia poprzedni adres. Domyślnie wyłączone dla nowego dostawcy.",
       "createSuccess": "Dodano dostawcę",
       "updateSuccess": "Zaktualizowano dostawcę",
+      "stepUpTitle": "Potwierdź swoją tożsamość",
+      "stepUpDescription": "Dostawcy tożsamości decydują o tym, kto może się zalogować na tym serwerze. Potwierdź, że to Ty, aby kontynuować.",
       "slugConflict": "Ten slug jest już używany",
+      "issuerInUse": "Inny dostawca tożsamości już używa tego adresu URL wystawcy",
+      "issuerLocked": "Adresu URL wystawcy nie można zmienić, dopóki użytkownicy są powiązani z tym dostawcą. Odłącz ich lub dodaj nowego dostawcę.",
+      "staleError": "Ten dostawca został zmieniony gdzie indziej. Twoje zmiany nie zostały zapisane. Zamknij go i otwórz ponownie, aby wczytać aktualne ustawienia.",
       "saveError": "Nie udało się zapisać dostawcy. Spróbuj ponownie."
     }
   },
@@ -458,7 +654,7 @@
     "title": "Moje cele",
     "subtitle": "Ustaw cele dla swoich aktywności i śledź swoje postępy",
     "buttonAdd": "Dodaj cel",
-    "count": "Łącznie celów: {count}:",
+    "count": "Łącznie jest {count} cel: | Łącznie są {count} cele: | Łącznie jest {count} celów:",
     "filters": "Filtry",
     "filter": {
       "all": "Wszystkie",
@@ -492,13 +688,6 @@
       "elevation": "Przewyższenie",
       "duration": "Czas trwania"
     },
-    "unit": {
-      "calories": "kcal",
-      "km": "km",
-      "miles": "mi",
-      "meters": "m",
-      "feet": "ft"
-    },
     "list": {
       "edit": "Edytuj cel {name}",
       "delete": "Usuń cel {name}"
@@ -522,6 +711,7 @@
       "error": "Nie udało się usunąć celu. Spróbuj ponownie."
     },
     "form": {
+      "targetInvalid": "Wpisz wartość większą niż 0.",
       "addTitle": "Dodaj cel",
       "editTitle": "Edytuj cel",
       "description": "Ustaw cel dla aktywności w cyklicznym okresie",
@@ -549,6 +739,14 @@
     "hidePassword": "Ukryj hasło",
     "mfaCode": "Kod uwierzytelniający",
     "mfaCodePlaceholder": "123456",
+    "confirmPhrase": "Wpisz {phrase}, aby potwierdzić",
+    "mfaEnrolment": {
+      "title": "Skonfiguruj uwierzytelnianie dwuskładnikowe",
+      "description": "Ten serwer wymaga uwierzytelniania dwuskładnikowego. Skonfiguruj je, aby dalej korzystać z Endurain, lub się wyloguj.",
+      "done": "Uwierzytelnianie dwuskładnikowe zostało skonfigurowane. Możesz kontynuować.",
+      "continue": "Kontynuuj",
+      "signOut": "Wyloguj się"
+    },
     "loadError": {
       "title": "Nie udało się wczytać ustawień bezpieczeństwa",
       "description": "Coś poszło nie tak. Możesz spróbować ponownie."
@@ -559,10 +757,7 @@
       "current": "Bieżące hasło",
       "new": "Nowe hasło",
       "confirm": "Potwierdź nowe hasło",
-      "requirementsStrict": "Co najmniej {length} znaków, w tym wielka litera, mała litera, cyfra i symbol.",
-      "requirementsLength": "Co najmniej {length} znaków.",
-      "mismatch": "Hasła nie są zgodne.",
-      "revokeOthers": "Wyloguj ze wszystkich innych urządzeń",
+      "revokeOthers": "Wyloguj ze wszystkich innych sesji",
       "submit": "Zmień hasło",
       "success": "Zmieniono hasło",
       "invalidCredentials": "Twoje bieżące hasło lub kod są nieprawidłowe.",
@@ -575,7 +770,7 @@
       "disabledDescription": "Uwierzytelnianie dwuskładnikowe jest wyłączone. Włącz je, aby lepiej chronić swoje konto.",
       "enable": "Włącz uwierzytelnianie dwuskładnikowe",
       "enabledDescription": "Uwierzytelnianie dwuskładnikowe jest włączone.",
-      "backupRemaining": "Pozostało {unused} z {total} kodów zapasowych.",
+      "backupRemaining": "Pozostało {unused} z {total} kodu zapasowego. | Pozostało {unused} z {total} kodów zapasowych. | Pozostało {unused} z {total} kodów zapasowych.",
       "regenerate": "Wygeneruj ponownie kody zapasowe",
       "disable": "Wyłącz",
       "setupTitle": "Włącz uwierzytelnianie dwuskładnikowe",
@@ -616,18 +811,51 @@
       "empty": "Brak aktywnych sesji.",
       "current": "To urządzenie",
       "lastActive": "Ostatnia aktywność {date}",
+      "viaApp": "Zalogowano przez aplikację: {address}",
       "revoke": "Wyloguj tę sesję",
       "revokeTitle": "Wylogować tę sesję?",
       "revokeBody": "To urządzenie zostanie wylogowane i będzie musiało zalogować się ponownie.",
       "revokeConfirm": "Wyloguj",
       "revokeSuccess": "Wylogowano sesję",
       "revokeError": "Nie udało się wylogować tej sesji. Spróbuj ponownie.",
-      "revokeOthers": "Wyloguj inne urządzenia",
-      "revokeOthersTitle": "Wylogować wszystkie inne urządzenia?",
-      "revokeOthersBody": "Każde urządzenie poza tym zostanie wylogowane i będzie musiało zalogować się ponownie.",
+      "revokeOthers": "Wyloguj inne sesje",
+      "revokeOthersTitle": "Wylogować wszystkie inne sesje?",
+      "revokeOthersBody": "Wszystkie sesje poza tą zostaną wylogowane i będą musiały zalogować się ponownie.",
       "revokeOthersConfirm": "Wyloguj inne",
       "revokeOthersSuccess": "Wylogowano inne sesje",
-      "revokeOthersError": "Nie udało się wylogować innych sesji. Spróbuj ponownie."
+      "revokeOthersError": "Nie udało się wylogować innych sesji. Spróbuj ponownie.",
+      "signOutEverywhere": "Wyloguj wszędzie",
+      "signOutEverywhereTitle": "Wylogować wszędzie?",
+      "signOutEverywhereBody": "Każde urządzenie, także to, zostanie wylogowane i będzie musiało zalogować się ponownie.",
+      "signOutEverywhereConfirm": "Wyloguj wszędzie",
+      "signOutEverywhereError": "Nie udało się wylogować ze wszystkich sesji. Spróbuj ponownie."
+    },
+    "devices": {
+      "title": "Znane urządzenia",
+      "subtitle": "Przeglądarki i aplikacje, z których logowałeś(-aś) się od ostatniej zmiany zabezpieczeń. Logowanie z dowolnego innego urządzenia wysyła Ci powiadomienie.",
+      "empty": "Brak znanych urządzeń",
+      "error": "Nie udało się wczytać znanych urządzeń",
+      "current": "To urządzenie",
+      "unknown": "Nieznane urządzenie",
+      "lastSeen": "Ostatnie logowanie {date}",
+      "forget": "Zapomnij to urządzenie",
+      "forgetTitle": "Zapomnieć to urządzenie?",
+      "forgetDescription": "Zapomnienie tego urządzenia również je wylogowuje. Następne logowanie z tego urządzenia będzie traktowane jak z nowego urządzenia i wyśle Ci powiadomienie.",
+      "forgetConfirm": "Zapomnij urządzenie",
+      "forgetSuccess": "Urządzenie zapomniane",
+      "forgetError": "Nie udało się zapomnieć urządzenia. Spróbuj ponownie.",
+      "forgetNotFound": "To urządzenie nie jest już znane.",
+      "forgetOthers": "Zapomnij inne urządzenia",
+      "forgetOthersTitle": "Zapomnieć wszystkie inne urządzenia?",
+      "forgetOthersDescription": "Wszystkie urządzenia poza tym zostaną zapomniane i wylogowane. Następne logowanie z każdego z nich będzie liczone jako nowe urządzenie i wyśle Ci powiadomienie.",
+      "forgetOthersConfirm": "Zapomnij urządzenia",
+      "forgetOthersSuccess": "Inne urządzenia zostały zapomniane",
+      "forgetOthersError": "Nie udało się zapomnieć innych urządzeń. Spróbuj ponownie.",
+      "forgetAll": "Zapomnij wszystkie urządzenia",
+      "forgetAllTitle": "Zapomnieć wszystkie urządzenia?",
+      "forgetAllDescription": "Wszystkie urządzenia, łącznie z tym, zostaną zapomniane i wylogowane, a Ty zostaniesz przekierowany na stronę logowania. Następne logowanie z każdego z nich będzie liczone jako nowe urządzenie i wyśle Ci powiadomienie.",
+      "forgetAllConfirm": "Zapomnij urządzenia",
+      "forgetAllError": "Nie udało się zapomnieć urządzeń. Spróbuj ponownie."
     },
     "linked": {
       "title": "Powiązane konta",
@@ -649,7 +877,51 @@
       "unlinkError": "Nie udało się odłączyć konta. Spróbuj ponownie.",
       "invalidCredentials": "Twoje hasło lub kod są nieprawidłowe.",
       "alreadyLinked": "To konto jest już powiązane.",
-      "lastMethodError": "Nie możesz odłączyć swojej jedynej metody logowania. Najpierw ustaw hasło."
+      "lastMethodError": "Nie możesz odłączyć swojej jedynej metody logowania. Najpierw ustaw hasło.",
+      "linkedOn": "Połączono {date}"
+    },
+    "email": {
+      "title": "Adres e-mail",
+      "subtitle": "Tutaj wysyłane są resetowania hasła i powiadomienia. Zmiana wymaga potwierdzenia tożsamości, a nowy adres obowiązuje dopiero po potwierdzeniu go za pomocą linku, który na niego wysyłamy.",
+      "current": "Obecny e-mail",
+      "action": "Zmień e-mail",
+      "new": "Nowy e-mail",
+      "invalid": "Wpisz prawidłowy adres e-mail.",
+      "sameAsCurrent": "To jest już Twój adres e-mail.",
+      "success": "Link potwierdzający został wysłany na nowy adres. Twój e-mail zmieni się po jego potwierdzeniu.",
+      "appliedSuccess": "Adres e-mail zmieniony.",
+      "pending": "Oczekująca zmiana na {email}",
+      "pendingExpires": "Link potwierdzający wygasa {date}.",
+      "resend": "Wyślij link ponownie",
+      "cancel": "Anuluj zmianę",
+      "resendSuccess": "Jeśli zmiana oczekuje, nowy link jest już w drodze na nowy adres.",
+      "resendError": "Nie udało się ponownie wysłać linku. Spróbuj ponownie.",
+      "cancelSuccess": "Anulowano zmianę e-maila.",
+      "cancelError": "Nie udało się anulować zmiany. Spróbuj ponownie.",
+      "conflict": "Ten e-mail jest już używany.",
+      "error": "Nie udało się zmienić e-maila. Spróbuj ponownie."
+    },
+    "username": {
+      "title": "Nazwa użytkownika",
+      "subtitle": "Nazwa użytkownika służy do logowania. Aby ją zmienić, musisz potwierdzić swoją tożsamość, a zmiana zaczyna obowiązywać od razu.",
+      "current": "Obecna nazwa użytkownika",
+      "action": "Zmień nazwę użytkownika",
+      "new": "Nowa nazwa użytkownika",
+      "sameAsCurrent": "To już jest Twoja nazwa użytkownika.",
+      "success": "Nazwa użytkownika została zmieniona.",
+      "conflict": "Ta nazwa użytkownika jest już zajęta.",
+      "error": "Nie udało się zmienić nazwy użytkownika. Spróbuj ponownie."
+    },
+    "deleteAccount": {
+      "title": "Usuń moje konto",
+      "subtitle": "Usuń swoje konto i wszystkie swoje dane, w tym aktywności i ich pliki, dane zdrowotne, sprzęt, cele, integracje i sesje. Zostaniesz wylogowany(-a) ze wszystkich urządzeń, a konto zostanie od razu dezaktywowane, po czym Twoje dane zostaną usunięte w tle. Nie ma okresu karencji: może to powstrzymać tylko administrator, ponownie aktywując konto przed zakończeniem usuwania. Najpierw wyeksportuj swoje dane, jeśli chcesz zachować kopię.",
+      "action": "Usuń moje konto",
+      "dialogTitle": "Usunąć Twoje konto?",
+      "dialogDescription": "Spowoduje to wylogowanie Cię ze wszystkich urządzeń, dezaktywację Twojego konta i rozpoczęcie usuwania wszystkich Twoich danych. Przed jego zakończeniem może to powstrzymać tylko administrator. Potwierdź swoją tożsamość, aby kontynuować.",
+      "confirm": "Usuń moje konto",
+      "error": "Nie udało się usunąć Twojego konta. Spróbuj ponownie.",
+      "onlyAdminError": "Jesteś jedynym administratorem. Przed usunięciem konta nadaj uprawnienia administratora innemu użytkownikowi.",
+      "pendingError": "Usuwanie tego konta jest już w toku."
     },
     "apiKeys": {
       "title": "Klucze API",
@@ -661,13 +933,43 @@
       "namePlaceholder": "np. Skrypt przesyłania Garmin",
       "scopes": "Uprawnienia",
       "scopesHint": "Wybierz, co ten klucz może robić. Wymagane jest co najmniej jedno.",
+      "scopeGroups": {
+        "account": "Konto",
+        "activities": "Aktywności",
+        "followers": "Obserwujący",
+        "gears": "Sprzęt",
+        "health": "Zdrowie",
+        "healthTargets": "Cele zdrowotne",
+        "notifications": "Powiadomienia",
+        "users": "Użytkownicy"
+      },
+      "scopeLabels": {
+        "account": "Zarządzanie profilem, zdjęciem, celami, prywatnością i domyślnym sprzętem",
+        "activitiesRead": "Odczyt aktywności",
+        "activitiesWrite": "Tworzenie, edycja i usuwanie aktywności",
+        "activitiesUpload": "Przesyłanie plików aktywności",
+        "followersRead": "Podgląd, kogo obserwujesz i kto obserwuje Ciebie",
+        "followersWrite": "Zmiana tego, kogo obserwujesz i kto obserwuje Ciebie",
+        "gearsRead": "Odczyt sprzętu",
+        "gearsWrite": "Tworzenie, edycja i usuwanie sprzętu",
+        "healthRead": "Odczyt danych zdrowotnych",
+        "healthWrite": "Zapis danych zdrowotnych",
+        "healthTargetsRead": "Odczyt celów zdrowotnych",
+        "healthTargetsWrite": "Zmiana celów zdrowotnych",
+        "notificationsRead": "Odczyt powiadomień",
+        "notificationsWrite": "Zarządzanie powiadomieniami",
+        "usersRead": "Wyszukiwanie publicznych profili innych użytkowników"
+      },
       "expiry": "Wygaśnięcie (opcjonalnie)",
-      "expiryHint": "Pozostaw puste, aby klucz nigdy nie wygasał.",
+      "expiryHint": "Pozostaw puste, aby użyć najdłuższego czasu ważności dozwolonego przez serwer. Późniejsza data zostanie odrzucona.",
       "createTitle": "Utwórz klucz API",
       "createDescription": "Potwierdź swoją tożsamość, aby wygenerować nowy klucz API.",
       "createSuccess": "Utworzono klucz API",
       "createError": "Nie udało się utworzyć klucza API. Spróbuj ponownie.",
+      "apiKeyLimit": "Osiągnięto limit 25 aktywnych kluczy API. Unieważnij lub usuń jeden i spróbuj ponownie.",
+      "expiryTooLate": "Ta data wygaśnięcia jest późniejsza, niż pozwala serwer. Wybierz wcześniejszą datę lub pozostaw pole puste.",
       "invalidCredentials": "Twoje hasło lub kod są nieprawidłowe.",
+      "expiryNotFuture": "Ta data wygaśnięcia nie jest w przyszłości. Wybierz późniejszą datę.",
       "invalidScopes": "Te uprawnienia nie są dozwolone dla kluczy API.",
       "revealTitle": "Skopiuj swój klucz API",
       "revealDescription": "To jedyny raz, kiedy wyświetlany jest pełny klucz.",
@@ -683,7 +985,6 @@
       "lastUsed": "Ostatnio użyty {date}",
       "neverUsed": "Nigdy nieużywany",
       "expires": "Wygasa {date}",
-      "neverExpires": "Nigdy nie wygasa",
       "revoke": "Unieważnij",
       "revokeTitle": "Unieważnić klucz API?",
       "revokeBody": "{name} natychmiast przestanie działać. Tej operacji nie można cofnąć.",
@@ -694,6 +995,26 @@
       "deleteBody": "{name} zostanie trwale usunięty. Tej operacji nie można cofnąć.",
       "deleteSuccess": "Usunięto klucz API",
       "deleteError": "Nie udało się usunąć klucza API. Spróbuj ponownie."
+    },
+    "stepUp": {
+      "passwordLabel": "Twoje hasło",
+      "passwordHint": "Wpisz własne hasło, aby potwierdzić, że to Ty.",
+      "prompt": "Twoje konto nie ma hasła. Zaloguj się ponownie przez połączonego dostawcę tożsamości, aby potwierdzić, że to Ty.",
+      "continueWith": "Kontynuuj z {name}",
+      "ready": "Logowanie przez dostawcę tożsamości potwierdzone.",
+      "restart": "Zaloguj się ponownie",
+      "noProviders": "Brak połączonego dostawcy tożsamości, który mógłby potwierdzić Twoją tożsamość.",
+      "startError": "Nie udało się rozpocząć logowania przez dostawcę tożsamości. Spróbuj ponownie.",
+      "tooManyAttempts": "Zbyt wiele prób. Spróbuj ponownie później.",
+      "reauthRequired": "Potwierdź swoją tożsamość u dostawcy tożsamości, aby kontynuować.",
+      "failed": "Ponowne logowanie przez dostawcę tożsamości nie powiodło się. Spróbuj ponownie.",
+      "notFresh": "Dostawca tożsamości nie poprosił o ponowne zalogowanie. Skontaktuj się z administratorem."
+    },
+    "tabs": {
+      "label": "Sekcje bezpieczeństwa",
+      "account": "Konto",
+      "sessions": "Sesje i dostęp",
+      "danger": "Strefa zagrożenia"
     }
   },
   "integrations": {
@@ -733,6 +1054,7 @@
       "clientIdPlaceholder": "123456",
       "clientSecret": "Sekret klienta",
       "connectError": "Nie udało się połączyć ze Strava. Sprawdź swoje dane i spróbuj ponownie.",
+      "scopeError": "Strava nie otrzymała wszystkich uprawnień, których potrzebuje Endurain. Połącz ponownie i zostaw zaznaczone wszystkie uprawnienia.",
       "completing": "Finalizowanie połączenia ze Strava…",
       "linkSuccess": "Połączono Strava",
       "retrieveActivitiesTitle": "Pobierz aktywności ze Strava",
@@ -741,9 +1063,10 @@
       "retrievingGear": "Pobieranie Twojego sprzętu ze Strava w tle…",
       "retrieveGearError": "Nie udało się rozpocząć pobierania sprzętu ze Strava. Spróbuj ponownie.",
       "unlinkTitle": "Rozłączyć Strava?",
-      "unlinkBody": "Endurain przestanie importować ze Strava. Twoje istniejące aktywności zostaną zachowane.",
+      "unlinkBody": "Endurain przestanie importować ze Strava i usunie aktywności oraz sprzęt zsynchronizowane ze Strava. Aktywności z innych źródeł, w tym przesłane pliki eksportu Strava, zostaną zachowane.",
       "unlinkSuccess": "Rozłączono Strava",
-      "unlinkError": "Nie udało się rozłączyć Strava. Spróbuj ponownie."
+      "unlinkError": "Nie udało się rozłączyć Strava. Spróbuj ponownie.",
+      "revokedNotice": "Dostęp do Strava wygasł {revokedAt}. Aktywności i sprzęt zsynchronizowane ze Strava zostaną usunięte {deletionAt}, jeśli nie połączysz się ponownie."
     },
     "garmin": {
       "title": "Garmin Connect",
@@ -774,7 +1097,10 @@
       "unlinkBody": "Endurain przestanie importować z Garmin Connect. Twoje istniejące dane zostaną zachowane.",
       "unlinkSuccess": "Rozłączono Garmin Connect",
       "unlinkError": "Nie udało się rozłączyć Garmin Connect. Spróbuj ponownie."
-    }
+    },
+    "retrieveFinished": "Pobieranie Twoich danych z {provider} zostało zakończone.",
+    "retrieveFailed": "Nie udało się pobrać Twoich danych z {provider}. Spróbuj ponownie.",
+    "retrieveAlreadyRunning": "Pobieranie z {provider} już trwa. Powiadomimy Cię, gdy się zakończy."
   },
   "import": {
     "title": "Import",
@@ -807,15 +1133,25 @@
     },
     "job": {
       "preparing": "Przygotowywanie importu…",
-      "progress": "Zaimportowano {done} z {total} plików ({failed} nie powiodło się)…",
-      "finished": "Import zakończony: zaimportowano {done} z {total} plików, {failed} nie powiodło się.",
-      "failed": "Nie udało się ukończyć importu."
+      "progress": "Zaimportowano {done} z {total} pliku ({failed} nie powiodło się)… | Zaimportowano {done} z {total} plików ({failed} nie powiodło się)… | Zaimportowano {done} z {total} plików ({failed} nie powiodło się)…",
+      "finished": "Import zakończony: zaimportowano {done} z {total} pliku, {failed} nie powiodło się. | Import zakończony: zaimportowano {done} z {total} plików, {failed} nie powiodło się. | Import zakończony: zaimportowano {done} z {total} plików, {failed} nie powiodło się.",
+      "failed": "Nie udało się ukończyć importu.",
+      "failure": {
+        "unsupported_format": "Import nie powiódł się: pliki mają nieobsługiwany format.",
+        "invalid_file": "Import nie powiódł się: plik jest nieprawidłowy.",
+        "no_activities_found": "Import nie powiódł się: nie znaleziono żadnych aktywności.",
+        "processing_failed": "Import nie powiódł się podczas przetwarzania plików.",
+        "provider_unavailable": "Import nie powiódł się: dostawca jest niedostępny. Spróbuj ponownie później."
+      }
     }
   },
   "profile": {
     "title": "Mój profil",
     "subtitle": "Zarządzaj danymi konta i prywatnością",
     "notSet": "Nie ustawiono",
+    "emailManagedIn": "Twój e-mail zmieniasz w ustawieniach zabezpieczeń.",
+    "securitySettingsLink": "Otwórz ustawienia zabezpieczeń",
+    "usernameManagedIn": "Swoją nazwę użytkownika zmieniasz w ustawieniach zabezpieczeń.",
     "error": {
       "title": "Nie udało się wczytać Twojego profilu",
       "description": "Coś poszło nie tak podczas wczytywania profilu. Możesz spróbować ponownie.",
@@ -826,7 +1162,6 @@
       "title": "Edytuj profil",
       "description": "Zaktualizuj dane swojego konta",
       "success": "Zaktualizowano profil",
-      "conflict": "Ta nazwa użytkownika lub e-mail są już używane",
       "error": "Nie udało się zaktualizować profilu. Spróbuj ponownie."
     },
     "photo": {
@@ -874,6 +1209,8 @@
       "hideLaps": "Okrążenia",
       "hideWorkoutSetsSteps": "Serie i etapy treningu",
       "hideGear": "Sprzęt",
+      "discoverable": "Pozwól innym znaleźć mnie w wyszukiwarce",
+      "discoverableHint": "Inni użytkownicy mogą znaleźć Cię po nazwie użytkownika podczas wyszukiwania. Twój profil pozostaje dostępny przez bezpośredni link.",
       "save": "Zapisz prywatność",
       "saving": "Zapisywanie…",
       "saveSuccess": "Zaktualizowano ustawienia prywatności",
@@ -921,10 +1258,59 @@
       "export": "Eksportuj dane",
       "import": "Importuj dane",
       "invalidType": "Wybierz archiwum .zip.",
-      "exportSuccess": "Eksport gotowy, pobieranie powinno się wkrótce rozpocząć",
+      "download": "Pobierz eksport",
+      "downloadSuccess": "Pobieranie powinno się wkrótce rozpocząć",
+      "downloadError": "Nie udało się pobrać eksportu. Spróbuj ponownie.",
+      "exportQueued": "Eksport rozpoczęty. Możesz opuścić tę stronę.",
       "exportError": "Nie udało się wyeksportować danych. Spróbuj ponownie.",
-      "importSuccess": "Zaimportowano dane",
-      "importError": "Nie udało się zaimportować archiwum. Sprawdź plik i spróbuj ponownie."
+      "exportInProgress": "Eksport jest już w toku.",
+      "exportStepUp": {
+        "title": "Potwierdź, że to Ty",
+        "description": "Eksport kopiuje wszystkie Twoje dane, dlatego najpierw potwierdź swoją tożsamość."
+      },
+      "exportStatus": {
+        "queued": "Oczekiwanie na rozpoczęcie eksportu…",
+        "running": "Przygotowywanie eksportu…",
+        "succeeded": "Eksport jest gotowy do pobrania. Pozostanie dostępny przez dwie godziny.",
+        "failed": "Eksport nie został ukończony: {reason}"
+      },
+      "exportFailure": {
+        "timed_out": "trwał zbyt długo. Możesz spróbować ponownie.",
+        "processing_failed": "coś poszło nie tak. Możesz spróbować ponownie."
+      },
+      "importQueued": "Import rozpoczęty. Możesz opuścić tę stronę.",
+      "importError": "Nie udało się zaimportować archiwum. Sprawdź plik i spróbuj ponownie.",
+      "importInProgress": "Import jest już w toku.",
+      "status": {
+        "queued": "Oczekiwanie na rozpoczęcie importu…",
+        "running": "Importowanie danych…",
+        "succeeded": "Import zakończony: zaimportowano {activities} aktywność, sprzęt: {gears}. | Import zakończony: zaimportowano {activities} aktywności, sprzęt: {gears}. | Import zakończony: zaimportowano {activities} aktywności, sprzęt: {gears}.",
+        "failed": "Import nie został ukończony: {reason}"
+      },
+      "failure": {
+        "invalid_file": "archiwum nie jest prawidłowym eksportem Endurain. Nic nie zaimportowano.",
+        "too_large": "archiwum jest zbyt duże. Nic nie zaimportowano.",
+        "too_many_activities": "archiwum zawiera zbyt wiele aktywności. Nic nie zaimportowano.",
+        "timed_out": "trwał zbyt długo. Nic nie zaimportowano, więc możesz spróbować ponownie.",
+        "files_incomplete": "dane zostały zaimportowane, ale brakuje niektórych plików. Nie importuj ich ponownie, bo dane się zdublują.",
+        "processing_failed": "coś poszło nie tak. Nic nie zaimportowano, więc możesz spróbować ponownie.",
+        "wrong_account": "archiwum zostało wyeksportowane z innego konta. Nic nie zaimportowano.",
+        "older_version": "archiwum zostało wyeksportowane przez starszą wersję Endurain. Nic nie zaimportowano."
+      }
+    },
+    "blockedUsers": {
+      "title": "Zablokowani użytkownicy",
+      "subtitle": "Zablokowani użytkownicy nie mogą prosić o obserwowanie Cię. Zablokowanie kogoś usuwa też wszelkie obserwowanie między wami.",
+      "empty": "Nie zablokowano nikogo.",
+      "unblock": "Odblokuj",
+      "unblockError": "Nie udało się odblokować tego użytkownika. Spróbuj ponownie.",
+      "loadError": "Nie udało się wczytać zablokowanych użytkowników.",
+      "retry": "Spróbuj ponownie"
+    },
+    "tabs": {
+      "label": "Sekcje profilu",
+      "profile": "Profil",
+      "privacy": "Prywatność i dane"
     }
   }
 }

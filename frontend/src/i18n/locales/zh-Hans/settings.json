@@ -31,7 +31,9 @@
       "admin": "管理员",
       "inactive": "未激活",
       "unverified": "邮箱未验证",
+      "pendingEmail": "邮箱更改待处理",
       "pending": "待审核",
+      "deleting": "正在删除",
       "externalAuth": "外部认证"
     },
     "actions": {
@@ -64,18 +66,22 @@
       "email": "邮箱",
       "emailRequired": "邮箱为必填项",
       "emailInvalid": "请输入有效的邮箱地址",
+      "emailChangeHint": "系统会向新邮箱发送确认链接，确认后将替换当前邮箱。该用户将在所有设备上退出登录。若要立即生效，请将新邮箱标记为已验证。",
       "accessType": "访问类型",
       "accessTypeRegular": "普通用户",
       "accessTypeAdmin": "管理员",
       "password": "密码",
       "passwordHint": "至少 8 个字符",
-      "passwordHintStrict": "至少 {min} 个字符，包含大写字母、小写字母、数字和特殊字符",
-      "passwordHintLength": "至少 {min} 个字符",
       "passwordRequired": "密码为必填项",
-      "passwordInvalid": "密码不符合要求",
       "confirmPassword": "确认密码",
+      "mustChangePasswordHint": "该用户下次登录时必须选择新密码。",
       "confirmPasswordRequired": "确认密码",
-      "passwordMismatch": "两次密码不一致",
+      "passwordMode": "用户如何获得密码",
+      "passwordModeInvitation": "通过电子邮件发送邀请，由用户选择密码",
+      "passwordModePassword": "立即设置密码",
+      "passwordModeHint": "用户会收到一封邮件，其中的链接 24 小时内有效，可用来选择自己的密码。",
+      "invitationNeedsActive": "未激活的账户无法被邀请，请改为设置密码。",
+      "inviteSuccess": "用户已添加，邀请已发送",
       "preferredLanguage": "首选语言",
       "languages": {
         "ca": "加泰罗尼亚语",
@@ -118,14 +124,16 @@
       "units": "单位",
       "unitsMetric": "公制",
       "unitsImperial": "英制",
+      "weightUnits": "体重单位",
+      "weightUnitsDefault": "跟随单位",
+      "weightUnitsMetric": "千克 (kg)",
+      "weightUnitsImperial": "磅 (lb)",
       "height": "身高",
-      "unitCm": "厘米",
-      "unitFeet": "英尺",
-      "unitInches": "英寸",
+      "heightInvalid": "身高必须介于 50 到 272 厘米之间",
+      "maxHeartRateInvalid": "最大心率必须介于 30 到 250 次/分之间",
       "feetInvalid": "英尺必须在 0 到 10 之间",
       "inchesInvalid": "英寸必须在 0 到 11 之间",
       "maxHeartRate": "最大心率",
-      "unitBpm": "次/分",
       "currency": "货币",
       "currencies": {
         "euro": "欧元",
@@ -134,6 +142,8 @@
       },
       "firstDayOfWeek": "每周第一天",
       "timezone": "时区",
+      "timezoneNotSet": "未设置",
+      "timezoneUseBrowser": "使用我的浏览器时区（{timezone}）",
       "timezoneHint": "用于没有 GPS 记录的活动，例如跑步机跑步和室内骑行。",
       "weekdays": {
         "sunday": "周日",
@@ -149,7 +159,8 @@
       "statusLegend": "账户状态",
       "active": "活跃",
       "emailVerified": "邮箱已验证",
-      "pendingAdminApproval": "待管理员审核",
+      "emailVerifiedCurrentHint": "这是当前邮箱的状态。",
+      "newEmailVerified": "将新邮箱标记为已验证",
       "requiredField": "必填项",
       "create": "添加用户",
       "save": "保存更改",
@@ -158,7 +169,13 @@
       "createSuccess": "用户已添加",
       "updateSuccess": "用户已更新",
       "conflict": "该用户名或邮箱已被使用",
-      "saveError": "无法保存用户，请重试。"
+      "lastAdministrator": "唯一的管理员不能被降级或停用",
+      "saveError": "无法保存用户，请重试。",
+      "stepUpTitle": "确认您的身份",
+      "stepUpDescription": "更改 {username} 的邮箱、访问类型或启用状态会使其在所有设备上退出登录。请确认是您本人操作以继续。",
+      "stepUpCreateDescription": "创建管理员账户将授予完全访问权限。请确认是您本人操作以继续。",
+      "stepUpConfirm": "保存更改",
+      "approvalPending": "该用户正在等待审批。请批准该用户，而不是在此处激活。"
     },
     "delete": {
       "title": "删除用户",
@@ -167,10 +184,12 @@
       "cancel": "取消",
       "close": "关闭",
       "success": "用户已删除",
-      "error": "无法删除用户，请重试。"
+      "error": "无法删除用户，请重试。",
+      "failed": "删除用户失败。该账户保持停用状态；请再次删除以重试。"
     },
     "detail": {
       "back": "返回用户列表",
+      "pendingEmail": "待处理的邮箱更改为 {email}，链接将于 {date} 过期",
       "notFoundTitle": "未找到用户",
       "notFoundDescription": "此账户可能已被删除",
       "securityTitle": "安全",
@@ -184,19 +203,33 @@
     "password": {
       "button": "重置密码",
       "title": "重置密码",
-      "description": "为 {username} 设置新密码",
+      "description": "为 {username} 设置新密码 All of their sessions, unused reset links, pending email change and API keys end. They are notified.",
       "newLabel": "新密码",
-      "hintLength": "至少 {min} 个字符",
-      "hintStrict": "至少 {min} 个字符，包含大写字母、小写字母、数字和特殊字符",
       "confirmLabel": "确认新密码",
-      "mismatch": "两次密码不一致",
       "required": "密码为必填项",
       "submit": "重置密码",
       "cancel": "取消",
       "close": "关闭",
       "success": "密码已更新",
-      "invalid": "密码不符合要求",
       "error": "无法更新密码，请重试。"
+    },
+    "mfaReset": {
+      "button": "重置 MFA",
+      "title": "重置双重验证",
+      "description": "这将关闭 {username} 的双重验证并删除其备份码。其所有会话将结束，即在所有设备上退出登录，登录后必须重新设置双重验证。系统会通知该用户。请确认是您本人操作以继续。",
+      "confirm": "重置 MFA",
+      "success": "双重验证已重置",
+      "refused": "此用户未开启双重验证。",
+      "error": "无法重置双重验证，请重试。"
+    },
+    "requirePasswordChange": {
+      "button": "要求更改密码",
+      "title": "要求更改密码",
+      "description": "{username} 保留当前密码，但下次使用该密码登录时必须选择新密码。其所有会话将结束，即在所有设备上退出登录。通过单点登录提供者登录不受影响。系统会通知该用户。请确认是您本人操作以继续。",
+      "confirm": "要求更改",
+      "success": "已要求更改密码",
+      "refused": "此用户没有可更改的密码。",
+      "error": "无法要求更改密码，请重试。"
     },
     "sessions": {
       "title": "会话",
@@ -205,6 +238,7 @@
       "error": "无法加载会话",
       "retry": "重试",
       "lastActive": "最后活跃于 {date}",
+      "viaApp": "通过应用登录：{address}",
       "current": "当前会话",
       "revokeOthers": "撤销其他会话",
       "revokeOthersTitle": "撤销其他会话",
@@ -216,10 +250,28 @@
       "revokeTitle": "撤销会话",
       "revokeBody": "这将注销该设备，需要重新登录",
       "revokeConfirm": "撤销",
-      "revokeCancel": "取消",
-      "revokeClose": "关闭",
       "revokeSuccess": "会话已撤销",
       "revokeError": "无法撤销会话，请重试。"
+    },
+    "apiKeys": {
+      "title": "API 密钥",
+      "subtitle": "此用户为脚本和第三方工具创建的 API 密钥",
+      "error": "无法加载 API 密钥",
+      "retry": "重试",
+      "empty": "此用户没有 API 密钥",
+      "revoke": "撤销",
+      "revokeTitle": "撤销此 API 密钥？",
+      "revokeBody": "该密钥将立即失效，并会通知用户。",
+      "revokeConfirm": "撤销密钥",
+      "revokeSuccess": "API 密钥已撤销",
+      "revokeError": "无法撤销 API 密钥。请重试。",
+      "revokeNotFound": "该 API 密钥已不存在。",
+      "revokeAll": "撤销所有密钥",
+      "revokeAllTitle": "撤销所有 API 密钥？",
+      "revokeAllBody": "此用户所有有效的 API 密钥将立即失效，并会通知用户。",
+      "revokeAllConfirm": "撤销所有密钥",
+      "revokeAllSuccess": "API 密钥已撤销",
+      "revokeAllError": "无法撤销 API 密钥。请重试。"
     },
     "photo": {
       "upload": "上传照片",
@@ -277,6 +329,34 @@
     "saving": "保存中…",
     "saveSuccess": "服务器设置已更新",
     "saveError": "无法更新服务器设置，请重试。",
+    "staleError": "您编辑期间，这些设置已被其他人更改，您的更改未保存。请刷新页面查看当前值。",
+    "stepUpTitle": "确认您的身份",
+    "stepUpDescription": "这些更改会影响谁可以在此服务器上注册、登录或保持会话、审计记录保留多长时间，以及公开链接是否显示分享者。请确认是您本人操作以继续。",
+    "envLocked": "由 {name} 设置",
+    "envSection": "此处的部分设置由环境变量（{names}）决定。请从环境中移除这些变量，以便在此处编辑相应设置。",
+    "unsaved": "未保存的更改",
+    "fixErrors": "请修正上方的错误后再保存",
+    "discard": "放弃",
+    "tabs": {
+      "label": "服务器设置分区",
+      "general": "常规",
+      "access": "访问与安全",
+      "maps": "地图与位置",
+      "email": "电子邮件",
+      "logs": "日志",
+      "unsaved": "有未保存的更改"
+    },
+    "search": {
+      "placeholder": "搜索设置…",
+      "noResults": "未找到设置"
+    },
+    "leave": {
+      "title": "不保存就离开？",
+      "description": "你有未保存的更改。离开此页面后这些更改将丢失。",
+      "confirm": "不保存并离开",
+      "stay": "留在此页面",
+      "close": "关闭"
+    },
     "loadError": {
       "title": "无法加载服务器设置",
       "description": "加载服务器设置时出现错误，请重试。",
@@ -293,17 +373,49 @@
       "currencyPound": "英镑 (£)",
       "numRecords": "每页显示条数"
     },
+    "mfa": {
+      "title": "双重验证",
+      "require": "要求双重验证",
+      "requireHint": "此设置涵盖的账户如果尚未设置双重验证，则必须先设置双重验证才能进行其他任何操作。在此之前，只能设置双重验证和退出登录。该要求从账户的下一次请求起生效。",
+      "options": {
+        "off": "不要求",
+        "administrators": "仅管理员",
+        "everyone": "所有人"
+      },
+      "enabledWarning": "此设置涵盖的账户如果尚未设置双重验证（可能包括您的账户），将在下一次请求时被引导去设置。"
+    },
     "password": {
       "title": "密码策略",
-      "type": "策略",
-      "typeStrict": "严格（需要复杂度）",
-      "typeLengthOnly": "仅限长度",
       "lengthRegular": "普通用户最短密码长度",
-      "lengthAdmin": "管理员最短密码长度"
+      "lengthAdmin": "管理员最短密码长度",
+      "breachCheck": "拒绝在已知数据泄露中出现过的密码",
+      "breachCheckHint": "通过 haveibeenpwned.com 检查每个新密码或更改后的密码。仅发送密码 SHA-1 哈希的前 5 个字符，绝不发送密码本身。如果无法连接该服务，则接受该密码。"
+    },
+    "session": {
+      "title": "会话",
+      "description": "更改将应用于新的登录和下一次令牌刷新，已签发的令牌保持原有有效期。",
+      "idleTimeoutEnabled": "强制执行空闲超时",
+      "idleHours": "空闲超时（小时）",
+      "idleHoursHint": "启用后，会话在无活动达到此小时数后结束。",
+      "absoluteHours": "绝对超时（小时）",
+      "absoluteHoursHint": "无论是否有活动，会话都会在登录后经过此小时数结束。始终生效，且不得短于空闲超时。",
+      "accessMinutes": "访问令牌有效期（分钟）",
+      "refreshDays": "刷新令牌有效期（天）",
+      "apiKeyDays": "API 密钥最长有效期（天）",
+      "apiKeyDaysHint": "新的 API 密钥在这么多天后过期，除非其所有者选择更早的日期。",
+      "invalidRange": "请输入介于 {min} 和 {max} 之间的整数。",
+      "absoluteBelowIdle": "不得短于空闲超时。",
+      "accessNotBelowIdle": "必须短于空闲超时。"
+    },
+    "retention": {
+      "title": "数据保留",
+      "readNotifications": "已读通知保留天数",
+      "readNotificationsHint": "0 表示永久保留已读通知。未读通知永远不会被删除。"
     },
     "signup": {
       "title": "注册",
       "enabled": "允许新用户注册",
+      "ssoEnabled": "允许通过单点登录注册新用户",
       "adminApproval": "新注册需要管理员审核",
       "emailVerification": "新注册需要邮箱验证"
     },
@@ -336,12 +448,33 @@
       "attribution": "归属信息",
       "apiKey": "瓦片服务器 API 密钥",
       "apiKeyWarning": "API 密钥以加密方式存储。如果您的瓦片服务器不需要密钥，请留空。",
+      "apiKeyStored": "已存储密钥",
+      "apiKeyRemove": "移除已存储的 API 密钥",
       "backgroundColor": "地图背景颜色",
       "regenerateThumbnails": "地图设置更改时重新生成活动缩略图"
+    },
+    "geocoding": {
+      "title": "反向地理编码",
+      "description": "将活动坐标转换为地名。更改无需重启即可生效。",
+      "service": "服务",
+      "serviceNominatim": "Nominatim",
+      "servicePhoton": "Photon",
+      "serviceGeocode": "geocode.maps.co",
+      "host": "主机",
+      "hostHint": "主机名，可带端口，不含协议。私有网络中的主机必须列入 SSRF_ALLOWED_HOSTS。",
+      "useHttps": "通过 HTTPS 连接",
+      "rateLimit": "每秒请求数",
+      "rateLimitHint": "0 表示关闭限速。公共 Nominatim 和 Photon 服务请保持为 1。",
+      "rateLimitInvalid": "请输入介于 0 和 100 之间的数字。",
+      "apiKey": "API 密钥",
+      "apiKeyStored": "已存储密钥。留空则保留。",
+      "apiKeyRemove": "移除已存储的 API 密钥",
+      "apiKeyRequired": "geocode.maps.co 需要 API 密钥。"
     },
     "photo": {
       "title": "登录页图片",
       "description": "登录页面显示的自定义图片",
+      "previewAlt": "当前登录照片",
       "add": "上传登录页图片",
       "replace": "替换登录页图片",
       "delete": "移除登录页图片",
@@ -355,10 +488,33 @@
       "cancel": "取消",
       "close": "关闭"
     },
+    "logs": {
+      "title": "服务器日志",
+      "description": "应用程序日志的最新记录。运行多个进程的部署，其日志由您的平台收集。",
+      "level": "最低级别",
+      "allLevels": "所有级别",
+      "search": "搜索",
+      "searchPlaceholder": "文本、记录器或请求 ID…",
+      "live": "实时",
+      "refresh": "刷新",
+      "download": "下载",
+      "downloadError": "无法下载日志文件。",
+      "clear": "清除",
+      "cleared": "日志已清除",
+      "clearError": "无法清除日志。",
+      "clearConfirm": {
+        "title": "清除服务器日志？",
+        "description": "这将永久删除日志文件及其轮转备份。如果可能需要，请先下载日志。此操作本身会记录在新日志中。",
+        "confirm": "清除日志",
+        "cancel": "取消",
+        "close": "关闭"
+      },
+      "loadError": "无法加载日志。",
+      "empty": "未找到日志记录"
+    },
     "email": {
       "title": "邮件",
       "description": "Endurain 通过环境中配置的 SMTP 服务器发送重置密码和注册邮件。",
-      "statusLoadError": "无法检查邮件配置。",
       "configured": "邮件已配置。",
       "notConfigured": "邮件未配置：",
       "send": "发送测试邮件",
@@ -366,7 +522,28 @@
       "sendHint": "测试邮件将发送到您自己的邮箱地址。",
       "sent": "测试邮件已发送",
       "failed": "无法发送测试邮件",
-      "failedUnknown": "请查看服务器日志了解详情。"
+      "failedUnknown": "请查看服务器日志了解详情。",
+      "settingsLoadError": "无法加载邮件设置。",
+      "host": "主机",
+      "hostHint": "留空则关闭电子邮件。",
+      "port": "端口",
+      "portInvalid": "请输入 1 到 65535 之间的端口。",
+      "security": "连接安全",
+      "securityStarttls": "STARTTLS",
+      "securitySsl": "SSL/TLS",
+      "securityNone": "无（仅限私有中继）",
+      "securityNoneWarning": "不加密时，仅接受私有或环回地址上的邮件服务器，且不能使用用户名和密码。",
+      "username": "用户名",
+      "password": "密码",
+      "passwordStored": "已存储密码。留空则保留。",
+      "passwordRemove": "移除已存储的密码",
+      "fromAddress": "发件人地址",
+      "fromAddressHint": "留空则使用用户名。",
+      "save": "保存邮件设置",
+      "saveSuccess": "邮件设置已保存",
+      "saveError": "无法保存邮件设置",
+      "stepUpTitle": "确认您的身份",
+      "stepUpDescription": "邮件服务器会收到每一个密码重置链接。请确认是您本人操作以继续。"
     }
   },
   "idp": {
@@ -374,6 +551,8 @@
     "subtitle": "配置用于单点登录的 SSO 提供者",
     "buttonAdd": "添加提供者",
     "toggleError": "无法更改提供者，请重试。",
+    "toggleStepUpDescription": "更改 {name} 是否启用会决定谁可以登录此服务器。请确认是您本人操作以继续。",
+    "toggleStepUpConfirm": "确认",
     "enableSuccess": "提供者已启用",
     "disableSuccess": "提供者已禁用",
     "type": {
@@ -399,8 +578,6 @@
       "title": "删除提供者",
       "body": "确定要删除\"{name}\"吗？此操作无法撤销。",
       "confirm": "删除",
-      "cancel": "取消",
-      "close": "关闭",
       "success": "提供者已删除",
       "error": "无法删除提供者，该提供者可能仍有关联用户。"
     },
@@ -422,12 +599,14 @@
       "slugRequired": "Slug 为必填项",
       "slugTooLong": "Slug 不能超过 50 个字符",
       "slugInvalid": "只能使用小写字母、数字和连字符",
+      "slugReserved": "该 slug 已被保留，请选择其他",
       "providerType": "提供者类型",
       "typeOidc": "OpenID Connect (OIDC)",
       "typeOauth2": "OAuth 2.0",
       "issuerUrl": "颁发者 URL",
       "issuerUrlHint": "提供者的 OIDC 颁发者或发现 URL",
       "issuerUrlRequired": "颁发者 URL 为必填项",
+      "issuerUrlRefused": "提供者 URL 被拒绝。它必须使用 https:// 并可从服务器解析，私有网络中的提供者必须列入 SSRF_ALLOWED_HOSTS。",
       "issuerUrlTooLong": "颁发者 URL 不能超过 500 个字符",
       "clientId": "客户端 ID",
       "clientIdRequired": "客户端 ID 为必填项",
@@ -440,17 +619,34 @@
       "scopes": "权限范围",
       "scopesHint": "以空格分隔的 OAuth 权限范围",
       "scopesTooLong": "权限范围不能超过 500 个字符",
+      "scopesOpenidRequired": "OIDC 提供商需要 openid 范围",
       "icon": "图标",
       "iconNone": "无",
-      "iconCustom": "自定义 URL",
-      "customIconUrl": "自定义图标 URL",
-      "customIconUrlHint": "指向登录按钮图片的链接",
+      "iconUpload": "上传图片",
+      "iconFileHint": "PNG、JPEG 或 WebP 图片，不超过 1 MB，显示在登录按钮上",
+      "iconChoose": "选择图片",
+      "iconReplace": "替换图片",
+      "iconPreviewAlt": "图标预览",
+      "iconFileRequired": "请选择要上传的图片",
+      "iconFileInvalidType": "图标必须是 PNG、JPEG 或 WebP 图片",
+      "iconFileTooLarge": "图标不得超过 1 MB",
+      "iconSaveError": "提供者已保存，但其图标未能更新。请编辑提供者以重试。",
       "enabled": "已启用",
       "autoCreateUsers": "首次登录时自动创建用户",
+      "linkByEmail": "通过邮箱关联到现有账户",
+      "linkByEmailHint": "允许首次登录加入使用相同已验证邮箱的账户。关闭时，该登录将被拒绝，用户需在自己的设置中关联提供者。新提供者默认关闭。",
       "syncUserInfo": "每次登录时同步个人资料信息",
+      "syncUserInfoHint": "从提供者复制已映射的姓名，不包括邮箱。",
+      "syncEmail": "每次登录时同步邮箱",
+      "syncEmailHint": "将提供者已验证的邮箱复制到账户，记录该更改并通知之前的地址。新提供者默认关闭。",
       "createSuccess": "提供者已添加",
       "updateSuccess": "提供者已更新",
+      "stepUpTitle": "确认您的身份",
+      "stepUpDescription": "身份提供者决定谁可以登录此服务器。请确认是您本人操作以继续。",
       "slugConflict": "该 Slug 已被使用",
+      "issuerInUse": "另一个身份提供者已使用此颁发者 URL",
+      "issuerLocked": "有用户关联到此提供者时，无法更改颁发者 URL。请先取消关联，或改为添加新的提供者。",
+      "staleError": "此提供者已在其他地方更改，您的更改未保存。请关闭后重新打开以加载当前设置。",
       "saveError": "无法保存提供者，请重试。"
     }
   },
@@ -492,13 +688,6 @@
       "elevation": "爬升",
       "duration": "时长"
     },
-    "unit": {
-      "calories": "千卡",
-      "km": "千米",
-      "miles": "英里",
-      "meters": "米",
-      "feet": "英尺"
-    },
     "list": {
       "edit": "编辑 {name} 目标",
       "delete": "删除 {name} 目标"
@@ -522,6 +711,7 @@
       "error": "无法删除目标，请重试。"
     },
     "form": {
+      "targetInvalid": "请输入大于 0 的值。",
       "addTitle": "添加目标",
       "editTitle": "编辑目标",
       "description": "为周期性活动设置目标",
@@ -549,6 +739,14 @@
     "hidePassword": "隐藏密码",
     "mfaCode": "认证码",
     "mfaCodePlaceholder": "123456",
+    "confirmPhrase": "输入 {phrase} 以确认",
+    "mfaEnrolment": {
+      "title": "设置双重验证",
+      "description": "此服务器要求使用双重验证。请设置双重验证以继续使用 Endurain，或退出登录。",
+      "done": "双重验证已设置完成。您可以继续。",
+      "continue": "继续",
+      "signOut": "退出登录"
+    },
     "loadError": {
       "title": "无法加载安全设置",
       "description": "出现错误，请重试。"
@@ -559,10 +757,7 @@
       "current": "当前密码",
       "new": "新密码",
       "confirm": "确认新密码",
-      "requirementsStrict": "至少 {length} 个字符，包含大写字母、小写字母、数字和符号。",
-      "requirementsLength": "至少 {length} 个字符。",
-      "mismatch": "两次密码不一致。",
-      "revokeOthers": "注销所有其他设备",
+      "revokeOthers": "注销所有其他会话",
       "submit": "更改密码",
       "success": "密码已更改",
       "invalidCredentials": "当前密码或验证码不正确。",
@@ -616,18 +811,51 @@
       "empty": "无活跃会话。",
       "current": "本设备",
       "lastActive": "最后活跃于 {date}",
+      "viaApp": "通过应用登录：{address}",
       "revoke": "注销此会话",
       "revokeTitle": "注销此会话？",
       "revokeBody": "该设备将被注销，需要重新登录。",
       "revokeConfirm": "注销",
       "revokeSuccess": "会话已注销",
       "revokeError": "无法注销该会话，请重试。",
-      "revokeOthers": "注销其他设备",
-      "revokeOthersTitle": "注销所有其他设备？",
-      "revokeOthersBody": "除本设备外，所有设备将被注销，需要重新登录。",
+      "revokeOthers": "注销其他会话",
+      "revokeOthersTitle": "注销所有其他会话？",
+      "revokeOthersBody": "除当前会话外的所有会话都将被注销，需要重新登录。",
       "revokeOthersConfirm": "注销其他设备",
       "revokeOthersSuccess": "其他会话已注销",
-      "revokeOthersError": "无法注销其他会话，请重试。"
+      "revokeOthersError": "无法注销其他会话，请重试。",
+      "signOutEverywhere": "在所有设备上退出登录",
+      "signOutEverywhereTitle": "在所有设备上退出登录？",
+      "signOutEverywhereBody": "包括此设备在内的所有设备都将退出登录，需要重新登录。",
+      "signOutEverywhereConfirm": "在所有设备上退出登录",
+      "signOutEverywhereError": "无法退出所有会话，请重试。"
+    },
+    "devices": {
+      "title": "已知设备",
+      "subtitle": "自您上次安全更改以来登录过的浏览器和应用。从任何其他设备登录时，您都会收到通知。",
+      "empty": "没有已知设备",
+      "error": "无法加载已知设备",
+      "current": "此设备",
+      "unknown": "未知设备",
+      "lastSeen": "最近登录于 {date}",
+      "forget": "忘记此设备",
+      "forgetTitle": "忘记此设备？",
+      "forgetDescription": "忘记此设备也会让它退出登录。下次从此设备登录将被视为新设备，并向您发送通知。",
+      "forgetConfirm": "忘记设备",
+      "forgetSuccess": "设备已忘记",
+      "forgetError": "无法忘记该设备，请重试。",
+      "forgetNotFound": "该设备已不在已知设备中。",
+      "forgetOthers": "忘记其他设备",
+      "forgetOthersTitle": "忘记所有其他设备？",
+      "forgetOthersDescription": "除当前设备外的所有设备都将被忘记并注销。之后从每台设备登录都将视为新设备，并向你发送通知。",
+      "forgetOthersConfirm": "忘记设备",
+      "forgetOthersSuccess": "已忘记其他设备",
+      "forgetOthersError": "无法忘记其他设备。请重试。",
+      "forgetAll": "忘记所有设备",
+      "forgetAllTitle": "忘记所有设备？",
+      "forgetAllDescription": "包括当前设备在内的所有设备都将被忘记并注销，你将被转到登录页面。之后从每台设备登录都将视为新设备，并向你发送通知。",
+      "forgetAllConfirm": "忘记设备",
+      "forgetAllError": "无法忘记设备。请重试。"
     },
     "linked": {
       "title": "关联账户",
@@ -649,7 +877,51 @@
       "unlinkError": "无法取消关联账户，请重试。",
       "invalidCredentials": "密码或验证码不正确。",
       "alreadyLinked": "该账户已被关联。",
-      "lastMethodError": "无法取消关联唯一的登录方式。请先设置密码。"
+      "lastMethodError": "无法取消关联唯一的登录方式。请先设置密码。",
+      "linkedOn": "关联于 {date}"
+    },
+    "email": {
+      "title": "电子邮件地址",
+      "subtitle": "密码重置邮件和通知会发送到此邮箱。更改时需要验证您的身份，新邮箱只有在您通过我们发送到该邮箱的链接确认后才会生效。",
+      "current": "当前电子邮件",
+      "action": "更改电子邮件",
+      "new": "新电子邮件",
+      "invalid": "请输入有效的电子邮件地址。",
+      "sameAsCurrent": "这已是您的邮箱地址。",
+      "success": "确认链接已发送至新邮箱。确认后，您的邮箱将会更改。",
+      "appliedSuccess": "邮箱已更改。",
+      "pending": "待处理的更改：{email}",
+      "pendingExpires": "确认链接将于 {date} 过期。",
+      "resend": "重新发送链接",
+      "cancel": "取消更改",
+      "resendSuccess": "如果有待处理的更改，新链接将发送至新邮箱。",
+      "resendError": "无法重新发送链接，请重试。",
+      "cancelSuccess": "已取消邮箱更改。",
+      "cancelError": "无法取消更改，请重试。",
+      "conflict": "该电子邮件已被使用。",
+      "error": "无法更改您的电子邮件，请重试。"
+    },
+    "username": {
+      "title": "用户名",
+      "subtitle": "你使用用户名登录。更改用户名需要先确认你的身份，更改会立即生效。",
+      "current": "当前用户名",
+      "action": "更改用户名",
+      "new": "新用户名",
+      "sameAsCurrent": "这已经是你的用户名。",
+      "success": "用户名已更改。",
+      "conflict": "该用户名已被使用。",
+      "error": "无法更改你的用户名。请重试。"
+    },
+    "deleteAccount": {
+      "title": "删除我的账户",
+      "subtitle": "删除您的账户及所有数据，包括活动及其文件、健康记录、装备、目标、集成和会话。您将在所有设备上退出登录，账户会立即被停用，随后您的数据将在后台被清除。没有宽限期：只有管理员可以在清除完成前重新启用账户来中止此过程。如需保留副本，请先导出您的数据。",
+      "action": "删除我的账户",
+      "dialogTitle": "删除您的账户？",
+      "dialogDescription": "这将使您在所有设备上退出登录、停用您的账户，并开始清除您的所有数据。在完成之前，只有管理员可以中止此过程。请确认您的身份以继续。",
+      "confirm": "删除我的账户",
+      "error": "无法删除您的账户，请重试。",
+      "onlyAdminError": "您是唯一的管理员。删除账户前，请先将其他用户设为管理员。",
+      "pendingError": "此账户的删除已在进行中。"
     },
     "apiKeys": {
       "title": "API 密钥",
@@ -661,13 +933,43 @@
       "namePlaceholder": "例如：Garmin 上传脚本",
       "scopes": "权限",
       "scopesHint": "选择此密钥允许执行的操作，至少选择一项。",
+      "scopeGroups": {
+        "account": "账户",
+        "activities": "活动",
+        "followers": "关注者",
+        "gears": "装备",
+        "health": "健康",
+        "healthTargets": "健康目标",
+        "notifications": "通知",
+        "users": "用户"
+      },
+      "scopeLabels": {
+        "account": "管理个人资料、照片、目标、隐私和默认装备",
+        "activitiesRead": "读取活动",
+        "activitiesWrite": "创建、编辑和删除活动",
+        "activitiesUpload": "上传活动文件",
+        "followersRead": "查看你关注的人和关注你的人",
+        "followersWrite": "更改你关注的人和关注你的人",
+        "gearsRead": "读取装备",
+        "gearsWrite": "创建、编辑和删除装备",
+        "healthRead": "读取健康数据",
+        "healthWrite": "写入健康数据",
+        "healthTargetsRead": "读取健康目标",
+        "healthTargetsWrite": "更改健康目标",
+        "notificationsRead": "读取通知",
+        "notificationsWrite": "管理通知",
+        "usersRead": "查看其他用户的公开资料"
+      },
       "expiry": "过期时间（可选）",
-      "expiryHint": "留空表示永不过期。",
+      "expiryHint": "留空则使用服务器允许的最长有效期。更晚的日期将被拒绝。",
       "createTitle": "创建 API 密钥",
       "createDescription": "确认身份以创建新的 API 密钥。",
       "createSuccess": "API 密钥已创建",
       "createError": "无法创建 API 密钥，请重试。",
+      "apiKeyLimit": "您已达到 25 个有效 API 密钥的上限。请撤销或删除一个后重试。",
+      "expiryTooLate": "该过期时间晚于服务器允许的范围。请选择更早的日期，或留空。",
       "invalidCredentials": "密码或验证码不正确。",
+      "expiryNotFuture": "该到期时间不在未来，请选择更晚的日期。",
       "invalidScopes": "这些权限不允许用于 API 密钥。",
       "revealTitle": "复制您的 API 密钥",
       "revealDescription": "这是唯一一次显示完整密钥。",
@@ -683,7 +985,6 @@
       "lastUsed": "最后使用于 {date}",
       "neverUsed": "从未使用",
       "expires": "过期于 {date}",
-      "neverExpires": "永不过期",
       "revoke": "撤销",
       "revokeTitle": "撤销 API 密钥？",
       "revokeBody": "{name} 将立即停止工作，此操作无法撤销。",
@@ -694,6 +995,26 @@
       "deleteBody": "{name} 将被永久删除，此操作无法撤销。",
       "deleteSuccess": "API 密钥已删除",
       "deleteError": "无法删除 API 密钥，请重试。"
+    },
+    "stepUp": {
+      "passwordLabel": "您的密码",
+      "passwordHint": "请输入您自己的密码以确认是您本人。",
+      "prompt": "您的账户没有密码。请通过已关联的身份提供者重新登录，以确认是您本人。",
+      "continueWith": "使用 {name} 继续",
+      "ready": "身份提供者登录已确认。",
+      "restart": "重新登录",
+      "noProviders": "没有可用于确认您身份的已关联身份提供者。",
+      "startError": "无法启动身份提供者登录，请重试。",
+      "tooManyAttempts": "尝试次数过多，请稍后再试。",
+      "reauthRequired": "请通过您的身份提供者确认身份以继续。",
+      "failed": "通过身份提供者重新登录失败，请重试。",
+      "notFresh": "您的身份提供者没有要求您重新登录，请联系管理员。"
+    },
+    "tabs": {
+      "label": "安全分区",
+      "account": "账户",
+      "sessions": "会话与访问",
+      "danger": "危险区域"
     }
   },
   "integrations": {
@@ -733,6 +1054,7 @@
       "clientIdPlaceholder": "123456",
       "clientSecret": "客户端密钥",
       "connectError": "无法连接到 Strava，请检查您的详细信息后重试。",
+      "scopeError": "Strava 没有获得 Endurain 所需的全部权限。请重新连接,并保持所有权限处于勾选状态。",
       "completing": "正在完成 Strava 连接…",
       "linkSuccess": "Strava 已连接",
       "retrieveActivitiesTitle": "获取 Strava 活动",
@@ -741,9 +1063,10 @@
       "retrievingGear": "正在后台获取您的 Strava 装备…",
       "retrieveGearError": "无法开始获取 Strava 装备，请重试。",
       "unlinkTitle": "断开 Strava 连接？",
-      "unlinkBody": "Endurain 将停止从 Strava 导入。您现有的活动将保留。",
+      "unlinkBody": "Endurain 将停止从 Strava 导入，并删除从 Strava 同步的活动和装备。来自其他来源的活动（包括上传的 Strava 导出文件）会保留。",
       "unlinkSuccess": "Strava 已断开连接",
-      "unlinkError": "无法断开 Strava 连接，请重试。"
+      "unlinkError": "无法断开 Strava 连接，请重试。",
+      "revokedNotice": "Strava 访问已于 {revokedAt} 结束。除非你重新连接，否则通过 Strava 同步的活动和装备将在 {deletionAt} 被删除。"
     },
     "garmin": {
       "title": "Garmin Connect",
@@ -774,7 +1097,10 @@
       "unlinkBody": "Endurain 将停止从 Garmin Connect 导入。您现有的数据将保留。",
       "unlinkSuccess": "Garmin Connect 已断开连接",
       "unlinkError": "无法断开 Garmin Connect 连接，请重试。"
-    }
+    },
+    "retrieveFinished": "已完成从 {provider} 获取你的数据。",
+    "retrieveFailed": "从 {provider} 获取你的数据失败，请重试。",
+    "retrieveAlreadyRunning": "来自 {provider} 的获取任务已在运行，完成后会通知你。"
   },
   "import": {
     "title": "导入",
@@ -809,13 +1135,23 @@
       "preparing": "正在准备导入…",
       "progress": "已导入 {done}/{total} 个文件（{failed} 个失败）…",
       "finished": "导入完成：共 {total} 个文件，已导入 {done} 个，{failed} 个失败。",
-      "failed": "导入无法完成。"
+      "failed": "导入无法完成。",
+      "failure": {
+        "unsupported_format": "导入失败：文件格式不受支持。",
+        "invalid_file": "导入失败：文件无效。",
+        "no_activities_found": "导入失败：未找到任何活动。",
+        "processing_failed": "导入失败：处理文件时出错。",
+        "provider_unavailable": "导入失败：服务提供方不可用，请稍后重试。"
+      }
     }
   },
   "profile": {
     "title": "我的个人资料",
     "subtitle": "管理您的账户详情和隐私",
     "notSet": "未设置",
+    "emailManagedIn": "您的电子邮件需在安全设置中更改。",
+    "securitySettingsLink": "打开安全设置",
+    "usernameManagedIn": "您的用户名需在安全设置中更改。",
     "error": {
       "title": "无法加载您的个人资料",
       "description": "加载个人资料时出现错误，请重试。",
@@ -826,7 +1162,6 @@
       "title": "编辑个人资料",
       "description": "更新您的账户详情",
       "success": "个人资料已更新",
-      "conflict": "该用户名或邮箱已被使用",
       "error": "无法更新您的个人资料，请重试。"
     },
     "photo": {
@@ -874,6 +1209,8 @@
       "hideLaps": "圈数",
       "hideWorkoutSetsSteps": "锻炼组数和步骤",
       "hideGear": "装备",
+      "discoverable": "允许他人通过搜索找到我",
+      "discoverableHint": "其他用户搜索时可以通过用户名找到你。你的个人资料仍可通过直接链接访问。",
       "save": "保存隐私设置",
       "saving": "保存中…",
       "saveSuccess": "隐私设置已更新",
@@ -921,10 +1258,59 @@
       "export": "导出数据",
       "import": "导入数据",
       "invalidType": "请选择 .zip 压缩文件。",
-      "exportSuccess": "导出完成，您的下载将很快开始",
+      "download": "下载导出文件",
+      "downloadSuccess": "下载应很快开始",
+      "downloadError": "无法下载导出文件，请重试。",
+      "exportQueued": "导出已开始，您可以离开此页面。",
       "exportError": "无法导出您的数据，请重试。",
-      "importSuccess": "数据已导入",
-      "importError": "无法导入压缩文件，请检查文件后重试。"
+      "exportInProgress": "已有导出正在进行。",
+      "exportStepUp": {
+        "title": "确认是你本人",
+        "description": "导出会复制你的所有数据，请先验证你的身份。"
+      },
+      "exportStatus": {
+        "queued": "正在等待导出开始…",
+        "running": "正在准备您的导出…",
+        "succeeded": "您的导出文件已可下载，将保留两小时。",
+        "failed": "导出未完成：{reason}"
+      },
+      "exportFailure": {
+        "timed_out": "耗时过长，您可以重试。",
+        "processing_failed": "出了点问题，您可以重试。"
+      },
+      "importQueued": "导入已开始，您可以离开此页面。",
+      "importError": "无法导入压缩文件，请检查文件后重试。",
+      "importInProgress": "已有导入正在进行。",
+      "status": {
+        "queued": "正在等待导入开始…",
+        "running": "正在导入您的数据…",
+        "succeeded": "导入完成：已导入 {activities} 个活动和 {gears} 件装备。",
+        "failed": "导入未完成：{reason}"
+      },
+      "failure": {
+        "invalid_file": "该压缩包不是有效的 Endurain 导出文件，未导入任何内容。",
+        "too_large": "该压缩包太大，未导入任何内容。",
+        "too_many_activities": "该压缩包中的活动太多，未导入任何内容。",
+        "timed_out": "耗时过长，未导入任何内容，因此您可以重试。",
+        "files_incomplete": "您的数据已导入，但缺少部分文件。请勿再次导入，否则会产生重复数据。",
+        "processing_failed": "出了点问题，未导入任何内容，因此您可以重试。",
+        "wrong_account": "该归档是从另一个账户导出的，未导入任何内容。",
+        "older_version": "该归档由较旧版本的 Endurain 导出，未导入任何内容。"
+      }
+    },
+    "blockedUsers": {
+      "title": "已屏蔽的用户",
+      "subtitle": "已屏蔽的用户无法请求关注你。屏蔽某人还会移除你们之间的所有关注关系。",
+      "empty": "你还没有屏蔽任何人。",
+      "unblock": "取消屏蔽",
+      "unblockError": "无法取消屏蔽该用户，请重试。",
+      "loadError": "无法加载已屏蔽的用户。",
+      "retry": "重试"
+    },
+    "tabs": {
+      "label": "个人资料分区",
+      "profile": "个人资料",
+      "privacy": "隐私与数据"
     }
   }
 }

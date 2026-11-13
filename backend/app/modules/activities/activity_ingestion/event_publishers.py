@@ -7,6 +7,7 @@ with the caller's commit and a staging failure propagates rather than being
 swallowed.
 """
 
+import uuid
 from collections.abc import Callable
 
 import jasil.publisher as platform_publisher
@@ -16,7 +17,7 @@ import core.event_metadata as core_event_metadata
 import modules.activities.activity_ingestion.events as activity_ingestion_events
 
 
-def publish_file_uploaded(job_id: str, user_id: int, db: Session, *, commit: Callable[[], None]) -> None:
+def publish_file_uploaded(job_id: uuid.UUID, user_id: uuid.UUID, db: Session, *, commit: Callable[[], None]) -> None:
     """Publish ``activity.file_uploaded`` so a durable worker imports the staged upload.
 
     Staged in the transactional outbox on ``db`` and committed with the job row,
@@ -31,16 +32,18 @@ def publish_file_uploaded(job_id: str, user_id: int, db: Session, *, commit: Cal
     payload = activity_ingestion_events.UploadedFilePayload(job_id=job_id)
     platform_publisher.publish_committing(
         activity_ingestion_events.ACTIVITY_FILE_UPLOADED,
-        payload.model_dump(),
+        payload.model_dump(mode="json"),
         source="api:upload",
         db=db,
         commit=commit,
-        metadata={core_event_metadata.META_USER_ID: user_id},
+        metadata={core_event_metadata.META_USER_ID: str(user_id)},
         schema_version=payload.SCHEMA_VERSION,
     )
 
 
-def publish_refresh_requested(job_id: str, user_id: int, db: Session, *, commit: Callable[[], None]) -> None:
+def publish_refresh_requested(
+    job_id: uuid.UUID, user_id: uuid.UUID, db: Session, *, commit: Callable[[], None]
+) -> None:
     """Publish ``activity.refresh_requested`` so a durable worker syncs the providers.
 
     Args:
@@ -52,17 +55,17 @@ def publish_refresh_requested(job_id: str, user_id: int, db: Session, *, commit:
     payload = activity_ingestion_events.RefreshRequestedPayload(job_id=job_id)
     platform_publisher.publish_committing(
         activity_ingestion_events.ACTIVITY_REFRESH_REQUESTED,
-        payload.model_dump(),
+        payload.model_dump(mode="json"),
         source="api:refresh",
         db=db,
         commit=commit,
-        metadata={core_event_metadata.META_USER_ID: user_id},
+        metadata={core_event_metadata.META_USER_ID: str(user_id)},
         schema_version=payload.SCHEMA_VERSION,
     )
 
 
 def publish_refresh_requests(
-    jobs: list[tuple[str, int]],
+    jobs: list[tuple[uuid.UUID, uuid.UUID]],
     db: Session,
     *,
     commit: Callable[[], None],
@@ -78,19 +81,24 @@ def publish_refresh_requests(
         db: The session the job rows were created on.
         commit: Zero-arg commit callable that ends the caller's transaction.
     """
-    owner_of = dict(jobs)
+    owner_of = {str(job_id): user_id for job_id, user_id in jobs}
     platform_publisher.publish_many_committing(
         activity_ingestion_events.ACTIVITY_REFRESH_REQUESTED,
-        [activity_ingestion_events.RefreshRequestedPayload(job_id=job_id).model_dump() for job_id, _ in jobs],
+        [
+            activity_ingestion_events.RefreshRequestedPayload(job_id=job_id).model_dump(mode="json")
+            for job_id, _ in jobs
+        ],
         source="scheduler:provider_refresh",
-        metadata_for=lambda payload: {core_event_metadata.META_USER_ID: owner_of[payload["job_id"]]},
+        metadata_for=lambda payload: {core_event_metadata.META_USER_ID: str(owner_of[payload["job_id"]])},
         db=db,
         commit=commit,
         schema_version=activity_ingestion_events.RefreshRequestedPayload.SCHEMA_VERSION,
     )
 
 
-def publish_bulk_import_continue(job_id: str, user_id: int, db: Session, *, commit: Callable[[], None]) -> None:
+def publish_bulk_import_continue(
+    job_id: uuid.UUID, user_id: uuid.UUID, db: Session, *, commit: Callable[[], None]
+) -> None:
     """Publish ``activity.bulk_import_continue`` so a worker runs the next batch.
 
     Staged in the transactional outbox on ``db`` and committed with whatever the
@@ -107,10 +115,10 @@ def publish_bulk_import_continue(job_id: str, user_id: int, db: Session, *, comm
     payload = activity_ingestion_events.BulkImportContinuePayload(job_id=job_id)
     platform_publisher.publish_committing(
         activity_ingestion_events.ACTIVITY_BULK_IMPORT_CONTINUE,
-        payload.model_dump(),
+        payload.model_dump(mode="json"),
         source="api:bulk_import",
         db=db,
         commit=commit,
-        metadata={core_event_metadata.META_USER_ID: user_id},
+        metadata={core_event_metadata.META_USER_ID: str(user_id)},
         schema_version=payload.SCHEMA_VERSION,
     )

@@ -13,11 +13,17 @@ import { FormDialog } from '@/components/ui/form-dialog'
 import { FormField } from '@/components/ui/form-field'
 import { inputFieldClass } from '@/components/ui/input/fieldClasses'
 import { useForm } from '@/composables/useForm'
+import { applyServerFieldErrors } from '@/services/fieldErrors'
+import { isProblem } from '@/services/problems'
+import { isStaleWrite } from '@/services/ifMatch'
 import {
   dateTimeLocalToIso,
   nowDateTimeLocalInput,
+  requiredDateTimeLocalToIso,
+  todayDateTimeLocalMax,
   toDateTimeLocalInput,
 } from '@/features/health/utils/healthFormat'
+import { fastingTypeLabel } from '@/features/health/utils/fastingType'
 import { toNumberOrNull } from '@/utils/number'
 import { required } from '@/utils/validators'
 import {
@@ -118,23 +124,15 @@ const targetSeconds = computed<number | null>(() => {
 
 /** Converts the string-based form values into the clean {@link FastingEntryInput}. */
 function buildInput(formValues: FastingFormValues): FastingEntryInput {
-  const start = dateTimeLocalToIso(formValues.startTime)
+  const start = requiredDateTimeLocalToIso(formValues.startTime)
   const end = isEditing.value ? dateTimeLocalToIso(formValues.endTime) : null
   const notes = formValues.notes.trim()
-
-  // When editing a finished fast, derive the actual length from the bounds.
-  let actualDurationSeconds: number | null = null
-  if (start && end) {
-    const diff = Math.floor((new Date(end).getTime() - new Date(start).getTime()) / 1000)
-    actualDurationSeconds = diff > 0 ? diff : null
-  }
 
   return {
     fastStartTime: start,
     fastEndTime: end,
     fastingType: (formValues.type as FastingType) || null,
     targetDurationSeconds: targetSeconds.value,
-    actualDurationSeconds,
     status: isEditing.value ? (formValues.status as FastingStatus) || null : null,
     notes: notes ? notes : null,
   }
@@ -148,12 +146,17 @@ function buildInput(formValues: FastingFormValues): FastingEntryInput {
  * @param formValues - The validated form values.
  */
 async function submitForm(formValues: FastingFormValues): Promise<void> {
+  // Nothing changed: skip the request and just close.
+  if (props.entry && !isDirty.value) {
+    open.value = false
+    return
+  }
   const input = buildInput(formValues)
   try {
     if (props.entry) {
       await updateMutation.mutateAsync({
         id: props.entry.id,
-        userId: props.entry.userId,
+        version: props.entry.version,
         input,
       })
       emit('success', t('health.fasting.form.updateSuccess'))
@@ -162,19 +165,70 @@ async function submitForm(formValues: FastingFormValues): Promise<void> {
       emit('success', t('health.fasting.form.createSuccess'))
     }
     open.value = false
-  } catch {
-    emit('error', t('health.fasting.form.saveError'))
+  } catch (error) {
+    if (
+      applyServerFieldErrors(error, setErrors, t, FORM_KEYS, {
+        fast_start_time: 'startTime',
+        fast_end_time: 'endTime',
+      })
+    ) {
+      return
+    }
+    if (isStaleWrite(error)) {
+      open.value = false
+      emit('error', t('app.staleError'))
+    } else if (isProblem(error, 'conflict')) {
+      emit('error', t('health.fasting.form.overlapError'))
+    } else if (isProblem(error, 'invalid-input')) {
+      emit('error', t('health.fasting.form.invalidTimesError'))
+    } else {
+      emit('error', t('health.fasting.form.saveError'))
+    }
   }
 }
 
-const { values, errors, isValid, isSubmitting, handleSubmit, handleBlur, reset } =
-  useForm<FastingFormValues>({
-    initialValues: defaultValues(),
-    validators: {
-      startTime: required<string>(t('health.fasting.form.startTimeRequired')),
+const FORM_KEYS = ['startTime', 'endTime'] as const
+
+const {
+  values,
+  errors,
+  isValid,
+  isSubmitting,
+  handleSubmit,
+  handleBlur,
+  setErrors,
+  validateField,
+  reset,
+  isDirty,
+  markPristine,
+} = useForm<FastingFormValues>({
+  initialValues: defaultValues(),
+  validators: {
+    startTime: required<string>(t('health.fasting.form.startTimeRequired')),
+    // The end must not precede the start, and a fast in progress has no end.
+    endTime: (end: string): string | null => {
+      if (end && values.status === 'in_progress') {
+        return t('health.fasting.form.endWhileInProgress')
+      }
+      return values.startTime && end && end < values.startTime
+        ? t('health.fasting.form.endBeforeStart')
+        : null
     },
-    onSubmit: submitForm,
-  })
+  },
+  onSubmit: submitForm,
+})
+
+/** Validates the end time again, since its rules depend on the start time and the status. */
+function revalidateEndTime(): void {
+  if (values.endTime) {
+    validateField('endTime')
+  }
+}
+
+function blurStart(): void {
+  handleBlur('startTime')
+  revalidateEndTime()
+}
 
 // A custom protocol needs a valid hours value before the fast can be saved.
 const canSubmit = computed(() => isValid.value && targetSeconds.value !== null)
@@ -202,6 +256,7 @@ function populate(): void {
   values.endTime = entry.fastEndTime ? toDateTimeLocalInput(entry.fastEndTime) : ''
   values.status = entry.status ?? 'in_progress'
   values.notes = entry.notes ?? ''
+  markPristine()
 }
 
 // Re-seed each time the dialog opens; the parent sets `entry` before opening.
@@ -234,7 +289,7 @@ watch(open, (isOpen) => {
             :disabled="isSubmitting"
           >
             <option v-for="type in FASTING_TYPES" :key="type" :value="type">
-              {{ t(`health.fasting.types.${type}`) }}
+              {{ fastingTypeLabel(t, type) }}
             </option>
           </select>
         </template>
@@ -269,21 +324,26 @@ watch(open, (isOpen) => {
             :aria-describedby="describedBy"
             :aria-invalid="invalid"
             type="datetime-local"
+            :max="todayDateTimeLocalMax()"
             :disabled="isSubmitting"
-            @blur="handleBlur('startTime')"
+            @blur="blurStart"
           />
         </template>
       </FormField>
 
       <template v-if="isEditing">
-        <FormField :label="t('health.fasting.form.endTime')">
-          <template #default="{ fieldId }">
+        <FormField :label="t('health.fasting.form.endTime')" :error="errors.endTime">
+          <template #default="{ fieldId, describedBy, invalid }">
             <input
               :id="fieldId"
               v-model="values.endTime"
               :class="inputFieldClass"
+              :aria-describedby="describedBy"
+              :aria-invalid="invalid"
               type="datetime-local"
+              :max="todayDateTimeLocalMax()"
               :disabled="isSubmitting"
+              @blur="handleBlur('endTime')"
             />
           </template>
         </FormField>
@@ -295,6 +355,7 @@ watch(open, (isOpen) => {
               v-model="values.status"
               :class="inputFieldClass"
               :disabled="isSubmitting"
+              @change="revalidateEndTime"
             >
               <option v-for="status in FASTING_STATUSES" :key="status" :value="status">
                 {{ t(`health.fasting.status.${status}`) }}

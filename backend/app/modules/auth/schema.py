@@ -1,138 +1,80 @@
-"""Pydantic schemas for the authentication module."""
+"""Request shapes shared by the auth packages and the modules that ask for a step-up."""
 
-from typing import Literal
+from pydantic import BaseModel, ConfigDict, Field, StrictStr
 
-from pydantic import (
-    BaseModel,
-    ConfigDict,
-    Field,
-    StrictBool,
-    StrictInt,
-    StrictStr,
-)
+import modules.auth.credentials.contracts as credentials_contracts
 
 
-class LoginRequest(BaseModel):
-    """
-    Schema for login requests containing username and password.
+class IdpReauthProof(BaseModel):
+    """Proof that a password-less account signed in again with its identity provider.
+
+    The provider's callback hands the ticket to the browser that started the step-up; that browser also holds
+    the PKCE verifier whose challenge the ticket records, so a ticket alone cannot be redeemed.
 
     Attributes:
-        username: Username of the user.
-        password: User password.
+        ticket: The single-use step-up ticket.
+        code_verifier: The PKCE verifier the step-up was started with.
     """
 
-    model_config = ConfigDict(extra="forbid", str_strip_whitespace=True)
+    ticket: StrictStr = Field(..., min_length=43, max_length=64, description="Single-use step-up ticket")
+    code_verifier: StrictStr = Field(
+        ..., min_length=43, max_length=128, description="PKCE verifier the step-up was started with"
+    )
 
-    username: StrictStr = Field(..., min_length=1, max_length=250)
-    password: StrictStr = Field(..., min_length=8)
+    model_config = ConfigDict(extra="forbid")
 
 
-class MFALoginRequest(BaseModel):
-    """
-    Schema for MFA login requests.
+class StepUpVerification(BaseModel):
+    """Generic step-up verification payload.
+
+    Used by sensitive account-level operations (API key
+    creation, MFA backup-code regeneration, etc.) to require
+    fresh proof of identity beyond a valid access token.
+
+    An account without a local password (it signs in through an
+    identity provider) proves a fresh sign-in with a linked provider
+    instead: ``idp_reauth`` carries the ticket from
+    ``POST /profile/identity-providers/{idp_id}/step-up``.
 
     Attributes:
-        username: Username of the user attempting to log in.
-        mfa_code: Either a 6-digit TOTP code or a backup code.
+        current_password: Caller's existing password. Required
+            when the account has a local password.
+        mfa_code: TOTP or backup code, required when MFA is
+            enabled on the account.
+        idp_reauth: Proof of a fresh identity-provider sign-in. Required
+            when the account has no local password.
     """
 
-    model_config = ConfigDict(extra="forbid", str_strip_whitespace=True)
+    current_password: StrictStr | None = Field(
+        default=None,
+        min_length=1,
+        max_length=credentials_contracts.PASSWORD_MAX_LENGTH,
+        description=("Current password (step-up verification). Required when the account has a local password."),
+    )
+    mfa_code: StrictStr | None = Field(
+        default=None,
+        max_length=32,
+        description="TOTP or backup code, required when MFA is enabled",
+    )
 
-    username: StrictStr = Field(..., min_length=1, max_length=250)
-    mfa_code: StrictStr = Field(
-        ...,
-        pattern=r"^(\d{6}|[A-Z0-9]{4}-[A-Z0-9]{4})$",
+    idp_reauth: IdpReauthProof | None = Field(
+        default=None,
+        description="Fresh identity-provider sign-in, required when the account has no local password",
+    )
+
+    model_config = ConfigDict(
+        extra="forbid",
+        validate_assignment=True,
     )
 
 
-class MFARequiredResponse(BaseModel):
-    """
-    Response indicating MFA verification is required.
+class StepUpRequest(BaseModel):
+    """Request body of an operation that needs nothing but a step-up verification.
 
     Attributes:
-        mfa_required: Indicates whether MFA is required.
-        username: Username for which MFA is required.
-        message: Message describing the requirement.
+        step_up: The caller's step-up verification.
     """
+
+    step_up: StepUpVerification = Field(..., description="Step-up verification authorising the operation")
 
     model_config = ConfigDict(extra="forbid")
-
-    mfa_required: StrictBool = True
-    username: StrictStr
-    message: StrictStr = "MFA verification required"
-
-
-class MobileSessionResponse(BaseModel):
-    """
-    Response for mobile password login with PKCE exchange flow.
-
-    Attributes:
-        session_id: Session identifier for token exchange.
-        mfa_required: Whether MFA is required.
-        message: Instructions for the client on next steps.
-    """
-
-    model_config = ConfigDict(extra="forbid")
-
-    session_id: StrictStr
-    mfa_required: StrictBool = False
-    message: StrictStr = "Complete authentication by exchanging tokens at /public/idp/session/{session_id}/tokens"
-
-
-class TokenResponseWeb(BaseModel):
-    """
-    Token response payload for web clients.
-
-    Attributes:
-        session_id: Session identifier.
-        access_token: Bearer access token.
-        csrf_token: CSRF token bound to the session.
-        token_type: Always ``bearer``.
-        expires_in: Seconds until the access token expires.
-        refresh_token_expires_in: Seconds until the refresh token expires.
-    """
-
-    model_config = ConfigDict(extra="forbid")
-
-    session_id: StrictStr
-    access_token: StrictStr
-    csrf_token: StrictStr
-    token_type: Literal["bearer"] = "bearer"
-    expires_in: StrictInt
-    refresh_token_expires_in: StrictInt
-
-
-class TokenResponseMobile(BaseModel):
-    """
-    Token response payload for mobile clients.
-
-    Attributes:
-        session_id: Session identifier.
-        access_token: Bearer access token.
-        refresh_token: Refresh token.
-        token_type: Always ``bearer``.
-        expires_in: Seconds until the access token expires.
-        refresh_token_expires_in: Seconds until the refresh token expires.
-    """
-
-    model_config = ConfigDict(extra="forbid")
-
-    session_id: StrictStr
-    access_token: StrictStr
-    refresh_token: StrictStr
-    token_type: Literal["bearer"] = "bearer"
-    expires_in: StrictInt
-    refresh_token_expires_in: StrictInt
-
-
-class LogoutResponse(BaseModel):
-    """
-    Response payload returned by the logout endpoint.
-
-    Attributes:
-        message: Human-readable confirmation message.
-    """
-
-    model_config = ConfigDict(extra="forbid")
-
-    message: StrictStr

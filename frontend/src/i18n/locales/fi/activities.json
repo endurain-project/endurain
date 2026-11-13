@@ -11,7 +11,7 @@
     "subtitle": "Selaa, suodata ja lajittele kaikki aktiviteettisi.",
     "searchPlaceholder": "Hae nimen tai sijainnin mukaan",
     "clearSearch": "Tyhjennä haku",
-    "resultCount": "{count} aktiviteettia",
+    "resultCount": "{count} aktiviteetti | {count} aktiviteettia",
     "filters": {
       "type": "Aktiviteettityyppi",
       "allTypes": "Kaikki tyypit",
@@ -184,10 +184,13 @@
   },
   "edit": {
     "title": "Muokkaa aktiviteettia",
+    "loading": "Ladataan aktiviteettia",
+    "loadError": "Aktiviteettia ei voitu ladata",
     "save": "Tallenna muutokset",
     "cancel": "Peruuta",
     "close": "Sulje",
     "name": "Nimi",
+    "nameRequired": "Anna aktiviteetille nimi",
     "type": "Aktiviteettityyppi",
     "description": "Kuvaus",
     "privateNotes": "Yksityiset muistiinpanot",
@@ -208,7 +211,7 @@
     "hideGear": "Piilota varusteet",
     "success": "Aktiviteetti päivitetty",
     "error": "Aktiviteettia ei voitu päivittää",
-    "staleError": "This activity was changed elsewhere while you were editing. Your changes were not saved. Reopen it to see the current version."
+    "staleError": "Tätä aktiviteettia muutettiin muualla, kun muokkasit sitä. Muutoksiasi ei tallennettu. Avaa se uudelleen nähdäksesi nykyisen version."
   },
   "alerts": {
     "hidden": "Tämä aktiviteetti on piilotettu. Vain sinä näet sen.",

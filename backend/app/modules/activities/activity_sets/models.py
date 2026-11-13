@@ -1,5 +1,6 @@
 """Activity sets models."""
 
+import uuid
 from datetime import datetime
 from decimal import Decimal
 
@@ -26,11 +27,8 @@ class ActivitySets(Base):
 
     __tablename__ = "activity_sets"
 
-    id: Mapped[int] = mapped_column(
-        primary_key=True,
-        autoincrement=True,
-    )
-    activity_id: Mapped[int] = mapped_column(
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    activity_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey(
             "activities.id",
             ondelete="CASCADE",
@@ -54,8 +52,8 @@ class ActivitySets(Base):
         comment="Workout set type",
     )
     start_time: Mapped[datetime] = mapped_column(
-        # The column is TIMESTAMP WITH TIME ZONE in the database (see the
-        # v0_18_0 migration); without an explicit type SQLAlchemy infers a naive
+        # Revision 86 of the v0_21_0 migrations makes the column TIMESTAMP WITH
+        # TIME ZONE; without an explicit type SQLAlchemy infers a naive
         # DateTime, which both loses the offset on load and makes Alembic
         # autogenerate keep proposing a downgrade back to naive.
         DateTime(timezone=True),

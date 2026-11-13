@@ -32,17 +32,17 @@ not drag the rendering stack (staticmap, PIL) into the request path: the read pa
 only ever needs the URL, never the renderer.
 """
 
+import uuid
+
 import core.signing as core_signing
+import modules.activities.activity_thumbnail.constants as activity_thumbnail_constants
 
 # The salt carries a version: bumping it invalidates every previously minted token.
 _SIGNER = core_signing.CapabilitySigner(salt="activity-thumbnail-v2")
 
-# The storage area (domain-owned namespace) activity thumbnails live under.
-THUMBNAIL_STORAGE_AREA = "activity_thumbnails"
 
-
-def thumbnail_key(activity_id: int) -> str:
-    """Return the storage key for an activity's thumbnail (e.g. ``42.webp``).
+def thumbnail_key(activity_id: uuid.UUID) -> str:
+    """Return the storage key for an activity's thumbnail (``{activity_id}.webp``).
 
     Args:
         activity_id: ID of the activity.
@@ -53,7 +53,7 @@ def thumbnail_key(activity_id: int) -> str:
     return f"{activity_id}.webp"
 
 
-def sign_thumbnail_token(activity_id: int) -> str:
+def sign_thumbnail_token(activity_id: uuid.UUID) -> str:
     """Return a signed token binding a thumbnail URL to ``activity_id``.
 
     Args:
@@ -62,10 +62,10 @@ def sign_thumbnail_token(activity_id: int) -> str:
     Returns:
         An unforgeable, URL-safe token.
     """
-    return _SIGNER.sign(activity_id)
+    return _SIGNER.sign(str(activity_id))
 
 
-def verify_thumbnail_token(activity_id: int, token: str) -> bool:
+def verify_thumbnail_token(activity_id: uuid.UUID, token: str) -> bool:
     """Return whether ``token`` is a valid, unexpired signature for ``activity_id``.
 
     Args:
@@ -75,10 +75,10 @@ def verify_thumbnail_token(activity_id: int, token: str) -> bool:
     Returns:
         True if the token is authentic, bound to ``activity_id``, and unexpired.
     """
-    return _SIGNER.verify(activity_id, token)
+    return _SIGNER.verify(str(activity_id), token)
 
 
-def thumbnail_url(key: str | None, activity_id: int) -> str | None:
+def thumbnail_url(key: str | None, activity_id: uuid.UUID) -> str | None:
     """Resolve a stored thumbnail to a signed, ``<img>``-compatible URL.
 
     Local disk is served by the token-gated thumbnail route instead of a public
@@ -97,7 +97,7 @@ def thumbnail_url(key: str | None, activity_id: int) -> str | None:
     if not key:
         return None
     return core_signing.blob_url(
-        THUMBNAIL_STORAGE_AREA,
+        activity_thumbnail_constants.THUMBNAIL_STORAGE_AREA,
         key,
         local_path=f"/activities/{activity_id}/thumbnail",
         token=sign_thumbnail_token(activity_id),

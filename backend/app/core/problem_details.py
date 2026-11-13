@@ -29,7 +29,10 @@ import json
 from typing import Any
 
 from fastapi import FastAPI
+from fastapi.routing import APIRoute
 from pydantic import BaseModel, ConfigDict, Field
+
+import core.openapi_contract as core_openapi_contract
 
 # Media type mandated by RFC 9457 for a problem document.
 PROBLEM_CONTENT_TYPE = "application/problem+json"
@@ -53,6 +56,20 @@ def problem_type(code: str) -> str:
         The URN, e.g. ``"urn:endurain:error:not-found"``.
     """
     return f"{_TYPE_PREFIX}:{code}"
+
+
+class FieldError(BaseModel):
+    """One field of a request that failed validation.
+
+    Attributes:
+        field: Dotted location of the field, e.g. ``body.name``.
+        message: Human-readable reason the field was refused.
+        type: Machine-readable kind of the failure, e.g. ``missing``.
+    """
+
+    field: str
+    message: str
+    type: str
 
 
 class ProblemDetail(BaseModel):
@@ -85,7 +102,7 @@ class ProblemDetail(BaseModel):
     detail: str
     instance: str | None = None
     request_id: str | None = None
-    errors: list[dict[str, Any]] | None = Field(default=None)
+    errors: list[FieldError] | None = Field(default=None)
 
 
 # FastAPI generates these from its own default 422 handler, which no longer runs.
@@ -123,8 +140,12 @@ def _rewrite_error_responses(schema: dict[str, Any]) -> dict[str, Any]:
         The same document.
     """
     components = schema.setdefault("components", {}).setdefault("schemas", {})
-    components[ProblemDetail.__name__] = ProblemDetail.model_json_schema(ref_template="#/components/schemas/{model}")
+    problem_schema = ProblemDetail.model_json_schema(ref_template="#/components/schemas/{model}")
+    # The models ProblemDetail nests are referenced as components, so they are listed there too.
+    components.update(problem_schema.pop("$defs", {}))
+    components[ProblemDetail.__name__] = problem_schema
 
+    core_openapi_contract.declare_contract(schema)
     for path_item in schema.get("paths", {}).values():
         for operation in path_item.values():
             if not isinstance(operation, dict) or "responses" not in operation:
@@ -133,6 +154,7 @@ def _rewrite_error_responses(schema: dict[str, Any]) -> dict[str, Any]:
             for status_code in list(responses):
                 if _is_error_status(status_code):
                     responses[status_code] = {
+                        **responses[status_code],
                         "description": responses[status_code].get("description", "Error"),
                         "content": _problem_content(),
                     }
@@ -159,27 +181,42 @@ def _rewrite_error_responses(schema: dict[str, Any]) -> dict[str, Any]:
     return schema
 
 
-def install_problem_schema(app: FastAPI) -> None:
-    """Make ``app.openapi()`` describe the errors the app actually returns.
-
-    Wraps the generator rather than annotating ~30 ``include_router`` calls with
-    ``responses=``: the rule is global, so stating it once is both less noise and
-    impossible to forget on a new router.
+def operation_id(route: APIRoute) -> str:
+    """Name an operation by its handler, so the id does not change when a route moves.
 
     Args:
-        app: The FastAPI application whose schema generator to wrap.
+        route: The route being documented.
 
     Returns:
-        None.
+        The handler's function name; a client generated from the document names its method after it.
     """
-    generate = app.openapi
+    return route.name
 
-    def patched() -> dict[str, Any]:
-        if app.openapi_schema:
-            return app.openapi_schema
-        # ``generate()`` populates and returns ``app.openapi_schema``; mutating it
-        # in place means the cached document is the patched one.
-        app.openapi_schema = _rewrite_error_responses(generate())
-        return app.openapi_schema
 
-    app.openapi = patched  # type: ignore[method-assign]
+class ProblemDetailsFastAPI(FastAPI):
+    """A FastAPI application whose ``openapi()`` describes the errors it actually returns.
+
+    Overrides the generator rather than annotating ~30 ``include_router`` calls with ``responses=``: the
+    rule is global, so stating it once is both less noise and impossible to forget on a new router. An
+    operation is named by its handler (:func:`operation_id`).
+    """
+
+    def __init__(self, **kwargs: Any) -> None:
+        """Build the application, naming each operation by its handler unless told otherwise.
+
+        Args:
+            **kwargs: The arguments of :class:`fastapi.FastAPI`.
+        """
+        kwargs.setdefault("generate_unique_id_function", operation_id)
+        super().__init__(**kwargs)
+
+    def openapi(self) -> dict[str, Any]:
+        """Return the OpenAPI document with every error response pointing at :class:`ProblemDetail`.
+
+        Returns:
+            The cached document, rewritten once when it is first generated.
+        """
+        if self.openapi_schema:
+            return self.openapi_schema
+        self.openapi_schema = _rewrite_error_responses(super().openapi())
+        return self.openapi_schema

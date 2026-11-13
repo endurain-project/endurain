@@ -4,6 +4,7 @@
     "uploading": "Pujant…",
     "success": "Activitat pujada correctament",
     "error": "No s'ha pogut pujar el fitxer d'activitat",
+    "tooLarge": "Aquest fitxer és massa gran",
     "timeout": "El teu fitxer encara s'està important. Apareixerà quan acabi.",
     "failed": {
       "unsupported_format": "Aquest tipus de fitxer no és compatible",
@@ -46,7 +47,6 @@
     "thisWeek": "Aquesta setmana",
     "thisMonth": "Aquest mes",
     "empty": "Sense activitat en aquest període",
-    "caloriesUnit": "kcal",
     "metric": {
       "distance": "Distància",
       "time": "Temps",
@@ -63,12 +63,13 @@
     "snow_ski": "Esquí",
     "snowboard": "Snowboard",
     "windsurf": "Windsurf",
-    "stand_up_paddleboarding": "Paddleboard",
-    "surfing": "Surf",
+    "stand_up_paddling": "Paddleboard",
+    "surf": "Surf",
     "kayaking": "Caiac",
     "sailing": "Vela",
-    "snowshoeing": "Raquetes de neu",
-    "inline_skating": "Patinatge en línia"
+    "snow_shoeing": "Raquetes de neu",
+    "inline_skating": "Patinatge en línia",
+    "other": "Altres"
   },
   "goals": {
     "title": "Objectius",

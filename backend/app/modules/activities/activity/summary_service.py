@@ -8,6 +8,7 @@ than deciding HTTP statuses.
 
 """
 
+import uuid
 from datetime import UTC, date, datetime
 
 from sqlalchemy.orm import Session
@@ -15,14 +16,12 @@ from sqlalchemy.orm import Session
 import core.exceptions as core_exceptions
 import core.logger as core_logger
 import core.timezone as core_timezone
+import modules.activities.activity.constants as activity_constants
 import modules.activities.activity.summary_crud as activity_summary_crud
 import modules.activities.activity.summary_schema as activity_summary_schema
 import modules.users.users.integration_service as users_integration
 
 logger = core_logger.get_logger(__name__)
-
-# Earliest year a summary may be requested for.
-_MIN_YEAR = 1900
 
 
 def _latest_plausible_year() -> int:
@@ -55,35 +54,37 @@ def _resolve_year(target_year: int | None, today: date) -> int:
     """
     max_year = _latest_plausible_year()
     year = target_year if target_year else today.year
-    if not (_MIN_YEAR <= year <= max_year):
+    if not (activity_constants.MIN_SUMMARY_YEAR <= year <= max_year):
         logger.debug(
             "Rejected a yearly summary request with an implausible year",
             extra=core_logger.context(target_year=year, max_year=max_year),
         )
-        raise core_exceptions.InvalidInputError(f"Invalid year. Must be between {_MIN_YEAR} and {max_year}.")
+        raise core_exceptions.InvalidInputError(
+            f"Invalid year. Must be between {activity_constants.MIN_SUMMARY_YEAR} and {max_year}."
+        )
     return year
 
 
 def build_summary(
-    user_id: int,
-    period: str,
+    user_id: uuid.UUID,
+    period: activity_constants.SummaryPeriod,
     db: Session,
     *,
     anchor: date | None = None,
     target_year: int | None = None,
-    activity_type: str | None = None,
+    activity_type: activity_constants.ActivityType | None = None,
 ) -> activity_summary_schema.SummaryResponse:
     """Build the activity summary for one period.
 
     Args:
         user_id: The authenticated user whose activities to summarise.
-        period: ``week``, ``month``, ``year`` or ``lifetime``.
+        period: The period to summarise.
         db: Database session.
         anchor: The caller's local calendar date, deciding which week/month is
             "current". Falls back to today in the user's configured timezone.
         target_year: The year a ``year`` summary covers. Defaults to the anchor's
             year.
-        activity_type: Optional activity-type name filter.
+        activity_type: Optional activity type filter.
 
     Returns:
         The summary response matching ``period``.
@@ -96,11 +97,7 @@ def build_summary(
     # timezone, so the server cannot derive it); when it does not, the caller's
     # configured timezone is the same frame of reference it would have sent.
     # One user read serves both the fallback anchor and the week/month first day.
-    user = None
-    if anchor is None or period in ("week", "month"):
-        user = users_integration.get_user(user_id, db)
-        if user is None:
-            raise core_exceptions.NotFoundError("User not found")
+    user = users_integration.require_user(user_id, db)
     today = anchor or core_timezone.today_in(users_integration.timezone_or_default(user.timezone))
 
     # Which day the server thinks "today" is drives every bucket boundary, so log
@@ -118,7 +115,7 @@ def build_summary(
         ),
     )
 
-    if period == "week":
+    if period == activity_constants.SummaryPeriod.WEEK:
         return activity_summary_crud.get_weekly_summary(
             db=db,
             user_id=user_id,
@@ -127,7 +124,7 @@ def build_summary(
             activity_type=activity_type,
         )
 
-    if period == "month":
+    if period == activity_constants.SummaryPeriod.MONTH:
         return activity_summary_crud.get_monthly_summary(
             db=db,
             user_id=user_id,
@@ -136,7 +133,7 @@ def build_summary(
             activity_type=activity_type,
         )
 
-    if period == "year":
+    if period == activity_constants.SummaryPeriod.YEAR:
         return activity_summary_crud.get_yearly_summary(
             db=db,
             user_id=user_id,

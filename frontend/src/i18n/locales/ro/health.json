@@ -1,6 +1,12 @@
 {
   "title": "Sănătate",
   "subtitle": "Vezi toate datele tale de sănătate într-un singur loc",
+  "chartBucket": {
+    "week": "Medii săptămânale: fiecare bară este ziua medie din acea săptămână.",
+    "month": "Medii lunare: fiecare bară este ziua medie din acea lună."
+  },
+  "targetInvalid": "Introdu o valoare mai mare decât 0 sau lasă gol pentru a elimina obiectivul.",
+  "chartError": "Nu am putut încărca graficul pentru acest interval de timp.",
   "nav": {
     "label": "Secțiuni de sănătate",
     "soon": "În curând",
@@ -20,7 +26,7 @@
     "restingHeartRate": "Puls în repaus",
     "avgSkinTemperatureDeviation": "Dev. temp. piele",
     "weight": "Greutate",
-    "bmi": "BMI",
+    "bmi": "IMC",
     "steps": "Pași",
     "fasting": "Post",
     "water": "Aport de apă",
@@ -34,6 +40,7 @@
     "stepsTargetLabel": "pași",
     "poopTargetLabel": "/ zi",
     "noWeightData": "Niciun fel de date despre greutate",
+    "noHeightData": "Adaugă înălțimea în profil pentru a-ți vedea BMI-ul.",
     "bmiUnderweight": "Subponderal",
     "bmiNormalWeight": "Greutate normală",
     "bmiOverweight": "Supraponderal",
@@ -72,7 +79,7 @@
       "delete": "Șterge înregistrarea"
     },
     "detail": {
-      "bmi": "BMI",
+      "bmi": "IMC",
       "bodyFat": "Grăsime corporală",
       "bodyWater": "Apă corporală",
       "boneMass": "Masă osoasă",
@@ -88,7 +95,6 @@
       "weightRequired": "Te rugăm să introduci greutatea ta.",
       "weightInvalid": "Introdu o greutate mai mare decât zero.",
       "bodyComposition": "Compoziție corporală (opțional)",
-      "bmi": "BMI",
       "bodyFat": "Grăsime corporală (%)",
       "bodyWater": "Apă corporală (%)",
       "boneMass": "Masă osoasă",
@@ -256,6 +262,8 @@
     "scorePoor": "Slab",
     "detail": {
       "tabsLabel": "Secțiuni de detalii ale somnului",
+      "stagesLoading": "Se încarcă fazele somnului",
+      "stagesError": "Nu am putut încărca fazele somnului",
       "tabScore": "Scor de somn",
       "tabDetails": "Detalii ale somnului",
       "deep": "Profund",
@@ -301,6 +309,8 @@
     "form": {
       "addTitle": "Înregistrează somnul",
       "editTitle": "Editează înregistrarea de somn",
+      "loading": "Se încarcă înregistrarea de somn",
+      "loadError": "Nu am putut încărca înregistrarea de somn",
       "description": "Înregistrează-ți durata somnului și, opțional, defalcarea pe faze și indicatorii.",
       "date": "Dată",
       "dateRequired": "Te rugăm să alegi o dată.",
@@ -308,6 +318,8 @@
       "totalSleepRequired": "Te rugăm să introduci cât ai dormit.",
       "hours": "Ore",
       "minutes": "Minute",
+      "hoursOf": "{field}, ore",
+      "minutesOf": "{field}, minute",
       "stageBreakdown": "Defalcare pe faze (opțional)",
       "deep": "Somn profund",
       "light": "Somn ușor",
@@ -350,7 +362,11 @@
       "close": "Închide",
       "createSuccess": "Somn înregistrat.",
       "updateSuccess": "Înregistrarea de somn a fost actualizată.",
-      "saveError": "Nu am putut salva înregistrarea ta de somn. Te rugăm să încerci din nou."
+      "saveError": "Nu am putut salva înregistrarea ta de somn. Te rugăm să încerci din nou.",
+      "numberRange": "Introdu o valoare între {min} și {max}.",
+      "numberMin": "Introdu {min} sau mai mult.",
+      "stagesExceedTotal": "Somnul profund, ușor și REM însumează mai mult decât totalul.",
+      "inconsistentError": "Aceste valori ale somnului nu se potrivesc. Verifică dacă fazele și totalul se încadrează în intervalul de somn."
     },
     "target": {
       "title": "Setează obiectivul de somn",
@@ -419,7 +435,8 @@
       "close": "Închide",
       "createSuccess": "Apă înregistrată.",
       "updateSuccess": "Înregistrarea de apă a fost actualizată.",
-      "saveError": "Nu am putut salva înregistrarea ta de apă. Te rugăm să încerci din nou."
+      "saveError": "Nu am putut salva înregistrarea ta de apă. Te rugăm să încerci din nou.",
+      "dayTakenError": "Există deja o înregistrare de apă pentru acea zi. Editeaz-o în loc să adaugi alta."
     },
     "target": {
       "title": "Setează obiectivul de apă",
@@ -596,6 +613,8 @@
       "startTime": "Ora de început",
       "startTimeRequired": "Te rugăm să alegi o oră de început.",
       "endTime": "Ora de sfârșit",
+      "endBeforeStart": "Ora de sfârșit nu poate fi înainte de ora de început.",
+      "endWhileInProgress": "Un post în desfășurare nu poate avea oră de sfârșit.",
       "status": "Stare",
       "notes": "Note",
       "create": "Începe",
@@ -604,7 +623,9 @@
       "close": "Închide",
       "createSuccess": "Post început.",
       "updateSuccess": "Sesiunea de post a fost actualizată.",
-      "saveError": "Nu am putut salva sesiunea ta de post. Te rugăm să încerci din nou."
+      "saveError": "Nu am putut salva sesiunea ta de post. Te rugăm să încerci din nou.",
+      "overlapError": "Acest post se suprapune cu o altă sesiune de post sau există deja un alt post în desfășurare.",
+      "invalidTimesError": "Un post nu se poate termina înainte de a începe, un post finalizat sau întrerupt are nevoie de o oră de sfârșit, iar un post în desfășurare nu poate avea una."
     },
     "target": {
       "title": "Setează obiectivul de post",
@@ -621,6 +642,20 @@
     "complete": {
       "success": "Post încheiat.",
       "error": "Nu am putut încheia postul tău. Te rugăm să încerci din nou."
+    },
+    "endConfirm": {
+      "broken": {
+        "title": "Întrerupi acest post?",
+        "body": "Postul se termină acum și este salvat ca întrerupt. Acțiunea nu poate fi anulată.",
+        "confirm": "Întrerupe postul"
+      },
+      "cancelled": {
+        "title": "Anulezi acest post?",
+        "body": "Postul se termină acum și este salvat ca anulat. Acțiunea nu poate fi anulată.",
+        "confirm": "Anulează postul"
+      },
+      "cancel": "Continuă postul",
+      "close": "Închide"
     },
     "empty": {
       "title": "Încă niciun post",

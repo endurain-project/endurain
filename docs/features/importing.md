@@ -25,7 +25,7 @@ Endurain checks every imported activity, whatever the source (upload, bulk impor
 
 Choose "Import" in the settings menu, then either upload a ZIP of activity files, or place them in your folder first:
 
-- Folder: `data/activity_files/bulk_import/<your user id>/`
+- Folder: `data/activity_files/bulk_import/<your user id>/`, where `<your user id>` is your account's UUID, shown in the address of your profile page (`/user/<id>`). The Import page shows no folder path
 
 The folder is chosen by the account that starts the import, so each user only ever imports the files in their own folder. Files placed in another user's folder are never read.
 
@@ -37,7 +37,7 @@ Files with the extensions .fit, .tcx, .gpx and .gz are imported; other files are
 
 **There is currently no mechanism to undo or revert an import.** Back up your database before importing if you have any doubts about the process or whether duplicates exist.
 
-A file that could not be imported does not stop the others: it is counted as failed, and its bytes are kept in the `bulk_import_errors` storage area under `<user id>/<import id>/<file name>`. A finished import with failed files still shows as completed, with the failure count.
+A file that could not be imported does not stop the others: it is counted as failed, and its bytes are kept in the `bulk_import_errors` storage area under `<user id>/<import id>/<file name>`. They are deleted after the job retention (`JOBS_RETENTION_DAYS`, 90 days by default). A finished import with failed files still shows as completed, with the failure count.
 
 Elevation is smoothed on import (a median filter of 9 samples followed by a 21-sample moving average, over the whole activity) for .fit, .gpx and .tcx files and for Strava sync. The elevation graph uses the smoothed series, and elevation gain/loss that Endurain derives from the elevation data uses the same series. Gain/loss totals recorded by the device in a .fit file are kept as they are and can differ from the graph. Activities that already exist keep their raw elevation: importing them again is skipped as a duplicate and does not replace them.
 
@@ -106,9 +106,9 @@ While most of the import processes are documented over in the features / importi
 
 ### Upload validation
 
-All multipart import uploads are validated through `backend.app.core.file_uploads` before they are parsed or persisted. Use `validate_upload(file, kind=UploadKind.ZIP)` for profile ZIP imports that are consumed in memory, and `save_validated_upload(file, kind=..., upload_dir=..., filename=...)` for uploads that are written to disk.
+All multipart import uploads are validated through `backend.app.core.file_uploads` before they are parsed or persisted. Use `read_validated_upload_sync(file, kind=...)` for uploads that are consumed in memory or handed to the storage provider, and `save_validated_upload_sync(file, kind=..., upload_dir=..., filename=...)` for uploads that are written to disk, such as the profile ZIP import. Every entry point is synchronous: the `safeuploads` validators refuse a thread that runs an event loop, so call them from a synchronous route, a job or a worker pool.
 
-Activity uploads use server-generated filenames and `UploadKind.ACTIVITY` or `UploadKind.GZIP`; decompressed gzip payloads are re-validated as `UploadKind.ACTIVITY` before parsing. Validation failures are raised as `HTTPException` responses whose `detail` includes a human-readable `message` and, when provided by `safeuploads`, a machine-readable `code`.
+Activity uploads use server-generated filenames and `UploadKind.ACTIVITY` or `UploadKind.GZIP`; decompressed gzip payloads are re-validated as `UploadKind.ACTIVITY` before parsing. Validation failures are raised as `core.exceptions` domain errors: `PayloadTooLargeError` (413) for a size violation, `InvalidInputError` (400) for content the validators reject and `ProcessingError` (500) otherwise. They are rendered as problem documents (see [Errors, concurrency and rate limits](../integrate/errors-and-limits.md)); the `safeuploads` error code is logged, not returned.
 
 ### Bulk import
 

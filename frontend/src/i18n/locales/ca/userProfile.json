@@ -82,5 +82,13 @@
       "ownTitle": "Encara no tens cap seguidor.",
       "otherTitle": "Sense seguidors de moment."
     }
+  },
+  "block": {
+    "block": "Bloqueja",
+    "unblock": "Desbloqueja",
+    "confirmTitle": "Vols bloquejar {name}?",
+    "confirmBody": "{name} no podrà sol·licitar seguir-te i s'eliminarà qualsevol seguiment entre vosaltres. No se l'avisa.",
+    "blockError": "No s'ha pogut bloquejar aquest usuari. Torna-ho a intentar.",
+    "unblockError": "No s'ha pogut desbloquejar aquest usuari. Torna-ho a intentar."
   }
 }

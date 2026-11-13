@@ -132,8 +132,8 @@ def receive_upload(filename: str | None, save_upload: UploadSaver, *, fingerprin
         raise core_exceptions.InvalidInputError("Filename is required")
 
     # Pre-check the extension so we can short-circuit with a
-    # human-friendly 406 before invoking the validator (which would
-    # otherwise raise a generic ExtensionSecurityError -> 400).
+    # human-friendly message before invoking the validator (which would
+    # otherwise raise a generic ExtensionSecurityError).
     _, file_extension = os.path.splitext(filename)
     if file_extension.lower() not in core_config.SUPPORTED_FILE_FORMATS:
         raise core_exceptions.UnsupportedFormatError(
@@ -198,7 +198,7 @@ def discard_received_upload(received: ReceivedUpload) -> None:
 
 
 def process_staged_upload(
-    token_user_id: int,
+    token_user_id: uuid.UUID,
     staged_key: str,
     storage: platform_providers.StorageProvider,
     db: Session,
@@ -284,7 +284,7 @@ def process_staged_upload(
         KeyError,
         TypeError,
     ) as err:
-        logger.error(
+        logger.debug(
             "Error processing a staged activity upload",
             exc_info=err,
             extra=core_logger.context(user_id=token_user_id),
@@ -311,7 +311,7 @@ def discard_staged_upload(staged_key: str, storage: platform_providers.StoragePr
             UPLOAD_STAGING_STORAGE_AREA,
             upload_staging_storage_key(staged_key),
         )
-    except Exception as err:
+    except platform_providers.StorageBackendUnavailableError as err:
         logger.warning(
             "Could not remove a staged upload",
             exc_info=err,

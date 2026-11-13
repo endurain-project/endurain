@@ -15,10 +15,13 @@ server configuration, they could not be round-tripped, and they duplicated an
 instant that then had to be masked in two places.
 """
 
+import uuid
+
 import pydantic
 from sqlalchemy import func
 
 import core.sanitization as core_sanitization
+import core.stored_enum as core_stored_enum
 import core.timezone as core_timezone
 import modules.activities.activity.models as activity_models
 import modules.activities.activity.schema as activity_schema
@@ -65,18 +68,26 @@ def apply_visibility_mask(
         return schema
     if mask_private_notes:
         schema.private_notes = None
+    # Provider and import identifiers belong to the owner's accounts and files, never to a viewer.
+    schema.garminconnect_activity_id = None
+    schema.strava_activity_id = None
+    schema.garminconnect_gear_id = None
+    schema.strava_gear_id = None
+    schema.import_info = None
     if schema.hide_start_time:
-        # One representation of the instant means one place to mask it.
+        # One representation of the instant means one place to mask it. The import time
+        # places the start within minutes, so it goes with it.
         schema.start_time = None
         schema.end_time = None
+        schema.created_at = None
     if schema.hide_location:
         schema.city = None
         schema.town = None
         schema.country = None
+        # The zone names where the activity happened, so it goes with the place.
+        schema.timezone = None
     if schema.hide_gear:
         schema.gear_id = None
-        schema.strava_gear_id = None
-        schema.garminconnect_gear_id = None
     if schema.hide_map:
         # The map thumbnail is a rendered picture of the route, so hide_map must
         # suppress it for non-owners (the GPS map stream is masked separately via
@@ -107,7 +118,7 @@ def apply_visibility_mask(
 def serialize_and_mask(
     activities: list[activity_models.Activity],
     *,
-    requester_user_id: int | None = None,
+    requester_user_id: uuid.UUID | None = None,
     force_non_owner: bool = False,
     mask_private_notes: bool = True,
 ) -> list[activity_schema.ActivityRead]:
@@ -140,7 +151,7 @@ def serialize_and_mask(
     return result
 
 
-def to_update_values(activity_attributes: pydantic.BaseModel) -> dict:
+def to_update_values(activity_attributes: pydantic.BaseModel) -> dict[str, object]:
     """Build the column values an edit writes from the fields the caller set.
 
     Only fields the caller explicitly set are returned, so a nullable field can be
@@ -154,7 +165,7 @@ def to_update_values(activity_attributes: pydantic.BaseModel) -> dict:
     Returns:
         Column name -> value for the fields to update.
     """
-    values = activity_attributes.model_dump(exclude_unset=True)
+    values = core_stored_enum.to_stored(activity_attributes.model_dump(exclude_unset=True))
     for markdown_field in ("description", "private_notes"):
         if markdown_field in values:
             values[markdown_field] = core_sanitization.sanitize_markdown(values[markdown_field])
@@ -188,7 +199,7 @@ def to_orm(
         private_notes=sanitized_private_notes,
         distance=activity.distance,
         name=activity.name,
-        activity_type=activity.activity_type,
+        activity_type=activity.activity_type.stored,
         start_time=core_timezone.to_utc_aware(activity.start_time),
         end_time=core_timezone.to_utc_aware(activity.end_time),
         timezone=activity.timezone,
@@ -215,7 +226,7 @@ def to_orm(
         workout_feeling=activity.workout_feeling,
         workout_rpe=activity.workout_rpe,
         calories=activity.calories,
-        visibility=activity.visibility,
+        visibility=activity.visibility.stored if activity.visibility is not None else None,
         gear_id=activity.gear_id,
         strava_gear_id=activity.strava_gear_id,
         strava_activity_id=activity.strava_activity_id,

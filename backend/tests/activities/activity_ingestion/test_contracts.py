@@ -10,19 +10,26 @@ tested in ``tests/strava/test_bulk_import_source.py`` — the split that stopped
 activities importing a provider.
 """
 
+import uuid
+
+from tests._helpers.auth import MOCK_USER_ID
+
 import modules.activities.activity.contracts as activity_contracts
 import modules.activities.activity_ingestion.contracts as sources
 
 
 def _activity() -> activity_contracts.ActivityCore:
     return activity_contracts.ActivityCore(
-        user_id=1,
+        user_id=MOCK_USER_ID,
         name="Workout",
         distance=1000,
         activity_type=1,
         start_time="2023-10-21T07:41:47",
         end_time="2023-10-21T08:41:47",
     )
+
+
+_GEAR_ID = uuid.uuid4()
 
 
 class TestSourceKinds:
@@ -36,8 +43,8 @@ class TestGarminSource:
     def test_carries_a_gear_id_the_provider_already_resolved(self):
         # Ingestion never asks a provider module which local gear a Garmin UUID
         # maps to; the provider resolves it and hands the id over.
-        source = sources.GarminSource(gear_id=7, provider_gear_id="uuid-1")
-        assert (source.gear_id, source.provider_gear_id) == (7, "uuid-1")
+        source = sources.GarminSource(gear_id=_GEAR_ID, provider_gear_id="uuid-1")
+        assert (source.gear_id, source.provider_gear_id) == (_GEAR_ID, "uuid-1")
 
 
 class TestMetadataFor:
@@ -71,14 +78,14 @@ class TestApplyBulkImportMetadata:
             {
                 "name": "Morning Ride",
                 "description": "Felt good",
-                "gear_id": 4,
+                "gear_id": str(_GEAR_ID),
                 "import_dict": {"import_ISO_time": "2026-07-21T00:00:00"},
             },
         )
 
         assert activity.name == "Morning Ride"
         assert activity.description == "Felt good"
-        assert activity.gear_id == 4
+        assert activity.gear_id == str(_GEAR_ID)
         assert activity.import_info == {"import_ISO_time": "2026-07-21T00:00:00"}
 
     def test_absent_metadata_leaves_the_parsed_values_alone(self):

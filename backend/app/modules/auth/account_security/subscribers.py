@@ -1,0 +1,361 @@
+"""Event subscribers for the account-security, sign-in and administrator-promotion notice emails."""
+
+import uuid
+from collections.abc import Callable
+
+import jasil.event_versioning as platform_event_versioning
+import jasil.providers as platform_providers
+import jasil.runtime as platform_runtime
+from jasil.events import Event
+from jasil.jobs.registry import JobHandlerRegistry
+from jasil.providers import EventBusProvider
+from jasil.subscribers import best_effort
+from sqlalchemy.orm import Session
+
+import core.config as core_config
+import core.database as core_database
+import core.logger as core_logger
+import core.mail as core_mail
+import modules.auth.account_security.account_security_service as account_security_service
+import modules.auth.account_security.email_messages as account_security_email_messages
+import modules.auth.account_security.events as account_security_events
+import modules.auth.authentication.events as authentication_events
+import modules.auth.identity_providers.events as idp_events
+import modules.auth.known_devices.events as known_devices_events
+import modules.auth.mfa_backup_codes.events as backup_codes_events
+import modules.auth.password_reset_tokens.events as password_reset_events
+import modules.users.users.events as users_events
+
+logger = core_logger.get_logger(__name__)
+ACCOUNT_SECURITY_CHANGED_EMAIL_SUBSCRIBER_ID = "auth.send_account_security_changed_email"
+ACCOUNT_LOCKED_EMAIL_SUBSCRIBER_ID = "auth.send_account_locked_email"
+MFA_LOCKED_EMAIL_SUBSCRIBER_ID = "auth.send_mfa_locked_email"
+STEP_UP_SESSION_ENDED_EMAIL_SUBSCRIBER_ID = "auth.send_step_up_session_ended_email"
+STEP_UP_LOCKED_EMAIL_SUBSCRIBER_ID = "auth.send_step_up_locked_email"
+IDP_LINKED_EMAIL_SUBSCRIBER_ID = "auth.send_idp_linked_email"
+NEW_DEVICE_SIGN_IN_EMAIL_SUBSCRIBER_ID = "auth.send_new_device_sign_in_email"
+BACKUP_CODE_USED_EMAIL_SUBSCRIBER_ID = "auth.send_backup_code_used_email"
+REFRESH_REUSE_EMAIL_SUBSCRIBER_ID = "auth.send_refresh_reuse_email"
+ADMIN_PROMOTED_EMAIL_SUBSCRIBER_ID = "users.send_admin_promoted_email"
+PASSWORD_RESET_COMPLETED_EMAIL_SUBSCRIBER_ID = "auth.send_password_reset_completed_email"  # noqa: S105 (name matches the password-secret heuristic, not a secret)
+
+
+def _send_security_email(
+    user_id: uuid.UUID,
+    change: str,
+    prepare: Callable[[Session], tuple[str, str, str, str] | None],
+    mail: platform_providers.MailProvider,
+) -> None:
+    """Prepare a security email in a short session and send it once the session has closed.
+
+    Args:
+        user_id: The user the email is about.
+        change: What the email reports, named in the log context.
+        prepare: Returns the recipient, subject, HTML and text from the session, or None to send nothing.
+        mail: The mail provider that delivers the email.
+    """
+    with core_database.SessionLocal() as db:
+        message = prepare(db)
+    if message is None:
+        logger.debug(
+            "Skipped security email because the user is missing or inactive",
+            extra=core_logger.context(user_id=user_id, change=change),
+        )
+        return
+    recipient, subject, html_content, text_content = message
+    try:
+        sent = core_mail.send_email(mail, recipient, subject, html_content, text_content)
+    except Exception as err:
+        logger.error(
+            "Security email delivery failed",
+            exc_info=err,
+            extra=core_logger.context(user_id=user_id, change=change),
+        )
+        raise
+    logger.debug(
+        "Security email delivered" if sent else "Security email was not delivered",
+        extra=core_logger.context(user_id=user_id, change=change),
+    )
+
+
+def send_security_changed_email_for_event(event: Event) -> None:
+    """Send the user an email naming the account-security change that happened."""
+    payload = platform_event_versioning.parse_payload(account_security_events.AccountSecurityChangedPayload, event)
+    mail = platform_runtime.get_active_platform().mail
+    _send_security_email(
+        payload.user_id,
+        payload.change.value,
+        lambda db: account_security_service.prepare_security_change_email(
+            payload.user_id,
+            payload.change.value,
+            payload.idp_id,
+            core_config.settings.ENDURAIN_HOST,
+            db,
+            access_type=payload.access_type,
+        ),
+        mail,
+    )
+    logger.debug(
+        "Account-security-changed event processed",
+        extra=core_logger.context(user_id=payload.user_id, change=payload.change.value),
+    )
+
+
+def send_idp_linked_email_for_event(event: Event) -> None:
+    """Send the user an email saying a sign-in provider was linked to their account."""
+    payload = platform_event_versioning.parse_payload(idp_events.IdpLinkedPayload, event)
+    mail = platform_runtime.get_active_platform().mail
+    change = account_security_email_messages.IDENTITY_PROVIDER_LINKED
+    _send_security_email(
+        payload.user_id,
+        change,
+        lambda db: account_security_service.prepare_security_change_email(
+            payload.user_id, change, payload.idp_id, core_config.settings.ENDURAIN_HOST, db
+        ),
+        mail,
+    )
+    logger.debug("Identity-provider-linked event processed", extra=core_logger.context(user_id=payload.user_id))
+
+
+def send_password_reset_completed_email_for_event(event: Event) -> None:
+    """Send the user an email saying their password was reset through an emailed link."""
+    payload = platform_event_versioning.parse_payload(password_reset_events.PasswordResetCompletedPayload, event)
+    mail = platform_runtime.get_active_platform().mail
+    change = account_security_events.AccountSecurityChange.PASSWORD_RESET.value
+    _send_security_email(
+        payload.user_id,
+        change,
+        lambda db: account_security_service.prepare_security_change_email(
+            payload.user_id, change, None, core_config.settings.ENDURAIN_HOST, db
+        ),
+        mail,
+    )
+    logger.debug("Password-reset-completed event processed", extra=core_logger.context(user_id=payload.user_id))
+
+
+def send_account_locked_email_for_event(event: Event) -> None:
+    """Send the user an email saying repeated failed sign-ins locked their account."""
+    payload = platform_event_versioning.parse_payload(authentication_events.AccountLockedPayload, event)
+    mail = platform_runtime.get_active_platform().mail
+    change = account_security_events.AccountSecurityChange.ACCOUNT_LOCKED.value
+    _send_security_email(
+        payload.user_id,
+        change,
+        lambda db: account_security_service.prepare_security_change_email(
+            payload.user_id, change, None, core_config.settings.ENDURAIN_HOST, db
+        ),
+        mail,
+    )
+    logger.debug("Account-locked event processed", extra=core_logger.context(user_id=payload.user_id))
+
+
+def send_mfa_locked_email_for_event(event: Event) -> None:
+    """Send the user an email saying wrong two-step verification codes locked their sign-in."""
+    payload = platform_event_versioning.parse_payload(authentication_events.MfaLockedPayload, event)
+    mail = platform_runtime.get_active_platform().mail
+    change = account_security_events.AccountSecurityChange.MFA_LOCKED.value
+    _send_security_email(
+        payload.user_id,
+        change,
+        lambda db: account_security_service.prepare_security_change_email(
+            payload.user_id, change, None, core_config.settings.ENDURAIN_HOST, db
+        ),
+        mail,
+    )
+    logger.debug("MFA-locked event processed", extra=core_logger.context(user_id=payload.user_id))
+
+
+def send_step_up_session_ended_email_for_event(event: Event) -> None:
+    """Send the user an email saying repeated failed step-ups ended one of their sessions."""
+    payload = platform_event_versioning.parse_payload(account_security_events.StepUpSessionEndedPayload, event)
+    mail = platform_runtime.get_active_platform().mail
+    change = account_security_events.AccountSecurityChange.STEP_UP_SESSION_ENDED.value
+    _send_security_email(
+        payload.user_id,
+        change,
+        lambda db: account_security_service.prepare_security_change_email(
+            payload.user_id, change, None, core_config.settings.ENDURAIN_HOST, db
+        ),
+        mail,
+    )
+    logger.debug("Step-up-session-ended event processed", extra=core_logger.context(user_id=payload.user_id))
+
+
+def send_step_up_locked_email_for_event(event: Event) -> None:
+    """Send the user an email saying repeated failed step-ups locked step-up for their account."""
+    payload = platform_event_versioning.parse_payload(account_security_events.StepUpLockedPayload, event)
+    mail = platform_runtime.get_active_platform().mail
+    change = account_security_events.AccountSecurityChange.STEP_UP_LOCKED.value
+    _send_security_email(
+        payload.user_id,
+        change,
+        lambda db: account_security_service.prepare_security_change_email(
+            payload.user_id, change, None, core_config.settings.ENDURAIN_HOST, db
+        ),
+        mail,
+    )
+    logger.debug("Step-up-locked event processed", extra=core_logger.context(user_id=payload.user_id))
+
+
+def send_new_device_sign_in_email_for_event(event: Event) -> None:
+    """Send the user an email saying their account was signed in to from a new device."""
+    payload = platform_event_versioning.parse_payload(known_devices_events.NewDeviceSignInPayload, event)
+    mail = platform_runtime.get_active_platform().mail
+    _send_security_email(
+        payload.user_id,
+        known_devices_events.NEW_DEVICE_SIGN_IN,
+        lambda db: account_security_service.prepare_new_device_sign_in_email(
+            payload.user_id,
+            payload.browser,
+            payload.operating_system,
+            payload.ip_address,
+            payload.method.value,
+            payload.signed_in_at,
+            core_config.settings.ENDURAIN_HOST,
+            db,
+        ),
+        mail,
+    )
+    logger.debug("New-device sign-in event processed", extra=core_logger.context(user_id=payload.user_id))
+
+
+def send_backup_code_used_email_for_event(event: Event) -> None:
+    """Send the user an email saying a backup code was used on their account and how many are left."""
+    payload = platform_event_versioning.parse_payload(backup_codes_events.BackupCodeUsedPayload, event)
+    mail = platform_runtime.get_active_platform().mail
+    change = account_security_events.AccountSecurityChange.BACKUP_CODE_USED.value
+    _send_security_email(
+        payload.user_id,
+        change,
+        lambda db: account_security_service.prepare_security_change_email(
+            payload.user_id,
+            change,
+            None,
+            core_config.settings.ENDURAIN_HOST,
+            db,
+            backup_codes_remaining=payload.backup_codes_remaining,
+        ),
+        mail,
+    )
+    logger.debug("Backup-code-used event processed", extra=core_logger.context(user_id=payload.user_id))
+
+
+def send_refresh_reuse_email_for_event(event: Event) -> None:
+    """Send the user an email saying a reused refresh token ended one of their sessions."""
+    payload = platform_event_versioning.parse_payload(authentication_events.RefreshReuseDetectedPayload, event)
+    mail = platform_runtime.get_active_platform().mail
+    change = account_security_events.AccountSecurityChange.REFRESH_TOKEN_REUSE_DETECTED.value
+    _send_security_email(
+        payload.user_id,
+        change,
+        lambda db: account_security_service.prepare_security_change_email(
+            payload.user_id, change, None, core_config.settings.ENDURAIN_HOST, db
+        ),
+        mail,
+    )
+    logger.debug("Refresh-reuse event processed", extra=core_logger.context(user_id=payload.user_id))
+
+
+def send_admin_promoted_email_for_event(event: Event) -> None:
+    """Send an administrator an email saying a user was given administrator access."""
+    payload = platform_event_versioning.parse_payload(users_events.AdminPromotedPayload, event)
+    mail = platform_runtime.get_active_platform().mail
+    _send_security_email(
+        payload.admin_user_id,
+        users_events.USERS_ADMIN_PROMOTED,
+        lambda db: account_security_service.prepare_admin_promoted_email(
+            payload.user_id, payload.admin_user_id, core_config.settings.ENDURAIN_HOST, db
+        ),
+        mail,
+    )
+    logger.debug(
+        "Admin-promoted event processed",
+        extra=core_logger.context(user_id=payload.user_id, admin_user_id=payload.admin_user_id),
+    )
+
+
+on_security_changed = best_effort(send_security_changed_email_for_event)
+on_idp_linked = best_effort(send_idp_linked_email_for_event)
+on_password_reset_completed = best_effort(send_password_reset_completed_email_for_event)
+on_account_locked = best_effort(send_account_locked_email_for_event)
+on_mfa_locked = best_effort(send_mfa_locked_email_for_event)
+on_step_up_session_ended = best_effort(send_step_up_session_ended_email_for_event)
+on_step_up_locked = best_effort(send_step_up_locked_email_for_event)
+on_new_device_sign_in = best_effort(send_new_device_sign_in_email_for_event)
+on_backup_code_used = best_effort(send_backup_code_used_email_for_event)
+on_refresh_reuse = best_effort(send_refresh_reuse_email_for_event)
+on_admin_promoted = best_effort(send_admin_promoted_email_for_event)
+
+
+def register_bus_subscribers(events: EventBusProvider) -> None:
+    """Register the account-security and new-device sign-in email bus subscribers."""
+    events.subscribe(account_security_events.ACCOUNT_SECURITY_CHANGED, on_security_changed)
+    events.subscribe(idp_events.IDP_LINKED, on_idp_linked)
+    events.subscribe(password_reset_events.PASSWORD_RESET_COMPLETED, on_password_reset_completed)
+    events.subscribe(authentication_events.ACCOUNT_LOCKED, on_account_locked)
+    events.subscribe(authentication_events.MFA_LOCKED, on_mfa_locked)
+    events.subscribe(account_security_events.STEP_UP_SESSION_ENDED, on_step_up_session_ended)
+    events.subscribe(account_security_events.STEP_UP_LOCKED, on_step_up_locked)
+    events.subscribe(known_devices_events.NEW_DEVICE_SIGN_IN, on_new_device_sign_in)
+    events.subscribe(backup_codes_events.BACKUP_CODE_USED, on_backup_code_used)
+    events.subscribe(authentication_events.REFRESH_REUSE_DETECTED, on_refresh_reuse)
+    events.subscribe(users_events.USERS_ADMIN_PROMOTED, on_admin_promoted)
+
+
+def register_durable_handlers(registry: JobHandlerRegistry) -> None:
+    """Register the retryable account-security and new-device sign-in email durable handlers."""
+    registry.register(
+        account_security_events.ACCOUNT_SECURITY_CHANGED,
+        ACCOUNT_SECURITY_CHANGED_EMAIL_SUBSCRIBER_ID,
+        send_security_changed_email_for_event,
+    )
+    registry.register(
+        idp_events.IDP_LINKED,
+        IDP_LINKED_EMAIL_SUBSCRIBER_ID,
+        send_idp_linked_email_for_event,
+    )
+    registry.register(
+        password_reset_events.PASSWORD_RESET_COMPLETED,
+        PASSWORD_RESET_COMPLETED_EMAIL_SUBSCRIBER_ID,
+        send_password_reset_completed_email_for_event,
+    )
+    registry.register(
+        authentication_events.ACCOUNT_LOCKED,
+        ACCOUNT_LOCKED_EMAIL_SUBSCRIBER_ID,
+        send_account_locked_email_for_event,
+    )
+    registry.register(
+        authentication_events.MFA_LOCKED,
+        MFA_LOCKED_EMAIL_SUBSCRIBER_ID,
+        send_mfa_locked_email_for_event,
+    )
+    registry.register(
+        account_security_events.STEP_UP_SESSION_ENDED,
+        STEP_UP_SESSION_ENDED_EMAIL_SUBSCRIBER_ID,
+        send_step_up_session_ended_email_for_event,
+    )
+    registry.register(
+        account_security_events.STEP_UP_LOCKED,
+        STEP_UP_LOCKED_EMAIL_SUBSCRIBER_ID,
+        send_step_up_locked_email_for_event,
+    )
+    registry.register(
+        known_devices_events.NEW_DEVICE_SIGN_IN,
+        NEW_DEVICE_SIGN_IN_EMAIL_SUBSCRIBER_ID,
+        send_new_device_sign_in_email_for_event,
+    )
+    registry.register(
+        backup_codes_events.BACKUP_CODE_USED,
+        BACKUP_CODE_USED_EMAIL_SUBSCRIBER_ID,
+        send_backup_code_used_email_for_event,
+    )
+    registry.register(
+        authentication_events.REFRESH_REUSE_DETECTED,
+        REFRESH_REUSE_EMAIL_SUBSCRIBER_ID,
+        send_refresh_reuse_email_for_event,
+    )
+    registry.register(
+        users_events.USERS_ADMIN_PROMOTED,
+        ADMIN_PROMOTED_EMAIL_SUBSCRIBER_ID,
+        send_admin_promoted_email_for_event,
+    )

@@ -31,7 +31,9 @@
       "admin": "Admin",
       "inactive": "Inactiu",
       "unverified": "Correu no verificat",
+      "pendingEmail": "Canvi de correu pendent",
       "pending": "Pendent d'aprovació",
+      "deleting": "S'està eliminant",
       "externalAuth": "Auth externa"
     },
     "actions": {
@@ -64,18 +66,22 @@
       "email": "Correu",
       "emailRequired": "El correu és obligatori",
       "emailInvalid": "Introdueix una adreça de correu vàlida",
+      "emailChangeHint": "S'envia un enllaç de confirmació a la nova adreça i aquesta substitueix l'actual quan es confirmi. L'usuari es desconnecta de tots els dispositius. Marca la nova adreça com a verificada per aplicar-la ara.",
       "accessType": "Tipus d'accés",
       "accessTypeRegular": "Usuari regular",
       "accessTypeAdmin": "Administrador",
       "password": "Contrasenya",
       "passwordHint": "Almenys 8 caràcters",
-      "passwordHintStrict": "Almenys {min} caràcters, amb majúscules, minúscules, un número i un caràcter especial",
-      "passwordHintLength": "Almenys {min} caràcters",
       "passwordRequired": "La contrasenya és obligatòria",
-      "passwordInvalid": "Aquesta contrasenya no compleix els requisits",
       "confirmPassword": "Confirma la contrasenya",
+      "mustChangePasswordHint": "L'usuari haurà de triar una contrasenya nova en el seu proper inici de sessió.",
       "confirmPasswordRequired": "Confirma la contrasenya",
-      "passwordMismatch": "Les contrasenyes no coincideixen",
+      "passwordMode": "Com obté la contrasenya l'usuari",
+      "passwordModeInvitation": "Envia una invitació per correu per triar una contrasenya",
+      "passwordModePassword": "Defineix una contrasenya ara",
+      "passwordModeHint": "L'usuari rep un correu amb un enllaç, vàlid durant 24 hores, per triar la seva contrasenya.",
+      "invitationNeedsActive": "Un compte inactiu no es pot convidar. Defineix-hi una contrasenya.",
+      "inviteSuccess": "Usuari afegit i invitació enviada",
       "preferredLanguage": "Idioma preferit",
       "languages": {
         "ca": "Català",
@@ -118,14 +124,16 @@
       "units": "Unitats",
       "unitsMetric": "Mètric",
       "unitsImperial": "Imperial",
+      "weightUnits": "Unitats de pes",
+      "weightUnitsDefault": "Segueix les unitats",
+      "weightUnitsMetric": "Quilograms (kg)",
+      "weightUnitsImperial": "Lliures (lb)",
       "height": "Alçada",
-      "unitCm": "cm",
-      "unitFeet": "ft",
-      "unitInches": "in",
+      "heightInvalid": "L'alçada ha d'estar entre 50 i 272 cm",
+      "maxHeartRateInvalid": "La freqüència cardíaca màxima ha d'estar entre 30 i 250 bpm",
       "feetInvalid": "Els peus han d'estar entre 0 i 10",
       "inchesInvalid": "Les polzades han d'estar entre 0 i 11",
       "maxHeartRate": "FC màxima",
-      "unitBpm": "bpm",
       "currency": "Moneda",
       "currencies": {
         "euro": "Euro",
@@ -134,6 +142,8 @@
       },
       "firstDayOfWeek": "Primer dia de la setmana",
       "timezone": "Fus horari",
+      "timezoneNotSet": "Sense definir",
+      "timezoneUseBrowser": "Utilitza el fus horari del meu navegador ({timezone})",
       "timezoneHint": "S'utilitza per a activitats enregistrades sense GPS, com les curses a la cinta o el ciclisme en interior.",
       "weekdays": {
         "sunday": "Diumenge",
@@ -149,7 +159,8 @@
       "statusLegend": "Estat del compte",
       "active": "Actiu",
       "emailVerified": "Correu verificat",
-      "pendingAdminApproval": "Pendent d'aprovació de l'admin",
+      "emailVerifiedCurrentHint": "Aquest és l'estat de l'adreça actual.",
+      "newEmailVerified": "Marca la nova adreça com a verificada",
       "requiredField": "Camp obligatori",
       "create": "Afegeix usuari",
       "save": "Desa els canvis",
@@ -158,7 +169,13 @@
       "createSuccess": "Usuari afegit",
       "updateSuccess": "Usuari actualitzat",
       "conflict": "Aquest nom d'usuari o correu ja està en ús",
-      "saveError": "No s'ha pogut desar l'usuari. Torna-ho a intentar."
+      "lastAdministrator": "L'únic administrador no es pot degradar ni desactivar",
+      "saveError": "No s'ha pogut desar l'usuari. Torna-ho a intentar.",
+      "stepUpTitle": "Confirma la teva identitat",
+      "stepUpDescription": "Canviar el correu, el tipus d'accés o l'estat actiu de {username} tanca la seva sessió a tot arreu. Confirma que ets tu per continuar.",
+      "stepUpCreateDescription": "Crear un compte d'administrador atorga accés total. Confirma que ets tu per continuar.",
+      "stepUpConfirm": "Desa els canvis",
+      "approvalPending": "Aquest usuari està pendent d'aprovació. Aprova'l en lloc d'activar-lo aquí."
     },
     "delete": {
       "title": "Elimina l'usuari",
@@ -167,10 +184,12 @@
       "cancel": "Cancel·la",
       "close": "Tanca",
       "success": "Usuari eliminat",
-      "error": "No s'ha pogut eliminar l'usuari. Torna-ho a intentar."
+      "error": "No s'ha pogut eliminar l'usuari. Torna-ho a intentar.",
+      "failed": "No s'ha pogut suprimir l'usuari. El compte continua desactivat; suprimeix-lo de nou per tornar-ho a provar."
     },
     "detail": {
       "back": "Torna als usuaris",
+      "pendingEmail": "Canvi de correu pendent a {email}; l'enllaç caduca el {date}",
       "notFoundTitle": "Usuari no trobat",
       "notFoundDescription": "Aquest compte pot haver estat eliminat",
       "securityTitle": "Seguretat",
@@ -184,19 +203,33 @@
     "password": {
       "button": "Restableix la contrasenya",
       "title": "Restableix la contrasenya",
-      "description": "Estableix una nova contrasenya per a {username}",
+      "description": "Estableix una nova contrasenya per a {username} All of their sessions, unused reset links, pending email change and API keys end. They are notified.",
       "newLabel": "Nova contrasenya",
-      "hintLength": "Almenys {min} caràcters",
-      "hintStrict": "Almenys {min} caràcters, amb majúscules, minúscules, un número i un caràcter especial",
       "confirmLabel": "Confirma la nova contrasenya",
-      "mismatch": "Les contrasenyes no coincideixen",
       "required": "La contrasenya és obligatòria",
       "submit": "Restableix la contrasenya",
       "cancel": "Cancel·la",
       "close": "Tanca",
       "success": "Contrasenya actualitzada",
-      "invalid": "Aquesta contrasenya no compleix els requisits",
       "error": "No s'ha pogut actualitzar la contrasenya. Torna-ho a intentar."
+    },
+    "mfaReset": {
+      "button": "Restableix l'MFA",
+      "title": "Restableix l'autenticació de dos factors",
+      "description": "Això desactiva l'autenticació de dos factors de {username} i elimina els seus codis de seguretat. Totes les seves sessions finalitzen, de manera que es tanca la sessió a tots els dispositius, i haurà de tornar a configurar l'autenticació de dos factors després d'iniciar sessió. Se li notifica. Confirma que ets tu per continuar.",
+      "confirm": "Restableix l'MFA",
+      "success": "Autenticació de dos factors restablerta",
+      "refused": "L'autenticació de dos factors no està activada per a aquest usuari.",
+      "error": "No s'ha pogut restablir l'autenticació de dos factors. Torna-ho a intentar."
+    },
+    "requirePasswordChange": {
+      "button": "Exigeix un canvi de contrasenya",
+      "title": "Exigeix un canvi de contrasenya",
+      "description": "{username} conserva la contrasenya actual però n'haurà de triar una de nova el proper cop que iniciï sessió amb ella. Totes les seves sessions finalitzen, de manera que es tanca la sessió a tots els dispositius. L'inici de sessió mitjançant un proveïdor d'inici de sessió únic no es veu afectat. Se li notifica. Confirma que ets tu per continuar.",
+      "confirm": "Exigeix el canvi",
+      "success": "Canvi de contrasenya exigit",
+      "refused": "Aquest usuari no té cap contrasenya per canviar.",
+      "error": "No s'ha pogut exigir el canvi de contrasenya. Torna-ho a intentar."
     },
     "sessions": {
       "title": "Sessions",
@@ -205,6 +238,7 @@
       "error": "No s'han pogut carregar les sessions",
       "retry": "Torna-ho a intentar",
       "lastActive": "Darrer accés {date}",
+      "viaApp": "Sessió iniciada mitjançant l'aplicació: {address}",
       "current": "Sessió actual",
       "revokeOthers": "Revoca les altres sessions",
       "revokeOthersTitle": "Revoca les altres sessions",
@@ -216,10 +250,28 @@
       "revokeTitle": "Revoca la sessió",
       "revokeBody": "Això tanca la sessió del dispositiu, que haurà d'iniciar-la de nou",
       "revokeConfirm": "Revoca",
-      "revokeCancel": "Cancel·la",
-      "revokeClose": "Tanca",
       "revokeSuccess": "Sessió revocada",
       "revokeError": "No s'ha pogut revocar la sessió. Torna-ho a intentar."
+    },
+    "apiKeys": {
+      "title": "Claus API",
+      "subtitle": "Claus d'API que aquest usuari ha creat per a scripts i eines de tercers",
+      "error": "No s'han pogut carregar les claus d'API",
+      "retry": "Torna-ho a intentar",
+      "empty": "Aquest usuari no té cap clau d'API",
+      "revoke": "Revoca",
+      "revokeTitle": "Vols revocar aquesta clau d'API?",
+      "revokeBody": "La clau deixa de funcionar a l'instant i l'usuari rep un avís.",
+      "revokeConfirm": "Revoca la clau",
+      "revokeSuccess": "Clau d'API revocada",
+      "revokeError": "No s'ha pogut revocar la clau d'API. Torna-ho a provar.",
+      "revokeNotFound": "Aquesta clau d'API ja no existeix.",
+      "revokeAll": "Revoca totes les claus",
+      "revokeAllTitle": "Vols revocar totes les claus d'API?",
+      "revokeAllBody": "Totes les claus d'API actives d'aquest usuari deixen de funcionar a l'instant i l'usuari rep un avís.",
+      "revokeAllConfirm": "Revoca totes les claus",
+      "revokeAllSuccess": "Claus d'API revocades",
+      "revokeAllError": "No s'han pogut revocar les claus d'API. Torna-ho a provar."
     },
     "photo": {
       "upload": "Puja la foto",
@@ -277,6 +329,34 @@
     "saving": "Desant…",
     "saveSuccess": "Configuració del servidor actualitzada",
     "saveError": "No s'ha pogut actualitzar la configuració del servidor. Torna-ho a intentar.",
+    "staleError": "Algú altre ha canviat aquesta configuració mentre l'editaves. Els teus canvis no s'han desat. Recarrega la pàgina per veure els valors actuals.",
+    "stepUpTitle": "Confirma la teva identitat",
+    "stepUpDescription": "Aquests canvis afecten qui es pot registrar, iniciar sessió o mantenir una sessió en aquest servidor, quant de temps es conserva el registre d'auditoria, o si els enllaços públics mostren qui els ha compartit. Confirma que ets tu per continuar.",
+    "envLocked": "Definit per {name}",
+    "envSection": "Alguns paràmetres d'aquí els defineixen variables d'entorn ({names}). Elimina-les de l'entorn per editar aquests paràmetres aquí.",
+    "unsaved": "Canvis sense desar",
+    "fixErrors": "Corregeix els errors de dalt per desar",
+    "discard": "Descarta",
+    "tabs": {
+      "label": "Seccions de la configuració del servidor",
+      "general": "General",
+      "access": "Accés i seguretat",
+      "maps": "Mapes i ubicació",
+      "email": "Correu electrònic",
+      "logs": "Registres",
+      "unsaved": "Té canvis sense desar"
+    },
+    "search": {
+      "placeholder": "Cerca paràmetres…",
+      "noResults": "No s'ha trobat cap paràmetre"
+    },
+    "leave": {
+      "title": "Sortir sense desar?",
+      "description": "Tens canvis sense desar. Si surts d'aquesta pàgina es perdran.",
+      "confirm": "Surt sense desar",
+      "stay": "Queda't a la pàgina",
+      "close": "Tanca"
+    },
     "loadError": {
       "title": "No s'ha pogut carregar la configuració del servidor",
       "description": "S'ha produït un error en carregar la configuració del servidor. Pots tornar-ho a intentar.",
@@ -293,17 +373,49 @@
       "currencyPound": "Lliura (£)",
       "numRecords": "Registres per pàgina"
     },
+    "mfa": {
+      "title": "Verificació en dos passos",
+      "require": "Exigeix la verificació en dos passos",
+      "requireHint": "Un compte inclòs que no hagi configurat la verificació en dos passos l'ha de configurar abans de poder fer res més. Fins aleshores només pot configurar-la i tancar la sessió. El requisit s'aplica a partir de la següent sol·licitud del compte.",
+      "options": {
+        "off": "No exigida",
+        "administrators": "Només administradors",
+        "everyone": "Tothom"
+      },
+      "enabledWarning": "Els comptes inclosos en aquesta opció que no hagin configurat la verificació en dos passos, possiblement el teu, són dirigits a configurar-la en la seva següent sol·licitud."
+    },
     "password": {
       "title": "Política de contrasenyes",
-      "type": "Política",
-      "typeStrict": "Estricta (complexitat requerida)",
-      "typeLengthOnly": "Només longitud",
       "lengthRegular": "Longitud mínima usuaris regulars",
-      "lengthAdmin": "Longitud mínima usuaris administradors"
+      "lengthAdmin": "Longitud mínima usuaris administradors",
+      "breachCheck": "Rebutja contrasenyes trobades en filtracions de dades conegudes",
+      "breachCheckHint": "Comprova cada contrasenya nova o canviada amb haveibeenpwned.com. Només s'envien els primers 5 caràcters del hash SHA-1 de la contrasenya, mai la contrasenya. Si no es pot accedir al servei, la contrasenya s'accepta."
+    },
+    "session": {
+      "title": "Sessions",
+      "description": "Els canvis s'apliquen als nous inicis de sessió i a la propera renovació del token. Els tokens ja emesos conserven la seva durada.",
+      "idleTimeoutEnabled": "Aplica el temps d'inactivitat",
+      "idleHours": "Temps d'inactivitat (hores)",
+      "idleHoursHint": "Quan s'aplica, una sessió acaba després d'aquest nombre d'hores sense activitat.",
+      "absoluteHours": "Temps màxim absolut (hores)",
+      "absoluteHoursHint": "Una sessió acaba aquest nombre d'hores després d'iniciar-la, sigui quina sigui l'activitat. S'aplica sempre. No pot ser inferior al temps d'inactivitat.",
+      "accessMinutes": "Durada del token d'accés (minuts)",
+      "refreshDays": "Durada del token de renovació (dies)",
+      "apiKeyDays": "Durada màxima d'una clau d'API (dies)",
+      "apiKeyDaysHint": "Una clau d'API nova caduca després d'aquests dies, tret que el seu propietari triï una data anterior.",
+      "invalidRange": "Introdueix un nombre enter entre {min} i {max}.",
+      "absoluteBelowIdle": "No pot ser inferior al temps d'inactivitat.",
+      "accessNotBelowIdle": "Ha de ser inferior al temps d'inactivitat."
+    },
+    "retention": {
+      "title": "Conservació de dades",
+      "readNotifications": "Elimina les notificacions llegides després de (dies)",
+      "readNotificationsHint": "0 conserva les notificacions llegides per sempre. Les notificacions no llegides mai s'eliminen."
     },
     "signup": {
       "title": "Registre",
       "enabled": "Permet nous registres d'usuaris",
+      "ssoEnabled": "Permet nous registres d'usuaris mitjançant l'inici de sessió únic",
       "adminApproval": "Requereix aprovació de l'admin per als nous registres",
       "emailVerification": "Requereix verificació de correu per als nous registres"
     },
@@ -336,12 +448,33 @@
       "attribution": "Atribució",
       "apiKey": "Clau API del servidor de teseles",
       "apiKeyWarning": "La clau API s'emmagatzema xifrada. Deixa-la en blanc si el teu servidor de teseles no en necessita cap.",
+      "apiKeyStored": "Hi ha una clau desada",
+      "apiKeyRemove": "Elimina la clau API desada",
       "backgroundColor": "Color de fons del mapa",
       "regenerateThumbnails": "Regenera les miniatures d'activitat quan canviï la configuració del mapa"
+    },
+    "geocoding": {
+      "title": "Geocodificació inversa",
+      "description": "Converteix les coordenades de les activitats en noms de lloc. Els canvis s'apliquen sense reiniciar.",
+      "service": "Servei",
+      "serviceNominatim": "Nominatim",
+      "servicePhoton": "Photon",
+      "serviceGeocode": "geocode.maps.co",
+      "host": "Servidor",
+      "hostHint": "Nom del servidor amb port opcional, sense esquema. Un servidor d'una xarxa privada ha de constar a SSRF_ALLOWED_HOSTS.",
+      "useHttps": "Connecta per HTTPS",
+      "rateLimit": "Sol·licituds per segon",
+      "rateLimitHint": "0 desactiva la limitació. Deixa 1 per als serveis públics Nominatim i Photon.",
+      "rateLimitInvalid": "Introdueix un nombre entre 0 i 100.",
+      "apiKey": "Clau API",
+      "apiKeyStored": "Hi ha una clau desada. Deixa-ho buit per conservar-la.",
+      "apiKeyRemove": "Elimina la clau API desada",
+      "apiKeyRequired": "geocode.maps.co necessita una clau API."
     },
     "photo": {
       "title": "Foto d'inici de sessió",
       "description": "Una imatge personalitzada mostrada a la pantalla d'inici de sessió",
+      "previewAlt": "Foto actual de l'inici de sessió",
       "add": "Puja la foto d'inici de sessió",
       "replace": "Reemplaça la foto d'inici de sessió",
       "delete": "Elimina la foto d'inici de sessió",
@@ -355,10 +488,33 @@
       "cancel": "Cancel·la",
       "close": "Tanca"
     },
+    "logs": {
+      "title": "Registres del servidor",
+      "description": "Els registres més recents de l'aplicació. Els registres dels desplegaments amb diversos processos els recull la teva plataforma.",
+      "level": "Nivell mínim",
+      "allLevels": "Tots els nivells",
+      "search": "Cerca",
+      "searchPlaceholder": "Text, logger o ID de la sol·licitud…",
+      "live": "En directe",
+      "refresh": "Actualitza",
+      "download": "Baixa",
+      "downloadError": "No s'ha pogut baixar el fitxer de registre.",
+      "clear": "Neteja",
+      "cleared": "Registres netejats",
+      "clearError": "No s'han pogut netejar els registres.",
+      "clearConfirm": {
+        "title": "Netejar els registres del servidor?",
+        "description": "Això elimina de manera permanent el fitxer de registre i les seves còpies rotades. Baixa'l primer si el pots necessitar. L'acció queda registrada al nou registre.",
+        "confirm": "Neteja els registres",
+        "cancel": "Cancel·la",
+        "close": "Tanca"
+      },
+      "loadError": "No s'han pogut carregar els registres.",
+      "empty": "No s'ha trobat cap registre"
+    },
     "email": {
       "title": "Correu electrònic",
       "description": "Endurain envia els correus de restabliment de contrasenya i de registre mitjançant el servidor SMTP configurat a l'entorn.",
-      "statusLoadError": "No s'ha pogut comprovar la configuració del correu electrònic.",
       "configured": "El correu electrònic està configurat.",
       "notConfigured": "El correu electrònic no està configurat:",
       "send": "Envia un correu de prova",
@@ -366,7 +522,28 @@
       "sendHint": "El correu de prova s'envia a la teva pròpia adreça.",
       "sent": "Correu de prova enviat",
       "failed": "No s'ha pogut enviar el correu de prova",
-      "failedUnknown": "Consulta els registres del servidor per a més detalls."
+      "failedUnknown": "Consulta els registres del servidor per a més detalls.",
+      "settingsLoadError": "No s'ha pogut carregar la configuració del correu.",
+      "host": "Servidor",
+      "hostHint": "Deixa-ho buit per desactivar el correu.",
+      "port": "Port",
+      "portInvalid": "Introdueix un port entre 1 i 65535.",
+      "security": "Seguretat de la connexió",
+      "securityStarttls": "STARTTLS",
+      "securitySsl": "SSL/TLS",
+      "securityNone": "Cap (només relé privat)",
+      "securityNoneWarning": "Sense xifrat, només s'accepta un servidor de correu en una adreça privada o de loopback, i no es pot utilitzar nom d'usuari ni contrasenya.",
+      "username": "Nom d'usuari",
+      "password": "Contrasenya",
+      "passwordStored": "Hi ha una contrasenya desada. Deixa-ho buit per conservar-la.",
+      "passwordRemove": "Elimina la contrasenya desada",
+      "fromAddress": "Adreça del remitent",
+      "fromAddressHint": "Deixa-ho buit per utilitzar el nom d'usuari.",
+      "save": "Desa la configuració del correu",
+      "saveSuccess": "Configuració del correu desada",
+      "saveError": "No s'ha pogut desar la configuració del correu",
+      "stepUpTitle": "Confirma la teva identitat",
+      "stepUpDescription": "El servidor de correu rep cada enllaç de restabliment de contrasenya. Confirma que ets tu per continuar."
     }
   },
   "idp": {
@@ -374,6 +551,8 @@
     "subtitle": "Configura proveïdors SSO per a l'inici de sessió únic",
     "buttonAdd": "Afegeix proveïdor",
     "toggleError": "No s'ha pogut canviar el proveïdor. Torna-ho a intentar.",
+    "toggleStepUpDescription": "Canviar si {name} està activat decideix qui pot iniciar sessió en aquest servidor. Confirma que ets tu per continuar.",
+    "toggleStepUpConfirm": "Confirma",
     "enableSuccess": "Proveïdor activat",
     "disableSuccess": "Proveïdor desactivat",
     "type": {
@@ -399,8 +578,6 @@
       "title": "Elimina el proveïdor",
       "body": "Segur que vols eliminar \"{name}\"? Aquesta acció no es pot desfer.",
       "confirm": "Elimina",
-      "cancel": "Cancel·la",
-      "close": "Tanca",
       "success": "Proveïdor eliminat",
       "error": "No s'ha pogut eliminar el proveïdor. És possible que encara tingui usuaris vinculats."
     },
@@ -422,12 +599,14 @@
       "slugRequired": "El slug és obligatori",
       "slugTooLong": "El slug ha de tenir 50 caràcters o menys",
       "slugInvalid": "Fes servir només lletres minúscules, números i guions",
+      "slugReserved": "Aquest slug està reservat; tria'n un altre",
       "providerType": "Tipus de proveïdor",
       "typeOidc": "OpenID Connect (OIDC)",
       "typeOauth2": "OAuth 2.0",
       "issuerUrl": "URL de l'emissor",
       "issuerUrlHint": "L'URL d'OIDC o de descoberta del proveïdor",
       "issuerUrlRequired": "La URL de l'emissor és obligatòria",
+      "issuerUrlRefused": "S'ha rebutjat l'URL del proveïdor. Ha d'utilitzar https:// i resoldre's des del servidor, i un proveïdor d'una xarxa privada ha de constar a SSRF_ALLOWED_HOSTS.",
       "issuerUrlTooLong": "La URL de l'emissor ha de tenir 500 caràcters o menys",
       "clientId": "ID de client",
       "clientIdRequired": "L'ID de client és obligatori",
@@ -440,17 +619,34 @@
       "scopes": "Àmbits",
       "scopesHint": "Àmbits OAuth separats per espais",
       "scopesTooLong": "Els àmbits han de tenir 500 caràcters o menys",
+      "scopesOpenidRequired": "Un proveïdor OIDC necessita l'àmbit openid",
       "icon": "Icona",
       "iconNone": "Cap",
-      "iconCustom": "URL personalitzada",
-      "customIconUrl": "URL d'icona personalitzada",
-      "customIconUrlHint": "Enllaç a una imatge mostrada al botó d'inici de sessió",
+      "iconUpload": "Puja una imatge",
+      "iconFileHint": "Una imatge PNG, JPEG o WebP de fins a 1 MB, que es mostra al botó d'inici de sessió",
+      "iconChoose": "Tria una imatge",
+      "iconReplace": "Substitueix la imatge",
+      "iconPreviewAlt": "Previsualització de la icona",
+      "iconFileRequired": "Tria una imatge per pujar",
+      "iconFileInvalidType": "La icona ha de ser una imatge PNG, JPEG o WebP",
+      "iconFileTooLarge": "La icona ha de pesar 1 MB o menys",
+      "iconSaveError": "El proveïdor s'ha desat, però no s'ha pogut actualitzar la seva icona. Edita el proveïdor per tornar-ho a provar.",
       "enabled": "Activat",
       "autoCreateUsers": "Crea usuaris automàticament en el primer inici de sessió",
+      "linkByEmail": "Vincula a un compte existent per correu",
+      "linkByEmailHint": "Permet que un primer inici de sessió s'uneixi al compte que tingui el mateix correu verificat. Desactivat, aquest inici de sessió es rebutja i l'usuari vincula el proveïdor des de la seva configuració. Desactivat per defecte en un proveïdor nou.",
       "syncUserInfo": "Sincronitza la informació del perfil a cada inici de sessió",
+      "syncUserInfoHint": "Copia el nom assignat des del proveïdor. No inclou el correu.",
+      "syncEmail": "Sincronitza el correu a cada inici de sessió",
+      "syncEmailHint": "Copia el correu verificat pel proveïdor al compte, audita el canvi i notifica l'adreça anterior. Desactivat per defecte en un proveïdor nou.",
       "createSuccess": "Proveïdor afegit",
       "updateSuccess": "Proveïdor actualitzat",
+      "stepUpTitle": "Confirma la teva identitat",
+      "stepUpDescription": "Els proveïdors d'identitat decideixen qui pot iniciar sessió en aquest servidor. Confirma que ets tu per continuar.",
       "slugConflict": "Aquest slug ja està en ús",
+      "issuerInUse": "Un altre proveïdor d'identitat ja utilitza aquest URL d'emissor",
+      "issuerLocked": "L'URL de l'emissor no es pot canviar mentre hi hagi usuaris vinculats a aquest proveïdor. Desvincula'ls o afegeix un proveïdor nou.",
+      "staleError": "Aquest proveïdor s'ha canviat en un altre lloc. Els teus canvis no s'han desat. Tanca'l i torna'l a obrir per carregar la configuració actual.",
       "saveError": "No s'ha pogut desar el proveïdor. Torna-ho a intentar."
     }
   },
@@ -458,7 +654,7 @@
     "title": "Els meus objectius",
     "subtitle": "Estableix objectius per a les teves activitats i fes el seguiment del teu progrés",
     "buttonAdd": "Afegeix objectiu",
-    "count": "Hi ha un total de {count} objectiu(s):",
+    "count": "Hi ha un total de {count} objectiu: | Hi ha un total de {count} objectius:",
     "filters": "Filtres",
     "filter": {
       "all": "Tots",
@@ -492,13 +688,6 @@
       "elevation": "Elevació",
       "duration": "Durada"
     },
-    "unit": {
-      "calories": "kcal",
-      "km": "km",
-      "miles": "mi",
-      "meters": "m",
-      "feet": "ft"
-    },
     "list": {
       "edit": "Edita l'objectiu {name}",
       "delete": "Elimina l'objectiu {name}"
@@ -522,6 +711,7 @@
       "error": "No s'ha pogut eliminar l'objectiu. Torna-ho a intentar."
     },
     "form": {
+      "targetInvalid": "Introduïu un valor superior a 0.",
       "addTitle": "Afegeix objectiu",
       "editTitle": "Edita l'objectiu",
       "description": "Estableix un target per a una activitat durant un període recurrent",
@@ -549,6 +739,14 @@
     "hidePassword": "Amaga la contrasenya",
     "mfaCode": "Codi d'autenticació",
     "mfaCodePlaceholder": "123456",
+    "confirmPhrase": "Escriu {phrase} per confirmar",
+    "mfaEnrolment": {
+      "title": "Configura la verificació en dos passos",
+      "description": "Aquest servidor exigeix la verificació en dos passos. Configura-la per continuar utilitzant Endurain, o tanca la sessió.",
+      "done": "La verificació en dos passos està configurada. Pots continuar.",
+      "continue": "Continua",
+      "signOut": "Tanca la sessió"
+    },
     "loadError": {
       "title": "No s'ha pogut carregar la configuració de seguretat",
       "description": "S'ha produït un error. Pots tornar-ho a intentar."
@@ -559,10 +757,7 @@
       "current": "Contrasenya actual",
       "new": "Nova contrasenya",
       "confirm": "Confirma la nova contrasenya",
-      "requirementsStrict": "Almenys {length} caràcters, incloent una majúscula, una minúscula, un número i un símbol.",
-      "requirementsLength": "Almenys {length} caràcters.",
-      "mismatch": "Les contrasenyes no coincideixen.",
-      "revokeOthers": "Tanca sessió en tots els altres dispositius",
+      "revokeOthers": "Tanca la sessió a totes les altres sessions",
       "submit": "Canvia la contrasenya",
       "success": "Contrasenya canviada",
       "invalidCredentials": "La teva contrasenya actual o el codi no són correctes.",
@@ -575,7 +770,7 @@
       "disabledDescription": "L'autenticació de dos factors està desactivada. Activa-la per protegir millor el teu compte.",
       "enable": "Activa els dos factors",
       "enabledDescription": "L'autenticació de dos factors està activada.",
-      "backupRemaining": "{unused} de {total} codis de seguretat restants.",
+      "backupRemaining": "{unused} de {total} codi de seguretat restant. | {unused} de {total} codis de seguretat restants.",
       "regenerate": "Regenera els codis de seguretat",
       "disable": "Desactiva",
       "setupTitle": "Activa l'autenticació de dos factors",
@@ -616,6 +811,7 @@
       "empty": "Sense sessions actives.",
       "current": "Aquest dispositiu",
       "lastActive": "Darrer accés {date}",
+      "viaApp": "Sessió iniciada mitjançant l'aplicació: {address}",
       "revoke": "Tanca aquesta sessió",
       "revokeTitle": "Tancar aquesta sessió?",
       "revokeBody": "Aquest dispositiu tancarà la sessió i haurà d'iniciar-la de nou.",
@@ -623,11 +819,43 @@
       "revokeSuccess": "Sessió tancada",
       "revokeError": "No s'ha pogut tancar aquesta sessió. Torna-ho a intentar.",
       "revokeOthers": "Tanca les altres sessions",
-      "revokeOthersTitle": "Tancar tots els altres dispositius?",
-      "revokeOthersBody": "Tots els dispositius excepte aquest tancaran la sessió i hauran d'iniciar-la de nou.",
+      "revokeOthersTitle": "Vols tancar totes les altres sessions?",
+      "revokeOthersBody": "Totes les sessions excepte aquesta es tancaran i hauran de tornar a iniciar la sessió.",
       "revokeOthersConfirm": "Tanca les altres sessions",
       "revokeOthersSuccess": "Altres sessions tancades",
-      "revokeOthersError": "No s'han pogut tancar les altres sessions. Torna-ho a intentar."
+      "revokeOthersError": "No s'han pogut tancar les altres sessions. Torna-ho a intentar.",
+      "signOutEverywhere": "Tanca la sessió a tot arreu",
+      "signOutEverywhereTitle": "Tancar la sessió a tot arreu?",
+      "signOutEverywhereBody": "Tots els dispositius, inclòs aquest, tancaran la sessió i hauran d'iniciar-la de nou.",
+      "signOutEverywhereConfirm": "Tanca la sessió a tot arreu",
+      "signOutEverywhereError": "No s'ha pogut tancar totes les sessions. Torna-ho a intentar."
+    },
+    "devices": {
+      "title": "Dispositius coneguts",
+      "subtitle": "Navegadors i aplicacions des dels quals has iniciat sessió des del teu últim canvi de seguretat. Iniciar sessió des de qualsevol altre dispositiu t'envia un avís.",
+      "empty": "Cap dispositiu conegut",
+      "error": "No s'han pogut carregar els dispositius coneguts",
+      "current": "Aquest dispositiu",
+      "unknown": "Dispositiu desconegut",
+      "lastSeen": "Últim inici de sessió {date}",
+      "forget": "Oblida aquest dispositiu",
+      "forgetTitle": "Oblidar aquest dispositiu?",
+      "forgetDescription": "Oblidar aquest dispositiu també hi tanca la sessió. El proper inici de sessió des d'aquest dispositiu es compta com a dispositiu nou i t'envia un avís.",
+      "forgetConfirm": "Oblida el dispositiu",
+      "forgetSuccess": "Dispositiu oblidat",
+      "forgetError": "No s'ha pogut oblidar el dispositiu. Torna-ho a intentar.",
+      "forgetNotFound": "Aquest dispositiu ja no és conegut.",
+      "forgetOthers": "Oblida els altres dispositius",
+      "forgetOthersTitle": "Vols oblidar tots els altres dispositius?",
+      "forgetOthersDescription": "Tots els dispositius excepte aquest s'oblidaran i es tancarà la seva sessió. El proper inici de sessió des de cadascun comptarà com un dispositiu nou i t'enviarà un avís.",
+      "forgetOthersConfirm": "Oblida els dispositius",
+      "forgetOthersSuccess": "S'han oblidat els altres dispositius",
+      "forgetOthersError": "No s'han pogut oblidar els altres dispositius. Torna-ho a provar.",
+      "forgetAll": "Oblida tots els dispositius",
+      "forgetAllTitle": "Vols oblidar tots els dispositius?",
+      "forgetAllDescription": "Tots els dispositius, inclòs aquest, s'oblidaran i es tancarà la seva sessió, i seràs enviat a la pàgina d'inici de sessió. El proper inici de sessió des de cadascun comptarà com un dispositiu nou i t'enviarà un avís.",
+      "forgetAllConfirm": "Oblida els dispositius",
+      "forgetAllError": "No s'han pogut oblidar els dispositius. Torna-ho a provar."
     },
     "linked": {
       "title": "Comptes vinculats",
@@ -649,7 +877,51 @@
       "unlinkError": "No s'ha pogut desvincular el compte. Torna-ho a intentar.",
       "invalidCredentials": "La teva contrasenya o codi no és correcte.",
       "alreadyLinked": "Aquest compte ja està vinculat.",
-      "lastMethodError": "No pots desvincular el teu únic mètode d'inici de sessió. Estableix una contrasenya primer."
+      "lastMethodError": "No pots desvincular el teu únic mètode d'inici de sessió. Estableix una contrasenya primer.",
+      "linkedOn": "Vinculat el {date}"
+    },
+    "email": {
+      "title": "Adreça de correu",
+      "subtitle": "Aquí s'envien els restabliments de contrasenya i els avisos. Per canviar-la cal que confirmis la teva identitat, i la nova adreça entra en vigor en confirmar-la des de l'enllaç que s'hi envia.",
+      "current": "Correu actual",
+      "action": "Canvia el correu",
+      "new": "Correu nou",
+      "invalid": "Introdueix una adreça de correu vàlida.",
+      "sameAsCurrent": "Aquesta ja és la teva adreça de correu.",
+      "success": "S'ha enviat un enllaç de confirmació a la nova adreça. El teu correu canviarà quan el confirmis.",
+      "appliedSuccess": "Correu electrònic canviat.",
+      "pending": "Canvi pendent a {email}",
+      "pendingExpires": "L'enllaç de confirmació caduca el {date}.",
+      "resend": "Torna a enviar l'enllaç",
+      "cancel": "Cancel·la el canvi",
+      "resendSuccess": "Si hi ha un canvi pendent, un enllaç nou està en camí cap a la nova adreça.",
+      "resendError": "No s'ha pogut tornar a enviar l'enllaç. Torna-ho a intentar.",
+      "cancelSuccess": "S'ha cancel·lat el canvi de correu.",
+      "cancelError": "No s'ha pogut cancel·lar el canvi. Torna-ho a intentar.",
+      "conflict": "Aquest correu ja està en ús.",
+      "error": "No s'ha pogut canviar el teu correu. Torna-ho a intentar."
+    },
+    "username": {
+      "title": "Nom d'usuari",
+      "subtitle": "El teu nom d'usuari és el que fas servir per iniciar la sessió. Per canviar-lo has de confirmar la teva identitat, i el canvi s'aplica immediatament.",
+      "current": "Nom d'usuari actual",
+      "action": "Canvia el nom d'usuari",
+      "new": "Nou nom d'usuari",
+      "sameAsCurrent": "Aquest ja és el teu nom d'usuari.",
+      "success": "Nom d'usuari canviat.",
+      "conflict": "Aquest nom d'usuari ja està en ús.",
+      "error": "No s'ha pogut canviar el teu nom d'usuari. Torna-ho a provar."
+    },
+    "deleteAccount": {
+      "title": "Elimina el meu compte",
+      "subtitle": "Suprimeix el teu compte i totes les teves dades, incloses les activitats i els seus fitxers, els registres de salut, l'equipament, els objectius, les integracions i les sessions. Es tanca la teva sessió a tots els dispositius i el compte es desactiva a l'instant; després les teves dades s'esborren en segon pla. No hi ha període de gràcia: només un administrador pot aturar-ho, tornant a activar el compte abans que acabi l'esborrat. Exporta abans les teves dades si en vols conservar una còpia.",
+      "action": "Elimina el meu compte",
+      "dialogTitle": "Eliminar el teu compte?",
+      "dialogDescription": "Això tanca la teva sessió a tots els dispositius, desactiva el teu compte i comença a esborrar totes les teves dades. Només un administrador pot aturar-ho abans que acabi. Confirma la teva identitat per continuar.",
+      "confirm": "Elimina el meu compte",
+      "error": "No s'ha pogut eliminar el teu compte. Torna-ho a intentar.",
+      "onlyAdminError": "Ets l'únic administrador. Fes administrador un altre usuari abans d'eliminar el teu compte.",
+      "pendingError": "Ja hi ha una eliminació d'aquest compte en curs."
     },
     "apiKeys": {
       "title": "Claus API",
@@ -661,13 +933,43 @@
       "namePlaceholder": "p. ex. Script de pujada de Garmin",
       "scopes": "Permisos",
       "scopesHint": "Tria el que aquesta clau pot fer. Cal almenys un.",
+      "scopeGroups": {
+        "account": "Compte",
+        "activities": "Activitats",
+        "followers": "Seguidors",
+        "gears": "Equipament",
+        "health": "Salut",
+        "healthTargets": "Objectius de salut",
+        "notifications": "Notificacions",
+        "users": "Usuaris"
+      },
+      "scopeLabels": {
+        "account": "Gestiona el teu perfil, foto, objectius, privacitat i equipament per defecte",
+        "activitiesRead": "Llegir activitats",
+        "activitiesWrite": "Crear, editar i eliminar activitats",
+        "activitiesUpload": "Pujar fitxers d'activitats",
+        "followersRead": "Veure a qui segueixes i qui et segueix",
+        "followersWrite": "Canviar a qui segueixes i qui et segueix",
+        "gearsRead": "Llegir equipament",
+        "gearsWrite": "Crear, editar i eliminar equipament",
+        "healthRead": "Llegir dades de salut",
+        "healthWrite": "Escriure dades de salut",
+        "healthTargetsRead": "Llegir objectius de salut",
+        "healthTargetsWrite": "Canviar objectius de salut",
+        "notificationsRead": "Llegir notificacions",
+        "notificationsWrite": "Gestionar notificacions",
+        "usersRead": "Consultar els perfils públics d'altres usuaris"
+      },
       "expiry": "Caducitat (opcional)",
-      "expiryHint": "Deixa buit per a una clau que no caduqui mai.",
+      "expiryHint": "Deixa buit per usar la durada més llarga que permet el servidor. Es rebutja una data posterior.",
       "createTitle": "Crea una clau API",
       "createDescription": "Confirma la teva identitat per crear una nova clau API.",
       "createSuccess": "Clau API creada",
       "createError": "No s'ha pogut crear la clau API. Torna-ho a intentar.",
+      "apiKeyLimit": "Heu assolit el límit de 25 claus d'API actives. Revoqueu-ne o elimineu-ne una i torneu-ho a provar.",
+      "expiryTooLate": "Aquesta caducitat és posterior a la que permet el servidor. Tria una data anterior o deixa-ho buit.",
       "invalidCredentials": "La teva contrasenya o codi no és correcte.",
+      "expiryNotFuture": "Aquesta caducitat no és futura. Tria una data posterior.",
       "invalidScopes": "Aquests permisos no estan permesos per a les claus API.",
       "revealTitle": "Copia la teva clau API",
       "revealDescription": "Aquesta és l'única vegada que es mostra la clau completa.",
@@ -683,7 +985,6 @@
       "lastUsed": "Darrer ús el {date}",
       "neverUsed": "Mai usada",
       "expires": "Caduca el {date}",
-      "neverExpires": "No caduca mai",
       "revoke": "Revoca",
       "revokeTitle": "Revocar la clau API?",
       "revokeBody": "{name} deixarà de funcionar immediatament. Aquesta acció no es pot desfer.",
@@ -694,6 +995,26 @@
       "deleteBody": "{name} s'eliminarà permanentment. Aquesta acció no es pot desfer.",
       "deleteSuccess": "Clau API eliminada",
       "deleteError": "No s'ha pogut eliminar la clau API. Torna-ho a intentar."
+    },
+    "stepUp": {
+      "passwordLabel": "La teva contrasenya",
+      "passwordHint": "Introdueix la teva pròpia contrasenya per confirmar que ets tu.",
+      "prompt": "El teu compte no té contrasenya. Torna a iniciar sessió amb un proveïdor d'identitat vinculat per confirmar que ets tu.",
+      "continueWith": "Continua amb {name}",
+      "ready": "Inici de sessió del proveïdor d'identitat confirmat.",
+      "restart": "Torna a iniciar sessió",
+      "noProviders": "No hi ha cap proveïdor d'identitat vinculat disponible per confirmar la teva identitat.",
+      "startError": "No s'ha pogut iniciar la sessió amb el proveïdor d'identitat. Torna-ho a intentar.",
+      "tooManyAttempts": "Massa intents. Torna-ho a provar més tard.",
+      "reauthRequired": "Confirma la teva identitat amb el teu proveïdor d'identitat per continuar.",
+      "failed": "Ha fallat el nou inici de sessió amb el teu proveïdor d'identitat. Torna-ho a intentar.",
+      "notFresh": "El teu proveïdor d'identitat no t'ha demanat que tornis a iniciar sessió. Contacta amb l'administrador."
+    },
+    "tabs": {
+      "label": "Seccions de seguretat",
+      "account": "Compte",
+      "sessions": "Sessions i accés",
+      "danger": "Zona de perill"
     }
   },
   "integrations": {
@@ -733,6 +1054,7 @@
       "clientIdPlaceholder": "123456",
       "clientSecret": "Secret de client",
       "connectError": "No s'ha pogut connectar a Strava. Comprova les teves dades i torna-ho a intentar.",
+      "scopeError": "Strava no ha rebut tots els permisos que Endurain necessita. Torna a connectar i deixa tots els permisos marcats.",
       "completing": "Finalitzant la connexió amb Strava…",
       "linkSuccess": "Strava connectat",
       "retrieveActivitiesTitle": "Recupera les activitats de Strava",
@@ -741,9 +1063,10 @@
       "retrievingGear": "Recuperant el teu equipament de Strava en segon pla…",
       "retrieveGearError": "No s'ha pogut iniciar la recuperació d'equipament de Strava. Torna-ho a intentar.",
       "unlinkTitle": "Desconnectar Strava?",
-      "unlinkBody": "Endurain deixarà d'importar des de Strava. Les teves activitats existents es conserven.",
+      "unlinkBody": "Endurain deixarà d'importar de Strava i eliminarà les activitats i l'equipament sincronitzats des de Strava. Les activitats d'altres fonts, incloent-hi els fitxers d'exportació de Strava pujats, es conserven.",
       "unlinkSuccess": "Strava desconnectat",
-      "unlinkError": "No s'ha pogut desconnectar Strava. Torna-ho a intentar."
+      "unlinkError": "No s'ha pogut desconnectar Strava. Torna-ho a intentar.",
+      "revokedNotice": "L'accés a Strava va acabar el {revokedAt}. Les activitats i l'equipament sincronitzats amb Strava s'eliminaran el {deletionAt} si no et tornes a connectar."
     },
     "garmin": {
       "title": "Garmin Connect",
@@ -774,7 +1097,10 @@
       "unlinkBody": "Endurain deixarà d'importar des de Garmin Connect. Les teves dades existents es conserven.",
       "unlinkSuccess": "Garmin Connect desconnectat",
       "unlinkError": "No s'ha pogut desconnectar Garmin Connect. Torna-ho a intentar."
-    }
+    },
+    "retrieveFinished": "S'ha acabat de recuperar les teves dades de {provider}.",
+    "retrieveFailed": "No s'han pogut recuperar les teves dades de {provider}. Torna-ho a provar.",
+    "retrieveAlreadyRunning": "Ja hi ha una recuperació de {provider} en curs. Rebràs un avís quan acabi."
   },
   "import": {
     "title": "Importa",
@@ -807,15 +1133,25 @@
     },
     "job": {
       "preparing": "Preparant la importació…",
-      "progress": "S'han importat {done} de {total} fitxers ({failed} amb error)…",
-      "finished": "Importació acabada: {done} de {total} fitxers importats, {failed} amb error.",
-      "failed": "No s'ha pogut completar la importació."
+      "progress": "S'han importat {done} de {total} fitxer ({failed} amb error)… | S'han importat {done} de {total} fitxers ({failed} amb error)…",
+      "finished": "Importació acabada: {done} de {total} fitxer importat, {failed} amb error. | Importació acabada: {done} de {total} fitxers importats, {failed} amb error.",
+      "failed": "No s'ha pogut completar la importació.",
+      "failure": {
+        "unsupported_format": "La importació ha fallat: els fitxers tenen un format no compatible.",
+        "invalid_file": "La importació ha fallat: el fitxer no és vàlid.",
+        "no_activities_found": "La importació ha fallat: no s'ha trobat cap activitat.",
+        "processing_failed": "La importació ha fallat mentre es processaven els fitxers.",
+        "provider_unavailable": "La importació ha fallat: el proveïdor no està disponible. Torna-ho a provar més tard."
+      }
     }
   },
   "profile": {
     "title": "El meu perfil",
     "subtitle": "Gestiona els detalls del teu compte i la privadesa",
     "notSet": "No definit",
+    "emailManagedIn": "El teu correu es canvia a la configuració de Seguretat.",
+    "securitySettingsLink": "Obre la configuració de Seguretat",
+    "usernameManagedIn": "El teu nom d'usuari es canvia a la configuració de Seguretat.",
     "error": {
       "title": "No s'ha pogut carregar el teu perfil",
       "description": "S'ha produït un error en carregar el teu perfil. Pots tornar-ho a intentar.",
@@ -826,7 +1162,6 @@
       "title": "Edita el perfil",
       "description": "Actualitza els detalls del teu compte",
       "success": "Perfil actualitzat",
-      "conflict": "Aquest nom d'usuari o correu ja està en ús",
       "error": "No s'ha pogut actualitzar el teu perfil. Torna-ho a intentar."
     },
     "photo": {
@@ -874,6 +1209,8 @@
       "hideLaps": "Voltes",
       "hideWorkoutSetsSteps": "Sèries i passos de l'entrenament",
       "hideGear": "Equipament",
+      "discoverable": "Permet que altres em trobin a la cerca",
+      "discoverableHint": "Els altres usuaris poden trobar-te pel nom d'usuari quan cerquen. El teu perfil continua accessible des d'un enllaç directe.",
       "save": "Desa la privadesa",
       "saving": "Desant…",
       "saveSuccess": "Configuració de privadesa actualitzada",
@@ -921,10 +1258,59 @@
       "export": "Exporta les dades",
       "import": "Importa les dades",
       "invalidType": "Tria un arxiu .zip.",
-      "exportSuccess": "Exportació llesta, la descàrrega hauria de començar aviat",
+      "download": "Baixa l'exportació",
+      "downloadSuccess": "La baixada hauria de començar d'aquí a poc",
+      "downloadError": "No s'ha pogut baixar l'exportació. Torna-ho a intentar.",
+      "exportQueued": "Exportació iniciada. Pots sortir d'aquesta pàgina.",
       "exportError": "No s'han pogut exportar les teves dades. Torna-ho a intentar.",
-      "importSuccess": "Dades importades",
-      "importError": "No s'ha pogut importar l'arxiu. Comprova el fitxer i torna-ho a intentar."
+      "exportInProgress": "Ja hi ha una exportació en curs.",
+      "exportStepUp": {
+        "title": "Confirma que ets tu",
+        "description": "L'exportació copia totes les teves dades, així que confirma primer la teva identitat."
+      },
+      "exportStatus": {
+        "queued": "Esperant que comenci l'exportació…",
+        "running": "Preparant la teva exportació…",
+        "succeeded": "La teva exportació està a punt per baixar. Continua disponible durant dues hores.",
+        "failed": "L'exportació no s'ha completat: {reason}"
+      },
+      "exportFailure": {
+        "timed_out": "ha trigat massa. Pots tornar-ho a provar.",
+        "processing_failed": "ha anat alguna cosa malament. Pots tornar-ho a provar."
+      },
+      "importQueued": "Importació iniciada. Pots sortir d'aquesta pàgina.",
+      "importError": "No s'ha pogut importar l'arxiu. Comprova el fitxer i torna-ho a intentar.",
+      "importInProgress": "Ja hi ha una importació en curs.",
+      "status": {
+        "queued": "Esperant que comenci la importació…",
+        "running": "Important les teves dades…",
+        "succeeded": "Importació acabada: s'ha importat {activities} activitat; equipament: {gears}. | Importació acabada: s'han importat {activities} activitats; equipament: {gears}.",
+        "failed": "La importació no s'ha completat: {reason}"
+      },
+      "failure": {
+        "invalid_file": "l'arxiu no és una exportació vàlida d'Endurain. No s'ha importat res.",
+        "too_large": "l'arxiu és massa gran. No s'ha importat res.",
+        "too_many_activities": "l'arxiu té massa activitats. No s'ha importat res.",
+        "timed_out": "ha trigat massa. No s'ha importat res, així que pots tornar-ho a provar.",
+        "files_incomplete": "les teves dades s'han importat però falten alguns fitxers. No ho tornis a importar; duplicaria les teves dades.",
+        "processing_failed": "ha anat alguna cosa malament. No s'ha importat res, així que pots tornar-ho a provar.",
+        "wrong_account": "l'arxiu s'ha exportat des d'un altre compte. No s'ha importat res.",
+        "older_version": "l'arxiu s'ha exportat des d'una versió anterior d'Endurain. No s'ha importat res."
+      }
+    },
+    "blockedUsers": {
+      "title": "Usuaris blocats",
+      "subtitle": "Els usuaris blocats no poden sol·licitar seguir-te. Bloquejar algú també elimina qualsevol seguiment entre vosaltres.",
+      "empty": "No has bloquejat ningú.",
+      "unblock": "Desbloqueja",
+      "unblockError": "No s'ha pogut desbloquejar aquest usuari. Torna-ho a intentar.",
+      "loadError": "No s'han pogut carregar els teus usuaris blocats.",
+      "retry": "Torna-ho a intentar"
+    },
+    "tabs": {
+      "label": "Seccions del perfil",
+      "profile": "Perfil",
+      "privacy": "Privadesa i dades"
     }
   }
 }

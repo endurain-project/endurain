@@ -1,5 +1,5 @@
 import { apiFetch } from '@/services/http'
-import { fetchAllChildPages } from '@/features/activities/services/activities'
+import { fetchAllPages } from '@/services/pagination'
 import { getBackendAssetUrl } from '@/services/runtime'
 
 import type { ActivityMedia, ActivityMediaDto } from '../types'
@@ -26,14 +26,14 @@ export function mapActivityMedia(dto: ActivityMediaDto): ActivityMedia {
  *
  * @param activityId - Activity identifier.
  * @param signal - Optional abort signal (e.g. TanStack Query cancellation).
- * @returns The activity's media, newest first as returned by the backend.
+ * @returns The activity's media, oldest first, in the order the backend returns them.
  */
 export async function fetchActivityMedia(
-  activityId: number,
+  activityId: string,
   signal?: AbortSignal,
 ): Promise<ActivityMedia[]> {
-  const dtos = await fetchAllChildPages<ActivityMediaDto>(`/activities/${activityId}/media`, {
-    authenticated: true,
+  const dtos = await fetchAllPages<ActivityMediaDto>(`/activities/${activityId}/media`, undefined, {
+    auth: true,
     signal,
   })
   return dtos.map(mapActivityMedia)
@@ -49,7 +49,7 @@ export async function fetchActivityMedia(
  * @returns The newly created media record.
  * @throws {HttpError} When the upload or validation fails.
  */
-export async function uploadActivityMedia(activityId: number, file: File): Promise<ActivityMedia> {
+export async function uploadActivityMedia(activityId: string, file: File): Promise<ActivityMedia> {
   const formData = new FormData()
   formData.append('file', file, file.name)
   const dto = await apiFetch<ActivityMediaDto>(`/activities/${activityId}/media`, {
@@ -68,7 +68,7 @@ export async function uploadActivityMedia(activityId: number, file: File): Promi
  * @param mediaId - The media record id to delete.
  * @throws {HttpError} When the delete fails.
  */
-export async function deleteActivityMedia(activityId: number, mediaId: number): Promise<void> {
+export async function deleteActivityMedia(activityId: string, mediaId: string): Promise<void> {
   await apiFetch(`/activities/${activityId}/media/${mediaId}`, {
     method: 'DELETE',
     responseType: 'void',

@@ -31,7 +31,9 @@
       "admin": "Administrator",
       "inactive": "Neaktivno",
       "unverified": "Nepotvrđena e-pošta",
+      "pendingEmail": "Promjena e-pošte na čekanju",
       "pending": "Čeka odobrenje",
+      "deleting": "Brisanje u tijeku",
       "externalAuth": "Vanjska autentifikacija"
     },
     "actions": {
@@ -64,18 +66,22 @@
       "email": "E-pošta",
       "emailRequired": "E-pošta je obavezna",
       "emailInvalid": "Unesite valjanu adresu e-pošte",
+      "emailChangeHint": "Na novu adresu šalje se poveznica za potvrdu i ona zamjenjuje trenutačnu nakon potvrde. Korisnik se odjavljuje sa svih uređaja. Za primjenu odmah označite novu adresu kao potvrđenu.",
       "accessType": "Vrsta pristupa",
       "accessTypeRegular": "Običan korisnik",
       "accessTypeAdmin": "Administrator",
       "password": "Lozinka",
       "passwordHint": "Najmanje 8 znakova",
-      "passwordHintStrict": "Najmanje {min} znakova, s velikim slovom, malim slovom, brojem i posebnim znakom",
-      "passwordHintLength": "Najmanje {min} znakova",
       "passwordRequired": "Lozinka je obavezna",
-      "passwordInvalid": "Ta lozinka ne zadovoljava zahtjeve",
       "confirmPassword": "Potvrdi lozinku",
+      "mustChangePasswordHint": "Korisnik će morati odabrati novu lozinku pri sljedećoj prijavi.",
       "confirmPasswordRequired": "Potvrdi lozinku",
-      "passwordMismatch": "Lozinke se ne podudaraju",
+      "passwordMode": "Kako korisnik dobiva lozinku",
+      "passwordModeInvitation": "Pošalji pozivnicu e-poštom za odabir lozinke",
+      "passwordModePassword": "Postavi lozinku sada",
+      "passwordModeHint": "Korisnik prima e-poruku s poveznicom, važećom 24 sata, za odabir vlastite lozinke.",
+      "invitationNeedsActive": "Neaktivan račun ne može se pozvati. Umjesto toga postavite lozinku.",
+      "inviteSuccess": "Korisnik je dodan i pozivnica je poslana",
       "preferredLanguage": "Željeni jezik",
       "languages": {
         "ca": "Katalonski",
@@ -118,14 +124,16 @@
       "units": "Jedinice",
       "unitsMetric": "Metričke",
       "unitsImperial": "Imperijalne",
+      "weightUnits": "Jedinice težine",
+      "weightUnitsDefault": "Prati jedinice",
+      "weightUnitsMetric": "Kilogrami (kg)",
+      "weightUnitsImperial": "Funte (lb)",
       "height": "Visina",
-      "unitCm": "cm",
-      "unitFeet": "ft",
-      "unitInches": "in",
+      "heightInvalid": "Visina mora biti između 50 i 272 cm",
+      "maxHeartRateInvalid": "Maksimalni broj otkucaja srca mora biti između 30 i 250 otk/min",
       "feetInvalid": "Stope moraju biti između 0 i 10",
       "inchesInvalid": "Inči moraju biti između 0 i 11",
       "maxHeartRate": "Maks. broj otkucaja srca",
-      "unitBpm": "bpm",
       "currency": "Valuta",
       "currencies": {
         "euro": "Euro",
@@ -134,6 +142,8 @@
       },
       "firstDayOfWeek": "Prvi dan u tjednu",
       "timezone": "Vremenska zona",
+      "timezoneNotSet": "Nije postavljeno",
+      "timezoneUseBrowser": "Koristi vremensku zonu mog preglednika ({timezone})",
       "timezoneHint": "Koristi se za aktivnosti snimljene bez GPS-a, poput trčanja na traci i vožnje bicikla u zatvorenom.",
       "weekdays": {
         "sunday": "Nedjelja",
@@ -149,7 +159,8 @@
       "statusLegend": "Status računa",
       "active": "Aktivno",
       "emailVerified": "E-pošta potvrđena",
-      "pendingAdminApproval": "Čeka odobrenje administratora",
+      "emailVerifiedCurrentHint": "Ovo je status trenutne adrese.",
+      "newEmailVerified": "Označi novu adresu kao potvrđenu",
       "requiredField": "Obavezno polje",
       "create": "Dodaj korisnika",
       "save": "Spremi promjene",
@@ -158,7 +169,13 @@
       "createSuccess": "Korisnik je dodan",
       "updateSuccess": "Korisnik je ažuriran",
       "conflict": "To korisničko ime ili e-pošta se već koristi",
-      "saveError": "Nije moguće spremiti korisnika. Pokušajte ponovno."
+      "lastAdministrator": "Jedini administrator ne može biti degradiran ni deaktiviran",
+      "saveError": "Nije moguće spremiti korisnika. Pokušajte ponovno.",
+      "stepUpTitle": "Potvrdite svoj identitet",
+      "stepUpDescription": "Promjena e-pošte, vrste pristupa ili aktivnog statusa korisnika {username} odjavljuje ga posvuda. Potvrdite da ste to vi za nastavak.",
+      "stepUpCreateDescription": "Stvaranje administratorskog računa daje puni pristup. Potvrdite da ste to vi za nastavak.",
+      "stepUpConfirm": "Spremi promjene",
+      "approvalPending": "Ovaj korisnik čeka odobrenje. Odobrite ga umjesto da ga ovdje aktivirate."
     },
     "delete": {
       "title": "Izbriši korisnika",
@@ -167,10 +184,12 @@
       "cancel": "Odustani",
       "close": "Zatvori",
       "success": "Korisnik je izbrisan",
-      "error": "Nije moguće izbrisati korisnika. Pokušajte ponovno."
+      "error": "Nije moguće izbrisati korisnika. Pokušajte ponovno.",
+      "failed": "Brisanje korisnika nije uspjelo. Račun ostaje deaktiviran; izbrišite ga ponovno kako biste pokušali opet."
     },
     "detail": {
       "back": "Natrag na korisnike",
+      "pendingEmail": "Promjena e-pošte na {email} na čekanju, poveznica istječe {date}",
       "notFoundTitle": "Korisnik nije pronađen",
       "notFoundDescription": "Ovaj je račun možda izbrisan",
       "securityTitle": "Sigurnost",
@@ -184,19 +203,33 @@
     "password": {
       "button": "Ponovno postavi lozinku",
       "title": "Ponovno postavi lozinku",
-      "description": "Postavi novu lozinku za {username}",
+      "description": "Postavi novu lozinku za {username} All of their sessions, unused reset links, pending email change and API keys end. They are notified.",
       "newLabel": "Nova lozinka",
-      "hintLength": "Najmanje {min} znakova",
-      "hintStrict": "Najmanje {min} znakova, s velikim slovom, malim slovom, brojem i posebnim znakom",
       "confirmLabel": "Potvrdi novu lozinku",
-      "mismatch": "Lozinke se ne podudaraju",
       "required": "Lozinka je obavezna",
       "submit": "Ponovno postavi lozinku",
       "cancel": "Odustani",
       "close": "Zatvori",
       "success": "Lozinka je ažurirana",
-      "invalid": "Ta lozinka ne zadovoljava zahtjeve",
       "error": "Nije moguće ažurirati lozinku. Pokušajte ponovno."
+    },
+    "mfaReset": {
+      "button": "Poništi MFA",
+      "title": "Poništi dvofaktorsku autentifikaciju",
+      "description": "Ovo isključuje dvofaktorsku autentifikaciju za korisnika {username} i uklanja njegove sigurnosne kodove. Sve njegove sesije završavaju pa se odjavljuje sa svih uređaja te nakon prijave mora ponovno postaviti dvofaktorsku autentifikaciju. Korisnik će biti obaviješten. Potvrdite da ste to vi za nastavak.",
+      "confirm": "Poništi MFA",
+      "success": "Dvofaktorska autentifikacija je poništena",
+      "refused": "Dvofaktorska autentifikacija nije uključena za ovog korisnika.",
+      "error": "Poništavanje dvofaktorske autentifikacije nije uspjelo. Pokušajte ponovno."
+    },
+    "requirePasswordChange": {
+      "button": "Zahtijevaj promjenu lozinke",
+      "title": "Zahtijevaj promjenu lozinke",
+      "description": "Korisnik {username} zadržava trenutnu lozinku, ali pri sljedećoj prijavi njome mora odabrati novu. Sve njegove sesije završavaju pa se odjavljuje sa svih uređaja. Prijava putem pružatelja jedinstvene prijave nije pogođena. Korisnik će biti obaviješten. Potvrdite da ste to vi za nastavak.",
+      "confirm": "Zahtijevaj promjenu",
+      "success": "Promjena lozinke je zahtijevana",
+      "refused": "Ovaj korisnik nema lozinku za promjenu.",
+      "error": "Zahtijevanje promjene lozinke nije uspjelo. Pokušajte ponovno."
     },
     "sessions": {
       "title": "Sesije",
@@ -205,6 +238,7 @@
       "error": "Sesije se nisu mogle učitati",
       "retry": "Pokušaj ponovno",
       "lastActive": "Posljednja aktivnost {date}",
+      "viaApp": "Prijavljeno putem aplikacije: {address}",
       "current": "Trenutna sesija",
       "revokeOthers": "Opozovi druge sesije",
       "revokeOthersTitle": "Opozovi druge sesije",
@@ -216,10 +250,28 @@
       "revokeTitle": "Opozovi sesiju",
       "revokeBody": "Ovo odjavljuje uređaj, morat će se ponovno prijaviti",
       "revokeConfirm": "Opozovi",
-      "revokeCancel": "Odustani",
-      "revokeClose": "Zatvori",
       "revokeSuccess": "Sesija je opozvana",
       "revokeError": "Nije moguće opozvati sesiju. Pokušajte ponovno."
+    },
+    "apiKeys": {
+      "title": "API ključevi",
+      "subtitle": "API ključevi koje je ovaj korisnik izradio za skripte i alate trećih strana",
+      "error": "Nije moguće učitati API ključeve",
+      "retry": "Pokušaj ponovno",
+      "empty": "Ovaj korisnik nema API ključeva",
+      "revoke": "Opozovi",
+      "revokeTitle": "Opozvati ovaj API ključ?",
+      "revokeBody": "Ključ odmah prestaje raditi, a korisnik dobiva obavijest.",
+      "revokeConfirm": "Opozovi ključ",
+      "revokeSuccess": "API ključ je opozvan",
+      "revokeError": "Nije moguće opozvati API ključ. Pokušajte ponovno.",
+      "revokeNotFound": "Taj API ključ više ne postoji.",
+      "revokeAll": "Opozovi sve ključeve",
+      "revokeAllTitle": "Opozvati sve API ključeve?",
+      "revokeAllBody": "Svaki aktivni API ključ ovog korisnika odmah prestaje raditi, a korisnik dobiva obavijest.",
+      "revokeAllConfirm": "Opozovi sve ključeve",
+      "revokeAllSuccess": "API ključevi su opozvani",
+      "revokeAllError": "Nije moguće opozvati API ključeve. Pokušajte ponovno."
     },
     "photo": {
       "upload": "Učitaj fotografiju",
@@ -277,6 +329,34 @@
     "saving": "Spremanje…",
     "saveSuccess": "Postavke poslužitelja su ažurirane",
     "saveError": "Nije moguće ažurirati postavke poslužitelja. Pokušajte ponovno.",
+    "staleError": "Netko je promijenio ove postavke dok ste ih uređivali. Vaše promjene nisu spremljene. Ponovno učitajte stranicu da vidite trenutne vrijednosti.",
+    "stepUpTitle": "Potvrdite svoj identitet",
+    "stepUpDescription": "Ove promjene utječu na to tko se može registrirati, prijaviti ili zadržati sesiju na ovom poslužitelju, koliko se dugo čuva revizijski zapis i prikazuju li javne poveznice tko ih je podijelio. Potvrdite da ste to vi za nastavak.",
+    "envLocked": "Postavljeno varijablom {name}",
+    "envSection": "Neke postavke ovdje određuju varijable okoline ({names}). Uklonite ih iz okoline kako biste te postavke mogli uređivati ovdje.",
+    "unsaved": "Nespremljene promjene",
+    "fixErrors": "Ispravite gornje pogreške da biste spremili",
+    "discard": "Odbaci",
+    "tabs": {
+      "label": "Odjeljci postavki poslužitelja",
+      "general": "Općenito",
+      "access": "Pristup i sigurnost",
+      "maps": "Karte i lokacija",
+      "email": "E-pošta",
+      "logs": "Zapisnici",
+      "unsaved": "Sadrži nespremljene promjene"
+    },
+    "search": {
+      "placeholder": "Pretraži postavke…",
+      "noResults": "Nema pronađenih postavki"
+    },
+    "leave": {
+      "title": "Napustiti bez spremanja?",
+      "description": "Imate nespremljene promjene. Ako napustite stranicu, bit će izgubljene.",
+      "confirm": "Napusti bez spremanja",
+      "stay": "Ostani na stranici",
+      "close": "Zatvori"
+    },
     "loadError": {
       "title": "Postavke poslužitelja se nisu mogle učitati",
       "description": "Nešto je pošlo po zlu prilikom učitavanja postavki poslužitelja. Možete pokušati ponovno.",
@@ -293,17 +373,49 @@
       "currencyPound": "Funta (£)",
       "numRecords": "Zapisa po stranici"
     },
+    "mfa": {
+      "title": "Dvofaktorska autentifikacija",
+      "require": "Zahtijevaj dvofaktorsku autentifikaciju",
+      "requireHint": "Račun obuhvaćen ovom postavkom koji nema postavljenu dvofaktorsku autentifikaciju mora je postaviti prije nego što može raditi bilo što drugo. Do tada je može samo postaviti i odjaviti se. Zahtjev vrijedi od sljedećeg zahtjeva računa.",
+      "options": {
+        "off": "Nije obavezna",
+        "administrators": "Samo administratori",
+        "everyone": "Svi"
+      },
+      "enabledWarning": "Računi obuhvaćeni ovom postavkom koji nemaju postavljenu dvofaktorsku autentifikaciju, moguće i vaš, bit će pri sljedećem zahtjevu preusmjereni na njezino postavljanje."
+    },
     "password": {
       "title": "Pravila lozinke",
-      "type": "Pravilo",
-      "typeStrict": "Strogo (potrebna složenost)",
-      "typeLengthOnly": "Samo duljina",
       "lengthRegular": "Minimalna duljina za obične korisnike",
-      "lengthAdmin": "Minimalna duljina za administratore"
+      "lengthAdmin": "Minimalna duljina za administratore",
+      "breachCheck": "Odbij lozinke pronađene u poznatim curenjima podataka",
+      "breachCheckHint": "Provjerava svaku novu ili promijenjenu lozinku putem haveibeenpwned.com. Šalje se samo prvih 5 znakova SHA-1 sažetka lozinke, nikada sama lozinka. Ako usluga nije dostupna, lozinka se prihvaća."
+    },
+    "session": {
+      "title": "Sesije",
+      "description": "Promjene se primjenjuju na nove prijave i sljedeće osvježavanje tokena. Već izdani tokeni zadržavaju svoje trajanje.",
+      "idleTimeoutEnabled": "Nametni istek zbog neaktivnosti",
+      "idleHours": "Istek zbog neaktivnosti (sati)",
+      "idleHoursHint": "Kada je nametnut, sesija završava nakon ovoliko sati bez aktivnosti.",
+      "absoluteHours": "Apsolutni istek (sati)",
+      "absoluteHoursHint": "Sesija završava ovoliko sati nakon prijave, bez obzira na aktivnost. Uvijek se primjenjuje. Ne kraći od isteka zbog neaktivnosti.",
+      "accessMinutes": "Trajanje pristupnog tokena (minute)",
+      "refreshDays": "Trajanje tokena za osvježavanje (dani)",
+      "apiKeyDays": "Maksimalno trajanje API ključa (dani)",
+      "apiKeyDaysHint": "Novi API ključ istječe nakon ovoliko dana, osim ako njegov vlasnik odabere raniji datum.",
+      "invalidRange": "Unesite cijeli broj između {min} i {max}.",
+      "absoluteBelowIdle": "Ne smije biti kraći od isteka zbog neaktivnosti.",
+      "accessNotBelowIdle": "Mora biti kraći od isteka zbog neaktivnosti."
+    },
+    "retention": {
+      "title": "Zadržavanje podataka",
+      "readNotifications": "Izbriši pročitane obavijesti nakon (dana)",
+      "readNotificationsHint": "0 zauvijek zadržava pročitane obavijesti. Nepročitane obavijesti nikada se ne brišu."
     },
     "signup": {
       "title": "Registracija",
       "enabled": "Dopusti registracije novih korisnika",
+      "ssoEnabled": "Dopusti registraciju novih korisnika putem jedinstvene prijave",
       "adminApproval": "Zahtijevaj odobrenje administratora za nove registracije",
       "emailVerification": "Zahtijevaj potvrdu e-pošte za nove registracije"
     },
@@ -336,12 +448,33 @@
       "attribution": "Atribucija",
       "apiKey": "API ključ poslužitelja pločica",
       "apiKeyWarning": "API ključ se pohranjuje šifrirano. Ostavite prazno ako vaš poslužitelj pločica ne treba ključ.",
+      "apiKeyStored": "Ključ je pohranjen",
+      "apiKeyRemove": "Ukloni pohranjeni API ključ",
       "backgroundColor": "Boja pozadine karte",
       "regenerateThumbnails": "Ponovno generiraj minijature aktivnosti kada se promijene postavke karte"
+    },
+    "geocoding": {
+      "title": "Obrnuto geokodiranje",
+      "description": "Pretvara koordinate aktivnosti u nazive mjesta. Promjene se primjenjuju bez ponovnog pokretanja.",
+      "service": "Usluga",
+      "serviceNominatim": "Nominatim",
+      "servicePhoton": "Photon",
+      "serviceGeocode": "geocode.maps.co",
+      "host": "Poslužitelj",
+      "hostHint": "Naziv poslužitelja s neobaveznim priključkom, bez sheme. Poslužitelj u privatnoj mreži mora biti naveden u SSRF_ALLOWED_HOSTS.",
+      "useHttps": "Poveži se putem HTTPS-a",
+      "rateLimit": "Zahtjeva u sekundi",
+      "rateLimitHint": "0 isključuje ograničavanje. Za javne usluge Nominatim i Photon zadržite 1.",
+      "rateLimitInvalid": "Unesite broj između 0 i 100.",
+      "apiKey": "API ključ",
+      "apiKeyStored": "Ključ je pohranjen. Ostavite prazno da ga zadržite.",
+      "apiKeyRemove": "Ukloni pohranjeni API ključ",
+      "apiKeyRequired": "geocode.maps.co zahtijeva API ključ."
     },
     "photo": {
       "title": "Fotografija za prijavu",
       "description": "Prilagođena slika prikazana na zaslonu za prijavu",
+      "previewAlt": "Trenutna fotografija za prijavu",
       "add": "Učitaj fotografiju za prijavu",
       "replace": "Zamijeni fotografiju za prijavu",
       "delete": "Ukloni fotografiju za prijavu",
@@ -355,10 +488,33 @@
       "cancel": "Odustani",
       "close": "Zatvori"
     },
+    "logs": {
+      "title": "Zapisnici poslužitelja",
+      "description": "Najnoviji zapisi dnevnika aplikacije. Zapise implementacija s više procesa prikuplja vaša platforma.",
+      "level": "Minimalna razina",
+      "allLevels": "Sve razine",
+      "search": "Traži",
+      "searchPlaceholder": "Tekst, logger ili ID zahtjeva…",
+      "live": "Uživo",
+      "refresh": "Osvježi",
+      "download": "Preuzmi",
+      "downloadError": "Datoteku zapisnika nije bilo moguće preuzeti.",
+      "clear": "Očisti",
+      "cleared": "Zapisnici očišćeni",
+      "clearError": "Zapisnike nije bilo moguće očistiti.",
+      "clearConfirm": {
+        "title": "Očistiti zapisnike poslužitelja?",
+        "description": "Ovo trajno briše datoteku zapisnika i njezine rotirane sigurnosne kopije. Prvo preuzmite zapisnik ako bi vam mogao zatrebati. Sama radnja bilježi se u novom zapisniku.",
+        "confirm": "Očisti zapisnike",
+        "cancel": "Odustani",
+        "close": "Zatvori"
+      },
+      "loadError": "Zapisnike nije bilo moguće učitati.",
+      "empty": "Nema pronađenih zapisa"
+    },
     "email": {
       "title": "E-pošta",
       "description": "Endurain šalje e-poruke za resetiranje zaporke i registraciju putem SMTP poslužitelja konfiguriranog u okruženju.",
-      "statusLoadError": "Konfiguraciju e-pošte nije bilo moguće provjeriti.",
       "configured": "E-pošta je konfigurirana.",
       "notConfigured": "E-pošta nije konfigurirana:",
       "send": "Pošalji probnu e-poruku",
@@ -366,7 +522,28 @@
       "sendHint": "Probna e-poruka šalje se na vašu vlastitu adresu.",
       "sent": "Probna e-poruka poslana",
       "failed": "Probnu e-poruku nije bilo moguće poslati",
-      "failedUnknown": "Detalje potražite u zapisnicima poslužitelja."
+      "failedUnknown": "Detalje potražite u zapisnicima poslužitelja.",
+      "settingsLoadError": "Postavke e-pošte nije bilo moguće učitati.",
+      "host": "Poslužitelj",
+      "hostHint": "Ostavite prazno da isključite e-poštu.",
+      "port": "Priključak",
+      "portInvalid": "Unesite priključak između 1 i 65535.",
+      "security": "Sigurnost veze",
+      "securityStarttls": "STARTTLS",
+      "securitySsl": "SSL/TLS",
+      "securityNone": "Nema (samo privatni relej)",
+      "securityNoneWarning": "Bez enkripcije prihvaća se samo poslužitelj e-pošte na privatnoj ili loopback adresi, a korisničko ime i lozinka ne mogu se koristiti.",
+      "username": "Korisničko ime",
+      "password": "Lozinka",
+      "passwordStored": "Lozinka je pohranjena. Ostavite prazno da je zadržite.",
+      "passwordRemove": "Ukloni pohranjenu lozinku",
+      "fromAddress": "Adresa pošiljatelja",
+      "fromAddressHint": "Ostavite prazno za korištenje korisničkog imena.",
+      "save": "Spremi postavke e-pošte",
+      "saveSuccess": "Postavke e-pošte spremljene",
+      "saveError": "Postavke e-pošte nije bilo moguće spremiti",
+      "stepUpTitle": "Potvrdite svoj identitet",
+      "stepUpDescription": "Poštanski poslužitelj prima svaku poveznicu za ponovno postavljanje lozinke. Potvrdite da ste to vi za nastavak."
     }
   },
   "idp": {
@@ -374,6 +551,8 @@
     "subtitle": "Konfigurirajte SSO pružatelje za jedinstvenu prijavu",
     "buttonAdd": "Dodaj pružatelja",
     "toggleError": "Nije moguće promijeniti pružatelja. Pokušajte ponovno.",
+    "toggleStepUpDescription": "Promjena je li {name} omogućen određuje tko se može prijaviti na ovaj poslužitelj. Potvrdite da ste to vi za nastavak.",
+    "toggleStepUpConfirm": "Potvrdi",
     "enableSuccess": "Pružatelj je omogućen",
     "disableSuccess": "Pružatelj je onemogućen",
     "type": {
@@ -399,8 +578,6 @@
       "title": "Izbriši pružatelja",
       "body": "Jeste li sigurni da želite izbrisati „{name}”? To se ne može poništiti.",
       "confirm": "Izbriši",
-      "cancel": "Odustani",
-      "close": "Zatvori",
       "success": "Pružatelj je izbrisan",
       "error": "Nije moguće izbrisati pružatelja. Možda još ima povezane korisnike."
     },
@@ -422,17 +599,19 @@
       "slugRequired": "Slug je obavezan",
       "slugTooLong": "Slug mora imati 50 znakova ili manje",
       "slugInvalid": "Koristite samo mala slova, brojeve i crtice",
+      "slugReserved": "Ovaj slug je rezerviran; odaberite drugi",
       "providerType": "Vrsta pružatelja",
       "typeOidc": "OpenID Connect (OIDC)",
       "typeOauth2": "OAuth 2.0",
       "issuerUrl": "URL izdavatelja",
       "issuerUrlHint": "OIDC izdavatelj pružatelja ili URL za otkrivanje",
       "issuerUrlRequired": "URL izdavatelja je obavezan",
+      "issuerUrlRefused": "URL pružatelja je odbijen. Mora koristiti https:// i biti razriješen s poslužitelja, a pružatelj u privatnoj mreži mora biti naveden u SSRF_ALLOWED_HOSTS.",
       "issuerUrlTooLong": "URL izdavatelja mora imati 500 znakova ili manje",
-      "clientId": "Client ID",
+      "clientId": "ID klijenta",
       "clientIdRequired": "Client ID je obavezan",
       "clientIdTooLong": "Client ID mora imati 512 znakova ili manje",
-      "clientSecret": "Client secret",
+      "clientSecret": "Tajna klijenta",
       "clientSecretRequired": "Client secret je obavezan",
       "clientSecretTooLong": "Client secret mora imati 512 znakova ili manje",
       "clientSecretHintEdit": "Ostavite prazno da zadržite trenutni secret",
@@ -440,17 +619,34 @@
       "scopes": "Opsezi",
       "scopesHint": "OAuth opsezi odvojeni razmakom",
       "scopesTooLong": "Opsezi moraju imati 500 znakova ili manje",
+      "scopesOpenidRequired": "OIDC pružatelj zahtijeva opseg openid",
       "icon": "Ikona",
       "iconNone": "Nijedna",
-      "iconCustom": "Prilagođeni URL",
-      "customIconUrl": "URL prilagođene ikone",
-      "customIconUrlHint": "Link na sliku prikazanu na gumbu za prijavu",
+      "iconUpload": "Prenesi sliku",
+      "iconFileHint": "PNG, JPEG ili WebP slika do 1 MB, prikazuje se na gumbu za prijavu",
+      "iconChoose": "Odaberi sliku",
+      "iconReplace": "Zamijeni sliku",
+      "iconPreviewAlt": "Pregled ikone",
+      "iconFileRequired": "Odaberite sliku za prijenos",
+      "iconFileInvalidType": "Ikona mora biti PNG, JPEG ili WebP slika",
+      "iconFileTooLarge": "Ikona mora biti najviše 1 MB",
+      "iconSaveError": "Pružatelj je spremljen, ali njegovu ikonu nije bilo moguće ažurirati. Uredite pružatelja da pokušate ponovno.",
       "enabled": "Omogućeno",
       "autoCreateUsers": "Automatski stvori korisnike pri prvoj prijavi",
+      "linkByEmail": "Poveži s postojećim računom putem e-pošte",
+      "linkByEmailHint": "Omogućuje da se prva prijava pridruži računu s istom potvrđenom e-poštom. Isključeno, ta se prijava odbija, a korisnik povezuje pružatelja u svojim postavkama. Za novog pružatelja zadano je isključeno.",
       "syncUserInfo": "Sinkroniziraj podatke profila pri svakoj prijavi",
+      "syncUserInfoHint": "Kopira mapirano ime od pružatelja. Ne uključuje e-poštu.",
+      "syncEmail": "Sinkroniziraj e-poštu pri svakoj prijavi",
+      "syncEmailHint": "Kopira e-poštu koju je pružatelj potvrdio na račun, bilježi promjenu u reviziji i obavještava prethodnu adresu. Za novog pružatelja zadano je isključeno.",
       "createSuccess": "Pružatelj je dodan",
       "updateSuccess": "Pružatelj je ažuriran",
+      "stepUpTitle": "Potvrdite svoj identitet",
+      "stepUpDescription": "Pružatelji identiteta određuju tko se može prijaviti na ovaj poslužitelj. Potvrdite da ste to vi za nastavak.",
       "slugConflict": "Taj slug se već koristi",
+      "issuerInUse": "Drugi pružatelj identiteta već koristi ovaj URL izdavatelja",
+      "issuerLocked": "URL izdavatelja ne može se promijeniti dok su korisnici povezani s ovim pružateljem. Odvojite ih ili umjesto toga dodajte novog pružatelja.",
+      "staleError": "Ovaj je pružatelj promijenjen drugdje. Vaše promjene nisu spremljene. Zatvorite ga i ponovno otvorite da učitate trenutne postavke.",
       "saveError": "Nije moguće spremiti pružatelja. Pokušajte ponovno."
     }
   },
@@ -458,7 +654,7 @@
     "title": "Moji ciljevi",
     "subtitle": "Postavite ciljeve za svoje aktivnosti i pratite svoj napredak",
     "buttonAdd": "Dodaj cilj",
-    "count": "Ukupno postoji {count} cilj(eva):",
+    "count": "Ukupno je {count} cilj: | Ukupno su {count} cilja: | Ukupno je {count} ciljeva:",
     "filters": "Filtri",
     "filter": {
       "all": "Svi",
@@ -492,13 +688,6 @@
       "elevation": "Visinska razlika",
       "duration": "Trajanje"
     },
-    "unit": {
-      "calories": "kcal",
-      "km": "km",
-      "miles": "mi",
-      "meters": "m",
-      "feet": "ft"
-    },
     "list": {
       "edit": "Uredi cilj {name}",
       "delete": "Izbriši cilj {name}"
@@ -522,6 +711,7 @@
       "error": "Nije moguće izbrisati cilj. Pokušajte ponovno."
     },
     "form": {
+      "targetInvalid": "Unesite vrijednost veću od 0.",
       "addTitle": "Dodaj cilj",
       "editTitle": "Uredi cilj",
       "description": "Postavite cilj za aktivnost tijekom ponavljajućeg razdoblja",
@@ -549,6 +739,14 @@
     "hidePassword": "Sakrij lozinku",
     "mfaCode": "Autentifikacijski kod",
     "mfaCodePlaceholder": "123456",
+    "confirmPhrase": "Upišite {phrase} za potvrdu",
+    "mfaEnrolment": {
+      "title": "Postavite dvofaktorsku autentifikaciju",
+      "description": "Ovaj poslužitelj zahtijeva dvofaktorsku autentifikaciju. Postavite je kako biste nastavili koristiti Endurain ili se odjavite.",
+      "done": "Dvofaktorska autentifikacija je postavljena. Možete nastaviti.",
+      "continue": "Nastavi",
+      "signOut": "Odjavi se"
+    },
     "loadError": {
       "title": "Vaše se sigurnosne postavke nisu mogle učitati",
       "description": "Nešto je pošlo po zlu. Možete pokušati ponovno."
@@ -559,10 +757,7 @@
       "current": "Trenutna lozinka",
       "new": "Nova lozinka",
       "confirm": "Potvrdi novu lozinku",
-      "requirementsStrict": "Najmanje {length} znakova, uključujući veliko slovo, malo slovo, broj i simbol.",
-      "requirementsLength": "Najmanje {length} znakova.",
-      "mismatch": "Lozinke se ne podudaraju.",
-      "revokeOthers": "Odjavi se sa svih drugih uređaja",
+      "revokeOthers": "Odjavi se iz svih drugih sesija",
       "submit": "Promijeni lozinku",
       "success": "Lozinka je promijenjena",
       "invalidCredentials": "Vaša trenutna lozinka ili kod su netočni.",
@@ -575,7 +770,7 @@
       "disabledDescription": "Dvofaktorska autentifikacija je isključena. Uključite je za bolju zaštitu svog računa.",
       "enable": "Omogući dvofaktorsku autentifikaciju",
       "enabledDescription": "Dvofaktorska autentifikacija je uključena.",
-      "backupRemaining": "Preostalo {unused} od {total} sigurnosnih kodova.",
+      "backupRemaining": "Preostalo je {unused} od {total} sigurnosnog koda. | Preostalo je {unused} od {total} sigurnosna koda. | Preostalo je {unused} od {total} sigurnosnih kodova.",
       "regenerate": "Ponovno generiraj sigurnosne kodove",
       "disable": "Onemogući",
       "setupTitle": "Omogući dvofaktorsku autentifikaciju",
@@ -616,18 +811,51 @@
       "empty": "Nema aktivnih sesija.",
       "current": "Ovaj uređaj",
       "lastActive": "Posljednja aktivnost {date}",
+      "viaApp": "Prijavljeno putem aplikacije: {address}",
       "revoke": "Odjavi ovu sesiju",
       "revokeTitle": "Odjaviti ovu sesiju?",
       "revokeBody": "Taj će uređaj biti odjavljen i morat će se ponovno prijaviti.",
       "revokeConfirm": "Odjavi",
       "revokeSuccess": "Sesija je odjavljena",
       "revokeError": "Nije moguće odjaviti tu sesiju. Pokušajte ponovno.",
-      "revokeOthers": "Odjavi druge uređaje",
-      "revokeOthersTitle": "Odjaviti sve druge uređaje?",
-      "revokeOthersBody": "Svaki uređaj osim ovog bit će odjavljen i morat će se ponovno prijaviti.",
+      "revokeOthers": "Odjavi druge sesije",
+      "revokeOthersTitle": "Odjaviti sve druge sesije?",
+      "revokeOthersBody": "Sve sesije osim ove bit će odjavljene i morat će se ponovno prijaviti.",
       "revokeOthersConfirm": "Odjavi druge",
       "revokeOthersSuccess": "Druge sesije su odjavljene",
-      "revokeOthersError": "Nije moguće odjaviti druge sesije. Pokušajte ponovno."
+      "revokeOthersError": "Nije moguće odjaviti druge sesije. Pokušajte ponovno.",
+      "signOutEverywhere": "Odjavi se posvuda",
+      "signOutEverywhereTitle": "Odjaviti se posvuda?",
+      "signOutEverywhereBody": "Svi uređaji, uključujući ovaj, bit će odjavljeni i morat će se ponovno prijaviti.",
+      "signOutEverywhereConfirm": "Odjavi se posvuda",
+      "signOutEverywhereError": "Odjava sa svih sesija nije uspjela. Pokušajte ponovno."
+    },
+    "devices": {
+      "title": "Poznati uređaji",
+      "subtitle": "Preglednici i aplikacije s kojih ste se prijavili od posljednje sigurnosne promjene. Prijava s bilo kojeg drugog uređaja šalje vam obavijest.",
+      "empty": "Nema poznatih uređaja",
+      "error": "Učitavanje poznatih uređaja nije uspjelo",
+      "current": "Ovaj uređaj",
+      "unknown": "Nepoznat uređaj",
+      "lastSeen": "Zadnja prijava {date}",
+      "forget": "Zaboravi ovaj uređaj",
+      "forgetTitle": "Zaboraviti ovaj uređaj?",
+      "forgetDescription": "Zaboravljanjem ovog uređaja on se i odjavljuje. Sljedeća prijava s ovog uređaja računat će se kao novi uređaj i poslat će vam obavijest.",
+      "forgetConfirm": "Zaboravi uređaj",
+      "forgetSuccess": "Uređaj je zaboravljen",
+      "forgetError": "Zaboravljanje uređaja nije uspjelo. Pokušajte ponovno.",
+      "forgetNotFound": "Taj uređaj više nije poznat.",
+      "forgetOthers": "Zaboravi druge uređaje",
+      "forgetOthersTitle": "Zaboraviti sve druge uređaje?",
+      "forgetOthersDescription": "Svi uređaji osim ovog bit će zaboravljeni i odjavljeni. Sljedeća prijava s svakog od njih računat će se kao novi uređaj i poslat će vam obavijest.",
+      "forgetOthersConfirm": "Zaboravi uređaje",
+      "forgetOthersSuccess": "Drugi uređaji su zaboravljeni",
+      "forgetOthersError": "Nije moguće zaboraviti druge uređaje. Pokušajte ponovno.",
+      "forgetAll": "Zaboravi sve uređaje",
+      "forgetAllTitle": "Zaboraviti sve uređaje?",
+      "forgetAllDescription": "Svi uređaji, uključujući ovaj, bit će zaboravljeni i odjavljeni, a bit ćete preusmjereni na stranicu za prijavu. Sljedeća prijava s svakog od njih računat će se kao novi uređaj i poslat će vam obavijest.",
+      "forgetAllConfirm": "Zaboravi uređaje",
+      "forgetAllError": "Nije moguće zaboraviti uređaje. Pokušajte ponovno."
     },
     "linked": {
       "title": "Povezani računi",
@@ -649,7 +877,51 @@
       "unlinkError": "Nije moguće prekinuti vezu računa. Pokušajte ponovno.",
       "invalidCredentials": "Vaša lozinka ili kod su netočni.",
       "alreadyLinked": "Taj je račun već povezan.",
-      "lastMethodError": "Ne možete prekinuti vezu svoje jedine metode prijave. Prvo postavite lozinku."
+      "lastMethodError": "Ne možete prekinuti vezu svoje jedine metode prijave. Prvo postavite lozinku.",
+      "linkedOn": "Povezano {date}"
+    },
+    "email": {
+      "title": "Adresa e-pošte",
+      "subtitle": "Ovdje se šalju poveznice za poništavanje lozinke i obavijesti. Za promjenu morate potvrditi svoj identitet, a nova adresa stupa na snagu kada je potvrdite putem poveznice koju na nju šaljemo.",
+      "current": "Trenutna e-pošta",
+      "action": "Promijeni e-poštu",
+      "new": "Nova e-pošta",
+      "invalid": "Unesite ispravnu adresu e-pošte.",
+      "sameAsCurrent": "Ovo je već vaša adresa e-pošte.",
+      "success": "Poveznica za potvrdu poslana je na novu adresu. Vaša e-pošta promijenit će se nakon potvrde.",
+      "appliedSuccess": "E-pošta je promijenjena.",
+      "pending": "Promjena na čekanju na {email}",
+      "pendingExpires": "Poveznica za potvrdu istječe {date}.",
+      "resend": "Ponovno pošalji poveznicu",
+      "cancel": "Otkaži promjenu",
+      "resendSuccess": "Ako je promjena na čekanju, nova poveznica stiže na novu adresu.",
+      "resendError": "Poveznicu nije bilo moguće ponovno poslati. Pokušajte ponovno.",
+      "cancelSuccess": "Promjena e-pošte je otkazana.",
+      "cancelError": "Promjenu nije bilo moguće otkazati. Pokušajte ponovno.",
+      "conflict": "Ta je e-pošta već u upotrebi.",
+      "error": "E-poštu nije bilo moguće promijeniti. Pokušajte ponovno."
+    },
+    "username": {
+      "title": "Korisničko ime",
+      "subtitle": "Korisničkim imenom se prijavljuješ. Za promjenu moraš potvrditi svoj identitet, a promjena stupa na snagu odmah.",
+      "current": "Trenutno korisničko ime",
+      "action": "Promijeni korisničko ime",
+      "new": "Novo korisničko ime",
+      "sameAsCurrent": "Ovo je već tvoje korisničko ime.",
+      "success": "Korisničko ime je promijenjeno.",
+      "conflict": "To korisničko ime već je zauzeto.",
+      "error": "Korisničko ime nije moguće promijeniti. Pokušaj ponovno."
+    },
+    "deleteAccount": {
+      "title": "Izbriši moj račun",
+      "subtitle": "Izbrišite svoj račun i sve svoje podatke, uključujući aktivnosti i njihove datoteke, zdravstvene zapise, opremu, ciljeve, integracije i sesije. Odjavljeni ste sa svih uređaja, a račun se odmah deaktivira, nakon čega se vaši podaci brišu u pozadini. Nema odgode: zaustaviti ga može samo administrator, ponovnom aktivacijom računa prije nego što brisanje završi. Prvo izvezite svoje podatke ako želite zadržati kopiju.",
+      "action": "Izbriši moj račun",
+      "dialogTitle": "Izbrisati račun?",
+      "dialogDescription": "Time ćete se odjaviti sa svih uređaja, vaš će se račun deaktivirati i počet će brisanje svih vaših podataka. Prije završetka to može zaustaviti samo administrator. Potvrdite svoj identitet za nastavak.",
+      "confirm": "Izbriši moj račun",
+      "error": "Račun nije bilo moguće izbrisati. Pokušajte ponovno.",
+      "onlyAdminError": "Vi ste jedini administrator. Prije brisanja računa postavite drugog korisnika za administratora.",
+      "pendingError": "Brisanje ovog računa već je u tijeku."
     },
     "apiKeys": {
       "title": "API ključevi",
@@ -661,13 +933,43 @@
       "namePlaceholder": "npr. skripta za učitavanje s Garmina",
       "scopes": "Dozvole",
       "scopesHint": "Odaberite što ovaj ključ smije raditi. Potrebna je najmanje jedna.",
+      "scopeGroups": {
+        "account": "Račun",
+        "activities": "Aktivnosti",
+        "followers": "Pratitelji",
+        "gears": "Oprema",
+        "health": "Zdravlje",
+        "healthTargets": "Zdravstveni ciljevi",
+        "notifications": "Obavijesti",
+        "users": "Korisnici"
+      },
+      "scopeLabels": {
+        "account": "Upravljanje profilom, fotografijom, ciljevima, privatnošću i zadanom opremom",
+        "activitiesRead": "Čitanje aktivnosti",
+        "activitiesWrite": "Stvaranje, uređivanje i brisanje aktivnosti",
+        "activitiesUpload": "Prijenos datoteka aktivnosti",
+        "followersRead": "Pregled koga pratite i tko prati vas",
+        "followersWrite": "Promjena koga pratite i tko prati vas",
+        "gearsRead": "Čitanje opreme",
+        "gearsWrite": "Stvaranje, uređivanje i brisanje opreme",
+        "healthRead": "Čitanje zdravstvenih podataka",
+        "healthWrite": "Pisanje zdravstvenih podataka",
+        "healthTargetsRead": "Čitanje zdravstvenih ciljeva",
+        "healthTargetsWrite": "Promjena zdravstvenih ciljeva",
+        "notificationsRead": "Čitanje obavijesti",
+        "notificationsWrite": "Upravljanje obavijestima",
+        "usersRead": "Pregled javnih profila drugih korisnika"
+      },
       "expiry": "Istek (neobavezno)",
-      "expiryHint": "Ostavite prazno za ključ koji nikada ne istječe.",
+      "expiryHint": "Ostavite prazno za najdulje trajanje koje poslužitelj dopušta. Kasniji datum se odbija.",
       "createTitle": "Stvori API ključ",
       "createDescription": "Potvrdite svoj identitet kako biste izradili novi API ključ.",
       "createSuccess": "API ključ je stvoren",
       "createError": "Nije moguće stvoriti API ključ. Pokušajte ponovno.",
+      "apiKeyLimit": "Dosegnuli ste ograničenje od 25 aktivnih API ključeva. Opozovite ili izbrišite jedan i pokušajte ponovno.",
+      "expiryTooLate": "Ovaj istek je kasniji nego što poslužitelj dopušta. Odaberite raniji datum ili ostavite prazno.",
       "invalidCredentials": "Vaša lozinka ili kod su netočni.",
+      "expiryNotFuture": "Taj rok isteka nije u budućnosti. Odaberite kasniji datum.",
       "invalidScopes": "Te dozvole nisu dopuštene za API ključeve.",
       "revealTitle": "Kopirajte svoj API ključ",
       "revealDescription": "Ovo je jedini put da se prikazuje cijeli ključ.",
@@ -683,7 +985,6 @@
       "lastUsed": "Posljednje korišteno {date}",
       "neverUsed": "Nikada korišteno",
       "expires": "Istječe {date}",
-      "neverExpires": "Nikada ne istječe",
       "revoke": "Opozovi",
       "revokeTitle": "Opozvati API ključ?",
       "revokeBody": "{name} će odmah prestati raditi. To se ne može poništiti.",
@@ -694,6 +995,26 @@
       "deleteBody": "{name} će biti trajno izbrisan. To se ne može poništiti.",
       "deleteSuccess": "API ključ je izbrisan",
       "deleteError": "Nije moguće izbrisati API ključ. Pokušajte ponovno."
+    },
+    "stepUp": {
+      "passwordLabel": "Vaša lozinka",
+      "passwordHint": "Unesite vlastitu lozinku kako biste potvrdili da ste to vi.",
+      "prompt": "Vaš račun nema lozinku. Ponovno se prijavite putem povezanog pružatelja identiteta kako biste potvrdili da ste to vi.",
+      "continueWith": "Nastavi s pružateljem {name}",
+      "ready": "Prijava putem pružatelja identiteta potvrđena.",
+      "restart": "Prijavi se ponovno",
+      "noProviders": "Nije dostupan nijedan povezani pružatelj identiteta za potvrdu vašeg identiteta.",
+      "startError": "Prijavu putem pružatelja identiteta nije bilo moguće pokrenuti. Pokušajte ponovno.",
+      "tooManyAttempts": "Previše pokušaja. Pokušajte ponovno kasnije.",
+      "reauthRequired": "Potvrdite svoj identitet kod pružatelja identiteta za nastavak.",
+      "failed": "Ponovna prijava putem pružatelja identiteta nije uspjela. Pokušajte ponovno.",
+      "notFresh": "Pružatelj identiteta nije tražio ponovnu prijavu. Obratite se administratoru."
+    },
+    "tabs": {
+      "label": "Odjeljci sigurnosti",
+      "account": "Račun",
+      "sessions": "Sesije i pristup",
+      "danger": "Opasna zona"
     }
   },
   "integrations": {
@@ -729,10 +1050,11 @@
       "connectTitle": "Poveži Strava",
       "connectDescription": "Unesite client id i secret svoje Strava API aplikacije za početak.",
       "connectHint": "Bit ćete preusmjereni na Strava radi autorizacije pristupa, zatim vraćeni ovamo.",
-      "clientId": "Client ID",
+      "clientId": "ID klijenta",
       "clientIdPlaceholder": "123456",
-      "clientSecret": "Client secret",
+      "clientSecret": "Tajna klijenta",
       "connectError": "Nije moguće povezati sa Strava. Provjerite svoje podatke i pokušajte ponovno.",
+      "scopeError": "Strava nije dobila sva dopuštenja koja Endurain treba. Povežite se ponovno i ostavite sva dopuštenja označena.",
       "completing": "Dovršavanje Strava veze…",
       "linkSuccess": "Strava je povezana",
       "retrieveActivitiesTitle": "Dohvati Strava aktivnosti",
@@ -741,9 +1063,10 @@
       "retrievingGear": "Dohvaćanje vaše Strava opreme u pozadini…",
       "retrieveGearError": "Nije moguće pokrenuti dohvaćanje Strava opreme. Pokušajte ponovno.",
       "unlinkTitle": "Prekinuti vezu sa Strava?",
-      "unlinkBody": "Endurain će prestati uvoziti iz servisa Strava. Vaše postojeće aktivnosti su zadržane.",
+      "unlinkBody": "Endurain će prestati uvoziti sa Strave i izbrisat će aktivnosti i opremu sinkronizirane sa Strave. Aktivnosti iz drugih izvora, uključujući učitane izvozne datoteke sa Strave, ostaju sačuvane.",
       "unlinkSuccess": "Veza sa Strava je prekinuta",
-      "unlinkError": "Nije moguće prekinuti vezu sa Strava. Pokušajte ponovno."
+      "unlinkError": "Nije moguće prekinuti vezu sa Strava. Pokušajte ponovno.",
+      "revokedNotice": "Pristup Stravi završio je {revokedAt}. Aktivnosti i oprema sinkronizirane sa Stravom bit će izbrisane {deletionAt} ako se ponovno ne povežete."
     },
     "garmin": {
       "title": "Garmin Connect",
@@ -774,7 +1097,10 @@
       "unlinkBody": "Endurain će prestati uvoziti iz Garmin Connect. Vaši postojeći podaci su zadržani.",
       "unlinkSuccess": "Veza s Garmin Connect je prekinuta",
       "unlinkError": "Nije moguće prekinuti vezu s Garmin Connect. Pokušajte ponovno."
-    }
+    },
+    "retrieveFinished": "Dohvaćanje vaših podataka s {provider} je dovršeno.",
+    "retrieveFailed": "Dohvaćanje vaših podataka s {provider} nije uspjelo. Pokušajte ponovno.",
+    "retrieveAlreadyRunning": "Dohvaćanje s {provider} već je u tijeku. Obavijestit ćemo vas kada završi."
   },
   "import": {
     "title": "Uvoz",
@@ -807,15 +1133,25 @@
     },
     "job": {
       "preparing": "Priprema uvoza…",
-      "progress": "Uvezeno {done} od {total} datoteka ({failed} neuspješno)…",
-      "finished": "Uvoz je završen: uvezeno {done} od {total} datoteka, {failed} neuspješno.",
-      "failed": "Uvoz nije moguće dovršiti."
+      "progress": "Uvezeno {done} od {total} datoteke ({failed} neuspješno)… | Uvezeno {done} od {total} datoteke ({failed} neuspješno)… | Uvezeno {done} od {total} datoteka ({failed} neuspješno)…",
+      "finished": "Uvoz je završen: uvezeno {done} od {total} datoteke, {failed} neuspješno. | Uvoz je završen: uvezeno {done} od {total} datoteke, {failed} neuspješno. | Uvoz je završen: uvezeno {done} od {total} datoteka, {failed} neuspješno.",
+      "failed": "Uvoz nije moguće dovršiti.",
+      "failure": {
+        "unsupported_format": "Uvoz nije uspio: datoteke su u formatu koji nije podržan.",
+        "invalid_file": "Uvoz nije uspio: datoteka nije valjana.",
+        "no_activities_found": "Uvoz nije uspio: nisu pronađene aktivnosti.",
+        "processing_failed": "Uvoz nije uspio tijekom obrade datoteka.",
+        "provider_unavailable": "Uvoz nije uspio: pružatelj usluge nije dostupan. Pokušajte ponovno kasnije."
+      }
     }
   },
   "profile": {
     "title": "Moj profil",
     "subtitle": "Upravljajte detaljima i privatnošću svog računa",
     "notSet": "Nije postavljeno",
+    "emailManagedIn": "Vaša se e-pošta mijenja u sigurnosnim postavkama.",
+    "securitySettingsLink": "Otvori sigurnosne postavke",
+    "usernameManagedIn": "Vaše se korisničko ime mijenja u sigurnosnim postavkama.",
     "error": {
       "title": "Vaš se profil nije mogao učitati",
       "description": "Nešto je pošlo po zlu prilikom učitavanja vašeg profila. Možete pokušati ponovno.",
@@ -826,7 +1162,6 @@
       "title": "Uredi profil",
       "description": "Ažurirajte detalje svog računa",
       "success": "Profil je ažuriran",
-      "conflict": "To korisničko ime ili e-pošta se već koristi",
       "error": "Nije moguće ažurirati vaš profil. Pokušajte ponovno."
     },
     "photo": {
@@ -874,6 +1209,8 @@
       "hideLaps": "Krugovi",
       "hideWorkoutSetsSteps": "Serije i koraci treninga",
       "hideGear": "Oprema",
+      "discoverable": "Dopusti drugima da me pronađu u pretrazi",
+      "discoverableHint": "Drugi korisnici mogu vas pronaći po korisničkom imenu kad pretražuju. Vaš profil ostaje dostupan putem izravne poveznice.",
       "save": "Spremi privatnost",
       "saving": "Spremanje…",
       "saveSuccess": "Postavke privatnosti su ažurirane",
@@ -921,10 +1258,59 @@
       "export": "Izvezi podatke",
       "import": "Uvezi podatke",
       "invalidType": "Odaberite .zip arhivu.",
-      "exportSuccess": "Izvoz je spreman, vaše bi preuzimanje uskoro trebalo započeti",
+      "download": "Preuzmi izvoz",
+      "downloadSuccess": "Preuzimanje bi trebalo uskoro započeti",
+      "downloadError": "Izvoz nije bilo moguće preuzeti. Pokušajte ponovno.",
+      "exportQueued": "Izvoz je pokrenut. Možete napustiti ovu stranicu.",
       "exportError": "Nije moguće izvesti vaše podatke. Pokušajte ponovno.",
-      "importSuccess": "Podaci su uvezeni",
-      "importError": "Nije moguće uvesti arhivu. Provjerite datoteku i pokušajte ponovno."
+      "exportInProgress": "Izvoz je već u tijeku.",
+      "exportStepUp": {
+        "title": "Potvrdite da ste to vi",
+        "description": "Izvoz kopira sve vaše podatke, stoga prvo potvrdite svoj identitet."
+      },
+      "exportStatus": {
+        "queued": "Čeka se početak izvoza…",
+        "running": "Priprema izvoza…",
+        "succeeded": "Vaš je izvoz spreman za preuzimanje. Dostupan je dva sata.",
+        "failed": "Izvoz nije dovršen: {reason}"
+      },
+      "exportFailure": {
+        "timed_out": "trajao je predugo. Možete pokušati ponovno.",
+        "processing_failed": "nešto je pošlo po zlu. Možete pokušati ponovno."
+      },
+      "importQueued": "Uvoz je pokrenut. Možete napustiti ovu stranicu.",
+      "importError": "Nije moguće uvesti arhivu. Provjerite datoteku i pokušajte ponovno.",
+      "importInProgress": "Uvoz je već u tijeku.",
+      "status": {
+        "queued": "Čeka se početak uvoza…",
+        "running": "Uvoz podataka…",
+        "succeeded": "Uvoz završen: uvezena {activities} aktivnost, oprema: {gears}. | Uvoz završen: uvezene {activities} aktivnosti, oprema: {gears}. | Uvoz završen: uvezeno {activities} aktivnosti, oprema: {gears}.",
+        "failed": "Uvoz nije dovršen: {reason}"
+      },
+      "failure": {
+        "invalid_file": "arhiva nije ispravan Endurain izvoz. Ništa nije uvezeno.",
+        "too_large": "arhiva je prevelika. Ništa nije uvezeno.",
+        "too_many_activities": "arhiva ima previše aktivnosti. Ništa nije uvezeno.",
+        "timed_out": "trajao je predugo. Ništa nije uvezeno pa možete pokušati ponovno.",
+        "files_incomplete": "vaši su podaci uvezeni, ali neke datoteke nedostaju. Nemojte ponovno uvoziti; podaci bi se duplicirali.",
+        "processing_failed": "nešto je pošlo po zlu. Ništa nije uvezeno pa možete pokušati ponovno.",
+        "wrong_account": "arhiva je izvezena s drugog računa. Ništa nije uvezeno.",
+        "older_version": "arhiva je izvezena starijom verzijom Endurain-a. Ništa nije uvezeno."
+      }
+    },
+    "blockedUsers": {
+      "title": "Blokirani korisnici",
+      "subtitle": "Blokirani korisnici ne mogu zatražiti da te prate. Blokiranjem nekoga uklanja se i svako praćenje između vas.",
+      "empty": "Nisi blokirao/la nikoga.",
+      "unblock": "Odblokiraj",
+      "unblockError": "Nije moguće odblokirati ovog korisnika. Pokušaj ponovno.",
+      "loadError": "Nije moguće učitati tvoje blokirane korisnike.",
+      "retry": "Pokušaj ponovno"
+    },
+    "tabs": {
+      "label": "Odjeljci profila",
+      "profile": "Profil",
+      "privacy": "Privatnost i podaci"
     }
   }
 }

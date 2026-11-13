@@ -1,10 +1,17 @@
 {
-  "repository": "Repozitár",
+  "releaseNotes": "Poznámky k vydaniu {version}",
+  "project": "Projekt",
+  "website": "Web",
   "documentation": "Dokumentácia",
+  "sourceCode": "Zdrojový kód",
+  "community": "Komunita",
   "mastodon": "Účet Endurain na Mastodone",
   "bluesky": "Profil Endurain na Bluesky",
   "discord": "Discord server Endurain",
   "linkedin": "Stránka Endurain na LinkedIne",
+  "externalLink": "otvorí sa na novej karte",
+  "trademarkNotice": "Endurain® je registrovaná ochranná známka João Vitória Silva.",
+  "trademarkPolicy": "Zásady ochrannej známky",
   "compatibleStrava": "Kompatibilné so Strava",
   "worksGarmin": "Funguje s Garmin Connect"
 }

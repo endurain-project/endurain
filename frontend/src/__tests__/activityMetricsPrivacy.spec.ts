@@ -9,40 +9,40 @@ import {
   streamMetricVisibility,
 } from '@/features/activities/utils/privacy'
 
-import { makeActivity, NO_PRIVACY } from './fixtures/activity'
+import { makeActivity, NO_PRIVACY, userUuid } from './fixtures/activity'
 
 describe('isActivityOwner', () => {
   it('matches the owner only when ids align and a viewer is present', () => {
-    const activity = makeActivity({ userId: 7 })
-    expect(isActivityOwner(activity, 7)).toBe(true)
-    expect(isActivityOwner(activity, 8)).toBe(false)
+    const activity = makeActivity({ userId: userUuid(7) })
+    expect(isActivityOwner(activity, userUuid(7))).toBe(true)
+    expect(isActivityOwner(activity, userUuid(8))).toBe(false)
     expect(isActivityOwner(activity, null)).toBe(false)
   })
 })
 
 describe('canViewField', () => {
   it('lets the owner see hidden fields but hides them from others', () => {
-    const activity = makeActivity({ userId: 7, privacy: { ...NO_PRIVACY, hideHr: true } })
-    expect(canViewField(activity, 'hideHr', 7)).toBe(true)
-    expect(canViewField(activity, 'hideHr', 8)).toBe(false)
+    const activity = makeActivity({ userId: userUuid(7), privacy: { ...NO_PRIVACY, hideHr: true } })
+    expect(canViewField(activity, 'hideHr', userUuid(7))).toBe(true)
+    expect(canViewField(activity, 'hideHr', userUuid(8))).toBe(false)
     expect(canViewField(activity, 'hideHr', null)).toBe(false)
   })
 
   it('shows non-hidden fields to everyone', () => {
-    const activity = makeActivity({ userId: 7 })
-    expect(canViewField(activity, 'hidePower', 8)).toBe(true)
+    const activity = makeActivity({ userId: userUuid(7) })
+    expect(canViewField(activity, 'hidePower', userUuid(8))).toBe(true)
   })
 })
 
 describe('buildMetricVisibility', () => {
   it('shows everything to the owner', () => {
-    const activity = makeActivity({ userId: 7, privacy: { ...NO_PRIVACY, hideHr: true } })
-    expect(buildMetricVisibility(activity, 7).hr).toBe(true)
+    const activity = makeActivity({ userId: userUuid(7), privacy: { ...NO_PRIVACY, hideHr: true } })
+    expect(buildMetricVisibility(activity, userUuid(7)).hr).toBe(true)
   })
 
   it('respects hide flags for non-owners', () => {
-    const activity = makeActivity({ userId: 7, privacy: { ...NO_PRIVACY, hideHr: true } })
-    const visibility = buildMetricVisibility(activity, 8)
+    const activity = makeActivity({ userId: userUuid(7), privacy: { ...NO_PRIVACY, hideHr: true } })
+    const visibility = buildMetricVisibility(activity, userUuid(8))
     expect(visibility.hr).toBe(false)
     expect(visibility.pace).toBe(true)
   })
@@ -50,8 +50,8 @@ describe('buildMetricVisibility', () => {
 
 describe('streamMetricVisibility', () => {
   it('always shows temperature and gates hr by its flag', () => {
-    const activity = makeActivity({ userId: 7, privacy: { ...NO_PRIVACY, hideHr: true } })
-    const visible = streamMetricVisibility(activity, 8)
+    const activity = makeActivity({ userId: userUuid(7), privacy: { ...NO_PRIVACY, hideHr: true } })
+    const visible = streamMetricVisibility(activity, userUuid(8))
     expect(visible('temperature')).toBe(true)
     expect(visible('hr')).toBe(false)
     expect(visible('pace')).toBe(true)
@@ -77,7 +77,7 @@ describe('buildActivityMetrics', () => {
 
   it('shows a curated set of six running stats (distance/time/pace/power/elevation/calories)', () => {
     const tiles = buildActivityMetrics(
-      makeActivity({ activityType: 1, averagePower: 250 }),
+      makeActivity({ activityType: 'run', averagePower: 250 }),
       'metric',
       visible,
     )
@@ -89,7 +89,7 @@ describe('buildActivityMetrics', () => {
 
   it('shows speed (not pace) for cycling and caps at six', () => {
     const tiles = buildActivityMetrics(
-      makeActivity({ activityType: 4, averageSpeed: 8, averagePower: 200, pace: null }),
+      makeActivity({ activityType: 'ride', averageSpeed: 8, averagePower: 200, pace: null }),
       'metric',
       visible,
     )
@@ -100,7 +100,7 @@ describe('buildActivityMetrics', () => {
 
   it('shows only calories/time/HR for non-distance activities (e.g. strength)', () => {
     const tiles = buildActivityMetrics(
-      makeActivity({ activityType: 19, totalElapsedTime: 3500 }),
+      makeActivity({ activityType: 'strength_training', totalElapsedTime: 3500 }),
       'metric',
       visible,
     )
@@ -111,19 +111,19 @@ describe('buildActivityMetrics', () => {
 
   it('leads with a jumps tile for jump rope when total cycles are present', () => {
     const tiles = buildActivityMetrics(
-      makeActivity({ activityType: 47, totalCycles: 1200 }),
+      makeActivity({ activityType: 'jump_rope', totalCycles: 1200 }),
       'metric',
       visible,
     )
     const jumps = tiles.find((tile) => tile.key === 'jumps')
     expect(tiles[0]?.key).toBe('jumps')
-    expect(jumps?.value).toBe('1200')
+    expect(jumps?.value).toBe('1,200')
     expect(jumps?.labelKey).toBe('activities.metrics.jumps')
   })
 
   it('omits the jumps tile for jump rope without total cycles', () => {
     const tiles = buildActivityMetrics(
-      makeActivity({ activityType: 47, totalCycles: null }),
+      makeActivity({ activityType: 'jump_rope', totalCycles: null }),
       'metric',
       visible,
     )
@@ -132,7 +132,7 @@ describe('buildActivityMetrics', () => {
 
   it('does not show a jumps tile for other non-distance activities', () => {
     const tiles = buildActivityMetrics(
-      makeActivity({ activityType: 19, totalCycles: 500 }),
+      makeActivity({ activityType: 'strength_training', totalCycles: 500 }),
       'metric',
       visible,
     )
@@ -140,7 +140,7 @@ describe('buildActivityMetrics', () => {
   })
 
   it('hides heart-rate tiles for a privacy-restricted swimmer but keeps pace', () => {
-    const tiles = buildActivityMetrics(makeActivity({ activityType: 8 }), 'metric', {
+    const tiles = buildActivityMetrics(makeActivity({ activityType: 'lap_swimming' }), 'metric', {
       ...visible,
       hr: false,
     })
@@ -153,8 +153,8 @@ describe('buildActivityMetrics', () => {
 
 describe('formatLapTempo', () => {
   it('uses pace for running and speed for cycling', () => {
-    expect(formatLapTempo(0.3, null, 1, 'metric')).toBe('5:00 min/km')
-    expect(formatLapTempo(null, 10, 4, 'metric')).toBe('36.00 km/h')
-    expect(formatLapTempo(null, null, 1, 'metric')).toBe('--')
+    expect(formatLapTempo(0.3, null, 'run', 'metric')).toEqual({ value: '5:00', unit: 'minPerKm' })
+    expect(formatLapTempo(null, 10, 'ride', 'metric')).toEqual({ value: '36.00', unit: 'kmh' })
+    expect(formatLapTempo(null, null, 'run', 'metric')).toBeNull()
   })
 })

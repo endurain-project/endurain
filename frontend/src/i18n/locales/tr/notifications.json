@@ -5,10 +5,12 @@
   "unread": "Okunmamış",
   "markRead": "Okundu olarak işaretle",
   "markAllRead": "Tümünü okundu olarak işaretle",
+  "dismiss": "Bildirimi kapat",
+  "dismissError": "Bildirim kapatılamadı. Lütfen tekrar deneyin.",
   "seeAll": "Tümünü gör",
   "loadMore": "Daha fazla yükle",
   "loading": "Yükleniyor…",
-  "badge": "{count} okunmamış bildirim",
+  "badge": "{count} okunmamış bildirim | {count} okunmamış bildirim",
   "empty": {
     "title": "Her şeyi gördünüz",
     "description": "Etkinlikleriniz, takipçileriniz ve entegrasyonlarınızla ilgili güncellemeler burada görünecek."
@@ -39,9 +41,122 @@
       "title": "Garmin Connect ilgi bekliyor",
       "body": "Garmin Connect oturumunuzun süresi doldu. Eşitlemeyi sürdürmek için yeniden bağlanın."
     },
+    "stravaTokenExpired": {
+      "title": "Strava dikkatinizi bekliyor",
+      "body": "Strava bağlantınızı reddetti. Senkronizasyona devam etmek için yeniden bağlayın.",
+      "bodyRevoked": "Strava erişimi sona erdi. Strava ile eşitlenen etkinlikleriniz ve ekipmanlarınız, yeniden bağlanmazsanız {date} tarihinde silinecek."
+    },
+    "stravaDataDeleted": {
+      "title": "Strava verileri silindi",
+      "body": "Strava erişimi sona erdiği ve yeniden bağlanmadığınız için Strava ile eşitlenen etkinlikleriniz ve ekipmanlarınız silindi."
+    },
+    "idpLinked": {
+      "title": "Yeni giriş sağlayıcısı bağlandı",
+      "body": "{name} hesabınıza bağlandı. Bu işlemi siz yapmadıysanız güvenlik ayarlarınızı gözden geçirin.",
+      "bodyGeneric": "Hesabınıza bir giriş sağlayıcısı bağlandı. Bu işlemi siz yapmadıysanız güvenlik ayarlarınızı gözden geçirin."
+    },
+    "accountSecurityChanged": {
+      "passwordChanged": {
+        "title": "Parola değiştirildi",
+        "body": "Parolanız değiştirildi. Bunu siz yapmadıysanız parolanızı sıfırlayın ve güvenlik ayarlarınızı gözden geçirin."
+      },
+      "passwordReset": {
+        "title": "Parola sıfırlandı",
+        "body": "Parolanız bir sıfırlama bağlantısıyla sıfırlandı. Bunu siz yapmadıysanız parolanızı tekrar sıfırlayın ve güvenlik ayarlarınızı gözden geçirin. Any API keys were revoked and any pending email change was cancelled."
+      },
+      "passwordSetByAdmin": {
+        "title": "Parola bir yönetici tarafından belirlendi",
+        "body": "Bir yönetici hesabınız için yeni bir parola belirledi. Bunu beklemiyorsanız yöneticinizle iletişime geçin. Any API keys were revoked and any pending email change was cancelled."
+      },
+      "mfaEnabled": {
+        "title": "İki adımlı kimlik doğrulama açıldı",
+        "body": "Hesabınız için iki adımlı kimlik doğrulama açıldı. Bunu siz yapmadıysanız parolanızı sıfırlayın ve güvenlik ayarlarınızı gözden geçirin."
+      },
+      "mfaDisabled": {
+        "title": "İki adımlı kimlik doğrulama kapatıldı",
+        "body": "Hesabınız için iki adımlı kimlik doğrulama kapatıldı. Bunu siz yapmadıysanız parolanızı sıfırlayın ve güvenlik ayarlarınızı gözden geçirin."
+      },
+      "mfaResetByAdmin": {
+        "title": "İki adımlı kimlik doğrulama bir yönetici tarafından sıfırlandı",
+        "body": "Bir yönetici hesabınızın iki adımlı kimlik doğrulamasını sıfırladı ve tüm cihazlardaki oturumlarınızı kapattı. Güvenlik ayarlarınızdan yeniden kurun. Bunu beklemiyorsanız yöneticinizle iletişime geçin."
+      },
+      "passwordChangeRequiredByAdmin": {
+        "title": "Parola değişikliği bir yönetici tarafından zorunlu kılındı",
+        "body": "Bir yönetici parolanızı değiştirmenizi zorunlu kıldı ve tüm cihazlardaki oturumlarınızı kapattı. Parolanızla bir sonraki girişinizde yeni bir parola seçeceksiniz. Bunu beklemiyorsanız yöneticinizle iletişime geçin."
+      },
+      "backupCodesGenerated": {
+        "title": "Yeni yedek kodlar oluşturuldu",
+        "body": "Hesabınız için yeni yedek kodlar oluşturuldu. Bunu siz yapmadıysanız parolanızı sıfırlayın ve güvenlik ayarlarınızı gözden geçirin."
+      },
+      "apiKeyCreated": {
+        "title": "Yeni API anahtarı oluşturuldu",
+        "body": "Hesabınız için yeni bir API anahtarı oluşturuldu. Bunu siz yapmadıysanız parolanızı sıfırlayın ve güvenlik ayarlarınızı gözden geçirin."
+      },
+      "apiKeysRevokedByAdmin": {
+        "title": "API anahtarları bir yönetici tarafından iptal edildi",
+        "body": "Bir yönetici API anahtarlarınızdan birini veya birkaçını iptal etti, bu yüzden onları kullanan hiçbir şey artık hesabınıza erişemez. Bunu beklemiyorsanız yöneticinizle iletişime geçin."
+      },
+      "identityProviderUnlinked": {
+        "title": "Giriş sağlayıcısının bağlantısı kaldırıldı",
+        "body": "{name} sağlayıcısının hesabınızla bağlantısı kaldırıldı. Bunu siz yapmadıysanız parolanızı sıfırlayın ve güvenlik ayarlarınızı gözden geçirin.",
+        "bodyGeneric": "Bir giriş sağlayıcısının hesabınızla bağlantısı kaldırıldı. Bunu siz yapmadıysanız parolanızı sıfırlayın ve güvenlik ayarlarınızı gözden geçirin."
+      },
+      "accountLocked": {
+        "title": "Hesap kilitlendi",
+        "body": "Hesabınız art arda 100 başarısız giriş denemesinden sonra kilitlendi. Son güvenlik değişikliğinizden bu yana giriş yaptığınız tarayıcılar ve uygulamalar yine de giriş yapabilir. Bu denemeler size ait değilse parolanızı değiştirin veya sıfırlayın; bu işlem kilidi de kaldırır."
+      },
+      "mfaLocked": {
+        "title": "İki adımlı doğrulama kilitlendi",
+        "body": "Hesabınız art arda 100 yanlış iki adımlı doğrulama kodundan sonra kilitlendi; yani biri parolanızı biliyor. Son güvenlik değişikliğinizden bu yana giriş yaptığınız tarayıcılar ve uygulamalar yine de giriş yapabilir. Bu denemeler size ait değilse parolanızı değiştirin."
+      },
+      "stepUpSessionEnded": {
+        "title": "Oturum kapatıldı",
+        "body": "Hassas bir işlemi onaylamak için art arda 15 yanlış parola veya iki adımlı kimlik doğrulama kodu girildiği için hesabınızın bir oturumu kapatıldı. Diğer oturumlarınız etkilenmedi. Bunları siz girmediyseniz parolanızı değiştirin."
+      },
+      "stepUpLocked": {
+        "title": "Hassas işlemlerin onaylanması kilitlendi",
+        "body": "Oturumlarınız genelinde 100 yanlış onay yapıldığı için parolanızı değiştirmek veya API anahtarı oluşturmak gibi hassas işlemlerin onaylanması 30 gün boyunca kilitlendi. Bunları siz yapmadıysanız parolanızı sıfırlayın; bu işlem kilidi de kaldırır."
+      },
+      "backupCodeUsed": {
+        "title": "Yedek kod kullanıldı",
+        "body": "Hesabınızda iki adımlı kimlik doğrulama için bir yedek kod kullanıldı. Bunu siz yapmadıysanız parolanızı değiştirin ve yeni yedek kodlar oluşturun.",
+        "bodyRemaining": "Hesabınızda iki adımlı kimlik doğrulama için bir yedek kod kullanıldı. Kalan kullanılmamış yedek kod sayısı: {count}. Bunu siz yapmadıysanız parolanızı değiştirin ve yeni yedek kodlar oluşturun.",
+        "bodyNone": "Hesabınızda iki adımlı kimlik doğrulama için bir yedek kod kullanıldı. Kullanılmamış yedek kodunuz kalmadı, bu yüzden güvenlik ayarlarınızdan yenilerini oluşturun. Bunu siz yapmadıysanız parolanızı değiştirin."
+      },
+      "refreshTokenReuseDetected": {
+        "title": "Oturum sonlandırıldı",
+        "body": "Daha önce kullanılmış bir belirteç tekrar sunulduğu için hesabınızın bir oturumu sonlandırıldı; bu, oturumun kopyalandığı anlamına gelebilir. Diğer oturumlarınız etkilenmedi. Bunu beklemiyorsanız parolanızı değiştirin."
+      },
+      "roleChangedByAdmin": {
+        "title": "Erişiminiz bir yönetici tarafından değiştirildi",
+        "body": "Bir yönetici hesabınızın erişim türünü değiştirdi ve tüm cihazlardaki oturumlarınızı kapattı. Bunu beklemiyorsanız yöneticinizle iletişime geçin.",
+        "bodyAdmin": "Bir yönetici hesabınızın erişim türünü yönetici olarak değiştirdi ve tüm cihazlardaki oturumlarınızı kapattı. Bunu beklemiyorsanız yöneticinizle iletişime geçin.",
+        "bodyRegular": "Bir yönetici hesabınızın erişim türünü normal kullanıcı olarak değiştirdi ve tüm cihazlardaki oturumlarınızı kapattı. Bunu beklemiyorsanız yöneticinizle iletişime geçin."
+      },
+      "accountDeactivatedByAdmin": {
+        "title": "Hesabınız bir yönetici tarafından devre dışı bırakıldı",
+        "body": "Bir yönetici hesabınızı devre dışı bıraktı ve tüm cihazlardaki oturumlarınızı kapattı. Bir yönetici hesabı yeniden etkinleştirene kadar giriş yapamazsınız."
+      },
+      "unknown": {
+        "title": "Hesap güvenliği değişti",
+        "body": "Hesabınızın bir güvenlik ayarı değişti. Bunu siz yapmadıysanız parolanızı sıfırlayın ve güvenlik ayarlarınızı gözden geçirin."
+      },
+      "usernameChanged": {
+        "title": "Kullanıcı adı değiştirildi",
+        "body": "Kullanıcı adınız değiştirildi. Bu siz değilseniz parolanızı sıfırlayın ve güvenlik ayarlarınızı gözden geçirin."
+      }
+    },
+    "newDeviceSignIn": {
+      "title": "Yeni giriş",
+      "body": "{os} üzerinde {browser} ile yeni bir giriş yapıldı ({ip}). Bunu siz yapmadıysanız parolanızı değiştirin ve diğer oturumlarınızı kapatın."
+    },
     "adminSignUpApproval": {
       "title": "Yeni kayıt onay bekliyor",
       "body": "{name} ({'@'}{username}) hesap onayını bekliyor."
+    },
+    "adminUserPromoted": {
+      "title": "Kullanıcı yönetici yapıldı",
+      "body": "{name} ({'@'}{username}) kullanıcısına yönetici erişimi verildi."
     },
     "unknown": {
       "title": "Bildirim",

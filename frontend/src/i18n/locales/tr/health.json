@@ -1,6 +1,12 @@
 {
   "title": "Sağlık",
   "subtitle": "Tüm sağlık verilerinizi tek bir yerde görün",
+  "chartBucket": {
+    "week": "Haftalık ortalamalar: her çubuk o haftanın ortalama gününü gösterir.",
+    "month": "Aylık ortalamalar: her çubuk o ayın ortalama gününü gösterir."
+  },
+  "targetInvalid": "0'dan büyük bir değer girin veya hedefi kaldırmak için boş bırakın.",
+  "chartError": "Bu zaman aralığı için grafik yüklenemedi.",
   "nav": {
     "label": "Sağlık bölümleri",
     "soon": "Yakında",
@@ -20,7 +26,7 @@
     "restingHeartRate": "Dinlenme KAH",
     "avgSkinTemperatureDeviation": "Cilt sıc. sapması",
     "weight": "Kilo",
-    "bmi": "BMI",
+    "bmi": "VKİ",
     "steps": "Adımlar",
     "fasting": "Oruç",
     "water": "Su tüketimi",
@@ -34,6 +40,7 @@
     "stepsTargetLabel": "adım",
     "poopTargetLabel": "/ gün",
     "noWeightData": "Kilo verisi yok",
+    "noHeightData": "BMI değerinizi görmek için profilinize boyunuzu ekleyin.",
     "bmiUnderweight": "Zayıf",
     "bmiNormalWeight": "Normal kilo",
     "bmiOverweight": "Fazla kilolu",
@@ -72,7 +79,7 @@
       "delete": "Kaydı sil"
     },
     "detail": {
-      "bmi": "BMI",
+      "bmi": "VKİ",
       "bodyFat": "Vücut yağı",
       "bodyWater": "Vücut suyu",
       "boneMass": "Kemik kütlesi",
@@ -88,7 +95,6 @@
       "weightRequired": "Lütfen kilonuzu girin.",
       "weightInvalid": "Sıfırdan büyük bir kilo girin.",
       "bodyComposition": "Vücut kompozisyonu (isteğe bağlı)",
-      "bmi": "BMI",
       "bodyFat": "Vücut yağı (%)",
       "bodyWater": "Vücut suyu (%)",
       "boneMass": "Kemik kütlesi",
@@ -256,6 +262,8 @@
     "scorePoor": "Zayıf",
     "detail": {
       "tabsLabel": "Uyku ayrıntı bölümleri",
+      "stagesLoading": "Uyku evreleri yükleniyor",
+      "stagesError": "Uyku evreleri yüklenemedi",
       "tabScore": "Uyku puanı",
       "tabDetails": "Uyku ayrıntıları",
       "deep": "Derin",
@@ -301,6 +309,8 @@
     "form": {
       "addTitle": "Uyku kaydet",
       "editTitle": "Uyku kaydını düzenle",
+      "loading": "Uyku kaydı yükleniyor",
+      "loadError": "Uyku kaydı yüklenemedi",
       "description": "Uyku sürenizi ve isteğe bağlı olarak evre dağılımını ve metrikleri kaydedin.",
       "date": "Tarih",
       "dateRequired": "Lütfen bir tarih seçin.",
@@ -308,6 +318,8 @@
       "totalSleepRequired": "Lütfen ne kadar uyuduğunuzu girin.",
       "hours": "Saat",
       "minutes": "Dakika",
+      "hoursOf": "{field}, saat",
+      "minutesOf": "{field}, dakika",
       "stageBreakdown": "Evre dağılımı (isteğe bağlı)",
       "deep": "Derin uyku",
       "light": "Hafif uyku",
@@ -350,7 +362,11 @@
       "close": "Kapat",
       "createSuccess": "Uyku kaydedildi.",
       "updateSuccess": "Uyku kaydı güncellendi.",
-      "saveError": "Uyku kaydınız kaydedilemedi. Lütfen tekrar deneyin."
+      "saveError": "Uyku kaydınız kaydedilemedi. Lütfen tekrar deneyin.",
+      "numberRange": "{min} ile {max} arasında bir değer girin.",
+      "numberMin": "{min} veya daha büyük bir değer girin.",
+      "stagesExceedTotal": "Derin, hafif ve REM uykusu toplamı toplam uykuyu aşıyor.",
+      "inconsistentError": "Bu uyku verileri tutarlı değil. Evrelerin ve toplamın uyku saatlerine sığdığını kontrol edin."
     },
     "target": {
       "title": "Uyku hedefi belirle",
@@ -419,7 +435,8 @@
       "close": "Kapat",
       "createSuccess": "Su kaydedildi.",
       "updateSuccess": "Su kaydı güncellendi.",
-      "saveError": "Su kaydınız kaydedilemedi. Lütfen tekrar deneyin."
+      "saveError": "Su kaydınız kaydedilemedi. Lütfen tekrar deneyin.",
+      "dayTakenError": "Bu gün için zaten bir su kaydı var. Yeni kayıt eklemek yerine mevcut kaydı düzenleyin."
     },
     "target": {
       "title": "Su hedefi belirle",
@@ -596,6 +613,8 @@
       "startTime": "Başlangıç saati",
       "startTimeRequired": "Lütfen bir başlangıç saati seçin.",
       "endTime": "Bitiş saati",
+      "endBeforeStart": "Bitiş saati başlangıç saatinden önce olamaz.",
+      "endWhileInProgress": "Devam eden bir orucun bitiş saati olamaz.",
       "status": "Durum",
       "notes": "Notlar",
       "create": "Başla",
@@ -604,7 +623,9 @@
       "close": "Kapat",
       "createSuccess": "Oruç başladı.",
       "updateSuccess": "Oruç oturumu güncellendi.",
-      "saveError": "Oruç oturumunuz kaydedilemedi. Lütfen tekrar deneyin."
+      "saveError": "Oruç oturumunuz kaydedilemedi. Lütfen tekrar deneyin.",
+      "overlapError": "Bu oruç başka bir oruç oturumuyla çakışıyor ya da zaten devam eden başka bir oruç var.",
+      "invalidTimesError": "Bir oruç başlamadan bitemez, tamamlanan veya bozulan bir oruç için bitiş saati gerekir ve devam eden bir orucun bitiş saati olamaz."
     },
     "target": {
       "title": "Oruç hedefi belirle",
@@ -621,6 +642,20 @@
     "complete": {
       "success": "Oruç sona erdi.",
       "error": "Orucunuz sonlandırılamadı. Lütfen tekrar deneyin."
+    },
+    "endConfirm": {
+      "broken": {
+        "title": "Bu oruç bozulsun mu?",
+        "body": "Oruç şimdi sona erer ve bozuldu olarak kaydedilir. Bu işlem geri alınamaz.",
+        "confirm": "Orucu boz"
+      },
+      "cancelled": {
+        "title": "Bu oruç iptal edilsin mi?",
+        "body": "Oruç şimdi sona erer ve iptal edildi olarak kaydedilir. Bu işlem geri alınamaz.",
+        "confirm": "Orucu iptal et"
+      },
+      "cancel": "Oruca devam et",
+      "close": "Kapat"
     },
     "empty": {
       "title": "Henüz oruç yok",

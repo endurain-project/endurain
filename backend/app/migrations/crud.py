@@ -1,14 +1,20 @@
 """CRUD operations for migration tracking."""
 
+import uuid
 from typing import overload
 
-from fastapi import HTTPException, status
-from sqlalchemy import select
+from sqlalchemy import Integer, Uuid, column, select, table, text
 from sqlalchemy.orm import Session
 
-import core.decorators as core_decorators
+import core.exceptions as core_exceptions
 import migrations.models as migrations_models
 import migrations.schema as migrations_schema
+
+#: Scratch table of the UUID conversion revisions: the old and new id of every converted row, until migration 13
+#: has renamed the stored files and drops it.
+_UUID_MIGRATION_IDS = table(
+    "uuid_migration_ids", column("table_name"), column("old_id", Integer), column("new_id", Uuid)
+)
 
 # Private internal helpers
 
@@ -42,8 +48,7 @@ def _transform_migrations(
     return migrations_schema.MigrationRead.model_validate(migrations)
 
 
-@core_decorators.handle_db_errors
-def _get_migration_by_id_model_or_404(migration_id: int, db: Session) -> migrations_models.Migration:
+def _get_migration_by_id(migration_id: int, db: Session) -> migrations_models.Migration:
     """
     Retrieve a migration by its ID from the database.
 
@@ -55,16 +60,13 @@ def _get_migration_by_id_model_or_404(migration_id: int, db: Session) -> migrati
         Migration ORM instance.
 
     Raises:
-        HTTPException: If database error occurs.
+        NotFoundError: If the migration does not exist.
     """
     stmt = select(migrations_models.Migration).where(migrations_models.Migration.id == migration_id)
     db_migration = db.execute(stmt).scalar_one_or_none()
 
     if db_migration is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Migration not found",
-        )
+        raise core_exceptions.NotFoundError("Migration not found")
 
     return db_migration
 
@@ -72,7 +74,6 @@ def _get_migration_by_id_model_or_404(migration_id: int, db: Session) -> migrati
 # Public CRUD functions
 
 
-@core_decorators.handle_db_errors
 def get_migrations_not_executed(
     db: Session,
 ) -> list[migrations_schema.MigrationRead]:
@@ -86,14 +87,12 @@ def get_migrations_not_executed(
         List of unexecuted Migration schemas.
 
     Raises:
-        HTTPException: 500 error on database failure.
     """
     stmt = select(migrations_models.Migration).where(migrations_models.Migration.executed.is_(False))
     db_migrations = db.execute(stmt).scalars().all()
     return _transform_migrations(list(db_migrations))
 
 
-@core_decorators.handle_db_errors
 def set_migration_as_executed(
     migration_id: int,
     db: Session,
@@ -109,12 +108,38 @@ def set_migration_as_executed(
         The updated Migration schema.
 
     Raises:
-        HTTPException: 404 if migration not found.
-        HTTPException: 500 error on database failure.
+        NotFoundError: If the migration does not exist.
     """
-    db_migration = _get_migration_by_id_model_or_404(migration_id, db)
+    db_migration = _get_migration_by_id(migration_id, db)
 
     db_migration.executed = True
-    db.commit()
+    db.flush()
     db.refresh(db_migration)
     return _transform_migrations(db_migration)
+
+
+def get_uuid_migration_ids(table_name: str, db: Session) -> dict[int, uuid.UUID]:
+    """
+    Retrieve the old and new ids a conversion revision recorded for one table.
+
+    Args:
+        table_name: The converted table.
+        db: Database session.
+
+    Returns:
+        The new UUID of each old integer id.
+    """
+    stmt = select(_UUID_MIGRATION_IDS.c.old_id, _UUID_MIGRATION_IDS.c.new_id).where(
+        _UUID_MIGRATION_IDS.c.table_name == table_name
+    )
+    return {old_id: new_id for old_id, new_id in db.execute(stmt).all()}
+
+
+def drop_uuid_migration_ids(db: Session) -> None:
+    """
+    Drop the table of recorded ids. The caller commits.
+
+    Args:
+        db: Database session.
+    """
+    db.execute(text("DROP TABLE uuid_migration_ids"))

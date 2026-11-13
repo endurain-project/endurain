@@ -1,4 +1,4 @@
-"""Event subscribers for the password reset tokens module."""
+"""Event subscribers for password-reset email delivery."""
 
 import jasil.event_versioning as platform_event_versioning
 import jasil.runtime as platform_runtime
@@ -7,23 +7,39 @@ from jasil.jobs.registry import JobHandlerRegistry
 from jasil.providers import EventBusProvider
 from jasil.subscribers import best_effort
 
+import core.config as core_config
 import core.database as core_database
-import modules.auth.password_reset_tokens.events as password_reset_tokens_events
-import modules.auth.password_reset_tokens.utils as password_reset_tokens_utils
+import core.logger as core_logger
+import core.mail as core_mail
+import modules.auth.password_reset_tokens.events as password_reset_events
+import modules.auth.password_reset_tokens.service as password_reset_service
 
-PASSWORD_RESET_EMAIL_SUBSCRIBER_ID = "auth.send_password_reset_email"  # noqa: S105 (subscriber id, not a password)
+logger = core_logger.get_logger(__name__)
+PASSWORD_RESET_EMAIL_SUBSCRIBER_ID = "auth.send_password_reset_email"  # noqa: S105
 
 
 def send_password_reset_email_for_event(event: Event) -> None:
-    """Send the password reset email for a ``auth.password_reset_requested`` event.
-
-    Raises:
-        MailError: On a transient delivery failure, so the durable job is retried.
-    """
-    payload = platform_event_versioning.parse_payload(password_reset_tokens_events.PasswordResetRequestedPayload, event)
+    """Decide on a password-reset request event and deliver its email when it is admitted."""
+    payload = platform_event_versioning.parse_payload(password_reset_events.PasswordResetRequestedPayload, event)
     mail = platform_runtime.get_active_platform().mail
+    state = platform_runtime.get_state()
+    frontend_host = core_config.settings.ENDURAIN_HOST
     with core_database.SessionLocal() as db:
-        password_reset_tokens_utils.send_password_reset_email_to_user(payload.user_id, mail, db)
+        message = password_reset_service.prepare_password_reset_email(payload, event.event_id, frontend_host, state, db)
+    if message is None:
+        logger.debug("No password-reset email to send for this request")
+        return
+    recipient, subject, html_content, text_content = message
+    try:
+        sent = core_mail.send_email(mail, recipient, subject, html_content, text_content)
+    except Exception as err:
+        logger.error("Password-reset email delivery failed", exc_info=err)
+        raise
+    if sent:
+        logger.debug("Password-reset email delivered")
+    else:
+        logger.debug("Password-reset email was not delivered")
+    logger.debug("Password-reset email event processed", extra=core_logger.context(user_id=payload.user_id))
 
 
 on_password_reset_requested = best_effort(send_password_reset_email_for_event)
@@ -31,13 +47,13 @@ on_password_reset_requested = best_effort(send_password_reset_email_for_event)
 
 def register_bus_subscribers(events: EventBusProvider) -> None:
     """Register the password reset event consumers on the running bus."""
-    events.subscribe(password_reset_tokens_events.PASSWORD_RESET_REQUESTED, on_password_reset_requested)
+    events.subscribe(password_reset_events.PASSWORD_RESET_REQUESTED, on_password_reset_requested)
 
 
 def register_durable_handlers(registry: JobHandlerRegistry) -> None:
     """Register the retryable password reset event consumers."""
     registry.register(
-        password_reset_tokens_events.PASSWORD_RESET_REQUESTED,
+        password_reset_events.PASSWORD_RESET_REQUESTED,
         PASSWORD_RESET_EMAIL_SUBSCRIBER_ID,
         send_password_reset_email_for_event,
     )

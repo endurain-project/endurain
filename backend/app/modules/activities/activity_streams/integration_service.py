@@ -1,7 +1,9 @@
 """Public persistence and derivation operations for activity streams."""
 
+import uuid
 from typing import Any
 
+from pydantic import InstanceOf, TypeAdapter
 from sqlalchemy.orm import Session
 
 import modules.activities.activity.schema as activity_schema
@@ -9,10 +11,11 @@ import modules.activities.activity_streams.contracts as activity_streams_contrac
 import modules.activities.activity_streams.crud as activity_streams_crud
 import modules.activities.activity_streams.schema as activity_streams_schema
 import modules.activities.contributors as activities_contributors
+import modules.users.users_profile.contracts as users_profile_contracts
 
 
 def _list_streams_for_activities(
-    activity_ids: list[int],
+    activity_ids: list[uuid.UUID],
     db: Session,
 ) -> list[activity_streams_schema.ActivityStreamsRead]:
     """Return streams for activity IDs already scoped by the caller.
@@ -42,8 +45,14 @@ def _store_streams(
     activity_streams_crud.create_activity_streams(streams, activity, db)
 
 
+#: The parsed streams.
+_PAYLOAD: TypeAdapter[list[activity_streams_contracts.ParsedStream]] = TypeAdapter(
+    list[InstanceOf[activity_streams_contracts.ParsedStream]]
+)
+
+
 def _persist_ingestion_component(
-    data: Any,
+    data: object,
     activity: activity_schema.ActivityRead,
     db: Session,
 ) -> None:
@@ -53,15 +62,19 @@ def _persist_ingestion_component(
         data: The parsed component payload.
         activity: The newly created parent activity.
         db: Database session.
+
+    Raises:
+        ValidationError: When the parser handed something other than parsed streams, before anything is staged.
     """
     streams = [
         activity_streams_contracts.ActivityStreamsCreate(
             activity_id=activity.id,
             stream_type=stream.stream_type,
-            stream_waypoints=stream.stream_waypoints,
+            # A parsed sample is any mapping (a parser's typed sample, a provider's dict); the row stores a dict.
+            stream_waypoints=[dict(waypoint) for waypoint in stream.stream_waypoints],
             strava_activity_stream_id=None,
         )
-        for stream in data
+        for stream in _PAYLOAD.validate_python(data)
     ]
     _store_streams(streams, activity, db)
 
@@ -80,7 +93,7 @@ def ingestion_contributor() -> activities_contributors.ActivityIngestionContribu
 
 def _restore_profile_records(
     records: list[dict[str, Any]],
-    original_activity_id: int,
+    original_activity_id: uuid.UUID,
     new_activity: activity_schema.ActivityRead,
     db: Session,
 ) -> int:
@@ -88,7 +101,7 @@ def _restore_profile_records(
 
     Args:
         records: Profile records to restore.
-        original_activity_id: The activity's ID in the exported archive.
+        original_activity_id: The activity id the records were exported under.
         new_activity: The activity the records are restored onto.
         db: Database session.
 
@@ -100,7 +113,7 @@ def _restore_profile_records(
 
     streams: list[activity_streams_contracts.ActivityStreamsCreate] = []
     for record in records:
-        if record.get("activity_id") != original_activity_id:
+        if users_profile_contracts.archived_id(record.get("activity_id")) != original_activity_id:
             continue
         data = dict(record)
         data.pop("id", None)
@@ -132,7 +145,7 @@ def profile_contributor() -> activities_contributors.ProfileActivityContributor:
 
 
 def get_stream_for_derivation(
-    activity_id: int,
+    activity_id: uuid.UUID,
     stream_type: int,
     db: Session,
 ) -> activity_streams_schema.ActivityStreamsRead | None:
@@ -152,7 +165,9 @@ def get_stream_for_derivation(
     return activity_streams_crud.get_activity_stream_by_type(activity_id, stream_type, db)
 
 
-def get_gps_waypoints_for_activities(activity_ids: list[int], db: Session) -> dict[int, list]:
+def get_gps_waypoints_for_activities(
+    activity_ids: list[uuid.UUID], db: Session
+) -> dict[uuid.UUID, list[dict[str, Any]]]:
     """Return GPS waypoints for several activities in one query.
 
     Activities with no GPS stream are absent from the result.

@@ -1,12 +1,14 @@
-"""
-Pydantic schemas for health water intake data.
+"""Pydantic schemas for health water intake data.
 
 This module defines the request/response schemas for water intake
 tracking, including validation rules and source enumeration.
 """
 
+import uuid
 from datetime import date as datetime_date
-from enum import Enum
+from datetime import datetime
+from enum import StrEnum
+from typing import ClassVar
 
 from pydantic import (
     BaseModel,
@@ -14,17 +16,17 @@ from pydantic import (
     Field,
     StrictFloat,
     StrictInt,
-    model_validator,
 )
 
-import core.config as core_config
-import core.timezone as core_timezone
-import modules.health.schema as health_schema
+import core.partial_update as core_partial_update
+import core.types as core_types
+
+#: The most water, in milliliters, one day can total.
+MAX_WATER_ML = 20000
 
 
-class Source(Enum):
-    """
-    Enumeration of data sources for water intake records.
+class Source(StrEnum):
+    """Enumeration of data sources for water intake records.
 
     Attributes:
         MANUAL: Manually entered water intake data.
@@ -36,13 +38,11 @@ class Source(Enum):
 
 
 class HealthWaterBase(BaseModel):
-    """
-    Base model for health water intake data.
+    """Base model for health water intake data.
 
     Attributes:
         date: Calendar date of the water intake record.
         amount_ml: Water consumed in milliliters.
-        source: Source of the water intake data.
     """
 
     date: datetime_date | None = Field(
@@ -52,12 +52,8 @@ class HealthWaterBase(BaseModel):
     amount_ml: StrictFloat | None = Field(
         default=None,
         ge=0,
-        le=20000,
+        le=MAX_WATER_ML,
         description="Water consumed in milliliters",
-    )
-    source: Source | None = Field(
-        default=None,
-        description="Source of the water intake data",
     )
 
     model_config = ConfigDict(
@@ -68,70 +64,77 @@ class HealthWaterBase(BaseModel):
     )
 
 
-class HealthWaterCreate(HealthWaterBase):
+class HealthWaterWrite(HealthWaterBase):
+    """Water fields a client writes: the date is bounded, which a stored row read back need not be."""
+
+    date: core_types.RecordDate | None = Field(default=None, description="Calendar date of the water intake")
+
+
+class HealthWaterCreate(HealthWaterWrite):
+    """Schema for creating a new water intake record.
+
+    The date is optional; ``service`` fills it in when the client sends none.
     """
-    Schema for creating a new water intake record.
 
-    Automatically sets the date to today if not provided.
-    """
-
-    @model_validator(mode="after")
-    def set_default_date(self) -> "HealthWaterCreate":
-        """
-        Set date to today if not provided.
-
-        Clients should always send their own local date — the request carries no
-        timezone, so this fallback can only use the server's configured zone and
-        will file an entry logged near local midnight under the wrong day for an
-        athlete elsewhere. Resolved through ``settings.TZ`` explicitly rather
-        than ``date.today()``, which silently depends on the container's clock.
-
-        Returns:
-            The validated model instance with date set.
-        """
-        if self.date is None:
-            self.date = core_timezone.today_in(core_config.settings.TZ)
-        return self
+    amount_ml: StrictFloat = Field(..., ge=0, le=MAX_WATER_ML, description="Water consumed in milliliters")
 
 
 class HealthWaterRead(HealthWaterBase):
-    """
-    Schema for reading a water intake record.
+    """Schema for reading a water intake record.
 
     Attributes:
+        source: Source of the water intake data.
         id: Unique identifier for the water intake record.
         user_id: Foreign key reference to the user.
     """
 
-    id: StrictInt = Field(
+    source: Source = Field(
+        default=Source.MANUAL,
+        validate_default=True,
+        description="Source of the water intake data",
+    )
+    id: uuid.UUID = Field(
         ...,
         description=("Unique identifier for the water intake record"),
     )
-    user_id: StrictInt = Field(
+    user_id: uuid.UUID = Field(
         ...,
         description="Foreign key reference to the user",
     )
+    version: StrictInt = Field(default=1, ge=1, description="Optimistic-concurrency counter, also sent as the ETag")
+    updated_at: datetime = Field(..., description="When the record last changed, set by the server")
 
 
-class HealthWaterUpdate(HealthWaterRead):
+class HealthWaterUpdate(core_partial_update.NotClearable, HealthWaterWrite):
+    """Schema for the fields a PATCH changes on a water record.
+
+    The record is named by the path, so the body carries neither an id nor an owner; only the
+    fields present are changed.
     """
-    Schema for updating a water intake record.
 
-    Inherits from HealthWaterRead for consistency with read
-    operations while allowing modifications to water intake data.
-    """
+    not_clearable: ClassVar[tuple[str, ...]] = ("date", "amount_ml")
 
 
-class HealthWaterListResponse(health_schema.HealthListResponse):
-    """
-    Response model for listing health water intake records.
+class HealthWaterImport(HealthWaterCreate):
+    """Water record written by the server itself: a profile import.
+
+    Unlike :class:`HealthWaterCreate` it carries the provenance, which a client never sets. Every
+    server-side writer of ``source`` takes ``Health<Kind>Import`` (create) or ``Health<Kind>ImportUpdate``.
 
     Attributes:
-        records: A list of HealthWaterRead objects representing
-            individual water intake records.
+        source: The source the record came from; ``manual`` when none is given.
     """
 
-    records: list[HealthWaterRead] = Field(
-        ...,
-        description="List of health water intake records",
-    )
+    source: Source = Field(default=Source.MANUAL, validate_default=True, description="Source of the water intake data")
+
+
+class HealthWaterImportUpdate(HealthWaterUpdate):
+    """Fields a profile import changes on a water record, provenance included.
+
+    Attributes:
+        source: The source the record came from.
+    """
+
+    not_clearable: ClassVar[tuple[str, ...]] = (*HealthWaterUpdate.not_clearable, "source")
+
+    source: Source | None = Field(default=None, description="Source of the water intake data")

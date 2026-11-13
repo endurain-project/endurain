@@ -1,5 +1,7 @@
 import type { Schemas } from '@/types'
 
+import { isTerminalJobState } from '@/services/jobStatus'
+
 /**
  * An activity created by the backend from an uploaded fitness file. Derived
  * from the generated `Activity` schema (see {@link Schemas}) so a backend
@@ -22,18 +24,13 @@ export type IngestionJobStatus = ActivityIngestionJob['status']
 export type IngestionJobErrorCode = NonNullable<ActivityIngestionJob['error_code']>
 
 /**
- * Statuses that will not change again, so polling can stop.
- */
-export const TERMINAL_INGESTION_STATUSES = ['completed', 'failed'] as const
-
-/**
  * Whether an upload job has reached a state it will not leave.
  *
  * @param job - The job to inspect.
  * @returns `true` when the job is finished, successfully or not.
  */
 export function isTerminalIngestionJob(job: ActivityIngestionJob): boolean {
-  return (TERMINAL_INGESTION_STATUSES as readonly string[]).includes(job.status)
+  return isTerminalJobState(job.status)
 }
 
 /**

@@ -4,6 +4,7 @@
     "uploading": "Laddar upp…",
     "success": "Aktivitet uppladdad",
     "error": "Kunde inte ladda upp aktivitetsfilen",
+    "tooLarge": "Filen är för stor",
     "timeout": "Din fil importeras fortfarande. Den visas när den är klar.",
     "failed": {
       "unsupported_format": "Den här filtypen stöds inte",
@@ -46,7 +47,6 @@
     "thisWeek": "Den här veckan",
     "thisMonth": "Den här månaden",
     "empty": "Ingen aktivitet under den här perioden",
-    "caloriesUnit": "kcal",
     "metric": {
       "distance": "Distans",
       "time": "Tid",
@@ -63,12 +63,13 @@
     "snow_ski": "Skidåkning",
     "snowboard": "Snowboard",
     "windsurf": "Windsurf",
-    "stand_up_paddleboarding": "Stand-up paddling",
-    "surfing": "Surfing",
+    "stand_up_paddling": "Stand-up paddling",
+    "surf": "Surfing",
     "kayaking": "Kajakpaddling",
     "sailing": "Segling",
-    "snowshoeing": "Snöskovandring",
-    "inline_skating": "Rullskridskoåkning"
+    "snow_shoeing": "Snöskovandring",
+    "inline_skating": "Rullskridskoåkning",
+    "other": "Övrigt"
   },
   "goals": {
     "title": "Mål",

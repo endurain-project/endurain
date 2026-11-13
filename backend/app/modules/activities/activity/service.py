@@ -15,30 +15,38 @@ one owner.
 """
 
 import calendar
+import uuid
+from collections.abc import Mapping
 from datetime import UTC, date, datetime, time, timedelta
 
+import jasil.audit as jasil_audit
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
-from sqlalchemy.orm.exc import StaleDataError
 
 import core.calendar as core_calendar
+import core.etag as core_etag
 import core.exceptions as core_exceptions
 import core.logger as core_logger
 import core.pagination as core_pagination
+import core.sync as core_sync
 import core.timezone as core_timezone
+import modules.activities.activity.audit_actions as activity_audit_actions
+import modules.activities.activity.constants as activity_constants
+import modules.activities.activity.contracts as activity_contracts
 import modules.activities.activity.crud as activity_crud
 import modules.activities.activity.event_publishers as activity_event_publishers
 import modules.activities.activity.schema as activity_schema
 import modules.activities.activity.stats as activity_stats
 import modules.activities.contributor_registry as activities_contributor_registry
 import modules.followers.integration_service as followers_integration
-import modules.gears.gear.dependencies as gears_dependencies
+import modules.gears.gear.integration_service as gears_integration
 import modules.server_settings.integration_service as server_settings_integration
 import modules.users.users.integration_service as users_integration
 
 logger = core_logger.get_logger(__name__)
 
 
-def _followees_of(requester_user_id: int | None, db: Session) -> list[int]:
+def _followees_of(requester_user_id: uuid.UUID | None, db: Session) -> list[uuid.UUID]:
     """Resolve whose followers-only activities the requester may see.
 
     The cross-domain half of the visibility rule, answered here so the queries
@@ -57,17 +65,17 @@ def _followees_of(requester_user_id: int | None, db: Session) -> list[int]:
     return followers_integration.list_accepted_followee_ids(requester_user_id, db)
 
 
-def get_activities_in_timeframe(
-    user_id: int,
+def sum_activities_in_timeframe(
+    user_id: uuid.UUID,
     start: datetime,
     end: datetime,
-    requester_user_id: int,
+    requester_user_id: uuid.UUID,
     db: Session,
-) -> list[activity_schema.ActivityRead]:
-    """Return a user's activities in ``[start, end]`` scoped to the requester.
+) -> list[activity_contracts.ActivityTypeTotals]:
+    """Add up a user's activities in ``[start, end]`` per activity type, scoped to the requester.
 
-    The owner sees all of their activities; any other requester sees only the
-    ones visible to them (the CRUD layer applies the visibility mask).
+    The owner is counted with all of their activities; any other requester with only the ones visible
+    to them (the query applies the visibility filter).
 
     Args:
         user_id: The owner of the activities.
@@ -77,11 +85,11 @@ def get_activities_in_timeframe(
         db: Database session.
 
     Returns:
-        The scoped activities, or ``None`` when there are none.
+        One total per activity type with a matching activity; empty when there are none.
     """
     is_owner = user_id == requester_user_id
     logger.debug(
-        "Listing activities in timeframe",
+        "Adding up activities in timeframe",
         extra=core_logger.context(
             user_id=user_id,
             requester_user_id=requester_user_id,
@@ -91,8 +99,8 @@ def get_activities_in_timeframe(
         ),
     )
     if is_owner:
-        return activity_crud.get_user_activities_per_timeframe(user_id, start, end, db, user_is_owner=True)
-    return activity_crud.get_user_activities_per_timeframe(
+        return activity_crud.sum_user_activities_per_timeframe_by_type(user_id, start, end, db, user_is_owner=True)
+    return activity_crud.sum_user_activities_per_timeframe_by_type(
         user_id,
         start,
         end,
@@ -102,7 +110,7 @@ def get_activities_in_timeframe(
     )
 
 
-def _anchor_date(anchor: date | None, requester_user_id: int, db: Session) -> datetime:
+def _anchor_date(anchor: date | None, requester_user_id: uuid.UUID, db: Session) -> datetime:
     """Return the midnight-aligned day the week/month window is built around.
 
     ``anchor`` is the *caller's* local calendar date, sent by the client because
@@ -128,7 +136,7 @@ def _anchor_date(anchor: date | None, requester_user_id: int, db: Session) -> da
 
 
 def _week_bounds(
-    requester_user_id: int,
+    requester_user_id: uuid.UUID,
     db: Session,
     *,
     week_number: int = 0,
@@ -160,7 +168,7 @@ def _week_bounds(
 
 
 def _month_bounds(
-    requester_user_id: int,
+    requester_user_id: uuid.UUID,
     db: Session,
     *,
     anchor: date | None = None,
@@ -186,8 +194,8 @@ def _month_bounds(
 
 
 def week_stats(
-    user_id: int,
-    requester_user_id: int,
+    user_id: uuid.UUID,
+    requester_user_id: uuid.UUID,
     db: Session,
     *,
     anchor: date | None = None,
@@ -204,15 +212,14 @@ def week_stats(
         The aggregated stats.
     """
     start, end = _week_bounds(requester_user_id, db, week_number=0, anchor=anchor)
-    activities = get_activities_in_timeframe(user_id, start, end, requester_user_id, db)
-    if activities:
-        return activity_stats.calculate_activity_stats(activities)
-    return activity_schema.ActivityStatsRead()
+    return activity_stats.calculate_activity_stats(
+        sum_activities_in_timeframe(user_id, start, end, requester_user_id, db)
+    )
 
 
 def month_stats(
-    user_id: int,
-    requester_user_id: int,
+    user_id: uuid.UUID,
+    requester_user_id: uuid.UUID,
     db: Session,
     *,
     anchor: date | None = None,
@@ -229,16 +236,31 @@ def month_stats(
         The aggregated stats.
     """
     start, end = _month_bounds(requester_user_id, db, anchor=anchor)
-    activities = get_activities_in_timeframe(user_id, start, end, requester_user_id, db)
-    if activities:
-        return activity_stats.calculate_activity_stats(activities)
-    return activity_schema.ActivityStatsRead()
+    return activity_stats.calculate_activity_stats(
+        sum_activities_in_timeframe(user_id, start, end, requester_user_id, db)
+    )
+
+
+def _require_visible_owner(user_id: uuid.UUID, requester_user_id: uuid.UUID, db: Session) -> None:
+    """Refuse another user's activities when that user is inactive or awaits approval.
+
+    Args:
+        user_id: The owner whose activities are requested.
+        requester_user_id: The authenticated caller; their own activities are always readable.
+        db: Database session.
+
+    Raises:
+        NotFoundError: If the owner does not exist, is inactive or awaits approval, so the caller
+            cannot tell the three apart.
+    """
+    if user_id != requester_user_id:
+        users_integration.get_public_profile(user_id, db)
 
 
 def period_stats(
-    user_id: int,
-    period: str,
-    requester_user_id: int,
+    user_id: uuid.UUID,
+    period: activity_constants.StatsPeriod,
+    requester_user_id: uuid.UUID,
     db: Session,
     *,
     anchor: date | None = None,
@@ -247,7 +269,7 @@ def period_stats(
 
     Args:
         user_id: The user whose stats to aggregate.
-        period: ``week`` or ``month``.
+        period: The period to aggregate.
         requester_user_id: The authenticated user making the request.
         db: Database session.
         anchor: The caller's local calendar date, used to decide which week or
@@ -255,21 +277,62 @@ def period_stats(
 
     Returns:
         The aggregated stats.
+
+    Raises:
+        NotFoundError: If another user owns the stats and is inactive or awaits approval.
     """
+    _require_visible_owner(user_id, requester_user_id, db)
     logger.debug(
         "Aggregating period stats",
         extra=core_logger.context(user_id=user_id, period=period, requester_user_id=requester_user_id, anchor=anchor),
     )
-    if period == "month":
+    if period == activity_constants.StatsPeriod.MONTH:
         return month_stats(user_id, requester_user_id, db, anchor=anchor)
     return week_stats(user_id, requester_user_id, db, anchor=anchor)
 
 
-def count_user_activities(
-    user_id: int,
+def user_profile_summary(
+    user_id: uuid.UUID,
+    requester_user_id: uuid.UUID,
     db: Session,
     *,
-    activity_type: int | None = None,
+    anchor: date | None = None,
+) -> activity_contracts.UserProfileActivitySummary:
+    """Return the visible activity aggregates displayed on a user's profile.
+
+    Args:
+        user_id: The profile owner's user ID.
+        requester_user_id: The authenticated caller.
+        db: Database session.
+        anchor: The caller's local calendar date, or None to resolve it server-side.
+
+    Returns:
+        The profile's current-week and current-month stats and visible activity count.
+    """
+    if anchor is None:
+        anchor = users_integration.local_today(requester_user_id, db)
+    month_start, month_end = _month_bounds(requester_user_id, db, anchor=anchor)
+    followee_ids = None if user_id == requester_user_id else _followees_of(requester_user_id, db)
+    month_activity_count = activity_crud.count_user_activities(
+        user_id=user_id,
+        db=db,
+        start_date=month_start.date(),
+        end_date=month_end.date(),
+        user_is_owner=user_id == requester_user_id,
+        followee_ids=followee_ids,
+    )
+    return activity_contracts.UserProfileActivitySummary(
+        week_stats=week_stats(user_id, requester_user_id, db, anchor=anchor),
+        month_stats=month_stats(user_id, requester_user_id, db, anchor=anchor),
+        month_activity_count=month_activity_count,
+    )
+
+
+def count_user_activities(
+    user_id: uuid.UUID,
+    db: Session,
+    *,
+    activity_type: activity_constants.ActivityType | None = None,
     start_date: date | None = None,
     end_date: date | None = None,
     name_search: str | None = None,
@@ -279,7 +342,7 @@ def count_user_activities(
     Args:
         user_id: ID of the user.
         db: Database session.
-        activity_type: Activity type code to filter by, or None.
+        activity_type: Activity type to filter by, or None.
         start_date: Earliest activity date to include, or None.
         end_date: Latest activity date to include, or None.
         name_search: Case-insensitive name fragment to filter by, or None.
@@ -321,60 +384,79 @@ def _with_thumbnail_urls(
     return activities
 
 
-def list_gear_activities(
-    user_id: int,
-    gear_id: int,
+def _to_summaries(activities: list[activity_schema.ActivityRead]) -> list[activity_schema.ActivitySummaryRead]:
+    """Drop ``private_notes`` and ``import_info`` from activities headed for a list response.
+
+    Args:
+        activities: Masked activities with their thumbnail URL and media already set.
+
+    Returns:
+        The same activities as list items.
+    """
+    return [
+        activity_schema.ActivitySummaryRead.model_validate(activity, from_attributes=True) for activity in activities
+    ]
+
+
+def with_media(
+    activities: list[activity_schema.ActivityRead],
+    requester_user_id: uuid.UUID,
     db: Session,
-    *,
-    page_number: int | None = None,
-    num_records: int | None = None,
 ) -> list[activity_schema.ActivityRead]:
-    """List a user's activities for a gear (paginated when page/size are given).
+    """Set the media of the requester's own activities, in one query for the page.
+
+    Media is owner-only, as the per-activity media endpoint is, so activities owned by
+    anyone else keep an empty ``media``. Resolved through the registry because the media
+    package asks this one who owns an activity and so may not be imported from here.
 
     Args:
-        user_id: ID of the user.
-        gear_id: ID of the gear.
-        page_number: 1-based page number, or None for every row.
-        num_records: Page size, or None for every row.
+        activities: Masked activities about to be returned to a client.
+        requester_user_id: The authenticated caller.
         db: Database session.
 
     Returns:
-        The gear's activities, or None when none can be read.
+        The same activities, with ``media`` set where the requester owns them and they have photos.
     """
-    if page_number is not None and num_records is not None:
-        return activity_crud.get_user_activities_by_gear_id_and_user_id_with_pagination(
-            user_id, gear_id, page_number, num_records, db
-        )
-    return activity_crud.get_user_activities_by_gear_id_and_user_id(user_id, gear_id, db)
+    owned_ids = [activity.id for activity in activities if activity.user_id == requester_user_id]
+    media = activities_contributor_registry.resolve_media(owned_ids, db)
+    for activity in activities:
+        activity.media = list(media.get(activity.id, ()))
+    return activities
 
 
-def _count_gear_activities(user_id: int, gear_id: int, db: Session) -> int:
-    """Count a user's activities for a gear.
+def list_changed_activities(
+    user_id: uuid.UUID, after: core_sync.Position | None, until: datetime, limit: int, db: Session
+) -> list[activity_schema.ActivityRead]:
+    """List the owner's activities changed after a position, each as the owner's own list reads it.
 
     Args:
-        user_id: ID of the user.
-        gear_id: ID of the gear.
+        user_id: The owner, who is also the reader, so nothing is masked.
+        after: Return activities strictly after this ``(updated_at, id)``; None from the first.
+        until: Return only activities changed before this instant.
+        limit: The most activities to return.
         db: Database session.
 
     Returns:
-        The number of the gear's activities.
+        The activities in ``(updated_at, id)`` order, with their thumbnail URL and media set.
     """
-    return activity_crud.get_gear_activities_count_by_user_id(user_id, gear_id, db)
+    activities = activity_crud.get_changed_activities(user_id, after, until, limit, db)
+    return with_media(_with_thumbnail_urls(activities), user_id, db)
 
 
 def list_user_activities_paginated(
-    user_id: int,
-    requester_user_id: int,
+    user_id: uuid.UUID,
+    requester_user_id: uuid.UUID,
     db: Session,
     *,
     page_number: int,
     num_records: int,
-    activity_type: int | None = None,
+    activity_type: activity_constants.ActivityType | None = None,
     start_date: date | None = None,
     end_date: date | None = None,
     name_search: str | None = None,
     sort_by: str | None = None,
     sort_order: str | None = None,
+    gear_id: uuid.UUID | None = None,
 ) -> list[activity_schema.ActivityRead]:
     """List a user's activities (filtered, paginated) scoped to the requester.
 
@@ -388,12 +470,13 @@ def list_user_activities_paginated(
         page_number: 1-based page number.
         num_records: Page size.
         db: Database session.
-        activity_type: Activity type code to filter by, or None.
+        activity_type: Activity type to filter by, or None.
         start_date: Earliest activity date to include, or None.
         end_date: Latest activity date to include, or None.
         name_search: Case-insensitive name fragment to filter by, or None.
         sort_by: Field to sort by, or None.
         sort_order: Sort direction, or None.
+        gear_id: Gear to filter by, or None.
 
     Returns:
         The visible activities on this page, or None when none can be read.
@@ -409,6 +492,7 @@ def list_user_activities_paginated(
         name_search=name_search,
         sort_by=sort_by,
         sort_order=sort_order,
+        gear_id=gear_id,
         user_is_owner=(user_id == requester_user_id),
         followee_ids=_followees_of(requester_user_id, db),
     )
@@ -434,18 +518,19 @@ def list_user_activities_paginated(
 
 
 def page_user_activities(
-    user_id: int,
-    requester_user_id: int,
+    user_id: uuid.UUID,
+    requester_user_id: uuid.UUID,
     db: Session,
     *,
     page_number: int,
     num_records: int,
-    activity_type: int | None = None,
+    activity_type: activity_constants.ActivityType | None = None,
     start_date: date | None = None,
     end_date: date | None = None,
     name_search: str | None = None,
     sort_by: str | None = None,
     sort_order: str | None = None,
+    gear_id: uuid.UUID | None = None,
 ) -> activity_schema.ActivityPage:
     """Return one page of a user's activities together with the matching total.
 
@@ -461,11 +546,16 @@ def page_user_activities(
         name_search: Optional case-insensitive name search.
         sort_by: Optional sort field.
         sort_order: Optional sort direction.
+        gear_id: Gear to filter by, or None.
 
     Returns:
         The page envelope. ``total`` carries the same filters and the same
         visibility scoping as ``items``.
+
+    Raises:
+        NotFoundError: If another user owns the activities and is inactive or awaits approval.
     """
+    _require_visible_owner(user_id, requester_user_id, db)
     items = list_user_activities_paginated(
         user_id,
         requester_user_id,
@@ -478,6 +568,7 @@ def page_user_activities(
         name_search=name_search,
         sort_by=sort_by,
         sort_order=sort_order,
+        gear_id=gear_id,
     )
     total = activity_crud.count_user_activities(
         user_id=user_id,
@@ -486,77 +577,63 @@ def page_user_activities(
         start_date=start_date,
         end_date=end_date,
         name_search=name_search,
+        gear_id=gear_id,
         user_is_owner=(user_id == requester_user_id),
         followee_ids=_followees_of(requester_user_id, db),
     )
-    return activity_schema.ActivityPage.build(_with_thumbnail_urls(items), total, page_number, num_records)
+    return activity_schema.ActivityPage.build(
+        _to_summaries(with_media(_with_thumbnail_urls(items), requester_user_id, db)), total, page_number, num_records
+    )
 
 
-def scroll_following_feed(
-    requester_user_id: int,
+def scroll_feed(
+    requester_user_id: uuid.UUID,
     cursor: str | None,
     num_records: int,
     db: Session,
+    scope: activity_constants.FeedScope = activity_constants.FeedScope.FOLLOWING,
 ) -> activity_schema.ActivityFeedPage:
-    """Return one keyset slice of the requester's following feed.
+    """Return one keyset slice of the requester's following feed or of their own activities.
 
     Args:
         requester_user_id: The authenticated caller, whose feed is returned.
         cursor: Opaque cursor from the previous slice, or ``None`` to start.
         num_records: Slice size.
         db: Database session.
+        scope: Whose activities the feed lists.
 
     Returns:
-        The slice plus the cursor for the next one.
+        The slice, the cursor for the next one and the public profile of each owner on the slice.
     """
-    followee_ids = followers_integration.list_accepted_followee_ids(requester_user_id, db)
-    after = core_pagination.decode_cursor(cursor) if cursor else None
+    after = core_pagination.decode_uuid_cursor(cursor) if cursor else None
     # Over-fetch by one: the extra row proves another slice exists without a
     # second query, and is dropped before serialising.
-    entries = activity_crud.get_following_feed_after(followee_ids, after, num_records + 1, db)
+    if scope is activity_constants.FeedScope.MINE:
+        entries = activity_crud.get_own_feed_after(requester_user_id, after, num_records + 1, db)
+    else:
+        followee_ids = followers_integration.list_accepted_followee_ids(requester_user_id, db)
+        entries = activity_crud.get_following_feed_after(followee_ids, after, num_records + 1, db)
     has_more = len(entries) > num_records
     page_entries = entries[:num_records]
-    items = _with_thumbnail_urls([entry.activity for entry in page_entries])
+    items = _to_summaries(
+        with_media(_with_thumbnail_urls([entry.activity for entry in page_entries]), requester_user_id, db)
+    )
     next_cursor = (
-        core_pagination.encode_cursor(page_entries[-1].cursor_start_time, page_entries[-1].cursor_id)
+        core_pagination.encode_cursor(page_entries[-1].cursor_sort_value, page_entries[-1].cursor_id)
         if has_more and page_entries
         else None
     )
     logger.debug(
-        "Built following feed slice",
+        "Built feed slice",
         extra=core_logger.context(
             requester_user_id=requester_user_id,
-            followee_count=len(followee_ids) if followee_ids else 0,
+            scope=scope.value,
             returned=len(items),
             has_more=has_more,
         ),
     )
-    return activity_schema.ActivityFeedPage(items=items, num_records=num_records, next_cursor=next_cursor)
-
-
-def page_gear_activities(
-    user_id: int,
-    gear_id: int,
-    db: Session,
-    *,
-    page_number: int,
-    num_records: int,
-) -> activity_schema.ActivityPage:
-    """Return one page of a user's activities for a gear with the matching total.
-
-    Args:
-        user_id: The owner whose activities to list.
-        gear_id: The gear to filter by.
-        page_number: 1-based page number.
-        num_records: Page size.
-        db: Database session.
-
-    Returns:
-        The page envelope.
-    """
-    items = list_gear_activities(user_id, gear_id, db, page_number=page_number, num_records=num_records)
-    total = _count_gear_activities(user_id, gear_id, db)
-    return activity_schema.ActivityPage.build(_with_thumbnail_urls(items), total, page_number, num_records)
+    owners = users_integration.list_public_profiles({item.user_id for item in items if item.user_id is not None}, db)
+    return activity_schema.ActivityFeedPage(items=items, num_records=num_records, next_cursor=next_cursor, users=owners)
 
 
 # ---------------------------------------------------------------------------
@@ -564,20 +641,23 @@ def page_gear_activities(
 # ---------------------------------------------------------------------------
 
 
-def list_activity_types(user_id: int, db: Session) -> dict[int, str]:
-    """Return the distinct activity types a user has recorded, keyed by type code.
+def list_activity_types(user_id: uuid.UUID, db: Session) -> dict[activity_constants.ActivityType, str]:
+    """Return the distinct activity types a user has recorded.
 
     Args:
         user_id: ID of the user.
         db: Database session.
 
     Returns:
-        The distinct activity types a user has recorded, keyed by type code.
+        The distinct activity types a user has recorded, ordered by stored id.
     """
-    return activity_crud.get_distinct_activity_types_for_user(user_id, db)
+    return {
+        activity_type: activity_type.label
+        for activity_type in activity_crud.get_distinct_activity_types_for_user(user_id, db)
+    }
 
 
-def get_activity(activity_id: int, requester_user_id: int, db: Session) -> activity_schema.ActivityRead:
+def get_activity(activity_id: uuid.UUID, requester_user_id: uuid.UUID, db: Session) -> activity_schema.ActivityRead:
     """Return an activity the requester owns or is permitted to see.
 
     Args:
@@ -605,7 +685,28 @@ def get_activity(activity_id: int, requester_user_id: int, db: Session) -> activ
     return _with_thumbnail_urls([activity])[0]
 
 
-def get_public_activity(activity_id: int, db: Session) -> activity_schema.ActivityRead:
+def _require_public_activity(activity_id: uuid.UUID, db: Session) -> activity_schema.ActivityRead:
+    """Return an activity that anonymous viewers may see, as stored.
+
+    Args:
+        activity_id: The activity to read.
+        db: Database session.
+
+    Returns:
+        The activity.
+
+    Raises:
+        NotFoundError: When public links are off or the activity does not exist or is not public.
+    """
+    if not server_settings_integration.public_shareable_links_enabled(db):
+        raise core_exceptions.NotFoundError("Activity not found")
+    activity = activity_crud.get_activity_by_id_if_is_public(activity_id, db)
+    if activity is None:
+        raise core_exceptions.NotFoundError("Activity not found")
+    return activity
+
+
+def get_public_activity(activity_id: uuid.UUID, db: Session) -> activity_schema.ActivityRead:
     """Return a publicly shared activity.
 
     Args:
@@ -618,21 +719,61 @@ def get_public_activity(activity_id: int, db: Session) -> activity_schema.Activi
     Raises:
         NotFoundError: When the activity does not exist or is not public.
     """
-    if not server_settings_integration.public_shareable_links_enabled(db):
-        raise core_exceptions.NotFoundError("Activity not found")
-    activity = activity_crud.get_activity_by_id_if_is_public(activity_id, db)
-    if activity is None:
-        raise core_exceptions.NotFoundError("Activity not found")
-    return _with_thumbnail_urls([activity])[0]
+    return _with_thumbnail_urls([_require_public_activity(activity_id, db)])[0]
+
+
+def _is_visibility_field(field: str) -> bool:
+    """Return whether an activity field decides who can see the activity or a part of it.
+
+    Args:
+        field: The name of an activity field.
+
+    Returns:
+        True for ``visibility`` and every ``hide_*`` flag.
+    """
+    return field == "visibility" or field.startswith("hide_")
+
+
+def _stage_visibility_update(
+    activity_id: uuid.UUID,
+    user_id: uuid.UUID,
+    before: activity_schema.ActivityRead,
+    after: activity_schema.ActivityRead,
+    visibility_fields: list[str],
+    db: Session,
+) -> None:
+    """Stage the audit row of an edit that changed who can see an activity.
+
+    Nothing is staged when none of the submitted visibility fields changed value.
+
+    Args:
+        activity_id: ID of the edited activity.
+        user_id: ID of the owner.
+        before: The activity as it was before the edit.
+        after: The activity after the edit.
+        visibility_fields: The visibility and ``hide_*`` fields the edit submitted.
+        db: Database session.
+    """
+    changed = [field for field in visibility_fields if getattr(before, field) != getattr(after, field)]
+    if not changed:
+        return
+    jasil_audit.stage(
+        db,
+        activity_audit_actions.VISIBILITY_UPDATE,
+        target_type="activity",
+        target_id=str(activity_id),
+        target_owner_id=str(user_id),
+        details=activity_audit_actions.VisibilityUpdateDetails(changed_fields=changed),
+    )
 
 
 def edit_activity(
-    activity_id: int,
-    user_id: int,
+    activity_id: uuid.UUID,
+    user_id: uuid.UUID,
     activity_attributes: activity_schema.ActivityEdit,
     db: Session,
     *,
-    if_match: str | None = None,
+    if_match: str,
 ) -> activity_schema.ActivityRead:
     """Apply partial updates to one of the user's activities.
 
@@ -646,7 +787,7 @@ def edit_activity(
         user_id: ID of the user.
         activity_attributes: The fields to change.
         db: Database session.
-        if_match: The ``If-Match`` precondition, or None.
+        if_match: The ``If-Match`` precondition.
 
     Returns:
         The updated activity.
@@ -655,26 +796,30 @@ def edit_activity(
         "Editing an activity",
         extra=core_logger.context(activity_id=activity_id, user_id=user_id),
     )
-    gears_dependencies.require_owned_gears(user_id, [activity_attributes.gear_id], db)
+    gears_integration.require_owned_gears(user_id, [activity_attributes.gear_id], db)
     # Only the fields the client actually sent; the CRUD applies the same set.
     changed_fields = [field for field in activity_attributes.model_dump(exclude_unset=True) if field != "id"]
-    try:
-        updated = activity_crud.edit_activity(user_id, activity_id, activity_attributes, db, if_match=if_match)
-    except StaleDataError as err:
-        # The row changed between the crud's load (where the precondition was
-        # checked) and the flush.
-        db.rollback()
-        if activity_crud.get_activity_by_id_from_user_id(activity_id, user_id, db) is None:
-            raise core_exceptions.NotFoundError(f"Activity {activity_id} not found") from err
-        logger.warning(
-            "Rejected a stale activity edit",
-            extra=core_logger.context(activity_id=activity_id, user_id=user_id),
-        )
-        raise core_exceptions.PreconditionFailedError(
-            "The activity was modified by someone else; re-read it and retry"
-        ) from err
-    activity_event_publishers.publish_activity_updated(activity_id, user_id, db, changed_fields=changed_fields)
-    db.commit()
+    with core_etag.refuse_stale_write(
+        db,
+        "activity",
+        lambda: activity_crud.get_activity_by_id_from_user_id(activity_id, user_id, db) is not None,
+        f"Activity {activity_id} not found",
+    ):
+        try:
+            visibility_fields = [field for field in changed_fields if _is_visibility_field(field)]
+            before = (
+                activity_crud.get_activity_by_id_from_user_id(activity_id, user_id, db) if visibility_fields else None
+            )
+            updated = activity_crud.edit_activity(user_id, activity_id, activity_attributes, db, if_match=if_match)
+            if before is not None:
+                _stage_visibility_update(activity_id, user_id, before, updated, visibility_fields, db)
+            activity_event_publishers.publish_activity_updated(activity_id, user_id, db, changed_fields=changed_fields)
+            db.commit()
+        except IntegrityError:
+            # A gear deleted after the ownership check above fails the foreign key; report it as not found.
+            db.rollback()
+            gears_integration.require_owned_gears(user_id, [activity_attributes.gear_id], db)
+            raise
     logger.info(
         "Edited an activity",
         extra=core_logger.context(activity_id=activity_id, user_id=user_id, changed_fields=sorted(changed_fields)),
@@ -682,49 +827,7 @@ def edit_activity(
     return _with_thumbnail_urls([updated])[0]
 
 
-def bulk_edit_activities(
-    user_id: int,
-    body: activity_schema.ActivitiesBulkEdit,
-    db: Session,
-) -> int:
-    """Apply a bulk edit across all of the user's activities.
-
-    Publishes one ``activity.updated`` per changed row, atomically with the
-    update, so a consumer of the single-activity edit needs no separate handling
-    for the bulk one — the fact is identical either way.
-
-    Args:
-        user_id: The owner whose activities to edit.
-        body: The fields to apply; only those present are changed.
-        db: Database session.
-
-    Returns:
-        How many activities changed.
-
-    Raises:
-        InvalidInputError: When the body asks for no change at all. An empty
-            patch is a client bug, not a no-op worth reporting as success.
-    """
-    if body.visibility is None:
-        raise core_exceptions.InvalidInputError("No supported field to update was provided")
-
-    updated_ids = activity_crud.edit_user_activities_visibility(user_id, body.visibility, db)
-    activity_event_publishers.publish_activities_updated(
-        updated_ids,
-        user_id,
-        db,
-        changed_fields=["visibility"],
-        source="api:bulk_edit_activities",
-    )
-    db.commit()
-    logger.info(
-        "Bulk-edited activity visibility",
-        extra=core_logger.context(user_id=user_id, visibility=body.visibility, updated=len(updated_ids)),
-    )
-    return len(updated_ids)
-
-
-def delete_activity(activity_id: int, user_id: int, db: Session) -> None:
+def delete_activity(activity_id: uuid.UUID, user_id: uuid.UUID, db: Session, *, if_match: str) -> None:
     """Delete one of the user's activities and publish ``activity.deleted``.
 
     The delete and the event are staged and committed together, so when durable
@@ -734,18 +837,29 @@ def delete_activity(activity_id: int, user_id: int, db: Session) -> None:
     best-effort path the event dispatches after the commit and a bus-dispatch
     failure is swallowed.
 
-    Ownership lives in the delete's ``WHERE`` clause (404 when the activity is
-    missing *or* owned by someone else), so there is no read-then-delete gap and
-    no caller-side precondition to forget.
+    Ownership lives in the delete's lookup (404 when the activity is missing
+    *or* owned by someone else), so there is no caller-side precondition to
+    forget.
 
     Args:
         activity_id: The activity to delete.
         user_id: The authenticated owner.
         db: Database session.
+        if_match: The ``If-Match`` precondition.
+
+    Raises:
+        NotFoundError: When the activity is missing or not owned by ``user_id``.
+        PreconditionFailedError: When the activity changed since the client read it.
     """
-    activity_crud.delete_activity(activity_id, user_id, db)
-    activity_event_publishers.publish_activity_deleted(activity_id, user_id, db)
-    db.commit()
+    with core_etag.refuse_stale_write(
+        db,
+        "activity",
+        lambda: activity_crud.get_activity_by_id_from_user_id(activity_id, user_id, db) is not None,
+        f"Activity {activity_id} not found",
+    ):
+        activity_crud.delete_activity(activity_id, user_id, db, if_match=if_match)
+        activity_event_publishers.publish_activity_deleted(activity_id, user_id, db)
+        db.commit()
     logger.info(
         "Deleted an activity",
         extra=core_logger.context(activity_id=activity_id, user_id=user_id),
@@ -753,8 +867,8 @@ def delete_activity(activity_id: int, user_id: int, db: Session) -> None:
 
 
 def bulk_set_activities_gear(
-    user_id: int,
-    gear_assignments: dict[int, int | None],
+    user_id: uuid.UUID,
+    gear_assignments: Mapping[uuid.UUID, uuid.UUID | None],
     db: Session,
     *,
     source: str,
@@ -790,8 +904,31 @@ def bulk_set_activities_gear(
     return len(updated_ids)
 
 
-def delete_all_strava_activities(user_id: int, db: Session, *, source: str) -> int:
-    """Delete all of a user's Strava-sourced activities.
+def clear_activities_gear(gear_id: uuid.UUID, user_id: uuid.UUID, db: Session, *, source: str) -> int:
+    """Unassign a gear from every activity of a user that carries it.
+
+    Used when the gear is deleted: the foreign key would null the column silently, so
+    this does it explicitly and publishes one ``activity.updated`` per row, staged with
+    the update. The caller commits.
+
+    Args:
+        gear_id: The gear being removed.
+        user_id: The owning user id.
+        db: Database session.
+        source: The caller recorded on the published events.
+
+    Returns:
+        The number of activities updated.
+    """
+    updated_ids = activity_crud.clear_gear_from_activities(gear_id, user_id, db)
+    activity_event_publishers.publish_activities_updated(
+        updated_ids, user_id, db, changed_fields=["gear_id"], source=source
+    )
+    return len(updated_ids)
+
+
+def delete_all_strava_activities(user_id: uuid.UUID, db: Session, *, source: str, limit: int) -> int:
+    """Delete up to ``limit`` of a user's Strava-sourced activities.
 
     Emits one ``activity.deleted`` per removed activity, staged with the deletes,
     so the thumbnail and source-file cleanup subscribers reclaim the blobs each
@@ -801,48 +938,51 @@ def delete_all_strava_activities(user_id: int, db: Session, *, source: str) -> i
         user_id: The owning user id.
         db: Database session.
         source: The caller recorded on the published events.
+        limit: The most activities to delete in this call.
 
     Returns:
-        The number of activities deleted.
+        The number of activities deleted; fewer than ``limit`` means none are left.
     """
-    deleted_ids = activity_crud.delete_all_strava_activities_for_user(user_id, db)
+    deleted_ids = activity_crud.delete_all_strava_activities_for_user(user_id, db, limit=limit)
     activity_event_publishers.publish_activities_deleted(deleted_ids, user_id, db, source=source)
     # Irreversible and triggered from another module, so the count is recorded
     # here rather than left to the caller.
     logger.info(
-        "Deleted all Strava-sourced activities for user",
+        "Deleted Strava-sourced activities for user",
         extra=core_logger.context(user_id=user_id, deleted_count=len(deleted_ids)),
     )
     return len(deleted_ids)
 
 
-def delete_all_activities_for_user(user_id: int, db: Session, *, source: str) -> int:
-    """Delete every activity owned by a user, emitting cleanup events.
+def delete_activities_batch_for_user(user_id: uuid.UUID, limit: int, db: Session, *, source: str) -> int:
+    """Delete up to ``limit`` of a user's activities, emitting cleanup events.
 
     The account-deletion path. Deleting the user row alone would let the database
     FK cascade remove the activities silently, orphaning every thumbnail and
     stored source file the user ever produced — an incomplete erasure. Removing
     them explicitly first yields the ids needed to publish ``activity.deleted``,
-    so the cleanup subscribers delete the blobs too. The caller commits.
+    so the cleanup subscribers delete the blobs too. The caller commits, and
+    repeats the call until it returns 0.
 
     Args:
         user_id: The owning user id.
+        limit: The most activities to delete.
         db: Database session.
         source: The caller recorded on the published events.
 
     Returns:
         The number of activities deleted.
     """
-    deleted_ids = activity_crud.delete_all_activities_for_user(user_id, db)
+    deleted_ids = activity_crud.delete_activities_batch_for_user(user_id, limit, db)
     activity_event_publishers.publish_activities_deleted(deleted_ids, user_id, db, source=source)
-    logger.info(
-        "Deleted all activities for user",
+    logger.debug(
+        "Deleted a batch of a user's activities",
         extra=core_logger.context(user_id=user_id, deleted_count=len(deleted_ids)),
     )
     return len(deleted_ids)
 
 
-def owns_activity(activity_id: int, user_id: int, db: Session) -> bool:
+def owns_activity(activity_id: uuid.UUID, user_id: uuid.UUID, db: Session) -> bool:
     """Return whether the user owns the activity.
 
     Args:
@@ -854,3 +994,20 @@ def owns_activity(activity_id: int, user_id: int, db: Session) -> bool:
         True when the activity exists and belongs to the user.
     """
     return activity_crud.get_activity_by_id_from_user_id(activity_id, user_id, db) is not None
+
+
+def prune_activity_deletions(now: datetime, db: Session) -> int:
+    """Remove the activity tombstones older than the retention, and commit.
+
+    Args:
+        now: The current instant.
+        db: Database session.
+
+    Returns:
+        How many tombstones were removed.
+    """
+    removed = activity_crud.prune_activity_deletions(now - core_sync.TOMBSTONE_RETENTION, db)
+    db.commit()
+    if removed:
+        logger.info("Pruned activity deletion tombstones", extra=core_logger.context(removed=removed))
+    return removed

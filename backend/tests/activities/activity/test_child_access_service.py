@@ -4,84 +4,54 @@ This is where the access rule for laps / sets / streams / workout steps now
 lives; the four child CRUDs used to hold a copy each.
 """
 
+import uuid
 from unittest.mock import MagicMock, patch
 
+_USER_1 = uuid.UUID(int=1)
+_USER_2 = uuid.UUID(int=2)
 
-class TestMayReadChild:
-    @patch("modules.activities.activity.child_access_service.followers_integration")
-    @patch("modules.activities.activity.child_access_service.server_settings_integration")
-    @patch("modules.activities.activity.child_access_service.activity_crud")
-    def test_owner_may_read_even_when_the_flag_is_set(self, mock_crud, mock_settings, mock_followers):
+_ACTIVITY_ID = uuid.uuid4()
+
+
+class TestIsHiddenFrom:
+    """The hide rule, decided from an activity already in hand."""
+
+    def test_the_owner_is_never_hidden_from(self):
+        from types import SimpleNamespace
+
         from modules.activities.activity import child_access_service
 
-        mock_crud.get_viewable_activity_by_id_for_user.return_value = MagicMock(user_id=1, hide_laps=True)
+        activity = SimpleNamespace(user_id=_USER_1, hide_laps=True)
 
-        assert child_access_service.may_read_child(5, 1, MagicMock(), hide_attr="hide_laps") is True
+        assert child_access_service.is_hidden_from(activity, _USER_1, hide_attr="hide_laps") is False
 
-    @patch("modules.activities.activity.child_access_service.followers_integration")
-    @patch("modules.activities.activity.child_access_service.server_settings_integration")
-    @patch("modules.activities.activity.child_access_service.activity_crud")
-    def test_non_owner_is_denied_when_the_flag_is_set(self, mock_crud, mock_settings, mock_followers):
+    def test_a_non_owner_is_hidden_from_when_the_flag_is_set(self):
+        from types import SimpleNamespace
+
         from modules.activities.activity import child_access_service
 
-        mock_crud.get_viewable_activity_by_id_for_user.return_value = MagicMock(user_id=2, hide_laps=True)
+        activity = SimpleNamespace(user_id=_USER_1, hide_laps=True)
 
-        assert child_access_service.may_read_child(5, 1, MagicMock(), hide_attr="hide_laps") is False
+        assert child_access_service.is_hidden_from(activity, _USER_2, hide_attr="hide_laps") is True
 
-    @patch("modules.activities.activity.child_access_service.followers_integration")
-    @patch("modules.activities.activity.child_access_service.server_settings_integration")
-    @patch("modules.activities.activity.child_access_service.activity_crud")
-    def test_non_owner_may_read_when_the_flag_is_unset(self, mock_crud, mock_settings, mock_followers):
+    def test_an_anonymous_viewer_is_hidden_from_when_the_flag_is_set(self):
+        from types import SimpleNamespace
+
         from modules.activities.activity import child_access_service
 
-        mock_crud.get_viewable_activity_by_id_for_user.return_value = MagicMock(user_id=2, hide_laps=False)
+        activity = SimpleNamespace(user_id=_USER_1, hide_laps=True)
 
-        assert child_access_service.may_read_child(5, 1, MagicMock(), hide_attr="hide_laps") is True
+        assert child_access_service.is_hidden_from(activity, None, hide_attr="hide_laps") is True
 
-    @patch("modules.activities.activity.child_access_service.followers_integration")
-    @patch("modules.activities.activity.child_access_service.server_settings_integration")
-    @patch("modules.activities.activity.child_access_service.activity_crud")
-    def test_an_invisible_activity_is_denied(self, mock_crud, mock_settings, mock_followers):
-        """A private / non-followed activity must not leak its children (IDOR)."""
+    def test_nobody_is_hidden_from_when_the_flag_is_unset(self):
+        from types import SimpleNamespace
+
         from modules.activities.activity import child_access_service
 
-        mock_crud.get_viewable_activity_by_id_for_user.return_value = None
+        activity = SimpleNamespace(user_id=_USER_1, hide_laps=False)
 
-        assert child_access_service.may_read_child(5, 1, MagicMock(), hide_attr="hide_laps") is False
-
-
-class TestMayReadPublicChild:
-    @patch("modules.activities.activity.child_access_service.activity_crud")
-    @patch("modules.activities.activity.child_access_service.server_settings_integration")
-    def test_disabled_shareable_links_never_touch_persistence(self, mock_settings, mock_crud):
-        from modules.activities.activity import child_access_service
-
-        mock_settings.public_shareable_links_enabled.return_value = False
-
-        assert child_access_service.may_read_public_child(5, MagicMock(), hide_attr="hide_laps") is False
-        mock_crud.get_public_activity_for_child_read.assert_not_called()
-
-    @patch("modules.activities.activity.child_access_service.followers_integration")
-    @patch("modules.activities.activity.child_access_service.server_settings_integration")
-    @patch("modules.activities.activity.child_access_service.activity_crud")
-    def test_delegates_to_the_public_gate(self, mock_crud, mock_settings, mock_followers):
-        from modules.activities.activity import child_access_service
-
-        db = MagicMock()
-        mock_crud.get_public_activity_for_child_read.return_value = MagicMock()
-
-        assert child_access_service.may_read_public_child(5, db, hide_attr="hide_laps") is True
-        mock_crud.get_public_activity_for_child_read.assert_called_once_with(5, db, hide_attr="hide_laps")
-
-    @patch("modules.activities.activity.child_access_service.followers_integration")
-    @patch("modules.activities.activity.child_access_service.server_settings_integration")
-    @patch("modules.activities.activity.child_access_service.activity_crud")
-    def test_gate_refusal_is_a_refusal(self, mock_crud, mock_settings, mock_followers):
-        from modules.activities.activity import child_access_service
-
-        mock_crud.get_public_activity_for_child_read.return_value = None
-
-        assert child_access_service.may_read_public_child(5, MagicMock(), hide_attr="hide_laps") is False
+        assert child_access_service.is_hidden_from(activity, _USER_2, hide_attr="hide_laps") is False
+        assert child_access_service.is_hidden_from(activity, None, hide_attr="hide_laps") is False
 
 
 class TestResolveParents:
@@ -96,7 +66,7 @@ class TestResolveParents:
         activity = MagicMock()
         mock_crud.get_viewable_activity_by_id_for_user.return_value = activity
 
-        assert child_access_service.resolve_readable_parent(5, 1, db) is activity
+        assert child_access_service.resolve_readable_parent(_ACTIVITY_ID, _USER_1, db) is activity
 
     @patch("modules.activities.activity.child_access_service.followers_integration")
     @patch("modules.activities.activity.child_access_service.server_settings_integration")
@@ -108,5 +78,5 @@ class TestResolveParents:
         activity = MagicMock()
         mock_crud.get_activity_by_id_if_is_public.return_value = activity
 
-        assert child_access_service.resolve_public_parent(5, db) is activity
-        mock_crud.get_activity_by_id_if_is_public.assert_called_once_with(5, db)
+        assert child_access_service.resolve_public_parent(_ACTIVITY_ID, db) is activity
+        mock_crud.get_activity_by_id_if_is_public.assert_called_once_with(_ACTIVITY_ID, db)

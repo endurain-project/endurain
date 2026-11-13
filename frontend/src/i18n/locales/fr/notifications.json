@@ -5,10 +5,12 @@
   "unread": "Non lues",
   "markRead": "Marquer comme lue",
   "markAllRead": "Tout marquer comme lu",
+  "dismiss": "Ignorer la notification",
+  "dismissError": "Impossible d'ignorer la notification. Veuillez réessayer.",
   "seeAll": "Tout voir",
   "loadMore": "Charger plus",
   "loading": "Chargement…",
-  "badge": "{count} notifications non lues",
+  "badge": "{count} notification non lue | {count} notifications non lues",
   "empty": {
     "title": "Vous êtes à jour",
     "description": "Les mises à jour concernant vos activités, abonnés et intégrations apparaîtront ici."
@@ -39,9 +41,122 @@
       "title": "Garmin Connect nécessite votre attention",
       "body": "Votre session Garmin Connect a expiré. Reconnectez-la pour continuer la synchronisation."
     },
+    "stravaTokenExpired": {
+      "title": "Strava requiert votre attention",
+      "body": "Strava a rejeté votre connexion. Reconnectez-la pour continuer la synchronisation.",
+      "bodyRevoked": "L'accès à Strava a pris fin. Vos activités et équipements synchronisés depuis Strava seront supprimés le {date} si vous ne vous reconnectez pas."
+    },
+    "stravaDataDeleted": {
+      "title": "Données Strava supprimées",
+      "body": "Vos activités et équipements synchronisés depuis Strava ont été supprimés, car l'accès à Strava a pris fin et vous ne vous êtes pas reconnecté."
+    },
+    "idpLinked": {
+      "title": "Nouveau fournisseur de connexion associé",
+      "body": "{name} a été associé à votre compte. Si ce n'était pas vous, vérifiez vos paramètres de sécurité.",
+      "bodyGeneric": "Un fournisseur de connexion a été associé à votre compte. Si ce n'était pas vous, vérifiez vos paramètres de sécurité."
+    },
+    "accountSecurityChanged": {
+      "passwordChanged": {
+        "title": "Mot de passe modifié",
+        "body": "Votre mot de passe a été modifié. Si ce n'était pas vous, réinitialisez votre mot de passe et vérifiez vos paramètres de sécurité."
+      },
+      "passwordReset": {
+        "title": "Mot de passe réinitialisé",
+        "body": "Votre mot de passe a été réinitialisé à l'aide d'un lien de réinitialisation. Si ce n'était pas vous, réinitialisez-le à nouveau et vérifiez vos paramètres de sécurité. Any API keys were revoked and any pending email change was cancelled."
+      },
+      "passwordSetByAdmin": {
+        "title": "Mot de passe défini par un administrateur",
+        "body": "Un administrateur a défini un nouveau mot de passe pour votre compte. Si vous ne vous y attendiez pas, contactez votre administrateur. Any API keys were revoked and any pending email change was cancelled."
+      },
+      "mfaEnabled": {
+        "title": "Authentification à deux facteurs activée",
+        "body": "L'authentification à deux facteurs a été activée sur votre compte. Si ce n'était pas vous, réinitialisez votre mot de passe et vérifiez vos paramètres de sécurité."
+      },
+      "mfaDisabled": {
+        "title": "Authentification à deux facteurs désactivée",
+        "body": "L'authentification à deux facteurs a été désactivée sur votre compte. Si ce n'était pas vous, réinitialisez votre mot de passe et vérifiez vos paramètres de sécurité."
+      },
+      "mfaResetByAdmin": {
+        "title": "Authentification à deux facteurs réinitialisée par un administrateur",
+        "body": "Un administrateur a réinitialisé l'authentification à deux facteurs de votre compte et vous a déconnecté de tous vos appareils. Configurez-la à nouveau depuis vos paramètres de sécurité. Si vous ne vous y attendiez pas, contactez votre administrateur."
+      },
+      "passwordChangeRequiredByAdmin": {
+        "title": "Changement de mot de passe exigé par un administrateur",
+        "body": "Un administrateur vous a demandé de changer votre mot de passe et vous a déconnecté de tous vos appareils. Vous choisirez un nouveau mot de passe lors de votre prochaine connexion avec votre mot de passe. Si vous ne vous y attendiez pas, contactez votre administrateur."
+      },
+      "backupCodesGenerated": {
+        "title": "Nouveaux codes de secours générés",
+        "body": "De nouveaux codes de secours ont été générés pour votre compte. Si ce n'était pas vous, réinitialisez votre mot de passe et vérifiez vos paramètres de sécurité."
+      },
+      "apiKeyCreated": {
+        "title": "Nouvelle clé API créée",
+        "body": "Une nouvelle clé API a été créée pour votre compte. Si ce n'était pas vous, réinitialisez votre mot de passe et vérifiez vos paramètres de sécurité."
+      },
+      "apiKeysRevokedByAdmin": {
+        "title": "Clés d'API révoquées par un administrateur",
+        "body": "Un administrateur a révoqué une ou plusieurs de vos clés d'API, donc rien de ce qui les utilise ne peut plus accéder à votre compte. Si vous ne vous y attendiez pas, contactez votre administrateur."
+      },
+      "identityProviderUnlinked": {
+        "title": "Fournisseur de connexion dissocié",
+        "body": "{name} a été dissocié de votre compte. Si ce n'était pas vous, réinitialisez votre mot de passe et vérifiez vos paramètres de sécurité.",
+        "bodyGeneric": "Un fournisseur de connexion a été dissocié de votre compte. Si ce n'était pas vous, réinitialisez votre mot de passe et vérifiez vos paramètres de sécurité."
+      },
+      "accountLocked": {
+        "title": "Compte verrouillé",
+        "body": "Votre compte a été verrouillé après 100 échecs de connexion consécutifs. Les navigateurs et applications depuis lesquels vous vous êtes connecté depuis votre dernière modification de sécurité peuvent toujours se connecter. Si ces tentatives ne sont pas les vôtres, changez ou réinitialisez votre mot de passe, ce qui lève aussi le verrou."
+      },
+      "mfaLocked": {
+        "title": "Vérification en deux étapes verrouillée",
+        "body": "Votre compte a été verrouillé après 100 codes de vérification en deux étapes incorrects consécutifs, ce qui signifie que quelqu'un connaît votre mot de passe. Les navigateurs et applications depuis lesquels vous vous êtes connecté depuis votre dernière modification de sécurité peuvent toujours se connecter. Si ces tentatives ne sont pas les vôtres, changez votre mot de passe."
+      },
+      "stepUpSessionEnded": {
+        "title": "Session déconnectée",
+        "body": "Une session de votre compte a été déconnectée après la saisie de 15 mots de passe ou codes de vérification en deux étapes incorrects consécutifs pour confirmer une action sensible. Vos autres sessions n'ont pas été affectées. Si ces tentatives ne vous sont pas imputables, changez votre mot de passe."
+      },
+      "stepUpLocked": {
+        "title": "Confirmation des actions sensibles verrouillée",
+        "body": "La confirmation des actions sensibles, comme le changement de votre mot de passe ou la création d'une clé API, a été verrouillée pendant 30 jours après 100 confirmations incorrectes sur l'ensemble de vos sessions. Si ces tentatives ne vous sont pas imputables, réinitialisez votre mot de passe, ce qui lève aussi le verrouillage."
+      },
+      "backupCodeUsed": {
+        "title": "Code de secours utilisé",
+        "body": "Un code de secours a été utilisé pour la vérification en deux étapes de votre compte. Si ce n'était pas vous, changez votre mot de passe et générez de nouveaux codes de secours.",
+        "bodyRemaining": "Un code de secours a été utilisé pour la vérification en deux étapes de votre compte. Codes de secours inutilisés restants : {count}. Si ce n'était pas vous, changez votre mot de passe et générez de nouveaux codes de secours.",
+        "bodyNone": "Un code de secours a été utilisé pour la vérification en deux étapes de votre compte. Il ne vous reste aucun code de secours inutilisé : générez-en de nouveaux dans vos paramètres de sécurité. Si ce n'était pas vous, changez votre mot de passe."
+      },
+      "refreshTokenReuseDetected": {
+        "title": "Session terminée",
+        "body": "Une session de connexion de votre compte a été terminée, car un jeton déjà utilisé a été présenté à nouveau, ce qui peut signifier que la session a été copiée. Vos autres sessions n'ont pas été affectées. Si vous ne vous y attendiez pas, changez votre mot de passe."
+      },
+      "roleChangedByAdmin": {
+        "title": "Accès modifié par un administrateur",
+        "body": "Un administrateur a modifié l'accès de votre compte et vous a déconnecté de tous vos appareils. Si vous ne vous y attendiez pas, contactez votre administrateur.",
+        "bodyAdmin": "Un administrateur a modifié l'accès de votre compte en administrateur et vous a déconnecté de tous vos appareils. Si vous ne vous y attendiez pas, contactez votre administrateur.",
+        "bodyRegular": "Un administrateur a modifié l'accès de votre compte en utilisateur standard et vous a déconnecté de tous vos appareils. Si vous ne vous y attendiez pas, contactez votre administrateur."
+      },
+      "accountDeactivatedByAdmin": {
+        "title": "Compte désactivé par un administrateur",
+        "body": "Un administrateur a désactivé votre compte et vous a déconnecté de tous vos appareils. Vous ne pouvez pas vous connecter tant qu'un administrateur ne l'a pas réactivé."
+      },
+      "unknown": {
+        "title": "Sécurité du compte modifiée",
+        "body": "Un paramètre de sécurité de votre compte a été modifié. Si ce n'était pas vous, réinitialisez votre mot de passe et vérifiez vos paramètres de sécurité."
+      },
+      "usernameChanged": {
+        "title": "Nom d'utilisateur modifié",
+        "body": "Votre nom d'utilisateur a été modifié. Si ce n'était pas vous, réinitialisez votre mot de passe et vérifiez vos paramètres de sécurité."
+      }
+    },
+    "newDeviceSignIn": {
+      "title": "Nouvelle connexion",
+      "body": "Nouvelle connexion depuis {browser} sur {os} ({ip}). Si ce n'était pas vous, changez votre mot de passe et déconnectez-vous de vos autres sessions."
+    },
     "adminSignUpApproval": {
       "title": "Nouvelle inscription en attente d'approbation",
       "body": "{name} ({'@'}{username}) attend l'approbation de son compte."
+    },
+    "adminUserPromoted": {
+      "title": "Utilisateur promu administrateur",
+      "body": "{name} ({'@'}{username}) a reçu l'accès administrateur."
     },
     "unknown": {
       "title": "Notification",

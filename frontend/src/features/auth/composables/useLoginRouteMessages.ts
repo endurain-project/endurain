@@ -1,4 +1,4 @@
-import { useRoute } from 'vue-router'
+import { useRoute, type LocationQuery } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 
 import type { Severity } from '@/types'
@@ -17,10 +17,22 @@ const STATUS_FLAG_ALERTS: ReadonlyArray<{ query: string; kind: Severity; key: st
   { query: 'sessionExpired', kind: 'warning', key: 'login.sessionExpired' },
   { query: 'passwordResetSuccess', kind: 'success', key: 'login.passwordResetSuccess' },
   { query: 'passwordResetInvalidLink', kind: 'error', key: 'login.passwordResetInvalidLink' },
+  { query: 'onboardingComplete', kind: 'success', key: 'login.onboardingComplete' },
   { query: 'emailVerificationSent', kind: 'info', key: 'login.emailVerificationSent' },
   { query: 'adminApprovalRequired', kind: 'info', key: 'login.adminApprovalRequired' },
   { query: 'verifyEmailInvalidLink', kind: 'error', key: 'login.verifyEmailInvalidLink' },
 ]
+
+/**
+ * Whether the login route carries a boolean status flag (signed out, session
+ * expired, password reset, ...).
+ *
+ * @param query - The current route query.
+ * @returns `true` when any status flag is set.
+ */
+export function hasLoginStatusFlag(query: LocationQuery): boolean {
+  return STATUS_FLAG_ALERTS.some((entry) => query[entry.query] === 'true')
+}
 
 /** Maps an `error` query value from an SSO callback to a translation key. */
 const SSO_ERROR_KEYS: Record<string, string> = {
@@ -28,8 +40,15 @@ const SSO_ERROR_KEYS: Record<string, string> = {
   sso_cancelled: 'login.ssoCancelled',
   sso_account_not_found: 'login.ssoAccountNotFound',
   sso_account_disabled: 'login.ssoAccountDisabled',
+  sso_approval_pending: 'login.adminApprovalRequired',
   sso_auto_create_disabled: 'login.ssoAutoCreateDisabled',
+  sso_email_missing: 'login.ssoEmailMissing',
+  sso_email_unverified: 'login.ssoEmailUnverified',
+  sso_link_by_email_disabled: 'login.ssoLinkByEmailDisabled',
 }
+
+/** SSO outcomes that are not failures: the user cancelled, or the account waits for an administrator. */
+const SSO_INFO_ERRORS: ReadonlySet<string> = new Set(['sso_cancelled', 'sso_approval_pending'])
 
 /**
  * Translates the login screen's status/error query parameters into a single
@@ -62,6 +81,13 @@ export function useLoginRouteMessages() {
       return { kind: 'info', message: t('login.forceLocalLogin') }
     }
 
+    if (
+      route.query.emailVerificationSent === 'true' &&
+      route.query.adminApprovalRequired === 'true'
+    ) {
+      return { kind: 'info', message: t('login.emailVerificationAndApprovalRequired') }
+    }
+
     const statusMatch = STATUS_FLAG_ALERTS.find((entry) => route.query[entry.query] === 'true')
     if (statusMatch) {
       return { kind: statusMatch.kind, message: t(statusMatch.key) }
@@ -70,7 +96,7 @@ export function useLoginRouteMessages() {
     const error = getQueryString(route.query.error)
     if (error) {
       return {
-        kind: error === 'sso_cancelled' ? 'info' : 'error',
+        kind: SSO_INFO_ERRORS.has(error) ? 'info' : 'error',
         message: t(SSO_ERROR_KEYS[error] ?? 'login.ssoErrorUndefined'),
       }
     }

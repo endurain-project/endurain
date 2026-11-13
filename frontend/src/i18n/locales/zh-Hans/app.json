@@ -18,6 +18,17 @@
     "help": "请检查 ENDURAIN_HOST 是否指向可访问您的 Endurain 实例的网址（例如 https://endurain.example.com），并确认后端正在运行，然后重新加载页面。",
     "reload": "重新加载"
   },
+  "staleError": "您查看时此内容已在别处被修改，因此未保存任何内容。已加载当前版本。请检查后重试。",
+  "sessionRestoreError": "无法确认你是否已登录。服务器或你的网络连接可能不可用。",
+  "fieldError": {
+    "required": "此字段为必填项",
+    "tooShort": "此值太短",
+    "tooLong": "此值太长",
+    "tooLarge": "此值太大",
+    "tooSmall": "此值太小",
+    "invalidFormat": "此值格式无效",
+    "invalid": "此值无效"
+  },
   "dismiss": "关闭",
   "language": "语言",
   "theme": {
@@ -35,5 +46,28 @@
     "edit": "编辑",
     "supported": "支持 Markdown",
     "empty": "暂无预览内容"
+  },
+  "password": {
+    "hintLength": "至少 {min} 个字符。",
+    "invalid": "密码不符合要求",
+    "mismatch": "两次密码不一致",
+    "tooShort": "此密码太短，请至少使用 {min} 个字符。",
+    "tooCommon": "此密码太常见，请选择更难猜测的密码。",
+    "breached": "此密码曾出现在已知的数据泄露事件中。请选择其他密码。",
+    "matchesAccount": "请勿使用您的用户名或电子邮件地址作为密码。",
+    "blank": "密码不能只包含空格。",
+    "unchanged": "请选择与当前密码不同的密码。",
+    "strength": {
+      "label": "密码强度：{level}",
+      "tooWeak": "太弱",
+      "weak": "弱",
+      "fair": "一般",
+      "good": "良好",
+      "strong": "强"
+    }
+  },
+  "retryAfter": {
+    "tooManyAttempts": "尝试次数过多，请在 {seconds} 秒后重试。",
+    "unavailable": "身份验证暂时不可用，请在 {seconds} 秒后重试。"
   }
 }

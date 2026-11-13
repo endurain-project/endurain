@@ -1,7 +1,9 @@
-import { computed, type MaybeRefOrGetter, toValue } from 'vue'
+import { computed, type MaybeRefOrGetter, toValue, watch } from 'vue'
 import { storeToRefs } from 'pinia'
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/vue-query'
 
+import type { User } from '@/features/auth/types'
+import type { StepUpInput } from '@/features/security/types'
 import type {
   CreateUserInput,
   EditUserFields,
@@ -10,9 +12,13 @@ import type {
 } from '@/features/users/types'
 
 import { queryKeys } from '@/services/queryKeys'
+import { useUserDeletionsStore } from '@/features/users/stores/userDeletions'
+import { seedJob } from '@/services/jobStatus'
+import { useJobQuery } from '@/composables/useJobQuery'
 import { bumpAvatarCacheToken } from '@/lib/avatarCache'
 import { useInvalidatingMutation } from '@/composables/useInvalidatingMutation'
 import { useAuthStore } from '@/features/auth/stores/auth'
+import { invalidateHeightDependentQueries } from '@/features/profile/composables/useProfile'
 import {
   approveUser,
   changeUserPassword,
@@ -21,7 +27,8 @@ import {
   deleteUserPhoto,
   fetchUserById,
   fetchUsers,
-  searchUsersByUsername,
+  requireUserPasswordChange,
+  resetUserMfa,
   updateUser,
   uploadUserPhoto,
 } from '@/features/users/services/users'
@@ -34,13 +41,14 @@ import {
  *
  * @param page - Reactive 1-based page number.
  * @param pageSize - Reactive records-per-page (from server settings).
- * @param filters - Reactive list filters (inactive, unverified, etc.).
+ * @param filters - Reactive list filters (inactive, unverified, etc.) and the optional
+ *   username search term.
  * @returns The TanStack Query result for the current users page.
  */
 export function useUsersQuery(
   page: MaybeRefOrGetter<number>,
   pageSize: MaybeRefOrGetter<number>,
-  filters: MaybeRefOrGetter<UserFilters>,
+  filters: MaybeRefOrGetter<UserFilters & { username?: string }>,
 ) {
   const { isAuthenticated } = storeToRefs(useAuthStore())
 
@@ -67,58 +75,94 @@ export function useUsersQuery(
 }
 
 /**
- * Username "contains" search. Enabled only once the (debounced) term is
- * non-empty so an empty box never fires a request; gated on authentication.
- *
- * @param term - The reactive (debounced) search term.
- * @returns The TanStack Query result for the matching users.
- */
-export function useUserSearchQuery(term: MaybeRefOrGetter<string>) {
-  const { isAuthenticated } = storeToRefs(useAuthStore())
-  const trimmed = computed(() => toValue(term).trim())
-
-  return useQuery<ManagedUser[]>({
-    queryKey: computed(() => queryKeys.users.search(trimmed.value)),
-    queryFn: ({ signal }) => searchUsersByUsername(trimmed.value, signal),
-    enabled: computed(() => isAuthenticated.value && trimmed.value.length > 0),
-  })
-}
-
-/**
  * Create mutation. Invalidates the users domain on settle so every list and the
  * username search refetch the server-authoritative state.
  *
  * @returns The TanStack Query mutation for creating a user.
  */
 export function useCreateUserMutation() {
-  return useInvalidatingMutation<ManagedUser, CreateUserInput>({
+  return useInvalidatingMutation<
+    ManagedUser,
+    { input: CreateUserInput; stepUp: StepUpInput | null }
+  >({
     mutationKey: queryKeys.users.all(),
-    mutationFn: (input) => createUser(input),
+    mutationFn: ({ input, stepUp }) => createUser(input, stepUp),
   })
 }
 
 /**
- * Update mutation. Invalidates the users domain on settle.
+ * Update mutation. Invalidates the users domain on settle, and the health data
+ * when the signed-in user's own height changed, since BMI derives from it.
  *
  * @returns The TanStack Query mutation for updating a user.
  */
 export function useUpdateUserMutation() {
-  return useInvalidatingMutation<ManagedUser, { user: ManagedUser; edits: EditUserFields }>({
+  const client = useQueryClient()
+
+  return useInvalidatingMutation<
+    ManagedUser,
+    {
+      user: ManagedUser
+      edits: EditUserFields
+      stepUp?: StepUpInput | null
+    }
+  >({
     mutationKey: queryKeys.users.all(),
-    mutationFn: ({ user, edits }) => updateUser(user, edits),
+    alsoInvalidate: [queryKeys.profile.all()],
+    mutationFn: async ({ user, edits, stepUp }) => {
+      const updated = await updateUser(user, edits, stepUp)
+      if (client.getQueryData<User>(queryKeys.currentUser())?.id === user.id) {
+        invalidateHeightDependentQueries(client, edits.height)
+      }
+      return updated
+    },
   })
 }
 
 /**
- * Delete mutation. Invalidates the users domain on settle.
+ * Delete mutation. Invalidates the users domain on settle, and follows the queued deletion.
  *
  * @returns The TanStack Query mutation for deleting a user.
  */
 export function useDeleteUserMutation() {
-  return useInvalidatingMutation<void, number>({
+  const client = useQueryClient()
+  const deletions = useUserDeletionsStore()
+
+  return useInvalidatingMutation<void, { id: string; version: number; stepUp: StepUpInput }>({
     mutationKey: queryKeys.users.all(),
-    mutationFn: (id) => deleteUser(id),
+    mutationFn: async ({ id, version, stepUp }) => {
+      const job = await deleteUser(id, version, stepUp)
+      seedJob(client, job)
+      deletions.track(id, job.id)
+    },
   })
+}
+
+/** How often a queued account deletion is read again; the backend asks for 10 seconds. */
+const DELETION_POLL_MS = 10_000
+
+/**
+ * Follows a queued account deletion until it reaches a terminal state. Once it has succeeded,
+ * the users lists and details are refetched, so the erased account leaves the screen.
+ *
+ * @param jobId - The deletion job's id, from the 202 that queued it.
+ * @returns The query; `data` is the deletion job's state.
+ */
+export function useUserDeletionQuery(jobId: MaybeRefOrGetter<string>) {
+  const client = useQueryClient()
+  const query = useJobQuery<'user_deletion'>(jobId, { intervalMs: DELETION_POLL_MS })
+
+  watch(
+    () => query.data.value?.status,
+    (status) => {
+      if (status === 'succeeded') {
+        void client.invalidateQueries({ queryKey: queryKeys.users.lists() })
+        void client.invalidateQueries({ queryKey: queryKeys.users.details() })
+      }
+    },
+  )
+
+  return query
 }
 
 /**
@@ -128,7 +172,7 @@ export function useDeleteUserMutation() {
  * @returns The TanStack Query mutation for approving a user.
  */
 export function useApproveUserMutation() {
-  return useInvalidatingMutation<void, number>({
+  return useInvalidatingMutation<void, string>({
     mutationKey: queryKeys.users.all(),
     mutationFn: (id) => approveUser(id),
   })
@@ -141,13 +185,15 @@ export function useApproveUserMutation() {
  * @param id - Reactive user id (or `null` before it resolves / for a bad route).
  * @returns The TanStack Query result for the user.
  */
-export function useUserQuery(id: MaybeRefOrGetter<number | null>) {
+export function useUserQuery(id: MaybeRefOrGetter<string | null>) {
   const { isAuthenticated } = storeToRefs(useAuthStore())
 
   return useQuery({
-    queryKey: computed(() => queryKeys.users.detail(toValue(id) ?? 0)),
-    queryFn: ({ signal }) => fetchUserById(toValue(id) as number, signal),
-    enabled: computed(() => isAuthenticated.value && (toValue(id) ?? 0) > 0),
+    queryKey: computed(() => queryKeys.users.detail(toValue(id) ?? '')),
+    queryFn: ({ signal }) => fetchUserById(toValue(id) as string, signal),
+    enabled: computed(() => isAuthenticated.value && toValue(id) !== null),
+    // While the account waits to be erased, read it again until it is gone.
+    refetchInterval: (state) => (state.state.data?.deletionRequestedAt ? DELETION_POLL_MS : false),
   })
 }
 
@@ -159,8 +205,41 @@ export function useUserQuery(id: MaybeRefOrGetter<number | null>) {
  */
 export function useChangeUserPasswordMutation() {
   return useMutation({
-    mutationFn: ({ userId, password }: { userId: number; password: string }) =>
-      changeUserPassword(userId, password),
+    mutationFn: ({
+      userId,
+      password,
+      stepUp,
+    }: {
+      userId: string
+      password: string
+      stepUp: StepUpInput
+    }) => changeUserPassword(userId, password, stepUp),
+  })
+}
+
+/**
+ * Admin MFA-reset mutation. Invalidates the users domain on settle: the user's MFA flag changes and their
+ * sessions end.
+ *
+ * @returns The TanStack Query mutation for resetting a user's MFA.
+ */
+export function useResetUserMfaMutation() {
+  return useInvalidatingMutation<void, { userId: string; stepUp: StepUpInput }>({
+    mutationKey: queryKeys.users.all(),
+    mutationFn: ({ userId, stepUp }) => resetUserMfa(userId, stepUp),
+  })
+}
+
+/**
+ * Admin mutation that requires a user to change their password at the next sign-in. Invalidates the users
+ * domain on settle: the user's sessions end.
+ *
+ * @returns The TanStack Query mutation for requiring a password change.
+ */
+export function useRequireUserPasswordChangeMutation() {
+  return useInvalidatingMutation<void, { userId: string; stepUp: StepUpInput }>({
+    mutationKey: queryKeys.users.all(),
+    mutationFn: ({ userId, stepUp }) => requireUserPasswordChange(userId, stepUp),
   })
 }
 
@@ -174,13 +253,14 @@ export function useUploadUserPhotoMutation() {
   const queryClient = useQueryClient()
 
   return useMutation({
-    mutationFn: ({ userId, file }: { userId: number; file: File }) => uploadUserPhoto(userId, file),
+    mutationFn: ({ userId, file }: { userId: string; file: File }) => uploadUserPhoto(userId, file),
     onSuccess: (_data, { userId }) => {
       // Bust the avatar cache so the replaced photo re-fetches (stable path).
       bumpAvatarCacheToken()
       void queryClient.invalidateQueries({ queryKey: queryKeys.users.detail(userId) })
       void queryClient.invalidateQueries({ queryKey: queryKeys.users.lists() })
       void queryClient.invalidateQueries({ queryKey: queryKeys.currentUser() })
+      void queryClient.invalidateQueries({ queryKey: queryKeys.profile.all() })
     },
   })
 }
@@ -194,11 +274,12 @@ export function useDeleteUserPhotoMutation() {
   const queryClient = useQueryClient()
 
   return useMutation({
-    mutationFn: (userId: number) => deleteUserPhoto(userId),
+    mutationFn: (userId: string) => deleteUserPhoto(userId),
     onSuccess: (_data, userId) => {
       void queryClient.invalidateQueries({ queryKey: queryKeys.users.detail(userId) })
       void queryClient.invalidateQueries({ queryKey: queryKeys.users.lists() })
       void queryClient.invalidateQueries({ queryKey: queryKeys.currentUser() })
+      void queryClient.invalidateQueries({ queryKey: queryKeys.profile.all() })
     },
   })
 }

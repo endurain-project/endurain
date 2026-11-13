@@ -1,62 +1,64 @@
-"""SQLAlchemy ORM model for the ``users_mfa`` table.
+"""SQLAlchemy ORM model for the ``mfa_factors`` table.
 
-This module defines the 1:1 companion table that owns MFA
-state for a user. Rows are written by
-``modules.auth.mfa.crud.update_user_mfa`` and created by
-``modules.auth.mfa.crud.create_users_mfa_row``; the legacy
-``users.mfa_enabled`` / ``users.mfa_secret`` columns no
-longer exist.
+A user's enrolled second factors, one row each. A user has MFA while at least one row exists. Rows are written by
+``modules.auth.mfa.crud``; the earlier ``users_mfa`` table is no longer read or written.
 """
 
-from sqlalchemy import ForeignKey, String, UniqueConstraint
+import uuid
+from datetime import UTC, datetime
+
+from sqlalchemy import CheckConstraint, DateTime, ForeignKey, Index, String, text
 from sqlalchemy.orm import Mapped, mapped_column
 
+import modules.auth.constants as auth_constants
 from core.database import Base
 
+#: The values ``type`` may hold: one per ``MFAFactorType``.
+_FACTOR_TYPE_VALUES = ", ".join(f"'{factor_type.value}'" for factor_type in auth_constants.MFAFactorType)
+_TOTP_ONLY = text(f"type = '{auth_constants.MFAFactorType.TOTP.value}'")
 
-class UsersMFA(Base):
-    """
-    1:1 MFA state table keyed by user_id.
 
-    Stores ``mfa_enabled`` and ``mfa_secret`` as the sole
-    source of truth for a user's MFA state.
+class MFAFactor(Base):
+    """An enrolled second factor.
 
     Attributes:
-        id: Surrogate primary key.
-        user_id: FK to ``users.id`` (unique — one row per
-            user).
-        mfa_enabled: Whether TOTP MFA is active for the
-            user.
-        mfa_secret: Fernet-encrypted TOTP secret, or
-            ``None`` when MFA is disabled.
+        id: Primary key, a random UUID.
+        user_id: FK to ``users.id``.
+        type: The kind of factor (``MFAFactorType``).
+        credential: The factor's secret, Fernet-encrypted: the TOTP secret.
+        created_at: When the factor was enrolled.
+        last_used_at: When the factor last verified a sign-in or step-up, or ``None`` if it has not.
     """
 
-    __tablename__ = "users_mfa"
-
+    __tablename__ = "mfa_factors"
     __table_args__ = (
-        UniqueConstraint(
+        CheckConstraint(f"type IN ({_FACTOR_TYPE_VALUES})", name="ck_mfa_factors_type"),
+        Index(
+            "uq_mfa_factors_user_totp",
             "user_id",
-            name="uq_users_mfa_user_id",
+            unique=True,
+            postgresql_where=_TOTP_ONLY,
+            sqlite_where=_TOTP_ONLY,
         ),
     )
 
-    id: Mapped[int] = mapped_column(
-        primary_key=True,
-        autoincrement=True,
-    )
-    user_id: Mapped[int] = mapped_column(
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    user_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("users.id", ondelete="CASCADE"),
         nullable=False,
         index=True,
-        comment="FK to users — one row per user",
+        comment="FK to users",
     )
-    mfa_enabled: Mapped[bool] = mapped_column(
-        default=False,
+    type: Mapped[str] = mapped_column(String(16), nullable=False, comment="Factor type: totp")
+    credential: Mapped[str] = mapped_column(String(512), nullable=False, comment="Fernet-encrypted factor secret")
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
         nullable=False,
-        comment="Whether TOTP MFA is active for this user",
+        default=lambda: datetime.now(UTC),
+        comment="When the factor was enrolled",
     )
-    mfa_secret: Mapped[str | None] = mapped_column(
-        String(512),
+    last_used_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True),
         nullable=True,
-        comment="Fernet-encrypted TOTP secret",
+        comment="When the factor last verified a sign-in or step-up",
     )

@@ -1,10 +1,17 @@
 {
-  "repository": "Repository",
+  "releaseNotes": "Versionshinweise zu {version}",
+  "project": "Projekt",
+  "website": "Website",
   "documentation": "Dokumentation",
+  "sourceCode": "Quellcode",
+  "community": "Community",
   "mastodon": "Endurains Mastodon-Konto",
   "bluesky": "Endurains Bluesky-Profil",
   "discord": "Endurains Discord-Server",
   "linkedin": "Endurains LinkedIn-Seite",
+  "externalLink": "öffnet in einem neuen Tab",
+  "trademarkNotice": "Endurain® ist eine eingetragene Marke von João Vitória Silva.",
+  "trademarkPolicy": "Markenrichtlinie",
   "compatibleStrava": "Kompatibel mit Strava",
   "worksGarmin": "Funktioniert mit Garmin Connect"
 }

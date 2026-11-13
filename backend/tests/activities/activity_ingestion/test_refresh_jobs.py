@@ -1,14 +1,22 @@
 """Tests for accepting and running provider refresh jobs."""
 
+import uuid
 from datetime import UTC, datetime
 from unittest.mock import MagicMock, patch
 
 import pytest
+from tests._helpers.auth import MOCK_USER_ID
 
+import core.local_pool as core_local_pool
 import modules.activities.activity_ingestion.constants as activity_ingestion_constants
 import modules.activities.activity_ingestion.events as ingestion_events
 import modules.activities.activity_ingestion.provider_registry as provider_registry
 import modules.activities.activity_ingestion.service as ingestion_jobs
+
+_JOB_1 = uuid.UUID("00000000-0000-4000-8000-0000000000a1")
+
+_ID_A = uuid.UUID("00000000-0000-4000-8000-00000000000a")
+_ID_B = uuid.UUID("00000000-0000-4000-8000-00000000000b")
 
 
 class TestAcceptRefresh:
@@ -25,7 +33,7 @@ class TestAcceptRefresh:
                 ingestion_jobs.activity_ingestion_dispatch_service.activity_ingestion_background, "submit"
             ) as submit,
         ):
-            result = ingestion_jobs.accept_refresh(7, "storage", db)
+            result = ingestion_jobs.accept_refresh(MOCK_USER_ID, "storage", db)
 
         assert result == "job-view"
         assert create.call_args.args[2] == activity_ingestion_constants.IngestionJobKind.REFRESH
@@ -33,7 +41,7 @@ class TestAcceptRefresh:
         # leave a job nobody will run.
         assert "commit" not in create.call_args.kwargs
         assert publish.call_args.kwargs["commit"] == db.commit
-        assert publish.call_args.args[1] == {"job_id": create.call_args.args[0]}
+        assert publish.call_args.args[1] == {"job_id": str(create.call_args.args[0])}
         assert publish.call_args.kwargs["schema_version"] == ingestion_events.RefreshRequestedPayload.SCHEMA_VERSION
         submit.assert_not_called()
 
@@ -50,12 +58,46 @@ class TestAcceptRefresh:
                 ingestion_jobs.activity_ingestion_dispatch_service.activity_ingestion_background, "submit"
             ) as submit,
         ):
-            ingestion_jobs.accept_refresh(7, "storage", db)
+            ingestion_jobs.accept_refresh(MOCK_USER_ID, "storage", db)
 
         # Same client contract either way — only the executor differs.
         publish.assert_not_called()
         db.commit.assert_called_once()
         submit.assert_called_once_with(ingestion_jobs.run_refresh_job, create.call_args.args[0], "storage")
+
+    def test_a_full_pool_refuses_the_request_before_a_job_exists(self):
+        db = MagicMock()
+        with (
+            patch.object(
+                ingestion_jobs.activity_ingestion_dispatch_service,
+                "require_capacity",
+                side_effect=core_local_pool.PoolFullError("full"),
+            ),
+            patch.object(ingestion_jobs.activity_ingestion_crud, "create_ingestion_job") as create,
+            pytest.raises(core_local_pool.PoolFullError),
+        ):
+            ingestion_jobs.accept_refresh(MOCK_USER_ID, "storage", db)
+
+        create.assert_not_called()
+
+    def test_a_pool_that_fills_after_the_commit_closes_the_job_instead_of_leaving_it_pending(self):
+        db = MagicMock()
+        with (
+            patch.object(ingestion_jobs.core_config.settings, "JOBS_ENABLED", False),
+            patch.object(ingestion_jobs.activity_ingestion_crud, "create_ingestion_job") as create,
+            patch.object(
+                ingestion_jobs.activity_ingestion_dispatch_service.activity_ingestion_background,
+                "submit",
+                side_effect=core_local_pool.PoolFullError("full"),
+            ),
+            patch.object(ingestion_jobs, "fail_ingestion_job") as fail,
+            pytest.raises(core_local_pool.PoolFullError),
+        ):
+            ingestion_jobs.accept_refresh(MOCK_USER_ID, "storage", db)
+
+        fail.assert_called_once_with(
+            create.call_args.args[0], activity_ingestion_constants.IngestionJobErrorCode.PROCESSING_FAILED, "storage"
+        )
 
     def test_a_refresh_job_carries_no_file_fields(self):
         db = MagicMock()
@@ -65,16 +107,43 @@ class TestAcceptRefresh:
             patch.object(ingestion_jobs.activity_ingestion_crud, "get_ingestion_job", return_value="job-view"),
             patch.object(ingestion_jobs.activity_ingestion_event_publishers.platform_publisher, "publish_committing"),
         ):
-            ingestion_jobs.accept_refresh(7, "storage", db)
+            ingestion_jobs.accept_refresh(MOCK_USER_ID, "storage", db)
 
         assert "filename" not in create.call_args.kwargs
         assert "staged_key" not in create.call_args.kwargs
 
 
-_SCOPE = (7, None, None, None)
+_SCOPE = (MOCK_USER_ID, None, None, None)
+_FIRST = uuid.UUID("00000000-0000-4000-8000-0000000000a1")
+_SECOND = uuid.UUID("00000000-0000-4000-8000-0000000000a2")
+_THIRD = uuid.UUID("00000000-0000-4000-8000-0000000000a3")
 
 
 class TestRunRefreshJob:
+    def test_the_owner_is_told_the_job_finished_after_it_is_committed(self):
+        events: list[str] = []
+        session = MagicMock()
+        session.commit.side_effect = lambda: events.append("commit")
+        with (
+            patch.object(ingestion_jobs.core_database, "SessionLocal") as session_local,
+            patch.object(ingestion_jobs.activity_ingestion_crud, "get_refresh_scope", return_value=_SCOPE),
+            patch.object(ingestion_jobs.activity_ingestion_crud, "mark_processing"),
+            patch.object(ingestion_jobs.activity_ingestion_crud, "mark_completed"),
+            patch.object(
+                ingestion_jobs.activity_ingestion_refresh_entry_service, "sync_linked_providers", return_value=[]
+            ),
+            patch.object(
+                ingestion_jobs.websocket_integration,
+                "push_job_changed",
+                side_effect=lambda *args: events.append("push"),
+            ) as push,
+        ):
+            session_local.return_value.__enter__.return_value = session
+            ingestion_jobs.run_refresh_job(_JOB_1, "storage")
+
+        push.assert_called_once_with(MOCK_USER_ID, _JOB_1, "activity_refresh")
+        assert events.index("push") > events.index("commit")
+
     def _patches(self, scope=_SCOPE):
         return (
             patch.object(ingestion_jobs.core_database, "SessionLocal"),
@@ -84,7 +153,7 @@ class TestRunRefreshJob:
         )
 
     def test_marks_completed_with_the_synced_activity_ids(self):
-        synced = [MagicMock(id=11), MagicMock(id=12)]
+        synced = [MagicMock(id=_ID_A), MagicMock(id=_ID_B)]
         with (
             patch.object(ingestion_jobs.core_database, "SessionLocal"),
             patch.object(ingestion_jobs.activity_ingestion_crud, "get_refresh_scope", return_value=_SCOPE),
@@ -94,10 +163,10 @@ class TestRunRefreshJob:
                 ingestion_jobs.activity_ingestion_refresh_entry_service, "sync_linked_providers", return_value=synced
             ),
         ):
-            ingestion_jobs.run_refresh_job("job-1", "storage")
+            ingestion_jobs.run_refresh_job(_JOB_1, "storage")
 
         processing.assert_called_once()
-        assert completed.call_args.args[1] == [11, 12]
+        assert completed.call_args.args[1] == [_ID_A, _ID_B]
 
     def test_the_scope_comes_from_the_row_not_the_event(self):
         """A tampered payload must not make the worker sync somebody else's providers."""
@@ -116,7 +185,7 @@ class TestRunRefreshJob:
                 ingestion_jobs.activity_ingestion_refresh_entry_service, "sync_linked_providers", return_value=[]
             ) as sync,
         ):
-            ingestion_jobs.run_refresh_job("job-1", "storage")
+            ingestion_jobs.run_refresh_job(_JOB_1, "storage")
 
         sync.assert_called_once_with(42, start, end, provider="strava")
 
@@ -149,7 +218,7 @@ class TestRunRefreshJob:
                 ingestion_jobs.activity_ingestion_refresh_entry_service, "sync_linked_providers", side_effect=_sync
             ),
         ):
-            ingestion_jobs.run_refresh_job("job-1", "storage")
+            ingestion_jobs.run_refresh_job(_JOB_1, "storage")
 
         assert seen_during_sync == [0]
 
@@ -159,7 +228,7 @@ class TestRunRefreshJob:
             patch.object(ingestion_jobs.activity_ingestion_crud, "get_refresh_scope", return_value=None),
             patch.object(ingestion_jobs.activity_ingestion_refresh_entry_service, "sync_linked_providers") as sync,
         ):
-            ingestion_jobs.run_refresh_job("job-1", "storage")
+            ingestion_jobs.run_refresh_job(_JOB_1, "storage")
 
         sync.assert_not_called()
 
@@ -178,9 +247,34 @@ class TestRunRefreshJob:
             ),
             pytest.raises(RuntimeError),
         ):
-            ingestion_jobs.run_refresh_job("job-1", "storage")
+            ingestion_jobs.run_refresh_job(_JOB_1, "storage")
 
         fail.assert_not_called()
+
+    @pytest.mark.parametrize("jobs_enabled", [True, False])
+    def test_a_rate_limited_provider_defers_the_job_without_failing_or_retrying_it(self, jobs_enabled):
+        retry_at = datetime(2026, 1, 1, 12, 0, tzinfo=UTC)
+        with (
+            patch.object(ingestion_jobs.core_config.settings, "JOBS_ENABLED", jobs_enabled),
+            patch.object(ingestion_jobs.core_database, "SessionLocal"),
+            patch.object(ingestion_jobs.activity_ingestion_crud, "get_refresh_scope", return_value=_SCOPE),
+            patch.object(ingestion_jobs.activity_ingestion_crud, "mark_processing"),
+            patch.object(ingestion_jobs.activity_ingestion_crud, "mark_completed") as completed,
+            patch.object(ingestion_jobs.activity_ingestion_crud, "mark_deferred") as deferred,
+            patch.object(ingestion_jobs, "fail_ingestion_job") as fail,
+            patch.object(ingestion_jobs, "release_ingestion_job") as release,
+            patch.object(
+                ingestion_jobs.activity_ingestion_refresh_entry_service,
+                "sync_linked_providers",
+                side_effect=ingestion_jobs.activity_ingestion_refresh_entry_service.RefreshDeferredError(retry_at),
+            ),
+        ):
+            ingestion_jobs.run_refresh_job(_JOB_1, "storage")
+
+        assert deferred.call_args.args[:2] == (_JOB_1, retry_at)
+        completed.assert_not_called()
+        fail.assert_not_called()
+        release.assert_not_called()
 
     def test_a_provider_failure_is_terminal_when_nothing_will_retry(self):
         with (
@@ -196,7 +290,7 @@ class TestRunRefreshJob:
             ),
             pytest.raises(RuntimeError),
         ):
-            ingestion_jobs.run_refresh_job("job-1", "storage")
+            ingestion_jobs.run_refresh_job(_JOB_1, "storage")
 
         assert fail.call_args.args[1] == activity_ingestion_constants.IngestionJobErrorCode.PROVIDER_UNAVAILABLE
 
@@ -212,18 +306,18 @@ class TestRunRefreshJob:
                 ingestion_jobs.activity_ingestion_refresh_entry_service, "sync_linked_providers", return_value=[]
             ),
         ):
-            ingestion_jobs.run_refresh_job("job-1", "storage")
+            ingestion_jobs.run_refresh_job(_JOB_1, "storage")
 
         assert completed.call_args.args[1] == []
         failed.assert_not_called()
 
 
 class TestScheduledRefreshFanOut:
-    def _provider(self, name: str, pages: list[list[int]]):
-        calls: list[tuple[int, int]] = []
+    def _provider(self, name: str, pages: list[list[uuid.UUID]]):
+        calls: list[tuple[uuid.UUID | None, int]] = []
         remaining = list(pages)
 
-        def _linked(after_id: int, limit: int) -> list[int]:
+        def _linked(after_id: uuid.UUID | None, limit: int) -> list[uuid.UUID]:
             calls.append((after_id, limit))
             return remaining.pop(0) if remaining else []
 
@@ -236,14 +330,8 @@ class TestScheduledRefreshFanOut:
         yield
         provider_registry.clear()
 
-    @staticmethod
-    def _lock(acquired: bool = True) -> MagicMock:
-        lock = MagicMock()
-        lock.try_acquire.return_value.__enter__.return_value = acquired
-        return lock
-
     def test_queues_one_job_per_linked_user_and_runs_each_locally(self):
-        self._provider("strava", [[1, 2], [3]])
+        self._provider("strava", [[_FIRST, _SECOND], [_THIRD]])
         db = MagicMock()
         with (
             patch.object(ingestion_jobs.core_config.settings, "JOBS_ENABLED", False),
@@ -257,17 +345,17 @@ class TestScheduledRefreshFanOut:
             ) as submit,
         ):
             session_local.return_value.__enter__.return_value = db
-            queued = ingestion_jobs.enqueue_scheduled_refreshes(self._lock(), "storage")
+            queued = ingestion_jobs.enqueue_scheduled_refreshes("storage")
 
         assert queued == 3
-        assert [call.args[1] for call in create.call_args_list] == [1, 2, 3]
+        assert [call.args[1] for call in create.call_args_list] == [_FIRST, _SECOND, _THIRD]
         assert submit.call_count == 3
         # One commit per page, not per user.
         assert db.commit.call_count == 2
 
     def test_a_user_linked_to_two_providers_gets_one_job(self):
-        self._provider("strava", [[1, 2]])
-        self._provider("garminconnect", [[2, 3]])
+        self._provider("strava", [[_FIRST, _SECOND]])
+        self._provider("garminconnect", [[_SECOND, _THIRD]])
         with (
             patch.object(ingestion_jobs.core_config.settings, "JOBS_ENABLED", False),
             patch.object(ingestion_jobs.core_database, "SessionLocal"),
@@ -277,27 +365,29 @@ class TestScheduledRefreshFanOut:
             patch.object(ingestion_jobs.activity_ingestion_crud, "create_ingestion_job") as create,
             patch.object(ingestion_jobs.activity_ingestion_dispatch_service.activity_ingestion_background, "submit"),
         ):
-            ingestion_jobs.enqueue_scheduled_refreshes(self._lock(), "storage")
+            ingestion_jobs.enqueue_scheduled_refreshes("storage")
 
-        assert sorted(call.args[1] for call in create.call_args_list) == [1, 2, 3]
+        assert sorted(call.args[1] for call in create.call_args_list) == [_FIRST, _SECOND, _THIRD]
 
     def test_a_user_whose_previous_refresh_has_not_finished_is_skipped(self):
         """A backed-up queue must not grow by a job per user per run."""
-        self._provider("strava", [[1, 2]])
+        self._provider("strava", [[_FIRST, _SECOND]])
         with (
             patch.object(ingestion_jobs.core_config.settings, "JOBS_ENABLED", False),
             patch.object(ingestion_jobs.core_database, "SessionLocal"),
-            patch.object(ingestion_jobs.activity_ingestion_crud, "get_user_ids_with_active_refresh", return_value={1}),
+            patch.object(
+                ingestion_jobs.activity_ingestion_crud, "get_user_ids_with_active_refresh", return_value={_FIRST}
+            ),
             patch.object(ingestion_jobs.activity_ingestion_crud, "create_ingestion_job") as create,
             patch.object(ingestion_jobs.activity_ingestion_dispatch_service.activity_ingestion_background, "submit"),
         ):
-            queued = ingestion_jobs.enqueue_scheduled_refreshes(self._lock(), "storage")
+            queued = ingestion_jobs.enqueue_scheduled_refreshes("storage")
 
         assert queued == 1
-        assert [call.args[1] for call in create.call_args_list] == [2]
+        assert [call.args[1] for call in create.call_args_list] == [_SECOND]
 
     def test_the_durable_profile_publishes_one_batch_and_runs_nothing_inline(self):
-        self._provider("strava", [[1, 2]])
+        self._provider("strava", [[_FIRST, _SECOND]])
         with (
             patch.object(ingestion_jobs.core_config.settings, "JOBS_ENABLED", True),
             patch.object(ingestion_jobs.core_database, "SessionLocal") as session_local,
@@ -313,23 +403,14 @@ class TestScheduledRefreshFanOut:
             ) as submit,
         ):
             session_local.return_value.__enter__.return_value = MagicMock()
-            ingestion_jobs.enqueue_scheduled_refreshes(self._lock(), "storage")
+            ingestion_jobs.enqueue_scheduled_refreshes("storage")
 
         publish_many.assert_called_once()
         assert len(publish_many.call_args.args[1]) == 2
         submit.assert_not_called()
 
-    def test_another_replica_holding_the_lock_means_nothing_is_queued(self):
-        calls = self._provider("strava", [[1]])
-        with patch.object(ingestion_jobs.activity_ingestion_crud, "create_ingestion_job") as create:
-            queued = ingestion_jobs.enqueue_scheduled_refreshes(self._lock(acquired=False), "storage")
-
-        assert queued == 0
-        assert calls == []
-        create.assert_not_called()
-
     def test_pages_each_provider_by_cursor(self):
-        calls = self._provider("strava", [[1, 2], [3]])
+        calls = self._provider("strava", [[_FIRST, _SECOND], [_THIRD]])
         with (
             patch.object(ingestion_jobs.core_config.settings, "JOBS_ENABLED", False),
             patch.object(ingestion_jobs.core_database, "SessionLocal"),
@@ -339,6 +420,6 @@ class TestScheduledRefreshFanOut:
             patch.object(ingestion_jobs.activity_ingestion_crud, "create_ingestion_job"),
             patch.object(ingestion_jobs.activity_ingestion_dispatch_service.activity_ingestion_background, "submit"),
         ):
-            ingestion_jobs.enqueue_scheduled_refreshes(self._lock(), "storage")
+            ingestion_jobs.enqueue_scheduled_refreshes("storage")
 
-        assert [after_id for after_id, _limit in calls] == [0, 2, 3]
+        assert [after_id for after_id, _limit in calls] == [None, _SECOND, _THIRD]

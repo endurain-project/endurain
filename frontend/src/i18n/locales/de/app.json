@@ -18,6 +18,17 @@
     "help": "Stelle sicher, dass ENDURAIN_HOST auf die URL zeigt, unter der deine Endurain-Instanz erreichbar ist (zum Beispiel https://endurain.example.com), und dass das Backend läuft. Lade anschließend die Seite neu.",
     "reload": "Neu laden"
   },
+  "staleError": "Dies wurde an anderer Stelle geändert, während du es angesehen hast, daher wurde nichts gespeichert. Die aktuelle Version wurde geladen. Prüfe sie und versuche es erneut.",
+  "sessionRestoreError": "Wir konnten nicht prüfen, ob du angemeldet bist. Der Server oder deine Verbindung ist möglicherweise nicht erreichbar.",
+  "fieldError": {
+    "required": "Dieses Feld ist erforderlich",
+    "tooShort": "Dieser Wert ist zu kurz",
+    "tooLong": "Dieser Wert ist zu lang",
+    "tooLarge": "Dieser Wert ist zu groß",
+    "tooSmall": "Dieser Wert ist zu klein",
+    "invalidFormat": "Dieser Wert hat ein ungültiges Format",
+    "invalid": "Dieser Wert ist ungültig"
+  },
   "dismiss": "Schließen",
   "language": "Sprache",
   "theme": {
@@ -35,5 +46,28 @@
     "edit": "Bearbeiten",
     "supported": "Markdown unterstützt",
     "empty": "Nichts zu sehen"
+  },
+  "password": {
+    "hintLength": "Mindestens {min} Zeichen.",
+    "invalid": "Passwort erfüllt die Anforderungen nicht",
+    "mismatch": "Passwörter stimmen nicht überein",
+    "tooShort": "Dieses Passwort ist zu kurz. Verwende mindestens {min} Zeichen.",
+    "tooCommon": "Dieses Passwort ist zu gebräuchlich. Wähle eines, das schwerer zu erraten ist.",
+    "breached": "Dieses Passwort tauchte in einem bekannten Datenleck auf. Wähle ein anderes.",
+    "matchesAccount": "Verwende nicht deinen Benutzernamen oder deine E-Mail-Adresse als Passwort.",
+    "blank": "Ein Passwort darf nicht nur aus Leerzeichen bestehen.",
+    "unchanged": "Wähle ein Passwort, das sich von deinem aktuellen unterscheidet.",
+    "strength": {
+      "label": "Passwortstärke: {level}",
+      "tooWeak": "Zu schwach",
+      "weak": "Schwach",
+      "fair": "Mittel",
+      "good": "Gut",
+      "strong": "Stark"
+    }
+  },
+  "retryAfter": {
+    "tooManyAttempts": "Zu viele Versuche. Versuche es in {seconds} Sekunden erneut.",
+    "unavailable": "Die Anmeldung ist vorübergehend nicht verfügbar. Versuche es in {seconds} Sekunden erneut."
   }
 }

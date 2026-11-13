@@ -10,6 +10,7 @@
   "settings": "Settings",
   "profile": "Profile",
   "logout": "Logout",
+  "logoutFailed": "Couldn't sign you out. Check your connection and try again.",
   "userMenu": "User menu",
   "menu": "Menu",
   "primary": "Primary navigation",

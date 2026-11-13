@@ -1,6 +1,12 @@
 {
   "title": "健康",
   "subtitle": "在一處查看您的所有健康數據",
+  "chartBucket": {
+    "week": "每週平均值：每根長條代表該週的平均每日數據。",
+    "month": "每月平均值：每根長條代表該月的平均每日數據。"
+  },
+  "targetInvalid": "請輸入大於 0 的值，或留空以移除目標。",
+  "chartError": "無法載入此時間範圍的圖表。",
   "nav": {
     "label": "健康區段",
     "soon": "即將推出",
@@ -34,6 +40,7 @@
     "stepsTargetLabel": "步",
     "poopTargetLabel": "/ 天",
     "noWeightData": "無體重數據",
+    "noHeightData": "請在個人資料中新增身高，以查看 BMI。",
     "bmiUnderweight": "體重過輕",
     "bmiNormalWeight": "正常體重",
     "bmiOverweight": "過重",
@@ -88,7 +95,6 @@
       "weightRequired": "請輸入您的體重。",
       "weightInvalid": "請輸入大於零的體重。",
       "bodyComposition": "身體組成（選填）",
-      "bmi": "BMI",
       "bodyFat": "體脂肪（%）",
       "bodyWater": "體水分（%）",
       "boneMass": "骨量",
@@ -256,6 +262,8 @@
     "scorePoor": "差",
     "detail": {
       "tabsLabel": "睡眠詳情區段",
+      "stagesLoading": "正在載入睡眠階段",
+      "stagesError": "無法載入睡眠階段",
       "tabScore": "睡眠分數",
       "tabDetails": "睡眠詳情",
       "deep": "深層睡眠",
@@ -301,6 +309,8 @@
     "form": {
       "addTitle": "記錄睡眠",
       "editTitle": "編輯睡眠記錄",
+      "loading": "正在載入睡眠記錄",
+      "loadError": "無法載入睡眠記錄",
       "description": "記錄睡眠時長，以及選填的睡眠階段細項與指標。",
       "date": "日期",
       "dateRequired": "請選擇日期。",
@@ -308,6 +318,8 @@
       "totalSleepRequired": "請輸入睡眠時長。",
       "hours": "小時",
       "minutes": "分鐘",
+      "hoursOf": "{field}，小時",
+      "minutesOf": "{field}，分鐘",
       "stageBreakdown": "睡眠階段細項（選填）",
       "deep": "深層睡眠",
       "light": "淺層睡眠",
@@ -350,7 +362,11 @@
       "close": "關閉",
       "createSuccess": "睡眠已記錄。",
       "updateSuccess": "睡眠記錄已更新。",
-      "saveError": "無法儲存您的睡眠記錄。請再試一次。"
+      "saveError": "無法儲存您的睡眠記錄。請再試一次。",
+      "numberRange": "請輸入介於 {min} 和 {max} 之間的值。",
+      "numberMin": "請輸入不小於 {min} 的值。",
+      "stagesExceedTotal": "深層睡眠、淺層睡眠與 REM 睡眠的總和超過了總睡眠時長。",
+      "inconsistentError": "這些睡眠數據不一致，請檢查各睡眠階段與總時長是否在睡眠時間範圍內。"
     },
     "target": {
       "title": "設定睡眠目標",
@@ -419,7 +435,8 @@
       "close": "關閉",
       "createSuccess": "飲水已記錄。",
       "updateSuccess": "飲水記錄已更新。",
-      "saveError": "無法儲存您的飲水記錄。請再試一次。"
+      "saveError": "無法儲存您的飲水記錄。請再試一次。",
+      "dayTakenError": "該日期已有飲水記錄。請編輯該記錄，而不是再新增一筆。"
     },
     "target": {
       "title": "設定飲水目標",
@@ -596,6 +613,8 @@
       "startTime": "開始時間",
       "startTimeRequired": "請選擇開始時間。",
       "endTime": "結束時間",
+      "endBeforeStart": "結束時間不得早於開始時間。",
+      "endWhileInProgress": "進行中的斷食不能有結束時間。",
       "status": "狀態",
       "notes": "備註",
       "create": "開始",
@@ -604,7 +623,9 @@
       "close": "關閉",
       "createSuccess": "斷食已開始。",
       "updateSuccess": "斷食記錄已更新。",
-      "saveError": "無法儲存您的斷食記錄。請再試一次。"
+      "saveError": "無法儲存您的斷食記錄。請再試一次。",
+      "overlapError": "此次斷食與另一筆斷食紀錄重疊，或已有另一次斷食正在進行。",
+      "invalidTimesError": "斷食不能在開始之前結束，已完成或已中斷的斷食需要結束時間，進行中的斷食則不能有結束時間。"
     },
     "target": {
       "title": "設定斷食目標",
@@ -621,6 +642,20 @@
     "complete": {
       "success": "斷食已結束。",
       "error": "無法結束您的斷食。請再試一次。"
+    },
+    "endConfirm": {
+      "broken": {
+        "title": "中斷此次斷食？",
+        "body": "斷食將立即結束，並儲存為已中斷，此操作無法復原。",
+        "confirm": "中斷斷食"
+      },
+      "cancelled": {
+        "title": "取消此次斷食？",
+        "body": "斷食將立即結束，並儲存為已取消，此操作無法復原。",
+        "confirm": "取消斷食"
+      },
+      "cancel": "繼續斷食",
+      "close": "關閉"
     },
     "empty": {
       "title": "尚無斷食記錄",

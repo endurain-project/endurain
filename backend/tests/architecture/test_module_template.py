@@ -15,7 +15,13 @@ import model_registry as app_model_registry
 import module_registry as runtime_module_registry
 import modules.activities.contributor_registry as activities_contributor_registry
 import modules.activities.model_registry as activities_model_registry
+import modules.auth.model_registry as auth_model_registry
 import modules.followers.model_registry as followers_model_registry
+import modules.gears.model_registry as gears_model_registry
+import modules.health.model_registry as health_model_registry
+import modules.notifications.model_registry as notifications_model_registry
+import modules.server_settings.model_registry as server_settings_model_registry
+import modules.users.model_registry as users_model_registry
 
 _MODULES_DIR = Path(__file__).resolve().parents[2] / "app" / "modules"
 _APP_DIR = _MODULES_DIR.parent
@@ -56,6 +62,23 @@ def _absolute_imports(path: Path) -> set[str]:
 #: test below fails on an entry that has grown a surface, so the list cannot
 #: outlive the exemption.
 _NO_CROSS_MODULE_SURFACE: dict[str, str] = {
+    "onboarding": "Public first-run flow plus a startup task wired by app/module_registry.py; no other package calls it.",
+    "health_dashboard": (
+        "Read-only and top of the health namespace: it consolidates the other health packages' "
+        "surfaces into the daily dashboard route. Nothing calls it."
+    ),
+    "activity_detail": (
+        "Read-only composition above the child packages: it assembles an activity and their "
+        "surfaces into one response. Nothing calls it."
+    ),
+    "sync": (
+        "Read-only and above every module that owns synced records: it merges their changes and tombstones into "
+        "the sync route. Nothing calls it."
+    ),
+    "jobs": (
+        "Read-only and above every feature that runs a job: it resolves a job id to the feature that owns it "
+        "and serves the job routes. Nothing calls it."
+    ),
     "activity_geocoding": (
         "Purely reactive: it geocodes on the activity.created event (subscribers) and "
         "reconciles on a schedule (scheduled_jobs), both wired by app/module_registry.py. "
@@ -85,9 +108,9 @@ def test_every_module_exposes_one_cross_module_surface_name() -> None:
 def test_exempt_packages_publish_no_surface() -> None:
     """An exemption is for a package with no surface; delete it once one exists."""
     stale = [
-        name
-        for name in _NO_CROSS_MODULE_SURFACE
-        if (_MODULES_DIR / "activities" / name / "integration_service.py").is_file()
+        package.name
+        for package in _TEMPLATE_PACKAGES
+        if package.name in _NO_CROSS_MODULE_SURFACE and (package / "integration_service.py").is_file()
     ]
     assert not stale, f"Remove from _NO_CROSS_MODULE_SURFACE, they now have a surface: {', '.join(stale)}"
 
@@ -112,9 +135,46 @@ def test_model_registries_collect_every_converted_model() -> None:
         if package.parent.name == "activities" and (package / "models.py").is_file()
     }
     assert set(activities_model_registry.MODEL_MODULES) == expected_activities
+    expected_auth = {
+        f"modules.auth.{package.name}.models"
+        for package in sorted((_MODULES_DIR / "auth").iterdir())
+        if package.is_dir() and (package / "models.py").is_file()
+    }
+    assert set(auth_model_registry.MODEL_MODULES) == expected_auth
     assert set(followers_model_registry.MODEL_MODULES) == {"modules.followers.models"}
+    expected_gears = {
+        f"modules.gears.{package.name}.models"
+        for package in _TEMPLATE_PACKAGES
+        if package.parent.name == "gears" and (package / "models.py").is_file()
+    }
+    assert set(gears_model_registry.MODEL_MODULES) == expected_gears
+    # The health namespace owns one table of its own beside its packages': the tombstones they share.
+    expected_health = {
+        f"modules.health.{package.name}.models"
+        for package in _TEMPLATE_PACKAGES
+        if package.parent.name == "health" and (package / "models.py").is_file()
+    } | {"modules.health.models"}
+    assert set(health_model_registry.MODEL_MODULES) == expected_health
+    assert set(notifications_model_registry.MODEL_MODULES) == {"modules.notifications.models"}
+    assert set(server_settings_model_registry.MODEL_MODULES) == {"modules.server_settings.models"}
+    expected_users = {
+        f"modules.users.{package.name}.models"
+        for package in _TEMPLATE_PACKAGES
+        if package.parent.name == "users" and (package / "models.py").is_file()
+    }
+    assert set(users_model_registry.MODEL_MODULES) == expected_users
     assert (
-        expected_activities | set(followers_model_registry.MODEL_MODULES) == app_model_registry._CONVERTED_MODEL_MODULES
+        expected_activities
+        | expected_auth
+        | set(followers_model_registry.MODEL_MODULES)
+        | expected_gears
+        | expected_health
+        | set(notifications_model_registry.MODEL_MODULES)
+        | set(server_settings_model_registry.MODEL_MODULES)
+        | expected_users
+        # The data-migration bookkeeping table is the application's own, outside any module.
+        | {"migrations.models"}
+        == app_model_registry._CONVERTED_MODEL_MODULES
     )
 
 
@@ -132,28 +192,33 @@ def test_core_database_does_not_discover_domain_models() -> None:
 
 
 @pytest.mark.parametrize(
-    ("relative_path", "allowed_child_imports"),
+    ("relative_path", "allowed_child_imports", "uses_contributor_registry"),
     [
-        ("activities/activity/ingestion_service.py", set()),
+        ("activities/activity/ingestion_service.py", set(), True),
         (
-            "users/users_profile/export_service.py",
+            "activities/activity_profile_transfer/export_service.py",
             {
                 "modules.activities.activity_file_storage.integration_service",
                 "modules.activities.activity_media.integration_service",
             },
+            True,
         ),
         (
-            "users/users_profile/import_service.py",
+            "activities/activity_profile_transfer/import_service.py",
             {
                 "modules.activities.activity_file_storage.integration_service",
                 "modules.activities.activity_media.integration_service",
             },
+            True,
         ),
+        ("users/users_profile/export_service.py", set(), False),
+        ("users/users_profile/import_service.py", set(), False),
     ],
 )
 def test_activity_orchestrators_do_not_enumerate_child_packages(
     relative_path: str,
     allowed_child_imports: set[str],
+    uses_contributor_registry: bool,
 ) -> None:
     """Root orchestration depends on contributors, not child JSON packages."""
     path = _MODULES_DIR / relative_path
@@ -164,9 +229,10 @@ def test_activity_orchestrators_do_not_enumerate_child_packages(
         and not imported.startswith("modules.activities.activity.contracts")
         and not imported.startswith("modules.activities.activity.integration_service")
         and not imported.startswith("modules.activities.activity.schema")
+        and not imported.startswith("modules.activities.activity_profile_transfer")
     }
     assert child_imports == allowed_child_imports
-    assert "modules.activities.contributor_registry" in _absolute_imports(path)
+    assert ("modules.activities.contributor_registry" in _absolute_imports(path)) is uses_contributor_registry
 
 
 def test_installed_activity_contributor_keys_are_unique_per_kind() -> None:
@@ -217,7 +283,13 @@ def _is_route(node: ast.AsyncFunctionDef) -> bool:
     """Return whether a function carries an ``@router.<method>(...)`` decorator."""
     for decorator in node.decorator_list:
         call = decorator.func if isinstance(decorator, ast.Call) else decorator
-        if isinstance(call, ast.Attribute) and isinstance(call.value, ast.Name) and "router" in call.value.id:
+        if (
+            isinstance(call, ast.Attribute)
+            and isinstance(call.value, ast.Name)
+            and "router" in call.value.id
+            # A WebSocket endpoint is a coroutine by Starlette's contract; it has no sync form.
+            and call.attr != "websocket"
+        ):
             return True
     return False
 

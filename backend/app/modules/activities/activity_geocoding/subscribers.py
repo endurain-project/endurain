@@ -37,7 +37,7 @@ def geocode_activity_for_event(event: Event) -> None:
 
     Args:
         event: The ``activity.created`` event (payload
-            ``{"activity_id": int, "user_id": int, ...}``).
+            ``{"activity_id": "<uuid>", "user_id": "<uuid>", ...}``).
     """
     payload = platform_event_versioning.parse_payload(activity_events.ActivityCreatedPayload, event)
     with core_database.SessionLocal() as db:
@@ -46,7 +46,7 @@ def geocode_activity_for_event(event: Event) -> None:
         )
     logger.debug(
         "Handled reverse geocoding for created activity",
-        extra=core_logger.context(activity_id=payload.activity_id, user_id=payload.user_id),
+        extra=core_logger.context(activity_id=str(payload.activity_id), user_id=payload.user_id),
     )
 
 
@@ -56,7 +56,7 @@ def geocode_activity_for_event(event: Event) -> None:
 on_activity_created_geocode = best_effort(geocode_activity_for_event)
 
 
-def register_geocoding_subscribers(events: EventBusProvider) -> None:
+def register_bus_subscribers(events: EventBusProvider) -> None:
     """Register the geocoding subscriber for ``activity.created``.
 
     Called once at startup before the event bus is started.
@@ -67,7 +67,7 @@ def register_geocoding_subscribers(events: EventBusProvider) -> None:
     events.subscribe(activity_events.ACTIVITY_CREATED, on_activity_created_geocode)
 
 
-def register_geocoding_durable_handlers(registry: JobHandlerRegistry) -> None:
+def register_durable_handlers(registry: JobHandlerRegistry) -> None:
     """Register the geocoding handler as a durable job subscriber.
 
     Used when durable jobs are enabled: the outbox relay fans ``activity.created``

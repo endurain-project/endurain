@@ -1,23 +1,20 @@
 """Auth-owned session database models (table: ``users_sessions``)."""
 
+import uuid
 from datetime import datetime
-from typing import TYPE_CHECKING
 
-from sqlalchemy import DateTime, ForeignKey, String
-from sqlalchemy.orm import Mapped, mapped_column, relationship
+from sqlalchemy import JSON, CheckConstraint, DateTime, ForeignKey, String
+from sqlalchemy.orm import Mapped, mapped_column
 
+import modules.auth.constants as auth_constants
 from core.database import Base
 
-if TYPE_CHECKING:
-    from modules.auth.oauth_state.models import OAuthState
-    from modules.auth.sessions.rotated_refresh_tokens.models import (
-        RotatedRefreshToken,
-    )
+#: The values ``client_type`` may hold: one per ``ClientType``.
+_CLIENT_TYPE_VALUES = ", ".join(f"'{client_type.value}'" for client_type in auth_constants.ClientType)
 
 
 class UsersSessions(Base):
-    """
-    User authentication session for tracking active logins.
+    """User authentication session for tracking active logins.
 
     Attributes:
         id: Unique session identifier (UUID).
@@ -43,19 +40,22 @@ class UsersSessions(Base):
         last_rotation_at: Timestamp of last token rotation.
         csrf_token_hash: Hashed CSRF token for refresh
             validation.
-        oauth_state: Relationship to OAuthState model.
-        rotated_refresh_tokens: Relationship to
-            RotatedRefreshToken model.
+        client_type: The client the session was created for (``ClientType``); its tokens name it as
+            ``client_id`` and a refresh must declare it.
+        auth_time: When the owner signed in; refresh and step-up leave it unchanged.
+        app_redirect_uri: The native-app redirect address an SSO sign-in handed the session to; null for a web
+            session and for a sign-in that carried no redirect.
+        device_hash: SHA-256 hex digest of the known-device id the session signed in from (as ``known_devices``
+            stores it); null for a session created before the column existed, which forgetting a device does not end.
+        amr: How the owner proved themselves (RFC 8176 values); a session awaiting its SSO token exchange has
+            only ``fed``, and the exchange adds the second factor.
     """
 
     __tablename__ = "users_sessions"
+    __table_args__ = (CheckConstraint(f"client_type IN ({_CLIENT_TYPE_VALUES})", name="ck_users_sessions_client_type"),)
 
-    id: Mapped[str] = mapped_column(
-        String(36),
-        primary_key=True,
-        nullable=False,
-    )
-    user_id: Mapped[int] = mapped_column(
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    user_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("users.id", ondelete="CASCADE"),
         nullable=False,
         index=True,
@@ -104,11 +104,13 @@ class UsersSessions(Base):
     last_activity_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         nullable=False,
+        index=True,
         comment="Last activity timestamp for idle timeout",
     )
     expires_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         nullable=False,
+        index=True,
         comment="Session expiration date (datetime)",
     )
     oauth_state_id: Mapped[str | None] = mapped_column(
@@ -123,8 +125,7 @@ class UsersSessions(Base):
         nullable=False,
         comment="Prevents duplicate token exchange for mobile",
     )
-    token_family_id: Mapped[str] = mapped_column(
-        String(36),
+    token_family_id: Mapped[uuid.UUID] = mapped_column(
         nullable=False,
         unique=True,
         index=True,
@@ -145,12 +146,28 @@ class UsersSessions(Base):
         nullable=True,
         comment="Hashed CSRF token for refresh validation",
     )
-
-    # Relationship to OAuthState model
-    oauth_state: Mapped["OAuthState | None"] = relationship(back_populates="users_sessions")
-
-    # Relationship to RotatedRefreshToken model
-    rotated_refresh_tokens: Mapped[list["RotatedRefreshToken"]] = relationship(
-        back_populates="users_session",
-        cascade="all, delete-orphan",
+    client_type: Mapped[str] = mapped_column(
+        String(10),
+        nullable=False,
+        comment="Client type the session was created for: web or mobile",
+    )
+    auth_time: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+        comment="When the user signed in; refresh and step-up do not change it",
+    )
+    amr: Mapped[list[str]] = mapped_column(
+        JSON,
+        nullable=False,
+        comment="Authentication methods of the sign-in (RFC 8176 values): pwd, fed, otp, mfa",
+    )
+    app_redirect_uri: Mapped[str | None] = mapped_column(
+        String(500),
+        nullable=True,
+        comment="Native-app redirect address an SSO sign-in handed the session to",
+    )
+    device_hash: Mapped[str | None] = mapped_column(
+        String(64),
+        nullable=True,
+        comment="SHA-256 hex digest of the device id the session signed in from",
     )

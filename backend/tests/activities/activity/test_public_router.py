@@ -1,7 +1,13 @@
+import uuid
 from unittest.mock import patch
 
+import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
+
+_USER_1 = uuid.UUID(int=1)
+
+_ACTIVITY_ID = uuid.uuid4()
 
 
 def _build_app(mock_db):
@@ -43,9 +49,9 @@ def _valid_activity(**kw):
         town="Town",
         country="Country",
         description="desc",
-        gear_id=1,
-        id=1,
-        user_id=1,
+        gear_id=uuid.uuid4(),
+        id=_ACTIVITY_ID,
+        user_id=_USER_1,
     )
     data.update(kw)
     return ActivityRead(**data)
@@ -61,9 +67,9 @@ class TestReadPublicActivity:
         client = TestClient(_build_app(mock_db))
         mock_get.return_value = _valid_activity()
 
-        response = client.get("/public/activities/1")
+        response = client.get(f"/public/activities/{_ACTIVITY_ID}")
         assert response.status_code == 200
-        assert response.json()["id"] == 1
+        assert response.json()["id"] == str(_ACTIVITY_ID)
 
     @patch(
         "modules.activities.activity.service.server_settings_integration.public_shareable_links_enabled",
@@ -76,7 +82,7 @@ class TestReadPublicActivity:
 
         # Missing and not-public are the same answer on purpose: this endpoint is
         # unauthenticated, so distinguishing them would let anyone enumerate ids.
-        response = client.get("/public/activities/999")
+        response = client.get(f"/public/activities/{uuid.uuid4()}")
         assert response.status_code == 404
         assert response.json()["detail"] == "Activity not found"
 
@@ -88,6 +94,25 @@ class TestReadPublicActivity:
     def test_disabled_shareable_links_never_touch_persistence(self, mock_get, _mock_settings, mock_db):
         client = TestClient(_build_app(mock_db))
 
-        response = client.get("/public/activities/1")
+        response = client.get(f"/public/activities/{_ACTIVITY_ID}")
         assert response.status_code == 404
         mock_get.assert_not_called()
+
+    @pytest.mark.parametrize("activity_id", ["1", "not-a-uuid"])
+    def test_a_malformed_activity_id_is_rejected(self, mock_db, activity_id):
+        client = TestClient(_build_app(mock_db))
+
+        assert client.get(f"/public/activities/{activity_id}").status_code == 422
+
+
+def test_public_user_route_is_removed():
+    from fastapi import FastAPI
+
+    from api import router
+
+    app = FastAPI()
+    app.include_router(router)
+    paths = set(app.openapi()["paths"])
+
+    assert not any(path.endswith("/public/activities/{activity_id}/owner") for path in paths)
+    assert not any("/public/users" in path for path in paths)

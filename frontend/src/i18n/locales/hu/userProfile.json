@@ -82,5 +82,13 @@
       "ownTitle": "Még nincsenek követőid.",
       "otherTitle": "Még nincsenek követők."
     }
+  },
+  "block": {
+    "block": "Letiltás",
+    "unblock": "Letiltás feloldása",
+    "confirmTitle": "Letiltod {name} felhasználót?",
+    "confirmBody": "{name} nem kérheti többé, hogy követhessen, és a köztetek lévő követések megszűnnek. Erről nem kap értesítést.",
+    "blockError": "Nem sikerült letiltani a felhasználót. Próbáld újra.",
+    "unblockError": "Nem sikerült feloldani a felhasználó letiltását. Próbáld újra."
   }
 }

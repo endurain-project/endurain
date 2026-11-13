@@ -23,6 +23,7 @@ import { useToasts } from '@/composables/useToasts'
 import {
   useRetrieveGarminActivitiesMutation,
   useRetrieveGarminGearMutation,
+  useRetrievalOutcome,
   useRetrieveGarminHealthMutation,
   useUnlinkGarminMutation,
 } from '@/features/integrations/composables/useIntegrations'
@@ -34,6 +35,7 @@ const props = defineProps<{
 
 const { t } = useI18n()
 const toasts = useToasts()
+const retrieval = useRetrievalOutcome('Garmin Connect')
 
 const activitiesMutation = useRetrieveGarminActivitiesMutation()
 const gearMutation = useRetrieveGarminGearMutation()
@@ -47,9 +49,10 @@ const isUnlinkOpen = ref(false)
 
 function onRetrieveActivities(range: DateRange): void {
   activitiesMutation.mutate(range, {
-    onSuccess: () => {
+    onSuccess: (job) => {
       isActivitiesOpen.value = false
       toasts.info(t('settings.integrations.garmin.retrievingActivities'))
+      void retrieval.follow(job.id)
     },
     onError: () => toasts.error(t('settings.integrations.garmin.retrieveActivitiesError')),
   })
@@ -57,18 +60,30 @@ function onRetrieveActivities(range: DateRange): void {
 
 function onRetrieveHealth(range: DateRange): void {
   healthMutation.mutate(range, {
-    onSuccess: () => {
+    onSuccess: (job) => {
       isHealthOpen.value = false
       toasts.info(t('settings.integrations.garmin.retrievingHealth'))
+      void retrieval.follow(job.id)
     },
-    onError: () => toasts.error(t('settings.integrations.garmin.retrieveHealthError')),
+    onError: (error) => {
+      if (!retrieval.resumeOnConflict(error)) {
+        toasts.error(t('settings.integrations.garmin.retrieveHealthError'))
+      }
+    },
   })
 }
 
 function retrieveGear(): void {
   gearMutation.mutate(undefined, {
-    onSuccess: () => toasts.info(t('settings.integrations.garmin.retrievingGear')),
-    onError: () => toasts.error(t('settings.integrations.garmin.retrieveGearError')),
+    onSuccess: (job) => {
+      toasts.info(t('settings.integrations.garmin.retrievingGear'))
+      void retrieval.follow(job.id)
+    },
+    onError: (error) => {
+      if (!retrieval.resumeOnConflict(error)) {
+        toasts.error(t('settings.integrations.garmin.retrieveGearError'))
+      }
+    },
   })
 }
 

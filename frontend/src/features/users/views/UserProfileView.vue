@@ -5,6 +5,7 @@ import { RouterLink, useRoute } from 'vue-router'
 import { Activity as ActivityIcon, Settings, UserX } from '@lucide/vue'
 
 import UserProfileHeader from '@/features/users/components/UserProfileHeader.vue'
+import BlockUserButton from '@/features/followers/components/BlockUserButton.vue'
 import FollowButton from '@/features/followers/components/FollowButton.vue'
 import FollowerListItem from '@/features/followers/components/FollowerListItem.vue'
 import UserDistanceStats from '@/features/home/components/UserDistanceStats.vue'
@@ -18,20 +19,15 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { useCurrentUser } from '@/features/auth/composables/useCurrentUser'
 import { useDisplayUnits } from '@/features/activities/composables/useActivityDetail'
-import { shiftWeeks, todayIsoDate, weekEnd, weekStart } from '@/utils/datetime'
-import { usePublicUserQuery } from '@/features/users/composables/usePublicUser'
+import { OLDEST_WEEK_BUCKET as OLDEST_WEEK } from '@/features/activities/services/activities'
+import { isUuid } from '@/utils/validation'
+import { pastWeekRange } from '@/utils/datetime'
+import { useUserProfileOverviewQuery } from '@/features/users/composables/usePublicUser'
 import {
-  useActivityStatsQuery,
   useGoalResultsQuery,
-  useUserMonthlyActivityCountQuery,
   useUserWeekActivitiesQuery,
 } from '@/features/home/composables/useHome'
-import {
-  useFollowersCountQuery,
-  useFollowersQuery,
-  useFollowingCountQuery,
-  useFollowingQuery,
-} from '@/features/followers/composables/useFollowers'
+import { useFollowersQuery, useFollowingQuery } from '@/features/followers/composables/useFollowers'
 
 type TabKey = 'activities' | 'following' | 'followers'
 
@@ -43,10 +39,10 @@ const units = useDisplayUnits()
 const currentUserId = computed(() => currentUser.value?.id ?? null)
 const firstDayOfWeek = computed(() => currentUser.value?.firstDayOfWeek ?? 'monday')
 
-/** The profile owner's id from the route, or `null` when the param is invalid. */
+/** The profile owner's id from the route in lower case, or `null` when the param is invalid. */
 const profileId = computed(() => {
-  const raw = Number(route.params.id)
-  return Number.isFinite(raw) && raw > 0 ? raw : null
+  const raw = route.params.id
+  return typeof raw === 'string' && isUuid(raw) ? raw.toLowerCase() : null
 })
 
 /** Whether the viewer is looking at their own profile. */
@@ -54,15 +50,16 @@ const isSelf = computed(
   () => currentUserId.value !== null && currentUserId.value === profileId.value,
 )
 
-const userQuery = usePublicUserQuery(profileId)
-const user = computed(() => userQuery.data.value ?? null)
+const userQuery = useUserProfileOverviewQuery(profileId)
+const overview = computed(() => userQuery.data.value)
+const user = computed(() => overview.value?.user ?? null)
 
 // --- Sidebar stats ---
-const weekStats = useActivityStatsQuery(profileId, 'week')
-const monthStats = useActivityStatsQuery(profileId, 'month')
-const monthCount = useUserMonthlyActivityCountQuery(profileId)
-const followersCount = useFollowersCountQuery(profileId)
-const followingCount = useFollowingCountQuery(profileId)
+const weekStats = computed(() => overview.value?.weekStats)
+const monthStats = computed(() => overview.value?.monthStats)
+const monthCount = computed(() => overview.value?.monthActivityCount ?? 0)
+const followersCount = computed(() => overview.value?.followersCount ?? 0)
+const followingCount = computed(() => overview.value?.followingCount ?? 0)
 
 // --- Sidebar goals (own profile only; the backend scopes goals to the viewer) ---
 const goalResults = useGoalResultsQuery(() => isSelf.value)
@@ -83,14 +80,13 @@ function refetchUser(): void {
 // --- Activities (week-by-week browser, v1 parity) ---
 /** Number of past weeks reachable as dated buttons before the oldest bucket. */
 const TOTAL_WEEKS = 50
-/** The "one year ago" bucket index (everything older than {@link TOTAL_WEEKS}). */
-const OLDEST_WEEK = 51
 /** Selected week offset: 0 = this week, 1..50 = prior weeks, 51 = one year ago. */
 const week = ref(0)
 
 const weekActivitiesQuery = useUserWeekActivitiesQuery(
   profileId,
   week,
+  firstDayOfWeek,
   () => activeTab.value === 'activities',
 )
 const activities = computed(() => weekActivitiesQuery.data.value ?? [])
@@ -115,11 +111,9 @@ function setWeek(value: number): void {
 
 /** Formats a week offset as its configured `DD/MM-DD/MM` range. */
 function formatWeekRange(weekNumber: number): string {
-  const currentWeekStart = weekStart(todayIsoDate(), firstDayOfWeek.value)
-  const startOfWeek = shiftWeeks(currentWeekStart, -weekNumber)
-  const endOfWeek = weekEnd(startOfWeek, firstDayOfWeek.value)
+  const { start, end } = pastWeekRange(weekNumber, firstDayOfWeek.value)
   const formatDate = (iso: string): string => `${iso.slice(8, 10)}/${iso.slice(5, 7)}`
-  return `${formatDate(startOfWeek)}-${formatDate(endOfWeek)}`
+  return `${formatDate(start)}-${formatDate(end)}`
 }
 
 /** Refetches the current week's activities after an error. */
@@ -128,8 +122,8 @@ function refetchActivities(): void {
 }
 
 // --- Following / followers lists ---
-const followingQuery = useFollowingQuery(profileId)
-const followersQuery = useFollowersQuery(profileId)
+const followingQuery = useFollowingQuery(profileId, () => activeTab.value === 'following')
+const followersQuery = useFollowersQuery(profileId, () => activeTab.value === 'followers')
 const followingEdges = computed(() => followingQuery.data.value ?? [])
 const followerEdges = computed(() => followersQuery.data.value ?? [])
 
@@ -146,7 +140,10 @@ function refetchFollowers(): void {
 
 <template>
   <!-- Loading -->
-  <div v-if="userQuery.isPending.value" class="grid grid-cols-1 gap-3 lg:grid-cols-12">
+  <div
+    v-if="profileId !== null && userQuery.isPending.value"
+    class="grid grid-cols-1 gap-3 lg:grid-cols-12"
+  >
     <aside class="flex flex-col gap-3 lg:col-span-3">
       <Card class="flex flex-col items-center gap-3">
         <Skeleton class="size-24 rounded-full" />
@@ -196,32 +193,35 @@ function refetchFollowers(): void {
             {{ t('userProfile.editProfile') }}
           </RouterLink>
         </Button>
-        <FollowButton v-else :target-user-id="user.id" :target-name="user.name" />
+        <template v-else>
+          <FollowButton :target-user-id="user.id" :target-name="user.name" />
+          <BlockUserButton :target-user-id="user.id" :target-name="user.name" />
+        </template>
       </Card>
 
       <!-- Summary counts -->
       <Card class="flex flex-col gap-3">
         <div class="text-center">
-          <p class="text-metric">{{ monthCount.data.value ?? 0 }}</p>
+          <p class="text-metric">{{ monthCount }}</p>
           <p class="text-caption">{{ t('userProfile.stats.thisMonth') }}</p>
         </div>
         <div class="grid grid-cols-2 gap-2 border-t border-border pt-3 text-center">
           <button type="button" class="cursor-pointer" @click="activeTab = 'following'">
-            <p class="text-metric">{{ followingCount.data.value ?? 0 }}</p>
+            <p class="text-metric">{{ followingCount }}</p>
             <p class="text-caption">{{ t('userProfile.stats.following') }}</p>
           </button>
           <button type="button" class="cursor-pointer" @click="activeTab = 'followers'">
-            <p class="text-metric">{{ followersCount.data.value ?? 0 }}</p>
+            <p class="text-metric">{{ followersCount }}</p>
             <p class="text-caption">{{ t('userProfile.stats.followers') }}</p>
           </button>
         </div>
       </Card>
 
       <UserDistanceStats
-        :week-stats="weekStats.data.value"
-        :month-stats="monthStats.data.value"
+        :week-stats="weekStats"
+        :month-stats="monthStats"
         :units="units"
-        :is-loading="weekStats.isLoading.value || monthStats.isLoading.value"
+        :is-loading="userQuery.isLoading.value"
       />
 
       <UserGoalResults

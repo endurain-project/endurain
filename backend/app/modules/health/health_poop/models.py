@@ -1,51 +1,41 @@
-"""
-SQLAlchemy models for health poop (bowel movement) tracking.
+"""SQLAlchemy models for health poop (bowel movement) tracking.
 
 This module defines the database models for storing user bowel
 movement data, including Bristol stool scale type, color, and
 optional notes.
 """
 
+import uuid
 from datetime import datetime
-from typing import TYPE_CHECKING
 
-from sqlalchemy import DateTime, ForeignKey, String
-from sqlalchemy.orm import Mapped, mapped_column, relationship
+from sqlalchemy import DateTime, ForeignKey, Index, String
+from sqlalchemy.orm import Mapped, mapped_column
 
+import core.sync as core_sync
 from core.database import Base
 
-if TYPE_CHECKING:
-    from modules.users.users.models import Users
 
-
-class HealthPoop(Base):
-    """
-    User bowel movement tracking data.
+class HealthPoop(core_sync.UpdatedAtMixin, Base):
+    """User bowel movement tracking data.
 
     Attributes:
-        id: Primary key, auto-incremented unique identifier.
+        id: Primary key, a random UUID.
         user_id: Foreign key referencing users.id.
         date_time: Date and time of the bowel movement.
         bristol_type: Bristol Stool Scale type (1-7).
         color: Stool color description.
         notes: Optional notes about the bowel movement.
         source: Source of the data.
-        user: Relationship to the Users model.
 
     Table:
         health_poop
-
-    Relationships:
-        - Many-to-One with Users model through user_id
     """
 
     __tablename__ = "health_poop"
+    __table_args__ = (Index("ix_health_poop_user_updated_at_id", "user_id", "updated_at", "id"),)
 
-    id: Mapped[int] = mapped_column(
-        primary_key=True,
-        autoincrement=True,
-    )
-    user_id: Mapped[int] = mapped_column(
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    user_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("users.id", ondelete="CASCADE"),
         nullable=False,
         index=True,
@@ -71,11 +61,21 @@ class HealthPoop(Base):
         nullable=True,
         comment="Optional notes about the bowel movement",
     )
-    source: Mapped[str | None] = mapped_column(
+    source: Mapped[str] = mapped_column(
         String(250),
-        nullable=True,
+        nullable=False,
+        server_default="manual",
+        default="manual",
         comment="Source of the health poop data",
     )
 
-    # Define a relationship to the Users model
-    users: Mapped["Users"] = relationship(back_populates="health_poop")
+    version: Mapped[int] = mapped_column(
+        nullable=False,
+        server_default="1",
+        default=1,
+        comment="Optimistic-concurrency counter, surfaced to clients as the ETag",
+    )
+
+    # SQLAlchemy bumps ``version`` on each ORM flush and adds it to the UPDATE's
+    # WHERE clause, raising StaleDataError when the row moved underneath.
+    __mapper_args__ = {"version_id_col": version}  # noqa: RUF012

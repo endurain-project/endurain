@@ -5,10 +5,12 @@
   "unread": "Nepročitano",
   "markRead": "Označi kao pročitano",
   "markAllRead": "Označi sve kao pročitano",
+  "dismiss": "Odbaci obavijest",
+  "dismissError": "Obavijest nije moguće odbaciti. Pokušajte ponovno.",
   "seeAll": "Pogledaj sve",
   "loadMore": "Učitaj više",
   "loading": "Učitavanje…",
-  "badge": "{count} nepročitanih obavijesti",
+  "badge": "{count} nepročitana obavijest | {count} nepročitane obavijesti | {count} nepročitanih obavijesti",
   "empty": {
     "title": "Sve ste pregledali",
     "description": "Ažuriranja o vašim aktivnostima, pratiteljima i integracijama prikazat će se ovdje."
@@ -39,9 +41,122 @@
       "title": "Garmin Connect zahtijeva pažnju",
       "body": "Vaša Garmin Connect sesija je istekla. Ponovno je povežite kako bi se sinkronizacija nastavila."
     },
+    "stravaTokenExpired": {
+      "title": "Strava traži vašu pažnju",
+      "body": "Strava je odbila vašu vezu. Ponovno je povežite kako bi se sinkronizacija nastavila.",
+      "bodyRevoked": "Pristup Stravi je završio. Vaše aktivnosti i oprema sinkronizirane sa Stravom bit će izbrisane {date} ako se ponovno ne povežete."
+    },
+    "stravaDataDeleted": {
+      "title": "Podaci sa Strave izbrisani",
+      "body": "Vaše aktivnosti i oprema sinkronizirane sa Stravom izbrisane su jer je pristup Stravi završio, a niste se ponovno povezali."
+    },
+    "idpLinked": {
+      "title": "Povezan je novi pružatelj prijave",
+      "body": "{name} je povezan s vašim računom. Ako to niste bili vi, pregledajte svoje sigurnosne postavke.",
+      "bodyGeneric": "Pružatelj prijave povezan je s vašim računom. Ako to niste bili vi, pregledajte svoje sigurnosne postavke."
+    },
+    "accountSecurityChanged": {
+      "passwordChanged": {
+        "title": "Lozinka promijenjena",
+        "body": "Vaša je lozinka promijenjena. Ako to niste bili vi, resetirajte lozinku i pregledajte svoje sigurnosne postavke."
+      },
+      "passwordReset": {
+        "title": "Lozinka resetirana",
+        "body": "Vaša je lozinka resetirana putem poveznice za resetiranje. Ako to niste bili vi, ponovno resetirajte lozinku i pregledajte svoje sigurnosne postavke. Any API keys were revoked and any pending email change was cancelled."
+      },
+      "passwordSetByAdmin": {
+        "title": "Administrator je postavio lozinku",
+        "body": "Administrator je postavio novu lozinku za vaš račun. Ako to niste očekivali, obratite se administratoru. Any API keys were revoked and any pending email change was cancelled."
+      },
+      "mfaEnabled": {
+        "title": "Dvofaktorska autentifikacija uključena",
+        "body": "Dvofaktorska autentifikacija uključena je za vaš račun. Ako to niste bili vi, resetirajte lozinku i pregledajte svoje sigurnosne postavke."
+      },
+      "mfaDisabled": {
+        "title": "Dvofaktorska autentifikacija isključena",
+        "body": "Dvofaktorska autentifikacija isključena je za vaš račun. Ako to niste bili vi, resetirajte lozinku i pregledajte svoje sigurnosne postavke."
+      },
+      "mfaResetByAdmin": {
+        "title": "Administrator je poništio dvofaktorsku autentifikaciju",
+        "body": "Administrator je poništio dvofaktorsku autentifikaciju za vaš račun i odjavio vas sa svih uređaja. Ponovno je postavite u sigurnosnim postavkama. Ako to niste očekivali, obratite se svom administratoru."
+      },
+      "passwordChangeRequiredByAdmin": {
+        "title": "Administrator je zahtijevao promjenu lozinke",
+        "body": "Administrator je zahtijevao da promijenite lozinku i odjavio vas sa svih uređaja. Novu ćete lozinku odabrati pri sljedećoj prijavi lozinkom. Ako to niste očekivali, obratite se svom administratoru."
+      },
+      "backupCodesGenerated": {
+        "title": "Generirani su novi sigurnosni kodovi",
+        "body": "Za vaš račun generirani su novi sigurnosni kodovi. Ako to niste bili vi, resetirajte lozinku i pregledajte svoje sigurnosne postavke."
+      },
+      "apiKeyCreated": {
+        "title": "Stvoren je novi API ključ",
+        "body": "Za vaš je račun stvoren novi API ključ. Ako to niste bili vi, resetirajte lozinku i pregledajte svoje sigurnosne postavke."
+      },
+      "apiKeysRevokedByAdmin": {
+        "title": "Administrator je opozvao API ključeve",
+        "body": "Administrator je opozvao jedan ili više vaših API ključeva pa više ništa što ih koristi nema pristup vašem računu. Ako to niste očekivali, obratite se svom administratoru."
+      },
+      "identityProviderUnlinked": {
+        "title": "Pružatelj prijave odspojen",
+        "body": "{name} je odspojen od vašeg računa. Ako to niste bili vi, resetirajte lozinku i pregledajte svoje sigurnosne postavke.",
+        "bodyGeneric": "Pružatelj prijave odspojen je od vašeg računa. Ako to niste bili vi, resetirajte lozinku i pregledajte svoje sigurnosne postavke."
+      },
+      "accountLocked": {
+        "title": "Račun je zaključan",
+        "body": "Vaš je račun zaključan nakon 100 uzastopnih neuspjelih pokušaja prijave. Preglednici i aplikacije s kojih ste se prijavili od posljednje sigurnosne promjene i dalje se mogu prijaviti. Ako ti pokušaji nisu bili vaši, promijenite ili ponovno postavite lozinku, što također uklanja zaključavanje."
+      },
+      "mfaLocked": {
+        "title": "Provjera u dva koraka je zaključana",
+        "body": "Vaš je račun zaključan nakon 100 uzastopnih pogrešnih kodova provjere u dva koraka, što znači da netko zna vašu lozinku. Preglednici i aplikacije s kojih ste se prijavili od posljednje sigurnosne promjene i dalje se mogu prijaviti. Ako ti pokušaji nisu bili vaši, promijenite lozinku."
+      },
+      "stepUpSessionEnded": {
+        "title": "Sesija je odjavljena",
+        "body": "Jedna sesija vašeg računa odjavljena je nakon što je 15 puta zaredom unesena pogrešna lozinka ili kod dvofaktorske autentifikacije pri potvrdi osjetljive radnje. Vaše ostale sesije nisu zahvaćene. Ako ti pokušaji nisu bili vaši, promijenite lozinku."
+      },
+      "stepUpLocked": {
+        "title": "Potvrda osjetljivih radnji je zaključana",
+        "body": "Potvrda osjetljivih radnji, kao što su promjena lozinke ili stvaranje API ključa, zaključana je na 30 dana nakon 100 pogrešnih potvrda u svim vašim sesijama. Ako ti pokušaji nisu bili vaši, ponovno postavite lozinku, čime se zaključavanje također uklanja."
+      },
+      "backupCodeUsed": {
+        "title": "Iskorišten sigurnosni kod",
+        "body": "Za dvofaktorsku autentifikaciju vašeg računa iskorišten je sigurnosni kod. Ako to niste bili vi, promijenite lozinku i generirajte nove sigurnosne kodove.",
+        "bodyRemaining": "Za dvofaktorsku autentifikaciju vašeg računa iskorišten je sigurnosni kod. Preostali neiskorišteni sigurnosni kodovi: {count}. Ako to niste bili vi, promijenite lozinku i generirajte nove sigurnosne kodove.",
+        "bodyNone": "Za dvofaktorsku autentifikaciju vašeg računa iskorišten je sigurnosni kod. Nemate više neiskorištenih sigurnosnih kodova, stoga generirajte nove u sigurnosnim postavkama. Ako to niste bili vi, promijenite lozinku."
+      },
+      "refreshTokenReuseDetected": {
+        "title": "Sesija je završena",
+        "body": "Jedna sesija prijave vašeg računa završena je jer je ponovno predočen token koji je već bio iskorišten, što može značiti da je sesija kopirana. Vaše ostale sesije nisu zahvaćene. Ako to niste očekivali, promijenite lozinku."
+      },
+      "roleChangedByAdmin": {
+        "title": "Pristup promijenio administrator",
+        "body": "Administrator je promijenio pristup vašeg računa i odjavio vas sa svih uređaja. Ako to niste očekivali, obratite se svom administratoru.",
+        "bodyAdmin": "Administrator je promijenio pristup vašeg računa u administratora i odjavio vas sa svih uređaja. Ako to niste očekivali, obratite se svom administratoru.",
+        "bodyRegular": "Administrator je promijenio pristup vašeg računa u običnog korisnika i odjavio vas sa svih uređaja. Ako to niste očekivali, obratite se svom administratoru."
+      },
+      "accountDeactivatedByAdmin": {
+        "title": "Račun deaktivirao administrator",
+        "body": "Administrator je deaktivirao vaš račun i odjavio vas sa svih uređaja. Ne možete se prijaviti dok ga administrator ponovno ne aktivira."
+      },
+      "unknown": {
+        "title": "Sigurnost računa promijenjena",
+        "body": "Promijenjena je sigurnosna postavka vašeg računa. Ako to niste bili vi, resetirajte lozinku i pregledajte svoje sigurnosne postavke."
+      },
+      "usernameChanged": {
+        "title": "Korisničko ime promijenjeno",
+        "body": "Vaše korisničko ime je promijenjeno. Ako to niste bili vi, resetirajte lozinku i pregledajte sigurnosne postavke."
+      }
+    },
+    "newDeviceSignIn": {
+      "title": "Nova prijava",
+      "body": "Nova prijava iz preglednika {browser} na sustavu {os} ({ip}). Ako to niste bili vi, promijenite lozinku i odjavite se iz ostalih sesija."
+    },
     "adminSignUpApproval": {
       "title": "Nova registracija zahtijeva odobrenje",
       "body": "{name} ({'@'}{username}) čeka odobrenje računa."
+    },
+    "adminUserPromoted": {
+      "title": "Korisnik unaprijeđen u administratora",
+      "body": "Korisnik {name} ({'@'}{username}) dobio je administratorski pristup."
     },
     "unknown": {
       "title": "Obavijest",

@@ -4,6 +4,7 @@
     "uploading": "Subindo…",
     "success": "Actividade subida correctamente",
     "error": "Non se puido subir o ficheiro de actividade",
+    "tooLarge": "O ficheiro é demasiado grande",
     "timeout": "O teu ficheiro aínda se está importando. Aparecerá cando remate.",
     "failed": {
       "unsupported_format": "Este tipo de ficheiro non é compatible",
@@ -46,7 +47,6 @@
     "thisWeek": "Esta semana",
     "thisMonth": "Este mes",
     "empty": "Sen actividade neste período",
-    "caloriesUnit": "kcal",
     "metric": {
       "distance": "Distancia",
       "time": "Tempo",
@@ -63,12 +63,13 @@
     "snow_ski": "Esquí",
     "snowboard": "Snowboard",
     "windsurf": "Windsurf",
-    "stand_up_paddleboarding": "Paddle surf",
-    "surfing": "Surf",
+    "stand_up_paddling": "Paddle surf",
+    "surf": "Surf",
     "kayaking": "Kayak",
     "sailing": "Vela",
-    "snowshoeing": "Raquetas de neve",
-    "inline_skating": "Patinaxe en liña"
+    "snow_shoeing": "Raquetas de neve",
+    "inline_skating": "Patinaxe en liña",
+    "other": "Outros"
   },
   "goals": {
     "title": "Obxectivos",

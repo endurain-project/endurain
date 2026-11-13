@@ -1,13 +1,15 @@
 """Pydantic schemas for password reset token operations."""
 
+import uuid
 from datetime import datetime
 
-from pydantic import BaseModel, ConfigDict, EmailStr, Field, StrictBool, StrictInt, StrictStr
+from pydantic import BaseModel, ConfigDict, EmailStr, Field, StrictBool, StrictStr
+
+import modules.auth.credentials.contracts as credentials_contracts
 
 
 class PasswordResetToken(BaseModel):
-    """
-    Schema representing a password reset token record.
+    """Schema representing a password reset token record.
 
     Attributes:
         id: Unique identifier for the token.
@@ -18,12 +20,11 @@ class PasswordResetToken(BaseModel):
         used: Whether the token has already been used.
     """
 
-    id: StrictStr = Field(
+    id: uuid.UUID = Field(
         ...,
         description="Unique identifier for the token",
-        max_length=64,
     )
-    user_id: StrictInt = Field(
+    user_id: uuid.UUID = Field(
         ...,
         description="ID of the user who requested the reset",
     )
@@ -53,8 +54,7 @@ class PasswordResetToken(BaseModel):
 
 
 class PasswordResetRequest(BaseModel):
-    """
-    Request schema for initiating a password reset.
+    """Request schema for initiating a password reset.
 
     Attributes:
         email: Email address for the reset.
@@ -68,13 +68,11 @@ class PasswordResetRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
 
-class PasswordResetConfirm(BaseModel):
-    """
-    Request schema for confirming a password reset.
+class PasswordResetValidate(BaseModel):
+    """Request schema for checking that a reset token is still usable.
 
     Attributes:
         token: The reset token received by the user.
-        new_password: The new password to set.
     """
 
     token: StrictStr = Field(
@@ -83,27 +81,28 @@ class PasswordResetConfirm(BaseModel):
         min_length=1,
         max_length=256,
     )
-    new_password: StrictStr = Field(
-        ...,
-        description="The new password to set",
-        min_length=8,
-        max_length=256,
-    )
 
     model_config = ConfigDict(extra="forbid")
 
 
-class PasswordResetResponse(BaseModel):
-    """
-    Response schema for password reset operations.
+class PasswordResetConfirm(BaseModel):
+    """Request schema for confirming a password reset.
 
     Attributes:
-        message: Informational message for the client.
+        token: The reset token received by the user.
+        password: The new password to set.
     """
 
-    message: StrictStr = Field(
+    token: StrictStr = Field(
         ...,
-        description="Informational message for the client",
+        description="The reset token received by the user",
+        min_length=1,
+        max_length=256,
+    )
+    password: StrictStr = Field(
+        ...,
+        description="The new password to set",
+        max_length=credentials_contracts.PASSWORD_MAX_LENGTH,
     )
 
     model_config = ConfigDict(extra="forbid")

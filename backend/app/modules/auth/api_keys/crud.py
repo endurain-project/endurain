@@ -1,252 +1,169 @@
-"""CRUD operations for user API keys."""
+"""Persistence operations for API keys."""
 
 import uuid
 from datetime import UTC, datetime
 
-from fastapi import HTTPException, status
-from sqlalchemy import select
+from sqlalchemy import delete, func, or_, select, text, update
 from sqlalchemy.orm import Session
 
-import core.decorators as core_decorators
-import core.logger as core_logger
+import core.database as core_database
+import core.exceptions as core_exceptions
 import modules.auth.api_keys.models as api_keys_models
 import modules.auth.api_keys.schema as api_keys_schema
-import modules.auth.api_keys.utils as api_keys_utils
+import modules.auth.api_keys.serializers as api_keys_serializers
 
-logger = core_logger.get_logger(__name__)
+#: Advisory-lock namespace of a user's API-key creation, kept apart from every other advisory lock.
+_CREATION_LOCK_NAMESPACE = 7303
 
 
-@core_decorators.handle_db_errors
-def get_api_keys_by_user_id(
-    user_id: int,
-    db: Session,
-) -> list[api_keys_models.UsersApiKeys]:
-    """
-    Retrieve all API keys for a user.
+def lock_api_key_creation(user_id: uuid.UUID, db: Session) -> None:
+    """Serialise the writers that add an API key for a user, until the transaction ends.
+
+    A cap read with ``count`` and then enforced by an insert lets concurrent requests each see room and all
+    insert, so the writer takes this lock first and counts again under it. It blocks only requests for the same
+    user.
 
     Args:
-        user_id: The ID of the owning user.
-        db: SQLAlchemy database session.
-
-    Returns:
-        List of API key objects ordered by creation
-        date descending.
-
-    Raises:
-        HTTPException: If a database error occurs.
+        user_id: The user the key is created for.
+        db: Database session.
     """
+    db.execute(
+        text("SELECT pg_advisory_xact_lock(:namespace, hashtext(:user_id))"),
+        {"namespace": _CREATION_LOCK_NAMESPACE, "user_id": str(user_id)},
+    )
+
+
+def get_api_keys_page(
+    user_id: uuid.UUID,
+    db: Session,
+    *,
+    limit: int,
+    offset: int,
+) -> list[api_keys_schema.UserApiKeyRead]:
+    """Return one window of an owner's API keys, newest first with the id as tiebreak."""
     stmt = (
         select(api_keys_models.UsersApiKeys)
         .where(api_keys_models.UsersApiKeys.user_id == user_id)
-        .order_by(api_keys_models.UsersApiKeys.created_at.desc())
+        .order_by(api_keys_models.UsersApiKeys.created_at.desc(), api_keys_models.UsersApiKeys.id)
+        .limit(limit)
+        .offset(offset)
     )
-    return list(db.execute(stmt).scalars().all())
+    rows = db.execute(stmt).scalars()
+    return [api_keys_serializers.to_read_schema(row) for row in rows]
 
 
-@core_decorators.handle_db_errors
-def get_api_key_by_id(
-    api_key_id: str,
-    user_id: int,
-    db: Session,
-) -> api_keys_models.UsersApiKeys | None:
-    """
-    Retrieve a single API key by its ID and owner.
+def count_api_keys(user_id: uuid.UUID, db: Session) -> int:
+    """Return how many API keys an owner has."""
+    return db.execute(
+        select(func.count(api_keys_models.UsersApiKeys.id)).where(api_keys_models.UsersApiKeys.user_id == user_id)
+    ).scalar_one()
 
-    Args:
-        api_key_id: The UUID of the API key.
-        user_id: The ID of the owning user.
-        db: SQLAlchemy database session.
 
-    Returns:
-        The API key object if found, None otherwise.
+def count_active_api_keys(user_id: uuid.UUID, now: datetime, db: Session) -> int:
+    """Return how many API keys an owner has that are not revoked and expire after ``now``."""
+    model = api_keys_models.UsersApiKeys
+    return db.execute(
+        select(func.count(model.id)).where(model.user_id == user_id, model.is_active.is_(True), model.expires_at > now)
+    ).scalar_one()
 
-    Raises:
-        HTTPException: If a database error occurs.
-    """
+
+def get_api_key_by_id(api_key_id: uuid.UUID, user_id: uuid.UUID, db: Session) -> api_keys_schema.UserApiKeyRead | None:
+    """Return an API key by ID and owner."""
     stmt = select(api_keys_models.UsersApiKeys).where(
         api_keys_models.UsersApiKeys.id == api_key_id,
         api_keys_models.UsersApiKeys.user_id == user_id,
     )
-    return db.execute(stmt).scalar_one_or_none()
+    row = db.execute(stmt).scalar_one_or_none()
+    return api_keys_serializers.to_read_schema(row) if row is not None else None
 
 
-@core_decorators.handle_db_errors
-def get_api_key_by_hash(
-    key_hash: str,
-    db: Session,
-) -> api_keys_models.UsersApiKeys | None:
-    """
-    Retrieve an API key by its SHA-256 hash.
-
-    Used during request authentication to look up the
-    key record from the hashed incoming value.
-
-    Args:
-        key_hash: SHA-256 hex digest of the raw key.
-        db: SQLAlchemy database session.
-
-    Returns:
-        The API key object if found, None otherwise.
-
-    Raises:
-        HTTPException: If a database error occurs.
-    """
+def get_api_key_by_hash(key_hash: str, db: Session) -> api_keys_schema.UserApiKeyRead | None:
+    """Return an API key by its SHA-256 hash."""
     stmt = select(api_keys_models.UsersApiKeys).where(api_keys_models.UsersApiKeys.key_hash == key_hash)
-    return db.execute(stmt).scalar_one_or_none()
+    row = db.execute(stmt).scalar_one_or_none()
+    return api_keys_serializers.to_read_schema(row) if row is not None else None
 
 
-@core_decorators.handle_db_errors
 def create_api_key(
-    user_id: int,
-    data: api_keys_schema.UsersApiKeyCreate,
+    user_id: uuid.UUID,
+    data: api_keys_schema.UserApiKeyCreate,
+    raw_key: str,
+    key_hash: str,
+    scopes_json: str,
+    expires_at: datetime,
     db: Session,
-) -> tuple[
-    api_keys_models.UsersApiKeys,
-    str,
-]:
-    """
-    Create a new API key for a user.
-
-    Generates a cryptographically random key, hashes it
-    with SHA-256, and stores only the hash. Returns both
-    the ORM object and the raw key so the caller can
-    include it in the response (shown once only).
-
-    Args:
-        user_id: The ID of the owning user.
-        data: Validated creation schema.
-        db: SQLAlchemy database session.
-
-    Returns:
-        Tuple of (UsersApiKeys ORM object, raw key string).
-
-    Raises:
-        HTTPException: If a database error occurs.
-    """
-    raw_key = api_keys_utils.generate_api_key()
-    # Prefix is "endurain_" (9 chars) + first 8 chars of
-    # the random part
-    key_prefix = raw_key[9:17]
-    key_hash = api_keys_utils.hash_api_key(raw_key)
-    scopes_json = api_keys_utils.scopes_to_json(data.scopes)
-
+) -> api_keys_schema.UserApiKeyRead:
+    """Stage a new API key and return its raw value and safe representation."""
     db_api_key = api_keys_models.UsersApiKeys(
-        id=str(uuid.uuid4()),
         user_id=user_id,
         name=data.name,
-        key_prefix=key_prefix,
+        key_prefix=raw_key[9:17],
         key_hash=key_hash,
         scopes=scopes_json,
-        expires_at=data.expires_at,
+        expires_at=expires_at,
         last_used_at=None,
         created_at=datetime.now(UTC),
         is_active=True,
     )
     db.add(db_api_key)
-    db.commit()
-    db.refresh(db_api_key)
-
-    logger.info("API key created", extra=core_logger.context(user_id=user_id, key_prefix=key_prefix, name=data.name))
-
-    return db_api_key, raw_key
+    db.flush()
+    return api_keys_serializers.to_read_schema(db_api_key)
 
 
-@core_decorators.handle_db_errors
-def update_last_used(
-    api_key_id: str,
-    db: Session,
-) -> None:
-    """
-    Update the last_used_at timestamp for an API key.
+def update_last_used(api_key_id: uuid.UUID, db: Session) -> None:
+    """Stage the last-used timestamp for an API key."""
+    row = db.get(api_keys_models.UsersApiKeys, api_key_id)
+    if row is None:
+        raise core_exceptions.NotFoundError(f"API key {api_key_id} not found")
+    row.last_used_at = datetime.now(UTC)
+    db.flush()
 
-    Args:
-        api_key_id: The UUID of the API key.
-        db: SQLAlchemy database session.
 
-    Raises:
-        HTTPException: If the key is not found (404) or
-            a database error occurs.
-    """
-    stmt = select(api_keys_models.UsersApiKeys).where(api_keys_models.UsersApiKeys.id == api_key_id)
-    db_api_key = db.execute(stmt).scalar_one_or_none()
-
-    if db_api_key is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"API key {api_key_id} not found",
+def revoke_api_key(api_key_id: uuid.UUID, user_id: uuid.UUID, db: Session) -> None:
+    """Stage revocation of an API key owned by the user."""
+    row = db.execute(
+        select(api_keys_models.UsersApiKeys).where(
+            api_keys_models.UsersApiKeys.id == api_key_id,
+            api_keys_models.UsersApiKeys.user_id == user_id,
         )
-
-    db_api_key.last_used_at = datetime.now(UTC)
-    db.commit()
-
-
-@core_decorators.handle_db_errors
-def revoke_api_key(
-    api_key_id: str,
-    user_id: int,
-    db: Session,
-) -> None:
-    """
-    Revoke an API key by setting is_active to False.
-
-    Soft-delete: the record is retained for audit purposes
-    but the key will be rejected on next use.
-
-    Args:
-        api_key_id: The UUID of the API key.
-        user_id: The ID of the owning user.
-        db: SQLAlchemy database session.
-
-    Raises:
-        HTTPException: If the key is not found or does not
-            belong to the user (404), or a database error
-            occurs.
-    """
-    db_api_key = get_api_key_by_id(api_key_id, user_id, db)
-
-    if db_api_key is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=(f"API key {api_key_id} not found for user {user_id}"),
-        )
-
-    db_api_key.is_active = False
-    db.commit()
-
-    logger.info("API key revoked", extra=core_logger.context(api_key_id=api_key_id, user_id=user_id))
+    ).scalar_one_or_none()
+    if row is None:
+        raise core_exceptions.NotFoundError(f"API key {api_key_id} not found for user {user_id}")
+    if row.is_active:
+        row.is_active = False
+        row.revoked_at = datetime.now(UTC)
+    db.flush()
 
 
-@core_decorators.handle_db_errors
-def delete_api_key(
-    api_key_id: str,
-    user_id: int,
-    db: Session,
-) -> None:
-    """
-    Permanently delete an API key.
+def revoke_all_api_keys_for_user(user_id: uuid.UUID, db: Session) -> int:
+    """Stage revocation of every active API key a user owns and return how many were revoked."""
+    model = api_keys_models.UsersApiKeys
+    return core_database.rowcount(
+        db,
+        update(model)
+        .where(model.user_id == user_id, model.is_active.is_(True))
+        .values(is_active=False, revoked_at=datetime.now(UTC)),
+    )
 
-    Hard-delete for GDPR-style removal. The key hash is
-    gone and cannot be authenticated against after this.
 
-    Args:
-        api_key_id: The UUID of the API key.
-        user_id: The ID of the owning user.
-        db: SQLAlchemy database session.
+def delete_stale_api_keys(cutoff: datetime, limit: int, db: Session) -> int:
+    """Stage deletion of up to ``limit`` keys revoked or expired before ``cutoff`` and return the row count."""
+    model = api_keys_models.UsersApiKeys
+    stale = select(model.id).where(or_(model.revoked_at < cutoff, model.expires_at < cutoff)).limit(limit)
+    matched = core_database.rowcount(db, delete(model).where(model.id.in_(stale)))
+    db.flush()
+    return matched
 
-    Raises:
-        HTTPException: If the key is not found or does not
-            belong to the user (404), or a database error
-            occurs.
-    """
-    db_api_key = get_api_key_by_id(api_key_id, user_id, db)
 
-    if db_api_key is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=(f"API key {api_key_id} not found for user {user_id}"),
-        )
-
-    db.delete(db_api_key)
-    db.commit()
-
-    logger.info("API key deleted", extra=core_logger.context(api_key_id=api_key_id, user_id=user_id))
+def delete_api_key(api_key_id: uuid.UUID, user_id: uuid.UUID, db: Session) -> None:
+    """Stage deletion of an API key owned by the user."""
+    matched = core_database.rowcount(
+        db,
+        delete(api_keys_models.UsersApiKeys).where(
+            api_keys_models.UsersApiKeys.id == api_key_id,
+            api_keys_models.UsersApiKeys.user_id == user_id,
+        ),
+    )
+    if matched == 0:
+        raise core_exceptions.NotFoundError(f"API key {api_key_id} not found for user {user_id}")
+    db.flush()

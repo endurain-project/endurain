@@ -2,8 +2,13 @@ import {
   Activity,
   Bell,
   CopyCheck,
+  KeyRound,
+  LockKeyhole,
+  LogIn,
   ShieldAlert,
   UserCheck,
+  Trash2,
+  Unplug,
   UserPlus,
   Watch,
   type LucideIcon,
@@ -12,20 +17,35 @@ import type { RouteLocationRaw } from 'vue-router'
 
 import type { Notification } from '@/features/notifications/types'
 
+import { formatMediumDate } from '@/utils/datetime'
+
 /**
- * Numeric notification types, mirroring the backend `NotificationType`
- * enum (`backend/app/notifications/constants.py`). Kept as a local constant so
- * the presenter reads by name instead of magic numbers; the wire contract is
- * the integer, so these must stay in sync with the backend.
+ * i18n key segment of each account-security change the backend reports in the
+ * notification's `change` option. A change missing here renders the generic
+ * message.
  */
-const NOTIFICATION_TYPE = {
-  NEW_ACTIVITY: 1,
-  DUPLICATE_ACTIVITY: 2,
-  NEW_FOLLOWER_REQUEST: 11,
-  NEW_FOLLOWER_REQUEST_ACCEPTED: 12,
-  GARMIN_TOKEN_EXPIRED: 21,
-  ADMIN_NEW_SIGN_UP_APPROVAL_REQUEST: 101,
-} as const
+const ACCOUNT_SECURITY_CHANGE_KEY: Record<string, string> = {
+  password_changed: 'passwordChanged',
+  password_reset: 'passwordReset',
+  password_set_by_admin: 'passwordSetByAdmin',
+  mfa_enabled: 'mfaEnabled',
+  mfa_disabled: 'mfaDisabled',
+  mfa_reset_by_admin: 'mfaResetByAdmin',
+  password_change_required_by_admin: 'passwordChangeRequiredByAdmin',
+  backup_codes_generated: 'backupCodesGenerated',
+  api_key_created: 'apiKeyCreated',
+  api_keys_revoked_by_admin: 'apiKeysRevokedByAdmin',
+  identity_provider_unlinked: 'identityProviderUnlinked',
+  account_locked: 'accountLocked',
+  mfa_locked: 'mfaLocked',
+  step_up_session_ended: 'stepUpSessionEnded',
+  step_up_locked: 'stepUpLocked',
+  backup_code_used: 'backupCodeUsed',
+  refresh_token_reuse_detected: 'refreshTokenReuseDetected',
+  role_changed_by_admin: 'roleChangedByAdmin',
+  account_deactivated_by_admin: 'accountDeactivatedByAdmin',
+  username_changed: 'usernameChanged',
+}
 
 /**
  * Everything a notification row needs to render, derived purely from the
@@ -53,31 +73,9 @@ export interface NotificationPresentation {
 /** Optional rendering context the presenter can't infer from the model alone. */
 export interface NotificationPresenterContext {
   /** The viewing user's id, used to deep-link follower requests to their list. */
-  currentUserId?: number | null
-}
-
-/**
- * Reads a string field from a notification's loosely-typed `options` bag.
- *
- * @param options - The per-type metadata bag, possibly `null`.
- * @param key - The field to read.
- * @returns The string value, or an empty string when absent or not a string.
- */
-function readString(options: Record<string, unknown> | null, key: string): string {
-  const value = options?.[key]
-  return typeof value === 'string' ? value : ''
-}
-
-/**
- * Reads a numeric field from a notification's loosely-typed `options` bag.
- *
- * @param options - The per-type metadata bag, possibly `null`.
- * @param key - The field to read.
- * @returns The numeric value, or `null` when absent or not a number.
- */
-function readNumber(options: Record<string, unknown> | null, key: string): number | null {
-  const value = options?.[key]
-  return typeof value === 'number' ? value : null
+  currentUserId?: string | null
+  /** The viewer's locale, used to format dates a notification names. */
+  locale?: string
 }
 
 /**
@@ -94,60 +92,56 @@ export function presentNotification(
   notification: Notification,
   context: NotificationPresenterContext = {},
 ): NotificationPresentation {
-  const { options } = notification
   const base = 'notifications.types'
 
   switch (notification.type) {
-    case NOTIFICATION_TYPE.NEW_ACTIVITY: {
-      const activityId = readNumber(options, 'activity_id')
+    case 'new_activity': {
       return {
         icon: Activity,
         titleKey: `${base}.newActivity.title`,
         bodyKey: `${base}.newActivity.body`,
-        to: activityId === null ? null : { name: 'activity', params: { id: String(activityId) } },
+        to: { name: 'activity', params: { id: notification.options.activity_id } },
       }
     }
-    case NOTIFICATION_TYPE.DUPLICATE_ACTIVITY: {
-      const activityId = readNumber(options, 'activity_id')
+    case 'duplicate_activity': {
       return {
         icon: CopyCheck,
         titleKey: `${base}.duplicateActivity.title`,
         bodyKey: `${base}.duplicateActivity.body`,
-        to: activityId === null ? null : { name: 'activity', params: { id: String(activityId) } },
+        to: { name: 'activity', params: { id: notification.options.activity_id } },
       }
     }
-    case NOTIFICATION_TYPE.NEW_FOLLOWER_REQUEST: {
+    case 'new_follower_request': {
       const currentUserId = context.currentUserId
       return {
         icon: UserPlus,
         titleKey: `${base}.newFollowerRequest.title`,
         bodyKey: `${base}.newFollowerRequest.body`,
         bodyParams: {
-          name: readString(options, 'user_name'),
-          username: readString(options, 'user_username'),
+          name: notification.options.user_name,
+          username: notification.options.user_username,
         },
         // The request targets the viewer, so it deep-links to their own
         // followers list rather than the requester's profile.
         to:
           currentUserId == null
             ? null
-            : { name: 'user', params: { id: String(currentUserId) }, query: { tab: 'followers' } },
+            : { name: 'user', params: { id: currentUserId }, query: { tab: 'followers' } },
       }
     }
-    case NOTIFICATION_TYPE.NEW_FOLLOWER_REQUEST_ACCEPTED: {
-      const userId = readNumber(options, 'user_id')
+    case 'new_follower_request_accepted': {
       return {
         icon: UserCheck,
         titleKey: `${base}.followerRequestAccepted.title`,
         bodyKey: `${base}.followerRequestAccepted.body`,
         bodyParams: {
-          name: readString(options, 'user_name'),
-          username: readString(options, 'user_username'),
+          name: notification.options.user_name,
+          username: notification.options.user_username,
         },
-        to: userId === null ? null : { name: 'user', params: { id: String(userId) } },
+        to: { name: 'user', params: { id: notification.options.user_id } },
       }
     }
-    case NOTIFICATION_TYPE.GARMIN_TOKEN_EXPIRED: {
+    case 'garmin_token_expired': {
       return {
         icon: Watch,
         titleKey: `${base}.garminTokenExpired.title`,
@@ -155,16 +149,100 @@ export function presentNotification(
         to: { name: 'settings', query: { tab: 'integrations' } },
       }
     }
-    case NOTIFICATION_TYPE.ADMIN_NEW_SIGN_UP_APPROVAL_REQUEST: {
+    case 'strava_token_expired': {
+      // Only a revocation on Strava names the day the Strava data is deleted.
+      const deleteOn = notification.options.delete_on ?? ''
+      return {
+        icon: Unplug,
+        titleKey: `${base}.stravaTokenExpired.title`,
+        bodyKey: deleteOn
+          ? `${base}.stravaTokenExpired.bodyRevoked`
+          : `${base}.stravaTokenExpired.body`,
+        ...(deleteOn && {
+          bodyParams: { date: formatMediumDate(deleteOn, context.locale, 'UTC') },
+        }),
+        to: { name: 'settings', query: { tab: 'integrations' } },
+      }
+    }
+    case 'strava_data_deleted': {
+      return {
+        icon: Trash2,
+        titleKey: `${base}.stravaDataDeleted.title`,
+        bodyKey: `${base}.stravaDataDeleted.body`,
+        to: { name: 'settings', query: { tab: 'integrations' } },
+      }
+    }
+    case 'idp_linked': {
+      const name = notification.options.idp_name ?? ''
+      return {
+        icon: KeyRound,
+        titleKey: `${base}.idpLinked.title`,
+        // A provider deleted since the link has no name, so the generic body applies.
+        bodyKey: name ? `${base}.idpLinked.body` : `${base}.idpLinked.bodyGeneric`,
+        bodyParams: { name },
+        to: { name: 'settings-security' },
+      }
+    }
+    case 'account_security_changed': {
+      const changeKey = ACCOUNT_SECURITY_CHANGE_KEY[notification.options.change]
+      const prefix = `${base}.accountSecurityChanged.${changeKey ?? 'unknown'}`
+      const name = notification.options.idp_name ?? ''
+      const remaining = notification.options.backup_codes_remaining ?? null
+      const accessType = notification.options.access_type ?? null
+      let bodyKey = `${prefix}.body`
+      if (changeKey === 'identityProviderUnlinked' && !name) {
+        // A provider deleted since the unlink has no name, so the generic body applies.
+        bodyKey = `${prefix}.bodyGeneric`
+      } else if (changeKey === 'backupCodeUsed' && remaining !== null) {
+        bodyKey = remaining > 0 ? `${prefix}.bodyRemaining` : `${prefix}.bodyNone`
+      } else if (changeKey === 'roleChangedByAdmin' && accessType === 'admin') {
+        bodyKey = `${prefix}.bodyAdmin`
+      } else if (changeKey === 'roleChangedByAdmin' && accessType === 'regular') {
+        bodyKey = `${prefix}.bodyRegular`
+      }
+      return {
+        icon: LockKeyhole,
+        titleKey: `${prefix}.title`,
+        bodyKey,
+        bodyParams: { name, ...(remaining !== null && { count: String(remaining) }) },
+        to: { name: 'settings-security' },
+      }
+    }
+    case 'new_device_sign_in': {
+      return {
+        icon: LogIn,
+        titleKey: `${base}.newDeviceSignIn.title`,
+        bodyKey: `${base}.newDeviceSignIn.body`,
+        bodyParams: {
+          browser: notification.options.browser,
+          os: notification.options.operating_system,
+          ip: notification.options.ip_address,
+        },
+        to: { name: 'settings-security' },
+      }
+    }
+    case 'admin_new_sign_up_approval_request': {
       return {
         icon: ShieldAlert,
         titleKey: `${base}.adminSignUpApproval.title`,
         bodyKey: `${base}.adminSignUpApproval.body`,
         bodyParams: {
-          name: readString(options, 'user_name'),
-          username: readString(options, 'user_username'),
+          name: notification.options.user_name,
+          username: notification.options.user_username,
         },
-        to: { name: 'settings', query: { tab: 'users' } },
+        to: { name: 'settings-user-detail', params: { id: notification.options.user_id } },
+      }
+    }
+    case 'admin_user_promoted': {
+      return {
+        icon: ShieldAlert,
+        titleKey: `${base}.adminUserPromoted.title`,
+        bodyKey: `${base}.adminUserPromoted.body`,
+        bodyParams: {
+          name: notification.options.user_name,
+          username: notification.options.user_username,
+        },
+        to: { name: 'settings-user-detail', params: { id: notification.options.user_id } },
       }
     }
     default:

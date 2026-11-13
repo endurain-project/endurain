@@ -1,78 +1,255 @@
-"""Tests for the sign-up email event subscribers and publishers."""
+"""Tests for sign-up email subscribers and event publishers."""
 
+import uuid
 from unittest.mock import MagicMock, patch
 
 import jasil.events as platform_events
 import jasil.providers as platform_providers
 import pytest
 
-import modules.auth.sign_up_tokens.event_publishers as sign_up_tokens_event_publishers
-import modules.auth.sign_up_tokens.events as sign_up_tokens_events
-import modules.auth.sign_up_tokens.subscribers as sign_up_tokens_subscribers
+import modules.auth.sign_up_tokens.event_publishers as sign_up_publishers
+import modules.auth.sign_up_tokens.events as sign_up_events
+import modules.auth.sign_up_tokens.subscribers as sign_up_subscribers
+from tests._helpers.auth import MOCK_USER_ID, OTHER_USER_ID
+from tests.auth.sign_up_tokens.ids import tid
+
+_USER_9 = uuid.UUID("00000000-0000-4000-8000-000000000009")
+
+_USER_4 = uuid.UUID("00000000-0000-4000-8000-000000000004")
+_USER_5 = uuid.UUID("00000000-0000-4000-8000-000000000005")
+_USER_6 = uuid.UUID("00000000-0000-4000-8000-000000000006")
 
 
 def _event(event_type: str, payload: dict) -> platform_events.Event:
     return platform_events.new_event(event_type, payload, source="test")
 
 
-@pytest.fixture
-def session_local():
-    with patch("modules.auth.sign_up_tokens.subscribers.core_database.SessionLocal") as session_local:
-        yield session_local
-
-
-@pytest.fixture
-def mail():
-    platform = MagicMock()
-    with patch("modules.auth.sign_up_tokens.subscribers.platform_runtime.get_active_platform", return_value=platform):
-        yield platform.mail
-
-
 class TestHandlers:
-    @patch("modules.auth.sign_up_tokens.subscribers.sign_up_tokens_utils.send_sign_up_verification_email_to_user")
-    def test_verification_handler_sends_to_payload_user(self, mock_send, session_local, mail):
-        event = _event(sign_up_tokens_events.SIGN_UP_VERIFICATION_REQUESTED, {"user_id": 4})
+    @patch("modules.auth.sign_up_tokens.subscribers.core_mail.send_email", return_value=True)
+    @patch("modules.auth.sign_up_tokens.subscribers.sign_up_service.prepare_sign_up_verification_email")
+    @patch("modules.auth.sign_up_tokens.subscribers.platform_runtime.get_active_platform")
+    @patch("modules.auth.sign_up_tokens.subscribers.core_database.SessionLocal")
+    def test_verification_is_prepared_in_a_session_and_sent_afterward(
+        self, session_local, get_platform, prepare, send_email
+    ):
+        db = session_local.return_value.__enter__.return_value
+        get_platform.return_value.mail = MagicMock()
+        prepare.return_value = ("person@example.test", "subject", "html", "text")
 
-        sign_up_tokens_subscribers.send_verification_email_for_event(event)
+        event = _event(sign_up_events.SIGN_UP_VERIFICATION_REQUESTED, {"user_id": str(_USER_4)})
+        sign_up_subscribers.send_verification_email_for_event(event)
 
-        mock_send.assert_called_once_with(4, mail, session_local.return_value.__enter__.return_value)
+        prepare.assert_called_once_with(
+            _USER_4, event.event_id, sign_up_subscribers.core_config.settings.ENDURAIN_HOST, db
+        )
+        session_local.return_value.__exit__.assert_called_once()
+        send_email.assert_called_once_with(get_platform.return_value.mail, *prepare.return_value)
 
-    @patch("modules.auth.sign_up_tokens.subscribers.sign_up_tokens_utils.send_sign_up_approval_request_email_to_admin")
-    def test_approval_request_handler_targets_admin(self, mock_send, session_local, mail):
-        event = _event(sign_up_tokens_events.SIGN_UP_APPROVAL_REQUESTED, {"user_id": 4, "admin_user_id": 9})
-
-        sign_up_tokens_subscribers.send_approval_request_email_for_event(event)
-
-        mock_send.assert_called_once_with(4, 9, mail, session_local.return_value.__enter__.return_value)
-
-    @patch("modules.auth.sign_up_tokens.subscribers.sign_up_tokens_utils.send_sign_up_approved_email_to_user")
-    def test_approved_handler_sends_to_payload_user(self, mock_send, session_local, mail):
-        event = _event(sign_up_tokens_events.SIGN_UP_APPROVED, {"user_id": 4})
-
-        sign_up_tokens_subscribers.send_approved_email_for_event(event)
-
-        mock_send.assert_called_once_with(4, mail, session_local.return_value.__enter__.return_value)
-
-    @patch("modules.auth.sign_up_tokens.subscribers.sign_up_tokens_utils.send_sign_up_approved_email_to_user")
-    def test_durable_handler_raises_but_bus_subscriber_swallows(self, mock_send, session_local, mail):
-        mock_send.side_effect = platform_providers.MailError("unreachable")
-        event = _event(sign_up_tokens_events.SIGN_UP_APPROVED, {"user_id": 4})
+    @patch(
+        "modules.auth.sign_up_tokens.subscribers.core_mail.send_email",
+        side_effect=platform_providers.MailError("Mail delivery failed"),
+    )
+    @patch("modules.auth.sign_up_tokens.subscribers.sign_up_service.prepare_sign_up_approved_email")
+    @patch("modules.auth.sign_up_tokens.subscribers.platform_runtime.get_active_platform")
+    @patch("modules.auth.sign_up_tokens.subscribers.core_database.SessionLocal")
+    def test_durable_handler_raises_transient_mail_failure(self, _session_local, get_platform, prepare, _send_email):
+        get_platform.return_value.mail = MagicMock()
+        prepare.return_value = ("person@example.test", "subject", "html", "text")
 
         with pytest.raises(platform_providers.MailError):
-            sign_up_tokens_subscribers.send_approved_email_for_event(event)
+            sign_up_subscribers.send_approved_email_for_event(
+                _event(sign_up_events.SIGN_UP_APPROVED, {"user_id": str(_USER_4)})
+            )
 
-        sign_up_tokens_subscribers.on_sign_up_approved(event)
+
+class TestEmailChangeVerificationHandler:
+    @patch("modules.auth.sign_up_tokens.subscribers.core_mail.send_email", return_value=True)
+    @patch("modules.auth.sign_up_tokens.subscribers.sign_up_service.prepare_email_change_verification_email")
+    @patch("modules.auth.sign_up_tokens.subscribers.platform_runtime.get_active_platform")
+    @patch("modules.auth.sign_up_tokens.subscribers.core_database.SessionLocal")
+    def test_the_email_change_message_is_prepared_in_a_session_and_sent_afterward(
+        self, session_local, get_platform, prepare, send_email
+    ):
+        db = session_local.return_value.__enter__.return_value
+        prepare.return_value = ("new@example.test", "subject", "html", "text")
+
+        event = _event(sign_up_events.EMAIL_CHANGE_VERIFICATION_REQUESTED, {"user_id": str(_USER_4)})
+        sign_up_subscribers.send_email_change_verification_email_for_event(event)
+
+        prepare.assert_called_once_with(
+            _USER_4, event.event_id, sign_up_subscribers.core_config.settings.ENDURAIN_HOST, db
+        )
+        send_email.assert_called_once_with(get_platform.return_value.mail, *prepare.return_value)
+
+    def test_both_registration_paths_route_the_event_to_its_handler(self):
+        events = MagicMock()
+        registry = MagicMock()
+
+        sign_up_subscribers.register_bus_subscribers(events)
+        sign_up_subscribers.register_durable_handlers(registry)
+
+        events.subscribe.assert_any_call(
+            sign_up_events.EMAIL_CHANGE_VERIFICATION_REQUESTED,
+            sign_up_subscribers.on_email_change_verification_requested,
+        )
+        registry.register.assert_any_call(
+            sign_up_events.EMAIL_CHANGE_VERIFICATION_REQUESTED,
+            sign_up_subscribers.EMAIL_CHANGE_VERIFICATION_EMAIL_SUBSCRIBER_ID,
+            sign_up_subscribers.send_email_change_verification_email_for_event,
+        )
+
+
+class TestEmailChangedHandler:
+    @patch("modules.auth.sign_up_tokens.subscribers.core_mail.send_email", return_value=True)
+    @patch("modules.auth.sign_up_tokens.subscribers.sign_up_service.prepare_email_changed_email")
+    @patch("modules.auth.sign_up_tokens.subscribers.platform_runtime.get_active_platform")
+    @patch("modules.auth.sign_up_tokens.subscribers.core_database.SessionLocal")
+    def test_the_notice_is_prepared_in_a_session_and_sent_to_the_previous_address(
+        self, session_local, get_platform, prepare, send_email
+    ):
+        db = session_local.return_value.__enter__.return_value
+        prepare.return_value = ("old@example.test", "subject", "html", "text")
+
+        sign_up_subscribers.send_email_changed_email_for_event(
+            _event(sign_up_events.EMAIL_CHANGED, {"user_id": str(_USER_4), "token_id": str(tid("t1"))})
+        )
+
+        prepare.assert_called_once_with(_USER_4, tid("t1"), sign_up_subscribers.core_config.settings.ENDURAIN_HOST, db)
+        send_email.assert_called_once_with(
+            get_platform.return_value.mail, "old@example.test", "subject", "html", "text"
+        )
+
+    @patch("modules.auth.sign_up_tokens.subscribers.core_mail.send_email")
+    @patch("modules.auth.sign_up_tokens.subscribers.sign_up_service.prepare_email_changed_email", return_value=None)
+    @patch("modules.auth.sign_up_tokens.subscribers.platform_runtime.get_active_platform")
+    @patch("modules.auth.sign_up_tokens.subscribers.core_database.SessionLocal")
+    def test_a_missing_row_is_skipped(self, _session_local, _get_platform, _prepare, send_email):
+        sign_up_subscribers.send_email_changed_email_for_event(
+            _event(sign_up_events.EMAIL_CHANGED, {"user_id": str(_USER_4), "token_id": str(tid("t1"))})
+        )
+
+        send_email.assert_not_called()
+
+    def test_both_registration_paths_route_the_event_to_its_handler(self):
+        events = MagicMock()
+        registry = MagicMock()
+
+        sign_up_subscribers.register_bus_subscribers(events)
+        sign_up_subscribers.register_durable_handlers(registry)
+
+        events.subscribe.assert_any_call(sign_up_events.EMAIL_CHANGED, sign_up_subscribers.on_email_changed)
+        registry.register.assert_any_call(
+            sign_up_events.EMAIL_CHANGED,
+            sign_up_subscribers.EMAIL_CHANGED_EMAIL_SUBSCRIBER_ID,
+            sign_up_subscribers.send_email_changed_email_for_event,
+        )
+
+
+class TestExistingAccountHandler:
+    @patch("modules.auth.sign_up_tokens.subscribers.core_mail.send_email", return_value=True)
+    @patch("modules.auth.sign_up_tokens.subscribers.sign_up_service.prepare_sign_up_existing_account_email")
+    @patch("modules.auth.sign_up_tokens.subscribers.platform_runtime.get_active_platform")
+    @patch("modules.auth.sign_up_tokens.subscribers.core_database.SessionLocal")
+    def test_the_notice_is_prepared_in_a_session_and_sent_afterward(
+        self, _session_local, get_platform, prepare, send_email
+    ):
+        prepare.return_value = ("owner@example.com", "subject", "<p>html</p>", "text")
+
+        sign_up_subscribers.send_existing_account_email_for_event(
+            _event(sign_up_events.SIGN_UP_EXISTING_ACCOUNT, {"user_id": str(_USER_4)})
+        )
+
+        assert prepare.call_args.args[0] == _USER_4
+        send_email.assert_called_once_with(
+            get_platform.return_value.mail, "owner@example.com", "subject", "<p>html</p>", "text"
+        )
 
 
 class TestPublishers:
-    @patch("modules.auth.sign_up_tokens.event_publishers.platform_publisher.publish")
+    @patch("modules.auth.sign_up_tokens.event_publishers.platform_publisher.publish_on_commit")
     def test_payloads_carry_ids_only(self, mock_publish):
         db = MagicMock()
 
-        sign_up_tokens_event_publishers.publish_sign_up_verification_requested(4, db)
-        sign_up_tokens_event_publishers.publish_sign_up_approval_requested(4, 9, db)
-        sign_up_tokens_event_publishers.publish_sign_up_approved(4, db)
+        sign_up_publishers.publish_sign_up_verification_requested(_USER_4, db)
+        sign_up_publishers.publish_sign_up_approval_requested(_USER_4, _USER_9, db)
+        sign_up_publishers.publish_sign_up_existing_account(_USER_5, db)
 
-        payloads = [call.args[1] for call in mock_publish.call_args_list]
-        assert payloads == [{"user_id": 4}, {"user_id": 4, "admin_user_id": 9}, {"user_id": 4}]
+        assert [call.args[1] for call in mock_publish.call_args_list] == [
+            {"user_id": str(_USER_4)},
+            {"user_id": str(_USER_4), "admin_user_id": str(_USER_9)},
+            {"user_id": str(_USER_5)},
+        ]
         assert all(call.kwargs["db"] is db for call in mock_publish.call_args_list)
+
+    @patch("modules.auth.sign_up_tokens.event_publishers.platform_publisher.publish_on_commit")
+    def test_email_change_events_are_staged_for_the_callers_commit_with_ids_only(self, mock_publish):
+        db = MagicMock()
+
+        sign_up_publishers.publish_email_change_verification_requested(_USER_6, db)
+        sign_up_publishers.publish_email_changed(_USER_6, tid("token-1"), db)
+
+        assert [(call.args[0], call.args[1]) for call in mock_publish.call_args_list] == [
+            (sign_up_events.EMAIL_CHANGE_VERIFICATION_REQUESTED, {"user_id": str(_USER_6)}),
+            (sign_up_events.EMAIL_CHANGED, {"user_id": str(_USER_6), "token_id": str(tid("token-1"))}),
+        ]
+        assert all(call.kwargs["db"] is db for call in mock_publish.call_args_list)
+
+    @patch("modules.auth.sign_up_tokens.event_publishers.platform_publisher.publish_on_commit")
+    def test_approval_is_staged_for_the_callers_commit(self, mock_publish):
+        db = MagicMock()
+
+        sign_up_publishers.publish_sign_up_approved(_USER_4, db)
+
+        assert mock_publish.call_args.args[1] == {"user_id": str(_USER_4)}
+        assert mock_publish.call_args.kwargs["db"] is db
+        assert "commit" not in mock_publish.call_args.kwargs
+
+
+class TestAddressTakenHandler:
+    @patch("modules.auth.sign_up_tokens.subscribers.core_mail.send_email", return_value=True)
+    @patch("modules.auth.sign_up_tokens.subscribers.sign_up_service.prepare_email_change_address_taken_email")
+    @patch("modules.auth.sign_up_tokens.subscribers.platform_runtime.get_active_platform")
+    @patch("modules.auth.sign_up_tokens.subscribers.core_database.SessionLocal")
+    def test_the_notice_goes_to_the_holder(self, _session_local, get_platform, prepare, send_email):
+        prepare.return_value = ("holder@example.com", "subject", "<p>html</p>", "text")
+
+        sign_up_subscribers.send_email_change_address_taken_email_for_event(
+            _event(sign_up_events.EMAIL_CHANGE_ADDRESS_TAKEN, {"user_id": str(OTHER_USER_ID)})
+        )
+
+        assert prepare.call_args.args[0] == OTHER_USER_ID
+        send_email.assert_called_once_with(
+            get_platform.return_value.mail, "holder@example.com", "subject", "<p>html</p>", "text"
+        )
+
+
+class TestAddressTakenPublisher:
+    @patch("modules.auth.sign_up_tokens.event_publishers.platform_publisher.publish_on_commit")
+    def test_the_payload_carries_the_holder_id_only(self, mock_publish):
+        db = MagicMock()
+
+        sign_up_publishers.publish_email_change_address_taken(OTHER_USER_ID, db)
+
+        assert (mock_publish.call_args.args[0], mock_publish.call_args.args[1]) == (
+            sign_up_events.EMAIL_CHANGE_ADDRESS_TAKEN,
+            {"user_id": str(OTHER_USER_ID)},
+        )
+        assert mock_publish.call_args.kwargs["db"] is db
+
+
+class TestRequestedNoticeHandler:
+    @patch("modules.auth.sign_up_tokens.subscribers.core_mail.send_email", return_value=True)
+    @patch("modules.auth.sign_up_tokens.subscribers.sign_up_service.prepare_email_change_requested_email")
+    @patch("modules.auth.sign_up_tokens.subscribers.platform_runtime.get_active_platform")
+    @patch("modules.auth.sign_up_tokens.subscribers.core_database.SessionLocal")
+    def test_the_notice_goes_to_the_current_address(self, _session_local, get_platform, prepare, send_email):
+        prepare.return_value = ("current@example.com", "subject", "<p>html</p>", "text")
+
+        sign_up_subscribers.send_email_change_requested_email_for_event(
+            _event(sign_up_events.EMAIL_CHANGE_REQUESTED, {"user_id": str(MOCK_USER_ID)})
+        )
+
+        assert prepare.call_args.args[0] == MOCK_USER_ID
+        send_email.assert_called_once_with(
+            get_platform.return_value.mail, "current@example.com", "subject", "<p>html</p>", "text"
+        )

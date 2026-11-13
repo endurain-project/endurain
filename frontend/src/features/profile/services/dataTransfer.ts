@@ -1,33 +1,59 @@
+import type { ProfileExportStatus, ProfileImportStatus } from '@/features/profile/types'
+import type { StepUpInput, StepUpRequestDto } from '@/features/security/types'
+
 import { apiFetch } from '@/services/http'
+import { toStepUpWire } from '@/features/security/services/security'
 
 /**
- * Exports all of the authenticated user's profile data as a ZIP archive. The
- * timeout is disabled because a full export can take a while to stream.
+ * Queues an export of all of the authenticated user's profile data after step-up
+ * verification. A worker builds the archive, so the request returns at once.
+ * Follow the returned job with `useProfileExportQuery` and fetch the archive with
+ * {@link downloadProfileExport}.
  *
- * @param signal - Optional abort signal for cancellation.
- * @returns The export archive as a {@link Blob}.
- * @throws {HttpError} When the export fails.
+ * @param input - The step-up credentials (password or identity-provider proof, and with MFA a code).
+ * @returns The queued export's state.
+ * @throws {HttpError} When the export is refused (`403` step-up, `409` while another export is still running).
  */
-export function exportProfileData(signal?: AbortSignal): Promise<Blob> {
-  return apiFetch<Blob>('/profile/export', { responseType: 'blob', timeoutMs: 0, signal })
+export function requestProfileExport(input: StepUpInput): Promise<ProfileExportStatus> {
+  return apiFetch<ProfileExportStatus>('/profile/export', {
+    method: 'POST',
+    body: JSON.stringify({ step_up: toStepUpWire(input) } satisfies StepUpRequestDto),
+  })
 }
 
 /**
- * Imports profile data from a ZIP archive. The file is sent as multipart form
- * data under the `file` field; the backend validates it as a ZIP and processes
- * its contents, so the caller's filename never builds a path. The timeout is
- * disabled because importing can take a while.
+ * Downloads the finished export archive. The timeout is disabled because a
+ * large archive can take a while to stream.
+ *
+ * @param signal - Optional abort signal for cancellation.
+ * @returns The export archive as a {@link Blob}.
+ * @throws {HttpError} When there is no finished export to download.
+ */
+export function downloadProfileExport(signal?: AbortSignal): Promise<Blob> {
+  return apiFetch<Blob>('/profile/export/download', {
+    responseType: 'blob',
+    timeoutMs: 0,
+    signal,
+  })
+}
+
+/**
+ * Queues a profile import from a ZIP archive. The file is sent as multipart form
+ * data under the `file` field; the backend validates and stages it and a worker
+ * imports it, so the caller's filename never builds a path and the request
+ * returns at once. Follow the returned job with `useProfileImportQuery`.
  *
  * @param file - The ZIP archive to import.
- * @throws {HttpError} When the import fails (e.g. invalid archive).
+ * @returns The queued import's state.
+ * @throws {HttpError} When the archive is refused (e.g. invalid file, or `409`
+ *   while another import is still running).
  */
-export async function importProfileData(file: File): Promise<void> {
+export async function importProfileData(file: File): Promise<ProfileImportStatus> {
   const formData = new FormData()
   formData.append('file', file, file.name)
-  await apiFetch('/profile/import', {
+  return apiFetch<ProfileImportStatus>('/profile/import', {
     method: 'POST',
     body: formData,
     timeoutMs: 0,
-    responseType: 'void',
   })
 }

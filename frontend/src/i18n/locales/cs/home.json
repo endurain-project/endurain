@@ -4,6 +4,7 @@
     "uploading": "Nahrávání…",
     "success": "Aktivita úspěšně nahrána",
     "error": "Soubor aktivity se nepodařilo nahrát",
+    "tooLarge": "Soubor je příliš velký",
     "timeout": "Váš soubor se stále importuje. Zobrazí se, jakmile bude hotovo.",
     "failed": {
       "unsupported_format": "Tento typ souboru není podporován",
@@ -46,7 +47,6 @@
     "thisWeek": "Tento týden",
     "thisMonth": "Tento měsíc",
     "empty": "V tomto období žádná aktivita",
-    "caloriesUnit": "kcal",
     "metric": {
       "distance": "Vzdálenost",
       "time": "Čas",
@@ -63,12 +63,13 @@
     "snow_ski": "Lyžování",
     "snowboard": "Snowboarding",
     "windsurf": "Windsurfing",
-    "stand_up_paddleboarding": "Paddleboarding",
-    "surfing": "Surfing",
+    "stand_up_paddling": "Paddleboarding",
+    "surf": "Surfing",
     "kayaking": "Kajakování",
     "sailing": "Jachting",
-    "snowshoeing": "Sněžnice",
-    "inline_skating": "In-line bruslení"
+    "snow_shoeing": "Sněžnice",
+    "inline_skating": "In-line bruslení",
+    "other": "Ostatní"
   },
   "goals": {
     "title": "Cíle",

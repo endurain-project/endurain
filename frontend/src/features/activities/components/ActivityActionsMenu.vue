@@ -4,8 +4,9 @@ import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
 import { EllipsisVertical, ImagePlus, Pencil, Trash2 } from '@lucide/vue'
 
-import type { Activity } from '@/features/activities/types'
+import type { Activity, ActivitySummary } from '@/features/activities/types'
 
+import { IMAGE_ACCEPTED_TYPES } from '@/lib/imageTypes'
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 import {
   DropdownMenu,
@@ -15,6 +16,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { useToasts } from '@/composables/useToasts'
+import { isStaleWrite } from '@/services/ifMatch'
 import {
   useDeleteActivityMutation,
   useUploadActivityMediaMutation,
@@ -22,8 +24,8 @@ import {
 import ActivityEditDialog from '@/features/activities/components/ActivityEditDialog.vue'
 
 const props = defineProps<{
-  /** The activity these owner-only actions apply to. */
-  activity: Activity
+  /** The activity (a list row or the full read) these owner-only actions apply to. */
+  activity: ActivitySummary | Activity
 }>()
 
 const { t } = useI18n()
@@ -64,12 +66,18 @@ async function onFileSelected(event: Event): Promise<void> {
 /** Deletes the activity, then returns to the home feed. */
 async function confirmDelete(): Promise<void> {
   try {
-    await deleteMutation.mutateAsync(props.activity.id)
+    await deleteMutation.mutateAsync({
+      id: props.activity.id,
+      version: props.activity.version,
+    })
     isDeleteOpen.value = false
     toasts.success(t('activities.actions.deleteSuccess'))
     await router.push({ name: 'home' })
-  } catch {
-    toasts.error(t('activities.actions.deleteError'))
+  } catch (error) {
+    if (isStaleWrite(error)) {
+      isDeleteOpen.value = false
+    }
+    toasts.error(isStaleWrite(error) ? t('app.staleError') : t('activities.actions.deleteError'))
   }
 }
 </script>
@@ -102,7 +110,13 @@ async function confirmDelete(): Promise<void> {
     </DropdownMenuContent>
   </DropdownMenu>
 
-  <input ref="fileInput" type="file" accept="image/*" class="hidden" @change="onFileSelected" />
+  <input
+    ref="fileInput"
+    type="file"
+    :accept="IMAGE_ACCEPTED_TYPES.join(',')"
+    class="hidden"
+    @change="onFileSelected"
+  />
 
   <ActivityEditDialog v-model:open="isEditOpen" :activity="activity" />
 

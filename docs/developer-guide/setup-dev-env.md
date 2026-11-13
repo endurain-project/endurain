@@ -30,7 +30,7 @@ services:
             - DB_HOST=postgres
             - DB_PORT=5432
             - DB_PASSWORD=changeme
-            - SECRET_KEY=changeme # openssl rand -hex 32 or use the Tools page Secret Generators
+            - SECRET_KEY=replace-with-at-least-32-random-characters # openssl rand -hex 32 or use the Tools page Secret Generators
             - FERNET_KEY=changeme # openssl rand -base64 32 or use the Tools page Secret Generators
             - ENDURAIN_HOST=http://localhost:8080 # change if needed
             - BEHIND_PROXY=false

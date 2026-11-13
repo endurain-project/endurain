@@ -31,7 +31,9 @@
       "admin": "Administratorius",
       "inactive": "Neaktyvus",
       "unverified": "Nepatvirtintas el. paštas",
+      "pendingEmail": "Laukiama el. pašto keitimo",
       "pending": "Laukia patvirtinimo",
+      "deleting": "Trinama",
       "externalAuth": "Išorinis autentifikavimas"
     },
     "actions": {
@@ -64,18 +66,22 @@
       "email": "El. paštas",
       "emailRequired": "El. paštas yra privalomas",
       "emailInvalid": "Įveskite galiojantį el. pašto adresą",
+      "emailChangeHint": "Naujas adresas gauna patvirtinimo nuorodą, ir jis pakeičia dabartinį, kai tik bus patvirtintas. Naudotojas atjungiamas nuo visų įrenginių. Jei norite taikyti iš karto, pažymėkite naują adresą kaip patvirtintą.",
       "accessType": "Prieigos tipas",
       "accessTypeRegular": "Įprastas naudotojas",
       "accessTypeAdmin": "Administratorius",
       "password": "Slaptažodis",
       "passwordHint": "Bent 8 simboliai",
-      "passwordHintStrict": "Bent {min} simbolių, su didžiąja, mažąja raide, skaičiumi ir specialiu simboliu",
-      "passwordHintLength": "Bent {min} simbolių",
       "passwordRequired": "Slaptažodis yra privalomas",
-      "passwordInvalid": "Šis slaptažodis neatitinka reikalavimų",
       "confirmPassword": "Patvirtinti slaptažodį",
+      "mustChangePasswordHint": "Naudotojas turės pasirinkti naują slaptažodį kitą kartą prisijungdamas.",
       "confirmPasswordRequired": "Patvirtinti slaptažodį",
-      "passwordMismatch": "Slaptažodžiai nesutampa",
+      "passwordMode": "Kaip naudotojas gauna slaptažodį",
+      "passwordModeInvitation": "Išsiųsti kvietimą el. paštu slaptažodžiui pasirinkti",
+      "passwordModePassword": "Nustatyti slaptažodį dabar",
+      "passwordModeHint": "Naudotojas gauna el. laišką su nuoroda, galiojančia 24 valandas, savo slaptažodžiui pasirinkti.",
+      "invitationNeedsActive": "Neaktyvios paskyros pakviesti negalima. Vietoj to nustatykite slaptažodį.",
+      "inviteSuccess": "Naudotojas pridėtas ir kvietimas išsiųstas",
       "preferredLanguage": "Pageidaujama kalba",
       "languages": {
         "ca": "Katalonų",
@@ -118,14 +124,16 @@
       "units": "Vienetai",
       "unitsMetric": "Metriniai",
       "unitsImperial": "Imperiniai",
+      "weightUnits": "Svorio vienetai",
+      "weightUnitsDefault": "Pagal vienetus",
+      "weightUnitsMetric": "Kilogramai (kg)",
+      "weightUnitsImperial": "Svarai (lb)",
       "height": "Ūgis",
-      "unitCm": "cm",
-      "unitFeet": "ft",
-      "unitInches": "in",
+      "heightInvalid": "Ūgis turi būti nuo 50 iki 272 cm",
+      "maxHeartRateInvalid": "Maksimalus pulsas turi būti nuo 30 iki 250 dūžių/min.",
       "feetInvalid": "Pėdos turi būti nuo 0 iki 10",
       "inchesInvalid": "Coliai turi būti nuo 0 iki 11",
       "maxHeartRate": "Maks. pulsas",
-      "unitBpm": "bpm",
       "currency": "Valiuta",
       "currencies": {
         "euro": "Euras",
@@ -134,6 +142,8 @@
       },
       "firstDayOfWeek": "Pirmoji savaitės diena",
       "timezone": "Laiko juosta",
+      "timezoneNotSet": "Nenustatyta",
+      "timezoneUseBrowser": "Naudoti mano naršyklės laiko juostą ({timezone})",
       "timezoneHint": "Naudojama veikloms, įrašytoms be GPS, pavyzdžiui, bėgimui bėgimo takeliu ir važiavimui patalpose.",
       "weekdays": {
         "sunday": "Sekmadienis",
@@ -149,7 +159,8 @@
       "statusLegend": "Paskyros būsena",
       "active": "Aktyvus",
       "emailVerified": "El. paštas patvirtintas",
-      "pendingAdminApproval": "Laukia administratoriaus patvirtinimo",
+      "emailVerifiedCurrentHint": "Tai dabartinio adreso būsena.",
+      "newEmailVerified": "Pažymėti naują adresą kaip patvirtintą",
       "requiredField": "Privalomas laukas",
       "create": "Pridėti naudotoją",
       "save": "Išsaugoti pakeitimus",
@@ -158,7 +169,13 @@
       "createSuccess": "Naudotojas pridėtas",
       "updateSuccess": "Naudotojas atnaujintas",
       "conflict": "Šis naudotojo vardas arba el. paštas jau naudojamas",
-      "saveError": "Nepavyko išsaugoti naudotojo. Bandykite dar kartą."
+      "lastAdministrator": "Vienintelio administratoriaus negalima pažeminti ar išjungti",
+      "saveError": "Nepavyko išsaugoti naudotojo. Bandykite dar kartą.",
+      "stepUpTitle": "Patvirtinkite savo tapatybę",
+      "stepUpDescription": "Pakeitus naudotojo {username} el. paštą, prieigos tipą ar aktyvumo būseną, jis bus atjungtas visur. Patvirtinkite, kad tai Jūs, kad tęstumėte.",
+      "stepUpCreateDescription": "Sukūrus administratoriaus paskyrą suteikiama visa prieiga. Patvirtinkite, kad tai Jūs, kad tęstumėte.",
+      "stepUpConfirm": "Išsaugoti pakeitimus",
+      "approvalPending": "Šis naudotojas laukia patvirtinimo. Patvirtinkite jį, užuot aktyvinę čia."
     },
     "delete": {
       "title": "Ištrinti naudotoją",
@@ -167,10 +184,12 @@
       "cancel": "Atšaukti",
       "close": "Uždaryti",
       "success": "Naudotojas ištrintas",
-      "error": "Nepavyko ištrinti naudotojo. Bandykite dar kartą."
+      "error": "Nepavyko ištrinti naudotojo. Bandykite dar kartą.",
+      "failed": "Nepavyko ištrinti naudotojo. Paskyra lieka išjungta; norėdami bandyti dar kartą, ištrinkite ją iš naujo."
     },
     "detail": {
       "back": "Atgal į naudotojus",
+      "pendingEmail": "Laukiama el. pašto keitimo į {email}, nuoroda galioja iki {date}",
       "notFoundTitle": "Naudotojas nerastas",
       "notFoundDescription": "Ši paskyra galėjo būti ištrinta",
       "securityTitle": "Saugumas",
@@ -184,19 +203,33 @@
     "password": {
       "button": "Atstatyti slaptažodį",
       "title": "Atstatyti slaptažodį",
-      "description": "Nustatyti naują slaptažodį naudotojui {username}",
+      "description": "Nustatyti naują slaptažodį naudotojui {username} All of their sessions, unused reset links, pending email change and API keys end. They are notified.",
       "newLabel": "Naujas slaptažodis",
-      "hintLength": "Bent {min} simbolių",
-      "hintStrict": "Bent {min} simbolių, su didžiąja, mažąja raide, skaičiumi ir specialiu simboliu",
       "confirmLabel": "Patvirtinti naują slaptažodį",
-      "mismatch": "Slaptažodžiai nesutampa",
       "required": "Slaptažodis yra privalomas",
       "submit": "Atstatyti slaptažodį",
       "cancel": "Atšaukti",
       "close": "Uždaryti",
       "success": "Slaptažodis atnaujintas",
-      "invalid": "Šis slaptažodis neatitinka reikalavimų",
       "error": "Nepavyko atnaujinti slaptažodžio. Bandykite dar kartą."
+    },
+    "mfaReset": {
+      "button": "Atstatyti MFA",
+      "title": "Atstatyti dviejų veiksnių autentifikavimą",
+      "description": "Tai išjungia naudotojo {username} dviejų veiksnių autentifikavimą ir pašalina jo atsarginius kodus. Visos jo sesijos baigiamos, todėl jis atjungiamas visuose įrenginiuose ir po prisijungimo turės iš naujo nustatyti dviejų veiksnių autentifikavimą. Jis gaus pranešimą. Patvirtinkite, kad tai Jūs, kad tęstumėte.",
+      "confirm": "Atstatyti MFA",
+      "success": "Dviejų veiksnių autentifikavimas atstatytas",
+      "refused": "Šiam naudotojui dviejų veiksnių autentifikavimas neįjungtas.",
+      "error": "Nepavyko atstatyti dviejų veiksnių autentifikavimo. Bandykite dar kartą."
+    },
+    "requirePasswordChange": {
+      "button": "Reikalauti keisti slaptažodį",
+      "title": "Reikalauti pakeisti slaptažodį",
+      "description": "Naudotojas {username} pasilieka dabartinį slaptažodį, bet kitą kartą jį naudodamas prisijungti turės pasirinkti naują. Visos jo sesijos baigiamos, todėl jis atjungiamas visuose įrenginiuose. Prisijungimas per vieningo prisijungimo teikėją nepaveikiamas. Jis gaus pranešimą. Patvirtinkite, kad tai Jūs, kad tęstumėte.",
+      "confirm": "Reikalauti keisti",
+      "success": "Slaptažodžio keitimo reikalaujama",
+      "refused": "Šis naudotojas neturi slaptažodžio, kurį galėtų pakeisti.",
+      "error": "Nepavyko pareikalauti pakeisti slaptažodžio. Bandykite dar kartą."
     },
     "sessions": {
       "title": "Sesijos",
@@ -205,6 +238,7 @@
       "error": "Nepavyko įkelti sesijų",
       "retry": "Bandyti dar kartą",
       "lastActive": "Paskutinį kartą aktyvus {date}",
+      "viaApp": "Prisijungta per programėlę: {address}",
       "current": "Dabartinė sesija",
       "revokeOthers": "Atšaukti kitas sesijas",
       "revokeOthersTitle": "Atšaukti kitas sesijas",
@@ -216,10 +250,28 @@
       "revokeTitle": "Atšaukti sesiją",
       "revokeBody": "Tai atjungs įrenginį, jam reikės prisijungti iš naujo",
       "revokeConfirm": "Atšaukti",
-      "revokeCancel": "Atšaukti",
-      "revokeClose": "Uždaryti",
       "revokeSuccess": "Sesija atšaukta",
       "revokeError": "Nepavyko atšaukti sesijos. Bandykite dar kartą."
+    },
+    "apiKeys": {
+      "title": "API raktai",
+      "subtitle": "API raktai, kuriuos šis naudotojas sukūrė scenarijams ir trečiųjų šalių įrankiams",
+      "error": "Nepavyko įkelti API raktų",
+      "retry": "Bandyti dar kartą",
+      "empty": "Šis naudotojas neturi API raktų",
+      "revoke": "Atšaukti",
+      "revokeTitle": "Atšaukti šį API raktą?",
+      "revokeBody": "Raktas iškart nustoja veikti, o naudotojui pranešama.",
+      "revokeConfirm": "Atšaukti raktą",
+      "revokeSuccess": "API raktas atšauktas",
+      "revokeError": "Nepavyko atšaukti API rakto. Bandykite dar kartą.",
+      "revokeNotFound": "Šio API rakto nebėra.",
+      "revokeAll": "Atšaukti visus raktus",
+      "revokeAllTitle": "Atšaukti visus API raktus?",
+      "revokeAllBody": "Kiekvienas aktyvus šio naudotojo API raktas iškart nustoja veikti, o naudotojui pranešama.",
+      "revokeAllConfirm": "Atšaukti visus raktus",
+      "revokeAllSuccess": "API raktai atšaukti",
+      "revokeAllError": "Nepavyko atšaukti API raktų. Bandykite dar kartą."
     },
     "photo": {
       "upload": "Įkelti nuotrauką",
@@ -277,6 +329,34 @@
     "saving": "Išsaugoma…",
     "saveSuccess": "Serverio nustatymai atnaujinti",
     "saveError": "Nepavyko atnaujinti serverio nustatymų. Bandykite dar kartą.",
+    "staleError": "Šiuos nustatymus pakeitė kitas asmuo, kol juos redagavote. Jūsų pakeitimai neišsaugoti. Įkelkite puslapį iš naujo, kad pamatytumėte dabartines reikšmes.",
+    "stepUpTitle": "Patvirtinkite savo tapatybę",
+    "stepUpDescription": "Šie pakeitimai veikia, kas gali registruotis, prisijungti ar išlaikyti sesiją šiame serveryje, kiek laiko saugomas audito žurnalas ir ar vieši saitai rodo, kas jais pasidalijo. Patvirtinkite, kad tai Jūs, kad tęstumėte.",
+    "envLocked": "Nustatyta kintamuoju {name}",
+    "envSection": "Kai kuriuos čia esančius nustatymus nustato aplinkos kintamieji ({names}). Pašalinkite juos iš aplinkos, kad galėtumėte tuos nustatymus redaguoti čia.",
+    "unsaved": "Neišsaugoti pakeitimai",
+    "fixErrors": "Norėdami išsaugoti, ištaisykite aukščiau nurodytas klaidas",
+    "discard": "Atmesti",
+    "tabs": {
+      "label": "Serverio nustatymų skiriai",
+      "general": "Bendra",
+      "access": "Prieiga ir saugumas",
+      "maps": "Žemėlapiai ir vieta",
+      "email": "El. paštas",
+      "logs": "Žurnalai",
+      "unsaved": "Yra neišsaugotų pakeitimų"
+    },
+    "search": {
+      "placeholder": "Ieškoti nustatymų…",
+      "noResults": "Nustatymų nerasta"
+    },
+    "leave": {
+      "title": "Išeiti neišsaugojus?",
+      "description": "Turite neišsaugotų pakeitimų. Išėjus iš šio puslapio jie bus prarasti.",
+      "confirm": "Išeiti neišsaugojus",
+      "stay": "Likti puslapyje",
+      "close": "Uždaryti"
+    },
     "loadError": {
       "title": "Nepavyko įkelti serverio nustatymų",
       "description": "Įkeliant serverio nustatymus kažkas nepavyko. Galite bandyti dar kartą.",
@@ -293,17 +373,49 @@
       "currencyPound": "Svaras (£)",
       "numRecords": "Įrašų puslapyje"
     },
+    "mfa": {
+      "title": "Dviejų veiksnių autentifikavimas",
+      "require": "Reikalauti dviejų veiksnių autentifikavimo",
+      "requireHint": "Šio nustatymo apimama paskyra, kuri nėra nustačiusi dviejų veiksnių autentifikavimo, privalo jį nustatyti, kad galėtų daryti ką nors kita. Iki tol ji gali tik jį nustatyti ir atsijungti. Reikalavimas taikomas nuo kitos paskyros užklausos.",
+      "options": {
+        "off": "Nereikalaujama",
+        "administrators": "Tik administratoriai",
+        "everyone": "Visi"
+      },
+      "enabledWarning": "Šio nustatymo apimamos paskyros, kurios nėra nustačiusios dviejų veiksnių autentifikavimo, galbūt ir Jūsų, per kitą užklausą bus nukreiptos jį nustatyti."
+    },
     "password": {
       "title": "Slaptažodžių politika",
-      "type": "Politika",
-      "typeStrict": "Griežta (reikalingas sudėtingumas)",
-      "typeLengthOnly": "Tik ilgis",
       "lengthRegular": "Minimalus įprastų naudotojų ilgis",
-      "lengthAdmin": "Minimalus administratorių ilgis"
+      "lengthAdmin": "Minimalus administratorių ilgis",
+      "breachCheck": "Atmesti slaptažodžius, rastus žinomuose duomenų nutekėjimuose",
+      "breachCheckHint": "Kiekvieną naują ar pakeistą slaptažodį patikrina per haveibeenpwned.com. Siunčiami tik pirmieji 5 slaptažodžio SHA-1 maišos simboliai, niekada ne pats slaptažodis. Jei paslauga nepasiekiama, slaptažodis priimamas."
+    },
+    "session": {
+      "title": "Sesijos",
+      "description": "Pakeitimai taikomi naujiems prisijungimams ir kitam prieigos rakto atnaujinimui. Jau išduoti raktai išlaiko savo galiojimo trukmę.",
+      "idleTimeoutEnabled": "Taikyti neaktyvumo skirtąjį laiką",
+      "idleHours": "Neaktyvumo skirtasis laikas (valandomis)",
+      "idleHoursHint": "Kai taikoma, sesija baigiasi po tiek valandų be veiklos.",
+      "absoluteHours": "Absoliutus skirtasis laikas (valandomis)",
+      "absoluteHoursHint": "Sesija baigiasi po tiek valandų nuo prisijungimo, nepaisant veiklos. Taikoma visada. Negali būti trumpesnis už neaktyvumo skirtąjį laiką.",
+      "accessMinutes": "Prieigos rakto galiojimo trukmė (minutėmis)",
+      "refreshDays": "Atnaujinimo rakto galiojimo trukmė (dienomis)",
+      "apiKeyDays": "Didžiausias API rakto galiojimo laikas (dienomis)",
+      "apiKeyDaysHint": "Naujas API raktas nustoja galioti po tiek dienų, nebent jo savininkas pasirenka ankstesnę datą.",
+      "invalidRange": "Įveskite sveikąjį skaičių nuo {min} iki {max}.",
+      "absoluteBelowIdle": "Negali būti trumpesnis už neaktyvumo skirtąjį laiką.",
+      "accessNotBelowIdle": "Turi būti trumpesnis už neaktyvumo skirtąjį laiką."
+    },
+    "retention": {
+      "title": "Duomenų saugojimas",
+      "readNotifications": "Ištrinti perskaitytus pranešimus po (dienų)",
+      "readNotificationsHint": "0 perskaitytus pranešimus saugo amžinai. Neperskaityti pranešimai niekada netrinami."
     },
     "signup": {
       "title": "Registracija",
       "enabled": "Leisti naujų naudotojų registracijas",
+      "ssoEnabled": "Leisti naujiems naudotojams registruotis per vieningą prisijungimą",
       "adminApproval": "Reikalauti administratoriaus patvirtinimo naujoms registracijoms",
       "emailVerification": "Reikalauti el. pašto patvirtinimo naujoms registracijoms"
     },
@@ -336,12 +448,33 @@
       "attribution": "Priskyrimas",
       "apiKey": "Plytelių serverio API raktas",
       "apiKeyWarning": "API raktas saugomas užšifruotas. Palikite tuščią, jei jūsų plytelių serveriui jo nereikia.",
+      "apiKeyStored": "Raktas išsaugotas",
+      "apiKeyRemove": "Pašalinti išsaugotą API raktą",
       "backgroundColor": "Žemėlapio fono spalva",
       "regenerateThumbnails": "Iš naujo generuoti veiklų miniatiūras, kai pasikeičia žemėlapio nustatymai"
+    },
+    "geocoding": {
+      "title": "Atvirkštinis geokodavimas",
+      "description": "Paverčia veiklų koordinates vietovių pavadinimais. Pakeitimai taikomi be perkrovimo.",
+      "service": "Paslauga",
+      "serviceNominatim": "Nominatim",
+      "servicePhoton": "Photon",
+      "serviceGeocode": "geocode.maps.co",
+      "host": "Serveris",
+      "hostHint": "Serverio vardas su pasirinktiniu prievadu, be schemos. Privačiame tinkle esantis serveris turi būti išvardytas SSRF_ALLOWED_HOSTS.",
+      "useHttps": "Jungtis per HTTPS",
+      "rateLimit": "Užklausų per sekundę",
+      "rateLimitHint": "0 išjungia ribojimą. Viešoms Nominatim ir Photon paslaugoms palikite 1.",
+      "rateLimitInvalid": "Įveskite skaičių nuo 0 iki 100.",
+      "apiKey": "API raktas",
+      "apiKeyStored": "Raktas išsaugotas. Palikite tuščią, kad jį išsaugotumėte.",
+      "apiKeyRemove": "Pašalinti išsaugotą API raktą",
+      "apiKeyRequired": "geocode.maps.co reikia API rakto."
     },
     "photo": {
       "title": "Prisijungimo nuotrauka",
       "description": "Pasirinktinis paveikslėlis, rodomas prisijungimo ekrane",
+      "previewAlt": "Dabartinė prisijungimo nuotrauka",
       "add": "Įkelti prisijungimo nuotrauką",
       "replace": "Pakeisti prisijungimo nuotrauką",
       "delete": "Pašalinti prisijungimo nuotrauką",
@@ -355,10 +488,33 @@
       "cancel": "Atšaukti",
       "close": "Uždaryti"
     },
+    "logs": {
+      "title": "Serverio žurnalai",
+      "description": "Naujausi programos žurnalo įrašai. Kelis procesus vykdančių diegimų žurnalus renka jūsų platforma.",
+      "level": "Mažiausias lygis",
+      "allLevels": "Visi lygiai",
+      "search": "Paieška",
+      "searchPlaceholder": "Tekstas, žurnalo šaltinis ar užklausos ID…",
+      "live": "Tiesiogiai",
+      "refresh": "Atnaujinti",
+      "download": "Atsisiųsti",
+      "downloadError": "Nepavyko atsisiųsti žurnalo failo.",
+      "clear": "Išvalyti",
+      "cleared": "Žurnalai išvalyti",
+      "clearError": "Nepavyko išvalyti žurnalų.",
+      "clearConfirm": {
+        "title": "Išvalyti serverio žurnalus?",
+        "description": "Tai visam laikui ištrina žurnalo failą ir jo rotuotas atsargines kopijas. Jei žurnalo gali prireikti, pirmiausia jį atsisiųskite. Pats veiksmas įrašomas į naują žurnalą.",
+        "confirm": "Išvalyti žurnalus",
+        "cancel": "Atšaukti",
+        "close": "Uždaryti"
+      },
+      "loadError": "Nepavyko įkelti žurnalų.",
+      "empty": "Žurnalo įrašų nerasta"
+    },
     "email": {
       "title": "El. paštas",
       "description": "Endurain slaptažodžio atkūrimo ir registracijos laiškus siunčia per aplinkoje sukonfigūruotą SMTP serverį.",
-      "statusLoadError": "Nepavyko patikrinti el. pašto konfigūracijos.",
       "configured": "El. paštas sukonfigūruotas.",
       "notConfigured": "El. paštas nesukonfigūruotas:",
       "send": "Siųsti bandomąjį laišką",
@@ -366,7 +522,28 @@
       "sendHint": "Bandomasis laiškas siunčiamas jūsų pačių adresu.",
       "sent": "Bandomasis laiškas išsiųstas",
       "failed": "Bandomojo laiško nepavyko išsiųsti",
-      "failedUnknown": "Daugiau informacijos rasite serverio žurnaluose."
+      "failedUnknown": "Daugiau informacijos rasite serverio žurnaluose.",
+      "settingsLoadError": "Nepavyko įkelti pašto nustatymų.",
+      "host": "Serveris",
+      "hostHint": "Palikite tuščią, kad išjungtumėte el. paštą.",
+      "port": "Prievadas",
+      "portInvalid": "Įveskite prievadą nuo 1 iki 65535.",
+      "security": "Ryšio saugumas",
+      "securityStarttls": "STARTTLS",
+      "securitySsl": "SSL/TLS",
+      "securityNone": "Nėra (tik privatus perdavimas)",
+      "securityNoneWarning": "Be šifravimo priimamas tik pašto serveris privačiu arba loopback adresu, o naudotojo vardo ir slaptažodžio naudoti negalima.",
+      "username": "Naudotojo vardas",
+      "password": "Slaptažodis",
+      "passwordStored": "Slaptažodis išsaugotas. Palikite tuščią, kad jį išsaugotumėte.",
+      "passwordRemove": "Pašalinti išsaugotą slaptažodį",
+      "fromAddress": "Siuntėjo adresas",
+      "fromAddressHint": "Palikite tuščią, kad būtų naudojamas naudotojo vardas.",
+      "save": "Išsaugoti pašto nustatymus",
+      "saveSuccess": "Pašto nustatymai išsaugoti",
+      "saveError": "Nepavyko išsaugoti pašto nustatymų",
+      "stepUpTitle": "Patvirtinkite savo tapatybę",
+      "stepUpDescription": "Pašto serveris gauna kiekvieną slaptažodžio atstatymo saitą. Patvirtinkite, kad tai Jūs, kad tęstumėte."
     }
   },
   "idp": {
@@ -374,6 +551,8 @@
     "subtitle": "Konfigūruokite SSO teikėjus vieningam prisijungimui",
     "buttonAdd": "Pridėti teikėją",
     "toggleError": "Nepavyko pakeisti teikėjo. Bandykite dar kartą.",
+    "toggleStepUpDescription": "Keičiant, ar {name} įjungtas, sprendžiama, kas gali prisijungti prie šio serverio. Patvirtinkite, kad tai Jūs, kad tęstumėte.",
+    "toggleStepUpConfirm": "Patvirtinti",
     "enableSuccess": "Teikėjas įjungtas",
     "disableSuccess": "Teikėjas išjungtas",
     "type": {
@@ -399,8 +578,6 @@
       "title": "Ištrinti teikėją",
       "body": "Ar tikrai norite ištrinti „{name}“? Šio veiksmo atšaukti negalima.",
       "confirm": "Ištrinti",
-      "cancel": "Atšaukti",
-      "close": "Uždaryti",
       "success": "Teikėjas ištrintas",
       "error": "Nepavyko ištrinti teikėjo. Jis vis dar gali turėti susietų naudotojų."
     },
@@ -422,12 +599,14 @@
       "slugRequired": "Trumpinys yra privalomas",
       "slugTooLong": "Trumpinys turi būti ne ilgesnis nei 50 simbolių",
       "slugInvalid": "Naudokite tik mažąsias raides, skaičius ir brūkšnelius",
+      "slugReserved": "Šis slug yra rezervuotas; pasirinkite kitą",
       "providerType": "Teikėjo tipas",
       "typeOidc": "OpenID Connect (OIDC)",
       "typeOauth2": "OAuth 2.0",
       "issuerUrl": "Išdavėjo URL",
       "issuerUrlHint": "Teikėjo OIDC išdavėjo arba aptikimo URL",
       "issuerUrlRequired": "Išdavėjo URL yra privalomas",
+      "issuerUrlRefused": "Teikėjo URL atmestas. Jis turi naudoti https:// ir būti išsprendžiamas iš serverio, o privačiame tinkle esantis teikėjas turi būti išvardytas SSRF_ALLOWED_HOSTS.",
       "issuerUrlTooLong": "Išdavėjo URL turi būti ne ilgesnis nei 500 simbolių",
       "clientId": "Kliento ID",
       "clientIdRequired": "Kliento ID yra privalomas",
@@ -440,17 +619,34 @@
       "scopes": "Apimtys",
       "scopesHint": "Tarpais atskirtos OAuth apimtys",
       "scopesTooLong": "Apimtys turi būti ne ilgesnės nei 500 simbolių",
+      "scopesOpenidRequired": "OIDC teikėjui reikalinga openid apimtis",
       "icon": "Piktograma",
       "iconNone": "Nėra",
-      "iconCustom": "Pasirinktinis URL",
-      "customIconUrl": "Pasirinktinės piktogramos URL",
-      "customIconUrlHint": "Nuoroda į paveikslėlį, rodomą prisijungimo mygtuke",
+      "iconUpload": "Įkelti vaizdą",
+      "iconFileHint": "PNG, JPEG arba WebP vaizdas iki 1 MB, rodomas prisijungimo mygtuke",
+      "iconChoose": "Pasirinkti vaizdą",
+      "iconReplace": "Pakeisti vaizdą",
+      "iconPreviewAlt": "Piktogramos peržiūra",
+      "iconFileRequired": "Pasirinkite įkeliamą vaizdą",
+      "iconFileInvalidType": "Piktograma turi būti PNG, JPEG arba WebP vaizdas",
+      "iconFileTooLarge": "Piktograma turi būti ne didesnė kaip 1 MB",
+      "iconSaveError": "Teikėjas išsaugotas, bet jo piktogramos atnaujinti nepavyko. Redaguokite teikėją ir bandykite dar kartą.",
       "enabled": "Įjungta",
       "autoCreateUsers": "Automatiškai kurti naudotojus pirmojo prisijungimo metu",
+      "linkByEmail": "Susieti su esama paskyra pagal el. paštą",
+      "linkByEmailHint": "Leidžia pirmam prisijungimui prisijungti prie paskyros, turinčios tą patį patvirtintą el. paštą. Išjungus, toks prisijungimas atmetamas, o naudotojas teikėją susieja savo nustatymuose. Naujam teikėjui pagal numatytuosius nustatymus išjungta.",
       "syncUserInfo": "Sinchronizuoti profilio informaciją kiekvieno prisijungimo metu",
+      "syncUserInfoHint": "Nukopijuoja susietą vardą iš teikėjo. El. pašto neapima.",
+      "syncEmail": "Sinchronizuoti el. paštą kiekvieno prisijungimo metu",
+      "syncEmailHint": "Nukopijuoja teikėjo patvirtintą el. paštą į paskyrą, įrašo pakeitimą į audito žurnalą ir praneša ankstesniam adresui. Naujam teikėjui pagal numatytuosius nustatymus išjungta.",
       "createSuccess": "Teikėjas pridėtas",
       "updateSuccess": "Teikėjas atnaujintas",
+      "stepUpTitle": "Patvirtinkite savo tapatybę",
+      "stepUpDescription": "Tapatybės teikėjai sprendžia, kas gali prisijungti prie šio serverio. Patvirtinkite, kad tai Jūs, kad tęstumėte.",
       "slugConflict": "Šis trumpinys jau naudojamas",
+      "issuerInUse": "Kitas tapatybės teikėjas jau naudoja šį išdavėjo URL",
+      "issuerLocked": "Išdavėjo URL negalima keisti, kol prie šio teikėjo yra susietų naudotojų. Atsiekite juos arba pridėkite naują teikėją.",
+      "staleError": "Šis teikėjas buvo pakeistas kitur. Jūsų pakeitimai neišsaugoti. Uždarykite ir atidarykite jį iš naujo, kad įkeltumėte dabartinius nustatymus.",
       "saveError": "Nepavyko išsaugoti teikėjo. Bandykite dar kartą."
     }
   },
@@ -458,7 +654,7 @@
     "title": "Mano tikslai",
     "subtitle": "Nustatykite savo veiklų tikslus ir stebėkite pažangą",
     "buttonAdd": "Pridėti tikslą",
-    "count": "Iš viso yra {count} tikslas (-ų):",
+    "count": "Iš viso yra {count} tikslas: | Iš viso yra {count} tikslai: | Iš viso yra {count} tikslų:",
     "filters": "Filtrai",
     "filter": {
       "all": "Visi",
@@ -492,13 +688,6 @@
       "elevation": "Aukščio pokytis",
       "duration": "Trukmė"
     },
-    "unit": {
-      "calories": "kcal",
-      "km": "km",
-      "miles": "mi",
-      "meters": "m",
-      "feet": "ft"
-    },
     "list": {
       "edit": "Redaguoti tikslą {name}",
       "delete": "Ištrinti tikslą {name}"
@@ -522,6 +711,7 @@
       "error": "Nepavyko ištrinti tikslo. Bandykite dar kartą."
     },
     "form": {
+      "targetInvalid": "Įveskite didesnę nei 0 reikšmę.",
       "addTitle": "Pridėti tikslą",
       "editTitle": "Redaguoti tikslą",
       "description": "Nustatykite veiklos tikslą pasikartojančiam laikotarpiui",
@@ -549,6 +739,14 @@
     "hidePassword": "Slėpti slaptažodį",
     "mfaCode": "Autentifikavimo kodas",
     "mfaCodePlaceholder": "123456",
+    "confirmPhrase": "Įveskite {phrase}, kad patvirtintumėte",
+    "mfaEnrolment": {
+      "title": "Nustatykite dviejų veiksnių autentifikavimą",
+      "description": "Šis serveris reikalauja dviejų veiksnių autentifikavimo. Nustatykite jį, kad galėtumėte toliau naudotis Endurain, arba atsijunkite.",
+      "done": "Dviejų veiksnių autentifikavimas nustatytas. Galite tęsti.",
+      "continue": "Tęsti",
+      "signOut": "Atsijungti"
+    },
     "loadError": {
       "title": "Nepavyko įkelti jūsų saugumo nustatymų",
       "description": "Kažkas nepavyko. Galite bandyti dar kartą."
@@ -559,10 +757,7 @@
       "current": "Dabartinis slaptažodis",
       "new": "Naujas slaptažodis",
       "confirm": "Patvirtinti naują slaptažodį",
-      "requirementsStrict": "Bent {length} simbolių, įskaitant didžiąją raidę, mažąją raidę, skaičių ir simbolį.",
-      "requirementsLength": "Bent {length} simbolių.",
-      "mismatch": "Slaptažodžiai nesutampa.",
-      "revokeOthers": "Atsijungti iš visų kitų įrenginių",
+      "revokeOthers": "Atsijungti nuo visų kitų sesijų",
       "submit": "Keisti slaptažodį",
       "success": "Slaptažodis pakeistas",
       "invalidCredentials": "Jūsų dabartinis slaptažodis arba kodas neteisingas.",
@@ -575,7 +770,7 @@
       "disabledDescription": "Dviejų veiksnių autentifikavimas išjungtas. Įjunkite jį, kad geriau apsaugotumėte savo paskyrą.",
       "enable": "Įjungti dviejų veiksnių",
       "enabledDescription": "Dviejų veiksnių autentifikavimas įjungtas.",
-      "backupRemaining": "Liko {unused} iš {total} atsarginių kodų.",
+      "backupRemaining": "Liko {unused} iš {total} atsarginio kodo. | Liko {unused} iš {total} atsarginių kodų. | Liko {unused} iš {total} atsarginių kodų.",
       "regenerate": "Iš naujo generuoti atsarginius kodus",
       "disable": "Išjungti",
       "setupTitle": "Įjungti dviejų veiksnių autentifikavimą",
@@ -616,18 +811,51 @@
       "empty": "Aktyvių sesijų nėra.",
       "current": "Šis įrenginys",
       "lastActive": "Paskutinį kartą aktyvus {date}",
+      "viaApp": "Prisijungta per programėlę: {address}",
       "revoke": "Atjungti šią sesiją",
       "revokeTitle": "Atjungti šią sesiją?",
       "revokeBody": "Tas įrenginys bus atjungtas ir jam reikės prisijungti iš naujo.",
       "revokeConfirm": "Atjungti",
       "revokeSuccess": "Sesija atjungta",
       "revokeError": "Nepavyko atjungti tos sesijos. Bandykite dar kartą.",
-      "revokeOthers": "Atjungti kitus įrenginius",
-      "revokeOthersTitle": "Atjungti visus kitus įrenginius?",
-      "revokeOthersBody": "Visi įrenginiai, išskyrus šį, bus atjungti ir jiems reikės prisijungti iš naujo.",
+      "revokeOthers": "Atjungti kitas sesijas",
+      "revokeOthersTitle": "Atjungti visas kitas sesijas?",
+      "revokeOthersBody": "Visos sesijos, išskyrus šią, bus atjungtos ir turės prisijungti iš naujo.",
       "revokeOthersConfirm": "Atjungti kitus",
       "revokeOthersSuccess": "Kitos sesijos atjungtos",
-      "revokeOthersError": "Nepavyko atjungti kitų sesijų. Bandykite dar kartą."
+      "revokeOthersError": "Nepavyko atjungti kitų sesijų. Bandykite dar kartą.",
+      "signOutEverywhere": "Atsijungti visur",
+      "signOutEverywhereTitle": "Atsijungti visur?",
+      "signOutEverywhereBody": "Visi įrenginiai, įskaitant šį, bus atjungti ir turės prisijungti iš naujo.",
+      "signOutEverywhereConfirm": "Atsijungti visur",
+      "signOutEverywhereError": "Nepavyko atsijungti nuo visų sesijų. Bandykite dar kartą."
+    },
+    "devices": {
+      "title": "Žinomi įrenginiai",
+      "subtitle": "Naršyklės ir programėlės, iš kurių prisijungėte nuo paskutinio saugumo pakeitimo. Prisijungus iš bet kurio kito įrenginio, gausite pranešimą.",
+      "empty": "Žinomų įrenginių nėra",
+      "error": "Nepavyko įkelti žinomų įrenginių",
+      "current": "Šis įrenginys",
+      "unknown": "Nežinomas įrenginys",
+      "lastSeen": "Paskutinį kartą prisijungta {date}",
+      "forget": "Pamiršti šį įrenginį",
+      "forgetTitle": "Pamiršti šį įrenginį?",
+      "forgetDescription": "Pamiršus šį įrenginį, jis taip pat atjungiamas. Kitas prisijungimas iš šio įrenginio bus laikomas naujo įrenginio prisijungimu ir Jums bus išsiųstas pranešimas.",
+      "forgetConfirm": "Pamiršti įrenginį",
+      "forgetSuccess": "Įrenginys pamirštas",
+      "forgetError": "Nepavyko pamiršti įrenginio. Bandykite dar kartą.",
+      "forgetNotFound": "Šis įrenginys nebėra žinomas.",
+      "forgetOthers": "Pamiršti kitus įrenginius",
+      "forgetOthersTitle": "Pamiršti visus kitus įrenginius?",
+      "forgetOthersDescription": "Visi įrenginiai, išskyrus šį, bus pamiršti ir atjungti. Kitas prisijungimas iš kiekvieno jų bus laikomas nauju įrenginiu ir atsiųs jums pranešimą.",
+      "forgetOthersConfirm": "Pamiršti įrenginius",
+      "forgetOthersSuccess": "Kiti įrenginiai pamiršti",
+      "forgetOthersError": "Nepavyko pamiršti kitų įrenginių. Bandykite dar kartą.",
+      "forgetAll": "Pamiršti visus įrenginius",
+      "forgetAllTitle": "Pamiršti visus įrenginius?",
+      "forgetAllDescription": "Visi įrenginiai, įskaitant šį, bus pamiršti ir atjungti, o jūs būsite nukreipti į prisijungimo puslapį. Kitas prisijungimas iš kiekvieno jų bus laikomas nauju įrenginiu ir atsiųs jums pranešimą.",
+      "forgetAllConfirm": "Pamiršti įrenginius",
+      "forgetAllError": "Nepavyko pamiršti įrenginių. Bandykite dar kartą."
     },
     "linked": {
       "title": "Susietos paskyros",
@@ -649,7 +877,51 @@
       "unlinkError": "Nepavyko atsieti paskyros. Bandykite dar kartą.",
       "invalidCredentials": "Jūsų slaptažodis arba kodas neteisingas.",
       "alreadyLinked": "Ši paskyra jau susieta.",
-      "lastMethodError": "Negalite atsieti vienintelio savo prisijungimo būdo. Pirmiausia nustatykite slaptažodį."
+      "lastMethodError": "Negalite atsieti vienintelio savo prisijungimo būdo. Pirmiausia nustatykite slaptažodį.",
+      "linkedOn": "Susieta {date}"
+    },
+    "email": {
+      "title": "El. pašto adresas",
+      "subtitle": "Čia siunčiami slaptažodžio atstatymo ir pranešimai. Keičiant reikia patvirtinti savo tapatybę, o naujas adresas įsigalioja tik patvirtinus jį per nuorodą, kuri į jį išsiunčiama.",
+      "current": "Dabartinis el. paštas",
+      "action": "Keisti el. paštą",
+      "new": "Naujas el. paštas",
+      "invalid": "Įveskite galiojantį el. pašto adresą.",
+      "sameAsCurrent": "Tai jau jūsų el. pašto adresas.",
+      "success": "Patvirtinimo nuoroda išsiųsta į naują adresą. Jūsų el. paštas pakeisis tik patvirtinus.",
+      "appliedSuccess": "El. pašto adresas pakeistas.",
+      "pending": "Laukiamas keitimas į {email}",
+      "pendingExpires": "Patvirtinimo nuoroda galioja iki {date}.",
+      "resend": "Siųsti nuorodą iš naujo",
+      "cancel": "Atšaukti keitimą",
+      "resendSuccess": "Jei keitimas laukia patvirtinimo, į naują adresą siunčiama nauja nuoroda.",
+      "resendError": "Nepavyko iš naujo išsiųsti nuorodos. Bandykite dar kartą.",
+      "cancelSuccess": "El. pašto keitimas atšauktas.",
+      "cancelError": "Nepavyko atšaukti keitimo. Bandykite dar kartą.",
+      "conflict": "Šis el. paštas jau naudojamas.",
+      "error": "Nepavyko pakeisti el. pašto. Bandykite dar kartą."
+    },
+    "username": {
+      "title": "Naudotojo vardas",
+      "subtitle": "Naudotojo vardu prisijungi. Norėdamas jį pakeisti, turi patvirtinti savo tapatybę, o pakeitimas įsigalioja iš karto.",
+      "current": "Dabartinis naudotojo vardas",
+      "action": "Keisti naudotojo vardą",
+      "new": "Naujas naudotojo vardas",
+      "sameAsCurrent": "Tai jau tavo naudotojo vardas.",
+      "success": "Naudotojo vardas pakeistas.",
+      "conflict": "Šis naudotojo vardas jau naudojamas.",
+      "error": "Nepavyko pakeisti naudotojo vardo. Bandyk dar kartą."
+    },
+    "deleteAccount": {
+      "title": "Ištrinti mano paskyrą",
+      "subtitle": "Ištrinkite savo paskyrą ir visus savo duomenis, įskaitant veiklas ir jų failus, sveikatos įrašus, įrangą, tikslus, integracijas ir sesijas. Būsite atjungti visuose įrenginiuose, o paskyra bus nedelsiant išjungta, tada Jūsų duomenys bus ištrinti fone. Atidėjimo laikotarpio nėra: tai gali sustabdyti tik administratorius, vėl įjungdamas paskyrą prieš baigiantis trynimui. Jei norite pasilikti kopiją, pirmiausia eksportuokite savo duomenis.",
+      "action": "Ištrinti mano paskyrą",
+      "dialogTitle": "Ištrinti paskyrą?",
+      "dialogDescription": "Tai atjungs Jus visuose įrenginiuose, išjungs Jūsų paskyrą ir pradės trinti visus Jūsų duomenis. Prieš jam pasibaigiant tai gali sustabdyti tik administratorius. Patvirtinkite savo tapatybę, kad tęstumėte.",
+      "confirm": "Ištrinti mano paskyrą",
+      "error": "Nepavyko ištrinti paskyros. Bandykite dar kartą.",
+      "onlyAdminError": "Esate vienintelis administratorius. Prieš ištrindami paskyrą, paskirkite administratoriumi kitą naudotoją.",
+      "pendingError": "Šios paskyros ištrynimas jau vykdomas."
     },
     "apiKeys": {
       "title": "API raktai",
@@ -661,13 +933,43 @@
       "namePlaceholder": "pvz., Garmin įkėlimo scenarijus",
       "scopes": "Leidimai",
       "scopesHint": "Pasirinkite, ką šiam raktui leidžiama daryti. Reikalingas bent vienas.",
+      "scopeGroups": {
+        "account": "Paskyra",
+        "activities": "Veiklos",
+        "followers": "Sekėjai",
+        "gears": "Įranga",
+        "health": "Sveikata",
+        "healthTargets": "Sveikatos tikslai",
+        "notifications": "Pranešimai",
+        "users": "Naudotojai"
+      },
+      "scopeLabels": {
+        "account": "Tvarkyti profilį, nuotrauką, tikslus, privatumą ir numatytąją įrangą",
+        "activitiesRead": "Skaityti veiklas",
+        "activitiesWrite": "Kurti, redaguoti ir trinti veiklas",
+        "activitiesUpload": "Įkelti veiklų failus",
+        "followersRead": "Matyti, ką sekate ir kas seka jus",
+        "followersWrite": "Keisti, ką sekate ir kas seka jus",
+        "gearsRead": "Skaityti įrangą",
+        "gearsWrite": "Kurti, redaguoti ir trinti įrangą",
+        "healthRead": "Skaityti sveikatos duomenis",
+        "healthWrite": "Rašyti sveikatos duomenis",
+        "healthTargetsRead": "Skaityti sveikatos tikslus",
+        "healthTargetsWrite": "Keisti sveikatos tikslus",
+        "notificationsRead": "Skaityti pranešimus",
+        "notificationsWrite": "Tvarkyti pranešimus",
+        "usersRead": "Peržiūrėti kitų naudotojų viešus profilius"
+      },
       "expiry": "Galiojimo pabaiga (nebūtina)",
-      "expiryHint": "Palikite tuščią, kad raktas niekada nebaigtų galioti.",
+      "expiryHint": "Palikite tuščią, kad būtų naudojamas ilgiausias serverio leidžiamas galiojimo laikas. Vėlesnė data atmetama.",
       "createTitle": "Sukurti API raktą",
       "createDescription": "Patvirtinkite savo tapatybę, kad sukurtumėte naują API raktą.",
       "createSuccess": "API raktas sukurtas",
       "createError": "Nepavyko sukurti API rakto. Bandykite dar kartą.",
+      "apiKeyLimit": "Pasiekėte 25 aktyvių API raktų ribą. Atšaukite arba ištrinkite vieną ir bandykite dar kartą.",
+      "expiryTooLate": "Šis galiojimo pabaigos laikas vėlesnis, nei leidžia serveris. Pasirinkite ankstesnę datą arba palikite tuščią.",
       "invalidCredentials": "Jūsų slaptažodis arba kodas neteisingas.",
+      "expiryNotFuture": "Šis galiojimo pabaigos laikas nėra ateityje. Pasirinkite vėlesnę datą.",
       "invalidScopes": "Šie leidimai neleidžiami API raktams.",
       "revealTitle": "Nukopijuokite savo API raktą",
       "revealDescription": "Tai vienintelis kartas, kai rodomas visas raktas.",
@@ -683,7 +985,6 @@
       "lastUsed": "Paskutinį kartą naudota {date}",
       "neverUsed": "Niekada nenaudota",
       "expires": "Baigia galioti {date}",
-      "neverExpires": "Niekada nebaigia galioti",
       "revoke": "Atšaukti",
       "revokeTitle": "Atšaukti API raktą?",
       "revokeBody": "{name} iškart nustos veikti. Šio veiksmo atšaukti negalima.",
@@ -694,6 +995,26 @@
       "deleteBody": "{name} bus visam laikui ištrintas. Šio veiksmo atšaukti negalima.",
       "deleteSuccess": "API raktas ištrintas",
       "deleteError": "Nepavyko ištrinti API rakto. Bandykite dar kartą."
+    },
+    "stepUp": {
+      "passwordLabel": "Jūsų slaptažodis",
+      "passwordHint": "Įveskite savo slaptažodį, kad patvirtintumėte, jog tai Jūs.",
+      "prompt": "Jūsų paskyra neturi slaptažodžio. Prisijunkite iš naujo per susietą tapatybės teikėją, kad patvirtintumėte, jog tai Jūs.",
+      "continueWith": "Tęsti su {name}",
+      "ready": "Prisijungimas per tapatybės teikėją patvirtintas.",
+      "restart": "Prisijungti iš naujo",
+      "noProviders": "Tapatybei patvirtinti nėra susieto tapatybės teikėjo.",
+      "startError": "Nepavyko pradėti prisijungimo per tapatybės teikėją. Bandykite dar kartą.",
+      "tooManyAttempts": "Per daug bandymų. Bandykite vėliau.",
+      "reauthRequired": "Norėdami tęsti, patvirtinkite savo tapatybę per tapatybės teikėją.",
+      "failed": "Nepavyko iš naujo prisijungti per tapatybės teikėją. Bandykite dar kartą.",
+      "notFresh": "Jūsų tapatybės teikėjas neprašė prisijungti iš naujo. Susisiekite su administratoriumi."
+    },
+    "tabs": {
+      "label": "Saugumo skiltys",
+      "account": "Paskyra",
+      "sessions": "Seansai ir prieiga",
+      "danger": "Pavojinga zona"
     }
   },
   "integrations": {
@@ -733,6 +1054,7 @@
       "clientIdPlaceholder": "123456",
       "clientSecret": "Kliento paslaptis",
       "connectError": "Nepavyko prisijungti prie Strava. Patikrinkite duomenis ir bandykite dar kartą.",
+      "scopeError": "Strava negavo visų Endurain reikalingų leidimų. Prisijunkite iš naujo ir palikite visus leidimus pažymėtus.",
       "completing": "Baigiamas Strava prijungimas…",
       "linkSuccess": "Strava prijungta",
       "retrieveActivitiesTitle": "Gauti Strava veiklas",
@@ -741,9 +1063,10 @@
       "retrievingGear": "Jūsų Strava įranga gaunama fone…",
       "retrieveGearError": "Nepavyko pradėti gauti Strava įrangos. Bandykite dar kartą.",
       "unlinkTitle": "Atjungti Strava?",
-      "unlinkBody": "Endurain nustos importuoti iš Strava. Jūsų esamos veiklos išsaugomos.",
+      "unlinkBody": "Endurain nustos importuoti iš Strava ir ištrins iš Strava sinchronizuotas veiklas ir įrangą. Veiklos iš kitų šaltinių, įskaitant įkeltus Strava eksporto failus, bus išsaugotos.",
       "unlinkSuccess": "Strava atjungta",
-      "unlinkError": "Nepavyko atjungti Strava. Bandykite dar kartą."
+      "unlinkError": "Nepavyko atjungti Strava. Bandykite dar kartą.",
+      "revokedNotice": "Prieiga prie Strava baigėsi {revokedAt}. Su Strava sinchronizuotos veiklos ir įranga bus ištrintos {deletionAt}, jei neprisijungsite iš naujo."
     },
     "garmin": {
       "title": "Garmin Connect",
@@ -774,7 +1097,10 @@
       "unlinkBody": "Endurain nustos importuoti iš Garmin Connect. Jūsų esami duomenys išsaugomi.",
       "unlinkSuccess": "Garmin Connect atjungta",
       "unlinkError": "Nepavyko atjungti Garmin Connect. Bandykite dar kartą."
-    }
+    },
+    "retrieveFinished": "Jūsų duomenų gavimas iš {provider} baigtas.",
+    "retrieveFailed": "Nepavyko gauti jūsų duomenų iš {provider}. Bandykite dar kartą.",
+    "retrieveAlreadyRunning": "Duomenų gavimas iš {provider} jau vyksta. Pranešime, kai jis baigsis."
   },
   "import": {
     "title": "Importavimas",
@@ -807,15 +1133,25 @@
     },
     "job": {
       "preparing": "Ruošiamas importavimas…",
-      "progress": "Importuota {done} iš {total} failų (nepavyko {failed})…",
-      "finished": "Importavimas baigtas: importuota {done} iš {total} failų, nepavyko {failed}.",
-      "failed": "Importavimo užbaigti nepavyko."
+      "progress": "Importuota {done} iš {total} failo (nepavyko {failed})… | Importuota {done} iš {total} failų (nepavyko {failed})… | Importuota {done} iš {total} failų (nepavyko {failed})…",
+      "finished": "Importavimas baigtas: importuota {done} iš {total} failo, nepavyko {failed}. | Importavimas baigtas: importuota {done} iš {total} failų, nepavyko {failed}. | Importavimas baigtas: importuota {done} iš {total} failų, nepavyko {failed}.",
+      "failed": "Importavimo užbaigti nepavyko.",
+      "failure": {
+        "unsupported_format": "Importas nepavyko: failų formatas nepalaikomas.",
+        "invalid_file": "Importas nepavyko: failas netinkamas.",
+        "no_activities_found": "Importas nepavyko: veiklų nerasta.",
+        "processing_failed": "Importas nepavyko apdorojant failus.",
+        "provider_unavailable": "Importas nepavyko: teikėjas nepasiekiamas. Bandykite vėliau."
+      }
     }
   },
   "profile": {
     "title": "Mano profilis",
     "subtitle": "Tvarkykite savo paskyros detales ir privatumą",
     "notSet": "Nenustatyta",
+    "emailManagedIn": "Jūsų el. paštas keičiamas saugumo nustatymuose.",
+    "securitySettingsLink": "Atidaryti saugumo nustatymus",
+    "usernameManagedIn": "Jūsų naudotojo vardas keičiamas saugumo nustatymuose.",
     "error": {
       "title": "Nepavyko įkelti jūsų profilio",
       "description": "Įkeliant jūsų profilį kažkas nepavyko. Galite bandyti dar kartą.",
@@ -826,7 +1162,6 @@
       "title": "Redaguoti profilį",
       "description": "Atnaujinkite savo paskyros detales",
       "success": "Profilis atnaujintas",
-      "conflict": "Šis naudotojo vardas arba el. paštas jau naudojamas",
       "error": "Nepavyko atnaujinti jūsų profilio. Bandykite dar kartą."
     },
     "photo": {
@@ -874,6 +1209,8 @@
       "hideLaps": "Ratai",
       "hideWorkoutSetsSteps": "Treniruotės serijos ir žingsniai",
       "hideGear": "Įranga",
+      "discoverable": "Leisti kitiems rasti mane paieškoje",
+      "discoverableHint": "Kiti naudotojai gali rasti jus pagal naudotojo vardą ieškodami. Jūsų profilis išlieka pasiekiamas tiesioginiu saitu.",
       "save": "Išsaugoti privatumą",
       "saving": "Išsaugoma…",
       "saveSuccess": "Privatumo nustatymai atnaujinti",
@@ -921,10 +1258,59 @@
       "export": "Eksportuoti duomenis",
       "import": "Importuoti duomenis",
       "invalidType": "Pasirinkite .zip archyvą.",
-      "exportSuccess": "Eksportas paruoštas, atsisiuntimas netrukus prasidės",
+      "download": "Atsisiųsti eksportą",
+      "downloadSuccess": "Atsisiuntimas turėtų prasidėti netrukus",
+      "downloadError": "Nepavyko atsisiųsti eksporto. Bandykite dar kartą.",
+      "exportQueued": "Eksportas pradėtas. Galite palikti šį puslapį.",
       "exportError": "Nepavyko eksportuoti jūsų duomenų. Bandykite dar kartą.",
-      "importSuccess": "Duomenys importuoti",
-      "importError": "Nepavyko importuoti archyvo. Patikrinkite failą ir bandykite dar kartą."
+      "exportInProgress": "Eksportas jau vyksta.",
+      "exportStepUp": {
+        "title": "Patvirtinkite, kad tai jūs",
+        "description": "Eksportas nukopijuoja visus jūsų duomenis, todėl pirmiausia patvirtinkite savo tapatybę."
+      },
+      "exportStatus": {
+        "queued": "Laukiama, kol prasidės eksportas…",
+        "running": "Ruošiamas jūsų eksportas…",
+        "succeeded": "Jūsų eksportas paruoštas atsisiuntimui. Jis bus pasiekiamas dvi valandas.",
+        "failed": "Eksporto užbaigti nepavyko: {reason}"
+      },
+      "exportFailure": {
+        "timed_out": "tai truko per ilgai. Galite bandyti dar kartą.",
+        "processing_failed": "kažkas nepavyko. Galite bandyti dar kartą."
+      },
+      "importQueued": "Importas pradėtas. Galite palikti šį puslapį.",
+      "importError": "Nepavyko importuoti archyvo. Patikrinkite failą ir bandykite dar kartą.",
+      "importInProgress": "Importas jau vyksta.",
+      "status": {
+        "queued": "Laukiama, kol prasidės importas…",
+        "running": "Importuojami jūsų duomenys…",
+        "succeeded": "Importas baigtas: importuota {activities} veikla, įranga: {gears}. | Importas baigtas: importuotos {activities} veiklos, įranga: {gears}. | Importas baigtas: importuota {activities} veiklų, įranga: {gears}.",
+        "failed": "Importo užbaigti nepavyko: {reason}"
+      },
+      "failure": {
+        "invalid_file": "archyvas nėra tinkamas Endurain eksportas. Nieko neimportuota.",
+        "too_large": "archyvas per didelis. Nieko neimportuota.",
+        "too_many_activities": "archyve per daug veiklų. Nieko neimportuota.",
+        "timed_out": "tai truko per ilgai. Nieko neimportuota, todėl galite bandyti dar kartą.",
+        "files_incomplete": "jūsų duomenys importuoti, bet kai kurių failų trūksta. Neimportuokite iš naujo, nes duomenys dubliuotųsi.",
+        "processing_failed": "kažkas nepavyko. Nieko neimportuota, todėl galite bandyti dar kartą.",
+        "wrong_account": "archyvas buvo eksportuotas iš kitos paskyros. Nieko neimportuota.",
+        "older_version": "archyvas buvo eksportuotas senesne Endurain versija. Nieko neimportuota."
+      }
+    },
+    "blockedUsers": {
+      "title": "Užblokuoti naudotojai",
+      "subtitle": "Užblokuoti naudotojai negali prašyti tave sekti. Užblokavus žmogų, taip pat pašalinamas bet koks jūsų tarpusavio sekimas.",
+      "empty": "Nieko neužblokavai.",
+      "unblock": "Atblokuoti",
+      "unblockError": "Nepavyko atblokuoti šio naudotojo. Bandyk dar kartą.",
+      "loadError": "Nepavyko įkelti užblokuotų naudotojų.",
+      "retry": "Bandyti dar kartą"
+    },
+    "tabs": {
+      "label": "Profilio skiltys",
+      "profile": "Profilis",
+      "privacy": "Privatumas ir duomenys"
     }
   }
 }

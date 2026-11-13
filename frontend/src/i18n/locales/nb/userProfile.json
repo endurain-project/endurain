@@ -82,5 +82,13 @@
       "ownTitle": "Du har ingen følgere ennå.",
       "otherTitle": "Ingen følgere ennå."
     }
+  },
+  "block": {
+    "block": "Blokker",
+    "unblock": "Opphev blokkering",
+    "confirmTitle": "Blokkere {name}?",
+    "confirmBody": "{name} kan ikke be om å følge deg, og all følging mellom dere fjernes. Vedkommende får ikke beskjed.",
+    "blockError": "Kunne ikke blokkere denne brukeren. Prøv igjen.",
+    "unblockError": "Kunne ikke oppheve blokkeringen av denne brukeren. Prøv igjen."
   }
 }

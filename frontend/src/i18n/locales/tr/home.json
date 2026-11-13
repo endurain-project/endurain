@@ -4,6 +4,7 @@
     "uploading": "Yükleniyor…",
     "success": "Etkinlik başarıyla yüklendi",
     "error": "Etkinlik dosyası yüklenemedi",
+    "tooLarge": "Dosya çok büyük",
     "timeout": "Dosyanız hâlâ içe aktarılıyor. Tamamlandığında görünecek.",
     "failed": {
       "unsupported_format": "Bu dosya türü desteklenmiyor",
@@ -46,7 +47,6 @@
     "thisWeek": "Bu hafta",
     "thisMonth": "Bu ay",
     "empty": "Bu dönemde etkinlik yok",
-    "caloriesUnit": "kcal",
     "metric": {
       "distance": "Mesafe",
       "time": "Süre",
@@ -63,12 +63,13 @@
     "snow_ski": "Kayak",
     "snowboard": "Snowboard",
     "windsurf": "Rüzgar sörfü",
-    "stand_up_paddleboarding": "Ayakta kürek sörfü",
-    "surfing": "Sörf",
+    "stand_up_paddling": "Ayakta kürek sörfü",
+    "surf": "Sörf",
     "kayaking": "Kano",
     "sailing": "Yelken",
-    "snowshoeing": "Kar ayakkabısı yürüyüşü",
-    "inline_skating": "Tekerlekli paten"
+    "snow_shoeing": "Kar ayakkabısı yürüyüşü",
+    "inline_skating": "Tekerlekli paten",
+    "other": "Diğer"
   },
   "goals": {
     "title": "Hedefler",

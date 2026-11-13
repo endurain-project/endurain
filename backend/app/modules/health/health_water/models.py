@@ -1,49 +1,42 @@
-"""
-SQLAlchemy models for health water intake tracking.
+"""SQLAlchemy models for health water intake tracking.
 
 This module defines the database models for storing user daily
 water intake data, including consumption amount and data source.
 """
 
+import uuid
 from datetime import date as date_type
 from decimal import Decimal
-from typing import TYPE_CHECKING
 
-from sqlalchemy import ForeignKey, Numeric, String
-from sqlalchemy.orm import Mapped, mapped_column, relationship
+from sqlalchemy import ForeignKey, Index, Numeric, String, UniqueConstraint
+from sqlalchemy.orm import Mapped, mapped_column
 
+import core.sync as core_sync
 from core.database import Base
 
-if TYPE_CHECKING:
-    from modules.users.users.models import Users
 
-
-class HealthWater(Base):
-    """
-    User daily water intake tracking data.
+class HealthWater(core_sync.UpdatedAtMixin, Base):
+    """User daily water intake tracking data.
 
     Attributes:
-        id: Primary key, auto-incremented unique identifier.
+        id: Primary key, a random UUID.
         user_id: Foreign key referencing users.id.
         date: Calendar date for the water intake record.
         amount_ml: Total water consumed in milliliters.
         source: Source of the water intake data.
-        user: Relationship to the Users model.
 
     Table:
         health_water
-
-    Relationships:
-        - Many-to-One with Users model through user_id
     """
 
     __tablename__ = "health_water"
-
-    id: Mapped[int] = mapped_column(
-        primary_key=True,
-        autoincrement=True,
+    __table_args__ = (
+        UniqueConstraint("user_id", "date", name="uq_health_water_user_date"),
+        Index("ix_health_water_user_updated_at_id", "user_id", "updated_at", "id"),
     )
-    user_id: Mapped[int] = mapped_column(
+
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    user_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("users.id", ondelete="CASCADE"),
         nullable=False,
         index=True,
@@ -59,11 +52,21 @@ class HealthWater(Base):
         nullable=False,
         comment="Water consumed in milliliters",
     )
-    source: Mapped[str | None] = mapped_column(
+    source: Mapped[str] = mapped_column(
         String(250),
-        nullable=True,
+        nullable=False,
+        server_default="manual",
+        default="manual",
         comment="Source of the health water data",
     )
 
-    # Define a relationship to the Users model
-    users: Mapped["Users"] = relationship(back_populates="health_water")
+    version: Mapped[int] = mapped_column(
+        nullable=False,
+        server_default="1",
+        default=1,
+        comment="Optimistic-concurrency counter, surfaced to clients as the ETag",
+    )
+
+    # SQLAlchemy bumps ``version`` on each ORM flush and adds it to the UPDATE's
+    # WHERE clause, raising StaleDataError when the row moved underneath.
+    __mapper_args__ = {"version_id_col": version}  # noqa: RUF012

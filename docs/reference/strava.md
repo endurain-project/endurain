@@ -9,44 +9,44 @@ Strava linking, sync and bulk export import. See [Integrations](../features/inte
     options:
       docstring_style: google
 
+## Account linking
+
+::: backend.app.modules.strava.service
+    handler: python
+    options:
+      docstring_style: google
+
 ## Activity sync
 
-::: backend.app.modules.strava.activity_utils
+::: backend.app.modules.strava.activity_service
     handler: python
     options:
       docstring_style: google
 
 ## Gear sync
 
-::: backend.app.modules.strava.gear_utils
-    handler: python
-    options:
-      docstring_style: google
-
-## Athlete
-
-::: backend.app.modules.strava.athlete_utils
-    handler: python
-    options:
-      docstring_style: google
-
-## Bulk import source
-
-::: backend.app.modules.strava.bulk_import_source
+::: backend.app.modules.strava.gear_service
     handler: python
     options:
       docstring_style: google
 
 ## Bulk import
 
-::: backend.app.modules.strava.bulk_import_utils
+::: backend.app.modules.strava.bulk_import_service
     handler: python
     options:
       docstring_style: google
 
-## Utilities
+## Client and token handling
 
-::: backend.app.modules.strava.utils
+::: backend.app.modules.strava.client_service
+    handler: python
+    options:
+      docstring_style: google
+
+## Rate limits
+
+::: backend.app.modules.strava.rate_limit_store
     handler: python
     options:
       docstring_style: google

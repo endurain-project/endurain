@@ -10,10 +10,12 @@ import GearBadges from '@/features/gears/components/GearBadges.vue'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { MetricPill } from '@/components/ui/metric-pill'
+import { useUnitFormat } from '@/composables/useUnitFormat'
+import { formatNumber } from '@/utils/formatNumber'
 import {
   currencySymbol,
-  formatDuration,
   metersToDisplayDistance,
+  splitDuration,
 } from '@/features/gears/utils/format'
 
 /**
@@ -40,33 +42,39 @@ const emit = defineEmits<{
 }>()
 
 const { t, locale } = useI18n()
+const { unitLabel, duration } = useUnitFormat()
 
-const distanceUnitLabel = computed(() =>
-  props.units === 'imperial' ? t('gears.unitMi') : t('gears.unitKm'),
+const distanceUnitLabel = computed(() => unitLabel(props.units === 'imperial' ? 'mi' : 'km'))
+const totalDistance = computed(() =>
+  formatNumber(metersToDisplayDistance(props.gear.totalDistance, props.units), {
+    maximumFractionDigits: 1,
+  }),
 )
-const totalDistance = computed(() => metersToDisplayDistance(props.gear.totalDistance, props.units))
-const totalTime = computed(() => formatDuration(props.gear.totalTime))
+const totalTime = computed(() => {
+  const { hours, minutes } = splitDuration(props.gear.totalTime)
+  return duration(hours, minutes)
+})
 const componentsCost = computed(
   () =>
-    `${currencySymbol(props.currency)}${Math.round(props.gear.totalComponentsCost * 100) / 100}`,
+    `${currencySymbol(props.currency)}${formatNumber(props.gear.totalComponentsCost, { maximumFractionDigits: 2 })}`,
 )
 const purchaseValueLabel = computed(() =>
   props.gear.purchaseValue !== null && props.gear.purchaseValue !== undefined
-    ? `${currencySymbol(props.currency)}${props.gear.purchaseValue}`
+    ? `${currencySymbol(props.currency)}${formatNumber(props.gear.purchaseValue, { maximumFractionDigits: 2 })}`
     : null,
 )
 const totalCostLabel = computed(() => {
   if (props.gear.purchaseValue === null || props.gear.purchaseValue === undefined) {
     return null
   }
-  const total = Math.round((props.gear.purchaseValue + props.gear.totalComponentsCost) * 100) / 100
-  return `${currencySymbol(props.currency)}${total}`
+  const total = props.gear.purchaseValue + props.gear.totalComponentsCost
+  return `${currencySymbol(props.currency)}${formatNumber(total, { maximumFractionDigits: 2 })}`
 })
-const createdAtLabel = computed(() => {
-  if (!props.gear.createdAt) {
+const acquiredOnLabel = computed(() => {
+  if (!props.gear.acquiredOn) {
     return null
   }
-  const date = new Date(props.gear.createdAt)
+  const date = new Date(props.gear.acquiredOn)
   return Number.isNaN(date.getTime())
     ? null
     : new Intl.DateTimeFormat(locale.value, { dateStyle: 'medium', timeZone: 'UTC' }).format(date)
@@ -101,9 +109,9 @@ const createdAtLabel = computed(() => {
           <dt class="text-hint">{{ t('gears.form.model') }}</dt>
           <dd class="text-body">{{ gear.model }}</dd>
         </div>
-        <div v-if="createdAtLabel" class="flex flex-col gap-0.5">
-          <dt class="text-hint">{{ t('gears.form.createdAt') }}</dt>
-          <dd class="text-body">{{ createdAtLabel }}</dd>
+        <div v-if="acquiredOnLabel" class="flex flex-col gap-0.5">
+          <dt class="text-hint">{{ t('gears.form.acquiredOn') }}</dt>
+          <dd class="text-body">{{ acquiredOnLabel }}</dd>
         </div>
         <div v-if="purchaseValueLabel" class="flex flex-col gap-0.5">
           <dt class="text-hint">{{ t('gears.form.purchaseValue') }}</dt>

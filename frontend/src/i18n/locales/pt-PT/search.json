@@ -24,12 +24,10 @@
     "waterSports": "Desportos aquáticos",
     "skating": "Patinagem"
   },
-  "results": {
-    "inactive": "Inativo"
-  },
   "idle": {
     "title": "Pesquisar no Endurain",
-    "description": "Escolhe o que procuras e começa a escrever para ver resultados."
+    "description": "Escolhe o que procuras e começa a escrever para ver resultados.",
+    "usersDescription": "Escreva pelo menos {min} carateres para pesquisar utilizadores."
   },
   "empty": {
     "title": "Sem resultados",

@@ -1,14 +1,24 @@
 """Tests for auth.step_up_service."""
 
+import uuid
 from datetime import UTC, datetime, timedelta
 from unittest.mock import MagicMock, patch
 
 import pytest
-from fastapi import HTTPException
+from jasil.backends.state_memory import MemoryState
 from sqlalchemy.orm import Session
 
-import modules.auth._internal.security_stores as security_stores
-import modules.auth._internal.services.step_up_service as step_up_service
+import core.exceptions as core_exceptions
+import modules.auth.account_security.step_up_service as step_up_service
+import modules.auth.account_security.step_up_store as step_up_store_module
+
+_SID = uuid.UUID("00000000-0000-4000-8000-0000000000a1")
+_SID_2 = uuid.UUID("00000000-0000-4000-8000-0000000000a2")
+_SID_3 = uuid.UUID("00000000-0000-4000-8000-0000000000a3")
+
+USER_ID = uuid.UUID(int=1)
+OTHER_USER_ID = uuid.UUID(int=2)
+KEY = f"user:{USER_ID}:session:{_SID_2}"
 
 
 class FakeStepUpStore:
@@ -48,6 +58,25 @@ class FakeStepUpStore:
         self._attempts.pop(key, None)
         self._locked.pop(key, None)
 
+    def get_account_lockout_time(self, user_id: uuid.UUID) -> datetime | None:
+        """Return no account-wide lock: these tests lock sessions only."""
+        return None
+
+    def record_account_failure(self, user_id: uuid.UUID) -> bool:
+        """Count nothing against the account."""
+        return False
+
+    def reset_account(self, user_id: uuid.UUID) -> None:
+        """Forget nothing: the fake keeps no account count."""
+
+    def read_ticket(self, ticket: str) -> None:
+        """Return no ticket: these tests issue none."""
+        return None
+
+    def redeem_ticket(self, ticket: str) -> None:
+        """Redeem no ticket: these tests issue none."""
+        return None
+
     def set_locked(self, key: str, seconds: int = 300) -> None:
         """Helper to pre-set a lockout for a key."""
         self._locked[key] = datetime.now(UTC) + timedelta(seconds=seconds)
@@ -57,10 +86,13 @@ class TestStepUpKey:
     """_step_up_key: key format for user-based lockout."""
 
     def test_format(self):
-        assert step_up_service._step_up_key(42) == "user:42"
+        assert step_up_service._step_up_key(OTHER_USER_ID, _SID_2) == f"user:{OTHER_USER_ID}:session:{_SID_2}"
 
     def test_unique_per_user(self):
-        assert step_up_service._step_up_key(1) != step_up_service._step_up_key(2)
+        assert step_up_service._step_up_key(USER_ID, _SID) != step_up_service._step_up_key(OTHER_USER_ID, _SID)
+
+    def test_unique_per_session(self):
+        assert step_up_service._step_up_key(USER_ID, _SID_2) != step_up_service._step_up_key(USER_ID, _SID_3)
 
 
 class TestVerifyStepUpCredentials:
@@ -68,18 +100,17 @@ class TestVerifyStepUpCredentials:
 
     def _call(
         self,
-        user_id=1,
+        user_id=USER_ID,
         current_password=None,
         mfa_code=None,
-        identity_service=None,
+        password_valid=True,
         step_up_store=None,
         db=None,
         mock_user=None,
         mfa_enabled=False,
         mfa_valid=True,
+        session_id=_SID_2,
     ):
-        if identity_service is None:
-            identity_service = MagicMock()
         if step_up_store is None:
             step_up_store = FakeStepUpStore()
         if db is None:
@@ -91,36 +122,39 @@ class TestVerifyStepUpCredentials:
 
         # Derive the credential lookup result from the mock user: a local
         # password means a credential row exists carrying that hash.
-        credential = None
+        password_hash = None
         if getattr(mock_user, "has_local_password", False):
-            credential = MagicMock()
-            credential.password_hash = mock_user.password
+            password_hash = mock_user.password
 
         with (
             patch(
-                "modules.auth._internal.services.step_up_service.users_utils.get_user_by_id_or_404",
+                "modules.auth.account_security.step_up_service.users_integration.require_user",
                 return_value=mock_user,
             ),
             patch(
-                "modules.auth._internal.services.step_up_service.auth_credentials_crud.get_credential",
-                return_value=credential,
+                "modules.auth.account_security.step_up_service.credentials_integration.get_password_hash",
+                return_value=password_hash,
             ),
             patch(
-                "modules.auth._internal.services.step_up_service.mfa_service.is_mfa_enabled_for_user",
+                "modules.auth.account_security.step_up_service.mfa_integration.is_mfa_enabled_for_user",
                 return_value=mfa_enabled,
             ),
             patch(
-                "modules.auth._internal.services.step_up_service.mfa_service.verify_user_mfa",
+                "modules.auth.account_security.step_up_service.mfa_integration.verify_user_mfa",
                 return_value=mfa_valid,
+            ),
+            patch(
+                "modules.auth.account_security.step_up_service.credentials_integration.verify_and_update_password",
+                return_value=(password_valid, None),
             ),
         ):
             return step_up_service.verify_step_up_credentials(
                 user_id,
                 current_password,
                 mfa_code,
-                identity_service,
                 step_up_store,
                 db,
+                session_id=session_id,
             )
 
     # ----------------------------------------------------------------
@@ -129,150 +163,118 @@ class TestVerifyStepUpCredentials:
 
     def test_locked_out_raises_429(self):
         store = FakeStepUpStore()
-        store.set_locked("user:1", seconds=300)
+        store.set_locked(KEY, seconds=300)
 
-        with pytest.raises(HTTPException) as exc:
-            self._call(user_id=1, step_up_store=store)
+        with pytest.raises(core_exceptions.DomainError) as exc:
+            self._call(user_id=USER_ID, step_up_store=store)
 
         assert exc.value.status_code == 429
 
-    def test_locked_out_includes_retry_after_header(self):
+    def test_locked_out_carries_retry_time(self):
         store = FakeStepUpStore()
-        store.set_locked("user:1", seconds=300)
+        store.set_locked(KEY, seconds=300)
 
-        with pytest.raises(HTTPException) as exc:
-            self._call(user_id=1, step_up_store=store)
+        with pytest.raises(core_exceptions.DomainError) as exc:
+            self._call(user_id=USER_ID, step_up_store=store)
 
-        assert "Retry-After" in exc.value.headers
-        assert int(exc.value.headers["Retry-After"]) > 0
+        assert isinstance(exc.value, core_exceptions.TooManyRequestsError)
+        assert exc.value.retry_at is not None
+
+    def test_a_session_locked_out_does_not_lock_the_users_other_session(self):
+        store = FakeStepUpStore()
+        store.set_locked(KEY, seconds=300)
+        mock_user = MagicMock()
+        mock_user.password = "hashed"
+        mock_user.has_local_password = True
+
+        self._call(user_id=USER_ID, session_id=_SID_3, step_up_store=store, mock_user=mock_user, current_password="x")
+
+    def test_a_lockout_does_not_lock_another_user_on_the_same_session_id(self):
+        store = FakeStepUpStore()
+        store.set_locked(KEY, seconds=300)
+        mock_user = MagicMock()
+        mock_user.password = "hashed"
+        mock_user.has_local_password = True
+
+        self._call(
+            user_id=OTHER_USER_ID, session_id=_SID_2, step_up_store=store, mock_user=mock_user, current_password="x"
+        )
+
+    def test_failures_count_against_the_callers_session_only(self):
+        store = step_up_store_module.StepUpAttempts(MemoryState())
+        mock_user = MagicMock()
+        mock_user.password = "hashed"
+        mock_user.has_local_password = True
+
+        for _ in range(5):
+            with pytest.raises(core_exceptions.StepUpFailedError):
+                self._call(
+                    session_id=_SID_2,
+                    step_up_store=store,
+                    mock_user=mock_user,
+                    current_password="wrong",
+                    password_valid=False,
+                )
+
+        with pytest.raises(core_exceptions.TooManyRequestsError):
+            self._call(session_id=_SID_2, step_up_store=store, mock_user=mock_user, current_password="x")
+        self._call(session_id=_SID_3, step_up_store=store, mock_user=mock_user, current_password="x")
 
     def test_lockout_not_applied_when_not_locked(self):
         # Should not raise 429
         store = FakeStepUpStore()
         mock_user = MagicMock()
-        mock_user.password = None
-        mock_user.has_local_password = False
-        # No password, no MFA → success path
-        self._call(user_id=1, step_up_store=store, mock_user=mock_user)
+        mock_user.password = "hashed"
+        mock_user.has_local_password = True
+        self._call(user_id=USER_ID, step_up_store=store, mock_user=mock_user, current_password="correct")
 
     # ----------------------------------------------------------------
     # SSO-only accounts (no local password)
     # ----------------------------------------------------------------
 
-    def test_sso_no_mfa_success(self):
-        """SSO-only accounts pass step-up with no credentials supplied.
-
-        Password factor is skipped when db_user.password is None because
-        there is no local credential to verify against. This is the
-        intended behavior; a future IdP re-auth flow would close the gap.
-        See verify_step_up_credentials docstring for the known coverage note.
-        """
+    def _sso_user(self):
         mock_user = MagicMock()
         mock_user.password = None
         mock_user.has_local_password = False
-        store = FakeStepUpStore()
-        self._call(mock_user=mock_user, step_up_store=store)
+        return mock_user
 
-    def test_sso_no_mfa_resets_attempts_on_success(self):
-        """A successful SSO-only step-up clears any prior failed-attempt counter."""
-        mock_user = MagicMock()
-        mock_user.password = None
-        mock_user.has_local_password = False
-        store = FakeStepUpStore()
-        store._attempts["user:1"] = 3
-
-        self._call(user_id=1, mock_user=mock_user, step_up_store=store)
-
-        assert "user:1" not in store._attempts
-
-    def test_sso_mfa_missing_code_raises_401(self):
-        """SSO-only accounts still require MFA when it is enabled.
-
-        Even though the password factor is skipped, an enrolled MFA code
-        must still be supplied. Omitting it raises 401.
-        """
-        mock_user = MagicMock()
-        mock_user.password = None
-        mock_user.has_local_password = False
-        store = FakeStepUpStore()
-
-        with pytest.raises(HTTPException) as exc:
-            self._call(
-                mock_user=mock_user,
-                step_up_store=store,
-                mfa_enabled=True,
-                mfa_code=None,
-            )
+    def test_sso_without_reauth_proof_is_refused_with_the_idp_challenge(self):
+        """An SSO-only account must prove a fresh provider sign-in; no credentials is not a pass."""
+        with pytest.raises(core_exceptions.IdpReauthRequiredError) as exc:
+            self._call(mock_user=self._sso_user(), step_up_store=FakeStepUpStore())
 
         assert exc.value.status_code == 401
-        assert exc.value.detail == "MFA code required for this operation"
+        assert exc.value.code == "idp-reauth-required"
 
-    def test_sso_mfa_missing_code_records_failure(self):
-        mock_user = MagicMock()
-        mock_user.password = None
-        mock_user.has_local_password = False
+    def test_sso_challenge_is_not_counted_as_a_failure(self):
+        store = FakeStepUpStore()
+        store._attempts[KEY] = 3
+
+        with pytest.raises(core_exceptions.IdpReauthRequiredError):
+            self._call(user_id=USER_ID, mock_user=self._sso_user(), step_up_store=store)
+
+        assert store._attempts[KEY] == 3
+
+    @pytest.mark.parametrize(
+        ("mfa_code", "mfa_valid"),
+        [(None, True), ("wrong", False), ("123456", True)],
+        ids=["missing-code", "wrong-code", "correct-code"],
+    )
+    def test_sso_with_mfa_is_still_refused_without_reauth_proof(self, mfa_code, mfa_valid):
+        """A valid MFA code alone never substitutes for the identity-provider sign-in."""
         store = FakeStepUpStore()
 
-        with pytest.raises(HTTPException):
+        with pytest.raises(core_exceptions.IdpReauthRequiredError):
             self._call(
-                user_id=1,
-                mock_user=mock_user,
+                user_id=USER_ID,
+                mock_user=self._sso_user(),
                 step_up_store=store,
                 mfa_enabled=True,
-                mfa_code=None,
+                mfa_code=mfa_code,
+                mfa_valid=mfa_valid,
             )
 
-        assert store._attempts.get("user:1", 0) == 1
-
-    def test_sso_mfa_wrong_code_raises_401(self):
-        mock_user = MagicMock()
-        mock_user.password = None
-        mock_user.has_local_password = False
-        store = FakeStepUpStore()
-
-        with pytest.raises(HTTPException) as exc:
-            self._call(
-                mock_user=mock_user,
-                step_up_store=store,
-                mfa_enabled=True,
-                mfa_code="wrong",
-                mfa_valid=False,
-            )
-
-        assert exc.value.status_code == 401
-
-    def test_sso_mfa_wrong_code_records_failure(self):
-        mock_user = MagicMock()
-        mock_user.password = None
-        mock_user.has_local_password = False
-        store = FakeStepUpStore()
-
-        with pytest.raises(HTTPException):
-            self._call(
-                user_id=1,
-                mock_user=mock_user,
-                step_up_store=store,
-                mfa_enabled=True,
-                mfa_code="wrong",
-                mfa_valid=False,
-            )
-
-        assert store._attempts.get("user:1", 0) == 1
-
-    def test_sso_mfa_correct_code_success(self):
-        """SSO-only account with MFA enabled passes when valid MFA code is provided."""
-        mock_user = MagicMock()
-        mock_user.password = None
-        mock_user.has_local_password = False
-        store = FakeStepUpStore()
-
-        self._call(
-            mock_user=mock_user,
-            step_up_store=store,
-            mfa_enabled=True,
-            mfa_code="123456",
-            mfa_valid=True,
-        )
+        assert store._attempts.get(KEY, 0) == 0
 
     # ----------------------------------------------------------------
     # Accounts with local password
@@ -284,14 +286,14 @@ class TestVerifyStepUpCredentials:
         mock_user.has_local_password = True
         store = FakeStepUpStore()
 
-        with pytest.raises(HTTPException) as exc:
+        with pytest.raises(core_exceptions.DomainError) as exc:
             self._call(
                 mock_user=mock_user,
                 step_up_store=store,
                 current_password=None,
             )
 
-        assert exc.value.status_code == 401
+        assert exc.value.status_code == 403
 
     def test_password_missing_records_failure(self):
         mock_user = MagicMock()
@@ -299,64 +301,82 @@ class TestVerifyStepUpCredentials:
         mock_user.has_local_password = True
         store = FakeStepUpStore()
 
-        with pytest.raises(HTTPException):
+        with pytest.raises(core_exceptions.DomainError):
             self._call(
-                user_id=1,
+                user_id=USER_ID,
                 mock_user=mock_user,
                 step_up_store=store,
                 current_password=None,
             )
 
-        assert store._attempts.get("user:1", 0) == 1
+        assert store._attempts.get(KEY, 0) == 1
 
     def test_password_wrong_raises_401(self):
         mock_user = MagicMock()
         mock_user.password = "hashed"
         mock_user.has_local_password = True
-        identity_service = MagicMock()
-        identity_service.verify_password.return_value = False
+        password_valid = False
         store = FakeStepUpStore()
 
-        with pytest.raises(HTTPException) as exc:
+        with pytest.raises(core_exceptions.DomainError) as exc:
             self._call(
                 mock_user=mock_user,
-                identity_service=identity_service,
+                password_valid=password_valid,
                 step_up_store=store,
                 current_password="wrong",
             )
 
-        assert exc.value.status_code == 401
+        assert exc.value.status_code == 403
+
+    def test_a_bcrypt_hash_fails_like_a_wrong_password(self):
+        stored = "$2b$12$C6UzMDM.H6dfI/f/IKcEeO5lC7Zq3o1m1u0YF1kXJq8r9eJ8q7y6e"
+        store = FakeStepUpStore()
+        with (
+            patch(
+                "modules.auth.account_security.step_up_service.users_integration.require_user",
+                return_value=MagicMock(),
+            ),
+            patch(
+                "modules.auth.account_security.step_up_service.credentials_integration.get_password_hash",
+                return_value=stored,
+            ),
+            pytest.raises(core_exceptions.DomainError) as exc,
+        ):
+            step_up_service.verify_step_up_credentials(
+                USER_ID, "x" * 100, None, store, MagicMock(spec=Session), session_id=_SID_2
+            )
+
+        assert exc.value.status_code == 403
+        assert store._attempts.get(KEY, 0) == 1
 
     def test_password_wrong_records_failure(self):
         mock_user = MagicMock()
         mock_user.password = "hashed"
         mock_user.has_local_password = True
-        identity_service = MagicMock()
-        identity_service.verify_password.return_value = False
+        password_valid = False
         store = FakeStepUpStore()
 
-        with pytest.raises(HTTPException):
+        with pytest.raises(core_exceptions.DomainError):
             self._call(
-                user_id=1,
+                user_id=USER_ID,
                 mock_user=mock_user,
-                identity_service=identity_service,
+                password_valid=password_valid,
                 step_up_store=store,
                 current_password="wrong",
             )
 
-        assert store._attempts.get("user:1", 0) == 1
+        assert store._attempts.get(KEY, 0) == 1
 
     def test_password_correct_no_mfa_success(self):
         mock_user = MagicMock()
         mock_user.password = "hashed"
         mock_user.has_local_password = True
-        identity_service = MagicMock()
-        identity_service.verify_password.return_value = True
+        password_valid = True
         store = FakeStepUpStore()
 
         self._call(
             mock_user=mock_user,
-            identity_service=identity_service,
+            password_valid=password_valid,
             step_up_store=store,
             current_password="correct",
             mfa_enabled=False,
@@ -366,75 +386,91 @@ class TestVerifyStepUpCredentials:
         mock_user = MagicMock()
         mock_user.password = "hashed"
         mock_user.has_local_password = True
-        identity_service = MagicMock()
-        identity_service.verify_password.return_value = True
+        password_valid = True
         store = FakeStepUpStore()
-        store._attempts["user:1"] = 4
+        store._attempts[KEY] = 4
 
         self._call(
-            user_id=1,
+            user_id=USER_ID,
             mock_user=mock_user,
-            identity_service=identity_service,
+            password_valid=password_valid,
             step_up_store=store,
             current_password="correct",
             mfa_enabled=False,
         )
 
-        assert "user:1" not in store._attempts
+        assert KEY not in store._attempts
 
-    def test_password_correct_mfa_missing_code_raises_401(self):
+    def test_a_wrong_password_and_a_missing_mfa_code_get_the_same_answer(self):
+        """A correct password with a missing MFA code must not be told apart from a wrong password."""
         mock_user = MagicMock()
         mock_user.password = "hashed"
         mock_user.has_local_password = True
-        identity_service = MagicMock()
-        identity_service.verify_password.return_value = True
+        answers = []
+        for password_valid in (False, True):
+            with pytest.raises(core_exceptions.StepUpFailedError) as exc:
+                self._call(
+                    mock_user=mock_user,
+                    password_valid=password_valid,
+                    current_password="typed",
+                    mfa_enabled=True,
+                    mfa_code=None,
+                )
+            answers.append((exc.value.status_code, exc.value.code, exc.value.detail, exc.value.headers))
+
+        assert answers[0] == answers[1]
+        assert answers[0][3] is None or "WWW-Authenticate" not in answers[0][3]
+
+    def test_password_correct_mfa_missing_code_is_refused(self):
+        mock_user = MagicMock()
+        mock_user.password = "hashed"
+        mock_user.has_local_password = True
+        password_valid = True
         store = FakeStepUpStore()
 
-        with pytest.raises(HTTPException) as exc:
+        with pytest.raises(core_exceptions.DomainError) as exc:
             self._call(
                 mock_user=mock_user,
-                identity_service=identity_service,
+                password_valid=password_valid,
                 step_up_store=store,
                 current_password="correct",
                 mfa_enabled=True,
                 mfa_code=None,
             )
 
-        assert exc.value.status_code == 401
-        assert exc.value.detail == "MFA code required for this operation"
+        assert exc.value.status_code == 403
+        assert exc.value.detail == "Step-up verification failed"
 
     def test_password_correct_mfa_missing_records_failure(self):
         mock_user = MagicMock()
         mock_user.password = "hashed"
         mock_user.has_local_password = True
-        identity_service = MagicMock()
-        identity_service.verify_password.return_value = True
+        password_valid = True
         store = FakeStepUpStore()
 
-        with pytest.raises(HTTPException):
+        with pytest.raises(core_exceptions.DomainError):
             self._call(
-                user_id=1,
+                user_id=USER_ID,
                 mock_user=mock_user,
-                identity_service=identity_service,
+                password_valid=password_valid,
                 step_up_store=store,
                 current_password="correct",
                 mfa_enabled=True,
                 mfa_code=None,
             )
 
-        assert store._attempts.get("user:1", 0) == 1
+        assert store._attempts.get(KEY, 0) == 1
 
     def test_password_correct_mfa_correct_code_success(self):
         mock_user = MagicMock()
         mock_user.password = "hashed"
         mock_user.has_local_password = True
-        identity_service = MagicMock()
-        identity_service.verify_password.return_value = True
+        password_valid = True
         store = FakeStepUpStore()
 
         self._call(
             mock_user=mock_user,
-            identity_service=identity_service,
+            password_valid=password_valid,
             step_up_store=store,
             current_password="correct",
             mfa_enabled=True,
@@ -446,14 +482,13 @@ class TestVerifyStepUpCredentials:
         mock_user = MagicMock()
         mock_user.password = "hashed"
         mock_user.has_local_password = True
-        identity_service = MagicMock()
-        identity_service.verify_password.return_value = True
+        password_valid = True
         store = FakeStepUpStore()
 
-        with pytest.raises(HTTPException) as exc:
+        with pytest.raises(core_exceptions.DomainError) as exc:
             self._call(
                 mock_user=mock_user,
-                identity_service=identity_service,
+                password_valid=password_valid,
                 step_up_store=store,
                 current_password="correct",
                 mfa_enabled=True,
@@ -461,21 +496,20 @@ class TestVerifyStepUpCredentials:
                 mfa_valid=False,
             )
 
-        assert exc.value.status_code == 401
+        assert exc.value.status_code == 403
 
     def test_password_correct_mfa_wrong_records_failure(self):
         mock_user = MagicMock()
         mock_user.password = "hashed"
         mock_user.has_local_password = True
-        identity_service = MagicMock()
-        identity_service.verify_password.return_value = True
+        password_valid = True
         store = FakeStepUpStore()
 
-        with pytest.raises(HTTPException):
+        with pytest.raises(core_exceptions.DomainError):
             self._call(
-                user_id=1,
+                user_id=USER_ID,
                 mock_user=mock_user,
-                identity_service=identity_service,
+                password_valid=password_valid,
                 step_up_store=store,
                 current_password="correct",
                 mfa_enabled=True,
@@ -483,14 +517,14 @@ class TestVerifyStepUpCredentials:
                 mfa_valid=False,
             )
 
-        assert store._attempts.get("user:1", 0) == 1
+        assert store._attempts.get(KEY, 0) == 1
 
     # ----------------------------------------------------------------
     # Progressive lockout thresholds (in-memory store)
     # ----------------------------------------------------------------
 
     def test_lockout_applied_after_threshold(self):
-        store = security_stores.StepUpAttempts()
+        store = step_up_store_module.StepUpAttempts(MemoryState())
         key = "user:99"
         for _ in range(5):
             store.record_failed_attempt(key)
@@ -499,23 +533,58 @@ class TestVerifyStepUpCredentials:
 
     def test_lockout_cleared_on_success(self):
         mock_user = MagicMock()
-        mock_user.password = None
-        mock_user.has_local_password = False
-        identity_service = MagicMock()
-        store = security_stores.StepUpAttempts()
-        key = "user:1"
+        mock_user.password = "hashed"
+        mock_user.has_local_password = True
+        password_valid = True
+        store = step_up_store_module.StepUpAttempts(MemoryState())
+        key = KEY
         # Pre-load 3 failures (below threshold)
         for _ in range(3):
             store.record_failed_attempt(key)
 
         self._call(
-            user_id=1,
+            user_id=USER_ID,
             mock_user=mock_user,
-            identity_service=identity_service,
+            password_valid=password_valid,
             step_up_store=store,
+            current_password="correct",
             mfa_enabled=False,
         )
 
         assert not store.is_locked_out(key)
         # The counter was reset: the next failure starts again at 1.
         assert store.record_failed_attempt(key) == 1
+
+
+class TestStepUpPasswordNormalisation:
+    """Step-up checks the current password with the same NFC rule as sign-in."""
+
+    _COMPOSED = "café-au-lait-noir"
+    _DECOMPOSED = "café-au-lait-noir"
+
+    def _verify(self, stored_hash: str, typed: str) -> None:
+        prefix = "modules.auth.account_security.step_up_service."
+        with (
+            patch(prefix + "users_integration.require_user"),
+            patch(prefix + "credentials_integration.get_password_hash", return_value=stored_hash),
+            patch(prefix + "mfa_integration.is_mfa_enabled_for_user", return_value=False),
+        ):
+            step_up_service.verify_step_up_credentials(
+                1, typed, None, FakeStepUpStore(), MagicMock(spec=Session), session_id=_SID_2
+            )
+
+    @pytest.fixture
+    def hasher(self):
+        import modules.auth.credentials.password_hasher as credentials_password_hasher
+
+        return credentials_password_hasher.get_password_hasher()
+
+    def test_decomposed_input_matches_a_composed_hash(self, hasher):
+        self._verify(hasher.hash_password(self._COMPOSED), self._DECOMPOSED)
+
+    def test_legacy_raw_hash_still_verifies(self, hasher):
+        self._verify(hasher.hash_password(self._DECOMPOSED), self._DECOMPOSED)
+
+    def test_wrong_password_is_refused(self, hasher):
+        with pytest.raises(core_exceptions.StepUpFailedError):
+            self._verify(hasher.hash_password(self._COMPOSED), "not-the-password-at-all")

@@ -4,6 +4,7 @@
     "uploading": "Feltöltés…",
     "success": "A tevékenység sikeresen feltöltve",
     "error": "Nem sikerült feltölteni a tevékenységfájlt",
+    "tooLarge": "A fájl túl nagy",
     "timeout": "A fájlod importálása még folyamatban van. Megjelenik, amint elkészül.",
     "failed": {
       "unsupported_format": "Ez a fájltípus nem támogatott",
@@ -46,7 +47,6 @@
     "thisWeek": "Ezen a héten",
     "thisMonth": "Ebben a hónapban",
     "empty": "Nincs tevékenység ebben az időszakban",
-    "caloriesUnit": "kcal",
     "metric": {
       "distance": "Táv",
       "time": "Idő",
@@ -63,12 +63,13 @@
     "snow_ski": "Síelés",
     "snowboard": "Snowboardozás",
     "windsurf": "Szörfözés",
-    "stand_up_paddleboarding": "SUP-ozás",
-    "surfing": "Hullámlovaglás",
+    "stand_up_paddling": "SUP-ozás",
+    "surf": "Hullámlovaglás",
     "kayaking": "Kajakozás",
     "sailing": "Vitorlázás",
-    "snowshoeing": "Hótalpazás",
-    "inline_skating": "Görkorcsolyázás"
+    "snow_shoeing": "Hótalpazás",
+    "inline_skating": "Görkorcsolyázás",
+    "other": "Egyéb"
   },
   "goals": {
     "title": "Célok",

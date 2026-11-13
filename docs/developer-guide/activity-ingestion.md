@@ -25,7 +25,7 @@ flowchart LR
     S --> RET[Retain source file]
 ```
 
-On failure the entry points differ: an upload cleans up and re-raises, a provider sync logs and returns nothing, and a bulk import counts the file as failed and keeps its bytes.
+On failure the entry points differ: an upload cleans up and re-raises, a provider sync logs a file the pipeline refuses and moves on (a database or storage outage is raised, so the refresh job retries the window), and a bulk import counts the file as failed and keeps its bytes (an outage is raised, so the batch resumes from its cursor).
 
 ## What happens to a parsed activity
 

@@ -10,6 +10,7 @@
   "settings": "Podešavanja",
   "profile": "Profil",
   "logout": "Odjava",
+  "logoutFailed": "Odjava nije uspela. Proverite vezu i pokušajte ponovo.",
   "userMenu": "Korisnički meni",
   "menu": "Meni",
   "primary": "Glavna navigacija",

@@ -7,6 +7,22 @@ import {
 } from '@tanstack/vue-query'
 
 import { useTelemetry } from '@/composables/useTelemetry'
+import { HttpError } from '@/services/http'
+
+/**
+ * Default query retry policy: retry at most once, and only a transient failure.
+ * A non-HTTP failure (network error, timeout) or a 5xx other than 501 is retried;
+ * a deliberate abort and every 4xx, including 429, is not.
+ *
+ * @param failureCount - Number of failures so far for this query.
+ * @param error - The error the query function threw.
+ * @returns `true` when the query should be retried.
+ */
+export function shouldRetryQuery(failureCount: number, error: unknown): boolean {
+  if (failureCount >= 1) return false
+  if (error instanceof HttpError) return error.status >= 500 && error.status !== 501
+  return !(error instanceof DOMException && error.name === 'AbortError')
+}
 
 /**
  * Shared query client. Server state (caching, dedupe, background refetch,
@@ -34,7 +50,7 @@ export const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
       staleTime: 30_000,
-      retry: 1,
+      retry: shouldRetryQuery,
       refetchOnWindowFocus: false,
     },
   },

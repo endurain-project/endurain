@@ -82,5 +82,13 @@
       "ownTitle": "Je hebt nog geen volgers.",
       "otherTitle": "Nog geen volgers."
     }
+  },
+  "block": {
+    "block": "Blokkeren",
+    "unblock": "Deblokkeren",
+    "confirmTitle": "{name} blokkeren?",
+    "confirmBody": "{name} kan je niet meer vragen om te volgen en elke volgrelatie tussen jullie wordt verwijderd. Diegene krijgt hier geen melding van.",
+    "blockError": "Deze gebruiker kon niet worden geblokkeerd. Probeer het opnieuw.",
+    "unblockError": "Deze gebruiker kon niet worden gedeblokkeerd. Probeer het opnieuw."
   }
 }
