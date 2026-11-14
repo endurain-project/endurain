@@ -25,6 +25,13 @@ LINK_TTL_SECONDS = MFA_WAIT_SECONDS + 240
 # How long a refresh waits after Garmin Connect answers 429, which reports no reset time.
 RATE_LIMIT_COOLDOWN_SECONDS = 15 * 60
 
+# A token refresh is one HTTP call of at most 30 seconds, so its claim expires after twice that.
+TOKEN_REFRESH_CLAIM_TTL_SECONDS = 60
+
+# How long a sync waits for another process's token refresh before it is deferred, and how often it looks.
+TOKEN_REFRESH_WAIT_SECONDS = 10
+TOKEN_REFRESH_POLL_SECONDS = 0.5
+
 # How long the scheduled pull waits for a pool slot before it stops: it runs on the scheduler
 # thread, so it can wait for the pool to drain where a request is refused at once.
 SCHEDULED_SLOT_WAIT_SECONDS = 600

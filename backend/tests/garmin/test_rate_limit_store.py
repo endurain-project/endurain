@@ -30,3 +30,15 @@ def test_the_limit_is_per_user():
     store.mark_rate_limited(MOCK_USER_ID)
 
     assert store.rate_limited_until(OTHER_USER_ID) is None
+
+
+class TestTokenRefreshClaim:
+    def test_only_one_caller_holds_the_claim_until_it_is_released(self):
+        store = garmin_rate_limit_store.GarminRateLimitStore(MemoryState())
+
+        assert store.claim_token_refresh(MOCK_USER_ID)
+        assert not store.claim_token_refresh(MOCK_USER_ID)
+        assert store.claim_token_refresh(OTHER_USER_ID)
+
+        store.release_token_refresh(MOCK_USER_ID)
+        assert store.claim_token_refresh(MOCK_USER_ID)

@@ -40,6 +40,32 @@ def login_garminconnect_using_tokens(token: dict[str, Any]) -> garminconnect.Gar
         return None
 
 
+def expires_soon(client: garminconnect.client.Client) -> bool:
+    """Whether the client would refresh its token before its next call.
+
+    Args:
+        client: The restored Garmin Connect client.
+
+    Returns:
+        True when the access token is within the client's refresh window.
+    """
+    return client._token_expires_soon()
+
+
+def refresh(client: garminconnect.client.Client) -> None:
+    """Refresh a client's token with its refresh token, now.
+
+    Unlike the refresh the client does on its own, a failure is raised.
+
+    Args:
+        client: The restored Garmin Connect client.
+
+    Raises:
+        GarminConnectAuthenticationError: When there is no refresh token or Garmin Connect refuses it.
+    """
+    client._refresh_di_token()
+
+
 def refreshed_token(token: dict[str, Any], client: garminconnect.client.Client) -> dict[str, Any] | None:
     """Build the storable form of a client's token when the client has refreshed it.
 

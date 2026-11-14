@@ -5,13 +5,16 @@ Linking lives in :mod:`modules.garmin.link_service`. The activity, gear and heal
 :mod:`modules.garmin.health_service`.
 """
 
+import time
 import uuid
 from collections.abc import Iterator
 from contextlib import contextmanager
+from datetime import UTC, datetime, timedelta
 from typing import Any, NamedTuple
 
 import garminconnect
 import jasil.audit as jasil_audit
+import jasil.providers as platform_providers
 import sqlalchemy.exc
 from sqlalchemy.orm import Session
 
@@ -22,6 +25,7 @@ import modules.auth.identity_providers.constants as identity_providers_constants
 import modules.auth.identity_providers.contracts as identity_providers_contracts
 import modules.auth.schema as auth_schema
 import modules.garmin.audit_actions as garmin_audit_actions
+import modules.garmin.constants as garmin_constants
 import modules.garmin.rate_limit_store as garmin_rate_limit_store
 import modules.garmin.token_utils as garmin_token_utils
 import modules.notifications.integration_service as notifications_integration
@@ -154,11 +158,13 @@ def linked_session(
         The session, or ``None`` when Garmin Connect is not linked or the stored session is rejected.
 
     Raises:
-        TooManyRequestsError: When the account is rate limited.
+        TooManyRequestsError: When the account is rate limited, or another process keeps refreshing the token.
     """
     raise_if_rate_limited(user_id, rate_limits)
     with core_database.SessionLocal() as db:
         session = get_user_garminconnect_session(user_id, db)
+    if session is not None:
+        session = fresh_session(user_id, session, rate_limits)
     if session is None:
         yield None
         return
@@ -166,6 +172,118 @@ def linked_session(
         yield session
     finally:
         save_refreshed_token(user_id, session)
+
+
+def fresh_session(
+    user_id: uuid.UUID, session: GarminSession, claims: garmin_rate_limit_store.GarminRateLimitStore
+) -> GarminSession | None:
+    """Return a session whose token is not about to expire, refreshing it under the user's shared claim.
+
+    The client would otherwise refresh the token itself in the middle of a call, and two syncs of one
+    user doing so at once can invalidate each other's refresh token. Only the holder of the claim
+    refreshes; a caller that finds it held waits for the holder, then restores the token it stored.
+
+    Args:
+        user_id: The user the session belongs to.
+        session: The session as restored from the stored token.
+        claims: The shared Garmin Connect state holding the refresh claim.
+
+    Returns:
+        A session that needs no refresh, or ``None`` when the account was unlinked meanwhile.
+
+    Raises:
+        TooManyRequestsError: When another process still holds the refresh claim after the wait.
+    """
+    deadline = time.monotonic() + garmin_constants.TOKEN_REFRESH_WAIT_SECONDS
+    current: GarminSession | None = session
+    while current is not None and garmin_token_utils.expires_soon(current.client.client):
+        if _claim_refresh(user_id, claims):
+            try:
+                return _refresh_under_claim(user_id)
+            finally:
+                _release_refresh(user_id, claims)
+        if time.monotonic() >= deadline:
+            logger.warning(
+                "Another process is refreshing the Garmin Connect token", extra=core_logger.context(user_id=user_id)
+            )
+            raise core_exceptions.TooManyRequestsError(
+                "Another process is refreshing the Garmin Connect token",
+                scope=core_exceptions.TooManyRequestsScope.PROVIDER,
+                retry_at=datetime.now(UTC) + timedelta(seconds=garmin_constants.TOKEN_REFRESH_CLAIM_TTL_SECONDS),
+            )
+        time.sleep(garmin_constants.TOKEN_REFRESH_POLL_SECONDS)
+        with core_database.SessionLocal() as db:
+            current = get_user_garminconnect_session(user_id, db)
+    return current
+
+
+def _claim_refresh(user_id: uuid.UUID, claims: garmin_rate_limit_store.GarminRateLimitStore) -> bool:
+    """Claim the user's token refresh, failing open when the shared state is unreachable.
+
+    A refresh that races is recoverable by relinking, whereas failing closed would stop every sync for as
+    long as the state is down.
+
+    Args:
+        user_id: The user whose token is about to be refreshed.
+        claims: The shared Garmin Connect state holding the refresh claim.
+
+    Returns:
+        True when this caller may refresh, False when another already is.
+    """
+    try:
+        return claims.claim_token_refresh(user_id)
+    except platform_providers.StateBackendUnavailableError as err:
+        logger.warning(
+            "Could not claim the Garmin Connect token refresh; refreshing anyway",
+            exc_info=err,
+            extra=core_logger.context(user_id=user_id),
+        )
+        return True
+
+
+def _release_refresh(user_id: uuid.UUID, claims: garmin_rate_limit_store.GarminRateLimitStore) -> None:
+    """Release the user's token refresh claim; when the shared state is unreachable it expires on its own.
+
+    Args:
+        user_id: The user whose token was refreshed.
+        claims: The shared Garmin Connect state holding the refresh claim.
+    """
+    try:
+        claims.release_token_refresh(user_id)
+    except platform_providers.StateBackendUnavailableError as err:
+        logger.warning(
+            "Could not release the Garmin Connect token refresh claim; it expires",
+            exc_info=err,
+            extra=core_logger.context(user_id=user_id),
+        )
+
+
+def _refresh_under_claim(user_id: uuid.UUID) -> GarminSession | None:
+    """Refresh the stored token of a user while this process holds the refresh claim.
+
+    The token is read again first, as the process that held the claim before may have refreshed it. When
+    Garmin Connect refuses the refresh the session is returned as it is: the client retries it on its
+    first call and a rejection is handled there, as for any other call.
+
+    Args:
+        user_id: The user whose token to refresh.
+
+    Returns:
+        The session holding the refreshed token, or ``None`` when the account was unlinked meanwhile.
+    """
+    with core_database.SessionLocal() as db:
+        stored = get_user_garminconnect_session(user_id, db)
+    if stored is None or not garmin_token_utils.expires_soon(stored.client.client):
+        return stored
+    try:
+        garmin_token_utils.refresh(stored.client.client)
+    except garminconnect.GarminConnectAuthenticationError as err:
+        logger.warning(
+            "Garmin Connect refused the token refresh", exc_info=err, extra=core_logger.context(user_id=user_id)
+        )
+        return stored
+    save_refreshed_token(user_id, stored)
+    return stored
 
 
 def save_refreshed_token(user_id: uuid.UUID, session: GarminSession) -> None:

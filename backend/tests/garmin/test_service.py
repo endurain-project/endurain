@@ -198,6 +198,7 @@ class TestLinkedSession:
         with (
             patch.object(garmin_service.core_database, "SessionLocal"),
             patch.object(garmin_service, "get_user_garminconnect_session", return_value=linked),
+            patch.object(garmin_service, "fresh_session", side_effect=lambda _user, restored, _claims: restored),
             patch.object(garmin_service, "save_refreshed_token") as save,
             garmin_service.linked_session(MOCK_USER_ID, garmin_helpers.rate_limits()) as session,
         ):
@@ -266,3 +267,154 @@ class TestRateLimit:
             pass
 
         restore.assert_not_called()
+
+
+class TestRefreshSerialisation:
+    """Two syncs of one user never refresh the Garmin Connect token at once, and a refreshed token is kept."""
+
+    @pytest.fixture(autouse=True)
+    def _no_waiting(self):
+        with patch.object(garmin_service.time, "sleep"):
+            yield
+
+    def _session(self, label: str = "old"):
+        return garmin_service.GarminSession(MagicMock(), {"di_token": label})
+
+    def test_a_live_token_is_used_without_a_claim(self):
+        session = self._session()
+        claims = garmin_helpers.rate_limits()
+        with (
+            patch.object(garmin_service.garmin_token_utils, "expires_soon", return_value=False),
+            patch.object(garmin_service.garmin_token_utils, "refresh") as refresh,
+        ):
+            assert garmin_service.fresh_session(MOCK_USER_ID, session, claims) is session
+
+        refresh.assert_not_called()
+        assert claims.claim_token_refresh(MOCK_USER_ID)
+
+    def test_an_expiring_token_is_refreshed_stored_and_the_claim_released(self):
+        stored = self._session()
+        claims = garmin_helpers.rate_limits()
+        with (
+            patch.object(garmin_service.core_database, "SessionLocal"),
+            patch.object(garmin_service, "get_user_garminconnect_session", return_value=stored),
+            patch.object(garmin_service.garmin_token_utils, "expires_soon", return_value=True),
+            patch.object(garmin_service.garmin_token_utils, "refresh") as refresh,
+            patch.object(garmin_service, "save_refreshed_token") as save,
+        ):
+            assert garmin_service.fresh_session(MOCK_USER_ID, self._session(), claims) is stored
+
+        refresh.assert_called_once_with(stored.client.client)
+        save.assert_called_once_with(MOCK_USER_ID, stored)
+        assert claims.claim_token_refresh(MOCK_USER_ID)
+
+    def test_a_token_another_process_refreshed_is_used_without_refreshing_again(self):
+        reread = self._session("new")
+        claims = garmin_helpers.rate_limits()
+        with (
+            patch.object(garmin_service.core_database, "SessionLocal"),
+            patch.object(garmin_service, "get_user_garminconnect_session", return_value=reread),
+            patch.object(
+                garmin_service.garmin_token_utils,
+                "expires_soon",
+                side_effect=lambda client: client is not reread.client.client,
+            ),
+            patch.object(garmin_service.garmin_token_utils, "refresh") as refresh,
+        ):
+            assert garmin_service.fresh_session(MOCK_USER_ID, self._session(), claims) is reread
+
+        refresh.assert_not_called()
+
+    def test_a_held_claim_makes_the_caller_wait_and_use_the_refreshed_token(self):
+        reread = self._session("new")
+        claims = garmin_helpers.rate_limits()
+        assert claims.claim_token_refresh(MOCK_USER_ID)
+
+        def holder_finishes(_seconds):
+            claims.release_token_refresh(MOCK_USER_ID)
+
+        with (
+            patch.object(garmin_service.time, "sleep", side_effect=holder_finishes) as sleep,
+            patch.object(garmin_service.core_database, "SessionLocal"),
+            patch.object(garmin_service, "get_user_garminconnect_session", return_value=reread),
+            patch.object(
+                garmin_service.garmin_token_utils,
+                "expires_soon",
+                side_effect=lambda client: client is not reread.client.client,
+            ),
+            patch.object(garmin_service.garmin_token_utils, "refresh") as refresh,
+        ):
+            assert garmin_service.fresh_session(MOCK_USER_ID, self._session(), claims) is reread
+
+        sleep.assert_called_once()
+        refresh.assert_not_called()
+
+    def test_a_claim_held_past_the_wait_defers_the_sync(self):
+        claims = garmin_helpers.rate_limits()
+        assert claims.claim_token_refresh(MOCK_USER_ID)
+        with (
+            patch.object(garmin_service.core_database, "SessionLocal"),
+            patch.object(garmin_service, "get_user_garminconnect_session", return_value=self._session()),
+            patch.object(garmin_service.garmin_token_utils, "expires_soon", return_value=True),
+            patch.object(garmin_service.garmin_token_utils, "refresh") as refresh,
+            pytest.raises(core_exceptions.TooManyRequestsError),
+        ):
+            garmin_service.fresh_session(MOCK_USER_ID, self._session(), claims)
+
+        refresh.assert_not_called()
+
+    def test_the_claim_is_released_when_the_refresh_raises(self):
+        claims = garmin_helpers.rate_limits()
+        with (
+            patch.object(garmin_service.core_database, "SessionLocal"),
+            patch.object(garmin_service, "get_user_garminconnect_session", return_value=self._session()),
+            patch.object(garmin_service.garmin_token_utils, "expires_soon", return_value=True),
+            patch.object(garmin_service.garmin_token_utils, "refresh", side_effect=RuntimeError("network")),
+            pytest.raises(RuntimeError),
+        ):
+            garmin_service.fresh_session(MOCK_USER_ID, self._session(), claims)
+
+        assert claims.claim_token_refresh(MOCK_USER_ID)
+
+    def test_a_refused_refresh_leaves_the_session_to_the_library_and_releases_the_claim(self):
+        stored = self._session()
+        claims = garmin_helpers.rate_limits()
+        with (
+            patch.object(garmin_service.core_database, "SessionLocal"),
+            patch.object(garmin_service, "get_user_garminconnect_session", return_value=stored),
+            patch.object(garmin_service.garmin_token_utils, "expires_soon", return_value=True),
+            patch.object(
+                garmin_service.garmin_token_utils,
+                "refresh",
+                side_effect=garminconnect.GarminConnectAuthenticationError("refused"),
+            ),
+            patch.object(garmin_service, "save_refreshed_token") as save,
+        ):
+            assert garmin_service.fresh_session(MOCK_USER_ID, self._session(), claims) is stored
+
+        save.assert_not_called()
+        assert claims.claim_token_refresh(MOCK_USER_ID)
+
+    def test_a_user_unlinked_meanwhile_gets_no_session(self):
+        claims = garmin_helpers.rate_limits()
+        with (
+            patch.object(garmin_service.core_database, "SessionLocal"),
+            patch.object(garmin_service, "get_user_garminconnect_session", return_value=None),
+            patch.object(garmin_service.garmin_token_utils, "expires_soon", return_value=True),
+        ):
+            assert garmin_service.fresh_session(MOCK_USER_ID, self._session(), claims) is None
+
+    def test_linked_session_refreshes_before_the_body_runs(self):
+        restored = self._session()
+        fresh = self._session("new")
+        with (
+            patch.object(garmin_service.core_database, "SessionLocal"),
+            patch.object(garmin_service, "get_user_garminconnect_session", return_value=restored),
+            patch.object(garmin_service, "fresh_session", return_value=fresh) as fresh_session,
+            patch.object(garmin_service, "save_refreshed_token") as save,
+            garmin_service.linked_session(MOCK_USER_ID, garmin_helpers.rate_limits()) as session,
+        ):
+            assert session is fresh
+
+        fresh_session.assert_called_once()
+        save.assert_called_once_with(MOCK_USER_ID, fresh)
