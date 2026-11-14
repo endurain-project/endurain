@@ -89,7 +89,7 @@ export function refreshSession(): Promise<AuthTokenResponse> {
  * token is not an error: the answer is the same and the cookie is cleared.
  *
  * @returns The identity provider's end-session URL, or `null` when the session did not sign in through one.
- * @throws {HttpError} When the request is refused (a missing CSRF token) or the server fails.
+ * @throws {HttpError} When the request is refused (an origin the server does not allow) or the server fails.
  */
 export function logoutSession(): Promise<LogoutResponse> {
   return apiFetch<LogoutResponse>('/auth/logout', {

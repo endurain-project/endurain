@@ -1,4 +1,4 @@
-import type { StepUpInput } from '@/features/security/types'
+import type { StepUpInput, StepUpRequestDto } from '@/features/security/types'
 import type {
   LogFilters,
   LoginPhotoDto,
@@ -373,10 +373,15 @@ export async function downloadLogs(signal?: AbortSignal): Promise<Blob> {
 
 /**
  * Empties the server log and deletes its rotated backups (admin scope
- * `server-settings:logs-clear`). The backend records the action in the new log.
+ * `server-settings:logs-clear`, step-up gated). The backend records the action in the new log.
  *
- * @throws {HttpError} When the request fails.
+ * @param stepUp - The administrator's step-up credentials.
+ * @throws {HttpError} When the request fails (403 step-up).
  */
-export async function clearLogs(): Promise<void> {
-  await apiFetch('/server-settings/logs', { method: 'DELETE', responseType: 'void' })
+export async function clearLogs(stepUp: StepUpInput): Promise<void> {
+  await apiFetch('/server-settings/logs/clear', {
+    method: 'POST',
+    body: JSON.stringify({ step_up: toStepUpWire(stepUp) } satisfies StepUpRequestDto),
+    responseType: 'void',
+  })
 }

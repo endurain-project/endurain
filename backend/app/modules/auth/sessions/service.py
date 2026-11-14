@@ -36,8 +36,19 @@ def list_user_sessions(
     user_id: uuid.UUID,
     page: core_pagination.PageParams,
     db: Session,
+    current_session_id: uuid.UUID | None = None,
 ) -> sessions_schema.UserSessionsPage:
-    """Return one page of a user's exchanged sessions, hiding them in the demo environment."""
+    """Return one page of a user's exchanged sessions, hiding them in the demo environment.
+
+    Args:
+        user_id: The user whose sessions to list.
+        page: The requested window.
+        db: Database session.
+        current_session_id: The caller's own session, marked ``is_current`` when it is on the page.
+
+    Returns:
+        The page of sessions.
+    """
     if core_config.settings.ENVIRONMENT == "demo":
         logger.info("Session retrieval in demo environment", extra=core_logger.context(user_id=str(user_id)))
         return sessions_schema.UserSessionsPage.build([], 0, page.page_number, page.num_records)
@@ -49,7 +60,12 @@ def list_user_sessions(
     )
     total = sessions_crud.count_user_sessions(user_id, db)
     return sessions_schema.UserSessionsPage.build(
-        [sessions_schema.UserSessionsRead.model_validate(session) for session in sessions],
+        [
+            sessions_schema.UserSessionsRead.model_validate(session).model_copy(
+                update={"is_current": session.id == current_session_id}
+            )
+            for session in sessions
+        ],
         total,
         page.page_number,
         page.num_records,
@@ -88,7 +104,6 @@ def create_session(
     expires_at: datetime,
     db: Session,
     oauth_state_id: str | None = None,
-    csrf_token: str | None = None,
     *,
     amr: Sequence[str],
     device_hash: str | None,
@@ -102,7 +117,6 @@ def create_session(
     handed the session to. The caller commits.
     """
     device = sessions_utils.parse_user_agent(user_agent)
-    csrf_hash = _hash_csrf_token(csrf_token) if csrf_token else None
     now = datetime.now(UTC)
     session_data = sessions_schema.UserSessionsInternal(
         id=session_id,
@@ -122,7 +136,6 @@ def create_session(
         token_family_id=session_id,
         rotation_count=0,
         last_rotation_at=None,
-        csrf_token_hash=csrf_hash,
         client_type=client_type,
         auth_time=now,
         amr=list(amr),
@@ -144,11 +157,9 @@ def edit_session(
     new_refresh_token: str,
     expires_at: datetime,
     db: Session,
-    new_csrf_token: str | None = None,
 ) -> sessions_contracts.SessionRead:
     """Stage a refresh-token rotation and client metadata update; the caller commits."""
     device = sessions_utils.parse_user_agent(user_agent)
-    csrf_hash = _hash_csrf_token(new_csrf_token) if new_csrf_token else None
     session_data = sessions_schema.UserSessionsInternal.model_validate(session)
     session_data = session_data.model_copy(
         update={
@@ -163,7 +174,6 @@ def edit_session(
             "expires_at": _cap_expiry(expires_at, session.created_at, db),
             "rotation_count": session.rotation_count + 1,
             "last_rotation_at": datetime.now(UTC),
-            "csrf_token_hash": csrf_hash,
         }
     )
     updated = sessions_crud.edit_session(session_data, db)
@@ -172,15 +182,6 @@ def edit_session(
         extra=core_logger.context(session_id=core_hashing.log_fingerprint(str(session.id))),
     )
     return updated
-
-
-def update_session_csrf_token(session_id: uuid.UUID, new_csrf_token: str, db: Session) -> None:
-    """Stage the binding of a newly issued CSRF token to a session; the caller commits."""
-    sessions_crud.update_session_csrf_hash(session_id, _hash_csrf_token(new_csrf_token), db)
-    logger.debug(
-        "Session CSRF token updated",
-        extra=core_logger.context(session_id=core_hashing.log_fingerprint(str(session_id))),
-    )
 
 
 def stage_delete_session(session_id: uuid.UUID, user_id: uuid.UUID, db: Session) -> None:
@@ -443,15 +444,10 @@ def validate_session_timeout(
 def _matches_stored_digest(candidate: str, stored_hmac: str) -> bool:
     """Compare a secret with a stored HMAC that may predate a rotation of ``SECRET_KEY``."""
     matches = [
-        sessions_utils.verify_csrf_token(stored_hmac, digest)
+        sessions_utils.digests_match(stored_hmac, digest)
         for digest in access_tokens_integration.hmac_sha256_under_every_key(candidate)
     ]
     return any(matches)
-
-
-def verify_csrf_token(candidate: str, stored_hmac: str) -> bool:
-    """Verify a CSRF token against its stored HMAC, which may predate a rotation of ``SECRET_KEY``."""
-    return _matches_stored_digest(candidate, stored_hmac)
 
 
 def hash_refresh_token(token: str) -> str:
@@ -480,7 +476,3 @@ def verify_refresh_token(candidate: str, stored_digest: str) -> bool:
         True when the digest matches.
     """
     return _matches_stored_digest(candidate, stored_digest)
-
-
-def _hash_csrf_token(token: str) -> str:
-    return access_tokens_integration.hmac_sha256(token)

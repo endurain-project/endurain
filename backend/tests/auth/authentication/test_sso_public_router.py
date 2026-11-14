@@ -118,7 +118,6 @@ class TestTokenExchange:
             "access-token",
             datetime.now(UTC) + timedelta(days=7),
             "refresh-token",
-            "csrf-token",
         )
 
         response = _client(mock_db).post(
@@ -176,7 +175,6 @@ class TestTokenExchange:
             "access-token",
             refresh_exp,
             "refresh-token",
-            "csrf-token",
         )
         # The absolute timeout puts the session's new expiry before the refresh token's.
         mock_claim.return_value = datetime.now(UTC) + timedelta(hours=2)
@@ -207,7 +205,6 @@ class TestTokenExchange:
             "a",
             datetime.now(UTC) + timedelta(days=7),
             "r",
-            "c",
         )
 
         response = _client(mock_db).post(
@@ -236,13 +233,13 @@ class TestTokenExchangeHeader:
 
 
 class TestTokenExchangeMfa:
-    """An SSO session of an account with MFA enabled needs a valid MFA code to be exchanged."""
+    """An SSO session of an account with MFA enabled answers the MFA step and is not exchanged yet."""
 
-    def _post(self, mock_db, store, **body):
+    def _post(self, mock_db, store, headers=None, **body):
         return _client(mock_db, store).post(
             f"/api/v1/auth/sessions/{_SESSION_ID}/tokens",
             json={"code_verifier": _VERIFIER, **body},
-            headers={"X-Client-Type": "mobile"},
+            headers=headers or {"X-Client-Type": "mobile"},
         )
 
     @pytest.fixture
@@ -256,7 +253,6 @@ class TestTokenExchangeMfa:
             "access-token",
             datetime.now(UTC) + timedelta(days=7),
             "refresh-token",
-            "csrf-token",
         )
         with (
             patch(f"{_SERVICE}.sessions_integration.get_session_with_oauth_state") as get_session,
@@ -264,71 +260,82 @@ class TestTokenExchangeMfa:
             patch(f"{_SERVICE}.users_integration.require_user", return_value=user),
             patch(f"{_SERVICE}.users_integration.require_active_user"),
             patch(f"{_SERVICE}.mfa_integration.is_mfa_enabled_for_user", return_value=True),
-            patch(f"{_SERVICE}.mfa_integration.verify_user_mfa", return_value=True) as verify,
-            patch("modules.auth.authentication.token_service.create_tokens", return_value=tokens),
+            patch(f"{_SERVICE}.mfa_integration.get_sign_in_methods", return_value=["totp", "backup_code"]),
+            patch(f"{_SERVICE}.mfa_integration.verify_user_mfa") as verify,
+            patch("modules.auth.authentication.token_service.create_tokens", return_value=tokens) as create_tokens,
             patch(
                 f"{_SERVICE}.sessions_integration.claim_session_for_token_exchange", return_value=_CLAIMED_EXPIRY
             ) as claim,
         ):
             get_session.return_value = _session_and_state()
-            yield MagicMock(get_session=get_session, validate_pkce=validate_pkce, verify=verify, claim=claim)
+            yield MagicMock(
+                get_session=get_session,
+                validate_pkce=validate_pkce,
+                verify=verify,
+                claim=claim,
+                create_tokens=create_tokens,
+            )
 
-    def test_a_missing_code_is_asked_for_without_using_up_the_session(self, mock_db, exchange):
+    def test_the_answer_is_the_mfa_step_and_the_session_stays_unused(self, mock_db, exchange):
         store = _pending_mfa_store()
+        store.add_pending_login.return_value = "c" * 43
 
         response = self._post(mock_db, store)
 
-        assert response.status_code == 403
-        assert response.json()["type"] == "urn:endurain:error:mfa-required"
-        exchange.verify.assert_not_called()
-        exchange.claim.assert_not_called()
-        mock_db.commit.assert_not_called()
-
-    def test_a_wrong_code_is_refused_and_counted(self, mock_db, exchange):
-        store = _pending_mfa_store()
-        exchange.verify.return_value = False
-
-        response = self._post(mock_db, store, mfa_code="123456")
-
-        assert response.status_code == 400
-        assert response.json()["type"] == "urn:endurain:error:invalid-mfa-code"
-        store.record_failed_attempt.assert_called_once_with("testuser", "testclient", user_id=_USER_ID)
-        exchange.claim.assert_not_called()
-
-    def test_a_locked_out_account_is_refused_before_the_code_is_checked(self, mock_db, exchange):
-        store = _pending_mfa_store(locked_out=True)
-        store.get_lockout_time.return_value = datetime.now(UTC) + timedelta(minutes=5)
-
-        response = self._post(mock_db, store, mfa_code="123456")
-
-        assert response.status_code == 429
-        exchange.verify.assert_not_called()
-        exchange.claim.assert_not_called()
-
-    def test_a_valid_code_completes_the_exchange_and_clears_the_counter(self, mock_db, exchange):
-        store = _pending_mfa_store()
-
-        response = self._post(mock_db, store, mfa_code="123456")
-
         assert response.status_code == 200
-        assert exchange.verify.call_args.args[:2] == (_USER_ID, "123456")
-        assert exchange.verify.call_args.kwargs["replay_guard"] is store
-        store.reset_attempts.assert_called_once_with("testuser", "testclient", user_id=_USER_ID)
-        exchange.claim.assert_called_once()
+        assert response.json() == {"next_step": "mfa", "mfa_challenge": "c" * 43, "methods": ["totp", "backup_code"]}
+        exchange.verify.assert_not_called()
+        exchange.create_tokens.assert_not_called()
+        exchange.claim.assert_not_called()
 
-    def test_the_pkce_check_comes_before_the_code_is_checked(self, mock_db, exchange):
+    def test_the_challenge_names_the_session_and_binds_the_client(self, mock_db, exchange):
+        store = _pending_mfa_store()
+        store.add_pending_login.return_value = "c" * 43
+
+        self._post(mock_db, store)
+
+        assert store.add_pending_login.call_args.args[0] == pending_login_store.PendingLogin(
+            user_id=_USER_ID,
+            client_type="mobile",
+            code_challenge=None,
+            code_challenge_method=None,
+            client_network="testclient",
+            security_generation=0,
+            sso_session_id=_SESSION_ID,
+        )
+
+    def test_an_mfa_code_in_the_body_is_refused(self, mock_db, exchange):
+        response = self._post(mock_db, _pending_mfa_store(), mfa_code="123456")
+
+        assert response.status_code == 422
+        exchange.get_session.assert_not_called()
+
+    def test_the_pkce_check_comes_before_a_challenge_is_issued(self, mock_db, exchange):
+        store = _pending_mfa_store()
         exchange.validate_pkce.side_effect = core_exceptions.InvalidInputError("bad verifier")
 
-        response = self._post(mock_db, _pending_mfa_store(), mfa_code="123456")
+        response = self._post(mock_db, store)
 
         assert response.status_code == 400
         assert response.json()["type"] == "urn:endurain:error:invalid-input"
-        exchange.verify.assert_not_called()
+        store.add_pending_login.assert_not_called()
+
+    def test_a_store_outage_answers_503_and_issues_nothing(self, mock_db, exchange):
+        store = _pending_mfa_store()
+        store.add_pending_login.side_effect = pending_login_store.AuthSecurityStoreUnavailableError("down")
+
+        response = self._post(mock_db, store)
+
+        assert response.status_code == 503
+        exchange.claim.assert_not_called()
 
     def test_a_session_from_a_password_login_has_already_passed_mfa(self, mock_db, exchange):
+        store = _pending_mfa_store()
         exchange.get_session.return_value = _session_and_state(idp_id=None)
 
-        response = self._post(mock_db, _pending_mfa_store())
+        response = self._post(mock_db, store)
 
         assert response.status_code == 200
-        exchange.verify.assert_not_called()
+        assert response.json()["next_step"] == "tokens"
+        store.add_pending_login.assert_not_called()
+        exchange.claim.assert_called_once()

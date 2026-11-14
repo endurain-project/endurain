@@ -645,7 +645,8 @@
       "stepUpDescription": "Identitetsudbydere afgør, hvem der kan logge ind på denne server. Bekræft, at det er dig, for at fortsætte.",
       "slugConflict": "Den slug er allerede i brug",
       "issuerInUse": "En anden identitetsudbyder bruger allerede denne udsteder-URL",
-      "issuerLocked": "Udsteder-URL'en kan ikke ændres, mens brugere er knyttet til denne udbyder. Fjern deres tilknytning, eller tilføj en ny udbyder i stedet.",
+      "locked": "Slug, klient-ID, protokol, udsteder og endepunkter kan ikke ændres, mens brugere er knyttet til denne udbyder. Fjern deres tilknytning, eller tilføj en ny udbyder i stedet.",
+      "lockedHint": "Låst, mens brugere er knyttet til denne udbyder.",
       "staleError": "Denne udbyder blev ændret et andet sted. Dine ændringer blev ikke gemt. Luk og åbn den igen for at indlæse de aktuelle indstillinger.",
       "saveError": "Kunne ikke gemme udbyderen. Prøv venligst igen."
     }

@@ -1,6 +1,6 @@
 """Unauthenticated sign-up and email-verification endpoints."""
 
-from fastapi import APIRouter, Request
+from fastapi import APIRouter, Request, status
 
 import core.dependencies as core_dependencies
 import core.rate_limit as core_rate_limit
@@ -92,7 +92,8 @@ def confirm_sign_up(
 
 @router.post(
     "/email-change/confirm",
-    response_model=sign_up_schema.SignUpRead,
+    response_model=None,
+    status_code=status.HTTP_204_NO_CONTENT,
     responses={
         400: {
             "description": "The token is unknown, used, expired or not an email-change token, or the change was "
@@ -106,9 +107,9 @@ def confirm_email_change(
     request: Request,
     confirm_data: sign_up_schema.EmailChangeConfirm,
     db: core_dependencies.DbSession,
-) -> sign_up_schema.SignUpRead:
+) -> None:
     """Confirm an email change with the token of the link emailed to the new address."""
-    return sign_up_service.confirm_email_change(confirm_data.token, db)
+    sign_up_service.confirm_email_change(confirm_data.token, db)
 
 
 @router.post(

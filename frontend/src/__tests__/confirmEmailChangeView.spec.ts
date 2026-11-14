@@ -6,7 +6,7 @@ import ConfirmEmailChangeView from '@/features/auth/views/ConfirmEmailChangeView
 import { HttpError } from '@/services/http'
 
 const { confirmEmailChange, routerReplace, route } = vi.hoisted(() => ({
-  route: { path: '/confirm-email-change', query: {} as Record<string, unknown> },
+  route: { path: '/confirm-email-change', query: {} as Record<string, unknown>, hash: '' },
   routerReplace: vi.fn<(to: unknown) => Promise<void>>(() => Promise.resolve()),
   confirmEmailChange: vi.fn<(request: unknown) => Promise<unknown>>(),
 }))
@@ -19,9 +19,9 @@ vi.mock('vue-router', () => ({
 vi.mock('@/features/auth/services/signUp', () => ({ confirmEmailChange }))
 
 /**
- * Mounts the view and waits for the on-mount confirmation to settle.
+ * Mounts the view.
  *
- * @returns The mounted wrapper.
+ * @returns The mounted wrapper after mount-time work settled.
  */
 async function mountView() {
   const wrapper = mount(ConfirmEmailChangeView, { global: { plugins: [i18n] } })
@@ -31,15 +31,26 @@ async function mountView() {
 
 describe('ConfirmEmailChangeView', () => {
   beforeEach(() => {
-    route.query = { token: 'tok', other: 'kept' }
+    route.query = {}
+    route.hash = '#token=tok'
     sessionStorage.clear()
     confirmEmailChange.mockReset()
     routerReplace.mockClear()
   })
 
-  it('confirms on mount with the token alone and shows success', async () => {
-    confirmEmailChange.mockResolvedValue({ next_step: 'sign_in' })
+  it('asks for confirmation and changes nothing on load', async () => {
     const wrapper = await mountView()
+
+    expect(confirmEmailChange).not.toHaveBeenCalled()
+    expect(wrapper.text()).toContain(i18n.global.t('verifyEmail.confirmChangeTitle'))
+    expect(wrapper.text()).toContain(i18n.global.t('verifyEmail.confirmChangeBody'))
+  })
+
+  it('confirms with the token alone when the button is pressed and shows success', async () => {
+    confirmEmailChange.mockResolvedValue(undefined)
+    const wrapper = await mountView()
+    await wrapper.get('button').trigger('click')
+    await flushPromises()
 
     expect(confirmEmailChange).toHaveBeenCalledWith({ token: 'tok' })
     expect(wrapper.text()).toContain(i18n.global.t('verifyEmail.emailChangeSuccessTitle'))
@@ -49,12 +60,22 @@ describe('ConfirmEmailChangeView', () => {
   })
 
   it('removes the token from the address bar', async () => {
-    confirmEmailChange.mockResolvedValue({ next_step: 'sign_in' })
+    route.query = { other: 'kept' }
     await mountView()
 
-    expect(routerReplace).toHaveBeenCalledWith(
-      expect.objectContaining({ query: { other: 'kept' } }),
-    )
+    expect(routerReplace).toHaveBeenCalledWith({ query: { other: 'kept' }, hash: '' })
+  })
+
+  it('still reads the token of a link sent with it in the query string', async () => {
+    route.hash = ''
+    route.query = { token: 'old-link' }
+    confirmEmailChange.mockResolvedValue(undefined)
+    const wrapper = await mountView()
+    await wrapper.get('button').trigger('click')
+    await flushPromises()
+
+    expect(confirmEmailChange).toHaveBeenCalledWith({ token: 'old-link' })
+    expect(routerReplace).toHaveBeenCalledWith({ query: {}, hash: '' })
   })
 
   it.each([
@@ -65,6 +86,8 @@ describe('ConfirmEmailChangeView', () => {
       new HttpError(status, 'Refused', null, `urn:endurain:error:${code}`),
     )
     const wrapper = await mountView()
+    await wrapper.get('button').trigger('click')
+    await flushPromises()
 
     expect(wrapper.text()).toContain(i18n.global.t('verifyEmail.errorInvalidToken'))
     expect(wrapper.text()).not.toContain(i18n.global.t('verifyEmail.retry'))
@@ -76,6 +99,8 @@ describe('ConfirmEmailChangeView', () => {
       new HttpError(409, 'Conflict', null, 'urn:endurain:error:conflict'),
     )
     const wrapper = await mountView()
+    await wrapper.get('button').trigger('click')
+    await flushPromises()
 
     expect(wrapper.text()).toContain(i18n.global.t('verifyEmail.errorEmailTaken'))
   })
@@ -84,6 +109,8 @@ describe('ConfirmEmailChangeView', () => {
     confirmEmailChange.mockRejectedValueOnce(new HttpError(500, 'Server Error'))
     confirmEmailChange.mockResolvedValueOnce({ next_step: 'sign_in' })
     const wrapper = await mountView()
+    await wrapper.get('button').trigger('click')
+    await flushPromises()
 
     expect(wrapper.text()).toContain(i18n.global.t('verifyEmail.retry'))
     await wrapper.get('button').trigger('click')
@@ -94,10 +121,19 @@ describe('ConfirmEmailChangeView', () => {
   })
 
   it('shows the invalid-link error without calling the backend when the link has no token', async () => {
-    route.query = {}
+    route.hash = ''
     const wrapper = await mountView()
 
     expect(confirmEmailChange).not.toHaveBeenCalled()
     expect(wrapper.text()).toContain(i18n.global.t('verifyEmail.errorInvalidToken'))
+  })
+
+  it('needs the link again after a reload: the token is not kept anywhere', async () => {
+    await mountView()
+    route.hash = ''
+    const reloaded = await mountView()
+
+    expect(reloaded.text()).toContain(i18n.global.t('verifyEmail.errorInvalidToken'))
+    expect(sessionStorage.length).toBe(0)
   })
 })

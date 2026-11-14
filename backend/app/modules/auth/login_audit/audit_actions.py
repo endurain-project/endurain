@@ -23,7 +23,8 @@ class LoginFailureReason(StrEnum):
     """Why a sign-in was refused.
 
     ``SECURITY_CHANGED`` is a step refused because the account's security changed. ``BROWSER_MISMATCH`` is an SSO
-    callback that came from a browser other than the one that started the sign-in.
+    callback that came from a browser other than the one that started the sign-in. ``SSO_SESSION_ENDED`` is the MFA
+    step of an identity-provider sign-in whose session expired, was deleted or was exchanged before the step finished.
     """
 
     INVALID_CREDENTIALS = "invalid_credentials"
@@ -45,6 +46,7 @@ class LoginFailureReason(StrEnum):
     PROVIDER_ERROR = "provider_error"
     SECURITY_CHANGED = "security_changed"
     BROWSER_MISMATCH = "browser_mismatch"
+    SSO_SESSION_ENDED = "sso_session_ended"
 
 
 class StepUpMethod(StrEnum):

@@ -38,5 +38,8 @@
   "notRestoredBody": "Promena je prijavljena, vaš nalog je odjavljen svuda i njegovi API ključevi su opozvani. Drugi nalog sada koristi vašu prethodnu adresu, pa vaš nalog zadržava novu. Kontaktirajte svog Endurain administratora i promenite lozinku.",
   "cancelInvalidTitle": "Ovaj link više ne radi",
   "cancelInvalidBody": "Link je nevažeći, istekao ili već iskorišćen, ili je email adresa ponovo promenjena nakon njegovog slanja. Ako i dalje mislite da neko drugi ima pristup, prijavite se i promenite lozinku.",
-  "cancelError": "Nismo mogli da otkažemo promenu. Pokušajte ponovo."
+  "cancelError": "Nismo mogli da otkažemo promenu. Pokušajte ponovo.",
+  "confirmChangeTitle": "Potvrdite novu adresu e-pošte",
+  "confirmChangeBody": "Pritisnite dugme da potvrdite da ste zatražili promenu adrese e-pošte vašeg naloga. Bićete odjavljeni svuda.",
+  "confirmChangeButton": "Potvrdi promenu e-pošte"
 }

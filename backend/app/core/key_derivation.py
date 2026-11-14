@@ -22,7 +22,7 @@ JWT: Final = "jwt"
 #: expected and the reverse, whatever its ``typ`` header says.
 REFRESH_JWT: Final = "refresh-jwt"
 
-#: Keys the digests of refresh tokens and CSRF tokens.
+#: Keys the digests of refresh tokens.
 TOKEN_HMAC: Final = "token-hmac"  # noqa: S105 - purpose name, not a credential
 
 #: Derives the raw emailed single-use tokens (password reset, sign-up and email change), so a digest kept for

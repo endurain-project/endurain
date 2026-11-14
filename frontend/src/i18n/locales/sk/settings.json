@@ -645,7 +645,8 @@
       "stepUpDescription": "Poskytovatelia identity rozhodujú o tom, kto sa môže prihlásiť na tento server. Pokračujte potvrdením, že ste to vy.",
       "slugConflict": "Tento slug sa už používa",
       "issuerInUse": "Iný poskytovateľ identity už používa túto URL vydavateľa",
-      "issuerLocked": "URL vydavateľa sa nedá zmeniť, kým sú k tomuto poskytovateľovi pripojení používatelia. Odpojte ich alebo namiesto toho pridajte nového poskytovateľa.",
+      "locked": "Slug, ID klienta, protokol, vydavateľa a koncové body nemožno zmeniť, kým sú k tomuto poskytovateľovi pripojení používatelia. Odpojte ich alebo namiesto toho pridajte nového poskytovateľa.",
+      "lockedHint": "Zamknuté, kým sú k tomuto poskytovateľovi pripojení používatelia.",
       "staleError": "Tento poskytovateľ bol zmenený inde. Vaše zmeny neboli uložené. Zatvorte ho a znova otvorte, aby ste načítali aktuálne nastavenia.",
       "saveError": "Poskytovateľa sa nepodarilo uložiť. Skúste to znova."
     }

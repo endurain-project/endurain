@@ -148,7 +148,7 @@ describe('OnboardingView', () => {
   it.each([
     [400, 'invalid-input', 'The setup token is invalid'],
     [422, 'validation-failed', 'The details were rejected'],
-    [429, 'rate-limited', 'Too many attempts'],
+    [429, 'too-many-requests', 'Too many attempts'],
     [503, 'service-unavailable', 'temporarily unavailable'],
     [500, 'internal-error', 'Could not create the administrator'],
   ])('shows a message for a %i response and stays on the page', async (status, code, text) => {
@@ -166,7 +166,7 @@ describe('OnboardingView', () => {
 
   it('tells the user how long to wait when onboarding is throttled', async () => {
     completeOnboarding.mockRejectedValue(
-      new HttpError(429, 'err', null, 'urn:endurain:error:rate-limited', null, [], 30),
+      new HttpError(429, 'err', null, 'urn:endurain:error:too-many-requests', null, [], 30),
     )
     const wrapper = await mountFilled()
 

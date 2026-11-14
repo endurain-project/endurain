@@ -148,8 +148,8 @@ def login_for_access_token(
         400: {"description": "The MFA code is wrong and the sign-in challenge is still live."},
         401: {
             "description": "The sign-in challenge is unknown, expired, ended after three wrong codes, or presented "
-            "from another client network or client type, so the client signs in again at `POST /auth/login`; "
-            "or its account can no longer sign in."
+            "from another client network or client type, or the identity-provider session it finishes expired or "
+            "was used, so the client signs in again; or its account can no longer sign in."
         },
         403: {"description": "The account is no longer active."},
     },
@@ -189,31 +189,14 @@ def verify_mfa_and_login(
     the authentication process if the code is valid. When an administrator set the
     account's password, the answer is the password-change step instead of a session.
 
-    The step carries no PKCE values: the password step recorded them with the login. The challenge lives five
-    minutes, is accepted only from the client network (an IPv4 address or an IPv6 /64) and client type of the
-    password step, and ends after three wrong codes. A wrong code is answered 400; a challenge that is unknown,
-    expired, ended or presented from another network or client type is answered 401 and the client signs in again.
-    A mobile client gets a session_id to exchange for tokens at /auth/sessions/{session_id}/tokens, never tokens.
-
-    Args:
-        response: The HTTP response object
-        request: The HTTP request object
-        failed_attempts: Failed login attempts tracker for progressive lockout
-        mfa_request: MFA login request containing username and MFA code
-        client_type: The type of client making the request ("web" or "mobile")
-        pending_mfa_store: Store for pending MFA logins
-        password_change_store: Store for pending password changes
-        password_hasher: The password hasher instance used for verifying passwords
-        token_manager: The token manager instance used for token operations
-        db: Database session
-        device_id: Device id from the browser's device cookie or the mobile app's X-Device-Id header, or None when
-            the client sent no valid one
-
-    Returns:
-        The tokens of a web client, the session to exchange for a mobile client, or the password-change response
-
-    Raises:
-        HTTPException: If the challenge is dead, MFA code is invalid, or user not found
+    The challenge comes from a password sign-in at /auth/login or from the exchange of an identity-provider session
+    at /auth/sessions/{session_id}/tokens. The step carries no PKCE values: the first step recorded them with the
+    login. The challenge lives five minutes, is accepted only from the client network (an IPv4 address or an IPv6
+    /64) and client type of the first step, and ends after three wrong codes. A wrong code is answered 400; a
+    challenge that is unknown, expired, ended or presented from another network or client type is answered 401 and
+    the client signs in again. After a password sign-in a mobile client gets a session_id to exchange for tokens at
+    /auth/sessions/{session_id}/tokens, never tokens. After an identity-provider sign-in either client gets the
+    tokens of the exchanged session, and a session that expired or was used meanwhile is answered 401.
     """
     outcome = auth_service.verify_mfa_and_login(
         core_network.get_ip_address(request),
@@ -263,21 +246,16 @@ def refresh_token(
     ],
     db: core_dependencies.DbSession,
     client_type: Annotated[auth_constants.ClientType, Depends(authentication_dependencies.get_client_type)],
-    x_csrf_token: Annotated[str | None, Depends(authentication_dependencies.get_csrf_token)] = None,
 ) -> auth_schema.TokenRead:
     r"""Handles the refresh token process for user sessions.
 
-    This endpoint validates the provided refresh token, checks session status,
-    validates the CSRF token (web clients only), and issues new tokens. A web client sends its refresh cookie and no
+    This endpoint validates the provided refresh token, checks session status, and issues new tokens. A web client sends its refresh cookie and no
     body. A mobile client sends its refresh token in the JSON body as refresh_token (RFC 6749 section 6), never in
     the Authorization header; a body token sent by a web client is not read.
 
-    OAuth 2.1 Bootstrap Pattern for Page Reload:
-        On page reload, in-memory tokens are lost but httpOnly cookie persists.
-        - If no CSRF header: Allow refresh (page reload scenario)
-        - If CSRF header provided: Validate it (legitimate request with cached token)
-        - Security: httpOnly cookie + SameSite=Strict prevents CSRF at browser level
-        - CSRF validation adds defense-in-depth but is not the primary protection
+    A web request carrying an Origin header the server does not allow is refused with 403, since the refresh cookie
+    is sent by the browser on its own. Every other refusal is a 401 with the session-ended problem type: the client
+    signs in again.
 
     Args:
         response: The HTTP response object.
@@ -290,14 +268,13 @@ def refresh_token(
         token_manager: Utility for creating tokens.
         db: Database session.
         client_type: Client type (\"web\" or \"mobile\").
-        x_csrf_token: CSRF token header (web clients only, optional on page reload).
 
     Returns:
-        dict: Contains session_id, access_token, csrf_token, token_type, expires_in, refresh_token_expires_in.
+        dict: Contains session_id, access_token, token_type, expires_in, refresh_token_expires_in.
 
     Raises:
-        HTTPException: If session not found, refresh token invalid,
-                       user is inactive, or CSRF token is invalid (when provided).
+        ClearRefreshTokenCookieError: If the session is gone or ended, the refresh token is invalid or reused, or the
+            user is missing or inactive.
     """
     try:
         outcome = auth_refresh_service.refresh_token(
@@ -310,7 +287,6 @@ def refresh_token(
             token_manager,
             client_type,
             db,
-            x_csrf_token,
         )
     except core_exceptions.UnauthenticatedError as err:
         raise authentication_dependencies.ClearRefreshTokenCookieError.refusing(err) from err
@@ -339,8 +315,8 @@ def logout(
     and client_id. A web client also gets the login page as post_logout_redirect_uri, which the provider must have
     registered; a mobile client gets none. Any other session gets null. When the provider cannot be reached for
     its endpoint, the session still ends and idp_logout_url is null: the provider session stays. The answer is never
-    cached, because the URL carries the ID token. A web client sends the `X-CSRF-Token` header, and without it the
-    answer is 403.
+    cached, because the URL carries the ID token. A web request carrying an Origin header the server does not
+    allow gets 403.
 
     Logout is idempotent. A refresh token that is missing, malformed, expired, revoked or whose session is gone ends
     nothing and gets the same 200 answer with a null idp_logout_url, and a web client's refresh cookie is cleared

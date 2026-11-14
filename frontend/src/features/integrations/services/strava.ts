@@ -8,10 +8,13 @@ import type {
   StravaSyncStatus,
 } from '@/features/integrations/types'
 
+import type { StepUpInput, StepUpRequestDto } from '@/features/security/types'
+
 import { followJob, JobTimeoutError } from '@/services/jobStatus'
 import { ifMatchHeaders } from '@/services/ifMatch'
 import { apiFetch } from '@/services/http'
 import { getRuntimeBackendHost } from '@/services/runtime'
+import { toStepUpWire } from '@/features/security/services/security'
 
 /** The OAuth scopes Endurain requests from Strava (read-only access). */
 const STRAVA_SCOPE = 'read,profile:read_all,activity:read_all'
@@ -62,16 +65,22 @@ export async function beginStravaState(): Promise<string> {
 }
 
 /**
- * Stores the user's Strava API client id + secret ahead of the OAuth round-trip.
+ * Stores the user's Strava API client id + secret ahead of the OAuth round-trip (step-up gated).
  *
  * @param input - The Strava application's client id and secret.
+ * @param stepUp - The step-up credentials.
  * @param version - The integrations version the profile was read at, for `If-Match`.
- * @throws {HttpError} When the request fails, including 412 when the integrations changed meanwhile.
+ * @throws {HttpError} When the request fails, including 403 step-up and 412 when the integrations changed meanwhile.
  */
-export async function setStravaClient(input: StravaClientInput, version: number): Promise<void> {
+export async function setStravaClient(
+  input: StravaClientInput,
+  stepUp: StepUpInput,
+  version: number,
+): Promise<void> {
   const payload: StravaClientDto = {
     client_id: input.clientId,
     client_secret: input.clientSecret,
+    step_up: toStepUpWire(stepUp),
   }
   await apiFetch('/strava/client', {
     method: 'PUT',
@@ -151,12 +160,16 @@ export async function retrieveStravaGear(): Promise<StravaSyncStatus> {
 /**
  * Disconnects the user's Strava account. The server queues the unlink, because it revokes the
  * authorization with Strava and deletes what was imported from it, so this follows the queued
- * job until it finishes.
+ * job until it finishes. Step-up gated.
  *
- * @throws {HttpError} When the request fails.
+ * @param stepUp - The step-up credentials.
+ * @throws {HttpError} When the request fails (403 step-up).
  * @throws {Error} When the unlink fails on the server or does not finish in time.
  */
-export async function unlinkStrava(): Promise<void> {
-  const queued = await apiFetch<StravaSyncStatus>('/strava/link', { method: 'DELETE' })
+export async function unlinkStrava(stepUp: StepUpInput): Promise<void> {
+  const queued = await apiFetch<StravaSyncStatus>('/strava/unlink', {
+    method: 'POST',
+    body: JSON.stringify({ step_up: toStepUpWire(stepUp) } satisfies StepUpRequestDto),
+  })
   await followStravaSync(queued, 'Unlinking')
 }

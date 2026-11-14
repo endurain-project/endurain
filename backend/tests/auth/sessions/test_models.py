@@ -40,7 +40,7 @@ class TestUsersSessionsModel:
         assert hasattr(model, "token_family_id")
         assert hasattr(model, "rotation_count")
         assert hasattr(model, "last_rotation_at")
-        assert hasattr(model, "csrf_token_hash")
+        assert not hasattr(model, "csrf_token_hash")
 
     def test_users_sessions_model_primary_key(self):
         """
@@ -95,7 +95,6 @@ class TestUsersSessionsModel:
         # Assert
         assert model.oauth_state_id.nullable is True
         assert model.last_rotation_at.nullable is True
-        assert model.csrf_token_hash.nullable is True
         assert model.app_redirect_uri.nullable is True
         assert model.app_redirect_uri.type.length == 500
 

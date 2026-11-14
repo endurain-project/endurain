@@ -5,7 +5,7 @@ import { useI18n } from 'vue-i18n'
 import { LoaderCircle } from '@lucide/vue'
 
 import AppLogo from '@/components/AppLogo.vue'
-import { useQueryCredential } from '@/composables/useRouteQuery'
+import { useUrlCredential } from '@/composables/useRouteQuery'
 import { Alert } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import { cancelEmailChange } from '@/features/auth/services/emailChange'
@@ -23,8 +23,8 @@ const outcomes = {
 } as const
 
 /** Token from the emailed link; empty when absent or malformed. */
-const credential = useQueryCredential('token')
-const status = ref<Status>(credential.value.length > 0 ? 'confirm' : 'invalid')
+const token = useUrlCredential('token')
+const status = ref<Status>(token.length > 0 ? 'confirm' : 'invalid')
 
 /**
  * Reports the change as not made by the owner. Opening the link changes nothing: this runs only when the button is
@@ -33,13 +33,11 @@ const status = ref<Status>(credential.value.length > 0 ? 'confirm' : 'invalid')
 async function cancel(): Promise<void> {
   status.value = 'working'
   try {
-    const result = await cancelEmailChange({ token: credential.value })
-    credential.clear()
+    const result = await cancelEmailChange({ token })
     if (!result.change_applied) status.value = 'cancelled'
     else status.value = result.email_restored ? 'restored' : 'notRestored'
   } catch (error) {
     if (isProblem(error, 'invalid-input')) {
-      credential.clear()
       status.value = 'invalid'
     } else {
       status.value = 'error'

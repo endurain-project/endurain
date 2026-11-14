@@ -47,12 +47,11 @@ export function confirmSignUp(request: SignUpConfirm): Promise<SignUpResponse> {
  * Confirms an email change with the token of the link emailed to the new address.
  *
  * @param request - The emailed token.
- * @returns The backend response; `next_step` is `sign_in`.
  * @throws {HttpError} 400 when the token is unknown, used, expired, not an email-change token or
  *   predates a security change, 409 when another account holds the address now.
  */
-export function confirmEmailChange(request: EmailChangeConfirm): Promise<SignUpResponse> {
-  return apiFetch<SignUpResponse>('/public/email-change/confirm', {
+export async function confirmEmailChange(request: EmailChangeConfirm): Promise<void> {
+  await apiFetch<void>('/public/email-change/confirm', {
     method: 'POST',
     body: JSON.stringify(request),
     auth: false,

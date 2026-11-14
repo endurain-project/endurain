@@ -23,20 +23,15 @@ router = APIRouter()
 )
 def read_sessions_me(
     token_user_id: auth_dependencies.CurrentUserId,
+    token_session_id: auth_dependencies.OptionalSessionId,
     page: core_pagination.ListPage,
     db: core_dependencies.DbSession,
 ) -> auth_sessions_schema.UserSessionsPage:
     """Retrieve one page of the authenticated user's sessions.
 
-    Args:
-        token_user_id: User ID from access token.
-        page: The requested window.
-        db: Database session.
-
-    Returns:
-        The page of session objects for the user.
+    `is_current` marks the session the request is made from; it is false for every item when an API key calls.
     """
-    return account_security_service.list_user_sessions(token_user_id, page, db)
+    return account_security_service.list_user_sessions(token_user_id, page, db, token_session_id)
 
 
 @router.post(

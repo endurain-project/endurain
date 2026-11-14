@@ -8,6 +8,8 @@ import pytest
 
 import core.exceptions as core_exceptions
 import core.sync_runner as core_sync_runner
+import modules.auth.identity_providers.constants as identity_providers_constants
+import modules.auth.schema as auth_schema
 import modules.strava.constants as strava_constants
 import modules.strava.events as strava_events
 import modules.strava.integration_service as strava_integration
@@ -15,6 +17,9 @@ import modules.strava.rate_limit_store as strava_rate_limit_store
 import modules.strava.sync_service as strava_sync_service
 import modules.strava.sync_state_store as strava_sync_state_store
 from tests._helpers.auth import MOCK_USER_ID
+
+_STEP_UP = auth_schema.StepUpVerification(current_password="pw")
+_verify = MagicMock()
 
 GEAR = strava_constants.SyncKind.GEAR
 UNLINK = strava_constants.SyncKind.UNLINK
@@ -56,12 +61,26 @@ class TestRequest:
 
     def test_without_durable_jobs_the_sync_goes_to_the_bounded_pool_not_the_request(self, states, rate_limits):
         with _settings(False), patch.object(strava_sync_service, "_sync_pool") as pool:
-            status = strava_sync_service.request_unlink(MOCK_USER_ID, states, rate_limits, MagicMock())
+            status = strava_sync_service.request_unlink(
+                MOCK_USER_ID, _STEP_UP, _verify, states, rate_limits, MagicMock()
+            )
 
         assert (status.kind, status.status) == ("strava_unlink", Status.QUEUED)
         submitted = pool.submit.call_args.args
         assert submitted[0] is strava_sync_service.run_sync
         assert submitted[1].kind == UNLINK
+
+    def test_an_unlink_whose_step_up_is_refused_queues_nothing(self, states, rate_limits):
+        verify = MagicMock(side_effect=core_exceptions.StepUpFailedError("no"))
+        with (
+            _settings(False),
+            patch.object(strava_sync_service, "_sync_pool") as pool,
+            pytest.raises(core_exceptions.StepUpFailedError),
+        ):
+            strava_sync_service.request_unlink(MOCK_USER_ID, _STEP_UP, verify, states, rate_limits, MagicMock())
+
+        verify.assert_called_once_with(_STEP_UP, identity_providers_constants.StepUpAction.STRAVA_UNLINK)
+        pool.submit.assert_not_called()
 
     def test_a_second_request_while_one_is_pending_is_a_conflict(self, states, rate_limits):
         with _settings(False), patch.object(strava_sync_service, "_sync_pool"):
@@ -72,7 +91,7 @@ class TestRequest:
     def test_gear_and_unlink_do_not_block_each_other(self, states, rate_limits):
         with _settings(False), patch.object(strava_sync_service, "_sync_pool"):
             strava_sync_service.request_gear_sync(MOCK_USER_ID, states, rate_limits, MagicMock())
-            strava_sync_service.request_unlink(MOCK_USER_ID, states, rate_limits, MagicMock())
+            strava_sync_service.request_unlink(MOCK_USER_ID, _STEP_UP, _verify, states, rate_limits, MagicMock())
 
     def test_a_sync_that_could_not_be_queued_frees_the_user_to_retry(self, states, rate_limits):
         with _settings(False), patch.object(strava_sync_service, "_sync_pool") as pool:
@@ -161,7 +180,9 @@ class TestRunSync:
         with patch.object(
             strava_sync_service.strava_gear_service,
             "get_user_gear",
-            side_effect=core_exceptions.TooManyRequestsError("slow down"),
+            side_effect=core_exceptions.TooManyRequestsError(
+                "slow down", scope=core_exceptions.TooManyRequestsScope.PROVIDER
+            ),
         ):
             strava_sync_service.run_sync(_payload(GEAR), states, rate_limits, will_retry=True)
 

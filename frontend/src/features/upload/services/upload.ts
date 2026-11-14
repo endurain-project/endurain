@@ -78,7 +78,7 @@ export function assertValidActivityFile(file: File): void {
  *   backend is the real validator).
  * - Sends `multipart/form-data` via {@link FormData}. {@link apiFetch} leaves
  *   `Content-Type` unset for a `FormData` body so the browser adds the
- *   multipart boundary, and attaches the bearer token + CSRF header.
+ *   multipart boundary, and attaches the bearer token.
  * - The original filename travels only as the multipart part name. The server
  *   generates the stored filename (`save_validated_upload`), so the client
  *   filename is never used to build a URL, storage key, or path.

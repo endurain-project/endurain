@@ -38,6 +38,8 @@ export type IdentityProviderTemplateDto = Schemas['IdentityProviderTemplateRead'
  * @property authorizationEndpoint - Discovered OAuth authorization endpoint, or `null`.
  * @property tokenEndpoint - Discovered OAuth token endpoint, or `null`.
  * @property userinfoEndpoint - Discovered OIDC userinfo endpoint, or `null`.
+ * @property hasLinkedUsers - Whether users are linked to the provider; while they are, its client id, protocol and
+ * issuer cannot change.
  */
 export interface IdentityProvider {
   id: string
@@ -59,6 +61,7 @@ export interface IdentityProvider {
   authorizationEndpoint: string | null
   tokenEndpoint: string | null
   userinfoEndpoint: string | null
+  hasLinkedUsers: boolean
 }
 
 /**

@@ -94,13 +94,12 @@ _DOCSTRING_SECTIONS: dict[str, int] = {
     "modules/activities/activity_exercise_titles/router.py": 1,
     "modules/auth/account_security/api_keys_router.py": 1,
     "modules/auth/account_security/identity_links_router.py": 4,
-    "modules/auth/account_security/mfa_router.py": 6,
-    "modules/auth/account_security/sessions_router.py": 3,
-    "modules/auth/authentication/public_router.py": 4,
-    "modules/auth/authentication/sso_public_router.py": 1,
+    "modules/auth/account_security/mfa_router.py": 5,
+    "modules/auth/account_security/sessions_router.py": 2,
+    "modules/auth/authentication/public_router.py": 3,
     "modules/auth/identity_providers/public_router.py": 4,
     "modules/auth/identity_providers/router.py": 7,
-    "modules/auth/sessions/router.py": 3,
+    "modules/auth/sessions/router.py": 2,
     "modules/health/health_dashboard/router.py": 1,
     "modules/health/health_fasting/router.py": 8,
     "modules/health/health_poop/router.py": 6,
@@ -110,10 +109,9 @@ _DOCSTRING_SECTIONS: dict[str, int] = {
     "modules/health/health_water/router.py": 5,
     "modules/health/health_weight/router.py": 5,
     "modules/notifications/router.py": 2,
-    "modules/server_settings/logs_router.py": 3,
+    "modules/server_settings/logs_router.py": 2,
     "modules/server_settings/public_router.py": 3,
     "modules/server_settings/router.py": 7,
-    "modules/strava/router.py": 1,
     "modules/users/users/photo_router.py": 1,
     "modules/users/users/router.py": 9,
     "modules/users/users_default_gear/router.py": 2,
@@ -263,29 +261,6 @@ class TestApiContract:
             unauthenticated,
             _UNAUTHENTICATED_OUTSIDE_PUBLIC,
             "Mount it under /public",
-        )
-
-    def test_a_write_without_a_session_is_csrf_exempt(self):
-        """A state-changing route a client calls before it has a session needs no ``X-CSRF-Token``.
-
-        A web client holds a CSRF token only once it has a session, so the CSRF middleware must not refuse a route
-        that needs no credential.
-        """
-        import core.middleware as core_middleware
-
-        refused = {
-            f"{method.upper()} {path}"
-            for method, path, operation in _operations()
-            if method != "get"
-            and not operation.get("security")
-            and not core_middleware.CSRFMiddleware.is_exempt(_API_PREFIX + path)
-        }
-
-        _compare(
-            "A write that needs no credential is refused without a CSRF token",
-            refused,
-            {},
-            "Exempt it in CSRFMiddleware",
         )
 
     def test_the_session_routes_live_under_auth(self):
@@ -835,12 +810,11 @@ class TestApiContract:
         _compare("A server-owned response field is not readOnly", writable, {}, "Mark it in core.openapi_contract")
 
     def test_the_headers_the_api_reads_are_declared_on_the_operations_that_read_them(self):
-        """``X-Device-Id``, ``X-Client-Type`` and ``X-CSRF-Token`` are described on every operation that reads them.
+        """``X-Device-Id`` and ``X-Client-Type`` are described on every operation that reads them.
 
-        The device id is read by the sign-ins; the client type by the sign-ins and by the CSRF middleware, which
-        needs the CSRF token from a web client on every write it does not exempt.
+        The device id is read by the sign-ins; the client type by the sign-ins, the refresh and the logout, which
+        are also the two routes that read the refresh cookie and check ``Origin``.
         """
-        import core.middleware as core_middleware
 
         def headers(operation: dict[str, Any]) -> dict[str, dict[str, Any]]:
             return {item["name"]: item for item in operation.get("parameters", []) if item["in"] == "header"}
@@ -851,21 +825,20 @@ class TestApiContract:
             ("post", "/auth/password-change"),
             ("post", "/auth/sessions/{session_id}/tokens"),
         }
+        client_type_routes = {("post", "/auth/refresh"), ("post", "/auth/logout")}
         wrong: set[str] = set()
         for method, path, operation in _operations():
             declared = headers(operation)
             if (method, path) in device_routes and not _described(declared.get("X-Device-Id")):
                 wrong.add(f"{method.upper()} {path}: X-Device-Id")
-            if core_middleware.CSRFMiddleware.enforces(method.upper(), f"{_API_PREFIX}{path}"):
-                token, client_type = declared.get("X-CSRF-Token"), declared.get("X-Client-Type")
-                if not _described(token) or token["required"]:
-                    wrong.add(f"{method.upper()} {path}: X-CSRF-Token")
+            if (method, path) in client_type_routes:
+                client_type = declared.get("X-Client-Type")
                 if not _described(client_type) or set(_resolve(client_type["schema"]).get("enum", [])) != {
                     "web",
                     "mobile",
                 }:
                     wrong.add(f"{method.upper()} {path}: X-Client-Type")
-            elif method == "get" and "X-CSRF-Token" in declared:
+            if "X-CSRF-Token" in declared:
                 wrong.add(f"{method.upper()} {path}: X-CSRF-Token is not read")
 
         _compare("A header the API reads is not declared", wrong, {}, "Declare it in the OpenAPI document")

@@ -645,7 +645,8 @@
       "stepUpDescription": "Identitātes pakalpojumu sniedzēji nosaka, kas var pieteikties šajā serverī. Apstipriniet, ka tas esat Jūs, lai turpinātu.",
       "slugConflict": "Šis identifikators jau tiek izmantots",
       "issuerInUse": "Cits identitātes pakalpojumu sniedzējs jau izmanto šo izdevēja URL",
-      "issuerLocked": "Izdevēja URL nevar mainīt, kamēr ar šo pakalpojumu sniedzēju ir saistīti lietotāji. Atsaistiet tos vai pievienojiet jaunu pakalpojumu sniedzēju.",
+      "locked": "Slug, klienta ID, protokolu, izdevēju un galapunktus nevar mainīt, kamēr ar šo pakalpojumu sniedzēju ir saistīti lietotāji. Atsaistiet tos vai pievienojiet jaunu pakalpojumu sniedzēju.",
+      "lockedHint": "Bloķēts, kamēr ar šo pakalpojumu sniedzēju ir saistīti lietotāji.",
       "staleError": "Šis pakalpojuma sniedzējs tika mainīts citur. Jūsu izmaiņas netika saglabātas. Aizveriet un atveriet to vēlreiz, lai ielādētu pašreizējos iestatījumus.",
       "saveError": "Neizdevās saglabāt pakalpojumu sniedzēju. Lūdzu, mēģiniet vēlreiz."
     }

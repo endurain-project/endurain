@@ -218,8 +218,7 @@ function scheduleReconnect(): void {
 /**
  * Requests a short-lived, single-use WebSocket ticket from the backend. The
  * ticket authenticates the handshake so the access token never appears in a
- * URL. Routed through {@link apiFetch}, so it carries the bearer token and the
- * CSRF header automatically.
+ * URL. Routed through {@link apiFetch}, so it carries the bearer token automatically.
  *
  * @returns The opaque ticket string.
  */

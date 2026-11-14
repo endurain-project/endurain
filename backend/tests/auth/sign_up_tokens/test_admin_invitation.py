@@ -43,7 +43,7 @@ def db():
 
 class TestEmail:
     def test_the_mail_says_an_administrator_created_the_account_and_carries_the_link(self):
-        link = f"{_HOST}/signup/confirm?token=abc"
+        link = f"{_HOST}/signup/confirm#token=abc"
 
         subject, html_body, text_body = email_messages.get_admin_invitation_email("Alice", link, _HOST, "en")
 
@@ -93,7 +93,7 @@ class TestPrepare:
 
         assert recipient == _OWNER_EMAIL
         assert "administrator" in subject.lower()
-        token = html_body.split("/signup/confirm?token=")[1].split('"')[0].split("<")[0]
+        token = html_body.split("/signup/confirm#token=")[1].split('"')[0].split("<")[0]
         assert sign_up_service.verify_sign_up_token(token, db, email_change=False).user_id == MOCK_USER_ID
 
     def test_a_retried_event_mails_the_same_link(self, db):
@@ -109,7 +109,7 @@ class TestPrepare:
 class TestConfirm:
     def test_the_invitation_link_is_confirmed_while_email_verification_is_not_required(self, db):
         _, _, html_body, _ = sign_up_service.prepare_admin_invitation_email(MOCK_USER_ID, "event-1", _HOST, db)
-        token = html_body.split("/signup/confirm?token=")[1].split('"')[0].split("<")[0]
+        token = html_body.split("/signup/confirm#token=")[1].split('"')[0].split("<")[0]
         settings = MagicMock(
             signup_enabled=True,
             signup_require_email_verification=False,

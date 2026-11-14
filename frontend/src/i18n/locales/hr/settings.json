@@ -645,7 +645,8 @@
       "stepUpDescription": "Pružatelji identiteta određuju tko se može prijaviti na ovaj poslužitelj. Potvrdite da ste to vi za nastavak.",
       "slugConflict": "Taj slug se već koristi",
       "issuerInUse": "Drugi pružatelj identiteta već koristi ovaj URL izdavatelja",
-      "issuerLocked": "URL izdavatelja ne može se promijeniti dok su korisnici povezani s ovim pružateljem. Odvojite ih ili umjesto toga dodajte novog pružatelja.",
+      "locked": "Slug, ID klijenta, protokol, izdavatelj i krajnje točke ne mogu se promijeniti dok su korisnici povezani s ovim pružateljem. Odvojite ih ili umjesto toga dodajte novog pružatelja.",
+      "lockedHint": "Zaključano dok su korisnici povezani s ovim pružateljem.",
       "staleError": "Ovaj je pružatelj promijenjen drugdje. Vaše promjene nisu spremljene. Zatvorite ga i ponovno otvorite da učitate trenutne postavke.",
       "saveError": "Nije moguće spremiti pružatelja. Pokušajte ponovno."
     }

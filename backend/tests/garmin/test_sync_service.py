@@ -332,7 +332,7 @@ class TestRunSync:
 
     def test_a_sync_refused_by_an_active_limit_is_failed_without_a_retry(self, durable, states, rate_limits):
         states.begin(MOCK_USER_ID, Kind.GEAR, conflict="busy")
-        error = core_exceptions.TooManyRequestsError("slow down")
+        error = core_exceptions.TooManyRequestsError("slow down", scope=core_exceptions.TooManyRequestsScope.PROVIDER)
         with patch.object(garmin_sync_service.garmin_gear_service, "get_user_gear", side_effect=error):
             garmin_sync_service.run_sync(
                 garmin_events.SyncRequestedPayload(user_id=MOCK_USER_ID, kind=Kind.GEAR),

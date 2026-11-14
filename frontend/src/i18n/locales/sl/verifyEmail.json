@@ -38,5 +38,8 @@
   "notRestoredBody": "Sprememba je bila prijavljena, tvoj račun je bil povsod odjavljen in njegovi ključi API so bili preklicani. Tvoj prejšnji naslov zdaj uporablja drug račun, zato tvoj račun obdrži novega. Obrni se na skrbnika Endurain in spremeni geslo.",
   "cancelInvalidTitle": "Ta povezava ne deluje več",
   "cancelInvalidBody": "Povezava je neveljavna, potekla ali že uporabljena, ali pa je bil e-poštni naslov po njenem pošiljanju znova spremenjen. Če še vedno meniš, da ima nekdo drug dostop, se prijavi in spremeni geslo.",
-  "cancelError": "Spremembe ni bilo mogoče preklicati. Poskusi znova."
+  "cancelError": "Spremembe ni bilo mogoče preklicati. Poskusi znova.",
+  "confirmChangeTitle": "Potrdi svoj nov e-poštni naslov",
+  "confirmChangeBody": "Pritisni gumb, da potrdiš, da si zahteval spremembo e-poštnega naslova svojega računa. Odjavljen boš povsod.",
+  "confirmChangeButton": "Potrdi spremembo e-pošte"
 }

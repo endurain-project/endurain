@@ -1,10 +1,9 @@
 """JWT token issuance and validation for the authentication module.
 
-Defines :class:`TokenType`, :class:`TokenManager` (issue/decode/validate JWTs
-and mint CSRF tokens) and a singleton accessor used as a FastAPI dependency.
+Defines :class:`TokenType`, :class:`TokenManager` (issue/decode/validate JWTs)
+and a singleton accessor used as a FastAPI dependency.
 """
 
-import secrets
 import uuid
 from collections.abc import Sequence
 from datetime import UTC, datetime, timedelta
@@ -65,7 +64,7 @@ def token_audience(token_type: TokenType) -> str:
 
 
 class TokenManager:
-    """Issues and validates Endurain's access and refresh tokens, and mints CSRF tokens.
+    """Issues and validates Endurain's access and refresh tokens.
 
     Each kind of token is signed with keys of its own and carries its own ``typ`` header and ``aud`` claim, so one
     kind never verifies as the other. Each kind has a list of keys: the first signs, every one verifies, and a token
@@ -218,7 +217,7 @@ class TokenManager:
                 },
                 sub={"essential": True},
                 scope={"essential": True},
-                client_id={
+                client_type={
                     "essential": True,
                     "values": [client_type.value for client_type in auth_constants.ClientType],
                 },
@@ -315,8 +314,8 @@ class TokenManager:
     ) -> tuple[datetime, str]:
         """Creates a JWT token for a user session with appropriate access scope and expiration.
 
-        The token is signed with the key of its kind and names its kind's audience. Its ``client_id`` claim is the
-        client type of the session (RFC 9068 section 2.2), and ``nbf`` equals ``iat``: a replica whose clock is
+        The token is signed with the key of its kind and names its kind's audience. Its ``client_type`` claim is the
+        client type of the session, and ``nbf`` equals ``iat``: a replica whose clock is
         behind the issuer's still accepts it within the clock leeway.
 
         Args:
@@ -347,7 +346,7 @@ class TokenManager:
             "iss": core_config.settings.ENDURAIN_HOST,
             "aud": token_audience(token_type),
             "sub": str(user.id),
-            "client_id": client_type.value,
+            "client_type": client_type.value,
             "scope": " ".join(scope),
             "iat": now,
             "nbf": now,
@@ -364,16 +363,6 @@ class TokenManager:
 
         # Return the expiration and the encoded token
         return exp, encoded_token
-
-    @staticmethod
-    def create_csrf_token() -> str:
-        """Generate a secure random CSRF (Cross-Site Request Forgery) token.
-
-        Returns:
-            str: A URL-safe, securely generated random string suitable for use
-                as a CSRF token.
-        """
-        return secrets.token_urlsafe(32)
 
 
 def scopes_for_access_type(access_type: str) -> tuple[str, ...]:

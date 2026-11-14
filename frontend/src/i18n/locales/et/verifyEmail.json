@@ -38,5 +38,8 @@
   "notRestoredBody": "Muudatusest anti teada, sinu konto logiti kõikjalt välja ja selle API-võtmed tühistati. Teine konto kasutab nüüd sinu eelmist aadressi, seega jääb sinu kontole uus aadress. Võta ühendust oma Enduraini administraatoriga ja muuda oma parool.",
   "cancelInvalidTitle": "See link ei tööta enam",
   "cancelInvalidBody": "Link on kehtetu, aegunud või juba kasutatud või e-posti aadressi muudeti pärast selle saatmist uuesti. Kui arvad endiselt, et keegi teine pääseb ligi, logi sisse ja muuda oma parool.",
-  "cancelError": "Me ei saanud muudatust tühistada. Palun proovi uuesti."
+  "cancelError": "Me ei saanud muudatust tühistada. Palun proovi uuesti.",
+  "confirmChangeTitle": "Kinnita oma uus e-posti aadress",
+  "confirmChangeBody": "Vajuta nuppu, et kinnitada, et palusid oma konto e-posti aadressi muuta. Sind logitakse kõikjalt välja.",
+  "confirmChangeButton": "Kinnita e-posti muutmine"
 }

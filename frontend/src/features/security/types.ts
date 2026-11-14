@@ -149,6 +149,7 @@ export interface BackupCodesResult {
  * @property lastActivityAt - When the session was last active (ISO).
  * @property expiresAt - When the session expires (ISO).
  * @property appRedirectUri - Redirect address of the native app the session was signed in through, or null.
+ * @property isCurrent - Whether this is the session the request is made from.
  */
 export interface SecuritySession {
   id: string
@@ -162,6 +163,7 @@ export interface SecuritySession {
   lastActivityAt: string
   expiresAt: string
   appRedirectUri: string | null
+  isCurrent: boolean
 }
 
 /** Raw known-device payload (snake_case wire shape). */
@@ -176,7 +178,7 @@ export type KnownDeviceDto = Schemas['KnownDeviceRead']
  * @property deviceType - Device class of the last sign-in, or null as above.
  * @property createdAt - When the device was registered (ISO).
  * @property lastSeenAt - When the user last signed in from it (ISO).
- * @property current - Whether this request comes from the device.
+ * @property isCurrent - Whether this request comes from the device.
  */
 export interface KnownDevice {
   id: string
@@ -185,7 +187,7 @@ export interface KnownDevice {
   deviceType: string | null
   createdAt: string
   lastSeenAt: string
-  current: boolean
+  isCurrent: boolean
 }
 
 /** Raw linked identity-provider payload (snake_case wire shape). */

@@ -371,7 +371,7 @@ class TestListAndForget:
         page = known_devices_service.list_devices(MOCK_USER_ID, _DEVICE_ID, core_pagination.PageParams(1, 10), db)
 
         assert page.total == 1
-        assert [item.current for item in page.items] == [True]
+        assert [item.is_current for item in page.items] == [True]
         assert (page.items[0].browser, page.items[0].operating_system, page.items[0].device_type) == (
             "Firefox",
             "Linux",
@@ -384,7 +384,7 @@ class TestListAndForget:
 
         page = known_devices_service.list_devices(MOCK_USER_ID, _DEVICE_ID, core_pagination.PageParams(1, 10), db)
 
-        assert [item.current for item in page.items] == [False]
+        assert [item.is_current for item in page.items] == [False]
 
     def test_a_forgotten_device_is_no_longer_known(self, db, publish):
         _account(db, age=timedelta(days=30))
@@ -434,7 +434,7 @@ class TestListAndForget:
         _session(db, _sid("before-the-migration"), MOCK_USER_ID, None)
         _session(db, _sid("another-user"), OTHER_USER_ID, device_hash)
         device_id = known_devices_service.list_devices(MOCK_USER_ID, _DEVICE_ID, core_pagination.PageParams(1, 10), db)
-        device_id = next(item.id for item in device_id.items if item.current)
+        device_id = next(item.id for item in device_id.items if item.is_current)
 
         with patch(_PUBLISH_REVOKED) as revoked:
             ended = known_devices_service.forget_device(device_id, MOCK_USER_ID, _OTHER_DEVICE_ID, db)

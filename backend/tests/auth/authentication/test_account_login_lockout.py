@@ -27,7 +27,7 @@ _SERVICE = "modules.auth.authentication.service"
 _USER = SimpleNamespace(id=_USER_ID, username="alice", active=True, access_type="regular")
 _DEVICE_ID = "d" * 43
 _IP = "203.0.113.7"
-_TOKENS = (_SESSION_ID, datetime(2999, 1, 1, tzinfo=UTC), "at", datetime(2999, 1, 1, tzinfo=UTC), "rt", "csrf")
+_TOKENS = (_SESSION_ID, datetime(2999, 1, 1, tzinfo=UTC), "at", datetime(2999, 1, 1, tzinfo=UTC), "rt")
 
 
 def _store_locked_by_100_failures():

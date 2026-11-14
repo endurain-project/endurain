@@ -184,8 +184,13 @@ describe('SignUpView weak password', () => {
 
 describe('SignUpView throttling', () => {
   it.each([
-    [429, 'rate-limited', 42, i18n.global.t('app.retryAfter.tooManyAttempts', { seconds: 42 })],
-    [429, 'rate-limited', null, i18n.global.t('signup.errorTooManyAttempts')],
+    [
+      429,
+      'too-many-requests',
+      42,
+      i18n.global.t('app.retryAfter.tooManyAttempts', { seconds: 42 }),
+    ],
+    [429, 'too-many-requests', null, i18n.global.t('signup.errorTooManyAttempts')],
   ])('words a %i %s with a wait of %s', async (status, code, wait, expected) => {
     requireVerification.value = false
     requestSignUp.mockReset()

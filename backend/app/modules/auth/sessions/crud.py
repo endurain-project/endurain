@@ -189,18 +189,6 @@ def edit_session(
     return sessions_serializers.to_read_schema(row)
 
 
-def update_session_csrf_hash(session_id: uuid.UUID, csrf_token_hash: str, db: Session) -> None:
-    """Stage a CSRF-token hash update."""
-    matched = core_database.rowcount(
-        db,
-        update(sessions_models.UsersSessions)
-        .where(sessions_models.UsersSessions.id == session_id)
-        .values(csrf_token_hash=csrf_token_hash),
-    )
-    if matched != 1:
-        raise core_exceptions.NotFoundError("Session not found")
-
-
 def delete_session_if_present(
     session_id: uuid.UUID, user_id: uuid.UUID, db: Session
 ) -> sessions_contracts.SessionRead | None:

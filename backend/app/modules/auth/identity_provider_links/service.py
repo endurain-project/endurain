@@ -154,7 +154,7 @@ def enrich_user_identity_providers(
             idp_id=link.idp_id,
             idp_subject=link.idp_subject,
             linked_at=link.linked_at,
-            last_login=link.last_login,
+            last_login_at=link.last_login,
             idp_name=idp.name,
             idp_slug=idp.slug,
             idp_icon=idp.icon,

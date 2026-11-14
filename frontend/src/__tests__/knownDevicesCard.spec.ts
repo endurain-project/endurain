@@ -15,14 +15,14 @@ const mocks = vi.hoisted(() => ({
   forgetAllMutate: vi.fn<(...args: unknown[]) => void>(),
 }))
 
-const device = (id: string, current: boolean) => ({
+const device = (id: string, isCurrent: boolean) => ({
   id,
   browser: 'Firefox',
   operatingSystem: 'Linux',
   deviceType: 'PC',
   createdAt: '2026-11-10T10:00:00Z',
   lastSeenAt: '2026-11-11T10:00:00Z',
-  current,
+  isCurrent,
 })
 
 vi.mock('@/features/security/composables/useSecurity', () => ({

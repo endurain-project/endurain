@@ -88,7 +88,7 @@ function getOnboardingErrorMessage(error: unknown): string {
   if (isProblem(error, 'validation-failed')) {
     return t('login.onboarding.errorValidation')
   }
-  if (isProblem(error, 'rate-limited')) {
+  if (isProblem(error, 'too-many-requests')) {
     return t('login.onboarding.errorTooManyAttempts')
   }
   if (isProblem(error, 'service-unavailable')) {

@@ -193,7 +193,7 @@ class TestSecurityHeaders:
 
     def test_a_429_carries_them(self):
         def limited() -> None:
-            raise core_exceptions.TooManyRequestsError("slow down")
+            raise core_exceptions.TooManyRequestsError("slow down", scope=core_exceptions.TooManyRequestsScope.PROVIDER)
 
         response = TestClient(_stack(limited)).get("/api/v1/limited")
 

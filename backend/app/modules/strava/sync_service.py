@@ -19,6 +19,9 @@ import core.logger as core_logger
 import core.sync_runner as core_sync_runner
 import modules.activities.activity_ingestion.integration_service as activity_ingestion_integration
 import modules.activities.activity_ingestion.schema as activity_ingestion_schema
+import modules.auth.identity_providers.constants as identity_providers_constants
+import modules.auth.identity_providers.contracts as identity_providers_contracts
+import modules.auth.schema as auth_schema
 import modules.strava.audit_actions as strava_audit_actions
 import modules.strava.constants as strava_constants
 import modules.strava.event_publishers as strava_event_publishers
@@ -201,23 +204,36 @@ def request_gear_sync(
 
 def request_unlink(
     user_id: uuid.UUID,
+    step_up: auth_schema.StepUpVerification,
+    verify_step_up: identity_providers_contracts.StepUpVerifier,
     states: strava_sync_state_store.StravaSyncStateStore,
     rate_limits: strava_rate_limit_store.StravaRateLimitStore,
     db: Session,
 ) -> strava_schema.StravaSyncStatus:
     """Queue the unlinking of the user's Strava account and the deletion of what was imported from it.
 
-    The request is audited here, not the unlink job that follows.
+    The step-up is verified, and committed so a spent backup code stays spent, before anything is queued. The request
+    is audited here, not the unlink job that follows.
 
     Args:
         user_id: The user to unlink.
+        step_up: The user's step-up verification.
+        verify_step_up: Verifies the step-up for the calling user.
         states: Shared store of the sync's state.
         rate_limits: The shared Strava rate-limit state.
         db: Database session.
 
     Returns:
         The unlink's initial status.
+
+    Raises:
+        StepUpFailedError: When the step-up does not verify.
+        JobAlreadyRunningError: When an unlink is already pending for the user.
+        PoolFullError: When the in-process pool is full.
     """
+    verify_step_up(step_up, identity_providers_constants.StepUpAction.STRAVA_UNLINK)
+    db.commit()
+    logger.info("Strava unlink step-up verified", extra=core_logger.context(user_id=user_id))
     return _queue(
         user_id,
         strava_constants.SyncKind.UNLINK,

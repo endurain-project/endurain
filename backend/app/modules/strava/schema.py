@@ -6,6 +6,7 @@ from typing import Literal
 from pydantic import BaseModel, ConfigDict, Field, SecretStr
 
 import core.job_status as core_job_status
+import modules.auth.schema as auth_schema
 import modules.strava.constants as strava_constants
 
 
@@ -15,12 +16,14 @@ class StravaClientCredentials(BaseModel):
     Attributes:
         client_id: The Strava application's client id.
         client_secret: The Strava application's client secret.
+        step_up: The caller's step-up verification, which replacing the client needs.
     """
 
     model_config = ConfigDict(extra="forbid")
 
     client_id: int = Field(gt=0)
     client_secret: SecretStr = Field(min_length=1, max_length=255)
+    step_up: auth_schema.StepUpVerification = Field(..., description="Step-up verification authorising the change")
 
 
 class StravaLinkRequest(BaseModel):

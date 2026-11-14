@@ -38,5 +38,8 @@
   "notRestoredBody": "變更已被回報，您的帳號已在所有裝置上登出，其 API 金鑰已被撤銷。另一個帳號現在使用您先前的地址，因此您的帳號保留新地址。請聯絡您的 Endurain 管理員，並變更密碼。",
   "cancelInvalidTitle": "此連結已失效",
   "cancelInvalidBody": "該連結無效、已過期或已被使用，或者在寄出後電子郵件地址又被變更。如果您仍認為有其他人可以存取您的帳號，請登入並變更密碼。",
-  "cancelError": "無法取消變更，請再試一次。"
+  "cancelError": "無法取消變更，請再試一次。",
+  "confirmChangeTitle": "確認新的電子郵件地址",
+  "confirmChangeBody": "按下按鈕以確認你申請變更了帳戶的電子郵件地址。你將在所有裝置上登出。",
+  "confirmChangeButton": "確認變更電子郵件"
 }

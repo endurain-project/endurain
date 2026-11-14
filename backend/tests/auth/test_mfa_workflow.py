@@ -48,27 +48,34 @@ def mfa_secret_store() -> MagicMock:
 
 
 class TestGetMfaStatus:
-    """get_mfa_status reports enablement via mfa_service."""
+    """get_mfa_status reports the user's factors and that MFA is on while there is any."""
 
-    def test_returns_enabled_true(self, mock_db):
+    def test_returns_enabled_true_with_the_factors(self, mock_db):
+        factor_id = uuid.uuid4()
+        now = datetime.now(UTC)
+        factor = MagicMock(id=factor_id, type="totp", created_at=now, last_used_at=None)
         with patch(
-            "modules.auth.account_security.mfa_workflow_service.mfa_integration.is_mfa_enabled_for_user",
-            return_value=True,
-        ) as mock_is_enabled:
+            "modules.auth.account_security.mfa_workflow_service.mfa_integration.get_user_factors",
+            return_value=[factor],
+        ) as mock_factors:
             result = mfa_workflow.get_mfa_status(MOCK_USER_ID, mock_db)
 
-        mock_is_enabled.assert_called_once_with(MOCK_USER_ID, mock_db)
+        mock_factors.assert_called_once_with(MOCK_USER_ID, mock_db)
         assert isinstance(result, mfa_schema.MFAStatusRead)
         assert result.mfa_enabled is True
+        assert [(f.id, f.type, f.created_at, f.last_used_at) for f in result.factors] == [
+            (factor_id, "totp", now, None)
+        ]
 
-    def test_returns_enabled_false(self, mock_db):
+    def test_returns_enabled_false_without_factors(self, mock_db):
         with patch(
-            "modules.auth.account_security.mfa_workflow_service.mfa_integration.is_mfa_enabled_for_user",
-            return_value=False,
+            "modules.auth.account_security.mfa_workflow_service.mfa_integration.get_user_factors",
+            return_value=[],
         ):
             result = mfa_workflow.get_mfa_status(MOCK_USER_ID, mock_db)
 
         assert result.mfa_enabled is False
+        assert result.factors == []
 
 
 # ---------------------------------------------------------------------------

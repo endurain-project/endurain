@@ -6,7 +6,7 @@ import CancelEmailChangeView from '@/features/auth/views/CancelEmailChangeView.v
 import { HttpError } from '@/services/http'
 
 const { cancelEmailChange, routerReplace, route } = vi.hoisted(() => ({
-  route: { path: '/cancel-email-change', query: {} as Record<string, unknown> },
+  route: { path: '/cancel-email-change', query: {} as Record<string, unknown>, hash: '' },
   routerReplace: vi.fn<(to: unknown) => Promise<void>>(() => Promise.resolve()),
   cancelEmailChange: vi.fn<(request: unknown) => Promise<unknown>>(),
 }))
@@ -31,7 +31,8 @@ async function mountView() {
 
 describe('CancelEmailChangeView', () => {
   beforeEach(() => {
-    route.query = { token: '7.123.abc' }
+    route.query = {}
+    route.hash = '#token=7.123.abc'
     sessionStorage.clear()
     cancelEmailChange.mockReset()
     routerReplace.mockClear()
@@ -43,6 +44,20 @@ describe('CancelEmailChangeView', () => {
     expect(cancelEmailChange).not.toHaveBeenCalled()
     expect(wrapper.text()).toContain(i18n.global.t('verifyEmail.cancelTitle'))
     expect(wrapper.find('button').exists()).toBe(true)
+  })
+
+  it('removes the token from the address bar and still reads one from the query string', async () => {
+    await mountView()
+    expect(routerReplace).toHaveBeenCalledWith({ query: {}, hash: '' })
+
+    route.hash = ''
+    route.query = { token: 'old-link' }
+    cancelEmailChange.mockResolvedValue({ change_applied: false, email_restored: false })
+    const wrapper = await mountView()
+    await wrapper.get('button').trigger('click')
+    await flushPromises()
+
+    expect(cancelEmailChange).toHaveBeenCalledWith({ token: 'old-link' })
   })
 
   it('cancels with the token from the link and says what ended', async () => {
@@ -109,7 +124,7 @@ describe('CancelEmailChangeView', () => {
   })
 
   it('shows the invalid state without a token', async () => {
-    route.query = {}
+    route.hash = ''
     const wrapper = await mountView()
 
     expect(wrapper.text()).toContain(i18n.global.t('verifyEmail.cancelInvalidTitle'))

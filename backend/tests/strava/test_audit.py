@@ -13,6 +13,7 @@ from stravalib.exc import AccessUnauthorized, RateLimitExceeded
 from stravalib.exc import Fault as StravaFault
 
 import core.exceptions as core_exceptions
+import modules.auth.schema as auth_schema
 import modules.gears.gear.schema as gears_schema
 import modules.strava.audit_actions as strava_audit_actions
 import modules.strava.client_service as strava_client_service
@@ -26,6 +27,9 @@ import modules.strava.service as strava_service
 import modules.strava.sync_service as strava_sync_service
 import modules.strava.sync_state_store as strava_sync_state_store
 from tests._helpers.auth import MOCK_USER_ID
+
+_STEP_UP = auth_schema.StepUpVerification(current_password="pw")
+_verify = MagicMock()
 
 LINK = strava_constants.SyncKind.LINK
 UNLINK = strava_constants.SyncKind.UNLINK
@@ -49,14 +53,14 @@ def _fault(status_code: int, cls=StravaFault) -> StravaFault:
 
 class TestClientUpdate:
     def _set(self, db, **store_kwargs):
-        credentials = strava_schema.StravaClientCredentials(client_id=123, client_secret="the-secret")
+        credentials = strava_schema.StravaClientCredentials(client_id=123, client_secret="the-secret", step_up=_STEP_UP)
         with (
             patch.object(strava_service.user_integrations_integration, "set_strava_client", **store_kwargs),
             patch.object(
                 strava_service.user_integrations_integration, "get_user_integrations", return_value=MagicMock(version=3)
             ),
         ):
-            return strava_service.set_client(MOCK_USER_ID, credentials, db, if_match='"2"')
+            return strava_service.set_client(MOCK_USER_ID, credentials, _verify, db, if_match='"2"')
 
     def test_storing_the_client_is_audited_without_the_id_or_secret(self):
         with jasil_testing.capture_audit() as audit:
@@ -179,7 +183,7 @@ class TestAccountUnlink:
             patch.object(strava_sync_service.jasil_audit, "record_detached") as detached,
             jasil_testing.capture_audit() as audit,
         ):
-            strava_sync_service.request_unlink(MOCK_USER_ID, states, rate_limits, db)
+            strava_sync_service.request_unlink(MOCK_USER_ID, _STEP_UP, _verify, states, rate_limits, db)
 
         entry = audit.assert_audited(
             strava_audit_actions.ACCOUNT_UNLINK.id,
@@ -198,7 +202,7 @@ class TestAccountUnlink:
             patch.object(strava_sync_service, "_sync_pool") as pool,
             jasil_testing.capture_audit() as audit,
         ):
-            strava_sync_service.request_unlink(MOCK_USER_ID, states, rate_limits, MagicMock())
+            strava_sync_service.request_unlink(MOCK_USER_ID, _STEP_UP, _verify, states, rate_limits, MagicMock())
 
         pool.submit.assert_called_once()
         entry = audit.assert_audited(
@@ -218,10 +222,11 @@ class TestAccountUnlink:
             patch.object(strava_sync_service.strava_event_publishers, "publish_sync_requested") as publish,
             pytest.raises(core_exceptions.ConflictError),
         ):
-            strava_sync_service.request_unlink(MOCK_USER_ID, states, rate_limits, db)
+            strava_sync_service.request_unlink(MOCK_USER_ID, _STEP_UP, _verify, states, rate_limits, db)
 
         publish.assert_not_called()
-        db.commit.assert_not_called()
+        # Only the verified step-up was committed, never the unlink's audit row.
+        assert db.commit.call_count == 1
 
     def test_without_durable_jobs_an_unlink_already_pending_is_not_audited(self, states, rate_limits):
         states.begin(MOCK_USER_ID, UNLINK, conflict="busy")
@@ -231,7 +236,7 @@ class TestAccountUnlink:
             jasil_testing.capture_audit() as audit,
             pytest.raises(core_exceptions.ConflictError),
         ):
-            strava_sync_service.request_unlink(MOCK_USER_ID, states, rate_limits, MagicMock())
+            strava_sync_service.request_unlink(MOCK_USER_ID, _STEP_UP, _verify, states, rate_limits, MagicMock())
 
         audit.assert_not_audited(strava_audit_actions.ACCOUNT_UNLINK.id)
 
@@ -243,7 +248,7 @@ class TestAccountUnlink:
             pytest.raises(core_exceptions.ServiceUnavailableError),
         ):
             pool.submit.side_effect = core_exceptions.ServiceUnavailableError("full")
-            strava_sync_service.request_unlink(MOCK_USER_ID, states, rate_limits, MagicMock())
+            strava_sync_service.request_unlink(MOCK_USER_ID, _STEP_UP, _verify, states, rate_limits, MagicMock())
 
         audit.assert_not_audited(strava_audit_actions.ACCOUNT_UNLINK.id)
 

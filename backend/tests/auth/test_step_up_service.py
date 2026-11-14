@@ -179,6 +179,7 @@ class TestVerifyStepUpCredentials:
 
         assert isinstance(exc.value, core_exceptions.TooManyRequestsError)
         assert exc.value.retry_at is not None
+        assert exc.value.scope == core_exceptions.TooManyRequestsScope.STEP_UP
 
     def test_a_session_locked_out_does_not_lock_the_users_other_session(self):
         store = FakeStepUpStore()

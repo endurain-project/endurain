@@ -38,5 +38,8 @@
   "notRestoredBody": "Promjena je prijavljena, vaš je račun odjavljen posvuda, a njegovi API ključevi opozvani. Drugi račun sada koristi vašu prethodnu adresu pa vaš račun zadržava novu. Obratite se svom Endurain administratoru i promijenite lozinku.",
   "cancelInvalidTitle": "Ova poveznica više ne radi",
   "cancelInvalidBody": "Poveznica je nevažeća, istekla ili već iskorištena, ili je adresa e-pošte ponovno promijenjena nakon njezina slanja. Ako i dalje mislite da netko drugi ima pristup, prijavite se i promijenite lozinku.",
-  "cancelError": "Nismo mogli otkazati promjenu. Pokušajte ponovno."
+  "cancelError": "Nismo mogli otkazati promjenu. Pokušajte ponovno.",
+  "confirmChangeTitle": "Potvrdite novu adresu e-pošte",
+  "confirmChangeBody": "Pritisnite gumb da potvrdite da ste zatražili promjenu adrese e-pošte svog računa. Bit ćete odjavljeni posvuda.",
+  "confirmChangeButton": "Potvrdi promjenu e-pošte"
 }

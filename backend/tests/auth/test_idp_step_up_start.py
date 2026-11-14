@@ -129,7 +129,9 @@ class TestStartService:
             patch.object(
                 identity_link_service.step_up_service,
                 "require_not_locked_out",
-                side_effect=core_exceptions.TooManyRequestsError("locked"),
+                side_effect=core_exceptions.TooManyRequestsError(
+                    "locked", scope=core_exceptions.TooManyRequestsScope.PROVIDER
+                ),
             ),
             patch.object(identity_link_service.identity_providers_integration, "stage_step_up") as stage,
             pytest.raises(core_exceptions.TooManyRequestsError),

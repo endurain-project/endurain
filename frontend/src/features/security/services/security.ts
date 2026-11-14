@@ -157,6 +157,7 @@ export function mapSecuritySession(dto: SecuritySessionDto): SecuritySession {
     lastActivityAt: dto.last_activity_at,
     expiresAt: dto.expires_at,
     appRedirectUri: dto.app_redirect_uri ?? null,
+    isCurrent: dto.is_current,
   }
 }
 
@@ -174,7 +175,7 @@ export function mapKnownDevice(dto: KnownDeviceDto): KnownDevice {
     deviceType: dto.device_type ?? null,
     createdAt: dto.created_at,
     lastSeenAt: dto.last_seen_at,
-    current: dto.current,
+    isCurrent: dto.is_current,
   }
 }
 
@@ -389,7 +390,7 @@ export async function forgetKnownDevice(deviceId: string, input: StepUpInput): P
  * @throws {HttpError} When the request fails (403 step-up).
  */
 export async function forgetOtherKnownDevices(input: StepUpInput): Promise<void> {
-  await apiFetch('/profile/devices/revoke', {
+  await apiFetch('/profile/devices/delete-others', {
     method: 'POST',
     body: JSON.stringify({ step_up: toStepUpWire(input) } satisfies StepUpRequestDto),
     responseType: 'void',
@@ -405,7 +406,7 @@ export async function forgetOtherKnownDevices(input: StepUpInput): Promise<void>
  * @throws {HttpError} When the request fails (403 step-up).
  */
 export async function forgetAllKnownDevices(input: StepUpInput): Promise<void> {
-  await apiFetch('/profile/devices/delete', {
+  await apiFetch('/profile/devices/delete-all', {
     method: 'POST',
     body: JSON.stringify({ step_up: toStepUpWire(input) } satisfies StepUpRequestDto),
     responseType: 'void',

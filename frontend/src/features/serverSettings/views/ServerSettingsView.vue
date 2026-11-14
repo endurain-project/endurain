@@ -10,6 +10,7 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { useToasts } from '@/composables/useToasts'
 import { consumeIdpStepUpReturn } from '@/features/security/composables/useIdpStepUp'
 import {
+  provideLogsStepUpResume,
   provideMailStepUpResume,
   provideSettingsStepUpResume,
 } from '@/features/serverSettings/composables/useMailStepUpResume'
@@ -27,6 +28,7 @@ const stepUpReturn = consumeIdpStepUpReturn()
 const resume = stepUpReturn && !stepUpReturn.error ? stepUpReturn : null
 provideMailStepUpResume(resume)
 provideSettingsStepUpResume(resume)
+provideLogsStepUpResume(resume)
 onMounted(() => {
   if (stepUpReturn?.error === 'not_fresh') {
     toasts.error(t('settings.security.stepUp.notFresh'))

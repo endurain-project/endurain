@@ -42,7 +42,7 @@ async function submitForm(formValues: ResendValues): Promise<void> {
       throw new Error(wait)
     }
     throw new Error(
-      isProblem(error, 'rate-limited')
+      isProblem(error, 'too-many-requests')
         ? t('verifyEmail.resendTooManyAttempts')
         : t('verifyEmail.resendError'),
     )

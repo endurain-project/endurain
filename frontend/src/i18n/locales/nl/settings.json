@@ -645,7 +645,8 @@
       "stepUpDescription": "Identiteitsproviders bepalen wie op deze server kan inloggen. Bevestig dat jij het bent om door te gaan.",
       "slugConflict": "Die slug is al in gebruik",
       "issuerInUse": "Een andere identiteitsprovider gebruikt deze issuer-URL al",
-      "issuerLocked": "De issuer-URL kan niet worden gewijzigd zolang gebruikers aan deze provider zijn gekoppeld. Ontkoppel hen of voeg in plaats daarvan een nieuwe provider toe.",
+      "locked": "De slug, client-ID, het protocol, de issuer en de endpoints kunnen niet worden gewijzigd zolang gebruikers aan deze provider zijn gekoppeld. Ontkoppel hen of voeg in plaats daarvan een nieuwe provider toe.",
+      "lockedHint": "Vergrendeld zolang gebruikers aan deze provider zijn gekoppeld.",
       "staleError": "Deze provider is elders gewijzigd. Je wijzigingen zijn niet opgeslagen. Sluit hem en open hem opnieuw om de huidige instellingen te laden.",
       "saveError": "Provider kon niet worden opgeslagen. Probeer het opnieuw."
     }

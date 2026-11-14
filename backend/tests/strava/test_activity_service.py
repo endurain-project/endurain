@@ -485,7 +485,7 @@ class TestFetchAndProcessActivitiesIsolation:
 
     def test_a_rate_limit_still_stops_the_window(self, monkeypatch, rate_limits):
         def process(activity, *_args):
-            raise core_exceptions.TooManyRequestsError("slow down")
+            raise core_exceptions.TooManyRequestsError("slow down", scope=core_exceptions.TooManyRequestsScope.PROVIDER)
 
         with pytest.raises(core_exceptions.TooManyRequestsError):
             self._run(monkeypatch, rate_limits, process)

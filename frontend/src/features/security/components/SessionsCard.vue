@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { storeToRefs } from 'pinia'
 import { Monitor, Trash2 } from '@lucide/vue'
 
 import type { SecuritySession } from '@/features/security/types'
@@ -13,7 +12,6 @@ import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 import { Skeleton } from '@/components/ui/skeleton'
 import { useToasts } from '@/composables/useToasts'
 import { formatMediumDateTime } from '@/utils/datetime'
-import { useAuthStore } from '@/features/auth/stores/auth'
 import {
   useRevokeOtherSessionsMutation,
   useRevokeSessionMutation,
@@ -29,7 +27,6 @@ import {
  */
 const { t, locale } = useI18n()
 const toasts = useToasts()
-const { sessionId } = storeToRefs(useAuthStore())
 
 const { data, isPending, isError, refetch } = useSessionsQuery()
 const sessions = computed(() => data.value ?? [])
@@ -44,14 +41,9 @@ const isRevokeOthersOpen = ref(false)
 const signOutEverywhereMutation = useSignOutEverywhereMutation()
 const isSignOutEverywhereOpen = ref(false)
 
-/** Whether a session is the signed-in user's own current session. */
-function isCurrent(session: SecuritySession): boolean {
-  return session.id === sessionId.value
-}
-
 /** The number of sessions that aren't the current one (revocable in bulk). */
 const otherSessionsCount = computed(
-  () => sessions.value.filter((session) => !isCurrent(session)).length,
+  () => sessions.value.filter((session) => !session.isCurrent).length,
 )
 
 /** A device label built from browser + OS, falling back to the device type. */
@@ -156,7 +148,7 @@ function confirmSignOutEverywhere(): void {
           <div class="min-w-0">
             <div class="flex min-w-0 items-center gap-2">
               <p class="text-body">{{ sessionLabel(session) }}</p>
-              <Badge v-if="isCurrent(session)" variant="secondary" class="shrink-0">
+              <Badge v-if="session.isCurrent" variant="secondary" class="shrink-0">
                 {{ t('settings.security.sessions.current') }}
               </Badge>
             </div>
@@ -176,7 +168,7 @@ function confirmSignOutEverywhere(): void {
         <Button
           variant="ghostDestructive"
           size="icon-sm"
-          :disabled="isCurrent(session)"
+          :disabled="session.isCurrent"
           :aria-label="t('settings.security.sessions.revoke')"
           @click="openRevoke(session)"
         >

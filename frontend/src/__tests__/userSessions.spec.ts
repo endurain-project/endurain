@@ -28,6 +28,7 @@ function makeSessionDto(overrides: Partial<UserSessionDto> = {}): UserSessionDto
     created_at: '2026-06-01T10:00:00Z',
     last_activity_at: '2026-06-02T11:00:00Z',
     expires_at: '2026-06-08T10:00:00Z',
+    is_current: false,
     ...overrides,
   }
 }
@@ -50,6 +51,7 @@ describe('user sessions service', () => {
       lastActivityAt: '2026-06-02T11:00:00Z',
       expiresAt: '2026-06-08T10:00:00Z',
       appRedirectUri: null,
+      isCurrent: false,
     })
   })
 

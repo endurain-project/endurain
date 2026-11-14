@@ -41,6 +41,9 @@ import modules.users.users.integration_service as users_integration
 
 logger = core_logger.get_logger(__name__)
 
+#: The method name for a one-time backup code, which answers an MFA challenge beside any enrolled factor.
+BACKUP_CODE_METHOD = "backup_code"
+
 # ---------------------------------------------------------------------------
 # TOTP / QR-code helpers (pure, no DB)
 # ---------------------------------------------------------------------------
@@ -276,6 +279,33 @@ def verify_user_mfa(
 
     # Invalid format or code didn't match
     return False
+
+
+def get_user_factors(user_id: uuid.UUID, db: Session) -> list[mfa_contracts.MFAFactorRead]:
+    """Return every second factor the user has, oldest first.
+
+    Args:
+        user_id: User ID to read.
+        db: Database session.
+
+    Returns:
+        The user's enrolled factors; empty when the user has none.
+    """
+    return auth_mfa_crud.get_user_factors(user_id, db)
+
+
+def get_sign_in_methods(user_id: uuid.UUID, db: Session) -> list[str]:
+    """Return the kinds of code a user can answer an MFA-required sign-in with.
+
+    Args:
+        user_id: User ID to read.
+        db: Database session.
+
+    Returns:
+        One entry per distinct enrolled factor type, then ``backup_code``; empty when the user has no factor.
+    """
+    factor_types = list(dict.fromkeys(factor.type for factor in auth_mfa_crud.get_user_factors(user_id, db)))
+    return [*factor_types, BACKUP_CODE_METHOD] if factor_types else []
 
 
 def is_mfa_enabled_for_user(user_id: uuid.UUID, db: Session) -> bool:

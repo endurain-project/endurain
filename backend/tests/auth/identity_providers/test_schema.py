@@ -295,20 +295,21 @@ class TestIdentityProviderCreate:
         assert idp.client_id == "test-client-id"
         assert idp.client_secret == "test-client-secret"
 
-    def test_client_id_may_be_omitted_on_create(self):
-        """A provider can be created without a client id, so an update never has to send one.
+    def test_client_id_is_required_on_create(self):
+        """A provider cannot be created without a client id.
 
         Asserts:
-            - client_id is None when omitted
+            - ValidationError names client_id when it is omitted
         """
-        idp = IdentityProviderCreate(
-            name="Test Provider",
-            slug="test-provider",
-            provider_type="oauth2",
-            client_secret="test-client-secret",
-        )
+        with pytest.raises(ValidationError) as exc_info:
+            IdentityProviderCreate(
+                name="Test Provider",
+                slug="test-provider",
+                provider_type="oauth2",
+                client_secret="test-client-secret",
+            )
 
-        assert idp.client_id is None
+        assert "client_id" in str(exc_info.value)
 
     def test_client_secret_required(self):
         """Test client_secret is required for IdentityProviderCreate.
@@ -869,3 +870,23 @@ class TestReservedSlugs:
 
         # Assert
         assert idp.slug == "login-sso"
+
+
+class TestIdentityProviderReadHasLinkedUsers:
+    """The admin read says whether users are linked, so a client can lock the fields that then cannot change."""
+
+    def test_defaults_to_false_and_is_a_strict_boolean(self):
+        now = datetime.now(UTC)
+        fields = {
+            "id": IDP_ID,
+            "name": "Test Provider",
+            "slug": "test-provider",
+            "client_id": "cid",
+            "created_at": now,
+            "updated_at": now,
+        }
+
+        assert IdentityProviderRead(**fields).has_linked_users is False
+        assert IdentityProviderRead(**fields, has_linked_users=True).has_linked_users is True
+        with pytest.raises(ValidationError):
+            IdentityProviderRead(**fields, has_linked_users="yes")

@@ -379,9 +379,9 @@ def create_app() -> FastAPI:
     # Answer HEAD and default the caching rule of JSON. Added first, so it is the innermost middleware.
     fastapi_app.add_middleware(core_middleware.GetSemanticsMiddleware)
 
-    # Refuse a state-changing web request without the CSRF header. Added first, so it sits inside CORS and the security
-    # headers and its 403 carries both.
-    fastapi_app.add_middleware(core_middleware.CSRFMiddleware)
+    # Refuse a web request to a cookie route from an origin that is not allowed. Added first, so it sits inside CORS and
+    # the security headers and its 403 carries both.
+    fastapi_app.add_middleware(core_middleware.CookieRouteOriginMiddleware)
 
     # Refuse a NUL character, which a text column cannot store. Added before the body cap, so it sits inside it and
     # reads the body through the cap.

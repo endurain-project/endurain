@@ -645,7 +645,8 @@
       "stepUpDescription": "Les fournisseurs d'identité déterminent qui peut se connecter à ce serveur. Confirmez qu'il s'agit bien de vous pour continuer.",
       "slugConflict": "Cet identifiant est déjà utilisé",
       "issuerInUse": "Un autre fournisseur d'identité utilise déjà cette URL d'émetteur",
-      "issuerLocked": "L'URL de l'émetteur ne peut pas être modifiée tant que des utilisateurs sont associés à ce fournisseur. Dissociez-les ou ajoutez plutôt un nouveau fournisseur.",
+      "locked": "Le slug, l'identifiant client, le protocole, l'émetteur et les points de terminaison ne peuvent pas être modifiés tant que des utilisateurs sont associés à ce fournisseur. Dissociez-les ou ajoutez plutôt un nouveau fournisseur.",
+      "lockedHint": "Verrouillé tant que des utilisateurs sont associés à ce fournisseur.",
       "staleError": "Ce fournisseur a été modifié ailleurs. Vos modifications n'ont pas été enregistrées. Fermez-le et rouvrez-le pour charger les paramètres actuels.",
       "saveError": "Impossible d'enregistrer le fournisseur. Veuillez réessayer."
     }

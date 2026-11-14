@@ -71,7 +71,6 @@ class SessionRead(BaseModel):
     token_family_id: uuid.UUID
     rotation_count: int
     last_rotation_at: datetime | None
-    csrf_token_hash: str | None
     client_type: auth_constants.ClientType
     auth_time: datetime
     amr: list[str]

@@ -5,7 +5,7 @@ import { useI18n } from 'vue-i18n'
 import { LoaderCircle } from '@lucide/vue'
 
 import AppLogo from '@/components/AppLogo.vue'
-import { useQueryCredential } from '@/composables/useRouteQuery'
+import { useUrlCredential } from '@/composables/useRouteQuery'
 import { Alert } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import { ErrorState } from '@/components/ui/error-state'
@@ -29,8 +29,7 @@ const { t } = useI18n()
 const { load } = usePublicServerSettings()
 
 /** Reset token from the emailed link; empty when absent or malformed. */
-const resetCredential = useQueryCredential('token')
-const token = ref(resetCredential.value)
+const token = ref(useUrlCredential('token'))
 
 /** Whether the emailed token is being checked, usable, or refused. */
 const linkStatus = ref<'checking' | 'valid' | 'invalid'>(
@@ -71,7 +70,6 @@ async function submitForm(): Promise<void> {
 
   try {
     await confirmPasswordReset({ token: token.value, password: password.value })
-    resetCredential.clear()
     await router.replace({ name: 'login', query: { passwordResetSuccess: 'true' } })
   } catch (error) {
     // The client only knows the regular-user length policy (the token's
@@ -82,7 +80,6 @@ async function submitForm(): Promise<void> {
     // error.
     let message = t('resetPassword.errorGeneral')
     if (isProblem(error, 'invalid-input')) {
-      resetCredential.clear()
       message = t('resetPassword.errorInvalidToken')
     } else {
       message =
@@ -106,7 +103,6 @@ async function checkLink(): Promise<void> {
     linkStatus.value = 'valid'
   } catch (error) {
     if (isProblem(error, 'invalid-input')) {
-      resetCredential.clear()
       linkStatus.value = 'invalid'
       return
     }

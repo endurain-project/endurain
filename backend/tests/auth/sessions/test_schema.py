@@ -278,7 +278,6 @@ class TestUsersSessionsInternalSchema:
             amr=["pwd"],
             rotation_count=0,
             last_rotation_at=None,
-            csrf_token_hash=None,
         )
 
         # Assert
@@ -288,7 +287,6 @@ class TestUsersSessionsInternalSchema:
         assert session.token_family_id == FAMILY_ID
         assert session.rotation_count == 0
         assert session.last_rotation_at is None
-        assert session.csrf_token_hash is None
 
     def test_internal_schema_allows_optional_refresh_token(self):
         """
@@ -480,7 +478,6 @@ class TestUsersSessionsInternalSchema:
             amr=["pwd"],
             rotation_count=5,
             last_rotation_at=now,
-            csrf_token_hash="csrf-hash",
         )
 
         # Assert
@@ -488,4 +485,3 @@ class TestUsersSessionsInternalSchema:
         assert session.tokens_exchanged is True
         assert session.rotation_count == 5
         assert session.last_rotation_at == now
-        assert session.csrf_token_hash == "csrf-hash"

@@ -42,7 +42,6 @@ vi.mock('@/features/auth/composables/useSsoLogin', () => ({
     processSsoCallback: vi.fn<() => Promise<{ status: string }>>(() =>
       Promise.resolve({ status: 'none' }),
     ),
-    completeSsoMfa: vi.fn<(code: string) => Promise<void>>(),
     maybeAutoRedirect: vi.fn<() => void>(),
   }),
 }))
@@ -182,7 +181,7 @@ describe('LoginView password-change step', () => {
 
   it('returns to the sign-in form with a message when the challenge is refused', async () => {
     auth.changePassword.mockRejectedValue(
-      new HttpError(401, 'Unauthorized', null, 'urn:endurain:error:unauthorized'),
+      new HttpError(401, 'Unauthorized', null, 'urn:endurain:error:session-ended'),
     )
     const wrapper = mountView()
     await toPasswordChangeStep(wrapper)

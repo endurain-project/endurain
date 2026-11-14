@@ -26,21 +26,16 @@ router = APIRouter()
 def read_sessions_user(
     request: Request,
     user_id: core_dependencies.UuidId,
+    token_session_id: auth_dependencies.OptionalSessionId,
     page: core_pagination.ListPage,
     db: core_dependencies.DbSession,
 ) -> sessions_schema.UserSessionsPage:
     """Retrieve one page of the sessions associated with a specific user.
 
-    Args:
-        user_id: The ID of the user whose sessions to retrieve.
-        page: The requested window.
-        db: Database session dependency.
-        request: Incoming request.
-
-    Returns:
-        The page of session objects for the specified user.
+    `is_current` is true only for the caller's own session, so it is false for every item unless the caller lists
+    their own sessions.
     """
-    return sessions_service.list_user_sessions(user_id, page, db)
+    return sessions_service.list_user_sessions(user_id, page, db, token_session_id)
 
 
 @router.post(

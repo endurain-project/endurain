@@ -645,7 +645,8 @@
       "stepUpDescription": "Identitätsanbieter entscheiden, wer sich an diesem Server anmelden kann. Bestätige, dass du es bist, um fortzufahren.",
       "slugConflict": "Dieser Slug wird bereits verwendet",
       "issuerInUse": "Ein anderer Identitätsanbieter verwendet diese Aussteller-URL bereits",
-      "issuerLocked": "Die Aussteller-URL kann nicht geändert werden, solange Benutzer mit diesem Anbieter verknüpft sind. Hebe die Verknüpfungen auf oder füge stattdessen einen neuen Anbieter hinzu.",
+      "locked": "Slug, Client-ID, Protokoll, Aussteller und Endpunkte können nicht geändert werden, solange Benutzer mit diesem Anbieter verknüpft sind. Hebe die Verknüpfungen auf oder füge stattdessen einen neuen Anbieter hinzu.",
+      "lockedHint": "Gesperrt, solange Benutzer mit diesem Anbieter verknüpft sind.",
       "staleError": "Dieser Anbieter wurde anderswo geändert. Deine Änderungen wurden nicht gespeichert. Schließe ihn und öffne ihn erneut, um die aktuellen Einstellungen zu laden.",
       "saveError": "Anbieter konnte nicht gespeichert werden. Bitte versuche es erneut."
     }

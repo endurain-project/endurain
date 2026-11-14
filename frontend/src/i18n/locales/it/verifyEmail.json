@@ -38,5 +38,8 @@
   "notRestoredBody": "La modifica è stata segnalata, il tuo account è stato disconnesso ovunque e le sue chiavi API sono state revocate. Un altro account usa ora il tuo indirizzo precedente, quindi il tuo account mantiene quello nuovo. Contatta l'amministratore di Endurain e cambia la tua password.",
   "cancelInvalidTitle": "Questo link non funziona più",
   "cancelInvalidBody": "Il link non è valido, è scaduto o è già stato usato, oppure l'indirizzo email è stato cambiato di nuovo dopo l'invio. Se pensi ancora che qualcun altro abbia accesso, accedi e cambia la tua password.",
-  "cancelError": "Impossibile annullare la modifica. Riprova."
+  "cancelError": "Impossibile annullare la modifica. Riprova.",
+  "confirmChangeTitle": "Conferma il tuo nuovo indirizzo email",
+  "confirmChangeBody": "Premi il pulsante per confermare di aver chiesto di cambiare l'indirizzo email del tuo account. Verrai disconnesso ovunque.",
+  "confirmChangeButton": "Conferma la modifica dell'email"
 }

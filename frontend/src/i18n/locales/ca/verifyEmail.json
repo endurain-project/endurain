@@ -38,5 +38,8 @@
   "notRestoredBody": "S'ha informat del canvi, s'ha tancat la sessió del teu compte a tot arreu i se n'han revocat les claus d'API. Un altre compte utilitza ara la teva adreça anterior, així que el teu compte conserva la nova. Contacta amb l'administrador d'Endurain i canvia la contrasenya.",
   "cancelInvalidTitle": "Aquest enllaç ja no funciona",
   "cancelInvalidBody": "L'enllaç no és vàlid, ha caducat o ja s'ha utilitzat, o l'adreça electrònica s'ha tornat a canviar després d'enviar-lo. Si encara creus que una altra persona hi té accés, inicia sessió i canvia la contrasenya.",
-  "cancelError": "No hem pogut cancel·lar el canvi. Torna-ho a intentar."
+  "cancelError": "No hem pogut cancel·lar el canvi. Torna-ho a intentar.",
+  "confirmChangeTitle": "Confirma la nova adreça electrònica",
+  "confirmChangeBody": "Prem el botó per confirmar que has demanat canviar l'adreça electrònica del teu compte. Es tancarà la sessió a tot arreu.",
+  "confirmChangeButton": "Confirma el canvi d'adreça"
 }

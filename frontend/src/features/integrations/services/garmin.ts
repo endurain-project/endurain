@@ -8,7 +8,10 @@ import type {
   GarminMfaDto,
 } from '@/features/integrations/types'
 
+import type { StepUpInput, StepUpRequestDto } from '@/features/security/types'
+
 import { apiFetch } from '@/services/http'
+import { toStepUpWire } from '@/features/security/services/security'
 
 /**
  * Starts linking a Garmin Connect account. The login runs in the background, so this
@@ -87,10 +90,15 @@ export async function retrieveGarminHealth(range: DateRange): Promise<GarminSync
 }
 
 /**
- * Disconnects the user's Garmin Connect account.
+ * Disconnects the user's Garmin Connect account (step-up gated).
  *
- * @throws {HttpError} When the request fails.
+ * @param stepUp - The step-up credentials.
+ * @throws {HttpError} When the request fails (403 step-up).
  */
-export async function unlinkGarmin(): Promise<void> {
-  await apiFetch('/garmin/link', { method: 'DELETE', responseType: 'void' })
+export async function unlinkGarmin(stepUp: StepUpInput): Promise<void> {
+  await apiFetch('/garmin/unlink', {
+    method: 'POST',
+    body: JSON.stringify({ step_up: toStepUpWire(stepUp) } satisfies StepUpRequestDto),
+    responseType: 'void',
+  })
 }

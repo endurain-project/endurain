@@ -175,7 +175,7 @@ _ACCEPTING_ROUTES = [
         id="strava-gear",
     ),
     pytest.param(
-        ("DELETE", "/strava/link", {}),
+        ("POST", "/strava/unlink", {"json": {"step_up": {"current_password": "pw"}}}),
         (strava_router.strava_sync_service, "request_unlink"),
         strava_schema.StravaSyncStatus.model_validate(_envelope("strava_unlink")),
         _JOB_STATUS,

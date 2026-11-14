@@ -173,6 +173,8 @@ class SignUpResend(BaseModel):
 class SignUpNextStep(StrEnum):
     """What a client does after a sign-up request, a resend or a confirmation.
 
+    The set is open: a client treats a value it does not know as an unsupported step.
+
     Attributes:
         SIGN_IN: The account is ready; the user signs in.
         CHECK_EMAIL: A verification email was sent; the user opens its link.
@@ -194,7 +196,8 @@ class SignUpRead(BaseModel):
     next_step: SignUpNextStep = Field(
         ...,
         description="What the client does next: sign in, check the email for a verification link, or wait for an "
-        "administrator's approval",
+        "administrator's approval. The set is open: a client treats a value it does not know as an unsupported step, "
+        "shows a generic error and does not guess",
     )
 
     model_config = ConfigDict(extra="forbid")

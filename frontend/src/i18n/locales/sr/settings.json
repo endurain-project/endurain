@@ -645,7 +645,8 @@
       "stepUpDescription": "Provajderi identiteta određuju ko može da se prijavi na ovaj server. Potvrdite da ste to vi da biste nastavili.",
       "slugConflict": "Taj slug je već u upotrebi",
       "issuerInUse": "Drugi provajder identiteta već koristi ovaj URL izdavaoca",
-      "issuerLocked": "URL izdavaoca ne može da se promeni dok su korisnici povezani sa ovim provajderom. Prekinite njihovu vezu ili umesto toga dodajte novog provajdera.",
+      "locked": "Slug, ID klijenta, protokol, izdavalac i krajnje tačke ne mogu da se promene dok su korisnici povezani sa ovim provajderom. Prekinite njihovu vezu ili umesto toga dodajte novog provajdera.",
+      "lockedHint": "Zaključano dok su korisnici povezani sa ovim provajderom.",
       "staleError": "Ovaj provajder je promenjen na drugom mestu. Vaše izmene nisu sačuvane. Zatvorite ga i ponovo otvorite da učitate trenutna podešavanja.",
       "saveError": "Nije moguće sačuvati provajdera. Pokušajte ponovo."
     }

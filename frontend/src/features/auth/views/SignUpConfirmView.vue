@@ -5,7 +5,7 @@ import { useI18n } from 'vue-i18n'
 import { LoaderCircle } from '@lucide/vue'
 
 import AppLogo from '@/components/AppLogo.vue'
-import { useQueryCredential } from '@/composables/useRouteQuery'
+import { useUrlCredential } from '@/composables/useRouteQuery'
 import { Alert } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import { ErrorState } from '@/components/ui/error-state'
@@ -37,8 +37,7 @@ interface ChoosePasswordValues {
 const { t } = useI18n()
 
 /** Verification token from the emailed link; empty when absent or malformed. */
-const verifyCredential = useQueryCredential('token')
-const token = ref(verifyCredential.value)
+const token = ref(useUrlCredential('token'))
 
 // Without a token (the "didn't get the email" entry) the page offers a new email instead of the form.
 const status = ref<Status>(token.value.length > 0 ? 'password' : 'resend')
@@ -61,7 +60,6 @@ async function submitPassword(formValues: ChoosePasswordValues): Promise<void> {
   try {
     const response = await confirmSignUp({ token: token.value, password: formValues.password })
     adminApprovalRequired.value = response.next_step === 'await_approval'
-    verifyCredential.clear()
     status.value = 'success'
   } catch (error) {
     const refusal = policyError(error)
@@ -77,17 +75,14 @@ async function submitPassword(formValues: ChoosePasswordValues): Promise<void> {
       return
     }
     if (error instanceof HttpError && error.type === EMAIL_VERIFICATION_DISABLED_TYPE) {
-      verifyCredential.clear()
       showError(t('verifyEmail.errorVerificationDisabled'))
       return
     }
     if (isProblem(error, 'not-found')) {
-      verifyCredential.clear()
       showError(t('verifyEmail.errorNotFound'))
       return
     }
     if (isProblem(error, 'invalid-input')) {
-      verifyCredential.clear()
       showError(t('verifyEmail.errorInvalidToken'))
       return
     }

@@ -34,7 +34,6 @@ vi.mock('@/services/runtime', () => ({
 
 vi.mock('@/services/authTokens', () => ({
   getAccessToken: vi.fn<() => string | null>(() => 'access-token'),
-  getCsrfToken: vi.fn<() => string | null>(() => 'csrf-token'),
   setAuthTokens: vi.fn<() => void>(),
   clearAuthTokens: vi.fn<() => void>(),
 }))
@@ -424,8 +423,8 @@ describe('uploadErrorMessage', () => {
     [problem(415, 'unsupported-format'), 'home.upload.failed.unsupported_format'],
     [problem(415, 'unsupported-media-type'), 'home.upload.failed.unsupported_format'],
     [problem(400, 'invalid-input'), 'home.upload.failed.invalid_file'],
-    [problem(429, 'rate-limited', 12), 'app.retryAfter.tooManyAttempts:12'],
-    [problem(429, 'rate-limited'), 'home.upload.error'],
+    [problem(429, 'too-many-requests', 12), 'app.retryAfter.tooManyAttempts:12'],
+    [problem(429, 'too-many-requests'), 'home.upload.error'],
     [problem(500, 'internal-error'), 'home.upload.error'],
     [problem(503, 'service-unavailable', 30), 'home.upload.error'],
     [new Error('x'), 'home.upload.error'],

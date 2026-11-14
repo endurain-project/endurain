@@ -75,6 +75,7 @@ const provider: IdentityProvider = {
   authorizationEndpoint: null,
   tokenEndpoint: null,
   userinfoEndpoint: null,
+  hasLinkedUsers: false,
 }
 
 function storeReturn(action: string, pending: Record<string, unknown>): void {

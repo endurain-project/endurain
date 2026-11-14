@@ -18,6 +18,9 @@ from sqlalchemy.orm import Session
 import core.database as core_database
 import core.exceptions as core_exceptions
 import core.logger as core_logger
+import modules.auth.identity_providers.constants as identity_providers_constants
+import modules.auth.identity_providers.contracts as identity_providers_contracts
+import modules.auth.schema as auth_schema
 import modules.garmin.audit_actions as garmin_audit_actions
 import modules.garmin.rate_limit_store as garmin_rate_limit_store
 import modules.garmin.token_utils as garmin_token_utils
@@ -28,13 +31,26 @@ import modules.users.users_integrations.schema as user_integrations_schema
 logger = core_logger.get_logger(__name__)
 
 
-def unlink_account(user_id: uuid.UUID, db: Session) -> None:
-    """Unlink a user's Garmin Connect account.
+def unlink_account(
+    user_id: uuid.UUID,
+    step_up: auth_schema.StepUpVerification,
+    verify_step_up: identity_providers_contracts.StepUpVerifier,
+    db: Session,
+) -> None:
+    """Unlink a user's Garmin Connect account after the user's step-up.
+
+    The step-up is verified before anything is changed, and committed with the unlink.
 
     Args:
         user_id: The user unlinking Garmin Connect.
+        step_up: The user's step-up verification.
+        verify_step_up: Verifies the step-up for the calling user.
         db: Database session.
+
+    Raises:
+        StepUpFailedError: If the step-up does not verify.
     """
+    verify_step_up(step_up, identity_providers_constants.StepUpAction.GARMIN_UNLINK)
     user_integrations_integration.unlink_garminconnect_account(user_id, db)
     jasil_audit.stage(
         db,
@@ -211,6 +227,7 @@ def rate_limit_error(
     logger.warning("Garmin Connect rate limit hit", exc_info=err, extra=core_logger.context(user_id=user_id))
     return core_exceptions.TooManyRequestsError(
         "Garmin Connect rate limit exceeded. Please try again later.",
+        scope=core_exceptions.TooManyRequestsScope.PROVIDER,
         retry_at=rate_limits.mark_rate_limited(user_id),
     )
 
@@ -231,7 +248,9 @@ def raise_if_rate_limited(user_id: uuid.UUID, rate_limits: garmin_rate_limit_sto
             "Garmin Connect rate limit active, skipping the call", extra=core_logger.context(user_id=user_id)
         )
         raise core_exceptions.TooManyRequestsError(
-            "Garmin Connect rate limit exceeded. Please try again later.", retry_at=retry_at
+            "Garmin Connect rate limit exceeded. Please try again later.",
+            scope=core_exceptions.TooManyRequestsScope.PROVIDER,
+            retry_at=retry_at,
         )
 
 

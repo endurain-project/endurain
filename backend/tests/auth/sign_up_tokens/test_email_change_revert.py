@@ -63,7 +63,7 @@ def _user(db, user_id=MOCK_USER_ID):
 
 
 def _extract(html_body: str) -> str:
-    return html_body.split("cancel-email-change?token=")[1].split('"')[0].split("<")[0].split("&")[0]
+    return html_body.split("cancel-email-change#token=")[1].split('"')[0].split("<")[0].split("&")[0]
 
 
 def _request(db, new=_NEW, previous=_OLD) -> str:
@@ -80,7 +80,7 @@ def _confirm(db, event="event-1") -> uuid.UUID:
     """Deliver the confirmation mail and open its link; return the id of the notice's token."""
     message = sign_up_service.prepare_email_change_verification_email(MOCK_USER_ID, event, _HOST, db)
     assert message is not None
-    raw = message[2].split("?token=")[1].split('"')[0].split("<")[0].split("&")[0]
+    raw = message[2].split("#token=")[1].split('"')[0].split("<")[0].split("&")[0]
     with patch(_PUBLISH) as publish:
         sign_up_service.confirm_email_change(raw, db)
     return uuid.UUID(publish.call_args.args[1]["token_id"])
@@ -146,7 +146,7 @@ class TestTheLinkSurvivesConfirmation:
         recipient, _subject, html_body, text_body = message
         assert recipient == _OLD
         assert _extract(html_body) == link
-        assert f"{_HOST}/cancel-email-change?token={link}" in text_body
+        assert f"{_HOST}/cancel-email-change#token={link}" in text_body
 
     def test_works_six_days_after_the_request_and_not_after_seven(self, db):
         link = _request(db)
@@ -605,7 +605,7 @@ class TestChangesTheOwnerDidNotRequest:
         db.commit()
         message = sign_up_service.prepare_email_change_verification_email(MOCK_USER_ID, "event-1", _HOST, db)
         assert message is not None
-        raw = message[2].split("?token=")[1].split('"')[0].split("<")[0].split("&")[0]
+        raw = message[2].split("#token=")[1].split('"')[0].split("<")[0].split("&")[0]
         with patch(_PUBLISH) as publish:
             sign_up_service.confirm_email_change(raw, db)
 

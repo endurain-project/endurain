@@ -224,7 +224,7 @@ class TestRetriedResetEvent:
             password_reset_service.prepare_password_reset_email(
                 payload, event_id, "https://example.test", MemoryState(), db
             )
-        return build_email.call_args.args[1].split("token=")[1]
+        return build_email.call_args.args[1].split("#token=")[1]
 
     def _claim(self, factory, token: str) -> int | None:
         with factory() as db:
@@ -254,8 +254,9 @@ class TestRetriedResetEvent:
         assert result == ("test@example.test", "subject", "html", "text")
         name, link, host, locale = build_email.call_args.args
         assert name == "Ana"
-        assert link.startswith("https://example.test/reset-password?token=")
-        assert self._claim(factory, link.split("token=")[1]) == MOCK_USER_ID
+        assert link.startswith("https://example.test/reset-password#token=")
+        assert "?" not in link
+        assert self._claim(factory, link.split("#token=")[1]) == MOCK_USER_ID
         assert host == "https://example.test"
         assert locale == core_i18n.normalize_locale("pt")
 

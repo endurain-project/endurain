@@ -645,7 +645,8 @@
       "stepUpDescription": "Dostawcy tożsamości decydują o tym, kto może się zalogować na tym serwerze. Potwierdź, że to Ty, aby kontynuować.",
       "slugConflict": "Ten slug jest już używany",
       "issuerInUse": "Inny dostawca tożsamości już używa tego adresu URL wystawcy",
-      "issuerLocked": "Adresu URL wystawcy nie można zmienić, dopóki użytkownicy są powiązani z tym dostawcą. Odłącz ich lub dodaj nowego dostawcę.",
+      "locked": "Sluga (slug), identyfikatora klienta, protokołu, wystawcy i punktów końcowych nie można zmienić, dopóki użytkownicy są powiązani z tym dostawcą. Odłącz ich lub dodaj nowego dostawcę.",
+      "lockedHint": "Zablokowane, dopóki użytkownicy są powiązani z tym dostawcą.",
       "staleError": "Ten dostawca został zmieniony gdzie indziej. Twoje zmiany nie zostały zapisane. Zamknij go i otwórz ponownie, aby wczytać aktualne ustawienia.",
       "saveError": "Nie udało się zapisać dostawcy. Spróbuj ponownie."
     }

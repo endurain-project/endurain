@@ -38,5 +38,8 @@
   "notRestoredBody": "Změna byla nahlášena, váš účet byl odhlášen všude a jeho API klíče byly zrušeny. Vaši předchozí adresu nyní používá jiný účet, takže váš účet si ponechává novou. Kontaktujte svého správce Endurain a změňte si heslo.",
   "cancelInvalidTitle": "Tento odkaz už nefunguje",
   "cancelInvalidBody": "Odkaz je neplatný, vypršel nebo už byl použit, nebo byla e-mailová adresa po jeho odeslání znovu změněna. Pokud stále věříte, že má přístup někdo jiný, přihlaste se a změňte si heslo.",
-  "cancelError": "Změnu se nepodařilo zrušit. Zkuste to prosím znovu."
+  "cancelError": "Změnu se nepodařilo zrušit. Zkuste to prosím znovu.",
+  "confirmChangeTitle": "Potvrďte novou e-mailovou adresu",
+  "confirmChangeBody": "Stisknutím tlačítka potvrdíte, že jste požádali o změnu e-mailové adresy svého účtu. Budete odhlášeni všude.",
+  "confirmChangeButton": "Potvrdit změnu e-mailu"
 }

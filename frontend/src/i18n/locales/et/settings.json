@@ -645,7 +645,8 @@
       "stepUpDescription": "Identiteedipakkujad otsustavad, kes saab sellesse serverisse sisse logida. Jätkamiseks kinnita, et see oled sina.",
       "slugConflict": "See identifikaator on juba kasutusel",
       "issuerInUse": "Teine identiteedipakkuja kasutab seda väljaandja URL-i juba",
-      "issuerLocked": "Väljaandja URL-i ei saa muuta, kuni selle pakkujaga on kasutajaid seotud. Eemalda nende sidumine või lisa selle asemel uus pakkuja.",
+      "locked": "Sluggi, kliendi ID-d, protokolli, väljaandjat ja lõpp-punkte ei saa muuta, kuni selle pakkujaga on kasutajaid seotud. Eemalda nende sidumine või lisa selle asemel uus pakkuja.",
+      "lockedHint": "Lukustatud, kuni selle pakkujaga on kasutajaid seotud.",
       "staleError": "See pakkuja muutus mujal. Sinu muudatusi ei salvestatud. Praeguste seadete laadimiseks sulge see ja ava uuesti.",
       "saveError": "Pakkujat ei õnnestunud salvestada. Palun proovi uuesti."
     }

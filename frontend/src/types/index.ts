@@ -24,6 +24,14 @@ export type Schemas = components['schemas']
 export type AuthTokenResponse = Schemas['TokenWebRead']
 
 /**
+ * Web answer of the SSO token exchange: the tokens, or for an account with MFA the MFA step that
+ * `POST /auth/mfa/verify` finishes. Derived from the backend's generated schemas.
+ *
+ * Lives in shared types because the shared `@/services/identityProviders` service produces it.
+ */
+export type SsoExchangeResponse = Schemas['MFARequiredRead'] | Schemas['TokenWebRead']
+
+/**
  * Public identity-provider summary returned for login screens. Derived from
  * the backend's generated `IdentityProviderPublicRead` schema.
  *

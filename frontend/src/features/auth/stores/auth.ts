@@ -12,6 +12,7 @@ import { clearUserScopedStorage } from '@/lib/storage'
 import { queryClient } from '@/plugins/vueQuery'
 import { clearAuthTokens, setAuthTokens } from '@/services/authTokens'
 import { HttpError } from '@/services/http'
+import { exchangeSessionForTokens } from '@/services/identityProviders'
 import { queryKeys } from '@/services/queryKeys'
 import { fetchCurrentUser } from '@/features/auth/services/profile'
 import {
@@ -47,7 +48,7 @@ export interface UnsupportedStepResult {
 export type LoginResult =
   AuthCompletedResult | MfaRequiredResult | PasswordChangeRequiredResult | UnsupportedStepResult
 
-type LoginMethod = 'password' | 'mfa' | 'password_change'
+type LoginMethod = 'password' | 'mfa' | 'password_change' | 'sso'
 
 /**
  * Checks whether the server refused the session itself (HTTP 401 or 403), as opposed to a
@@ -120,7 +121,7 @@ export const useAuthStore = defineStore('auth', () => {
    * @returns Authenticated result containing the current user.
    */
   async function completeTokenLogin(response: AuthTokenResponse): Promise<AuthCompletedResult> {
-    setAuthTokens(response.access_token, response.csrf_token)
+    setAuthTokens(response.access_token)
     sessionId.value = response.session_id
     let nextUser: User
     try {
@@ -148,7 +149,7 @@ export const useAuthStore = defineStore('auth', () => {
    * unknown step (a newer server) ends the attempt without touching the
    * session, so a later step can be added without breaking this client.
    *
-   * @param response - Answer of the login, MFA or password-change request.
+   * @param response - Answer of the login, MFA, password-change or SSO token-exchange request.
    * @param method - The step that produced the answer, for telemetry.
    * @returns Authenticated result, or the next step to show.
    */
@@ -162,8 +163,8 @@ export const useAuthStore = defineStore('auth', () => {
           challenge: response.password_change_challenge,
         }
       case 'tokens': {
-        // The web client sends `X-Client-Type: web`, so the tokens carry a CSRF token.
-        if (!('csrf_token' in response)) {
+        // The web client sends `X-Client-Type: web`, so the refresh token is in a cookie, not the body.
+        if ('refresh_token' in response) {
           return { status: 'unsupported-step' }
         }
         const result = await completeTokenLogin(response)
@@ -190,18 +191,32 @@ export const useAuthStore = defineStore('auth', () => {
   /**
    * Completes a pending MFA login.
    *
-   * @param challenge - The challenge the password step returned.
+   * @param challenge - The challenge the password step or the SSO token exchange returned.
    * @param mfaCode - TOTP or backup code.
    * @returns Authenticated result, or the password-change step when the account needs one.
-   * @throws {HttpError} 400 when the MFA code is wrong and the challenge is still live; 401 when the challenge is
-   * unknown, expired, ended after three wrong codes, or presented from another network or client type, so the
-   * sign-in starts again.
+   * @throws {HttpError} 400 when the MFA code is wrong and the challenge is still live; 401
+   * (`session-ended`) when the challenge is unknown, expired, ended after three wrong codes, presented
+   * from another network or client type, or its SSO session expired or was used, so the sign-in
+   * starts again.
    */
   async function verifyMfa(challenge: string, mfaCode: string): Promise<LoginResult> {
     return continueLogin(
       await verifyMfaLogin({ mfa_challenge: challenge, mfa_code: mfaCode }),
       'mfa',
     )
+  }
+
+  /**
+   * Continues an identity-provider sign-in by exchanging its session with the PKCE verifier stored
+   * before the provider redirect.
+   *
+   * @param sessionId - Session the provider callback created.
+   * @param codeVerifier - The stored PKCE verifier.
+   * @returns Authenticated result, or the MFA step when the account has MFA enabled.
+   * @throws {HttpError} When the exchange is refused.
+   */
+  async function exchangeSsoSession(sessionId: string, codeVerifier: string): Promise<LoginResult> {
+    return continueLogin(await exchangeSessionForTokens(sessionId, codeVerifier), 'sso')
   }
 
   /**
@@ -339,6 +354,7 @@ export const useAuthStore = defineStore('auth', () => {
     completeTokenLogin,
     login,
     verifyMfa,
+    exchangeSsoSession,
     changePassword,
     restoreSession,
     handleSessionExpired,

@@ -417,7 +417,9 @@ def _ensure_cooldown_over(requester_user_id: uuid.UUID, target_user_id: uuid.UUI
             extra=core_logger.context(requester_user_id=requester_user_id, target_user_id=target_user_id),
         )
         raise core_exceptions.TooManyRequestsError(
-            "This user declined an earlier follow request; try again later", retry_at=retry_at
+            "This user declined an earlier follow request; try again later",
+            scope=core_exceptions.TooManyRequestsScope.FOLLOW_REQUEST,
+            retry_at=retry_at,
         )
 
 

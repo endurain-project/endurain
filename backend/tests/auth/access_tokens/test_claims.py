@@ -99,19 +99,19 @@ class TestClientId:
     @pytest.mark.parametrize("token_type", [_ACCESS, _REFRESH])
     @pytest.mark.parametrize("client_type", list(ClientType))
     def test_the_token_names_the_client_it_was_issued_for(self, manager, user, token_type, client_type):
-        assert _claims(manager, user, token_type, client_type)["client_id"] == client_type.value
+        assert _claims(manager, user, token_type, client_type)["client_type"] == client_type.value
 
     @pytest.mark.parametrize("token_type", [_ACCESS, _REFRESH])
     def test_a_token_without_a_client_is_refused(self, manager, user, token_type):
         claims = _claims(manager, user, token_type)
-        del claims["client_id"]
+        del claims["client_type"]
 
         with pytest.raises(core_exceptions.InvalidTokenError, match="missing required claims"):
             manager.validate_token_expiration(_sign(claims, token_type), token_type)
 
     @pytest.mark.parametrize("token_type", [_ACCESS, _REFRESH])
     def test_a_token_for_an_unknown_client_is_refused(self, manager, user, token_type):
-        claims = _claims(manager, user, token_type) | {"client_id": "desktop"}
+        claims = _claims(manager, user, token_type) | {"client_type": "desktop"}
 
         with pytest.raises(core_exceptions.InvalidTokenError, match="invalid claims"):
             manager.validate_token_expiration(_sign(claims, token_type), token_type)

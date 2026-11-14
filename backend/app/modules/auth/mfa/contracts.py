@@ -1,6 +1,7 @@
 """Data transfer shapes for MFA persistence and integration operations."""
 
 import uuid
+from datetime import datetime
 from typing import Protocol
 
 from pydantic import BaseModel, ConfigDict
@@ -39,3 +40,5 @@ class MFAFactorRead(BaseModel):
     user_id: uuid.UUID
     type: str
     credential: str
+    created_at: datetime
+    last_used_at: datetime | None

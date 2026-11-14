@@ -38,5 +38,8 @@
   "notRestoredBody": "Schimbarea a fost raportată, contul tău a fost deconectat peste tot și cheile API ale lui au fost revocate. Un alt cont folosește acum adresa ta anterioară, așa că al tău o păstrează pe cea nouă. Contactează administratorul Endurain și schimbă-ți parola.",
   "cancelInvalidTitle": "Acest link nu mai funcționează",
   "cancelInvalidBody": "Linkul este invalid, expirat sau deja folosit, sau adresa de e-mail a fost schimbată din nou după trimiterea lui. Dacă încă crezi că altcineva are acces, autentifică-te și schimbă-ți parola.",
-  "cancelError": "Nu am putut anula schimbarea. Încearcă din nou."
+  "cancelError": "Nu am putut anula schimbarea. Încearcă din nou.",
+  "confirmChangeTitle": "Confirmă noua adresă de email",
+  "confirmChangeBody": "Apasă butonul pentru a confirma că ai cerut schimbarea adresei de email a contului tău. Vei fi deconectat peste tot.",
+  "confirmChangeButton": "Confirmă schimbarea adresei de email"
 }

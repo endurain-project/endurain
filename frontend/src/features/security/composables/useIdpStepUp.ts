@@ -76,11 +76,11 @@ export function isStepUpFailed(error: unknown): boolean {
  * step-up, for the session or for the whole account.
  *
  * @param error - The error a sensitive request failed with.
- * @returns `true` for a step-up lockout (`too-many-requests`) or the route's rate limit (`rate-limited`):
+ * @returns `true` for a step-up lockout or the route's rate limit (both `too-many-requests`):
  *   either way the user has to stop trying for a while.
  */
 export function isStepUpLocked(error: unknown): boolean {
-  return isProblem(error, 'too-many-requests', 'rate-limited')
+  return isProblem(error, 'too-many-requests')
 }
 
 /** Reads and removes the stored entry; `null` when absent, malformed or older than the TTL. */

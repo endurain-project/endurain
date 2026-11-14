@@ -7,21 +7,25 @@ import { HttpError } from '@/services/http'
 import { normalizeMfaCode } from '@/features/auth/utils/mfaCode'
 import LoginView from '@/features/auth/views/LoginView.vue'
 
-const { auth, sso } = vi.hoisted(() => ({
+const { auth, sso, settings } = vi.hoisted(() => ({
   auth: {
     login: vi.fn<(u: string, p: string) => Promise<unknown>>(),
     verifyMfa: vi.fn<(challenge: string, code: string) => Promise<unknown>>(),
   },
   sso: {
-    processSsoCallback: vi.fn<() => Promise<{ status: string }>>(),
-    completeSsoMfa: vi.fn<(code: string) => Promise<void>>(),
+    processSsoCallback: vi.fn<() => Promise<unknown>>(),
   },
+  settings: { local: true, sso: false },
 }))
 
 vi.mock('@/features/config/composables/usePublicServerSettings', () => ({
   usePublicServerSettings: () => ({
-    serverSettings: ref({ local_login_enabled: true, signup_enabled: false, sso_enabled: false }),
-    ssoProviders: ref([]),
+    serverSettings: ref({
+      local_login_enabled: settings.local,
+      signup_enabled: false,
+      sso_enabled: settings.sso,
+    }),
+    ssoProviders: ref(settings.sso ? [{ slug: 'acme', name: 'Acme', icon: null }] : []),
     isSettingsLoading: ref(false),
     isSsoLoading: ref(false),
     loginImageUrl: ref(''),
@@ -37,7 +41,6 @@ vi.mock('@/features/auth/composables/useSsoLogin', () => ({
   useSsoLogin: () => ({
     startSsoLogin: vi.fn<() => Promise<void>>(),
     processSsoCallback: sso.processSsoCallback,
-    completeSsoMfa: sso.completeSsoMfa,
     maybeAutoRedirect: vi.fn<() => void>(),
   }),
 }))
@@ -81,6 +84,14 @@ async function toMfaStep(wrapper: Wrapper): Promise<void> {
   await flushPromises()
 }
 
+/** The SSO callback of an account with MFA, which continues at the MFA step. */
+const SSO_MFA_STEP = {
+  status: 'next-step',
+  result: { status: 'mfa-required', challenge: 'sso-chal' },
+}
+
+const SESSION_ENDED = new HttpError(401, 'Unauthorized', null, 'urn:endurain:error:session-ended')
+
 async function submitCode(wrapper: Wrapper, code: string): Promise<void> {
   await wrapper.find('input[name="mfaCode"]').setValue(code)
   await wrapper.find('form').trigger('submit')
@@ -103,6 +114,8 @@ describe('normalizeMfaCode', () => {
 describe('LoginView MFA step', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    settings.local = true
+    settings.sso = false
     auth.verifyMfa.mockResolvedValue({ status: 'authenticated' })
     sso.processSsoCallback.mockResolvedValue({ status: 'none' })
   })
@@ -116,14 +129,15 @@ describe('LoginView MFA step', () => {
     expect(auth.verifyMfa).toHaveBeenCalledWith('chal', 'A3K9-7BDF')
   })
 
-  it('sends a backup code typed after an SSO callback in the same format', async () => {
-    sso.processSsoCallback.mockResolvedValue({ status: 'mfa-required' })
+  it('verifies the code of an SSO sign-in with the challenge the exchange returned', async () => {
+    sso.processSsoCallback.mockResolvedValue(SSO_MFA_STEP)
     const wrapper = mountView()
     await flushPromises()
 
+    expect(wrapper.text()).toContain(i18n.global.t('login.mfaRequired'))
     await submitCode(wrapper, 'a3k97bdf')
 
-    expect(sso.completeSsoMfa).toHaveBeenCalledWith('A3K9-7BDF')
+    expect(auth.verifyMfa).toHaveBeenCalledWith('sso-chal', 'A3K9-7BDF')
   })
 
   it('reports a validation failure from the MFA step as a generic error', async () => {
@@ -152,10 +166,8 @@ describe('LoginView MFA step', () => {
     expect(wrapper.find('input[name="mfaCode"]').exists()).toBe(true)
   })
 
-  it('returns to the sign-in form with an expiry message on a 401', async () => {
-    auth.verifyMfa.mockRejectedValue(
-      new HttpError(401, 'Unauthorized', null, 'urn:endurain:error:unauthorized'),
-    )
+  it('returns to the sign-in form with an expiry message when the sign-in has ended', async () => {
+    auth.verifyMfa.mockRejectedValue(SESSION_ENDED)
     const wrapper = mountView()
     await toMfaStep(wrapper)
 
@@ -168,8 +180,8 @@ describe('LoginView MFA step', () => {
   })
 
   it('keeps a wrong code on the SSO MFA step an invalid code', async () => {
-    sso.processSsoCallback.mockResolvedValue({ status: 'mfa-required' })
-    sso.completeSsoMfa.mockRejectedValue(
+    sso.processSsoCallback.mockResolvedValue(SSO_MFA_STEP)
+    auth.verifyMfa.mockRejectedValue(
       new HttpError(400, 'Bad Request', null, 'urn:endurain:error:invalid-mfa-code'),
     )
     const wrapper = mountView()
@@ -179,6 +191,36 @@ describe('LoginView MFA step', () => {
 
     expect(wrapper.text()).toContain(i18n.global.t('login.invalidMfa'))
     expect(wrapper.text()).not.toContain(i18n.global.t('login.mfaChallengeExpired'))
+    expect(wrapper.find('input[name="mfaCode"]').exists()).toBe(true)
+  })
+
+  it('returns an ended SSO MFA step to the provider buttons', async () => {
+    settings.local = false
+    settings.sso = true
+    sso.processSsoCallback.mockResolvedValue(SSO_MFA_STEP)
+    auth.verifyMfa.mockRejectedValue(SESSION_ENDED)
+    const wrapper = mountView()
+    await flushPromises()
+    expect(wrapper.find('input[name="mfaCode"]').exists()).toBe(true)
+    expect(wrapper.text()).not.toContain(i18n.global.t('login.ssoButton', { provider: 'Acme' }))
+
+    await submitCode(wrapper, '123456')
+
+    expect(wrapper.text()).toContain(i18n.global.t('login.mfaChallengeExpired'))
+    expect(wrapper.find('input[name="mfaCode"]').exists()).toBe(false)
+    expect(wrapper.text()).toContain(i18n.global.t('login.ssoButton', { provider: 'Acme' }))
+  })
+
+  it('stops an SSO sign-in at a step this client does not know', async () => {
+    sso.processSsoCallback.mockResolvedValue({
+      status: 'next-step',
+      result: { status: 'unsupported-step' },
+    })
+    const wrapper = mountView()
+    await flushPromises()
+
+    expect(wrapper.text()).toContain(i18n.global.t('login.unsupportedStep'))
+    expect(wrapper.find('input[name="mfaCode"]').exists()).toBe(false)
   })
 })
 
@@ -214,7 +256,6 @@ describe('LoginView password step errors', () => {
   })
 
   it.each([
-    [429, 'rate-limited', 'app.retryAfter.tooManyAttempts'],
     [429, 'too-many-requests', 'app.retryAfter.tooManyAttempts'],
     [503, 'service-unavailable', 'app.retryAfter.unavailable'],
   ])('tells the user how long to wait after a %i %s', async (status, code, key) => {

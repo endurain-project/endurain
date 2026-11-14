@@ -1,28 +1,27 @@
 <script setup lang="ts">
-import { onMounted, ref } from 'vue'
+import { ref } from 'vue'
 import { RouterLink } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 
 import AppLogo from '@/components/AppLogo.vue'
-import { useQueryCredential } from '@/composables/useRouteQuery'
+import { useUrlCredential } from '@/composables/useRouteQuery'
 import { Button } from '@/components/ui/button'
 import { ErrorState } from '@/components/ui/error-state'
 import { LoadingState } from '@/components/ui/loading-state'
 import { confirmEmailChange } from '@/features/auth/services/signUp'
 import { isProblem } from '@/services/problems'
 
-type Status = 'pending' | 'success' | 'error'
+type Status = 'confirm' | 'pending' | 'success' | 'error'
 
 const { t } = useI18n()
 
-const status = ref<Status>('pending')
-const errorMessage = ref('')
+/** Token from the emailed link; empty when absent or malformed. */
+const token = useUrlCredential('token')
+
+const status = ref<Status>(token.length > 0 ? 'confirm' : 'error')
+const errorMessage = ref(token.length > 0 ? '' : t('verifyEmail.errorInvalidToken'))
 /** Whether the shown error may clear on its own, so trying again can succeed. */
 const errorRetryable = ref(false)
-
-/** Token from the emailed link; empty when absent or malformed. */
-const credential = useQueryCredential('token')
-const token = ref(credential.value)
 
 /**
  * Switches to the error state with a message.
@@ -37,23 +36,17 @@ function showError(message: string, retryable = false): void {
 }
 
 /**
- * Confirms the email change with the token from the link and maps the outcome to a display status. Backend
- * rejections surface as errors, retryable only when transient.
+ * Confirms the email change with the token from the link and maps the outcome to a display status. Opening the
+ * link changes nothing: this runs only when the button is pressed, so a mail scanner that opens the link cannot
+ * confirm anything. Backend rejections surface as errors, retryable only when transient.
  */
 async function confirm(): Promise<void> {
-  if (token.value.length === 0) {
-    showError(t('verifyEmail.errorInvalidToken'))
-    return
-  }
-
   status.value = 'pending'
   try {
-    await confirmEmailChange({ token: token.value })
-    credential.clear()
+    await confirmEmailChange({ token })
     status.value = 'success'
   } catch (error) {
     if (isProblem(error, 'invalid-input', 'not-found')) {
-      credential.clear()
       showError(t('verifyEmail.errorInvalidToken'))
     } else if (isProblem(error, 'conflict')) {
       showError(t('verifyEmail.errorEmailTaken'))
@@ -62,10 +55,6 @@ async function confirm(): Promise<void> {
     }
   }
 }
-
-onMounted(() => {
-  void confirm()
-})
 </script>
 
 <template>
@@ -73,8 +62,16 @@ onMounted(() => {
     <div class="rounded-card border border-border bg-card p-6 sm:p-8">
       <AppLogo width="40" height="40" class="mx-auto mb-3 size-10" />
 
+      <div v-if="status === 'confirm'" class="flex flex-col items-center text-center">
+        <h1 class="text-card-heading">{{ t('verifyEmail.confirmChangeTitle') }}</h1>
+        <p class="mt-2 text-body">{{ t('verifyEmail.confirmChangeBody') }}</p>
+        <Button class="mt-6 w-full" @click="confirm">
+          {{ t('verifyEmail.confirmChangeButton') }}
+        </Button>
+      </div>
+
       <LoadingState
-        v-if="status === 'pending'"
+        v-else-if="status === 'pending'"
         :label="t('verifyEmail.verifyingBody')"
         class="py-8"
       />

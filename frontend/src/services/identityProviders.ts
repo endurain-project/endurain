@@ -1,4 +1,4 @@
-import type { AuthTokenResponse, IdentityProviderPublic } from '@/types'
+import type { IdentityProviderPublic, SsoExchangeResponse } from '@/types'
 
 import { apiFetch, API_BASE_URL } from './http'
 import { fetchAllPages } from './pagination'
@@ -32,19 +32,17 @@ export function getIdentityProviderLoginUrl(slug: string, params: URLSearchParam
  *
  * @param sessionId - Session ID returned by the backend callback.
  * @param codeVerifier - PKCE code verifier stored before SSO redirect.
- * @param mfaCode - TOTP or backup code, sent when the account has MFA enabled.
- * @returns The web token body, the same one login answers.
- * @throws {HttpError} When the exchange fails; the `mfa-required` problem type
- *   means the account needs `mfaCode`.
+ * @returns The web token body, or the MFA step when the account has MFA enabled; its `next_step`
+ *   says which.
+ * @throws {HttpError} When the exchange fails.
  */
 export function exchangeSessionForTokens(
   sessionId: string,
   codeVerifier: string,
-  mfaCode?: string,
-): Promise<AuthTokenResponse> {
-  return apiFetch<AuthTokenResponse>(`/auth/sessions/${encodeURIComponent(sessionId)}/tokens`, {
+): Promise<SsoExchangeResponse> {
+  return apiFetch<SsoExchangeResponse>(`/auth/sessions/${encodeURIComponent(sessionId)}/tokens`, {
     method: 'POST',
-    body: JSON.stringify({ code_verifier: codeVerifier, mfa_code: mfaCode }),
+    body: JSON.stringify({ code_verifier: codeVerifier }),
     auth: false,
     retryOnUnauthorized: false,
   })

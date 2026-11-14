@@ -9,7 +9,7 @@ modules so the choice is made in one place and cannot drift:
   slow KDF (Argon2/bcrypt) is unnecessary; SHA-256 is the standard choice for
   hashing tokens of this entropy level.
 - :func:`hmac_sha256` — keyed HMAC-SHA256 using the key derived for token digests.
-  Used for refresh-token reuse detection and CSRF tokens, where a keyed MAC
+  Used for refresh-token reuse detection, where a keyed MAC
   adds defense-in-depth: even with database read access an attacker cannot
   verify stolen tokens without the server secret.
 

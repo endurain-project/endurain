@@ -47,7 +47,6 @@ def _session(**updates):
         "token_family_id": FAMILY_ID,
         "rotation_count": 0,
         "last_rotation_at": None,
-        "csrf_token_hash": None,
         "client_type": "web",
         "auth_time": datetime.now(UTC),
         "amr": ["pwd"],
@@ -407,6 +406,23 @@ def test_list_user_sessions_builds_a_page_from_the_window_and_count(mock_db):
     assert not hasattr(result.items[0], "refresh_token")
 
 
+def test_list_user_sessions_marks_only_the_callers_own_session(mock_db):
+    own = _session()
+    other = _session(id=uuid.uuid4())
+    with (
+        patch("modules.auth.sessions.service.core_config.settings") as settings,
+        patch("modules.auth.sessions.service.sessions_crud.get_user_sessions_page", return_value=[own, other]),
+        patch("modules.auth.sessions.service.sessions_crud.count_user_sessions", return_value=2),
+    ):
+        settings.ENVIRONMENT = "production"
+        marked = sessions_service.list_user_sessions(
+            MOCK_USER_ID, core_pagination.PageParams(1, 25), mock_db, SESSION_ID
+        )
+        unmarked = sessions_service.list_user_sessions(MOCK_USER_ID, core_pagination.PageParams(1, 25), mock_db)
+    assert [item.is_current for item in marked.items] == [True, False]
+    assert [item.is_current for item in unmarked.items] == [False, False]
+
+
 def test_list_user_sessions_is_empty_in_demo(mock_db):
     with (
         patch("modules.auth.sessions.service.core_config.settings") as settings,
@@ -564,7 +580,7 @@ def test_deleting_no_sessions_announces_nothing(mock_db):
 
 
 class TestCsrfKeyRotation:
-    """A CSRF hash stored under the old ``SECRET_KEY`` still verifies once the key list is ``new,old``."""
+    """A refresh-token digest stored under the old ``SECRET_KEY`` still verifies once the key list is ``new,old``."""
 
     @pytest.fixture(autouse=True)
     def _fresh_keys(self):
@@ -583,22 +599,22 @@ class TestCsrfKeyRotation:
 
     def test_a_hash_made_under_the_old_key_verifies(self):
         with self._with_secret("o" * 40):
-            stored = sessions_service._hash_csrf_token("csrf")
+            stored = sessions_service.hash_refresh_token("token")
         with self._with_secret(f"{'n' * 40},{'o' * 40}"):
-            assert sessions_service.verify_csrf_token("csrf", stored) is True
-            assert sessions_service.verify_csrf_token("other", stored) is False
+            assert sessions_service.verify_refresh_token("token", stored) is True
+            assert sessions_service.verify_refresh_token("other", stored) is False
 
     def test_a_hash_made_under_a_key_that_left_the_list_does_not_verify(self):
         with self._with_secret("o" * 40):
-            stored = sessions_service._hash_csrf_token("csrf")
+            stored = sessions_service.hash_refresh_token("token")
         with self._with_secret("n" * 40):
-            assert sessions_service.verify_csrf_token("csrf", stored) is False
+            assert sessions_service.verify_refresh_token("token", stored) is False
 
     def test_new_hashes_use_the_first_key(self):
         with self._with_secret(f"{'n' * 40},{'o' * 40}"):
-            stored = sessions_service._hash_csrf_token("csrf")
+            stored = sessions_service.hash_refresh_token("token")
         with self._with_secret("n" * 40):
-            assert sessions_service.verify_csrf_token("csrf", stored) is True
+            assert sessions_service.verify_refresh_token("token", stored) is True
 
 
 def _refusing() -> MagicMock:

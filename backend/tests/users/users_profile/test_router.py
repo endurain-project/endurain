@@ -107,6 +107,7 @@ def _make_session_mock(session_id: uuid.UUID = MOCK_SESSION_ID) -> MagicMock:
     s.expires_at = datetime.now(UTC)
     s.user_id = MOCK_USER_ID
     s.app_redirect_uri = None
+    s.is_current = True
     return s
 
 
@@ -288,6 +289,7 @@ class TestReadSessionsMe:
         assert response.status_code == 200
         data = response.json()
         assert [item["id"] for item in data["items"]] == [str(MOCK_SESSION_ID)]
+        assert data["items"][0]["is_current"] is True
         assert (data["total"], data["page"], data["num_records"], data["next"]) == (3, 2, 1, 3)
         assert mock_auth_services.list_user_sessions.call_args.args == (MOCK_USER_ID, core_pagination.PageParams(2, 1))
 
@@ -1176,7 +1178,7 @@ class TestGetMyIdentityProviders:
             "idp_id": str(IDP_ID),
             "idp_subject": "sub",
             "linked_at": "2025-01-01T00:00:00",
-            "last_login": None,
+            "last_login_at": None,
             "idp_name": "TestIdP",
             "idp_slug": "testidp",
             "idp_icon": "icon.png",

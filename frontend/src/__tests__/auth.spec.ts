@@ -15,6 +15,7 @@ import {
   refreshSession,
   verifyMfaLogin,
 } from '@/features/auth/services/session'
+import { exchangeSessionForTokens } from '@/services/identityProviders'
 import { queryClient } from '@/plugins/vueQuery'
 import { useAuthStore } from '@/features/auth/stores/auth'
 import { userUuid } from './fixtures/activity'
@@ -39,6 +40,10 @@ vi.mock('@/features/auth/services/session', () => ({
   changePasswordAtLogin: vi.fn<typeof changePasswordAtLogin>(),
 }))
 
+vi.mock('@/services/identityProviders', () => ({
+  exchangeSessionForTokens: vi.fn<typeof exchangeSessionForTokens>(),
+}))
+
 const realtimeConnect = vi.fn<() => void>()
 const realtimeDisconnect = vi.fn<() => void>()
 vi.mock('@/composables/useRealtime', () => ({
@@ -49,7 +54,6 @@ const tokenResponse: AuthTokenResponse = {
   next_step: 'tokens',
   session_id: '00000000-0000-4000-8000-0000000000f1',
   access_token: 'access-token',
-  csrf_token: 'csrf-token',
   token_type: 'bearer',
   expires_in: 900,
   refresh_token_expires_in: 604_800,
@@ -86,6 +90,7 @@ describe('auth store', () => {
     vi.mocked(loginWithPassword).mockResolvedValue({
       next_step: 'mfa',
       mfa_challenge: 'challenge-123',
+      methods: ['totp', 'backup_code'],
     })
 
     const auth = useAuthStore()
@@ -160,6 +165,33 @@ describe('auth store', () => {
     expect(setAuthTokens).not.toHaveBeenCalled()
   })
 
+  it('signs in with the tokens of an SSO exchange', async () => {
+    vi.mocked(exchangeSessionForTokens).mockResolvedValue(tokenResponse)
+    vi.mocked(fetchCurrentUser).mockResolvedValue(authUser)
+
+    const auth = useAuthStore()
+    const result = await auth.exchangeSsoSession('sso-session', 'verifier-123')
+
+    expect(exchangeSessionForTokens).toHaveBeenCalledWith('sso-session', 'verifier-123')
+    expect(result).toEqual({ status: 'authenticated', user: authUser })
+    expect(setAuthTokens).toHaveBeenCalledWith('access-token')
+  })
+
+  it('moves an SSO exchange of an account with MFA on to the MFA step without storing tokens', async () => {
+    vi.mocked(exchangeSessionForTokens).mockResolvedValue({
+      next_step: 'mfa',
+      mfa_challenge: 'sso-challenge',
+      methods: ['totp', 'backup_code'],
+    })
+
+    const auth = useAuthStore()
+    const result = await auth.exchangeSsoSession('sso-session', 'verifier-123')
+
+    expect(result).toEqual({ status: 'mfa-required', challenge: 'sso-challenge' })
+    expect(setAuthTokens).not.toHaveBeenCalled()
+    expect(auth.isAuthenticated).toBe(false)
+  })
+
   it('signs in once the new password is chosen', async () => {
     vi.mocked(changePasswordAtLogin).mockResolvedValue(tokenResponse)
     vi.mocked(fetchCurrentUser).mockResolvedValue(authUser)
@@ -172,7 +204,7 @@ describe('auth store', () => {
       password: 'a new passphrase',
     })
     expect(result).toEqual({ status: 'authenticated', user: authUser })
-    expect(setAuthTokens).toHaveBeenCalledWith('access-token', 'csrf-token')
+    expect(setAuthTokens).toHaveBeenCalledWith('access-token')
   })
 
   it('hydrates the user after successful login', async () => {
@@ -183,7 +215,7 @@ describe('auth store', () => {
     const result = await auth.login('demo', 'password123')
 
     expect(result).toEqual({ status: 'authenticated', user: authUser })
-    expect(setAuthTokens).toHaveBeenCalledWith('access-token', 'csrf-token')
+    expect(setAuthTokens).toHaveBeenCalledWith('access-token')
     expect(auth.sessionId).toBe('00000000-0000-4000-8000-0000000000f1')
     expect(queryClient.getQueryData(queryKeys.currentUser())).toEqual(authUser)
     expect(auth.isAuthenticated).toBe(true)

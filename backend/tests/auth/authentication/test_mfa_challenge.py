@@ -1,34 +1,23 @@
 """The MFA challenge is bound to the client network, ends after three wrong codes and answers 401 once dead."""
 
 import uuid
-from datetime import UTC, datetime
-from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
 import jasil.testing as jasil_testing
-from jasil.backends.state_memory import MemoryState
 from sqlalchemy import func, select
 
 import core.dependencies as core_dependencies
-import core.exceptions as core_exceptions
 import core.network as core_network
 import modules.auth.account_security.account_security_service as account_security_service
-import modules.auth.authentication.sso_exchange_service as sso_exchange_service
 import modules.auth.constants as auth_constants
-import modules.auth.credentials.integration_service as credentials_integration
 import modules.auth.mfa.pending_login_store as pending_login_store
 import modules.auth.mfa_backup_codes.crud as backup_codes_crud
 import modules.auth.sessions.models as sessions_models
 import modules.auth.sessions.service as sessions_service
 from tests.auth.authentication.conftest import BACKUP_CODE, MOBILE, PASSWORD, USER_ID, USERNAME, WEB
 
-_SESSION_ID = uuid.UUID(int=7)
-
-IDP_ID = uuid.uuid4()
-
 _LOGIN = "auth.session.login"
 _WRONG = "000000"
-_SSO = "modules.auth.authentication.sso_exchange_service"
 
 
 def _start(stack, headers=WEB, ip=None):
@@ -59,6 +48,15 @@ def _sessions(stack) -> int:
 
 def _store() -> pending_login_store.PendingMFALogin:
     return pending_login_store.PendingMFALogin(core_dependencies.get_platform_state())
+
+
+class TestMfaRequiredMethods:
+    """The MFA-required answer lists the kinds of code the account can answer with."""
+
+    def test_an_account_with_totp_lists_totp_and_backup_code(self, mfa_signin):
+        response = mfa_signin.client.post("/auth/login", data={"username": USERNAME, "password": PASSWORD}, headers=WEB)
+
+        assert response.json()["methods"] == ["totp", "backup_code"]
 
 
 class TestSecurityGeneration:
@@ -222,7 +220,7 @@ class TestDeadChallengeAnswers401:
             response = _verify(mfa_plain_signin, "u" * 43)
 
         assert response.status_code == 401
-        assert response.headers["www-authenticate"] == "Bearer"
+        assert response.headers["www-authenticate"] == "Session"
         dummy.assert_not_called()
 
     def test_a_challenge_of_the_other_client_type_is_401(self, mfa_plain_signin):
@@ -289,70 +287,3 @@ class TestBackupCodeCommitOrder:
         assert _verify(mfa_signin, challenge).json()["next_step"] == "password_change"
 
         assert _unused_codes(mfa_signin) == 0
-
-
-def _exchange(stack, *, claimed: bool):
-    """Run the SSO token exchange for the account with MFA, committing only what the service commits."""
-    oauth_state = SimpleNamespace(
-        id="state",
-        purpose="login",
-        code_challenge="c",
-        code_challenge_method="S256",
-        client_type="web",
-        idp_id=IDP_ID,
-        security_generation=0,
-    )
-    session = SimpleNamespace(
-        user_id=USER_ID,
-        tokens_exchanged=False,
-        expires_at=datetime(2999, 1, 1, tzinfo=UTC),
-        client_type="web",
-        amr=["fed"],
-    )
-    tokens = (_SESSION_ID, datetime(2999, 1, 1, tzinfo=UTC), "at", datetime(2999, 1, 1, tzinfo=UTC), "rt", "csrf")
-    with (
-        patch(f"{_SSO}.sessions_integration.get_session_with_oauth_state", return_value=(session, oauth_state)),
-        patch(f"{_SSO}.auth_computation.validate_pkce_verifier"),
-        patch(f"{_SSO}.server_settings_integration.get_session_policy"),
-        patch(f"{_SSO}.authentication_token_service.create_tokens", return_value=tokens),
-        patch(
-            f"{_SSO}.sessions_integration.claim_session_for_token_exchange",
-            return_value=datetime(2999, 1, 1, tzinfo=UTC) if claimed else None,
-        ),
-        patch(
-            f"{_SSO}.known_devices_integration.record_sign_in",
-            return_value=MagicMock(device_id="d" * 43, new_device=False),
-        ),
-        patch(f"{_SSO}.authentication_token_service.build_web_token_response"),
-        stack.factory() as db,
-    ):
-        try:
-            sso_exchange_service.exchange_tokens_for_session(
-                _SESSION_ID,
-                "verifier",
-                BACKUP_CODE,
-                "web",
-                "127.0.0.1",
-                "agent",
-                pending_login_store.PendingMFALogin(MemoryState()),
-                credentials_integration.get_password_hasher(),
-                MagicMock(),
-                db,
-                device_id=None,
-            )
-        except core_exceptions.DomainError as err:
-            return err
-    return None
-
-
-class TestSsoExchangeCommitOrder:
-    def test_a_backup_code_stays_unused_when_the_exchange_claim_is_lost(self, mfa_plain_signin):
-        err = _exchange(mfa_plain_signin, claimed=False)
-
-        assert isinstance(err, core_exceptions.NotFoundError)
-        assert _unused_codes(mfa_plain_signin) == 1
-
-    def test_a_backup_code_is_consumed_by_the_exchange_it_completes(self, mfa_plain_signin):
-        assert _exchange(mfa_plain_signin, claimed=True) is None
-
-        assert _unused_codes(mfa_plain_signin) == 0

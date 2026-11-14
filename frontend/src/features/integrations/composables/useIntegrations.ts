@@ -10,6 +10,7 @@ import type {
   GarminSyncStatus,
   StravaSyncStatus,
 } from '@/features/integrations/types'
+import type { StepUpInput } from '@/features/security/types'
 
 import { useJobQuery } from '@/composables/useJobQuery'
 import { useToasts } from '@/composables/useToasts'
@@ -97,8 +98,8 @@ export function useRetrieveStravaGearMutation() {
 /** Disconnects Strava and refreshes the profile link status. */
 export function useUnlinkStravaMutation() {
   const invalidateProfile = useProfileInvalidation()
-  return useMutation<void, Error, void>({
-    mutationFn: () => unlinkStrava(),
+  return useMutation<void, Error, StepUpInput>({
+    mutationFn: (stepUp) => unlinkStrava(stepUp),
     onSuccess: invalidateProfile,
   })
 }
@@ -167,8 +168,8 @@ export function useRetrieveGarminHealthMutation() {
 /** Disconnects Garmin Connect and refreshes the profile link status. */
 export function useUnlinkGarminMutation() {
   const invalidateProfile = useProfileInvalidation()
-  return useMutation<void, Error, void>({
-    mutationFn: () => unlinkGarmin(),
+  return useMutation<void, Error, StepUpInput>({
+    mutationFn: (stepUp) => unlinkGarmin(stepUp),
     onSuccess: invalidateProfile,
   })
 }

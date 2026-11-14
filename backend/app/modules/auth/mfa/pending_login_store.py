@@ -28,17 +28,23 @@ AuthSecurityStoreUnavailableError = lockout_contracts.AuthSecurityStoreUnavailab
 
 
 class PendingLogin(BaseModel):
-    """A password sign-in that has proven the password and waits for its second factor.
+    """A sign-in whose first step succeeded and that waits for its second factor.
+
+    The first step is a password sign-in, or the exchange of a session an identity-provider callback created, whose
+    PKCE verifier and client type the exchange has already checked.
 
     Attributes:
         user_id: The account that signed in.
-        client_type: The client type of the password step; the MFA step must come from the same kind.
-        code_challenge: The PKCE code challenge of the password step; a mobile sign-in always carries one.
-        code_challenge_method: The PKCE challenge method of the password step.
-        client_network: The client network of the password step (an IPv4 address or an IPv6 /64); the MFA step is
+        client_type: The client type of the first step; the MFA step must come from the same kind.
+        code_challenge: The PKCE code challenge of a password step; a mobile password sign-in always carries one, an
+            identity-provider sign-in none.
+        code_challenge_method: The PKCE challenge method of a password step.
+        client_network: The client network of the first step (an IPv4 address or an IPv6 /64); the MFA step is
             accepted only from it.
-        security_generation: The account's security generation when the password step succeeded; the MFA step is
-            accepted only while it is still current. An entry written without one is refused.
+        security_generation: The account's security generation the first step verified; the MFA step is accepted
+            only while it is still current. An entry written without one is refused.
+        sso_session_id: The session of an identity-provider sign-in, which the MFA step exchanges for tokens; None
+            for a password sign-in, whose MFA step creates the session.
     """
 
     model_config = ConfigDict(extra="forbid", frozen=True)
@@ -49,6 +55,7 @@ class PendingLogin(BaseModel):
     code_challenge_method: StrictStr | None
     client_network: StrictStr
     security_generation: StrictInt | None = None
+    sso_session_id: uuid.UUID | None = None
 
 
 @dataclass(frozen=True)

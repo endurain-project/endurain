@@ -45,7 +45,6 @@ def _row(**updates):
         "token_family_id": FAMILY_ID,
         "rotation_count": 0,
         "last_rotation_at": None,
-        "csrf_token_hash": None,
         "client_type": "web",
         "auth_time": datetime.now(UTC),
         "amr": ["pwd"],
@@ -198,12 +197,10 @@ def test_a_purge_stages_the_delete_and_names_the_ended_sessions(purge, mock_db):
     mock_db.commit.assert_not_called()
 
 
-def test_csrf_hash_and_oauth_reference_updates_are_staged(mock_db):
+def test_oauth_reference_update_is_staged(mock_db):
     mock_db.execute.return_value = _result()
     sessions_crud.clear_oauth_state_reference(SESSION_ID, mock_db)
-    mock_db.execute.return_value = _result(rowcount=1)
-    sessions_crud.update_session_csrf_hash(SESSION_ID, "csrf-hash", mock_db)
-    assert mock_db.execute.call_count == 2
+    assert mock_db.execute.call_count == 1
     mock_db.commit.assert_not_called()
 
 

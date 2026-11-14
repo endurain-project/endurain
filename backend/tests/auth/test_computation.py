@@ -6,7 +6,7 @@ auth token modules:
 - :func:`sha256_hex` — plain SHA-256, for high-entropy single-purpose opaque
   tokens (API keys, password-reset, sign-up, IdP link tokens).
 - :func:`hmac_sha256` — keyed HMAC-SHA256 using a supplied secret, for
-  refresh-token reuse detection and CSRF tokens (defense-in-depth: unforgeable
+  refresh-token reuse detection (defense-in-depth: unforgeable
   without the server secret).
 
 Both must be deterministic, lowercase, 64-char hex digests to support indexed
@@ -82,7 +82,7 @@ class TestHmacSha256:
 
     def test_keyed_digest_differs_from_plain_sha256(self):
         """The HMAC of a value must not equal its plain SHA-256 digest."""
-        value = "csrf-token"
+        value = "a-token"
         keyed = token_hashing.hmac_sha256(value, "a-secret-key-1234567890-1234567890")
         assert keyed != token_hashing.sha256_hex(value)
 

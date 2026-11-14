@@ -55,12 +55,12 @@ class UserIdentityProviderRead(UserIdentityProviderBase):
     Attributes:
         id: Unique identifier for the link.
         linked_at: When this IdP was linked.
-        last_login: Last login using this IdP.
+        last_login_at: Last login using this IdP.
     """
 
     id: uuid.UUID = Field(..., description="Link ID")
     linked_at: datetime = Field(..., description="When linked")
-    last_login: datetime | None = Field(
+    last_login_at: datetime | None = Field(
         default=None,
         description="Last login using this IdP",
     )

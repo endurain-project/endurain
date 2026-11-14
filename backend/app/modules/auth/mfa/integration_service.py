@@ -24,6 +24,16 @@ def is_mfa_enabled_for_user(user_id: uuid.UUID, db: Session) -> bool:
     return mfa_service.is_mfa_enabled_for_user(user_id, db)
 
 
+def get_user_factors(user_id: uuid.UUID, db: Session) -> list[mfa_contracts.MFAFactorRead]:
+    """Return every second factor a user has, oldest first."""
+    return mfa_service.get_user_factors(user_id, db)
+
+
+def get_sign_in_methods(user_id: uuid.UUID, db: Session) -> list[str]:
+    """Return the kinds of code a user can answer an MFA-required sign-in with."""
+    return mfa_service.get_sign_in_methods(user_id, db)
+
+
 def verify_user_mfa(
     user_id: uuid.UUID,
     mfa_code: str,

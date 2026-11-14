@@ -1,4 +1,4 @@
-"""HTTP middleware for security headers, CSRF checks and response compression."""
+"""HTTP middleware for security headers, the cookie-route origin check and response compression."""
 
 import asyncio
 import time
@@ -19,8 +19,6 @@ import core.security_headers as core_security_headers
 
 logger = core_logger.get_logger(__name__)
 
-_CSRF_METHODS = {"POST", "PUT", "DELETE", "PATCH"}
-
 #: gzip level. The moderate level: the library default, 9, spends several times the CPU for a few percent
 #: more. The library compresses chunks of 128 KiB or more in a worker thread and smaller ones inline.
 COMPRESSION_LEVEL = 5
@@ -39,7 +37,6 @@ CORS_ALLOW_HEADERS: tuple[str, ...] = (
     "Idempotency-Key",
     "If-Match",
     "X-Client-Type",
-    "X-CSRF-Token",
     "X-Request-ID",
     "traceparent",
     "tracestate",
@@ -229,57 +226,18 @@ class GetSemanticsMiddleware:
         await self.app(scope, receive, send_with_rules)
 
 
-class CSRFMiddleware(BaseHTTPMiddleware):
+class CookieRouteOriginMiddleware(BaseHTTPMiddleware):
     """
-    Require the ``X-CSRF-Token`` header on browser state-changing requests.
+    Refuse a web request to a cookie route that does not come from an allowed origin.
 
-    This is a defence-in-depth check, not the CSRF defence. It only tests that the header is present, never its
-    value, and it applies only to requests that declare ``X-Client-Type: web``, which the client chooses. A custom
-    header makes a cross-origin browser request preflighted, so CORS decides whether it is sent. What actually keeps
-    a cross-site page from acting as the user is that protected routes read the access token from the
-    ``Authorization`` header, which a browser never attaches by itself, and that the refresh cookie is
-    ``SameSite=Strict``. The token value is checked against the session only by
-    ``/auth/refresh``.
-
-    Attributes:
-        EXEMPT_PATHS: Exact paths skipped by CSRF checks.
-        EXEMPT_PATH_PREFIXES: Path prefixes skipped by CSRF checks.
+    The refresh cookie is the one credential a browser attaches by itself, and only ``POST /auth/refresh`` and
+    ``POST /auth/logout`` read it. A request that declares ``X-Client-Type: web`` to either route must carry an
+    ``Origin`` header equal to one of ``app.state.cors_allow_origins``: a missing, ``null`` or foreign origin is
+    refused with 403, since a browser always sends ``Origin`` on a cross-site ``POST``. A ``Sec-Fetch-Site`` of
+    ``cross-site`` is refused too; ``same-origin`` is not required, because the development SPA is same-site but not
+    same-origin. A mobile client uses no cookie and is not checked, and every other route reads its credential from
+    the ``Authorization`` header, which a browser never attaches by itself.
     """
-
-    # A web client holds a CSRF token only once it has a session. Every route under /public needs no session, and
-    # these /auth routes run before one exists (the token exchange is under /auth/sessions/).
-    EXEMPT_PATHS: tuple[str, ...] = (
-        "/api/v1/auth/login",
-        "/api/v1/auth/mfa/verify",
-        "/api/v1/auth/password-change",
-        "/api/v1/auth/refresh",
-    )
-    EXEMPT_PATH_PREFIXES: tuple[str, ...] = ("/api/v1/public/", "/api/v1/auth/sessions/")
-
-    @classmethod
-    def is_exempt(cls, path: str) -> bool:
-        """Return whether a request path is skipped by the CSRF check.
-
-        Args:
-            path: The request path, with the ``/api/v1`` prefix.
-
-        Returns:
-            True when the path is exempt.
-        """
-        return path in cls.EXEMPT_PATHS or path.startswith(cls.EXEMPT_PATH_PREFIXES)
-
-    @classmethod
-    def enforces(cls, method: str, path: str) -> bool:
-        """Return whether a web client must send ``X-CSRF-Token`` on a request.
-
-        Args:
-            method: The HTTP method, upper case.
-            path: The request path, with the ``/api/v1`` prefix.
-
-        Returns:
-            True for a state-changing method on a path that is not exempt.
-        """
-        return method in _CSRF_METHODS and not cls.is_exempt(path)
 
     async def dispatch(
         self,
@@ -287,37 +245,36 @@ class CSRFMiddleware(BaseHTTPMiddleware):
         call_next: Callable[[Request], Awaitable[Response]],
     ) -> Response:
         """
-        Require the CSRF header on state-changing requests that declare a web client.
+        Refuse a web request to a cookie route whose origin is not allowed.
 
         Args:
             request: Incoming HTTP request.
             call_next: Next ASGI handler in the chain.
 
         Returns:
-            Response from the downstream handler, or a 403
-            response when CSRF validation fails.
+            The downstream response, or a 403 problem response when the origin is not allowed.
 
         Raises:
             Exception: Propagates downstream request errors.
         """
-        # Get client type from header
-        client_type = request.headers.get("X-Client-Type")
-
-        # Skip CSRF checks for not web clients
-        if client_type != "web":
-            return await call_next(request)
-
-        if self.enforces(request.method, request.url.path) and not request.headers.get("X-CSRF-Token"):
+        if (
+            request.method == "POST"
+            and request.url.path in (f"{core_config.ROOT_PATH}/auth/refresh", f"{core_config.ROOT_PATH}/auth/logout")
+            and request.headers.get("X-Client-Type") == "web"
+            and (
+                request.headers.get("Origin") not in request.app.state.cors_allow_origins
+                or request.headers.get("Sec-Fetch-Site") == "cross-site"
+            )
+        ):
             return core_exceptions.build_problem_response(
                 request=request,
                 status_code=status.HTTP_403_FORBIDDEN,
                 code="permission-denied",
                 title="Forbidden",
-                detail="CSRF token required",
+                detail="Origin not allowed",
             )
 
-        response = await call_next(request)
-        return response
+        return await call_next(request)
 
 
 def install_compression(app: FastAPI) -> None:

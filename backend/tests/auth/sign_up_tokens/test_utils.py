@@ -136,7 +136,7 @@ class TestEmailPreparation:
         result = sign_up_service.prepare_sign_up_verification_email(_USER_1, "event-1", "https://example.test", mock_db)
 
         assert result == ("test@example.test", "subject", "html", "text")
-        assert "signup/confirm?token=plain-token" in build_email.call_args.args[1]
+        assert "signup/confirm#token=plain-token" in build_email.call_args.args[1]
 
     @patch("modules.auth.sign_up_tokens.service.sign_up_email_messages.get_email_change_confirmation_email")
     @patch("modules.auth.sign_up_tokens.service.create_sign_up_token", return_value="plain-token")
@@ -166,7 +166,7 @@ class TestEmailPreparation:
         )
 
         assert result == ("new@example.test", "subject", "html", "text")
-        assert "confirm-email-change?token=plain-token" in build_email.call_args.args[1]
+        assert "confirm-email-change#token=plain-token" in build_email.call_args.args[1]
         create_token.assert_called_once_with(
             _USER_1,
             "new@example.test",

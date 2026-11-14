@@ -38,5 +38,8 @@
   "notRestoredBody": "O cambio foi denunciado, pechouse a sesión da túa conta en todas partes e revogáronse as súas claves de API. Outra conta usa agora o teu enderezo anterior, así que a túa conta conserva o novo. Contacta co administrador de Endurain e cambia o teu contrasinal.",
   "cancelInvalidTitle": "Esta ligazón xa non funciona",
   "cancelInvalidBody": "A ligazón non é válida, caducou ou xa se usou, ou o enderezo de correo cambiouse de novo despois de enviala. Se aínda pensas que outra persoa ten acceso, inicia sesión e cambia o teu contrasinal.",
-  "cancelError": "Non puidemos cancelar o cambio. Téntao de novo."
+  "cancelError": "Non puidemos cancelar o cambio. Téntao de novo.",
+  "confirmChangeTitle": "Confirma o teu novo enderezo de correo electrónico",
+  "confirmChangeBody": "Preme o botón para confirmar que pediches cambiar o enderezo de correo electrónico da túa conta. Pecharase a túa sesión en todas partes.",
+  "confirmChangeButton": "Confirmar o cambio de correo"
 }

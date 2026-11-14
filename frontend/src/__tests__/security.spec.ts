@@ -48,6 +48,7 @@ const sessionDto: SecuritySessionDto = {
   created_at: '2026-01-01T00:00:00Z',
   last_activity_at: '2026-01-02T00:00:00Z',
   expires_at: '2026-02-01T00:00:00Z',
+  is_current: true,
 }
 
 const mappedSession = {
@@ -62,6 +63,7 @@ const mappedSession = {
   lastActivityAt: '2026-01-02T00:00:00Z',
   expiresAt: '2026-02-01T00:00:00Z',
   appRedirectUri: null,
+  isCurrent: true,
 }
 
 describe('security mappers', () => {
@@ -458,7 +460,7 @@ describe('known devices', () => {
         id: '00000000-0000-4000-8000-000000000004',
         created_at: '2026-01-01T00:00:00Z',
         last_seen_at: '2026-01-02T00:00:00Z',
-        current: false,
+        is_current: false,
       }),
     ).toEqual({
       id: '00000000-0000-4000-8000-000000000004',
@@ -467,7 +469,7 @@ describe('known devices', () => {
       deviceType: null,
       createdAt: '2026-01-01T00:00:00Z',
       lastSeenAt: '2026-01-02T00:00:00Z',
-      current: false,
+      isCurrent: false,
     })
   })
 
@@ -481,7 +483,7 @@ describe('known devices', () => {
           device_type: 'PC',
           created_at: '2026-01-01T00:00:00Z',
           last_seen_at: '2026-01-02T00:00:00Z',
-          current: true,
+          is_current: true,
         },
       ],
       next: null,
@@ -494,7 +496,7 @@ describe('known devices', () => {
       expect.objectContaining({
         id: '00000000-0000-4000-8000-000000000004',
         browser: 'Firefox',
-        current: true,
+        isCurrent: true,
       }),
     ])
   })
@@ -517,24 +519,24 @@ describe('known devices', () => {
     )
   })
 
-  it('forgetOtherKnownDevices POSTs the step-up body to the bulk revoke route', async () => {
+  it('forgetOtherKnownDevices POSTs the step-up body to the delete-others route', async () => {
     vi.mocked(apiFetch).mockResolvedValue(undefined)
 
     await forgetOtherKnownDevices({ currentPassword: 'pw', mfaCode: null })
 
-    expect(apiFetch).toHaveBeenCalledWith('/profile/devices/revoke', {
+    expect(apiFetch).toHaveBeenCalledWith('/profile/devices/delete-others', {
       method: 'POST',
       body: JSON.stringify({ step_up: { current_password: 'pw', mfa_code: null } }),
       responseType: 'void',
     })
   })
 
-  it('forgetAllKnownDevices POSTs the step-up body to the bulk delete route', async () => {
+  it('forgetAllKnownDevices POSTs the step-up body to the delete-all route', async () => {
     vi.mocked(apiFetch).mockResolvedValue(undefined)
 
     await forgetAllKnownDevices({ currentPassword: 'pw', mfaCode: null })
 
-    expect(apiFetch).toHaveBeenCalledWith('/profile/devices/delete', {
+    expect(apiFetch).toHaveBeenCalledWith('/profile/devices/delete-all', {
       method: 'POST',
       body: JSON.stringify({ step_up: { current_password: 'pw', mfa_code: null } }),
       responseType: 'void',

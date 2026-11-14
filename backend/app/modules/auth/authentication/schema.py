@@ -55,12 +55,20 @@ class MFARequiredRead(BaseModel):
     Attributes:
         next_step: Always ``mfa``; the client sends the MFA code to ``/auth/mfa/verify``.
         mfa_challenge: The challenge the MFA step must send back; it names this login.
+        methods: The kinds of code the account can answer with, such as ``totp`` and ``backup_code``.
     """
 
     model_config = ConfigDict(extra="forbid")
 
     next_step: Literal["mfa"]
     mfa_challenge: StrictStr
+    methods: list[StrictStr] = Field(
+        ...,
+        description=(
+            "Kinds of code the account can answer the challenge with, such as totp and backup_code. "
+            "An open set: new methods can appear, so handle an unknown one"
+        ),
+    )
 
 
 class PasswordChangeRequiredRead(BaseModel):
@@ -119,7 +127,6 @@ class TokenWebRead(BaseModel):
         next_step: Always ``tokens``; the client is signed in.
         session_id: Session identifier.
         access_token: Bearer access token.
-        csrf_token: CSRF token bound to the session.
         token_type: Always ``bearer``.
         expires_in: Seconds until the access token expires.
         refresh_token_expires_in: Seconds until the refresh token expires.
@@ -130,7 +137,6 @@ class TokenWebRead(BaseModel):
     next_step: Literal["tokens"]
     session_id: uuid.UUID
     access_token: StrictStr
-    csrf_token: StrictStr
     token_type: Literal["bearer"] = "bearer"
     expires_in: StrictInt
     refresh_token_expires_in: StrictInt
@@ -176,17 +182,15 @@ class RefreshTokenRequest(BaseModel):
 
 
 class TokenExchangeRequest(BaseModel):
-    """Request schema for mobile PKCE token exchange.
+    """Request schema for the PKCE token exchange of a sign-in session.
 
-    After OAuth callback completes, mobile clients exchange the session_id
-    for actual JWT tokens by proving they possess the code_verifier that
-    matches the code_challenge sent during login initiation.
+    After a mobile password sign-in or an identity-provider callback, the client exchanges the session_id for its
+    tokens by proving it holds the code_verifier that matches the code_challenge sent when the sign-in started. The
+    second factor of an account with MFA is verified at ``/auth/mfa/verify``, never here.
 
     Attributes:
         code_verifier (str): PKCE code verifier (43-128 chars of the RFC 7636 unreserved set).
             Must hash to the code_challenge stored in OAuth state.
-        mfa_code (str | None): TOTP or backup code. Required when the session
-            came from an identity provider and the account has MFA enabled.
     """
 
     model_config = ConfigDict(extra="forbid", str_strip_whitespace=True)
@@ -196,11 +200,6 @@ class TokenExchangeRequest(BaseModel):
         min_length=43,
         max_length=128,
         description="PKCE code verifier (43-128 characters: A-Z, a-z, 0-9, '-', '.', '_', '~')",
-    )
-    mfa_code: StrictStr | None = Field(
-        default=None,
-        pattern=r"^([0-9]{6}|[A-Z0-9]{4}-[A-Z0-9]{4})$",
-        description="MFA code, required for an identity-provider session of an account with MFA enabled",
     )
 
     @field_validator("code_verifier")
@@ -241,10 +240,15 @@ type TokenRead = TokenWebRead | TokenMobileRead
 #: What ends a sign-in with a session: the tokens of a web client, or for a mobile client a session to exchange.
 FinishedLoginRead = Annotated[MobileSessionRead | TokenWebRead, Field(discriminator="next_step")]
 
-#: The answer of ``/auth/mfa/verify``: a password change, a session to exchange, or the tokens of a web client.
-MFAVerifyRead = Annotated[
-    PasswordChangeRequiredRead | MobileSessionRead | TokenWebRead, Field(discriminator="next_step")
-]
+#: The answer of ``/auth/mfa/verify``: a password change, a session to exchange, or tokens. A password sign-in gives
+#: a web client its tokens and a mobile client a session to exchange; an identity-provider sign-in gives either client
+#: the tokens of the session its exchange named. Both token bodies are ``tokens`` steps, so the union has no
+#: discriminator.
+MFAVerifyRead = PasswordChangeRequiredRead | MobileSessionRead | TokenWebRead | TokenMobileRead
+
+#: The answer of ``/auth/sessions/{session_id}/tokens``: the tokens by the client type, or for an identity-provider
+#: session of an account with MFA the MFA step that ``/auth/mfa/verify`` finishes.
+SessionExchangeRead = MFARequiredRead | TokenWebRead | TokenMobileRead
 
 #: The answer of ``/auth/login``, told apart by ``next_step``.
 LoginRead = Annotated[

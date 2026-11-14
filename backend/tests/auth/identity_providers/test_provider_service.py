@@ -139,7 +139,7 @@ class TestSaveRefusesUnsafeUrls:
             patch.object(provider_service, "idp_crud") as crud,
             patch.object(provider_service.identity_provider_serializers, "to_read_schema"),
         ):
-            crud.get_identity_provider.return_value = MagicMock(slug="pocket")
+            crud.get_identity_provider.return_value = MagicMock(slug="pocket", token_endpoint=None)
             crud.update_identity_provider.return_value = MagicMock()
             provider_service.update_identity_provider(IDP_ID, data, STEP_UP, VERIFIER, oidc, mock_db, if_match='"1"')
         getaddrinfo.assert_not_called()
@@ -240,7 +240,7 @@ class TestDiscoveryCacheEviction:
             patch.object(provider_service, "idp_crud") as crud,
             patch.object(provider_service.identity_provider_serializers, "to_read_schema"),
         ):
-            crud.get_identity_provider.return_value = MagicMock(slug="pocket")
+            crud.get_identity_provider.return_value = MagicMock(slug="pocket", token_endpoint=None)
             crud.update_identity_provider.return_value = MagicMock()
             provider_service.update_identity_provider(IDP_ID, data, STEP_UP, VERIFIER, oidc, mock_db, if_match='"1"')
         assert order.mock_calls == [call.commit(), call.forget(IDP_ID)]
@@ -432,16 +432,22 @@ class TestGetIdpTemplates:
 
 
 class TestGetIdentityProvider:
-    def test_returns_the_provider_as_its_read_schema(self, mock_db):
+    @pytest.mark.parametrize("linked", [True, False])
+    def test_returns_the_provider_as_its_read_schema_flagging_linked_users(self, mock_db, linked):
         state = MagicMock()
         with (
             patch.object(provider_service.idp_crud, "get_identity_provider", return_value=state),
+            patch.object(
+                provider_service.identity_provider_links_integration,
+                "check_user_identity_providers_by_idp_id",
+                return_value=linked,
+            ),
             patch.object(provider_service.identity_provider_serializers, "to_read_schema") as to_read,
         ):
             result = provider_service.get_identity_provider(IDP_ID, mock_db)
 
         assert result is to_read.return_value
-        to_read.assert_called_once_with(state)
+        to_read.assert_called_once_with(state, has_linked_users=linked)
 
     def test_a_missing_provider_is_not_found(self, mock_db):
         with (
@@ -480,11 +486,11 @@ class TestIssuerBinding:
                 TestIssuerBinding.crud = crud
 
     def test_update_refuses_a_new_issuer_while_users_are_linked(self, mock_db):
-        with pytest.raises(core_exceptions.IssuerLockedError) as exc:
+        with pytest.raises(core_exceptions.IdentityProviderLockedError) as exc:
             self._update(mock_db, "https://b.example.com", current_issuer="https://a.example.com", links=True)
         assert exc.value.status_code == 409
-        assert exc.value.code == "issuer-locked"
-        assert exc.value.detail == "The issuer cannot change while users are linked to this provider"
+        assert exc.value.code == "identity-provider-locked"
+        assert exc.value.detail == "These fields cannot change while users are linked to this provider: issuer_url"
         self.crud.update_identity_provider.assert_not_called()
         mock_db.commit.assert_not_called()
 
@@ -493,7 +499,7 @@ class TestIssuerBinding:
         [(None, "https://b.example.com"), ("https://a.example.com", None), ("https://a.example.com", "")],
     )
     def test_update_refuses_setting_or_clearing_the_issuer_while_users_are_linked(self, mock_db, current, new):
-        with pytest.raises(core_exceptions.IssuerLockedError):
+        with pytest.raises(core_exceptions.IdentityProviderLockedError):
             self._update(mock_db, new, current_issuer=current, links=True)
 
     @pytest.mark.parametrize(
@@ -565,6 +571,88 @@ class TestIssuerBinding:
                 IDP_ID, data, STEP_UP, verifier, MagicMock(), mock_db, if_match='"1"'
             )
         crud.get_identity_provider_by_issuer.assert_not_called()
+
+
+class TestLockedFields:
+    """Fields that identify a provider or where tokens are redeemed are fixed while users are linked."""
+
+    STORED: ClassVar[dict[str, object]] = {
+        "slug": "pocket",
+        "provider_type": idp_constants.ProviderType.OIDC,
+        "authorization_endpoint": "https://idp.example.com/authorize",
+        "token_endpoint": "https://idp.example.com/token",
+        "userinfo_endpoint": "https://idp.example.com/userinfo",
+        "issuer_url": "https://idp.example.com",
+        "client_id": "encrypted-client-id",
+    }
+
+    def _update(self, mock_db, *, links=True, **fields):
+        data = idp_schema.IdentityProviderUpdate(**{"name": "Pocket", "slug": "pocket", **fields})
+        resolve, allowlist = _network(PUBLIC)
+        with (
+            resolve,
+            allowlist,
+            patch.object(provider_service, "idp_crud") as crud,
+            patch.object(
+                provider_service.identity_provider_links_integration,
+                "check_user_identity_providers_by_idp_id",
+                return_value=links,
+            ),
+            patch.object(provider_service.core_cryptography, "decrypt_token_fernet", return_value="client-id"),
+            patch.object(provider_service.identity_provider_serializers, "to_read_schema"),
+        ):
+            crud.get_identity_provider.return_value = MagicMock(**self.STORED)
+            crud.get_identity_provider_by_slug.return_value = None
+            crud.get_identity_provider_by_issuer.return_value = None
+            crud.update_identity_provider.return_value = MagicMock()
+            self.crud = crud
+            provider_service.update_identity_provider(
+                IDP_ID, data, STEP_UP, VERIFIER, MagicMock(), mock_db, if_match='"1"'
+            )
+
+    @pytest.mark.parametrize(
+        ("field", "value"),
+        [
+            ("slug", "renamed"),
+            ("client_id", "another-client"),
+            ("provider_type", idp_constants.ProviderType.OAUTH2),
+            ("authorization_endpoint", "https://idp.example.com/other-authorize"),
+            ("token_endpoint", "https://idp.example.com/other-token"),
+            ("userinfo_endpoint", "https://idp.example.com/other-userinfo"),
+        ],
+    )
+    def test_a_change_is_refused_while_users_are_linked(self, mock_db, field, value):
+        with pytest.raises(core_exceptions.IdentityProviderLockedError) as exc:
+            self._update(mock_db, **{field: value})
+        assert field in exc.value.detail
+        self.crud.update_identity_provider.assert_not_called()
+        mock_db.commit.assert_not_called()
+
+    def test_the_refusal_names_every_locked_field(self, mock_db):
+        with pytest.raises(core_exceptions.IdentityProviderLockedError) as exc:
+            self._update(mock_db, slug="renamed", client_id="another-client")
+        assert exc.value.detail.endswith("client_id, slug")
+
+    @pytest.mark.parametrize(
+        ("field", "value"),
+        [
+            ("slug", "pocket"),
+            ("client_id", "client-id"),
+            ("provider_type", idp_constants.ProviderType.OIDC),
+            ("token_endpoint", "https://idp.example.com/token"),
+        ],
+    )
+    def test_the_same_value_is_not_a_change(self, mock_db, field, value):
+        self._update(mock_db, **{field: value})
+        self.crud.update_identity_provider.assert_called_once()
+
+    def test_other_fields_stay_editable(self, mock_db):
+        self._update(mock_db, name="Renamed", scopes="openid email", enabled=True)
+        self.crud.update_identity_provider.assert_called_once()
+
+    def test_a_change_is_allowed_while_no_user_is_linked(self, mock_db):
+        self._update(mock_db, links=False, slug="renamed", client_id="another-client")
+        self.crud.update_identity_provider.assert_called_once()
 
 
 class TestGetIdentityProviderByIssuer:

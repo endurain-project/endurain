@@ -14,6 +14,8 @@ import core.etag as core_etag
 import core.exceptions as core_exceptions
 import core.logger as core_logger
 import modules.activities.activity.integration_service as activity_integration
+import modules.auth.identity_providers.constants as identity_providers_constants
+import modules.auth.identity_providers.contracts as identity_providers_contracts
 import modules.gears.gear.integration_service as gears_integration
 import modules.notifications.integration_service as notifications_integration
 import modules.notifications.schema as notifications_schema
@@ -29,13 +31,21 @@ logger = core_logger.get_logger(__name__)
 
 
 def set_client(
-    user_id: uuid.UUID, credentials: strava_schema.StravaClientCredentials, db: Session, *, if_match: str
+    user_id: uuid.UUID,
+    credentials: strava_schema.StravaClientCredentials,
+    verify_step_up: identity_providers_contracts.StepUpVerifier,
+    db: Session,
+    *,
+    if_match: str,
 ) -> int:
-    """Store the user's Strava API client id and secret, and commit.
+    """Store the user's Strava API client id and secret after the user's step-up, and commit.
+
+    The step-up is verified, and committed so a spent backup code stays spent, before the client is touched.
 
     Args:
         user_id: The authenticated user.
-        credentials: The Strava application's client id and secret.
+        credentials: The Strava application's client id and secret, and the user's step-up.
+        verify_step_up: Verifies the step-up for the calling user.
         db: Database session.
         if_match: The ``If-Match`` precondition.
 
@@ -43,9 +53,12 @@ def set_client(
         The integrations' new version, which a later write echoes in ``If-Match``.
 
     Raises:
+        StepUpFailedError: If the step-up does not verify.
         NotFoundError: If the user has no integrations.
         PreconditionFailedError: If the integrations changed since the client read them.
     """
+    verify_step_up(credentials.step_up, identity_providers_constants.StepUpAction.STRAVA_CLIENT_SET)
+    db.commit()
     with core_etag.refuse_stale_write(
         db,
         "Strava client",

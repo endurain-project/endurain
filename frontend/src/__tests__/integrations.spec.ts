@@ -41,6 +41,7 @@ function stravaJob(kind: 'strava_link' | 'strava_unlink', status: string) {
   }
 }
 
+const stepUp = { currentPassword: 'pw', mfaCode: null }
 const range: DateRange = { startDate: '2026-01-01', endDate: '2026-01-07' }
 
 describe('daysAgoRange', () => {
@@ -69,12 +70,20 @@ describe('strava service', () => {
     expect(apiFetch).toHaveBeenCalledWith('/strava/state', { method: 'POST' })
   })
 
-  it('setStravaClient PUTs the client credentials with the version it read', async () => {
-    await setStravaClient({ clientId: 123456, clientSecret: 'sekret' }, 4)
+  it('setStravaClient PUTs the client credentials and step-up with the version it read', async () => {
+    await setStravaClient(
+      { clientId: 123456, clientSecret: 'sekret' },
+      { currentPassword: 'pw', mfaCode: null },
+      4,
+    )
     expect(apiFetch).toHaveBeenCalledWith('/strava/client', {
       method: 'PUT',
       headers: { 'If-Match': '"4"' },
-      body: JSON.stringify({ client_id: 123456, client_secret: 'sekret' }),
+      body: JSON.stringify({
+        client_id: 123456,
+        client_secret: 'sekret',
+        step_up: { current_password: 'pw', mfa_code: null },
+      }),
       responseType: 'void',
     })
   })
@@ -177,18 +186,21 @@ describe('strava service', () => {
       vi.useRealTimers()
     })
 
-    it('DELETEs the unlink path and resolves once the queued unlink completes', async () => {
+    it('POSTs the step-up to the unlink path and resolves once the queued unlink completes', async () => {
       vi.useFakeTimers()
       vi.mocked(apiFetch)
         .mockResolvedValueOnce(stravaJob('strava_unlink', 'queued'))
         .mockResolvedValueOnce(stravaJob('strava_unlink', 'running'))
         .mockResolvedValueOnce(stravaJob('strava_unlink', 'succeeded'))
 
-      const done = unlinkStrava()
+      const done = unlinkStrava(stepUp)
       await vi.advanceTimersByTimeAsync(2_000)
       await done
 
-      expect(apiFetch).toHaveBeenNthCalledWith(1, '/strava/link', { method: 'DELETE' })
+      expect(apiFetch).toHaveBeenNthCalledWith(1, '/strava/unlink', {
+        method: 'POST',
+        body: JSON.stringify({ step_up: { current_password: 'pw', mfa_code: null } }),
+      })
       expect(apiFetch).toHaveBeenNthCalledWith(2, '/jobs/00000000-0000-4000-8000-0000000000a1', {
         signal: undefined,
       })
@@ -202,7 +214,7 @@ describe('strava service', () => {
         .mockResolvedValueOnce(stravaJob('strava_unlink', 'queued'))
         .mockResolvedValueOnce(stravaJob('strava_unlink', 'succeeded'))
 
-      const done = unlinkStrava()
+      const done = unlinkStrava(stepUp)
       await vi.advanceTimersByTimeAsync(1_000)
       await done
 
@@ -217,7 +229,7 @@ describe('strava service', () => {
       vi.useFakeTimers()
       vi.mocked(apiFetch).mockResolvedValue(stravaJob('strava_unlink', 'running'))
 
-      const outcome = unlinkStrava().catch((error: unknown) => error)
+      const outcome = unlinkStrava(stepUp).catch((error: unknown) => error)
       await vi.advanceTimersByTimeAsync(130_000)
 
       expect(((await outcome) as Error).message).toBe('Unlinking Strava did not finish in time')
@@ -228,7 +240,7 @@ describe('strava service', () => {
         .mockResolvedValueOnce(stravaJob('strava_unlink', 'queued'))
         .mockResolvedValueOnce(stravaJob('strava_unlink', 'failed'))
 
-      await expect(unlinkStrava()).rejects.toThrow('Unlinking Strava failed')
+      await expect(unlinkStrava(stepUp)).rejects.toThrow('Unlinking Strava failed')
     })
   })
 })
@@ -317,10 +329,11 @@ describe('garmin service', () => {
     )
   })
 
-  it('unlinkGarmin DELETEs the link', async () => {
-    await unlinkGarmin()
-    expect(apiFetch).toHaveBeenCalledWith('/garmin/link', {
-      method: 'DELETE',
+  it('unlinkGarmin POSTs the step-up to the unlink route', async () => {
+    await unlinkGarmin(stepUp)
+    expect(apiFetch).toHaveBeenCalledWith('/garmin/unlink', {
+      method: 'POST',
+      body: JSON.stringify({ step_up: { current_password: 'pw', mfa_code: null } }),
       responseType: 'void',
     })
   })

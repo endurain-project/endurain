@@ -26,7 +26,7 @@ const linkedDto: LinkedProviderDto = {
   idp_icon_uploaded: false,
   idp_provider_type: 'oidc',
   linked_at: '2026-01-01T00:00:00Z',
-  last_login: '2026-01-02T00:00:00Z',
+  last_login_at: '2026-01-02T00:00:00Z',
 }
 
 const mappedLinked = {

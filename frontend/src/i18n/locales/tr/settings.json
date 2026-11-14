@@ -645,7 +645,8 @@
       "stepUpDescription": "Kimlik sağlayıcıları bu sunucuya kimlerin giriş yapabileceğini belirler. Devam etmek için sizin olduğunuzu doğrulayın.",
       "slugConflict": "Bu kısa ad zaten kullanılıyor",
       "issuerInUse": "Başka bir kimlik sağlayıcı bu düzenleyen URL'sini zaten kullanıyor",
-      "issuerLocked": "Kullanıcılar bu sağlayıcıya bağlıyken düzenleyen URL'si değiştirilemez. Bağlantılarını kaldırın veya bunun yerine yeni bir sağlayıcı ekleyin.",
+      "locked": "Kullanıcılar bu sağlayıcıya bağlıyken slug, istemci kimliği, protokol, düzenleyen ve uç noktalar değiştirilemez. Bağlantılarını kaldırın veya bunun yerine yeni bir sağlayıcı ekleyin.",
+      "lockedHint": "Kullanıcılar bu sağlayıcıya bağlıyken kilitli.",
       "staleError": "Bu sağlayıcı başka bir yerde değiştirildi. Değişiklikleriniz kaydedilmedi. Güncel ayarları yüklemek için kapatıp yeniden açın.",
       "saveError": "Sağlayıcı kaydedilemedi. Lütfen tekrar deneyin."
     }

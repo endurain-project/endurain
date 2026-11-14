@@ -77,7 +77,7 @@ class TestRunRecorded:
         refused = MagicMock()
 
         def work():
-            raise core_exceptions.TooManyRequestsError("limited")
+            raise core_exceptions.TooManyRequestsError("limited", scope=core_exceptions.TooManyRequestsScope.PROVIDER)
 
         result = core_sync_runner.run_recorded(
             states,

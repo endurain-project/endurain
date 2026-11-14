@@ -75,7 +75,7 @@ function getSignUpErrorMessage(error: unknown): string {
   if (isProblem(error, 'invalid-input', 'password-required', 'validation-failed')) {
     return t('signup.errorValidation')
   }
-  if (isProblem(error, 'rate-limited')) {
+  if (isProblem(error, 'too-many-requests')) {
     return t('signup.errorTooManyAttempts')
   }
   return t('signup.errorGeneral')

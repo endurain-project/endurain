@@ -88,7 +88,7 @@ def _link_token(db) -> str:
     message = sign_up_service.prepare_email_change_requested_email(MOCK_USER_ID, _HOST, db)
     assert message is not None
     _recipient, _subject, html_body, _text = message
-    return html_body.split("cancel-email-change?token=")[1].split('"')[0].split("<")[0].split("&")[0]
+    return html_body.split("cancel-email-change#token=")[1].split('"')[0].split("<")[0].split("&")[0]
 
 
 class TestRequestPublishesTheNotice:
@@ -133,7 +133,7 @@ class TestPrepareTheNotice:
         assert subject
         for body in (html_body, text_body):
             assert "new@example.com" not in body
-            assert f"{_HOST}/cancel-email-change?token=" in body
+            assert f"{_HOST}/cancel-email-change#token=" in body
 
     def test_nothing_pending_sends_nothing(self, db):
         assert sign_up_service.prepare_email_change_requested_email(MOCK_USER_ID, _HOST, db) is None

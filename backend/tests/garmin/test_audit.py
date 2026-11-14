@@ -7,12 +7,18 @@ import jasil.testing as jasil_testing
 import pytest
 from jasil.backends.state_memory import MemoryState
 
+import core.exceptions as core_exceptions
+import modules.auth.identity_providers.constants as identity_providers_constants
+import modules.auth.schema as auth_schema
 import modules.garmin.audit_actions as garmin_audit_actions
 import modules.garmin.link_service as garmin_link_service
 import modules.garmin.link_state_store as link_state_store
 import modules.garmin.mfa_code_store as mfa_code_store
 import modules.garmin.service as garmin_service
 from tests._helpers.auth import MOCK_USER_ID
+
+_STEP_UP = auth_schema.StepUpVerification(current_password="pw")
+_verify = MagicMock()
 
 
 @pytest.fixture
@@ -102,7 +108,7 @@ class TestAccountUnlink:
             patch.object(garmin_service.user_integrations_integration, "unlink_garminconnect_account"),
             jasil_testing.capture_audit() as audit,
         ):
-            garmin_service.unlink_account(MOCK_USER_ID, db)
+            garmin_service.unlink_account(MOCK_USER_ID, _STEP_UP, _verify, db)
 
         entry = audit.assert_audited(
             garmin_audit_actions.ACCOUNT_UNLINK.id,
@@ -112,6 +118,25 @@ class TestAccountUnlink:
         )
         assert entry.details is None
         db.commit.assert_called_once()
+
+    def test_the_step_up_is_verified_for_the_unlink_action_first(self):
+        verify = MagicMock()
+        with patch.object(garmin_service.user_integrations_integration, "unlink_garminconnect_account"):
+            garmin_service.unlink_account(MOCK_USER_ID, _STEP_UP, verify, MagicMock())
+
+        verify.assert_called_once_with(_STEP_UP, identity_providers_constants.StepUpAction.GARMIN_UNLINK)
+
+    def test_a_refused_step_up_unlinks_and_audits_nothing(self):
+        verify = MagicMock(side_effect=core_exceptions.StepUpFailedError("no"))
+        with (
+            patch.object(garmin_service.user_integrations_integration, "unlink_garminconnect_account") as unlink,
+            jasil_testing.capture_audit() as audit,
+            pytest.raises(core_exceptions.StepUpFailedError),
+        ):
+            garmin_service.unlink_account(MOCK_USER_ID, _STEP_UP, verify, MagicMock())
+
+        unlink.assert_not_called()
+        audit.assert_not_audited(garmin_audit_actions.ACCOUNT_UNLINK.id)
 
     def test_an_unlink_that_fails_is_not_audited(self):
         with (
@@ -123,7 +148,7 @@ class TestAccountUnlink:
             jasil_testing.capture_audit() as audit,
             pytest.raises(RuntimeError),
         ):
-            garmin_service.unlink_account(MOCK_USER_ID, MagicMock())
+            garmin_service.unlink_account(MOCK_USER_ID, _STEP_UP, _verify, MagicMock())
 
         audit.assert_not_audited(garmin_audit_actions.ACCOUNT_UNLINK.id)
 

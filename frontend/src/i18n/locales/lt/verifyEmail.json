@@ -38,5 +38,8 @@
   "notRestoredBody": "Apie pakeitimą pranešta, Jūsų paskyra atjungta visur, o jos API raktai atšaukti. Ankstesnį adresą dabar naudoja kita paskyra, todėl Jūsų paskyra pasilieka naująjį. Susisiekite su Endurain administratoriumi ir pakeiskite slaptažodį.",
   "cancelInvalidTitle": "Šis saitas nebeveikia",
   "cancelInvalidBody": "Saitas neteisingas, nebegalioja arba jau panaudotas, arba el. pašto adresas buvo vėl pakeistas po jo išsiuntimo. Jei vis dar manote, kad kažkas kitas turi prieigą, prisijunkite ir pakeiskite slaptažodį.",
-  "cancelError": "Nepavyko atšaukti pakeitimo. Bandykite dar kartą."
+  "cancelError": "Nepavyko atšaukti pakeitimo. Bandykite dar kartą.",
+  "confirmChangeTitle": "Patvirtinkite naują el. pašto adresą",
+  "confirmChangeBody": "Paspauskite mygtuką, kad patvirtintumėte, jog paprašėte pakeisti savo paskyros el. pašto adresą. Būsite atjungti visur.",
+  "confirmChangeButton": "Patvirtinti el. pašto keitimą"
 }

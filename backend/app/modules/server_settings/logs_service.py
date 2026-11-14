@@ -12,10 +12,14 @@ import uuid
 from pathlib import Path
 
 import jasil.audit as jasil_audit
+from sqlalchemy.orm import Session
 
 import core.config as core_config
 import core.exceptions as core_exceptions
 import core.logger as core_logger
+import modules.auth.identity_providers.constants as identity_providers_constants
+import modules.auth.identity_providers.contracts as identity_providers_contracts
+import modules.auth.schema as auth_schema
 import modules.server_settings.audit_actions as server_settings_audit_actions
 import modules.server_settings.logs_schema as logs_schema
 
@@ -112,20 +116,31 @@ def read_logs(
     )
 
 
-def clear_logs(admin_id: uuid.UUID) -> None:
-    """Empty the log file and delete its rotated backups.
+def clear_logs(
+    admin_id: uuid.UUID,
+    step_up: auth_schema.StepUpVerification,
+    verify_step_up: identity_providers_contracts.StepUpVerifier,
+    db: Session,
+) -> None:
+    """Empty the log file and delete its rotated backups, after the administrator's step-up.
 
     The file is truncated in place, so the logging handler keeps its open file and
     writes on from the start. The clear is recorded as the first line of the new log.
 
     Args:
         admin_id: ID of the admin who cleared the logs.
+        step_up: The administrator's step-up verification.
+        verify_step_up: Verifies the step-up for the calling administrator.
+        db: Database session, committed once the step-up verified so a spent backup code stays spent.
 
     Raises:
         NotFoundError: If the viewer is disabled.
+        StepUpFailedError: If the step-up does not verify.
     """
     if not core_config.settings.logs_viewer_enabled:
         raise core_exceptions.NotFoundError("The log viewer is not available")
+    verify_step_up(step_up, identity_providers_constants.StepUpAction.ADMIN_SERVER_LOG_CLEAR)
+    db.commit()
     path = Path(core_config.settings.LOGS_DIR) / LOG_FILE_NAME
     for backup in path.parent.glob(f"{LOG_FILE_NAME}.*"):
         if backup.suffix[1:].isdigit():

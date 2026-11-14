@@ -140,12 +140,14 @@ class IdentityProviderCreate(IdentityProviderBase):
         IdentityProviderBase
 
     Attributes:
+        client_id (str): OAuth2/OIDC client ID. Must be between 1 and 512 characters.
         client_secret (str): OAuth2/OIDC client secret. Must be between 1 and 512 characters.
 
     Validators:
         - OIDC requirements: an ``oidc`` provider needs an issuer URL and the ``openid`` scope.
     """
 
+    client_id: StrictStr = Field(..., min_length=1, max_length=512)
     client_secret: StrictStr = Field(..., min_length=1, max_length=512, description="OAuth2/OIDC client secret")
 
     model_config = ConfigDict(extra="forbid")
@@ -238,6 +240,8 @@ class IdentityProviderRead(IdentityProviderBase):
         created_at (datetime): Timestamp when the identity provider was created.
         updated_at (datetime): Timestamp when the identity provider was last updated.
         version (int): Optimistic-concurrency counter, also sent as the ETag.
+        has_linked_users (bool): Whether users are linked to the provider; while they are, its slug, client ID,
+            provider type, issuer and endpoints cannot change.
 
     Config:
         model_config (ConfigDict): Pydantic model configuration to enable attribute-based initialization,
@@ -258,6 +262,13 @@ class IdentityProviderRead(IdentityProviderBase):
         default=1,
         ge=1,
         description="Optimistic-concurrency counter, also sent as the ETag",
+    )
+    has_linked_users: StrictBool = Field(
+        default=False,
+        description=(
+            "Whether users are linked to the provider. While they are, the slug, client_id, provider_type, "
+            "issuer_url, authorization_endpoint, token_endpoint and userinfo_endpoint cannot change"
+        ),
     )
 
     model_config = ConfigDict(from_attributes=True, extra="forbid", validate_assignment=True)

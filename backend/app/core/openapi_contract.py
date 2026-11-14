@@ -8,7 +8,6 @@ derived for every operation instead of repeated on each route:
     ``X-RateLimit-*`` on the 429);
 - a security requirement can answer 401 (``WWW-Authenticate``) and 403;
 - a path parameter can answer 404, a request body 413, an upload (``x-max-body-bytes``) 415, and a write 409;
-- a write the CSRF middleware checks declares the optional ``X-CSRF-Token`` and ``X-Client-Type`` headers it reads;
 - ``If-Match`` is required, because its absence is refused with 428, and a stale or wildcard tag is 412 or 400;
 - a success response carrying a ``version`` sends an ``ETag``, and a create that can be read by id a ``Location``;
 - ``id``, ``version``, ``created_at`` and ``updated_at`` are ``readOnly`` in every schema a client does not send;
@@ -28,7 +27,6 @@ from typing import Any
 from pydantic import BaseModel
 
 import core.etag as core_etag
-import core.middleware as core_middleware
 
 _METHODS = ("get", "post", "put", "patch", "delete")
 _SCHEMA_REF = "#/components/schemas/"
@@ -87,27 +85,6 @@ _RATE_LIMIT_LIMIT_HEADER: dict[str, Any] = {
 _RATE_LIMIT_REMAINING_HEADER: dict[str, Any] = {
     "description": "The requests left in the window: always 0 on a 429.",
     "schema": {"type": "integer"},
-}
-
-_CLIENT_TYPE_HEADER: dict[str, Any] = {
-    "name": "X-Client-Type",
-    "in": "header",
-    "required": False,
-    "description": (
-        "The kind of client: `web` or `mobile`. A request that sends `web` must also send `X-CSRF-Token`;"
-        " any other request, or none, is not checked for it."
-    ),
-    "schema": {"type": "string", "enum": ["web", "mobile"]},
-}
-_CSRF_TOKEN_HEADER: dict[str, Any] = {
-    "name": "X-CSRF-Token",
-    "in": "header",
-    "required": False,
-    "description": (
-        "The CSRF token of a web session, required when `X-Client-Type` is `web`: without it the request is"
-        " refused with 403. The server checks only that the header is present."
-    ),
-    "schema": {"type": "string"},
 }
 
 #: Each derived error: the description and the headers it carries.
@@ -223,15 +200,6 @@ def _declare_errors(operation: dict[str, Any], method: str) -> None:
             response.setdefault("headers", headers)
 
 
-def _declare_csrf_headers(path: str, method: str, operation: dict[str, Any]) -> None:
-    """Declare the headers the CSRF middleware reads on a write it checks, keeping any the route declared itself."""
-    if not core_middleware.CSRFMiddleware.enforces(method.upper(), path):
-        return
-    parameters = operation.setdefault("parameters", [])
-    declared = {parameter["name"] for parameter in parameters if parameter["in"] == "header"}
-    parameters += [header for header in (_CLIENT_TYPE_HEADER, _CSRF_TOKEN_HEADER) if header["name"] not in declared]
-
-
 def _mark_read_only(document: dict[str, Any]) -> None:
     """Mark the server-owned fields ``readOnly`` in every schema that no request body reaches."""
     schemas = document["components"]["schemas"]
@@ -283,7 +251,6 @@ def declare_contract(document: dict[str, Any]) -> dict[str, Any]:
             if method in item:
                 _trim_description(item[method])
                 _declare_errors(item[method], method)
-                _declare_csrf_headers(path, method, item[method])
                 _declare_headers(document, path, method, item[method])
     _mark_read_only(document)
     return document

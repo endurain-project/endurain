@@ -38,5 +38,8 @@
   "notRestoredBody": "A módosítást jelentették, a fiókodból mindenhol kijelentkeztettük, az API-kulcsait pedig visszavontuk. Az előző címedet most már egy másik fiók használja, így a fiókod megtartja az újat. Fordulj az Endurain rendszergazdájához, és módosítsd a jelszavadat.",
   "cancelInvalidTitle": "Ez a hivatkozás már nem működik",
   "cancelInvalidBody": "A hivatkozás érvénytelen, lejárt vagy már felhasználták, vagy az e-mail-címet a hivatkozás elküldése után újra módosították. Ha továbbra is úgy gondolod, hogy valaki más hozzáfér a fiókodhoz, jelentkezz be, és módosítsd a jelszavadat.",
-  "cancelError": "Nem sikerült megszakítani a módosítást. Kérjük, próbáld újra."
+  "cancelError": "Nem sikerült megszakítani a módosítást. Kérjük, próbáld újra.",
+  "confirmChangeTitle": "Erősítsd meg az új e-mail-címedet",
+  "confirmChangeBody": "A gombbal erősítheted meg, hogy kérted a fiókod e-mail-címének módosítását. Mindenhol kijelentkeztetünk.",
+  "confirmChangeButton": "E-mail-cím módosításának megerősítése"
 }

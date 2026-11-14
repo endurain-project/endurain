@@ -173,7 +173,7 @@ class TestRefusedPasswordSignIn:
 
 class TestSuccessfulSignIn:
     def _login_without_mfa(self, db, **kwargs):
-        tokens = (_SESSION_ID, datetime(2999, 1, 1, tzinfo=UTC), "at", datetime(2999, 1, 1, tzinfo=UTC), "rt", "csrf")
+        tokens = (_SESSION_ID, datetime(2999, 1, 1, tzinfo=UTC), "at", datetime(2999, 1, 1, tzinfo=UTC), "rt")
         with (
             patch(f"{_SERVICE}.users_integration.get_user_by_username", return_value=_USER),
             patch(f"{_SERVICE}.authenticate_user", return_value=_USER),
@@ -235,7 +235,7 @@ class TestMfaSignIn:
         )
         store.record_wrong_code.return_value = False
         request = SimpleNamespace(mfa_challenge="challenge", mfa_code="123456")
-        tokens = (_SESSION_ID, datetime(2999, 1, 1, tzinfo=UTC), "at", datetime(2999, 1, 1, tzinfo=UTC), "rt", "csrf")
+        tokens = (_SESSION_ID, datetime(2999, 1, 1, tzinfo=UTC), "at", datetime(2999, 1, 1, tzinfo=UTC), "rt")
         with (
             patch(f"{_SERVICE}.users_integration.get_user", return_value=_USER),
             patch(f"{_SERVICE}.users_integration.require_active_user"),
@@ -317,7 +317,6 @@ class TestLogoutAndReuse:
             "user_id": _USER_ID_1,
             "token_family_id": _FAMILY_ID,
             "refresh_token": "hash",
-            "csrf_token_hash": None,
             "rotation_count": 0,
             "client_type": "web",
         }
@@ -419,7 +418,7 @@ class TestLogoutAndReuse:
 
 
 class TestSsoSignIn:
-    def _exchange(self, db, *, idp_id, mfa_enabled=False, mfa_code=None):
+    def _exchange(self, db, *, idp_id, mfa_enabled=False):
         oauth_state = SimpleNamespace(
             id="state",
             purpose="login",
@@ -436,8 +435,7 @@ class TestSsoSignIn:
             client_type="web",
             amr=["fed"],
         )
-        tokens = (_SESSION_ID, datetime(2999, 1, 1, tzinfo=UTC), "at", datetime(2999, 1, 1, tzinfo=UTC), "rt", "csrf")
-        hasher = MagicMock()
+        tokens = (_SESSION_ID, datetime(2999, 1, 1, tzinfo=UTC), "at", datetime(2999, 1, 1, tzinfo=UTC), "rt")
         with (
             patch(f"{_SERVICE}.sessions_integration.get_session_with_oauth_state", return_value=(session, oauth_state)),
             patch(f"{_SERVICE}.auth_computation.validate_pkce_verifier"),
@@ -445,7 +443,7 @@ class TestSsoSignIn:
             patch(f"{_SERVICE}.users_integration.require_active_user"),
             patch(f"{_SERVICE}.mfa_integration.is_mfa_enabled_for_user", return_value=mfa_enabled),
             patch(f"{_SERVICE}.credentials_integration.is_password_change_required", return_value=False),
-            patch(f"{_SERVICE}.mfa_integration.verify_user_mfa", return_value=True),
+            patch(f"{_SERVICE}.mfa_integration.get_sign_in_methods", return_value=["totp"]),
             patch(f"{_SERVICE}.server_settings_integration.get_session_policy"),
             patch("modules.auth.authentication.token_service.create_tokens", return_value=tokens),
             patch(f"{_SERVICE}.sessions_integration.claim_session_for_token_exchange", return_value=_CLAIMED_EXPIRY),
@@ -453,12 +451,10 @@ class TestSsoSignIn:
             return authentication_service_sso_exchange_service.exchange_tokens_for_session(
                 _SESSION_ID,
                 "verifier",
-                mfa_code,
                 "web",
                 "127.0.0.1",
                 "agent",
-                MagicMock(is_locked_out=MagicMock(return_value=False)),
-                hasher,
+                MagicMock(add_pending_login=MagicMock(return_value="c" * 43)),
                 MagicMock(),
                 db,
                 device_id=None,
@@ -478,11 +474,12 @@ class TestSsoSignIn:
         )
         assert entry.details == {"method": "identity_provider", "mfa": False, "reason": None, "new_device": False}
 
-    def test_an_sso_sign_in_with_a_second_factor_records_it(self, mock_db):
+    def test_an_sso_sign_in_of_an_account_with_mfa_is_audited_by_its_mfa_step_not_by_the_exchange(self, mock_db):
         with jasil_testing.capture_audit() as audit:
-            self._exchange(mock_db, idp_id=IDP_ID, mfa_enabled=True, mfa_code="123456")
+            outcome = self._exchange(mock_db, idp_id=IDP_ID, mfa_enabled=True)
 
-        assert audit.assert_audited(_LOGIN, outcome="success").details["mfa"] is True
+        assert outcome.body.next_step == "mfa"
+        audit.assert_not_audited(_LOGIN)
 
     def test_a_password_session_is_not_audited_a_second_time(self, mock_db):
         with jasil_testing.capture_audit() as audit:

@@ -194,7 +194,7 @@ def prepare_password_reset_email(
             )
             db.commit()
             logger.info("Password-reset email requested", extra=core_logger.context(user_id=user.id))
-    reset_link = f"{frontend_host}/reset-password?token={token}"
+    reset_link = f"{frontend_host}/reset-password#token={token}"
     locale = core_i18n.normalize_locale(user.preferred_language)
     subject, html_content, text_content = password_reset_email_messages.get_password_reset_email(
         user.name,

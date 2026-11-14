@@ -39,7 +39,7 @@ const { t } = useI18n()
 const { config } = useAppConfig()
 const { serverSettings, ssoProviders, isSettingsLoading, isSsoLoading, loginImageUrl, load } =
   usePublicServerSettings()
-const { startSsoLogin, processSsoCallback, completeSsoMfa, maybeAutoRedirect } = useSsoLogin()
+const { startSsoLogin, processSsoCallback, maybeAutoRedirect } = useSsoLogin()
 const { navigateAfterLogin } = useSafeRedirect()
 const route = useRoute()
 const { resolveInitialAlert, shouldForceLocalLogin } = useLoginRouteMessages()
@@ -58,7 +58,6 @@ const confirmNewPassword = ref('')
 const forceLocalLogin = ref(false)
 const isLoading = ref(false)
 const isForgotPasswordOpen = ref(false)
-const isSsoMfaPending = ref(false)
 const alert = ref<AlertState | null>(null)
 // A custom icon URL can 404 or be blocked; its button then shows the text alone.
 const failedLogos = reactive(new Set<string>())
@@ -70,7 +69,7 @@ const { matches: passwordsMatch, error: confirmError } = usePasswordConfirmation
   confirmNewPassword,
 )
 
-const isMfaStep = computed(() => pendingChallenge.value.length > 0 || isSsoMfaPending.value)
+const isMfaStep = computed(() => pendingChallenge.value.length > 0)
 const isPasswordChangeStep = computed(() => pendingPasswordChangeChallenge.value.length > 0)
 const isSecondStep = computed(() => isMfaStep.value || isPasswordChangeStep.value)
 const isNewPasswordValid = computed(
@@ -152,7 +151,7 @@ function getAuthErrorMessage(error: unknown, step: SignInStep): string {
   if (isProblem(error, 'permission-denied')) {
     return t('login.forbidden')
   }
-  if (isProblem(error, 'too-many-requests', 'rate-limited')) {
+  if (isProblem(error, 'too-many-requests')) {
     return t('login.tooManyAttempts')
   }
   if (isProblem(error, 'service-unavailable')) {
@@ -220,11 +219,6 @@ async function submitForm(): Promise<void> {
       : 'password'
 
   try {
-    if (isSsoMfaPending.value) {
-      await completeSsoMfa(normalizeMfaCode(mfaCode.value))
-      return
-    }
-
     let result: LoginResult
     if (step === 'passwordChange') {
       result = await auth.changePassword(pendingPasswordChangeChallenge.value, newPassword.value)
@@ -243,7 +237,8 @@ async function submitForm(): Promise<void> {
       return
     }
     if (step === 'mfa') {
-      if (!isSsoMfaPending.value && isProblem(error, 'unauthorized')) {
+      // The challenge is dead, or the SSO session it finishes has expired: the user signs in again.
+      if (isProblem(error, 'session-ended')) {
         resetToSignIn()
         alert.value = { kind: 'error', message: t('login.mfaChallengeExpired') }
         return
@@ -265,7 +260,7 @@ async function submitForm(): Promise<void> {
  * @param error - Caught request error.
  */
 function handlePasswordChangeError(error: unknown): void {
-  if (isProblem(error, 'unauthorized')) {
+  if (isProblem(error, 'session-ended')) {
     resetToSignIn()
     alert.value = { kind: 'error', message: t('login.passwordChangeExpired') }
     return
@@ -340,9 +335,8 @@ onMounted(async () => {
   if (callback.status === 'completed') {
     return
   }
-  if (callback.status === 'mfa-required') {
-    isSsoMfaPending.value = true
-    alert.value = { kind: 'info', message: t('login.mfaRequired') }
+  if (callback.status === 'next-step') {
+    showNextStep(callback.result)
     return
   }
   if (callback.status === 'error') {

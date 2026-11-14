@@ -645,7 +645,8 @@
       "stepUpDescription": "Az identitásszolgáltatók határozzák meg, ki jelentkezhet be erre a szerverre. A folytatáshoz erősítsd meg, hogy te vagy az.",
       "slugConflict": "Ez a slug már használatban van",
       "issuerInUse": "Egy másik identitásszolgáltató már használja ezt a kibocsátói URL-t",
-      "issuerLocked": "A kibocsátói URL nem módosítható, amíg felhasználók vannak összekapcsolva ezzel a szolgáltatóval. Válaszd le őket, vagy adj hozzá új szolgáltatót.",
+      "locked": "A slug, az ügyfélazonosító, a protokoll, a kibocsátó és a végpontok nem módosíthatók, amíg felhasználók vannak összekapcsolva ezzel a szolgáltatóval. Válaszd le őket, vagy adj hozzá új szolgáltatót.",
+      "lockedHint": "Zárolva, amíg felhasználók vannak összekapcsolva ezzel a szolgáltatóval.",
       "staleError": "Ez a szolgáltató máshol módosult. A módosításaid nem lettek mentve. Zárd be és nyisd meg újra a jelenlegi beállítások betöltéséhez.",
       "saveError": "Nem sikerült menteni a szolgáltatót. Kérjük, próbáld újra."
     }

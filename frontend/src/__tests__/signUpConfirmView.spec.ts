@@ -8,7 +8,7 @@ import { HttpError } from '@/services/http'
 
 const { confirmSignUp, resendSignUpVerification, toastSuccess, routerReplace, route } = vi.hoisted(
   () => ({
-    route: { path: '/signup/confirm', query: {} as Record<string, unknown> },
+    route: { path: '/signup/confirm', query: {} as Record<string, unknown>, hash: '' },
     routerReplace: vi.fn<(to: unknown) => Promise<void>>(() => Promise.resolve()),
     confirmSignUp: vi.fn<(request: unknown) => Promise<unknown>>(),
     resendSignUpVerification: vi.fn<(request: unknown) => Promise<unknown>>(),
@@ -55,7 +55,8 @@ async function submitPassword(wrapper: Awaited<ReturnType<typeof mountView>>) {
 
 describe('SignUpConfirmView', () => {
   beforeEach(() => {
-    route.query = { token: 'tok', other: 'kept' }
+    route.query = { other: 'kept' }
+    route.hash = '#token=tok'
     sessionStorage.clear()
     confirmSignUp.mockReset()
     resendSignUpVerification.mockReset()
@@ -77,9 +78,7 @@ describe('SignUpConfirmView', () => {
     confirmSignUp.mockResolvedValue({ next_step: 'sign_in' })
     const wrapper = await mountView()
 
-    expect(routerReplace).toHaveBeenCalledWith(
-      expect.objectContaining({ query: { other: 'kept' } }),
-    )
+    expect(routerReplace).toHaveBeenCalledWith({ query: { other: 'kept' }, hash: '' })
     await submitPassword(wrapper)
 
     expect(confirmSignUp).toHaveBeenCalledWith({ token: 'tok', password: 'long-enough-pass' })
@@ -157,7 +156,7 @@ describe('SignUpConfirmView', () => {
       new HttpError(400, 'Bad Request', null, 'urn:endurain:error:invalid-input'),
     )
     resendSignUpVerification.mockRejectedValue(
-      new HttpError(429, 'Too Many Requests', null, 'urn:endurain:error:rate-limited'),
+      new HttpError(429, 'Too Many Requests', null, 'urn:endurain:error:too-many-requests'),
     )
     const wrapper = await mountView()
     await submitPassword(wrapper)
@@ -193,6 +192,7 @@ describe('SignUpConfirmView', () => {
 
   it('says sign-up is turned off when the server refuses a new email', async () => {
     route.query = {}
+    route.hash = ''
     resendSignUpVerification.mockRejectedValue(
       new HttpError(403, 'Forbidden', null, 'urn:endurain:error:permission-denied'),
     )
@@ -214,40 +214,34 @@ describe('SignUpConfirmView', () => {
     expect(wrapper.find('input[name="email"]').exists()).toBe(false)
   })
 
-  it('keeps the token after a reload dropped it from the URL', async () => {
-    ;(await mountView()).unmount()
+  it('still confirms with the token of a link sent with it in the query string', async () => {
+    route.hash = ''
+    route.query = { token: 'old-link' }
     confirmSignUp.mockResolvedValue({ next_step: 'sign_in' })
+    const wrapper = await mountView()
+    await submitPassword(wrapper)
 
+    expect(confirmSignUp).toHaveBeenCalledWith({
+      token: 'old-link',
+      password: 'long-enough-pass',
+    })
+  })
+
+  it('offers a new email after a reload dropped the token from the URL, keeping it nowhere', async () => {
+    ;(await mountView()).unmount()
+
+    route.hash = ''
     route.query = {}
     const wrapper = await mountView()
-    await submitPassword(wrapper)
 
-    expect(confirmSignUp).toHaveBeenCalledWith({ token: 'tok', password: 'long-enough-pass' })
-  })
-
-  it('forgets the token once the sign-up was confirmed', async () => {
-    confirmSignUp.mockResolvedValue({ next_step: 'sign_in' })
-    const wrapper = await mountView()
-    await submitPassword(wrapper)
-
-    expect(sessionStorage.length).toBe(0)
-  })
-
-  it.each([
-    [400, 'invalid-input'],
-    [404, 'not-found'],
-  ])('forgets the token when the link is refused with %i', async (status, code) => {
-    confirmSignUp.mockRejectedValue(
-      new HttpError(status, 'Refused', null, `urn:endurain:error:${code}`),
-    )
-    const wrapper = await mountView()
-    await submitPassword(wrapper)
-
+    expect(wrapper.find('input[name="new-password"]').exists()).toBe(false)
+    expect(wrapper.text()).toContain(i18n.global.t('verifyEmail.resendTitle'))
     expect(sessionStorage.length).toBe(0)
   })
 
   it('shows the resend form without an error when the link has no token', async () => {
     route.query = {}
+    route.hash = ''
     const wrapper = await mountView()
 
     expect(confirmSignUp).not.toHaveBeenCalled()

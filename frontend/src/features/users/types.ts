@@ -221,6 +221,7 @@ export type UserSessionDto = Schemas['UserSessionsRead']
  * @property lastActivityAt - Last activity timestamp (ISO string).
  * @property expiresAt - Expiry timestamp (ISO string).
  * @property appRedirectUri - Redirect address of the native app the session was signed in through, or null.
+ * @property isCurrent - Whether this is the caller's own session.
  */
 export interface UserSession {
   id: string
@@ -234,6 +235,7 @@ export interface UserSession {
   lastActivityAt: string
   expiresAt: string
   appRedirectUri: string | null
+  isCurrent: boolean
 }
 
 /** Raw `IdentityProviderLinkRead` payload as returned by the backend. */

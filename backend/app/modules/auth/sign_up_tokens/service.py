@@ -507,7 +507,7 @@ def _issue_verification_email(
         change_id=pending_change.change_id if pending_change else None,
         revert_until=pending_change.revert_until if pending_change else None,
     )
-    link = f"{frontend_host}{link_path}?token={token}"
+    link = f"{frontend_host}{link_path}#token={token}"
     locale = core_i18n.normalize_locale(user.preferred_language)
     subject, html_content, text_content = build_email(user.name, link, frontend_host, locale)
     return email, subject, html_content, text_content
@@ -704,7 +704,7 @@ def _revert_mac(change_id: uuid.UUID, revert_until: datetime) -> str:
 
 def _revert_link(change_id: uuid.UUID, revert_until: datetime, frontend_host: str) -> str:
     """Return the "this wasn't me" link of an email change; it works until ``revert_until``."""
-    return f"{frontend_host}/cancel-email-change?token={change_id}.{_revert_mac(change_id, revert_until)}"
+    return f"{frontend_host}/cancel-email-change#token={change_id}.{_revert_mac(change_id, revert_until)}"
 
 
 def prepare_email_change_requested_email(
@@ -1154,7 +1154,7 @@ def confirm_sign_up(token: str, password: str, db: Session) -> sign_up_schema.Si
     return sign_up_schema.SignUpRead(next_step=sign_up_schema.SignUpNextStep.AWAIT_APPROVAL)
 
 
-def confirm_email_change(token: str, db: Session) -> sign_up_schema.SignUpRead:
+def confirm_email_change(token: str, db: Session) -> None:
     """Consume an email-change token, switch the account to the confirmed address and mark it verified.
 
     The notice to the previous address is staged with the switch; a conflict or any later failure rolls the claim back
@@ -1165,9 +1165,6 @@ def confirm_email_change(token: str, db: Session) -> sign_up_schema.SignUpRead:
     Args:
         token: The raw email-change token.
         db: Database session.
-
-    Returns:
-        The next step: signing in with the new address.
 
     Raises:
         InvalidInputError: If the token is unknown, used, expired, not an email-change token, or requested before a
@@ -1184,7 +1181,6 @@ def confirm_email_change(token: str, db: Session) -> sign_up_schema.SignUpRead:
         raise core_exceptions.NotFoundError("User not found")
     users_integration.stage_email_verification(user_id, server_settings, db)
     _commit_sign_up(user_id, db)
-    return sign_up_schema.SignUpRead(next_step=sign_up_schema.SignUpNextStep.SIGN_IN)
 
 
 def delete_expired_sign_up_tokens(db: Session) -> int:

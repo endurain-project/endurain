@@ -9,6 +9,7 @@ from fastapi import FastAPI
 from fastapi.testclient import TestClient
 from jasil.backends.state_memory import MemoryState
 
+import core.database as core_database
 import core.exceptions as core_exceptions
 import core.job_status as core_job_status
 import modules.garmin.constants as garmin_constants
@@ -35,6 +36,8 @@ def _client(user_id: uuid.UUID = MOCK_USER_ID):
     app.add_api_route("/jobs/{job_id}", lambda job_id: None, name="read_job")
     app.dependency_overrides[auth_deps.get_current_user_id] = lambda: user_id
     app.dependency_overrides[auth_deps.check_scopes] = lambda: None
+    app.dependency_overrides[auth_deps.get_step_up_verifier] = lambda: lambda step_up, action: None
+    app.dependency_overrides[core_database.get_db] = lambda: MagicMock()
     app.dependency_overrides[garmin_dependencies.get_garmin_link_state_store] = lambda: link_states
     app.dependency_overrides[garmin_dependencies.get_garmin_mfa_code_store] = lambda: mfa_code_store.GarminMFACodeStore(
         state=state
@@ -175,14 +178,24 @@ def test_a_non_numeric_mfa_code_is_rejected():
     assert client.post("/garmin/mfa", json={"mfa_code": "12 34!"}).status_code == 422
 
 
-def test_unlinking_is_a_delete_on_the_link():
+def test_unlinking_is_a_post_with_a_step_up_body():
     client, _ = _client()
     with patch("modules.garmin.service.unlink_account") as unlink:
-        response = client.delete("/garmin/link")
+        response = client.post("/garmin/unlink", json={"step_up": {"current_password": "pw"}})
 
     assert response.status_code == 204
     assert response.content == b""
     unlink.assert_called_once()
+    assert unlink.call_args.args[1].current_password == "pw"
+
+
+def test_unlinking_without_a_step_up_is_refused_and_the_delete_route_is_gone():
+    client, _ = _client()
+    with patch("modules.garmin.service.unlink_account") as unlink:
+        assert client.post("/garmin/unlink", json={}).status_code == 422
+        assert client.delete("/garmin/link").status_code == 405
+
+    unlink.assert_not_called()
 
 
 def test_a_reversed_health_range_is_a_validation_error():
@@ -202,7 +215,7 @@ def _route_scopes(path: str, method: str) -> set[str]:
 
 def test_each_route_requires_the_scope_of_what_it_touches():
     assert _route_scopes("/link", "POST") == {"account:integrations"}
-    assert _route_scopes("/link", "DELETE") == {"account:integrations"}
+    assert _route_scopes("/unlink", "POST") == {"account:integrations"}
     assert _route_scopes("/mfa", "POST") == {"account:integrations"}
     assert _route_scopes("/activities", "POST") == {"activities:write"}
     assert _route_scopes("/gear", "POST") == {"gears:write"}

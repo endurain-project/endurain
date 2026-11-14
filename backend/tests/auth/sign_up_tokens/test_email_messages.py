@@ -47,6 +47,12 @@ class TestGetSignupConfirmationEmail:
         _, html_body, _ = email_messages.get_signup_confirmation_email("Alice", link, _make_service(), locale="en")
         assert link in html_body
 
+    def test_html_keeps_the_token_in_the_fragment(self):
+        """The link's fragment survives the escaping of the HTML body."""
+        link = "https://example.com/signup/confirm#token=xyz"
+        _, html_body, _ = email_messages.get_signup_confirmation_email("Alice", link, _make_service(), locale="en")
+        assert html_body.count(link) == 2
+
     def test_text_contains_signup_link(self):
         """Plain-text body contains the signup link."""
         link = "https://example.com/verify?token=xyz"

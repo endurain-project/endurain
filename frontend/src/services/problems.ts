@@ -8,7 +8,7 @@ const PROBLEM_PREFIX = 'urn:endurain:error:'
  * status, because one status carries several different problems.
  *
  * @param error - The error a request rejected with.
- * @param codes - Problem codes without the URN prefix, e.g. `conflict` or `rate-limited`.
+ * @param codes - Problem codes without the URN prefix, e.g. `conflict` or `too-many-requests`.
  * @returns True for an `HttpError` whose `type` is one of the codes.
  */
 export function isProblem(error: unknown, ...codes: string[]): error is HttpError {
@@ -35,7 +35,7 @@ export function retryWaitMessage(
     return null
   }
   const seconds = error.retryAfterSeconds
-  if (isProblem(error, 'rate-limited', 'too-many-requests')) {
+  if (isProblem(error, 'too-many-requests')) {
     return t('app.retryAfter.tooManyAttempts', { seconds })
   }
   if (isProblem(error, 'service-unavailable')) {

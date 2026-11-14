@@ -32,6 +32,7 @@ import math
 import uuid
 from collections.abc import Awaitable, Callable
 from datetime import UTC, datetime
+from enum import StrEnum
 
 from fastapi import FastAPI, HTTPException, Request, Response, status
 from fastapi.exceptions import RequestValidationError
@@ -149,11 +150,11 @@ class UnauthenticatedError(DomainError):
 
 
 class InvalidTokenError(UnauthenticatedError):
-    """The bearer token is missing, expired, malformed or its session ended.
+    """The access token of a resource route is missing, expired, malformed or its session ended.
 
-    Clients branch on the ``invalid-token`` problem type to refresh their tokens and send the request again; every
-    other ``401`` is final. The challenge follows RFC 6750: ``error="invalid_token"``, and no error code when the
-    request carried no token.
+    Only a resource route answers it. Clients branch on the ``invalid-token`` problem type to refresh their tokens
+    once and send the request again; a refusal of the sign-in or the refresh is :class:`SessionEndedError`. The
+    challenge follows RFC 6750: ``error="invalid_token"``, and no error code when the request carried no token.
     """
 
     code = "invalid-token"
@@ -166,6 +167,27 @@ class InvalidTokenError(UnauthenticatedError):
             detail: Message returned to the client.
             scheme: Authentication challenge for ``WWW-Authenticate``; pass ``"Bearer"`` when the request carried
                 no token.
+        """
+        super().__init__(detail, scheme=scheme)
+
+
+class SessionEndedError(UnauthenticatedError):
+    """The sign-in or the refresh credential is final: the client must sign in again, not retry.
+
+    ``/auth/refresh`` answers it for every refusal, and ``/auth/mfa/verify`` and ``/auth/password-change`` answer it
+    for a pending sign-in that is dead. The routes have no bearer scheme, so the challenge is ``Session``, a
+    scheme without parameters.
+    """
+
+    code = "session-ended"
+    default_detail = "The session has ended. Sign in again."
+
+    def __init__(self, detail: str | None = None, *, scheme: str = "Session") -> None:
+        """Initialise the error with the authentication challenge to return.
+
+        Args:
+            detail: Message returned to the client.
+            scheme: Authentication challenge for ``WWW-Authenticate``.
         """
         super().__init__(detail, scheme=scheme)
 
@@ -201,22 +223,11 @@ class ProviderScopeInsufficientError(InvalidInputError):
     default_detail = "The provider authorization is missing a required permission"
 
 
-class MfaRequiredError(PermissionDeniedError):
-    """The account has MFA enabled and the request carried no MFA code.
-
-    Clients branch on the ``mfa-required`` problem type to ask for a code and send the same request again.
-    """
-
-    code = "mfa-required"
-    default_detail = "MFA verification required"
-
-
 class MfaEnrolmentRequiredError(PermissionDeniedError):
     """The server requires MFA of this account, which has not enrolled a second factor.
 
     Renders as ``403``. Clients branch on the ``mfa-enrolment-required`` problem type to send the user to enrol; the
-    account may still make the requests enrolment needs, and sign out. It is not the ``mfa-required`` problem, which
-    asks for a code from an account that has MFA.
+    account may still make the requests enrolment needs, and sign out.
     """
 
     code = "mfa-enrolment-required"
@@ -321,15 +332,15 @@ class IssuerInUseError(ConflictError):
     default_detail = "Another identity provider already uses this issuer"
 
 
-class IssuerLockedError(ConflictError):
-    """An identity provider's issuer URL cannot change while users are linked to it.
+class IdentityProviderLockedError(ConflictError):
+    """An edit changes fields that identify an identity provider while users are linked to it.
 
-    Renders as ``409``. Clients branch on the ``issuer-locked`` problem type to tell the administrator to unlink the
-    users or add a new provider instead.
+    Renders as ``409``. Clients branch on the ``identity-provider-locked`` problem type to tell the administrator to
+    unlink the users or add a new provider instead. The detail names the locked fields the edit changes.
     """
 
-    code = "issuer-locked"
-    default_detail = "The issuer cannot change while users are linked to this provider"
+    code = "identity-provider-locked"
+    default_detail = "These fields cannot change while users are linked to this provider"
 
 
 class ApiKeyLimitError(ConflictError):
@@ -420,10 +431,28 @@ class PreconditionRequiredError(DomainError):
     default_detail = "This request must be conditional; send the ETag you read in an If-Match header"
 
 
+class TooManyRequestsScope(StrEnum):
+    """What a 429 says was exhausted, the ``scope`` member of its problem document.
+
+    The set is open: a client treats a value it does not know like any other 429 and waits for ``Retry-After``.
+    """
+
+    REQUESTS = "requests"
+    SIGN_IN = "sign-in"
+    MFA = "mfa"
+    STEP_UP = "step-up"
+    PROVIDER = "provider"
+    FOLLOW_REQUEST = "follow-request"
+
+
 class TooManyRequestsError(DomainError):
     """A per-resource limit is reached, as opposed to the caller's request rate.
 
+    Renders as ``429`` with the ``too-many-requests`` problem type, a ``scope`` member and, when the end of the limit
+    is known, ``Retry-After``.
+
     Attributes:
+        scope: What was exhausted.
         retry_at: When the limit clears, when the raiser knows it; a job that hit a provider's
             limit waits until then instead of retrying into it.
     """
@@ -433,15 +462,20 @@ class TooManyRequestsError(DomainError):
     title = "Too Many Requests"
     default_detail = "Too Many Requests"
 
-    def __init__(self, detail: str | None = None, *, retry_at: datetime | None = None) -> None:
-        """Initialise the error with an optional message and the time the limit clears.
+    def __init__(
+        self, detail: str | None = None, *, scope: TooManyRequestsScope, retry_at: datetime | None = None
+    ) -> None:
+        """Initialise the error with an optional message, what was exhausted and the time the limit clears.
 
         Args:
             detail: Message returned to the client.
+            scope: What was exhausted.
             retry_at: When the limit clears, if known.
         """
         super().__init__(detail)
+        self.scope = scope
         self.retry_at = retry_at
+        self.extensions = {"scope": scope.value}
 
 
 class UnsupportedFormatError(DomainError):

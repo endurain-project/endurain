@@ -17,6 +17,7 @@ _USER_ID = uuid.UUID(int=5)
 IDP_ID = uuid.uuid4()
 
 _SERVICE = "modules.auth.authentication.sso_exchange_service"
+_COMPLETION = "modules.auth.authentication.service"
 _LOGIN = "auth.session.login"
 _USER = SimpleNamespace(id=_USER_ID, username="alice", active=True, access_type="regular")
 
@@ -39,7 +40,7 @@ def _exchange(db, *, pkce_error=None, inactive=False, claimed=True, header="web"
         amr=["fed"],
     )
     inactive_error = core_exceptions.PermissionDeniedError("Inactive user") if inactive else None
-    tokens = (_SESSION_ID, datetime(2026, 11, 1, tzinfo=UTC), "at", datetime(2026, 12, 1, tzinfo=UTC), "rt", "csrf")
+    tokens = (_SESSION_ID, datetime(2026, 11, 1, tzinfo=UTC), "at", datetime(2026, 12, 1, tzinfo=UTC), "rt")
     with (
         patch(
             f"{_SERVICE}.sessions_integration.get_session_with_oauth_state",
@@ -49,14 +50,14 @@ def _exchange(db, *, pkce_error=None, inactive=False, claimed=True, header="web"
         patch(f"{_SERVICE}.users_integration.require_user", return_value=_USER),
         patch(f"{_SERVICE}.users_integration.require_active_user", side_effect=inactive_error),
         patch(f"{_SERVICE}.mfa_integration.is_mfa_enabled_for_user", return_value=False),
-        patch(f"{_SERVICE}.server_settings_integration.get_session_policy"),
-        patch(f"{_SERVICE}.authentication_token_service.create_tokens", return_value=tokens),
+        patch(f"{_COMPLETION}.server_settings_integration.get_session_policy"),
+        patch(f"{_COMPLETION}.authentication_token_service.create_tokens", return_value=tokens),
         patch(
             f"{_SERVICE}.sessions_integration.claim_session_for_token_exchange",
             return_value=datetime(2027, 1, 1, tzinfo=UTC) if claimed else None,
         ),
         patch(
-            f"{_SERVICE}.known_devices_integration.record_sign_in",
+            f"{_COMPLETION}.known_devices_integration.record_sign_in",
             return_value=MagicMock(device_id="d" * 43, new_device=False),
         ),
         jasil_testing.capture_audit() as audit,
@@ -67,11 +68,9 @@ def _exchange(db, *, pkce_error=None, inactive=False, claimed=True, header="web"
             sso_exchange_service.exchange_tokens_for_session(
                 _SESSION_ID,
                 "verifier",
-                None,
                 header,
                 "127.0.0.1",
                 "agent",
-                MagicMock(),
                 MagicMock(),
                 MagicMock(),
                 db,

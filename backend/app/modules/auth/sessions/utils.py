@@ -9,8 +9,8 @@ import core.exceptions as core_exceptions
 import modules.auth.sessions.contracts as sessions_contracts
 
 
-def verify_csrf_token(stored_hmac: str, expected_hmac: str) -> bool:
-    """Compare the expected HMAC with a stored CSRF HMAC in constant time."""
+def digests_match(stored_hmac: str, expected_hmac: str) -> bool:
+    """Compare the expected HMAC with a stored HMAC in constant time."""
     return hmac.compare_digest(expected_hmac, stored_hmac)
 
 

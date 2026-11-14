@@ -38,5 +38,8 @@
   "notRestoredBody": "A alteração foi comunicada, a sessão da tua conta foi terminada em todo o lado e as respetivas chaves de API foram revogadas. Outra conta usa agora o teu endereço anterior, por isso a tua conta mantém o novo. Contacta o administrador do teu Endurain e altera a tua palavra-passe.",
   "cancelInvalidTitle": "Esta ligação já não funciona",
   "cancelInvalidBody": "A ligação é inválida, expirou ou já foi usada, ou o endereço de email foi alterado novamente depois de ser enviada. Se ainda achas que outra pessoa tem acesso, inicia sessão e altera a tua palavra-passe.",
-  "cancelError": "Não foi possível cancelar a alteração. Tenta novamente."
+  "cancelError": "Não foi possível cancelar a alteração. Tenta novamente.",
+  "confirmChangeTitle": "Confirma o teu novo endereço de email",
+  "confirmChangeBody": "Prime o botão para confirmar que pediste a alteração do endereço de email da tua conta. A tua sessão será terminada em todo o lado.",
+  "confirmChangeButton": "Confirmar a alteração do email"
 }

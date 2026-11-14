@@ -38,10 +38,8 @@ class UsersSessions(Base):
         rotation_count: Number of times refresh token has been
             rotated.
         last_rotation_at: Timestamp of last token rotation.
-        csrf_token_hash: Hashed CSRF token for refresh
-            validation.
         client_type: The client the session was created for (``ClientType``); its tokens name it as
-            ``client_id`` and a refresh must declare it.
+            ``client_type`` and a refresh must declare it.
         auth_time: When the owner signed in; refresh and step-up leave it unchanged.
         app_redirect_uri: The native-app redirect address an SSO sign-in handed the session to; null for a web
             session and for a sign-in that carried no redirect.
@@ -140,11 +138,6 @@ class UsersSessions(Base):
         DateTime(timezone=True),
         nullable=True,
         comment="Timestamp of last token rotation",
-    )
-    csrf_token_hash: Mapped[str | None] = mapped_column(
-        String(255),
-        nullable=True,
-        comment="Hashed CSRF token for refresh validation",
     )
     client_type: Mapped[str] = mapped_column(
         String(10),

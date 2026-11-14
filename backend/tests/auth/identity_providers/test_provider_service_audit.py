@@ -74,6 +74,11 @@ class TestUpdate:
             patch.object(provider_service, "idp_crud") as crud,
             patch.object(provider_service.identity_provider_serializers, "to_read_schema"),
             patch.object(provider_service, "_reject_unsafe_urls"),
+            patch.object(
+                provider_service.identity_provider_links_integration,
+                "check_user_identity_providers_by_idp_id",
+                return_value=False,
+            ),
             jasil_testing.capture_audit() as audit,
         ):
             crud.get_identity_provider.return_value = before

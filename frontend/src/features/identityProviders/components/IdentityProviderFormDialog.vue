@@ -30,7 +30,7 @@ import {
 import { useAdminStepUp, useResumeOnce } from '@/features/security/composables/useAdminStepUp'
 import {
   IDP_ISSUER_IN_USE_TYPE,
-  IDP_ISSUER_LOCKED_TYPE,
+  IDP_LOCKED_TYPE,
 } from '@/features/identityProviders/services/identityProviders'
 import { HttpError } from '@/services/http'
 import { isProblem } from '@/services/problems'
@@ -277,8 +277,8 @@ async function submitForm(
       emit('error', t('app.staleError'))
     } else if (error instanceof HttpError && error.type === IDP_ISSUER_IN_USE_TYPE) {
       emit('error', t('settings.idp.form.issuerInUse'))
-    } else if (error instanceof HttpError && error.type === IDP_ISSUER_LOCKED_TYPE) {
-      emit('error', t('settings.idp.form.issuerLocked'))
+    } else if (error instanceof HttpError && error.type === IDP_LOCKED_TYPE) {
+      emit('error', t('settings.idp.form.locked'))
     } else if (isProblem(error, 'conflict')) {
       emit('error', t('settings.idp.form.slugConflict'))
     } else if (isProblem(error, 'invalid-input')) {
@@ -334,6 +334,8 @@ const { values, errors, isValid, isSubmitting, handleSubmit, handleBlur, reset, 
   })
 
 const isEditing = computed(() => props.provider !== null)
+// The client id, protocol and issuer cannot change while users are linked to the provider.
+const identityLocked = computed(() => props.provider?.hasLinkedUsers === true)
 const selectedTemplateId = ref('')
 const selectedTemplate = computed(() =>
   props.templates.find((template) => template.templateId === selectedTemplateId.value),
@@ -542,9 +544,16 @@ watch(
         </template>
       </FormField>
 
-      <FormField :label="t('settings.idp.form.providerType')">
+      <FormField
+        :label="t('settings.idp.form.providerType')"
+        :hint="identityLocked ? t('settings.idp.form.lockedHint') : undefined"
+      >
         <template #default="{ fieldId }">
-          <Select :id="fieldId" v-model="values.providerType" :disabled="isSubmitting">
+          <Select
+            :id="fieldId"
+            v-model="values.providerType"
+            :disabled="isSubmitting || identityLocked"
+          >
             <option value="oidc">{{ t('settings.idp.form.typeOidc') }}</option>
             <option value="oauth2">{{ t('settings.idp.form.typeOauth2') }}</option>
           </Select>
@@ -555,7 +564,9 @@ watch(
         class="sm:col-span-2"
         :label="t('settings.idp.form.issuerUrl')"
         :error="errors.issuerUrl"
-        :hint="t('settings.idp.form.issuerUrlHint')"
+        :hint="
+          identityLocked ? t('settings.idp.form.lockedHint') : t('settings.idp.form.issuerUrlHint')
+        "
         required
       >
         <template #default="{ fieldId, describedBy, invalid }">
@@ -568,13 +579,18 @@ watch(
             type="url"
             inputmode="url"
             maxlength="500"
-            :disabled="isSubmitting"
+            :disabled="isSubmitting || identityLocked"
             @blur="handleBlur('issuerUrl')"
           />
         </template>
       </FormField>
 
-      <FormField :label="t('settings.idp.form.clientId')" :error="errors.clientId" required>
+      <FormField
+        :label="t('settings.idp.form.clientId')"
+        :error="errors.clientId"
+        :hint="identityLocked ? t('settings.idp.form.lockedHint') : undefined"
+        required
+      >
         <template #default="{ fieldId, describedBy, invalid }">
           <Input
             :id="fieldId"
@@ -584,7 +600,7 @@ watch(
             name="clientId"
             maxlength="512"
             autocomplete="off"
-            :disabled="isSubmitting"
+            :disabled="isSubmitting || identityLocked"
             @blur="handleBlur('clientId')"
           />
         </template>

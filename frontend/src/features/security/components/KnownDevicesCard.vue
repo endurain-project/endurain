@@ -51,7 +51,7 @@ const forgetMutation = useForgetKnownDeviceMutation()
 const forgetOthersMutation = useForgetOtherKnownDevicesMutation()
 const forgetAllMutation = useForgetAllKnownDevicesMutation()
 /** The number of devices that aren't the current one (forgettable in bulk). */
-const otherDevicesCount = computed(() => devices.value.filter((device) => !device.current).length)
+const otherDevicesCount = computed(() => devices.value.filter((device) => !device.isCurrent).length)
 
 const isStepUpOpen = ref(false)
 const idpReauth = ref<IdpReauth | null>(null)
@@ -220,7 +220,7 @@ function onConfirmAll(input: StepUpInput): void {
           <div class="min-w-0">
             <div class="flex min-w-0 items-center gap-2">
               <p class="text-body">{{ deviceLabel(device) }}</p>
-              <Badge v-if="device.current" variant="secondary" class="shrink-0">
+              <Badge v-if="device.isCurrent" variant="secondary" class="shrink-0">
                 {{ t('settings.security.devices.current') }}
               </Badge>
             </div>
@@ -236,7 +236,7 @@ function onConfirmAll(input: StepUpInput): void {
         <Button
           variant="ghostDestructive"
           size="icon-sm"
-          :disabled="device.current"
+          :disabled="device.isCurrent"
           :aria-label="t('settings.security.devices.forget')"
           @click="openForget(device)"
         >

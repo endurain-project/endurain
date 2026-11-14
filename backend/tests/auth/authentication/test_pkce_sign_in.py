@@ -324,7 +324,7 @@ class TestWebExchange:
         assert response.status_code == 200
         assert body["next_step"] == "tokens"
         assert body["token_type"] == "bearer"
-        assert "csrf_token" in body
+        assert "csrf_token" not in body
         assert "refresh_token" not in body
         assert "endurain_refresh_token" in response.headers["set-cookie"]
 
@@ -339,26 +339,26 @@ class TestWebExchange:
         assert "set-cookie" not in response.headers
 
 
-class TestClientIdClaim:
+class TestClientTypeClaim:
     """Every token names the client type of the session it belongs to."""
 
     @staticmethod
-    def _client_id(token: str, token_type) -> str:
+    def _client_type(token: str, token_type) -> str:
         manager = access_tokens_integration.get_token_manager()
         manager.validate_token_expiration(token, token_type)
-        return manager.get_token_claim(token, "client_id", token_type)
+        return manager.get_token_claim(token, "client_type", token_type)
 
     def test_a_web_password_sign_in_issues_web_tokens(self, plain_signin):
         response = _login(plain_signin, WEB)
 
-        assert self._client_id(response.json()["access_token"], TokenType.ACCESS) == "web"
+        assert self._client_type(response.json()["access_token"], TokenType.ACCESS) == "web"
         cookies = (cookie.split(";", 1)[0] for cookie in response.headers.get_list("set-cookie"))
         refresh_token = next(
             value
             for name, value in (c.split("=", 1) for c in cookies)
             if name.endswith("endurain_refresh_token") and value != '""'
         )
-        assert self._client_id(refresh_token, TokenType.REFRESH) == "web"
+        assert self._client_type(refresh_token, TokenType.REFRESH) == "web"
 
     def test_a_mobile_exchange_issues_mobile_tokens(self, plain_signin):
         session_id = _login(plain_signin, MOBILE, **PKCE).json()["session_id"]
@@ -367,5 +367,5 @@ class TestClientIdClaim:
             f"/auth/sessions/{session_id}/tokens", json={"code_verifier": VERIFIER}, headers=MOBILE
         ).json()
 
-        assert self._client_id(body["access_token"], TokenType.ACCESS) == "mobile"
-        assert self._client_id(body["refresh_token"], TokenType.REFRESH) == "mobile"
+        assert self._client_type(body["access_token"], TokenType.ACCESS) == "mobile"
+        assert self._client_type(body["refresh_token"], TokenType.REFRESH) == "mobile"

@@ -354,9 +354,10 @@ class TestRaiseIfRateLimited:
     def test_a_rate_limit_is_recorded_and_refused(self):
         rate_limits = MagicMock()
 
-        with pytest.raises(core_exceptions.TooManyRequestsError):
+        with pytest.raises(core_exceptions.TooManyRequestsError) as refused:
             strava_utils.raise_if_rate_limited(_make_strava_fault(429), "c", rate_limits)
 
+        assert refused.value.scope == core_exceptions.TooManyRequestsScope.PROVIDER
         rate_limits.mark_rate_limited.assert_called_once_with("c", is_long_term=False)
 
     @pytest.mark.parametrize(

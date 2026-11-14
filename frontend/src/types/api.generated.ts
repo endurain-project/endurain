@@ -603,8 +603,8 @@ export interface paths {
          *     and client_id. A web client also gets the login page as post_logout_redirect_uri, which the provider must have
          *     registered; a mobile client gets none. Any other session gets null. When the provider cannot be reached for
          *     its endpoint, the session still ends and idp_logout_url is null: the provider session stays. The answer is never
-         *     cached, because the URL carries the ID token. A web client sends the `X-CSRF-Token` header, and without it the
-         *     answer is 403.
+         *     cached, because the URL carries the ID token. A web request carrying an Origin header the server does not
+         *     allow gets 403.
          *
          *     Logout is idempotent. A refresh token that is missing, malformed, expired, revoked or whose session is gone ends
          *     nothing and gets the same 200 answer with a null idp_logout_url, and a web client's refresh cookie is cleared
@@ -637,11 +637,14 @@ export interface paths {
          *     the authentication process if the code is valid. When an administrator set the
          *     account's password, the answer is the password-change step instead of a session.
          *
-         *     The step carries no PKCE values: the password step recorded them with the login. The challenge lives five
-         *     minutes, is accepted only from the client network (an IPv4 address or an IPv6 /64) and client type of the
-         *     password step, and ends after three wrong codes. A wrong code is answered 400; a challenge that is unknown,
-         *     expired, ended or presented from another network or client type is answered 401 and the client signs in again.
-         *     A mobile client gets a session_id to exchange for tokens at /auth/sessions/{session_id}/tokens, never tokens.
+         *     The challenge comes from a password sign-in at /auth/login or from the exchange of an identity-provider session
+         *     at /auth/sessions/{session_id}/tokens. The step carries no PKCE values: the first step recorded them with the
+         *     login. The challenge lives five minutes, is accepted only from the client network (an IPv4 address or an IPv6
+         *     /64) and client type of the first step, and ends after three wrong codes. A wrong code is answered 400; a
+         *     challenge that is unknown, expired, ended or presented from another network or client type is answered 401 and
+         *     the client signs in again. After a password sign-in a mobile client gets a session_id to exchange for tokens at
+         *     /auth/sessions/{session_id}/tokens, never tokens. After an identity-provider sign-in either client gets the
+         *     tokens of the exchanged session, and a session that expired or was used meanwhile is answered 401.
          */
         post: operations["verify_mfa_and_login"];
         delete?: never;
@@ -688,17 +691,13 @@ export interface paths {
          * Refresh Token
          * @description Handles the refresh token process for user sessions.
          *
-         *     This endpoint validates the provided refresh token, checks session status,
-         *     validates the CSRF token (web clients only), and issues new tokens. A web client sends its refresh cookie and no
+         *     This endpoint validates the provided refresh token, checks session status, and issues new tokens. A web client sends its refresh cookie and no
          *     body. A mobile client sends its refresh token in the JSON body as refresh_token (RFC 6749 section 6), never in
          *     the Authorization header; a body token sent by a web client is not read.
          *
-         *     OAuth 2.1 Bootstrap Pattern for Page Reload:
-         *         On page reload, in-memory tokens are lost but httpOnly cookie persists.
-         *         - If no CSRF header: Allow refresh (page reload scenario)
-         *         - If CSRF header provided: Validate it (legitimate request with cached token)
-         *         - Security: httpOnly cookie + SameSite=Strict prevents CSRF at browser level
-         *         - CSRF validation adds defense-in-depth but is not the primary protection
+         *     A web request carrying an Origin header the server does not allow is refused with 403, since the refresh cookie
+         *     is sent by the browser on its own. Every other refusal is a 401 with the session-ended problem type: the client
+         *     signs in again.
          */
         post: operations["refresh_token"];
         delete?: never;
@@ -721,11 +720,11 @@ export interface paths {
          * @description Exchange a PKCE code verifier for the tokens of a session a sign-in created.
          *
          *     A mobile password sign-in and an identity-provider callback create a session that holds no tokens. The client
-         *     proves it holds the PKCE code verifier and receives the tokens: a web client the access and CSRF tokens in the
+         *     proves it holds the PKCE code verifier and receives the tokens: a web client the access token in the
          *     body and the refresh token as a cookie, a mobile client every token in the body. The exchange succeeds once per
-         *     session, and only for the client type that started the sign-in. An identity-provider session of an account with
-         *     MFA enabled also needs ``mfa_code``; without it the answer is a ``403`` with the ``mfa-required`` problem type
-         *     and the session stays usable.
+         *     session, and only for the client type that started the sign-in. For an identity-provider session of an account
+         *     with MFA enabled the answer is the ``mfa`` step instead, and the session stays unused: the client sends the
+         *     account's code with ``mfa_challenge`` to ``/auth/mfa/verify``, which answers the session's tokens.
          */
         post: operations["exchange_tokens_for_session"];
         delete?: never;
@@ -824,11 +823,7 @@ export interface paths {
          *     ``Content-Location`` naming that job.
          */
         post: operations["garminconnect_link"];
-        /**
-         * Garminconnect Unlink
-         * @description Unlink the user's Garmin Connect account.
-         */
-        delete: operations["garminconnect_unlink"];
+        delete?: never;
         options?: never;
         head?: never;
         patch?: never;
@@ -848,6 +843,28 @@ export interface paths {
          * @description Hand the MFA code to the Garmin Connect login waiting for it.
          */
         post: operations["garminconnect_mfa_code"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/garmin/unlink": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Garminconnect Unlink
+         * @description Unlink the user's Garmin Connect account after the user's step-up verification.
+         *
+         *     It needs a signed-in session: an API key cannot step up.
+         */
+        post: operations["garminconnect_unlink"];
         delete?: never;
         options?: never;
         head?: never;
@@ -2162,7 +2179,7 @@ export interface paths {
          * List User Devices
          * @description List one page of the devices the authenticated user is known to sign in from, latest sign-in first.
          *
-         *     A device is known until a security change of the account or the user forgets it, and a sign-in from an unknown device is announced by email. `current` marks
+         *     A device is known until a security change of the account or the user forgets it, and a sign-in from an unknown device is announced by email. `is_current` marks
          *     the device the request comes from.
          */
         get: operations["list_user_devices"];
@@ -2174,7 +2191,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/profile/devices/delete": {
+    "/api/v1/profile/devices/delete-all": {
         parameters: {
             query?: never;
             header?: never;
@@ -2198,7 +2215,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/profile/devices/revoke": {
+    "/api/v1/profile/devices/delete-others": {
         parameters: {
             query?: never;
             header?: never;
@@ -2759,7 +2776,7 @@ export interface paths {
         };
         /**
          * Get Mfa Status
-         * @description Return MFA enabled status for authenticated user.
+         * @description Return whether the account has MFA and the second factors it has enrolled.
          */
         get: operations["get_mfa_status"];
         put?: never;
@@ -2863,6 +2880,8 @@ export interface paths {
         /**
          * Read Sessions Me
          * @description Retrieve one page of the authenticated user's sessions.
+         *
+         *     `is_current` marks the session the request is made from; it is false for every item when an API key calls.
          */
         get: operations["read_sessions_me"];
         put?: never;
@@ -3676,14 +3695,30 @@ export interface paths {
         get: operations["read_logs"];
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/server-settings/logs/clear": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
         /**
          * Clear Logs
-         * @description Empty the server log and delete its rotated backups.
+         * @description Empty the server log and delete its rotated backups, after the administrator's step-up verification.
          *
-         *     Requires admin authentication with server-settings:logs-clear scope. The action is
-         *     recorded as the first line of the new log.
+         *     The action is recorded as the first line of the new log. It needs a signed-in session: an API key cannot
+         *     step up.
          */
-        delete: operations["clear_logs"];
+        post: operations["clear_logs"];
+        delete?: never;
         options?: never;
         head?: never;
         patch?: never;
@@ -3746,7 +3781,10 @@ export interface paths {
         get?: never;
         /**
          * Strava Set User Client
-         * @description Store the user's Strava API client id and secret.
+         * @description Store the user's Strava API client id and secret, after the user's step-up verification in `step_up`.
+         *
+         *     Replacing the client changes which Strava application the account is linked through. It needs a signed-in
+         *     session: an API key cannot step up. Send the `integrations_version` the client read in `If-Match`.
          */
         put: operations["strava_set_user_client"];
         post?: never;
@@ -3819,14 +3857,7 @@ export interface paths {
          *     pending is answered 409.
          */
         post: operations["strava_link"];
-        /**
-         * Strava Unlink
-         * @description Queue the disconnection of the user's Strava account; a background job runs it.
-         *
-         *     The job revokes the authorization with Strava and deletes the activities and gear
-         *     imported from it. Poll ``GET /jobs/{job_id}`` for the outcome.
-         */
-        delete: operations["strava_unlink"];
+        delete?: never;
         options?: never;
         head?: never;
         patch?: never;
@@ -3848,6 +3879,30 @@ export interface paths {
          *     Replaces any state the user issued earlier.
          */
         post: operations["strava_begin_state"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/strava/unlink": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Strava Unlink
+         * @description Queue the disconnection of the user's Strava account after the user's step-up verification; a job runs it.
+         *
+         *     The job revokes the authorization with Strava and deletes the activities and gear
+         *     imported from it. It needs a signed-in session: an API key cannot step up. Poll
+         *     ``GET /jobs/{job_id}`` for the outcome.
+         */
+        post: operations["strava_unlink"];
         delete?: never;
         options?: never;
         head?: never;
@@ -4389,6 +4444,9 @@ export interface paths {
         /**
          * Read Sessions User
          * @description Retrieve one page of the sessions associated with a specific user.
+         *
+         *     `is_current` is true only for the caller's own session, so it is false for every item unless the caller lists
+         *     their own sessions.
          */
         get: operations["read_sessions_user"];
         put?: never;
@@ -9223,7 +9281,7 @@ export interface components {
              */
             auto_create_users: boolean;
             /** Client Id */
-            client_id?: string | null;
+            client_id: string;
             /**
              * Client Secret
              * @description OAuth2/OIDC client secret
@@ -9374,10 +9432,10 @@ export interface components {
              */
             idp_subject: string;
             /**
-             * Last Login
+             * Last Login At
              * @description Last login using this IdP
              */
-            last_login?: string | null;
+            last_login_at?: string | null;
             /**
              * Linked At
              * Format: date-time
@@ -9460,6 +9518,8 @@ export interface components {
          *         created_at (datetime): Timestamp when the identity provider was created.
          *         updated_at (datetime): Timestamp when the identity provider was last updated.
          *         version (int): Optimistic-concurrency counter, also sent as the ETag.
+         *         has_linked_users (bool): Whether users are linked to the provider; while they are, its slug, client ID,
+         *             provider type, issuer and endpoints cannot change.
          *
          *     Config:
          *         model_config (ConfigDict): Pydantic model configuration to enable attribute-based initialization,
@@ -9496,6 +9556,12 @@ export interface components {
              * @default false
              */
             enabled: boolean;
+            /**
+             * Has Linked Users
+             * @description Whether users are linked to the provider. While they are, the slug, client_id, provider_type, issuer_url, authorization_endpoint, token_endpoint and userinfo_endpoint cannot change
+             * @default false
+             */
+            has_linked_users: boolean;
             /**
              * Icon
              * @description Built-in icon key
@@ -9908,7 +9974,7 @@ export interface components {
          *         device_type: Type of device (Mobile, Tablet, PC) of the last sign-in, or None as above.
          *         created_at: When the device was first registered under the current security generation.
          *         last_seen_at: When the user last signed in from the device.
-         *         current: Whether the request comes from this device.
+         *         is_current: Whether the request comes from this device.
          */
         KnownDeviceRead: {
             /**
@@ -9923,12 +9989,6 @@ export interface components {
              */
             readonly created_at: string;
             /**
-             * Current
-             * @description Whether the request comes from this device
-             * @default false
-             */
-            current: boolean;
-            /**
              * Device Type
              * @description Device type (Mobile, Tablet, PC) of the last sign-in
              */
@@ -9939,6 +9999,12 @@ export interface components {
              * @description Device ID
              */
             readonly id: string;
+            /**
+             * Is Current
+             * @description Whether the request comes from this device
+             * @default false
+             */
+            is_current: boolean;
             /**
              * Last Seen At
              * Format: date-time
@@ -10202,6 +10268,38 @@ export interface components {
             step_up: components["schemas"]["StepUpVerification"];
         };
         /**
+         * MFAFactorRead
+         * @description One enrolled second factor.
+         *
+         *     Attributes:
+         *         id: The factor's id.
+         *         type: The kind of factor, such as ``totp``. An open set: a client shows an unknown type generically.
+         *         created_at: When the factor was enrolled.
+         *         last_used_at: When the factor last verified a sign-in or step-up; null if it has not.
+         */
+        MFAFactorRead: {
+            /**
+             * Created At
+             * Format: date-time
+             */
+            readonly created_at: string;
+            /**
+             * Id
+             * Format: uuid
+             */
+            readonly id: string;
+            /**
+             * Last Used At
+             * @description When the factor last verified a sign-in or step-up; null if it has not
+             */
+            last_used_at?: string | null;
+            /**
+             * Type
+             * @description Kind of factor, such as totp. An open set: new types can appear, so handle an unknown one
+             */
+            type: string;
+        };
+        /**
          * MFALoginRequest
          * @description Schema for MFA login requests.
          *
@@ -10230,8 +10328,14 @@ export interface components {
          *     Attributes:
          *         next_step: Always ``mfa``; the client sends the MFA code to ``/auth/mfa/verify``.
          *         mfa_challenge: The challenge the MFA step must send back; it names this login.
+         *         methods: The kinds of code the account can answer with, such as ``totp`` and ``backup_code``.
          */
         MFARequiredRead: {
+            /**
+             * Methods
+             * @description Kinds of code the account can answer the challenge with, such as totp and backup_code. An open set: new methods can appear, so handle an unknown one
+             */
+            methods: string[];
             /** Mfa Challenge */
             mfa_challenge: string;
             /**
@@ -10304,12 +10408,18 @@ export interface components {
          * @description Response model for MFA status.
          *
          *     Attributes:
-         *         mfa_enabled: Whether MFA is enabled for the user.
+         *         mfa_enabled: Whether the user has any second factor.
+         *         factors: The user's enrolled factors, oldest first.
          */
         MFAStatusRead: {
             /**
+             * Factors
+             * @description The user's enrolled second factors, oldest first; empty when mfa_enabled is false
+             */
+            factors?: components["schemas"]["MFAFactorRead"][];
+            /**
              * Mfa Enabled
-             * @description Whether MFA is enabled
+             * @description Whether the user has any second factor
              */
             mfa_enabled: boolean;
         };
@@ -12004,6 +12114,8 @@ export interface components {
          * SignUpNextStep
          * @description What a client does after a sign-up request, a resend or a confirmation.
          *
+         *     The set is open: a client treats a value it does not know as an unsupported step.
+         *
          *     Attributes:
          *         SIGN_IN: The account is ready; the user signs in.
          *         CHECK_EMAIL: A verification email was sent; the user opens its link.
@@ -12019,7 +12131,7 @@ export interface components {
          *         next_step: What the client does next.
          */
         SignUpRead: {
-            /** @description What the client does next: sign in, check the email for a verification link, or wait for an administrator's approval */
+            /** @description What the client does next: sign in, check the email for a verification link, or wait for an administrator's approval. The set is open: a client treats a value it does not know as an unsupported step, shows a generic error and does not guess */
             next_step: components["schemas"]["SignUpNextStep"];
         };
         /**
@@ -12148,9 +12260,13 @@ export interface components {
          *         ADMIN_MAIL_SETTINGS_EDIT: An administrator edits the mail server settings.
          *         ADMIN_SERVER_SETTINGS_EDIT: An administrator changes a server setting that governs sign-up, sign-in, sessions,
          *             the audit trail or the owner info on public links.
+         *         ADMIN_SERVER_LOG_CLEAR: An administrator empties the server log and deletes its rotated backups.
+         *         STRAVA_UNLINK: Disconnect Strava and delete what was imported from it.
+         *         STRAVA_CLIENT_SET: Replace the Strava API client id and secret.
+         *         GARMIN_UNLINK: Disconnect Garmin Connect.
          * @enum {string}
          */
-        StepUpAction: "api_key_create" | "idp_link" | "idp_unlink" | "email_change" | "username_change" | "account_delete" | "profile_export" | "profile_device_forget" | "profile_devices_forget_others" | "profile_devices_forget_all" | "mfa_enable" | "mfa_disable" | "mfa_backup_codes" | "admin_credential_reset" | "admin_mfa_reset" | "admin_credential_change_require" | "admin_user_edit" | "admin_user_delete" | "admin_idp_unlink" | "admin_user_create" | "admin_idp_create" | "admin_idp_edit" | "admin_idp_delete" | "admin_sessions_revoke" | "admin_api_keys_revoke" | "admin_mail_settings_edit" | "admin_server_settings_edit";
+        StepUpAction: "api_key_create" | "idp_link" | "idp_unlink" | "email_change" | "username_change" | "account_delete" | "profile_export" | "profile_device_forget" | "profile_devices_forget_others" | "profile_devices_forget_all" | "mfa_enable" | "mfa_disable" | "mfa_backup_codes" | "admin_credential_reset" | "admin_mfa_reset" | "admin_credential_change_require" | "admin_user_edit" | "admin_user_delete" | "admin_idp_unlink" | "admin_user_create" | "admin_idp_create" | "admin_idp_edit" | "admin_idp_delete" | "admin_sessions_revoke" | "admin_api_keys_revoke" | "admin_mail_settings_edit" | "admin_server_settings_edit" | "admin_server_log_clear" | "strava_unlink" | "strava_client_set" | "garmin_unlink";
         /**
          * StepUpRequest
          * @description Request body of an operation that needs nothing but a step-up verification.
@@ -12227,6 +12343,7 @@ export interface components {
          *     Attributes:
          *         client_id: The Strava application's client id.
          *         client_secret: The Strava application's client secret.
+         *         step_up: The caller's step-up verification, which replacing the client needs.
          */
         StravaClientCredentials: {
             /** Client Id */
@@ -12236,6 +12353,8 @@ export interface components {
              * Format: password
              */
             client_secret: string;
+            /** @description Step-up verification authorising the change */
+            step_up: components["schemas"]["StepUpVerification"];
         };
         /**
          * StravaGearImportResult
@@ -12514,17 +12633,15 @@ export interface components {
         };
         /**
          * TokenExchangeRequest
-         * @description Request schema for mobile PKCE token exchange.
+         * @description Request schema for the PKCE token exchange of a sign-in session.
          *
-         *     After OAuth callback completes, mobile clients exchange the session_id
-         *     for actual JWT tokens by proving they possess the code_verifier that
-         *     matches the code_challenge sent during login initiation.
+         *     After a mobile password sign-in or an identity-provider callback, the client exchanges the session_id for its
+         *     tokens by proving it holds the code_verifier that matches the code_challenge sent when the sign-in started. The
+         *     second factor of an account with MFA is verified at ``/auth/mfa/verify``, never here.
          *
          *     Attributes:
          *         code_verifier (str): PKCE code verifier (43-128 chars of the RFC 7636 unreserved set).
          *             Must hash to the code_challenge stored in OAuth state.
-         *         mfa_code (str | None): TOTP or backup code. Required when the session
-         *             came from an identity provider and the account has MFA enabled.
          */
         TokenExchangeRequest: {
             /**
@@ -12532,11 +12649,6 @@ export interface components {
              * @description PKCE code verifier (43-128 characters: A-Z, a-z, 0-9, '-', '.', '_', '~')
              */
             code_verifier: string;
-            /**
-             * Mfa Code
-             * @description MFA code, required for an identity-provider session of an account with MFA enabled
-             */
-            mfa_code?: string | null;
         };
         /**
          * TokenMobileRead
@@ -12589,7 +12701,6 @@ export interface components {
          *         next_step: Always ``tokens``; the client is signed in.
          *         session_id: Session identifier.
          *         access_token: Bearer access token.
-         *         csrf_token: CSRF token bound to the session.
          *         token_type: Always ``bearer``.
          *         expires_in: Seconds until the access token expires.
          *         refresh_token_expires_in: Seconds until the refresh token expires.
@@ -12597,8 +12708,6 @@ export interface components {
         TokenWebRead: {
             /** Access Token */
             access_token: string;
-            /** Csrf Token */
-            csrf_token: string;
             /** Expires In */
             expires_in: number;
             /**
@@ -14272,8 +14381,12 @@ export interface components {
          * UserSessionsRead
          * @description User session read schema for API responses.
          *
-         *     Extends base with user_id. Excludes sensitive fields
-         *     like refresh_token and csrf_token_hash.
+         *     Extends base with user_id and the current-session marker. Excludes sensitive fields
+         *     like refresh_token.
+         *
+         *     Attributes:
+         *         user_id: User ID that owns this session.
+         *         is_current: Whether the session is the caller's own.
          */
         UserSessionsRead: {
             /**
@@ -14319,6 +14432,12 @@ export interface components {
              * @description Client IP address
              */
             ip_address: string;
+            /**
+             * Is Current
+             * @description Whether this is the session the request is made from
+             * @default false
+             */
+            is_current: boolean;
             /**
              * Last Activity At
              * Format: date-time
@@ -14868,12 +14987,7 @@ export interface operations {
     edit_activities: {
         parameters: {
             query?: never;
-            header?: {
-                /** @description The kind of client: `web` or `mobile`. A request that sends `web` must also send `X-CSRF-Token`; any other request, or none, is not checked for it. */
-                "X-Client-Type"?: "web" | "mobile";
-                /** @description The CSRF token of a web session, required when `X-Client-Type` is `web`: without it the request is refused with 403. The server checks only that the header is present. */
-                "X-CSRF-Token"?: string;
-            };
+            header?: never;
             path?: never;
             cookie?: never;
         };
@@ -14989,10 +15103,6 @@ export interface operations {
             header?: {
                 /** @description Optional client-generated key. Replaying a request with the same key returns the original job instead of importing the file again. */
                 "Idempotency-Key"?: string | null;
-                /** @description The kind of client: `web` or `mobile`. A request that sends `web` must also send `X-CSRF-Token`; any other request, or none, is not checked for it. */
-                "X-Client-Type"?: "web" | "mobile";
-                /** @description The CSRF token of a web session, required when `X-Client-Type` is `web`: without it the request is refused with 403. The server checks only that the header is present. */
-                "X-CSRF-Token"?: string;
             };
             path?: never;
             cookie?: never;
@@ -15115,12 +15225,7 @@ export interface operations {
                 /** @description The folder layout: `generic` for plain activity files, or a provider export such as `strava`. */
                 source?: string;
             };
-            header?: {
-                /** @description The kind of client: `web` or `mobile`. A request that sends `web` must also send `X-CSRF-Token`; any other request, or none, is not checked for it. */
-                "X-Client-Type"?: "web" | "mobile";
-                /** @description The CSRF token of a web session, required when `X-Client-Type` is `web`: without it the request is refused with 403. The server checks only that the header is present. */
-                "X-CSRF-Token"?: string;
-            };
+            header?: never;
             path?: never;
             cookie?: never;
         };
@@ -15393,12 +15498,7 @@ export interface operations {
     refresh_activities: {
         parameters: {
             query?: never;
-            header?: {
-                /** @description The kind of client: `web` or `mobile`. A request that sends `web` must also send `X-CSRF-Token`; any other request, or none, is not checked for it. */
-                "X-Client-Type"?: "web" | "mobile";
-                /** @description The CSRF token of a web session, required when `X-Client-Type` is `web`: without it the request is refused with 403. The server checks only that the header is present. */
-                "X-CSRF-Token"?: string;
-            };
+            header?: never;
             path?: never;
             cookie?: never;
         };
@@ -15657,10 +15757,6 @@ export interface operations {
             header?: {
                 /** @description Optional client-generated key. Replaying a request with the same key returns the original job instead of importing the file again. */
                 "Idempotency-Key"?: string | null;
-                /** @description The kind of client: `web` or `mobile`. A request that sends `web` must also send `X-CSRF-Token`; any other request, or none, is not checked for it. */
-                "X-Client-Type"?: "web" | "mobile";
-                /** @description The CSRF token of a web session, required when `X-Client-Type` is `web`: without it the request is refused with 403. The server checks only that the header is present. */
-                "X-CSRF-Token"?: string;
             };
             path?: never;
             cookie?: never;
@@ -15879,10 +15975,6 @@ export interface operations {
             query?: never;
             header: {
                 "If-Match": string;
-                /** @description The kind of client: `web` or `mobile`. A request that sends `web` must also send `X-CSRF-Token`; any other request, or none, is not checked for it. */
-                "X-Client-Type"?: "web" | "mobile";
-                /** @description The CSRF token of a web session, required when `X-Client-Type` is `web`: without it the request is refused with 403. The server checks only that the header is present. */
-                "X-CSRF-Token"?: string;
             };
             path: {
                 activity_id: string;
@@ -16014,10 +16106,6 @@ export interface operations {
             query?: never;
             header: {
                 "If-Match": string;
-                /** @description The kind of client: `web` or `mobile`. A request that sends `web` must also send `X-CSRF-Token`; any other request, or none, is not checked for it. */
-                "X-Client-Type"?: "web" | "mobile";
-                /** @description The CSRF token of a web session, required when `X-Client-Type` is `web`: without it the request is refused with 403. The server checks only that the header is present. */
-                "X-CSRF-Token"?: string;
             };
             path: {
                 activity_id: string;
@@ -16457,12 +16545,7 @@ export interface operations {
     create_activity_media: {
         parameters: {
             query?: never;
-            header?: {
-                /** @description The kind of client: `web` or `mobile`. A request that sends `web` must also send `X-CSRF-Token`; any other request, or none, is not checked for it. */
-                "X-Client-Type"?: "web" | "mobile";
-                /** @description The CSRF token of a web session, required when `X-Client-Type` is `web`: without it the request is refused with 403. The server checks only that the header is present. */
-                "X-CSRF-Token"?: string;
-            };
+            header?: never;
             path: {
                 activity_id: string;
             };
@@ -16588,12 +16671,7 @@ export interface operations {
     delete_activity_media: {
         parameters: {
             query?: never;
-            header?: {
-                /** @description The kind of client: `web` or `mobile`. A request that sends `web` must also send `X-CSRF-Token`; any other request, or none, is not checked for it. */
-                "X-Client-Type"?: "web" | "mobile";
-                /** @description The CSRF token of a web session, required when `X-Client-Type` is `web`: without it the request is refused with 403. The server checks only that the header is present. */
-                "X-CSRF-Token"?: string;
-            };
+            header?: never;
             path: {
                 activity_id: string;
                 media_id: string;
@@ -17352,8 +17430,6 @@ export interface operations {
             header: {
                 /** @description The kind of client: `web` or `mobile`. */
                 "X-Client-Type": components["schemas"]["ClientType"];
-                /** @description The CSRF token of a web session, required when `X-Client-Type` is `web`: without it the request is refused with 403. The server checks only that the header is present. */
-                "X-CSRF-Token"?: string;
             };
             path?: never;
             cookie?: never;
@@ -17489,7 +17565,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["PasswordChangeRequiredRead"] | components["schemas"]["MobileSessionRead"] | components["schemas"]["TokenWebRead"];
+                    "application/json": components["schemas"]["PasswordChangeRequiredRead"] | components["schemas"]["MobileSessionRead"] | components["schemas"]["TokenWebRead"] | components["schemas"]["TokenMobileRead"];
                 };
             };
             /** @description The MFA code is wrong and the sign-in challenge is still live. */
@@ -17501,7 +17577,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["ProblemDetail"];
                 };
             };
-            /** @description The sign-in challenge is unknown, expired, ended after three wrong codes, or presented from another client network or client type, so the client signs in again at `POST /auth/login`; or its account can no longer sign in. */
+            /** @description The sign-in challenge is unknown, expired, ended after three wrong codes, or presented from another client network or client type, or the identity-provider session it finishes expired or was used, so the client signs in again; or its account can no longer sign in. */
             401: {
                 headers: {
                     /** @description The authentication challenge. */
@@ -17706,8 +17782,6 @@ export interface operations {
             header: {
                 /** @description The kind of client: `web` or `mobile`. */
                 "X-Client-Type": components["schemas"]["ClientType"];
-                /** @description The CSRF token of a web session. */
-                "X-CSRF-Token"?: string | null;
             };
             path?: never;
             cookie?: never;
@@ -17845,10 +17919,10 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["TokenWebRead"] | components["schemas"]["TokenMobileRead"];
+                    "application/json": components["schemas"]["MFARequiredRead"] | components["schemas"]["TokenWebRead"] | components["schemas"]["TokenMobileRead"];
                 };
             };
-            /** @description The verifier does not match, the client type differs from the one that started the sign-in, or the `mfa_code` is wrong. */
+            /** @description The verifier does not match, or the client type differs from the one that started the sign-in. */
             400: {
                 headers: {
                     [name: string]: unknown;
@@ -17857,7 +17931,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["ProblemDetail"];
                 };
             };
-            /** @description The account is no longer active, or it has MFA enabled and the request carried no `mfa_code` (the `mfa-required` problem type); the session stays usable. */
+            /** @description The account is no longer active. */
             403: {
                 headers: {
                     [name: string]: unknown;
@@ -17945,12 +18019,7 @@ export interface operations {
                 start_date: string;
                 end_date: string;
             };
-            header?: {
-                /** @description The kind of client: `web` or `mobile`. A request that sends `web` must also send `X-CSRF-Token`; any other request, or none, is not checked for it. */
-                "X-Client-Type"?: "web" | "mobile";
-                /** @description The CSRF token of a web session, required when `X-Client-Type` is `web`: without it the request is refused with 403. The server checks only that the header is present. */
-                "X-CSRF-Token"?: string;
-            };
+            header?: never;
             path?: never;
             cookie?: never;
         };
@@ -18047,12 +18116,7 @@ export interface operations {
     garminconnect_retrieve_gear: {
         parameters: {
             query?: never;
-            header?: {
-                /** @description The kind of client: `web` or `mobile`. A request that sends `web` must also send `X-CSRF-Token`; any other request, or none, is not checked for it. */
-                "X-Client-Type"?: "web" | "mobile";
-                /** @description The CSRF token of a web session, required when `X-Client-Type` is `web`: without it the request is refused with 403. The server checks only that the header is present. */
-                "X-CSRF-Token"?: string;
-            };
+            header?: never;
             path?: never;
             cookie?: never;
         };
@@ -18143,12 +18207,7 @@ export interface operations {
                 start_date: string;
                 end_date: string;
             };
-            header?: {
-                /** @description The kind of client: `web` or `mobile`. A request that sends `web` must also send `X-CSRF-Token`; any other request, or none, is not checked for it. */
-                "X-Client-Type"?: "web" | "mobile";
-                /** @description The CSRF token of a web session, required when `X-Client-Type` is `web`: without it the request is refused with 403. The server checks only that the header is present. */
-                "X-CSRF-Token"?: string;
-            };
+            header?: never;
             path?: never;
             cookie?: never;
         };
@@ -18245,12 +18304,7 @@ export interface operations {
     garminconnect_link: {
         parameters: {
             query?: never;
-            header?: {
-                /** @description The kind of client: `web` or `mobile`. A request that sends `web` must also send `X-CSRF-Token`; any other request, or none, is not checked for it. */
-                "X-Client-Type"?: "web" | "mobile";
-                /** @description The CSRF token of a web session, required when `X-Client-Type` is `web`: without it the request is refused with 403. The server checks only that the header is present. */
-                "X-CSRF-Token"?: string;
-            };
+            header?: never;
             path?: never;
             cookie?: never;
         };
@@ -18357,19 +18411,18 @@ export interface operations {
             };
         };
     };
-    garminconnect_unlink: {
+    garminconnect_mfa_code: {
         parameters: {
             query?: never;
-            header?: {
-                /** @description The kind of client: `web` or `mobile`. A request that sends `web` must also send `X-CSRF-Token`; any other request, or none, is not checked for it. */
-                "X-Client-Type"?: "web" | "mobile";
-                /** @description The CSRF token of a web session, required when `X-Client-Type` is `web`: without it the request is refused with 403. The server checks only that the header is present. */
-                "X-CSRF-Token"?: string;
-            };
+            header?: never;
             path?: never;
             cookie?: never;
         };
-        requestBody?: never;
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MFARequest"];
+            };
+        };
         responses: {
             /** @description Successful Response */
             204: {
@@ -18400,6 +18453,24 @@ export interface operations {
             };
             /** @description The request conflicts with the current state. */
             409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description The body is larger than the route accepts. */
+            413: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -18444,21 +18515,16 @@ export interface operations {
             };
         };
     };
-    garminconnect_mfa_code: {
+    garminconnect_unlink: {
         parameters: {
             query?: never;
-            header?: {
-                /** @description The kind of client: `web` or `mobile`. A request that sends `web` must also send `X-CSRF-Token`; any other request, or none, is not checked for it. */
-                "X-Client-Type"?: "web" | "mobile";
-                /** @description The CSRF token of a web session, required when `X-Client-Type` is `web`: without it the request is refused with 403. The server checks only that the header is present. */
-                "X-CSRF-Token"?: string;
-            };
+            header?: never;
             path?: never;
             cookie?: never;
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["MFARequest"];
+                "application/json": components["schemas"]["StepUpRequest"];
             };
         };
         responses: {
@@ -18643,12 +18709,7 @@ export interface operations {
     create_gear_component: {
         parameters: {
             query?: never;
-            header?: {
-                /** @description The kind of client: `web` or `mobile`. A request that sends `web` must also send `X-CSRF-Token`; any other request, or none, is not checked for it. */
-                "X-Client-Type"?: "web" | "mobile";
-                /** @description The CSRF token of a web session, required when `X-Client-Type` is `web`: without it the request is refused with 403. The server checks only that the header is present. */
-                "X-CSRF-Token"?: string;
-            };
+            header?: never;
             path?: never;
             cookie?: never;
         };
@@ -18932,10 +18993,6 @@ export interface operations {
             query?: never;
             header: {
                 "If-Match": string;
-                /** @description The kind of client: `web` or `mobile`. A request that sends `web` must also send `X-CSRF-Token`; any other request, or none, is not checked for it. */
-                "X-Client-Type"?: "web" | "mobile";
-                /** @description The CSRF token of a web session, required when `X-Client-Type` is `web`: without it the request is refused with 403. The server checks only that the header is present. */
-                "X-CSRF-Token"?: string;
             };
             path: {
                 gear_component_id: string;
@@ -19067,10 +19124,6 @@ export interface operations {
             query?: never;
             header: {
                 "If-Match": string;
-                /** @description The kind of client: `web` or `mobile`. A request that sends `web` must also send `X-CSRF-Token`; any other request, or none, is not checked for it. */
-                "X-Client-Type"?: "web" | "mobile";
-                /** @description The CSRF token of a web session, required when `X-Client-Type` is `web`: without it the request is refused with 403. The server checks only that the header is present. */
-                "X-CSRF-Token"?: string;
             };
             path: {
                 gear_component_id: string;
@@ -19310,12 +19363,7 @@ export interface operations {
     create_gear: {
         parameters: {
             query?: never;
-            header?: {
-                /** @description The kind of client: `web` or `mobile`. A request that sends `web` must also send `X-CSRF-Token`; any other request, or none, is not checked for it. */
-                "X-Client-Type"?: "web" | "mobile";
-                /** @description The CSRF token of a web session, required when `X-Client-Type` is `web`: without it the request is refused with 403. The server checks only that the header is present. */
-                "X-CSRF-Token"?: string;
-            };
+            header?: never;
             path?: never;
             cookie?: never;
         };
@@ -19524,10 +19572,6 @@ export interface operations {
             query?: never;
             header: {
                 "If-Match": string;
-                /** @description The kind of client: `web` or `mobile`. A request that sends `web` must also send `X-CSRF-Token`; any other request, or none, is not checked for it. */
-                "X-Client-Type"?: "web" | "mobile";
-                /** @description The CSRF token of a web session, required when `X-Client-Type` is `web`: without it the request is refused with 403. The server checks only that the header is present. */
-                "X-CSRF-Token"?: string;
             };
             path: {
                 gear_id: string;
@@ -19659,10 +19703,6 @@ export interface operations {
             query?: never;
             header: {
                 "If-Match": string;
-                /** @description The kind of client: `web` or `mobile`. A request that sends `web` must also send `X-CSRF-Token`; any other request, or none, is not checked for it. */
-                "X-Client-Type"?: "web" | "mobile";
-                /** @description The CSRF token of a web session, required when `X-Client-Type` is `web`: without it the request is refused with 403. The server checks only that the header is present. */
-                "X-CSRF-Token"?: string;
             };
             path: {
                 gear_id: string;
@@ -20056,12 +20096,7 @@ export interface operations {
     create_health_fasting: {
         parameters: {
             query?: never;
-            header?: {
-                /** @description The kind of client: `web` or `mobile`. A request that sends `web` must also send `X-CSRF-Token`; any other request, or none, is not checked for it. */
-                "X-Client-Type"?: "web" | "mobile";
-                /** @description The CSRF token of a web session, required when `X-Client-Type` is `web`: without it the request is refused with 403. The server checks only that the header is present. */
-                "X-CSRF-Token"?: string;
-            };
+            header?: never;
             path?: never;
             cookie?: never;
         };
@@ -20422,10 +20457,6 @@ export interface operations {
             query?: never;
             header: {
                 "If-Match": string;
-                /** @description The kind of client: `web` or `mobile`. A request that sends `web` must also send `X-CSRF-Token`; any other request, or none, is not checked for it. */
-                "X-Client-Type"?: "web" | "mobile";
-                /** @description The CSRF token of a web session, required when `X-Client-Type` is `web`: without it the request is refused with 403. The server checks only that the header is present. */
-                "X-CSRF-Token"?: string;
             };
             path: {
                 health_fasting_id: string;
@@ -20557,10 +20588,6 @@ export interface operations {
             query?: never;
             header: {
                 "If-Match": string;
-                /** @description The kind of client: `web` or `mobile`. A request that sends `web` must also send `X-CSRF-Token`; any other request, or none, is not checked for it. */
-                "X-Client-Type"?: "web" | "mobile";
-                /** @description The CSRF token of a web session, required when `X-Client-Type` is `web`: without it the request is refused with 403. The server checks only that the header is present. */
-                "X-CSRF-Token"?: string;
             };
             path: {
                 health_fasting_id: string;
@@ -20709,10 +20736,6 @@ export interface operations {
             query?: never;
             header: {
                 "If-Match": string;
-                /** @description The kind of client: `web` or `mobile`. A request that sends `web` must also send `X-CSRF-Token`; any other request, or none, is not checked for it. */
-                "X-Client-Type"?: "web" | "mobile";
-                /** @description The CSRF token of a web session, required when `X-Client-Type` is `web`: without it the request is refused with 403. The server checks only that the header is present. */
-                "X-CSRF-Token"?: string;
             };
             path: {
                 health_fasting_id: string;
@@ -20952,12 +20975,7 @@ export interface operations {
     create_health_poop: {
         parameters: {
             query?: never;
-            header?: {
-                /** @description The kind of client: `web` or `mobile`. A request that sends `web` must also send `X-CSRF-Token`; any other request, or none, is not checked for it. */
-                "X-Client-Type"?: "web" | "mobile";
-                /** @description The CSRF token of a web session, required when `X-Client-Type` is `web`: without it the request is refused with 403. The server checks only that the header is present. */
-                "X-CSRF-Token"?: string;
-            };
+            header?: never;
             path?: never;
             cookie?: never;
         };
@@ -21257,10 +21275,6 @@ export interface operations {
             query?: never;
             header: {
                 "If-Match": string;
-                /** @description The kind of client: `web` or `mobile`. A request that sends `web` must also send `X-CSRF-Token`; any other request, or none, is not checked for it. */
-                "X-Client-Type"?: "web" | "mobile";
-                /** @description The CSRF token of a web session, required when `X-Client-Type` is `web`: without it the request is refused with 403. The server checks only that the header is present. */
-                "X-CSRF-Token"?: string;
             };
             path: {
                 health_poop_id: string;
@@ -21392,10 +21406,6 @@ export interface operations {
             query?: never;
             header: {
                 "If-Match": string;
-                /** @description The kind of client: `web` or `mobile`. A request that sends `web` must also send `X-CSRF-Token`; any other request, or none, is not checked for it. */
-                "X-Client-Type"?: "web" | "mobile";
-                /** @description The CSRF token of a web session, required when `X-Client-Type` is `web`: without it the request is refused with 403. The server checks only that the header is present. */
-                "X-CSRF-Token"?: string;
             };
             path: {
                 health_poop_id: string;
@@ -21637,12 +21647,7 @@ export interface operations {
     create_health_sleep: {
         parameters: {
             query?: never;
-            header?: {
-                /** @description The kind of client: `web` or `mobile`. A request that sends `web` must also send `X-CSRF-Token`; any other request, or none, is not checked for it. */
-                "X-Client-Type"?: "web" | "mobile";
-                /** @description The CSRF token of a web session, required when `X-Client-Type` is `web`: without it the request is refused with 403. The server checks only that the header is present. */
-                "X-CSRF-Token"?: string;
-            };
+            header?: never;
             path?: never;
             cookie?: never;
         };
@@ -22033,10 +22038,6 @@ export interface operations {
             query?: never;
             header: {
                 "If-Match": string;
-                /** @description The kind of client: `web` or `mobile`. A request that sends `web` must also send `X-CSRF-Token`; any other request, or none, is not checked for it. */
-                "X-Client-Type"?: "web" | "mobile";
-                /** @description The CSRF token of a web session, required when `X-Client-Type` is `web`: without it the request is refused with 403. The server checks only that the header is present. */
-                "X-CSRF-Token"?: string;
             };
             path: {
                 health_sleep_id: string;
@@ -22168,10 +22169,6 @@ export interface operations {
             query?: never;
             header: {
                 "If-Match": string;
-                /** @description The kind of client: `web` or `mobile`. A request that sends `web` must also send `X-CSRF-Token`; any other request, or none, is not checked for it. */
-                "X-Client-Type"?: "web" | "mobile";
-                /** @description The CSRF token of a web session, required when `X-Client-Type` is `web`: without it the request is refused with 403. The server checks only that the header is present. */
-                "X-CSRF-Token"?: string;
             };
             path: {
                 health_sleep_id: string;
@@ -22486,12 +22483,7 @@ export interface operations {
     create_health_steps: {
         parameters: {
             query?: never;
-            header?: {
-                /** @description The kind of client: `web` or `mobile`. A request that sends `web` must also send `X-CSRF-Token`; any other request, or none, is not checked for it. */
-                "X-Client-Type"?: "web" | "mobile";
-                /** @description The CSRF token of a web session, required when `X-Client-Type` is `web`: without it the request is refused with 403. The server checks only that the header is present. */
-                "X-CSRF-Token"?: string;
-            };
+            header?: never;
             path?: never;
             cookie?: never;
         };
@@ -22791,10 +22783,6 @@ export interface operations {
             query?: never;
             header: {
                 "If-Match": string;
-                /** @description The kind of client: `web` or `mobile`. A request that sends `web` must also send `X-CSRF-Token`; any other request, or none, is not checked for it. */
-                "X-Client-Type"?: "web" | "mobile";
-                /** @description The CSRF token of a web session, required when `X-Client-Type` is `web`: without it the request is refused with 403. The server checks only that the header is present. */
-                "X-CSRF-Token"?: string;
             };
             path: {
                 health_steps_id: string;
@@ -22926,10 +22914,6 @@ export interface operations {
             query?: never;
             header: {
                 "If-Match": string;
-                /** @description The kind of client: `web` or `mobile`. A request that sends `web` must also send `X-CSRF-Token`; any other request, or none, is not checked for it. */
-                "X-Client-Type"?: "web" | "mobile";
-                /** @description The CSRF token of a web session, required when `X-Client-Type` is `web`: without it the request is refused with 403. The server checks only that the header is present. */
-                "X-CSRF-Token"?: string;
             };
             path: {
                 health_steps_id: string;
@@ -23155,10 +23139,6 @@ export interface operations {
             query?: never;
             header: {
                 "If-Match": string;
-                /** @description The kind of client: `web` or `mobile`. A request that sends `web` must also send `X-CSRF-Token`; any other request, or none, is not checked for it. */
-                "X-Client-Type"?: "web" | "mobile";
-                /** @description The CSRF token of a web session, required when `X-Client-Type` is `web`: without it the request is refused with 403. The server checks only that the header is present. */
-                "X-CSRF-Token"?: string;
             };
             path?: never;
             cookie?: never;
@@ -23387,12 +23367,7 @@ export interface operations {
     create_health_water: {
         parameters: {
             query?: never;
-            header?: {
-                /** @description The kind of client: `web` or `mobile`. A request that sends `web` must also send `X-CSRF-Token`; any other request, or none, is not checked for it. */
-                "X-Client-Type"?: "web" | "mobile";
-                /** @description The CSRF token of a web session, required when `X-Client-Type` is `web`: without it the request is refused with 403. The server checks only that the header is present. */
-                "X-CSRF-Token"?: string;
-            };
+            header?: never;
             path?: never;
             cookie?: never;
         };
@@ -23692,10 +23667,6 @@ export interface operations {
             query?: never;
             header: {
                 "If-Match": string;
-                /** @description The kind of client: `web` or `mobile`. A request that sends `web` must also send `X-CSRF-Token`; any other request, or none, is not checked for it. */
-                "X-Client-Type"?: "web" | "mobile";
-                /** @description The CSRF token of a web session, required when `X-Client-Type` is `web`: without it the request is refused with 403. The server checks only that the header is present. */
-                "X-CSRF-Token"?: string;
             };
             path: {
                 health_water_id: string;
@@ -23827,10 +23798,6 @@ export interface operations {
             query?: never;
             header: {
                 "If-Match": string;
-                /** @description The kind of client: `web` or `mobile`. A request that sends `web` must also send `X-CSRF-Token`; any other request, or none, is not checked for it. */
-                "X-Client-Type"?: "web" | "mobile";
-                /** @description The CSRF token of a web session, required when `X-Client-Type` is `web`: without it the request is refused with 403. The server checks only that the header is present. */
-                "X-CSRF-Token"?: string;
             };
             path: {
                 health_water_id: string;
@@ -24070,12 +24037,7 @@ export interface operations {
     create_health_weight: {
         parameters: {
             query?: never;
-            header?: {
-                /** @description The kind of client: `web` or `mobile`. A request that sends `web` must also send `X-CSRF-Token`; any other request, or none, is not checked for it. */
-                "X-Client-Type"?: "web" | "mobile";
-                /** @description The CSRF token of a web session, required when `X-Client-Type` is `web`: without it the request is refused with 403. The server checks only that the header is present. */
-                "X-CSRF-Token"?: string;
-            };
+            header?: never;
             path?: never;
             cookie?: never;
         };
@@ -24375,10 +24337,6 @@ export interface operations {
             query?: never;
             header: {
                 "If-Match": string;
-                /** @description The kind of client: `web` or `mobile`. A request that sends `web` must also send `X-CSRF-Token`; any other request, or none, is not checked for it. */
-                "X-Client-Type"?: "web" | "mobile";
-                /** @description The CSRF token of a web session, required when `X-Client-Type` is `web`: without it the request is refused with 403. The server checks only that the header is present. */
-                "X-CSRF-Token"?: string;
             };
             path: {
                 health_weight_id: string;
@@ -24510,10 +24468,6 @@ export interface operations {
             query?: never;
             header: {
                 "If-Match": string;
-                /** @description The kind of client: `web` or `mobile`. A request that sends `web` must also send `X-CSRF-Token`; any other request, or none, is not checked for it. */
-                "X-Client-Type"?: "web" | "mobile";
-                /** @description The CSRF token of a web session, required when `X-Client-Type` is `web`: without it the request is refused with 403. The server checks only that the header is present. */
-                "X-CSRF-Token"?: string;
             };
             path: {
                 health_weight_id: string;
@@ -24747,12 +24701,7 @@ export interface operations {
     create_identity_provider: {
         parameters: {
             query?: never;
-            header?: {
-                /** @description The kind of client: `web` or `mobile`. A request that sends `web` must also send `X-CSRF-Token`; any other request, or none, is not checked for it. */
-                "X-Client-Type"?: "web" | "mobile";
-                /** @description The CSRF token of a web session, required when `X-Client-Type` is `web`: without it the request is refused with 403. The server checks only that the header is present. */
-                "X-CSRF-Token"?: string;
-            };
+            header?: never;
             path?: never;
             cookie?: never;
         };
@@ -25036,10 +24985,6 @@ export interface operations {
             query?: never;
             header: {
                 "If-Match": string;
-                /** @description The kind of client: `web` or `mobile`. A request that sends `web` must also send `X-CSRF-Token`; any other request, or none, is not checked for it. */
-                "X-Client-Type"?: "web" | "mobile";
-                /** @description The CSRF token of a web session, required when `X-Client-Type` is `web`: without it the request is refused with 403. The server checks only that the header is present. */
-                "X-CSRF-Token"?: string;
             };
             path: {
                 idp_id: string;
@@ -25188,10 +25133,6 @@ export interface operations {
             query?: never;
             header: {
                 "If-Match": string;
-                /** @description The kind of client: `web` or `mobile`. A request that sends `web` must also send `X-CSRF-Token`; any other request, or none, is not checked for it. */
-                "X-Client-Type"?: "web" | "mobile";
-                /** @description The CSRF token of a web session, required when `X-Client-Type` is `web`: without it the request is refused with 403. The server checks only that the header is present. */
-                "X-CSRF-Token"?: string;
             };
             path: {
                 idp_id: string;
@@ -25334,12 +25275,7 @@ export interface operations {
     put_identity_provider_icon: {
         parameters: {
             query?: never;
-            header?: {
-                /** @description The kind of client: `web` or `mobile`. A request that sends `web` must also send `X-CSRF-Token`; any other request, or none, is not checked for it. */
-                "X-Client-Type"?: "web" | "mobile";
-                /** @description The CSRF token of a web session, required when `X-Client-Type` is `web`: without it the request is refused with 403. The server checks only that the header is present. */
-                "X-CSRF-Token"?: string;
-            };
+            header?: never;
             path: {
                 idp_id: string;
             };
@@ -25474,12 +25410,7 @@ export interface operations {
     delete_identity_provider_icon: {
         parameters: {
             query?: never;
-            header?: {
-                /** @description The kind of client: `web` or `mobile`. A request that sends `web` must also send `X-CSRF-Token`; any other request, or none, is not checked for it. */
-                "X-Client-Type"?: "web" | "mobile";
-                /** @description The CSRF token of a web session, required when `X-Client-Type` is `web`: without it the request is refused with 403. The server checks only that the header is present. */
-                "X-CSRF-Token"?: string;
-            };
+            header?: never;
             path: {
                 idp_id: string;
             };
@@ -25855,12 +25786,7 @@ export interface operations {
     mark_notifications_as_read: {
         parameters: {
             query?: never;
-            header?: {
-                /** @description The kind of client: `web` or `mobile`. A request that sends `web` must also send `X-CSRF-Token`; any other request, or none, is not checked for it. */
-                "X-Client-Type"?: "web" | "mobile";
-                /** @description The CSRF token of a web session, required when `X-Client-Type` is `web`: without it the request is refused with 403. The server checks only that the header is present. */
-                "X-CSRF-Token"?: string;
-            };
+            header?: never;
             path?: never;
             cookie?: never;
         };
@@ -26134,12 +26060,7 @@ export interface operations {
     delete_notification: {
         parameters: {
             query?: never;
-            header?: {
-                /** @description The kind of client: `web` or `mobile`. A request that sends `web` must also send `X-CSRF-Token`; any other request, or none, is not checked for it. */
-                "X-Client-Type"?: "web" | "mobile";
-                /** @description The CSRF token of a web session, required when `X-Client-Type` is `web`: without it the request is refused with 403. The server checks only that the header is present. */
-                "X-CSRF-Token"?: string;
-            };
+            header?: never;
             path: {
                 notification_id: string;
             };
@@ -26241,12 +26162,7 @@ export interface operations {
     mark_notification_as_read: {
         parameters: {
             query?: never;
-            header?: {
-                /** @description The kind of client: `web` or `mobile`. A request that sends `web` must also send `X-CSRF-Token`; any other request, or none, is not checked for it. */
-                "X-Client-Type"?: "web" | "mobile";
-                /** @description The CSRF token of a web session, required when `X-Client-Type` is `web`: without it the request is refused with 403. The server checks only that the header is present. */
-                "X-CSRF-Token"?: string;
-            };
+            header?: never;
             path: {
                 notification_id: string;
             };
@@ -26427,10 +26343,6 @@ export interface operations {
             query?: never;
             header: {
                 "If-Match": string;
-                /** @description The kind of client: `web` or `mobile`. A request that sends `web` must also send `X-CSRF-Token`; any other request, or none, is not checked for it. */
-                "X-Client-Type"?: "web" | "mobile";
-                /** @description The CSRF token of a web session, required when `X-Client-Type` is `web`: without it the request is refused with 403. The server checks only that the header is present. */
-                "X-CSRF-Token"?: string;
             };
             path?: never;
             cookie?: never;
@@ -26653,12 +26565,7 @@ export interface operations {
     create_user_api_key: {
         parameters: {
             query?: never;
-            header?: {
-                /** @description The kind of client: `web` or `mobile`. A request that sends `web` must also send `X-CSRF-Token`; any other request, or none, is not checked for it. */
-                "X-Client-Type"?: "web" | "mobile";
-                /** @description The CSRF token of a web session, required when `X-Client-Type` is `web`: without it the request is refused with 403. The server checks only that the header is present. */
-                "X-CSRF-Token"?: string;
-            };
+            header?: never;
             path?: never;
             cookie?: never;
         };
@@ -26768,12 +26675,7 @@ export interface operations {
     delete_user_api_key: {
         parameters: {
             query?: never;
-            header?: {
-                /** @description The kind of client: `web` or `mobile`. A request that sends `web` must also send `X-CSRF-Token`; any other request, or none, is not checked for it. */
-                "X-Client-Type"?: "web" | "mobile";
-                /** @description The CSRF token of a web session, required when `X-Client-Type` is `web`: without it the request is refused with 403. The server checks only that the header is present. */
-                "X-CSRF-Token"?: string;
-            };
+            header?: never;
             path: {
                 api_key_id: string;
             };
@@ -26875,12 +26777,7 @@ export interface operations {
     revoke_user_api_key: {
         parameters: {
             query?: never;
-            header?: {
-                /** @description The kind of client: `web` or `mobile`. A request that sends `web` must also send `X-CSRF-Token`; any other request, or none, is not checked for it. */
-                "X-Client-Type"?: "web" | "mobile";
-                /** @description The CSRF token of a web session, required when `X-Client-Type` is `web`: without it the request is refused with 403. The server checks only that the header is present. */
-                "X-CSRF-Token"?: string;
-            };
+            header?: never;
             path: {
                 api_key_id: string;
             };
@@ -27069,12 +26966,7 @@ export interface operations {
     block_user: {
         parameters: {
             query?: never;
-            header?: {
-                /** @description The kind of client: `web` or `mobile`. A request that sends `web` must also send `X-CSRF-Token`; any other request, or none, is not checked for it. */
-                "X-Client-Type"?: "web" | "mobile";
-                /** @description The CSRF token of a web session, required when `X-Client-Type` is `web`: without it the request is refused with 403. The server checks only that the header is present. */
-                "X-CSRF-Token"?: string;
-            };
+            header?: never;
             path: {
                 user_id: string;
             };
@@ -27176,12 +27068,7 @@ export interface operations {
     unblock_user: {
         parameters: {
             query?: never;
-            header?: {
-                /** @description The kind of client: `web` or `mobile`. A request that sends `web` must also send `X-CSRF-Token`; any other request, or none, is not checked for it. */
-                "X-Client-Type"?: "web" | "mobile";
-                /** @description The CSRF token of a web session, required when `X-Client-Type` is `web`: without it the request is refused with 403. The server checks only that the header is present. */
-                "X-CSRF-Token"?: string;
-            };
+            header?: never;
             path: {
                 user_id: string;
             };
@@ -27362,10 +27249,6 @@ export interface operations {
             query?: never;
             header: {
                 "If-Match": string;
-                /** @description The kind of client: `web` or `mobile`. A request that sends `web` must also send `X-CSRF-Token`; any other request, or none, is not checked for it. */
-                "X-Client-Type"?: "web" | "mobile";
-                /** @description The CSRF token of a web session, required when `X-Client-Type` is `web`: without it the request is refused with 403. The server checks only that the header is present. */
-                "X-CSRF-Token"?: string;
             };
             path?: never;
             cookie?: never;
@@ -27501,12 +27384,7 @@ export interface operations {
     delete_my_account: {
         parameters: {
             query?: never;
-            header?: {
-                /** @description The kind of client: `web` or `mobile`. A request that sends `web` must also send `X-CSRF-Token`; any other request, or none, is not checked for it. */
-                "X-Client-Type"?: "web" | "mobile";
-                /** @description The CSRF token of a web session, required when `X-Client-Type` is `web`: without it the request is refused with 403. The server checks only that the header is present. */
-                "X-CSRF-Token"?: string;
-            };
+            header?: never;
             path?: never;
             cookie?: never;
         };
@@ -27702,12 +27580,7 @@ export interface operations {
     forget_all_user_devices: {
         parameters: {
             query?: never;
-            header?: {
-                /** @description The kind of client: `web` or `mobile`. A request that sends `web` must also send `X-CSRF-Token`; any other request, or none, is not checked for it. */
-                "X-Client-Type"?: "web" | "mobile";
-                /** @description The CSRF token of a web session, required when `X-Client-Type` is `web`: without it the request is refused with 403. The server checks only that the header is present. */
-                "X-CSRF-Token"?: string;
-            };
+            header?: never;
             path?: never;
             cookie?: never;
         };
@@ -27814,10 +27687,6 @@ export interface operations {
             header?: {
                 /** @description The device id the mobile app keeps, as the server returned it on an earlier sign-in: 43 characters of `A-Z a-z 0-9 - _`. Optional: a missing or malformed value counts as none and the server mints one. A browser sends its device cookie instead. */
                 "X-Device-Id"?: string | null;
-                /** @description The kind of client: `web` or `mobile`. A request that sends `web` must also send `X-CSRF-Token`; any other request, or none, is not checked for it. */
-                "X-Client-Type"?: "web" | "mobile";
-                /** @description The CSRF token of a web session, required when `X-Client-Type` is `web`: without it the request is refused with 403. The server checks only that the header is present. */
-                "X-CSRF-Token"?: string;
             };
             path?: never;
             cookie?: never;
@@ -27925,10 +27794,6 @@ export interface operations {
             header?: {
                 /** @description The device id the mobile app keeps, as the server returned it on an earlier sign-in: 43 characters of `A-Z a-z 0-9 - _`. Optional: a missing or malformed value counts as none and the server mints one. A browser sends its device cookie instead. */
                 "X-Device-Id"?: string | null;
-                /** @description The kind of client: `web` or `mobile`. A request that sends `web` must also send `X-CSRF-Token`; any other request, or none, is not checked for it. */
-                "X-Client-Type"?: "web" | "mobile";
-                /** @description The CSRF token of a web session, required when `X-Client-Type` is `web`: without it the request is refused with 403. The server checks only that the header is present. */
-                "X-CSRF-Token"?: string;
             };
             path: {
                 device_id: string;
@@ -28044,12 +27909,7 @@ export interface operations {
     edit_profile_email: {
         parameters: {
             query?: never;
-            header?: {
-                /** @description The kind of client: `web` or `mobile`. A request that sends `web` must also send `X-CSRF-Token`; any other request, or none, is not checked for it. */
-                "X-Client-Type"?: "web" | "mobile";
-                /** @description The CSRF token of a web session, required when `X-Client-Type` is `web`: without it the request is refused with 403. The server checks only that the header is present. */
-                "X-CSRF-Token"?: string;
-            };
+            header?: never;
             path?: never;
             cookie?: never;
         };
@@ -28157,12 +28017,7 @@ export interface operations {
     cancel_profile_email_change: {
         parameters: {
             query?: never;
-            header?: {
-                /** @description The kind of client: `web` or `mobile`. A request that sends `web` must also send `X-CSRF-Token`; any other request, or none, is not checked for it. */
-                "X-Client-Type"?: "web" | "mobile";
-                /** @description The CSRF token of a web session, required when `X-Client-Type` is `web`: without it the request is refused with 403. The server checks only that the header is present. */
-                "X-CSRF-Token"?: string;
-            };
+            header?: never;
             path?: never;
             cookie?: never;
         };
@@ -28244,12 +28099,7 @@ export interface operations {
     resend_profile_email_change: {
         parameters: {
             query?: never;
-            header?: {
-                /** @description The kind of client: `web` or `mobile`. A request that sends `web` must also send `X-CSRF-Token`; any other request, or none, is not checked for it. */
-                "X-Client-Type"?: "web" | "mobile";
-                /** @description The CSRF token of a web session, required when `X-Client-Type` is `web`: without it the request is refused with 403. The server checks only that the header is present. */
-                "X-CSRF-Token"?: string;
-            };
+            header?: never;
             path?: never;
             cookie?: never;
         };
@@ -28331,12 +28181,7 @@ export interface operations {
     export_profile_data: {
         parameters: {
             query?: never;
-            header?: {
-                /** @description The kind of client: `web` or `mobile`. A request that sends `web` must also send `X-CSRF-Token`; any other request, or none, is not checked for it. */
-                "X-Client-Type"?: "web" | "mobile";
-                /** @description The CSRF token of a web session, required when `X-Client-Type` is `web`: without it the request is refused with 403. The server checks only that the header is present. */
-                "X-CSRF-Token"?: string;
-            };
+            header?: never;
             path?: never;
             cookie?: never;
         };
@@ -28612,12 +28457,7 @@ export interface operations {
     reject_follow_request: {
         parameters: {
             query?: never;
-            header?: {
-                /** @description The kind of client: `web` or `mobile`. A request that sends `web` must also send `X-CSRF-Token`; any other request, or none, is not checked for it. */
-                "X-Client-Type"?: "web" | "mobile";
-                /** @description The CSRF token of a web session, required when `X-Client-Type` is `web`: without it the request is refused with 403. The server checks only that the header is present. */
-                "X-CSRF-Token"?: string;
-            };
+            header?: never;
             path: {
                 follower_id: string;
             };
@@ -28719,12 +28559,7 @@ export interface operations {
     accept_follow_request: {
         parameters: {
             query?: never;
-            header?: {
-                /** @description The kind of client: `web` or `mobile`. A request that sends `web` must also send `X-CSRF-Token`; any other request, or none, is not checked for it. */
-                "X-Client-Type"?: "web" | "mobile";
-                /** @description The CSRF token of a web session, required when `X-Client-Type` is `web`: without it the request is refused with 403. The server checks only that the header is present. */
-                "X-CSRF-Token"?: string;
-            };
+            header?: never;
             path: {
                 follower_id: string;
             };
@@ -28921,12 +28756,7 @@ export interface operations {
     create_user_goal: {
         parameters: {
             query?: never;
-            header?: {
-                /** @description The kind of client: `web` or `mobile`. A request that sends `web` must also send `X-CSRF-Token`; any other request, or none, is not checked for it. */
-                "X-Client-Type"?: "web" | "mobile";
-                /** @description The CSRF token of a web session, required when `X-Client-Type` is `web`: without it the request is refused with 403. The server checks only that the header is present. */
-                "X-CSRF-Token"?: string;
-            };
+            header?: never;
             path?: never;
             cookie?: never;
         };
@@ -29222,10 +29052,6 @@ export interface operations {
             query?: never;
             header: {
                 "If-Match": string;
-                /** @description The kind of client: `web` or `mobile`. A request that sends `web` must also send `X-CSRF-Token`; any other request, or none, is not checked for it. */
-                "X-Client-Type"?: "web" | "mobile";
-                /** @description The CSRF token of a web session, required when `X-Client-Type` is `web`: without it the request is refused with 403. The server checks only that the header is present. */
-                "X-CSRF-Token"?: string;
             };
             path: {
                 goal_id: string;
@@ -29374,10 +29200,6 @@ export interface operations {
             query?: never;
             header: {
                 "If-Match": string;
-                /** @description The kind of client: `web` or `mobile`. A request that sends `web` must also send `X-CSRF-Token`; any other request, or none, is not checked for it. */
-                "X-Client-Type"?: "web" | "mobile";
-                /** @description The CSRF token of a web session, required when `X-Client-Type` is `web`: without it the request is refused with 403. The server checks only that the header is present. */
-                "X-CSRF-Token"?: string;
             };
             path: {
                 goal_id: string;
@@ -29594,12 +29416,7 @@ export interface operations {
     start_idp_link: {
         parameters: {
             query?: never;
-            header?: {
-                /** @description The kind of client: `web` or `mobile`. A request that sends `web` must also send `X-CSRF-Token`; any other request, or none, is not checked for it. */
-                "X-Client-Type"?: "web" | "mobile";
-                /** @description The CSRF token of a web session, required when `X-Client-Type` is `web`: without it the request is refused with 403. The server checks only that the header is present. */
-                "X-CSRF-Token"?: string;
-            };
+            header?: never;
             path: {
                 idp_id: string;
             };
@@ -29716,12 +29533,7 @@ export interface operations {
     start_idp_step_up: {
         parameters: {
             query?: never;
-            header?: {
-                /** @description The kind of client: `web` or `mobile`. A request that sends `web` must also send `X-CSRF-Token`; any other request, or none, is not checked for it. */
-                "X-Client-Type"?: "web" | "mobile";
-                /** @description The CSRF token of a web session, required when `X-Client-Type` is `web`: without it the request is refused with 403. The server checks only that the header is present. */
-                "X-CSRF-Token"?: string;
-            };
+            header?: never;
             path: {
                 idp_id: string;
             };
@@ -29838,12 +29650,7 @@ export interface operations {
     delete_my_identity_provider: {
         parameters: {
             query?: never;
-            header?: {
-                /** @description The kind of client: `web` or `mobile`. A request that sends `web` must also send `X-CSRF-Token`; any other request, or none, is not checked for it. */
-                "X-Client-Type"?: "web" | "mobile";
-                /** @description The CSRF token of a web session, required when `X-Client-Type` is `web`: without it the request is refused with 403. The server checks only that the header is present. */
-                "X-CSRF-Token"?: string;
-            };
+            header?: never;
             path: {
                 idp_id: string;
             };
@@ -29958,12 +29765,7 @@ export interface operations {
     import_profile_data: {
         parameters: {
             query?: never;
-            header?: {
-                /** @description The kind of client: `web` or `mobile`. A request that sends `web` must also send `X-CSRF-Token`; any other request, or none, is not checked for it. */
-                "X-Client-Type"?: "web" | "mobile";
-                /** @description The CSRF token of a web session, required when `X-Client-Type` is `web`: without it the request is refused with 403. The server checks only that the header is present. */
-                "X-CSRF-Token"?: string;
-            };
+            header?: never;
             path?: never;
             cookie?: never;
         };
@@ -30082,12 +29884,7 @@ export interface operations {
     generate_mfa_backup_codes: {
         parameters: {
             query?: never;
-            header?: {
-                /** @description The kind of client: `web` or `mobile`. A request that sends `web` must also send `X-CSRF-Token`; any other request, or none, is not checked for it. */
-                "X-Client-Type"?: "web" | "mobile";
-                /** @description The CSRF token of a web session, required when `X-Client-Type` is `web`: without it the request is refused with 403. The server checks only that the header is present. */
-                "X-CSRF-Token"?: string;
-            };
+            header?: never;
             path?: never;
             cookie?: never;
         };
@@ -30272,12 +30069,7 @@ export interface operations {
     disable_mfa: {
         parameters: {
             query?: never;
-            header?: {
-                /** @description The kind of client: `web` or `mobile`. A request that sends `web` must also send `X-CSRF-Token`; any other request, or none, is not checked for it. */
-                "X-Client-Type"?: "web" | "mobile";
-                /** @description The CSRF token of a web session, required when `X-Client-Type` is `web`: without it the request is refused with 403. The server checks only that the header is present. */
-                "X-CSRF-Token"?: string;
-            };
+            header?: never;
             path?: never;
             cookie?: never;
         };
@@ -30381,12 +30173,7 @@ export interface operations {
     enable_mfa: {
         parameters: {
             query?: never;
-            header?: {
-                /** @description The kind of client: `web` or `mobile`. A request that sends `web` must also send `X-CSRF-Token`; any other request, or none, is not checked for it. */
-                "X-Client-Type"?: "web" | "mobile";
-                /** @description The CSRF token of a web session, required when `X-Client-Type` is `web`: without it the request is refused with 403. The server checks only that the header is present. */
-                "X-CSRF-Token"?: string;
-            };
+            header?: never;
             path?: never;
             cookie?: never;
         };
@@ -30496,12 +30283,7 @@ export interface operations {
     setup_mfa: {
         parameters: {
             query?: never;
-            header?: {
-                /** @description The kind of client: `web` or `mobile`. A request that sends `web` must also send `X-CSRF-Token`; any other request, or none, is not checked for it. */
-                "X-Client-Type"?: "web" | "mobile";
-                /** @description The CSRF token of a web session, required when `X-Client-Type` is `web`: without it the request is refused with 403. The server checks only that the header is present. */
-                "X-CSRF-Token"?: string;
-            };
+            header?: never;
             path?: never;
             cookie?: never;
         };
@@ -30664,12 +30446,7 @@ export interface operations {
     edit_profile_password: {
         parameters: {
             query?: never;
-            header?: {
-                /** @description The kind of client: `web` or `mobile`. A request that sends `web` must also send `X-CSRF-Token`; any other request, or none, is not checked for it. */
-                "X-Client-Type"?: "web" | "mobile";
-                /** @description The CSRF token of a web session, required when `X-Client-Type` is `web`: without it the request is refused with 403. The server checks only that the header is present. */
-                "X-CSRF-Token"?: string;
-            };
+            header?: never;
             path?: never;
             cookie?: never;
         };
@@ -30773,12 +30550,7 @@ export interface operations {
     put_profile_image: {
         parameters: {
             query?: never;
-            header?: {
-                /** @description The kind of client: `web` or `mobile`. A request that sends `web` must also send `X-CSRF-Token`; any other request, or none, is not checked for it. */
-                "X-Client-Type"?: "web" | "mobile";
-                /** @description The CSRF token of a web session, required when `X-Client-Type` is `web`: without it the request is refused with 403. The server checks only that the header is present. */
-                "X-CSRF-Token"?: string;
-            };
+            header?: never;
             path?: never;
             cookie?: never;
         };
@@ -30902,12 +30674,7 @@ export interface operations {
     delete_profile_photo: {
         parameters: {
             query?: never;
-            header?: {
-                /** @description The kind of client: `web` or `mobile`. A request that sends `web` must also send `X-CSRF-Token`; any other request, or none, is not checked for it. */
-                "X-Client-Type"?: "web" | "mobile";
-                /** @description The CSRF token of a web session, required when `X-Client-Type` is `web`: without it the request is refused with 403. The server checks only that the header is present. */
-                "X-CSRF-Token"?: string;
-            };
+            header?: never;
             path?: never;
             cookie?: never;
         };
@@ -31068,10 +30835,6 @@ export interface operations {
             query?: never;
             header: {
                 "If-Match": string;
-                /** @description The kind of client: `web` or `mobile`. A request that sends `web` must also send `X-CSRF-Token`; any other request, or none, is not checked for it. */
-                "X-Client-Type"?: "web" | "mobile";
-                /** @description The CSRF token of a web session, required when `X-Client-Type` is `web`: without it the request is refused with 403. The server checks only that the header is present. */
-                "X-CSRF-Token"?: string;
             };
             path?: never;
             cookie?: never;
@@ -31297,12 +31060,7 @@ export interface operations {
                 /** @description Keep the caller's current session and end only the others */
                 keep_current?: boolean;
             };
-            header?: {
-                /** @description The kind of client: `web` or `mobile`. A request that sends `web` must also send `X-CSRF-Token`; any other request, or none, is not checked for it. */
-                "X-Client-Type"?: "web" | "mobile";
-                /** @description The CSRF token of a web session, required when `X-Client-Type` is `web`: without it the request is refused with 403. The server checks only that the header is present. */
-                "X-CSRF-Token"?: string;
-            };
+            header?: never;
             path?: never;
             cookie?: never;
         };
@@ -31393,12 +31151,7 @@ export interface operations {
     delete_profile_session: {
         parameters: {
             query?: never;
-            header?: {
-                /** @description The kind of client: `web` or `mobile`. A request that sends `web` must also send `X-CSRF-Token`; any other request, or none, is not checked for it. */
-                "X-Client-Type"?: "web" | "mobile";
-                /** @description The CSRF token of a web session, required when `X-Client-Type` is `web`: without it the request is refused with 403. The server checks only that the header is present. */
-                "X-CSRF-Token"?: string;
-            };
+            header?: never;
             path: {
                 session_id: string;
             };
@@ -31500,12 +31253,7 @@ export interface operations {
     edit_profile_username: {
         parameters: {
             query?: never;
-            header?: {
-                /** @description The kind of client: `web` or `mobile`. A request that sends `web` must also send `X-CSRF-Token`; any other request, or none, is not checked for it. */
-                "X-Client-Type"?: "web" | "mobile";
-                /** @description The CSRF token of a web session, required when `X-Client-Type` is `web`: without it the request is refused with 403. The server checks only that the header is present. */
-                "X-CSRF-Token"?: string;
-            };
+            header?: never;
             path?: never;
             cookie?: never;
         };
@@ -32324,13 +32072,11 @@ export interface operations {
         };
         responses: {
             /** @description Successful Response */
-            200: {
+            204: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content: {
-                    "application/json": components["schemas"]["SignUpRead"];
-                };
+                content?: never;
             };
             /** @description The token is unknown, used, expired or not an email-change token, or the change was requested before a security change of the account. */
             400: {
@@ -33904,10 +33650,6 @@ export interface operations {
             query?: never;
             header: {
                 "If-Match": string;
-                /** @description The kind of client: `web` or `mobile`. A request that sends `web` must also send `X-CSRF-Token`; any other request, or none, is not checked for it. */
-                "X-Client-Type"?: "web" | "mobile";
-                /** @description The CSRF token of a web session, required when `X-Client-Type` is `web`: without it the request is refused with 403. The server checks only that the header is present. */
-                "X-CSRF-Token"?: string;
             };
             path?: never;
             cookie?: never;
@@ -34122,10 +33864,6 @@ export interface operations {
             query?: never;
             header: {
                 "If-Match": string;
-                /** @description The kind of client: `web` or `mobile`. A request that sends `web` must also send `X-CSRF-Token`; any other request, or none, is not checked for it. */
-                "X-Client-Type"?: "web" | "mobile";
-                /** @description The CSRF token of a web session, required when `X-Client-Type` is `web`: without it the request is refused with 403. The server checks only that the header is present. */
-                "X-CSRF-Token"?: string;
             };
             path?: never;
             cookie?: never;
@@ -34261,12 +33999,7 @@ export interface operations {
     send_test_email: {
         parameters: {
             query?: never;
-            header?: {
-                /** @description The kind of client: `web` or `mobile`. A request that sends `web` must also send `X-CSRF-Token`; any other request, or none, is not checked for it. */
-                "X-Client-Type"?: "web" | "mobile";
-                /** @description The CSRF token of a web session, required when `X-Client-Type` is `web`: without it the request is refused with 403. The server checks only that the header is present. */
-                "X-CSRF-Token"?: string;
-            };
+            header?: never;
             path?: never;
             cookie?: never;
         };
@@ -34348,12 +34081,7 @@ export interface operations {
     put_login_photo: {
         parameters: {
             query?: never;
-            header?: {
-                /** @description The kind of client: `web` or `mobile`. A request that sends `web` must also send `X-CSRF-Token`; any other request, or none, is not checked for it. */
-                "X-Client-Type"?: "web" | "mobile";
-                /** @description The CSRF token of a web session, required when `X-Client-Type` is `web`: without it the request is refused with 403. The server checks only that the header is present. */
-                "X-CSRF-Token"?: string;
-            };
+            header?: never;
             path?: never;
             cookie?: never;
         };
@@ -34477,12 +34205,7 @@ export interface operations {
     delete_login_photo: {
         parameters: {
             query?: never;
-            header?: {
-                /** @description The kind of client: `web` or `mobile`. A request that sends `web` must also send `X-CSRF-Token`; any other request, or none, is not checked for it. */
-                "X-Client-Type"?: "web" | "mobile";
-                /** @description The CSRF token of a web session, required when `X-Client-Type` is `web`: without it the request is refused with 403. The server checks only that the header is present. */
-                "X-CSRF-Token"?: string;
-            };
+            header?: never;
             path?: never;
             cookie?: never;
         };
@@ -34657,16 +34380,15 @@ export interface operations {
     clear_logs: {
         parameters: {
             query?: never;
-            header?: {
-                /** @description The kind of client: `web` or `mobile`. A request that sends `web` must also send `X-CSRF-Token`; any other request, or none, is not checked for it. */
-                "X-Client-Type"?: "web" | "mobile";
-                /** @description The CSRF token of a web session, required when `X-Client-Type` is `web`: without it the request is refused with 403. The server checks only that the header is present. */
-                "X-CSRF-Token"?: string;
-            };
+            header?: never;
             path?: never;
             cookie?: never;
         };
-        requestBody?: never;
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["StepUpRequest"];
+            };
+        };
         responses: {
             /** @description Successful Response */
             204: {
@@ -34697,6 +34419,24 @@ export interface operations {
             };
             /** @description The request conflicts with the current state. */
             409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description The body is larger than the route accepts. */
+            413: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -34822,12 +34562,7 @@ export interface operations {
                 start_date: string;
                 end_date: string;
             };
-            header?: {
-                /** @description The kind of client: `web` or `mobile`. A request that sends `web` must also send `X-CSRF-Token`; any other request, or none, is not checked for it. */
-                "X-Client-Type"?: "web" | "mobile";
-                /** @description The CSRF token of a web session, required when `X-Client-Type` is `web`: without it the request is refused with 403. The server checks only that the header is present. */
-                "X-CSRF-Token"?: string;
-            };
+            header?: never;
             path?: never;
             cookie?: never;
         };
@@ -34926,10 +34661,6 @@ export interface operations {
             query?: never;
             header: {
                 "If-Match": string;
-                /** @description The kind of client: `web` or `mobile`. A request that sends `web` must also send `X-CSRF-Token`; any other request, or none, is not checked for it. */
-                "X-Client-Type"?: "web" | "mobile";
-                /** @description The CSRF token of a web session, required when `X-Client-Type` is `web`: without it the request is refused with 403. The server checks only that the header is present. */
-                "X-CSRF-Token"?: string;
             };
             path?: never;
             cookie?: never;
@@ -35063,12 +34794,7 @@ export interface operations {
     strava_retrieve_gear: {
         parameters: {
             query?: never;
-            header?: {
-                /** @description The kind of client: `web` or `mobile`. A request that sends `web` must also send `X-CSRF-Token`; any other request, or none, is not checked for it. */
-                "X-Client-Type"?: "web" | "mobile";
-                /** @description The CSRF token of a web session, required when `X-Client-Type` is `web`: without it the request is refused with 403. The server checks only that the header is present. */
-                "X-CSRF-Token"?: string;
-            };
+            header?: never;
             path?: never;
             cookie?: never;
         };
@@ -35159,12 +34885,7 @@ export interface operations {
                 /** @description Which Strava export file is uploaded */
                 gear_type: components["schemas"]["StravaGearImportType"];
             };
-            header?: {
-                /** @description The kind of client: `web` or `mobile`. A request that sends `web` must also send `X-CSRF-Token`; any other request, or none, is not checked for it. */
-                "X-Client-Type"?: "web" | "mobile";
-                /** @description The CSRF token of a web session, required when `X-Client-Type` is `web`: without it the request is refused with 403. The server checks only that the header is present. */
-                "X-CSRF-Token"?: string;
-            };
+            header?: never;
             path?: never;
             cookie?: never;
         };
@@ -35279,12 +35000,7 @@ export interface operations {
     strava_link: {
         parameters: {
             query?: never;
-            header?: {
-                /** @description The kind of client: `web` or `mobile`. A request that sends `web` must also send `X-CSRF-Token`; any other request, or none, is not checked for it. */
-                "X-Client-Type"?: "web" | "mobile";
-                /** @description The CSRF token of a web session, required when `X-Client-Type` is `web`: without it the request is refused with 403. The server checks only that the header is present. */
-                "X-CSRF-Token"?: string;
-            };
+            header?: never;
             path?: never;
             cookie?: never;
         };
@@ -35391,31 +35107,22 @@ export interface operations {
             };
         };
     };
-    strava_unlink: {
+    strava_begin_state: {
         parameters: {
             query?: never;
-            header?: {
-                /** @description The kind of client: `web` or `mobile`. A request that sends `web` must also send `X-CSRF-Token`; any other request, or none, is not checked for it. */
-                "X-Client-Type"?: "web" | "mobile";
-                /** @description The CSRF token of a web session, required when `X-Client-Type` is `web`: without it the request is refused with 403. The server checks only that the header is present. */
-                "X-CSRF-Token"?: string;
-            };
+            header?: never;
             path?: never;
             cookie?: never;
         };
         requestBody?: never;
         responses: {
-            /** @description Accepted. The work runs in the background as a job; `Content-Location` names where to poll it. */
-            202: {
+            /** @description Successful Response */
+            201: {
                 headers: {
-                    /** @description Path of the job to poll for the outcome, `/jobs/{job_id}`. */
-                    "Content-Location"?: string;
-                    /** @description Seconds to wait before the first poll. */
-                    "Retry-After"?: number;
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["StravaSyncStatus"];
+                    "application/json": components["schemas"]["StravaState"];
                 };
             };
             /** @description The credential is missing, invalid or no longer valid. */
@@ -35484,27 +35191,30 @@ export interface operations {
             };
         };
     };
-    strava_begin_state: {
+    strava_unlink: {
         parameters: {
             query?: never;
-            header?: {
-                /** @description The kind of client: `web` or `mobile`. A request that sends `web` must also send `X-CSRF-Token`; any other request, or none, is not checked for it. */
-                "X-Client-Type"?: "web" | "mobile";
-                /** @description The CSRF token of a web session, required when `X-Client-Type` is `web`: without it the request is refused with 403. The server checks only that the header is present. */
-                "X-CSRF-Token"?: string;
-            };
+            header?: never;
             path?: never;
             cookie?: never;
         };
-        requestBody?: never;
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["StepUpRequest"];
+            };
+        };
         responses: {
-            /** @description Successful Response */
-            201: {
+            /** @description Accepted. The work runs in the background as a job; `Content-Location` names where to poll it. */
+            202: {
                 headers: {
+                    /** @description Path of the job to poll for the outcome, `/jobs/{job_id}`. */
+                    "Content-Location"?: string;
+                    /** @description Seconds to wait before the first poll. */
+                    "Retry-After"?: number;
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["StravaState"];
+                    "application/json": components["schemas"]["StravaSyncStatus"];
                 };
             };
             /** @description The credential is missing, invalid or no longer valid. */
@@ -35529,6 +35239,24 @@ export interface operations {
             };
             /** @description The request conflicts with the current state. */
             409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description The body is larger than the route accepts. */
+            413: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -35764,12 +35492,7 @@ export interface operations {
     create_user: {
         parameters: {
             query?: never;
-            header?: {
-                /** @description The kind of client: `web` or `mobile`. A request that sends `web` must also send `X-CSRF-Token`; any other request, or none, is not checked for it. */
-                "X-Client-Type"?: "web" | "mobile";
-                /** @description The CSRF token of a web session, required when `X-Client-Type` is `web`: without it the request is refused with 403. The server checks only that the header is present. */
-                "X-CSRF-Token"?: string;
-            };
+            header?: never;
             path?: never;
             cookie?: never;
         };
@@ -35978,10 +35701,6 @@ export interface operations {
             query?: never;
             header: {
                 "If-Match": string;
-                /** @description The kind of client: `web` or `mobile`. A request that sends `web` must also send `X-CSRF-Token`; any other request, or none, is not checked for it. */
-                "X-Client-Type"?: "web" | "mobile";
-                /** @description The CSRF token of a web session, required when `X-Client-Type` is `web`: without it the request is refused with 403. The server checks only that the header is present. */
-                "X-CSRF-Token"?: string;
             };
             path: {
                 user_id: string;
@@ -36432,12 +36151,7 @@ export interface operations {
     revoke_api_keys_user: {
         parameters: {
             query?: never;
-            header?: {
-                /** @description The kind of client: `web` or `mobile`. A request that sends `web` must also send `X-CSRF-Token`; any other request, or none, is not checked for it. */
-                "X-Client-Type"?: "web" | "mobile";
-                /** @description The CSRF token of a web session, required when `X-Client-Type` is `web`: without it the request is refused with 403. The server checks only that the header is present. */
-                "X-CSRF-Token"?: string;
-            };
+            header?: never;
             path: {
                 user_id: string;
             };
@@ -36552,12 +36266,7 @@ export interface operations {
     revoke_api_key_user: {
         parameters: {
             query?: never;
-            header?: {
-                /** @description The kind of client: `web` or `mobile`. A request that sends `web` must also send `X-CSRF-Token`; any other request, or none, is not checked for it. */
-                "X-Client-Type"?: "web" | "mobile";
-                /** @description The CSRF token of a web session, required when `X-Client-Type` is `web`: without it the request is refused with 403. The server checks only that the header is present. */
-                "X-CSRF-Token"?: string;
-            };
+            header?: never;
             path: {
                 api_key_id: string;
                 user_id: string;
@@ -36673,12 +36382,7 @@ export interface operations {
     approve_user: {
         parameters: {
             query?: never;
-            header?: {
-                /** @description The kind of client: `web` or `mobile`. A request that sends `web` must also send `X-CSRF-Token`; any other request, or none, is not checked for it. */
-                "X-Client-Type"?: "web" | "mobile";
-                /** @description The CSRF token of a web session, required when `X-Client-Type` is `web`: without it the request is refused with 403. The server checks only that the header is present. */
-                "X-CSRF-Token"?: string;
-            };
+            header?: never;
             path: {
                 user_id: string;
             };
@@ -36782,10 +36486,6 @@ export interface operations {
             query?: never;
             header: {
                 "If-Match": string;
-                /** @description The kind of client: `web` or `mobile`. A request that sends `web` must also send `X-CSRF-Token`; any other request, or none, is not checked for it. */
-                "X-Client-Type"?: "web" | "mobile";
-                /** @description The CSRF token of a web session, required when `X-Client-Type` is `web`: without it the request is refused with 403. The server checks only that the header is present. */
-                "X-CSRF-Token"?: string;
             };
             path: {
                 user_id: string;
@@ -37033,12 +36733,7 @@ export interface operations {
     follow_user: {
         parameters: {
             query?: never;
-            header?: {
-                /** @description The kind of client: `web` or `mobile`. A request that sends `web` must also send `X-CSRF-Token`; any other request, or none, is not checked for it. */
-                "X-Client-Type"?: "web" | "mobile";
-                /** @description The CSRF token of a web session, required when `X-Client-Type` is `web`: without it the request is refused with 403. The server checks only that the header is present. */
-                "X-CSRF-Token"?: string;
-            };
+            header?: never;
             path: {
                 user_id: string;
             };
@@ -37142,12 +36837,7 @@ export interface operations {
     delete_follow_relationship: {
         parameters: {
             query?: never;
-            header?: {
-                /** @description The kind of client: `web` or `mobile`. A request that sends `web` must also send `X-CSRF-Token`; any other request, or none, is not checked for it. */
-                "X-Client-Type"?: "web" | "mobile";
-                /** @description The CSRF token of a web session, required when `X-Client-Type` is `web`: without it the request is refused with 403. The server checks only that the header is present. */
-                "X-CSRF-Token"?: string;
-            };
+            header?: never;
             path: {
                 user_id: string;
                 follower_id: string;
@@ -37447,12 +37137,7 @@ export interface operations {
     delete_user_identity_provider: {
         parameters: {
             query?: never;
-            header?: {
-                /** @description The kind of client: `web` or `mobile`. A request that sends `web` must also send `X-CSRF-Token`; any other request, or none, is not checked for it. */
-                "X-Client-Type"?: "web" | "mobile";
-                /** @description The CSRF token of a web session, required when `X-Client-Type` is `web`: without it the request is refused with 403. The server checks only that the header is present. */
-                "X-CSRF-Token"?: string;
-            };
+            header?: never;
             path: {
                 user_id: string;
                 idp_id: string;
@@ -37568,12 +37253,7 @@ export interface operations {
     reset_user_mfa: {
         parameters: {
             query?: never;
-            header?: {
-                /** @description The kind of client: `web` or `mobile`. A request that sends `web` must also send `X-CSRF-Token`; any other request, or none, is not checked for it. */
-                "X-Client-Type"?: "web" | "mobile";
-                /** @description The CSRF token of a web session, required when `X-Client-Type` is `web`: without it the request is refused with 403. The server checks only that the header is present. */
-                "X-CSRF-Token"?: string;
-            };
+            header?: never;
             path: {
                 user_id: string;
             };
@@ -37786,12 +37466,7 @@ export interface operations {
     edit_user_password: {
         parameters: {
             query?: never;
-            header?: {
-                /** @description The kind of client: `web` or `mobile`. A request that sends `web` must also send `X-CSRF-Token`; any other request, or none, is not checked for it. */
-                "X-Client-Type"?: "web" | "mobile";
-                /** @description The CSRF token of a web session, required when `X-Client-Type` is `web`: without it the request is refused with 403. The server checks only that the header is present. */
-                "X-CSRF-Token"?: string;
-            };
+            header?: never;
             path: {
                 user_id: string;
             };
@@ -37906,12 +37581,7 @@ export interface operations {
     require_user_password_change: {
         parameters: {
             query?: never;
-            header?: {
-                /** @description The kind of client: `web` or `mobile`. A request that sends `web` must also send `X-CSRF-Token`; any other request, or none, is not checked for it. */
-                "X-Client-Type"?: "web" | "mobile";
-                /** @description The CSRF token of a web session, required when `X-Client-Type` is `web`: without it the request is refused with 403. The server checks only that the header is present. */
-                "X-CSRF-Token"?: string;
-            };
+            header?: never;
             path: {
                 user_id: string;
             };
@@ -38104,12 +37774,7 @@ export interface operations {
     put_user_image: {
         parameters: {
             query?: never;
-            header?: {
-                /** @description The kind of client: `web` or `mobile`. A request that sends `web` must also send `X-CSRF-Token`; any other request, or none, is not checked for it. */
-                "X-Client-Type"?: "web" | "mobile";
-                /** @description The CSRF token of a web session, required when `X-Client-Type` is `web`: without it the request is refused with 403. The server checks only that the header is present. */
-                "X-CSRF-Token"?: string;
-            };
+            header?: never;
             path: {
                 user_id: string;
             };
@@ -38244,12 +37909,7 @@ export interface operations {
     delete_user_photo: {
         parameters: {
             query?: never;
-            header?: {
-                /** @description The kind of client: `web` or `mobile`. A request that sends `web` must also send `X-CSRF-Token`; any other request, or none, is not checked for it. */
-                "X-Client-Type"?: "web" | "mobile";
-                /** @description The CSRF token of a web session, required when `X-Client-Type` is `web`: without it the request is refused with 403. The server checks only that the header is present. */
-                "X-CSRF-Token"?: string;
-            };
+            header?: never;
             path: {
                 user_id: string;
             };
@@ -38547,12 +38207,7 @@ export interface operations {
                 /** @description Session to keep intact (e.g. the caller's current session) */
                 exclude_session_id?: string | null;
             };
-            header?: {
-                /** @description The kind of client: `web` or `mobile`. A request that sends `web` must also send `X-CSRF-Token`; any other request, or none, is not checked for it. */
-                "X-Client-Type"?: "web" | "mobile";
-                /** @description The CSRF token of a web session, required when `X-Client-Type` is `web`: without it the request is refused with 403. The server checks only that the header is present. */
-                "X-CSRF-Token"?: string;
-            };
+            header?: never;
             path: {
                 user_id: string;
             };
@@ -38667,12 +38322,7 @@ export interface operations {
     revoke_session_user: {
         parameters: {
             query?: never;
-            header?: {
-                /** @description The kind of client: `web` or `mobile`. A request that sends `web` must also send `X-CSRF-Token`; any other request, or none, is not checked for it. */
-                "X-Client-Type"?: "web" | "mobile";
-                /** @description The CSRF token of a web session, required when `X-Client-Type` is `web`: without it the request is refused with 403. The server checks only that the header is present. */
-                "X-CSRF-Token"?: string;
-            };
+            header?: never;
             path: {
                 session_id: string;
                 user_id: string;
@@ -38788,12 +38438,7 @@ export interface operations {
     issue_ws_ticket: {
         parameters: {
             query?: never;
-            header?: {
-                /** @description The kind of client: `web` or `mobile`. A request that sends `web` must also send `X-CSRF-Token`; any other request, or none, is not checked for it. */
-                "X-Client-Type"?: "web" | "mobile";
-                /** @description The CSRF token of a web session, required when `X-Client-Type` is `web`: without it the request is refused with 403. The server checks only that the header is present. */
-                "X-CSRF-Token"?: string;
-            };
+            header?: never;
             path?: never;
             cookie?: never;
         };

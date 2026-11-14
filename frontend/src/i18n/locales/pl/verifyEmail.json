@@ -38,5 +38,8 @@
   "notRestoredBody": "Zmiana została zgłoszona, Twoje konto zostało wylogowane wszędzie, a jego klucze API unieważnione. Inne konto używa teraz Twojego poprzedniego adresu, więc Twoje konto zachowuje nowy. Skontaktuj się z administratorem Endurain i zmień hasło.",
   "cancelInvalidTitle": "Ten link już nie działa",
   "cancelInvalidBody": "Link jest nieprawidłowy, wygasł lub został już użyty albo adres e-mail został ponownie zmieniony po jego wysłaniu. Jeśli nadal uważasz, że ktoś inny ma dostęp, zaloguj się i zmień hasło.",
-  "cancelError": "Nie udało się anulować zmiany. Spróbuj ponownie."
+  "cancelError": "Nie udało się anulować zmiany. Spróbuj ponownie.",
+  "confirmChangeTitle": "Potwierdź nowy adres e-mail",
+  "confirmChangeBody": "Naciśnij przycisk, aby potwierdzić, że prosiłeś o zmianę adresu e-mail swojego konta. Zostaniesz wylogowany wszędzie.",
+  "confirmChangeButton": "Potwierdź zmianę e-maila"
 }

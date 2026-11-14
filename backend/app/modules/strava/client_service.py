@@ -326,7 +326,9 @@ def raise_if_rate_limited(
         return
     retry_at = rate_limits.mark_rate_limited(client_id, is_long_term=_daily_limit_reached(err))
     raise core_exceptions.TooManyRequestsError(
-        "Strava API rate limit exceeded. Please try again later.", retry_at=retry_at
+        "Strava API rate limit exceeded. Please try again later.",
+        scope=core_exceptions.TooManyRequestsScope.PROVIDER,
+        retry_at=retry_at,
     ) from err
 
 
@@ -347,6 +349,7 @@ def raise_if_rate_limit_active(
         logger.warning("Strava rate limit active, skipping the call", extra=core_logger.context(user_id=user_id))
         raise core_exceptions.TooManyRequestsError(
             "Strava API rate limit exceeded. Please try again later.",
+            scope=core_exceptions.TooManyRequestsScope.PROVIDER,
             retry_at=rate_limits.rate_limited_until(client_id),
         )
 
@@ -541,6 +544,7 @@ def refresh_user_strava_token(
         if forced:
             raise core_exceptions.TooManyRequestsError(
                 "Strava API rate limit exceeded. Please try again later.",
+                scope=core_exceptions.TooManyRequestsScope.PROVIDER,
                 retry_at=rate_limits.rate_limited_until(client_id),
             )
         return
@@ -550,6 +554,7 @@ def refresh_user_strava_token(
         if forced or _token_expired(linked):
             raise core_exceptions.TooManyRequestsError(
                 "Another process is refreshing the Strava token",
+                scope=core_exceptions.TooManyRequestsScope.PROVIDER,
                 retry_at=datetime.now(UTC) + timedelta(seconds=strava_constants.TOKEN_REFRESH_CLAIM_TTL_SECONDS),
             )
         return

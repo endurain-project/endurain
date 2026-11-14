@@ -38,5 +38,8 @@
   "notRestoredBody": "Le changement a été signalé, votre compte a été déconnecté partout et ses clés API ont été révoquées. Un autre compte utilise maintenant votre ancienne adresse, votre compte conserve donc la nouvelle. Contactez votre administrateur Endurain et changez votre mot de passe.",
   "cancelInvalidTitle": "Ce lien ne fonctionne plus",
   "cancelInvalidBody": "Le lien est invalide, expiré ou déjà utilisé, ou l'adresse e-mail a été modifiée à nouveau après son envoi. Si vous pensez toujours qu'une autre personne a accès à votre compte, connectez-vous et changez votre mot de passe.",
-  "cancelError": "Nous n'avons pas pu annuler le changement. Veuillez réessayer."
+  "cancelError": "Nous n'avons pas pu annuler le changement. Veuillez réessayer.",
+  "confirmChangeTitle": "Confirmez votre nouvelle adresse e-mail",
+  "confirmChangeBody": "Appuyez sur le bouton pour confirmer que vous avez demandé à changer l'adresse e-mail de votre compte. Vous serez déconnecté partout.",
+  "confirmChangeButton": "Confirmer le changement d'e-mail"
 }

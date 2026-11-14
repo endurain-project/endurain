@@ -38,5 +38,8 @@
   "notRestoredBody": "Par izmaiņām tika ziņots, Jūsu konts tika izrakstīts visur, un tā API atslēgas tika atsauktas. Jūsu iepriekšējo adresi tagad izmanto cits konts, tāpēc Jūsu konts patur jauno. Sazinieties ar Endurain administratoru un nomainiet paroli.",
   "cancelInvalidTitle": "Šī saite vairs nedarbojas",
   "cancelInvalidBody": "Saite nav derīga, tās derīgums beidzies vai tā jau izmantota, vai arī e-pasta adrese tika vēlreiz mainīta pēc tās nosūtīšanas. Ja joprojām domājat, ka kādam citam ir piekļuve, piesakieties un nomainiet paroli.",
-  "cancelError": "Neizdevās atcelt izmaiņas. Lūdzu, mēģiniet vēlreiz."
+  "cancelError": "Neizdevās atcelt izmaiņas. Lūdzu, mēģiniet vēlreiz.",
+  "confirmChangeTitle": "Apstipriniet savu jauno e-pasta adresi",
+  "confirmChangeBody": "Nospiediet pogu, lai apstiprinātu, ka lūdzāt mainīt sava konta e-pasta adresi. Jūs izrakstīs visur.",
+  "confirmChangeButton": "Apstiprināt e-pasta maiņu"
 }

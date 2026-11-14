@@ -75,6 +75,10 @@ class StepUpAction(StrEnum):
         ADMIN_MAIL_SETTINGS_EDIT: An administrator edits the mail server settings.
         ADMIN_SERVER_SETTINGS_EDIT: An administrator changes a server setting that governs sign-up, sign-in, sessions,
             the audit trail or the owner info on public links.
+        ADMIN_SERVER_LOG_CLEAR: An administrator empties the server log and deletes its rotated backups.
+        STRAVA_UNLINK: Disconnect Strava and delete what was imported from it.
+        STRAVA_CLIENT_SET: Replace the Strava API client id and secret.
+        GARMIN_UNLINK: Disconnect Garmin Connect.
     """
 
     API_KEY_CREATE = "api_key_create"
@@ -104,6 +108,10 @@ class StepUpAction(StrEnum):
     ADMIN_API_KEYS_REVOKE = "admin_api_keys_revoke"
     ADMIN_MAIL_SETTINGS_EDIT = "admin_mail_settings_edit"
     ADMIN_SERVER_SETTINGS_EDIT = "admin_server_settings_edit"
+    ADMIN_SERVER_LOG_CLEAR = "admin_server_log_clear"
+    STRAVA_UNLINK = "strava_unlink"
+    STRAVA_CLIENT_SET = "strava_client_set"
+    GARMIN_UNLINK = "garmin_unlink"
 
 
 #: Scopes requested from a provider that configures none.

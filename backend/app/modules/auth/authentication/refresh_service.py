@@ -63,11 +63,11 @@ def _refuse_reused_token(token_user_id: uuid.UUID, token_family_id: uuid.UUID, d
         db: Database session.
 
     Raises:
-        InvalidTokenError: Always, once the family is invalidated and the refusal audited.
+        SessionEndedError: Always, once the family is invalidated and the refusal audited.
     """
     # The family stays invalidated although this request is refused.
     end_session_on_reuse(token_user_id, token_family_id, db)
-    raise core_exceptions.InvalidTokenError("Refresh token reuse detected. The session was ended.")
+    raise core_exceptions.SessionEndedError("Refresh token reuse detected. The session was ended.")
 
 
 def _replay_rotation(
@@ -102,7 +102,7 @@ def _replay_rotation(
         The outcome carrying the replacement refresh token.
 
     Raises:
-        InvalidTokenError: If the replacement is gone or the user cannot authenticate.
+        SessionEndedError: If the replacement is gone or the user is missing or inactive.
     """
     replay = rotated_refresh_tokens_integration.get_grace_replay_token(
         refresh_token_value, db, ip_address=ip_address, user_agent=user_agent
@@ -120,7 +120,7 @@ def _replay_rotation(
             jasil_audit.Outcome.FAILURE,
             authentication_audit_actions.RefreshRefusalReason.REPLAY_UNAVAILABLE,
         )
-        raise core_exceptions.InvalidTokenError("Invalid refresh token")
+        raise core_exceptions.SessionEndedError("Invalid refresh token")
 
     replay_refresh_token, replay_refresh_token_exp = replay
 
@@ -135,29 +135,18 @@ def _replay_rotation(
         authentication_refusal_audit.record_refresh_refusal(
             token_user_id, jasil_audit.Outcome.FAILURE, authentication_audit_actions.RefreshRefusalReason.USER_NOT_FOUND
         )
-        raise core_exceptions.InvalidTokenError("Unable to authenticate")
+        raise core_exceptions.SessionEndedError("Unable to authenticate")
 
-    try:
-        users_integration.require_active_user(replay_user)
-    except core_exceptions.PermissionDeniedError:
+    if not replay_user.active:
         authentication_refusal_audit.record_refresh_refusal(
             token_user_id, jasil_audit.Outcome.DENIED, authentication_audit_actions.RefreshRefusalReason.USER_INACTIVE
         )
-        raise
+        raise core_exceptions.SessionEndedError("Unable to authenticate")
 
     # Mint a fresh, stateless access token (safe to re-issue every retry).
     replay_access_token_exp, replay_access_token = authentication_token_service.mint_access_token(
         replay_user, session.client_type, token_manager, session.id, policy
     )
-
-    # Web clients lost their CSRF token along with the rotation response, so
-    # mint a fresh one and bind it to the session (the refresh token itself
-    # is unchanged). Mobile clients do not use CSRF, so as on login the token
-    # is minted but never bound or returned.
-    replay_csrf_token = token_manager.create_csrf_token()
-    if client_type == auth_constants.ClientType.WEB:
-        sessions_integration.update_session_csrf_token(session.id, replay_csrf_token, db)
-        db.commit()
 
     return authentication_token_service.build_token_response(
         client_type,
@@ -167,7 +156,6 @@ def _replay_rotation(
         replay_refresh_token,
         replay_refresh_token_exp,
         session.expires_at,
-        replay_csrf_token,
     )
 
 
@@ -181,19 +169,11 @@ def refresh_token(
     token_manager: access_tokens_integration.TokenManager,
     client_type: auth_constants.ClientType,
     db: Session,
-    x_csrf_token: str | None = None,
 ) -> auth_schema.AuthOutcome[auth_schema.TokenRead]:
     r"""Handles the refresh token process for user sessions.
 
-    This endpoint validates the provided refresh token, checks session status,
-    validates the CSRF token (web clients only), and issues new tokens.
-
-    OAuth 2.1 Bootstrap Pattern for Page Reload:
-        On page reload, in-memory tokens are lost but httpOnly cookie persists.
-        - If no CSRF header: Allow refresh (page reload scenario)
-        - If CSRF header provided: Validate it (legitimate request with cached token)
-        - Security: httpOnly cookie + SameSite=Strict prevents CSRF at browser level
-        - CSRF validation adds defense-in-depth but is not the primary protection
+    This validates the provided refresh token, checks session status, and issues new tokens. Every refusal is a
+    ``SessionEndedError``: the client signs in again.
 
     Args:
         ip_address: Client address, recorded on the session. A retry of an already rotated token inside the
@@ -207,18 +187,15 @@ def refresh_token(
         token_manager: Utility for creating tokens.
         db: Database session.
         client_type: Client type (\"web\" or \"mobile\").
-        x_csrf_token: CSRF token header (web clients only, optional on page reload).
-
 
     Returns:
-        The token body (session_id, access_token, csrf_token, token_type, expires_in, refresh_token_expires_in) and,
+        The token body (session_id, access_token, token_type, expires_in, refresh_token_expires_in) and,
         for web clients, the refresh cookie.
 
     Raises:
-        InvalidTokenError: If the session is gone or expired, belongs to another kind of client, the refresh token is
+        SessionEndedError: If the session is gone or expired, belongs to another kind of client, the refresh token is
             invalid or reused (after the grace window, or inside it from another client), or the user is missing or
             inactive.
-        PermissionDeniedError: If the CSRF token is invalid (when provided).
     """
     # Read the session under an exclusive row lock held until the commit below: a revoke or logout of it either
     # committed before (the session is gone: refused here) or waits until this rotation commits, and a concurrent
@@ -232,7 +209,7 @@ def refresh_token(
             jasil_audit.Outcome.FAILURE,
             authentication_audit_actions.RefreshRefusalReason.SESSION_NOT_FOUND,
         )
-        raise core_exceptions.InvalidTokenError("Session is no longer valid")
+        raise core_exceptions.SessionEndedError("Session is no longer valid")
 
     # Defense-in-depth: ensure the session belongs to the user named in
     # the refresh token's `sub` claim. The refresh-token hash stored on
@@ -251,7 +228,7 @@ def refresh_token(
             jasil_audit.Outcome.FAILURE,
             authentication_audit_actions.RefreshRefusalReason.SESSION_OWNER_MISMATCH,
         )
-        raise core_exceptions.InvalidTokenError("Invalid refresh token")
+        raise core_exceptions.SessionEndedError("Invalid refresh token")
 
     # A session is refreshed only by the kind of client it was created for: a web session's refresh token lives in an
     # HttpOnly cookie, so presenting it as a mobile client (in the Authorization header) means it left the browser.
@@ -268,51 +245,19 @@ def refresh_token(
             jasil_audit.Outcome.FAILURE,
             authentication_audit_actions.RefreshRefusalReason.CLIENT_TYPE_MISMATCH,
         )
-        raise core_exceptions.InvalidTokenError("Invalid refresh token")
+        raise core_exceptions.SessionEndedError("Invalid refresh token")
 
     # Validate session hasn't exceeded idle or absolute timeout
     policy = server_settings_integration.get_session_policy(db)
     try:
         sessions_integration.validate_session_timeout(session, policy)
-    except core_exceptions.UnauthenticatedError:
+    except core_exceptions.UnauthenticatedError as err:
         authentication_refusal_audit.record_refresh_refusal(
             token_user_id,
             jasil_audit.Outcome.FAILURE,
             authentication_audit_actions.RefreshRefusalReason.SESSION_EXPIRED,
         )
-        raise
-
-    # Verify CSRF token for web clients only
-    # Mobile clients don't use CSRF tokens
-    # OAuth 2.1 Bootstrap Pattern for page reload:
-    # - On EVERY page reload, in-memory tokens (incl. CSRF) are lost but the
-    #   httpOnly refresh cookie persists. The client therefore POSTs to
-    #   /refresh without an X-CSRF-Token header to bootstrap a new in-memory
-    #   token. This must continue to work even after a CSRF binding has been
-    #   minted on the session, otherwise the user is logged out on reload.
-    # - When the client DOES send a header, it MUST be valid. An empty/wrong
-    #   value is rejected (prevents partial-CSRF where script can read the
-    #   cookie but not the bound token).
-    # - CSRF protection at this endpoint is defense-in-depth; the primary
-    #   protections are HttpOnly + SameSite=Strict on the refresh cookie,
-    #   which prevent a cross-site attacker from issuing this POST at all.
-    if (
-        client_type == auth_constants.ClientType.WEB
-        and x_csrf_token
-        and session.csrf_token_hash is not None
-        and not sessions_integration.verify_csrf_token(x_csrf_token, session.csrf_token_hash)
-    ):
-        # CSRF token was provided: validate it
-        logger.warning(
-            "Token refresh refused: invalid CSRF token for user <token_user_id>",
-            extra=core_logger.context(token_user_id=str(token_user_id)),
-        )
-        authentication_refusal_audit.record_refresh_refusal(
-            token_user_id,
-            jasil_audit.Outcome.DENIED,
-            authentication_audit_actions.RefreshRefusalReason.INVALID_CSRF_TOKEN,
-        )
-        raise core_exceptions.PermissionDeniedError("Invalid CSRF token")
+        raise core_exceptions.SessionEndedError(err.detail) from err
 
     # Verify session has a refresh token (not pending PKCE exchange)
     if not session.refresh_token:
@@ -321,7 +266,7 @@ def refresh_token(
             jasil_audit.Outcome.FAILURE,
             authentication_audit_actions.RefreshRefusalReason.TOKENS_NOT_EXCHANGED,
         )
-        raise core_exceptions.InvalidTokenError("Tokens not yet exchanged via PKCE. Complete SSO/PKCE flow first.")
+        raise core_exceptions.SessionEndedError("Tokens not yet exchanged via PKCE. Complete SSO/PKCE flow first.")
 
     # Check for token reuse BEFORE validating token
     # Uses HMAC-SHA256 internally for deterministic, secure lookup
@@ -351,7 +296,7 @@ def refresh_token(
         authentication_refusal_audit.record_refresh_refusal(
             token_user_id, jasil_audit.Outcome.FAILURE, authentication_audit_actions.RefreshRefusalReason.INVALID_TOKEN
         )
-        raise core_exceptions.InvalidTokenError("Invalid refresh token")
+        raise core_exceptions.SessionEndedError("Invalid refresh token")
 
     # get user
     user = users_integration.get_user(token_user_id, db)
@@ -364,14 +309,14 @@ def refresh_token(
         authentication_refusal_audit.record_refresh_refusal(
             token_user_id, jasil_audit.Outcome.FAILURE, authentication_audit_actions.RefreshRefusalReason.USER_NOT_FOUND
         )
-        raise core_exceptions.InvalidTokenError("Unable to authenticate")
+        raise core_exceptions.SessionEndedError("Unable to authenticate")
 
     # A deactivated user's refresh token is dead, like a deleted user's.
     if not user.active:
         authentication_refusal_audit.record_refresh_refusal(
             token_user_id, jasil_audit.Outcome.DENIED, authentication_audit_actions.RefreshRefusalReason.USER_INACTIVE
         )
-        raise core_exceptions.InvalidTokenError("Unable to authenticate")
+        raise core_exceptions.SessionEndedError("Unable to authenticate")
 
     # Create the new token bundle first so the rotated record can persist the
     # replacement refresh token used for idempotent in-grace replay.
@@ -381,7 +326,6 @@ def refresh_token(
         new_access_token,
         new_refresh_token_exp,
         new_refresh_token,
-        new_csrf_token,
     ) = authentication_token_service.create_tokens(user, session.client_type, token_manager, policy, session.id)
 
     # Store the rotated (old) refresh token together with the encrypted
@@ -424,7 +368,6 @@ def refresh_token(
         new_refresh_token,
         new_refresh_token_exp,
         db,
-        new_csrf_token=new_csrf_token,
     )
     db.commit()
 
@@ -444,5 +387,4 @@ def refresh_token(
         new_refresh_token,
         new_refresh_token_exp,
         rotated_session.expires_at,
-        new_csrf_token,
     )

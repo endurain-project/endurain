@@ -22,9 +22,10 @@ def list_user_sessions(
     user_id: uuid.UUID,
     page: core_pagination.PageParams,
     db: Session,
+    current_session_id: uuid.UUID | None = None,
 ) -> sessions_schema.UserSessionsPage:
-    """Return one page of a user's sessions."""
-    return sessions_service.list_user_sessions(user_id, page, db)
+    """Return one page of a user's sessions, marking the caller's own session."""
+    return sessions_service.list_user_sessions(user_id, page, db, current_session_id)
 
 
 def parse_user_agent(user_agent: str) -> sessions_contracts.DeviceInfo:
@@ -70,7 +71,6 @@ def create_session(
     expires_at: datetime,
     db: Session,
     oauth_state_id: str | None = None,
-    csrf_token: str | None = None,
     *,
     amr: Sequence[str],
     device_hash: str | None,
@@ -87,7 +87,6 @@ def create_session(
         expires_at,
         db,
         oauth_state_id,
-        csrf_token,
         amr=amr,
         device_hash=device_hash,
         app_redirect_uri=app_redirect_uri,
@@ -101,7 +100,6 @@ def edit_session(
     new_refresh_token: str,
     expires_at: datetime,
     db: Session,
-    new_csrf_token: str | None = None,
 ) -> sessions_contracts.SessionRead:
     """Stage a rotation of a session's refresh token."""
     return sessions_service.edit_session(
@@ -111,13 +109,7 @@ def edit_session(
         new_refresh_token,
         expires_at,
         db,
-        new_csrf_token,
     )
-
-
-def update_session_csrf_token(session_id: uuid.UUID, new_csrf_token: str, db: Session) -> None:
-    """Stage a new CSRF token for a session."""
-    sessions_service.update_session_csrf_token(session_id, new_csrf_token, db)
 
 
 def delete_session(session_id: uuid.UUID, user_id: uuid.UUID, db: Session) -> None:
@@ -158,11 +150,6 @@ def validate_session_timeout(
 ) -> None:
     """Validate configured session timeouts."""
     sessions_service.validate_session_timeout(session, policy)
-
-
-def verify_csrf_token(candidate: str, stored_hmac: str) -> bool:
-    """Verify a CSRF token."""
-    return sessions_service.verify_csrf_token(candidate, stored_hmac)
 
 
 def hash_refresh_token(token: str) -> str:

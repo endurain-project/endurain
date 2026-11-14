@@ -106,6 +106,7 @@ def profile_app(
     app.dependency_overrides[core_database.get_db] = lambda: local_mock_db
     app.dependency_overrides[core_dependencies.get_storage] = lambda: MagicMock()
     app.dependency_overrides[auth_dependencies.get_current_user_id] = lambda: MOCK_USER_ID
+    app.dependency_overrides[auth_dependencies.get_optional_sid_from_access_token] = lambda: MOCK_SESSION_ID
     app.dependency_overrides[auth_dependencies.get_sid_from_access_token] = lambda: MOCK_SESSION_ID
     app.dependency_overrides[auth_dependencies.check_scopes] = lambda: None
     app.dependency_overrides[auth_mfa_dependencies.get_mfa_secret_store] = lambda: fake_mfa_secret_store
@@ -152,7 +153,7 @@ def profile_app(
     monkeypatch.setattr(
         account_security_service,
         "list_user_sessions",
-        lambda user_id, page, db: mock_auth_services.list_user_sessions(user_id, page),
+        lambda user_id, page, db, current_session_id=None: mock_auth_services.list_user_sessions(user_id, page),
     )
     monkeypatch.setattr(
         account_security_service,

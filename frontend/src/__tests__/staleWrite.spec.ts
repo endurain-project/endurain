@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { flushPromises, mount } from '@vue/test-utils'
 import { QueryClient, VueQueryPlugin } from '@tanstack/vue-query'
+import { createPinia } from 'pinia'
 
 import type { Goal } from '@/features/goals/types'
 
@@ -113,13 +114,26 @@ describe('a stale versioned write', () => {
     const invalidateQueries = vi.spyOn(queryClient, 'invalidateQueries')
     const { toasts } = useToasts()
     const wrapper = mount(StravaCard, {
-      props: { linked: false, revokedAt: null, dataDeletionAt: null, integrationsVersion: 1 },
-      global: { plugins: [i18n, [VueQueryPlugin, { queryClient }]], stubs: dialogStubs },
+      props: {
+        linked: false,
+        revokedAt: null,
+        dataDeletionAt: null,
+        integrationsVersion: 1,
+        resume: null,
+      },
+      global: {
+        plugins: [createPinia(), i18n, [VueQueryPlugin, { queryClient }]],
+        stubs: dialogStubs,
+      },
     })
 
     wrapper
       .findComponent(StravaConnectDialog)
-      .vm.$emit('submit', { clientId: 1, clientSecret: 'secret' })
+      .vm.$emit(
+        'submit',
+        { clientId: 1, clientSecret: 'secret' },
+        { currentPassword: 'pw', mfaCode: null, idpReauth: null },
+      )
     await flushPromises()
 
     expect(toasts.value.map((toast) => toast.message)).toContain(staleMessage)

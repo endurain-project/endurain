@@ -2,17 +2,21 @@
 
 import json
 import uuid
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 import jasil.testing as jasil_testing
 import pytest
 
 import core.exceptions as core_exceptions
+import modules.auth.identity_providers.constants as identity_providers_constants
+import modules.auth.schema as auth_schema
 import modules.server_settings.audit_actions as server_settings_audit_actions
 import modules.server_settings.logs_schema as logs_schema
 import modules.server_settings.logs_service as logs_service
 
 ADMIN = uuid.UUID("2f6d8b52-47a0-4c3e-9a51-0c1e5d7b8a90")
+_STEP_UP = auth_schema.StepUpVerification(current_password="pw")
+_verify = MagicMock()
 
 
 def _json_line(level: str, message: str, **extra) -> str:
@@ -146,7 +150,7 @@ class TestClearLogs:
         (logs_dir / "app.log.2").write_text("oldest")
         (logs_dir / "other.log").write_text("keep")
 
-        logs_service.clear_logs(ADMIN)
+        logs_service.clear_logs(ADMIN, _STEP_UP, _verify, MagicMock())
 
         assert (logs_dir / logs_service.LOG_FILE_NAME).read_text() == ""
         assert not (logs_dir / "app.log.1").exists()
@@ -155,15 +159,35 @@ class TestClearLogs:
 
     def test_records_who_cleared_the_logs(self, logs_dir):
         with patch.object(logs_service.logger, "warning") as warning:
-            logs_service.clear_logs(ADMIN)
+            logs_service.clear_logs(ADMIN, _STEP_UP, _verify, MagicMock())
         assert warning.call_args.kwargs["extra"] == {"admin_id": ADMIN}
 
+    def test_verifies_the_step_up_for_the_log_clear_action_and_commits_it(self, logs_dir):
+        verify = MagicMock()
+        db = MagicMock()
+
+        logs_service.clear_logs(ADMIN, _STEP_UP, verify, db)
+
+        verify.assert_called_once_with(_STEP_UP, identity_providers_constants.StepUpAction.ADMIN_SERVER_LOG_CLEAR)
+        db.commit.assert_called_once()
+
+    def test_a_refused_step_up_clears_nothing(self, logs_dir):
+        _write(logs_dir, [_json_line("INFO", "keep")])
+        (logs_dir / "app.log.1").write_text("older")
+        verify = MagicMock(side_effect=core_exceptions.StepUpFailedError("no"))
+
+        with pytest.raises(core_exceptions.StepUpFailedError):
+            logs_service.clear_logs(ADMIN, _STEP_UP, verify, MagicMock())
+
+        assert "keep" in (logs_dir / logs_service.LOG_FILE_NAME).read_text()
+        assert (logs_dir / "app.log.1").exists()
+
     def test_missing_file_is_not_an_error(self, logs_dir):
-        logs_service.clear_logs(ADMIN)
+        logs_service.clear_logs(ADMIN, _STEP_UP, _verify, MagicMock())
 
     def test_disabled_viewer_is_not_found(self, tmp_path):
         with patch("core.config.Settings.logs_viewer_enabled", False), pytest.raises(core_exceptions.NotFoundError):
-            logs_service.clear_logs(ADMIN)
+            logs_service.clear_logs(ADMIN, _STEP_UP, _verify, MagicMock())
 
 
 class TestLogsRouteScopes:
@@ -178,7 +202,7 @@ class TestLogsRouteScopes:
 
         assert scopes("", "GET") == {"server-settings:logs"}
         assert scopes("/download", "GET") == {"server-settings:logs"}
-        assert scopes("", "DELETE") == {"server-settings:logs-clear"}
+        assert scopes("/clear", "POST") == {"server-settings:logs-clear"}
 
 
 class TestLogsAudit:
@@ -187,7 +211,7 @@ class TestLogsAudit:
     def test_clearing_the_logs_is_audited(self, logs_dir):
         _write(logs_dir, [_json_line("INFO", "hello")])
         with jasil_testing.capture_audit() as audit:
-            logs_service.clear_logs(ADMIN)
+            logs_service.clear_logs(ADMIN, _STEP_UP, _verify, MagicMock())
 
         entry = audit.assert_audited(server_settings_audit_actions.LOGS_CLEAR.id)
         assert entry.details is None
@@ -199,7 +223,7 @@ class TestLogsAudit:
             jasil_testing.capture_audit() as audit,
             pytest.raises(core_exceptions.NotFoundError),
         ):
-            logs_service.clear_logs(ADMIN)
+            logs_service.clear_logs(ADMIN, _STEP_UP, _verify, MagicMock())
 
         audit.assert_not_audited(server_settings_audit_actions.LOGS_CLEAR.id)
 

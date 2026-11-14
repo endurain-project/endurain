@@ -1,6 +1,7 @@
 """Tests for the provider-backed pending-MFA login store."""
 
 import json
+import uuid
 from datetime import UTC, datetime
 from unittest.mock import MagicMock
 
@@ -43,6 +44,27 @@ def test_the_record_keeps_the_client_type_and_the_pkce_values_of_the_password_st
     assert record is not None
     assert record.client_type == auth_constants.ClientType.MOBILE
     assert (record.code_challenge, record.code_challenge_method) == ("c" * 43, "S256")
+
+
+def test_a_password_sign_in_names_no_sso_session():
+    store = pending_mfa.PendingMFALogin(MemoryState())
+    challenge = store.add_pending_login(pending_login(MOCK_USER_ID))
+
+    record = store.get_pending_login(challenge)
+
+    assert record is not None
+    assert record.sso_session_id is None
+
+
+def test_the_record_keeps_the_sso_session_it_finishes():
+    store = pending_mfa.PendingMFALogin(MemoryState())
+    session_id = uuid.uuid4()
+    challenge = store.add_pending_login(pending_login(MOCK_USER_ID).model_copy(update={"sso_session_id": session_id}))
+
+    record = store.claim_pending_login(challenge)
+
+    assert record is not None
+    assert record.sso_session_id == session_id
 
 
 @pytest.mark.parametrize("stored", [b"12", b"not json", b'{"user_id": 12}'])

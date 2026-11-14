@@ -42,7 +42,7 @@ _SERVICE = "modules.auth.authentication.service"
 _CLAIMED_EXPIRY = datetime(2999, 1, 1, tzinfo=UTC)
 _RECORD = f"{_SERVICE}.known_devices_integration.record_sign_in"
 _USER = SimpleNamespace(id=_USER_ID, username="alice", active=True, access_type="regular")
-_TOKENS = (_SESSION_ID, datetime(2999, 1, 1, tzinfo=UTC), "at", datetime(2999, 1, 1, tzinfo=UTC), "rt", "csrf")
+_TOKENS = (_SESSION_ID, datetime(2999, 1, 1, tzinfo=UTC), "at", datetime(2999, 1, 1, tzinfo=UTC), "rt")
 _DEVICE_ID = "d" * 43
 _ISSUED = "n" * 43
 _LOGIN = login_audit_actions.LOGIN.id
@@ -289,11 +289,9 @@ class TestSsoSignIn:
             outcome = authentication_service_sso_exchange_service.exchange_tokens_for_session(
                 _SESSION_ID,
                 "verifier",
-                None,
                 client_type,
                 "203.0.113.7",
                 "agent",
-                MagicMock(),
                 MagicMock(),
                 MagicMock(),
                 db,
@@ -439,7 +437,6 @@ def web_login_body():
         "next_step": "tokens",
         "session_id": _SESSION_ID,
         "access_token": "at",
-        "csrf_token": "csrf",
         "token_type": "bearer",
         "expires_in": 900,
         "refresh_token_expires_in": 604800,
@@ -544,7 +541,6 @@ class TestMfaVerifyRoute:
                     "next_step": "tokens",
                     "session_id": _SESSION_ID,
                     "access_token": "at",
-                    "csrf_token": "csrf",
                     "token_type": "bearer",
                     "expires_in": 900,
                     "refresh_token_expires_in": 604800,
@@ -572,7 +568,6 @@ class TestTokenExchangeRoute:
             next_step="tokens",
             session_id=_SESSION_ID,
             access_token="at",
-            csrf_token="csrf",
             expires_in=900,
             refresh_token_expires_in=604800,
         )
@@ -593,7 +588,7 @@ class TestTokenExchangeRoute:
 
         assert response.status_code == 200, response.text
         assert exchange.call_args.kwargs["device_id"] == _DEVICE_ID
-        assert exchange.call_args.args[5] == "agent"
+        assert exchange.call_args.args[4] == "agent"
         assert _device_cookie(response).startswith(f"{known_devices_dependencies.DEVICE_COOKIE_NAME}={_DEVICE_ID};")
 
     def test_a_mobile_exchange_reads_the_header_returns_the_id_in_the_body_and_sets_no_cookie(self, mock_db):

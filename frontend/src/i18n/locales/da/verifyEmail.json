@@ -38,5 +38,8 @@
   "notRestoredBody": "Ændringen blev meldt, din konto blev logget ud overalt, og dens API-nøgler blev tilbagekaldt. En anden konto bruger nu din tidligere adresse, så din konto beholder den nye. Kontakt din Endurain-administrator, og skift din adgangskode.",
   "cancelInvalidTitle": "Dette link virker ikke længere",
   "cancelInvalidBody": "Linket er ugyldigt, udløbet eller allerede brugt, eller e-mailadressen blev ændret igen, efter det blev sendt. Hvis du stadig tror, at nogen anden har adgang, så log ind og skift din adgangskode.",
-  "cancelError": "Vi kunne ikke annullere ændringen. Prøv venligst igen."
+  "cancelError": "Vi kunne ikke annullere ændringen. Prøv venligst igen.",
+  "confirmChangeTitle": "Bekræft din nye e-mailadresse",
+  "confirmChangeBody": "Tryk på knappen for at bekræfte, at du har bedt om at ændre e-mailadressen på din konto. Du bliver logget ud overalt.",
+  "confirmChangeButton": "Bekræft ændring af e-mail"
 }

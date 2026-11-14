@@ -51,6 +51,23 @@ class TestDeleteUserFactors:
         assert auth_mfa_crud.get_totp_factor(OTHER_USER_ID, db) is not None
 
 
+class TestUserFactors:
+    def test_a_user_without_one_has_none(self, db):
+        assert auth_mfa_crud.get_user_factors(MOCK_USER_ID, db) == []
+
+    def test_it_returns_that_users_factors_with_their_times(self, db):
+        auth_mfa_crud.set_totp_factor(MOCK_USER_ID, "one", db)
+        auth_mfa_crud.set_totp_factor(OTHER_USER_ID, "two", db)
+
+        factors = auth_mfa_crud.get_user_factors(MOCK_USER_ID, db)
+
+        assert [(factor.user_id, factor.type, factor.credential) for factor in factors] == [
+            (MOCK_USER_ID, "totp", "one")
+        ]
+        assert factors[0].created_at is not None
+        assert factors[0].last_used_at is None
+
+
 class TestMfaEnabledForUsers:
     def test_no_users_is_an_empty_answer(self, db):
         assert auth_mfa_crud.get_mfa_enabled_for_users([], db) == {}

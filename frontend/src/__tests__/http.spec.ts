@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { clearAuthTokens, getAccessToken, getCsrfToken, setAuthTokens } from '@/services/authTokens'
+import { clearAuthTokens, getAccessToken, setAuthTokens } from '@/services/authTokens'
 import { apiFetch, HttpError } from '@/services/http'
 import { onMfaEnrolmentRequired } from '@/services/mfaEnrolment'
 import { onSessionExpired } from '@/services/sessionExpiry'
@@ -13,7 +13,6 @@ vi.mock('@/services/runtime', () => ({
 
 vi.mock('@/services/authTokens', () => ({
   getAccessToken: vi.fn<typeof getAccessToken>(() => 'access-old'),
-  getCsrfToken: vi.fn<typeof getCsrfToken>(() => 'csrf-old'),
   setAuthTokens: vi.fn<typeof setAuthTokens>(),
   clearAuthTokens: vi.fn<typeof clearAuthTokens>(),
 }))
@@ -33,10 +32,10 @@ function jsonResponse(body: unknown, status = 200): Response {
 }
 
 const INVALID_TOKEN = 'urn:endurain:error:invalid-token'
+const SESSION_ENDED = 'urn:endurain:error:session-ended'
 
 const refreshTokenResponse = {
   access_token: 'access-new',
-  csrf_token: 'csrf-new',
   session_id: '00000000-0000-4000-8000-0000000000f1',
   token_type: 'bearer',
   expires_in: 900,
@@ -51,7 +50,6 @@ beforeEach(() => {
   vi.mocked(setAuthTokens).mockClear()
   vi.mocked(clearAuthTokens).mockClear()
   vi.mocked(getAccessToken).mockReturnValue('access-old')
-  vi.mocked(getCsrfToken).mockReturnValue('csrf-old')
 })
 
 afterEach(() => {
@@ -78,8 +76,8 @@ describe('apiFetch', () => {
     expect(authHeader).toBe('Bearer access-old')
   })
 
-  it('attaches the CSRF token to state-changing requests only', async () => {
-    let csrf: string | null = null
+  it('sends a JSON body with a JSON content type and no CSRF header', async () => {
+    let csrf: string | null = 'unset'
     let contentType: string | null = null
     fetchMock.mockImplementation((_url: string, init: RequestInit) => {
       const headers = init.headers as Headers
@@ -90,7 +88,7 @@ describe('apiFetch', () => {
 
     await apiFetch('/data', { method: 'POST', body: JSON.stringify({ a: 1 }) })
 
-    expect(csrf).toBe('csrf-old')
+    expect(csrf).toBeNull()
     expect(contentType).toBe('application/json')
   })
 
@@ -124,7 +122,7 @@ describe('apiFetch', () => {
 
     expect(data).toEqual({ ok: true })
     expect(refreshCount).toBe(1)
-    expect(setAuthTokens).toHaveBeenCalledWith('access-new', 'csrf-new')
+    expect(setAuthTokens).toHaveBeenCalledWith('access-new')
   })
 
   it('coalesces concurrent 401 refreshes into a single refresh call', async () => {
@@ -146,20 +144,24 @@ describe('apiFetch', () => {
     expect(refreshCount).toBe(1)
   })
 
-  it('clears tokens and rejects when the refresh itself fails', async () => {
-    fetchMock.mockImplementation(() =>
-      Promise.resolve(jsonResponse({ type: INVALID_TOKEN, detail: 'expired' }, 401)),
+  it('clears tokens and rejects when the refresh answers session-ended', async () => {
+    fetchMock.mockImplementation((url: string) =>
+      Promise.resolve(
+        jsonResponse({ type: url === '/auth/refresh' ? SESSION_ENDED : INVALID_TOKEN }, 401),
+      ),
     )
 
     await expect(apiFetch('/data')).rejects.toBeInstanceOf(HttpError)
     expect(clearAuthTokens).toHaveBeenCalled()
   })
 
-  it('signals session expiry when a mid-session refresh fails', async () => {
+  it('signals session expiry when a mid-session refresh answers session-ended', async () => {
     const onExpired = vi.fn<() => void>()
     onSessionExpired(onExpired)
-    fetchMock.mockImplementation(() =>
-      Promise.resolve(jsonResponse({ type: INVALID_TOKEN, detail: 'expired' }, 401)),
+    fetchMock.mockImplementation((url: string) =>
+      Promise.resolve(
+        jsonResponse({ type: url === '/auth/refresh' ? SESSION_ENDED : INVALID_TOKEN }, 401),
+      ),
     )
 
     await expect(apiFetch('/data')).rejects.toBeInstanceOf(HttpError)
@@ -235,50 +237,19 @@ describe('apiFetch', () => {
       expect(onExpired).not.toHaveBeenCalled()
     })
 
-    it('clears the tokens and signals expiry once on a 403', async () => {
+    it('keeps the tokens and does not signal expiry on a 403 origin refusal', async () => {
       const onExpired = vi.fn<() => void>()
       onSessionExpired(onExpired)
       expireSessionThenRefreshWith(() =>
-        Promise.resolve(jsonResponse({ detail: 'User is deactivated' }, 403)),
+        Promise.resolve(
+          jsonResponse({ type: 'urn:endurain:error:permission-denied', detail: 'Origin' }, 403),
+        ),
       )
 
       await expect(apiFetch('/data')).rejects.toMatchObject({ status: 403 })
-      expect(clearAuthTokens).toHaveBeenCalledTimes(1)
-      expect(onExpired).toHaveBeenCalledTimes(1)
+      expect(clearAuthTokens).not.toHaveBeenCalled()
+      expect(onExpired).not.toHaveBeenCalled()
     })
-  })
-
-  it('sends the CSRF token on writes but never on the refresh request', async () => {
-    const csrfByUrl: Record<string, string | null> = {}
-    fetchMock.mockImplementation((url: string, init: RequestInit) => {
-      csrfByUrl[url] = (init.headers as Headers).get('X-CSRF-Token')
-      return Promise.resolve(jsonResponse(url === '/auth/refresh' ? refreshTokenResponse : {}))
-    })
-
-    await apiFetch('/data', { method: 'POST' })
-    await apiFetch('/auth/refresh', { method: 'POST', retryOnUnauthorized: false })
-
-    expect(csrfByUrl['/data']).toBe('csrf-old')
-    expect(csrfByUrl['/auth/refresh']).toBeNull()
-  })
-
-  it('omits the CSRF token from the refresh triggered by a 401', async () => {
-    let refreshCsrf: string | null = 'unset'
-    let dataAttempts = 0
-    fetchMock.mockImplementation((url: string, init: RequestInit) => {
-      if (url === '/auth/refresh') {
-        refreshCsrf = (init.headers as Headers).get('X-CSRF-Token')
-        return Promise.resolve(jsonResponse(refreshTokenResponse))
-      }
-      dataAttempts += 1
-      return Promise.resolve(
-        dataAttempts === 1 ? jsonResponse({ type: INVALID_TOKEN }, 401) : jsonResponse({}),
-      )
-    })
-
-    await apiFetch('/data', { method: 'POST' })
-
-    expect(refreshCsrf).toBeNull()
   })
 
   it('returns a 401 with another problem type as-is, without refreshing or replaying', async () => {

@@ -226,6 +226,7 @@ class TestFollowRefusals:
             followers_service.follow_user(_ID_1, _ID_2, db)
 
         assert refused.value.status_code == 429
+        assert refused.value.scope == core_exceptions.TooManyRequestsScope.FOLLOW_REQUEST
         assert refused.value.retry_at == declined_at + followers_constants.FOLLOW_REQUEST_COOLDOWN
 
     def test_the_cooldown_ends_after_seven_days(self, factory):

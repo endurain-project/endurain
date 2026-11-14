@@ -645,7 +645,8 @@
       "stepUpDescription": "Els proveïdors d'identitat decideixen qui pot iniciar sessió en aquest servidor. Confirma que ets tu per continuar.",
       "slugConflict": "Aquest slug ja està en ús",
       "issuerInUse": "Un altre proveïdor d'identitat ja utilitza aquest URL d'emissor",
-      "issuerLocked": "L'URL de l'emissor no es pot canviar mentre hi hagi usuaris vinculats a aquest proveïdor. Desvincula'ls o afegeix un proveïdor nou.",
+      "locked": "L'identificador (slug), l'ID de client, el protocol, l'emissor i els punts finals no es poden canviar mentre hi hagi usuaris vinculats a aquest proveïdor. Desvincula'ls o afegeix un proveïdor nou.",
+      "lockedHint": "Bloquejat mentre hi hagi usuaris vinculats a aquest proveïdor.",
       "staleError": "Aquest proveïdor s'ha canviat en un altre lloc. Els teus canvis no s'han desat. Tanca'l i torna'l a obrir per carregar la configuració actual.",
       "saveError": "No s'ha pogut desar el proveïdor. Torna-ho a intentar."
     }

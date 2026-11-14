@@ -38,5 +38,8 @@
   "notRestoredBody": "Die Änderung wurde gemeldet, dein Konto wurde überall abgemeldet und seine API-Schlüssel wurden widerrufen. Ein anderes Konto verwendet jetzt deine vorherige Adresse, daher behält dein Konto die neue. Wende dich an deinen Endurain-Administrator und ändere dein Passwort.",
   "cancelInvalidTitle": "Dieser Link funktioniert nicht mehr",
   "cancelInvalidBody": "Der Link ist ungültig, abgelaufen oder wurde bereits verwendet, oder die E-Mail-Adresse wurde nach dem Versand erneut geändert. Wenn du weiterhin glaubst, dass jemand anderes Zugriff hat, melde dich an und ändere dein Passwort.",
-  "cancelError": "Wir konnten die Änderung nicht abbrechen. Bitte versuche es erneut."
+  "cancelError": "Wir konnten die Änderung nicht abbrechen. Bitte versuche es erneut.",
+  "confirmChangeTitle": "Neue E-Mail-Adresse bestätigen",
+  "confirmChangeBody": "Drücke die Schaltfläche, um zu bestätigen, dass du die E-Mail-Adresse deines Kontos ändern wolltest. Du wirst überall abgemeldet.",
+  "confirmChangeButton": "E-Mail-Änderung bestätigen"
 }

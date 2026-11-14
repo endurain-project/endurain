@@ -644,7 +644,7 @@ class TestSignUpOff:
 
         result = sign_up_service.confirm_email_change("tok", mock_db)
 
-        assert result.next_step is sign_up_schema.SignUpNextStep.SIGN_IN
+        assert result is None
 
 
 class TestConfirmEmailChange:
@@ -662,7 +662,7 @@ class TestConfirmEmailChange:
             mocks["users_integration"].get_user.return_value = MagicMock(id=MOCK_USER_ID, active=True)
             yield mocks | {"verify_token": verify_token, "publishers": publishers}
 
-    def test_the_address_is_switched_and_the_account_signs_in_again(self, deps, mock_db):
+    def test_the_address_is_switched_and_nothing_is_returned(self, deps, mock_db):
         result = sign_up_service.confirm_email_change("tok", mock_db)
 
         deps["verify_token"].assert_called_once_with("tok", mock_db, email_change=True)
@@ -674,7 +674,7 @@ class TestConfirmEmailChange:
         deps["credentials_integration"].set_local_password_hash.assert_not_called()
         deps["sessions_integration"].delete_sessions_by_user.assert_not_called()
         mock_db.commit.assert_called_once()
-        assert result.next_step is sign_up_schema.SignUpNextStep.SIGN_IN
+        assert result is None
 
 
 class TestVerifySignUpTokenBump:

@@ -18,7 +18,7 @@ import { toStepUpWire } from '@/features/security/services/security'
 export const IDP_ISSUER_IN_USE_TYPE = 'urn:endurain:error:issuer-in-use'
 
 /** Problem type of a save refused because the issuer URL cannot change while users are linked. */
-export const IDP_ISSUER_LOCKED_TYPE = 'urn:endurain:error:issuer-locked'
+export const IDP_LOCKED_TYPE = 'urn:endurain:error:identity-provider-locked'
 
 /**
  * Maps a raw `IdentityProvider` payload to the clean {@link IdentityProvider}
@@ -48,6 +48,7 @@ export function mapIdentityProvider(dto: IdentityProviderDto): IdentityProvider 
     authorizationEndpoint: dto.authorization_endpoint ?? null,
     tokenEndpoint: dto.token_endpoint ?? null,
     userinfoEndpoint: dto.userinfo_endpoint ?? null,
+    hasLinkedUsers: dto.has_linked_users,
   }
 }
 
@@ -159,7 +160,7 @@ export async function fetchIdentityProviderTemplates(
 
 /**
  * Creates an identity provider (admin scope `identity-providers:write`). The
- * client secret is required here; the backend returns `409` on a duplicate slug.
+ * client id and secret are required here; the backend returns `409` on a duplicate slug.
  * The request carries the administrator's own step-up.
  *
  * @param input - The clean provider input.
@@ -173,6 +174,7 @@ export async function createIdentityProvider(
 ): Promise<IdentityProvider> {
   const payload: IdentityProviderCreateDto = {
     ...toWireBase(input),
+    client_id: input.clientId ?? '',
     client_secret: input.clientSecret ?? '',
     step_up: toStepUpWire(stepUp),
   }

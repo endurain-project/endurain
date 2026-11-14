@@ -100,7 +100,7 @@ export function uploadErrorMessage(
   if (isProblem(error, 'invalid-input')) {
     return t('home.upload.failed.invalid_file')
   }
-  if (isProblem(error, 'rate-limited')) {
+  if (isProblem(error, 'too-many-requests')) {
     return retryWaitMessage(error, t) ?? t('home.upload.error')
   }
   return t('home.upload.error')

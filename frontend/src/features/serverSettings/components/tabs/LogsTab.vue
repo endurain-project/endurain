@@ -3,19 +3,27 @@ import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { Download, RefreshCw, Trash2 } from '@lucide/vue'
 
+import type { IdpReauth, StepUpInput } from '@/features/security/types'
 import type { LogFilters, LogLevel } from '@/features/serverSettings/types'
 
 import { Alert } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
-import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 import { EmptyState } from '@/components/ui/empty-state'
 import { FormField } from '@/components/ui/form-field'
 import { Input } from '@/components/ui/input'
 import { Select } from '@/components/ui/select'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Switch } from '@/components/ui/switch'
+import StepUpDialog from '@/features/security/components/StepUpDialog.vue'
 import { useToasts } from '@/composables/useToasts'
+import { useAdminStepUp, useResumeOnce } from '@/features/security/composables/useAdminStepUp'
+import {
+  isStepUpFailed,
+  isStepUpLocked,
+  useIdpReauthChallenge,
+} from '@/features/security/composables/useIdpStepUp'
+import { useLogsStepUpResume } from '@/features/serverSettings/composables/useMailStepUpResume'
 import {
   useClearLogsMutation,
   useDownloadLogsMutation,
@@ -55,6 +63,21 @@ const logsQuery = useLogsQuery(filters, live)
 const downloadMutation = useDownloadLogsMutation()
 const clearMutation = useClearLogsMutation()
 const confirmClearOpen = ref(false)
+const clearReauth = ref<IdpReauth | null>(null)
+const handleIdpChallenge = useIdpReauthChallenge()
+const { requirePassword, requireMfa } = useAdminStepUp()
+const pendingResume = useLogsStepUpResume()
+
+// The step-up dialog comes back once the identity-provider sign-in returns for clearing the log.
+useResumeOnce(
+  () => pendingResume.value,
+  'admin_server_log_clear',
+  () => true,
+  (resume) => {
+    clearReauth.value = resume.reauth
+    confirmClearOpen.value = true
+  },
+)
 
 const entries = computed(() => logsQuery.data.value?.items ?? [])
 
@@ -71,14 +94,25 @@ function handleDownload(): void {
   })
 }
 
-/** Empties the server log once the admin has confirmed. */
-function handleClear(): void {
-  clearMutation.mutate(undefined, {
+/** Empties the server log once the admin has confirmed with their own credentials. */
+function handleClear(stepUp: StepUpInput): void {
+  clearMutation.mutate(stepUp, {
     onSuccess: () => {
       confirmClearOpen.value = false
       toasts.success(t('settings.server.logs.cleared'))
     },
-    onError: () => toasts.error(t('settings.server.logs.clearError')),
+    onError: (error) => {
+      if (handleIdpChallenge(error)) {
+        return
+      }
+      if (isStepUpLocked(error)) {
+        toasts.error(t('settings.security.stepUp.tooManyAttempts'))
+      } else if (isStepUpFailed(error)) {
+        toasts.error(t('settings.security.linked.invalidCredentials'))
+      } else {
+        toasts.error(t('settings.server.logs.clearError'))
+      }
+    },
   })
 }
 </script>
@@ -172,13 +206,16 @@ function handleClear(): void {
       </li>
     </ol>
 
-    <ConfirmDialog
+    <StepUpDialog
       v-model:open="confirmClearOpen"
+      v-model:reauth="clearReauth"
+      action="admin_server_log_clear"
       :title="t('settings.server.logs.clearConfirm.title')"
       :description="t('settings.server.logs.clearConfirm.description')"
       :confirm-label="t('settings.server.logs.clearConfirm.confirm')"
-      :cancel-label="t('settings.server.logs.clearConfirm.cancel')"
-      :close-label="t('settings.server.logs.clearConfirm.close')"
+      :require-password="requirePassword"
+      :require-mfa="requireMfa"
+      destructive
       :pending="clearMutation.isPending.value"
       @confirm="handleClear"
     />

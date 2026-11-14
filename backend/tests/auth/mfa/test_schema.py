@@ -1,5 +1,8 @@
 """Tests for profile Pydantic schemas."""
 
+import uuid
+from datetime import UTC, datetime
+
 import pytest
 from pydantic import ValidationError
 
@@ -151,3 +154,25 @@ class TestMFAStatusResponse:
 
     def test_has_extra_forbid_config(self):
         assert mfa_schema.MFAStatusRead.model_config.get("extra") == "forbid"
+
+    def test_factors_default_to_none(self):
+        assert mfa_schema.MFAStatusRead(mfa_enabled=False).factors == []
+
+    def test_a_factor_names_its_id_type_and_times(self):
+        factor_id = uuid.uuid4()
+        now = datetime.now(UTC)
+
+        data = mfa_schema.MFAStatusRead(
+            mfa_enabled=True,
+            factors=[{"id": factor_id, "type": "totp", "created_at": now, "last_used_at": None}],
+        )
+
+        assert data.model_dump() == {
+            "mfa_enabled": True,
+            "factors": [{"id": factor_id, "type": "totp", "created_at": now, "last_used_at": None}],
+        }
+
+    def test_a_factor_type_is_an_open_set(self):
+        factor = mfa_schema.MFAFactorRead(id=uuid.uuid4(), type="passkey", created_at=datetime.now(UTC))
+
+        assert factor.type == "passkey"

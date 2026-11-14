@@ -9,7 +9,7 @@ import { HttpError } from '@/services/http'
 const { confirmPasswordReset, validatePasswordResetToken, route } = vi.hoisted(() => ({
   validatePasswordResetToken: vi.fn<(token: string) => Promise<void>>(),
   confirmPasswordReset: vi.fn<(request: unknown) => Promise<unknown>>(),
-  route: { path: '/reset-password', query: {} as Record<string, unknown> },
+  route: { path: '/reset-password', query: {} as Record<string, unknown>, hash: '' },
 }))
 
 vi.mock('vue-router', () => ({
@@ -50,7 +50,8 @@ describe('ResetPasswordView weak password', () => {
     confirmPasswordReset.mockReset()
     validatePasswordResetToken.mockReset()
     validatePasswordResetToken.mockResolvedValue(undefined)
-    route.query = { token: 'tok' }
+    route.query = {}
+    route.hash = '#token=tok'
     sessionStorage.clear()
   })
 
@@ -91,50 +92,46 @@ describe('ResetPasswordView weak password', () => {
   })
 })
 
-describe('ResetPasswordView token across a reload', () => {
+describe('ResetPasswordView token from the link', () => {
   beforeEach(() => {
     confirmPasswordReset.mockReset()
     validatePasswordResetToken.mockReset()
     validatePasswordResetToken.mockResolvedValue(undefined)
-    route.query = { token: 'tok' }
+    route.query = {}
+    route.hash = '#token=tok'
     sessionStorage.clear()
   })
 
-  it('still resets with the token after a reload dropped it from the URL', async () => {
-    const first = mount(ResetPasswordView, { global: { plugins: [i18n] } })
-    await flushPromises()
-    first.unmount()
-
-    route.query = {}
+  it('resets with the token from the fragment and stores it nowhere', async () => {
     confirmPasswordReset.mockResolvedValue({})
     await submitFilled()
 
     expect(confirmPasswordReset).toHaveBeenCalledWith(expect.objectContaining({ token: 'tok' }))
+    expect(sessionStorage.length).toBe(0)
   })
 
-  it('forgets the token once the password was reset', async () => {
+  it('still resets with the token of a link sent with it in the query string', async () => {
+    route.hash = ''
+    route.query = { token: 'old-link' }
     confirmPasswordReset.mockResolvedValue({})
     await submitFilled()
 
-    expect(sessionStorage.length).toBe(0)
+    expect(confirmPasswordReset).toHaveBeenCalledWith(
+      expect.objectContaining({ token: 'old-link' }),
+    )
   })
 
-  it('forgets the token when the link is refused as invalid', async () => {
-    confirmPasswordReset.mockRejectedValue(
-      new HttpError(400, 'Bad Request', null, 'urn:endurain:error:invalid-input'),
-    )
-    await submitFilled()
+  it('needs the link again after a reload dropped the token from the URL', async () => {
+    const first = mount(ResetPasswordView, { global: { plugins: [i18n] } })
+    await flushPromises()
+    first.unmount()
 
-    expect(sessionStorage.length).toBe(0)
-  })
+    route.hash = ''
+    const reloaded = mount(ResetPasswordView, { global: { plugins: [i18n] } })
+    await flushPromises()
 
-  it('keeps the token while the password is only too weak', async () => {
-    confirmPasswordReset.mockRejectedValue(
-      new HttpError(422, 'Unprocessable', null, 'urn:endurain:error:validation-failed'),
-    )
-    await submitFilled()
-
-    expect(sessionStorage.length).toBe(1)
+    expect(reloaded.find('form').exists()).toBe(false)
+    expect(reloaded.text()).toContain(i18n.global.t('resetPassword.invalidLinkTitle'))
   })
 })
 
@@ -142,7 +139,8 @@ describe('ResetPasswordView token validation', () => {
   beforeEach(() => {
     confirmPasswordReset.mockReset()
     validatePasswordResetToken.mockReset()
-    route.query = { token: 'tok' }
+    route.query = {}
+    route.hash = '#token=tok'
     sessionStorage.clear()
   })
 
@@ -162,10 +160,9 @@ describe('ResetPasswordView token validation', () => {
     await flushPromises()
 
     expect(wrapper.find('form').exists()).toBe(true)
-    expect(sessionStorage.length).toBe(1)
   })
 
-  it('shows the invalid-link state and forgets the token when it is refused', async () => {
+  it('shows the invalid-link state when the token is refused', async () => {
     validatePasswordResetToken.mockRejectedValue(
       new HttpError(400, 'Bad Request', null, 'urn:endurain:error:invalid-input'),
     )
@@ -174,11 +171,10 @@ describe('ResetPasswordView token validation', () => {
 
     expect(wrapper.find('form').exists()).toBe(false)
     expect(wrapper.text()).toContain(i18n.global.t('resetPassword.invalidLinkTitle'))
-    expect(sessionStorage.length).toBe(0)
   })
 
   it('does not validate when the link carries no token', async () => {
-    route.query = {}
+    route.hash = ''
     const wrapper = mount(ResetPasswordView, { global: { plugins: [i18n] } })
     await flushPromises()
 

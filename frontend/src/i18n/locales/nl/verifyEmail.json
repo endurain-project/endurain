@@ -38,5 +38,8 @@
   "notRestoredBody": "De wijziging is gemeld, je account is overal uitgelogd en de API-sleutels zijn ingetrokken. Een ander account gebruikt nu je vorige adres, dus je account behoudt het nieuwe. Neem contact op met je Endurain-beheerder en wijzig je wachtwoord.",
   "cancelInvalidTitle": "Deze link werkt niet meer",
   "cancelInvalidBody": "De link is ongeldig, verlopen of al gebruikt, of het e-mailadres is opnieuw gewijzigd nadat de link was verstuurd. Als je nog steeds denkt dat iemand anders toegang heeft, log dan in en wijzig je wachtwoord.",
-  "cancelError": "We konden de wijziging niet annuleren. Probeer het opnieuw."
+  "cancelError": "We konden de wijziging niet annuleren. Probeer het opnieuw.",
+  "confirmChangeTitle": "Bevestig je nieuwe e-mailadres",
+  "confirmChangeBody": "Druk op de knop om te bevestigen dat je hebt gevraagd het e-mailadres van je account te wijzigen. Je wordt overal uitgelogd.",
+  "confirmChangeButton": "E-mailwijziging bevestigen"
 }

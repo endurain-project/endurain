@@ -240,8 +240,8 @@ export function useDownloadLogsMutation() {
 export function useClearLogsMutation() {
   const client = useQueryClient()
 
-  return useMutation<void, Error, void>({
-    mutationFn: () => clearLogs(),
+  return useMutation<void, Error, StepUpInput>({
+    mutationFn: (stepUp) => clearLogs(stepUp),
     onSuccess: () => client.resetQueries({ queryKey: queryKeys.serverSettings.logsAll() }),
   })
 }

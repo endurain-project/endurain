@@ -49,6 +49,7 @@ function makeProviderDto(overrides: Partial<IdentityProviderDto> = {}): Identity
     sync_user_info: true,
     sync_email: false,
     client_id: 'endurain',
+    has_linked_users: false,
     user_mapping: null,
     created_at: '2026-01-01T00:00:00Z',
     updated_at: '2026-01-02T00:00:00Z',
@@ -120,7 +121,14 @@ describe('mapIdentityProvider', () => {
       authorizationEndpoint: 'https://idp.test/auth',
       tokenEndpoint: 'https://idp.test/token',
       userinfoEndpoint: 'https://idp.test/userinfo',
+      hasLinkedUsers: false,
     })
+  })
+
+  it('maps whether users are linked', () => {
+    expect(mapIdentityProvider(makeProviderDto({ has_linked_users: true })).hasLinkedUsers).toBe(
+      true,
+    )
   })
 
   it('maps the link-by-email and email-sync switches', () => {

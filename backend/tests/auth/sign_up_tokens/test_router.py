@@ -655,7 +655,7 @@ class TestConfirmEmailChangeEndpoint:
     @patch("modules.auth.sign_up_tokens.service.users_integration")
     @patch("modules.auth.sign_up_tokens.service.verify_sign_up_token")
     @patch("modules.auth.sign_up_tokens.service.server_settings_integration.get_server_settings")
-    def test_a_confirmed_change_answers_sign_in(
+    def test_a_confirmed_change_answers_no_content(
         self, mock_settings, mock_use_token, mock_users, _publishers, signup_client
     ) -> None:
         mock_settings.return_value = MagicMock(
@@ -668,8 +668,8 @@ class TestConfirmEmailChangeEndpoint:
 
         response = signup_client.post("/sign-up/email-change/confirm", json={"token": "valid-token"})
 
-        assert response.status_code == status.HTTP_200_OK
-        assert response.json() == {"next_step": "sign_in"}
+        assert response.status_code == status.HTTP_204_NO_CONTENT
+        assert response.content == b""
         mock_use_token.assert_called_once()
         assert mock_use_token.call_args.kwargs == {"email_change": True}
 
@@ -767,7 +767,7 @@ class TestSignUpOffEndpoints:
 
         response = signup_client.post("/sign-up/email-change/confirm", json={"token": "valid-token"})
 
-        assert response.status_code == status.HTTP_200_OK
+        assert response.status_code == status.HTTP_204_NO_CONTENT
 
 
 class TestConfirmSignUpPasswordPolicy:

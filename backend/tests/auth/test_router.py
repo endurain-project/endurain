@@ -32,15 +32,12 @@ _SID_PKCE_SID = uuid.UUID("88129621-7a82-59f4-9585-8abda4f2ea89")
 _SID_PKCE_SID_MFA = uuid.UUID("fdea084b-2b5b-582c-8c67-0910f0f406d9")
 _SID_SID_MFA = uuid.UUID("a9460394-e2e9-5af5-9f85-8a65c9a4295c")
 _SID_SID_BACKUP = uuid.UUID("d36bd6fe-f9ce-5417-927c-59728d5bba33")
-_SID_SID_CSRF_1 = uuid.UUID("81ef82fa-b164-5935-87d6-c65fb448d481")
 _SID_SID_MOB = uuid.UUID("3ec4c6e3-f70f-5426-b682-aa226cf02cf0")
-_SID_SID_MOB_CSRF = uuid.UUID("4435a82f-adaf-5d3d-a9cd-1181ca9c3693")
 _SID_SID_RACE = uuid.UUID("02c86fa9-ad90-53b8-b4b2-0be6f8651d57")
 _SID_SID_RELOAD = uuid.UUID("b0221cba-7fc7-5fce-8ebf-aa96f2e5da03")
 _SID_SID_REPLAY_MOB = uuid.UUID("3f6a95fa-9890-5972-b0e6-4ec968d2d95e")
 _SID_SID_REPLAY_WEB = uuid.UUID("b0d3c0b9-294a-58bb-a488-7538aaa92ceb")
 _SID_SID_IDP = uuid.UUID("5e0f16b8-1bcd-56cb-bdf3-a70f82306bd5")
-_SID_SID_BAD_CSRF = uuid.UUID("134d9066-73aa-55c6-bf5c-3e31b6e69fd5")
 _SID_SID_BAD_RT = uuid.UUID("dfce86e1-c357-534b-8fc1-38a5373a4d16")
 _SID_SID_NO_USER = uuid.UUID("f0e70a5d-4306-5767-ac4a-ff1757c4e326")
 _SID_SID_PKCE = uuid.UUID("1af5f8bb-ab0c-5341-9a74-5c76bbb43819")
@@ -242,7 +239,7 @@ class TestLoginEndpoint:
         auth_client,
         auth_app,
     ):
-        """Web login returns access_token and csrf_token."""
+        """Web login returns the access token."""
         mock_user = MagicMock()
         mock_user.id = _USER_ID_1
         mock_auth.return_value = mock_user
@@ -253,7 +250,6 @@ class TestLoginEndpoint:
                 "next_step": "tokens",
                 "session_id": _SID_SID_1,
                 "access_token": "at-1",
-                "csrf_token": "csrf-1",
                 "token_type": "bearer",
                 "expires_in": 900,
                 "refresh_token_expires_in": 604800,
@@ -268,7 +264,6 @@ class TestLoginEndpoint:
         assert response.status_code == 200
         data = response.json()
         assert data["access_token"] == "at-1"
-        assert data["csrf_token"] == "csrf-1"
         assert data["token_type"] == "bearer"
 
     @patch("modules.auth.authentication.service.authenticate_user")
@@ -296,7 +291,7 @@ class TestLoginEndpoint:
 
         inactive = auth_client.post("/auth/login", data={"username": "inactive", "password": "Password1!"})
         mock_auth.side_effect = core_exceptions.UnauthenticatedError(
-            "Unable to authenticate with provided credentials", scheme="Bearer"
+            "Unable to authenticate with provided credentials", scheme="Session"
         )
         wrong = auth_client.post("/auth/login", data={"username": "inactive", "password": "WrongPass1!"})
 
@@ -322,6 +317,9 @@ class TestLoginEndpoint:
 
         assert response.status_code == 429
         assert "locked" in response.json()["detail"].lower()
+        assert response.json()["type"] == "urn:endurain:error:too-many-requests"
+        assert response.json()["scope"] == "sign-in"
+        assert int(response.headers["Retry-After"]) > 0
 
     @patch("modules.auth.authentication.service.mfa_integration.is_mfa_enabled_for_user")
     @patch("modules.auth.authentication.service.users_integration.require_active_user")
@@ -350,7 +348,7 @@ class TestLoginEndpoint:
         assert response.status_code == 200
         data = response.json()
         assert data["next_step"] == "mfa"
-        assert set(data) == {"next_step", "mfa_challenge"}
+        assert set(data) == {"next_step", "mfa_challenge", "methods"}
         # The only handle /auth/mfa/verify accepts, so nobody who did not sign in can submit codes.
         assert fake_pending_mfa_store.get_pending_login(data["mfa_challenge"]).user_id == _USER_ID_1
 
@@ -611,7 +609,6 @@ class TestMFAVerifyEndpoint:
                 "next_step": "tokens",
                 "session_id": _SID_SID_MFA,
                 "access_token": "at-mfa",
-                "csrf_token": "csrf-mfa",
                 "token_type": "bearer",
                 "expires_in": 900,
                 "refresh_token_expires_in": 604800,
@@ -687,7 +684,6 @@ class TestMFAVerifyEndpoint:
                 "next_step": "tokens",
                 "session_id": _SID_SID_BACKUP,
                 "access_token": "at-backup",
-                "csrf_token": "csrf-backup",
                 "token_type": "bearer",
                 "expires_in": 900,
                 "refresh_token_expires_in": 604800,
@@ -768,6 +764,9 @@ class TestMFAVerifyEndpoint:
         )
 
         assert response.status_code == 429
+        assert response.json()["type"] == "urn:endurain:error:too-many-requests"
+        assert response.json()["scope"] == "mfa"
+        assert int(response.headers["Retry-After"]) > 0
 
     def test_mfa_verify_store_unavailable_on_get_pending_returns_503(
         self,
@@ -981,7 +980,7 @@ class TestRefreshEndpoint:
         auth_app,
         password_hasher,
     ):
-        """Web refresh returns new access_token and csrf_token."""
+        """Web refresh returns a new access token."""
         from datetime import datetime, timedelta
 
         now = datetime.now(UTC)
@@ -991,7 +990,6 @@ class TestRefreshEndpoint:
         mock_session.user_id = _USER_ID_1
         mock_session.client_type = "web"
         mock_session.refresh_token = sessions_integration.hash_refresh_token("mock_refresh_token")
-        mock_session.csrf_token_hash = None
         mock_session.token_family_id = uuid.UUID("00000000-0000-4000-8000-0000000000f1")
         mock_session.rotation_count = 0
         mock_get_session.return_value = mock_session
@@ -1009,7 +1007,6 @@ class TestRefreshEndpoint:
             "new-at",
             now + timedelta(days=7),
             "new-rt",
-            "new-csrf",
         )
         mock_edit_session.return_value = MagicMock(expires_at=datetime.now(UTC) + timedelta(days=30))
         mock_idp_refresh.return_value = None
@@ -1022,14 +1019,12 @@ class TestRefreshEndpoint:
         app.dependency_overrides[authentication_dependencies.get_and_return_refresh_token] = lambda: (
             "mock_refresh_token"
         )
-        app.dependency_overrides[authentication_dependencies.get_csrf_token] = lambda: None
 
         response = auth_client.post("/auth/refresh")
 
         assert response.status_code == 200
         data = response.json()
         assert data["access_token"] == "new-at"
-        assert data["csrf_token"] == "new-csrf"
         assert data["token_type"] == "bearer"
 
     @patch("modules.auth.authentication.service.sessions_integration.lock_live_session")
@@ -1042,12 +1037,11 @@ class TestRefreshEndpoint:
         app.dependency_overrides[authentication_dependencies.get_sub_from_refresh_token] = lambda: _USER_ID_1
         app.dependency_overrides[authentication_dependencies.get_sid_from_refresh_token] = lambda: _SID_NONEXISTENT
         app.dependency_overrides[authentication_dependencies.get_and_return_refresh_token] = lambda: "rt"
-        app.dependency_overrides[authentication_dependencies.get_csrf_token] = lambda: None
 
         response = auth_client.post("/auth/refresh")
 
         assert response.status_code == 401
-        assert response.json()["type"] == "urn:endurain:error:invalid-token"
+        assert response.json()["type"] == "urn:endurain:error:session-ended"
         assert any("endurain_refresh_token=" in cookie for cookie in response.headers.get_list("set-cookie"))
 
     @patch("modules.auth.authentication.service.sessions_integration.validate_session_timeout")
@@ -1072,13 +1066,12 @@ class TestRefreshEndpoint:
         app.dependency_overrides[authentication_dependencies.get_sub_from_refresh_token] = lambda: _USER_ID_1
         app.dependency_overrides[authentication_dependencies.get_sid_from_refresh_token] = lambda: _SID_SID_1
         app.dependency_overrides[authentication_dependencies.get_and_return_refresh_token] = lambda: "rt"
-        app.dependency_overrides[authentication_dependencies.get_csrf_token] = lambda: None
 
         response = auth_client.post("/auth/refresh")
 
         assert response.status_code == 401
         assert response.json()["detail"] == "Invalid refresh token"
-        assert response.json()["type"] == "urn:endurain:error:invalid-token"
+        assert response.json()["type"] == "urn:endurain:error:session-ended"
         assert any("endurain_refresh_token=" in cookie for cookie in response.headers.get_list("set-cookie"))
         # The owner check must short-circuit before session-timeout validation.
         mock_validate_timeout.assert_not_called()
@@ -1105,13 +1098,12 @@ class TestRefreshEndpoint:
         app.dependency_overrides[authentication_dependencies.get_sub_from_refresh_token] = lambda: _USER_ID_1
         app.dependency_overrides[authentication_dependencies.get_sid_from_refresh_token] = lambda: _SID_SID_1
         app.dependency_overrides[authentication_dependencies.get_and_return_refresh_token] = lambda: "rt"
-        app.dependency_overrides[authentication_dependencies.get_csrf_token] = lambda: None
 
         response = auth_client.post("/auth/refresh")
 
         assert response.status_code == 401
         assert response.json()["detail"] == "Invalid refresh token"
-        assert response.json()["type"] == "urn:endurain:error:invalid-token"
+        assert response.json()["type"] == "urn:endurain:error:session-ended"
         assert any("endurain_refresh_token=" in cookie for cookie in response.headers.get_list("set-cookie"))
         mock_validate_timeout.assert_not_called()
 
@@ -1135,7 +1127,6 @@ class TestRefreshEndpoint:
         mock_session.user_id = _USER_ID_1
         mock_session.client_type = "web"
         mock_session.refresh_token = "hashed-rt"
-        mock_session.csrf_token_hash = None
         mock_session.token_family_id = uuid.UUID("00000000-0000-4000-8000-0000000000f1")
         mock_get_session.return_value = mock_session
         mock_validate_timeout.return_value = None
@@ -1146,7 +1137,6 @@ class TestRefreshEndpoint:
         app.dependency_overrides[authentication_dependencies.get_sub_from_refresh_token] = lambda: _USER_ID_1
         app.dependency_overrides[authentication_dependencies.get_sid_from_refresh_token] = lambda: _SID_SID_1
         app.dependency_overrides[authentication_dependencies.get_and_return_refresh_token] = lambda: "reused-token"
-        app.dependency_overrides[authentication_dependencies.get_csrf_token] = lambda: None
 
         response = auth_client.post("/auth/refresh")
 
@@ -1155,345 +1145,6 @@ class TestRefreshEndpoint:
         assert "all sessions" not in response.json()["detail"].lower()
         assert any("endurain_refresh_token=" in cookie for cookie in response.headers.get_list("set-cookie"))
         mock_invalidate.assert_called_once()
-
-    @patch("modules.auth.authentication.refresh_service.identity_providers_integration.request_idp_token_refresh")
-    @patch("modules.auth.authentication.service.sessions_integration.edit_session")
-    @patch("modules.auth.authentication.token_service.create_tokens")
-    @patch("modules.auth.authentication.dependencies.set_refresh_token_cookie")
-    @patch("modules.auth.authentication.refresh_service.rotated_refresh_tokens_integration.store_rotated_token")
-    @patch("modules.auth.authentication.refresh_service.rotated_refresh_tokens_integration.check_token_reuse")
-    @patch("modules.auth.authentication.service.users_integration.require_active_user")
-    @patch("modules.auth.authentication.service.users_integration.get_user")
-    @patch("modules.auth.authentication.service.sessions_integration.validate_session_timeout")
-    @patch("modules.auth.authentication.service.sessions_integration.verify_csrf_token")
-    @patch("modules.auth.authentication.service.sessions_integration.lock_live_session")
-    def test_refresh_web_valid_csrf_token_succeeds(
-        self,
-        mock_get_session,
-        mock_verify_csrf,
-        mock_validate_timeout,
-        mock_get_user,
-        mock_check_active,
-        mock_check_reuse,
-        mock_store_rotated,
-        mock_set_cookie,
-        mock_create_tokens,
-        mock_edit_session,
-        mock_idp_refresh,
-        auth_client,
-        auth_app,
-        password_hasher,
-    ):
-        """
-        Valid X-CSRF-Token with stored hash allows web refresh.
-
-        Args:
-            mock_get_session: Mock for get_session_by_id_not_expired.
-            mock_verify_csrf: Mock for verify_csrf_token.
-            mock_validate_timeout: Mock for validate_session_timeout.
-            mock_get_user: Mock for get_user_by_id.
-            mock_check_active: Mock for check_user_is_active.
-            mock_check_reuse: Mock for check_token_reuse.
-            mock_store_rotated: Mock for store_rotated_token.
-            mock_set_cookie: Mock for set_refresh_token_cookie.
-            mock_create_tokens: Mock for create_tokens.
-            mock_edit_session: Mock for edit_session.
-            mock_idp_refresh: Mock for request_idp_token_refresh.
-            auth_client: TestClient for the auth app.
-            auth_app: FastAPI test application.
-            password_hasher: Real password hasher fixture.
-
-        Returns:
-            None.
-
-        Raises:
-            AssertionError: If response status is not 200.
-        """
-        from datetime import datetime, timedelta
-
-        now = datetime.now(UTC)
-        mock_session = MagicMock()
-        mock_session.expires_at = datetime.now(UTC) + timedelta(days=30)
-        mock_session.id = _SID_SID_CSRF_1
-        mock_session.user_id = _USER_ID_1
-        mock_session.client_type = "web"
-        mock_session.refresh_token = sessions_integration.hash_refresh_token("mock_rt")
-        mock_session.csrf_token_hash = "stored-hmac"
-        mock_session.token_family_id = uuid.UUID("00000000-0000-4000-8000-0000000000f1")
-        mock_session.rotation_count = 0
-        mock_get_session.return_value = mock_session
-        mock_validate_timeout.return_value = None
-        mock_verify_csrf.return_value = True
-        mock_check_reuse.return_value = (False, False)
-        mock_get_user.return_value = MagicMock(id=_USER_ID_1)
-        mock_check_active.return_value = None
-        mock_create_tokens.return_value = (
-            _SID_SID_CSRF_1,
-            now + timedelta(minutes=15),
-            "new-at",
-            now + timedelta(days=7),
-            "new-rt",
-            "new-csrf",
-        )
-        mock_edit_session.return_value = MagicMock(expires_at=datetime.now(UTC) + timedelta(days=30))
-        mock_idp_refresh.return_value = None
-
-        app = auth_app
-        app.dependency_overrides[authentication_dependencies.validate_refresh_token] = lambda: None
-        app.dependency_overrides[authentication_dependencies.get_sub_from_refresh_token] = lambda: _USER_ID_1
-        app.dependency_overrides[authentication_dependencies.get_sid_from_refresh_token] = lambda: _SID_SID_CSRF_1
-        app.dependency_overrides[authentication_dependencies.get_and_return_refresh_token] = lambda: "mock_rt"
-        app.dependency_overrides[authentication_dependencies.get_csrf_token] = lambda: "valid-csrf"
-
-        response = auth_client.post("/auth/refresh")
-
-        assert response.status_code == 200
-        mock_verify_csrf.assert_called_once_with("valid-csrf", "stored-hmac")
-
-    @patch("modules.auth.authentication.refresh_service.rotated_refresh_tokens_integration.store_rotated_token")
-    @patch("modules.auth.authentication.service.sessions_integration.edit_session")
-    @patch("modules.auth.authentication.service.sessions_integration.validate_session_timeout")
-    @patch("modules.auth.authentication.service.sessions_integration.verify_csrf_token")
-    @patch("modules.auth.authentication.service.sessions_integration.lock_live_session")
-    def test_refresh_web_invalid_csrf_returns_403_no_side_effects(
-        self,
-        mock_get_session,
-        mock_verify_csrf,
-        mock_validate_timeout,
-        mock_edit_session,
-        mock_store_rotated,
-        auth_client,
-        auth_app,
-    ):
-        """
-        Invalid X-CSRF-Token returns 403; no rotation side effects.
-
-        Args:
-            mock_get_session: Mock for get_session_by_id_not_expired.
-            mock_verify_csrf: Mock for verify_csrf_token.
-            mock_validate_timeout: Mock for validate_session_timeout.
-            mock_edit_session: Mock for edit_session.
-            mock_store_rotated: Mock for store_rotated_token.
-            auth_client: TestClient for the auth app.
-            auth_app: FastAPI test application.
-
-        Returns:
-            None.
-
-        Raises:
-            AssertionError: If status is not 403 or side effects called.
-        """
-        mock_session = MagicMock()
-        mock_session.expires_at = datetime.now(UTC) + timedelta(days=30)
-        mock_session.id = _SID_SID_BAD_CSRF
-        mock_session.user_id = _USER_ID_1
-        mock_session.client_type = "web"
-        mock_session.refresh_token = "some-hashed-token"
-        mock_session.csrf_token_hash = "stored-hmac"
-        mock_get_session.return_value = mock_session
-        mock_validate_timeout.return_value = None
-        mock_verify_csrf.return_value = False
-
-        app = auth_app
-        app.dependency_overrides[authentication_dependencies.validate_refresh_token] = lambda: None
-        app.dependency_overrides[authentication_dependencies.get_sub_from_refresh_token] = lambda: _USER_ID_1
-        app.dependency_overrides[authentication_dependencies.get_sid_from_refresh_token] = lambda: _SID_SID_BAD_CSRF
-        app.dependency_overrides[authentication_dependencies.get_and_return_refresh_token] = lambda: "any-rt"
-        app.dependency_overrides[authentication_dependencies.get_csrf_token] = lambda: "wrong-csrf"
-
-        response = auth_client.post("/auth/refresh")
-
-        assert response.status_code == 403
-        assert "CSRF" in response.json()["detail"]
-        mock_store_rotated.assert_not_called()
-        mock_edit_session.assert_not_called()
-
-    @patch("modules.auth.authentication.refresh_service.identity_providers_integration.request_idp_token_refresh")
-    @patch("modules.auth.authentication.service.sessions_integration.edit_session")
-    @patch("modules.auth.authentication.token_service.create_tokens")
-    @patch("modules.auth.authentication.dependencies.set_refresh_token_cookie")
-    @patch("modules.auth.authentication.refresh_service.rotated_refresh_tokens_integration.store_rotated_token")
-    @patch("modules.auth.authentication.refresh_service.rotated_refresh_tokens_integration.check_token_reuse")
-    @patch("modules.auth.authentication.service.users_integration.require_active_user")
-    @patch("modules.auth.authentication.service.users_integration.get_user")
-    @patch("modules.auth.authentication.service.sessions_integration.validate_session_timeout")
-    @patch("modules.auth.authentication.service.sessions_integration.lock_live_session")
-    def test_refresh_missing_csrf_with_stored_hash_succeeds(
-        self,
-        mock_get_session,
-        mock_validate_timeout,
-        mock_get_user,
-        mock_check_active,
-        mock_check_reuse,
-        mock_store_rotated,
-        mock_set_cookie,
-        mock_create_tokens,
-        mock_edit_session,
-        mock_idp_refresh,
-        auth_client,
-        auth_app,
-        password_hasher,
-    ):
-        """
-        No CSRF header with stored hash succeeds (page reload bootstrap).
-
-        Args:
-            mock_get_session: Mock for get_session_by_id_not_expired.
-            mock_validate_timeout: Mock for validate_session_timeout.
-            mock_get_user: Mock for get_user_by_id.
-            mock_check_active: Mock for check_user_is_active.
-            mock_check_reuse: Mock for check_token_reuse.
-            mock_store_rotated: Mock for store_rotated_token.
-            mock_set_cookie: Mock for set_refresh_token_cookie.
-            mock_create_tokens: Mock for create_tokens.
-            mock_edit_session: Mock for edit_session.
-            mock_idp_refresh: Mock for request_idp_token_refresh.
-            auth_client: TestClient for the auth app.
-            auth_app: FastAPI test application.
-            password_hasher: Real password hasher fixture.
-
-        Returns:
-            None.
-
-        Raises:
-            AssertionError: If response status is not 200.
-        """
-        from datetime import datetime, timedelta
-
-        now = datetime.now(UTC)
-        mock_session = MagicMock()
-        mock_session.expires_at = datetime.now(UTC) + timedelta(days=30)
-        mock_session.id = _SID_SID_RELOAD
-        mock_session.user_id = _USER_ID_1
-        mock_session.client_type = "web"
-        mock_session.refresh_token = sessions_integration.hash_refresh_token("mock_rt")
-        mock_session.csrf_token_hash = "stored-hmac"
-        mock_session.token_family_id = uuid.UUID("00000000-0000-4000-8000-0000000000f1")
-        mock_session.rotation_count = 0
-        mock_get_session.return_value = mock_session
-        mock_validate_timeout.return_value = None
-        mock_check_reuse.return_value = (False, False)
-        mock_get_user.return_value = MagicMock(id=_USER_ID_1)
-        mock_check_active.return_value = None
-        mock_create_tokens.return_value = (
-            _SID_SID_RELOAD,
-            now + timedelta(minutes=15),
-            "new-at",
-            now + timedelta(days=7),
-            "new-rt",
-            "new-csrf",
-        )
-        mock_edit_session.return_value = MagicMock(expires_at=datetime.now(UTC) + timedelta(days=30))
-        mock_idp_refresh.return_value = None
-
-        app = auth_app
-        app.dependency_overrides[authentication_dependencies.validate_refresh_token] = lambda: None
-        app.dependency_overrides[authentication_dependencies.get_sub_from_refresh_token] = lambda: _USER_ID_1
-        app.dependency_overrides[authentication_dependencies.get_sid_from_refresh_token] = lambda: _SID_SID_RELOAD
-        app.dependency_overrides[authentication_dependencies.get_and_return_refresh_token] = lambda: "mock_rt"
-        # No CSRF header: simulates page reload bootstrap
-        app.dependency_overrides[authentication_dependencies.get_csrf_token] = lambda: None
-
-        response = auth_client.post("/auth/refresh")
-
-        assert response.status_code == 200
-        assert response.json()["access_token"] == "new-at"
-
-    @patch("modules.auth.authentication.service.sessions_integration.verify_csrf_token")
-    @patch("modules.auth.authentication.refresh_service.identity_providers_integration.request_idp_token_refresh")
-    @patch("modules.auth.authentication.service.sessions_integration.edit_session")
-    @patch("modules.auth.authentication.token_service.create_tokens")
-    @patch("modules.auth.authentication.dependencies.set_refresh_token_cookie")
-    @patch("modules.auth.authentication.refresh_service.rotated_refresh_tokens_integration.store_rotated_token")
-    @patch("modules.auth.authentication.refresh_service.rotated_refresh_tokens_integration.check_token_reuse")
-    @patch("modules.auth.authentication.service.users_integration.require_active_user")
-    @patch("modules.auth.authentication.service.users_integration.get_user")
-    @patch("modules.auth.authentication.service.sessions_integration.validate_session_timeout")
-    @patch("modules.auth.authentication.service.sessions_integration.lock_live_session")
-    def test_refresh_mobile_bypasses_csrf_with_stored_hash(
-        self,
-        mock_get_session,
-        mock_validate_timeout,
-        mock_get_user,
-        mock_check_active,
-        mock_check_reuse,
-        mock_store_rotated,
-        mock_set_cookie,
-        mock_create_tokens,
-        mock_edit_session,
-        mock_idp_refresh,
-        mock_verify_csrf,
-        auth_client,
-        auth_app,
-        password_hasher,
-    ):
-        """
-        Mobile client skips CSRF check even when session hash is set.
-
-        Args:
-            mock_get_session: Mock for get_session_by_id_not_expired.
-            mock_validate_timeout: Mock for validate_session_timeout.
-            mock_get_user: Mock for get_user_by_id.
-            mock_check_active: Mock for check_user_is_active.
-            mock_check_reuse: Mock for check_token_reuse.
-            mock_store_rotated: Mock for store_rotated_token.
-            mock_set_cookie: Mock for set_refresh_token_cookie.
-            mock_create_tokens: Mock for create_tokens.
-            mock_edit_session: Mock for edit_session.
-            mock_idp_refresh: Mock for request_idp_token_refresh.
-            mock_verify_csrf: Mock for verify_csrf_token.
-            auth_client: TestClient for the auth app.
-            auth_app: FastAPI test application.
-            password_hasher: Real password hasher fixture.
-
-        Returns:
-            None.
-
-        Raises:
-            AssertionError: If CSRF was called or status is not 200.
-        """
-        from datetime import datetime, timedelta
-
-        auth_app.state._client_type = "mobile"
-        now = datetime.now(UTC)
-        mock_session = MagicMock()
-        mock_session.expires_at = datetime.now(UTC) + timedelta(days=30)
-        mock_session.id = _SID_SID_MOB_CSRF
-        mock_session.user_id = _USER_ID_1
-        mock_session.client_type = "mobile"
-        mock_session.refresh_token = sessions_integration.hash_refresh_token("mock_rt")
-        mock_session.csrf_token_hash = "stored-hmac"
-        mock_session.token_family_id = uuid.UUID("00000000-0000-4000-8000-0000000000f1")
-        mock_session.rotation_count = 0
-        mock_get_session.return_value = mock_session
-        mock_validate_timeout.return_value = None
-        mock_check_reuse.return_value = (False, False)
-        mock_get_user.return_value = MagicMock(id=_USER_ID_1)
-        mock_check_active.return_value = None
-        mock_create_tokens.return_value = (
-            _SID_SID_MOB_CSRF,
-            now + timedelta(minutes=15),
-            "new-at",
-            now + timedelta(days=7),
-            "new-rt",
-            None,
-        )
-        mock_edit_session.return_value = MagicMock(expires_at=datetime.now(UTC) + timedelta(days=30))
-        mock_idp_refresh.return_value = None
-
-        app = auth_app
-        app.dependency_overrides[authentication_dependencies.validate_refresh_token] = lambda: None
-        app.dependency_overrides[authentication_dependencies.get_sub_from_refresh_token] = lambda: _USER_ID_1
-        app.dependency_overrides[authentication_dependencies.get_sid_from_refresh_token] = lambda: _SID_SID_MOB_CSRF
-        app.dependency_overrides[authentication_dependencies.get_and_return_refresh_token] = lambda: "mock_rt"
-        app.dependency_overrides[authentication_dependencies.get_csrf_token] = lambda: "any-csrf-value"
-
-        response = auth_client.post("/auth/refresh")
-
-        assert response.status_code == 200
-        mock_verify_csrf.assert_not_called()
-        mock_set_cookie.assert_not_called()
-        assert "refresh_token" in response.json()
 
     @patch("modules.auth.authentication.service.sessions_integration.validate_session_timeout")
     @patch("modules.auth.authentication.service.sessions_integration.lock_live_session")
@@ -1525,7 +1176,6 @@ class TestRefreshEndpoint:
         mock_session.user_id = _USER_ID_1
         mock_session.client_type = "web"
         mock_session.refresh_token = None
-        mock_session.csrf_token_hash = None
         mock_get_session.return_value = mock_session
         mock_validate_timeout.return_value = None
 
@@ -1534,7 +1184,6 @@ class TestRefreshEndpoint:
         app.dependency_overrides[authentication_dependencies.get_sub_from_refresh_token] = lambda: _USER_ID_1
         app.dependency_overrides[authentication_dependencies.get_sid_from_refresh_token] = lambda: _SID_SID_PKCE
         app.dependency_overrides[authentication_dependencies.get_and_return_refresh_token] = lambda: "rt"
-        app.dependency_overrides[authentication_dependencies.get_csrf_token] = lambda: None
 
         response = auth_client.post("/auth/refresh")
 
@@ -1582,7 +1231,6 @@ class TestRefreshEndpoint:
         mock_session.user_id = _USER_ID_1
         mock_session.client_type = "web"
         mock_session.refresh_token = sessions_integration.hash_refresh_token("real_token")
-        mock_session.csrf_token_hash = None
         mock_session.token_family_id = uuid.UUID("00000000-0000-4000-8000-0000000000f1")
         mock_session.rotation_count = 0
         mock_get_session.return_value = mock_session
@@ -1594,7 +1242,6 @@ class TestRefreshEndpoint:
         app.dependency_overrides[authentication_dependencies.get_sub_from_refresh_token] = lambda: _USER_ID_1
         app.dependency_overrides[authentication_dependencies.get_sid_from_refresh_token] = lambda: _SID_SID_BAD_RT
         app.dependency_overrides[authentication_dependencies.get_and_return_refresh_token] = lambda: "wrong_token"
-        app.dependency_overrides[authentication_dependencies.get_csrf_token] = lambda: None
 
         response = auth_client.post("/auth/refresh")
 
@@ -1650,7 +1297,6 @@ class TestRefreshEndpoint:
         mock_session.user_id = _USER_ID_1
         mock_session.client_type = "web"
         mock_session.refresh_token = sessions_integration.hash_refresh_token("mock_rt")
-        mock_session.csrf_token_hash = None
         mock_session.token_family_id = uuid.UUID("00000000-0000-4000-8000-0000000000f1")
         mock_session.rotation_count = 0
         mock_get_session.return_value = mock_session
@@ -1663,7 +1309,6 @@ class TestRefreshEndpoint:
         app.dependency_overrides[authentication_dependencies.get_sub_from_refresh_token] = lambda: _USER_ID_1
         app.dependency_overrides[authentication_dependencies.get_sid_from_refresh_token] = lambda: _SID_SID_NO_USER
         app.dependency_overrides[authentication_dependencies.get_and_return_refresh_token] = lambda: "mock_rt"
-        app.dependency_overrides[authentication_dependencies.get_csrf_token] = lambda: None
 
         response = auth_client.post("/auth/refresh")
 
@@ -1730,7 +1375,6 @@ class TestRefreshEndpoint:
         mock_session.user_id = _USER_ID_1
         mock_session.client_type = "mobile"
         mock_session.refresh_token = sessions_integration.hash_refresh_token("mock_rt")
-        mock_session.csrf_token_hash = None
         mock_session.token_family_id = uuid.UUID("00000000-0000-4000-8000-0000000000f1")
         mock_session.rotation_count = 0
         mock_get_session.return_value = mock_session
@@ -1744,7 +1388,6 @@ class TestRefreshEndpoint:
             "new-at",
             now + timedelta(days=7),
             "new-rt",
-            None,
         )
         mock_edit_session.return_value = MagicMock(expires_at=datetime.now(UTC) + timedelta(days=30))
         mock_idp_refresh.return_value = None
@@ -1754,7 +1397,6 @@ class TestRefreshEndpoint:
         app.dependency_overrides[authentication_dependencies.get_sub_from_refresh_token] = lambda: _USER_ID_1
         app.dependency_overrides[authentication_dependencies.get_sid_from_refresh_token] = lambda: _SID_SID_MOB
         app.dependency_overrides[authentication_dependencies.get_and_return_refresh_token] = lambda: "mock_rt"
-        app.dependency_overrides[authentication_dependencies.get_csrf_token] = lambda: None
 
         response = auth_client.post("/auth/refresh")
 
@@ -1801,7 +1443,6 @@ class TestRefreshEndpoint:
         mock_session.user_id = _USER_ID_1
         mock_session.client_type = "mobile"
         mock_session.refresh_token = sessions_integration.hash_refresh_token("current_rt")
-        mock_session.csrf_token_hash = None
         mock_session.token_family_id = uuid.UUID("00000000-0000-4000-8000-0000000000f1")
         mock_session.rotation_count = 1
         mock_get_session.return_value = mock_session
@@ -1818,7 +1459,6 @@ class TestRefreshEndpoint:
         app.dependency_overrides[authentication_dependencies.get_sub_from_refresh_token] = lambda: _USER_ID_1
         app.dependency_overrides[authentication_dependencies.get_sid_from_refresh_token] = lambda: _SID_SID_REPLAY_MOB
         app.dependency_overrides[authentication_dependencies.get_and_return_refresh_token] = lambda: "old_rotated_rt"
-        app.dependency_overrides[authentication_dependencies.get_csrf_token] = lambda: None
 
         response = auth_client.post("/auth/refresh")
 
@@ -1869,7 +1509,6 @@ class TestRefreshEndpoint:
         mock_session.user_id = _USER_ID_1
         mock_session.client_type = "mobile"
         mock_session.refresh_token = sessions_integration.hash_refresh_token("old_rt")
-        mock_session.csrf_token_hash = None
         mock_session.token_family_id = uuid.UUID("00000000-0000-4000-8000-0000000000f1")
         mock_session.rotation_count = 1
         mock_get_session.return_value = mock_session
@@ -1877,7 +1516,7 @@ class TestRefreshEndpoint:
         # Nothing is recorded when this request first checks, because the winner has not committed yet; once
         # it has, the same client is inside the grace window.
         mock_check_reuse.side_effect = [(False, False), (True, True)]
-        mock_create_tokens.return_value = (_SID_SID_RACE, now, "loser-at", now, "loser-rt", None)
+        mock_create_tokens.return_value = (_SID_SID_RACE, now, "loser-at", now, "loser-rt")
         mock_store_rotated.side_effect = core_exceptions.ConflictError("already rotated")
         mock_get_replay.return_value = ("winner-rt", now + timedelta(days=7))
         mock_get_user.return_value = MagicMock(id=_USER_ID_1)
@@ -1889,7 +1528,6 @@ class TestRefreshEndpoint:
         app.dependency_overrides[authentication_dependencies.get_sub_from_refresh_token] = lambda: _USER_ID_1
         app.dependency_overrides[authentication_dependencies.get_sid_from_refresh_token] = lambda: _SID_SID_RACE
         app.dependency_overrides[authentication_dependencies.get_and_return_refresh_token] = lambda: "old_rt"
-        app.dependency_overrides[authentication_dependencies.get_csrf_token] = lambda: None
 
         response = auth_client.post("/auth/refresh")
 
@@ -1898,7 +1536,6 @@ class TestRefreshEndpoint:
         # The loser never rotates the session, so only the winner's token is live.
         mock_edit_session.assert_not_called()
 
-    @patch("modules.auth.authentication.service.sessions_integration.update_session_csrf_token")
     @patch("modules.auth.authentication.dependencies.set_refresh_token_cookie")
     @patch("modules.auth.authentication.token_service.mint_access_token")
     @patch("modules.auth.authentication.refresh_service.rotated_refresh_tokens_integration.get_grace_replay_token")
@@ -1910,7 +1547,7 @@ class TestRefreshEndpoint:
     @patch("modules.auth.authentication.service.users_integration.get_user")
     @patch("modules.auth.authentication.service.sessions_integration.validate_session_timeout")
     @patch("modules.auth.authentication.service.sessions_integration.lock_live_session")
-    def test_refresh_in_grace_replay_web_mints_fresh_csrf(
+    def test_refresh_in_grace_replay_web_mints_a_fresh_access_token(
         self,
         mock_get_session,
         mock_validate_timeout,
@@ -1923,12 +1560,11 @@ class TestRefreshEndpoint:
         mock_get_replay,
         mock_mint_access,
         mock_set_cookie,
-        mock_update_csrf,
         auth_client,
         auth_app,
         password_hasher,
     ):
-        """In-grace replay (web) mints a fresh access token and CSRF token."""
+        """In-grace replay (web) mints a fresh access token and keeps the replayed refresh token."""
         from datetime import datetime, timedelta
 
         now = datetime.now(UTC)
@@ -1938,7 +1574,6 @@ class TestRefreshEndpoint:
         mock_session.user_id = _USER_ID_1
         mock_session.client_type = "web"
         mock_session.refresh_token = sessions_integration.hash_refresh_token("current_rt")
-        mock_session.csrf_token_hash = "stored-hmac"
         mock_session.token_family_id = uuid.UUID("00000000-0000-4000-8000-0000000000f1")
         mock_session.rotation_count = 1
         mock_get_session.return_value = mock_session
@@ -1949,25 +1584,18 @@ class TestRefreshEndpoint:
         mock_check_active.return_value = None
         mock_mint_access.return_value = (now + timedelta(minutes=15), "replayed-at")
         mock_set_cookie.return_value = None
-        mock_update_csrf.return_value = None
 
         app = auth_app
         app.dependency_overrides[authentication_dependencies.validate_refresh_token] = lambda: None
         app.dependency_overrides[authentication_dependencies.get_sub_from_refresh_token] = lambda: _USER_ID_1
         app.dependency_overrides[authentication_dependencies.get_sid_from_refresh_token] = lambda: _SID_SID_REPLAY_WEB
         app.dependency_overrides[authentication_dependencies.get_and_return_refresh_token] = lambda: "old_rotated_rt"
-        # No CSRF header: page-reload bootstrap / lost rotation response.
-        app.dependency_overrides[authentication_dependencies.get_csrf_token] = lambda: None
 
         response = auth_client.post("/auth/refresh")
 
         assert response.status_code == 200
         data = response.json()
         assert data["access_token"] == "replayed-at"
-        # A fresh CSRF token is minted and bound to the session.
-        assert data["csrf_token"]
-        mock_update_csrf.assert_called_once()
-        assert mock_update_csrf.call_args.args[0] == _SID_SID_REPLAY_WEB
         # Refresh token is unchanged: delivered via cookie, no re-rotation.
         mock_set_cookie.assert_called_once()
         mock_store_rotated.assert_not_called()
@@ -1999,7 +1627,6 @@ class TestRefreshEndpoint:
         mock_session.user_id = _USER_ID_1
         mock_session.client_type = "web"
         mock_session.refresh_token = sessions_integration.hash_refresh_token("current_rt")
-        mock_session.csrf_token_hash = None
         mock_session.token_family_id = uuid.UUID("00000000-0000-4000-8000-0000000000f1")
         mock_session.rotation_count = 1
         mock_get_session.return_value = mock_session
@@ -2012,7 +1639,6 @@ class TestRefreshEndpoint:
         app.dependency_overrides[authentication_dependencies.get_sub_from_refresh_token] = lambda: _USER_ID_1
         app.dependency_overrides[authentication_dependencies.get_sid_from_refresh_token] = lambda: _SID_SID_REPLAY_NONE
         app.dependency_overrides[authentication_dependencies.get_and_return_refresh_token] = lambda: "old_rotated_rt"
-        app.dependency_overrides[authentication_dependencies.get_csrf_token] = lambda: None
 
         response = auth_client.post("/auth/refresh")
 
@@ -2565,7 +2191,7 @@ class TestRefreshTokenSource:
         response = auth_client.post("/auth/refresh")
 
         assert response.status_code == 401
-        assert response.json()["type"] == "urn:endurain:error:invalid-token"
+        assert response.json()["type"] == "urn:endurain:error:session-ended"
         assert response.json()["detail"] == "Refresh token missing from request body"
 
     def test_mobile_refresh_ignores_a_refresh_token_in_the_authorization_header(
@@ -2586,7 +2212,7 @@ class TestRefreshTokenSource:
 
         with patch(
             "modules.auth.authentication.public_router.auth_refresh_service.refresh_token",
-            side_effect=core_exceptions.InvalidTokenError("stop here"),
+            side_effect=core_exceptions.SessionEndedError("stop here"),
         ) as refresh:
             auth_client.post("/auth/refresh", json={"refresh_token": token})
 

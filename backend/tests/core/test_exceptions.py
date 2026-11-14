@@ -38,15 +38,27 @@ class TestTooManyRequestsRetryAt:
 
         retry_at = datetime(2026, 1, 1, 12, 0, tzinfo=UTC)
 
-        error = core_exceptions.TooManyRequestsError("slow down", retry_at=retry_at)
+        error = core_exceptions.TooManyRequestsError(
+            "slow down", scope=core_exceptions.TooManyRequestsScope.PROVIDER, retry_at=retry_at
+        )
 
         assert error.retry_at == retry_at
         assert error.detail == "slow down"
 
-    def test_it_is_optional(self):
+    def test_the_scope_is_a_member_of_the_problem_document(self):
         import core.exceptions as core_exceptions
 
-        error = core_exceptions.TooManyRequestsError()
+        error = core_exceptions.TooManyRequestsError(scope=core_exceptions.TooManyRequestsScope.SIGN_IN)
+
+        problem = TestProblemHeadersAndExtensions._client(error).get("/raises").json()
+
+        assert problem["type"] == "urn:endurain:error:too-many-requests"
+        assert problem["scope"] == "sign-in"
+
+    def test_the_retry_at_is_optional(self):
+        import core.exceptions as core_exceptions
+
+        error = core_exceptions.TooManyRequestsError(scope=core_exceptions.TooManyRequestsScope.PROVIDER)
 
         assert error.retry_at is None
         assert error.detail == "Too Many Requests"
@@ -144,7 +156,11 @@ class TestProblemHeadersAndExtensions:
 
         import core.exceptions as core_exceptions
 
-        error = core_exceptions.TooManyRequestsError("later", retry_at=datetime.now(UTC) + timedelta(seconds=90))
+        error = core_exceptions.TooManyRequestsError(
+            "later",
+            scope=core_exceptions.TooManyRequestsScope.PROVIDER,
+            retry_at=datetime.now(UTC) + timedelta(seconds=90),
+        )
 
         response = self._client(error).get("/raises")
 
@@ -156,14 +172,25 @@ class TestProblemHeadersAndExtensions:
 
         import core.exceptions as core_exceptions
 
-        error = core_exceptions.TooManyRequestsError("now", retry_at=datetime.now(UTC) - timedelta(seconds=5))
+        error = core_exceptions.TooManyRequestsError(
+            "now",
+            scope=core_exceptions.TooManyRequestsScope.PROVIDER,
+            retry_at=datetime.now(UTC) - timedelta(seconds=5),
+        )
 
         assert self._client(error).get("/raises").headers["Retry-After"] == "0"
 
     def test_a_limit_with_no_known_end_sends_no_retry_after(self):
         import core.exceptions as core_exceptions
 
-        assert "Retry-After" not in self._client(core_exceptions.TooManyRequestsError("later")).get("/raises").headers
+        assert (
+            "Retry-After"
+            not in self._client(
+                core_exceptions.TooManyRequestsError("later", scope=core_exceptions.TooManyRequestsScope.PROVIDER)
+            )
+            .get("/raises")
+            .headers
+        )
 
     def test_extensions_are_members_of_the_problem_document(self):
         import core.exceptions as core_exceptions

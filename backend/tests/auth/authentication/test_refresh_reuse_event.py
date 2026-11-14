@@ -29,7 +29,6 @@ def _session():
         user_id=_USER_ID,
         token_family_id=_FAMILY_ID,
         refresh_token="hash",
-        csrf_token_hash=None,
         rotation_count=0,
         client_type="web",
     )
@@ -75,7 +74,7 @@ def test_the_event_is_staged_before_the_commit(mock_db):
             f"{_REFRESH}.authentication_event_publishers.publish_refresh_reuse_detected",
             side_effect=lambda *a, **k: calls.append("publish"),
         ),
-        pytest.raises(core_exceptions.InvalidTokenError),
+        pytest.raises(core_exceptions.SessionEndedError),
     ):
         refresh_service._refuse_reused_token(_USER_ID, _FAMILY_ID, mock_db)
 

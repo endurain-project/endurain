@@ -146,7 +146,7 @@ def list_devices(
     return known_devices_schema.KnownDevicePage.build(
         [
             known_devices_schema.KnownDeviceRead.model_validate(device).model_copy(
-                update={"current": device.device_hash == current_hash}
+                update={"is_current": device.device_hash == current_hash}
             )
             for device in devices
         ],

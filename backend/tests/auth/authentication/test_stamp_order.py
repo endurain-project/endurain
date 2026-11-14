@@ -159,7 +159,7 @@ class TestWebSignInChecksTheStamp:
         security_generations.generations[_USER_ID] = 4
         with (
             patch(f"{_SERVICE}.server_settings_integration.get_session_policy"),
-            patch(f"{_SERVICE}.authentication_token_service.create_tokens", return_value=tuple(range(6))),
+            patch(f"{_SERVICE}.authentication_token_service.create_tokens", return_value=tuple(range(5))),
             patch(f"{_SERVICE}.authentication_token_service.build_web_token_response"),
             patch(f"{_SERVICE}.sessions_integration.create_session") as create_session,
         ):

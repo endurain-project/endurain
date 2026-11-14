@@ -38,5 +38,8 @@
   "notRestoredBody": "Ändringen rapporterades, ditt konto loggades ut överallt och dess API-nycklar återkallades. Ett annat konto använder nu din tidigare adress, så ditt konto behåller den nya. Kontakta din Endurain-administratör och byt ditt lösenord.",
   "cancelInvalidTitle": "Den här länken fungerar inte längre",
   "cancelInvalidBody": "Länken är ogiltig, har gått ut eller redan använts, eller så ändrades e-postadressen igen efter att den skickades. Om du fortfarande tror att någon annan har åtkomst, logga in och byt ditt lösenord.",
-  "cancelError": "Vi kunde inte avbryta ändringen. Försök igen."
+  "cancelError": "Vi kunde inte avbryta ändringen. Försök igen.",
+  "confirmChangeTitle": "Bekräfta din nya e-postadress",
+  "confirmChangeBody": "Tryck på knappen för att bekräfta att du bad om att ändra e-postadressen för ditt konto. Du loggas ut överallt.",
+  "confirmChangeButton": "Bekräfta ändring av e-post"
 }

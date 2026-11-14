@@ -12,12 +12,18 @@ from fastapi.testclient import TestClient
 import core.cryptography as core_cryptography
 import core.database as core_database
 import core.exceptions as core_exceptions
+import core.timezone as core_timezone
 import modules.auth.account_security.public_router as password_change_router
 import modules.auth.authentication.public_router as auth_router
 import modules.auth.authentication.sso_public_router as exchange_router
+import modules.auth.constants as auth_constants
 import modules.auth.credentials.integration_service as credentials_integration
 import modules.auth.mfa.crud as mfa_crud
 import modules.auth.mfa_backup_codes.crud as backup_codes_crud
+import modules.auth.oauth_state.constants as oauth_state_constants
+import modules.auth.oauth_state.integration_service as oauth_state_integration
+import modules.auth.sessions.integration_service as sessions_integration
+import modules.users.users.integration_service as users_integration
 from tests._helpers.db import create_sqlite_session_factory, ensure_user
 
 USER_ID = uuid.UUID(int=7)
@@ -28,6 +34,10 @@ BACKUP_CODE = "ABCD-EFGH"
 WEB = {"X-Client-Type": "web"}
 MOBILE = {"X-Client-Type": "mobile"}
 CHALLENGE = "E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM"
+SSO_VERIFIER = "v" * 43
+#: The S256 challenge of ``SSO_VERIFIER``.
+SSO_CHALLENGE = "7w_YNF9DSfIdPf_pRjSq646_kPr-2-o9NAl16JGghdM"
+SSO_IDP_ID = uuid.UUID(int=99)
 
 
 def _build(session_policy, *, change_required: bool, mfa: bool):
@@ -96,3 +106,47 @@ def mfa_signin(session_policy):
 def mfa_plain_signin(session_policy):
     """The sign-in routes over SQLite for an account with MFA (one backup code) and a password it chose itself."""
     yield from _stack(session_policy, change_required=False, mfa=True)
+
+
+@pytest.fixture
+def aware_session_expiry():
+    """Keep the absolute-timeout cap of a session claim out of the way: SQLite hands back naive creation times."""
+    with patch("modules.auth.sessions.service._cap_expiry", side_effect=lambda expires_at, _created, _db: expires_at):
+        yield
+
+
+def create_sso_session(stack, client_type: auth_constants.ClientType = auth_constants.ClientType.WEB) -> uuid.UUID:
+    """Create the session an identity-provider callback leaves for a client, stamped as the callback stamps it.
+
+    Its PKCE challenge is the one of ``SSO_VERIFIER``.
+    """
+    session_id = uuid.uuid4()
+    state_id, nonce = oauth_state_integration.create_state_id_and_nonce()
+    with stack.factory() as db:
+        state = oauth_state_integration.create_oauth_state(
+            db=db,
+            state_id=state_id,
+            nonce=nonce,
+            client_type=client_type.value,
+            ip_address="127.0.0.1",
+            idp_id=SSO_IDP_ID,
+            code_challenge=SSO_CHALLENGE,
+            code_challenge_method="S256",
+            purpose=oauth_state_constants.OAuthStatePurpose.LOGIN,
+            security_generation=0,
+        )
+        sessions_integration.create_session(
+            session_id,
+            users_integration.require_user(USER_ID, db),
+            client_type,
+            "127.0.0.1",
+            "agent",
+            None,
+            core_timezone.to_utc_aware(state.expires_at),
+            db,
+            oauth_state_id=state_id,
+            amr=[auth_constants.AuthMethod.FEDERATED],
+            device_hash=None,
+        )
+        db.commit()
+    return session_id

@@ -190,7 +190,7 @@ class TestBuildProblemResponse:
         response = core_exceptions.build_problem_response(
             request=request,
             status_code=429,
-            code="rate-limited",
+            code="too-many-requests",
             title="Too Many Requests",
             detail="Slow down",
             retry_after=30,

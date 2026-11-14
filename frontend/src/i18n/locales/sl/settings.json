@@ -645,7 +645,8 @@
       "stepUpDescription": "Ponudniki identitete odločajo, kdo se lahko prijavi na ta strežnik. Za nadaljevanje potrdi, da si to ti.",
       "slugConflict": "Ta slug je že zaseden",
       "issuerInUse": "Drug ponudnik identitete že uporablja ta URL izdajatelja",
-      "issuerLocked": "URL izdajatelja ni mogoče spremeniti, dokler so s tem ponudnikom povezani uporabniki. Odveži jih ali namesto tega dodaj novega ponudnika.",
+      "locked": "Sluga (slug), ID-ja odjemalca, protokola, izdajatelja in končnih točk ni mogoče spremeniti, dokler so s tem ponudnikom povezani uporabniki. Odveži jih ali namesto tega dodaj novega ponudnika.",
+      "lockedHint": "Zaklenjeno, dokler so s tem ponudnikom povezani uporabniki.",
       "staleError": "Ta ponudnik je bil spremenjen drugje. Tvoje spremembe niso bile shranjene. Zapri ga in ga znova odpri, da naložiš trenutne nastavitve.",
       "saveError": "Ponudnika ni bilo mogoče shraniti. Prosim, poskusi znova."
     }

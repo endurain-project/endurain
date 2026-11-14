@@ -171,7 +171,7 @@ class TestPrepareEmailChangeVerificationEmail:
         fresh = next(row for row in rows.values() if row.id != tid("pending"))
         assert fresh.used is False
         assert (fresh.email, fresh.previous_email) == ("new@example.com", _OWNER_EMAIL)
-        assert f"{_HOST}/confirm-email-change?token=" in html_content
+        assert f"{_HOST}/confirm-email-change#token=" in html_content
 
     def test_an_expired_pending_change_is_not_reissued(self, db):
         _add_token(
@@ -187,7 +187,7 @@ class TestPrepareEmailChangeVerificationEmail:
 
 
 def _link_token(message) -> str:
-    return message[2].split("?token=")[1].split('"')[0].split("<")[0].split("&")[0]
+    return message[2].split("#token=")[1].split('"')[0].split("<")[0].split("&")[0]
 
 
 class TestRetriedMailEvent:
@@ -254,7 +254,7 @@ class TestVerifyEmailOfAPendingChange:
         with patch(_PUBLISH) as publish:
             result = sign_up_service.confirm_email_change("plain", db)
 
-        assert result.next_step is sign_up_schema.SignUpNextStep.SIGN_IN
+        assert result is None
         db.expire_all()
         user = db.get(users_models.Users, MOCK_USER_ID)
         assert (user.email, user.email_verified) == ("new@example.com", True)
@@ -343,7 +343,7 @@ class TestVerifyEmailOnAnInactiveAccount:
         ):
             result = sign_up_service.confirm_email_change("plain", db)
 
-        assert result.next_step is sign_up_schema.SignUpNextStep.SIGN_IN
+        assert result is None
         db.expire_all()
         user = db.get(users_models.Users, MOCK_USER_ID)
         assert (user.email, user.email_verified, user.active) == ("new@example.com", True, False)

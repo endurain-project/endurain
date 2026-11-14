@@ -194,8 +194,8 @@ def reject_nul_in_login_form(
 LoginForm = Annotated[LoginFormData, Depends(reject_nul_in_login_form)]
 
 
-class ClearRefreshTokenCookieError(core_exceptions.InvalidTokenError):
-    """An invalid refresh token whose problem response also clears the refresh-token cookies."""
+class ClearRefreshTokenCookieError(core_exceptions.SessionEndedError):
+    """A refused refresh whose problem response also clears the refresh-token cookies."""
 
     @classmethod
     def refusing(cls, err: core_exceptions.UnauthenticatedError) -> Self:
@@ -205,7 +205,7 @@ class ClearRefreshTokenCookieError(core_exceptions.InvalidTokenError):
             err: The refusal.
 
         Returns:
-            The invalid-token error carrying the refusal's message.
+            The session-ended error carrying the refusal's message.
         """
         return cls(err.detail)
 
@@ -314,22 +314,6 @@ def get_bearer_token(
     return credentials.credentials if credentials is not None else None
 
 
-def get_csrf_token(
-    csrf_token: Annotated[
-        str | None, Header(alias="X-CSRF-Token", description="The CSRF token of a web session.")
-    ] = None,
-) -> str | None:
-    """Return the ``X-CSRF-Token`` header, if the request carries one.
-
-    Args:
-        csrf_token: The header value.
-
-    Returns:
-        The CSRF token, or ``None``.
-    """
-    return csrf_token
-
-
 def get_body_refresh_token(
     body: Annotated[
         auth_schema.RefreshTokenRequest | None,
@@ -366,11 +350,11 @@ def get_token(
     if token_type == access_tokens_integration.TokenType.REFRESH:
         if client_type == auth_constants.ClientType.WEB:
             if cookie_token is None:
-                raise core_exceptions.InvalidTokenError("Refresh token missing from cookie", scheme="Bearer")
+                raise core_exceptions.SessionEndedError("Refresh token missing from cookie")
             return cookie_token
         if client_type == auth_constants.ClientType.MOBILE:
             if non_cookie_token is None:
-                raise core_exceptions.InvalidTokenError("Refresh token missing from request body", scheme="Bearer")
+                raise core_exceptions.SessionEndedError("Refresh token missing from request body")
             return non_cookie_token
     logger.warning("Token lookup refused: unsupported client type or token type")
     raise core_exceptions.PermissionDeniedError("Invalid client type or token type")
@@ -439,7 +423,7 @@ def get_sub_from_refresh_token(
             return uuid.UUID(sub)
     except ValueError:
         pass
-    raise core_exceptions.InvalidTokenError("Invalid token: 'sub' claim must be a user id")
+    raise core_exceptions.SessionEndedError("Invalid token: 'sub' claim must be a user id")
 
 
 def get_sid_from_refresh_token(
@@ -471,7 +455,7 @@ def get_exp_from_refresh_token(
     """
     exp = token_manager.get_token_claim(refresh_token, "exp", access_tokens_integration.TokenType.REFRESH)
     if not isinstance(exp, int):
-        raise core_exceptions.InvalidTokenError("Invalid token: 'exp' claim must be an integer")
+        raise core_exceptions.SessionEndedError("Invalid token: 'exp' claim must be an integer")
     return datetime.fromtimestamp(exp, UTC)
 
 

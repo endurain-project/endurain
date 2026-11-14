@@ -3,7 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { confirmPasswordReset, requestPasswordReset } from '@/features/auth/services/passwordReset'
 import { completeOnboarding, fetchOnboardingStatus } from '@/features/auth/services/onboarding'
 import { loginWithPassword, refreshSession } from '@/features/auth/services/session'
-import { getAccessToken, getCsrfToken } from '@/services/authTokens'
+import { getAccessToken } from '@/services/authTokens'
 import { confirmEmailChange, confirmSignUp } from '@/features/auth/services/signUp'
 import { exchangeSessionForTokens } from '@/services/identityProviders'
 import { userUuid } from './fixtures/activity'
@@ -16,7 +16,6 @@ vi.mock('@/services/runtime', () => ({
 
 vi.mock('@/services/authTokens', () => ({
   getAccessToken: vi.fn<() => string | null>(() => null),
-  getCsrfToken: vi.fn<() => string | null>(() => null),
   setAuthTokens: vi.fn<() => void>(),
   clearAuthTokens: vi.fn<() => void>(),
 }))
@@ -79,13 +78,12 @@ describe('signUp service', () => {
   })
 
   it('confirms an email change with the token alone', async () => {
-    fetchMock.mockResolvedValueOnce(jsonResponse({ next_step: 'sign_in' }))
-    const result = await confirmEmailChange({ token: 'change-tok' })
+    fetchMock.mockResolvedValueOnce(new Response(null, { status: 204 }))
+    await expect(confirmEmailChange({ token: 'change-tok' })).resolves.toBeUndefined()
     const call = fetchMock.mock.calls[0]
     expect(call?.[0]).toContain('/public/email-change/confirm')
     expect(call?.[1].method).toBe('POST')
     expect(call?.[1].body).toBe(JSON.stringify({ token: 'change-tok' }))
-    expect(result.next_step).toBe('sign_in')
   })
 })
 
@@ -94,14 +92,12 @@ describe('SSO token exchange service', () => {
     fetchMock.mockResolvedValueOnce(
       jsonResponse({ next_step: 'tokens', session_id: '00000000-0000-4000-8000-0000000000f3' }),
     )
-    await exchangeSessionForTokens('sid/1', 'verifier-123', '123456')
+    await exchangeSessionForTokens('sid/1', 'verifier-123')
     const call = fetchMock.mock.calls[0]
     expect(call?.[0]).toContain('/auth/sessions/sid%2F1/tokens')
     expect(call?.[0]).not.toContain('/public/idp/session')
     expect(call?.[1].method).toBe('POST')
-    expect(call?.[1].body).toBe(
-      JSON.stringify({ code_verifier: 'verifier-123', mfa_code: '123456' }),
-    )
+    expect(call?.[1].body).toBe(JSON.stringify({ code_verifier: 'verifier-123' }))
   })
 })
 
@@ -144,10 +140,9 @@ describe('session service', () => {
     )
   })
 
-  it('refreshes without the CSRF token even when one is held', async () => {
+  it('refreshes without a CSRF header', async () => {
     vi.mocked(getAccessToken).mockReturnValueOnce('access-old')
-    vi.mocked(getCsrfToken).mockReturnValueOnce('csrf-old')
-    fetchMock.mockResolvedValueOnce(jsonResponse({ access_token: 'a', csrf_token: 'c' }))
+    fetchMock.mockResolvedValueOnce(jsonResponse({ access_token: 'a' }))
 
     await refreshSession()
 

@@ -173,7 +173,7 @@ class TestPasswordChangeRoute:
         body = response.json()
         assert response.status_code == 200
         assert body["next_step"] == "tokens"
-        assert "csrf_token" in body
+        assert "csrf_token" not in body
         assert "refresh_token" not in body
         assert "refresh_token" in "".join(response.headers.get_list("set-cookie"))
         assert response.headers["cache-control"] == "no-store"

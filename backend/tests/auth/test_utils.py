@@ -146,7 +146,6 @@ class TestCreateTokens:
             access_token,
             refresh_token_exp,
             refresh_token,
-            csrf_token,
         ) = auth_utils_token_service.create_tokens(sample_user_read, ClientType.WEB, token_manager, session_policy)
 
         # Assert
@@ -169,10 +168,6 @@ class TestCreateTokens:
         assert isinstance(refresh_token, str)
         assert len(refresh_token) > 0
 
-        assert csrf_token is not None
-        assert isinstance(csrf_token, str)
-        assert len(csrf_token) >= 32
-
     def test_create_tokens_with_custom_session_id(self, token_manager, sample_user_read, session_policy):
         """Test that create_tokens uses provided session ID."""
         # Arrange
@@ -181,7 +176,6 @@ class TestCreateTokens:
         # Act
         (
             session_id,
-            _,
             _,
             _,
             _,
@@ -202,7 +196,6 @@ class TestCreateTokens:
             _,
             refresh_token_exp,
             _,
-            _,
         ) = auth_utils_token_service.create_tokens(sample_user_read, ClientType.WEB, token_manager, session_policy)
 
         # Assert
@@ -211,17 +204,16 @@ class TestCreateTokens:
     def test_create_tokens_generates_unique_tokens(self, token_manager, sample_user_read, session_policy):
         """Test that multiple calls generate unique tokens."""
         # Act
-        (_, _, access_token1, _, refresh_token1, csrf_token1) = auth_utils_token_service.create_tokens(
+        (_, _, access_token1, _, refresh_token1) = auth_utils_token_service.create_tokens(
             sample_user_read, ClientType.WEB, token_manager, session_policy
         )
-        (_, _, access_token2, _, refresh_token2, csrf_token2) = auth_utils_token_service.create_tokens(
+        (_, _, access_token2, _, refresh_token2) = auth_utils_token_service.create_tokens(
             sample_user_read, ClientType.WEB, token_manager, session_policy
         )
 
         # Assert
         assert access_token1 != access_token2
         assert refresh_token1 != refresh_token2
-        assert csrf_token1 != csrf_token2
 
 
 class TestCompleteLogin:
@@ -254,7 +246,7 @@ class TestCompleteLogin:
         # Assert
         assert "session_id" in result
         assert "access_token" in result
-        assert "csrf_token" in result
+        assert "csrf_token" not in result
         assert "token_type" in result
         assert "expires_in" in result
 
@@ -534,9 +526,9 @@ class TestCompleteLogin:
 
         set_cookie_headers = [header.lower() for header in _set_cookie_headers(response)]
         assert response.status_code == 401
-        assert response.headers["www-authenticate"] == 'Bearer error="invalid_token"'
+        assert response.headers["www-authenticate"] == "Session"
         assert response.headers["content-type"].startswith("application/problem+json")
-        assert b"urn:endurain:error:invalid-token" in response.body
+        assert b"urn:endurain:error:session-ended" in response.body
         assert any("max-age=0" in h and "path=/;" in h for h in set_cookie_headers)
 
     def test_complete_login_returns_different_tokens_on_each_call(
@@ -579,7 +571,6 @@ class TestCompleteLogin:
         # Assert
         assert result1["session_id"] != result2["session_id"]
         assert result1["access_token"] != result2["access_token"]
-        assert result1["csrf_token"] != result2["csrf_token"]
 
 
 class TestDeliverAuthOutcome:

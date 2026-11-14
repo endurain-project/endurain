@@ -1,6 +1,6 @@
 import type { AuthTokenResponse, Schemas } from '@/types'
 
-import { clearAuthTokens, getAccessToken, getCsrfToken, setAuthTokens } from './authTokens'
+import { clearAuthTokens, getAccessToken, setAuthTokens } from './authTokens'
 import { emitMfaEnrolmentRequired } from './mfaEnrolment'
 import { getApiBaseUrl } from './runtime'
 import { emitSessionExpired } from './sessionExpiry'
@@ -8,12 +8,13 @@ import { emitSessionExpired } from './sessionExpiry'
 /** API base URL resolved from `/env.js`, then `VITE_API_URL`, then same-origin. */
 export const API_BASE_URL = getApiBaseUrl()
 
-const STATE_CHANGING_METHODS = new Set(['POST', 'PUT', 'PATCH', 'DELETE'])
-
 const REFRESH_PATH = '/auth/refresh'
 
-/** Problem type of a 401 caused by the bearer token itself (missing, expired, malformed, session ended). */
+/** Problem type of a 401 caused by the access token of a resource route (missing, expired, malformed): refresh once and replay. */
 const INVALID_TOKEN_PROBLEM = 'urn:endurain:error:invalid-token'
+
+/** Problem type of a 401 saying the sign-in or the refresh credential is final: sign in again, never retry. */
+const SESSION_ENDED_PROBLEM = 'urn:endurain:error:session-ended'
 
 /** Problem type of a 403 saying the server requires MFA of this account, which has none yet. */
 const MFA_ENROLMENT_REQUIRED_PROBLEM = 'urn:endurain:error:mfa-enrolment-required'
@@ -150,13 +151,11 @@ function parseRetryAfter(value: string | null): number | null {
 /**
  * Builds request headers shared by every API call.
  *
- * @param path - Path relative to {@link API_BASE_URL}.
  * @param init - Fetch options supplied by the caller.
  * @returns A normalized mutable `Headers` instance.
  */
-function buildHeaders(path: string, init: ApiFetchOptions): Headers {
+function buildHeaders(init: ApiFetchOptions): Headers {
   const headers = new Headers(init.headers)
-  const method = (init.method ?? 'GET').toUpperCase()
 
   if (!headers.has('Accept')) {
     headers.set('Accept', 'application/json')
@@ -174,14 +173,8 @@ function buildHeaders(path: string, init: ApiFetchOptions): Headers {
 
   if (init.auth !== false) {
     const accessToken = getAccessToken()
-    const csrfToken = getCsrfToken()
     if (accessToken) {
       headers.set('Authorization', `Bearer ${accessToken}`)
-    }
-    // The refresh is authorised by the HttpOnly SameSite=Strict cookie and the backend accepts it
-    // without the header. Another tab may have rotated the CSRF token, so a stale one would fail it.
-    if (csrfToken && STATE_CHANGING_METHODS.has(method) && path !== REFRESH_PATH) {
-      headers.set('X-CSRF-Token', csrfToken)
     }
   }
 
@@ -211,8 +204,8 @@ let refreshPromise: Promise<AuthTokenResponse> | null = null
 /**
  * Refreshes in-memory auth tokens using the HTTP-only refresh cookie.
  *
- * Concurrent callers share one in-flight refresh. Only a refusal of the refresh
- * session (HTTP 401 or 403) clears the tokens and signals session expiry. Any
+ * Concurrent callers share one in-flight refresh. Only a `session-ended` refusal of the refresh
+ * clears the tokens and signals session expiry. Any
  * other failure, such as a network error, a timeout, or a 429 or 5xx response,
  * is re-thrown unchanged and leaves the tokens in place, so a transient outage
  * does not log the user out.
@@ -227,13 +220,11 @@ async function refreshAuthTokens(): Promise<AuthTokenResponse> {
     retryOnUnauthorized: false,
   })
     .then((response) => {
-      setAuthTokens(response.access_token, response.csrf_token)
+      setAuthTokens(response.access_token)
       return response
     })
     .catch((error: unknown) => {
-      const sessionRefused =
-        error instanceof HttpError && (error.status === 401 || error.status === 403)
-      if (sessionRefused) {
+      if (error instanceof HttpError && error.type === SESSION_ENDED_PROBLEM) {
         clearAuthTokens()
         emitSessionExpired()
       }
@@ -259,7 +250,7 @@ async function rawApiFetch<T>(path: string, init: ApiFetchOptions = {}): Promise
   const response = await fetch(`${API_BASE_URL}${path}`, {
     ...init,
     credentials: 'include',
-    headers: buildHeaders(path, init),
+    headers: buildHeaders(init),
     signal: buildSignal(init),
   })
 
@@ -310,8 +301,8 @@ async function rawApiFetch<T>(path: string, init: ApiFetchOptions = {}): Promise
  * auth cookies travel with the request, and throws {@link HttpError} on
  * non-2xx responses.
  *
- * A 401 whose problem type is `urn:endurain:error:invalid-token` (the bearer token itself is
- * missing, expired, malformed or its session ended) refreshes the tokens once and replays the
+ * A 401 whose problem type is `urn:endurain:error:invalid-token` (the access token of a resource route
+ * is missing, expired or malformed) refreshes the tokens once and replays the
  * request. Any other 401, such as a wrong step-up password, is thrown as-is. Opt out with
  * `auth: false` or `retryOnUnauthorized: false`; `/auth/refresh` never retries.
  *

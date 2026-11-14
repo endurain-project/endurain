@@ -38,5 +38,8 @@
   "notRestoredBody": "Muutos ilmoitettiin, tilisi kirjattiin ulos kaikkialta ja sen API-avaimet mitätöitiin. Toinen tili käyttää nyt aiempaa osoitettasi, joten tilisi säilyttää uuden. Ota yhteyttä Endurain-ylläpitäjääsi ja vaihda salasanasi.",
   "cancelInvalidTitle": "Tämä linkki ei enää toimi",
   "cancelInvalidBody": "Linkki on virheellinen, vanhentunut tai jo käytetty, tai sähköpostiosoite vaihdettiin uudelleen sen lähettämisen jälkeen. Jos silti epäilet, että joku muu pääsee tilillesi, kirjaudu sisään ja vaihda salasanasi.",
-  "cancelError": "Muutosta ei voitu peruuttaa. Yritä uudelleen."
+  "cancelError": "Muutosta ei voitu peruuttaa. Yritä uudelleen.",
+  "confirmChangeTitle": "Vahvista uusi sähköpostiosoitteesi",
+  "confirmChangeBody": "Vahvista painikkeella, että pyysit tilisi sähköpostiosoitteen vaihtamista. Sinut kirjataan ulos kaikkialta.",
+  "confirmChangeButton": "Vahvista sähköpostin vaihto"
 }

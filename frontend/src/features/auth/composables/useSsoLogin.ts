@@ -3,18 +3,19 @@ import { useRoute, useRouter } from 'vue-router'
 import type { IdentityProviderPublic } from '@/types'
 import type { PublicServerSettings } from '@/features/config/types'
 
-import { useAuthStore } from '@/features/auth/stores/auth'
+import {
+  type AuthCompletedResult,
+  type LoginResult,
+  useAuthStore,
+} from '@/features/auth/stores/auth'
 import { generateCodeChallenge, generateCodeVerifier } from '@/features/auth/utils/pkce'
-import { HttpError } from '@/services/http'
-import { exchangeSessionForTokens, getIdentityProviderLoginUrl } from '@/services/identityProviders'
+import { getIdentityProviderLoginUrl } from '@/services/identityProviders'
 import { dropQueryParam } from '@/composables/useRouteQuery'
 import { hasLoginStatusFlag } from '@/features/auth/composables/useLoginRouteMessages'
 import { getQueryString, useSafeRedirect } from '@/composables/useSafeRedirect'
-import { useTelemetry } from '@/composables/useTelemetry'
 
 const PKCE_KEY = 'pkce_verifier'
 const PKCE_VERIFIER_TTL_MS = 10 * 60 * 1000
-const MFA_REQUIRED_PROBLEM = 'urn:endurain:error:mfa-required'
 
 interface StoredPkceVerifier {
   verifier: string
@@ -24,18 +25,15 @@ interface StoredPkceVerifier {
 /** Result of starting an SSO login. */
 export type SsoStartResult = { status: 'redirecting' } | { status: 'error' }
 
-/** Result of processing an SSO callback. */
+/**
+ * Result of processing an SSO callback. `next-step` carries the step the login form shows next,
+ * such as the MFA step of an account with MFA enabled.
+ */
 export type SsoCallbackResult =
   | { status: 'none' }
   | { status: 'completed' }
-  | { status: 'mfa-required' }
+  | { status: 'next-step'; result: Exclude<LoginResult, AuthCompletedResult> }
   | { status: 'error'; messageKey: string }
-
-/** An SSO session whose exchange waits for the account's MFA code. */
-interface PendingSsoMfa {
-  sessionId: string
-  verifier: string
-}
 
 /**
  * Reads the stored PKCE verifier and removes it when expired or malformed.
@@ -95,25 +93,6 @@ export function useSsoLogin() {
   const auth = useAuthStore()
   const { getSafeRedirect, getSsoRedirect, isNativeRedirect, navigateAfterLogin } =
     useSafeRedirect()
-  let pendingMfa: PendingSsoMfa | null = null
-
-  /**
-   * Exchanges an SSO session for web tokens and signs the user in.
-   *
-   * @param pending - The session to exchange, with its stored PKCE verifier.
-   * @param mfaCode - MFA code, when the account has MFA enabled.
-   * @throws {HttpError} When the exchange is refused.
-   */
-  async function exchangeAndSignIn(pending: PendingSsoMfa, mfaCode?: string): Promise<void> {
-    const tokenData = mfaCode
-      ? await exchangeSessionForTokens(pending.sessionId, pending.verifier, mfaCode)
-      : await exchangeSessionForTokens(pending.sessionId, pending.verifier)
-    sessionStorage.removeItem(PKCE_KEY)
-
-    await auth.completeTokenLogin(tokenData)
-    useTelemetry().trackEvent('login_succeeded', { method: 'sso' })
-    await navigateAfterLogin()
-  }
 
   /**
    * Starts an SSO login using the backend PKCE endpoints. On success the
@@ -146,9 +125,10 @@ export function useSsoLogin() {
 
   /**
    * Completes an SSO callback when the backend redirected back with a session
-   * ID, exchanging it (plus the stored PKCE verifier) for web tokens.
+   * ID, exchanging it (plus the stored PKCE verifier) for web tokens. An account
+   * with MFA enabled continues at the MFA step the password sign-in uses.
    *
-   * @returns Whether a callback was handled, completed, or failed.
+   * @returns Whether a callback was handled, completed, needs another step, or failed.
    */
   async function processSsoCallback(): Promise<SsoCallbackResult> {
     if (route.query.sso !== 'success' || !route.query.session_id) {
@@ -188,35 +168,17 @@ export function useSsoLogin() {
         throw new Error('Missing PKCE verifier')
       }
 
-      const pending = { sessionId, verifier: stored.verifier }
-      try {
-        await exchangeAndSignIn(pending)
-      } catch (error) {
-        // The session stays usable, so the user can still finish with a code.
-        if (error instanceof HttpError && error.type === MFA_REQUIRED_PROBLEM) {
-          pendingMfa = pending
-          return { status: 'mfa-required' }
-        }
-        throw error
+      const result = await auth.exchangeSsoSession(sessionId, stored.verifier)
+      // The exchange has checked the verifier, so it is not needed again, not even by the MFA step.
+      sessionStorage.removeItem(PKCE_KEY)
+      if (result.status !== 'authenticated') {
+        return { status: 'next-step', result }
       }
+      await navigateAfterLogin()
       return { status: 'completed' }
     } catch {
       return { status: 'error', messageKey: 'login.ssoTokenExchangeFailed' }
     }
-  }
-
-  /**
-   * Finishes an SSO login that is waiting for the account's MFA code.
-   *
-   * @param mfaCode - TOTP or backup code.
-   * @throws {HttpError} When the code is refused or the account is locked out.
-   */
-  async function completeSsoMfa(mfaCode: string): Promise<void> {
-    if (!pendingMfa) {
-      throw new Error('No SSO login is waiting for an MFA code')
-    }
-    await exchangeAndSignIn(pendingMfa, mfaCode)
-    pendingMfa = null
   }
 
   /**
@@ -248,5 +210,5 @@ export function useSsoLogin() {
     }
   }
 
-  return { startSsoLogin, processSsoCallback, completeSsoMfa, maybeAutoRedirect }
+  return { startSsoLogin, processSsoCallback, maybeAutoRedirect }
 }

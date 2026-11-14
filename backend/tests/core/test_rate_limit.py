@@ -1,5 +1,6 @@
 """Tests for core.rate_limit — rate-limit bucket key and 429 handler."""
 
+import json
 import time
 from unittest.mock import MagicMock, patch
 from urllib.parse import parse_qs, urlsplit
@@ -292,6 +293,9 @@ class TestRateLimitExceededHandler:
             response = rate_limit_exceeded_handler(request, exc)
 
         assert response.status_code == 429
+        problem = json.loads(response.body)
+        assert problem["type"] == "urn:endurain:error:too-many-requests"
+        assert problem["scope"] == "requests"
         assert response.headers["Retry-After"] == "60"
         assert response.headers["X-RateLimit-Limit"] == "30"
         assert response.headers["X-RateLimit-Remaining"] == "0"

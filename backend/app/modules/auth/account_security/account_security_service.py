@@ -77,9 +77,10 @@ def list_user_sessions(
     token_user_id: uuid.UUID,
     page: core_pagination.PageParams,
     db: Session,
+    current_session_id: uuid.UUID | None = None,
 ) -> auth_sessions_schema.UserSessionsPage:
-    """Retrieve one page of the authenticated user's sessions."""
-    return sessions_integration.list_user_sessions(token_user_id, page, db)
+    """Retrieve one page of the authenticated user's sessions, marking the caller's own."""
+    return sessions_integration.list_user_sessions(token_user_id, page, db, current_session_id)
 
 
 def delete_user_session(
@@ -509,7 +510,7 @@ def _refuse_password_change(
         pending: The pending password change the challenge named, or None when it named none.
 
     Raises:
-        UnauthenticatedError: Always.
+        SessionEndedError: Always, so the client signs in again.
     """
     logger.warning("Password change refused: <reason>", extra=core_logger.context(reason=reason.value))
     login_audit_integration.record_login_refusal(
@@ -519,7 +520,7 @@ def _refuse_password_change(
         mfa=pending.mfa if pending else False,
         user_id=pending.user_id if pending else None,
     )
-    raise core_exceptions.UnauthenticatedError("Unable to authenticate with provided credentials", scheme="Bearer")
+    raise core_exceptions.SessionEndedError("Unable to authenticate with provided credentials")
 
 
 def _end_outdated_password_change(
@@ -535,7 +536,7 @@ def _end_outdated_password_change(
         password_change_store: Store for pending password changes.
 
     Raises:
-        UnauthenticatedError: Always.
+        SessionEndedError: Always.
         ServiceUnavailableError: If the shared state is unavailable.
     """
     try:
@@ -580,7 +581,7 @@ def complete_password_change(
         The outcome of the finished sign-in: the tokens or, for a mobile PKCE client, the session to exchange.
 
     Raises:
-        UnauthenticatedError: If the challenge is unknown, expired, claimed, from another client type, outdated by a
+        SessionEndedError: If the challenge is unknown, expired, claimed, from another client type, outdated by a
             security change of the account, or no longer needed because the password was changed meanwhile
             (answered alike).
         PermissionDeniedError: If the account is no longer active.

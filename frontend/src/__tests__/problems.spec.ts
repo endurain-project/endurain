@@ -25,7 +25,7 @@ describe('isProblem', () => {
   })
 
   it('accepts any of several codes', () => {
-    expect(isProblem(problem(429, 'rate-limited'), 'too-many-requests', 'rate-limited')).toBe(true)
+    expect(isProblem(problem(429, 'too-many-requests'), 'conflict', 'too-many-requests')).toBe(true)
   })
 
   it('is false for a non-HttpError', () => {
@@ -36,9 +36,6 @@ describe('isProblem', () => {
 
 describe('retryWaitMessage', () => {
   it('words a throttled response that names a wait', () => {
-    expect(retryWaitMessage(problem(429, 'rate-limited', 30), t)).toBe(
-      'app.retryAfter.tooManyAttempts:30',
-    )
     expect(retryWaitMessage(problem(429, 'too-many-requests', 5), t)).toBe(
       'app.retryAfter.tooManyAttempts:5',
     )
@@ -51,7 +48,7 @@ describe('retryWaitMessage', () => {
   })
 
   it('returns null without a wait or for another problem', () => {
-    expect(retryWaitMessage(problem(429, 'rate-limited'), t)).toBeNull()
+    expect(retryWaitMessage(problem(429, 'too-many-requests'), t)).toBeNull()
     expect(retryWaitMessage(problem(400, 'invalid-input', 5), t)).toBeNull()
     expect(retryWaitMessage(new Error('x'), t)).toBeNull()
   })

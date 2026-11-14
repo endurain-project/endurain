@@ -645,7 +645,8 @@
       "stepUpDescription": "Identiteetintarjoajat määräävät, kuka voi kirjautua tälle palvelimelle. Vahvista, että se olet sinä, jatkaaksesi.",
       "slugConflict": "Tämä tunniste on jo käytössä",
       "issuerInUse": "Toinen identiteetintarjoaja käyttää jo tätä liikkeeseenlaskijan URL-osoitetta",
-      "issuerLocked": "Liikkeeseenlaskijan URL-osoitetta ei voi muuttaa, kun käyttäjiä on linkitetty tähän tarjoajaan. Poista linkitykset tai lisää uusi tarjoaja.",
+      "locked": "Slugia, asiakastunnusta, protokollaa, liikkeeseenlaskijaa ja päätepisteitä ei voi muuttaa, kun käyttäjiä on linkitetty tähän tarjoajaan. Poista linkitykset tai lisää uusi tarjoaja.",
+      "lockedHint": "Lukittu, kun käyttäjiä on linkitetty tähän tarjoajaan.",
       "staleError": "Tämä palvelu muuttui muualla. Muutoksiasi ei tallennettu. Sulje ja avaa se uudelleen ladataksesi nykyiset asetukset.",
       "saveError": "Tarjoajaa ei voitu tallentaa. Yritä uudelleen."
     }

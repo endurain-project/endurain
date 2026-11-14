@@ -31,14 +31,14 @@ def list_user_devices(
 ) -> known_devices_schema.KnownDevicePage:
     """List one page of the devices the authenticated user is known to sign in from, latest sign-in first.
 
-    A device is known until a security change of the account or the user forgets it, and a sign-in from an unknown device is announced by email. `current` marks
+    A device is known until a security change of the account or the user forgets it, and a sign-in from an unknown device is announced by email. `is_current` marks
     the device the request comes from.
     """
     return device_service.list_user_devices(token_user_id, device_id, page, db)
 
 
 @router.post(
-    "/revoke",
+    "/delete-others",
     status_code=status.HTTP_204_NO_CONTENT,
     response_model=None,
     dependencies=[Security(auth_dependencies.check_scopes, scopes=["account:security"])],
@@ -96,7 +96,7 @@ def forget_user_device(
 
 
 @router.post(
-    "/delete",
+    "/delete-all",
     status_code=status.HTTP_204_NO_CONTENT,
     response_model=None,
     dependencies=[Security(auth_dependencies.check_scopes, scopes=["account:security"])],

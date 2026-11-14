@@ -11,6 +11,7 @@ import core.rate_limit as core_rate_limit
 import modules.activities.activity_ingestion.integration_service as activity_ingestion_integration
 import modules.activities.activity_ingestion.schema as activity_ingestion_schema
 import modules.auth.dependencies as auth_dependencies
+import modules.auth.schema as auth_schema
 import modules.garmin.constants as garmin_constants
 import modules.garmin.dependencies as garmin_dependencies
 import modules.garmin.link_service as garmin_link_service
@@ -152,8 +153,8 @@ def garminconnect_retrieve_health_days(
     return sync
 
 
-@router.delete(
-    "/link",
+@router.post(
+    "/unlink",
     response_model=None,
     status_code=status.HTTP_204_NO_CONTENT,
     dependencies=[Security(auth_dependencies.check_scopes, scopes=["account:integrations"])],
@@ -161,8 +162,13 @@ def garminconnect_retrieve_health_days(
 @core_rate_limit.limiter.limit(core_rate_limit.WRITE)
 def garminconnect_unlink(
     request: Request,
+    body: auth_schema.StepUpRequest,
     token_user_id: auth_dependencies.CurrentUserId,
+    verify_step_up: auth_dependencies.StepUpVerifierDep,
     db: core_dependencies.DbSession,
 ) -> None:
-    """Unlink the user's Garmin Connect account."""
-    garmin_service.unlink_account(token_user_id, db)
+    """Unlink the user's Garmin Connect account after the user's step-up verification.
+
+    It needs a signed-in session: an API key cannot step up.
+    """
+    garmin_service.unlink_account(token_user_id, body.step_up, verify_step_up, db)

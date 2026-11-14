@@ -505,9 +505,7 @@
       "clearConfirm": {
         "title": "Clear the server logs?",
         "description": "This permanently deletes the log file and its rotated backups. Download the log first if you may need it. The action itself is recorded in the new log.",
-        "confirm": "Clear logs",
-        "cancel": "Cancel",
-        "close": "Close"
+        "confirm": "Clear logs"
       },
       "loadError": "Couldn't load the logs.",
       "empty": "No log records found"
@@ -645,7 +643,8 @@
       "stepUpDescription": "Identity providers decide who can sign in to this server. Confirm it is you to continue.",
       "slugConflict": "That slug is already in use",
       "issuerInUse": "Another identity provider already uses this issuer URL",
-      "issuerLocked": "The issuer URL can't change while users are linked to this provider. Unlink them or add a new provider instead.",
+      "locked": "The slug, client ID, protocol, issuer and endpoints can't change while users are linked to this provider. Unlink them or add a new provider instead.",
+      "lockedHint": "Locked while users are linked to this provider.",
       "staleError": "This provider changed elsewhere. Your changes weren't saved. Close and reopen it to load the current settings.",
       "saveError": "Couldn't save the provider. Please try again."
     }

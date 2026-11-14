@@ -55,11 +55,16 @@ class UserSessionsBase(BaseModel):
 class UserSessionsRead(UserSessionsBase):
     """User session read schema for API responses.
 
-    Extends base with user_id. Excludes sensitive fields
-    like refresh_token and csrf_token_hash.
+    Extends base with user_id and the current-session marker. Excludes sensitive fields
+    like refresh_token.
+
+    Attributes:
+        user_id: User ID that owns this session.
+        is_current: Whether the session is the caller's own.
     """
 
     user_id: uuid.UUID = Field(..., description="User ID that owns this session")
+    is_current: StrictBool = Field(False, description="Whether this is the session the request is made from")
 
 
 #: One page of a user's sessions.
@@ -70,7 +75,7 @@ class UserSessionsInternal(UserSessionsBase):
     """Internal user session schema with all fields.
 
     Used for CRUD operations. Includes sensitive fields like
-    refresh_token and csrf_token_hash that should never be
+    refresh_token that should never be
     exposed in API responses.
 
     Attributes:
@@ -84,8 +89,6 @@ class UserSessionsInternal(UserSessionsBase):
         rotation_count: Number of times refresh token
             rotated.
         last_rotation_at: Timestamp of last token rotation.
-        csrf_token_hash: Hashed CSRF token for refresh
-            validation.
         client_type: The client the session was created for.
         auth_time: When the user signed in.
         amr: Authentication methods of the sign-in.
@@ -113,11 +116,6 @@ class UserSessionsInternal(UserSessionsBase):
         description="Number of times refresh token has been rotated",
     )
     last_rotation_at: datetime | None = Field(None, description="Timestamp of last token rotation")
-    csrf_token_hash: StrictStr | None = Field(
-        None,
-        max_length=255,
-        description="Hashed CSRF token for refresh validation",
-    )
     client_type: auth_constants.ClientType = Field(..., description="Client type the session was created for")
     auth_time: datetime = Field(..., description="When the user signed in")
     amr: list[StrictStr] = Field(..., description="Authentication methods of the sign-in (RFC 8176 values)")

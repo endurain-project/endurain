@@ -46,7 +46,7 @@ def test_a_propagated_failure_ends_the_window_at_once():
 
     def process(item):
         seen.append(item)
-        raise core_exceptions.TooManyRequestsError("slow down")
+        raise core_exceptions.TooManyRequestsError("slow down", scope=core_exceptions.TooManyRequestsScope.PROVIDER)
 
     with pytest.raises(core_exceptions.TooManyRequestsError):
         _run([1, 2, 3], process, propagate=(core_exceptions.TooManyRequestsError,))
@@ -56,7 +56,7 @@ def test_a_propagated_failure_ends_the_window_at_once():
 
 def test_a_failure_not_named_as_propagating_is_isolated():
     def process(item):
-        raise core_exceptions.TooManyRequestsError("slow down")
+        raise core_exceptions.TooManyRequestsError("slow down", scope=core_exceptions.TooManyRequestsScope.PROVIDER)
 
     # Without ``propagate`` even a rate limit is just a failed activity.
     with pytest.raises(core_exceptions.TooManyRequestsError):

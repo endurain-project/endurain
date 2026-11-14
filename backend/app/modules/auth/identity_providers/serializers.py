@@ -11,7 +11,9 @@ def to_state(row: identity_provider_models.IdentityProvider) -> identity_provide
 
 
 def to_read_schema(
-    state: identity_provider_contracts.IdentityProviderState,
+    state: identity_provider_contracts.IdentityProviderState, *, has_linked_users: bool
 ) -> identity_provider_schema.IdentityProviderRead:
-    """Return the client-facing provider representation."""
-    return identity_provider_schema.IdentityProviderRead.model_validate(state)
+    """Return the client-facing provider representation, saying whether users are linked to it."""
+    read = identity_provider_schema.IdentityProviderRead.model_validate(state)
+    read.has_linked_users = has_linked_users
+    return read

@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 
 import { mount } from '@vue/test-utils'
 import { QueryClient, VueQueryPlugin } from '@tanstack/vue-query'
+import { createPinia } from 'pinia'
 
 import i18n from '@/i18n'
 import StravaCard from '@/features/integrations/components/StravaCard.vue'
@@ -12,8 +13,10 @@ function mountCard(props: {
   dataDeletionAt: string | null
 }) {
   return mount(StravaCard, {
-    props: { ...props, integrationsVersion: 1 },
-    global: { plugins: [i18n, [VueQueryPlugin, { queryClient: new QueryClient() }]] },
+    props: { ...props, integrationsVersion: 1, resume: null },
+    global: {
+      plugins: [createPinia(), i18n, [VueQueryPlugin, { queryClient: new QueryClient() }]],
+    },
   })
 }
 

@@ -17,8 +17,10 @@ _BODIES = [
     ("TokenMobileRead", "tokens"),
 ]
 _LOGIN = {"MFARequiredRead", "PasswordChangeRequiredRead", "MobileSessionRead", "TokenWebRead"}
-_MFA_VERIFY = _LOGIN - {"MFARequiredRead"}
-_PASSWORD_CHANGE = _MFA_VERIFY - {"PasswordChangeRequiredRead"}
+_PASSWORD_CHANGE = {"MobileSessionRead", "TokenWebRead"}
+# An identity-provider sign-in finishes at the MFA step with the tokens of either client type.
+_MFA_VERIFY = (_LOGIN - {"MFARequiredRead"}) | {"TokenMobileRead"}
+_EXCHANGE = {"MFARequiredRead", "TokenWebRead", "TokenMobileRead"}
 
 
 @pytest.fixture(scope="module")
@@ -53,10 +55,10 @@ class TestSchemas:
         assert schema["properties"]["next_step"]["const"] == step
         assert "default" not in schema["properties"]["next_step"]
 
-    def test_the_mfa_challenge_body_holds_the_challenge_only(self, openapi):
+    def test_the_mfa_challenge_body_holds_the_challenge_and_the_methods(self, openapi):
         schema = openapi["components"]["schemas"]["MFARequiredRead"]
 
-        assert set(schema["properties"]) == {"next_step", "mfa_challenge"}
+        assert set(schema["properties"]) == {"next_step", "mfa_challenge", "methods"}
 
     def test_the_password_change_body_holds_the_challenge_only(self, openapi):
         schema = openapi["components"]["schemas"]["PasswordChangeRequiredRead"]
@@ -74,7 +76,6 @@ class TestSchemas:
                 {
                     "session_id": "s",
                     "access_token": "a",
-                    "csrf_token": "c",
                     "expires_in": 1,
                     "refresh_token_expires_in": 1,
                 }
@@ -84,7 +85,7 @@ class TestSchemas:
 class TestRoutes:
     @pytest.mark.parametrize(
         ("path", "bodies"),
-        [("/auth/login", _LOGIN), ("/auth/mfa/verify", _MFA_VERIFY), ("/auth/password-change", _PASSWORD_CHANGE)],
+        [("/auth/login", _LOGIN), ("/auth/password-change", _PASSWORD_CHANGE)],
     )
     def test_each_route_answers_the_bodies_it_can_end_in(self, openapi, path, bodies):
         schema = _response(openapi, path)
@@ -92,11 +93,22 @@ class TestRoutes:
         assert _refs(schema) == bodies
         assert "oneOf" in schema
 
+    @pytest.mark.parametrize(
+        ("path", "bodies"),
+        [("/auth/mfa/verify", _MFA_VERIFY), ("/auth/sessions/{session_id}/tokens", _EXCHANGE)],
+    )
+    def test_a_route_that_answers_both_token_bodies_answers_a_union_without_a_discriminator(
+        self, openapi, path, bodies
+    ):
+        schema = _response(openapi, path)
+
+        assert _refs(schema) == bodies
+        assert "anyOf" in schema
+
     def test_refresh_still_answers_tokens_only(self, openapi):
         assert _refs(_response(openapi, "/auth/refresh")) == {"TokenWebRead", "TokenMobileRead"}
 
-    def test_the_token_exchange_answers_the_login_token_bodies(self, openapi):
-        assert _refs(_response(openapi, "/auth/sessions/{session_id}/tokens")) == {"TokenWebRead", "TokenMobileRead"}
+    def test_the_token_exchange_has_no_body_of_its_own(self, openapi):
         assert "TokenExchangeRead" not in openapi["components"]["schemas"]
 
 
@@ -131,7 +143,7 @@ class TestAnswers:
     def test_an_mfa_account_answers_mfa_then_the_verified_login_answers_its_next_step(self, mfa_signin):
         first = mfa_signin.client.post("/auth/login", data={"username": USERNAME, "password": PASSWORD}, headers=WEB)
 
-        assert first.json().keys() == {"next_step", "mfa_challenge"}
+        assert first.json().keys() == {"next_step", "mfa_challenge", "methods"}
         assert first.json()["next_step"] == "mfa"
 
         second = mfa_signin.client.post(

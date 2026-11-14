@@ -38,5 +38,8 @@
   "notRestoredBody": "更改已被举报，您的账户已在所有设备上退出登录，其 API 密钥已被吊销。另一个账户现在使用您之前的地址，因此您的账户保留新地址。请联系您的 Endurain 管理员，并更改密码。",
   "cancelInvalidTitle": "此链接已失效",
   "cancelInvalidBody": "该链接无效、已过期或已被使用，或者在发送后邮箱地址又被更改。如果您仍认为有其他人可以访问您的账户，请登录并更改密码。",
-  "cancelError": "无法取消更改，请重试。"
+  "cancelError": "无法取消更改，请重试。",
+  "confirmChangeTitle": "确认新的邮箱地址",
+  "confirmChangeBody": "点击按钮以确认你申请更改了账户的邮箱地址。你将在所有设备上退出登录。",
+  "confirmChangeButton": "确认更改邮箱"
 }

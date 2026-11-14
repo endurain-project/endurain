@@ -25,6 +25,7 @@ export function mapUserSession(dto: UserSessionDto): UserSession {
     lastActivityAt: dto.last_activity_at,
     expiresAt: dto.expires_at,
     appRedirectUri: dto.app_redirect_uri ?? null,
+    isCurrent: dto.is_current,
   }
 }
 

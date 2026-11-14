@@ -645,7 +645,8 @@
       "stepUpDescription": "Tapatybės teikėjai sprendžia, kas gali prisijungti prie šio serverio. Patvirtinkite, kad tai Jūs, kad tęstumėte.",
       "slugConflict": "Šis trumpinys jau naudojamas",
       "issuerInUse": "Kitas tapatybės teikėjas jau naudoja šį išdavėjo URL",
-      "issuerLocked": "Išdavėjo URL negalima keisti, kol prie šio teikėjo yra susietų naudotojų. Atsiekite juos arba pridėkite naują teikėją.",
+      "locked": "Slug, kliento ID, protokolo, išdavėjo ir galinių taškų keisti negalima, kol prie šio teikėjo yra susietų naudotojų. Atsiekite juos arba pridėkite naują teikėją.",
+      "lockedHint": "Užrakinta, kol prie šio teikėjo yra susietų naudotojų.",
       "staleError": "Šis teikėjas buvo pakeistas kitur. Jūsų pakeitimai neišsaugoti. Uždarykite ir atidarykite jį iš naujo, kad įkeltumėte dabartinius nustatymus.",
       "saveError": "Nepavyko išsaugoti teikėjo. Bandykite dar kartą."
     }

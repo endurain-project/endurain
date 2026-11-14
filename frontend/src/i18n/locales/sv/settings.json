@@ -645,7 +645,8 @@
       "stepUpDescription": "Identitetsleverantörer avgör vem som kan logga in på den här servern. Bekräfta att det är du för att fortsätta.",
       "slugConflict": "Den sluggen används redan",
       "issuerInUse": "En annan identitetsleverantör använder redan den här utfärdar-URL:en",
-      "issuerLocked": "Utfärdar-URL:en kan inte ändras medan användare är kopplade till den här leverantören. Koppla bort dem eller lägg till en ny leverantör i stället.",
+      "locked": "Sluggen, klient-ID:t, protokollet, utfärdaren och slutpunkterna kan inte ändras medan användare är kopplade till den här leverantören. Koppla bort dem eller lägg till en ny leverantör i stället.",
+      "lockedHint": "Låst medan användare är kopplade till den här leverantören.",
       "staleError": "Den här leverantören ändrades på annat håll. Dina ändringar sparades inte. Stäng och öppna den igen för att ladda de aktuella inställningarna.",
       "saveError": "Kunde inte spara leverantören. Försök igen."
     }

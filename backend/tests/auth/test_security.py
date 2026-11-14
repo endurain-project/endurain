@@ -32,7 +32,7 @@ def test_get_token_selects_access_header_and_client_refresh_source():
 
 
 def test_get_token_rejects_a_missing_mobile_refresh_token_naming_the_body():
-    with pytest.raises(core_exceptions.InvalidTokenError) as exc_info:
+    with pytest.raises(core_exceptions.SessionEndedError) as exc_info:
         authentication_dependencies.get_token(None, None, "mobile", access_tokens_service.TokenType.REFRESH)
     assert exc_info.value.detail == "Refresh token missing from request body"
 
@@ -76,7 +76,7 @@ def test_a_refresh_subject_that_is_not_a_user_uuid_is_refused(token_manager, sam
         _SID_SESSION_ID, user, ClientType.WEB, access_tokens_service.TokenType.REFRESH, timedelta(days=1)
     )
 
-    with pytest.raises(core_exceptions.InvalidTokenError):
+    with pytest.raises(core_exceptions.SessionEndedError):
         authentication_dependencies.get_sub_from_refresh_token(refresh_token, token_manager)
 
 

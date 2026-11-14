@@ -645,7 +645,8 @@
       "stepUpDescription": "Os fornecedores de identidade decidem quem pode iniciar sessão neste servidor. Confirma que és tu para continuar.",
       "slugConflict": "Esse slug já está em uso",
       "issuerInUse": "Outro fornecedor de identidade já usa este URL de emissor",
-      "issuerLocked": "O URL do emissor não pode ser alterado enquanto houver utilizadores associados a este fornecedor. Desassocia-os ou adiciona um novo fornecedor.",
+      "locked": "O slug, o ID de cliente, o protocolo, o emissor e os pontos finais não podem ser alterados enquanto houver utilizadores associados a este fornecedor. Desassocia-os ou adiciona um novo fornecedor.",
+      "lockedHint": "Bloqueado enquanto houver utilizadores associados a este fornecedor.",
       "staleError": "Este fornecedor foi alterado noutro lugar. As tuas alterações não foram guardadas. Fecha-o e volta a abri-lo para carregar as definições atuais.",
       "saveError": "Não foi possível guardar o fornecedor. Tenta novamente."
     }

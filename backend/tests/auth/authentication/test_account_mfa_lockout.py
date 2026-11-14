@@ -1,8 +1,6 @@
 """An account locked by 100 wrong MFA codes in a row still admits its known devices, and tells its owner."""
 
 import uuid
-from datetime import UTC, datetime
-from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
 import jasil.testing as jasil_testing
@@ -17,8 +15,6 @@ import modules.auth.account_security.mfa_workflow_service as mfa_workflow
 import modules.auth.authentication.event_publishers as authentication_event_publishers
 import modules.auth.authentication.events as authentication_events
 import modules.auth.authentication.service as authentication_service
-import modules.auth.authentication.sso_exchange_service as sso_exchange_service
-import modules.auth.credentials.integration_service as credentials_integration
 import modules.auth.lockout.audit_actions as lockout_audit_actions
 import modules.auth.lockout.contracts as lockout_contracts
 import modules.auth.login_audit.audit_actions as login_audit_actions
@@ -26,16 +22,13 @@ import modules.auth.mfa.integration_service as mfa_integration
 import modules.auth.mfa.pending_login_store as pending_login_store
 import modules.auth.mfa.schema as mfa_schema
 import modules.auth.schema as auth_schema
-from tests.auth.authentication.conftest import BACKUP_CODE, USER_ID, USERNAME, WEB
+from tests.auth.authentication.conftest import BACKUP_CODE, SSO_VERIFIER, USER_ID, USERNAME, WEB, create_sso_session
 
 _SESSION_ID = uuid.UUID(int=7)
 
 _USER_ID_5 = uuid.UUID(int=5)
 
-IDP_ID = uuid.uuid4()
-
 _SERVICE = "modules.auth.authentication.service"
-_SSO = "modules.auth.authentication.sso_exchange_service"
 _PUBLISH = "modules.auth.authentication.event_publishers.platform_publisher.publish"
 _WRONG = "000000"
 _DEVICE_ID = "d" * 43
@@ -124,14 +117,6 @@ class TestHundredthWrongCode:
         assert [r for r in audit.matching(_LOCK) if r.details["counter"] == "mfa_account"] == []
         assert _mfa_locked_events(publish) == []
         assert _store().is_locked_out(USERNAME, _IP, user_id=USER_ID) is False
-
-    def test_the_exchange_records_the_second_factor_it_verified(self, mfa_plain_signin):
-        claims = []
-
-        refusal = _exchange(mfa_plain_signin, _store(), claims=claims)
-
-        assert refusal is None
-        assert claims[0][3] == ["fed", "otp", "mfa"]
 
     def test_wrong_codes_across_many_challenges_reach_the_cap(self, mfa_plain_signin):
         store = _store()
@@ -231,78 +216,36 @@ class TestLockedAccount:
         assert _store().is_locked_out(USERNAME, _IP, user_id=USER_ID) is False
 
 
-def _exchange(stack, store, *, device_id=None, code=BACKUP_CODE, claims=None):
-    """Run the SSO token exchange for the account with MFA, returning the refusal if there was one.
-
-    Each session claim the exchange makes is appended to ``claims``, when given.
-    """
-    oauth_state = SimpleNamespace(
-        id="state",
-        purpose="login",
-        code_challenge="c",
-        code_challenge_method="S256",
-        client_type="web",
-        idp_id=IDP_ID,
-        security_generation=0,
-    )
-    session = SimpleNamespace(
-        user_id=USER_ID,
-        tokens_exchanged=False,
-        expires_at=datetime(2999, 1, 1, tzinfo=UTC),
-        client_type="web",
-        amr=["fed"],
-    )
-    tokens = (_SESSION_ID, datetime(2999, 1, 1, tzinfo=UTC), "at", datetime(2999, 1, 1, tzinfo=UTC), "rt", "csrf")
-    with (
-        patch(f"{_SSO}.sessions_integration.get_session_with_oauth_state", return_value=(session, oauth_state)),
-        patch(f"{_SSO}.auth_computation.validate_pkce_verifier"),
-        patch(f"{_SSO}.server_settings_integration.get_session_policy"),
-        patch(f"{_SSO}.authentication_token_service.create_tokens", return_value=tokens),
-        patch(
-            f"{_SSO}.sessions_integration.claim_session_for_token_exchange",
-            side_effect=lambda *args: (
-                (claims.append(args) if claims is not None else None) or datetime(2999, 1, 1, tzinfo=UTC)
-            ),
-        ),
-        patch(
-            f"{_SSO}.known_devices_integration.record_sign_in",
-            return_value=MagicMock(device_id="d" * 43, new_device=False),
-        ),
-        patch(f"{_SSO}.authentication_token_service.build_web_token_response"),
-        stack.factory() as db,
-    ):
-        try:
-            sso_exchange_service.exchange_tokens_for_session(
-                _SESSION_ID,
-                "verifier",
-                code,
-                "web",
-                "127.0.0.1",
-                "agent",
-                store,
-                credentials_integration.get_password_hasher(),
-                MagicMock(),
-                db,
-                device_id=device_id,
-            )
-        except core_exceptions.DomainError as err:
-            return err
-    return None
+def _sso_verify(stack, code, *, device_id=None):
+    """Exchange an identity-provider session for its MFA step and verify the code there."""
+    session_id = create_sso_session(stack)
+    challenge = stack.client.post(
+        f"/auth/sessions/{session_id}/tokens", json={"code_verifier": SSO_VERIFIER}, headers=WEB
+    ).json()["mfa_challenge"]
+    headers = WEB | ({"X-Device-Id": device_id} if device_id else {})
+    return stack.client.post("/auth/mfa/verify", json={"mfa_challenge": challenge, "mfa_code": code}, headers=headers)
 
 
-class TestSsoExchange:
+@pytest.mark.usefixtures("aware_session_expiry")
+class TestSsoMfaStep:
     def test_an_unknown_device_is_refused_by_the_account_lock(self, mfa_plain_signin):
         _lock_account()
 
-        assert isinstance(_exchange(mfa_plain_signin, _store()), core_exceptions.TooManyRequestsError)
+        with jasil_testing.capture_audit() as audit:
+            response = _sso_verify(mfa_plain_signin, BACKUP_CODE)
 
-    def test_a_known_device_completes_the_exchange_and_lifts_the_lock(self, mfa_plain_signin):
+        assert response.status_code == 429
+        entry = audit.assert_audited("auth.session.login", outcome="denied", target_type="user", target_id=str(USER_ID))
+        assert entry.details["method"] == "identity_provider"
+        assert entry.details["reason"] == "locked_out"
+
+    def test_a_known_device_completes_the_sign_in_and_lifts_the_lock(self, mfa_plain_signin):
         _lock_account()
 
         with patch(f"{_SERVICE}.known_devices_integration.is_known_device", return_value=True) as known:
-            refusal = _exchange(mfa_plain_signin, _store(), device_id=_DEVICE_ID)
+            response = _sso_verify(mfa_plain_signin, BACKUP_CODE, device_id=_DEVICE_ID)
 
-        assert refusal is None
+        assert response.status_code == 200
         assert known.call_args.args[:2] == (USER_ID, _DEVICE_ID)
         assert _store().is_locked_out(USERNAME, _IP, user_id=USER_ID) is False
 
@@ -310,9 +253,9 @@ class TestSsoExchange:
         _record_account_failures(99)
 
         with patch(_PUBLISH) as publish, jasil_testing.capture_audit() as audit:
-            refusal = _exchange(mfa_plain_signin, _store(), code=_WRONG)
+            response = _sso_verify(mfa_plain_signin, _WRONG)
 
-        assert isinstance(refusal, core_exceptions.InvalidMfaCodeError)
+        assert response.status_code == 400
         assert len(_mfa_locked_events(publish)) == 1
         rows = [r for r in audit.matching(_LOCK) if r.details["counter"] == "mfa_account"]
         assert [r.details for r in rows] == [{"counter": "mfa_account", "failed_attempts": 100}]

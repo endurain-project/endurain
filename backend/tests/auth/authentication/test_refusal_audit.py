@@ -122,14 +122,13 @@ def _session(**overrides):
         "user_id": _USER_ID_5,
         "token_family_id": _FAMILY_ID,
         "refresh_token": sessions_integration.hash_refresh_token("old-token"),
-        "csrf_token_hash": None,
         "rotation_count": 0,
         "client_type": auth_constants.ClientType.WEB,
     }
     return SimpleNamespace(**{**values, **overrides})
 
 
-def _refresh(db, *, session, x_csrf_token=None, token_user_id=_USER_ID_5):
+def _refresh(db, *, session, token_user_id=_USER_ID_5):
     with (
         patch(f"{_SERVICE}.sessions_integration.lock_live_session", return_value=session),
         patch(f"{_SERVICE}.server_settings_integration.get_session_policy"),
@@ -144,7 +143,6 @@ def _refresh(db, *, session, x_csrf_token=None, token_user_id=_USER_ID_5):
             MagicMock(),
             "web",
             db,
-            x_csrf_token,
         )
 
 
@@ -165,7 +163,7 @@ class TestRefreshRefusal:
         assert "old-token" not in repr(entry)
 
     def test_a_missing_session_is_a_failure(self, mock_db):
-        with jasil_testing.capture_audit() as audit, pytest.raises(core_exceptions.InvalidTokenError):
+        with jasil_testing.capture_audit() as audit, pytest.raises(core_exceptions.SessionEndedError):
             _refresh(mock_db, session=None)
 
         self._assert_refused(audit, "failure", "session_not_found")
@@ -178,7 +176,7 @@ class TestRefreshRefusal:
 
     def test_a_session_of_another_client_type_is_a_failure(self, mock_db):
         """A web request cannot refresh a mobile session, nor the reverse."""
-        with jasil_testing.capture_audit() as audit, pytest.raises(core_exceptions.InvalidTokenError):
+        with jasil_testing.capture_audit() as audit, pytest.raises(core_exceptions.SessionEndedError):
             _refresh(mock_db, session=_session(client_type=auth_constants.ClientType.MOBILE))
 
         self._assert_refused(audit, "failure", "client_type_mismatch")
@@ -195,17 +193,6 @@ class TestRefreshRefusal:
             _refresh(mock_db, session=_session())
 
         self._assert_refused(audit, "failure", "session_expired")
-
-    def test_a_wrong_csrf_token_is_denied(self, mock_db):
-        with (
-            patch(f"{_SERVICE}.sessions_integration.validate_session_timeout"),
-            patch(f"{_SERVICE}.sessions_integration.verify_csrf_token", return_value=False),
-            jasil_testing.capture_audit() as audit,
-            pytest.raises(core_exceptions.PermissionDeniedError),
-        ):
-            _refresh(mock_db, session=_session(csrf_token_hash="h"), x_csrf_token="wrong")
-
-        self._assert_refused(audit, "denied", "invalid_csrf_token")
 
     def test_a_session_whose_tokens_were_not_exchanged_is_a_failure(self, mock_db):
         with (
@@ -250,7 +237,7 @@ class TestRefreshRefusal:
 
     def test_an_inactive_user_is_denied(self, mock_db):
         inactive = SimpleNamespace(id=_USER_ID_5, username="alice", active=False, access_type="regular")
-        with jasil_testing.capture_audit() as audit, pytest.raises(core_exceptions.InvalidTokenError):
+        with jasil_testing.capture_audit() as audit, pytest.raises(core_exceptions.SessionEndedError):
             self._refresh_with_valid_token(mock_db, user=inactive)
 
         self._assert_refused(audit, "denied", "user_inactive")
@@ -295,7 +282,7 @@ class TestRefreshRefusal:
             ),
             patch(f"{_SERVICE}.users_integration.get_user", return_value=inactive),
             jasil_testing.capture_audit() as audit,
-            pytest.raises(core_exceptions.PermissionDeniedError),
+            pytest.raises(core_exceptions.SessionEndedError),
         ):
             authentication_service_refresh_service._replay_rotation(
                 "web", _session(), "old-token", "127.0.0.1", "agent", _USER_ID_5, MagicMock(), MagicMock(), mock_db
@@ -320,7 +307,7 @@ class TestRefreshRefusal:
         audit.assert_not_audited(_REFRESH)
 
     def _rotate_losing_the_race(self, db, *, reuse_after_conflict):
-        tokens = (_SESSION_ID, datetime(2999, 1, 1, tzinfo=UTC), "at", datetime(2999, 1, 1, tzinfo=UTC), "rt", "csrf")
+        tokens = (_SESSION_ID, datetime(2999, 1, 1, tzinfo=UTC), "at", datetime(2999, 1, 1, tzinfo=UTC), "rt")
         integration = "modules.auth.authentication.refresh_service.rotated_refresh_tokens_integration"
         with (
             patch(f"{_SERVICE}.sessions_integration.validate_session_timeout"),

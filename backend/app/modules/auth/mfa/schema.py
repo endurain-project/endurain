@@ -1,5 +1,8 @@
 """Pydantic schemas for MFA operations (owned by auth)."""
 
+import uuid
+from datetime import datetime
+
 from pydantic import (
     BaseModel,
     ConfigDict,
@@ -97,16 +100,46 @@ class MFASetupRead(BaseModel):
     )
 
 
+class MFAFactorRead(BaseModel):
+    """One enrolled second factor.
+
+    Attributes:
+        id: The factor's id.
+        type: The kind of factor, such as ``totp``. An open set: a client shows an unknown type generically.
+        created_at: When the factor was enrolled.
+        last_used_at: When the factor last verified a sign-in or step-up; null if it has not.
+    """
+
+    id: uuid.UUID
+    type: StrictStr = Field(
+        ..., description="Kind of factor, such as totp. An open set: new types can appear, so handle an unknown one"
+    )
+    created_at: datetime
+    last_used_at: datetime | None = Field(
+        default=None, description="When the factor last verified a sign-in or step-up; null if it has not"
+    )
+
+    model_config = ConfigDict(
+        extra="forbid",
+        from_attributes=True,
+    )
+
+
 class MFAStatusRead(BaseModel):
     """Response model for MFA status.
 
     Attributes:
-        mfa_enabled: Whether MFA is enabled for the user.
+        mfa_enabled: Whether the user has any second factor.
+        factors: The user's enrolled factors, oldest first.
     """
 
     mfa_enabled: StrictBool = Field(
         ...,
-        description="Whether MFA is enabled",
+        description="Whether the user has any second factor",
+    )
+    factors: list[MFAFactorRead] = Field(
+        default_factory=list,
+        description="The user's enrolled second factors, oldest first; empty when mfa_enabled is false",
     )
 
     model_config = ConfigDict(

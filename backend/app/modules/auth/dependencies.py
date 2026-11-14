@@ -279,6 +279,20 @@ def get_sid_from_access_token(principal: CurrentPrincipal) -> uuid.UUID:
     return principal.credential.session_id
 
 
+def get_optional_sid_from_access_token(principal: CurrentPrincipal) -> uuid.UUID | None:
+    """Return the session id carried by the caller's access token, or None for an API key.
+
+    Args:
+        principal: The caller.
+
+    Returns:
+        The session id, or None when the caller is an API key.
+    """
+    if isinstance(principal.credential, auth_contracts.AccessTokenCred):
+        return principal.credential.session_id
+    return None
+
+
 def audit_context_from_request() -> jasil_audit.AuditContext:
     """Describe who is acting, for the audit trail.
 
@@ -316,6 +330,8 @@ CurrentUserId = Annotated[uuid.UUID, Depends(get_current_user_id)]
 CurrentScopes = Annotated[frozenset[str], Depends(get_current_scopes)]
 #: Session id carried by the caller's access token; an API key is refused.
 CurrentSessionId = Annotated[uuid.UUID, Depends(get_sid_from_access_token)]
+#: Session id carried by the caller's access token, or None for an API key.
+OptionalSessionId = Annotated[uuid.UUID | None, Depends(get_optional_sid_from_access_token)]
 StepUpStore = account_security_integration.StepUpStore
 get_step_up_attempts = account_security_integration.get_step_up_attempts
 MFASecretStoreBackend = auth_mfa_dependencies.MFASecretStoreBackend
@@ -382,6 +398,7 @@ __all__ = [
     "CurrentSessionId",
     "CurrentUserId",
     "MFASecretStoreBackend",
+    "OptionalSessionId",
     "SessionRevokeVerifierDep",
     "StepUpStore",
     "StepUpVerifierDep",
@@ -391,6 +408,7 @@ __all__ = [
     "get_current_scopes",
     "get_current_user_id",
     "get_mfa_secret_store",
+    "get_optional_sid_from_access_token",
     "get_principal",
     "get_session_revoke_verifier",
     "get_sid_from_access_token",

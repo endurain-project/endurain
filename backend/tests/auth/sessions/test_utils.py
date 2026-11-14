@@ -43,7 +43,6 @@ def _session(*, last_activity_at: datetime, created_at: datetime) -> sessions_co
         token_family_id=FAMILY_ID,
         rotation_count=0,
         last_rotation_at=None,
-        csrf_token_hash=None,
         client_type="web",
         auth_time=created_at,
         amr=["pwd"],
@@ -115,6 +114,6 @@ def test_validate_timeout_without_idle_policy_still_enforces_absolute_timeout():
         )
 
 
-def test_verify_csrf_token_compares_hmac_values():
-    assert sessions_utils.verify_csrf_token("a" * 64, "a" * 64)
-    assert not sessions_utils.verify_csrf_token("a" * 64, "b" * 64)
+def test_digests_match_compares_hmac_values():
+    assert sessions_utils.digests_match("a" * 64, "a" * 64)
+    assert not sessions_utils.digests_match("a" * 64, "b" * 64)

@@ -9,12 +9,17 @@ import pytest
 import requests
 
 import core.exceptions as core_exceptions
+import modules.auth.identity_providers.constants as identity_providers_constants
+import modules.auth.schema as auth_schema
 import modules.strava.audit_actions as strava_audit_actions
 import modules.strava.constants as strava_constants
 import modules.strava.oauth_state_store as strava_oauth_state_store
 import modules.strava.schema as strava_schema
 import modules.strava.service as strava_service
 from tests._helpers.auth import MOCK_USER_ID
+
+_STEP_UP = auth_schema.StepUpVerification(current_password="pw")
+_verify = MagicMock()
 
 
 @pytest.fixture
@@ -35,14 +40,33 @@ class TestStoredCredentials:
         ):
             version = strava_service.set_client(
                 MOCK_USER_ID,
-                strava_schema.StravaClientCredentials(client_id=123, client_secret="secret"),
+                strava_schema.StravaClientCredentials(client_id=123, client_secret="secret", step_up=_STEP_UP),
+                _verify,
                 db,
                 if_match='"2"',
             )
 
         store.assert_called_once_with(MOCK_USER_ID, "123", "secret", db, if_match='"2"')
-        db.commit.assert_called_once()
+        # One commit for the verified step-up, one for the stored client.
+        assert db.commit.call_count == 2
         assert version == 3
+
+    def test_the_step_up_is_verified_for_the_client_action_before_anything_is_stored(self):
+        verify = MagicMock(side_effect=core_exceptions.StepUpFailedError("no"))
+        with (
+            patch.object(strava_service.user_integrations_integration, "set_strava_client") as store,
+            pytest.raises(core_exceptions.StepUpFailedError),
+        ):
+            strava_service.set_client(
+                MOCK_USER_ID,
+                strava_schema.StravaClientCredentials(client_id=123, client_secret="secret", step_up=_STEP_UP),
+                verify,
+                MagicMock(),
+                if_match='"2"',
+            )
+
+        verify.assert_called_once_with(_STEP_UP, identity_providers_constants.StepUpAction.STRAVA_CLIENT_SET)
+        store.assert_not_called()
 
     def test_a_row_changed_by_another_request_is_a_stale_write_not_a_server_error(self):
         from sqlalchemy.orm.exc import StaleDataError
@@ -57,12 +81,14 @@ class TestStoredCredentials:
         ):
             strava_service.set_client(
                 MOCK_USER_ID,
-                strava_schema.StravaClientCredentials(client_id=123, client_secret="secret"),
+                strava_schema.StravaClientCredentials(client_id=123, client_secret="secret", step_up=_STEP_UP),
+                _verify,
                 db,
                 if_match='"2"',
             )
 
-        db.commit.assert_not_called()
+        # Only the verified step-up was committed.
+        assert db.commit.call_count == 1
 
 
 class TestOAuthState:

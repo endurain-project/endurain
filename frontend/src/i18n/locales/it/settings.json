@@ -645,7 +645,8 @@
       "stepUpDescription": "I provider di identità decidono chi può accedere a questo server. Conferma che sei tu per continuare.",
       "slugConflict": "Quello slug è già in uso",
       "issuerInUse": "Un altro provider di identità usa già questo URL dell'emittente",
-      "issuerLocked": "L'URL dell'emittente non può cambiare finché ci sono utenti collegati a questo provider. Scollegali oppure aggiungi un nuovo provider.",
+      "locked": "Lo slug, l'ID client, il protocollo, l'emittente e gli endpoint non possono cambiare finché ci sono utenti collegati a questo provider. Scollegali oppure aggiungi un nuovo provider.",
+      "lockedHint": "Bloccato finché ci sono utenti collegati a questo provider.",
       "staleError": "Questo provider è stato modificato altrove. Le tue modifiche non sono state salvate. Chiudilo e riaprilo per caricare le impostazioni attuali.",
       "saveError": "Impossibile salvare il provider. Riprova."
     }

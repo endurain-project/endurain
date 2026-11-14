@@ -60,6 +60,7 @@ def sessions_app(mock_db) -> FastAPI:
 
     app.dependency_overrides[core_database.get_db] = lambda: mock_db
     app.dependency_overrides[auth_dependencies.check_scopes] = lambda: None
+    app.dependency_overrides[auth_dependencies.get_optional_sid_from_access_token] = lambda: SESSION_ID
     app.dependency_overrides[auth_dependencies.get_session_revoke_verifier] = lambda: VERIFIER
     app.add_exception_handler(core_exceptions.DomainError, core_exceptions.domain_error_handler)
 

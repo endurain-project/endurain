@@ -50,13 +50,14 @@ describe('server log services', () => {
     })
   })
 
-  it('clears the log with a DELETE', async () => {
+  it('clears the log with a POST carrying the step-up', async () => {
     mockedApiFetch.mockResolvedValue(undefined)
 
-    await clearLogs()
+    await clearLogs({ currentPassword: 'pw', mfaCode: null })
 
-    expect(mockedApiFetch).toHaveBeenCalledWith('/server-settings/logs', {
-      method: 'DELETE',
+    expect(mockedApiFetch).toHaveBeenCalledWith('/server-settings/logs/clear', {
+      method: 'POST',
+      body: JSON.stringify({ step_up: { current_password: 'pw', mfa_code: null } }),
       responseType: 'void',
     })
   })

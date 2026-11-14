@@ -239,6 +239,7 @@ class TestRateLimit:
 
         assert isinstance(error, core_exceptions.TooManyRequestsError)
         assert error.retry_at == rate_limits.rate_limited_until(MOCK_USER_ID)
+        assert error.scope == core_exceptions.TooManyRequestsScope.PROVIDER
 
     def test_a_call_is_refused_while_the_account_is_limited(self):
         rate_limits = garmin_helpers.rate_limits()
@@ -248,6 +249,7 @@ class TestRateLimit:
             garmin_service.raise_if_rate_limited(MOCK_USER_ID, rate_limits)
 
         assert raised.value.retry_at == until
+        assert raised.value.scope == core_exceptions.TooManyRequestsScope.PROVIDER
 
     def test_a_call_is_allowed_when_nothing_is_limited(self):
         garmin_service.raise_if_rate_limited(MOCK_USER_ID, garmin_helpers.rate_limits())

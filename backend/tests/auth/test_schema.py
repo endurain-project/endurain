@@ -60,20 +60,29 @@ class TestMFARequiredResponse:
     """Tests for MFARequiredRead Pydantic model."""
 
     def test_mfa_required_response_names_the_next_step(self):
-        """The body holds the step and the challenge only."""
-        response = auth_schema.MFARequiredRead(next_step="mfa", mfa_challenge="c" * 43)
+        """The body holds the step, the challenge and the methods the account can answer with."""
+        response = auth_schema.MFARequiredRead(next_step="mfa", mfa_challenge="c" * 43, methods=["totp", "backup_code"])
 
-        assert response.model_dump() == {"next_step": "mfa", "mfa_challenge": "c" * 43}
+        assert response.model_dump() == {
+            "next_step": "mfa",
+            "mfa_challenge": "c" * 43,
+            "methods": ["totp", "backup_code"],
+        }
+
+    def test_mfa_required_response_requires_the_methods(self):
+        """The methods are stated, never defaulted."""
+        with pytest.raises(ValueError, match="methods"):
+            auth_schema.MFARequiredRead.model_validate({"next_step": "mfa", "mfa_challenge": "c" * 43})
 
     def test_mfa_required_response_requires_the_next_step(self):
         """A body without the step is refused rather than defaulted."""
         with pytest.raises(ValueError, match="next_step"):
-            auth_schema.MFARequiredRead.model_validate({"mfa_challenge": "c" * 43})
+            auth_schema.MFARequiredRead.model_validate({"mfa_challenge": "c" * 43, "methods": []})
 
     def test_mfa_required_response_refuses_another_step(self):
         """The step is the literal ``mfa``."""
         with pytest.raises(ValueError, match="next_step"):
-            auth_schema.MFARequiredRead(next_step="tokens", mfa_challenge="c" * 43)
+            auth_schema.MFARequiredRead(next_step="tokens", mfa_challenge="c" * 43, methods=[])
 
 
 class TestAuthRouterErrors:

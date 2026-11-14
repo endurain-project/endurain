@@ -645,7 +645,8 @@
       "stepUpDescription": "Furnizorii de identitate decid cine se poate autentifica pe acest server. Confirmă că ești tu pentru a continua.",
       "slugConflict": "Acel slug este deja folosit",
       "issuerInUse": "Un alt furnizor de identitate folosește deja acest URL de emitent",
-      "issuerLocked": "URL-ul emitentului nu poate fi schimbat cât timp există utilizatori asociați cu acest furnizor. Disociază-i sau adaugă în schimb un furnizor nou.",
+      "locked": "Slug-ul, ID-ul de client, protocolul, emitentul și punctele finale nu pot fi schimbate cât timp există utilizatori asociați cu acest furnizor. Disociază-i sau adaugă în schimb un furnizor nou.",
+      "lockedHint": "Blocat cât timp există utilizatori asociați cu acest furnizor.",
       "staleError": "Acest furnizor a fost modificat în altă parte. Modificările tale nu au fost salvate. Închide-l și redeschide-l pentru a încărca setările curente.",
       "saveError": "Nu am putut salva furnizorul. Te rugăm să încerci din nou."
     }

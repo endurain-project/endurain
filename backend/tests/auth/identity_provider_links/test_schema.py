@@ -209,7 +209,7 @@ class TestUserIdentityProviderRead:
         # Assert
         assert obj.id == uuid.UUID(int=1)
         assert obj.linked_at is not None
-        assert obj.last_login is None
+        assert obj.last_login_at is None
 
     def test_user_identity_provider_read_valid_all_fields(self):
         """Test creating UserIdentityProviderRead with all fields.
@@ -226,7 +226,7 @@ class TestUserIdentityProviderRead:
             "idp_id": IDP_ID,
             "idp_subject": "user123@example.com",
             "linked_at": now,
-            "last_login": now,
+            "last_login_at": now,
         }
 
         # Act
@@ -234,7 +234,7 @@ class TestUserIdentityProviderRead:
 
         # Assert
         assert obj.id == uuid.UUID(int=1)
-        assert obj.last_login == now
+        assert obj.last_login_at == now
 
     def test_user_identity_provider_read_missing_linked_at(self):
         """Test validation error when linked_at is missing.

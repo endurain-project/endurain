@@ -38,5 +38,8 @@
   "notRestoredBody": "Değişiklik bildirildi, hesabınızın her yerden oturumu kapatıldı ve API anahtarları iptal edildi. Önceki adresinizi artık başka bir hesap kullanıyor, bu yüzden hesabınız yeni adresi koruyor. Endurain yöneticinizle iletişime geçin ve parolanızı değiştirin.",
   "cancelInvalidTitle": "Bu bağlantı artık çalışmıyor",
   "cancelInvalidBody": "Bağlantı geçersiz, süresi dolmuş veya zaten kullanılmış ya da e-posta adresi gönderildikten sonra tekrar değiştirilmiş. Hâlâ başkasının erişimi olduğunu düşünüyorsanız giriş yapıp parolanızı değiştirin.",
-  "cancelError": "Değişiklik iptal edilemedi. Lütfen tekrar deneyin."
+  "cancelError": "Değişiklik iptal edilemedi. Lütfen tekrar deneyin.",
+  "confirmChangeTitle": "Yeni e-posta adresinizi onaylayın",
+  "confirmChangeBody": "Hesabınızın e-posta adresini değiştirmek istediğinizi onaylamak için düğmeye basın. Her yerden çıkış yapacaksınız.",
+  "confirmChangeButton": "E-posta değişikliğini onayla"
 }

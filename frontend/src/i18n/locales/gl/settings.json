@@ -645,7 +645,8 @@
       "stepUpDescription": "Os provedores de identidade deciden quen pode iniciar sesión neste servidor. Confirma que es ti para continuar.",
       "slugConflict": "Ese slug xa está en uso",
       "issuerInUse": "Outro provedor de identidade xa usa esta URL do emisor",
-      "issuerLocked": "A URL do emisor non se pode cambiar mentres haxa usuarios vinculados a este provedor. Desvincúlaos ou engade un provedor novo.",
+      "locked": "O slug, o ID de cliente, o protocolo, o emisor e os puntos finais non se poden cambiar mentres haxa usuarios vinculados a este provedor. Desvincúlaos ou engade un provedor novo.",
+      "lockedHint": "Bloqueado mentres haxa usuarios vinculados a este provedor.",
       "staleError": "Este provedor cambiou noutro lugar. Os teus cambios non se gardaron. Péchao e ábreo de novo para cargar a configuración actual.",
       "saveError": "Non se puido gardar o provedor. Por favor, téntao de novo."
     }

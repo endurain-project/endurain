@@ -32,7 +32,7 @@ export function mapLinkedProvider(dto: LinkedProviderDto): LinkedProvider {
     providerType: dto.idp_provider_type ?? null,
     subject: dto.idp_subject,
     linkedAt: dto.linked_at,
-    lastLogin: dto.last_login ?? null,
+    lastLogin: dto.last_login_at ?? null,
   }
 }
 

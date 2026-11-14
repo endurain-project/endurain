@@ -30,7 +30,7 @@ def _create_provider(factory) -> idp_schema.IdentityProviderRead:
     with factory() as db:
         state = idp_crud.create_identity_provider(data, db)
         db.commit()
-        return to_read_schema(state)
+        return to_read_schema(state, has_linked_users=False)
 
 
 def _oidc() -> idp_oidc_client_service.OidcClientService:

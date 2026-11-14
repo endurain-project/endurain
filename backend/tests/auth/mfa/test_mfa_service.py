@@ -26,6 +26,25 @@ class TestGenerateTOTPSecret:
         mock_random_base32.assert_called_once()
 
 
+class TestSignInMethods:
+    """The methods an MFA-required sign-in lists follow the factors the user has."""
+
+    @staticmethod
+    def _methods(factor_types):
+        factors = [SimpleNamespace(type=factor_type) for factor_type in factor_types]
+        with patch("modules.auth.mfa.service.auth_mfa_crud.get_user_factors", return_value=factors):
+            return mfa_service.get_sign_in_methods(MOCK_USER_ID, MagicMock())
+
+    def test_a_user_with_totp_answers_with_totp_or_a_backup_code(self):
+        assert self._methods(["totp"]) == ["totp", "backup_code"]
+
+    def test_a_factor_type_is_listed_once(self):
+        assert self._methods(["totp", "totp"]) == ["totp", "backup_code"]
+
+    def test_a_user_without_a_factor_has_no_method(self):
+        assert self._methods([]) == []
+
+
 class TestVerifyUserMfaTotpReplay:
     """A TOTP step is accepted once per user, so an observed code cannot be replayed."""
 

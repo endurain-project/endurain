@@ -1,10 +1,12 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { onMounted, ref } from 'vue'
 import { useQueryClient } from '@tanstack/vue-query'
 import { useI18n } from 'vue-i18n'
 import { ChevronDown } from '@lucide/vue'
 
 import type { DateRange, StravaClientInput } from '@/features/integrations/types'
+import type { IdpReauth, StepUpInput } from '@/features/security/types'
+import type { IdpStepUpResume } from '@/features/security/composables/useIdpStepUp'
 
 import RetrieveRangeDialog from '@/features/integrations/components/RetrieveRangeDialog.vue'
 import StravaConnectDialog from '@/features/integrations/components/StravaConnectDialog.vue'
@@ -12,7 +14,7 @@ import { Alert } from '@/components/ui/alert'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
-import { ConfirmDialog } from '@/components/ui/confirm-dialog'
+import StepUpDialog from '@/features/security/components/StepUpDialog.vue'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -20,6 +22,12 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
+import { useAdminStepUp } from '@/features/security/composables/useAdminStepUp'
+import {
+  isStepUpFailed,
+  isStepUpLocked,
+  useIdpReauthChallenge,
+} from '@/features/security/composables/useIdpStepUp'
 import { INTEGRATION_LOGOS } from '@/constants/integrationLogos'
 import { useToasts } from '@/composables/useToasts'
 import { isStaleWrite } from '@/services/ifMatch'
@@ -46,6 +54,8 @@ const props = defineProps<{
   dataDeletionAt: string | null
   /** The integrations row version the profile was read at, sent as `If-Match` with the client. */
   integrationsVersion: number
+  /** The identity-provider sign-in the browser just returned from, if any. */
+  resume: IdpStepUpResume | null
 }>()
 
 const { t, locale } = useI18n()
@@ -57,9 +67,41 @@ const activitiesMutation = useRetrieveStravaActivitiesMutation()
 const gearMutation = useRetrieveStravaGearMutation()
 const unlinkMutation = useUnlinkStravaMutation()
 
+const handleIdpChallenge = useIdpReauthChallenge()
+const { requirePassword, requireMfa } = useAdminStepUp()
+
 const isConnectOpen = ref(false)
 const isActivitiesOpen = ref(false)
 const isUnlinkOpen = ref(false)
+const connectReauth = ref<IdpReauth | null>(null)
+const unlinkReauth = ref<IdpReauth | null>(null)
+
+/** Reopens the dialog the identity-provider sign-in was for, with its proof. */
+onMounted(() => {
+  if (props.resume?.action === 'strava_client_set') {
+    connectReauth.value = props.resume.reauth
+    isConnectOpen.value = true
+  } else if (props.resume?.action === 'strava_unlink') {
+    unlinkReauth.value = props.resume.reauth
+    isUnlinkOpen.value = true
+  }
+})
+
+/** Reports a refused step-up, or returns `false` when the error is something else. */
+function reportStepUpError(error: unknown): boolean {
+  if (handleIdpChallenge(error)) {
+    return true
+  }
+  if (isStepUpLocked(error)) {
+    toasts.error(t('settings.security.stepUp.tooManyAttempts'))
+    return true
+  }
+  if (isStepUpFailed(error)) {
+    toasts.error(t('settings.security.linked.invalidCredentials'))
+    return true
+  }
+  return false
+}
 // Held true through the full-page redirect so the dialog button stays busy.
 const isConnecting = ref(false)
 
@@ -67,11 +109,11 @@ const isConnecting = ref(false)
  * Obtains the state, stores the client credentials, then sends the browser to Strava's
  * OAuth page. Strava redirects back to `/strava/callback` to finish linking.
  */
-async function connectStrava(input: StravaClientInput): Promise<void> {
+async function connectStrava(input: StravaClientInput, stepUp: StepUpInput): Promise<void> {
   isConnecting.value = true
   try {
     const state = await beginStravaState()
-    await setStravaClient(input, props.integrationsVersion)
+    await setStravaClient(input, stepUp, props.integrationsVersion)
     window.location.assign(buildStravaAuthUrl(state, input.clientId))
   } catch (error) {
     isConnecting.value = false
@@ -81,7 +123,7 @@ async function connectStrava(input: StravaClientInput): Promise<void> {
       void queryClient.invalidateQueries({ queryKey: queryKeys.profile.all() })
       isConnectOpen.value = false
       toasts.error(t('app.staleError'))
-    } else {
+    } else if (!reportStepUpError(error)) {
       toasts.error(t('settings.integrations.strava.connectError'))
     }
   }
@@ -112,13 +154,17 @@ function retrieveGear(): void {
   })
 }
 
-function confirmUnlink(): void {
-  unlinkMutation.mutate(undefined, {
+function confirmUnlink(stepUp: StepUpInput): void {
+  unlinkMutation.mutate(stepUp, {
     onSuccess: () => {
       isUnlinkOpen.value = false
       toasts.success(t('settings.integrations.strava.unlinkSuccess'))
     },
-    onError: () => toasts.error(t('settings.integrations.strava.unlinkError')),
+    onError: (error) => {
+      if (!reportStepUpError(error)) {
+        toasts.error(t('settings.integrations.strava.unlinkError'))
+      }
+    },
   })
 }
 </script>
@@ -189,7 +235,13 @@ function confirmUnlink(): void {
 
     <StravaConnectDialog
       v-model:open="isConnectOpen"
+      v-model:reauth="connectReauth"
       :pending="isConnecting"
+      :require-password="requirePassword"
+      :require-mfa="requireMfa"
+      :restored-context="
+        props.resume?.action === 'strava_client_set' ? props.resume.pending : undefined
+      "
       @submit="connectStrava"
     />
 
@@ -200,13 +252,16 @@ function confirmUnlink(): void {
       @submit="onRetrieveActivities"
     />
 
-    <ConfirmDialog
+    <StepUpDialog
       v-model:open="isUnlinkOpen"
+      v-model:reauth="unlinkReauth"
+      action="strava_unlink"
       :title="t('settings.integrations.strava.unlinkTitle')"
       :description="t('settings.integrations.strava.unlinkBody')"
       :confirm-label="t('settings.integrations.unlink')"
-      :cancel-label="t('settings.integrations.cancel')"
-      :close-label="t('settings.integrations.close')"
+      :require-password="requirePassword"
+      :require-mfa="requireMfa"
+      destructive
       :pending="unlinkMutation.isPending.value"
       @confirm="confirmUnlink"
     />

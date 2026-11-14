@@ -5,9 +5,11 @@ from typing import Annotated
 from fastapi import APIRouter, Query, Request, Security, status
 from fastapi.responses import FileResponse
 
+import core.dependencies as core_dependencies
 import core.openapi_contract as core_openapi_contract
 import core.rate_limit as core_rate_limit
 import modules.auth.dependencies as auth_dependencies
+import modules.auth.schema as auth_schema
 import modules.server_settings.logs_schema as logs_schema
 import modules.server_settings.logs_service as logs_service
 
@@ -83,8 +85,8 @@ def download_logs() -> FileResponse:
     )
 
 
-@router.delete(
-    "",
+@router.post(
+    "/clear",
     response_model=None,
     status_code=status.HTTP_204_NO_CONTENT,
     dependencies=[Security(auth_dependencies.check_scopes, scopes=["server-settings:logs-clear"])],
@@ -92,18 +94,14 @@ def download_logs() -> FileResponse:
 @core_rate_limit.limiter.limit(core_rate_limit.WRITE)
 def clear_logs(
     request: Request,
+    body: auth_schema.StepUpRequest,
     token_user_id: auth_dependencies.CurrentUserId,
+    verify_step_up: auth_dependencies.StepUpVerifierDep,
+    db: core_dependencies.DbSession,
 ) -> None:
-    """Empty the server log and delete its rotated backups.
+    """Empty the server log and delete its rotated backups, after the administrator's step-up verification.
 
-    Requires admin authentication with server-settings:logs-clear scope. The action is
-    recorded as the first line of the new log.
-
-    Args:
-        request: The HTTP request object.
-        token_user_id: The requesting admin's user ID, from the access token.
-
-    Raises:
-        NotFoundError: 404 if the log viewer is not available on this deployment.
+    The action is recorded as the first line of the new log. It needs a signed-in session: an API key cannot
+    step up.
     """
-    logs_service.clear_logs(token_user_id)
+    logs_service.clear_logs(token_user_id, body.step_up, verify_step_up, db)

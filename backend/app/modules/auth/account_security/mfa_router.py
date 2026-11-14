@@ -26,15 +26,7 @@ def get_mfa_status(
     token_user_id: auth_dependencies.CurrentUserId,
     db: core_dependencies.DbSession,
 ) -> mfa_schema.MFAStatusRead:
-    """Return MFA enabled status for authenticated user.
-
-    Args:
-        token_user_id: User ID from access token.
-        db: Database session.
-
-    Returns:
-        MFA status response with enabled flag.
-    """
+    """Return whether the account has MFA and the second factors it has enrolled."""
     return mfa_workflow_service.get_mfa_status(token_user_id, db)
 
 

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import uuid
+from collections.abc import Sequence
 from datetime import UTC, datetime
 from typing import NoReturn
 
@@ -40,6 +41,7 @@ import modules.auth.oauth_state.constants as oauth_state_constants
 import modules.auth.oauth_state.integration_service as oauth_state_integration
 import modules.auth.rotated_refresh_tokens.integration_service as rotated_refresh_tokens_integration
 import modules.auth.security_generation.integration_service as security_generation_integration
+import modules.auth.sessions.contracts as sessions_contracts
 import modules.auth.sessions.integration_service as sessions_integration
 import modules.server_settings.integration_service as server_settings_integration
 import modules.users.users.integration_service as users_integration
@@ -72,7 +74,7 @@ def _refuse_credentials(
         reason: Why the sign-in was refused.
 
     Raises:
-        UnauthenticatedError: Always.
+        UnauthenticatedError: Always, with the ``Session`` challenge: the sign-in has no bearer scheme.
     """
     login_audit_integration.record_login_refusal(
         login_audit_actions.LoginMethod.PASSWORD, outcome, reason, user_id=user_id
@@ -81,7 +83,7 @@ def _refuse_credentials(
         "Sign-in refused for <username_log_id>",
         extra=core_logger.context(username_log_id=lockout_integration.username_log_identifier(username)),
     )
-    raise core_exceptions.UnauthenticatedError("Unable to authenticate with provided credentials", scheme="Bearer")
+    raise core_exceptions.UnauthenticatedError("Unable to authenticate with provided credentials", scheme="Session")
 
 
 def _record_failed_login(
@@ -212,7 +214,7 @@ def complete_login(
 ) -> auth_schema.AuthOutcome[auth_schema.TokenWebRead]:
     """Complete the password sign-in of a web client: create its session and tokens.
 
-    The access token and the CSRF token are returned in the body (for in-memory storage) and the refresh token as
+    The access token is returned in the body (for in-memory storage) and the refresh token as
     an ``HttpOnly`` cookie with ``SameSite=Strict``. A mobile client's session is created by
     :func:`create_mobile_pkce_session_response` and its tokens by the token exchange.
 
@@ -233,7 +235,7 @@ def complete_login(
             forgetting the device ends it.
 
     Returns:
-        The token body (session_id, access_token, csrf_token, token_type, expires_in, refresh_token_expires_in) and
+        The token body (session_id, access_token, token_type, expires_in, refresh_token_expires_in) and
         the refresh cookie.
 
     Raises:
@@ -248,13 +250,10 @@ def complete_login(
         access_token,
         refresh_token_exp,
         refresh_token,
-        csrf_token,
     ) = authentication_token_service.create_tokens(
         user, auth_constants.ClientType.WEB, token_manager, server_settings_integration.get_session_policy(db)
     )
 
-    # The CSRF token is not stored on the initial login (csrf_token_hash = None). The first /refresh call after a
-    # page reload establishes the CSRF binding, and the HttpOnly cookie alone authenticates that bootstrap refresh.
     session = sessions_integration.create_session(
         session_id,
         user,
@@ -277,7 +276,6 @@ def complete_login(
         refresh_token,
         refresh_token_exp,
         session.expires_at,
-        csrf_token,
     )
 
 
@@ -377,6 +375,144 @@ def raise_auth_security_store_unavailable(
     raise core_exceptions.ServiceUnavailableError("Authentication temporarily unavailable")
 
 
+def start_mfa_challenge(
+    pending: mfa_dependencies.PendingLogin,
+    pending_mfa_store: mfa_dependencies.PendingMFAStore,
+    db: Session,
+) -> auth_schema.MFARequiredRead:
+    """Store a sign-in whose first step succeeded and answer with the challenge its MFA step must send back.
+
+    The caller's transaction is committed: it holds what the verified first step staged, such as a password rehash,
+    and never a session, which the MFA step creates or claims.
+
+    Args:
+        pending: The sign-in, bound to the client type, client network and security generation of its first step.
+        pending_mfa_store: Store for pending MFA logins.
+        db: Database session.
+
+    Returns:
+        The MFA step, with the challenge and the kinds of code the account can answer with.
+
+    Raises:
+        ServiceUnavailableError: If the store is down.
+    """
+    try:
+        mfa_challenge = pending_mfa_store.add_pending_login(pending)
+    except lockout_contracts.AuthSecurityStoreUnavailableError as err:
+        raise_auth_security_store_unavailable(err)
+    db.commit()
+    logger.info("MFA step started for user <user_id>", extra=core_logger.context(user_id=str(pending.user_id)))
+    return auth_schema.MFARequiredRead(
+        next_step="mfa",
+        mfa_challenge=mfa_challenge,
+        methods=mfa_integration.get_sign_in_methods(pending.user_id, db),
+    )
+
+
+def complete_session_exchange(
+    user: users_schema.UserRead,
+    session_id: uuid.UUID,
+    client_type: auth_constants.ClientType,
+    session_amr: Sequence[str],
+    ip_address: str,
+    user_agent: str,
+    token_manager: access_tokens_integration.TokenManager,
+    db: Session,
+    *,
+    federated: bool,
+    mfa: bool,
+    device_id: str | None,
+) -> auth_schema.AuthOutcome[auth_schema.TokenRead] | None:
+    """Issue the tokens of a sign-in session that passed every check, claiming the session once.
+
+    The session was created by a mobile password sign-in or an identity-provider callback and holds no tokens yet.
+    The claim is one conditional update, so of two requests that reach it for one session only one issues tokens.
+    An identity-provider sign-in is complete once its tokens are issued, so its known device and its
+    ``auth.session.login`` row are staged in the transaction that commits the claim; a password sign-in recorded both
+    when its session was created.
+
+    Args:
+        user: The account the session belongs to.
+        session_id: The session to exchange.
+        client_type: The session's client type, which the caller checked the request against.
+        session_amr: The methods the session was created with.
+        ip_address: Client address of the request.
+        user_agent: Client user agent of the request.
+        token_manager: Token manager that signs the tokens.
+        db: Database session.
+        federated: Whether the session came from an identity provider.
+        mfa: Whether a second factor was verified after the session was created.
+        device_id: Device id from the browser's device cookie or the mobile app's ``X-Device-Id`` header, or None when
+            the client sent no valid one.
+
+    Returns:
+        The tokens; a web client gets the refresh token as a cookie in the outcome, a mobile client in the body. An
+        identity-provider sign-in also carries the device id the client keeps: in the outcome for the browser's
+        cookie, in the body for the mobile app. None when another request claimed the session first, and nothing is
+        committed then.
+    """
+    fingerprint = core_hashing.log_fingerprint(str(session_id))
+    # The session records the second factor verified after it was created next to the methods it was created with.
+    amr = list(session_amr)
+    if mfa:
+        amr = [*amr, auth_constants.AuthMethod.ONE_TIME_CODE, auth_constants.AuthMethod.MULTI_FACTOR]
+
+    (_, access_token_exp, access_token, refresh_token_exp, refresh_token) = authentication_token_service.create_tokens(
+        user, client_type, token_manager, server_settings_integration.get_session_policy(db), session_id
+    )
+
+    # Store the refresh-token hash, mark the tokens exchanged and extend the session from the end of the exchange
+    # window to the refresh lifetime in one conditional update.
+    session_expires_at = sessions_integration.claim_session_for_token_exchange(
+        session_id, sessions_integration.hash_refresh_token(refresh_token), refresh_token_exp, amr, db
+    )
+    if session_expires_at is None:
+        logger.warning("Token exchange lost race for session <value_1>", extra=core_logger.context(value_1=fingerprint))
+        return None
+    issued_device_id = None
+    if federated:
+        sign_in = known_devices_integration.record_sign_in(
+            user.id, device_id, ip_address, user_agent, known_devices_events.SignInMethod.IDENTITY_PROVIDER, db
+        )
+        issued_device_id = sign_in.device_id
+        sessions_integration.set_session_device_hash(session_id, core_hashing.sha256_hex(issued_device_id), db)
+        with login_audit_integration.acting_as_user(user.id):
+            jasil_audit.stage(
+                db,
+                login_audit_actions.LOGIN,
+                **login_audit_integration.user_target(user.id),
+                details=login_audit_actions.LoginDetails(
+                    method=login_audit_actions.LoginMethod.IDENTITY_PROVIDER, mfa=mfa, new_device=sign_in.new_device
+                ),
+            )
+    db.commit()
+
+    logger.info(
+        "Token exchange successful for session <value_1> (user=<username_log_id>, client_type=<client_type>)",
+        extra=core_logger.context(
+            value_1=fingerprint,
+            username_log_id=lockout_integration.username_log_identifier(user.username),
+            client_type=client_type,
+        ),
+    )
+
+    if client_type == auth_constants.ClientType.WEB:
+        web = authentication_token_service.build_web_token_response(
+            session_id, access_token, access_token_exp, refresh_token, refresh_token_exp, session_expires_at
+        )
+        return auth_schema.AuthOutcome(web.body, web.refresh_cookie, device_id=issued_device_id)
+    mobile = authentication_token_service.build_mobile_token_response(
+        session_id,
+        access_token,
+        access_token_exp,
+        refresh_token,
+        refresh_token_exp,
+        session_expires_at,
+        device_id=issued_device_id,
+    )
+    return auth_schema.AuthOutcome(mobile.body)
+
+
 def refuse_while_mfa_locked_out(
     username: str,
     ip_address: str,
@@ -427,6 +563,7 @@ def refuse_while_mfa_locked_out(
                 )
                 raise core_exceptions.TooManyRequestsError(
                     f"Too many failed MFA attempts. Account locked for {seconds_remaining} seconds.",
+                    scope=core_exceptions.TooManyRequestsScope.MFA,
                     retry_at=lockout_until,
                 )
     except lockout_contracts.AuthSecurityStoreUnavailableError as err:
@@ -503,48 +640,71 @@ def require_valid_mfa_code(
         raise core_exceptions.InvalidMfaCodeError(_INVALID_MFA_CODE_MESSAGE)
 
 
-def _refuse_mfa_challenge(reason: login_audit_actions.LoginFailureReason, user_id: uuid.UUID | None = None) -> NoReturn:
+def _refuse_mfa_challenge(
+    reason: login_audit_actions.LoginFailureReason,
+    method: login_audit_actions.LoginMethod,
+    user_id: uuid.UUID | None = None,
+) -> NoReturn:
     """Audit and log a dead MFA challenge, then answer with the one message every dead challenge shares.
 
     Args:
         reason: Why the challenge was refused.
+        method: How the sign-in started; a password sign-in when the challenge names no sign-in.
         user_id: The account the challenge named, or None when it named none.
 
     Raises:
-        UnauthenticatedError: Always, so the client signs in again.
+        SessionEndedError: Always, so the client signs in again.
     """
     logger.warning(
         "MFA verification refused: <reason>", extra=core_logger.context(reason=reason.value, user_id=str(user_id))
     )
-    login_audit_integration.record_login_refusal(
-        login_audit_actions.LoginMethod.PASSWORD,
-        jasil_audit.Outcome.FAILURE,
-        reason,
-        mfa=True,
-        user_id=user_id,
-    )
-    raise core_exceptions.UnauthenticatedError(_DEAD_MFA_CHALLENGE_MESSAGE, scheme="Bearer")
+    login_audit_integration.record_login_refusal(method, jasil_audit.Outcome.FAILURE, reason, mfa=True, user_id=user_id)
+    raise core_exceptions.SessionEndedError(_DEAD_MFA_CHALLENGE_MESSAGE)
 
 
-def _end_outdated_mfa_challenge(
-    challenge: str, user_id: uuid.UUID, pending_mfa_store: mfa_dependencies.PendingMFAStore
+def _end_mfa_challenge(
+    challenge: str,
+    reason: login_audit_actions.LoginFailureReason,
+    method: login_audit_actions.LoginMethod,
+    user_id: uuid.UUID,
+    pending_mfa_store: mfa_dependencies.PendingMFAStore,
 ) -> NoReturn:
-    """End an MFA challenge that a security change outdated, then refuse it like any dead challenge.
+    """End an MFA challenge that can never succeed, then refuse it like any dead challenge.
 
     Args:
-        challenge: The outdated challenge.
+        challenge: The challenge to end.
+        reason: Why it can never succeed: a security change outdated it, or its identity-provider session ended.
+        method: How the sign-in started.
         user_id: The account the challenge belongs to.
         pending_mfa_store: Store for pending MFA logins.
 
     Raises:
-        UnauthenticatedError: Always, so the client signs in again.
+        SessionEndedError: Always, so the client signs in again.
         ServiceUnavailableError: If the store is down.
     """
     try:
         pending_mfa_store.claim_pending_login(challenge)
     except lockout_contracts.AuthSecurityStoreUnavailableError as err:
         raise_auth_security_store_unavailable(err)
-    _refuse_mfa_challenge(login_audit_actions.LoginFailureReason.SECURITY_CHANGED, user_id)
+    _refuse_mfa_challenge(reason, method, user_id)
+
+
+def _sign_in_method(pending: mfa_dependencies.PendingLogin) -> login_audit_actions.LoginMethod:
+    """Return how the sign-in a pending MFA login belongs to started."""
+    if pending.sso_session_id is not None:
+        return login_audit_actions.LoginMethod.IDENTITY_PROVIDER
+    return login_audit_actions.LoginMethod.PASSWORD
+
+
+def _awaiting_sso_session(session_id: uuid.UUID, db: Session) -> sessions_contracts.SessionRead | None:
+    """Return the identity-provider session an MFA challenge finishes, while it is unexpired and not yet exchanged.
+
+    An exchange that finished clears the session's OAuth state, so a session without one is used up.
+    """
+    found = sessions_integration.get_session_with_oauth_state(session_id, db)
+    if found is None or found[1] is None:
+        return None
+    return found[0]
 
 
 def _end_challenge_after_wrong_code(
@@ -558,7 +718,7 @@ def _end_challenge_after_wrong_code(
         pending_mfa_store: Store for pending MFA logins.
 
     Raises:
-        UnauthenticatedError: If the wrong code ended the challenge.
+        SessionEndedError: If the wrong code ended the challenge.
         ServiceUnavailableError: If the store is down.
     """
     try:
@@ -569,7 +729,7 @@ def _end_challenge_after_wrong_code(
         logger.warning(
             "MFA challenge ended after too many wrong codes", extra=core_logger.context(user_id=str(user_id))
         )
-        raise core_exceptions.UnauthenticatedError(_DEAD_MFA_CHALLENGE_MESSAGE, scheme="Bearer")
+        raise core_exceptions.SessionEndedError(_DEAD_MFA_CHALLENGE_MESSAGE)
 
 
 def finish_login(
@@ -809,6 +969,7 @@ def login_for_access_token(
                 )
                 raise core_exceptions.TooManyRequestsError(
                     f"Account locked due to too many failed login attempts. Try again in {seconds_remaining} seconds.",
+                    scope=core_exceptions.TooManyRequestsScope.SIGN_IN,
                     retry_at=lockout_until,
                 )
     except lockout_contracts.AuthSecurityStoreUnavailableError as err:
@@ -852,9 +1013,11 @@ def login_for_access_token(
 
     # Check if MFA is enabled for this user
     if mfa_integration.is_mfa_enabled_for_user(user.id, db):
-        # Store the login, with the client type, client network and PKCE challenge of the password step, for the MFA step
-        try:
-            mfa_challenge = pending_mfa_store.add_pending_login(
+        # Store the login, with the client type, client network and PKCE challenge of the password step, for the MFA
+        # step. The password is verified, so a rehash staged by authenticate_user is committed with it. The failed
+        # login attempts are reset only when the MFA step succeeds, so starting MFA steps does not lift the lockout.
+        return auth_schema.AuthOutcome(
+            start_mfa_challenge(
                 mfa_dependencies.PendingLogin(
                     user_id=user.id,
                     client_type=client_type,
@@ -862,19 +1025,11 @@ def login_for_access_token(
                     code_challenge_method=code_challenge_method,
                     client_network=core_network.client_network(ip_address),
                     security_generation=security_generation,
-                )
+                ),
+                pending_mfa_store,
+                db,
             )
-        except lockout_contracts.AuthSecurityStoreUnavailableError as err:
-            raise_auth_security_store_unavailable(err)
-
-        # The password is verified, so persist a rehash staged by authenticate_user before answering the challenge.
-        db.commit()
-
-        # Don't reset failed login attempts yet - wait for MFA verification
-        # This prevents bypassing lockout by triggering MFA flow
-
-        # Return MFA required response
-        return auth_schema.AuthOutcome(auth_schema.MFARequiredRead(next_step="mfa", mfa_challenge=mfa_challenge))
+        )
 
     # Password authentication successful and no MFA required
     # Reset failed login attempts counter
@@ -935,11 +1090,16 @@ def verify_mfa_and_login(
     response instead, without a session.
 
     The step carries no PKCE values: the login record holds the client type, the client network and the PKCE
-    challenge of the password step. A challenge that is unknown, expired, ended by three wrong codes, presented by
+    challenge of the first step. A challenge that is unknown, expired, ended by three wrong codes, presented by
     the other client type or from another client network (an IPv4 address or an IPv6 /64), or claimed by a
     concurrent request is answered 401 and the client signs in again; a wrong code on a live challenge is answered
-    400. A mobile client gets a session_id to exchange for tokens at /auth/sessions/{session_id}/tokens, never
-    tokens.
+    400.
+
+    The first step is a password sign-in or the exchange of an identity-provider session. A password sign-in gives a
+    mobile client a session_id to exchange for tokens at /auth/sessions/{session_id}/tokens, never tokens. An
+    identity-provider sign-in claims the session its exchange named, once, and gives either client that session's
+    tokens; a session that expired, was deleted or was exchanged meanwhile ends the challenge with a 401 before any
+    code is tried.
 
     Args:
         ip_address: Client address, recorded on the session
@@ -956,11 +1116,11 @@ def verify_mfa_and_login(
             the client sent no valid one
 
     Returns:
-        The outcome of complete_login() for a web client, the session response to exchange for a mobile client, or
-        the password-change response
+        For a password sign-in, the outcome of complete_login() for a web client, the session response to exchange
+        for a mobile client, or the password-change response; for an identity-provider sign-in, the session's tokens
 
     Raises:
-        UnauthenticatedError: If the challenge is dead, as described above, or the user is not found
+        SessionEndedError: If the challenge is dead, as described above, or the user is not found
         InvalidMfaCodeError: If the MFA code is wrong and the challenge is still live
         TooManyRequestsError: If the account is locked out from too many wrong codes
     """
@@ -970,10 +1130,17 @@ def verify_mfa_and_login(
         pending = pending_mfa_store.get_pending_login(mfa_request.mfa_challenge)
     except lockout_contracts.AuthSecurityStoreUnavailableError as err:
         raise_auth_security_store_unavailable(err)
-    if pending is None or pending.client_type != client_type:
-        _refuse_mfa_challenge(login_audit_actions.LoginFailureReason.MFA_CHALLENGE_EXPIRED)
+    if pending is None:
+        _refuse_mfa_challenge(
+            login_audit_actions.LoginFailureReason.MFA_CHALLENGE_EXPIRED, login_audit_actions.LoginMethod.PASSWORD
+        )
+    method = _sign_in_method(pending)
+    if pending.client_type != client_type:
+        _refuse_mfa_challenge(login_audit_actions.LoginFailureReason.MFA_CHALLENGE_EXPIRED, method)
     if pending.client_network != core_network.client_network(ip_address):
-        _refuse_mfa_challenge(login_audit_actions.LoginFailureReason.MFA_CHALLENGE_NETWORK_MISMATCH, pending.user_id)
+        _refuse_mfa_challenge(
+            login_audit_actions.LoginFailureReason.MFA_CHALLENGE_NETWORK_MISMATCH, method, pending.user_id
+        )
 
     user_id = pending.user_id
     # Looked up before the generation is locked: a deleted user's generation row went with it, so locking would
@@ -983,20 +1150,38 @@ def verify_mfa_and_login(
         logger.warning(
             "User ID <user_id> not found during MFA verification", extra=core_logger.context(user_id=str(user_id))
         )
-        raise core_exceptions.UnauthenticatedError("Unable to authenticate", scheme="Bearer")
+        raise core_exceptions.SessionEndedError("Unable to authenticate")
     # Checked before any code is tried, so a challenge that a security change outdated cannot be used to guess codes.
     # The lock it takes lasts until the sign-in below commits.
     if not security_generation_integration.matches_locked(user_id, pending.security_generation, db):
-        _end_outdated_mfa_challenge(mfa_request.mfa_challenge, user_id, pending_mfa_store)
+        _end_mfa_challenge(
+            mfa_request.mfa_challenge,
+            login_audit_actions.LoginFailureReason.SECURITY_CHANGED,
+            method,
+            user_id,
+            pending_mfa_store,
+        )
+    # An identity-provider sign-in finishes the session its exchange named. One that can no longer be exchanged ends
+    # the challenge before any code is tried; the claim below still decides a race for the same session.
+    sso_session = None
+    if pending.sso_session_id is not None:
+        sso_session = _awaiting_sso_session(pending.sso_session_id, db)
+        if sso_session is None:
+            _end_mfa_challenge(
+                mfa_request.mfa_challenge,
+                login_audit_actions.LoginFailureReason.SSO_SESSION_ENDED,
+                method,
+                user_id,
+                pending_mfa_store,
+            )
 
-    password_method = login_audit_actions.LoginMethod.PASSWORD
-    refuse_while_mfa_locked_out(user.username, ip_address, user_id, password_method, pending_mfa_store, device_id, db)
+    refuse_while_mfa_locked_out(user.username, ip_address, user_id, method, pending_mfa_store, device_id, db)
     try:
         require_valid_mfa_code(
             user.username,
             ip_address,
             user_id,
-            password_method,
+            method,
             mfa_request.mfa_code,
             pending_mfa_store,
             password_hasher,
@@ -1011,17 +1196,37 @@ def verify_mfa_and_login(
     except lockout_contracts.AuthSecurityStoreUnavailableError as err:
         raise_auth_security_store_unavailable(err)
     if claimed is None or claimed.user_id != user_id:
-        _refuse_mfa_challenge(login_audit_actions.LoginFailureReason.MFA_CHALLENGE_CLAIMED, user_id)
+        _refuse_mfa_challenge(login_audit_actions.LoginFailureReason.MFA_CHALLENGE_CLAIMED, method, user_id)
 
     # Check if the user is still active
     users_integration.require_active_user(user)
 
-    # MFA verification successful - reset both MFA and login failed attempts counters
+    # MFA verification successful - reset the MFA failure counters and, for a password sign-in, the login ones
     try:
         pending_mfa_store.reset_attempts(user.username, ip_address, user_id=user.id)
-        failed_attempts.reset_attempts(user.username, ip_address, user_id=user.id)
+        if sso_session is None:
+            failed_attempts.reset_attempts(user.username, ip_address, user_id=user.id)
     except lockout_contracts.AuthSecurityStoreUnavailableError as err:
         raise_auth_security_store_unavailable(err)
+
+    if sso_session is not None:
+        exchanged = complete_session_exchange(
+            user,
+            sso_session.id,
+            sso_session.client_type,
+            sso_session.amr,
+            ip_address,
+            user_agent,
+            token_manager,
+            db,
+            federated=True,
+            mfa=True,
+            device_id=device_id,
+        )
+        if exchanged is None:
+            # Another MFA step for the same session claimed it first; the backup code this one used stays unused.
+            _refuse_mfa_challenge(login_audit_actions.LoginFailureReason.SSO_SESSION_ENDED, method, user_id)
+        return auth_schema.AuthOutcome(exchanged.body, exchanged.refresh_cookie, exchanged.device_id)
 
     if credentials_integration.is_password_change_required(user.id, db):
         return auth_schema.AuthOutcome(

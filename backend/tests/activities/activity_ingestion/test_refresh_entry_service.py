@@ -64,7 +64,12 @@ class TestSyncLinkedProviders:
 
     def test_a_rate_limited_provider_defers_the_sync_instead_of_failing_it(self):
         clears = datetime.now(UTC) + timedelta(minutes=10)
-        _provider("a", raises=core_exceptions.TooManyRequestsError("limit", retry_at=clears))
+        _provider(
+            "a",
+            raises=core_exceptions.TooManyRequestsError(
+                "limit", scope=core_exceptions.TooManyRequestsScope.PROVIDER, retry_at=clears
+            ),
+        )
         healthy = _provider("b", ["g1"])
 
         with pytest.raises(refresh_entry_service.RefreshDeferredError) as deferred:
@@ -76,8 +81,18 @@ class TestSyncLinkedProviders:
     def test_the_sync_waits_for_the_last_limit_to_clear(self):
         soon = datetime.now(UTC) + timedelta(minutes=5)
         later = datetime.now(UTC) + timedelta(hours=5)
-        _provider("a", raises=core_exceptions.TooManyRequestsError("limit", retry_at=soon))
-        _provider("b", raises=core_exceptions.TooManyRequestsError("limit", retry_at=later))
+        _provider(
+            "a",
+            raises=core_exceptions.TooManyRequestsError(
+                "limit", scope=core_exceptions.TooManyRequestsScope.PROVIDER, retry_at=soon
+            ),
+        )
+        _provider(
+            "b",
+            raises=core_exceptions.TooManyRequestsError(
+                "limit", scope=core_exceptions.TooManyRequestsScope.PROVIDER, retry_at=later
+            ),
+        )
 
         with pytest.raises(refresh_entry_service.RefreshDeferredError) as deferred:
             refresh_entry_service.sync_linked_providers(MOCK_USER_ID)
@@ -85,7 +100,10 @@ class TestSyncLinkedProviders:
         assert deferred.value.retry_at == later
 
     def test_a_limit_with_no_known_end_waits_for_the_default_deferral(self):
-        _provider("a", raises=core_exceptions.TooManyRequestsError("limit"))
+        _provider(
+            "a",
+            raises=core_exceptions.TooManyRequestsError("limit", scope=core_exceptions.TooManyRequestsScope.PROVIDER),
+        )
         before = datetime.now(UTC)
 
         with pytest.raises(refresh_entry_service.RefreshDeferredError) as deferred:
@@ -94,7 +112,12 @@ class TestSyncLinkedProviders:
         assert deferred.value.retry_at >= before + refresh_entry_service._DEFAULT_DEFERRAL
 
     def test_a_real_failure_wins_over_a_deferral_so_the_job_still_retries(self):
-        _provider("a", raises=core_exceptions.TooManyRequestsError("limit", retry_at=datetime.now(UTC)))
+        _provider(
+            "a",
+            raises=core_exceptions.TooManyRequestsError(
+                "limit", scope=core_exceptions.TooManyRequestsScope.PROVIDER, retry_at=datetime.now(UTC)
+            ),
+        )
         _provider("b", raises=RuntimeError("provider down"))
 
         with pytest.raises(core_exceptions.ProcessingError):
@@ -103,7 +126,12 @@ class TestSyncLinkedProviders:
     def test_a_rate_limit_is_logged_as_a_warning_not_an_error(self):
         from unittest.mock import patch
 
-        _provider("a", raises=core_exceptions.TooManyRequestsError("limit", retry_at=datetime.now(UTC)))
+        _provider(
+            "a",
+            raises=core_exceptions.TooManyRequestsError(
+                "limit", scope=core_exceptions.TooManyRequestsScope.PROVIDER, retry_at=datetime.now(UTC)
+            ),
+        )
 
         with (
             patch.object(refresh_entry_service.logger, "warning") as warning,

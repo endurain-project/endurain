@@ -28,6 +28,15 @@ import modules.auth.schema as auth_schema
 
 logger = core_logger.get_logger(__name__)
 
+_LOCKED_FIELDS = (
+    "slug",
+    "client_id",
+    "provider_type",
+    "issuer_url",
+    "authorization_endpoint",
+    "token_endpoint",
+    "userinfo_endpoint",
+)
 _URL_FIELDS = ("issuer_url", "authorization_endpoint", "token_endpoint", "userinfo_endpoint")
 
 
@@ -36,6 +45,38 @@ def _issuer_changes(current: str | None, new: str | None) -> bool:
     if current is None or new is None:
         return current != new
     return idp_utils.normalize_issuer_url(current) != idp_utils.normalize_issuer_url(new)
+
+
+def _changed_locked_fields(
+    current: identity_provider_contracts.IdentityProviderState, values: dict[str, Any]
+) -> list[str]:
+    """Name the fields of an edit that change what identifies the provider or where its tokens are redeemed.
+
+    A field set to its stored value is not a change; the stored client id is encrypted, so it is compared decrypted.
+
+    Args:
+        current: The provider as stored.
+        values: The fields the client sent, by name.
+
+    Returns:
+        The names of the changed locked fields, sorted.
+    """
+    changed: list[str] = []
+    for field in _LOCKED_FIELDS:
+        if field not in values:
+            continue
+        new = values[field]
+        if field == "issuer_url":
+            differs = _issuer_changes(current.issuer_url, new)
+        elif field == "client_id":
+            differs = core_cryptography.decrypt_token_fernet(current.client_id) != new
+        elif field == "slug":
+            differs = current.slug != new.lower()
+        else:
+            differs = getattr(current, field) != new
+        if differs:
+            changed.append(field)
+    return sorted(changed)
 
 
 def _refuse_shared_issuer(issuer_url: str | None, exclude_id: uuid.UUID | None, db: Session) -> None:
@@ -53,6 +94,16 @@ def _refuse_shared_issuer(issuer_url: str | None, exclude_id: uuid.UUID | None, 
         raise core_exceptions.IssuerInUseError()
 
 
+def _to_read(
+    state: identity_provider_contracts.IdentityProviderState, db: Session
+) -> identity_provider_schema.IdentityProviderRead:
+    """Return the admin representation of a provider, flagging whether users are linked to it."""
+    return identity_provider_serializers.to_read_schema(
+        state,
+        has_linked_users=identity_provider_links_integration.check_user_identity_providers_by_idp_id(state.id, db),
+    )
+
+
 def list_identity_providers(
     page: core_pagination.PageParams, db: Session
 ) -> identity_provider_schema.IdentityProviderPage:
@@ -62,7 +113,7 @@ def list_identity_providers(
     )
     total = idp_crud.count_identity_providers(db, enabled_only=False)
     return identity_provider_schema.IdentityProviderPage.build(
-        [identity_provider_serializers.to_read_schema(state) for state in states],
+        [_to_read(state, db) for state in states],
         total,
         page.page_number,
         page.num_records,
@@ -85,7 +136,7 @@ def get_identity_provider(idp_id: uuid.UUID, db: Session) -> identity_provider_s
     state = idp_crud.get_identity_provider(idp_id, db)
     if state is None:
         raise core_exceptions.NotFoundError("Identity provider not found")
-    return identity_provider_serializers.to_read_schema(state)
+    return _to_read(state, db)
 
 
 def get_enabled_identity_providers(
@@ -245,7 +296,7 @@ def create_identity_provider(
     )
     db.commit()
     logger.info("Created identity provider", extra=core_logger.context(idp_id=state.id))
-    return identity_provider_serializers.to_read_schema(state)
+    return _to_read(state, db)
 
 
 def update_identity_provider(
@@ -285,7 +336,8 @@ def update_identity_provider(
         PreconditionFailedError: When the provider changed since the client read it.
         ConflictError: When the new slug is already in use.
         IssuerInUseError: When another provider already uses the new issuer.
-        IssuerLockedError: When the issuer changes while users are linked to the provider.
+        IdentityProviderLockedError: When the edit changes the slug, client id, provider type, issuer or an endpoint
+            while users are linked to the provider.
     """
     verify_step_up(step_up, identity_provider_constants.StepUpAction.ADMIN_IDP_EDIT)
     values = data.model_dump(exclude_unset=True)
@@ -297,9 +349,12 @@ def update_identity_provider(
     slug = values.get("slug")
     if slug and slug.lower() != current.slug and idp_crud.get_identity_provider_by_slug(slug.lower(), db):
         raise core_exceptions.ConflictError(f"Identity provider with slug '{slug.lower()}' already exists")
-    if "issuer_url" in values and _issuer_changes(current.issuer_url, values["issuer_url"]):
-        if identity_provider_links_integration.check_user_identity_providers_by_idp_id(idp_id, db):
-            raise core_exceptions.IssuerLockedError()
+    locked = _changed_locked_fields(current, values)
+    if locked and identity_provider_links_integration.check_user_identity_providers_by_idp_id(idp_id, db):
+        raise core_exceptions.IdentityProviderLockedError(
+            f"{core_exceptions.IdentityProviderLockedError.default_detail}: {', '.join(locked)}"
+        )
+    if "issuer_url" in locked:
         _refuse_shared_issuer(values["issuer_url"], idp_id, db)
     with core_etag.refuse_stale_write(
         db,
@@ -329,7 +384,7 @@ def update_identity_provider(
         db.commit()
     oidc.forget_discovery(idp_id)
     logger.info("Updated identity provider", extra=core_logger.context(idp_id=state.id))
-    return identity_provider_serializers.to_read_schema(state)
+    return _to_read(state, db)
 
 
 def delete_identity_provider(

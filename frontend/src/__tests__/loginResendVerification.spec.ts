@@ -28,7 +28,6 @@ vi.mock('@/features/auth/composables/useSsoLogin', () => ({
     processSsoCallback: vi.fn<() => Promise<{ status: string }>>(() =>
       Promise.resolve({ status: 'none' }),
     ),
-    completeSsoMfa: vi.fn<() => Promise<void>>(),
     maybeAutoRedirect: vi.fn<() => void>(),
   }),
 }))

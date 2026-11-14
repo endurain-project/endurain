@@ -280,6 +280,7 @@ describe('UserSessionsList revoke', () => {
       lastActivityAt: '2026-06-02T11:00:00Z',
       expiresAt: '2026-06-08T10:00:00Z',
       appRedirectUri,
+      isCurrent: false,
     }
   }
 

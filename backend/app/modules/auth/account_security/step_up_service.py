@@ -189,7 +189,9 @@ def _raise_if_locked_out(
         logger.warning("Step-up blocked for user <user_id>: locked out", extra=core_logger.context(user_id=user_id))
         _record_refusal(user_id, method, login_audit_actions.StepUpFailureReason.LOCKED_OUT)
         raise core_exceptions.TooManyRequestsError(
-            "Too many failed step-up attempts. Try again later.", retry_at=lockout_until
+            "Too many failed step-up attempts. Try again later.",
+            scope=core_exceptions.TooManyRequestsScope.STEP_UP,
+            retry_at=lockout_until,
         )
 
 

@@ -22,7 +22,7 @@ _CASES = [
     (mfa_schema.MFADisableRequest, {"step_up": {"current_password": "secret"}}),
     (mfa_schema.MFABackupCodesRequest, {"step_up": {"current_password": "secret"}}),
     (step_up_schema.StepUpRequest, {"step_up": {"current_password": "secret"}}),
-    (idp_schema.IdentityProviderCreate, {**_PROVIDER, "client_secret": "secret"}),
+    (idp_schema.IdentityProviderCreate, {**_PROVIDER, "client_id": "client", "client_secret": "secret"}),
     (idp_schema.IdentityProviderUpdate, _PROVIDER),
 ]
 

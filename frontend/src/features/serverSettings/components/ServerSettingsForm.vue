@@ -10,7 +10,10 @@ import SectionTabsBar from '@/components/SectionTabsBar.vue'
 import { Tabs, TabsContent } from '@/components/ui/tabs'
 import StepUpDialog from '@/features/security/components/StepUpDialog.vue'
 import { useAdminStepUp } from '@/features/security/composables/useAdminStepUp'
-import { useMailStepUpResume } from '@/features/serverSettings/composables/useMailStepUpResume'
+import {
+  useLogsStepUpResume,
+  useMailStepUpResume,
+} from '@/features/serverSettings/composables/useMailStepUpResume'
 import EmailCard from '@/features/serverSettings/components/EmailCard.vue'
 import ServerSettingsSearch from '@/features/serverSettings/components/ServerSettingsSearch.vue'
 import AccessTab from '@/features/serverSettings/components/tabs/AccessTab.vue'
@@ -68,6 +71,8 @@ const { requirePassword, requireMfa } = useAdminStepUp()
 const root = ref<HTMLElement | null>(null)
 // The sign-in the page returned from for the mail settings lands the user on the tab that holds them.
 const returnedForMail = useMailStepUpResume().value !== null
+// Likewise the sign-in for clearing the server log lands the user on the logs tab.
+const returnedForLogs = useLogsStepUpResume().value !== null
 const mailDirty = ref(false)
 const hasUnsaved = computed(() => isDirty.value || mailDirty.value)
 
@@ -185,6 +190,9 @@ onMounted(() => {
   window.addEventListener('beforeunload', warnBeforeUnload)
   if (returnedForMail) {
     void selectTab('email')
+  }
+  if (returnedForLogs) {
+    void selectTab('logs')
   }
 })
 onBeforeUnmount(() => window.removeEventListener('beforeunload', warnBeforeUnload))

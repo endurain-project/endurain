@@ -25,7 +25,7 @@ function makeIdpDto(overrides: Partial<UserIdentityProviderDto> = {}): UserIdent
     idp_icon_uploaded: false,
     idp_provider_type: 'oidc',
     idp_subject: 'auth|abc123',
-    last_login: '2026-06-02T11:00:00Z',
+    last_login_at: '2026-06-02T11:00:00Z',
     linked_at: '2026-06-01T10:00:00Z',
     ...overrides,
   }
@@ -51,7 +51,7 @@ describe('user identity providers service', () => {
 
   it('mapUserIdentityProvider falls back to null for missing optional fields', () => {
     const mapped = mapUserIdentityProvider(
-      makeIdpDto({ idp_name: null, idp_slug: null, idp_provider_type: null, last_login: null }),
+      makeIdpDto({ idp_name: null, idp_slug: null, idp_provider_type: null, last_login_at: null }),
     )
 
     expect(mapped.name).toBeNull()

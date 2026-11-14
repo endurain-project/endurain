@@ -40,6 +40,7 @@ const provider: IdentityProvider = {
   authorizationEndpoint: null,
   tokenEndpoint: null,
   userinfoEndpoint: null,
+  hasLinkedUsers: false,
 }
 
 /** Passthrough stub so the reka-ui portal/focus-trap is skipped and the form
@@ -110,7 +111,7 @@ describe('IdentityProviderFormDialog save errors', () => {
   it.each([
     [409, 'urn:endurain:error:conflict', 'slugConflict'],
     [409, 'urn:endurain:error:issuer-in-use', 'issuerInUse'],
-    [409, 'urn:endurain:error:issuer-locked', 'issuerLocked'],
+    [409, 'urn:endurain:error:identity-provider-locked', 'locked'],
   ])('maps a %i answer of type %s to %s', async (status, type, key) => {
     vi.mocked(apiFetch).mockRejectedValue(new HttpError(status, 'Conflict', null, type))
 
@@ -197,6 +198,36 @@ describe('IdentityProviderFormDialog slug', () => {
 
     expect(wrapper.text()).not.toContain(i18n.global.t('settings.idp.form.slugReserved'))
     expect(wrapper.find('#stepup-password').exists()).toBe(true)
+  })
+})
+
+describe('IdentityProviderFormDialog while users are linked', () => {
+  const lockedInputs = ['providerType', 'issuerUrl', 'clientId']
+
+  /** Whether the named form control is disabled. */
+  function isDisabled(wrapper: ReturnType<typeof mountDialog>, name: string): boolean {
+    const selector = name === 'providerType' ? 'select' : `input[name="${name}"]`
+    return wrapper.get(selector).attributes('disabled') !== undefined
+  }
+
+  it('locks the protocol, issuer and client id and says why', () => {
+    const wrapper = mountDialog({ provider: { ...provider, hasLinkedUsers: true } })
+
+    for (const name of lockedInputs) {
+      expect(isDisabled(wrapper, name)).toBe(true)
+    }
+    expect(wrapper.text()).toContain(i18n.global.t('settings.idp.form.lockedHint'))
+    expect(isDisabled(wrapper, 'scopes')).toBe(false)
+    expect(isDisabled(wrapper, 'name')).toBe(false)
+  })
+
+  it('leaves them editable while no user is linked', () => {
+    const wrapper = mountDialog({ provider })
+
+    for (const name of lockedInputs) {
+      expect(isDisabled(wrapper, name)).toBe(false)
+    }
+    expect(wrapper.text()).not.toContain(i18n.global.t('settings.idp.form.lockedHint'))
   })
 })
 

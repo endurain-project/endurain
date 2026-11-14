@@ -23,6 +23,16 @@ def get_totp_factor(user_id: uuid.UUID, db: Session) -> mfa_contracts.MFAFactorR
     return mfa_serializers.to_read_schema(row) if row is not None else None
 
 
+def get_user_factors(user_id: uuid.UUID, db: Session) -> list[mfa_contracts.MFAFactorRead]:
+    """Return every second factor a user has, oldest first."""
+    stmt = (
+        select(auth_mfa_models.MFAFactor)
+        .where(auth_mfa_models.MFAFactor.user_id == user_id)
+        .order_by(auth_mfa_models.MFAFactor.created_at, auth_mfa_models.MFAFactor.id)
+    )
+    return [mfa_serializers.to_read_schema(row) for row in db.execute(stmt).scalars().all()]
+
+
 def get_mfa_enabled_for_users(user_ids: list[uuid.UUID], db: Session) -> dict[uuid.UUID, bool]:
     """Return which of the supplied users have a second factor, in one query."""
     if not user_ids:

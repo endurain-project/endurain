@@ -35,7 +35,6 @@ def _session(**overrides):
         "user_id": _USER_ID,
         "token_family_id": _FAMILY_ID,
         "refresh_token": sessions_integration.hash_refresh_token("old"),
-        "csrf_token_hash": None,
         "rotation_count": 0,
         "id": _SESSION_ID,
         "client_type": "web",
@@ -71,7 +70,7 @@ def test_a_refresh_reads_the_session_under_an_exclusive_row_lock_and_refuses_one
     with (
         patch(f"{_SERVICE}.sessions_integration.lock_live_session", return_value=None) as lock,
         patch(f"{_SERVICE}.sessions_integration.edit_session") as edit,
-        pytest.raises(core_exceptions.InvalidTokenError),
+        pytest.raises(core_exceptions.SessionEndedError),
     ):
         authentication_service_refresh_service.refresh_token(
             "127.0.0.1", "agent", _USER_ID, _SESSION_ID, "old", _OLD_EXP, MagicMock(), "web", mock_db
@@ -83,7 +82,7 @@ def test_a_refresh_reads_the_session_under_an_exclusive_row_lock_and_refuses_one
 
 def test_a_rotation_records_the_presented_tokens_own_expiry(mock_db):
     """Reuse detection keeps the record until the old token could no longer be presented."""
-    tokens = (_SESSION_ID, datetime(2026, 11, 1, tzinfo=UTC), "at", datetime(2026, 12, 1, tzinfo=UTC), "rt", "csrf")
+    tokens = (_SESSION_ID, datetime(2026, 11, 1, tzinfo=UTC), "at", datetime(2026, 12, 1, tzinfo=UTC), "rt")
     with (
         patch(
             f"{_SERVICE}.sessions_integration.lock_live_session",
@@ -127,7 +126,6 @@ def test_a_rotation_reports_the_sessions_capped_expiry_for_the_body_and_the_cook
         "at",
         datetime.now(UTC) + timedelta(days=7),
         "rt",
-        "c",
     )
     with (
         patch(f"{_SERVICE}.sessions_integration.lock_live_session", return_value=_session()),

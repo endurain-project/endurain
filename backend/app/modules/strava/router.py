@@ -15,6 +15,7 @@ import core.rate_limit as core_rate_limit
 import modules.activities.activity_ingestion.integration_service as activity_ingestion_integration
 import modules.activities.activity_ingestion.schema as activity_ingestion_schema
 import modules.auth.dependencies as auth_dependencies
+import modules.auth.schema as auth_schema
 import modules.gears.gear.schema as gears_schema
 import modules.strava.constants as strava_constants
 import modules.strava.dependencies as strava_dependencies
@@ -149,22 +150,17 @@ def strava_set_user_client(
     request: Request,
     client: strava_schema.StravaClientCredentials,
     token_user_id: auth_dependencies.CurrentUserId,
+    verify_step_up: auth_dependencies.StepUpVerifierDep,
     db: core_dependencies.DbSession,
     response: Response,
     if_match: core_dependencies.IfMatch,
 ) -> None:
-    """Store the user's Strava API client id and secret.
+    """Store the user's Strava API client id and secret, after the user's step-up verification in `step_up`.
 
-    Args:
-        request: The incoming request, read by the rate limiter.
-        client: The Strava application's client id and secret.
-        token_user_id: User ID from the access token.
-        db: Database session dependency.
-        response: The response, which carries the new ETag.
-        if_match: The ``If-Match`` precondition, the ``integrations_version`` the client read.
-
+    Replacing the client changes which Strava application the account is linked through. It needs a signed-in
+    session: an API key cannot step up. Send the `integrations_version` the client read in `If-Match`.
     """
-    version = strava_service.set_client(token_user_id, client, db, if_match=if_match)
+    version = strava_service.set_client(token_user_id, client, verify_step_up, db, if_match=if_match)
     core_etag.set_etag(response, version)
 
 
@@ -187,8 +183,8 @@ def strava_begin_state(
     return strava_schema.StravaState(state=strava_service.begin_state(token_user_id, oauth_states))
 
 
-@router.delete(
-    "/link",
+@router.post(
+    "/unlink",
     status_code=status.HTTP_202_ACCEPTED,
     response_model=strava_schema.StravaSyncStatus,
     responses=core_location.ACCEPTED_RESPONSE,
@@ -198,17 +194,20 @@ def strava_begin_state(
 def strava_unlink(
     request: Request,
     response: Response,
+    body: auth_schema.StepUpRequest,
     token_user_id: auth_dependencies.CurrentUserId,
+    verify_step_up: auth_dependencies.StepUpVerifierDep,
     db: core_dependencies.DbSession,
     sync_states: strava_dependencies.StravaSyncStateStoreDep,
     rate_limits: strava_dependencies.StravaRateLimitStoreDep,
 ) -> strava_schema.StravaSyncStatus:
-    """Queue the disconnection of the user's Strava account; a background job runs it.
+    """Queue the disconnection of the user's Strava account after the user's step-up verification; a job runs it.
 
     The job revokes the authorization with Strava and deletes the activities and gear
-    imported from it. Poll ``GET /jobs/{job_id}`` for the outcome.
+    imported from it. It needs a signed-in session: an API key cannot step up. Poll
+    ``GET /jobs/{job_id}`` for the outcome.
     """
-    sync = strava_sync_service.request_unlink(token_user_id, sync_states, rate_limits, db)
+    sync = strava_sync_service.request_unlink(token_user_id, body.step_up, verify_step_up, sync_states, rate_limits, db)
     core_location.set_job_location(
         response, request, sync.id, strava_constants.SYNC_POLL_SECONDS[strava_constants.SyncKind.UNLINK]
     )

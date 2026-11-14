@@ -6,11 +6,13 @@ from unittest.mock import MagicMock, patch
 import pytest
 from fastapi import Response
 
+import modules.auth.schema as auth_schema
 import modules.gears.gear.schema as gears_schema
 import modules.strava.router as strava_router
 import modules.strava.schema as strava_schema
 from tests._helpers.auth import MOCK_USER_ID
 
+_STEP_UP = auth_schema.StepUpVerification(current_password="pw")
 _JOB_ID = uuid.UUID("a1000000-0000-4000-8000-000000000021")
 
 
@@ -39,7 +41,7 @@ def test_every_route_checks_a_scope():
         ("/gear", "POST", "gears:write"),
         ("/activities", "POST", "activities:write"),
         ("/link", "POST", "account:integrations"),
-        ("/link", "DELETE", "account:integrations"),
+        ("/unlink", "POST", "account:integrations"),
         ("/state", "POST", "account:integrations"),
         ("/client", "PUT", "account:integrations"),
     ],
@@ -49,7 +51,7 @@ def test_routes_require_the_matching_scope(path, method, scope):
 
 
 @pytest.mark.parametrize(
-    ("path", "method"), [("/link", "POST"), ("/gear", "POST"), ("/activities", "POST"), ("/link", "DELETE")]
+    ("path", "method"), [("/link", "POST"), ("/gear", "POST"), ("/activities", "POST"), ("/unlink", "POST")]
 )
 def test_slow_work_is_accepted_not_done_inline(path, method):
     assert _routes()[(path, (method,))].status_code == 202
@@ -62,8 +64,9 @@ def test_client_and_state_answer_with_their_bodies():
     ):
         client_result = strava_router.strava_set_user_client(
             request=MagicMock(),
-            client=strava_schema.StravaClientCredentials(client_id=1, client_secret="s"),
+            client=strava_schema.StravaClientCredentials(client_id=1, client_secret="s", step_up=_STEP_UP),
             token_user_id=MOCK_USER_ID,
+            verify_step_up=MagicMock(),
             db=MagicMock(),
             response=MagicMock(headers={}),
             if_match='"1"',
@@ -78,20 +81,20 @@ def test_client_and_state_answer_with_their_bodies():
 
 def test_client_credentials_are_validated():
     with pytest.raises(ValueError):
-        strava_schema.StravaClientCredentials(client_id=0, client_secret="s")
+        strava_schema.StravaClientCredentials(client_id=0, client_secret="s", step_up=_STEP_UP)
     with pytest.raises(ValueError):
-        strava_schema.StravaClientCredentials(client_id=1, client_secret="")
+        strava_schema.StravaClientCredentials(client_id=1, client_secret="", step_up=_STEP_UP)
     with pytest.raises(ValueError):
-        strava_schema.StravaClientCredentials(client_id=1, client_secret="s", extra="x")
+        strava_schema.StravaClientCredentials(client_id=1, client_secret="s", step_up=_STEP_UP, extra="x")
 
 
 def test_the_client_secret_does_not_appear_in_a_repr_or_a_validation_error():
-    credentials = strava_schema.StravaClientCredentials(client_id=1, client_secret="hunter2-secret")
+    credentials = strava_schema.StravaClientCredentials(client_id=1, client_secret="hunter2-secret", step_up=_STEP_UP)
     assert "hunter2-secret" not in repr(credentials)
     assert credentials.client_secret.get_secret_value() == "hunter2-secret"
 
     with pytest.raises(ValueError) as error:
-        strava_schema.StravaClientCredentials(client_id=0, client_secret="hunter2-secret")
+        strava_schema.StravaClientCredentials(client_id=0, client_secret="hunter2-secret", step_up=_STEP_UP)
     assert "hunter2-secret" not in str(error.value)
 
 
@@ -165,11 +168,14 @@ def test_setting_the_client_requires_the_version_that_was_read():
     app.include_router(strava_router.router, prefix="/strava")
     app.dependency_overrides[auth_deps.check_scopes] = lambda: None
     app.dependency_overrides[auth_deps.get_current_user_id] = lambda: MOCK_USER_ID
+    app.dependency_overrides[auth_deps.get_step_up_verifier] = lambda: lambda step_up, action: None
     app.dependency_overrides[core_db.get_db] = lambda: MagicMock()
 
     with patch.object(strava_router.strava_service, "set_client") as set_client:
         response = TestClient(app).put(
-            "/strava/client", json={"client_id": 1, "client_secret": "s"}, headers={"Authorization": "Bearer x"}
+            "/strava/client",
+            json={"client_id": 1, "client_secret": "s", "step_up": {"current_password": "pw"}},
+            headers={"Authorization": "Bearer x"},
         )
 
     assert response.status_code == 428
@@ -190,6 +196,9 @@ def test_a_queued_sync_names_its_job_in_content_location(call, queued, kind):
     )
     response = Response()
     kwargs = {"request": MagicMock(), "response": response, "token_user_id": MOCK_USER_ID, "sync_states": MagicMock()}
+    if call == "strava_unlink":
+        kwargs.update(body=auth_schema.StepUpRequest(step_up=auth_schema.StepUpVerification(current_password="pw")))
+        kwargs.update(verify_step_up=MagicMock())
     if call == "strava_link":
         kwargs.update(link=MagicMock(), oauth_states=MagicMock())
         service = strava_router.strava_link_service
@@ -209,3 +218,34 @@ def test_a_queued_sync_names_its_job_in_content_location(call, queued, kind):
 
 def test_the_per_kind_status_route_is_gone():
     assert not [path for path, _methods in _routes() if path.startswith("/sync")]
+
+
+def test_setting_the_client_and_unlinking_need_a_step_up_body_and_unlink_is_a_post():
+    from fastapi import FastAPI
+    from fastapi.testclient import TestClient
+
+    import core.database as core_db
+    import core.exceptions as core_exceptions
+    import modules.auth.dependencies as auth_deps
+
+    app = FastAPI()
+    core_exceptions.register_exception_handlers(app)
+    app.include_router(strava_router.router, prefix="/strava")
+    app.dependency_overrides[auth_deps.check_scopes] = lambda: None
+    app.dependency_overrides[auth_deps.get_current_user_id] = lambda: MOCK_USER_ID
+    app.dependency_overrides[auth_deps.get_step_up_verifier] = lambda: lambda step_up, action: None
+    app.dependency_overrides[core_db.get_db] = lambda: MagicMock()
+    client = TestClient(app)
+
+    with patch.object(strava_router.strava_service, "set_client") as set_client:
+        refused = client.put("/strava/client", json={"client_id": 1, "client_secret": "s"}, headers={"If-Match": '"1"'})
+        accepted = client.put(
+            "/strava/client",
+            json={"client_id": 1, "client_secret": "s", "step_up": {"current_password": "pw"}},
+            headers={"If-Match": '"1"'},
+        )
+    assert refused.status_code == 422
+    assert accepted.status_code == 204
+    set_client.assert_called_once()
+    assert client.post("/strava/unlink", json={}).status_code == 422
+    assert client.delete("/strava/link").status_code == 405

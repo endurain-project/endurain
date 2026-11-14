@@ -49,11 +49,6 @@ const userIdRef = computed(() => props.userId)
 const { data, isPending, isError, refetch } = useUserSessionsQuery(userIdRef)
 const sessions = computed(() => data.value ?? [])
 
-/** Whether a session is the signed-in admin's own current session (no self-revoke). */
-function isCurrent(session: UserSession): boolean {
-  return session.id === sessionId.value
-}
-
 const revokeMutation = useRevokeUserSessionMutation()
 
 const isConfirmOpen = ref(false)
@@ -95,7 +90,7 @@ useResumeOnce(
 
 /** Sessions that aren't the admin's current one (i.e. revocable in bulk). */
 const otherSessionsCount = computed(
-  () => sessions.value.filter((session) => !isCurrent(session)).length,
+  () => sessions.value.filter((session) => !session.isCurrent).length,
 )
 
 /** A device label built from browser + OS, falling back to the device type. */
@@ -212,7 +207,7 @@ function confirmRevokeOthers(stepUp: StepUpInput): void {
           <div class="min-w-0">
             <div class="flex min-w-0 items-center gap-2">
               <p class="truncate text-body">{{ sessionLabel(session) }}</p>
-              <Badge v-if="isCurrent(session)" variant="secondary" class="shrink-0">
+              <Badge v-if="session.isCurrent" variant="secondary" class="shrink-0">
                 {{ t('settings.users.sessions.current') }}
               </Badge>
             </div>
@@ -232,7 +227,7 @@ function confirmRevokeOthers(stepUp: StepUpInput): void {
         <Button
           variant="ghost"
           size="icon-sm"
-          :disabled="isCurrent(session)"
+          :disabled="session.isCurrent"
           :aria-label="t('settings.users.sessions.revoke')"
           @click="openRevoke(session)"
         >

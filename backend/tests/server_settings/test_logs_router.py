@@ -1,11 +1,13 @@
 """Tests for the server-log read route: it pages like every cursor feed."""
 
-from unittest.mock import patch
+import uuid
+from unittest.mock import MagicMock, patch
 
 import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
+import core.database as core_database
 import core.exceptions as core_exceptions
 import modules.auth.dependencies as auth_dependencies
 import modules.server_settings.logs_router as logs_router
@@ -20,6 +22,9 @@ def client():
     app.include_router(logs_router.router, prefix="/server-settings/logs")
     core_exceptions.register_exception_handlers(app)
     app.dependency_overrides[auth_dependencies.check_scopes] = lambda: None
+    app.dependency_overrides[auth_dependencies.get_current_user_id] = lambda: uuid.uuid4()
+    app.dependency_overrides[auth_dependencies.get_step_up_verifier] = lambda: lambda step_up, action: None
+    app.dependency_overrides[core_database.get_db] = lambda: MagicMock()
     return TestClient(app)
 
 
@@ -46,6 +51,24 @@ def test_the_text_filter_is_message_contains(client):
         client.get("/server-settings/logs?message_contains=strava")
 
     assert read.call_args.args == (200, None, "strava", None)
+
+
+def test_clearing_posts_the_step_up_to_the_clear_route(client):
+    with patch("modules.server_settings.logs_router.logs_service.clear_logs") as clear:
+        response = client.post("/server-settings/logs/clear", json={"step_up": {"current_password": "pw"}})
+
+    assert response.status_code == 204
+    assert clear.call_args.args[1].current_password == "pw"
+
+
+def test_clearing_without_a_step_up_is_refused(client):
+    response = client.post("/server-settings/logs/clear", json={})
+
+    assert response.status_code == 422
+
+
+def test_the_delete_route_is_gone(client):
+    assert client.delete("/server-settings/logs").status_code == 405
 
 
 @pytest.mark.parametrize("query", ["after=3", "limit=5", "search=strava"])

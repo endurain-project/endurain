@@ -443,9 +443,10 @@ def rate_limit_exceeded_handler(
     response = core_exceptions.build_problem_response(
         request=request,
         status_code=429,
-        code="rate-limited",
-        title="Too Many Requests",
+        code=core_exceptions.TooManyRequestsError.code,
+        title=core_exceptions.TooManyRequestsError.title,
         detail="Too many requests. Please try again later.",
+        scope=core_exceptions.TooManyRequestsScope.REQUESTS.value,
     )
     # Read off the breached limit rather than slowapi's ``_inject_headers``,
     # which is inert unless ``headers_enabled`` is set on the limiter — see the

@@ -87,9 +87,12 @@ def get_mfa_status(
     token_user_id: uuid.UUID,
     db: Session,
 ) -> mfa_schema.MFAStatusRead:
-    """Return whether MFA is enabled for the user."""
-    is_enabled = mfa_integration.is_mfa_enabled_for_user(token_user_id, db)
-    return mfa_schema.MFAStatusRead(mfa_enabled=is_enabled)
+    """Return whether the user has MFA and the factors that make it up."""
+    factors = mfa_integration.get_user_factors(token_user_id, db)
+    return mfa_schema.MFAStatusRead(
+        mfa_enabled=bool(factors),
+        factors=[mfa_schema.MFAFactorRead.model_validate(factor) for factor in factors],
+    )
 
 
 def get_mfa_enabled_for_users(
