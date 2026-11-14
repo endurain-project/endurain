@@ -367,37 +367,52 @@ def _restore_activity_media(
     for file_path in ctx.archive.names:
         path = file_path.replace("\\", "/")
 
-        if path.lower().endswith((".png", ".jpg", ".jpeg")) and path.startswith(constants.ACTIVITY_MEDIA_FOLDER):
-            file_name = os.path.basename(path)
-            base_name, ext = os.path.splitext(file_name)
+        if not path.startswith(constants.ACTIVITY_MEDIA_FOLDER):
+            continue
 
-            if "_" in base_name:
-                orig_id_str, suffix = base_name.split("_", 1)
-                archived_media_id = users_profile_contracts.archived_id(orig_id_str)
-                new_id = activities_id_mapping.get(archived_media_id) if archived_media_id else None
+        base_name, ext = os.path.splitext(os.path.basename(path))
+        if ext.lower() not in file_uploads.IMAGE_CONTENT_TYPES:
+            _log_skipped_media("unsupported image type")
+            continue
+        if "_" not in base_name:
+            _log_skipped_media("unexpected file name")
+            continue
 
-                if new_id is None:
-                    continue
+        orig_id_str, suffix = base_name.split("_", 1)
+        archived_media_id = users_profile_contracts.archived_id(orig_id_str)
+        new_id = activities_id_mapping.get(archived_media_id) if archived_media_id else None
+        if new_id is None:
+            _log_skipped_media("not an imported activity")
+            continue
 
-                new_file_name = f"{new_id}_{suffix}{ext}"
+        new_file_name = f"{new_id}_{suffix}{ext}"
 
-                # Read bytes from the archive and validate them as an image
-                # before storing, then write through the platform
-                # StorageProvider under the media area (the same place
-                # an upload lands) rather than to a local directory.
-                image_limit = file_uploads.file_validator.config.limits.max_image_size
-                file_bytes = ctx.archive.read_bytes(file_path, max_bytes=image_limit)
-                try:
-                    file_uploads.validate_bytes_sync(
-                        file_bytes,
-                        kind=file_uploads.UploadKind.IMAGE,
-                        filename=new_file_name,
-                    )
-                except core_exceptions.DomainError as err:
-                    logger.warning(
-                        "Profile import dropped invalid activity media",
-                        extra=core_logger.context(file_name=new_file_name, detail=err.detail),
-                    )
-                    continue
-                activity_media_integration.store_media_blob(new_id, suffix, ext, file_bytes, ctx.storage)
-                ctx.counts["media"] += 1
+        # Read bytes from the archive and validate them as an image
+        # before storing, then write through the platform
+        # StorageProvider under the media area (the same place
+        # an upload lands) rather than to a local directory.
+        image_limit = file_uploads.file_validator.config.limits.max_image_size
+        file_bytes = ctx.archive.read_bytes(file_path, max_bytes=image_limit)
+        try:
+            file_uploads.validate_bytes_sync(
+                file_bytes,
+                kind=file_uploads.UploadKind.IMAGE,
+                filename=new_file_name,
+            )
+        except core_exceptions.DomainError as err:
+            logger.warning(
+                "Profile import dropped invalid activity media",
+                extra=core_logger.context(file_name=new_file_name, detail=err.detail),
+            )
+            continue
+        activity_media_integration.store_media_blob(new_id, suffix, ext, file_bytes, ctx.storage)
+        ctx.counts["media"] += 1
+
+
+def _log_skipped_media(reason: str) -> None:
+    """Warn that an archived media file was not restored, so its record is left without a file.
+
+    Args:
+        reason: Why the file was skipped.
+    """
+    logger.warning("Profile import skipped an activity media file", extra=core_logger.context(reason=reason))

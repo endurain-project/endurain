@@ -620,6 +620,40 @@ class TestRestoreActivityMedia:
         assert ctx.counts["media"] == 1
         storage.save.assert_called_once_with("activity_media", f"{_NEW_ACT}_photo.jpg", b"image-data")
 
+    def test_a_webp_image_is_stored_under_the_new_id(self) -> None:
+        storage = MagicMock()
+        ctx = _ctx({f"activity_media/{_OLD_ACT}_photo.webp": b"image-data"}, storage=storage)
+        ctx.counts["media"] = 0
+        validator = MagicMock()
+        validator.config.limits.max_image_size = 1000000
+        with (
+            patch.object(import_service.file_uploads, "file_validator", validator),
+            patch.object(import_service.file_uploads, "validate_bytes_sync"),
+        ):
+            import_service._restore_activity_media(ctx, {_OLD_ACT: _NEW_ACT})
+
+        assert ctx.counts["media"] == 1
+        storage.save.assert_called_once_with("activity_media", f"{_NEW_ACT}_photo.webp", b"image-data")
+
+    @pytest.mark.parametrize(
+        ("member", "reason"),
+        [
+            (f"activity_media/{_UNKNOWN_ACT}_photo.jpg", "not an imported activity"),
+            ("activity_media/abc_photo.png", "not an imported activity"),
+            ("activity_media/nounderscore.png", "unexpected file name"),
+            (f"activity_media/{_OLD_ACT}_photo.gif", "unsupported image type"),
+        ],
+    )
+    def test_a_skipped_media_member_is_logged_with_its_reason(self, member, reason) -> None:
+        ctx = _ctx({member: b"image-data"})
+        ctx.counts["media"] = 0
+        with patch.object(import_service.logger, "warning") as warning:
+            import_service._restore_activity_media(ctx, {_OLD_ACT: _NEW_ACT})
+
+        warning.assert_called_once()
+        assert warning.call_args.kwargs["extra"]["reason"] == reason
+        assert ctx.counts["media"] == 0
+
     def test_the_memory_check_keeps_its_operation_name(self) -> None:
         check_memory = MagicMock()
         import_service._restore_activity_media(_ctx(check_memory=check_memory), {})
