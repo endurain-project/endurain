@@ -18,6 +18,7 @@ So this module asserts three things:
 """
 
 import ast
+import asyncio
 import pathlib
 import time
 import uuid
@@ -720,3 +721,26 @@ def test_the_refusal_budget_is_kept_per_route_not_per_url(enabled_limiter, real_
 
     assert statuses[:120] == [401] * 120
     assert statuses[120] == 429
+
+
+def test_the_refusal_answer_reads_the_window_off_the_event_loop(enabled_limiter, real_app, monkeypatch):
+    """The 429 for a spent refusal budget asks the shared store for the reset time, which must not stall the loop."""
+    client = TestClient(real_app, raise_server_exceptions=False)
+    _refused_polls(client, 120)
+    on_loop: list[bool] = []
+    original = core_rate_limit.limiter.limiter.get_window_stats
+
+    def recording(*args, **kwargs):
+        try:
+            asyncio.get_running_loop()
+            on_loop.append(True)
+        except RuntimeError:
+            on_loop.append(False)
+        return original(*args, **kwargs)
+
+    monkeypatch.setattr(core_rate_limit.limiter.limiter, "get_window_stats", recording)
+
+    refused = client.get(f"{core_config.ROOT_PATH}/jobs/{uuid.uuid4()}", headers={"Authorization": "Bearer nope"})
+
+    assert refused.status_code == 429
+    assert on_loop == [False]

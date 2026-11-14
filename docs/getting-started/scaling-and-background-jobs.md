@@ -162,7 +162,7 @@ Set `JOBS_RUN_IN_PROCESS_WORKER=false` for the API and for the worker alike. `RE
       - endurain
 ```
 
-Start the API first. It applies database migrations at startup, and the worker does not.
+The API applies database migrations at startup; the worker does not. A worker started earlier waits, logging that it is waiting, until the schema is current, then starts claiming jobs.
 
 ### Distributed
 

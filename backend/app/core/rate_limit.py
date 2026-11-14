@@ -369,18 +369,19 @@ class RateLimitMiddleware(SlowAPIMiddleware):
             handler: The route's decorated endpoint.
 
         Returns:
-            The 429 response when the refusal budget is spent, otherwise the application's response.
+            The 429 response when the refusal budget is spent, otherwise the application's response. The 429 is
+            built in the threadpool, since it reads the window from the shared store.
         """
         app = request.app
         limiter: Limiter = app.state.limiter
         if await run_in_threadpool(_refusal_budget_exhausted, limiter, request, handler, count=False):
-            return rate_limit_exceeded_handler(request, _refusal_limit_exceeded(limiter))
+            return await run_in_threadpool(rate_limit_exceeded_handler, request, _refusal_limit_exceeded(limiter))
 
         response = await call_next(request)
         if response.status_code in _REFUSED_STATUSES and await run_in_threadpool(
             _refusal_budget_exhausted, limiter, request, handler, count=True
         ):
-            return rate_limit_exceeded_handler(request, _refusal_limit_exceeded(limiter))
+            return await run_in_threadpool(rate_limit_exceeded_handler, request, _refusal_limit_exceeded(limiter))
         return response
 
 

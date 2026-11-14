@@ -288,11 +288,10 @@ def shutdown_event(fastapi_app: FastAPI) -> None:
     """Stop the event bus and scheduler and release DB resources on shutdown."""
     logger.info("Backend shutdown event", extra=core_logger.context(console=True))
 
-    # Stop the durable-job worker, then release what the platform owns (the bus
-    # consumer thread and any shared Redis clients) and unpublish it. That order
-    # matters: the worker runs subscribers, and a subscriber that publishes needs
-    # the bus still up.
-    jasil_lifecycle.shutdown()
+    # Stop what calls into the platform before the platform itself: a scheduler tick or a pool job that runs
+    # after it is released fails with "Platform is not initialized", and a tick in that window could restart a
+    # pool that was just stopped. The scheduler goes first so nothing starts new work.
+    core_scheduler.stop_scheduler()
 
     # Stop the subscriber pool and every module's in-process pools (each a no-op when it never started).
     runtime_module_registry.shutdown_module_pools()
@@ -300,7 +299,11 @@ def shutdown_event(fastapi_app: FastAPI) -> None:
     # Stop the SSRF hostname-resolution pool (no-op when no lookup ever ran).
     core_network.shutdown_ssrf_dns_executor()
 
-    core_scheduler.stop_scheduler()
+    # Stop the durable-job worker, then release what the platform owns (the bus
+    # consumer thread and any shared Redis clients) and unpublish it. That order
+    # matters: the worker runs subscribers, and a subscriber that publishes needs
+    # the bus still up.
+    jasil_lifecycle.shutdown()
 
     # Clear the captured event loop; nothing may dispatch onto it after shutdown.
     core_async_bridge.set_main_loop(None)

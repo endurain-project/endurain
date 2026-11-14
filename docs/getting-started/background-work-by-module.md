@@ -151,7 +151,7 @@ What each part does:
 | Scheduler | Every API process | Runs the [scheduled jobs](#scheduled-jobs). Jobs with a lock run on one replica per interval |
 | Event log | PostgreSQL | One row per event and subscriber for diagnostics, pruned after `EVENT_LOG_RETENTION_DAYS` |
 
-Workers do not run the scheduler, the relay or the reaper, so with `JOBS_RUN_IN_PROCESS_WORKER=false` at least one API process must stay up for jobs to be relayed. Workers do not apply database migrations either, so start the API first.
+Workers do not run the scheduler, the relay or the reaper, so with `JOBS_RUN_IN_PROCESS_WORKER=false` at least one API process must stay up for jobs to be relayed. Workers do not apply database migrations either; one started before the API waits until the schema is current before it claims jobs.
 
 ## When something is dropped
 
