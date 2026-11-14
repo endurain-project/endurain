@@ -6,7 +6,7 @@ once. It lives in the platform ``StateProvider`` (see :mod:`core.attempt_state`)
 
 Interface::
 
-    begin(user_id, conflict=)               - queue an export, returning its job; raises while one is pending
+    begin(user_id, session_id, conflict=)   - queue an export, returning its job; raises while one is pending
     set_status(user_id, status, ...)        - record progress or the outcome
     get(user_id)                            - read the current state, or None once expired
     read_job(job)                           - read the export a job reference names
@@ -29,6 +29,8 @@ class ProfileExportState(BaseModel):
 
     Attributes:
         status: Where the export is.
+        session_id: The session that requested the export and passed step-up for it; only that session may
+            download it. A state recorded before this field existed reads as None, and nothing may download it.
         error_code: Why it failed; set only when ``status`` is ``FAILED``.
         size_bytes: Size of the staged archive; set only when ``status`` is ``COMPLETED``.
         expires_at: When the state, and with it the download, expires; set only when ``status`` is
@@ -36,6 +38,7 @@ class ProfileExportState(BaseModel):
     """
 
     status: profile_constants.ExportStatus
+    session_id: uuid.UUID | None = None
     error_code: profile_constants.ExportFailure | None = None
     size_bytes: int | None = None
     expires_at: datetime | None = None
@@ -70,11 +73,12 @@ class ProfileExportStateStore:
             state, "users", "profile_export", ttl_seconds, announce=websocket_integration.announce_job
         )
 
-    def begin(self, user_id: uuid.UUID, *, conflict: str) -> core_job_status.JobRef:
+    def begin(self, user_id: uuid.UUID, session_id: uuid.UUID, *, conflict: str) -> core_job_status.JobRef:
         """Record an export as queued unless one is still pending.
 
         Args:
             user_id: The exporting user.
+            session_id: The session that requested the export, the only one that may download it.
             conflict: The detail of the error for an export already pending.
 
         Returns:
@@ -86,7 +90,7 @@ class ProfileExportStateStore:
         """
         return self._attempts.begin(
             str(user_id),
-            ProfileExportState(status=profile_constants.ExportStatus.QUEUED),
+            ProfileExportState(status=profile_constants.ExportStatus.QUEUED, session_id=session_id),
             kind=profile_constants.EXPORT_JOB,
             owner_id=user_id,
             conflict=conflict,
@@ -108,8 +112,10 @@ class ProfileExportStateStore:
             error_code: Why the export failed, when ``status`` is ``FAILED``.
             size_bytes: The archive size, when ``status`` is ``SUCCEEDED``.
 
-        A completed state is written with a fresh lifetime, so its ``expires_at`` is that lifetime from now.
+        A completed state is written with a fresh lifetime, so its ``expires_at`` is that lifetime from now. The
+        requesting session carries over from the state being replaced.
         """
+        current = self.get(user_id)
         expires_at = (
             datetime.now(UTC) + timedelta(seconds=self._ttl_seconds)
             if status == profile_constants.ExportStatus.SUCCEEDED
@@ -117,7 +123,13 @@ class ProfileExportStateStore:
         )
         self._attempts.record(
             str(user_id),
-            ProfileExportState(status=status, error_code=error_code, size_bytes=size_bytes, expires_at=expires_at),
+            ProfileExportState(
+                status=status,
+                session_id=current.session_id if current is not None else None,
+                error_code=error_code,
+                size_bytes=size_bytes,
+                expires_at=expires_at,
+            ),
             finished=status in _FINISHED,
         )
 

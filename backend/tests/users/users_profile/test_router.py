@@ -726,6 +726,7 @@ class TestExportProfileData:
         }
         assert publish.call_args.args[0] == MOCK_USER_ID
         assert export_states.get(MOCK_USER_ID).status == "queued"
+        assert export_states.get(MOCK_USER_ID).session_id == MOCK_SESSION_ID
         step_up, user_id, session_id, action, _store = mock_auth_services.verify_step_up.call_args.args
         assert step_up.current_password == "secret-password"
         assert step_up.mfa_code == "123456"
@@ -764,7 +765,7 @@ class TestDownloadProfileExport:
     """Tests for GET /profile/export/download — download_profile_export."""
 
     def test_streams_the_finished_archive(self, profile_app, profile_client, export_states):
-        export_states.begin(MOCK_USER_ID, conflict="held")
+        export_states.begin(MOCK_USER_ID, MOCK_SESSION_ID, conflict="held")
         export_states.set_status(MOCK_USER_ID, "succeeded", size_bytes=8)
         storage = MagicMock()
         storage.open_stream.return_value = io.BytesIO(b"zip-data")
@@ -779,8 +780,19 @@ class TestDownloadProfileExport:
         assert response.headers["pragma"] == "no-cache"
         storage.open_stream.assert_called_once_with("profile_export_staging", f"{MOCK_USER_ID}.zip")
 
+    def test_is_not_found_for_a_session_that_did_not_request_the_export(
+        self, profile_app, profile_client, export_states
+    ):
+        export_states.begin(MOCK_USER_ID, uuid.UUID(int=602), conflict="held")
+        export_states.set_status(MOCK_USER_ID, "succeeded", size_bytes=8)
+        storage = MagicMock()
+        profile_app.dependency_overrides[core_dependencies.get_storage] = lambda: storage
+
+        assert profile_client.get(PREFIX + "/export/download").status_code == 404
+        storage.open_stream.assert_not_called()
+
     def test_is_not_found_before_the_export_has_finished(self, profile_client, export_states):
-        export_states.begin(MOCK_USER_ID, conflict="held")
+        export_states.begin(MOCK_USER_ID, MOCK_SESSION_ID, conflict="held")
 
         assert profile_client.get(PREFIX + "/export/download").status_code == 404
 

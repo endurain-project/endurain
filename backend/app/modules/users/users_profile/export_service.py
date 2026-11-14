@@ -294,16 +294,16 @@ class ExportService:
         except SQLAlchemyError as err:
             raise DatabaseConnectionError("Failed to collect user settings") from err
 
-    def build_export_archive(self, user_dict: dict[str, Any], timeout_seconds: int | None = 300) -> BinaryIO:
+    def build_export_archive(self, user_dict: dict[str, Any]) -> BinaryIO:
         """Build the export ZIP in a temporary file and return it, rewound to the start.
 
         Everything that can fail (database reads, storage reads, the timeout) happens here, before
         any response bytes exist, so a failure becomes an error response instead of a truncated
-        download. The caller owns the returned file and must close it, which deletes it.
+        download. The caller owns the returned file and must close it, which deletes it. The build is
+        limited to the performance tier's ``timeout_seconds``.
 
         Args:
             user_dict: User data dictionary to export.
-            timeout_seconds: Optional timeout in seconds for building the archive.
 
         Returns:
             The finished archive, positioned at its first byte.
@@ -317,7 +317,7 @@ class ExportService:
         start_time = time.time()
         with contextlib.ExitStack() as stack:
             archive = stack.enter_context(tempfile.TemporaryFile())
-            self._write_archive(archive, user_dict, timeout_seconds, start_time)
+            self._write_archive(archive, user_dict, self.performance_config.timeout_seconds, start_time)
             archive.flush()
             size = archive.tell()
             archive.seek(0)

@@ -11,6 +11,7 @@ import modules.users.users_profile.import_state_store as import_state_store
 import modules.users.users_profile.integration_service as profile_integration
 
 _USER_ID = uuid.UUID(int=1)
+_SESSION_ID = uuid.UUID(int=601)
 
 _MODULE = "modules.users.users_profile.integration_service"
 
@@ -37,7 +38,7 @@ def test_shutdown_stops_the_transfer_pool():
 
 def _begin_export(state, user_id=_USER_ID):
 
-    return export_state_store.ProfileExportStateStore(state).begin(user_id, conflict="held")
+    return export_state_store.ProfileExportStateStore(state).begin(user_id, _SESSION_ID, conflict="held")
 
 
 def _begin_import(state, user_id=_USER_ID):

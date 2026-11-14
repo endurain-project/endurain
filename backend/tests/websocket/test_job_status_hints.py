@@ -22,6 +22,7 @@ import modules.users.users_profile.import_state_store as import_state_store
 import modules.websocket.integration_service as websocket_integration
 
 _USER = uuid.UUID("2f6d8b52-47a0-4c3e-9a51-0c1e5d7b8a90")
+_SESSION = uuid.UUID(int=601)
 
 
 @pytest.fixture
@@ -82,7 +83,7 @@ class TestQueuedSyncs:
 class TestProfileExport:
     def test_a_completed_export_is_announced(self, pushes):
         states = export_state_store.ProfileExportStateStore(MemoryState())
-        started = states.begin(_USER, conflict="Busy")
+        started = states.begin(_USER, _SESSION, conflict="Busy")
         states.set_status(_USER, profile_constants.ExportStatus.RUNNING)
         pushes.assert_not_called()
 
@@ -92,7 +93,7 @@ class TestProfileExport:
 
     def test_a_failed_export_is_announced(self, pushes):
         states = export_state_store.ProfileExportStateStore(MemoryState())
-        started = states.begin(_USER, conflict="Busy")
+        started = states.begin(_USER, _SESSION, conflict="Busy")
 
         states.set_status(
             _USER, profile_constants.ExportStatus.FAILED, error_code=profile_constants.ExportFailure.PROCESSING_FAILED

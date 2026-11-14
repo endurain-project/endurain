@@ -81,7 +81,7 @@ class TestRequestExport:
         pool.require_capacity.assert_not_called()
 
     def test_an_export_the_pool_could_not_take_is_closed(self, states):
-        states.begin(_USER_ID, conflict="held")
+        states.begin(_USER_ID, _SESSION_ID, conflict="held")
 
         job_service.fail_unstarted_export(_payload(), states)
 
@@ -96,7 +96,7 @@ class TestRequestExport:
         publish.assert_called_once_with(_USER_ID, mock_db, commit=mock_db.commit)
 
     def test_a_pending_export_refuses_a_second(self, states, mock_db, verify_step_up):
-        states.begin(_USER_ID, conflict="held")
+        states.begin(_USER_ID, _SESSION_ID, conflict="held")
 
         with pytest.raises(core_exceptions.JobAlreadyRunningError):
             _request(states, mock_db)
@@ -109,7 +109,7 @@ class TestRequestExport:
             _request(states, mock_db)
 
         assert states.get(_USER_ID).status == _Status.FAILED
-        states.begin(_USER_ID, conflict="held")
+        states.begin(_USER_ID, _SESSION_ID, conflict="held")
 
     def test_the_step_up_is_verified_for_this_action_before_anything_is_claimed(self, states, mock_db, verify_step_up):
         verify_step_up.side_effect = core_exceptions.UnauthenticatedError("Invalid credentials")
@@ -131,17 +131,17 @@ class TestRequestExport:
 
 class TestRunExport:
     def test_a_finished_export_records_its_size(self, states):
-        states.begin(_USER_ID, conflict="held")
+        states.begin(_USER_ID, _SESSION_ID, conflict="held")
 
         _run(states, 42)
 
         state = states.get(_USER_ID)
         assert (state.status, state.size_bytes) == (_Status.SUCCEEDED, 42)
-        states.begin(_USER_ID, conflict="held")
+        states.begin(_USER_ID, _SESSION_ID, conflict="held")
 
     @pytest.mark.parametrize("finished", [_Status.SUCCEEDED, _Status.FAILED])
     def test_a_redelivery_of_a_finished_export_does_nothing(self, states, finished):
-        states.begin(_USER_ID, conflict="held")
+        states.begin(_USER_ID, _SESSION_ID, conflict="held")
         states.set_status(_USER_ID, finished)
 
         stage = _run(states, 1)
@@ -149,7 +149,7 @@ class TestRunExport:
         stage.assert_not_called()
 
     def test_a_redelivery_after_a_worker_died_builds_again(self, states):
-        states.begin(_USER_ID, conflict="held")
+        states.begin(_USER_ID, _SESSION_ID, conflict="held")
         states.set_status(_USER_ID, _Status.RUNNING)
 
         stage = _run(states, 5)
@@ -158,7 +158,7 @@ class TestRunExport:
         assert states.get(_USER_ID).status == _Status.SUCCEEDED
 
     def test_a_transient_failure_is_retried(self, states):
-        states.begin(_USER_ID, conflict="held")
+        states.begin(_USER_ID, _SESSION_ID, conflict="held")
 
         with pytest.raises(OperationalError):
             _run(states, OperationalError("s", {}, Exception("db down")), will_retry=True)
@@ -166,7 +166,7 @@ class TestRunExport:
         assert states.get(_USER_ID).status == _Status.QUEUED
 
     def test_a_database_failure_wrapped_by_the_collection_is_retried(self, states):
-        states.begin(_USER_ID, conflict="held")
+        states.begin(_USER_ID, _SESSION_ID, conflict="held")
         try:
             raise OperationalError("s", {}, Exception("db down"))
         except OperationalError as db_err:
@@ -179,7 +179,7 @@ class TestRunExport:
         assert states.get(_USER_ID).status == _Status.QUEUED
 
     def test_a_transient_failure_on_the_last_attempt_is_final(self, states):
-        states.begin(_USER_ID, conflict="held")
+        states.begin(_USER_ID, _SESSION_ID, conflict="held")
 
         _run(states, OperationalError("s", {}, Exception("db down")), will_retry=False)
 
@@ -189,14 +189,14 @@ class TestRunExport:
         )
 
     def test_a_timeout_is_reported_as_one_and_never_retried(self, states):
-        states.begin(_USER_ID, conflict="held")
+        states.begin(_USER_ID, _SESSION_ID, conflict="held")
 
         _run(states, profile_exceptions.TransferTimeoutError("slow"), will_retry=True)
 
         assert (states.get(_USER_ID).status, states.get(_USER_ID).error_code) == (_Status.FAILED, _Failure.TIMED_OUT)
 
     def test_any_other_failure_is_final_with_a_sanitized_code(self, states):
-        states.begin(_USER_ID, conflict="held")
+        states.begin(_USER_ID, _SESSION_ID, conflict="held")
 
         _run(states, RuntimeError("secret detail"), will_retry=True)
 
@@ -207,32 +207,54 @@ class TestRunExport:
 
 class TestOpenExport:
     def test_streams_the_staged_archive(self, states):
-        states.begin(_USER_ID, conflict="held")
+        states.begin(_USER_ID, _SESSION_ID, conflict="held")
         states.set_status(_USER_ID, _Status.SUCCEEDED, size_bytes=8)
         storage = MagicMock()
         storage.open_stream.return_value = io.BytesIO(b"zip-data")
 
-        chunks, size = job_service.open_export(_USER_ID, states, storage)
+        chunks, size = job_service.open_export(_USER_ID, _SESSION_ID, states, storage)
 
         assert (b"".join(chunks), size) == (b"zip-data", 8)
         storage.open_stream.assert_called_once_with(_AREA, f"{_USER_ID}.zip")
 
+    def test_another_session_of_the_user_gets_no_download(self, states):
+        states.begin(_USER_ID, _SESSION_ID, conflict="held")
+        states.set_status(_USER_ID, _Status.SUCCEEDED, size_bytes=8)
+        storage = MagicMock()
+
+        with pytest.raises(core_exceptions.NotFoundError):
+            job_service.open_export(_USER_ID, uuid.UUID(int=602), states, storage)
+
+        storage.open_stream.assert_not_called()
+
+    def test_a_state_without_a_session_has_no_download(self, states):
+        states.begin(_USER_ID, _SESSION_ID, conflict="held")
+        states.set_status(_USER_ID, _Status.SUCCEEDED, size_bytes=8)
+        stored = states.get(_USER_ID).model_copy(update={"session_id": None})
+        states._attempts.record(str(_USER_ID), stored, finished=True)
+        storage = MagicMock()
+
+        with pytest.raises(core_exceptions.NotFoundError):
+            job_service.open_export(_USER_ID, _SESSION_ID, states, storage)
+
+        storage.open_stream.assert_not_called()
+
     @pytest.mark.parametrize("status", [_Status.QUEUED, _Status.RUNNING, _Status.FAILED])
     def test_an_export_that_is_not_finished_has_no_download(self, states, status):
-        states.begin(_USER_ID, conflict="held")
+        states.begin(_USER_ID, _SESSION_ID, conflict="held")
         states.set_status(_USER_ID, status)
 
         with pytest.raises(core_exceptions.NotFoundError):
-            job_service.open_export(_USER_ID, states, MagicMock())
+            job_service.open_export(_USER_ID, _SESSION_ID, states, MagicMock())
 
     def test_a_missing_archive_is_not_found(self, states):
-        states.begin(_USER_ID, conflict="held")
+        states.begin(_USER_ID, _SESSION_ID, conflict="held")
         states.set_status(_USER_ID, _Status.SUCCEEDED, size_bytes=8)
         storage = MagicMock()
         storage.open_stream.side_effect = FileNotFoundError
 
         with pytest.raises(core_exceptions.NotFoundError):
-            job_service.open_export(_USER_ID, states, storage)
+            job_service.open_export(_USER_ID, _SESSION_ID, states, storage)
 
 
 class TestSweepStagedExports:
@@ -287,17 +309,17 @@ class TestDiscardStagedExport:
 class TestCloseDeadLetteredExport:
     @pytest.mark.parametrize("status", [_Status.QUEUED, _Status.RUNNING])
     def test_a_pending_export_is_failed_and_its_claim_released(self, states, status):
-        states.begin(_USER_ID, conflict="held")
+        states.begin(_USER_ID, _SESSION_ID, conflict="held")
         states.set_status(_USER_ID, status)
 
         job_service.close_dead_lettered_export(_payload(), states)
 
         assert states.get(_USER_ID).status == _Status.FAILED
         assert states.get(_USER_ID).error_code == _Failure.PROCESSING_FAILED
-        states.begin(_USER_ID, conflict="held")
+        states.begin(_USER_ID, _SESSION_ID, conflict="held")
 
     def test_an_export_that_already_finished_keeps_its_outcome(self, states):
-        states.begin(_USER_ID, conflict="held")
+        states.begin(_USER_ID, _SESSION_ID, conflict="held")
         states.set_status(_USER_ID, _Status.SUCCEEDED)
 
         job_service.close_dead_lettered_export(_payload(), states)

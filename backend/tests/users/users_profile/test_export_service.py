@@ -378,7 +378,7 @@ class TestExportServiceGenerateExportArchive:
             patch.object(service, "collect_user_settings_data"),
             patch.object(export_media_service, "add_user_images_to_zip"),
         ):
-            archive = service.build_export_archive(user_dict, timeout_seconds=60)
+            archive = service.build_export_archive(user_dict)
 
         assert archive.read(4) == b"PK\x03\x04"
         archive.close()
@@ -488,7 +488,7 @@ class TestExportServiceGenerateExportArchiveEdgeCases:
             ),
             pytest.raises(ZipCreationError),
         ):
-            service.build_export_archive({"id": str(_USER_ID)}, timeout_seconds=60)
+            service.build_export_archive({"id": str(_USER_ID)})
 
     def test_large_zip_file_raises_zip_creation_error(self) -> None:
         """LargeZipFile during ZIP creation raises ZipCreationError (lines 1079-1080)."""
@@ -503,7 +503,7 @@ class TestExportServiceGenerateExportArchiveEdgeCases:
             ),
             pytest.raises(ZipCreationError),
         ):
-            service.build_export_archive({"id": str(_USER_ID)}, timeout_seconds=60)
+            service.build_export_archive({"id": str(_USER_ID)})
 
     def test_exception_re_raised(self) -> None:
         """Non-specific exception from collection re-raised (lines 1083-1084)."""
@@ -517,7 +517,7 @@ class TestExportServiceGenerateExportArchiveEdgeCases:
             patch.object(service, "collect_user_settings_data", side_effect=DataCollectionError("collect failed")),
             pytest.raises(DataCollectionError),
         ):
-            service.build_export_archive({"id": str(_USER_ID)}, timeout_seconds=60)
+            service.build_export_archive({"id": str(_USER_ID)})
 
     def test_export_timeout_re_raised(self) -> None:
         """ExportTimeoutError re-raised through inner except Exception (lines 1083-1084)."""
@@ -537,7 +537,7 @@ class TestExportServiceGenerateExportArchiveEdgeCases:
             patch.object(export_media_service, "add_user_images_to_zip"),
             pytest.raises(ExportTimeoutError),
         ):
-            service.build_export_archive({"id": str(_USER_ID)}, timeout_seconds=60)
+            service.build_export_archive({"id": str(_USER_ID)})
 
     def test_an_os_error_while_writing_raises_file_system_error(self) -> None:
         mock_db = MagicMock(spec=Session)
@@ -550,7 +550,7 @@ class TestExportServiceGenerateExportArchiveEdgeCases:
             patch.object(service, "collect_user_settings_data", side_effect=OSError("disk full")),
             pytest.raises(FileSystemError),
         ):
-            service.build_export_archive({"id": str(_USER_ID)}, timeout_seconds=60)
+            service.build_export_archive({"id": str(_USER_ID)})
 
     def test_a_memory_error_while_writing_raises_memory_allocation_error(self) -> None:
         mock_db = MagicMock(spec=Session)
@@ -563,7 +563,7 @@ class TestExportServiceGenerateExportArchiveEdgeCases:
             patch.object(service, "collect_user_settings_data", side_effect=MemoryError("OOM")),
             pytest.raises(MemoryAllocationError),
         ):
-            service.build_export_archive({"id": str(_USER_ID)}, timeout_seconds=60)
+            service.build_export_archive({"id": str(_USER_ID)})
 
 
 def test_export_writes_only_the_sync_preferences_of_the_integrations() -> None:
@@ -642,3 +642,20 @@ def test_a_failed_build_leaves_no_archive_open() -> None:
         service.build_export_archive({"id": str(_USER_ID)})
 
     assert opened and all(handle.closed for handle in opened)
+
+
+def test_the_build_runs_under_the_performance_tier_timeout() -> None:
+    config = profile_export_service.ExportPerformanceConfig(timeout_seconds=1000, enable_memory_monitoring=False)
+    service = profile_export_service.ExportService(
+        user_id=_USER_ID, storage=MagicMock(), db=MagicMock(spec=Session), performance_config=config
+    )
+    # The build starts at t=1e9 and every later check reads 500 s on: past the old 300 s default, inside the tier's 1000 s.
+    clock = iter([1_000_000_000.0])
+
+    with (
+        patch("modules.users.users_profile.export_service.time.time", side_effect=lambda: next(clock, 1_000_000_500.0)),
+        patch.object(service, "collect_profile_sections", return_value=[]),
+        patch.object(service, "collect_user_settings_data"),
+        patch.object(export_media_service, "add_user_images_to_zip"),
+    ):
+        service.build_export_archive({"id": str(_USER_ID)}).close()

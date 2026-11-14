@@ -2351,6 +2351,9 @@ export interface paths {
         /**
          * Download Profile Export
          * @description Download the authenticated user's finished profile export.
+         *
+         *     Only the session that requested the export, and passed step-up for it, can download it; any other session
+         *     gets 404, as when no finished export exists.
          */
         get: operations["download_profile_export"];
         put?: never;

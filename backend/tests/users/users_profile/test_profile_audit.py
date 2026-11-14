@@ -177,7 +177,7 @@ class TestProfileExport:
         assert entry.details is None
 
     def test_a_refused_request_writes_no_row(self, states, mock_db):
-        states.begin(_USER_ID, conflict="held")
+        states.begin(_USER_ID, _SESSION_ID, conflict="held")
 
         with (
             jasil_testing.capture_audit() as audit,
@@ -189,34 +189,34 @@ class TestProfileExport:
         audit.assert_not_audited(profile_audit_actions.PROFILE_EXPORT_REQUEST.id)
 
     def test_a_download_is_recorded_once_the_archive_is_found(self, states):
-        states.begin(_USER_ID, conflict="held")
+        states.begin(_USER_ID, _SESSION_ID, conflict="held")
         states.set_status(_USER_ID, profile_constants.ExportStatus.SUCCEEDED, size_bytes=8)
         storage = MagicMock()
         storage.open_stream.return_value = io.BytesIO(b"zip-data")
 
         with jasil_testing.capture_audit() as audit:
-            export_job_service.open_export(_USER_ID, states, storage)
+            export_job_service.open_export(_USER_ID, _SESSION_ID, states, storage)
 
         entry = audit.assert_audited(profile_audit_actions.PROFILE_EXPORT_DOWNLOAD.id, **_TARGET)
         assert entry.outcome == Outcome.SUCCESS
         assert entry.details is None
 
     def test_no_download_without_a_finished_export_writes_no_row(self, states):
-        states.begin(_USER_ID, conflict="held")
+        states.begin(_USER_ID, _SESSION_ID, conflict="held")
 
         with jasil_testing.capture_audit() as audit, pytest.raises(core_exceptions.NotFoundError):
-            export_job_service.open_export(_USER_ID, states, MagicMock())
+            export_job_service.open_export(_USER_ID, _SESSION_ID, states, MagicMock())
 
         audit.assert_not_audited(profile_audit_actions.PROFILE_EXPORT_DOWNLOAD.id)
 
     def test_a_missing_archive_writes_no_row(self, states):
-        states.begin(_USER_ID, conflict="held")
+        states.begin(_USER_ID, _SESSION_ID, conflict="held")
         states.set_status(_USER_ID, profile_constants.ExportStatus.SUCCEEDED, size_bytes=8)
         storage = MagicMock()
         storage.open_stream.side_effect = FileNotFoundError
 
         with jasil_testing.capture_audit() as audit, pytest.raises(core_exceptions.NotFoundError):
-            export_job_service.open_export(_USER_ID, states, storage)
+            export_job_service.open_export(_USER_ID, _SESSION_ID, states, storage)
 
         audit.assert_not_audited(profile_audit_actions.PROFILE_EXPORT_DOWNLOAD.id)
 

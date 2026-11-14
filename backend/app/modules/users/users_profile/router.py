@@ -531,21 +531,26 @@ def export_profile_data(
 def download_profile_export(
     request: Request,
     token_user_id: auth_dependencies.CurrentUserId,
+    token_session_id: auth_dependencies.CurrentSessionId,
     export_states: profile_dependencies.ProfileExportStateStoreDep,
     storage: core_dependencies.Storage,
 ) -> StreamingResponse:
     """Download the authenticated user's finished profile export.
 
+    Only the session that requested the export, and passed step-up for it, can download it; any other session
+    gets 404, as when no finished export exists.
+
     Args:
         request: The incoming request, read by the rate limiter.
         token_user_id: User ID from access token.
+        token_session_id: Session ID from access token.
         export_states: Shared store of the export's state.
         storage: The platform storage provider.
 
     Returns:
         Streaming response with the ZIP archive.
     """
-    chunks, size = profile_export_job_service.open_export(token_user_id, export_states, storage)
+    chunks, size = profile_export_job_service.open_export(token_user_id, token_session_id, export_states, storage)
     return StreamingResponse(
         chunks,
         media_type="application/zip",

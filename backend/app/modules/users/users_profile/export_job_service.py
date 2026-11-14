@@ -53,7 +53,8 @@ def request_export(
 ) -> profile_schema.ProfileExportStatus:
     """Queue an export of the user's profile.
 
-    The caller must prove their identity again first, so a stolen access token cannot take the account's data.
+    The caller must prove their identity again first, so a stolen access token cannot take the account's data. The
+    export is bound to the caller's session: only that session may download it.
 
     Args:
         user_id: The exporting user.
@@ -77,7 +78,7 @@ def request_export(
     )
     if not core_config.settings.JOBS_ENABLED:
         profile_transfer_pool.pool.require_capacity()
-    job = states.begin(user_id, conflict="A profile export is already in progress")
+    job = states.begin(user_id, session_id, conflict="A profile export is already in progress")
 
     try:
         jasil_audit.stage(
@@ -159,15 +160,17 @@ def export_status(
 
 def open_export(
     user_id: uuid.UUID,
+    session_id: uuid.UUID,
     states: profile_export_state_store.ProfileExportStateStore,
     storage: platform_providers.StorageProvider,
 ) -> tuple[Generator[bytes], int]:
-    """Open the user's finished export for download.
+    """Open the user's finished export for download, for the session that requested it.
 
     Records ``users.profile_export.download`` once the archive is found, since no transaction spans the stream.
 
     Args:
         user_id: The exporting user.
+        session_id: The caller's session, which must be the one that requested the export.
         states: Shared store of the export's state.
         storage: The platform storage provider.
 
@@ -175,10 +178,11 @@ def open_export(
         The archive, read from storage chunk by chunk, and its size in bytes.
 
     Raises:
-        NotFoundError: When no finished export is available, or its archive is gone.
+        NotFoundError: When no finished export is available to this session, or its archive is gone. Another
+            session's export answers the same, so its existence is not revealed.
     """
     state = states.get(user_id)
-    if state is None or state.status != _Status.SUCCEEDED or state.size_bytes is None:
+    if state is None or state.status != _Status.SUCCEEDED or state.size_bytes is None or state.session_id != session_id:
         raise core_exceptions.NotFoundError("No finished profile export to download")
 
     try:
