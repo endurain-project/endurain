@@ -354,11 +354,10 @@ class TestFollowerListOrder:
 
 
 class TestAdvisoryLocks:
-    def test_the_lock_is_keyed_by_the_hash_of_the_users_id(self, mock_db):
+    def test_the_lock_is_keyed_by_the_user_in_its_own_namespace(self, mock_db):
         import modules.followers.crud as crud
 
-        crud.lock_pending_requests(_ID_1, mock_db)
+        with patch.object(crud.core_database, "lock_user_scope") as lock:
+            crud.lock_pending_requests(_ID_1, mock_db)
 
-        statement, params = mock_db.execute.call_args.args
-        assert "hashtext(:user_id)" in str(statement)
-        assert params == {"namespace": 7301, "user_id": str(_ID_1)}
+        lock.assert_called_once_with(7301, _ID_1, mock_db)

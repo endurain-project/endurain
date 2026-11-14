@@ -3,7 +3,7 @@
 import uuid
 from datetime import datetime
 
-from sqlalchemy import Select, and_, delete, exists, func, or_, select, text, update
+from sqlalchemy import Select, and_, delete, exists, func, or_, select, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import InstrumentedAttribute, Session
 
@@ -236,20 +236,6 @@ def get_pending_requests_for_user_id(
     )
 
 
-def _advisory_xact_lock(namespace: int, user_id: uuid.UUID, db: Session) -> None:
-    """Take a transaction-scoped advisory lock keyed by a user, released on commit or rollback.
-
-    Args:
-        namespace: The lock namespace, so unrelated locks on the same user do not collide.
-        user_id: The user the lock is keyed by.
-        db: Database session.
-    """
-    db.execute(
-        text("SELECT pg_advisory_xact_lock(:namespace, hashtext(:user_id))"),
-        {"namespace": namespace, "user_id": str(user_id)},
-    )
-
-
 def lock_pending_requests(user_id: uuid.UUID, db: Session) -> None:
     """Serialise the writers that add a pending request for a user, until the transaction ends.
 
@@ -260,7 +246,7 @@ def lock_pending_requests(user_id: uuid.UUID, db: Session) -> None:
         user_id: The user the requests are addressed to.
         db: Database session.
     """
-    _advisory_xact_lock(_PENDING_LOCK_NAMESPACE, user_id, db)
+    core_database.lock_user_scope(_PENDING_LOCK_NAMESPACE, user_id, db)
 
 
 def lock_accepted_followees(follower_id: uuid.UUID, db: Session) -> None:
@@ -273,7 +259,7 @@ def lock_accepted_followees(follower_id: uuid.UUID, db: Session) -> None:
         follower_id: The user whose request is being accepted.
         db: Database session.
     """
-    _advisory_xact_lock(_ACCEPTED_LOCK_NAMESPACE, follower_id, db)
+    core_database.lock_user_scope(_ACCEPTED_LOCK_NAMESPACE, follower_id, db)
 
 
 def count_pending_requests_for_user_id(user_id: uuid.UUID, db: Session) -> int:

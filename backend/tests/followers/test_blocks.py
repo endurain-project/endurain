@@ -30,7 +30,9 @@ def factory():
     factory = create_sqlite_session_factory()
     ensure_user(factory, _ID_1)
     ensure_user(factory, _ID_2)
-    yield factory
+    # SQLite has no advisory locks; the lock is exercised against PostgreSQL in tests/postgres.
+    with patch("modules.followers.service.followers_crud.lock_pending_requests"):
+        yield factory
     factory.kw["bind"].dispose()
 
 
@@ -237,8 +239,7 @@ class TestFollowRefusals:
 
         with factory() as db, patch("modules.followers.service.followers_event_publishers") as publishers:
             publishers.publish_follower_requested.side_effect = lambda *a, commit, **k: commit()
-            with patch("modules.followers.service.followers_crud.lock_pending_requests"):
-                followers_service.follow_user(_ID_1, _ID_2, db)
+            followers_service.follow_user(_ID_1, _ID_2, db)
 
     def test_declining_records_the_decline(self, factory):
         with factory() as db:

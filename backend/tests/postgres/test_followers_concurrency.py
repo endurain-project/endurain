@@ -8,6 +8,7 @@ check constraints, which only separate connections can exercise.
 import threading
 import uuid
 from collections.abc import Callable
+from unittest.mock import MagicMock
 
 import pytest
 from sqlalchemy import select, text
@@ -218,3 +219,69 @@ def test_concurrent_accepts_cannot_exceed_the_followee_cap(factory, monkeypatch)
         accepted = followers_crud.count_following_by_user_id(_ID_1, db, accepted_only=True)
     assert accepted == 2
     assert len([o for o in outcomes if isinstance(o, core_exceptions.ConflictError)]) == _THREADS - 2
+
+
+def _commit_publishers(monkeypatch) -> None:
+    import modules.followers.service as followers_service
+
+    publishers = MagicMock()
+    publishers.publish_follower_requested.side_effect = lambda *a, commit, **k: commit()
+    publishers.publish_follower_request_removed.side_effect = lambda *a, commit, **k: commit()
+    monkeypatch.setattr(followers_service, "followers_event_publishers", publishers)
+
+
+def _follow_and_block_interleaved(factory, monkeypatch, requester: uuid.UUID, blocker: uuid.UUID, target: uuid.UUID):
+    """Hold the follow between its last block check and its insert until the block ran or 2 s passed."""
+    import modules.followers.service as followers_service
+
+    _commit_publishers(monkeypatch)
+    checked = threading.Event()
+    blocked = threading.Event()
+    real_is_blocked = followers_crud.is_blocked
+    checks = []
+
+    def is_blocked(blocker_id, blocked_id, db):
+        result = real_is_blocked(blocker_id, blocked_id, db)
+        if threading.current_thread().name == "follow":
+            checks.append(blocker_id)
+        # The follow's second check is its last one: pause there so the block commits before the insert.
+        if threading.current_thread().name == "follow" and len(checks) == 2:
+            checked.set()
+            blocked.wait(timeout=2)
+        return result
+
+    monkeypatch.setattr(followers_service.followers_crud, "is_blocked", is_blocked)
+    outcomes: dict[str, object] = {}
+
+    def follow() -> None:
+        with factory() as db:
+            try:
+                outcomes["follow"] = followers_service.follow_user(requester, target, db)
+            except Exception as err:
+                db.rollback()
+                outcomes["follow"] = err
+
+    def block() -> None:
+        checked.wait(timeout=5)
+        with factory() as db:
+            followers_service.block_user(blocker, target if blocker == requester else requester, db)
+        blocked.set()
+
+    threads = [threading.Thread(target=follow, name="follow"), threading.Thread(target=block, name="block")]
+    for thread in threads:
+        thread.start()
+    for thread in threads:
+        thread.join(timeout=20)
+    return outcomes
+
+
+def test_a_block_racing_a_follow_leaves_no_pending_request_from_the_blocked_user(factory, monkeypatch):
+    _follow_and_block_interleaved(factory, monkeypatch, requester=_ID_1, blocker=_ID_2, target=_ID_2)
+
+    assert _status(factory, _ID_1, _ID_2) is None
+
+
+def test_the_requester_blocking_the_target_during_their_own_follow_leaves_no_pending_request(factory, monkeypatch):
+    _follow_and_block_interleaved(factory, monkeypatch, requester=_ID_1, blocker=_ID_1, target=_ID_2)
+
+    assert _status(factory, _ID_1, _ID_2) is None

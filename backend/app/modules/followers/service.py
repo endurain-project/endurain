@@ -457,13 +457,14 @@ def follow_user(
 
     # Checked before the pending cap, so a hidden account answers not found, never "too many pending".
     users_integration.get_public_profile(target_user_id, db)
+    # A block between the two users takes this same lock, so the block checks below hold until the insert commits.
+    followers_crud.lock_pending_requests(target_user_id, db)
     if followers_crud.is_blocked(target_user_id, requester_user_id, db):
         raise core_exceptions.NotFoundError("User not found")
     if followers_crud.is_blocked(requester_user_id, target_user_id, db):
         # The requester blocked the target themselves, so saying so discloses nothing.
         raise core_exceptions.ConflictError("Unblock this user first")
     _ensure_cooldown_over(requester_user_id, target_user_id, db)
-    followers_crud.lock_pending_requests(target_user_id, db)
     if (
         followers_crud.count_pending_requests_for_user_id(target_user_id, db)
         >= followers_constants.MAX_PENDING_REQUESTS
@@ -541,6 +542,10 @@ def block_user(blocker_id: uuid.UUID, blocked_id: uuid.UUID, db: Session) -> Non
     """
     if users_integration.get_user(blocked_id, db) is None:
         return
+    # A follow in either direction takes the addressee's lock; holding both, in a fixed order so two blocks
+    # cannot deadlock, makes a follow either commit before the block (and be removed by it) or see the block.
+    for user_id in sorted((blocker_id, blocked_id), key=str):
+        followers_crud.lock_pending_requests(user_id, db)
     created = followers_crud.create_block(blocker_id, blocked_id, db)
     removed = followers_crud.delete_follows_between(blocker_id, blocked_id, db)
     if created:

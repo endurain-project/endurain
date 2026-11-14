@@ -322,6 +322,43 @@ class TestPendingCapIsSerialised:
         assert [call[0] for call in calls.mock_calls] == ["lock", "count", "create"]
 
 
+class TestBlocksAreCheckedUnderTheLock:
+    @patch("modules.followers.service.users_integration")
+    @patch("modules.followers.service.followers_event_publishers")
+    @patch("modules.followers.service.followers_crud")
+    def test_follow_checks_blocks_only_after_locking_the_targets_requests(self, mock_crud, mock_pub, mock_users):
+        from modules.followers.service import follow_user
+
+        calls = MagicMock()
+        calls.attach_mock(mock_crud.lock_pending_requests, "lock")
+        calls.attach_mock(mock_crud.is_blocked, "blocked")
+        calls.attach_mock(mock_crud.create_follower, "create")
+        mock_crud.is_blocked.return_value = False
+        mock_crud.get_last_decline_at.return_value = None
+        mock_crud.count_pending_requests_for_user_id.return_value = 0
+
+        follow_user(_ID_1, _ID_2, MagicMock())
+
+        assert [call[0] for call in calls.mock_calls] == ["lock", "blocked", "blocked", "create"]
+
+    @patch("modules.followers.service.users_integration")
+    @patch("modules.followers.service.followers_event_publishers")
+    @patch("modules.followers.service.followers_crud")
+    def test_block_takes_both_users_locks_in_id_order_before_writing(self, mock_crud, mock_pub, mock_users):
+        from modules.followers.service import block_user
+
+        calls = MagicMock()
+        calls.attach_mock(mock_crud.lock_pending_requests, "lock")
+        calls.attach_mock(mock_crud.create_block, "create_block")
+        mock_crud.create_block.return_value = True
+        mock_crud.delete_follows_between.return_value = []
+
+        block_user(_ID_2, _ID_1, MagicMock())
+
+        assert [call[0] for call in calls.mock_calls] == ["lock", "lock", "create_block"]
+        assert [call.args[0] for call in calls.mock_calls[:2]] == sorted((_ID_1, _ID_2), key=str)
+
+
 class TestAcceptFollowRequest:
     @patch("modules.followers.service.followers_event_publishers")
     @patch("modules.followers.service.followers_crud")
