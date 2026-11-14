@@ -62,6 +62,8 @@
     "cancel": "Atšaukti",
     "close": "Uždaryti",
     "success": "Įranga ištrinta",
+    "deleting": "Trinama…",
+    "inProgress": "Ši įranga jau trinama.",
     "error": "Nepavyko ištrinti įrangos. Bandykite dar kartą."
   },
   "error": {

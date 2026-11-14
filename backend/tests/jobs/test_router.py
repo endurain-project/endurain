@@ -30,7 +30,7 @@ def state():
     return MemoryState()
 
 
-def _client(state, scopes=("account",), user_id=USER) -> TestClient:
+def _client(state, scopes=("gears:write",), user_id=USER) -> TestClient:
     app = FastAPI()
     app.include_router(jobs_router.router, prefix="/jobs")
     core_exceptions.register_exception_handlers(app)

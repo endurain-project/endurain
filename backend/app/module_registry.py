@@ -87,6 +87,7 @@ import modules.gears.contributors as gears_contributors
 import modules.gears.gear.constants as gear_constants
 import modules.gears.gear.integration_service as gear_integration
 import modules.gears.gear.scheduled_jobs as gear_scheduled_jobs
+import modules.gears.gear.subscriber_registry as gear_subscriber_registry
 import modules.gears.gear_components.constants as gear_components_constants
 import modules.gears.gear_components.integration_service as gear_components_integration
 import modules.gears.gear_components.scheduled_jobs as gear_components_scheduled_jobs
@@ -369,7 +370,13 @@ MODULES: tuple[RuntimeModule, ...] = (
         ),
     ),
     RuntimeModule(name="known_devices", recurring_jobs=known_devices_scheduled_jobs.recurring_jobs),
-    RuntimeModule(name="gear", recurring_jobs=gear_scheduled_jobs.recurring_jobs),
+    RuntimeModule(
+        name="gear",
+        register_durable=gear_subscriber_registry.register_durable_handlers,
+        nets=gear_subscriber_registry.DURABLE_SUBSCRIBER_NETS,
+        recurring_jobs=gear_scheduled_jobs.recurring_jobs,
+        shutdown=gear_integration.shutdown_deletion_pool,
+    ),
     RuntimeModule(name="gear_components", recurring_jobs=gear_components_scheduled_jobs.recurring_jobs),
     RuntimeModule(name="health", recurring_jobs=health_scheduled_jobs.recurring_jobs),
     RuntimeModule(name="lockout", audit_actions=lockout_audit_actions.ACTIONS),

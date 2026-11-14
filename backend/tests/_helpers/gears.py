@@ -36,7 +36,7 @@ def install_readers(
     count_components_outside_type: gears_contributors.ComponentsOutsideTypeCounter = lambda gear_id, user_id, gear_type, db: (
         0
     ),
-    clear_activities_gear: gears_contributors.ActivitiesGearClearer = lambda gear_id, user_id, db: 0,
+    clear_activities_gear: gears_contributors.ActivitiesGearClearer = lambda gear_id, user_id, limit, db: 0,
     clear_default_gear: gears_contributors.DefaultGearClearer = lambda gear_ids, user_id, db: None,
     record_component_deletions: gears_contributors.ComponentDeletionsRecorder = lambda gear_ids, user_id, db: None,
 ) -> None:

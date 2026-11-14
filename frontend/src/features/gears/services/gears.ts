@@ -11,7 +11,8 @@ import type { Schemas } from '@/types'
 
 import { apiFetch } from '@/services/http'
 import { isProblem } from '@/services/problems'
-import { ifMatchHeaders, rowVersion } from '@/services/ifMatch'
+import { ifMatchHeaders, isStaleWrite, rowVersion } from '@/services/ifMatch'
+import { followJob, JobTimeoutError, type JobOf } from '@/services/jobStatus'
 import { fetchAllPages } from '@/services/pagination'
 import { moneyToNumber, numberToMoney } from '@/utils/number'
 
@@ -227,18 +228,52 @@ export async function updateGear(id: string, input: GearInput, version: number):
   return mapGear(dto)
 }
 
+/** How often the gear deletion is checked while it runs. */
+const GEAR_DELETION_POLL_MS = 2_000
+
+/** How long the gear deletion is followed before giving up. */
+const GEAR_DELETION_TIMEOUT_MS = 10 * 60_000
+
 /**
- * Deletes a gear by id. The backend replies `204 No Content`, so there is no
- * response body to map.
+ * Deletes a gear by id. The server queues the deletion, because it unassigns the gear from every
+ * activity that carries it, so this follows the queued job until it finishes.
  *
  * @param id - The gear id to delete.
  * @param version - The row version the caller read, for `If-Match`.
- * @throws {HttpError} When the request fails (`412` when the gear changed since it was read).
+ * @throws {HttpError} When the request is refused: `412` when the gear changed since it was read,
+ *   `409` when a deletion of it is already running.
+ * @throws {Error} When the deletion fails on the server or does not finish in time.
  */
 export async function deleteGear(id: string, version: number): Promise<void> {
-  await apiFetch<void>(`/gears/${id}`, {
+  const queued = await apiFetch<Schemas['GearDeletionStatus']>(`/gears/${id}`, {
     method: 'DELETE',
     headers: ifMatchHeaders(version),
-    responseType: 'void',
   })
+  let job: JobOf<'gear_deletion'>
+  try {
+    job = await followJob<'gear_deletion'>(queued.id, {
+      intervalMs: GEAR_DELETION_POLL_MS,
+      timeoutMs: GEAR_DELETION_TIMEOUT_MS,
+    })
+  } catch (error) {
+    throw error instanceof JobTimeoutError
+      ? new Error('Deleting the gear did not finish in time')
+      : error
+  }
+  if (job.status === 'failed') {
+    throw new Error('Deleting the gear failed')
+  }
+}
+
+/**
+ * Picks the translation key of the toast for a failed gear deletion.
+ *
+ * @param error - What {@link deleteGear} rejected with.
+ * @returns The i18n key to show.
+ */
+export function deleteGearErrorKey(error: unknown): string {
+  if (isStaleWrite(error)) {
+    return 'app.staleError'
+  }
+  return isProblem(error, 'conflict') ? 'gears.delete.inProgress' : 'gears.delete.error'
 }

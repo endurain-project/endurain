@@ -1558,20 +1558,36 @@ def bulk_set_activities_gear_id(
     return updated_ids
 
 
-def clear_gear_from_activities(gear_id: uuid.UUID, user_id: uuid.UUID, db: Session) -> list[uuid.UUID]:
-    """Stage unassigning a gear from every activity of a user that carries it.
+def clear_gear_from_activities(gear_id: uuid.UUID, user_id: uuid.UUID, limit: int, db: Session) -> list[uuid.UUID]:
+    """Stage unassigning a gear from up to ``limit`` of a user's activities that carry it.
+
+    The rows are locked in id order first, like every multi-row write here, so a batch never deadlocks with
+    another writer.
 
     Args:
         gear_id: Gear ID to unassign.
         user_id: Owner user ID.
+        limit: The most activities to change.
         db: Database session.
 
     Returns:
-        The IDs of the updated activities, so the caller can publish one event per row.
+        The IDs of the updated activities, so the caller can publish one event per row. Empty once no activity
+        carries the gear.
     """
+    ids = list(
+        db.scalars(
+            select(activity_models.Activity.id)
+            .where(activity_models.Activity.user_id == user_id, activity_models.Activity.gear_id == gear_id)
+            .order_by(activity_models.Activity.id)
+            .limit(limit)
+            .with_for_update()
+        ).all()
+    )
+    if not ids:
+        return []
     stmt = (
         sa_update(activity_models.Activity)
-        .where(activity_models.Activity.user_id == user_id, activity_models.Activity.gear_id == gear_id)
+        .where(activity_models.Activity.user_id == user_id, activity_models.Activity.id.in_(ids))
         # Core UPDATEs bypass the ORM version bump, so an ETag would survive a
         # change it should have invalidated.
         .values(gear_id=None, version=activity_models.Activity.version + 1)

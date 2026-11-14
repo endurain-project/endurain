@@ -62,6 +62,8 @@
     "cancel": "Annullér",
     "close": "Luk",
     "success": "Udstyr slettet",
+    "deleting": "Sletter…",
+    "inProgress": "Dette udstyr bliver allerede slettet.",
     "error": "Kunne ikke slette udstyret. Prøv venligst igen."
   },
   "error": {

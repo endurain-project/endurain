@@ -62,6 +62,8 @@
     "cancel": "Annuleren",
     "close": "Sluiten",
     "success": "Uitrusting verwijderd",
+    "deleting": "Verwijderen…",
+    "inProgress": "Deze uitrusting wordt al verwijderd.",
     "error": "Uitrusting kon niet worden verwijderd. Probeer het opnieuw."
   },
   "error": {

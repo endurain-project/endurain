@@ -25,7 +25,7 @@ The detail page shows:
 - **Total time:** the time of those activities.
 - **Components cost:** the purchase value of its components.
 
-To use gear on an activity, pick it in the activity's edit dialog, or set a [default gear](#default-gear) for the activity type. Deleting gear removes it from the activities that used it. The activities stay.
+To use gear on an activity, pick it in the activity's edit dialog, or set a [default gear](#default-gear) for the activity type. Deleting gear removes it from the activities that used it. The activities stay. A gear used by many activities is deleted in the background, so it can stay in the list for a moment, shown as being deleted, before it disappears.
 
 ## Components
 

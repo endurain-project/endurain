@@ -27,6 +27,9 @@ import modules.auth.dependencies as auth_dependencies
 import modules.garmin.constants as garmin_constants
 import modules.garmin.router as garmin_router
 import modules.garmin.schema as garmin_schema
+import modules.gears.gear.constants as gears_constants
+import modules.gears.gear.router as gear_router
+import modules.gears.gear.schema as gears_schema
 import modules.jobs.router as jobs_router
 import modules.strava.constants as strava_constants
 import modules.strava.router as strava_router
@@ -52,6 +55,7 @@ def client() -> TestClient:
     app.include_router(ingestion_router.router, prefix="/activities")
     app.include_router(activity_router.router, prefix="/activities")
     app.include_router(garmin_router.router, prefix="/garmin")
+    app.include_router(gear_router.router, prefix="/gears")
     app.include_router(strava_router.router, prefix="/strava")
     app.include_router(users_router.router, prefix="/users")
     app.include_router(profile_router.router, prefix="/profile")
@@ -213,6 +217,14 @@ _ACCEPTING_ROUTES = [
         _JOB_STATUS,
         bulk_edit_constants.BULK_EDIT_POLL_SECONDS,
         id="bulk-edit",
+    ),
+    pytest.param(
+        ("DELETE", f"/gears/{_JOB_ID}", {}),
+        (gear_router.gears_deletion_job_service, "request_gear_deletion"),
+        gears_schema.GearDeletionStatus.model_validate(_envelope("gear_deletion")),
+        _JOB_STATUS,
+        gears_constants.DELETION_POLL_SECONDS,
+        id="gear-deletion",
     ),
 ]
 

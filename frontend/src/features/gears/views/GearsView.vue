@@ -21,7 +21,7 @@ import { useCurrentUser } from '@/features/auth/composables/useCurrentUser'
 import { useRecordsPerPage } from '@/features/config/composables/useRecordsPerPage'
 import { useListPagination } from '@/composables/useListPagination'
 import { useToasts } from '@/composables/useToasts'
-import { isStaleWrite } from '@/services/ifMatch'
+import { deleteGearErrorKey } from '@/features/gears/services/gears'
 import {
   useDeleteGearMutation,
   useGearSearchQuery,
@@ -169,6 +169,10 @@ function onFormError(message: string): void {
 const isDeleteOpen = ref(false)
 const gearToDelete = ref<Gear | null>(null)
 const deleteMutation = useDeleteGearMutation()
+// The gear stays listed, shown as being deleted, until the queued deletion succeeds.
+const deletingGearId = computed(() =>
+  deleteMutation.isPending.value ? (deleteMutation.variables.value?.id ?? null) : null,
+)
 
 function openDelete(gear: Gear): void {
   gearToDelete.value = gear
@@ -183,18 +187,11 @@ function confirmDelete(): void {
   deleteMutation.mutate(
     { id: gear.id, version: gear.version },
     {
-      onSuccess: () => {
-        isDeleteOpen.value = false
-        toasts.success(t('gears.delete.success'))
-      },
-      onError: (error) => {
-        if (isStaleWrite(error)) {
-          isDeleteOpen.value = false
-        }
-        toasts.error(isStaleWrite(error) ? t('app.staleError') : t('gears.delete.error'))
-      },
+      onSuccess: () => toasts.success(t('gears.delete.success')),
+      onError: (error) => toasts.error(t(deleteGearErrorKey(error))),
     },
   )
+  isDeleteOpen.value = false
 }
 </script>
 
@@ -312,7 +309,12 @@ function confirmDelete(): void {
 
         <ul class="divide-y divide-border">
           <li v-for="gear in displayedGears" :key="gear.id">
-            <GearListItem :gear="gear" @edit="openEdit" @delete="openDelete" />
+            <GearListItem
+              :gear="gear"
+              :deleting="gear.id === deletingGearId"
+              @edit="openEdit"
+              @delete="openDelete"
+            />
           </li>
         </ul>
       </ListPanel>

@@ -1002,9 +1002,12 @@ export interface paths {
         post?: never;
         /**
          * Delete Gear
-         * @description Delete one of the authenticated user's gears.
+         * @description Queue the deletion of one of the authenticated user's gears.
          *
-         *     Send ``If-Match`` with the gear's ``version`` as an ETag; a stale tag is refused with 412.
+         *     Send ``If-Match`` with the gear's ``version`` as an ETag; a stale tag is refused with 412 before anything is
+         *     queued. The gear is unassigned from its activities in the background, so the response is ``202`` with a job:
+         *     poll ``GET /jobs/{job_id}`` until it succeeds. The gear stays readable until then. A second delete while
+         *     one is pending is refused with 409.
          */
         delete: operations["delete_gear"];
         options?: never;
@@ -6882,6 +6885,41 @@ export interface components {
             purchase_value?: string | null;
         };
         /**
+         * GearDeletionStatus
+         * @description Where a queued gear deletion is.
+         */
+        GearDeletionStatus: {
+            /**
+             * Created At
+             * Format: date-time
+             * @description When the job was accepted
+             */
+            readonly created_at: string;
+            /**
+             * Error Code
+             * @description Why the job failed; null unless it failed
+             */
+            error_code?: string | null;
+            /**
+             * Finished At
+             * @description When the job succeeded or failed
+             */
+            finished_at?: string | null;
+            /**
+             * Id
+             * Format: uuid
+             * @description The job's identifier
+             */
+            readonly id: string;
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            kind: "gear_deletion";
+            /** @description Where the job is */
+            status: components["schemas"]["JobState"];
+        };
+        /**
          * GearDetailRead
          * @description Extended gear with computed stats.
          *
@@ -9934,6 +9972,7 @@ export interface components {
          *         ACTIVITY_REFRESH: A pull of new activities from the linked providers.
          *         ACTIVITY_BULK_IMPORT: One dropped bulk-import archive being imported.
          *         ACTIVITIES_BULK_EDIT: A change to the visibility of all the user's activities.
+         *         GEAR_DELETION: A gear being unassigned from its activities and deleted.
          *         GARMIN_LINK: A Garmin Connect login, which may wait for an MFA code.
          *         GARMIN_SYNC_GEAR: A pull of gear from Garmin Connect.
          *         GARMIN_SYNC_HEALTH: A pull of health data from Garmin Connect.
@@ -9945,14 +9984,14 @@ export interface components {
          *         PROFILE_IMPORT: A profile export archive being imported.
          * @enum {string}
          */
-        JobKind: "activity_upload" | "activity_refresh" | "activity_bulk_import" | "activities_bulk_edit" | "garmin_link" | "garmin_sync_gear" | "garmin_sync_health" | "strava_link" | "strava_gear" | "strava_unlink" | "user_deletion" | "profile_export" | "profile_import";
+        JobKind: "activity_upload" | "activity_refresh" | "activity_bulk_import" | "activities_bulk_edit" | "gear_deletion" | "garmin_link" | "garmin_sync_gear" | "garmin_sync_health" | "strava_link" | "strava_gear" | "strava_unlink" | "user_deletion" | "profile_export" | "profile_import";
         /**
          * JobPage
          * @description A keyset slice of the caller's jobs, newest first.
          */
         JobPage: {
             /** Items */
-            items: (components["schemas"]["ActivityIngestionJobRead"] | components["schemas"]["ActivitiesBulkEditStatus"] | components["schemas"]["GarminLinkStatus"] | components["schemas"]["GarminSyncStatus"] | components["schemas"]["StravaSyncStatus"] | components["schemas"]["UserDeletionStatus"] | components["schemas"]["ProfileExportStatus"] | components["schemas"]["ProfileImportStatus"])[];
+            items: (components["schemas"]["ActivityIngestionJobRead"] | components["schemas"]["ActivitiesBulkEditStatus"] | components["schemas"]["GearDeletionStatus"] | components["schemas"]["GarminLinkStatus"] | components["schemas"]["GarminSyncStatus"] | components["schemas"]["StravaSyncStatus"] | components["schemas"]["UserDeletionStatus"] | components["schemas"]["ProfileExportStatus"] | components["schemas"]["ProfileImportStatus"])[];
             /** Next Cursor */
             next_cursor?: string | null;
             /** Num Records */
@@ -19587,12 +19626,18 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description Successful Response */
-            204: {
+            /** @description Accepted. The work runs in the background as a job; `Content-Location` names where to poll it. */
+            202: {
                 headers: {
+                    /** @description Path of the job to poll for the outcome, `/jobs/{job_id}`. */
+                    "Content-Location"?: string;
+                    /** @description Seconds to wait before the first poll. */
+                    "Retry-After"?: number;
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["GearDeletionStatus"];
+                };
             };
             /** @description The request is refused, for example `If-Match: *`. */
             400: {
@@ -25624,7 +25669,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["ActivityIngestionJobRead"] | components["schemas"]["ActivitiesBulkEditStatus"] | components["schemas"]["GarminLinkStatus"] | components["schemas"]["GarminSyncStatus"] | components["schemas"]["StravaSyncStatus"] | components["schemas"]["UserDeletionStatus"] | components["schemas"]["ProfileExportStatus"] | components["schemas"]["ProfileImportStatus"];
+                    "application/json": components["schemas"]["ActivityIngestionJobRead"] | components["schemas"]["ActivitiesBulkEditStatus"] | components["schemas"]["GearDeletionStatus"] | components["schemas"]["GarminLinkStatus"] | components["schemas"]["GarminSyncStatus"] | components["schemas"]["StravaSyncStatus"] | components["schemas"]["UserDeletionStatus"] | components["schemas"]["ProfileExportStatus"] | components["schemas"]["ProfileImportStatus"];
                 };
             };
             /** @description The credential is missing, invalid or no longer valid. */

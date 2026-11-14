@@ -18,7 +18,7 @@ import { ErrorState } from '@/components/ui/error-state'
 import { Skeleton } from '@/components/ui/skeleton'
 import { useCurrentUser } from '@/features/auth/composables/useCurrentUser'
 import { useToasts } from '@/composables/useToasts'
-import { isStaleWrite } from '@/services/ifMatch'
+import { deleteGearErrorKey } from '@/features/gears/services/gears'
 import { isUuid } from '@/utils/validation'
 import { presentGearType } from '@/features/gears/utils/gearType'
 import { useGearComponentsQuery } from '@/features/gears/composables/useGearComponents'
@@ -80,18 +80,13 @@ function confirmDelete(): void {
     { id: target.id, version: target.version },
     {
       onSuccess: () => {
-        isDeleteOpen.value = false
         toasts.success(t('gears.delete.success'))
         void router.push({ name: 'gears' })
       },
-      onError: (error) => {
-        if (isStaleWrite(error)) {
-          isDeleteOpen.value = false
-        }
-        toasts.error(isStaleWrite(error) ? t('app.staleError') : t('gears.delete.error'))
-      },
+      onError: (error) => toasts.error(t(deleteGearErrorKey(error))),
     },
   )
+  isDeleteOpen.value = false
 }
 </script>
 
@@ -208,6 +203,7 @@ function confirmDelete(): void {
           :gear="gear"
           :units="units"
           :currency="currency"
+          :deleting="deleteMutation.isPending.value"
           @edit="openEdit"
           @delete="openDelete"
         />

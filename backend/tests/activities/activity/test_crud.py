@@ -1502,28 +1502,31 @@ class TestSumGearUsageByWindow:
 
 
 class TestClearGearFromActivities:
-    def test_nothing_is_returned_when_no_activity_carries_the_gear(self):
+    def test_nothing_is_updated_when_no_activity_carries_the_gear(self):
         import modules.activities.activity.crud as crud
 
         db = MagicMock()
-        db.execute.return_value.all.return_value = []
+        db.scalars.return_value.all.return_value = []
 
-        assert crud.clear_gear_from_activities(_GEAR_ID, _USER_1, db) == []
-        assert db.execute.call_count == 1
+        assert crud.clear_gear_from_activities(_GEAR_ID, _USER_1, 500, db) == []
+        db.execute.assert_not_called()
 
-    def test_one_update_scoped_to_the_owner_bumps_the_version(self):
+    def test_a_batch_is_locked_then_updated_in_one_statement_that_bumps_the_version(self):
         import modules.activities.activity.crud as crud
 
         db = MagicMock()
+        db.scalars.return_value.all.return_value = [3, 4]
         db.execute.return_value.all.return_value = [(4,), (3,)]
 
-        assert crud.clear_gear_from_activities(_GEAR_ID, _USER_1, db) == [3, 4]
+        assert crud.clear_gear_from_activities(_GEAR_ID, _USER_1, 500, db) == [3, 4]
+        (select_stmt,) = (call.args[0] for call in db.scalars.call_args_list)
+        selected = str(select_stmt.compile(dialect=postgresql.dialect()))
+        assert "FOR UPDATE" in selected
+        assert "LIMIT" in selected
         (update,) = (call.args[0] for call in db.execute.call_args_list)
         compiled = str(update.compile(dialect=postgresql.dialect()))
         assert "version" in compiled
         assert "user_id" in compiled
-        assert " IN " not in compiled
-        assert "FOR UPDATE" not in compiled
 
 
 class TestSumUserActivitiesPerTimeframeAndTypes:

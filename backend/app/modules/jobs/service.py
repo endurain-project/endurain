@@ -25,6 +25,8 @@ import modules.activities.activity_ingestion.constants as activity_ingestion_con
 import modules.activities.activity_ingestion.integration_service as activity_ingestion_integration
 import modules.garmin.constants as garmin_constants
 import modules.garmin.integration_service as garmin_integration
+import modules.gears.gear.constants as gears_constants
+import modules.gears.gear.integration_service as gears_integration
 import modules.jobs.schema as jobs_schema
 import modules.strava.constants as strava_constants
 import modules.strava.integration_service as strava_integration
@@ -60,17 +62,22 @@ _INGESTION_KINDS = activity_ingestion_constants.IngestionJobKind
 
 _RULES: dict[_Kind, _KindRule] = {
     _Kind.ACTIVITY_UPLOAD: _KindRule("activities:upload", _INGESTION_POLL[_INGESTION_KINDS.UPLOAD]),
-    _Kind.ACTIVITY_REFRESH: _KindRule("activities:upload", _INGESTION_POLL[_INGESTION_KINDS.REFRESH]),
-    _Kind.ACTIVITY_BULK_IMPORT: _KindRule("activities:upload", _INGESTION_POLL[_INGESTION_KINDS.BULK_IMPORT]),
+    _Kind.ACTIVITY_REFRESH: _KindRule("activities:write", _INGESTION_POLL[_INGESTION_KINDS.REFRESH]),
+    _Kind.ACTIVITY_BULK_IMPORT: _KindRule("activities:write", _INGESTION_POLL[_INGESTION_KINDS.BULK_IMPORT]),
     _Kind.ACTIVITIES_BULK_EDIT: _KindRule(
-        "activities:read", bulk_edit_constants.BULK_EDIT_POLL_SECONDS, activity_integration.read_bulk_edit_job
+        "activities:write", bulk_edit_constants.BULK_EDIT_POLL_SECONDS, activity_integration.read_bulk_edit_job
+    ),
+    _Kind.GEAR_DELETION: _KindRule(
+        "gears:write", gears_constants.DELETION_POLL_SECONDS, gears_integration.read_deletion_job
     ),
     _Kind.GARMIN_LINK: _KindRule(
         "account:integrations", garmin_constants.LINK_POLL_SECONDS, garmin_integration.read_link_job
     ),
-    _Kind.GARMIN_SYNC_GEAR: _KindRule("account", garmin_constants.SYNC_POLL_SECONDS, garmin_integration.read_sync_job),
+    _Kind.GARMIN_SYNC_GEAR: _KindRule(
+        "gears:write", garmin_constants.SYNC_POLL_SECONDS, garmin_integration.read_sync_job
+    ),
     _Kind.GARMIN_SYNC_HEALTH: _KindRule(
-        "account", garmin_constants.SYNC_POLL_SECONDS, garmin_integration.read_sync_job
+        "health:write", garmin_constants.SYNC_POLL_SECONDS, garmin_integration.read_sync_job
     ),
     _Kind.STRAVA_LINK: _KindRule(
         "account:integrations",
@@ -78,7 +85,9 @@ _RULES: dict[_Kind, _KindRule] = {
         strava_integration.read_sync_job,
     ),
     _Kind.STRAVA_GEAR: _KindRule(
-        "account", strava_constants.SYNC_POLL_SECONDS[strava_constants.SyncKind.GEAR], strava_integration.read_sync_job
+        "gears:write",
+        strava_constants.SYNC_POLL_SECONDS[strava_constants.SyncKind.GEAR],
+        strava_integration.read_sync_job,
     ),
     _Kind.STRAVA_UNLINK: _KindRule(
         "account:integrations",

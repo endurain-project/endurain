@@ -331,7 +331,10 @@ def edit_gear(
 
 
 def delete_gear(gear_id: uuid.UUID, user_id: uuid.UUID, db: Session, *, if_match: str) -> None:
-    """Delete a user's gear, unassigning it from their activities first.
+    """Delete a user's gear in one transaction, unassigning it from the activities that still carry it first.
+
+    The deletion job calls this once it has unassigned the gear from most activities a batch at a time, so what is
+    left to clear here is what was assigned meanwhile.
 
     Args:
         gear_id: Gear ID to delete.
@@ -351,7 +354,13 @@ def delete_gear(gear_id: uuid.UUID, user_id: uuid.UUID, db: Session, *, if_match
     ):
         # Locked first, so an activity cannot be assigned the gear between the clear and the delete.
         gears_crud.lock_gear(gear_id, user_id, db)
-        gears_contributor_registry.readers().clear_activities_gear(gear_id, user_id, db)
+        while (
+            gears_contributor_registry.readers().clear_activities_gear(
+                gear_id, user_id, gears_constants.DELETION_BATCH_SIZE, db
+            )
+            == gears_constants.DELETION_BATCH_SIZE
+        ):
+            pass
         gears_contributor_registry.readers().clear_default_gear([gear_id], user_id, db)
         gears_contributor_registry.readers().record_component_deletions([gear_id], user_id, db)
         gears_crud.delete_gear(gear_id, user_id, db, if_match=if_match)

@@ -62,6 +62,8 @@
     "cancel": "İptal",
     "close": "Kapat",
     "success": "Ekipman silindi",
+    "deleting": "Siliniyor…",
+    "inProgress": "Bu ekipman zaten siliniyor.",
     "error": "Ekipman silinemedi. Lütfen tekrar deneyin."
   },
   "error": {

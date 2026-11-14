@@ -62,6 +62,8 @@
     "cancel": "取消",
     "close": "关闭",
     "success": "装备已删除",
+    "deleting": "正在删除…",
+    "inProgress": "此装备已在删除中。",
     "error": "无法删除装备，请重试。"
   },
   "error": {

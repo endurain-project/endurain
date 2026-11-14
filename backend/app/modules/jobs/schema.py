@@ -9,6 +9,7 @@ import core.pagination as core_pagination
 import modules.activities.activity.schema as activity_schema
 import modules.activities.activity_ingestion.schema as activity_ingestion_schema
 import modules.garmin.schema as garmin_schema
+import modules.gears.gear.schema as gears_schema
 import modules.strava.schema as strava_schema
 import modules.users.users.schema as users_schema
 import modules.users.users_profile.schema as users_profile_schema
@@ -22,6 +23,7 @@ class JobKind(StrEnum):
         ACTIVITY_REFRESH: A pull of new activities from the linked providers.
         ACTIVITY_BULK_IMPORT: One dropped bulk-import archive being imported.
         ACTIVITIES_BULK_EDIT: A change to the visibility of all the user's activities.
+        GEAR_DELETION: A gear being unassigned from its activities and deleted.
         GARMIN_LINK: A Garmin Connect login, which may wait for an MFA code.
         GARMIN_SYNC_GEAR: A pull of gear from Garmin Connect.
         GARMIN_SYNC_HEALTH: A pull of health data from Garmin Connect.
@@ -37,6 +39,7 @@ class JobKind(StrEnum):
     ACTIVITY_REFRESH = "activity_refresh"
     ACTIVITY_BULK_IMPORT = "activity_bulk_import"
     ACTIVITIES_BULK_EDIT = "activities_bulk_edit"
+    GEAR_DELETION = "gear_deletion"
     GARMIN_LINK = "garmin_link"
     GARMIN_SYNC_GEAR = "garmin_sync_gear"
     GARMIN_SYNC_HEALTH = "garmin_sync_health"
@@ -52,6 +55,7 @@ class JobKind(StrEnum):
 JobRead = Annotated[
     activity_ingestion_schema.ActivityIngestionJobRead
     | activity_schema.ActivitiesBulkEditStatus
+    | gears_schema.GearDeletionStatus
     | garmin_schema.GarminLinkStatus
     | garmin_schema.GarminSyncStatus
     | strava_schema.StravaSyncStatus

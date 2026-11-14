@@ -10,6 +10,9 @@ import core.location as core_location
 import core.pagination as core_pagination
 import core.rate_limit as core_rate_limit
 import modules.auth.dependencies as auth_dependencies
+import modules.gears.gear.constants as gears_constants
+import modules.gears.gear.deletion_job_service as gears_deletion_job_service
+import modules.gears.gear.dependencies as gears_dependencies
 import modules.gears.gear.schema as gears_schema
 import modules.gears.gear.service as gears_service
 
@@ -114,20 +117,28 @@ def edit_gear(
 
 @router.delete(
     "/{gear_id}",
-    response_model=None,
-    status_code=status.HTTP_204_NO_CONTENT,
+    response_model=gears_schema.GearDeletionStatus,
+    status_code=status.HTTP_202_ACCEPTED,
+    responses=core_location.ACCEPTED_RESPONSE,
     dependencies=[Security(auth_dependencies.check_scopes, scopes=["gears:write"])],
 )
 @core_rate_limit.limiter.limit(core_rate_limit.WRITE)
 def delete_gear(
     request: Request,
+    response: Response,
     gear_id: core_dependencies.UuidId,
     token_user_id: auth_dependencies.CurrentUserId,
     if_match: core_dependencies.IfMatch,
+    states: gears_dependencies.GearDeletionStateStoreDep,
     db: core_dependencies.DbSession,
-) -> None:
-    """Delete one of the authenticated user's gears.
+) -> gears_schema.GearDeletionStatus:
+    """Queue the deletion of one of the authenticated user's gears.
 
-    Send ``If-Match`` with the gear's ``version`` as an ETag; a stale tag is refused with 412.
+    Send ``If-Match`` with the gear's ``version`` as an ETag; a stale tag is refused with 412 before anything is
+    queued. The gear is unassigned from its activities in the background, so the response is ``202`` with a job:
+    poll ``GET /jobs/{job_id}`` until it succeeds. The gear stays readable until then. A second delete while
+    one is pending is refused with 409.
     """
-    gears_service.delete_gear(gear_id, token_user_id, db, if_match=if_match)
+    deletion = gears_deletion_job_service.request_gear_deletion(gear_id, token_user_id, states, db, if_match=if_match)
+    core_location.set_job_location(response, request, deletion.id, gears_constants.DELETION_POLL_SECONDS)
+    return deletion

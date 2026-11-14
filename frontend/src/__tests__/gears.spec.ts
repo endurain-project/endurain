@@ -4,9 +4,11 @@ import { Bike, Dumbbell, Footprints, Sailboat } from '@lucide/vue'
 import type { GearDetailDto, GearDto, GearInput, GearType } from '@/features/gears/types'
 
 import { apiFetch, HttpError } from '@/services/http'
+import { followJob, JobTimeoutError } from '@/services/jobStatus'
 import {
   createGear,
   deleteGear,
+  deleteGearErrorKey,
   fetchGearById,
   fetchGears,
   fetchGearsByType,
@@ -26,6 +28,11 @@ import { GEAR_TYPE, presentGearType } from '@/features/gears/utils/gearType'
 vi.mock('@/services/http', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@/services/http')>()),
   apiFetch: vi.fn<typeof apiFetch>(),
+}))
+
+vi.mock('@/services/jobStatus', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/services/jobStatus')>()),
+  followJob: vi.fn<typeof followJob>(),
 }))
 
 const gearDto: GearDto = {
@@ -258,16 +265,68 @@ describe('gear service requests', () => {
     expect(body).not.toHaveProperty('initial_distance')
   })
 
-  it('deletes a gear via a void DELETE', async () => {
-    vi.mocked(apiFetch).mockResolvedValue(undefined)
+  it('queues the deletion with If-Match, follows its job and resolves once it succeeded', async () => {
+    vi.mocked(apiFetch).mockResolvedValue({ id: 'job-1', kind: 'gear_deletion', status: 'queued' })
+    vi.mocked(followJob).mockResolvedValue({
+      id: 'job-1',
+      kind: 'gear_deletion',
+      status: 'succeeded',
+      created_at: '2026-11-14T10:00:00Z',
+    })
 
     await deleteGear('00000000-0000-4000-8000-000000000005', 4)
 
     expect(apiFetch).toHaveBeenCalledWith('/gears/00000000-0000-4000-8000-000000000005', {
       method: 'DELETE',
       headers: { 'If-Match': '"4"' },
-      responseType: 'void',
     })
+    expect(vi.mocked(followJob).mock.calls[0]![0]).toBe('job-1')
+  })
+
+  it('rejects when the deletion job failed', async () => {
+    vi.mocked(apiFetch).mockResolvedValue({ id: 'job-1', kind: 'gear_deletion', status: 'queued' })
+    vi.mocked(followJob).mockResolvedValue({
+      id: 'job-1',
+      kind: 'gear_deletion',
+      status: 'failed',
+      created_at: '2026-11-14T10:00:00Z',
+    })
+
+    await expect(deleteGear('00000000-0000-4000-8000-000000000005', 4)).rejects.toThrow(
+      'Deleting the gear failed',
+    )
+  })
+
+  it('rejects when the deletion job does not finish in time', async () => {
+    vi.mocked(apiFetch).mockResolvedValue({ id: 'job-1', kind: 'gear_deletion', status: 'queued' })
+    vi.mocked(followJob).mockRejectedValue(new JobTimeoutError())
+
+    await expect(deleteGear('00000000-0000-4000-8000-000000000005', 4)).rejects.toThrow(
+      'did not finish in time',
+    )
+  })
+
+  it('follows no job when the request is refused', async () => {
+    const stale = new HttpError(
+      412,
+      'Precondition Failed',
+      null,
+      'urn:endurain:error:precondition-failed',
+    )
+    vi.mocked(apiFetch).mockRejectedValue(stale)
+
+    await expect(deleteGear('00000000-0000-4000-8000-000000000005', 4)).rejects.toBe(stale)
+    expect(followJob).not.toHaveBeenCalled()
+  })
+})
+
+describe('deleteGearErrorKey', () => {
+  it('names a stale copy, a deletion already running and any other failure apart', () => {
+    expect(deleteGearErrorKey(new HttpError(412, 'Precondition Failed'))).toBe('app.staleError')
+    expect(
+      deleteGearErrorKey(new HttpError(409, 'Conflict', null, 'urn:endurain:error:conflict')),
+    ).toBe('gears.delete.inProgress')
+    expect(deleteGearErrorKey(new Error('Deleting the gear failed'))).toBe('gears.delete.error')
   })
 })
 

@@ -62,6 +62,8 @@
     "cancel": "取消",
     "close": "關閉",
     "success": "裝備已刪除",
+    "deleting": "正在刪除…",
+    "inProgress": "此裝備已在刪除中。",
     "error": "無法刪除裝備。請再試一次。"
   },
   "error": {

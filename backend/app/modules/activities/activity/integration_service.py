@@ -26,6 +26,7 @@ import modules.activities.activity.ingestion_service as activity_ingestion_servi
 import modules.activities.activity.schema as activity_schema
 import modules.activities.activity.service as activity_service
 import modules.gears.contracts as gears_contracts
+import modules.gears.gear.constants as gears_constants
 
 ChildCollection = activity_child_collection_service.ChildCollection
 
@@ -113,18 +114,19 @@ def bulk_set_activities_gear(
     )
 
 
-def clear_activities_gear(gear_id: uuid.UUID, user_id: uuid.UUID, db: Session) -> int:
-    """Unassign a gear from every activity of a user that carries it; the caller commits.
+def clear_activities_gear(gear_id: uuid.UUID, user_id: uuid.UUID, limit: int, db: Session) -> int:
+    """Unassign a gear from up to ``limit`` of a user's activities that carry it; the caller commits.
 
     Args:
         gear_id: The gear being removed.
         user_id: The owning user id.
+        limit: The most activities to update.
         db: Database session.
 
     Returns:
         The number of activities updated.
     """
-    return activity_service.clear_activities_gear(gear_id, user_id, db, source="api:delete_gear")
+    return activity_service.clear_activities_gear(gear_id, user_id, limit, db, source=gears_constants.DELETION_SOURCE)
 
 
 def get_gear_usage_totals(gear_id: uuid.UUID, user_id: uuid.UUID, db: Session) -> gears_contracts.UsageTotals:

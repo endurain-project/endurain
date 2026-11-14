@@ -30,7 +30,9 @@ MISSING_JOB = uuid.UUID("a1000000-0000-4000-8000-000000000004")
 ODD_JOB = uuid.UUID("a1000000-0000-4000-8000-000000000005")
 
 Status = core_job_status.JobState
-_ALL = frozenset({"account", "account:integrations", "activities:upload", "users:read-all"})
+_ALL = frozenset(
+    {"gears:write", "activities:write", "account", "account:integrations", "activities:upload", "users:read-all"}
+)
 _INGESTION_READ = "modules.activities.activity_ingestion.integration_service.read_job"
 _INGESTION_LIST = "modules.activities.activity_ingestion.integration_service.list_jobs"
 
@@ -68,7 +70,7 @@ class TestGetJob:
         assert view.job.id == job.id
         assert view.job.kind == "strava_gear"
         assert view.job.status == Status.QUEUED
-        assert view.scope == "account"
+        assert view.scope == "gears:write"
         assert view.poll_seconds == strava_constants.SYNC_POLL_SECONDS[strava_constants.SyncKind.GEAR]
 
     @pytest.mark.parametrize("kind", [strava_constants.SyncKind.LINK, strava_constants.SyncKind.UNLINK])
@@ -136,7 +138,7 @@ class TestGetJob:
 
         assert view.job.kind == "user_deletion"
         with pytest.raises(core_exceptions.NotFoundError):
-            jobs_service.get_job(job.id, OTHER_USER, {"account"}, state, MagicMock())
+            jobs_service.get_job(job.id, OTHER_USER, {"gears:write"}, state, MagicMock())
 
 
 class TestListJobs:
@@ -170,7 +172,7 @@ class TestListJobs:
         with patch(_INGESTION_LIST, return_value=[]):
             page = jobs_service.list_jobs(
                 USER,
-                {"account", "activities:upload"},
+                {"gears:write", "activities:upload"},
                 state,
                 MagicMock(),
                 kind=None,
@@ -185,7 +187,7 @@ class TestListJobs:
         _strava(state, user_id=OTHER_USER)
 
         page = jobs_service.list_jobs(
-            USER, {"account"}, state, MagicMock(), kind=None, status=None, cursor=None, num_records=10
+            USER, {"gears:write"}, state, MagicMock(), kind=None, status=None, cursor=None, num_records=10
         )
 
         assert page.items == []
@@ -218,7 +220,7 @@ class TestListJobs:
                 num_records=10,
             )
             by_status = jobs_service.list_jobs(
-                USER, {"account"}, state, MagicMock(), kind=None, status=Status.QUEUED, cursor=None, num_records=10
+                USER, {"gears:write"}, state, MagicMock(), kind=None, status=Status.QUEUED, cursor=None, num_records=10
             )
 
         assert [job.id for job in by_kind.items] == [gear.id]

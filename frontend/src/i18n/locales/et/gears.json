@@ -62,6 +62,8 @@
     "cancel": "Tühista",
     "close": "Sulge",
     "success": "Varustus kustutatud",
+    "deleting": "Kustutamine…",
+    "inProgress": "See varustus on juba kustutamisel.",
     "error": "Varustust ei õnnestunud kustutada. Palun proovi uuesti."
   },
   "error": {

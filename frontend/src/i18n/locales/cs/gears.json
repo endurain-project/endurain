@@ -62,6 +62,8 @@
     "cancel": "Zrušit",
     "close": "Zavřít",
     "success": "Vybavení smazáno",
+    "deleting": "Mazání…",
+    "inProgress": "Toto vybavení se už maže.",
     "error": "Nepodařilo se smazat vybavení. Zkuste to prosím znovu."
   },
   "error": {

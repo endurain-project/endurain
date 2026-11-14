@@ -10,6 +10,7 @@ import GearBadges from '@/features/gears/components/GearBadges.vue'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { MetricPill } from '@/components/ui/metric-pill'
+import { Spinner } from '@/components/ui/spinner'
 import { useUnitFormat } from '@/composables/useUnitFormat'
 import { formatNumber } from '@/utils/formatNumber'
 import {
@@ -32,6 +33,8 @@ const props = defineProps<{
   units: Schemas['Units']
   /** The viewer's currency, for cost formatting. */
   currency: Schemas['Currency']
+  /** Whether the gear is being deleted, which disables its actions. */
+  deleting?: boolean
 }>()
 
 const emit = defineEmits<{
@@ -124,7 +127,12 @@ const acquiredOnLabel = computed(() => {
       </dl>
     </div>
     <div class="flex flex-col lg:flex-row gap-2 px-4 py-3">
-      <Button size="sm" :aria-label="t('gears.actions.edit')" @click="emit('edit')">
+      <Button
+        size="sm"
+        :aria-label="t('gears.actions.edit')"
+        :disabled="deleting"
+        @click="emit('edit')"
+      >
         <Pencil class="size-4" aria-hidden="true" />
         {{ t('gears.actions.edit') }}
       </Button>
@@ -132,10 +140,12 @@ const acquiredOnLabel = computed(() => {
         variant="destructive"
         size="sm"
         :aria-label="t('gears.actions.delete')"
+        :disabled="deleting"
         @click="emit('delete')"
       >
-        <Trash2 class="size-4" aria-hidden="true" />
-        {{ t('gears.actions.delete') }}
+        <Spinner v-if="deleting" size="sm" />
+        <Trash2 v-else class="size-4" aria-hidden="true" />
+        {{ deleting ? t('gears.delete.deleting') : t('gears.actions.delete') }}
       </Button>
     </div>
   </Card>

@@ -62,6 +62,8 @@
     "cancel": "Abbrechen",
     "close": "Schließen",
     "success": "Ausrüstung gelöscht",
+    "deleting": "Wird gelöscht…",
+    "inProgress": "Diese Ausrüstung wird bereits gelöscht.",
     "error": "Ausrüstung konnte nicht gelöscht werden. Bitte versuche es erneut."
   },
   "error": {

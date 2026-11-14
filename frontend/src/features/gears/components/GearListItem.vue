@@ -8,9 +8,14 @@ import type { Gear } from '@/features/gears/types'
 import GearTypeIcon from '@/features/gears/components/GearTypeIcon.vue'
 import GearBadges from '@/features/gears/components/GearBadges.vue'
 import { Button } from '@/components/ui/button'
+import { Spinner } from '@/components/ui/spinner'
 import { presentGearType } from '@/features/gears/utils/gearType'
 
-const props = defineProps<{ gear: Gear }>()
+const props = defineProps<{
+  gear: Gear
+  /** Whether the gear is being deleted, which disables its actions. */
+  deleting?: boolean
+}>()
 const emit = defineEmits<{ edit: [gear: Gear]; delete: [gear: Gear] }>()
 
 const { t } = useI18n()
@@ -36,6 +41,10 @@ const typeLabel = computed(() => t(presentGearType(props.gear.gearType).labelKey
         <div class="flex items-center gap-2">
           <p class="truncate text-hint">{{ typeLabel }}</p>
           <GearBadges :gear="gear" />
+          <span v-if="deleting" class="inline-flex items-center gap-1 text-hint">
+            <Spinner size="sm" />
+            {{ t('gears.delete.deleting') }}
+          </span>
         </div>
       </div>
     </div>
@@ -44,6 +53,7 @@ const typeLabel = computed(() => t(presentGearType(props.gear.gearType).labelKey
         variant="ghost"
         size="icon-sm"
         :aria-label="t('gears.actions.edit')"
+        :disabled="deleting"
         @click="emit('edit', gear)"
       >
         <Pencil class="size-4" aria-hidden="true" />
@@ -52,6 +62,7 @@ const typeLabel = computed(() => t(presentGearType(props.gear.gearType).labelKey
         variant="ghostDestructive"
         size="icon-sm"
         :aria-label="t('gears.actions.delete')"
+        :disabled="deleting"
         @click="emit('delete', gear)"
       >
         <Trash2 class="size-4" aria-hidden="true" />

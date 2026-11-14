@@ -62,6 +62,8 @@
     "cancel": "Zrušiť",
     "close": "Zavrieť",
     "success": "Vybavenie odstránené",
+    "deleting": "Odstraňovanie…",
+    "inProgress": "Toto vybavenie sa už odstraňuje.",
     "error": "Vybavenie sa nepodarilo odstrániť. Skúste to znova."
   },
   "error": {

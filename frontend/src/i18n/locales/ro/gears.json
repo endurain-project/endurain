@@ -62,6 +62,8 @@
     "cancel": "Anulează",
     "close": "Închide",
     "success": "Echipament șters",
+    "deleting": "Se șterge…",
+    "inProgress": "Acest echipament este deja în curs de ștergere.",
     "error": "Nu am putut șterge echipamentul. Te rugăm să încerci din nou."
   },
   "error": {

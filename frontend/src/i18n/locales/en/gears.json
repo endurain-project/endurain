@@ -62,6 +62,8 @@
     "cancel": "Cancel",
     "close": "Close",
     "success": "Gear deleted",
+    "deleting": "Deleting…",
+    "inProgress": "This gear is already being deleted.",
     "error": "Couldn't delete the gear. Please try again."
   },
   "error": {

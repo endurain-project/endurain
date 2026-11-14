@@ -10,10 +10,14 @@ from collections.abc import Iterable
 from datetime import datetime
 from typing import Any
 
+from jasil.providers import StateProvider
 from sqlalchemy.orm import Session
 
+import core.job_status as core_job_status
 import core.sync as core_sync
 import modules.gears.gear.crud as gears_crud
+import modules.gears.gear.deletion_job_service as gears_deletion_job_service
+import modules.gears.gear.deletion_state_store as gears_deletion_state_store
 import modules.gears.gear.schema as gears_schema
 import modules.gears.gear.service as gears_service
 import modules.users.users_profile.contracts as users_profile_contracts
@@ -185,3 +189,25 @@ def list_gear_deletions(
         The deletions, in ``(deleted_at, id)`` order.
     """
     return gears_crud.list_gear_deletions(user_id, after, until, limit, db)
+
+
+def shutdown_deletion_pool() -> None:
+    """Stop the in-process pool gear deletions run on, without waiting for them."""
+    gears_deletion_job_service.shutdown_pool()
+
+
+def read_deletion_job(job: core_job_status.JobRef, state: StateProvider) -> gears_schema.GearDeletionStatus | None:
+    """Read the gear deletion a job reference names.
+
+    Args:
+        job: The job's reference.
+        state: The platform state provider.
+
+    Returns:
+        The deletion's status, or ``None`` when its record has expired or belongs to a later deletion.
+    """
+    stored = gears_deletion_state_store.GearDeletionStateStore(state).read_job(job)
+    if stored is None:
+        return None
+    current, deletion_state = stored
+    return gears_schema.GearDeletionStatus.model_validate({**current.envelope(), "status": deletion_state.status})

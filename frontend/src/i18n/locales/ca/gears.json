@@ -62,6 +62,8 @@
     "cancel": "Cancel·la",
     "close": "Tanca",
     "success": "Equipament eliminat",
+    "deleting": "S'està eliminant…",
+    "inProgress": "Aquest equipament ja s'està eliminant.",
     "error": "No s'ha pogut eliminar l'equipament. Torna-ho a intentar."
   },
   "error": {

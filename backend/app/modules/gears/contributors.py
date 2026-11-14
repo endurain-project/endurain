@@ -27,9 +27,9 @@ ComponentsCostReader = Callable[[uuid.UUID, uuid.UUID, Session], float]
 #: ``(gear_id, user_id, gear_type, db)`` -> how many of a gear's components are not valid for a gear type.
 ComponentsOutsideTypeCounter = Callable[[uuid.UUID, uuid.UUID, gears_schema.GearType, Session], int]
 
-#: ``(gear_id, user_id, db)`` -> stages unassigning the gear from the user's activities and
-#: returns how many it touched.
-ActivitiesGearClearer = Callable[[uuid.UUID, uuid.UUID, Session], int]
+#: ``(gear_id, user_id, limit, db)`` -> stages unassigning the gear from up to ``limit`` of the user's activities
+#: and returns how many it touched; fewer than ``limit`` means none are left.
+ActivitiesGearClearer = Callable[[uuid.UUID, uuid.UUID, int, Session], int]
 
 #: ``(gear_ids, user_id, db)`` -> stages unassigning the gears from the user's default gear settings.
 DefaultGearClearer = Callable[[Collection[uuid.UUID], uuid.UUID, Session], None]
@@ -48,7 +48,7 @@ class GearReaders:
         usage_by_window: Totals a gear's usage per date window.
         components_cost: Sums the purchase value of a gear's components.
         count_components_outside_type: Counts a gear's components whose type is not valid for a gear type.
-        clear_activities_gear: Stages unassigning a gear from the activities that carry it.
+        clear_activities_gear: Stages unassigning a gear from a batch of the activities that carry it.
         clear_default_gear: Stages unassigning gears from the user's default gear settings.
         record_component_deletions: Stages a deletion record for every component of gears about to be deleted.
     """

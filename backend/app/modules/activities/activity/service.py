@@ -907,23 +907,24 @@ def bulk_set_activities_gear(
     return len(updated_ids)
 
 
-def clear_activities_gear(gear_id: uuid.UUID, user_id: uuid.UUID, db: Session, *, source: str) -> int:
-    """Unassign a gear from every activity of a user that carries it.
+def clear_activities_gear(gear_id: uuid.UUID, user_id: uuid.UUID, limit: int, db: Session, *, source: str) -> int:
+    """Unassign a gear from up to ``limit`` of a user's activities that carry it.
 
     Used when the gear is deleted: the foreign key would null the column silently, so
     this does it explicitly and publishes one ``activity.updated`` per row, staged with
-    the update. The caller commits.
+    the update. The caller commits and repeats until fewer than ``limit`` are updated.
 
     Args:
         gear_id: The gear being removed.
         user_id: The owning user id.
+        limit: The most activities to update.
         db: Database session.
         source: The caller recorded on the published events.
 
     Returns:
         The number of activities updated.
     """
-    updated_ids = activity_crud.clear_gear_from_activities(gear_id, user_id, db)
+    updated_ids = activity_crud.clear_gear_from_activities(gear_id, user_id, limit, db)
     activity_event_publishers.publish_activities_updated(
         updated_ids, user_id, db, changed_fields=["gear_id"], source=source
     )

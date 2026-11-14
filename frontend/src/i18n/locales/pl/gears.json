@@ -62,6 +62,8 @@
     "cancel": "Anuluj",
     "close": "Zamknij",
     "success": "Usunięto sprzęt",
+    "deleting": "Usuwanie…",
+    "inProgress": "Ten sprzęt jest już usuwany.",
     "error": "Nie udało się usunąć sprzętu. Spróbuj ponownie."
   },
   "error": {

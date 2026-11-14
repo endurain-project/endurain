@@ -2,7 +2,7 @@
 
 import uuid
 from datetime import date, datetime
-from typing import Annotated
+from typing import Annotated, Literal
 
 from pydantic import (
     AfterValidator,
@@ -16,6 +16,7 @@ from pydantic import (
     StrictStr,
 )
 
+import core.job_status as core_job_status
 import core.partial_update as core_partial_update
 import core.types as core_types
 from core.stored_enum import StoredStrEnum
@@ -283,3 +284,9 @@ class GearUpdate(core_partial_update.NotClearable, GearBase):
         max_length=250,
         description="Gear display nickname",
     )
+
+
+class GearDeletionStatus(core_job_status.JobStatus):
+    """Where a queued gear deletion is."""
+
+    kind: Literal["gear_deletion"]

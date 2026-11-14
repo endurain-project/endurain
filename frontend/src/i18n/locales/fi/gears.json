@@ -62,6 +62,8 @@
     "cancel": "Peruuta",
     "close": "Sulje",
     "success": "Varuste poistettu",
+    "deleting": "Poistetaan…",
+    "inProgress": "Tämä varuste on jo poistettavana.",
     "error": "Varustetta ei voitu poistaa. Yritä uudelleen."
   },
   "error": {

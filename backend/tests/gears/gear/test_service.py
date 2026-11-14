@@ -4,6 +4,7 @@ import pytest
 
 import core.exceptions as core_exceptions
 import modules.gears.contracts as gears_contracts
+import modules.gears.gear.constants as gears_constants
 import modules.gears.gear.crud as crud
 import modules.gears.gear.schema as schema
 import modules.gears.gear.service as service
@@ -208,12 +209,13 @@ class TestEditAndDelete:
 
     def test_delete_unassigns_the_activities_before_removing_the_gear(self, db):
         created = crud.create_gear(gear_create(), MOCK_USER_ID, db)
-        clear = MagicMock(return_value=2)
+        batch = gears_constants.DELETION_BATCH_SIZE
+        clear = MagicMock(side_effect=[batch, 2])
         install_readers(clear_activities_gear=clear)
 
         service.delete_gear(created.id, MOCK_USER_ID, db, if_match="*")
 
-        clear.assert_called_once_with(created.id, MOCK_USER_ID, db)
+        assert clear.call_args_list == [((created.id, MOCK_USER_ID, batch, db),)] * 2
 
     def test_delete_unassigns_the_default_gear_before_removing_the_gear(self, db):
         created = crud.create_gear(gear_create(), MOCK_USER_ID, db)

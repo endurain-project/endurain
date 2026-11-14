@@ -62,6 +62,8 @@
     "cancel": "Cancelar",
     "close": "Pechar",
     "success": "Equipamento eliminado",
+    "deleting": "Eliminando…",
+    "inProgress": "Este equipamento xa se está eliminando.",
     "error": "Non se puido eliminar o equipamento. Por favor, téntao de novo."
   },
   "error": {

@@ -5,13 +5,17 @@ from unittest.mock import patch
 import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
+from jasil.backends.state_memory import MemoryState
 
 import core.database as core_db
+import core.dependencies as core_dependencies
 import core.exceptions as core_exceptions
 import core.pagination as core_pagination
 import modules.auth.dependencies as auth_deps
+import modules.gears.gear.constants as gears_constants
 import modules.gears.gear.router as router
 import modules.gears.gear.schema as schema
+import modules.jobs.router as jobs_router
 from tests._helpers.auth import MOCK_USER_ID
 
 _HEADERS = {"Authorization": "Bearer x"}
@@ -21,16 +25,25 @@ _HEADERS = {"Authorization": "Bearer x"}
 def client(mock_db):
     app = FastAPI()
     app.include_router(router.router, prefix="/gears")
+    app.include_router(jobs_router.router, prefix="/jobs")
     core_exceptions.register_exception_handlers(app)
     app.dependency_overrides[auth_deps.check_scopes] = lambda: None
     app.dependency_overrides[auth_deps.get_current_user_id] = lambda: MOCK_USER_ID
     app.dependency_overrides[core_db.get_db] = lambda: mock_db
+    app.dependency_overrides[core_dependencies.get_platform_state] = lambda: MemoryState()
     return TestClient(app)
 
 
 _UPDATED_AT = datetime(2025, 1, 1, tzinfo=UTC)
 _GEAR_ID = uuid.uuid4()
 _PATH = f"/gears/{_GEAR_ID}"
+
+
+_JOB_ID = uuid.UUID("0c0f8e0e-3f0b-4a50-9a58-6a1d0a2d5d11")
+
+
+def _deletion() -> schema.GearDeletionStatus:
+    return schema.GearDeletionStatus(id=_JOB_ID, kind="gear_deletion", status="queued", created_at=_UPDATED_AT)
 
 
 def _read(**overrides) -> schema.GearRead:
@@ -169,26 +182,41 @@ class TestWrites:
             == 422
         )
 
-    @patch("modules.gears.gear.service.delete_gear")
-    def test_delete(self, mock_delete, client, mock_db):
+    @patch("modules.gears.gear.deletion_job_service.request_gear_deletion")
+    def test_delete_queues_the_job_and_names_it(self, mock_request, client, mock_db):
+        mock_request.return_value = _deletion()
+
         response = client.delete(_PATH, headers={**_HEADERS, "If-Match": '"3"'})
 
-        assert response.status_code == 204
-        mock_delete.assert_called_once_with(_GEAR_ID, MOCK_USER_ID, mock_db, if_match='"3"')
+        assert response.status_code == 202
+        assert response.json()["kind"] == "gear_deletion"
+        assert response.headers["Content-Location"] == f"/jobs/{_JOB_ID}"
+        assert response.headers["Retry-After"] == str(gears_constants.DELETION_POLL_SECONDS)
+        assert mock_request.call_args.args[:2] == (_GEAR_ID, MOCK_USER_ID)
+        assert mock_request.call_args.kwargs == {"if_match": '"3"'}
 
-    @patch("modules.gears.gear.service.delete_gear")
-    def test_delete_without_if_match_is_428(self, mock_delete, client):
+    @patch("modules.gears.gear.deletion_job_service.request_gear_deletion")
+    def test_delete_without_if_match_is_428(self, mock_request, client):
         assert client.delete(_PATH, headers=_HEADERS).status_code == 428
-        mock_delete.assert_not_called()
+        mock_request.assert_not_called()
 
-    @patch("modules.gears.gear.service.delete_gear")
-    def test_a_stale_delete_is_412(self, mock_delete, client):
-        mock_delete.side_effect = core_exceptions.PreconditionFailedError("stale")
+    @patch("modules.gears.gear.deletion_job_service.request_gear_deletion")
+    def test_a_stale_delete_is_412(self, mock_request, client):
+        mock_request.side_effect = core_exceptions.PreconditionFailedError("stale")
 
         assert client.delete(_PATH, headers={**_HEADERS, "If-Match": '"1"'}).status_code == 412
 
-    @patch("modules.gears.gear.service.delete_gear")
-    def test_delete_of_a_missing_gear_is_404(self, mock_delete, client):
-        mock_delete.side_effect = core_exceptions.NotFoundError("Gear not found")
+    @patch("modules.gears.gear.deletion_job_service.request_gear_deletion")
+    def test_delete_of_a_missing_gear_is_404(self, mock_request, client):
+        mock_request.side_effect = core_exceptions.NotFoundError("Gear not found")
 
         assert client.delete(_PATH, headers={**_HEADERS, "If-Match": '"1"'}).status_code == 404
+
+    @patch("modules.gears.gear.deletion_job_service.request_gear_deletion")
+    def test_a_second_delete_while_one_is_pending_is_409_naming_the_job(self, mock_request, client):
+        mock_request.side_effect = core_exceptions.JobAlreadyRunningError("running", job_id=_JOB_ID)
+
+        response = client.delete(_PATH, headers={**_HEADERS, "If-Match": '"1"'})
+
+        assert response.status_code == 409
+        assert response.headers["Content-Location"] == f"/jobs/{_JOB_ID}"

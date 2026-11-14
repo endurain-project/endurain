@@ -36,6 +36,7 @@ The only `202` whose job you cannot read is [your own account deletion](#delete-
 | Export your profile | `POST /profile/export` | `profile_export` | No |
 | Import a profile | `POST /profile/import` | `profile_import` | No |
 | Bulk edit activity visibility | `PATCH /activities` | `activities_bulk_edit` | No |
+| Delete a gear | `DELETE /gears/{gear_id}` | `gear_deletion` | No |
 | Delete a user (administrators) | `POST /users/{user_id}/delete` | `user_deletion` | No |
 | Delete your account | `POST /profile/delete-account` | `user_deletion`, not readable, see [below](#delete-your-account) | No |
 
@@ -45,14 +46,14 @@ The activity upload and the archive bulk import take an `Idempotency-Key`. Every
 
 `GET /jobs/{job_id}` reads one job. Poll the path that `Content-Location` names, and wait the seconds in `Retry-After` between polls (slower while a [realtime hint](realtime.md) connection is open). A job that is not finished sends `Retry-After` again; a final state, `succeeded` or `failed`, sends none, so stop there.
 
-- Reading a job needs the scope its kind asks for: `activities:upload` for an activity upload, refresh or bulk import, `activities:read` for a bulk edit, `account:integrations` for a Garmin Connect link or a Strava link or unlink, `account` for a Garmin Connect or Strava gear or health sync, `account:export` for a profile export or import, and `users:read-all` for an account deletion. Without it the read is `403`.
+- Reading a job needs the scope of the route that starts it: `activities:upload` for an activity upload, `activities:write` for a refresh, a bulk import or a bulk edit, `gears:write` for a gear deletion or a Garmin Connect or Strava gear sync, `health:write` for a Garmin Connect health sync, `account:integrations` for a Garmin Connect link or a Strava link or unlink, `account:export` for a profile export or import, and `users:read-all` for an account deletion. Without it the read is `403`.
 - You read the jobs you started. Any administrator with `users:read-all` can also read an account deletion. Another user's job is `404`, never `403`, so an id cannot be probed.
-- An id that is not a UUID is `422`. An unknown well-formed id is `404`. So is a job whose record has expired. An activity ingestion job is kept for its retention period. Every other job is kept for a limited time after it starts: 7 minutes for a Garmin Connect link, 30 minutes for a Garmin Connect or Strava sync or a Strava link or unlink, 1 hour for a bulk edit, 2 hours for a profile export or an account deletion and 4 hours for a profile import. Starting the next job of the same kind replaces it sooner. Poll until a final state and do not rely on reading the result later.
+- An id that is not a UUID is `422`. An unknown well-formed id is `404`. So is a job whose record has expired. An activity ingestion job is kept for its retention period. Every other job is kept for a limited time after it starts: 7 minutes for a Garmin Connect link, 30 minutes for a Garmin Connect or Strava sync or a Strava link or unlink, 1 hour for a bulk edit or a gear deletion, 2 hours for a profile export or an account deletion and 4 hours for a profile import. Starting the next job of the same kind replaces it sooner. Poll until a final state and do not rely on reading the result later.
 - A `202` can also be refused with `503` when the server runs without a durable job worker and its in-process pool is full. Retry later.
 
 ## Listing your jobs
 
-`GET /jobs` lists the jobs you started, newest first, as a keyset page: `items`, `num_records` and `next_cursor`. Pass `next_cursor` back as `cursor` for the next slice; `num_records` sets the slice size. Filter with `kind` (one of the values above) and `status`. Only the kinds your scopes can read are listed, so an [API key](api-keys.md) with only `activities:upload` sees its uploads, imports and refreshes alone.
+`GET /jobs` lists the jobs you started, newest first, as a keyset page: `items`, `num_records` and `next_cursor`. Pass `next_cursor` back as `cursor` for the next slice; `num_records` sets the slice size. Filter with `kind` (one of the values above) and `status`. Only the kinds your scopes can read are listed, so an [API key](api-keys.md) with only `activities:upload` sees its uploads alone.
 
 Use it to pick a job up again when the client lost its id, for example after a restart: `GET /jobs?kind=profile_export` finds the export to download, and `GET /jobs?status=running` the work still in progress. A job is listed for as long as it can be read.
 
@@ -88,15 +89,15 @@ These routes start a job of one shape, `ActivityIngestionJobRead`, whatever the 
 
 A refresh that is waiting for a provider's rate limit to clear is `queued` with `retry_after` set. It is not a failure: the job runs again by itself at `retry_after`.
 
-Reading the job needs the `activities:upload` scope. Starting a bulk import, a folder import, a refresh or a provider range sync needs `activities:write`. Each accepts a bearer token or an [API key](api-keys.md) holding the scope.
+Reading an upload job needs the `activities:upload` scope. Starting a bulk import, a folder import, a refresh or a provider range sync needs `activities:write`, and so does reading its job. Each accepts a bearer token or an [API key](api-keys.md) holding the scope.
 
 ### Upload an activity file
 
 `POST /activities/upload`, a multipart form with the file in `file`. It needs the `activities:upload` scope and accepts a bearer token or an [API key](api-keys.md). The file is stored and queued, then the route answers `202` with the job. Cheap refusals come back at once as errors instead of a job: an unsupported extension or a file whose content is not that type is `415`, a file over the limit is `413`, and a file that is empty or fails the other content checks is `400`.
 
-Send an `Idempotency-Key` header (up to 255 characters) to make a retry safe. A client that never saw the `202` has no job id to poll, and a replay without a key would import the file twice.
 A user may have at most 10 uploads open at once, counting those pending, processing or deferred. The 11th is `409` with `urn:endurain:error:conflict` and a `detail` that names the limit. It is refused before the file is stored, and no job is created. Poll your open uploads until one finishes, then upload again. A replay with an `Idempotency-Key` that already has a job answers with that job even at the limit.
 
+Send an `Idempotency-Key` header (up to 255 characters) to make a retry safe. A client that never saw the `202` has no job id to poll, and a replay without a key would import the file twice.
 
 - **A replay with the same key and the same file** answers `202` with the original job, in whatever state it has now, and does not import again.
 - **The same key with a different file** is `409`.
@@ -158,21 +159,25 @@ A provider that answers with a rate limit makes the job `failed` (gear and healt
 - **It cannot be undone.** Export the profile first to keep a copy.
 - `409` with `urn:endurain:error:last-administrator` when the user is the only administrator, and a `409` (`urn:endurain:error:conflict`) when a deletion is already pending. `403` with `urn:endurain:error:step-up-failed` when the step-up does not verify (or `401` `idp-reauth-required` when an account without a password sends no `idp_reauth`); nothing is deleted.
 
+## Gear deletion
+
+`DELETE /gears/{gear_id}` answers `202` with a `gear_deletion` job. The route checks that the gear is yours (`404`) and that `If-Match` names its current version (`412`, `428` without the header) before it queues anything. The job then unassigns the gear from the activities that carry it, a batch at a time, and deletes it, so a gear with a long history does not hold up the request. The gear stays readable until the job `succeeded`; read it again, or the activities, after that. A job that `failed` leaves the gear in place, so send the request again. `409` while a deletion of the same gear is queued or running. The status carries no fields beyond the shared ones.
+
 ## Conflicts (`409`)
 
 A start route answers `409` with `urn:endurain:error:conflict` while the same kind of work is already running for the user. The problem document carries the running job's id as `job_id`, and the response carries `Content-Location` naming it, so a client that lost the `202` of the first request picks the job up again from there:
 
-- a bulk import, a profile export, a profile import, a bulk visibility edit, a Garmin Connect link, a Garmin Connect gear or health sync, a Strava link, gear sync or unlink, an account deletion.
+- a bulk import, a profile export, a profile import, a bulk visibility edit, a gear deletion, a Garmin Connect link, a Garmin Connect gear or health sync, a Strava link, gear sync or unlink, an account deletion.
 
 A job that a server before this version started has no id to name; its `409` carries neither member. The same `409` code, with no job, also answers:
 
 - an upload or a bulk import whose `Idempotency-Key` was used for a different request;
+- an upload while the user already has 10 uploads open (pending, processing or deferred);
 - `POST /garmin/mfa` when no login waits for a code.
 
 Do not retry a `409` straight away. Poll the running job until it reaches a final state, then start again if you still need to. An activity upload is limited differently: you can queue several, up to 10 open at once, and each gets its own job. An upload past that is `409` with no job to name. A refresh has no such limit.
 
 ## Upload limits and formats
-- an upload while the user already has 10 uploads open (pending, processing or deferred);
 
 An attachment a record has one of (a profile photo, a user's photo, an identity provider's icon, the login page photo) is replaced with `PUT` on its path (`/profile/photo`, `/users/{user_id}/photo`, `/identity-providers/{idp_id}/icon`, `/server-settings/login-photo`), a multipart form with the image in `file`. The route answers `201` when there was nothing there before and `200` when it replaced an image; `DELETE` on the same path removes it.
 
