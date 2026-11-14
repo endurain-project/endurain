@@ -7,6 +7,8 @@ lives; the four child CRUDs used to hold a copy each.
 import uuid
 from unittest.mock import MagicMock, patch
 
+import pytest
+
 _USER_1 = uuid.UUID(int=1)
 _USER_2 = uuid.UUID(int=2)
 
@@ -52,6 +54,16 @@ class TestIsHiddenFrom:
 
         assert child_access_service.is_hidden_from(activity, _USER_2, hide_attr="hide_laps") is False
         assert child_access_service.is_hidden_from(activity, None, hide_attr="hide_laps") is False
+
+
+@pytest.fixture(autouse=True)
+def visible_owner():
+    """Treat every activity owner as active and approved; the owner rule itself is tested separately."""
+    with patch(
+        "modules.activities.activity.child_access_service.users_integration.list_public_profiles",
+        side_effect=lambda ids, db: {i: object() for i in ids},
+    ):
+        yield
 
 
 class TestResolveParents:

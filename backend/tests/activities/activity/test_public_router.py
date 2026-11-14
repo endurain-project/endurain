@@ -10,6 +10,16 @@ _USER_1 = uuid.UUID(int=1)
 _ACTIVITY_ID = uuid.uuid4()
 
 
+@pytest.fixture(autouse=True)
+def visible_owner():
+    """Treat the activity's owner as active and approved; the owner rule itself is tested separately."""
+    with patch(
+        "modules.activities.activity.child_access_service.users_integration.list_public_profiles",
+        side_effect=lambda ids, db: {i: object() for i in ids},
+    ):
+        yield
+
+
 def _build_app(mock_db):
     import core.database as core_db
     import core.exceptions as core_exceptions

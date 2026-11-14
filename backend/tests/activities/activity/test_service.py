@@ -81,9 +81,15 @@ class TestSumActivitiesInTimeframe:
         from modules.activities.activity import service
 
         db = MagicMock()
-        with patch(
-            "modules.activities.activity.service.followers_integration.list_accepted_followee_ids",
-            return_value=[_USER_1],
+        with (
+            patch(
+                "modules.activities.activity.child_access_service.followers_integration.list_accepted_followee_ids",
+                return_value=[_USER_1],
+            ),
+            patch(
+                "modules.activities.activity.child_access_service.users_integration.list_public_profiles",
+                return_value={_USER_1: object()},
+            ),
         ):
             service.sum_activities_in_timeframe(_USER_1, "s", "e", _USER_2, db)
         # Non-owner path: the service resolves the followees, the query filters on them.
@@ -125,7 +131,10 @@ class TestPeriodStats:
 
 
 class TestListUserActivitiesPaginated:
-    @patch("modules.activities.activity.service.followers_integration.list_accepted_followee_ids", return_value=[])
+    @patch(
+        "modules.activities.activity.child_access_service.followers_integration.list_accepted_followee_ids",
+        return_value=[],
+    )
     @patch("modules.activities.activity.service.activity_crud")
     def test_owner_scoping(self, mock_crud, _mock_followers):
         from modules.activities.activity import service
@@ -138,10 +147,15 @@ class TestListUserActivitiesPaginated:
         assert kwargs["activity_type"] == 2
 
     @patch(
-        "modules.activities.activity.service.followers_integration.list_accepted_followee_ids", return_value=[_USER_9]
+        "modules.activities.activity.child_access_service.users_integration.list_public_profiles",
+        return_value={_USER_9: object()},
+    )
+    @patch(
+        "modules.activities.activity.child_access_service.followers_integration.list_accepted_followee_ids",
+        return_value=[_USER_9],
     )
     @patch("modules.activities.activity.service.activity_crud")
-    def test_non_owner_scoping(self, mock_crud, _mock_followers):
+    def test_non_owner_scoping(self, mock_crud, _mock_followers, _mock_profiles):
         from modules.activities.activity import service
 
         service.list_user_activities_paginated(_USER_1, _USER_2, MagicMock(), page_number=1, num_records=10)
@@ -484,9 +498,13 @@ class TestScrollFeed:
 
         with (
             patch(
-                "modules.activities.activity.service.followers_integration.list_accepted_followee_ids",
+                "modules.activities.activity.child_access_service.followers_integration.list_accepted_followee_ids",
                 return_value=[_USER_9, _USER_10],
             ) as followees,
+            patch(
+                "modules.activities.activity.child_access_service.users_integration.list_public_profiles",
+                side_effect=lambda ids, db: {i: object() for i in ids},
+            ),
             patch(
                 "modules.activities.activity.service.activity_crud.get_following_feed_after", return_value=[]
             ) as feed,
@@ -515,7 +533,7 @@ class TestScrollOwnFeed:
             for i in (3, 2, 1)
         ]
         with (
-            patch("modules.activities.activity.service.followers_integration") as followers,
+            patch("modules.activities.activity.child_access_service.followers_integration") as followers,
             patch("modules.activities.activity.service.activity_crud.get_following_feed_after") as following,
             patch("modules.activities.activity.service.activity_crud.get_own_feed_after", return_value=entries) as own,
             patch("modules.activities.activity.service.activities_contributor_registry") as registry,

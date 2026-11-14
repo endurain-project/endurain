@@ -31,6 +31,7 @@ import core.pagination as core_pagination
 import core.sync as core_sync
 import core.timezone as core_timezone
 import modules.activities.activity.audit_actions as activity_audit_actions
+import modules.activities.activity.child_access_service as activity_child_access_service
 import modules.activities.activity.constants as activity_constants
 import modules.activities.activity.contracts as activity_contracts
 import modules.activities.activity.crud as activity_crud
@@ -38,7 +39,6 @@ import modules.activities.activity.event_publishers as activity_event_publishers
 import modules.activities.activity.schema as activity_schema
 import modules.activities.activity.stats as activity_stats
 import modules.activities.contributor_registry as activities_contributor_registry
-import modules.followers.integration_service as followers_integration
 import modules.gears.gear.integration_service as gears_integration
 import modules.server_settings.integration_service as server_settings_integration
 import modules.users.users.integration_service as users_integration
@@ -58,11 +58,11 @@ def _followees_of(requester_user_id: uuid.UUID | None, db: Session) -> list[uuid
         db: Database session.
 
     Returns:
-        The requester's accepted-followee user ids, empty when anonymous.
+        The requester's accepted-followee user ids whose accounts are visible, empty when anonymous.
     """
     if requester_user_id is None:
         return []
-    return followers_integration.list_accepted_followee_ids(requester_user_id, db)
+    return activity_child_access_service.list_visible_followee_ids(requester_user_id, db)
 
 
 def sum_activities_in_timeframe(
@@ -611,7 +611,7 @@ def scroll_feed(
     if scope is activity_constants.FeedScope.MINE:
         entries = activity_crud.get_own_feed_after(requester_user_id, after, num_records + 1, db)
     else:
-        followee_ids = followers_integration.list_accepted_followee_ids(requester_user_id, db)
+        followee_ids = activity_child_access_service.list_visible_followee_ids(requester_user_id, db)
         entries = activity_crud.get_following_feed_after(followee_ids, after, num_records + 1, db)
     has_more = len(entries) > num_records
     page_entries = entries[:num_records]
@@ -669,14 +669,16 @@ def get_activity(activity_id: uuid.UUID, requester_user_id: uuid.UUID, db: Sessi
         The activity, visibility-masked for a non-owner.
 
     Raises:
-        NotFoundError: When the activity does not exist or is not visible to the
-            caller — indistinguishable on purpose, so the endpoint cannot be used
-            to enumerate activity ids.
+        NotFoundError: When the activity does not exist, is not visible to the
+            caller or its owner is inactive or awaiting approval — indistinguishable
+            on purpose, so the endpoint cannot be used to enumerate activity ids.
     """
     activity = activity_crud.get_activity_by_id_from_user_id_or_has_visibility(
         activity_id, requester_user_id, db, followee_ids=_followees_of(requester_user_id, db)
     )
-    if activity is None:
+    if activity is None or not activity_child_access_service.is_owner_visible_to(
+        activity.user_id, requester_user_id, db
+    ):
         logger.debug(
             "Activity read resolved to nothing visible",
             extra=core_logger.context(activity_id=activity_id, requester_user_id=requester_user_id),
@@ -696,12 +698,13 @@ def _require_public_activity(activity_id: uuid.UUID, db: Session) -> activity_sc
         The activity.
 
     Raises:
-        NotFoundError: When public links are off or the activity does not exist or is not public.
+        NotFoundError: When public links are off or the activity does not exist, is not public
+            or its owner is inactive or awaiting approval.
     """
     if not server_settings_integration.public_shareable_links_enabled(db):
         raise core_exceptions.NotFoundError("Activity not found")
     activity = activity_crud.get_activity_by_id_if_is_public(activity_id, db)
-    if activity is None:
+    if activity is None or not activity_child_access_service.is_owner_visible_to(activity.user_id, None, db):
         raise core_exceptions.NotFoundError("Activity not found")
     return activity
 

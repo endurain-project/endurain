@@ -46,7 +46,15 @@ def _build_app(mock_db):
 @pytest.fixture(autouse=True)
 def visible_owner():
     """Treat another user's activities as readable; the owner check itself is a service rule."""
-    with patch("modules.activities.activity.service.users_integration.get_public_profile") as mock:
+    from modules.users.users.schema import UserPublicRead
+
+    with (
+        patch("modules.activities.activity.service.users_integration.get_public_profile") as mock,
+        patch(
+            "modules.activities.activity.child_access_service.users_integration.list_public_profiles",
+            side_effect=lambda ids, db: {i: UserPublicRead(id=i, name="Ada", username="ada") for i in ids},
+        ),
+    ):
         yield mock
 
 
@@ -208,7 +216,7 @@ class TestTypes:
 class TestFeed:
     def test_list(self, mock_db):
         with (
-            patch("modules.activities.activity.service.followers_integration") as f,
+            patch("modules.activities.activity.child_access_service.followers_integration") as f,
             patch("modules.activities.activity.service.activity_crud.get_following_feed_after") as m,
         ):
             f.list_accepted_followee_ids.return_value = [_USER_5]
@@ -220,7 +228,7 @@ class TestFeed:
 
     def test_scope_defaults_to_following(self, mock_db):
         with (
-            patch("modules.activities.activity.service.followers_integration") as f,
+            patch("modules.activities.activity.child_access_service.followers_integration") as f,
             patch("modules.activities.activity.service.activity_crud.get_following_feed_after", return_value=[]) as m,
             patch("modules.activities.activity.service.activity_crud.get_own_feed_after") as own,
         ):
@@ -235,7 +243,7 @@ class TestFeed:
         from modules.users.users.schema import UserPublicRead
 
         with (
-            patch("modules.activities.activity.service.followers_integration") as f,
+            patch("modules.activities.activity.child_access_service.followers_integration") as f,
             patch("modules.activities.activity.service.activity_crud.get_following_feed_after") as following,
             patch("modules.activities.activity.service.activity_crud.get_own_feed_after") as own,
             patch("modules.activities.activity.service.users_integration.list_public_profiles") as profiles,
@@ -261,7 +269,7 @@ class TestFeed:
         from modules.users.users.schema import UserPublicRead
 
         with (
-            patch("modules.activities.activity.service.followers_integration") as f,
+            patch("modules.activities.activity.child_access_service.followers_integration") as f,
             patch("modules.activities.activity.service.activity_crud.get_following_feed_after") as m,
             patch("modules.activities.activity.service.users_integration.list_public_profiles") as profiles,
         ):
@@ -275,7 +283,8 @@ class TestFeed:
             resp = TestClient(_build_app(mock_db)).get("/activities/feed", headers={"Authorization": "Bearer x"})
 
         assert resp.status_code == 200
-        profiles.assert_called_once()
+        # The first lookup filters the followees to visible owners, the second loads the owners on the slice.
+        assert profiles.call_count == 2
         assert profiles.call_args.args[0] == {_USER_5, _USER_6}
         assert resp.json()["users"] == {
             str(_USER_5): {"id": str(_USER_5), "name": "Ada", "username": "ada", "city": None, "photo_path": None}
@@ -283,7 +292,7 @@ class TestFeed:
 
     def test_an_empty_feed_has_an_empty_users_object(self, mock_db):
         with (
-            patch("modules.activities.activity.service.followers_integration") as f,
+            patch("modules.activities.activity.child_access_service.followers_integration") as f,
             patch("modules.activities.activity.service.activity_crud.get_following_feed_after", return_value=[]),
         ):
             f.list_accepted_followee_ids.return_value = [_USER_5]
@@ -294,7 +303,7 @@ class TestFeed:
     def test_last_slice_has_no_next_cursor(self, mock_db):
         """A short slice means the end; emitting a cursor would loop the client."""
         with (
-            patch("modules.activities.activity.service.followers_integration") as f,
+            patch("modules.activities.activity.child_access_service.followers_integration") as f,
             patch("modules.activities.activity.service.activity_crud.get_following_feed_after") as m,
         ):
             f.list_accepted_followee_ids.return_value = [_USER_5]
@@ -304,7 +313,7 @@ class TestFeed:
 
     def test_hidden_start_time_still_emits_a_next_cursor(self, mock_db):
         with (
-            patch("modules.activities.activity.service.followers_integration") as followers,
+            patch("modules.activities.activity.child_access_service.followers_integration") as followers,
             patch("modules.activities.activity.service.activity_crud.get_following_feed_after") as get_feed,
         ):
             followers.list_accepted_followee_ids.return_value = [_USER_5]
