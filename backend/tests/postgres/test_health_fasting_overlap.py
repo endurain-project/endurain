@@ -5,13 +5,17 @@ the overlap rule beside the real one-running-fast index, and the migrations over
 are checked here.
 """
 
+import threading
+import time
 import uuid
 from datetime import UTC, date, datetime, timedelta
 
 import pytest
 from sqlalchemy import text
 
+import core.date_range as core_date_range
 import core.exceptions as core_exceptions
+import modules.health.health_fasting.crud as fasting_crud
 import modules.health.health_fasting.schema as fasting_schema
 import modules.health.health_fasting.service as fasting_service
 from tests._helpers import alembic_chain
@@ -109,3 +113,59 @@ def test_the_migration_derives_durations_from_timestamptz_columns(upgrade_db):
             text("SELECT actual_duration_seconds, version FROM health_fasting ORDER BY fast_start_time")
         ).all()
     assert [tuple(row) for row in rows] == [(12 * 3600, 2), (7200, 1), (None, 1)]
+
+
+def test_concurrent_overlapping_creates_store_exactly_one(pg_factory, monkeypatch):
+    ensure_user(pg_factory, _USER_ID)
+    check = fasting_crud.fasting_overlaps
+
+    def slow_check(*args, **kwargs):
+        # Widens the window between the check and the insert so an unserialised writer is caught in it.
+        result = check(*args, **kwargs)
+        time.sleep(0.3)
+        return result
+
+    monkeypatch.setattr(fasting_crud, "fasting_overlaps", slow_check)
+    attempts = 6
+    barrier = threading.Barrier(attempts)
+    outcomes: list = []
+
+    def run(offset: float) -> None:
+        barrier.wait()
+        with pg_factory() as session:
+            try:
+                outcomes.append(_fast(session, _hours(offset), _hours(offset + 10)))
+            except Exception as err:
+                session.rollback()
+                outcomes.append(err)
+
+    threads = [threading.Thread(target=run, args=(index,)) for index in range(attempts)]
+    for thread in threads:
+        thread.start()
+    for thread in threads:
+        thread.join(timeout=30)
+
+    created = [outcome for outcome in outcomes if not isinstance(outcome, Exception)]
+    refused = [outcome for outcome in outcomes if isinstance(outcome, core_exceptions.ConflictError)]
+    assert len(outcomes) == attempts
+    assert len(created) == 1
+    assert len(refused) == attempts - 1
+    assert all("overlaps" in str(error) for error in refused)
+
+
+def test_the_list_and_count_windows_use_the_users_local_day(db, monkeypatch):
+    # 22:00 UTC on 1 October is 08:00 on 2 October in UTC+10.
+    _fast(db, datetime(2026, 10, 1, 22, 0, tzinfo=UTC), datetime(2026, 10, 2, 2, 0, tzinfo=UTC))
+    monkeypatch.setattr(fasting_service.users_integration, "resolve_timezone", lambda *_: "Australia/Brisbane")
+    local_day = date(2026, 10, 2)
+
+    page = fasting_service.list_health_fasting(
+        _USER_ID, db, date_range=core_date_range.DateRange(start_date=local_day, end_date=local_day)
+    )
+    utc_day = date(2026, 10, 1)
+    other = fasting_service.list_health_fasting(
+        _USER_ID, db, date_range=core_date_range.DateRange(start_date=utc_day, end_date=utc_day)
+    )
+
+    assert (page.total, len(page.items)) == (1, 1)
+    assert other.total == 0

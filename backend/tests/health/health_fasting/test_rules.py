@@ -65,6 +65,12 @@ class TestCreateTimes:
 
         assert created.actual_duration_seconds == 6 * 3600
 
+    def test_a_span_longer_than_the_duration_column_holds_is_refused(self, db):
+        start = datetime(1900, 1, 1, tzinfo=UTC)
+
+        with pytest.raises(core_exceptions.InvalidInputError, match="too long"):
+            _fast(db, start, _hours(0))
+
     def test_the_schema_has_no_duration_to_write(self):
         assert "actual_duration_seconds" not in fasting_schema.HealthFastingCreate.model_fields
         assert "actual_duration_seconds" not in fasting_schema.HealthFastingUpdate.model_fields

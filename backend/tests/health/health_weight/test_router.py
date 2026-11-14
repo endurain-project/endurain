@@ -250,3 +250,16 @@ class TestMalformedId:
         response = fast_api_client.get("/health_weight/not-a-uuid", headers={"Authorization": "Bearer mock_token"})
 
         assert response.status_code == 422
+
+
+class TestOversizedValuesAre422:
+    @patch("modules.health.health_weight.router.health_weight_service.create_health_weight")
+    def test_a_physique_rating_beyond_its_column_is_refused(self, mock_create, fast_api_client, fast_api_app):
+        response = fast_api_client.post(
+            "/health_weight",
+            json={"date": "2024-01-15", "weight_kg": 75.5, "physique_rating": 3_000_000_000},
+            headers={"Authorization": "Bearer mock_token"},
+        )
+
+        assert response.status_code == 422
+        mock_create.assert_not_called()

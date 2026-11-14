@@ -47,7 +47,7 @@ class HealthWeightBase(BaseModel):
         body_water_percent (StrictFloat | None): Body water percentage. Must be between 0 and 100.
         bone_mass_kg (StrictFloat | None): Bone mass in kilograms. Must be between 0 and 500.
         muscle_mass_kg (StrictFloat | None): Muscle mass in kilograms. Must be between 0 and 500.
-        physique_rating (StrictInt | None): Physique rating score. Must be greater than or equal to 0.
+        physique_rating (StrictInt | None): Physique rating score. Must be between 0 and the largest 32-bit integer.
         visceral_fat (StrictFloat | None): Visceral fat percentage. Must be between 0 and 100.
         metabolic_age (StrictInt | None): Metabolic age in years. Must be between 0 and 120.
 
@@ -74,7 +74,9 @@ class HealthWeightBase(BaseModel):
     )
     bone_mass_kg: StrictFloat | None = Field(default=None, ge=0, le=500, description="Bone mass in kilograms")
     muscle_mass_kg: StrictFloat | None = Field(default=None, ge=0, le=500, description="Muscle mass in kilograms")
-    physique_rating: StrictInt | None = Field(default=None, ge=0, description="Physique rating, a score (not a unit)")
+    physique_rating: StrictInt | None = Field(
+        default=None, ge=0, le=core_types.INT32_MAX, description="Physique rating, a score (not a unit)"
+    )
     visceral_fat: StrictFloat | None = Field(
         default=None, ge=0, le=100, description="Visceral fat rating (a score, not a unit)"
     )

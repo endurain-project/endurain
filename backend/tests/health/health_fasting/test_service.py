@@ -188,8 +188,9 @@ class TestGetFastingStats:
 class TestListHealthFasting:
     @patch(f"{_CRUD}.get_health_fasting_by_user_id", return_value=[])
     @patch(f"{_CRUD}.get_health_fasting_number_by_user_id", return_value=0)
+    @patch(f"{_PREFIX}.users_integration.resolve_timezone", return_value="Asia/Tokyo")
     @patch(f"{_PREFIX}.users_integration.local_today", return_value=date(2024, 1, 15))
-    def test_resolves_the_interval_in_the_users_calendar(self, _today, mock_number, mock_list, mock_db):
+    def test_resolves_the_interval_in_the_users_calendar(self, _today, _tz, mock_number, mock_list, mock_db):
         result = health_fasting_service.list_health_fasting(
             _USER_ID,
             mock_db,
@@ -200,16 +201,17 @@ class TestListHealthFasting:
         )
 
         since = date(2023, 12, 16)
-        mock_number.assert_called_once_with(_USER_ID, mock_db, since, None)
-        mock_list.assert_called_once_with(_USER_ID, mock_db, 2, 10, since, None)
+        mock_number.assert_called_once_with(_USER_ID, mock_db, since, None, "Asia/Tokyo")
+        mock_list.assert_called_once_with(_USER_ID, mock_db, 2, 10, since, None, "Asia/Tokyo")
         assert (result.total, result.page, result.num_records) == (0, 2, 10)
 
     @patch(f"{_CRUD}.get_health_fasting_by_user_id", return_value=[])
     @patch(f"{_CRUD}.get_health_fasting_number_by_user_id", return_value=0)
-    def test_no_interval_means_no_lower_bound(self, mock_number, mock_list, mock_db):
+    @patch(f"{_PREFIX}.users_integration.resolve_timezone", return_value="UTC")
+    def test_no_interval_means_no_lower_bound(self, _tz, mock_number, mock_list, mock_db):
         health_fasting_service.list_health_fasting(_USER_ID, mock_db, date_range=_NO_RANGE)
 
-        mock_number.assert_called_once_with(_USER_ID, mock_db, None, None)
+        mock_number.assert_called_once_with(_USER_ID, mock_db, None, None, "UTC")
 
 
 class TestStageImportHealthFasting:

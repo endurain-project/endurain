@@ -1,6 +1,7 @@
 """Database engine, session factory, and declarative base."""
 
 import os
+import uuid
 from collections.abc import Callable, Generator, Mapping
 from datetime import datetime
 
@@ -260,6 +261,26 @@ def check_connection_budget(processes: int) -> None:
     )
     if warning is not None:
         logger.warning(warning, extra=core_logger.context(console=True))
+
+
+def lock_user_scope(namespace: int, user_id: uuid.UUID, db: Session) -> None:
+    """Take a transaction-scoped advisory lock keyed by a user, released on commit or rollback.
+
+    Serialises the writers that check a rule across a user's rows and then write, so concurrent requests
+    cannot each pass the check. It blocks only requests for the same user and namespace. Only PostgreSQL has
+    advisory locks; on another engine (the SQLite unit tests) the call does nothing.
+
+    Args:
+        namespace: The lock namespace, so unrelated locks on the same user do not collide.
+        user_id: The user the lock is keyed by.
+        db: Database session.
+    """
+    if db.get_bind().dialect.name != "postgresql":
+        return
+    db.execute(
+        text("SELECT pg_advisory_xact_lock(:namespace, hashtext(:user_id))"),
+        {"namespace": namespace, "user_id": str(user_id)},
+    )
 
 
 def violated_constraint(err: IntegrityError) -> str | None:

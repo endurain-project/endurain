@@ -5,6 +5,8 @@ from datetime import datetime
 
 from pydantic import BaseModel, ConfigDict, Field, StrictFloat, StrictInt
 
+import core.types as core_types
+
 
 class HealthTargetsBase(BaseModel):
     """Base schema for health targets with shared fields.
@@ -19,7 +21,7 @@ class HealthTargetsBase(BaseModel):
     """
 
     weight_kg: StrictFloat | None = Field(default=None, gt=0, le=500, description="Target weight in kg")
-    steps: StrictInt | None = Field(default=None, ge=0, description="Target daily steps count")
+    steps: StrictInt | None = Field(default=None, ge=0, le=core_types.INT32_MAX, description="Target daily steps count")
     sleep_seconds: StrictInt | None = Field(
         default=None, ge=0, le=86400, description="Target sleep duration in seconds"
     )

@@ -226,7 +226,7 @@ class TestCrud:
         )
 
         sql = _sql(mock_db)
-        assert "CAST(health_fasting.fast_start_time AS DATE) <= '2024-02-10'" in sql
+        assert "date(timezone('UTC', health_fasting.fast_start_time)) <= '2024-02-10'" in sql
 
     def test_a_poop_list_bounds_the_users_local_day(self, mock_db):
         mock_db.execute.return_value.scalars.return_value.all.return_value = []

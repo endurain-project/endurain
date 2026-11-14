@@ -4,9 +4,10 @@ import uuid
 from datetime import date, datetime
 from decimal import Decimal
 
-from sqlalchemy import Date, and_, cast, desc, func, or_, select
+from sqlalchemy import and_, desc, func, or_, select
 from sqlalchemy.orm import Session
 
+import core.database as core_database
 import core.etag as core_etag
 import core.sync as core_sync
 import modules.health.computation as health_computation
@@ -21,6 +22,8 @@ SPEC = health_record_crud.RecordSpec(
     etag_label="fasting session record",
     sync_type="health_fasting",
 )
+#: Advisory-lock namespace of a user's fasting writes, kept apart from every other advisory lock.
+_FASTING_LOCK_NAMESPACE = 7303
 _ACTIVE_FAST_MESSAGE = "User already has an active fasting session"
 
 _IN_PROGRESS = health_fasting_schema.FastingStatus.IN_PROGRESS.value
@@ -28,20 +31,25 @@ _COMPLETED = health_fasting_schema.FastingStatus.COMPLETED.value
 
 
 def get_health_fasting_number_by_user_id(
-    user_id: uuid.UUID, db: Session, since: date | None = None, until: date | None = None
+    user_id: uuid.UUID,
+    db: Session,
+    since: date | None = None,
+    until: date | None = None,
+    tz_name: str = "UTC",
 ) -> int:
     """Count a user's fasting records.
 
     Args:
         user_id: The records' owner.
         db: Database session.
-        since: Count only records started on or after this date.
-        until: Count only records started on or before this date.
+        since: Count only records started on or after this day in ``tz_name``.
+        until: Count only records started on or before this day in ``tz_name``.
+        tz_name: IANA timezone ``since`` and ``until`` are resolved in.
 
     Returns:
         The number of records.
     """
-    start_day = cast(health_fasting_models.HealthFasting.fast_start_time, Date)
+    start_day = health_computation.local_date_expression(health_fasting_models.HealthFasting.fast_start_time, tz_name)
     return health_record_crud.count(SPEC, user_id, start_day, since, until, db)
 
 
@@ -68,6 +76,7 @@ def get_health_fasting_by_user_id(
     num_records: int | None = None,
     since: date | None = None,
     until: date | None = None,
+    tz_name: str = "UTC",
 ) -> list[health_fasting_schema.HealthFastingRead]:
     """Retrieve a user's fasting records, optionally paginated and bounded.
 
@@ -76,15 +85,17 @@ def get_health_fasting_by_user_id(
         db: Database session.
         page_number: 1-based page; paginates only together with ``num_records``.
         num_records: Records per page.
-        since: Return only records started on or after this date.
-        until: Return only records started on or before this date.
+        since: Return only records started on or after this day in ``tz_name``.
+        until: Return only records started on or before this day in ``tz_name``.
+        tz_name: IANA timezone ``since`` and ``until`` are resolved in.
 
     Returns:
         The records ordered by start time descending.
     """
     fast_start_time = health_fasting_models.HealthFasting.fast_start_time
+    start_day = health_computation.local_date_expression(fast_start_time, tz_name)
     return health_record_crud.list_page(
-        SPEC, user_id, fast_start_time, cast(fast_start_time, Date), since, until, page_number, num_records, db
+        SPEC, user_id, fast_start_time, start_day, since, until, page_number, num_records, db
     )
 
 
@@ -346,6 +357,19 @@ def delete_health_fasting(user_id: uuid.UUID, health_fasting_id: uuid.UUID, db: 
         PreconditionFailedError: When ``if_match`` does not name the row's version.
     """
     health_record_crud.delete(SPEC, health_fasting_id, user_id, db, if_match=if_match)
+
+
+def lock_fasting_writes(user_id: uuid.UUID, db: Session) -> None:
+    """Serialise the writers that check a user's fasts for an overlap, until the transaction ends.
+
+    The overlap check reads and the writer inserts or updates afterwards, so concurrent writers would each
+    see no overlap and all store. The writer takes this lock before the check. It blocks only the same user.
+
+    Args:
+        user_id: The fasts' owner.
+        db: Database session.
+    """
+    core_database.lock_user_scope(_FASTING_LOCK_NAMESPACE, user_id, db)
 
 
 def fasting_overlaps(

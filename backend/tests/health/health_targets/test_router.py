@@ -359,3 +359,16 @@ class TestTargetsScopes:
 
         assert response.status_code == 200
         mock_update.assert_called_once()
+
+
+class TestOversizedValuesAre422:
+    @patch("modules.health.health_targets.router.health_targets_service.update_health_targets")
+    def test_steps_beyond_the_column_are_refused(self, mock_update, fast_api_client, fast_api_app):
+        response = fast_api_client.patch(
+            "/health/targets/",
+            json={"steps": 3_000_000_000},
+            headers={"Authorization": "Bearer mock_token", "If-Match": '"1"'},
+        )
+
+        assert response.status_code == 422
+        mock_update.assert_not_called()

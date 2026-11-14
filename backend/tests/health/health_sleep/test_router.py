@@ -2,6 +2,7 @@ import uuid
 from datetime import date as datetime_date
 from unittest.mock import patch
 
+import pytest
 from tests._helpers.auth import MOCK_USER_ID
 
 import core.exceptions as core_exceptions
@@ -235,3 +236,21 @@ class TestCreateHealthSleepHeaders:
 class TestMalformedId:
     def test_a_malformed_id_is_422(self, fast_api_client, fast_api_app):
         assert fast_api_client.get("/health_sleep/not-a-uuid", headers=_HEADERS).status_code == 422
+
+
+class TestOversizedValuesAre422:
+    @pytest.mark.parametrize(
+        "field, value",
+        [
+            ("total_sleep_seconds", 3_000_000_000),
+            ("awake_count", 3_000_000_000),
+            ("avg_respiration", 3_000_000_000),
+            ("avg_skin_temp_deviation", 1e9),
+        ],
+    )
+    @patch(f"{_SERVICE}.create_health_sleep")
+    def test_a_value_beyond_its_column_is_refused(self, mock_create, field, value, fast_api_client, fast_api_app):
+        response = fast_api_client.post("/health_sleep", json={"date": "2024-01-15", field: value}, headers=_HEADERS)
+
+        assert response.status_code == 422
+        mock_create.assert_not_called()

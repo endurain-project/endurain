@@ -17,6 +17,7 @@ import core.exceptions as core_exceptions
 import core.logger as core_logger
 import core.pagination as core_pagination
 import core.timezone as core_timezone
+import core.types as core_types
 import modules.health.constants as health_constants
 import modules.health.health_fasting.crud as health_fasting_crud
 import modules.health.health_fasting.schema as health_fasting_schema
@@ -65,6 +66,20 @@ def _duration_seconds(fast_start_time: datetime, fast_end_time: datetime | None)
     return None if fast_end_time is None else _seconds_between(fast_start_time, fast_end_time)
 
 
+def _require_duration_fits(fast_start_time: datetime, fast_end_time: datetime) -> None:
+    """Refuse a span whose duration in seconds is larger than the duration column holds.
+
+    Args:
+        fast_start_time: When the fast started.
+        fast_end_time: When the fast ended.
+
+    Raises:
+        InvalidInputError: If the fast lasted longer than the largest 32-bit number of seconds.
+    """
+    if _seconds_between(fast_start_time, fast_end_time) > core_types.INT32_MAX:
+        raise core_exceptions.InvalidInputError("Fasting session is too long")
+
+
 def _check_times(fast_start_time: datetime, fast_end_time: datetime | None, status: str | None) -> None:
     """Refuse times and a status that cannot describe one fast.
 
@@ -76,8 +91,8 @@ def _check_times(fast_start_time: datetime, fast_end_time: datetime | None, stat
         status: The fast's status.
 
     Raises:
-        InvalidInputError: If the fast ends before it started, is completed or broken without an end, or is
-            in progress with an end.
+        InvalidInputError: If the fast ends before it started, lasts longer than the duration column holds, is
+            completed or broken without an end, or is in progress with an end.
     """
     if fast_end_time is None:
         if status in _ENDED_STATUSES:
@@ -86,6 +101,8 @@ def _check_times(fast_start_time: datetime, fast_end_time: datetime | None, stat
         raise core_exceptions.InvalidInputError("A fasting session in progress cannot have an end time")
     elif core_timezone.to_utc_aware(fast_end_time) < core_timezone.to_utc_aware(fast_start_time):
         raise core_exceptions.InvalidInputError("Fasting session cannot end before it started")
+    else:
+        _require_duration_fits(fast_start_time, fast_end_time)
 
 
 def _overlaps(
@@ -147,15 +164,18 @@ def list_health_fasting(
     Returns:
         The page of records; ``total`` counts every record within the window.
     """
+    tz_name = users_integration.resolve_timezone(user_id, db)
     return health_record_service.list_page(
         user_id,
         interval,
         date_range,
         page_number,
         num_records,
-        lambda since, until: health_fasting_crud.get_health_fasting_number_by_user_id(user_id, db, since, until),
+        lambda since, until: health_fasting_crud.get_health_fasting_number_by_user_id(
+            user_id, db, since, until, tz_name
+        ),
         lambda since, until: health_fasting_crud.get_health_fasting_by_user_id(
-            user_id, db, page_number, num_records, since, until
+            user_id, db, page_number, num_records, since, until, tz_name
         ),
         db,
     )
@@ -251,6 +271,7 @@ def create_health_fasting(
             "User already has an active fasting session. Complete or cancel it before starting a new one."
         )
     _check_times(health_fasting.fast_start_time, health_fasting.fast_end_time, health_fasting.status)
+    health_fasting_crud.lock_fasting_writes(user_id, db)
     if _overlaps(user_id, health_fasting.fast_start_time, health_fasting.fast_end_time, health_fasting.status, db):
         raise core_exceptions.ConflictError(_OVERLAP_MESSAGE)
 
@@ -291,6 +312,7 @@ def stage_import_health_fasting(
         _check_times(start, end, health_fasting.status)
     except core_exceptions.InvalidInputError:
         return False
+    health_fasting_crud.lock_fasting_writes(user_id, db)
     if _overlaps(user_id, start, end, health_fasting.status, db):
         return False
     try:
@@ -338,6 +360,7 @@ def edit_health_fasting(
             update=health_fasting.model_dump(exclude_unset=True)
         )
         _check_times(merged.fast_start_time, merged.fast_end_time, merged.status)
+        health_fasting_crud.lock_fasting_writes(user_id, db)
         if _overlaps(
             user_id, merged.fast_start_time, merged.fast_end_time, merged.status, db, exclude_id=health_fasting_id
         ):
@@ -396,6 +419,7 @@ def complete_health_fasting(
     end_time = core_timezone.to_utc_aware(complete_data.fast_end_time)
     if end_time < start_time:
         raise core_exceptions.InvalidInputError("Fasting session cannot end before it started")
+    _require_duration_fits(start_time, end_time)
 
     ended = health_record_service.commit_write(
         health_fasting_crud.SPEC,

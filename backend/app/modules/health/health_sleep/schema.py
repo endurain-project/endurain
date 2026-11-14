@@ -28,6 +28,9 @@ from core.stored_enum import StoredStrEnum
 
 _DATETIME = TypeAdapter(datetime)
 
+#: The largest magnitude a ``Numeric(10, 2)`` column holds.
+_NUMERIC_10_2_MAX = 99_999_999.99
+
 _LOCAL_START_DESCRIPTION = (
     "Wall-clock time the sleep started in the athlete's own zone, sent without a UTC offset. "
     "The server keeps the reading as given and does not convert it."
@@ -119,7 +122,9 @@ class HealthSleepStage(BaseModel):
     stage_type: StoredSleepStageType | None = Field(default=None, description="Type of sleep stage")
     start_time_gmt: datetime | None = Field(default=None, description="Start time of the stage in GMT")
     end_time_gmt: datetime | None = Field(default=None, description="End time of the stage in GMT")
-    duration_seconds: StrictInt | None = Field(default=None, ge=0, description="Duration of the stage in seconds")
+    duration_seconds: StrictInt | None = Field(
+        default=None, ge=0, le=core_types.INT32_MAX, description="Duration of the stage in seconds"
+    )
 
     model_config = ConfigDict(
         from_attributes=True,
@@ -202,15 +207,27 @@ class HealthSleepCore(BaseModel):
     sleep_end_time_gmt: datetime | None = Field(default=None, description="End time of sleep in GMT")
     sleep_start_time_local: datetime | None = Field(default=None, description=_LOCAL_START_DESCRIPTION)
     sleep_end_time_local: datetime | None = Field(default=None, description=_LOCAL_END_DESCRIPTION)
-    total_sleep_seconds: StrictInt | None = Field(default=None, ge=0, description="Total duration of sleep in seconds")
-    nap_time_seconds: StrictInt | None = Field(default=None, ge=0, description="Duration of naps in seconds")
-    unmeasurable_sleep_seconds: StrictInt | None = Field(
-        default=None, ge=0, description="Unmeasurable sleep duration in seconds"
+    total_sleep_seconds: StrictInt | None = Field(
+        default=None, ge=0, le=core_types.INT32_MAX, description="Total duration of sleep in seconds"
     )
-    deep_sleep_seconds: StrictInt | None = Field(default=None, ge=0, description="Duration of deep sleep in seconds")
-    light_sleep_seconds: StrictInt | None = Field(default=None, ge=0, description="Duration of light sleep in seconds")
-    rem_sleep_seconds: StrictInt | None = Field(default=None, ge=0, description="Duration of REM sleep in seconds")
-    awake_sleep_seconds: StrictInt | None = Field(default=None, ge=0, description="Duration of awake time in seconds")
+    nap_time_seconds: StrictInt | None = Field(
+        default=None, ge=0, le=core_types.INT32_MAX, description="Duration of naps in seconds"
+    )
+    unmeasurable_sleep_seconds: StrictInt | None = Field(
+        default=None, ge=0, le=core_types.INT32_MAX, description="Unmeasurable sleep duration in seconds"
+    )
+    deep_sleep_seconds: StrictInt | None = Field(
+        default=None, ge=0, le=core_types.INT32_MAX, description="Duration of deep sleep in seconds"
+    )
+    light_sleep_seconds: StrictInt | None = Field(
+        default=None, ge=0, le=core_types.INT32_MAX, description="Duration of light sleep in seconds"
+    )
+    rem_sleep_seconds: StrictInt | None = Field(
+        default=None, ge=0, le=core_types.INT32_MAX, description="Duration of REM sleep in seconds"
+    )
+    awake_sleep_seconds: StrictInt | None = Field(
+        default=None, ge=0, le=core_types.INT32_MAX, description="Duration of awake time in seconds"
+    )
     avg_heart_rate: StrictInt | None = Field(
         default=None, ge=20, le=220, description="Average heart rate during sleep in beats per minute"
     )
@@ -233,20 +250,22 @@ class HealthSleepCore(BaseModel):
         default=None, ge=70, le=100, description="Highest SpO2 reading during sleep as a percentage (70-100)"
     )
     avg_respiration: StrictInt | None = Field(
-        default=None, ge=0, description="Average respiration rate in breaths per minute"
+        default=None, ge=0, le=core_types.INT32_MAX, description="Average respiration rate in breaths per minute"
     )
     lowest_respiration: StrictInt | None = Field(
-        default=None, ge=0, description="Lowest respiration rate in breaths per minute"
+        default=None, ge=0, le=core_types.INT32_MAX, description="Lowest respiration rate in breaths per minute"
     )
     highest_respiration: StrictInt | None = Field(
-        default=None, ge=0, description="Highest respiration rate in breaths per minute"
+        default=None, ge=0, le=core_types.INT32_MAX, description="Highest respiration rate in breaths per minute"
     )
     avg_stress_level: StrictInt | None = Field(
         default=None, ge=0, le=100, description="Average stress level, a score from 0 to 100"
     )
-    awake_count: StrictInt | None = Field(default=None, ge=0, description="Number of times awake during sleep")
+    awake_count: StrictInt | None = Field(
+        default=None, ge=0, le=core_types.INT32_MAX, description="Number of times awake during sleep"
+    )
     restless_moments_count: StrictInt | None = Field(
-        default=None, ge=0, description="Number of restless moments during sleep"
+        default=None, ge=0, le=core_types.INT32_MAX, description="Number of restless moments during sleep"
     )
     sleep_score_overall: StrictInt | None = Field(default=None, ge=0, le=100, description="Overall sleep score (0-100)")
     sleep_score_duration: SleepScore | None = Field(default=None, description="Sleep duration score")
@@ -256,7 +275,10 @@ class HealthSleepCore(BaseModel):
         default=None, ge=20, le=220, description="Resting heart rate in beats per minute"
     )
     avg_skin_temp_deviation: StrictFloat | None = Field(
-        default=None, description="Average skin temperature deviation from the baseline in degrees Celsius"
+        default=None,
+        ge=-_NUMERIC_10_2_MAX,
+        le=_NUMERIC_10_2_MAX,
+        description="Average skin temperature deviation from the baseline in degrees Celsius",
     )
     awake_count_score: SleepScore | None = Field(default=None, description="Awake count score")
     rem_percentage_score: SleepScore | None = Field(default=None, description="REM percentage score")
