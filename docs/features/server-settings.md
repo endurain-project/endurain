@@ -130,4 +130,4 @@ When several replicas run, the email and geocoding settings are cached for a few
 
 ### Server logs
 
-A viewer of the newest application log records, with a minimum level, text search, download and clear. It is available only when a single process writes the log file, so it is hidden on the public demo and on multi-process deployments, where logs belong in your platform's log collection. See [Monitoring](../getting-started/monitoring.md).
+A viewer of the newest application log records, with a minimum level, text search, download and clear. Clearing deletes the log file and its rotated backups, so it asks for your own password and MFA code (or a fresh identity-provider sign-in). It is available only when a single process writes the log file, so it is hidden on the public demo and on multi-process deployments, where logs belong in your platform's log collection. See [Monitoring](../getting-started/monitoring.md).

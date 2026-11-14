@@ -141,8 +141,8 @@ Save the generated **Client ID** and **Client Secret**.
 | **Provider Name** | Display name shown on login button | `Google`, `GitHub`, etc. |
 | **Slug** | URL-safe identifier (lowercase letters, numbers, hyphens). `login`, `link`, `callback`, `icon` and `backchannel-logout` are reserved for the sign-in routes and refused | `google`, `github` |
 | **Provider Type** | Protocol type: `OIDC` (the default) or `OAuth2`. An `OAuth2` provider whose scopes include `openid` issues an ID token, so its sign-in must carry a verified ID token and needs an issuer URL, like an `OIDC` one. Without `openid` the provider is identified by its userinfo endpoint alone | `OIDC` or `OAuth2` |
-| **Issuer URL** | Provider's issuer URL, exactly as the `issuer` in its `/.well-known/openid-configuration` document, trailing slash included. Another provider cannot use the same issuer, and the issuer cannot change while any user is linked to the provider | `https://accounts.google.com` |
-| **Client ID** | OAuth client identifier | From Step 1 |
+| **Issuer URL** | Provider's issuer URL, exactly as the `issuer` in its `/.well-known/openid-configuration` document, trailing slash included. Another provider cannot use the same issuer, and the issuer cannot change while any user is linked to the provider (see [Fields locked while users are linked](#fields-locked-while-users-are-linked)) | `https://accounts.google.com` |
+| **Client ID** | OAuth client identifier. Required, and it cannot change while any user is linked to the provider | From Step 1 |
 | **Client Secret** | OAuth client secret | From Step 1 |
 | **Scopes** | Space-separated OAuth scopes | `openid profile email` |
 | **Icon** | Logo on the login button: a built-in logo or an uploaded image | `Keycloak`, `Upload an image` |
@@ -151,14 +151,14 @@ Save the generated **Client ID** and **Client Secret**.
 | **Sync user info** | At each sign-in, copy the mapped name from the provider. It does not include the email | On by default |
 | **Sync email** | At each sign-in, copy the email the provider verified onto the account | Off for a new provider |
 
-#### Changing a provider's issuer
+#### Fields locked while users are linked
 
-A user's link names the provider and the user's identifier at it, so the issuer is what keeps a link pointing at the same identity provider. For that reason:
+A user's link names the provider and the user's identifier at it, so what identifies the provider, and where its tokens are redeemed, must not move under a link. The callback URL registered at the provider is built from the slug too. For that reason:
 
-- The issuer URL cannot be changed, set or cleared while any user is linked to the provider. Unlink those users first, or add a new provider for the new issuer. Adding or removing only a trailing slash is not a change.
+- While any user is linked to the provider, the **slug**, **client ID**, **provider type**, **issuer URL** and the **authorization**, **token** and **userinfo endpoints** cannot be changed, set or cleared. The edit form shows them locked. Unlink those users first, or add a new provider. Saving a field with the value it already has, or adding or removing only a trailing slash of the issuer, is not a change. The name, scopes, icon, enabled switch, the other switches, the claim mapping and the client secret stay editable.
 - Two providers cannot use the same issuer URL (trailing slashes are ignored). A provider with no issuer URL never conflicts. The database enforces this, so two administrators saving the same issuer at once cannot both succeed.
 
-Both refusals are answered with `409` and nothing is saved.
+Both refusals are answered with `409` and nothing is saved. The locked-fields refusal names the fields the edit changed.
 
 Upgrading from a version that allowed it is refused while two providers share an issuer URL. The error names the providers' slugs for each shared issuer: change the issuer URL of, or delete, all but one of them (unlinking their users first if the issuer must change), then start the new version again.
 
@@ -222,7 +222,7 @@ Endurain supports [OpenID Connect Back-Channel Logout](https://openid.net/specs/
 
 ## Accounts with MFA enabled
 
-Signing in through your identity provider does not replace the multi-factor authentication you set up in Endurain. If your account has MFA enabled, Endurain asks for your authentication code (or a backup code) after the provider signs you in, and only then finishes the login. Wrong codes count toward the same lockout as the password login. Accounts without MFA sign in as before.
+Signing in through your identity provider does not replace the multi-factor authentication you set up in Endurain. If your account has MFA enabled, Endurain asks for your authentication code (or a backup code) after the provider signs you in, on the same step as a password sign-in, and only then finishes the login. The step lasts five minutes, three wrong codes end it, and wrong codes count toward the same lockout as the password login. When the step ends, or the provider sign-in expires before you enter a code, Endurain returns you to the sign-in page to sign in with the provider again. Accounts without MFA sign in as before.
 
 ## Confirming sensitive changes without a password
 

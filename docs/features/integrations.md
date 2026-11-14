@@ -61,7 +61,7 @@ Duplicates are skipped by Garmin's activity id, so retrieving the same range twi
 
 ### Disconnecting
 
-**Disconnect** removes the stored tokens and the gear sync setting. Everything already imported is kept.
+**Disconnect** asks for your password (and MFA code, if enabled), or a fresh sign-in with your identity provider, then removes the stored tokens and the gear sync setting. Everything already imported is kept.
 
 ## Strava
 
@@ -93,7 +93,7 @@ sequenceDiagram
     E-->>You: Connected
 ```
 
-Open **Settings → Integrations → Strava → Connect**, enter the client ID and secret, and authorize on Strava. You return to Endurain, which finishes the connection. Endurain asks only for read access (`read`, `profile:read_all`, `activity:read_all`). Strava's consent screen lets you untick permissions: if you do, Endurain refuses the connection and asks you to connect again and keep every permission ticked. Connections made earlier are not affected. The tokens are stored encrypted, and so are your client ID and secret. If the exchange fails, Endurain keeps your client ID and secret and stores no tokens. Authorize on Strava again to retry: the code from the failed attempt is used up, but you do not need to enter the credentials again.
+Open **Settings → Integrations → Strava → Connect**, enter the client ID and secret, confirm with your password (and MFA code, if enabled) or a fresh identity-provider sign-in, and authorize on Strava. You return to Endurain, which finishes the connection. Endurain asks only for read access (`read`, `profile:read_all`, `activity:read_all`). Strava's consent screen lets you untick permissions: if you do, Endurain refuses the connection and asks you to connect again and keep every permission ticked. Connections made earlier are not affected. The tokens are stored encrypted, and so are your client ID and secret. If the exchange fails, Endurain keeps your client ID and secret and stores no tokens. Authorize on Strava again to retry: the code from the failed attempt is used up, but you do not need to enter the credentials again.
 
 ### What syncs and when
 
@@ -106,7 +106,7 @@ Strava's rate limits are per application. When one is hit, Endurain stops callin
 
 ### Disconnecting
 
-**Disconnect** first asks Strava to revoke Endurain's access, and goes ahead even if Strava cannot be reached. It then **deletes the gear and activities that were synced from Strava**, in line with Strava's [API Agreement](https://www.strava.com/legal/api). It also clears the stored tokens, client ID and secret. Activities from other sources, such as an upload, a [Strava bulk export](importing.md#importing-data-from-a-strava-bulk-export-beta) or Garmin Connect, stay.
+**Disconnect** asks for your password (and MFA code, if enabled), or a fresh sign-in with your identity provider, because it deletes imported data. It then asks Strava to revoke Endurain's access, and goes ahead even if Strava cannot be reached, and **deletes the gear and activities that were synced from Strava**, in line with Strava's [API Agreement](https://www.strava.com/legal/api). It also clears the stored tokens, client ID and secret. Activities from other sources, such as an upload, a [Strava bulk export](importing.md#importing-data-from-a-strava-bulk-export-beta) or Garmin Connect, stay.
 
 !!! warning
     Disconnecting Strava cannot be undone. [Export your data](export-import.md) first if you want a copy of what was imported.

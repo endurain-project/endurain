@@ -32,7 +32,7 @@ The only `202` whose job you cannot read is [your own account deletion](#delete-
 | Sync Garmin Connect gear or health | `POST /garmin/gear`, `POST /garmin/health` | `garmin_sync_gear`, `garmin_sync_health` | No |
 | Link Strava | `POST /strava/link` | `strava_link` | No |
 | Sync Strava gear | `POST /strava/gear` | `strava_gear` | No |
-| Unlink Strava | `DELETE /strava/link` | `strava_unlink` | No |
+| Unlink Strava | `POST /strava/unlink` | `strava_unlink` | No |
 | Export your profile | `POST /profile/export` | `profile_export` | No |
 | Import a profile | `POST /profile/import` | `profile_import` | No |
 | Bulk edit activity visibility | `PATCH /activities` | `activities_bulk_edit` | No |
@@ -122,7 +122,7 @@ Poll `GET /jobs/{job_id}` and read `files_done` and `files_failed` against `file
 
 **Garmin Connect gear and health sync.** `POST /garmin/gear` and `POST /garmin/health` (with `start_date` and `end_date`, at most 31 days) answer `202` with a `garmin_sync_gear` or `garmin_sync_health` job. A second request of the same kind while one is queued or running is `409`.
 
-**Strava link, gear sync and unlink.** `POST /strava/link` (the `state`, `code` and `scope` from the Strava callback), `POST /strava/gear` and `DELETE /strava/link` answer `202` with a `strava_link`, `strava_gear` or `strava_unlink` job. A second request of the same kind while one is queued or running is `409`. A link whose granted scopes are too few is refused at once with `400` and `urn:endurain:error:provider-scope-insufficient`. Unlinking revokes the authorization with Strava and deletes the activities and gear imported from it. When the user withdraws Endurain's access on Strava instead, Endurain clears the tokens at the next sync and `GET /profile` carries two read-only fields until the user connects again or the data is deleted: `strava_revoked_at`, when Strava access ended, and `strava_data_deletion_at`, 7 days later, when the Strava-synced activities and gear are deleted. Both are `null` otherwise, and neither can be set by a client.
+**Strava link, gear sync and unlink.** `POST /strava/link` (the `state`, `code` and `scope` from the Strava callback), `POST /strava/gear` and `POST /strava/unlink` (with the caller's [step-up](account-security.md#step-up-request-body)) answer `202` with a `strava_link`, `strava_gear` or `strava_unlink` job. A second request of the same kind while one is queued or running is `409`. A link whose granted scopes are too few is refused at once with `400` and `urn:endurain:error:provider-scope-insufficient`. Unlinking revokes the authorization with Strava and deletes the activities and gear imported from it. When the user withdraws Endurain's access on Strava instead, Endurain clears the tokens at the next sync and `GET /profile` carries two read-only fields until the user connects again or the data is deleted: `strava_revoked_at`, when Strava access ended, and `strava_data_deletion_at`, 7 days later, when the Strava-synced activities and gear are deleted. Both are `null` otherwise, and neither can be set by a client.
 
 A provider that answers with a rate limit makes the job `failed` (gear and health syncs) or `queued` with `retry_after` set (activity refreshes). The routes that start a provider sync (`/activities/refresh`, `/garmin/activities`, `/garmin/gear`, `/garmin/health`, `/strava/activities` and `/strava/gear`) are limited to 6 requests per minute.
 

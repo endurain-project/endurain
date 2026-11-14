@@ -18,6 +18,9 @@ These values are open: a release can add one. Handle a value you do not know as 
 | Value | Known today | When a value is unknown |
 | ----- | ----------- | ----------------------- |
 | `next_step` in a sign-in or token answer (`/auth/login`, `/auth/mfa/verify`, `/auth/password-change`, `/auth/refresh`, `/auth/sessions/{session_id}/tokens`) | `mfa`, `password_change`, `exchange`, `tokens` | The client is not signed in. Tell the user that this client cannot finish the sign-in and should be updated. See [Sign-in steps](authentication.md#sign-in-steps). |
+| `next_step` in a sign-up answer (`/public/sign-up/request`, `/confirm`, `/resend`) | `sign_in`, `check_email`, `await_approval` | The client cannot tell what comes next. Show a general message and send the user to sign in or to check their email. |
+| `methods` of an MFA-required sign-in answer, and `type` of a factor in the MFA status | `totp`, `backup_code` for `methods`; `totp` for `type` | Offer only the methods you know. If you know none, tell the user to finish the sign-in in the web app. |
+| `scope` of a `429` problem document | `requests`, `sign-in`, `mfa`, `step-up`, `provider` | Wait for `Retry-After` and try again, whatever the scope. |
 | A problem document's `type` | The [error types](errors-and-limits.md#error-types) | Act on the `status`. |
 | The `error` query parameter of a failed SSO sign-in (`/login?error=<code>`) | The codes in [SSO failures](oauth-sso-pkce.md#sso-failures) | Show a general sign-in failure. |
 | The `type` of a step-up challenge (a `401` with `WWW-Authenticate: Bearer error="insufficient_user_authentication"`) | `urn:endurain:error:idp-reauth-required`. See [Step-up Refusal](account-security.md#step-up-refusal) | The client does not support that method. Stop, keep no partial state and tell the user to make the change in a client that does. |
@@ -41,9 +44,22 @@ A new way to authenticate, such as passkeys, arrives as new optional request fie
 
 Access tokens, refresh tokens, MFA and password-change challenges, tickets and API keys are opaque strings. Do not parse them, read their claims or assume a length or format: they can change in any release. Read lifetimes from the response fields (`expires_in`, `refresh_token_expires_in`), not from the token.
 
+The access and refresh tokens are JWTs, but a client must not depend on that. The claim that names the kind of client is `client_type` (`web` or `mobile`). The tokens carry no `client_id`: that name is reserved for the registered application of a future OAuth client, and the values `endurain-web` and `endurain-mobile` are reserved for Endurain's own apps. An application that uses the first-party sign-in routes is a `mobile` or `web` client; it has no application id of its own.
+
 Every response that carries a token or another secret is sent with `Cache-Control: no-store` and `Pragma: no-cache`, so no browser or proxy cache keeps it. The list is in [Responses that carry a secret](account-security.md#responses-that-carry-a-secret).
 
 ## Breaking changes in v0.21.0
+
+The authentication model was tightened in v0.21.0:
+
+- The token claim `client_id` (which held `web` or `mobile`) is now `client_type`, and no `client_id` is issued. Every token issued before the upgrade is refused anyway.
+- Every refusal of `POST /auth/refresh`, and a dead or expired pending sign-in at `POST /auth/mfa/verify` and `POST /auth/password-change`, is `401` with `urn:endurain:error:session-ended` and `WWW-Authenticate: Session`: sign in again, do not retry. A failed password sign-in is still `401` but now challenges with `Session` instead of `Bearer`. A grace-replay refresh for an inactive user is `401`, no longer `403`. `urn:endurain:error:invalid-token` now means "refresh once and replay the request" on resource routes only.
+- The CSRF token is gone: the web token responses no longer carry `csrf_token`, `X-CSRF-Token` is neither read nor allowed by CORS, and the server no longer stores it. A web request to `POST /auth/refresh` or `POST /auth/logout` (`X-Client-Type: web`) must carry an `Origin` header from the server's allowed origins and is refused with `403` when the origin is missing, `null` or foreign, or when `Sec-Fetch-Site` is `cross-site`. Browsers add `Origin` themselves; a non-browser client that declares `web` must send it. See [Authentication](authentication.md).
+- Sign-out and device routes: `POST /profile/devices/revoke` is `POST /profile/devices/delete-others` and `POST /profile/devices/delete` is `POST /profile/devices/delete-all`. `KnownDeviceRead.current` is `is_current`, `last_login` of an identity-provider link is `last_login_at`, and a session read gains `is_current`.
+- Destructive actions need step-up: `DELETE /server-settings/logs` is `POST /server-settings/logs/clear`, `DELETE /strava/link` is `POST /strava/unlink`, `DELETE /garmin/link` is `POST /garmin/unlink` (each takes a `step_up` body), and `PUT /strava/client` takes a `step_up` object next to the client id and secret.
+- An identity-provider `PATCH` that changes the slug, `client_id`, `provider_type`, issuer or the authorization, token or userinfo endpoint while users are linked is `409` with `urn:endurain:error:identity-provider-locked` (it replaces `issuer-locked`), and creating a provider requires `client_id`.
+- The links in emails (password reset, sign-up confirmation and invitation, email change and its cancellation) carry the token in the URL fragment (`#token=`). The web app still reads `?token=` for one release so links already sent keep working.
+- `GET /profile/mfa/status` gains `factors`, and the MFA-required sign-in answer gains `methods`. Both are open sets.
 
 The scopes `profile`, `profile:export` and `profile:security` were renamed `account`, `account:export` and `account:security` in v0.21.0, so they no longer clash with the OpenID Connect `profile` scope. The old names are refused like any unknown scope, and every session ended at the upgrade to v0.21.0, so everyone signs in again and receives a token with the new names.
 
@@ -69,3 +85,10 @@ These paths are reserved for planned features, such as third-party OAuth clients
 
 - Under the API root `/api/v1`: `/oauth/`, `/auth/webauthn/`, `/profile/passkeys`, `/profile/grants` and `/oauth-clients`.
 - At the server root: `/.well-known/`, as [RFC 8615](https://www.rfc-editor.org/rfc/rfc8615) defines.
+
+## Stability promises for the OAuth server
+
+- `/api/v1` stays served. It appears in the callback and back-channel URLs registered at identity providers, in the cookie names and in the refresh token audience, so a new API version keeps answering these paths.
+- A future `/oauth/token` will answer errors in the JSON format of [RFC 6749 section 5.2](https://www.rfc-editor.org/rfc/rfc6749#section-5.2) (`error`, `error_description`) on that path only, as an exception to the problem documents every other route returns.
+- The administrator scopes (`users:write`, `server-settings:*`, `identity-providers:*`, `sessions:*` and the like) will never be offered to a third-party application for consent. An application gets narrower scopes of its own, which arrive as new names.
+- `client_id` is the identifier of a registered OAuth client. The values `endurain-web` and `endurain-mobile` are reserved for Endurain's own applications.

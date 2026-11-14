@@ -57,6 +57,8 @@ A resource has a collection and an item:
 - A `POST` that creates a resource answers `201`. The exception is the public sign-up request (`POST /public/sign-up/request`): it answers `200` with a `next_step`, because it answers from the server's policy alone and must not reveal whether the address is registered, so it has no resource to return.
 - Removing a thing that needs the caller's step-up in the body is `POST /things/{thing_id}/delete`, `.../unlink` or `.../revoke`, not `DELETE`, which carries no body: `POST /profile/delete-account`, `POST /profile/identity-providers/{idp_id}/unlink`, `POST /users/{user_id}/delete` and `POST /users/{user_id}/identity-providers/{idp_id}/unlink`, `POST /users/{user_id}/sessions/{session_id}/revoke` and `POST /users/{user_id}/sessions/revoke`. `POST /users/{user_id}/delete` keeps `If-Match` and the `202` job of a delete.
 
+A route or flag that ends sessions or forgets devices uses these names for these roles only: `keep_current` is the query parameter of the route whose action is ending the caller's sessions (`POST /profile/sessions/revoke`), `revoke_other_sessions` is the body flag of a security change that ends the other sessions as a side effect, and `exclude_session_id` is the query parameter of the administrator's route that ends another user's sessions. A device is forgotten, never revoked: `POST /profile/devices/{device_id}/delete` forgets one, `POST /profile/devices/delete-others` every device but the caller's and `POST /profile/devices/delete-all` every device. A list item that can be the caller's own (a session, a device) carries `is_current`.
+
 ## Status codes
 
 | Code | When | Must carry |
@@ -74,7 +76,7 @@ A resource has a collection and an item:
 | `413` | The body is too large | Problem document |
 | `415` | The uploaded file is a type the route does not accept | Problem document |
 | `422` | The request does not match the schema | Problem document with `errors[]` |
-| `429` | Rate limit or lockout | `Retry-After`: the seconds until a retry can succeed (a `TooManyRequestsError` with `retry_at` sets it) |
+| `429` | Rate limit or lockout | `Retry-After`: the seconds until a retry can succeed (a `TooManyRequestsError` with `retry_at` sets it). One problem type, `too-many-requests`, with a `scope` member (an open set) naming what was exhausted |
 | `503` | A dependency is unavailable for a moment | `Retry-After` |
 
 `406` is only for `Accept` negotiation, never for an upload.

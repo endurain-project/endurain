@@ -22,15 +22,16 @@ The system is extensible and can be configured to work with:
 Identity providers are configured by an administrator with these parameters:
 
 - `name`, `slug` and `provider_type`. The slug is 1 to 50 lowercase letters, numbers and hyphens, and cannot be `login`, `link`, `callback`, `icon` or `backchannel-logout`, the words the public routes use (refused with `422`). `provider_type` is `oidc` (the default) or `oauth2`; any other value, including `saml`, is refused with `422`. An `oauth2` provider whose `scopes` include `openid` (the default scopes do) must return an ID token that verifies, nonce included, like an `oidc` one
-- `client_id` and `client_secret`: OAuth client identifier and secret
+- `client_id` and `client_secret`: OAuth client identifier and secret. Both are required when creating a provider (a missing one is `422`); on an edit an omitted one keeps the stored value
 - `issuer_url`: the OIDC issuer. Endurain reads `{issuer_url}/.well-known/openid-configuration` and requires its `issuer` to match. An `oidc` provider needs it, and creating one without it is refused with `422`; an edit that would leave one without it is refused with `400`. Sign-in verifies the ID token against the issuer and the signing keys the discovery document publishes (`jwks_uri` in that document), and a provider without them is refused. Step-up re-authentication also needs it
 - `authorization_endpoint`, `token_endpoint`, `userinfo_endpoint`: optional. A blank endpoint is discovered from the issuer; a value set here takes precedence
 - `scopes`: `openid profile email` by default. An `oidc` provider must include `openid`; creating one without it is refused with `422`, and an edit that would remove it is refused with `400`. An edit is checked against the stored values of the fields it does not send, and one that leaves `provider_type`, `issuer_url` and `scopes` equal to the stored values, whether it omits them or sends them back unchanged, is not checked, so a provider saved before this rule can still be renamed or disabled
 - `auto_create_users` (`true` by default), `link_by_email` (`false` by default), `sync_user_info` (`true` by default) and `sync_email` (`false` by default). `link_by_email` lets an unlinked sign-in join the local account that has the provider's verified email; when it is `false` that sign-in is refused. `sync_user_info` syncs the mapped name and not the email; `sync_email` syncs the email the provider verified, which marks it verified, voids unused password-reset tokens, is audited and notifies the previous address
 - `enabled`: setting it from `true` to `false` ends, in the same transaction as the edit, every session the provider signed in, for all users; the `auth.identity_provider.update` audit row carries the number as `sessions_ended`. Setting it back to `true` does not restore them. If ending the sessions fails, the provider stays enabled
+- Locked fields: while users are linked to a provider, an edit that changes its `slug`, `client_id`, `provider_type`, `issuer_url`, `authorization_endpoint`, `token_endpoint` or `userinfo_endpoint` (the slug is part of the callback and back-channel URLs registered at the provider) is refused with `409` and `urn:endurain:error:identity-provider-locked`, whose `detail` names the changed fields, and nothing is saved. A field sent with its stored value, or an issuer that differs only by a trailing slash, is not a change; every other field stays editable. The provider's read (`has_linked_users`) says whether users are linked, so a client can lock those inputs instead of waiting for the refusal
 
 !!! warning "Breaking change"
-    The `jwks_uri` field is removed from the identity provider request and response bodies and from the database. Signing keys always come from the provider's discovery document, so a body that still sends `jwks_uri` is refused with `422`. Creating an `oidc` provider without an `issuer_url` or without the `openid` scope is refused too.
+    `client_id` is required when creating a provider. The `jwks_uri` field is removed from the identity provider request and response bodies and from the database. Signing keys always come from the provider's discovery document, so a body that still sends `jwks_uri` is refused with `422`. Creating an `oidc` provider without an `issuer_url` or without the `openid` scope is refused too.
 
 The callback URL is not a setting. Endurain always uses `{frontend host}/api/v1/public/idp/callback/{idp_slug}`, so register exactly that URL as the redirect URI at the provider.
 
@@ -65,10 +66,12 @@ The reverse direction is the provider's to start. When the provider supports [Op
 ### OAuth Token Response
 When authenticating via OAuth, the response format matches the standard authentication:
 
-- **Web clients**: Redirected to the frontend with a `session_id`; the frontend exchanges the session and receives the access token + CSRF token in the response body, while the refresh token is set as an httpOnly cookie
+- **Web clients**: Redirected to the frontend with a `session_id`; the frontend exchanges the session and receives the access token in the response body, while the refresh token is set as an httpOnly cookie
 - **Mobile clients**: Redirected or deep-linked with a `session_id`; the app exchanges the session and receives access + refresh tokens in the response body
 
-The session belongs to the client type recorded when the sign-in started. Its tokens carry it as `client_id`, and `/auth/refresh` refuses a refresh that declares a different `X-Client-Type` (see [Token Refresh Flow](authentication.md#token-refresh-flow)).
+For an account with MFA enabled the exchange answers the `mfa` step instead, and `POST /auth/mfa/verify` delivers the same tokens; see [Accounts with MFA enabled](#accounts-with-mfa-enabled).
+
+The session belongs to the client type recorded when the sign-in started. Its tokens carry it as `client_type`, and `/auth/refresh` refuses a refresh that declares a different `X-Client-Type` (see [Token Refresh Flow](authentication.md#token-refresh-flow)).
 
 !!! info "Mobile OAuth/SSO"
   OAuth/SSO login requires PKCE for all clients. Mobile apps must use the system browser (`ASWebAuthenticationSession` or Custom Tabs), never an embedded WebView, so provider credentials stay outside the app process.
@@ -281,6 +284,11 @@ PKCE (Proof Key for Code Exchange, RFC 7636) is required for OAuth/SSO authentic
        │<──────────────────────────────────────────│                    │
        │ 6. POST token exchange with own verifier  │                    │
        │────────────────────>│                     │                    │
+       │    JWT tokens, or the MFA step            │                    │
+       │<────────────────────│                     │                    │
+       │ 7. With MFA: POST /auth/mfa/verify        │                    │
+       │    with mfa_challenge and the code        │                    │
+       │────────────────────>│                     │                    │
        │    JWT tokens       │                     │                    │
        │<────────────────────│                     │                    │
 ```
@@ -367,7 +375,7 @@ X-Client-Type: mobile
 }
 ```
 
-A web client gets the web token body instead (`csrf_token`, no `refresh_token`, the refresh token as a cookie), the same as `/auth/login` answers.
+A web client gets the web token body instead (no `refresh_token`, the refresh token as a cookie), the same as `/auth/login` answers.
 
 `device_id` is the id a mobile app keeps and sends as `X-Device-Id`; the exchange of an identity-provider sign-in sets it, and a password sign-in already returned it with its `session_id` (it is `null` in that exchange).
 
@@ -376,14 +384,28 @@ A web client gets the web token body instead (`csrf_token`, no `refresh_token`, 
 | Status | Error | Description |
 | ------ | ----- | ----------- |
 | 400 | `invalid-input` (Invalid code_verifier) | Verifier doesn't match the challenge, or `X-Client-Type` differs from the value stored on the PKCE/OAuth state (the same answer for both) |
+| 403 | `permission-denied` | The account is no longer active |
 | 404 | Session not found | Unknown session_id, not a PKCE flow, or the tokens were already exchanged |
 | 422 | `session_id` is not a UUID | A malformed id is refused before the lookup |
 | 422 | Missing or unknown `X-Client-Type` | The header is required |
-| 403 | `mfa-required` | The account has MFA enabled and the request had no `mfa_code`; see below |
-| 400 | `invalid-mfa-code` | The `mfa_code` was wrong, expired or an already used backup code |
-| 429 | Rate limit exceeded | Max 10 requests/minute per IP, or the account is locked out after too many wrong MFA codes |
+| 422 | `validation-failed` | The body has a member other than `code_verifier`, such as `mfa_code` |
+| 429 | Rate limit exceeded | Max 10 requests/minute per IP |
 
-**Accounts with MFA enabled:** signing in with an identity provider does not replace the account's own MFA. When the account has MFA enabled, the exchange is refused with `403` and the problem type `urn:endurain:error:mfa-required` until the request also carries `"mfa_code"` (a TOTP code or a backup code). The refusal does not use up the session: ask the user for a code and send the same request again with it. A later release may add members to this `403` (for example the factors on offer) and optional proof fields to the exchange body next to `mfa_code`; see [Compatibility between releases](compatibility.md#responses-gain-members). Ignore a member you do not know, and send only the fields described here. The verifier is checked first, so only the client that started the flow can try codes, and wrong codes count toward the same lockout as the password login.
+#### Accounts with MFA enabled
+
+Signing in with an identity provider does not replace the account's own MFA. When the account has MFA enabled, the exchange of an identity-provider session answers `200` with the MFA step that `POST /auth/login` answers, for a web and a mobile client alike, and does not use up the session:
+
+```json
+{
+  "next_step": "mfa",
+  "mfa_challenge": "<challenge>",
+  "methods": ["totp", "backup_code"]
+}
+```
+
+Ask the user for a code and send it with the challenge to `POST /auth/mfa/verify`, with the same `X-Client-Type` (see [Sign-in steps](authentication.md#sign-in-steps)). The exchange has already checked the verifier, so the MFA step carries no PKCE values. The step works exactly as after a password sign-in: the challenge lives 5 minutes, is accepted only from the client network and client type of the exchange, ends after three wrong codes, and wrong codes count toward the same lockouts. A correct code answers the tokens of the exchanged session in the token body of the client type, a mobile app's `refresh_token` and `device_id` included, and never a session to exchange. The session's `amr` then records `otp` and `mfa` next to `fed`.
+
+The session is exchanged once: when it expired, was deleted or was already exchanged before the MFA step finishes, `/auth/mfa/verify` answers `401` with `urn:endurain:error:session-ended`, and the user signs in with the provider again. Exchanging the session again while a challenge is pending answers a new challenge; the earlier one stays valid until it expires. A request that still sends `mfa_code` to the exchange is refused with `422`.
 
 #### Step 5: Store Tokens Securely
 
@@ -445,7 +467,7 @@ When the SSO callback creates a session for a native-app `redirect`, the session
 | Feature | Description |
 | ------- | ----------- |
 | **PKCE S256** | SHA256 challenge prevents code interception |
-| **One-time exchange** | Tokens can only be exchanged once per session |
+| **One-time exchange** | Tokens can only be exchanged once per session, by the exchange or by the MFA step that finishes it |
 | **10-minute expiry** | OAuth state expires after 10 minutes |
 | **Rate limiting** | 10 token exchange requests per minute |
 | **Session linking** | Session is cryptographically bound to OAuth state |

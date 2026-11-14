@@ -16,6 +16,10 @@ The following environment variables control authentication behavior:
 
 The `sub` claim of access and refresh tokens is the user's UUID. Tokens issued before v0.21.0 are refused (`401`) and every web and mobile session ended at the upgrade; API keys keep working. Third-party clients and older mobile app versions must update.
 
+Both tokens carry `client_type` (`web` or `mobile`), the client type of their session, and no `client_id`.
+
+A `401` is one of two kinds, told apart by its problem type. `urn:endurain:error:invalid-token` (`WWW-Authenticate: Bearer error="invalid_token"`) means only that the access token of a resource route is missing, expired or invalid: refresh once and replay the request. `urn:endurain:error:session-ended` (`WWW-Authenticate: Session`) is final and is answered for every refusal of `/auth/refresh` and for a dead pending sign-in at `/auth/mfa/verify` and `/auth/password-change`: clear the local session and sign in again, without a retry. A failed password sign-in is a plain `401` with `WWW-Authenticate: Session`, a scheme token that carries no parameters. `/auth/logout` never answers `401`.
+
 #### Session Configuration
 
 | Variable | Description | Default | Required |
@@ -56,7 +60,7 @@ For web clients, the refresh token cookie is configured with:
 |-----------|-------|---------|
 | **HttpOnly** | `true` | Prevents JavaScript access (XSS protection) |
 | **Secure** | `true` when `ENVIRONMENT=production` or `demo`; applies consistently to login, refresh, and OAuth/SSO token exchange | Only sent over HTTPS |
-| **SameSite** | `Strict` | The browser does not send the cookie on cross-site requests, which is the main CSRF defence for it |
+| **SameSite** | `Strict` | The browser does not send the cookie on cross-site requests, which, with the `Origin` check on `/auth/refresh` and `/auth/logout`, is the cross-site defence for it |
 | **Path** | `/` | Required by the `__Host-` name prefix of a deployed environment, together with `Secure` and no `Domain` attribute |
 | **Expires** | 7 days (default) | Matches refresh token lifetime, or the time left before the absolute session timeout when that comes first |
 
@@ -81,13 +85,12 @@ All errors, including authentication and authorization failures, use one problem
 
 ### For Web Client Applications
 
-1. **Store access and CSRF tokens in memory** - Never persist in localStorage or sessionStorage
+1. **Store the access token in memory** - Never persist in localStorage or sessionStorage
 2. **Implement automatic token refresh** - Refresh before access token expires (e.g., at 80% of lifetime)
 3. **Handle concurrent refresh requests** - Use a refresh lock pattern to prevent race conditions
 4. **Always include required headers:**
     - `Authorization: Bearer {access_token}` for all authenticated requests
-    - `X-Client-Type: web` on the session routes under `/auth` (required) and on every `POST`, `PUT`, `PATCH` and `DELETE` (the CSRF middleware reads it); not on `/public` routes
-    - `X-CSRF-Token: {csrf_token}` for protected POST/PUT/DELETE/PATCH requests, except `/auth/refresh` bootstrap. Protected web writes require the header, though the server checks only that it is present; `/auth/refresh` also validates the token value when supplied and bound to the session
+    - `X-Client-Type: web` on the session routes under `/auth` (required); not on any other route. A browser adds `Origin` to `/auth/refresh` and `/auth/logout` itself, and the server refuses a missing or foreign one with `403`
 5. **Handle page reload gracefully** - Call `/auth/refresh` on app initialization to restore in-memory tokens
 6. **Clear tokens on logout** - The httpOnly cookie is cleared by the backend, on every logout answer, even when the refresh token was already dead. When `POST /auth/logout` answers an `https:` `idp_logout_url`, navigate the browser to it to end the identity provider session too
 

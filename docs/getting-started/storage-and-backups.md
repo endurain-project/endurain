@@ -84,7 +84,7 @@ Each login token names the key that signed it (the `kid` header), and the server
 
 Replacing the key outright, with no list, signs everyone out in the browser and in mobile apps and breaks the links already handed out; the app gets new ones on the next page load. Use it when the old key leaked and you want its tokens dead at once. Either way, API keys keep working and so do the password reset, sign-up and email change links already mailed, and no data is lost.
 
-The digests of rotated refresh tokens and of CSRF tokens are stored under the first secret, and are looked up and compared under every listed secret. A web client's refresh keeps working after a rotation, and a refresh token that was rotated before it is still recognised as reused.
+The digests of refresh tokens, current and rotated, are stored under the first secret, and are looked up and compared under every listed secret. A web client's refresh keeps working after a rotation, and a refresh token that was rotated before it is still recognised as reused.
 
 ## What Endurain cleans up by itself
 
