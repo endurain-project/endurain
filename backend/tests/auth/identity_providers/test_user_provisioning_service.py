@@ -93,8 +93,8 @@ class TestFindOrCreateUserEmailLinking:
         assert exc_info.value.status_code == 403
         mock_link.assert_not_called()
 
-    def test_verified_email_existing_account_is_linked(self):
-        """Linking to an existing account succeeds when email is verified."""
+    def test_verified_email_existing_account_is_matched_and_its_link_staged(self):
+        """A verified email matches the account; the link is staged for the sign-in's completion, not created."""
         idp = _make_idp()
         mock_db = MagicMock(spec=Session)
         existing_user = MagicMock()
@@ -116,13 +116,20 @@ class TestFindOrCreateUserEmailLinking:
                 "modules.auth.identity_providers.user_provisioning_service.identity_provider_links_integration.create_user_identity_provider",
             ) as mock_link,
         ):
-            result = user_provisioning_service.find_or_create_user(idp, "subject-123", userinfo, mock_db)
+            user, staged = user_provisioning_service.find_or_create_user(idp, "subject-123", userinfo, mock_db)
 
-        assert result is existing_user
-        mock_link.assert_called_once_with(existing_user.id, idp.id, "subject-123", mock_db)
+        assert user is existing_user
+        mock_link.assert_not_called()
+        assert (staged.user_id, staged.idp_id, staged.subject, staged.create_link) == (
+            MOCK_USER_ID,
+            IDP_ID,
+            "subject-123",
+            True,
+        )
+        assert staged.claims == user_provisioning_service.claim_mapping.synced_claims(idp, userinfo)
 
-    def test_email_link_publishes_idp_linked(self):
-        """An automatic link by email tells the owner, as an explicit link does."""
+    def test_an_email_match_publishes_nothing_until_the_sign_in_completes(self):
+        """The owner is told of the link when it is made, at the sign-in's completion."""
         idp = _make_idp()
         mock_db = MagicMock(spec=Session)
         existing_user = MagicMock()
@@ -142,37 +149,40 @@ class TestFindOrCreateUserEmailLinking:
                 idp, "subject-123", {"email": "legit@example.com", "email_verified": True}, mock_db
             )
 
-        publish.assert_called_once_with(existing_user.id, idp.id, mock_db)
+        publish.assert_not_called()
 
-    def test_unverified_email_no_existing_account_creates_user(self):
-        """Unverified email with no existing account still auto-creates."""
+    @pytest.mark.parametrize("account_exists", [True, False])
+    @pytest.mark.parametrize("link_by_email", [True, False])
+    @pytest.mark.parametrize("auto_create", [True, False])
+    def test_unverified_email_is_refused_the_same_way_whether_or_not_an_account_has_it(
+        self, account_exists, link_by_email, auto_create
+    ):
+        """The refusal, its login error and its audit rows do not depend on a local account holding the email."""
         idp = _make_idp()
-        mock_db = MagicMock(spec=Session)
-        created_user = MagicMock()
-
-        userinfo = {"email": "fresh@example.com"}  # unverified, no match
+        idp.link_by_email = link_by_email
+        idp.auto_create_users = auto_create
+        existing = MagicMock(id=MOCK_USER_ID, email_verified=True) if account_exists else None
 
         with (
             patch(
-                "modules.auth.identity_providers.user_provisioning_service.identity_provider_links_integration.get_user_identity_provider_by_subject_and_idp_id",
+                f"{_BASE}.identity_provider_links_integration.get_user_identity_provider_by_subject_and_idp_id",
                 return_value=None,
             ),
-            patch(
-                "modules.auth.identity_providers.user_provisioning_service.users_integration.get_user_by_email",
-                return_value=None,
-            ),
-            patch(f"{_BASE}.server_settings_integration.get_server_settings"),
-            patch.object(
-                user_provisioning_service,
-                "create_user_from_idp",
-                new=MagicMock(return_value=created_user),
-            ) as mock_create,
+            patch(f"{_BASE}.users_integration.get_user_by_email", return_value=existing) as by_email,
+            patch(f"{_BASE}.record_identity_link_refused") as refused,
+            patch(f"{_BASE}.identity_provider_links_integration.create_user_identity_provider") as link,
+            patch.object(user_provisioning_service, "create_user_from_idp") as create,
+            pytest.raises(user_provisioning_service.SsoSignInRefusedError) as exc_info,
         ):
-            result = user_provisioning_service.find_or_create_user(idp, "subject-123", userinfo, mock_db)
+            user_provisioning_service.find_or_create_user(
+                idp, "subject-123", {"email": "victim@example.com", "email_verified": False}, MagicMock()
+            )
 
-        assert result is created_user
-        mock_create.assert_called_once()
-        assert mock_create.call_args.kwargs["email_verified"] is False
+        assert exc_info.value.login_error == "sso_email_unverified"
+        by_email.assert_not_called()
+        refused.assert_not_called()
+        link.assert_not_called()
+        create.assert_not_called()
 
 
 class TestSsoSignUpGate:
@@ -212,7 +222,7 @@ class TestSsoSignUpGate:
 
         assert error is None
         create.assert_called_once()
-        assert result is create.return_value
+        assert result == (create.return_value, None)
 
     @pytest.mark.parametrize(("server_allows", "provider_allows"), [(False, True), (True, False), (False, False)])
     def test_either_switch_off_refuses_with_its_login_error(self, server_allows, provider_allows):
@@ -229,21 +239,18 @@ class TestSsoSignUpGate:
         create, result, error = self._sign_in(server_allows=False, provider_allows=True, existing_user=existing)
 
         assert error is None
-        assert result is existing
+        assert result[0] is existing
+        assert result[1].create_link is True
         create.assert_not_called()
 
 
 class TestCreatedAccountEmailVerification:
-    """A new SSO account's email is verified only when the provider asserted it as verified."""
+    """A new SSO account is created only for an email the provider verified, so its email is verified."""
 
-    def _create(self, *, asserted: bool, verification_required: bool) -> MagicMock:
+    def test_the_account_is_created_with_a_verified_email(self):
         with (
             patch.object(user_provisioning_service.users_integration, "get_user_by_username", return_value=None),
-            patch.object(
-                user_provisioning_service.server_settings_integration,
-                "get_server_settings",
-                return_value=MagicMock(signup_require_email_verification=verification_required),
-            ),
+            patch.object(user_provisioning_service.server_settings_integration, "get_server_settings"),
             patch.object(user_provisioning_service.users_integration, "create_sso_user") as create_sso_user,
             patch.object(
                 user_provisioning_service.identity_provider_links_integration, "create_user_identity_provider"
@@ -251,47 +258,10 @@ class TestCreatedAccountEmailVerification:
         ):
             create_sso_user.return_value = MagicMock(id=NEW_USER_ID, username="new")
             user_provisioning_service.create_user_from_idp(
-                _make_idp(),
-                "subject-123",
-                {"username": "new", "email": "new@example.com"},
-                MagicMock(),
-                email_verified=asserted,
-            )
-        return create_sso_user
-
-    @pytest.mark.parametrize("asserted", [True, False])
-    def test_the_flag_follows_the_provider(self, asserted):
-        create_sso_user = self._create(asserted=asserted, verification_required=False)
-
-        assert create_sso_user.call_args.kwargs["email_verified"] is asserted
-
-    def test_an_address_the_provider_verified_is_accepted_when_the_server_requires_verification(self):
-        create_sso_user = self._create(asserted=True, verification_required=True)
-
-        create_sso_user.assert_called_once()
-
-    def test_an_unverified_address_is_refused_when_the_server_requires_verification(self):
-        """The provider identity is already bound to the account, so a link clicked by the address's owner would
-        hand that address to whoever signed in; only the provider's own verification proves it."""
-        with (
-            patch.object(
-                user_provisioning_service.server_settings_integration,
-                "get_server_settings",
-                return_value=MagicMock(signup_require_email_verification=True),
-            ),
-            patch.object(user_provisioning_service.users_integration, "create_sso_user") as create_sso_user,
-            pytest.raises(user_provisioning_service.SsoSignInRefusedError) as exc_info,
-        ):
-            user_provisioning_service.create_user_from_idp(
-                _make_idp(),
-                "subject-123",
-                {"username": "new", "email": "new@example.com"},
-                MagicMock(),
-                email_verified=False,
+                _make_idp(), "subject-123", {"username": "new", "email": "new@example.com"}, MagicMock()
             )
 
-        assert exc_info.value.login_error == "sso_email_unverified"
-        create_sso_user.assert_not_called()
+        assert create_sso_user.call_args.kwargs["email_verified"] is True
 
     def test_the_account_carries_the_mapped_profile(self):
         with (
@@ -308,7 +278,6 @@ class TestCreatedAccountEmailVerification:
                 "subject-123",
                 {"username": "new", "email": "new@example.com", "city": "Lisbon", "height": 180},
                 MagicMock(),
-                email_verified=True,
             )
 
         profile = create_sso_user.call_args.args[0]
@@ -322,7 +291,7 @@ class TestCreatedAccountEmailVerification:
             pytest.raises(user_provisioning_service.SsoSignInRefusedError) as exc_info,
         ):
             user_provisioning_service.create_user_from_idp(
-                _make_idp(), "subject-123", {"username": "new", **mapped}, MagicMock(), email_verified=True
+                _make_idp(), "subject-123", {"username": "new", **mapped}, MagicMock()
             )
 
         assert exc_info.value.login_error == "sso_email_missing"
@@ -413,7 +382,9 @@ class TestLinkByEmail:
         existing = MagicMock(id=MOCK_USER_ID, email_verified=False)
         existing.username = "alice"
 
-        _, error, _, _, refused, publish = self._sign_in(idp, {"email": "alice@example.com"}, existing_user=existing)
+        _, error, _, _, refused, publish = self._sign_in(
+            idp, {"email": "alice@example.com", "email_verified": True}, existing_user=existing
+        )
         publish.assert_not_called()
 
         assert error.login_error == "sso_link_by_email_disabled"
@@ -431,8 +402,9 @@ class TestLinkByEmail:
         )
 
         assert error is None
-        assert result is existing
-        link.assert_called_once_with(MOCK_USER_ID, IDP_ID, "subject-1", ANY)
+        assert result[0] is existing
+        assert result[1].create_link is True
+        link.assert_not_called()
         refused.assert_not_called()
 
     def test_off_still_creates_a_new_user_when_no_account_has_the_email(self):
@@ -468,13 +440,21 @@ class TestLinkByEmail:
                 f"{_BASE}.identity_provider_links_integration.get_user_identity_provider_by_subject_and_idp_id",
                 return_value=MagicMock(user_id=MOCK_USER_ID),
             ),
-            patch(f"{_BASE}.identity_provider_links_integration.update_user_identity_provider_last_login"),
+            patch(
+                f"{_BASE}.identity_provider_links_integration.update_user_identity_provider_last_login"
+            ) as last_login,
             patch(f"{_BASE}.users_integration.get_user", return_value=user),
             patch(f"{_BASE}.users_integration.require_active_user"),
+            patch(f"{_BASE}.users_integration.edit_user") as edit,
         ):
-            result = user_provisioning_service.find_or_create_user(idp, "subject-1", {}, MagicMock())
+            result, staged = user_provisioning_service.find_or_create_user(
+                idp, "subject-1", {"name": "New Name"}, MagicMock()
+            )
 
         assert result is user
+        assert (staged.subject, staged.create_link, staged.claims.name) == ("subject-1", False, "New Name")
+        last_login.assert_not_called()
+        edit.assert_not_called()
 
 
 class TestUpdateUserFromIdp:
@@ -501,7 +481,9 @@ class TestUpdateUserFromIdp:
             patch(f"{_BASE}.users_integration.get_user", return_value=refreshed) as get_user,
             patch(f"{_BASE}.users_schema.UserEdit.from_read"),
         ):
-            result = user_provisioning_service.update_user_from_idp(user, idp, userinfo, MagicMock(spec=Session))
+            result = user_provisioning_service.update_user_from_idp(
+                user, idp, user_provisioning_service.claim_mapping.synced_claims(idp, userinfo), MagicMock(spec=Session)
+            )
         return result, refreshed, edit, email_change, get_user
 
     def test_with_both_flags_off_nothing_is_written(self):
@@ -593,7 +575,12 @@ class TestUpdateUserFromIdp:
             patch(f"{_BASE}.logger") as mock_logger,
         ):
             user_provisioning_service.update_user_from_idp(
-                user, idp, {"email": "new@example.com", "email_verified": True}, MagicMock(spec=Session)
+                user,
+                idp,
+                user_provisioning_service.claim_mapping.synced_claims(
+                    idp, {"email": "new@example.com", "email_verified": True}
+                ),
+                MagicMock(spec=Session),
             )
 
         extra = mock_logger.info.call_args.kwargs["extra"]
@@ -618,7 +605,7 @@ def _signed_up_username(subject: str, claims: dict, taken: set[str] | None = Non
         patch.object(user_provisioning_service.identity_provider_links_integration, "create_user_identity_provider"),
     ):
         create_sso_user.return_value = MagicMock(id=NEW_USER_ID, username="new")
-        user_provisioning_service.create_user_from_idp(idp, subject, mapped, MagicMock(), email_verified=True)
+        user_provisioning_service.create_user_from_idp(idp, subject, mapped, MagicMock())
     return create_sso_user.call_args.args[0].username
 
 

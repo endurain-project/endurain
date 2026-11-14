@@ -560,6 +560,20 @@ class TestSessionAudit:
         mock_db.commit.assert_called_once()
 
 
+@pytest.fixture(autouse=True)
+def sign_in_rule_inputs():
+    """An account of a regular type on a server with local sign-in on; the security-generation lock is a no-op."""
+    base = "modules.auth.account_security.identity_link_service."
+    with (
+        patch(base + "users_integration.require_user", return_value=MagicMock(access_type="regular")),
+        patch(
+            base + "server_settings_integration.get_server_settings", return_value=MagicMock(local_login_enabled=True)
+        ),
+        patch(base + "security_generation_integration.lock"),
+    ):
+        yield
+
+
 class TestIdentityUnlinkAudit:
     def _patches(self):
         return (
@@ -571,7 +585,7 @@ class TestIdentityUnlinkAudit:
             patch.object(
                 identity_link_service.identity_provider_links_integration,
                 "get_user_identity_providers_by_user_id",
-                return_value=[1, 2],
+                return_value=[MagicMock(idp_id=IDP_ID), MagicMock()],
             ),
             patch.object(identity_link_service.credentials_integration, "has_local_password", return_value=True),
             patch.object(

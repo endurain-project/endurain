@@ -8,6 +8,7 @@ from datetime import UTC, datetime
 from typing import NoReturn
 
 import jasil.audit as jasil_audit
+from jasil.providers import StateProvider
 from sqlalchemy.orm import Session
 
 import core.config as core_config
@@ -419,17 +420,19 @@ def complete_session_exchange(
     token_manager: access_tokens_integration.TokenManager,
     db: Session,
     *,
-    federated: bool,
+    idp_id: uuid.UUID | None,
     mfa: bool,
     device_id: str | None,
+    state: StateProvider,
 ) -> auth_schema.AuthOutcome[auth_schema.TokenRead] | None:
     """Issue the tokens of a sign-in session that passed every check, claiming the session once.
 
     The session was created by a mobile password sign-in or an identity-provider callback and holds no tokens yet.
     The claim is one conditional update, so of two requests that reach it for one session only one issues tokens.
-    An identity-provider sign-in is complete once its tokens are issued, so its known device and its
-    ``auth.session.login`` row are staged in the transaction that commits the claim; a password sign-in recorded both
-    when its session was created.
+    An identity-provider sign-in is complete once its tokens are issued, so the transaction that commits the claim
+    also stages what its callback left for the account (the link of an account matched by email, the profile sync
+    and the link's last-login stamp), its known device and its ``auth.session.login`` row; a password sign-in
+    recorded its device and row when its session was created. The callback's record is removed once that commits.
 
     Args:
         user: The account the session belongs to.
@@ -440,16 +443,20 @@ def complete_session_exchange(
         user_agent: Client user agent of the request.
         token_manager: Token manager that signs the tokens.
         db: Database session.
-        federated: Whether the session came from an identity provider.
+        idp_id: The provider the session signed in through, or None for a password sign-in.
         mfa: Whether a second factor was verified after the session was created.
         device_id: Device id from the browser's device cookie or the mobile app's ``X-Device-Id`` header, or None when
             the client sent no valid one.
+        state: The platform state provider, which holds what an identity-provider callback staged.
 
     Returns:
         The tokens; a web client gets the refresh token as a cookie in the outcome, a mobile client in the body. An
         identity-provider sign-in also carries the device id the client keeps: in the outcome for the browser's
-        cookie, in the body for the mobile app. None when another request claimed the session first, and nothing is
-        committed then.
+        cookie, in the body for the mobile app. None when another request claimed the session first, or what the
+        callback staged can no longer be applied; nothing is committed then.
+
+    Raises:
+        StateUnavailableError: If the state store that holds what the callback staged is unavailable.
     """
     fingerprint = core_hashing.log_fingerprint(str(session_id))
     # The session records the second factor verified after it was created next to the methods it was created with.
@@ -470,7 +477,18 @@ def complete_session_exchange(
         logger.warning("Token exchange lost race for session <value_1>", extra=core_logger.context(value_1=fingerprint))
         return None
     issued_device_id = None
-    if federated:
+    if idp_id is not None:
+        # Applied only after the claim succeeded, so of two completions of one session only one writes anything.
+        with login_audit_integration.acting_as_user(user.id):
+            try:
+                user = identity_providers_integration.apply_staged_sign_in(state, session_id, user, idp_id, db)
+            except core_exceptions.SessionEndedError:
+                db.rollback()
+                logger.warning(
+                    "Token exchange refused for session <value_1>: what its callback staged cannot be applied",
+                    extra=core_logger.context(value_1=fingerprint),
+                )
+                return None
         sign_in = known_devices_integration.record_sign_in(
             user.id, device_id, ip_address, user_agent, known_devices_events.SignInMethod.IDENTITY_PROVIDER, db
         )
@@ -486,6 +504,8 @@ def complete_session_exchange(
                 ),
             )
     db.commit()
+    if idp_id is not None:
+        identity_providers_integration.discard_staged_sign_in(state, session_id)
 
     logger.info(
         "Token exchange successful for session <value_1> (user=<username_log_id>, client_type=<client_type>)",
@@ -696,15 +716,17 @@ def _sign_in_method(pending: mfa_dependencies.PendingLogin) -> login_audit_actio
     return login_audit_actions.LoginMethod.PASSWORD
 
 
-def _awaiting_sso_session(session_id: uuid.UUID, db: Session) -> sessions_contracts.SessionRead | None:
-    """Return the identity-provider session an MFA challenge finishes, while it is unexpired and not yet exchanged.
+def _awaiting_sso_session(
+    session_id: uuid.UUID, db: Session
+) -> tuple[sessions_contracts.SessionRead, uuid.UUID | None] | None:
+    """Return the identity-provider session an MFA challenge finishes and its provider, while it can be exchanged.
 
     An exchange that finished clears the session's OAuth state, so a session without one is used up.
     """
     found = sessions_integration.get_session_with_oauth_state(session_id, db)
     if found is None or found[1] is None:
         return None
-    return found[0]
+    return found[0], found[1].idp_id
 
 
 def _end_challenge_after_wrong_code(
@@ -1081,6 +1103,7 @@ def verify_mfa_and_login(
     *,
     password_change_store: pending_password_change_store.PendingPasswordChangeStore,
     device_id: str | None,
+    state: StateProvider,
 ) -> auth_schema.AuthOutcome[auth_schema.MFAVerifyRead]:
     """Verify MFA code and complete login process.
 
@@ -1099,7 +1122,9 @@ def verify_mfa_and_login(
     mobile client a session_id to exchange for tokens at /auth/sessions/{session_id}/tokens, never tokens. An
     identity-provider sign-in claims the session its exchange named, once, and gives either client that session's
     tokens; a session that expired, was deleted or was exchanged meanwhile ends the challenge with a 401 before any
-    code is tried.
+    code is tried. What the identity-provider callback staged for the account (a link by email, the profile sync) is
+    applied only after the code passed, in the transaction that claims the session; when it can no longer be applied
+    the sign-in is refused with a 401 and nothing is written.
 
     Args:
         ip_address: Client address, recorded on the session
@@ -1114,13 +1139,15 @@ def verify_mfa_and_login(
         password_change_store: Store for pending password changes
         device_id: Device id from the browser's device cookie or the mobile app's X-Device-Id header, or None when
             the client sent no valid one
+        state: The platform state provider, which holds what an identity-provider callback staged for the account
 
     Returns:
         For a password sign-in, the outcome of complete_login() for a web client, the session response to exchange
         for a mobile client, or the password-change response; for an identity-provider sign-in, the session's tokens
 
     Raises:
-        SessionEndedError: If the challenge is dead, as described above, or the user is not found
+        SessionEndedError: If the challenge is dead, as described above, the user is not found, or what the
+            identity-provider callback staged can no longer be applied
         InvalidMfaCodeError: If the MFA code is wrong and the challenge is still live
         TooManyRequestsError: If the account is locked out from too many wrong codes
     """
@@ -1210,21 +1237,24 @@ def verify_mfa_and_login(
         raise_auth_security_store_unavailable(err)
 
     if sso_session is not None:
+        session, idp_id = sso_session
         exchanged = complete_session_exchange(
             user,
-            sso_session.id,
-            sso_session.client_type,
-            sso_session.amr,
+            session.id,
+            session.client_type,
+            session.amr,
             ip_address,
             user_agent,
             token_manager,
             db,
-            federated=True,
+            idp_id=idp_id,
             mfa=True,
             device_id=device_id,
+            state=state,
         )
         if exchanged is None:
-            # Another MFA step for the same session claimed it first; the backup code this one used stays unused.
+            # Another MFA step for the same session claimed it first, or what its callback staged can no longer be
+            # applied; the backup code this one used stays unused.
             _refuse_mfa_challenge(login_audit_actions.LoginFailureReason.SSO_SESSION_ENDED, method, user_id)
         return auth_schema.AuthOutcome(exchanged.body, exchanged.refresh_cookie, exchanged.device_id)
 

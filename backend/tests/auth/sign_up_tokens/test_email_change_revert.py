@@ -402,17 +402,15 @@ class TestThePreviousAddressIsReserved:
             users_service.stage_confirmed_email_change(OTHER_USER_ID, _OLD, db)
 
     def test_a_provider_sync_does_not_copy_it(self, db):
+        import modules.auth.identity_providers.contracts as idp_contracts
         import modules.auth.identity_providers.user_provisioning_service as provisioning
 
         _reserve_for_owner(db)
         user = users_integration.get_user(OTHER_USER_ID, db)
         idp = MagicMock(sync_email=True)
+        claims = idp_contracts.SyncedClaims(name=None, email=_OLD, email_verified=True)
 
-        with (
-            patch.object(provisioning.claim_mapping, "is_email_verified", return_value=True),
-            patch.object(provisioning.claim_mapping, "map_user_claims", return_value={"email": _OLD}),
-        ):
-            assert provisioning._synced_email(user, idp, {"email": _OLD}, {}, db) is None
+        assert provisioning._synced_email(user, idp, claims, db) is None
 
     def test_a_provider_created_account_cannot_take_it(self, db):
         _reserve_for_owner(db)

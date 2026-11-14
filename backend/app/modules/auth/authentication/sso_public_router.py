@@ -49,6 +49,7 @@ def exchange_tokens_for_session(
     ],
     db: core_dependencies.DbSession,
     device_id: known_devices_dependencies.DeviceId,
+    state: core_dependencies.PlatformState,
 ) -> auth_schema.SessionExchangeRead:
     """Exchange a PKCE code verifier for the tokens of a session a sign-in created.
 
@@ -69,5 +70,6 @@ def exchange_tokens_for_session(
         token_manager,
         db,
         device_id=device_id,
+        state=state,
     )
     return authentication_dependencies.deliver_auth_outcome(response, outcome)

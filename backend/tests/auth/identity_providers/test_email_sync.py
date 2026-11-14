@@ -8,6 +8,7 @@ import jasil.testing as jasil_testing
 import pytest
 from sqlalchemy.orm import sessionmaker
 
+import modules.auth.identity_providers.contracts as contracts
 import modules.auth.identity_providers.user_provisioning_service as provisioning
 import modules.auth.password_reset_tokens.models as password_reset_models
 import modules.auth.sign_up_tokens.models as sign_up_models
@@ -57,7 +58,7 @@ def test_a_synced_email_is_applied_audited_and_told_to_the_previous_address(db):
 
     with jasil_testing.capture_audit() as audit, patch(_PUBLISH) as publish:
         updated = provisioning.update_user_from_idp(
-            user, _idp(), {"email": "New@Example.com", "email_verified": True}, db
+            user, _idp(), contracts.SyncedClaims(name=None, email="New@Example.com", email_verified=True), db
         )
         db.commit()
 
@@ -81,7 +82,7 @@ def test_sync_email_off_keeps_the_email_while_the_name_syncs(db):
         updated = provisioning.update_user_from_idp(
             user,
             _idp(sync_user_info=True, sync_email=False),
-            {"email": "new@example.com", "email_verified": True, "name": "Brand New"},
+            contracts.SyncedClaims(name="Brand New", email="new@example.com", email_verified=True),
             db,
         )
 

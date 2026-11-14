@@ -21,7 +21,9 @@ _SESSION = SimpleNamespace(user_id=MOCK_USER_ID)
 
 
 def _service():
-    return callback_service.CallbackService(MagicMock(), MagicMock(), MagicMock(), "https://app.example.com")
+    return callback_service.CallbackService(
+        MagicMock(), MagicMock(), MagicMock(), MagicMock(), "https://app.example.com"
+    )
 
 
 def test_linking_a_provider_is_audited_with_the_provider_id(mock_db):

@@ -26,6 +26,8 @@ import modules.auth.identity_providers.schema as identity_providers_schema
 import modules.auth.schema as auth_schema
 import modules.auth.security_generation.integration_service as security_generation_integration
 import modules.auth.sessions.audit_actions as sessions_audit_actions
+import modules.server_settings.integration_service as server_settings_integration
+import modules.users.users.integration_service as users_integration
 import modules.users.users.schema as users_schema
 
 logger = core_logger.get_logger(__name__)
@@ -217,6 +219,53 @@ def _stage_unlink(user_id: uuid.UUID, idp_id: uuid.UUID, db: Session) -> None:
     )
 
 
+def _require_another_sign_in_method(user_id: uuid.UUID, idp_id: uuid.UUID, detail: str, db: Session) -> None:
+    """Refuse an unlink that would leave the account no way to sign in.
+
+    The account keeps a way to sign in when it has a local password that its account type may sign in with under
+    the current server settings, or a link to another provider that is enabled. A link to a disabled provider
+    does not count, because nobody can sign in through it.
+
+    Args:
+        user_id: ID of the user losing the link.
+        idp_id: ID of the provider being unlinked.
+        detail: The message of the refusal.
+        db: Database session.
+
+    Raises:
+        LastSignInMethodError: If the account would have no way to sign in.
+    """
+    user = users_integration.require_user(user_id, db)
+    if credentials_integration.has_local_password(user_id, db) and credentials_integration.allows_password_sign_in(
+        server_settings_integration.get_server_settings(db), users_schema.normalize_access_type(user.access_type)
+    ):
+        return
+    for link in identity_provider_links_integration.get_user_identity_providers_by_user_id(user_id, db):
+        other = None if link.idp_id == idp_id else identity_providers_integration.get_identity_provider(link.idp_id, db)
+        if other is not None and other.enabled:
+            return
+    raise core_exceptions.LastSignInMethodError(detail)
+
+
+def _lock_and_require_another_sign_in_method(user_id: uuid.UUID, idp_id: uuid.UUID, detail: str, db: Session) -> None:
+    """Take the account's security-generation lock, then refuse an unlink that leaves no way to sign in.
+
+    The lock is taken before the rule reads the account's links and lasts until the caller commits, so two
+    unlinks of one account run one after the other and the second sees the first's link gone.
+
+    Args:
+        user_id: ID of the user losing the link.
+        idp_id: ID of the provider being unlinked.
+        detail: The message of the refusal.
+        db: Database session.
+
+    Raises:
+        LastSignInMethodError: If the account would have no way to sign in.
+    """
+    security_generation_integration.lock(user_id, db)
+    _require_another_sign_in_method(user_id, idp_id, detail, db)
+
+
 def delete_identity_provider_link(
     idp_id: uuid.UUID,
     step_up: auth_schema.StepUpVerification,
@@ -228,7 +277,8 @@ def delete_identity_provider_link(
     """Unlink an IdP while enforcing anti-lockout checks.
 
     The provider, the link and the last-sign-in-method rule are checked before step-up, so a refused request
-    does not spend an identity-provider step-up ticket.
+    does not spend an identity-provider step-up ticket; the rule is checked again under the security-generation
+    lock once the step-up has passed.
     """
     idp = identity_providers_integration.get_identity_provider(idp_id, db)
     if idp is None:
@@ -242,16 +292,10 @@ def delete_identity_provider_link(
     if not link:
         raise core_exceptions.NotFoundError(f"Identity provider {idp.name} is not linked to your account")
 
-    all_idp_links = identity_provider_links_integration.get_user_identity_providers_by_user_id(
-        token_user_id,
-        db,
-    )
-    remaining_idp_count = len(all_idp_links) - 1
-
-    if not credentials_integration.has_local_password(token_user_id, db) and remaining_idp_count == 0:
-        raise core_exceptions.LastSignInMethodError(
-            "Cannot unlink last authentication method. Link another identity provider first."
-        )
+    # Checked before the step-up so a refused request spends no step-up ticket, and checked again under the lock
+    # once the step-up has passed, since the step-up commits and so cannot run while the lock is held.
+    no_method_detail = "Cannot unlink last authentication method. Link another identity provider first."
+    _require_another_sign_in_method(token_user_id, idp_id, no_method_detail, db)
 
     step_up_service.verify_step_up_credentials(
         token_user_id,
@@ -264,6 +308,7 @@ def delete_identity_provider_link(
         action=identity_providers_constants.StepUpAction.IDP_UNLINK,
     )
 
+    _lock_and_require_another_sign_in_method(token_user_id, idp_id, no_method_detail, db)
     security_generation_integration.stage_bump(token_user_id, db)
     success = identity_provider_links_integration.delete_user_identity_provider(
         token_user_id,
@@ -320,18 +365,9 @@ def admin_delete_identity_provider_link(
     if not link:
         raise core_exceptions.NotFoundError(f"Identity provider {idp.name} is not linked to this user")
 
-    all_idp_links = identity_provider_links_integration.get_user_identity_providers_by_user_id(
-        user_id,
-        db,
+    _lock_and_require_another_sign_in_method(
+        user_id, idp_id, "Cannot unlink last authentication method. User has no way to sign in without it.", db
     )
-    remaining_idp_count = len(all_idp_links) - 1
-
-    has_local_password = credentials_integration.has_local_password(user_id, db)
-    if not has_local_password and remaining_idp_count == 0:
-        raise core_exceptions.LastSignInMethodError(
-            "Cannot unlink last authentication method. User has no password set."
-        )
-
     security_generation_integration.stage_bump(user_id, db)
     success = identity_provider_links_integration.delete_user_identity_provider(user_id, idp_id, db)
     if not success:

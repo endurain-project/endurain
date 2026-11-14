@@ -9,6 +9,7 @@ import jasil.testing as jasil_testing
 import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
+from jasil.backends.state_memory import MemoryState
 
 import core.database as core_database
 import core.exceptions as core_exceptions
@@ -244,6 +245,7 @@ class TestPasswordSignIn:
                 mock_db,
                 password_change_store=MagicMock(),
                 device_id=None,
+                state=MemoryState(),
             )
 
         record.assert_called_once_with(_USER_ID, None, "203.0.113.7", "agent", _PASSWORD, mock_db)
@@ -279,6 +281,10 @@ class TestSsoSignIn:
             patch(f"{_SERVICE}.server_settings_integration.get_session_policy"),
             patch("modules.auth.authentication.token_service.create_tokens", return_value=_TOKENS),
             patch(f"{_SERVICE}.sessions_integration.claim_session_for_token_exchange", return_value=_CLAIMED_EXPIRY),
+            patch(
+                "modules.auth.authentication.service.identity_providers_integration.apply_staged_sign_in",
+                side_effect=lambda _state, _session_id, user, _idp_id, _db: user,
+            ),
             patch(f"{_SERVICE}.sessions_integration.set_session_device_hash") as set_hash,
             patch(_RECORD) as record,
         ):
@@ -296,6 +302,7 @@ class TestSsoSignIn:
                 MagicMock(),
                 db,
                 device_id=_DEVICE_ID,
+                state=MemoryState(),
             )
         self.set_hash = set_hash
         return outcome, record

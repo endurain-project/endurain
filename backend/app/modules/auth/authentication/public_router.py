@@ -182,6 +182,7 @@ def verify_mfa_and_login(
     ],
     db: core_dependencies.DbSession,
     device_id: known_devices_dependencies.DeviceId,
+    state: core_dependencies.PlatformState,
 ) -> auth_schema.MFAVerifyRead:
     """Verify MFA code and complete login process.
 
@@ -210,6 +211,7 @@ def verify_mfa_and_login(
         db,
         password_change_store=password_change_store,
         device_id=device_id,
+        state=state,
     )
     return authentication_dependencies.deliver_auth_outcome(response, outcome)
 

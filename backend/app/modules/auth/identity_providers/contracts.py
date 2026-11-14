@@ -149,6 +149,45 @@ class StepUpTicket(BaseModel):
     model_config = ConfigDict(frozen=True)
 
 
+class SyncedClaims(BaseModel):
+    """The provider claims the profile sync reads, already mapped to local fields.
+
+    Attributes:
+        name: The mapped display name, or None when the provider sent none.
+        email: The mapped email address, or None when the provider sent none.
+        email_verified: Whether the provider asserted the standard ``email`` claim as verified.
+    """
+
+    name: str | None
+    email: str | None
+    email_verified: bool
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+
+class StagedSignIn(BaseModel):
+    """What an identity-provider sign-in to an existing account writes to it once the sign-in completes.
+
+    The callback stages it under the session it creates and writes nothing to the account; the completion of that
+    session, after any second factor, applies it in the transaction that claims the session.
+
+    Attributes:
+        user_id: The account the session was created for.
+        idp_id: The provider the user signed in through.
+        subject: The provider's identifier of the user.
+        create_link: Whether the account was matched by its verified email, so the completion links the subject.
+        claims: The claims the profile sync applies.
+    """
+
+    user_id: uuid.UUID
+    idp_id: uuid.UUID
+    subject: str
+    create_link: bool
+    claims: SyncedClaims
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+
 class StepUpVerifier(Protocol):
     """Verifies the step-up of the administrator making the request, for an operation this package administers.
 

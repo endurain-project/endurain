@@ -5,6 +5,7 @@ from __future__ import annotations
 import uuid
 
 import jasil.audit as jasil_audit
+from jasil.providers import StateProvider
 from sqlalchemy.orm import Session
 
 import core.exceptions as core_exceptions
@@ -60,6 +61,7 @@ def exchange_tokens_for_session(
     db: Session,
     *,
     device_id: str | None,
+    state: StateProvider,
 ) -> auth_schema.AuthOutcome[auth_schema.SessionExchangeRead]:
     """Exchange a PKCE code verifier for the tokens of a session a sign-in created.
 
@@ -75,6 +77,9 @@ def exchange_tokens_for_session(
     network and to the session's security generation, and ``/auth/mfa/verify`` claims the session with it. Another
     exchange of the session issues another challenge. A session from a password login has already passed MFA.
 
+    Nothing the identity-provider callback staged for the account (a link by email, the profile sync) is written until
+    the sign-in completes, here or at the MFA step, in the transaction that claims the session.
+
     Args:
         session_id: Session created by the sign-in.
         code_verifier: PKCE verifier sent by the client.
@@ -86,6 +91,7 @@ def exchange_tokens_for_session(
         db: Database session.
         device_id: Device id from the browser's device cookie or the mobile app's ``X-Device-Id`` header, or None when
             the client sent no valid one.
+        state: The platform state provider, which holds what an identity-provider callback staged for the account.
 
     Returns:
         The tokens; web clients get the refresh token as a cookie in the outcome, mobile clients in the body. An SSO
@@ -94,11 +100,12 @@ def exchange_tokens_for_session(
 
     Raises:
         NotFoundError: If the session does not exist, has no OAuth state (an exchange that finished clears it), was
-            created before a security change of the account, or another exchange claimed it first.
+            created before a security change of the account, another exchange claimed it first, or what its callback
+            staged can no longer be applied.
         InvalidInputError: If the OAuth state holds no PKCE data, the verifier does not match, or the client type
             differs from the one recorded when the sign-in started.
         PermissionDeniedError: If the account is no longer active.
-        ServiceUnavailableError: If the pending-login store is down.
+        ServiceUnavailableError: If the pending-login store or the state store is down.
     """
     fingerprint = core_hashing.log_fingerprint(str(session_id))
     session_with_state = sessions_integration.get_session_with_oauth_state(session_id, db)
@@ -175,8 +182,7 @@ def exchange_tokens_for_session(
         _record_refusal(jasil_audit.Outcome.FAILURE, login_audit_actions.LoginFailureReason.SECURITY_CHANGED, user.id)
         raise core_exceptions.NotFoundError(_SESSION_NOT_ELIGIBLE_MESSAGE)
 
-    federated = oauth_state.idp_id is not None
-    if federated and mfa_integration.is_mfa_enabled_for_user(user.id, db):
+    if oauth_state.idp_id is not None and mfa_integration.is_mfa_enabled_for_user(user.id, db):
         logger.info(
             "Token exchange for session <value_1> continues to the MFA step",
             extra=core_logger.context(value_1=fingerprint),
@@ -206,11 +212,17 @@ def exchange_tokens_for_session(
         user_agent,
         token_manager,
         db,
-        federated=federated,
+        idp_id=oauth_state.idp_id,
         mfa=False,
         device_id=device_id,
+        state=state,
     )
     if exchanged is None:
-        # Another exchange claimed the session first; to this caller it is the session of a finished exchange.
+        # Another exchange claimed the session first, or what its identity-provider callback staged can no longer be
+        # applied; to this caller it is a session that cannot be exchanged.
+        if oauth_state.idp_id is not None:
+            _record_refusal(
+                jasil_audit.Outcome.FAILURE, login_audit_actions.LoginFailureReason.SSO_SESSION_ENDED, user.id
+            )
         raise core_exceptions.NotFoundError(_SESSION_NOT_ELIGIBLE_MESSAGE)
     return auth_schema.AuthOutcome(exchanged.body, exchanged.refresh_cookie, device_id=exchanged.device_id)

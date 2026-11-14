@@ -24,7 +24,9 @@ class LoginFailureReason(StrEnum):
 
     ``SECURITY_CHANGED`` is a step refused because the account's security changed. ``BROWSER_MISMATCH`` is an SSO
     callback that came from a browser other than the one that started the sign-in. ``SSO_SESSION_ENDED`` is the MFA
-    step of an identity-provider sign-in whose session expired, was deleted or was exchanged before the step finished.
+    step of an identity-provider sign-in whose session expired, was deleted or was exchanged before the step finished,
+    or the completion of such a sign-in (its exchange or its MFA step) when another request claimed the session first
+    or what its callback staged for the account can no longer be applied.
     """
 
     INVALID_CREDENTIALS = "invalid_credentials"

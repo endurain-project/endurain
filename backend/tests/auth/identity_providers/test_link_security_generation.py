@@ -35,7 +35,7 @@ _BOTH = pytest.mark.parametrize("ends_other_sessions", [True, False], ids=["ends
 
 @pytest.fixture
 def service():
-    return callback_service.CallbackService(MagicMock(), MagicMock(), MagicMock(), HOST)
+    return callback_service.CallbackService(MagicMock(), MagicMock(), MagicMock(), MagicMock(), HOST)
 
 
 def _idp():

@@ -7,6 +7,7 @@ from unittest.mock import MagicMock, patch
 
 import jasil.testing as jasil_testing
 import pytest
+from jasil.backends.state_memory import MemoryState
 
 import core.exceptions as core_exceptions
 import modules.auth.authentication.audit_actions as authentication_audit_actions
@@ -261,6 +262,7 @@ class TestMfaSignIn:
                 db,
                 password_change_store=MagicMock(),
                 device_id=None,
+                state=MemoryState(),
             )
 
     def test_a_wrong_code_is_a_failure_that_targets_the_user(self, mock_db):
@@ -295,6 +297,7 @@ class TestMfaSignIn:
                 mock_db,
                 password_change_store=MagicMock(),
                 device_id=None,
+                state=MemoryState(),
             )
 
         entry = audit.assert_audited(_LOGIN, outcome="denied", target_id=str(_USER_ID_5))
@@ -447,6 +450,10 @@ class TestSsoSignIn:
             patch(f"{_SERVICE}.server_settings_integration.get_session_policy"),
             patch("modules.auth.authentication.token_service.create_tokens", return_value=tokens),
             patch(f"{_SERVICE}.sessions_integration.claim_session_for_token_exchange", return_value=_CLAIMED_EXPIRY),
+            patch(
+                "modules.auth.authentication.service.identity_providers_integration.apply_staged_sign_in",
+                side_effect=lambda _state, _session_id, user, _idp_id, _db: user,
+            ),
         ):
             return authentication_service_sso_exchange_service.exchange_tokens_for_session(
                 _SESSION_ID,
@@ -458,6 +465,7 @@ class TestSsoSignIn:
                 MagicMock(),
                 db,
                 device_id=None,
+                state=MemoryState(),
             )
 
     def test_an_sso_sign_in_is_audited_when_its_tokens_are_issued(self, mock_db):

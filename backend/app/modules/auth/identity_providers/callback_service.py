@@ -22,12 +22,14 @@ import core.timezone as core_timezone
 import modules.auth.constants as auth_constants
 import modules.auth.identity_provider_links.integration_service as identity_provider_links_integration
 import modules.auth.identity_providers.audit_actions as idp_audit_actions
+import modules.auth.identity_providers.claim_mapping as claim_mapping
 import modules.auth.identity_providers.constants as idp_constants
 import modules.auth.identity_providers.contracts as identity_provider_contracts
 import modules.auth.identity_providers.crud as idp_crud
 import modules.auth.identity_providers.event_publishers as idp_event_publishers
 import modules.auth.identity_providers.id_token_service as id_token_service
 import modules.auth.identity_providers.oidc_client_service as oidc_client_service
+import modules.auth.identity_providers.staged_sign_in_store as staged_sign_in_store
 import modules.auth.identity_providers.step_up_ticket_store as step_up_ticket_store
 import modules.auth.identity_providers.token_service as token_service
 import modules.auth.identity_providers.user_provisioning_service as user_provisioning_service
@@ -58,6 +60,9 @@ class CallbackResult:
         redirect_path: Where the frontend sends the user after a sign-in, when the flow named one.
         token_response: The provider's token response of a sign-in, kept for the session it creates; empty for a
             link, which creates no session. It holds secrets, so it is left out of the representation.
+        staged: What the completion of a sign-in to an existing account applies to it, stored with the session the
+            sign-in creates; None for a link and for a new account. It holds the provider's claims, so it is left out
+            of the representation.
     """
 
     user: users_schema.UserRead
@@ -65,6 +70,7 @@ class CallbackResult:
     mode: Literal["login", "link"]
     redirect_path: str | None = None
     token_response: dict[str, Any] = field(default_factory=dict, repr=False)
+    staged: identity_provider_contracts.StagedSignIn | None = field(default=None, repr=False)
 
 
 class CallbackService:
@@ -75,12 +81,14 @@ class CallbackService:
         oidc: oidc_client_service.OidcClientService,
         tokens: token_service.IdpTokenService,
         step_up_tickets: step_up_ticket_store.StepUpTicketStore,
+        staged_sign_ins: staged_sign_in_store.StagedSignInStore,
         frontend_host: str,
     ) -> None:
-        """Initialize the service with the provider client, the token and ticket stores and the frontend host."""
+        """Initialize the service with the provider client, its token, ticket and sign-in stores and the frontend host."""
         self._oidc = oidc
         self._tokens = tokens
         self._step_up_tickets = step_up_tickets
+        self._staged_sign_ins = staged_sign_ins
         self._frontend_host = frontend_host
 
     def get_unused_oauth_state(self, state_id: str, db: Session) -> oauth_state_schema.OAuthStateRead | None:
@@ -257,6 +265,7 @@ class CallbackService:
                 result.token_response,
                 db,
                 idp_sid=_provider_session_id(result.userinfo),
+                staged=result.staged,
             )
             redirect_url = f"{self._frontend_host}/login?sso=success&session_id={session_id}"
             redirect_path = result.redirect_path
@@ -558,7 +567,9 @@ class CallbackService:
                     if oauth_state.ends_other_sessions and oauth_state.session_id is not None:
                         _stage_other_sessions_ended(link_user_id, oauth_state.session_id, db)
 
-                    user = user_provisioning_service.update_user_from_idp(user, idp, userinfo, db)
+                    user = user_provisioning_service.update_user_from_idp(
+                        user, idp, claim_mapping.synced_claims(idp, userinfo), db
+                    )
 
                     logger.info(
                         "User <username_log_id> (id=<link_user_id>) linked IdP <name>",
@@ -576,7 +587,14 @@ class CallbackService:
             else:
                 # LOGIN MODE: Find or create user and establish session
                 try:
-                    user = user_provisioning_service.find_or_create_user(idp, subject, userinfo, db)
+                    user, staged = user_provisioning_service.find_or_create_user(idp, subject, userinfo, db)
+                except user_provisioning_service.SsoAccountInactiveError as err:
+                    _record_login_refusal(
+                        jasil_audit.Outcome.DENIED,
+                        login_audit_actions.LoginFailureReason.INACTIVE,
+                        user_id=err.user_id,
+                    )
+                    raise
                 except core_exceptions.PermissionDeniedError:
                     _record_login_refusal(
                         jasil_audit.Outcome.DENIED, login_audit_actions.LoginFailureReason.PROVISIONING_REFUSED
@@ -584,7 +602,8 @@ class CallbackService:
                     raise
 
                 # A new account awaiting verification or approval is committed so the administrator sees it, and
-                # the sign-in is refused when the session is created; the tokens are stored with that session.
+                # the sign-in is refused when the session is created; the tokens are stored with that session. An
+                # existing account has nothing written to it: what its sign-in applies is staged with the session.
                 db.commit()
                 logger.info(
                     "User <username_log_id> authenticated via IdP <name>",
@@ -599,6 +618,7 @@ class CallbackService:
                     mode="login",
                     redirect_path=redirect_path,
                     token_response=token_response,
+                    staged=staged,
                 )
 
         except core_exceptions.DomainError:
@@ -869,6 +889,7 @@ class CallbackService:
         db: Session,
         *,
         idp_sid: str | None,
+        staged: identity_provider_contracts.StagedSignIn | None,
     ) -> uuid.UUID:
         """Create the token-exchange session for a successful SSO login, with the provider tokens it signed in with.
 
@@ -876,7 +897,8 @@ class CallbackService:
         redirect is recorded on it as the app that holds the session. The session and the
         provider's sign-in are committed together. Until the token exchange claims the session
         it expires with the OAuth state, which is also when the exchange stops being possible; the exchange then
-        gives it its real expiry.
+        gives it its real expiry. What the sign-in applies to an existing account is stored under the session for
+        that same window, before the commit, and the session's completion applies it.
 
         Args:
             user: The user who signed in.
@@ -887,6 +909,7 @@ class CallbackService:
             token_response: The provider's token response.
             db: Database session.
             idp_sid: The provider session id of the verified ID token, or None when it named none.
+            staged: What the session's completion applies to an existing account, or None for a new account.
 
         Returns:
             The new session's id.
@@ -894,20 +917,22 @@ class CallbackService:
         Raises:
             SsoSignInRefusedError: If the account is not active, with the login page's code for why.
             NotFoundError: If the provider was disabled or deleted since the callback began.
+            StateUnavailableError: If the staged sign-in cannot be stored.
         """
         try:
-            users_integration.require_active_user(user)
-        except core_exceptions.PermissionDeniedError as err:
+            user_provisioning_service.require_active_user(user, db)
+        except user_provisioning_service.SsoAccountInactiveError:
             _record_login_refusal(
                 jasil_audit.Outcome.DENIED, login_audit_actions.LoginFailureReason.INACTIVE, user_id=user.id
             )
-            raise _inactive_account_refusal(user, db) from err
+            raise
         # Disabling a provider ends its sessions in one transaction; the lock makes this one either see the
         # provider disabled or commit before that edit looks for sessions to end.
         if not idp_crud.lock_provider_enabled(idp_id, db):
             raise core_exceptions.NotFoundError("Identity provider not found or disabled")
         user_read = users_schema.UserRead.model_validate(user)
         session_id = uuid.uuid4()
+        exchange_window_ends = core_timezone.to_utc_aware(oauth_state.expires_at)
         # The exchange redeems the session only while the account's security generation is still this one.
         oauth_state_integration.stamp_security_generation(
             oauth_state.id, security_generation_integration.current_generation(user_read.id, db), db
@@ -919,7 +944,7 @@ class CallbackService:
             ip_address,
             user_agent,
             None,
-            core_timezone.to_utc_aware(oauth_state.expires_at),
+            exchange_window_ends,
             db,
             oauth_state_id=oauth_state.id,
             amr=[auth_constants.AuthMethod.FEDERATED],
@@ -931,34 +956,14 @@ class CallbackService:
             ),
         )
         self._tokens.store_session_tokens(session_id, user_read.id, idp_id, token_response, db, idp_sid=idp_sid)
+        if staged is not None:
+            # Rounded down, so the record does not outlive the session's exchange window; a window that has just
+            # ended gets the shortest record the store keeps, and its session can no longer be exchanged.
+            remaining = int((exchange_window_ends - datetime.now(UTC)).total_seconds())
+            self._staged_sign_ins.stage(session_id, staged, ttl_seconds=max(remaining, 1))
         db.commit()
         logger.debug("SSO callback session created", extra=core_logger.context(user_id=user_read.id))
         return session_id
-
-
-def _inactive_account_refusal(
-    user: users_schema.UserRead, db: Session
-) -> user_provisioning_service.SsoSignInRefusedError:
-    """Return the refusal of an inactive account's sign-in, with the login page's code for what the user can do.
-
-    The user has just proven their identity to the provider, so naming their own account's state reveals nothing
-    to anyone else. An account awaiting an administrator's approval is told to wait; one an administrator
-    deactivated or a deletion request ended, and any other inactive account, cannot sign in.
-
-    Args:
-        user: The inactive account.
-        db: Database session.
-
-    Returns:
-        The refusal to raise.
-    """
-    if user.pending_admin_approval and not users_integration.is_deactivated(user.id, db):
-        return user_provisioning_service.SsoSignInRefusedError(
-            "The account is awaiting administrator approval", login_error="sso_approval_pending"
-        )
-    return user_provisioning_service.SsoSignInRefusedError(
-        "The account is not active", login_error="sso_account_disabled"
-    )
 
 
 def _provider_session_id(claims: dict[str, Any]) -> str | None:

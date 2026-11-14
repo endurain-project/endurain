@@ -18,6 +18,7 @@ import core.exceptions as core_exceptions
 import modules.auth.authentication.schema as auth_schema
 import modules.auth.authentication.service as authentication_service
 import modules.auth.authentication.sso_exchange_service as sso_exchange_service
+import modules.auth.identity_provider_links.integration_service as identity_provider_links_integration
 import modules.auth.identity_providers.crud as idp_crud
 import modules.auth.identity_providers.schema as idp_schema
 import modules.auth.mfa.pending_login_store as pending_login_store
@@ -39,7 +40,11 @@ _NOT_ELIGIBLE = "Session not found or not eligible for token exchange"
 
 @pytest.fixture
 def pending_exchange(pg_factory, session_policy):
-    """A web identity-provider session with its OAuth state, both stored in PostgreSQL."""
+    """A web identity-provider session with its OAuth state, both stored in PostgreSQL.
+
+    The account is linked to the provider, as for a sign-in whose subject was already linked, so the completion has
+    nothing staged to apply.
+    """
     ensure_user(pg_factory, _USER_ID)
     with (
         patch("modules.server_settings.integration_service.get_session_policy", return_value=session_policy),
@@ -57,6 +62,7 @@ def pending_exchange(pg_factory, session_policy):
             ),
             db,
         )
+        identity_provider_links_integration.create_user_identity_provider(_USER_ID, idp.id, "subject-1", db)
         oauth_state_integration.create_oauth_state(
             _STATE_ID,
             "n" * 32,
@@ -98,6 +104,7 @@ def _exchange(factory, token_manager, store=None):
             token_manager,
             db,
             device_id=None,
+            state=MemoryState(),
         )
 
 
@@ -115,6 +122,7 @@ def _verify(factory, challenge, store, password_hasher, token_manager):
             db,
             password_change_store=MagicMock(),
             device_id=None,
+            state=MemoryState(),
         )
 
 

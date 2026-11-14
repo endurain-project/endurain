@@ -12,6 +12,7 @@ import modules.auth.identity_providers.authorization_service as authorization_se
 import modules.auth.identity_providers.backchannel_logout_service as backchannel_logout_service
 import modules.auth.identity_providers.callback_service as callback_service
 import modules.auth.identity_providers.oidc_client_service as oidc_client_service
+import modules.auth.identity_providers.staged_sign_in_store as staged_sign_in_store
 import modules.auth.identity_providers.step_up_ticket_store as step_up_ticket_store
 import modules.auth.identity_providers.token_service as token_service
 import modules.auth.oauth_state.constants as oauth_state_constants
@@ -47,6 +48,7 @@ def get_callback_service(
         oidc,
         token_service.IdpTokenService(oidc),
         step_up_ticket_store.StepUpTicketStore(state),
+        staged_sign_in_store.StagedSignInStore(state),
         core_config.settings.ENDURAIN_HOST,
     )
 

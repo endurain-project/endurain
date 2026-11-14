@@ -8,6 +8,7 @@ import pytest
 
 import core.exceptions as core_exceptions
 import modules.auth.identity_providers.audit_actions as idp_audit_actions
+import modules.auth.identity_providers.contracts as contracts
 import modules.auth.identity_providers.user_provisioning_service as provisioning
 from tests._helpers.auth import MOCK_USER_ID, OTHER_USER_ID
 
@@ -40,9 +41,32 @@ def _sign_in(userinfo, user, mock_db):
         return provisioning.find_or_create_user(_idp(), "subject-1", userinfo, mock_db)
 
 
-def test_linking_an_existing_account_by_email_is_audited(mock_db):
+def test_matching_an_existing_account_by_email_writes_no_link_row_at_the_callback(mock_db):
     with jasil_testing.capture_audit() as audit:
-        _sign_in({"email": "alice@example.com", "email_verified": True}, _existing_user(), mock_db)
+        _, staged = _sign_in({"email": "alice@example.com", "email_verified": True}, _existing_user(), mock_db)
+
+    assert staged.create_link is True
+    audit.assert_not_audited(idp_audit_actions.IDENTITY_LINK_LINK.id)
+
+
+def test_applying_the_staged_link_of_an_email_match_is_audited(mock_db):
+    staged = contracts.StagedSignIn(
+        user_id=MOCK_USER_ID,
+        idp_id=IDP_ID,
+        subject="subject-1",
+        create_link=True,
+        claims=contracts.SyncedClaims(name=None, email="alice@example.com", email_verified=True),
+    )
+    with (
+        patch.object(provisioning.idp_crud, "get_identity_provider", return_value=_idp()),
+        patch(f"{_LINKS}.get_user_identity_provider_by_subject_and_idp_id", return_value=None),
+        patch(f"{_LINKS}.get_user_identity_provider_by_user_id_and_idp_id", return_value=None),
+        patch(f"{_LINKS}.create_user_identity_provider"),
+        patch(f"{_LINKS}.update_user_identity_provider_last_login"),
+        patch.object(provisioning.idp_event_publishers, "publish_idp_linked"),
+        jasil_testing.capture_audit() as audit,
+    ):
+        provisioning.apply_staged_sign_in(_existing_user(), IDP_ID, staged, mock_db)
 
     entry = audit.assert_audited(
         idp_audit_actions.IDENTITY_LINK_LINK.id,
@@ -52,8 +76,6 @@ def test_linking_an_existing_account_by_email_is_audited(mock_db):
         target_owner_id=str(MOCK_USER_ID),
     )
     assert entry.details == {"idp_id": str(IDP_ID), "reason": None}
-    assert entry.actor_type != "user"
-    assert entry.actor_id is None
 
 
 def test_a_sign_in_through_an_existing_link_writes_no_link_row(mock_db):
@@ -73,7 +95,6 @@ def test_a_sign_in_through_an_existing_link_writes_no_link_row(mock_db):
 @pytest.mark.parametrize(
     ("userinfo", "user", "reason"),
     [
-        ({"email": "alice@example.com"}, _existing_user(), "provider_email_unverified"),
         (
             {"email": "alice@example.com", "email_verified": True},
             _existing_user(email_verified=False),
@@ -130,9 +151,7 @@ def test_creating_an_account_from_a_provider_audits_its_link(mock_db):
         patch(f"{_LINKS}.create_user_identity_provider"),
         jasil_testing.capture_audit() as audit,
     ):
-        provisioning.create_user_from_idp(
-            _idp(), "subject-1", {"username": "new", "email": "new@example.com"}, mock_db, email_verified=True
-        )
+        provisioning.create_user_from_idp(_idp(), "subject-1", {"username": "new", "email": "new@example.com"}, mock_db)
 
     entry = audit.assert_audited(
         idp_audit_actions.IDENTITY_LINK_LINK.id, outcome="success", target_type="user", target_id=str(OTHER_USER_ID)

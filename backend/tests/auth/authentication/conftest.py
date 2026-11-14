@@ -18,6 +18,7 @@ import modules.auth.authentication.public_router as auth_router
 import modules.auth.authentication.sso_public_router as exchange_router
 import modules.auth.constants as auth_constants
 import modules.auth.credentials.integration_service as credentials_integration
+import modules.auth.identity_provider_links.integration_service as identity_provider_links_integration
 import modules.auth.mfa.crud as mfa_crud
 import modules.auth.mfa_backup_codes.crud as backup_codes_crud
 import modules.auth.oauth_state.constants as oauth_state_constants
@@ -118,11 +119,16 @@ def aware_session_expiry():
 def create_sso_session(stack, client_type: auth_constants.ClientType = auth_constants.ClientType.WEB) -> uuid.UUID:
     """Create the session an identity-provider callback leaves for a client, stamped as the callback stamps it.
 
-    Its PKCE challenge is the one of ``SSO_VERIFIER``.
+    Its PKCE challenge is the one of ``SSO_VERIFIER``. The account is linked to the provider, as for a sign-in whose
+    subject was already linked, so the session's completion has nothing staged to apply.
     """
     session_id = uuid.uuid4()
     state_id, nonce = oauth_state_integration.create_state_id_and_nonce()
     with stack.factory() as db:
+        if not identity_provider_links_integration.get_user_identity_provider_by_user_id_and_idp_id(
+            USER_ID, SSO_IDP_ID, db
+        ):
+            identity_provider_links_integration.create_user_identity_provider(USER_ID, SSO_IDP_ID, "subject-1", db)
         state = oauth_state_integration.create_oauth_state(
             db=db,
             state_id=state_id,

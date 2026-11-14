@@ -17,9 +17,12 @@ import modules.auth.identity_providers.crud as identity_providers_crud
 import modules.auth.identity_providers.end_session_service as identity_providers_end_session
 import modules.auth.identity_providers.link_ticket_store as identity_providers_link_tickets
 import modules.auth.identity_providers.oidc_client_service as identity_providers_oidc_client
+import modules.auth.identity_providers.staged_sign_in_store as identity_providers_staged_sign_ins
 import modules.auth.identity_providers.step_up_ticket_store as identity_providers_step_up_tickets
 import modules.auth.identity_providers.token_service as identity_providers_tokens
+import modules.auth.identity_providers.user_provisioning_service as identity_providers_user_provisioning
 import modules.auth.identity_providers.utils as identity_providers_utils
+import modules.users.users.schema as users_schema
 
 
 def _oidc_client() -> identity_providers_oidc_client.OidcClientService:
@@ -150,6 +153,40 @@ def read_step_up_ticket(state: StateProvider, ticket: str) -> identity_providers
 def redeem_step_up_ticket(state: StateProvider, ticket: str) -> identity_providers_contracts.StepUpTicket | None:
     """Redeem a step-up ticket atomically, so it pays for exactly one request."""
     return identity_providers_step_up_tickets.StepUpTicketStore(state).redeem(ticket)
+
+
+def apply_staged_sign_in(
+    state: StateProvider, session_id: uuid.UUID, user: users_schema.UserRead, idp_id: uuid.UUID, db: Session
+) -> users_schema.UserRead:
+    """Stage, in the caller's transaction, what the callback of an identity-provider session left for the account.
+
+    The caller has claimed the session and commits; it then calls :func:`discard_staged_sign_in`. The link of an
+    account matched by email, the profile sync and the link's last-login stamp are applied, with their audit rows and
+    events. A session whose staged record is missing completes with nothing applied when the account is already
+    linked to the provider.
+
+    Args:
+        state: The platform state provider.
+        session_id: The session being completed.
+        user: The account the session belongs to.
+        idp_id: The provider the session signed in through.
+        db: Database session holding the completion's transaction.
+
+    Returns:
+        The account after the sync.
+
+    Raises:
+        SessionEndedError: If what was staged cannot be applied, or the record is missing for an account that
+            needed its link; the caller rolls back and does not sign the user in.
+        StateUnavailableError: If the state store is unavailable.
+    """
+    staged = identity_providers_staged_sign_ins.StagedSignInStore(state).read(session_id)
+    return identity_providers_user_provisioning.apply_staged_sign_in(user, idp_id, staged, db)
+
+
+def discard_staged_sign_in(state: StateProvider, session_id: uuid.UUID) -> None:
+    """Remove what the callback of a session staged, once the session's completion committed."""
+    identity_providers_staged_sign_ins.StagedSignInStore(state).discard(session_id)
 
 
 def request_idp_token_refresh(user_id: uuid.UUID, session_id: uuid.UUID, db: Session) -> None:

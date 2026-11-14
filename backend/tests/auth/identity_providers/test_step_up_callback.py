@@ -68,7 +68,7 @@ def active_user_and_session():
 
 @pytest.fixture
 def service(oidc, state):
-    return callback_service.CallbackService(oidc, MagicMock(), StepUpTicketStore(state), HOST)
+    return callback_service.CallbackService(oidc, MagicMock(), StepUpTicketStore(state), MagicMock(), HOST)
 
 
 def _idp():
@@ -323,7 +323,7 @@ class TestRefusals:
     def test_an_unreachable_ticket_store_is_refused(self, oidc, caplog):
         failing = MagicMock()
         failing.issue.side_effect = core_attempt_state.StateUnavailableError()
-        service = callback_service.CallbackService(oidc, MagicMock(), failing, HOST)
+        service = callback_service.CallbackService(oidc, MagicMock(), failing, MagicMock(), HOST)
 
         with caplog.at_level(logging.DEBUG, logger=callback_service.logger.name):
             url, _, _ = _complete(service)
@@ -334,7 +334,7 @@ class TestRefusals:
     def test_an_unexpected_error_is_logged_as_an_error_and_still_refused(self, oidc, caplog):
         failing = MagicMock()
         failing.issue.side_effect = RuntimeError("bug")
-        service = callback_service.CallbackService(oidc, MagicMock(), failing, HOST)
+        service = callback_service.CallbackService(oidc, MagicMock(), failing, MagicMock(), HOST)
 
         with caplog.at_level(logging.DEBUG, logger=callback_service.logger.name):
             url, _, _ = _complete(service)

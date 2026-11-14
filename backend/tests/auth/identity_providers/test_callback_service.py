@@ -29,7 +29,7 @@ NATIVE = "com.endurain.endurain:/auth/sso/callback"
 
 @pytest.fixture
 def service():
-    return callback_service.CallbackService(MagicMock(), MagicMock(), MagicMock(), HOST)
+    return callback_service.CallbackService(MagicMock(), MagicMock(), MagicMock(), MagicMock(), HOST)
 
 
 def _idp(enabled=True, **overrides):
@@ -165,7 +165,17 @@ class TestCompleteCallback:
 
         _, create_session = self._complete(service, result, self._state())
 
-        assert create_session.call_args.kwargs == {"idp_sid": stored}
+        assert create_session.call_args.kwargs == {"idp_sid": stored, "staged": None}
+
+    def test_a_sign_in_hands_what_it_staged_to_the_session_it_creates(self, service):
+        staged = MagicMock(name="staged")
+        result = callback_service.CallbackResult(
+            user=SimpleNamespace(username="a"), userinfo={}, mode="login", staged=staged
+        )
+
+        _, create_session = self._complete(service, result, self._state())
+
+        assert create_session.call_args.kwargs["staged"] is staged
 
     def test_a_link_returns_to_the_originating_page_without_a_session(self, service):
         user = SimpleNamespace(username="alice")
@@ -354,7 +364,7 @@ class TestHandleCallback:
             patch.object(service._oidc, "resolve_token_endpoint", return_value="https://idp.example.com/token"),
             patch.object(service._oidc, "create_oauth_client", return_value=oauth_client),
             patch.object(service._oidc, "get_userinfo", return_value=userinfo) as get_userinfo,
-            patch.object(callback_service.user_provisioning_service, "find_or_create_user", return_value=user),
+            patch.object(callback_service.user_provisioning_service, "find_or_create_user", return_value=(user, None)),
         ):
             result = service.handle_callback(idp, "code", "state", oauth_state, MagicMock())
 
@@ -380,13 +390,39 @@ class TestHandleCallback:
             patch.object(service._oidc, "resolve_token_endpoint", return_value="https://idp.example.com/token"),
             patch.object(service._oidc, "create_oauth_client", return_value=oauth_client),
             patch.object(service._oidc, "get_userinfo", return_value={"sub": "user-1"}),
-            patch.object(callback_service.user_provisioning_service, "find_or_create_user", return_value=user),
+            patch.object(callback_service.user_provisioning_service, "find_or_create_user", return_value=(user, None)),
         ):
             result = service.handle_callback(idp, "code", "state", oauth_state, db)
 
         assert result.token_response == {"access_token": "at", "refresh_token": "rt"}
         service._tokens.store_session_tokens.assert_not_called()
         db.commit.assert_called_once()
+
+    def test_login_mode_hands_back_what_the_sign_in_staged_for_an_existing_account(self, service):
+        idp = MagicMock(
+            issuer_url=None, userinfo_endpoint="https://idp.example.com/userinfo", slug="idp", provider_type="oauth2"
+        )
+        idp.name = "Pocket ID"
+        oauth_state = MagicMock(user_id=None, purpose=_LOGIN, nonce="nonce", redirect_path="/", client_type="web")
+        oauth_client = MagicMock()
+        oauth_client.fetch_token.return_value = {"access_token": "at"}
+        user = MagicMock(id=OTHER_USER_ID, username="alice", active=True)
+        staged = MagicMock(name="staged")
+
+        with (
+            patch.object(service._oidc, "decrypt_client_id", return_value=AUD),
+            patch.object(service._oidc, "decrypt_client_secret", return_value="secret"),
+            patch.object(service._oidc, "resolve_token_endpoint", return_value="https://idp.example.com/token"),
+            patch.object(service._oidc, "create_oauth_client", return_value=oauth_client),
+            patch.object(service._oidc, "get_userinfo", return_value={"sub": "user-1"}),
+            patch.object(
+                callback_service.user_provisioning_service, "find_or_create_user", return_value=(user, staged)
+            ),
+        ):
+            result = service.handle_callback(idp, "code", "state", oauth_state, MagicMock())
+
+        assert result.staged is staged
+        assert "staged" not in repr(result)
 
     def _login_with_userinfo(self, service, userinfo):
         idp = MagicMock(
@@ -405,7 +441,7 @@ class TestHandleCallback:
             patch.object(
                 callback_service.user_provisioning_service,
                 "find_or_create_user",
-                return_value=MagicMock(id=OTHER_USER_ID, username="alice", active=True),
+                return_value=(MagicMock(id=OTHER_USER_ID, username="alice", active=True), None),
             ) as find_or_create,
         ):
             service.handle_callback(idp, "code", "state", oauth_state, MagicMock())
@@ -499,7 +535,9 @@ class TestCreateCallbackSession:
             patch.object(callback_service.sessions_integration, "create_session") as create_session,
             pytest.raises(core_exceptions.NotFoundError),
         ):
-            service.create_callback_session(user, "10.0.0.1", "agent", _STATE, IDP_ID, {}, MagicMock(), idp_sid=None)
+            service.create_callback_session(
+                user, "10.0.0.1", "agent", _STATE, IDP_ID, {}, MagicMock(), idp_sid=None, staged=None
+            )
 
         lock.assert_called_once()
         create_session.assert_not_called()
@@ -513,20 +551,24 @@ class TestCreateCallbackSession:
         stamp.assert_called_once()
         assert stamp.call_args.args[:2] == ("state-id", 4)
 
-    def _create(self, service, *, active=True, token_response=None, idp_sid=None):
+    def _create(self, service, *, active=True, token_response=None, idp_sid=None, staged=None, now=None, db=None):
         user = SimpleNamespace(
             id=MOCK_USER_ID, username="alice", active=active, email="a@example.com", model_dump=lambda: {}
         )
-        db = MagicMock()
+        db = db or MagicMock()
         order = MagicMock()
         order.attach_mock(db.commit, "commit")
         order.attach_mock(service._tokens.store_session_tokens, "store")
+        order.attach_mock(service._staged_sign_ins.stage, "stage")
+        clock = MagicMock(wraps=datetime)
+        clock.now.return_value = now or datetime(2026, 11, 6, 12, 0, tzinfo=UTC)
         with (
             patch.object(callback_service.users_integration, "require_active_user"),
             patch.object(
                 callback_service.users_schema.UserRead, "model_validate", return_value=SimpleNamespace(id=MOCK_USER_ID)
             ),
             patch.object(callback_service.sessions_integration, "create_session") as create_session,
+            patch.object(callback_service, "datetime", clock),
         ):
             order.attach_mock(create_session, "create_session")
             session_id = service.create_callback_session(
@@ -538,6 +580,7 @@ class TestCreateCallbackSession:
                 token_response or {"refresh_token": "rt"},
                 db,
                 idp_sid=idp_sid,
+                staged=staged,
             )
         return session_id, create_session, order
 
@@ -562,7 +605,9 @@ class TestCreateCallbackSession:
             ),
             patch.object(callback_service.sessions_integration, "create_session") as create_session,
         ):
-            service.create_callback_session(user, "10.0.0.1", "agent", native, IDP_ID, {}, MagicMock(), idp_sid=None)
+            service.create_callback_session(
+                user, "10.0.0.1", "agent", native, IDP_ID, {}, MagicMock(), idp_sid=None, staged=None
+            )
 
         assert create_session.call_args.kwargs["app_redirect_uri"] == "gadgetbridge://auth/sso/callback"
 
@@ -578,7 +623,9 @@ class TestCreateCallbackSession:
             ),
             patch.object(callback_service.sessions_integration, "create_session") as create_session,
         ):
-            service.create_callback_session(user, "10.0.0.1", "agent", web, IDP_ID, {}, MagicMock(), idp_sid=None)
+            service.create_callback_session(
+                user, "10.0.0.1", "agent", web, IDP_ID, {}, MagicMock(), idp_sid=None, staged=None
+            )
 
         assert create_session.call_args.kwargs["app_redirect_uri"] is None
 
@@ -594,7 +641,9 @@ class TestCreateCallbackSession:
             ),
             patch.object(callback_service.sessions_integration, "create_session") as create_session,
         ):
-            service.create_callback_session(user, "10.0.0.1", "agent", naive, IDP_ID, {}, MagicMock(), idp_sid=None)
+            service.create_callback_session(
+                user, "10.0.0.1", "agent", naive, IDP_ID, {}, MagicMock(), idp_sid=None, staged=None
+            )
 
         assert create_session.call_args.args[6] == datetime(2026, 11, 6, 12, 0, tzinfo=UTC)
 
@@ -619,6 +668,7 @@ class TestCreateCallbackSession:
                 {},
                 MagicMock(),
                 idp_sid=None,
+                staged=None,
             )
 
         assert create_session.call_args.args[2] is client_type
@@ -635,6 +685,35 @@ class TestCreateCallbackSession:
             {"refresh_token": "rt"},
         )
         assert [call[0] for call in order.mock_calls] == ["create_session", "store", "commit"]
+
+    def test_what_the_sign_in_staged_is_stored_for_the_session_until_its_exchange_window_ends(self, service):
+        staged = MagicMock(name="staged")
+
+        session_id, _, order = self._create(
+            service, staged=staged, now=datetime(2026, 11, 6, 12, 0, 30, 500000, tzinfo=UTC)
+        )
+
+        service._staged_sign_ins.stage.assert_called_once_with(session_id, staged, ttl_seconds=569)
+        assert [call[0] for call in order.mock_calls] == ["create_session", "store", "stage", "commit"]
+
+    def test_a_window_that_just_ended_gets_the_shortest_record(self, service):
+        self._create(service, staged=MagicMock(), now=datetime(2026, 11, 6, 12, 10, 1, tzinfo=UTC))
+
+        assert service._staged_sign_ins.stage.call_args.kwargs == {"ttl_seconds": 1}
+
+    def test_a_new_account_stages_nothing(self, service):
+        self._create(service)
+
+        service._staged_sign_ins.stage.assert_not_called()
+
+    def test_a_record_that_cannot_be_stored_leaves_no_session(self, service):
+        service._staged_sign_ins.stage.side_effect = core_exceptions.ServiceUnavailableError("down")
+        db = MagicMock()
+
+        with pytest.raises(core_exceptions.ServiceUnavailableError):
+            self._create(service, staged=MagicMock(), db=db)
+
+        db.commit.assert_not_called()
 
     def test_the_provider_session_id_is_stored_with_the_sign_in(self, service):
         self._create(service, idp_sid="sid-1")
@@ -677,7 +756,9 @@ class TestCreateCallbackSession:
             patch.object(callback_service.sessions_integration, "create_session") as create_session,
             pytest.raises(callback_service.user_provisioning_service.SsoSignInRefusedError) as exc_info,
         ):
-            service.create_callback_session(user, "10.0.0.1", "agent", _STATE, IDP_ID, {}, MagicMock(), idp_sid=None)
+            service.create_callback_session(
+                user, "10.0.0.1", "agent", _STATE, IDP_ID, {}, MagicMock(), idp_sid=None, staged=None
+            )
 
         assert exc_info.value.login_error == login_error
         record_refusal.assert_called_once_with(
@@ -711,7 +792,7 @@ class TestCreateCallbackSession:
             patch.object(
                 callback_service.user_provisioning_service,
                 "find_or_create_user",
-                return_value=MagicMock(id=OTHER_USER_ID, username="alice"),
+                return_value=(MagicMock(id=OTHER_USER_ID, username="alice"), None),
             ),
         ):
             order.attach_mock(get_userinfo, "userinfo")
@@ -748,7 +829,7 @@ class TestOidcLoginFailsClosed:
             patch.object(
                 callback_service.user_provisioning_service,
                 "find_or_create_user",
-                return_value=MagicMock(id=OTHER_USER_ID, username="alice"),
+                return_value=(MagicMock(id=OTHER_USER_ID, username="alice"), None),
             ) as find_or_create,
         ):
             try:
@@ -906,7 +987,7 @@ class TestOauth2WithOpenidScopeRequiresIdToken:
             patch.object(
                 callback_service.user_provisioning_service,
                 "find_or_create_user",
-                return_value=MagicMock(id=OTHER_USER_ID, username="alice"),
+                return_value=(MagicMock(id=OTHER_USER_ID, username="alice"), None),
             ),
         ):
             service.handle_callback(idp, "code", "state", oauth_state, MagicMock())
@@ -987,7 +1068,7 @@ class TestOauth2LoginKeepsUserinfo:
             patch.object(service._oidc, "create_oauth_client", return_value=oauth_client),
             patch.object(service._oidc, "get_oidc_configuration") as discovery,
             patch.object(service._oidc, "get_userinfo", return_value={"sub": "user-1"}) as get_userinfo,
-            patch.object(callback_service.user_provisioning_service, "find_or_create_user", return_value=user),
+            patch.object(callback_service.user_provisioning_service, "find_or_create_user", return_value=(user, None)),
         ):
             result = service.handle_callback(idp, "code", "state", oauth_state, MagicMock())
 

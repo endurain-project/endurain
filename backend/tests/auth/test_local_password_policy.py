@@ -5,6 +5,7 @@ from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
 import pytest
+from jasil.backends.state_memory import MemoryState
 
 import core.exceptions as core_exceptions
 import modules.auth.account_security.account_security_service as account_security_service
@@ -224,4 +225,5 @@ class TestTokenExchange:
                 MagicMock(),
                 MagicMock(),
                 device_id=None,
+                state=MemoryState(),
             )

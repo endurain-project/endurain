@@ -5,7 +5,7 @@ Endurain supports Single Sign-On (SSO) integration through OAuth 2.0 and OpenID 
 ## Important Notes
 
 !!! warning "Email Address Matching"
-    A provider signs a user in to an existing Endurain account only through a link. Switch on **Link by email** on the provider and an unlinked sign-in joins the account whose email matches the provider's verified email. With it off (the default for a new provider), that sign-in is refused: the user signs in locally and links the provider from **Settings → Security**. If no account has the provider's email, Endurain creates a new user, when **Allow new user sign-ups through single sign-on** is on in [Server settings](server-settings.md#registration) and **Auto-create users** is on for the provider.
+    A provider signs a user in to an existing Endurain account only through a link. Switch on **Link by email** on the provider and an unlinked sign-in joins the account whose email matches the provider's verified email. With it off (the default for a new provider), that sign-in is refused: the user signs in locally and links the provider from **Settings → Security**. A provider email that is not verified never matches an account and never creates one: the sign-in is refused the same way whether or not an account has that address. If no account has the provider's verified email, Endurain creates a new user, when **Allow new user sign-ups through single sign-on** is on in [Server settings](server-settings.md#registration) and **Auto-create users** is on for the provider.
 
 !!! tip "Requirements"
     You'll need:
@@ -170,6 +170,7 @@ Both switches act on an email address, so both are off for a new provider: turn 
 
 - **Link by email** needs the provider to assert the email as verified (the standard `email_verified` claim on the `email` claim) and the existing account's email to be verified too. A sign-in refused because the switch is off is recorded in the audit trail and the login page tells the user to sign in locally and link the provider from their settings.
 - **Sync email** replaces the account's email with the one the provider verified, unless another account already uses it. The new address counts as verified, unused password-reset links are voided, the change is recorded in the audit trail and the previous address is sent a notice.
+- **When it happens.** The link by email and the sync of the name and the email are made when the sign-in completes, after the MFA code of an account with MFA enabled, and are recorded in the audit trail then. A sign-in that stops at the MFA step changes nothing on the account.
 - **Upgrading.** A provider that existed before this setting keeps what it did: **Link by email** is on, and **Sync email** is on exactly when **Sync user info** was on.
 
 #### HTTPS and private networks
@@ -206,6 +207,7 @@ Each time you sign in through a provider, Endurain keeps the refresh token the p
 - **Signing out at Endurain also signs out at the provider.** When the provider advertises an `end_session_endpoint` ([OpenID Connect RP-Initiated Logout](https://openid.net/specs/openid-connect-rpinitiated-1_0.html)), signing out in the web app sends the browser to the provider with the ID token Endurain kept for that sign-in, so the provider ends its own session and returns to the Endurain login page. Endurain stores that ID token encrypted with the session's refresh token and deletes it with the sign-in. A provider without an `end_session_endpoint` is not asked, and if the provider cannot be reached for it, signing out at Endurain still succeeds and the provider session stays. A session from before this behaviour has no ID token and signs out of Endurain only.
 - **Signing out at the provider signs out of Endurain.** See [Signing out at the provider](#signing-out-at-the-provider).
 - **Unlinking a provider signs out its sessions.** Unlinking a provider, yourself or as an administrator, ends every session of that user that signed in through it, including your current one when it did, and revokes their tokens.
+- **The last way to sign in cannot be unlinked.** Unlinking a provider is refused when the account would be left with no way to sign in. A local password counts only when local sign-in is allowed for the account's role (administrators keep it when local sign-in is off), and a link counts only while its provider is enabled.
 - **Sessions from before the upgrade** are ended by it: upgrading to v0.21 signs everyone out once, so every session after it holds its own provider token.
 
 Deleting an account, or an identity provider, removes the stored tokens with it without asking the provider to revoke them.

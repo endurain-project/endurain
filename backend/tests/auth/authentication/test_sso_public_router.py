@@ -91,6 +91,7 @@ class TestTokenExchange:
 
         assert response.status_code == 404
 
+    @patch(f"{_SERVICE}.identity_providers_integration.apply_staged_sign_in", side_effect=lambda *args: args[2])
     @patch(f"{_SERVICE}.users_integration.require_user")
     @patch(f"{_SERVICE}.users_integration.require_active_user")
     @patch("modules.auth.authentication.token_service.create_tokens")
@@ -105,6 +106,7 @@ class TestTokenExchange:
         mock_create_tokens,
         mock_check_active,
         mock_require_user,
+        _mock_apply,
         mock_db,
     ):
         mock_get_session.return_value = _session_and_state()
@@ -154,6 +156,7 @@ class TestTokenExchange:
         mock_create_tokens.assert_not_called()
         mock_claim_session.assert_not_called()
 
+    @patch(f"{_SERVICE}.identity_providers_integration.apply_staged_sign_in", side_effect=lambda *args: args[2])
     @patch(f"{_SERVICE}.users_integration.require_user")
     @patch(f"{_SERVICE}.users_integration.require_active_user")
     @patch("modules.auth.authentication.token_service.create_tokens")
@@ -161,7 +164,7 @@ class TestTokenExchange:
     @patch(f"{_SERVICE}.auth_computation.validate_pkce_verifier")
     @patch(f"{_SERVICE}.sessions_integration.get_session_with_oauth_state")
     def test_the_exchange_extends_the_session_and_tells_the_client_its_new_expiry(
-        self, mock_get_session, _validate, mock_claim, mock_create_tokens, _active, _require_user, mock_db
+        self, mock_get_session, _validate, mock_claim, mock_create_tokens, _active, _require_user, _apply, mock_db
     ):
         _require_user.return_value.id = _USER_ID
         _require_user.return_value.username = "testuser"
@@ -266,6 +269,10 @@ class TestTokenExchangeMfa:
             patch(
                 f"{_SERVICE}.sessions_integration.claim_session_for_token_exchange", return_value=_CLAIMED_EXPIRY
             ) as claim,
+            patch(
+                "modules.auth.authentication.service.identity_providers_integration.apply_staged_sign_in",
+                side_effect=lambda _state, _session_id, user, _idp_id, _db: user,
+            ),
         ):
             get_session.return_value = _session_and_state()
             yield MagicMock(

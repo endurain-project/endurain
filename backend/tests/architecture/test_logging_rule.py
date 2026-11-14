@@ -67,6 +67,9 @@ _HELPERS_THAT_LOG: dict[str, str] = {
     "auth/identity_providers/token_policy.py": "Reports a token the age policy retires or a link with no timestamp; the caller only sees the action.",
     "auth/credentials/password_breach.py": "Reports a range service it could not reach and fails open on; the caller only sees False.",
     "auth/mfa/setup_store.py": "Reports a setup secret it could not decrypt; the caller only sees None.",
+    "auth/identity_providers/staged_sign_in_store.py": (
+        "Reports a staged sign-in it could not decrypt, where the caller only sees None, and a delete it leaves to expire."
+    ),
     "garmin/token_utils.py": "Reports a token it could not decrypt or a session Garmin rejected; the caller only sees None.",
     "users/users_profile/utils.py": (
         "Reports a memory probe or an auto-config it cannot complete and falls back to defaults; the caller only sees the defaults."

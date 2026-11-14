@@ -1,6 +1,7 @@
 """The SSO callback audits the sign-ins it refuses as ``auth.session.login`` rows."""
 
 import uuid
+from contextlib import nullcontext
 from datetime import UTC, datetime, timedelta
 from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
@@ -38,7 +39,7 @@ def alive_session():
 
 @pytest.fixture
 def service():
-    return callback_service.CallbackService(MagicMock(), MagicMock(), MagicMock(), _HOST)
+    return callback_service.CallbackService(MagicMock(), MagicMock(), MagicMock(), MagicMock(), _HOST)
 
 
 def _idp(**overrides):
@@ -226,7 +227,9 @@ class TestStateRefusals:
 
 
 class TestCompleteLoginRefusals:
-    def _complete(self, service, *, userinfo=None, find_error=None, user=None, session_error=None):
+    def _complete(
+        self, service, *, userinfo=None, find_error=None, user=None, session_error=None, real_provisioning=False
+    ):
         oauth_client = MagicMock()
         oauth_client.fetch_token.return_value = {"access_token": "at"}
         get_userinfo = {"side_effect": userinfo} if isinstance(userinfo, Exception) else {"return_value": {"sub": "s"}}
@@ -240,8 +243,10 @@ class TestCompleteLoginRefusals:
                 callback_service.user_provisioning_service,
                 "find_or_create_user",
                 side_effect=find_error,
-                return_value=user,
-            ),
+                return_value=(user, None),
+            )
+            if not real_provisioning
+            else nullcontext(),
             patch.object(callback_service.users_integration, "require_active_user", side_effect=session_error),
             patch.object(callback_service.sessions_integration, "create_session"),
             jasil_testing.capture_audit() as audit,
@@ -272,14 +277,45 @@ class TestCompleteLoginRefusals:
         _assert_refusal(audit, outcome="denied", reason="provisioning_refused")
 
     def test_an_inactive_user_is_audited_with_the_account(self, service):
-        user = SimpleNamespace(id=OTHER_USER_ID, username="bob", active=False)
+        user = SimpleNamespace(id=OTHER_USER_ID, username="bob", active=False, pending_admin_approval=False)
 
-        url, audit = self._complete(
-            service, user=user, session_error=core_exceptions.PermissionDeniedError("Inactive user")
-        )
+        with patch.object(callback_service.users_integration, "is_deactivated", return_value=False):
+            url, audit = self._complete(
+                service, user=user, session_error=core_exceptions.PermissionDeniedError("Inactive user")
+            )
 
-        assert url == f"{_HOST}/login?error=sso_failed"
+        assert url == f"{_HOST}/login?error=sso_account_disabled"
         _assert_refusal(audit, outcome="denied", reason="inactive", user_id=OTHER_USER_ID)
+
+    @pytest.mark.parametrize(("pending", "code"), [(True, "sso_approval_pending"), (False, "sso_account_disabled")])
+    def test_an_inactive_linked_account_gets_its_own_code_and_the_inactive_reason(self, service, pending, code):
+        error = user_provisioning_service.SsoAccountInactiveError("inactive", login_error=code, user_id=OTHER_USER_ID)
+
+        url, audit = self._complete(service, find_error=error)
+
+        assert url == f"{_HOST}/login?error={code}"
+        _assert_refusal(audit, outcome="denied", reason="inactive", user_id=OTHER_USER_ID)
+
+    @pytest.mark.parametrize("account_exists", [True, False])
+    def test_an_unverified_email_is_refused_identically_whether_or_not_an_account_has_it(self, service, account_exists):
+        """The browser code and the audit row of the same provider response do not reveal a local account."""
+        existing = SimpleNamespace(id=OTHER_USER_ID, username="bob", email_verified=True) if account_exists else None
+        provisioning = user_provisioning_service
+        with (
+            patch.object(
+                provisioning.identity_provider_links_integration,
+                "get_user_identity_provider_by_subject_and_idp_id",
+                return_value=None,
+            ),
+            patch.object(provisioning.users_integration, "get_user_by_email", return_value=existing),
+            patch.object(provisioning.claim_mapping, "map_user_claims", return_value={"email": "bob@example.com"}),
+            patch.object(provisioning.claim_mapping, "is_email_verified", return_value=False),
+        ):
+            url, audit = self._complete(service, real_provisioning=True)
+
+        assert url == f"{_HOST}/login?error=sso_email_unverified"
+        _assert_refusal(audit, outcome="denied", reason="provisioning_refused")
+        audit.assert_not_audited(_LINK)
 
     def test_a_refused_link_is_not_a_login_refusal(self, service):
         error = core_exceptions.NotFoundError("User not found")
@@ -535,6 +571,7 @@ class TestLinkSuccessActor:
             patch.object(callback_service.identity_provider_links_integration, "create_user_identity_provider"),
             patch.object(callback_service.idp_event_publishers, "publish_idp_linked"),
             patch.object(callback_service.sessions_integration, "delete_sessions_by_user", return_value=2),
+            patch.object(callback_service.claim_mapping, "synced_claims"),
             patch.object(callback_service.user_provisioning_service, "update_user_from_idp", return_value=user),
             jasil_testing.capture_audit() as audit,
         ):

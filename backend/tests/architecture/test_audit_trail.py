@@ -134,13 +134,17 @@ _AUDITED_WRITES: dict[tuple[str, str], tuple[str, ...]] = {
     ("auth/authentication/public_router.py", "refresh_token"): ("auth.session.refresh", "auth.session.refresh_reuse"),
     ("auth/authentication/public_router.py", "verify_mfa_and_login"): (
         "auth.backup_codes.use",
+        "auth.identity_link.link",
         "auth.lockout.apply",
         "auth.session.login",
+        "users.email.change",
     ),
     ("auth/authentication/sso_public_router.py", "exchange_tokens_for_session"): (
         "auth.backup_codes.use",
+        "auth.identity_link.link",
         "auth.lockout.apply",
         "auth.session.login",
+        "users.email.change",
     ),
     ("auth/identity_providers/public_router.py", "backchannel_logout"): (
         "auth.backchannel_logout.refuse",

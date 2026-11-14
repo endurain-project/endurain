@@ -37,6 +37,20 @@ def stage_bump(user_id: uuid.UUID, db: Session) -> None:
     security_generation_crud.bump(user_id, db)
 
 
+def lock(user_id: uuid.UUID, db: Session) -> None:
+    """Take the account's security-generation row lock, which lasts until the caller's transaction ends.
+
+    A change whose precondition depends on the account's other security state calls this before it reads that
+    state, so two such changes of one account run one after the other and the second reads what the first
+    committed.
+
+    Args:
+        user_id: ID of the user whose security state the caller is about to read and change.
+        db: SQLAlchemy session; the row is created at 0 when missing so that it can be locked.
+    """
+    security_generation_crud.lock(user_id, db)
+
+
 def matches_locked(user_id: uuid.UUID, stamped: int | None, db: Session) -> bool:
     """Return whether a proof's stamp is the account's current generation, holding the row's lock.
 

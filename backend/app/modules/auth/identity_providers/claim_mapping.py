@@ -89,3 +89,21 @@ def is_email_verified(idp: identity_provider_contracts.IdentityProviderState, cl
     if isinstance(value, str):
         return value.strip().lower() == "true"
     return False
+
+
+def synced_claims(
+    idp: identity_provider_contracts.IdentityProviderState, claims: dict[str, Any]
+) -> identity_provider_contracts.SyncedClaims:
+    """Return the mapped claims the profile sync reads: the name, the email and whether the provider verified it.
+
+    Args:
+        idp: The identity provider, whose mapping decides which claims supply the fields.
+        claims: Raw userinfo/ID-token claims from the identity provider.
+
+    Returns:
+        The name and email the mapping found, and whether the email is verified.
+    """
+    mapped = map_user_claims(idp, claims)
+    return identity_provider_contracts.SyncedClaims(
+        name=mapped.get("name"), email=mapped.get("email"), email_verified=is_email_verified(idp, claims)
+    )

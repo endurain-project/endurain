@@ -11,6 +11,7 @@ from types import SimpleNamespace
 from unittest.mock import MagicMock
 
 import pytest
+from jasil.backends.state_memory import MemoryState
 from pydantic import ValidationError
 
 import core.exceptions as core_exceptions
@@ -156,6 +157,7 @@ class TestAuthRouterErrors:
                 db=object(),
                 password_change_store=MagicMock(),
                 device_id=None,
+                state=MemoryState(),
             )
 
         assert exc_info.value.status_code == 400
@@ -213,6 +215,7 @@ class TestAuthRouterErrors:
                 db=MagicMock(),
                 password_change_store=MagicMock(),
                 device_id=None,
+                state=MemoryState(),
             )
 
         assert exc_info.value.status_code == 401

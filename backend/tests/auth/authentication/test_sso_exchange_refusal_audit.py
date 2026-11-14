@@ -6,6 +6,7 @@ from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
 import jasil.testing as jasil_testing
+from jasil.backends.state_memory import MemoryState
 
 import core.exceptions as core_exceptions
 import modules.auth.authentication.sso_exchange_service as sso_exchange_service
@@ -22,7 +23,13 @@ _LOGIN = "auth.session.login"
 _USER = SimpleNamespace(id=_USER_ID, username="alice", active=True, access_type="regular")
 
 
-def _exchange(db, *, pkce_error=None, inactive=False, claimed=True, header="web", stamp=0, between=None):
+def _unchanged(_state, _session_id, user, _idp_id, _db):
+    return user
+
+
+def _exchange(
+    db, *, pkce_error=None, inactive=False, claimed=True, header="web", stamp=0, between=None, apply=None, state=None
+):
     oauth_state = SimpleNamespace(
         id="state",
         purpose="login",
@@ -57,6 +64,10 @@ def _exchange(db, *, pkce_error=None, inactive=False, claimed=True, header="web"
             return_value=datetime(2027, 1, 1, tzinfo=UTC) if claimed else None,
         ),
         patch(
+            "modules.auth.authentication.service.identity_providers_integration.apply_staged_sign_in",
+            apply or MagicMock(side_effect=_unchanged),
+        ),
+        patch(
             f"{_COMPLETION}.known_devices_integration.record_sign_in",
             return_value=MagicMock(device_id="d" * 43, new_device=False),
         ),
@@ -75,6 +86,7 @@ def _exchange(db, *, pkce_error=None, inactive=False, claimed=True, header="web"
                 MagicMock(),
                 db,
                 device_id=None,
+                state=state or MemoryState(),
             )
         except core_exceptions.DomainError as err:
             return audit, err
@@ -105,11 +117,42 @@ def test_a_header_other_than_the_stored_client_type_is_audited_like_a_pkce_misma
     _assert_refusal(audit, outcome="failure", reason="pkce_mismatch")
 
 
-def test_a_lost_exchange_race_answers_like_a_replay(mock_db):
-    _, raised = _exchange(mock_db, claimed=False)
+def test_a_lost_exchange_race_answers_like_a_replay_and_applies_nothing(mock_db):
+    apply = MagicMock(side_effect=_unchanged)
+
+    audit, raised = _exchange(mock_db, claimed=False, apply=apply)
 
     assert isinstance(raised, core_exceptions.NotFoundError)
     assert raised.detail == "Session not found or not eligible for token exchange"
+    apply.assert_not_called()
+    _assert_refusal(audit, outcome="failure", reason="sso_session_ended")
+
+
+def test_what_the_callback_staged_is_applied_after_the_claim_and_discarded_after_the_commit(mock_db):
+    steps = []
+    state = MagicMock()
+    mock_db.commit.side_effect = lambda: steps.append("commit")
+    state.delete.side_effect = lambda _key: steps.append("discard")
+    apply = MagicMock(side_effect=lambda *args: steps.append("apply") or _unchanged(*args))
+
+    _, raised = _exchange(mock_db, apply=apply, state=state)
+
+    assert raised is None
+    apply.assert_called_once_with(state, _SESSION_ID, _USER, IDP_ID, mock_db)
+    assert steps == ["apply", "commit", "discard"]
+
+
+def test_a_staged_sign_in_that_cannot_be_applied_rolls_back_and_answers_like_a_replay(mock_db):
+    apply = MagicMock(side_effect=core_exceptions.SessionEndedError("The sign-in can no longer be completed"))
+
+    audit, raised = _exchange(mock_db, apply=apply)
+
+    assert isinstance(raised, core_exceptions.NotFoundError)
+    assert raised.detail == "Session not found or not eligible for token exchange"
+    mock_db.rollback.assert_called_once()
+    mock_db.commit.assert_not_called()
+    _assert_refusal(audit, outcome="failure", reason="sso_session_ended")
+    assert [entry.outcome for entry in audit.matching(_LOGIN)] == ["failure"]
 
 
 def test_an_inactive_user_is_audited(mock_db):

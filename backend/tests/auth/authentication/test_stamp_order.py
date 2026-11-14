@@ -6,6 +6,7 @@ from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
 import pytest
+from jasil.backends.state_memory import MemoryState
 
 import core.exceptions as core_exceptions
 import modules.auth.authentication.failed_login_store as failed_login_store
@@ -234,6 +235,7 @@ class TestWebSignInChecksTheStamp:
                 mock_db,
                 password_change_store=MagicMock(),
                 device_id=None,
+                state=MemoryState(),
             )
 
         assert complete.call_args.kwargs["security_generation"] == 9
@@ -279,6 +281,7 @@ class TestMfaStepCarriesTheChallengesStamp:
                 db,
                 password_change_store=password_change_store,
                 device_id=None,
+                state=MemoryState(),
             )
         return password_change_store, pkce
 
@@ -319,6 +322,7 @@ class TestMfaStepOfADeletedUser:
                 mock_db,
                 password_change_store=MagicMock(),
                 device_id=None,
+                state=MemoryState(),
             )
 
         matches_locked.assert_not_called()

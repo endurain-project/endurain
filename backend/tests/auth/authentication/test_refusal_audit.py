@@ -7,6 +7,7 @@ from unittest.mock import MagicMock, patch
 
 import jasil.testing as jasil_testing
 import pytest
+from jasil.backends.state_memory import MemoryState
 
 import core.exceptions as core_exceptions
 import modules.auth.api_keys.schema as api_keys_schema
@@ -414,6 +415,7 @@ class TestMfaChallengeRefusal:
                 db,
                 password_change_store=MagicMock(),
                 device_id=None,
+                state=MemoryState(),
             )
 
     def test_an_expired_challenge_is_a_failure_with_no_target(self, mock_db):

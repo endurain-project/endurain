@@ -33,7 +33,7 @@ def _oidc() -> idp_oidc_client_service.OidcClientService:
 
 def _service() -> callback_service.CallbackService:
     return callback_service.CallbackService(
-        MagicMock(), idp_token_service.IdpTokenService(_oidc()), MagicMock(), "https://app"
+        MagicMock(), idp_token_service.IdpTokenService(_oidc()), MagicMock(), MagicMock(), "https://app"
     )
 
 
@@ -86,7 +86,7 @@ def _sign_in(factory, idp_id: uuid.UUID, state_id: str, session_policy, *, db=No
         )
         state = oauth_state_integration.get_oauth_state_by_id_and_not_used(state_id, session)
         return _service().create_callback_session(
-            user, "127.0.0.1", "agent", state, idp_id, {"access_token": "at"}, session, idp_sid=None
+            user, "127.0.0.1", "agent", state, idp_id, {"access_token": "at"}, session, idp_sid=None, staged=None
         )
 
     with patch(_SESSION_POLICY_TARGET, return_value=session_policy):

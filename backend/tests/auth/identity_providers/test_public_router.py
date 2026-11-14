@@ -219,7 +219,9 @@ class TestLoginBindingRoundTrip:
         states = {}
         idp = SimpleNamespace(id=uuid.uuid4(), slug="pocket-id", enabled=True)
         authorization = authorization_service.AuthorizationService(MagicMock(), "https://app.example.com")
-        callback = callback_service.CallbackService(MagicMock(), MagicMock(), MagicMock(), "https://app.example.com")
+        callback = callback_service.CallbackService(
+            MagicMock(), MagicMock(), MagicMock(), MagicMock(), "https://app.example.com"
+        )
 
         def create_state(idp_id, **kwargs):
             states["state-id"] = SimpleNamespace(

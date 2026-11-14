@@ -20,6 +20,23 @@ _SID = uuid.UUID("00000000-0000-4000-8000-0000000000a1")
 IDP_ID = uuid.UUID(int=1)
 
 
+@pytest.fixture(autouse=True)
+def sign_in_rule_inputs():
+    """An account of a regular type on a server with local sign-in on; the security-generation lock is a no-op."""
+    with (
+        patch(
+            "modules.auth.account_security.identity_link_service.users_integration.require_user",
+            return_value=MagicMock(access_type="regular"),
+        ),
+        patch(
+            "modules.auth.account_security.identity_link_service.server_settings_integration.get_server_settings",
+            return_value=MagicMock(local_login_enabled=True),
+        ),
+        patch("modules.auth.account_security.identity_link_service.security_generation_integration.lock"),
+    ):
+        yield
+
+
 class TestGetUserIdentityProviderLinks:
     """get_user_identity_provider_links: one page of a user's links, enriched with provider details."""
 
@@ -272,7 +289,7 @@ class TestDeleteIdentityProviderLink:
 
     def test_unlinks_successfully(self, mock_db):
         step_up = MagicMock()
-        existing_links = [MagicMock(), MagicMock()]  # 2 links, so one can be removed
+        existing_links = [MagicMock(idp_id=IDP_ID), MagicMock()]  # another enabled link remains
 
         with (
             patch("modules.auth.account_security.identity_link_service.step_up_service.verify_step_up_credentials"),
@@ -358,7 +375,7 @@ class TestDeleteIdentityProviderLink:
             ),
             patch(
                 "modules.auth.account_security.identity_link_service.identity_provider_links_integration.get_user_identity_providers_by_user_id",
-                return_value=[MagicMock()],  # exactly 1 link → remaining_idp_count == 0
+                return_value=[MagicMock(idp_id=IDP_ID)],  # only the link being removed
             ),
             patch(
                 "modules.auth.account_security.identity_link_service.credentials_integration.has_local_password",
@@ -380,7 +397,7 @@ class TestAdminDeleteIdentityProviderLink:
     """admin_delete_identity_provider_link: admin unlink with anti-lockout check."""
 
     def test_unlinks_successfully(self, mock_db):
-        existing_links = [MagicMock(), MagicMock()]  # 2 links, so one can be removed
+        existing_links = [MagicMock(idp_id=IDP_ID), MagicMock()]  # another enabled link remains
 
         with (
             patch(
@@ -449,7 +466,7 @@ class TestAdminDeleteIdentityProviderLink:
             ),
             patch(
                 "modules.auth.account_security.identity_link_service.identity_provider_links_integration.get_user_identity_providers_by_user_id",
-                return_value=[MagicMock()],  # exactly 1 link → remaining_idp_count == 0
+                return_value=[MagicMock(idp_id=IDP_ID)],  # only the link being removed
             ),
             patch(
                 "modules.auth.account_security.identity_link_service.credentials_integration.has_local_password",
@@ -484,7 +501,7 @@ class TestAdminDeleteIdentityProviderLink:
             ),
             patch(
                 "modules.auth.account_security.identity_link_service.identity_provider_links_integration.get_user_identity_providers_by_user_id",
-                return_value=[MagicMock()],  # only 1 link → remaining_idp_count == 0
+                return_value=[MagicMock(idp_id=IDP_ID)],  # only the link being removed
             ),
             patch(
                 "modules.auth.account_security.identity_link_service.credentials_integration.has_local_password",
@@ -511,7 +528,7 @@ class TestAdminDeleteIdentityProviderLink:
             ),
             patch(
                 "modules.auth.account_security.identity_link_service.identity_provider_links_integration.get_user_identity_providers_by_user_id",
-                return_value=[MagicMock(), MagicMock()],
+                return_value=[MagicMock(idp_id=IDP_ID), MagicMock()],
             ),
             patch(
                 "modules.auth.account_security.identity_link_service.credentials_integration.has_local_password",
@@ -543,7 +560,7 @@ class TestUnlinkBumpsTheSecurityGeneration:
             ),
             patch(
                 _P + "identity_provider_links_integration.get_user_identity_providers_by_user_id",
-                return_value=[MagicMock(), MagicMock()],
+                return_value=[MagicMock(idp_id=IDP_ID), MagicMock()],
             ),
             patch(_P + "identity_provider_links_integration.delete_user_identity_provider", return_value=True),
             patch(_P + "credentials_integration.has_local_password", return_value=True),
@@ -623,6 +640,107 @@ class TestUnlinkBumpsTheSecurityGeneration:
             identity_link_service.admin_delete_identity_provider_link(MOCK_USER_ID, IDP_ID, mock_db)
 
         bump.assert_not_called()
+
+
+_OTHER_IDP_ID = uuid.UUID(int=2)
+
+
+class TestLastSignInMethodRule:
+    """An unlink is refused when no other way to sign in remains: a usable password or another enabled provider."""
+
+    @staticmethod
+    def _unlink(mock_db, *, admin, has_password, other_enabled, local_login_enabled=True, access_type="regular"):
+        """Unlink IDP_ID from an account whose only other link, when ``other_enabled`` is not None, is OTHER_IDP."""
+        links = [MagicMock(idp_id=IDP_ID)]
+        if other_enabled is not None:
+            links.append(MagicMock(idp_id=_OTHER_IDP_ID))
+
+        def get_idp(idp_id, _db):
+            return MagicMock(enabled=other_enabled if idp_id == _OTHER_IDP_ID else True)
+
+        with (
+            patch(_P + "users_integration.require_user", return_value=MagicMock(access_type=access_type)),
+            patch(
+                _P + "server_settings_integration.get_server_settings",
+                return_value=MagicMock(local_login_enabled=local_login_enabled),
+            ),
+            patch(_P + "identity_providers_integration.get_identity_provider", side_effect=get_idp),
+            patch(
+                _P + "identity_provider_links_integration.get_user_identity_provider_by_user_id_and_idp_id",
+                return_value=MagicMock(),
+            ),
+            patch(
+                _P + "identity_provider_links_integration.get_user_identity_providers_by_user_id", return_value=links
+            ),
+            patch(_P + "identity_provider_links_integration.delete_user_identity_provider", return_value=True),
+            patch(_P + "credentials_integration.has_local_password", return_value=has_password),
+            patch(_P + "step_up_service.verify_step_up_credentials"),
+            patch(_P + "_stage_unlink"),
+        ):
+            if admin:
+                identity_link_service.admin_delete_identity_provider_link(MOCK_USER_ID, IDP_ID, mock_db)
+            else:
+                identity_link_service.delete_identity_provider_link(
+                    IDP_ID, MagicMock(), MOCK_USER_ID, _SID, MagicMock(), mock_db
+                )
+
+    @pytest.mark.parametrize("admin", [False, True])
+    def test_a_disabled_provider_does_not_count_as_a_way_to_sign_in(self, mock_db, admin):
+        with pytest.raises(core_exceptions.LastSignInMethodError):
+            self._unlink(mock_db, admin=admin, has_password=False, other_enabled=False)
+
+    @pytest.mark.parametrize("admin", [False, True])
+    def test_another_enabled_provider_is_a_way_to_sign_in(self, mock_db, admin):
+        self._unlink(mock_db, admin=admin, has_password=False, other_enabled=True)
+
+    @pytest.mark.parametrize("admin", [False, True])
+    def test_a_password_the_server_does_not_allow_does_not_count(self, mock_db, admin):
+        with pytest.raises(core_exceptions.LastSignInMethodError):
+            self._unlink(mock_db, admin=admin, has_password=True, other_enabled=None, local_login_enabled=False)
+
+    @pytest.mark.parametrize("admin", [False, True])
+    def test_an_administrator_password_counts_when_local_sign_in_is_off(self, mock_db, admin):
+        self._unlink(
+            mock_db,
+            admin=admin,
+            has_password=True,
+            other_enabled=None,
+            local_login_enabled=False,
+            access_type="admin",
+        )
+
+    @pytest.mark.parametrize("admin", [False, True])
+    def test_an_allowed_password_counts(self, mock_db, admin):
+        self._unlink(mock_db, admin=admin, has_password=True, other_enabled=None)
+
+    @pytest.mark.parametrize("admin", [False, True])
+    def test_the_lock_is_taken_before_the_rule_reads_and_the_bump_follows(self, mock_db, admin):
+        order = MagicMock()
+        with (
+            patch(_P + "security_generation_integration.lock") as lock,
+            patch(_P + "security_generation_integration.stage_bump") as bump,
+            patch(_P + "_require_another_sign_in_method") as rule,
+            patch(_P + "identity_providers_integration.get_identity_provider", return_value=MagicMock()),
+            patch(
+                _P + "identity_provider_links_integration.get_user_identity_provider_by_user_id_and_idp_id",
+                return_value=MagicMock(),
+            ),
+            patch(_P + "identity_provider_links_integration.delete_user_identity_provider", return_value=True),
+            patch(_P + "step_up_service.verify_step_up_credentials"),
+            patch(_P + "_stage_unlink"),
+        ):
+            order.attach_mock(lock, "lock")
+            order.attach_mock(rule, "rule")
+            order.attach_mock(bump, "bump")
+            if admin:
+                identity_link_service.admin_delete_identity_provider_link(MOCK_USER_ID, IDP_ID, mock_db)
+            else:
+                identity_link_service.delete_identity_provider_link(
+                    IDP_ID, MagicMock(), MOCK_USER_ID, _SID, MagicMock(), mock_db
+                )
+
+        names = [call[0] for call in order.mock_calls]
+        assert names[-3:] == ["lock", "rule", "bump"]
 
 
 class TestStartIdpLinkFromANativeApp:
