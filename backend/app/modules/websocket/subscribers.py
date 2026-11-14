@@ -6,6 +6,7 @@ from typing import Any
 import jasil.event_versioning as platform_event_versioning
 import jasil.runtime as platform_runtime
 from jasil.events import Event
+from jasil.jobs.registry import JobHandlerRegistry
 from jasil.providers import EventBusProvider
 from jasil.subscribers import best_effort
 
@@ -17,6 +18,7 @@ import modules.websocket.manager as websocket_manager
 import modules.websocket.service as websocket_service
 
 logger = core_logger.get_logger(__name__)
+CLOSE_SOCKETS_SUBSCRIBER_ID = "websocket.close_sockets"
 
 
 def on_realtime_hint(key: str, hint: dict[str, Any]) -> None:
@@ -90,7 +92,8 @@ def close_sockets_for_event(event: Event) -> None:
     """Turn an ``auth.sessions_revoked`` event into a control message for every replica.
 
     The event reaches one process, but the sockets may be held by any, so the close goes out on the
-    realtime channel instead of being applied here.
+    realtime channel instead of being applied here. Announcing twice is harmless, because closing a
+    socket that is already gone does nothing.
 
     Args:
         event: The ``auth.sessions_revoked`` event.
@@ -117,3 +120,8 @@ on_sessions_revoked_close_sockets = best_effort(close_sockets_for_event)
 def register_bus_subscribers(events: EventBusProvider) -> None:
     """Register the websocket event consumers on the running bus."""
     events.subscribe(sessions_events.SESSIONS_REVOKED, on_sessions_revoked_close_sockets)
+
+
+def register_durable_handlers(registry: JobHandlerRegistry) -> None:
+    """Register the websocket durable handlers, which run when jobs are enabled and the bus is bypassed."""
+    registry.register(sessions_events.SESSIONS_REVOKED, CLOSE_SOCKETS_SUBSCRIBER_ID, close_sockets_for_event)

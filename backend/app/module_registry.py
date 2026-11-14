@@ -532,6 +532,8 @@ MODULES: tuple[RuntimeModule, ...] = (
         name="websocket",
         register_bus=websocket_subscriber_registry.register_bus_subscribers,
         register_realtime=websocket_subscriber_registry.register_realtime_subscribers,
+        register_durable=websocket_subscriber_registry.register_durable_handlers,
+        nets=websocket_subscriber_registry.DURABLE_SUBSCRIBER_NETS,
     ),
 )
 

@@ -125,6 +125,34 @@ class TestSessionsRevokedEvent:
             sessions_events.SESSIONS_REVOKED, websocket_subscribers.on_sessions_revoked_close_sockets
         )
 
+    def test_the_registry_registers_the_close_as_a_durable_handler(self):
+        import modules.auth.sessions.events as sessions_events
+
+        registry = MagicMock()
+
+        websocket_subscriber_registry.register_durable_handlers(registry)
+
+        registry.register.assert_called_once_with(
+            sessions_events.SESSIONS_REVOKED,
+            websocket_subscribers.CLOSE_SOCKETS_SUBSCRIBER_ID,
+            websocket_subscribers.close_sockets_for_event,
+        )
+
+    def test_the_durable_subscriber_has_an_exempt_net(self):
+        nets = {net.subscriber_id: net for net in websocket_subscriber_registry.DURABLE_SUBSCRIBER_NETS}
+
+        net = nets[websocket_subscribers.CLOSE_SOCKETS_SUBSCRIBER_ID]
+        assert net.backfill is None
+        assert net.exempt_reason
+
+    def test_the_websocket_module_publishes_its_durable_wiring(self):
+        import module_registry
+
+        module = next(m for m in module_registry.MODULES if m.name == "websocket")
+
+        assert module.register_durable is websocket_subscriber_registry.register_durable_handlers
+        assert module.nets == websocket_subscriber_registry.DURABLE_SUBSCRIBER_NETS
+
 
 def test_the_registry_subscribes_the_handler_to_the_channel():
     realtime = MagicMock(spec=InProcessRealtime)
