@@ -1,6 +1,12 @@
 import type { AuthTokenResponse, Schemas } from '@/types'
 
-import { clearAuthTokens, getAccessToken, setAuthTokens } from './authTokens'
+import {
+  clearAuthTokens,
+  getAccessToken,
+  isWebTokenAnswer,
+  setAuthTokens,
+  UnsupportedTokenAnswerError,
+} from './authTokens'
 import { emitMfaEnrolmentRequired } from './mfaEnrolment'
 import { getApiBaseUrl } from './runtime'
 import { emitSessionExpired } from './sessionExpiry'
@@ -205,7 +211,7 @@ let refreshPromise: Promise<AuthTokenResponse> | null = null
  * Refreshes in-memory auth tokens using the HTTP-only refresh cookie.
  *
  * Concurrent callers share one in-flight refresh. Only a `session-ended` refusal of the refresh
- * clears the tokens and signals session expiry. Any
+ * or an answer that is not a web token answer clears the tokens and signals session expiry. Any
  * other failure, such as a network error, a timeout, or a 429 or 5xx response,
  * is re-thrown unchanged and leaves the tokens in place, so a transient outage
  * does not log the user out.
@@ -220,11 +226,17 @@ async function refreshAuthTokens(): Promise<AuthTokenResponse> {
     retryOnUnauthorized: false,
   })
     .then((response) => {
+      if (!isWebTokenAnswer(response)) {
+        throw new UnsupportedTokenAnswerError()
+      }
       setAuthTokens(response.access_token)
       return response
     })
     .catch((error: unknown) => {
-      if (error instanceof HttpError && error.type === SESSION_ENDED_PROBLEM) {
+      if (
+        error instanceof UnsupportedTokenAnswerError ||
+        (error instanceof HttpError && error.type === SESSION_ENDED_PROBLEM)
+      ) {
         clearAuthTokens()
         emitSessionExpired()
       }

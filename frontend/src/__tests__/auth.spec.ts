@@ -20,7 +20,8 @@ import { queryClient } from '@/plugins/vueQuery'
 import { useAuthStore } from '@/features/auth/stores/auth'
 import { userUuid } from './fixtures/activity'
 
-vi.mock('@/services/authTokens', () => ({
+vi.mock('@/services/authTokens', async (importActual) => ({
+  ...(await importActual<typeof import('@/services/authTokens')>()),
   clearAuthTokens: vi.fn<typeof clearAuthTokens>(),
   setAuthTokens: vi.fn<typeof setAuthTokens>(),
 }))
@@ -221,6 +222,46 @@ describe('auth store', () => {
     expect(auth.isAuthenticated).toBe(true)
     expect(realtimeConnect).toHaveBeenCalled()
     expect(auth.isReady).toBe(true)
+  })
+
+  it.each([
+    ['an MFA step', { next_step: 'mfa', mfa_challenge: 'c' }],
+    ['no access token', { ...tokenResponse, access_token: undefined }],
+  ])('refuses a restore answer with %s and clears the session', async (_label, answer) => {
+    vi.mocked(refreshSession).mockResolvedValue(answer as never)
+
+    const auth = useAuthStore()
+    await auth.restoreSession()
+
+    expect(setAuthTokens).not.toHaveBeenCalled()
+    expect(clearAuthTokens).toHaveBeenCalled()
+    expect(auth.isAuthenticated).toBe(false)
+    expect(auth.restoreFailed).toBe(false)
+    expect(auth.isReady).toBe(true)
+  })
+
+  it('stores the tokens of a valid restore answer', async () => {
+    vi.mocked(refreshSession).mockResolvedValue(tokenResponse)
+    vi.mocked(fetchCurrentUser).mockResolvedValue(authUser)
+
+    const auth = useAuthStore()
+    await auth.restoreSession()
+
+    expect(setAuthTokens).toHaveBeenCalledWith('access-token')
+    expect(auth.isAuthenticated).toBe(true)
+  })
+
+  it('refuses an SSO exchange answer without an access token', async () => {
+    vi.mocked(exchangeSessionForTokens).mockResolvedValue({
+      ...tokenResponse,
+      access_token: undefined,
+    } as never)
+
+    const auth = useAuthStore()
+    const result = await auth.exchangeSsoSession('sid', 'verifier')
+
+    expect(result).toEqual({ status: 'unsupported-step' })
+    expect(setAuthTokens).not.toHaveBeenCalled()
   })
 
   it('clears local auth state when restore has no valid refresh session', async () => {

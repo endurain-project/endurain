@@ -32,6 +32,49 @@ export function getScalarQueryString(value: unknown): string {
 }
 
 /**
+ * Query parameters that carry a one-time or OAuth credential. They never travel in a login redirect: the
+ * interrupted action restarts after sign-in instead of replaying a spent credential.
+ */
+export const ONE_TIME_CREDENTIAL_KEYS: ReadonlySet<string> = new Set([
+  'code',
+  'state',
+  'iss',
+  'error',
+  'error_description',
+  'session_state',
+  'ticket',
+  'token',
+  'step_up_ticket',
+  'step_up_error',
+  'session_id',
+  'sso',
+  'idp_link',
+])
+
+/**
+ * Builds the address a login redirect returns to: the path and the query without the one-time credentials,
+ * and without the fragment (it can hold a credential and would reach the server through the SSO start).
+ *
+ * @param target - The route the visitor was blocked from.
+ * @returns The path, followed by `?` and the remaining query when there is one.
+ */
+export function getLoginRedirect(
+  target: Pick<RouteLocationNormalizedLoaded, 'path' | 'query'>,
+): string {
+  const params = new URLSearchParams()
+  for (const [key, value] of Object.entries(target.query)) {
+    if (ONE_TIME_CREDENTIAL_KEYS.has(key)) {
+      continue
+    }
+    for (const item of Array.isArray(value) ? value : [value]) {
+      params.append(key, item ?? '')
+    }
+  }
+  const query = params.toString()
+  return query ? `${target.path}?${query}` : target.path
+}
+
+/**
  * Removes one query parameter from the address bar and the history entry, keeping the others.
  *
  * @param route - The current route.

@@ -11,7 +11,8 @@ vi.mock('@/services/runtime', () => ({
   getBackendAssetUrl: (path: string) => path,
 }))
 
-vi.mock('@/services/authTokens', () => ({
+vi.mock('@/services/authTokens', async (importActual) => ({
+  ...(await importActual<typeof import('@/services/authTokens')>()),
   getAccessToken: vi.fn<typeof getAccessToken>(() => 'access-old'),
   setAuthTokens: vi.fn<typeof setAuthTokens>(),
   clearAuthTokens: vi.fn<typeof clearAuthTokens>(),
@@ -35,6 +36,7 @@ const INVALID_TOKEN = 'urn:endurain:error:invalid-token'
 const SESSION_ENDED = 'urn:endurain:error:session-ended'
 
 const refreshTokenResponse = {
+  next_step: 'tokens',
   access_token: 'access-new',
   session_id: '00000000-0000-4000-8000-0000000000f1',
   token_type: 'bearer',
@@ -154,6 +156,29 @@ describe('apiFetch', () => {
     await expect(apiFetch('/data')).rejects.toBeInstanceOf(HttpError)
     expect(clearAuthTokens).toHaveBeenCalled()
   })
+
+  it.each([
+    ['an MFA step', { next_step: 'mfa', mfa_challenge: 'c' }],
+    ['no access token', { ...refreshTokenResponse, access_token: undefined }],
+  ])(
+    'refuses a refresh answer with %s, clears the tokens and signals expiry',
+    async (_l, answer) => {
+      const onExpired = vi.fn<() => void>()
+      onSessionExpired(onExpired)
+      fetchMock.mockImplementation((url: string) =>
+        Promise.resolve(
+          url === '/auth/refresh'
+            ? jsonResponse(answer)
+            : jsonResponse({ type: INVALID_TOKEN }, 401),
+        ),
+      )
+
+      await expect(apiFetch('/data')).rejects.toBeInstanceOf(Error)
+      expect(setAuthTokens).not.toHaveBeenCalled()
+      expect(clearAuthTokens).toHaveBeenCalled()
+      expect(onExpired).toHaveBeenCalledTimes(1)
+    },
+  )
 
   it('signals session expiry when a mid-session refresh answers session-ended', async () => {
     const onExpired = vi.fn<() => void>()

@@ -10,7 +10,12 @@ import { getLocaleForBackendLanguage, loadLocaleMessages, setI18nLocale } from '
 import { broadcastSessionEnded } from '@/lib/sessionChannel'
 import { clearUserScopedStorage } from '@/lib/storage'
 import { queryClient } from '@/plugins/vueQuery'
-import { clearAuthTokens, setAuthTokens } from '@/services/authTokens'
+import {
+  clearAuthTokens,
+  isWebTokenAnswer,
+  setAuthTokens,
+  UnsupportedTokenAnswerError,
+} from '@/services/authTokens'
 import { HttpError } from '@/services/http'
 import { exchangeSessionForTokens } from '@/services/identityProviders'
 import { queryKeys } from '@/services/queryKeys'
@@ -163,8 +168,7 @@ export const useAuthStore = defineStore('auth', () => {
           challenge: response.password_change_challenge,
         }
       case 'tokens': {
-        // The web client sends `X-Client-Type: web`, so the refresh token is in a cookie, not the body.
-        if ('refresh_token' in response) {
+        if (!isWebTokenAnswer(response)) {
           return { status: 'unsupported-step' }
         }
         const result = await completeTokenLogin(response)
@@ -246,10 +250,13 @@ export const useAuthStore = defineStore('auth', () => {
 
     restorePromise ??= refreshSession()
       .then(async (response) => {
+        if (!isWebTokenAnswer(response)) {
+          throw new UnsupportedTokenAnswerError()
+        }
         await completeTokenLogin(response)
       })
       .catch((error: unknown) => {
-        if (isSessionRefused(error)) {
+        if (isSessionRefused(error) || error instanceof UnsupportedTokenAnswerError) {
           clearLocalSession()
           return
         }

@@ -32,15 +32,16 @@ function routeTo(
   meta: Record<string, unknown>,
   fullPath = '/target',
   query: Record<string, string> = {},
+  hash = '',
 ): RouteLocationNormalized {
   return {
-    fullPath,
+    fullPath: fullPath + hash,
     path: fullPath,
     name: 'target',
     meta,
     query,
     params: {},
-    hash: '',
+    hash,
     matched: [],
     redirectedFrom: undefined,
   } as unknown as RouteLocationNormalized
@@ -77,6 +78,22 @@ describe('authGuard', () => {
     const result = await authGuard(routeTo({ requiresAuth: true }, '/activities'))
 
     expect(result).toEqual({ name: 'login', query: { redirect: '/activities' } })
+  })
+
+  it('keeps one-time credentials and the fragment out of the login redirect', async () => {
+    const auth = useAuthStore()
+    auth.isReady = true
+
+    const result = await authGuard(
+      routeTo(
+        { requiresAuth: true },
+        '/settings',
+        { code: 'x', state: 'y', tab: '2' },
+        '#step_up_ticket=z',
+      ),
+    )
+
+    expect(result).toEqual({ name: 'login', query: { redirect: '/settings?tab=2' } })
   })
 
   it('allows authenticated users through protected routes', async () => {

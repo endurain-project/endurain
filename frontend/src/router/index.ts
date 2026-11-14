@@ -5,6 +5,7 @@ import type { User } from '@/features/auth/types'
 
 import { useFeatureFlags } from '@/features/config/composables/useAppConfig'
 import { useTelemetry } from '@/composables/useTelemetry'
+import { getLoginRedirect } from '@/composables/useRouteQuery'
 import { isAdminUser } from '@/features/auth/composables/useCurrentUser'
 import { useAuthStore } from '@/features/auth/stores/auth'
 import { accessibleSettingsZones } from '@/features/settings/settingsNav'
@@ -365,7 +366,7 @@ export async function authGuard(to: RouteLocationNormalized) {
 
   const requiresAuth = to.meta.requiresAuth !== false
   if (requiresAuth && !auth.isAuthenticated) {
-    const query: Record<string, string> = { redirect: to.fullPath }
+    const query: Record<string, string> = { redirect: getLoginRedirect(to) }
     // Preserve the local-login override so an operator can bypass SSO
     // auto-redirect even when landing on an auth-protected route (the flag
     // would otherwise be lost inside the encoded `redirect` param).
