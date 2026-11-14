@@ -82,7 +82,7 @@ class TestClientUpdate:
 
 
 def _run(states, *, exchange_error=None, stage_error=None):
-    states.begin(MOCK_USER_ID, LINK, conflict="busy")
+    job = states.begin(MOCK_USER_ID, LINK, conflict="busy")
     client = MagicMock()
     client.exchange_code_for_token.return_value = {"access_token": "t"}
     if exchange_error:
@@ -101,7 +101,7 @@ def _run(states, *, exchange_error=None, stage_error=None):
             strava_link_service.strava_client_service.core_cryptography, "decrypt_token_fernet", side_effect=str
         ),
     ):
-        strava_link_service.run_link(MOCK_USER_ID, "the-code", states)
+        strava_link_service.run_link(MOCK_USER_ID, job.id, "the-code", states)
 
 
 class TestAccountLink:

@@ -29,7 +29,7 @@ def stores():
 
 def _link(stores, *, login=None, has_token=True, prompt_mfa=False):
     mfa_codes, link_states = stores
-    link_states.begin(MOCK_USER_ID, conflict="busy")
+    job = link_states.begin(MOCK_USER_ID, conflict="busy")
     garmin = MagicMock()
     garmin.client.di_token = "enc" if has_token else None
 
@@ -51,7 +51,9 @@ def _link(stores, *, login=None, has_token=True, prompt_mfa=False):
         ),
         jasil_testing.capture_audit() as audit,
     ):
-        garmin_link_service.link_garminconnect(MOCK_USER_ID, "me@example.com", "pw-secret", mfa_codes, link_states)
+        garmin_link_service.link_garminconnect(
+            MOCK_USER_ID, job.id, "me@example.com", "pw-secret", mfa_codes, link_states
+        )
     return audit
 
 

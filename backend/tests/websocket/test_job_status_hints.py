@@ -54,10 +54,10 @@ class TestQueuedSyncs:
     @pytest.mark.parametrize("final", ["succeeded", "failed"])
     def test_a_final_status_is_announced(self, pushes, states, kind, job, final):
         started = states.begin(_USER, kind, conflict="Busy")
-        states.set_status(_USER, kind, "running")
+        states.set_status(_USER, kind, "running", job_id=started.id)
         pushes.assert_not_called()
 
-        states.set_status(_USER, kind, final)
+        states.set_status(_USER, kind, final, job_id=started.id)
 
         pushes.assert_called_once_with(*_hint(started.id, job))
 
@@ -65,17 +65,17 @@ class TestQueuedSyncs:
     def test_closing_a_dead_lettered_sync_is_announced(self, pushes, states, kind, job):
         started = states.begin(_USER, kind, conflict="Busy")
 
-        assert states.close_pending(_USER, kind) is True
+        assert states.close_pending(_USER, kind, job_id=started.id) is True
 
         pushes.assert_called_once_with(*_hint(started.id, job))
 
     @pytest.mark.parametrize(("states", "kind", "job"), _sync_cases())
     def test_closing_a_sync_that_already_ended_announces_nothing_more(self, pushes, states, kind, job):
-        states.begin(_USER, kind, conflict="Busy")
-        states.set_status(_USER, kind, "succeeded")
+        started = states.begin(_USER, kind, conflict="Busy")
+        states.set_status(_USER, kind, "succeeded", job_id=started.id)
         pushes.reset_mock()
 
-        assert states.close_pending(_USER, kind) is False
+        assert states.close_pending(_USER, kind, job_id=started.id) is False
 
         pushes.assert_not_called()
 
@@ -84,10 +84,10 @@ class TestProfileExport:
     def test_a_completed_export_is_announced(self, pushes):
         states = export_state_store.ProfileExportStateStore(MemoryState())
         started = states.begin(_USER, _SESSION, conflict="Busy")
-        states.set_status(_USER, profile_constants.ExportStatus.RUNNING)
+        states.set_status(_USER, started.id, profile_constants.ExportStatus.RUNNING)
         pushes.assert_not_called()
 
-        states.set_status(_USER, profile_constants.ExportStatus.SUCCEEDED, size_bytes=10)
+        states.set_status(_USER, started.id, profile_constants.ExportStatus.SUCCEEDED, size_bytes=10)
 
         pushes.assert_called_once_with(*_hint(started.id, "profile_export"))
 
@@ -96,7 +96,10 @@ class TestProfileExport:
         started = states.begin(_USER, _SESSION, conflict="Busy")
 
         states.set_status(
-            _USER, profile_constants.ExportStatus.FAILED, error_code=profile_constants.ExportFailure.PROCESSING_FAILED
+            _USER,
+            started.id,
+            profile_constants.ExportStatus.FAILED,
+            error_code=profile_constants.ExportFailure.PROCESSING_FAILED,
         )
 
         pushes.assert_called_once_with(*_hint(started.id, "profile_export"))
@@ -108,9 +111,9 @@ class TestProfileImport:
     )
     def test_progress_is_not_announced(self, pushes, progress):
         states = import_state_store.ProfileImportStateStore(MemoryState())
-        states.begin(_USER, conflict="Busy")
+        started = states.begin(_USER, conflict="Busy")
 
-        states.set_status(_USER, progress)
+        states.set_status(_USER, started.id, progress)
 
         pushes.assert_not_called()
 
@@ -118,7 +121,7 @@ class TestProfileImport:
         states = import_state_store.ProfileImportStateStore(MemoryState())
         started = states.begin(_USER, conflict="Busy")
 
-        states.set_status(_USER, profile_constants.ImportStatus.SUCCEEDED, imported={"activities": 1})
+        states.set_status(_USER, started.id, profile_constants.ImportStatus.SUCCEEDED, imported={"activities": 1})
 
         pushes.assert_called_once_with(*_hint(started.id, "profile_import"))
 
@@ -127,7 +130,10 @@ class TestProfileImport:
         started = states.begin(_USER, conflict="Busy")
 
         states.set_status(
-            _USER, profile_constants.ImportStatus.FAILED, error_code=profile_constants.ImportFailure.PROCESSING_FAILED
+            _USER,
+            started.id,
+            profile_constants.ImportStatus.FAILED,
+            error_code=profile_constants.ImportFailure.PROCESSING_FAILED,
         )
 
         pushes.assert_called_once_with(*_hint(started.id, "profile_import"))

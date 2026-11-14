@@ -38,24 +38,24 @@ class TestBegin:
 
     def test_an_attempt_waiting_for_mfa_still_blocks_another(self):
         store = _store()
-        store.begin(MOCK_USER_ID, conflict="busy")
-        store.set_status(MOCK_USER_ID, Status.RUNNING, mfa_required=True)
+        job = store.begin(MOCK_USER_ID, conflict="busy")
+        store.set_status(MOCK_USER_ID, job.id, Status.RUNNING, mfa_required=True)
 
         with pytest.raises(core_exceptions.JobAlreadyRunningError):
             store.begin(MOCK_USER_ID, conflict="busy")
 
     def test_a_failed_attempt_can_be_retried(self):
         store = _store()
-        store.begin(MOCK_USER_ID, conflict="busy")
-        store.set_status(MOCK_USER_ID, Status.FAILED, Failure.INVALID_CREDENTIALS)
+        job = store.begin(MOCK_USER_ID, conflict="busy")
+        store.set_status(MOCK_USER_ID, job.id, Status.FAILED, Failure.INVALID_CREDENTIALS)
 
         store.begin(MOCK_USER_ID, conflict="busy")
         assert store.get(MOCK_USER_ID) == link_state_store.LinkState(status=Status.RUNNING)
 
     def test_a_completed_attempt_can_be_repeated(self):
         store = _store()
-        store.begin(MOCK_USER_ID, conflict="busy")
-        store.set_status(MOCK_USER_ID, Status.SUCCEEDED)
+        job = store.begin(MOCK_USER_ID, conflict="busy")
+        store.set_status(MOCK_USER_ID, job.id, Status.SUCCEEDED)
 
         store.begin(MOCK_USER_ID, conflict="busy")
 
@@ -81,9 +81,9 @@ class TestState:
 
     def test_a_failure_carries_its_error_code(self):
         store = _store()
-        store.begin(MOCK_USER_ID, conflict="busy")
+        job = store.begin(MOCK_USER_ID, conflict="busy")
 
-        store.set_status(MOCK_USER_ID, Status.FAILED, Failure.INCORRECT_MFA)
+        store.set_status(MOCK_USER_ID, job.id, Status.FAILED, Failure.INCORRECT_MFA)
 
         assert store.get(MOCK_USER_ID) == link_state_store.LinkState(
             status=Status.FAILED, error_code=Failure.INCORRECT_MFA
@@ -93,7 +93,7 @@ class TestState:
         state = MagicMock()
         state.set.side_effect = StateBackendUnavailableError("down")
 
-        link_state_store.GarminLinkStateStore(state=state).set_status(MOCK_USER_ID, Status.SUCCEEDED)
+        link_state_store.GarminLinkStateStore(state=state).set_status(MOCK_USER_ID, uuid.uuid4(), Status.SUCCEEDED)
 
 
 def test_a_claim_is_not_left_behind_when_the_pending_state_cannot_be_written():
@@ -111,9 +111,9 @@ def test_a_claim_is_not_left_behind_when_the_pending_state_cannot_be_written():
 def test_progress_renews_the_claim():
     state = MemoryState()
     store = link_state_store.GarminLinkStateStore(state=state, ttl_seconds=60)
-    store.begin(MOCK_USER_ID, conflict="busy")
+    job = store.begin(MOCK_USER_ID, conflict="busy")
     with patch.object(state, "set") as write:
-        store.set_status(MOCK_USER_ID, Status.RUNNING, mfa_required=True)
+        store.set_status(MOCK_USER_ID, job.id, Status.RUNNING, mfa_required=True)
 
     assert core_attempt_state.key("garmin", "link:claim", str(MOCK_USER_ID)) in [
         call.args[0] for call in write.call_args_list

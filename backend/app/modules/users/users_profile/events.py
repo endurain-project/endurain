@@ -19,6 +19,7 @@ class ProfileImportRequestedPayload(VersionedPayload):
 
     Attributes:
         user_id: The user whose profile the archive is imported into.
+        job_id: The job the import records its state against.
         staged_key: Storage key of the staged archive; it must sit under the user's own prefix.
     """
 
@@ -27,6 +28,7 @@ class ProfileImportRequestedPayload(VersionedPayload):
     SCHEMA_VERSION: ClassVar[int] = 1
 
     user_id: uuid.UUID
+    job_id: uuid.UUID
     staged_key: str
 
 
@@ -35,6 +37,7 @@ class ProfileExportRequestedPayload(VersionedPayload):
 
     Attributes:
         user_id: The user whose profile is exported.
+        job_id: The job the export records its state against.
     """
 
     model_config = ConfigDict(extra="ignore")
@@ -42,3 +45,4 @@ class ProfileExportRequestedPayload(VersionedPayload):
     SCHEMA_VERSION: ClassVar[int] = 1
 
     user_id: uuid.UUID
+    job_id: uuid.UUID

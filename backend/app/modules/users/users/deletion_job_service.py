@@ -145,10 +145,10 @@ def request_deletion(
             target_id=str(user_id),
             target_owner_id=str(user_id),
         )
-        _dispatch(user_id, states, storage, mail, db, source=users_constants.DELETION_SOURCE_API)
+        _dispatch(user_id, job.id, states, storage, mail, db, source=users_constants.DELETION_SOURCE_API)
     except BaseException:
         # The deletion never started, so nothing else would finish its claim.
-        states.set_status(user_id, _Kind.ACCOUNT, _Status.FAILED)
+        states.set_status(user_id, _Kind.ACCOUNT, _Status.FAILED, job_id=job.id)
         raise
 
     logger.info("Account deletion queued", extra=core_logger.context(user_id=user_id))
@@ -206,6 +206,7 @@ def request_deletion_by_administrator(
 
 def _dispatch(
     user_id: uuid.UUID,
+    job_id: uuid.UUID,
     states: users_deletion_state_store.UserDeletionStateStore,
     storage: platform_providers.StorageProvider,
     mail: platform_providers.MailProvider,
@@ -217,6 +218,7 @@ def _dispatch(
 
     Args:
         user_id: The user to delete.
+        job_id: The job that erases the account.
         states: Shared store of the deletion's state.
         storage: The platform storage provider, for the in-process pool.
         mail: The platform mail provider, for the in-process pool.
@@ -227,13 +229,13 @@ def _dispatch(
         PoolFullError: When there is no durable worker and the in-process pool is full.
     """
     if core_config.settings.JOBS_ENABLED:
-        users_event_publishers.publish_deletion_requested(user_id, db, commit=db.commit, source=source)
+        users_event_publishers.publish_deletion_requested(user_id, job_id, db, commit=db.commit, source=source)
         logger.debug("Account deletion queued for a worker", extra=core_logger.context(user_id=user_id, source=source))
         return
     db.commit()
     _deletion_pool.submit(
         run_deletion,
-        users_events.DeletionRequestedPayload(user_id=user_id),
+        users_events.DeletionRequestedPayload(user_id=user_id, job_id=job_id),
         states,
         storage,
         mail,
@@ -295,14 +297,15 @@ def run_deletion(
         Exception: Whatever the deletion raised, when ``will_retry``, so the worker runs it again.
     """
     user_id = payload.user_id
-    state = states.get(user_id, _Kind.ACCOUNT)
+    job_id = payload.job_id
+    state = states.get(user_id, _Kind.ACCOUNT, job_id=job_id)
     if state is None or state.status not in (_Status.QUEUED, _Status.RUNNING):
         logger.debug("Skipped an account deletion that is not pending", extra=core_logger.context(user_id=user_id))
         return False
 
     if first_pass:
         _send_deletion_notice(user_id, mail)
-    states.set_status(user_id, _Kind.ACCOUNT, _Status.RUNNING)
+    states.set_status(user_id, _Kind.ACCOUNT, _Status.RUNNING, job_id=job_id)
     try:
         activities, activities_left = _erase_activities(user_id, time_budget)
         if activities_left:
@@ -319,15 +322,15 @@ def run_deletion(
             logger.warning(
                 "Account deletion failed; it will be retried", exc_info=err, extra=core_logger.context(user_id=user_id)
             )
-            states.set_status(user_id, _Kind.ACCOUNT, _Status.QUEUED)
+            states.set_status(user_id, _Kind.ACCOUNT, _Status.QUEUED, job_id=job_id)
             raise
         logger.error("Account deletion failed", exc_info=err, extra=core_logger.context(user_id=user_id))
-        states.set_status(user_id, _Kind.ACCOUNT, _Status.FAILED)
+        states.set_status(user_id, _Kind.ACCOUNT, _Status.FAILED, job_id=job_id)
         return False
 
     users_contributor_registry.erasers().delete_staged_files(user_id, storage)
     users_contributor_registry.erasers().delete_bulk_import_errors(user_id, storage)
-    states.set_status(user_id, _Kind.ACCOUNT, _Status.SUCCEEDED)
+    states.set_status(user_id, _Kind.ACCOUNT, _Status.SUCCEEDED, job_id=job_id)
     logger.info("User deleted", extra=core_logger.context(user_id=user_id, activities=activities))
     return False
 
@@ -509,7 +512,7 @@ def close_dead_lettered_deletion(
         payload: Whose account was to be erased.
         states: Shared store of the deletion's state.
     """
-    if states.close_pending(payload.user_id, _Kind.ACCOUNT):
+    if states.close_pending(payload.user_id, _Kind.ACCOUNT, job_id=payload.job_id):
         logger.error("An account deletion was dead-lettered", extra=core_logger.context(user_id=payload.user_id))
 
 
@@ -590,7 +593,7 @@ def _requeue(
         _deletion_pool.require_capacity()
     try:
         # No request started the sweep, so the account being erased owns the job.
-        states.begin(user_id, _Kind.ACCOUNT, conflict=_CONFLICT, owner_id=user_id)
+        job = states.begin(user_id, _Kind.ACCOUNT, conflict=_CONFLICT, owner_id=user_id)
     except core_exceptions.JobAlreadyRunningError:
         logger.debug("A stalled deletion is still held by a job", extra=core_logger.context(user_id=user_id))
         return 0
@@ -599,7 +602,7 @@ def _requeue(
             attempts = users_crud.record_deletion_attempt(user_id, db)
             if attempts is None:
                 # Gone, or an administrator reactivated the account: nothing is left to queue.
-                states.set_status(user_id, _Kind.ACCOUNT, _Status.SUCCEEDED)
+                states.set_status(user_id, _Kind.ACCOUNT, _Status.SUCCEEDED, job_id=job.id)
                 return 0
             if attempts == users_constants.DELETION_SWEEP_MAX_ATTEMPTS:
                 logger.error(
@@ -607,12 +610,12 @@ def _requeue(
                     "this fails",
                     extra=core_logger.context(user_id=user_id, attempts=attempts),
                 )
-            _dispatch(user_id, states, storage, mail, db, source=users_constants.DELETION_SOURCE_SWEEP)
+            _dispatch(user_id, job.id, states, storage, mail, db, source=users_constants.DELETION_SOURCE_SWEEP)
     except core_local_pool.PoolFullError:
-        states.set_status(user_id, _Kind.ACCOUNT, _Status.FAILED)
+        states.set_status(user_id, _Kind.ACCOUNT, _Status.FAILED, job_id=job.id)
         raise
     except Exception as err:
-        states.set_status(user_id, _Kind.ACCOUNT, _Status.FAILED)
+        states.set_status(user_id, _Kind.ACCOUNT, _Status.FAILED, job_id=job.id)
         logger.error(
             "Could not queue a stalled account deletion again", exc_info=err, extra=core_logger.context(user_id=user_id)
         )

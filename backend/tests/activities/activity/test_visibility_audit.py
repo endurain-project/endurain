@@ -59,8 +59,8 @@ class TestBulkVisibilityRequest:
         audit.assert_not_audited(activity_audit_actions.VISIBILITY_BULK_UPDATE.id)
 
     def test_the_job_writes_no_row_per_activity(self, states):
-        states.begin(_USER_4, _Kind, conflict="x")
-        payload = activity_events.VisibilityEditRequestedPayload(user_id=_USER_4, visibility=2)
+        job = states.begin(_USER_4, _Kind, conflict="x")
+        payload = activity_events.VisibilityEditRequestedPayload(user_id=_USER_4, job_id=job.id, visibility=2)
 
         with (
             jasil_testing.capture_audit() as audit,

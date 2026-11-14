@@ -99,6 +99,7 @@ class ProfileExportStateStore:
     def set_status(
         self,
         user_id: uuid.UUID,
+        job_id: uuid.UUID,
         status: profile_constants.ExportStatus,
         *,
         error_code: profile_constants.ExportFailure | None = None,
@@ -108,6 +109,7 @@ class ProfileExportStateStore:
 
         Args:
             user_id: The exporting user.
+            job_id: The job the caller is running; one a newer job superseded records nothing.
             status: The new status.
             error_code: Why the export failed, when ``status`` is ``FAILED``.
             size_bytes: The archive size, when ``status`` is ``SUCCEEDED``.
@@ -115,7 +117,7 @@ class ProfileExportStateStore:
         A completed state is written with a fresh lifetime, so its ``expires_at`` is that lifetime from now. The
         requesting session carries over from the state being replaced.
         """
-        current = self.get(user_id)
+        current = self.get(user_id, job_id=job_id)
         expires_at = (
             datetime.now(UTC) + timedelta(seconds=self._ttl_seconds)
             if status == profile_constants.ExportStatus.SUCCEEDED
@@ -123,6 +125,7 @@ class ProfileExportStateStore:
         )
         self._attempts.record(
             str(user_id),
+            job_id,
             ProfileExportState(
                 status=status,
                 session_id=current.session_id if current is not None else None,
@@ -133,19 +136,21 @@ class ProfileExportStateStore:
             finished=status in _FINISHED,
         )
 
-    def get(self, user_id: uuid.UUID) -> ProfileExportState | None:
+    def get(self, user_id: uuid.UUID, *, job_id: uuid.UUID | None = None) -> ProfileExportState | None:
         """Read a user's export state.
 
         Args:
             user_id: The exporting user.
+            job_id: When given, read the state only while it belongs to this job.
 
         Returns:
-            The state, or None when none is recorded or it has expired.
+            The state, or None when none is recorded, it has expired or, with ``job_id``, it belongs to another
+            job.
 
         Raises:
             StateUnavailableError: When storage is unavailable.
         """
-        value = self._attempts.read(str(user_id))
+        value = self._attempts.read(str(user_id), job_id=job_id)
         return ProfileExportState.model_validate_json(value) if value is not None else None
 
     def read_job(self, job: core_job_status.JobRef) -> tuple[core_job_status.JobRef, ProfileExportState] | None:

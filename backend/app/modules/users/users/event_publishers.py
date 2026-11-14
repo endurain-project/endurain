@@ -10,7 +10,9 @@ import core.event_metadata as core_event_metadata
 import modules.users.users.events as users_events
 
 
-def publish_deletion_requested(user_id: uuid.UUID, db: Session, *, commit: Callable[[], None], source: str) -> None:
+def publish_deletion_requested(
+    user_id: uuid.UUID, job_id: uuid.UUID, db: Session, *, commit: Callable[[], None], source: str
+) -> None:
     """Publish ``users.deletion_requested`` so a durable worker erases the account.
 
     The event is the work, so it is staged in the transactional outbox on ``db`` and a staging
@@ -18,11 +20,12 @@ def publish_deletion_requested(user_id: uuid.UUID, db: Session, *, commit: Calla
 
     Args:
         user_id: The user whose account to erase.
+        job_id: The job the erasure records its state against.
         db: The session to stage the event on.
         commit: Zero-arg commit callable that ends the caller's transaction.
         source: Who asked for the deletion, as recorded on the event.
     """
-    payload = users_events.DeletionRequestedPayload(user_id=user_id)
+    payload = users_events.DeletionRequestedPayload(user_id=user_id, job_id=job_id)
     platform_publisher.publish_committing(
         users_events.USERS_DELETION_REQUESTED,
         payload.model_dump(mode="json"),

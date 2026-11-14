@@ -92,6 +92,7 @@ def run_recorded(
     states: core_attempt_state.SyncStateStore,
     user_id: uuid.UUID,
     kind: StrEnum,
+    job_id: uuid.UUID,
     work: Callable[[], bool],
     *,
     will_retry: bool,
@@ -109,6 +110,7 @@ def run_recorded(
         states: Shared store of the sync's state.
         user_id: The user being synced.
         kind: What the sync does.
+        job_id: The job the caller is running; a sync that a newer one superseded records nothing.
         work: The sync itself; returns whether it did anything.
         will_retry: Whether a durable worker runs this again if it raises.
         refusals: Errors that mean the provider refused the sync.
@@ -121,33 +123,33 @@ def run_recorded(
     Raises:
         Exception: Whatever the work raised other than a refusal, after the state was recorded.
     """
-    states.set_status(user_id, kind, _Status.RUNNING)
+    states.set_status(user_id, kind, _Status.RUNNING, job_id=job_id)
     try:
         synced = work()
     except refusals as err:
         if on_refused is not None:
             on_refused(err)
         logger.warning("The provider refused the sync", extra=core_logger.context(user_id=user_id, kind=kind))
-        states.set_status(user_id, kind, _Status.FAILED)
+        states.set_status(user_id, kind, _Status.FAILED, job_id=job_id)
         return None
     except Exception:
-        states.set_status(user_id, kind, _Status.QUEUED if will_retry else _Status.FAILED)
+        states.set_status(user_id, kind, _Status.QUEUED if will_retry else _Status.FAILED, job_id=job_id)
         raise
-    states.set_status(user_id, kind, _Status.SUCCEEDED if synced else _Status.FAILED)
+    states.set_status(user_id, kind, _Status.SUCCEEDED if synced else _Status.FAILED, job_id=job_id)
     return synced
 
 
 def start_claimed(
     claim: Callable[[], core_job_status.JobRef],
-    start: Callable[[], object],
-    release: Callable[[], None],
+    start: Callable[[core_job_status.JobRef], object],
+    release: Callable[[core_job_status.JobRef], None],
 ) -> core_job_status.JobRef:
     """Take a claim and start the work it guards, giving the claim back when the work never started.
 
     Args:
         claim: Takes the claim and returns the new job; raises when the work is already pending.
-        start: Hands the work to a worker or a pool.
-        release: Gives the claim back.
+        start: Hands the work to a worker or a pool; called with the new job, which the work records against.
+        release: Gives the claim back; called with the new job.
 
     Returns:
         The started job's reference.
@@ -157,10 +159,10 @@ def start_claimed(
     """
     job = claim()
     try:
-        start()
+        start(job)
     except BaseException:
         # The work never started, so nothing else would release its claim.
-        release()
+        release(job)
         raise
     return job
 
@@ -172,8 +174,8 @@ def queue_sync(
     label: str,
     *,
     durable: bool,
-    publish: Callable[[], None],
-    submit: Callable[[], object],
+    publish: Callable[[core_job_status.JobRef], None],
+    submit: Callable[[core_job_status.JobRef], object],
 ) -> core_job_status.JobRef:
     """Claim a sync and hand it to a durable worker, or to the in-process pool without durable jobs.
 
@@ -183,8 +185,8 @@ def queue_sync(
         kind: What the sync does.
         label: The provider's name, for messages.
         durable: Whether a durable worker takes the sync.
-        publish: Stages the work for a durable worker.
-        submit: Submits the work to the in-process pool.
+        publish: Stages the work for a durable worker; called with the claimed job.
+        submit: Submits the work to the in-process pool; called with the claimed job.
 
     Returns:
         The queued sync's job reference.
@@ -195,12 +197,12 @@ def queue_sync(
     return start_claimed(
         lambda: states.begin(user_id, kind, conflict=f"A {label} {kind.value} sync is already in progress"),
         publish if durable else submit,
-        lambda: states.set_status(user_id, kind, _Status.FAILED),
+        lambda job: states.set_status(user_id, kind, _Status.FAILED, job_id=job.id),
     )
 
 
 def close_dead_lettered(
-    states: core_attempt_state.SyncStateStore, user_id: uuid.UUID, kind: StrEnum, label: str
+    states: core_attempt_state.SyncStateStore, user_id: uuid.UUID, kind: StrEnum, job_id: uuid.UUID, label: str
 ) -> None:
     """Close a sync the runner gave up on, so the user can queue another.
 
@@ -211,9 +213,10 @@ def close_dead_lettered(
         states: Shared store of the sync's state.
         user_id: The user whose sync was dead-lettered.
         kind: What the sync did.
+        job_id: The job the runner gave up on.
         label: The provider's name, for the log.
     """
-    if states.close_pending(user_id, kind):
+    if states.close_pending(user_id, kind, job_id=job_id):
         logger.error(
             "A <label> sync was dead-lettered", extra=core_logger.context(label=label, user_id=user_id, kind=kind)
         )

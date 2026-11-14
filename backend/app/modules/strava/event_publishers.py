@@ -13,6 +13,7 @@ import modules.strava.events as strava_events
 
 def publish_sync_requested(
     user_id: uuid.UUID,
+    job_id: uuid.UUID,
     kind: strava_constants.SyncKind,
     db: Session,
     *,
@@ -26,12 +27,13 @@ def publish_sync_requested(
 
     Args:
         user_id: The user whose account to sync.
+        job_id: The job the sync records its state against.
         kind: What to do.
         db: The session to stage the event on.
         commit: Zero-arg commit callable that ends the caller's transaction.
         source: Who asked for the sync, as recorded on the event.
     """
-    payload = strava_events.SyncRequestedPayload(user_id=user_id, kind=kind)
+    payload = strava_events.SyncRequestedPayload(user_id=user_id, job_id=job_id, kind=kind)
     platform_publisher.publish_committing(
         strava_events.STRAVA_SYNC_REQUESTED,
         payload.model_dump(mode="json"),

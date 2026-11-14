@@ -95,7 +95,7 @@ class TestGetJob:
     def test_a_job_its_subject_has_replaced_is_not_found(self, state):
         first = _strava(state)
         strava_sync_state_store.StravaSyncStateStore(state).set_status(
-            USER, strava_constants.SyncKind.GEAR, Status.SUCCEEDED
+            USER, strava_constants.SyncKind.GEAR, Status.SUCCEEDED, job_id=first.id
         )
         _strava(state)
 
@@ -202,9 +202,9 @@ class TestListJobs:
 
     def test_kind_and_status_filter_the_list(self, state):
         gear = _strava(state)
-        _strava(state, kind=strava_constants.SyncKind.LINK)
+        link = _strava(state, kind=strava_constants.SyncKind.LINK)
         strava_sync_state_store.StravaSyncStateStore(state).set_status(
-            USER, strava_constants.SyncKind.LINK, Status.SUCCEEDED
+            USER, strava_constants.SyncKind.LINK, Status.SUCCEEDED, job_id=link.id
         )
         with patch(_INGESTION_LIST) as ingestion:
             by_kind = jobs_service.list_jobs(

@@ -59,7 +59,9 @@ def test_read_export_job_is_none_for_an_earlier_job_and_once_expired():
     state = MemoryState()
     first = _begin_export(state)
 
-    export_state_store.ProfileExportStateStore(state).set_status(_USER_ID, profile_constants.ExportStatus.FAILED)
+    export_state_store.ProfileExportStateStore(state).set_status(
+        _USER_ID, first.id, profile_constants.ExportStatus.FAILED
+    )
     _begin_export(state)
     assert profile_integration.read_export_job(first, state) is None
 
@@ -79,7 +81,9 @@ def test_read_import_job_is_none_for_an_earlier_job_and_once_expired():
 
     state = MemoryState()
     first = _begin_import(state)
-    import_state_store.ProfileImportStateStore(state).set_status(_USER_ID, profile_constants.ImportStatus.FAILED)
+    import_state_store.ProfileImportStateStore(state).set_status(
+        _USER_ID, first.id, profile_constants.ImportStatus.FAILED
+    )
     _begin_import(state)
     assert profile_integration.read_import_job(first, state) is None
 

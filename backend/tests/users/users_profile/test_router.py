@@ -765,8 +765,8 @@ class TestDownloadProfileExport:
     """Tests for GET /profile/export/download — download_profile_export."""
 
     def test_streams_the_finished_archive(self, profile_app, profile_client, export_states):
-        export_states.begin(MOCK_USER_ID, MOCK_SESSION_ID, conflict="held")
-        export_states.set_status(MOCK_USER_ID, "succeeded", size_bytes=8)
+        job = export_states.begin(MOCK_USER_ID, MOCK_SESSION_ID, conflict="held")
+        export_states.set_status(MOCK_USER_ID, job.id, "succeeded", size_bytes=8)
         storage = MagicMock()
         storage.open_stream.return_value = io.BytesIO(b"zip-data")
         profile_app.dependency_overrides[core_dependencies.get_storage] = lambda: storage
@@ -783,8 +783,8 @@ class TestDownloadProfileExport:
     def test_is_not_found_for_a_session_that_did_not_request_the_export(
         self, profile_app, profile_client, export_states
     ):
-        export_states.begin(MOCK_USER_ID, uuid.UUID(int=602), conflict="held")
-        export_states.set_status(MOCK_USER_ID, "succeeded", size_bytes=8)
+        job = export_states.begin(MOCK_USER_ID, uuid.UUID(int=602), conflict="held")
+        export_states.set_status(MOCK_USER_ID, job.id, "succeeded", size_bytes=8)
         storage = MagicMock()
         profile_app.dependency_overrides[core_dependencies.get_storage] = lambda: storage
 
@@ -837,8 +837,10 @@ class TestImportProfileData:
         }
         publish.assert_called_once()
         assert publish.call_args.args[0] == MOCK_USER_ID
-        assert publish.call_args.args[1].startswith(f"{MOCK_USER_ID}/")
-        assert import_states.get(MOCK_USER_ID).status == "queued"
+        job_id = publish.call_args.args[1]
+        assert str(job_id) == body["id"]
+        assert publish.call_args.args[2].startswith(f"{MOCK_USER_ID}/")
+        assert import_states.get(MOCK_USER_ID, job_id=job_id).status == "queued"
 
     @patch("modules.users.users_profile.router.core_file_uploads.save_validated_upload_sync", side_effect=_write_upload)
     def test_a_second_import_while_one_is_pending_is_a_conflict(self, mock_validate, profile_client):

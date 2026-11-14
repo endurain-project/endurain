@@ -198,7 +198,7 @@ class TestReadBulkEditJob:
         state = MemoryState()
         store = bulk_edit_state_store.ActivityBulkEditStateStore(state)
         earlier = store.begin(_USER_7, _Kind, conflict="x")
-        store.set_status(_USER_7, _Kind, _Status.SUCCEEDED)
+        store.set_status(_USER_7, _Kind, _Status.SUCCEEDED, job_id=earlier.id)
         later = store.begin(_USER_7, _Kind, conflict="x")
 
         assert integration_service.read_bulk_edit_job(earlier, state) is None

@@ -97,6 +97,7 @@ class ProfileImportStateStore:
     def set_status(
         self,
         user_id: uuid.UUID,
+        job_id: uuid.UUID,
         status: profile_constants.ImportStatus,
         *,
         error_code: profile_constants.ImportFailure | None = None,
@@ -107,6 +108,7 @@ class ProfileImportStateStore:
 
         Args:
             user_id: The importing user.
+            job_id: The job the caller is running; one a newer job superseded records nothing.
             status: The new status.
             error_code: Why the import failed, when ``status`` is ``FAILED``.
             imported: The counts of what was imported, when ``status`` is ``SUCCEEDED``.
@@ -117,24 +119,27 @@ class ProfileImportStateStore:
         """
         self._attempts.record(
             str(user_id),
+            job_id,
             ProfileImportState(status=status, error_code=error_code, imported=imported),
             finished=status in _FINISHED,
             strict=strict,
         )
 
-    def get(self, user_id: uuid.UUID) -> ProfileImportState | None:
+    def get(self, user_id: uuid.UUID, *, job_id: uuid.UUID | None = None) -> ProfileImportState | None:
         """Read a user's import state.
 
         Args:
             user_id: The importing user.
+            job_id: When given, read the state only while it belongs to this job.
 
         Returns:
-            The state, or None when none is recorded or it has expired.
+            The state, or None when none is recorded, it has expired or, with ``job_id``, it belongs to another
+            job.
 
         Raises:
             StateUnavailableError: When storage is unavailable.
         """
-        value = self._attempts.read(str(user_id))
+        value = self._attempts.read(str(user_id), job_id=job_id)
         return ProfileImportState.model_validate_json(value) if value is not None else None
 
     def read_job(self, job: core_job_status.JobRef) -> tuple[core_job_status.JobRef, ProfileImportState] | None:

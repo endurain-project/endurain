@@ -87,8 +87,10 @@ def start_link(
         raise core_exceptions.InvalidInputError("Strava client ID and secret not set")
     job = core_sync_runner.start_claimed(
         lambda: states.begin(user_id, strava_constants.SyncKind.LINK, conflict="A Strava link is already in progress"),
-        lambda: _link_pool.submit(run_link, user_id, link.code, states),
-        lambda: states.set_status(user_id, strava_constants.SyncKind.LINK, strava_constants.SyncStatus.FAILED),
+        lambda job: _link_pool.submit(run_link, user_id, job.id, link.code, states),
+        lambda job: states.set_status(
+            user_id, strava_constants.SyncKind.LINK, strava_constants.SyncStatus.FAILED, job_id=job.id
+        ),
     )
     logger.info("Strava link queued", extra=core_logger.context(user_id=user_id))
     return strava_schema.StravaSyncStatus.model_validate(
@@ -133,7 +135,9 @@ def _audit_link_failure(user_id: uuid.UUID, reason: strava_audit_actions.LinkFai
     )
 
 
-def run_link(user_id: uuid.UUID, code: str, states: strava_sync_state_store.StravaSyncStateStore) -> None:
+def run_link(
+    user_id: uuid.UUID, job_id: uuid.UUID, code: str, states: strava_sync_state_store.StravaSyncStateStore
+) -> None:
     """Exchange an authorization code for tokens, store them and record the outcome.
 
     Blocking; runs on the link pool, never on a request. The exchange is one bounded Strava
@@ -142,11 +146,12 @@ def run_link(user_id: uuid.UUID, code: str, states: strava_sync_state_store.Stra
 
     Args:
         user_id: The user linking Strava.
+        job_id: The link job this run records its state against.
         code: The authorization code Strava returned.
         states: Shared store of the link's state.
     """
     kind = strava_constants.SyncKind.LINK
-    states.set_status(user_id, kind, strava_constants.SyncStatus.RUNNING)
+    states.set_status(user_id, kind, strava_constants.SyncStatus.RUNNING, job_id=job_id)
     try:
         with core_database.SessionLocal() as db:
             user_integrations = user_integrations_integration.require_user_integrations(user_id, db)
@@ -171,7 +176,7 @@ def run_link(user_id: uuid.UUID, code: str, states: strava_sync_state_store.Stra
     except Exception as err:
         logger.warning("Unable to link Strava account", extra=core_logger.context(user_id=user_id), exc_info=err)
         _record_refused_link(user_id, err)
-        states.set_status(user_id, kind, strava_constants.SyncStatus.FAILED)
+        states.set_status(user_id, kind, strava_constants.SyncStatus.FAILED, job_id=job_id)
         return
-    states.set_status(user_id, kind, strava_constants.SyncStatus.SUCCEEDED)
+    states.set_status(user_id, kind, strava_constants.SyncStatus.SUCCEEDED, job_id=job_id)
     logger.info("Strava linked", extra=core_logger.context(user_id=user_id))

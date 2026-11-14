@@ -92,6 +92,7 @@ def run_sync(
         states,
         payload.user_id,
         payload.kind,
+        payload.job_id,
         work,
         will_retry=will_retry,
         refusals=(core_exceptions.TooManyRequestsError,),
@@ -116,7 +117,7 @@ def close_dead_lettered_sync(
         payload: What was to be synced.
         states: Shared store of the sync's state.
     """
-    core_sync_runner.close_dead_lettered(states, payload.user_id, payload.kind, "Strava")
+    core_sync_runner.close_dead_lettered(states, payload.user_id, payload.kind, payload.job_id, "Strava")
 
 
 def _queue(
@@ -158,11 +159,11 @@ def _queue(
         kind,
         "Strava",
         durable=durable,
-        publish=lambda: strava_event_publishers.publish_sync_requested(
-            user_id, kind, db, commit=db.commit, source=strava_constants.SYNC_SOURCE_API
+        publish=lambda job: strava_event_publishers.publish_sync_requested(
+            user_id, job.id, kind, db, commit=db.commit, source=strava_constants.SYNC_SOURCE_API
         ),
-        submit=lambda: _sync_pool.submit(
-            run_sync, strava_events.SyncRequestedPayload(user_id=user_id, kind=kind), states, rate_limits
+        submit=lambda job: _sync_pool.submit(
+            run_sync, strava_events.SyncRequestedPayload(user_id=user_id, job_id=job.id, kind=kind), states, rate_limits
         ),
     )
     if audit is not None and not durable:

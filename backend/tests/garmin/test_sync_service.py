@@ -67,6 +67,7 @@ def test_a_gear_sync_goes_to_the_pool_without_durable_jobs(rate_limits, local, s
 
     local.submit_waiting.assert_called_once()
     assert local.submit_waiting.call_args.args[2].kind == Kind.GEAR
+    assert local.submit_waiting.call_args.args[2].job_id == result.id
     assert result.status == Status.QUEUED
     assert result.kind == "garmin_sync_gear"
     assert states.get(MOCK_USER_ID, Kind.GEAR).status == Status.QUEUED
@@ -76,10 +77,10 @@ def test_a_health_sync_is_published_for_a_worker_with_durable_jobs(rate_limits, 
     publish, executor = durable
     db = MagicMock()
 
-    garmin_sync_service.request_health_sync(MOCK_USER_ID, DAY, DAY, states, rate_limits, db)
+    result = garmin_sync_service.request_health_sync(MOCK_USER_ID, DAY, DAY, states, rate_limits, db)
 
     publish.assert_called_once_with(
-        MOCK_USER_ID, Kind.HEALTH, DAY, DAY, db, commit=db.commit, source=garmin_constants.SYNC_SOURCE_API
+        MOCK_USER_ID, result.id, Kind.HEALTH, DAY, DAY, db, commit=db.commit, source=garmin_constants.SYNC_SOURCE_API
     )
     executor.submit.assert_not_called()
 
@@ -199,7 +200,7 @@ class TestReadSyncJob:
         state = MemoryState()
         store = garmin_sync_state_store.GarminSyncStateStore(state=state)
         first = store.begin(MOCK_USER_ID, Kind.GEAR, conflict="busy")
-        store.set_status(MOCK_USER_ID, Kind.GEAR, Status.SUCCEEDED)
+        store.set_status(MOCK_USER_ID, Kind.GEAR, Status.SUCCEEDED, job_id=first.id)
         second = store.begin(MOCK_USER_ID, Kind.GEAR, conflict="busy")
 
         assert garmin_integration.read_sync_job(first, state) is None
@@ -216,18 +217,20 @@ class TestReadSyncJob:
 
 class TestRunSync:
     def test_it_dispatches_by_kind_and_records_the_outcome(self, rate_limits, states):
-        states.begin(MOCK_USER_ID, Kind.GEAR, conflict="busy")
-        states.begin(OTHER_USER_ID, Kind.HEALTH, conflict="busy")
+        gear_job = states.begin(MOCK_USER_ID, Kind.GEAR, conflict="busy")
+        health_job = states.begin(OTHER_USER_ID, Kind.HEALTH, conflict="busy")
         with (
             patch.object(garmin_sync_service.garmin_gear_service, "get_user_gear") as gear,
             patch.object(garmin_sync_service.garmin_health_service, "sync_health_for_dates") as health,
         ):
             garmin_sync_service.run_sync(
-                garmin_events.SyncRequestedPayload(user_id=MOCK_USER_ID, kind=Kind.GEAR), states, rate_limits
+                garmin_events.SyncRequestedPayload(user_id=MOCK_USER_ID, job_id=gear_job.id, kind=Kind.GEAR),
+                states,
+                rate_limits,
             )
             garmin_sync_service.run_sync(
                 garmin_events.SyncRequestedPayload(
-                    user_id=OTHER_USER_ID, kind=Kind.HEALTH, start_date=DAY, end_date=DAY
+                    user_id=OTHER_USER_ID, job_id=health_job.id, kind=Kind.HEALTH, start_date=DAY, end_date=DAY
                 ),
                 states,
                 rate_limits,
@@ -239,19 +242,21 @@ class TestRunSync:
         assert states.get(OTHER_USER_ID, Kind.HEALTH).status == Status.SUCCEEDED
 
     def test_a_completed_sync_tells_the_browser_what_to_refetch(self, rate_limits, states):
-        states.begin(MOCK_USER_ID, Kind.GEAR, conflict="busy")
-        states.begin(OTHER_USER_ID, Kind.HEALTH, conflict="busy")
+        gear_job = states.begin(MOCK_USER_ID, Kind.GEAR, conflict="busy")
+        health_job = states.begin(OTHER_USER_ID, Kind.HEALTH, conflict="busy")
         with (
             patch.object(garmin_sync_service.garmin_gear_service, "get_user_gear", return_value=True),
             patch.object(garmin_sync_service.garmin_health_service, "sync_health_for_dates", return_value=True),
             patch.object(garmin_sync_service.websocket_integration, "push_to_user") as push,
         ):
             garmin_sync_service.run_sync(
-                garmin_events.SyncRequestedPayload(user_id=MOCK_USER_ID, kind=Kind.GEAR), states, rate_limits
+                garmin_events.SyncRequestedPayload(user_id=MOCK_USER_ID, job_id=gear_job.id, kind=Kind.GEAR),
+                states,
+                rate_limits,
             )
             garmin_sync_service.run_sync(
                 garmin_events.SyncRequestedPayload(
-                    user_id=OTHER_USER_ID, kind=Kind.HEALTH, start_date=DAY, end_date=DAY
+                    user_id=OTHER_USER_ID, job_id=health_job.id, kind=Kind.HEALTH, start_date=DAY, end_date=DAY
                 ),
                 states,
                 rate_limits,
@@ -272,7 +277,9 @@ class TestRunSync:
             patch.object(garmin_sync_service.websocket_integration, "push_to_user") as push,
         ):
             garmin_sync_service.run_sync(
-                garmin_events.SyncRequestedPayload(user_id=MOCK_USER_ID, kind=Kind.GEAR), states, rate_limits
+                garmin_events.SyncRequestedPayload(user_id=MOCK_USER_ID, job_id=job.id, kind=Kind.GEAR),
+                states,
+                rate_limits,
             )
 
         push.assert_called_once_with(
@@ -280,26 +287,28 @@ class TestRunSync:
         )
 
     def test_a_failure_nothing_retries_is_recorded_released_and_raised(self, rate_limits, states):
-        states.begin(MOCK_USER_ID, Kind.GEAR, conflict="busy")
+        job = states.begin(MOCK_USER_ID, Kind.GEAR, conflict="busy")
         with (
             patch.object(garmin_sync_service.garmin_gear_service, "get_user_gear", side_effect=RuntimeError("boom")),
             pytest.raises(RuntimeError),
         ):
             garmin_sync_service.run_sync(
-                garmin_events.SyncRequestedPayload(user_id=MOCK_USER_ID, kind=Kind.GEAR), states, rate_limits
+                garmin_events.SyncRequestedPayload(user_id=MOCK_USER_ID, job_id=job.id, kind=Kind.GEAR),
+                states,
+                rate_limits,
             )
 
         assert states.get(MOCK_USER_ID, Kind.GEAR).status == Status.FAILED
         states.begin(MOCK_USER_ID, Kind.GEAR, conflict="busy")
 
     def test_a_failure_with_attempts_left_stays_queued_and_claimed_for_its_retry(self, rate_limits, states):
-        states.begin(MOCK_USER_ID, Kind.GEAR, conflict="busy")
+        job = states.begin(MOCK_USER_ID, Kind.GEAR, conflict="busy")
         with (
             patch.object(garmin_sync_service.garmin_gear_service, "get_user_gear", side_effect=RuntimeError("boom")),
             pytest.raises(RuntimeError),
         ):
             garmin_sync_service.run_sync(
-                garmin_events.SyncRequestedPayload(user_id=MOCK_USER_ID, kind=Kind.GEAR),
+                garmin_events.SyncRequestedPayload(user_id=MOCK_USER_ID, job_id=job.id, kind=Kind.GEAR),
                 states,
                 rate_limits,
                 will_retry=True,
@@ -310,32 +319,36 @@ class TestRunSync:
             states.begin(MOCK_USER_ID, Kind.GEAR, conflict="busy")
 
     def test_a_rate_limited_sync_is_failed_without_a_retry(self, rate_limits, durable, states):
-        states.begin(MOCK_USER_ID, Kind.GEAR, conflict="busy")
+        job = states.begin(MOCK_USER_ID, Kind.GEAR, conflict="busy")
         error = garmin_sync_service.garminconnect.GarminConnectTooManyRequestsError("429")
         with patch.object(garmin_sync_service.garmin_gear_service, "get_user_gear", side_effect=error):
             garmin_sync_service.run_sync(
-                garmin_events.SyncRequestedPayload(user_id=MOCK_USER_ID, kind=Kind.GEAR), states, rate_limits
+                garmin_events.SyncRequestedPayload(user_id=MOCK_USER_ID, job_id=job.id, kind=Kind.GEAR),
+                states,
+                rate_limits,
             )
 
         assert states.get(MOCK_USER_ID, Kind.GEAR).status == Status.FAILED
         states.begin(MOCK_USER_ID, Kind.GEAR, conflict="busy")
 
     def test_a_rate_limited_sync_records_the_limit_for_every_replica(self, durable, states, rate_limits):
-        states.begin(MOCK_USER_ID, Kind.GEAR, conflict="busy")
+        job = states.begin(MOCK_USER_ID, Kind.GEAR, conflict="busy")
         error = garmin_sync_service.garminconnect.GarminConnectTooManyRequestsError("429")
         with patch.object(garmin_sync_service.garmin_gear_service, "get_user_gear", side_effect=error):
             garmin_sync_service.run_sync(
-                garmin_events.SyncRequestedPayload(user_id=MOCK_USER_ID, kind=Kind.GEAR), states, rate_limits
+                garmin_events.SyncRequestedPayload(user_id=MOCK_USER_ID, job_id=job.id, kind=Kind.GEAR),
+                states,
+                rate_limits,
             )
 
         assert rate_limits.rate_limited_until(MOCK_USER_ID) is not None
 
     def test_a_sync_refused_by_an_active_limit_is_failed_without_a_retry(self, durable, states, rate_limits):
-        states.begin(MOCK_USER_ID, Kind.GEAR, conflict="busy")
+        job = states.begin(MOCK_USER_ID, Kind.GEAR, conflict="busy")
         error = core_exceptions.TooManyRequestsError("slow down", scope=core_exceptions.TooManyRequestsScope.PROVIDER)
         with patch.object(garmin_sync_service.garmin_gear_service, "get_user_gear", side_effect=error):
             garmin_sync_service.run_sync(
-                garmin_events.SyncRequestedPayload(user_id=MOCK_USER_ID, kind=Kind.GEAR),
+                garmin_events.SyncRequestedPayload(user_id=MOCK_USER_ID, job_id=job.id, kind=Kind.GEAR),
                 states,
                 rate_limits,
                 will_retry=True,
@@ -345,10 +358,12 @@ class TestRunSync:
         states.begin(MOCK_USER_ID, Kind.GEAR, conflict="busy")
 
     def test_a_sync_that_did_not_run_is_recorded_as_failed_without_a_retry(self, rate_limits, states):
-        states.begin(MOCK_USER_ID, Kind.GEAR, conflict="busy")
+        job = states.begin(MOCK_USER_ID, Kind.GEAR, conflict="busy")
         with patch.object(garmin_sync_service.garmin_gear_service, "get_user_gear", return_value=False):
             garmin_sync_service.run_sync(
-                garmin_events.SyncRequestedPayload(user_id=MOCK_USER_ID, kind=Kind.GEAR), states, rate_limits
+                garmin_events.SyncRequestedPayload(user_id=MOCK_USER_ID, job_id=job.id, kind=Kind.GEAR),
+                states,
+                rate_limits,
             )
 
         assert states.get(MOCK_USER_ID, Kind.GEAR).status == Status.FAILED
@@ -356,7 +371,7 @@ class TestRunSync:
 
     def test_a_health_payload_needs_a_date_range(self):
         with pytest.raises(ValueError):
-            garmin_events.SyncRequestedPayload(user_id=MOCK_USER_ID, kind=Kind.HEALTH)
+            garmin_events.SyncRequestedPayload(user_id=MOCK_USER_ID, job_id=uuid.uuid4(), kind=Kind.HEALTH)
 
 
 class TestRecentHealth:
@@ -478,7 +493,7 @@ class TestRecentHealth:
         ):
             garmin_sync_service.sync_recent_health(states, rate_limits)
 
-        assert publish.call_args.args[2:4] == (date(2026, 3, 9), date(2026, 3, 10))
+        assert publish.call_args.args[3:5] == (date(2026, 3, 9), date(2026, 3, 10))
 
     def test_the_event_names_the_scheduler_as_its_source(self, rate_limits, durable, states):
         publish, _ = durable
@@ -512,13 +527,13 @@ def _dead_letter(event: Event, error: str | None) -> None:
     _registered().dead_letter_callback(garmin_subscribers.SYNC_REQUESTED_SUBSCRIBER_ID)(event, error)
 
 
-def _sync_event(retry_count: int = 1, max_attempts: int | None = 3) -> Event:
+def _sync_event(job_id: uuid.UUID, retry_count: int = 1, max_attempts: int | None = 3) -> Event:
     return Event(
         event_id="evt-1",
         event_type=garmin_events.GARMIN_SYNC_REQUESTED,
         source="test",
         timestamp="2026-10-31T00:00:00+00:00",
-        payload={"user_id": str(MOCK_USER_ID), "kind": "gear"},
+        payload={"user_id": str(MOCK_USER_ID), "job_id": str(job_id), "kind": "gear"},
         retry_count=retry_count,
         max_attempts=max_attempts,
     )
@@ -526,14 +541,15 @@ def _sync_event(retry_count: int = 1, max_attempts: int | None = 3) -> Event:
 
 @pytest.mark.parametrize(("retry_count", "will_retry"), [(1, True), (2, True), (3, False)])
 def test_the_durable_handler_asks_for_a_retry_only_while_attempts_remain(states, rate_limits, retry_count, will_retry):
-    payload = garmin_events.SyncRequestedPayload(user_id=MOCK_USER_ID, kind=Kind.GEAR)
+    job_id = uuid.uuid4()
+    payload = garmin_events.SyncRequestedPayload(user_id=MOCK_USER_ID, job_id=job_id, kind=Kind.GEAR)
     with (
         patch.object(garmin_subscribers.garmin_sync_state_store, "GarminSyncStateStore", return_value=states),
         patch.object(garmin_subscribers.garmin_rate_limit_store, "GarminRateLimitStore", return_value=rate_limits),
         patch.object(garmin_subscribers.platform_runtime, "get_state"),
         patch.object(garmin_subscribers.garmin_sync_service, "run_sync") as run,
     ):
-        _handle(_sync_event(retry_count))
+        _handle(_sync_event(job_id, retry_count))
 
     run.assert_called_once_with(payload, states, rate_limits, will_retry=will_retry)
 
@@ -551,26 +567,41 @@ class TestDeadLetter:
 
     @pytest.mark.parametrize("status", [Status.QUEUED, Status.RUNNING])
     def test_a_pending_sync_is_failed_and_its_claim_released(self, stores, status):
-        stores.begin(MOCK_USER_ID, Kind.GEAR, conflict="busy")
-        stores.set_status(MOCK_USER_ID, Kind.GEAR, status)
+        job = stores.begin(MOCK_USER_ID, Kind.GEAR, conflict="busy")
+        stores.set_status(MOCK_USER_ID, Kind.GEAR, status, job_id=job.id)
 
-        _dead_letter(_sync_event(3), "lease expired")
+        _dead_letter(_sync_event(job.id, 3), "lease expired")
 
         assert stores.get(MOCK_USER_ID, Kind.GEAR).status == Status.FAILED
         stores.begin(MOCK_USER_ID, Kind.GEAR, conflict="busy")
 
     def test_a_sync_that_already_finished_is_left_alone(self, stores):
-        stores.begin(MOCK_USER_ID, Kind.GEAR, conflict="busy")
-        stores.set_status(MOCK_USER_ID, Kind.GEAR, Status.SUCCEEDED)
+        job = stores.begin(MOCK_USER_ID, Kind.GEAR, conflict="busy")
+        stores.set_status(MOCK_USER_ID, Kind.GEAR, Status.SUCCEEDED, job_id=job.id)
 
-        _dead_letter(_sync_event(3), None)
+        _dead_letter(_sync_event(job.id, 3), None)
 
         assert stores.get(MOCK_USER_ID, Kind.GEAR).status == Status.SUCCEEDED
 
     def test_an_expired_state_is_not_resurrected(self, stores):
-        _dead_letter(_sync_event(3), None)
+        _dead_letter(_sync_event(uuid.uuid4(), 3), None)
 
         assert stores.get(MOCK_USER_ID, Kind.GEAR) is None
+
+    def test_a_sync_a_newer_one_superseded_is_left_alone(self):
+        state = MemoryState()
+        states = garmin_sync_state_store.GarminSyncStateStore(state=state)
+        old = states.begin(MOCK_USER_ID, Kind.GEAR, conflict="busy")
+        state.delete(core_attempt_state.key("garmin", "sync:claim", f"{MOCK_USER_ID}:{Kind.GEAR.value}"))
+        newer = states.begin(MOCK_USER_ID, Kind.GEAR, conflict="busy")
+
+        garmin_sync_service.close_dead_lettered_sync(
+            garmin_events.SyncRequestedPayload(user_id=MOCK_USER_ID, job_id=old.id, kind=Kind.GEAR), states
+        )
+
+        assert states.get(MOCK_USER_ID, Kind.GEAR, job_id=newer.id).status == Status.QUEUED
+        with pytest.raises(core_exceptions.JobAlreadyRunningError):
+            states.begin(MOCK_USER_ID, Kind.GEAR, conflict="busy")
 
     def test_the_handler_is_registered_with_the_callback(self):
         registry = JobHandlerRegistry()

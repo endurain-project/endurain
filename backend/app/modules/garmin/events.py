@@ -20,6 +20,7 @@ class SyncRequestedPayload(VersionedPayload):
 
     Attributes:
         user_id: The user whose Garmin Connect account to sync.
+        job_id: The job the sync records its state against.
         kind: What to pull.
         start_date: First day of the range; set only for a health sync.
         end_date: Last day of the range; set only for a health sync.
@@ -30,6 +31,7 @@ class SyncRequestedPayload(VersionedPayload):
     SCHEMA_VERSION: ClassVar[int] = 1
 
     user_id: uuid.UUID
+    job_id: uuid.UUID
     kind: garmin_constants.SyncKind
     start_date: date | None = None
     end_date: date | None = None

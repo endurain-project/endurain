@@ -129,7 +129,7 @@ def test_read_deletion_job_is_none_for_an_earlier_job_and_once_expired():
     state = MemoryState()
     store = users_deletion_state_store.UserDeletionStateStore(state)
     first = store.begin(5, users_constants.DeletionKind.ACCOUNT, conflict="held", owner_id=_U9)
-    store.set_status(5, users_constants.DeletionKind.ACCOUNT, users_constants.DeletionStatus.FAILED)
+    store.set_status(5, users_constants.DeletionKind.ACCOUNT, users_constants.DeletionStatus.FAILED, job_id=first.id)
     store.begin(5, users_constants.DeletionKind.ACCOUNT, conflict="held", owner_id=_U9)
 
     assert users_integration.read_deletion_job(first, state) is None

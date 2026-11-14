@@ -131,11 +131,11 @@ def request_import(
                 target_id=str(user_id),
                 target_owner_id=str(user_id),
             )
-            profile_event_publishers.publish_import_requested(user_id, staged_key, db, commit=db.commit)
+            profile_event_publishers.publish_import_requested(user_id, job.id, staged_key, db, commit=db.commit)
         except BaseException:
             # The import never started, so nothing else would finish its claim or remove its archive.
             _discard_staged(staged_key, storage)
-            states.set_status(user_id, _Status.FAILED, error_code=_Failure.PROCESSING_FAILED)
+            states.set_status(user_id, job.id, _Status.FAILED, error_code=_Failure.PROCESSING_FAILED)
             raise
 
     logger.info("Profile import queued", extra=core_logger.context(user_id=user_id))
@@ -160,6 +160,7 @@ def _record_import_ended(user_id: uuid.UUID, outcome: jasil_audit.Outcome) -> No
 
 def _fail_import(
     user_id: uuid.UUID,
+    job_id: uuid.UUID,
     states: profile_import_state_store.ProfileImportStateStore,
     failure: profile_constants.ImportFailure,
 ) -> None:
@@ -167,10 +168,11 @@ def _fail_import(
 
     Args:
         user_id: The importing user.
+        job_id: The import job to close.
         states: Shared store of the import's state.
         failure: Why the import failed.
     """
-    states.set_status(user_id, _Status.FAILED, error_code=failure)
+    states.set_status(user_id, job_id, _Status.FAILED, error_code=failure)
     _record_import_ended(user_id, jasil_audit.Outcome.FAILURE)
 
 
@@ -189,7 +191,7 @@ def fail_unstarted_import(
     logger.warning(
         "Closed a profile import the in-process pool could not take", extra=core_logger.context(user_id=payload.user_id)
     )
-    _fail_import(payload.user_id, states, _Failure.PROCESSING_FAILED)
+    _fail_import(payload.user_id, payload.job_id, states, _Failure.PROCESSING_FAILED)
     _discard_staged(payload.staged_key, storage)
 
 
@@ -210,10 +212,10 @@ def close_dead_lettered_import(
         states: Shared store of the import's state.
         storage: The platform storage provider.
     """
-    state = states.get(payload.user_id)
+    state = states.get(payload.user_id, job_id=payload.job_id)
     if state is not None and state.status in (_Status.QUEUED, _Status.RUNNING, _Status.WRITING_FILES):
         failure = _Failure.FILES_INCOMPLETE if state.status == _Status.WRITING_FILES else _Failure.PROCESSING_FAILED
-        _fail_import(payload.user_id, states, failure)
+        _fail_import(payload.user_id, payload.job_id, states, failure)
         logger.error(
             "A profile import was dead-lettered",
             extra=core_logger.context(user_id=payload.user_id, failure=failure),
@@ -321,17 +323,17 @@ def run_import(
         Exception: A transient failure before the database commit, when ``will_retry``, so the
             worker runs the import again; the state goes back to ``QUEUED`` first.
     """
-    user_id, staged_key = payload.user_id, payload.staged_key
+    user_id, job_id, staged_key = payload.user_id, payload.job_id, payload.staged_key
     if not staged_key.startswith(profile_constants.import_staged_prefix(user_id)):
         logger.warning(
             "Refused a profile import whose archive is not the user's", extra=core_logger.context(user_id=user_id)
         )
         return
 
-    state = states.get(user_id)
+    state = states.get(user_id, job_id=job_id)
     if state is not None and state.status == _Status.WRITING_FILES:
         logger.error("A profile import died while writing files", extra=core_logger.context(user_id=user_id))
-        _fail_import(user_id, states, _Failure.FILES_INCOMPLETE)
+        _fail_import(user_id, job_id, states, _Failure.FILES_INCOMPLETE)
         _discard_staged(staged_key, storage)
         return
     if state is None or state.status not in (_Status.QUEUED, _Status.RUNNING):
@@ -342,10 +344,10 @@ def run_import(
     zip_data = storage.get(profile_constants.IMPORT_STAGING_AREA, staged_key)
     if zip_data is None:
         logger.error("The staged profile import is missing", extra=core_logger.context(user_id=user_id))
-        _fail_import(user_id, states, _Failure.PROCESSING_FAILED)
+        _fail_import(user_id, job_id, states, _Failure.PROCESSING_FAILED)
         return
 
-    states.set_status(user_id, _Status.RUNNING)
+    states.set_status(user_id, job_id, _Status.RUNNING)
     committed = False
 
     def mark_committed() -> None:
@@ -353,7 +355,7 @@ def run_import(
         # import (files incomplete) instead of leaving a state that looks safe to run again.
         nonlocal committed
         committed = True
-        states.set_status(user_id, _Status.WRITING_FILES, strict=True)
+        states.set_status(user_id, job_id, _Status.WRITING_FILES, strict=True)
 
     try:
         imported = _run_importer(user_id, zip_data, storage, mark_committed)
@@ -365,16 +367,16 @@ def run_import(
                 exc_info=err,
                 extra=core_logger.context(user_id=user_id),
             )
-            states.set_status(user_id, _Status.QUEUED)
+            states.set_status(user_id, job_id, _Status.QUEUED)
             raise
         failure = _Failure.FILES_INCOMPLETE if committed else (code or _Failure.PROCESSING_FAILED)
         log = logger.warning if code is not None else logger.error
         log("Profile import failed", exc_info=err, extra=core_logger.context(user_id=user_id, failure=failure))
-        _fail_import(user_id, states, failure)
+        _fail_import(user_id, job_id, states, failure)
         _discard_staged(staged_key, storage)
         return
 
-    states.set_status(user_id, _Status.SUCCEEDED, imported=imported)
+    states.set_status(user_id, job_id, _Status.SUCCEEDED, imported=imported)
     _record_import_ended(user_id, jasil_audit.Outcome.SUCCESS)
     _discard_staged(staged_key, storage)
     logger.info("Profile data imported", extra=core_logger.context(user_id=user_id, imported=imported))

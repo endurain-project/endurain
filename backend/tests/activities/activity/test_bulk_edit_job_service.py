@@ -6,6 +6,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 from jasil.backends.state_memory import MemoryState
 
+import core.attempt_state as core_attempt_state
 import core.exceptions as core_exceptions
 import modules.activities.activity.bulk_edit_constants as bulk_edit_constants
 import modules.activities.activity.bulk_edit_job_service as job_service
@@ -19,8 +20,19 @@ _Kind = bulk_edit_constants.BulkEditKind.VISIBILITY
 
 
 @pytest.fixture
-def states():
-    return bulk_edit_state_store.ActivityBulkEditStateStore(MemoryState())
+def state():
+    return MemoryState()
+
+
+@pytest.fixture
+def states(state):
+    return bulk_edit_state_store.ActivityBulkEditStateStore(state)
+
+
+def _supersede(states, state):
+    """Free the running edit's claim as an expiry would, then begin a newer edit; return the newer job."""
+    state.delete(core_attempt_state.key("activities", "sync:claim", f"{_USER_1}:{_Kind.value}"))
+    return states.begin(_USER_1, _Kind, conflict="x")
 
 
 @pytest.fixture
@@ -28,8 +40,8 @@ def mock_db():
     return MagicMock()
 
 
-def _payload(user_id: uuid.UUID = _USER_1, visibility: int = 2) -> activity_events.VisibilityEditRequestedPayload:
-    return activity_events.VisibilityEditRequestedPayload(user_id=user_id, visibility=visibility)
+def _payload(job_id: uuid.UUID, user_id: uuid.UUID = _USER_1, visibility: int = 2):
+    return activity_events.VisibilityEditRequestedPayload(user_id=user_id, job_id=job_id, visibility=visibility)
 
 
 class TestRequestVisibilityEdit:
@@ -46,7 +58,9 @@ class TestRequestVisibilityEdit:
         result, publishers, pool = self._request(states, mock_db, jobs_enabled=True)
 
         assert result.status == _Status.QUEUED
-        publishers.publish_visibility_edit_requested.assert_called_once_with(_USER_1, 2, mock_db, commit=mock_db.commit)
+        publishers.publish_visibility_edit_requested.assert_called_once_with(
+            _USER_1, result.id, 2, mock_db, commit=mock_db.commit
+        )
         pool.submit.assert_not_called()
         assert states.get(_USER_1, _Kind).status == _Status.QUEUED
 
@@ -86,7 +100,7 @@ class TestRequestVisibilityEdit:
 
 
 class TestRunVisibilityEdit:
-    def _run(self, states, *, batches, error=None, will_retry=False):
+    def _run(self, states, job_id, *, batches, error=None, will_retry=False):
         crud = MagicMock()
         crud.edit_user_activities_visibility_batch.side_effect = error if error else [*batches, []]
         with (
@@ -94,13 +108,13 @@ class TestRunVisibilityEdit:
             patch(f"{_MODULE}.activity_crud", crud),
             patch(f"{_MODULE}.activity_event_publishers") as publishers,
         ):
-            job_service.run_visibility_edit(_payload(), states, will_retry=will_retry)
+            job_service.run_visibility_edit(_payload(job_id), states, will_retry=will_retry)
         return crud, publishers, session_local
 
     def test_it_edits_batch_by_batch_until_nothing_is_left_to_change(self, states):
-        states.begin(_USER_1, _Kind, conflict="x")
+        job = states.begin(_USER_1, _Kind, conflict="x")
 
-        crud, publishers, session_local = self._run(states, batches=[[1, 2], [3]])
+        crud, publishers, session_local = self._run(states, job.id, batches=[[1, 2], [3]])
 
         assert crud.edit_user_activities_visibility_batch.call_count == 3
         assert crud.edit_user_activities_visibility_batch.call_args.args[:3] == (
@@ -114,23 +128,23 @@ class TestRunVisibilityEdit:
         assert states.get(_USER_1, _Kind).status == _Status.SUCCEEDED
 
     def test_an_edit_that_is_not_pending_is_skipped(self, states):
-        crud, _, _ = self._run(states, batches=[])
+        crud, _, _ = self._run(states, uuid.uuid4(), batches=[])
 
         crud.edit_user_activities_visibility_batch.assert_not_called()
 
     def test_a_failure_nothing_retries_fails_the_edit_and_frees_the_claim(self, states):
-        states.begin(_USER_1, _Kind, conflict="x")
+        job = states.begin(_USER_1, _Kind, conflict="x")
 
-        self._run(states, batches=[], error=RuntimeError("boom"))
+        self._run(states, job.id, batches=[], error=RuntimeError("boom"))
 
         assert states.get(_USER_1, _Kind).status == _Status.FAILED
         states.begin(_USER_1, _Kind, conflict="x")
 
     def test_a_failure_a_worker_will_retry_stays_queued_and_raises(self, states):
-        states.begin(_USER_1, _Kind, conflict="x")
+        job = states.begin(_USER_1, _Kind, conflict="x")
 
         with pytest.raises(RuntimeError):
-            self._run(states, batches=[], error=RuntimeError("boom"), will_retry=True)
+            self._run(states, job.id, batches=[], error=RuntimeError("boom"), will_retry=True)
 
         assert states.get(_USER_1, _Kind).status == _Status.QUEUED
         with pytest.raises(core_exceptions.JobAlreadyRunningError):
@@ -139,9 +153,37 @@ class TestRunVisibilityEdit:
 
 class TestDeadLetter:
     def test_a_dead_lettered_edit_is_failed_and_its_claim_freed(self, states):
-        states.begin(_USER_1, _Kind, conflict="x")
+        job = states.begin(_USER_1, _Kind, conflict="x")
 
-        job_service.close_dead_lettered_visibility_edit(_payload(), states)
+        job_service.close_dead_lettered_visibility_edit(_payload(job.id), states)
 
         assert states.get(_USER_1, _Kind).status == _Status.FAILED
         states.begin(_USER_1, _Kind, conflict="x")
+
+    def test_a_superseded_edit_leaves_the_newer_one_alone(self, states, state):
+        old = states.begin(_USER_1, _Kind, conflict="x")
+        new = _supersede(states, state)
+
+        job_service.close_dead_lettered_visibility_edit(_payload(old.id), states)
+
+        assert states.get(_USER_1, _Kind, job_id=new.id).status == _Status.QUEUED
+        with pytest.raises(core_exceptions.JobAlreadyRunningError):
+            states.begin(_USER_1, _Kind, conflict="x")
+
+
+class TestSuperseded:
+    def test_running_a_superseded_edit_leaves_the_newer_one_alone(self, states, state):
+        old = states.begin(_USER_1, _Kind, conflict="x")
+        new = _supersede(states, state)
+        crud = MagicMock()
+        with (
+            patch(f"{_MODULE}.core_database.SessionLocal"),
+            patch(f"{_MODULE}.activity_crud", crud),
+            patch(f"{_MODULE}.activity_event_publishers"),
+        ):
+            job_service.run_visibility_edit(_payload(old.id), states)
+
+        crud.edit_user_activities_visibility_batch.assert_not_called()
+        assert states.get(_USER_1, _Kind, job_id=new.id).status == _Status.QUEUED
+        with pytest.raises(core_exceptions.JobAlreadyRunningError):
+            states.begin(_USER_1, _Kind, conflict="x")

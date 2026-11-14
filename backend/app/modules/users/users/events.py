@@ -20,6 +20,7 @@ class DeletionRequestedPayload(VersionedPayload):
 
     Attributes:
         user_id: The user whose account and data are erased.
+        job_id: The job the erasure records its state against.
     """
 
     model_config = ConfigDict(extra="ignore")
@@ -27,6 +28,7 @@ class DeletionRequestedPayload(VersionedPayload):
     SCHEMA_VERSION: ClassVar[int] = 1
 
     user_id: uuid.UUID
+    job_id: uuid.UUID
 
 
 class AdminPromotedPayload(VersionedPayload):

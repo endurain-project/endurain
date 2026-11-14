@@ -77,7 +77,7 @@ class TestReadJob:
     def test_a_finished_job_is_not_polled_again(self, state):
         job = _gear(state)
         strava_sync_state_store.StravaSyncStateStore(state).set_status(
-            USER, strava_constants.SyncKind.GEAR, Status.SUCCEEDED
+            USER, strava_constants.SyncKind.GEAR, Status.SUCCEEDED, job_id=job.id
         )
 
         response = _client(state).get(f"/jobs/{job.id}")

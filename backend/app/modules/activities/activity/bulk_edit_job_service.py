@@ -98,17 +98,19 @@ def request_visibility_edit(
     try:
         _stage_visibility_request(user_id, visibility, db)
         if durable:
-            activity_event_publishers.publish_visibility_edit_requested(user_id, visibility, db, commit=db.commit)
+            activity_event_publishers.publish_visibility_edit_requested(
+                user_id, job.id, visibility, db, commit=db.commit
+            )
         else:
             db.commit()
             _pool.submit(
                 run_visibility_edit,
-                activity_events.VisibilityEditRequestedPayload(user_id=user_id, visibility=visibility),
+                activity_events.VisibilityEditRequestedPayload(user_id=user_id, job_id=job.id, visibility=visibility),
                 states,
             )
     except BaseException:
         # The edit never started, so nothing else would finish its claim.
-        states.set_status(user_id, _Kind, _Status.FAILED)
+        states.set_status(user_id, _Kind, _Status.FAILED, job_id=job.id)
         raise
 
     logger.info(
@@ -138,13 +140,13 @@ def run_visibility_edit(
     Raises:
         Exception: Whatever the edit raised, when ``will_retry``, so the worker runs it again.
     """
-    user_id = payload.user_id
-    state = states.get(user_id, _Kind)
+    user_id, job_id = payload.user_id, payload.job_id
+    state = states.get(user_id, _Kind, job_id=job_id)
     if state is None or state.status not in (_Status.QUEUED, _Status.RUNNING):
         logger.debug("Skipped a bulk edit that is not pending", extra=core_logger.context(user_id=user_id))
         return
 
-    states.set_status(user_id, _Kind, _Status.RUNNING)
+    states.set_status(user_id, _Kind, _Status.RUNNING, job_id=job_id)
     try:
         updated = _apply(user_id, payload.visibility)
     except Exception as err:
@@ -154,13 +156,13 @@ def run_visibility_edit(
                 exc_info=err,
                 extra=core_logger.context(user_id=user_id),
             )
-            states.set_status(user_id, _Kind, _Status.QUEUED)
+            states.set_status(user_id, _Kind, _Status.QUEUED, job_id=job_id)
             raise
         logger.error("Bulk visibility edit failed", exc_info=err, extra=core_logger.context(user_id=user_id))
-        states.set_status(user_id, _Kind, _Status.FAILED)
+        states.set_status(user_id, _Kind, _Status.FAILED, job_id=job_id)
         return
 
-    states.set_status(user_id, _Kind, _Status.SUCCEEDED)
+    states.set_status(user_id, _Kind, _Status.SUCCEEDED, job_id=job_id)
     logger.info(
         "Bulk visibility edit finished",
         extra=core_logger.context(user_id=user_id, visibility=payload.visibility, updated=updated),
@@ -215,5 +217,5 @@ def close_dead_lettered_visibility_edit(
         payload: Whose activities were to be edited.
         states: Shared store of the edit's state.
     """
-    if states.close_pending(payload.user_id, _Kind):
+    if states.close_pending(payload.user_id, _Kind, job_id=payload.job_id):
         logger.error("A bulk visibility edit was dead-lettered", extra=core_logger.context(user_id=payload.user_id))

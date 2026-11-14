@@ -84,7 +84,7 @@ class TestStartLink:
         assert error is None
         assert (result.kind, result.status) == ("strava_link", Status.QUEUED)
         assert states.get(MOCK_USER_ID, LINK).status == Status.QUEUED
-        pool.submit.assert_called_once_with(strava_link_service.run_link, MOCK_USER_ID, "c", states)
+        pool.submit.assert_called_once_with(strava_link_service.run_link, MOCK_USER_ID, result.id, "c", states)
 
     @pytest.mark.parametrize(
         "scope",
@@ -114,8 +114,8 @@ class TestStartLink:
         pool.submit.assert_called_once()
 
     def test_a_state_is_good_for_one_link_only(self, oauth_states, states, pool):
-        _start(oauth_states, states)
-        states.set_status(MOCK_USER_ID, LINK, Status.SUCCEEDED)
+        started, _error = _start(oauth_states, states)
+        states.set_status(MOCK_USER_ID, LINK, Status.SUCCEEDED, job_id=started.id)
         pool.reset_mock()
 
         _result, error = _start(oauth_states, states, stored_state=None)
@@ -173,7 +173,7 @@ class TestStartLink:
 
 
 def _run(states, *, exchange_error=None):
-    states.begin(MOCK_USER_ID, LINK, conflict="busy")
+    job = states.begin(MOCK_USER_ID, LINK, conflict="busy")
     integrations = SimpleNamespace(strava_client_id="123", strava_client_secret="stored")
     client = MagicMock()
     client.exchange_code_for_token.return_value = {"access_token": "t"}
@@ -193,7 +193,7 @@ def _run(states, *, exchange_error=None):
             strava_link_service.strava_client_service.core_cryptography, "decrypt_token_fernet", side_effect=str
         ),
     ):
-        strava_link_service.run_link(MOCK_USER_ID, "c", states)
+        strava_link_service.run_link(MOCK_USER_ID, job.id, "c", states)
     return link, db
 
 

@@ -50,7 +50,9 @@ def _link(stores, garmin):
             garmin_link_service.garmin_token_utils, "serialize_garmin_token", return_value={"di_token": "enc"}
         ),
     ):
-        garmin_link_service.link_garminconnect(MOCK_USER_ID, "me@example.com", "pw", mfa_codes, link_states, True)
+        garmin_link_service.link_garminconnect(
+            MOCK_USER_ID, _link.job.id, "me@example.com", "pw", mfa_codes, link_states, True
+        )
     _link.push = push
     return factory, save
 
@@ -74,7 +76,7 @@ class TestLinkTellsTheBrowser:
         mfa_codes.add_code(MOCK_USER_ID, "123456")
 
         with patch.object(garmin_link_service.websocket_integration, "push_job_changed") as push:
-            garmin_link_service.wait_for_mfa_code(MOCK_USER_ID, mfa_codes, link_states)
+            garmin_link_service.wait_for_mfa_code(MOCK_USER_ID, job.id, mfa_codes, link_states)
 
         push.assert_called_once_with(MOCK_USER_ID, job.id, "garmin_link")
 
@@ -150,7 +152,7 @@ class TestLinkGarminconnect:
 
     def test_an_mfa_timeout_is_an_incorrect_code_through_the_librarys_login_wrapping(self, stores):
         mfa_codes, link_states = stores
-        link_states.begin(MOCK_USER_ID, conflict="busy")
+        job = link_states.begin(MOCK_USER_ID, conflict="busy")
 
         def client_login(_self, _email, _password, prompt_mfa=None, **_kwargs):
             prompt_mfa()
@@ -163,7 +165,9 @@ class TestLinkGarminconnect:
             patch.object(garmin_link_service.websocket_integration, "push_job_changed"),
             jasil_testing.capture_audit() as audit,
         ):
-            garmin_link_service.link_garminconnect(MOCK_USER_ID, "me@example.com", "pw", mfa_codes, link_states, False)
+            garmin_link_service.link_garminconnect(
+                MOCK_USER_ID, job.id, "me@example.com", "pw", mfa_codes, link_states, False
+            )
 
         assert link_states.get(MOCK_USER_ID) == link_state_store.LinkState(
             status=Status.FAILED, error_code=Failure.INCORRECT_MFA
@@ -198,28 +202,28 @@ class TestLinkGarminconnect:
 class TestWaitForMfaCode:
     def test_the_prompt_is_the_shared_state_and_the_code_resumes_the_attempt(self, stores):
         mfa_codes, link_states = stores
-        link_states.begin(MOCK_USER_ID, conflict="busy")
+        job = link_states.begin(MOCK_USER_ID, conflict="busy")
         states = []
         real_set = link_states.set_status
-        link_states.set_status = lambda user_id, status, reason=None, *, mfa_required=False: (
+        link_states.set_status = lambda user_id, job_id, status, reason=None, *, mfa_required=False: (
             states.append(mfa_required),
-            real_set(user_id, status, mfa_required=mfa_required),
+            real_set(user_id, job_id, status, mfa_required=mfa_required),
         )
         mfa_codes.add_code(MOCK_USER_ID, "123456")
 
-        assert garmin_link_service.wait_for_mfa_code(MOCK_USER_ID, mfa_codes, link_states) == "123456"
+        assert garmin_link_service.wait_for_mfa_code(MOCK_USER_ID, job.id, mfa_codes, link_states) == "123456"
         assert states == [True, False]
 
     def test_no_code_in_time_raises_and_stays_waiting(self, stores):
         mfa_codes, link_states = stores
-        link_states.begin(MOCK_USER_ID, conflict="busy")
+        job = link_states.begin(MOCK_USER_ID, conflict="busy")
 
         with (
             patch.object(garmin_constants, "MFA_WAIT_SECONDS", 2),
             patch.object(garmin_link_service.time, "sleep"),
             pytest.raises(garmin_link_service._MfaCodeTimeoutError),
         ):
-            garmin_link_service.wait_for_mfa_code(MOCK_USER_ID, mfa_codes, link_states)
+            garmin_link_service.wait_for_mfa_code(MOCK_USER_ID, job.id, mfa_codes, link_states)
 
         assert link_states.get(MOCK_USER_ID).mfa_required is True
 
@@ -229,7 +233,13 @@ def test_starting_a_link_hands_it_to_the_link_pool(stores):
         garmin_link_service.start_link(MOCK_USER_ID, garmin_schema.GarminLogin(username="me", password="pw"), *stores)
 
     pool.submit.assert_called_once_with(
-        garmin_link_service.link_garminconnect, MOCK_USER_ID, "me", "pw", *stores, False
+        garmin_link_service.link_garminconnect,
+        MOCK_USER_ID,
+        stores[1].current_job(MOCK_USER_ID).id,
+        "me",
+        "pw",
+        *stores,
+        False,
     )
 
 
@@ -262,8 +272,8 @@ def test_a_refused_duplicate_link_takes_no_capacity(stores, blocked_pool, monkey
 
 class TestSubmitMfaCode:
     def test_a_code_is_taken_while_the_login_waits_for_it(self, stores):
-        stores[1].begin(MOCK_USER_ID, conflict="busy")
-        stores[1].set_status(MOCK_USER_ID, Status.RUNNING, mfa_required=True)
+        job = stores[1].begin(MOCK_USER_ID, conflict="busy")
+        stores[1].set_status(MOCK_USER_ID, job.id, Status.RUNNING, mfa_required=True)
 
         garmin_link_service.submit_mfa_code(MOCK_USER_ID, "123456", *stores)
 
@@ -283,7 +293,7 @@ class TestReadLinkJob:
         state = MemoryState()
         store = link_state_store.GarminLinkStateStore(state=state)
         job = store.begin(MOCK_USER_ID, conflict="busy")
-        store.set_status(MOCK_USER_ID, Status.RUNNING, mfa_required=True)
+        store.set_status(MOCK_USER_ID, job.id, Status.RUNNING, mfa_required=True)
 
         read = garmin_integration.read_link_job(job, state)
 
@@ -293,7 +303,7 @@ class TestReadLinkJob:
         state = MemoryState()
         store = link_state_store.GarminLinkStateStore(state=state)
         first = store.begin(MOCK_USER_ID, conflict="busy")
-        store.set_status(MOCK_USER_ID, Status.FAILED, garmin_constants.LinkFailure.INVALID_CREDENTIALS)
+        store.set_status(MOCK_USER_ID, first.id, Status.FAILED, garmin_constants.LinkFailure.INVALID_CREDENTIALS)
         second = store.begin(MOCK_USER_ID, conflict="busy")
 
         assert garmin_integration.read_link_job(first, state) is None

@@ -32,12 +32,12 @@ def test_a_first_sync_is_queued_and_blocks_another_of_its_kind():
 
 def test_progress_keeps_blocking_until_the_sync_finishes():
     store = _store()
-    store.begin(MOCK_USER_ID, Kind.HEALTH, conflict="busy")
-    store.set_status(MOCK_USER_ID, Kind.HEALTH, Status.RUNNING)
+    job = store.begin(MOCK_USER_ID, Kind.HEALTH, conflict="busy")
+    store.set_status(MOCK_USER_ID, Kind.HEALTH, Status.RUNNING, job_id=job.id)
     with pytest.raises(core_exceptions.JobAlreadyRunningError):
         store.begin(MOCK_USER_ID, Kind.HEALTH, conflict="busy")
 
-    store.set_status(MOCK_USER_ID, Kind.HEALTH, Status.SUCCEEDED)
+    store.set_status(MOCK_USER_ID, Kind.HEALTH, Status.SUCCEEDED, job_id=job.id)
 
     assert store.get(MOCK_USER_ID, Kind.HEALTH).status == Status.SUCCEEDED
     store.begin(MOCK_USER_ID, Kind.HEALTH, conflict="busy")
@@ -45,8 +45,8 @@ def test_progress_keeps_blocking_until_the_sync_finishes():
 
 def test_a_failed_sync_can_be_retried():
     store = _store()
-    store.begin(MOCK_USER_ID, Kind.GEAR, conflict="busy")
-    store.set_status(MOCK_USER_ID, Kind.GEAR, Status.FAILED)
+    job = store.begin(MOCK_USER_ID, Kind.GEAR, conflict="busy")
+    store.set_status(MOCK_USER_ID, Kind.GEAR, Status.FAILED, job_id=job.id)
 
     store.begin(MOCK_USER_ID, Kind.GEAR, conflict="busy")
 
@@ -73,4 +73,4 @@ def test_an_unavailable_backend_fails_a_read_and_a_begin_but_not_a_recorded_outc
         store.begin(MOCK_USER_ID, Kind.GEAR, conflict="busy")
     with pytest.raises(core_attempt_state.StateUnavailableError):
         store.get(MOCK_USER_ID, Kind.GEAR)
-    store.set_status(MOCK_USER_ID, Kind.GEAR, Status.SUCCEEDED)
+    store.set_status(MOCK_USER_ID, Kind.GEAR, Status.SUCCEEDED, job_id=uuid.uuid4())

@@ -61,7 +61,7 @@ def test_a_second_begin_is_refused_with_the_running_job_until_the_attempt_finish
 
     assert refused.value.detail == "Busy"
     assert refused.value.job_id == first.id
-    store.record("1", _State(step="done"), finished=True)
+    store.record("1", first.id, _State(step="done"), finished=True)
     assert _begin(store).id != first.id
 
 
@@ -96,8 +96,8 @@ def test_read_returns_the_recorded_state_or_none():
     store = _store()
     assert store.read("1") is None
 
-    _begin(store)
-    store.record("1", _State(step="running"), finished=False)
+    job = _begin(store)
+    store.record("1", job.id, _State(step="running"), finished=False)
 
     assert _State.model_validate_json(store.read("1")) == _State(step="running")
 
@@ -108,9 +108,9 @@ def test_a_finished_record_stamps_the_job_and_announces_it():
     store = _store(state, announce=announce)
     job = _begin(store)
 
-    store.record("1", _State(step="running"), finished=False)
+    store.record("1", job.id, _State(step="running"), finished=False)
     announce.assert_not_called()
-    store.record("1", _State(step="done"), finished=True)
+    store.record("1", job.id, _State(step="done"), finished=True)
 
     finished = core_attempt_state.JobIndex(state).get(job.id)
     assert finished is not None
@@ -121,7 +121,7 @@ def test_a_finished_record_stamps_the_job_and_announces_it():
 def test_read_job_returns_the_job_only_while_its_subject_still_holds_it():
     store = _store()
     first = _begin(store)
-    store.record("1", _State(step="done"), finished=True)
+    store.record("1", first.id, _State(step="done"), finished=True)
 
     stored = store.read_job(first)
     assert stored is not None
@@ -137,22 +137,79 @@ def test_read_job_returns_the_job_only_while_its_subject_still_holds_it():
 def test_a_record_without_a_job_keeps_no_state_but_still_frees_the_claim():
     state = MemoryState()
     store = _store(state)
-    state.set(core_attempt_state.key("feature", "job:claim", "1"), b"1", ttl_seconds=60)
+    job_id = uuid.uuid4()
+    state.set(core_attempt_state.key("feature", "job:claim", "1"), str(job_id).encode(), ttl_seconds=60)
     state.set(core_attempt_state.key("feature", "job:state", "1"), b'{"step":"queued"}', ttl_seconds=60)
 
     assert store.read("1") is None
-    store.record("1", _State(step="done"), finished=True)
+    store.record("1", job_id, _State(step="done"), finished=True)
 
     assert store.read("1") is None
     _begin(store)
+
+
+def _supersede(state, store):
+    """Return a first job whose claim expired, and a second job that began after it."""
+    first = _begin(store)
+    state.delete(core_attempt_state.key("feature", "job:claim", "1"))
+    second = _begin(store)
+    return first, second
+
+
+def test_a_superseded_attempt_neither_overwrites_the_newer_state_nor_frees_its_claim():
+    state = MemoryState()
+    announce = MagicMock()
+    store = _store(state, announce=announce)
+    first, second = _supersede(state, store)
+
+    store.record("1", first.id, _State(step="first-done"), finished=True)
+
+    stored = store.read_stored("1")
+    assert stored is not None
+    assert stored.job == second
+    assert _State.model_validate_json(stored.state_json()) == _State(step="queued")
+    announce.assert_not_called()
+    with pytest.raises(core_exceptions.JobAlreadyRunningError) as refused:
+        _begin(store)
+    assert refused.value.job_id == second.id
+
+
+def test_a_superseded_attempt_does_not_renew_the_newer_claim_with_its_own():
+    state = MemoryState()
+    store = _store(state)
+    first, second = _supersede(state, store)
+
+    store.record("1", first.id, _State(step="running"), finished=False)
+
+    assert state.get(core_attempt_state.key("feature", "job:claim", "1")) == str(second.id).encode()
+
+
+def test_the_owner_still_records_and_frees_its_claim_after_a_superseded_attempt_tried():
+    state = MemoryState()
+    store = _store(state)
+    first, second = _supersede(state, store)
+    store.record("1", first.id, _State(step="first-done"), finished=True)
+
+    store.record("1", second.id, _State(step="second-done"), finished=True)
+
+    assert _State.model_validate_json(store.read("1")) == _State(step="second-done")
+    assert _begin(store).id not in (first.id, second.id)
+
+
+def test_read_by_job_id_returns_the_state_only_for_the_job_that_holds_it():
+    store = _store()
+    first = _begin(store)
+
+    assert store.read("1", job_id=first.id) is not None
+    assert store.read("1", job_id=uuid.uuid4()) is None
 
 
 def test_progress_renews_the_claim():
     state = MemoryState()
     store = _store(state)
-    _begin(store)
+    job = _begin(store)
     with patch.object(state, "set") as write:
-        store.record("1", _State(step="running"), finished=False)
+        store.record("1", job.id, _State(step="running"), finished=False)
 
     assert core_attempt_state.key("feature", "job:claim", "1") in [call.args[0] for call in write.call_args_list]
 
@@ -213,9 +270,9 @@ def test_an_outage_on_read_is_a_service_unavailable_error():
 def test_an_outage_while_recording_or_releasing_is_swallowed():
     state = MemoryState()
     store = _store(state)
-    _begin(store)
+    job = _begin(store)
     with patch.object(state, "set", side_effect=StateBackendUnavailableError("down")):
-        store.record("1", _State(step="running"), finished=False)
+        store.record("1", job.id, _State(step="running"), finished=False)
     with patch.object(state, "delete", side_effect=StateBackendUnavailableError("down")):
         store.release("1")
 
@@ -223,12 +280,12 @@ def test_an_outage_while_recording_or_releasing_is_swallowed():
 def test_an_outage_while_recording_strictly_raises():
     state = MemoryState()
     store = _store(state)
-    _begin(store)
+    job = _begin(store)
     with (
         patch.object(state, "set", side_effect=StateBackendUnavailableError("down")),
         pytest.raises(core_attempt_state.StateUnavailableError),
     ):
-        store.record("1", _State(step="running"), finished=False, strict=True)
+        store.record("1", job.id, _State(step="running"), finished=False, strict=True)
 
 
 def test_an_outage_reading_the_index_is_a_service_unavailable_error():
@@ -281,11 +338,11 @@ class TestSyncStateStore:
         announce = MagicMock()
         syncs = _syncs(announce=announce)
         job = _queue(syncs, MOCK_USER_ID, _Kind.HEALTH)
-        syncs.set_status(MOCK_USER_ID, _Kind.HEALTH, Status.RUNNING)
+        syncs.set_status(MOCK_USER_ID, _Kind.HEALTH, Status.RUNNING, job_id=job.id)
         with pytest.raises(core_exceptions.JobAlreadyRunningError):
             _queue(syncs, MOCK_USER_ID, _Kind.HEALTH)
 
-        syncs.set_status(MOCK_USER_ID, _Kind.HEALTH, Status.SUCCEEDED)
+        syncs.set_status(MOCK_USER_ID, _Kind.HEALTH, Status.SUCCEEDED, job_id=job.id)
 
         assert syncs.get(MOCK_USER_ID, _Kind.HEALTH).status == Status.SUCCEEDED
         assert announce.call_args.args[0].id == job.id
@@ -293,15 +350,15 @@ class TestSyncStateStore:
 
     def test_a_failed_sync_can_be_retried(self):
         syncs = _syncs()
-        _queue(syncs, MOCK_USER_ID, _Kind.GEAR)
-        syncs.set_status(MOCK_USER_ID, _Kind.GEAR, Status.FAILED)
+        job = _queue(syncs, MOCK_USER_ID, _Kind.GEAR)
+        syncs.set_status(MOCK_USER_ID, _Kind.GEAR, Status.FAILED, job_id=job.id)
 
         _queue(syncs, MOCK_USER_ID, _Kind.GEAR)
 
     def test_read_job_returns_the_sync_while_it_is_the_latest_of_its_kind(self):
         syncs = _syncs()
         first = _queue(syncs, MOCK_USER_ID, _Kind.GEAR)
-        syncs.set_status(MOCK_USER_ID, _Kind.GEAR, Status.SUCCEEDED)
+        syncs.set_status(MOCK_USER_ID, _Kind.GEAR, Status.SUCCEEDED, job_id=first.id)
 
         job, state = syncs.read_job(first)
         assert job.id == first.id
@@ -343,24 +400,39 @@ class TestSyncStateStore:
     @pytest.mark.parametrize("pending", [Status.QUEUED, Status.RUNNING])
     def test_a_pending_sync_is_closed_as_failed_and_frees_the_claim(self, pending):
         syncs = _syncs()
-        _queue(syncs, MOCK_USER_ID, _Kind.GEAR)
-        syncs.set_status(MOCK_USER_ID, _Kind.GEAR, pending)
+        job = _queue(syncs, MOCK_USER_ID, _Kind.GEAR)
+        syncs.set_status(MOCK_USER_ID, _Kind.GEAR, pending, job_id=job.id)
 
-        assert syncs.close_pending(MOCK_USER_ID, _Kind.GEAR) is True
+        assert syncs.close_pending(MOCK_USER_ID, _Kind.GEAR, job_id=job.id) is True
         assert syncs.get(MOCK_USER_ID, _Kind.GEAR).status == Status.FAILED
         _queue(syncs, MOCK_USER_ID, _Kind.GEAR)
 
     @pytest.mark.parametrize("finished", [Status.SUCCEEDED, Status.FAILED])
     def test_a_finished_sync_is_left_as_it_is(self, finished):
         syncs = _syncs()
-        _queue(syncs, MOCK_USER_ID, _Kind.GEAR)
-        syncs.set_status(MOCK_USER_ID, _Kind.GEAR, finished)
+        job = _queue(syncs, MOCK_USER_ID, _Kind.GEAR)
+        syncs.set_status(MOCK_USER_ID, _Kind.GEAR, finished, job_id=job.id)
 
-        assert syncs.close_pending(MOCK_USER_ID, _Kind.GEAR) is False
+        assert syncs.close_pending(MOCK_USER_ID, _Kind.GEAR, job_id=job.id) is False
         assert syncs.get(MOCK_USER_ID, _Kind.GEAR).status == finished
 
+    def test_a_sync_a_newer_one_superseded_is_neither_recorded_nor_closed(self):
+        state = MemoryState()
+        syncs = _syncs(state)
+        first = _queue(syncs, MOCK_USER_ID, _Kind.GEAR)
+        state.delete(f"endurain:feature:sync:claim:{MOCK_USER_ID}:gear")
+        second = _queue(syncs, MOCK_USER_ID, _Kind.GEAR)
+
+        syncs.set_status(MOCK_USER_ID, _Kind.GEAR, Status.SUCCEEDED, job_id=first.id)
+        assert syncs.close_pending(MOCK_USER_ID, _Kind.GEAR, job_id=first.id) is False
+
+        assert syncs.get(MOCK_USER_ID, _Kind.GEAR).status == Status.QUEUED
+        assert syncs.read_job(second) is not None
+        with pytest.raises(core_exceptions.JobAlreadyRunningError):
+            _queue(syncs, MOCK_USER_ID, _Kind.GEAR)
+
     def test_an_expired_sync_is_left_alone(self):
-        assert _syncs().close_pending(MOCK_USER_ID, _Kind.GEAR) is False
+        assert _syncs().close_pending(MOCK_USER_ID, _Kind.GEAR, job_id=uuid.uuid4()) is False
 
     def test_an_unavailable_backend_fails_a_read_and_a_begin_but_not_a_recorded_outcome(self):
         state = MagicMock()
@@ -372,7 +444,7 @@ class TestSyncStateStore:
             _queue(syncs, MOCK_USER_ID, _Kind.GEAR)
         with pytest.raises(core_attempt_state.StateUnavailableError):
             syncs.get(MOCK_USER_ID, _Kind.GEAR)
-        syncs.set_status(MOCK_USER_ID, _Kind.GEAR, Status.SUCCEEDED)
+        syncs.set_status(MOCK_USER_ID, _Kind.GEAR, Status.SUCCEEDED, job_id=uuid.uuid4())
 
 
 def test_a_sync_state_stored_before_the_job_vocabulary_reads_as_the_new_one():

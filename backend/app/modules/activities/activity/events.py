@@ -109,6 +109,7 @@ class VisibilityEditRequestedPayload(VersionedPayload):
 
     Attributes:
         user_id: The user whose activities are edited.
+        job_id: The job the edit records its state against.
         visibility: The visibility to apply: 0 public, 1 followers, 2 private.
     """
 
@@ -117,4 +118,5 @@ class VisibilityEditRequestedPayload(VersionedPayload):
     SCHEMA_VERSION: ClassVar[int] = 1
 
     user_id: uuid.UUID
+    job_id: uuid.UUID
     visibility: int

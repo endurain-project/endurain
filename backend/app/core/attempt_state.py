@@ -312,8 +312,14 @@ class AttemptStateStore:
                 extra=core_logger.context(namespace=self._namespace, name=self._name),
             )
 
-    def record(self, subject: str, state: BaseModel, *, finished: bool, strict: bool = False) -> None:
-        """Record an attempt's progress or outcome.
+    def record(
+        self, subject: str, job_id: uuid.UUID, state: BaseModel, *, finished: bool, strict: bool = False
+    ) -> None:
+        """Record an attempt's progress or outcome, for the attempt that still owns the subject.
+
+        An attempt owns its subject while the stored job and the claim are both its own. One whose claim
+        expired and was followed by a newer attempt no longer does, and records nothing: it neither overwrites
+        the newer attempt's state nor frees its claim.
 
         A finished attempt releases its claim, stamps its job's ``finished_at`` and is announced; any other
         progress renews the claim. A failure to record is logged, not raised: the attempt itself must still
@@ -323,6 +329,7 @@ class AttemptStateStore:
 
         Args:
             subject: What the attempt is for.
+            job_id: The job the caller is running.
             state: The new state.
             finished: Whether the attempt is over.
             strict: Raise when the state cannot be recorded.
@@ -333,6 +340,14 @@ class AttemptStateStore:
         job: core_job_status.JobRef | None = None
         try:
             stored = self._read_stored(subject)
+            claim = self._state.get(self._claim_key(subject))
+            claim_value = str(job_id).encode()
+            if (stored is not None and stored.job.id != job_id) or (claim is not None and claim != claim_value):
+                logger.debug(
+                    "A superseded attempt recorded nothing",
+                    extra=core_logger.context(namespace=self._namespace, name=self._name, job_id=job_id),
+                )
+                return
             if stored is None:
                 logger.warning(
                     "An attempt has no job to record its state against",
@@ -346,7 +361,7 @@ class AttemptStateStore:
             if finished:
                 self._state.delete(self._claim_key(subject))
             elif job is not None:
-                self._state.set(self._claim_key(subject), str(job.id).encode(), ttl_seconds=self._ttl_seconds)
+                self._state.set(self._claim_key(subject), claim_value, ttl_seconds=self._ttl_seconds)
         except StateBackendUnavailableError as err:
             if strict:
                 raise_unavailable(f"record {self._namespace}:{self._name}", err)
@@ -376,20 +391,24 @@ class AttemptStateStore:
         except StateBackendUnavailableError as err:
             raise_unavailable(f"read {self._namespace}:{self._name}", err)
 
-    def read(self, subject: str) -> bytes | None:
+    def read(self, subject: str, *, job_id: uuid.UUID | None = None) -> bytes | None:
         """Read an attempt's recorded state.
 
         Args:
             subject: What the attempt is for.
+            job_id: When given, read the state only while it belongs to this job.
 
         Returns:
-            The feature's state as JSON, or None when none is recorded or it has expired.
+            The feature's state as JSON, or None when none is recorded, it has expired or, with ``job_id``, it
+            belongs to another job.
 
         Raises:
             StateUnavailableError: When storage is unavailable.
         """
         stored = self.read_stored(subject)
-        return stored.state_json() if stored is not None else None
+        if stored is None or (job_id is not None and stored.job.id != job_id):
+            return None
+        return stored.state_json()
 
     def read_job(self, job: core_job_status.JobRef) -> StoredJob | None:
         """Read the record of the job a reference names.
@@ -498,15 +517,22 @@ class SyncStateStore:
             conflict=conflict,
         )
 
-    def set_status(self, user_id: uuid.UUID, kind: StrEnum, status: core_job_status.JobState) -> None:
+    def set_status(
+        self, user_id: uuid.UUID, kind: StrEnum, status: core_job_status.JobState, *, job_id: uuid.UUID
+    ) -> None:
         """Record a sync's progress or outcome; a finished sync frees the claim.
+
+        A sync that a newer one has superseded records nothing.
 
         Args:
             user_id: The user being synced.
             kind: What the sync does.
             status: The new status.
+            job_id: The job the caller is running.
         """
-        self._attempts.record(self._subject(user_id, kind), SyncState(status=status), finished=status in _FINISHED)
+        self._attempts.record(
+            self._subject(user_id, kind), job_id, SyncState(status=status), finished=status in _FINISHED
+        )
 
     def discard(self, user_id: uuid.UUID, kind: StrEnum) -> None:
         """Drop a sync's claim, state and job, for one that was called off.
@@ -519,20 +545,21 @@ class SyncStateStore:
         """
         self._attempts.discard(self._subject(user_id, kind))
 
-    def get(self, user_id: uuid.UUID, kind: StrEnum) -> SyncState | None:
+    def get(self, user_id: uuid.UUID, kind: StrEnum, *, job_id: uuid.UUID | None = None) -> SyncState | None:
         """Read a sync's state.
 
         Args:
             user_id: The user being synced.
             kind: What the sync does.
+            job_id: When given, read the state only while it belongs to this job.
 
         Returns:
-            The state, or None when none is recorded or it has expired.
+            The state, or None when none is recorded, it has expired or, with ``job_id``, it belongs to another job.
 
         Raises:
             StateUnavailableError: When storage is unavailable.
         """
-        value = self._attempts.read(self._subject(user_id, kind))
+        value = self._attempts.read(self._subject(user_id, kind), job_id=job_id)
         return SyncState.model_validate_json(value) if value is not None else None
 
     def read_job(self, job: core_job_status.JobRef) -> tuple[core_job_status.JobRef, SyncState] | None:
@@ -550,15 +577,16 @@ class SyncStateStore:
         stored = self._attempts.read_job(job)
         return (stored.job, SyncState.model_validate_json(stored.state_json())) if stored is not None else None
 
-    def close_pending(self, user_id: uuid.UUID, kind: StrEnum) -> bool:
+    def close_pending(self, user_id: uuid.UUID, kind: StrEnum, *, job_id: uuid.UUID) -> bool:
         """Fail a sync that is still pending, so the user can queue another.
 
         For a sync the runner gave up on, however its last attempt ended. A sync that already
-        finished, or whose state has expired, is left as it is.
+        finished, whose state has expired, or that a newer sync has superseded is left as it is.
 
         Args:
             user_id: The user being synced.
             kind: What the sync does.
+            job_id: The job the runner gave up on.
 
         Returns:
             True when a pending sync was closed.
@@ -566,8 +594,8 @@ class SyncStateStore:
         Raises:
             StateUnavailableError: When storage is unavailable.
         """
-        state = self.get(user_id, kind)
+        state = self.get(user_id, kind, job_id=job_id)
         if state is None or state.status not in _PENDING:
             return False
-        self.set_status(user_id, kind, core_job_status.JobState.FAILED)
+        self.set_status(user_id, kind, core_job_status.JobState.FAILED, job_id=job_id)
         return True

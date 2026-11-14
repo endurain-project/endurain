@@ -43,29 +43,34 @@ def _is_claimed(states) -> bool:
 
 class TestRunRecorded:
     def test_a_sync_that_did_something_is_completed(self, states):
-        _begin(states)
+        job = _begin(states)
 
-        result = core_sync_runner.run_recorded(states, MOCK_USER_ID, _Kinds.GEAR, lambda: True, will_retry=False)
+        result = core_sync_runner.run_recorded(
+            states, MOCK_USER_ID, _Kinds.GEAR, job.id, lambda: True, will_retry=False
+        )
 
         assert result is True
         assert states.get(MOCK_USER_ID, _Kinds.GEAR).status == Status.SUCCEEDED
 
     def test_a_sync_with_nothing_to_do_is_recorded_as_failed(self, states):
-        _begin(states)
+        job = _begin(states)
 
-        result = core_sync_runner.run_recorded(states, MOCK_USER_ID, _Kinds.GEAR, lambda: False, will_retry=False)
+        result = core_sync_runner.run_recorded(
+            states, MOCK_USER_ID, _Kinds.GEAR, job.id, lambda: False, will_retry=False
+        )
 
         assert result is False
         assert states.get(MOCK_USER_ID, _Kinds.GEAR).status == Status.FAILED
 
     def test_the_sync_is_running_while_the_work_runs(self, states):
-        _begin(states)
+        job = _begin(states)
         seen = []
 
         core_sync_runner.run_recorded(
             states,
             MOCK_USER_ID,
             _Kinds.GEAR,
+            job.id,
             lambda: seen.append(states.get(MOCK_USER_ID, _Kinds.GEAR).status) or True,
             will_retry=False,
         )
@@ -73,7 +78,7 @@ class TestRunRecorded:
         assert seen == [Status.RUNNING]
 
     def test_a_refusal_is_recorded_as_failed_and_not_raised(self, states):
-        _begin(states)
+        job = _begin(states)
         refused = MagicMock()
 
         def work():
@@ -83,6 +88,7 @@ class TestRunRecorded:
             states,
             MOCK_USER_ID,
             _Kinds.GEAR,
+            job.id,
             work,
             will_retry=True,
             refusals=(core_exceptions.TooManyRequestsError,),
@@ -94,28 +100,40 @@ class TestRunRecorded:
         refused.assert_called_once()
 
     def test_a_failure_a_worker_will_retry_stays_queued_and_raises(self, states):
-        _begin(states)
+        job = _begin(states)
 
         def work():
             raise RuntimeError("boom")
 
         with pytest.raises(RuntimeError):
-            core_sync_runner.run_recorded(states, MOCK_USER_ID, _Kinds.GEAR, work, will_retry=True)
+            core_sync_runner.run_recorded(states, MOCK_USER_ID, _Kinds.GEAR, job.id, work, will_retry=True)
 
         assert states.get(MOCK_USER_ID, _Kinds.GEAR).status == Status.QUEUED
         assert _is_claimed(states)
 
     def test_a_failure_nothing_retries_is_failed_and_raises(self, states):
-        _begin(states)
+        job = _begin(states)
 
         def work():
             raise RuntimeError("boom")
 
         with pytest.raises(RuntimeError):
-            core_sync_runner.run_recorded(states, MOCK_USER_ID, _Kinds.GEAR, work, will_retry=False)
+            core_sync_runner.run_recorded(states, MOCK_USER_ID, _Kinds.GEAR, job.id, work, will_retry=False)
 
         assert states.get(MOCK_USER_ID, _Kinds.GEAR).status == Status.FAILED
         assert not _is_claimed(states)
+
+    def test_a_superseded_sync_records_nothing_and_leaves_the_newer_sync_claimed(self):
+        state = MemoryState()
+        states = core_attempt_state.SyncStateStore(state, "feature", 60, job_kind=lambda kind: f"feature_{kind}")
+        old = _begin(states)
+        state.delete(f"endurain:feature:sync:claim:{MOCK_USER_ID}:gear")
+        new = _begin(states)
+
+        core_sync_runner.run_recorded(states, MOCK_USER_ID, _Kinds.GEAR, old.id, lambda: True, will_retry=False)
+
+        assert states.read_job(new)[1].status == Status.QUEUED
+        assert _is_claimed(states)
 
 
 class TestStartClaimed:
@@ -125,7 +143,7 @@ class TestStartClaimed:
         job = core_sync_runner.start_claimed(lambda: _begin(states), start, release)
 
         assert job.kind == "feature_gear"
-        start.assert_called_once_with()
+        start.assert_called_once_with(job)
         release.assert_not_called()
 
     def test_a_held_claim_is_a_conflict_and_nothing_starts(self, states):
@@ -144,7 +162,8 @@ class TestStartClaimed:
         with pytest.raises(RuntimeError):
             core_sync_runner.start_claimed(lambda: _begin(states), MagicMock(side_effect=RuntimeError("boom")), release)
 
-        release.assert_called_once_with()
+        release.assert_called_once()
+        assert release.call_args.args[0].kind == "feature_gear"
 
 
 class TestQueueSync:
@@ -155,7 +174,7 @@ class TestQueueSync:
             states, MOCK_USER_ID, _Kinds.GEAR, "Provider", durable=True, publish=publish, submit=submit
         )
 
-        publish.assert_called_once_with()
+        publish.assert_called_once_with(job)
         submit.assert_not_called()
         assert states.get(MOCK_USER_ID, _Kinds.GEAR).status == Status.QUEUED
         assert job.owner_id == MOCK_USER_ID
@@ -163,11 +182,11 @@ class TestQueueSync:
     def test_a_local_sync_is_submitted_to_the_pool(self, states):
         publish, submit = MagicMock(), MagicMock()
 
-        core_sync_runner.queue_sync(
+        job = core_sync_runner.queue_sync(
             states, MOCK_USER_ID, _Kinds.GEAR, "Provider", durable=False, publish=publish, submit=submit
         )
 
-        submit.assert_called_once_with()
+        submit.assert_called_once_with(job)
         publish.assert_not_called()
 
     def test_a_pending_sync_is_a_conflict_naming_it(self, states):
@@ -200,9 +219,9 @@ class TestQueueSync:
 
 class TestStatusAndDeadLetter:
     def test_a_dead_lettered_sync_is_failed_and_its_claim_freed(self, states):
-        _begin(states)
+        job = _begin(states)
 
-        core_sync_runner.close_dead_lettered(states, MOCK_USER_ID, _Kinds.GEAR, "Provider")
+        core_sync_runner.close_dead_lettered(states, MOCK_USER_ID, _Kinds.GEAR, job.id, "Provider")
 
         assert states.get(MOCK_USER_ID, _Kinds.GEAR).status == Status.FAILED
         assert not _is_claimed(states)

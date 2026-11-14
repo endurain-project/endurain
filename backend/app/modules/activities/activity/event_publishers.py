@@ -224,7 +224,7 @@ def publish_activities_deleted(
 
 
 def publish_visibility_edit_requested(
-    user_id: uuid.UUID, visibility: int, db: Session, *, commit: Callable[[], None]
+    user_id: uuid.UUID, job_id: uuid.UUID, visibility: int, db: Session, *, commit: Callable[[], None]
 ) -> None:
     """Publish ``activities.visibility_edit_requested`` so a durable worker applies the edit.
 
@@ -233,11 +233,12 @@ def publish_visibility_edit_requested(
 
     Args:
         user_id: The user whose activities to edit.
+        job_id: The job the edit records its state against.
         visibility: The visibility to apply.
         db: The session to stage the event on.
         commit: Zero-arg commit callable that ends the caller's transaction.
     """
-    payload = activity_events.VisibilityEditRequestedPayload(user_id=user_id, visibility=visibility)
+    payload = activity_events.VisibilityEditRequestedPayload(user_id=user_id, job_id=job_id, visibility=visibility)
     platform_publisher.publish_committing(
         activity_events.ACTIVITIES_VISIBILITY_EDIT_REQUESTED,
         payload.model_dump(mode="json"),

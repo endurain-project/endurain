@@ -12,6 +12,7 @@ import modules.users.users_profile.events as profile_events
 import modules.users.users_profile.subscribers as profile_subscribers
 
 _USER_ID = uuid.UUID(int=1)
+_JOB = uuid.UUID(int=500)
 
 _MODULE = "modules.users.users_profile.subscribers"
 
@@ -19,7 +20,7 @@ _MODULE = "modules.users.users_profile.subscribers"
 def _event(retry_count: int = 0, max_attempts: int | None = None) -> Event:
     event = new_event(
         profile_events.USERS_PROFILE_IMPORT_REQUESTED,
-        {"user_id": str(_USER_ID), "staged_key": f"{_USER_ID}/a.zip"},
+        {"user_id": str(_USER_ID), "job_id": str(_JOB), "staged_key": f"{_USER_ID}/a.zip"},
         source="test",
         retry_count=retry_count,
     )
@@ -48,7 +49,7 @@ def test_the_durable_handler_runs_the_import_the_event_names(run_import):
     profile_subscribers.process_import_requested_for_event(_event())
 
     payload = run_import.call_args.args[0]
-    assert (payload.user_id, payload.staged_key) == (_USER_ID, f"{_USER_ID}/a.zip")
+    assert (payload.user_id, payload.job_id, payload.staged_key) == (_USER_ID, _JOB, f"{_USER_ID}/a.zip")
 
 
 def test_a_durable_attempt_with_attempts_left_asks_to_be_retried(run_import):
@@ -83,7 +84,7 @@ def test_a_bus_import_the_full_pool_refuses_is_closed_not_left_queued(inline_tra
     ):
         profile_subscribers.run_import_requested_on_bus(_event())
 
-    assert fail.call_args.args[0].user_id == _USER_ID
+    assert (fail.call_args.args[0].user_id, fail.call_args.args[0].job_id) == (_USER_ID, _JOB)
 
 
 def test_a_bus_export_the_full_pool_refuses_is_closed_not_left_queued(inline_transfer_pool):
@@ -94,7 +95,7 @@ def test_a_bus_export_the_full_pool_refuses_is_closed_not_left_queued(inline_tra
     ):
         profile_subscribers.run_export_requested_on_bus(_export_event())
 
-    assert fail.call_args.args[0].user_id == _USER_ID
+    assert (fail.call_args.args[0].user_id, fail.call_args.args[0].job_id) == (_USER_ID, _JOB)
 
 
 def test_both_paths_are_registered_for_the_event():
@@ -113,7 +114,7 @@ def test_both_paths_are_registered_for_the_event():
 def _export_event(retry_count: int = 0, max_attempts: int | None = None) -> Event:
     event = new_event(
         profile_events.USERS_PROFILE_EXPORT_REQUESTED,
-        {"user_id": str(_USER_ID)},
+        {"user_id": str(_USER_ID), "job_id": str(_JOB)},
         source="test",
         retry_count=retry_count,
     )
@@ -131,7 +132,7 @@ def test_the_export_handlers_run_the_export_the_event_names():
         profile_subscribers.run_export_requested_on_bus(_export_event())
         bus = run.call_args
 
-    assert durable.args[0].user_id == _USER_ID
+    assert (durable.args[0].user_id, durable.args[0].job_id) == (_USER_ID, _JOB)
     assert durable.kwargs["will_retry"] is True
     assert bus.kwargs["will_retry"] is False
 
@@ -163,14 +164,14 @@ class TestDeadLetter:
             profile_subscribers.on_import_requested_dead_letter(_event(3, 3), "lease expired")
 
         payload, _states, storage = close.call_args.args
-        assert (payload.user_id, payload.staged_key) == (_USER_ID, f"{_USER_ID}/a.zip")
+        assert (payload.user_id, payload.job_id, payload.staged_key) == (_USER_ID, _JOB, f"{_USER_ID}/a.zip")
         assert storage is platform.storage
 
     def test_a_dead_lettered_export_is_closed(self, platform):
         with patch(f"{_MODULE}.profile_export_job_service.close_dead_lettered_export") as close:
             profile_subscribers.on_export_requested_dead_letter(_export_event(3, 3), None)
 
-        assert close.call_args.args[0].user_id == _USER_ID
+        assert (close.call_args.args[0].user_id, close.call_args.args[0].job_id) == (_USER_ID, _JOB)
 
     def test_both_handlers_are_registered_with_their_callbacks(self):
         from jasil.jobs.registry import JobHandlerRegistry

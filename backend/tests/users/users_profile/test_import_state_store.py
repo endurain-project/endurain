@@ -39,22 +39,22 @@ def test_users_do_not_block_each_other():
 
 def test_progress_keeps_the_claim_and_a_finished_import_releases_it():
     store = _store()
-    store.begin(_USER_ID, conflict="held")
+    job = store.begin(_USER_ID, conflict="held")
 
-    store.set_status(_USER_ID, Status.RUNNING)
+    store.set_status(_USER_ID, job.id, Status.RUNNING)
     with pytest.raises(core_exceptions.JobAlreadyRunningError):
         store.begin(_USER_ID, conflict="held")
 
-    store.set_status(_USER_ID, Status.SUCCEEDED, imported={"gears": 2})
+    store.set_status(_USER_ID, job.id, Status.SUCCEEDED, imported={"gears": 2})
     assert store.get(_USER_ID).imported == {"gears": 2}
     store.begin(_USER_ID, conflict="held")
 
 
 def test_a_failure_carries_its_code():
     store = _store()
-    store.begin(_USER_ID, conflict="held")
+    job = store.begin(_USER_ID, conflict="held")
 
-    store.set_status(_USER_ID, Status.FAILED, error_code=profile_constants.ImportFailure.TOO_LARGE)
+    store.set_status(_USER_ID, job.id, Status.FAILED, error_code=profile_constants.ImportFailure.TOO_LARGE)
 
     assert store.get(_USER_ID).error_code == profile_constants.ImportFailure.TOO_LARGE
 
@@ -69,12 +69,12 @@ def test_state_lives_under_the_users_namespace():
 def test_a_strict_status_raises_when_storage_is_down_and_a_plain_one_does_not():
     state = MemoryState()
     store = _store(state)
-    store.begin(_USER_ID, conflict="held")
+    job = store.begin(_USER_ID, conflict="held")
     state.set = MagicMock(side_effect=StateBackendUnavailableError("down"))
 
-    store.set_status(_USER_ID, Status.RUNNING)
+    store.set_status(_USER_ID, job.id, Status.RUNNING)
     with pytest.raises(core_attempt_state.StateUnavailableError):
-        store.set_status(_USER_ID, Status.WRITING_FILES, strict=True)
+        store.set_status(_USER_ID, job.id, Status.WRITING_FILES, strict=True)
 
 
 def test_an_import_state_stored_with_the_old_names_reads_as_the_new_ones():
@@ -96,7 +96,7 @@ def test_begin_names_the_import_job_and_its_owner():
 def test_read_job_returns_the_import_until_a_later_one_replaces_it():
     store = _store(MemoryState())
     first = store.begin(_USER_ID, conflict="held")
-    store.set_status(_USER_ID, Status.FAILED, error_code=profile_constants.ImportFailure.INVALID_FILE)
+    store.set_status(_USER_ID, first.id, Status.FAILED, error_code=profile_constants.ImportFailure.INVALID_FILE)
     second = store.begin(_USER_ID, conflict="held")
 
     assert store.read_job(first) is None

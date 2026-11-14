@@ -46,6 +46,7 @@ def shutdown_link_pool(*, wait: bool = False) -> None:
 
 def wait_for_mfa_code(
     user_id: uuid.UUID,
+    job_id: uuid.UUID,
     mfa_codes: garmin_mfa_code_store.GarminMFACodeStore,
     link_states: garmin_link_state_store.GarminLinkStateStore,
 ) -> str:
@@ -57,6 +58,7 @@ def wait_for_mfa_code(
 
     Args:
         user_id: The user linking Garmin Connect.
+        job_id: The link job waiting for the code.
         mfa_codes: Shared store the submitted code lands in.
         link_states: Shared store of the link attempt's state.
 
@@ -66,14 +68,14 @@ def wait_for_mfa_code(
     Raises:
         _MfaCodeTimeoutError: When no code arrived within ``MFA_WAIT_SECONDS``.
     """
-    link_states.set_status(user_id, core_job_status.JobState.RUNNING, mfa_required=True)
+    link_states.set_status(user_id, job_id, core_job_status.JobState.RUNNING, mfa_required=True)
     job = link_states.current_job(user_id)
     if job is not None:
         websocket_integration.push_job_changed(user_id, job.id, job.kind)
     for _ in range(garmin_constants.MFA_WAIT_SECONDS):
         code = mfa_codes.get_code(user_id)
         if code is not None:
-            link_states.set_status(user_id, core_job_status.JobState.RUNNING)
+            link_states.set_status(user_id, job_id, core_job_status.JobState.RUNNING)
             return code
         time.sleep(1)
     raise _MfaCodeTimeoutError
@@ -107,22 +109,24 @@ def start_link(
     _link_pool.require_capacity()
     job = core_sync_runner.start_claimed(
         lambda: link_states.begin(user_id, conflict="A Garmin Connect link is already in progress"),
-        lambda: _link_pool.submit(
+        lambda job: _link_pool.submit(
             link_garminconnect,
             user_id,
+            job.id,
             login.username,
             login.password.get_secret_value(),
             mfa_codes,
             link_states,
             login.is_cn,
         ),
-        lambda: link_states.release(user_id),
+        lambda job: link_states.release(user_id),
     )
     return garmin_schema.GarminLinkStatus.model_validate({**job.envelope(), "status": core_job_status.JobState.RUNNING})
 
 
 def link_garminconnect(
     user_id: uuid.UUID,
+    job_id: uuid.UUID,
     email: str,
     password: str,
     mfa_codes: garmin_mfa_code_store.GarminMFACodeStore,
@@ -136,6 +140,7 @@ def link_garminconnect(
 
     Args:
         user_id: The user linking Garmin Connect.
+        job_id: The link job this run records its state against.
         email: Garmin Connect username.
         password: Garmin Connect password.
         mfa_codes: Shared store the submitted MFA code lands in.
@@ -160,7 +165,7 @@ def link_garminconnect(
         nonlocal mfa_prompted, mfa_timed_out
         mfa_prompted = True
         try:
-            return wait_for_mfa_code(user_id, mfa_codes, link_states)
+            return wait_for_mfa_code(user_id, job_id, mfa_codes, link_states)
         except _MfaCodeTimeoutError:
             mfa_timed_out = True
             raise
@@ -197,14 +202,16 @@ def link_garminconnect(
             "Garmin Connect refused the link attempt",
             extra=core_logger.context(user_id=user_id, reason=reason),
         )
-        link_states.set_status(user_id, core_job_status.JobState.FAILED, reason)
+        link_states.set_status(user_id, job_id, core_job_status.JobState.FAILED, reason)
         _record_refused_link(user_id, garmin_audit_actions.LinkFailureReason(reason))
     except garminconnect.GarminConnectTooManyRequestsError:
         logger.warning(
             "Garmin Connect refused the link attempt: too many requests",
             extra=core_logger.context(user_id=user_id),
         )
-        link_states.set_status(user_id, core_job_status.JobState.FAILED, garmin_constants.LinkFailure.TOO_MANY_REQUESTS)
+        link_states.set_status(
+            user_id, job_id, core_job_status.JobState.FAILED, garmin_constants.LinkFailure.TOO_MANY_REQUESTS
+        )
         _record_refused_link(user_id, garmin_audit_actions.LinkFailureReason.TOO_MANY_REQUESTS)
     except Exception as err:
         if mfa_timed_out:
@@ -215,7 +222,9 @@ def link_garminconnect(
                 exc_info=err,
                 extra=core_logger.context(user_id=user_id),
             )
-            link_states.set_status(user_id, core_job_status.JobState.FAILED, garmin_constants.LinkFailure.INCORRECT_MFA)
+            link_states.set_status(
+                user_id, job_id, core_job_status.JobState.FAILED, garmin_constants.LinkFailure.INCORRECT_MFA
+            )
             _record_refused_link(user_id, garmin_audit_actions.LinkFailureReason.INCORRECT_MFA)
         else:
             logger.error(
@@ -223,9 +232,11 @@ def link_garminconnect(
                 exc_info=err,
                 extra=core_logger.context(user_id=user_id),
             )
-            link_states.set_status(user_id, core_job_status.JobState.FAILED, garmin_constants.LinkFailure.INTERNAL)
+            link_states.set_status(
+                user_id, job_id, core_job_status.JobState.FAILED, garmin_constants.LinkFailure.INTERNAL
+            )
     else:
-        link_states.set_status(user_id, core_job_status.JobState.SUCCEEDED)
+        link_states.set_status(user_id, job_id, core_job_status.JobState.SUCCEEDED)
     finally:
         mfa_codes.delete_code(user_id)
 

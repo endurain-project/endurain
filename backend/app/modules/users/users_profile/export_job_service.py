@@ -88,10 +88,10 @@ def request_export(
             target_id=str(user_id),
             target_owner_id=str(user_id),
         )
-        profile_event_publishers.publish_export_requested(user_id, db, commit=db.commit)
+        profile_event_publishers.publish_export_requested(user_id, job.id, db, commit=db.commit)
     except BaseException:
         # The export never started, so nothing else would finish its claim.
-        states.set_status(user_id, _Status.FAILED, error_code=_Failure.PROCESSING_FAILED)
+        states.set_status(user_id, job.id, _Status.FAILED, error_code=_Failure.PROCESSING_FAILED)
         raise
 
     logger.info("Profile export queued", extra=core_logger.context(user_id=user_id))
@@ -111,7 +111,7 @@ def fail_unstarted_export(
     logger.warning(
         "Closed a profile export the in-process pool could not take", extra=core_logger.context(user_id=payload.user_id)
     )
-    states.set_status(payload.user_id, _Status.FAILED, error_code=_Failure.PROCESSING_FAILED)
+    states.set_status(payload.user_id, payload.job_id, _Status.FAILED, error_code=_Failure.PROCESSING_FAILED)
 
 
 def close_dead_lettered_export(
@@ -128,10 +128,10 @@ def close_dead_lettered_export(
         payload: Whose profile was to be exported.
         states: Shared store of the export's state.
     """
-    state = states.get(payload.user_id)
+    state = states.get(payload.user_id, job_id=payload.job_id)
     if state is None or state.status not in (_Status.QUEUED, _Status.RUNNING):
         return
-    states.set_status(payload.user_id, _Status.FAILED, error_code=_Failure.PROCESSING_FAILED)
+    states.set_status(payload.user_id, payload.job_id, _Status.FAILED, error_code=_Failure.PROCESSING_FAILED)
     logger.error("A profile export was dead-lettered", extra=core_logger.context(user_id=payload.user_id))
 
 
@@ -228,13 +228,13 @@ def run_export(
         Exception: A transient failure, when ``will_retry``, so the worker runs the export again;
             the state goes back to ``QUEUED`` first.
     """
-    user_id = payload.user_id
-    state = states.get(user_id)
+    user_id, job_id = payload.user_id, payload.job_id
+    state = states.get(user_id, job_id=job_id)
     if state is None or state.status not in (_Status.QUEUED, _Status.RUNNING):
         logger.debug("Skipped a profile export that is not pending", extra=core_logger.context(user_id=user_id))
         return
 
-    states.set_status(user_id, _Status.RUNNING)
+    states.set_status(user_id, job_id, _Status.RUNNING)
     try:
         with core_database.SessionLocal() as db:
             size = profile_service.stage_export(user_id, storage, db)
@@ -243,15 +243,15 @@ def run_export(
             logger.warning(
                 "Profile export failed; it will be retried", exc_info=err, extra=core_logger.context(user_id=user_id)
             )
-            states.set_status(user_id, _Status.QUEUED)
+            states.set_status(user_id, job_id, _Status.QUEUED)
             raise
         timed_out = isinstance(err, profile_exceptions.TransferTimeoutError)
         failure = _Failure.TIMED_OUT if timed_out else _Failure.PROCESSING_FAILED
         logger.error("Profile export failed", exc_info=err, extra=core_logger.context(user_id=user_id, failure=failure))
-        states.set_status(user_id, _Status.FAILED, error_code=failure)
+        states.set_status(user_id, job_id, _Status.FAILED, error_code=failure)
         return
 
-    states.set_status(user_id, _Status.SUCCEEDED, size_bytes=size)
+    states.set_status(user_id, job_id, _Status.SUCCEEDED, size_bytes=size)
     logger.info("Profile data export ready", extra=core_logger.context(user_id=user_id, size_bytes=size))
 
 

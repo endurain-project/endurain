@@ -14,6 +14,7 @@ import modules.garmin.events as garmin_events
 
 def publish_sync_requested(
     user_id: uuid.UUID,
+    job_id: uuid.UUID,
     kind: garmin_constants.SyncKind,
     start_date: date | None,
     end_date: date | None,
@@ -29,6 +30,7 @@ def publish_sync_requested(
 
     Args:
         user_id: The user whose account to sync.
+        job_id: The job the sync records its state against.
         kind: What to pull.
         start_date: First day of the range, for a health sync.
         end_date: Last day of the range, for a health sync.
@@ -36,7 +38,9 @@ def publish_sync_requested(
         commit: Zero-arg commit callable that ends the caller's transaction.
         source: Who asked for the sync, as recorded on the event.
     """
-    payload = garmin_events.SyncRequestedPayload(user_id=user_id, kind=kind, start_date=start_date, end_date=end_date)
+    payload = garmin_events.SyncRequestedPayload(
+        user_id=user_id, job_id=job_id, kind=kind, start_date=start_date, end_date=end_date
+    )
     platform_publisher.publish_committing(
         garmin_events.GARMIN_SYNC_REQUESTED,
         payload.model_dump(mode="json"),

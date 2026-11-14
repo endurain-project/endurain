@@ -105,6 +105,7 @@ def run_sync(
         states,
         payload.user_id,
         payload.kind,
+        payload.job_id,
         work,
         will_retry=will_retry,
         refusals=(garminconnect.GarminConnectTooManyRequestsError, core_exceptions.TooManyRequestsError),
@@ -135,7 +136,7 @@ def close_dead_lettered_sync(
         payload: What was to be synced.
         states: Shared store of the sync's state.
     """
-    core_sync_runner.close_dead_lettered(states, payload.user_id, payload.kind, "Garmin Connect")
+    core_sync_runner.close_dead_lettered(states, payload.user_id, payload.kind, payload.job_id, "Garmin Connect")
 
 
 def _queue(
@@ -176,13 +177,15 @@ def _queue(
         kind,
         "Garmin Connect",
         durable=core_config.settings.JOBS_ENABLED,
-        publish=lambda: garmin_event_publishers.publish_sync_requested(
-            user_id, kind, start_date, end_date, db, commit=db.commit, source=source
+        publish=lambda job: garmin_event_publishers.publish_sync_requested(
+            user_id, job.id, kind, start_date, end_date, db, commit=db.commit, source=source
         ),
-        submit=lambda: _sync_pool.submit_waiting(
+        submit=lambda job: _sync_pool.submit_waiting(
             wait_seconds,
             run_sync,
-            garmin_events.SyncRequestedPayload(user_id=user_id, kind=kind, start_date=start_date, end_date=end_date),
+            garmin_events.SyncRequestedPayload(
+                user_id=user_id, job_id=job.id, kind=kind, start_date=start_date, end_date=end_date
+            ),
             states,
             rate_limits,
         ),

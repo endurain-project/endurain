@@ -72,7 +72,7 @@ def test_link_returns_running_at_once_and_starts_the_login(mock_start):
     assert response.headers["Content-Location"] == f"/jobs/{body['id']}"
     assert link_states.current_job(MOCK_USER_ID).id == uuid.UUID(body["id"])
     assert link_states.get(MOCK_USER_ID).status == core_job_status.JobState.RUNNING
-    assert mock_start.submit.call_args.args[1:3] == (MOCK_USER_ID, "me@example.com")
+    assert mock_start.submit.call_args.args[1:4] == (MOCK_USER_ID, uuid.UUID(body["id"]), "me@example.com")
 
 
 @patch("modules.garmin.link_service._link_pool")
@@ -93,7 +93,12 @@ def test_a_second_link_while_one_runs_is_a_conflict(mock_start):
 def test_a_failed_link_can_be_retried(mock_start):
     client, link_states = _client()
     client.post("/garmin/link", json=_BODY)
-    link_states.set_status(MOCK_USER_ID, core_job_status.JobState.FAILED, garmin_constants.LinkFailure.INCORRECT_MFA)
+    link_states.set_status(
+        MOCK_USER_ID,
+        link_states.current_job(MOCK_USER_ID).id,
+        core_job_status.JobState.FAILED,
+        garmin_constants.LinkFailure.INCORRECT_MFA,
+    )
 
     assert client.post("/garmin/link", json=_BODY).status_code == 202
 
@@ -107,8 +112,8 @@ def test_an_mfa_code_with_no_login_waiting_is_a_conflict():
 
 def test_an_mfa_code_is_accepted_while_the_login_waits():
     client, link_states = _client()
-    link_states.begin(MOCK_USER_ID, conflict="busy")
-    link_states.set_status(MOCK_USER_ID, core_job_status.JobState.RUNNING, mfa_required=True)
+    job = link_states.begin(MOCK_USER_ID, conflict="busy")
+    link_states.set_status(MOCK_USER_ID, job.id, core_job_status.JobState.RUNNING, mfa_required=True)
 
     assert client.post("/garmin/mfa", json={"mfa_code": "123456"}).status_code == 204
 

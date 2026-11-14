@@ -19,6 +19,7 @@ class SyncRequestedPayload(VersionedPayload):
 
     Attributes:
         user_id: The user whose Strava account to sync.
+        job_id: The job the sync records its state against.
         kind: What to do.
     """
 
@@ -27,4 +28,5 @@ class SyncRequestedPayload(VersionedPayload):
     SCHEMA_VERSION: ClassVar[int] = 1
 
     user_id: uuid.UUID
+    job_id: uuid.UUID
     kind: strava_constants.SyncKind

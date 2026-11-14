@@ -189,8 +189,8 @@ class TestProfileExport:
         audit.assert_not_audited(profile_audit_actions.PROFILE_EXPORT_REQUEST.id)
 
     def test_a_download_is_recorded_once_the_archive_is_found(self, states):
-        states.begin(_USER_ID, _SESSION_ID, conflict="held")
-        states.set_status(_USER_ID, profile_constants.ExportStatus.SUCCEEDED, size_bytes=8)
+        job = states.begin(_USER_ID, _SESSION_ID, conflict="held")
+        states.set_status(_USER_ID, job.id, profile_constants.ExportStatus.SUCCEEDED, size_bytes=8)
         storage = MagicMock()
         storage.open_stream.return_value = io.BytesIO(b"zip-data")
 
@@ -210,8 +210,8 @@ class TestProfileExport:
         audit.assert_not_audited(profile_audit_actions.PROFILE_EXPORT_DOWNLOAD.id)
 
     def test_a_missing_archive_writes_no_row(self, states):
-        states.begin(_USER_ID, _SESSION_ID, conflict="held")
-        states.set_status(_USER_ID, profile_constants.ExportStatus.SUCCEEDED, size_bytes=8)
+        job = states.begin(_USER_ID, _SESSION_ID, conflict="held")
+        states.set_status(_USER_ID, job.id, profile_constants.ExportStatus.SUCCEEDED, size_bytes=8)
         storage = MagicMock()
         storage.open_stream.side_effect = FileNotFoundError
 
@@ -228,8 +228,8 @@ def _saver(*, kind, upload_dir, filename):
     return path
 
 
-def _payload(user_id: uuid.UUID = _USER_ID) -> profile_events.ProfileImportRequestedPayload:
-    return profile_events.ProfileImportRequestedPayload(user_id=user_id, staged_key=f"{user_id}/abc.zip")
+def _payload(job_id: uuid.UUID, user_id: uuid.UUID = _USER_ID) -> profile_events.ProfileImportRequestedPayload:
+    return profile_events.ProfileImportRequestedPayload(user_id=user_id, job_id=job_id, staged_key=f"{user_id}/abc.zip")
 
 
 class TestProfileImport:
@@ -243,10 +243,10 @@ class TestProfileImport:
         store.get.return_value = b"zip"
         return store
 
-    def _run(self, states, storage, outcome, *, will_retry=False):
+    def _run(self, job_id, states, storage, outcome, *, will_retry=False):
         stage = {"side_effect": outcome} if isinstance(outcome, Exception) else {"return_value": outcome}
         with patch(f"{_IMPORT}._run_importer", **stage):
-            import_job_service.run_import(_payload(), states, storage, will_retry=will_retry)
+            import_job_service.run_import(_payload(job_id), states, storage, will_retry=will_retry)
 
     def test_the_request_is_recorded_in_the_queueing_transaction(self, states, storage, mock_db):
         with (
@@ -267,10 +267,10 @@ class TestProfileImport:
         audit.assert_not_audited(profile_audit_actions.PROFILE_IMPORT_REQUEST.id)
 
     def test_a_finished_import_records_success_once(self, states, storage):
-        states.begin(_USER_ID, conflict="held")
+        job = states.begin(_USER_ID, conflict="held")
 
         with jasil_testing.capture_audit() as audit:
-            self._run(states, storage, {"activities": 3})
+            self._run(job.id, states, storage, {"activities": 3})
 
         entries = audit.matching(profile_audit_actions.PROFILE_IMPORT_COMPLETE.id)
         assert len(entries) == 1
@@ -278,71 +278,71 @@ class TestProfileImport:
         audit.assert_audited(profile_audit_actions.PROFILE_IMPORT_COMPLETE.id, **_TARGET)
 
     def test_a_failed_import_records_failure_once(self, states, storage):
-        states.begin(_USER_ID, conflict="held")
+        job = states.begin(_USER_ID, conflict="held")
 
         with jasil_testing.capture_audit() as audit:
-            self._run(states, storage, RuntimeError("boom"))
+            self._run(job.id, states, storage, RuntimeError("boom"))
 
         entries = audit.matching(profile_audit_actions.PROFILE_IMPORT_COMPLETE.id)
         assert [e.outcome for e in entries] == [Outcome.FAILURE]
         audit.assert_audited(profile_audit_actions.PROFILE_IMPORT_COMPLETE.id, outcome=Outcome.FAILURE, **_TARGET)
 
     def test_a_retried_attempt_writes_nothing_until_the_import_ends(self, states, storage):
-        states.begin(_USER_ID, conflict="held")
+        job = states.begin(_USER_ID, conflict="held")
         transient = OperationalError("stmt", {}, Exception("db down"))
 
         with jasil_testing.capture_audit() as audit:
             with pytest.raises(type(transient)):
-                self._run(states, storage, transient, will_retry=True)
+                self._run(job.id, states, storage, transient, will_retry=True)
             audit.assert_not_audited(profile_audit_actions.PROFILE_IMPORT_COMPLETE.id)
-            self._run(states, storage, {"activities": 1})
+            self._run(job.id, states, storage, {"activities": 1})
 
         assert len(audit.matching(profile_audit_actions.PROFILE_IMPORT_COMPLETE.id)) == 1
 
     def test_a_missing_staged_archive_records_failure(self, states, storage):
-        states.begin(_USER_ID, conflict="held")
+        job = states.begin(_USER_ID, conflict="held")
         storage.get.return_value = None
 
         with jasil_testing.capture_audit() as audit:
-            self._run(states, storage, {})
+            self._run(job.id, states, storage, {})
 
         audit.assert_audited(profile_audit_actions.PROFILE_IMPORT_COMPLETE.id, outcome=Outcome.FAILURE, **_TARGET)
 
     def test_a_redelivery_that_finds_the_import_already_finished_writes_nothing(self, states, storage):
-        states.begin(_USER_ID, conflict="held")
-        states.set_status(_USER_ID, profile_constants.ImportStatus.SUCCEEDED)
+        job = states.begin(_USER_ID, conflict="held")
+        states.set_status(_USER_ID, job.id, profile_constants.ImportStatus.SUCCEEDED)
 
         with jasil_testing.capture_audit() as audit:
-            self._run(states, storage, {})
+            self._run(job.id, states, storage, {})
 
         audit.assert_not_audited(profile_audit_actions.PROFILE_IMPORT_COMPLETE.id)
 
     def test_an_import_that_died_writing_files_records_failure_once(self, states, storage):
-        states.begin(_USER_ID, conflict="held")
-        states.set_status(_USER_ID, profile_constants.ImportStatus.WRITING_FILES)
+        job = states.begin(_USER_ID, conflict="held")
+        states.set_status(_USER_ID, job.id, profile_constants.ImportStatus.WRITING_FILES)
 
         with jasil_testing.capture_audit() as audit:
-            self._run(states, storage, {})
+            self._run(job.id, states, storage, {})
 
         assert len(audit.matching(profile_audit_actions.PROFILE_IMPORT_COMPLETE.id)) == 1
 
     def test_a_dead_lettered_pending_import_records_failure_but_a_finished_one_does_not(self, states, storage):
-        states.begin(_USER_ID, conflict="held")
+        job = states.begin(_USER_ID, conflict="held")
         with jasil_testing.capture_audit() as audit:
-            import_job_service.close_dead_lettered_import(_payload(), states, storage)
+            import_job_service.close_dead_lettered_import(_payload(job.id), states, storage)
         audit.assert_audited(profile_audit_actions.PROFILE_IMPORT_COMPLETE.id, outcome=Outcome.FAILURE, **_TARGET)
 
         states.discard(_USER_ID)
         states.begin(_USER_ID, conflict="held")
-        states.set_status(_USER_ID, profile_constants.ImportStatus.SUCCEEDED)
+        states.set_status(_USER_ID, job.id, profile_constants.ImportStatus.SUCCEEDED)
         with jasil_testing.capture_audit() as audit:
-            import_job_service.close_dead_lettered_import(_payload(), states, storage)
+            import_job_service.close_dead_lettered_import(_payload(job.id), states, storage)
         audit.assert_not_audited(profile_audit_actions.PROFILE_IMPORT_COMPLETE.id)
 
     def test_an_import_the_pool_could_not_take_records_failure(self, states, storage):
-        states.begin(_USER_ID, conflict="held")
+        job = states.begin(_USER_ID, conflict="held")
 
         with jasil_testing.capture_audit() as audit:
-            import_job_service.fail_unstarted_import(_payload(), states, storage)
+            import_job_service.fail_unstarted_import(_payload(job.id), states, storage)
 
         audit.assert_audited(profile_audit_actions.PROFILE_IMPORT_COMPLETE.id, outcome=Outcome.FAILURE, **_TARGET)

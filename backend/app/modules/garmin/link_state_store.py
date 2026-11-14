@@ -113,21 +113,24 @@ class GarminLinkStateStore:
     def set_status(
         self,
         user_id: uuid.UUID,
+        job_id: uuid.UUID,
         status: core_job_status.JobState,
         error_code: garmin_constants.LinkFailure | None = None,
         *,
         mfa_required: bool = False,
     ) -> None:
-        """Record a link attempt's progress or outcome.
+        """Record a link attempt's progress or outcome; an attempt a newer one superseded records nothing.
 
         Args:
             user_id: Authenticated user ID.
+            job_id: The job the caller is running.
             status: The new status.
             error_code: Why the attempt failed, when ``status`` is ``FAILED``.
             mfa_required: Whether the login now waits for the user's MFA code.
         """
         self._attempts.record(
             str(user_id),
+            job_id,
             LinkState(status=status, mfa_required=mfa_required, error_code=error_code),
             finished=status in _FINISHED,
         )

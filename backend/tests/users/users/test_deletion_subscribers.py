@@ -12,13 +12,17 @@ import modules.users.users.events as users_events
 import modules.users.users.subscribers as users_subscribers
 
 _U4 = uuid.UUID(int=4)
+_JOB = uuid.UUID(int=500)
 
 _MODULE = "modules.users.users.subscribers"
 
 
 def _event(retry_count: int = 0, max_attempts: int | None = None) -> Event:
     event = new_event(
-        users_events.USERS_DELETION_REQUESTED, {"user_id": str(_U4)}, source="test", retry_count=retry_count
+        users_events.USERS_DELETION_REQUESTED,
+        {"user_id": str(_U4), "job_id": str(_JOB)},
+        source="test",
+        retry_count=retry_count,
     )
     return replace(event, max_attempts=max_attempts)
 
@@ -34,7 +38,7 @@ def test_the_durable_handler_runs_the_deletion_the_event_names(platform):
     with patch(f"{_MODULE}.users_deletion_job_service.run_deletion", return_value=False) as run:
         users_subscribers.process_deletion_requested_for_event(_event())
 
-    assert run.call_args.args[0].user_id == _U4
+    assert (run.call_args.args[0].user_id, run.call_args.args[0].job_id) == (_U4, _JOB)
     assert run.call_args.args[2] is platform.storage
 
 
@@ -70,7 +74,7 @@ def test_a_dead_lettered_deletion_is_closed(platform):
     with patch(f"{_MODULE}.users_deletion_job_service.close_dead_lettered_deletion") as close:
         users_subscribers.on_deletion_requested_dead_letter(_event(), "boom")
 
-    assert close.call_args.args[0].user_id == _U4
+    assert (close.call_args.args[0].user_id, close.call_args.args[0].job_id) == (_U4, _JOB)
 
 
 def test_the_handler_is_registered_for_the_event():
