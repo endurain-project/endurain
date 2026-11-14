@@ -303,6 +303,47 @@ def get_user_ids_with_active_refresh(user_ids: Sequence[uuid.UUID], db: Session)
     return set(db.scalars(stmt).all())
 
 
+#: Advisory-lock namespace of a user's upload admission, kept apart from every other advisory lock.
+_UPLOAD_LOCK_NAMESPACE = 7311
+
+
+def lock_user_uploads(user_id: uuid.UUID, db: Session) -> None:
+    """Serialise the writers that add an upload job for a user, until the transaction ends.
+
+    A cap read with ``count`` and then enforced by an insert lets concurrent requests each see room and all
+    insert, so the writer takes this lock first and counts again under it. It blocks only requests for the
+    same user, on whichever replica they land.
+
+    Args:
+        user_id: The uploading user.
+        db: Database session.
+    """
+    core_database.lock_user_scope(_UPLOAD_LOCK_NAMESPACE, user_id, db)
+
+
+def count_open_uploads(user_id: uuid.UUID, db: Session) -> int:
+    """Count the user's uploads that are pending, processing or deferred.
+
+    Args:
+        user_id: The uploading user.
+        db: Database session.
+
+    Returns:
+        The number of upload jobs that have not reached a terminal state.
+    """
+    stmt = (
+        select(func.count())
+        .select_from(activity_ingestion_models.ActivityIngestionJob)
+        .where(
+            activity_ingestion_models.ActivityIngestionJob.user_id == user_id,
+            activity_ingestion_models.ActivityIngestionJob.kind
+            == activity_ingestion_constants.IngestionJobKind.UPLOAD.value,
+            activity_ingestion_models.ActivityIngestionJob.completed_at.is_(None),
+        )
+    )
+    return db.scalar(stmt) or 0
+
+
 def get_active_bulk_import_job_id(user_id: uuid.UUID, db: Session) -> uuid.UUID | None:
     """Return the id of the user's bulk import that has not finished, if any.
 

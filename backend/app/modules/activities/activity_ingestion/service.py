@@ -151,11 +151,16 @@ def accept_upload(
     Raises:
         InvalidInputError: When the filename is missing.
         UnsupportedFormatError: When the extension is not a supported format.
-        ConflictError: When the key was already used for different content.
+        ConflictError: When the key was already used for different content, or the user already has
+            the maximum number of uploads open.
         DomainError: When the shared upload validators reject the payload.
         PoolFullError: On the local profile, when the in-process pool is full.
     """
     activity_ingestion_dispatch_service.require_capacity()
+    if not idempotency_key:
+        # Before the body is read: a refused upload costs the server nothing. A keyed request may be a
+        # replay, which the cap must not refuse, so it checks once the key is looked up.
+        _ensure_upload_room(token_user_id, db)
     received = activity_ingestion_upload_entry_service.receive_upload(
         filename, save_upload, fingerprint=idempotency_key is not None
     )
@@ -178,6 +183,8 @@ def accept_upload(
                         extra=core_logger.context(user_id=token_user_id, job_id=prior[0].id),
                     )
                     prior = None
+            if prior is None:
+                _ensure_upload_room(token_user_id, db)
         except Exception:
             # The upload is on local disk and nothing else will remove it.
             activity_ingestion_upload_entry_service.discard_received_upload(received)
@@ -191,14 +198,18 @@ def accept_upload(
             )
             return replayed
 
-    if idempotency_key and not release_staged:
-        # The lookup read, which holds a pooled connection until the transaction ends, and the staged
+    if not release_staged:
+        # The cap and lookup reads hold a pooled connection until the transaction ends, and the staged
         # upload can be 200 MiB. A staged key release stays pending: it commits with the new job.
         db.rollback()
     staged_key = activity_ingestion_upload_entry_service.store_received_upload(received, storage)
     job_id = uuid.uuid4()
 
     try:
+        # The count above was a cheap early refusal; this one decides. The lock is held until the commit
+        # below, so concurrent uploads of one user count and insert one at a time.
+        activity_ingestion_crud.lock_user_uploads(token_user_id, db)
+        _ensure_upload_room(token_user_id, db)
         activity_ingestion_crud.create_ingestion_job(
             job_id,
             token_user_id,
@@ -255,6 +266,23 @@ def accept_upload(
     return activity_ingestion_crud.get_ingestion_job(job_id, token_user_id, db) or _pending_view(
         job_id, activity_ingestion_constants.IngestionJobKind.UPLOAD, str(filename)
     )
+
+
+def _ensure_upload_room(user_id: uuid.UUID, db: Session) -> None:
+    """Refuse an upload while the user has the maximum number of uploads open.
+
+    Args:
+        user_id: The uploading user.
+        db: Database session.
+
+    Raises:
+        ConflictError: When the user's pending, processing and deferred uploads are at the cap.
+    """
+    limit = activity_ingestion_constants.MAX_OPEN_UPLOADS_PER_USER
+    if activity_ingestion_crud.count_open_uploads(user_id, db) >= limit:
+        raise core_exceptions.ConflictError(
+            f"You already have {limit} uploads in progress. Wait for one to finish, then upload again"
+        )
 
 
 def _pending_view(
@@ -503,29 +531,44 @@ def _queue_refresh_batch(user_ids: list[uuid.UUID], storage: platform_providers.
             activity_ingestion_crud.create_ingestion_job(
                 job_id, user_id, activity_ingestion_constants.IngestionJobKind.REFRESH, db
             )
-        _dispatch_refresh_jobs(jobs, storage, db)
+        _dispatch_refresh_jobs(jobs, db)
+    # Outside the session: the pool may make this wait minutes for a slot.
+    _start_refresh_jobs(jobs, storage)
     logger.debug("Queued a batch of provider refresh jobs", extra=core_logger.context(count=len(jobs)))
     return len(jobs)
 
 
-def _dispatch_refresh_jobs(
-    jobs: list[tuple[uuid.UUID, uuid.UUID]], storage: platform_providers.StorageProvider, db: Session
-) -> None:
-    """Make staged refresh jobs durable and start them: a worker event, or the in-process pool.
+def _dispatch_refresh_jobs(jobs: list[tuple[uuid.UUID, uuid.UUID]], db: Session) -> None:
+    """Make staged refresh jobs durable: committed, with a worker event on the durable profile.
 
     Args:
         jobs: ``(job id, user id)`` of each staged job.
-        storage: The blob-storage provider handed to the in-process fallback.
         db: The session holding the staged rows; committed here.
     """
     activity_ingestion_dispatch_service.commit_or_publish(
         db,
         publish=lambda commit: activity_ingestion_event_publishers.publish_refresh_requests(jobs, db, commit=commit),
     )
+    logger.debug("Committed provider refresh jobs", extra=core_logger.context(count=len(jobs)))
+
+
+def _start_refresh_jobs(jobs: list[tuple[uuid.UUID, uuid.UUID]], storage: platform_providers.StorageProvider) -> None:
+    """Start committed refresh jobs on the in-process pool, waiting for slots; a worker runs them when durable.
+
+    The pool holds fewer jobs than a large install has linked users, so each job waits for a slot rather
+    than failing, and the same users do not lose every run. Once a wait times out the pool is not
+    draining, so the rest of the batch is failed without waiting again.
+
+    Args:
+        jobs: ``(job id, user id)`` of each committed job.
+        storage: The blob-storage provider handed to the in-process fallback.
+    """
+    wait_seconds = activity_ingestion_constants.SCHEDULED_SLOT_WAIT_SECONDS
     for job_id, _user_id in jobs:
         try:
-            run_in_background_or_fail(run_refresh_job, job_id, storage)
+            run_in_background_or_fail(run_refresh_job, job_id, storage, wait_seconds=wait_seconds)
         except core_local_pool.PoolFullError:
+            wait_seconds = 0
             logger.warning(
                 "A provider refresh was dropped: the in-process pool is full",
                 extra=core_logger.context(job_id=job_id),
@@ -559,7 +602,8 @@ def redispatch_deferred_refreshes(
             jobs = activity_ingestion_crud.release_due_deferred_jobs(_DEFERRED_REDISPATCH_BATCH_SIZE, db)
             if not jobs:
                 break
-            _dispatch_refresh_jobs(jobs, storage, db)
+            _dispatch_refresh_jobs(jobs, db)
+        _start_refresh_jobs(jobs, storage)
         released += len(jobs)
         if len(jobs) < _DEFERRED_REDISPATCH_BATCH_SIZE:
             break
@@ -714,6 +758,7 @@ def run_in_background_or_fail(
     run: Callable[[uuid.UUID, platform_providers.StorageProvider], object],
     job_id: uuid.UUID,
     storage: platform_providers.StorageProvider,
+    wait_seconds: float = 0,
 ) -> None:
     """Run a committed job on the in-process pool, closing it when the pool turns it away.
 
@@ -721,13 +766,18 @@ def run_in_background_or_fail(
         run: The job body.
         job_id: The committed job.
         storage: The blob-storage provider handed to the job.
+        wait_seconds: How long to wait for a pool slot; ``0`` refuses at once. Waiting is for scheduled work,
+            which holds no database session and no request.
 
     Raises:
-        PoolFullError: When the pool filled after the request was admitted. The job is failed
-            first, so it does not sit pending and block the user's next one.
+        PoolFullError: When the pool filled after the request was admitted, or stayed full for the whole
+            wait. The job is failed first, so it does not sit pending and block the user's next one.
     """
     try:
-        activity_ingestion_dispatch_service.run_in_background(run, job_id, storage)
+        if wait_seconds:
+            activity_ingestion_dispatch_service.run_in_background_waiting(wait_seconds, run, job_id, storage)
+        else:
+            activity_ingestion_dispatch_service.run_in_background(run, job_id, storage)
     except core_local_pool.PoolFullError:
         fail_ingestion_job(job_id, activity_ingestion_constants.IngestionJobErrorCode.PROCESSING_FAILED, storage)
         raise

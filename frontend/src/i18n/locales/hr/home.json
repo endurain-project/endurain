@@ -5,6 +5,7 @@
     "success": "Aktivnost je uspješno učitana",
     "error": "Nije moguće učitati datoteku aktivnosti",
     "tooLarge": "Datoteka je prevelika",
+    "tooManyInProgress": "Već imate prijenose u tijeku. Pričekajte da jedan završi, pa pokušajte ponovno.",
     "timeout": "Vaša se datoteka još uvozi. Pojavit će se kad završi.",
     "failed": {
       "unsupported_format": "Ova vrsta datoteke nije podržana",

@@ -5,6 +5,7 @@
     "success": "A tevékenység sikeresen feltöltve",
     "error": "Nem sikerült feltölteni a tevékenységfájlt",
     "tooLarge": "A fájl túl nagy",
+    "tooManyInProgress": "Már vannak folyamatban lévő feltöltései. Várja meg, amíg az egyik befejeződik, majd próbálja újra.",
     "timeout": "A fájlod importálása még folyamatban van. Megjelenik, amint elkészül.",
     "failed": {
       "unsupported_format": "Ez a fájltípus nem támogatott",

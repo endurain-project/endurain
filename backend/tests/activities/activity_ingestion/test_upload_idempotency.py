@@ -36,6 +36,16 @@ def _integrity_error() -> IntegrityError:
     return IntegrityError("insert", {}, Exception("duplicate key"))
 
 
+@pytest.fixture(autouse=True)
+def _no_upload_cap():
+    """These tests run against a mocked session, which cannot count open uploads or take the user lock."""
+    with (
+        patch.object(ingestion_jobs.activity_ingestion_crud, "count_open_uploads", return_value=0),
+        patch.object(ingestion_jobs.activity_ingestion_crud, "lock_user_uploads"),
+    ):
+        yield
+
+
 class TestReplay:
     def test_a_replay_returns_the_original_job_without_storing_or_parsing_again(self):
         """The content dedup would catch the duplicate, but only after both costs."""

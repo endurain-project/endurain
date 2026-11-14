@@ -1,5 +1,6 @@
 """Tests for accepting and running provider refresh jobs."""
 
+import time
 import uuid
 from datetime import UTC, datetime
 from unittest.mock import MagicMock, patch
@@ -341,7 +342,7 @@ class TestScheduledRefreshFanOut:
             ),
             patch.object(ingestion_jobs.activity_ingestion_crud, "create_ingestion_job") as create,
             patch.object(
-                ingestion_jobs.activity_ingestion_dispatch_service.activity_ingestion_background, "submit"
+                ingestion_jobs.activity_ingestion_dispatch_service.activity_ingestion_background, "submit_waiting"
             ) as submit,
         ):
             session_local.return_value.__enter__.return_value = db
@@ -353,6 +354,60 @@ class TestScheduledRefreshFanOut:
         # One commit per page, not per user.
         assert db.commit.call_count == 2
 
+    def test_a_full_local_pool_is_waited_on_so_every_linked_user_is_refreshed(self):
+        """Past the pool's capacity the overflow used to be failed, so the same users never synced."""
+        users = [uuid.UUID(int=index) for index in range(1, 8)]
+        self._provider("strava", [users])
+        pool = core_local_pool.BoundedPool("refresh-test", workers=1, max_pending=3)
+        ran: list[uuid.UUID] = []
+
+        def run(job_id: uuid.UUID, _storage: object) -> None:
+            time.sleep(0.02)
+            ran.append(job_id)
+
+        with (
+            patch.object(ingestion_jobs.core_config.settings, "JOBS_ENABLED", False),
+            patch.object(ingestion_jobs.core_database, "SessionLocal"),
+            patch.object(
+                ingestion_jobs.activity_ingestion_crud, "get_user_ids_with_active_refresh", return_value=set()
+            ),
+            patch.object(ingestion_jobs.activity_ingestion_crud, "create_ingestion_job") as create,
+            patch.object(
+                ingestion_jobs.activity_ingestion_dispatch_service.activity_ingestion_background, "_pool", pool
+            ),
+            patch.object(ingestion_jobs, "run_refresh_job", run),
+            patch.object(ingestion_jobs, "fail_ingestion_job") as fail,
+        ):
+            queued = ingestion_jobs.enqueue_scheduled_refreshes("storage")
+            deadline = time.monotonic() + 5
+            while len(ran) < len(users) and time.monotonic() < deadline:
+                time.sleep(0.01)
+            pool.shutdown(wait=True)
+
+        assert queued == len(users)
+        fail.assert_not_called()
+        assert sorted(ran) == sorted(call.args[0] for call in create.call_args_list)
+
+    def test_a_job_whose_slot_never_comes_is_failed(self):
+        self._provider("strava", [[_FIRST]])
+        with (
+            patch.object(ingestion_jobs.core_config.settings, "JOBS_ENABLED", False),
+            patch.object(ingestion_jobs.core_database, "SessionLocal"),
+            patch.object(
+                ingestion_jobs.activity_ingestion_crud, "get_user_ids_with_active_refresh", return_value=set()
+            ),
+            patch.object(ingestion_jobs.activity_ingestion_crud, "create_ingestion_job"),
+            patch.object(
+                ingestion_jobs.activity_ingestion_dispatch_service.activity_ingestion_background,
+                "submit_waiting",
+                side_effect=core_local_pool.PoolFullError("full"),
+            ),
+            patch.object(ingestion_jobs, "fail_ingestion_job") as fail,
+        ):
+            ingestion_jobs.enqueue_scheduled_refreshes("storage")
+
+        fail.assert_called_once()
+
     def test_a_user_linked_to_two_providers_gets_one_job(self):
         self._provider("strava", [[_FIRST, _SECOND]])
         self._provider("garminconnect", [[_SECOND, _THIRD]])
@@ -363,7 +418,9 @@ class TestScheduledRefreshFanOut:
                 ingestion_jobs.activity_ingestion_crud, "get_user_ids_with_active_refresh", return_value=set()
             ),
             patch.object(ingestion_jobs.activity_ingestion_crud, "create_ingestion_job") as create,
-            patch.object(ingestion_jobs.activity_ingestion_dispatch_service.activity_ingestion_background, "submit"),
+            patch.object(
+                ingestion_jobs.activity_ingestion_dispatch_service.activity_ingestion_background, "submit_waiting"
+            ),
         ):
             ingestion_jobs.enqueue_scheduled_refreshes("storage")
 
@@ -379,7 +436,9 @@ class TestScheduledRefreshFanOut:
                 ingestion_jobs.activity_ingestion_crud, "get_user_ids_with_active_refresh", return_value={_FIRST}
             ),
             patch.object(ingestion_jobs.activity_ingestion_crud, "create_ingestion_job") as create,
-            patch.object(ingestion_jobs.activity_ingestion_dispatch_service.activity_ingestion_background, "submit"),
+            patch.object(
+                ingestion_jobs.activity_ingestion_dispatch_service.activity_ingestion_background, "submit_waiting"
+            ),
         ):
             queued = ingestion_jobs.enqueue_scheduled_refreshes("storage")
 
@@ -399,7 +458,7 @@ class TestScheduledRefreshFanOut:
                 ingestion_jobs.activity_ingestion_event_publishers.platform_publisher, "publish_many_committing"
             ) as publish_many,
             patch.object(
-                ingestion_jobs.activity_ingestion_dispatch_service.activity_ingestion_background, "submit"
+                ingestion_jobs.activity_ingestion_dispatch_service.activity_ingestion_background, "submit_waiting"
             ) as submit,
         ):
             session_local.return_value.__enter__.return_value = MagicMock()
@@ -418,7 +477,9 @@ class TestScheduledRefreshFanOut:
                 ingestion_jobs.activity_ingestion_crud, "get_user_ids_with_active_refresh", return_value=set()
             ),
             patch.object(ingestion_jobs.activity_ingestion_crud, "create_ingestion_job"),
-            patch.object(ingestion_jobs.activity_ingestion_dispatch_service.activity_ingestion_background, "submit"),
+            patch.object(
+                ingestion_jobs.activity_ingestion_dispatch_service.activity_ingestion_background, "submit_waiting"
+            ),
         ):
             ingestion_jobs.enqueue_scheduled_refreshes("storage")
 

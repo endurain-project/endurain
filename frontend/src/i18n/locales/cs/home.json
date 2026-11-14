@@ -5,6 +5,7 @@
     "success": "Aktivita úspěšně nahrána",
     "error": "Soubor aktivity se nepodařilo nahrát",
     "tooLarge": "Soubor je příliš velký",
+    "tooManyInProgress": "Již máte nahrávání v průběhu. Počkejte, až jedno skončí, a zkuste to znovu.",
     "timeout": "Váš soubor se stále importuje. Zobrazí se, jakmile bude hotovo.",
     "failed": {
       "unsupported_format": "Tento typ souboru není podporován",

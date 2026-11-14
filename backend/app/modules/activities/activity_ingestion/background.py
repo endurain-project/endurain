@@ -56,6 +56,26 @@ def submit[**P, R](run: Callable[P, R], /, *args: P.args, **kwargs: P.kwargs) ->
     return _pool.submit(run, *args, **kwargs)
 
 
+def submit_waiting[**P, R](wait_seconds: float, run: Callable[P, R], /, *args: P.args, **kwargs: P.kwargs) -> Future[R]:
+    """Run a job body on the background pool, waiting for a slot when the pool is full.
+
+    For scheduled work that queues many jobs at once and should not drop the overflow.
+
+    Args:
+        wait_seconds: How long to wait for a slot when the pool is full.
+        run: The job body.
+        *args: Arguments for the job body.
+        **kwargs: Keyword arguments for the job body.
+
+    Returns:
+        The scheduled future (a failure is logged when the job ends).
+
+    Raises:
+        PoolFullError: When the pool still holds its limit of jobs after the wait.
+    """
+    return _pool.submit_waiting(wait_seconds, run, *args, **kwargs)
+
+
 def shutdown(wait: bool = False) -> None:
     """Shut the background pool down, if it was ever started.
 

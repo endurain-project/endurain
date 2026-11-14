@@ -5,6 +5,7 @@
     "success": "Tegevus laaditi edukalt üles",
     "error": "Tegevuse faili ei õnnestunud üles laadida",
     "tooLarge": "Fail on liiga suur",
+    "tooManyInProgress": "Sul on juba üleslaadimisi pooleli. Oota, kuni üks lõpeb, ja proovi uuesti.",
     "timeout": "Sinu faili imporditakse veel. See ilmub, kui import on lõppenud.",
     "failed": {
       "unsupported_format": "Seda failitüüpi ei toetata",

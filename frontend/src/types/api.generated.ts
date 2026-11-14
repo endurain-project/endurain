@@ -257,6 +257,10 @@ export interface paths {
          *     the 202 has no job id to poll, so replaying the upload is its only recovery,
          *     and without a key that replay would import the file a second time.
          *
+         *     A user may have at most 10 uploads open (pending, processing or deferred) at once; the next one is
+         *     refused with ``409`` before the file is stored, until one of them finishes. A replay under a key that
+         *     already has a job answers with that job even at the limit.
+         *
          *     Accepts both JWT bearer token and API key
          *     authentication (X-API-Key header or ?api_key=
          *     query parameter). Requires the

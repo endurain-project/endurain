@@ -5,6 +5,7 @@
     "success": "活动上传成功",
     "error": "无法上传活动文件",
     "tooLarge": "该文件过大",
+    "tooManyInProgress": "您已有上传正在进行中。请等其中一个完成后再重试。",
     "timeout": "您的文件仍在导入中，完成后将会显示。",
     "failed": {
       "unsupported_format": "不支持该文件类型",

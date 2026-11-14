@@ -5,6 +5,7 @@
     "success": "Activity uploaded successfully",
     "error": "Could not upload the activity file",
     "tooLarge": "That file is too large",
+    "tooManyInProgress": "You already have uploads in progress. Wait for one to finish, then try again.",
     "timeout": "Your file is still importing. It will appear once it finishes.",
     "failed": {
       "unsupported_format": "That file type is not supported",

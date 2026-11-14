@@ -5,6 +5,7 @@
     "success": "Activité téléversée avec succès",
     "error": "Impossible de téléverser le fichier d'activité",
     "tooLarge": "Ce fichier est trop volumineux",
+    "tooManyInProgress": "Vous avez déjà des envois en cours. Attendez qu'un envoi se termine, puis réessayez.",
     "timeout": "Votre fichier est encore en cours d'import. Il apparaîtra une fois terminé.",
     "failed": {
       "unsupported_format": "Ce type de fichier n'est pas pris en charge",

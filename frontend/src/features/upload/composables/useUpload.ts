@@ -94,6 +94,9 @@ export function uploadErrorMessage(
   if (isProblem(error, 'payload-too-large')) {
     return t('home.upload.tooLarge')
   }
+  if (isProblem(error, 'conflict')) {
+    return t('home.upload.tooManyInProgress')
+  }
   if (isProblem(error, 'unsupported-format', 'unsupported-media-type')) {
     return t('home.upload.failed.unsupported_format')
   }

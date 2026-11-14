@@ -24,6 +24,13 @@ def bulk_import_error_prefix(user_id: uuid.UUID) -> str:
     return f"{user_id}/"
 
 
+#: Seconds a scheduled fan-out waits for a free slot in the local pool before it fails a refresh. The pool
+#: holds far fewer jobs than a large install has linked users, so the overflow waits for the jobs ahead to finish.
+SCHEDULED_SLOT_WAIT_SECONDS = 300
+
+#: The most uploads one user may have open (pending, processing or deferred) at once.
+MAX_OPEN_UPLOADS_PER_USER = 10
+
 #: The job kinds a client reads for an ingestion job, as ``GET /jobs/{job_id}`` names them.
 JobKindName = Literal["activity_upload", "activity_refresh", "activity_bulk_import"]
 

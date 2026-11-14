@@ -5,6 +5,7 @@
     "success": "Veikla sėkmingai įkelta",
     "error": "Nepavyko įkelti veiklos failo",
     "tooLarge": "Failas per didelis",
+    "tooManyInProgress": "Jau vykdote įkėlimus. Palaukite, kol vienas baigsis, ir bandykite dar kartą.",
     "timeout": "Jūsų failas dar importuojamas. Jis atsiras, kai importavimas baigsis.",
     "failed": {
       "unsupported_format": "Šio tipo failas nepalaikomas",

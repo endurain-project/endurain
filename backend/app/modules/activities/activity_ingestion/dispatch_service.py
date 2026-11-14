@@ -114,6 +114,27 @@ def run_in_background[**P](run: Callable[P, object], /, *args: P.args, **kwargs:
         activity_ingestion_background.submit(run, *args, **kwargs)
 
 
+def run_in_background_waiting[**P](
+    wait_seconds: float, run: Callable[P, object], /, *args: P.args, **kwargs: P.kwargs
+) -> None:
+    """Run a job body on the in-process pool, waiting for a slot, unless a durable worker will run it.
+
+    For scheduled fan-out, which must not drop the jobs a full pool would refuse. Call after the job row
+    is committed, and with no database session open: the wait can last minutes.
+
+    Args:
+        wait_seconds: How long to wait for a slot when the pool is full.
+        run: The job body.
+        *args: Arguments for the job body.
+        **kwargs: Keyword arguments for the job body.
+
+    Raises:
+        PoolFullError: When the pool stayed full for the whole wait.
+    """
+    if not worker_retries():
+        activity_ingestion_background.submit_waiting(wait_seconds, run, *args, **kwargs)
+
+
 def run_on_this_node[**P](run: Callable[P, object], /, *args: P.args, **kwargs: P.kwargs) -> None:
     """Run node-bound work on the in-process pool, whatever the profile.
 

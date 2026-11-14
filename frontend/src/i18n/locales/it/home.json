@@ -5,6 +5,7 @@
     "success": "Attività caricata con successo",
     "error": "Impossibile caricare il file dell'attività",
     "tooLarge": "Il file è troppo grande",
+    "tooManyInProgress": "Hai già dei caricamenti in corso. Attendi che uno finisca, poi riprova.",
     "timeout": "Il tuo file è ancora in fase di importazione. Apparirà al termine.",
     "failed": {
       "unsupported_format": "Questo tipo di file non è supportato",

@@ -5,6 +5,7 @@
     "success": "Aktivitet uppladdad",
     "error": "Kunde inte ladda upp aktivitetsfilen",
     "tooLarge": "Filen är för stor",
+    "tooManyInProgress": "Du har redan uppladdningar pågående. Vänta tills en är klar och försök igen.",
     "timeout": "Din fil importeras fortfarande. Den visas när den är klar.",
     "failed": {
       "unsupported_format": "Den här filtypen stöds inte",

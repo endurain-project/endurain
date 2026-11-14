@@ -5,6 +5,7 @@
     "success": "Aktivnost je bila uspešno naložena",
     "error": "Datoteke aktivnosti ni bilo mogoče naložiti",
     "tooLarge": "Datoteka je prevelika",
+    "tooManyInProgress": "Že imate prenose v teku. Počakajte, da se eden konča, nato poskusite znova.",
     "timeout": "Tvoja datoteka se še uvaža. Prikazala se bo, ko bo končano.",
     "failed": {
       "unsupported_format": "Ta vrsta datoteke ni podprta",

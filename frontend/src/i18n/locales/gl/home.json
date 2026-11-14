@@ -5,6 +5,7 @@
     "success": "Actividade subida correctamente",
     "error": "Non se puido subir o ficheiro de actividade",
     "tooLarge": "O ficheiro é demasiado grande",
+    "tooManyInProgress": "Xa tes cargas en curso. Agarda a que remate unha e téntao de novo.",
     "timeout": "O teu ficheiro aínda se está importando. Aparecerá cando remate.",
     "failed": {
       "unsupported_format": "Este tipo de ficheiro non é compatible",

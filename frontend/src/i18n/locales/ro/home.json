@@ -5,6 +5,7 @@
     "success": "Activitatea a fost încărcată cu succes",
     "error": "Nu am putut încărca fișierul activității",
     "tooLarge": "Fișierul este prea mare",
+    "tooManyInProgress": "Ai deja încărcări în curs. Așteaptă să se termine una, apoi încearcă din nou.",
     "timeout": "Fișierul tău este încă în curs de import. Va apărea când se termină.",
     "failed": {
       "unsupported_format": "Acest tip de fișier nu este acceptat",

@@ -5,6 +5,7 @@
     "success": "Aktivität erfolgreich hochgeladen",
     "error": "Die Aktivitätsdatei konnte nicht hochgeladen werden",
     "tooLarge": "Die Datei ist zu groß",
+    "tooManyInProgress": "Sie haben bereits Uploads in Bearbeitung. Warten Sie, bis einer abgeschlossen ist, und versuchen Sie es erneut.",
     "timeout": "Deine Datei wird noch importiert. Sie erscheint, sobald der Import abgeschlossen ist.",
     "failed": {
       "unsupported_format": "Dieser Dateityp wird nicht unterstützt",

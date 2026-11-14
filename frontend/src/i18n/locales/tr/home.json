@@ -5,6 +5,7 @@
     "success": "Etkinlik başarıyla yüklendi",
     "error": "Etkinlik dosyası yüklenemedi",
     "tooLarge": "Dosya çok büyük",
+    "tooManyInProgress": "Zaten devam eden yüklemeleriniz var. Biri bitene kadar bekleyin, sonra tekrar deneyin.",
     "timeout": "Dosyanız hâlâ içe aktarılıyor. Tamamlandığında görünecek.",
     "failed": {
       "unsupported_format": "Bu dosya türü desteklenmiyor",

@@ -95,6 +95,8 @@ Reading the job needs the `activities:upload` scope. Starting a bulk import, a f
 `POST /activities/upload`, a multipart form with the file in `file`. It needs the `activities:upload` scope and accepts a bearer token or an [API key](api-keys.md). The file is stored and queued, then the route answers `202` with the job. Cheap refusals come back at once as errors instead of a job: an unsupported extension or a file whose content is not that type is `415`, a file over the limit is `413`, and a file that is empty or fails the other content checks is `400`.
 
 Send an `Idempotency-Key` header (up to 255 characters) to make a retry safe. A client that never saw the `202` has no job id to poll, and a replay without a key would import the file twice.
+A user may have at most 10 uploads open at once, counting those pending, processing or deferred. The 11th is `409` with `urn:endurain:error:conflict` and a `detail` that names the limit. It is refused before the file is stored, and no job is created. Poll your open uploads until one finishes, then upload again. A replay with an `Idempotency-Key` that already has a job answers with that job even at the limit.
+
 
 - **A replay with the same key and the same file** answers `202` with the original job, in whatever state it has now, and does not import again.
 - **The same key with a different file** is `409`.
@@ -167,9 +169,10 @@ A job that a server before this version started has no id to name; its `409` car
 - an upload or a bulk import whose `Idempotency-Key` was used for a different request;
 - `POST /garmin/mfa` when no login waits for a code.
 
-Do not retry a `409` straight away. Poll the running job until it reaches a final state, then start again if you still need to. Activity uploads and refreshes have no such limit: you can queue several, and each gets its own job.
+Do not retry a `409` straight away. Poll the running job until it reaches a final state, then start again if you still need to. An activity upload is limited differently: you can queue several, up to 10 open at once, and each gets its own job. An upload past that is `409` with no job to name. A refresh has no such limit.
 
 ## Upload limits and formats
+- an upload while the user already has 10 uploads open (pending, processing or deferred);
 
 An attachment a record has one of (a profile photo, a user's photo, an identity provider's icon, the login page photo) is replaced with `PUT` on its path (`/profile/photo`, `/users/{user_id}/photo`, `/identity-providers/{idp_id}/icon`, `/server-settings/login-photo`), a multipart form with the image in `file`. The route answers `201` when there was nothing there before and `200` when it replaced an image; `DELETE` on the same path removes it.
 

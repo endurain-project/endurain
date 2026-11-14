@@ -32,6 +32,16 @@ def _upload(filename: str = "ride.gpx") -> tuple[str, MagicMock]:
     return filename, MagicMock()
 
 
+@pytest.fixture(autouse=True)
+def _no_upload_cap():
+    """These tests run against a mocked session, which cannot count open uploads or take the user lock."""
+    with (
+        patch.object(ingestion_jobs.activity_ingestion_crud, "count_open_uploads", return_value=0),
+        patch.object(ingestion_jobs.activity_ingestion_crud, "lock_user_uploads"),
+    ):
+        yield
+
+
 class TestAcceptUpload:
     def test_publishes_a_durable_event_when_jobs_enabled(self):
         db = MagicMock()

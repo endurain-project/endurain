@@ -420,6 +420,7 @@ describe('uploadErrorMessage', () => {
 
   it.each([
     [problem(413, 'payload-too-large'), 'home.upload.tooLarge'],
+    [problem(409, 'conflict'), 'home.upload.tooManyInProgress'],
     [problem(415, 'unsupported-format'), 'home.upload.failed.unsupported_format'],
     [problem(415, 'unsupported-media-type'), 'home.upload.failed.unsupported_format'],
     [problem(400, 'invalid-input'), 'home.upload.failed.invalid_file'],

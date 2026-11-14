@@ -5,6 +5,7 @@
     "success": "Pomyślnie przesłano aktywność",
     "error": "Nie udało się przesłać pliku aktywności",
     "tooLarge": "Plik jest za duży",
+    "tooManyInProgress": "Masz już przesyłania w toku. Poczekaj, aż jedno się zakończy, i spróbuj ponownie.",
     "timeout": "Twój plik jest nadal importowany. Pojawi się po zakończeniu.",
     "failed": {
       "unsupported_format": "Ten typ pliku nie jest obsługiwany",

@@ -5,6 +5,7 @@
     "success": "Aktivitāte veiksmīgi augšupielādēta",
     "error": "Neizdevās augšupielādēt aktivitātes failu",
     "tooLarge": "Fails ir pārāk liels",
+    "tooManyInProgress": "Jums jau ir notiekošas augšupielādes. Uzgaidiet, līdz viena beidzas, un mēģiniet vēlreiz.",
     "timeout": "Jūsu fails vēl tiek importēts. Tas parādīsies, kad imports būs pabeigts.",
     "failed": {
       "unsupported_format": "Šis faila veids netiek atbalstīts",

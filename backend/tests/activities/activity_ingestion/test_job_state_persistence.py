@@ -10,7 +10,7 @@ a real (SQLite) database and read the row back from a *fresh* session.
 import uuid
 from datetime import UTC, datetime, timedelta
 from types import SimpleNamespace
-from unittest.mock import MagicMock, patch
+from unittest.mock import ANY, MagicMock, patch
 
 import pytest
 from tests._helpers.auth import MOCK_USER_ID
@@ -220,7 +220,7 @@ class TestDeferredRefresh:
             patch.object(ingestion_jobs.core_config.settings, "JOBS_ENABLED", False),
             patch.object(ingestion_jobs.core_database, "SessionLocal", factory),
             patch.object(
-                ingestion_jobs.activity_ingestion_dispatch_service.activity_ingestion_background, "submit"
+                ingestion_jobs.activity_ingestion_dispatch_service.activity_ingestion_background, "submit_waiting"
             ) as submit,
         ):
             released = ingestion_jobs.redispatch_deferred_refreshes("storage")
@@ -228,7 +228,7 @@ class TestDeferredRefresh:
         job = _read_job(factory)
         assert released == 1
         assert (job.status, job.retry_after) == ("pending", None)
-        assert submit.call_args.args[1:] == (_JOB_1, "storage")
+        assert submit.call_args.args[1:] == (ANY, _JOB_1, "storage")
 
     def test_a_job_whose_wait_is_over_is_published_to_a_worker_when_durable(self, factory):
         _add_job(factory, kind="refresh", staged_key=None, status="deferred", retry_after=_now() - timedelta(minutes=1))
@@ -238,7 +238,7 @@ class TestDeferredRefresh:
             patch.object(ingestion_jobs.core_database, "SessionLocal", factory),
             patch.object(ingestion_jobs.activity_ingestion_event_publishers, "publish_refresh_requests") as publish,
             patch.object(
-                ingestion_jobs.activity_ingestion_dispatch_service.activity_ingestion_background, "submit"
+                ingestion_jobs.activity_ingestion_dispatch_service.activity_ingestion_background, "submit_waiting"
             ) as submit,
         ):
             ingestion_jobs.redispatch_deferred_refreshes("storage")
@@ -254,7 +254,7 @@ class TestDeferredRefresh:
             patch.object(ingestion_jobs.core_config.settings, "JOBS_ENABLED", False),
             patch.object(ingestion_jobs.core_database, "SessionLocal", factory),
             patch.object(
-                ingestion_jobs.activity_ingestion_dispatch_service.activity_ingestion_background, "submit"
+                ingestion_jobs.activity_ingestion_dispatch_service.activity_ingestion_background, "submit_waiting"
             ) as submit,
         ):
             assert ingestion_jobs.redispatch_deferred_refreshes("storage") == 0
