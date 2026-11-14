@@ -569,7 +569,7 @@ def download_profile_export(
     responses=core_location.ACCEPTED_RESPONSE,
     dependencies=[Security(auth_dependencies.check_scopes, scopes=["account:export"])],
     openapi_extra=core_middleware_body_limit.upload_limit(
-        core_file_uploads.max_bytes_for(core_file_uploads.UploadKind.ZIP)
+        core_file_uploads.max_bytes_for(core_file_uploads.UploadKind.PROFILE_ARCHIVE)
     ),
 )
 @core_rate_limit.limiter.limit(core_rate_limit.UPLOAD)

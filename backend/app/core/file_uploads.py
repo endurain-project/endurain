@@ -85,12 +85,17 @@ _MAX_ZIP_BYTES = 500 * 1024 * 1024
 _MAX_UNCOMPRESSED_BYTES = 2 * 1024 * 1024 * 1024
 _MAX_FILES_SAME_TYPE = 2000
 
+#: A profile archive holds one original file per activity plus media, and the importer accepts up to this
+#: many entries, so no single extension can be capped lower than that.
+MAX_PROFILE_ARCHIVE_ENTRIES = 100_000
+
 # Default 20 MiB image cap from safeuploads is kept; explicitly
 # stated here so it appears alongside the other ceilings.
 _MAX_IMAGE_BYTES = 20 * 1024 * 1024
 
 # A compressed image can be tiny on disk and still decode to gigabytes, so the byte cap is not enough.
-_MAX_IMAGE_PIXELS = 100_000_000
+# 50 megapixels covers the 48 MP photos phones take.
+_MAX_IMAGE_PIXELS = 50_000_000
 
 
 #: The one image allow-list: every accepted extension with the media type it is stored and served as. The upload
@@ -117,8 +122,11 @@ def _is_webp(data: bytes) -> bool:
     return data[:4] == b"RIFF" and data[8:12] == b"WEBP"
 
 
-def _build_security_config() -> FileSecurityConfig:
-    """Build the application-wide :class:`FileSecurityConfig`.
+def _build_security_config(max_files_same_type: int = _MAX_FILES_SAME_TYPE) -> FileSecurityConfig:
+    """Build a :class:`FileSecurityConfig` with the Endurain-specific limits.
+
+    Args:
+        max_files_same_type: Most entries of one extension an archive may hold.
 
     Returns:
         Configured instance with Endurain-specific limits applied.
@@ -130,7 +138,7 @@ def _build_security_config() -> FileSecurityConfig:
         max_activity_file_size=_MAX_ACTIVITY_BYTES,
         max_gzip_size=_MAX_GZIP_BYTES,
         max_uncompressed_size=_MAX_UNCOMPRESSED_BYTES,
-        max_number_files_same_type=_MAX_FILES_SAME_TYPE,
+        max_number_files_same_type=max_files_same_type,
         # Strava bulk exports store activities as ``.fit.gz`` entries inside the ZIP.
         allow_nested_archives=True,
         enable_audit_logging=True,
@@ -143,6 +151,11 @@ def _build_security_config() -> FileSecurityConfig:
 #: Application-wide :class:`FileValidator`. Stateless w.r.t. uploads;
 #: safe to share. Do **not** instantiate ``FileValidator`` elsewhere.
 file_validator: FileValidator = FileValidator(config=_build_security_config())
+
+#: Validator for a profile export archive, which may hold far more files of one type than a bulk import.
+_profile_archive_validator: FileValidator = FileValidator(
+    config=_build_security_config(max_files_same_type=MAX_PROFILE_ARCHIVE_ENTRIES)
+)
 
 #: Structured audit logger backing the ``safeuploads.audit`` Python
 #: logger. Records validation start/success/failure events with a
@@ -157,6 +170,7 @@ class UploadKind(StrEnum):
 
     IMAGE = "image"
     ZIP = "zip"
+    PROFILE_ARCHIVE = "profile_archive"
     ACTIVITY = "activity"
     GZIP = "gzip"
 
@@ -169,6 +183,8 @@ def _validator_for(
         return file_validator.validate_image_file_sync
     if kind is UploadKind.ZIP:
         return file_validator.validate_zip_file_sync
+    if kind is UploadKind.PROFILE_ARCHIVE:
+        return _profile_archive_validator.validate_zip_file_sync
     if kind is UploadKind.ACTIVITY:
         return file_validator.validate_activity_file_sync
     if kind is UploadKind.GZIP:
@@ -183,6 +199,8 @@ def max_bytes_for(kind: UploadKind) -> int:
         return limits.max_image_size
     if kind is UploadKind.ZIP:
         return limits.max_zip_size
+    if kind is UploadKind.PROFILE_ARCHIVE:
+        return _profile_archive_validator.config.limits.max_zip_size
     if kind is UploadKind.ACTIVITY:
         return limits.max_activity_file_size
     if kind is UploadKind.GZIP:
@@ -556,34 +574,34 @@ def strip_image_metadata(data: bytes, *, max_dimension: int | None = None) -> by
         InvalidInputError: When the bytes cannot be decoded as an image.
         PayloadTooLargeError: When the image would decode to more than the pixel cap.
     """
-    try:
-        with Image.open(io.BytesIO(data)) as source:
-            image_format = source.format
+    with contextlib.ExitStack() as stack:
+        try:
+            image = stack.enter_context(Image.open(io.BytesIO(data)))
+            image_format = image.format
             if image_format not in _REWRITABLE_IMAGE_FORMATS:
                 raise core_exceptions.UnsupportedMediaTypeError("The image must be a JPEG, PNG or WebP file")
-            if source.width * source.height > _MAX_IMAGE_PIXELS:
+            if image.width * image.height > _MAX_IMAGE_PIXELS:
                 raise core_exceptions.PayloadTooLargeError("Image dimensions are too large")
-            icc_profile = source.info.get("icc_profile")
-            transposed = ImageOps.exif_transpose(source)
-            # The transposed copy owns its pixels, so it outlives the closed source file.
-            image = transposed if transposed is not None else source.copy()
-            image.load()
-    except Image.DecompressionBombError as err:
-        raise core_exceptions.PayloadTooLargeError("Image dimensions are too large") from err
-    except (UnidentifiedImageError, OSError, ValueError, SyntaxError) as err:
-        raise core_exceptions.InvalidInputError("The image could not be read") from err
+            icc_profile = image.info.get("icc_profile")
+            # Transposing in place decodes the image once and only builds a second pixel buffer when the
+            # orientation needs one. The image stays open until it is encoded, since closing it frees its pixels.
+            ImageOps.exif_transpose(image, in_place=True)
+        except Image.DecompressionBombError as err:
+            raise core_exceptions.PayloadTooLargeError("Image dimensions are too large") from err
+        except (UnidentifiedImageError, OSError, ValueError, SyntaxError) as err:
+            raise core_exceptions.InvalidInputError("The image could not be read") from err
 
-    if max_dimension is not None:
-        image.thumbnail((max_dimension, max_dimension))
-    # Only what is named here is written: the decoded metadata in ``info`` never reaches the encoder.
-    options: dict[str, object] = dict(_REWRITABLE_IMAGE_FORMATS[image_format])
-    if icc_profile:
-        options["icc_profile"] = icc_profile
-    if "transparency" in image.info:
-        options["transparency"] = image.info["transparency"]
-    image.info = {}
-    output = io.BytesIO()
-    image.save(output, format=image_format, **options)
+        if max_dimension is not None:
+            image.thumbnail((max_dimension, max_dimension))
+        # Only what is named here is written: the decoded metadata in ``info`` never reaches the encoder.
+        options: dict[str, object] = dict(_REWRITABLE_IMAGE_FORMATS[image_format])
+        if icc_profile:
+            options["icc_profile"] = icc_profile
+        if "transparency" in image.info:
+            options["transparency"] = image.info["transparency"]
+        image.info = {}
+        output = io.BytesIO()
+        image.save(output, format=image_format, **options)
     return output.getvalue()
 
 

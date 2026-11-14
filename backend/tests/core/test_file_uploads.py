@@ -1304,6 +1304,19 @@ class TestStripImageMetadata:
         with Image.open(io.BytesIO(stripped)) as image:
             assert image.size == (20, 40)
 
+    @pytest.mark.parametrize("orientation", [1, 6])
+    def test_the_image_is_never_copied_in_full(self, monkeypatch, orientation):
+        def refuse_copy(self, *args, **kwargs):
+            raise AssertionError("the decoded image was copied")
+
+        monkeypatch.setattr(Image.Image, "copy", refuse_copy)
+        original = images.jpeg_with_exif((40, 20), orientation=orientation)
+
+        stripped = core_file_uploads.strip_image_metadata(original)
+
+        with Image.open(io.BytesIO(stripped)) as image:
+            assert image.size == ((20, 40) if orientation == 6 else (40, 20))
+
     def test_png_loses_text_chunks_and_keeps_alpha(self):
         original = images.png_with_text()
         assert images.has_metadata(original)
@@ -1434,3 +1447,30 @@ class TestImageAllowList:
         data = images.webp_with_exif()
 
         core_file_uploads.validate_bytes_sync(data, kind=UploadKind.IMAGE, filename="a.webp")
+
+
+# ---------------------------------------------------------------------------
+# Profile archive entry cap
+# ---------------------------------------------------------------------------
+
+
+def _zip_with_fit_entries(count: int) -> bytes:
+    buf = io.BytesIO()
+    with zipfile.ZipFile(buf, "w", zipfile.ZIP_STORED) as zf:
+        for index in range(count):
+            zf.writestr(f"activity_{index}.fit", b"x")
+    return buf.getvalue()
+
+
+def test_a_profile_archive_may_hold_more_files_of_one_type_than_a_bulk_import():
+    data = _zip_with_fit_entries(2001)
+
+    core_file_uploads.validate_bytes_sync(data, kind=UploadKind.PROFILE_ARCHIVE, filename="profile.zip")
+    with pytest.raises(core_exceptions.InvalidInputError):
+        core_file_uploads.validate_bytes_sync(data, kind=UploadKind.ZIP, filename="bulk.zip")
+
+
+def test_a_profile_archive_keeps_the_zip_byte_cap():
+    assert core_file_uploads.max_bytes_for(UploadKind.PROFILE_ARCHIVE) == core_file_uploads.max_bytes_for(
+        UploadKind.ZIP
+    )

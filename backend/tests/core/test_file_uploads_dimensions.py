@@ -30,10 +30,10 @@ def test_a_photo_of_ordinary_size_is_accepted():
 
 
 def test_the_pixel_limit_itself_is_accepted():
-    _validate(_png(10000, 10000))
+    _validate(_png(7000, 7000))
 
 
-@pytest.mark.parametrize("size", [(10001, 10000), (20000, 20000)])
+@pytest.mark.parametrize("size", [(7072, 7072), (20000, 20000)])
 def test_an_image_with_too_many_pixels_is_refused_as_too_large(size):
     with pytest.raises(core_exceptions.PayloadTooLargeError) as refused:
         _validate(_png(*size))

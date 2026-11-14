@@ -181,7 +181,7 @@ Every upload route declares its body limit in the OpenAPI document as `x-max-bod
 | `POST /activities/bulk-import` | A `.zip` of activity files (the same extensions, and `.fit.gz` entries). `source=strava` reads a Strava export | 500 MiB |
 | `POST /profile/import` | A `.zip` made by `POST /profile/export` | 500 MiB |
 
-An archive may also hold at most 2000 files of the same type and 2 GiB once unpacked. The upload routes in this table, and `POST /activities/bulk-import/folder`, are limited to 20 requests per minute. See [Supported types](supported-types.md) for the activity types a file can map to.
+An archive may also hold at most 2 GiB once unpacked, and a bulk-import archive at most 2000 files of the same type (a profile archive at most 100000 entries). The upload routes in this table, and `POST /activities/bulk-import/folder`, are limited to 20 requests per minute. See [Supported types](supported-types.md) for the activity types a file can map to.
 
 ## Realtime hint
 

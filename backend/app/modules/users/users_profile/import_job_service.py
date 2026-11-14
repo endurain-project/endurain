@@ -115,7 +115,7 @@ def request_import(
     with tempfile.TemporaryDirectory(prefix="profile-import-") as incoming_dir:
         try:
             incoming_path = save_upload(
-                kind=core_file_uploads.UploadKind.ZIP, upload_dir=incoming_dir, filename="archive.zip"
+                kind=core_file_uploads.UploadKind.PROFILE_ARCHIVE, upload_dir=incoming_dir, filename="archive.zip"
             )
         except BaseException:
             # A rejected upload is answered synchronously, so there is no import to report on.
