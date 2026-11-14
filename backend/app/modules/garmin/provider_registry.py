@@ -10,6 +10,7 @@ from datetime import datetime
 import modules.activities.activity.schema as activity_schema
 import modules.activities.activity_ingestion.integration_service as activity_ingestion_integration
 import modules.garmin.activity_utils as garmin_activity_utils
+import modules.garmin.bulk_import_source as garmin_bulk_import_source
 import modules.users.users_integrations.crud as user_integrations_crud
 from core.database import SessionLocal
 
@@ -51,5 +52,6 @@ def _linked_user_ids(after_id: int, limit: int) -> list[int]:
 
 
 def register_activity_provider() -> None:
-    """Register Garmin Connect on the activities provider registry."""
+    """Register Garmin Connect, and its export format, on the activities provider registry."""
     activity_ingestion_integration.register_activity_provider(PROVIDER_NAME, _fetch_window, _linked_user_ids)
+    garmin_bulk_import_source.register_bulk_import_format()

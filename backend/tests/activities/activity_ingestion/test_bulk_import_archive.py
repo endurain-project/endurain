@@ -320,7 +320,8 @@ class TestProviderFormat:
     ):
         read: dict[str, bytes | None] = {}
 
-        def build_source(user_id, initiated, read_member):
+        def build_source(user_id, initiated, read_member, member_names):
+            read["names"] = sorted(member_names)
             read["manifest"] = read_member("manifest.csv")
             read["missing"] = read_member("nope")
             return ingestion_contracts.BulkImportSource(import_initiated_time=initiated, user_id=user_id)
@@ -336,7 +337,11 @@ class TestProviderFormat:
 
         assert job.files_total == 1
         assert pipeline == ["a.fit"]
-        assert read == {"manifest": b"m", "missing": None}
+        assert read == {
+            "names": ["activities/a.fit", "b.fit", "manifest.csv", "media/p.jpg"],
+            "manifest": b"m",
+            "missing": None,
+        }
 
     def test_an_archive_that_is_not_a_valid_export_fails_the_job_with_a_specific_code(
         self, tmp_path, factory, storage, pipeline

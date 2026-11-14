@@ -2,6 +2,7 @@
 import { useI18n } from 'vue-i18n'
 
 import BulkImportCard from '@/features/import/components/BulkImportCard.vue'
+import GarminImportCard from '@/features/import/components/GarminImportCard.vue'
 import StravaImportCard from '@/features/import/components/StravaImportCard.vue'
 
 const { t } = useI18n()
@@ -15,6 +16,7 @@ const { t } = useI18n()
     </div>
 
     <StravaImportCard />
+    <GarminImportCard />
     <BulkImportCard />
   </div>
 </template>

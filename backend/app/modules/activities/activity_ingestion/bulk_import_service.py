@@ -90,8 +90,8 @@ def _generic_format() -> activity_ingestion_contracts.BulkImportFormat:
         is_activity_member=_is_supported_member,
         is_export_member=_is_supported_member,
         drop_directory=core_config.bulk_import_dir_for,
-        build_source=lambda user_id, import_initiated_time, _read_member: activity_ingestion_contracts.BulkImportSource(
-            import_initiated_time=import_initiated_time, user_id=user_id
+        build_source=lambda user_id, import_initiated_time, _read_member, _member_names: (
+            activity_ingestion_contracts.BulkImportSource(import_initiated_time=import_initiated_time, user_id=user_id)
         ),
     )
 
@@ -533,16 +533,15 @@ def _run_batch(job_id: str, storage: platform_providers.StorageProvider) -> None
             )
             return
 
-        members = sorted(
-            member.name
-            for member in core_file_uploads.list_zip_members(archive_path)
-            if bulk_format.is_activity_member(member.name)
-        )
+        member_names = [member.name for member in core_file_uploads.list_zip_members(archive_path)]
+        members = sorted(name for name in member_names if bulk_format.is_activity_member(name))
         pending = [name for name in members if state.cursor is None or name > state.cursor]
 
         with zipfile.ZipFile(archive_path) as archive:
             try:
-                source = bulk_format.build_source(state.user_id, state.created_at.isoformat(), _member_reader(archive))
+                source = bulk_format.build_source(
+                    state.user_id, state.created_at.isoformat(), _member_reader(archive), member_names
+                )
             except core_exceptions.DomainError as err:
                 logger.error(
                     "Bulk import archive is not a valid export",

@@ -8,7 +8,7 @@ const UPLOAD_FIELD = 'file'
  * How the files of a bulk import are laid out: plain activity files, or a
  * provider's own export. A closed set the server also validates.
  */
-export type BulkImportSource = 'generic' | 'strava'
+export type BulkImportSource = 'generic' | 'strava' | 'garmin'
 
 /**
  * Starts a bulk import of the files the user placed in their own folder on the

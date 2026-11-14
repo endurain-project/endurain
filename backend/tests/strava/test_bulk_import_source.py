@@ -160,7 +160,7 @@ class TestBuildSource:
         )
         monkeypatch.setattr(strava_bulk_import_source, "SessionLocal", MagicMock())
 
-        source = strava_bulk_import_source._build_source(7, "2026-10-15T00:00:00", read)
+        source = strava_bulk_import_source._build_source(7, "2026-10-15T00:00:00", read, ["activities.csv"])
 
         assert source.strava_activities == {"1.fit": {"Activity Name": "Ride"}}
         assert source.gear_nickname_to_id == {"Bike": [3]}
@@ -169,7 +169,7 @@ class TestBuildSource:
 
     def test_an_archive_without_a_manifest_is_not_a_strava_export(self):
         with pytest.raises(core_exceptions.InvalidInputError):
-            strava_bulk_import_source._build_source(7, "t", lambda name: None)
+            strava_bulk_import_source._build_source(7, "t", lambda name: None, [])
 
     def test_an_unparseable_manifest_is_refused(self, monkeypatch):
         monkeypatch.setattr(
@@ -177,7 +177,7 @@ class TestBuildSource:
         )
 
         with pytest.raises(core_exceptions.InvalidInputError):
-            strava_bulk_import_source._build_source(7, "t", lambda name: b"garbage")
+            strava_bulk_import_source._build_source(7, "t", lambda name: b"garbage", ["activities.csv"])
 
     def test_the_format_is_registered_under_strava(self):
         from modules.activities.activity_ingestion import provider_registry
