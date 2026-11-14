@@ -3,6 +3,7 @@
 import jasil.runtime as platform_runtime
 
 import core.scheduler as core_scheduler
+import modules.activities.activity_ingestion.bulk_import_service as activity_ingestion_bulk_import_service
 import modules.activities.activity_ingestion.service as activity_ingestion_service
 
 # One scheduler replica runs each pass; the jobs a pass queues are claimed by any worker. The scheduler
@@ -48,6 +49,18 @@ def redispatch_deferred_refreshes() -> None:
 def fail_orphaned_local_refreshes() -> None:
     """Fail the refreshes a restart cost the in-process pool, before the startup fan-out queues new ones."""
     activity_ingestion_service.fail_orphaned_local_refreshes()
+
+
+def resume_orphaned_local_jobs() -> None:
+    """Submit again the uploads and bulk imports a restart cost the in-process pool.
+
+    Startup-invoked, with no request to carry the providers, so this entry point resolves them. The
+    service only submits to the pool, so startup does not wait for the jobs.
+    """
+    platform = platform_runtime.get_active_platform()
+    activity_ingestion_service.resume_orphaned_local_jobs(
+        platform.storage, activity_ingestion_bulk_import_service.run_bulk_import_job
+    )
 
 
 def schedule_provider_refresh() -> None:

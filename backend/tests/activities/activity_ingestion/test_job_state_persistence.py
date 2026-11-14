@@ -289,6 +289,103 @@ class TestDeferredRefresh:
         assert busy == {MOCK_USER_ID}
 
 
+class TestResumeOrphanedLocalJobs:
+    """A restart loses the in-process pool's uploads and bulk imports, so the local profile runs them again."""
+
+    @pytest.fixture(autouse=True)
+    def _single_process(self):
+        with patch.object(ingestion_jobs.core_config.settings, "WEB_WORKERS", 1):
+            yield
+
+    def _resume(self, factory, *, jobs_enabled: bool = False):
+        storage = MagicMock()
+        run_bulk = MagicMock()
+        with (
+            patch.object(ingestion_jobs.core_database, "SessionLocal", factory),
+            patch.object(ingestion_jobs.core_config.settings, "JOBS_ENABLED", jobs_enabled),
+            patch.object(ingestion_jobs, "run_in_background_or_fail") as submit,
+            patch.object(ingestion_jobs.activity_ingestion_upload_entry_service, "discard_staged_upload"),
+        ):
+            count = ingestion_jobs.resume_orphaned_local_jobs(storage, run_bulk)
+        return count, submit, storage, run_bulk
+
+    def test_pending_and_processing_uploads_and_a_staged_bulk_import_are_submitted_again(self, factory):
+        _add_job(factory, id=_JOB_1, kind="upload", status="pending")
+        _add_job(factory, id=_JOB_2, kind="upload", status="processing")
+        _add_job(factory, id=_JOB_3, kind="bulk_import", status="processing", staged_key="archive.zip")
+
+        count, submit, storage, run_bulk = self._resume(factory)
+
+        assert count == 3
+        submitted = {(call.args[0], call.args[1]) for call in submit.call_args_list}
+        assert submitted == {
+            (ingestion_jobs.run_upload_job, _JOB_1),
+            (ingestion_jobs.run_upload_job, _JOB_2),
+            (run_bulk, _JOB_3),
+        }
+        assert all(call.args[2] is storage for call in submit.call_args_list)
+        for job_id in (_JOB_1, _JOB_2, _JOB_3):
+            assert _read_job(factory, job_id).status == "pending"
+
+    def test_a_folder_import_that_was_still_being_packed_is_failed(self, factory):
+        _add_job(factory, kind="bulk_import", status="pending", staged_key=None)
+
+        count, submit, _storage, _run_bulk = self._resume(factory)
+
+        assert count == 0
+        submit.assert_not_called()
+        job = _read_job(factory)
+        assert job.status == "failed"
+        assert job.error_code == activity_ingestion_constants.IngestionJobErrorCode.PROCESSING_FAILED.value
+
+    def test_finished_and_refresh_jobs_are_not_submitted(self, factory):
+        _add_job(factory, id=_JOB_1, kind="upload", status="completed", completed_at=_now())
+        _add_job(factory, id=_JOB_2, kind="refresh", staged_key=None, status="pending")
+
+        count, submit, _storage, _run_bulk = self._resume(factory)
+
+        assert count == 0
+        submit.assert_not_called()
+        assert _read_job(factory, _JOB_2).status == "pending"
+
+    def test_a_job_the_full_pool_turns_away_does_not_stop_the_others(self, factory):
+        _add_job(factory, id=_JOB_1, kind="upload", status="pending")
+        _add_job(factory, id=_JOB_2, kind="upload", status="pending")
+        storage = MagicMock()
+        with (
+            patch.object(ingestion_jobs.core_database, "SessionLocal", factory),
+            patch.object(
+                ingestion_jobs,
+                "run_in_background_or_fail",
+                side_effect=ingestion_jobs.core_local_pool.PoolFullError(),
+            ) as submit,
+        ):
+            count = ingestion_jobs.resume_orphaned_local_jobs(storage, MagicMock())
+
+        assert count == 0
+        assert submit.call_count == 2
+
+    @pytest.mark.parametrize("status", ["pending", "processing"])
+    def test_durable_profile_leaves_the_jobs_to_its_worker(self, factory, status):
+        _add_job(factory, kind="upload", status=status)
+
+        count, submit, _storage, _run_bulk = self._resume(factory, jobs_enabled=True)
+
+        assert count == 0
+        submit.assert_not_called()
+        assert _read_job(factory).status == status
+
+    def test_several_web_workers_leave_a_sibling_workers_jobs_alone(self, factory):
+        _add_job(factory, kind="upload", status="processing")
+
+        with patch.object(ingestion_jobs.core_config.settings, "WEB_WORKERS", 2):
+            count, submit, _storage, _run_bulk = self._resume(factory)
+
+        assert count == 0
+        submit.assert_not_called()
+        assert _read_job(factory).status == "processing"
+
+
 class TestOrphanedLocalRefreshes:
     """A restart loses the in-process pool's refreshes, so the local profile fails their rows at startup."""
 

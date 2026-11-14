@@ -259,6 +259,7 @@ These are commands. Their state lives on an ingestion job row, which the client 
 | Local | After the job row is committed, the work runs on a 2-worker pool that holds up to 100 jobs. A full pool refuses the request with `503` before a job row exists |
 | Distributed | The job row and the outbox event commit together and a worker runs the job. A bulk import runs in bounded passes (a time and file budget) and continues itself as the same job, so large imports interleave with other work. A crash resumes from the saved position |
 | Fan-out | Every hour one refresh job is queued per user who linked Strava or Garmin Connect. A user whose previous refresh is still running is skipped |
+| After a restart | Local with one web worker: at startup every open upload and bulk import is submitted to the pool again (a bulk import continues after its saved position), and a folder import that was still being packed is failed. Provider refreshes are failed instead and the next hourly fan-out queues them again |
 | If dropped | A job that stops progressing is failed by the hourly reaper (after 24 hours without progress). A dead-lettered job is closed as failed. The user uploads or starts the import again. Re-running is safe: duplicate detection skips what was already imported |
 
 ### Garmin Connect

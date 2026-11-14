@@ -325,6 +325,11 @@ MODULES: tuple[RuntimeModule, ...] = (
                 activity_ingestion_scheduled_jobs.fail_orphaned_local_refreshes,
             ),
             StartupTask(
+                "resume_orphaned_local_jobs",
+                "Resuming uploads and bulk imports lost with the previous process",
+                activity_ingestion_scheduled_jobs.resume_orphaned_local_jobs,
+            ),
+            StartupTask(
                 "queue_provider_refreshes",
                 "Queueing a provider activity refresh for every linked user",
                 activity_ingestion_scheduled_jobs.schedule_provider_refresh,

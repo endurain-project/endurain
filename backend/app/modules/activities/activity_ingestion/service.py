@@ -959,6 +959,59 @@ def fail_orphaned_local_refreshes() -> int:
     return failed
 
 
+def resume_orphaned_local_jobs(
+    storage: platform_providers.StorageProvider,
+    run_bulk_import: Callable[[uuid.UUID, platform_providers.StorageProvider], object],
+) -> int:
+    """Run again the uploads and bulk imports a restart cost the in-process pool.
+
+    Without durable jobs an open upload or bulk import lives only in the pool, which a restart discards.
+    Their staged blobs and rows survive, and a re-run is safe: an upload is deduplicated by content, a
+    bulk import continues after its cursor, and no job row is created, so the one-active-import index is
+    untouched. A job with no staged blob has nothing to run (a folder import that was still being packed
+    when the process stopped; its files were not consumed), so it is failed. A job the full pool turns
+    away is failed by :func:`run_in_background_or_fail`. Does nothing when a durable worker or a sibling
+    web worker may still own the rows.
+
+    Args:
+        storage: The blob-storage provider the uploads were staged in.
+        run_bulk_import: The bulk-import job body, passed in because its module imports this one.
+
+    Returns:
+        The number of jobs submitted to the pool.
+    """
+    if not activity_ingestion_dispatch_service.pool_owns_jobs():
+        logger.debug("Orphaned job resume: the in-process pool does not own the jobs")
+        return 0
+    with core_database.SessionLocal() as db:
+        open_jobs = activity_ingestion_crud.release_open_upload_and_bulk_jobs(db)
+        db.commit()
+
+    submitted = 0
+    unresumable = 0
+    turned_away = 0
+    for job_id, kind, staged_key in open_jobs:
+        if staged_key is None:
+            fail_ingestion_job(job_id, activity_ingestion_constants.IngestionJobErrorCode.PROCESSING_FAILED, storage)
+            unresumable += 1
+            continue
+        run = run_upload_job if kind is activity_ingestion_constants.IngestionJobKind.UPLOAD else run_bulk_import
+        try:
+            run_in_background_or_fail(run, job_id, storage)
+        except core_local_pool.PoolFullError:
+            turned_away += 1
+            continue
+        submitted += 1
+    if open_jobs:
+        logger.warning(
+            "Resumed uploads and bulk imports lost with the in-process pool",
+            extra=core_logger.context(
+                resumed=submitted, failed_without_archive=unresumable, failed_pool_full=turned_away
+            ),
+        )
+    return submitted
+
+
 # Staged blobs are normally removed with their job. This sweeps what a crash, a
 # lost event or a failed delete left behind. The age sits well past the longest
 # time a live job can still need its blob: the stale-job reaper fails a job after

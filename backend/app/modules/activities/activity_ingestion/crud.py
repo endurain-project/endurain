@@ -722,6 +722,46 @@ def fail_open_refresh_jobs(error_code: activity_ingestion_constants.IngestionJob
     return core_database.rowcount(db, stmt)
 
 
+def release_open_upload_and_bulk_jobs(
+    db: Session,
+) -> list[tuple[uuid.UUID, activity_ingestion_constants.IngestionJobKind, str | None]]:
+    """Stage returning every claimed upload and bulk import to ``pending`` and list the open ones (not committed).
+
+    For a process that is the only owner of its jobs, so a ``processing`` row is one whose worker died with
+    the previous process.
+
+    Args:
+        db: Database session.
+
+    Returns:
+        ``(job id, kind, staged key)`` of every open upload and bulk import, oldest first.
+    """
+    model = activity_ingestion_models.ActivityIngestionJob
+    kinds = (
+        activity_ingestion_constants.IngestionJobKind.UPLOAD.value,
+        activity_ingestion_constants.IngestionJobKind.BULK_IMPORT.value,
+    )
+    db.execute(
+        update(model)
+        .where(
+            model.kind.in_(kinds),
+            model.completed_at.is_(None),
+            model.status == activity_ingestion_constants.IngestionJobStatus.PROCESSING.value,
+        )
+        .values(status=activity_ingestion_constants.IngestionJobStatus.PENDING.value, updated_at=func.now())
+    )
+    rows = db.execute(
+        select(model.id, model.kind, model.staged_key)
+        .where(
+            model.kind.in_(kinds),
+            model.completed_at.is_(None),
+            model.status == activity_ingestion_constants.IngestionJobStatus.PENDING.value,
+        )
+        .order_by(model.created_at, model.id)
+    ).all()
+    return [(row.id, activity_ingestion_constants.IngestionJobKind(row.kind), row.staged_key) for row in rows]
+
+
 def get_referenced_staged_keys(staged_keys: Sequence[str], db: Session) -> set[str]:
     """Return which of the given staged-upload keys a job row still names.
 

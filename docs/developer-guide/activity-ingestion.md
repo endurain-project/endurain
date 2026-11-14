@@ -27,6 +27,8 @@ flowchart LR
 
 On failure the entry points differ: an upload cleans up and re-raises, a provider sync logs a file the pipeline refuses and moves on (a database or storage outage is raised, so the refresh job retries the window), and a bulk import counts the file as failed and keeps its bytes (an outage is raised, so the batch resumes from its cursor).
 
+On the local profile with one web worker the in-process pool is the only place a job runs, so startup submits every open upload and bulk import again (`resume_orphaned_local_jobs`). Re-running is safe because uploads and bulk-import members are deduplicated by content and a bulk import resumes after its cursor. A job with no staged blob, such as a folder import that was still being packed, is failed.
+
 ## What happens to a parsed activity
 
 Parsers are pure functions. They return a canonical `ParsedFile` and know nothing about the database, privacy settings, gear or providers. The pipeline then applies these steps to each activity in the file:
