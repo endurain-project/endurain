@@ -12,6 +12,7 @@ import core.exceptions as core_exceptions
 import modules.auth.identity_providers.constants as identity_providers_constants
 import modules.auth.schema as auth_schema
 import modules.strava.audit_actions as strava_audit_actions
+import modules.strava.client_service as strava_client_service
 import modules.strava.constants as strava_constants
 import modules.strava.oauth_state_store as strava_oauth_state_store
 import modules.strava.schema as strava_schema
@@ -112,8 +113,12 @@ class TestOAuthState:
 
 
 class TestUnlinkAccount:
-    def _run(self, *, linked=True, deauthorize_error=None):
+    def _run(self, *, linked=True, deauthorize_error=None, refresh_error=None, refreshed=None):
         client = MagicMock()
+        stale = object()
+        refreshed = object() if refreshed is None else refreshed
+        refresh = MagicMock(side_effect=refresh_error)
+        rate_limits = MagicMock()
         if deauthorize_error:
             client.deauthorize.side_effect = deauthorize_error
         open_sessions = []
@@ -130,16 +135,25 @@ class TestUnlinkAccount:
             patch.object(
                 strava_service.strava_client_service,
                 "fetch_user_integrations_and_validate_token",
-                return_value=object() if linked else None,
+                side_effect=[stale, refreshed] if linked else [None],
             ),
-            patch.object(strava_service.strava_client_service, "create_strava_client", return_value=client),
+            patch.object(strava_service.strava_client_service, "refresh_user_strava_token", refresh),
+            patch.object(
+                strava_service.strava_client_service, "create_strava_client", return_value=client
+            ) as create_client,
             patch.object(strava_service.gears_integration, "delete_all_strava_gear_for_user") as delete_gear,
             patch.object(
                 strava_service.activity_integration, "delete_all_strava_activities", return_value=0
             ) as delete_activities,
             patch.object(strava_service.user_integrations_integration, "unlink_strava_account") as unlink,
         ):
-            result = strava_service.unlink_account(MOCK_USER_ID)
+            result = strava_service.unlink_account(MOCK_USER_ID, rate_limits)
+        self.refresh, self.create_client, self.rate_limits, self.refreshed = (
+            refresh,
+            create_client,
+            rate_limits,
+            refreshed,
+        )
         return result, client, delete_gear, delete_activities, unlink, during_deauthorize
 
     def test_the_account_is_deauthorized_then_unlinked_and_imported_data_cleared(self):
@@ -160,6 +174,37 @@ class TestUnlinkAccount:
         delete_gear.assert_called_once()
         delete_activities.assert_called_once()
         unlink.assert_called_once()
+
+    def test_an_expired_token_is_refreshed_before_deauthorizing_with_the_new_token(self):
+        self._run()
+
+        self.refresh.assert_called_once_with(MOCK_USER_ID, self.rate_limits)
+        self.create_client.assert_called_once_with(self.refreshed)
+
+    def test_a_revoked_grant_has_nothing_to_deauthorize_but_still_unlinks_locally(self):
+        result, client, delete_gear, delete_activities, unlink, _ = self._run(
+            refresh_error=strava_client_service.StravaTokenRejectedError("revoked")
+        )
+
+        assert result is True
+        client.deauthorize.assert_not_called()
+        delete_gear.assert_called_once()
+        delete_activities.assert_called_once()
+        unlink.assert_called_once()
+
+    def test_a_refresh_that_fails_otherwise_still_unlinks_locally(self):
+        result, client, *_rest, unlink, _ = self._run(
+            refresh_error=core_exceptions.DependencyFailedError("The Strava token could not be refreshed")
+        )
+
+        assert result is True
+        client.deauthorize.assert_not_called()
+        unlink.assert_called_once()
+
+    def test_a_rate_limited_refresh_leaves_the_account_linked_to_try_again(self):
+        error = core_exceptions.TooManyRequestsError("later", scope=core_exceptions.TooManyRequestsScope.PROVIDER)
+        with pytest.raises(core_exceptions.TooManyRequestsError):
+            self._run(refresh_error=error)
 
     def test_a_bug_in_the_deauthorization_is_not_swallowed(self):
         with pytest.raises(RuntimeError):
@@ -192,6 +237,7 @@ class TestUnlinkDeletesInBatches:
                 "fetch_user_integrations_and_validate_token",
                 return_value=object(),
             ),
+            patch.object(strava_service.strava_client_service, "refresh_user_strava_token"),
             patch.object(strava_service.strava_client_service, "create_strava_client"),
             patch.object(
                 strava_service.activity_integration,
@@ -209,7 +255,7 @@ class TestUnlinkDeletesInBatches:
                 side_effect=lambda *_a, **_k: order.append("unlink"),
             ),
         ):
-            assert strava_service.unlink_account(MOCK_USER_ID) is True
+            assert strava_service.unlink_account(MOCK_USER_ID, MagicMock()) is True
 
         assert delete_activities.call_count == 3
         assert all(call.kwargs["limit"] == batch for call in delete_activities.call_args_list)

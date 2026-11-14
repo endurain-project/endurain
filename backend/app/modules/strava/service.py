@@ -23,6 +23,7 @@ import modules.strava.audit_actions as strava_audit_actions
 import modules.strava.client_service as strava_client_service
 import modules.strava.constants as strava_constants
 import modules.strava.oauth_state_store as strava_oauth_state_store
+import modules.strava.rate_limit_store as strava_rate_limit_store
 import modules.strava.schema as strava_schema
 import modules.users.users_integrations.constants as user_integrations_constants
 import modules.users.users_integrations.integration_service as user_integrations_integration
@@ -97,23 +98,30 @@ def begin_state(user_id: uuid.UUID, oauth_states: strava_oauth_state_store.Strav
     return state
 
 
-def unlink_account(user_id: uuid.UUID) -> bool:
+def unlink_account(user_id: uuid.UUID, rate_limits: strava_rate_limit_store.StravaRateLimitStore) -> bool:
     """Disconnect the user's Strava account and delete what was imported from it.
 
-    Runs on a worker, never a request. Strava is asked to revoke the authorization
-    first, with no database session open; if it refuses, the account is unlinked
-    locally anyway. The imported activities are deleted in batches, one transaction each, and
-    the gear and the unlink then commit together last, so an interrupted unlink still finds the
-    account linked and finishes when it runs again.
+    Runs on a worker, never a request. The access token is refreshed first when it has expired or is about
+    to, because Strava refuses to deauthorize with an expired one and the app would stay authorized in the
+    user's Strava settings. Strava is then asked to revoke the authorization, with no database session
+    open. A grant Strava already refused has nothing to revoke, and a refresh or deauthorization that fails
+    otherwise is logged: the account is unlinked locally anyway. A rate-limited refresh is the exception, as
+    it stops the unlink with nothing changed, so the account stays linked and a later attempt can still
+    revoke it. The imported activities are deleted in batches, one transaction each, and the gear and the
+    unlink then commit together last, so an interrupted unlink still finds the account linked and finishes
+    when it runs again.
 
     Args:
         user_id: The user to unlink.
+        rate_limits: The shared Strava rate-limit state.
 
     Returns:
         True once unlinked, False when Strava was not linked.
 
     Raises:
         NotFoundError: When the user has no integrations row.
+        TooManyRequestsError: When Strava's rate limit is active, or another process is refreshing the
+            token, so the unlink is deferred.
     """
     with core_database.SessionLocal() as db:
         user_integrations = strava_client_service.fetch_user_integrations_and_validate_token(user_id, db)
@@ -123,8 +131,16 @@ def unlink_account(user_id: uuid.UUID) -> bool:
         return False
 
     try:
-        strava_client_service.create_strava_client(user_integrations).deauthorize()
-    except (requests.RequestException, core_exceptions.CryptographyError) as err:
+        strava_client_service.refresh_user_strava_token(user_id, rate_limits)
+        with core_database.SessionLocal() as db:
+            refreshed = strava_client_service.fetch_user_integrations_and_validate_token(user_id, db)
+        if refreshed is not None:
+            strava_client_service.create_strava_client(refreshed).deauthorize()
+    except strava_client_service.StravaTokenRejectedError:
+        logger.info(
+            "Strava already revoked the authorization, unlinking locally", extra=core_logger.context(user_id=user_id)
+        )
+    except (requests.RequestException, core_exceptions.CryptographyError, core_exceptions.DependencyFailedError) as err:
         logger.warning(
             "Strava refused the deauthorization, unlinking locally anyway",
             extra=core_logger.context(user_id=user_id),

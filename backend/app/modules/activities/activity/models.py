@@ -98,6 +98,8 @@ class Activity(UpdatedAtMixin, Base):
         # distinct), so activities with no stable identity are unaffected.
         Index("uq_activities_user_dedup_key", "user_id", "dedup_key", unique=True),
         Index("ix_activities_user_id_updated_at_id", "user_id", "updated_at", "id"),
+        # Strava ids are looked up for the owner only; two accounts may link the same Strava athlete.
+        Index("ix_activities_user_id_strava_activity_id", "user_id", "strava_activity_id"),
     )
 
     id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
@@ -272,7 +274,6 @@ class Activity(UpdatedAtMixin, Base):
     )
     strava_activity_id: Mapped[int | None] = mapped_column(
         BigInteger,
-        unique=True,
         nullable=True,
         comment="Strava activity ID",
     )

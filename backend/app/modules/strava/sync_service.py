@@ -85,7 +85,7 @@ def run_sync(
         """
         if payload.kind == strava_constants.SyncKind.GEAR:
             return strava_gear_service.get_user_gear(payload.user_id, rate_limits)
-        strava_service.unlink_account(payload.user_id)
+        strava_service.unlink_account(payload.user_id, rate_limits)
         return True
 
     synced = core_sync_runner.run_recorded(

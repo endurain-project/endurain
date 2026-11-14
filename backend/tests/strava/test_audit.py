@@ -270,7 +270,7 @@ class TestAccountUnlink:
             ),
             jasil_testing.capture_audit() as audit,
         ):
-            strava_service.unlink_account(MOCK_USER_ID)
+            strava_service.unlink_account(MOCK_USER_ID, MagicMock())
 
         audit.assert_not_audited(strava_audit_actions.ACCOUNT_UNLINK.id)
 

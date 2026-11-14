@@ -155,7 +155,7 @@ class TestRunSync:
         with patch.object(strava_sync_service.strava_service, "unlink_account", return_value=False) as run:
             strava_sync_service.run_sync(_payload(UNLINK), states, rate_limits)
 
-        run.assert_called_once_with(MOCK_USER_ID)
+        run.assert_called_once_with(MOCK_USER_ID, rate_limits)
         assert states.get(MOCK_USER_ID, UNLINK).status == Status.SUCCEEDED
 
     def test_a_link_is_never_run_as_a_sync_job_and_leaves_the_link_state_alone(self, states, rate_limits):
