@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 from datetime import UTC, datetime, timedelta
 from unittest.mock import MagicMock, Mock
 
@@ -22,11 +23,15 @@ from tests._helpers.auth import MOCK_USER_ID
 # ---------------------------------------------------------------------------
 
 
-def _make_strava_fault(status_code: int) -> StravaFault:
-    """Return a StravaFault whose .response.status_code equals *status_code*."""
-    response = Mock()
+def _make_strava_fault(status_code: int, body: bytes | None = None) -> StravaFault:
+    """Return a StravaFault whose .response.status_code equals *status_code*, with *body* as its content."""
+    if body is None:
+        response = Mock()
+        response.headers = {}
+    else:
+        response = requests.Response()
+        response._content = body
     response.status_code = status_code
-    response.headers = {}
     fault = StravaFault()
     fault.response = response
     return fault
@@ -701,7 +706,7 @@ class TestForcedRefresh:
     def test_a_refused_refresh_is_a_revocation(self, monkeypatch):
         handle = Mock()
         monkeypatch.setattr(strava_utils, "handle_rejected_token", handle)
-        self.client.refresh_access_token.side_effect = _make_strava_fault(400)
+        self.client.refresh_access_token.side_effect = _fault_naming("RefreshToken")
 
         with pytest.raises(strava_utils.StravaTokenRejectedError):
             self._refresh()
@@ -733,6 +738,11 @@ class TestForcedRefresh:
             self._refresh()
 
 
+def _fault_naming(resource: str, status_code: int = 400) -> StravaFault:
+    body = {"message": "Bad Request", "errors": [{"resource": resource, "field": "x", "code": "invalid"}]}
+    return _make_strava_fault(status_code, json.dumps(body).encode())
+
+
 class TestRefreshRefused:
     @pytest.fixture(autouse=True)
     def _setup(self, monkeypatch):
@@ -761,7 +771,7 @@ class TestRefreshRefused:
     def rate_limits(self):
         return strava_rate_limit_store.StravaRateLimitStore(platform_runtime.get_state())
 
-    @pytest.mark.parametrize("error", [AccessUnauthorized(), _make_strava_fault(400), _make_strava_fault(401)])
+    @pytest.mark.parametrize("error", [_fault_naming("RefreshToken"), _fault_naming("RefreshToken", 401)])
     def test_a_refused_refresh_token_is_a_revocation_and_stops_the_sync(self, rate_limits, error):
         self.client.refresh_access_token.side_effect = error
 
@@ -769,6 +779,26 @@ class TestRefreshRefused:
             strava_utils.refresh_user_strava_token(MOCK_USER_ID, rate_limits)
 
         self.handle.assert_called_once_with(MOCK_USER_ID, "r", error, revoked=True)
+
+    @pytest.mark.parametrize(
+        "error",
+        [
+            _fault_naming("Application"),
+            _fault_naming("Application", 401),
+            _make_strava_fault(400, b"<html>bad gateway</html>"),
+            _make_strava_fault(400, b'{"errors": {"resource": "RefreshToken"}}'),
+            _make_strava_fault(400),
+            AccessUnauthorized(),
+        ],
+    )
+    def test_a_refusal_that_does_not_name_the_refresh_token_keeps_the_tokens(self, rate_limits, error):
+        self.client.refresh_access_token.side_effect = error
+
+        with pytest.raises(core_exceptions.DependencyFailedError) as raised:
+            strava_utils.refresh_user_strava_token(MOCK_USER_ID, rate_limits, rejected_refresh_token="r")
+
+        assert not isinstance(raised.value, strava_utils.StravaTokenRejectedError)
+        self.handle.assert_not_called()
 
     @pytest.mark.parametrize("error", [_make_strava_fault(500), _make_strava_fault(403), requests.ConnectionError()])
     def test_any_other_refresh_failure_of_a_valid_token_is_not_a_revocation(self, rate_limits, error):

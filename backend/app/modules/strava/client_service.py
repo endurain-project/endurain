@@ -156,16 +156,46 @@ def is_strava_unauthorized_error(err: Exception) -> bool:
     return isinstance(err, AccessUnauthorized) or _fault_status(err) == 401
 
 
+def _error_details(err: Exception) -> list[dict[str, str]]:
+    """Return the ``resource``, ``field`` and ``code`` of each error in a Strava fault's response body.
+
+    Args:
+        err: The exception to inspect.
+
+    Returns:
+        One mapping per entry in the body's ``errors`` list; empty when the response is missing, is not JSON
+        or has no usable ``errors`` list.
+    """
+    if not isinstance(err, StravaFault) or err.response is None:
+        return []
+    try:
+        errors = err.response.json()["errors"]
+    except (ValueError, TypeError, KeyError):
+        return []
+    if not isinstance(errors, list):
+        return []
+    return [
+        {key: str(entry.get(key)) for key in ("resource", "field", "code")}
+        for entry in errors
+        if isinstance(entry, dict)
+    ]
+
+
 def _refresh_grant_refused(err: Exception) -> bool:
-    """Check if an exception is Strava's token endpoint refusing a refresh token.
+    """Check if an exception is Strava's token endpoint refusing the user's refresh token.
+
+    A bad client id or secret is answered with the same 400 or 401, so only a body whose errors name the
+    ``RefreshToken`` resource counts as the token being revoked or replaced.
 
     Args:
         err: The exception ``refresh_access_token`` raised.
 
     Returns:
-        True if Strava answered 400 or 401, which it does for a refresh token that was revoked or replaced.
+        True if Strava answered 400 or 401 and named the refresh token as the fault.
     """
-    return isinstance(err, AccessUnauthorized) or _fault_status(err) in (400, 401)
+    if not isinstance(err, AccessUnauthorized) and _fault_status(err) not in (400, 401):
+        return False
+    return any(detail["resource"] == "RefreshToken" for detail in _error_details(err))
 
 
 def handle_rejected_token(
@@ -628,7 +658,11 @@ def _refresh_under_claim(
             raise StravaTokenRejectedError(
                 "Strava refused the refresh token. Please reconnect your Strava account."
             ) from err
-        logger.error("Error refreshing the Strava token", extra=core_logger.context(user_id=user_id), exc_info=err)
+        logger.error(
+            "Error refreshing the Strava token",
+            extra=core_logger.context(user_id=user_id, status=_fault_status(err), errors=_error_details(err)),
+            exc_info=err,
+        )
         if forced or _token_expired(linked):
             raise core_exceptions.DependencyFailedError("The Strava token could not be refreshed") from err
         return
