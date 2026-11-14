@@ -109,17 +109,37 @@ class TestCalculateUserGoals:
         mock_today.assert_called_once_with(user_id, mock_db)
 
     @patch("modules.users.users_goals.progress_service.user_goals_crud.get_user_goals_page")
-    def test_calculate_user_goals_value_error(self, mock_get_goals):
-        """Test ValueError handling."""
-        # Arrange
-        user_id = MOCK_USER_ID
-        date = "2024-01-15"
+    def test_calculate_user_goals_internal_error_is_not_a_client_error(self, mock_get_goals):
+        """An internal ValueError propagates unchanged instead of becoming a 400."""
         mock_db = MagicMock(spec=Session)
         mock_get_goals.side_effect = ValueError("Invalid value")
 
-        # Act & Assert
-        with pytest.raises(core_exceptions.InvalidInputError):
-            user_goals_progress_service.calculate_user_goals(user_id, date, "monday", _PAGE, mock_db)
+        with pytest.raises(ValueError, match="Invalid value"):
+            user_goals_progress_service.calculate_user_goals(MOCK_USER_ID, "2024-01-15", "monday", _PAGE, mock_db)
+
+    @patch(
+        "modules.users.users_goals.progress_service.activity_integration.total_user_activities_in_timeframe_by_types"
+    )
+    def test_calculate_goal_progress_internal_error_is_not_a_client_error(self, mock_totals):
+        """An internal TypeError propagates unchanged instead of becoming a 400."""
+        mock_totals.side_effect = TypeError("bad total")
+        goal = user_goals_schema.UserGoalRead.model_validate(
+            user_goals_models.UsersGoal(
+                id=GOAL_ID,
+                user_id=MOCK_USER_ID,
+                interval="weekly",
+                activity_type="run",
+                goal_type="calories",
+                goal_calories=1000,
+                version=1,
+            ),
+            from_attributes=True,
+        )
+
+        with pytest.raises(TypeError, match="bad total"):
+            user_goals_progress_service.calculate_goal_progress_by_activity_type(
+                goal, "2024-01-15", "monday", MagicMock(spec=Session)
+            )
 
 
 class TestCalculateGoalProgressByActivityType:
