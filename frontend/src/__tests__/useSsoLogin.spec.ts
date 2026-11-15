@@ -224,7 +224,7 @@ describe('processSsoCallback', () => {
   })
 
   describe('mobile app handoff (external_redirect)', () => {
-    it('forwards the session_id to the app scheme without touching the browser session', async () => {
+    it('waits for a tap before forwarding the session_id to a custom scheme', async () => {
       mocks.route.query = {
         sso: 'success',
         session_id: '00000000-0000-4000-8000-0000000000f2',
@@ -235,12 +235,29 @@ describe('processSsoCallback', () => {
       const { processSsoCallback } = useSsoLogin()
       const result = await processSsoCallback()
 
-      expect(result).toEqual({ status: 'completed' })
-      expect(window.location.href).toBe(
-        'endurain://native-callback?session_id=00000000-0000-4000-8000-0000000000f2',
-      )
+      expect(result).toEqual({
+        status: 'app-handoff',
+        target: 'endurain://native-callback?session_id=00000000-0000-4000-8000-0000000000f2',
+      })
+      expect(window.location.href).toBe('')
       expect(mocks.exchangeSsoSession).not.toHaveBeenCalled()
       expect(mocks.routerReplace).not.toHaveBeenCalledWith({ name: 'home' })
+    })
+
+    it('navigates to the custom-scheme target only when the user continues', async () => {
+      const { continueAppHandoff } = useSsoLogin()
+      await continueAppHandoff('endurain://native-callback?session_id=abc')
+
+      expect(window.location.href).toBe('endurain://native-callback?session_id=abc')
+      expect(mocks.routerReplace).not.toHaveBeenCalled()
+    })
+
+    it('falls back to the dashboard after continuing when the browser is authenticated', async () => {
+      mocks.isAuthenticated = true
+      const { continueAppHandoff } = useSsoLogin()
+      await continueAppHandoff('endurain://native-callback?session_id=abc')
+
+      expect(mocks.routerReplace).toHaveBeenCalledWith({ name: 'home' })
     })
 
     it('forwards the session_id to a listed claimed-https address', async () => {
@@ -289,9 +306,9 @@ describe('processSsoCallback', () => {
         }
 
         const { processSsoCallback } = useSsoLogin()
-        await processSsoCallback()
+        const result = await processSsoCallback()
 
-        expect(window.location.href).toBe(expected)
+        expect(result).toEqual({ status: 'app-handoff', target: expected })
       },
     )
 
@@ -312,25 +329,6 @@ describe('processSsoCallback', () => {
       expect(result).toEqual({ status: 'error', messageKey: 'login.ssoTokenExchangeFailed' })
       expect(window.location.href).toBe(hrefBefore)
       expect(mocks.exchangeSsoSession).not.toHaveBeenCalled()
-    })
-
-    it('falls back to the dashboard when the browser already has an authenticated session', async () => {
-      mocks.isAuthenticated = true
-      mocks.route.query = {
-        sso: 'success',
-        session_id: '00000000-0000-4000-8000-0000000000f2',
-        external_redirect: 'true',
-        redirect: 'endurain://native-callback',
-      }
-
-      const { processSsoCallback } = useSsoLogin()
-      const result = await processSsoCallback()
-
-      expect(result).toEqual({ status: 'completed' })
-      expect(window.location.href).toBe(
-        'endurain://native-callback?session_id=00000000-0000-4000-8000-0000000000f2',
-      )
-      expect(mocks.routerReplace).toHaveBeenCalledWith({ name: 'home' })
     })
   })
 })

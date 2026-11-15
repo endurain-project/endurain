@@ -26,12 +26,14 @@ interface StoredPkceVerifier {
 export type SsoStartResult = { status: 'redirecting' } | { status: 'error' }
 
 /**
- * Result of processing an SSO callback. `next-step` carries the step the login form shows next,
+ * Result of processing an SSO callback. `app-handoff` carries the custom-scheme address (with the
+ * session ID) a native app gets only after the user confirms. `next-step` carries the step the login form shows next,
  * such as the MFA step of an account with MFA enabled.
  */
 export type SsoCallbackResult =
   | { status: 'none' }
   | { status: 'completed' }
+  | { status: 'app-handoff'; target: string }
   | { status: 'next-step'; result: Exclude<LoginResult, AuthCompletedResult> }
   | { status: 'error'; messageKey: string }
 
@@ -124,6 +126,24 @@ export function useSsoLogin() {
   }
 
   /**
+   * Hands the session ID to the native app by navigating to its address.
+   *
+   * @param target - App address carrying the session ID.
+   */
+  async function continueAppHandoff(target: string): Promise<void> {
+    window.location.href = target
+    // A custom scheme doesn't navigate the tab away, so this document stays loaded;
+    // a claimed https link may navigate away when the app isn't installed. When
+    // the browser already has its own authenticated session, fall back to the
+    // dashboard instead of leaving a stale login form behind in case the OS
+    // handoff to the app doesn't happen (app not installed, prompt dismissed,
+    // desktop testing, etc.).
+    if (auth.isAuthenticated) {
+      await router.replace({ name: 'home' })
+    }
+  }
+
+  /**
    * Completes an SSO callback when the backend redirected back with a session
    * ID, exchanging it (plus the stored PKCE verifier) for web tokens. An account
    * with MFA enabled continues at the MFA step the password sign-in uses.
@@ -150,16 +170,13 @@ export function useSsoLogin() {
       if (route.query.external_redirect === 'true' && isNativeRedirect(redirect)) {
         const target = new URL(redirect)
         target.searchParams.set('session_id', sessionId)
-        window.location.href = target.href
-        // A custom scheme doesn't navigate the tab away, so this document stays loaded;
-        // a claimed https link may navigate away when the app isn't installed. When
-        // the browser already has its own authenticated session, fall back to the
-        // dashboard instead of leaving a stale login form behind in case the OS
-        // handoff to the app doesn't happen (app not installed, prompt dismissed,
-        // desktop testing, etc.).
-        if (auth.isAuthenticated) {
-          await router.replace({ name: 'home' })
+        // A custom scheme is not verified by the OS, so any app on the device may have registered it.
+        // The user confirms before the session ID goes to it (RFC 8252 section 8.6). A claimed
+        // https link is verified by the OS, so it is followed at once.
+        if (target.protocol !== 'https:') {
+          return { status: 'app-handoff', target: target.href }
         }
+        await continueAppHandoff(target.href)
         return { status: 'completed' }
       }
 
@@ -210,5 +227,5 @@ export function useSsoLogin() {
     }
   }
 
-  return { startSsoLogin, processSsoCallback, maybeAutoRedirect }
+  return { startSsoLogin, processSsoCallback, continueAppHandoff, maybeAutoRedirect }
 }

@@ -39,7 +39,7 @@ const { t } = useI18n()
 const { config } = useAppConfig()
 const { serverSettings, ssoProviders, isSettingsLoading, isSsoLoading, loginImageUrl, load } =
   usePublicServerSettings()
-const { startSsoLogin, processSsoCallback, maybeAutoRedirect } = useSsoLogin()
+const { startSsoLogin, processSsoCallback, continueAppHandoff, maybeAutoRedirect } = useSsoLogin()
 const { navigateAfterLogin } = useSafeRedirect()
 const route = useRoute()
 const { resolveInitialAlert, shouldForceLocalLogin } = useLoginRouteMessages()
@@ -59,6 +59,8 @@ const forceLocalLogin = ref(false)
 const isLoading = ref(false)
 const isForgotPasswordOpen = ref(false)
 const alert = ref<AlertState | null>(null)
+// Custom-scheme address (with the session ID) awaiting the user's confirmation; held in memory only.
+const appHandoffTarget = ref<string | null>(null)
 // A custom icon URL can 404 or be blocked; its button then shows the text alone.
 const failedLogos = reactive(new Set<string>())
 
@@ -314,6 +316,23 @@ function onForgotPasswordError(message: string): void {
   toasts.error(message)
 }
 
+/**
+ * Forwards the session to the native app after the user confirmed.
+ */
+async function confirmAppHandoff(): Promise<void> {
+  const target = appHandoffTarget.value
+  if (target) {
+    await continueAppHandoff(target)
+  }
+}
+
+/**
+ * Drops the pending hand-off and shows the sign-in form; the unexchanged session expires on its own.
+ */
+function cancelAppHandoff(): void {
+  appHandoffTarget.value = null
+}
+
 onMounted(async () => {
   forceLocalLogin.value = shouldForceLocalLogin()
   await load()
@@ -335,6 +354,10 @@ onMounted(async () => {
   if (callback.status === 'completed') {
     return
   }
+  if (callback.status === 'app-handoff') {
+    appHandoffTarget.value = callback.target
+    return
+  }
   if (callback.status === 'next-step') {
     showNextStep(callback.result)
     return
@@ -350,7 +373,37 @@ onMounted(async () => {
 
 <template>
   <AuthScreenLayout :image-url="loginImageUrl" :image-alt="t('login.imageAlt')">
-    <form class="mx-auto flex w-full max-w-sm flex-col" novalidate @submit.prevent="submitForm">
+    <div
+      v-if="appHandoffTarget"
+      class="mx-auto flex w-full max-w-sm flex-col gap-3"
+      role="alertdialog"
+      aria-labelledby="app-handoff-title"
+      aria-describedby="app-handoff-body"
+    >
+      <AppLogo width="40" height="40" class="mx-auto mb-3 size-10" />
+      <h1 id="app-handoff-title" class="text-center text-page-title">
+        {{ t('login.appHandoffTitle') }}
+      </h1>
+      <p id="app-handoff-body" class="text-center text-body">
+        {{ t('login.appHandoffBody') }}
+      </p>
+      <p class="rounded-md bg-muted px-3 py-2 text-center font-mono text-meta break-all">
+        {{ appHandoffTarget.split('?')[0] }}
+      </p>
+      <Button class="w-full" type="button" @click="confirmAppHandoff">
+        {{ t('login.appHandoffContinue') }}
+      </Button>
+      <Button class="w-full" type="button" variant="outline" @click="cancelAppHandoff">
+        {{ t('login.appHandoffCancel') }}
+      </Button>
+    </div>
+
+    <form
+      v-else
+      class="mx-auto flex w-full max-w-sm flex-col"
+      novalidate
+      @submit.prevent="submitForm"
+    >
       <AppLogo width="40" height="40" class="mx-auto mb-3 size-10" />
       <h1 class="text-center text-page-title">
         {{ config.branding.appName }}

@@ -340,6 +340,8 @@ The user signs in with the identity provider in the system browser. On success t
 {custom_scheme}://callback?session_id={uuid}
 ```
 
+A custom scheme is not verified by the operating system, so the frontend does not forward the browser by itself. It shows the target address and forwards only after the user taps Continue, so the user can refuse a sign-in the app did not start. A claimed `https` address is verified by the operating system, so the frontend forwards to it at once. Expect the browser to wait for the user before your app receives a custom-scheme deep link.
+
 The OS invokes the app's deep-link or intent handler with that URL. Extract the `session_id`.
 
 On failure the browser returns to the same `redirect` address with an `error` query parameter (`sso_failed`, `sso_email_missing`, `sso_email_unverified`, `sso_auto_create_disabled`, `sso_link_by_email_disabled`, `sso_approval_pending` or `sso_account_disabled`; see [SSO failures](#sso-failures)). The app must still handle the user closing the browser or a timeout. The state expires after 10 minutes.
