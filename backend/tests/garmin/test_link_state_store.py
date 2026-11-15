@@ -112,12 +112,10 @@ def test_progress_renews_the_claim():
     state = MemoryState()
     store = link_state_store.GarminLinkStateStore(state=state, ttl_seconds=60)
     job = store.begin(MOCK_USER_ID, conflict="busy")
-    with patch.object(state, "set") as write:
+    with patch.object(state, "expire_if_equals") as renew:
         store.set_status(MOCK_USER_ID, job.id, Status.RUNNING, mfa_required=True)
 
-    assert core_attempt_state.key("garmin", "link:claim", str(MOCK_USER_ID)) in [
-        call.args[0] for call in write.call_args_list
-    ]
+    assert renew.call_args.args[0] == core_attempt_state.key("garmin", "link:claim", str(MOCK_USER_ID))
 
 
 @pytest.mark.parametrize(

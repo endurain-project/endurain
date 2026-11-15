@@ -1,6 +1,7 @@
 """Tests for core.attempt_state (provider-backed claim, polled state and the job index)."""
 
 import uuid
+from datetime import UTC, datetime, timedelta
 from enum import StrEnum
 from unittest.mock import MagicMock, patch
 
@@ -48,8 +49,8 @@ def test_begin_starts_a_job_with_its_own_id_and_indexes_it():
     assert job.subject == "1"
     assert job.finished_at is None
     assert core_attempt_state.JobIndex(state).get(job.id) == job
-    assert core_attempt_state.JobIndex(state).list_owned(OTHER_USER_ID) == [job]
-    assert core_attempt_state.JobIndex(state).list_owned(uuid.uuid4()) == []
+    assert list(core_attempt_state.JobIndex(state).iter_owned(OTHER_USER_ID)) == [job]
+    assert list(core_attempt_state.JobIndex(state).iter_owned(uuid.uuid4())) == []
 
 
 def test_a_second_begin_is_refused_with_the_running_job_until_the_attempt_finishes():
@@ -208,10 +209,10 @@ def test_progress_renews_the_claim():
     state = MemoryState()
     store = _store(state)
     job = _begin(store)
-    with patch.object(state, "set") as write:
+    with patch.object(state, "expire_if_equals") as renew:
         store.record("1", job.id, _State(step="running"), finished=False)
 
-    assert core_attempt_state.key("feature", "job:claim", "1") in [call.args[0] for call in write.call_args_list]
+    assert renew.call_args.args[0] == core_attempt_state.key("feature", "job:claim", "1")
 
 
 def test_release_frees_the_claim_without_touching_the_state():
@@ -233,7 +234,7 @@ def test_discard_removes_the_claim_the_state_and_the_job():
 
     assert store.read("1") is None
     assert core_attempt_state.JobIndex(state).get(job.id) is None
-    assert core_attempt_state.JobIndex(state).list_owned(MOCK_USER_ID) == []
+    assert list(core_attempt_state.JobIndex(state).iter_owned(MOCK_USER_ID)) == []
     _begin(store)
 
 
@@ -291,13 +292,120 @@ def test_an_outage_while_recording_strictly_raises():
 def test_an_outage_reading_the_index_is_a_service_unavailable_error():
     state = MagicMock()
     state.get.side_effect = StateBackendUnavailableError("down")
-    state.iter_keys.side_effect = StateBackendUnavailableError("down")
+    state.index_range.side_effect = StateBackendUnavailableError("down")
     index = core_attempt_state.JobIndex(state)
 
     with pytest.raises(core_attempt_state.StateUnavailableError):
         index.get(uuid.uuid4())
     with pytest.raises(core_attempt_state.StateUnavailableError):
-        index.list_owned(MOCK_USER_ID)
+        list(index.iter_owned(MOCK_USER_ID))
+
+
+def _ref(created_at, job_id=None, owner_id=MOCK_USER_ID):
+    return core_job_status.JobRef(
+        id=job_id or uuid.uuid4(), kind="feature_job", owner_id=owner_id, subject="s", created_at=created_at
+    )
+
+
+def _no_scan(state):
+    return patch.object(state, "iter_keys", side_effect=AssertionError("the keyspace was scanned"))
+
+
+def test_listing_owned_jobs_reads_the_owner_index_newest_first_without_scanning_the_keyspace():
+    state = MemoryState()
+    index = core_attempt_state.JobIndex(state)
+    start = datetime(2026, 1, 1, tzinfo=UTC)
+    refs = [_ref(start + timedelta(minutes=minute)) for minute in (2, 0, 1)]
+    for ref in refs:
+        index.put(ref, 60)
+
+    with _no_scan(state):
+        listed = list(index.iter_owned(MOCK_USER_ID, batch_size=2))
+
+    assert listed == [refs[0], refs[2], refs[1]]
+
+
+def test_listing_resumes_after_a_position_across_jobs_created_at_the_same_instant():
+    state = MemoryState()
+    index = core_attempt_state.JobIndex(state)
+    at = datetime(2026, 1, 1, tzinfo=UTC)
+    refs = sorted((_ref(at) for _ in range(5)), key=lambda ref: ref.id, reverse=True)
+    for ref in refs:
+        index.put(ref, 60)
+
+    assert list(index.iter_owned(MOCK_USER_ID, batch_size=2)) == refs
+    assert list(index.iter_owned(MOCK_USER_ID, before=(at, refs[1].id), batch_size=1)) == refs[2:]
+
+
+def test_a_reference_that_expired_after_the_range_is_skipped():
+    state = MemoryState()
+    index = core_attempt_state.JobIndex(state)
+    start = datetime(2026, 1, 1, tzinfo=UTC)
+    refs = [_ref(start + timedelta(minutes=minute)) for minute in (2, 1, 0)]
+    for ref in refs:
+        index.put(ref, 60)
+    state.delete(core_attempt_state.key("jobs", "ref", str(refs[1].id)))
+
+    assert list(index.iter_owned(MOCK_USER_ID, batch_size=1)) == [refs[0], refs[2]]
+
+
+def test_a_removed_job_is_no_longer_listed():
+    state = MemoryState()
+    index = core_attempt_state.JobIndex(state)
+    kept = _ref(datetime(2026, 1, 1, tzinfo=UTC))
+    gone = _ref(datetime(2026, 1, 2, tzinfo=UTC))
+    index.put(kept, 60)
+    index.put(gone, 60)
+
+    index.remove(gone)
+
+    assert list(index.iter_owned(MOCK_USER_ID)) == [kept]
+    assert index.get(gone.id) is None
+
+
+class _ClaimTakenOver(MemoryState):
+    """A state whose claim is taken by a newer attempt just before the first attempt frees or renews it."""
+
+    def __init__(self, claim_key_part: str, taker: bytes) -> None:
+        super().__init__()
+        self._part = claim_key_part
+        self._taker = taker
+        self.armed = False
+
+    def get(self, key):
+        value = super().get(key)
+        if self.armed and self._part in key:
+            self.armed = False
+            self.set(key, self._taker, ttl_seconds=60)
+        return value
+
+
+@pytest.mark.parametrize("finished", [True, False])
+def test_a_superseded_attempt_neither_frees_nor_renews_the_new_owners_claim(finished):
+    newer = uuid.uuid4()
+    state = _ClaimTakenOver(":claim:", str(newer).encode())
+    store = _store(state)
+    job = _begin(store)
+    state.armed = True
+
+    store.record("1", job.id, _State(step="done"), finished=finished)
+
+    assert state.get(core_attempt_state.key("feature", "job:claim", "1")) == str(newer).encode()
+
+
+def test_the_owning_attempt_frees_its_claim_when_finished_and_renews_it_otherwise():
+    state = MemoryState()
+    store = _store(state)
+    job = _begin(store)
+    claim = core_attempt_state.key("feature", "job:claim", "1")
+
+    with patch.object(state, "expire_if_equals", wraps=state.expire_if_equals) as renew:
+        store.record("1", job.id, _State(step="running"), finished=False)
+    renew.assert_called_once_with(claim, str(job.id).encode(), 60)
+    assert state.get(claim) == str(job.id).encode()
+
+    store.record("1", job.id, _State(step="done"), finished=True)
+    assert state.get(claim) is None
 
 
 class _Kind(StrEnum):

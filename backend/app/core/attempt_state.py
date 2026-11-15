@@ -9,7 +9,7 @@ same subject, and a state, which the poll reads. Each attempt is a job with its 
 
 import json
 import uuid
-from collections.abc import Callable
+from collections.abc import Callable, Iterator
 from datetime import UTC, datetime
 from enum import StrEnum
 from typing import NoReturn
@@ -22,6 +22,9 @@ import core.job_status as core_job_status
 import core.logger as core_logger
 
 logger = core_logger.get_logger(__name__)
+
+#: How many entries of a user's job index are read at a time when listing their jobs.
+LIST_BATCH_SIZE = 50
 
 
 class StateUnavailableError(core_exceptions.ServiceUnavailableError):
@@ -57,11 +60,12 @@ def key(namespace: str, name: str, subject: str) -> str:
 
 
 class JobIndex:
-    """Finds a job by its id, and lists the jobs a user started.
+    """Finds a job by its id, and lists the jobs a user started, newest first.
 
-    Each job has two entries: its reference under its id, and the same reference under its owner, which
-    ``GET /jobs`` walks. Both are rewritten whenever the job's state is, with the state's lifetime, so a job is
-    indexed exactly as long as its record lasts.
+    Each job has its reference under its id, and its id in an ordered index of its owner's jobs, which
+    ``GET /jobs`` walks a page at a time. Both are rewritten whenever the job's state is, with the state's
+    lifetime, so a job is indexed exactly as long as its record lasts. The index orders a job by when it was
+    created and, at the same instant, by its id, both descending.
 
     Attributes:
         _state: The platform state provider.
@@ -80,8 +84,8 @@ class JobIndex:
         return key("jobs", "ref", str(job_id))
 
     @staticmethod
-    def _owner_prefix(owner_id: uuid.UUID) -> str:
-        return key("jobs", "owner", f"{owner_id}:")
+    def _owner_key(owner_id: uuid.UUID) -> str:
+        return key("jobs", "owner", str(owner_id))
 
     def put(self, job: core_job_status.JobRef, ttl_seconds: int) -> None:
         """Index a job, or renew its entries with the job's latest reference.
@@ -93,9 +97,8 @@ class JobIndex:
         Raises:
             StateBackendUnavailableError: When storage is unavailable; the caller decides whether that is fatal.
         """
-        value = job.model_dump_json().encode()
-        self._state.set(self._ref_key(job.id), value, ttl_seconds=ttl_seconds)
-        self._state.set(self._owner_prefix(job.owner_id) + str(job.id), value, ttl_seconds=ttl_seconds)
+        self._state.set(self._ref_key(job.id), job.model_dump_json().encode(), ttl_seconds=ttl_seconds)
+        self._state.index_add(self._owner_key(job.owner_id), str(job.id), job.created_at.timestamp(), ttl_seconds)
 
     def remove(self, job: core_job_status.JobRef) -> None:
         """Drop a job's entries.
@@ -107,7 +110,7 @@ class JobIndex:
             StateBackendUnavailableError: When storage is unavailable.
         """
         self._state.delete(self._ref_key(job.id))
-        self._state.delete(self._owner_prefix(job.owner_id) + str(job.id))
+        self._state.index_remove(self._owner_key(job.owner_id), str(job.id))
 
     def get(self, job_id: uuid.UUID) -> core_job_status.JobRef | None:
         """Read the reference a job id names.
@@ -127,24 +130,45 @@ class JobIndex:
             raise_unavailable("read job reference", err)
         return core_job_status.JobRef.model_validate_json(value) if value is not None else None
 
-    def list_owned(self, owner_id: uuid.UUID) -> list[core_job_status.JobRef]:
-        """List the references of the jobs a user started whose records still last.
+    def iter_owned(
+        self,
+        owner_id: uuid.UUID,
+        *,
+        before: tuple[datetime, uuid.UUID] | None = None,
+        batch_size: int = LIST_BATCH_SIZE,
+    ) -> Iterator[core_job_status.JobRef]:
+        """Walk the references of the jobs a user started whose records still last, newest first.
+
+        The owner's index is read ``batch_size`` entries at a time, as the caller consumes them, so stopping
+        early reads no more. A reference that expired between its entry and its read is skipped.
 
         Args:
             owner_id: The user who started the jobs.
+            before: A ``(created_at, id)`` position; only the jobs listed after it are returned. None starts at
+                the newest job.
+            batch_size: How many index entries to read at a time.
 
-        Returns:
-            The references, in no particular order.
+        Yields:
+            The references, newest first, and by descending id among jobs created at the same instant.
 
         Raises:
             StateUnavailableError: When storage is unavailable.
         """
-        try:
-            values = [self._state.get(entry) for entry in self._state.iter_keys(self._owner_prefix(owner_id))]
-        except StateBackendUnavailableError as err:
-            raise_unavailable("list owned jobs", err)
-        # An entry can expire between the walk and its read.
-        return [core_job_status.JobRef.model_validate_json(value) for value in values if value is not None]
+        owner_key = self._owner_key(owner_id)
+        cursor = (before[0].timestamp(), str(before[1])) if before is not None else None
+        while True:
+            try:
+                entries = self._state.index_range(owner_key, limit=batch_size, before=cursor)
+                values = [self._state.get(self._ref_key(uuid.UUID(member))) for member, _score in entries]
+            except StateBackendUnavailableError as err:
+                raise_unavailable("list owned jobs", err)
+            for value in values:
+                if value is not None:
+                    yield core_job_status.JobRef.model_validate_json(value)
+            if len(entries) < batch_size:
+                return
+            member, score = entries[-1]
+            cursor = (score, member)
 
 
 class StoredJob(BaseModel):
@@ -321,11 +345,12 @@ class AttemptStateStore:
         expired and was followed by a newer attempt no longer does, and records nothing: it neither overwrites
         the newer attempt's state nor frees its claim.
 
-        A finished attempt releases its claim, stamps its job's ``finished_at`` and is announced; any other
-        progress renews the claim. A failure to record is logged, not raised: the attempt itself must still
-        finish, and the entries expire on their own. A state that a later decision depends on is recorded
-        ``strict``, so losing it raises instead. An attempt whose job has expired, or that the previous release
-        began, has no job to record against: only its claim is kept or released.
+        A finished attempt releases its claim and any other progress renews it, each only while the claim still
+        holds this job's id, so an attempt superseded in between leaves the newer claim alone. A finished attempt
+        stamps its job's ``finished_at`` and is announced. A failure to record is logged, not raised: the attempt
+        itself must still finish, and the entries expire on their own. A state that a later decision depends on is
+        recorded ``strict``, so losing it raises instead. An attempt whose job has expired, or that the previous
+        release began, has no job to record against: only its claim is kept or released.
 
         Args:
             subject: What the attempt is for.
@@ -359,9 +384,9 @@ class AttemptStateStore:
                     job = job.model_copy(update={"finished_at": datetime.now(UTC)})
                 self._write(StoredJob(job=job, state=state.model_dump(mode="json")))
             if finished:
-                self._state.delete(self._claim_key(subject))
+                self._state.delete_if_equals(self._claim_key(subject), claim_value)
             elif job is not None:
-                self._state.set(self._claim_key(subject), claim_value, ttl_seconds=self._ttl_seconds)
+                self._state.expire_if_equals(self._claim_key(subject), claim_value, self._ttl_seconds)
         except StateBackendUnavailableError as err:
             if strict:
                 raise_unavailable(f"record {self._namespace}:{self._name}", err)

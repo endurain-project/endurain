@@ -166,6 +166,55 @@ class TestListJobs:
         assert [job.id for job in second.items] == [gear.id, UPLOAD_OLD]
         assert second.next_cursor is None
 
+    def test_the_state_store_is_listed_from_the_owner_index_without_scanning_the_keyspace(self, state):
+        first = _strava(state, created_at=datetime(2026, 1, 10, 12, 0, tzinfo=UTC))
+        second = _strava(
+            state, kind=strava_constants.SyncKind.LINK, created_at=datetime(2026, 1, 10, 12, 5, tzinfo=UTC)
+        )
+
+        with patch.object(state, "iter_keys", side_effect=AssertionError("the keyspace was scanned")):
+            page = jobs_service.list_jobs(
+                USER, _ALL, state, MagicMock(), kind=None, status=None, cursor=None, num_records=10
+            )
+
+        assert [job.id for job in page.items] == [second.id, first.id]
+
+    def test_jobs_created_at_the_same_instant_are_paged_without_a_skip_or_repeat(self, state):
+        at = datetime(2026, 1, 10, 12, 0, tzinfo=UTC)
+        created = [_strava(state, kind=kind, created_at=at) for kind in strava_constants.SyncKind]
+        expected = [job.id for job in sorted(created, key=lambda job: job.id, reverse=True)]
+
+        seen: list[uuid.UUID] = []
+        cursor = None
+        with patch(_INGESTION_LIST, return_value=[]):
+            while True:
+                page = jobs_service.list_jobs(
+                    USER, _ALL, state, MagicMock(), kind=None, status=None, cursor=cursor, num_records=1
+                )
+                seen.extend(job.id for job in page.items)
+                cursor = page.next_cursor
+                if cursor is None:
+                    break
+
+        assert seen == expected
+
+    def test_a_filter_that_drops_most_of_the_index_still_fills_the_page(self, state):
+        start = datetime(2026, 1, 10, 12, 0, tzinfo=UTC)
+        gear = _strava(state, created_at=start)
+        for minute in range(1, 8):
+            link = _strava(state, kind=strava_constants.SyncKind.LINK, created_at=start + timedelta(minutes=minute))
+            strava_sync_state_store.StravaSyncStateStore(state).set_status(
+                USER, strava_constants.SyncKind.LINK, Status.SUCCEEDED, job_id=link.id
+            )
+            if minute < 7:
+                state.delete(core_attempt_state.key("jobs", "ref", str(link.id)))
+        with patch(_INGESTION_LIST, return_value=[]):
+            page = jobs_service.list_jobs(
+                USER, _ALL, state, MagicMock(), kind=None, status=Status.QUEUED, cursor=None, num_records=1
+            )
+
+        assert [job.id for job in page.items] == [gear.id]
+
     def test_a_link_job_is_not_listed_without_the_integrations_scope(self, state):
         _strava(state, kind=strava_constants.SyncKind.LINK)
 

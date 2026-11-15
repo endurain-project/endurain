@@ -217,14 +217,14 @@ def list_jobs(
     before = core_pagination.decode_uuid_cursor(cursor) if cursor else None
     kinds = {listed for listed, rule in _RULES.items() if rule.scope in scopes and (kind is None or listed == kind)}
     jobs: list[jobs_schema.JobRead] = []
-    for ref in core_attempt_state.JobIndex(state).list_owned(caller_id):
+    for ref in core_attempt_state.JobIndex(state).iter_owned(caller_id, before=before, batch_size=num_records + 1):
         if ref.kind not in kinds:
             continue
         job = _read_indexed(ref, state)
         if job is not None and (status is None or job.status == status):
             jobs.append(job)
-    if before is not None:
-        jobs = [job for job in jobs if _position(job) < before]
+            if len(jobs) > num_records:
+                break
     ingestion_kinds = kinds & _INGESTION
     if ingestion_kinds:
         jobs.extend(
