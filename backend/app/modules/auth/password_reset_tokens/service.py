@@ -17,9 +17,10 @@ import modules.auth.api_keys.integration_service as api_keys_integration
 import modules.auth.authentication.integration_service as authentication_integration
 import modules.auth.computation as token_hashing
 import modules.auth.credentials.integration_service as credentials_integration
+import modules.auth.identity_provider_links.integration_service as identity_links_integration
 import modules.auth.lockout.integration_service as lockout_integration
-import modules.auth.password_reset_tokens.audit_actions as password_reset_audit_actions
 import modules.auth.mfa.integration_service as mfa_integration
+import modules.auth.password_reset_tokens.audit_actions as password_reset_audit_actions
 import modules.auth.password_reset_tokens.crud as password_reset_crud
 import modules.auth.password_reset_tokens.email_messages as password_reset_email_messages
 import modules.auth.password_reset_tokens.event_publishers as password_reset_event_publishers
@@ -28,6 +29,7 @@ import modules.auth.password_reset_tokens.schema as password_reset_schema
 import modules.auth.security_generation.integration_service as security_generation_integration
 import modules.auth.sessions.integration_service as sessions_integration
 import modules.server_settings.integration_service as server_settings_integration
+import modules.server_settings.schema as server_settings_schema
 import modules.users.users.integration_service as users_integration
 import modules.users.users.schema as users_schema
 
@@ -225,8 +227,32 @@ def validate_password_reset_token(token: str, db: Session) -> None:
         raise core_exceptions.InvalidInputError(UNUSABLE_RESET_MESSAGE)
 
 
+def _stage_unverified_account_cleanup(
+    user_id: uuid.UUID, server_settings: server_settings_schema.ServerSettingsRead, db: Session
+) -> None:
+    """Stage the removal of the identity-provider links and second factors of an account and verify its email.
+
+    The sessions that signed in through a removed link are already gone with the reset's session deletion, and
+    their provider tokens are revoked from the sessions' revocation event.
+
+    Args:
+        user_id: The account whose mailbox the reset proved.
+        server_settings: Server config that decides whether approval is still required.
+        db: Database session.
+    """
+    identity_links_integration.delete_all_user_identity_providers(user_id, db)
+    if mfa_integration.is_mfa_enabled_for_user(user_id, db):
+        mfa_integration.disable_user_mfa(user_id, db)
+    users_integration.stage_email_verification(user_id, server_settings, db)
+
+
 def use_password_reset_token(token: str, new_password: str, db: Session) -> None:
     """Consume a valid reset token and atomically change the password and revoke sessions.
+
+    The reset also revokes the account's API keys. When the account's email was never verified, someone else may
+    have signed it up and attached an identity provider or a second factor, so the same transaction removes every
+    identity-provider link and second factor and marks the email verified: the reset proved control of the mailbox.
+    A verified account keeps its links and factors.
 
     Args:
         token: The raw reset token.
@@ -280,17 +306,22 @@ def use_password_reset_token(token: str, new_password: str, db: Session) -> None
     sessions_integration.delete_sessions_by_user(token_user_id, db)
     # Whoever held the old password may hold a key, and the owner has just proved they hold the mailbox.
     api_keys_integration.revoke_user_api_keys(token_user_id, db)
+    unverified = not user.email_verified
+    if unverified:
+        _stage_unverified_account_cleanup(token_user_id, server_settings, db)
     jasil_audit.stage(
         db,
         password_reset_audit_actions.PASSWORD_RESET,
         target_type="user",
         target_id=str(token_user_id),
         target_owner_id=str(token_user_id),
+        details=password_reset_audit_actions.PasswordResetDetails(unverified_account_cleaned=unverified),
     )
     password_reset_event_publishers.publish_password_reset_completed(token_user_id, db)
     db.commit()
     authentication_integration.clear_account_login_lockout(token_user_id)
     lockout_integration.clear_step_up_account_lockout(token_user_id)
+    mfa_integration.clear_mfa_account_lockout(token_user_id)
     logger.info("Password reset completed", extra=core_logger.context(user_id=token_user_id))
 
 
@@ -300,4 +331,3 @@ def delete_expired_password_reset_tokens(db: Session) -> int:
     return core_database.delete_in_batches(
         lambda limit: password_reset_crud.delete_expired_password_reset_tokens(now, limit, db), db
     )
-    mfa_integration.clear_mfa_account_lockout(token_user_id)

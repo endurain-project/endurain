@@ -333,3 +333,24 @@ def test_links_page_holds_only_the_users_links_oldest_first_and_windowed():
     assert [link.idp_id for link in second] == [IDP_1]
     assert identity_links_crud.count_identity_links(MOCK_USER_ID, db) == 3
     db.close()
+
+
+def test_delete_all_links_of_a_user_removes_only_that_users_links():
+    db = create_sqlite_session()
+    try:
+        for user_id, idp_id, subject in (
+            (MOCK_USER_ID, IDP_1, "a"),
+            (MOCK_USER_ID, IDP_2, "b"),
+            (OTHER_USER_ID, IDP_3, "c"),
+        ):
+            db.add(
+                identity_links_models.IdentityLink(id=uuid.uuid4(), user_id=user_id, idp_id=idp_id, idp_subject=subject)
+            )
+        db.flush()
+
+        assert identity_links_crud.delete_all_user_identity_providers(MOCK_USER_ID, db) == 2
+        assert identity_links_crud.get_user_identity_providers_by_user_id(MOCK_USER_ID, db) == []
+        assert len(identity_links_crud.get_user_identity_providers_by_user_id(OTHER_USER_ID, db)) == 1
+        assert identity_links_crud.delete_all_user_identity_providers(MOCK_USER_ID, db) == 0
+    finally:
+        db.close()

@@ -134,6 +134,23 @@ def delete_user_identity_provider(user_id: uuid.UUID, idp_id: uuid.UUID, db: Ses
     return bool(matched)
 
 
+def delete_all_user_identity_providers(user_id: uuid.UUID, db: Session) -> int:
+    """Stage deletion of every identity-provider link of a user.
+
+    Args:
+        user_id: The user whose links are removed.
+        db: SQLAlchemy database session.
+
+    Returns:
+        How many links were removed.
+    """
+    matched = core_database.rowcount(
+        db, delete(identity_link_models.IdentityLink).where(identity_link_models.IdentityLink.user_id == user_id)
+    )
+    db.flush()
+    return matched
+
+
 def select_linked_user_ids() -> Select[tuple[uuid.UUID]]:
     """Return a query for the ids of the users who have at least one identity-provider link.
 

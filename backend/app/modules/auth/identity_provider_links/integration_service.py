@@ -157,6 +157,11 @@ def delete_user_identity_provider(user_id: uuid.UUID, idp_id: uuid.UUID, db: Ses
     return identity_link_crud.delete_user_identity_provider(user_id, idp_id, db)
 
 
+def delete_all_user_identity_providers(user_id: uuid.UUID, db: Session) -> int:
+    """Stage deletion of every identity-provider link of a user; returns how many were removed."""
+    return identity_link_crud.delete_all_user_identity_providers(user_id, db)
+
+
 def select_linked_user_ids() -> Select[tuple[uuid.UUID]]:
     """Return a query for the ids of the users who have an identity-provider link, to filter users by it."""
     return identity_link_crud.select_linked_user_ids()

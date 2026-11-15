@@ -68,6 +68,7 @@ sequenceDiagram
 - An account is emailed at most once every five minutes, so the form cannot be used to flood an inbox. A second request inside that time gets the same answer and no new email; use the link from the first one, or ask again afterwards.
 - If the server has no mail configured, the request is answered with a "service unavailable" error. Ask an administrator to reset the password in [user management](user-management.md#resetting-a-password).
 - The new password must satisfy the server's password policy.
+- A reset of an account whose email was never verified (sign-up without email verification, or an account an administrator created without marking its email verified) also removes its linked identity providers and its two-step verification, backup codes included, and marks the email verified, because someone else may have set those up before the mailbox owner arrived. A reset of a verified account keeps them.
 
 ### What a password change or reset ends
 
