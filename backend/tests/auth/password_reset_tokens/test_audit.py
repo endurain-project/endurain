@@ -34,6 +34,7 @@ def test_a_reset_is_audited_and_announced(mock_db):
         patch.object(password_reset_service.sessions_integration, "delete_sessions_by_user"),
         patch.object(password_reset_service.authentication_integration, "clear_account_login_lockout") as clear_lock,
         patch.object(password_reset_service.lockout_integration, "clear_step_up_account_lockout") as clear_step_up,
+        patch.object(password_reset_service.mfa_integration, "clear_mfa_account_lockout") as clear_mfa_lock,
         patch.object(platform_publisher, "publish_on_commit") as publish,
         jasil_testing.capture_audit() as audit,
     ):
@@ -42,6 +43,7 @@ def test_a_reset_is_audited_and_announced(mock_db):
         password_reset_service.use_password_reset_token("raw-token", "new-password", mock_db)
 
     clear_lock.assert_called_once_with(MOCK_USER_ID)
+    clear_mfa_lock.assert_called_once_with(MOCK_USER_ID)
     clear_step_up.assert_called_once_with(MOCK_USER_ID)
     audit.assert_audited(
         password_reset_audit_actions.PASSWORD_RESET.id,

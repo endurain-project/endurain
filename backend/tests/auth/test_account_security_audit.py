@@ -115,6 +115,7 @@ class TestPasswordAudit:
             patch.object(
                 account_security_service.authentication_integration, "clear_account_login_lockout"
             ) as clear_lock,
+            patch.object(account_security_service.mfa_integration, "clear_mfa_account_lockout") as clear_mfa_lock,
         ):
             require_user.return_value.access_type = "regular"
             require_user.return_value.username = "alice"
@@ -128,6 +129,7 @@ class TestPasswordAudit:
                 revoke_other_sessions=revoke,
                 current_session_id=_SID,
             )
+        self.clear_mfa_lock = clear_mfa_lock
         return clear_lock
 
     def test_own_password_change(self, mock_db, published):
@@ -147,6 +149,11 @@ class TestPasswordAudit:
         clear_lock = self._stage_own(mock_db)
 
         clear_lock.assert_called_once_with(USER_ID)
+
+    def test_own_password_change_lifts_the_account_mfa_lock(self, mock_db, published):
+        self._stage_own(mock_db)
+
+        self.clear_mfa_lock.assert_called_once_with(USER_ID)
 
     def test_own_password_change_without_revoking_records_zero(self, mock_db, published):
         with jasil_testing.capture_audit() as audit:
@@ -168,6 +175,7 @@ class TestPasswordAudit:
             patch.object(
                 account_security_service.lockout_integration, "clear_step_up_account_lockout"
             ) as clear_step_up,
+            patch.object(account_security_service.mfa_integration, "clear_mfa_account_lockout") as clear_mfa_lock,
             jasil_testing.capture_audit() as audit,
         ):
             require_user.return_value.access_type = "regular"
@@ -176,6 +184,7 @@ class TestPasswordAudit:
 
         clear_lock.assert_called_once_with(USER_ID)
         clear_step_up.assert_called_once_with(USER_ID)
+        clear_mfa_lock.assert_called_once_with(USER_ID)
 
         entry = audit.assert_audited(
             account_security_audit_actions.PASSWORD_SET.id,

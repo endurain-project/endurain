@@ -75,7 +75,10 @@ def disable_user_mfa(user_id: uuid.UUID, db: Session) -> None:
 
 
 def clear_mfa_account_lockout(user_id: uuid.UUID) -> None:
-    """Lift the account-wide MFA sign-in lock and wrong-code count of an account after its second factor changed.
+    """Lift the account-wide MFA sign-in lock and wrong-code count of an account.
+
+    Called after the account's second factor changed or its password was replaced, since whoever sent the wrong
+    codes held the old password.
 
     A change that follows an outage of the shared state still succeeds; the lock then ends on its own or at the next
     successful MFA sign-in.

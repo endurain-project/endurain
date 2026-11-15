@@ -19,6 +19,7 @@ import modules.auth.computation as token_hashing
 import modules.auth.credentials.integration_service as credentials_integration
 import modules.auth.lockout.integration_service as lockout_integration
 import modules.auth.password_reset_tokens.audit_actions as password_reset_audit_actions
+import modules.auth.mfa.integration_service as mfa_integration
 import modules.auth.password_reset_tokens.crud as password_reset_crud
 import modules.auth.password_reset_tokens.email_messages as password_reset_email_messages
 import modules.auth.password_reset_tokens.event_publishers as password_reset_event_publishers
@@ -299,3 +300,4 @@ def delete_expired_password_reset_tokens(db: Session) -> int:
     return core_database.delete_in_batches(
         lambda limit: password_reset_crud.delete_expired_password_reset_tokens(now, limit, db), db
     )
+    mfa_integration.clear_mfa_account_lockout(token_user_id)

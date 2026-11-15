@@ -94,7 +94,7 @@ class TestGetAccountSecurityChangedEmail:
             assert "100 wrong two-step verification codes in a row" in body
             assert "Whoever entered them knew your password" in body
             assert "30 days" in body
-            assert "turned off or set up again, or an administrator resets it" in body
+            assert "turned off or set up again, an administrator resets it, or your password is replaced" in body
             assert "someone knows your password" in body
             assert "Change your password right away from a signed-in device" in body
         assert "security_change." not in html_body + text_body

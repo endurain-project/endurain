@@ -219,7 +219,7 @@ MFA verification failures also count against the account across every address, o
 
 - The count restarts on a successful MFA sign-in and expires after 30 days without a failure.
 - A sign-in from a **known device** of the account (defined in the password lock below) is not refused by this lock. It still needs the right code and is still held by the tiered MFA lockout of its network above, and its wrong codes still count.
-- The tiered count of a network is cleared by a successful MFA sign-in from that network and otherwise expires after 2 hours without a failure. The account lock and its count are cleared by a successful MFA sign-in, the user turning MFA off or setting it up again from a signed-in session, or an administrator resetting the user's MFA. A password reset or change does not clear them.
+- The tiered count of a network is cleared by a successful MFA sign-in from that network and otherwise expires after 2 hours without a failure. The account lock and its count are cleared by a successful MFA sign-in, the user turning MFA off or setting it up again from a signed-in session, an administrator resetting the user's MFA, a completed password reset, the user changing their password, or an administrator setting the user's password.
 - When the 100th wrong code locks it, the owner gets one email and one in-app notification (`account_security_changed` with the change `mfa_locked`) and an `auth.lockout.apply` audit row with the counter `mfa_account`. The audit row holds no username.
 - The refusal is the same `429`, with `Retry-After`, as the tiered MFA lockout.
 

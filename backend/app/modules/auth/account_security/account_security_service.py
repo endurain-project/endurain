@@ -372,6 +372,7 @@ def stage_change_own_password(
 
     _stage_own_password(user_id, new_password, db)
     authentication_integration.clear_account_login_lockout(user_id)
+    mfa_integration.clear_mfa_account_lockout(user_id)
 
     revoked = 0
     if revoke_other_sessions:
@@ -429,6 +430,7 @@ def change_managed_user_password(
     api_keys_integration.revoke_user_api_keys(user_id, db)
     authentication_integration.clear_account_login_lockout(user_id)
     lockout_integration.clear_step_up_account_lockout(user_id)
+    mfa_integration.clear_mfa_account_lockout(user_id)
     _stage_credential_changed(
         account_security_audit_actions.PASSWORD_SET,
         account_security_events.AccountSecurityChange.PASSWORD_SET_BY_ADMIN,
