@@ -875,6 +875,25 @@ def _edit_ends_sessions(before: users_schema.UserRead, requested: users_schema.U
     )
 
 
+def _edit_needs_step_up(before: users_schema.UserRead, requested: users_schema.UserEdit) -> bool:
+    """Whether an administrative edit needs the administrator's step-up verification.
+
+    Args:
+        before: The user before the edit.
+        requested: The edit as the administrator submitted it.
+
+    Returns:
+        True when the edit ends sessions (see :func:`_edit_ends_sessions`), or a submitted username or
+        email-verified flag differs from the stored one. The username is the sign-in name, and a verified
+        email lets an identity provider link to the account.
+    """
+    return (
+        _edit_ends_sessions(before, requested)
+        or (requested.username is not None and before.username != requested.username.lower())
+        or (requested.email_verified is not None and before.email_verified != requested.email_verified)
+    )
+
+
 def _stage_edit_with_email_change(
     existing: users_schema.UserRead, user: users_schema.UserEdit, email: str, db: Session, *, if_match: str
 ) -> tuple[users_schema.UserRead, bool]:
@@ -937,9 +956,10 @@ def edit_user(
 ) -> users_schema.UserRead:
     """Edit a user as an administrator, commit, and add their authentication status.
 
-    A change of email, access type or active flag needs the administrator's own step-up verification, so a
-    stolen access token cannot hand an account over. It signs the edited user out everywhere, so a
-    demoted, deactivated or re-addressed account does not keep working sessions. An administrator
+    A change of email, access type, active flag, username or email-verified flag needs the administrator's own
+    step-up verification, so a stolen access token cannot hand an account over. A change of email, access type or
+    active flag signs the edited user out everywhere, so a demoted, deactivated or re-addressed account does not
+    keep working sessions; a new username does not, and the user is sent a notice of it, whoever edits. An administrator
     editing their own account stays signed in. A changed email that the administrator does not mark
     verified is requested, not applied: the user keeps the stored address, a confirmation link is queued
     for the new one in the same transaction as the edit, and the response carries it as ``pending_email``.
@@ -961,7 +981,8 @@ def edit_user(
 
     Raises:
         PermissionDeniedError: If the administrator changes their own email, which needs their account settings.
-        StepUpFailedError: If the edit changes the email, access type or active flag and the step-up fails.
+        StepUpFailedError: If the edit changes the email, access type, active flag, username or email-verified flag and
+            the step-up fails.
         NotFoundError: If the user does not exist.
         ApprovalPendingError: If the edit activates a user awaiting approval.
         ConflictError: If the username or email is already taken.
@@ -972,7 +993,7 @@ def edit_user(
     if email is not None and existing.email != email:
         require_other_user(user_id, actor_id, "change your email")
     _refuse_pending_activation(user_id, existing, user)
-    if _edit_ends_sessions(existing, user):
+    if _edit_needs_step_up(existing, user):
         account_security_integration.verify_step_up(
             step_up or auth_schema.StepUpVerification(),
             actor_id,
@@ -996,6 +1017,10 @@ def edit_user(
             db.rollback()
             raise
         _stage_user_update_audit(existing, updated, user, db)
+        if existing.username != updated.username:
+            account_security_integration.stage_account_change_notice(
+                user_id, account_security_events.AccountSecurityChange.USERNAME_CHANGED, db
+            )
         if user_id != actor_id and _edit_ends_sessions(existing, user):
             # Revoked in the edit's own transaction, so a user whose role or address changed cannot keep a session.
             account_security_integration.delete_all_user_sessions(user_id, db)

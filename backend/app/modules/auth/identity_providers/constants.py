@@ -63,7 +63,8 @@ class StepUpAction(StrEnum):
         ADMIN_MFA_RESET: An administrator resets another user's MFA.
         ADMIN_CREDENTIAL_CHANGE_REQUIRE: An administrator requires another user to change their password at the next
             sign-in.
-        ADMIN_USER_EDIT: An administrator changes another user's email, access type or active flag.
+        ADMIN_USER_EDIT: An administrator changes another user's email, access type, active flag, username or
+            email-verified flag.
         ADMIN_USER_DELETE: An administrator deletes another user's account.
         ADMIN_IDP_UNLINK: An administrator unlinks an identity provider from another user.
         ADMIN_USER_CREATE: An administrator creates an administrator account.

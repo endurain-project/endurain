@@ -10,6 +10,7 @@ from pydantic import TypeAdapter
 
 import core.exceptions as core_exceptions
 import core.pagination as core_pagination
+import modules.auth.account_security.events as account_security_events
 import modules.auth.account_security.integration_service as account_security_integration
 import modules.auth.credentials.contracts as credentials_contracts
 import modules.auth.credentials.integration_service as credentials_integration
@@ -1304,6 +1305,63 @@ class TestEdits:
         _verify_step_up_mock.assert_called_once_with(
             step_up, _U9, _SID_9, identity_providers_constants.StepUpAction.ADMIN_USER_EDIT, store, mock_db
         )
+
+    @pytest.mark.parametrize(
+        ("stored", "after"),
+        [
+            ({}, {"username": "renamed"}),
+            ({}, {"email_verified": True}),
+            ({"email_verified": True}, {"email_verified": False}),
+        ],
+        ids=["username", "email_verified_on", "email_verified_off"],
+    )
+    def test_a_username_or_verified_flag_change_needs_step_up_and_keeps_the_sessions(
+        self, mock_crud, mock_weight, mock_db, stored, after
+    ):
+        mock_crud.get_user_by_id.return_value = _user(_U1, **stored)
+        mock_crud.update_user.return_value = _user(_U1, **{**stored, **after})
+        _identity()
+
+        _admin_edit(_U1, _edit(_U1, **{**stored, **after}), _U9, mock_db)
+
+        _verify_step_up_mock.assert_called_once()
+        _delete_all_sessions_mock.assert_not_called()
+
+    def test_a_refused_step_up_blocks_a_username_change(self, mock_crud, mock_weight, mock_db):
+        mock_crud.get_user_by_id.return_value = _user(_U1)
+        _verify_step_up_mock.side_effect = core_exceptions.PermissionDeniedError("wrong password")
+
+        with pytest.raises(core_exceptions.PermissionDeniedError):
+            _admin_edit(_U1, _edit(_U1, username="renamed"), _U9, mock_db)
+
+        mock_crud.update_user.assert_not_called()
+        mock_db.commit.assert_not_called()
+
+    def test_a_username_differing_only_by_case_needs_no_step_up_and_no_notice(self, mock_crud, mock_weight, mock_db):
+        stored = _user(_U1)
+        mock_crud.get_user_by_id.return_value = stored
+        mock_crud.update_user.return_value = stored
+
+        with patch.object(account_security_integration, "stage_account_change_notice") as notice:
+            _admin_edit(_U1, _edit(_U1, username=stored.username.upper()), _U9, mock_db)
+
+        _verify_step_up_mock.assert_not_called()
+        notice.assert_not_called()
+
+    @pytest.mark.parametrize("actor_id", [9, 1])
+    def test_a_username_change_stages_the_notice_before_the_commit(self, mock_crud, mock_weight, mock_db, actor_id):
+        mock_crud.get_user_by_id.return_value = _user(_U1, access_type="admin")
+        mock_crud.update_user.return_value = _user(_U1, access_type="admin", username="renamed")
+        _identity()
+        order = MagicMock()
+        order.attach_mock(mock_db.commit, "commit")
+
+        with patch.object(account_security_integration, "stage_account_change_notice") as notice:
+            order.attach_mock(notice, "notice")
+            _admin_edit(_U1, _edit(_U1, access_type="admin", username="renamed"), actor_id, mock_db)
+
+        notice.assert_called_once_with(_U1, account_security_events.AccountSecurityChange.USERNAME_CHANGED, mock_db)
+        assert [call[0] for call in order.mock_calls] == ["notice", "commit"]
 
     def test_a_missing_step_up_is_verified_as_empty_credentials(self, mock_crud, mock_weight, mock_db):
         mock_crud.get_user_by_id.return_value = _user(_U1)

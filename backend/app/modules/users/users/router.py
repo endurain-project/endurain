@@ -227,10 +227,11 @@ def edit_user(
 ) -> users_schema.UserRead:
     """Update user information.
 
-    A change of email, access type or active flag needs the administrator's own step-up verification in
-    `step_up` (their current password or, for an account without one, a fresh identity-provider sign-in,
-    and an MFA code when MFA is enabled), and signs the edited user out everywhere. An edit that changes none
-    of the three needs no `step_up`.
+    A change of email, access type, active flag, username or email-verified flag needs the administrator's own
+    step-up verification in `step_up` (their current password or, for an account without one, a fresh
+    identity-provider sign-in, and an MFA code when MFA is enabled). A change of email, access type or active
+    flag also signs the edited user out everywhere; a new username does not, and the user is sent a security
+    notice of it. An edit that changes none of the five needs no `step_up`.
 
     Args:
         request: The incoming request, read by the rate limiter.

@@ -189,6 +189,14 @@ describe('UserFormDialog step-up', () => {
           .setValue('regular'),
     ],
     ['active flag', async (w: Wrapper) => w.find('input[role="switch"]').setValue(false)],
+    ['username', async (w: Wrapper) => w.find('input[name="username"]').setValue('renamed')],
+    [
+      'email verified flag',
+      async (w: Wrapper) => {
+        const switches = w.findAll('input[role="switch"]')
+        await switches[switches.length - 1]!.setValue(false)
+      },
+    ],
   ])('asks for the administrator step-up before saving a changed %s', async (_label, change) => {
     vi.mocked(apiFetch).mockClear()
     vi.mocked(apiFetch).mockResolvedValue({ ...user })
@@ -202,6 +210,16 @@ describe('UserFormDialog step-up', () => {
     await confirmStepUp(wrapper)
     const body = (await sentUpdate()) as { step_up?: unknown }
     expect(body.step_up).toEqual({ current_password: 'admin-pw', mfa_code: null })
+  })
+
+  it('saves without a step-up when the username only differs by case', async () => {
+    vi.mocked(apiFetch).mockClear()
+    vi.mocked(apiFetch).mockResolvedValue({ ...user })
+    const wrapper = await mountDialog(false)
+    await wrapper.find('input[name="username"]').setValue('ADMIN')
+    await wrapper.find('form').trigger('submit')
+
+    expect(await sentUpdate()).not.toHaveProperty('step_up')
   })
 
   it('saves without a step-up when no sensitive field changed', async () => {

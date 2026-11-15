@@ -949,13 +949,14 @@ class UserAdminEdit(UserEdit):
 
     Attributes:
         step_up: The administrator's own step-up verification. Required when the edit changes the email,
-            the access type or the active flag; it is never a user field.
+            the access type, the active flag, the username or the email-verified flag; it is never a user field.
     """
 
     step_up: auth_schema.StepUpVerification | None = Field(
         default=None,
         description=(
-            "The administrator's step-up verification, required to change the email, access type or active flag"
+            "The administrator's step-up verification, required to change the email, access type, active flag, "
+            "username or email-verified flag"
         ),
     )
 

@@ -422,8 +422,8 @@ watch(emailChanged, (changed) => {
 })
 
 /**
- * Whether the edit changes the email, the access type or the active flag, the three changes the backend
- * asks the administrator's step-up for.
+ * Whether the edit changes the email, the access type, the active flag, the username or the
+ * email-verified flag, the changes the backend asks the administrator's step-up for.
  *
  * @param user - The user as loaded.
  * @param formValues - The submitted form values.
@@ -432,7 +432,9 @@ function changesSensitiveField(user: ManagedUser, formValues: UserFormValues): b
   return (
     formValues.email.trim().toLowerCase() !== user.email.toLowerCase() ||
     formValues.accessType !== user.accessType ||
-    formValues.active !== user.active
+    formValues.active !== user.active ||
+    formValues.username.trim().toLowerCase() !== user.username.toLowerCase() ||
+    formValues.emailVerified !== user.emailVerified
   )
 }
 

@@ -4010,10 +4010,11 @@ export interface paths {
          * Edit User
          * @description Update user information.
          *
-         *     A change of email, access type or active flag needs the administrator's own step-up verification in
-         *     `step_up` (their current password or, for an account without one, a fresh identity-provider sign-in,
-         *     and an MFA code when MFA is enabled), and signs the edited user out everywhere. An edit that changes none
-         *     of the three needs no `step_up`.
+         *     A change of email, access type, active flag, username or email-verified flag needs the administrator's own
+         *     step-up verification in `step_up` (their current password or, for an account without one, a fresh
+         *     identity-provider sign-in, and an MFA code when MFA is enabled). A change of email, access type or active
+         *     flag also signs the edited user out everywhere; a new username does not, and the user is sent a security
+         *     notice of it. An edit that changes none of the five needs no `step_up`.
          */
         patch: operations["edit_user"];
         trace?: never;
@@ -12294,7 +12295,8 @@ export interface components {
          *         ADMIN_MFA_RESET: An administrator resets another user's MFA.
          *         ADMIN_CREDENTIAL_CHANGE_REQUIRE: An administrator requires another user to change their password at the next
          *             sign-in.
-         *         ADMIN_USER_EDIT: An administrator changes another user's email, access type or active flag.
+         *         ADMIN_USER_EDIT: An administrator changes another user's email, access type, active flag, username or
+         *             email-verified flag.
          *         ADMIN_USER_DELETE: An administrator deletes another user's account.
          *         ADMIN_IDP_UNLINK: An administrator unlinks an identity provider from another user.
          *         ADMIN_USER_CREATE: An administrator creates an administrator account.
@@ -12934,7 +12936,7 @@ export interface components {
          *
          *     Attributes:
          *         step_up: The administrator's own step-up verification. Required when the edit changes the email,
-         *             the access type or the active flag; it is never a user field.
+         *             the access type, the active flag, the username or the email-verified flag; it is never a user field.
          */
         UserAdminEdit: {
             /** @description User access level */
@@ -12968,7 +12970,7 @@ export interface components {
             /** Name */
             name?: string | null;
             preferred_language?: components["schemas"]["Language"] | null;
-            /** @description The administrator's step-up verification, required to change the email, access type or active flag */
+            /** @description The administrator's step-up verification, required to change the email, access type, active flag, username or email-verified flag */
             step_up?: components["schemas"]["StepUpVerification"] | null;
             /** Timezone */
             timezone?: string | null;
