@@ -5,6 +5,7 @@ plumbing the pipeline used to own — gzip expansion, content hashing, artifact
 cleanup — now lives in ``core.file_uploads`` and is tested there.
 """
 
+import logging
 import os
 from unittest.mock import MagicMock, patch
 
@@ -13,6 +14,8 @@ from tests._helpers.auth import MOCK_USER_ID
 
 import core.exceptions as core_exceptions
 import modules.activities.activity.contracts as activity_contracts
+import modules.activities.activity_file_import.fit_parser as fit_parser
+import modules.activities.activity_file_import.gpx_parser as gpx_parser
 import modules.activities.activity_ingestion.contracts as sources
 import modules.activities.activity_ingestion.pipeline_service as pipeline
 
@@ -109,6 +112,41 @@ class TestParseFileError:
                 filename="/path/to/file.gpx",
             )
         assert exc.value.status_code == 500
+
+
+class TestOneBadFileIsLoggedOnce:
+    """A parser that fails inside its own try block logs the failure; the pipeline must not log it again."""
+
+    @staticmethod
+    def _warnings(caplog):
+        return [r for r in caplog.records if r.levelno >= logging.WARNING]
+
+    def test_a_failure_inside_a_parser_is_logged_once(self, caplog, tmp_path):
+        path = tmp_path / "bug.gpx"
+        path.write_text("<gpx/>")
+
+        with (
+            patch.object(gpx_parser.gpxpy, "parse", side_effect=KeyError("trkpt")),
+            caplog.at_level("DEBUG"),
+            pytest.raises(core_exceptions.InvalidInputError),
+        ):
+            pipeline.parse_file(MOCK_USER_ID, ".gpx", str(path))
+
+        [record] = self._warnings(caplog)
+        assert record.exc_info is not None
+
+    def test_a_failure_outside_a_parser_is_logged_by_the_pipeline(self, caplog):
+        with (
+            patch.object(fit_parser, "parse_fit_file", return_value={}),
+            patch.object(fit_parser, "split_records_by_activity", side_effect=KeyError("sessions")),
+            caplog.at_level("DEBUG"),
+            pytest.raises(core_exceptions.InvalidInputError),
+        ):
+            pipeline.parse_file(MOCK_USER_ID, ".fit", "/path/to/file.fit")
+
+        [record] = self._warnings(caplog)
+        assert record.getMessage() == "Could not parse an activity file"
+        assert record.exc_info is not None
 
 
 class TestRetainSourceFile:

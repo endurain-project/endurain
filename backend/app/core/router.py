@@ -178,11 +178,11 @@ def health(db: core_dependencies.DbSession, state: core_dependencies.PlatformSta
     try:
         state.get(_STATE_PROBE_KEY)
     except StateBackendUnavailableError as err:
-        logger.warning("The shared state backend did not answer the health probe", exc_info=err)
+        logger.debug("The shared state backend did not answer the health probe", exc_info=err)
         state_ok = False
     audit_reason = _audit_degraded_reason()
     if audit_reason is not None:
-        logger.warning("The audit trail is degraded: %s", audit_reason)
+        logger.debug("The audit trail is degraded: %s", audit_reason)
     audit_ok = audit_reason is None
     return HealthResponse(
         status="ok" if state_ok and audit_ok else "degraded",

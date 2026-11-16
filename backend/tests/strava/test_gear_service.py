@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 import uuid
 from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
@@ -287,6 +288,15 @@ class TestGetUserGear:
         assert isinstance(error, core_exceptions.DependencyFailedError)
         create.assert_not_called()
         sync_pref.assert_not_called()
+
+    def test_a_failed_fetch_is_left_to_the_job_runner_to_log_with_its_cause(self, caplog):
+        athlete = SimpleNamespace(bikes=[SimpleNamespace(id="b1")], shoes=[])
+
+        with caplog.at_level("DEBUG"):
+            _result, error, *_ = _linked_sync(athlete, gear_error=RuntimeError("boom"))
+
+        assert isinstance(error.__cause__, RuntimeError)
+        assert [r.getMessage() for r in caplog.records if r.levelno >= logging.WARNING] == []
 
     def test_a_gear_piece_strava_sent_without_an_id_fails_the_sync_and_stores_nothing(self):
         athlete = SimpleNamespace(bikes=[SimpleNamespace(id=None)], shoes=[])

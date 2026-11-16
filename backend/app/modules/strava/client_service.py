@@ -376,7 +376,7 @@ def raise_if_rate_limit_active(
         TooManyRequestsError: When the application is rate limited.
     """
     if rate_limits.is_rate_limited(client_id):
-        logger.warning("Strava rate limit active, skipping the call", extra=core_logger.context(user_id=user_id))
+        logger.debug("Strava rate limit active, skipping the call", extra=core_logger.context(user_id=user_id))
         raise core_exceptions.TooManyRequestsError(
             "Strava API rate limit exceeded. Please try again later.",
             scope=core_exceptions.TooManyRequestsScope.PROVIDER,
@@ -570,7 +570,7 @@ def refresh_user_strava_token(
 
     client_id = get_client_id(linked.integrations)
     if rate_limits.is_rate_limited(client_id):
-        logger.warning("Strava rate limit active, skipping token refresh", extra=core_logger.context(user_id=user_id))
+        logger.debug("Strava rate limit active, skipping token refresh", extra=core_logger.context(user_id=user_id))
         if forced:
             raise core_exceptions.TooManyRequestsError(
                 "Strava API rate limit exceeded. Please try again later.",

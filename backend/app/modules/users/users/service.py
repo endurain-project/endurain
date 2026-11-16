@@ -679,7 +679,7 @@ def _refuse_to_remove_last_admin(user: users_schema.UserRead, action: str, db: S
 
     admin_ids = users_crud.lock_active_admin_ids(db)
     if user.id in admin_ids and len(admin_ids) <= 1:
-        logger.debug(
+        logger.warning(
             "Refused to remove the only administrator", extra=core_logger.context(user_id=user.id, action=action)
         )
         raise core_exceptions.LastAdministratorError(f"The only administrator cannot be {action}")

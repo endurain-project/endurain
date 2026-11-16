@@ -362,9 +362,7 @@ def raise_if_rate_limited(user_id: uuid.UUID, rate_limits: garmin_rate_limit_sto
     """
     retry_at = rate_limits.rate_limited_until(user_id)
     if retry_at is not None:
-        logger.warning(
-            "Garmin Connect rate limit active, skipping the call", extra=core_logger.context(user_id=user_id)
-        )
+        logger.debug("Garmin Connect rate limit active, skipping the call", extra=core_logger.context(user_id=user_id))
         raise core_exceptions.TooManyRequestsError(
             "Garmin Connect rate limit exceeded. Please try again later.",
             scope=core_exceptions.TooManyRequestsScope.PROVIDER,

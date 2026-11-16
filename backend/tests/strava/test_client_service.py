@@ -445,6 +445,46 @@ class TestRaiseIfRateLimitActive:
         strava_utils.raise_if_rate_limit_active("c", MOCK_USER_ID, rate_limits)
 
 
+class TestSkippedCallsLogAtDebug:
+    """A call skipped while a limit is held repeats for every caller; only the hit that set it is a WARNING."""
+
+    def test_a_call_skipped_for_an_active_limit_logs_no_warning(self, caplog):
+        rate_limits = MagicMock()
+        rate_limits.is_rate_limited.return_value = True
+
+        with (
+            caplog.at_level("DEBUG", logger=strava_utils.logger.name),
+            pytest.raises(core_exceptions.TooManyRequestsError),
+        ):
+            strava_utils.raise_if_rate_limit_active("c", MOCK_USER_ID, rate_limits)
+
+        skipped = [r for r in caplog.records if "skipping the call" in r.getMessage()]
+        assert [r.levelname for r in skipped] == ["DEBUG"]
+
+    def test_a_token_refresh_skipped_for_an_active_limit_logs_no_warning(self, monkeypatch, caplog):
+        integrations = Mock(
+            user_id=MOCK_USER_ID,
+            strava_token="t",
+            strava_refresh_token="r",
+            strava_client_id="123",
+            strava_client_secret="s",
+            strava_token_expires_at=datetime.now(UTC) + timedelta(minutes=10),
+        )
+        monkeypatch.setattr(strava_utils.core_database, "SessionLocal", lambda: MagicMock())
+        monkeypatch.setattr(strava_utils.core_cryptography, "decrypt_token_fernet", lambda value: value)
+        monkeypatch.setattr(
+            strava_utils.user_integrations_integration, "get_user_integrations", Mock(return_value=integrations)
+        )
+        rate_limits = MagicMock()
+        rate_limits.is_rate_limited.return_value = True
+
+        with caplog.at_level("DEBUG", logger=strava_utils.logger.name):
+            strava_utils.refresh_user_strava_token(MOCK_USER_ID, rate_limits)
+
+        skipped = [r for r in caplog.records if "skipping token refresh" in r.getMessage()]
+        assert [r.levelname for r in skipped] == ["DEBUG"]
+
+
 class TestIsStravaUnauthorizedError:
     def test_an_access_unauthorized_error_is_detected(self):
         assert strava_utils.is_strava_unauthorized_error(AccessUnauthorized()) is True

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 import uuid
 from datetime import datetime
 from unittest.mock import MagicMock, Mock
@@ -12,6 +13,7 @@ from stravalib.exc import AccessUnauthorized, ObjectNotFound
 from stravalib.exc import Fault as StravaFault
 
 import core.exceptions as core_exceptions
+import modules.activities.activity_ingestion.window_service as activity_ingestion_window_service
 import modules.strava.activity_service as activity_utils
 import modules.strava.client_service as strava_utils
 import modules.strava.rate_limit_store as strava_rate_limit_store
@@ -746,3 +748,39 @@ class TestIncompleteLaps:
 
         assert laps[0]["start_time"] == "2026-01-01T07:00:00"
         assert laps[0]["avg_cadence"] is None
+
+
+class TestAFailedActivityIsLoggedOnce:
+    """A Strava failure inside a window is logged by the window, whose traceback chains the cause."""
+
+    @pytest.mark.parametrize("fetch", ["detail", "streams", "laps"])
+    def test_one_failed_fetch_leaves_one_warning_with_the_cause(self, monkeypatch, rate_limits, caplog, fetch):
+        monkeypatch.setattr(rate_limits, "is_rate_limited", lambda client_id: False)
+        monkeypatch.setattr(activity_utils.strava_client_service, "call_strava", Mock(side_effect=RuntimeError("boom")))
+        integrations = _integrations()
+        privacy = Mock()
+        client = Mock()
+        fetches = {
+            "detail": lambda activity: activity_utils.parse_activity(
+                activity, MOCK_USER_ID, privacy, "UTC", client, integrations, rate_limits
+            ),
+            "streams": lambda activity: activity_utils.fetch_and_process_activity_streams(
+                client, activity.id, MOCK_USER_ID, integrations, rate_limits
+            ),
+            "laps": lambda activity: activity_utils.fetch_and_process_activity_laps(
+                client, activity.id, MOCK_USER_ID, [], integrations, rate_limits
+            ),
+        }
+
+        with caplog.at_level("DEBUG"), pytest.raises(core_exceptions.DependencyFailedError):
+            activity_ingestion_window_service.run_window(
+                [Mock(id=1)],
+                fetches[fetch],
+                provider="strava",
+                user_id=MOCK_USER_ID,
+                describe=lambda activity: {"strava_activity_id": activity.id},
+            )
+
+        per_activity = [r for r in caplog.records if r.levelno >= logging.WARNING and r.exc_info is not None]
+        assert len(per_activity) == 1
+        assert isinstance(per_activity[0].exc_info[1].__cause__, RuntimeError)

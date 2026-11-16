@@ -252,6 +252,19 @@ class TestRateLimit:
         assert raised.value.retry_at == until
         assert raised.value.scope == core_exceptions.TooManyRequestsScope.PROVIDER
 
+    def test_a_call_skipped_for_an_active_limit_logs_no_warning(self, caplog):
+        rate_limits = garmin_helpers.rate_limits()
+        rate_limits.mark_rate_limited(MOCK_USER_ID)
+
+        with (
+            caplog.at_level("DEBUG", logger=garmin_service.logger.name),
+            pytest.raises(core_exceptions.TooManyRequestsError),
+        ):
+            garmin_service.raise_if_rate_limited(MOCK_USER_ID, rate_limits)
+
+        skipped = [r for r in caplog.records if "skipping the call" in r.getMessage()]
+        assert [r.levelname for r in skipped] == ["DEBUG"]
+
     def test_a_call_is_allowed_when_nothing_is_limited(self):
         garmin_service.raise_if_rate_limited(MOCK_USER_ID, garmin_helpers.rate_limits())
 

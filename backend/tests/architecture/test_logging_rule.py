@@ -91,10 +91,13 @@ _CONSOLE_ALLOWED_ROLES = frozenset({"migration_service"})
 
 #: Exceptions a service raises to refuse a request. Raising one is a decision, and the rule says a refusal
 #: is a WARNING. ``AccessConcealedError`` is a refusal answered as ``404``; ``UnauthenticatedError`` is a
-#: credential the service refused. Plain ``NotFoundError`` is deliberately absent: it reports a record that is
+#: credential the service refused; ``LastAdministratorError`` is a change refused so the server keeps an
+#: active administrator. Plain ``NotFoundError`` is deliberately absent: it reports a record that is
 #: missing (or whose absence cannot be told from a refusal), which is not a decision about the caller. So are
 #: ``ConflictError`` and ``InvalidInputError``: an ordinary client mistake is not logged above DEBUG.
-_REFUSALS = frozenset({"PermissionDeniedError", "AccessConcealedError", "UnauthenticatedError"})
+_REFUSALS = frozenset(
+    {"PermissionDeniedError", "AccessConcealedError", "UnauthenticatedError", "LastAdministratorError"}
+)
 
 _ROOT = pathlib.Path("app/modules")
 

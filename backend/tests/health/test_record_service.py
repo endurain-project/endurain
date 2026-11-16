@@ -162,6 +162,16 @@ class TestRestoreArchivedRecords:
 
         assert self._restore([{"date": "2024-01-15", "steps": 5}], stage) == 0
 
+    def test_the_summary_counts_the_rows_staged_and_the_rows_kept_as_duplicates(self, caplog):
+        stage = MagicMock(side_effect=[True, False, False])
+        rows = [{"date": f"2024-01-{day}", "steps": 5} for day in (15, 16, 17)]
+
+        with caplog.at_level("DEBUG", logger=health_record_service.logger.name):
+            self._restore(rows, stage)
+
+        [summary] = [r for r in caplog.records if r.getMessage() == "Imported health records"]
+        assert (summary.levelname, summary.count, summary.skipped) == ("DEBUG", 1, 2)
+
     def test_a_stage_that_returns_a_record_counts(self):
         stage = MagicMock(return_value=MagicMock())
 

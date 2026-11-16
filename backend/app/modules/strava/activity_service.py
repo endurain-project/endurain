@@ -266,11 +266,6 @@ def parse_activity(
         raise
     except Exception as err:
         strava_client_service.raise_if_rate_limited(err, client_id, rate_limits)
-        logger.warning(
-            "Error fetching detailed Strava activity",
-            extra=core_logger.context(user_id=user_id, strava_activity_id=strava_activity_id),
-            exc_info=err,
-        )
         raise core_exceptions.DependencyFailedError("Not able to fetch Strava activity") from err
 
     # Parse start and end dates
@@ -681,11 +676,6 @@ def fetch_and_process_activity_streams(
                 extra=core_logger.context(user_id=user_id, strava_activity_id=strava_activity_id),
             )
             return ([], False, [], False, [], False, [], False, [], False, [], False, [])
-        logger.warning(
-            "Error fetching Strava activity streams",
-            extra=core_logger.context(user_id=user_id, strava_activity_id=strava_activity_id),
-            exc_info=err,
-        )
         raise core_exceptions.DependencyFailedError("Not able to fetch Strava activity streams") from err
 
     def stream_data(name: str) -> list[float]:
@@ -798,11 +788,6 @@ def fetch_and_process_activity_laps(
                 extra=core_logger.context(user_id=user_id, strava_activity_id=strava_activity_id),
             )
             return None
-        logger.warning(
-            "Error fetching Strava activity laps",
-            extra=core_logger.context(user_id=user_id, strava_activity_id=strava_activity_id),
-            exc_info=err,
-        )
         raise core_exceptions.DependencyFailedError("Not able to fetch Strava activity laps") from err
 
     # Create an array to store the processed laps

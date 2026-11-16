@@ -94,12 +94,12 @@ class TestHealth:
         state = MagicMock()
         state.get.side_effect = StateBackendUnavailableError("redis down")
 
-        with caplog.at_level("WARNING"):
+        with caplog.at_level("DEBUG"):
             response = self._get(MagicMock(), state)
 
         assert response.status_code == 200
         assert response.json() == {"status": "degraded", "state": "unavailable", "audit": "ok"}
-        assert "health probe" in caplog.text
+        assert [r.levelname for r in caplog.records if "health probe" in r.getMessage()] == ["DEBUG"]
 
     def test_the_probe_only_reads(self):
         state = MagicMock()
@@ -145,12 +145,12 @@ class TestHealth:
     def test_an_audit_problem_is_degraded_but_still_200(self, overrides, caplog):
         self.healthy.return_value = self._audit_health(**overrides)
 
-        with caplog.at_level("WARNING"):
+        with caplog.at_level("DEBUG"):
             response = self._get(MagicMock(), MagicMock())
 
         assert response.status_code == 200
         assert response.json() == {"status": "degraded", "state": "ok", "audit": "degraded"}
-        assert "audit" in caplog.text.lower()
+        assert [r.levelname for r in caplog.records if "audit trail is degraded" in r.getMessage()] == ["DEBUG"]
 
     def test_a_partition_for_tomorrow_is_enough(self):
         self.healthy.return_value = self._audit_health(
@@ -184,12 +184,12 @@ class TestHealth:
     def test_an_unreadable_audit_health_is_degraded_not_a_failure(self, caplog, error):
         self.healthy.side_effect = error
 
-        with caplog.at_level("WARNING"):
+        with caplog.at_level("DEBUG"):
             response = self._get(MagicMock(), MagicMock())
 
         assert response.status_code == 200
         assert response.json() == {"status": "degraded", "state": "ok", "audit": "degraded"}
-        assert "audit" in caplog.text.lower()
+        assert [r.levelname for r in caplog.records if "audit trail is degraded" in r.getMessage()] == ["DEBUG"]
 
     def test_a_database_failure_does_not_read_the_audit_health(self):
         db = MagicMock()

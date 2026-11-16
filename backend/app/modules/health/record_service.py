@@ -278,6 +278,7 @@ def restore_archived_records[CreateT: BaseModel](
         The number of records staged.
     """
     staged = 0
+    skipped = 0
     for row in records:
         fields = {
             key: value
@@ -289,9 +290,11 @@ def restore_archived_records[CreateT: BaseModel](
         except ValidationError:
             logger.warning("Skipped an invalid health record", extra=core_logger.context(kind=kind))
             continue
-        if stage(user_id, record, db) is not False:
+        if stage(user_id, record, db) is False:
+            skipped += 1
+        else:
             staged += 1
-    logger.debug("Imported health records", extra=core_logger.context(kind=kind, count=staged))
+    logger.debug("Imported health records", extra=core_logger.context(kind=kind, count=staged, skipped=skipped))
     return staged
 
 
