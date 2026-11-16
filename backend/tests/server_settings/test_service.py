@@ -6,6 +6,7 @@ lookup on the read path of the whole app.
 """
 
 import io
+import uuid
 from datetime import timedelta
 from unittest.mock import MagicMock, patch
 
@@ -1435,6 +1436,9 @@ class TestEmailStatus:
         assert result.email_status.problems == ["Username and password must be set together"]
 
 
+_ADMIN_ID = uuid.UUID(int=7)
+
+
 class TestSendTestEmail:
     """Test suite for send_test_email."""
 
@@ -1442,12 +1446,29 @@ class TestSendTestEmail:
     def _admin():
         return MagicMock(email="admin@example.com", preferred_language="en", **{"name": "Admin"})
 
+    @pytest.fixture(autouse=True)
+    def _lookup(self):
+        with patch(
+            "modules.server_settings.mail_service.users_integration.get_user", return_value=self._admin()
+        ) as get:
+            self.get_user = get
+            yield
+
+    def test_an_admin_who_no_longer_exists_raises_404(self, mail_env):
+        self.get_user.return_value = None
+        mail = MagicMock()
+
+        with pytest.raises(core_exceptions.NotFoundError):
+            server_settings_mail_service.send_test_email(_ADMIN_ID, mail, MagicMock())
+
+        mail.send.assert_not_called()
+
     def test_not_configured_raises_503_with_reasons(self, mail_env):
         mail_env.read.return_value = _mail_row(host=None)
         mail = MagicMock()
 
         with pytest.raises(core_exceptions.ServiceUnavailableError) as exc_info:
-            server_settings_mail_service.send_test_email(self._admin(), mail, MagicMock())
+            server_settings_mail_service.send_test_email(_ADMIN_ID, mail, MagicMock())
 
         assert "Host is not set" in exc_info.value.detail
         mail.send.assert_not_called()
@@ -1457,7 +1478,7 @@ class TestSendTestEmail:
         mock_settings.ENDURAIN_HOST = "https://endurain.example.com"
         mail = MagicMock()
 
-        server_settings_mail_service.send_test_email(self._admin(), mail, MagicMock())
+        server_settings_mail_service.send_test_email(_ADMIN_ID, mail, MagicMock())
 
         message = mail.send.call_args.args[0]
         assert message.to == ["admin@example.com"]
@@ -1471,7 +1492,7 @@ class TestSendTestEmail:
         mail.send.side_effect = platform_providers.MailError("SMTP authentication failed (status 535)", status=535)
 
         with pytest.raises(core_exceptions.UpstreamError) as exc_info:
-            server_settings_mail_service.send_test_email(self._admin(), mail, MagicMock())
+            server_settings_mail_service.send_test_email(_ADMIN_ID, mail, MagicMock())
 
         assert "status 535" in exc_info.value.detail
 

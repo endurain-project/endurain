@@ -15,11 +15,12 @@ dispatch imports these, and nothing here imports back.
 from collections.abc import Sequence
 from datetime import UTC, datetime
 from typing import Any, NotRequired, TypedDict
-from zoneinfo import ZoneInfo, available_timezones
+from zoneinfo import ZoneInfo
 
 import fitdecode
 
 import core.logger as core_logger
+import core.timezone as core_timezone
 import modules.activities.activity.constants as activity_constants
 import modules.activities.activity_exercise_titles.contracts as activity_exercise_titles_contracts
 import modules.activities.activity_workout_steps.contracts as activity_workout_steps_contracts
@@ -985,10 +986,10 @@ def find_timezone_name(offset_seconds: int, reference_date: datetime) -> str | N
         if -12 <= hours <= 14:
             # POSIX-style inverted sign: Etc/GMT-9 == UTC+9.
             candidate = f"Etc/GMT{-hours:+d}" if hours != 0 else "UTC"
-            if candidate == "UTC" or candidate in available_timezones():
+            if candidate == "UTC" or candidate in core_timezone.known_names():
                 return candidate
 
-    for tz_name in sorted(available_timezones()):
+    for tz_name in core_timezone.known_names_sorted():
         tz = ZoneInfo(tz_name)
 
         # Get the UTC offset of the candidate timezone for

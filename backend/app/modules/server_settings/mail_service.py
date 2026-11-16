@@ -1,5 +1,7 @@
 """Mail settings, the email status and the test email."""
 
+import uuid
+
 import jasil.audit as jasil_audit
 import jasil.providers as platform_providers
 from sqlalchemy.orm import Session
@@ -20,7 +22,7 @@ import modules.server_settings.crud as server_settings_crud
 import modules.server_settings.email_messages as server_settings_email_messages
 import modules.server_settings.schema as server_settings_schema
 import modules.server_settings.service as server_settings_service
-import modules.users.users.schema as users_schema
+import modules.users.users.integration_service as users_integration
 
 logger = core_logger.get_logger(__name__)
 
@@ -305,7 +307,7 @@ def _email_status_for(config: core_mail.MailConfig | None) -> server_settings_sc
     return server_settings_schema.EmailStatus(configured=not problems, problems=problems)
 
 
-def send_test_email(admin: users_schema.UserRead, mail: platform_providers.MailProvider, db: Session) -> None:
+def send_test_email(admin_id: uuid.UUID, mail: platform_providers.MailProvider, db: Session) -> None:
     """Send a test email to the admin who asked for it, synchronously.
 
     The send is not queued: the admin wants to know now whether the mail settings
@@ -313,7 +315,7 @@ def send_test_email(admin: users_schema.UserRead, mail: platform_providers.MailP
     failure category and SMTP status code, so they are safe to show to an admin.
 
     Args:
-        admin: The admin who requested the test; the only recipient.
+        admin_id: The id of the admin who requested the test; the only recipient.
         mail: The platform mail provider, which sends with the stored settings.
         db: Database session.
 
@@ -321,9 +323,13 @@ def send_test_email(admin: users_schema.UserRead, mail: platform_providers.MailP
         None.
 
     Raises:
+        NotFoundError: When the admin no longer exists.
         ServiceUnavailableError: When email is not configured, with the reasons.
         UpstreamError: When the mail server could not be reached or refused the message.
     """
+    admin = users_integration.get_user(admin_id, db)
+    if admin is None:
+        raise core_exceptions.NotFoundError("User not found")
     config = get_mail_config(db)
     email_status = _email_status_for(config)
     if config is None or not email_status.configured:

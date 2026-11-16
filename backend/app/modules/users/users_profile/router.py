@@ -30,13 +30,13 @@ import core.rate_limit as core_rate_limit
 import modules.auth.authentication.dependencies as authentication_dependencies
 import modules.auth.dependencies as auth_dependencies
 import modules.auth.schema as auth_schema
-import modules.users.users.integration_service as users_integration
 import modules.users.users.schema as users_schema
 import modules.users.users_privacy_settings.schema as users_privacy_settings_schema
 import modules.users.users_profile.constants as profile_constants
 import modules.users.users_profile.dependencies as profile_dependencies
 import modules.users.users_profile.export_job_service as profile_export_job_service
 import modules.users.users_profile.import_job_service as profile_import_job_service
+import modules.users.users_profile.photo_service as profile_photo_service
 import modules.users.users_profile.schema as profile_schema
 import modules.users.users_profile.service as profile_service
 
@@ -106,10 +106,10 @@ def put_profile_image(
     Returns:
         The servable URL of the new photo.
     """
-    replaced = users_integration.upload_user_photo(token_user_id, file, storage, db)
+    photo, replaced = profile_photo_service.set_photo(token_user_id, file, storage, db)
     if replaced:
         response.status_code = status.HTTP_200_OK
-    return users_schema.UserPhotoRead(photo_path=users_integration.require_user(token_user_id, db).photo_path)
+    return photo
 
 
 @router.patch(
@@ -412,7 +412,7 @@ def delete_profile_photo(
         storage: The platform storage provider.
         db: Database session.
     """
-    users_integration.delete_user_photo(token_user_id, storage, db)
+    profile_photo_service.delete_photo(token_user_id, storage, db)
 
 
 # Import/export logic

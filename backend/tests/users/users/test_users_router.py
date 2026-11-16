@@ -736,7 +736,7 @@ class TestDeletionStatusRouteIsGone:
 
 
 class TestReadUserIdentityProviders:
-    @patch("modules.users.users.router.account_security_integration.get_user_identity_provider_links")
+    @patch(f"{_SERVICE}.list_identity_provider_links")
     def test_returns_the_page_for_the_requested_window(self, mock_links, client, mock_db):
         mock_links.return_value = {"items": [], "total": 3, "page": 2, "num_records": 1, "next": 3}
 

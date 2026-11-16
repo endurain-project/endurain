@@ -12,7 +12,6 @@ import core.middleware_body_limit as core_middleware_body_limit
 import core.openapi_contract as core_openapi_contract
 import core.pagination as core_pagination
 import core.rate_limit as core_rate_limit
-import modules.auth.account_security.integration_service as account_security_integration
 import modules.auth.dependencies as auth_dependencies
 import modules.auth.identity_provider_links.schema as auth_identity_links_schema
 import modules.auth.schema as auth_schema
@@ -502,7 +501,7 @@ def get_user_identity_providers(
     Returns:
         The page of the user's enriched identity provider links, oldest first.
     """
-    return account_security_integration.get_user_identity_provider_links(user_id, page, db)
+    return users_service.list_identity_provider_links(user_id, page, db)
 
 
 @router.post(

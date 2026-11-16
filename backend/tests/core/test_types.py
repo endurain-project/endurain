@@ -113,3 +113,22 @@ class TestImportedInstant:
     def test_a_datetime_before_1900_is_rejected(self):
         with pytest.raises(ValidationError):
             self.adapter.validate_python("1899-12-31T23:59:00")
+
+
+class TestIanaTimezone:
+    """An IANA timezone is a known zone name, matched exactly."""
+
+    adapter = TypeAdapter(core_types.IanaTimezone)
+
+    def test_accepts_known_names(self):
+        assert self.adapter.validate_python("America/Los_Angeles") == "America/Los_Angeles"
+        assert self.adapter.validate_python("Etc/GMT-9") == "Etc/GMT-9"
+
+    @pytest.mark.parametrize("value", ["Not/AZone", "+09:00", "", "europe/lisbon"])
+    def test_rejects_anything_else(self, value):
+        with pytest.raises(ValidationError, match="Unknown IANA timezone"):
+            self.adapter.validate_python(value)
+
+    def test_rejects_a_non_string(self):
+        with pytest.raises(ValidationError):
+            self.adapter.validate_python(5)

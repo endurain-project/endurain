@@ -3,7 +3,7 @@
 import functools
 from datetime import date, datetime, timedelta
 from typing import overload
-from zoneinfo import ZoneInfo
+from zoneinfo import ZoneInfo, available_timezones
 
 from timezonefinder import TimezoneFinder
 
@@ -114,6 +114,28 @@ _LEGACY_ALIASES: dict[str, str] = {
     "W-SU": "Europe/Moscow",
     "Zulu": "Etc/UTC",
 }
+
+
+@functools.cache
+def known_names() -> frozenset[str]:
+    """Return every IANA timezone name the platform's tz database knows.
+
+    ``available_timezones()`` scans the tz database on each call, so the set is built once.
+
+    Returns:
+        The IANA timezone names.
+    """
+    return frozenset(available_timezones())
+
+
+@functools.cache
+def known_names_sorted() -> tuple[str, ...]:
+    """Return the known IANA timezone names in alphabetical order.
+
+    Returns:
+        The IANA timezone names, sorted.
+    """
+    return tuple(sorted(known_names()))
 
 
 def canonical(tz_name: str | None) -> str | None:

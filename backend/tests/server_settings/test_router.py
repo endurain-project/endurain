@@ -526,9 +526,7 @@ class TestEmail:
         assert response.status_code == 404
 
     @patch("modules.server_settings.router.server_settings_mail_service.send_test_email")
-    @patch("modules.server_settings.router.users_integration.get_user")
-    def test_send_test_email_sends_to_the_caller(self, mock_get_user, mock_send, fast_api_client, fast_api_app):
-        mock_get_user.return_value = MagicMock(email="admin@example.com")
+    def test_send_test_email_sends_to_the_caller(self, mock_send, fast_api_client, fast_api_app):
         mail = MagicMock()
         fast_api_app.dependency_overrides[core_dependencies.get_mail] = lambda: mail
 
@@ -537,12 +535,10 @@ class TestEmail:
         assert response.status_code == 204
         assert response.content == b""
         mock_send.assert_called_once()
-        assert mock_send.call_args.args[:2] == (mock_get_user.return_value, mail)
+        assert mock_send.call_args.args[1] is mail
 
     @patch("modules.server_settings.router.server_settings_mail_service.send_test_email")
-    @patch("modules.server_settings.router.users_integration.get_user")
-    def test_send_test_email_maps_unconfigured_to_503(self, mock_get_user, mock_send, fast_api_app):
-        mock_get_user.return_value = MagicMock(email="admin@example.com")
+    def test_send_test_email_maps_unconfigured_to_503(self, mock_send, fast_api_app):
         mock_send.side_effect = core_exceptions.ServiceUnavailableError("Email is not configured: Host is not set")
 
         core_exceptions.register_exception_handlers(fast_api_app)
@@ -554,9 +550,7 @@ class TestEmail:
         assert "Host is not set" in response.text
 
     @patch("modules.server_settings.router.server_settings_mail_service.send_test_email")
-    @patch("modules.server_settings.router.users_integration.get_user")
-    def test_send_test_email_maps_delivery_failure_to_502(self, mock_get_user, mock_send, fast_api_app):
-        mock_get_user.return_value = MagicMock(email="admin@example.com")
+    def test_send_test_email_maps_delivery_failure_to_502(self, mock_send, fast_api_app):
         mock_send.side_effect = core_exceptions.UpstreamError(
             "The mail server did not accept the test email: status 535"
         )

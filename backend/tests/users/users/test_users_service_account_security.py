@@ -164,3 +164,13 @@ class TestAdministratorUnlink:
         account_security.verify_step_up.assert_not_called()
         account_security.admin_delete_identity_provider_link.assert_not_called()
         mock_db.commit.assert_not_called()
+
+
+class TestListIdentityProviderLinks:
+    def test_reads_one_page_of_the_users_links_from_the_account_security_surface(self, mock_db):
+        page = MagicMock()
+        with patch(_ACCOUNT_SECURITY) as account_security:
+            result = users_service.list_identity_provider_links(_U4, page, mock_db)
+
+        assert result is account_security.get_user_identity_provider_links.return_value
+        account_security.get_user_identity_provider_links.assert_called_once_with(_U4, page, mock_db)

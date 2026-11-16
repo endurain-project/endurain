@@ -15,7 +15,6 @@ from fastapi import (
 
 import core.dependencies as core_dependencies
 import core.etag as core_etag
-import core.exceptions as core_exceptions
 import core.middleware_body_limit as core_middleware_body_limit
 import core.openapi_contract as core_openapi_contract
 import core.rate_limit as core_rate_limit
@@ -26,7 +25,6 @@ import modules.server_settings.mail_service as server_settings_mail_service
 import modules.server_settings.schema as server_settings_schema
 import modules.server_settings.service as server_settings_service
 import modules.server_settings.tile_service as server_settings_tile_service
-import modules.users.users.integration_service as users_integration
 
 # Define the API router
 router = APIRouter()
@@ -274,7 +272,4 @@ def send_test_email(
         ServiceUnavailableError: 503 if email is not configured.
         UpstreamError: 502 if the mail server did not accept the message.
     """
-    admin = users_integration.get_user(token_user_id, db)
-    if admin is None:
-        raise core_exceptions.NotFoundError("User not found")
-    server_settings_mail_service.send_test_email(admin, mail, db)
+    server_settings_mail_service.send_test_email(token_user_id, mail, db)

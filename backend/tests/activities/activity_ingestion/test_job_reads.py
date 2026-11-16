@@ -141,25 +141,11 @@ class TestListJobs:
         assert _ids(self._list(factory, limit=2)) == [_uid(1), _uid(2)]
 
 
-class TestSetJobLocation:
-    @pytest.mark.parametrize(("kind", "seconds"), [("activity_upload", "2"), ("activity_refresh", "5")])
-    def test_names_the_job_and_the_wait_for_its_kind(self, kind, seconds):
-        from fastapi import FastAPI, Request, Response
-        from fastapi.testclient import TestClient
+class TestJobPollSeconds:
+    @pytest.mark.parametrize(
+        ("kind", "seconds"), [("activity_upload", 2), ("activity_refresh", 5), ("activity_bulk_import", 5)]
+    )
+    def test_names_the_wait_for_the_kind_a_client_reads(self, kind, seconds):
+        import modules.activities.activity_ingestion.constants as ingestion_constants
 
-        import modules.activities.activity_ingestion.schema as ingestion_schema
-
-        app = FastAPI()
-        app.add_api_route("/jobs/{job_id}", lambda job_id: None, name="read_job")
-
-        @app.post("/start")
-        def start(request: Request, response: Response) -> None:
-            job = ingestion_schema.ActivityIngestionJobRead(
-                id=_JOB_9, kind=kind, status=_State.QUEUED, created_at=_NOW, updated_at=_NOW
-            )
-            ingestion_integration.set_job_location(response, request, job)
-
-        response = TestClient(app).post("/start")
-
-        assert response.headers["Content-Location"] == f"/jobs/{_JOB_9}"
-        assert response.headers["Retry-After"] == seconds
+        assert ingestion_constants.job_poll_seconds(kind) == seconds

@@ -12,6 +12,7 @@ _activity_ingestion: dict[str, activities_contributors.ActivityIngestionContribu
 _file_ingestion: dict[str, activities_contributors.FileIngestionContributor] = {}
 _profile_activity: dict[str, activities_contributors.ProfileActivityContributor] = {}
 _profile_global: dict[str, activities_contributors.ProfileGlobalContributor] = {}
+_profile_installed = False
 _thumbnail_url_resolver: activities_contributors.ThumbnailUrlResolver | None = None
 _media_resolver: activities_contributors.ActivityMediaResolver | None = None
 
@@ -52,6 +53,26 @@ def register_profile_global(contributor: activities_contributors.ProfileGlobalCo
     _profile_global[contributor.key] = contributor
 
 
+def mark_profile_installed() -> None:
+    """Record that composition has registered the profile contributors, so reading them may answer."""
+    global _profile_installed
+    _profile_installed = True
+
+
+def _require_profile_installed() -> None:
+    """Refuse a profile read before composition has installed the contributors.
+
+    Raises:
+        RuntimeError: If composition has not installed them, so a missing registration fails the export or import
+            instead of leaving the activity sections out of the archive.
+    """
+    if not _profile_installed:
+        raise RuntimeError(
+            "The activity profile contributors are not installed; call "
+            "module_registry.configure_activity_contributors()"
+        )
+
+
 def activity_ingestion_contributors() -> tuple[activities_contributors.ActivityIngestionContributor, ...]:
     """Return activity-ingestion contributors in registration order.
 
@@ -75,7 +96,11 @@ def profile_activity_contributors() -> tuple[activities_contributors.ProfileActi
 
     Returns:
         Activity-scoped profile contributors in registration order.
+
+    Raises:
+        RuntimeError: If composition has not installed them.
     """
+    _require_profile_installed()
     return tuple(_profile_activity.values())
 
 
@@ -84,7 +109,11 @@ def profile_global_contributors() -> tuple[activities_contributors.ProfileGlobal
 
     Returns:
         Global profile contributors in registration order.
+
+    Raises:
+        RuntimeError: If composition has not installed them.
     """
+    _require_profile_installed()
     return tuple(_profile_global.values())
 
 
@@ -180,7 +209,8 @@ def resolve_media(
 
 def clear() -> None:
     """Remove every installed contributor."""
-    global _thumbnail_url_resolver, _media_resolver
+    global _profile_installed, _thumbnail_url_resolver, _media_resolver
+    _profile_installed = False
     _activity_ingestion.clear()
     _file_ingestion.clear()
     _profile_activity.clear()

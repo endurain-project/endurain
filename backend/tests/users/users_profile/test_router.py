@@ -319,12 +319,10 @@ class TestUploadProfileImage:
     """Tests for PUT /profile/photo — put_profile_image."""
 
     @pytest.mark.parametrize(("replaced", "status_code"), [(False, 201), (True, 200)])
-    @patch("modules.users.users_profile.router.users_integration.require_user")
-    @patch("modules.users.users_profile.router.users_integration.upload_user_photo")
-    def test_success(self, mock_save, mock_require, replaced, status_code, profile_client):
+    @patch("modules.users.users_profile.router.profile_photo_service.set_photo")
+    def test_success(self, mock_set, replaced, status_code, profile_client):
         """Happy path: 201 for a first photo, 200 for a replacement, with the servable photo URL."""
-        mock_save.return_value = replaced
-        mock_require.return_value = MagicMock(photo_path=f"/users/{MOCK_USER_ID}/photo?t=x")
+        mock_set.return_value = (users_schema.UserPhotoRead(photo_path=f"/users/{MOCK_USER_ID}/photo?t=x"), replaced)
 
         response = profile_client.put(
             PREFIX + "/photo",
@@ -630,7 +628,7 @@ class TestEditProfilePassword:
 class TestDeleteProfilePhoto:
     """Tests for DELETE /profile/photo — delete_profile_photo."""
 
-    @patch("modules.users.users_profile.router.users_integration.delete_user_photo")
+    @patch("modules.users.users_profile.router.profile_photo_service.delete_photo")
     def test_success(self, mock_update, profile_client):
         """Happy path: delete profile photo."""
         response = profile_client.delete(PREFIX + "/photo")

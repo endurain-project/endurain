@@ -7,6 +7,8 @@ from typing import Annotated
 
 from pydantic import AfterValidator, AwareDatetime, BeforeValidator, Field, StrictStr, ValidationInfo
 
+import core.timezone as core_timezone
+
 #: The largest value of a PostgreSQL ``integer`` column, which bounds a count, a goal or a limit; no id column is an
 #: ``integer`` any more except the four allowlisted tables.
 INT32_MAX = 2**31 - 1
@@ -66,6 +68,30 @@ def _not_out_of_range_datetime(value: datetime) -> datetime:
 
 #: A calendar date of a record (birthdate, a day's measurement).
 RecordDate = Annotated[date, AfterValidator(_not_out_of_range_date)]
+
+
+def _known_iana_timezone(value: str) -> str:
+    """Reject a name that is not a known IANA timezone.
+
+    The value is stored and later handed to ``ZoneInfo`` on the backend and ``Intl.DateTimeFormat`` in the browser,
+    so an unknown name would surface as a runtime error far from the setting that caused it.
+
+    Args:
+        value: The submitted timezone name.
+
+    Returns:
+        The name, unchanged.
+
+    Raises:
+        ValueError: When the name is not a known IANA timezone.
+    """
+    if value not in core_timezone.known_names():
+        raise ValueError(f"Unknown IANA timezone: {value}")
+    return value
+
+
+#: An IANA timezone name (``Europe/Lisbon``, ``Etc/GMT-9``), matched exactly.
+IanaTimezone = Annotated[StrictStr, AfterValidator(_known_iana_timezone)]
 
 
 def _read_naive_as_utc(value: datetime) -> datetime:

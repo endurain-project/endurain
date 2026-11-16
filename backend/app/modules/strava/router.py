@@ -12,7 +12,7 @@ import core.location as core_location
 import core.middleware_body_limit as core_middleware_body_limit
 import core.openapi_contract as core_openapi_contract
 import core.rate_limit as core_rate_limit
-import modules.activities.activity_ingestion.integration_service as activity_ingestion_integration
+import modules.activities.activity_ingestion.constants as activity_ingestion_constants
 import modules.activities.activity_ingestion.schema as activity_ingestion_schema
 import modules.auth.dependencies as auth_dependencies
 import modules.auth.schema as auth_schema
@@ -85,7 +85,7 @@ def strava_retrieve_activities_days(
     """
     core_date_range.refuse_reversed_range(start_date, end_date)
     job = strava_sync_service.request_activities_sync(token_user_id, start_date, end_date, storage, db)
-    activity_ingestion_integration.set_job_location(response, request, job)
+    core_location.set_job_location(response, request, job.id, activity_ingestion_constants.job_poll_seconds(job.kind))
     return job
 
 

@@ -27,8 +27,8 @@ import core.location as core_location
 import core.middleware_body_limit as core_middleware_body_limit
 import core.rate_limit as core_rate_limit
 import modules.activities.activity_ingestion.bulk_import_service as activity_ingestion_bulk_import_service
+import modules.activities.activity_ingestion.constants as activity_ingestion_constants
 import modules.activities.activity_ingestion.dependencies as activity_ingestion_dependencies
-import modules.activities.activity_ingestion.integration_service as activity_ingestion_integration
 import modules.activities.activity_ingestion.schema as activity_ingestion_schema
 import modules.activities.activity_ingestion.service as activity_ingestion_service
 import modules.auth.dependencies as auth_dependencies
@@ -91,7 +91,7 @@ def create_activity_with_uploaded_file(
         db,
         idempotency_key=idempotency_key,
     )
-    activity_ingestion_integration.set_job_location(response, request, job)
+    core_location.set_job_location(response, request, job.id, activity_ingestion_constants.job_poll_seconds(job.kind))
     return job
 
 
@@ -147,7 +147,7 @@ def create_bulk_import_from_archive(
         db,
         idempotency_key=idempotency_key,
     )
-    activity_ingestion_integration.set_job_location(response, request, job)
+    core_location.set_job_location(response, request, job.id, activity_ingestion_constants.job_poll_seconds(job.kind))
     return job
 
 
@@ -185,7 +185,7 @@ def create_bulk_import_from_folder(
     is answered ``409`` with the running job's ``job_id`` and a ``Content-Location`` naming it.
     """
     job = activity_ingestion_bulk_import_service.start_from_directory(token_user_id, source, storage, db)
-    activity_ingestion_integration.set_job_location(response, request, job)
+    core_location.set_job_location(response, request, job.id, activity_ingestion_constants.job_poll_seconds(job.kind))
     return job
 
 
@@ -213,5 +213,5 @@ def refresh_activities(
     event loop.
     """
     job = activity_ingestion_service.accept_refresh(token_user_id, storage, db)
-    activity_ingestion_integration.set_job_location(response, request, job)
+    core_location.set_job_location(response, request, job.id, activity_ingestion_constants.job_poll_seconds(job.kind))
     return job

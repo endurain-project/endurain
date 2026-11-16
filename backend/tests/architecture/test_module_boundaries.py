@@ -368,7 +368,7 @@ def _layer_imports(*, only_roles: frozenset[str] | None = None) -> list[tuple[pa
     return found
 
 
-#: Services that still import FastAPI, as ``{"<dotted module>": reason}``.
+#: Services and integration surfaces that still import FastAPI, as ``{"<dotted module>": reason}``.
 _SERVICE_FASTAPI_EXCEPTIONS: dict[str, str] = {
     "modules.server_settings.login_photo_service": (
         "Receives the UploadFile and hands it to core.file_uploads; not yet converted to take the stored bytes."
@@ -379,8 +379,39 @@ _SERVICE_FASTAPI_EXCEPTIONS: dict[str, str] = {
     "modules.users.users.photo_service": (
         "Receives the UploadFile and hands it to core.file_uploads; not yet converted to take the stored bytes."
     ),
+    "modules.users.users_profile.photo_service": (
+        "Receives the UploadFile and hands it to users.users.integration_service; not yet converted to take the "
+        "stored bytes."
+    ),
+    "modules.users.users.integration_service": (
+        "Publishes upload_user_photo, which receives the UploadFile and hands it to users.users.photo_service; not "
+        "yet converted to take the stored bytes."
+    ),
+    "modules.auth.authentication.integration_service": (
+        "Takes the Request for the sign-in's client address and user agent; auth is not yet converted to take plain "
+        "values."
+    ),
     "modules.websocket.service": (
         "The service is the WebSocket connection manager, so the socket and its close codes are its subject."
+    ),
+}
+
+
+#: Routers that import another package's ``integration_service``, as ``{"<dotted module>": reason}``.
+_ROUTER_PEER_INTEGRATION_EXCEPTIONS: dict[str, str] = {
+    "modules.auth.account_security.public_router": (
+        "The auth module's packages are one sign-in flow served by public routers, which call the sibling packages' "
+        "surfaces directly (access tokens, authentication, credentials); folding the flow into per-package services "
+        "is part of converting auth."
+    ),
+    "modules.auth.authentication.public_router": (
+        "The auth module's packages are one sign-in flow served by public routers, which call the sibling packages' "
+        "surfaces directly (access tokens, credentials); folding the flow into per-package services is part of "
+        "converting auth."
+    ),
+    "modules.auth.authentication.sso_public_router": (
+        "The single sign-on callback reads the access-token surface to finish the sign-in; folding that into the "
+        "authentication service is part of converting auth."
     ),
 }
 
@@ -958,6 +989,26 @@ class TestLayerRules:
         )
         assert not offenders, "A router must delegate to its service:\n  " + "\n  ".join(offenders)
 
+    def test_transport_does_not_call_a_peer_integration_service(self):
+        """A router reaches another package through its own service, which owns the decision and the transaction.
+
+        A peer's ``integration_service`` is the surface a service calls; a router that calls it decides in the
+        transport layer what the service should decide.
+        """
+        offenders: set[str] = set()
+        for _path, importer, imported, _importer_role in _layer_imports(
+            only_roles=frozenset({"router", "public_router"})
+        ):
+            if _role(imported.rsplit(".", 1)[-1]) != "integration_service" or _package_of(imported) == _package_of(
+                importer
+            ):
+                continue
+            offenders.add(importer)
+        unlisted = sorted(offenders - set(_ROUTER_PEER_INTEGRATION_EXCEPTIONS))
+        assert not unlisted, "A router calls its service, not a peer's integration_service:\n  " + "\n  ".join(unlisted)
+        stale = sorted(set(_ROUTER_PEER_INTEGRATION_EXCEPTIONS) - offenders)
+        assert not stale, "Remove from _ROUTER_PEER_INTEGRATION_EXCEPTIONS:\n  " + "\n  ".join(stale)
+
     def test_persistence_raises_domain_errors_not_http_ones(self):
         """Persistence describes what went wrong, not which status to send.
 
@@ -979,7 +1030,8 @@ class TestLayerRules:
         )
 
     def test_services_do_not_import_fastapi(self):
-        """A service takes plain values and raises domain errors; the router owns the transport.
+        """A service or an integration surface takes plain values and raises domain errors; the router owns the
+        transport.
 
         Request headers, client addresses, cookies and status codes are read and set in the router, so a service
         runs unchanged from a job, a subscriber or a test with no request.
@@ -988,7 +1040,7 @@ class TestLayerRules:
         used: set[str] = set()
         for module_name in _CONVERTED:
             for path in _python_files(_MODULES_ROOT / module_name):
-                if _role(path.stem) != "service":
+                if _role(path.stem) not in {"service", "integration_service"}:
                     continue
                 dotted = _module_dotted(path)
                 if not any(target == "fastapi" or target.startswith("fastapi.") for target in _imported_modules(path)):

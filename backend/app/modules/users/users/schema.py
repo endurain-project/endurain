@@ -1,11 +1,9 @@
 """User schema definitions for request and response models."""
 
 import uuid
-from datetime import date as datetime_date
 from datetime import datetime
 from enum import Enum, StrEnum
 from typing import Annotated, ClassVar, Literal
-from zoneinfo import available_timezones
 
 from pydantic import (
     AfterValidator,
@@ -284,7 +282,7 @@ class UserBase(BaseModel):
         default=server_settings_schema.Currency.EURO,
         description="User currency (euro, dollar, pound)",
     )
-    timezone: StrictStr | None = Field(
+    timezone: core_types.IanaTimezone | None = Field(
         default=None,
         max_length=250,
         description=(
@@ -297,47 +295,6 @@ class UserBase(BaseModel):
     # A default is validated too, so an enum default is stored as its value ("en"), not as the member a driver
     # would write by name ("ENGLISH").
     model_config = ConfigDict(use_enum_values=True, validate_default=True)
-
-    @field_validator("timezone")
-    @classmethod
-    def _validate_timezone(cls, value: str | None) -> str | None:
-        """Reject anything that is not a known IANA timezone name.
-
-        The value is stored and later handed to ``ZoneInfo`` on the backend and
-        ``Intl.DateTimeFormat`` in the browser, so an unknown name would surface
-        as a runtime error far from the setting that caused it.
-
-        Args:
-            value: Candidate timezone name, or None.
-
-        Returns:
-            The validated timezone name, or None.
-
-        Raises:
-            ValueError: When the name is not a known IANA timezone.
-        """
-        if value is None:
-            return None
-        if value not in available_timezones():
-            raise ValueError(f"Unknown IANA timezone: {value}")
-        return value
-
-    @field_validator("birthdate", mode="before")
-    @classmethod
-    def validate_birthdate(cls, value: datetime_date | str | None) -> str | None:
-        """Convert birthdate to ISO format string.
-
-        Args:
-            value: Birthdate as date object, string, or None.
-
-        Returns:
-            ISO format date string or None.
-        """
-        if value is None:
-            return None
-        if isinstance(value, datetime_date):
-            return value.isoformat()
-        return value
 
 
 class User(UserBase):
@@ -831,7 +788,7 @@ class ProfileUpdate(core_partial_update.NotClearable, BaseModel):
     max_heart_rate: StrictInt | None = Field(default=None, ge=30, le=250)
     first_day_of_week: WeekDay | None = None
     currency: server_settings_schema.Currency | None = None
-    timezone: StrictStr | None = Field(default=None, max_length=250)
+    timezone: core_types.IanaTimezone | None = Field(default=None, max_length=250)
 
     model_config = ConfigDict(
         from_attributes=True,
@@ -839,47 +796,6 @@ class ProfileUpdate(core_partial_update.NotClearable, BaseModel):
         validate_assignment=True,
         use_enum_values=True,
     )
-
-    @field_validator("birthdate", mode="before")
-    @classmethod
-    def validate_birthdate(cls, value: datetime_date | str | None) -> str | None:
-        """Normalize a birthdate to an ISO string.
-
-        Args:
-            value: The submitted birthdate, as a date or an ISO string.
-
-        Returns:
-            The ISO date string, or None.
-        """
-        if value is None:
-            return None
-        if isinstance(value, datetime_date):
-            return value.isoformat()
-        return value
-
-    @field_validator("timezone")
-    @classmethod
-    def validate_timezone(cls, value: str | None) -> str | None:
-        """Reject anything that is not a known IANA timezone name.
-
-        Mirrors the check on :class:`UserBase`: the value is later handed to
-        ``ZoneInfo`` when stamping GPS-less activities, so an unknown name would
-        surface as a runtime error far from the setting that caused it.
-
-        Args:
-            value: Candidate timezone name, or None.
-
-        Returns:
-            The validated timezone name, or None.
-
-        Raises:
-            ValueError: When the name is not a known IANA timezone.
-        """
-        if value is None:
-            return None
-        if value not in available_timezones():
-            raise ValueError(f"Unknown IANA timezone: {value}")
-        return value
 
 
 class UserEdit(ProfileUpdate):

@@ -81,6 +81,21 @@ JOB_POLL_SECONDS: dict[IngestionJobKind, int] = {
 }
 
 
+def job_poll_seconds(job_kind: str) -> int:
+    """Return the seconds a client waits before the first poll of a job it reads under ``job_kind``.
+
+    Args:
+        job_kind: The client-facing kind of the job, such as ``activity_upload``.
+
+    Returns:
+        The wait in seconds.
+
+    Raises:
+        ValueError: When ``job_kind`` names no ingestion kind.
+    """
+    return JOB_POLL_SECONDS[IngestionJobKind.from_job_kind(job_kind)]
+
+
 class IngestionJobStatus(StrEnum):
     """Lifecycle states an ingestion job's row records; a client reads them as a :class:`JobState`."""
 

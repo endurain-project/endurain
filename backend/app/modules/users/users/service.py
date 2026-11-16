@@ -24,6 +24,7 @@ import modules.auth.account_security.events as account_security_events
 import modules.auth.account_security.integration_service as account_security_integration
 import modules.auth.credentials.integration_service as credentials_integration
 import modules.auth.identity_provider_links.integration_service as identity_provider_links_integration
+import modules.auth.identity_provider_links.schema as auth_identity_links_schema
 import modules.auth.identity_providers.constants as identity_providers_constants
 import modules.auth.mfa.integration_service as mfa_integration
 import modules.auth.password_reset_tokens.integration_service as password_reset_tokens_integration
@@ -1507,6 +1508,22 @@ def require_user_password_change(
     account_security_integration.require_managed_user_password_change(user_id, db)
     db.commit()
     logger.info("Password change required by an administrator", extra=core_logger.context(user_id=user_id))
+
+
+def list_identity_provider_links(
+    user_id: uuid.UUID, page: core_pagination.PageParams, db: Session
+) -> auth_identity_links_schema.IdentityProviderLinkPage:
+    """Return one page of a user's identity provider links, for an administrator.
+
+    Args:
+        user_id: ID of the user whose links to read.
+        page: The requested window.
+        db: Database session.
+
+    Returns:
+        The page of the user's enriched identity provider links, oldest first.
+    """
+    return account_security_integration.get_user_identity_provider_links(user_id, page, db)
 
 
 def unlink_identity_provider(
