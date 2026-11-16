@@ -11,7 +11,6 @@ export const DEFAULT_APP_CONFIG: AppConfig = {
     signUp: false,
     strava: true,
     garmin: true,
-    federation: false,
   },
   branding: {
     appName: 'Endurain',
@@ -23,7 +22,7 @@ export const DEFAULT_APP_CONFIG: AppConfig = {
 /**
  * Derives the app-wide runtime config from the public server settings — the
  * single source of truth for per-instance flags. Fields the public settings
- * don't yet carry (branding, integration availability, federation, enabled
+ * don't yet carry (branding, integration availability, enabled
  * locales) keep their self-hosted defaults until the backend exposes them, so
  * the {@link AppConfig} abstraction stays stable when it does.
  *

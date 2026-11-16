@@ -1,6 +1,5 @@
 import { afterEach, describe, expect, it } from 'vitest'
 import { mount } from '@vue/test-utils'
-import { readonly, ref } from 'vue'
 
 import {
   Image,
@@ -8,8 +7,6 @@ import {
   resolveImageSrcset,
   setImageSourceResolver,
 } from '@/components/ui/image'
-import { setBillingAdapter, useBilling, type BillingState } from '@/composables/useBilling'
-import { setQuotaAdapter, useQuota, type QuotaSnapshot } from '@/composables/useQuota'
 
 describe('imageSource resolver', () => {
   afterEach(() => {
@@ -65,37 +62,5 @@ describe('Image', () => {
       props: { src: '/media/a.png', alt: 'A', class: 'rounded-full' },
     })
     expect(wrapper.find('img').attributes('class')).toContain('rounded-full')
-  })
-})
-
-describe('useQuota', () => {
-  afterEach(() => {
-    setQuotaAdapter({ quota: readonly(ref(null)) })
-  })
-
-  it('defaults to null usage when unmetered', () => {
-    expect(useQuota().quota.value).toBeNull()
-  })
-
-  it('exposes the registered adapter snapshot', () => {
-    const snapshot: QuotaSnapshot = { storage: { used: 50, limit: 100, unit: 'bytes' } }
-    setQuotaAdapter({ quota: readonly(ref(snapshot)) })
-    expect(useQuota().quota.value).toEqual(snapshot)
-  })
-})
-
-describe('useBilling', () => {
-  afterEach(() => {
-    setBillingAdapter({ billing: readonly(ref(null)) })
-  })
-
-  it('defaults to null when not billed', () => {
-    expect(useBilling().billing.value).toBeNull()
-  })
-
-  it('exposes the registered subscription state', () => {
-    const state: BillingState = { plan: 'pro', status: 'active', renewsAt: '2026-07-01T00:00:00Z' }
-    setBillingAdapter({ billing: readonly(ref(state)) })
-    expect(useBilling().billing.value).toEqual(state)
   })
 })

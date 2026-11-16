@@ -8,13 +8,11 @@ import type { Schemas } from '@/types'
  * @property signUp - Whether self-service sign-up is enabled.
  * @property strava - Whether the Strava integration is available.
  * @property garmin - Whether the Garmin integration is available.
- * @property federation - Whether federated (multi-instance) features are on.
  */
 export interface FeatureFlags {
   signUp: boolean
   strava: boolean
   garmin: boolean
-  federation: boolean
 }
 
 /**

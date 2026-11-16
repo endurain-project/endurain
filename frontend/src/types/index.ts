@@ -42,13 +42,6 @@ export type SsoExchangeResponse = Schemas['MFARequiredRead'] | Schemas['TokenWeb
 export type IdentityProviderPublic = Schemas['IdentityProviderPublicRead']
 
 /**
- * Content visibility level, mirrored from the backend. Drives the
- * `<VisibilityGate>` primitive so private/followers/unlisted/public/federated
- * rendering decisions live in one enum-driven place rather than ad-hoc `v-if`s.
- */
-export type VisibilityLevel = 'private' | 'followers' | 'unlisted' | 'public' | 'federated'
-
-/**
  * Severity vocabulary shared by inline alerts and toasts, mapped to the
  * semantic accent tokens (info/success/warning/error).
  */
