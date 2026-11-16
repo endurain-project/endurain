@@ -104,10 +104,10 @@ Reverse geocoding turns an activity's coordinates into a city and country.
 | Service | Nominatim, Photon or Geocode Maps |
 | Host | Host and optional port of the service. Empty uses the service's own host. Enter `host[:port]` only, with no scheme or path |
 | Use HTTPS | Whether the host is addressed over HTTPS |
-| Rate limit | Requests per second, from 0 (no throttling) to 100 |
+| Rate limit | Requests per second for the whole server, every replica and worker together, from 0 (no throttling) to 100 |
 | API key | Needed for Geocode Maps. Stored encrypted and never shown again |
 
-The public Nominatim and Photon servers expect about one request per second, so keep the rate limit at 1 if you use them. Locations that could not be looked up, for example during a big import, are filled in later by a job that runs every hour.
+The public Nominatim and Photon servers expect about one request per second, so keep the rate limit at 1 if you use them, however many replicas and workers you run. When the service answers that it is busy, every process waits for the time it asks. Locations that could not be looked up, for example during a big import, are filled in later by a job that runs every hour.
 
 ### Login photo
 

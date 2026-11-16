@@ -1,13 +1,16 @@
 """Tests for the geocoding subscribers (activity.created)."""
 
 import uuid
+from datetime import UTC, datetime
 from unittest.mock import MagicMock, patch
 
 import pytest
 from jasil.events import new_event
+from jasil.jobs import DeferJob
 from pydantic import ValidationError
 
 UUID_1 = uuid.UUID("11111111-1111-4111-8111-111111111111")
+RETRY_AT = datetime(2026, 10, 15, 12, 0, 30, tzinfo=UTC)
 _SUB = "modules.activities.activity_geocoding.subscribers"
 
 
@@ -31,9 +34,24 @@ class TestOnActivityCreatedGeocode:
     def test_geocodes_for_activity(self, mock_service, _mock_db):
         from modules.activities.activity_geocoding.subscribers import on_activity_created_geocode
 
+        mock_service.geocode_and_store_activity_location.return_value = None
+
         on_activity_created_geocode(_event({"activity_id": str(UUID_1), "user_id": str(uuid.UUID(int=2))}))
 
         assert mock_service.geocode_and_store_activity_location.call_args.args[0] == UUID_1
+
+    @patch("jasil.subscribers.logger")
+    @patch(f"{_SUB}.core_database")
+    @patch(f"{_SUB}.activity_geocoding_service")
+    def test_leaves_a_held_back_lookup_to_the_backfill(self, mock_service, _mock_db, mock_logger):
+        from modules.activities.activity_geocoding.subscribers import on_activity_created_geocode
+
+        mock_service.geocode_and_store_activity_location.return_value = RETRY_AT
+
+        on_activity_created_geocode(_event({"activity_id": str(UUID_1), "user_id": str(uuid.UUID(int=2))}))
+
+        # The rate limit holding a lookup back is expected under load, not a subscriber failure.
+        mock_logger.error.assert_not_called()
 
     @patch("jasil.subscribers.logger")
     @patch(f"{_SUB}.core_database")
@@ -81,6 +99,27 @@ class TestGeocodeActivityForEvent:
 
         with pytest.raises(RuntimeError):
             geocode_activity_for_event(_event({"activity_id": str(UUID_1), "user_id": str(uuid.UUID(int=2))}))
+
+    @patch(f"{_SUB}.core_database")
+    @patch(f"{_SUB}.activity_geocoding_service")
+    def test_defers_a_held_back_lookup(self, mock_service, _mock_db):
+        from modules.activities.activity_geocoding.subscribers import geocode_activity_for_event
+
+        mock_service.geocode_and_store_activity_location.return_value = RETRY_AT
+
+        with pytest.raises(DeferJob) as deferral:
+            geocode_activity_for_event(_event({"activity_id": str(UUID_1), "user_id": str(uuid.UUID(int=2))}))
+
+        assert deferral.value.retry_at == RETRY_AT
+
+    @patch(f"{_SUB}.core_database")
+    @patch(f"{_SUB}.activity_geocoding_service")
+    def test_a_final_answer_finishes_the_job(self, mock_service, _mock_db):
+        from modules.activities.activity_geocoding.subscribers import geocode_activity_for_event
+
+        mock_service.geocode_and_store_activity_location.return_value = None
+
+        geocode_activity_for_event(_event({"activity_id": str(UUID_1), "user_id": str(uuid.UUID(int=2))}))
 
     def test_register_durable_handlers(self):
         from modules.activities.activity_geocoding.subscribers import (
