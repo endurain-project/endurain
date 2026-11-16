@@ -82,6 +82,7 @@ class ActivityBase(BaseModel):
         garminconnect_activity_id: Garmin Connect activity
             identifier.
         garminconnect_gear_id: Garmin Connect gear identifier.
+        coros_activity_id: COROS activity identifier.
         import_info: Import metadata (imported, import_source,
             import_ISO_time).
         is_hidden: Whether the activity is hidden.
@@ -140,6 +141,7 @@ class ActivityBase(BaseModel):
     strava_activity_id: int | None = None
     garminconnect_activity_id: int | None = None
     garminconnect_gear_id: str | None = Field(default=None, max_length=45)
+    coros_activity_id: str | None = Field(default=None, max_length=64)
     import_info: dict | None = None
     is_hidden: bool = False
     hide_start_time: bool | None = None

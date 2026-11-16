@@ -26,6 +26,7 @@ import core.logger as core_logger
 import core.platform_settings as core_platform_settings
 import model_registry as orm_model_registry
 import module_registry as runtime_module_registry
+import modules.coros.provider_registry as coros_provider_registry
 import modules.garmin.provider_registry as garmin_provider_registry
 import modules.strava.provider_registry as strava_provider_registry
 
@@ -83,6 +84,7 @@ def run_worker_process(stop: threading.Event | None = None) -> None:
     # refresh claimed by this worker silently return nothing.
     strava_provider_registry.register_activity_provider()
     garmin_provider_registry.register_activity_provider()
+    coros_provider_registry.register_activity_provider()
     stop = stop or threading.Event()
     _install_signal_handlers(stop)
     try:

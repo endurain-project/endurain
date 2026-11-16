@@ -179,6 +179,8 @@ def store_activities_from_file(
         storage: The blob-storage provider the source file is retained in.
         garmin_connect_activity_id: Garmin Connect activity id parsed from the
             filename, for a Garmin sync.
+        coros_activity_id: COROS activity id carried by the source, for a COROS
+            sync.
 
     Returns:
         List of created activity schemas, or ``None`` if the file yielded no
@@ -197,6 +199,7 @@ def store_activities_from_file(
         raise core_exceptions.NotFoundError("User privacy settings not found")
 
     garmin_source = source if isinstance(source, activity_ingestion_contracts.GarminSource) else None
+    coros_source = source if isinstance(source, activity_ingestion_contracts.CorosSource) else None
     bulk_source = source if isinstance(source, activity_ingestion_contracts.BulkImportSource) else None
     activity_name = (
         source.activity_name if not isinstance(source, activity_ingestion_contracts.BulkImportSource) else None
@@ -258,11 +261,11 @@ def store_activities_from_file(
 
     # File-based sources (direct upload, generic + Strava bulk import) carry no
     # provider activity id, so their stable identity for idempotency is the
-    # SHA-256 of the (already-decompressed) file. Garmin syncs key off the
+    # SHA-256 of the (already-decompressed) file. Provider syncs key off the
     # provider id instead, so skip the hash there.
     import_source = activity_contracts.ImportSource(
         kind=source.kind,
-        content_hash=None if garmin_source else core_file_uploads.sha256_file(file_path),
+        content_hash=None if (garmin_source or coros_source) else core_file_uploads.sha256_file(file_path),
     )
     garmin_activity_id = int(garmin_connect_activity_id) if garmin_connect_activity_id else None
 
@@ -283,6 +286,7 @@ def store_activities_from_file(
             provider_gear_id=garmin_source.gear_id if garmin_source else None,
             garminconnect_gear_id=garmin_source.provider_gear_id if garmin_source else None,
             garmin_connect_activity_id=garmin_activity_id,
+            coros_activity_id=coros_source.activity_id if coros_source else None,
         )
 
         if bulk_source is not None:

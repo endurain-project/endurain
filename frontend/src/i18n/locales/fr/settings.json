@@ -698,7 +698,7 @@
   },
   "integrations": {
     "title": "Intégrations",
-    "subtitle": "Connectez Strava et Garmin Connect pour importer vos activités et équipements",
+    "subtitle": "Connectez Strava, Garmin Connect et COROS pour importer vos activités et équipements",
     "retry": "Réessayer",
     "cancel": "Annuler",
     "close": "Fermer",
@@ -774,6 +774,34 @@
       "unlinkBody": "Endurain cessera d'importer depuis Garmin Connect. Vos données existantes sont conservées.",
       "unlinkSuccess": "Garmin Connect déconnecté",
       "unlinkError": "Impossible de déconnecter Garmin Connect. Veuillez réessayer."
+    },
+    "coros": {
+      "title": "COROS",
+      "subtitle": "Importez vos activités COROS via son serveur MCP officiel",
+      "connectError": "Impossible de se connecter à COROS. Veuillez réessayer.",
+      "completing": "Finalisation de la connexion COROS…",
+      "linkSuccess": "COROS connecté",
+      "syncNow": "Synchroniser",
+      "syncQueued": "Synchronisation COROS en file d'attente. Elle continue en arrière-plan.",
+      "syncError": "Impossible de démarrer la synchronisation COROS. Veuillez réessayer.",
+      "retrieveActivitiesTitle": "Récupérer les activités COROS",
+      "lastSync": "Dernière synchronisation : {date}",
+      "neverSynced": "Pas encore synchronisé",
+      "syncSuccess": "{count} activités importées",
+      "reconnect": "Reconnecter",
+      "unlinkTitle": "Déconnecter COROS ?",
+      "unlinkBody": "Endurain cessera d'importer depuis COROS et révoquera son accès. Vos activités existantes sont conservées.",
+      "unlinkSuccess": "COROS déconnecté",
+      "unlinkError": "Impossible de déconnecter COROS. Veuillez réessayer.",
+      "errors": {
+        "authorization_expired": "Autorisation expirée. Reconnectez COROS.",
+        "network_error": "COROS est injoignable. La prochaine synchronisation réessaiera.",
+        "rate_limited": "COROS demande de ralentir. La prochaine synchronisation réessaiera.",
+        "tools_unavailable": "Le serveur MCP COROS n'expose plus les outils d'activité requis.",
+        "quota_exhausted": "La limite quotidienne de téléchargements FIT COROS est atteinte. Relancez la synchronisation après la réinitialisation de la limite.",
+        "protocol_error": "COROS a renvoyé une réponse inattendue.",
+        "processing_error": "La dernière synchronisation COROS a échoué. La prochaine réessaiera."
+      }
     }
   },
   "import": {

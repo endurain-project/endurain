@@ -38,6 +38,7 @@ import modules.auth.identity_providers.public_router as idp_public_router
 import modules.auth.password_reset_tokens.router as password_reset_router
 import modules.auth.router as auth_router
 import modules.auth.sign_up_tokens.router as sign_up_tokens_router
+import modules.coros.router as coros_router
 import modules.followers.router as followers_router
 import modules.garmin.router as garmin_router
 import modules.server_settings.router as server_settings_router
@@ -133,6 +134,9 @@ _TIERED_ENDPOINTS = [
         core_rate_limit.PROVIDER_SYNC,
         id="garmin-retrieve-activities",
     ),
+    pytest.param(coros_router.coros_authorize, core_rate_limit.SENSITIVE, id="coros-authorize"),
+    pytest.param(coros_router.coros_link, core_rate_limit.SENSITIVE, id="coros-link"),
+    pytest.param(coros_router.coros_sync, core_rate_limit.PROVIDER_SYNC, id="coros-sync"),
     pytest.param(activity_media_router.create_activity_media, core_rate_limit.UPLOAD, id="media-upload"),
     pytest.param(activity_media_router.delete_activity_media, core_rate_limit.WRITE, id="media-delete"),
     pytest.param(activity_router.edit_activity, core_rate_limit.WRITE, id="activity-edit"),

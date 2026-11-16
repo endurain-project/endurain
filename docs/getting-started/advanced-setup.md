@@ -23,7 +23,7 @@ Table below shows supported environment variables. Variables marked with optiona
 | BACKEND_DIR | `/app/backend` | Yes | You will only need to change this value if installing using bare metal method |
 | DATA_DIR | `/app/backend/data` | Yes | You will only need to change this value if installing using bare metal method |
 | LOGS_DIR | `/app/backend/logs` | Yes | You will only need to change this value if installing using bare metal method |
-| ENDURAIN_HOST | No default set | `No` | Required for internal communication and Strava. For Strava https must be used. Host or local ip (example: http://192.168.1.10:8080 or https://endurain.com) |
+| ENDURAIN_HOST | No default set | `No` | Required for internal communication, Strava and the COROS OAuth callback. For Strava and COROS HTTPS must be used. Host or local ip (example: http://192.168.1.10:8080 or https://endurain.com) |
 | REVERSE_GEO_PROVIDER | nominatim | Yes | Defines reverse geo provider. Expects <a href="https://geocode.maps.co/">geocode</a>, photon or nominatim. photon can be the <a href="https://photon.komoot.io">SaaS by komoot</a> or a self hosted version like a <a href="https://github.com/rtuszik/photon-docker">self hosted version</a>. Like photon, Nominatim can be the <a href="https://nominatim.openstreetmap.org/">SaaS</a> or a self hosted version |
 | PHOTON_API_HOST | photon.komoot.io | Yes | API host for photon. By default it uses the <a href="https://photon.komoot.io">SaaS by komoot</a> |
 | PHOTON_API_USE_HTTPS | true | Yes | Protocol used by photon. By default uses HTTPS to be inline with what <a href="https://photon.komoot.io">SaaS by komoot</a> expects |

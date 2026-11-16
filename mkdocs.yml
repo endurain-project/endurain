@@ -103,6 +103,7 @@ nav:
     - Single Sign-On (SSO): features/single-sign-on.md
     - Sleep scoring: features/sleep-scoring.md
     - Integrations: features/integrations.md
+    - COROS integration: features/coros.md
     - Gallery: gallery.md
     - Tools: tools.md
   - Integrate:

@@ -43,6 +43,7 @@ def _make_user_mock() -> MagicMock:
     user.external_auth_count = 0
     user.is_strava_linked = 0
     user.is_garminconnect_linked = 0
+    user.is_coros_linked = 0
     user.default_activity_visibility = "public"
     user.hide_activity_start_time = False
     user.hide_activity_location = False

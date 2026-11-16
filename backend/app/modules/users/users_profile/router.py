@@ -36,6 +36,7 @@ import modules.auth.mfa.backup_codes.schema as mfa_backup_codes_schema
 import modules.auth.mfa.schema as mfa_schema
 import modules.auth.mfa.setup_store as auth_mfa_setup_store
 import modules.auth.sessions.schema as auth_sessions_schema
+import modules.coros.integration_service as coros_integration
 import modules.users.users.crud as users_crud
 import modules.users.users.schema as users_schema
 import modules.users.users.utils as users_utils
@@ -138,6 +139,7 @@ async def read_users_me(
         update={
             "is_strava_linked": (1 if user_integrations.strava_token else 0),
             "is_garminconnect_linked": (1 if user_integrations.garminconnect_token else 0),
+            "is_coros_linked": (1 if coros_integration.is_linked(user.id, db) else 0),
             "default_activity_visibility": (user_privacy_settings.default_activity_visibility),
             "hide_activity_start_time": (user_privacy_settings.hide_activity_start_time),
             "hide_activity_location": (user_privacy_settings.hide_activity_location),

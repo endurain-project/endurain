@@ -25,6 +25,7 @@ import modules.auth.password_reset_tokens.router as password_reset_tokens_router
 import modules.auth.router as auth_router
 import modules.auth.sessions.router as auth_sessions_router
 import modules.auth.sign_up_tokens.router as sign_up_tokens_router
+import modules.coros.router as coros_router
 import modules.followers.router as followers_router
 import modules.garmin.router as garmin_router
 import modules.gears.gear.router as gears_router
@@ -176,6 +177,11 @@ router.include_router(
     auth_router.router,
     prefix=core_config.ROOT_PATH + "/auth",
     tags=["auth"],
+)
+router.include_router(
+    coros_router.router,
+    prefix=core_config.ROOT_PATH + "/coros",
+    tags=["coros"],
 )
 router.include_router(
     followers_router.router,

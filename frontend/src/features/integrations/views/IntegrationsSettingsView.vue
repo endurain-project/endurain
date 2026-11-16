@@ -2,6 +2,7 @@
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 
+import CorosCard from '@/features/integrations/components/CorosCard.vue'
 import GarminCard from '@/features/integrations/components/GarminCard.vue'
 import StravaCard from '@/features/integrations/components/StravaCard.vue'
 import { Button } from '@/components/ui/button'
@@ -27,7 +28,7 @@ const profile = computed(() => profileQuery.data.value ?? null)
 
     <!-- Loading -->
     <div v-if="profileQuery.isPending.value" class="flex flex-col gap-3" aria-busy="true">
-      <Card v-for="n in 2" :key="n" class="flex items-center justify-between gap-3">
+      <Card v-for="n in 3" :key="n" class="flex items-center justify-between gap-3">
         <div class="flex items-center gap-3">
           <Skeleton class="size-10 rounded-full" />
           <div class="flex flex-col gap-2">
@@ -56,6 +57,7 @@ const profile = computed(() => profileQuery.data.value ?? null)
     <template v-else-if="profile">
       <StravaCard :linked="profile.stravaLinked" />
       <GarminCard :linked="profile.garminLinked" />
+      <CorosCard :linked="profile.corosLinked" />
     </template>
   </div>
 </template>

@@ -183,12 +183,13 @@ Each web process keeps its own database pool of up to 60 connections (20 plus 40
 - S3 requests use the client's default connect and read timeouts (60 seconds) and retry up to three times, so an unreachable bucket can hold a thread for minutes. Prefer a bucket in the same region as the application.
 - Leftover work is cleaned up on a schedule: ingestion jobs that stop progressing are failed after 24 hours, and staged uploads and bulk-import archives that no job references are removed after 2 days.
 
-## Strava and Garmin Connect syncs
+## Strava, Garmin Connect and COROS syncs
 
-Every hour Endurain queues one refresh job per user who has linked Strava or Garmin Connect, and each job syncs the last 24 hours for that user (and refreshes their Strava token first). A user whose previous refresh has not finished is skipped, so a backed-up queue does not grow. The same jobs back the "retrieve activities" buttons in settings, which return a job you can poll.
+Every hour Endurain queues one refresh job per user who has linked Strava, Garmin Connect or COROS, and each job syncs the last 24 hours for that user (and refreshes their Strava or COROS token first). A user whose previous refresh has not finished is skipped, so a backed-up queue does not grow. The same jobs back the "retrieve activities" buttons in settings, which return a job you can poll.
 
 - Each job is independent, so jobs are spread across workers, retried with backoff when durable jobs are enabled, and one slow account cannot hold up the others.
 - Strava's rate limits are per application. When one is hit, every process and replica stops calling Strava until it expires; the state is shared through `STATE_URI`.
+- COROS allows 50 FIT downloads per user in a 24-hour window. Endurain counts them and stops cleanly when the limit is reached; see the [COROS integration](../features/coros.md).
 - Without `JOBS_ENABLED`, the jobs run on the API process's small background pool and are re-queued at the next hourly run if lost in a restart.
 
 ## Bulk imports

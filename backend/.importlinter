@@ -21,6 +21,7 @@ source_modules =
     modules.users
     modules.activities
     core
+    modules.coros
     modules.followers
     modules.garmin
     modules.gears
@@ -102,6 +103,7 @@ source_modules =
 forbidden_modules =
     modules.strava
     modules.garmin
+    modules.coros
 
 # The activities core (activity/) is parsing-agnostic: it exposes the typed
 # ParsedActivity contract + ingestion_service.store_parsed_activity, but never
@@ -210,6 +212,7 @@ allow_indirect_imports = True
 source_modules =
     modules.strava
     modules.garmin
+    modules.coros
 forbidden_modules =
     modules.users.users_integrations.models
     modules.users.users_privacy_settings.models

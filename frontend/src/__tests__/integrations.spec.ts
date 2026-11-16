@@ -4,6 +4,13 @@ import type { DateRange } from '@/features/integrations/types'
 
 import { apiFetch } from '@/services/http'
 import {
+  completeCorosLink,
+  fetchCorosStatus,
+  startCorosAuthorization,
+  syncCoros,
+  unlinkCoros,
+} from '@/features/integrations/services/coros'
+import {
   linkGarmin,
   retrieveGarminActivities,
   retrieveGarminGear,
@@ -173,6 +180,84 @@ describe('garmin service', () => {
   it('unlinkGarmin DELETEs the unlink path', async () => {
     await unlinkGarmin()
     expect(apiFetch).toHaveBeenCalledWith('/garminconnect/unlink', {
+      method: 'DELETE',
+      responseType: 'void',
+    })
+  })
+})
+
+describe('coros service', () => {
+  beforeEach(() => {
+    vi.mocked(apiFetch).mockReset()
+    vi.mocked(apiFetch).mockResolvedValue(undefined)
+  })
+
+  it('startCorosAuthorization returns a trusted COROS URL', async () => {
+    vi.mocked(apiFetch).mockResolvedValue({
+      authorization_url: 'https://mcpeu.coros.com/oauth2/authorize?state=s',
+    })
+
+    await expect(startCorosAuthorization()).resolves.toBe(
+      'https://mcpeu.coros.com/oauth2/authorize?state=s',
+    )
+    expect(apiFetch).toHaveBeenCalledWith('/coros/authorize', { method: 'POST' })
+  })
+
+  it('startCorosAuthorization refuses a non-COROS URL', async () => {
+    vi.mocked(apiFetch).mockResolvedValue({
+      authorization_url: 'https://evil.example/oauth2/authorize',
+    })
+
+    await expect(startCorosAuthorization()).rejects.toThrow('invalid authorization URL')
+  })
+
+  it('completeCorosLink PUTs the code and state', async () => {
+    await completeCorosLink('co/de', 'st ate')
+
+    expect(apiFetch).toHaveBeenCalledWith('/coros/link', {
+      method: 'PUT',
+      body: JSON.stringify({ code: 'co/de', state: 'st ate' }),
+      responseType: 'void',
+    })
+  })
+
+  it('fetchCorosStatus normalizes the wire shape', async () => {
+    vi.mocked(apiFetch).mockResolvedValue({
+      linked: true,
+      last_sync_at: '2026-11-16T10:00:00Z',
+      last_sync_status: 'error',
+      last_sync_error: 'rate_limited',
+      last_sync_activity_count: 3,
+    })
+
+    await expect(fetchCorosStatus()).resolves.toEqual({
+      linked: true,
+      lastSyncAt: '2026-11-16T10:00:00Z',
+      lastSyncStatus: 'error',
+      lastSyncError: 'rate_limited',
+      lastSyncActivityCount: 3,
+    })
+  })
+
+  it('syncCoros POSTs without a window by default', async () => {
+    await syncCoros()
+    expect(apiFetch).toHaveBeenCalledWith('/coros/sync', {
+      method: 'POST',
+      responseType: 'void',
+    })
+  })
+
+  it('syncCoros POSTs an explicit window', async () => {
+    await syncCoros(range)
+    expect(apiFetch).toHaveBeenCalledWith('/coros/sync?start_date=2026-01-01&end_date=2026-01-07', {
+      method: 'POST',
+      responseType: 'void',
+    })
+  })
+
+  it('unlinkCoros DELETEs the connection', async () => {
+    await unlinkCoros()
+    expect(apiFetch).toHaveBeenCalledWith('/coros/unlink', {
       method: 'DELETE',
       responseType: 'void',
     })

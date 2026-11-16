@@ -58,6 +58,7 @@ export function mapUserProfile(dto: UserProfileDto): User {
     avatarUrl: resolveAvatarUrl(dto.photo_path),
     isStravaLinked: toBoolean(dto.is_strava_linked),
     isGarminConnectLinked: toBoolean(dto.is_garminconnect_linked),
+    isCorosLinked: toBoolean(dto.is_coros_linked),
     hasLocalPassword: dto.has_local_password ?? false,
     units: dto.units,
     currency: dto.currency,
