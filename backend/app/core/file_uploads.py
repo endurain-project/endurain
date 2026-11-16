@@ -33,7 +33,7 @@ from collections.abc import Awaitable, Callable, Coroutine, Iterable
 from dataclasses import dataclass
 from enum import StrEnum
 from pathlib import Path, PurePosixPath, PureWindowsPath
-from typing import Any
+from typing import Any, BinaryIO
 
 import aiofiles
 import aiofiles.os
@@ -225,6 +225,107 @@ async def validate_upload(file: UploadFile, *, kind: UploadKind) -> None:
     except FileSecurityError as err:
         logger.warning(f"Upload validation failed: kind={kind.value} type={type(err).__name__}", exc_info=err)
         raise _to_domain_error(err) from err
+
+
+_UTF8_BOM = b"\xef\xbb\xbf"
+_XML_DECLARATION = b"<?xml"
+# No encoding attribute: a document without a declaration is UTF-8 by default, so this keeps its meaning.
+_XML_DEFAULT_DECLARATION = b'<?xml version="1.0"?>'
+_XML_WHITESPACE = b" \t\r\n"
+
+
+def _xml_prefix_fix(file: BinaryIO) -> tuple[int, int, bytes] | None:
+    """Find what to change so an XML activity file starts with its declaration.
+
+    libmagic sniffs an XML file as ``text/plain`` unless it starts with an
+    optional UTF-8 BOM and ``<?xml``, and the validator requires that
+    declaration, so a file with whitespace in front of it, or without one,
+    would otherwise be rejected. The whitespace goes, and a missing
+    declaration is added in front of the first tag. Anything else, including a
+    ``.fit`` file or an oversized file the validator rejects anyway, needs no
+    change.
+
+    Args:
+        file: Seekable binary file opened for reading.
+
+    Returns:
+        ``(start, end, replacement)``: the byte range to replace and what to
+        put there, or ``None`` when the file needs no change.
+    """
+    size = file.seek(0, os.SEEK_END)
+    file.seek(0)
+    if size > _MAX_ACTIVITY_BYTES:
+        return None
+    start = len(_UTF8_BOM) if file.read(len(_UTF8_BOM)) == _UTF8_BOM else 0
+    file.seek(start)
+    end = start
+    while chunk := file.read(_STREAM_CHUNK_BYTES):
+        rest = chunk.lstrip(_XML_WHITESPACE)
+        end += len(chunk) - len(rest)
+        if rest:
+            break
+    file.seek(end)
+    head = file.read(len(_XML_DECLARATION))
+    file.seek(0)
+    if head == _XML_DECLARATION:
+        return (start, end, b"") if end > start else None
+    if head.startswith(b"<"):
+        return start, end, _XML_DEFAULT_DECLARATION
+    return None
+
+
+def _normalize_xml_prefix(file: BinaryIO) -> bool:
+    """Apply the change :func:`_xml_prefix_fix` finds, in place.
+
+    Args:
+        file: Seekable binary file opened for reading and writing.
+
+    Returns:
+        Whether the file was changed.
+    """
+    fix = _xml_prefix_fix(file)
+    if fix is None:
+        return False
+    start, end, replacement = fix
+    # The tail moves left or right, so copy it aside and write it back after the replacement.
+    with tempfile.TemporaryFile() as tail:
+        file.seek(end)
+        shutil.copyfileobj(file, tail, _STREAM_CHUNK_BYTES)
+        file.seek(start)
+        file.write(replacement)
+        tail.seek(0)
+        shutil.copyfileobj(tail, file, _STREAM_CHUNK_BYTES)
+    file.truncate()
+    file.seek(0)
+    return True
+
+
+def normalize_xml_prefix_sync(path: str | os.PathLike) -> None:
+    """Make an XML activity file start with its declaration, as the validator requires.
+
+    Removes whitespace in front of the ``<?xml`` declaration, or adds a
+    declaration when there is none. Rewrites the file in place, so it keeps its
+    inode and permissions; call it only on the server's own working copy,
+    before validating it. A file that needs no change is only read, so it may
+    be read-only.
+
+    Args:
+        path: Activity file to inspect and rewrite if needed.
+
+    Raises:
+        DomainError: 500 when the file cannot be read or rewritten.
+    """
+    try:
+        with open(path, "rb") as file:
+            if _xml_prefix_fix(file) is None:
+                return
+        with open(path, "r+b") as file:
+            changed = _normalize_xml_prefix(file)
+    except OSError as err:
+        logger.error(f"Error in normalize_xml_prefix_sync: {type(err).__name__}", exc_info=err)
+        raise core_exceptions.ProcessingError("Failed to prepare activity file") from err
+    if changed:
+        logger.info(f"Normalized the XML declaration of {os.path.basename(path)}")
 
 
 async def validate_local_file(
@@ -647,6 +748,10 @@ def save_validated_upload_sync(
     so this must be called from a thread with **no** running loop. Use
     :func:`save_validated_upload` from async code.
 
+    An activity upload first has whitespace in front of its ``<?xml``
+    declaration removed from the request's buffer, or a missing declaration
+    added, so it validates and parses.
+
     Args:
         file: Incoming FastAPI UploadFile.
         kind: Logical content type, drives validator + size cap.
@@ -660,6 +765,8 @@ def save_validated_upload_sync(
     Raises:
         DomainError: 400/413/500 depending on the failure mode.
     """
+    if kind is UploadKind.ACTIVITY:
+        _normalize_xml_prefix(file.file)
     # Validate first; safeuploads rewinds the stream on success.
     _run_validator_sync(validate_upload(file, kind=kind))
 

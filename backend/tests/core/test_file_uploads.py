@@ -5,7 +5,9 @@ from __future__ import annotations
 import gzip
 import io
 import logging
+import stat
 import struct
+import tempfile
 import zipfile
 import zlib
 from pathlib import Path
@@ -37,6 +39,7 @@ from core.file_uploads import (
     ensure_within,
     extract_validated_zip,
     move_within,
+    normalize_xml_prefix_sync,
     read_validated_upload_sync,
     resolve_storage_path,
     safe_remove_within,
@@ -94,6 +97,23 @@ def _make_gpx_bytes() -> bytes:
         b'<trkpt lat="0" lon="0"></trkpt>'
         b"</trkseg></trk>\n"
         b"</gpx>\n"
+    )
+
+
+def _make_tcx_bytes(prefix: bytes = b"") -> bytes:
+    """Return a minimal valid TCX v2 document, optionally prefixed.
+
+    ``prefix`` adds different kinds of whitespace and optionally a BOM before the XML declaration.
+    """
+    ns = "http://www.garmin.com/xmlschemas/TrainingCenterDatabase/v2"
+    return (
+        prefix
+        + b'<?xml version="1.0"?>\r\n'
+        + f'<TrainingCenterDatabase xmlns="{ns}">\r\n'.encode()
+        + b'<Activities><Activity Sport="Running">'
+        b"<Id>2024-01-01T00:00:00Z</Id>"
+        b"</Activity></Activities>\r\n"
+        b"</TrainingCenterDatabase>\r\n"
     )
 
 
@@ -214,6 +234,146 @@ async def test_validate_upload_rejects_garbage(kind: UploadKind, filename: str, 
     # 400 for signature/MIME mismatch, 413 if size cap would
     # somehow trigger first; both are acceptable rejections.
     assert exc.value.status_code in {400, 413}
+
+
+# ---------------------------------------------------------------------------
+# Whitespace before, or no, XML declaration in an activity file
+# ---------------------------------------------------------------------------
+
+_BOM = core_file_uploads._UTF8_BOM
+_DECLARATION = core_file_uploads._XML_DEFAULT_DECLARATION
+_TCX = _make_tcx_bytes()
+# The documents without their own declaration line.
+_TCX_BODY = _TCX.split(b"\r\n", 1)[1]
+_GPX_BODY = _make_gpx_bytes().split(b"\n", 1)[1]
+
+# (payload, what the payload is normalized to)
+_XML_FIXES = [
+    pytest.param(_make_tcx_bytes(b"          "), _TCX, id="leading-spaces"),
+    pytest.param(_make_tcx_bytes(b"\n"), _TCX, id="leading-newline"),
+    pytest.param(_make_tcx_bytes(b"\t"), _TCX, id="leading-tab"),
+    pytest.param(_make_tcx_bytes(b"\r\n  "), _TCX, id="leading-crlf-spaces"),
+    pytest.param(_make_tcx_bytes(b" " * 300), _TCX, id="longer-than-128-bytes"),
+    # A BOM is legal in XML, so it stays.
+    pytest.param(_make_tcx_bytes(_BOM + b"\n"), _make_tcx_bytes(_BOM), id="bom-then-newline"),
+    pytest.param(_TCX_BODY, _DECLARATION + _TCX_BODY, id="no-declaration"),
+    pytest.param(b"\n  " + _GPX_BODY, _DECLARATION + _GPX_BODY, id="whitespace-then-gpx-without-declaration"),
+    pytest.param(_BOM + b"\n" + _TCX_BODY, _BOM + _DECLARATION + _TCX_BODY, id="bom-whitespace-no-declaration"),
+]
+
+
+@pytest.mark.parametrize("payload,expected", _XML_FIXES)
+def test_normalize_xml_prefix_sync_makes_the_file_valid(tmp_path: Path, payload: bytes, expected: bytes):
+    """The normalized file passes the validator that rejects it otherwise."""
+    path = tmp_path / "ride.tcx"
+    path.write_bytes(payload)
+    with pytest.raises(core_exceptions.InvalidInputError):
+        validate_local_file_sync(path, kind=UploadKind.ACTIVITY)
+
+    normalize_xml_prefix_sync(path)
+
+    assert path.read_bytes() == expected
+    validate_local_file_sync(path, kind=UploadKind.ACTIVITY)
+
+
+@pytest.mark.parametrize("payload,expected", _XML_FIXES)
+def test_normalize_xml_prefix_sync_crosses_chunk_boundaries(tmp_path: Path, monkeypatch, payload, expected):
+    """Whitespace and content longer than one read chunk are both handled, whether the file shrinks or grows."""
+    monkeypatch.setattr(core_file_uploads, "_STREAM_CHUNK_BYTES", 7)
+    path = tmp_path / "ride.tcx"
+    path.write_bytes(payload)
+
+    normalize_xml_prefix_sync(path)
+
+    assert path.read_bytes() == expected
+
+
+def test_normalize_xml_prefix_sync_keeps_the_file_mode(tmp_path: Path):
+    """The file is rewritten in place, so a private file stays private."""
+    path = tmp_path / "ride.tcx"
+    path.write_bytes(_make_tcx_bytes(b"\n"))
+    path.chmod(0o600)
+
+    normalize_xml_prefix_sync(path)
+
+    assert path.read_bytes() == _TCX
+    assert stat.S_IMODE(path.stat().st_mode) == 0o600
+    assert list(tmp_path.iterdir()) == [path]
+
+
+@pytest.mark.parametrize(
+    "filename,payload",
+    [
+        pytest.param("ride.gpx", _make_gpx_bytes(), id="clean-gpx"),
+        pytest.param("ride.tcx", _make_tcx_bytes(_BOM), id="clean-bom-tcx"),
+        # A 12-byte FIT header starts with 0x0C (form feed), which is not XML whitespace.
+        pytest.param("ride.fit", b"\x0c\x10" + b"\x00" * 6 + b".FIT", id="fit"),
+        pytest.param("ride.tcx", b"   plain text, not XML\n", id="plain-text"),
+        pytest.param("ride.tcx", b"  \n\t", id="only-whitespace"),
+    ],
+)
+def test_normalize_xml_prefix_sync_leaves_other_files_untouched(
+    tmp_path: Path,
+    filename: str,
+    payload: bytes,
+):
+    """Only XML is changed; other files are only read, so read-only is fine."""
+    path = tmp_path / filename
+    path.write_bytes(payload)
+    path.chmod(0o444)
+
+    normalize_xml_prefix_sync(path)
+
+    assert path.read_bytes() == payload
+
+
+def test_normalize_xml_prefix_sync_skips_files_over_the_size_cap(tmp_path: Path, monkeypatch):
+    """An oversized file is not rewritten; the validator rejects it with a 413."""
+    payload = _make_tcx_bytes(b"\n")
+    monkeypatch.setattr(core_file_uploads, "_MAX_ACTIVITY_BYTES", len(payload) - 1)
+    path = tmp_path / "ride.tcx"
+    path.write_bytes(payload)
+
+    normalize_xml_prefix_sync(path)
+
+    assert path.read_bytes() == payload
+
+
+def test_normalize_xml_prefix_sync_raises_a_domain_error_on_os_error(tmp_path: Path):
+    """A file that cannot be opened becomes a 500 the import paths already handle."""
+    with pytest.raises(core_exceptions.ProcessingError):
+        normalize_xml_prefix_sync(tmp_path / "missing.tcx")
+
+
+def test_validate_local_file_sync_does_not_rewrite_the_file(tmp_path: Path):
+    """Validation is read-only: whitespace before ``<?xml`` is still rejected."""
+    path = tmp_path / "ride.tcx"
+    payload = _make_tcx_bytes(b"\n")
+    path.write_bytes(payload)
+
+    with pytest.raises(core_exceptions.DomainError) as exc:
+        validate_local_file_sync(path, kind=UploadKind.ACTIVITY)
+
+    assert exc.value.status_code == 400
+    assert path.read_bytes() == payload
+
+
+@pytest.mark.parametrize("payload,expected", _XML_FIXES)
+def test_save_validated_upload_sync_normalizes_the_xml_prefix(tmp_path: Path, payload: bytes, expected: bytes):
+    """A direct upload is normalized before validation and saved that way."""
+    # A tiny spool size rolls the buffer over to disk, like a large real upload.
+    with tempfile.SpooledTemporaryFile(max_size=16) as buffer:
+        buffer.write(payload)
+        upload = UploadFile(file=buffer, filename="ride.tcx")
+
+        path = save_validated_upload_sync(
+            upload,
+            kind=UploadKind.ACTIVITY,
+            upload_dir=str(tmp_path),
+            filename="server.tcx",
+        )
+
+    assert Path(path).read_bytes() == expected
 
 
 # ---------------------------------------------------------------------------
