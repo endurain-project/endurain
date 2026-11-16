@@ -301,7 +301,8 @@ class TestSignatureConventions:
         )
 
 
-#: Writes to a versioned package that carry no ``If-Match``, with why (``optimistic-concurrency.md``, "What is not versioned").
+#: Writes to a versioned package that carry no ``If-Match``, with why (``optimistic-concurrency.md``, "What is not
+#: versioned").
 _UNVERSIONED_WRITES = {
     (
         "auth/identity_providers/router.py",

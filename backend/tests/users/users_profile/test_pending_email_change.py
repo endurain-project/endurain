@@ -280,7 +280,10 @@ class TestResendAndCancel:
 class TestPasswordResetWhilePending:
     def test_the_reset_still_targets_the_old_address(self, db, mail, publish):
         _change_email(db, "new@example.com")
-        reset = "modules.auth.password_reset_tokens.service.password_reset_event_publishers.publish_password_reset_requested"
+        reset = (
+            "modules.auth.password_reset_tokens.service."
+            "password_reset_event_publishers.publish_password_reset_requested"
+        )
 
         with patch(reset) as requested:
             password_reset_service.request_password_reset_email("new@example.com", "203.0.113.7", "agent", db)

@@ -1,4 +1,6 @@
-"""Audit actions written by the Strava package: the client, the account link, revoked-access deletion and the gear import.
+"""Audit actions written by the Strava package.
+
+They cover the client, the account link, revoked-access deletion and the gear import.
 
 Ids are stable forever: rows outlive the code. ``details`` carry enumerated values and counts only, never the
 client id or secret, a code, a token, a provider message or a file's content.

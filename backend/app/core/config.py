@@ -447,7 +447,8 @@ class Settings(BaseSettings):
             address: The address, its scheme already lower-cased.
 
         Returns:
-            True when the address has an authority with a host, no ``@``, no whitespace or backslash, and a parsable port.
+            True when the address has an authority with a host, no ``@``, no whitespace or backslash, and a parsable
+            port.
         """
         if not address.startswith("https://") or any(char.isspace() or char == "\\" for char in address):
             return False

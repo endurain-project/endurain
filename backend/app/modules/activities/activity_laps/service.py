@@ -1,7 +1,8 @@
 """Application-layer orchestration for activity laps.
 
 Declares *what* an activity's laps are — the parent flag that hides them, the
-two CRUD calls that read them and the fields the parent's other flags hide — and delegates *how* the paged read runs to the
+two CRUD calls that read them and the fields the parent's other flags hide — and delegates *how* the paged read runs to
+the
 shared :mod:`modules.activities.activity.child_collection_service` seam, which owns the
 access gate and the rule that a refusal and an empty collection answer alike.
 

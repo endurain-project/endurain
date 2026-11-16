@@ -70,7 +70,8 @@ class ServerSettingsBase(BaseModel):
         password_length_admin_users (StrictInt): Minimum password length for admin users (8-128).
 
     Validators:
-        - validate_tileserver_url: Ensures tile server URL is secure, uses proper protocol, contains required placeholders, and blocks dangerous patterns.
+        - validate_tileserver_url: Ensures tile server URL is secure, uses proper protocol, contains required
+          placeholders, and blocks dangerous patterns.
         - validate_attribution: Sanitizes attribution string to prevent XSS attacks.
 
     Model Config:

@@ -9,7 +9,8 @@ state store is what an administrator polls, and its claim stops a user being que
 The job erases the activities a batch per transaction, so no transaction holds the whole account. On the
 durable profile a pass stops at a time budget with activities left and the worker continues the same job
 (see :func:`durable_pass_seconds`). Once no activities are left it erases the profile photo, then deletes
-the user row, which removes everything else through the database cascade. Every step can be repeated, so a job a worker died in is simply run again, and every step
+the user row, which removes everything else through the database cascade. Every step can be repeated, so a job a worker
+died in is simply run again, and every step
 that can fail runs while the row still marks the deletion, so the stalled-deletion sweep finds it.
 """
 

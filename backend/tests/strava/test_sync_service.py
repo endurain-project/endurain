@@ -1,4 +1,5 @@
-"""Queued Strava gear syncs, unlinks and activity ranges run off the request, once per user, and record their outcome."""
+"""Queued Strava gear syncs, unlinks and activity ranges run off the request, once per user, and record their
+outcome."""
 
 from datetime import date, timedelta
 from unittest.mock import ANY, MagicMock, patch

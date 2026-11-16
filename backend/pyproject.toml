@@ -233,7 +233,6 @@ select = [
     "D",      # pydocstyle; scoped to converted modules below, see per-file-ignores
 ]
 ignore = [
-    "E501",   # line too long (handled by formatter)
     "B008",   # do not perform function calls in argument defaults (FastAPI Depends/Query) — tracked in https://github.com/endurain-project/endurain/issues/653
 ]
 

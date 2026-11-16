@@ -62,7 +62,9 @@ def _absolute_imports(path: Path) -> set[str]:
 #: test below fails on an entry that has grown a surface, so the list cannot
 #: outlive the exemption.
 _NO_CROSS_MODULE_SURFACE: dict[str, str] = {
-    "onboarding": "Public first-run flow plus a startup task wired by app/module_registry.py; no other package calls it.",
+    "onboarding": (
+        "Public first-run flow plus a startup task wired by app/module_registry.py; no other package calls it."
+    ),
     "health_dashboard": (
         "Read-only and top of the health namespace: it consolidates the other health packages' "
         "surfaces into the daily dashboard route. Nothing calls it."

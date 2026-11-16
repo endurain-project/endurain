@@ -649,7 +649,8 @@ def test_the_build_runs_under_the_performance_tier_timeout() -> None:
     service = profile_export_service.ExportService(
         user_id=_USER_ID, storage=MagicMock(), db=MagicMock(spec=Session), performance_config=config
     )
-    # The build starts at t=1e9 and every later check reads 500 s on: past the old 300 s default, inside the tier's 1000 s.
+    # The build starts at t=1e9 and every later check reads 500 s on: past the old 300 s default, inside the tier's 1000
+    # s.
     clock = iter([1_000_000_000.0])
 
     with (

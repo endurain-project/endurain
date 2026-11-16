@@ -28,7 +28,8 @@ _EXEMPT_DIRS = frozenset({"migrations", "alembic"})
 _SWALLOWING_BROAD_EXCEPTS: dict[str, int] = {
     "core/middleware.py": 1,  # detached tile-domain refresh task nothing awaits
     "main.py": 3,  # best-effort startup tasks (_safe_run, _safe_run_async) and engine dispose at shutdown
-    "modules/activities/activity_profile_transfer/export_service.py": 3,  # known debt: name the storage errors each writer expects
+    # known debt: name the storage errors each writer expects
+    "modules/activities/activity_profile_transfer/export_service.py": 3,
     "modules/activities/activity_ingestion/bulk_import_service.py": 2,  # folder-feed job records any failure; per-file
     "modules/activities/activity_ingestion/refresh_entry_service.py": 1,  # per provider; re-raises the first failure
     "modules/activities/activity_ingestion/window_service.py": 1,  # per activity; re-raises the first failure

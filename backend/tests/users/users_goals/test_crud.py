@@ -175,7 +175,8 @@ class TestDeleteUserGoal:
 
 
 class TestGoalUniquenessInTheDatabase:
-    """One goal per user, interval, activity type and goal type is the database's rule, so two requests cannot both win."""
+    """One goal per user, interval, activity type and goal type is the database's rule, so two requests cannot both
+    win."""
 
     @pytest.fixture
     def db(self):

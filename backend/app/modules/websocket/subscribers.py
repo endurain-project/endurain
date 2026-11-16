@@ -1,4 +1,7 @@
-"""Applies realtime hints and control messages to the sockets this process holds, and turns revocations into control messages."""
+"""Applies realtime hints and control messages to the sockets this process holds.
+
+It also turns revocations into control messages.
+"""
 
 import uuid
 from typing import Any
@@ -26,10 +29,11 @@ def on_realtime_hint(key: str, hint: dict[str, Any]) -> None:
 
     Every started process receives every hint, so most are for a user whose socket is
     held elsewhere and are dropped on the loop. A control message (see
-    ``integration_service.close_revoked_sockets``) closes sockets and is never sent to a client.
-    The channel is server-wide, so a key that addresses neither a user nor a control message is ignored. This runs on the channel's subscriber thread (inline
-    on the publisher for the in-process channel), so the send is handed to the main
-    event loop, which owns the sockets.
+    ``integration_service.close_revoked_sockets``) closes sockets and is never sent to a
+    client. The channel is server-wide, so a key that addresses neither a user nor a
+    control message is ignored. This runs on the channel's subscriber thread (inline on
+    the publisher for the in-process channel), so the send is handed to the main event
+    loop, which owns the sockets.
 
     Args:
         key: The audience the hint was published for.

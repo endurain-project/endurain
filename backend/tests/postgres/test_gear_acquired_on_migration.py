@@ -42,7 +42,8 @@ def test_upgrade_keeps_each_rows_utc_calendar_day_and_downgrade_restores_a_times
         for nickname, moment in (("late", "2024-03-05 23:30:00-02"), ("early", "2024-03-05 00:30:00+05")):
             db.execute(
                 text(
-                    "INSERT INTO gear (id, nickname, gear_type, user_id, active, initial_distance, created_at, version) "
+                    "INSERT INTO gear (id, nickname, gear_type, user_id, active, initial_distance, created_at, "
+                    "version) "
                     "VALUES (:id, :n, 1, :u, true, 0, :m, 1)"
                 ),
                 {"id": uuid.uuid4(), "n": nickname, "m": moment, "u": MOCK_USER_ID},

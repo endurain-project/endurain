@@ -15,10 +15,12 @@ import jasil.providers as platform_providers
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
-#: Archived id (the exporting account's UUID) to stored id, per section, keyed by the key of the section that published the ids.
+#: Archived id (the exporting account's UUID) to stored id, per section, keyed by the key of the section that published
+#: the ids.
 type ProfileIdMaps = dict[str, dict[uuid.UUID, uuid.UUID]]
 
-#: What an archive carries of a row's identity: the exporting account's id, owner and version, none of which an import writes.
+#: What an archive carries of a row's identity: the exporting account's id, owner and version, none of which an import
+#: writes.
 ARCHIVE_ROW_IDENTITY = frozenset({"id", "user_id", "version", "updated_at"})
 
 

@@ -64,7 +64,9 @@ class HealthWeightBase(BaseModel):
         default=None,
         ge=0,
         le=MAX_BMI,
-        description="Body Mass Index; a manually entered record ignores a value sent and derives it from the weight and height",
+        description=(
+            "Body Mass Index; a manually entered record ignores a value sent and derives it from the weight and height"
+        ),
     )
     body_fat_percent: StrictFloat | None = Field(
         default=None, ge=0, le=100, description="Body fat as a percentage of body weight (0-100)"

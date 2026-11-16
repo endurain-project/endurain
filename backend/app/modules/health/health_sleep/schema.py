@@ -329,7 +329,10 @@ class HealthSleepBase(HealthSleepCore):
 
 
 class HealthSleepStageWrite(HealthSleepStage):
-    """A sleep stage a client writes: its times carry a UTC offset and are bounded, which a stored stage read back need not be."""
+    """A sleep stage a client writes.
+
+    Its times carry a UTC offset and are bounded, which a stored stage read back need not be.
+    """
 
     stage_type: SleepStageType | None = Field(default=None, description="Type of sleep stage")
     start_time_gmt: core_types.RecordInstant | None = Field(

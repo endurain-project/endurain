@@ -164,7 +164,10 @@ class TestMediaFromTheArchive:
 
 
 class TestParseActivitiesManifest:
-    HEADER = "Activity ID,Activity Date,Activity Name,Activity Type,Activity Description,Elapsed Time,Filename,Activity Gear,Media\n"
+    HEADER = (
+        "Activity ID,Activity Date,Activity Name,Activity Type,Activity Description,Elapsed Time,Filename,Activity "
+        "Gear,Media\n"
+    )
 
     def _write(self, tmp_path, body: str) -> str:
         path = tmp_path / "activities.csv"

@@ -52,12 +52,16 @@ def _six_km_track(tmp_path) -> str:
     """Write a straight ~6 km east-west track of 100 m hops at the equator."""
     start = datetime(2025, 1, 1, tzinfo=UTC)
     points = "".join(
-        f'<trkpt lat="0.0" lon="{i * 0.0009:.4f}"><time>{(start + timedelta(seconds=i * 30)).strftime("%Y-%m-%dT%H:%M:%SZ")}</time></trkpt>'
+        '<trkpt lat="0.0" '
+        f'lon="{i * 0.0009:.4f}">'
+        f"<time>{(start + timedelta(seconds=i * 30)).strftime('%Y-%m-%dT%H:%M:%SZ')}</time>"
+        "</trkpt>"
         for i in range(61)
     )
     return _write_gpx(
         tmp_path,
-        f'<gpx version="1.1" creator="pytest"><trk><name>Run</name><type>Run</type><trkseg>{points}</trkseg></trk></gpx>',
+        '<gpx version="1.1" '
+        f'creator="pytest"><trk><name>Run</name><type>Run</type><trkseg>{points}</trkseg></trk></gpx>',
     )
 
 

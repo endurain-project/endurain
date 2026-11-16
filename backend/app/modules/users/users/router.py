@@ -50,7 +50,9 @@ def read_users(
     external_auth: Annotated[
         bool | None,
         Query(
-            description="Keep only users with (true) or without (false) a linked identity provider; needs `users:read-all`"
+            description=(
+                "Keep only users with (true) or without (false) a linked identity provider; needs `users:read-all`"
+            )
         ),
     ] = None,
     username: Annotated[

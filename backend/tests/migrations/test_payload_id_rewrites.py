@@ -232,7 +232,8 @@ def test_every_integer_id_field_is_declared_or_listed() -> None:
 def test_every_baseline_field_is_declared_or_listed() -> None:
     uncovered = _BASELINE - _declared_pairs() - _NOT_YET_REWRITTEN
     assert not uncovered, (
-        f"Baseline payload id fields that are neither declared nor listed in _NOT_YET_REWRITTEN:\n{_format(uncovered)}\n"
+        "Baseline payload id fields that are neither declared nor listed in "
+        f"_NOT_YET_REWRITTEN:\n{_format(uncovered)}\n"
         "Declare them in PAYLOAD_ID_REWRITES of the revision that converts them; do not only delete them from the list."
     )
 

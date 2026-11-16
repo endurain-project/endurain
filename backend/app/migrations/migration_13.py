@@ -433,7 +433,8 @@ def _rename_drop_folders(root: Path, new_folder_of: Callable[[uuid.UUID], str], 
 
 
 def _rename_user_blobs(storage: platform_providers.StorageProvider, mapping: dict[int, uuid.UUID], db: Session) -> int:
-    """Rename the profile photos, failed bulk-import files, staged archives and drop folders to the UUID of their user."""
+    """Rename the profile photos, failed bulk-import files, staged archives and drop folders to the UUID of their
+    user."""
     photo_area = users_migration_service.USER_IMAGE_STORAGE_AREA
     errors_area = activity_ingestion_migration_service.BULK_IMPORT_ERROR_STORAGE_AREA
     export_area = users_profile_migration_service.EXPORT_STAGING_AREA

@@ -55,30 +55,49 @@ _MAY_LOG = frozenset(
 #: Role-less helper files that log, as ``{path relative to modules/: reason}``. The test fails on an
 #: entry that no longer logs, so the register shrinks rather than lingers.
 _HELPERS_THAT_LOG: dict[str, str] = {
-    "activities/activity_file_import/adapter.py": "Names the parser that produced a result, for diagnosing a missing chart.",
+    "activities/activity_file_import/adapter.py": (
+        "Names the parser that produced a result, for diagnosing a missing chart."
+    ),
     "activities/activity_file_import/fit_frames.py": "Parser anomalies the file itself carries.",
     "activities/activity_file_import/fit_parser.py": "Parser anomalies the file itself carries.",
     "activities/activity_file_import/gpx_parser.py": "Parser anomalies the file itself carries.",
     "activities/activity_file_import/tcx_parser.py": "Parser anomalies the file itself carries.",
     "activities/activity_thumbnail/render.py": "A failed render returns ``None``; the reason has to be said here.",
-    "strava/rate_limit_store.py": "Reports a rate limit it records or a storage outage it tolerates; the caller only sees a bool.",
-    "garmin/mfa_code_store.py": "Reports a storage outage and a code it could not delete, which have no caller to tell.",
-    "auth/identity_providers/refresh_claim_store.py": "Reports a storage outage it tolerates by failing open; the caller only sees a bool.",
-    "auth/identity_providers/token_policy.py": "Reports a token the age policy retires or a link with no timestamp; the caller only sees the action.",
-    "auth/credentials/password_breach.py": "Reports a range service it could not reach and fails open on; the caller only sees False.",
+    "strava/rate_limit_store.py": (
+        "Reports a rate limit it records or a storage outage it tolerates; the caller only sees a bool."
+    ),
+    "garmin/mfa_code_store.py": (
+        "Reports a storage outage and a code it could not delete, which have no caller to tell."
+    ),
+    "auth/identity_providers/refresh_claim_store.py": (
+        "Reports a storage outage it tolerates by failing open; the caller only sees a bool."
+    ),
+    "auth/identity_providers/token_policy.py": (
+        "Reports a token the age policy retires or a link with no timestamp; the caller only sees the action."
+    ),
+    "auth/credentials/password_breach.py": (
+        "Reports a range service it could not reach and fails open on; the caller only sees False."
+    ),
     "auth/mfa/setup_store.py": "Reports a setup secret it could not decrypt; the caller only sees None.",
     "auth/identity_providers/staged_sign_in_store.py": (
-        "Reports a staged sign-in it could not decrypt, where the caller only sees None, and a delete it leaves to expire."
+        "Reports a staged sign-in it could not decrypt, where the caller only sees None, and a delete it leaves to "
+        "expire."
     ),
-    "garmin/token_utils.py": "Reports a token it could not decrypt or a session Garmin rejected; the caller only sees None.",
+    "garmin/token_utils.py": (
+        "Reports a token it could not decrypt or a session Garmin rejected; the caller only sees None."
+    ),
     "users/users_profile/utils.py": (
-        "Reports a memory probe or an auto-config it cannot complete and falls back to defaults; the caller only sees the defaults."
+        "Reports a memory probe or an auto-config it cannot complete and falls back to defaults; the caller only sees "
+        "the defaults."
     ),
     "websocket/manager.py": "Owns the connection registry; an eviction and a failed send have no caller to report to.",
-    "websocket/ticket_store.py": "Reports a storage outage and an unreadable ticket value it cannot attribute to a request.",
+    "websocket/ticket_store.py": (
+        "Reports a storage outage and an unreadable ticket value it cannot attribute to a request."
+    ),
 }
 
-#: Modules whose ``console=True`` records are operator-facing: bulk-import progress (including the Strava export and gear CSV imports), migrations, the boot
+#: Modules whose ``console=True`` records are operator-facing: bulk-import progress (including the Strava export and
+#: gear CSV imports), migrations, the boot
 #: import of deprecated settings and the first-run onboarding setup token.
 _CONSOLE_ALLOWED_PREFIXES = (
     "activities/activity_ingestion/",
@@ -104,7 +123,9 @@ _ROOT = pathlib.Path("app/modules")
 #: Files whose broad ``except Exception`` handler logs without a traceback on purpose, as ``{path: reason}``
 #: relative to ``app/``.
 _BROAD_EXCEPT_WITHOUT_TRACEBACK: dict[str, str] = {
-    "core/config.py": "Reads a secret file at import time; the exception text names the file, which must not be logged.",
+    "core/config.py": (
+        "Reads a secret file at import time; the exception text names the file, which must not be logged."
+    ),
 }
 
 #: Files that log at INFO inside a loop on purpose, as ``{path: reason}`` relative to ``app/``. A loop that
@@ -278,7 +299,8 @@ class TestLoggingRule:
     def test_a_service_decision_is_logged(self):
         """A refusal and a state change leave a trace, wherever the function sits.
 
-        The rule is on what a function *does*: raising ``PermissionDeniedError`` or ending a transaction without a log line is the invisible
+        The rule is on what a function *does*: raising ``PermissionDeniedError`` or ending a transaction without a log
+        line is the invisible
         decision. A service that only delegates has no such function, so it needs no exemption.
         """
         offenders: list[str] = []
@@ -372,7 +394,8 @@ class TestLoggingRule:
         assert offenders == [], "Log the context at DEBUG; the boundary logs the failure:\n  " + "\n  ".join(offenders)
 
     def test_a_loop_logs_its_items_at_debug_and_one_summary_at_info(self):
-        """``logger.info`` inside a loop writes one line per item; the item is DEBUG and the summary follows the loop."""
+        """``logger.info`` inside a loop writes one line per item; the item is DEBUG and the summary follows the
+        loop."""
 
         def info_in_loops(node: ast.AST, in_loop: bool = False):
             for child in ast.iter_child_nodes(node):

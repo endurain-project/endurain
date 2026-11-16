@@ -500,7 +500,8 @@ class TestApiContract:
                 naive.add(f"{name}.{field}")
 
         assert not naive, (
-            f"A request datetime accepts a naive value (use AwareDatetime, or name a wall clock *_local): {sorted(naive)}"
+            "A request datetime accepts a naive value (use AwareDatetime, or name a wall clock *_local): "
+            f"{sorted(naive)}"
         )
         assert not undocumented, f"A *_local datetime does not say it is a wall-clock time: {sorted(undocumented)}"
 

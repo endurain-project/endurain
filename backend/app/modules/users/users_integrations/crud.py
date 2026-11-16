@@ -209,7 +209,8 @@ def replace_strava_tokens_if_refresh_token(
     """Store refreshed Strava tokens only while the stored refresh token is still the one they came from.
 
     Strava rotates the refresh token on every refresh. The row is locked while the token is
-    compared (by what it decrypts to, so a re-encryption under a new key is not a change), so a refresh that raced another, or a relink made in the meantime, is never
+    compared (by what it decrypts to, so a re-encryption under a new key is not a change), so a refresh that raced
+    another, or a relink made in the meantime, is never
     overwritten. The caller commits.
 
     Args:
@@ -272,7 +273,8 @@ def unlink_strava_tokens_if_refresh_token(
 
     The client id and secret are kept, so the user relinks without entering them again. When
     ``revoked_at`` is given it is stored in the same update, marking the tokens as revoked on Strava. The
-    row is locked while the token is compared (by what it decrypts to, so a re-encryption under a new key is not a change), so a link or refresh made in the meantime is
+    row is locked while the token is compared (by what it decrypts to, so a re-encryption under a new key is not a
+    change), so a link or refresh made in the meantime is
     never cleared by a caller that holds the previous token. The caller commits.
 
     Args:

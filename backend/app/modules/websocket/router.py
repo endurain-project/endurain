@@ -78,7 +78,8 @@ async def websocket_endpoint(
     network and refuses it with ``1013`` past ``MAX_HANDSHAKES_PER_WINDOW`` a window, then validates the
     short-lived ticket before accepting the connection, then serves an authenticated WebSocket that
     receives "something changed, refetch" hints. The ticket is consumed on first use (single-use) and
-    binds the socket to the session it was issued for; a ticket whose session no longer exists is accepted and closed with ``4401``, as a revocation would. A ticket store that cannot be reached closes the
+    binds the socket to the session it was issued for; a ticket whose session no longer exists is accepted and closed
+    with ``4401``, as a revocation would. A ticket store that cannot be reached closes the
     connection with ``1013`` so the client retries. The counter and the ticket lookup go to the shared
     state, so they run off the event loop.
 

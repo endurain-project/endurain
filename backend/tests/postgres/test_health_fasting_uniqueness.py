@@ -108,7 +108,8 @@ def test_the_migration_cancels_older_running_fasts_before_enforcing_the_index(up
     with upgrade_db.connect() as connection:
         rows = connection.execute(
             text(
-                "SELECT user_id, extract(hour FROM fast_start_time)::int AS hour, status FROM health_fasting ORDER BY id"
+                "SELECT user_id, extract(hour FROM fast_start_time)::int AS hour, status FROM health_fasting ORDER BY "
+                "id"
             )
         ).all()
     assert [tuple(row) for row in rows] == [

@@ -1,4 +1,5 @@
-"""Tests for the migration that settles ``provider_type`` and adds ``link_by_email`` and ``sync_email`` (revision 57)."""
+"""Tests for the migration that settles ``provider_type`` and adds ``link_by_email`` and ``sync_email`` (revision
+57)."""
 
 import importlib.util
 from pathlib import Path

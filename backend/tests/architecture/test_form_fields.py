@@ -30,6 +30,7 @@ def test_no_route_declares_a_text_form_field_beyond_the_guarded_forms():
     ]
 
     assert offenders == [], (
-        "A text form field must refuse NUL characters like LoginForm and LogoutToken do (the NUL middleware skips multipart): "
+        "A text form field must refuse NUL characters like LoginForm and LogoutToken do (the NUL middleware skips "
+        "multipart): "
         f"{offenders}"
     )

@@ -187,5 +187,6 @@ def _plain_name(value: str, info: ValidationInfo) -> str:
     return value
 
 
-#: A name a client sends for a person, activity or similar: 1 to 250 characters, not blank, with no direction control characters.
+#: A name a client sends for a person, activity or similar: 1 to 250 characters, not blank, with no direction control
+#: characters.
 DisplayName = Annotated[StrictStr, Field(min_length=1, max_length=250), AfterValidator(_plain_name)]

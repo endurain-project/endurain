@@ -190,7 +190,8 @@ def mock_request() -> Request:
     Creates and returns a mock Request object with predefined headers and client host.
 
     Returns:
-        Request: A MagicMock instance mimicking a Request object, with custom headers and client host set for testing purposes.
+        Request: A MagicMock instance mimicking a Request object, with custom headers and client host set for testing
+            purposes.
     """
     mock_req = MagicMock(spec=Request)
     mock_req.headers = {
@@ -204,7 +205,8 @@ def mock_request() -> Request:
 
 def _include_router_if_exists(app: FastAPI, dotted: str):
     """
-    Attempts to import a module by its dotted path and include its 'router' attribute in the given FastAPI app if present.
+    Attempts to import a module by its dotted path and include its 'router' attribute in the given FastAPI app if
+    present.
 
     Args:
         app (FastAPI): The FastAPI application instance to which the router should be added.
@@ -255,7 +257,8 @@ def _override_if_exists(app: FastAPI, dotted: str, attr: str, override_callable)
         Optional[Callable]: The original provider if it exists and was overridden, otherwise None.
 
     Notes:
-        - If the module or attribute does not exist, or any exception occurs, the function silently fails and returns None.
+        - If the module or attribute does not exist, or any exception occurs, the function silently fails and returns
+          None.
     """
     with contextlib.suppress(Exception):
         mod = import_module(dotted)
@@ -275,7 +278,8 @@ def fast_api_app(password_hasher, token_manager, mock_db) -> FastAPI:
     a fake in-memory store for pending multi-factor authentication (MFA) attempts,
     and includes any default routers specified in the configuration.
         password_hasher: An object or callable used to hash passwords, typically a mock for testing.
-        token_manager: An object or callable responsible for managing authentication tokens, typically a mock for testing.
+        token_manager: An object or callable responsible for managing authentication tokens, typically a mock for
+            testing.
         mock_db: A mock database session or connection to be used in place of the real database during tests.
         FastAPI: A configured FastAPI application instance with all test dependencies and routers included.
     """

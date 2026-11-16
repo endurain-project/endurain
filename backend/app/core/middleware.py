@@ -150,7 +150,8 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
             if extra_connect_src:
                 connect_src = f"{connect_src} {' '.join(extra_connect_src)}"
 
-            # No inline script or style is allowed; the SPA writes styles through the CSSOM, which style-src does not block.
+            # No inline script or style is allowed; the SPA writes styles through the CSSOM, which style-src does not
+            # block.
             response.headers["Content-Security-Policy"] = (
                 "default-src 'self'; "
                 f"img-src 'self' data: {tile_domains_str}{blob_src} "

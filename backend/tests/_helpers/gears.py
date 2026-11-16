@@ -33,8 +33,8 @@ def install_readers(
     usage: gears_contributors.GearUsageReader = lambda gear_id, user_id, db: gears_contracts.UsageTotals(),
     usage_by_window: gears_contributors.GearUsageByWindowReader = lambda gear_id, user_id, windows, db: {},
     components_cost: gears_contributors.ComponentsCostReader = lambda gear_id, user_id, db: 0.0,
-    count_components_outside_type: gears_contributors.ComponentsOutsideTypeCounter = lambda gear_id, user_id, gear_type, db: (
-        0
+    count_components_outside_type: gears_contributors.ComponentsOutsideTypeCounter = (
+        lambda gear_id, user_id, gear_type, db: 0
     ),
     clear_activities_gear: gears_contributors.ActivitiesGearClearer = lambda gear_id, user_id, limit, db: 0,
     clear_default_gear: gears_contributors.DefaultGearClearer = lambda gear_ids, user_id, db: None,

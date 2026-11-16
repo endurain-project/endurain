@@ -23,10 +23,16 @@ _MODULES_ROOT = pathlib.Path("app/modules")
 _ALLOWED_CORE: dict[str, str] = {
     "core.attempt_state": "The claim-and-poll state of an attempt that runs off the request.",
     "core.sync_runner": "The shared claim, run and dead-letter bookkeeping of a queued provider sync.",
-    "core.redirect_schemes": "The URI schemes a sign-in redirect may never use, refused by the setting and the validator.",
-    "core.provider_rate_limit": "The shared, expiring record of a provider's rate limit, which Strava and Garmin both keep.",
+    "core.redirect_schemes": (
+        "The URI schemes a sign-in redirect may never use, refused by the setting and the validator."
+    ),
+    "core.provider_rate_limit": (
+        "The shared, expiring record of a provider's rate limit, which Strava and Garmin both keep."
+    ),
     "core.async_bridge": "Hands a best-effort websocket push from a worker-thread subscriber to the main loop.",
-    "core.cache_control": "The no-store headers of a response that carries a token, a one-time secret or an archive of a user's data.",
+    "core.cache_control": (
+        "The no-store headers of a response that carries a token, a one-time secret or an archive of a user's data."
+    ),
     "core.blob_sweep": "The storage-side reconciliation sweeps for blobs no row owns or names any more.",
     "core.calendar": "Period boundaries for activity summaries.",
     "core.cryptography": "Encrypts and decrypts the tile-provider API key at rest.",
@@ -46,7 +52,10 @@ _ALLOWED_CORE: dict[str, str] = {
     "core.openapi_contract": "The OpenAPI declarations of a binary response and of an ETag the document cannot derive.",
     "core.key_derivation": "The per-purpose key behind the token digests.",
     "core.job_status": "The one status envelope every background job reports.",
-    "core.jwt_keys": "The JWT algorithm allow-list, secret and signature check that access-token issuing shares with the rate limiter.",
+    "core.jwt_keys": (
+        "The JWT algorithm allow-list, secret and signature check that access-token issuing shares with the rate "
+        "limiter."
+    ),
     "core.logger": "Structured logging.",
     "core.mail": "The mail configuration shape the settings store, and its validation wording.",
     "core.middleware_body_limit": "The body cap an upload route declares for the body-size middleware.",

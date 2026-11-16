@@ -132,7 +132,11 @@ TILE_MAPS_TEMPLATES: dict[str, TileMapsTemplateFields] = {
     "alidade_smooth": {
         "name": "Stadia Maps Alidade Smooth",
         "url_template": "https://tiles.stadiamaps.com/tiles/alidade_smooth/{z}/{x}/{y}{r}.png",
-        "attribution": '&copy; <a href="https://stadiamaps.com/" target="_blank">Stadia Maps</a> &copy; <a href="https://openmaptiles.org/" target="_blank">OpenMapTiles</a> &copy; <a href="https://www.openstreetmap.org/copyright" target="_blank">OpenStreetMap</a>',
+        "attribution": (
+            '&copy; <a href="https://stadiamaps.com/" target="_blank">Stadia Maps</a> &copy; <a '
+            'href="https://openmaptiles.org/" target="_blank">OpenMapTiles</a> &copy; <a '
+            'href="https://www.openstreetmap.org/copyright" target="_blank">OpenStreetMap</a>'
+        ),
         "map_background_color": "#f5f5f5",
         "requires_api_key_frontend": False,
         "requires_api_key_backend": True,
@@ -140,7 +144,11 @@ TILE_MAPS_TEMPLATES: dict[str, TileMapsTemplateFields] = {
     "alidade_smooth_dark": {
         "name": "Stadia Maps Alidade Smooth Dark",
         "url_template": "https://tiles.stadiamaps.com/tiles/alidade_smooth_dark/{z}/{x}/{y}{r}.png",
-        "attribution": '&copy; <a href="https://stadiamaps.com/" target="_blank">Stadia Maps</a> &copy; <a href="https://openmaptiles.org/" target="_blank">OpenMapTiles</a> &copy; <a href="https://www.openstreetmap.org/copyright" target="_blank">OpenStreetMap</a>',
+        "attribution": (
+            '&copy; <a href="https://stadiamaps.com/" target="_blank">Stadia Maps</a> &copy; <a '
+            'href="https://openmaptiles.org/" target="_blank">OpenMapTiles</a> &copy; <a '
+            'href="https://www.openstreetmap.org/copyright" target="_blank">OpenStreetMap</a>'
+        ),
         "map_background_color": "#2a2a2a",
         "requires_api_key_frontend": False,
         "requires_api_key_backend": True,
@@ -148,7 +156,12 @@ TILE_MAPS_TEMPLATES: dict[str, TileMapsTemplateFields] = {
     "alidade_satellite": {
         "name": "Stadia Maps Alidade Satellite",
         "url_template": "https://tiles.stadiamaps.com/tiles/alidade_satellite/{z}/{x}/{y}.jpg",
-        "attribution": '&copy; CNES, Distribution Airbus DS, &copy; Airbus DS, &copy; PlanetObserver (Contains Copernicus Data) | &copy; <a href="https://stadiamaps.com/" target="_blank">Stadia Maps</a> &copy; <a href="https://openmaptiles.org/" target="_blank">OpenMapTiles</a> &copy; <a href="https://www.openstreetmap.org/copyright" target="_blank">OpenStreetMap</a>',
+        "attribution": (
+            "&copy; CNES, Distribution Airbus DS, &copy; Airbus DS, &copy; PlanetObserver (Contains Copernicus Data) | "
+            '&copy; <a href="https://stadiamaps.com/" target="_blank">Stadia Maps</a> &copy; <a '
+            'href="https://openmaptiles.org/" target="_blank">OpenMapTiles</a> &copy; <a '
+            'href="https://www.openstreetmap.org/copyright" target="_blank">OpenStreetMap</a>'
+        ),
         "map_background_color": "#1a1a1a",
         "requires_api_key_frontend": True,
         "requires_api_key_backend": True,
@@ -156,7 +169,11 @@ TILE_MAPS_TEMPLATES: dict[str, TileMapsTemplateFields] = {
     "stadia_outdoors": {
         "name": "Stadia Maps Outdoors",
         "url_template": "https://tiles.stadiamaps.com/tiles/outdoors/{z}/{x}/{y}{r}.png",
-        "attribution": '&copy; <a href="https://stadiamaps.com/" target="_blank">Stadia Maps</a> &copy; <a href="https://openmaptiles.org/" target="_blank">OpenMapTiles</a> &copy; <a href="https://www.openstreetmap.org/copyright" target="_blank">OpenStreetMap</a>',
+        "attribution": (
+            '&copy; <a href="https://stadiamaps.com/" target="_blank">Stadia Maps</a> &copy; <a '
+            'href="https://openmaptiles.org/" target="_blank">OpenMapTiles</a> &copy; <a '
+            'href="https://www.openstreetmap.org/copyright" target="_blank">OpenStreetMap</a>'
+        ),
         "map_background_color": "#e0e0e0",
         "requires_api_key_frontend": False,
         "requires_api_key_backend": True,

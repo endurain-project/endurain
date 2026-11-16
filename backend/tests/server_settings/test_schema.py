@@ -57,7 +57,9 @@ class TestServerSettingsBase:
             local_login_enabled=True,
             sso_auto_redirect=False,
             tileserver_url="https://tile.openstreetmap.org/{z}/{x}/{y}.png",
-            tileserver_attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+            tileserver_attribution=(
+                '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+            ),
             map_background_color="#dddddd",
             tileserver_regenerate_thumbnails_on_change=False,
             password_length_regular_users=8,
