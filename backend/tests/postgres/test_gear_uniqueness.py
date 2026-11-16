@@ -24,7 +24,7 @@ from tests._helpers.gears import gear_create
 _THREADS = 6
 
 _MIGRATION_PATH = (
-    Path(__file__).resolve().parents[2] / "app/alembic/versions/v0_21_0/1_gear_nickname_unique_per_user.py"
+    Path(__file__).resolve().parents[2] / "app/alembic/versions/v0_21_0/2_constraints_versions_and_settings.py"
 )
 
 
@@ -94,7 +94,7 @@ def test_the_migration_renames_duplicates_before_enforcing_the_index(factory):
             patch.object(migration.op, "execute", side_effect=lambda sql: db.execute(text(sql))),
             patch.object(migration.op, "get_bind", return_value=db.connection()),
         ):
-            migration.upgrade()
+            migration.upgrade_gear_nickname_unique_per_user()
         db.commit()
 
         rows = db.execute(text("SELECT id, user_id, nickname FROM gear ORDER BY id")).all()

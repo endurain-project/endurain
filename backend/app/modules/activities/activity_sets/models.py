@@ -52,7 +52,7 @@ class ActivitySets(Base):
         comment="Workout set type",
     )
     start_time: Mapped[datetime] = mapped_column(
-        # Revision 86 of the v0_21_0 migrations makes the column TIMESTAMP WITH
+        # The v0_21_0 migration that aligns the schema with the models makes the column TIMESTAMP WITH
         # TIME ZONE; without an explicit type SQLAlchemy infers a naive
         # DateTime, which both loses the offset on load and makes Alembic
         # autogenerate keep proposing a downgrade back to naive.

@@ -4,9 +4,7 @@ import importlib.util
 from pathlib import Path
 from unittest.mock import patch
 
-_MIGRATION_PATH = (
-    Path(__file__).resolve().parents[2] / "app/alembic/versions/v0_21_0/67_account_security_generations.py"
-)
+_MIGRATION_PATH = Path(__file__).resolve().parents[2] / "app/alembic/versions/v0_21_0/8_security_generations_and_mfa.py"
 
 
 def _migration_module():
@@ -18,10 +16,6 @@ def _migration_module():
     return module
 
 
-def test_it_chains_onto_the_previous_head() -> None:
-    assert _migration_module().down_revision == "c91ac2dad0f0"
-
-
 def test_upgrade_creates_the_table_keyed_by_a_cascading_user_id() -> None:
     migration = _migration_module()
 
@@ -30,7 +24,7 @@ def test_upgrade_creates_the_table_keyed_by_a_cascading_user_id() -> None:
         patch.object(migration.op, "add_column"),
         patch.object(migration.op, "alter_column"),
     ):
-        migration.upgrade()
+        migration.upgrade_account_security_generations()
 
     assert create_table.call_args.args[0] == "account_security_generations"
     items = create_table.call_args.args[1:]
@@ -52,7 +46,7 @@ def test_upgrade_adds_a_nullable_generation_to_oauth_states() -> None:
         patch.object(migration.op, "add_column") as add_column,
         patch.object(migration.op, "alter_column"),
     ):
-        migration.upgrade()
+        migration.upgrade_account_security_generations()
 
     table, column = add_column.call_args_list[0].args
     assert table == "oauth_states"
@@ -68,7 +62,7 @@ def test_upgrade_adds_ends_other_sessions_defaulting_to_false() -> None:
         patch.object(migration.op, "add_column") as add_column,
         patch.object(migration.op, "alter_column"),
     ):
-        migration.upgrade()
+        migration.upgrade_account_security_generations()
 
     table, column = add_column.call_args_list[1].args
     assert table == "oauth_states"
@@ -85,7 +79,7 @@ def test_upgrade_rewords_the_session_id_comment_to_the_session_that_started_the_
         patch.object(migration.op, "add_column"),
         patch.object(migration.op, "alter_column") as alter_column,
     ):
-        migration.upgrade()
+        migration.upgrade_account_security_generations()
 
     assert alter_column.call_args.args == ("oauth_states", "session_id")
     assert alter_column.call_args.kwargs["comment"] == "Session that started a link or step-up flow"
@@ -99,7 +93,7 @@ def test_downgrade_drops_the_columns_and_the_table() -> None:
         patch.object(migration.op, "drop_column") as drop_column,
         patch.object(migration.op, "alter_column") as alter_column,
     ):
-        migration.downgrade()
+        migration.downgrade_account_security_generations()
 
     assert [call.args for call in drop_column.call_args_list] == [
         ("oauth_states", "ends_other_sessions"),

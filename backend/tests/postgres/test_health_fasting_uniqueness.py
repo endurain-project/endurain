@@ -26,8 +26,9 @@ _THREADS = 6
 _START = datetime(2026, 10, 1, 8, 0, 0, tzinfo=UTC)
 _INDEX = "uq_health_fasting_one_in_progress_per_user"
 
-_REVISION_BEFORE = "c3e9a5d72b18"
-_REVISION = "d8b4f1a7c3e5"
+_MIGRATION_FILE = "2_constraints_versions_and_settings.py"
+_MIGRATION_STEP = "health_fasting_one_in_progress"
+_REVISION_BEFORE = "c5cfe02a11c2"
 
 
 @pytest.fixture
@@ -91,6 +92,7 @@ def test_a_finished_fast_does_not_block_a_new_one(factory):
 
 def test_the_migration_cancels_older_running_fasts_before_enforcing_the_index(upgrade_db):
     alembic_chain.upgrade(upgrade_db, _REVISION_BEFORE)
+    alembic_chain.run_steps_before(upgrade_db, _MIGRATION_FILE, _MIGRATION_STEP)
     with upgrade_db.begin() as connection:
         alembic_chain.seed_users(connection)
         for hour in (6, 8, 10):
@@ -103,7 +105,7 @@ def test_the_migration_cancels_older_running_fasts_before_enforcing_the_index(up
             {"start": _START},
         )
 
-    alembic_chain.upgrade(upgrade_db, _REVISION)
+    alembic_chain.run_step(upgrade_db, _MIGRATION_FILE, _MIGRATION_STEP)
 
     with upgrade_db.connect() as connection:
         rows = connection.execute(

@@ -9,7 +9,7 @@ from alembic.migration import MigrationContext
 from alembic.operations import Operations
 
 _MIGRATION_PATH = (
-    Path(__file__).resolve().parents[2] / "app/alembic/versions/v0_21_0/41_end_in_progress_fasts_with_an_end_time.py"
+    Path(__file__).resolve().parents[2] / "app/alembic/versions/v0_21_0/5_known_devices_and_health_data_fixes.py"
 )
 
 
@@ -24,10 +24,6 @@ def _migration_module():
 
 def _at(hour: int, day: int = 15) -> datetime:
     return datetime(2024, 1, day, hour, tzinfo=UTC)
-
-
-def test_it_chains_onto_the_previous_head() -> None:
-    assert _migration_module().down_revision == "c9a3f7b15e42"
 
 
 def test_upgrade_completes_only_in_progress_fasts_with_an_end_time() -> None:
@@ -105,7 +101,7 @@ def test_upgrade_completes_only_in_progress_fasts_with_an_end_time() -> None:
             ],
         )
         with Operations.context(MigrationContext.configure(connection)):
-            migration.upgrade()
+            migration.upgrade_end_in_progress_fasts_with_an_end_time()
         stored = {
             row.id: (row.status, row.fast_end_time is not None, row.actual_duration_seconds, row.version)
             for row in connection.execute(sa.select(table))
@@ -123,4 +119,4 @@ def test_upgrade_completes_only_in_progress_fasts_with_an_end_time() -> None:
 
 
 def test_downgrade_changes_nothing() -> None:
-    assert _migration_module().downgrade() is None
+    assert _migration_module().downgrade_end_in_progress_fasts_with_an_end_time() is None

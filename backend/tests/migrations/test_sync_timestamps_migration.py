@@ -9,7 +9,9 @@ import sqlalchemy as sa
 import core.database as core_database
 import model_registry
 
-_MIGRATION_PATH = Path(__file__).resolve().parents[2] / "app/alembic/versions/v0_21_0/78_sync_timestamps.py"
+_MIGRATION_PATH = (
+    Path(__file__).resolve().parents[2] / "app/alembic/versions/v0_21_0/9_sync_timestamps_and_access_checks.py"
+)
 
 
 def _migration_module():
@@ -33,7 +35,7 @@ def _upgrade_calls():
         patch.object(migration.op, "create_table") as create_table,
         patch.object(migration.op, "execute") as execute,
     ):
-        migration.upgrade()
+        migration.upgrade_sync_timestamps()
     return add_column, create_index, create_table, execute
 
 
@@ -102,7 +104,7 @@ def test_the_downgrade_drops_what_the_upgrade_added():
         patch.object(migration.op, "drop_index"),
         patch.object(migration.op, "drop_table") as drop_table,
     ):
-        migration.downgrade()
+        migration.downgrade_sync_timestamps()
 
     assert {call.args[0] for call in drop_column.call_args_list} == {table for table, _ in migration._SYNCED}
     assert {call.args[0] for call in drop_table.call_args_list} == {table for table, _, _ in migration._TOMBSTONES}

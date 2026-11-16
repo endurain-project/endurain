@@ -7,7 +7,7 @@ from unittest.mock import patch
 import sqlalchemy as sa
 
 _MIGRATION_PATH = (
-    Path(__file__).resolve().parents[2] / "app/alembic/versions/v0_21_0/82_drop_audit_retention_settings.py"
+    Path(__file__).resolve().parents[2] / "app/alembic/versions/v0_21_0/9_sync_timestamps_and_access_checks.py"
 )
 
 
@@ -19,18 +19,13 @@ def _migration_module():
     return module
 
 
-def test_the_revision_follows_migration_81():
-    migration = _migration_module()
-    assert migration.down_revision == "e81a5c7d0b34"
-
-
 def test_the_upgrade_drops_the_constraint_and_both_columns():
     migration = _migration_module()
     with (
         patch.object(migration.op, "drop_constraint") as drop_constraint,
         patch.object(migration.op, "drop_column") as drop_column,
     ):
-        migration.upgrade()
+        migration.upgrade_drop_audit_retention_settings()
 
     drop_constraint.assert_called_once_with("audit_retention_days_check", "server_settings", type_="check")
     assert [call.args for call in drop_column.call_args_list] == [
@@ -45,7 +40,7 @@ def test_the_downgrade_restores_the_columns_with_their_defaults_and_the_constrai
         patch.object(migration.op, "add_column") as add_column,
         patch.object(migration.op, "create_check_constraint") as create_constraint,
     ):
-        migration.downgrade()
+        migration.downgrade_drop_audit_retention_settings()
 
     columns = {call.args[1].name: call.args[1] for call in add_column.call_args_list}
     assert set(columns) == {"audit_retention_days", "audit_legal_hold"}

@@ -4,12 +4,14 @@ from sqlalchemy import text
 
 from tests._helpers import alembic_chain
 
-_REVISION_BEFORE = "a70d3b8e5f19"
-_REVISION = "a71e4c9d2b60"
+_MIGRATION_FILE = "8_security_generations_and_mfa.py"
+_MIGRATION_STEP = "mfa_factors"
+_REVISION_BEFORE = "c91ac2dad0f0"
 
 
 def test_upgrade_moves_only_the_enabled_secrets_and_downgrade_writes_them_back(upgrade_db):
     alembic_chain.upgrade(upgrade_db, _REVISION_BEFORE)
+    alembic_chain.run_steps_before(upgrade_db, _MIGRATION_FILE, _MIGRATION_STEP)
     with upgrade_db.begin() as connection:
         alembic_chain.seed_users(connection)
         for user_id, enabled, secret in ((1, True, "cipher-1"), (2, False, None), (3, True, "cipher-3")):
@@ -18,7 +20,7 @@ def test_upgrade_moves_only_the_enabled_secrets_and_downgrade_writes_them_back(u
                 {"u": user_id, "e": enabled, "s": secret},
             )
 
-    alembic_chain.upgrade(upgrade_db, _REVISION)
+    alembic_chain.run_step(upgrade_db, _MIGRATION_FILE, _MIGRATION_STEP)
 
     with upgrade_db.connect() as connection:
         moved = connection.execute(text("SELECT user_id, type, credential FROM mfa_factors ORDER BY user_id")).all()
@@ -33,7 +35,7 @@ def test_upgrade_moves_only_the_enabled_secrets_and_downgrade_writes_them_back(u
         )
         connection.execute(text("DELETE FROM mfa_factors WHERE user_id = 1"))
 
-    alembic_chain.downgrade(upgrade_db, _REVISION_BEFORE)
+    alembic_chain.run_step(upgrade_db, _MIGRATION_FILE, _MIGRATION_STEP, "downgrade")
 
     with upgrade_db.connect() as connection:
         restored = connection.execute(

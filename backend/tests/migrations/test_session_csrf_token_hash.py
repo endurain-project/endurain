@@ -1,4 +1,4 @@
-"""Tests for the migration that drops the CSRF token hash of a session (revision 94)."""
+"""Tests for the migration that drops the CSRF token hash of a session."""
 
 import importlib.util
 from pathlib import Path
@@ -8,7 +8,7 @@ from alembic.migration import MigrationContext
 from alembic.operations import Operations
 
 _MIGRATION_PATH = (
-    Path(__file__).resolve().parents[2] / "app/alembic/versions/v0_21_0/94_drop_session_csrf_token_hash.py"
+    Path(__file__).resolve().parents[2] / "app/alembic/versions/v0_21_0/17_session_digest_and_strava_scope.py"
 )
 
 
@@ -32,16 +32,12 @@ def _engine(with_column: bool) -> sa.Engine:
     return engine
 
 
-def test_it_chains_onto_the_refresh_token_digest_revision():
-    assert _migration_module().down_revision == "c93f5a8d1b47"
-
-
 def test_the_upgrade_drops_the_column():
     migration = _migration_module()
     engine = _engine(with_column=True)
 
     with engine.begin() as connection, Operations.context(MigrationContext.configure(connection)):
-        migration.upgrade()
+        migration.upgrade_drop_session_csrf_token_hash()
 
     assert _columns(engine) == ["id"]
 
@@ -51,7 +47,7 @@ def test_the_downgrade_adds_the_nullable_column_back():
     engine = _engine(with_column=False)
 
     with engine.begin() as connection, Operations.context(MigrationContext.configure(connection)):
-        migration.downgrade()
+        migration.downgrade_drop_session_csrf_token_hash()
 
     column = next(c for c in sa.inspect(engine).get_columns("users_sessions") if c["name"] == "csrf_token_hash")
     assert column["nullable"] is True

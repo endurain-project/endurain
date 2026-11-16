@@ -1,7 +1,9 @@
 """Helpers that run the application's real Alembic chain against a disposable PostgreSQL database."""
 
+import importlib.util
+import inspect
 import json
-from collections.abc import Sequence
+from collections.abc import Callable, Sequence
 from datetime import UTC, datetime
 from pathlib import Path
 
@@ -9,6 +11,7 @@ import sqlalchemy as sa
 from alembic.autogenerate import compare_metadata
 from alembic.config import Config
 from alembic.migration import MigrationContext
+from alembic.operations import Operations
 from alembic.script import ScriptDirectory
 from sqlalchemy.dialects import postgresql
 from sqlalchemy.engine import Connection, Engine
@@ -80,6 +83,64 @@ def downgrade(engine: Engine, revision: str) -> None:
     """Run ``alembic downgrade`` to a revision on a plain connection, so Alembic owns the transaction."""
     with engine.connect() as connection:
         command.downgrade(alembic_config(connection), revision)
+
+
+_V0_21_VERSIONS = _APP_DIR / "alembic" / "versions" / "v0_21_0"
+
+
+def revision_module(file_name: str):
+    """Load a v0.21 revision file as a module.
+
+    Args:
+        file_name: The file name in ``versions/v0_21_0``, such as ``5_known_devices_and_health_data_fixes.py``.
+
+    Returns:
+        The module, whose steps are the ``upgrade_<step>`` and ``downgrade_<step>`` functions of a merged revision.
+    """
+    path = _V0_21_VERSIONS / file_name
+    spec = importlib.util.spec_from_file_location(path.stem, path)
+    assert spec is not None and spec.loader is not None
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+def step_names(file_name: str) -> list[str]:
+    """Return the step names of a merged revision in the order its ``upgrade`` runs them."""
+    module = revision_module(file_name)
+    steps = [
+        (inspect.getsourcelines(function)[1], name.removeprefix("upgrade_"))
+        for name, function in inspect.getmembers(module, inspect.isfunction)
+        if name.startswith("upgrade_")
+    ]
+    return [name for _, name in sorted(steps)]
+
+
+def run_step(engine: Engine, file_name: str, step: str, direction: str = "upgrade") -> None:
+    """Run one step of a merged revision in its own transaction, without touching ``alembic_version``.
+
+    Args:
+        engine: The engine of the database to change.
+        file_name: The revision file holding the step.
+        step: The step name, the suffix of its ``upgrade_<step>`` and ``downgrade_<step>`` functions.
+        direction: ``upgrade`` or ``downgrade``.
+    """
+    function: Callable[[], None] = getattr(revision_module(file_name), f"{direction}_{step}")
+    with engine.connect() as connection:
+        context = MigrationContext.configure(connection)
+        with Operations.context(context), context.begin_transaction():
+            function()
+
+
+def run_steps_before(engine: Engine, file_name: str, step: str) -> None:
+    """Run every step of a merged revision that precedes ``step``, to reach the schema ``step`` starts from.
+
+    The database must sit at the revision before ``file_name``. The ``alembic_version`` table is not advanced, so a
+    test that uses this stops after running the steps it names and does not call :func:`upgrade` afterwards.
+    """
+    names = step_names(file_name)
+    for name in names[: names.index(step)]:
+        run_step(engine, file_name, name)
 
 
 def bootstrap_substrate(engine: Engine) -> None:
@@ -778,11 +839,11 @@ def _seed_v0_21_idp_notifications(connection: Connection) -> None:
 
 
 def _reference_id(index: int) -> str:
-    """Return a fixed UUID for a row seeded on a database at revision 90."""
+    """Return a fixed UUID for a row seeded on a database at revision 14."""
     return f"00000000-0000-4000-8000-{index:012d}"
 
 
-#: The ids of the password-reset and sign-up tokens and of the sessions seeded at revision 90, by user.
+#: The ids of the password-reset and sign-up tokens and of the sessions seeded at revision 14, by user.
 SEED_RESET_TOKEN_ID = _reference_id(1800)
 SEED_SIGN_UP_TOKEN_ID = _reference_id(1801)
 RESET_TOKEN_IDS = {2: _reference_id(1812), 3: _reference_id(1813)}
@@ -1256,7 +1317,7 @@ def _seed_users_references_tokens_and_sessions(connection: Connection) -> None:
     )
 
 
-#: The notifications seeded at revision 90, as (index, owner, type, options): the ones that name a user in their
+#: The notifications seeded at revision 14, as (index, owner, type, options): the ones that name a user in their
 #: options (a follower notification), a dangling user and options that carry no user id.
 USER_NOTIFICATIONS: tuple[tuple[int, int, int, dict[str, object] | None], ...] = (
     (1, 1, 11, {"user_id": 2, "username": "regular"}),
@@ -1268,14 +1329,14 @@ USER_NOTIFICATIONS: tuple[tuple[int, int, int, dict[str, object] | None], ...] =
 )
 
 
-#: The sessions seeded by ``seed_text_ids`` on a database at revision 91: (session id, token family id).
+#: The sessions seeded by ``seed_text_ids`` on a database at revision 15: (session id, token family id).
 TEXT_ID_SESSIONS = ((_reference_id(1900), _reference_id(1910)), (_reference_id(1901), _reference_id(1911)))
 
 
 def seed_text_ids(connection: Connection) -> None:
-    """Insert the rows that hold the UUID text of the revision 92 columns, on a database at revision 91.
+    """Insert the rows that hold the UUID text of the revision 16 columns, on a database at revision 15.
 
-    Revision 91 emptied the sessions, the rotated refresh tokens, the OAuth states and the identity provider session
+    Revision 15 emptied the sessions, the rotated refresh tokens, the OAuth states and the identity provider session
     tokens. This fills them again: two sessions with their token families, rotated tokens in both families, OAuth
     states that name a session (a link and a step-up flow) and one that names none, and session tokens naming the
     sessions. The API keys, ingestion jobs and password-reset and sign-up tokens are seeded by the earlier seeders.
@@ -1374,7 +1435,7 @@ def _seed_users_references_notifications(connection: Connection) -> None:
 
 
 def seed_users_references(connection: Connection) -> None:
-    """Give every column that references ``users`` rows naming users 1, 2 and 3, on a database at revision 90.
+    """Give every column that references ``users`` rows naming users 1, 2 and 3, on a database at revision 14.
 
     Adds to what ``seed_v0_20`` and ``seed_v0_21`` seeded: a pending email change and a password reset token, API
     keys, tombstones, the rows of the two ``user_id`` primary-key tables, an active bulk import, an in-progress

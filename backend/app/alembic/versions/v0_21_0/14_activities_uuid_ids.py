@@ -16,7 +16,7 @@ the shape ``model_dump(mode="json")`` writes: the ``activity_id`` of ``activity.
 ``activity.deleted`` in the event outbox, the processing jobs (every status, dead letters included) and the event log;
 the ``activity_id`` of the event metadata; the ``activity_id`` of the notification options; and the elements of
 ``activity_ingestion_jobs.activity_ids``. A null or a string is kept. The ``SCHEMA_VERSION`` of the payload classes
-stays: this revision is the same one-time exception as revisions 85 and 88 describe for every conversion revision.
+stays: this revision is the same one-time exception as revisions 10 and 12 describe for every conversion revision.
 The ``user_id`` fields stay integers until the users revision. An id that names no activity (an activity deleted
 before) becomes a fresh random UUID: still a valid id, matching nothing.
 
@@ -145,5 +145,5 @@ def downgrade() -> None:
         NotImplementedError: Always.
     """
     raise NotImplementedError(
-        "Revision 90 cannot be reversed: restore the database from the backup taken before the upgrade."
+        "Revision 14 cannot be reversed: restore the database from the backup taken before the upgrade."
     )

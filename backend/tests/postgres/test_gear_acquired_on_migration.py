@@ -11,7 +11,9 @@ from sqlalchemy import text
 from tests._helpers.auth import MOCK_USER_ID
 from tests._helpers.db import ensure_user
 
-_MIGRATION_PATH = Path(__file__).resolve().parents[2] / "app/alembic/versions/v0_21_0/43_gear_acquired_on.py"
+_MIGRATION_PATH = (
+    Path(__file__).resolve().parents[2] / "app/alembic/versions/v0_21_0/6_gear_health_and_idp_session_schema.py"
+)
 
 
 def _migration():
@@ -23,7 +25,7 @@ def _migration():
 
 def _run(db, migration, direction):
     with patch.object(migration.op, "execute", side_effect=lambda sql: db.execute(text(sql))):
-        getattr(migration, direction)()
+        getattr(migration, f"{direction}_gear_acquired_on")()
     db.commit()
 
 

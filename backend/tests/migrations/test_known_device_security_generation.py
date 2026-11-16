@@ -4,9 +4,7 @@ import importlib.util
 from pathlib import Path
 from unittest.mock import patch
 
-_MIGRATION_PATH = (
-    Path(__file__).resolve().parents[2] / "app/alembic/versions/v0_21_0/73_known_device_security_generation.py"
-)
+_MIGRATION_PATH = Path(__file__).resolve().parents[2] / "app/alembic/versions/v0_21_0/8_security_generations_and_mfa.py"
 
 
 def _migration_module():
@@ -17,10 +15,6 @@ def _migration_module():
     return module
 
 
-def test_it_chains_onto_the_previous_head() -> None:
-    assert _migration_module().down_revision == "b72f5d0a3c81"
-
-
 def test_upgrade_backfills_each_device_with_its_users_current_generation() -> None:
     migration = _migration_module()
 
@@ -29,7 +23,7 @@ def test_upgrade_backfills_each_device_with_its_users_current_generation() -> No
         patch.object(migration.op, "execute") as execute,
         patch.object(migration.op, "alter_column"),
     ):
-        migration.upgrade()
+        migration.upgrade_known_device_security_generation()
 
     added = {call.args[1].name for call in add_column.call_args_list}
     assert added == {"security_generation", "browser", "operating_system", "device_type"}

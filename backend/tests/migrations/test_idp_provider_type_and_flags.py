@@ -9,7 +9,7 @@ import pytest
 import sqlalchemy as sa
 
 _MIGRATION_PATH = (
-    Path(__file__).resolve().parents[2] / "app/alembic/versions/v0_21_0/57_idp_provider_type_link_and_sync_flags.py"
+    Path(__file__).resolve().parents[2] / "app/alembic/versions/v0_21_0/7_credentials_sessions_and_cadence.py"
 )
 
 
@@ -55,11 +55,7 @@ def _upgrade(connection):
             migration.op, "execute", side_effect=lambda statement: connection.execute(sa.text(str(statement)))
         ),
     ):
-        migration.upgrade()
-
-
-def test_it_chains_onto_the_id_token_revision():
-    assert _migration_module().down_revision == "d4b8f2a61c93"
+        migration.upgrade_idp_provider_type_link_and_sync_flags()
 
 
 def test_the_upgrade_adds_both_flags_as_non_null_columns_that_default_to_false():
@@ -69,7 +65,7 @@ def test_the_upgrade_adds_both_flags_as_non_null_columns_that_default_to_false()
         patch.object(migration.op, "alter_column"),
         patch.object(migration.op, "execute"),
     ):
-        migration.upgrade()
+        migration.upgrade_idp_provider_type_link_and_sync_flags()
 
     columns = {call.args[1].name: call.args[1] for call in add_column.call_args_list}
     assert set(columns) == {"link_by_email", "sync_email"}
@@ -106,7 +102,7 @@ def test_the_downgrade_drops_both_flags_and_leaves_the_provider_types():
         patch.object(migration.op, "alter_column"),
         patch.object(migration.op, "execute") as execute,
     ):
-        migration.downgrade()
+        migration.downgrade_idp_provider_type_link_and_sync_flags()
 
     assert [call.args for call in drop_column.call_args_list] == [
         ("identity_providers", "sync_email"),

@@ -6,7 +6,9 @@ from unittest.mock import patch
 
 import sqlalchemy as sa
 
-_MIGRATION_PATH = Path(__file__).resolve().parents[2] / "app/alembic/versions/v0_21_0/48_idp_session_tokens.py"
+_MIGRATION_PATH = (
+    Path(__file__).resolve().parents[2] / "app/alembic/versions/v0_21_0/6_gear_health_and_idp_session_schema.py"
+)
 
 
 def _migration_module():
@@ -18,13 +20,6 @@ def _migration_module():
     return module
 
 
-def test_it_chains_onto_the_strava_revoked_at_revision() -> None:
-    migration = _migration_module()
-
-    assert migration.revision == "c9f2d6a3e851"
-    assert migration.down_revision == "b4c8e1f7a362"
-
-
 def test_upgrade_creates_the_session_table_without_a_session_foreign_key() -> None:
     migration = _migration_module()
 
@@ -33,7 +28,7 @@ def test_upgrade_creates_the_session_table_without_a_session_foreign_key() -> No
         patch.object(migration.op, "create_index"),
         patch.object(migration.op, "drop_column"),
     ):
-        migration.upgrade()
+        migration.upgrade_idp_session_tokens()
 
     assert create_table.call_args.args[0] == "idp_session_tokens"
     items = create_table.call_args.args[1:]
@@ -66,7 +61,7 @@ def test_upgrade_drops_the_three_link_token_columns() -> None:
         patch.object(migration.op, "create_index"),
         patch.object(migration.op, "drop_column") as drop_column,
     ):
-        migration.upgrade()
+        migration.upgrade_idp_session_tokens()
 
     assert sorted(call.args for call in drop_column.call_args_list) == sorted(
         ("users_identity_providers", name)
@@ -82,7 +77,7 @@ def test_downgrade_restores_the_empty_columns_and_drops_the_table() -> None:
         patch.object(migration.op, "drop_index"),
         patch.object(migration.op, "drop_table") as drop_table,
     ):
-        migration.downgrade()
+        migration.downgrade_idp_session_tokens()
 
     restored = {call.args[1].name: call.args[1] for call in add_column.call_args_list}
     assert set(restored) == {"idp_refresh_token", "idp_access_token_expires_at", "idp_refresh_token_updated_at"}

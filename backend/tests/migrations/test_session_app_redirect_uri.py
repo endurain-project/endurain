@@ -6,7 +6,7 @@ from unittest.mock import patch
 
 import sqlalchemy as sa
 
-_MIGRATION_PATH = Path(__file__).resolve().parents[2] / "app/alembic/versions/v0_21_0/75_session_app_redirect_uri.py"
+_MIGRATION_PATH = Path(__file__).resolve().parents[2] / "app/alembic/versions/v0_21_0/8_security_generations_and_mfa.py"
 
 
 def _migration_module():
@@ -17,20 +17,14 @@ def _migration_module():
     return module
 
 
-def test_it_chains_onto_the_rotated_tokens_replacement_index_revision():
-    migration = _migration_module()
-
-    assert migration.down_revision == "d74b8f2c6a13"
-
-
 def test_the_upgrade_adds_a_nullable_column_and_the_downgrade_drops_it():
     migration = _migration_module()
     with (
         patch.object(migration.op, "add_column") as add_column,
         patch.object(migration.op, "drop_column") as drop_column,
     ):
-        migration.upgrade()
-        migration.downgrade()
+        migration.upgrade_session_app_redirect_uri()
+        migration.downgrade_session_app_redirect_uri()
 
     table, column = add_column.call_args.args
     assert table == "users_sessions"

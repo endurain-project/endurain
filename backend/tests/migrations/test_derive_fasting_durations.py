@@ -8,7 +8,9 @@ import sqlalchemy as sa
 from alembic.migration import MigrationContext
 from alembic.operations import Operations
 
-_MIGRATION_PATH = Path(__file__).resolve().parents[2] / "app/alembic/versions/v0_21_0/40_derive_fasting_durations.py"
+_MIGRATION_PATH = (
+    Path(__file__).resolve().parents[2] / "app/alembic/versions/v0_21_0/5_known_devices_and_health_data_fixes.py"
+)
 
 
 def _migration_module():
@@ -22,10 +24,6 @@ def _migration_module():
 
 def _at(hour: int, day: int = 15) -> datetime:
     return datetime(2024, 1, day, hour, tzinfo=UTC)
-
-
-def test_it_chains_onto_the_previous_head() -> None:
-    assert _migration_module().down_revision == "b6e2d4a8c031"
 
 
 def test_upgrade_recomputes_only_the_durations_that_differ() -> None:
@@ -89,7 +87,7 @@ def test_upgrade_recomputes_only_the_durations_that_differ() -> None:
             ],
         )
         with Operations.context(MigrationContext.configure(connection)):
-            migration.upgrade()
+            migration.upgrade_derive_fasting_durations()
         stored = {
             row.id: (row.actual_duration_seconds, row.version)
             for row in connection.execute(sa.select(table.c.id, table.c.actual_duration_seconds, table.c.version))
@@ -100,4 +98,4 @@ def test_upgrade_recomputes_only_the_durations_that_differ() -> None:
 
 
 def test_downgrade_changes_nothing() -> None:
-    assert _migration_module().downgrade() is None
+    assert _migration_module().downgrade_derive_fasting_durations() is None

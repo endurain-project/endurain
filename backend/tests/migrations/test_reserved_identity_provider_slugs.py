@@ -8,9 +8,7 @@ import sqlalchemy as sa
 from alembic.migration import MigrationContext
 from alembic.operations import Operations
 
-_MIGRATION_PATH = (
-    Path(__file__).resolve().parents[2] / "app/alembic/versions/v0_21_0/80_reserved_identity_provider_slugs.py"
-)
+_MIGRATION_PATH = Path(__file__).resolve().parents[2] / "app/alembic/versions/v0_21_0/1_upgrade_gates.py"
 
 
 def _migration_module():
@@ -28,12 +26,7 @@ def _upgrade(slugs: list[str]) -> None:
         for slug in slugs:
             conn.execute(sa.text("INSERT INTO identity_providers (slug) VALUES (:slug)"), {"slug": slug})
         with Operations.context(MigrationContext.configure(conn)):
-            _migration_module().upgrade()
-
-
-def test_the_revision_follows_migration_79():
-    migration = _migration_module()
-    assert (migration.revision, migration.down_revision) == ("d80f4b6c2e93", "c79e3a5d1b82")
+            _migration_module().upgrade_reserved_identity_provider_slugs()
 
 
 def test_the_upgrade_passes_when_no_provider_uses_a_reserved_slug():

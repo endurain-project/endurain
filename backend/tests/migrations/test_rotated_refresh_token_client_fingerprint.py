@@ -9,7 +9,7 @@ import sqlalchemy as sa
 import modules.auth.rotated_refresh_tokens.models as rotated_token_models
 
 _MIGRATION_PATH = (
-    Path(__file__).resolve().parents[2] / "app/alembic/versions/v0_21_0/62_rotated_refresh_token_client_fingerprint.py"
+    Path(__file__).resolve().parents[2] / "app/alembic/versions/v0_21_0/7_credentials_sessions_and_cadence.py"
 )
 
 
@@ -21,13 +21,6 @@ def _migration_module():
     return module
 
 
-def test_it_has_its_revision_and_chains_onto_the_issuer_unique_revision():
-    migration = _migration_module()
-
-    assert migration.revision == "b62d4f8a1c75"
-    assert migration.down_revision == "e61b7c3d9a40"
-
-
 def test_the_upgrade_deletes_the_rotated_records_then_adds_the_non_null_fingerprint():
     migration = _migration_module()
     calls = []
@@ -35,7 +28,7 @@ def test_the_upgrade_deletes_the_rotated_records_then_adds_the_non_null_fingerpr
         patch.object(migration.op, "execute", side_effect=lambda statement: calls.append(("execute", str(statement)))),
         patch.object(migration.op, "add_column", side_effect=lambda table, column: calls.append((table, column))),
     ):
-        migration.upgrade()
+        migration.upgrade_rotated_refresh_token_client_fingerprint()
 
     (_, delete), (table, column) = calls
     assert delete == "DELETE FROM rotated_refresh_tokens"
@@ -54,7 +47,7 @@ def test_the_upgrade_deletes_the_existing_rotated_records():
             patch.object(migration.op, "execute", side_effect=lambda statement: conn.execute(sa.text(str(statement)))),
             patch.object(migration.op, "add_column"),
         ):
-            migration.upgrade()
+            migration.upgrade_rotated_refresh_token_client_fingerprint()
 
         assert conn.execute(sa.text("SELECT count(*) FROM rotated_refresh_tokens")).scalar_one() == 0
     engine.dispose()
@@ -63,7 +56,7 @@ def test_the_upgrade_deletes_the_existing_rotated_records():
 def test_the_column_matches_the_model():
     migration = _migration_module()
     with patch.object(migration.op, "execute"), patch.object(migration.op, "add_column") as add_column:
-        migration.upgrade()
+        migration.upgrade_rotated_refresh_token_client_fingerprint()
     column = add_column.call_args.args[1]
     model_column = rotated_token_models.RotatedRefreshToken.__table__.c.client_fingerprint
 
@@ -77,6 +70,6 @@ def test_the_column_matches_the_model():
 def test_the_downgrade_drops_the_column():
     migration = _migration_module()
     with patch.object(migration.op, "drop_column") as drop_column:
-        migration.downgrade()
+        migration.downgrade_rotated_refresh_token_client_fingerprint()
 
     drop_column.assert_called_once_with("rotated_refresh_tokens", "client_fingerprint")

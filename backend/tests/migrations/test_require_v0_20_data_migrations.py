@@ -1,4 +1,4 @@
-"""Tests for the migration that refuses the upgrade while a v0.20 data migration is pending (revision 0)."""
+"""Tests for the gate that refuses the upgrade while a v0.20 data migration is pending."""
 
 import importlib.util
 from pathlib import Path
@@ -21,7 +21,7 @@ def _module(filename: str):
 
 
 def _migration_module():
-    return _module("0_require_v0_20_data_migrations.py")
+    return _module("1_upgrade_gates.py")
 
 
 def _upgrade(users: int, rows: dict[int, bool]) -> None:
@@ -37,13 +37,7 @@ def _upgrade(users: int, rows: dict[int, bool]) -> None:
                 {"id": migration_id, "executed": executed},
             )
         with Operations.context(MigrationContext.configure(conn)):
-            _migration_module().upgrade()
-
-
-def test_the_revision_follows_the_v0_20_head_and_revision_1_follows_it():
-    migration = _migration_module()
-    assert (migration.revision, migration.down_revision) == ("c5cfe02a11c2", "d54bdd779392")
-    assert _module("1_gear_nickname_unique_per_user.py").down_revision == migration.revision
+            _migration_module().upgrade_require_v0_20_data_migrations()
 
 
 def test_a_fresh_install_without_users_passes_with_every_migration_pending():

@@ -12,7 +12,7 @@ The ids stored in event payloads and notification options are rewritten as UUID 
 ``model_dump(mode="json")`` writes: the ``idp_id`` of ``auth.idp_linked`` and ``auth.account_security_changed``
 in the event outbox, the processing jobs (every status, dead letters included) and the event log, and the ``idp_id``
 of the notification options. A null or a string is kept. The ``SCHEMA_VERSION`` of the payload classes stays: this
-revision is the same one-time exception as revision 85 describes for every conversion revision. An id that names no
+revision is the same one-time exception as revision 10 describes for every conversion revision. An id that names no
 provider (a provider deleted before) becomes a fresh random UUID: still a valid id, matching nothing.
 
 The audit details that carry an ``idp_id`` (``AUDIT_DETAIL_ID_CHANGES``) change type without being rewritten: audit
@@ -130,5 +130,5 @@ def downgrade() -> None:
         NotImplementedError: Always.
     """
     raise NotImplementedError(
-        "Revision 88 cannot be reversed: restore the database from the backup taken before the upgrade."
+        "Revision 12 cannot be reversed: restore the database from the backup taken before the upgrade."
     )

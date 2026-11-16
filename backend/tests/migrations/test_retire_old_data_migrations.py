@@ -1,4 +1,4 @@
-"""Tests for the migration that retires the v0.20 data migrations (revision 85)."""
+"""Tests for the migration that retires the v0.20 data migrations."""
 
 import importlib.util
 from pathlib import Path
@@ -6,7 +6,9 @@ from unittest.mock import patch
 
 import pytest
 
-_MIGRATION_PATH = Path(__file__).resolve().parents[2] / "app/alembic/versions/v0_21_0/85_retire_old_data_migrations.py"
+_MIGRATION_PATH = (
+    Path(__file__).resolve().parents[2] / "app/alembic/versions/v0_21_0/10_retire_data_migrations_and_align_schema.py"
+)
 
 
 def _migration_module():
@@ -17,15 +19,10 @@ def _migration_module():
     return module
 
 
-def test_the_revision_follows_revision_84():
-    migration = _migration_module()
-    assert (migration.revision, migration.down_revision) == ("b41c0afdc9d9", "b84e9f3a6c25")
-
-
 def test_the_upgrade_deletes_the_nine_rows_then_drops_the_cadence_table():
     migration = _migration_module()
     with patch.object(migration, "op") as op:
-        migration.upgrade()
+        migration.upgrade_retire_old_data_migrations()
 
     statements = [str(call.args[0]) for call in op.execute.call_args_list]
     assert statements == [
@@ -36,4 +33,4 @@ def test_the_upgrade_deletes_the_nine_rows_then_drops_the_cadence_table():
 
 def test_the_downgrade_is_refused():
     with pytest.raises(NotImplementedError, match="backup"):
-        _migration_module().downgrade()
+        _migration_module().downgrade_retire_old_data_migrations()

@@ -5,7 +5,7 @@ from pathlib import Path
 from unittest.mock import patch
 
 _MIGRATION_PATH = (
-    Path(__file__).resolve().parents[2] / "app/alembic/versions/v0_21_0/55_credentials_password_change_required.py"
+    Path(__file__).resolve().parents[2] / "app/alembic/versions/v0_21_0/7_credentials_sessions_and_cadence.py"
 )
 
 
@@ -20,7 +20,7 @@ def _migration_module():
 def test_the_upgrade_adds_a_non_null_flag_that_is_false_for_existing_credentials():
     migration = _migration_module()
     with patch.object(migration.op, "add_column") as add_column:
-        migration.upgrade()
+        migration.upgrade_credentials_password_change_required()
 
     table, column = add_column.call_args.args
     assert (table, column.name, column.nullable) == ("users_local_credentials", "password_change_required", False)
@@ -30,6 +30,6 @@ def test_the_upgrade_adds_a_non_null_flag_that_is_false_for_existing_credentials
 def test_the_downgrade_drops_the_flag():
     migration = _migration_module()
     with patch.object(migration.op, "drop_column") as drop_column:
-        migration.downgrade()
+        migration.downgrade_credentials_password_change_required()
 
     drop_column.assert_called_once_with("users_local_credentials", "password_change_required")

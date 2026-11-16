@@ -25,7 +25,6 @@ from tests._helpers import alembic_chain
 
 _REVISION_0 = "c5cfe02a11c2"
 _REVISION_84 = "b84e9f3a6c25"
-_REVISION_85 = "b41c0afdc9d9"
 _REVISION_86 = "3e7a91d4c0b8"
 _REVISION_87 = "e05703e64861"
 _REVISION_88 = "dc5f0450aaf0"
@@ -35,8 +34,8 @@ _REVISION_91 = "353455bea2a5"
 _REVISION_92 = "1087a5442836"
 _RETIRED_DATA_MIGRATIONS = {1, 2, 3, 4, 5, 6, 8, 9, 10}
 _UNPREFIXED_SUBSTRATE_TABLES = ("event_log", "event_outbox", "processing_jobs")
-#: The tables the chain empties by design: their record ids name rows whose ids change (revisions 87, 89 and 90), and
-#: the sessions and everything that proves one (revision 91, decision C).
+#: The tables the chain empties by design: their record ids name rows whose ids change (revisions 11, 13 and 14), and
+#: the sessions and everything that proves one (revision 15, decision C).
 _TABLES_EMPTIED_BY_THE_CHAIN = {
     "health_record_deletions",
     "gear_deletions",
@@ -47,9 +46,9 @@ _TABLES_EMPTIED_BY_THE_CHAIN = {
     "users_sessions",
     "oauth_states",
 }
-#: The one table revision 87 empties.
+#: The one table revision 11 empties.
 _TABLE_EMPTIED_BY_REVISION_87 = "health_record_deletions"
-#: The tombstone tables revision 89 empties.
+#: The tombstone tables revision 13 empties.
 _TABLES_EMPTIED_BY_REVISION_89 = ("gear_deletions", "gear_component_deletions")
 _REVISION_87_TABLES = (
     "health_fasting",
@@ -173,7 +172,7 @@ def _assert_constraints_kept_by_the_conversion(engine, columns, before) -> None:
 
 
 def _columns_of_type(engine, data_type: str, names: tuple[str, ...]) -> list[tuple[str, str]]:
-    """Return the (table, column) pairs of the 25 revision 87 tables whose name is in ``names``, with that type."""
+    """Return the (table, column) pairs of the 25 revision 11 tables whose name is in ``names``, with that type."""
     with engine.connect() as connection:
         return [
             (row.table_name, row.column_name)
@@ -266,27 +265,40 @@ def _difference_kinds(engine) -> Counter:
     )
 
 
-def test_revision_86_is_reversible(upgrade_db):
-    # The models are at the head, so revision 87's changes show as differences at 86 as well.
-    alembic_chain.upgrade(upgrade_db, _REVISION_86)
-    at_86 = _difference_kinds(upgrade_db)
+_RETIRE_AND_ALIGN_FILE = "10_retire_data_migrations_and_align_schema.py"
 
-    alembic_chain.downgrade(upgrade_db, _REVISION_85)
-    assert _difference_kinds(upgrade_db) - at_86 == Counter({"modify_comment": 3, "modify_type": 1})
-    assert not at_86 - _difference_kinds(upgrade_db)
+
+def test_align_schema_with_models_is_reversible(upgrade_db):
+    # The models are at the head, so later revisions' changes show as differences here as well.
+    alembic_chain.upgrade(upgrade_db, _REVISION_86)
+    aligned = _difference_kinds(upgrade_db)
+
+    alembic_chain.run_step(upgrade_db, _RETIRE_AND_ALIGN_FILE, "align_schema_with_models", "downgrade")
+    assert _difference_kinds(upgrade_db) - aligned == Counter({"modify_comment": 3, "modify_type": 1})
+    assert not aligned - _difference_kinds(upgrade_db)
+
+    alembic_chain.run_step(upgrade_db, _RETIRE_AND_ALIGN_FILE, "align_schema_with_models")
+    assert _difference_kinds(upgrade_db) == aligned
 
     alembic_chain.upgrade(upgrade_db, "head")
     assert alembic_chain.schema_differences(upgrade_db) == []
 
 
-def test_revision_85_is_irreversible(upgrade_db):
+def test_retire_old_data_migrations_is_irreversible(upgrade_db):
+    alembic_chain.upgrade(upgrade_db, _REVISION_84)
+    alembic_chain.run_step(upgrade_db, _RETIRE_AND_ALIGN_FILE, "retire_old_data_migrations")
+
+    with pytest.raises(NotImplementedError, match="restore the database from the backup"):
+        alembic_chain.run_step(upgrade_db, _RETIRE_AND_ALIGN_FILE, "retire_old_data_migrations", "downgrade")
+
+
+def test_the_retire_and_align_revision_cannot_be_downgraded_past_the_retirement(upgrade_db):
     alembic_chain.upgrade(upgrade_db, _REVISION_86)
-    alembic_chain.downgrade(upgrade_db, _REVISION_85)
 
     with pytest.raises(NotImplementedError):
         alembic_chain.downgrade(upgrade_db, _REVISION_84)
 
-    assert _scalar(upgrade_db, "SELECT version_num FROM alembic_version") == _REVISION_85
+    assert _scalar(upgrade_db, "SELECT version_num FROM alembic_version") == _REVISION_86
 
 
 def test_revision_87_is_irreversible(upgrade_db):
@@ -542,7 +554,7 @@ def test_revision_88_converts_identity_providers_and_their_references(upgrade_db
         connection.execute(sa.text("DELETE FROM identity_providers WHERE slug = 'second-provider'"))
     admin_id = _scalar(upgrade_db, "SELECT id FROM users WHERE username = 'admin'")
     assert _provider_pairs(upgrade_db, "users_identity_providers", "user_id") == [(admin_id, "seed-provider")]
-    # Revision 91 empties the session tables, so nothing of them is left to name the provider.
+    # Revision 15 empties the session tables, so nothing of them is left to name the provider.
     assert _provider_pairs(upgrade_db, "idp_session_tokens", "session_id") == []
     assert _provider_pairs(upgrade_db, "oauth_states", "id") == []
 
@@ -861,7 +873,7 @@ def _assert_activity_events_rewritten(engine, prefix: str, new_ids: dict[int, st
             old_payload = alembic_chain.ACTIVITY_EVENT_CASES[int(row_id.split("-")[2])][1]
             assert metadata == {**alembic_chain.ACTIVITY_EVENT_METADATA, "activity_id": new_ids[1]}
             if event_type == "auth.idp_linked":
-                # Revision 88 rewrites its idp_id when the row exists then; revision 90 leaves the activity_id alone.
+                # Revision 12 rewrites its idp_id when the row exists then; revision 14 leaves the activity_id alone.
                 assert {key: value for key, value in payload.items() if key != "idp_id"} == {
                     key: value for key, value in old_payload.items() if key != "idp_id"
                 }
@@ -1109,8 +1121,8 @@ def test_revision_90_is_irreversible(upgrade_db):
     assert _scalar(upgrade_db, "SELECT version_num FROM alembic_version") == _REVISION_90
 
 
-#: Every column that references ``users.id`` at revision 90, as (table, column, the column that names a row across the
-#: conversion). A row is named by its own id, which revision 91 leaves alone, except where the table has none.
+#: Every column that references ``users.id`` at revision 14, as (table, column, the column that names a row across the
+#: conversion). A row is named by its own id, which revision 15 leaves alone, except where the table has none.
 _USER_REFERENCES = (
     ("account_security_generations", "user_id", "generation"),
     ("activities", "user_id", "id"),
@@ -1151,7 +1163,7 @@ _USER_REFERENCES = (
     ("users_privacy_settings", "user_id", "id"),
     ("users_sessions", "user_id", "id"),
 )
-#: The tables revision 91 empties: sessions, rotated tokens, OAuth states and identity provider session tokens.
+#: The tables revision 15 empties: sessions, rotated tokens, OAuth states and identity provider session tokens.
 _USER_SESSION_TABLES = ("rotated_refresh_tokens", "idp_session_tokens", "users_sessions", "oauth_states")
 #: The tables whose ``(created_at, id)`` order the conversion must keep.
 _USER_ORDERED_TABLES = ("followers", "follower_blocks", "users_goals", "activity_media")
@@ -1602,7 +1614,7 @@ def test_revision_91_is_irreversible(upgrade_db):
     assert _scalar(upgrade_db, "SELECT version_num FROM alembic_version") == _REVISION_91
 
 
-#: The converted columns of revision 92 as (table, column, length, nullable).
+#: The converted columns of revision 16 as (table, column, length, nullable).
 _TEXT_ID_COLUMNS = (
     ("users_sessions", "id", 36, False),
     ("users_sessions", "token_family_id", 36, False),

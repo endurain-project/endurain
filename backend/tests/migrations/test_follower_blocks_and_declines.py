@@ -5,7 +5,7 @@ from pathlib import Path
 from unittest.mock import patch
 
 _MIGRATION_PATH = (
-    Path(__file__).resolve().parents[2] / "app/alembic/versions/v0_21_0/53_follower_blocks_and_declines.py"
+    Path(__file__).resolve().parents[2] / "app/alembic/versions/v0_21_0/6_gear_health_and_idp_session_schema.py"
 )
 
 
@@ -18,15 +18,11 @@ def _migration_module():
     return module
 
 
-def test_it_chains_onto_the_previous_head() -> None:
-    assert _migration_module().down_revision == "c3d9a5e1f478"
-
-
 def test_upgrade_creates_both_tables_with_their_unique_pairs() -> None:
     migration = _migration_module()
 
     with patch.object(migration.op, "create_table") as create_table, patch.object(migration.op, "create_index"):
-        migration.upgrade()
+        migration.upgrade_follower_blocks_and_declines()
 
     created = {call.args[0]: call.args[1:] for call in create_table.call_args_list}
     assert set(created) == {"follower_blocks", "follow_request_declines"}
@@ -44,6 +40,6 @@ def test_downgrade_drops_both_tables() -> None:
     migration = _migration_module()
 
     with patch.object(migration.op, "drop_index"), patch.object(migration.op, "drop_table") as drop_table:
-        migration.downgrade()
+        migration.downgrade_follower_blocks_and_declines()
 
     assert {call.args[0] for call in drop_table.call_args_list} == {"follower_blocks", "follow_request_declines"}

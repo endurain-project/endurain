@@ -6,7 +6,9 @@ from unittest.mock import patch
 
 import sqlalchemy as sa
 
-_MIGRATION_PATH = Path(__file__).resolve().parents[2] / "app/alembic/versions/v0_21_0/59_users_created_at.py"
+_MIGRATION_PATH = (
+    Path(__file__).resolve().parents[2] / "app/alembic/versions/v0_21_0/7_credentials_sessions_and_cadence.py"
+)
 
 
 def _migration_module():
@@ -20,7 +22,7 @@ def _migration_module():
 def test_the_upgrade_adds_a_non_null_timezone_aware_column_that_defaults_to_now():
     migration = _migration_module()
     with patch.object(migration.op, "add_column") as add_column:
-        migration.upgrade()
+        migration.upgrade_users_created_at()
 
     table, column = add_column.call_args.args
     assert (table, column.name, column.nullable) == ("users", "created_at", False)
@@ -32,6 +34,6 @@ def test_the_upgrade_adds_a_non_null_timezone_aware_column_that_defaults_to_now(
 def test_the_downgrade_drops_the_column():
     migration = _migration_module()
     with patch.object(migration.op, "drop_column") as drop_column:
-        migration.downgrade()
+        migration.downgrade_users_created_at()
 
     drop_column.assert_called_once_with("users", "created_at")

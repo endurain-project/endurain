@@ -9,7 +9,7 @@ from alembic.migration import MigrationContext
 from alembic.operations import Operations
 
 _MIGRATION_PATH = (
-    Path(__file__).resolve().parents[2] / "app/alembic/versions/v0_21_0/61_identity_provider_issuer_unique.py"
+    Path(__file__).resolve().parents[2] / "app/alembic/versions/v0_21_0/7_credentials_sessions_and_cadence.py"
 )
 _INDEX = "uq_identity_providers_issuer_url_normalized"
 
@@ -48,20 +48,14 @@ def _index_names(engine: sa.Engine) -> list[str]:
         )
 
 
-def test_it_chains_onto_the_session_id_revision():
-    migration = _migration_module()
-
-    assert (migration.revision, migration.down_revision) == ("e61b7c3d9a40", "c09e5b7d2f14")
-
-
 def test_the_upgrade_creates_the_unique_index_and_the_downgrade_drops_it():
     migration = _migration_module()
     engine = _engine_with([("a", "https://a.example.com"), ("b", None), ("c", None)])
     with engine.begin() as connection, Operations.context(MigrationContext.configure(connection)):
-        migration.upgrade()
+        migration.upgrade_identity_provider_issuer_unique()
     assert _index_names(engine) == [_INDEX]
     with engine.begin() as connection, Operations.context(MigrationContext.configure(connection)):
-        migration.downgrade()
+        migration.downgrade_identity_provider_issuer_unique()
     assert _index_names(engine) == []
 
 
@@ -69,7 +63,7 @@ def test_the_index_refuses_an_issuer_that_differs_only_by_trailing_slashes_but_n
     migration = _migration_module()
     engine = _engine_with([("b", None), ("c", None), ("a", "https://a.example.com/")])
     with engine.begin() as connection, Operations.context(MigrationContext.configure(connection)):
-        migration.upgrade()
+        migration.upgrade_identity_provider_issuer_unique()
 
     with pytest.raises(sa.exc.IntegrityError), engine.begin() as connection:
         connection.execute(
@@ -87,7 +81,7 @@ def test_the_upgrade_refuses_and_names_the_providers_that_share_an_issuer():
         Operations.context(MigrationContext.configure(connection)),
         pytest.raises(RuntimeError) as raised,
     ):
-        migration.upgrade()
+        migration.upgrade_identity_provider_issuer_unique()
 
     message = str(raised.value)
     assert "https://a.example.com is used by one, two" in message

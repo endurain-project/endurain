@@ -4,7 +4,9 @@ import importlib.util
 from pathlib import Path
 from unittest.mock import patch
 
-_MIGRATION_PATH = Path(__file__).resolve().parents[2] / "app/alembic/versions/v0_21_0/35_nist_password_policy.py"
+_MIGRATION_PATH = (
+    Path(__file__).resolve().parents[2] / "app/alembic/versions/v0_21_0/4_auth_state_and_session_policy.py"
+)
 
 
 def _migration_module():
@@ -16,12 +18,6 @@ def _migration_module():
     return module
 
 
-def test_it_chains_onto_the_previous_head() -> None:
-    migration = _migration_module()
-
-    assert migration.down_revision == "2c8f5a1d7e46"
-
-
 def test_upgrade_drops_password_type_and_moves_old_default_lengths_to_15() -> None:
     migration = _migration_module()
 
@@ -30,7 +26,7 @@ def test_upgrade_drops_password_type_and_moves_old_default_lengths_to_15() -> No
         patch.object(migration.op, "alter_column") as alter_column,
         patch.object(migration.op, "execute") as execute,
     ):
-        migration.upgrade()
+        migration.upgrade_nist_password_policy()
 
     drop_column.assert_called_once_with("server_settings", "password_type")
     assert {(c.args[1], str(c.kwargs["server_default"])) for c in alter_column.call_args_list} == {
@@ -52,7 +48,7 @@ def test_downgrade_restores_password_type_as_strict_and_leaves_lengths() -> None
         patch.object(migration.op, "alter_column") as alter_column,
         patch.object(migration.op, "execute") as execute,
     ):
-        migration.downgrade()
+        migration.downgrade_nist_password_policy()
 
     column = add_column.call_args.args[1]
     assert column.name == "password_type"

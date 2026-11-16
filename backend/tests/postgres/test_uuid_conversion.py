@@ -1,4 +1,4 @@
-"""The helpers of ``migrations.uuid_conversion`` that revisions 89 and earlier do not call, on scratch tables."""
+"""The helpers of ``migrations.uuid_conversion`` that earlier revisions do not call, on scratch tables."""
 
 import uuid
 

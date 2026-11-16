@@ -6,7 +6,9 @@ from unittest.mock import patch
 
 import sqlalchemy as sa
 
-_MIGRATION_PATH = Path(__file__).resolve().parents[2] / "app/alembic/versions/v0_21_0/56_idp_session_token_id_token.py"
+_MIGRATION_PATH = (
+    Path(__file__).resolve().parents[2] / "app/alembic/versions/v0_21_0/7_credentials_sessions_and_cadence.py"
+)
 
 
 def _migration_module():
@@ -17,16 +19,10 @@ def _migration_module():
     return module
 
 
-def test_it_chains_onto_the_password_change_required_revision():
-    migration = _migration_module()
-
-    assert migration.down_revision == "a7e3c19d5b42"
-
-
 def test_the_upgrade_adds_a_nullable_text_column_so_existing_sessions_hold_no_id_token():
     migration = _migration_module()
     with patch.object(migration.op, "add_column") as add_column:
-        migration.upgrade()
+        migration.upgrade_idp_session_token_id_token()
 
     table, column = add_column.call_args.args
     assert (table, column.name, column.nullable) == ("idp_session_tokens", "id_token", True)
@@ -36,6 +32,6 @@ def test_the_upgrade_adds_a_nullable_text_column_so_existing_sessions_hold_no_id
 def test_the_downgrade_drops_the_column():
     migration = _migration_module()
     with patch.object(migration.op, "drop_column") as drop_column:
-        migration.downgrade()
+        migration.downgrade_idp_session_token_id_token()
 
     drop_column.assert_called_once_with("idp_session_tokens", "id_token")

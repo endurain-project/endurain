@@ -1,4 +1,4 @@
-"""Tests for the migration that aligns the schema with the models (revision 86)."""
+"""Tests for the migration that aligns the schema with the models."""
 
 import importlib.util
 from pathlib import Path
@@ -6,7 +6,9 @@ from unittest.mock import patch
 
 import sqlalchemy as sa
 
-_MIGRATION_PATH = Path(__file__).resolve().parents[2] / "app/alembic/versions/v0_21_0/86_align_schema_with_models.py"
+_MIGRATION_PATH = (
+    Path(__file__).resolve().parents[2] / "app/alembic/versions/v0_21_0/10_retire_data_migrations_and_align_schema.py"
+)
 
 _COMMENTS = {
     ("activity_ingestion_jobs", "id"): (
@@ -38,15 +40,10 @@ def _comment_calls(op):
     }
 
 
-def test_the_revision_follows_revision_85():
-    migration = _migration_module()
-    assert migration.down_revision == "b41c0afdc9d9"
-
-
 def test_the_upgrade_makes_start_time_timezone_aware_and_updates_four_comments():
     migration = _migration_module()
     with patch.object(migration, "op") as op:
-        migration.upgrade()
+        migration.upgrade_align_schema_with_models()
 
     assert op.alter_column.call_count == 5
     start_time = next(call for call in op.alter_column.call_args_list if call.args[0] == "activity_sets")
@@ -64,7 +61,7 @@ def test_the_upgrade_makes_start_time_timezone_aware_and_updates_four_comments()
 def test_the_downgrade_restores_the_naive_column_and_the_old_comments():
     migration = _migration_module()
     with patch.object(migration, "op") as op:
-        migration.downgrade()
+        migration.downgrade_align_schema_with_models()
 
     assert op.alter_column.call_count == 5
     start_time = next(call for call in op.alter_column.call_args_list if call.args[0] == "activity_sets")

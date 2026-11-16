@@ -4,7 +4,9 @@ import importlib.util
 from pathlib import Path
 from unittest.mock import patch
 
-_MIGRATION_PATH = Path(__file__).resolve().parents[2] / "app/alembic/versions/v0_21_0/45_api_key_max_lifetime.py"
+_MIGRATION_PATH = (
+    Path(__file__).resolve().parents[2] / "app/alembic/versions/v0_21_0/6_gear_health_and_idp_session_schema.py"
+)
 
 
 def _migration_module():
@@ -23,7 +25,7 @@ def test_the_upgrade_adds_the_setting_at_365_days_and_backfills_only_keys_withou
         patch.object(migration.op, "execute") as execute,
         patch.object(migration.op, "alter_column") as alter_column,
     ):
-        migration.upgrade()
+        migration.upgrade_api_key_max_lifetime()
 
     table, column = add_column.call_args.args
     assert (table, column.name, str(column.server_default.arg)) == (

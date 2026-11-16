@@ -23,9 +23,8 @@ from tests._helpers.db import ensure_user
 
 _USER_ID = uuid.UUID("11111111-1111-4111-8111-111111111111")
 _T0 = datetime(2026, 10, 1, 8, 0, tzinfo=UTC)
-_REVISION_39_BEFORE = "7c3e9a1d5b24"
-_REVISION_39 = "b6e2d4a8c031"
-_REVISION_40 = "c9a3f7b15e42"
+_MIGRATION_FILE = "5_known_devices_and_health_data_fixes.py"
+_REVISION_BEFORE = "9e4b7a2d6c18"
 
 
 def _hours(n: float) -> datetime:
@@ -62,7 +61,8 @@ def test_a_running_fast_blocks_a_later_completed_one_but_not_an_earlier_one(db):
 
 
 def test_the_migration_deletes_the_records_before_1900(upgrade_db):
-    alembic_chain.upgrade(upgrade_db, _REVISION_39_BEFORE)
+    alembic_chain.upgrade(upgrade_db, _REVISION_BEFORE)
+    alembic_chain.run_steps_before(upgrade_db, _MIGRATION_FILE, "delete_health_records_before_1900")
     with upgrade_db.begin() as connection:
         alembic_chain.seed_users(connection)
         connection.execute(
@@ -84,7 +84,7 @@ def test_the_migration_deletes_the_records_before_1900(upgrade_db):
             )
         )
 
-    alembic_chain.upgrade(upgrade_db, _REVISION_39)
+    alembic_chain.run_step(upgrade_db, _MIGRATION_FILE, "delete_health_records_before_1900")
 
     with upgrade_db.connect() as connection:
         assert connection.scalars(text("SELECT date FROM health_steps")).all() == [date(1900, 1, 1)]
@@ -93,7 +93,8 @@ def test_the_migration_deletes_the_records_before_1900(upgrade_db):
 
 
 def test_the_migration_derives_durations_from_timestamptz_columns(upgrade_db):
-    alembic_chain.upgrade(upgrade_db, _REVISION_39)
+    alembic_chain.upgrade(upgrade_db, _REVISION_BEFORE)
+    alembic_chain.run_steps_before(upgrade_db, _MIGRATION_FILE, "derive_fasting_durations")
     with upgrade_db.begin() as connection:
         alembic_chain.seed_users(connection)
         connection.execute(
@@ -106,7 +107,7 @@ def test_the_migration_derives_durations_from_timestamptz_columns(upgrade_db):
             )
         )
 
-    alembic_chain.upgrade(upgrade_db, _REVISION_40)
+    alembic_chain.run_step(upgrade_db, _MIGRATION_FILE, "derive_fasting_durations")
 
     with upgrade_db.connect() as connection:
         rows = connection.execute(

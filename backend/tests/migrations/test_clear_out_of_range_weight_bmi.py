@@ -9,7 +9,7 @@ from alembic.migration import MigrationContext
 from alembic.operations import Operations
 
 _MIGRATION_PATH = (
-    Path(__file__).resolve().parents[2] / "app/alembic/versions/v0_21_0/38_clear_out_of_range_weight_bmi.py"
+    Path(__file__).resolve().parents[2] / "app/alembic/versions/v0_21_0/5_known_devices_and_health_data_fixes.py"
 )
 
 
@@ -20,10 +20,6 @@ def _migration_module():
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
     return module
-
-
-def test_it_chains_onto_the_previous_head() -> None:
-    assert _migration_module().down_revision == "4f2b8c6e1a93"
 
 
 def test_upgrade_clears_only_the_bmis_outside_the_valid_range() -> None:
@@ -50,7 +46,7 @@ def test_upgrade_clears_only_the_bmis_outside_the_valid_range() -> None:
             ],
         )
         with Operations.context(MigrationContext.configure(connection)):
-            migration.upgrade()
+            migration.upgrade_clear_out_of_range_weight_bmi()
         stored = dict(connection.execute(sa.select(table.c.id, table.c.bmi)).all())
         versions = dict(connection.execute(sa.select(table.c.id, table.c.version)).all())
     engine.dispose()
@@ -64,4 +60,4 @@ def test_upgrade_clears_only_the_bmis_outside_the_valid_range() -> None:
 
 
 def test_downgrade_changes_nothing() -> None:
-    assert _migration_module().downgrade() is None
+    assert _migration_module().downgrade_clear_out_of_range_weight_bmi() is None

@@ -23,7 +23,7 @@ from tests._helpers.db import ensure_user
 _START = datetime(2026, 7, 28, 9, 0, tzinfo=UTC)
 _STRAVA_ID = 9_000_000_001
 _MIGRATION_PATH = (
-    Path(__file__).resolve().parents[2] / "app/alembic/versions/v0_21_0/95_activities_strava_activity_id_per_user.py"
+    Path(__file__).resolve().parents[2] / "app/alembic/versions/v0_21_0/17_session_digest_and_strava_scope.py"
 )
 _PRIVACY_FLAGS = (
     "hide_start_time",
@@ -108,7 +108,7 @@ def _run(factory, step: str) -> None:
                 side_effect=lambda name, table_name: db.execute(text(f'DROP INDEX "{name}"')),
             ),
         ):
-            getattr(migration, step)()
+            getattr(migration, f"{step}_activities_strava_activity_id_per_user")()
         db.commit()
 
 

@@ -1,4 +1,4 @@
-"""Tests for the migration that ends the sessions holding an Argon2 refresh-token hash (revision 93)."""
+"""Tests for the migration that ends the sessions holding an Argon2 refresh-token hash."""
 
 import importlib.util
 from pathlib import Path
@@ -8,7 +8,7 @@ from alembic.migration import MigrationContext
 from alembic.operations import Operations
 
 _MIGRATION_PATH = (
-    Path(__file__).resolve().parents[2] / "app/alembic/versions/v0_21_0/93_session_refresh_token_digest.py"
+    Path(__file__).resolve().parents[2] / "app/alembic/versions/v0_21_0/17_session_digest_and_strava_scope.py"
 )
 
 
@@ -30,16 +30,12 @@ def _engine_with_sessions() -> sa.Engine:
     return engine
 
 
-def test_it_chains_onto_the_text_ids_revision():
-    assert _migration_module().down_revision == "1087a5442836"
-
-
 def test_the_upgrade_ends_every_session():
     migration = _migration_module()
     engine = _engine_with_sessions()
 
     with engine.begin() as connection, Operations.context(MigrationContext.configure(connection)):
-        migration.upgrade()
+        migration.upgrade_session_refresh_token_digest()
 
     with engine.connect() as connection:
         assert connection.execute(sa.text("SELECT count(*) FROM users_sessions")).scalar() == 0
@@ -50,7 +46,7 @@ def test_the_downgrade_leaves_the_table_alone():
     engine = _engine_with_sessions()
 
     with engine.begin() as connection, Operations.context(MigrationContext.configure(connection)):
-        migration.downgrade()
+        migration.downgrade_session_refresh_token_digest()
 
     with engine.connect() as connection:
         assert connection.execute(sa.text("SELECT count(*) FROM users_sessions")).scalar() == 2

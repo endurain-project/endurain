@@ -9,7 +9,7 @@ from alembic.migration import MigrationContext
 from alembic.operations import Operations
 
 _MIGRATION_PATH = (
-    Path(__file__).resolve().parents[2] / "app/alembic/versions/v0_21_0/39_delete_health_records_before_1900.py"
+    Path(__file__).resolve().parents[2] / "app/alembic/versions/v0_21_0/5_known_devices_and_health_data_fixes.py"
 )
 
 
@@ -24,10 +24,6 @@ def _migration_module():
 
 def _table(metadata: sa.MetaData, name: str, column: str, column_type: sa.types.TypeEngine) -> sa.Table:
     return sa.Table(name, metadata, sa.Column("id", sa.Integer, primary_key=True), sa.Column(column, column_type))
-
-
-def test_it_chains_onto_the_previous_head() -> None:
-    assert _migration_module().down_revision == "7c3e9a1d5b24"
 
 
 def test_upgrade_deletes_only_the_records_dated_before_1900() -> None:
@@ -58,7 +54,7 @@ def test_upgrade_deletes_only_the_records_dated_before_1900() -> None:
         for name, (column, _, invalid, valid) in dated.items():
             connection.execute(tables[name].insert(), [{"id": 1, column: invalid}, {"id": 2, column: valid}])
         with Operations.context(MigrationContext.configure(connection)):
-            migration.upgrade()
+            migration.upgrade_delete_health_records_before_1900()
         remaining = {
             name: [row[0] for row in connection.execute(sa.select(table.c.id))] for name, table in tables.items()
         }
@@ -68,4 +64,4 @@ def test_upgrade_deletes_only_the_records_dated_before_1900() -> None:
 
 
 def test_downgrade_changes_nothing() -> None:
-    assert _migration_module().downgrade() is None
+    assert _migration_module().downgrade_delete_health_records_before_1900() is None

@@ -12,7 +12,7 @@ The ids stored in event payloads and metadata and in notification options are re
 ``model_dump(mode="json")`` writes: every user id field of the payload classes in ``PAYLOAD_ID_REWRITES`` in the
 event outbox, the processing jobs (every status, dead letters included) and the event log; the ``user_id`` of the
 event metadata; and the ``user_id`` of the notification options. A null or a string is kept. The ``SCHEMA_VERSION`` of
-the payload classes stays: this revision is the same one-time exception as revisions 85 and 88 describe for every
+the payload classes stays: this revision is the same one-time exception as revisions 10 and 12 describe for every
 conversion revision. An id that names no user becomes a fresh random UUID: still a valid id, matching nothing.
 
 Decision C: the sessions, the rotated refresh tokens, the OAuth states and the identity provider session tokens are
@@ -27,7 +27,7 @@ rows are not rewritten.
 ``users.photo_path`` keeps the integer layout: the stored photos are named by the integer ids, and data migration 13,
 which this revision registers as not executed again, renames the files and rewrites the column. Every user's old and
 new id is recorded in ``uuid_migration_ids`` for it, and migration 13 drops the table afterwards. The ``created_at`` of
-``followers``, ``follower_blocks`` and ``users_goals`` is untouched: revision 87 already keeps their order.
+``followers``, ``follower_blocks`` and ``users_goals`` is untouched: revision 11 already keeps their order.
 
 Data migration 14, which this revision registers, clears the ``endurain:`` state namespace once (its keys embed
 integer user ids; every account lockout is lifted). It is a migration of its own so that a retry of migration 13 never
@@ -615,5 +615,5 @@ def downgrade() -> None:
         NotImplementedError: Always.
     """
     raise NotImplementedError(
-        "Revision 91 cannot be reversed: restore the database from the backup taken before the upgrade."
+        "Revision 15 cannot be reversed: restore the database from the backup taken before the upgrade."
     )

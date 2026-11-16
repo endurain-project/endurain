@@ -17,11 +17,11 @@ hyphenated), before any change, so the upgrade transaction rolls back unchanged.
 No stored payload, metadata, notification option, JSON array, tombstone, stored file key or shared-state key is
 rewritten. The event payloads that carry these ids (``api_key_id``, ``session_id``, ``except_session_id``, ``job_id``)
 already hold canonical UUID text, which the payload classes now parse as ``uuid.UUID``; their ``SCHEMA_VERSION`` stays.
-The storage keys built from a job id keep their text. Revision 91 emptied the sessions, rotated tokens, OAuth states
+The storage keys built from a job id keep their text. Revision 15 emptied the sessions, rotated tokens, OAuth states
 and identity provider session tokens, and data migration 14 clears the shared-state namespace.
 
 Expected cost: one table rewrite and an index rebuild per converted column. The tables are small and the session
-tables are empty after revision 91. Only the foreign key from ``rotated_refresh_tokens.token_family_id`` to
+tables are empty after revision 15. Only the foreign key from ``rotated_refresh_tokens.token_family_id`` to
 ``users_sessions.token_family_id`` is dropped and recreated, because its two columns change type together.
 
 The revision runs inside the single upgrade transaction and is irreversible.
@@ -73,7 +73,7 @@ _TEXT_ID_COLUMNS = (
 
 def upgrade() -> None:
     """Refuse values that are not UUID text, then retype the columns and recreate the token family foreign key."""
-    uuid_conversion.refuse_text_ids_that_are_not_uuids("92", _TEXT_ID_COLUMNS)
+    uuid_conversion.refuse_text_ids_that_are_not_uuids("16", _TEXT_ID_COLUMNS)
     op.drop_constraint("rotated_refresh_tokens_token_family_id_fkey", "rotated_refresh_tokens", type_="foreignkey")
     uuid_conversion.cast_text_ids_to_uuid(_TEXT_ID_COLUMNS)
     op.create_foreign_key(
@@ -93,5 +93,5 @@ def downgrade() -> None:
         NotImplementedError: Always.
     """
     raise NotImplementedError(
-        "Revision 92 cannot be reversed: restore the database from the backup taken before the upgrade."
+        "Revision 16 cannot be reversed: restore the database from the backup taken before the upgrade."
     )

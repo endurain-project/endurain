@@ -1,4 +1,4 @@
-"""Tests for the migration that turns the session idle timeout on for new installs (revision 65)."""
+"""Tests for the migration that turns the session idle timeout on for new installs ((session_idle_timeout_default))."""
 
 import importlib.util
 from pathlib import Path
@@ -9,7 +9,7 @@ from alembic.migration import MigrationContext
 from alembic.operations import Operations
 
 _MIGRATION_PATH = (
-    Path(__file__).resolve().parents[2] / "app/alembic/versions/v0_21_0/65_session_idle_timeout_default.py"
+    Path(__file__).resolve().parents[2] / "app/alembic/versions/v0_21_0/7_credentials_sessions_and_cadence.py"
 )
 
 
@@ -52,28 +52,23 @@ def _run(connection, step: str, enabled: bool, hours: int, users: int = 0) -> tu
     return bool(row[0]), row[1]
 
 
-def test_the_revision_follows_migration_64():
-    migration = _migration_module()
-    assert (migration.revision, migration.down_revision) == ("e65a3c4d5f6b", "d64f2b3c4e5a")
-
-
 def test_the_upgrade_turns_the_timeout_on_when_no_account_exists(connection):
-    assert _run(connection, "upgrade", False, 1) == (True, 72)
+    assert _run(connection, "upgrade_session_idle_timeout_default", False, 1) == (True, 72)
 
 
 def test_the_upgrade_keeps_the_setting_when_an_account_exists(connection):
-    assert _run(connection, "upgrade", False, 1, users=1) == (False, 1)
+    assert _run(connection, "upgrade_session_idle_timeout_default", False, 1, users=1) == (False, 1)
 
 
 @pytest.mark.parametrize(("enabled", "hours"), [(False, 5), (True, 1), (True, 5), (False, 72)])
 def test_the_upgrade_keeps_a_setting_that_is_not_the_shipped_value(connection, enabled, hours):
-    assert _run(connection, "upgrade", enabled, hours) == (enabled, hours)
+    assert _run(connection, "upgrade_session_idle_timeout_default", enabled, hours) == (enabled, hours)
 
 
 def test_the_downgrade_reverts_the_values_this_migration_set(connection):
-    assert _run(connection, "downgrade", True, 72) == (False, 1)
+    assert _run(connection, "downgrade_session_idle_timeout_default", True, 72) == (False, 1)
 
 
 @pytest.mark.parametrize(("enabled", "hours"), [(True, 5), (False, 72), (False, 1)])
 def test_the_downgrade_keeps_a_setting_an_administrator_changed(connection, enabled, hours):
-    assert _run(connection, "downgrade", enabled, hours) == (enabled, hours)
+    assert _run(connection, "downgrade_session_idle_timeout_default", enabled, hours) == (enabled, hours)

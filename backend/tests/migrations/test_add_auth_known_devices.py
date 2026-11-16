@@ -4,7 +4,9 @@ import importlib.util
 from pathlib import Path
 from unittest.mock import patch
 
-_MIGRATION_PATH = Path(__file__).resolve().parents[2] / "app/alembic/versions/v0_21_0/36_add_auth_known_devices.py"
+_MIGRATION_PATH = (
+    Path(__file__).resolve().parents[2] / "app/alembic/versions/v0_21_0/5_known_devices_and_health_data_fixes.py"
+)
 
 
 def _migration_module():
@@ -16,10 +18,6 @@ def _migration_module():
     return module
 
 
-def test_it_chains_onto_the_previous_head() -> None:
-    assert _migration_module().down_revision == "9e4b7a2d6c18"
-
-
 def test_upgrade_creates_the_table_with_its_unique_key_and_prune_index() -> None:
     migration = _migration_module()
 
@@ -27,7 +25,7 @@ def test_upgrade_creates_the_table_with_its_unique_key_and_prune_index() -> None
         patch.object(migration.op, "create_table") as create_table,
         patch.object(migration.op, "create_index") as create_index,
     ):
-        migration.upgrade()
+        migration.upgrade_add_auth_known_devices()
 
     assert create_table.call_args.args[0] == "auth_known_devices"
     columns = {item.name: item for item in create_table.call_args.args[1:] if hasattr(item, "type")}
@@ -49,7 +47,7 @@ def test_downgrade_drops_the_table() -> None:
         patch.object(migration.op, "drop_index") as drop_index,
         patch.object(migration.op, "drop_table") as drop_table,
     ):
-        migration.downgrade()
+        migration.downgrade_add_auth_known_devices()
 
     drop_index.assert_called_once()
     drop_table.assert_called_once_with("auth_known_devices")

@@ -9,7 +9,9 @@ import sqlalchemy as sa
 
 import modules.auth.constants as auth_constants
 
-_MIGRATION_PATH = Path(__file__).resolve().parents[2] / "app/alembic/versions/v0_21_0/58_session_client_type.py"
+_MIGRATION_PATH = (
+    Path(__file__).resolve().parents[2] / "app/alembic/versions/v0_21_0/7_credentials_sessions_and_cadence.py"
+)
 
 
 def _migration_module():
@@ -40,13 +42,6 @@ def connection():
     engine.dispose()
 
 
-def test_it_has_its_revision_and_chains_onto_the_provider_flags_revision():
-    migration = _migration_module()
-
-    assert migration.revision == "a10c7e3f5d21"
-    assert migration.down_revision == "c8e2a5f19b36"
-
-
 def test_the_upgrade_ends_every_session_and_their_rotated_refresh_tokens(connection):
     migration = _migration_module()
     with (
@@ -56,7 +51,7 @@ def test_the_upgrade_ends_every_session_and_their_rotated_refresh_tokens(connect
         patch.object(migration.op, "add_column"),
         patch.object(migration.op, "create_check_constraint"),
     ):
-        migration.upgrade()
+        migration.upgrade_session_client_type()
 
     assert connection.execute(sa.text("SELECT count(*) FROM users_sessions")).scalar_one() == 0
     assert connection.execute(sa.text("SELECT count(*) FROM rotated_refresh_tokens")).scalar_one() == 0
@@ -70,7 +65,7 @@ def test_the_sessions_end_before_the_non_null_column_is_added():
         patch.object(migration.op, "add_column", side_effect=lambda *_: calls.append("add_column")),
         patch.object(migration.op, "create_check_constraint", side_effect=lambda *_: calls.append("check")),
     ):
-        migration.upgrade()
+        migration.upgrade_session_client_type()
 
     assert calls == ["execute", "add_column", "check"]
 
@@ -82,7 +77,7 @@ def test_the_upgrade_adds_a_non_null_client_type_limited_to_the_client_types():
         patch.object(migration.op, "add_column") as add_column,
         patch.object(migration.op, "create_check_constraint") as create_check,
     ):
-        migration.upgrade()
+        migration.upgrade_session_client_type()
 
     assert str(execute.call_args.args[0]) == "DELETE FROM users_sessions"
     table, column = add_column.call_args.args
@@ -103,7 +98,7 @@ def test_the_downgrade_drops_the_check_and_the_column():
         patch.object(migration.op, "drop_constraint") as drop_constraint,
         patch.object(migration.op, "drop_column") as drop_column,
     ):
-        migration.downgrade()
+        migration.downgrade_session_client_type()
 
     drop_constraint.assert_called_once_with("ck_users_sessions_client_type", "users_sessions", type_="check")
     drop_column.assert_called_once_with("users_sessions", "client_type")

@@ -93,5 +93,5 @@ def downgrade() -> None:
         NotImplementedError: Always.
     """
     raise NotImplementedError(
-        "Revision 87 cannot be reversed: restore the database from the backup taken before the upgrade."
+        "Revision 11 cannot be reversed: restore the database from the backup taken before the upgrade."
     )

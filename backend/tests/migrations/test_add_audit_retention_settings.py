@@ -8,7 +8,7 @@ import pytest
 import sqlalchemy as sa
 
 _MIGRATION_PATH = (
-    Path(__file__).resolve().parents[2] / "app/alembic/versions/v0_21_0/37_add_audit_retention_settings.py"
+    Path(__file__).resolve().parents[2] / "app/alembic/versions/v0_21_0/5_known_devices_and_health_data_fixes.py"
 )
 
 
@@ -28,7 +28,7 @@ def _check_condition() -> str:
         patch.object(migration.op, "add_column"),
         patch.object(migration.op, "create_check_constraint") as create_check_constraint,
     ):
-        migration.upgrade()
+        migration.upgrade_add_audit_retention_settings()
     name, table, condition = create_check_constraint.call_args.args
     assert (name, table) == ("audit_retention_days_check", "server_settings")
     return condition
@@ -55,10 +55,6 @@ def _condition_holds(condition: str, days: int) -> bool:
     return True
 
 
-def test_it_chains_onto_the_previous_head() -> None:
-    assert _migration_module().down_revision == "d0aa98611b9c"
-
-
 def test_upgrade_adds_both_columns_not_null_with_their_defaults() -> None:
     migration = _migration_module()
 
@@ -66,7 +62,7 @@ def test_upgrade_adds_both_columns_not_null_with_their_defaults() -> None:
         patch.object(migration.op, "add_column") as add_column,
         patch.object(migration.op, "create_check_constraint"),
     ):
-        migration.upgrade()
+        migration.upgrade_add_audit_retention_settings()
 
     columns = {call.args[1].name: call.args[1] for call in add_column.call_args_list}
     assert {call.args[0] for call in add_column.call_args_list} == {"server_settings"}
@@ -96,7 +92,7 @@ def test_downgrade_drops_the_constraint_and_both_columns() -> None:
         patch.object(migration.op, "drop_constraint") as drop_constraint,
         patch.object(migration.op, "drop_column") as drop_column,
     ):
-        migration.downgrade()
+        migration.downgrade_add_audit_retention_settings()
 
     drop_constraint.assert_called_once_with("audit_retention_days_check", "server_settings", type_="check")
     assert {call.args for call in drop_column.call_args_list} == {

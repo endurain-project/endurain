@@ -8,7 +8,7 @@ from alembic.migration import MigrationContext
 from alembic.operations import Operations
 
 _MIGRATION_PATH = (
-    Path(__file__).resolve().parents[2] / "app/alembic/versions/v0_21_0/79_drop_identity_provider_jwks_uri.py"
+    Path(__file__).resolve().parents[2] / "app/alembic/versions/v0_21_0/9_sync_timestamps_and_access_checks.py"
 )
 
 
@@ -34,18 +34,12 @@ def _columns(engine: sa.Engine) -> dict[str, sa.engine.interfaces.ReflectedColum
     return {column["name"]: column for column in sa.inspect(engine).get_columns("identity_providers")}
 
 
-def test_it_chains_onto_the_sync_timestamps_revision():
-    migration = _migration_module()
-
-    assert migration.down_revision == "b78d2f6a9c41"
-
-
 def test_the_upgrade_drops_the_column_and_keeps_the_rows():
     migration = _migration_module()
     engine = _engine_with_column()
 
     with engine.begin() as connection, Operations.context(MigrationContext.configure(connection)):
-        migration.upgrade()
+        migration.upgrade_drop_identity_provider_jwks_uri()
 
     assert set(_columns(engine)) == {"id", "slug"}
     with engine.connect() as connection:
@@ -56,10 +50,10 @@ def test_the_downgrade_restores_a_nullable_column():
     migration = _migration_module()
     engine = _engine_with_column()
     with engine.begin() as connection, Operations.context(MigrationContext.configure(connection)):
-        migration.upgrade()
+        migration.upgrade_drop_identity_provider_jwks_uri()
 
     with engine.begin() as connection, Operations.context(MigrationContext.configure(connection)):
-        migration.downgrade()
+        migration.downgrade_drop_identity_provider_jwks_uri()
 
     column = _columns(engine)["jwks_uri"]
     assert column["nullable"] is True

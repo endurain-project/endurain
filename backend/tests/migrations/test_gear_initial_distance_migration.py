@@ -4,7 +4,7 @@ import importlib.util
 from pathlib import Path
 from unittest.mock import patch
 
-_PATH = Path(__file__).resolve().parents[2] / "app/alembic/versions/v0_21_0/52_gear_initial_distance_meters.py"
+_PATH = Path(__file__).resolve().parents[2] / "app/alembic/versions/v0_21_0/6_gear_health_and_idp_session_schema.py"
 
 
 def _migration():
@@ -18,7 +18,7 @@ def _migration():
 def test_the_upgrade_widens_converts_to_meters_and_renames():
     migration = _migration()
     with patch.object(migration.op, "alter_column") as alter, patch.object(migration.op, "execute") as execute:
-        migration.upgrade()
+        migration.upgrade_gear_initial_distance_meters()
 
     assert alter.call_args_list[0].kwargs["type_"].precision == 14
     assert "initial_kms * 1000" in str(execute.call_args.args[0])
@@ -28,12 +28,8 @@ def test_the_upgrade_widens_converts_to_meters_and_renames():
 def test_the_downgrade_renames_back_converts_to_kilometers_and_narrows():
     migration = _migration()
     with patch.object(migration.op, "alter_column") as alter, patch.object(migration.op, "execute") as execute:
-        migration.downgrade()
+        migration.downgrade_gear_initial_distance_meters()
 
     assert alter.call_args_list[0].kwargs["new_column_name"] == "initial_kms"
     assert "initial_kms / 1000" in str(execute.call_args.args[0])
     assert alter.call_args_list[1].kwargs["type_"].precision == 11
-
-
-def test_it_follows_revision_51():
-    assert _migration().down_revision == "b8c1f4a7d936"

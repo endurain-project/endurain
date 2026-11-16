@@ -8,7 +8,7 @@ import sqlalchemy as sa
 from alembic.migration import MigrationContext
 from alembic.operations import Operations
 
-_MIGRATION_PATH = Path(__file__).resolve().parents[2] / "app/alembic/versions/v0_21_0/76_token_hash_unique.py"
+_MIGRATION_PATH = Path(__file__).resolve().parents[2] / "app/alembic/versions/v0_21_0/8_security_generations_and_mfa.py"
 _TABLES = ("password_reset_tokens", "sign_up_tokens")
 
 
@@ -49,19 +49,13 @@ def _unique_index_names(engine: sa.Engine, table: str) -> list[str]:
     return [index["name"] for index in sa.inspect(engine).get_indexes(table) if index["unique"]]
 
 
-def test_it_chains_onto_the_session_app_redirect_uri_revision():
-    migration = _migration_module()
-
-    assert migration.down_revision == "e75c9a3d7b24"
-
-
 def test_the_upgrade_creates_the_unique_indexes_and_the_downgrade_drops_them():
     engine = _engine_with([("a", "h1", "2026-01-01")])
 
-    _run(engine, "upgrade")
+    _run(engine, "upgrade_token_hash_unique")
     for table in _TABLES:
         assert _unique_index_names(engine, table) == [f"ix_{table}_token_hash"]
-    _run(engine, "downgrade")
+    _run(engine, "downgrade_token_hash_unique")
 
     for table in _TABLES:
         assert _unique_index_names(engine, table) == []
@@ -70,7 +64,7 @@ def test_the_upgrade_creates_the_unique_indexes_and_the_downgrade_drops_them():
 @pytest.mark.parametrize("table", _TABLES)
 def test_the_index_refuses_a_second_row_with_the_same_hash(table: str):
     engine = _engine_with([("a", "h1", "2026-01-01")])
-    _run(engine, "upgrade")
+    _run(engine, "upgrade_token_hash_unique")
 
     with pytest.raises(sa.exc.IntegrityError), engine.begin() as connection:
         connection.execute(_table(table).insert().values(id="b", token_hash="h1", created_at="x"))
@@ -87,7 +81,7 @@ def test_the_upgrade_keeps_the_earliest_row_of_each_duplicated_hash(table: str):
         ]
     )
 
-    _run(engine, "upgrade")
+    _run(engine, "upgrade_token_hash_unique")
 
     with engine.connect() as connection:
         kept = connection.execute(sa.select(_table(table).c.id).order_by(_table(table).c.id)).scalars().all()

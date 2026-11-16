@@ -30,8 +30,9 @@ from tests._helpers.db import ensure_user
 _THREADS = 6
 _DAY = date(2026, 10, 1)
 
-_REVISION_BEFORE = "f4c8a2e6b7d1"
-_REVISION = "a6d2f8c41e75"
+_MIGRATION_FILE = "2_constraints_versions_and_settings.py"
+_MIGRATION_STEP = "health_one_record_per_day"
+_REVISION_BEFORE = "c5cfe02a11c2"
 
 
 _USER_ID = uuid.UUID("11111111-1111-4111-8111-111111111111")
@@ -135,6 +136,7 @@ def test_the_database_refuses_a_second_record_for_a_day(factory, model, values):
 
 def test_the_migration_merges_duplicates_before_enforcing_the_constraints(upgrade_db):
     alembic_chain.upgrade(upgrade_db, _REVISION_BEFORE)
+    alembic_chain.run_steps_before(upgrade_db, _MIGRATION_FILE, _MIGRATION_STEP)
     with upgrade_db.begin() as connection:
         alembic_chain.seed_users(connection)
         for steps in (100, 200, 300):
@@ -147,7 +149,7 @@ def test_the_migration_merges_duplicates_before_enforcing_the_constraints(upgrad
                 text("INSERT INTO health_water (user_id, date, amount_ml) VALUES (1, :d, :ml)"), {"d": _DAY, "ml": ml}
             )
 
-    alembic_chain.upgrade(upgrade_db, _REVISION)
+    alembic_chain.run_step(upgrade_db, _MIGRATION_FILE, _MIGRATION_STEP)
 
     with upgrade_db.connect() as connection:
         steps = connection.execute(text("SELECT user_id, steps FROM health_steps ORDER BY user_id")).all()

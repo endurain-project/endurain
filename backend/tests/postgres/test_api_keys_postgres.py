@@ -23,7 +23,9 @@ import modules.users.users.models as users_models
 from tests._helpers.auth import MOCK_USER_ID
 from tests._helpers.db import ensure_user
 
-_MIGRATION_83 = Path(__file__).resolve().parents[2] / "app/alembic/versions/v0_21_0/83_api_key_revoked_at.py"
+_MIGRATION_83 = (
+    Path(__file__).resolve().parents[2] / "app/alembic/versions/v0_21_0/9_sync_timestamps_and_access_checks.py"
+)
 _THREADS = 4
 _HAS_REVOKED_AT = (
     "SELECT count(*) FROM information_schema.columns WHERE table_name = 'users_api_keys' AND column_name = 'revoked_at'"
@@ -166,7 +168,7 @@ def test_revision_83_backfills_revoked_keys_with_the_upgrade_time(pg_factory):
             patch.object(migration.op, "add_column"),
             patch.object(migration.op, "execute", side_effect=lambda sql: db.execute(text(sql))),
         ):
-            migration.upgrade()
+            migration.upgrade_api_key_revoked_at()
         db.commit()
         rows = dict(db.execute(text("SELECT id, revoked_at FROM users_api_keys")).all())
         created_at = db.scalar(text("SELECT created_at FROM users_api_keys WHERE id = :id"), {"id": revoked})
@@ -213,7 +215,7 @@ def test_revision_83_downgrade_drops_the_revocation_time(pg_factory):
             "drop_column",
             side_effect=lambda table, column: db.execute(text(f"ALTER TABLE {table} DROP COLUMN {column}")),
         ):
-            migration.downgrade()
+            migration.downgrade_api_key_revoked_at()
         db.commit()
 
         assert db.scalar(text(_HAS_REVOKED_AT)) == 0

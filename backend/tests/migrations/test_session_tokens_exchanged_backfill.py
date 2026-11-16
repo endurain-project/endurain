@@ -5,7 +5,7 @@ from pathlib import Path
 from unittest.mock import patch
 
 _MIGRATION_PATH = (
-    Path(__file__).resolve().parents[2] / "app/alembic/versions/v0_21_0/49_session_tokens_exchanged_backfill.py"
+    Path(__file__).resolve().parents[2] / "app/alembic/versions/v0_21_0/6_gear_health_and_idp_session_schema.py"
 )
 
 
@@ -20,7 +20,7 @@ def _migration_module():
 def test_the_upgrade_marks_only_sessions_with_a_refresh_token_as_exchanged():
     migration = _migration_module()
     with patch.object(migration.op, "execute") as execute:
-        migration.upgrade()
+        migration.upgrade_session_tokens_exchanged_backfill()
 
     statement = str(execute.call_args.args[0])
     assert "SET tokens_exchanged = true" in statement
@@ -31,6 +31,6 @@ def test_the_upgrade_marks_only_sessions_with_a_refresh_token_as_exchanged():
 def test_the_downgrade_changes_nothing():
     migration = _migration_module()
     with patch.object(migration.op, "execute") as execute:
-        migration.downgrade()
+        migration.downgrade_session_tokens_exchanged_backfill()
 
     execute.assert_not_called()
