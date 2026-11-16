@@ -25,7 +25,8 @@ _OTHER_SESSION_ID = uuid.UUID(int=0x5E56)
 
 class TestTokenManagerSecurity:
     """
-    Test suite for the TokenManager class, focusing on security-related aspects of token creation, decoding, validation, and validation.
+    Test suite for the TokenManager class, focusing on security-related aspects of token creation, decoding, validation,
+    and validation.
 
     This class contains tests that verify:
     - Correct extraction of claims from tokens.
@@ -38,7 +39,8 @@ class TestTokenManagerSecurity:
     - Consistency of token expiration times in UTC.
     - Uniqueness of tokens for different session IDs and for repeated calls with the same user/session.
 
-    Each test ensures that the TokenManager behaves securely and correctly under various scenarios, raising appropriate exceptions and maintaining cryptographic standards.
+    Each test ensures that the TokenManager behaves securely and correctly under various scenarios, raising appropriate
+    exceptions and maintaining cryptographic standards.
     """
 
     def test_get_token_claim_returns_correct_value(self, token_manager, sample_user_read):
@@ -72,7 +74,8 @@ class TestTokenManagerSecurity:
 
     def test_get_token_claim_with_missing_claim(self, token_manager, sample_user_read):
         """
-        Test that get_token_claim raises an core_exceptions.UnauthenticatedError with status code 401 when attempting to retrieve a claim
+        Test that get_token_claim raises an core_exceptions.UnauthenticatedError with status code 401 when attempting to
+        retrieve a claim
         that does not exist in the token. Verifies that the exception detail message indicates the claim is missing.
         """
         session_id = _SESSION_ID
@@ -143,7 +146,8 @@ class TestTokenManagerSecurity:
 
     def test_decode_token_with_invalid_token(self, token_manager):
         """
-        Tests that the `decode_token` method of the token manager raises an core_exceptions.UnauthenticatedError with status code 401
+        Tests that the `decode_token` method of the token manager raises an core_exceptions.UnauthenticatedError with
+        status code 401
         when provided with various invalid JWT tokens.
 
         Args:
@@ -167,9 +171,13 @@ class TestTokenManagerSecurity:
 
     def test_decode_token_with_wrong_secret(self, sample_user_read):
         """
-        Test that decoding a token with a different secret key than the one used to create it raises an HTTP 401 Unauthorized exception.
+        Test that decoding a token with a different secret key than the one used to create it raises an HTTP 401
+        Unauthorized exception.
 
-        This test creates a token using one instance of TokenManager with a specific secret key, then attempts to decode the token using another TokenManager instance with a different secret key. It asserts that an core_exceptions.UnauthenticatedError with status code 401 is raised, indicating unauthorized access due to the wrong secret.
+        This test creates a token using one instance of TokenManager with a specific secret key, then attempts to decode
+        the token using another TokenManager instance with a different secret key. It asserts that an
+        core_exceptions.UnauthenticatedError with status code 401 is raised, indicating unauthorized access due to the
+        wrong secret.
         """
         # Create token with one manager
         manager1 = auth_token_manager.TokenManager(
@@ -191,10 +199,12 @@ class TestTokenManagerSecurity:
 
     def test_validate_token_expiration_with_valid_token(self, token_manager, sample_user_read):
         """
-        Test that `validate_token_expiration` does not raise an exception when provided with a valid (non-expired) token.
+        Test that `validate_token_expiration` does not raise an exception when provided with a valid (non-expired)
+        token.
 
         This test creates a valid access token using the token manager and verifies that calling
-        `validate_token_expiration` with this token does not raise an `core_exceptions.UnauthenticatedError`. If an exception is raised,
+        `validate_token_expiration` with this token does not raise an `core_exceptions.UnauthenticatedError`. If an
+        exception is raised,
         the test fails, indicating that valid tokens are incorrectly being marked as expired.
         """
         session_id = _SESSION_ID
@@ -221,7 +231,14 @@ class TestTokenManagerSecurity:
             - An core_exceptions.UnauthenticatedError is raised when an expired token is validated.
             - The exception's status code is 401 (Unauthorized).
         """
-        token = "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJzaWQiOiJzZXNzaW9uLWlkIiwiaXNzIjoiaHR0cDovL2xvY2FsaG9zdDo4MDgwIiwiYXVkIjoiaHR0cDovL2xvY2FsaG9zdDo4MDgwIiwic3ViIjoxLCJzY29wZSI6WyJwcm9maWxlIiwidXNlcnM6cmVhZCIsImdlYXJzOnJlYWQiLCJnZWFyczp3cml0ZSIsImFjdGl2aXRpZXM6cmVhZCIsImFjdGl2aXRpZXM6d3JpdGUiLCJoZWFsdGg6cmVhZCIsImhlYWx0aDp3cml0ZSIsImhlYWx0aF90YXJnZXRzOnJlYWQiLCJoZWFsdGhfdGFyZ2V0czp3cml0ZSJdLCJpYXQiOjE3NTk5NTMxODUsIm5iZiI6MTc1OTk1MzE4NSwiZXhwIjoxNzU5OTU0MDg1LCJqdGkiOiI3OWY2NDJlZC00NzNkLTQxMGYtYWMyNS0yMjYxMDU5YTM4NjIifQ.VSizGzvIIi_EJYD_YmfZBEBE_9aJbhLW-25cD1kEOeM"
+        token = (
+            "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJzaWQiOiJzZXNzaW9uLWlkIiwiaXNzIjoiaHR0cDovL2xvY2FsaG9zdDo4MDgwIiwiY"
+            "XVkIjoiaHR0cDovL2xvY2FsaG9zdDo4MDgwIiwic3ViIjoxLCJzY29wZSI6WyJwcm9maWxlIiwidXNlcnM6cmVhZCIsImdlYXJzOnJlYWQ"
+            "iLCJnZWFyczp3cml0ZSIsImFjdGl2aXRpZXM6cmVhZCIsImFjdGl2aXRpZXM6d3JpdGUiLCJoZWFsdGg6cmVhZCIsImhlYWx0aDp3cml0Z"
+            "SIsImhlYWx0aF90YXJnZXRzOnJlYWQiLCJoZWFsdGhfdGFyZ2V0czp3cml0ZSJdLCJpYXQiOjE3NTk5NTMxODUsIm5iZiI6MTc1OTk1MzE"
+            "4NSwiZXhwIjoxNzU5OTU0MDg1LCJqdGkiOiI3OWY2NDJlZC00NzNkLTQxMGYtYWMyNS0yMjYxMDU5YTM4NjIifQ.VSizGzvIIi_EJYD_Ym"
+            "fZBEBE_9aJbhLW-25cD1kEOeM"
+        )
 
         with pytest.raises(core_exceptions.UnauthenticatedError) as excinfo:
             token_manager.validate_token_expiration(token, auth_token_manager.TokenType.ACCESS)
@@ -287,7 +304,8 @@ class TestTokenManagerSecurity:
         Test that the access token has a shorter expiration time than the refresh token.
 
         This test verifies that when creating both an access token and a refresh token for the same session and user,
-        the expiration time of the access token is less than that of the refresh token, ensuring correct token lifetimes.
+        the expiration time of the access token is less than that of the refresh token, ensuring correct token
+        lifetimes.
         """
         session_id = _SESSION_ID
         access_exp, _ = token_manager.create_token(
@@ -423,7 +441,8 @@ class TestTokenManagerSecurity:
         """
         Test that the token expiration time generated by the token manager is set in the UTC timezone.
 
-        This test verifies that when a token is created using the token manager, the returned expiration time (`exp_time`)
+        This test verifies that when a token is created using the token manager, the returned expiration time
+        (`exp_time`)
         has its `tzinfo` attribute set to `timezone.utc`, ensuring that all expiration times are consistently in UTC.
         """
         session_id = _SESSION_ID

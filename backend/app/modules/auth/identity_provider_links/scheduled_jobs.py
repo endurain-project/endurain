@@ -7,6 +7,9 @@ REENCRYPT_LOCK_NAME = "auth_identity_provider_links_reencrypt"
 
 
 def reencrypt_stored_secrets() -> None:
-    """Re-encrypt identity-provider refresh tokens under the first FERNET_KEY; does nothing while one key is configured."""
+    """Re-encrypt identity-provider refresh tokens under the first FERNET_KEY.
+
+    Does nothing while one key is configured.
+    """
     with core_database.SessionLocal() as db:
         identity_links_service.reencrypt_stored_secrets(db)

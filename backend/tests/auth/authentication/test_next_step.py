@@ -1,4 +1,5 @@
-"""Every sign-in answer says what comes next: the bodies carry a required ``next_step`` and the routes answer a union."""
+"""Every sign-in answer says what comes next: the bodies carry a required ``next_step`` and the routes answer a
+union."""
 
 import pytest
 from fastapi import FastAPI

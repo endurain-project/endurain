@@ -43,7 +43,9 @@ class UserApiKeyCreate(BaseModel):
     scopes: list[api_keys_constants.ApiKeyScope] = Field(
         ...,
         min_length=1,
-        description="Scopes to grant: the account's own data, never its security, export, provider links or administration",
+        description=(
+            "Scopes to grant: the account's own data, never its security, export, provider links or administration"
+        ),
     )
     expires_at: AwareDatetime | None = Field(
         None,

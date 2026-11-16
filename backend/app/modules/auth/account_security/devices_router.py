@@ -31,7 +31,8 @@ def list_user_devices(
 ) -> known_devices_schema.KnownDevicePage:
     """List one page of the devices the authenticated user is known to sign in from, latest sign-in first.
 
-    A device is known until a security change of the account or the user forgets it, and a sign-in from an unknown device is announced by email. `is_current` marks
+    A device is known until a security change of the account or the user forgets it, and a sign-in from an unknown
+    device is announced by email. `is_current` marks
     the device the request comes from.
     """
     return device_service.list_user_devices(token_user_id, device_id, page, db)
@@ -58,7 +59,8 @@ def forget_other_user_devices(
 ) -> None:
     """Forget every known device except the one the request comes from, after step-up verification.
 
-    The sessions that signed in from the forgotten devices end, and the next sign-in from each is announced as a new device.
+    The sessions that signed in from the forgotten devices end, and the next sign-in from each is announced as a new
+    device.
     """
     device_service.forget_other_user_devices(
         token_user_id, token_session_id, device_id, body.step_up, step_up_store, db

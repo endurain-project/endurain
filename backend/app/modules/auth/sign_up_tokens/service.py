@@ -492,7 +492,9 @@ def _issue_verification_email(
     db: Session,
     pending_change: sign_up_contracts.SignUpTokenState | None = None,
 ) -> tuple[str, str, str, str]:
-    """Create a verification link to the frontend page at ``link_path`` and return the email ``build_email`` makes of it.
+    """Create a verification link to the frontend page at ``link_path``.
+
+    Returns the email ``build_email`` makes of it.
 
     ``pending_change`` is the email change the link confirms, whose generation, identifier and revert window the new
     token keeps.
@@ -696,7 +698,10 @@ def prepare_sign_up_existing_account_email(
 
 
 def _revert_mac(change_id: uuid.UUID, revert_until: datetime) -> str:
-    """Return the proof, bound to an email change and the end of its revert window, that a link was issued by this server."""
+    """Return the proof that a link was issued by this server.
+
+    The proof is bound to an email change and the end of its revert window.
+    """
     return access_tokens_integration.derive_email_token(
         f"email-change-revert:{change_id}:{int(revert_until.timestamp())}"
     )
@@ -1184,7 +1189,10 @@ def confirm_email_change(token: str, db: Session) -> None:
 
 
 def delete_expired_sign_up_tokens(db: Session) -> int:
-    """Delete expired verification tokens, one batch per commit, keeping an email change's rows until its revert window ends."""
+    """Delete expired verification tokens, one batch per commit.
+
+    An email change's rows are kept until its revert window ends.
+    """
     now = datetime.now(UTC)
     return core_database.delete_in_batches(lambda limit: sign_up_crud.delete_expired_sign_up_tokens(now, limit, db), db)
 

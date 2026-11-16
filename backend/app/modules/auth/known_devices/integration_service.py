@@ -47,5 +47,8 @@ def forget_device(device_id: uuid.UUID, user_id: uuid.UUID, current_device_id: s
 
 
 def forget_other_devices(user_id: uuid.UUID, device_id: str | None, db: Session) -> int:
-    """Stage the deletion of the user's known devices but the request's own and their sessions; returns how many ended."""
+    """Stage the deletion of the user's other known devices and their sessions.
+
+    The request's own device is kept; the count of devices ended is returned.
+    """
     return known_devices_service.forget_other_devices(user_id, device_id, db)

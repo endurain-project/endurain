@@ -39,7 +39,8 @@ def get_usable_sign_up_token(token_hash: str, db: Session) -> sign_up_contracts.
 def claim_sign_up_token(token_hash: str, db: Session) -> sign_up_contracts.SignUpTokenClaim | None:
     """Stage an atomic claim of an unused, unexpired token and return what it proves.
 
-    One conditional ``UPDATE`` flips ``used`` and records the confirmation, so of two requests presenting the same link only one
+    One conditional ``UPDATE`` flips ``used`` and records the confirmation, so of two requests presenting the same link
+    only one
     matches a row.
 
     Args:

@@ -26,7 +26,10 @@ def sweep_unreferenced_icons() -> None:
 
 
 def reencrypt_stored_secrets() -> None:
-    """Re-encrypt the provider client credentials under the first FERNET_KEY; does nothing while one key is configured."""
+    """Re-encrypt the provider client credentials under the first FERNET_KEY.
+
+    Does nothing while one key is configured.
+    """
     with core_database.SessionLocal() as db:
         idp_provider_service.reencrypt_stored_secrets(db)
 

@@ -142,7 +142,8 @@ def authenticate_user(
             none; the caller reads whatever it must stamp before the credential is verified.
         username (str): The username of the user attempting to authenticate.
         password (str): The plaintext password provided by the user.
-        password_hasher (credentials_integration.PasswordHasher): An instance of the password hasher for verifying and updating password hashes.
+        password_hasher (credentials_integration.PasswordHasher): An instance of the password hasher for verifying and
+            updating password hashes.
         db (Session): The database session used for querying and updating user data.
 
     Returns:
@@ -919,8 +920,10 @@ def login_for_access_token(
     - Account lock: 100 failed password sign-ins in a row for one account, from any addresses, lock the account for
       30 days. The count restarts on a successful sign-in and expires after 30 days without a failure. A device the
       account has signed in from since its last security change (its device id is known) is not held by this lock,
-      only by the client-network lockout and the password check. A successful sign-in, a completed password reset, a password change or an
-      administrator setting the password lifts the lock. When it trips, the account's owner gets an email and an in-app notification.
+      only by the client-network lockout and the password check. A successful sign-in, a completed password reset, a
+      password change or an
+      administrator setting the password lifts the lock. When it trips, the account's owner gets an email and an in-app
+      notification.
 
     This endpoint authenticates a user using provided credentials, checks if the user is active,
     and determines if MFA is required. If MFA is enabled for the user, it stores the pending login

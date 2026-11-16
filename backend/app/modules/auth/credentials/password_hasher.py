@@ -78,7 +78,8 @@ class PasswordHasher:
             self._password_hash = PasswordHash(list(hasher))
         else:
             raise TypeError(
-                f"Unsupported hasher type: {type(hasher).__name__}. Must be Argon2Hasher, Iterable, PasswordHash, or None."
+                f"Unsupported hasher type: {type(hasher).__name__}. Must be Argon2Hasher, Iterable, PasswordHash, or "
+                "None."
             )
         # The hash of a random throwaway password, made once here so the first unknown-user sign-in does not pay for
         # it; only the hash is kept.
@@ -173,7 +174,8 @@ class PasswordHasher:
 def get_password_hasher() -> PasswordHasher:
     """Returns the password hasher instance.
 
-    This function provides access to the application's password hasher, which is used for securely hashing and verifying passwords.
+    This function provides access to the application's password hasher, which is used for securely hashing and verifying
+    passwords.
 
     Returns:
         password_hasher: An instance of the password hasher used for password operations.

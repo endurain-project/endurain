@@ -52,7 +52,8 @@ class AuthorizationService:
             redirect_path: Frontend path to return to after login.
             code_challenge: PKCE challenge the token exchange is checked against.
             code_challenge_method: PKCE method (``S256``).
-            browser_binding_hash: SHA-256 of the secret the starting browser keeps in a cookie; the callback requires it.
+            browser_binding_hash: SHA-256 of the secret the starting browser keeps in a cookie; the callback requires
+                it.
             db: Database session.
 
         Returns:
@@ -165,7 +166,8 @@ class AuthorizationService:
             idp_id: Provider to sign in with again.
             action: The sensitive operation the step-up authorises.
             code_challenge: S256 challenge of the verifier the browser keeps.
-            redirect: Frontend path to return to; only a relative path is accepted; every scheme, https included, is refused.
+            redirect: Frontend path to return to; only a relative path is accepted; every scheme, https included, is
+                refused.
             client_ip: Address of the client that started the step-up.
             db: Database session.
             security_generation: The account's generation, read before the step-up started; the state records it, so
@@ -179,7 +181,8 @@ class AuthorizationService:
                 fresh sign-in.
             NotFoundError: If the provider does not exist, is disabled or is not linked to the user.
         """
-        # No scheme is allowed, https included (an empty allowlist), and a blank value, which the validator lets through, is no path either.
+        # No scheme is allowed, https included (an empty allowlist), and a blank value, which the validator lets
+        # through, is no path either.
         identity_provider_utils.validate_redirect_url(redirect, set())
         if not redirect.startswith("/"):
             raise core_exceptions.InvalidInputError("Redirect must be a relative path starting with '/'.")

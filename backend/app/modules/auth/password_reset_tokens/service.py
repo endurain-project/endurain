@@ -96,7 +96,10 @@ def _record_reset_request_denied(user_id: uuid.UUID) -> None:
 
 
 def _claim_reset_cooldown(user_id: uuid.UUID, event_id: str, state: StateProvider) -> bool:
-    """Claim the account's reset-email cooldown for an event; False when another went out recently or the store is unreachable."""
+    """Claim the account's reset-email cooldown for an event.
+
+    The claim fails, returning False, when another email went out recently or the store is unreachable.
+    """
     try:
         return core_email_cooldown.claim_email(
             state, "password_reset", user_id, RESET_EMAIL_COOLDOWN_SECONDS, claimant=event_id

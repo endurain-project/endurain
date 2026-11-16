@@ -84,7 +84,10 @@ class CallbackService:
         staged_sign_ins: staged_sign_in_store.StagedSignInStore,
         frontend_host: str,
     ) -> None:
-        """Initialize the service with the provider client, its token, ticket and sign-in stores and the frontend host."""
+        """Initialize the service with the provider client, its stores and the frontend host.
+
+        The stores hold the provider tokens, the step-up tickets and the staged sign-ins.
+        """
         self._oidc = oidc
         self._tokens = tokens
         self._step_up_tickets = step_up_tickets

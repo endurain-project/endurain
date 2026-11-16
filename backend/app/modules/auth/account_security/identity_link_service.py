@@ -46,7 +46,8 @@ def start_idp_link(
     """Start linking an identity provider to the signed-in user's account, after step-up verification.
 
     The return path, the provider and the existing links are checked before step-up, so a refused request does
-    not spend an identity-provider step-up ticket or count a step-up attempt. The OAuth state is committed before the provider URL is built, because
+    not spend an identity-provider step-up ticket or count a step-up attempt. The OAuth state is committed before the
+    provider URL is built, because
     building it may run OIDC discovery, a network call no open transaction may span.
 
     Args:

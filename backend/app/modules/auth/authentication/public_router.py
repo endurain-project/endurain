@@ -251,7 +251,8 @@ def refresh_token(
 ) -> auth_schema.TokenRead:
     r"""Handles the refresh token process for user sessions.
 
-    This endpoint validates the provided refresh token, checks session status, and issues new tokens. A web client sends its refresh cookie and no
+    This endpoint validates the provided refresh token, checks session status, and issues new tokens. A web client sends
+    its refresh cookie and no
     body. A mobile client sends its refresh token in the JSON body as refresh_token (RFC 6749 section 6), never in
     the Authorization header; a body token sent by a web client is not read.
 

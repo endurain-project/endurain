@@ -31,7 +31,9 @@ logger = core_logger.get_logger(__name__)
 
 
 def end_session_on_reuse(token_user_id: uuid.UUID, token_family_id: uuid.UUID, db: Session) -> None:
-    """End the session of a refresh token that was reused outside its rotating client or its grace window, and tell its owner.
+    """End the session of a reused refresh token and tell its owner.
+
+    A reuse is a refresh outside the token's rotating client or its grace window.
 
     Args:
         token_user_id: User ID extracted from the refresh token.

@@ -1,4 +1,5 @@
-"""What an SSO sign-in to an existing account applies at its completion is held encrypted, per session, for its window."""
+"""What an SSO sign-in to an existing account applies at its completion is held encrypted, per session, for its
+window."""
 
 import logging
 import uuid

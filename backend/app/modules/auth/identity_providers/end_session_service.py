@@ -46,7 +46,9 @@ class EndSessionService:
     def end_session_url(
         self, request: identity_provider_contracts.EndSessionRequest, post_logout_redirect_uri: str | None
     ) -> str | None:
-        """Build the provider URL that ends the session at the provider. It may reach the network; hold no database session.
+        """Build the provider URL that ends the session at the provider.
+
+        It may reach the network; hold no database session.
 
         The user-facing operation, ending the Endurain session, has already succeeded when this runs, so a failure
         here is logged and answers None: the provider session simply stays. The ID token is never logged.

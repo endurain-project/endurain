@@ -41,7 +41,8 @@ def start_idp_link(
 ) -> identity_providers_schema.BrowserFlowStartRead:
     """Start linking an identity provider to the authenticated user's account.
 
-    Linking enables persistent sign-in, so it needs step-up verification in ``step_up``: ``current_password`` (or, for an
+    Linking enables persistent sign-in, so it needs step-up verification in ``step_up``: ``current_password`` (or, for
+    an
     account without one, ``idp_reauth``), and an MFA code when MFA is enabled. The browser then follows
     ``authorization_url``, signs in at the provider, and the callback returns to ``redirect``. For a web client the
     response sets a cookie that binds the link to this browser. For a native-app ``redirect`` the app opens

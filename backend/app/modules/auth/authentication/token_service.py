@@ -29,7 +29,8 @@ def create_tokens(
         client_type: The client type of the session, carried by both tokens as ``client_type``.
         token_manager (access_tokens_integration.TokenManager): The token manager responsible for token creation.
         policy (server_settings_contracts.SessionPolicy): The token lifetimes to apply.
-        session_id (uuid.UUID | None, optional): An optional session ID. If not provided, a new unique session ID is generated.
+        session_id (uuid.UUID | None, optional): An optional session ID. If not provided, a new unique session ID is
+            generated.
 
     Returns:
         tuple[uuid.UUID, datetime, str, datetime, str]:

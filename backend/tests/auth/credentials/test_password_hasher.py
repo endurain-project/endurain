@@ -18,7 +18,8 @@ class TestPasswordHasherSecurity:
     This class contains tests to ensure the correctness and security of password hashing and verification. The
     password policy lives in ``password_policy`` and is tested in ``test_password_policy``. The tests cover:
 
-    - Initialization of PasswordHasher with various types of hashers (None, single hasher, iterable, PasswordHash instance, incorrect types).
+    - Initialization of PasswordHasher with various types of hashers (None, single hasher, iterable, PasswordHash
+      instance, incorrect types).
     - Hashing and verifying passwords, including correct, incorrect, case-sensitive, very long, and Unicode passwords.
     - Ensuring that password hashes are unique and non-empty.
     - Verifying and updating password hashes when algorithms change.
@@ -67,7 +68,8 @@ class TestPasswordHasherSecurity:
         This test verifies that:
         - A PasswordHasher can be initialized with a single Argon2Hasher.
         - The hasher can successfully hash a password.
-        - The hasher can verify the password against the hashed value, ensuring correct functionality when using an iterable of hashers.
+        - The hasher can verify the password against the hashed value, ensuring correct functionality when using an
+          iterable of hashers.
         """
         # Create a PasswordHash instance with a single hasher
         hasher = PasswordHasher(hasher=Argon2Hasher())
@@ -206,7 +208,8 @@ class TestPasswordHasherSecurity:
         Test that verify_and_update returns False when an incorrect password is provided.
 
         This test hashes a correct password, then attempts to verify and update the hash using an incorrect password.
-        It asserts that the verification fails, ensuring that the password hasher does not validate incorrect credentials.
+        It asserts that the verification fails, ensuring that the password hasher does not validate incorrect
+        credentials.
         """
         correct_password = "CorrectPassword123!"
         wrong_password = "WrongPassword123!"

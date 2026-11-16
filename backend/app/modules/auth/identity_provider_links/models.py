@@ -1,4 +1,7 @@
-"""Auth-owned identity-provider link and sign-in database models (tables: ``users_identity_providers``, ``idp_session_tokens``)."""
+"""Auth-owned identity-provider link and sign-in database models.
+
+Tables: ``users_identity_providers``, ``idp_session_tokens``.
+"""
 
 import uuid
 from datetime import datetime
