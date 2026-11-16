@@ -60,6 +60,7 @@ const authUser: User = {
   avatarUrl: null,
   isStravaLinked: false,
   isGarminConnectLinked: false,
+  isCorosLinked: false,
   hasLocalPassword: true,
   units: 'metric',
   currency: 'euro',

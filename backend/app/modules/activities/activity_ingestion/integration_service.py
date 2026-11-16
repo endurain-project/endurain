@@ -1,7 +1,7 @@
 """The ingestion surface consumed by provider modules.
 
-A provider (Strava, Garmin) fetches files from its API or an export and hands
-them to ingestion. Providers import this one module and get the entry point plus
+A provider (Strava, Garmin, COROS) fetches files from its API or an export and
+hands them to ingestion. Providers import this one module and get the entry point plus
 the source types they need to describe where a file came from, including the
 :class:`BulkImportSource` base a provider export subclasses.
 """
@@ -24,6 +24,7 @@ import modules.activities.activity_ingestion.service as activity_ingestion_servi
 #: provider names one module rather than reaching for the package internals.
 UploadSource = activity_ingestion_contracts.UploadSource
 GarminSource = activity_ingestion_contracts.GarminSource
+CorosSource = activity_ingestion_contracts.CorosSource
 BulkImportSource = activity_ingestion_contracts.BulkImportSource
 BulkImportFormat = activity_ingestion_contracts.BulkImportFormat
 ArchiveMemberReader = activity_ingestion_contracts.ArchiveMemberReader

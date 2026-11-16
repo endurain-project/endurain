@@ -22,6 +22,21 @@ RunnerUp currently **does not** support login with MFA.
 
 A scheme may only contain letters, digits, `+`, `-` and `.`, so the nightly without Pebble build uses `nightly-nopebble`, not its package name `nightly_nopebble`. Entries with other characters are ignored with a warning at startup.
 
+## COROS
+
+Endurain connects to COROS through its official MCP server and the standard
+OAuth 2.0 authorization-code flow with PKCE. No COROS developer application or
+API key is needed: COROS registers Endurain dynamically when you connect.
+
+The integration imports activity FIT files into the shared ingestion pipeline.
+The last 30 days are imported on connection, the last day is checked hourly,
+and **Sync now** re-reads the last seven days. You can also retrieve an explicit
+date range. Tokens are encrypted at rest with `FERNET_KEY` and are never exposed
+to the frontend.
+
+See the [COROS integration](coros.md) page for configuration, supported data,
+the daily FIT download limit and current limitations.
+
 ## Garmin Connect
 
 To enable Garmin Connect integration, Endurain will ask for your Garmin Connect credentials. These credentials are not stored, but the authentication tokens (access and refresh tokens) are stored in the DB, similar to the Strava integration. The credentials are sent from the frontend to the backend in plain text, so the use of HTTPS is highly recommended.

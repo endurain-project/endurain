@@ -9,6 +9,18 @@ export type GarminLoginDto = Schemas['GarminLogin']
 /** Garmin Connect MFA-code body. */
 export type GarminMfaDto = Schemas['modules__garmin__schema__MFARequest']
 
+/** COROS connection and last-sync status DTO. */
+export type CorosStatusDto = Schemas['CorosStatusRead']
+
+/** Clean COROS status consumed by the settings card. */
+export interface CorosStatus {
+  linked: boolean
+  lastSyncAt: string | null
+  lastSyncStatus: 'never' | 'success' | 'error'
+  lastSyncError: string | null
+  lastSyncActivityCount: number
+}
+
 /** The clean credentials the Strava connect dialog collects. */
 export interface StravaClientInput {
   clientId: number

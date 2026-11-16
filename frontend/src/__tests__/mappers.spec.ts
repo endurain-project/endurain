@@ -20,6 +20,7 @@ const baseDto: UserProfileDto = {
   photo_path: '/api/v1/users/7/photo?t=sig',
   is_strava_linked: 1,
   is_garminconnect_linked: 0,
+  is_coros_linked: 1,
   has_local_password: true,
   units: 'metric',
   currency: 'euro',
@@ -42,6 +43,7 @@ describe('mapUserProfile', () => {
       avatarUrl: 'https://cdn.test/api/v1/users/7/photo?t=sig',
       isStravaLinked: true,
       isGarminConnectLinked: false,
+      isCorosLinked: true,
       hasLocalPassword: true,
       units: 'metric',
       currency: 'euro',
@@ -50,10 +52,16 @@ describe('mapUserProfile', () => {
   })
 
   it('coerces number-encoded link flags to booleans', () => {
-    const user = mapUserProfile({ ...baseDto, is_strava_linked: 0, is_garminconnect_linked: 1 })
+    const user = mapUserProfile({
+      ...baseDto,
+      is_strava_linked: 0,
+      is_garminconnect_linked: 1,
+      is_coros_linked: 0,
+    })
 
     expect(user.isStravaLinked).toBe(false)
     expect(user.isGarminConnectLinked).toBe(true)
+    expect(user.isCorosLinked).toBe(false)
   })
 
   it('treats null/undefined link flags as false', () => {
@@ -61,10 +69,12 @@ describe('mapUserProfile', () => {
       ...baseDto,
       is_strava_linked: null,
       is_garminconnect_linked: undefined,
+      is_coros_linked: undefined,
     })
 
     expect(user.isStravaLinked).toBe(false)
     expect(user.isGarminConnectLinked).toBe(false)
+    expect(user.isCorosLinked).toBe(false)
   })
 
   it('resolves avatarUrl to null when no photo_path is set', () => {

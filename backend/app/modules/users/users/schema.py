@@ -376,6 +376,7 @@ class UsersMe(UsersRead):
     Attributes:
         is_strava_linked: Strava integration status.
         is_garminconnect_linked: Garmin Connect status.
+        is_coros_linked: COROS integration status.
         default_activity_visibility: Default visibility level.
         hide_activity_start_time: Hide start time setting.
         hide_activity_location: Hide location setting.
@@ -396,6 +397,7 @@ class UsersMe(UsersRead):
 
     is_strava_linked: StrictInt | None = Field(default=None, description="Whether Strava is linked")
     is_garminconnect_linked: StrictInt | None = Field(default=None, description="Whether Garmin Connect is linked")
+    is_coros_linked: StrictInt | None = Field(default=None, description="Whether COROS is linked")
     default_activity_visibility: StrictStr | None = Field(default=None, description="Default activity visibility")
     hide_activity_start_time: StrictBool | None = Field(default=None, description="Hide activity start time")
     hide_activity_location: StrictBool | None = Field(default=None, description="Hide activity location")

@@ -245,6 +245,13 @@ const router = createRouter({
       meta: { requiresAuth: true, bare: true },
     },
     {
+      path: '/coros/callback',
+      name: 'coros-callback',
+      component: () => import('@/features/integrations/views/CorosCallbackView.vue'),
+      // Transient OAuth landing: finishes the link then redirects to settings.
+      meta: { requiresAuth: true, bare: true },
+    },
+    {
       path: '/notifications',
       name: 'notifications',
       component: () => import('@/features/notifications/views/NotificationsView.vue'),

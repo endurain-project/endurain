@@ -58,6 +58,7 @@ class Activity(Base):
         strava_activity_id: Strava activity ID.
         garminconnect_activity_id: Garmin Connect activity ID.
         garminconnect_gear_id: Garmin Connect gear ID.
+        coros_activity_id: COROS activity ID.
         import_info: Additional import metadata.
         is_hidden: Whether the activity is hidden.
         hide_start_time: Hide start time from others.
@@ -93,6 +94,7 @@ class Activity(Base):
         # no-op. NULL dedup_keys stay unconstrained (Postgres treats NULLs as
         # distinct), so activities with no stable identity are unaffected.
         Index("uq_activities_user_dedup_key", "user_id", "dedup_key", unique=True),
+        Index("ix_activities_user_coros_activity_id", "user_id", "coros_activity_id"),
     )
 
     id: Mapped[int] = mapped_column(
@@ -283,6 +285,11 @@ class Activity(Base):
         String(45),
         nullable=True,
         comment="Garmin Connect gear ID",
+    )
+    coros_activity_id: Mapped[str | None] = mapped_column(
+        String(64),
+        nullable=True,
+        comment="COROS activity ID",
     )
     import_info: Mapped[dict | None] = mapped_column(
         JSON,

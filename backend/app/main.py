@@ -47,6 +47,7 @@ import modules.auth.password_reset_tokens.utils as password_reset_tokens_utils
 import modules.auth.scheduled_jobs as auth_scheduled_jobs
 import modules.auth.sign_up_tokens.utils as sign_up_tokens_utils
 import modules.auth.utils as auth_utils
+import modules.coros.provider_registry as coros_provider_registry
 import modules.garmin.health_utils as garmin_health_utils
 import modules.garmin.provider_registry as garmin_provider_registry
 import modules.garmin.scheduled_jobs as garmin_scheduled_jobs
@@ -208,6 +209,7 @@ async def startup_event(fastapi_app: FastAPI) -> None:
     # them. Must also happen in worker.py, where refresh jobs are claimed.
     strava_provider_registry.register_activity_provider()
     garmin_provider_registry.register_activity_provider()
+    coros_provider_registry.register_activity_provider()
 
     # Start the event bus. No-op for the in-process bus (local); starts the
     # Redis Streams consumer thread in distributed mode.

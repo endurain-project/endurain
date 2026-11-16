@@ -10,7 +10,7 @@ Two import-linter contracts enforce that split: `activities-parsing-boundary` an
 
 ## One pipeline, three entry points
 
-Upload, provider sync (Garmin Connect, Strava) and bulk import differ only in how the file arrives and what happens on failure. They all call the same pipeline.
+Upload, provider sync (Garmin Connect, Strava, COROS) and bulk import differ only in how the file arrives and what happens on failure. They all call the same pipeline.
 
 ```mermaid
 flowchart LR
@@ -39,6 +39,7 @@ Parsers are pure functions. They return a canonical `ParsedFile` and know nothin
     | --- | --- |
     | Strava activity id | `strava:<id>` |
     | Garmin activity id | `garmin:<id>:<start time>` (a multi-activity `.fit` shares one Garmin id) |
+    | COROS activity id | `coros:<id>:<start time>` (the start time keeps a multi-session FIT distinct) |
     | File content | `file:<sha256>:<start time>` |
     | None of these | Falls back to start-time matching: the activity is stored but hidden, with a notification |
 

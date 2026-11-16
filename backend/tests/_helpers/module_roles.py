@@ -30,6 +30,7 @@ CONVERTED_MODULES: tuple[str, ...] = ("activities", "followers")
 #: module cannot start life silently outside the rules.
 UNCONVERTED_MODULES: tuple[str, ...] = (
     "auth",
+    "coros",
     "garmin",
     "gears",
     "health",

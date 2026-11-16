@@ -1,8 +1,10 @@
-import { useMutation, useQueryClient } from '@tanstack/vue-query'
+import { computed, toValue, type MaybeRefOrGetter } from 'vue'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/vue-query'
 
 import type { DateRange, GarminLoginInput } from '@/features/integrations/types'
 
 import { queryKeys } from '@/services/queryKeys'
+import { fetchCorosStatus, syncCoros, unlinkCoros } from '@/features/integrations/services/coros'
 import {
   linkGarmin,
   retrieveGarminActivities,
@@ -92,5 +94,45 @@ export function useUnlinkGarminMutation() {
   return useMutation<void, Error, void>({
     mutationFn: () => unlinkGarmin(),
     onSuccess: invalidateProfile,
+  })
+}
+
+/**
+ * COROS connection and last-sync status. Polled while the card is shown so a
+ * background sync started from another tab or the scheduler becomes visible.
+ *
+ * @param enabled - Whether the profile says COROS is connected.
+ * @returns The TanStack Query result for the COROS status.
+ */
+export function useCorosStatusQuery(enabled: MaybeRefOrGetter<boolean>) {
+  return useQuery({
+    queryKey: queryKeys.integrations.corosStatus(),
+    queryFn: ({ signal }) => fetchCorosStatus(signal),
+    enabled: computed(() => toValue(enabled)),
+    refetchInterval: 30_000,
+  })
+}
+
+/** Queues a COROS sync for the given range (last seven days when omitted). */
+export function useSyncCorosMutation() {
+  const client = useQueryClient()
+  return useMutation<void, Error, DateRange | undefined>({
+    mutationFn: (range) => syncCoros(range),
+    onSettled: () => {
+      void client.invalidateQueries({ queryKey: queryKeys.integrations.corosStatus() })
+    },
+  })
+}
+
+/** Disconnects COROS and refreshes both the profile and the status card. */
+export function useUnlinkCorosMutation() {
+  const invalidateProfile = useProfileInvalidation()
+  const client = useQueryClient()
+  return useMutation<void, Error, void>({
+    mutationFn: () => unlinkCoros(),
+    onSuccess: invalidateProfile,
+    onSettled: () => {
+      void client.invalidateQueries({ queryKey: queryKeys.integrations.corosStatus() })
+    },
   })
 }
