@@ -182,7 +182,7 @@ class TestApplyVisibilityMask:
         assert result.map_thumbnail_path == "42.webp"
 
     def test_hide_start_time_clears_every_timestamp(self):
-        """``created_at`` is the import time, which places the hidden start within minutes."""
+        """``created_at`` and ``updated_at`` are the import and derivation times, which place the hidden start."""
         from modules.activities.activity.schema import ActivityRead
         from modules.activities.activity.serializers import apply_visibility_mask
 
@@ -194,6 +194,7 @@ class TestApplyVisibilityMask:
             start_time=datetime(2024, 1, 15, 8, 0, 0, tzinfo=UTC),
             end_time=datetime(2024, 1, 15, 9, 0, 0, tzinfo=UTC),
             created_at=datetime(2024, 1, 15, 9, 5, 0, tzinfo=UTC),
+            updated_at=datetime(2024, 1, 15, 9, 7, 0, tzinfo=UTC),
             hide_start_time=True,
         )
 
@@ -202,6 +203,7 @@ class TestApplyVisibilityMask:
         assert schema.start_time is None
         assert schema.end_time is None
         assert schema.created_at is None
+        assert schema.updated_at is None
 
     @pytest.mark.parametrize(
         ("flag", "fields"),

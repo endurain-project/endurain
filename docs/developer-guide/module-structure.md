@@ -782,7 +782,7 @@ by hand when the code it describes changes.
 
 - **Storage lifecycle.** The hourly thumbnail reconciliation and the daily orphan sweep each walk the whole
   thumbnail area: its keys are flat `{id}.webp`, so no prefix narrows the walk.
-- **Creates carry no `Idempotency-Key`.** Of the 27 `POST` routes that answer `201`, only the activity upload
+- **Creates carry no `Idempotency-Key`.** Of the 19 `POST` routes that answer `201`, only the activity upload
   accepts an `Idempotency-Key`. Most of the others refuse a repeated create through a unique constraint, but a
   retried poop record, gear component or completed fasting session after a lost response is a duplicate. The
   upload keeps its key on the ingestion job row, with no expiry, and its fingerprint and replay are specific to
@@ -790,11 +790,11 @@ by hand when the code it describes changes.
   `StateProvider` with a TTL, replay and conflict rules), and no client sends one yet, so it waits for one.
   `Location` (`core.location.set_location`) is sent by the creates whose resource has a GET-by-id route: gear,
   poop, fasting and users; the other created records have no such route to name.
-- **Broad exception handling.** The 88 `except Exception` and `BaseException` handlers outside the migrations
-  sit in `core` and `main.py` (24), `activities` (21, mostly ingestion), `users` (17, mostly the profile export
-  and import), `auth` (16, mostly the identity providers) and the provider services of `strava` (8) and `garmin`
-  (2); `followers`, `gears`, `health`, `notifications`, `server_settings` and `websocket` have none. The
-  migrations hold 38 more. Many are deliberate boundaries (a job records a failure and re-raises, a
+- **Broad exception handling.** The 94 `except Exception` and `BaseException` handlers outside the migrations
+  sit in `core` and `main.py` (25), `activities` (21, mostly ingestion), `users` (17, mostly the profile export
+  and import), `auth` (17, mostly the identity providers), the provider services of `strava` (10) and `garmin`
+  (2) and `gears` (2); `followers`, `health`, `notifications`, `server_settings` and `websocket` have none. The
+  migrations hold 18 more. Many are deliberate boundaries (a job records a failure and re-raises, a
   provider call degrades to a warning), but each should name the errors it expects. Narrowing them in bulk
   risks hiding a real failure as an expected one, so they are narrowed as the code around them is touched.
   The ones that swallow the error (no `raise` in the handler) are counted per file in
@@ -805,7 +805,7 @@ by hand when the code it describes changes.
 
 These constraints remain visible until a coordinated design change resolves them:
 
-- **Top-level cycles.** Four pairs import each other, and seven modules form one strongly connected set:
+- **Top-level cycles.** Five pairs import each other, and seven modules form one strongly connected set:
   `activities`, `auth`, `followers`, `gears`, `server_settings`, `users` and `websocket` (`followers`, `gears` and
   `websocket` join through longer loops: they import `auth.dependencies` or users surfaces, and `activities` or
   `users` import them). `health`, `notifications`, `garmin` and `strava` are outside it.
@@ -819,6 +819,8 @@ These constraints remain visible until a coordinated design change resolves them
     erasure runs in the deletion's own transaction. `gears` sits below activities (`_MUST_NOT_IMPORT`) and
     declares its usage questions in `gears/contributors.py`; `module_registry.configure_gear_contributors`
     installs the activities answers.
+  - `users` ⇄ `gears`: gear and gear-component services read the users profile contracts, while
+    `users_default_gear` uses the gear integration surface.
   - `auth` ⇄ `server_settings`: auth services read server settings, whose routers use auth dependencies.
   - `users` ⇄ `server_settings`: user creation reads the server settings and the users schema uses their units and
     currency, while the settings router reads the admin user for the test email and the mail service uses a users

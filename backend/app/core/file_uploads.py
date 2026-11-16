@@ -275,8 +275,13 @@ def _validate_file(file: BinaryIO, filename: str, *, kind: UploadKind) -> str:
     try:
         return _validator_for(kind)(file, filename).filename
     except FileSecurityError as err:
-        logger.warning("Upload validation failed", exc_info=err, extra=core_logger.context(kind=kind.value))
-        raise _to_domain_error(err) from err
+        domain_error = _to_domain_error(err)
+        if isinstance(domain_error, core_exceptions.ProcessingError):
+            logger.warning("Upload validation failed", exc_info=err, extra=core_logger.context(kind=kind.value))
+        else:
+            # The client's file broke a rule; the boundary answers it, so it is not logged above DEBUG.
+            logger.debug("Upload rejected", exc_info=err, extra=core_logger.context(kind=kind.value))
+        raise domain_error from err
 
 
 def _validate_upload(file: UploadFile, *, kind: UploadKind) -> None:
@@ -1158,7 +1163,10 @@ def extract_validated_zip_sync(
         staging_dir, extracted = _extract_to_staging(Path(os.fspath(zip_path)), dest_path, max_entries)
     except core_exceptions.DomainError:
         raise
-    except (zipfile.BadZipFile, OSError) as err:
+    except zipfile.BadZipFile as err:
+        logger.debug("extract_validated_zip_sync rejected a corrupt archive", exc_info=err)
+        raise core_exceptions.InvalidInputError("Failed to extract archive") from err
+    except OSError as err:
         logger.warning("extract_validated_zip_sync failed", exc_info=err)
         raise core_exceptions.InvalidInputError("Failed to extract archive") from err
 
@@ -1209,10 +1217,13 @@ class ZipMember:
     Attributes:
         name: The member's path inside the archive, with ``/`` separators.
         size: Its uncompressed size in bytes.
+        stored_name: The name the archive stores the member under, which opens it
+            (it keeps a ``\\`` the archive was written with).
     """
 
     name: str
     size: int
+    stored_name: str
 
 
 def save_text_upload_sync(file: UploadFile, *, upload_dir: str, filename: str, max_bytes: int) -> str:
@@ -1292,7 +1303,7 @@ def list_zip_members(zip_path: str | os.PathLike[str], *, max_entries: int | Non
                 total += info.file_size
                 if total > MAX_ARCHIVE_UNCOMPRESSED_BYTES:
                     raise core_exceptions.PayloadTooLargeError("Archive contents exceed the allowed size")
-                members.append(ZipMember(name=name, size=info.file_size))
+                members.append(ZipMember(name=name, size=info.file_size, stored_name=info.filename))
     except zipfile.BadZipFile as err:
         raise core_exceptions.InvalidInputError("Invalid ZIP archive") from err
     return members
@@ -1313,7 +1324,7 @@ def copy_zip_member(
 
     Args:
         zip_ref: An open archive.
-        member_name: The member to read, as listed by :func:`list_zip_members`.
+        member_name: The member to read, as its ``stored_name`` from :func:`list_zip_members`.
         destination: Where to write it.
         max_bytes: Cap on bytes written; defaults to the activity-file cap.
 

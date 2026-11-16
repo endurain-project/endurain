@@ -724,16 +724,16 @@ def _run_batch(job_id: uuid.UUID, storage: platform_providers.StorageProvider) -
             )
             return False
 
-        members = sorted(
-            member.name
-            for member in core_file_uploads.list_zip_members(archive_path)
-            if bulk_format.is_activity_member(member.name)
-        )
+        # Members match and resume by their normalised name; the archive opens them by the name it stores.
+        listed = {member.name: member for member in core_file_uploads.list_zip_members(archive_path)}
+        members = sorted(name for name in listed if bulk_format.is_activity_member(name))
         pending = [name for name in members if state.cursor is None or name > state.cursor]
 
         with zipfile.ZipFile(archive_path) as archive:
             try:
-                source = bulk_format.build_source(state.user_id, state.created_at.isoformat(), _member_reader(archive))
+                source = bulk_format.build_source(
+                    state.user_id, state.created_at.isoformat(), _member_reader(archive, listed)
+                )
             except core_exceptions.DomainError as err:
                 logger.warning(
                     "Bulk import archive is not a valid export",
@@ -748,7 +748,7 @@ def _run_batch(job_id: uuid.UUID, storage: platform_providers.StorageProvider) -
             for name in pending:
                 if handled >= max_files or (deadline is not None and time.monotonic() >= deadline):
                     break
-                if _import_member(archive, name, state.user_id, source, job_id, storage):
+                if _import_member(archive, listed[name], state.user_id, source, job_id, storage):
                     done += 1
                 else:
                     failed += 1
@@ -775,11 +775,14 @@ def _run_batch(job_id: uuid.UUID, storage: platform_providers.StorageProvider) -
     return False
 
 
-def _member_reader(archive: zipfile.ZipFile) -> activity_ingestion_contracts.ArchiveMemberReader:
+def _member_reader(
+    archive: zipfile.ZipFile, members: dict[str, core_file_uploads.ZipMember]
+) -> activity_ingestion_contracts.ArchiveMemberReader:
     """Build the reader a format uses to reach its manifest and sidecar files.
 
     Args:
         archive: The open archive.
+        members: The archive's members by their normalised name.
 
     Returns:
         A callable returning a member's bytes, or ``None`` when it is absent.
@@ -798,7 +801,7 @@ def _member_reader(archive: zipfile.ZipFile) -> activity_ingestion_contracts.Arc
             PayloadTooLargeError: When the member is larger than the read limit.
         """
         try:
-            info = archive.getinfo(member_name)
+            info = archive.getinfo(members[member_name].stored_name)
         except KeyError:
             return None
         if info.file_size > core_file_uploads.MAX_READ_MEMBER_BYTES:
@@ -827,7 +830,7 @@ def _log_bulk_failure(message: str, err: Exception, **fields: object) -> None:
 
 def _import_member(
     archive: zipfile.ZipFile,
-    member_name: str,
+    member: core_file_uploads.ZipMember,
     user_id: uuid.UUID,
     source: activity_ingestion_contracts.BulkImportSource,
     job_id: uuid.UUID,
@@ -841,7 +844,7 @@ def _import_member(
 
     Args:
         archive: The open archive.
-        member_name: The member to import.
+        member: The member to import.
         user_id: The importing user.
         source: The source applied to the file.
         job_id: The job, for the error trail.
@@ -855,14 +858,14 @@ def _import_member(
         InterfaceError: When the database connection is unusable.
         StorageBackendUnavailableError: When the storage backend is unreachable.
     """
-    base_name = os.path.basename(member_name)
+    base_name = os.path.basename(member.name)
     with tempfile.TemporaryDirectory(prefix="bulk-member-") as member_dir:
         # The member's own directory keeps its base name intact, which the Strava
         # manifest and the Garmin activity id are keyed by, and means two members
         # with the same name in different folders cannot collide.
         path = os.path.join(member_dir, base_name)
         try:
-            core_file_uploads.copy_zip_member(archive, member_name, path)
+            core_file_uploads.copy_zip_member(archive, member.stored_name, path)
             with core_database.SessionLocal() as db:
                 activity_ingestion_pipeline_service.validate_prepare_and_store_file(
                     user_id, path, db, source=source, storage=storage
@@ -873,14 +876,14 @@ def _import_member(
             _log_bulk_failure(
                 "Bulk import: a file could not be imported", err, user_id=user_id, job_id=job_id, file=base_name
             )
-            _keep_failed_member(archive, member_name, user_id, job_id, storage)
+            _keep_failed_member(archive, member, user_id, job_id, storage)
             return False
     return True
 
 
 def _keep_failed_member(
     archive: zipfile.ZipFile,
-    member_name: str,
+    member: core_file_uploads.ZipMember,
     user_id: uuid.UUID,
     job_id: uuid.UUID,
     storage: platform_providers.StorageProvider,
@@ -889,7 +892,7 @@ def _keep_failed_member(
 
     Args:
         archive: The open archive.
-        member_name: The member that failed.
+        member: The member that failed.
         user_id: The importing user.
         job_id: The job.
         storage: The blob-storage provider.
@@ -897,11 +900,11 @@ def _keep_failed_member(
     try:
         with tempfile.TemporaryDirectory(prefix="bulk-failed-") as work_dir:
             path = os.path.join(work_dir, "member")
-            core_file_uploads.copy_zip_member(archive, member_name, path)
+            core_file_uploads.copy_zip_member(archive, member.stored_name, path)
             with open(path, "rb") as handle:
                 storage.save_stream(
                     activity_ingestion_constants.BULK_IMPORT_ERROR_STORAGE_AREA,
-                    f"{activity_ingestion_constants.bulk_import_error_prefix(user_id)}{job_id}/{os.path.basename(member_name)}",
+                    f"{activity_ingestion_constants.bulk_import_error_prefix(user_id)}{job_id}/{os.path.basename(member.name)}",
                     handle,
                 )
     except (

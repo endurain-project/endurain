@@ -211,9 +211,9 @@ def edit_activity(
 ) -> activity_schema.ActivityRead:
     """Apply partial updates to one of the authenticated user's activities.
 
-    Send ``If-Match`` with the ETag from the read to make the write conditional;
-    a stale tag is refused with 412 rather than silently overwriting whoever
-    saved in between.
+    ``If-Match`` with the ETag from the read is required: a request without it is
+    refused with 428, and a stale tag with 412 rather than silently overwriting
+    whoever saved in between.
     """
     activity = activity_service.edit_activity(activity_id, token_user_id, activity_attributes, db, if_match=if_match)
     if activity.version is not None:

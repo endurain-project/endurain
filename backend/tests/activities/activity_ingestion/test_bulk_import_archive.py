@@ -24,6 +24,7 @@ from tests._helpers.auth import MOCK_USER_ID, OTHER_USER_ID
 from tests._helpers.db import create_sqlite_session_factory, ensure_user
 
 import core.exceptions as core_exceptions
+import core.file_uploads as core_file_uploads
 import core.local_pool as core_local_pool
 import modules.activities.activity_ingestion.bulk_import_service as bulk
 import modules.activities.activity_ingestion.constants as ingestion_constants
@@ -37,6 +38,7 @@ import modules.activities.activity_ingestion.upload_entry_service as upload_entr
 _JOB_1 = uuid.UUID("00000000-0000-4000-8000-0000000000a1")
 
 _USER = MOCK_USER_ID
+_MEMBER = core_file_uploads.ZipMember(name="a.fit", size=1, stored_name="a.fit")
 
 
 def _commit_through(*_args, **kwargs):
@@ -317,6 +319,26 @@ class TestBatches:
         # The same job runs the next batch, so no event is queued for it.
         publish.assert_not_called()
         assert storage.exists(upload_entry_service.UPLOAD_STAGING_STORAGE_AREA, f"upload_staging/{row.staged_key}")
+
+    def test_a_member_stored_with_a_backslash_name_is_imported_under_its_normalised_name(
+        self, tmp_path, factory, storage, pipeline
+    ):
+        job_id = self._accept(tmp_path, factory, storage, {"a\\b.fit": b"x", "c.fit": b"x"})
+
+        with (
+            patch.object(bulk.core_config.settings, "JOBS_ENABLED", True),
+            patch.object(
+                bulk.activity_ingestion_event_publishers.platform_publisher,
+                "publish_committing",
+                side_effect=_commit_through,
+            ),
+        ):
+            more = bulk.run_bulk_import_job(job_id, storage)
+
+        row = _job(factory, job_id)
+        assert more is False
+        assert (row.files_done, row.files_failed, row.cursor) == (2, 0, "c.fit")
+        assert pipeline == ["b.fit", "c.fit"]
 
     def test_the_next_batch_resumes_after_the_cursor_and_finishes(self, tmp_path, factory, storage, pipeline):
         job_id = self._accept(tmp_path, factory, storage, {f"{n}.fit": b"x" for n in "abcde"})
@@ -673,7 +695,7 @@ class TestFailureLogLevels:
             ),
             patch.object(bulk, "_keep_failed_member"),
         ):
-            assert bulk._import_member(archive, "a.fit", _USER, MagicMock(), _JOB_1, MagicMock()) is False
+            assert bulk._import_member(archive, _MEMBER, _USER, MagicMock(), _JOB_1, MagicMock()) is False
         return [record for record in caplog.records if record.levelno >= logging.WARNING]
 
     @pytest.mark.parametrize(
@@ -740,7 +762,7 @@ class TestImportMemberOutage:
             ),
             patch.object(bulk, "_keep_failed_member") as keep,
         ):
-            return bulk._import_member(archive, "a.fit", _USER, MagicMock(), _JOB_1, MagicMock()), keep
+            return bulk._import_member(archive, _MEMBER, _USER, MagicMock(), _JOB_1, MagicMock()), keep
 
     @pytest.mark.parametrize(
         "error",
@@ -763,7 +785,7 @@ class TestImportMemberOutage:
             patch.object(bulk, "_keep_failed_member") as keep,
             pytest.raises(type(error)),
         ):
-            bulk._import_member(archive, "a.fit", _USER, MagicMock(), _JOB_1, MagicMock())
+            bulk._import_member(archive, _MEMBER, _USER, MagicMock(), _JOB_1, MagicMock())
 
         keep.assert_not_called()
 
@@ -791,7 +813,7 @@ class TestKeepFailedMember:
             zipfile.ZipFile(path) as archive,
             patch.object(bulk.core_file_uploads, "copy_zip_member", side_effect=copy_error),
         ):
-            bulk._keep_failed_member(archive, "a.fit", _USER, _JOB_1, storage)
+            bulk._keep_failed_member(archive, _MEMBER, _USER, _JOB_1, storage)
 
     @pytest.mark.parametrize(
         "error",

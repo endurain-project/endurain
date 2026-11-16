@@ -119,7 +119,6 @@ def strava_retrieve_gear(
 
 @router.post(
     "/import/gear",
-    status_code=status.HTTP_201_CREATED,
     response_model=strava_schema.StravaGearImportResult,
     dependencies=[Security(auth_dependencies.check_scopes, scopes=["gears:write"])],
     openapi_extra=core_middleware_body_limit.upload_limit(strava_constants.GEAR_CSV_MAX_BYTES),

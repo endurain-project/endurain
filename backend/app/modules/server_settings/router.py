@@ -79,8 +79,9 @@ def edit_server_settings(
     sign-up, sign-in, sessions, the audit trail or the owner info on public links also needs the administrator's
     own step-up verification in `step_up`; any other change needs none. The body replaces
     the whole configuration; only the API keys may be omitted, which keeps the stored
-    ones. Send ``If-Match`` with the ETag from the read to make the write conditional;
-    a stale tag is refused with 412 rather than reverting an admin who saved in between.
+    ones. ``If-Match`` with the ETag from the read is required: a request without it is
+    refused with 428, and a stale tag with 412 rather than reverting an admin who saved
+    in between.
 
     Args:
         request: The HTTP request object.
@@ -215,8 +216,8 @@ def edit_mail_settings(
     own step-up verification in `step_up`, as pointing mail at another server exposes
     every password-reset link. The body replaces the whole configuration; only the
     password may be omitted, which keeps the stored one.
-    Send ``If-Match`` with the ETag from the read to make the write conditional; a stale
-    tag is refused with 412.
+    ``If-Match`` with the ETag from the read is required: a request without it is refused
+    with 428, and a stale tag with 412.
 
     Args:
         request: The HTTP request object.

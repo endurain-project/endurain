@@ -330,6 +330,23 @@ class TestSecurityHeadersMiddleware:
 
         assert "'unsafe-inline'" not in style_src
 
+    def test_html_csp_allows_no_third_party_cdn(self):
+        """Only the API docs pages load from the jsDelivr CDN, and they set their own policy."""
+        from fastapi.responses import HTMLResponse
+
+        from core.middleware import SecurityHeadersMiddleware
+
+        app = FastAPI()
+        app.add_middleware(SecurityHeadersMiddleware)
+
+        @app.get("/html")
+        async def html_endpoint():
+            return HTMLResponse("<html></html>")
+
+        csp = TestClient(app).get("/html").headers["Content-Security-Policy"]
+
+        assert "jsdelivr" not in csp
+
     def test_html_csp_allows_no_inline_script(self):
         from fastapi.responses import HTMLResponse
 
@@ -469,7 +486,7 @@ class TestSecurityHeadersMiddleware:
             response = client.get("/html")
 
         csp = response.headers["Content-Security-Policy"]
-        assert "connect-src 'self' https://cdn.jsdelivr.net https://api.github.com;" in csp
+        assert "connect-src 'self' https://api.github.com;" in csp
 
     def test_connect_src_includes_additional_origins_when_set(self):
         from fastapi import FastAPI
@@ -492,10 +509,7 @@ class TestSecurityHeadersMiddleware:
             response = client.get("/html")
 
         csp = response.headers["Content-Security-Policy"]
-        assert (
-            "connect-src 'self' https://cdn.jsdelivr.net https://api.github.com https://auth.example.com https://proxy.example.com;"
-            in csp
-        )
+        assert "connect-src 'self' https://api.github.com https://auth.example.com https://proxy.example.com;" in csp
 
 
 class TestAllowedTileDomainsRefresh:

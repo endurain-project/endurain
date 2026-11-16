@@ -145,7 +145,7 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
             # Extra connect-src origins for deployments behind a
             # forward-auth reverse proxy that redirects API calls
             # to its own domain (see CSP_ADDITIONAL_CONNECT_SRC).
-            connect_src = "'self' https://cdn.jsdelivr.net https://api.github.com"
+            connect_src = "'self' https://api.github.com"
             extra_connect_src = core_config.settings.CSP_ADDITIONAL_CONNECT_SRC
             if extra_connect_src:
                 connect_src = f"{connect_src} {' '.join(extra_connect_src)}"
@@ -155,8 +155,8 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
                 "default-src 'self'; "
                 f"img-src 'self' data: {tile_domains_str}{blob_src} "
                 "https://fastapi.tiangolo.com; "
-                "style-src 'self' https://cdn.jsdelivr.net; "
-                "script-src 'self' https://cdn.jsdelivr.net; "
+                "style-src 'self'; "
+                "script-src 'self'; "
                 f"connect-src {connect_src}; "
                 f"media-src 'self' data:{blob_src}; "
                 "base-uri 'self'; "

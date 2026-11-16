@@ -76,10 +76,12 @@ def apply_visibility_mask(
     schema.import_info = None
     if schema.hide_start_time:
         # One representation of the instant means one place to mask it. The import time
-        # places the start within minutes, so it goes with it.
+        # places the start within minutes, and so does the update time, which the server
+        # bumps minutes later when it derives the thumbnail or media, so both go with it.
         schema.start_time = None
         schema.end_time = None
         schema.created_at = None
+        schema.updated_at = None
     if schema.hide_location:
         schema.city = None
         schema.town = None

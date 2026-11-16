@@ -120,10 +120,10 @@ def test_a_gear_import_reports_how_many_gears_it_created(gear_type, expected):
     assert import_gear.call_args.args[2] is expected
 
 
-def test_a_gear_import_declares_its_result_and_still_answers_201():
+def test_a_gear_import_declares_its_result_and_answers_200():
     route = _routes()[("/import/gear", ("POST",))]
 
-    assert route.status_code == 201
+    assert route.status_code in (None, 200)
     assert route.response_model is strava_schema.StravaGearImportResult
 
 

@@ -350,6 +350,39 @@ def test_failed_validation_emits_audit_record(caplog):
     assert failure_records[0].audit_correlation_id
 
 
+def _logged_above_debug(caplog) -> list[logging.LogRecord]:
+    return [r for r in caplog.records if r.name == core_file_uploads.logger.name and r.levelno > logging.DEBUG]
+
+
+def test_a_rejected_upload_is_not_logged_above_debug(caplog):
+    """A client's bad file is answered with a 4xx; the boundary logs nothing above DEBUG for it."""
+    upload = _upload("evil.png", b"this is not a png")
+
+    with caplog.at_level(logging.DEBUG), pytest.raises(core_exceptions.UnsupportedMediaTypeError):
+        try:
+            core_file_uploads._validate_upload(upload, kind=UploadKind.IMAGE)
+        finally:
+            upload.file.close()
+
+    assert _logged_above_debug(caplog) == []
+
+
+def test_a_validator_fault_is_logged_as_a_warning_with_its_traceback(caplog, monkeypatch):
+    """A fault the client did not cause maps to a 500 and keeps its WARNING and traceback."""
+
+    def broken(_file, _filename):
+        raise FileProcessingError("validator crashed")
+
+    monkeypatch.setattr(core_file_uploads, "_validator_for", lambda _kind: broken)
+
+    with caplog.at_level(logging.DEBUG), pytest.raises(core_exceptions.ProcessingError):
+        core_file_uploads._validate_file(io.BytesIO(b"x"), "a.png", kind=UploadKind.IMAGE)
+
+    (record,) = _logged_above_debug(caplog)
+    assert record.levelno == logging.WARNING
+    assert record.exc_info is not None
+
+
 # ---------------------------------------------------------------------------
 # Phase 19: validate_bytes_sync / save_validated_bytes_sync
 # ---------------------------------------------------------------------------
@@ -456,6 +489,36 @@ def test_extract_validated_zip_sync_happy_path(tmp_path: Path):
     for entry in extracted:
         assert entry.parent == dest.resolve()
         assert entry.exists()
+
+
+def test_extract_validated_zip_sync_logs_a_corrupt_archive_at_debug(tmp_path: Path, caplog):
+    """A corrupt archive is the client's mistake and is answered with a 400, not logged as a warning."""
+    zip_path = tmp_path / "archive.zip"
+    zip_path.write_bytes(b"not a zip at all")
+
+    with caplog.at_level(logging.DEBUG), pytest.raises(core_exceptions.InvalidInputError):
+        extract_validated_zip_sync(zip_path, dest_dir=tmp_path / "out")
+
+    assert _logged_above_debug(caplog) == []
+
+
+def test_extract_validated_zip_sync_logs_an_io_failure_as_a_warning(tmp_path: Path, caplog, monkeypatch):
+    """A disk fault while extracting is the server's and keeps its WARNING and traceback."""
+    payload = _build_zip_with_entries([("a.gpx", _make_gpx_bytes())])
+    zip_path = tmp_path / "archive.zip"
+    zip_path.write_bytes(payload)
+
+    def fail(*_args):
+        raise OSError("disk full")
+
+    monkeypatch.setattr(core_file_uploads, "_extract_to_staging", fail)
+
+    with caplog.at_level(logging.DEBUG), pytest.raises(core_exceptions.InvalidInputError):
+        extract_validated_zip_sync(zip_path, dest_dir=tmp_path / "out")
+
+    (record,) = _logged_above_debug(caplog)
+    assert record.levelno == logging.WARNING
+    assert record.exc_info is not None
 
 
 def test_extract_validated_zip_sync_rejects_zip_slip(tmp_path: Path):
