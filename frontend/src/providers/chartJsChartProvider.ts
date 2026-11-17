@@ -14,6 +14,7 @@ import type {
   ChartProvider,
   ChartRenderOptions,
 } from '@/composables/useChartProvider'
+import { themeColor } from '@/lib/themeColor'
 
 Chart.register(...registerables, zoomPlugin)
 
@@ -128,6 +129,15 @@ export function buildChartConfiguration(
       plugins: {
         legend: { display: options.series.length > 1 },
         tooltip: {
+          // The Chart.js default is a black box. Follow the popover, including dark mode.
+          backgroundColor: themeColor('--color-popover'),
+          titleColor: themeColor('--color-popover-foreground'),
+          bodyColor: themeColor('--color-popover-foreground'),
+          borderColor: themeColor('--color-border'),
+          borderWidth: 1,
+          padding: 8,
+          cornerRadius: 8,
+          displayColors: false,
           callbacks: {
             // X value (tooltip title): append the axis unit (e.g. `0.7 km`) so a
             // hover is self-describing. Distance-less charts pass no unit.
