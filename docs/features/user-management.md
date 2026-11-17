@@ -1,6 +1,6 @@
 # User management
 
-Administrators manage accounts in **Settings → Users**. The page lists every account on the instance, with badges for administrators, inactive accounts, accounts with an unverified email, accounts waiting for approval and accounts that sign in through an external provider.
+Administrators manage accounts in **Settings → Users**. The page lists every account on the instance, with badges for administrators, inactive accounts, accounts with an unverified email, accounts with a pending email change, accounts waiting for approval, accounts being deleted and accounts that sign in through an external provider.
 
 ## Finding users
 
@@ -42,10 +42,10 @@ The administrative actions that change how an account is secured, resetting the 
 
 When [admin approval](server-settings.md#registration) is required, a new user stays inactive and shows the **Pending approval** badge. Every administrator gets a [notification](notifications.md) (and an email, if mail is configured) when a user is waiting.
 
-Approve the user from their row. Endurain activates the account and emails the user. You can approve only a user whose email is verified; a user who has not verified it yet stays pending.
+Approve the user from their row or their detail page. Endurain activates the account and emails the user. You can approve only a user whose email is verified; a user who has not verified it yet stays pending.
 
 !!! note "Approval without email verification"
-    A new account is created with an unverified email whenever any sign-up rule is on. If you require approval but not email verification, nobody sends the user a verification link, so the **Approve** and reject buttons stay disabled. To handle such a user, open **Edit user**, switch on **Email verified** and save, then approve. Turning on **Require email verification** as well avoids this.
+    An account created through the sign-up form starts with an unverified email. If you require approval but not email verification, nobody sends the user a verification link, so the **Approve** and reject buttons stay disabled. To handle such a user, open **Edit user**, switch on **Email verified** and save, then approve. Turning on **Require email verification for new sign-ups** as well avoids this.
 
 ## Resetting a password
 

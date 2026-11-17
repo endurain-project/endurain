@@ -12,9 +12,10 @@ Related pages go deeper on one topic each:
 - how ingestion jobs run: [Activity ingestion](activity-ingestion.md).
 
 Rules marked **(test)** are enforced by `backend/tests/architecture/test_api_contract.py` or
-`test_route_conventions.py`. A route that broke a rule before the test existed is listed in that test's register
-with the change that will fix it. A register only shrinks: the test fails on a new violation, and on an entry that
-no longer violates. Rules the code does not meet yet are listed under [Not yet met](#not-yet-met).
+`test_route_conventions.py`. A route that is a deliberate exception to a rule is listed in that test's register with
+its reason, and the test fails on a new violation and on an entry that no longer applies. The register of route
+docstrings that still carry sections only shrinks. Rules the code does not meet yet are listed under
+[Not yet met](#not-yet-met).
 
 ## Resources and URLs
 
@@ -53,7 +54,8 @@ A resource has a collection and an item:
   write-only secret the server never returns. Every optional field of a `PUT` body is listed in the test with which
   of the two it is **(test)**. A partial edit is a `PATCH`.
 - An action that is neither a replacement nor a partial edit is `POST /things/{thing_id}/<verb>` (`approve`,
-  `revoke`, `read`, `complete`) **(test)**.
+  `revoke`, `read`, `complete`). A route whose last segment is `approve`, `revoke`, `read`, `enable`, `disable`,
+  `unlink` or `accept` must be a `POST` **(test)**.
 - A `POST` that creates a resource answers `201`. The exception is the public sign-up request (`POST /public/sign-up/request`): it answers `200` with a `next_step`, because it answers from the server's policy alone and must not reveal whether the address is registered, so it has no resource to return.
 - Removing a thing that needs the caller's step-up in the body is `POST /things/{thing_id}/delete`, `.../unlink` or `.../revoke`, not `DELETE`, which carries no body: `POST /profile/delete-account`, `POST /profile/identity-providers/{idp_id}/unlink`, `POST /users/{user_id}/delete` and `POST /users/{user_id}/identity-providers/{idp_id}/unlink`, `POST /users/{user_id}/sessions/{session_id}/revoke` and `POST /users/{user_id}/sessions/revoke`. `POST /users/{user_id}/delete` keeps `If-Match` and the `202` job of a delete.
 
@@ -65,7 +67,7 @@ A route or flag that ends sessions or forgets devices uses these names for these
 | --- | --- | --- |
 | `200` | A read, an edit that returns the resource, an action answered at once | `ETag` for a versioned resource |
 | `201` | A resource was created | The resource, `Location` and `ETag` when it can be read by id **(test)** |
-| `202` | Work was accepted for a background job | The job (a `core.job_status.JobStatus`: `id`, `kind`, `status` `queued`, `running`, `succeeded` or `failed`, `error_code`, `created_at`, `finished_at`), `Content-Location: /jobs/{job_id}` and `Retry-After` **(test)**. Every job is read at `GET /jobs/{job_id}`, `422` for an id that is not a UUID, `404` for an unknown, expired or foreign id, and listed at `GET /jobs`; there is no per-operation status route. A refused second start is `409` naming the running job in `job_id` and `Content-Location` |
+| `202` | Work was accepted for a background job | The job (a `core.job_status.JobStatus`: `id`, `kind`, `status` `queued`, `running`, `succeeded` or `failed`, `error_code`, `created_at`, `finished_at`), `Content-Location: /jobs/{job_id}` and `Retry-After` **(test)**. Every job is read at `GET /jobs/{job_id}`, `422` for an id that is not a UUID, `404` for an unknown, expired or foreign id, and listed at `GET /jobs`; there is no per-operation status route. The one `202` without a status resource is `POST /profile/delete-account`, whose owner can no longer poll. A refused second start is `409` naming the running job in `job_id` and `Content-Location` |
 | `204` | A write with nothing to return | No body. A body that only carries a message is a `204` **(test)** |
 | `400` | Input the schema accepted but the domain refuses | Problem document |
 | `401` | The credential is missing, invalid or no longer valid (expired session, deleted or deactivated user) | `WWW-Authenticate` |
@@ -196,12 +198,7 @@ A list route takes no `updated_since`: offset paging over a changing order skips
 
 ## Not yet met
 
-These rules are not met everywhere yet. Each is tracked in the test registers above, or here when no test covers it:
+These rules are not met everywhere yet:
 
-- Several resources that can be edited have no `GET /{id}`, and their creates send no `Location`; no create sends an
-  `ETag` yet.
-- The one `202` whose job the caller cannot read is the account owner's `POST /profile/delete-account`.
 - Some secret-bearing responses lack `no-store`.
-- Uploaded images are stored as received, with their metadata.
-- Some enums are integers and some request schemas accept server-owned fields.
-- Most endpoint docstrings still carry Google sections. The OpenAPI document cuts them, but the source should lose them.
+- Most endpoint docstrings still carry Google sections. The OpenAPI document cuts them, but the source should lose them (`_DOCSTRING_SECTIONS` in the test lists the handlers).

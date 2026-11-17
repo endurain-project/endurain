@@ -44,6 +44,5 @@ A page is `{"changes": [...], "next_cursor": "...", "has_more": false}`. Each ch
 
 - **Changes appear about two minutes after they happen.** The server holds a change back until every transaction that could still commit an earlier change has ended, so a page never skips one. Do not sync more often than that expecting a fresher answer.
 - **A cursor lasts 90 days.** Deletions are remembered for 90 days, so a cursor older than that may have missed one. The server answers `410` with `urn:endurain:error:sync-expired`: discard your copy and sync from the start, with no cursor.
-- A cursor issued by an earlier server version answers `410` with `urn:endurain:error:sync-expired`: discard the copy and sync from the start.
 - A cursor is opaque and only this server can read it. A cursor the server did not issue is `400`.
 - Deleting the account deletes everything at once and reports nothing: the account can no longer sign in to sync.

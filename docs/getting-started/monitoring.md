@@ -9,20 +9,20 @@ Both are unauthenticated and need no `X-Client-Type` header.
 | Endpoint | Checks | Fails with |
 | -------- | ------ | ---------- |
 | `GET /api/v1/about` | That the web process is up. Returns the name, version and licence | Nothing but a dead process |
-| `GET /api/v1/health` | That a database connection can be obtained and answers `SELECT 1`, that the shared state backend (Redis, when configured) answers, and that the audit trail is healthy. Returns `{"status": "ok", "state": "ok", "audit": "ok"}` | `503` when the pool is exhausted or the database is unreachable |
+| `GET /api/v1/health` | That a database connection can be obtained and answers `SELECT 1`, that the shared state backend (Redis, when configured) answers, and that the audit trail is healthy. Returns `{"status": "ok", "state": "ok", "audit": "ok"}` | `503` with `Retry-After: 5` when the pool is exhausted or the database is unreachable |
 
 The container image's own `HEALTHCHECK` calls `/api/v1/about` every 30 seconds, with a 120 second start period. That tells Docker the process runs, not that the database works. For a load balancer or an orchestrator that should stop sending traffic to a wedged instance, probe `/api/v1/health` instead.
 
 When only the shared state backend does not answer, `/api/v1/health` still returns `200`, with `{"status": "degraded", "state": "unavailable", "audit": "ok"}`. Restarting or removing the instance from a load balancer would not bring Redis back, and the instance still serves most routes: rate limits fall back to per-process counters (so the effective limit is up to the number of replicas times higher until Redis returns), while features that need shared state, such as MFA, WebSocket tickets and sync claims, answer `503`. Alert on `"status": "degraded"` in the body instead of on the status code. With the default `local` profile the state is in memory, so `state` is always `ok`.
 
-`audit: "degraded"` also answers `200` with `"status": "degraded"`, and the reason is logged at WARNING as `The audit trail is degraded`; the body never says which. It means one of these:
+`audit: "degraded"` also answers `200` with `"status": "degraded"`, and the reason is logged at DEBUG as `The audit trail is degraded: <reason>`, so set `LOG_LEVEL=debug` to read it; the body never says which. It means one of these:
 
 - tomorrow's audit partition does not exist, or the maintenance run has never recorded one;
 - the latest sealed audit checkpoint is older than an hour (a checkpoint that was never sealed is not flagged);
 - an audit record for a refused sign-in or permission failed to write on this instance within the last hour;
 - the audit health itself could not be read.
 
-Check that the scheduler runs and that the audit maintenance job completes (see the job tables and the logs), then that PostgreSQL has the daily partitions of `jasil_audit_log` for the next days, and search the logs for `Audit record ... was not written`. A problem with the partitions or the checkpoint is shared by every replica; a write failure is only that of the instance you probed. With `audit.enabled` off, `audit` is always `ok`.
+Check that the scheduler runs and that the audit maintenance job completes (see the job tables and the logs), then that PostgreSQL has the daily partitions of `jasil_audit_log` for the next days, and search the logs for `Audit record ... was not written`. A problem with the partitions or the checkpoint is shared by every replica; a write failure is only that of the instance you probed.
 
 ```mermaid
 flowchart TD
@@ -73,12 +73,11 @@ Messages worth alerting on:
 | `Dropped an event subscriber: the subscriber pool is full` | WARNING | The in-process queue was full and a thumbnail, notification or cleanup was skipped. A scheduled job repairs it. See [Background work](background-work-by-module.md#when-something-is-dropped) |
 | `A <pool> job failed` | ERROR | A job on a local pool raised. The traceback follows |
 | `Too many <pool> jobs in progress` | (503 to the client) | A bounded local pool is full, and the request was refused up front |
-| Deprecated environment variable(s) detected | ERROR | Startup stops until they are removed |
-| `Inconsistent deployment configuration` | ERROR | Startup stops. The message names the setting |
+| `Inconsistent deployment configuration` | Startup error | Startup stops. The message names the setting |
 
 ### In the app
 
-Administrators can read the newest records in **Settings → Server settings → Server logs**. It is available only when one process writes the log file, so it is off on the public demo and on multi-process deployments.
+Administrators can read the newest records in **Settings > Server settings > Logs**. It is available only when one process writes the log file, so it is off on the public demo and on multi-process deployments.
 
 ## What to watch
 

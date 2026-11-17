@@ -42,7 +42,7 @@ The server sends JSON text frames. The client sends nothing: a text or binary fr
 { "message": "NEW_ACTIVITY_NOTIFICATION", "notification_id": "0b8e5c1a-7d34-4f6e-9a21-3c5d8e1f2b47" }
 ```
 
-`message` says what changed. A notification message also carries `notification_id`, the stored notification, and means "fetch the first slice of your notifications again". `GEARS_CHANGED` and `HEALTH_CHANGED` carry nothing else and mean "fetch that data again". `JOB_STATUS_CHANGED` means "read that job's status again" through its status route. A client that keeps polling a job can poll slowly while it is connected, and read the status at once when its `job` arrives; a hint can be lost, so keep a slow poll as the fallback.
+`message` says what changed. A notification message also carries `notification_id`, the stored notification, and means "fetch the first slice of your notifications again". `GEARS_CHANGED` and `HEALTH_CHANGED` carry nothing else and mean "fetch that data again". `JOB_STATUS_CHANGED` means "read that job's status again" through its status route. A client that keeps polling a job can poll slowly while it is connected, and read the status at once when the hint arrives; a hint can be lost, so keep a slow poll as the fallback.
 
 | `message` | When |
 | --------- | ---- |

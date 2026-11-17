@@ -98,7 +98,7 @@ The `custom` profile is held to the same rule: if it declares more than one proc
 | --- | --- | --- |
 | `DEPLOYMENT_PROFILE` | `local` | `local`, `distributed` or `custom`. Only `local` has defaults; the others must name every capability below. |
 | `WEB_WORKERS` | `1` | Number of web-server processes. Above 1 requires shared state and a shared lock. |
-| `STATE_URI` | unset | Shared ephemeral state: rate-limit counters, the geocoding rate limit, login lockout, pending MFA, MFA setup secrets, Garmin MFA codes, websocket tickets. Falls back to `REDIS_URL`, then `memory://`. |
+| `STATE_URI` | unset | Shared ephemeral state: rate-limit counters, the geocoding rate limit, login lockout, pending MFA, MFA setup secrets, Garmin MFA codes, websocket tickets, background job status records and sync claims, and scheduled-job run marks. Falls back to `REDIS_URL`, then `memory://`. |
 | `EVENTS_URI` | unset | Event bus. Falls back to `REDIS_URL`, then `memory://` (in-process). `redis://…` uses Redis Streams. The same URI carries the live-update hints between processes (Redis pub/sub). |
 | `REDIS_URL` | unset | Default DSN for every Redis-backed capability that has no explicit URI. |
 | `STORAGE_URI` | `local://` | Where blobs go (thumbnails, media, images, retained files). `local://` uses `DATA_DIR`; `s3://bucket/prefix` uses S3-compatible storage. |
@@ -106,12 +106,12 @@ The `custom` profile is held to the same rule: if it declares more than one proc
 | `JOBS_ENABLED` | `false` | Turns on the durable job queue. |
 | `JOBS_RUN_IN_PROCESS_WORKER` | `true` | Whether the API process also drains jobs. Set `false` when running dedicated workers, and set it on the API and every worker container: a dedicated worker is a separate process, so the deployment then needs shared state (see [Startup validation](#startup-validation)). |
 | `JOBS_MAX_ATTEMPTS` | `5` | Attempts before a job is dead-lettered. |
-| `JOBS_BACKOFF_BASE_SECONDS` | `5` | First retry delay; doubles each attempt. |
+| `JOBS_BACKOFF_BASE_SECONDS` | `5` | First retry delay; doubles each attempt, randomised to 50 to 100 % of the computed delay. |
 | `JOBS_BACKOFF_MAX_SECONDS` | `3600` | Retry delay ceiling. |
-| `JOBS_LEASE_SECONDS` | `300` | How long a worker may go silent before its jobs are requeued. A running worker renews the lease every 15 seconds, so this is not a limit on how long a job may run. Must be at least 45. |
+| `JOBS_LEASE_SECONDS` | `300` | How long a worker may go silent before its jobs are requeued. A running worker renews the lease every 15 seconds, so this is not a limit on how long a job may run. Must be between 45 and 1800. |
 | `JOBS_BATCH_SIZE` | `10` | Jobs claimed (and outbox rows relayed) per pass. |
 | `JOBS_POLL_INTERVAL_SECONDS` | `2.0` | Idle wait between empty polls. |
-| `JOBS_RETENTION_DAYS` | `90` | Pruning age for completed job bookkeeping. Dead-lettered and in-flight rows are kept. `0` disables pruning. |
+| `JOBS_RETENTION_DAYS` | `90` | Pruning age for completed job bookkeeping and for finished activity ingestion job records. Dead-lettered and in-flight rows are kept. `0` disables pruning. |
 | `EVENT_LOG_ENABLED` | `true` | Record each event's lifecycle in the `jasil_event_log` table for diagnostics. |
 | `EVENT_LOG_RETENTION_DAYS` | `90` | Pruning age for `jasil_event_log`. `0` disables pruning. |
 | `APP_ROLE` | `api` | Container role: `api` serves HTTP, `worker` drains the job queue. Requires `JOBS_ENABLED=true`. |
@@ -129,7 +129,7 @@ Endurain refuses to start on an inconsistent topology and names the variable at 
 
 With `ENVIRONMENT=development` these become warnings instead.
 
-A job worker, in-process or dedicated, also refuses to start when `JOBS_LEASE_SECONDS` is below 45.
+Endurain also refuses to start when `JOBS_LEASE_SECONDS` is below 45 (three worker heartbeats) or above 1800 (the longest a single job may run).
 
 ## Recipes
 
@@ -178,7 +178,7 @@ Every replica must share the same database, Redis and bucket. Run one or more wo
 
 ## What to watch
 
-- On a multi-worker `local` deployment whose event bus is Redis and `JOBS_ENABLED=false`, the API logs a warning at startup: delivery is best-effort, with no per-subscriber retry and no recovery of a crashed consumer's in-flight events. The scheduled backfills still repair the results; enable `JOBS_ENABLED` for retries you can see.
+- When the event bus is Redis and `JOBS_ENABLED=false`, the API logs a warning at startup: delivery is best-effort, with no per-subscriber retry and no recovery of a crashed consumer's in-flight events. The scheduled backfills still repair the results; enable `JOBS_ENABLED` for retries you can see.
 - Without `JOBS_ENABLED`, a Strava or Garmin Connect sync runs on a small pool inside the API process and is lost if that process stops. Its claim in the shared state then blocks another sync of the same kind for that user until it expires (30 minutes). A Strava or Garmin Connect account link always runs on such a pool, because it holds a one-time code or the user's credentials that are never stored in a job; a link lost this way is simply started again once its claim expires.
 - A burst of events that fills the in-process subscriber pool (500 pending) drops the excess subscribers with a warning. Derived work such as thumbnails is repaired by its scheduled backfill; a notification is not, so enable `JOBS_ENABLED` when losing one is not acceptable.
 - With `JOBS_ENABLED=true` and `JOBS_RUN_IN_PROCESS_WORKER=false`, jobs accumulate unless a worker is running.
@@ -187,7 +187,6 @@ Every replica must share the same database, Redis and bucket. Run one or more wo
 - Dead-lettered jobs are kept for review and are never pruned automatically.
 - Each API process keeps at most five live-update sockets per user (the oldest is closed), so with several replicas a user can hold up to five per replica.
 - After an admin changes the map tile server, the replica that handled the save allows the new tile domain in its content security policy at once; the other replicas pick it up within 30 seconds, so maps from a new tile server can be blocked there for that long.
-- Until the deprecated `SMTP_*`, geocoding, session and retention environment variables are removed (v0.22.0), give every replica the same values: each API start saves its own environment into the database, and which fields an admin may edit depends on the replica that answers.
 - The mail and geocoding settings are cached for five seconds in each process, so an admin change reaches every replica within that time.
 - A database statement that waits longer than `DB_LOCK_TIMEOUT_SECONDS` (30 seconds by default) for a row lock fails instead of waiting, and a request that cannot get a database connection within `DB_POOL_TIMEOUT_SECONDS` (30 seconds by default) fails. `DB_STATEMENT_TIMEOUT_SECONDS` also bounds how long a statement may run; it is off by default.
 
@@ -195,12 +194,12 @@ Every replica must share the same database, Redis and bucket. Run one or more wo
 
 Each web process keeps its own database pool of up to 60 connections by default (`DB_POOL_SIZE` 20 plus `DB_MAX_OVERFLOW` 40) and about 40 request threads. A request waits up to `DB_POOL_TIMEOUT_SECONDS` (30 seconds by default) for a free connection before it fails.
 
-- Total connections are `(DB_POOL_SIZE + DB_MAX_OVERFLOW) × (web workers + replicas + dedicated workers)`, which is `60 × …` by default. Keep that below PostgreSQL's `max_connections` (100 by default): lower `DB_POOL_SIZE` and `DB_MAX_OVERFLOW`, or put PgBouncer in front of the database. At startup the API logs a warning when its own pools (`WEB_WORKERS` processes) could already exceed what PostgreSQL allows; it cannot see replicas or dedicated workers, so a missing warning does not prove the whole deployment fits.
+- Total connections are `(DB_POOL_SIZE + DB_MAX_OVERFLOW) × (web workers + replicas + dedicated workers)`, which is `60 × …` by default. Keep that below PostgreSQL's `max_connections` (100 by default): lower `DB_POOL_SIZE` and `DB_MAX_OVERFLOW`, or put PgBouncer in front of the database. At startup the API logs a warning when its own pools (`WEB_WORKERS` processes, plus one when `JOBS_ENABLED=true`) could already exceed what PostgreSQL allows; it cannot see replicas or further workers, so a missing warning does not prove the whole deployment fits.
 - Each coordination lock held through `postgres-advisory://` keeps one more connection open for as long as the job runs.
 - `postgres-advisory://` uses session-level advisory locks, which only work on a connection that stays pinned to one PostgreSQL backend. Behind PgBouncer in transaction pooling mode the lock and its release can land on different backends, so two replicas can both believe they hold it. Point `DB_HOST` at PgBouncer in session mode, or at PostgreSQL directly. Either way the lock is lost if its connection drops mid-job, so every coordinated job is idempotent: the lock only avoids duplicated work.
 - A slow job does not need a long lease: the worker renews it while the handler runs, so only a worker that stops responding (a crash, a lost network) loses its jobs. Keep `JOBS_LEASE_SECONDS` comfortably above 45 so a brief stall is not mistaken for a crash.
-- S3 requests use the client's default connect and read timeouts (60 seconds) and retry up to three times, so an unreachable bucket can hold a thread for minutes. Prefer a bucket in the same region as the application.
-- Leftover work is cleaned up on a schedule: ingestion jobs that stop progressing are failed after 24 hours, and staged uploads and bulk-import archives that no job references are removed after 2 days.
+- S3 requests time out after 10 seconds to connect and 60 seconds to read, and make up to three attempts, so an unreachable bucket can hold a thread for minutes. Prefer a bucket in the same region as the application.
+- Leftover work is cleaned up on a schedule: ingestion jobs that stop progressing are failed after 24 hours (a folder import that was still being packed, after 15 minutes), and staged uploads and bulk-import archives that no job references are removed after 2 days.
 
 ## Strava and Garmin Connect syncs
 
@@ -208,7 +207,7 @@ Every hour Endurain queues one refresh job per user who has linked Strava or Gar
 
 - Each job is independent, so jobs are spread across workers, retried with backoff when durable jobs are enabled, and one slow account cannot hold up the others.
 - Strava's rate limits are per application. When one is hit, every process and replica stops calling Strava until it expires; the state is shared through `STATE_URI`.
-- A Strava activity sync that hits a rate limit is not retried into it and does not fail. Its job is marked `deferred` with the time the limit clears (15 minutes for the short limit, UTC midnight for the daily one), and a check that runs every five minutes queues it again once that time has passed. This works the same with and without `JOBS_ENABLED`, and does not use up the job's retry attempts. A Strava gear sync that hits a limit still ends as failed, and the user starts it again.
+- A provider activity sync that hits a rate limit is not retried into it and does not fail. Its job is `queued` with `retry_after` set to the time the limit clears (Strava: 15 minutes for the short limit, UTC midnight for the daily one; Garmin Connect: 15 minutes per account), and a check that runs every five minutes queues it again once that time has passed. This works the same with and without `JOBS_ENABLED`, and does not use up the job's retry attempts. A gear sync that hits a limit still ends as failed, and the user starts it again.
 - Without `JOBS_ENABLED`, the jobs run on the API process's small background pool and are re-queued at the next hourly run if lost in a restart. Uploads and bulk imports are resumed at startup instead (single web worker only).
 
 ## Bulk imports

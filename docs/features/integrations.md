@@ -8,13 +8,13 @@ Endurain works with other apps and services. For building your own integration, 
 
 RunnerUp currently **does not** support login with MFA.
 
-RunnerUp signs in through the first-party `/auth/login` route, which is meant for Endurain's own apps. A later release may refuse other applications there. [API keys](../integrate/api-keys.md) and the planned `/oauth/*` endpoints are the supported path for other applications; see the [first-party sign-in note](../integrate/authentication.md).
+RunnerUp signs in through the first-party `/auth/login` route, which is meant for Endurain's own apps. [API keys](../integrate/api-keys.md) are the supported path for other applications; see the [first-party sign-in note](../integrate/authentication.md).
 
 ## Gadgetbridge
 
-[Gadgetbridge](https://gadgetbridge.org/) is an Android app for wearables. It signs in to Endurain through the system browser using SSO and a custom redirect scheme. An administrator must allow its redirect address by adding it to `ALLOWED_REDIRECT_URIS` (`nodomain.freeyourgadget.gadgetbridge://endurain/oauth/callback` for the release build; other builds, such as nightly, use their own application ID as the scheme). Keep `com.endurain.endurain:/auth/sso/callback` in the list, and add `endurain://auth/sso/callback` until an Endurain mobile app release uses the new address, so the Endurain mobile app keeps working; see [advanced setup](../getting-started/advanced-setup.md) and [OAuth/SSO and PKCE](../integrate/oauth-sso-pkce.md).
+[Gadgetbridge](https://gadgetbridge.org/) is an Android app for wearables. It signs in to Endurain through the system browser using SSO and a custom redirect scheme. An administrator must allow its redirect address by adding it to `ALLOWED_REDIRECT_URIS` (`nodomain.freeyourgadget.gadgetbridge://endurain/oauth/callback` for the release build; other builds, such as nightly, use their own application ID as the scheme). Keep `com.endurain.endurain:/auth/sso/callback` in the list, because setting the variable replaces the default and the Endurain mobile app needs it; see [advanced setup](../getting-started/advanced-setup.md) and [OAuth/SSO and PKCE](../integrate/oauth-sso-pkce.md).
 
-The SSO hand-off through `ALLOWED_REDIRECT_URIS` is a first-party protocol for Endurain's own apps, and a later release may refuse other applications. [API keys](../integrate/api-keys.md) and the planned `/oauth/*` endpoints are the supported path for other applications; see the [first-party sign-in note](../integrate/authentication.md).
+The SSO hand-off through `ALLOWED_REDIRECT_URIS` is a first-party protocol for Endurain's own apps. [API keys](../integrate/api-keys.md) are the supported path for other applications; see the [first-party sign-in note](../integrate/authentication.md).
 
 ## Garmin Connect
 
@@ -93,7 +93,7 @@ sequenceDiagram
     E-->>You: Connected
 ```
 
-Open **Settings → Integrations → Strava → Connect**, enter the client ID and secret, confirm with your password (and MFA code, if enabled) or a fresh identity-provider sign-in, and authorize on Strava. You return to Endurain, which finishes the connection. Endurain asks only for read access (`read`, `profile:read_all`, `activity:read_all`). Strava's consent screen lets you untick permissions: if you do, Endurain refuses the connection and asks you to connect again and keep every permission ticked. Connections made earlier are not affected. The tokens are stored encrypted, and so are your client ID and secret. If the exchange fails, Endurain keeps your client ID and secret and stores no tokens. Authorize on Strava again to retry: the code from the failed attempt is used up, but you do not need to enter the credentials again.
+Open **Settings → Integrations → Strava → Connect**, enter the client ID and secret, confirm with your password (and MFA code, if enabled) or a fresh identity-provider sign-in, and authorize on Strava. You return to Endurain, which finishes the connection. Endurain asks only for read access (`read`, `profile:read_all`, `activity:read_all`). Strava's consent screen lets you untick permissions: if you do, Endurain refuses the connection and asks you to connect again and keep every permission ticked. The tokens are stored encrypted, and so are your client ID and secret. If the exchange fails, Endurain keeps your client ID and secret and stores no tokens. Authorize on Strava again to retry: the code from the failed attempt is used up, but you do not need to enter the credentials again.
 
 ### What syncs and when
 

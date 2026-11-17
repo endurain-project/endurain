@@ -28,7 +28,7 @@ The blob store is `local://` by default, which means subfolders of `DATA_DIR` (`
 
 | Area | Holds | Can be rebuilt? |
 | ---- | ----- | --------------- |
-| `activity_files` | The original uploaded or synced files of activities, kept after import, plus working folders: `bulk_import/<user id>`, `strava_import/<user id>` (the `<user id>` folders are the user's UUID; folders named with an old numeric id are renamed at the first start after the upgrade to v0.21.0), `upload_incoming` and `upload_staging` | No. Keep it |
+| `activity_files` | The original uploaded or synced files of activities, kept after import, plus working folders: `bulk_import/<user id>`, `strava_import/<user id>` (the `<user id>` folders are the user's UUID), `upload_incoming` and `upload_staging` | No. Keep it |
 | `activity_media` | Photos attached to activities | No |
 | `user_images` | Profile photos | No |
 | `server_images` | The login photo | No, but an admin can upload it again |
@@ -38,7 +38,7 @@ The blob store is `local://` by default, which means subfolders of `DATA_DIR` (`
 
 The activity data itself (route, streams, laps, heart rate and so on) is in the database. The original file is retained alongside it and is what a profile export includes.
 
-On local storage every area is browsable under the `data` directory the image creates at start: `activity_files/processed/<activity id>.<ext>` (the activity id is a UUID), `activity_media/`, `activity_thumbnails/`, `user_images/`, `server_images/`, the profile staging areas and `bulk_import_errors/`. The first start of v0.21.0 renames the stored activity files, thumbnails and photos to their new ids (data migration 13). Migration 11 moves files written by earlier releases in the provider's private layout into these paths on startup.
+On local storage every area is browsable under the `data` directory the image creates at start: `activity_files/processed/<activity id>.<ext>` (the activity id is a UUID), `activity_media/`, `activity_thumbnails/`, `user_images/`, `server_images/`, the profile staging areas and `bulk_import_errors/`.
 
 ## What to back up
 
@@ -63,7 +63,7 @@ Take the database dump and the blob copy close together. They can disagree sligh
 
 ## Rotating the encryption key
 
-`FERNET_KEY` accepts several keys separated by commas. The first key encrypts, and every key in the list can decrypt. A single key works as before.
+`FERNET_KEY` accepts several keys separated by commas. The first key encrypts, and every key in the list can decrypt. A single key is a list of one.
 
 1. Generate a new key (see [Secret Generators](../tools.md#secret-generators)).
 2. Set `FERNET_KEY=<new key>,<old key>` (or the content of the file `FERNET_KEY_FILE` points to) and restart Endurain.
@@ -73,13 +73,13 @@ Take the database dump and the blob copy close together. They can disagree sligh
 
 ## Rotating the signing key
 
-`SECRET_KEY` accepts several secrets separated by commas, like `FERNET_KEY`. The first one signs, and every one in the list verifies, so a rotation does not sign anyone out. A single key works as before.
+`SECRET_KEY` accepts several secrets separated by commas, like `FERNET_KEY`. The first one signs, and every one in the list verifies, so a rotation does not sign anyone out. A single key is a list of one.
 
 Each login token names the key that signed it (the `kid` header), and the server verifies it with that key. The links to photos, thumbnails and media are checked against every key in the list too.
 
 1. Generate a new key (see [Secret Generators](../tools.md#secret-generators)).
 2. Set `SECRET_KEY=<new key>,<old key>` (or the content of the file `SECRET_KEY_FILE` points to) and restart every Endurain process: the web workers, any dedicated worker and every replica. Until they all run with the new list, a token signed with the new key is refused by a process that still has only the old one, so restart them together.
-3. Keep the old key in the list for the longest lifetime a token can have. That is the refresh token lifetime, 7 days by default (Settings > Server > Sessions), and 24 hours for the photo, thumbnail and media links.
+3. Keep the old key in the list for the longest lifetime a token can have. That is the refresh token lifetime, 7 days by default (Settings > Server settings > Access & security), and 24 hours for the photo, thumbnail and media links.
 4. Set `SECRET_KEY=<new key>` and restart again. A session that did not refresh in that time is signed out, and the mailed links and signed URLs issued under the old key stop working.
 
 Replacing the key outright, with no list, signs everyone out in the browser and in mobile apps and breaks the links already handed out; the app gets new ones on the next page load. Use it when the old key leaked and you want its tokens dead at once. Either way, API keys keep working and so do the password reset, sign-up and email change links already mailed, and no data is lost.

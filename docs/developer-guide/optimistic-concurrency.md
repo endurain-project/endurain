@@ -53,7 +53,7 @@ version: Mapped[int] = mapped_column(
 __mapper_args__ = {"version_id_col": version}
 ```
 
-The migration adds the column as `NOT NULL` with `server_default` 1, so existing rows start at version 1 (see `14_health_version` and `15_users_version`).
+The migration adds the column as `NOT NULL` with `server_default` 1, so existing rows start at version 1.
 
 ### 2. The read schema
 
@@ -98,7 +98,7 @@ def edit_gear(
     if_match: core_dependencies.IfMatch,
 ) -> gears_schema.GearRead:
     updated = gears_service.edit_gear(gear_id, gear, token_user_id, db, if_match=if_match)
-    response.headers["ETag"] = core_etag.format_etag(updated.version)
+    core_etag.set_etag(response, updated.version)
     return updated
 ```
 
@@ -129,7 +129,7 @@ An upsert that loses the version race re-reads the row and applies again, up to 
 
 ## What is not versioned
 
-Creating and action endpoints (approve a user, change a password, link an account) take no `If-Match`: there is no earlier version for a create to be stale against, and an action does not replace a representation the client read. Deleting a versioned row does take it, because the client decides to delete what it saw: `DELETE` on activities, gears, gear components, goals, identity providers, administrator user deletion (`POST /users/{user_id}/delete`, still `202`) and the six health record types. Deleting something that has no version (API keys, sessions, activity media, the login photo) takes none. The delete checks the version in `crud` against the row it removes and the service wraps it in `refuse_stale_write`, like an edit; deleting a row that does not exist stays `404`. The four singleton uploads (`PUT /profile/photo`, `PUT /users/{user_id}/photo`, `PUT /identity-providers/{idp_id}/icon` and `PUT /server-settings/login-photo`) replace an attachment that has no version of its own, whole, so they take no `If-Match`; the response reports the parent's version for the stored image and the `_UNVERSIONED_WRITES` register in `test_route_conventions.py` lists them. The bulk activity edit (`PATCH /activities`) has no single record to name; it answers 202 and runs as a job.
+Creating and action endpoints (approve a user, change a password, link an account) take no `If-Match`: there is no earlier version for a create to be stale against, and an action does not replace a representation the client read. Deleting a versioned row does take it, because the client decides to delete what it saw: `DELETE` on activities, gears, gear components, goals and the six health record types, and the `POST` deletes `POST /identity-providers/{idp_id}/delete` and `POST /users/{user_id}/delete` (`202`). Deleting something that has no version (API keys, sessions, activity media, the login photo) takes none. The delete checks the version in `crud` against the row it removes and the service wraps it in `refuse_stale_write`, like an edit; deleting a row that does not exist stays `404`. The four singleton uploads (`PUT /profile/photo`, `PUT /users/{user_id}/photo`, `PUT /identity-providers/{idp_id}/icon` and `PUT /server-settings/login-photo`) replace an attachment that has no version of its own, whole, so they take no `If-Match`; the response reports the parent's version for the stored image, and the `_UNVERSIONED_WRITES` register in `test_route_conventions.py` lists the ones in versioned packages. The bulk activity edit (`PATCH /activities`) has no single record to name; it answers 202 and runs as a job.
 
 ## Adding a versioned resource
 

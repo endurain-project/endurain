@@ -80,7 +80,7 @@ Endurain currently supports:
 - MFA TOTP support
 - Password reset through email link. Sends emails through the configured SMTP server
 - Sign-up with configurable email verification and admin approval
-- SSO support (OIDC/SAML)
+- SSO support (OIDC and OAuth2 identity providers)
 
 ## Planned features
 
@@ -123,7 +123,7 @@ The language switcher in the app lists every available language. Translators who
  - Spanish (ES) [@rgmelkor](https://github.com/rgmelkor) and [@tinchodin](https://github.com/tinchodin)
  - English (US)
 
-Other languages available: Bulgarian, Croatian, Czech, Danish, Finnish, Greek, Hungarian, Italian, Lithuanian, Norwegian Bokmål, Polish, Romanian, Serbian, Slovak, Swedish, Turkish and Ukrainian.
+Other languages available: Bulgarian, Croatian, Czech, Danish, Estonian, Finnish, Greek, Hungarian, Italian, Latvian, Lithuanian, Norwegian Bokmål, Polish, Romanian, Serbian, Slovak, Swedish, Turkish and Ukrainian.
 
 ## Trademark notice
 

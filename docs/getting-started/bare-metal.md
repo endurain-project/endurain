@@ -211,13 +211,12 @@ server {
 ```
 
 When running behind a reverse proxy, make sure `ENDURAIN_HOST` in `env.js` (step 5) and
-in your `.env` match the public URL (e.g. `https://endurain.yourdomain.com`). So that
-uvicorn trusts the forwarded protocol headers, add `--proxy-headers` to the `ExecStart`
-command in the systemd unit (step 8):
-
-```ini
-ExecStart=/path/to/endurain/backend/.venv/bin/uvicorn main:app --host 0.0.0.0 --port 8080 --proxy-headers
-```
+in your `.env` match the public URL (e.g. `https://endurain.yourdomain.com`). Set
+`TRUSTED_PROXIES` in your `.env` to the address of the proxy (for example `127.0.0.1`), so
+Endurain reads the client address from `X-Forwarded-For` only when it comes from the proxy.
+`BEHIND_PROXY` is read only by the container entrypoint, so it has no effect here. Uvicorn
+honours the forwarded protocol headers by default, but only from `127.0.0.1` and `::1`. If
+the proxy runs on another address, set `FORWARDED_ALLOW_IPS` to that address in your `.env`.
 
 ## 10. Update to a new version of Endurain.
 

@@ -133,7 +133,7 @@ A provider that answers with a rate limit makes the job `failed` (gear and healt
 
 **Export.** `POST /profile/export` takes the [step-up](account-security.md#step-up-authentication) body, `{"step_up": {...}}` (`current_password`, `idp_reauth` for an account without a password, and `mfa_code` when MFA is on) and answers `202` with a `profile_export` job. A succeeded export carries `size_bytes` and `expires_at`: fetch the ZIP with `GET /profile/export/download` before it expires (2 hours), from the same session that requested the export. A failed one carries `error_code`: `timed_out` or `processing_failed`. `409` while an export is running, `404` from the download when there is nothing finished to fetch for the calling session. A client that lost the job finds it with `GET /jobs?kind=profile_export`.
 
-**Import.** `POST /profile/import` takes a `.zip` archive in `file`, validates and stages it, and answers `202` with a `profile_import` job. The status is `running` for the database part (one transaction: a failed import leaves nothing behind) and for the writing of the files that follows. A succeeded import carries `imported`, the number of items of each kind. A failed one carries `error_code`: `invalid_file`, `too_large`, `too_many_activities`, `timed_out`, `wrong_account`, `older_version` (the archive was exported by an Endurain version before v0.21.0), `files_incomplete` or `processing_failed`. `409` while an import is running.
+**Import.** `POST /profile/import` takes a `.zip` archive in `file`, validates and stages it, and answers `202` with a `profile_import` job. The status is `running` for the database part (one transaction: a failed import leaves nothing behind) and for the writing of the files that follows. A succeeded import carries `imported`, the number of items of each kind. A failed one carries `error_code`: `invalid_file`, `too_large`, `too_many_activities`, `timed_out`, `wrong_account`, `older_version`, `files_incomplete` or `processing_failed`. `409` while an import is running.
 
 ## Bulk visibility edit
 
@@ -169,7 +169,7 @@ A start route answers `409` with `urn:endurain:error:conflict` while the same ki
 
 - a bulk import, a profile export, a profile import, a bulk visibility edit, a gear deletion, a Garmin Connect link, a Garmin Connect gear or health sync, a Strava link, gear sync or unlink, an account deletion.
 
-A job that a server before this version started has no id to name; its `409` carries neither member. The same `409` code, with no job, also answers:
+The same `409` code, with no job, also answers:
 
 - an upload or a bulk import whose `Idempotency-Key` was used for a different request;
 - an upload while the user already has 10 uploads open (pending, processing or deferred);

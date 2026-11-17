@@ -51,7 +51,7 @@ Handlers must therefore be idempotent (delivery is at least once on the durable 
 | Behaviour | Value |
 | --------- | ----- |
 | Attempts before a job is dead-lettered | `JOBS_MAX_ATTEMPTS`, 5 |
-| Wait before a retry | `JOBS_BACKOFF_BASE_SECONDS` (5 s), doubling each attempt, up to `JOBS_BACKOFF_MAX_SECONDS` (1 hour) |
+| Wait before a retry | `JOBS_BACKOFF_BASE_SECONDS` (5 s), doubling each attempt, up to `JOBS_BACKOFF_MAX_SECONDS` (1 hour), randomised to 50 to 100 % of that delay |
 | A job claimed by a worker that goes silent | Requeued once its lease (`JOBS_LEASE_SECONDS`, 300 s) lapses. A running worker renews it every 15 s. The reaper runs every minute |
 | A single job that runs too long | Abandoned after 30 minutes and handed to the reaper, even if its worker is healthy |
 | A dead-lettered job | Kept for review. Never pruned automatically |
@@ -75,10 +75,10 @@ stateDiagram-v2
 For derived work, nothing more: the reconciliation net will fill the gap. For a **command** a user is waiting on, the module registers an `on_dead_letter` callback that closes the user-visible state, so the user sees "failed" instead of "processing" until a timeout. Those are:
 
 - activity uploads, provider refreshes and bulk imports (the job is marked failed),
-- Garmin Connect syncs (the sync state becomes failed, so another can be queued),
-- profile imports and exports (the state becomes failed).
+- Garmin Connect and Strava syncs (the sync state becomes failed, so another can be queued),
+- profile imports and exports, gear deletions, bulk visibility edits and account deletions (the state becomes failed).
 
-The callback also runs when the job died without raising, for example a worker killed mid-job, whose own error handling never ran.
+A scheduled pass that runs every minute delivers the callbacks, so one runs also when the job died without raising, for example a worker killed mid-job, whose own error handling never ran.
 
 ## The same event, two deployments
 
@@ -160,10 +160,10 @@ Workers do not run the scheduler, the relay or the reaper, so with `JOBS_RUN_IN_
 | The in-process subscriber queue is full (500 waiting) | The subscriber is skipped | The reconciliation net of that module | WARNING `Dropped an event subscriber: the subscriber pool is full` |
 | A best-effort handler raises | Logged and ignored. No retry | The reconciliation net, or the user retries a command | ERROR with the traceback |
 | The process stops with work queued on an in-process pool | The queued work is lost | Derived work: the nets. Commands: the user retries | Nothing is logged for work that never started |
-| A bounded local pool for a command is full (uploads, imports, syncs, Garmin link, profile import and export) | The request is refused **before** anything is staged, with `503` and a message to try again shortly | The client retries | `503 Too many <name> jobs in progress` |
+| A bounded local pool for a command is full (uploads, imports, syncs, Garmin Connect and Strava links, profile import and export, gear and account deletion, bulk edit) | The request is refused **before** anything is staged, with `503` and a message to try again shortly | The client retries | `503 Too many <name> jobs in progress; try again shortly` |
 | The pool fills between accepting the request and starting the job | The job is closed as failed instead of left pending | The user retries | Logged, and the job shows failed |
 | A durable job fails every attempt | Dead-lettered, and the user-visible state is closed | A net for derived work, or the user retries | Row in `jasil_processing_jobs` with status `dead_letter` |
-| Redis is down while a realtime hint is sent | The hint is lost | The client refetches (every minute, on reconnect, when the menu opens) | DEBUG log |
+| Redis is down while a realtime hint is sent | The hint is lost | The client refetches (every minute, on reconnect, when the menu opens) | WARNING `Dropped a realtime hint for key ...: publish failed` |
 | A notification's handler is dropped | The notification is not created, and not recreated later | None: notifications have no net | WARNING for the dropped subscriber |
 
 Notifications are the one derived item without a repair, on purpose: the activity or follow row is the source of truth and the notification is a transient signal.
@@ -174,30 +174,39 @@ Recurring jobs are declared by each module and run by the scheduler of the API p
 
 | Job | Every | Lock | What it does |
 | --- | ----- | ---- | ------------ |
-| Generate missing thumbnails | 60 min | no | Net for thumbnail generation |
+| Generate missing thumbnails | 60 min | yes | Net for thumbnail generation |
 | Remove orphaned thumbnails | 24 h | yes | Net for thumbnail cleanup |
 | Backfill missing locations | 60 min | yes | Net for reverse geocoding |
 | Remove orphaned retained activity files | 24 h | yes | Net for file cleanup |
 | Remove orphaned activity photos | 24 h | yes | Net for photo cleanup |
-| Queue a provider refresh for every user with Strava or Garmin linked | 60 min | no | Fan-out, one job per user |
-| Fail ingestion jobs that stopped progressing | 60 min | no | Closes jobs stuck in processing |
-| Prune ingestion job records | 24 h | no | Retention |
-| Remove staged ingestion blobs nothing reads | 24 h | no | Cleanup |
+| Remove activity deletion records past their retention | 24 h | yes | Retention |
+| Queue a provider refresh for every user with Strava or Garmin linked | 60 min | yes | Fan-out, one job per user |
+| Queue again provider refreshes whose rate limit cleared | 5 min | yes | Releases deferred refreshes |
+| Fail ingestion jobs that stopped progressing | 60 min | yes | Closes jobs stuck in processing |
+| Prune ingestion job records | 24 h | yes | Retention |
+| Remove staged ingestion blobs nothing reads | 24 h | yes | Cleanup |
 | Remove failed bulk-import files past `JOBS_RETENTION_DAYS` | 24 h | yes | Retention |
 | Pull the last day of Garmin Connect health data | 4 h | yes | One sync per linked user |
+| Delete the Strava data of users who revoked access on Strava | 60 min | yes | Deletes it once the 7-day grace period has passed without a relink |
 | Remove staged profile imports and exports | 6 h each | yes | Cleanup |
+| Queue again account deletions that never finished | 60 min | yes | Net for account deletion |
+| Remove user photos no user names | 24 h | yes | Cleanup |
+| Remove gear and gear component deletion records past their retention | 24 h each | yes | Retention |
+| Remove health record deletion records past their retention | 24 h | yes | Retention |
 | Purge read notifications past retention | 24 h | yes | Retention |
-| Authentication clean-ups (reset and sign-up tokens, OAuth states, sessions, rotated tokens) | 1 to 60 min | no | Delete what has expired; an email change's rows stay 7 days, for its "this wasn't me" link |
-| Delete unverified sign-ups whose verification link expired | 60 min | no | Deletes the account row; each one is audited as `users.user.purge` |
+| Authentication clean-ups (reset and sign-up tokens, OAuth states, sessions, rotated tokens) | 1 to 60 min | yes | Delete what has expired; an email change's rows stay 7 days, for its "this wasn't me" link |
+| Delete unverified sign-ups whose verification link expired | 60 min | yes | Deletes the account row; each one is audited as `users.user.purge` |
 | Revoke identity provider tokens of ended sessions | 15 min | yes | Net for identity provider token revocation |
+| Remove identity provider icons no provider names | 24 h | yes | Cleanup |
 | Prune known devices unseen for 400 days | 24 h | yes | Retention, in batches |
 | Delete API keys revoked or expired more than 30 days ago | 60 min | yes | Retention, in batches |
 | Refresh trusted-proxy hostnames | 1 min | no | Keeps `TRUSTED_PROXIES` names current |
 | Prune event log, outbox and job bookkeeping | 24 h | yes | Retention |
+| Maintain the audit trail | 5 min | yes | Creates the audit partitions ahead of time, seals checkpoints and applies the audit retention |
 
-A job with a lock uses the platform's coordination lock. With the default `noop://` lock on one process it always runs. With several processes the default is `postgres-advisory://`, and a replica that does not get the lock skips that run and logs it at DEBUG. A job without a lock may run on every scheduler process, so it is written to be safe to repeat.
+A job with a lock uses the platform's coordination lock. With the default `noop://` lock on one process it always runs. With several processes the default is `postgres-advisory://`, and a replica that does not get the lock skips that run and logs it at DEBUG. A replica also skips a run when another replica already completed that job in the same interval, so a locked job runs once per interval across replicas. A job without a lock runs on every scheduler process, so it is written to be safe to repeat.
 
-Strava has no scheduled job of its own: its hourly pull is the provider refresh fan-out above.
+Strava's hourly activity pull is the provider refresh fan-out above; its only scheduled job of its own is the deletion of revoked data.
 
 Startup also queues a catch-up run of the thumbnail, location, provider refresh and Garmin health jobs, so a restart does not wait a full interval.
 
@@ -266,7 +275,7 @@ These are commands. Their state lives on an ingestion job row, which the client 
 
 | | |
 | --- | --- |
-| Linking | The login runs in the background on a pool of 4. The attempt's status (pending, MFA required, completed, failed) lives in the shared state, so any replica can answer the status poll. The MFA code is passed through the same shared state. A second attempt while one runs is refused with `409` |
+| Linking | The login runs in the background on a pool of 4. The attempt's status (`queued`, `running`, `succeeded` or `failed`, with `mfa_required` while the login waits for a code) lives in the shared state, so any replica can answer the status poll. The MFA code is passed through the same shared state. A second attempt while one runs is refused with `409` |
 | Gear and health syncs | Local: a 2-worker pool holding up to 50. Distributed: a durable job. Only one sync of a kind per user at a time (`409` otherwise) |
 | Recurring | Every 4 hours, one health sync per linked user, under a lock, so replicas do not repeat it |
 | If dropped | A failed sync is marked failed so another can be queued. A dead-lettered sync is closed the same way. The recurring pull covers the last day again |
@@ -309,7 +318,7 @@ A revoked session (sign-out, revocation, password change or reset, a deactivated
 
 Every durable job is one subscriber reacting to one event. The **subscriber id** is what you see in `jasil_processing_jobs.subscriber_id` and `jasil_event_log.handler_name`, and it is stable across refactors, so you can filter on it. See [Troubleshooting](troubleshooting.md#inspect-background-jobs-durable-jobs-only) for the queries, and [Events and subscribers](../developer-guide/events-and-subscribers.md#register-it) for how an id is chosen.
 
-"Runs without durable jobs" says where the handler runs when `JOBS_ENABLED=false`. A **bus** handler is queued on the 2-thread subscriber pool and a failure is dropped. A **command pool** is a bounded pool that the request submits to directly, described in the module's section above.
+"Runs without durable jobs" says where the handler runs when `JOBS_ENABLED=false`. A **bus** handler is queued on the 2-thread subscriber pool and a failure is dropped. A **command pool** is a bounded pool that the request submits to directly, described in the module's section above. The gear deletion and bulk edit pools run one job at a time and hold 5.
 
 | Subscriber id | Event | Runs without durable jobs | Repaired by | On dead-letter |
 | ------------- | ----- | ------------------------- | ----------- | -------------- |
@@ -335,6 +344,8 @@ Every durable job is one subscriber reacting to one event. The **subscriber id**
 | `auth.send_sign_up_existing_account_email` | `auth.sign_up_existing_account` | Bus | Nothing: the email is a courtesy | Nothing |
 | `auth.send_password_reset_email` | `auth.password_reset_requested` | Bus | The user requests another reset | Nothing |
 | `auth.revoke_idp_session_tokens` | `auth.sessions_revoked` | Bus | The 15-minute revocation sweep | Net fills the gap |
+| `auth.refresh_idp_tokens` | `auth.idp_token_refresh_requested` | Bus | Every session refresh queues it again | Nothing |
+| `websocket.close_sockets` | `auth.sessions_revoked` | Bus | Nothing: a socket ends at its 15-minute lifetime | Nothing |
 | `auth.notify_idp_linked` | `auth.idp_linked` | Bus | Nothing, by design | Nothing |
 | `auth.notify_account_security_changed` | `auth.account_security_changed` | Bus | Nothing, by design | Nothing |
 | `auth.send_account_security_changed_email` | `auth.account_security_changed` | Bus | Nothing: the change is stored and audited | Nothing |
@@ -363,12 +374,16 @@ Every durable job is one subscriber reacting to one event. The **subscriber id**
 | `activity_ingestion.refresh_requested` | `activity.refresh_requested` | Ingestion command pool | The hourly refresh fan-out, or the user | Job marked failed |
 | `activity_ingestion.bulk_import` | `activity.bulk_import_continue` | Ingestion command pool | Continues itself in bounded passes and resumes from its saved position. The stale-job reaper closes one that stops progressing | Job marked failed |
 | `garmin.sync_requested` | `garmin.sync_requested` | Garmin sync pool | The 4-hourly health pull, or the user | Sync state marked failed |
+| `strava.sync_requested` | `strava.sync_requested` | Strava sync pool | The user queues it again | Sync state marked failed |
+| `gears.deletion_requested` | `gears.deletion_requested` | Gear deletion pool | The user deletes the gear again | Deletion state marked failed |
+| `activities.visibility_edit_requested` | `activities.visibility_edit_requested` | Bulk edit pool | The user edits again | Edit state marked failed |
+| `users.deletion_requested` | `users.deletion_requested` | Account deletion pool | The hourly stalled-deletion sweep | Deletion state marked failed |
 
 Three things follow from the table:
 
 - A handler that **has a repair job** is derived work. Losing one costs time, not data.
 - A handler that **repairs nothing** is either a command the user can repeat or a transient signal such as a notification. Each of these says why in its module's `subscriber_registry.py`, and a test fails if a durable subscriber declares neither a repair job nor a reason.
-- The ingestion and Garmin commands have **no bus subscriber**. Without durable jobs the service hands them to its own bounded pool instead, which is why a full pool answers the request with `503`.
+- The ingestion, provider sync, gear deletion, bulk edit and account deletion commands have **no bus subscriber**. Without durable jobs the service hands them to its own bounded pool instead, which is why a full pool answers the request with `503`.
 
 The realtime hint to the browser is not a job. It is delivered over the WebSocket and, with several processes, over a Redis channel; see [Realtime updates](../integrate/realtime.md#local-and-distributed-deployments).
 

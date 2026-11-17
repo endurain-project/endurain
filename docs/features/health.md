@@ -1,6 +1,6 @@
 # Health tracking
 
-The Health area keeps daily records next to your activities: weight, steps, sleep, water, bowel movements and fasting. Each metric has its own page, a history you can filter, and an optional target. The Health dashboard shows today at a glance.
+The Health area keeps daily records next to your activities: weight, steps, sleep, resting heart rate, water, bowel movements and fasting. Each metric has its own page, a history you can filter, and an optional target. The Health dashboard shows today at a glance.
 
 Health records belong to your account. Unlike activities, they have no visibility setting or public link.
 
@@ -29,14 +29,19 @@ The dashboard reads each metric for your today and shows only what exists:
 
 | Card | Shows |
 | ---- | ----- |
-| Sleep | Total sleep, resting heart rate, HRV status and skin temperature deviation. It appears only when the night has an HRV status |
-| Weight | Your latest weight and BMI, not only today's |
+| Sleep | Total sleep |
+| Resting HR | Resting heart rate and the HRV status |
+| Skin temp. dev. | Skin temperature deviation |
+| Weight | Your latest weight, not only today's |
+| BMI | The BMI of your latest weight, with its class |
 | Steps | Today's steps |
 | Fasting | The running fast, if any |
-| Water | Today's total |
+| Water intake | Today's total |
 | Bowel movements | Today's count |
 
-A card with no data is empty rather than zero.
+Cards with a target show it next to the value.
+
+A card with no data reads **No data** rather than zero.
 
 The dashboard response (`GET /api/v1/health/stats/daily`) also carries your targets, but only for a caller that holds the `health-targets:read` scope. Without it `targets` is `null`.
 
@@ -44,7 +49,7 @@ The dashboard response (`GET /api/v1/health/stats/daily`) also carries your targ
 
 Weight is shown in kilograms or pounds, chosen under **Settings → My profile → Edit profile → Weight units**. Left on **Follow units** it uses your account's units, so a metric account can weigh itself in pounds while distance, pace and elevation stay metric.
 
-BMI is worked out from the weight and the height in your profile when you do not supply one. Without a height there is no BMI. When you change your height, the stored BMI of your weight records is recalculated.
+BMI is worked out from the weight and the height in your profile when you do not supply one. Without a height there is no BMI. When you change your height, the BMI of the weight records you entered yourself is recalculated; records from a provider keep the BMI the provider reported.
 
 ## Water
 
@@ -56,9 +61,9 @@ Each movement is its own record. The Bristol type runs from 1 (separate hard lum
 
 ## Fasting
 
-You can have one running fast. Starting another while one runs is refused: finish or cancel the first.
+You can have one running fast. Starting another while one runs, or one whose times overlap another fast, is refused: finish or cancel the first.
 
-Pick a protocol when you start: `16:8`, `18:6`, `20:4`, OMAD, `24h`, `36h`, `48h`, `72h` or custom. The web form pre-fills the target duration from the protocol, and you can change it.
+Pick a protocol when you start: `16:8`, `18:6`, `20:4`, OMAD, `24h`, `36h`, `48h`, `72h` or custom. The web form sets the target duration from the protocol (OMAD is 23 hours); with `custom` you enter the hours. The API accepts any target duration.
 
 ```mermaid
 stateDiagram-v2
@@ -76,7 +81,7 @@ The fasting page also shows statistics over your history:
 | Statistic | Meaning |
 | --------- | ------- |
 | Total fasts | Completed fasts |
-| Current streak and longest streak | Consecutive days with a fast |
+| Current streak and longest streak | Consecutive days with a completed fast. The current streak counts only when the latest completed fast was today or yesterday |
 | Average duration | Mean length of your fasts |
 | Total fasting time | All time spent fasting |
 | Completion rate | Percentage of started fasts that were completed |

@@ -24,7 +24,7 @@ ACTIVITY_CREATED = "activity.created"
 class ActivityCreatedPayload(VersionedPayload):
     SCHEMA_VERSION: ClassVar[int] = 1
     activity_id: uuid.UUID
-    user_id: uuid.UUID | None = None
+    user_id: uuid.UUID
 ```
 
 Publish it from the service, in the same transaction as the change, through your `event_publishers.py`:
@@ -74,10 +74,10 @@ Two things jasil provides make that exact:
 
 ```python
 registry.register(
-    garmin_events.GARMIN_SYNC_REQUESTED,
-    SYNC_REQUESTED_SUBSCRIBER_ID,
-    process_sync_requested_for_event,
-    on_dead_letter=on_sync_requested_dead_letter,
+    activity_ingestion_events.ACTIVITY_FILE_UPLOADED,
+    UPLOADED_FILE_SUBSCRIBER_ID,
+    process_uploaded_file_for_event,
+    on_dead_letter=on_uploaded_file_dead_letter,
 )
 ```
 

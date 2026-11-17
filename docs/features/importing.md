@@ -60,7 +60,7 @@ In the settings "Import" page, choose "Import bikes" or "Import shoes" and uploa
 - Gear is screened for duplicates by nickname, case-insensitively and across bikes and shoes, so existing gear with the same nickname prevents the import of that item.
 - All gear is imported as active.
 - `+` characters are replaced with spaces and surrounding spaces are removed.
-- Strava allows shoes with no name, Endurain does not: they are named "Unnamed shoe N".
+- Strava allows shoes with no name, Endurain does not: they are named "Unnamed Shoe N".
 - Gear that is already present because you linked Strava is not imported again.
 
 ### Activities and photos
@@ -120,6 +120,6 @@ The import_info dictionary should include at least the following fields:
 * strava_activity_id (int) - holds Strava's internal activity ID for Strava activities when imported from a bulk Strava import
 * import_ISO_time (str) - an ISO formatted string holding the time of import.  This will be the time the entire import was triggered, and should be the same for all files of a single bulk import.
 
-If this dictionary exists for an activity, then the file was imported with one of those two functions (after this routine was added, likely v0.18.0).  Checking the "imported" field of the import_info dict can double-check this.
+If this dictionary exists for an activity, then the file was imported with one of those two functions.  Checking the "imported" field of the import_info dict can double-check this.
 
 These fields allow determination of when files were imported (to facilitate future creation of the ability to roll back an import), and also allow separation of imported Strava activities from Strava activities added via linking with Strava as a service.

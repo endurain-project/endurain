@@ -46,7 +46,7 @@ CRUD functions stage database changes with `flush()` and raise domain errors fro
 
 ## Pending proofs and the security generation
 
-A proof that lets someone finish later what they started now must not outlive a security change on the account. Those proofs are the forced password-change challenge, the MFA sign-in challenge, the link and step-up states, the step-up ticket, and the login state behind a pending PKCE exchange. `modules.auth.security_generation` holds one counter per account for this.
+A proof that lets someone finish later what they started must not outlive a security change on the account. Those proofs are the forced password-change challenge, the MFA sign-in challenge, the link and step-up states, the step-up ticket, and the login state behind a pending PKCE exchange. `modules.auth.security_generation` holds one counter per account for this.
 
 - **Bump:** a security change calls `security_generation.integration_service.stage_bump` in its own transaction, as its first write. The changes that bump are a password set, change or reset, admin require-change, MFA enable, disable or reset, an identity-provider unlink, an email change taking effect, deactivation, a deletion request, sign-out everywhere and admin revoke-all.
 - **Stamp:** a proof records `current_generation` when it is created. The value is read before the credential that justifies the proof is verified, so a change that commits during the check outdates it.
@@ -58,7 +58,7 @@ The generation row is always the first lock a transaction takes, in both bumps a
 
 `modules.auth.account_security.step_up_service.verify_step_up_credentials` verifies a password for an account that has one. For an account without one it requires an `idp_reauth` proof, and MFA alone never passes. Without the proof it raises `IdpReauthRequiredError` (`401`, RFC 9470 challenge).
 
-The flow lives in `identity_providers`: `account_security.identity_link_service.start_idp_step_up` stages the state through `authorization_service.stage_step_up`, and `callback_service.complete_step_up_callback` verifies the ID token and issues a single-use ticket in `step_up_ticket_store`. The ticket records the user, session, action and PKCE challenge; `account_security` reads and redeems it only through `identity_providers.integration_service`, after every other factor passed, so a wrong MFA code does not cost the ticket.
+The flow lives in `identity_providers`: `account_security.identity_link_service.start_idp_step_up` stages the state through `authorization_service.stage_step_up`, and `callback_service.complete_step_up_callback` verifies the ID token and issues a single-use ticket in `step_up_ticket_store`. The ticket records the user, session, provider, action, PKCE challenge and security generation; `account_security` reads and redeems it only through `identity_providers.integration_service`, after every other factor passed, so a wrong MFA code does not cost the ticket.
 
 ### Administrator step-up on identity-provider configuration
 

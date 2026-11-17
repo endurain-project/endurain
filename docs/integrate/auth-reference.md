@@ -11,10 +11,8 @@ The following environment variables control authentication behavior:
 | Variable | Description | Default | Required |
 | -------- | ----------- | ------- | -------- |
 | `SECRET_KEY` | Secret key for JWT signing (min 32 characters and at least 10 distinct characters required). Access tokens and refresh tokens are signed with separate keys derived from it. Several keys separated by commas rotate it: the first signs, every key verifies | - | Yes |
-| `ACCESS_TOKEN_EXPIRE_MINUTES` | Deprecated in v0.21: set in Settings > Server > Sessions, removed in v0.22. Access token lifetime in minutes | `15` | No |
-| `REFRESH_TOKEN_EXPIRE_DAYS` | Deprecated in v0.21: set in Settings > Server > Sessions, removed in v0.22. Refresh token lifetime in days | `7` | No |
 
-The `sub` claim of access and refresh tokens is the user's UUID. Tokens issued before v0.21.0 are refused (`401`) and every web and mobile session ended at the upgrade; API keys keep working. Third-party clients and older mobile app versions must update.
+The `sub` claim of access and refresh tokens is the user's UUID.
 
 Both tokens carry `client_type` (`web` or `mobile`), the client type of their session, and no `client_id`.
 
@@ -22,20 +20,24 @@ A `401` is one of two kinds, told apart by its problem type. `urn:endurain:error
 
 #### Session Configuration
 
-| Variable | Description | Default | Required |
-| -------- | ----------- | ------- | -------- |
-| `SESSION_IDLE_TIMEOUT_ENABLED` | Deprecated in v0.21: set in Settings > Server > Sessions, removed in v0.22. Enable session idle timeout | `false` | No |
-| `SESSION_IDLE_TIMEOUT_HOURS` | Deprecated in v0.21: set in Settings > Server > Sessions, removed in v0.22. Hours of inactivity before session expires | `1` | No |
-| `SESSION_ABSOLUTE_TIMEOUT_HOURS` | Deprecated in v0.21: set in Settings > Server > Sessions, removed in v0.22. Maximum session lifetime in hours. Used only when the variable is set; otherwise the server setting keeps its own default of 720 hours (30 days) | `720` (server setting) | No |
+Token and session lifetimes are server settings, not environment variables. An administrator sets them in Settings > Server settings > Access & security > Sessions, or with `PUT /server-settings`; a change applies to new sign-ins and to the next token refresh.
+
+| Setting | Description | Default | Range |
+| ------- | ----------- | ------- | ----- |
+| `access_token_expire_minutes` | Access token lifetime in minutes. Must be shorter than the idle timeout while that is enforced | `15` | 1-1440 |
+| `refresh_token_expire_days` | Refresh token lifetime in days | `7` | 1-365 |
+| `session_idle_timeout_enabled` | Enforce the idle timeout; the absolute timeout always applies | `true` | - |
+| `session_idle_timeout_hours` | Hours of inactivity after which a session ends | `72` | 1-8760 |
+| `session_absolute_timeout_hours` | Hours after sign-in after which a session ends, whatever its activity. Not below the idle timeout | `720` (30 days) | 1-8760 |
+| `api_key_max_lifetime_days` | Longest lifetime of a new API key, and its default, in days | `365` | 1-3650 |
 
 #### Security Configuration
 
 | Variable | Description | Default | Required |
 | -------- | ----------- | ------- | -------- |
 | `ENVIRONMENT` | Controls refresh cookie security for login, refresh, and OAuth/SSO token exchange. `production` and `demo` set the `Secure` flag on the refresh cookie and the OAuth/SSO session cookie, which requires Endurain to be served over HTTPS in those environments for login, session refresh, and SSO to work. | `production` | No |
-| `ALLOWED_REDIRECT_URIS` | Comma-separated exact redirect addresses allowed as SSO redirect targets (e.g., `com.endurain.endurain:/auth/sso/callback,nodomain.freeyourgadget.gadgetbridge://endurain/oauth/callback`). It is the only redirect allow-list: a redirect with a scheme must equal a listed address, and relative paths need no entry. The default is the callback of the Endurain mobile app; setting the variable replaces the default, so keep `com.endurain.endurain:/auth/sso/callback` in the list. The current Endurain mobile app still sends `endurain://auth/sso/callback`, so add it too until an app release uses the new address. The scheme is matched case-insensitively and the rest exactly, query string and fragment included. An `https` entry must be `https://host/path` (an Android App Link or iOS Universal Link) with a host, no user info and a valid port. Startup fails on an entry with `http`, `javascript`, `data`, `file`, `vbscript` or `blob`, with a control character, without a target, or with a malformed `https` address. An app listed here receives tokens with every scope the signing-in user holds, administrator scopes included, so list only apps you trust with the whole account. See [Redirect addresses](oauth-sso-pkce.md#redirect-schemes). | `com.endurain.endurain:/auth/sso/callback` | No |
-| `ALLOWED_REDIRECT_SCHEMES` | Removed in v0.21. Endurain refuses to start while it is set. List the exact addresses in `ALLOWED_REDIRECT_URIS` instead. | - | No |
-| `SSRF_ALLOWED_HOSTS` | SSRF allowlist for admin-configured outbound calls (identity provider discovery, signing keys, token, userinfo and revocation calls, and the sign-in redirect). A listed host may also use plain `http://` for these; any other identity provider URL must use `https://`. Also covers the reverse-geocoding host and the map tile server used for activity thumbnails. Comma-separated list of exact hostnames (case-insensitive) and/or explicit IP CIDR ranges. Supports self-hosted identity providers on private networks, including shared address space such as Tailscale (`100.64.0.0/10`). Examples: `auth.internal.example.com` or `auth.internal.example.com,10.10.0.0/24,fd00::/64`. Wildcards are rejected. IPv4 prefix must be ≥ /8, IPv6 ≥ /32. Every allowlisted outbound call is logged at INFO level for audit. | `` | No |
+| `ALLOWED_REDIRECT_URIS` | Comma-separated exact redirect addresses allowed as SSO redirect targets (e.g., `com.endurain.endurain:/auth/sso/callback,nodomain.freeyourgadget.gadgetbridge://endurain/oauth/callback`). It is the only redirect allow-list: a redirect with a scheme must equal a listed address, and relative paths need no entry. The default is the callback of the Endurain mobile app; setting the variable replaces the default, so keep `com.endurain.endurain:/auth/sso/callback` in the list. The scheme is matched case-insensitively and the rest exactly, query string and fragment included. An `https` entry must be `https://host/path` (an Android App Link or iOS Universal Link) with a host, no user info and a valid port. Startup fails on an entry with `http`, `javascript`, `data`, `file`, `vbscript` or `blob`, with a control character, without a target, or with a malformed `https` address. An app listed here receives tokens with every scope the signing-in user holds, administrator scopes included, so list only apps you trust with the whole account. See [Redirect addresses](oauth-sso-pkce.md#redirect-schemes). | `com.endurain.endurain:/auth/sso/callback` | No |
+| `SSRF_ALLOWED_HOSTS` | SSRF allowlist for admin-configured outbound calls (identity provider discovery, signing keys, token, userinfo and revocation calls, and the sign-in redirect). A listed host may also use plain `http://` for these; any other identity provider URL must use `https://`. Also covers the reverse-geocoding host and the map tile server used for activity thumbnails. Comma-separated list of exact hostnames (case-insensitive) and/or explicit IP CIDR ranges. Supports self-hosted identity providers on private networks, including shared address space such as Tailscale (`100.64.0.0/10`). Examples: `auth.internal.example.com` or `auth.internal.example.com,10.10.0.0/24,fd00::/64`. A wildcard, a malformed entry or a range wider than IPv4 /8 or IPv6 /32 is ignored with a startup warning. Every allowlisted outbound call is logged at INFO level for audit. | `` | No |
 
 #### Rate Limiting and Shared State
 
@@ -70,12 +72,12 @@ Endurain uses OAuth-style scopes to control API access. Each scope controls acce
 
 ### Available Scopes
 
-A scope name is `resource:action` in lowercase kebab-case (`health-targets:read`), plus the bare `account`. The catalogue only grows: from v0.21.0 on, a scope's name and meaning do not change.
+A scope name is `resource:action` in lowercase kebab-case (`health-targets:read`), plus the bare `account`. The catalogue only grows: a scope's name and meaning do not change.
 
 <!-- generated:scopes -->
 
 ### Scope Usage
-Scopes are assigned from the user's role and embedded in the `scope` claim of the JWT access token, a space-separated string. An endpoint checks its required scopes against the scopes the token carries, limited to the scopes the user's role holds when the request arrives: a token cannot name a scope its role lacks, and a demotion takes effect on the next request. A missing scope is `403` with `WWW-Authenticate: Bearer error="insufficient_scope"`. Tokens issued by a login carry every scope of the role. `account` covers the account's own data; `account:export` covers profile export and import, `account:security` covers the password, email, MFA, API keys, sessions, identity provider links and account deletion, and `account:integrations` covers linking and unlinking Garmin Connect and Strava (`POST` and `DELETE /garmin/link`, `POST /garmin/mfa`, `POST` and `DELETE /strava/link`, `POST /strava/state`, `PUT /strava/client`). Every user holds all four.
+Scopes are assigned from the user's role and embedded in the `scope` claim of the JWT access token, a space-separated string. An endpoint checks its required scopes against the scopes the token carries, limited to the scopes the user's role holds when the request arrives: a token cannot name a scope its role lacks, and a demotion takes effect on the next request. A missing scope is `403` with `WWW-Authenticate: Bearer error="insufficient_scope"`. Tokens issued by a login carry every scope of the role. `account` covers the account's own data; `account:export` covers profile export and import, `account:security` covers the password, email, MFA, API keys, sessions, identity provider links and account deletion, and `account:integrations` covers linking and unlinking Garmin Connect and Strava (`POST /garmin/link`, `POST /garmin/mfa`, `POST /garmin/unlink`, `POST /strava/link`, `POST /strava/state`, `POST /strava/unlink`, `PUT /strava/client`). Every user holds all four.
 
 ## Error responses
 

@@ -25,13 +25,10 @@ Identity providers are configured by an administrator with these parameters:
 - `client_id` and `client_secret`: OAuth client identifier and secret. Both are required when creating a provider (a missing one is `422`); on an edit an omitted one keeps the stored value
 - `issuer_url`: the OIDC issuer. Endurain reads `{issuer_url}/.well-known/openid-configuration` and requires its `issuer` to match. An `oidc` provider needs it, and creating one without it is refused with `422`; an edit that would leave one without it is refused with `400`. Sign-in verifies the ID token against the issuer and the signing keys the discovery document publishes (`jwks_uri` in that document), and a provider without them is refused. Step-up re-authentication also needs it
 - `authorization_endpoint`, `token_endpoint`, `userinfo_endpoint`: optional. A blank endpoint is discovered from the issuer; a value set here takes precedence
-- `scopes`: `openid profile email` by default. An `oidc` provider must include `openid`; creating one without it is refused with `422`, and an edit that would remove it is refused with `400`. An edit is checked against the stored values of the fields it does not send, and one that leaves `provider_type`, `issuer_url` and `scopes` equal to the stored values, whether it omits them or sends them back unchanged, is not checked, so a provider saved before this rule can still be renamed or disabled
+- `scopes`: `openid profile email` by default. An `oidc` provider must include `openid`; creating one without it is refused with `422`, and an edit that would remove it is refused with `400`. An edit is checked against the stored values of the fields it does not send, and one that leaves `provider_type`, `issuer_url` and `scopes` equal to the stored values, whether it omits them or sends them back unchanged, is not checked, so a stored provider that breaks the rule can still be renamed or disabled
 - `auto_create_users` (`true` by default), `link_by_email` (`false` by default), `sync_user_info` (`true` by default) and `sync_email` (`false` by default). `link_by_email` lets an unlinked sign-in join the local account that has the provider's verified email; when it is `false` that sign-in is refused. `sync_user_info` syncs the mapped name and not the email; `sync_email` syncs the email the provider verified, which marks it verified, voids unused password-reset tokens, is audited and notifies the previous address. Both apply when an SSO sign-in completes, after the account's MFA step, never at the callback
 - `enabled`: setting it from `true` to `false` ends, in the same transaction as the edit, every session the provider signed in, for all users; the `auth.identity_provider.update` audit row carries the number as `sessions_ended`. Setting it back to `true` does not restore them. If ending the sessions fails, the provider stays enabled
 - Locked fields: while users are linked to a provider, an edit that changes its `slug`, `client_id`, `provider_type`, `issuer_url`, `authorization_endpoint`, `token_endpoint` or `userinfo_endpoint` (the slug is part of the callback and back-channel URLs registered at the provider) is refused with `409` and `urn:endurain:error:identity-provider-locked`, whose `detail` names the changed fields, and nothing is saved. A field sent with its stored value, or an issuer that differs only by a trailing slash, is not a change; every other field stays editable. The provider's read (`has_linked_users`) says whether users are linked, so a client can lock those inputs instead of waiting for the refusal
-
-!!! warning "Breaking change"
-    `client_id` is required when creating a provider. The `jwks_uri` field is removed from the identity provider request and response bodies and from the database. Signing keys always come from the provider's discovery document, so a body that still sends `jwks_uri` is refused with `422`. Creating an `oidc` provider without an `issuer_url` or without the `openid` scope is refused too.
 
 The callback URL is not a setting. Endurain always uses `{frontend host}/api/v1/public/idp/callback/{idp_slug}`, so register exactly that URL as the redirect URI at the provider.
 
@@ -46,9 +43,6 @@ Users can link their Endurain account to an OAuth provider:
 3. Navigate the browser to `authorization_url`. A native app starts the link with a native `redirect` and opens `authorization_url` in the system browser (`ASWebAuthenticationSession`, a Custom Tab), never in an embedded WebView: the URL is then an Endurain address, `GET /public/idp/link?ticket=...`, whose single-use ticket lives two minutes. The system browser is not the app's HTTP client, so it receives the binding cookie when it opens that address and is redirected to the provider; a second request with the same ticket answers `400`. When the link ends, the browser opens the app's `redirect` with `idp_link=success` or `idp_link=error`.
 4. Authenticate with the identity provider
 5. Provider is linked to the existing account, and the other sessions end unless the start request sent `revoke_other_sessions: false`; the ended sessions are audited as `auth.session.revoke`. The callback refuses, and links nothing, when the account was deactivated, the session that started the link ended, or a security change (a password or MFA change, a sign-out everywhere) came after the start; the browser returns with `idp_link=error` and the refusal is audited as `auth.identity_link.link` with the reason `user_inactive`, `session_ended` or `security_changed`
-
-!!! warning "Breaking change"
-    The one-time link-token route (`.../link/token`) and the unauthenticated browser `GET` of the link route that took `link_token` are removed. No credential travels in a URL any more; the flow starts from the authenticated `POST` above.
 
 ### Step-up re-authentication
 An account without a local password proves a sensitive change by signing in again with a linked provider. `POST /profile/identity-providers/{idp_id}/step-up` takes `code_challenge`, `action` and a relative `redirect`, and returns an `authorization_url`. The authorize request carries `prompt=login`, `max_age=60` and PKCE, and the callback requires an ID token whose `auth_time` is recent. It returns to `redirect` with `#step_up_ticket=...` or `#step_up_error=failed|not_fresh` in the fragment. The flow is in [Account security](account-security.md#step-up-for-accounts-without-a-password). It needs a provider with an issuer URL and does not work for native clients.
@@ -74,7 +68,7 @@ For an account with MFA enabled the exchange answers the `mfa` step instead, and
 The session belongs to the client type recorded when the sign-in started. Its tokens carry it as `client_type`, and `/auth/refresh` refuses a refresh that declares a different `X-Client-Type` (see [Token Refresh Flow](authentication.md#token-refresh-flow)).
 
 !!! info "Mobile OAuth/SSO"
-  OAuth/SSO login requires PKCE for all clients. Mobile apps must use the system browser (`ASWebAuthenticationSession` or Custom Tabs), never an embedded WebView, so provider credentials stay outside the app process.
+    OAuth/SSO login requires PKCE for all clients. Mobile apps must use the system browser (`ASWebAuthenticationSession` or Custom Tabs), never an embedded WebView, so provider credentials stay outside the app process.
 
 ## Mobile Password Login with PKCE
 
@@ -430,10 +424,7 @@ X-Client-Type: mobile
 
 ### Redirect schemes
 
-The `redirect` address must be listed in `ALLOWED_REDIRECT_URIS` (see [Configuration](auth-reference.md#configuration)), a comma-separated list of exact addresses. It is the only redirect allow-list: `ALLOWED_REDIRECT_SCHEMES` is removed and Endurain refuses to start while it is set. Relative paths need no entry. The default is `com.endurain.endurain:/auth/sso/callback`; setting the variable replaces it, so keep it in the list, for example `ALLOWED_REDIRECT_URIS=com.endurain.endurain:/auth/sso/callback,nodomain.freeyourgadget.gadgetbridge://endurain/oauth/callback` to allow Gadgetbridge as well.
-
-!!! warning "Breaking change for operators"
-    The current Endurain mobile app still sends `endurain://auth/sso/callback`, which is no longer in the default. Until an app release uses the new address, add `endurain://auth/sso/callback` to `ALLOWED_REDIRECT_URIS` to keep SSO in the app working, for example `ALLOWED_REDIRECT_URIS=com.endurain.endurain:/auth/sso/callback,endurain://auth/sso/callback`. An operator who set `ALLOWED_REDIRECT_SCHEMES` must replace it with the exact addresses of the apps they allow.
+The `redirect` address must be listed in `ALLOWED_REDIRECT_URIS` (see [Configuration](auth-reference.md#configuration)), a comma-separated list of exact addresses. Relative paths need no entry. The default is `com.endurain.endurain:/auth/sso/callback`; setting the variable replaces it, so keep it in the list, for example `ALLOWED_REDIRECT_URIS=com.endurain.endurain:/auth/sso/callback,nodomain.freeyourgadget.gadgetbridge://endurain/oauth/callback` to allow Gadgetbridge as well.
 
 As in RFC 3986, the scheme ends at the first `:` and the `//` after it is optional, so both `org.endurain.app:/oauth/callback` (the form RFC 8252 section 7.1 shows) and `org.endurain.app://oauth/callback` work. The scheme is matched case-insensitively and the rest of the address exactly. The app registers one fixed callback address and Endurain adds `session_id` to it, so a redirect with a different path, or with a query string or fragment the entry does not have, is refused with `400`.
 
@@ -449,7 +440,7 @@ Any app on a device can register a custom scheme (RFC 8252 section 8.6), so an a
 
 #### The app a session belongs to
 
-When the SSO callback creates a session for a native-app `redirect`, the session records that address. `GET /profile/sessions` and the administrator's `GET /users/{user_id}/sessions` return it as `app_redirect_uri`, a read-only string that is `null` for a web session, for a mobile session signed in with a password or PKCE token exchange without SSO, and for a session created before it was recorded. A refresh keeps the value for the life of the session. No request accepts the field; the server sets it. The user and an administrator can use it to tell apart the sessions held by different apps.
+When the SSO callback creates a session for a native-app `redirect`, the session records that address. `GET /profile/sessions` and the administrator's `GET /users/{user_id}/sessions` return it as `app_redirect_uri`, a read-only string that is `null` for a web session, and for a mobile session signed in with a password. A refresh keeps the value for the life of the session. No request accepts the field; the server sets it. The user and an administrator can use it to tell apart the sessions held by different apps.
 
 #### Redirect URL Validation Rules
 

@@ -6,17 +6,6 @@ If someone else changed the settings while you were editing, your save is refuse
 
 Saving a change to a setting that decides who can sign up or sign in, whether two-step verification is required, how long a session or token lives, whether public links show who shared them, or where the server sends its own requests (the reverse geocoding service, host and HTTPS switch, and the tile server URL) asks for your own password and MFA code (or a fresh identity-provider sign-in if your account has no password), so a stolen session cannot weaken them. These are the sign-up and sign-in switches (including **Allow local username and password login**, single sign-on and its auto-redirect), the two-step verification requirement, the password rules and breach check, the session and token lifetimes, the API key lifetime, showing the owner's info on public links, the reverse geocoding service, host and HTTPS switch, and the tile server URL, because the server calls those addresses with the stored API keys. Changing any other setting, such as units, the geocoding rate limit, an API key or notification retention, needs no confirmation.
 
-## Settings that an environment variable controls
-
-Some settings used to be environment variables and were moved into this page. As long as the old variable is still set on the container, the matching field is **read-only** here, and Endurain copies the variable's value into the database at each start. Remove the variable to edit the field in the page. The affected settings are:
-
-- the session and token fields,
-- the read notification retention,
-- all reverse geocoding fields, as a block,
-- the email settings.
-
-The variables are listed, with their removal date, in [Advanced setup](../getting-started/advanced-setup.md#supported-environment-variables).
-
 ## Sections
 
 ### General
@@ -69,13 +58,13 @@ A minimum length for regular users and for administrators, from 8 to 128 charact
 | Access token lifetime | 1 to 1440 minutes |
 | Refresh token lifetime | 1 to 365 days |
 | API key maximum lifetime | 1 to 3650 days, 365 by default |
-| Enforce idle timeout | On or off; on for new installs, an existing install keeps its setting |
-| Idle timeout | 1 to 8760 hours of inactivity, 72 for new installs, an existing install keeps its setting |
+| Enforce idle timeout | On or off; on by default |
+| Idle timeout | 1 to 8760 hours of inactivity, 72 by default |
 | Absolute timeout | 1 to 8760 hours, 720 (30 days) by default, not below the idle timeout |
 
 The refresh token lifetime is how long a login on a device stays valid. When the absolute timeout ends a session before its refresh token expires, the client is told the earlier time. The absolute timeout always applies; the idle timeout applies only when enforced. Both are checked on every request, so a change to these settings applies to signed-in sessions at their next request, not only when they are renewed.
 
-The idle timeout runs from the last time the session's tokens were refreshed, not from the last request: a client refreshes only when its access token has expired. So while the idle timeout is enforced, the access token lifetime must be shorter than it, and the settings are refused otherwise (for example, 60 minutes or more with a 1 hour idle timeout). Otherwise a user who is working could be signed out when the access token expires. A stored setting that already breaks this rule still loads; change either value to save. The deprecated `ACCESS_TOKEN_EXPIRE_MINUTES`, `SESSION_IDLE_TIMEOUT_ENABLED` and `SESSION_IDLE_TIMEOUT_HOURS` variables that would break it stop the start.
+The idle timeout runs from the last time the session's tokens were refreshed, not from the last request: a client refreshes only when its access token has expired. So while the idle timeout is enforced, the access token lifetime must be shorter than it, and the settings are refused otherwise (for example, 60 minutes or more with a 1 hour idle timeout). Otherwise a user who is working could be signed out when the access token expires.
 
 A session that is not used also ends when its refresh token expires (7 days by default). The defaults meet the NIST SP 800-63B reauthentication rule for AAL1: sign in again at least every 30 days. They do not meet AAL2, which asks for a new sign-in at least every 24 hours and after 1 hour of inactivity, even for accounts with MFA. To meet AAL2, set the absolute timeout to 24 hours or less and enforce an idle timeout of 1 hour or less. Users then sign in more often.
 

@@ -87,7 +87,7 @@ A job never has the request:
 - A job may record its own outcome. Its rows name `SYSTEM` as the actor, and `target_owner_id` names the user. The request id still reaches them: `BoundedPool` jobs run under a copy of the submitter's context without the request (`app/core/local_pool.py`, `app/core/request_context.py`).
 - This is the same with and without `JOBS_ENABLED`.
 
-Use `jasil_audit.audit_context(...)` only where the actor is known but not yet on the request, such as a sign-in, where the user has no principal until the tokens are issued (`app/modules/auth/authentication/service.py`).
+Use `jasil_audit.audit_context(...)` only where the actor is known but not yet on the request, such as a sign-in, where the user has no principal until the tokens are issued. A sign-in does it through `login_audit.integration_service.acting_as_user` (`app/modules/auth/authentication/service.py`).
 
 ## What goes in `details`
 

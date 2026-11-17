@@ -67,13 +67,13 @@ A key needs no `X-Client-Type`. A write to a versioned resource still sends `If-
 
 A few endpoints act for a signed-in session and refuse a key with `403` whatever its scopes. Nearly all of them already need a scope a key never holds. The one a key's scopes would reach is the WebSocket ticket (`POST /ws/ticket`), which is bound to the session that asked for it, so a key cannot open the [realtime](realtime.md) connection.
 
-Rate limits count key requests per client address, not per user as for bearer tokens, so keys used from one address share a limit.
+Rate limits count key requests per client network (an IPv4 address, or an IPv6 /64), not per user as for bearer tokens, so keys used from one network share a limit.
 
 ## Managing API Keys
 
-API keys are managed through the Endurain web UI (Settings → Security → API Keys) or via the REST API. All management endpoints require a valid JWT access token.
+API keys are managed through the Endurain web UI (Settings → Security → Sessions & access → API keys) or via the REST API. All management endpoints require a valid JWT access token.
 
-Every API key expires. The maximum lifetime is set by an administrator (**Settings → Server settings → Sessions**, 365 days by default, 1 to 3650), and `expires_at` is always present in the responses. Keys that never expired before the upgrade now expire 365 days after it.
+Every API key expires. The maximum lifetime is set by an administrator (**Settings → Server settings → Access & security → Sessions**, 365 days by default, 1 to 3650), and `expires_at` is always present in the responses.
 
 Creating an API key also requires step-up verification because the key is a long-lived credential:
 
@@ -103,8 +103,8 @@ Content-Type: application/json
 
 | Field | Required | Description |
 | ----- | -------- | ----------- |
-| `name` | Yes | Human-readable label (max 100 characters) |
-| `scopes` | Yes | Array of API-key scopes to grant. Currently only `activities:upload` is accepted |
+| `name` | Yes | Human-readable label (1 to 100 characters) |
+| `scopes` | Yes | Array of at least one of the API-key scopes listed in [Scopes](#scopes) |
 | `expires_at` | No | ISO 8601 expiry datetime. Omit or `null` for the longest lifetime the server allows (365 days unless an administrator changed it). A later date is refused with `422` and a field error on `expires_at` |
 | `step_up` | Yes | The step-up verification object |
 | `step_up.current_password` | Conditionally | Required for accounts with a local password |
@@ -159,7 +159,7 @@ The `key` field is **never** returned in list or subsequent get responses — on
 
 **Revoke API Key (`POST /profile/api-keys/{id}/revoke`):**
 
-Revocation soft-deletes the key by setting `is_active = false`. Revoked keys are rejected immediately but remain visible in the list for a while. Returns HTTP 204 on success.
+Revocation soft-deletes the key by setting `is_active = false`. Revoked keys are rejected immediately but remain visible in the list for 30 days. Returns HTTP 204 on success.
 
 **Limit and retention:**
 

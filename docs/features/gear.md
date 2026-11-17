@@ -2,7 +2,7 @@
 
 Gear is the equipment you use for activities: a bike, shoes, a wetsuit and so on. Endurain adds up how much each piece has been used, and lets you track the parts fitted to it (a chain, a tire, a string) so you know when to replace them.
 
-Manage gear on the **Gears** pages.
+Manage gear on the **Gear** pages.
 
 ## Gear
 
@@ -21,9 +21,9 @@ Each piece has a nickname (required, and unique among your gear), and optionally
 
 The detail page shows:
 
-- **Total distance:** the distance of every activity that used the gear, plus the initial distance you entered for kilometres done before you started tracking.
-- **Total time:** the time of those activities.
-- **Components cost:** the purchase value of its components.
+- **Distance:** the distance of every activity that used the gear, plus the initial distance you entered for kilometres done before you started tracking.
+- **Time:** the time of those activities.
+- **Components:** the purchase value of its components.
 
 To use gear on an activity, pick it in the activity's edit dialog, or set a [default gear](#default-gear) for the activity type. Deleting gear removes it from the activities that used it. The activities stay. A gear used by many activities is deleted in the background, so it can stay in the list for a moment, shown as being deleted, before it disappears.
 
@@ -36,7 +36,7 @@ A component is a part of one piece of gear. Its type must fit the gear: a chain 
 | Type, brand, model | What the part is |
 | Purchase date | When it was fitted. Usage counts from this date |
 | Retired date | When it was removed. It must be after the purchase date. A retired component is always inactive |
-| Expected distance | The kilometres you expect to get from it |
+| Expected distance | The distance you expect to get from it. For a racquet component it is an expected time |
 | Purchase value | Its cost |
 
 A component's **current distance and time** are the activities that used the gear between its purchase date and its retired date. A component with no purchase date shows no usage. Replace a worn part by retiring the old component and adding a new one with a new purchase date, so each part keeps its own history.
