@@ -1,10 +1,17 @@
 {
-  "repository": "Tárhely",
+  "releaseNotes": "{version} kiadási megjegyzései",
+  "project": "Projekt",
+  "website": "Weboldal",
   "documentation": "Dokumentáció",
+  "sourceCode": "Forráskód",
+  "community": "Közösség",
   "mastodon": "Az Endurain Mastodon-fiókja",
   "bluesky": "Az Endurain Bluesky-profilja",
   "discord": "Az Endurain Discord-szervere",
   "linkedin": "Az Endurain LinkedIn-oldala",
+  "externalLink": "új lapon nyílik meg",
+  "trademarkNotice": "Az Endurain® João Vitória Silva bejegyzett védjegye.",
+  "trademarkPolicy": "Védjegyhasználati irányelvek",
   "compatibleStrava": "Strava-kompatibilis",
   "worksGarmin": "Működik a Garmin Connecttel"
 }

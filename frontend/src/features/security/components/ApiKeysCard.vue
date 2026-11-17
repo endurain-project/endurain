@@ -1,20 +1,31 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { Ban, Plus, Trash2 } from '@lucide/vue'
 
-import type { ApiKey, ApiKeyCreateInput } from '@/features/security/types'
+import type { ApiKey, ApiKeyCreateInput, ApiKeyDraft, IdpReauth } from '@/features/security/types'
+import type { IdpStepUpResume } from '@/features/security/composables/useIdpStepUp'
 
+import ApiKeyDetails from '@/features/security/components/ApiKeyDetails.vue'
 import ApiKeyCreateDialog from '@/features/security/components/ApiKeyCreateDialog.vue'
 import ApiKeyRevealDialog from '@/features/security/components/ApiKeyRevealDialog.vue'
-import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 import { Skeleton } from '@/components/ui/skeleton'
 import { HttpError } from '@/services/http'
+import { isProblem } from '@/services/problems'
 import { useToasts } from '@/composables/useToasts'
-import { formatMediumDate } from '@/utils/datetime'
+import {
+  API_KEY_LIMIT_TYPE,
+  API_KEY_SCOPES,
+  apiKeyExpiryInstant,
+} from '@/features/security/services/security'
+import {
+  isStepUpFailed,
+  isStepUpLocked,
+  useIdpReauthChallenge,
+} from '@/features/security/composables/useIdpStepUp'
 import {
   useApiKeysQuery,
   useCreateApiKeyMutation,
@@ -22,14 +33,16 @@ import {
   useRevokeApiKeyMutation,
 } from '@/features/security/composables/useSecurity'
 
-defineProps<{
+const props = defineProps<{
   /** Whether the account has a local password (gates the step-up password field). */
   hasLocalPassword: boolean
   /** Whether MFA is enabled (gates the step-up MFA-code field). */
   mfaEnabled: boolean
+  /** The identity-provider sign-in the browser just returned from, if any. */
+  resume: IdpStepUpResume | null
 }>()
 
-const { t, locale } = useI18n()
+const { t } = useI18n()
 const toasts = useToasts()
 
 const { data, isPending, isError, refetch } = useApiKeysQuery()
@@ -39,7 +52,11 @@ const createMutation = useCreateApiKeyMutation()
 const revokeMutation = useRevokeApiKeyMutation()
 const deleteMutation = useDeleteApiKeyMutation()
 
+const handleIdpChallenge = useIdpReauthChallenge()
+
 const isCreateOpen = ref(false)
+const createReauth = ref<IdpReauth | null>(null)
+const createDraft = ref<ApiKeyDraft | null>(null)
 const isRevealOpen = ref(false)
 const newApiKey = ref('')
 
@@ -50,9 +67,39 @@ const isRevokeOpen = ref(false)
 const keyToDelete = ref<ApiKey | null>(null)
 const isDeleteOpen = ref(false)
 
-/** Formats an ISO date in the active locale, or `''` when unparseable. */
-function formatDate(iso: string): string {
-  return formatMediumDate(iso, locale.value)
+/** Reads the stored form values back, ignoring anything that is not the expected shape. */
+function toDraft(pending: Record<string, unknown>): ApiKeyDraft {
+  const { name, scopes, expiresAt } = pending
+  return {
+    name: typeof name === 'string' ? name : '',
+    scopes: Array.isArray(scopes) ? API_KEY_SCOPES.filter((scope) => scopes.includes(scope)) : [],
+    expiresAt: typeof expiresAt === 'string' ? expiresAt : null,
+  }
+}
+
+/** Reopens the create dialog, with its form restored, once the identity-provider sign-in returns. */
+onMounted(() => {
+  if (props.resume?.action === 'api_key_create') {
+    createDraft.value = toDraft(props.resume.pending)
+    createReauth.value = props.resume.reauth
+    isCreateOpen.value = true
+  }
+})
+
+/** Whether the server refused the request with a 422 on the given field. */
+function refusedField(error: unknown, field: string): boolean {
+  return (
+    isProblem(error, 'validation-failed') &&
+    error.errors.some((fieldError) => fieldError.field === field)
+  )
+}
+
+/** Whether the server refused the scope list (`body.scopes`) or one entry of it (`body.scopes.<index>`). */
+function refusedScope(error: unknown): boolean {
+  return (
+    isProblem(error, 'validation-failed') &&
+    error.errors.some((e) => e.field === 'body.scopes' || e.field.startsWith('body.scopes.'))
+  )
 }
 
 /** Creates the key, then opens the one-time reveal dialog with the raw key. */
@@ -60,14 +107,34 @@ function onCreate(input: ApiKeyCreateInput): void {
   createMutation.mutate(input, {
     onSuccess: (rawKey) => {
       isCreateOpen.value = false
+      createReauth.value = null
+      createDraft.value = null
       newApiKey.value = rawKey
       isRevealOpen.value = true
       toasts.success(t('settings.security.apiKeys.createSuccess'))
     },
     onError: (error) => {
-      if (error instanceof HttpError && error.status === 401) {
+      if (handleIdpChallenge(error)) {
+        return
+      }
+      if (isStepUpLocked(error)) {
+        toasts.error(t('settings.security.stepUp.tooManyAttempts'))
+      } else if (isStepUpFailed(error)) {
         toasts.error(t('settings.security.apiKeys.invalidCredentials'))
-      } else if (error instanceof HttpError && error.status === 400) {
+      } else if (refusedField(error, 'body.expires_at')) {
+        // Both expiry refusals share the field and the error type, so the chosen date tells them apart.
+        const isPast =
+          input.expiresAt !== null && apiKeyExpiryInstant(input.expiresAt) <= new Date()
+        toasts.error(
+          t(
+            isPast
+              ? 'settings.security.apiKeys.expiryNotFuture'
+              : 'settings.security.apiKeys.expiryTooLate',
+          ),
+        )
+      } else if (error instanceof HttpError && error.type === API_KEY_LIMIT_TYPE) {
+        toasts.error(t('settings.security.apiKeys.apiKeyLimit'))
+      } else if (refusedScope(error)) {
         toasts.error(t('settings.security.apiKeys.invalidScopes'))
       } else {
         toasts.error(t('settings.security.apiKeys.createError'))
@@ -153,40 +220,7 @@ function confirmDelete(): void {
         :key="key.id"
         class="flex items-start justify-between gap-3 px-4 py-3"
       >
-        <div class="flex min-w-0 flex-col gap-1.5">
-          <div class="flex flex-wrap items-center gap-2">
-            <span class="text-body font-medium">{{ key.name }}</span>
-            <code class="rounded bg-muted-foreground/15 px-1.5 py-0.5 font-mono text-xs">
-              {{ key.keyPrefix }}…
-            </code>
-            <Badge :variant="key.isActive ? 'secondary' : 'destructive'">
-              {{
-                key.isActive
-                  ? t('settings.security.apiKeys.statusActive')
-                  : t('settings.security.apiKeys.statusRevoked')
-              }}
-            </Badge>
-          </div>
-          <div v-if="key.scopes.length > 0" class="flex flex-wrap gap-1">
-            <Badge v-for="scope in key.scopes" :key="scope" variant="outline" class="font-mono">
-              {{ scope }}
-            </Badge>
-          </div>
-          <p class="text-hint">
-            {{ t('settings.security.apiKeys.created', { date: formatDate(key.createdAt) }) }} ·
-            {{
-              key.lastUsedAt
-                ? t('settings.security.apiKeys.lastUsed', { date: formatDate(key.lastUsedAt) })
-                : t('settings.security.apiKeys.neverUsed')
-            }}
-            ·
-            {{
-              key.expiresAt
-                ? t('settings.security.apiKeys.expires', { date: formatDate(key.expiresAt) })
-                : t('settings.security.apiKeys.neverExpires')
-            }}
-          </p>
-        </div>
+        <ApiKeyDetails :api-key="key" />
         <div class="flex shrink-0 gap-1">
           <Button
             v-if="key.isActive"
@@ -211,6 +245,8 @@ function confirmDelete(): void {
 
     <ApiKeyCreateDialog
       v-model:open="isCreateOpen"
+      v-model:reauth="createReauth"
+      :draft="createDraft"
       :require-password="hasLocalPassword"
       :require-mfa="mfaEnabled"
       :pending="createMutation.isPending.value"

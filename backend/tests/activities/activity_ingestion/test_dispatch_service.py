@@ -42,6 +42,26 @@ class TestRunInBackground:
         submit.assert_not_called()
 
 
+class TestRequireCapacity:
+    def test_local_profile_asks_the_pool(self):
+        with _jobs(False), patch.object(dispatch_service.activity_ingestion_background, "require_capacity") as require:
+            dispatch_service.require_capacity()
+
+        require.assert_called_once_with()
+
+    def test_durable_profile_has_no_local_pool_to_fill(self):
+        with _jobs(True), patch.object(dispatch_service.activity_ingestion_background, "require_capacity") as require:
+            dispatch_service.require_capacity()
+
+        require.assert_not_called()
+
+    def test_node_bound_work_asks_the_pool_whatever_the_profile(self):
+        with _jobs(True), patch.object(dispatch_service.activity_ingestion_background, "require_capacity") as require:
+            dispatch_service.require_node_capacity()
+
+        require.assert_called_once_with()
+
+
 def test_worker_retries_follows_the_setting():
     with _jobs(True):
         assert dispatch_service.worker_retries() is True

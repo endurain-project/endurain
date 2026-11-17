@@ -1,5 +1,7 @@
 """User default gear Pydantic schemas."""
 
+import uuid
+
 from pydantic import (
     BaseModel,
     ConfigDict,
@@ -8,9 +10,8 @@ from pydantic import (
 )
 
 
-class UsersDefaultGearBase(BaseModel):
-    """
-    Base schema for users default gear assignments.
+class UserDefaultGearBase(BaseModel):
+    """Base schema for users default gear assignments.
 
     Attributes:
         run_gear_id: Default gear for run activities.
@@ -38,79 +39,64 @@ class UsersDefaultGearBase(BaseModel):
         windsurf_gear_id: Default gear for windsurf activities.
     """
 
-    run_gear_id: StrictInt | None = Field(
+    run_gear_id: uuid.UUID | None = Field(
         default=None,
-        ge=1,
         description="Default gear for run activities",
     )
-    trail_run_gear_id: StrictInt | None = Field(
+    trail_run_gear_id: uuid.UUID | None = Field(
         default=None,
-        ge=1,
         description="Default gear for trail run activities",
     )
-    virtual_run_gear_id: StrictInt | None = Field(
+    virtual_run_gear_id: uuid.UUID | None = Field(
         default=None,
-        ge=1,
         description="Default gear for virtual run activities",
     )
-    ride_gear_id: StrictInt | None = Field(
+    ride_gear_id: uuid.UUID | None = Field(
         default=None,
-        ge=1,
         description="Default gear for ride activities",
     )
-    gravel_ride_gear_id: StrictInt | None = Field(
+    gravel_ride_gear_id: uuid.UUID | None = Field(
         default=None,
-        ge=1,
         description="Default gear for gravel ride activities",
     )
-    mtb_ride_gear_id: StrictInt | None = Field(
+    mtb_ride_gear_id: uuid.UUID | None = Field(
         default=None,
-        ge=1,
         description="Default gear for MTB ride activities",
     )
-    virtual_ride_gear_id: StrictInt | None = Field(
+    virtual_ride_gear_id: uuid.UUID | None = Field(
         default=None,
-        ge=1,
         description="Default gear for virtual ride activities",
     )
-    ows_gear_id: StrictInt | None = Field(
+    ows_gear_id: uuid.UUID | None = Field(
         default=None,
-        ge=1,
         description="Default gear for OWS activities",
     )
-    walk_gear_id: StrictInt | None = Field(
+    walk_gear_id: uuid.UUID | None = Field(
         default=None,
-        ge=1,
         description="Default gear for walk activities",
     )
-    hike_gear_id: StrictInt | None = Field(
+    hike_gear_id: uuid.UUID | None = Field(
         default=None,
-        ge=1,
         description="Default gear for hike activities",
     )
-    tennis_gear_id: StrictInt | None = Field(
+    tennis_gear_id: uuid.UUID | None = Field(
         default=None,
-        ge=1,
         description="Default gear for tennis activities",
     )
-    alpine_ski_gear_id: StrictInt | None = Field(
+    alpine_ski_gear_id: uuid.UUID | None = Field(
         default=None,
-        ge=1,
         description="Default gear for alpine ski activities",
     )
-    nordic_ski_gear_id: StrictInt | None = Field(
+    nordic_ski_gear_id: uuid.UUID | None = Field(
         default=None,
-        ge=1,
         description="Default gear for nordic ski activities",
     )
-    snowboard_gear_id: StrictInt | None = Field(
+    snowboard_gear_id: uuid.UUID | None = Field(
         default=None,
-        ge=1,
         description="Default gear for snowboard activities",
     )
-    windsurf_gear_id: StrictInt | None = Field(
+    windsurf_gear_id: uuid.UUID | None = Field(
         default=None,
-        ge=1,
         description="Default gear for windsurf activities",
     )
 
@@ -121,9 +107,8 @@ class UsersDefaultGearBase(BaseModel):
     )
 
 
-class UsersDefaultGearRead(UsersDefaultGearBase):
-    """
-    Schema for reading user default gear settings.
+class UserDefaultGearRead(UserDefaultGearBase):
+    """Schema for reading user default gear settings.
 
     Extends base with identifier fields.
 
@@ -132,14 +117,14 @@ class UsersDefaultGearRead(UsersDefaultGearBase):
         user_id: User ID reference.
     """
 
-    id: StrictInt = Field(..., ge=1, description="Unique identifier")
-    user_id: StrictInt = Field(..., ge=1, description="User ID")
+    id: uuid.UUID = Field(..., description="Unique identifier")
+    user_id: uuid.UUID = Field(..., description="User ID")
+    version: StrictInt = Field(default=1, ge=1, description="Optimistic-concurrency counter, also sent as the ETag")
 
 
-class UsersDefaultGearUpdate(UsersDefaultGearRead):
-    """
-    Schema for updating user default gear settings.
+class UserDefaultGearUpdate(UserDefaultGearBase):
+    """Schema for updating user default gear settings.
 
-    Inherits all gear assignment fields from read schema.
-    All fields are optional for partial updates.
+    Carries only the gear assignments, all optional for partial updates. The record is the
+    authenticated user's own, so the body names neither the record nor the user.
     """

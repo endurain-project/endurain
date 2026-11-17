@@ -10,6 +10,7 @@
   "settings": "Configuració",
   "profile": "Perfil",
   "logout": "Tanca sessió",
+  "logoutFailed": "No s'ha pogut tancar la sessió. Comprova la connexió i torna-ho a provar.",
   "userMenu": "Menú d'usuari",
   "menu": "Menú",
   "primary": "Navegació principal",

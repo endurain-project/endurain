@@ -1,10 +1,17 @@
 {
-  "repository": "Saugykla",
+  "releaseNotes": "{version} versijos pastabos",
+  "project": "Projektas",
+  "website": "Svetainė",
   "documentation": "Dokumentacija",
+  "sourceCode": "Šaltinio kodas",
+  "community": "Bendruomenė",
   "mastodon": "Endurain Mastodon paskyra",
   "bluesky": "Endurain Bluesky profilis",
   "discord": "Endurain Discord serveris",
   "linkedin": "Endurain LinkedIn puslapis",
+  "externalLink": "atidaroma naujame skirtuke",
+  "trademarkNotice": "Endurain® yra João Vitória Silva registruotasis prekių ženklas.",
+  "trademarkPolicy": "Prekių ženklo politika",
   "compatibleStrava": "Suderinama su Strava",
   "worksGarmin": "Veikia su Garmin Connect"
 }

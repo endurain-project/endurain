@@ -178,7 +178,7 @@ Your overall sleep score combines several important factors:
 | 51-75 (Medium) | 50-70 | **FAIR** |
 | 76-100 (High) | 0-50 | **POOR** |
 
-**Restless moments penalty:** Each restless moment during sleep reduces your score by 2-3 points.
+**Restless moments penalty:** Each of the first 5 restless moments reduces your score by 2 points, and each one after that by 3 points.
 
 ---
 
@@ -244,7 +244,7 @@ Your overall sleep score combines several important factors:
 Scores are automatically calculated when you:
 
 - Create a new sleep record
-- Update an existing sleep record
+- Update an existing sleep record that sends any of the scoring inputs (times, durations, stages, awakenings, restless moments or stress)
 - Important: If sleep data is imported from Garmin Connect, no calculations are made. Garmin Connect data is used
 
 The system recalculates all scores to ensure they reflect your current data.
@@ -259,7 +259,7 @@ For the most accurate scores, provide:
 - ✅ Number of awakenings
 - ✅ Stress levels (optional but recommended)
 
-**Partial data:** Even with incomplete data, the system will calculate scores for the metrics you provide. Missing metrics won't break the scoring system.
+**Partial data:** Even with incomplete data, the system will calculate scores for the metrics you provide. Missing metrics won't break the scoring system. If the number of awakenings or the average stress is missing, that component scores 50 (Fair). If the total sleep time is missing or zero, the duration and the stage-based scores are 0 (Poor).
 
 ---
 

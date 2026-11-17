@@ -1,6 +1,16 @@
 """Tests for the activities domain event publishers."""
 
+import uuid
 from unittest.mock import patch
+
+_USER_2 = uuid.UUID(int=2)
+_USER_3 = uuid.UUID(int=3)
+
+_ID_4 = uuid.uuid4()
+_ID_5 = uuid.uuid4()
+_ID_6 = uuid.uuid4()
+_ID_7 = uuid.uuid4()
+_ID_9 = uuid.uuid4()
 
 
 class TestPublishActivityCreated:
@@ -9,14 +19,14 @@ class TestPublishActivityCreated:
         from modules.activities.activity.event_publishers import publish_activity_created
 
         db = object()
-        publish_activity_created(7, 3, db, source="ingest:upload")
+        publish_activity_created(_ID_7, _USER_3, db, source="ingest:upload")
 
         mock_publisher.publish_on_commit.assert_called_once()
         args, kwargs = mock_publisher.publish_on_commit.call_args
         assert args[0] == "activity.created"
-        assert args[1] == {"activity_id": 7, "user_id": 3, "duplicate_start_time": False}
+        assert args[1] == {"activity_id": str(_ID_7), "user_id": str(_USER_3), "duplicate_start_time": False}
         assert kwargs["source"] == "ingest:upload"
-        assert kwargs["metadata"] == {"activity_id": 7, "user_id": 3}
+        assert kwargs["metadata"] == {"activity_id": str(_ID_7), "user_id": str(_USER_3)}
         assert kwargs["db"] is db
 
 
@@ -26,15 +36,15 @@ class TestPublishActivityDeleted:
         from modules.activities.activity.event_publishers import publish_activity_deleted
 
         db = object()
-        publish_activity_deleted(9, 2, db)
+        publish_activity_deleted(_ID_9, _USER_2, db)
 
         # Staged on the session: the caller's commit makes the delete and the event durable together.
         mock_publisher.publish_on_commit.assert_called_once()
         args, kwargs = mock_publisher.publish_on_commit.call_args
         assert args[0] == "activity.deleted"
-        assert args[1] == {"activity_id": 9}
+        assert args[1] == {"activity_id": str(_ID_9)}
         assert kwargs["source"] == "api:delete_activity"
-        assert kwargs["metadata"] == {"activity_id": 9, "user_id": 2}
+        assert kwargs["metadata"] == {"activity_id": str(_ID_9), "user_id": str(_USER_2)}
         assert kwargs["db"] is db
 
 
@@ -46,14 +56,14 @@ class TestPublishActivityUpdated:
         from modules.activities.activity.event_publishers import publish_activity_updated
 
         db = object()
-        publish_activity_updated(7, 3, db, changed_fields=["name"])
+        publish_activity_updated(_ID_7, _USER_3, db, changed_fields=["name"])
 
         mock_publisher.publish_on_commit.assert_called_once()
         args, kwargs = mock_publisher.publish_on_commit.call_args
         assert args[0] == "activity.updated"
-        assert args[1] == {"activity_id": 7, "user_id": 3, "changed_fields": ["name"]}
+        assert args[1] == {"activity_id": str(_ID_7), "user_id": str(_USER_3), "changed_fields": ["name"]}
         assert kwargs["source"] == "api:edit_activity"
-        assert kwargs["metadata"] == {"activity_id": 7, "user_id": 3}
+        assert kwargs["metadata"] == {"activity_id": str(_ID_7), "user_id": str(_USER_3)}
         assert kwargs["db"] is db
 
     @patch("modules.activities.activity.event_publishers.platform_publisher")
@@ -61,7 +71,7 @@ class TestPublishActivityUpdated:
         """Stable ordering regardless of the producer's iteration order."""
         from modules.activities.activity.event_publishers import publish_activity_updated
 
-        publish_activity_updated(7, 3, object(), changed_fields={"visibility", "name", "gear_id"})
+        publish_activity_updated(_ID_7, _USER_3, object(), changed_fields={"visibility", "name", "gear_id"})
 
         assert mock_publisher.publish_on_commit.call_args.args[1]["changed_fields"] == [
             "gear_id",
@@ -78,14 +88,16 @@ class TestPublishActivitiesUpdated:
         from modules.activities.activity.event_publishers import publish_activities_updated
 
         db = object()
-        publish_activities_updated([4, 5], 2, db, changed_fields=["visibility"], source="api:bulk_edit_activities")
+        publish_activities_updated(
+            [_ID_4, _ID_5], _USER_2, db, changed_fields=["visibility"], source="api:bulk_edit_activities"
+        )
 
         mock_publisher.publish_many_on_commit.assert_called_once()
         args, kwargs = mock_publisher.publish_many_on_commit.call_args
         assert args[0] == "activity.updated"
         assert args[1] == [
-            {"activity_id": 4, "user_id": 2, "changed_fields": ["visibility"]},
-            {"activity_id": 5, "user_id": 2, "changed_fields": ["visibility"]},
+            {"activity_id": str(_ID_4), "user_id": str(_USER_2), "changed_fields": ["visibility"]},
+            {"activity_id": str(_ID_5), "user_id": str(_USER_2), "changed_fields": ["visibility"]},
         ]
         assert kwargs["source"] == "api:bulk_edit_activities"
         assert kwargs["db"] is db
@@ -94,17 +106,17 @@ class TestPublishActivitiesUpdated:
     def test_metadata_is_per_activity(self, mock_publisher):
         from modules.activities.activity.event_publishers import publish_activities_updated
 
-        publish_activities_updated([4, 5], 2, object(), changed_fields=["visibility"], source="api:bulk")
+        publish_activities_updated([_ID_4, _ID_5], _USER_2, object(), changed_fields=["visibility"], source="api:bulk")
 
         metadata_for = mock_publisher.publish_many_on_commit.call_args.kwargs["metadata_for"]
-        assert metadata_for({"activity_id": 4}) == {"activity_id": 4, "user_id": 2}
+        assert metadata_for({"activity_id": str(_ID_4)}) == {"activity_id": str(_ID_4), "user_id": str(_USER_2)}
 
     @patch("modules.activities.activity.event_publishers.platform_publisher")
     def test_declares_the_payload_version_it_writes(self, mock_publisher):
         from modules.activities.activity.event_publishers import publish_activities_updated
         from modules.activities.activity.events import ActivityUpdatedPayload
 
-        publish_activities_updated([4], 2, object(), changed_fields=["name"], source="api:bulk")
+        publish_activities_updated([_ID_4], _USER_2, object(), changed_fields=["name"], source="api:bulk")
 
         kwargs = mock_publisher.publish_many_on_commit.call_args.kwargs
         assert kwargs["schema_version"] == ActivityUpdatedPayload.SCHEMA_VERSION
@@ -114,7 +126,7 @@ class TestPublishActivitiesUpdated:
         from modules.activities.activity.event_publishers import publish_activities_deleted
         from modules.activities.activity.events import ActivityDeletedPayload
 
-        publish_activities_deleted([4], 2, object(), source="api:bulk")
+        publish_activities_deleted([_ID_4], _USER_2, object(), source="api:bulk")
 
         kwargs = mock_publisher.publish_many_on_commit.call_args.kwargs
         assert kwargs["schema_version"] == ActivityDeletedPayload.SCHEMA_VERSION
@@ -123,7 +135,7 @@ class TestPublishActivitiesUpdated:
     def test_empty_batch_publishes_nothing(self, mock_publisher):
         from modules.activities.activity.event_publishers import publish_activities_updated
 
-        publish_activities_updated([], 2, object(), changed_fields=["visibility"], source="api:bulk")
+        publish_activities_updated([], _USER_2, object(), changed_fields=["visibility"], source="api:bulk")
 
         args, _kwargs = mock_publisher.publish_many_on_commit.call_args
         assert args[1] == []
@@ -142,12 +154,12 @@ class TestPublishActivitiesDeleted:
         from modules.activities.activity.event_publishers import publish_activities_deleted
 
         db = object()
-        publish_activities_deleted([4, 5, 6], 2, db, source="api:delete_user")
+        publish_activities_deleted([_ID_4, _ID_5, _ID_6], _USER_2, db, source="api:delete_user")
 
         mock_publisher.publish_many_on_commit.assert_called_once()
         args, kwargs = mock_publisher.publish_many_on_commit.call_args
         assert args[0] == "activity.deleted"
-        assert args[1] == [{"activity_id": 4}, {"activity_id": 5}, {"activity_id": 6}]
+        assert args[1] == [{"activity_id": str(_ID_4)}, {"activity_id": str(_ID_5)}, {"activity_id": str(_ID_6)}]
         assert kwargs["source"] == "api:delete_user"
         assert kwargs["db"] is db
 
@@ -155,17 +167,17 @@ class TestPublishActivitiesDeleted:
     def test_metadata_is_per_activity(self, mock_publisher):
         from modules.activities.activity.event_publishers import publish_activities_deleted
 
-        publish_activities_deleted([4, 5], 2, object(), source="api:delete_user")
+        publish_activities_deleted([_ID_4, _ID_5], _USER_2, object(), source="api:delete_user")
 
         metadata_for = mock_publisher.publish_many_on_commit.call_args.kwargs["metadata_for"]
-        assert metadata_for({"activity_id": 4}) == {"activity_id": 4, "user_id": 2}
-        assert metadata_for({"activity_id": 5}) == {"activity_id": 5, "user_id": 2}
+        assert metadata_for({"activity_id": str(_ID_4)}) == {"activity_id": str(_ID_4), "user_id": str(_USER_2)}
+        assert metadata_for({"activity_id": str(_ID_5)}) == {"activity_id": str(_ID_5), "user_id": str(_USER_2)}
 
     @patch("modules.activities.activity.event_publishers.platform_publisher")
     def test_empty_batch_publishes_nothing(self, mock_publisher):
         from modules.activities.activity.event_publishers import publish_activities_deleted
 
-        publish_activities_deleted([], 2, object(), source="api:delete_user")
+        publish_activities_deleted([], _USER_2, object(), source="api:delete_user")
 
         args, _kwargs = mock_publisher.publish_many_on_commit.call_args
         assert args[1] == []

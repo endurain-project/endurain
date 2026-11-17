@@ -1,3 +1,4 @@
+import { toNumberOrNull } from './number'
 import { isValidEmail } from './validation'
 
 /**
@@ -75,6 +76,33 @@ export function email(message: string): Validator<string> {
  */
 export function pattern(regex: RegExp, message: string): Validator<string> {
   return (value) => (value.length === 0 || regex.test(value) ? null : message)
+}
+
+/**
+ * Bounds an optional numeric field: an empty value passes, otherwise it must be
+ * at least `min` and, when given, at most `max`.
+ *
+ * Accepts a number, a numeric string or `null`, because an `<input
+ * type="number">` bound with `v-model.number` yields the raw string back when
+ * it cannot parse, so the value is coerced through `toNumberOrNull`.
+ *
+ * @param min - Smallest allowed value.
+ * @param max - Largest allowed value, or `undefined` for no upper bound.
+ * @param message - Error message when out of range.
+ * @returns A validator for the numeric field.
+ */
+export function numberBetween(
+  min: number,
+  max: number | undefined,
+  message: string,
+): Validator<string | number | null> {
+  return (value) => {
+    const parsed = toNumberOrNull(value ?? '')
+    if (parsed === null) {
+      return null
+    }
+    return parsed < min || (max !== undefined && parsed > max) ? message : null
+  }
 }
 
 /**

@@ -6,6 +6,7 @@ import type { GearActivitiesPage } from '@/features/gears/types'
 
 import { queryKeys } from '@/services/queryKeys'
 import { useAuthStore } from '@/features/auth/stores/auth'
+import { GEAR_QUERY_STALE_TIME_MS } from '@/features/gears/constants'
 import { fetchGearActivities } from '@/features/gears/services/gearActivities'
 
 /**
@@ -20,7 +21,7 @@ import { fetchGearActivities } from '@/features/gears/services/gearActivities'
  * @returns The TanStack Query result for the current activities page.
  */
 export function useGearActivitiesQuery(
-  gearId: MaybeRefOrGetter<number | null>,
+  gearId: MaybeRefOrGetter<string | null>,
   page: MaybeRefOrGetter<number>,
   pageSize: MaybeRefOrGetter<number>,
 ) {
@@ -29,20 +30,19 @@ export function useGearActivitiesQuery(
 
   return useQuery<GearActivitiesPage>({
     queryKey: computed(() =>
-      queryKeys.gears.activities(id.value ?? -1, {
+      queryKeys.gears.activities(id.value ?? '', {
         page: toValue(page),
         numRecords: toValue(pageSize),
       }),
     ),
     queryFn: ({ signal }) =>
       fetchGearActivities(
-        id.value as number,
+        id.value as string,
         { page: toValue(page), numRecords: toValue(pageSize) },
         signal,
       ),
+    staleTime: GEAR_QUERY_STALE_TIME_MS,
     placeholderData: keepPreviousData,
-    enabled: computed(
-      () => isAuthenticated.value && id.value !== null && Number.isFinite(id.value),
-    ),
+    enabled: computed(() => isAuthenticated.value && id.value !== null),
   })
 }

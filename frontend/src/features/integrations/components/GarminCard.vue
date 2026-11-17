@@ -1,16 +1,18 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { ChevronDown } from '@lucide/vue'
 
 import type { DateRange } from '@/features/integrations/types'
+import type { IdpReauth, StepUpInput } from '@/features/security/types'
+import type { IdpStepUpResume } from '@/features/security/composables/useIdpStepUp'
 
 import GarminLoginDialog from '@/features/integrations/components/GarminLoginDialog.vue'
 import RetrieveRangeDialog from '@/features/integrations/components/RetrieveRangeDialog.vue'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
-import { ConfirmDialog } from '@/components/ui/confirm-dialog'
+import StepUpDialog from '@/features/security/components/StepUpDialog.vue'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -18,11 +20,18 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
+import { useAdminStepUp } from '@/features/security/composables/useAdminStepUp'
+import {
+  isStepUpFailed,
+  isStepUpLocked,
+  useIdpReauthChallenge,
+} from '@/features/security/composables/useIdpStepUp'
 import { INTEGRATION_LOGOS } from '@/constants/integrationLogos'
 import { useToasts } from '@/composables/useToasts'
 import {
   useRetrieveGarminActivitiesMutation,
   useRetrieveGarminGearMutation,
+  useRetrievalOutcome,
   useRetrieveGarminHealthMutation,
   useUnlinkGarminMutation,
 } from '@/features/integrations/composables/useIntegrations'
@@ -30,10 +39,13 @@ import {
 const props = defineProps<{
   /** Whether a Garmin Connect account is currently connected. */
   linked: boolean
+  /** The identity-provider sign-in the browser just returned from, if any. */
+  resume: IdpStepUpResume | null
 }>()
 
 const { t } = useI18n()
 const toasts = useToasts()
+const retrieval = useRetrievalOutcome('Garmin Connect')
 
 const activitiesMutation = useRetrieveGarminActivitiesMutation()
 const gearMutation = useRetrieveGarminGearMutation()
@@ -44,12 +56,24 @@ const isConnectOpen = ref(false)
 const isActivitiesOpen = ref(false)
 const isHealthOpen = ref(false)
 const isUnlinkOpen = ref(false)
+const unlinkReauth = ref<IdpReauth | null>(null)
+const handleIdpChallenge = useIdpReauthChallenge()
+const { requirePassword, requireMfa } = useAdminStepUp()
+
+/** Reopens the unlink dialog once the identity-provider sign-in returns. */
+onMounted(() => {
+  if (props.resume?.action === 'garmin_unlink') {
+    unlinkReauth.value = props.resume.reauth
+    isUnlinkOpen.value = true
+  }
+})
 
 function onRetrieveActivities(range: DateRange): void {
   activitiesMutation.mutate(range, {
-    onSuccess: () => {
+    onSuccess: (job) => {
       isActivitiesOpen.value = false
       toasts.info(t('settings.integrations.garmin.retrievingActivities'))
+      void retrieval.follow(job.id)
     },
     onError: () => toasts.error(t('settings.integrations.garmin.retrieveActivitiesError')),
   })
@@ -57,28 +81,51 @@ function onRetrieveActivities(range: DateRange): void {
 
 function onRetrieveHealth(range: DateRange): void {
   healthMutation.mutate(range, {
-    onSuccess: () => {
+    onSuccess: (job) => {
       isHealthOpen.value = false
       toasts.info(t('settings.integrations.garmin.retrievingHealth'))
+      void retrieval.follow(job.id)
     },
-    onError: () => toasts.error(t('settings.integrations.garmin.retrieveHealthError')),
+    onError: (error) => {
+      if (!retrieval.resumeOnConflict(error)) {
+        toasts.error(t('settings.integrations.garmin.retrieveHealthError'))
+      }
+    },
   })
 }
 
 function retrieveGear(): void {
   gearMutation.mutate(undefined, {
-    onSuccess: () => toasts.info(t('settings.integrations.garmin.retrievingGear')),
-    onError: () => toasts.error(t('settings.integrations.garmin.retrieveGearError')),
+    onSuccess: (job) => {
+      toasts.info(t('settings.integrations.garmin.retrievingGear'))
+      void retrieval.follow(job.id)
+    },
+    onError: (error) => {
+      if (!retrieval.resumeOnConflict(error)) {
+        toasts.error(t('settings.integrations.garmin.retrieveGearError'))
+      }
+    },
   })
 }
 
-function confirmUnlink(): void {
-  unlinkMutation.mutate(undefined, {
+function confirmUnlink(stepUp: StepUpInput): void {
+  unlinkMutation.mutate(stepUp, {
     onSuccess: () => {
       isUnlinkOpen.value = false
       toasts.success(t('settings.integrations.garmin.unlinkSuccess'))
     },
-    onError: () => toasts.error(t('settings.integrations.garmin.unlinkError')),
+    onError: (error) => {
+      if (handleIdpChallenge(error)) {
+        return
+      }
+      if (isStepUpLocked(error)) {
+        toasts.error(t('settings.security.stepUp.tooManyAttempts'))
+      } else if (isStepUpFailed(error)) {
+        toasts.error(t('settings.security.linked.invalidCredentials'))
+      } else {
+        toasts.error(t('settings.integrations.garmin.unlinkError'))
+      }
+    },
   })
 }
 </script>
@@ -149,13 +196,16 @@ function confirmUnlink(): void {
       @submit="onRetrieveHealth"
     />
 
-    <ConfirmDialog
+    <StepUpDialog
       v-model:open="isUnlinkOpen"
+      v-model:reauth="unlinkReauth"
+      action="garmin_unlink"
       :title="t('settings.integrations.garmin.unlinkTitle')"
       :description="t('settings.integrations.garmin.unlinkBody')"
       :confirm-label="t('settings.integrations.unlink')"
-      :cancel-label="t('settings.integrations.cancel')"
-      :close-label="t('settings.integrations.close')"
+      :require-password="requirePassword"
+      :require-mfa="requireMfa"
+      destructive
       :pending="unlinkMutation.isPending.value"
       @confirm="confirmUnlink"
     />

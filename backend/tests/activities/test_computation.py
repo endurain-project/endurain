@@ -12,7 +12,6 @@ import pytest
 from geopy.distance import geodesic
 
 from modules.activities.computation import (
-    append_if_not_none,
     calculate_avg_and_max,
     calculate_instant_speed,
     calculate_np,
@@ -292,19 +291,6 @@ class TestCalculateNP:
     def test_returns_zero_on_key_error(self):
         result = calculate_np([{"no_power": 200}])
         assert result == 0
-
-
-class TestAppendIfNotNone:
-    def test_appends_when_value_not_none(self):
-        waypoints = []
-        append_if_not_none(waypoints, waypoint_time="2024-01-15T08:00:00", value=145, key="hr")
-        assert len(waypoints) == 1
-        assert waypoints[0]["hr"] == 145
-
-    def test_does_not_append_when_none(self):
-        waypoints = []
-        append_if_not_none(waypoints, waypoint_time="2024-01-15T08:00:00", value=None, key="hr")
-        assert len(waypoints) == 0
 
 
 class TestCalculatePaceAcrossDstAndOffsets:

@@ -1,25 +1,25 @@
 import type { Schemas } from '@/types'
 
 /** Raw goal payload (snake_case wire shape). */
-export type GoalDto = Schemas['UsersGoalRead']
+export type GoalDto = Schemas['UserGoalRead']
 
 /** Create body for a new goal (the matching goal value is required). */
-export type GoalCreateDto = Schemas['UsersGoalCreate']
+export type GoalCreateDto = Schemas['UserGoalCreate']
 
 /** Update body for a goal (includes `id` and `user_id`). */
-export type GoalUpdateDto = Schemas['UsersGoalUpdate']
+export type GoalUpdateDto = Schemas['UserGoalUpdate']
 
 /** Raw goal-progress payload (snake_case wire shape) for a single interval. */
-export type GoalProgressDto = Schemas['UsersGoalProgress']
+export type GoalProgressDto = Schemas['UserGoalProgress']
 
 /** A goal's recurrence interval. */
-export type GoalInterval = Schemas['UsersGoalCreate']['interval']
+export type GoalInterval = Schemas['UserGoalCreate']['interval']
 
 /** The activity type a goal targets. */
-export type GoalActivityType = Schemas['UsersGoalCreate']['activity_type']
+export type GoalActivityType = Schemas['UserGoalCreate']['activity_type']
 
 /** The metric a goal measures. */
-export type GoalMetric = Schemas['UsersGoalCreate']['goal_type']
+export type GoalMetric = Schemas['UserGoalCreate']['goal_type']
 
 /**
  * The clean, camel-cased goal model used across the goals zone. Mapped from
@@ -39,8 +39,10 @@ export type GoalMetric = Schemas['UsersGoalCreate']['goal_type']
  * @property durationSeconds - Target duration in seconds when `goalType` is `duration`, else `null`.
  */
 export interface Goal {
-  id: number
-  userId: number
+  id: string
+  userId: string
+  /** The row version, sent back in `If-Match` so an edit of a stale copy is refused. */
+  version: number
   interval: GoalInterval
   activityType: GoalActivityType
   goalType: GoalMetric
@@ -93,7 +95,7 @@ export interface GoalFilters {
  * @property target - Target value in the metric's base unit, `null` when unset.
  */
 export interface GoalProgress {
-  goalId: number
+  goalId: string
   interval: GoalInterval
   activityType: GoalActivityType
   goalType: GoalMetric

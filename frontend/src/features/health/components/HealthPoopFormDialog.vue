@@ -3,19 +3,23 @@ import { computed, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import type { BristolType, PoopColor, PoopEntry, PoopEntryInput } from '@/features/health/types'
+import { bristolNumber } from '@/features/health/utils/bristol'
 
 import { FormDialog } from '@/components/ui/form-dialog'
 import { FormField } from '@/components/ui/form-field'
 import { inputFieldClass } from '@/components/ui/input/fieldClasses'
 import { useForm } from '@/composables/useForm'
+import { applyServerFieldErrors } from '@/services/fieldErrors'
+import { isStaleWrite } from '@/services/ifMatch'
 import { required } from '@/utils/validators'
 import {
   useCreatePoopEntryMutation,
   useUpdatePoopEntryMutation,
 } from '@/features/health/composables/useHealth'
 import {
-  dateTimeLocalToIso,
   nowDateTimeLocalInput,
+  requiredDateTimeLocalToIso,
+  todayDateTimeLocalMax,
   toDateTimeLocalInput,
 } from '@/features/health/utils/healthFormat'
 
@@ -40,7 +44,15 @@ const createMutation = useCreatePoopEntryMutation()
 const updateMutation = useUpdatePoopEntryMutation()
 
 /** The Bristol Stool Scale types offered in the select, in order. */
-const BRISTOL_TYPES: BristolType[] = [1, 2, 3, 4, 5, 6, 7]
+const BRISTOL_TYPES: BristolType[] = [
+  'type_1',
+  'type_2',
+  'type_3',
+  'type_4',
+  'type_5',
+  'type_6',
+  'type_7',
+]
 
 /** The stool colours offered in the select, in display order. */
 const COLORS: PoopColor[] = [
@@ -82,8 +94,8 @@ function buildInput(values: PoopFormValues): PoopEntryInput {
     // The input yields an offset-less local wall clock; convert it to a real
     // UTC instant so the backend stores the moment the user meant rather than
     // reading their wall clock as if it were UTC.
-    dateTime: dateTimeLocalToIso(values.dateTime),
-    bristolType: values.bristolType ? (Number(values.bristolType) as BristolType) : null,
+    dateTime: requiredDateTimeLocalToIso(values.dateTime),
+    bristolType: values.bristolType ? (values.bristolType as BristolType) : null,
     color: values.color ? (values.color as PoopColor) : null,
     notes: notes ? notes : null,
   }
@@ -97,12 +109,17 @@ function buildInput(values: PoopFormValues): PoopEntryInput {
  * @param values - The validated form values.
  */
 async function submitForm(values: PoopFormValues): Promise<void> {
+  // Nothing changed: skip the request and just close.
+  if (props.entry && !isDirty.value) {
+    open.value = false
+    return
+  }
   const input = buildInput(values)
   try {
     if (props.entry) {
       await updateMutation.mutateAsync({
         id: props.entry.id,
-        userId: props.entry.userId,
+        version: props.entry.version,
         input,
       })
       emit('success', t('health.poop.form.updateSuccess'))
@@ -111,19 +128,37 @@ async function submitForm(values: PoopFormValues): Promise<void> {
       emit('success', t('health.poop.form.createSuccess'))
     }
     open.value = false
-  } catch {
-    emit('error', t('health.poop.form.saveError'))
+  } catch (error) {
+    if (applyServerFieldErrors(error, setErrors, t, FORM_KEYS)) {
+      return
+    }
+    if (isStaleWrite(error)) {
+      open.value = false
+    }
+    emit('error', isStaleWrite(error) ? t('app.staleError') : t('health.poop.form.saveError'))
   }
 }
 
-const { values, errors, isValid, isSubmitting, handleSubmit, handleBlur, reset } =
-  useForm<PoopFormValues>({
-    initialValues: defaultValues(),
-    validators: {
-      dateTime: required<string>(t('health.poop.form.dateTimeRequired')),
-    },
-    onSubmit: submitForm,
-  })
+const FORM_KEYS = ['dateTime'] as const
+
+const {
+  values,
+  errors,
+  isValid,
+  isSubmitting,
+  handleSubmit,
+  handleBlur,
+  setErrors,
+  reset,
+  isDirty,
+  markPristine,
+} = useForm<PoopFormValues>({
+  initialValues: defaultValues(),
+  validators: {
+    dateTime: required<string>(t('health.poop.form.dateTimeRequired')),
+  },
+  onSubmit: submitForm,
+})
 
 const isEditing = computed(() => props.entry !== null)
 const dialogTitle = computed(() =>
@@ -141,9 +176,10 @@ function populate(): void {
   // Render the stored instant as the viewer's wall clock; string-slicing the
   // ISO showed the UTC time, which disagreed with the list row.
   values.dateTime = toDateTimeLocalInput(entry.dateTime) || nowDateTimeLocalInput()
-  values.bristolType = entry.bristolType !== null ? String(entry.bristolType) : ''
+  values.bristolType = entry.bristolType ?? ''
   values.color = entry.color ?? ''
   values.notes = entry.notes ?? ''
+  markPristine()
 }
 
 // Re-seed each time the dialog opens; the parent sets `entry` before opening.
@@ -176,6 +212,7 @@ watch(open, (isOpen) => {
             :aria-describedby="describedBy"
             :aria-invalid="invalid"
             type="datetime-local"
+            :max="todayDateTimeLocalMax()"
             :disabled="isSubmitting"
             @blur="handleBlur('dateTime')"
           />
@@ -193,7 +230,7 @@ watch(open, (isOpen) => {
             >
               <option value="">{{ t('health.poop.form.none') }}</option>
               <option v-for="type in BRISTOL_TYPES" :key="type" :value="String(type)">
-                {{ t('health.poop.list.bristolBadge', { type }) }}
+                {{ t('health.poop.list.bristolBadge', { type: bristolNumber(type) }) }}
               </option>
             </select>
           </template>

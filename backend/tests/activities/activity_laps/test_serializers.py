@@ -1,4 +1,7 @@
+import uuid
 from unittest.mock import MagicMock, patch
+
+_ACTIVITY_ID = uuid.UUID("00000000-0000-4000-8000-000000000005")
 
 
 class TestToReadSchema:
@@ -18,7 +21,7 @@ class TestToOrm:
     def test_missing_keys_become_none(self):
         import modules.activities.activity_laps.serializers as serializers
 
-        lap = serializers.to_orm({"total_distance": 10}, activity_id=7)
-        assert lap.activity_id == 7
+        lap = serializers.to_orm({"total_distance": 10}, activity_id=_ACTIVITY_ID)
+        assert lap.activity_id == _ACTIVITY_ID
         assert lap.total_distance == 10
         assert lap.avg_power is None

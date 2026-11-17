@@ -1,10 +1,14 @@
+import uuid
+from datetime import UTC, datetime
 from datetime import date as datetime_date
-from datetime import datetime
 
 import pytest
 from pydantic import ValidationError
 
 import modules.health.health_sleep.schema as health_sleep_schema
+
+_USER_ID = uuid.UUID("11111111-1111-4111-8111-111111111111")
+_ID = uuid.uuid4()
 
 
 class TestHealthSleepSchema:
@@ -18,8 +22,9 @@ class TestHealthSleepSchema:
         """
         # Arrange & Act
         health_sleep = health_sleep_schema.HealthSleepRead(
-            id=1,
-            user_id=1,
+            updated_at="2024-01-01T00:00:00Z",
+            id=_ID,
+            user_id=_USER_ID,
             date=datetime_date(2024, 1, 15),
             sleep_start_time_gmt=datetime(2024, 1, 14, 22, 0, 0),
             sleep_end_time_gmt=datetime(2024, 1, 15, 6, 0, 0),
@@ -35,8 +40,8 @@ class TestHealthSleepSchema:
         )
 
         # Assert
-        assert health_sleep.id == 1
-        assert health_sleep.user_id == 1
+        assert health_sleep.id == _ID
+        assert health_sleep.user_id == _USER_ID
         assert health_sleep.date == datetime_date(2024, 1, 15)
         assert health_sleep.total_sleep_seconds == 28800
         assert health_sleep.sleep_score_overall == 85
@@ -59,8 +64,9 @@ class TestHealthSleepSchema:
         """
         # Arrange & Act
         health_sleep = health_sleep_schema.HealthSleepRead(
-            id=1,
-            user_id=1,
+            updated_at="2024-01-01T00:00:00Z",
+            id=_ID,
+            user_id=_USER_ID,
             date=datetime_date(2024, 1, 15),
             total_sleep_seconds=28800,
             deep_sleep_seconds=None,
@@ -68,7 +74,7 @@ class TestHealthSleepSchema:
         )
 
         # Assert
-        assert health_sleep.id == 1
+        assert health_sleep.id == _ID
         assert health_sleep.total_sleep_seconds == 28800
         assert health_sleep.deep_sleep_seconds is None
         assert health_sleep.avg_heart_rate is None
@@ -92,8 +98,9 @@ class TestHealthSleepSchema:
         class MockORMModel:
             """Mock ORM model for testing."""
 
-            id = 1
-            user_id = 1
+            id = _ID
+            user_id = _USER_ID
+            updated_at = "2024-01-01T00:00:00Z"
             date = datetime_date(2024, 1, 15)
             sleep_start_time_gmt = datetime(2024, 1, 14, 22, 0, 0)
             sleep_end_time_gmt = datetime(2024, 1, 15, 6, 0, 0)
@@ -109,9 +116,9 @@ class TestHealthSleepSchema:
             avg_heart_rate = 55
             min_heart_rate = 45
             max_heart_rate = 75
-            avg_spo2 = 97
-            lowest_spo2 = 95
-            highest_spo2 = 99
+            avg_spo2_percent = 97
+            lowest_spo2_percent = 95
+            highest_spo2_percent = 99
             avg_respiration = None
             lowest_respiration = None
             highest_respiration = None
@@ -138,7 +145,7 @@ class TestHealthSleepSchema:
         health_sleep = health_sleep_schema.HealthSleepRead.model_validate(MockORMModel())
 
         # Assert
-        assert health_sleep.id == 1
+        assert health_sleep.id == _ID
         assert health_sleep.total_sleep_seconds == 28800
         assert health_sleep.source == "garmin"
 
@@ -199,15 +206,15 @@ class TestHealthSleepSchema:
         """
         # Arrange & Act
         health_sleep = health_sleep_schema.HealthSleepBase(
-            avg_spo2=97,
-            lowest_spo2=95,
-            highest_spo2=99,
+            avg_spo2_percent=97,
+            lowest_spo2_percent=95,
+            highest_spo2_percent=99,
         )
 
         # Assert
-        assert health_sleep.avg_spo2 == 97
-        assert health_sleep.lowest_spo2 == 95
-        assert health_sleep.highest_spo2 == 99
+        assert health_sleep.avg_spo2_percent == 97
+        assert health_sleep.lowest_spo2_percent == 95
+        assert health_sleep.highest_spo2_percent == 99
 
     def test_health_sleep_spo2_validation_invalid_low(self):
         """
@@ -215,7 +222,7 @@ class TestHealthSleepSchema:
         """
         # Arrange & Act & Assert
         with pytest.raises(ValidationError) as exc_info:
-            health_sleep_schema.HealthSleepBase(lowest_spo2=65)
+            health_sleep_schema.HealthSleepBase(lowest_spo2_percent=65)
 
         assert "greater than or equal to 70" in str(exc_info.value)
 
@@ -225,7 +232,7 @@ class TestHealthSleepSchema:
         """
         # Arrange & Act & Assert
         with pytest.raises(ValidationError) as exc_info:
-            health_sleep_schema.HealthSleepBase(highest_spo2=105)
+            health_sleep_schema.HealthSleepBase(highest_spo2_percent=105)
 
         assert "less than or equal to 100" in str(exc_info.value)
 
@@ -273,10 +280,12 @@ class TestSourceEnum:
 
     def test_source_enum_use_in_schema(self):
         """
-        Test Source enum can be used in HealthSleepBase schema.
+        Test Source enum can be used in HealthSleepRead schema.
         """
         # Arrange & Act
-        health_sleep = health_sleep_schema.HealthSleepBase(source=health_sleep_schema.Source.GARMIN)
+        health_sleep = health_sleep_schema.HealthSleepRead(
+            updated_at="2024-01-01T00:00:00Z", id=_ID, user_id=_USER_ID, source=health_sleep_schema.Source.GARMIN
+        )
 
         # Assert
         assert health_sleep.source == "garmin"
@@ -314,44 +323,80 @@ class TestHRVStatusEnum:
         assert health_sleep_schema.HRVStatus.POOR.value == "POOR"
 
 
-class TestHealthSleepListResponse:
-    """
-    Test suite for HealthSleepListResponse schema.
-    """
+class TestSleepTimeOrdering:
+    """The start must precede the end, whether the times carry an offset or not."""
 
-    def test_health_sleep_list_response_valid(self):
-        """
-        Test HealthSleepListResponse with valid data.
-        """
-        # Arrange & Act
-        health_sleep1 = health_sleep_schema.HealthSleepRead(
-            id=1,
-            user_id=1,
-            date=datetime_date(2024, 1, 15),
-            total_sleep_seconds=28800,
+    _AWARE_START = datetime(2026, 1, 1, 22, tzinfo=UTC)
+    _AWARE_END = datetime(2026, 1, 2, 6, tzinfo=UTC)
+    _NAIVE_START = datetime(2026, 1, 1, 22)
+    _NAIVE_END = datetime(2026, 1, 2, 6)
+
+    @pytest.mark.parametrize("aware_first", [True, False])
+    def test_a_mixed_wall_clock_pair_in_order_is_accepted(self, aware_first):
+        start, end = (self._AWARE_START, self._NAIVE_END) if aware_first else (self._NAIVE_START, self._AWARE_END)
+
+        health_sleep_schema.HealthSleepCreate(sleep_start_time_local=start, sleep_end_time_local=end)
+
+    def test_an_instant_without_an_offset_is_refused(self):
+        with pytest.raises(ValidationError):
+            health_sleep_schema.HealthSleepCreate(sleep_start_time_gmt=self._NAIVE_START)
+
+    def test_an_import_reads_a_missing_offset_as_utc(self):
+        record = health_sleep_schema.HealthSleepImport(sleep_start_time_gmt=self._NAIVE_START)
+
+        assert record.sleep_start_time_gmt == self._AWARE_START
+
+    @pytest.mark.parametrize("pair", ["gmt", "local"])
+    @pytest.mark.parametrize(
+        ("start", "end"),
+        [
+            (_AWARE_END, _NAIVE_START),
+            (_NAIVE_END, _AWARE_START),
+            (_AWARE_START, _NAIVE_START),
+            (_NAIVE_START, _AWARE_START),
+        ],
+        ids=["aware-after-naive", "naive-after-aware", "aware-equals-naive", "naive-equals-aware"],
+    )
+    def test_a_mixed_pair_not_in_order_is_a_validation_error(self, pair, start, end):
+        with pytest.raises(ValidationError):
+            health_sleep_schema.HealthSleepCreate(**{f"sleep_start_time_{pair}": start, f"sleep_end_time_{pair}": end})
+
+
+class TestHealthSleepListItem:
+    def test_the_flag_is_derived_from_a_rows_stages(self):
+        class Row:
+            id = _ID
+            user_id = _USER_ID
+            updated_at = "2024-01-01T00:00:00Z"
+
+            def __init__(self, sleep_stages):
+                self.sleep_stages = sleep_stages
+
+        assert (
+            health_sleep_schema.HealthSleepListItem.model_validate(
+                Row([{"stage_type": "deep", "duration_seconds": 60}])
+            ).has_sleep_stages
+            is True
         )
-        health_sleep2 = health_sleep_schema.HealthSleepRead(
-            id=2,
-            user_id=1,
-            date=datetime_date(2024, 1, 16),
-            total_sleep_seconds=32400,
+        assert health_sleep_schema.HealthSleepListItem.model_validate(Row(None)).has_sleep_stages is False
+        assert health_sleep_schema.HealthSleepListItem.model_validate(Row([])).has_sleep_stages is False
+
+    def test_it_carries_no_stages_and_forbids_them_as_a_field(self):
+        item = health_sleep_schema.HealthSleepListItem(
+            updated_at="2024-01-01T00:00:00Z", id=_ID, user_id=_USER_ID, has_sleep_stages=True
         )
 
-        response = health_sleep_schema.HealthSleepListResponse(total=2, records=[health_sleep1, health_sleep2])
+        assert "sleep_stages" not in item.model_dump()
+        assert "sleep_stages" not in health_sleep_schema.HealthSleepListItem.model_json_schema()["properties"]
 
-        # Assert
-        assert response.total == 2
-        assert len(response.records) == 2
-        assert response.records[0].total_sleep_seconds == 28800
-        assert response.records[1].total_sleep_seconds == 32400
+    def test_it_forbids_extra_fields(self):
+        with pytest.raises(ValidationError):
+            health_sleep_schema.HealthSleepListItem(
+                updated_at="2024-01-01T00:00:00Z", id=_ID, user_id=_USER_ID, has_sleep_stages=False, extra_field=1
+            )
 
-    def test_health_sleep_list_response_empty(self):
-        """
-        Test HealthSleepListResponse with empty records.
-        """
-        # Arrange & Act
-        response = health_sleep_schema.HealthSleepListResponse(total=0, records=[])
+    def test_it_has_every_read_field_but_the_stages(self):
+        read = set(health_sleep_schema.HealthSleepRead.model_fields)
+        item = set(health_sleep_schema.HealthSleepListItem.model_fields)
 
-        # Assert
-        assert response.total == 0
-        assert response.records == []
+        assert item == (read - {"sleep_stages"}) | {"has_sleep_stages"}

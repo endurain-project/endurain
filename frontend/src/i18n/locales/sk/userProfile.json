@@ -82,5 +82,13 @@
       "ownTitle": "Zatiaľ nemáte žiadnych sledovateľov.",
       "otherTitle": "Zatiaľ žiadni sledovatelia."
     }
+  },
+  "block": {
+    "block": "Blokovať",
+    "unblock": "Odblokovať",
+    "confirmTitle": "Zablokovať používateľa {name}?",
+    "confirmBody": "Používateľ {name} vás nebude môcť požiadať o sledovanie a všetko sledovanie medzi vami sa zruší. Nebude o tom informovaný.",
+    "blockError": "Tohto používateľa sa nepodarilo zablokovať. Skúste to znova.",
+    "unblockError": "Tohto používateľa sa nepodarilo odblokovať. Skúste to znova."
   }
 }

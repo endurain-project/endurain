@@ -2,14 +2,16 @@ import { computed, type MaybeRefOrGetter, onBeforeUnmount, ref, toValue, watch }
 import { storeToRefs } from 'pinia'
 import { useQuery } from '@tanstack/vue-query'
 
-import type { Activity } from '@/features/activities/types'
+import type { ActivitySummary } from '@/features/activities/types'
+import type { GearType } from '@/features/gears/types'
 import type { SearchScope } from '@/features/search/types'
 
 import { queryKeys } from '@/services/queryKeys'
 import { searchActivitiesByName } from '@/features/activities/services/activities'
 import { useAuthStore } from '@/features/auth/stores/auth'
 import { useGearSearchQuery } from '@/features/gears/composables/useGears'
-import { useUserSearchQuery } from '@/features/users/composables/useUsers'
+import { useUserSearchQuery } from '@/features/users/composables/usePublicUser'
+import { MIN_USER_SEARCH_LENGTH } from '@/features/users/services/publicUsers'
 import {
   ALL_ACTIVITY_CATEGORIES,
   ALL_GEAR_TYPES,
@@ -33,7 +35,7 @@ function useActivitySearchQuery(term: MaybeRefOrGetter<string>) {
   const { isAuthenticated } = storeToRefs(useAuthStore())
   const trimmed = computed(() => toValue(term).trim())
 
-  return useQuery<Activity[]>({
+  return useQuery<ActivitySummary[]>({
     queryKey: computed(() => queryKeys.activities.search(trimmed.value)),
     queryFn: ({ signal }) => searchActivitiesByName(trimmed.value, signal),
     enabled: computed(() => isAuthenticated.value && trimmed.value.length > 0),
@@ -84,7 +86,7 @@ export function useSearch() {
   // Sub-type filters applied client-side to the active scope's results, mirroring
   // the v1 search page. Cleared whenever the scope changes (see watch below).
   const activityCategory = ref<string>(ALL_ACTIVITY_CATEGORIES)
-  const gearTypeFilter = ref<number>(ALL_GEAR_TYPES)
+  const gearTypeFilter = ref<GearType | typeof ALL_GEAR_TYPES>(ALL_GEAR_TYPES)
   watch(scope, () => {
     activityCategory.value = ALL_ACTIVITY_CATEGORIES
     gearTypeFilter.value = ALL_GEAR_TYPES
@@ -98,8 +100,14 @@ export function useSearch() {
     filterGearsByType(gearQuery.data.value ?? [], gearTypeFilter.value),
   )
 
-  /** Whether a (debounced) search is currently in flight or showing results. */
-  const isSearching = computed(() => debouncedSearch.value.trim().length > 0)
+  /**
+   * Whether a (debounced) search is currently in flight or showing results. A user
+   * term shorter than the server's minimum never runs, so it stays in the idle state.
+   */
+  const isSearching = computed(() => {
+    const length = debouncedSearch.value.trim().length
+    return scope.value === 'users' ? length >= MIN_USER_SEARCH_LENGTH : length > 0
+  })
 
   // Each derived flag reads only the active scope's query so the disabled
   // queries (which report `pending`) never leak into the UI state.
@@ -165,6 +173,7 @@ export function useSearch() {
     activityCategory,
     gearTypeFilter,
     isSearching,
+    minUserSearchLength: MIN_USER_SEARCH_LENGTH,
     isPending,
     isError,
     isEmpty,

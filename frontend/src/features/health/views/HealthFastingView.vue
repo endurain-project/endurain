@@ -18,6 +18,7 @@ import { Select } from '@/components/ui/select'
 import { Skeleton } from '@/components/ui/skeleton'
 import { useListPagination } from '@/composables/useListPagination'
 import { useToasts } from '@/composables/useToasts'
+import { isStaleWrite } from '@/services/ifMatch'
 import { useRecordsPerPage } from '@/features/config/composables/useRecordsPerPage'
 import {
   useActiveFastingQuery,
@@ -77,18 +78,37 @@ watch(interval, resetPage)
 const completeMutation = useCompleteFastingEntryMutation()
 const completing = computed(() => completeMutation.isPending.value)
 
-function onComplete(status: FastingStatus): void {
+function endFast(status: FastingStatus): void {
   const active = activeFast.value
   if (!active) {
     return
   }
   completeMutation.mutate(
-    { id: active.id, fastEndTime: new Date().toISOString(), status },
+    { id: active.id, fastEndTime: new Date().toISOString(), status, version: active.version },
     {
-      onSuccess: () => toasts.success(t('health.fasting.complete.success')),
-      onError: () => toasts.error(t('health.fasting.complete.error')),
+      onSuccess: () => {
+        isEndConfirmOpen.value = false
+        toasts.success(t('health.fasting.complete.success'))
+      },
+      onError: (error) => {
+        isEndConfirmOpen.value = false
+        toasts.error(isStaleWrite(error) ? t('app.staleError') : t('health.fasting.complete.error'))
+      },
     },
   )
+}
+
+// Breaking or cancelling a fast cannot be undone, so those two ask first.
+const isEndConfirmOpen = ref(false)
+const endStatus = ref<'broken' | 'cancelled'>('broken')
+
+function onComplete(status: FastingStatus): void {
+  if (status === 'broken' || status === 'cancelled') {
+    endStatus.value = status
+    isEndConfirmOpen.value = true
+    return
+  }
+  endFast(status)
 }
 
 // Add/edit dialog state. `editingEntry` null means "start a new fast".
@@ -135,15 +155,21 @@ function confirmDelete(): void {
   if (!entry) {
     return
   }
-  deleteMutation.mutate(entry.id, {
-    onSuccess: () => {
-      isDeleteOpen.value = false
-      toasts.success(t('health.fasting.delete.success'))
+  deleteMutation.mutate(
+    { id: entry.id, version: entry.version },
+    {
+      onSuccess: () => {
+        isDeleteOpen.value = false
+        toasts.success(t('health.fasting.delete.success'))
+      },
+      onError: (error) => {
+        if (isStaleWrite(error)) {
+          isDeleteOpen.value = false
+        }
+        toasts.error(isStaleWrite(error) ? t('app.staleError') : t('health.fasting.delete.error'))
+      },
     },
-    onError: () => {
-      toasts.error(t('health.fasting.delete.error'))
-    },
-  })
+  )
 }
 </script>
 
@@ -247,6 +273,16 @@ function confirmDelete(): void {
       :targets="targets"
       @success="onDialogSuccess"
       @error="onDialogError"
+    />
+    <ConfirmDialog
+      v-model:open="isEndConfirmOpen"
+      :title="t(`health.fasting.endConfirm.${endStatus}.title`)"
+      :description="t(`health.fasting.endConfirm.${endStatus}.body`)"
+      :confirm-label="t(`health.fasting.endConfirm.${endStatus}.confirm`)"
+      :cancel-label="t('health.fasting.endConfirm.cancel')"
+      :close-label="t('health.fasting.endConfirm.close')"
+      :pending="completing"
+      @confirm="endFast(endStatus)"
     />
     <ConfirmDialog
       v-model:open="isDeleteOpen"

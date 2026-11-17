@@ -20,7 +20,7 @@ Repo-wide rules are in `AGENTS.md`.
 - Every user-facing string goes through vue-i18n; English is the source of truth.
 - Never use `v-html` on user data; render through `SafeHtml.vue`.
 - Branch on `HttpError.type` (the problem URN), not on `status` alone.
-- KISS, YAGNI, DRY: reuse an existing composable, service, query key or `ui/` primitive first; no prop, store, abstraction or option without a current use; extract on the third repetition.
+- KISS, YAGNI, DRY: reuse an existing composable, service, query key or `ui/` primitive first; no prop, store, abstraction or option without a current use; extract on the second repetition.
 - Interactive elements are keyboard reachable, labelled, and have loading, empty and error states.
 
 ## Read on demand

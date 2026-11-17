@@ -7,6 +7,7 @@ and subscriber cannot drift on the string. Convention: ``<domain>.<fact>``, past
 tense.
 """
 
+import uuid
 from typing import ClassVar
 
 from jasil.event_versioning import VersionedPayload
@@ -19,6 +20,11 @@ FOLLOWER_REQUESTED = "follower.requested"
 # Published after a pending follow request has been accepted, so the original
 # requester can be notified that their request was accepted.
 FOLLOWER_ACCEPTED = "follower.accepted"
+
+# Published after a pending follow request has been removed without being accepted
+# (the target declined it or the requester withdrew it), so the "wants to follow you"
+# notification that announced it can be taken away.
+FOLLOWER_REQUEST_REMOVED = "follower.request_removed"
 
 
 class FollowerRequestedPayload(VersionedPayload):
@@ -37,8 +43,8 @@ class FollowerRequestedPayload(VersionedPayload):
 
     SCHEMA_VERSION: ClassVar[int] = 1
 
-    requester_user_id: int
-    target_user_id: int
+    requester_user_id: uuid.UUID
+    target_user_id: uuid.UUID
 
 
 class FollowerAcceptedPayload(VersionedPayload):
@@ -53,5 +59,21 @@ class FollowerAcceptedPayload(VersionedPayload):
 
     SCHEMA_VERSION: ClassVar[int] = 1
 
-    accepter_user_id: int
-    requester_user_id: int
+    accepter_user_id: uuid.UUID
+    requester_user_id: uuid.UUID
+
+
+class FollowerRequestRemovedPayload(VersionedPayload):
+    """Validated payload for the ``follower.request_removed`` event.
+
+    Attributes:
+        requester_user_id: The user whose follow request was removed.
+        target_user_id: The user the request was addressed to (who owns the notification).
+    """
+
+    model_config = ConfigDict(extra="ignore")
+
+    SCHEMA_VERSION: ClassVar[int] = 1
+
+    requester_user_id: uuid.UUID
+    target_user_id: uuid.UUID

@@ -1,3 +1,4 @@
+import uuid
 from unittest.mock import patch
 
 from fastapi import FastAPI
@@ -25,10 +26,17 @@ class TestReadPublicWorkoutSteps:
 
         client = TestClient(_build_app(mock_db))
         mock_get.return_value = ActivityWorkoutStepsPage.build(
-            [ActivityWorkoutStepsRead(id=1, activity_id=1, message_index=0, duration_type="active")], 1, 1, 200
+            [
+                ActivityWorkoutStepsRead(
+                    id=uuid.uuid4(), activity_id=uuid.uuid4(), message_index=0, duration_type="active"
+                )
+            ],
+            1,
+            1,
+            200,
         )
 
-        response = client.get("/public/activities/1/workout-steps")
+        response = client.get("/public/activities/00000000-0000-4000-8000-000000000001/workout-steps")
         assert response.status_code == 200
 
     @patch(
@@ -38,6 +46,12 @@ class TestReadPublicWorkoutSteps:
         client = TestClient(_build_app(mock_db))
         mock_get.return_value = ActivityWorkoutStepsPage.build([], 0, 1, 200)
 
-        response = client.get("/public/activities/999/workout-steps")
+        response = client.get("/public/activities/00000000-0000-4000-8000-000000000999/workout-steps")
         assert response.status_code == 200
         assert response.json()["items"] == [] and response.json()["total"] == 0
+
+    def test_a_malformed_activity_id_answers_422(self, mock_db):
+        client = TestClient(_build_app(mock_db))
+
+        response = client.get("/public/activities/not-a-uuid/workout-steps")
+        assert response.status_code == 422

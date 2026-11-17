@@ -81,10 +81,13 @@ def upgrade() -> None:
     )
 
     op.execute(
-        "UPDATE server_settings SET tileserver_url = 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png' WHERE tileserver_url IS NULL"
+        "UPDATE server_settings SET tileserver_url = 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png' WHERE "
+        "tileserver_url IS NULL"
     )
     op.execute(
-        "UPDATE server_settings SET tileserver_attribution = '&copy; <a href=\"https://www.openstreetmap.org/copyright\">OpenStreetMap</a> contributors' WHERE tileserver_attribution IS NULL"
+        "UPDATE server_settings SET tileserver_attribution = '&copy; <a "
+        'href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors\' WHERE tileserver_attribution '
+        "IS NULL"
     )
     op.execute("UPDATE server_settings SET map_background_color = '#dddddd' WHERE map_background_color IS NULL")
     op.execute("UPDATE server_settings SET password_type = 'strict' WHERE password_type IS NULL")

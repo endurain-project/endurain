@@ -82,5 +82,13 @@
       "ownTitle": "Nie masz jeszcze żadnych obserwujących.",
       "otherTitle": "Brak obserwujących."
     }
+  },
+  "block": {
+    "block": "Zablokuj",
+    "unblock": "Odblokuj",
+    "confirmTitle": "Zablokować użytkownika {name}?",
+    "confirmBody": "{name} nie będzie mógł prosić o obserwowanie Cię, a wszelkie obserwowanie między wami zostanie usunięte. Nie otrzyma o tym powiadomienia.",
+    "blockError": "Nie udało się zablokować tego użytkownika. Spróbuj ponownie.",
+    "unblockError": "Nie udało się odblokować tego użytkownika. Spróbuj ponownie."
   }
 }

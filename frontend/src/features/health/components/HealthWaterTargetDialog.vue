@@ -5,11 +5,14 @@ import { useI18n } from 'vue-i18n'
 import type { Schemas } from '@/types'
 import type { HealthTargets } from '@/features/health/types'
 
+import { useUnitFormat } from '@/composables/useUnitFormat'
 import { FormDialog } from '@/components/ui/form-dialog'
 import { FormField } from '@/components/ui/form-field'
 import { inputFieldClass } from '@/components/ui/input/fieldClasses'
 import { useForm } from '@/composables/useForm'
+import { isStaleWrite } from '@/services/ifMatch'
 import { toNumberOrNull } from '@/utils/number'
+import { numberBetween } from '@/utils/validators'
 import { flOzToMl, mlToFlOz } from '@/utils/units'
 import { useUpdateWaterTargetMutation } from '@/features/health/composables/useHealth'
 
@@ -28,6 +31,7 @@ const emit = defineEmits<{
 }>()
 
 const { t } = useI18n()
+const { unitLabel } = useUnitFormat()
 
 const updateTargetMutation = useUpdateWaterTargetMutation()
 
@@ -42,7 +46,7 @@ const isImperial = computed(() => props.units === 'imperial')
 /** Converts the target string to whole millilitres (or `null` to clear). */
 function targetToMl(raw: string): number | null {
   const value = toNumberOrNull(raw)
-  if (value === null || value <= 0) {
+  if (value === null) {
     return null
   }
   return Math.round(isImperial.value ? flOzToMl(value) : value)
@@ -55,25 +59,40 @@ function targetToMl(raw: string): number | null {
  * @param values - The form values.
  */
 async function submitForm(values: TargetFormValues): Promise<void> {
+  // Nothing changed: skip the request, which would otherwise store the unit round-trip of the target.
+  if (!isDirty.value) {
+    open.value = false
+    return
+  }
   try {
     await updateTargetMutation.mutateAsync({
-      id: props.targets.id,
-      userId: props.targets.userId,
+      version: props.targets.version,
       waterMl: targetToMl(values.amount),
     })
     emit('success', t('health.water.target.saveSuccess'))
     open.value = false
-  } catch {
-    emit('error', t('health.water.target.saveError'))
+  } catch (error) {
+    if (isStaleWrite(error)) {
+      open.value = false
+    }
+    emit('error', isStaleWrite(error) ? t('app.staleError') : t('health.water.target.saveError'))
   }
 }
 
-const { values, isSubmitting, handleSubmit, reset } = useForm<TargetFormValues>({
-  initialValues: { amount: '' },
-  onSubmit: submitForm,
-})
+const { values, errors, isSubmitting, handleSubmit, reset, isDirty, markPristine } =
+  useForm<TargetFormValues>({
+    initialValues: { amount: '' },
+    validators: {
+      amount: (value) =>
+        numberBetween(minAmount.value, undefined, t('health.targetInvalid'))(value),
+    },
+    onSubmit: submitForm,
+  })
 
-const amountUnitLabel = computed(() => (isImperial.value ? 'fl oz' : 'ml'))
+/** Smallest accepted target: 1 ml, or 0.1 fl oz (the precision the field displays). */
+const minAmount = computed(() => (isImperial.value ? 0.1 : 1))
+
+const amountUnitLabel = computed(() => unitLabel(isImperial.value ? 'flOz' : 'ml'))
 const amountLabel = computed(() => `${t('health.water.target.amount')} (${amountUnitLabel.value})`)
 
 /** Seeds the field from the current target each time the dialog opens. */
@@ -85,6 +104,7 @@ function populate(): void {
     return
   }
   values.amount = String(isImperial.value ? Math.round(mlToFlOz(ml) * 10) / 10 : Math.round(ml))
+  markPristine()
 }
 
 watch(open, (isOpen) => {
@@ -108,6 +128,7 @@ watch(open, (isOpen) => {
     <FormField
       :label="amountLabel"
       :placeholder="amountLabel"
+      :error="errors.amount"
       :hint="t('health.water.target.hint')"
     >
       <template #default="{ fieldId, placeholder }">
@@ -117,7 +138,7 @@ watch(open, (isOpen) => {
           :class="inputFieldClass"
           :placeholder="placeholder"
           type="number"
-          min="0"
+          :min="minAmount"
           step="any"
           inputmode="decimal"
           :disabled="isSubmitting"

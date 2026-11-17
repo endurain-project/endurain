@@ -11,7 +11,7 @@
     "subtitle": "Tüm etkinliklerinize göz atın, filtreleyin ve sıralayın.",
     "searchPlaceholder": "Ada veya konuma göre ara",
     "clearSearch": "Aramayı temizle",
-    "resultCount": "{count} etkinlik",
+    "resultCount": "{count} etkinlik | {count} etkinlik",
     "filters": {
       "type": "Etkinlik türü",
       "allTypes": "Tüm türler",
@@ -184,10 +184,13 @@
   },
   "edit": {
     "title": "Etkinliği düzenle",
+    "loading": "Etkinlik yükleniyor",
+    "loadError": "Etkinlik yüklenemedi",
     "save": "Değişiklikleri kaydet",
     "cancel": "İptal",
     "close": "Kapat",
     "name": "Ad",
+    "nameRequired": "Etkinlik için bir ad girin",
     "type": "Etkinlik türü",
     "description": "Açıklama",
     "privateNotes": "Özel notlar",
@@ -208,7 +211,7 @@
     "hideGear": "Ekipmanı gizle",
     "success": "Etkinlik güncellendi",
     "error": "Etkinlik güncellenemedi",
-    "staleError": "This activity was changed elsewhere while you were editing. Your changes were not saved. Reopen it to see the current version."
+    "staleError": "Bu etkinlik siz düzenlerken başka bir yerde değiştirildi. Değişiklikleriniz kaydedilmedi. Güncel sürümü görmek için etkinliği yeniden açın."
   },
   "alerts": {
     "hidden": "Bu etkinlik gizli. Yalnızca siz görebilirsiniz.",

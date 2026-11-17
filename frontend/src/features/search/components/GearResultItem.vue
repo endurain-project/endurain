@@ -19,10 +19,10 @@ const { locale } = useI18n()
 
 /** The localized creation date, or `null` when the gear has no/invalid date. */
 const dateLabel = computed(() => {
-  if (!props.gear.createdAt) {
+  if (!props.gear.acquiredOn) {
     return null
   }
-  const date = new Date(props.gear.createdAt)
+  const date = new Date(props.gear.acquiredOn)
   if (Number.isNaN(date.getTime())) {
     return null
   }

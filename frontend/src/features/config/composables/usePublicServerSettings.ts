@@ -6,7 +6,7 @@ import type { IdentityProviderPublic } from '@/types'
 import { queryClient } from '@/plugins/vueQuery'
 import { fetchEnabledIdentityProviders } from '@/services/identityProviders'
 import { queryKeys } from '@/services/queryKeys'
-import { getBackendAssetUrl } from '@/services/runtime'
+import { getApiBaseUrl } from '@/services/runtime'
 import {
   DEFAULT_PUBLIC_SERVER_SETTINGS,
   fetchPublicServerSettings,
@@ -35,7 +35,6 @@ export function usePublicServerSettings() {
     queryKey: queryKeys.public.serverSettings(),
     queryFn: fetchPublicServerSettings,
     placeholderData: DEFAULT_PUBLIC_SERVER_SETTINGS,
-    retry: 1,
     staleTime: PUBLIC_SETTINGS_STALE_TIME,
   })
 
@@ -50,7 +49,6 @@ export function usePublicServerSettings() {
     // `placeholderData` (not `initialData`) so enabling the query actually
     // triggers the `/public/idp` fetch instead of reusing a cached empty list.
     placeholderData: [],
-    retry: 1,
     staleTime: PUBLIC_SETTINGS_STALE_TIME,
   })
 
@@ -65,7 +63,7 @@ export function usePublicServerSettings() {
   /** Instance login photo when configured, else the bundled default image. */
   const loginImageUrl = computed(() =>
     serverSettings.value.login_photo_set
-      ? getBackendAssetUrl('server_images/login.png')
+      ? `${getApiBaseUrl()}/public/server-settings/login-photo`
       : defaultLoginImage,
   )
 

@@ -1,6 +1,7 @@
 import { computed, toValue, type MaybeRefOrGetter } from 'vue'
 import { storeToRefs } from 'pinia'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/vue-query'
+import { useRouter } from 'vue-router'
 
 import type {
   ApiKeyCreateInput,
@@ -9,25 +10,37 @@ import type {
   MfaSetup,
   PasswordChangeInput,
   StepUpInput,
+  StepUpWithSessions,
 } from '@/features/security/types'
 
+import { useInvalidatingMutation } from '@/composables/useInvalidatingMutation'
 import { queryKeys } from '@/services/queryKeys'
 import { useAuthStore } from '@/features/auth/stores/auth'
 import {
+  cancelEmailChange,
+  changeEmail,
+  changeUsername,
   changePassword,
   createApiKey,
+  deleteAccount,
   deleteApiKey,
   disableMfa,
   enableMfa,
   fetchApiKeys,
   fetchBackupCodeStatus,
+  fetchKnownDevices,
+  forgetAllKnownDevices,
+  forgetKnownDevice,
+  forgetOtherKnownDevices,
   fetchMfaStatus,
   fetchSessions,
   regenerateBackupCodes,
+  resendEmailChange,
   revokeApiKey,
   revokeOtherSessions,
   revokeSession,
   setupMfa,
+  signOutEverywhere,
 } from '@/features/security/services/security'
 
 /**
@@ -79,6 +92,79 @@ export function useSessionsQuery() {
 }
 
 /**
+ * The devices the authenticated user is known to sign in from. Gated on authentication.
+ *
+ * @returns The TanStack Query result for the known devices.
+ */
+export function useKnownDevicesQuery() {
+  const { isAuthenticated } = storeToRefs(useAuthStore())
+
+  return useQuery({
+    queryKey: queryKeys.security.devices(),
+    queryFn: ({ signal }) => fetchKnownDevices(signal),
+    enabled: isAuthenticated,
+  })
+}
+
+/**
+ * Forgets a known device (step-up gated). Invalidates the list on settle so it shows the
+ * server-authoritative state, including after a 404 for a device that was already forgotten.
+ *
+ * @returns The TanStack Query mutation for forgetting a device.
+ */
+export function useForgetKnownDeviceMutation() {
+  const client = useQueryClient()
+
+  return useMutation<void, Error, { deviceId: string; input: StepUpInput }>({
+    mutationKey: queryKeys.security.all(),
+    mutationFn: ({ deviceId, input }) => forgetKnownDevice(deviceId, input),
+    onSettled: () => {
+      void client.invalidateQueries({ queryKey: queryKeys.security.devices() })
+    },
+  })
+}
+
+/**
+ * Forgets every other known device (step-up gated). Invalidates the devices and sessions lists on
+ * settle, since the forgotten devices' sessions end.
+ *
+ * @returns The TanStack Query mutation for forgetting the other devices.
+ */
+export function useForgetOtherKnownDevicesMutation() {
+  const client = useQueryClient()
+
+  return useMutation<void, Error, StepUpInput>({
+    mutationKey: queryKeys.security.all(),
+    mutationFn: (input) => forgetOtherKnownDevices(input),
+    onSettled: () => {
+      void client.invalidateQueries({ queryKey: queryKeys.security.devices() })
+      void client.invalidateQueries({ queryKey: queryKeys.security.sessions() })
+    },
+  })
+}
+
+/**
+ * Forget-all-devices mutation (step-up gated). On success every session, this one included, no longer
+ * exists on the server, so it shows the login page and then clears only the local session, as
+ * `useSignOutEverywhereMutation` does.
+ *
+ * @returns The TanStack Query mutation for forgetting every known device.
+ */
+export function useForgetAllKnownDevicesMutation() {
+  const authStore = useAuthStore()
+  const router = useRouter()
+
+  return useMutation<void, Error, StepUpInput>({
+    mutationKey: queryKeys.security.all(),
+    mutationFn: (input) => forgetAllKnownDevices(input),
+    onSuccess: async () => {
+      await router.replace({ name: 'login', query: { logoutSuccess: 'true' } })
+      authStore.clearLocalSession()
+    },
+  })
+}
+
+/**
  * Change-password mutation. Invalidates the sessions list on success since
  * `revokeOtherSessions` may have removed other devices.
  *
@@ -92,6 +178,7 @@ export function useChangePasswordMutation() {
     mutationFn: (input) => changePassword(input),
     onSuccess: () => {
       void client.invalidateQueries({ queryKey: queryKeys.security.sessions() })
+      void client.invalidateQueries({ queryKey: queryKeys.security.devices() })
     },
   })
 }
@@ -110,8 +197,8 @@ export function useSetupMfaMutation() {
 }
 
 /**
- * Completes MFA enrolment. Invalidates the MFA and backup-code status so both
- * cards reflect the newly enabled state.
+ * Completes MFA enrolment. Invalidates the MFA and backup-code status, and the profile, so
+ * every card and step-up dialog reflect the newly enabled state.
  *
  * @returns The TanStack Query mutation for enabling MFA (resolves to backup codes).
  */
@@ -123,23 +210,27 @@ export function useEnableMfaMutation() {
     mutationFn: (input) => enableMfa(input),
     onSuccess: () => {
       void client.invalidateQueries({ queryKey: queryKeys.security.all() })
+      // The profile carries `mfa_enabled`, which the step-up dialogs read.
+      void client.invalidateQueries({ queryKey: queryKeys.profile.all() })
     },
   })
 }
 
 /**
- * Disables MFA. Invalidates the MFA and backup-code status on success.
+ * Disables MFA. Invalidates the MFA and backup-code status, and the profile, on success.
  *
  * @returns The TanStack Query mutation for disabling MFA.
  */
 export function useDisableMfaMutation() {
   const client = useQueryClient()
 
-  return useMutation<void, Error, StepUpInput>({
+  return useMutation<void, Error, StepUpWithSessions>({
     mutationKey: queryKeys.security.all(),
-    mutationFn: (input) => disableMfa(input),
+    mutationFn: ({ input, revokeOtherSessions }) => disableMfa(input, revokeOtherSessions),
     onSuccess: () => {
       void client.invalidateQueries({ queryKey: queryKeys.security.all() })
+      // The profile carries `mfa_enabled`, which the step-up dialogs read.
+      void client.invalidateQueries({ queryKey: queryKeys.profile.all() })
     },
   })
 }
@@ -153,9 +244,10 @@ export function useDisableMfaMutation() {
 export function useRegenerateBackupCodesMutation() {
   const client = useQueryClient()
 
-  return useMutation<BackupCodesResult, Error, StepUpInput>({
+  return useMutation<BackupCodesResult, Error, StepUpWithSessions>({
     mutationKey: queryKeys.security.all(),
-    mutationFn: (input) => regenerateBackupCodes(input),
+    mutationFn: ({ input, revokeOtherSessions }) =>
+      regenerateBackupCodes(input, revokeOtherSessions),
     onSuccess: () => {
       void client.invalidateQueries({ queryKey: queryKeys.security.backupCodeStatus() })
     },
@@ -187,13 +279,32 @@ export function useRevokeSessionMutation() {
  * @returns The TanStack Query mutation for revoking other sessions.
  */
 export function useRevokeOtherSessionsMutation() {
-  const client = useQueryClient()
+  return useInvalidatingMutation<void, void>({
+    mutationKey: queryKeys.security.all(),
+    mutationFn: () => revokeOtherSessions(),
+    invalidateKey: queryKeys.security.sessions(),
+  })
+}
+
+/**
+ * Sign-out-everywhere mutation. On success every session, this one included,
+ * no longer exists on the server, so it shows the login page and then clears
+ * only the local session; calling the logout endpoint would just fail.
+ * Navigation comes first because clearing empties the Query cache, which
+ * unmounts the calling view and with it any per-call `mutate` callback.
+ *
+ * @returns The TanStack Query mutation for signing out of every session.
+ */
+export function useSignOutEverywhereMutation() {
+  const authStore = useAuthStore()
+  const router = useRouter()
 
   return useMutation<void, Error, void>({
     mutationKey: queryKeys.security.all(),
-    mutationFn: () => revokeOtherSessions(),
-    onSettled: () => {
-      void client.invalidateQueries({ queryKey: queryKeys.security.sessions() })
+    mutationFn: () => signOutEverywhere(),
+    onSuccess: async () => {
+      await router.replace({ name: 'login', query: { logoutSuccess: 'true' } })
+      authStore.clearLocalSession()
     },
   })
 }
@@ -263,5 +374,114 @@ export function useDeleteApiKeyMutation() {
     onSuccess: () => {
       void client.invalidateQueries({ queryKey: queryKeys.security.apiKeys() })
     },
+  })
+}
+
+/**
+ * Delete-my-account mutation. On success the account and its sessions no longer
+ * exist on the server, so it leaves for the farewell page and then clears only
+ * the local session; calling the logout endpoint would just fail. Navigation
+ * comes first because clearing empties the Query cache, which unmounts the
+ * calling view and with it any per-call `mutate` callback.
+ *
+ * @returns The TanStack Query mutation for deleting the account.
+ */
+export function useDeleteAccountMutation() {
+  const authStore = useAuthStore()
+  const router = useRouter()
+
+  return useMutation<void, Error, StepUpInput>({
+    mutationKey: queryKeys.security.all(),
+    mutationFn: (input) => deleteAccount(input),
+    onSuccess: async () => {
+      await router.replace({ name: 'account-deleted' })
+      authStore.clearLocalSession()
+    },
+  })
+}
+
+/**
+ * Change-email mutation, run after step-up. The address and its verified state are shown by the
+ * profile, the app shell and an admin's users views, so all of them are refetched.
+ *
+ * @returns The TanStack Query mutation for changing the account email.
+ */
+export function useChangeEmailMutation() {
+  const invalidate = useInvalidateIdentityViews()
+
+  return useMutation<
+    boolean,
+    Error,
+    { email: string; stepUp: StepUpInput; revokeOtherSessions: boolean }
+  >({
+    mutationKey: queryKeys.security.all(),
+    mutationFn: ({ email, stepUp, revokeOtherSessions }) =>
+      changeEmail(email, stepUp, revokeOtherSessions),
+    onSettled: invalidate,
+  })
+}
+
+/**
+ * Change-username mutation, run after step-up. The username is shown by the profile, the app shell
+ * and an admin's users views, so all of them are refetched, and the profile's `ETag` with them.
+ *
+ * @returns The TanStack Query mutation for changing the account username.
+ */
+export function useChangeUsernameMutation() {
+  const invalidate = useInvalidateIdentityViews()
+
+  return useMutation<
+    void,
+    Error,
+    { username: string; stepUp: StepUpInput; revokeOtherSessions: boolean }
+  >({
+    mutationKey: queryKeys.security.all(),
+    mutationFn: ({ username, stepUp, revokeOtherSessions }) =>
+      changeUsername(username, stepUp, revokeOtherSessions),
+    onSettled: invalidate,
+  })
+}
+
+/**
+ * Invalidates every view of the account identity (email or username), so a change shows in the
+ * profile, the app shell and an admin's users views.
+ */
+function useInvalidateIdentityViews(): () => void {
+  const client = useQueryClient()
+  return () => {
+    void client.invalidateQueries({ queryKey: queryKeys.profile.all() })
+    void client.invalidateQueries({ queryKey: queryKeys.currentUser() })
+    void client.invalidateQueries({ queryKey: queryKeys.users.all() })
+    void client.invalidateQueries({ queryKey: queryKeys.security.devices() })
+  }
+}
+
+/**
+ * Resend mutation for the pending email-change confirmation link.
+ *
+ * @returns The TanStack Query mutation for resending the link.
+ */
+export function useResendEmailChangeMutation() {
+  const invalidate = useInvalidateIdentityViews()
+
+  return useMutation<void, Error, void>({
+    mutationKey: queryKeys.security.all(),
+    mutationFn: () => resendEmailChange(),
+    onSettled: invalidate,
+  })
+}
+
+/**
+ * Cancel mutation for the pending email change.
+ *
+ * @returns The TanStack Query mutation for cancelling the change.
+ */
+export function useCancelEmailChangeMutation() {
+  const invalidate = useInvalidateIdentityViews()
+
+  return useMutation<void, Error, void>({
+    mutationKey: queryKeys.security.all(),
+    mutationFn: () => cancelEmailChange(),
+    onSettled: invalidate,
   })
 }

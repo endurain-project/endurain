@@ -1,6 +1,12 @@
 import { computed, type ComputedRef, type MaybeRefOrGetter, toValue } from 'vue'
 import { storeToRefs } from 'pinia'
-import { useMutation, useQuery, useQueryClient } from '@tanstack/vue-query'
+import {
+  type QueryClient,
+  skipToken,
+  useMutation,
+  useQuery,
+  useQueryClient,
+} from '@tanstack/vue-query'
 
 import type {
   Activity,
@@ -8,10 +14,11 @@ import type {
   ActivityMedia,
   ActivityOwner,
 } from '@/features/activities/types'
-import type { Gear } from '@/features/gears/types'
+import type { Gear, GearType } from '@/features/gears/types'
 import type { Units } from '@/features/activities/utils/format'
 
-import { queryKeys } from '@/services/queryKeys'
+import { ACTIVITY_ROW_INDEPENDENT_KEYS, queryKeys } from '@/services/queryKeys'
+import { invalidateActivityData } from '@/composables/useInvalidatingMutation'
 import { useCurrentUser } from '@/features/auth/composables/useCurrentUser'
 import {
   DEFAULT_PUBLIC_SERVER_SETTINGS,
@@ -19,11 +26,12 @@ import {
 } from '@/features/config/services/serverSettings'
 import { useAuthStore } from '@/features/auth/stores/auth'
 import { fetchGearsByType } from '@/features/gears/services/gears'
-import { fetchActivityOwner } from '@/features/activities/services/activityOwner'
+import { unpinActivity } from '@/features/upload/composables/usePinnedActivities'
 import {
   deleteActivity,
   editActivity,
   fetchActivity,
+  fetchActivityDetail,
   fetchActivityExerciseTitles,
   fetchActivityLaps,
   fetchActivitySets,
@@ -37,10 +45,9 @@ import {
   uploadActivityMedia,
 } from '@/features/activities/services/activityMedia'
 
-/** Resolves a reactive activity id to a positive number, or `0` when invalid. */
-function resolveId(id: MaybeRefOrGetter<number | null>): number {
-  const value = toValue(id)
-  return value !== null && Number.isFinite(value) && value > 0 ? value : 0
+/** Resolves a reactive activity id to its string, or `''` when unavailable. */
+function resolveId(id: MaybeRefOrGetter<string | null>): string {
+  return toValue(id) ?? ''
 }
 
 /**
@@ -48,41 +55,87 @@ function resolveId(id: MaybeRefOrGetter<number | null>): number {
  * the public shareable-link endpoint otherwise, so the same route serves owners
  * and public viewers. Gated on a valid id.
  *
+ * The response also carries the activity's laps, sets and workout steps, its media and its owner,
+ * which are seeded into the caches of their own queries, so those make no request. A collection
+ * that did not arrive in full is left to its own query, which reads every page. The media is
+ * seeded for a signed-in viewer only (the media query is disabled for anonymous ones); it is empty
+ * unless the viewer owns the activity, which is also what the media route answers.
+ *
  * @param id - Reactive activity id from the route.
  * @returns The TanStack query result; data is `null` when not found/accessible.
  */
-export function useActivityQuery(id: MaybeRefOrGetter<number | null>) {
+export function useActivityQuery(id: MaybeRefOrGetter<string | null>) {
+  const client = useQueryClient()
   const auth = useAuthStore()
 
   return useQuery({
     queryKey: computed(() => queryKeys.activities.detail(resolveId(id))),
-    queryFn: ({ signal }) =>
-      fetchActivity(resolveId(id), { authenticated: auth.isAuthenticated, signal }),
-    enabled: computed(() => resolveId(id) > 0),
+    queryFn: async ({ signal }) => {
+      const activityId = resolveId(id)
+      const detail = await fetchActivityDetail(activityId, {
+        authenticated: auth.isAuthenticated,
+        signal,
+      })
+      if (!detail) {
+        return null
+      }
+      if (detail.activity.userId !== null) {
+        client.setQueryData(queryKeys.activities.owner(detail.activity.userId), detail.owner)
+      }
+      if (auth.isAuthenticated) {
+        client.setQueryData(queryKeys.activities.media(activityId), detail.activity.media)
+      }
+      if (detail.laps) {
+        client.setQueryData(queryKeys.activities.laps(activityId), detail.laps)
+      }
+      if (detail.sets) {
+        client.setQueryData(queryKeys.activities.sets(activityId), detail.sets)
+      }
+      if (detail.workoutSteps) {
+        client.setQueryData(queryKeys.activities.workoutSteps(activityId), detail.workoutSteps)
+      }
+      return detail.activity
+    },
+    enabled: computed(() => resolveId(id) !== ''),
   })
 }
 
 /**
- * Loads the activity owner's public-facing identity (name + avatar). The owner
- * viewing their own activity is resolved from the cached current user, so this
- * only fetches for other viewers — authenticated viewers via the authed user
- * endpoint, anonymous viewers via the public one (which the backend gates on the
- * "show user info on public links" setting, returning `null` when disabled).
+ * Builds the reader of one full activity (`GET /activities/{id}`, with the private notes and the
+ * current version) that an edit started from a list row needs. Every call reads the server, so the
+ * version the edit sends as `If-Match` is the current one.
+ *
+ * @returns A function resolving to the full activity, or `null` when it is missing or not visible.
+ * @throws {HttpError} From the returned function, when the request fails.
+ */
+export function useFullActivityReader() {
+  const client = useQueryClient()
+
+  return (id: string): Promise<Activity | null> =>
+    client.fetchQuery({
+      queryKey: queryKeys.activities.full(id),
+      queryFn: () => fetchActivity(id),
+      staleTime: 0,
+    })
+}
+
+/**
+ * Reads the activity owner's public-facing identity (name + avatar) from the cache the activity
+ * detail and the feeds seed; it makes no request of its own. The owner viewing their own activity
+ * is resolved by the callers from the cached current user.
  *
  * @param activity - Reactive activity supplying the owner's user id.
- * @returns The TanStack query result; data is `null` when the owner is hidden.
+ * @returns The TanStack query result; data is `null` when the owner is hidden and `undefined`
+ *   until a response that carries it has been read.
  */
-export function useActivityOwnerQuery(activity: MaybeRefOrGetter<Activity | null | undefined>) {
-  const auth = useAuthStore()
-  const { data: currentUser } = useCurrentUser()
+export function useActivityOwnerQuery(
+  activity: MaybeRefOrGetter<Pick<Activity, 'userId'> | null | undefined>,
+) {
   const ownerId = computed(() => toValue(activity)?.userId ?? null)
 
   return useQuery<ActivityOwner | null>({
-    queryKey: computed(() => queryKeys.activities.owner(ownerId.value ?? 0)),
-    queryFn: ({ signal }) =>
-      fetchActivityOwner(ownerId.value as number, auth.isAuthenticated, signal),
-    enabled: computed(() => ownerId.value !== null && currentUser.value?.id !== ownerId.value),
-    staleTime: 5 * 60_000,
+    queryKey: computed(() => queryKeys.activities.owner(ownerId.value ?? '')),
+    queryFn: skipToken,
   })
 }
 
@@ -96,7 +149,7 @@ export function useActivityOwnerQuery(activity: MaybeRefOrGetter<Activity | null
  * @returns The TanStack query result for the streams.
  */
 export function useActivityStreamsQuery(
-  id: MaybeRefOrGetter<number | null>,
+  id: MaybeRefOrGetter<string | null>,
   enabled: MaybeRefOrGetter<boolean>,
 ) {
   const auth = useAuthStore()
@@ -105,7 +158,7 @@ export function useActivityStreamsQuery(
     queryKey: computed(() => queryKeys.activities.streams(resolveId(id))),
     queryFn: ({ signal }) =>
       fetchActivityStreams(resolveId(id), { authenticated: auth.isAuthenticated, signal }),
-    enabled: computed(() => resolveId(id) > 0 && toValue(enabled)),
+    enabled: computed(() => resolveId(id) !== '' && toValue(enabled)),
     staleTime: 5 * 60_000,
   })
 }
@@ -118,7 +171,7 @@ export function useActivityStreamsQuery(
  * @returns The TanStack query result for the laps.
  */
 export function useActivityLapsQuery(
-  id: MaybeRefOrGetter<number | null>,
+  id: MaybeRefOrGetter<string | null>,
   enabled: MaybeRefOrGetter<boolean>,
 ) {
   const auth = useAuthStore()
@@ -127,7 +180,7 @@ export function useActivityLapsQuery(
     queryKey: computed(() => queryKeys.activities.laps(resolveId(id))),
     queryFn: ({ signal }) =>
       fetchActivityLaps(resolveId(id), { authenticated: auth.isAuthenticated, signal }),
-    enabled: computed(() => resolveId(id) > 0 && toValue(enabled)),
+    enabled: computed(() => resolveId(id) !== '' && toValue(enabled)),
     staleTime: 5 * 60_000,
   })
 }
@@ -142,7 +195,7 @@ export function useActivityLapsQuery(
  * @returns The TanStack query result for the workout steps.
  */
 export function useActivityWorkoutStepsQuery(
-  id: MaybeRefOrGetter<number | null>,
+  id: MaybeRefOrGetter<string | null>,
   enabled: MaybeRefOrGetter<boolean>,
 ) {
   const auth = useAuthStore()
@@ -151,7 +204,7 @@ export function useActivityWorkoutStepsQuery(
     queryKey: computed(() => queryKeys.activities.workoutSteps(resolveId(id))),
     queryFn: ({ signal }) =>
       fetchActivityWorkoutSteps(resolveId(id), { authenticated: auth.isAuthenticated, signal }),
-    enabled: computed(() => resolveId(id) > 0 && toValue(enabled)),
+    enabled: computed(() => resolveId(id) !== '' && toValue(enabled)),
     staleTime: 5 * 60_000,
   })
 }
@@ -165,7 +218,7 @@ export function useActivityWorkoutStepsQuery(
  * @returns The TanStack query result for the workout sets.
  */
 export function useActivitySetsQuery(
-  id: MaybeRefOrGetter<number | null>,
+  id: MaybeRefOrGetter<string | null>,
   enabled: MaybeRefOrGetter<boolean>,
 ) {
   const auth = useAuthStore()
@@ -174,7 +227,7 @@ export function useActivitySetsQuery(
     queryKey: computed(() => queryKeys.activities.sets(resolveId(id))),
     queryFn: ({ signal }) =>
       fetchActivitySets(resolveId(id), { authenticated: auth.isAuthenticated, signal }),
-    enabled: computed(() => resolveId(id) > 0 && toValue(enabled)),
+    enabled: computed(() => resolveId(id) !== '' && toValue(enabled)),
     staleTime: 5 * 60_000,
   })
 }
@@ -204,41 +257,78 @@ export function useActivityExerciseTitlesQuery(enabled: MaybeRefOrGetter<boolean
  * the activity gear picker. Gated on authentication and a valid (non-`null`)
  * gear type so non-gear activities never fetch.
  *
- * @param gearType - Reactive numeric gear type, or `null` when the activity
+ * @param gearType - Reactive gear type, or `null` when the activity
  *   family has no associated gear.
  * @returns The TanStack query result for the matching gears.
  */
-export function useActivityGearOptionsQuery(gearType: MaybeRefOrGetter<number | null>) {
+export function useActivityGearOptionsQuery(gearType: MaybeRefOrGetter<GearType | null>) {
   const auth = useAuthStore()
   const type = computed(() => toValue(gearType))
 
   return useQuery<Gear[]>({
-    queryKey: computed(() => queryKeys.gears.byType(type.value ?? 0)),
-    queryFn: ({ signal }) => fetchGearsByType(type.value as number, signal),
-    enabled: computed(() => auth.isAuthenticated && (type.value ?? 0) > 0),
+    queryKey: computed(() => queryKeys.gears.byType(type.value ?? 'bike')),
+    queryFn: ({ signal }) => fetchGearsByType(type.value as GearType, signal),
+    enabled: computed(() => auth.isAuthenticated && type.value !== null),
     staleTime: 5 * 60_000,
   })
 }
 
 /**
+ * Marks everything derived from activity rows stale: the lists and feeds, the
+ * summaries and stats, the name search and the type filters.
+ *
+ * @param client - The active query client.
+ */
+function invalidateActivityAggregates(client: QueryClient): void {
+  void invalidateActivityData(client, ACTIVITY_ROW_INDEPENDENT_KEYS)
+}
+
+/**
+ * Marks every gear's totals and activity rows stale, since they depend on which
+ * activities carry the gear. Stale rather than refetched: the gear card on the
+ * activity page switches to the new gear (or goes away) on its own, and anything
+ * that shows the old gear later refetches on mount.
+ *
+ * @param client - The active query client.
+ */
+function invalidateGearUsage(client: QueryClient): void {
+  const refetchType = 'none'
+  void client.invalidateQueries({ queryKey: queryKeys.gears.details(), refetchType })
+  void client.invalidateQueries({ queryKey: queryKeys.gears.activitiesLists(), refetchType })
+}
+
+/**
+ * Refetches one activity's detail only, so a save refused as stale (412) replaces
+ * the copy the user was editing with the current one.
+ *
+ * @param client - The active query client.
+ * @param id - The activity whose cached copy can no longer be trusted.
+ */
+function refetchActivity(client: QueryClient, id: string): void {
+  void client.invalidateQueries({ queryKey: queryKeys.activities.detail(id), exact: true })
+}
+
+/**
  * Sets (or clears, with `gearId: null`) the gear associated with an activity.
  * On success it writes the returned activity straight into the detail cache;
- * on settle it invalidates the activities and gears domains so lists and gear
- * activity counts refetch the server-authoritative state.
+ * on settle it marks the activity-derived data and the gear totals stale. The
+ * activity's sub-resources are left alone, and a failed save refetches only the
+ * activity itself.
  *
  * @returns The TanStack mutation for updating an activity's gear.
  */
 export function useSetActivityGearMutation() {
   const client = useQueryClient()
 
-  return useMutation<Activity, Error, { activity: Activity; gearId: number | null }>({
+  return useMutation<Activity, Error, { activity: Activity; gearId: string | null }>({
     mutationFn: ({ activity, gearId }) => setActivityGear(activity, gearId),
     onSuccess: (updated) => {
       client.setQueryData(queryKeys.activities.detail(updated.id), updated)
     },
+    onError: (_error, { activity }) => refetchActivity(client, activity.id),
     onSettled: () => {
-      void client.invalidateQueries({ queryKey: queryKeys.activities.all() })
-      void client.invalidateQueries({ queryKey: queryKeys.gears.all() })
+      invalidateActivityAggregates(client)
+      invalidateGearUsage(client)
     },
   })
 }
@@ -259,7 +349,6 @@ export function useDisplayUnits(): ComputedRef<Units> {
     queryKey: queryKeys.public.serverSettings(),
     queryFn: fetchPublicServerSettings,
     placeholderData: DEFAULT_PUBLIC_SERVER_SETTINGS,
-    retry: 1,
     staleTime: 5 * 60_000,
     // Only public viewers need the instance default; authenticated viewers read
     // their own preference.
@@ -275,20 +364,27 @@ export function useDisplayUnits(): ComputedRef<Units> {
 }
 
 /**
- * Deletes an activity. On settle it invalidates the activities and gears
- * domains so lists and gear activity counts drop the removed activity. The
- * caller navigates away from the (now-gone) detail view on success.
+ * Deletes an activity. On success it drops the activity and its sub-resources
+ * from the cache instead of refetching them (the detail view is still mounted
+ * until the caller navigates away, and would otherwise request an activity that
+ * no longer exists); on settle it marks the lists, aggregates and gear totals
+ * stale so they drop the removed activity.
  *
  * @returns The TanStack mutation for deleting an activity.
  */
 export function useDeleteActivityMutation() {
   const client = useQueryClient()
 
-  return useMutation<void, Error, number>({
-    mutationFn: (id) => deleteActivity(id),
+  return useMutation<void, Error, { id: string; version: number }>({
+    mutationFn: ({ id, version }) => deleteActivity(id, version),
+    onSuccess: (_data, { id }) => {
+      client.removeQueries({ queryKey: queryKeys.activities.detail(id) })
+      unpinActivity(id)
+    },
+    onError: (_error, { id }) => refetchActivity(client, id),
     onSettled: () => {
-      void client.invalidateQueries({ queryKey: queryKeys.activities.all() })
-      void client.invalidateQueries({ queryKey: queryKeys.gears.all() })
+      invalidateActivityAggregates(client)
+      invalidateGearUsage(client)
     },
   })
 }
@@ -300,13 +396,13 @@ export function useDeleteActivityMutation() {
  * @param id - Reactive activity id.
  * @returns The TanStack query result for the activity's media.
  */
-export function useActivityMediaQuery(id: MaybeRefOrGetter<number | null>) {
+export function useActivityMediaQuery(id: MaybeRefOrGetter<string | null>) {
   const auth = useAuthStore()
 
   return useQuery<ActivityMedia[]>({
     queryKey: computed(() => queryKeys.activities.media(resolveId(id))),
     queryFn: ({ signal }) => fetchActivityMedia(resolveId(id), signal),
-    enabled: computed(() => auth.isAuthenticated && resolveId(id) > 0),
+    enabled: computed(() => auth.isAuthenticated && resolveId(id) !== ''),
     staleTime: 5 * 60_000,
   })
 }
@@ -318,7 +414,7 @@ export function useActivityMediaQuery(id: MaybeRefOrGetter<number | null>) {
  * @param id - Reactive activity id.
  * @returns The TanStack mutation for uploading activity media.
  */
-export function useUploadActivityMediaMutation(id: MaybeRefOrGetter<number | null>) {
+export function useUploadActivityMediaMutation(id: MaybeRefOrGetter<string | null>) {
   const client = useQueryClient()
 
   return useMutation<ActivityMedia, Error, File>({
@@ -336,13 +432,13 @@ export function useUploadActivityMediaMutation(id: MaybeRefOrGetter<number | nul
  * @param id - Reactive activity id (for cache invalidation).
  * @returns The TanStack mutation for deleting activity media.
  */
-export function useDeleteActivityMediaMutation(id: MaybeRefOrGetter<number | null>) {
+export function useDeleteActivityMediaMutation(id: MaybeRefOrGetter<string | null>) {
   const client = useQueryClient()
 
-  return useMutation<void, Error, number>({
+  return useMutation<void, Error, string>({
     // The delete route is nested under the activity, so the id the composable
     // already tracks for cache invalidation is now part of the request path.
-    mutationFn: (mediaId) => deleteActivityMedia(resolveId(id) ?? 0, mediaId),
+    mutationFn: (mediaId) => deleteActivityMedia(resolveId(id), mediaId),
     onSettled: () => {
       void client.invalidateQueries({ queryKey: queryKeys.activities.media(resolveId(id)) })
     },
@@ -351,25 +447,22 @@ export function useDeleteActivityMediaMutation(id: MaybeRefOrGetter<number | nul
 
 /**
  * Applies a full edit to an activity. On success it writes the updated activity
- * into the detail cache; on settle it invalidates the activities domain so any
- * list reflects the new name/type/visibility.
+ * into the detail cache; on settle it marks the lists and aggregates stale so
+ * they reflect the new name/type/visibility. The activity's sub-resources are
+ * left alone, and a failed save (e.g. a stale version) refetches only the
+ * activity itself.
  *
  * @returns The TanStack mutation for editing an activity.
  */
 export function useEditActivityMutation() {
   const client = useQueryClient()
 
-  return useMutation<
-    Activity,
-    Error,
-    { id: number; input: ActivityEditInput; version?: number | null }
-  >({
+  return useMutation<Activity, Error, { id: string; input: ActivityEditInput; version: number }>({
     mutationFn: ({ id, input, version }) => editActivity(id, input, version),
     onSuccess: (updated) => {
       client.setQueryData(queryKeys.activities.detail(updated.id), updated)
     },
-    onSettled: () => {
-      void client.invalidateQueries({ queryKey: queryKeys.activities.all() })
-    },
+    onError: (_error, { id }) => refetchActivity(client, id),
+    onSettled: () => invalidateActivityAggregates(client),
   })
 }

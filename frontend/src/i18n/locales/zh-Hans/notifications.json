@@ -1,51 +1,166 @@
 {
-  "title": "Notifications",
-  "subtitle": "Recent activity, requests and alerts",
-  "navLabel": "Notifications",
-  "unread": "Unread",
-  "markRead": "Mark as read",
+  "title": "通知",
+  "subtitle": "近期动态、请求和提醒",
+  "navLabel": "通知",
+  "unread": "未读",
+  "markRead": "标记为已读",
   "markAllRead": "全部标记为已读",
+  "dismiss": "忽略通知",
+  "dismissError": "无法忽略该通知，请重试。",
   "seeAll": "查看全部",
-  "loadMore": "Load more",
-  "loading": "Loading…",
-  "badge": "{count} unread notifications",
+  "loadMore": "加载更多",
+  "loading": "加载中…",
+  "badge": "{count} 条未读通知",
   "empty": {
-    "title": "You're all caught up",
-    "description": "Updates about your activities, followers and integrations will show up here."
+    "title": "您已查看全部通知",
+    "description": "有关您的活动、关注者和集成的更新将显示在这里。"
   },
   "error": {
-    "title": "Couldn't load notifications",
-    "description": "Something went wrong while loading your notifications.",
-    "retry": "Try again"
+    "title": "无法加载通知",
+    "description": "加载通知时出错。",
+    "retry": "重试"
   },
   "types": {
     "newActivity": {
-      "title": "New activity",
-      "body": "A new activity was added to your account."
+      "title": "新活动",
+      "body": "您的账户中添加了一个新活动。"
     },
     "duplicateActivity": {
-      "title": "Possible duplicate activity",
-      "body": "An activity with the same start time may already exist."
+      "title": "可能的重复活动",
+      "body": "可能已存在开始时间相同的活动。"
     },
     "newFollowerRequest": {
-      "title": "New follower request",
-      "body": "{name} ({'@'}{username}) wants to follow you."
+      "title": "新的关注请求",
+      "body": "{name}（{'@'}{username}）想要关注您。"
     },
     "followerRequestAccepted": {
-      "title": "Follower request accepted",
-      "body": "{name} ({'@'}{username}) accepted your follower request."
+      "title": "关注请求已接受",
+      "body": "{name}（{'@'}{username}）接受了您的关注请求。"
     },
     "garminTokenExpired": {
-      "title": "Garmin Connect needs attention",
-      "body": "Your Garmin Connect session expired. Reconnect it to keep syncing."
+      "title": "Garmin Connect 需要处理",
+      "body": "您的 Garmin Connect 会话已过期。请重新连接以继续同步。"
+    },
+    "stravaTokenExpired": {
+      "title": "Strava 需要处理",
+      "body": "Strava 拒绝了您的连接，请重新连接以继续同步。",
+      "bodyRevoked": "Strava 访问已结束。除非你重新连接，否则通过 Strava 同步的活动和装备将在 {date} 被删除。"
+    },
+    "stravaDataDeleted": {
+      "title": "Strava 数据已删除",
+      "body": "由于 Strava 访问已结束且你未重新连接，通过 Strava 同步的活动和装备已被删除。"
+    },
+    "idpLinked": {
+      "title": "已关联新的登录提供者",
+      "body": "{name} 已关联到您的账户。如果这不是您本人操作，请检查您的安全设置。",
+      "bodyGeneric": "有登录提供者已关联到您的账户。如果这不是您本人操作，请检查您的安全设置。"
+    },
+    "accountSecurityChanged": {
+      "passwordChanged": {
+        "title": "密码已更改",
+        "body": "您的密码已更改。如果这不是您本人操作，请重置密码并检查您的安全设置。"
+      },
+      "passwordReset": {
+        "title": "密码已重置",
+        "body": "您的密码已通过重置链接重置。如果这不是您本人操作，请再次重置密码并检查您的安全设置。 Any API keys were revoked and any pending email change was cancelled."
+      },
+      "passwordSetByAdmin": {
+        "title": "管理员已设置密码",
+        "body": "管理员为您的账户设置了新密码。如果您并不知情，请联系管理员。 Any API keys were revoked and any pending email change was cancelled."
+      },
+      "mfaEnabled": {
+        "title": "双因素认证已开启",
+        "body": "您的账户已开启双因素认证。如果这不是您本人操作，请重置密码并检查您的安全设置。"
+      },
+      "mfaDisabled": {
+        "title": "双因素认证已关闭",
+        "body": "您的账户已关闭双因素认证。如果这不是您本人操作，请重置密码并检查您的安全设置。"
+      },
+      "mfaResetByAdmin": {
+        "title": "管理员已重置双重验证",
+        "body": "管理员已重置您账户的双重验证，并将您从所有设备退出登录。请在安全设置中重新设置。如果这不在您的预期之内，请联系管理员。"
+      },
+      "passwordChangeRequiredByAdmin": {
+        "title": "管理员要求更改密码",
+        "body": "管理员要求您更改密码，并将您从所有设备退出登录。下次使用密码登录时，您需要选择新密码。如果这不在您的预期之内，请联系管理员。"
+      },
+      "backupCodesGenerated": {
+        "title": "已生成新的备用码",
+        "body": "您的账户已生成新的备用码。如果这不是您本人操作，请重置密码并检查您的安全设置。"
+      },
+      "apiKeyCreated": {
+        "title": "已创建新的 API 密钥",
+        "body": "您的账户已创建新的 API 密钥。如果这不是您本人操作，请重置密码并检查您的安全设置。"
+      },
+      "apiKeysRevokedByAdmin": {
+        "title": "管理员已撤销 API 密钥",
+        "body": "管理员撤销了你的一个或多个 API 密钥，因此使用这些密钥的任何程序都无法再访问你的账户。如果这出乎你的意料，请联系你的管理员。"
+      },
+      "identityProviderUnlinked": {
+        "title": "登录提供者已取消关联",
+        "body": "{name} 已与您的账户取消关联。如果这不是您本人操作，请重置密码并检查您的安全设置。",
+        "bodyGeneric": "有登录提供者已与您的账户取消关联。如果这不是您本人操作，请重置密码并检查您的安全设置。"
+      },
+      "accountLocked": {
+        "title": "账户已锁定",
+        "body": "您的账户在连续 100 次登录失败后被锁定。自您上次安全更改以来登录过的浏览器和应用仍可登录。如果这些尝试不是您本人所为，请更改或重置密码，这也会解除锁定。"
+      },
+      "mfaLocked": {
+        "title": "两步验证已锁定",
+        "body": "您的账户在连续输入 100 次错误的两步验证码后被锁定，这说明有人知道您的密码。自您上次安全更改以来登录过的浏览器和应用仍可登录。如果这些尝试不是您本人所为，请更改密码。"
+      },
+      "stepUpSessionEnded": {
+        "title": "会话已退出登录",
+        "body": "在确认敏感操作时，连续输入了 15 次错误的密码或双重验证码，您账户的一个会话已被退出登录。您的其他会话不受影响。如果这些尝试不是您本人所为，请更改密码。"
+      },
+      "stepUpLocked": {
+        "title": "敏感操作确认已锁定",
+        "body": "在您的各会话中累计出现 100 次错误确认后，更改密码或创建 API 密钥等敏感操作的确认已被锁定 30 天。如果这些尝试不是您本人所为，请重置密码，这也会解除锁定。"
+      },
+      "backupCodeUsed": {
+        "title": "已使用备用码",
+        "body": "您的账户在双重验证中使用了一个备用码。如果这不是您本人所为，请更改密码并生成新的备用码。",
+        "bodyRemaining": "您的账户在双重验证中使用了一个备用码。剩余未使用的备用码：{count} 个。如果这不是您本人所为，请更改密码并生成新的备用码。",
+        "bodyNone": "您的账户在双重验证中使用了一个备用码。您已没有未使用的备用码，请在安全设置中生成新的备用码。如果这不是您本人所为，请更改密码。"
+      },
+      "refreshTokenReuseDetected": {
+        "title": "会话已结束",
+        "body": "您账户的一个登录会话已结束，因为一个已使用过的令牌被再次提交，这可能意味着该会话被复制。您的其他会话不受影响。如果这不在您的预期之内，请更改密码。"
+      },
+      "roleChangedByAdmin": {
+        "title": "管理员更改了访问权限",
+        "body": "管理员更改了您账户的访问权限，并使您在所有设备上退出登录。如果这不在您的预期之内，请联系您的管理员。",
+        "bodyAdmin": "管理员将您账户的访问权限更改为管理员，并使您在所有设备上退出登录。如果这不在您的预期之内，请联系您的管理员。",
+        "bodyRegular": "管理员将您账户的访问权限更改为普通用户，并使您在所有设备上退出登录。如果这不在您的预期之内，请联系您的管理员。"
+      },
+      "accountDeactivatedByAdmin": {
+        "title": "管理员已停用账户",
+        "body": "管理员停用了您的账户，并使您在所有设备上退出登录。在管理员重新启用之前，您无法登录。"
+      },
+      "unknown": {
+        "title": "账户安全设置已更改",
+        "body": "您账户的某项安全设置已更改。如果这不是您本人操作，请重置密码并检查您的安全设置。"
+      },
+      "usernameChanged": {
+        "title": "用户名已更改",
+        "body": "你的用户名已被更改。如果这不是你本人操作，请重置密码并检查安全设置。"
+      }
+    },
+    "newDeviceSignIn": {
+      "title": "新的登录",
+      "body": "检测到来自 {os} 上 {browser} 的新登录（{ip}）。如果这不是您本人操作，请更改密码并退出其他会话。"
     },
     "adminSignUpApproval": {
-      "title": "New sign-up needs approval",
-      "body": "{name} ({'@'}{username}) is waiting for account approval."
+      "title": "新的注册需要审批",
+      "body": "{name}（{'@'}{username}）正在等待账户审批。"
+    },
+    "adminUserPromoted": {
+      "title": "用户已升级为管理员",
+      "body": "{name}（{'@'}{username}）已获得管理员权限。"
     },
     "unknown": {
-      "title": "Notification",
-      "body": "You have a new notification."
+      "title": "通知",
+      "body": "您有一条新通知。"
     }
   }
 }

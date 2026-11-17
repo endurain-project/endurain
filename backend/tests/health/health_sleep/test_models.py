@@ -1,3 +1,4 @@
+import uuid
 from datetime import date as datetime_date
 
 import modules.health.health_sleep.models as health_sleep_models
@@ -42,7 +43,7 @@ class TestHealthSleepModel:
 
         # Assert
         assert id_column.primary_key is True
-        assert id_column.autoincrement is True
+        assert id_column.type.python_type is uuid.UUID
 
     def test_health_sleep_model_foreign_key(self):
         """
@@ -65,7 +66,7 @@ class TestHealthSleepModel:
         assert health_sleep_models.HealthSleep.deep_sleep_seconds.nullable is True
         assert health_sleep_models.HealthSleep.avg_heart_rate.nullable is True
         assert health_sleep_models.HealthSleep.sleep_score_overall.nullable is True
-        assert health_sleep_models.HealthSleep.source.nullable is True
+        assert health_sleep_models.HealthSleep.source.nullable is False
 
     def test_health_sleep_model_required_fields(self):
         """
@@ -80,19 +81,12 @@ class TestHealthSleepModel:
         Test HealthSleep model column types.
         """
         # Assert
-        assert health_sleep_models.HealthSleep.id.type.python_type is int
-        assert health_sleep_models.HealthSleep.user_id.type.python_type is int
+        assert health_sleep_models.HealthSleep.id.type.python_type is uuid.UUID
+        assert health_sleep_models.HealthSleep.user_id.type.python_type is uuid.UUID
         assert health_sleep_models.HealthSleep.date.type.python_type is datetime_date
         assert health_sleep_models.HealthSleep.total_sleep_seconds.type.python_type is int
         assert health_sleep_models.HealthSleep.min_heart_rate.type.python_type is int
         assert health_sleep_models.HealthSleep.awake_count.type.python_type is int
-
-    def test_health_sleep_model_relationship(self):
-        """
-        Test HealthSleep model has relationship to User.
-        """
-        # Assert
-        assert hasattr(health_sleep_models.HealthSleep, "users")
 
     def test_health_sleep_model_integer_fields(self):
         """
@@ -100,7 +94,7 @@ class TestHealthSleepModel:
         """
         # Arrange
         avg_heart_rate_column = health_sleep_models.HealthSleep.avg_heart_rate
-        avg_spo2_column = health_sleep_models.HealthSleep.avg_spo2
+        avg_spo2_column = health_sleep_models.HealthSleep.avg_spo2_percent
 
         # Assert
         assert avg_heart_rate_column.type.python_type is int

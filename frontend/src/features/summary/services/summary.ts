@@ -3,14 +3,15 @@
  *
  * The backend exposes `GET /activities/summaries?period=<view>` returning one of
  * four response shapes (week/month/year/lifetime), each carrying period totals,
- * a sub-period `breakdown`, and an optional per-type `type_breakdown`. These
- * schemas are not part of the generated OpenAPI types, so the snake-cased DTOs
- * are declared here and mapped to the clean {@link ActivitySummary} model; the
- * DTO shapes never leave this module.
+ * a sub-period `breakdown`, and an optional per-type `type_breakdown`. The DTOs
+ * are aliases of the generated schemas and are mapped to the clean
+ * {@link ActivitySummary} model; the DTO shapes never leave this module.
  */
 
 import { apiFetch } from '@/services/http'
+import type { Schemas } from '@/types'
 
+import type { ActivityType } from '@/features/activities/types'
 import type {
   ActivitySummary,
   SummaryBreakdownRow,
@@ -20,48 +21,29 @@ import type {
 } from '@/features/summary/types'
 
 /** The metric fields shared by every summary response and breakdown row. */
-interface SummaryMetricsDto {
-  total_distance: number
-  total_duration: number
-  total_elevation_gain: number
-  total_calories: number
-  activity_count: number
-}
-
-/** A per-activity-type breakdown row. */
-interface TypeBreakdownItemDto extends SummaryMetricsDto {
-  activity_type_id: number
-  activity_type: string
-}
+type SummaryMetricsDto = Omit<Schemas['DaySummary'], 'day_of_week'>
 
 /** Week-view daily breakdown row (`day_of_week`: 0 = Monday … 6 = Sunday). */
-interface DaySummaryDto extends SummaryMetricsDto {
-  day_of_week: number
-}
+type DaySummaryDto = Schemas['DaySummary']
 
 /** Month-view weekly breakdown row (`week_number`: configured calendar week). */
-interface WeekSummaryDto extends SummaryMetricsDto {
-  week_number: number
-}
+type WeekSummaryDto = Schemas['WeekSummary']
 
 /** Year-view monthly breakdown row (`month_number`: 1–12). */
-interface MonthSummaryDto extends SummaryMetricsDto {
-  month_number: number
-}
+type MonthSummaryDto = Schemas['MonthSummary']
 
 /** Lifetime-view yearly breakdown row (`year_number`: calendar year). */
-interface YearlyPeriodSummaryDto extends SummaryMetricsDto {
-  year_number: number
-}
+type YearlyPeriodSummaryDto = Schemas['YearlyPeriodSummary']
 
 /** The union of breakdown row shapes across the four view types. */
 type BreakdownItemDto = DaySummaryDto | WeekSummaryDto | MonthSummaryDto | YearlyPeriodSummaryDto
 
 /** Any of the four summary responses (each carries its own breakdown shape). */
-interface SummaryResponseDto extends SummaryMetricsDto {
-  breakdown: BreakdownItemDto[] | null
-  type_breakdown: TypeBreakdownItemDto[] | null
-}
+type SummaryResponseDto =
+  | Schemas['WeeklySummaryRead']
+  | Schemas['MonthlySummaryRead']
+  | Schemas['YearlySummaryRead']
+  | Schemas['LifetimeSummaryRead']
 
 /** Filter inputs for a summary request; which apply depends on the view type. */
 export interface ActivitySummaryParams {
@@ -69,8 +51,8 @@ export interface ActivitySummaryParams {
   date?: string | null
   /** Target calendar year (year view). */
   year?: number | null
-  /** Activity-type name filter (the summary endpoint filters by name), or null. */
-  typeName?: string | null
+  /** Activity-type filter, or null for all types. */
+  type?: ActivityType | null
 }
 
 /** Extracts the view-type-specific sub-period index from a breakdown row. */
@@ -116,8 +98,7 @@ export function mapActivitySummary(
   }))
   const typeBreakdown: SummaryTypeBreakdownRow[] = (dto.type_breakdown ?? []).map((row) => ({
     ...mapTotals(row),
-    activityType: row.activity_type_id,
-    activityTypeName: row.activity_type,
+    activityType: row.activity_type,
   }))
   return { totals: mapTotals(dto), breakdown, typeBreakdown }
 }
@@ -136,7 +117,7 @@ const EMPTY_RESPONSE: SummaryResponseDto = {
 /**
  * Fetches an aggregated activity summary for the authenticated user. The query
  * parameters carried depend on the view type: `date` for week/month, `year` for
- * year, and an optional `type` name filter for all views.
+ * year, and an optional `type` filter for all views.
  *
  * @param viewType - The period granularity (`week`/`month`/`year`/`lifetime`).
  * @param params - The date/year anchor and optional type-name filter.
@@ -157,9 +138,8 @@ export async function fetchActivitySummary(
   if (viewType === 'year' && params.year !== null && params.year !== undefined) {
     search.set('year', String(params.year))
   }
-  const typeName = params.typeName?.trim()
-  if (typeName) {
-    search.set('type', typeName)
+  if (params.type) {
+    search.set('type', params.type)
   }
 
   const path = `/activities/summaries?${search.toString()}`

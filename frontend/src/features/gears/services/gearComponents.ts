@@ -7,9 +7,11 @@ import type {
 import type { Schemas } from '@/types'
 
 import { apiFetch } from '@/services/http'
+import { ifMatchHeaders, rowVersion } from '@/services/ifMatch'
+import { moneyToNumber, numberToMoney } from '@/utils/number'
 
 /**
- * Maps a raw `GearComponentRead` payload to the clean {@link GearComponent}
+ * Maps a raw component payload to the clean {@link GearComponent}
  * model — the single boundary where the backend wire format (snake_case,
  * nullable fields) is normalized so components never see the raw DTO.
  *
@@ -27,16 +29,17 @@ export function mapGearComponent(dto: GearComponentDto): GearComponent {
     purchaseDate: dto.purchase_date ?? null,
     retiredDate: dto.retired_date ?? null,
     active: dto.active ?? true,
-    expectedBaseUnits: dto.expected_kms ?? null,
-    purchaseValue: dto.purchase_value ?? null,
+    expectedBaseUnits: dto.expected_usage ?? null,
+    purchaseValue: moneyToNumber(dto.purchase_value),
     currentDistance: dto.current_distance ?? 0,
     currentTime: dto.current_time ?? 0,
+    version: rowVersion(dto.version),
   }
 }
 
 /**
  * Translates the clean form input into the backend's shared component wire
- * fields. `expectedBaseUnits` maps straight onto the backend's `expected_kms`
+ * fields. `expectedBaseUnits` maps straight onto the backend's `expected_usage`
  * (which stores metres or seconds, not kilometres).
  *
  * @param input - The clean component input.
@@ -44,21 +47,21 @@ export function mapGearComponent(dto: GearComponentDto): GearComponent {
  */
 function toComponentWireFields(input: GearComponentInput) {
   return {
-    gear_id: input.gearId,
     type: input.type,
     brand: input.brand,
     model: input.model,
     purchase_date: input.purchaseDate,
     retired_date: input.retiredDate,
     active: input.active,
-    expected_kms: input.expectedBaseUnits,
-    purchase_value: input.purchaseValue,
+    expected_usage: input.expectedBaseUnits,
+    purchase_value: numberToMoney(input.purchaseValue),
   }
 }
 
 /**
  * Fetches the components attached to a gear, each enriched with accumulated
- * distance/time by the backend.
+ * distance/time by the backend. The backend serves up to 200 per page, which one
+ * gear's components never reach.
  *
  * @param gearId - The parent gear id.
  * @param signal - Optional abort signal for cancellation.
@@ -66,13 +69,14 @@ function toComponentWireFields(input: GearComponentInput) {
  * @throws {HttpError} When the request fails.
  */
 export async function fetchGearComponents(
-  gearId: number,
+  gearId: string,
   signal?: AbortSignal,
 ): Promise<GearComponent[]> {
-  const dtos = await apiFetch<GearComponentDto[] | null>(`/gear_components/gear_id/${gearId}`, {
-    signal,
-  })
-  return (dtos ?? []).map(mapGearComponent)
+  const response = await apiFetch<Schemas['Page_GearComponentUsageRead_']>(
+    `/gears/${gearId}/components`,
+    { signal },
+  )
+  return (response.items ?? []).map(mapGearComponent)
 }
 
 /**
@@ -86,7 +90,7 @@ export async function fetchGearComponents(
 export async function fetchGearComponentTypes(
   signal?: AbortSignal,
 ): Promise<GearComponentTypeLists> {
-  return apiFetch<GearComponentTypeLists>('/gear_components/types', { signal })
+  return apiFetch<GearComponentTypeLists>('/gear-components/types', { signal })
 }
 
 /**
@@ -97,8 +101,11 @@ export async function fetchGearComponentTypes(
  * @throws {HttpError} When the request fails.
  */
 export async function createGearComponent(input: GearComponentInput): Promise<GearComponent> {
-  const payload: Schemas['GearComponentCreate'] = toComponentWireFields(input)
-  const dto = await apiFetch<GearComponentDto>('/gear_components', {
+  const payload: Schemas['GearComponentCreate'] = {
+    gear_id: input.gearId,
+    ...toComponentWireFields(input),
+  }
+  const dto = await apiFetch<GearComponentDto>('/gear-components', {
     method: 'POST',
     body: JSON.stringify(payload),
   })
@@ -110,17 +117,25 @@ export async function createGearComponent(input: GearComponentInput): Promise<Ge
  *
  * @param id - The component id to update.
  * @param input - The clean component input.
+ * @param version - The row version the form was loaded at, for `If-Match`.
  * @returns The updated component, mapped to the clean model.
- * @throws {HttpError} When the request fails.
+ * @throws {HttpError} When the request fails, including 412 when the copy is stale.
  */
 export async function updateGearComponent(
-  id: number,
+  id: string,
   input: GearComponentInput,
+  version: number,
 ): Promise<GearComponent> {
-  const payload: Schemas['GearComponentUpdate'] = { ...toComponentWireFields(input), id }
-  const dto = await apiFetch<GearComponentDto>('/gear_components', {
-    method: 'PUT',
+  // `purchase_date` cannot be cleared on the backend, so it is left out of the partial update when empty.
+  const { purchase_date, ...fields } = toComponentWireFields(input)
+  const payload: Schemas['GearComponentUpdate'] = {
+    ...fields,
+    ...(purchase_date === null ? {} : { purchase_date }),
+  }
+  const dto = await apiFetch<GearComponentDto>(`/gear-components/${id}`, {
+    method: 'PATCH',
     body: JSON.stringify(payload),
+    headers: ifMatchHeaders(version),
   })
   return mapGearComponent(dto)
 }
@@ -130,8 +145,13 @@ export async function updateGearComponent(
  * there is no response body to map.
  *
  * @param id - The component id to delete.
- * @throws {HttpError} When the request fails.
+ * @param version - The row version the caller read, for `If-Match`.
+ * @throws {HttpError} When the request fails (`412` when the component changed since it was read).
  */
-export async function deleteGearComponent(id: number): Promise<void> {
-  await apiFetch<void>(`/gear_components/${id}`, { method: 'DELETE', responseType: 'void' })
+export async function deleteGearComponent(id: string, version: number): Promise<void> {
+  await apiFetch<void>(`/gear-components/${id}`, {
+    method: 'DELETE',
+    headers: ifMatchHeaders(version),
+    responseType: 'void',
+  })
 }

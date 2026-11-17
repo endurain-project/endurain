@@ -1,5 +1,35 @@
+import type { AuthTokenResponse } from '@/types'
+
+/** Raised when a token-bearing answer is not a web token answer this client can use. */
+export class UnsupportedTokenAnswerError extends Error {
+  constructor() {
+    super('The answer is not a web token answer')
+    this.name = 'UnsupportedTokenAnswerError'
+  }
+}
+
+/**
+ * Checks that an answer carries web tokens: `next_step` is `tokens` and the access token is present. The
+ * web client sends `X-Client-Type: web`, so a body that carries a refresh token is a mobile answer that
+ * never belongs in the SPA.
+ *
+ * @param answer - Answer of a login, refresh, restore or SSO exchange request.
+ * @returns Whether the answer is a usable web token answer.
+ */
+export function isWebTokenAnswer(answer: unknown): answer is AuthTokenResponse {
+  if (typeof answer !== 'object' || answer === null) {
+    return false
+  }
+  const body = answer as Record<string, unknown>
+  return (
+    body.next_step === 'tokens' &&
+    typeof body.access_token === 'string' &&
+    body.access_token !== '' &&
+    !('refresh_token' in body)
+  )
+}
+
 let accessToken: string | null = null
-let csrfToken: string | null = null
 
 /**
  * Returns the current in-memory bearer access token.
@@ -11,23 +41,12 @@ export function getAccessToken(): string | null {
 }
 
 /**
- * Returns the current in-memory CSRF token bound to the refresh session.
- *
- * @returns The CSRF token, or `null` before login/refresh.
- */
-export function getCsrfToken(): string | null {
-  return csrfToken
-}
-
-/**
  * Stores auth tokens in memory only.
  *
  * @param nextAccessToken - Bearer token returned by the backend.
- * @param nextCsrfToken - CSRF token returned by the backend for web clients.
  */
-export function setAuthTokens(nextAccessToken: string, nextCsrfToken: string): void {
+export function setAuthTokens(nextAccessToken: string): void {
   accessToken = nextAccessToken
-  csrfToken = nextCsrfToken
 }
 
 /**
@@ -35,5 +54,4 @@ export function setAuthTokens(nextAccessToken: string, nextCsrfToken: string): v
  */
 export function clearAuthTokens(): void {
   accessToken = null
-  csrfToken = null
 }

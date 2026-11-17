@@ -70,7 +70,84 @@ for dir in $REQUIRED_DIRS; do
     fi
 done
 
+# Print ENDURAIN_HOST in the canonical form the backend validates
+# (config._validate_endurain_host): lower-case scheme and host, the default port
+# of the scheme dropped, IPv6 brackets and other ports kept. A value that is not
+# a clean http(s) origin, or whose host is not ASCII, is printed unchanged, so the
+# backend reports or canonicalises it.
+canonical_endurain_host() {
+    value="$1"
+    case "$value" in
+        *[[:space:]\\?#@]*) printf '%s' "$value"; return 0 ;;
+    esac
+    scheme=$(printf '%s' "${value%%://*}" | tr '[:upper:]' '[:lower:]')
+    rest="${value#*://}"
+    if [ "$rest" = "$value" ]; then
+        printf '%s' "$value"
+        return 0
+    fi
+    case "$scheme" in
+        http) default_port=80 ;;
+        https) default_port=443 ;;
+        *) printf '%s' "$value"; return 0 ;;
+    esac
+    case "$rest" in
+        \[*\]*)
+            host="${rest%%\]*}]"
+            port_part="${rest#*\]}"
+            ;;
+        *:*)
+            host="${rest%%:*}"
+            port_part=":${rest#*:}"
+            ;;
+        *)
+            host="$rest"
+            port_part=""
+            ;;
+    esac
+    case "$host" in
+        ""|"[]"|*/*) printf '%s' "$value"; return 0 ;;
+    esac
+    # Lower-casing a non-ASCII host depends on the locale, so the backend does it.
+    if [ -n "$(printf '%s' "$host" | LC_ALL=C tr -d '\000-\177')" ]; then
+        printf '%s' "$value"
+        return 0
+    fi
+    port="${port_part#:}"
+    case "$port_part" in
+        ""|:) port="" ;;
+        :*) ;;
+        *) printf '%s' "$value"; return 0 ;;
+    esac
+    case "$port" in
+        *[!0-9]*) printf '%s' "$value"; return 0 ;;
+    esac
+    while [ "${#port}" -gt 1 ] && [ "${port#0}" != "$port" ]; do
+        port="${port#0}"
+    done
+    if [ "${#port}" -gt 5 ] || { [ -n "$port" ] && [ "$port" -gt 65535 ]; }; then
+        printf '%s' "$value"
+        return 0
+    fi
+    host=$(printf '%s' "$host" | tr '[:upper:]' '[:lower:]')
+    if [ -z "$port" ] || [ "$port" = "$default_port" ]; then
+        printf '%s://%s' "$scheme" "$host"
+    else
+        printf '%s://%s:%s' "$scheme" "$host" "$port"
+    fi
+}
+
 if [ -n "$ENDURAIN_HOST" ]; then
+    ENDURAIN_HOST=$(canonical_endurain_host "$ENDURAIN_HOST")
+    export ENDURAIN_HOST
+    # The built bundle in the image stays read-only for the runtime user, so the
+    # rewrites below go to a per-start copy of it that the backend serves instead.
+    # /tmp is writable under any UID, which keeps a custom `user:` working.
+    runtime_frontend=$(mktemp -d) || exit 1
+    cp -R "$FRONTEND_FOLDER/." "$runtime_frontend" || { echo_error_log "Failed to copy the frontend bundle to $runtime_frontend"; exit 1; }
+    FRONTEND_FOLDER="$runtime_frontend"
+    export FRONTEND_DIR="$FRONTEND_FOLDER"
+
     echo "window.env = { ENDURAIN_HOST: \"$ENDURAIN_HOST\" };" > "$FRONTEND_FOLDER/env.js"
     echo_info_log "Runtime env.js written with ENDURAIN_HOST=$ENDURAIN_HOST"
 
@@ -218,6 +295,10 @@ build_forwarded_allow_ips() {
 case "$APP_ROLE" in
     api)
         CMD="uvicorn main:app --host 0.0.0.0 --port 8080 --log-level $LOG_LEVEL"
+        # Uvicorn's per-request access log is hidden unless LOG_ACCESS=true.
+        if [ "${LOG_ACCESS:-false}" != "true" ]; then
+            CMD="$CMD --no-access-log"
+        fi
         if [ "$BEHIND_PROXY" = "true" ]; then
             CMD="$CMD --proxy-headers"
             if [ -n "$FORWARDED_ALLOW_IPS" ]; then
@@ -230,7 +311,8 @@ case "$APP_ROLE" in
                     export FORWARDED_ALLOW_IPS="$FORWARDED_ALLOW_IPS_LIST"
                     echo_info_log "Honouring forwarded headers from: $FORWARDED_ALLOW_IPS_LIST"
                 else
-                    echo_error_log "BEHIND_PROXY=true but no usable TRUSTED_PROXIES entry was found; uvicorn will only honour forwarded headers from 127.0.0.1. Set TRUSTED_PROXIES to your reverse proxy address, CIDR, or hostname."
+                    echo_error_log "BEHIND_PROXY=true requires TRUSTED_PROXIES, and no usable entry was found. Set it to your reverse proxy address, CIDR, or hostname."
+                    exit 1
                 fi
             fi
         fi

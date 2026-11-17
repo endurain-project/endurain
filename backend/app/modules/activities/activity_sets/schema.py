@@ -1,10 +1,12 @@
 """Activity sets schemas."""
 
+import uuid
 from datetime import datetime
 
 from pydantic import (
     BaseModel,
     ConfigDict,
+    Field,
     StrictFloat,
     StrictInt,
     StrictStr,
@@ -14,23 +16,21 @@ import core.pagination as core_pagination
 
 
 class ActivitySetsBase(BaseModel):
-    """Base schema for activity workout sets.
+    """Base schema for activity workout sets: the fields a stored set and a read set share.
 
     Attributes:
         duration: Set duration.
         repetitions: Repetitions count.
         weight: Exercise weight.
         set_type: Workout set type string.
-        start_time: Set start time ISO string.
         category: Category identifier.
         category_subtype: Category sub type.
     """
 
-    duration: StrictFloat
+    duration: StrictFloat = Field(description="Duration of the set in seconds")
     repetitions: StrictInt | None = None
-    weight: StrictFloat | None = None
+    weight: StrictFloat | None = Field(default=None, description="Weight used in the set in kilograms")
     set_type: StrictStr
-    start_time: StrictStr
     category: StrictInt | None = None
     category_subtype: StrictInt | None = None
 
@@ -51,12 +51,13 @@ class ActivitySetsRead(ActivitySetsBase):
     Attributes:
         id: Activity set primary key.
         activity_id: Parent activity ID.
-        start_time: Set start as a timezone-aware UTC instant.
+        start_time: Set start as a timezone-aware UTC instant, or None when the
+            parent hides its start time from this viewer.
     """
 
-    id: StrictInt
-    activity_id: StrictInt
-    start_time: datetime  # type: ignore[assignment]
+    id: uuid.UUID
+    activity_id: uuid.UUID
+    start_time: datetime | None
 
     model_config = ConfigDict(
         from_attributes=True,

@@ -10,10 +10,10 @@ import BulkImportProgress from '@/features/import/components/BulkImportProgress.
 import {
   useBulkImportFromArchiveMutation,
   useBulkImportFromFolderMutation,
-  useBulkImportJobQuery,
+  useBulkImportJob,
 } from '@/features/import/composables/useImport'
 import { isTerminalIngestionJob } from '@/features/upload/types'
-import { HttpError } from '@/services/http'
+import { isProblem } from '@/services/problems'
 
 const { t } = useI18n()
 const toasts = useToasts()
@@ -21,11 +21,9 @@ const toasts = useToasts()
 const fromFolder = useBulkImportFromFolderMutation()
 const fromArchive = useBulkImportFromArchiveMutation()
 
-const jobId = ref<string | null>(null)
-const jobQuery = useBulkImportJobQuery(jobId)
+const job = useBulkImportJob('generic')
 const archiveInput = ref<HTMLInputElement | null>(null)
 
-const job = computed(() => jobQuery.data.value ?? null)
 const running = computed(
   () =>
     fromFolder.isPending.value ||
@@ -33,13 +31,12 @@ const running = computed(
     (job.value !== null && !isTerminalIngestionJob(job.value)),
 )
 
-function onAccepted(id: string): void {
-  jobId.value = id
+function onAccepted(): void {
   toasts.info(t('settings.import.bulk.started'))
 }
 
 function onError(error: Error): void {
-  if (error instanceof HttpError && error.status === 409) {
+  if (isProblem(error, 'conflict')) {
     toasts.error(t('settings.import.bulk.alreadyRunning'))
     return
   }
@@ -48,7 +45,7 @@ function onError(error: Error): void {
 
 function importFromFolder(): void {
   fromFolder.mutate('generic', {
-    onSuccess: (accepted) => onAccepted(accepted.id),
+    onSuccess: onAccepted,
     onError,
   })
 }
@@ -65,10 +62,7 @@ function onArchiveChosen(event: Event): void {
   if (!file) {
     return
   }
-  fromArchive.mutate(
-    { file, source: 'generic' },
-    { onSuccess: (accepted) => onAccepted(accepted.id), onError },
-  )
+  fromArchive.mutate({ file, source: 'generic' }, { onSuccess: onAccepted, onError })
 }
 </script>
 

@@ -1,58 +1,64 @@
-"""Tests for auth.mfa.models — UsersMFA ORM model.
+"""Tests for ``modules.auth.mfa.models.MFAFactor``: the table, its constraints and its TOTP-per-user index."""
 
-Covers:
-- Table and column definitions.
-- UniqueConstraint / index metadata.
-"""
+import uuid
 
-from modules.auth.mfa.models import UsersMFA
+import pytest
+from sqlalchemy.exc import IntegrityError
+
+from modules.auth.mfa.models import MFAFactor
+from tests._helpers.auth import MOCK_USER_ID
+from tests._helpers.db import create_sqlite_session
 
 
-class TestUsersMFAModel:
-    """Tests for UsersMFA ORM model structure."""
-
+class TestMFAFactorModel:
     def test_tablename(self):
-        """UsersMFA maps to the correct table name."""
-        assert UsersMFA.__tablename__ == "users_mfa"
+        assert MFAFactor.__tablename__ == "mfa_factors"
 
-    def test_has_id_column(self):
-        """Model exposes an auto-increment primary key."""
-        col = UsersMFA.__table__.c["id"]
-        assert col.primary_key
-        assert col.autoincrement
+    def test_user_id_is_indexed_and_references_users(self):
+        column = MFAFactor.__table__.c["user_id"]
+        assert not column.nullable
+        assert column.index
+        assert [fk.target_fullname for fk in column.foreign_keys] == ["users.id"]
 
-    def test_has_user_id_column(self):
-        """user_id column exists and is not nullable."""
-        col = UsersMFA.__table__.c["user_id"]
-        assert not col.nullable
+    def test_type_and_credential_are_required_and_last_used_at_is_not(self):
+        columns = MFAFactor.__table__.c
+        assert not columns["type"].nullable
+        assert not columns["credential"].nullable
+        assert columns["last_used_at"].nullable
 
-    def test_user_id_has_fk_to_users(self):
-        """user_id carries a FK to users.id."""
-        col = UsersMFA.__table__.c["user_id"]
-        fk_targets = [fk.target_fullname for fk in col.foreign_keys]
-        assert "users.id" in fk_targets
 
-    def test_has_mfa_enabled_column(self):
-        """mfa_enabled column exists and is not nullable."""
-        col = UsersMFA.__table__.c["mfa_enabled"]
-        assert not col.nullable
+class TestFactorRows:
+    @pytest.fixture
+    def db(self):
+        session = create_sqlite_session()
+        yield session
+        session.close()
 
-    def test_mfa_enabled_default_false(self):
-        """mfa_enabled defaults to False."""
-        col = UsersMFA.__table__.c["mfa_enabled"]
-        assert col.default.arg is False
+    def test_a_user_has_at_most_one_totp_factor(self, db):
+        db.add(MFAFactor(user_id=MOCK_USER_ID, type="totp", credential="a"))
+        db.flush()
 
-    def test_has_mfa_secret_column(self):
-        """mfa_secret column exists and is nullable."""
-        col = UsersMFA.__table__.c["mfa_secret"]
-        assert col.nullable
+        db.add(MFAFactor(user_id=MOCK_USER_ID, type="totp", credential="b"))
+        with pytest.raises(IntegrityError):
+            db.flush()
 
-    def test_unique_constraint_on_user_id(self):
-        """UniqueConstraint uq_users_mfa_user_id is present."""
-        constraint_names = {c.name for c in UsersMFA.__table__.constraints}
-        assert "uq_users_mfa_user_id" in constraint_names
+    def test_a_row_gets_a_random_uuid_id_when_inserted(self, db):
+        factor = MFAFactor(user_id=MOCK_USER_ID, type="totp", credential="a")
+        db.add(factor)
+        db.flush()
 
-    def test_index_on_user_id(self):
-        """Index ix_users_mfa_user_id is defined on the table."""
-        index_names = {idx.name for idx in UsersMFA.__table__.indexes}
-        assert "ix_users_mfa_user_id" in index_names
+        assert isinstance(factor.id, uuid.UUID)
+
+    def test_the_type_is_limited_to_the_known_factors(self, db):
+        db.add(MFAFactor(user_id=MOCK_USER_ID, type="sms", credential="a"))
+
+        with pytest.raises(IntegrityError):
+            db.flush()
+
+    def test_a_row_records_when_it_was_enrolled(self, db):
+        factor = MFAFactor(user_id=MOCK_USER_ID, type="totp", credential="a")
+        db.add(factor)
+        db.flush()
+
+        assert factor.created_at is not None
+        assert factor.last_used_at is None

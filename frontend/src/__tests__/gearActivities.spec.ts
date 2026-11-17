@@ -4,15 +4,16 @@ import type { GearActivity, GearActivityDto } from '@/features/gears/types'
 
 import { apiFetch } from '@/services/http'
 import { fetchGearActivities, mapGearActivity } from '@/features/gears/services/gearActivities'
+import { activityUuid } from './fixtures/activity'
 
 vi.mock('@/services/http', () => ({
   apiFetch: vi.fn<typeof apiFetch>(),
 }))
 
 const activityDto: GearActivityDto = {
-  id: 11,
+  id: activityUuid(11),
   name: 'Morning Ride',
-  activity_type: 1,
+  activity_type: 'ride',
   start_time: '2024-03-01T07:00:00Z',
   timezone: 'Europe/Lisbon',
   distance: 25_000,
@@ -21,9 +22,9 @@ const activityDto: GearActivityDto = {
 }
 
 const mappedActivity: GearActivity = {
-  id: 11,
+  id: activityUuid(11),
   name: 'Morning Ride',
-  activityType: 1,
+  activityType: 'ride',
   startTime: '2024-03-01T07:00:00Z',
   timezone: 'Europe/Lisbon',
   distance: 25_000,
@@ -37,11 +38,17 @@ describe('mapGearActivity', () => {
 
   it('defaults absent optionals to null', () => {
     expect(
-      mapGearActivity({ id: 7, name: 'Run', activity_type: 2, distance: 5000, is_hidden: false }),
+      mapGearActivity({
+        id: activityUuid(7),
+        name: 'Run',
+        activity_type: 'trail_run',
+        distance: 5000,
+        is_hidden: false,
+      }),
     ).toEqual({
-      id: 7,
+      id: activityUuid(7),
       name: 'Run',
-      activityType: 2,
+      activityType: 'trail_run',
       startTime: null,
       timezone: null,
       distance: 5000,
@@ -64,12 +71,15 @@ describe('fetchGearActivities', () => {
       next: null,
     })
 
-    const result = await fetchGearActivities(5, { page: 1, numRecords: 25 })
+    const result = await fetchGearActivities('00000000-0000-4000-8000-000000000005', {
+      page: 1,
+      numRecords: 25,
+    })
 
     // One request: the total arrives with the page.
     expect(apiFetch).toHaveBeenCalledTimes(1)
     expect(apiFetch).toHaveBeenCalledWith(
-      '/activities/gears/5?page_number=1&num_records=25',
+      '/activities?gear_id=00000000-0000-4000-8000-000000000005&page_number=1&num_records=25',
       expect.objectContaining({ signal: undefined }),
     )
     expect(result).toEqual({ records: [mappedActivity], total: 1 })
@@ -83,7 +93,9 @@ describe('fetchGearActivities', () => {
       num_records: 25,
       next: null,
     })
-    await expect(fetchGearActivities(5, { page: 1, numRecords: 25 })).resolves.toEqual({
+    await expect(
+      fetchGearActivities('00000000-0000-4000-8000-000000000005', { page: 1, numRecords: 25 }),
+    ).resolves.toEqual({
       records: [],
       total: 0,
     })

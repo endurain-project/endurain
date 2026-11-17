@@ -24,9 +24,9 @@ const CONTENT_SECURITY_POLICY = [
   "base-uri 'self'",
   "object-src 'none'",
   "script-src 'self'",
-  // Reka UI / Vue write inline `style` attributes for positioning and
-  // transitions, which require 'unsafe-inline' for styles only.
-  "style-src 'self' 'unsafe-inline'",
+  // Vue `:style` bindings and Reka UI positioning write through the CSSOM,
+  // which style-src does not block, so no inline style is allowed.
+  "style-src 'self'",
   // Avatars and the login image are served by the (possibly cross-origin)
   // backend over HTTPS; data:/blob: cover bundled and generated images.
   "img-src 'self' data: blob: https:",
@@ -105,7 +105,10 @@ export default defineConfig({
         // a single screen; it is above Workbox's 2 MiB precache cap and would
         // bloat the install payload for every client, so it is fetched from
         // the network instead.
-        globIgnores: ['**/env.js', '**/assets/login-*.png'],
+        //
+        // The password strength meter's zxcvbn dictionaries (~1.6 MB) are only
+        // needed on screens that set a password, so they load on demand too.
+        globIgnores: ['**/env.js', '**/assets/login-*.png', '**/assets/passwordScorer-*.js'],
         cleanupOutdatedCaches: true,
         clientsClaim: true,
         skipWaiting: true,

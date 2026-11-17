@@ -10,6 +10,7 @@
   "settings": "Setări",
   "profile": "Profil",
   "logout": "Deconectare",
+  "logoutFailed": "Deconectarea a eșuat. Verifică conexiunea și încearcă din nou.",
   "userMenu": "Meniu utilizator",
   "menu": "Meniu",
   "primary": "Navigare principală",

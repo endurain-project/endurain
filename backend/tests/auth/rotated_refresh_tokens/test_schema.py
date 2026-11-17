@@ -1,0 +1,284 @@
+import uuid
+from datetime import UTC, datetime
+
+import pytest
+from pydantic import ValidationError
+
+import modules.auth.rotated_refresh_tokens.schema as rotated_token_schema
+
+_ID = uuid.UUID("00000000-0000-4000-8000-000000000003")
+_FAMILY_ID = uuid.UUID("00000000-0000-4000-8000-0000000000f1")
+
+
+class TestRotatedRefreshTokenCreateSchema:
+    """
+    Test suite for RotatedRefreshTokenCreate Pydantic schema.
+    """
+
+    def test_create_schema_valid_instance(self):
+        """
+        Test RotatedRefreshTokenCreate schema with valid data.
+        """
+        # Arrange
+        now = datetime.now(UTC)
+
+        # Act
+        token = rotated_token_schema.RotatedRefreshTokenCreate(
+            token_family_id=_FAMILY_ID,
+            hashed_token="hashed-token-value",
+            client_fingerprint="c" * 64,
+            rotation_count=0,
+            rotated_at=now,
+            expires_at=now,
+            refresh_token_exp=now,
+        )
+
+        # Assert
+        assert token.token_family_id == _FAMILY_ID
+        assert token.hashed_token == "hashed-token-value"
+        assert token.rotation_count == 0
+        assert token.rotated_at == now
+        assert token.expires_at == now
+        assert token.refresh_token_exp == now
+
+    def test_create_schema_requires_token_family_id(self):
+        """
+        Test RotatedRefreshTokenCreate requires token_family_id.
+        """
+        # Arrange
+        now = datetime.now(UTC)
+
+        # Act & Assert
+        with pytest.raises(ValidationError) as exc_info:
+            rotated_token_schema.RotatedRefreshTokenCreate(
+                hashed_token="hashed-token-value",
+                client_fingerprint="c" * 64,
+                rotation_count=0,
+                rotated_at=now,
+                expires_at=now,
+                refresh_token_exp=now,
+            )
+
+        assert "token_family_id" in str(exc_info.value)
+
+    def test_create_schema_requires_hashed_token(self):
+        """
+        Test RotatedRefreshTokenCreate requires hashed_token.
+        """
+        # Arrange
+        now = datetime.now(UTC)
+
+        # Act & Assert
+        with pytest.raises(ValidationError) as exc_info:
+            rotated_token_schema.RotatedRefreshTokenCreate(
+                token_family_id=_FAMILY_ID,
+                rotation_count=0,
+                rotated_at=now,
+                expires_at=now,
+                refresh_token_exp=now,
+            )
+
+        assert "hashed_token" in str(exc_info.value)
+
+    def test_create_schema_rotation_count_non_negative(self):
+        """
+        Test RotatedRefreshTokenCreate rotation_count must be >= 0.
+        """
+        # Arrange
+        now = datetime.now(UTC)
+
+        # Act & Assert
+        with pytest.raises(ValidationError) as exc_info:
+            rotated_token_schema.RotatedRefreshTokenCreate(
+                token_family_id=_FAMILY_ID,
+                hashed_token="hashed-token-value",
+                client_fingerprint="c" * 64,
+                rotation_count=-1,
+                rotated_at=now,
+                expires_at=now,
+                refresh_token_exp=now,
+            )
+
+        assert "rotation_count" in str(exc_info.value)
+
+    def test_create_schema_token_family_id_must_be_a_uuid(self):
+        """
+        Test RotatedRefreshTokenCreate rejects a token_family_id that is not a UUID.
+        """
+        # Arrange
+        now = datetime.now(UTC)
+        not_a_uuid = "a" * 40
+
+        # Act & Assert
+        with pytest.raises(ValidationError) as exc_info:
+            rotated_token_schema.RotatedRefreshTokenCreate(
+                token_family_id=not_a_uuid,
+                hashed_token="hashed-token-value",
+                client_fingerprint="c" * 64,
+                rotation_count=0,
+                rotated_at=now,
+                expires_at=now,
+                refresh_token_exp=now,
+            )
+
+        assert "token_family_id" in str(exc_info.value)
+
+    def test_create_schema_hashed_token_max_length(self):
+        """
+        Test RotatedRefreshTokenCreate hashed_token max length.
+        """
+        # Arrange
+        now = datetime.now(UTC)
+        long_token = "a" * 260  # Exceeds 255 character limit
+
+        # Act & Assert
+        with pytest.raises(ValidationError) as exc_info:
+            rotated_token_schema.RotatedRefreshTokenCreate(
+                token_family_id=_FAMILY_ID,
+                hashed_token=long_token,
+                client_fingerprint="c" * 64,
+                rotation_count=0,
+                rotated_at=now,
+                expires_at=now,
+                refresh_token_exp=now,
+            )
+
+        assert "hashed_token" in str(exc_info.value)
+
+    def test_create_schema_forbid_extra_fields(self):
+        """
+        Test RotatedRefreshTokenCreate forbids extra fields.
+        """
+        # Arrange
+        now = datetime.now(UTC)
+
+        # Act & Assert
+        with pytest.raises(ValidationError) as exc_info:
+            rotated_token_schema.RotatedRefreshTokenCreate(
+                token_family_id=_FAMILY_ID,
+                hashed_token="hashed-token-value",
+                client_fingerprint="c" * 64,
+                rotation_count=0,
+                rotated_at=now,
+                expires_at=now,
+                refresh_token_exp=now,
+                extra_field="not allowed",
+            )
+
+        assert "extra_field" in str(exc_info.value)
+
+    def test_create_schema_from_attributes(self):
+        """
+        Test RotatedRefreshTokenCreate has from_attributes config.
+        """
+        # Assert
+        assert rotated_token_schema.RotatedRefreshTokenCreate.model_config.get("from_attributes") is True
+
+    def test_create_schema_strict_int_validation(self):
+        """
+        Test RotatedRefreshTokenCreate enforces strict int types.
+        """
+        # Arrange
+        now = datetime.now(UTC)
+
+        # Act & Assert
+        with pytest.raises(ValidationError) as exc_info:
+            rotated_token_schema.RotatedRefreshTokenCreate(
+                token_family_id=_FAMILY_ID,
+                hashed_token="hashed-token-value",
+                client_fingerprint="c" * 64,
+                rotation_count="not-an-int",
+                rotated_at=now,
+                expires_at=now,
+                refresh_token_exp=now,
+            )
+
+        assert "rotation_count" in str(exc_info.value)
+
+
+class TestRotatedRefreshTokenReadSchema:
+    """
+    Test suite for RotatedRefreshTokenRead Pydantic schema.
+    """
+
+    def test_read_schema_includes_id(self):
+        """
+        Test RotatedRefreshTokenRead includes id field.
+        """
+        # Arrange
+        now = datetime.now(UTC)
+
+        # Act
+        token = rotated_token_schema.RotatedRefreshTokenRead(
+            id=_ID,
+            token_family_id=_FAMILY_ID,
+            hashed_token="hashed-token-value",
+            client_fingerprint="c" * 64,
+            rotation_count=0,
+            rotated_at=now,
+            expires_at=now,
+            refresh_token_exp=now,
+        )
+
+        # Assert
+        assert token.id == _ID
+
+    def test_read_schema_requires_id(self):
+        """
+        Test RotatedRefreshTokenRead requires id field.
+        """
+        # Arrange
+        now = datetime.now(UTC)
+
+        # Act & Assert
+        with pytest.raises(ValidationError) as exc_info:
+            rotated_token_schema.RotatedRefreshTokenRead(
+                token_family_id=_FAMILY_ID,
+                hashed_token="hashed-token-value",
+                client_fingerprint="c" * 64,
+                rotation_count=0,
+                rotated_at=now,
+                expires_at=now,
+                refresh_token_exp=now,
+            )
+
+        assert "id" in str(exc_info.value)
+
+    def test_read_schema_id_must_be_a_uuid(self):
+        """
+        Test RotatedRefreshTokenRead id must be a UUID.
+        """
+        # Arrange
+        now = datetime.now(UTC)
+
+        # Act & Assert
+        with pytest.raises(ValidationError) as exc_info:
+            rotated_token_schema.RotatedRefreshTokenRead(
+                id=1,
+                token_family_id=_FAMILY_ID,
+                hashed_token="hashed-token-value",
+                client_fingerprint="c" * 64,
+                rotation_count=0,
+                rotated_at=now,
+                expires_at=now,
+                refresh_token_exp=now,
+            )
+
+        assert "id" in str(exc_info.value)
+
+    def test_read_schema_inherits_from_create(self):
+        """
+        Test RotatedRefreshTokenRead inherits from RotatedRefreshTokenCreate.
+        """
+        # Assert
+        assert issubclass(
+            rotated_token_schema.RotatedRefreshTokenRead,
+            rotated_token_schema.RotatedRefreshTokenCreate,
+        )
+
+    def test_read_schema_from_attributes(self):
+        """
+        Test RotatedRefreshTokenRead has from_attributes config.
+        """
+        # Assert
+        assert rotated_token_schema.RotatedRefreshTokenRead.model_config.get("from_attributes") is True

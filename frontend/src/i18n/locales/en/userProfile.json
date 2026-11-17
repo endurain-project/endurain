@@ -82,5 +82,13 @@
       "ownTitle": "You don't have any followers yet.",
       "otherTitle": "No followers yet."
     }
+  },
+  "block": {
+    "block": "Block",
+    "unblock": "Unblock",
+    "confirmTitle": "Block {name}?",
+    "confirmBody": "{name} won't be able to ask to follow you, and any follow between you is removed. They aren't told.",
+    "blockError": "Couldn't block this user. Please try again.",
+    "unblockError": "Couldn't unblock this user. Please try again."
   }
 }

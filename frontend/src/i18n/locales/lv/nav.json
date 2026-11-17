@@ -10,6 +10,7 @@
   "settings": "Iestatījumi",
   "profile": "Profils",
   "logout": "Iziet",
+  "logoutFailed": "Neizdevās izrakstīties. Pārbaudiet savienojumu un mēģiniet vēlreiz.",
   "userMenu": "Lietotāja izvēlne",
   "menu": "Izvēlne",
   "primary": "Galvenā navigācija",

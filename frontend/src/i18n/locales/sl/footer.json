@@ -1,10 +1,17 @@
 {
-  "repository": "Repozitorij",
+  "releaseNotes": "Opombe ob izdaji {version}",
+  "project": "Projekt",
+  "website": "Spletno mesto",
   "documentation": "Dokumentacija",
+  "sourceCode": "Izvorna koda",
+  "community": "Skupnost",
   "mastodon": "Mastodon račun Enduraina",
   "bluesky": "Bluesky profil Enduraina",
   "discord": "Discord strežnik Enduraina",
   "linkedin": "LinkedIn stran Enduraina",
+  "externalLink": "odpre se v novem zavihku",
+  "trademarkNotice": "Endurain® je registrirana blagovna znamka João Vitória Silva.",
+  "trademarkPolicy": "Pravilnik o blagovni znamki",
   "compatibleStrava": "Združljivo s Strava",
   "worksGarmin": "Deluje z Garmin Connect"
 }

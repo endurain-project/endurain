@@ -12,7 +12,7 @@ points at its sections and holds the few lookups that are not in it.
 | Where does a commit, rollback or event belong? | Layering inside a module, Transaction ownership |
 | Query, event, contributor or seam? | Choosing a coupling mechanism |
 | What do I name an alias, a publisher, a schema, a collection? | Conventions that look like drift |
-| What do I add for a new module? | Adding a module (the `convert-module` skill covers an existing one) |
+| What do I add for a new module? | Adding a module |
 | What is enforced, and where? | Enforcement |
 
 ## Lookups not in the guide
@@ -20,6 +20,6 @@ points at its sections and holds the few lookups that are not in it.
 - Activity children return `ingestion_contributor`, `profile_contributor` and `profile_global_contributor` from `integration_service`.
   Plain child collections (rows hanging off one activity) build them with `activities_contributors.child_ingestion_contributor` / `child_profile_contributor`.
   `app/module_registry.py` installs them in `modules.activities.contributor_registry`.
+- A module that keeps per-user data exports and imports it as a profile section (`ProfileRecordsSection`, `ProfileArchiveSection` in `users/users_profile/contracts.py`) installed by `module_registry.configure_user_contributors`; `users_profile` never imports the module.
 - Mirror the module tree under `backend/tests/`.
-- Auth boundary: use only `modules.auth.dependencies` and `modules.auth.identity_service.IdentityService`; never `modules.auth._internal` or any `modules.auth.*.crud`.
-  `auth` publishes `identity_service.py`, not `integration_service.py`; do not copy that.
+- Auth boundary: use `modules.auth.dependencies` for request identity and the owning auth child package's `integration_service.py` for behavior; never import auth CRUD, service, or private helpers across packages.

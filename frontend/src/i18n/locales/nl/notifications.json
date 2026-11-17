@@ -5,10 +5,12 @@
   "unread": "Ongelezen",
   "markRead": "Als gelezen markeren",
   "markAllRead": "Alles als gelezen markeren",
+  "dismiss": "Melding verwijderen",
+  "dismissError": "De melding kon niet worden verwijderd. Probeer het opnieuw.",
   "seeAll": "Alles bekijken",
   "loadMore": "Meer laden",
   "loading": "Laden…",
-  "badge": "{count} ongelezen meldingen",
+  "badge": "{count} ongelezen melding | {count} ongelezen meldingen",
   "empty": {
     "title": "Je bent helemaal bijgewerkt",
     "description": "Updates over je activiteiten, volgers en integraties verschijnen hier."
@@ -39,9 +41,122 @@
       "title": "Garmin Connect vereist aandacht",
       "body": "Je Garmin Connect-sessie is verlopen. Koppel opnieuw om te blijven synchroniseren."
     },
+    "stravaTokenExpired": {
+      "title": "Strava heeft aandacht nodig",
+      "body": "Strava heeft je verbinding geweigerd. Verbind opnieuw om te blijven synchroniseren.",
+      "bodyRevoked": "De toegang tot Strava is beëindigd. Je met Strava gesynchroniseerde activiteiten en uitrusting worden op {date} verwijderd, tenzij je opnieuw verbindt."
+    },
+    "stravaDataDeleted": {
+      "title": "Strava-gegevens verwijderd",
+      "body": "Je met Strava gesynchroniseerde activiteiten en uitrusting zijn verwijderd omdat de toegang tot Strava is beëindigd en je niet opnieuw hebt verbonden."
+    },
+    "idpLinked": {
+      "title": "Nieuwe aanmeldprovider gekoppeld",
+      "body": "{name} is aan je account gekoppeld. Was jij dit niet, controleer dan je beveiligingsinstellingen.",
+      "bodyGeneric": "Er is een aanmeldprovider aan je account gekoppeld. Was jij dit niet, controleer dan je beveiligingsinstellingen."
+    },
+    "accountSecurityChanged": {
+      "passwordChanged": {
+        "title": "Wachtwoord gewijzigd",
+        "body": "Je wachtwoord is gewijzigd. Als jij dit niet was, stel je wachtwoord opnieuw in en controleer je beveiligingsinstellingen."
+      },
+      "passwordReset": {
+        "title": "Wachtwoord opnieuw ingesteld",
+        "body": "Je wachtwoord is opnieuw ingesteld via een resetlink. Als jij dit niet was, stel je wachtwoord opnieuw in en controleer je beveiligingsinstellingen. Any API keys were revoked and any pending email change was cancelled."
+      },
+      "passwordSetByAdmin": {
+        "title": "Wachtwoord ingesteld door een beheerder",
+        "body": "Een beheerder heeft een nieuw wachtwoord voor je account ingesteld. Als je dit niet verwachtte, neem dan contact op met je beheerder. Any API keys were revoked and any pending email change was cancelled."
+      },
+      "mfaEnabled": {
+        "title": "Tweefactorauthenticatie ingeschakeld",
+        "body": "Tweefactorauthenticatie is ingeschakeld voor je account. Als jij dit niet was, stel je wachtwoord opnieuw in en controleer je beveiligingsinstellingen."
+      },
+      "mfaDisabled": {
+        "title": "Tweefactorauthenticatie uitgeschakeld",
+        "body": "Tweefactorauthenticatie is uitgeschakeld voor je account. Als jij dit niet was, stel je wachtwoord opnieuw in en controleer je beveiligingsinstellingen."
+      },
+      "mfaResetByAdmin": {
+        "title": "Tweefactorauthenticatie gereset door een beheerder",
+        "body": "Een beheerder heeft tweefactorauthenticatie voor je account gereset en je op alle apparaten uitgelogd. Stel het opnieuw in via je beveiligingsinstellingen. Als je dit niet verwachtte, neem dan contact op met je beheerder."
+      },
+      "passwordChangeRequiredByAdmin": {
+        "title": "Wachtwoordwijziging vereist door een beheerder",
+        "body": "Een beheerder heeft vereist dat je je wachtwoord wijzigt en je op alle apparaten uitgelogd. Je kiest een nieuw wachtwoord de volgende keer dat je met je wachtwoord inlogt. Als je dit niet verwachtte, neem dan contact op met je beheerder."
+      },
+      "backupCodesGenerated": {
+        "title": "Nieuwe herstelcodes gegenereerd",
+        "body": "Er zijn nieuwe herstelcodes gegenereerd voor je account. Als jij dit niet was, stel je wachtwoord opnieuw in en controleer je beveiligingsinstellingen."
+      },
+      "apiKeyCreated": {
+        "title": "Nieuwe API-sleutel aangemaakt",
+        "body": "Er is een nieuwe API-sleutel aangemaakt voor je account. Als jij dit niet was, stel je wachtwoord opnieuw in en controleer je beveiligingsinstellingen."
+      },
+      "apiKeysRevokedByAdmin": {
+        "title": "API-sleutels ingetrokken door een beheerder",
+        "body": "Een beheerder heeft een of meer van je API-sleutels ingetrokken, waardoor niets dat ze gebruikt nog toegang heeft tot je account. Als je dit niet verwachtte, neem dan contact op met je beheerder."
+      },
+      "identityProviderUnlinked": {
+        "title": "Inlogprovider ontkoppeld",
+        "body": "{name} is losgekoppeld van je account. Als jij dit niet was, stel je wachtwoord opnieuw in en controleer je beveiligingsinstellingen.",
+        "bodyGeneric": "Een inlogprovider is losgekoppeld van je account. Als jij dit niet was, stel je wachtwoord opnieuw in en controleer je beveiligingsinstellingen."
+      },
+      "accountLocked": {
+        "title": "Account vergrendeld",
+        "body": "Je account is vergrendeld na 100 mislukte inlogpogingen achter elkaar. Browsers en apps waarmee je hebt ingelogd sinds je laatste beveiligingswijziging kunnen nog steeds inloggen. Als jij deze pogingen niet was, wijzig of reset dan je wachtwoord, waarmee ook de vergrendeling wordt opgeheven."
+      },
+      "mfaLocked": {
+        "title": "Tweestapsverificatie vergrendeld",
+        "body": "Je account is vergrendeld na 100 foute tweestapsverificatiecodes achter elkaar, dus iemand kent je wachtwoord. Browsers en apps waarmee je hebt ingelogd sinds je laatste beveiligingswijziging kunnen nog steeds inloggen. Als jij deze pogingen niet was, wijzig dan je wachtwoord."
+      },
+      "stepUpSessionEnded": {
+        "title": "Sessie uitgelogd",
+        "body": "Een sessie van je account is uitgelogd nadat 15 keer achter elkaar een verkeerd wachtwoord of een verkeerde tweefactorcode is ingevoerd om een gevoelige actie te bevestigen. Je andere sessies zijn niet getroffen. Als jij dit niet was, wijzig dan je wachtwoord."
+      },
+      "stepUpLocked": {
+        "title": "Bevestigen van gevoelige acties vergrendeld",
+        "body": "Het bevestigen van gevoelige acties, zoals het wijzigen van je wachtwoord of het aanmaken van een API-sleutel, is 30 dagen vergrendeld na 100 foutieve bevestigingen in al je sessies samen. Als jij dit niet was, stel dan je wachtwoord opnieuw in; dat heft de vergrendeling ook op."
+      },
+      "backupCodeUsed": {
+        "title": "Herstelcode gebruikt",
+        "body": "Er is een herstelcode gebruikt voor de tweefactorauthenticatie van je account. Als jij dit niet was, wijzig dan je wachtwoord en genereer nieuwe herstelcodes.",
+        "bodyRemaining": "Er is een herstelcode gebruikt voor de tweefactorauthenticatie van je account. Ongebruikte herstelcodes over: {count}. Als jij dit niet was, wijzig dan je wachtwoord en genereer nieuwe herstelcodes.",
+        "bodyNone": "Er is een herstelcode gebruikt voor de tweefactorauthenticatie van je account. Je hebt geen ongebruikte herstelcodes meer, dus genereer nieuwe in je beveiligingsinstellingen. Als jij dit niet was, wijzig dan je wachtwoord."
+      },
+      "refreshTokenReuseDetected": {
+        "title": "Sessie beëindigd",
+        "body": "Een inlogsessie van je account is beëindigd omdat een token dat al was gebruikt opnieuw werd aangeboden, wat kan betekenen dat de sessie is gekopieerd. Je andere sessies zijn niet getroffen. Als je dit niet verwachtte, wijzig dan je wachtwoord."
+      },
+      "roleChangedByAdmin": {
+        "title": "Toegang gewijzigd door een beheerder",
+        "body": "Een beheerder heeft de toegang van je account gewijzigd en je op alle apparaten uitgelogd. Als je dit niet verwachtte, neem dan contact op met je beheerder.",
+        "bodyAdmin": "Een beheerder heeft de toegang van je account gewijzigd naar beheerder en je op alle apparaten uitgelogd. Als je dit niet verwachtte, neem dan contact op met je beheerder.",
+        "bodyRegular": "Een beheerder heeft de toegang van je account gewijzigd naar gewone gebruiker en je op alle apparaten uitgelogd. Als je dit niet verwachtte, neem dan contact op met je beheerder."
+      },
+      "accountDeactivatedByAdmin": {
+        "title": "Account gedeactiveerd door een beheerder",
+        "body": "Een beheerder heeft je account gedeactiveerd en je op alle apparaten uitgelogd. Je kunt pas weer inloggen nadat een beheerder het opnieuw heeft geactiveerd."
+      },
+      "unknown": {
+        "title": "Accountbeveiliging gewijzigd",
+        "body": "Een beveiligingsinstelling van je account is gewijzigd. Als jij dit niet was, stel je wachtwoord opnieuw in en controleer je beveiligingsinstellingen."
+      },
+      "usernameChanged": {
+        "title": "Gebruikersnaam gewijzigd",
+        "body": "Je gebruikersnaam is gewijzigd. Als jij dit niet was, reset dan je wachtwoord en controleer je beveiligingsinstellingen."
+      }
+    },
+    "newDeviceSignIn": {
+      "title": "Nieuwe aanmelding",
+      "body": "Nieuwe aanmelding vanaf {browser} op {os} ({ip}). Als jij dit niet was, wijzig dan je wachtwoord en log uit bij je andere sessies."
+    },
     "adminSignUpApproval": {
       "title": "Nieuwe registratie vereist goedkeuring",
       "body": "{name} ({'@'}{username}) wacht op accountgoedkeuring."
+    },
+    "adminUserPromoted": {
+      "title": "Gebruiker gepromoveerd tot beheerder",
+      "body": "{name} ({'@'}{username}) heeft beheerderstoegang gekregen."
     },
     "unknown": {
       "title": "Melding",

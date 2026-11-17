@@ -11,7 +11,7 @@
     "subtitle": "Durchsuche, filtere und sortiere alle deine Aktivitäten.",
     "searchPlaceholder": "Nach Name oder Ort suchen",
     "clearSearch": "Suche zurücksetzen",
-    "resultCount": "{count} Aktivitäten",
+    "resultCount": "{count} Aktivität | {count} Aktivitäten",
     "filters": {
       "type": "Aktivitätstyp",
       "allTypes": "Alle Typen",
@@ -184,10 +184,13 @@
   },
   "edit": {
     "title": "Aktivität bearbeiten",
+    "loading": "Aktivität wird geladen",
+    "loadError": "Aktivität konnte nicht geladen werden",
     "save": "Änderungen speichern",
     "cancel": "Abbrechen",
     "close": "Schließen",
     "name": "Name",
+    "nameRequired": "Gib einen Namen für die Aktivität ein",
     "type": "Aktivitätstyp",
     "description": "Beschreibung",
     "privateNotes": "Private Notizen",
@@ -208,7 +211,7 @@
     "hideGear": "Ausrüstung verbergen",
     "success": "Aktivität aktualisiert",
     "error": "Aktivität konnte nicht aktualisiert werden",
-    "staleError": "This activity was changed elsewhere while you were editing. Your changes were not saved. Reopen it to see the current version."
+    "staleError": "Diese Aktivität wurde während der Bearbeitung an anderer Stelle geändert. Deine Änderungen wurden nicht gespeichert. Öffne sie erneut, um die aktuelle Version zu sehen."
   },
   "alerts": {
     "hidden": "Diese Aktivität ist versteckt. Nur du kannst sie sehen.",

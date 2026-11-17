@@ -2,15 +2,17 @@
 
 Pure computation over samples and scalars: no session, no ORM, no other module.
 The athlete's max heart rate arrives as the three values it is derived from
-rather than as a user object. Taking ``users.schema.UsersRead`` would make the
+rather than as a user object. Taking ``users.schema.UserRead`` would make the
 streams package depend on another module's *wire type* to read three fields, so
 a change to what a user looks like on the API would change how heart-rate zones
 are computed.
 """
 
 import datetime
+from typing import Annotated, Any, TypedDict
 
 import numpy as np
+from pydantic import Field
 
 import core.timezone as core_timezone
 
@@ -19,6 +21,30 @@ _HR_ZONE_1_PERCENT: float = 0.6
 _HR_ZONE_2_PERCENT: float = 0.7
 _HR_ZONE_3_PERCENT: float = 0.8
 _HR_ZONE_4_PERCENT: float = 0.9
+
+
+class HrZone(TypedDict):
+    """One heart-rate zone of a breakdown.
+
+    Attributes:
+        percent: Share of the heart-rate samples in the zone, 0-100.
+        hr: The zone's heart-rate range, e.g. ``"120 - 139"``.
+        time_seconds: Timer time spent in the zone, in seconds.
+    """
+
+    percent: Annotated[float, Field(description="Share of the heart-rate samples in the zone, as a percentage (0-100)")]
+    hr: Annotated[str, Field(description="The zone's heart-rate range in beats per minute, such as 120 - 139")]
+    time_seconds: Annotated[int, Field(description="Timer time spent in the zone in seconds")]
+
+
+class HrZoneBreakdown(TypedDict):
+    """An activity's time in each of the five heart-rate zones."""
+
+    zone_1: HrZone
+    zone_2: HrZone
+    zone_3: HrZone
+    zone_4: HrZone
+    zone_5: HrZone
 
 
 def resolve_max_heart_rate(
@@ -67,14 +93,14 @@ def _age_in_years(birthdate: datetime.date, timezone_name: str | None) -> int:
 
 
 def compute_hr_zone_breakdown_sync(
-    waypoints: list[dict],
+    waypoints: list[dict[str, Any]],
     max_heart_rate: int,
     total_timer_time: float | None,
-) -> dict | None:
+) -> HrZoneBreakdown | None:
     """Compute the HR zone breakdown for a set of waypoints.
 
     Args:
-        waypoints: List of waypoint dicts (each may contain an "hr" key).
+        waypoints: The stored heart-rate stream: JSON samples, each of which may contain an "hr" key.
         max_heart_rate: The user's max heart rate.
         total_timer_time: Activity total timer time in seconds (may be falsy).
 
@@ -90,7 +116,7 @@ def compute_hr_zone_breakdown_sync(
     zone_4 = max_heart_rate * _HR_ZONE_4_PERCENT
 
     def _compute_zone_counts(
-        waypoints: list[dict],
+        waypoints: list[dict[str, Any]],
         zone_1: float,
         zone_2: float,
         zone_3: float,

@@ -10,6 +10,7 @@
   "settings": "Beállítások",
   "profile": "Profil",
   "logout": "Kijelentkezés",
+  "logoutFailed": "A kijelentkezés nem sikerült. Ellenőrizd a kapcsolatot, és próbáld újra.",
   "userMenu": "Felhasználói menü",
   "menu": "Menü",
   "primary": "Elsődleges navigáció",

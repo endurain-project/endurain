@@ -1,22 +1,19 @@
 """User fitness goals database models."""
 
-from typing import TYPE_CHECKING
+import uuid
+from datetime import datetime
 
-from sqlalchemy import ForeignKey, String
-from sqlalchemy.orm import Mapped, mapped_column, relationship
+from sqlalchemy import DateTime, ForeignKey, String, UniqueConstraint, func
+from sqlalchemy.orm import Mapped, mapped_column
 
 from core.database import Base
 
-if TYPE_CHECKING:
-    from modules.users.users.models import Users
-
 
 class UsersGoal(Base):
-    """
-    User fitness goal tracking model.
+    """User fitness goal tracking model.
 
     Attributes:
-        id: Primary key.
+        id: Primary key, a random UUID.
         user_id: Foreign key to users table.
         interval: Goal time interval (daily, weekly, monthly,
             yearly).
@@ -27,16 +24,16 @@ class UsersGoal(Base):
         goal_distance: Target distance in meters.
         goal_elevation: Target elevation gain in meters.
         goal_duration: Target duration in seconds.
-        user: Relationship to Users model.
+        created_at: When the goal was created.
     """
 
     __tablename__ = "users_goals"
-
-    id: Mapped[int] = mapped_column(
-        primary_key=True,
-        autoincrement=True,
+    __table_args__ = (
+        UniqueConstraint("user_id", "interval", "activity_type", "goal_type", name="uq_users_goals_user_scope"),
     )
-    user_id: Mapped[int] = mapped_column(
+
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    user_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("users.id", ondelete="CASCADE"),
         nullable=False,
         index=True,
@@ -78,5 +75,19 @@ class UsersGoal(Base):
         comment=("Goal duration in seconds (e.g., 3600 for 1 hours)"),
     )
 
-    # Relationship to User
-    users: Mapped["Users"] = relationship(back_populates="goals")
+    version: Mapped[int] = mapped_column(
+        nullable=False,
+        server_default="1",
+        default=1,
+        comment="Optimistic-concurrency counter, surfaced to clients as the ETag",
+    )
+
+    # SQLAlchemy bumps ``version`` on each ORM flush and adds it to the UPDATE's
+    # WHERE clause, raising StaleDataError when the row moved underneath.
+    __mapper_args__ = {"version_id_col": version}  # noqa: RUF012
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+        nullable=False,
+        comment="When the goal was created",
+    )

@@ -2,20 +2,22 @@
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 
-import type { Activity } from '@/features/activities/types'
+import type { ActivitySummary } from '@/features/activities/types'
 import type { Units } from '@/features/activities/utils/format'
 import type { MetricVisibility } from '@/features/activities/utils/metrics'
 
 import { MetricPill } from '@/components/ui/metric-pill'
+import { useUnitFormat } from '@/composables/useUnitFormat'
 import { buildActivityMetrics } from '@/features/activities/utils/metrics'
 
 const props = defineProps<{
-  activity: Activity
+  activity: ActivitySummary
   units: Units
   visibility: MetricVisibility
 }>()
 
 const { t } = useI18n()
+const { unitLabel } = useUnitFormat()
 
 const tiles = computed(() => buildActivityMetrics(props.activity, props.units, props.visibility))
 </script>
@@ -27,7 +29,7 @@ const tiles = computed(() => buildActivityMetrics(props.activity, props.units, p
       :key="tile.key"
       :label="t(tile.labelKey)"
       :value="tile.value"
-      :unit="tile.unit"
+      :unit="tile.unit ? unitLabel(tile.unit) : undefined"
       :accent="tile.accent"
       class=""
     />

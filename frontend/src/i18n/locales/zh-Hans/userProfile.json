@@ -82,5 +82,13 @@
       "ownTitle": "您还没有任何粉丝。",
       "otherTitle": "暂无粉丝。"
     }
+  },
+  "block": {
+    "block": "屏蔽",
+    "unblock": "取消屏蔽",
+    "confirmTitle": "屏蔽 {name}？",
+    "confirmBody": "{name} 将无法请求关注你，你们之间的所有关注关系也将被移除。对方不会收到通知。",
+    "blockError": "无法屏蔽该用户，请重试。",
+    "unblockError": "无法取消屏蔽该用户，请重试。"
   }
 }

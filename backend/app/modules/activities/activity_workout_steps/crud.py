@@ -1,5 +1,7 @@
 """Activity workout steps CRUD operations."""
 
+import uuid
+
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
@@ -10,7 +12,7 @@ import modules.activities.activity_workout_steps.serializers as activity_workout
 
 
 def get_activity_workout_steps(
-    activity_id: int,
+    activity_id: uuid.UUID,
     db: Session,
     *,
     page_number: int = 1,
@@ -33,7 +35,11 @@ def get_activity_workout_steps(
     stmt = (
         select(activity_workout_steps_models.ActivityWorkoutSteps)
         .where(activity_workout_steps_models.ActivityWorkoutSteps.activity_id == activity_id)
-        .order_by(activity_workout_steps_models.ActivityWorkoutSteps.id)
+        # Steps follow the workout's message index; the id only breaks a tie so paging is stable.
+        .order_by(
+            activity_workout_steps_models.ActivityWorkoutSteps.message_index,
+            activity_workout_steps_models.ActivityWorkoutSteps.id,
+        )
         .offset((page_number - 1) * num_records)
         .limit(num_records)
     )
@@ -42,7 +48,7 @@ def get_activity_workout_steps(
     return [activity_workout_steps_serializers.to_read_schema(step) for step in workout_steps]
 
 
-def count_activity_workout_steps(activity_id: int, db: Session) -> int:
+def count_activity_workout_steps(activity_id: uuid.UUID, db: Session) -> int:
     """Count an activity's planned workout steps.
 
     Args:
@@ -61,7 +67,7 @@ def count_activity_workout_steps(activity_id: int, db: Session) -> int:
 
 
 def get_activities_workout_steps(
-    activity_ids: list[int],
+    activity_ids: list[uuid.UUID],
     db: Session,
 ) -> list[activity_workout_steps_schema.ActivityWorkoutStepsRead]:
     """Retrieve the workout steps of several activities at once.
@@ -88,7 +94,7 @@ def get_activities_workout_steps(
 
 def create_activity_workout_steps(
     activity_workout_steps: list[activity_workout_steps_contracts.ActivityWorkoutStepsCreate],
-    activity_id: int,
+    activity_id: uuid.UUID,
     db: Session,
 ) -> None:
     """Stage workout steps for an activity (flushed, not committed).

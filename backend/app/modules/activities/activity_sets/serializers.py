@@ -3,6 +3,8 @@
 ``crud`` calls these at its edges so ORM rows never leave the persistence layer.
 """
 
+import uuid
+
 from pydantic import BaseModel
 
 import modules.activities.activity_sets.contracts as activity_sets_contracts
@@ -25,15 +27,15 @@ def to_read_schema(
 
 
 def _extract_value(
-    value: int | tuple | None,
-) -> int | None:
-    """Extract a scalar from a value that may be a tuple.
+    value: object,
+) -> object:
+    """Extract a scalar from a raw FIT value that may be a tuple.
 
     Args:
-        value: A scalar, tuple, or None.
+        value: A raw FIT value from a parsed set row: a scalar, a tuple whose first item is the scalar, or None.
 
     Returns:
-        The extracted integer value or None.
+        The scalar, or None.
     """
     if value is None:
         return None
@@ -43,8 +45,8 @@ def _extract_value(
 
 
 def to_orm(
-    activity_set: activity_sets_contracts.ActivitySetsCreate | list,
-    activity_id: int,
+    activity_set: activity_sets_contracts.ActivitySetsCreate | list[object],
+    activity_id: uuid.UUID,
 ) -> activity_sets_models.ActivitySets:
     """Build an ORM row from a set schema or a raw FIT parser row.
 

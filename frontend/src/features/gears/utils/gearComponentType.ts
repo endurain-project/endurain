@@ -1,17 +1,17 @@
 import { GEAR_TYPE } from '@/features/gears/utils/gearType'
-import type { GearComponentTypeLists } from '@/features/gears/types'
+import type { GearComponentTypeLists, GearType } from '@/features/gears/types'
 
 /** The component-catalogue families exposed by the backend, by gear family. */
 export type ComponentTypeListKey = keyof GearComponentTypeLists
 
 /**
- * Maps a numeric gear type to its component-catalogue key, or `null` when the
+ * Maps a gear type to its component-catalogue key, or `null` when the
  * gear family tracks no components (wetsuits, skis, snowboards, boards).
  *
- * @param gearType - The numeric gear-type identifier (1–8).
+ * @param gearType - The gear type.
  * @returns The catalogue key, or `null` when the family has no components.
  */
-export function componentTypeListKey(gearType: number): ComponentTypeListKey | null {
+export function componentTypeListKey(gearType: GearType): ComponentTypeListKey | null {
   switch (gearType) {
     case GEAR_TYPE.BICYCLE:
       return 'bike'
@@ -29,10 +29,10 @@ export function componentTypeListKey(gearType: number): ComponentTypeListKey | n
 /**
  * Whether a gear family supports components (and so should offer "add").
  *
- * @param gearType - The numeric gear-type identifier (1–8).
+ * @param gearType - The gear type.
  * @returns `true` when the family has a component catalogue.
  */
-export function gearTypeSupportsComponents(gearType: number): boolean {
+export function gearTypeSupportsComponents(gearType: GearType): boolean {
   return componentTypeListKey(gearType) !== null
 }
 
@@ -40,10 +40,10 @@ export function gearTypeSupportsComponents(gearType: number): boolean {
  * Whether a gear family tracks component wear by **time** (the racquet family)
  * rather than by **distance** (every other family).
  *
- * @param gearType - The numeric gear-type identifier (1–8).
+ * @param gearType - The gear type.
  * @returns `true` when wear is measured in time, `false` for distance.
  */
-export function isTimeBasedGear(gearType: number): boolean {
+export function isTimeBasedGear(gearType: GearType): boolean {
   return gearType === GEAR_TYPE.RACQUET
 }
 

@@ -1,9 +1,11 @@
 """Public addressing operations for activity thumbnails."""
 
+import uuid
+
 import modules.activities.activity_thumbnail.signing as activity_thumbnail_signing
 
 
-def thumbnail_url(key: str | None, activity_id: int) -> str | None:
+def thumbnail_url(key: str | None, activity_id: uuid.UUID) -> str | None:
     """Resolve a stored thumbnail key to a servable capability URL.
 
     Args:
