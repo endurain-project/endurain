@@ -85,6 +85,12 @@ _UNAUTHENTICATED_OUTSIDE_PUBLIC: dict[str, str] = {
     "GET /users/{user_id}/photo": "a signed URL that an image tag follows, no header",
 }
 
+#: Paths a page names on purpose although the API has no such route, as ``"<page>: <path>"``. Permanent; the
+#: value is the reason.
+_DOCUMENTED_REMOVED_PATHS: dict[str, str] = {
+    "integrate/changes-v0.20-to-v0.21.md: /profile/mfa/verify": "the changes page names a route v0.21 removed",
+}
+
 
 #: Route handlers whose docstring carries a Google section, as ``{path relative to app/: handlers}``. Move the
 #: section's content into ``Field``/``Query`` descriptions or ``responses`` and lower the count (HTTP-10).
@@ -895,7 +901,7 @@ class TestApiContract:
                 if not any(_same_path(segments, other[: len(segments)]) for other in known):
                     missing.add(f"{name}: /{'/'.join(segments)}")
 
-        _compare("A documented path is not in the API", missing, {}, "Fix the page or the route")
+        _compare("A documented path is not in the API", missing, _DOCUMENTED_REMOVED_PATHS, "Fix the page or the route")
 
     def test_no_route_uses_a_reserved_path(self):
         """No route lives under a path reserved for a planned feature, so adding that feature stays additive."""
