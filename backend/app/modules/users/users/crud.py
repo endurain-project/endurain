@@ -45,8 +45,8 @@ def _get_user_model_by_id(user_id: uuid.UUID, db: Session) -> users_models.Users
     return db_user
 
 
-def _filtered[RowT: tuple[object, ...]](
-    stmt: Select[RowT],
+def _filtered[*Ts](
+    stmt: Select[*Ts],
     *,
     active: bool | None = None,
     email_verified: bool | None = None,
@@ -54,9 +54,9 @@ def _filtered[RowT: tuple[object, ...]](
     username: str | None = None,
     username_contains: str | None = None,
     external_auth: bool | None = None,
-    linked_user_ids: Select[tuple[uuid.UUID]] | None = None,
+    linked_user_ids: Select[uuid.UUID] | None = None,
     exclude_user_ids: Collection[uuid.UUID] = (),
-) -> Select[RowT]:
+) -> Select[*Ts]:
     """Apply the optional list filters to a users statement.
 
     Args:
@@ -102,7 +102,7 @@ def get_users_number(
     username: str | None = None,
     username_contains: str | None = None,
     external_auth: bool | None = None,
-    linked_user_ids: Select[tuple[uuid.UUID]] | None = None,
+    linked_user_ids: Select[uuid.UUID] | None = None,
     exclude_user_ids: Collection[uuid.UUID] = (),
 ) -> int:
     """Count users matching the optional list filters.
@@ -146,7 +146,7 @@ def get_users_with_pagination(
     username: str | None = None,
     username_contains: str | None = None,
     external_auth: bool | None = None,
-    linked_user_ids: Select[tuple[uuid.UUID]] | None = None,
+    linked_user_ids: Select[uuid.UUID] | None = None,
     exclude_user_ids: Collection[uuid.UUID] = (),
 ) -> list[users_schema.UserRead]:
     """Retrieve a page of users, ordered by username, with optional filters.
@@ -300,7 +300,7 @@ def get_photo_keys_by_user_ids(user_ids: list[uuid.UUID], db: Session) -> dict[u
     stmt = select(users_models.Users.id, users_models.Users.photo_path).where(
         users_models.Users.id.in_(user_ids), users_models.Users.photo_path.is_not(None)
     )
-    return {user_id: photo for user_id, photo in db.execute(stmt).all()}
+    return {user_id: photo for user_id, photo in db.execute(stmt).all() if photo is not None}
 
 
 def replace_photo_key(user_id: uuid.UUID, photo_key: str | None, db: Session) -> str | None:
@@ -526,7 +526,7 @@ def approve_pending_user(user_id: uuid.UUID, db: Session) -> bool:
 
 
 def lock_unverified_sign_ups(
-    created_before: datetime, held_user_ids: Sequence[Select[tuple[uuid.UUID]]], limit: int, db: Session
+    created_before: datetime, held_user_ids: Sequence[Select[uuid.UUID]], limit: int, db: Session
 ) -> list[uuid.UUID]:
     """Lock up to ``limit`` unverified self sign-ups created before ``created_before`` and return their ids.
 

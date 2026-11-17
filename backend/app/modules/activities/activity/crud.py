@@ -165,12 +165,12 @@ def _visible_to_requester_condition(followee_ids: Sequence[uuid.UUID] | None) ->
     )
 
 
-def _apply_activity_visibility_filter[RowT: tuple[object, ...]](
-    stmt: Select[RowT],
+def _apply_activity_visibility_filter[*Ts](
+    stmt: Select[*Ts],
     *,
     user_is_owner: bool,
     followee_ids: Sequence[uuid.UUID] | None,
-) -> Select[RowT]:
+) -> Select[*Ts]:
     """Apply non-owner visibility filtering to an activity query.
 
     Args:
@@ -189,8 +189,8 @@ def _apply_activity_visibility_filter[RowT: tuple[object, ...]](
     return stmt.where(_visible_to_requester_condition(followee_ids))
 
 
-def _apply_user_activity_filters[RowT: tuple[object, ...]](
-    stmt: Select[RowT],
+def _apply_user_activity_filters[*Ts](
+    stmt: Select[*Ts],
     *,
     activity_type: activity_constants.ActivityType | None,
     start_date: date | None,
@@ -199,7 +199,7 @@ def _apply_user_activity_filters[RowT: tuple[object, ...]](
     user_is_owner: bool,
     followee_ids: Sequence[uuid.UUID] | None,
     gear_id: uuid.UUID | None = None,
-) -> Select[RowT]:
+) -> Select[*Ts]:
     """Apply the filters shared by the activity list, page and count queries.
 
     One definition, so a page and its total cannot disagree on what matched.
@@ -501,7 +501,7 @@ def sum_user_activities_per_timeframe_by_type(
         stmt = stmt.where(activity.hide_start_time.is_(False))
     return [
         activity_contracts.ActivityTypeTotals(
-            activity_type=activity_type, distance=float(distance), time=float(time), calories=float(calories)
+            activity_type=activity_type, distance=float(distance), time=float(time), calories=float(calories or 0)
         )
         for activity_type, distance, time, calories in db.execute(stmt).all()
     ]
@@ -549,9 +549,9 @@ def sum_user_activities_per_timeframe_and_activity_types(
     count, calories, distance, elevation_gain, elapsed_time = db.execute(stmt).one()
     return activity_contracts.ActivityTotals(
         count=count,
-        calories=float(calories),
+        calories=float(calories or 0),
         distance=float(distance),
-        elevation_gain=float(elevation_gain),
+        elevation_gain=float(elevation_gain or 0),
         elapsed_time=float(elapsed_time),
     )
 

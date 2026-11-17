@@ -100,6 +100,6 @@ def get_password_hasher() -> credentials_password_hasher.PasswordHasher:
     return credentials_password_hasher.get_password_hasher()
 
 
-def select_credentialed_user_ids() -> Select[tuple[uuid.UUID]]:
+def select_credentialed_user_ids() -> Select[uuid.UUID]:
     """Return a query for the ids of the users who have a local credential, for a caller to filter with."""
     return credentials_crud.select_credentialed_user_ids()

@@ -116,9 +116,9 @@ def get_gear_components_user(
     return [gear_components_serializers.to_read_schema(row) for row in db.execute(stmt).scalars().all()]
 
 
-def _filter_gear_components[RowT: tuple[object, ...]](
-    stmt: Select[RowT], user_id: uuid.UUID, gear_id: uuid.UUID, *, active: bool | None
-) -> Select[RowT]:
+def _filter_gear_components[*Ts](
+    stmt: Select[*Ts], user_id: uuid.UUID, gear_id: uuid.UUID, *, active: bool | None
+) -> Select[*Ts]:
     """Scope a component statement to one of a user's gears and the active filter.
 
     Args:

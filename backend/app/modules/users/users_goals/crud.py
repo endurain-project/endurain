@@ -59,13 +59,13 @@ def _select_goal(user_id: uuid.UUID, goal_id: uuid.UUID, db: Session) -> user_go
     return db_goal
 
 
-def _filtered_goals[RowT: tuple[object, ...]](
-    stmt: Select[RowT],
+def _filtered_goals[*Ts](
+    stmt: Select[*Ts],
     user_id: uuid.UUID,
     interval: user_goals_schema.Interval | None,
     activity_type: user_goals_schema.GoalActivityType | None,
     goal_type: user_goals_schema.GoalType | None,
-) -> Select[RowT]:
+) -> Select[*Ts]:
     """Restrict a goals statement to one user's goals and the optional filters.
 
     Args:

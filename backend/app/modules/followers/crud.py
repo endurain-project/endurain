@@ -64,7 +64,7 @@ def _filtered(
     user_id: uuid.UUID,
     accepted_only: bool,
     pending_only: bool,
-) -> Select[tuple[followers_models.Follower]]:
+) -> Select[followers_models.Follower]:
     """Select the follow rows where ``column`` is the user, optionally of one status.
 
     Args:

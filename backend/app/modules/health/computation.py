@@ -164,7 +164,7 @@ def date_bounds(column: SQLColumnExpression[date], since: date | None, until: da
 
 def owned_record_statement[ModelT: OwnedRecord](
     model: type[ModelT], record_id: uuid.UUID, user_id: uuid.UUID
-) -> Select[tuple[ModelT]]:
+) -> Select[ModelT]:
     """Build the query for a user's record by id.
 
     Args:
@@ -180,7 +180,7 @@ def owned_record_statement[ModelT: OwnedRecord](
 
 def owned_record_exists_statement[ModelT: OwnedRecord](
     model: type[ModelT], record_id: uuid.UUID, user_id: uuid.UUID
-) -> Select[tuple[bool]]:
+) -> Select[bool]:
     """Build the query that reports whether a user has a record.
 
     Args:
@@ -201,7 +201,7 @@ def user_record_count_statement[ModelT: OwnedRecord](
     since: date | None,
     until: date | None,
     conditions: Sequence[ColumnElement[bool]] = (),
-) -> Select[tuple[int]]:
+) -> Select[int]:
     """Build the query that counts a user's records.
 
     Args:
@@ -232,7 +232,7 @@ def user_records_statement[ModelT: OwnedRecord](
     page_number: int | None,
     num_records: int | None,
     conditions: Sequence[ColumnElement[bool]] = (),
-) -> Select[tuple[ModelT]]:
+) -> Select[ModelT]:
     """Build the query for a user's records, newest first, optionally bounded and paginated.
 
     Args:

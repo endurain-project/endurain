@@ -51,7 +51,7 @@ def delete_credential(user_id: uuid.UUID, db: Session) -> None:
     db.flush()
 
 
-def select_credentialed_user_ids() -> Select[tuple[uuid.UUID]]:
+def select_credentialed_user_ids() -> Select[uuid.UUID]:
     """Return a query for the ids of the users who have a local credential.
 
     Returns:

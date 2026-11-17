@@ -520,7 +520,7 @@ def read_deletion_job(
 
 
 def stage_unverified_sign_up_purge(
-    created_before: datetime, held_user_ids: Sequence[Select[tuple[uuid.UUID]]], limit: int, db: Session
+    created_before: datetime, held_user_ids: Sequence[Select[uuid.UUID]], limit: int, db: Session
 ) -> int:
     """Stage the deletion of up to ``limit`` unverified self sign-ups created before ``created_before``.
 

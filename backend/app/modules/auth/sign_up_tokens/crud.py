@@ -254,7 +254,7 @@ def delete_expired_sign_up_tokens(now: datetime, limit: int, db: Session) -> int
     return matched
 
 
-def select_users_with_live_token_ids(now: datetime) -> Select[tuple[uuid.UUID]]:
+def select_users_with_live_token_ids(now: datetime) -> Select[uuid.UUID]:
     """Return a query for the ids of the users who hold a token that is unused and unexpired at ``now``.
 
     Args:

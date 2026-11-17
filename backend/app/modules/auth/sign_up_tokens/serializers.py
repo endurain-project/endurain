@@ -14,7 +14,7 @@ def to_state(row: sign_up_models.SignUpToken) -> sign_up_contracts.SignUpTokenSt
 
 
 def to_claim(
-    row: Row[tuple[uuid.UUID, uuid.UUID, str | None, str | None, int | None]],
+    row: Row[uuid.UUID, uuid.UUID, str | None, str | None, int | None],
 ) -> sign_up_contracts.SignUpTokenClaim:
     """Return the claim contract for the columns a token claim returned.
 

@@ -24,10 +24,10 @@ import modules.activities.activity.query as activity_query
 import modules.activities.activity.summary_schema as activity_summary_schema
 
 
-def _apply_activity_type_filter(
-    stmt: Select[Any],
+def _apply_activity_type_filter[*Ts](
+    stmt: Select[*Ts],
     activity_type: activity_constants.ActivityType | None,
-) -> Select[Any]:
+) -> Select[*Ts]:
     """Apply the activity type filter to a statement.
 
     Args:

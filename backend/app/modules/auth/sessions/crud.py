@@ -266,7 +266,7 @@ def delete_idle_sessions(cutoff_time: datetime, limit: int, db: Session) -> list
     return _delete_sessions(select(model.id).where(model.last_activity_at < cutoff_time).limit(limit), db)
 
 
-def _delete_sessions(session_ids: Select[tuple[uuid.UUID]], db: Session) -> list[tuple[uuid.UUID, uuid.UUID]]:
+def _delete_sessions(session_ids: Select[uuid.UUID], db: Session) -> list[tuple[uuid.UUID, uuid.UUID]]:
     """Stage deletion of the sessions a query selects.
 
     Args:

@@ -151,7 +151,7 @@ def delete_all_user_identity_providers(user_id: uuid.UUID, db: Session) -> int:
     return matched
 
 
-def select_linked_user_ids() -> Select[tuple[uuid.UUID]]:
+def select_linked_user_ids() -> Select[uuid.UUID]:
     """Return a query for the ids of the users who have at least one identity-provider link.
 
     Returns:
