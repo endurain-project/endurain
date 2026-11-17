@@ -60,7 +60,7 @@
   "ssoAccountDisabled": "Ez a fiók le van tiltva",
   "ssoAutoCreateDisabled": "Az automatikus fióklétrehozás le van tiltva",
   "ssoEmailMissing": "Az identitásszolgáltató nem osztott meg e-mail-címet, ezért nem lehetett fiókot létrehozni. Kérd meg a rendszergazdát, hogy ellenőrizze a szolgáltató e-mail-beállításait.",
-  "ssoEmailUnverified": "Az identitásszolgáltató nem ellenőrizte az e-mail-címedet, a szervernek pedig új fiókhoz ellenőrzött címre van szüksége. Ellenőrizd az e-mail-címedet az identitásszolgáltatónál, majd próbáld újra.",
+  "ssoEmailUnverified": "Az identitásszolgáltató nem ellenőrizte az e-mail-címedet, az Endurainnek pedig ellenőrzött címre van szüksége a bejelentkeztetéshez. Ellenőrizd az e-mail-címedet az identitásszolgáltatónál, majd próbáld újra.",
   "ssoLinkByEmailDisabled": "Ezzel az e-mail-címmel már létezik fiók, és ez az identitásszolgáltató nem köt össze fiókokat e-mail-cím alapján. Jelentkezz be a jelszavaddal, majd kösd össze a szolgáltatót a Beállítások → Biztonság oldalon.",
   "ssoErrorUndefined": "Az egyszeri bejelentkezés sikertelen",
   "noLoginMethods": "Ezen a kiszolgálón nincs engedélyezett bejelentkezési mód",

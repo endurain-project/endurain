@@ -60,7 +60,7 @@
   "ssoAccountDisabled": "Tämä tili on poistettu käytöstä",
   "ssoAutoCreateDisabled": "Automaattinen tilin luonti on poistettu käytöstä",
   "ssoEmailMissing": "Tunnistuspalvelu ei jakanut sähköpostiosoitetta, joten tiliä ei voitu luoda. Pyydä ylläpitäjääsi tarkistamaan palvelun sähköpostiasetukset.",
-  "ssoEmailUnverified": "Identiteetintarjoaja ei ole vahvistanut sähköpostiosoitettasi, ja tämä palvelin vaatii vahvistetun osoitteen uutta tiliä varten. Vahvista sähköpostisi identiteetintarjoajalla ja yritä sitten uudelleen.",
+  "ssoEmailUnverified": "Identiteetintarjoaja ei ole vahvistanut sähköpostiosoitettasi, ja Endurain tarvitsee vahvistetun osoitteen kirjauttaakseen sinut sisään. Vahvista sähköpostisi identiteetintarjoajalla ja yritä sitten uudelleen.",
   "ssoLinkByEmailDisabled": "Tällä sähköpostilla on jo tili, eikä tämä identiteetintarjoaja linkitä tilejä sähköpostin perusteella. Kirjaudu sisään salasanallasi ja linkitä tarjoaja sitten kohdasta Asetukset → Tietoturva.",
   "ssoErrorUndefined": "Kertakirjautuminen epäonnistui",
   "noLoginMethods": "Tällä palvelimella ei ole käytössä kirjautumistapoja",

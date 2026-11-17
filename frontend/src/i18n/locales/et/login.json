@@ -60,7 +60,7 @@
   "ssoAccountDisabled": "See konto on keelatud",
   "ssoAutoCreateDisabled": "Automaatne konto loomine on keelatud",
   "ssoEmailMissing": "Identiteedipakkuja ei jaganud e-posti aadressi, mistõttu kontot ei saanud luua. Palu administraatoril kontrollida pakkuja e-posti seadeid.",
-  "ssoEmailUnverified": "Identiteedipakkuja ei ole sinu e-posti aadressi kinnitanud ja see server nõuab uue konto jaoks kinnitatud aadressi. Kinnita oma e-post identiteedipakkujas ja proovi siis uuesti.",
+  "ssoEmailUnverified": "Identiteedipakkuja ei ole sinu e-posti aadressi kinnitanud ja Endurain vajab sisselogimiseks kinnitatud aadressi. Kinnita oma e-post identiteedipakkujas ja proovi siis uuesti.",
   "ssoLinkByEmailDisabled": "Selle e-posti aadressiga konto on juba olemas ja see identiteedipakkuja ei seo kontosid e-posti kaudu. Logi sisse oma parooliga ja seo pakkuja seejärel valikust Seaded → Turvalisus.",
   "ssoErrorUndefined": "Ühekordne sisselogimine ebaõnnestus",
   "noLoginMethods": "Selles serveris pole ühtegi sisselogimismeetodit lubatud",

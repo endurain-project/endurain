@@ -349,6 +349,19 @@ describe('maybeAutoRedirect', () => {
     await vi.waitFor(() => expect(assignMock).toHaveBeenCalledTimes(1))
   })
 
+  it('does not auto-redirect when several providers are enabled', async () => {
+    const { maybeAutoRedirect } = useSsoLogin()
+
+    maybeAutoRedirect(
+      settings,
+      [{ slug: 'acme' }, { slug: 'other' }] as IdentityProviderPublic[],
+      false,
+    )
+    await new Promise((resolve) => setTimeout(resolve, 0))
+
+    expect(assignMock).not.toHaveBeenCalled()
+  })
+
   it.each([
     'logoutSuccess',
     'sessionExpired',

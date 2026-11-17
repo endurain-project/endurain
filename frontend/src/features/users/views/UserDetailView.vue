@@ -29,6 +29,7 @@ import { Card } from '@/components/ui/card'
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 import { ErrorState } from '@/components/ui/error-state'
 import { Skeleton } from '@/components/ui/skeleton'
+import { usePublicServerSettings } from '@/features/config/composables/usePublicServerSettings'
 import { useCurrentUser } from '@/features/auth/composables/useCurrentUser'
 import { useToasts } from '@/composables/useToasts'
 import { consumeIdpStepUpReturn } from '@/features/security/composables/useIdpStepUp'
@@ -159,6 +160,13 @@ function removePhoto(): void {
 // Pending sign-up moderation: approve clears the pending flag; reject deletes the
 // account (after the administrator's step-up) and returns to the list.
 const approveMutation = useApproveUserMutation()
+const { serverSettings } = usePublicServerSettings()
+
+/** Whether approving is refused because the server requires a verified email. */
+const approveBlocked = computed(
+  () =>
+    serverSettings.value.signup_require_email_verification && user.value?.emailVerified === false,
+)
 const isRejectOpen = ref(false)
 
 /** Approves the pending sign-up. */
@@ -329,23 +337,16 @@ function approve(): void {
           <p class="text-hint">{{ t('settings.users.approval.subtitle') }}</p>
         </div>
         <div class="flex flex-wrap gap-2">
-          <Button
-            :disabled="approveMutation.isPending.value || !user.emailVerified"
-            @click="approve"
-          >
+          <Button :disabled="approveMutation.isPending.value || approveBlocked" @click="approve">
             <Check class="size-4" aria-hidden="true" />
             {{ t('settings.users.approval.approve') }}
           </Button>
-          <Button
-            variant="destructive"
-            :disabled="!user.emailVerified"
-            @click="isRejectOpen = true"
-          >
+          <Button variant="destructive" @click="isRejectOpen = true">
             <X class="size-4" aria-hidden="true" />
             {{ t('settings.users.approval.reject') }}
           </Button>
         </div>
-        <p v-if="!user.emailVerified" class="text-hint">
+        <p v-if="approveBlocked" class="text-hint">
           {{ t('settings.users.approval.emailUnverifiedHint') }}
         </p>
       </Card>

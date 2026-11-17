@@ -60,7 +60,7 @@
   "ssoAccountDisabled": "Acest cont este dezactivat",
   "ssoAutoCreateDisabled": "Crearea automată a contului este dezactivată",
   "ssoEmailMissing": "Furnizorul de identitate nu a transmis o adresă de e-mail, așa că nu s-a putut crea un cont. Roagă-ți administratorul să verifice setările de e-mail ale furnizorului.",
-  "ssoEmailUnverified": "Furnizorul de identitate nu ți-a verificat adresa de e-mail, iar acest server necesită o adresă verificată pentru un cont nou. Verifică-ți e-mailul la furnizorul de identitate, apoi încearcă din nou.",
+  "ssoEmailUnverified": "Furnizorul de identitate nu ți-a verificat adresa de e-mail, iar Endurain are nevoie de o adresă verificată pentru a te autentifica. Verifică-ți e-mailul la furnizorul de identitate, apoi încearcă din nou.",
   "ssoLinkByEmailDisabled": "Există deja un cont cu acest e-mail, iar acest furnizor de identitate nu asociază conturile după e-mail. Autentifică-te cu parola, apoi asociază furnizorul din Setări → Securitate.",
   "ssoErrorUndefined": "Autentificarea unică a eșuat",
   "noLoginMethods": "Nicio metodă de autentificare nu este activată pe acest server",

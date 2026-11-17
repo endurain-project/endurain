@@ -260,7 +260,7 @@ When Endurain creates an account at the first sign-in, it never builds the usern
 
 Under **Settings → Server settings → Access & security**, the **Auto-redirect to SSO** option skips the login page's provider picker and immediately sends unauthenticated users to your identity provider. It only takes effect when:
 
-- **Enable SSO / single sign-on** is on and an identity provider is enabled (with more than one, users are sent to the first one the login page lists, in name order)
+- **Enable SSO / single sign-on** is on and exactly one identity provider is enabled (with more than one, the login page is shown as usual and users pick a provider)
 - **Allow local username and password login** is turned **off**
 
 If **Allow local username and password login** is enabled, the auto-redirect is skipped and the login page is shown as usual (with both the local form and SSO buttons available).

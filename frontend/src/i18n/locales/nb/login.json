@@ -60,7 +60,7 @@
   "ssoAccountDisabled": "Denne kontoen er deaktivert",
   "ssoAutoCreateDisabled": "Automatisk oppretting av konto er deaktivert",
   "ssoEmailMissing": "Identitetsleverandøren delte ikke en e-postadresse, så det kunne ikke opprettes en konto. Be administratoren din om å sjekke e-postinnstillingene til leverandøren.",
-  "ssoEmailUnverified": "Identitetsleverandøren har ikke bekreftet e-postadressen din, og denne serveren krever en bekreftet adresse for en ny konto. Bekreft e-posten din hos identitetsleverandøren, og prøv igjen.",
+  "ssoEmailUnverified": "Identitetsleverandøren har ikke bekreftet e-postadressen din, og Endurain trenger en bekreftet adresse for å logge deg inn. Bekreft e-posten din hos identitetsleverandøren, og prøv igjen.",
   "ssoLinkByEmailDisabled": "Det finnes allerede en konto med denne e-postadressen, og denne identitetsleverandøren kobler ikke kontoer via e-post. Logg inn med passordet ditt, og koble deretter til leverandøren fra Innstillinger → Sikkerhet.",
   "ssoErrorUndefined": "Enkel pålogging mislyktes",
   "noLoginMethods": "Ingen innloggingsmetoder er aktivert på denne serveren",

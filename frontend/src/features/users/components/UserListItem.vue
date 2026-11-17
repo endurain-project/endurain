@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { RouterLink } from 'vue-router'
 import { Check, KeyRound, Pencil, Trash2, X } from '@lucide/vue'
@@ -8,15 +9,16 @@ import type { ManagedUser } from '@/features/users/types'
 import UserAvatar from '@/components/UserAvatar.vue'
 import UserStatusBadges from '@/features/users/components/UserStatusBadges.vue'
 import { Button } from '@/components/ui/button'
+import { usePublicServerSettings } from '@/features/config/composables/usePublicServerSettings'
 
 /**
  * One row in the admin users list: avatar, identity, status badges, and the
  * reset-password / edit / delete actions. Deleting the current user is
  * disallowed, so the delete action is hidden for the signed-in admin's own row.
- * A sign-up awaiting approval also gets approve / reject actions, disabled until
- * the user's email is verified.
+ * A sign-up awaiting approval also gets approve / reject actions; approve is disabled
+ * until the user's email is verified when the server requires that for sign-ups.
  */
-defineProps<{
+const props = defineProps<{
   /** The user to render. */
   user: ManagedUser
   /** Whether this row is the signed-in admin's own account. */
@@ -32,6 +34,12 @@ const emit = defineEmits<{
 }>()
 
 const { t } = useI18n()
+const { serverSettings } = usePublicServerSettings()
+
+/** Whether approving is refused because the server requires a verified email. */
+const approveBlocked = computed(
+  () => serverSettings.value.signup_require_email_verification && !props.user.emailVerified,
+)
 </script>
 
 <template>
@@ -63,7 +71,7 @@ const { t } = useI18n()
         <Button
           variant="ghost"
           size="icon-sm"
-          :disabled="!user.emailVerified"
+          :disabled="approveBlocked"
           :aria-label="t('settings.users.approval.approve')"
           @click="emit('approve', user)"
         >
@@ -72,7 +80,6 @@ const { t } = useI18n()
         <Button
           variant="ghostDestructive"
           size="icon-sm"
-          :disabled="!user.emailVerified"
           :aria-label="t('settings.users.approval.reject')"
           @click="emit('reject', user)"
         >

@@ -60,7 +60,7 @@
   "ssoAccountDisabled": "Dieses Konto ist deaktiviert",
   "ssoAutoCreateDisabled": "Automatische Kontoerstellung ist deaktiviert",
   "ssoEmailMissing": "Der Identitätsanbieter hat keine E-Mail-Adresse übermittelt, daher konnte kein Konto erstellt werden. Bitte deinen Administrator, die E-Mail-Einstellungen des Anbieters zu prüfen.",
-  "ssoEmailUnverified": "Der Identitätsanbieter hat deine E-Mail-Adresse nicht bestätigt, und dieser Server benötigt für ein neues Konto eine bestätigte Adresse. Bestätige deine E-Mail-Adresse beim Identitätsanbieter und versuche es dann erneut.",
+  "ssoEmailUnverified": "Der Identitätsanbieter hat deine E-Mail-Adresse nicht bestätigt, und Endurain benötigt eine bestätigte Adresse, um dich anzumelden. Bestätige deine E-Mail-Adresse beim Identitätsanbieter und versuche es dann erneut.",
   "ssoLinkByEmailDisabled": "Ein Konto mit dieser E-Mail-Adresse existiert bereits, und dieser Identitätsanbieter verknüpft Konten nicht per E-Mail. Melde dich mit deinem Passwort an und verknüpfe den Anbieter dann unter Einstellungen → Sicherheit.",
   "ssoErrorUndefined": "Single Sign-On fehlgeschlagen",
   "noLoginMethods": "Auf diesem Server sind keine Anmeldemethoden aktiviert",

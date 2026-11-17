@@ -60,7 +60,7 @@
   "ssoAccountDisabled": "Tento účet je deaktivovaný",
   "ssoAutoCreateDisabled": "Automatické vytváranie účtov je vypnuté",
   "ssoEmailMissing": "Poskytovateľ identity nezdieľal e-mailovú adresu, takže sa nepodarilo vytvoriť účet. Požiadajte správcu, aby skontroloval e-mailové nastavenia poskytovateľa.",
-  "ssoEmailUnverified": "Poskytovateľ identity neoveril vašu e-mailovú adresu a tento server vyžaduje pre nový účet overenú adresu. Overte e-mail u poskytovateľa identity a skúste to znova.",
+  "ssoEmailUnverified": "Poskytovateľ identity neoveril vašu e-mailovú adresu a Endurain potrebuje na prihlásenie overenú adresu. Overte e-mail u poskytovateľa identity a skúste to znova.",
   "ssoLinkByEmailDisabled": "Účet s týmto e-mailom už existuje a tento poskytovateľ identity nepripája účty podľa e-mailu. Prihláste sa heslom a potom pripojte poskytovateľa v Nastavenia → Zabezpečenie.",
   "ssoErrorUndefined": "Jednotné prihlásenie zlyhalo",
   "noLoginMethods": "Na tomto serveri nie sú povolené žiadne metódy prihlásenia",

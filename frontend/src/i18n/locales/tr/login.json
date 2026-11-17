@@ -60,7 +60,7 @@
   "ssoAccountDisabled": "Bu hesap devre dışı",
   "ssoAutoCreateDisabled": "Otomatik hesap oluşturma devre dışı",
   "ssoEmailMissing": "Kimlik sağlayıcı bir e-posta adresi paylaşmadığı için hesap oluşturulamadı. Yöneticinizden sağlayıcının e-posta ayarlarını kontrol etmesini isteyin.",
-  "ssoEmailUnverified": "Kimlik sağlayıcı e-posta adresinizi doğrulamadı ve bu sunucu yeni bir hesap için doğrulanmış bir adres gerektiriyor. E-postanızı kimlik sağlayıcıda doğrulayın, ardından tekrar deneyin.",
+  "ssoEmailUnverified": "Kimlik sağlayıcı e-posta adresinizi doğrulamadı ve Endurain'in oturum açmanız için doğrulanmış bir adrese ihtiyacı var. E-postanızı kimlik sağlayıcıda doğrulayın, ardından tekrar deneyin.",
   "ssoLinkByEmailDisabled": "Bu e-postayla zaten bir hesap var ve bu kimlik sağlayıcı hesapları e-postayla bağlamıyor. Parolanızla giriş yapın, ardından sağlayıcıyı Ayarlar → Güvenlik bölümünden bağlayın.",
   "ssoErrorUndefined": "Tek oturum açma başarısız oldu",
   "noLoginMethods": "Bu sunucuda etkin bir giriş yöntemi yok",

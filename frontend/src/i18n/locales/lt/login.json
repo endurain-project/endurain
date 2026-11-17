@@ -60,7 +60,7 @@
   "ssoAccountDisabled": "Ši paskyra išjungta",
   "ssoAutoCreateDisabled": "Automatinis paskyrų kūrimas išjungtas",
   "ssoEmailMissing": "Tapatybės teikėjas nepateikė el. pašto adreso, todėl paskyros sukurti nepavyko. Paprašykite administratoriaus patikrinti teikėjo el. pašto nustatymus.",
-  "ssoEmailUnverified": "Tapatybės teikėjas nepatvirtino Jūsų el. pašto adreso, o šiam serveriui naujai paskyrai reikia patvirtinto adreso. Patvirtinkite el. paštą pas tapatybės teikėją ir bandykite dar kartą.",
+  "ssoEmailUnverified": "Tapatybės teikėjas nepatvirtino Jūsų el. pašto adreso, o Endurain reikia patvirtinto adreso, kad galėtų Jus prijungti. Patvirtinkite el. paštą pas tapatybės teikėją ir bandykite dar kartą.",
   "ssoLinkByEmailDisabled": "Paskyra su šiuo el. paštu jau yra, o šis tapatybės teikėjas nesusieja paskyrų pagal el. paštą. Prisijunkite su slaptažodžiu, tada susiekite teikėją skiltyje Nustatymai → Saugumas.",
   "ssoErrorUndefined": "Vieningas prisijungimas nepavyko",
   "noLoginMethods": "Šiame serveryje neįjungtas joks prisijungimo būdas",

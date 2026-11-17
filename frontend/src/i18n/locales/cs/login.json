@@ -60,7 +60,7 @@
   "ssoAccountDisabled": "Tento účet je zakázán",
   "ssoAutoCreateDisabled": "Automatické vytváření účtů je zakázáno",
   "ssoEmailMissing": "Poskytovatel identity nesdílel e-mailovou adresu, takže nebylo možné vytvořit účet. Požádejte správce, aby zkontroloval e-mailová nastavení poskytovatele.",
-  "ssoEmailUnverified": "Poskytovatel identity neověřil vaši e-mailovou adresu a tento server pro nový účet vyžaduje ověřenou adresu. Ověřte svůj e-mail u poskytovatele identity a zkuste to znovu.",
+  "ssoEmailUnverified": "Poskytovatel identity neověřil vaši e-mailovou adresu a Endurain potřebuje k přihlášení ověřenou adresu. Ověřte svůj e-mail u poskytovatele identity a zkuste to znovu.",
   "ssoLinkByEmailDisabled": "Účet s tímto e-mailem již existuje a tento poskytovatel identity nepropojuje účty podle e-mailu. Přihlaste se heslem a poté propojte poskytovatele v Nastavení → Zabezpečení.",
   "ssoErrorUndefined": "Jednotné přihlášení selhalo",
   "noLoginMethods": "Na tomto serveru nejsou povoleny žádné metody přihlášení",

@@ -60,7 +60,7 @@
   "ssoAccountDisabled": "Šis konts ir atspējots",
   "ssoAutoCreateDisabled": "Automātiska kontu izveide ir atspējota",
   "ssoEmailMissing": "Identitātes pakalpojumu sniedzējs nenodeva e-pasta adresi, tāpēc kontu nevarēja izveidot. Lūdziet administratoram pārbaudīt pakalpojumu sniedzēja e-pasta iestatījumus.",
-  "ssoEmailUnverified": "Identitātes pakalpojumu sniedzējs nav apstiprinājis Jūsu e-pasta adresi, un šim serverim jaunam kontam ir nepieciešama apstiprināta adrese. Apstipriniet e-pastu pie identitātes pakalpojumu sniedzēja un mēģiniet vēlreiz.",
+  "ssoEmailUnverified": "Identitātes pakalpojumu sniedzējs nav apstiprinājis Jūsu e-pasta adresi, un Endurain ir nepieciešama apstiprināta adrese, lai Jūs pieteiktu. Apstipriniet e-pastu pie identitātes pakalpojumu sniedzēja un mēģiniet vēlreiz.",
   "ssoLinkByEmailDisabled": "Konts ar šo e-pastu jau pastāv, un šis identitātes pakalpojumu sniedzējs nesaista kontus pēc e-pasta. Piesakieties ar paroli, pēc tam piesaistiet pakalpojumu sniedzēju sadaļā Iestatījumi → Drošība.",
   "ssoErrorUndefined": "Vienotā pieteikšanās neizdevās",
   "noLoginMethods": "Šajā serverī nav iespējota neviena pieteikšanās metode",

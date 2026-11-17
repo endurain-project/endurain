@@ -1,11 +1,22 @@
 import { mount } from '@vue/test-utils'
-import { describe, expect, it } from 'vitest'
+import { computed } from 'vue'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import type { ManagedUser } from '@/features/users/types'
 
 import i18n from '@/i18n'
 import UserListItem from '@/features/users/components/UserListItem.vue'
 import { userUuid } from './fixtures/activity'
+
+const { requireVerification } = vi.hoisted(() => ({ requireVerification: { value: false } }))
+
+vi.mock('@/features/config/composables/usePublicServerSettings', () => ({
+  usePublicServerSettings: () => ({
+    serverSettings: computed(() => ({
+      signup_require_email_verification: requireVerification.value,
+    })),
+  }),
+}))
 
 const base: ManagedUser = {
   id: userUuid(2),
@@ -51,6 +62,10 @@ function button(wrapper: ReturnType<typeof mountItem>, label: string) {
 }
 
 describe('UserListItem approval actions', () => {
+  beforeEach(() => {
+    requireVerification.value = false
+  })
+
   it('emits approve and reject for a pending sign-up', async () => {
     const wrapper = mountItem(base)
 
@@ -61,11 +76,19 @@ describe('UserListItem approval actions', () => {
     expect(wrapper.emitted('reject')).toEqual([[base]])
   })
 
-  it('disables both actions until the email is verified', () => {
+  it('disables approve, not reject, for an unverified email when the server requires verification', () => {
+    requireVerification.value = true
     const wrapper = mountItem({ ...base, emailVerified: false })
 
     expect(button(wrapper, 'Approve').attributes('disabled')).toBeDefined()
-    expect(button(wrapper, 'Reject').attributes('disabled')).toBeDefined()
+    expect(button(wrapper, 'Reject').attributes('disabled')).toBeUndefined()
+  })
+
+  it('allows approve for an unverified email when the server does not require verification', () => {
+    const wrapper = mountItem({ ...base, emailVerified: false })
+
+    expect(button(wrapper, 'Approve').attributes('disabled')).toBeUndefined()
+    expect(button(wrapper, 'Reject').attributes('disabled')).toBeUndefined()
   })
 
   it('hides the actions for a user that is not pending', () => {

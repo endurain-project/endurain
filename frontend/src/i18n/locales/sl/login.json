@@ -60,7 +60,7 @@
   "ssoAccountDisabled": "Ta račun je onemogočen",
   "ssoAutoCreateDisabled": "Samodejno ustvarjanje računov je onemogočeno",
   "ssoEmailMissing": "Ponudnik identitete ni posredoval e-poštnega naslova, zato računa ni bilo mogoče ustvariti. Prosi skrbnika, naj preveri e-poštne nastavitve ponudnika.",
-  "ssoEmailUnverified": "Ponudnik identitete ni preveril tvojega e-poštnega naslova, ta strežnik pa za nov račun zahteva preverjen naslov. Preveri e-pošto pri ponudniku identitete in poskusi znova.",
+  "ssoEmailUnverified": "Ponudnik identitete ni preveril tvojega e-poštnega naslova, Endurain pa za prijavo potrebuje preverjen naslov. Preveri e-pošto pri ponudniku identitete in poskusi znova.",
   "ssoLinkByEmailDisabled": "Račun s to e-pošto že obstaja, ta ponudnik identitete pa računov ne povezuje prek e-pošte. Prijavi se z geslom, nato poveži ponudnika v Nastavitve → Varnost.",
   "ssoErrorUndefined": "Enotna prijava ni uspela",
   "noLoginMethods": "Na tem strežniku ni omogočen noben način prijave",

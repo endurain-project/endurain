@@ -60,7 +60,7 @@
   "ssoAccountDisabled": "Det här kontot är inaktiverat",
   "ssoAutoCreateDisabled": "Automatisk kontoskapning är inaktiverad",
   "ssoEmailMissing": "Identitetsleverantören delade ingen e-postadress, så inget konto kunde skapas. Be din administratör kontrollera leverantörens e-postinställningar.",
-  "ssoEmailUnverified": "Identitetsleverantören har inte verifierat din e-postadress, och den här servern kräver en verifierad adress för ett nytt konto. Verifiera din e-post hos identitetsleverantören och försök sedan igen.",
+  "ssoEmailUnverified": "Identitetsleverantören har inte verifierat din e-postadress, och Endurain behöver en verifierad adress för att logga in dig. Verifiera din e-post hos identitetsleverantören och försök sedan igen.",
   "ssoLinkByEmailDisabled": "Det finns redan ett konto med den här e-postadressen, och den här identitetsleverantören kopplar inte konton via e-post. Logga in med ditt lösenord och koppla sedan leverantören från Inställningar → Säkerhet.",
   "ssoErrorUndefined": "Enkel inloggning misslyckades",
   "noLoginMethods": "Inga inloggningsmetoder är aktiverade på den här servern",

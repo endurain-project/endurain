@@ -43,6 +43,9 @@ describe('UserDetailView', () => {
     await flushPromises()
 
     expect(wrapper.text()).toContain(i18n.global.t('settings.users.detail.notFoundTitle'))
-    expect(apiFetch).not.toHaveBeenCalled()
+    // Only the public server settings load; no user is requested.
+    expect(vi.mocked(apiFetch).mock.calls.map(([path]) => path)).toEqual([
+      '/public/server-settings',
+    ])
   })
 })

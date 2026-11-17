@@ -60,7 +60,7 @@
   "ssoAccountDisabled": "此帳號已停用",
   "ssoAutoCreateDisabled": "已停用自動建立帳號",
   "ssoEmailMissing": "身分提供者未分享電子郵件地址，因此無法建立帳號。請聯絡管理員檢查該提供者的電子郵件設定。",
-  "ssoEmailUnverified": "身分提供者尚未驗證您的電子郵件地址，而此伺服器要求新帳號使用已驗證的地址。請先在身分提供者處驗證您的電子郵件，然後再試一次。",
+  "ssoEmailUnverified": "身分提供者尚未驗證您的電子郵件地址，而 Endurain 需要已驗證的地址才能讓您登入。請先在身分提供者處驗證您的電子郵件，然後再試一次。",
   "ssoLinkByEmailDisabled": "已存在使用此電子郵件的帳號，且此身分提供者不透過電子郵件連結帳號。請使用密碼登入，然後在 設定 → 安全性 中連結該提供者。",
   "ssoErrorUndefined": "單一登入失敗",
   "noLoginMethods": "此伺服器未啟用任何登入方式",

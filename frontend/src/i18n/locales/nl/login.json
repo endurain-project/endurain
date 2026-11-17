@@ -60,7 +60,7 @@
   "ssoAccountDisabled": "Dit account is uitgeschakeld",
   "ssoAutoCreateDisabled": "Automatisch aanmaken van accounts is uitgeschakeld",
   "ssoEmailMissing": "De identiteitsprovider heeft geen e-mailadres gedeeld, dus er kon geen account worden aangemaakt. Vraag je beheerder om de e-mailinstellingen van de provider te controleren.",
-  "ssoEmailUnverified": "De identiteitsprovider heeft je e-mailadres niet geverifieerd en deze server vereist een geverifieerd adres voor een nieuw account. Verifieer je e-mailadres bij de identiteitsprovider en probeer het opnieuw.",
+  "ssoEmailUnverified": "De identiteitsprovider heeft je e-mailadres niet geverifieerd en Endurain heeft een geverifieerd adres nodig om je in te loggen. Verifieer je e-mailadres bij de identiteitsprovider en probeer het opnieuw.",
   "ssoLinkByEmailDisabled": "Er bestaat al een account met dit e-mailadres en deze identiteitsprovider koppelt accounts niet op e-mailadres. Log in met je wachtwoord en koppel de provider daarna via Instellingen → Beveiliging.",
   "ssoErrorUndefined": "Eenmalig aanmelden mislukt",
   "noLoginMethods": "Er zijn geen inlogmethoden ingeschakeld op deze server",

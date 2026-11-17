@@ -60,7 +60,7 @@
   "ssoAccountDisabled": "To konto jest wyłączone",
   "ssoAutoCreateDisabled": "Automatyczne tworzenie konta jest wyłączone",
   "ssoEmailMissing": "Dostawca tożsamości nie udostępnił adresu e-mail, więc nie można było utworzyć konta. Poproś administratora o sprawdzenie ustawień e-mail dostawcy.",
-  "ssoEmailUnverified": "Dostawca tożsamości nie zweryfikował Twojego adresu e-mail, a ten serwer wymaga zweryfikowanego adresu dla nowego konta. Zweryfikuj swój e-mail u dostawcy tożsamości, a następnie spróbuj ponownie.",
+  "ssoEmailUnverified": "Dostawca tożsamości nie zweryfikował Twojego adresu e-mail, a Endurain potrzebuje zweryfikowanego adresu, aby Cię zalogować. Zweryfikuj swój e-mail u dostawcy tożsamości, a następnie spróbuj ponownie.",
   "ssoLinkByEmailDisabled": "Konto z tym adresem e-mail już istnieje, a ten dostawca tożsamości nie łączy kont według adresu e-mail. Zaloguj się hasłem, a następnie połącz dostawcę w Ustawienia → Bezpieczeństwo.",
   "ssoErrorUndefined": "Logowanie jednokrotne nie powiodło się",
   "noLoginMethods": "Na tym serwerze nie włączono żadnych metod logowania",

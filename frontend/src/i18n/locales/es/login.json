@@ -60,7 +60,7 @@
   "ssoAccountDisabled": "Esta cuenta está deshabilitada",
   "ssoAutoCreateDisabled": "La creación automática de cuentas está deshabilitada",
   "ssoEmailMissing": "El proveedor de identidad no compartió una dirección de correo electrónico, así que no se pudo crear la cuenta. Pide a tu administrador que revise los ajustes de correo del proveedor.",
-  "ssoEmailUnverified": "El proveedor de identidad no ha verificado tu correo electrónico, y este servidor necesita una dirección verificada para una cuenta nueva. Verifica tu correo con el proveedor de identidad e inténtalo de nuevo.",
+  "ssoEmailUnverified": "El proveedor de identidad no ha verificado tu correo electrónico, y Endurain necesita una dirección verificada para iniciar tu sesión. Verifica tu correo con el proveedor de identidad e inténtalo de nuevo.",
   "ssoLinkByEmailDisabled": "Ya existe una cuenta con este correo electrónico, y este proveedor de identidad no vincula cuentas por correo. Inicia sesión con tu contraseña y luego vincula el proveedor desde Ajustes → Seguridad.",
   "ssoErrorUndefined": "El inicio de sesión único falló",
   "noLoginMethods": "No hay métodos de inicio de sesión habilitados en este servidor",

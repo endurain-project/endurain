@@ -60,7 +60,7 @@
   "ssoAccountDisabled": "Ce compte est désactivé",
   "ssoAutoCreateDisabled": "La création automatique de compte est désactivée",
   "ssoEmailMissing": "Le fournisseur d'identité n'a pas communiqué d'adresse e-mail, aucun compte n'a donc pu être créé. Demandez à votre administrateur de vérifier les paramètres e-mail du fournisseur.",
-  "ssoEmailUnverified": "Le fournisseur d'identité n'a pas vérifié votre adresse e-mail, et ce serveur exige une adresse vérifiée pour un nouveau compte. Vérifiez votre e-mail auprès du fournisseur d'identité, puis réessayez.",
+  "ssoEmailUnverified": "Le fournisseur d'identité n'a pas vérifié votre adresse e-mail, et Endurain a besoin d'une adresse vérifiée pour vous connecter. Vérifiez votre e-mail auprès du fournisseur d'identité, puis réessayez.",
   "ssoLinkByEmailDisabled": "Un compte avec cet e-mail existe déjà, et ce fournisseur d'identité n'associe pas les comptes par e-mail. Connectez-vous avec votre mot de passe, puis associez le fournisseur depuis Paramètres → Sécurité.",
   "ssoErrorUndefined": "L'authentification unique a échoué",
   "noLoginMethods": "Aucune méthode de connexion n'est activée sur ce serveur",

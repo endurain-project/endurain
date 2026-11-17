@@ -199,8 +199,8 @@ export function useSsoLogin() {
   }
 
   /**
-   * Redirects to the sole SSO provider when the server is configured for a
-   * single-provider, SSO-only login, no callback is in progress and the login
+   * Redirects to the sole SSO provider when the server is configured for
+   * SSO-only login with exactly one enabled provider, no callback is in progress and the login
    * route carries no status message (such as signed out or session expired).
    *
    * @param settings - Public server settings.
@@ -212,11 +212,12 @@ export function useSsoLogin() {
     providers: IdentityProviderPublic[],
     forceLocalLogin: boolean,
   ): void {
-    const onlyProvider = providers[0]
+    const [onlyProvider] = providers
     if (
       settings.sso_enabled &&
       settings.sso_auto_redirect &&
       !settings.local_login_enabled &&
+      providers.length === 1 &&
       onlyProvider &&
       !forceLocalLogin &&
       route.query.sso !== 'success' &&

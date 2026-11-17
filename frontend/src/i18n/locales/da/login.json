@@ -60,7 +60,7 @@
   "ssoAccountDisabled": "Denne konto er deaktiveret",
   "ssoAutoCreateDisabled": "Automatisk oprettelse af konti er deaktiveret",
   "ssoEmailMissing": "Identitetsudbyderen delte ikke en e-mailadresse, så der kunne ikke oprettes en konto. Bed din administrator om at kontrollere udbyderens e-mailindstillinger.",
-  "ssoEmailUnverified": "Identitetsudbyderen har ikke bekræftet din e-mailadresse, og denne server kræver en bekræftet adresse til en ny konto. Bekræft din e-mail hos identitetsudbyderen, og prøv derefter igen.",
+  "ssoEmailUnverified": "Identitetsudbyderen har ikke bekræftet din e-mailadresse, og Endurain kræver en bekræftet adresse for at logge dig ind. Bekræft din e-mail hos identitetsudbyderen, og prøv derefter igen.",
   "ssoLinkByEmailDisabled": "Der findes allerede en konto med denne e-mail, og denne identitetsudbyder knytter ikke konti via e-mail. Log ind med din adgangskode, og knyt derefter udbyderen fra Indstillinger → Sikkerhed.",
   "ssoErrorUndefined": "Single sign-on mislykkedes",
   "noLoginMethods": "Ingen login-metoder er aktiveret på denne server",

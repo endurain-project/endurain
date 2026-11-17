@@ -60,7 +60,7 @@
   "ssoAccountDisabled": "Questo account è disabilitato",
   "ssoAutoCreateDisabled": "La creazione automatica dell'account è disabilitata",
   "ssoEmailMissing": "Il provider di identità non ha condiviso un indirizzo e-mail, quindi non è stato possibile creare un account. Chiedi al tuo amministratore di controllare le impostazioni e-mail del provider.",
-  "ssoEmailUnverified": "Il provider di identità non ha verificato il tuo indirizzo email e questo server richiede un indirizzo verificato per un nuovo account. Verifica la tua email presso il provider di identità, poi riprova.",
+  "ssoEmailUnverified": "Il provider di identità non ha verificato il tuo indirizzo email e Endurain ha bisogno di un indirizzo verificato per farti accedere. Verifica la tua email presso il provider di identità, poi riprova.",
   "ssoLinkByEmailDisabled": "Esiste già un account con questa email e questo provider di identità non collega gli account tramite email. Accedi con la tua password, poi collega il provider da Impostazioni → Sicurezza.",
   "ssoErrorUndefined": "Single sign-on non riuscito",
   "noLoginMethods": "Nessun metodo di accesso è abilitato su questo server",
