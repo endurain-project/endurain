@@ -1,8 +1,8 @@
 """Public, token-gated route that serves a user's profile photo.
 
-Replaces the two unauthenticated paths this blob used to be reachable through: a
-``StaticFiles`` mount over the user-images directory, and
-``GET /user_images/{user_img}``. Both addressed the file as ``{user_id}.{ext}``,
+The photo is not served through an unauthenticated path such as a
+``StaticFiles`` mount over the user-images directory or
+``GET /user_images/{user_img}``: both would address the file as ``{user_id}.{ext}``,
 so walking ``1.png``, ``2.png``, … enumerated every user's photo without
 authenticating.
 

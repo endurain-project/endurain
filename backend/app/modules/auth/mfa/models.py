@@ -1,7 +1,7 @@
 """SQLAlchemy ORM model for the ``mfa_factors`` table.
 
 A user's enrolled second factors, one row each. A user has MFA while at least one row exists. Rows are written by
-``modules.auth.mfa.crud``; the earlier ``users_mfa`` table is no longer read or written.
+``modules.auth.mfa.crud``.
 """
 
 import uuid

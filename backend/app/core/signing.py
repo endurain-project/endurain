@@ -34,10 +34,8 @@ from itsdangerous import BadData, TimestampSigner, URLSafeTimedSerializer
 import core.config as core_config
 import core.key_derivation as core_key_derivation
 
-#: How long a capability token stays valid. Every blob signer used to declare
-#: this itself, each with a comment saying it was "kept identical for
-#: consistency across the three signers" — which is a rule three files cannot
-#: enforce between them.
+#: How long a capability token stays valid. Every blob signer shares this one
+#: value, so the window cannot drift between them.
 #:
 #: Bounded rather than eternal because the access decision a token was minted
 #: from can change afterwards (an activity is hidden, a photo replaced). The

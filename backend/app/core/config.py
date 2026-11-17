@@ -140,8 +140,8 @@ class Settings(BaseSettings):
     # Accepts exact hostnames (case-insensitive) and
     # explicit IPv4/IPv6 CIDRs. Wildcards and overly
     # broad ranges (IPv4 prefix < 8, IPv6 prefix < 32)
-    # are rejected at startup to prevent accidental
-    # neutering of the SSRF guard.
+    # are ignored with a startup warning to prevent
+    # accidental neutering of the SSRF guard.
     SSRF_ALLOWED_HOSTS: Annotated[list[str], NoDecode] = []
     # Extra origins appended to the Content-Security-Policy
     # ``connect-src`` directive. Needed when Endurain runs
@@ -922,10 +922,9 @@ FILES_UPLOAD_INCOMING_DIR = f"{settings.FILES_DIR}/upload_incoming"
 def bulk_import_dir_for(user_id: uuid.UUID) -> str:
     """Return the bulk-import drop directory belonging to one user.
 
-    Bulk import used to scan a single shared directory, so on a multi-user
-    server any user triggering an import would ingest every file present —
-    including another user's — and have the resulting activities attributed to
-    themselves. Giving each user their own directory makes that impossible by
+    Bulk import scans only this directory, so on a multi-user server an
+    import never ingests another user's files and never attributes activities
+    to the wrong user. Each user's own directory makes that impossible by
     construction rather than by convention.
 
     Args:
@@ -1241,12 +1240,12 @@ def warn_unsafe_settings() -> None:
 # the operator with no feedback that their configuration no longer takes effect.
 DEPRECATED_ENV_VARS: dict[str, str] = {
     "UID": (
-        "no longer used. The container runs as a fixed non-root 'app' user. "
+        "no longer read at runtime. The container runs as the non-root 'appuser' (UID/GID 1000). "
         "For a custom UID/GID set 'user: \"<UID>:<GID>\"' in docker-compose and "
         "chown the host bind mounts accordingly."
     ),
     "GID": (
-        "no longer used. The container runs as a fixed non-root 'app' user. "
+        "no longer read at runtime. The container runs as the non-root 'appuser' (UID/GID 1000). "
         "For a custom UID/GID set 'user: \"<UID>:<GID>\"' in docker-compose and "
         "chown the host bind mounts accordingly."
     ),
@@ -1307,7 +1306,7 @@ def check_deprecated_env_vars() -> None:
     message = (
         f"Deprecated environment variable(s) in use: {', '.join(found)}. "
         "Remove them and restart. See "
-        "https://docs.endurain.com/getting-started/advanced-started/"
+        "https://docs.endurain.com/getting-started/advanced-setup/"
         "#supported-environment-variables"
     )
     raise OSError(message)

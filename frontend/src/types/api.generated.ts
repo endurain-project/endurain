@@ -47,11 +47,10 @@ export interface paths {
          * Edit Activities
          * @description Queue a bulk edit across all of the authenticated user's activities.
          *
-         *     A PATCH on the collection with the change in the body, rather than the
-         *     previous ``PUT /visibility/{visibility}``: the value being set is data, not
-         *     an identifier, and PUT implied a full replacement of a resource that does
-         *     not exist at that path. The body shape also leaves room for a second
-         *     bulk-editable field without another endpoint.
+         *     A PATCH on the collection with the change in the body: the value being set
+         *     is data, not an identifier, and PUT would imply a full replacement of a
+         *     resource that does not exist at that path. The body shape also leaves room
+         *     for a second bulk-editable field without another endpoint.
          *
          *     The edit can touch a whole library, so it runs as a background job: poll
          *     ``GET /jobs/{job_id}`` for the outcome.
@@ -76,7 +75,7 @@ export interface paths {
          *     read in the request beyond its directory listing. Poll
          *     ``GET /jobs/{job_id}`` for progress (``files_done`` and
          *     ``files_failed`` against ``files_total``); a finished import with failed files
-         *     still ends ``completed``.
+         *     still ends ``succeeded``.
          *
          *     One bulk import runs per user at a time; a second request while one is running
          *     is answered ``409`` with the running job's ``job_id`` and a ``Content-Location`` naming it.
@@ -1850,7 +1849,7 @@ export interface paths {
          *     ``kind`` says what the job does and which fields it carries. ``Retry-After`` says when to poll again while
          *     the job is not finished. A job the caller did not start, or one whose record has expired, is ``404``; an
          *     account deletion is also readable by any holder of ``users:read-all``. Reading a job needs the scope its kind
-         *     asks for: ``activities:upload`` for an activity upload, refresh or bulk import, ``activities:read`` for a bulk
+         *     asks for: ``activities:upload`` for an activity upload, refresh or bulk import, ``activities:write`` for a bulk
          *     edit, ``account:integrations`` for a Garmin Connect link or a Strava link or unlink, ``account`` for a Garmin
          *     Connect or Strava gear or health sync, ``account:export`` for a profile export or import and
          *     ``users:read-all`` for an account deletion.
@@ -3274,7 +3273,7 @@ export interface paths {
          * Initiate Login
          * @description Initiates the login process for a given identity provider using OAuth.
          *
-         *     PKCE (Proof Key for Code Exchange) is REQUIRED for all clients (OAuth 2.1 compliance).
+         *     PKCE (Proof Key for Code Exchange) is REQUIRED for all clients (RFC 7636, S256 only).
          *     Both code_challenge and code_challenge_method=S256 must be provided.
          *
          *     The client type comes from the redirect alone: a native-app redirect starts a mobile flow, anything else
@@ -10024,7 +10023,7 @@ export interface components {
          *
          *     Attributes:
          *         id: Device ID, as the forget route takes it.
-         *         browser: Browser of the last sign-in, or None for a device registered before it was recorded.
+         *         browser: Browser of the last sign-in, or None when it is not known.
          *         operating_system: Operating system of the last sign-in, or None as above.
          *         device_type: Type of device (Mobile, Tablet, PC) of the last sign-in, or None as above.
          *         created_at: When the device was first registered under the current security generation.
@@ -32448,9 +32447,9 @@ export interface operations {
     initiate_login: {
         parameters: {
             query: {
-                /** @description PKCE code challenge (base64url-encoded SHA256, 43-128 chars). REQUIRED for OAuth 2.1 compliance. */
+                /** @description PKCE code challenge (base64url-encoded SHA256, 43-128 chars). Required (RFC 7636). */
                 code_challenge: string;
-                /** @description PKCE method (must be S256). REQUIRED for OAuth 2.1 compliance. */
+                /** @description PKCE method (must be S256). Required (RFC 7636). */
                 code_challenge_method: string;
                 /** @description Frontend redirect path after successful login */
                 redirect?: string | null;

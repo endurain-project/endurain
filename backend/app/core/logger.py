@@ -129,9 +129,9 @@ class ConsoleMirrorFilter(logging.Filter):
 
     Attached to the development console handler so a record reaches the terminal
     exactly when the caller opted in with ``extra=context(console=True)``.
-    Everything else goes to the log file only. This preserves the previous
-    behaviour of ``print_to_log_and_console`` without mutating shared handler
-    state on every call, which was unsafe across request and consumer threads.
+    Everything else goes to the log file only. Filtering per record
+    leaves shared handler state untouched, which keeps it safe across request and
+    consumer threads.
     """
 
     def filter(self, record: logging.LogRecord) -> bool:

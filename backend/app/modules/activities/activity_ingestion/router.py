@@ -130,7 +130,7 @@ def create_bulk_import_from_archive(
     read in the request beyond its directory listing. Poll
     ``GET /jobs/{job_id}`` for progress (``files_done`` and
     ``files_failed`` against ``files_total``); a finished import with failed files
-    still ends ``completed``.
+    still ends ``succeeded``.
 
     One bulk import runs per user at a time; a second request while one is running
     is answered ``409`` with the running job's ``job_id`` and a ``Content-Location`` naming it.

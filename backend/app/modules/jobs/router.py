@@ -71,7 +71,7 @@ def read_job(
     ``kind`` says what the job does and which fields it carries. ``Retry-After`` says when to poll again while
     the job is not finished. A job the caller did not start, or one whose record has expired, is ``404``; an
     account deletion is also readable by any holder of ``users:read-all``. Reading a job needs the scope its kind
-    asks for: ``activities:upload`` for an activity upload, refresh or bulk import, ``activities:read`` for a bulk
+    asks for: ``activities:upload`` for an activity upload, refresh or bulk import, ``activities:write`` for a bulk
     edit, ``account:integrations`` for a Garmin Connect link or a Strava link or unlink, ``account`` for a Garmin
     Connect or Strava gear or health sync, ``account:export`` for a profile export or import and
     ``users:read-all`` for an account deletion.

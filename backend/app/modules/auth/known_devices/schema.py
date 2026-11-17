@@ -13,7 +13,7 @@ class KnownDeviceRead(BaseModel):
 
     Attributes:
         id: Device ID, as the forget route takes it.
-        browser: Browser of the last sign-in, or None for a device registered before it was recorded.
+        browser: Browser of the last sign-in, or None when it is not known.
         operating_system: Operating system of the last sign-in, or None as above.
         device_type: Type of device (Mobile, Tablet, PC) of the last sign-in, or None as above.
         created_at: When the device was first registered under the current security generation.

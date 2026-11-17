@@ -185,10 +185,9 @@ def from_lat_lon(latitude: float, longitude: float, fallback_tz: str | None = No
     """Return the IANA timezone a coordinate falls in, or a fallback.
 
     ``timezone_at`` answers ``None`` over open ocean and in the gaps between
-    timezone polygons, so the fallback is not optional decoration: the Strava
-    adapter used to assign the raw result straight onto the activity, discarding
-    the athlete's own timezone it had just resolved whenever the lookup missed.
-    Every caller resolves the same way now.
+    timezone polygons, so the fallback is not optional decoration: assigning the raw
+    result onto an activity would discard the timezone already resolved for the
+    athlete whenever the lookup missed. Every caller resolves the same way.
 
     Args:
         latitude: WGS-84 latitude in decimal degrees.

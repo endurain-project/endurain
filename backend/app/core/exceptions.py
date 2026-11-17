@@ -8,8 +8,7 @@ response.
 
 Why this exists
 ---------------
-Those layers previously raised ``fastapi.HTTPException`` directly, which coupled
-them to HTTP in three unhelpful ways:
+Raising ``fastapi.HTTPException`` directly would couple those layers to HTTP in three unhelpful ways:
 
 * they could not be unit-tested (or reused from the durable-job worker, which
   serves no HTTP at all) without importing FastAPI;
@@ -573,7 +572,7 @@ def build_problem_response(
     """Build an RFC 9457 problem document response.
 
     The single place a problem document is constructed, so every error path —
-    domain errors, unconverted ``HTTPException``s, validation failures, rate
+    domain errors, framework ``HTTPException``s, validation failures, rate
     limiting, the refresh-cookie clearing handler — produces an identical shape.
     Public because those last two live outside this module but must not build
     their own body.

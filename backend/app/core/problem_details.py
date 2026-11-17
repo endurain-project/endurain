@@ -1,8 +1,8 @@
 """RFC 9457 *Problem Details for HTTP APIs* — the API's one error response shape.
 
 Every error the API emits is a problem document, whatever raised it: a
-:class:`~core.exceptions.DomainError`, a bare ``HTTPException`` from a module not
-yet converted, a request-validation failure, or a rate-limit rejection. One shape
+:class:`~core.exceptions.DomainError`, an ``HTTPException`` (an unknown route or method,
+a missing frontend file), a request-validation failure, or a rate-limit rejection. One shape
 means a client writes one error path.
 
 Why the members are what they are

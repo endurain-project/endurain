@@ -72,15 +72,13 @@ def initiate_login(
     code_challenge: Annotated[
         str,
         Query(
-            description=(
-                "PKCE code challenge (base64url-encoded SHA256, 43-128 chars). REQUIRED for OAuth 2.1 compliance."
-            ),
+            description=("PKCE code challenge (base64url-encoded SHA256, 43-128 chars). Required (RFC 7636)."),
         ),
     ],
     code_challenge_method: Annotated[
         str,
         Query(
-            description="PKCE method (must be S256). REQUIRED for OAuth 2.1 compliance.",
+            description="PKCE method (must be S256). Required (RFC 7636).",
         ),
     ],
     redirect: Annotated[
@@ -94,7 +92,7 @@ def initiate_login(
 ) -> RedirectResponse:
     """Initiates the login process for a given identity provider using OAuth.
 
-    PKCE (Proof Key for Code Exchange) is REQUIRED for all clients (OAuth 2.1 compliance).
+    PKCE (Proof Key for Code Exchange) is REQUIRED for all clients (RFC 7636, S256 only).
     Both code_challenge and code_challenge_method=S256 must be provided.
 
     The client type comes from the redirect alone: a native-app redirect starts a mobile flow, anything else

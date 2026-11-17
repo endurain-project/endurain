@@ -20,7 +20,7 @@ class KnownDevice(Base):
         last_seen_at: When the user last signed in from the device.
         security_generation: The account's security generation when the device was last registered; the device is
             known only while it equals the account's current generation.
-        browser: Browser the device last signed in with, or None for a device registered before it was recorded.
+        browser: Browser the device last signed in with, or None when it is not known.
         operating_system: Operating system the device last signed in with, or None as above.
         device_type: Type of device (Mobile, Tablet, PC) the device last signed in as, or None as above.
     """

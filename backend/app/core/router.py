@@ -195,8 +195,8 @@ def health(db: core_dependencies.DbSession, state: core_dependencies.PlatformSta
 # ``/activity_media/{media}`` or ``/activity_thumbnails/{thumbnail}`` route here.
 # All three serve private user data and are reachable only through their
 # token-gated routes. A filename-addressed route beside them is a full bypass of
-# that gate, which is what these used to be — and for user photos, stored as
-# ``{user_id}.{ext}``, it enumerated the entire user base.
+# that gate, and for user photos, stored as ``{user_id}.{ext}``, it would
+# enumerate the entire user base.
 
 
 class _GetOnlyRoute(APIRoute):

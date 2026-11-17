@@ -59,10 +59,9 @@ _LOCALES_DIR = pathlib.Path(__file__).parent / "locales"
 #: The locales this build can render an email in.
 #:
 #: Owned here because "supported" means "a catalog ships for it", which is a fact
-#: about this package. It used to be derived from the users module's ``Language``
-#: enum — core reaching up into a domain module, and lazily at that, to avoid the
-#: import cycle that reach created. The enum is still the API-facing list a client
-#: picks from; ``tests/core/test_i18n_locales.py`` asserts the two agree and that
+#: about this package. It is not derived from the users module's ``Language``
+#: enum, which would make core reach up into a domain module. That enum is the
+#: API-facing list a client picks from; ``tests/core/test_i18n_locales.py`` asserts the two agree and that
 #: every one of them has a catalog on disk, so a language added to one and not the
 #: other fails CI instead of silently falling back to English.
 SUPPORTED_LOCALES: Final[frozenset[str]] = frozenset(HTML_LANG_BY_LOCALE)

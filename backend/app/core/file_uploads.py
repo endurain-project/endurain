@@ -79,8 +79,7 @@ _MAX_ACTIVITY_BYTES = 200 * 1024 * 1024
 _MAX_GZIP_BYTES = 200 * 1024 * 1024
 
 # Profile-import ZIPs can contain thousands of activity files. The
-# uncompressed/individual entry counts here mirror the previous
-# ``profile/router.py`` configuration so behaviour is preserved.
+# uncompressed/individual entry counts bound a profile import.
 _MAX_ZIP_BYTES = 500 * 1024 * 1024
 _MAX_UNCOMPRESSED_BYTES = 2 * 1024 * 1024 * 1024
 _MAX_FILES_SAME_TYPE = 2000

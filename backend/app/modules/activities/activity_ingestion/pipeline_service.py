@@ -15,7 +15,7 @@ format. It is **provider-agnostic** too: everything a specific origin knows
 is answered by the :mod:`sources` object it was handed, never by branching on the
 provider here. Keeping this module (rather than ``activity/``) responsible for
 parsing is what lets the activities core stay parser-agnostic — see the
-``activities-parsing-boundary`` and ``ingestion-pipeline-provider-agnostic``
+``activities-parsing-boundary`` and ``ingestion-pipeline-format-agnostic``
 import-linter contracts.
 """
 

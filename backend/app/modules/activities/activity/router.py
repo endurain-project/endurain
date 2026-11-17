@@ -143,11 +143,10 @@ def edit_activities(
 ) -> activity_schema.ActivitiesBulkEditStatus:
     """Queue a bulk edit across all of the authenticated user's activities.
 
-    A PATCH on the collection with the change in the body, rather than the
-    previous ``PUT /visibility/{visibility}``: the value being set is data, not
-    an identifier, and PUT implied a full replacement of a resource that does
-    not exist at that path. The body shape also leaves room for a second
-    bulk-editable field without another endpoint.
+    A PATCH on the collection with the change in the body: the value being set
+    is data, not an identifier, and PUT would imply a full replacement of a
+    resource that does not exist at that path. The body shape also leaves room
+    for a second bulk-editable field without another endpoint.
 
     The edit can touch a whole library, so it runs as a background job: poll
     ``GET /jobs/{job_id}`` for the outcome.

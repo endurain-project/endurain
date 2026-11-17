@@ -431,9 +431,9 @@ def create_app() -> FastAPI:
     )
     # Single API boundary for the transport-agnostic domain errors raised by the
     # application layers (services, ingestion pipeline, file parsers). Those
-    # layers no longer import FastAPI to report a failure — this handler owns the
+    # layers do not import FastAPI to report a failure — this handler owns the
     # status code and renders the same ``{"detail": ...}`` body HTTPException
-    # produces, so the client-visible contract is unchanged.
+    # produces.
     core_exceptions.register_exception_handlers(fastapi_app)
     fastapi_app.add_middleware(core_rate_limit.RateLimitMiddleware)
 

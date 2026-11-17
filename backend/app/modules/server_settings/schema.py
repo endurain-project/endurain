@@ -62,7 +62,8 @@ class ServerSettingsBase(BaseModel):
         signup_enabled (StrictBool): Allow new user registration.
         sso_enabled (StrictBool): Enable SSO/IdP authentication.
         local_login_enabled (StrictBool): Allow local username/password authentication.
-        sso_auto_redirect (StrictBool): Automatically redirect to SSO when only one IdP is configured.
+        sso_auto_redirect (StrictBool): Automatically redirect to SSO when exactly one identity provider is
+            enabled and local login is disabled.
         tileserver_url (StrictStr): URL template for map tile server with coordinate placeholders.
         tileserver_attribution (StrictStr): Attribution string for map tile server.
         map_background_color (StrictStr): Hex color code for map background (#RRGGBB format).

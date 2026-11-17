@@ -302,8 +302,7 @@ def _build_sleep(garmin_sleep: dict[str, Any], sleep_dto: dict[str, Any]) -> hea
     # wants (the edit form renders them straight into ``datetime-local``
     # inputs). The true instants live in the ``*_gmt`` pair.
     #
-    # This is the same "wall clock wearing an instant's clothes" shape that
-    # was removed from activities: the columns are ``timestamptz`` but do not
+    # This is the same "wall clock wearing an instant's clothes" shape: the columns are ``timestamptz`` but do not
     # hold a meaningful instant. Deriving them from the GMT pair plus the
     # recording offset (which is exactly ``local - gmt``) would remove the
     # ambiguity; until then, do not convert or compare these values.

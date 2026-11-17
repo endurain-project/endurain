@@ -7,7 +7,8 @@ two-step sign-in is locked, and has no other administrator to reset it. Run it i
 
 ``python -m cli set-password USERNAME`` sets a generated password for an account and prints it once, for an
 administrator who forgot theirs on a server with no mail. The password follows the server's minimum length, uses
-letters and digits only and never appears in a log. It ends the account's sessions, revokes its API keys and reset
+letters, digits and the symbols ``!@#%+=-`` (no look-alike characters) and never appears in a log. It
+ends the account's sessions, revokes its API keys and reset
 links, and requires a new password at the next sign-in, as an administrator setting a password does.
 
 A command touches the same database and shared state store as the API. With the in-memory state store the API keeps
@@ -91,7 +92,8 @@ def set_password(username: str) -> int:
     """Set a generated password for an account, the way an administrator setting it does, and print it once.
 
     The password has the length the server's settings require for the account's type (at least 24 characters) and
-    uses letters and digits only, so it is easy to type. The account's sessions end, and it must choose a new
+    uses letters, digits and the symbols ``!@#%+=-``, without look-alike characters. The
+    account's sessions end, and it must choose a new
     password at the next sign-in.
 
     Args:
