@@ -11,14 +11,12 @@ import pathlib
 import re
 
 from tests._helpers.handlers import own_nodes
-from tests._helpers.module_roles import CONVERTED_MODULES, files_with_role, role_of
+from tests._helpers.module_roles import MODULES, files_with_role, role_of
 
 import core.exceptions as core_exceptions
 
-#: Modules the logging rule has been applied to — the shared
-#: ``CONVERTED_MODULES`` list in ``tests/_helpers/module_roles.py``, so
-#: converting a module is a single edit there.
-_CONVERTED = tuple(pathlib.Path("app/modules") / name for name in CONVERTED_MODULES)
+#: Modules the logging rule applies to: the shared ``MODULES`` list in ``tests/_helpers/module_roles.py``.
+_MODULE_ROOTS = tuple(pathlib.Path("app/modules") / name for name in MODULES)
 
 # Layers whose logging level set is fixed by the rule.
 _ALLOWED: dict[str, set[str]] = {
@@ -145,15 +143,15 @@ def _log_calls(path: pathlib.Path) -> list[str]:
 
 
 def _modules_named(stem: str) -> list[pathlib.Path]:
-    """Return every converted module whose file plays the given role."""
-    return files_with_role(_CONVERTED, stem)
+    """Return every module whose file plays the given role."""
+    return files_with_role(_MODULE_ROOTS, stem)
 
 
-def _converted_files() -> list[pathlib.Path]:
-    """Return every Python file of every converted module."""
+def _module_files() -> list[pathlib.Path]:
+    """Return every Python file of every module."""
     return sorted(
         path
-        for root in _CONVERTED
+        for root in _MODULE_ROOTS
         for path in root.rglob("*.py")
         if "__pycache__" not in path.parts and path.name != "__init__.py"
     )
@@ -273,7 +271,7 @@ class TestLoggingRule:
         """
         offenders = [
             _relative(path)
-            for path in _converted_files()
+            for path in _module_files()
             if _log_calls(path) and role_of(path.stem) not in _MAY_LOG and _relative(path) not in _HELPERS_THAT_LOG
         ]
         stale = [name for name in _HELPERS_THAT_LOG if not _log_calls(_ROOT / name)]
@@ -288,7 +286,7 @@ class TestLoggingRule:
         """``console=True`` is bulk-import progress and migrations, not request or persistence noise."""
         offenders = [
             _relative(path)
-            for path in _converted_files()
+            for path in _module_files()
             if "console=True" in path.read_text()
             and not _relative(path).startswith(_CONSOLE_ALLOWED_PREFIXES)
             and role_of(path.stem) not in _CONSOLE_ALLOWED_ROLES

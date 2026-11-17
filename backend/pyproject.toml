@@ -230,7 +230,7 @@ select = [
     "T20",    # flake8-print
     "SIM",    # flake8-simplify
     "RUF",    # ruff-specific rules
-    "D",      # pydocstyle; scoped to converted modules below, see per-file-ignores
+    "D",      # pydocstyle; see per-file-ignores for the exempt paths
 ]
 ignore = [
     "B008",   # do not perform function calls in argument defaults (FastAPI Depends/Query) — tracked in https://github.com/endurain-project/endurain/issues/653

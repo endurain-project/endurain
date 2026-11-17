@@ -9,7 +9,7 @@ import ast
 from pathlib import Path
 
 import pytest
-from tests._helpers.module_roles import CONVERTED_MODULES
+from tests._helpers.module_roles import MODULES
 
 import model_registry as app_model_registry
 import module_registry as runtime_module_registry
@@ -28,14 +28,14 @@ _APP_DIR = _MODULES_DIR.parent
 
 
 def _template_packages() -> list[Path]:
-    """Return the independently extractable packages of every converted module.
+    """Return the independently extractable packages of every module.
 
     A composition namespace contributes its child packages; a flat module is its own
-    package. Derived from ``CONVERTED_MODULES`` so converting a module covers it here
+    package. Derived from ``MODULES`` so a new module is covered here
     without a second list to update.
     """
     found: list[Path] = []
-    for name in CONVERTED_MODULES:
+    for name in MODULES:
         root = _MODULES_DIR / name
         children = [child for child in sorted(root.iterdir()) if child.is_dir() and (child / "__init__.py").is_file()]
         found.extend(children or [root])
@@ -92,9 +92,8 @@ _NO_CROSS_MODULE_SURFACE: dict[str, str] = {
 def test_every_module_exposes_one_cross_module_surface_name() -> None:
     """The surface other modules may consume is always ``integration_service``.
 
-    Followers used to expose it as ``service``, which also held its own
-    privacy-checked application logic, so "what may I depend on?" had a different
-    answer per module and consumers got the internals in scope too.
+    ``integration_service`` is separate from ``service``, so "what may I depend on?"
+    has the same answer in every module and consumers never get the internals in scope.
     """
     missing = [
         package.relative_to(_MODULES_DIR)
@@ -129,8 +128,8 @@ def test_every_persistence_package_declares_its_models() -> None:
     )
 
 
-def test_model_registries_collect_every_converted_model() -> None:
-    """Registry contents match the tables owned by converted packages."""
+def test_model_registries_collect_every_model() -> None:
+    """Registry contents match the tables owned by the packages."""
     expected_activities = {
         f"modules.activities.{package.name}.models"
         for package in _TEMPLATE_PACKAGES
@@ -176,7 +175,7 @@ def test_model_registries_collect_every_converted_model() -> None:
         | expected_users
         # The data-migration bookkeeping table is the application's own, outside any module.
         | {"migrations.models"}
-        == app_model_registry._CONVERTED_MODEL_MODULES
+        == app_model_registry._MODEL_MODULES
     )
 
 

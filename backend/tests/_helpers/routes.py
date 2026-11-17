@@ -1,4 +1,4 @@
-"""The route handlers of the converted modules, read from source.
+"""The route handlers of the modules, read from source.
 
 Shared by the conformance tests that hold every route to a rule (``tests/architecture/test_route_conventions.py``,
 ``tests/architecture/test_audit_trail.py``), so they agree on what a route and a write route are.
@@ -7,7 +7,7 @@ Shared by the conformance tests that hold every route to a rule (``tests/archite
 import ast
 import pathlib
 
-from tests._helpers.module_roles import CONVERTED_MODULES, files_with_role
+from tests._helpers.module_roles import MODULES, files_with_role
 
 MODULES_ROOT = pathlib.Path("app/modules")
 
@@ -27,8 +27,8 @@ def route_decorators(function: ast.AST):
 
 
 def router_functions() -> list[tuple[pathlib.Path, ast.FunctionDef]]:
-    """Return every route handler of every converted module."""
-    roots = tuple(MODULES_ROOT / name for name in CONVERTED_MODULES)
+    """Return every route handler of every module."""
+    roots = tuple(MODULES_ROOT / name for name in MODULES)
     found: list[tuple[pathlib.Path, ast.FunctionDef]] = []
     for role in ("router", "public_router"):
         for path in files_with_role(roots, role):

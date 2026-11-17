@@ -11,7 +11,6 @@ Deployment: Docker multi-stage image (amd64, arm64).
 | --- | --- |
 | Backend code or tests | `.agents/skills/endurain-backend/SKILL.md` |
 | Frontend code or tests | `.agents/skills/endurain-frontend/SKILL.md` |
-| Converting a module to the module structure | `.agents/skills/convert-module/SKILL.md` |
 | Fixing a bug, failing test or CI failure | `.agents/skills/debugging/SKILL.md` |
 | Commit messages and PRs | `.agents/skills/conventional-commits/SKILL.md` |
 | Writing or editing a skill | `.agents/skills/skill-authoring/SKILL.md` |
@@ -116,7 +115,7 @@ npm run gen:api      # after backend API changes
 - A route follows `docs/developer-guide/http-api.md`; `backend/tests/architecture/test_api_contract.py` enforces it, and its registers of existing violations only shrink.
 - A request schema never accepts a field the server owns: `id`, `user_id`, `version`, `created_at`, `updated_at`, `source` or a provider id.
 - An API change updates `docs/integrate/` in the same change; a privacy or security default stated in `docs/features/` is pinned by a test.
-- Python 3.13 syntax, 120-character lines, Google-style PEP 257 docstrings (`Args`, `Returns`, `Raises` where applicable; ruff `D` enforces them on converted modules). An endpoint docstring is the public API description and has no sections.
+- Python 3.13 syntax, 120-character lines, Google-style PEP 257 docstrings (`Args`, `Returns`, `Raises` where applicable; ruff `D` enforces them). An endpoint docstring is the public API description and has no sections.
 
 ## Frontend invariants
 

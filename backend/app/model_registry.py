@@ -11,7 +11,7 @@ import modules.notifications.model_registry as notifications_model_registry
 import modules.server_settings.model_registry as server_settings_model_registry
 import modules.users.model_registry as users_model_registry
 
-_CONVERTED_MODEL_MODULES = frozenset(
+_MODEL_MODULES = frozenset(
     (
         "migrations.models",
         *activities_model_registry.MODEL_MODULES,
@@ -28,5 +28,5 @@ _CONVERTED_MODEL_MODULES = frozenset(
 
 def import_all_models() -> None:
     """Import the explicit ORM model contributions from installed modules."""
-    for module in sorted(_CONVERTED_MODEL_MODULES):
+    for module in sorted(_MODEL_MODULES):
         import_module(module)

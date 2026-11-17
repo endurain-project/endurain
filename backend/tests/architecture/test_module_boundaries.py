@@ -19,13 +19,13 @@ import fnmatch
 import pathlib
 import tomllib
 
-from tests._helpers.module_roles import CONVERTED_MODULES
+from tests._helpers.module_roles import MODULES
 from tests._helpers.module_roles import role_of as _role
 
-#: Modules converted to the structure guide, shared with ``test_logging_rule.py`` (also in ``tests/architecture/``)
-#: through ``tests/_helpers/module_roles.py``. Opt-in, and ratcheted by
-#: ``TestModuleInventory`` so a newly added module cannot escape the rules.
-_CONVERTED = CONVERTED_MODULES
+#: Modules the structure rules apply to, shared with ``test_logging_rule.py`` (also in ``tests/architecture/``)
+#: through ``tests/_helpers/module_roles.py`` and checked by ``TestModuleInventory`` so a newly added module
+#: cannot escape the rules.
+_MODULE_NAMES = MODULES
 
 _MODULES_ROOT = pathlib.Path("app/modules")
 
@@ -273,7 +273,7 @@ _PERSISTENCE_SHARED_ROLES = _DATA_ROLES | {"computation"}
 #: passes in (``health/record_crud.py``). Such a file declares no table.
 _PERSISTENCE_NAMESPACE_ROLES = frozenset({"crud"})
 
-#: Roles of another top-level module that a converted module may import: its
+#: Roles of another top-level module that a module may import: its
 #: published surface; no service implementation is an outbound surface.
 _OUTBOUND_ROLES = frozenset({"integration_service", "schema", "contracts", "constants", "events", "dependencies"})
 #: Layer-rule exceptions as ``{(importer, imported): reason}``, in dotted paths
@@ -348,7 +348,7 @@ def _is_namespace_helper(importer: str, imported: str) -> bool:
 
 def _layer_imports(*, only_roles: frozenset[str] | None = None) -> list[tuple[pathlib.Path, str, str, str]]:
     """
-    Return every ``modules.*`` import made by a converted-module file.
+    Return every ``modules.*`` import made by a module file.
 
     Args:
         only_roles: Keep only importers whose file role is in this set.
@@ -357,7 +357,7 @@ def _layer_imports(*, only_roles: frozenset[str] | None = None) -> list[tuple[pa
         ``(file, importer dotted path, imported dotted path, importer role)``.
     """
     found: list[tuple[pathlib.Path, str, str, str]] = []
-    for module_name in _CONVERTED:
+    for module_name in _MODULE_NAMES:
         for path in _python_files(_MODULES_ROOT / module_name):
             role = _role(path.stem)
             if only_roles is not None and role not in only_roles:
@@ -371,25 +371,24 @@ def _layer_imports(*, only_roles: frozenset[str] | None = None) -> list[tuple[pa
 #: Services and integration surfaces that still import FastAPI, as ``{"<dotted module>": reason}``.
 _SERVICE_FASTAPI_EXCEPTIONS: dict[str, str] = {
     "modules.server_settings.login_photo_service": (
-        "Receives the UploadFile and hands it to core.file_uploads; not yet converted to take the stored bytes."
+        "Receives the UploadFile and hands it to core.file_uploads; it should take the stored bytes instead."
     ),
     "modules.strava.gear_service": (
-        "Receives the UploadFile and hands it to core.file_uploads; not yet converted to take the stored bytes."
+        "Receives the UploadFile and hands it to core.file_uploads; it should take the stored bytes instead."
     ),
     "modules.users.users.photo_service": (
-        "Receives the UploadFile and hands it to core.file_uploads; not yet converted to take the stored bytes."
+        "Receives the UploadFile and hands it to core.file_uploads; it should take the stored bytes instead."
     ),
     "modules.users.users_profile.photo_service": (
-        "Receives the UploadFile and hands it to users.users.integration_service; not yet converted to take the "
-        "stored bytes."
+        "Receives the UploadFile and hands it to users.users.integration_service; it should take the "
+        "stored bytes instead."
     ),
     "modules.users.users.integration_service": (
         "Publishes upload_user_photo, which receives the UploadFile and hands it to users.users.photo_service; not "
-        "yet converted to take the stored bytes."
+        "yet take the stored bytes."
     ),
     "modules.auth.authentication.integration_service": (
-        "Takes the Request for the sign-in's client address and user agent; auth is not yet converted to take plain "
-        "values."
+        "Takes the Request for the sign-in's client address and user agent; auth does not yet take plain values."
     ),
     "modules.websocket.service": (
         "The service is the WebSocket connection manager, so the socket and its close codes are its subject."
@@ -529,7 +528,7 @@ def _ends_a_transaction(function: ast.AST) -> bool:
 
 def _transaction_ending_surface() -> set[str]:
     """
-    Return every converted-module surface function that can end the caller's transaction.
+    Return every module surface function that can end the caller's transaction.
 
     Follows a call from a surface function through the modules it imports and
     through same-module helpers, so a commit buried in the module's own
@@ -587,7 +586,7 @@ def _transaction_ending_surface() -> set[str]:
         return False
 
     found: set[str] = set()
-    for module_name in _CONVERTED:
+    for module_name in _MODULE_NAMES:
         for path in _python_files(_MODULES_ROOT / module_name):
             if path.name != "integration_service.py":
                 continue
@@ -711,7 +710,7 @@ class TestSubPackagePrivacy:
     def test_siblings_share_only_data_shapes(self):
         """Anything beyond schema/contracts/constants/events needs a named seam."""
         offenders: list[str] = []
-        for module_name in _CONVERTED:
+        for module_name in _MODULE_NAMES:
             root = _MODULES_ROOT / module_name
             prefix = f"modules.{module_name}."
             for path in _python_files(root):
@@ -740,7 +739,7 @@ class TestSubPackagePrivacy:
     def test_package_inits_export_nothing(self):
         """A re-export facade would hand out ORM models under a package path."""
         offenders: list[str] = []
-        for module_name in _CONVERTED:
+        for module_name in _MODULE_NAMES:
             root = _MODULES_ROOT / module_name
             for path in root.rglob("__init__.py"):
                 if "__pycache__" in path.parts:
@@ -765,7 +764,7 @@ class TestSubPackagePrivacy:
         (``test_crud_does_not_end_transactions``).
         """
         offenders: list[str] = []
-        for module_name in _CONVERTED:
+        for module_name in _MODULE_NAMES:
             for path in _python_files(_MODULES_ROOT / module_name):
                 if _role(path.stem) == "crud":
                     continue
@@ -794,7 +793,7 @@ class TestSubPackagePrivacy:
         """An ``integration_service`` is a face, not a layer: it calls its own ``service`` to publish.
 
         A surface that published would own the commit that has to be atomic with the event, leaving
-        two write-orchestration layers. Stated for every converted module, so a flat module such as
+        two write-orchestration layers. Stated for every module, so a flat module such as
         ``followers`` is held to it as much as an activities package.
         """
         offenders = sorted(
@@ -819,7 +818,7 @@ class TestSubPackagePrivacy:
         owners = {"service", "migration_service", "subscribers", "scheduled_jobs"}
         offenders = [
             f"{path.relative_to(_MODULES_ROOT).as_posix()}: role '{_role(path.stem)}'"
-            for module_name in _CONVERTED
+            for module_name in _MODULE_NAMES
             for path in _python_files(_MODULES_ROOT / module_name)
             if _role(path.stem) not in owners
             and any(
@@ -847,7 +846,7 @@ class TestSubPackagePrivacy:
 
         """
         offenders: list[str] = []
-        for module_name in _CONVERTED:
+        for module_name in _MODULE_NAMES:
             for path in _python_files(_MODULES_ROOT / module_name):
                 if _role(path.stem) != "crud":
                     continue
@@ -881,7 +880,7 @@ class TestSubPackagePrivacy:
         its name, not that its name is on a list.
         """
         offenders: list[str] = []
-        for module_name in _CONVERTED:
+        for module_name in _MODULE_NAMES:
             for path in _python_files(_MODULES_ROOT / module_name):
                 role = _role(path.stem)
                 nodes = list(ast.walk(ast.parse(path.read_text())))
@@ -911,7 +910,7 @@ class TestStoreRole:
 
     def test_a_store_touches_neither_the_database_nor_process_memory(self):
         offenders: list[str] = []
-        for module_name in _CONVERTED:
+        for module_name in _MODULE_NAMES:
             for path in _python_files(_MODULES_ROOT / module_name):
                 if _role(path.stem) != "store":
                     continue
@@ -940,17 +939,17 @@ class TestStoreRole:
 
 
 class TestModuleInventory:
-    """Every top-level module is covered by the converted-module rules."""
+    """Every top-level module is covered by the module rules."""
 
     def test_every_top_level_module_is_classified(self):
         """A new module cannot sit outside the structural checks."""
         on_disk = {
             path.name for path in _MODULES_ROOT.iterdir() if path.is_dir() and not path.name.startswith(("_", "."))
         }
-        missing = sorted(on_disk - set(CONVERTED_MODULES))
-        stale = sorted(set(CONVERTED_MODULES) - on_disk)
-        assert not missing, "Modules missing from CONVERTED_MODULES:\n  " + "\n  ".join(missing)
-        assert not stale, "Listed in CONVERTED_MODULES but not on disk:\n  " + "\n  ".join(stale)
+        missing = sorted(on_disk - set(MODULES))
+        stale = sorted(set(MODULES) - on_disk)
+        assert not missing, "Modules missing from MODULES:\n  " + "\n  ".join(missing)
+        assert not stale, "Listed in MODULES but not on disk:\n  " + "\n  ".join(stale)
 
 
 class TestLayerRules:
@@ -1016,7 +1015,7 @@ class TestLayerRules:
         imports FastAPI drags a transport into a place with none.
         """
         offenders: list[str] = []
-        for module_name in _CONVERTED:
+        for module_name in _MODULE_NAMES:
             for path in _python_files(_MODULES_ROOT / module_name):
                 if _role(path.stem) not in _PERSISTENCE_ROLES | {"models"}:
                     continue
@@ -1038,7 +1037,7 @@ class TestLayerRules:
         """
         offenders: list[str] = []
         used: set[str] = set()
-        for module_name in _CONVERTED:
+        for module_name in _MODULE_NAMES:
             for path in _python_files(_MODULES_ROOT / module_name):
                 if _role(path.stem) not in {"service", "integration_service"}:
                     continue
@@ -1076,7 +1075,7 @@ class TestLayerRules:
         )
 
     def test_outbound_reach_uses_a_published_surface(self):
-        """A converted module reaches another top-level module only through its surface.
+        """A module reaches another top-level module only through its surface.
 
         Stated as an allowlist, so a new ``utils.py`` is not importable until
         someone publishes its package surface, instead of being importable until
@@ -1143,7 +1142,7 @@ class TestSurfaceTransactions:
 
 
 class TestDocstringScope:
-    """The docstring lint applies exactly to the converted modules."""
+    """The docstring lint applies to every module."""
 
     def test_no_module_is_exempt_from_the_docstring_lint(self):
         """Every module follows the documented public API convention."""
@@ -1173,7 +1172,7 @@ class TestProviderResolution:
         ``Depends(core.dependencies.get_storage)`` so a test overrides it.
         """
         offenders: list[str] = []
-        for module_name in _CONVERTED:
+        for module_name in _MODULE_NAMES:
             for path in _python_files(_MODULES_ROOT / module_name):
                 if _role(path.stem) in self._ENTRY_ROLES:
                     continue
@@ -1207,7 +1206,7 @@ class TestPackageIndependence:
         answer.
         """
         offenders: list[str] = []
-        for module_name in _CONVERTED:
+        for module_name in _MODULE_NAMES:
             cycle = _find_cycle(_package_graph(module_name))
             if cycle:
                 offenders.append(f"{module_name}: {' -> '.join(cycle)}")
@@ -1362,7 +1361,7 @@ class TestModuleSurface:
         """
         trees = {path: ast.parse(path.read_text()) for path in _python_files(_APP_ROOT)}
         offenders: list[str] = []
-        for module_name in _CONVERTED:
+        for module_name in _MODULE_NAMES:
             for path in _python_files(_MODULES_ROOT / module_name):
                 if path.name != "integration_service.py":
                     continue
@@ -1388,7 +1387,7 @@ class TestModuleSurface:
         """A reach past the surface needs an entry in _INBOUND_EXCEPTIONS."""
         offenders: list[str] = []
         app_root = pathlib.Path("app")
-        for module_name in _CONVERTED:
+        for module_name in _MODULE_NAMES:
             module_root = _MODULES_ROOT / module_name
             prefix = f"modules.{module_name}."
             for path in _python_files(app_root):
@@ -1449,7 +1448,7 @@ class TestConfigurationReads:
         """
         offenders = sorted(
             f"{_module_dotted(path)} ({_role(path.stem)})"
-            for module_name in _CONVERTED
+            for module_name in _MODULE_NAMES
             for path in _python_files(_MODULES_ROOT / module_name)
             if _role(path.stem) not in _MAY_READ_CONFIGURATION
             and any(target == "core.config" or target.startswith("core.config.") for target in _imported_modules(path))
@@ -1466,7 +1465,7 @@ class TestReadModelsAreStoredRows:
 
     def test_read_models_require_their_id(self):
         offenders: list[str] = []
-        for module_name in _CONVERTED:
+        for module_name in _MODULE_NAMES:
             for path in _python_files(_MODULES_ROOT / module_name):
                 if _role(path.stem) not in {"schema", "contracts"}:
                     continue

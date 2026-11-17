@@ -2,7 +2,7 @@
 
 The value of a single error shape is that a client writes one error path, so
 these assert the shape holds across *every* way the API can fail — a domain
-error, a bare HTTPException from a module not yet converted, and a request
+error, a bare HTTPException, and a request
 validation failure — not just the happy one.
 """
 
@@ -99,7 +99,7 @@ class TestProblemDocumentShape:
         }
 
     def test_bare_http_exception_gets_the_same_shape(self):
-        """A module not yet on domain errors must not speak a second dialect."""
+        """A bare HTTPException must not speak a second dialect."""
         resp = _client().get("/legacy")
 
         assert resp.status_code == 403

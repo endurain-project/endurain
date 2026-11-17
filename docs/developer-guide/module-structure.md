@@ -231,7 +231,7 @@ makes those atomic — and that arrangement belongs to `service`. An
 `integration_service` therefore never publishes events or ends a transaction: it
 calls its own `service` for any write that decides, and
 `test_a_surface_does_not_publish_events` forbids it from importing
-`event_publishers` in every converted module. A surface that cannot publish cannot own the commit that has
+`event_publishers` in every module. A surface that cannot publish cannot own the commit that has
 to be atomic with the publish, so there is one write-orchestration layer, not two.
 
 ## Layering inside a module
@@ -328,7 +328,7 @@ to make a *domain* decision from it — mapping `IntegrityError` to `ConflictErr
 is the precedent — never to re-raise a generic one.
 
 `test_crud_does_not_end_transactions` enforces it: a `crud`-role file in a
-converted module may not call `commit` or `rollback`, and there is no exception
+module may not call `commit` or `rollback`, and there is no exception
 list. `test_only_transaction_owners_end_transactions` states the same rule for
 every file: only `service`, `migration_service`, `subscribers` and
 `scheduled_jobs` may end a transaction, so a file whose name declares no role
@@ -371,7 +371,7 @@ because it rejects a subpackage of an external package as a forbidden module.
 ## Extraction target
 
 "Could become its own library" means a specific thing here, and it is worth
-stating so the next module is converted to the same target:
+stating so every module is built to the same target:
 
 - **In scope:** a module is a package that could be installed separately and run
   **in the same process against the same database**. Its only inbound surface is
@@ -405,7 +405,7 @@ the caller needs the answer to.
 ## Configuration is read by the application layers
 
 `core.config` is the application's settings, which makes it a dependency like a provider:
-it has to be visible in a signature, not discovered in a function body. A converted module
+it has to be visible in a signature, not discovered in a function body. A module
 therefore reads it only in the layers that decide (`service`, `router`, `public_router`,
 `dependencies`, `subscribers`, `scheduled_jobs`, `integration_service`,
 `migration_service`). Every other file is a pure layer, and a value it needs is a
@@ -423,7 +423,7 @@ generic (`core.exceptions`, `core.timezone`, `core.pagination`) over adding a ne
 into application-wide state (`core.config`, `core.middleware`), and put anything
 generic enough to be shared by other products into `jasil`.
 
-It is an allowlist: `tests/architecture/test_converted_module_dependencies.py` names every
+It is an allowlist: `tests/architecture/test_module_dependencies.py` names every
 `core` module the modules may import, with the reason, and fails both on an import that is
 not listed and on an entry nothing uses any more.
 
@@ -530,11 +530,11 @@ but not a peer's" is not statable: the wildcard pair
 compares each import against the importer's own package, and consults the explicit
 `_LAYER_EXCEPTIONS` register.
 
-- `TestLayerRules` states each layer rule once, by file role, for every converted
+- `TestLayerRules` states each layer rule once, by file role, for every
   module: only persistence (`models`, `crud`, `serializers`, `query`) imports an
   ORM `models` module; a router never reaches `crud`, `models`, `query` or
   `event_publishers`; persistence imports no FastAPI and asks no other package
-  (only its data shapes); a converted module reaches another top-level module
+  (only its data shapes); a module reaches another top-level module
   only through its `integration_service`, `schema`, `contracts`, `constants`,
   `events` or `dependencies`; and a lower module never imports the one above it
   (`followers` and `gears` never import `activities`; `users` never imports `followers`
@@ -552,7 +552,7 @@ compares each import against the importer's own package, and consults the explic
   subsystem depends on the thing it derives from, never the reverse; when the
   depended-on package needs something back, it states a seam and composition
   installs the answer.
-- `TestModuleInventory` fails on a top-level module that is not in `CONVERTED_MODULES`,
+- `TestModuleInventory` fails on a top-level module that is not in `MODULES`,
   and on an entry that is not on disk.
 - `test_only_transaction_owners_end_transactions` is the commit rule as an
   allowlist: only `service`, `migration_service`, `subscribers` and
@@ -561,7 +561,7 @@ compares each import against the importer's own package, and consults the explic
 
 **`backend/tests/architecture/test_logging_rule.py`** and
 **`test_route_conventions.py`** state the logging, route-declaration,
-rate-limit and `db`-position rules by what the code does, over every converted
+rate-limit and `db`-position rules by what the code does, over every
 module. Where a rule needs an exception it is a register with a reason that fails
 when it goes stale, not an exemption in the rule.
 
@@ -590,7 +590,7 @@ when it goes stale, not an exemption in the rule.
    `module_registry.configure_user_contributors`, in import order: a `ProfileRecordsSection` for one
    `data/<key>.json` of plain rows, a `ProfileArchiveSection` when it writes its own entries or files.
    `users_profile` is forbidden from importing the module (`users-profile-owns-no-sections`).
-9. Add a new top-level bounded context to `CONVERTED_MODULES` in
+9. Add a new top-level bounded context to `MODULES` in
    `backend/tests/_helpers/module_roles.py`; the architecture and logging tests
    both read it from there. A module missing from it fails `TestModuleInventory`,
    so a module cannot be added outside the rules by omission.

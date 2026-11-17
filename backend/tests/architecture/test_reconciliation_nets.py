@@ -1,4 +1,4 @@
-"""The reconciliation-net invariant, enforced across every converted module.
+"""The reconciliation-net invariant, enforced across every module.
 
 A durable subscriber that derives state must either ship a scheduled backfill
 re-deriving what the create path missed, or say in writing why it does not need

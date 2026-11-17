@@ -1,22 +1,22 @@
-"""What a converted module may take from ``core``.
+"""What a module may take from ``core``.
 
 Two rules from ``docs/developer-guide/module-structure.md`` that import-linter
 states badly:
 
 * ``core.*`` is "always allowed", which makes it the largest hidden coupling
   between a module and this application. The allowlist below names every
-  ``core`` module a converted module reaches today and why, so a new reach into
+  ``core`` module a module reaches today and why, so a new reach into
   application-wide state is a reviewed diff instead of an unnoticed import.
 """
 
 import ast
 import pathlib
 
-from tests._helpers.module_roles import CONVERTED_MODULES
+from tests._helpers.module_roles import MODULES
 
 _MODULES_ROOT = pathlib.Path("app/modules")
 
-#: ``core`` modules a converted module may import, as ``{core module: reason}``.
+#: ``core`` modules a module may import, as ``{core module: reason}``.
 #: Generic primitives sit first; the entries below the divider read
 #: application-wide state or wiring and are the ones to shrink, or to move into
 #: ``jasil`` when they are generic enough to be shared by other products.
@@ -82,13 +82,10 @@ _ALLOWED_CORE: dict[str, str] = {
 }
 
 
-def _converted_files() -> list[pathlib.Path]:
-    """Return every non-test source file of a converted module."""
+def _module_files() -> list[pathlib.Path]:
+    """Return every non-test source file of a module."""
     return sorted(
-        path
-        for module in CONVERTED_MODULES
-        for path in (_MODULES_ROOT / module).rglob("*.py")
-        if "__pycache__" not in path.parts
+        path for module in MODULES for path in (_MODULES_ROOT / module).rglob("*.py") if "__pycache__" not in path.parts
     )
 
 
@@ -119,21 +116,21 @@ def _core_imports(path: pathlib.Path) -> set[str]:
 
 
 class TestCoreAllowlist:
-    """A converted module reaches only the ``core`` modules it has declared."""
+    """A module reaches only the ``core`` modules it has declared."""
 
-    def test_converted_modules_import_only_allowlisted_core_modules(self):
+    def test_modules_import_only_allowlisted_core_modules(self):
         offenders = {
             f"{path.relative_to(_MODULES_ROOT)} -> {name}"
-            for path in _converted_files()
+            for path in _module_files()
             for name in _core_imports(path)
             if name not in _ALLOWED_CORE
         }
         assert not offenders, (
-            "Converted modules import core modules that are not declared in _ALLOWED_CORE; add the entry with its "
+            "Modules import core modules that are not declared in _ALLOWED_CORE; add the entry with its "
             f"reason, or move the dependency behind a parameter: {sorted(offenders)}"
         )
 
     def test_allowlist_has_no_unused_entries(self):
-        used = {name for path in _converted_files() for name in _core_imports(path)}
+        used = {name for path in _module_files() for name in _core_imports(path)}
         stale = sorted(set(_ALLOWED_CORE) - used)
-        assert not stale, f"Remove allowlist entries that no converted module imports any more: {stale}"
+        assert not stale, f"Remove allowlist entries that no module imports any more: {stale}"

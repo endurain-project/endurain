@@ -349,7 +349,7 @@ class TestAuditActionModules:
 
 
 def _write_routes() -> set[tuple[str, str]]:
-    """Return ``(router file, handler)`` for every write route of every converted module."""
+    """Return ``(router file, handler)`` for every write route of every module."""
     return {
         (path.relative_to(MODULES_ROOT).as_posix(), function.name)
         for path, function in router_functions()

@@ -2,19 +2,19 @@
 
 Each rule is stated on what the code does, not on a file existing: a route declares what it
 returns, a write is rate limited, and ``db`` sits where a reader expects it. They apply to every
-converted module, so a new route or function is covered the day it is written.
+module, so a new route or function is covered the day it is written.
 """
 
 import ast
 import pathlib
 
-from tests._helpers.module_roles import CONVERTED_MODULES, files_with_role, role_of
+from tests._helpers.module_roles import MODULES, files_with_role, role_of
 from tests._helpers.routes import WRITE_METHODS, route_decorators, router_functions
 
 import modules.auth.constants as auth_constants
 
 _ROOT = pathlib.Path("app/modules")
-_CONVERTED = tuple(_ROOT / name for name in CONVERTED_MODULES)
+_MODULE_ROOTS = tuple(_ROOT / name for name in MODULES)
 
 _APP = pathlib.Path("app")
 
@@ -134,7 +134,7 @@ class TestRouteConventions:
         """
         offenders = [
             path.relative_to(_ROOT).as_posix()
-            for path in files_with_role(_CONVERTED, "dependencies")
+            for path in files_with_role(_MODULE_ROOTS, "dependencies")
             if "HTTPException" in path.read_text()
         ]
 
@@ -261,7 +261,7 @@ class TestSignatureConventions:
         dependency graph, so their order follows what reads best, not a positional convention.
         """
         offenders: list[str] = []
-        for root in _CONVERTED:
+        for root in _MODULE_ROOTS:
             for path in sorted(root.rglob("*.py")):
                 if "__pycache__" in path.parts or role_of(path.stem) in _FRAMEWORK_ROLES:
                     continue
@@ -284,7 +284,7 @@ class TestSignatureConventions:
         optional ``commit`` would let a caller publish outside the transaction.
         """
         offenders: list[str] = []
-        for path in files_with_role(_CONVERTED, "event_publishers"):
+        for path in files_with_role(_MODULE_ROOTS, "event_publishers"):
             for node in ast.parse(path.read_text()).body:
                 if not isinstance(node, ast.FunctionDef) or not node.name.startswith("publish_"):
                     continue

@@ -9,7 +9,7 @@
 - Parameter order, `__init__.py`, comment content, naming and layering are stated once in `docs/developer-guide/module-structure.md`; this file only holds the language- and framework-level style below.
 
 ## Docstrings (PEP 257, Google sections)
-Enforced by ruff `D` with `convention = "google"` on the converted modules (`activities`, `followers`); other modules are exempt until converted.
+Enforced by ruff `D` with `convention = "google"` on every module.
 - Summary on the opening line, then a blank line, then sections.
 - Every public module, class, function and method has a docstring.
 - `Args`: every parameter of a public function (D417 enforces it once a section exists). A `_private` helper gets a summary and `Args` only for a non-obvious parameter.
@@ -35,7 +35,7 @@ Enforced by ruff `D` with `convention = "google"` on the converted modules (`act
 - `response_model` on every JSON endpoint; a route that returns bytes declares `responses=` with its media type instead (`TestRouteConventions`). Status 200 (GET), 201 (POST create), 202 (POST accepted for background processing), 204 (DELETE).
 - Identity and the session come from shared aliases: `auth_dependencies.CurrentUserId` and `core_dependencies.DbSession`. Define a new alias beside its dependency once a second route uses it; do not repeat `Annotated[..., Depends(...)]` inline.
 - A scope check whose result is unused goes in the decorator (`dependencies=[Security(auth_dependencies.check_scopes, scopes=[...])]`), never as an unused `_check_scopes` parameter, so it stays out of the signature and the OpenAPI description.
-- Constrain a path or query parameter on its type (`core.dependencies.PositiveId`, `core.dependencies.UuidId`, an enum, `AfterValidator`), not with a `Depends` function that raises `HTTPException`; `TestRouteConventions` fails on one in a converted module.
+- Constrain a path or query parameter on its type (`core.dependencies.PositiveId`, `core.dependencies.UuidId`, an enum, `AfterValidator`), not with a `Depends` function that raises `HTTPException`; `TestRouteConventions` fails on one in a module.
 - Endpoint docstring says what the endpoint does for a client, not how, and has no `Args`/`Returns`/`Raises` sections (`test_api_contract.py`): FastAPI publishes it as the OpenAPI description and it is copied into `api.generated.ts`, so parameter names such as `db` or `token_user_id` would become public API text.
 - Route handlers are plain `def`, never `async def` (a blocking call in an async handler stalls the event loop; `test_no_route_handler_is_async`). Handle uploads with `core.file_uploads.save_validated_upload_sync`.
 

@@ -12,7 +12,7 @@ points at its sections and holds the few lookups that are not in it.
 | Where does a commit, rollback or event belong? | Layering inside a module, Transaction ownership |
 | Query, event, contributor or seam? | Choosing a coupling mechanism |
 | What do I name an alias, a publisher, a schema, a collection? | Conventions that look like drift |
-| What do I add for a new module? | Adding a module (the `convert-module` skill covers an existing one) |
+| What do I add for a new module? | Adding a module |
 | What is enforced, and where? | Enforcement |
 
 ## Lookups not in the guide
