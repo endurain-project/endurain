@@ -44,11 +44,12 @@ LongText = Annotated[StrictStr, Field(max_length=2500)]
 ActivityName = core_types.DisplayName
 
 
-class ActivitySummaryBase(BaseModel):
-    """The fields that describe an activity, less the two heavy ones the lists leave out.
+class ActivityFields(BaseModel):
+    """The fields every shape of an activity has, less the two heavy ones and the three that differ by shape.
 
-    The list responses (:class:`ActivitySummaryRead`) carry exactly these. :class:`ActivityBase`
-    adds ``private_notes`` and ``import_info`` for the full read and the write shapes.
+    :class:`ActivitySummaryBase` adds ``user_id``, ``start_time`` and ``end_time`` as optional, for the read
+    shapes; the ingestion contract (:class:`~modules.activities.activity.contracts.ActivityCore`) adds them as
+    required. A shape that declares a field as required never extends one that declares it as optional.
 
     Split out from :class:`Activity` so the ingestion contract
     (:class:`~modules.activities.activity.contracts.ActivityCore`) can extend
@@ -59,13 +60,10 @@ class ActivitySummaryBase(BaseModel):
     adds only what it owns.
 
     Attributes:
-        user_id: ID of the owning user.
         description: Public activity description.
         distance: Total distance in meters.
         name: Activity name.
         activity_type: The sport type.
-        start_time: Activity start as a timezone-aware UTC instant.
-        end_time: Activity end as a timezone-aware UTC instant.
         timezone: IANA timezone the activity was recorded in. Clients render
             ``start_time``/``end_time`` in this zone to show the athlete's
             local wall clock.
@@ -119,13 +117,10 @@ class ActivitySummaryBase(BaseModel):
 
     model_config = ConfigDict(from_attributes=True, extra="forbid")
 
-    user_id: uuid.UUID | None = None
     description: str | None = Field(default=None, max_length=2500)
     distance: int = Field(ge=0, description="Total distance in meters")
     name: str = Field(max_length=250)
     activity_type: StoredActivityType
-    start_time: datetime | None = None
-    end_time: datetime | None = None
     timezone: str | None = Field(default=None, max_length=250)
     total_elapsed_time: float | None = Field(default=None, ge=0, description="Total elapsed wall-clock time in seconds")
     total_timer_time: float | None = Field(default=None, ge=0, description="Active timer time in seconds")
@@ -194,7 +189,7 @@ class ActivitySummaryBase(BaseModel):
         """
         return core_timezone.canonical(value)
 
-    @field_validator("start_time", "end_time", "created_at", mode="before")
+    @field_validator("created_at", mode="before")
     @classmethod
     def _normalize_to_utc_aware(cls, value: object) -> object:
         """Accept the ingestion producers' ISO strings, expose an aware UTC datetime.
@@ -214,7 +209,37 @@ class ActivitySummaryBase(BaseModel):
         return core_timezone.to_utc_aware(value) if isinstance(value, str) else value
 
 
-class _ActivityHeavyFields(BaseModel):
+class ActivitySummaryBase(ActivityFields):
+    """The fields that describe an activity, less the two heavy ones the lists leave out.
+
+    The list responses (:class:`ActivitySummaryRead`) carry exactly these. :class:`ActivityBase`
+    adds ``private_notes`` and ``import_info`` for the full read and the write shapes.
+
+    Attributes:
+        user_id: ID of the owning user.
+        start_time: Activity start as a timezone-aware UTC instant.
+        end_time: Activity end as a timezone-aware UTC instant.
+    """
+
+    user_id: uuid.UUID | None = None
+    start_time: datetime | None = None
+    end_time: datetime | None = None
+
+    @field_validator("start_time", "end_time", mode="before")
+    @classmethod
+    def _normalize_times_to_utc_aware(cls, value: object) -> object:
+        """Accept the producers' ISO strings, expose an aware UTC datetime.
+
+        Args:
+            value: An ISO string or datetime.
+
+        Returns:
+            The aware UTC datetime, or the input unchanged when it is not a date.
+        """
+        return core_timezone.to_utc_aware(value) if isinstance(value, str) else value
+
+
+class ActivityHeavyFields(BaseModel):
     """The two large fields no list screen shows.
 
     Attributes:
@@ -228,7 +253,7 @@ class _ActivityHeavyFields(BaseModel):
     import_info: dict[str, Any] | None = None
 
 
-class ActivityBase(ActivitySummaryBase, _ActivityHeavyFields):
+class ActivityBase(ActivitySummaryBase, ActivityHeavyFields):
     """Every field that describes an activity, shared by the read and write shapes.
 
     :class:`ActivitySummaryBase` plus ``private_notes`` and ``import_info``; see it for the
@@ -382,7 +407,7 @@ class ActivityFeedPage(core_pagination.CursorPage[ActivitySummaryRead]):
     )
 
 
-class ActivitiesBulkEditStatus(core_job_status.JobStatus):
+class ActivitiesBulkEditStatus(core_job_status.JobStatusOpenFailure):
     """Where a queued bulk edit across a user's activities is."""
 
     kind: Literal["activities_bulk_edit"]

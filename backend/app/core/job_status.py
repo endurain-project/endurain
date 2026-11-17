@@ -95,15 +95,13 @@ class JobRef(BaseModel):
 class JobStatus(BaseModel):
     """The envelope of every background job's status.
 
-    A kind subclasses it, narrows ``kind`` to its own values and adds its own fields; ``kind`` tells the
-    subclasses apart in ``GET /jobs/{job_id}``.
+    A kind subclasses it, declares ``kind`` as its own values and ``error_code`` as its own closed set (or
+    subclasses :class:`JobStatusOpenFailure`) and adds its own fields; ``kind`` tells the subclasses apart in
+    ``GET /jobs/{job_id}``. The base declares neither field, so a subclass narrows nothing it inherits.
 
     Attributes:
         id: The job's identifier; ``GET /jobs/{job_id}`` reads it.
-        kind: What the job does.
         status: Where the job is.
-        error_code: Why the job failed, from a closed set per kind; ``null`` unless ``status`` is ``failed`` and
-            the kind records a reason.
         created_at: When the job was accepted.
         finished_at: When the job reached ``succeeded`` or ``failed``.
     """
@@ -111,8 +109,16 @@ class JobStatus(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     id: uuid.UUID = Field(..., description="The job's identifier")
-    kind: str = Field(..., description="What the job does")
     status: JobState = Field(..., description="Where the job is")
-    error_code: str | None = Field(default=None, description="Why the job failed; null unless it failed")
     created_at: datetime = Field(..., description="When the job was accepted")
     finished_at: datetime | None = Field(default=None, description="When the job succeeded or failed")
+
+
+class JobStatusOpenFailure(JobStatus):
+    """A job status whose kind records no closed set of failure reasons.
+
+    Attributes:
+        error_code: Why the job failed; ``null`` unless ``status`` is ``failed`` and the kind records a reason.
+    """
+
+    error_code: str | None = Field(default=None, description="Why the job failed; null unless it failed")

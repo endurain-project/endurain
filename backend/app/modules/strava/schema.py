@@ -74,7 +74,7 @@ class StravaGearImportResult(BaseModel):
     imported: int
 
 
-class StravaSyncStatus(core_job_status.JobStatus):
+class StravaSyncStatus(core_job_status.JobStatusOpenFailure):
     """Where a queued Strava link, gear sync or unlink is.
 
     Attributes:

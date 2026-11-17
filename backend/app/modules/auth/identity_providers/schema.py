@@ -47,7 +47,6 @@ class IdentityProviderBase(BaseModel):
             Defaults to True.
         sync_email (bool): Whether to sync the verified email on each login. Defaults to False.
         user_mapping (Dict[str, Any] | None): Claims mapping configuration.
-        client_id (str | None): The client ID for the provider (1-512 characters).
 
     Validators:
         - slug: Ensures the slug contains only lowercase letters, numbers, and hyphens and is not reserved.
@@ -91,7 +90,6 @@ class IdentityProviderBase(BaseModel):
         default=False, description="Sync the email the provider verified onto the local account on each login"
     )
     user_mapping: dict[str, Any] | None = Field(default=None, description="Claims mapping configuration")
-    client_id: StrictStr | None = Field(default=None, min_length=1, max_length=512)
 
     @field_validator("slug")
     @classmethod
@@ -178,11 +176,13 @@ class IdentityProviderUpdate(core_partial_update.NotClearable, IdentityProviderB
         IdentityProviderBase
 
     Attributes:
+        client_id (str | None): The client ID for the provider (1-512 characters).
         client_secret (str | None): The client secret for the provider (1-512 characters).
     """
 
     not_clearable = ("client_id", "client_secret")
 
+    client_id: StrictStr | None = Field(default=None, min_length=1, max_length=512)
     client_secret: StrictStr | None = Field(default=None, min_length=1, max_length=512)
 
     model_config = ConfigDict(extra="forbid")
@@ -236,6 +236,7 @@ class IdentityProviderRead(IdentityProviderBase):
 
     Attributes:
         id (uuid.UUID): Unique identifier of the identity provider.
+        client_id (str | None): The client ID for the provider, decrypted.
         icon_uploaded (bool): Whether an uploaded icon is shown instead of ``icon``.
         created_at (datetime): Timestamp when the identity provider was created.
         updated_at (datetime): Timestamp when the identity provider was last updated.
@@ -255,6 +256,7 @@ class IdentityProviderRead(IdentityProviderBase):
     """
 
     id: uuid.UUID
+    client_id: StrictStr | None = Field(default=None, min_length=1, max_length=512)
     icon_uploaded: StrictBool = Field(default=False, description="Whether an uploaded icon is shown instead of icon")
     created_at: datetime
     updated_at: datetime

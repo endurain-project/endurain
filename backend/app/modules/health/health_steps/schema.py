@@ -4,12 +4,15 @@ import uuid
 from datetime import date as datetime_date
 from datetime import datetime
 from enum import Enum
-from typing import ClassVar
+from typing import Annotated, ClassVar
 
 from pydantic import BaseModel, ConfigDict, Field, StrictInt
 
 import core.partial_update as core_partial_update
 import core.types as core_types
+
+#: A step count: a non-negative 32-bit integer.
+StepsCount = Annotated[StrictInt, Field(ge=0, le=core_types.INT32_MAX)]
 
 
 class Source(Enum):
@@ -42,7 +45,6 @@ class HealthStepsBase(BaseModel):
     """
 
     date: datetime_date | None = Field(default=None, description="Calendar date of the steps")
-    steps: StrictInt | None = Field(default=None, ge=0, le=core_types.INT32_MAX, description="Number of steps taken")
 
     model_config = ConfigDict(
         from_attributes=True,
@@ -64,7 +66,7 @@ class HealthStepsCreate(HealthStepsWrite):
     The date is optional; ``service`` fills it in when the client sends none.
     """
 
-    steps: StrictInt = Field(..., ge=0, le=core_types.INT32_MAX, description="Number of steps taken")
+    steps: StepsCount = Field(..., description="Number of steps taken")
 
 
 class HealthStepsRead(HealthStepsBase):
@@ -81,6 +83,7 @@ class HealthStepsRead(HealthStepsBase):
 
     source: Source = Field(default=Source.MANUAL, validate_default=True, description="Source of the steps data")
     id: uuid.UUID = Field(..., description="Unique identifier for the steps record to update")
+    steps: StepsCount | None = Field(default=None, description="Number of steps taken")
     user_id: uuid.UUID = Field(..., description="Foreign key reference to the user")
     version: StrictInt = Field(default=1, ge=1, description="Optimistic-concurrency counter, also sent as the ETag")
     updated_at: datetime = Field(..., description="When the record last changed, set by the server")
@@ -94,6 +97,8 @@ class HealthStepsUpdate(core_partial_update.NotClearable, HealthStepsWrite):
     """
 
     not_clearable: ClassVar[tuple[str, ...]] = ("date", "steps")
+
+    steps: StepsCount | None = Field(default=None, description="Number of steps taken")
 
 
 class HealthStepsImport(HealthStepsCreate):

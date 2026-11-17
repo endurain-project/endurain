@@ -23,6 +23,7 @@ from sqlalchemy import func
 import core.sanitization as core_sanitization
 import core.stored_enum as core_stored_enum
 import core.timezone as core_timezone
+import modules.activities.activity.contracts as activity_contracts
 import modules.activities.activity.models as activity_models
 import modules.activities.activity.schema as activity_schema
 
@@ -176,7 +177,7 @@ def to_update_values(activity_attributes: pydantic.BaseModel) -> dict[str, objec
 
 
 def to_orm(
-    activity: activity_schema.ActivityBase,
+    activity: activity_schema.ActivityBase | activity_contracts.ActivityCore,
 ) -> activity_models.Activity:
     """Build the ORM row a write persists from its API schema.
 

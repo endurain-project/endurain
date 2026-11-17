@@ -138,11 +138,12 @@ class ActivityFeedEntry:
     cursor_id: uuid.UUID
 
 
-class ActivityCore(activity_schema.ActivityBase):
+class ActivityCore(activity_schema.ActivityFields, activity_schema.ActivityHeavyFields):
     """Strict ingestion *input* schema.
 
-    Extends :class:`~modules.activities.activity.schema.ActivityBase` — the
-    fields that describe an activity — **not** the read
+    Extends the fields that describe an activity
+    (:class:`~modules.activities.activity.schema.ActivityFields` and
+    :class:`~modules.activities.activity.schema.ActivityHeavyFields`) — **not** the read
     :class:`~modules.activities.activity.schema.ActivityRead`. That distinction is
     the point: the read model adds the server-owned ``id`` and
     ``map_thumbnail_path``, which a producer must never supply, as would any future

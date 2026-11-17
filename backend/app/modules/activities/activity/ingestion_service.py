@@ -22,7 +22,7 @@ logger = core_logger.get_logger(__name__)
 
 
 def _derive_dedup_key(
-    activity: activity_schema.ActivityBase,
+    activity: activity_schema.ActivityBase | activity_contracts.ActivityCore,
     source: activity_contracts.ImportSource | None,
 ) -> str | None:
     """Derive a stable idempotency key for an activity.

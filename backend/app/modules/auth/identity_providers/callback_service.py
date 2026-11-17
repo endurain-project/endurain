@@ -312,7 +312,7 @@ class CallbackService:
             logger.error("Error in SSO callback: <err>", exc_info=err, extra=core_logger.context(err=err))
             return self._failure_url(oauth_state)
 
-    def _failure_url(self, oauth_state: oauth_state_schema.OAuthStateRead) -> str:
+    def _failure_url(self, oauth_state: oauth_state_schema.OAuthStateBase) -> str:
         """Return where a failed callback sends the browser: back to where its flow started.
 
         Args:
@@ -331,7 +331,7 @@ class CallbackService:
             )
         return self._login_error_url(oauth_state, "sso_failed")
 
-    def _login_error_url(self, oauth_state: oauth_state_schema.OAuthStateRead, error: str) -> str:
+    def _login_error_url(self, oauth_state: oauth_state_schema.OAuthStateBase, error: str) -> str:
         """Return where a failed sign-in sends the browser: the native app that started it, else the login page.
 
         Args:
@@ -823,7 +823,7 @@ class CallbackService:
         self,
         idp: identity_provider_contracts.IdentityProviderState,
         code: str,
-        oauth_state: oauth_state_schema.OAuthStateRead,
+        oauth_state: oauth_state_schema.OAuthStateBase,
         iss: str | None,
     ) -> str:
         """Redeem the code and return the subject of a verified, fresh ID token.
@@ -1012,7 +1012,9 @@ _STEP_UP_REFUSALS = {
 
 
 def _stale_flow(
-    user: users_schema.UserRead | None, oauth_state: oauth_state_schema.OAuthStateRead, db: Session
+    user: users_schema.UserRead | None,
+    oauth_state: oauth_state_schema.OAuthStateRead | oauth_state_schema.StepUpOAuthStateRead,
+    db: Session,
 ) -> _StaleFlow | None:
     """Tell why a link or step-up can no longer be completed, taking the security generation's lock.
 
@@ -1112,7 +1114,7 @@ _NO_SUBJECT = _ProviderFailure(
 )
 
 
-def _proven_actor(oauth_state: oauth_state_schema.OAuthStateRead) -> AbstractContextManager[None]:
+def _proven_actor(oauth_state: oauth_state_schema.OAuthStateBase) -> AbstractContextManager[None]:
     """Return the audit context for rows about a link or step-up whose browser the callback has proven.
 
     Args:
@@ -1127,7 +1129,7 @@ def _proven_actor(oauth_state: oauth_state_schema.OAuthStateRead) -> AbstractCon
 
 
 def _record_step_up_refusal(
-    oauth_state: oauth_state_schema.OAuthStateRead,
+    oauth_state: oauth_state_schema.OAuthStateBase,
     outcome: jasil_audit.Outcome,
     reason: login_audit_actions.StepUpFailureReason,
     *,
@@ -1242,7 +1244,7 @@ class _StaleSignInError(Exception):
     """The provider's ID token does not prove a sign-in recent enough for a step-up."""
 
 
-def _require_fresh_sign_in(claims: dict[str, Any], oauth_state: oauth_state_schema.OAuthStateRead) -> None:
+def _require_fresh_sign_in(claims: dict[str, Any], oauth_state: oauth_state_schema.OAuthStateBase) -> None:
     """Require the ID token's ``auth_time`` to fall after the step-up started.
 
     A provider that reused its own session instead of signing the user in again reports the earlier sign-in, so

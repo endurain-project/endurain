@@ -49,7 +49,7 @@ class GarminLinkStatus(core_job_status.JobStatus):
     error_code: garmin_constants.LinkFailure | None = Field(default=None, description="Why the attempt failed")
 
 
-class GarminSyncStatus(core_job_status.JobStatus):
+class GarminSyncStatus(core_job_status.JobStatusOpenFailure):
     """Where a queued Garmin Connect gear or health sync is.
 
     Attributes:

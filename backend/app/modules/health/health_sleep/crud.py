@@ -215,7 +215,7 @@ def get_health_sleep_by_date_and_user_id(
 
 
 def create_health_sleep(
-    user_id: uuid.UUID, health_sleep: health_sleep_schema.HealthSleepCreate, db: Session
+    user_id: uuid.UUID, health_sleep: health_sleep_schema.HealthSleepNew, db: Session
 ) -> health_sleep_schema.HealthSleepRead:
     """Stage a new sleep record for a user.
 
@@ -238,7 +238,7 @@ def create_health_sleep(
 def edit_health_sleep(
     user_id: uuid.UUID,
     health_sleep_id: uuid.UUID,
-    health_sleep: health_sleep_schema.HealthSleepUpdate,
+    health_sleep: health_sleep_schema.HealthSleepChange,
     db: Session,
     *,
     if_match: str,

@@ -100,10 +100,6 @@ class HealthPoopBase(BaseModel):
         notes: Optional notes about the bowel movement.
     """
 
-    date_time: datetime | None = Field(
-        default=None,
-        description="Date and time of the bowel movement",
-    )
     bristol_type: StoredBristolType | None = Field(
         default=None,
         description="Bristol Stool Scale type",
@@ -132,11 +128,6 @@ class HealthPoopWrite(HealthPoopBase):
     bristol_type: _BristolTypeMember | None = Field(
         default=None,
         description="Bristol Stool Scale type",
-    )
-
-    date_time: core_types.RecordInstant | None = Field(
-        default=None,
-        description="Date and time of the bowel movement, with a UTC offset",
     )
 
 
@@ -190,6 +181,11 @@ class HealthPoopUpdate(core_partial_update.NotClearable, HealthPoopWrite):
     """
 
     not_clearable = ("date_time",)
+
+    date_time: core_types.RecordInstant | None = Field(
+        default=None,
+        description="Date and time of the bowel movement, with a UTC offset",
+    )
 
 
 class HealthPoopImport(HealthPoopCreate):

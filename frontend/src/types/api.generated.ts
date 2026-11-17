@@ -9567,6 +9567,7 @@ export interface components {
          *
          *     Attributes:
          *         id (uuid.UUID): Unique identifier of the identity provider.
+         *         client_id (str | None): The client ID for the provider, decrypted.
          *         icon_uploaded (bool): Whether an uploaded icon is shown instead of ``icon``.
          *         created_at (datetime): Timestamp when the identity provider was created.
          *         updated_at (datetime): Timestamp when the identity provider was last updated.

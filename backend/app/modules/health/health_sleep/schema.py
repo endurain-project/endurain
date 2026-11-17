@@ -351,7 +351,7 @@ class HealthSleepStageImport(HealthSleepStageWrite):
     end_time_gmt: core_types.ImportedInstant | None = Field(default=None, description="End time of the stage")
 
 
-class HealthSleepWrite(HealthSleepBase):
+class HealthSleepWrite(HealthSleepCore):
     """Sleep fields a client writes: the date and times are bounded, which a stored row read back need not be."""
 
     date: core_types.RecordDate | None = Field(default=None, description="Calendar date of the sleep session")
@@ -367,7 +367,6 @@ class HealthSleepWrite(HealthSleepBase):
     sleep_end_time_local: core_types.RecordLocalDateTime | None = Field(
         default=None, description=_LOCAL_END_DESCRIPTION
     )
-    sleep_stages: Sequence[HealthSleepStageWrite] | None = Field(default=None, description="List of sleep stages")
 
 
 class HealthSleepCreate(HealthSleepWrite):
@@ -375,6 +374,8 @@ class HealthSleepCreate(HealthSleepWrite):
 
     The date is optional; ``service`` fills it in when the client sends none.
     """
+
+    sleep_stages: Sequence[HealthSleepStageWrite] | None = Field(default=None, description="List of sleep stages")
 
 
 class HealthSleepIdentity(HealthSleepCore):
@@ -439,8 +440,10 @@ class HealthSleepUpdate(core_partial_update.NotClearable, HealthSleepWrite):
 
     not_clearable: ClassVar[tuple[str, ...]] = ("date",)
 
+    sleep_stages: Sequence[HealthSleepStageWrite] | None = Field(default=None, description="List of sleep stages")
 
-class HealthSleepImport(HealthSleepCreate):
+
+class HealthSleepImport(HealthSleepWrite):
     """Sleep record written by the server itself: a provider sync or a profile import.
 
     Unlike :class:`HealthSleepCreate` it carries the provenance, which a client never sets. Every
@@ -460,7 +463,7 @@ class HealthSleepImport(HealthSleepCreate):
     sleep_stages: Sequence[HealthSleepStageImport] | None = Field(default=None, description="List of sleep stages")
 
 
-class HealthSleepImportUpdate(HealthSleepUpdate):
+class HealthSleepImportUpdate(core_partial_update.NotClearable, HealthSleepWrite):
     """Fields a provider sync or a profile import changes on a sleep record, provenance included.
 
     Attributes:
@@ -477,3 +480,10 @@ class HealthSleepImportUpdate(HealthSleepUpdate):
     sleep_start_time_gmt: core_types.ImportedInstant | None = Field(default=None, description="Start time of sleep")
     sleep_end_time_gmt: core_types.ImportedInstant | None = Field(default=None, description="End time of sleep")
     sleep_stages: Sequence[HealthSleepStageImport] | None = Field(default=None, description="List of sleep stages")
+
+
+#: A sleep record to create: a client's, or the server's own from a provider sync or a profile import.
+HealthSleepNew = HealthSleepCreate | HealthSleepImport
+
+#: A sleep change to apply: a client's PATCH, or the server's own from a provider sync or a profile import.
+HealthSleepChange = HealthSleepUpdate | HealthSleepImportUpdate

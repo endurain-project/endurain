@@ -885,7 +885,7 @@ class UserAdminEdit(UserEdit):
         return UserEdit.model_validate(self.model_dump(exclude={"step_up"}, exclude_unset=True))
 
 
-class UserDeletionStatus(core_job_status.JobStatus):
+class UserDeletionStatus(core_job_status.JobStatusOpenFailure):
     """Where a queued account deletion is."""
 
     kind: Literal["user_deletion"]

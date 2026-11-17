@@ -115,15 +115,6 @@ class GearBase(BaseModel):
         max_length=250,
         description="Gear model name",
     )
-    nickname: StrictStr | None = Field(
-        default=None,
-        max_length=250,
-        description="Gear display nickname",
-    )
-    gear_type: GearType | None = Field(
-        default=None,
-        description="Gear type identifier",
-    )
     acquired_on: date | None = Field(
         default=None,
         description="Date the user acquired the gear",
@@ -175,11 +166,10 @@ class GearCreateRequest(GearBase):
     )
 
 
-class GearCreate(GearBase):
-    """A gear to create, as built by the provider syncs and the profile import.
+class GearStored(GearBase):
+    """The fields a stored gear always has: a nickname, a type and the provider gear IDs.
 
     Attributes:
-        user_id: Foreign key to user; ignored on write, the owner is passed explicitly.
         strava_gear_id: Strava gear ID.
         garminconnect_gear_id: Garmin Connect gear ID.
     """
@@ -193,10 +183,6 @@ class GearCreate(GearBase):
         ...,
         description="Gear type identifier",
     )
-    user_id: uuid.UUID | None = Field(
-        default=None,
-        description="Foreign key to user",
-    )
     strava_gear_id: StrictStr | None = Field(
         default=None,
         max_length=45,
@@ -209,7 +195,20 @@ class GearCreate(GearBase):
     )
 
 
-class GearRead(GearCreate):
+class GearCreate(GearStored):
+    """A gear to create, as built by the provider syncs and the profile import.
+
+    Attributes:
+        user_id: Foreign key to user; ignored on write, the owner is passed explicitly.
+    """
+
+    user_id: uuid.UUID | None = Field(
+        default=None,
+        description="Foreign key to user",
+    )
+
+
+class GearRead(GearStored):
     """Schema for reading a gear record.
 
     Attributes:
@@ -284,9 +283,13 @@ class GearUpdate(core_partial_update.NotClearable, GearBase):
         max_length=250,
         description="Gear display nickname",
     )
+    gear_type: GearType | None = Field(
+        default=None,
+        description="Gear type identifier",
+    )
 
 
-class GearDeletionStatus(core_job_status.JobStatus):
+class GearDeletionStatus(core_job_status.JobStatusOpenFailure):
     """Where a queued gear deletion is."""
 
     kind: Literal["gear_deletion"]

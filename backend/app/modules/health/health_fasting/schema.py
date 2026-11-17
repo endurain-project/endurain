@@ -88,10 +88,6 @@ class HealthFastingBase(BaseModel):
         notes: Optional notes about the fasting session.
     """
 
-    fast_start_time: datetime | None = Field(
-        default=None,
-        description="Start time of fast",
-    )
     fast_end_time: datetime | None = Field(
         default=None,
         description="End time of fast (null if ongoing)",
@@ -127,10 +123,6 @@ class HealthFastingBase(BaseModel):
 class HealthFastingWrite(HealthFastingBase):
     """Fasting fields a client writes: the times are bounded, which a stored row read back need not be."""
 
-    fast_start_time: core_types.RecordInstant | None = Field(
-        default=None,
-        description="Start time of fast, with a UTC offset",
-    )
     fast_end_time: core_types.RecordInstant | None = Field(
         default=None,
         description="End time of fast, with a UTC offset (null if ongoing)",
@@ -204,6 +196,11 @@ class HealthFastingUpdate(core_partial_update.NotClearable, HealthFastingWrite):
     """
 
     not_clearable = ("fast_start_time", "status")
+
+    fast_start_time: core_types.RecordInstant | None = Field(
+        default=None,
+        description="Start time of fast, with a UTC offset",
+    )
 
 
 class HealthFastingImport(HealthFastingCreate):

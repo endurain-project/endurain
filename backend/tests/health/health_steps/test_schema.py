@@ -42,7 +42,7 @@ class TestHealthStepsSchema:
         Test HealthStepsBase schema with minimal required fields.
         """
         # Arrange & Act
-        health_steps = health_steps_schema.HealthStepsBase()
+        health_steps = health_steps_schema.HealthStepsUpdate()
 
         # Assert
         assert health_steps.date is None
@@ -72,7 +72,7 @@ class TestHealthStepsSchema:
         Test HealthStepsBase schema with integer steps values.
         """
         # Arrange & Act
-        health_steps = health_steps_schema.HealthStepsBase(steps=5000)
+        health_steps = health_steps_schema.HealthStepsUpdate(steps=5000)
 
         # Assert
         assert health_steps.steps == 5000
@@ -84,7 +84,7 @@ class TestHealthStepsSchema:
         """
         # Arrange & Act & Assert
         with pytest.raises(ValidationError) as exc_info:
-            health_steps_schema.HealthStepsBase(steps=10000, extra_field="not allowed")
+            health_steps_schema.HealthStepsUpdate(steps=10000, extra_field="not allowed")
 
         assert "extra_field" in str(exc_info.value)
 
@@ -117,7 +117,7 @@ class TestHealthStepsSchema:
         Test that validate_assignment works correctly.
         """
         # Arrange
-        health_steps = health_steps_schema.HealthStepsBase(steps=10000)
+        health_steps = health_steps_schema.HealthStepsUpdate(steps=10000)
 
         # Act
         health_steps.steps = 12000
@@ -142,7 +142,7 @@ class TestHealthStepsSchema:
         Test HealthStepsBase schema accepts zero steps.
         """
         # Arrange & Act
-        health_steps = health_steps_schema.HealthStepsBase(steps=0)
+        health_steps = health_steps_schema.HealthStepsUpdate(steps=0)
 
         # Assert
         assert health_steps.steps == 0
@@ -152,7 +152,7 @@ class TestHealthStepsSchema:
         Test HealthStepsBase schema with large steps values.
         """
         # Arrange & Act
-        health_steps = health_steps_schema.HealthStepsBase(steps=50000)
+        health_steps = health_steps_schema.HealthStepsUpdate(steps=50000)
 
         # Assert
         assert health_steps.steps == 50000

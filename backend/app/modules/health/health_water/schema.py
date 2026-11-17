@@ -8,7 +8,7 @@ import uuid
 from datetime import date as datetime_date
 from datetime import datetime
 from enum import StrEnum
-from typing import ClassVar
+from typing import Annotated, ClassVar
 
 from pydantic import (
     BaseModel,
@@ -23,6 +23,9 @@ import core.types as core_types
 
 #: The most water, in milliliters, one day can total.
 MAX_WATER_ML = 20000
+
+#: Water consumed in milliliters: not negative, and capped per entry.
+WaterAmountMl = Annotated[StrictFloat, Field(ge=0, le=MAX_WATER_ML)]
 
 
 class Source(StrEnum):
@@ -49,12 +52,6 @@ class HealthWaterBase(BaseModel):
         default=None,
         description="Calendar date of the water intake",
     )
-    amount_ml: StrictFloat | None = Field(
-        default=None,
-        ge=0,
-        le=MAX_WATER_ML,
-        description="Water consumed in milliliters",
-    )
 
     model_config = ConfigDict(
         from_attributes=True,
@@ -76,7 +73,7 @@ class HealthWaterCreate(HealthWaterWrite):
     The date is optional; ``service`` fills it in when the client sends none.
     """
 
-    amount_ml: StrictFloat = Field(..., ge=0, le=MAX_WATER_ML, description="Water consumed in milliliters")
+    amount_ml: WaterAmountMl = Field(..., description="Water consumed in milliliters")
 
 
 class HealthWaterRead(HealthWaterBase):
@@ -97,6 +94,7 @@ class HealthWaterRead(HealthWaterBase):
         ...,
         description=("Unique identifier for the water intake record"),
     )
+    amount_ml: WaterAmountMl | None = Field(default=None, description="Water consumed in milliliters")
     user_id: uuid.UUID = Field(
         ...,
         description="Foreign key reference to the user",
@@ -113,6 +111,8 @@ class HealthWaterUpdate(core_partial_update.NotClearable, HealthWaterWrite):
     """
 
     not_clearable: ClassVar[tuple[str, ...]] = ("date", "amount_ml")
+
+    amount_ml: WaterAmountMl | None = Field(default=None, description="Water consumed in milliliters")
 
 
 class HealthWaterImport(HealthWaterCreate):

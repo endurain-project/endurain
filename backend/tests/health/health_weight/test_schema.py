@@ -60,7 +60,7 @@ class TestHealthWeightSchema:
         Test HealthWeightBase schema with minimal required fields.
         """
         # Arrange & Act
-        health_weight = health_weight_schema.HealthWeightBase()
+        health_weight = health_weight_schema.HealthWeightUpdate()
 
         # Assert
         assert health_weight.date is None
@@ -99,7 +99,7 @@ class TestHealthWeightSchema:
         Test HealthWeightBase schema with various float values.
         """
         # Arrange & Act
-        health_weight = health_weight_schema.HealthWeightBase(weight_kg=75.567, bmi=24.523, body_fat_percent=18.234)
+        health_weight = health_weight_schema.HealthWeightUpdate(weight_kg=75.567, bmi=24.523, body_fat_percent=18.234)
 
         # Assert
         assert health_weight.weight_kg == 75.567
@@ -111,7 +111,7 @@ class TestHealthWeightSchema:
         Test HealthWeightBase schema with integer values for float fields.
         """
         # Arrange & Act
-        health_weight = health_weight_schema.HealthWeightBase(weight_kg=75, bmi=24, body_fat_percent=18)
+        health_weight = health_weight_schema.HealthWeightUpdate(weight_kg=75, bmi=24, body_fat_percent=18)
 
         # Assert
         assert health_weight.weight_kg == 75
@@ -124,7 +124,7 @@ class TestHealthWeightSchema:
         """
         # Arrange & Act & Assert
         with pytest.raises(ValidationError) as exc_info:
-            health_weight_schema.HealthWeightBase(weight_kg=75.5, extra_field="not allowed")
+            health_weight_schema.HealthWeightUpdate(weight_kg=75.5, extra_field="not allowed")
 
         assert "extra_field" in str(exc_info.value)
 
@@ -165,7 +165,7 @@ class TestHealthWeightSchema:
         Test that validate_assignment works correctly.
         """
         # Arrange
-        health_weight = health_weight_schema.HealthWeightBase(weight_kg=75.5)
+        health_weight = health_weight_schema.HealthWeightUpdate(weight_kg=75.5)
 
         # Act
         health_weight.weight_kg = 80.0

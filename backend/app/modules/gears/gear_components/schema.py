@@ -47,21 +47,6 @@ class GearComponentBase(BaseModel):
         purchase_value: Purchase price as a decimal string in the owner's currency.
     """
 
-    type: StrictStr | None = Field(
-        default=None,
-        max_length=250,
-        description="Type of gear component",
-    )
-    brand: StrictStr | None = Field(
-        default=None,
-        max_length=250,
-        description="Gear component brand",
-    )
-    model: StrictStr | None = Field(
-        default=None,
-        max_length=250,
-        description="Gear component model",
-    )
     purchase_date: date | None = Field(
         default=None,
         description="Purchase date",
@@ -182,6 +167,22 @@ class GearComponentUpdate(core_partial_update.NotClearable, GearComponentBase):
     """
 
     not_clearable = ("type", "brand", "model", "purchase_date", "active")
+
+    type: StrictStr | None = Field(
+        default=None,
+        max_length=250,
+        description="Type of gear component",
+    )
+    brand: StrictStr | None = Field(
+        default=None,
+        max_length=250,
+        description="Gear component brand",
+    )
+    model: StrictStr | None = Field(
+        default=None,
+        max_length=250,
+        description="Gear component model",
+    )
 
 
 class GearComponentTypesRead(BaseModel):

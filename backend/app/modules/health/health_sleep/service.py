@@ -30,7 +30,7 @@ logger = core_logger.get_logger(__name__)
 _TOLERANCE_SECONDS = 60
 
 
-def _require_consistent(sleep: health_sleep_schema.HealthSleepBase) -> None:
+def _require_consistent(sleep: health_sleep_schema.HealthSleepBase | health_sleep_schema.HealthSleepNew) -> None:
     """Refuse a sleep record whose stages, total or readings contradict each other.
 
     The total is the time asleep, as Garmin Connect reports it: deep, light and REM sleep, with awake time
@@ -120,7 +120,7 @@ def list_health_sleep(
 def stage_edit_health_sleep(
     user_id: uuid.UUID,
     health_sleep_id: uuid.UUID,
-    health_sleep: health_sleep_schema.HealthSleepUpdate,
+    health_sleep: health_sleep_schema.HealthSleepChange,
     db: Session,
     *,
     if_match: str,

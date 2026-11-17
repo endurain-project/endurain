@@ -4,7 +4,7 @@ import uuid
 from datetime import date as datetime_date
 from datetime import datetime
 from enum import Enum
-from typing import ClassVar
+from typing import Annotated, ClassVar
 
 from pydantic import (
     BaseModel,
@@ -18,6 +18,9 @@ import core.partial_update as core_partial_update
 import core.types as core_types
 
 MAX_BMI = 100
+
+#: Weight in kilograms: between 0 and 500.
+WeightKg = Annotated[StrictFloat, Field(ge=0, le=500)]
 """Highest BMI a record may carry; a calculated value above it is unusable and not stored."""
 
 
@@ -59,7 +62,6 @@ class HealthWeightBase(BaseModel):
     """
 
     date: datetime_date | None = Field(default=None, description="Health weight date (date)")
-    weight_kg: StrictFloat | None = Field(default=None, ge=0, le=500, description="Weight in kilograms")
     bmi: StrictFloat | None = Field(
         default=None,
         ge=0,
@@ -104,7 +106,7 @@ class HealthWeightCreate(HealthWeightWrite):
     The date is optional; ``service`` fills it in when the client sends none.
     """
 
-    weight_kg: StrictFloat = Field(..., ge=0, le=500, description="Weight in kilograms")
+    weight_kg: WeightKg = Field(..., description="Weight in kilograms")
 
 
 class HealthWeightRead(HealthWeightBase):
@@ -121,6 +123,7 @@ class HealthWeightRead(HealthWeightBase):
 
     source: Source = Field(default=Source.MANUAL, validate_default=True, description="Source of the weight data")
     id: uuid.UUID = Field(..., description="Unique identifier for the weight record to update")
+    weight_kg: WeightKg | None = Field(default=None, description="Weight in kilograms")
     user_id: uuid.UUID = Field(..., description="Foreign key reference to the user")
     version: StrictInt = Field(default=1, ge=1, description="Optimistic-concurrency counter, also sent as the ETag")
     updated_at: datetime = Field(..., description="When the record last changed, set by the server")
@@ -134,6 +137,8 @@ class HealthWeightUpdate(core_partial_update.NotClearable, HealthWeightWrite):
     """
 
     not_clearable: ClassVar[tuple[str, ...]] = ("date", "weight_kg")
+
+    weight_kg: WeightKg | None = Field(default=None, description="Weight in kilograms")
 
 
 class HealthWeightImport(HealthWeightCreate):
