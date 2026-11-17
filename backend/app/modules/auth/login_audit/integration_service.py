@@ -1,7 +1,7 @@
 """Sign-in audit rows other auth packages write: the refusals and the target of a row about a user."""
 
 import uuid
-from collections.abc import Iterator
+from collections.abc import Generator
 from contextlib import contextmanager
 from typing import TypedDict
 
@@ -33,7 +33,7 @@ def user_target(user_id: uuid.UUID | None) -> AuditTarget:
 
 
 @contextmanager
-def acting_as_user(user_id: uuid.UUID) -> Iterator[None]:
+def acting_as_user(user_id: uuid.UUID) -> Generator[None]:
     """Attribute the audit rows written inside the block to a user who signed in with an OAuth provider.
 
     For a route that is not behind an auth dependency, so its request audit context is anonymous, when the

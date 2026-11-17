@@ -1,6 +1,6 @@
 import os
 import time
-from collections.abc import AsyncIterator, Awaitable, Callable
+from collections.abc import AsyncGenerator, Awaitable, Callable
 from contextlib import asynccontextmanager
 
 # Silence stravalib token warnings as early as
@@ -321,7 +321,7 @@ def shutdown_event(fastapi_app: FastAPI) -> None:
 
 
 @asynccontextmanager
-async def lifespan(fastapi_app: FastAPI) -> AsyncIterator[None]:
+async def lifespan(fastapi_app: FastAPI) -> AsyncGenerator[None]:
     """Manage application startup and shutdown."""
     await startup_event(fastapi_app)
     try:

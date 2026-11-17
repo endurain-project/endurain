@@ -47,7 +47,6 @@ class TestIdentityProviderBase:
             auto_create_users=True,
             sync_user_info=True,
             user_mapping={"username": ["preferred_username"], "email": ["email"]},
-            client_id="test-client-id",
         )
 
         # Assert
@@ -59,7 +58,6 @@ class TestIdentityProviderBase:
         assert idp.scopes == "openid profile email"
         assert idp.auto_create_users is True
         assert idp.sync_user_info is True
-        assert idp.client_id == "test-client-id"
 
     @pytest.mark.parametrize("icon", ["authelia", "authentik", "casdoor", "keycloak", "pocketid", None])
     def test_identity_provider_base_accepts_a_built_in_icon_or_none(self, icon):

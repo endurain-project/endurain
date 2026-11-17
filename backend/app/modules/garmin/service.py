@@ -7,7 +7,7 @@ Linking lives in :mod:`modules.garmin.link_service`. The activity, gear and heal
 
 import time
 import uuid
-from collections.abc import Iterator
+from collections.abc import Generator
 from contextlib import contextmanager
 from datetime import UTC, datetime, timedelta
 from typing import Any, NamedTuple
@@ -144,7 +144,7 @@ def get_user_garminconnect_session(user_id: uuid.UUID, db: Session) -> GarminSes
 @contextmanager
 def linked_session(
     user_id: uuid.UUID, rate_limits: garmin_rate_limit_store.GarminRateLimitStore
-) -> Iterator[GarminSession | None]:
+) -> Generator[GarminSession | None]:
     """Yield a linked user's session with no database session open, then store its refreshed token.
 
     The token is stored whether the body succeeds or raises, so the next sync restores a live one.

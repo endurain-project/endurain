@@ -30,7 +30,7 @@ import time
 import uuid
 import zipfile
 import zlib
-from collections.abc import Iterator
+from collections.abc import Generator
 
 import jasil.audit as jasil_audit
 import jasil.providers as platform_providers
@@ -97,7 +97,7 @@ _HEARTBEAT_SECONDS = 60.0
 
 
 @contextlib.contextmanager
-def _heartbeat(job_id: uuid.UUID) -> Iterator[None]:
+def _heartbeat(job_id: uuid.UUID) -> Generator[None]:
     """Keep a job's ``updated_at`` fresh on a background thread while the body runs.
 
     A folder import has no batch checkpoints while it is packed, so this is what tells the stale-job

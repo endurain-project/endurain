@@ -6,7 +6,7 @@ Defines :class:`PasswordHasher` (Argon2 only) and the singleton accessor used as
 import contextlib
 import secrets
 import threading
-from collections.abc import Iterable, Iterator
+from collections.abc import Generator, Iterable
 
 from pwdlib import PasswordHash
 from pwdlib.exceptions import UnknownHashError
@@ -87,7 +87,7 @@ class PasswordHasher:
         self._slots = threading.BoundedSemaphore(MAX_CONCURRENT_HASHES)
 
     @contextlib.contextmanager
-    def _slot(self) -> Iterator[None]:
+    def _slot(self) -> Generator[None]:
         """Hold one of the hashing slots for the duration of an Argon2 operation.
 
         Raises:
