@@ -124,6 +124,7 @@ nav:
     - Configuration, scopes and best practices: integrate/auth-reference.md
     - Errors, concurrency and rate limits: integrate/errors-and-limits.md
     - Compatibility between releases: integrate/compatibility.md
+    - Changes from v0.20 to v0.21: integrate/changes-v0.20-to-v0.21.md
     - Public endpoints: integrate/public-endpoints.md
     - Health data and activity streams: integrate/health-and-streams.md
     - Data conventions: integrate/data-conventions.md
