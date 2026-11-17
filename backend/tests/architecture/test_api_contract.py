@@ -88,7 +88,33 @@ _UNAUTHENTICATED_OUTSIDE_PUBLIC: dict[str, str] = {
 #: Paths a page names on purpose although the API has no such route, as ``"<page>: <path>"``. Permanent; the
 #: value is the reason.
 _DOCUMENTED_REMOVED_PATHS: dict[str, str] = {
-    "integrate/changes-v0.20-to-v0.21.md: /profile/mfa/verify": "the changes page names a route v0.21 removed",
+    f"integrate/changes-v0.20-to-v0.21.md: {path}": "the changes page names a route v0.21 removed"
+    for path in (
+        "/activities/exercise-titles/all",
+        "/gears/nickname/contains/{nickname}",
+        "/notifications/page_number/{page_number}/num_records/{num_records}",
+        "/notifications/{notification_id}/mark_as_read",
+        "/profile/api_keys",
+        "/profile/api_keys/{api_key_id}",
+        "/profile/api_keys/{api_key_id}/revoke",
+        "/profile/default_gear",
+        "/profile/idp",
+        "/profile/idp/{idp_id}/link",
+        "/profile/idp/{idp_id}/link/token",
+        "/profile/idp/{idp_id}/unlink",
+        "/profile/image",
+        "/profile/mfa/verify",
+        "/public/activities/exercise-titles/all",
+        "/public/idp/session/{session_id}/tokens",
+        "/public/server_settings",
+        "/public/server_settings/tile_maps_templates",
+        "/public/users/id/{user_id}",
+        "/strava/import/bikes",
+        "/strava/import/shoes",
+        "/strava/state/{state}",
+        "/users/username/contains/{username}",
+        "/users/{user_id}/image",
+    )
 }
 
 
