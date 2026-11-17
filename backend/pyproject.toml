@@ -94,7 +94,7 @@ docs = [
 ]
 
 [tool.uv]
-required-version = "0.13.8"
+required-version = "0.13.9"
 exclude-newer = "7 days"
 # jasil and safeuploads are first-party (endurain-project) and published through
 # PyPI Trusted Publishing with PEP 740 attestations, so they are exempt from the
