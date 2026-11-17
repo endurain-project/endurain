@@ -695,7 +695,8 @@ export interface paths {
          * Refresh Token
          * @description Handles the refresh token process for user sessions.
          *
-         *     This endpoint validates the provided refresh token, checks session status, and issues new tokens. A web client sends its refresh cookie and no
+         *     This endpoint validates the provided refresh token, checks session status, and issues new tokens. A web client sends
+         *     its refresh cookie and no
          *     body. A mobile client sends its refresh token in the JSON body as refresh_token (RFC 6749 section 6), never in
          *     the Authorization header; a body token sent by a web client is not read.
          *
@@ -2186,7 +2187,8 @@ export interface paths {
          * List User Devices
          * @description List one page of the devices the authenticated user is known to sign in from, latest sign-in first.
          *
-         *     A device is known until a security change of the account or the user forgets it, and a sign-in from an unknown device is announced by email. `is_current` marks
+         *     A device is known until a security change of the account or the user forgets it, and a sign-in from an unknown
+         *     device is announced by email. `is_current` marks
          *     the device the request comes from.
          */
         get: operations["list_user_devices"];
@@ -2235,7 +2237,8 @@ export interface paths {
          * Forget Other User Devices
          * @description Forget every known device except the one the request comes from, after step-up verification.
          *
-         *     The sessions that signed in from the forgotten devices end, and the next sign-in from each is announced as a new device.
+         *     The sessions that signed in from the forgotten devices end, and the next sign-in from each is announced as a new
+         *     device.
          */
         post: operations["forget_other_user_devices"];
         delete?: never;
@@ -2554,7 +2557,8 @@ export interface paths {
          * Start Idp Link
          * @description Start linking an identity provider to the authenticated user's account.
          *
-         *     Linking enables persistent sign-in, so it needs step-up verification in ``step_up``: ``current_password`` (or, for an
+         *     Linking enables persistent sign-in, so it needs step-up verification in ``step_up``: ``current_password`` (or, for
+         *     an
          *     account without one, ``idp_reauth``), and an MFA code when MFA is enabled. The browser then follows
          *     ``authorization_url``, signs in at the provider, and the callback returns to ``redirect``. For a web client the
          *     response sets a cookie that binds the link to this browser. For a native-app ``redirect`` the app opens
@@ -8398,7 +8402,9 @@ export interface components {
         };
         /**
          * HealthSleepStageWrite
-         * @description A sleep stage a client writes: its times carry a UTC offset and are bounded, which a stored stage read back need not be.
+         * @description A sleep stage a client writes.
+         *
+         *     Its times carry a UTC offset and are bounded, which a stored stage read back need not be.
          */
         HealthSleepStageWrite: {
             /**
