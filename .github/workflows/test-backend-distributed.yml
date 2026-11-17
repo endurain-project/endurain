@@ -52,7 +52,7 @@ jobs:
     # and empty the bucket.
     services:
       postgres:
-        image: postgres:18@sha256:74935e72241653ca55e0414067e6d8763aceb8a810eb51b452253ec3dcfc4336
+        image: postgres:18@sha256:2ea8630df176ad090ec92136dee850397c5af8781e4bcf2e4162593691c61bbc
         env:
           POSTGRES_USER: endurain
           POSTGRES_PASSWORD: test
@@ -65,7 +65,7 @@ jobs:
           --health-timeout 5s
           --health-retries 10
       redis:
-        image: redis:7@sha256:4fa24486b8bcca8eec45ee0eb166edc674795e53a2b53d1a9ef263eecebaac85
+        image: redis:7@sha256:2e3eb11462c4e3759e6972678dd051d150ff54b1e60714b3c33b701260172a90
         ports:
           - 6379:6379
         options: >-
@@ -84,7 +84,7 @@ jobs:
           fetch-depth: 1
 
       - name: Install uv
-        uses: astral-sh/setup-uv@07a047e608db84b3d8c06cd9a7c7dcc9c355c18e # v10.3.2
+        uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
         with:
           working-directory: backend
 
