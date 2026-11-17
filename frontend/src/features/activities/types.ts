@@ -56,6 +56,13 @@ export type StreamMetric = keyof typeof STREAM_TYPE
  * Every field is optional because the present keys depend on the stream type.
  */
 export interface StreamWaypoint {
+  /**
+   * Sample timestamp. Heterogeneous by import source: FIT/GPX/TCX write an ISO
+   * datetime string (`2026-07-17T20:22:00`), Strava writes an integer offset in
+   * seconds from the activity start. Normalized to elapsed seconds when building
+   * a time x-axis. Absent on older data.
+   */
+  time?: number | string | null
   /** Heart rate in bpm. */
   hr?: number | null
   /** Power in watts. */

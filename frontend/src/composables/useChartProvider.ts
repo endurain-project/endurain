@@ -38,6 +38,24 @@ export interface ChartRenderOptions {
   /** X-axis category labels aligned to each series' values. */
   labels?: string[]
   /**
+   * Optional numeric x-values aligned to each series' values. When present the
+   * provider renders a proportional **linear** x-axis (Chart.js picks round
+   * ticks) instead of a category axis, and {@link labels} is ignored. Used for
+   * distance (km/mi) and elapsed-time axes so ticks reflect true spacing.
+   */
+  xValues?: number[]
+  /**
+   * Optional x-axis title (e.g. `Distance (km)`, `Time`). Rendered as the scale
+   * title when {@link xValues} drives a linear axis.
+   */
+  xLabel?: string
+  /**
+   * Optional formatter for linear x-axis ticks and the tooltip's x value (e.g.
+   * `2 km`, `1:23:45`). Receives the raw numeric x. Used only with
+   * {@link xValues}.
+   */
+  xFormat?: (value: number) => string
+  /**
    * Optional unit suffix for x-axis values (e.g. `km`, `mi`). Appended to the
    * tooltip's x value so a hover reads `0.7 km` rather than a bare `0.7`; axis
    * ticks stay unitless to avoid clutter. Empty/omitted for self-describing

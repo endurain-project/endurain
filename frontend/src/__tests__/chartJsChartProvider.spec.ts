@@ -129,6 +129,56 @@ describe('buildChartConfiguration', () => {
     expect(tooltip?.callbacks?.title?.([{ label: '0.7' }])).toBe('0.7 km')
   })
 
+  it('renders a linear x-axis with title, formatted ticks and {x,y} points from xValues', () => {
+    const config = buildChartConfiguration({
+      kind: 'line',
+      series: [{ label: 'HR', data: [100, 110] }],
+      xValues: [0, 30],
+      xLabel: 'Time',
+      xFormat: (value) => `${value}s`,
+    })
+
+    const dataset = config.data.datasets[0] as Record<string, unknown> | undefined
+    expect(dataset?.data).toEqual([
+      { x: 0, y: 100 },
+      { x: 30, y: 110 },
+    ])
+
+    const x = config.options?.scales?.x as {
+      type?: string
+      bounds?: string
+      min?: number
+      max?: number
+      title?: unknown
+      ticks?: { callback?: (value: number) => string }
+    }
+    expect(x?.type).toBe('linear')
+    // Axis clamps to the exact data range (ends at the last sample, no padding
+    // out to the next round tick).
+    expect(x?.bounds).toBe('data')
+    expect(x?.min).toBe(0)
+    expect(x?.max).toBe(30)
+    expect(x?.title).toEqual({ display: true, text: 'Time' })
+    expect(x?.ticks?.callback?.(30)).toBe('30s')
+
+    const tooltip = config.options?.plugins?.tooltip as
+      | { callbacks?: { title?: (items: { parsed: { x: number }; label: string }[]) => string } }
+      | undefined
+    expect(tooltip?.callbacks?.title?.([{ parsed: { x: 30 }, label: '30' }])).toBe('30s')
+  })
+
+  it('keeps a category x-axis (bare y-values) when xValues are absent', () => {
+    const config = buildChartConfiguration({
+      kind: 'line',
+      labels: ['a', 'b'],
+      series: [{ label: 'A', data: [1, 2] }],
+    })
+    const x = config.options?.scales?.x as { type?: string } | undefined
+    expect(x?.type).toBeUndefined()
+    const dataset = config.data.datasets[0] as Record<string, unknown> | undefined
+    expect(dataset?.data).toEqual([1, 2])
+  })
+
   it('leaves the y-axis upright without explicit options', () => {
     const config = buildChartConfiguration({ kind: 'line', series: [{ label: 'A', data: [1] }] })
     const y = config.options?.scales?.y as Record<string, unknown> | undefined
