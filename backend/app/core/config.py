@@ -38,7 +38,7 @@ import core.redirect_schemes as core_redirect_schemes
 logger = core_logger.get_logger(__name__)
 
 # Pure constants — neither env-driven nor derived from settings.
-API_VERSION = "v0.21.0-beta2"
+API_VERSION = "v0.22.0-beta1"
 LICENSE_NAME = "GNU Affero General Public License v3.0 or later"
 LICENSE_IDENTIFIER = "AGPL-3.0-or-later"
 LICENSE_URL = "https://spdx.org/licenses/AGPL-3.0-or-later.html"
