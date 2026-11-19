@@ -66,7 +66,6 @@ export function mapServerSettings(dto: ServerSettingsDto): ServerSettings {
     apiKeyMaxLifetimeDays: dto.api_key_max_lifetime_days,
     readNotificationRetentionDays: dto.read_notification_retention_days,
     geocodingApiKeySet: dto.geocoding_api_key_set,
-    envManaged: dto.env_managed,
     logsViewerEnabled: dto.logs_viewer_enabled,
   }
   // A name the settings do not have cannot change from the form, so it is dropped.
@@ -263,7 +262,6 @@ export function mapMailSettings(dto: MailSettingsDto): MailSettings {
     username: dto.username,
     fromAddress: dto.from_address,
     passwordSet: dto.password_set,
-    envManaged: dto.env_managed,
     emailStatus: dto.email_status,
   }
 }
@@ -309,13 +307,12 @@ export async function fetchMailSettings(signal?: AbortSignal): Promise<MailSetti
 
 /**
  * Updates the mail server settings (admin scope `server-settings:write`). The
- * backend validates the configuration and rejects a change to a field an
- * environment variable currently sets. Needs the administrator's own step-up.
+ * backend validates the configuration. Needs the administrator's own step-up.
  *
  * @param settings - The mail settings to persist.
  * @param stepUp - The administrator's step-up credentials.
  * @returns The updated mail settings, mapped to the clean model.
- * @throws {HttpError} `400` when the configuration is not usable or a field is env-managed, `403` when the step-up is refused, `412` when the copy is stale.
+ * @throws {HttpError} `400` when the configuration is not usable, `403` when the step-up is refused, `412` when the copy is stale.
  */
 export async function updateMailSettings(
   settings: MailSettingsUpdate,

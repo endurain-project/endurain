@@ -331,8 +331,6 @@
     "staleError": "Disse innstillingene ble endret av noen andre mens du redigerte. Endringene dine ble ikke lagret. Last inn siden på nytt for å se gjeldende verdier.",
     "stepUpTitle": "Bekreft identiteten din",
     "stepUpDescription": "Disse endringene påvirker hvem som kan registrere seg, logge inn eller beholde en økt på denne serveren, hvor lenge revisjonsloggen oppbevares, eller om offentlige lenker viser hvem som delte dem. Bekreft at det er deg for å fortsette.",
-    "envLocked": "Angitt av {name}",
-    "envSection": "Noen innstillinger her angis av miljøvariabler ({names}). Fjern dem fra miljøet for å redigere dem her.",
     "unsaved": "Ulagrede endringer",
     "fixErrors": "Rett opp feilene ovenfor for å lagre",
     "discard": "Forkast",

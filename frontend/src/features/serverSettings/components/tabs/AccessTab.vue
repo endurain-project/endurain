@@ -7,26 +7,15 @@ import { FormField } from '@/components/ui/form-field'
 import { Input } from '@/components/ui/input'
 import { Select } from '@/components/ui/select'
 import { Switch } from '@/components/ui/switch'
-import EnvManagedHint from '@/features/serverSettings/components/EnvManagedHint.vue'
-import EnvManagedNotice from '@/features/serverSettings/components/EnvManagedNotice.vue'
 import { useServerSettingsFormContext } from '@/features/serverSettings/composables/useServerSettingsForm'
 
 const { t } = useI18n()
-const { values, errors, isSubmitting, handleSubmit, handleBlur, envVar, envHint, envNames } =
-  useServerSettingsFormContext()
+const { values, errors, isSubmitting, handleSubmit, handleBlur } = useServerSettingsFormContext()
 
 /** Minimum-length options for both access tiers: 8–128 (the backend bounds). */
 const PASSWORD_LENGTHS = Array.from({ length: 121 }, (_, index) => index + 8)
 /** The values of the MFA requirement, in the order they are offered. */
 const REQUIRE_MFA_OPTIONS = ['off', 'administrators', 'everyone'] as const
-/** The session-policy fields an environment variable can lock. */
-const SESSION_ENV_FIELDS = [
-  'session_idle_timeout_enabled',
-  'session_idle_timeout_hours',
-  'session_absolute_timeout_hours',
-  'access_token_expire_minutes',
-  'refresh_token_expire_days',
-]
 </script>
 
 <template>
@@ -163,24 +152,20 @@ const SESSION_ENV_FIELDS = [
         <h2 class="text-card-heading">{{ t('settings.server.session.title') }}</h2>
         <p class="text-body">{{ t('settings.server.session.description') }}</p>
       </div>
-      <EnvManagedNotice :names="envNames(SESSION_ENV_FIELDS)" />
 
       <Switch
         v-model="values.sessionIdleTimeoutEnabled"
         data-setting="session-timeouts-enabled"
-        :disabled="isSubmitting || Boolean(envVar('session_idle_timeout_enabled'))"
+        :disabled="isSubmitting"
       >
         {{ t('settings.server.session.idleTimeoutEnabled') }}
       </Switch>
-      <EnvManagedHint :name="envVar('session_idle_timeout_enabled')" />
 
       <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
         <FormField
           data-setting="session-idle-hours"
           :label="t('settings.server.session.idleHours')"
-          :hint="
-            envHint('session_idle_timeout_hours') ?? t('settings.server.session.idleHoursHint')
-          "
+          :hint="t('settings.server.session.idleHoursHint')"
           :error="errors.sessionIdleTimeoutHours"
         >
           <template #default="{ fieldId, describedBy, invalid }">
@@ -192,11 +177,7 @@ const SESSION_ENV_FIELDS = [
               type="text"
               inputmode="numeric"
               maxlength="4"
-              :disabled="
-                isSubmitting ||
-                !values.sessionIdleTimeoutEnabled ||
-                Boolean(envVar('session_idle_timeout_hours'))
-              "
+              :disabled="isSubmitting || !values.sessionIdleTimeoutEnabled"
               @blur="handleBlur('sessionIdleTimeoutHours')"
             />
           </template>
@@ -205,10 +186,7 @@ const SESSION_ENV_FIELDS = [
         <FormField
           data-setting="session-absolute-hours"
           :label="t('settings.server.session.absoluteHours')"
-          :hint="
-            envHint('session_absolute_timeout_hours') ??
-            t('settings.server.session.absoluteHoursHint')
-          "
+          :hint="t('settings.server.session.absoluteHoursHint')"
           :error="errors.sessionAbsoluteTimeoutHours"
         >
           <template #default="{ fieldId, describedBy, invalid }">
@@ -220,7 +198,7 @@ const SESSION_ENV_FIELDS = [
               type="text"
               inputmode="numeric"
               maxlength="4"
-              :disabled="isSubmitting || Boolean(envVar('session_absolute_timeout_hours'))"
+              :disabled="isSubmitting"
               @blur="handleBlur('sessionAbsoluteTimeoutHours')"
             />
           </template>
@@ -229,7 +207,6 @@ const SESSION_ENV_FIELDS = [
         <FormField
           data-setting="session-access-minutes"
           :label="t('settings.server.session.accessMinutes')"
-          :hint="envHint('access_token_expire_minutes')"
           :error="errors.accessTokenExpireMinutes"
         >
           <template #default="{ fieldId, describedBy, invalid }">
@@ -241,7 +218,7 @@ const SESSION_ENV_FIELDS = [
               type="text"
               inputmode="numeric"
               maxlength="4"
-              :disabled="isSubmitting || Boolean(envVar('access_token_expire_minutes'))"
+              :disabled="isSubmitting"
               @blur="handleBlur('accessTokenExpireMinutes')"
             />
           </template>
@@ -250,7 +227,6 @@ const SESSION_ENV_FIELDS = [
         <FormField
           data-setting="session-refresh-days"
           :label="t('settings.server.session.refreshDays')"
-          :hint="envHint('refresh_token_expire_days')"
           :error="errors.refreshTokenExpireDays"
         >
           <template #default="{ fieldId, describedBy, invalid }">
@@ -262,7 +238,7 @@ const SESSION_ENV_FIELDS = [
               type="text"
               inputmode="numeric"
               maxlength="3"
-              :disabled="isSubmitting || Boolean(envVar('refresh_token_expire_days'))"
+              :disabled="isSubmitting"
               @blur="handleBlur('refreshTokenExpireDays')"
             />
           </template>

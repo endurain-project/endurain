@@ -331,8 +331,6 @@
     "staleError": "Algú altre ha canviat aquesta configuració mentre l'editaves. Els teus canvis no s'han desat. Recarrega la pàgina per veure els valors actuals.",
     "stepUpTitle": "Confirma la teva identitat",
     "stepUpDescription": "Aquests canvis afecten qui es pot registrar, iniciar sessió o mantenir una sessió en aquest servidor, quant de temps es conserva el registre d'auditoria, o si els enllaços públics mostren qui els ha compartit. Confirma que ets tu per continuar.",
-    "envLocked": "Definit per {name}",
-    "envSection": "Alguns paràmetres d'aquí els defineixen variables d'entorn ({names}). Elimina-les de l'entorn per editar aquests paràmetres aquí.",
     "unsaved": "Canvis sense desar",
     "fixErrors": "Corregeix els errors de dalt per desar",
     "discard": "Descarta",

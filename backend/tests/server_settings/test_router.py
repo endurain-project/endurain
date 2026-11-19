@@ -71,7 +71,6 @@ class TestReadServerSettings:
             api_key_max_lifetime_days=365,
             read_notification_retention_days=90,
             geocoding_api_key_set=False,
-            env_managed={},
             step_up_fields=["sso_enabled"],
             logs_viewer_enabled=True,
         )
@@ -154,7 +153,6 @@ class TestEditServerSettings:
             api_key_max_lifetime_days=365,
             read_notification_retention_days=90,
             geocoding_api_key_set=False,
-            env_managed={},
             step_up_fields=[],
             logs_viewer_enabled=False,
         )
@@ -313,7 +311,6 @@ class TestEditServerSettingsStepUp:
             login_photo_set=False,
             tileserver_api_key_set=False,
             geocoding_api_key_set=False,
-            env_managed={},
             step_up_fields=[],
             logs_viewer_enabled=False,
         )
@@ -574,7 +571,6 @@ def _mail_admin_read(**overrides) -> server_settings_schema.MailSettingsAdminRea
         username="me@example.com",
         from_address=None,
         password_set=True,
-        env_managed={},
         email_status=server_settings_schema.EmailStatus(configured=True, problems=[]),
     )
     values.update(overrides)
@@ -597,8 +593,8 @@ class TestMailSettingsRoutes:
         assert _route_scopes("/email/settings", "PUT") == {"server-settings:write"}
 
     @patch("modules.server_settings.router.server_settings_mail_service.get_mail_settings_for_admin")
-    def test_read_returns_the_settings_and_env_managed(self, mock_get, fast_api_client):
-        mock_get.return_value = _mail_admin_read(env_managed={"host": "SMTP_HOST"})
+    def test_read_returns_the_mail_settings(self, mock_get, fast_api_client):
+        mock_get.return_value = _mail_admin_read()
 
         response = fast_api_client.get(
             "/server_settings/email/settings", headers={"Authorization": "Bearer mock_token"}
@@ -606,7 +602,6 @@ class TestMailSettingsRoutes:
 
         assert response.status_code == 200
         assert response.json()["host"] == "mail.example.com"
-        assert response.json()["env_managed"] == {"host": "SMTP_HOST"}
         assert response.json()["password_set"] is True
         assert response.json()["email_status"] == {"configured": True, "problems": []}
         assert "password" not in response.json()
@@ -635,28 +630,6 @@ class TestMailSettingsRoutes:
         assert "password" not in response.json()
         sent = mock_edit.call_args.args[0]
         assert sent.password == "super-secret-value"
-
-    @patch("modules.server_settings.router.server_settings_mail_service.edit_mail_settings")
-    def test_edit_of_an_env_managed_field_is_a_400(self, mock_edit, fast_api_app):
-        mock_edit.side_effect = core_exceptions.InvalidInputError("host is set by the SMTP_HOST environment variable")
-        core_exceptions.register_exception_handlers(fast_api_app)
-        body = {
-            "host": "x.example.com",
-            "port": 587,
-            "security": "starttls",
-            "username": None,
-            "from_address": None,
-            "step_up": STEP_UP,
-        }
-
-        response = TestClient(fast_api_app).put(
-            "/server_settings/email/settings",
-            json=body,
-            headers={**{"Authorization": "Bearer mock_token"}, "If-Match": '"1"'},
-        )
-
-        assert response.status_code == 400
-        assert "SMTP_HOST" in response.text
 
     @pytest.mark.parametrize(
         "override",

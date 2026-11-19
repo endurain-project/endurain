@@ -3,8 +3,7 @@
 A small, curated interface stated as the *questions callers actually ask* rather
 than as "here is the settings row". Settings are one global row that the rest of
 the application only reads, so this surface is reads. Writes stay behind the
-module's admin routes, apart from one: ``import_deprecated_env_settings`` is the boot
-import of deprecated environment variables and is a unit of work that commits.
+module's admin routes.
 """
 
 from sqlalchemy.orm import Session
@@ -14,7 +13,6 @@ import core.logger as core_logger
 import core.mail as core_mail
 import modules.server_settings.contracts as server_settings_contracts
 import modules.server_settings.crud as server_settings_crud
-import modules.server_settings.env_import_service as server_settings_env_import_service
 import modules.server_settings.mail_service as server_settings_mail_service
 import modules.server_settings.schema as server_settings_schema
 import modules.server_settings.service as server_settings_service
@@ -186,17 +184,3 @@ def get_read_notification_retention_days(db: Session) -> int:
         ServiceUnavailableError: If the settings row does not exist.
     """
     return server_settings_service.get_server_settings(db).read_notification_retention_days
-
-
-def import_deprecated_env_settings(db: Session) -> None:
-    """Save the deprecated environment variables into the database and warn about them.
-
-    Called once at API startup, after the migrations. Commits.
-
-    Args:
-        db: Database session.
-
-    Raises:
-        ServiceUnavailableError: If a settings row does not exist.
-    """
-    server_settings_env_import_service.import_deprecated_env_settings(db)

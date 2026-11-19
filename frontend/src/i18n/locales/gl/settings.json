@@ -331,8 +331,6 @@
     "staleError": "Outra persoa cambiou esta configuración mentres a editabas. Os teus cambios non se gardaron. Recarga a páxina para ver os valores actuais.",
     "stepUpTitle": "Confirma a túa identidade",
     "stepUpDescription": "Estes cambios afectan a quen pode rexistrarse, iniciar sesión ou manter unha sesión neste servidor, canto tempo se conserva o rexistro de auditoría, ou se as ligazóns públicas mostran quen as compartiu. Confirma que es ti para continuar.",
-    "envLocked": "Definido por {name}",
-    "envSection": "Algúns axustes de aquí defínense mediante variables de contorno ({names}). Elimínaas do contorno para editar eses axustes aquí.",
     "unsaved": "Cambios sen gardar",
     "fixErrors": "Corrixe os erros de arriba para gardar",
     "discard": "Descartar",

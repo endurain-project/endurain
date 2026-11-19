@@ -331,8 +331,6 @@
     "staleError": "Siz düzenlerken bu ayarlar başka biri tarafından değiştirildi. Değişiklikleriniz kaydedilmedi. Güncel değerleri görmek için sayfayı yenileyin.",
     "stepUpTitle": "Kimliğinizi doğrulayın",
     "stepUpDescription": "Bu değişiklikler bu sunucuda kimlerin kaydolabileceğini, giriş yapabileceğini veya oturum tutabileceğini, denetim kaydının ne kadar süre saklanacağını ya da herkese açık bağlantıların paylaşanı gösterip göstermeyeceğini etkiler. Devam etmek için sizin olduğunuzu doğrulayın.",
-    "envLocked": "{name} tarafından ayarlanıyor",
-    "envSection": "Buradaki bazı ayarlar ortam değişkenleriyle ({names}) belirleniyor. Bu ayarları burada düzenlemek için değişkenleri ortamdan kaldırın.",
     "unsaved": "Kaydedilmemiş değişiklikler",
     "fixErrors": "Kaydetmek için yukarıdaki hataları düzeltin",
     "discard": "Vazgeç",

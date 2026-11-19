@@ -67,7 +67,6 @@ function makeSettings(overrides: Partial<ServerSettingsDto>) {
     api_key_max_lifetime_days: 365,
     read_notification_retention_days: 90,
     geocoding_api_key_set: false,
-    env_managed: {},
     step_up_fields: [],
     logs_viewer_enabled: true,
     ...overrides,

@@ -331,8 +331,6 @@
     "staleError": "Queste impostazioni sono state modificate da qualcun altro mentre le modificavi. Le tue modifiche non sono state salvate. Ricarica la pagina per vedere i valori attuali.",
     "stepUpTitle": "Conferma la tua identità",
     "stepUpDescription": "Queste modifiche influiscono su chi può registrarsi, accedere o mantenere una sessione su questo server, per quanto tempo viene conservato il registro di controllo e se i link pubblici mostrano chi li ha condivisi. Conferma che sei tu per continuare.",
-    "envLocked": "Impostato da {name}",
-    "envSection": "Alcune impostazioni qui sono definite da variabili d'ambiente ({names}). Rimuovile dall'ambiente per modificarle qui.",
     "unsaved": "Modifiche non salvate",
     "fixErrors": "Correggi gli errori sopra per salvare",
     "discard": "Annulla modifiche",

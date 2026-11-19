@@ -510,7 +510,6 @@ describe('UserFormDialog invitation', () => {
       username: null,
       fromAddress: null,
       passwordSet: false,
-      envManaged: {},
       emailStatus: { configured: mailConfigured, problems: [] },
     })
     const wrapper = mount(UserFormDialog, {

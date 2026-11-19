@@ -331,8 +331,6 @@
     "staleError": "Joku muu muutti näitä asetuksia muokkaamisesi aikana. Muutoksiasi ei tallennettu. Lataa sivu uudelleen nähdäksesi nykyiset arvot.",
     "stepUpTitle": "Vahvista henkilöllisyytesi",
     "stepUpDescription": "Nämä muutokset vaikuttavat siihen, kuka voi rekisteröityä, kirjautua sisään tai pitää istunnon tällä palvelimella, kuinka kauan auditointilokia säilytetään ja näkyvätkö jakajat julkisissa linkeissä. Vahvista, että se olet sinä, jatkaaksesi.",
-    "envLocked": "Määritetty muuttujalla {name}",
-    "envSection": "Jotkin tämän osion asetukset on määritetty ympäristömuuttujilla ({names}). Poista ne ympäristöstä, jos haluat muokata niitä täällä.",
     "unsaved": "Tallentamattomia muutoksia",
     "fixErrors": "Korjaa yllä olevat virheet tallentaaksesi",
     "discard": "Hylkää",

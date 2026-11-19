@@ -331,8 +331,6 @@
     "staleError": "Deze instellingen zijn door iemand anders gewijzigd terwijl je ze bewerkte. Je wijzigingen zijn niet opgeslagen. Laad de pagina opnieuw om de huidige waarden te zien.",
     "stepUpTitle": "Bevestig je identiteit",
     "stepUpDescription": "Deze wijzigingen bepalen wie zich kan registreren, inloggen of een sessie kan behouden op deze server, hoe lang het auditspoor wordt bewaard en of openbare links tonen wie ze heeft gedeeld. Bevestig dat jij het bent om door te gaan.",
-    "envLocked": "Ingesteld door {name}",
-    "envSection": "Sommige instellingen hier worden ingesteld door omgevingsvariabelen ({names}). Verwijder ze uit de omgeving om die instellingen hier te bewerken.",
     "unsaved": "Niet-opgeslagen wijzigingen",
     "fixErrors": "Los de fouten hierboven op om op te slaan",
     "discard": "Verwerpen",

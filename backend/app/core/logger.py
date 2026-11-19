@@ -55,7 +55,7 @@ import jasil.correlation as jasil_correlation
 
 # NOTE: ``core.config`` is intentionally NOT imported at module top level.
 # ``core.config`` depends on this module to emit warnings from its settings
-# validators (e.g. invalid SMTP_SECURE_TYPE, memory-backed rate limiting in
+# validators (e.g. invalid WEB_WORKERS, memory-backed rate limiting in
 # production). A top-level import here would create a circular import that
 # only fails when the entry point imports ``core.logger`` before
 # ``core.config`` -- the partially-initialized ``core.logger`` module would

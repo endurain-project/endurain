@@ -472,14 +472,3 @@ class TestStartupWarnings:
 
     def test_https_is_silent(self):
         assert self._messages("https://endurain.example.com") == []
-
-    def test_algorithm_variable_warns_that_it_is_ignored(self):
-        messages = self._messages("https://endurain.example.com", {"ALGORITHM": "HS256"})
-        assert len(messages) == 1
-        assert "ALGORITHM" in messages[0]
-        assert "ignored" in messages[0]
-
-    def test_algorithm_file_variable_warns_that_it_is_ignored(self):
-        messages = self._messages("https://endurain.example.com", {"ALGORITHM_FILE": "/run/secrets/algorithm"})
-        assert len(messages) == 1
-        assert "ALGORITHM_FILE" in messages[0]

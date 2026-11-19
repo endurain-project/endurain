@@ -35,7 +35,6 @@ const settings: MailSettings = {
   username: 'me@example.com',
   fromAddress: null,
   passwordSet: true,
-  envManaged: {},
   emailStatus: { configured: true, problems: [] },
 }
 
@@ -101,7 +100,6 @@ describe('MailSettingsForm step-up', () => {
       username: 'me@example.com',
       from_address: null,
       password_set: true,
-      env_managed: {},
     })
   })
 

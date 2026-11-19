@@ -27,7 +27,7 @@ from urllib.parse import urlsplit
 import jasil.capabilities as platform_capabilities
 import jasil.profile as platform_profile
 from cryptography.fernet import Fernet
-from pydantic import Field, field_validator, model_validator
+from pydantic import field_validator, model_validator
 from pydantic_settings import BaseSettings, NoDecode, SettingsConfigDict
 
 import core.environment as core_environment
@@ -264,57 +264,12 @@ class Settings(BaseSettings):
     # for operator review). Set to 0 (or negative) to disable pruning.
     JOBS_RETENTION_DAYS: int = 90
 
-    # --- Notifications ---
-    # Age in days after which read notifications are purged by a scheduled
-    # cleanup (daily). Unread notifications are never purged. Set to 0 to disable
-    # pruning and keep them forever.
-    # Deprecated: imported into ``server_settings`` on boot, removed in v0.22.0.
-    READ_NOTIFICATION_RETENTION_DAYS: int = Field(default=90, ge=0, le=3650)
-
     # --- API key delivery ---
     # Allow API keys to be passed as a ``?api_key=`` query parameter.
     # Disabled by default because query-string credentials appear in
     # access logs, proxy histories, and browser history.
     # Enable only if you have integrations that cannot set custom headers.
     ALLOW_API_KEY_QUERY_PARAM: bool = False
-
-    # --- Session and token policy ---
-    # Deprecated: imported into ``server_settings`` on boot, removed in v0.22.0.
-    # The bounds are the ones the database schema enforces, so whatever is accepted here is storable.
-    ACCESS_TOKEN_EXPIRE_MINUTES: int = Field(default=15, ge=1, le=1440)
-    REFRESH_TOKEN_EXPIRE_DAYS: int = Field(default=7, ge=1, le=365)
-    SESSION_IDLE_TIMEOUT_ENABLED: bool = False
-    SESSION_IDLE_TIMEOUT_HOURS: int = Field(default=1, ge=1, le=8760)
-    SESSION_ABSOLUTE_TIMEOUT_HOURS: int = Field(default=24, ge=1, le=8760)
-
-    # --- Reverse-geocoding providers ---
-    # Deprecated: imported into ``server_settings`` on boot, removed in v0.22.0.
-    REVERSE_GEO_PROVIDER: str = "nominatim"
-    PHOTON_API_HOST: str = "photon.komoot.io"
-    PHOTON_API_USE_HTTPS: bool = True
-    NOMINATIM_API_HOST: str = "nominatim.openstreetmap.org"
-    NOMINATIM_API_USE_HTTPS: bool = True
-    GEOCODES_MAPS_API: str = "changeme"
-    REVERSE_GEO_RATE_LIMIT: float = 1.0
-
-    # --- Email (SMTP) ---
-    # Deprecated: imported into the ``mail_settings`` table on boot, removed in v0.22.0.
-    # SMTP_PASSWORD is read separately via ``read_secret``
-    # so it inherits the Docker-secrets ``_FILE`` contract
-    # used by DB_PASSWORD / SECRET_KEY / FERNET_KEY and is
-    # never materialised into Settings (kept out of any
-    # accidental ``settings.dict()`` dump).
-    SMTP_HOST: str | None = None
-    SMTP_PORT: int = 587
-    SMTP_USERNAME: str | None = None
-    # SMTP_FROM sets the "From" address on outgoing email.
-    # When unset, SMTP_USERNAME is used. Providers that
-    # enforce a verified sender (e.g. Brevo) require this to
-    # match an approved sender address, which may differ from
-    # the SMTP auth username.
-    SMTP_FROM: str | None = None
-    SMTP_SECURE: bool = True
-    SMTP_SECURE_TYPE: str = "starttls"
 
     # ----- Validators -----
 
@@ -346,32 +301,6 @@ class Settings(BaseSettings):
             )
             return 1
         return parsed if parsed >= 1 else 1
-
-    @field_validator("PHOTON_API_HOST", "NOMINATIM_API_HOST", mode="before")
-    @classmethod
-    def _host_lower(cls, v: str) -> str:
-        return v.lower() if isinstance(v, str) else v
-
-    @field_validator("SMTP_SECURE_TYPE", mode="before")
-    @classmethod
-    def _smtp_secure_type_lower(cls, v: object) -> str:
-        """Normalise to lower-case and validate against the
-        allowed connection types (``starttls``, ``ssl``). Falls
-        back to ``starttls`` on garbage input with a warning
-        instead of failing startup.
-        """
-        if v is None or v == "":
-            return "starttls"
-        if not isinstance(v, str):
-            return "starttls"
-        normalised = v.lower().strip()
-        if normalised not in ("starttls", "ssl"):
-            logger.warning(
-                "Invalid SMTP_SECURE_TYPE value, expected 'starttls' or 'ssl'; defaulting to 'starttls'",
-                extra=core_logger.context(console=True),
-            )
-            return "starttls"
-        return normalised
 
     @field_validator("ENDURAIN_HOST")
     @classmethod
@@ -645,24 +574,6 @@ class Settings(BaseSettings):
             cleaned.append(host)
 
         return cleaned
-
-    @field_validator("REVERSE_GEO_RATE_LIMIT", mode="before")
-    @classmethod
-    def _parse_geo_rate(cls, v: str | float | None) -> float:
-        """Tolerate non-numeric strings instead of failing startup."""
-        if v is None or v == "":
-            return 1.0
-        try:
-            rate = float(v)
-        except TypeError, ValueError:
-            rate = -1.0
-        if not 0 <= rate <= 100:
-            logger.warning(
-                "Invalid REVERSE_GEO_RATE_LIMIT value, expected a number from 0 to 100; defaulting to 1.0",
-                extra=core_logger.context(console=True),
-            )
-            return 1.0
-        return rate
 
     @model_validator(mode="after")
     def _fill_filesystem_defaults(self) -> Self:
@@ -1214,10 +1125,9 @@ LOOPBACK_HOSTS: frozenset[str] = frozenset({"localhost", "127.0.0.1", "::1"})
 
 
 def warn_unsafe_settings() -> None:
-    """Log the startup settings that are accepted but unwise, or that no longer take effect.
+    """Log the startup settings that are accepted but unwise.
 
-    Plain ``http`` for ``ENDURAIN_HOST`` is allowed except on a loopback host, and a leftover ``ALGORITHM`` (or
-    ``ALGORITHM_FILE``) is ignored because the signing algorithm is fixed.
+    Plain ``http`` for ``ENDURAIN_HOST`` is allowed except on a loopback host.
     """
     parts = urlsplit(settings.ENDURAIN_HOST)
     if parts.scheme == "http" and parts.hostname not in LOOPBACK_HOSTS:
@@ -1225,15 +1135,9 @@ def warn_unsafe_settings() -> None:
             "ENDURAIN_HOST uses plain http: tokens, cookies and links travel unencrypted. Serve Endurain over https.",
             extra=core_logger.context(console=True),
         )
-    for name in ("ALGORITHM", "ALGORITHM_FILE"):
-        if name in os.environ:
-            logger.warning(
-                f"{name} is ignored and will be removed: tokens are always signed with HS256.",
-                extra=core_logger.context(console=True),
-            )
 
 
-# Environment variables retired in v0.19.x, v0.20.0 and v0.21.0. Maps the removed variable
+# Environment variables retired in v0.19.x, v0.20.0, v0.21.0 and v0.22.0. Maps the removed variable
 # name to a short, actionable remediation string. These are validated by
 # ``check_deprecated_env_vars`` at startup: because ``Settings`` uses
 # ``extra="ignore"``, a stale value would otherwise be silently dropped, leaving
@@ -1274,6 +1178,51 @@ DEPRECATED_ENV_VARS: dict[str, str] = {
         "removed. List the exact redirect addresses in ALLOWED_REDIRECT_URIS instead, for example "
         "ALLOWED_REDIRECT_URIS=com.endurain.endurain:/auth/sso/callback."
     ),
+    # Retired in v0.22.0. These settings live in the database and are edited in the admin UI. v0.21 imported a
+    # leftover value on first start; ignoring one now would leave the operator believing it still takes effect.
+    **dict.fromkeys(
+        (
+            "ACCESS_TOKEN_EXPIRE_MINUTES",
+            "REFRESH_TOKEN_EXPIRE_DAYS",
+            "SESSION_IDLE_TIMEOUT_ENABLED",
+            "SESSION_IDLE_TIMEOUT_HOURS",
+            "SESSION_ABSOLUTE_TIMEOUT_HOURS",
+        ),
+        "no longer read. Set the session and token lifetimes in Server settings > Access & security > Sessions.",
+    ),
+    "READ_NOTIFICATION_RETENTION_DAYS": ("no longer read. Set it in Server settings > General > Data retention."),
+    **dict.fromkeys(
+        (
+            "REVERSE_GEO_PROVIDER",
+            "PHOTON_API_HOST",
+            "PHOTON_API_USE_HTTPS",
+            "NOMINATIM_API_HOST",
+            "NOMINATIM_API_USE_HTTPS",
+            "GEOCODES_MAPS_API",
+            "REVERSE_GEO_RATE_LIMIT",
+        ),
+        "no longer read. Set reverse geocoding (service, host, HTTPS, rate limit and API key) in "
+        "Server settings > Maps & location > Reverse geocoding.",
+    ),
+    **dict.fromkeys(
+        (
+            "SMTP_HOST",
+            "SMTP_PORT",
+            "SMTP_USERNAME",
+            "SMTP_FROM",
+            "SMTP_SECURE",
+            "SMTP_SECURE_TYPE",
+            "SMTP_PASSWORD",
+            "SMTP_PASSWORD_FILE",
+        ),
+        "no longer read. Set the mail server (host, port, security, username, sender and password) in "
+        "Server settings > Email.",
+    ),
+    # Retired in v0.22.0. The signing algorithm is fixed at HS256, so there is nothing left to configure.
+    **dict.fromkeys(
+        ("ALGORITHM", "ALGORITHM_FILE"),
+        "removed. Tokens are always signed with HS256; there is nothing to configure.",
+    ),
 }
 
 
@@ -1281,7 +1230,7 @@ def check_deprecated_env_vars() -> None:
     """
     Abort startup when retired environment variables are still set.
 
-    Variables removed in v0.19.x, v0.20.0 and v0.21.0 are silently ignored by ``Settings``
+    Variables removed in v0.19.x, v0.20.0, v0.21.0 and v0.22.0 are silently ignored by ``Settings``
     (``extra="ignore"``), so a leftover value would give the operator no
     feedback. Every offending variable is collected and reported together
     so the deployment can be fixed in a single pass rather than one restart

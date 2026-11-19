@@ -1,6 +1,5 @@
 """Application logic for reading and editing server settings."""
 
-import os
 from datetime import timedelta
 
 import jasil.audit as jasil_audit
@@ -28,27 +27,6 @@ import modules.server_settings.tile_service as server_settings_tile_service
 logger = core_logger.get_logger(__name__)
 
 
-def server_settings_env_managed() -> dict[str, str]:
-    """Return the settings fields an environment variable currently sets.
-
-    Geocoding is imported as a block, so while any geocoding variable is set all of its
-    fields are env-managed, each named by its most specific variable. The session policy
-    and retention variables each manage only their own field.
-
-    Returns:
-        Field name to environment variable name.
-    """
-    per_field_env_vars = server_settings_constants.SESSION_ENV_VARS | server_settings_constants.RETENTION_ENV_VARS
-    managed = {field: name for field, name in per_field_env_vars.items() if env_var_is_set(name)}
-    if any(env_var_is_set(name) for name in server_settings_constants.GEOCODING_ENV_VAR_NAMES):
-        photon = core_config.settings.REVERSE_GEO_PROVIDER == core_geocoding.GeocodingService.PHOTON
-        managed |= {
-            field: server_settings_constants.GEOCODING_PHOTON_ENV_VARS.get(field, name) if photon else name
-            for field, name in server_settings_constants.GEOCODING_ENV_VARS.items()
-        }
-    return managed
-
-
 def _to_admin_read(
     server_settings: server_settings_schema.ServerSettingsRead,
 ) -> server_settings_schema.ServerSettingsAdminRead:
@@ -59,14 +37,12 @@ def _to_admin_read(
 
     Returns:
         The settings with a flag per API key saying whether one is stored, and the
-        fields an environment variable sets, the settings whose change needs the administrator's step-up, and
-        whether the log viewer is available.
+        settings whose change needs the administrator's step-up, and whether the log viewer is available.
     """
     return server_settings_schema.ServerSettingsAdminRead(
         **server_settings.model_dump(exclude=set(server_settings_constants.SECRET_FIELDS)),
         tileserver_api_key_set=bool(server_settings.tileserver_api_key),
         geocoding_api_key_set=bool(server_settings.geocoding_api_key),
-        env_managed=server_settings_env_managed(),
         step_up_fields=sorted(server_settings_constants.SECURITY_FIELDS),
         logs_viewer_enabled=core_config.settings.logs_viewer_enabled,
     )
@@ -311,7 +287,6 @@ def edit_server_settings(
     Raises:
         StepUpFailedError: If a security-relevant setting changes and the step-up does not verify.
         InvalidInputError: If the tile server URL cannot be dialled safely.
-        ConflictError: If a changed field is set by an environment variable.
         PreconditionFailedError: If the settings changed since the client read them.
         ServiceUnavailableError: If the settings row does not exist.
     """
@@ -344,7 +319,6 @@ def edit_server_settings(
         db.rollback()
         return _to_admin_read(current)
 
-    server_settings_change_utils.refuse_env_managed(changed_fields, server_settings_env_managed())
     if changed_fields & server_settings_constants.GEOCODING_FIELDS:
         _require_geocoding_key(attributes, current)
     # An unchanged key keeps its stored token instead of being re-encrypted.
@@ -375,23 +349,6 @@ def edit_server_settings(
         db.commit()
     logger.info("Server settings updated", extra=core_logger.context(changed_fields=sorted(changed_fields)))
     return _to_admin_read(updated)
-
-
-def env_var_is_set(name: str) -> bool:
-    """Return whether the operator explicitly set an environment variable.
-
-    A default value does not count. A secret read through ``read_secret`` also counts
-    when only its ``_FILE`` variant is set.
-
-    Args:
-        name: The environment variable name.
-
-    Returns:
-        True when the variable was provided in the environment or ``.env``.
-    """
-    if name in server_settings_constants.FILE_SECRET_ENV_VARS:
-        return name in os.environ or f"{name}_FILE" in os.environ
-    return name in core_config.settings.model_fields_set
 
 
 def reencrypt_stored_secrets(db: Session) -> None:

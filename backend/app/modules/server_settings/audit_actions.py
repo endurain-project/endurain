@@ -75,6 +75,7 @@ LOGS_DOWNLOAD = jasil_audit.AuditAction(
     description_default="An administrator downloaded the server log",
 )
 
+#: No longer written: the environment import is gone, but v0.21 installs hold rows with this id.
 SETTINGS_IMPORT = jasil_audit.AuditAction(
     id="server_settings.settings.import",
     category=jasil_audit.Category.SYSTEM,
@@ -82,6 +83,7 @@ SETTINGS_IMPORT = jasil_audit.AuditAction(
     description_key="audit.server_settings.settings.import",
     description_default="Deprecated environment settings were imported at startup",
     details_model=SettingsChangeDetails,
+    deprecated=True,
 )
 
 #: Every action this package writes, registered by the composition root.

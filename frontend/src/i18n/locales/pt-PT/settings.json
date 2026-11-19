@@ -331,8 +331,6 @@
     "staleError": "Estas definições foram alteradas por outra pessoa enquanto as editavas. As tuas alterações não foram guardadas. Recarrega a página para ver os valores atuais.",
     "stepUpTitle": "Confirma a tua identidade",
     "stepUpDescription": "Estas alterações afetam quem se pode registar, iniciar sessão ou manter uma sessão neste servidor, durante quanto tempo o registo de auditoria é mantido, ou se as ligações públicas mostram quem as partilhou. Confirma que és tu para continuar.",
-    "envLocked": "Definido por {name}",
-    "envSection": "Algumas definições aqui são definidas por variáveis de ambiente ({names}). Remova-as do ambiente para editar essas definições aqui.",
     "unsaved": "Alterações não guardadas",
     "fixErrors": "Corrige os erros acima para guardar",
     "discard": "Descartar",

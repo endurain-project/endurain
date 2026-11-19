@@ -487,8 +487,6 @@ class ServerSettingsAdminRead(
         version: Optimistic-concurrency counter, also sent as the ``ETag``.
         tileserver_api_key_set: Whether a tile API key is stored.
         geocoding_api_key_set: Whether a geocoding API key is stored.
-        env_managed: Field name to the environment variable that sets it; those
-            fields cannot be edited while the variable is set.
         signup_sso_enabled: Allow identity providers to create accounts at first sign-in.
         signup_require_admin_approval: Require admin approval for new sign-ups.
         signup_require_email_verification: Require email verification for new sign-ups.
@@ -505,9 +503,6 @@ class ServerSettingsAdminRead(
         ..., description="Is a tile server API key stored (true - yes, false - no)"
     )
     geocoding_api_key_set: StrictBool = Field(..., description="Is a geocoding API key stored (true - yes, false - no)")
-    env_managed: dict[str, str] = Field(
-        ..., description="Field name to the environment variable that sets it (not editable while set)"
-    )
     signup_sso_enabled: StrictBool = Field(
         ...,
         description=(
@@ -736,8 +731,6 @@ class MailSettingsAdminRead(BaseModel):
         username: Authentication username.
         from_address: Sender address, or null when the username is used.
         password_set: Whether a password is stored.
-        env_managed: Field name to the environment variable that sets it; those
-            fields cannot be edited while the variable is set.
         email_status: Whether outgoing email is usable with these settings; read-only.
     """
 
@@ -749,9 +742,6 @@ class MailSettingsAdminRead(BaseModel):
     username: StrictStr | None
     from_address: StrictStr | None
     password_set: StrictBool = Field(..., description="Is a mail server password stored (true - yes, false - no)")
-    env_managed: dict[str, str] = Field(
-        ..., description="Field name to the environment variable that sets it (not editable while set)"
-    )
     email_status: EmailStatus = Field(..., description="Whether outgoing email is usable with these settings")
 
     model_config = ConfigDict(use_enum_values=True)

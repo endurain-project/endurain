@@ -331,8 +331,6 @@
     "staleError": "Te nastavitve je med urejanjem spremenil nekdo drug. Tvoje spremembe niso bile shranjene. Znova naloži stran, da vidiš trenutne vrednosti.",
     "stepUpTitle": "Potrdi svojo identiteto",
     "stepUpDescription": "Te spremembe vplivajo na to, kdo se lahko registrira, prijavi ali obdrži sejo na tem strežniku, kako dolgo se hrani revizijska sled ali javne povezave pokažejo, kdo jih je delil. Za nadaljevanje potrdi, da si to ti.",
-    "envLocked": "Nastavljeno s spremenljivko {name}",
-    "envSection": "Nekatere nastavitve tukaj določajo okoljske spremenljivke ({names}). Odstranite jih iz okolja, da boste te nastavitve lahko urejali tukaj.",
     "unsaved": "Neshranjene spremembe",
     "fixErrors": "Za shranjevanje popravi zgornje napake",
     "discard": "Zavrzi",

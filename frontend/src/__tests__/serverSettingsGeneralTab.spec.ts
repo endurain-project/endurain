@@ -70,7 +70,6 @@ function makeSettings(overrides: Partial<ServerSettings> = {}): ServerSettings {
     apiKeyMaxLifetimeDays: 365,
     readNotificationRetentionDays: 90,
     geocodingApiKeySet: false,
-    envManaged: {},
     stepUpFields: ['publicShareableLinksUserInfo', 'requireMfa'],
     logsViewerEnabled: false,
     ...overrides,

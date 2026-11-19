@@ -66,7 +66,6 @@ function makeSettingsDto(overrides: Partial<ServerSettingsDto> = {}): ServerSett
     api_key_max_lifetime_days: 365,
     read_notification_retention_days: 90,
     geocoding_api_key_set: false,
-    env_managed: {},
     step_up_fields: ['sso_enabled'],
     logs_viewer_enabled: true,
     ...overrides,
@@ -84,7 +83,6 @@ function makeMailDto(overrides: Partial<MailSettingsDto> = {}): MailSettingsDto 
     username: 'me@example.com',
     from_address: null,
     password_set: true,
-    env_managed: { host: 'SMTP_HOST' },
     email_status: { configured: false, problems: ['Host is not set'] },
     ...overrides,
   }
@@ -143,7 +141,6 @@ describe('mapServerSettings', () => {
       apiKeyMaxLifetimeDays: 365,
       readNotificationRetentionDays: 90,
       geocodingApiKeySet: false,
-      envManaged: {},
       stepUpFields: ['ssoEnabled'],
       logsViewerEnabled: true,
     })
@@ -156,11 +153,6 @@ describe('mapServerSettings', () => {
     expect(
       mapServerSettings(makeSettingsDto({ geocoding_api_key_set: true })).geocodingApiKeySet,
     ).toBe(true)
-  })
-
-  it('carries the env-managed map', () => {
-    const dto = makeSettingsDto({ env_managed: { geocoding_host: 'PHOTON_API_HOST' } })
-    expect(mapServerSettings(dto).envManaged).toEqual({ geocoding_host: 'PHOTON_API_HOST' })
   })
 })
 
@@ -209,7 +201,6 @@ describe('toServerSettingsWire', () => {
       login_photo_set: _loginPhotoSet,
       tileserver_api_key_set: _keySet,
       geocoding_api_key_set: _geoKeySet,
-      env_managed: _envManaged,
       step_up_fields: _stepUpFields,
       logs_viewer_enabled: _logsViewerEnabled,
       ...editable
@@ -285,9 +276,8 @@ describe('toServerSettingsWire', () => {
     expect(wire).toHaveProperty('signup_sso_enabled', true)
   })
 
-  it('never sends the env-managed map or the key-stored flags', () => {
+  it('never sends the key-stored flags', () => {
     const wire = toServerSettingsWire(mapServerSettings(makeSettingsDto()), null)
-    expect(wire).not.toHaveProperty('env_managed')
     expect(wire).not.toHaveProperty('geocoding_api_key_set')
   })
 
@@ -401,7 +391,6 @@ describe('mapMailSettings', () => {
       username: 'me@example.com',
       fromAddress: null,
       passwordSet: true,
-      envManaged: { host: 'SMTP_HOST' },
       emailStatus: { configured: false, problems: ['Host is not set'] },
     })
   })

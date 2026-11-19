@@ -186,8 +186,7 @@ def read_mail_settings(
         response: The response, which carries the ETag.
 
     Returns:
-        The mail settings. The password is never returned, only whether one is stored;
-        ``env_managed`` names the fields an environment variable currently sets.
+        The mail settings. The password is never returned, only whether one is stored.
     """
     mail_settings = server_settings_mail_service.get_mail_settings_for_admin(db)
     core_etag.set_etag(response, mail_settings.version)
@@ -231,7 +230,6 @@ def edit_mail_settings(
     Raises:
         StepUpFailedError: 403 if the step-up fails.
         InvalidInputError: 400 if the configuration is not usable.
-        ConflictError: 409 if a field is set by an environment variable.
         PreconditionFailedError: 412 if the settings changed since the client read them.
     """
     updated = server_settings_mail_service.edit_mail_settings(

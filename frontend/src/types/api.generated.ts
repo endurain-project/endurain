@@ -10501,20 +10501,11 @@ export interface components {
          *         username: Authentication username.
          *         from_address: Sender address, or null when the username is used.
          *         password_set: Whether a password is stored.
-         *         env_managed: Field name to the environment variable that sets it; those
-         *             fields cannot be edited while the variable is set.
          *         email_status: Whether outgoing email is usable with these settings; read-only.
          */
         MailSettingsAdminRead: {
             /** @description Whether outgoing email is usable with these settings */
             email_status: components["schemas"]["EmailStatus"];
-            /**
-             * Env Managed
-             * @description Field name to the environment variable that sets it (not editable while set)
-             */
-            env_managed: {
-                [key: string]: string;
-            };
             /** From Address */
             from_address: string | null;
             /** Host */
@@ -11676,8 +11667,6 @@ export interface components {
          *         version: Optimistic-concurrency counter, also sent as the ``ETag``.
          *         tileserver_api_key_set: Whether a tile API key is stored.
          *         geocoding_api_key_set: Whether a geocoding API key is stored.
-         *         env_managed: Field name to the environment variable that sets it; those
-         *             fields cannot be edited while the variable is set.
          *         signup_sso_enabled: Allow identity providers to create accounts at first sign-in.
          *         signup_require_admin_approval: Require admin approval for new sign-ups.
          *         signup_require_email_verification: Require email verification for new sign-ups.
@@ -11699,13 +11688,6 @@ export interface components {
             api_key_max_lifetime_days: number;
             /** @description Currency (euro, dollar, pound) */
             currency: components["schemas"]["Currency"];
-            /**
-             * Env Managed
-             * @description Field name to the environment variable that sets it (not editable while set)
-             */
-            env_managed: {
-                [key: string]: string;
-            };
             /**
              * Geocoding Api Key Set
              * @description Is a geocoding API key stored (true - yes, false - no)

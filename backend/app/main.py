@@ -202,9 +202,6 @@ async def startup_event(fastapi_app: FastAPI) -> None:
     runtime_module_registry.register_realtime_subscribers(platform.realtime)
     platform.realtime.start()
 
-    # Before anything can send mail: save deprecated environment variables into the database.
-    with SessionLocal() as db:
-        server_settings_integration.import_deprecated_env_settings(db)
     # The composition root collects each module's own declaration; the scheduler
     # knows how to schedule, never what.
     core_scheduler.start_scheduler(
