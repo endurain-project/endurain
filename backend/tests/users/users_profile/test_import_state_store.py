@@ -77,16 +77,6 @@ def test_a_strict_status_raises_when_storage_is_down_and_a_plain_one_does_not():
         store.set_status(_USER_ID, job.id, Status.WRITING_FILES, strict=True)
 
 
-def test_an_import_state_stored_with_the_old_names_reads_as_the_new_ones():
-    done = import_state_store.ProfileImportState.model_validate_json(b'{"status":"completed","imported":{"gears":2}}')
-    failed = import_state_store.ProfileImportState.model_validate_json(
-        b'{"status":"failed","failure":"files_incomplete"}'
-    )
-
-    assert (done.status, done.imported) == (Status.SUCCEEDED, {"gears": 2})
-    assert (failed.status, failed.error_code) == (Status.FAILED, "files_incomplete")
-
-
 def test_begin_names_the_import_job_and_its_owner():
     job = _store(MemoryState()).begin(_USER_ID, conflict="held")
 

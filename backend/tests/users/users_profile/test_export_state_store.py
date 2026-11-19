@@ -91,16 +91,6 @@ def test_read_job_returns_the_export_until_a_later_one_replaces_it():
     assert state.status == Status.QUEUED
 
 
-def test_an_export_state_stored_with_the_old_names_reads_as_the_new_ones():
-    state = export_state_store.ProfileExportState.model_validate_json(
-        b'{"status":"completed","failure":null,"size_bytes":5}'
-    )
-    failed = export_state_store.ProfileExportState.model_validate_json(b'{"status":"failed","failure":"timed_out"}')
-
-    assert (state.status, state.size_bytes) == (Status.SUCCEEDED, 5)
-    assert (failed.status, failed.error_code) == (Status.FAILED, "timed_out")
-
-
 def test_the_requesting_session_is_kept_through_every_status_change():
     store = export_state_store.ProfileExportStateStore(MemoryState())
 

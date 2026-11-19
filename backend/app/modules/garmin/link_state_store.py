@@ -18,7 +18,7 @@ Interface::
 import uuid
 
 from jasil.providers import StateProvider
-from pydantic import BaseModel, model_validator
+from pydantic import BaseModel
 
 import core.attempt_state as core_attempt_state
 import core.job_status as core_job_status
@@ -38,23 +38,6 @@ class LinkState(BaseModel):
     status: core_job_status.JobState
     mfa_required: bool = False
     error_code: garmin_constants.LinkFailure | None = None
-
-    @model_validator(mode="before")
-    @classmethod
-    def _read_stored_state(cls, data: object) -> object:
-        """Read a state stored before the shared job vocabulary as the current one.
-
-        ``pending`` was the login in progress and ``mfa_required`` the login waiting for a code; both are
-        ``running`` now, the second with ``mfa_required`` set.
-        """
-        data = core_job_status.upgrade_stored_state(data, "reason")
-        if isinstance(data, dict) and data.get("status") in ("pending", "mfa_required"):
-            data = {
-                **data,
-                "mfa_required": data["status"] == "mfa_required",
-                "status": core_job_status.JobState.RUNNING.value,
-            }
-        return data
 
 
 _FINISHED = tuple(core_job_status.TERMINAL_STATES)

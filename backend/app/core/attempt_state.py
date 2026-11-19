@@ -15,7 +15,7 @@ from enum import StrEnum
 from typing import NoReturn
 
 from jasil.providers import StateBackendUnavailableError, StateProvider
-from pydantic import BaseModel, ValidationError, model_validator
+from pydantic import BaseModel
 
 import core.exceptions as core_exceptions
 import core.job_status as core_job_status
@@ -250,11 +250,7 @@ class AttemptStateStore:
         value = self._state.get(self._state_key(subject))
         if value is None:
             return None
-        try:
-            return StoredJob.model_validate_json(value)
-        except ValidationError:
-            # A state the previous release wrote carries no job; it reads as none, and its claim still expires.
-            return None
+        return StoredJob.model_validate_json(value)
 
     def _running_job_id(self, subject: str) -> uuid.UUID | None:
         value = self._state.get(self._claim_key(subject))
@@ -349,8 +345,8 @@ class AttemptStateStore:
         holds this job's id, so an attempt superseded in between leaves the newer claim alone. A finished attempt
         stamps its job's ``finished_at`` and is announced. A failure to record is logged, not raised: the attempt
         itself must still finish, and the entries expire on their own. A state that a later decision depends on is
-        recorded ``strict``, so losing it raises instead. An attempt whose job has expired, or that the previous
-        release began, has no job to record against: only its claim is kept or released.
+        recorded ``strict``, so losing it raises instead. An attempt whose job has expired has no job to
+        record against: only its claim is kept or released.
 
         Args:
             subject: What the attempt is for.
@@ -462,12 +458,6 @@ class SyncState(BaseModel):
     """
 
     status: core_job_status.JobState
-
-    @model_validator(mode="before")
-    @classmethod
-    def _read_stored_state(cls, data: object) -> object:
-        """Read a state stored before the shared job vocabulary as the current one."""
-        return core_job_status.upgrade_stored_state(data)
 
 
 #: Lifetime of a queued sync's claim and state: longer than any sync takes, shorter than a stuck claim should

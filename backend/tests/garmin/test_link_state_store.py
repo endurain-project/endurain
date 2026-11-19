@@ -91,6 +91,7 @@ class TestState:
 
     def test_an_unavailable_backend_does_not_fail_the_attempt(self):
         state = MagicMock()
+        state.get.return_value = None
         state.set.side_effect = StateBackendUnavailableError("down")
 
         link_state_store.GarminLinkStateStore(state=state).set_status(MOCK_USER_ID, uuid.uuid4(), Status.SUCCEEDED)
@@ -116,19 +117,3 @@ def test_progress_renews_the_claim():
         store.set_status(MOCK_USER_ID, job.id, Status.RUNNING, mfa_required=True)
 
     assert renew.call_args.args[0] == core_attempt_state.key("garmin", "link:claim", str(MOCK_USER_ID))
-
-
-@pytest.mark.parametrize(
-    ("stored", "expected"),
-    [
-        (b'{"status":"pending"}', link_state_store.LinkState(status=Status.RUNNING)),
-        (b'{"status":"mfa_required"}', link_state_store.LinkState(status=Status.RUNNING, mfa_required=True)),
-        (b'{"status":"completed"}', link_state_store.LinkState(status=Status.SUCCEEDED)),
-        (
-            b'{"status":"failed","reason":"incorrect_mfa"}',
-            link_state_store.LinkState(status=Status.FAILED, error_code=Failure.INCORRECT_MFA),
-        ),
-    ],
-)
-def test_a_link_state_stored_with_the_old_names_reads_as_the_new_ones(stored, expected):
-    assert link_state_store.LinkState.model_validate_json(stored) == expected

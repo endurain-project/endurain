@@ -15,7 +15,7 @@ Interface::
 import uuid
 
 from jasil.providers import StateProvider
-from pydantic import BaseModel, model_validator
+from pydantic import BaseModel
 
 import core.attempt_state as core_attempt_state
 import core.job_status as core_job_status
@@ -35,12 +35,6 @@ class ProfileImportState(BaseModel):
     status: profile_constants.ImportStatus
     error_code: profile_constants.ImportFailure | None = None
     imported: dict[str, int] | None = None
-
-    @model_validator(mode="before")
-    @classmethod
-    def _read_stored_state(cls, data: object) -> object:
-        """Read a state stored before the shared job vocabulary as the current one."""
-        return core_job_status.upgrade_stored_state(data, "failure")
 
 
 _FINISHED = (profile_constants.ImportStatus.SUCCEEDED, profile_constants.ImportStatus.FAILED)

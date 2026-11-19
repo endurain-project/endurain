@@ -380,8 +380,7 @@ class JobAlreadyRunningError(ConflictError):
 
         Args:
             detail: Message returned to the client.
-            job_id: The id of the running job, or None when it cannot be named (it finished meanwhile, or the
-                previous release started it).
+            job_id: The id of the running job, or None when it cannot be named (it finished or expired meanwhile).
         """
         super().__init__(detail)
         self.job_id = job_id
