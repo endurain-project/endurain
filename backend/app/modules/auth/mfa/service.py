@@ -14,8 +14,6 @@ Module layering (where MFA logic lives):
   this one, for end-to-end flows.
 """
 
-from __future__ import annotations
-
 import base64
 import uuid
 from datetime import UTC, datetime

@@ -1,7 +1,5 @@
 """Public authentication dependencies for routers and application modules."""
 
-from __future__ import annotations
-
 import uuid
 from collections.abc import Iterable
 from typing import Annotated

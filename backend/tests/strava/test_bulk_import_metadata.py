@@ -1,7 +1,5 @@
 """Tests for Strava bulk-import file handling."""
 
-from __future__ import annotations
-
 import logging
 import uuid
 from unittest.mock import Mock, patch

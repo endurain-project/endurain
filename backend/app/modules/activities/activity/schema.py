@@ -5,8 +5,6 @@ CRUD read projections (the ``*Ref`` DTOs) — live in ``contracts.py`` so this m
 stays exactly what the API serializes.
 """
 
-from __future__ import annotations
-
 import uuid
 from datetime import datetime
 from typing import Annotated, Any, Literal

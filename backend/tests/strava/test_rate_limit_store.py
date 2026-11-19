@@ -1,7 +1,5 @@
 """Tests for the Strava rate-limit state kept in the platform state provider."""
 
-from __future__ import annotations
-
 import uuid
 from datetime import UTC, datetime, timedelta
 from unittest.mock import MagicMock

@@ -1,7 +1,5 @@
 """Authentication workflows for login and token delivery."""
 
-from __future__ import annotations
-
 import uuid
 from collections.abc import Sequence
 from datetime import UTC, datetime

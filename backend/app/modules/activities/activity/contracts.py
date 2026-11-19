@@ -17,8 +17,6 @@ Neither group is ever serialized to a client, so keeping them out of
 ``schema.py`` also keeps the generated OpenAPI free of internal shapes.
 """
 
-from __future__ import annotations
-
 import uuid
 from dataclasses import dataclass, field
 from datetime import datetime

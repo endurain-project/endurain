@@ -1,7 +1,5 @@
 """Tests for the unified file-upload pipeline in ``core.file_uploads``."""
 
-from __future__ import annotations
-
 import asyncio
 import gzip
 import io

@@ -12,8 +12,6 @@ Module layering (where MFA logic lives):
 Profile routes depend on this module, never on ``modules.auth.mfa.*`` directly.
 """
 
-from __future__ import annotations
-
 import uuid
 from datetime import UTC, datetime
 

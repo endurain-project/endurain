@@ -4,8 +4,6 @@ Skipped silently when ``hypothesis`` is not installed, since it is
 an optional development dependency.
 """
 
-from __future__ import annotations
-
 from pathlib import Path
 
 import pytest

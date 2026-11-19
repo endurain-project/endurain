@@ -1,7 +1,5 @@
 """Tests for strava.activity_utils stream-fetching logic."""
 
-from __future__ import annotations
-
 import logging
 import uuid
 from datetime import datetime

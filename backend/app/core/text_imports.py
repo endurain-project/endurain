@@ -8,8 +8,6 @@ binary :mod:`core.file_uploads` pipeline does not need to grow text
 parsing concerns.
 """
 
-from __future__ import annotations
-
 import csv
 import os
 from collections.abc import Iterator
