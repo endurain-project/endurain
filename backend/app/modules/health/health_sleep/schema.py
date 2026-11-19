@@ -297,7 +297,7 @@ class HealthSleepCore(BaseModel):
     )
 
     @model_validator(mode="after")
-    def validate_sleep_times(self) -> "HealthSleepCore":
+    def validate_sleep_times(self) -> HealthSleepCore:
         """Validate sleep start < end, reading a time without an offset as UTC."""
         if (
             self.sleep_start_time_gmt is not None

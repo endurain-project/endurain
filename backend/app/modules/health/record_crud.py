@@ -9,7 +9,8 @@ stages writes with ``flush`` and never commits.
 import uuid
 from collections.abc import Sequence
 from dataclasses import dataclass
-from datetime import date, datetime
+from datetime import date as date_type
+from datetime import datetime
 from decimal import Decimal
 from typing import Protocol
 
@@ -46,7 +47,7 @@ class _DatedRow(Row, Protocol):
     """The ORM class of a record a user has at most one of per day."""
 
     @declared_attr
-    def date(cls) -> Mapped[date]:
+    def date(cls) -> Mapped[date_type]:
         """The record's day."""
         ...
 
@@ -70,7 +71,7 @@ class RecordSpec[ModelT: Row, ReadT: BaseModel]:
     sync_type: str
 
 
-def duplicate_date_message(day: date | None) -> str:
+def duplicate_date_message(day: date_type | None) -> str:
     """Build the detail of the error for a second record on a day.
 
     Args:
@@ -163,9 +164,9 @@ def find_by_date[ModelT: _DatedRow, ReadT: BaseModel](
 def count[ModelT: Row, ReadT: BaseModel](
     spec: RecordSpec[ModelT, ReadT],
     user_id: uuid.UUID,
-    since_column: SQLColumnExpression[date],
-    since: date | None,
-    until: date | None,
+    since_column: SQLColumnExpression[date_type],
+    since: date_type | None,
+    until: date_type | None,
     db: Session,
     conditions: Sequence[ColumnElement[bool]] = (),
 ) -> int:
@@ -190,10 +191,10 @@ def count[ModelT: Row, ReadT: BaseModel](
 def list_page[ModelT: Row, ReadT: BaseModel](
     spec: RecordSpec[ModelT, ReadT],
     user_id: uuid.UUID,
-    order_column: QueryableAttribute[date],
-    since_column: SQLColumnExpression[date],
-    since: date | None,
-    until: date | None,
+    order_column: QueryableAttribute[date_type],
+    since_column: SQLColumnExpression[date_type],
+    since: date_type | None,
+    until: date_type | None,
     page_number: int | None,
     num_records: int | None,
     db: Session,

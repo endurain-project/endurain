@@ -339,7 +339,7 @@ class Settings(BaseSettings):
             return 1
         try:
             parsed = int(v)
-        except (TypeError, ValueError):
+        except TypeError, ValueError:
             logger.warning(
                 "Invalid WEB_WORKERS value, expected a positive integer; defaulting to 1",
                 extra=core_logger.context(console=True),
@@ -654,7 +654,7 @@ class Settings(BaseSettings):
             return 1.0
         try:
             rate = float(v)
-        except (TypeError, ValueError):
+        except TypeError, ValueError:
             rate = -1.0
         if not 0 <= rate <= 100:
             logger.warning(
@@ -1059,7 +1059,7 @@ def _is_safe_path(file_path: Path) -> bool:
 
         return any(resolved == allowed or resolved.is_relative_to(allowed) for allowed in allowed_dirs)
 
-    except (OSError, ValueError, TypeError):
+    except OSError, ValueError, TypeError:
         return False
 
 

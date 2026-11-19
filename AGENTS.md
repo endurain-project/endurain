@@ -1,7 +1,7 @@
 # Endurain
 
 Self-hosted fitness tracking application.
-Backend: Python 3.13, FastAPI, SQLAlchemy 2, Alembic, PostgreSQL, and the `jasil` platform package.
+Backend: Python 3.15, FastAPI, SQLAlchemy 2, Alembic, PostgreSQL, and the `jasil` platform package.
 Frontend: Vue 3, TypeScript, Vite, Tailwind CSS v4, shadcn-vue, TanStack Query, Pinia.
 Deployment: Docker multi-stage image (amd64, arm64).
 
@@ -38,7 +38,7 @@ docker/         Dockerfile and start.sh
 
 ## Commands
 
-Backend (from `backend/`, Python 3.13, `uv`):
+Backend (from `backend/`, Python 3.15, `uv`):
 
 ```bash
 uv sync
@@ -115,7 +115,7 @@ npm run gen:api      # after backend API changes
 - A route follows `docs/developer-guide/http-api.md`; `backend/tests/architecture/test_api_contract.py` enforces it, and its registers of existing violations only shrink.
 - A request schema never accepts a field the server owns: `id`, `user_id`, `version`, `created_at`, `updated_at`, `source` or a provider id.
 - An API change updates `docs/integrate/` in the same change; a privacy or security default stated in `docs/features/` is pinned by a test.
-- Python 3.13 syntax, 120-character lines, Google-style PEP 257 docstrings (`Args`, `Returns`, `Raises` where applicable; ruff `D` enforces them). An endpoint docstring is the public API description and has no sections.
+- Python 3.15 syntax, 120-character lines, Google-style PEP 257 docstrings (`Args`, `Returns`, `Raises` where applicable; ruff `D` enforces them). An endpoint docstring is the public API description and has no sections.
 
 ## Frontend invariants
 

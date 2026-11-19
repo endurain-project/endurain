@@ -310,7 +310,7 @@ class ServerSettingsSessionPolicy(BaseModel):
     )
 
     @model_validator(mode="after")
-    def validate_absolute_timeout(self) -> "ServerSettingsSessionPolicy":
+    def validate_absolute_timeout(self) -> ServerSettingsSessionPolicy:
         """Refuse an absolute timeout shorter than the idle timeout.
 
         Returns:
@@ -422,7 +422,7 @@ class ServerSettingsEditRequest(ServerSettingsEdit):
     )
 
     @model_validator(mode="after")
-    def validate_access_token_lifetime(self) -> "ServerSettingsEditRequest":
+    def validate_access_token_lifetime(self) -> ServerSettingsEditRequest:
         """Refuse an access token lifetime that is not shorter than the enforced idle timeout.
 
         The check belongs to the request, not to the shared session policy fields: a stored row that predates it

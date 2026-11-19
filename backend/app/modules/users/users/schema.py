@@ -145,7 +145,7 @@ class UserAccessType(StrEnum):
     ADMIN = "admin"
 
 
-def normalize_access_type(access_type: "UserAccessType | str") -> str:
+def normalize_access_type(access_type: UserAccessType | str) -> str:
     """Return the string value of an access type.
 
     Accepts either a :class:`UserAccessType` enum member or its raw
@@ -833,7 +833,7 @@ class UserEdit(ProfileUpdate):
     email_verified: StrictBool | None = Field(default=None, description="Whether email is verified")
 
     @classmethod
-    def from_read(cls, user: "UserRead") -> "UserEdit":
+    def from_read(cls, user: UserRead) -> UserEdit:
         """Build the edit that re-applies a user as stored, for a caller that changes a few fields.
 
         Args:

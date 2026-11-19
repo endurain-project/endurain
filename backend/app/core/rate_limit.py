@@ -134,7 +134,7 @@ def _verified_subject(token: str) -> str | None:
     try:
         decoded = core_jwt_keys.decode(token, key)
         _ACCESS_TOKEN_CLAIMS.validate(decoded.claims)
-    except (JoseError, ValueError):
+    except JoseError, ValueError:
         return None
     if decoded.header.get("typ") != core_jwt_keys.ACCESS_JWT_TYP:
         return None

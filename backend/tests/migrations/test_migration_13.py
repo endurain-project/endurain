@@ -138,7 +138,7 @@ class _FakeS3Client:
             raise ClientError({"Error": {"Code": "500"}}, "CopyObject")
         self.objects[key] = self.objects[copy_source["Key"]]
 
-    def get_paginator(self, _operation: str) -> "_FakeS3Client":
+    def get_paginator(self, _operation: str) -> _FakeS3Client:
         return self
 
     def paginate(self, **call: Any) -> list[dict[str, list[dict[str, object]]]]:

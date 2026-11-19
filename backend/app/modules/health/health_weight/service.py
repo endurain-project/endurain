@@ -398,7 +398,7 @@ def restore_profile_records(
             if field in health_weight and isinstance(health_weight[field], str):
                 try:
                     health_weight[field] = float(health_weight[field])
-                except (ValueError, TypeError):
+                except ValueError, TypeError:
                     health_weight[field] = None
 
         # Convert integer fields
@@ -407,7 +407,7 @@ def restore_profile_records(
             if field in health_weight and isinstance(health_weight[field], str):
                 try:
                     health_weight[field] = int(health_weight[field])
-                except (ValueError, TypeError):
+                except ValueError, TypeError:
                     health_weight[field] = None
 
         try:

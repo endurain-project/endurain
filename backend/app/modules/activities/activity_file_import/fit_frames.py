@@ -947,7 +947,7 @@ def _timezone_from_offset(
     if athlete_timezone:
         try:
             athlete_offset = reference_date.astimezone(ZoneInfo(athlete_timezone)).utcoffset()
-        except (ValueError, KeyError):
+        except ValueError, KeyError:
             athlete_offset = None
         if athlete_offset is not None and athlete_offset.total_seconds() == offset_seconds:
             return athlete_timezone

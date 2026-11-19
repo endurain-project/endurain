@@ -90,7 +90,7 @@ def _body_has_nul(content_type: str, body: bytes) -> bool:
         return False
     try:
         return _json_contains_nul(json.loads(text))
-    except (ValueError, RecursionError):
+    except ValueError, RecursionError:
         return False
 
 

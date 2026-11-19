@@ -92,7 +92,7 @@ def restore_profile_records(
         if isinstance(target_data.get("weight_kg"), str):
             try:
                 target_data["weight_kg"] = float(target_data["weight_kg"])
-            except (ValueError, TypeError):
+            except ValueError, TypeError:
                 target_data["weight_kg"] = None
 
         int_fields = ["steps", "sleep_seconds"]
@@ -100,7 +100,7 @@ def restore_profile_records(
             if isinstance(target_data.get(field), str):
                 try:
                     target_data[field] = int(target_data[field])
-                except (ValueError, TypeError):
+                except ValueError, TypeError:
                     target_data[field] = None
 
         # Only the editable fields: the export also carries the row's id, owner and version.

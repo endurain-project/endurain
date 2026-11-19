@@ -104,7 +104,7 @@ docker image remove unified-image
 
 ## Backend tooling
 
-The backend (Python 3.13) uses [uv](https://docs.astral.sh/uv/) for dependencies and [hatch](https://hatch.pypa.io/) for scripts. Install Python 3.13 and uv on your machine, then work from the `backend/` folder:
+The backend (Python 3.15) uses [uv](https://docs.astral.sh/uv/) for dependencies and [hatch](https://hatch.pypa.io/) for scripts. Install Python 3.15 and uv on your machine, then work from the `backend/` folder:
 
 ```bash
 cd backend

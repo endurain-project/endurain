@@ -151,7 +151,7 @@ class IdentityProviderCreate(IdentityProviderBase):
     model_config = ConfigDict(extra="forbid")
 
     @model_validator(mode="after")
-    def validate_oidc_requirements(self) -> "IdentityProviderCreate":
+    def validate_oidc_requirements(self) -> IdentityProviderCreate:
         """Refuse an ``oidc`` provider that has no issuer URL or no ``openid`` scope.
 
         Returns:

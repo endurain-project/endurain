@@ -165,7 +165,7 @@ def smooth_elevation_stream(
     """
     try:
         values = [float(waypoint["ele"]) for waypoint in elevations]
-    except (ValueError, KeyError, TypeError):
+    except ValueError, KeyError, TypeError:
         return elevations
     smoothed = _smooth_elevations(values, median_window, avg_window)
     return [{**waypoint, "ele": ele} for waypoint, ele in zip(elevations, smoothed, strict=True)]
@@ -223,7 +223,7 @@ def compute_elevation_gain_and_loss(
     """
     try:
         values = [float(waypoint["ele"]) for waypoint in elevations]
-    except (ValueError, KeyError, TypeError):
+    except ValueError, KeyError, TypeError:
         return None, None
     if not values:
         return None, None
@@ -307,7 +307,7 @@ def calculate_avg_and_max(
     try:
         # Get the values from the data
         values = [float(waypoint[stream_type]) for waypoint in data if waypoint.get(stream_type) is not None]
-    except (ValueError, KeyError, TypeError):
+    except ValueError, KeyError, TypeError:
         # If there are no valid values, return 0
         return 0, 0
 
@@ -358,7 +358,7 @@ def calculate_np(data: Sequence[Mapping[str, Any]]) -> float:
     try:
         # Get the power values from the data
         values = [float(waypoint["power"]) for waypoint in data if waypoint["power"] is not None]
-    except (ValueError, KeyError, TypeError):
+    except ValueError, KeyError, TypeError:
         # If there are no valid values, return 0
         return 0
 

@@ -4,7 +4,7 @@ This guide explains how to install **Endurain** bare-metal on Debian without Doc
 
 ## Platform requirements
 
-- Python 3.13 or newer (`requires-python` in `backend/pyproject.toml`).
+- Python 3.15 or newer (`requires-python` in `backend/pyproject.toml`).
 - glibc 2.27 or newer on x86_64 and aarch64. The locked dependencies (`numpy`, `pillow`, `psycopg-binary`) ship prebuilt wheels for `manylinux_2_27` and later, so an older libc falls back to building them from source.
 - On musl (Alpine, the Docker image), musl 1.2 or newer (`musllinux_1_2`).
 
