@@ -48,7 +48,7 @@ uv run ruff format --check . && uv run ruff check .
 uv run mypy && uv run ty check
 ```
 
-Frontend (from `frontend/`, Node 24):
+Frontend (from `frontend/`, Node 26):
 
 ```bash
 npm install

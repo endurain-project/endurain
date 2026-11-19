@@ -117,7 +117,7 @@ uv run ruff format --check . && uv run ruff check .   # format and lint
 Hatch scripts group the common checks, for example `uv run hatch run check` runs lint, format, tests and type checks without changing files. Backend code changes in the mounted `backend/app` folder apply after a container restart.
 
 ## Frontend
-Make sure you have Node.js 22.18+ or 24.12+ installed ([nodejs.org](https://nodejs.org/)).
+Make sure you have Node.js 26+ installed ([nodejs.org](https://nodejs.org/)).
 
 - Go to the root of the project and move to frontend folder and install the dependencies:
 

@@ -55,6 +55,11 @@ jobs:
         working-directory: backend
         run: uv run --no-sync python scripts/export_openapi.py ../frontend/openapi.json
 
+      - name: Set up Node.js
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: frontend/.nvmrc
+
       - name: Install frontend dependencies
         working-directory: frontend
         run: npm ci

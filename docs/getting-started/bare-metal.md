@@ -25,7 +25,7 @@ apt install -y \
 Install the required tools from their official sources:
 
 - uv (Python) → https://docs.astral.sh/uv/
-- Node.js 24 → https://nodejs.org/en/download
+- Node.js 26 → https://nodejs.org/en/download
 - PostgreSQL 18 → https://www.postgresql.org/download/
 
 ## 3. Download Endurain Release
