@@ -662,8 +662,8 @@ requires-dist = [
     { name = "gpxpy", specifier = ">=1.6.2" },
     { name = "httpx2", specifier = ">=2.16.0" },
     { name = "itsdangerous", specifier = ">=2.2.0" },
-    { name = "jasil", extras = ["audit", "fastapi", "geocoding", "jobs", "migrations"], specifier = ">=0.22.1,<0.23.0" },
-    { name = "jasil", extras = ["redis", "s3"], marker = "extra == 'distributed'", specifier = ">=0.22.1,<0.23.0" },
+    { name = "jasil", extras = ["audit", "fastapi", "geocoding", "jobs", "migrations"], specifier = ">=0.22.2,<0.23.0" },
+    { name = "jasil", extras = ["redis", "s3"], marker = "extra == 'distributed'", specifier = ">=0.22.2,<0.23.0" },
     { name = "joserfc", specifier = ">=1.8.0" },
     { name = "nh3", specifier = ">=0.3.7" },
     { name = "numpy", specifier = ">=2.5.4" },
@@ -1137,15 +1137,15 @@ wheels = [
 
 [[package]]
 name = "jasil"
-version = "0.22.1"
+version = "0.22.2"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "pydantic" },
     { name = "sqlalchemy" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/c2/bf/79e935ef0c35fad67cafa644da95e44b9b6ecf729d1e8be758e9cf2b0076/jasil-0.22.1.tar.gz", hash = "sha256:76acc92a987efc988393cafd71ee159dbf0d037482711792d2b3d21eaa8ce751", size = 343778, upload-time = "2026-11-18T22:40:45.242Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/c3/e8/67dc19e3c37224caef6ed9df94167358ea630786dc93a5c5e797c806bdc7/jasil-0.22.2.tar.gz", hash = "sha256:696933c07efe402e3ef59a399edabf0bb7cd1fc01b6c06c3b3a9aafb44f23a44", size = 343827, upload-time = "2026-11-19T12:47:57.575Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/35/b2/13070ad1c575c140a55c9513753695731b2c967d8b6b73a5fd7016fc483d/jasil-0.22.1-py3-none-any.whl", hash = "sha256:b2bcc7469877f6588e018c44cfadbb894828aedcb5402d0976eb8c56bcf3f0ca", size = 369352, upload-time = "2026-11-18T22:40:43.532Z" },
+    { url = "https://files.pythonhosted.org/packages/f3/ab/94b6407b689b6333b3cccf3aa4dc43964843a2563f3b68540e66e2a330ca/jasil-0.22.2-py3-none-any.whl", hash = "sha256:e6dfa0c5a786839729beef33c962de0c659ea692d483c943226f156448a3a5e4", size = 369354, upload-time = "2026-11-19T12:47:56.081Z" },
 ]
 
 [package.optional-dependencies]
