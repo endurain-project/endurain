@@ -179,7 +179,7 @@ Its tracking CRUD stages changes, while the migration service owns the commit.
 `migration_service.py` exposes the operations a versioned data migration still
 needs, and nothing else. It stops a migration reaching arbitrary CRUD, parser, render
 or signing internals, and gives the migration one place to find the commit, which CRUD
-never performs. Import-linter forbids domain and core code from consuming it.
+never performs. The module-boundary tests forbid another module from consuming it.
 
 It is a boundary, **not a snapshot**: most entries alias live code, so changing a
 parser or a CRUD function changes what a historical migration does. A data migration

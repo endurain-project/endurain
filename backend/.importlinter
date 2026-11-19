@@ -191,23 +191,6 @@ forbidden_modules =
     socket
     staticmap
 
-# Data migrations are historical orchestration, but that does not grant them
-# unrestricted access to every package implementation. Each package exposes the
-# exact legacy operations it supports through ``migration_service.py``; those
-# adapters are for app/migrations only and must never become a general-purpose
-# domain dependency.
-[importlinter:contract:activities-migration-surfaces-are-private]
-name = Module migration services are consumed only by application migrations
-type = forbidden
-allow_indirect_imports = True
-source_modules =
-    modules
-    core
-forbidden_modules =
-    modules.activities.*.migration_service
-    modules.users.*.migration_service
-    modules.strava.migration_service
-
 # Provider modules describe users data with the read schemas the users CRUD actually
 # returns, never the ORM models: the runtime value is already a DTO, so naming the
 # ORM classes would only keep a users-ORM import alive inside Strava/Garmin.

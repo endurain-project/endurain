@@ -4,22 +4,14 @@ import json
 import uuid
 from collections import Counter
 from datetime import UTC, datetime, timedelta
-from unittest.mock import patch
+from pathlib import Path
 
 import pytest
 import sqlalchemy as sa
-from jasil.backends.state_memory import MemoryState
-from jasil.backends.storage_local import LocalStorage
 from sqlalchemy.dialects import postgresql
-from sqlalchemy.orm import Session
 
-import core.config as core_config
-import migrations.migration_13 as migration_13
-import migrations.migration_14 as migration_14
+import migrations.startup as migrations_startup
 import model_registry as orm_model_registry
-import modules.activities.activity_ingestion.migration_service as activity_ingestion_migration_service
-import modules.users.users.migration_service as users_migration_service
-import modules.users.users_profile.migration_service as users_profile_migration_service
 from core.database import Base
 from tests._helpers import alembic_chain
 
@@ -192,8 +184,8 @@ def _seed(engine, seeder) -> None:
         seeder(connection)
 
 
-def test_a_fresh_install_upgrades_to_head_and_matches_the_models(upgrade_db):
-    alembic_chain.upgrade(upgrade_db, "head")
+def test_a_fresh_install_upgrades_to_the_v0_21_head_and_matches_the_models(upgrade_db):
+    alembic_chain.upgrade(upgrade_db, alembic_chain.V0_21_HEAD)
 
     assert alembic_chain.schema_differences(upgrade_db) == []
     alembic_chain.bootstrap_substrate(upgrade_db)
@@ -203,7 +195,18 @@ def test_a_fresh_install_upgrades_to_head_and_matches_the_models(upgrade_db):
     assert _scalar(upgrade_db, "SELECT to_regclass('cadence_spm_migration_rows')") is None
 
 
-def test_a_seeded_v0_20_install_upgrades_to_head_keeping_every_row(upgrade_db):
+def test_a_fresh_install_upgrades_to_head_and_matches_the_models(upgrade_db):
+    alembic_chain.upgrade(upgrade_db, "head")
+
+    assert alembic_chain.schema_differences(upgrade_db) == []
+    alembic_chain.bootstrap_substrate(upgrade_db)
+    assert alembic_chain.schema_differences(upgrade_db) == []
+    assert _migrations_state(upgrade_db) == {7: True}
+    assert _scalar(upgrade_db, "SELECT to_regclass('uuid_migration_ids')") is None
+    assert _scalar(upgrade_db, "SELECT to_regclass('cadence_spm_migration_rows')") is None
+
+
+def test_a_seeded_v0_20_install_upgrades_to_the_v0_21_head_keeping_every_row(upgrade_db):
     alembic_chain.upgrade(upgrade_db, alembic_chain.V0_20_HEAD)
     _seed(upgrade_db, alembic_chain.seed_v0_20)
     assert len(alembic_chain.row_counts(upgrade_db)) + len(_UNPREFIXED_SUBSTRATE_TABLES) == 41
@@ -213,7 +216,7 @@ def test_a_seeded_v0_20_install_upgrades_to_head_keeping_every_row(upgrade_db):
     before = alembic_chain.row_counts(upgrade_db)
     assert before.pop("cadence_spm_migration_rows") == 0
 
-    alembic_chain.upgrade(upgrade_db, "head")
+    alembic_chain.upgrade(upgrade_db, alembic_chain.V0_21_HEAD)
 
     after = alembic_chain.row_counts(upgrade_db)
     assert after == {
@@ -236,7 +239,7 @@ def test_a_seeded_install_at_head_has_a_row_in_every_table(upgrade_db):
     _seed(upgrade_db, alembic_chain.seed_v0_20)
     alembic_chain.upgrade(upgrade_db, _REVISION_84)
     _seed(upgrade_db, alembic_chain.seed_v0_21)
-    alembic_chain.upgrade(upgrade_db, "head")
+    alembic_chain.upgrade(upgrade_db, alembic_chain.V0_21_HEAD)
 
     _assert_every_table_has_rows_but_the_emptied_one(upgrade_db)
 
@@ -250,10 +253,72 @@ def test_the_upgrade_refuses_while_a_v0_20_data_migration_is_pending(upgrade_db)
     before = _migrations_state(upgrade_db)
 
     with pytest.raises(RuntimeError, match=r"Data migrations 3, 9 "):
-        alembic_chain.upgrade(upgrade_db, "head")
+        alembic_chain.upgrade(upgrade_db, alembic_chain.V0_21_HEAD)
 
     assert _scalar(upgrade_db, "SELECT version_num FROM alembic_version") == alembic_chain.V0_20_HEAD
     assert _migrations_state(upgrade_db) == before
+
+
+def _seed_v0_21_head(engine) -> None:
+    """Leave a seeded v0.20 install at the v0.21 head, with data migrations 11 to 14 pending."""
+    alembic_chain.upgrade(engine, alembic_chain.V0_20_HEAD)
+    _seed(engine, alembic_chain.seed_v0_20)
+    alembic_chain.upgrade(engine, alembic_chain.V0_21_HEAD)
+
+
+def test_the_v0_22_upgrade_refuses_while_a_v0_21_data_migration_is_pending(upgrade_db):
+    _seed_v0_21_head(upgrade_db)
+    with upgrade_db.begin() as connection:
+        connection.execute(sa.text("UPDATE migrations SET executed = true WHERE id IN (11, 12, 14)"))
+    before = _migrations_state(upgrade_db)
+    assert before == {7: True, 11: True, 12: True, 13: False, 14: True}
+
+    with pytest.raises(RuntimeError, match=r"Data migrations 13 .*v0\.21\.x"):
+        alembic_chain.upgrade(upgrade_db, "head")
+
+    assert _scalar(upgrade_db, "SELECT version_num FROM alembic_version") == alembic_chain.V0_21_HEAD
+    assert _migrations_state(upgrade_db) == before
+    assert _scalar(upgrade_db, "SELECT to_regclass('uuid_migration_ids')") is not None
+
+
+def test_the_v0_22_upgrade_retires_the_v0_21_data_migrations_once_they_have_all_run(upgrade_db):
+    _seed_v0_21_head(upgrade_db)
+    with upgrade_db.begin() as connection:
+        connection.execute(sa.text("UPDATE migrations SET executed = true WHERE id IN (11, 12, 13, 14)"))
+    users_before = _scalar(upgrade_db, "SELECT count(*) FROM users")
+
+    alembic_chain.upgrade(upgrade_db, "head")
+
+    assert _migrations_state(upgrade_db) == {7: True}
+    assert _scalar(upgrade_db, "SELECT to_regclass('uuid_migration_ids')") is None
+    assert _scalar(upgrade_db, "SELECT count(*) FROM users") == users_before
+    assert alembic_chain.schema_differences(upgrade_db) == []
+
+
+def test_startup_refuses_a_v0_20_install_before_any_revision_runs(upgrade_db, monkeypatch):
+    alembic_chain.upgrade(upgrade_db, alembic_chain.V0_20_HEAD)
+    _seed(upgrade_db, alembic_chain.seed_v0_20)
+    tables_before = sa.inspect(upgrade_db).get_table_names()
+    migrations_before = _migrations_state(upgrade_db)
+    monkeypatch.setattr(migrations_startup, "engine", upgrade_db)
+    monkeypatch.chdir(Path(__file__).resolve().parents[2] / "app")
+
+    with pytest.raises(RuntimeError, match=r"upgrades only from v0\.21\.x"):
+        migrations_startup.run_alembic_upgrade()
+
+    assert _scalar(upgrade_db, "SELECT version_num FROM alembic_version") == alembic_chain.V0_20_HEAD
+    assert sa.inspect(upgrade_db).get_table_names() == tables_before
+    assert _scalar(upgrade_db, "SELECT to_regclass('account_security_generations')") is None
+    assert _migrations_state(upgrade_db) == migrations_before
+
+
+def test_the_v0_21_data_migration_retirement_is_irreversible(upgrade_db):
+    alembic_chain.upgrade(upgrade_db, "head")
+
+    with pytest.raises(NotImplementedError, match="restore the database from the backup"):
+        alembic_chain.downgrade(upgrade_db, alembic_chain.V0_21_HEAD)
+
+    assert _scalar(upgrade_db, "SELECT version_num FROM alembic_version") == "50ac9225ce4f"
 
 
 def _difference_kinds(engine) -> Counter:
@@ -280,7 +345,7 @@ def test_align_schema_with_models_is_reversible(upgrade_db):
     alembic_chain.run_step(upgrade_db, _RETIRE_AND_ALIGN_FILE, "align_schema_with_models")
     assert _difference_kinds(upgrade_db) == aligned
 
-    alembic_chain.upgrade(upgrade_db, "head")
+    alembic_chain.upgrade(upgrade_db, alembic_chain.V0_21_HEAD)
     assert alembic_chain.schema_differences(upgrade_db) == []
 
 
@@ -372,7 +437,7 @@ def test_revision_87_gives_the_leaf_tables_uuid_primary_keys(upgrade_db):
         for table in _KEPT_TOMBSTONE_TABLES:
             rows = sa.table(table, sa.column("record_id"))
             assert connection.execute(sa.select(rows.c.record_id)).scalars().all() == [100]
-    alembic_chain.upgrade(upgrade_db, "head")
+    alembic_chain.upgrade(upgrade_db, alembic_chain.V0_21_HEAD)
     assert alembic_chain.schema_differences(upgrade_db) == []
     alembic_chain.bootstrap_substrate(upgrade_db)
     assert alembic_chain.schema_differences(upgrade_db) == []
@@ -545,7 +610,7 @@ def test_revision_88_converts_identity_providers_and_their_references(upgrade_db
         ("identity_providers", old_ids[slug], new_ids[slug]) for slug in old_ids
     )
     assert _migrations_state(upgrade_db)[13] is False
-    alembic_chain.upgrade(upgrade_db, "head")
+    alembic_chain.upgrade(upgrade_db, alembic_chain.V0_21_HEAD)
     assert alembic_chain.schema_differences(upgrade_db) == []
     alembic_chain.bootstrap_substrate(upgrade_db)
     assert alembic_chain.schema_differences(upgrade_db) == []
@@ -586,7 +651,7 @@ def test_revision_88_rewrites_the_jasil_prefixed_substrate_tables(upgrade_db):
     alembic_chain.upgrade(upgrade_db, _REVISION_88)
 
     _assert_events_rewritten(upgrade_db, "jasil_", _new_ids_by_slug(upgrade_db))
-    alembic_chain.upgrade(upgrade_db, "head")
+    alembic_chain.upgrade(upgrade_db, alembic_chain.V0_21_HEAD)
     assert alembic_chain.schema_differences(upgrade_db) == []
     alembic_chain.bootstrap_substrate(upgrade_db)
     assert alembic_chain.schema_differences(upgrade_db) == []
@@ -742,7 +807,7 @@ def test_revision_89_converts_gear_and_its_references(upgrade_db):
     assert _substrate_rows(upgrade_db) == substrate_before
     assert _rows(upgrade_db, "SELECT table_name, old_id, new_id::text FROM uuid_migration_ids") == migration_ids_before
     assert _migrations_state(upgrade_db) == migrations_before
-    alembic_chain.upgrade(upgrade_db, "head")
+    alembic_chain.upgrade(upgrade_db, alembic_chain.V0_21_HEAD)
     assert alembic_chain.schema_differences(upgrade_db) == []
     alembic_chain.bootstrap_substrate(upgrade_db)
     assert alembic_chain.schema_differences(upgrade_db) == []
@@ -1066,7 +1131,7 @@ def test_revision_90_converts_activities_and_their_children(upgrade_db):
         ]
         assert after == expected, table
 
-    alembic_chain.upgrade(upgrade_db, "head")
+    alembic_chain.upgrade(upgrade_db, alembic_chain.V0_21_HEAD)
     assert alembic_chain.schema_differences(upgrade_db) == []
     alembic_chain.bootstrap_substrate(upgrade_db)
     assert alembic_chain.schema_differences(upgrade_db) == []
@@ -1106,7 +1171,7 @@ def test_revision_90_rewrites_the_jasil_prefixed_substrate_tables(upgrade_db):
     alembic_chain.upgrade(upgrade_db, _REVISION_90)
 
     _assert_activity_events_rewritten(upgrade_db, "jasil_", _new_activity_ids(upgrade_db))
-    alembic_chain.upgrade(upgrade_db, "head")
+    alembic_chain.upgrade(upgrade_db, alembic_chain.V0_21_HEAD)
     assert alembic_chain.schema_differences(upgrade_db) == []
     alembic_chain.bootstrap_substrate(upgrade_db)
     assert alembic_chain.schema_differences(upgrade_db) == []
@@ -1568,7 +1633,7 @@ def test_revision_91_converts_users_and_their_references(upgrade_db):
     _assert_user_events_rewritten(upgrade_db, "", new_ids)
     _assert_user_notifications_rewritten(upgrade_db, new_ids)
 
-    alembic_chain.upgrade(upgrade_db, "head")
+    alembic_chain.upgrade(upgrade_db, alembic_chain.V0_21_HEAD)
     assert alembic_chain.schema_differences(upgrade_db) == []
     alembic_chain.bootstrap_substrate(upgrade_db)
     assert alembic_chain.schema_differences(upgrade_db) == []
@@ -1599,7 +1664,7 @@ def test_revision_91_rewrites_the_jasil_prefixed_substrate_tables(upgrade_db):
     alembic_chain.upgrade(upgrade_db, _REVISION_91)
 
     _assert_user_events_rewritten(upgrade_db, "jasil_", _new_user_ids(upgrade_db))
-    alembic_chain.upgrade(upgrade_db, "head")
+    alembic_chain.upgrade(upgrade_db, alembic_chain.V0_21_HEAD)
     assert alembic_chain.schema_differences(upgrade_db) == []
     alembic_chain.bootstrap_substrate(upgrade_db)
     assert alembic_chain.schema_differences(upgrade_db) == []
@@ -1742,7 +1807,7 @@ def test_revision_92_converts_the_text_ids(upgrade_db):
     assert "ix_rotated_refresh_tokens_token_family_id" in _index_definitions(upgrade_db, "rotated_refresh_tokens")
     assert "ix_sign_up_tokens_change_id" in _index_definitions(upgrade_db, "sign_up_tokens")
 
-    alembic_chain.upgrade(upgrade_db, "head")
+    alembic_chain.upgrade(upgrade_db, alembic_chain.V0_21_HEAD)
     assert alembic_chain.schema_differences(upgrade_db) == []
     alembic_chain.bootstrap_substrate(upgrade_db)
     assert alembic_chain.schema_differences(upgrade_db) == []
@@ -1786,308 +1851,3 @@ def test_revision_92_is_irreversible(upgrade_db):
         alembic_chain.downgrade(upgrade_db, _REVISION_91)
 
     assert _scalar(upgrade_db, "SELECT version_num FROM alembic_version") == _REVISION_92
-
-
-def test_migration_13_renames_the_icons_after_the_upgrade(upgrade_db, tmp_path):
-    _seed_to_87(upgrade_db)
-    old_ids = dict(_rows(upgrade_db, "SELECT slug, id FROM identity_providers"))
-    alembic_chain.upgrade(upgrade_db, "head")
-    new_ids = _new_ids_by_slug(upgrade_db)
-    storage = LocalStorage(str(tmp_path))
-    uuid_key = "33333333-3333-4333-8333-333333333333"
-    for key, data in (("1", b"one"), ("2", b"two"), ("99", b"orphan"), (uuid_key, b"kept")):
-        storage.save("identity_provider_icons", key, data, "image/png")
-
-    def run() -> None:
-        with Session(upgrade_db) as db, patch("migrations.migration_13.platform_runtime") as runtime:
-            runtime.get_active_platform.return_value.storage = storage
-            migration_13.process_migration_13(db)
-
-    run()
-
-    keys = sorted(storage.list_keys("identity_provider_icons", ""))
-    assert keys == sorted([new_ids["seed-provider"], new_ids["second-provider"], uuid_key])
-    assert storage.get("identity_provider_icons", new_ids[_IDP_PAIRS[1]]) == b"one"
-    assert storage.get("identity_provider_icons", new_ids[_IDP_PAIRS[2]]) == b"two"
-    assert storage.get("identity_provider_icons", uuid_key) == b"kept"
-    assert old_ids == {"seed-provider": 1, "second-provider": 2}
-    assert _scalar(upgrade_db, "SELECT to_regclass('uuid_migration_ids')") is None
-    assert _migrations_state(upgrade_db)[13] is True
-
-
-def test_migration_13_renames_the_activity_files_after_the_upgrade(upgrade_db, tmp_path):
-    _seed_to_87(upgrade_db)
-    alembic_chain.upgrade(upgrade_db, "head")
-    new_ids = _new_activity_ids(upgrade_db)
-    storage = LocalStorage(str(tmp_path))
-    uuid_key = "33333333-3333-4333-8333-333333333333"
-    old_blobs = {
-        "activity_files": {
-            "processed/1.fit": b"one",
-            "processed/3.gpx": b"three",
-            "processed/999.tcx": b"orphan",
-            f"processed/{uuid_key}.fit": b"kept",
-            "upload_staging/0123456789abcdef.fit": b"staged",
-        },
-        "activity_thumbnails": {
-            "1.webp": b"thumb one",
-            "3.webp": b"thumb three",
-            "999.webp": b"orphan",
-            f"{uuid_key}.webp": b"kept",
-        },
-        "activity_media": {
-            "1_aaa.jpg": b"aaa",
-            "1_bbb.jpg": b"bbb",
-            "1_ccc.jpg": b"ccc",
-            "3_ddd.jpg": b"ddd",
-            "999_eee.jpg": b"orphan",
-            f"{uuid_key}_x.jpg": b"kept",
-        },
-        "identity_provider_icons": {"1": b"icon"},
-    }
-    for area, blobs in old_blobs.items():
-        for key, data in blobs.items():
-            storage.save(area, key, data, "application/octet-stream")
-
-    def run() -> None:
-        with Session(upgrade_db) as db, patch("migrations.migration_13.platform_runtime") as runtime:
-            runtime.get_active_platform.return_value.storage = storage
-            migration_13.process_migration_13(db)
-
-    def listing() -> dict[str, list[str]]:
-        return {area: storage.list_keys(area, "") for area in old_blobs}
-
-    run()
-
-    first, third = new_ids[1], new_ids[3]
-    expected = {
-        "activity_files": {
-            f"processed/{first}.fit": b"one",
-            f"processed/{third}.gpx": b"three",
-            f"processed/{uuid_key}.fit": b"kept",
-            "upload_staging/0123456789abcdef.fit": b"staged",
-        },
-        "activity_thumbnails": {
-            f"{first}.webp": b"thumb one",
-            f"{third}.webp": b"thumb three",
-            f"{uuid_key}.webp": b"kept",
-        },
-        "activity_media": {
-            f"{first}_aaa.jpg": b"aaa",
-            f"{first}_bbb.jpg": b"bbb",
-            f"{first}_ccc.jpg": b"ccc",
-            f"{third}_ddd.jpg": b"ddd",
-            f"{uuid_key}_x.jpg": b"kept",
-        },
-    }
-    for area, blobs in expected.items():
-        assert storage.list_keys(area, "") == sorted(blobs)
-        for key, data in blobs.items():
-            assert storage.get(area, key) == data
-    assert _rows(
-        upgrade_db,
-        "SELECT id::text, map_thumbnail_path FROM activities WHERE map_thumbnail_path IS NOT NULL ORDER BY 1",
-    ) == sorted([(first, f"{first}.webp"), (third, f"{third}.webp")])
-    assert _rows(
-        upgrade_db,
-        "SELECT activity_id::text, media_path FROM activity_media WHERE media_path <> 'seed/media.jpg' ORDER BY 2",
-    ) == sorted(
-        [
-            (first, f"{first}_aaa.jpg"),
-            (first, f"{first}_bbb.jpg"),
-            (first, f"{first}_ccc.jpg"),
-            (third, f"{third}_ddd.jpg"),
-        ],
-        key=lambda row: row[1],
-    )
-    assert _scalar(upgrade_db, "SELECT to_regclass('uuid_migration_ids')") is None
-    assert _migrations_state(upgrade_db)[13] is True
-
-
-def test_migration_13_renames_the_user_files_after_the_upgrade(upgrade_db, tmp_path):
-    _seed_to_90(upgrade_db)
-    alembic_chain.upgrade(upgrade_db, "head")
-    new_ids = _new_user_ids(upgrade_db)
-    first, second = new_ids[1], new_ids[2]
-    storage = LocalStorage(str(tmp_path / "storage"))
-    state = MemoryState()
-    files_dir = tmp_path / "files"
-    uuid_key = "33333333-3333-4333-8333-333333333333"
-    old_blobs = {
-        users_migration_service.USER_IMAGE_STORAGE_AREA: {
-            "1.png": b"photo one",
-            "2.jpg": b"photo two",
-            "999.png": b"orphan",
-            f"{uuid_key}.png": b"kept",
-        },
-        activity_ingestion_migration_service.BULK_IMPORT_ERROR_STORAGE_AREA: {
-            "1/a.txt": b"error one",
-            "1/nested/b.txt": b"nested",
-            "2/c.txt": b"error two",
-            "999/orphan.txt": b"orphan",
-            f"{uuid_key}/kept.txt": b"kept",
-        },
-        users_profile_migration_service.EXPORT_STAGING_AREA: {
-            "1.zip": b"export one",
-            "999.zip": b"orphan",
-            f"{uuid_key}.zip": b"kept",
-        },
-        users_profile_migration_service.IMPORT_STAGING_AREA: {
-            "2/archive.zip": b"import two",
-            "999/orphan.zip": b"orphan",
-            f"{uuid_key}/kept.zip": b"kept",
-        },
-    }
-    for area, blobs in old_blobs.items():
-        for key, data in blobs.items():
-            storage.save(area, key, data, "application/octet-stream")
-    for key in ("endurain:rate:1", "endurain:lock:2"):
-        state.set(key, b"cleared")
-    state.set("other:key", b"kept")
-    folder_roots = (files_dir / "bulk_import", files_dir / "strava_import")
-    for root in folder_roots:
-        for name, entries in {
-            "1": {"drop.fit": b"drop one"},
-            "2": {"merge.fit": b"moved", "same.fit": b"old"},
-            "999": {"orphan.fit": b"orphan"},
-            uuid_key: {"kept.fit": b"kept"},
-        }.items():
-            (root / name).mkdir(parents=True)
-            for entry, data in entries.items():
-                (root / name / entry).write_bytes(data)
-        (root / second).mkdir()
-        (root / second / "same.fit").write_bytes(b"new")
-        (root / "notes.txt").write_bytes(b"not a folder")
-
-    def run() -> None:
-        with (
-            Session(upgrade_db) as db,
-            patch("migrations.migration_13.platform_runtime") as runtime,
-            patch.object(core_config.settings, "FILES_DIR", str(files_dir)),
-            patch.object(core_config, "FILES_BULK_IMPORT_DIR", str(files_dir / "bulk_import")),
-        ):
-            runtime.get_active_platform.return_value.storage = storage
-            migration_13.process_migration_13(db)
-
-    def listing() -> dict[str, list[str]]:
-        return {area: storage.list_keys(area, "") for area in old_blobs}
-
-    def folders() -> dict[str, list[str]]:
-        return {
-            str(path.relative_to(files_dir)): sorted(entry.name for entry in path.iterdir())
-            for root in folder_roots
-            for path in [root, *sorted(root.iterdir())]
-            if path.is_dir()
-        }
-
-    run()
-
-    expected = {
-        users_migration_service.USER_IMAGE_STORAGE_AREA: {
-            f"{first}.png": b"photo one",
-            f"{second}.jpg": b"photo two",
-            f"{uuid_key}.png": b"kept",
-        },
-        activity_ingestion_migration_service.BULK_IMPORT_ERROR_STORAGE_AREA: {
-            f"{first}/a.txt": b"error one",
-            f"{first}/nested/b.txt": b"nested",
-            f"{second}/c.txt": b"error two",
-            f"{uuid_key}/kept.txt": b"kept",
-        },
-        users_profile_migration_service.EXPORT_STAGING_AREA: {
-            f"{first}.zip": b"export one",
-            f"{uuid_key}.zip": b"kept",
-        },
-        users_profile_migration_service.IMPORT_STAGING_AREA: {
-            f"{second}/archive.zip": b"import two",
-            f"{uuid_key}/kept.zip": b"kept",
-        },
-    }
-    for area, blobs in expected.items():
-        assert storage.list_keys(area, "") == sorted(blobs), area
-        for key, data in blobs.items():
-            assert storage.get(area, key) == data
-    assert _rows(upgrade_db, "SELECT username, photo_path FROM users ORDER BY username") == [
-        ("admin", f"{first}.png"),
-        ("regular", f"{second}.jpg"),
-        ("third", None),
-    ]
-    for root in folder_roots:
-        assert sorted(entry.name for entry in root.iterdir()) == sorted(
-            ["2", "999", first, second, uuid_key, "notes.txt"]
-        )
-        assert (root / first / "drop.fit").read_bytes() == b"drop one"
-        assert (root / second / "merge.fit").read_bytes() == b"moved"
-        assert (root / second / "same.fit").read_bytes() == b"new"
-        assert (root / "2").is_dir() is True
-        assert sorted(entry.name for entry in (root / "2").iterdir()) == ["same.fit"]
-        assert (root / "2" / "same.fit").read_bytes() == b"old"
-        assert (root / "999" / "orphan.fit").read_bytes() == b"orphan"
-        assert (root / uuid_key / "kept.fit").read_bytes() == b"kept"
-        assert (root / "notes.txt").read_bytes() == b"not a folder"
-    with Session(upgrade_db) as db, patch("migrations.migration_14.platform_runtime") as runtime:
-        runtime.get_active_platform.return_value.state = state
-        migration_14.process_migration_14(db)
-    assert state.get("endurain:rate:1") is None
-    assert state.get("endurain:lock:2") is None
-    assert state.get("other:key") == b"kept"
-    assert _migrations_state(upgrade_db)[14] is True
-    assert _scalar(upgrade_db, "SELECT to_regclass('uuid_migration_ids')") is None
-    assert _migrations_state(upgrade_db)[13] is True
-
-
-class _FailingCopy(LocalStorage):
-    """A storage that cannot copy the object stored under the key ``fail``."""
-
-    fail = ""
-
-    def copy(self, src_area: str, src_key: str, dst_area: str, dst_key: str) -> None:
-        if src_key == self.fail:
-            raise OSError("disk full")
-        super().copy(src_area, src_key, dst_area, dst_key)
-
-
-def test_migration_13_keeps_the_mapping_when_a_copy_fails_and_a_rerun_finishes(upgrade_db, tmp_path):
-    _seed_to_90(upgrade_db)
-    alembic_chain.upgrade(upgrade_db, "head")
-    new_ids = _new_user_ids(upgrade_db)
-    storage = _FailingCopy(str(tmp_path / "storage"))
-    for key, data in (("1.png", b"photo one"), ("2.jpg", b"photo two")):
-        storage.save(users_migration_service.USER_IMAGE_STORAGE_AREA, key, data, "image/png")
-    photos_before = _rows(upgrade_db, "SELECT username, photo_path FROM users ORDER BY username")
-    assert photos_before == [("admin", "1.png"), ("regular", "2.jpg"), ("third", None)]
-    mapping_before = _rows(upgrade_db, "SELECT table_name, old_id, new_id::text FROM uuid_migration_ids")
-
-    def run() -> None:
-        with (
-            Session(upgrade_db) as db,
-            patch("migrations.migration_13.platform_runtime") as runtime,
-            patch.object(core_config.settings, "FILES_DIR", str(tmp_path / "files")),
-            patch.object(core_config, "FILES_BULK_IMPORT_DIR", str(tmp_path / "files" / "bulk_import")),
-        ):
-            runtime.get_active_platform.return_value.storage = storage
-            migration_13.process_migration_13(db)
-
-    storage.fail = "1.png"
-    run()
-
-    assert _scalar(upgrade_db, "SELECT to_regclass('uuid_migration_ids')") is not None
-    assert _rows(upgrade_db, "SELECT table_name, old_id, new_id::text FROM uuid_migration_ids") == mapping_before
-    assert _migrations_state(upgrade_db)[13] is False
-    assert _rows(upgrade_db, "SELECT username, photo_path FROM users WHERE username = 'admin'") == [("admin", "1.png")]
-    assert storage.get(users_migration_service.USER_IMAGE_STORAGE_AREA, "1.png") == b"photo one"
-
-    storage.fail = ""
-    run()
-
-    first, second = new_ids[1], new_ids[2]
-    assert sorted(storage.list_keys(users_migration_service.USER_IMAGE_STORAGE_AREA, "")) == sorted(
-        [f"{first}.png", f"{second}.jpg"]
-    )
-    assert _rows(upgrade_db, "SELECT username, photo_path FROM users ORDER BY username") == [
-        ("admin", f"{first}.png"),
-        ("regular", f"{second}.jpg"),
-        ("third", None),
-    ]
-    assert _scalar(upgrade_db, "SELECT to_regclass('uuid_migration_ids')") is None
-    assert _migrations_state(upgrade_db)[13] is True

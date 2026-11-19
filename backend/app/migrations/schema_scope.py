@@ -5,8 +5,8 @@ from sqlalchemy.schema import SchemaItem
 
 _JASIL_TABLE_PREFIX = "jasil_"
 
-#: Upgrade scratch state of the UUID conversion revisions: the old and new id of every converted row. Data migration
-#: 13 drops it once the stored files are renamed, so no model maps it.
+#: Upgrade scratch state of the UUID conversion revisions: the old and new id of every converted row. The v0.22
+#: revision that retires the v0.21 data migrations drops it, so no model maps it; the v0.21 revisions still create it.
 _UUID_MIGRATION_IDS_TABLE = "uuid_migration_ids"
 
 
@@ -26,7 +26,8 @@ def include_object(
       ``processing_jobs``, ...). This history creates them in older revisions and JASIL renames them when it adopts
       the schema, so they only exist under those names mid-upgrade.
 
-    The table ``uuid_migration_ids`` is also left out: it is upgrade scratch state that migration 13 drops.
+    The table ``uuid_migration_ids`` is also left out: it is upgrade scratch
+    state that the v0.21 revisions create and the v0.22 retirement revision drops.
 
     Args:
         obj: The schema object being considered.

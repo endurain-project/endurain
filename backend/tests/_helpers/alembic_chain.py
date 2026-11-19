@@ -26,6 +26,9 @@ from tests._helpers.db import disposable_postgres_url
 #: The head of the v0.20.x chain, the only supported source of an upgrade to v0.21.
 V0_20_HEAD = "d54bdd779392"
 
+#: The head of the v0.21.x chain, the only supported source of an upgrade to v0.22.
+V0_21_HEAD = "e95a7c1d4b36"
+
 _APP_DIR = Path(__file__).resolve().parents[2] / "app"
 
 

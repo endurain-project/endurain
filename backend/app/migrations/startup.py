@@ -9,7 +9,9 @@ from contextlib import contextmanager
 
 import jasil.migrations as jasil_migrations
 from alembic.config import Config
-from sqlalchemy import Engine, text
+from alembic.migration import MigrationContext
+from alembic.script import ScriptDirectory
+from sqlalchemy import Connection, Engine, text
 
 import core.logger as core_logger
 import migrations.utils as migrations_utils
@@ -21,6 +23,9 @@ logger = core_logger.get_logger(__name__)
 # Arbitrary constant identifying the migration lock among the database's advisory locks.
 _MIGRATION_LOCK_KEY = 7_203_419_001
 _MIGRATION_LOCK_TIMEOUT_SECONDS = 600
+
+# The v0.21 head: v0.22 retired the v0.21 data migrations and upgrades only from a database at or past this revision.
+_V0_21_HEAD = "e95a7c1d4b36"
 
 
 @contextmanager
@@ -51,13 +56,39 @@ def migration_lock() -> Generator[None]:
                 lock_connection.execute(text("RESET lock_timeout"))
 
 
+def require_v0_21_or_newer(connection: Connection, script: ScriptDirectory) -> None:
+    """Refuse a database whose Alembic revision is older than the v0.21 head, before any revision runs.
+
+    A fresh database (no version table), one at or past the v0.21 head, and one at a revision the script directory does
+    not know all pass; Alembic reports the unknown revision itself. The check only reads.
+
+    Args:
+        connection: A connection to the database to check.
+        script: The application's revision graph.
+
+    Raises:
+        RuntimeError: When a current revision is a strict ancestor of the v0.21 head.
+    """
+    older = {revision.revision for revision in script.walk_revisions(base="base", head=_V0_21_HEAD)} - {_V0_21_HEAD}
+    if older.intersection(MigrationContext.configure(connection).get_current_heads()):
+        raise RuntimeError(
+            "Endurain v0.22 upgrades only from v0.21.x. This database is at an older release. Start the latest "
+            "v0.21.x release, let it finish its upgrade and data migrations, then upgrade again."
+        )
+
+
 def run_alembic_upgrade() -> None:
     """Run Alembic upgrade to head.
 
     Critical: failure here aborts startup because the application cannot guarantee schema correctness.
     The caller holds :func:`migration_lock`.
+
+    Raises:
+        RuntimeError: When the database is older than the v0.21 head; nothing has been written to it.
     """
     alembic_cfg = Config("alembic.ini")
+    with engine.connect() as connection:
+        require_v0_21_or_newer(connection, ScriptDirectory.from_config(alembic_cfg))
     # Disable Alembic's own logger configuration to avoid conflicts with FastAPI / our main logger.
     alembic_cfg.attributes["configure_logger"] = False
     command.upgrade(alembic_cfg, "head")
