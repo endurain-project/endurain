@@ -388,7 +388,10 @@ stating so every module is built to the same target:
   else the concrete peer `integration_service` is the contract.
 - **Still shared:** the metadata (`core.database.Base`) and the central Alembic
   history. A module will need its own migration branch before it can be
-  distributed on its own.
+  distributed on its own. That history starts at one baseline revision,
+  `versions/v0_21_0/0_baseline.py` (id `e95a7c1d4b36`), which creates the v0.21 schema from the
+  `0_baseline.sql` beside it; the startup pre-flight refuses a database at a revision the history
+  does not contain, so a new revision chains onto the head and never onto the baseline's past.
 
 ## Choosing a coupling mechanism
 

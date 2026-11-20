@@ -6,7 +6,7 @@ What changed between v0.21 and v0.22 for the people who run Endurain and for the
 
 Back up the database and the `data` folder first. The upgrade cannot be undone: restoring the backup is the only way back to v0.21.
 
-- **Upgrade from v0.21.x only, with every data migration finished.** Endurain refuses to start on a database that is older than v0.21, before it changes anything, and says to start the latest v0.21.x release and let it finish its upgrade and data migrations. It also refuses while an install that has users still has one of the v0.21 data migrations 11, 12, 13 or 14 pending, and names the ones that have not finished. A new install has no users and is not affected.
+- **Upgrade from v0.21.x only, with every data migration finished.** Endurain refuses to start on a database at a revision this release does not know, which includes any database older than v0.21, before it changes anything. The error says to start the latest v0.21.x release and let it finish its upgrade and data migrations, or, for a database used by a newer release, to run that release or restore a backup taken before it. It also refuses while an install that has users still has one of the v0.21 data migrations 11, 12, 13 or 14 pending, and names the ones that have not finished. A new install has no users and is not affected.
 - **On v0.20.x, go through v0.21 first.** Start the latest v0.21.x release, let its data migrations finish, then upgrade to v0.22. See [Changes from v0.20 to v0.21](changes-v0.20-to-v0.21.md).
 - **The upgrade removes the v0.21 data migration records** and the table that maps the old integer ids to UUIDs. Restoring the backup is the only way back, because the downgrade is refused.
 

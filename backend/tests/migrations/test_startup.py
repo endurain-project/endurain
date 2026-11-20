@@ -65,18 +65,15 @@ def _check_source(revision: str | None) -> None:
         if revision is not None:
             connection.execute(sa.text("CREATE TABLE alembic_version (version_num VARCHAR(32) NOT NULL)"))
             connection.execute(sa.text("INSERT INTO alembic_version VALUES (:revision)"), {"revision": revision})
-        migrations_startup.require_v0_21_or_newer(connection, alembic_chain.script_directory())
+        migrations_startup.require_known_revision(connection, alembic_chain.script_directory())
 
 
-@pytest.mark.parametrize(
-    "revision",
-    [None, alembic_chain.V0_21_HEAD, "b6cf67a93d94", "50ac9225ce4f", "not-a-known-revision"],
-)
-def test_the_pre_flight_lets_a_fresh_v0_21_newer_or_unknown_database_through(revision):
+@pytest.mark.parametrize("revision", [None, alembic_chain.V0_21_HEAD, "b6cf67a93d94", "50ac9225ce4f"])
+def test_the_pre_flight_lets_a_fresh_or_known_database_through(revision):
     _check_source(revision)
 
 
-@pytest.mark.parametrize("revision", [alembic_chain.V0_20_HEAD, "c5cfe02a11c2", "353455bea2a5"])
-def test_the_pre_flight_refuses_a_database_older_than_the_v0_21_head(revision):
-    with pytest.raises(RuntimeError, match=r"upgrades only from v0\.21\.x"):
+@pytest.mark.parametrize("revision", ["d54bdd779392", "c5cfe02a11c2", "353455bea2a5", "not-a-known-revision"])
+def test_the_pre_flight_refuses_a_database_at_a_revision_the_script_does_not_know(revision):
+    with pytest.raises(RuntimeError, match=r"revision this release does not know.*upgrades only from v0\.21\.x"):
         _check_source(revision)

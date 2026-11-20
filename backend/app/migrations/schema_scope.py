@@ -5,10 +5,6 @@ from sqlalchemy.schema import SchemaItem
 
 _JASIL_TABLE_PREFIX = "jasil_"
 
-#: Upgrade scratch state of the UUID conversion revisions: the old and new id of every converted row. The v0.22
-#: revision that retires the v0.21 data migrations drops it, so no model maps it; the v0.21 revisions still create it.
-_UUID_MIGRATION_IDS_TABLE = "uuid_migration_ids"
-
 
 def include_object(
     obj: SchemaItem, name: str | None, type_: str, reflected: bool, compare_to: SchemaItem | None
@@ -23,11 +19,8 @@ def include_object(
       ``jasil.orm.map_models`` maps its models into the same registry as the application's, so autogenerate would
       otherwise diff them and propose dropping them the day the substrate changes one.
     * The unprefixed names JASIL's tables had before it renamed them (``event_log``, ``event_outbox``,
-      ``processing_jobs``, ...). This history creates them in older revisions and JASIL renames them when it adopts
-      the schema, so they only exist under those names mid-upgrade.
-
-    The table ``uuid_migration_ids`` is also left out: it is upgrade scratch
-    state that the v0.21 revisions create and the v0.22 retirement revision drops.
+      ``processing_jobs``, ...). The baseline does not create them; only a v0.21 database whose startup stopped
+      before JASIL adopted its tables still holds them, and JASIL renames them on its next start.
 
     Args:
         obj: The schema object being considered.
@@ -37,13 +30,8 @@ def include_object(
         compare_to: The object it is being compared against, if any.
 
     Returns:
-        False for a table JASIL owns or used to own under an unprefixed name and for ``uuid_migration_ids``, True
-        otherwise.
+        False for a table JASIL owns or used to own under an unprefixed name, True otherwise.
     """
     if type_ == "table" and name is not None:
-        return not (
-            name == _UUID_MIGRATION_IDS_TABLE
-            or name.startswith(_JASIL_TABLE_PREFIX)
-            or name in jasil_orm.legacy_table_names()
-        )
+        return not (name.startswith(_JASIL_TABLE_PREFIX) or name in jasil_orm.legacy_table_names())
     return True

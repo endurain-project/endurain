@@ -69,16 +69,3 @@ class TestBootstrapAgainstSqlite:
         _bootstrap(sqlite_engine)
 
         assert jasil_migrations.db_revision(sqlite_engine) == recorded
-
-
-class TestMigrationOwnership:
-    def test_application_history_still_creates_the_substrate_tables(self):
-        """Legacy Endurain revisions remain available to existing installations."""
-        from pathlib import Path
-
-        versions = Path("app/alembic/versions")
-        sources = "\n".join(p.read_text() for p in versions.rglob("*.py"))
-
-        # Tables JASIL added after the baseline are created by its own revisions.
-        for table in jasil_orm.legacy_table_names() - {"job_workers", "job_attempts"}:
-            assert f'create_table(\n        "{table}"' in sources or f'"{table}"' in sources
