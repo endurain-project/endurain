@@ -412,7 +412,6 @@ class Settings(BaseSettings):
         Hostnames are not resolved at config validation time;
         resolution happens at startup in Phase 2.
         """
-
         for entry in v:
             entry = entry.strip()
             if not entry:
@@ -516,7 +515,6 @@ class Settings(BaseSettings):
         one valid entry must remain for the field to
         take effect.
         """
-
         if v is None or v == "":
             return []
         raw_entries = [e.strip() for e in v.split(",")] if isinstance(v, str) else [str(e).strip() for e in v]
@@ -852,8 +850,7 @@ def read_secret(
     env_var_name: str,
     default_value: str | None = None,
 ) -> str | None:
-    """
-    Read secret from environment variable or file.
+    """Read secret from environment variable or file.
 
     Args:
         env_var_name: Name of environment variable.
@@ -941,8 +938,7 @@ def read_secret(
 
 
 def _is_safe_path(file_path: Path) -> bool:
-    """
-    Validate if file path is safe to access.
+    """Validate if file path is safe to access.
 
     Args:
         file_path: Path to validate.
@@ -975,8 +971,7 @@ def _is_safe_path(file_path: Path) -> bool:
 
 
 def parse_key_list(raw_keys: str, name: str) -> list[str]:
-    """
-    Split a comma-separated key list into its trimmed keys.
+    """Split a comma-separated key list into its trimmed keys.
 
     The first key signs or encrypts and every key verifies or decrypts, so a list lets the key be rotated.
 
@@ -997,8 +992,7 @@ def parse_key_list(raw_keys: str, name: str) -> list[str]:
 
 
 def validate_fernet_key(fernet_key: str | None) -> bool:
-    """
-    Validate the Fernet encryption key, or every key of a comma-separated list.
+    """Validate the Fernet encryption key, or every key of a comma-separated list.
 
     Args:
         fernet_key: Fernet key, or comma-separated Fernet keys, to validate.
@@ -1025,8 +1019,7 @@ def validate_fernet_key(fernet_key: str | None) -> bool:
 
 
 def validate_log_level(log_level: str) -> bool:
-    """
-    Validate log level string.
+    """Validate log level string.
 
     Args:
         log_level: Log level to validate.
@@ -1047,8 +1040,7 @@ def validate_log_level(log_level: str) -> bool:
 
 
 def check_required_env_vars() -> None:
-    """
-    Validate required environment variables are set.
+    """Validate required environment variables are set.
 
     Raises:
         EnvironmentError: If required variables missing.
@@ -1227,8 +1219,7 @@ DEPRECATED_ENV_VARS: dict[str, str] = {
 
 
 def check_deprecated_env_vars() -> None:
-    """
-    Abort startup when retired environment variables are still set.
+    """Abort startup when retired environment variables are still set.
 
     Variables removed in v0.19.x, v0.20.0, v0.21.0 and v0.22.0 are silently ignored by ``Settings``
     (``extra="ignore"``), so a leftover value would give the operator no
@@ -1262,8 +1253,7 @@ def check_deprecated_env_vars() -> None:
 
 
 def check_required_dirs() -> None:
-    """
-    Ensure required directories exist and are valid.
+    """Ensure required directories exist and are valid.
 
     Raises:
         EnvironmentError: If directory is not valid.

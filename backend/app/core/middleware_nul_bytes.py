@@ -68,9 +68,9 @@ def _json_contains_nul(document: Any) -> bool:
 
 
 def _body_has_nul(content_type: str, body: bytes) -> bool:
-    """Tell whether a buffered body carries a NUL in a place the application would read as text.
+    r"""Tell whether a buffered body carries a NUL in a place the application would read as text.
 
-    A JSON body can only hold a NUL through the escape ``\\u0000``, since a raw control character is invalid
+    A JSON body can only hold a NUL through the escape ``\u0000``, since a raw control character is invalid
     JSON, so a body without that text is not parsed at all; the parse and walk are not free for a large body.
 
     Args:

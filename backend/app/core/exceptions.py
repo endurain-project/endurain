@@ -245,8 +245,10 @@ class EmailVerificationDisabledError(PermissionDeniedError):
 
 
 class PasswordRequiredError(InvalidInputError):
-    """A request arrived without the password the server needs: a sign-up while email verification is off, or an
-    account an administrator creates while mail is not configured to invite its owner.
+    """A request arrived without the password the server needs.
+
+    That happens on a sign-up while email verification is off, or on an account an administrator creates while mail
+    is not configured to invite its owner.
 
     Clients branch on the ``password-required`` problem type to ask for a password and send the same request again.
     """

@@ -18,8 +18,7 @@ _WEEKDAY_INDICES: dict[str, int] = {
 
 
 def get_weekday_index(first_day_of_week: WeekdayValue) -> int:
-    """
-    Return the Python weekday index for a weekday name.
+    """Return the Python weekday index for a weekday name.
 
     Args:
         first_day_of_week: Lowercase weekday name or string enum.
@@ -48,8 +47,7 @@ def get_week_start(value: date, first_day_of_week: WeekdayValue) -> date: ...
 
 
 def get_week_start(value: date, first_day_of_week: WeekdayValue) -> date:
-    """
-    Return the configured first day on or before a date.
+    """Return the configured first day on or before a date.
 
     Args:
         value: Date or datetime within the target week.

@@ -35,8 +35,7 @@ _DUE_MARK_FRACTION = 0.9
 
 @dataclass(frozen=True)
 class ScheduledJob:
-    """
-    One recurring job a module asks the scheduler to run.
+    """One recurring job a module asks the scheduler to run.
 
     Attributes:
         func: Callable to execute.
@@ -203,8 +202,7 @@ async def _run_due_async_job(lock_name: str, minutes: int, func: Callable[..., o
 
 
 def platform_jobs() -> tuple[ScheduledJob, ...]:
-    """
-    Return the recurring jobs owned by core and the platform substrate.
+    """Return the recurring jobs owned by core and the platform substrate.
 
     Args:
         None.
@@ -241,8 +239,7 @@ def platform_jobs() -> tuple[ScheduledJob, ...]:
 
 
 def start_scheduler(jobs: Sequence[ScheduledJob] = ()) -> None:
-    """
-    Start the scheduler and register the given recurring jobs.
+    """Start the scheduler and register the given recurring jobs.
 
     Args:
         jobs: The recurring jobs to register, collected by the caller from each
@@ -282,8 +279,7 @@ def start_scheduler(jobs: Sequence[ScheduledJob] = ()) -> None:
 
 
 def run_once(func: Callable[..., object], *, job_id: str, description: str, lock_name: str | None = None) -> None:
-    """
-    Queue a one-shot job on the scheduler's own executor.
+    """Queue a one-shot job on the scheduler's own executor.
 
     Args:
         func: Callable to execute once.
@@ -314,8 +310,7 @@ def run_once(func: Callable[..., object], *, job_id: str, description: str, lock
 
 
 def _scheduler_job_id(description: str) -> str:
-    """
-    Build a stable scheduler job ID from its description.
+    """Build a stable scheduler job ID from its description.
 
     Args:
         description: Human-readable job description.
@@ -336,8 +331,7 @@ def add_scheduler_job(
     args: Sequence[object],
     description: str,
 ) -> None:
-    """
-    Register or replace a recurring scheduler job.
+    """Register or replace a recurring scheduler job.
 
     Args:
         func: Callable to execute.
@@ -365,8 +359,7 @@ def add_scheduler_job(
 
 
 def stop_scheduler() -> None:
-    """
-    Stop the scheduler if it is running.
+    """Stop the scheduler if it is running.
 
     Args:
         None.

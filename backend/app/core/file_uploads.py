@@ -326,8 +326,7 @@ def validate_local_file_sync(
 
 
 def _resolve_upload_path(upload_dir: str, filename: str) -> Path:
-    """
-    Resolve an upload filename inside the target directory.
+    """Resolve an upload filename inside the target directory.
 
     Args:
         upload_dir: Trusted upload directory.
@@ -1209,13 +1208,13 @@ MAX_ARCHIVE_UNCOMPRESSED_BYTES = 8 * 1024 * 1024 * 1024
 
 @dataclass(frozen=True)
 class ZipMember:
-    """One regular file inside an archive.
+    r"""One regular file inside an archive.
 
     Attributes:
         name: The member's path inside the archive, with ``/`` separators.
         size: Its uncompressed size in bytes.
         stored_name: The name the archive stores the member under, which opens it
-            (it keeps a ``\\`` the archive was written with).
+            (it keeps a ``\`` the archive was written with).
     """
 
     name: str

@@ -1,3 +1,5 @@
+"""FastAPI application entry point: lifespan and middleware wiring."""
+
 import os
 import time
 from collections.abc import AsyncGenerator, Awaitable, Callable

@@ -98,8 +98,7 @@ _CONSOLE_FORMAT = "%(levelname)s:     %(message)s"
 
 
 class RequestIdFilter(logging.Filter):
-    """
-    Inject the current request ID into every log record.
+    """Inject the current request ID into every log record.
 
     Reads the value from :func:`jasil.correlation.get_correlation_id`
     and stores it as ``record.request_id`` so formatters
@@ -109,8 +108,7 @@ class RequestIdFilter(logging.Filter):
     """
 
     def filter(self, record: logging.LogRecord) -> bool:
-        """
-        Add ``request_id`` attribute to the log record.
+        """Add ``request_id`` attribute to the log record.
 
         Args:
             record: The log record to augment.
@@ -124,8 +122,7 @@ class RequestIdFilter(logging.Filter):
 
 
 class ConsoleMirrorFilter(logging.Filter):
-    """
-    Pass only records explicitly flagged for console mirroring.
+    """Pass only records explicitly flagged for console mirroring.
 
     Attached to the development console handler so a record reaches the terminal
     exactly when the caller opted in with ``extra=context(console=True)``.
@@ -135,8 +132,7 @@ class ConsoleMirrorFilter(logging.Filter):
     """
 
     def filter(self, record: logging.LogRecord) -> bool:
-        """
-        Report whether the record opted into console output.
+        """Report whether the record opted into console output.
 
         Args:
             record: The log record to test.
@@ -148,8 +144,7 @@ class ConsoleMirrorFilter(logging.Filter):
 
 
 class WebSocketKeepaliveFilter(logging.Filter):
-    """
-    Drop the PING/PONG keepalive frames the websockets library logs at DEBUG.
+    """Drop the PING/PONG keepalive frames the websockets library logs at DEBUG.
 
     Uvicorn hands its ``uvicorn.error`` logger to the websockets protocol, so every
     keepalive frame is logged beside Uvicorn's other debug output and cannot be
@@ -159,8 +154,7 @@ class WebSocketKeepaliveFilter(logging.Filter):
     _PREFIXES = ("> PING", "< PING", "> PONG", "< PONG")
 
     def filter(self, record: logging.LogRecord) -> bool:
-        """
-        Report whether the record is something other than a keepalive frame.
+        """Report whether the record is something other than a keepalive frame.
 
         Args:
             record: The log record to test.
@@ -212,8 +206,7 @@ _NON_CONTEXT_ATTRS: frozenset[str] = _STDLIB_RECORD_ATTRS | {CONSOLE_FIELD}
 
 
 def _record_context(record: logging.LogRecord) -> dict[str, object]:
-    """
-    Extract the caller-supplied structured fields from a record.
+    """Extract the caller-supplied structured fields from a record.
 
     Args:
         record: The log record to inspect.
@@ -226,8 +219,7 @@ def _record_context(record: logging.LogRecord) -> dict[str, object]:
 
 
 def get_logger(name: str | None = None) -> logging.Logger:
-    """
-    Return the module logger to use for application logging.
+    """Return the module logger to use for application logging.
 
     The returned logger is a child of the single configured ``main_logger``, so
     it inherits that logger's level and handlers while keeping its own name.
@@ -251,8 +243,7 @@ def get_logger(name: str | None = None) -> logging.Logger:
 
 
 def _normalize_fields(fields: Mapping[str, object]) -> dict[str, object]:
-    """
-    Build a safe ``extra`` mapping from caller-supplied fields.
+    """Build a safe ``extra`` mapping from caller-supplied fields.
 
     Drops ``None`` values so optional identifiers can be passed unconditionally,
     and prefixes any key that collides with a stdlib ``LogRecord`` attribute
@@ -277,8 +268,7 @@ def _normalize_fields(fields: Mapping[str, object]) -> dict[str, object]:
 def context(
     fields: Mapping[str, object] | None = None, /, *, console: bool = False, **keyword_fields: object
 ) -> dict[str, object]:
-    """
-    Build the ``extra`` mapping for a structured log record.
+    """Build the ``extra`` mapping for a structured log record.
 
     Usage::
 
@@ -305,8 +295,7 @@ def context(
 
 
 class JsonFormatter(logging.Formatter):
-    """
-    Format log records as newline-delimited JSON.
+    """Format log records as newline-delimited JSON.
 
     Suitable for collection by container orchestrators
     (Docker, Kubernetes) and log aggregation pipelines.
@@ -316,8 +305,7 @@ class JsonFormatter(logging.Formatter):
     """
 
     def format(self, record: logging.LogRecord) -> str:
-        """
-        Serialise a log record to a JSON string.
+        """Serialise a log record to a JSON string.
 
         Args:
             record: The log record to format.
@@ -343,8 +331,7 @@ class JsonFormatter(logging.Formatter):
 
 
 class _DevFormatter(logging.Formatter):
-    """
-    Human-readable formatter for the development log file and console mirror.
+    """Human-readable formatter for the development log file and console mirror.
 
     Appends any caller-supplied ``extra`` fields as a
     space-separated ``key=value`` string after the message
@@ -354,8 +341,7 @@ class _DevFormatter(logging.Formatter):
     _BASE = "%(asctime)s - %(name)s - %(levelname)s - [%(request_id)s] - %(message)s"
 
     def __init__(self, fmt: str = _BASE) -> None:
-        """
-        Build the formatter.
+        """Build the formatter.
 
         Args:
             fmt: The format of the line the context is appended to.
@@ -363,8 +349,7 @@ class _DevFormatter(logging.Formatter):
         super().__init__(fmt)
 
     def format(self, record: logging.LogRecord) -> str:
-        """
-        Format the record with extra context appended.
+        """Format the record with extra context appended.
 
         Args:
             record: The log record to format.
@@ -381,8 +366,7 @@ class _DevFormatter(logging.Formatter):
 
 
 def _build_handlers(log_level: int) -> list[logging.Handler]:
-    """
-    Build the appropriate log handlers for the environment.
+    """Build the appropriate log handlers for the environment.
 
     Production always emits JSON to stdout so container
     orchestrators can collect structured logs without file
@@ -447,8 +431,7 @@ def _replace_handlers(
     loggers: tuple[logging.Logger, ...],
     handlers: list[logging.Handler],
 ) -> None:
-    """
-    Replace handlers on a set of related loggers.
+    """Replace handlers on a set of related loggers.
 
     Args:
         loggers: Loggers that should share the given handlers.
@@ -489,8 +472,7 @@ class _SlowapiLimitExceededFilter(logging.Filter):
 
 
 def setup_main_logger() -> logging.Logger:
-    """
-    Set up the main application logger.
+    """Set up the main application logger.
 
     Selects handlers appropriate for the current
     environment (JSON stdout in production, plain-text

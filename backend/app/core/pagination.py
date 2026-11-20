@@ -71,8 +71,7 @@ def list_page_params(
     page_number: Annotated[int | None, Query(ge=1, le=MAX_PAGE_NUMBER)] = None,
     num_records: Annotated[int | None, Query(ge=1, le=MAX_NUM_RECORDS)] = None,
 ) -> PageParams:
-    """
-    Resolve the paging window for a browse-list route.
+    """Resolve the paging window for a browse-list route.
 
     The browse-list counterpart of :func:`child_page_params`: same bounds, but an
     omitted size means the small default window rather than the cap.
@@ -94,8 +93,7 @@ def child_page_params(
     page_number: Annotated[int | None, Query(ge=1, le=MAX_PAGE_NUMBER)] = None,
     num_records: Annotated[int | None, Query(ge=1, le=MAX_NUM_RECORDS)] = None,
 ) -> PageParams:
-    """
-    Resolve the paging window for a child-collection route.
+    """Resolve the paging window for a child-collection route.
 
     A FastAPI dependency rather than two parameters per handler: the bounds and
     the "omitted means the default" rule were repeated verbatim in every child

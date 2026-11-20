@@ -232,8 +232,7 @@ def to_utc_aware(dt: None) -> None: ...
 
 
 def to_utc_aware(dt: datetime | str | None) -> datetime | None:
-    """
-    Normalize a datetime or ISO string to UTC-aware.
+    """Normalize a datetime or ISO string to UTC-aware.
 
     Parses ISO 8601 strings and attaches UTC to naive
     datetimes (the import parsers emit naive UTC wall
@@ -262,8 +261,7 @@ def to_utc_aware(dt: datetime | str | None) -> datetime | None:
 
 
 def format_utc(dt: datetime | str | None) -> str:
-    """
-    Format a datetime as a UTC ISO 8601 string (no offset).
+    """Format a datetime as a UTC ISO 8601 string (no offset).
 
     File timestamps may carry a non-UTC offset (e.g.
     2026-03-28T08:19:19-07:00). Converting to UTC before
@@ -297,8 +295,7 @@ def to_utc_second(dt: None) -> None: ...
 
 
 def to_utc_second(dt: datetime | str | None) -> datetime | None:
-    """
-    Normalize to UTC-aware and truncate to whole seconds.
+    """Normalize to UTC-aware and truncate to whole seconds.
 
     The resolution every ingestion producer shares: activity start/end times are
     whole seconds, and every consumer needs a ``datetime``, so this normalizes a

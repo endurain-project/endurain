@@ -28,8 +28,7 @@ router = APIRouter()
 
 
 class LicenseInfo(BaseModel):
-    """
-    API license metadata.
+    """API license metadata.
 
     Attributes:
         name: License display name.
@@ -45,8 +44,7 @@ class LicenseInfo(BaseModel):
 
 
 class AboutResponse(BaseModel):
-    """
-    API metadata returned by the about endpoint.
+    """API metadata returned by the about endpoint.
 
     Attributes:
         name: API display name.
@@ -66,8 +64,7 @@ class AboutResponse(BaseModel):
     response_model=AboutResponse,
 )
 async def about() -> AboutResponse:
-    """
-    Returns metadata information about the Endurain API.
+    """Returns metadata information about the Endurain API.
 
     Returns:
         API name, version, and license details.
@@ -84,8 +81,7 @@ async def about() -> AboutResponse:
 
 
 class HealthResponse(BaseModel):
-    """
-    Health of the dependencies this process needs.
+    """Health of the dependencies this process needs.
 
     Attributes:
         status: ``ok``, or ``degraded`` when the shared state backend is unreachable or the audit trail
@@ -115,8 +111,7 @@ _AUDIT_HEALTH_WINDOW = timedelta(hours=1)
 
 
 def _audit_degraded_reason() -> str | None:
-    """
-    Find why the audit trail is unhealthy.
+    """Find why the audit trail is unhealthy.
 
     A checkpoint that was never sealed is not flagged: no timestamp tells how long the instance has run,
     and maintenance records the partition and the checkpoint together, so a scheduler that never ran
@@ -147,8 +142,7 @@ def _audit_degraded_reason() -> str | None:
 
 @router.get(core_config.ROOT_PATH + "/health", response_model=HealthResponse)
 def health(db: core_dependencies.DbSession, state: core_dependencies.PlatformState) -> HealthResponse:
-    """
-    Liveness check that needs a database connection, and reports the shared state backend.
+    """Liveness check that needs a database connection, and reports the shared state backend.
 
     Unlike ``/about``, this fails when the connection pool is exhausted or the
     database is unreachable, so orchestrators can detect a wedged instance. A state
@@ -221,8 +215,7 @@ class _GetOnlyRoute(APIRoute):
 
 
 def serves_frontend(path: str) -> bool:
-    """
-    Tell whether a request path belongs to the frontend rather than to the API or ``.well-known``.
+    """Tell whether a request path belongs to the frontend rather than to the API or ``.well-known``.
 
     Args:
         path: The request path, with or without its leading slash.
@@ -238,8 +231,7 @@ def serves_frontend(path: str) -> bool:
 def frontend_not_found(
     path: str,
 ) -> FileResponse:
-    """
-    Return the requested frontend asset or app index.
+    """Return the requested frontend asset or app index.
 
     Args:
         path (str): The requested resource path.
