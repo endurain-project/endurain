@@ -230,14 +230,16 @@ class TestVerifyAndUpdate:
         ok, updated = credentials_service.verify_and_update_password(_DECOMPOSED, stored, hasher)
         assert ok and updated is None
 
-    def test_legacy_raw_hash_verifies_and_migrates(self):
+    def test_a_hash_of_the_raw_non_nfc_text_no_longer_verifies(self):
         hasher = credentials_password_hasher.get_password_hasher()
-        legacy = hasher.hash_password(_DECOMPOSED)
-        ok, updated = credentials_service.verify_and_update_password(_DECOMPOSED, legacy, hasher)
-        assert ok
-        assert updated is not None
-        assert hasher.verify_password(_COMPOSED, updated)
-        assert not hasher.verify_password(_DECOMPOSED, updated)
+        raw_hash = hasher.hash_password(_DECOMPOSED)
+        assert credentials_service.verify_and_update_password(_DECOMPOSED, raw_hash, hasher) == (False, None)
+
+    def test_a_non_nfc_password_calls_the_hasher_once(self):
+        hasher = MagicMock()
+        hasher.verify_and_update.return_value = (False, None)
+        credentials_service.verify_and_update_password(_DECOMPOSED, "hash", hasher)
+        assert hasher.verify_and_update.call_count == 1
 
     def test_wrong_password_fails(self):
         hasher = credentials_password_hasher.get_password_hasher()

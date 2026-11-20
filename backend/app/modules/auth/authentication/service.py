@@ -152,12 +152,12 @@ def authenticate_user(
     """
     # Check if the user exists and if the password is correct
     if not user:
-        # Run the dummy Argon2 verifies a wrong password would cost (one, or two for a password that is not NFC) so
-        # that the wall-clock latency of the "user not found" branch matches the "user found, wrong password" branch.
+        # Run the dummy Argon2 verify a wrong password would cost so that the wall-clock latency of the "user not
+        # found" branch matches the "user found, wrong password" branch.
         # Without this, Argon2's deliberately-tuned ~hundreds-of-milliseconds verify time is trivially observable
         # from the network and lets an attacker enumerate valid usernames without ever tripping FailedLoginAttempts
         # (lockout is only recorded on 401, which the attacker does not care about while probing existence).
-        credentials_integration.dummy_verify_password(password, password_hasher)
+        password_hasher.dummy_verify()
         _refuse_credentials(username)
 
     # Load the user's local credential from the auth-owned credential
@@ -166,10 +166,10 @@ def authenticate_user(
 
     # User has no local password (SSO-only account). Treat identically
     # to "wrong password" so neither the response body nor the timing
-    # discloses the account's auth modality. The dummy verifies keep
-    # the latency consistent with a wrong password's Argon2 verifies.
+    # discloses the account's auth modality. The dummy verify keeps
+    # the latency consistent with a wrong password's Argon2 verify.
     if credential is None:
-        credentials_integration.dummy_verify_password(password, password_hasher)
+        password_hasher.dummy_verify()
         _refuse_credentials(username, user.id)
 
     # Verify password and get updated hash if applicable

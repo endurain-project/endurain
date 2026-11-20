@@ -583,8 +583,9 @@ class TestStepUpPasswordNormalisation:
     def test_decomposed_input_matches_a_composed_hash(self, hasher):
         self._verify(hasher.hash_password(self._COMPOSED), self._DECOMPOSED)
 
-    def test_legacy_raw_hash_still_verifies(self, hasher):
-        self._verify(hasher.hash_password(self._DECOMPOSED), self._DECOMPOSED)
+    def test_a_hash_of_the_raw_non_nfc_text_is_refused(self, hasher):
+        with pytest.raises(core_exceptions.StepUpFailedError):
+            self._verify(hasher.hash_password(self._DECOMPOSED), self._DECOMPOSED)
 
     def test_wrong_password_is_refused(self, hasher):
         with pytest.raises(core_exceptions.StepUpFailedError):
