@@ -21,14 +21,5 @@ def list_public_activity_exercise_titles(
     page: core_pagination.ListPage,
     db: core_dependencies.DbSession,
 ) -> activity_exercise_titles_schema.ActivityExerciseTitlesPage:
-    """Return one page of the activity exercise titles via the public endpoint.
-
-    Args:
-        request: The incoming request, read by the rate limiter.
-        page: The requested window; a page holds the default size when none is given.
-        db: Database session dependency.
-
-    Returns:
-        The page of exercise titles, empty when public shareable links are disabled.
-    """
+    """Return one page of the activity exercise titles via the public endpoint."""
     return activity_exercise_titles_service.list_public_activity_exercise_titles(page, db)

@@ -44,16 +44,6 @@ def issue_ws_ticket(
     bound to the authenticated user and session. Use the ticket as the
     ?ticket= query parameter when connecting to the WebSocket
     endpoint, so the real access token never appears in a URL.
-
-    Args:
-        request: The request, which the rate limiter keys on.
-        response: The response, marked as not cacheable because it carries the credential.
-        user_id: Authenticated user ID from auth dependency.
-        session_id: Session of the access token, which the socket ends with.
-        ticket_store: WsTicketStore for issuing tickets.
-
-    Returns:
-        The ticket.
     """
     core_cache_control.set_no_store(response)
     return websocket_schema.WsTicketRead(ticket=ticket_store.create_ticket(user_id, session_id))

@@ -19,6 +19,7 @@ import ast
 import datetime
 import functools
 import importlib.util
+import inspect
 import pathlib
 import re
 import typing
@@ -115,41 +116,6 @@ _DOCUMENTED_REMOVED_PATHS: dict[str, str] = {
         "/users/username/contains/{username}",
         "/users/{user_id}/image",
     )
-}
-
-
-#: Route handlers whose docstring carries a Google section, as ``{path relative to app/: handlers}``. Move the
-#: section's content into ``Field``/``Query`` descriptions or ``responses`` and lower the count (HTTP-10).
-_DOCSTRING_SECTIONS: dict[str, int] = {
-    "modules/activities/activity/router.py": 1,
-    "modules/activities/activity_exercise_titles/public_router.py": 1,
-    "modules/activities/activity_exercise_titles/router.py": 1,
-    "modules/auth/account_security/api_keys_router.py": 1,
-    "modules/auth/account_security/identity_links_router.py": 4,
-    "modules/auth/account_security/mfa_router.py": 5,
-    "modules/auth/account_security/sessions_router.py": 2,
-    "modules/auth/authentication/public_router.py": 3,
-    "modules/auth/identity_providers/public_router.py": 4,
-    "modules/auth/identity_providers/router.py": 7,
-    "modules/auth/sessions/router.py": 2,
-    "modules/health/health_dashboard/router.py": 1,
-    "modules/health/health_fasting/router.py": 8,
-    "modules/health/health_poop/router.py": 6,
-    "modules/health/health_sleep/router.py": 6,
-    "modules/health/health_steps/router.py": 5,
-    "modules/health/health_targets/router.py": 2,
-    "modules/health/health_water/router.py": 5,
-    "modules/health/health_weight/router.py": 5,
-    "modules/notifications/router.py": 2,
-    "modules/server_settings/logs_router.py": 2,
-    "modules/server_settings/public_router.py": 3,
-    "modules/server_settings/router.py": 7,
-    "modules/users/users/photo_router.py": 1,
-    "modules/users/users/router.py": 9,
-    "modules/users/users_default_gear/router.py": 2,
-    "modules/users/users_goals/router.py": 5,
-    "modules/users/users_profile/router.py": 13,
-    "modules/websocket/router.py": 1,
 }
 
 
@@ -578,26 +544,25 @@ class TestApiContract:
         _compare("A schema types a value as an integer", found, {}, "Use a string enum or a boolean")
 
     def test_endpoint_docstrings_carry_no_sections(self):
-        """A route handler's docstring has no ``Args:``, ``Returns:``, ``Raises:`` or similar section.
+        """A route's public description has no ``Args:``, ``Returns:``, ``Raises:`` or similar section.
 
-        FastAPI publishes the docstring as the operation's description, so a section header lands verbatim in
-        the API reference and the generated client; parameters are described with ``Field``/``Query``.
+        FastAPI publishes the description (the docstring, or the ``description=`` a route passes) as the
+        operation's description, so a section header lands verbatim in the API reference and the generated
+        client. The test reads every route the API router registers, the docstring and the explicit
+        description alike; parameters are described with ``Field``/``Query``.
         """
         section = re.compile(r"^\s*(Args|Arguments|Returns|Raises|Yields|Attributes|Notes?|Examples?):\s*$", re.M)
-        counts: dict[str, int] = {}
-        for file, function in router_functions():
-            if section.search(ast.get_docstring(function) or ""):
-                key = file.relative_to(_APP).as_posix()
-                counts[key] = counts.get(key, 0) + 1
+        found: list[str] = []
+        for route in _api_routes():
+            handler = inspect.unwrap(route.endpoint)
+            if section.search(route.description or "") or section.search(inspect.getdoc(handler) or ""):
+                found.append(
+                    f"{pathlib.Path(inspect.getfile(handler)).relative_to(pathlib.Path.cwd())}: {handler.__name__}"
+                )
+        found.sort()
 
-        mismatches = [
-            f"{name}: {counts.get(name, 0)} handler(s), registered {_DOCSTRING_SECTIONS.get(name, 0)}"
-            for name in sorted(counts.keys() | _DOCSTRING_SECTIONS.keys())
-            if counts.get(name, 0) != _DOCSTRING_SECTIONS.get(name, 0)
-        ]
-        assert not mismatches, (
-            "A route docstring is the public description: drop its Google sections, and lower the count in "
-            "_DOCSTRING_SECTIONS:\n  " + "\n  ".join(mismatches)
+        assert not found, "A route docstring is the public description: drop its Google sections:\n  " + "\n  ".join(
+            found
         )
 
     def test_if_match_is_required_and_its_failures_documented(self):

@@ -30,15 +30,7 @@ def list_identity_providers(
     page: core_pagination.ListPage,
     db: core_dependencies.DbSession,
 ) -> idp_schema.IdentityProviderPage:
-    """Retrieve one page of the configured identity providers.
-
-    Args:
-        page: The requested window.
-        db: SQLAlchemy database session dependency.
-
-    Returns:
-        The page of identity providers, ordered by name.
-    """
+    """Retrieve one page of the configured identity providers."""
     return idp_provider_service.list_identity_providers(page, db)
 
 
@@ -48,11 +40,7 @@ def list_identity_providers(
     dependencies=[Security(auth_dependencies.check_scopes, scopes=["identity-providers:read"])],
 )
 def list_idp_templates() -> list[idp_schema.IdentityProviderTemplateRead]:
-    """Get the list of pre-configured IdP templates (admin only).
-
-    Returns:
-        A list of identity provider templates.
-    """
+    """Get the list of pre-configured IdP templates (admin only)."""
     return idp_provider_service.get_idp_templates()
 
 
@@ -89,23 +77,11 @@ def read_identity_provider(
     "",
     response_model=idp_schema.IdentityProviderRead,
     status_code=status.HTTP_201_CREATED,
-    description=(
-        "Create a new identity provider.\n\n"
-        "Needs the administrator's own step-up verification in step_up.\n\n"
-        "Args:\n"
-        "    idp_data: Data required to create the identity provider, and the step-up.\n"
-        "    db: SQLAlchemy database session dependency.\n"
-        "    request: Incoming request.\n"
-        "\n"
-        "Returns:\n"
-        "    The newly created identity provider.\n\n"
-        "Raises:\n"
-        "    HTTPException: 400 if a URL is plain http to a host outside\n"
-        "        SSRF_ALLOWED_HOSTS or non-public, 403 if the step-up fails,\n"
-        "        409 if the slug or the issuer is already used by another provider,\n"
-        "        500 on database errors."
-    ),
     responses={
+        status.HTTP_400_BAD_REQUEST: {
+            "description": "A URL field is plain http to a host outside the allowed hosts, or resolves to a "
+            "non-public address."
+        },
         status.HTTP_201_CREATED: {
             "headers": {
                 "ETag": {
@@ -113,7 +89,7 @@ def read_identity_provider(
                     "schema": {"type": "string"},
                 }
             }
-        }
+        },
     },
     dependencies=[Security(auth_dependencies.check_scopes, scopes=["identity-providers:write"])],
 )
@@ -128,21 +104,6 @@ def create_identity_provider(
     """Create a new identity provider.
 
     Needs the administrator's own step-up verification in `step_up`, as a rogue provider can claim accounts.
-
-    Args:
-        idp_data: Data required to create the identity provider, and the administrator's step-up.
-        db: SQLAlchemy database session dependency.
-        request: Incoming request.
-        response: The response, which carries the new ETag.
-        verify_step_up: Verifies the administrator's step-up.
-
-    Returns:
-        The newly created identity provider.
-
-    Raises:
-        HTTPException: 400 if a URL is plain http to a host outside SSRF_ALLOWED_HOSTS or non-public, 403 if the
-            step-up fails, 409 if the slug or the issuer is already used by another provider, 500 on database
-            errors.
     """
     provider = idp_provider_service.create_identity_provider(idp_data.to_create(), idp_data.step_up, verify_step_up, db)
     core_location.set_location(response, request, "read_identity_provider", idp_id=provider.id)
@@ -153,25 +114,11 @@ def create_identity_provider(
 @router.patch(
     "/{idp_id}",
     response_model=idp_schema.IdentityProviderRead,
-    description=(
-        "Update an existing identity provider.\n\n"
-        "Needs the administrator's own step-up verification in step_up.\n\n"
-        "Args:\n"
-        "    idp_id: The unique identifier of the identity provider to update.\n"
-        "    idp_data: The data to update the identity provider with, and the step-up.\n"
-        "    db: SQLAlchemy database session dependency.\n"
-        "    request: Incoming request.\n"
-        "\n"
-        "Returns:\n"
-        "    The updated identity provider.\n\n"
-        "Raises:\n"
-        "    HTTPException: 400 if a URL is plain http to a host outside\n"
-        "        SSRF_ALLOWED_HOSTS or non-public, 403 if the step-up fails,\n"
-        "        404 if the provider is not found, 409 on a slug or issuer conflict\n"
-        "        or an issuer change while users are linked,\n"
-        "        500 on database errors."
-    ),
     responses={
+        status.HTTP_400_BAD_REQUEST: {
+            "description": "A URL field is plain http to a host outside the allowed hosts, or resolves to a "
+            "non-public address; or `If-Match` is `*`."
+        },
         status.HTTP_200_OK: {
             "headers": {
                 "ETag": {
@@ -199,24 +146,6 @@ def update_identity_provider(
     """Update an existing identity provider.
 
     Needs the administrator's own step-up verification in `step_up`, as a rogue provider can claim accounts.
-
-    Args:
-        idp_id: The unique identifier of the identity provider to update.
-        idp_data: The data to update the identity provider with, and the administrator's step-up.
-        db: SQLAlchemy database session dependency.
-        request: Incoming request.
-        response: The response, which carries the new ETag.
-        if_match: The ``If-Match`` precondition the client read.
-        oidc: The identity-provider client, whose cached discovery document for the provider is dropped.
-        verify_step_up: Verifies the administrator's step-up.
-
-    Returns:
-        The updated identity provider.
-
-    Raises:
-        HTTPException: 400 if a URL is plain http to a host outside SSRF_ALLOWED_HOSTS or non-public, 403 if the
-            step-up fails, 404 if the provider is not found, 409 on a slug or issuer conflict or an issuer change
-            while users are linked, 412 if the provider changed, or 500 on database errors.
     """
     provider = idp_provider_service.update_identity_provider(
         idp_id, idp_data.to_update(), idp_data.step_up, verify_step_up, oidc, db, if_match=if_match
@@ -246,21 +175,6 @@ def delete_identity_provider(
 
     Needs the administrator's own step-up verification in `step_up`, as removing a provider can lock out the users
     who sign in through it. A provider with linked users is refused with 409.
-
-    Args:
-        idp_id: The unique identifier of the identity provider to delete.
-        body: The administrator's step-up verification.
-        request: Incoming request.
-        if_match: The ``If-Match`` precondition.
-        db: SQLAlchemy database session dependency.
-        storage: The platform storage provider.
-        oidc: The identity-provider client, whose cached discovery document for the provider is dropped.
-        verify_step_up: Verifies the administrator's step-up.
-
-    Raises:
-        HTTPException: 403 if the step-up fails, 404 if the provider is not found, 409 if users
-            are still linked to the provider, 412 if the provider changed
-            since the client read it.
     """
     idp_provider_service.delete_identity_provider(
         idp_id, body.step_up, verify_step_up, storage, oidc, db, if_match=if_match
@@ -288,21 +202,6 @@ def put_identity_provider_icon(
 
     Requires admin authentication with identity-providers:write scope. The icon replaces any custom icon URL
     until it is removed. Answers 201 when the provider had no uploaded icon and 200 when it replaced one.
-
-    Args:
-        idp_id: The identity provider the icon belongs to.
-        request: Incoming request.
-        file: The image to upload (JPEG, PNG or WebP).
-        storage: The platform storage provider.
-        db: SQLAlchemy database session dependency.
-        response: The response, whose status is 200 when an icon was replaced.
-
-    Returns:
-        The provider version that identifies the stored icon.
-
-    Raises:
-        NotFoundError: 404 if the provider is not found.
-        PayloadTooLargeError: 413 if the image is larger than the icon cap.
     """
     version, replaced = idp_icon_service.upload_icon(
         idp_id,
@@ -331,14 +230,5 @@ def delete_identity_provider_icon(
     """Remove the uploaded icon of an identity provider.
 
     Requires admin authentication with identity-providers:write scope.
-
-    Args:
-        idp_id: The identity provider the icon belongs to.
-        request: Incoming request.
-        storage: The platform storage provider.
-        db: SQLAlchemy database session dependency.
-
-    Raises:
-        NotFoundError: 404 if the provider is not found.
     """
     idp_icon_service.delete_icon(idp_id, storage, db)

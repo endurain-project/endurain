@@ -58,14 +58,6 @@ def read_users_me(
 
     The ETag is the user's version, which a later ``PATCH /profile`` echoes in ``If-Match``. The
     privacy settings have their own version, ``privacy_settings_version``.
-
-    Args:
-        token_user_id: User ID from access token.
-        db: Database session.
-        response: The response, which carries the user's ETag.
-
-    Returns:
-        User object with integration and privacy settings.
     """
     profile = profile_service.get_profile(token_user_id, db)
     core_etag.set_etag(response, profile.version)
@@ -94,17 +86,6 @@ def put_profile_image(
     """Set the authenticated user's profile image, with security validation.
 
     Answers 201 when the user had no photo and 200 when it replaced one.
-
-    Args:
-        request: The incoming request, read by the rate limiter.
-        file: Image file to upload.
-        token_user_id: User ID from access token.
-        storage: The platform storage provider.
-        db: Database session.
-        response: The response, whose status is 200 when a photo was replaced.
-
-    Returns:
-        The servable URL of the new photo.
     """
     photo, replaced = profile_photo_service.set_photo(
         token_user_id,
@@ -139,17 +120,6 @@ def edit_profile(
     ``active``, ``mfa_enabled``, ``mfa_secret``, ``email_verified``,
     and ``pending_admin_approval`` cannot be modified through this
     endpoint, even if a malicious client submits them.
-
-    Args:
-        request: The incoming request, read by the rate limiter.
-        response: The response, which carries the user's new ETag.
-        user_attributtes: Allow-listed profile updates.
-        token_user_id: User ID from access token.
-        db: Database session.
-        if_match: The ``If-Match`` precondition, the ``version`` the client read.
-
-    Returns:
-        The edited profile; its ``version`` is also sent as the ETag.
     """
     profile = profile_service.edit_profile(token_user_id, user_attributtes, db, if_match=if_match)
     core_etag.set_etag(response, profile.version)
@@ -222,23 +192,6 @@ def edit_profile_email(
     stands afterwards, so the client can tell a pending change (``pending_email``) from an applied one.
     An address another account holds is answered exactly like a free one, so the request does not reveal
     which addresses are registered; that account's holder is emailed a notice instead of a confirmation link.
-
-    Args:
-        request: The incoming request, read by the rate limiter.
-        response: The response, which carries the user's current ETag.
-        email_change: The new address with the step-up verification.
-        token_user_id: User ID from access token.
-        token_session_id: Session ID of the caller, preserved when other sessions are revoked.
-        step_up_store: Step-up lockout store.
-        state: The platform state provider, for the notice cooldown.
-        db: Database session.
-
-    Returns:
-        The profile after the request; its ``version`` is also sent as the ETag.
-
-    Raises:
-        HTTPException: 403 if step-up verification fails; 409 if another account uses the address and the server
-            cannot send mail.
     """
     profile = profile_service.change_email(token_user_id, email_change, token_session_id, step_up_store, state, db)
     core_etag.set_etag(response, profile.version)
@@ -262,12 +215,6 @@ def resend_profile_email_change(
 
     The answer is the same whether or not an email was queued: there may be no pending change,
     the server may not send mail, or an email may already have gone out within the cooldown.
-
-    Args:
-        request: The incoming request, read by the rate limiter.
-        token_user_id: User ID from access token.
-        state: The platform state provider, for the resend cooldown.
-        db: Database session.
     """
     profile_service.resend_email_change(token_user_id, state, db)
 
@@ -284,13 +231,7 @@ def cancel_profile_email_change(
     token_user_id: auth_dependencies.CurrentUserId,
     db: core_dependencies.DbSession,
 ) -> None:
-    """Cancel the pending email change, so its confirmation link stops working.
-
-    Args:
-        request: The incoming request, read by the rate limiter.
-        token_user_id: User ID from access token.
-        db: Database session.
-    """
+    """Cancel the pending email change, so its confirmation link stops working."""
     profile_service.cancel_email_change(token_user_id, db)
 
 
@@ -327,19 +268,7 @@ def edit_profile_privacy_settings(
     db: core_dependencies.DbSession,
     if_match: core_dependencies.IfMatch,
 ) -> users_privacy_settings_schema.UserPrivacySettingsRead:
-    """Edit privacy settings for authenticated user.
-
-    Args:
-        request: The incoming request, read by the rate limiter.
-        response: The response, which carries the settings' new ETag.
-        user_privacy_settings: New privacy settings.
-        token_user_id: User ID from access token.
-        db: Database session.
-        if_match: The ``If-Match`` precondition, the ``privacy_settings_version`` the client read.
-
-    Returns:
-        The edited settings; their ``version`` is also sent as the ETag.
-    """
+    """Edit privacy settings for authenticated user."""
     updated = profile_service.edit_privacy_settings(token_user_id, user_privacy_settings, db, if_match=if_match)
     core_etag.set_etag(response, updated.version)
     return updated
@@ -378,21 +307,6 @@ def edit_profile_password(
     while the current session is preserved, unless the request sets
     ``revoke_other_sessions`` to false, so a password change evicts
     a suspected attacker without logging the caller out.
-
-    Args:
-        request: The incoming request, read by the rate limiter.
-        user_attributtes: Schema with the new password, the step-up
-            verification, and the optional ``revoke_other_sessions`` flag.
-        token_user_id: ID of the user extracted from the access
-            token.
-        token_session_id: Session ID of the caller, preserved when
-            other sessions are revoked.
-        step_up_store: Step-up lockout store.
-        db: Database session.
-
-    Raises:
-        StepUpFailedError: 403 ``step-up-failed`` if step-up verification fails.
-        PasswordPolicyError: 422 if the new password is too short, too common or matches the account's details.
     """
     profile_service.change_password(token_user_id, user_attributtes, token_session_id, step_up_store, db)
 
@@ -410,14 +324,7 @@ def delete_profile_photo(
     storage: core_dependencies.Storage,
     db: core_dependencies.DbSession,
 ) -> None:
-    """Delete authenticated user's profile photo.
-
-    Args:
-        request: The incoming request, read by the rate limiter.
-        token_user_id: User ID from access token.
-        storage: The platform storage provider.
-        db: Database session.
-    """
+    """Delete authenticated user's profile photo."""
     profile_photo_service.delete_photo(token_user_id, storage, db)
 
 
@@ -453,21 +360,6 @@ def delete_my_account(
     account is signed out and deactivated at once and a background job erases the data, which is
     permanent and cannot be undone. Export the profile first to keep a copy. The browser's
     refresh-token cookie is cleared on the response.
-
-    Args:
-        request: The incoming request, read by the rate limiter.
-        response: The response, which receives the cookie-deletion headers.
-        body: The step-up verification.
-        token_user_id: User ID from access token.
-        token_session_id: Session ID from access token.
-        step_up_store: Step-up lockout store.
-        state: The platform state provider.
-        storage: The platform storage provider.
-        mail: The platform mail provider.
-        db: Database session.
-
-    Returns:
-        The deletion's initial status.
     """
     deletion = profile_service.delete_account(
         token_user_id, token_session_id, body.step_up, step_up_store, state, storage, mail, db
@@ -502,19 +394,6 @@ def export_profile_data(
     Requires step-up verification: the current password (or, for an account without one, a fresh
     identity-provider sign-in), and an MFA code when MFA is enabled. A worker builds the archive;
     poll ``GET /jobs/{job_id}`` for the outcome and fetch it from ``GET /profile/export/download``.
-
-    Args:
-        request: The incoming request, read by the rate limiter.
-        response: The response, which names the job and when to poll it.
-        body: The step-up verification.
-        token_user_id: User ID from access token.
-        token_session_id: Session ID from access token.
-        step_up_store: Step-up lockout store.
-        export_states: Shared store of the export's state.
-        db: Database session.
-
-    Returns:
-        The queued export's status.
     """
     queued = profile_export_job_service.request_export(
         token_user_id, token_session_id, body.step_up, step_up_store, export_states, db
@@ -545,16 +424,6 @@ def download_profile_export(
 
     Only the session that requested the export, and passed step-up for it, can download it; any other session
     gets 404, as when no finished export exists.
-
-    Args:
-        request: The incoming request, read by the rate limiter.
-        token_user_id: User ID from access token.
-        token_session_id: Session ID from access token.
-        export_states: Shared store of the export's state.
-        storage: The platform storage provider.
-
-    Returns:
-        Streaming response with the ZIP archive.
     """
     chunks, size = profile_export_job_service.open_export(token_user_id, token_session_id, export_states, storage)
     return StreamingResponse(
@@ -592,18 +461,6 @@ def import_profile_data(
 
     The archive is validated and staged, and a worker imports it; poll ``GET /jobs/{job_id}`` for
     the outcome. The database part is all-or-nothing, so a failed import leaves nothing behind.
-
-    Args:
-        request: The incoming request, read by the rate limiter.
-        response: The response, which names the job and when to poll it.
-        file: ZIP file containing profile data.
-        token_user_id: User ID from access token.
-        import_states: Shared store of the import's state.
-        storage: The platform storage provider.
-        db: Database session.
-
-    Returns:
-        The queued import's status.
     """
     queued = profile_import_job_service.request_import(
         token_user_id,

@@ -39,16 +39,6 @@ def read_health_steps_all_pagination(
 
     One page of records, newest first, optionally limited to an interval. Access is
     restricted to users with the 'health:read' scope.
-
-    Args:
-        token_user_id: The ID of the authenticated user extracted from the access token.
-        db: Database session for executing queries.
-        page: The requested page and page size.
-        interval: Optional interval looking back from today; ignored when a date range is given.
-        date_range: Optional inclusive start and end dates, which replace the interval.
-
-    Returns:
-        The page of records with the total matching the interval.
     """
     return health_steps_service.list_health_steps(
         token_user_id,
@@ -80,15 +70,6 @@ def read_health_steps_chart(
 
     One aggregated point per day, week or month depending on the interval, so the response stays small
     however long the history. Access is restricted to users with the 'health:read' scope.
-
-    Args:
-        token_user_id: The ID of the authenticated user extracted from the access token.
-        db: Database session for executing queries.
-        interval: The window to chart, looking back from today; ignored when a date range is given.
-        date_range: Optional inclusive start and end dates to chart instead of the interval.
-
-    Returns:
-        The interval's bucket size and its points, oldest first.
     """
     return health_steps_service.get_health_steps_chart(token_user_id, interval, db, date_range=date_range)
 
@@ -127,19 +108,6 @@ def create_health_steps(
     """Create health steps data for a user.
 
     A date that already has a record is answered with a 409; change it with ``PATCH /{id}``.
-
-    Args:
-        request: The incoming request, read by the rate limiter.
-        health_steps (health_steps_schema.HealthSteps): The health steps data to create,
-            including the date and step count.
-        token_user_id (uuid.UUID): The ID of the authenticated user extracted from the
-            access token.
-        db (Session): Database session dependency for database operations.
-        response: The response, whose ``Location`` names where the record is read.
-
-    Returns:
-        health_steps_schema.HealthSteps: The created health steps data.
-
     """
     created = health_steps_service.create_health_steps(token_user_id, health_steps, db)
     core_location.set_location(response, request, "read_health_steps_by_id", health_steps_id=created.id)
@@ -166,25 +134,6 @@ def edit_health_steps(
 
     This endpoint updates existing health steps records in the database for the authenticated user.
     Requires 'health:write' scope for authorization.
-
-    Args:
-        request: The incoming request, read by the rate limiter.
-        health_steps_id: ID of the record to change.
-        health_steps (health_steps_schema.HealthSteps): The health steps data to be updated,
-            containing the new values for the health steps record.
-        token_user_id (uuid.UUID): The user ID extracted from the JWT access token, used to identify
-            the user making the request.
-        db (Session): Database session dependency for performing database operations.
-        response: The response, which carries the new ETag.
-        if_match: The ``If-Match`` precondition.
-
-    Returns:
-        health_steps_schema.HealthSteps: The updated health steps record with the new values
-            as stored in the database.
-
-    Raises:
-        NotFoundError: If the user has no such record.
-        PreconditionFailedError: If the record changed since the client read it.
     """
     # Updates the health_steps in the database and returns it
     updated = health_steps_service.edit_health_steps(
@@ -212,20 +161,6 @@ def delete_health_steps(
 
     This endpoint removes a specific health steps entry from the database for the user
     identified by the access token. The user must have 'health:write' scope permission.
-
-    Args:
-        request: The incoming request, read by the rate limiter.
-        health_steps_id (uuid.UUID): The unique identifier of the health steps record to delete.
-        token_user_id (uuid.UUID): The user ID extracted from the access token.
-        if_match: The ``If-Match`` precondition.
-        db (Session): Database session dependency for executing the delete operation.
-
-    Returns:
-        None: This function does not return a value.
-
-    Raises:
-        PreconditionFailedError: If the record changed since the client read it.
-        NotFoundError: If the user has no such record.
     """
     # Deletes entry from database
     health_steps_service.delete_health_steps(token_user_id, health_steps_id, db, if_match=if_match)

@@ -42,16 +42,6 @@ def read_health_fasting_all_pagination(
 
     One page of records, newest first, optionally limited to an interval. Access is
     restricted to users with the 'health:read' scope.
-
-    Args:
-        token_user_id: The ID of the authenticated user extracted from the access token.
-        db: Database session for executing queries.
-        page: The requested page and page size.
-        interval: Optional interval looking back from today; ignored when a date range is given.
-        date_range: Optional inclusive start and end dates, which replace the interval.
-
-    Returns:
-        The page of records with the total matching the interval.
     """
     return health_fasting_service.list_health_fasting(
         token_user_id,
@@ -73,16 +63,7 @@ def read_active_fasting(
     db: core_dependencies.DbSession,
     response: Response,
 ) -> health_fasting_schema.HealthFastingRead | None:
-    """Retrieve the active fasting session for the authenticated user.
-
-    Args:
-        token_user_id: User ID from the access token.
-        db: Database session dependency.
-        response: The response, which carries the session's ETag.
-
-    Returns:
-        Active HealthFastingRead if exists, None otherwise.
-    """
+    """Retrieve the active fasting session for the authenticated user."""
     active = health_fasting_service.get_active_fasting(token_user_id, db)
     if active is not None:
         core_etag.set_etag(response, active.version)
@@ -98,15 +79,7 @@ def read_fasting_stats(
     token_user_id: auth_dependencies.CurrentUserId,
     db: core_dependencies.DbSession,
 ) -> health_fasting_schema.HealthFastingStatsResponse:
-    """Retrieve fasting statistics for the authenticated user.
-
-    Args:
-        token_user_id: User ID from the access token.
-        db: Database session dependency.
-
-    Returns:
-        HealthFastingStatsResponse with statistics.
-    """
+    """Retrieve fasting statistics for the authenticated user."""
     return health_fasting_service.get_fasting_stats(token_user_id, db)
 
 
@@ -121,20 +94,7 @@ def read_health_fasting_by_id(
     db: core_dependencies.DbSession,
     response: Response,
 ) -> health_fasting_schema.HealthFastingRead:
-    """Retrieve a specific fasting record by ID.
-
-    Args:
-        health_fasting_id: ID of the fasting record.
-        token_user_id: User ID from the access token.
-        db: Database session dependency.
-        response: The response, which carries the record's ETag.
-
-    Returns:
-        HealthFastingRead for the specified record.
-
-    Raises:
-        NotFoundError: If record not found.
-    """
+    """Retrieve a specific fasting record by ID."""
     record = health_fasting_service.get_health_fasting(token_user_id, health_fasting_id, db)
     core_etag.set_etag(response, record.version)
     return record
@@ -154,21 +114,7 @@ def create_health_fasting(
     db: core_dependencies.DbSession,
     response: Response,
 ) -> health_fasting_schema.HealthFastingRead:
-    """Create a new fasting session.
-
-    Args:
-        request: The incoming request, read by the rate limiter.
-        health_fasting: Fasting data to create.
-        token_user_id: User ID from the access token.
-        db: Database session dependency.
-        response: The response, whose ``Location`` names where the session is read.
-
-    Returns:
-        Created HealthFastingRead record.
-
-    Raises:
-        ConflictError: If user already has an active fast.
-    """
+    """Create a new fasting session."""
     created = health_fasting_service.create_health_fasting(token_user_id, health_fasting, db)
     core_location.set_location(response, request, "read_health_fasting_by_id", health_fasting_id=created.id)
     core_etag.set_etag(response, created.version)
@@ -190,20 +136,7 @@ def edit_health_fasting(
     response: Response,
     if_match: core_dependencies.IfMatch,
 ) -> health_fasting_schema.HealthFastingRead:
-    """Edit an existing fasting record.
-
-    Args:
-        request: The incoming request, read by the rate limiter.
-        health_fasting_id: ID of the record to change.
-        health_fasting: Fasting data to update.
-        token_user_id: User ID from the access token.
-        db: Database session dependency.
-        response: The response, which carries the new ETag.
-        if_match: The ``If-Match`` precondition.
-
-    Returns:
-        Updated HealthFastingRead record.
-    """
+    """Edit an existing fasting record."""
     updated = health_fasting_service.edit_health_fasting(
         token_user_id, health_fasting_id, health_fasting, db, if_match=if_match
     )
@@ -226,20 +159,7 @@ def complete_health_fasting(
     response: Response,
     if_match: core_dependencies.IfMatch,
 ) -> health_fasting_schema.HealthFastingRead:
-    """Complete or end a fasting session.
-
-    Args:
-        request: The incoming request, read by the rate limiter.
-        health_fasting_id: ID of the fasting record to complete.
-        complete_data: Completion data with end time and status.
-        token_user_id: User ID from the access token.
-        db: Database session dependency.
-        response: The response, which carries the new ETag.
-        if_match: The ``If-Match`` precondition.
-
-    Returns:
-        Updated HealthFastingRead record.
-    """
+    """Complete or end a fasting session."""
     ended = health_fasting_service.complete_health_fasting(
         token_user_id, health_fasting_id, complete_data, db, if_match=if_match
     )
@@ -261,17 +181,5 @@ def delete_health_fasting(
     if_match: core_dependencies.IfMatch,
     db: core_dependencies.DbSession,
 ) -> None:
-    """Delete a fasting record.
-
-    Args:
-        request: The incoming request, read by the rate limiter.
-        health_fasting_id: ID of the fasting record to delete.
-        token_user_id: User ID from the access token.
-        if_match: The ``If-Match`` precondition.
-        db: Database session dependency.
-
-    Raises:
-        NotFoundError: If the user has no such record.
-        PreconditionFailedError: If the record changed since the client read it.
-    """
+    """Delete a fasting record."""
     health_fasting_service.delete_health_fasting(token_user_id, health_fasting_id, db, if_match=if_match)

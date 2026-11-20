@@ -57,17 +57,6 @@ def revoke_profile_sessions(
     By default every session of the authenticated user ends, the current one included, so the client must discard
     its tokens and send the user to the login page; the browser's refresh-token cookie is cleared on the response.
     With `keep_current=true` every other session ends and the caller stays signed in, so the cookie is left alone.
-
-    Args:
-        request: The incoming request, read by the rate limiter.
-        response: The response, on which the refresh-token cookie is cleared.
-        token_user_id: User ID from access token.
-        token_session_id: The caller's current session, preserved when `keep_current` is set.
-        db: Database session.
-        keep_current: Whether to keep the caller's current session.
-
-    Returns:
-        None.
     """
     if keep_current:
         account_security_service.delete_other_user_sessions(token_user_id, token_session_id, db)
@@ -89,15 +78,5 @@ def delete_profile_session(
     token_user_id: auth_dependencies.CurrentUserId,
     db: core_dependencies.DbSession,
 ) -> None:
-    """Delete user session from database.
-
-    Args:
-        request: The incoming request, read by the rate limiter.
-        session_id: Session identifier to delete.
-        token_user_id: User ID from access token.
-        db: Database session.
-
-    Returns:
-        None.
-    """
+    """Delete user session from database."""
     account_security_service.delete_user_session(session_id, token_user_id, db)

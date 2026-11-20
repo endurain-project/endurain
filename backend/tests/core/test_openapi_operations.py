@@ -13,15 +13,6 @@ def _document() -> dict:
         """Return the thing for a client.
 
         It answers the same thing every time.
-
-        Args:
-            user_id: The caller, which a client never sees.
-
-        Returns:
-            The thing.
-
-        Raises:
-            NotFoundError: When it is missing.
         """
         return {"user_id": str(user_id)}
 
@@ -40,13 +31,7 @@ def _document() -> dict:
     return app.openapi()
 
 
-def test_a_description_stops_at_the_first_section():
-    description = _document()["paths"]["/sectioned"]["get"]["description"]
-
-    assert description == "Return the thing for a client.\n\nIt answers the same thing every time."
-
-
-def test_a_description_without_a_section_is_unchanged():
+def test_a_description_is_the_docstring():
     assert _document()["paths"]["/prose"]["post"]["description"] == (
         "Create the thing.\n\nNotes are prose here, not a section."
     )

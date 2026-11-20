@@ -30,9 +30,6 @@ def read_public_server_settings(
     Returns only the public subset of server configuration
     (sensitive signup approval/verification settings excluded).
     Pydantic model filtering automatically excludes sensitive fields.
-
-    Returns:
-        Public subset of server configuration.
     """
     return server_settings_service.get_server_settings_for_public(db)
 
@@ -50,9 +47,6 @@ def list_tile_maps_templates(request: Request) -> list[server_settings_schema.Ti
 
     This endpoint returns a list of all available tile map templates that can be
     used for configuring map display options in server settings.
-
-    Returns:
-        List of tile map template configurations available for the server.
     """
     return server_settings_tile_service.get_tile_maps_templates()
 
@@ -67,6 +61,7 @@ _LOGIN_PHOTO_CACHE_MAX_AGE = 300
     responses={
         **core_openapi_contract.binary_response("image/*", description="The login photo."),
         304: {"description": "Not modified"},
+        404: {"description": "No custom login photo is stored."},
     },
 )
 @core_rate_limit.limiter.limit(core_rate_limit.PUBLIC_READ)
@@ -81,17 +76,6 @@ def read_login_photo(
     design; it is one admin-chosen image, not user data. The response carries an
     ETag derived from the settings version, so a client that already holds the photo
     gets a 304 without storage being read.
-
-    Args:
-        request: The HTTP request, for its ``If-None-Match`` header.
-        storage: The platform storage provider.
-        db: Database session.
-
-    Returns:
-        The image bytes, or a 304 when the client's copy is current.
-
-    Raises:
-        NotFoundError: 404 when no custom photo is stored.
     """
     version = server_settings_login_photo_service.get_login_photo_version(db)
     if version is None:

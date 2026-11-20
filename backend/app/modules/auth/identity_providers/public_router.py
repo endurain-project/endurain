@@ -39,15 +39,7 @@ def get_enabled_identity_providers(
     page: core_pagination.ListPage,
     db: core_dependencies.DbSession,
 ) -> idp_schema.IdentityProviderPublicPage:
-    """Retrieve one page of the enabled identity providers.
-
-    Args:
-        page: The requested window.
-        db: SQLAlchemy database session dependency.
-
-    Returns:
-        The page of enabled identity providers, public fields only, ordered by name.
-    """
+    """Retrieve one page of the enabled identity providers."""
     return idp_provider_service.get_enabled_identity_providers(page, db)
 
 
@@ -99,20 +91,6 @@ def initiate_login(
     a web flow. The request needs no `X-Client-Type` header and ignores one.
 
     Rate Limit: 10 requests per minute per IP
-    Args:
-        idp_slug (str): The slug identifier for the identity provider.
-        request (Request): The incoming HTTP request object.
-        db (Session): Database session dependency.
-        redirect (str | None): Optional frontend path to redirect to after login.
-        code_challenge (str): PKCE code challenge (base64url-encoded SHA256, 43-128 chars). REQUIRED.
-        code_challenge_method (str): PKCE method (only S256 supported). REQUIRED.
-
-    Returns:
-        RedirectResponse: A redirect response to the identity provider's authorization URL.
-
-    Raises:
-        NotFoundError: If the identity provider is not found or disabled.
-        InvalidInputError: If PKCE validation or the redirect check fails.
     """
     start = service.begin_login(
         idp_slug,
@@ -187,36 +165,13 @@ def handle_callback(
     This endpoint processes the OAuth authorization callback from external identity providers.
     It finishes a login, a link of the provider to the signed-in account, or a step-up re-authentication.
 
-    Args:
-        request: The incoming HTTP request.
-        idp_slug: The slug identifier of the identity provider.
-        db: Database session dependency.
-        service: Identity provider service.
-        browser_binding: The cookie that binds the login, link or step-up to the browser that started it.
-        code: Authorization code received from the identity provider; absent when it returned an error.
-        error: The provider's error code, such as ``login_required`` when it could not sign the user in again.
-        state: State parameter used for CSRF protection (database state ID).
-        iss: The issuer the provider names in its answer (RFC 9207), which must be its own when it sends one and is
-            required of a provider that advertises it.
+    Every outcome is an HTTP 307 redirect, so the browser never ends on a JSON error once the state is claimed:
 
-    Returns:
-        RedirectResponse: A redirect response to either:
-            - Settings page (link mode): /settings with success parameters
-            - Login page (login mode): /login with session_id for token exchange
-            - The page that started a step-up, with its ticket or error in the fragment
-            - Error page: /login with error parameter if callback fails
-
-    Raises:
-        NotFoundError: If the identity provider is not found or disabled.
-        InvalidInputError: If the state is unknown, expired, bound to another provider or already used.
-            Any failure after the state is claimed redirects instead, so the browser never ends on a JSON error.
-
-    Notes:
-        - In link mode: Redirects to settings without creating a new session
-        - In login mode: Creates session, redirects with session_id (client must exchange for tokens)
-        - All clients must call /tokens exchange endpoint with PKCE verifier to get JWT tokens
-        - On error: Redirects to login page with error parameter
-        - All redirects use HTTP 307 (Temporary Redirect) status code
+    - Link: back to `/settings` without a new session.
+    - Login: to `/login` with a `session_id`; the client exchanges it, with its PKCE verifier, at the `/tokens`
+      endpoint for the JWT tokens.
+    - Step-up: to the page that started it, with the ticket or the error in the fragment.
+    - Failure: to `/login` with an `error` parameter.
     """
     idp, oauth_state = service.prepare_callback(idp_slug, state, browser_binding, db)
     redirect_url = service.complete_callback(
@@ -256,18 +211,6 @@ def read_identity_provider_icon(
     admin-chosen image, not user data. The response carries an ETag derived from the provider version and must
     be revalidated, so a replaced icon shows at once while a client that holds it gets a 304 without storage
     being read.
-
-    Args:
-        idp_slug: The provider slug.
-        request: The HTTP request, for its ``If-None-Match`` header.
-        storage: The platform storage provider.
-        db: Database session.
-
-    Returns:
-        The image bytes, or a 304 when the client's copy is current.
-
-    Raises:
-        NotFoundError: 404 when the provider is unknown or has no uploaded icon.
     """
     found = idp_icon_service.get_public_icon(idp_slug, db)
     if found is None:

@@ -55,16 +55,6 @@ def read_health_water_all_pagination(
 
     One page of records, newest first, optionally limited to an interval. Access is
     restricted to users with the 'health:read' scope.
-
-    Args:
-        token_user_id: The ID of the authenticated user extracted from the access token.
-        db: Database session for executing queries.
-        page: The requested page and page size.
-        interval: Optional interval looking back from today; ignored when a date range is given.
-        date_range: Optional inclusive start and end dates, which replace the interval.
-
-    Returns:
-        The page of records with the total matching the interval.
     """
     return health_water_service.list_health_water(
         token_user_id,
@@ -96,15 +86,6 @@ def read_health_water_chart(
 
     One aggregated point per day, week or month depending on the interval, so the response stays small
     however long the history. Access is restricted to users with the 'health:read' scope.
-
-    Args:
-        token_user_id: The ID of the authenticated user extracted from the access token.
-        db: Database session for executing queries.
-        interval: The window to chart, looking back from today; ignored when a date range is given.
-        date_range: Optional inclusive start and end dates to chart instead of the interval.
-
-    Returns:
-        The interval's bucket size and its points, oldest first.
     """
     return health_water_service.get_health_water_chart(token_user_id, interval, db, date_range=date_range)
 
@@ -148,17 +129,6 @@ def create_health_water(
     """Record a water intake for the user's day.
 
     The intake is added to the day's total, so several intakes in one day are all counted.
-
-    Args:
-        request: The incoming request, read by the rate limiter.
-        health_water: Water intake data to create.
-        token_user_id: User ID from the access token.
-        db: Database session dependency.
-        response: The response, whose ``Location`` names where the record is read.
-
-    Returns:
-        The day's HealthWaterRead record, with the intake added.
-
     """
     created = health_water_service.create_health_water(token_user_id, health_water, db)
     core_location.set_location(response, request, "read_health_water_by_id", health_water_id=created.id)
@@ -186,24 +156,7 @@ def edit_health_water(
     response: Response,
     if_match: core_dependencies.IfMatch,
 ) -> health_water_schema.HealthWaterRead:
-    """Edit an existing water intake record.
-
-    Args:
-        request: The incoming request, read by the rate limiter.
-        health_water_id: ID of the record to change.
-        health_water: Water intake data to update.
-        token_user_id: User ID from the access token.
-        db: Database session dependency.
-        response: The response, which carries the new ETag.
-        if_match: The ``If-Match`` precondition.
-
-    Returns:
-        Updated HealthWaterRead record.
-
-    Raises:
-        NotFoundError: If the user has no such record.
-        PreconditionFailedError: If the record changed since the client read it.
-    """
+    """Edit an existing water intake record."""
     updated = health_water_service.edit_health_water(
         token_user_id, health_water_id, health_water, db, if_match=if_match
     )
@@ -230,17 +183,5 @@ def delete_health_water(
     if_match: core_dependencies.IfMatch,
     db: core_dependencies.DbSession,
 ) -> None:
-    """Delete a water intake record for the authenticated user.
-
-    Args:
-        request: The incoming request, read by the rate limiter.
-        health_water_id: ID of the water intake record.
-        token_user_id: User ID from the access token.
-        if_match: The ``If-Match`` precondition.
-        db: Database session dependency.
-
-    Raises:
-        PreconditionFailedError: If the record changed since the client read it.
-        NotFoundError: If the user has no such record.
-    """
+    """Delete a water intake record for the authenticated user."""
     health_water_service.delete_health_water(token_user_id, health_water_id, db, if_match=if_match)

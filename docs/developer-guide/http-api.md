@@ -157,12 +157,11 @@ These rules are for new fields and parameters; existing names are not renamed to
 ## OpenAPI contract
 
 - An endpoint docstring is the public OpenAPI description: what the endpoint does for a client, with no `Args:`,
-  `Returns:` or `Raises:` sections and no internal parameter names **(test)**.
+  `Returns:` or `Raises:` sections and no internal parameter names, in its docstring or its `description=`
+  **(test)**.
 - `core.problem_details.ProblemDetailsFastAPI` names an operation by its handler (`operationId` is the function name), so
   the id and a generated client's method name do not change when a route moves; two handlers never share a name
   **(test)**. Rename the handler, never add a suffix.
-- `core/openapi_contract.py` cuts an operation's description at the first Google section, so a docstring that still
-  carries `Args:` or `Returns:` does not reach a client; a new route has none.
 - A route that returns bytes declares its media types with `core.openapi_contract.binary_response` and
   `response_class=Response`.
 - `core/openapi_contract.py` derives the rest for every operation: `401`/`403` from the security requirement, `404` from a
@@ -201,4 +200,3 @@ A list route takes no `updated_since`: offset paging over a changing order skips
 These rules are not met everywhere yet:
 
 - Some secret-bearing responses lack `no-store`.
-- Most endpoint docstrings still carry Google sections. The OpenAPI document cuts them, but the source should lose them (`_DOCSTRING_SECTIONS` in the test lists the handlers).

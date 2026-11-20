@@ -146,18 +146,6 @@ def create_user(
     The `password` is optional when the server has mail configured: without it the account is created active with
     no password and its owner is emailed a link, valid for 24 hours, to choose one. Without mail, or for an inactive
     account, a missing password is refused.
-
-    Args:
-        request: The incoming request, read by the rate limiter.
-        user: User creation data, and the administrator's step-up.
-        token_user_id: ID of the administrator creating the user.
-        token_session_id: Session ID of the administrator.
-        step_up_store: Step-up lockout store.
-        db: Database session dependency.
-        response: The response, whose ``Location`` names where the user is read.
-
-    Returns:
-        Created user data.
     """
     created = users_service.create_user(
         user.to_create(), user.step_up, token_user_id, token_session_id, step_up_store, db
@@ -189,17 +177,6 @@ def put_user_image(
     """Set a user's profile image.
 
     Answers 201 when the user had no photo and 200 when it replaced one.
-
-    Args:
-        request: The incoming request, read by the rate limiter.
-        user_id: ID of user to upload image for.
-        file: Uploaded image file.
-        storage: The platform storage provider.
-        db: Database session dependency.
-        response: The response, whose status is 200 when a photo was replaced.
-
-    Returns:
-        The servable URL of the new photo.
     """
     replaced = users_photo_service.upload_photo(
         user_id,
@@ -241,20 +218,6 @@ def edit_user(
     identity-provider sign-in, and an MFA code when MFA is enabled). A change of email, access type or active
     flag also signs the edited user out everywhere; a new username does not, and the user is sent a security
     notice of it. An edit that changes none of the five needs no `step_up`.
-
-    Args:
-        request: The incoming request, read by the rate limiter.
-        user_id: ID of user to update.
-        user_attributtes: User data to update, and the administrator's step-up.
-        token_user_id: ID of the administrator making the edit.
-        token_session_id: Session ID of the administrator.
-        step_up_store: Step-up lockout store.
-        db: Database session dependency.
-        response: The response, which carries the new ETag.
-        if_match: The ``If-Match`` precondition.
-
-    Returns:
-        Updated user data.
     """
     updated = users_service.edit_user(
         user_id,
@@ -286,11 +249,6 @@ def approve_user(
 
     A user who is not awaiting approval, is deactivated or is queued for deletion, or whose email is not verified
     while sign-up requires verification, is refused with 409.
-
-    Args:
-        request: The incoming request, read by the rate limiter.
-        user_id: ID of user to approve.
-        db: Database session dependency.
     """
     users_service.approve_user(user_id, db)
 
@@ -318,18 +276,6 @@ def edit_user_password(
 
     Requires the administrator's own step-up verification: their current password (or, for an account
     without one, a fresh identity-provider sign-in), and an MFA code when MFA is enabled.
-
-    Args:
-        request: The incoming request, read by the rate limiter.
-        user_id: ID of user to update password for.
-        user_attributes: New password data and the administrator's step-up.
-        token_user_id: ID of the administrator making the change.
-        token_session_id: Session ID of the administrator.
-        step_up_store: Step-up lockout store.
-        db: Database session dependency.
-
-    Raises:
-        HTTPException: 422 if the password is too short, too common or matches the account's details.
     """
     users_service.change_user_password(user_id, user_attributes, token_user_id, token_session_id, step_up_store, db)
 
@@ -405,17 +351,7 @@ def delete_user_photo(
     storage: core_dependencies.Storage,
     db: core_dependencies.DbSession,
 ) -> None:
-    """Delete user profile photo.
-
-    Args:
-        request: The incoming request, read by the rate limiter.
-        user_id: ID of user whose photo to delete.
-        storage: The platform storage provider.
-        db: Database session dependency.
-
-    Returns:
-        None
-    """
+    """Delete user profile photo."""
     users_photo_service.delete_photo(user_id, storage, db, audit=True)
 
 
@@ -450,30 +386,6 @@ def delete_user(
     without one, a fresh identity-provider sign-in), and an MFA code when MFA is enabled. The user is signed
     out and deactivated at once and a background job erases their data. Poll ``GET /jobs/{job_id}`` for the
     outcome; a failed deletion is requested again.
-
-    Args:
-        request: The incoming request, read by the rate limiter.
-        response: The response, which names the job and when to poll it.
-        user_id: ID of user to delete.
-        body: The administrator's step-up verification.
-        token_user_id: ID of the administrator making the request.
-        token_session_id: Session ID of the administrator.
-        step_up_store: Step-up lockout store.
-        states: Shared store of the deletion's state.
-        storage: The platform storage provider.
-        mail: The platform mail provider.
-        if_match: The ``If-Match`` precondition.
-        db: Database session dependency.
-
-    Returns:
-        The deletion's initial status, with the id of the job that reads it.
-
-    Raises:
-        PermissionDeniedError: If the administrator targets their own account.
-        NotFoundError: If the user does not exist.
-        PreconditionFailedError: If the user changed since the client read it.
-        LastAdministratorError: If the user is the only administrator.
-        JobAlreadyRunningError: If a deletion is already pending.
     """
     deletion = users_deletion_job_service.request_deletion_by_administrator(
         user_id,
@@ -501,16 +413,7 @@ def get_user_identity_providers(
     page: core_pagination.ListPage,
     db: core_dependencies.DbSession,
 ) -> auth_identity_links_schema.IdentityProviderLinkPage:
-    """List one page of a specific user's identity provider links (admin).
-
-    Args:
-        user_id: ID of the user whose identity provider links to retrieve.
-        page: The requested window.
-        db: Database session.
-
-    Returns:
-        The page of the user's enriched identity provider links, oldest first.
-    """
+    """List one page of a specific user's identity provider links (admin)."""
     return users_service.list_identity_provider_links(user_id, page, db)
 
 
@@ -538,19 +441,6 @@ def delete_user_identity_provider(
 
     Requires the administrator's own step-up verification: their current password (or, for an account
     without one, a fresh identity-provider sign-in), and an MFA code when MFA is enabled.
-
-    Args:
-        request: The incoming request, read by the rate limiter.
-        user_id: ID of the user to unlink the identity provider from.
-        idp_id: ID of the identity provider to unlink.
-        body: The administrator's step-up verification.
-        token_user_id: ID of the administrator making the change.
-        token_session_id: Session ID of the administrator.
-        step_up_store: Step-up lockout store.
-        db: Database session.
-
-    Returns:
-        None
     """
     users_service.unlink_identity_provider(
         user_id, idp_id, token_user_id, token_session_id, body.step_up, step_up_store, db

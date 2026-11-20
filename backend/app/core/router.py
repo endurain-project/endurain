@@ -64,11 +64,7 @@ class AboutResponse(BaseModel):
     response_model=AboutResponse,
 )
 async def about() -> AboutResponse:
-    """Returns metadata information about the Endurain API.
-
-    Returns:
-        API name, version, and license details.
-    """
+    """Returns metadata information about the Endurain API."""
     return AboutResponse(
         name="Endurain API",
         version=core_config.API_VERSION,
@@ -150,17 +146,6 @@ def health(db: core_dependencies.DbSession, state: core_dependencies.PlatformSta
     routes (rate limits fall back to per-process counters), and restarting or
     de-routing replicas would not bring the backend back. It answers 200 with
     ``degraded`` so a monitor can alert on the body. An unhealthy audit trail does the same.
-
-    Args:
-        db: Database session.
-        state: The platform state provider.
-
-    Returns:
-        ``ok`` when the database and the state backend answer and the audit trail is healthy,
-        ``degraded`` when only the state backend or the audit trail is not.
-
-    Raises:
-        ServiceUnavailableError: When no connection can be obtained or the query fails, with ``Retry-After``.
     """
     try:
         db.execute(text("SELECT 1"))
@@ -231,17 +216,10 @@ def serves_frontend(path: str) -> bool:
 def frontend_not_found(
     path: str,
 ) -> FileResponse:
-    """Return the requested frontend asset or app index.
+    """Return the requested frontend asset or the app index.
 
-    Args:
-        path (str): The requested resource path.
-
-    Returns:
-        Response: The frontend index file or the requested resource if found.
-
-    Raises:
-        NotFoundError: If the path is under the API prefix or ``.well-known``, since no route serves it.
-        HTTPException: If the requested resource is not found.
+    A path under the API prefix or ``.well-known`` is a 404, since no route serves it, and so is a requested
+    asset that does not exist.
     """
     if not serves_frontend(path):
         raise core_exceptions.NotFoundError("Resource not found")

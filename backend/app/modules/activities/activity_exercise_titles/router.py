@@ -20,13 +20,5 @@ def list_activity_exercise_titles(
     page: core_pagination.ListPage,
     db: core_dependencies.DbSession,
 ) -> activity_exercise_titles_schema.ActivityExerciseTitlesPage:
-    """Return one page of the activity exercise titles.
-
-    Args:
-        page: The requested window; a page holds the default size when none is given.
-        db: Database session dependency.
-
-    Returns:
-        The page of exercise titles.
-    """
+    """Return one page of the activity exercise titles."""
     return activity_exercise_titles_service.list_activity_exercise_titles(page, db)

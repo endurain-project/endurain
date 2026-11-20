@@ -50,20 +50,6 @@ def start_idp_link(
     with a single-use ticket that lives two minutes, and the browser that opens it receives the binding cookie and is
     redirected to the provider. The callback then returns to ``redirect`` with ``idp_link=success`` or
     ``idp_link=error``.
-
-    Args:
-        idp_id: The identity provider to link.
-        link: The frontend return path and the step-up verification.
-        request: The incoming request, read by the rate limiter and for the client address.
-        response: The response, which receives the browser-binding cookie.
-        token_user_id: User ID from access token.
-        token_session_id: Session ID from access token.
-        step_up_store: Step-up lockout store.
-        state: The platform state provider, which holds the link ticket of a native app.
-        db: Database session.
-
-    Returns:
-        The provider's authorization URL, or the ticket URL of a native app.
     """
     flow = identity_link_service.start_idp_link(
         idp_id,
@@ -106,19 +92,6 @@ def start_idp_step_up(
     ``redirect`` with a single-use ``step_up_ticket`` in the URL fragment. The sensitive request then sends the
     ticket and the PKCE verifier of ``code_challenge`` as ``idp_reauth``. The response sets a cookie that binds
     the sign-in to this browser.
-
-    Args:
-        idp_id: The linked provider to sign in with again.
-        start: The PKCE challenge, the operation and the return path.
-        request: The incoming request, read by the rate limiter.
-        response: The response, which receives the browser-binding cookie.
-        token_user_id: User ID from access token.
-        token_session_id: Session ID from access token.
-        step_up_store: Step-up lockout store.
-        db: Database session.
-
-    Returns:
-        The provider's authorization URL.
     """
     flow = identity_link_service.start_idp_step_up(
         idp_id,
@@ -147,14 +120,6 @@ def get_my_identity_providers(
     """Retrieve one page of the authenticated user's identity provider links.
 
     Each link carries its connection metadata and the provider's name, slug, icon and type.
-
-    Args:
-        token_user_id: The authenticated user's ID from the access token.
-        page: The requested window.
-        db: Database session.
-
-    Returns:
-        The page of the user's identity provider links, oldest first.
     """
     return identity_link_service.get_user_identity_provider_links(token_user_id, page, db)
 
@@ -187,34 +152,6 @@ def delete_my_identity_provider(
     safety checks to prevent account lockout by ensuring users maintain
     at least one authentication method (either a password or another
     IdP link).
-
-    Args:
-        idp_id (uuid.UUID): The ID of the identity provider to unlink.
-        body (StepUpRequest): The step-up verification.
-        request (Request): The FastAPI request object.
-        token_user_id (uuid.UUID): User ID extracted from the access token.
-        token_session_id: Session ID from access token.
-        step_up_store: Step-up lockout store.
-        db: Database session.
-
-    Returns:
-        None: Returns 204 No Content on successful deletion.
-
-    Raises:
-        DomainError (403): If step-up verification fails.
-        DomainError (404): If the identity provider doesn't exist or
-            is not linked to the user's account.
-        DomainError (409): If attempting to unlink the last authentication method
-            without having a password set (prevents account lockout).
-        DomainError (500): If the deletion operation fails at the database level.
-
-    Notes:
-        - Enforces step-up verification before unlinking.
-        - Prevents account lockout by ensuring users have at least one
-          authentication method (password or remaining IdP link).
-        - Logs the unlinking action for audit purposes.
-        - Uses token-based authentication to ensure users can only
-          unlink their own IdPs.
     """
     identity_link_service.delete_identity_provider_link(
         idp_id, body.step_up, token_user_id, token_session_id, step_up_store, db

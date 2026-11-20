@@ -1702,7 +1702,7 @@ export interface paths {
          * Create Identity Provider
          * @description Create a new identity provider.
          *
-         *     Needs the administrator's own step-up verification in step_up.
+         *     Needs the administrator's own step-up verification in `step_up`, as a rogue provider can claim accounts.
          */
         post: operations["create_identity_provider"];
         delete?: never;
@@ -1754,7 +1754,7 @@ export interface paths {
          * Update Identity Provider
          * @description Update an existing identity provider.
          *
-         *     Needs the administrator's own step-up verification in step_up.
+         *     Needs the administrator's own step-up verification in `step_up`, as a rogue provider can claim accounts.
          */
         patch: operations["update_identity_provider"];
         trace?: never;
@@ -3226,6 +3226,14 @@ export interface paths {
          *
          *     This endpoint processes the OAuth authorization callback from external identity providers.
          *     It finishes a login, a link of the provider to the signed-in account, or a step-up re-authentication.
+         *
+         *     Every outcome is an HTTP 307 redirect, so the browser never ends on a JSON error once the state is claimed:
+         *
+         *     - Link: back to `/settings` without a new session.
+         *     - Login: to `/login` with a `session_id`; the client exchanges it, with its PKCE verifier, at the `/tokens`
+         *       endpoint for the JWT tokens.
+         *     - Step-up: to the page that started it, with the ticket or the error in the fragment.
+         *     - Failure: to `/login` with an `error` parameter.
          */
         get: operations["handle_callback"];
         put?: never;
@@ -15047,6 +15055,15 @@ export interface operations {
                     "application/json": components["schemas"]["ActivitiesBulkEditStatus"];
                 };
             };
+            /** @description The body names no field to change. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
             /** @description The credential is missing, invalid or no longer valid. */
             401: {
                 headers: {
@@ -23232,6 +23249,15 @@ export interface operations {
                     "application/problem+json": components["schemas"]["ProblemDetail"];
                 };
             };
+            /** @description The user has no health targets yet. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
             /** @description The request conflicts with the current state. */
             409: {
                 headers: {
@@ -24767,6 +24793,15 @@ export interface operations {
                     "application/json": components["schemas"]["IdentityProviderRead"];
                 };
             };
+            /** @description A URL field is plain http to a host outside the allowed hosts, or resolves to a non-public address. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
             /** @description The credential is missing, invalid or no longer valid. */
             401: {
                 headers: {
@@ -25051,7 +25086,7 @@ export interface operations {
                     "application/json": components["schemas"]["IdentityProviderRead"];
                 };
             };
-            /** @description The request is refused, for example `If-Match: *`. */
+            /** @description A URL field is plain http to a host outside the allowed hosts, or resolves to a non-public address; or `If-Match` is `*`. */
             400: {
                 headers: {
                     [name: string]: unknown;
@@ -30239,6 +30274,15 @@ export interface operations {
                     "application/json": components["schemas"]["MFABackupCodesRead"];
                 };
             };
+            /** @description The authenticator code that confirms the setup is wrong. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
             /** @description The credential is missing, invalid or no longer valid. */
             401: {
                 headers: {
@@ -33216,6 +33260,15 @@ export interface operations {
                 };
                 content?: never;
             };
+            /** @description No custom login photo is stored. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
             /** @description The rate limit was reached. */
             429: {
                 headers: {
@@ -34099,6 +34152,15 @@ export interface operations {
                     "application/problem+json": components["schemas"]["ProblemDetail"];
                 };
             };
+            /** @description The mail server did not accept the message. */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
             /** @description A dependency is unavailable for a moment. */
             503: {
                 headers: {
@@ -34374,6 +34436,15 @@ export interface operations {
                     "application/problem+json": components["schemas"]["ProblemDetail"];
                 };
             };
+            /** @description The log viewer is not available on this deployment. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
             /** @description Validation Error */
             422: {
                 headers: {
@@ -34555,6 +34626,15 @@ export interface operations {
             };
             /** @description The caller is signed in but not allowed, for example a scope is missing. */
             403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description The log viewer is not available, or no log has been written. */
+            404: {
                 headers: {
                     [name: string]: unknown;
                 };

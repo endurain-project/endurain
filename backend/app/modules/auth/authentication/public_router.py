@@ -87,29 +87,6 @@ def login_for_access_token(
       neither (422)
     - A mobile sign-in never returns tokens: it returns a session_id to exchange for tokens at
       /auth/sessions/{session_id}/tokens with the PKCE verifier
-
-    Args:
-        response: The HTTP response object
-        request: The HTTP request object
-        form_data: Form data containing username, password and, for a mobile client, the PKCE challenge
-        client_type: The type of client making the request ("web" or "mobile")
-        failed_attempts: Failed login attempts tracker for progressive lockout
-        pending_mfa_store: Store for pending MFA logins
-        password_change_store: Store for pending password changes
-        password_hasher: The password hasher instance used for verifying passwords
-        token_manager: The token manager instance used for token operations
-        db: Database session
-        device_id: Device id from the browser's device cookie or the mobile app's X-Device-Id header, or None when
-            the client sent no valid one
-
-    Returns:
-        The next step of the sign-in:
-            - If MFA is required, an MFA-required response
-            - If an administrator set the password, a password-change response and no session
-            - Otherwise, for a mobile client the session_id to exchange for tokens, for a web client the tokens
-
-    Raises:
-        HTTPException: If authentication fails, user is inactive, or account is locked
     """
     outcome = auth_service.login_for_access_token(
         core_network.get_ip_address(request),
@@ -237,25 +214,6 @@ def refresh_token(
     A web request carrying an Origin header the server does not allow is refused with 403, since the refresh cookie
     is sent by the browser on its own. Every other refusal is a 401 with the session-ended problem type: the client
     signs in again.
-
-    Args:
-        response: The HTTP response object.
-        request: The HTTP request object.
-        _validate_refresh_token: Dependency to validate the refresh token.
-        token_user_id: User ID extracted from the refresh token.
-        token_session_id: Session ID extracted from the refresh token.
-        refresh_token_value: The raw refresh token value.
-        refresh_token_exp: Expiry of the presented refresh token.
-        token_manager: Utility for creating tokens.
-        db: Database session.
-        client_type: Client type (\"web\" or \"mobile\").
-
-    Returns:
-        dict: Contains session_id, access_token, token_type, expires_in, refresh_token_expires_in.
-
-    Raises:
-        ClearRefreshTokenCookieError: If the session is gone or ended, the refresh token is invalid or reused, or the
-            user is missing or inactive.
     """
     try:
         outcome = auth_refresh_service.refresh_token(
@@ -305,16 +263,6 @@ def logout(
 
     A mobile client sends its refresh token in the JSON body as refresh_token (RFC 7009), never in the Authorization
     header. A web client sends its refresh cookie and no body; a body token sent by a web client is not read.
-
-    Args:
-        response: The HTTP response object to modify cookies.
-        request: The HTTP request object, read by the rate limiter.
-        target: The session the refresh token names, or None when the token is not usable.
-        client_type: The type of client ("web" or "mobile").
-        db: Database session for CRUD operations.
-
-    Returns:
-        The identity provider's end-session URL, or None when there is none.
     """
     idp_logout_url = None
     if target is not None:
