@@ -13,6 +13,7 @@ from unittest.mock import patch
 
 import pytest
 from jasil.backends.storage_local import LocalStorage
+from sqlalchemy import select
 from tests._helpers.auth import MOCK_USER_ID
 from tests._helpers.db import create_sqlite_session_factory, ensure_user
 
@@ -77,7 +78,7 @@ def _saver(archive: Path):
 
 def _jobs(factory) -> list[ingestion_models.ActivityIngestionJob]:
     with factory() as db:
-        rows = db.query(ingestion_models.ActivityIngestionJob).all()
+        rows = db.scalars(select(ingestion_models.ActivityIngestionJob)).all()
         db.expunge_all()
         return rows
 

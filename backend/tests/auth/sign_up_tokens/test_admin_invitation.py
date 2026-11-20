@@ -5,6 +5,7 @@ from unittest.mock import MagicMock, patch
 
 import jasil.events as platform_events
 import pytest
+from sqlalchemy import update
 from sqlalchemy.orm import sessionmaker
 
 import core.exceptions as core_exceptions
@@ -35,7 +36,7 @@ def db():
     session = create_sqlite_session()
     factory = sessionmaker(bind=session.get_bind())
     ensure_user(factory, MOCK_USER_ID)
-    session.query(users_models.Users).update({"preferred_language": "en"})
+    session.execute(update(users_models.Users).values({"preferred_language": "en"}))
     session.commit()
     yield session
     session.close()

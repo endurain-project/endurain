@@ -7,6 +7,7 @@ stores a JSON ``null`` rather than SQL ``NULL``, which a mocked session cannot s
 import uuid
 
 import pytest
+from sqlalchemy import select
 
 import modules.users.users_integrations.integration_service as integrations_integration
 import modules.users.users_integrations.models as integrations_models
@@ -58,7 +59,7 @@ class TestGarminLinkedUsers:
         """Unlinking assigns None, which a JSON column persists as JSON ``null``, not SQL NULL."""
         _link(db, _uid(1), garmin={"di_token": "x"})
         _link(db, _uid(2), garmin={"di_token": "y"})
-        integration = db.query(integrations_models.UsersIntegrations).filter_by(user_id=_uid(2)).one()
+        integration = db.scalars(select(integrations_models.UsersIntegrations).filter_by(user_id=_uid(2))).one()
         integration.garminconnect_token = None
         db.commit()
 

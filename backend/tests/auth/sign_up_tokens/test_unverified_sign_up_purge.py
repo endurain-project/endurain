@@ -6,6 +6,7 @@ from unittest.mock import MagicMock, patch
 
 import jasil.testing as jasil_testing
 import pytest
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 import core.database as core_database
@@ -82,7 +83,7 @@ def _token(db: Session, user_id: uuid.UUID, *, used: bool = False, expires_in: t
 
 def _remaining(db: Session) -> set[uuid.UUID]:
     db.expire_all()
-    return {user.id for user in db.query(users_models.Users).all()}
+    return {user.id for user in db.scalars(select(users_models.Users)).all()}
 
 
 def test_an_old_unverified_sign_up_without_a_password_or_a_provider_is_deleted(db, erasers):
@@ -200,5 +201,7 @@ def test_a_resend_keeps_the_account_before_any_subscriber_issues_the_mailed_toke
     assert _remaining(db) == {_USER_1}
     # The delivery subscriber's token replaces the staged one; the account still has exactly one live link.
     sign_up_service.create_sign_up_token(_USER_1, f"user{_USER_1.hex}@example.com", "event-1", db)
-    live = db.query(sign_up_models.SignUpToken).filter_by(user_id=_USER_1, used=False).count()
+    live = db.scalar(
+        select(func.count()).select_from(sign_up_models.SignUpToken).filter_by(user_id=_USER_1, used=False)
+    )
     assert live == 1

@@ -19,6 +19,7 @@ from unittest.mock import MagicMock, patch
 import jasil.providers as platform_providers
 import pytest
 from jasil.backends.storage_local import LocalStorage
+from sqlalchemy import func, select
 from sqlalchemy.exc import InterfaceError, OperationalError
 from tests._helpers.auth import MOCK_USER_ID, OTHER_USER_ID
 from tests._helpers.db import create_sqlite_session_factory, ensure_user
@@ -99,7 +100,7 @@ def _job(factory, job_id: uuid.UUID):
 
 def _only_job_id(factory) -> uuid.UUID:
     with factory() as db:
-        return db.query(ingestion_models.ActivityIngestionJob).one().id
+        return db.scalars(select(ingestion_models.ActivityIngestionJob)).one().id
 
 
 @pytest.fixture
@@ -171,7 +172,7 @@ class TestAcceptArchive:
 
         # The loser's staged archive did not stay behind.
         with factory() as db:
-            keys = [row.staged_key for row in db.query(ingestion_models.ActivityIngestionJob).all()]
+            keys = [row.staged_key for row in db.scalars(select(ingestion_models.ActivityIngestionJob)).all()]
         staged = list(storage.iter_objects(upload_entry_service.UPLOAD_STAGING_STORAGE_AREA, "upload_staging/"))
         assert len(staged) == len(keys) == 1
 
@@ -482,7 +483,7 @@ class TestFromFolder:
             bulk.start_from_directory(_USER, "generic", storage, factory())
 
         with factory() as db:
-            assert db.query(ingestion_models.ActivityIngestionJob).count() == 0
+            assert db.scalar(select(func.count()).select_from(ingestion_models.ActivityIngestionJob)) == 0
 
     def test_a_full_pool_closes_the_folder_job_so_the_user_can_try_again(self, tmp_path, factory, storage):
         folder = self._folder(tmp_path, {"a.fit": b"1"})
@@ -497,7 +498,7 @@ class TestFromFolder:
             bulk.start_from_directory(_USER, "generic", storage, factory())
 
         with factory() as db:
-            row = db.query(ingestion_models.ActivityIngestionJob).one()
+            row = db.scalars(select(ingestion_models.ActivityIngestionJob)).one()
         assert (row.status, row.error_code) == ("failed", "processing_failed")
         assert (folder / "a.fit").exists()
 

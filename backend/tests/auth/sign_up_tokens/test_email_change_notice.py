@@ -6,6 +6,7 @@ from unittest.mock import MagicMock, patch
 
 import jasil.testing as jasil_testing
 import pytest
+from sqlalchemy import func, select, update
 from sqlalchemy.orm import sessionmaker
 
 import core.exceptions as core_exceptions
@@ -34,7 +35,7 @@ def db():
     factory = sessionmaker(bind=session.get_bind())
     ensure_user(factory, MOCK_USER_ID)
     ensure_user(factory, OTHER_USER_ID)
-    session.query(users_models.Users).update({"preferred_language": "en"})
+    session.execute(update(users_models.Users).values({"preferred_language": "en"}))
     session.commit()
     yield session
     session.close()
@@ -95,7 +96,7 @@ class TestRequestPublishesTheNotice:
     @pytest.mark.parametrize("held", [False, True])
     def test_a_self_service_request_stages_the_notice_for_a_free_and_a_held_address(self, db, mail_configured, held):
         if held:
-            db.query(users_models.Users).filter_by(id=OTHER_USER_ID).update({"email": "new@example.com"})
+            db.execute(update(users_models.Users).filter_by(id=OTHER_USER_ID).values({"email": "new@example.com"}))
             db.commit()
         with patch(_PUBLISH) as publish:
             sign_up_service.request_self_service_email_change(
@@ -171,7 +172,7 @@ class TestCancel:
             delete_sessions, revoke_keys = self._cancel(db, token)
 
         db.expire_all()
-        assert db.query(sign_up_models.SignUpToken).filter_by(used=False).count() == 0
+        assert db.scalar(select(func.count()).select_from(sign_up_models.SignUpToken).filter_by(used=False)) == 0
         assert security_generations.bumps == [MOCK_USER_ID]
         delete_sessions.assert_called_once_with(MOCK_USER_ID, db)
         revoke_keys.assert_called_once_with(MOCK_USER_ID, db)
@@ -203,7 +204,7 @@ class TestCancel:
             self._cancel(db, token)
 
         assert security_generations.bumps == []
-        assert db.query(sign_up_models.SignUpToken).filter_by(used=False).count() == 1
+        assert db.scalar(select(func.count()).select_from(sign_up_models.SignUpToken).filter_by(used=False)) == 1
         audit.assert_audited(_ACTION, outcome="failure")
 
 

@@ -7,6 +7,7 @@ from unittest.mock import MagicMock, patch
 import jasil.testing as jasil_testing
 import pytest
 from jasil.backends.state_memory import MemoryState
+from sqlalchemy import func, select, update
 from sqlalchemy.orm import sessionmaker
 
 import core.exceptions as core_exceptions
@@ -38,10 +39,16 @@ def db():
     factory = sessionmaker(bind=session.get_bind())
     ensure_user(factory, MOCK_USER_ID)
     ensure_user(factory, OTHER_USER_ID)
-    session.query(users_models.Users).update({"preferred_language": "en", "active": True, "email_verified": False})
+    session.execute(
+        update(users_models.Users).values({"preferred_language": "en", "active": True, "email_verified": False})
+    )
     session.commit()
     yield session
     session.close()
+
+
+def _unused_token_count(db):
+    return db.scalar(select(func.count()).select_from(sign_up_models.SignUpToken).filter_by(used=False))
 
 
 @pytest.fixture(autouse=True)
@@ -134,7 +141,7 @@ class TestTheLinkSurvivesConfirmation:
         result = _revert(db, link)
 
         assert result.email_restored is False
-        assert db.query(sign_up_models.SignUpToken).filter_by(used=False).count() == 0
+        assert _unused_token_count(db) == 0
 
     def test_the_confirmation_notice_carries_the_same_link(self, db):
         link = _request(db)
@@ -211,7 +218,7 @@ class TestTheLinkSurvivesConfirmation:
 
         assert (result.change_applied, result.email_restored) == (True, True)
         assert _user(db).email == _OLD
-        assert db.query(sign_up_models.SignUpToken).filter_by(used=False).count() == 0
+        assert _unused_token_count(db) == 0
         platform.sessions.assert_called_once_with(MOCK_USER_ID, db)
 
     def test_a_later_changes_own_link_after_the_first_revert_is_refused(self, db, platform):
@@ -253,7 +260,7 @@ class TestTheLinkSurvivesConfirmation:
     def test_an_address_the_account_has_since_been_given_by_an_administrator_is_replaced(self, db):
         link = _request(db)
         _confirm(db)
-        db.query(users_models.Users).filter_by(id=MOCK_USER_ID).update({"email": "admin-set@example.com"})
+        db.execute(update(users_models.Users).filter_by(id=MOCK_USER_ID).values({"email": "admin-set@example.com"}))
         db.commit()
 
         assert _revert(db, link).email_restored is True
@@ -264,7 +271,7 @@ class TestTheLinkSurvivesConfirmation:
     ):
         link = _request(db)
         _confirm(db)
-        db.query(users_models.Users).filter_by(id=OTHER_USER_ID).update({"email": _OLD})
+        db.execute(update(users_models.Users).filter_by(id=OTHER_USER_ID).values({"email": _OLD}))
         db.commit()
 
         with jasil_testing.capture_audit() as audit:
@@ -280,7 +287,7 @@ class TestTheLinkSurvivesConfirmation:
     def test_an_address_not_restored_revokes_the_reset_tokens_and_audits_it(self, db, platform, security_generations):
         link = _request(db)
         _confirm(db)
-        db.query(users_models.Users).filter_by(id=OTHER_USER_ID).update({"email": _OLD})
+        db.execute(update(users_models.Users).filter_by(id=OTHER_USER_ID).values({"email": _OLD}))
         db.commit()
         reset_token = _seed_reset_token(db)
 
@@ -318,7 +325,9 @@ class TestThePreviousAddressIsReserved:
         assert sign_up_service.get_email_reserver_id(_OLD, None, db) == MOCK_USER_ID
         assert sign_up_service.get_email_reserver_id(_OLD, MOCK_USER_ID, db) is None
         assert sign_up_service.get_email_reserver_id("free@example.com", OTHER_USER_ID, db) is None
-        db.query(sign_up_models.SignUpToken).update({"revert_until": datetime.now(UTC) - timedelta(seconds=1)})
+        db.execute(
+            update(sign_up_models.SignUpToken).values({"revert_until": datetime.now(UTC) - timedelta(seconds=1)})
+        )
         assert sign_up_service.get_email_reserver_id(_OLD, OTHER_USER_ID, db) is None
 
     def test_it_is_not_reserved_before_the_change_is_confirmed(self, db):
@@ -367,7 +376,7 @@ class TestThePreviousAddressIsReserved:
         ):
             users_service._stage_user(created, users_service.users_audit_actions.UserCreateMethod.ADMIN, db)
 
-        assert db.query(users_models.Users).filter_by(username="newone").count() == 0
+        assert db.scalar(select(func.count()).select_from(users_models.Users).filter_by(username="newone")) == 0
 
     def test_an_administrator_cannot_set_it_on_another_account(self, db):
         _reserve_for_owner(db)
@@ -429,7 +438,7 @@ class TestThePreviousAddressIsReserved:
             answer = sign_up_service.signup(signup, state, db)
 
         assert answer.next_step == sign_up_service.sign_up_schema.SignUpNextStep.SIGN_IN
-        assert db.query(users_models.Users).filter_by(username="signer").count() == 0
+        assert db.scalar(select(func.count()).select_from(users_models.Users).filter_by(username="signer")) == 0
         publish.assert_called_once()
         assert publish.call_args.args[1]["user_id"] == str(MOCK_USER_ID)
 
@@ -490,7 +499,7 @@ class TestTheLinkBeforeConfirmation:
 
         assert (result.email_restored, result.change_applied) == (False, False)
         assert _user(db).email == _OLD
-        assert db.query(sign_up_models.SignUpToken).filter_by(used=False).count() == 0
+        assert _unused_token_count(db) == 0
         _assert_secured(db, platform, security_generations, reset_token)
         details = audit.assert_audited(_ACTION, target_id=str(MOCK_USER_ID)).details
         assert (details["change_applied"], details["reset_tokens_revoked"]) == (False, True)
@@ -514,7 +523,7 @@ class TestTheLinkBeforeConfirmation:
 
         assert (result.email_restored, result.change_applied) == (False, False)
         assert _user(db).email == _OLD
-        assert db.query(sign_up_models.SignUpToken).filter_by(used=False).count() == 0
+        assert _unused_token_count(db) == 0
         assert sign_up_service.prepare_email_change_verification_email(MOCK_USER_ID, "event-2", _HOST, db) is None
         _assert_secured(db, platform, security_generations, reset_token)
         details = audit.assert_audited(_ACTION, target_id=str(MOCK_USER_ID)).details
@@ -535,7 +544,7 @@ class TestTheLinkBeforeConfirmation:
 
         assert (result.change_applied, result.email_restored) == (later_confirmed, later_confirmed)
         assert _user(db).email == _OLD
-        assert db.query(sign_up_models.SignUpToken).filter_by(used=False).count() == 0
+        assert _unused_token_count(db) == 0
         platform.sessions.assert_called_once_with(MOCK_USER_ID, db)
 
     def test_a_replaced_changes_link_works_once(self, db, platform):
@@ -558,7 +567,7 @@ class TestTheLinkBeforeConfirmation:
             _revert(db, first)
         db.rollback()
 
-        assert db.query(sign_up_models.SignUpToken).filter_by(used=False).one().email == "third@example.com"
+        assert db.scalars(select(sign_up_models.SignUpToken).filter_by(used=False)).one().email == "third@example.com"
         platform.sessions.assert_not_called()
 
     def test_an_expired_unconfirmed_change_is_still_reported_and_secures_the_account(
@@ -613,7 +622,7 @@ class TestChangesTheOwnerDidNotRequest:
 
         assert notice is not None
         assert "cancel-email-change" not in notice[2] + notice[3]
-        rows = db.query(sign_up_models.SignUpToken).all()
+        rows = db.scalars(select(sign_up_models.SignUpToken)).all()
         assert all(row.change_id is None and row.revert_until is None for row in rows)
         for row in rows:
             forged = f"{row.id}.{sign_up_service._revert_mac(row.id, datetime.now(UTC) + timedelta(days=7))}"
@@ -625,7 +634,7 @@ class TestChangesTheOwnerDidNotRequest:
     def test_a_synced_change_notice_has_no_revert_link(self, db):
         sign_up_service.stage_email_changed_notice(MOCK_USER_ID, _NEW, _OLD, db)
         db.commit()
-        row = db.query(sign_up_models.SignUpToken).one()
+        row = db.scalars(select(sign_up_models.SignUpToken)).one()
 
         notice = sign_up_service.prepare_email_changed_email(MOCK_USER_ID, row.id, _HOST, db)
 
@@ -642,13 +651,15 @@ class TestRefusals:
         with jasil_testing.capture_audit() as audit, pytest.raises(core_exceptions.InvalidInputError):
             _revert(db, token)
 
-        assert db.query(sign_up_models.SignUpToken).filter_by(used=False).count() == 1
+        assert _unused_token_count(db) == 1
         platform.sessions.assert_not_called()
         audit.assert_audited(_ACTION, outcome="failure")
 
     def test_a_link_minted_from_the_canonical_text_of_the_id_still_resolves(self, db, platform):
         _request(db)
-        row = db.query(sign_up_models.SignUpToken).filter(sign_up_models.SignUpToken.change_id.is_not(None)).one()
+        row = db.scalars(
+            select(sign_up_models.SignUpToken).filter(sign_up_models.SignUpToken.change_id.is_not(None))
+        ).one()
         mac = access_tokens_integration.derive_email_token(
             f"email-change-revert:{row.change_id!s}:{int(row.revert_until.timestamp())}"
         )
@@ -656,11 +667,13 @@ class TestRefusals:
         result = _revert(db, f"{row.change_id}.{mac}")
 
         assert result.change_applied is False
-        assert db.query(sign_up_models.SignUpToken).filter_by(used=False).count() == 0
+        assert _unused_token_count(db) == 0
 
     def test_a_link_whose_id_part_is_not_a_uuid_is_refused_like_a_bad_proof(self, db, platform):
         _request(db)
-        row = db.query(sign_up_models.SignUpToken).filter(sign_up_models.SignUpToken.change_id.is_not(None)).one()
+        row = db.scalars(
+            select(sign_up_models.SignUpToken).filter(sign_up_models.SignUpToken.change_id.is_not(None))
+        ).one()
         mac = sign_up_service._revert_mac(row.change_id, row.revert_until)
 
         with pytest.raises(core_exceptions.InvalidInputError) as refused:
@@ -669,7 +682,7 @@ class TestRefusals:
         with pytest.raises(core_exceptions.InvalidInputError) as forged:
             _revert(db, f"{row.change_id}.forged")
         assert str(refused.value) == str(forged.value)
-        assert db.query(sign_up_models.SignUpToken).filter_by(used=False).count() == 1
+        assert _unused_token_count(db) == 1
         platform.sessions.assert_not_called()
 
     def test_a_link_with_a_forged_proof_is_refused(self, db, platform):
@@ -693,7 +706,7 @@ class TestRowsOutliveTheRevertWindow:
             assert sign_up_service.delete_expired_sign_up_tokens(db) == 0
             clock.now.return_value = now + timedelta(days=8)
             assert sign_up_service.delete_expired_sign_up_tokens(db) > 0
-        assert db.query(sign_up_models.SignUpToken).count() == 0
+        assert db.scalar(select(func.count()).select_from(sign_up_models.SignUpToken)) == 0
 
     def test_a_sign_up_token_is_still_deleted_when_it_expires(self, db):
         sign_up_service.create_sign_up_token(MOCK_USER_ID, _OLD, "event-1", db)

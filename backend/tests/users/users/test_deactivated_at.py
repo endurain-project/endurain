@@ -6,6 +6,7 @@ from unittest.mock import MagicMock, patch
 import jasil.audit as jasil_audit
 import jasil.testing as jasil_testing
 import pytest
+from sqlalchemy import update
 from sqlalchemy.orm import sessionmaker
 from tests._helpers.db import create_sqlite_session, ensure_user
 
@@ -27,7 +28,7 @@ def db():
     session = create_sqlite_session()
     factory = sessionmaker(bind=session.get_bind())
     ensure_user(factory, _U7)
-    session.query(users_models.Users).update({"preferred_language": "en"})
+    session.execute(update(users_models.Users).values({"preferred_language": "en"}))
     session.commit()
     yield session
     session.close()

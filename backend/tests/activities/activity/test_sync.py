@@ -4,7 +4,7 @@ import uuid
 from datetime import UTC, datetime, timedelta
 
 import pytest
-from sqlalchemy import update
+from sqlalchemy import select, update
 from tests._helpers.db import create_sqlite_session
 
 import core.sync as core_sync
@@ -135,7 +135,9 @@ class TestUpdatedAt:
 
 class TestTombstones:
     def _tombstones(self, db) -> list[tuple[uuid.UUID, uuid.UUID]]:
-        rows = db.query(activity_models.ActivityDeletion).order_by(activity_models.ActivityDeletion.record_id).all()
+        rows = db.scalars(
+            select(activity_models.ActivityDeletion).order_by(activity_models.ActivityDeletion.record_id)
+        ).all()
         return [(row.user_id, row.record_id) for row in rows]
 
     def test_the_single_delete_records_one(self, db):
@@ -256,7 +258,7 @@ class TestPrune:
 
         activity_scheduled_jobs.prune_activity_deletions()
 
-        assert [row.record_id for row in db.query(activity_models.ActivityDeletion).all()] == [recent_record]
+        assert [row.record_id for row in db.scalars(select(activity_models.ActivityDeletion)).all()] == [recent_record]
 
     def test_the_job_is_scheduled_daily(self):
         (job,) = activity_scheduled_jobs.recurring_jobs()

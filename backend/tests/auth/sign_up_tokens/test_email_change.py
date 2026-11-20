@@ -8,6 +8,7 @@ import jasil.testing as jasil_testing
 import pytest
 from jasil.backends.state_memory import MemoryState
 from jasil.providers import StateBackendUnavailableError
+from sqlalchemy import select, update
 from sqlalchemy.orm import sessionmaker
 
 import core.exceptions as core_exceptions
@@ -40,7 +41,7 @@ def db():
     factory = sessionmaker(bind=session.get_bind())
     ensure_user(factory, MOCK_USER_ID)
     ensure_user(factory, OTHER_USER_ID)
-    session.query(users_models.Users).update({"preferred_language": "en"})
+    session.execute(update(users_models.Users).values({"preferred_language": "en"}))
     session.commit()
     yield session
     session.close()
@@ -52,9 +53,11 @@ def mail_configured():
         yield configured
 
 
-def _tokens(db, user_id=MOCK_USER_ID):
-    return (
-        db.query(sign_up_models.SignUpToken).filter_by(user_id=user_id).order_by(sign_up_models.SignUpToken.created_at)
+def _tokens(db, user_id=MOCK_USER_ID, **filters):
+    return db.scalars(
+        select(sign_up_models.SignUpToken)
+        .filter_by(user_id=user_id, **filters)
+        .order_by(sign_up_models.SignUpToken.created_at)
     )
 
 
@@ -121,7 +124,7 @@ class TestRequestEmailChange:
         ):
             assert sign_up_service.request_email_change(MOCK_USER_ID, "new@example.com", _OWNER_EMAIL, db) is False
 
-        assert _tokens(db).count() == 0
+        assert _tokens(db).all() == []
         publish.assert_not_called()
 
     def test_with_mail_the_pending_token_and_event_are_staged_without_committing(self, db, mail_configured):
@@ -153,7 +156,7 @@ class TestRequestEmailChange:
 class TestPrepareEmailChangeVerificationEmail:
     def test_nothing_pending_returns_none_and_issues_no_token(self, db):
         assert sign_up_service.prepare_email_change_verification_email(MOCK_USER_ID, "event-1", _HOST, db) is None
-        assert _tokens(db).count() == 0
+        assert _tokens(db).all() == []
 
     def test_an_unknown_user_returns_none(self, db):
         assert sign_up_service.prepare_email_change_verification_email(_USER_99, "event-1", _HOST, db) is None
@@ -888,7 +891,7 @@ class TestEmailChangeSecurityGeneration:
 
         sign_up_service.prepare_email_change_verification_email(MOCK_USER_ID, "event-1", _HOST, db)
 
-        fresh = _tokens(db).filter_by(used=False).one()
+        fresh = _tokens(db, used=False).one()
         assert fresh.security_generation == 0
 
     def test_a_change_made_stale_is_not_mailed(self, db, security_generations):
@@ -896,4 +899,4 @@ class TestEmailChangeSecurityGeneration:
         security_generations.stage_bump(MOCK_USER_ID, db)
 
         assert sign_up_service.prepare_email_change_verification_email(MOCK_USER_ID, "event-1", _HOST, db) is None
-        assert _tokens(db).filter_by(used=False).count() == 1
+        assert len(_tokens(db, used=False).all()) == 1
