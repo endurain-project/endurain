@@ -36,7 +36,7 @@ class TestIncludeObject:
     def test_excludes_an_audit_log_partition(self):
         assert include_object(None, "jasil_audit_log_p20261112", "table", True, None) is False
 
-    @pytest.mark.parametrize("table", ["users", "migrations"])
+    @pytest.mark.parametrize("table", ["users", "server_settings"])
     def test_keeps_application_tables(self, table):
         assert include_object(None, table, "table", True, None) is True
 

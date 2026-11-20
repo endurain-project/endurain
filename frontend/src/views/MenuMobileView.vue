@@ -34,8 +34,7 @@ const profileRoute = computed<RouteLocationRaw>(() =>
 
 <template>
   <!--
-    Mobile-only "Menu" destination reached from the bottom navigation. Mirrors
-    the v1 MenuMobileView: stacked, full-width, touch-friendly groups (Search;
+    Mobile-only "Menu" destination reached from the bottom navigation. Stacked, full-width, touch-friendly groups (Search;
     Activities/Summary; Settings/Profile; Logout) plus the footer (which is
     hidden in the main shell on small screens).
   -->

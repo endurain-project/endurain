@@ -69,7 +69,7 @@ class NotificationCreate(NotificationBase):
 class NotificationOptions(BaseModel):
     """Base of the options a notification type stores.
 
-    Unknown keys are ignored on read, so a row written by an older release still loads.
+    Unknown keys are ignored on read, so a stored key the options no longer name does not fail the load.
     """
 
     model_config = ConfigDict(extra="ignore")

@@ -10,7 +10,7 @@ export interface NormalizedLap {
   lap: ActivityLap
   /**
    * Whether this lap is a swim rest (zero/null distance). Two rests in a row are
-   * treated as a drill rather than a rest, mirroring v1's heuristic. Kept
+   * treated as a drill rather than a rest. Kept
    * separate from {@link isRest} so swim-only behaviour stays explicit.
    */
   swimIsRest: boolean

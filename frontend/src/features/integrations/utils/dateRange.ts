@@ -17,8 +17,8 @@ function toIsoDate(date: Date): string {
 }
 
 /**
- * Builds an inclusive date window spanning the last `days` days up to today,
- * mirroring the v1 "retrieve last N days" option.
+ * Builds an inclusive date window spanning the last `days` days up to today
+ * (the "retrieve last N days" option).
  *
  * @param days - Number of days back from today the window should start.
  * @returns The `{ startDate, endDate }` window as `YYYY-MM-DD` strings.

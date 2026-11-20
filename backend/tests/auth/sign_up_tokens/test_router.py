@@ -710,7 +710,7 @@ class TestResendEndpoint:
     def test_rejects_an_invalid_email(self, signup_client):
         response = signup_client.post("/sign-up/sign-up/resend", json={"email": "nope"})
 
-        assert response.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY
+        assert response.status_code == status.HTTP_422_UNPROCESSABLE_CONTENT
 
 
 class TestSignUpOffEndpoints:

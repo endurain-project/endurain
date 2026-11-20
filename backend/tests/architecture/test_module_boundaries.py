@@ -67,8 +67,6 @@ _PUBLIC_WITHIN_MODULE = frozenset(
 #: absent: they are the module's own layers, not its published surface.
 _PUBLIC_ACROSS_MODULES = _PUBLIC_WITHIN_MODULE | {"computation", "contributors"}
 
-_MIGRATION_SURFACE = "migration_service"
-
 #: ``Session`` methods that run a statement. Only a ``crud``-role file may call
 #: them. Transaction control is a separate rule (``_TRANSACTION_CONTROL``): the
 #: service layer owns the boundary, so a ``crud`` file may flush but not end one.
@@ -807,10 +805,9 @@ class TestSubPackagePrivacy:
         ``test_crud_does_not_end_transactions`` forbids the offence in one role,
         so a file whose name declares no role (``dispatch.py`` once committed
         unnoticed) escaped it. The owners of a unit of work are services,
-        durable-job and subscriber entry points, and the ``migration_service``
-        adapters; any other file asks one of them.
+        durable-job and subscriber entry points; any other file asks one of them.
         """
-        owners = {"service", "migration_service", "subscribers", "scheduled_jobs"}
+        owners = {"service", "subscribers", "scheduled_jobs"}
         offenders = [
             f"{path.relative_to(_MODULES_ROOT).as_posix()}: role '{_role(path.stem)}'"
             for module_name in _MODULE_NAMES
@@ -824,7 +821,7 @@ class TestSubPackagePrivacy:
             )
         ]
         assert not offenders, (
-            "Only a service, subscriber, scheduled job or migration_service may end a transaction. "
+            "Only a service, subscriber, scheduled job may end a transaction. "
             "Name the file for the role it plays, or move the commit into a service:\n  " + "\n  ".join(offenders)
         )
 
@@ -1401,8 +1398,6 @@ class TestModuleSurface:
                         continue
                     if _role(imported.rsplit(".", 1)[-1]) in _PUBLIC_ACROSS_MODULES:
                         continue
-                    if importer.startswith("migrations.") and _role(imported.rsplit(".", 1)[-1]) == _MIGRATION_SURFACE:
-                        continue
                     if _matches((importer, imported), _INBOUND_EXCEPTIONS):
                         continue
                     offenders.append(f"{importer} -> {module_name}.{imported}")
@@ -1425,7 +1420,6 @@ _MAY_READ_CONFIGURATION = frozenset(
         "subscribers",
         "scheduled_jobs",
         "integration_service",
-        "migration_service",
     }
 )
 

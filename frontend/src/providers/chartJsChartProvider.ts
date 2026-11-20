@@ -100,7 +100,7 @@ export function buildChartConfiguration(
     const color = colorFor(index, series.color, palette)
     // A dashed series is a reference/target line: render it as a dashed line
     // overlay regardless of the chart's geometry, so it sits on top of bars as a
-    // mixed bar/line chart — mirroring v1's dashed target lines.
+    // mixed bar/line chart.
     if (series.dashed) {
       return {
         type: 'line',
@@ -163,7 +163,7 @@ export function buildChartConfiguration(
           },
         },
         // Interactive pan/zoom along the distance axis; wheel + drag on
-        // desktop, pinch on touch (the v2 plugin handles pinch natively).
+        // desktop, pinch on touch (the plugin handles pinch natively).
         zoom: options.zoom
           ? {
               zoom: {

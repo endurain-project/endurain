@@ -26,8 +26,7 @@ const alertsLabel = computed(() =>
 )
 
 /**
- * Leading destinations of the mobile bottom bar, mirroring v1's
- * NavbarBottomMobileComponent. Alerts and Menu render separately because they
+ * Leading destinations of the mobile bottom bar. Alerts and Menu render separately because they
  * carry an unread indicator / fixed destination.
  */
 const links = computed<BottomNavLink[]>(() => [
@@ -39,7 +38,7 @@ const links = computed<BottomNavLink[]>(() => [
 
 <template>
   <!--
-    Mobile primary navigation. Mirrors the v1 bottom navbar: a sticky bar
+    Mobile primary navigation. A sticky bar
     pinned to the bottom on small screens (Home, Gear, Health, Alerts, Menu),
     hidden from `lg` up where the top navbar takes over. Authenticated only.
   -->

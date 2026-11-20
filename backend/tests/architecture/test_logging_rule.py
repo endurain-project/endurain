@@ -46,7 +46,6 @@ _MAY_LOG = frozenset(
         "scheduled_jobs",
         "dependencies",
         "integration_service",
-        "migration_service",
     }
 )
 
@@ -95,14 +94,13 @@ _HELPERS_THAT_LOG: dict[str, str] = {
 }
 
 #: Modules whose ``console=True`` records are operator-facing: bulk-import progress (including the Strava export and
-#: gear CSV imports), migrations and the first-run onboarding setup token.
+#: gear CSV imports) and the first-run onboarding setup token.
 _CONSOLE_ALLOWED_PREFIXES = (
     "activities/activity_ingestion/",
     "auth/onboarding/scheduled_jobs.py",
     "strava/bulk_import_service.py",
     "strava/gear_service.py",
 )
-_CONSOLE_ALLOWED_ROLES = frozenset({"migration_service"})
 
 #: Exceptions a service raises to refuse a request. Raising one is a decision, and the rule says a refusal
 #: is a WARNING. ``AccessConcealedError`` is a refusal answered as ``404``; ``UnauthenticatedError`` is a
@@ -281,13 +279,11 @@ class TestLoggingRule:
         assert not stale, "These helpers no longer log; remove them from _HELPERS_THAT_LOG:\n  " + "\n  ".join(stale)
 
     def test_console_is_for_operator_events(self):
-        """``console=True`` is bulk-import progress and migrations, not request or persistence noise."""
+        """``console=True`` is bulk-import progress and the onboarding setup token, not request or persistence noise."""
         offenders = [
             _relative(path)
             for path in _module_files()
-            if "console=True" in path.read_text()
-            and not _relative(path).startswith(_CONSOLE_ALLOWED_PREFIXES)
-            and role_of(path.stem) not in _CONSOLE_ALLOWED_ROLES
+            if "console=True" in path.read_text() and not _relative(path).startswith(_CONSOLE_ALLOWED_PREFIXES)
         ]
 
         assert offenders == []

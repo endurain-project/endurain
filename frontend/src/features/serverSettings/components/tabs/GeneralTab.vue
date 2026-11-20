@@ -12,7 +12,7 @@ const { t } = useI18n()
 const { values, errors, isSubmitting, handleSubmit, handleBlur, settings } =
   useServerSettingsFormContext()
 
-/** Records-per-page options offered in the list (mirrors v1). */
+/** Records-per-page options offered in the list. */
 const NUM_RECORDS_OPTIONS = [5, 10, 25, 50, 100] as const
 </script>
 

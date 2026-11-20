@@ -20,8 +20,7 @@ import type { ActivityType } from '../types'
 
 /**
  * Maps each backend activity type to its i18n label key under the
- * `activities.types` namespace. Mirrors v1's `activityLabelMap` so labels stay
- * consistent across the two frontends.
+ * `activities.types` namespace.
  */
 export const ACTIVITY_TYPE_LABEL_KEYS: Record<ActivityType, string> = {
   run: 'activities.types.run',
@@ -102,8 +101,7 @@ const CYCLING_TYPES = new Set<ActivityType>([
   'ebike_mountain_ride',
 ])
 const SWIMMING_TYPES = new Set<ActivityType>(['lap_swimming', 'open_water_swimming'])
-// 44 (snowshoeing) is intentionally in both walking and snow groups, mirroring
-// v1: it is paced like walking but uses snow gear.
+// 44 (snowshoeing) is intentionally in both walking and snow groups: it is paced like walking but uses snow gear.
 const WALKING_TYPES = new Set<ActivityType>(['walk', 'hike', 'indoor_walk', 'snow_shoeing'])
 const RACQUET_TYPES = new Set<ActivityType>([
   'tennis',
@@ -233,11 +231,10 @@ export function lapCyclesLabelKey(type: ActivityType): string {
 }
 
 /**
- * Maps an activity type to the gear type whose gears may be associated with it,
- * mirroring v1's `ActivityView.getGearsByActivityType`. Returns `null` for
+ * Maps an activity type to the gear type whose gears may be associated with it. Returns `null` for
  * activity families that have no associated gear (e.g. strength, cardio, HIIT).
  * Running/walking is checked before snow sports so snowshoeing (type 44, which
- * is in both groups) resolves to shoes, matching v1's branch order.
+ * is in both groups) resolves to shoes.
  *
  * @param type - The activity type.
  * @returns The gear type, or `null` when no gear applies.
@@ -277,7 +274,7 @@ export function activityTypeIsVirtual(type: ActivityType): boolean {
 
 /**
  * Whether speed should be expressed in knots (marine sports), overriding the
- * user's metric/imperial preference, mirroring v1.
+ * user's metric/imperial preference.
  *
  * @param type - The activity type.
  * @returns Whether knots apply.
@@ -288,7 +285,7 @@ export function activityTypeUsesKnots(type: ActivityType): boolean {
 
 /**
  * Whether the activity is primarily distance-paced (pace metric) rather than
- * speed-based, mirroring v1's pace-vs-speed split.
+ * speed-based.
  *
  * @param type - The activity type.
  * @returns Whether pace (not speed) is the headline tempo metric.
@@ -321,7 +318,7 @@ const NON_DISTANCE_TYPES = new Set<ActivityType>([
 
 /**
  * Whether an activity is distance-based (shows distance/pace/elevation) versus
- * a non-distance session (gym/strength/racquet), mirroring v1's summary split.
+ * a non-distance session (gym/strength/racquet).
  *
  * @param type - The activity type.
  * @returns Whether the activity is distance-based.

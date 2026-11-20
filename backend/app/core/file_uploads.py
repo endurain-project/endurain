@@ -73,8 +73,7 @@ logger = core_logger.get_logger(__name__)
 # ---------------------------------------------------------------------------
 
 # Activity files (.gpx/.tcx/.fit) and gzip-wrapped variants can be
-# large multi-day .fit files. 200 MiB matches the historical cap
-# enforced by the legacy activity-upload helper.
+# large multi-day .fit files. 200 MiB bounds an activity file and its gzip.
 _MAX_ACTIVITY_BYTES = 200 * 1024 * 1024
 _MAX_GZIP_BYTES = 200 * 1024 * 1024
 
@@ -930,8 +929,7 @@ def move_within(
 ) -> Path:
     """Move ``src`` into ``dest_dir`` as ``filename`` safely.
 
-    Replacement for the legacy ``move_file`` helper. The final
-    destination is always constrained to ``dest_dir``. When
+    The final destination is always constrained to ``dest_dir``. When
     ``src_base_dir`` is provided, the source path is also required
     to resolve under that trusted directory before the move.
 

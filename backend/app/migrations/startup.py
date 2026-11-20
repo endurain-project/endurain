@@ -1,7 +1,7 @@
-"""Bring the schema and the data to the current version when the backend starts.
+"""Bring the schema to the current version when the backend starts.
 
-The application's own startup step: it runs the Alembic and substrate upgrades and the data migrations in this
-package, so it lives beside them rather than in ``core``, which knows nothing of the application.
+The application's own startup step: it runs the Alembic and substrate upgrades under one lock, so it lives beside
+the Alembic history rather than in ``core``, which knows nothing of the application.
 """
 
 from collections.abc import Generator
@@ -14,9 +14,8 @@ from alembic.script import ScriptDirectory
 from sqlalchemy import Connection, Engine, text
 
 import core.logger as core_logger
-import migrations.utils as migrations_utils
 from alembic import command
-from core.database import SessionLocal, engine
+from core.database import engine
 
 logger = core_logger.get_logger(__name__)
 
@@ -29,7 +28,7 @@ _MIGRATION_LOCK_TIMEOUT_SECONDS = 600
 def migration_lock() -> Generator[None]:
     """Hold the database-wide migration lock, so replicas starting together migrate one at a time.
 
-    The others wait, then find the schema and data already current. The session-level advisory lock sits on an
+    The others wait, then find the schema already current. The session-level advisory lock sits on an
     AUTOCOMMIT connection, which stays out of a transaction so an idle-in-transaction timeout cannot end the
     session (and release the lock) during a slow migration.
 
@@ -113,32 +112,11 @@ def bootstrap_substrate_schema(engine: Engine) -> None:
     jasil_migrations.verify_schema_current(engine)
 
 
-async def check_migrations() -> None:
-    """
-    Check for pending custom migration records.
+def migrate_schema() -> None:
+    """Bring the schema to the current version, under the migration lock.
 
-    Args:
-        None.
-
-    Returns:
-        None.
-
-    Raises:
-        Exception: Propagates migration check failures.
-    """
-    logger.info("Checking for migrations not executed", extra=core_logger.context(console=True))
-
-    with SessionLocal() as db:
-        await migrations_utils.check_migrations_not_executed(db)
-
-    logger.info("Migration check completed", extra=core_logger.context(console=True))
-
-
-async def migrate_schema_and_data() -> None:
-    """Bring the schema and the data to the current version, under the migration lock.
-
-    Runs the Alembic upgrade, the substrate's upgrade and the pending data migrations as one locked unit, so a
-    second replica never runs a data migration beside the first.
+    Runs the Alembic upgrade and the substrate's upgrade as one locked unit, so a second replica never migrates
+    beside the first.
 
     Raises:
         Exception: Propagates any migration failure, which aborts startup.
@@ -146,4 +124,3 @@ async def migrate_schema_and_data() -> None:
     with migration_lock():
         run_alembic_upgrade()
         bootstrap_substrate_schema(engine)
-        await check_migrations()

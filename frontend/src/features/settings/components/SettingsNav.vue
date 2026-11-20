@@ -22,8 +22,8 @@ import { accessibleSettingsZones } from '@/features/settings/settingsNav'
 /**
  * Settings sidebar. Lists the zones the current user can open (admin-only zones
  * are hidden from non-admins) and highlights the active one. Zones are split
- * into an "account" group and an "administration" group — mirroring v1's
- * separator between personal and admin settings — with group headings shown
+ * into an "account" group and an "administration" group, separating personal
+ * from admin settings, with group headings shown
  * only when both groups are present (i.e. for admins). The list is driven by
  * the shared {@link accessibleSettingsZones} config so it stays in sync with
  * the route table.

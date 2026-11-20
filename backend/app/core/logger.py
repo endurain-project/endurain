@@ -77,7 +77,7 @@ CONSOLE_FIELD = "console"
 # and avoids the "Attempt to overwrite %r in LogRecord" the stdlib would raise.
 _RESERVED_FIELD_PREFIX = "ctx_"
 
-# String log levels accepted by config and by the legacy helpers. ``trace`` maps
+# String log levels accepted by config. ``trace`` maps
 # to DEBUG because Python has no TRACE level.
 _LEVELS: dict[str, int] = {
     "critical": logging.CRITICAL,

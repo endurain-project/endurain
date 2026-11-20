@@ -606,8 +606,8 @@ class TestBackfillFailureIsolation:
         mock_activities.set_thumbnail_key.assert_not_called()
 
     @patch("modules.activities.activity_thumbnail.service.activity_integration")
-    def test_an_integer_layout_key_still_named_by_a_row_survives_while_its_blob_exists(self, mock_activities):
-        """Migration 13 owns integer-layout keys: the listing ignores them, the existence check protects them."""
+    def test_a_key_outside_the_uuid_layout_named_by_a_row_survives_while_its_blob_exists(self, mock_activities):
+        """The listing ignores a key outside the UUID layout; the existence check protects it."""
         from modules.activities.activity_thumbnail.service import generate_missing_activity_thumbnails
 
         storage = MagicMock()
@@ -634,7 +634,9 @@ class TestSweepOrphanedThumbnails:
 
     @patch("modules.activities.activity_thumbnail.service.activity_integration")
     @patch("core.blob_sweep.core_database")
-    def test_a_uuid_key_whose_activity_is_gone_is_swept_and_an_integer_key_is_kept(self, _database, integration):
+    def test_a_uuid_key_whose_activity_is_gone_is_swept_and_a_key_outside_the_uuid_layout_is_kept(
+        self, _database, integration
+    ):
         from modules.activities.activity_thumbnail.service import sweep_orphaned_thumbnails
 
         integration.filter_existing_activity_ids.return_value = set()

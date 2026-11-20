@@ -173,8 +173,6 @@ def test_model_registries_collect_every_model() -> None:
         | set(notifications_model_registry.MODEL_MODULES)
         | set(server_settings_model_registry.MODEL_MODULES)
         | expected_users
-        # The data-migration bookkeeping table is the application's own, outside any module.
-        | {"migrations.models"}
         == app_model_registry._MODEL_MODULES
     )
 

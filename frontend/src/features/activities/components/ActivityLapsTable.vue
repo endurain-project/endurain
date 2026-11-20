@@ -32,7 +32,7 @@ function metricLabel(metric: FormattedMetric | null): string {
 }
 
 const isSwimming = computed(() => activityTypeIsSwimming(props.activity.activityType))
-// Swimming hides elevation and shows stroke rate in its place (v1 parity).
+// Swimming hides elevation and shows stroke rate in its place.
 const showElevation = computed(() => !isSwimming.value)
 const showStrokeRate = computed(() => isSwimming.value)
 // FIT total_cycles means different things per sport (strokes, revolutions,

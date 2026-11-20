@@ -43,7 +43,6 @@ ROLES: tuple[str, ...] = (
     "contributors",
     "subscriber_registry",
     "integration_service",
-    "migration_service",
     "event_publishers",
     "audit_actions",
     "scheduled_jobs",

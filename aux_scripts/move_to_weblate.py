@@ -3,7 +3,7 @@
 
 Ports aux_scripts/move_to_weblate.ps1 to Python (no PowerShell dependency).
 
-The v2 frontend stores namespace JSON files under
+The frontend stores namespace JSON files under
 ``frontend/src/i18n/locales/<lang>/<namespace>.json``, with ``en`` as the
 source language. This script walks every ``*.json`` file under the ``en``
 folder and creates/updates a matching Weblate component (or deletes stale
@@ -51,7 +51,7 @@ from typing import Any
 WEBLATE_URL = "https://translate.codeberg.org"
 PROJECT_SLUG = "endurain"
 REPO = "https://codeberg.org/endurain-project/endurain.git"
-BRANCH = "master"  # v2 frontend (frontend/src/i18n/locales) lives on master now
+BRANCH = "master"  # the frontend (frontend/src/i18n/locales) lives on master
 PUSH_BRANCH = "l10n/weblate"  # branch Weblate commits translations to
 LICENSE = "AGPL-3.0-only"
 LICENSE_URL = "https://spdx.org/licenses/AGPL-3.0-only.html"
@@ -166,7 +166,7 @@ def purge_json_components(
     existing: dict[str, dict[str, Any]], protected_slugs: set[str], token: str, dry_run: bool
 ) -> dict[str, dict[str, Any]]:
     """Delete stale git/json-nested components, except ones in
-    `protected_slugs` (components matching a current v2 source file - those
+    `protected_slugs` (components matching a current source file - those
     are reconciled via create/update instead, so they're never deleted).
     """
     for component in list(existing.values()):

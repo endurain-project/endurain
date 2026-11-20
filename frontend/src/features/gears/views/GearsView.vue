@@ -243,7 +243,7 @@ function confirmDelete(): void {
 
       <!--
         Main panel: the filters header, the list/states, and the pager share one
-        surface so their backgrounds align (mirrors v1's list panel).
+        surface so their backgrounds align.
       -->
       <ListPanel
         v-model:page="page"

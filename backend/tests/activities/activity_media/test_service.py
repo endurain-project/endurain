@@ -89,7 +89,7 @@ class TestSweepOrphanedMedia:
     @patch(f"{_SVC}.core_blob_sweep.sweep_unreferenced_blobs", return_value=0)
     @patch(f"{_SVC}.activity_integration")
     @patch("core.blob_sweep.core_database")
-    def test_a_uuid_key_whose_activity_is_gone_is_swept_and_an_integer_key_is_kept(
+    def test_a_uuid_key_whose_activity_is_gone_is_swept_and_a_key_outside_the_uuid_layout_is_kept(
         self, _database, mock_activities, _unreferenced
     ):
         from modules.activities.activity_media.service import sweep_orphaned_media

@@ -23,18 +23,21 @@ def _migration_module():
 
 def _upgrade(users: int, rows: dict[int, bool]) -> None:
     engine = sa.create_engine("sqlite://")
-    with engine.begin() as conn:
-        conn.execute(sa.text("CREATE TABLE users (id INTEGER PRIMARY KEY)"))
-        conn.execute(sa.text("CREATE TABLE migrations (id INTEGER PRIMARY KEY, executed BOOLEAN NOT NULL)"))
-        for user_id in range(1, users + 1):
-            conn.execute(sa.text("INSERT INTO users (id) VALUES (:id)"), {"id": user_id})
-        for migration_id, executed in rows.items():
-            conn.execute(
-                sa.text("INSERT INTO migrations (id, executed) VALUES (:id, :executed)"),
-                {"id": migration_id, "executed": executed},
-            )
-        with Operations.context(MigrationContext.configure(conn)):
-            _migration_module().upgrade_require_v0_21_data_migrations()
+    try:
+        with engine.begin() as conn:
+            conn.execute(sa.text("CREATE TABLE users (id INTEGER PRIMARY KEY)"))
+            conn.execute(sa.text("CREATE TABLE migrations (id INTEGER PRIMARY KEY, executed BOOLEAN NOT NULL)"))
+            for user_id in range(1, users + 1):
+                conn.execute(sa.text("INSERT INTO users (id) VALUES (:id)"), {"id": user_id})
+            for migration_id, executed in rows.items():
+                conn.execute(
+                    sa.text("INSERT INTO migrations (id, executed) VALUES (:id, :executed)"),
+                    {"id": migration_id, "executed": executed},
+                )
+            with Operations.context(MigrationContext.configure(conn)):
+                _migration_module().upgrade_require_v0_21_data_migrations()
+    finally:
+        engine.dispose()
 
 
 def test_a_fresh_install_without_users_passes_with_every_migration_pending():

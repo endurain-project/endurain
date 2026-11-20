@@ -83,8 +83,8 @@ export function useSearch() {
   const activityQuery = useActivitySearchQuery(activityTerm)
   const gearQuery = useGearSearchQuery(gearTerm)
 
-  // Sub-type filters applied client-side to the active scope's results, mirroring
-  // the v1 search page. Cleared whenever the scope changes (see watch below).
+  // Sub-type filters applied client-side to the active scope's results.
+  // Cleared whenever the scope changes (see watch below).
   const activityCategory = ref<string>(ALL_ACTIVITY_CATEGORIES)
   const gearTypeFilter = ref<GearType | typeof ALL_GEAR_TYPES>(ALL_GEAR_TYPES)
   watch(scope, () => {

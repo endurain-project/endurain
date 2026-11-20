@@ -75,17 +75,13 @@ class TestSweepUnreferencedPhotos:
 
     @patch(_CRUD)
     def test_a_key_is_kept_only_while_its_user_names_it(self, mock_crud, mock_db):
-        mock_crud.get_photo_keys_by_user_ids.return_value = {
-            _U1: f"{_U1}.png",
-            _U3: f"/app/backend/data/user_images/{_U3}.png",
-        }
+        mock_crud.get_photo_keys_by_user_ids.return_value = {_U1: f"{_U1}.png", _U3: f"{_U3}.png"}
 
         referenced = users_photo_service._referenced_photo_keys(
             [f"{_U1}.png", f"{_U1}.jpg", f"{_U2}.png", f"{_U3}.png", "notes.txt"], mock_db
         )
 
-        # 1.jpg was replaced and 2.png's user is gone; a row not yet rewritten from a legacy path still
-        # owns its file, and a key that names no user is not this sweep's to judge.
+        # 1.jpg was replaced and 2.png's user is gone; a key that names no user is not this sweep's to judge.
         assert referenced == {f"{_U1}.png", f"{_U3}.png", "notes.txt"}
         mock_crud.get_photo_keys_by_user_ids.assert_called_once_with([_U1, _U2, _U3], mock_db)
 
@@ -98,7 +94,7 @@ class TestSweepUnreferencedPhotos:
         for path in (tmp_path / "user_images").iterdir():
             os.utime(path, (old, old))
         db = create_sqlite_session()
-        for user_id, photo in ((_U1, f"{_U1}.png"), (_U3, f"/app/backend/data/user_images/{_U3}.png")):
+        for user_id, photo in ((_U1, f"{_U1}.png"), (_U3, f"{_U3}.png")):
             db.add(
                 users_models.Users(
                     id=user_id,
@@ -147,14 +143,6 @@ class TestDeletePhoto:
         storage = MagicMock()
         mock_crud.replace_photo_key.return_value = f"{_U7}.jpg"
         storage.delete.side_effect = platform_providers.StorageBackendUnavailableError("storage down")
-
-        users_photo_service.delete_photo(_U7, storage, mock_db)
-
-    @patch(_CRUD)
-    def test_a_legacy_path_the_storage_refuses_does_not_fail_the_request(self, mock_crud, mock_db):
-        storage = MagicMock()
-        mock_crud.replace_photo_key.return_value = f"/app/backend/data/user_images/{_U7}.jpg"
-        storage.delete.side_effect = ValueError("escapes base directory")
 
         users_photo_service.delete_photo(_U7, storage, mock_db)
 

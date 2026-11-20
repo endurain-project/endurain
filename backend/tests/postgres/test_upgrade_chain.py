@@ -118,10 +118,14 @@ def test_a_fresh_install_upgrades_to_head_and_matches_the_models(upgrade_db):
     assert _scalar(upgrade_db, "SELECT version_num FROM alembic_version") == _RETIREMENT_REVISION
 
 
-def test_the_baseline_alone_matches_the_models_and_creates_no_substrate_or_scratch_table(upgrade_db):
+def test_the_baseline_alone_adds_only_the_data_migration_table_and_no_substrate_or_scratch_table(
+    upgrade_db,
+):
     alembic_chain.upgrade(upgrade_db, alembic_chain.V0_21_HEAD)
 
-    assert alembic_chain.schema_differences(upgrade_db) == []
+    assert [(kind, table.name) for kind, table in alembic_chain.schema_differences(upgrade_db)] == [
+        ("remove_table", "migrations")
+    ]
     tables = _tables(upgrade_db)
     assert not tables & {*_SUBSTRATE_TABLES, "uuid_migration_ids"}
     assert not {name for name in tables if name.startswith("jasil_")}
@@ -132,10 +136,10 @@ def test_a_fresh_install_holds_exactly_the_seed_rows(upgrade_db):
     alembic_chain.upgrade(upgrade_db, "head")
 
     counts = {name: count for name, count in alembic_chain.row_counts(upgrade_db).items() if count}
-    assert counts == {"mail_settings": 1, "migrations": 1, "server_settings": 1}
+    assert counts == {"mail_settings": 1, "server_settings": 1}
     assert _row(upgrade_db, "server_settings") == _SERVER_SETTINGS_SEED
     assert _row(upgrade_db, "mail_settings") == _MAIL_SETTINGS_SEED
-    assert _migrations_state(upgrade_db) == {7: True}
+    assert "migrations" not in _tables(upgrade_db)
 
 
 def test_the_baseline_seeds_the_rows_a_v0_21_install_has_before_its_data_migrations_run(upgrade_db):
@@ -159,7 +163,7 @@ def test_the_v0_22_upgrade_refuses_while_a_v0_21_data_migration_is_pending(upgra
     assert _migrations_state(upgrade_db) == before
 
 
-def test_the_v0_22_upgrade_retires_the_v0_21_data_migrations_once_they_have_all_run(upgrade_db):
+def test_the_v0_22_upgrade_drops_the_data_migration_table_once_they_have_all_run(upgrade_db):
     alembic_chain.upgrade(upgrade_db, alembic_chain.V0_21_HEAD)
     _insert_user(upgrade_db)
     _set_data_migrations(upgrade_db, dict.fromkeys(_DATA_MIGRATIONS, True))
@@ -168,7 +172,7 @@ def test_the_v0_22_upgrade_retires_the_v0_21_data_migrations_once_they_have_all_
 
     alembic_chain.upgrade(upgrade_db, "head")
 
-    assert _migrations_state(upgrade_db) == {7: True}
+    assert _scalar(upgrade_db, "SELECT to_regclass('migrations')") is None
     assert _scalar(upgrade_db, "SELECT to_regclass('uuid_migration_ids')") is None
     assert _scalar(upgrade_db, "SELECT count(*) FROM users") == 1
     assert _scalar(upgrade_db, "SELECT version_num FROM alembic_version") == _RETIREMENT_REVISION

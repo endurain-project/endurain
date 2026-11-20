@@ -1,11 +1,9 @@
 """Background scheduler: the APScheduler instance and the jobs it is handed.
 
-Knows *how* to schedule, never *what*. It used to import ``modules.activities``,
-``modules.auth``, ``modules.strava`` and ``modules.garmin`` to enumerate their
-recurring work, which put the platform above the domain — the wrong way round,
-and the reason adding a scheduled job to a module meant editing ``core``.
+Knows *how* to schedule, never *what*: it imports no domain module, so adding a
+scheduled job to a module never means editing ``core``.
 
-Each module now declares its own work in a ``scheduled_jobs`` module and the
+Each module declares its own work in a ``scheduled_jobs`` module and the
 composition root (``main``) hands the collected list to :func:`start_scheduler`.
 The only jobs declared here are core's and the substrate's own.
 """

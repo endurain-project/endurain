@@ -179,11 +179,9 @@ module = [
     "apscheduler.*",
     "staticmap",
     "fitdecode",
-    "garminconnect",
     "geopy.*",
     "tcxreader.*",
     "user_agents",
-    "safeuploads.*",
     "boto3",
     "botocore.*",
 ]
@@ -202,11 +200,9 @@ allowed-unresolved-imports = [
     "apscheduler.**",
     "staticmap",
     "fitdecode",
-    "garminconnect",
     "geopy.**",
     "tcxreader.**",
     "user_agents",
-    "safeuploads.**",
     "boto3",
     "botocore.**",
 ]
@@ -256,7 +252,6 @@ classmethod-decorators = ["sqlalchemy.orm.declared_attr"]
 "scripts/**/*.py" = ["D"]
 "tests/**/*.py" = ["D", "S101", "S105", "S106", "S108"]  # allow assert, password-like test data, and hardcoded /tmp-style paths in test mocks/fixtures
 "app/alembic/**/*.py" = ["D", "E402", "I001"]  # alembic migrations have specific import order; docstrings not required
-"app/alembic/versions/v0_3_0_migration.py" = ["S105", "S106"]  # legitimate password hashes in seed migration
 "app/modules/auth/identity_providers/public_router.py" = ["S105", "S106"]  # false positive on token_type
 "app/modules/auth/authentication/schema.py" = ["S105", "S106"]  # false positive on token_type Literal defaults
 "app/modules/auth/authentication/service.py" = ["S105", "S106"]  # false positive on token_type string comparisons

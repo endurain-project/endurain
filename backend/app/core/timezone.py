@@ -300,12 +300,9 @@ def to_utc_second(dt: datetime | str | None) -> datetime | None:
     """
     Normalize to UTC-aware and truncate to whole seconds.
 
-    The resolution every ingestion producer already agreed on: the file parsers
-    and the provider adapters all used to format their activity start/end times
-    with a second-precision pattern and let the schema validator parse them
-    back. That round-trip made the value a ``str`` at the type level even though
-    every consumer needs a ``datetime``, so this does the same normalization
-    directly.
+    The resolution every ingestion producer shares: activity start/end times are
+    whole seconds, and every consumer needs a ``datetime``, so this normalizes a
+    value directly instead of formatting it to a ``str`` and parsing it back.
 
     Truncation is preserved rather than dropped because the start-time duplicate
     check compares stored instants for equality: devices report whole seconds,

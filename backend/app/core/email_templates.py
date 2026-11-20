@@ -166,7 +166,7 @@ def wrap_email(
     Render a complete localized email by wrapping ``body_inner`` in the
     shared header/footer chrome.
 
-    Centralizes the boilerplate that every email builder used to repeat
+    Centralizes the boilerplate that every email builder needs
     (HTML escaping of header/footer fields, fetching the six common
     catalog labels, computing the BCP 47 ``lang`` tag, and threading
     them into :func:`html_header` and :func:`html_footer`).
