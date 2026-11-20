@@ -418,12 +418,54 @@ class TestActivityFiles:
         with patch.object(
             export_service.activity_file_storage_integration,
             "get_activity_file",
-            side_effect=[OSError("read failed"), (f"{_B}.gpx", b"<gpx></gpx>")],
+            side_effect=[StorageBackendUnavailableError("backend down"), (f"{_B}.gpx", b"<gpx></gpx>")],
         ):
             export_service._write_activity_files(ctx, [_A, _B])
 
         assert ctx.counts["activity_files"] == 1
         assert list(archive.entries) == [f"activity_files/{_B}.gpx"]
+
+    def test_an_unavailable_read_is_logged_as_a_warning(self, caplog) -> None:
+        ctx, _ = _ctx()
+        ctx.counts["activity_files"] = 0
+        with (
+            patch.object(
+                export_service.activity_file_storage_integration,
+                "get_activity_file",
+                side_effect=StorageBackendUnavailableError("backend down"),
+            ),
+            caplog.at_level("WARNING"),
+        ):
+            export_service._write_activity_files(ctx, [_A])
+
+        assert any(r.levelname == "WARNING" for r in caplog.records)
+
+    def test_an_unexpected_read_error_propagates(self) -> None:
+        ctx, _ = _ctx()
+        with (
+            patch.object(
+                export_service.activity_file_storage_integration,
+                "get_activity_file",
+                side_effect=RuntimeError("bug"),
+            ),
+            pytest.raises(RuntimeError, match="bug"),
+        ):
+            export_service._write_activity_files(ctx, [_A])
+
+    def test_an_archive_write_failure_propagates(self) -> None:
+        """A full disk mid-archive must fail the export, not report success with a partial archive."""
+        ctx, archive = _ctx()
+        ctx.counts["activity_files"] = 0
+        with (
+            patch.object(
+                export_service.activity_file_storage_integration,
+                "get_activity_file",
+                return_value=(f"{_A}.gpx", b"<gpx/>"),
+            ),
+            patch.object(archive, "write_bytes", side_effect=OSError("no space left")),
+            pytest.raises(OSError, match="no space left"),
+        ):
+            export_service._write_activity_files(ctx, [_A])
 
 
 class TestActivityMedia:
@@ -477,3 +519,22 @@ class TestActivityMedia:
         export_service._write_activity_media(ctx, [_A])
 
         assert ctx.counts["media"] == 0
+
+    def test_a_media_write_failure_propagates(self) -> None:
+        storage = MagicMock()
+        storage.list_keys.return_value = [f"{_A}_image.jpg"]
+        storage.get.return_value = b"image-bytes"
+        ctx, archive = _ctx(storage=storage)
+        ctx.counts["media"] = 0
+        with (
+            patch.object(archive, "write_bytes", side_effect=OSError("no space left")),
+            pytest.raises(OSError, match="no space left"),
+        ):
+            export_service._write_activity_media(ctx, [_A])
+
+    def test_an_unexpected_listing_error_propagates(self) -> None:
+        storage = MagicMock()
+        storage.list_keys.side_effect = RuntimeError("bug")
+        ctx, _ = _ctx(storage=storage)
+        with pytest.raises(RuntimeError, match="bug"):
+            export_service._write_activity_media(ctx, [_A])

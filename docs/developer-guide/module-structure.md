@@ -774,16 +774,17 @@ code it describes changes.
   design (a claim and response held through the platform `StateProvider` with a TTL, replay and conflict rules),
   and no client sends one yet, so it waits for one. A create sends `Location` (`core.location.set_location`) when
   its resource has a GET-by-id route (`test_a_create_sends_location_and_etag`).
-- **Broad exception handling.** The 94 `except Exception` and `BaseException` handlers outside the migrations
-  sit in `core` and `main.py` (25), `activities` (21, mostly ingestion), `users` (17, mostly the profile export
-  and import), `auth` (17, mostly the identity providers), the provider services of `strava` (10) and `garmin`
+- **Broad exception handling.** The 87 `except Exception` and `BaseException` handlers outside the migrations
+  sit in `core` and `main.py` (25), `activities` (18, mostly ingestion), `users` (13, mostly the profile
+  import), `auth` (17, mostly the identity providers), the provider services of `strava` (10) and `garmin`
   (2) and `gears` (2); `followers`, `health`, `jobs`, `notifications`, `server_settings`, `sync` and `websocket` have none. The
   migrations hold 18 more. Many are deliberate boundaries (a job records a failure and re-raises, a
   provider call degrades to a warning), but each should name the errors it expects. Narrowing them in bulk
   risks hiding a real failure as an expected one, so they are narrowed as the code around them is touched.
-  The ones that swallow the error (no `raise` in the handler) are counted per file in
-  `tests/architecture/test_broad_except.py`, which fails on a new one and on a count that is not lowered when
-  a handler is narrowed; ruff's `BLE001` is not used because it accepts a handler that logs with `exc_info`.
+  The 14 that swallow the error (no `raise` in the handler) are counted per file in
+  `tests/architecture/test_broad_except.py`, each a boundary that must outlive any failure and commented as
+  such; the test fails on a new one and on a count that is not lowered when a handler is narrowed. Ruff's
+  `BLE001` is not used because it accepts a handler that logs with `exc_info`.
 
 ### Accepted limitations
 
