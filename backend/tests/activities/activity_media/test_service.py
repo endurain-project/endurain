@@ -5,13 +5,17 @@ import uuid
 from unittest.mock import MagicMock, patch
 
 import jasil.providers as platform_providers
+import jasil.runtime as platform_runtime
 import pytest
 from fastapi import UploadFile
+from tests._factories.activities import make_activity, make_activity_media
+from tests._factories.users import make_user
 from tests._helpers import images
 
 import core.exceptions as core_exceptions
 import core.file_uploads as core_file_uploads
 import core.hashing as core_hashing
+import modules.activities.activity_media.models as activity_media_models
 
 ACT = uuid.UUID("00000000-0000-4000-8000-000000000001")
 ACT42 = uuid.UUID("00000000-0000-4000-8000-000000000042")
@@ -425,35 +429,27 @@ class TestDeleteActivityMedia:
         mock_activities_service.touch_activity.assert_called_once_with(ACT, db)
         storage.delete.assert_called_once_with("activity_media", f"{ACT}_abc.jpg")
 
-    @patch(f"{_SVC}.activity_media_crud")
-    def test_missing_media_is_404(self, mock_media_crud):
+    def test_missing_media_on_the_owners_activity_is_404(self, db):
         from modules.activities.activity_media.service import delete_activity_media
 
-        mock_media_crud.get_activity_media_by_id.return_value = None
+        user = make_user(db)
+        activity = make_activity(db, user.id)
 
-        with pytest.raises(core_exceptions.NotFoundError) as exc:
-            storage = MagicMock()
-            delete_activity_media(ACT, M5, 2, storage, MagicMock())
-        assert exc.value.status_code == 404
+        with pytest.raises(core_exceptions.NotFoundError, match="Activity media not found"):
+            delete_activity_media(activity.id, M5, user.id, platform_runtime.get_active_platform().storage, db)
 
-    @patch(f"{_SVC}.activity_media_crud")
-    def test_media_belonging_to_another_activity_is_404(self, mock_media_crud):
-        """The media id must match the activity in the route path.
-
-        Now that the route is ``/activities/{activity_id}/media/{media_id}``, a
-        media id reached through an unrelated activity's URL must not resolve —
-        otherwise the path would claim a relationship the handler never checked.
-        """
+    def test_media_reached_through_another_of_the_owners_activities_is_404_and_stays(self, db):
+        """The media id must match the activity in the route path, even when the caller owns both activities."""
         from modules.activities.activity_media.service import delete_activity_media
 
-        mock_media_crud.get_activity_media_by_id.return_value = MagicMock(activity_id=OTHER, media_path="/media/x.jpg")
+        user = make_user(db)
+        activity, other = make_activity(db, user.id), make_activity(db, user.id)
+        media = make_activity_media(db, other, f"{other.id}_x.jpg")
 
-        with pytest.raises(core_exceptions.NotFoundError) as exc:
-            storage = MagicMock()
-            delete_activity_media(ACT, M5, 2, storage, MagicMock())
+        with pytest.raises(core_exceptions.NotFoundError, match="Activity media not found"):
+            delete_activity_media(activity.id, media.id, user.id, platform_runtime.get_active_platform().storage, db)
 
-        assert exc.value.status_code == 404
-        mock_media_crud.delete_activity_media.assert_not_called()
+        assert db.get(activity_media_models.ActivityMedia, media.id) is not None
 
     @patch(f"{_SVC}.activity_media_crud")
     @patch(f"{_SVC}.activity_integration")

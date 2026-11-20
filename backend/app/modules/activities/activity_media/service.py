@@ -500,14 +500,15 @@ def delete_activity_media(
         db: Database session.
 
     Raises:
-        NotFoundError: When the media does not exist, does not belong to
-            ``activity_id``, or its activity is not the user's.
+        NotFoundError: When ``activity_id`` is not the user's, or the media does
+            not exist or does not belong to it. Ownership is checked first, so
+            another user gets the same answer whether or not the media exists.
     """
+    _require_owned_activity(activity_id, requester_user_id, db)
+
     media = activity_media_crud.get_activity_media_by_id(media_id, db)
     if media is None or media.activity_id != activity_id:
         raise core_exceptions.NotFoundError("Activity media not found")
-
-    _require_owned_activity(media.activity_id, requester_user_id, db)
 
     activity_media_crud.delete_activity_media(media_id, db)
     activity_integration.touch_activity(activity_id, db)
