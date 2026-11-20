@@ -168,6 +168,29 @@ class TestSuccessWritesOneRowWithTheChange:
         assert (row.actor_id, row.target_id) == (str(user.id), str(user.id))
         assert row.details == {"other_sessions_revoked": True}
 
+    def test_ending_the_other_sessions_when_there_are_none_records_no_session_revoke(self, committed_sessions, sign_in):
+        """``audit-trail.md``: stage nothing when nothing changed."""
+        user = _user(committed_sessions)
+
+        response = sign_in(user).client.post(
+            f"{_API}/profile/username/change", json={"username": "renamed-user", **_STEP_UP}
+        )
+
+        assert response.status_code == 200, response.text
+        assert _rows(committed_sessions, "auth.session.revoke") == []
+
+    def test_ending_another_session_records_one_session_revoke_with_its_count(self, committed_sessions, sign_in):
+        user = _user(committed_sessions)
+        signed_in = sign_in(user)
+        sign_in(user)
+
+        response = signed_in.client.post(
+            f"{_API}/profile/username/change", json={"username": "renamed-user", **_STEP_UP}
+        )
+
+        assert response.status_code == 200, response.text
+        assert _only(committed_sessions, "auth.session.revoke").details == {"sessions_revoked": 1}
+
     def test_a_password_change_is_audited_with_the_count_of_sessions_it_ended(self, committed_sessions, sign_in):
         user = _user(committed_sessions)
         signed_in = sign_in(user)
@@ -644,7 +667,6 @@ _NAME_FIELDS = {
     "missing_scopes": "scope names from the scope catalogue",
     "access_type": "the access tier, a fixed vocabulary",
     "credential_type": "how the caller authenticated, a fixed vocabulary",
-    "reason": "a refusal slug the code defines (the sign-up confirmation types it as str, not an enum)",
 }
 #: Field names that would carry a person's or a secret's value.
 _VALUE_NAMES = {
