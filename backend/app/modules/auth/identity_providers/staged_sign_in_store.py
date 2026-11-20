@@ -85,7 +85,7 @@ class StagedSignInStore:
             return idp_contracts.StagedSignIn.model_validate_json(
                 core_cryptography.decrypt_token_fernet(stored.decode())
             )
-        except (core_exceptions.CryptographyError, ValidationError):
+        except core_exceptions.CryptographyError, ValidationError:
             logger.warning("A staged SSO sign-in could not be read")
             return None
 

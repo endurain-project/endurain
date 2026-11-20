@@ -123,7 +123,7 @@ class UserGoalBase(BaseModel):
     )
 
     @model_validator(mode="after")
-    def ensure_correct_goal_field(self) -> "UserGoalBase":
+    def ensure_correct_goal_field(self) -> UserGoalBase:
         """Validate exactly one goal field matches goal_type.
 
         Returns:

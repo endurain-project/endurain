@@ -21,24 +21,9 @@ import modules.server_settings.constants as server_settings_constants
 import modules.server_settings.crud as server_settings_crud
 import modules.server_settings.email_messages as server_settings_email_messages
 import modules.server_settings.schema as server_settings_schema
-import modules.server_settings.service as server_settings_service
 import modules.users.users.integration_service as users_integration
 
 logger = core_logger.get_logger(__name__)
-
-
-def mail_env_managed() -> dict[str, str]:
-    """Return the mail fields an environment variable currently sets.
-
-    The mail block is imported as a whole when ``SMTP_HOST`` is set, so then every
-    mail field is env-managed; otherwise none is.
-
-    Returns:
-        Field name to environment variable name.
-    """
-    if not server_settings_service.env_var_is_set(server_settings_constants.MAIL_ENV_VARS["host"]):
-        return {}
-    return dict(server_settings_constants.MAIL_ENV_VARS)
 
 
 def read_mail_settings(db: Session, *, for_update: bool = False) -> server_settings_schema.MailSettingsRead:
@@ -84,7 +69,6 @@ def _to_mail_admin_read(
     return server_settings_schema.MailSettingsAdminRead(
         **mail_settings.model_dump(exclude={"password"}),
         password_set=bool(mail_settings.password),
-        env_managed=mail_env_managed(),
         email_status=email_status,
     )
 
@@ -226,7 +210,6 @@ def edit_mail_settings(
     Raises:
         StepUpFailedError: If the step-up does not verify.
         InvalidInputError: If the resulting configuration is not usable.
-        ConflictError: If a changed field is set by an environment variable.
         PreconditionFailedError: If the mail settings changed since the client read them.
         ServiceUnavailableError: If the settings row does not exist.
     """
@@ -270,9 +253,6 @@ def edit_mail_settings(
         db.rollback()
         return _to_mail_admin_read(current)
 
-    server_settings_change_utils.refuse_env_managed(
-        changed_fields, mail_env_managed(), server_settings_constants.MAIL_ENV_VARS
-    )
     if not keeps_password:
         # An unchanged password keeps its stored token instead of being re-encrypted.
         stored_password = (

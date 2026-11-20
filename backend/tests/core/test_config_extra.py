@@ -65,13 +65,6 @@ class TestSettings:
         s = Settings(_env_file=None, ENVIRONMENT="PRODUCTION")
         assert s.ENVIRONMENT == "production"
 
-    def test_host_names_lowercased(self):
-        from core.config import Settings
-
-        s = Settings(_env_file=None, PHOTON_API_HOST="PHOTON.EXAMPLE.COM", NOMINATIM_API_HOST="NOMINATIM.EXAMPLE.ORG")
-        assert s.PHOTON_API_HOST == "photon.example.com"
-        assert s.NOMINATIM_API_HOST == "nominatim.example.org"
-
     def test_allowed_redirect_uris_default_is_the_mobile_app_callback(self):
         s = Settings(_env_file=None)
         assert {"com.endurain.endurain:/auth/sso/callback"} == s.ALLOWED_REDIRECT_URIS
@@ -168,43 +161,6 @@ class TestSettings:
 
         s = Settings(_env_file=None, TRUSTED_PROXIES=None)
         assert s.TRUSTED_PROXIES == []
-
-    def test_smtp_secure_type_starttls(self):
-        from core.config import Settings
-
-        s = Settings(_env_file=None, SMTP_SECURE_TYPE="STARTTLS")
-        assert s.SMTP_SECURE_TYPE == "starttls"
-
-    def test_smtp_secure_type_ssl(self):
-        from core.config import Settings
-
-        s = Settings(_env_file=None, SMTP_SECURE_TYPE="SSL")
-        assert s.SMTP_SECURE_TYPE == "ssl"
-
-    def test_smtp_secure_type_none(self):
-        from core.config import Settings
-
-        s = Settings(_env_file=None, SMTP_SECURE_TYPE=None)
-        assert s.SMTP_SECURE_TYPE == "starttls"
-
-    def test_smtp_secure_type_empty(self):
-        from core.config import Settings
-
-        s = Settings(_env_file=None, SMTP_SECURE_TYPE="")
-        assert s.SMTP_SECURE_TYPE == "starttls"
-
-    def test_smtp_secure_type_invalid(self):
-        from core.config import Settings
-
-        with patch("core.config.logger"):
-            s = Settings(_env_file=None, SMTP_SECURE_TYPE="invalid_value")
-        assert s.SMTP_SECURE_TYPE == "starttls"
-
-    def test_smtp_secure_type_not_string_defaults_to_starttls(self):
-        from core.config import Settings
-
-        s = Settings(_env_file=None, SMTP_SECURE_TYPE=123)
-        assert s.SMTP_SECURE_TYPE == "starttls"
 
     def test_filesystem_defaults(self):
         from core.config import Settings
@@ -366,26 +322,6 @@ class TestSettings:
             )
         # Scheme-only sources are dropped; the exact origin survives.
         assert s.CSP_ADDITIONAL_CONNECT_SRC == ["https://auth.example.com"]
-
-    def test_reverse_geo_rate_limit_float(self):
-        from core.config import Settings
-
-        s = Settings(_env_file=None, REVERSE_GEO_RATE_LIMIT="2.5")
-        assert s.REVERSE_GEO_RATE_LIMIT == 2.5
-
-    def test_reverse_geo_rate_limit_empty(self):
-        from core.config import Settings
-
-        with patch("core.config.logger"):
-            s = Settings(_env_file=None, REVERSE_GEO_RATE_LIMIT="")
-        assert s.REVERSE_GEO_RATE_LIMIT == 1.0
-
-    def test_reverse_geo_rate_limit_invalid(self):
-        from core.config import Settings
-
-        with patch("core.config.logger"):
-            s = Settings(_env_file=None, REVERSE_GEO_RATE_LIMIT="not-a-number")
-        assert s.REVERSE_GEO_RATE_LIMIT == 1.0
 
 
 @patch.dict(os.environ, {}, clear=True)
@@ -866,7 +802,7 @@ class TestModuleLevelConstants:
     def test_api_version(self):
         from core.config import API_VERSION
 
-        assert API_VERSION == "v0.21.0-beta2"
+        assert API_VERSION == "v0.22.0-beta1"
 
     def test_license_constants(self):
         from core.config import LICENSE_IDENTIFIER, LICENSE_NAME, LICENSE_URL
@@ -898,8 +834,36 @@ class TestModuleLevelConstants:
         assert ".gpx" in SUPPORTED_FILE_FORMATS
 
 
+#: Variables whose settings moved to the admin UI and are no longer read from the environment.
+RETIRED_IN_V0_22_ADMIN_UI = frozenset(
+    {
+        "READ_NOTIFICATION_RETENTION_DAYS",
+        "ACCESS_TOKEN_EXPIRE_MINUTES",
+        "REFRESH_TOKEN_EXPIRE_DAYS",
+        "SESSION_IDLE_TIMEOUT_ENABLED",
+        "SESSION_IDLE_TIMEOUT_HOURS",
+        "SESSION_ABSOLUTE_TIMEOUT_HOURS",
+        "REVERSE_GEO_PROVIDER",
+        "PHOTON_API_HOST",
+        "NOMINATIM_API_HOST",
+        "PHOTON_API_USE_HTTPS",
+        "NOMINATIM_API_USE_HTTPS",
+        "GEOCODES_MAPS_API",
+        "REVERSE_GEO_RATE_LIMIT",
+        "SMTP_HOST",
+        "SMTP_PORT",
+        "SMTP_USERNAME",
+        "SMTP_FROM",
+        "SMTP_SECURE",
+        "SMTP_SECURE_TYPE",
+        "SMTP_PASSWORD",
+        "SMTP_PASSWORD_FILE",
+    }
+)
+
+
 class TestCheckDeprecatedEnvVars:
-    """check_deprecated_env_vars: fail-fast on variables retired in v0.19.x."""
+    """check_deprecated_env_vars: fail-fast on variables retired in v0.19.x to v0.22.0."""
 
     @patch.dict(os.environ, {}, clear=True)
     def test_no_deprecated_vars_passes_silently(self):
@@ -984,6 +948,33 @@ class TestCheckDeprecatedEnvVars:
         logged = " ".join(str(call) for call in mock_log.method_calls)
         assert "ALLOWED_REDIRECT_URIS" in logged
 
+    @pytest.mark.parametrize("name", sorted(RETIRED_IN_V0_22_ADMIN_UI))
+    def test_variable_moved_to_the_admin_ui_aborts_naming_server_settings(self, name):
+        from core.config import check_deprecated_env_vars
+
+        with (
+            patch.dict(os.environ, {name: "value"}, clear=True),
+            patch("core.config.logger") as mock_log,
+            pytest.raises(OSError, match=name),
+        ):
+            check_deprecated_env_vars()
+
+        logged = " ".join(str(call) for call in mock_log.method_calls)
+        assert "Server settings" in logged
+
+    @pytest.mark.parametrize("name", ["ALGORITHM", "ALGORITHM_FILE"])
+    def test_algorithm_variable_aborts_saying_the_algorithm_is_fixed(self, name):
+        from core.config import check_deprecated_env_vars
+
+        with (
+            patch.dict(os.environ, {name: "HS256"}, clear=True),
+            patch("core.config.logger") as mock_log,
+            pytest.raises(OSError, match=name),
+        ):
+            check_deprecated_env_vars()
+
+        assert "HS256" in " ".join(str(call) for call in mock_log.method_calls)
+
     def test_mapping_contains_expected_keys(self):
         from core.config import DEPRECATED_ENV_VARS
 
@@ -994,6 +985,9 @@ class TestCheckDeprecatedEnvVars:
             "RATE_LIMIT_STORAGE_URI",
             "AUTH_SECURITY_STORAGE_URI",
             "ALLOWED_REDIRECT_SCHEMES",
+            "ALGORITHM",
+            "ALGORITHM_FILE",
+            *RETIRED_IN_V0_22_ADMIN_UI,
         }
         assert all(isinstance(hint, str) and hint for hint in DEPRECATED_ENV_VARS.values())
 
@@ -1021,45 +1015,6 @@ class TestBulkImportDirectoriesArePerUser:
         with patch("core.config.FILES_BULK_IMPORT_DIR", "/data/bulk_import"):
             directory = core_config.bulk_import_dir_for(uuid.uuid4())
         assert directory.count("/") == "/data/bulk_import".count("/") + 1
-
-
-class TestSessionPolicySettings:
-    """The deprecated session and token variables keep the bounds the database enforces."""
-
-    def test_defaults_are_the_documented_ones(self):
-        s = Settings(_env_file=None)
-        assert (s.ACCESS_TOKEN_EXPIRE_MINUTES, s.REFRESH_TOKEN_EXPIRE_DAYS) == (15, 7)
-        assert (s.SESSION_IDLE_TIMEOUT_ENABLED, s.SESSION_IDLE_TIMEOUT_HOURS, s.SESSION_ABSOLUTE_TIMEOUT_HOURS) == (
-            False,
-            1,
-            24,
-        )
-
-    @pytest.mark.parametrize(
-        ("name", "value"),
-        [
-            ("ACCESS_TOKEN_EXPIRE_MINUTES", 0),
-            ("ACCESS_TOKEN_EXPIRE_MINUTES", 1441),
-            ("REFRESH_TOKEN_EXPIRE_DAYS", 0),
-            ("REFRESH_TOKEN_EXPIRE_DAYS", 366),
-            ("READ_NOTIFICATION_RETENTION_DAYS", -1),
-            ("READ_NOTIFICATION_RETENTION_DAYS", 3651),
-            ("SESSION_IDLE_TIMEOUT_HOURS", 0),
-            ("SESSION_IDLE_TIMEOUT_HOURS", 8761),
-            ("SESSION_ABSOLUTE_TIMEOUT_HOURS", 0),
-            ("SESSION_ABSOLUTE_TIMEOUT_HOURS", 8761),
-        ],
-    )
-    def test_out_of_range_values_fail_settings_construction(self, name, value):
-        with pytest.raises(ValidationError):
-            Settings(_env_file=None, **{name: value})
-
-    def test_values_are_read_from_the_environment(self):
-        with patch.dict(os.environ, {"ACCESS_TOKEN_EXPIRE_MINUTES": "30", "SESSION_IDLE_TIMEOUT_ENABLED": "true"}):
-            s = Settings(_env_file=None)
-        assert s.ACCESS_TOKEN_EXPIRE_MINUTES == 30
-        assert s.SESSION_IDLE_TIMEOUT_ENABLED is True
-        assert {"ACCESS_TOKEN_EXPIRE_MINUTES", "SESSION_IDLE_TIMEOUT_ENABLED"} <= s.model_fields_set
 
 
 class TestEnvironmentValidation:

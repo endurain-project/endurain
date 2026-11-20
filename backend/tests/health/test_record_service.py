@@ -143,15 +143,17 @@ class TestRestoreArchivedRecords:
     def test_a_value_the_server_derives_is_dropped_from_an_archived_row(self):
         stage = MagicMock(return_value=True)
         row = {"fast_start_time": "2024-01-15T20:00:00Z", "actual_duration_seconds": 57600, "status": "completed"}
-        restore = lambda derived: health_record_service.restore_archived_records(  # noqa: E731
-            [row],
-            health_fasting_schema.HealthFastingCreate,
-            stage,
-            1,
-            MagicMock(),
-            kind="health_fasting",
-            server_derived=derived,
-        )
+
+        def restore(derived: frozenset[str]) -> int:
+            return health_record_service.restore_archived_records(
+                [row],
+                health_fasting_schema.HealthFastingCreate,
+                stage,
+                1,
+                MagicMock(),
+                kind="health_fasting",
+                server_derived=derived,
+            )
 
         assert restore(frozenset()) == 0
         assert restore(frozenset({"actual_duration_seconds"})) == 1

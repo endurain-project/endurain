@@ -8,7 +8,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 from jasil.backends.state_memory import MemoryState
 from jasil.providers import StateBackendUnavailableError
-from pydantic import BaseModel
+from pydantic import BaseModel, ValidationError
 
 import core.attempt_state as core_attempt_state
 import core.exceptions as core_exceptions
@@ -93,6 +93,15 @@ def test_subjects_and_features_do_not_block_each_other():
     _begin(other_feature)
 
 
+def test_a_malformed_stored_state_raises_instead_of_reading_as_none():
+    state = MemoryState()
+    store = _store(state)
+    state.set(core_attempt_state.key("feature", "job:state", "1"), b'{"status":"running"}', ttl_seconds=60)
+
+    with pytest.raises(ValidationError):
+        store.read_stored("1")
+
+
 def test_read_returns_the_recorded_state_or_none():
     store = _store()
     assert store.read("1") is None
@@ -140,7 +149,6 @@ def test_a_record_without_a_job_keeps_no_state_but_still_frees_the_claim():
     store = _store(state)
     job_id = uuid.uuid4()
     state.set(core_attempt_state.key("feature", "job:claim", "1"), str(job_id).encode(), ttl_seconds=60)
-    state.set(core_attempt_state.key("feature", "job:state", "1"), b'{"step":"queued"}', ttl_seconds=60)
 
     assert store.read("1") is None
     store.record("1", job_id, _State(step="done"), finished=True)
@@ -553,9 +561,3 @@ class TestSyncStateStore:
         with pytest.raises(core_attempt_state.StateUnavailableError):
             syncs.get(MOCK_USER_ID, _Kind.GEAR)
         syncs.set_status(MOCK_USER_ID, _Kind.GEAR, Status.SUCCEEDED, job_id=uuid.uuid4())
-
-
-def test_a_sync_state_stored_before_the_job_vocabulary_reads_as_the_new_one():
-    old = core_attempt_state.SyncState.model_validate_json(b'{"status":"completed"}')
-
-    assert old.status == core_job_status.JobState.SUCCEEDED

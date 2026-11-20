@@ -331,8 +331,6 @@
     "staleError": "Aceste setări au fost modificate de altcineva cât timp le editai. Modificările tale nu au fost salvate. Reîncarcă pagina pentru a vedea valorile curente.",
     "stepUpTitle": "Confirmă-ți identitatea",
     "stepUpDescription": "Aceste modificări afectează cine se poate înregistra, autentifica sau păstra o sesiune pe acest server, cât timp este păstrat jurnalul de audit sau dacă linkurile publice arată cine le-a partajat. Confirmă că ești tu pentru a continua.",
-    "envLocked": "Setat de {name}",
-    "envSection": "Unele setări de aici sunt definite de variabile de mediu ({names}). Elimină-le din mediu pentru a edita aceste setări aici.",
     "unsaved": "Modificări nesalvate",
     "fixErrors": "Remediază erorile de mai sus pentru a salva",
     "discard": "Renunță",

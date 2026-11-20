@@ -36,6 +36,10 @@ The `action` a step-up request body names is a request value, and a release can 
 
 The status code is the stable part of a refusal. A case answered today with a general problem `type` may get a more specific `type` of its own in a later release, with the same status. Branch on the specific types you handle and fall back on the status for everything else. A `type` that exists keeps its URN and its meaning.
 
+## Idempotency keys
+
+The grammar of the `Idempotency-Key` header is stable: one quoted string of 1 to 255 printable ASCII characters. A release does not start to refuse a key that was valid, and does not accept the bare form. A route that accepts a key may be added in any release. Which routes accept one, and how long an answer is kept, are described in [Idempotency keys](idempotency.md) and may change without notice; a client does not depend on the answer of a repeat being kept longer than 24 hours.
+
 ## New ways to sign in
 
 A new way to authenticate, such as passkeys, arrives as new optional request fields or new routes. An existing field never changes meaning to carry it. It can make a sign-in answer a `next_step` your client does not know yet, which is why `next_step` is an open set.

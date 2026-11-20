@@ -129,7 +129,10 @@ def list_feed(
     "",
     status_code=status.HTTP_202_ACCEPTED,
     response_model=activity_schema.ActivitiesBulkEditStatus,
-    responses=core_location.ACCEPTED_RESPONSE,
+    responses={
+        **core_location.ACCEPTED_RESPONSE,
+        status.HTTP_400_BAD_REQUEST: {"description": "The body names no field to change."},
+    },
     dependencies=[Security(auth_dependencies.check_scopes, scopes=["activities:write"])],
 )
 @core_rate_limit.limiter.limit(core_rate_limit.WRITE)
@@ -150,22 +153,6 @@ def edit_activities(
 
     The edit can touch a whole library, so it runs as a background job: poll
     ``GET /jobs/{job_id}`` for the outcome.
-
-    Args:
-        request: The incoming request, read by the rate limiter.
-        response: The response, which names the job and when to poll it.
-        body: The fields to apply; only those present are changed.
-        token_user_id: User ID from the access token.
-        states: Shared store of the edit's state.
-        db: Database session dependency.
-
-    Returns:
-        The edit's initial status.
-
-    Raises:
-        InvalidInputError: When the body asks for no change at all. An empty
-            patch is a client bug, not a no-op worth reporting as success.
-        JobAlreadyRunningError: When a bulk edit is already pending.
     """
     if body.visibility is None:
         raise core_exceptions.InvalidInputError("No supported field to update was provided")

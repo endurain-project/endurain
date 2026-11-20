@@ -179,7 +179,7 @@ Its tracking CRUD stages changes, while the migration service owns the commit.
 `migration_service.py` exposes the operations a versioned data migration still
 needs, and nothing else. It stops a migration reaching arbitrary CRUD, parser, render
 or signing internals, and gives the migration one place to find the commit, which CRUD
-never performs. Import-linter forbids domain and core code from consuming it.
+never performs. The module-boundary tests forbid another module from consuming it.
 
 It is a boundary, **not a snapshot**: most entries alias live code, so changing a
 parser or a CRUD function changes what a historical migration does. A data migration
@@ -388,7 +388,10 @@ stating so every module is built to the same target:
   else the concrete peer `integration_service` is the contract.
 - **Still shared:** the metadata (`core.database.Base`) and the central Alembic
   history. A module will need its own migration branch before it can be
-  distributed on its own.
+  distributed on its own. That history starts at one baseline revision,
+  `versions/v0_21_0/0_baseline.py` (id `e95a7c1d4b36`), which creates the v0.21 schema from the
+  `0_baseline.sql` beside it; the startup pre-flight refuses a database at a revision the history
+  does not contain, so a new revision chains onto the head and never onto the baseline's past.
 
 ## Choosing a coupling mechanism
 
@@ -784,29 +787,29 @@ code it describes changes.
 
 - **Storage lifecycle.** The hourly thumbnail reconciliation and the daily orphan sweep each walk the whole
   thumbnail area: its keys are flat `{id}.webp`, so no prefix narrows the walk.
-- **Creates carry no `Idempotency-Key`.** None of the 19 `POST` routes that answer `201` accepts an
-  `Idempotency-Key`; only the activity file upload and the bulk archive import (both `202`) do. Most creates
-  refuse a repeated create through a unique constraint, but a retried poop record, gear component or completed
-  fasting session after a lost response is a duplicate. The upload keeps its key on the ingestion job row, with no
-  expiry, and its fingerprint and replay are specific to an uploaded file. A general key needs a stored-result
-  design (a claim and response held through the platform `StateProvider` with a TTL, replay and conflict rules),
-  and no client sends one yet, so it waits for one. A create sends `Location` (`core.location.set_location`) when
-  its resource has a GET-by-id route (`test_a_create_sends_location_and_etag`).
-- **Broad exception handling.** The 94 `except Exception` and `BaseException` handlers outside the migrations
-  sit in `core` and `main.py` (25), `activities` (21, mostly ingestion), `users` (17, mostly the profile export
-  and import), `auth` (17, mostly the identity providers), the provider services of `strava` (10) and `garmin`
+- **Broad exception handling.** The 87 `except Exception` and `BaseException` handlers outside the migrations
+  sit in `core` and `main.py` (25), `activities` (18, mostly ingestion), `users` (13, mostly the profile
+  import), `auth` (17, mostly the identity providers), the provider services of `strava` (10) and `garmin`
   (2) and `gears` (2); `followers`, `health`, `jobs`, `notifications`, `server_settings`, `sync` and `websocket` have none. The
   migrations hold 18 more. Many are deliberate boundaries (a job records a failure and re-raises, a
   provider call degrades to a warning), but each should name the errors it expects. Narrowing them in bulk
   risks hiding a real failure as an expected one, so they are narrowed as the code around them is touched.
-  The ones that swallow the error (no `raise` in the handler) are counted per file in
-  `tests/architecture/test_broad_except.py`, which fails on a new one and on a count that is not lowered when
-  a handler is narrowed; ruff's `BLE001` is not used because it accepts a handler that logs with `exc_info`.
+  The 14 that swallow the error (no `raise` in the handler) are counted per file in
+  `tests/architecture/test_broad_except.py`, each a boundary that must outlive any failure and commented as
+  such; the test fails on a new one and on a count that is not lowered when a handler is narrowed. Ruff's
+  `BLE001` is not used because it accepts a handler that logs with `exc_info`.
 
 ### Accepted limitations
 
 These constraints remain visible until a coordinated design change resolves them:
 
+- **A crash between a create's commit and its stored answer can repeat the create.** `core/idempotency.py` stores
+  the answer of a create sent with an `Idempotency-Key` in the platform `StateProvider` after the route has
+  committed. If the process stops between the two, the key holds a claim and no answer; a retry after the claim
+  expires (`CLAIM_TTL_SECONDS`, 120 seconds) runs the request again. Closing it needs the key stored in the same
+  transaction as the row, which the platform state store cannot join. A response over `MAX_STORED_BODY` is sent and
+  not stored, so a retry of it runs again; `test_the_largest_stored_response_fits_the_cap` bounds every opted-in
+  response from its schema, which is why a sleep record holds at most `MAX_SLEEP_STAGES` stages.
 - **Top-level cycles.** Five pairs import each other, and seven modules form one strongly connected set:
   `activities`, `auth`, `followers`, `gears`, `server_settings`, `users` and `websocket` (`followers`, `gears` and
   `websocket` join through longer loops: they import `auth.dependencies` or users surfaces, and `activities` or

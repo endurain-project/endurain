@@ -37,30 +37,6 @@ JOB_ROUTE = "read_job"
 TERMINAL_STATES = frozenset({JobState.SUCCEEDED, JobState.FAILED})
 
 
-def upgrade_stored_state(data: object, error_key: str | None = None) -> object:
-    """Read a job state stored before the shared vocabulary as the current one.
-
-    A state lives in the platform state provider for up to a few hours, so one written by the previous release can
-    still be there after an upgrade. ``completed`` is ``succeeded``, and the failure field the old shape called
-    ``error_key`` is ``error_code``. Any other value passes through unchanged, so the model validates it as usual.
-
-    Args:
-        data: The stored value, as the model is about to validate it.
-        error_key: The old name of the failure field, if the kind had one.
-
-    Returns:
-        The value in the current shape.
-    """
-    if not isinstance(data, dict):
-        return data
-    upgraded = dict(data)
-    if upgraded.get("status") == "completed":
-        upgraded["status"] = JobState.SUCCEEDED.value
-    if error_key is not None and error_key in upgraded:
-        upgraded.setdefault("error_code", upgraded.pop(error_key))
-    return upgraded
-
-
 class JobRef(BaseModel):
     """What a job id names: the kind of work, who may read it and where its record is kept.
 

@@ -157,8 +157,8 @@ export interface UsersListParams extends UserFilters {
 }
 
 /**
- * The full set of user fields the admin form can edit, mirroring v1's add/edit
- * modal. Merged onto {@link ManagedUser}, and only the values that differ from
+ * The full set of user fields the admin form can edit in the add/edit
+ * dialog. Merged onto {@link ManagedUser}, and only the values that differ from
  * the stored ones are sent (see `updateUser`).
  */
 export interface EditUserFields {

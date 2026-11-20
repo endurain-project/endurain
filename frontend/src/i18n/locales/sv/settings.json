@@ -331,8 +331,6 @@
     "staleError": "Någon annan ändrade de här inställningarna medan du redigerade. Dina ändringar sparades inte. Ladda om sidan för att se de aktuella värdena.",
     "stepUpTitle": "Bekräfta din identitet",
     "stepUpDescription": "Dessa ändringar påverkar vem som kan registrera sig, logga in eller behålla en session på den här servern, hur länge granskningsloggen sparas eller om publika länkar visar vem som delade dem. Bekräfta att det är du för att fortsätta.",
-    "envLocked": "Anges av {name}",
-    "envSection": "Vissa inställningar här anges av miljövariabler ({names}). Ta bort dem från miljön för att redigera de inställningarna här.",
     "unsaved": "Osparade ändringar",
     "fixErrors": "Åtgärda felen ovan för att spara",
     "discard": "Förkasta",

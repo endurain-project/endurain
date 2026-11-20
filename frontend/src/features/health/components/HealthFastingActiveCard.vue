@@ -58,7 +58,7 @@ const progressPct = computed(() => {
   return Math.min(100, Math.round((elapsedSeconds.value / target) * 100))
 })
 
-// Completing is gated on reaching the target (matching v1); with no target set
+// Completing is gated on reaching the target; with no target set
 // it is always allowed so the fast can never get stuck.
 const canComplete = computed(
   () => !props.completing && (!hasTarget.value || progressPct.value >= 100),

@@ -304,8 +304,8 @@ def accept_archive(
     Raises:
         InvalidInputError: For an unknown source, a non-ZIP name or an archive
             with nothing importable.
-        ConflictError: When the user already has an import running, or the key was already used for a
-            different archive.
+        IdempotencyKeyReusedError: When the key was already used for a different archive.
+        ConflictError: When the user already has an import running.
         DomainError: When the shared upload validators or the archive caps reject it.
         PoolFullError: On the local profile, when the in-process pool is full.
     """

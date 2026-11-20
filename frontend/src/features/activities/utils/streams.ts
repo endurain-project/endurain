@@ -98,7 +98,7 @@ export const METRIC_PRIVACY_FIELD: Record<StreamMetric, keyof ActivityPrivacy | 
 }
 
 /**
- * Whether a metric is relevant to show for an activity type, mirroring v1's
+ * Whether a metric is relevant to show for an activity type, following the
  * pace-vs-speed split: pace for foot/water sports, speed for cycling and other
  * speed sports, and no elevation for swimming. HR, power, cadence and
  * temperature are always relevant when present.
@@ -122,7 +122,7 @@ export function isMetricRelevantForType(metric: StreamMetric, activityType: Acti
 
 /**
  * Pace outlier threshold (in seconds for the display unit). Values slower than
- * this are dropped as GPS noise, mirroring v1.
+ * this are dropped as GPS noise.
  *
  * @param activityType - Numeric activity type.
  * @param units - The user's unit system.
@@ -298,8 +298,7 @@ function statPresent(value: number | null | undefined): value is number {
 
 /**
  * Builds the summary stats shown beneath a metric's chart, drawn from the
- * activity's aggregate fields (avg/max for the metric), mirroring v1's per-chart
- * stat rows.
+ * activity's aggregate fields (avg/max for the metric).
  *
  * @param metric - The chart metric.
  * @param activity - The activity domain model.

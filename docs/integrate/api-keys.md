@@ -63,7 +63,7 @@ If both the `X-API-Key` header and the `?api_key=` query parameter are present, 
 
 Every authenticated endpoint accepts an API key in place of a bearer token, and a key reaches the ones whose scopes it holds. Each operation in the [API reference](api-reference.md) names its scopes under both its `HTTPBearer` and `ApiKey` requirements. A missing scope is `403` with `WWW-Authenticate: Bearer error="insufficient_scope"`, as for a token. A request that sends both a bearer token and a key is authenticated by the token.
 
-A key needs no `X-Client-Type`. A write to a versioned resource still sends `If-Match`, and an upload may carry an `Idempotency-Key` header so a retry does not import the file twice, and so may the [bulk import](background-operations.md#bulk-import).
+A key needs no `X-Client-Type`. A write to a versioned resource still sends `If-Match`, and a create may carry an [`Idempotency-Key`](idempotency.md) header so a retry does not create the record twice. The upload and the [bulk import](background-operations.md#bulk-import) take one too. A session and an API key of one user share their keys.
 
 A few endpoints act for a signed-in session and refuse a key with `403` whatever its scopes. Nearly all of them already need a scope a key never holds. The one a key's scopes would reach is the WebSocket ticket (`POST /ws/ticket`), which is bound to the session that asked for it, so a key cannot open the [realtime](realtime.md) connection.
 

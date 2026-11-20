@@ -1,7 +1,6 @@
 /**
- * Client-side sub-type filters for the search view. Mirrors the v1 search page's
- * activity-category and gear-type dropdowns, but built on v2's shared,
- * unit-tested `activityType` predicates so the groupings stay in lock-step with
+ * Client-side sub-type filters for the search view: the activity-category and
+ * gear-type dropdowns, built on the shared, unit-tested `activityType` predicates so the groupings stay in lock-step with
  * the rest of the app. Kept as pure functions (no Vue, no i18n) so they are
  * trivial to test and reuse.
  */

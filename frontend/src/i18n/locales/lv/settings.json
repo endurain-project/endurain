@@ -331,8 +331,6 @@
     "staleError": "Šos iestatījumus rediģēšanas laikā mainīja kāds cits. Jūsu izmaiņas netika saglabātas. Pārlādējiet lapu, lai redzētu pašreizējās vērtības.",
     "stepUpTitle": "Apstipriniet savu identitāti",
     "stepUpDescription": "Šīs izmaiņas ietekmē to, kas var reģistrēties, pieteikties vai uzturēt sesiju šajā serverī, cik ilgi tiek glabāts audita žurnāls un vai publiskās saites parāda, kas tās kopīgoja. Apstipriniet, ka tas esat Jūs, lai turpinātu.",
-    "envLocked": "Iestatīts ar {name}",
-    "envSection": "Dažus šeit redzamos iestatījumus nosaka vides mainīgie ({names}). Noņemiet tos no vides, lai šos iestatījumus varētu labot šeit.",
     "unsaved": "Nesaglabātas izmaiņas",
     "fixErrors": "Lai saglabātu, labojiet iepriekš norādītās kļūdas",
     "discard": "Atmest",

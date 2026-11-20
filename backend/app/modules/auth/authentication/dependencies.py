@@ -16,6 +16,7 @@ import core.config as core_config
 import core.exceptions as core_exceptions
 import core.logger as core_logger
 import modules.auth.access_tokens.integration_service as access_tokens_integration
+import modules.auth.authentication.pending_password_change_store as pending_password_change_store
 import modules.auth.authentication.principal_service as principal_service
 import modules.auth.authentication.schema as auth_schema
 import modules.auth.computation as auth_computation
@@ -30,6 +31,11 @@ REFRESH_TOKEN_COOKIE_NAME = auth_computation.host_cookie_name(
 )
 #: The ``__Host-`` prefix requires ``Path=/``; the cookie is set without a ``Domain`` attribute.
 REFRESH_TOKEN_COOKIE_PATH = "/"
+
+PendingPasswordChangeStoreDep = Annotated[
+    pending_password_change_store.PendingPasswordChangeStore,
+    Depends(pending_password_change_store.get_pending_password_change_store),
+]
 
 
 def get_client_type(

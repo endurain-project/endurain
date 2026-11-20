@@ -54,6 +54,9 @@ def _request(query: dict[str, str] | None = None) -> MagicMock:
     request = MagicMock()
     request.state = SimpleNamespace()
     request.query_params = query or {}
+    request.url.path = "/api/v1/x"
+    request.client.host = "203.0.113.9"
+    request.headers = {}
     return request
 
 
@@ -92,7 +95,7 @@ class TestGetPrincipal:
 
         assert result.user_id == THIRD
         assert result.is_api_key()
-        mock_resolve.assert_called_once_with("sk-123", request, db)
+        mock_resolve.assert_called_once_with("sk-123", "/api/v1/x", "203.0.113.9", db)
 
     def test_the_api_key_query_string_is_ignored_when_disabled(self):
         mock_settings = MagicMock()
@@ -116,7 +119,7 @@ class TestGetPrincipal:
         with patch("modules.auth.dependencies.core_config.settings", mock_settings):
             result = get_principal(request, db, None, None, MagicMock())
         assert result.user_id == FOURTH
-        mock_resolve.assert_called_once_with("qk-456", request, db)
+        mock_resolve.assert_called_once_with("qk-456", "/api/v1/x", "203.0.113.9", db)
 
     def test_no_credentials_raises_401(self):
         with pytest.raises(core_exceptions.UnauthenticatedError) as exc_info:

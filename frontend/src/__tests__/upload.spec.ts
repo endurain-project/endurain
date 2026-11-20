@@ -174,6 +174,8 @@ describe('uploadActivityFile', () => {
     // never forced onto a FormData body.
     const headers = init.headers as Headers
     expect(headers.get('Content-Type')).toBeNull()
+    // The key is one quoted string (an RFC 9651 Structured Field String), so a repeat is answered with this job.
+    expect(headers.get('Idempotency-Key')).toMatch(/^"[0-9a-f-]{36}"$/)
 
     // A handle to poll, not the parsed activities: parsing happens on a worker.
     expect(result.id).toBe('00000000-0000-4000-8000-0000000000a1')

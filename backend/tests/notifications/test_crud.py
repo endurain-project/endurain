@@ -3,6 +3,7 @@ from datetime import datetime
 from unittest.mock import MagicMock, patch
 
 import pytest
+from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 
 import core.exceptions as core_exceptions
@@ -361,7 +362,7 @@ class TestDeleteNotificationsNamingUser:
         db.commit()
 
         assert deleted == 3
-        remaining = {n.id for n in db.query(m.Notification).all()}
+        remaining = {n.id for n in db.scalars(select(m.Notification)).all()}
         assert remaining == {_nid(n) for n in (4, 5, 6, 7)}
 
 
@@ -392,7 +393,7 @@ class TestDeleteAndMarkSeveral:
         crud.mark_notifications_as_read([_nid(1), _nid(4), _nid(99)], user_id=_ID_1, db=db)
         db.commit()
 
-        read = {n.id for n in db.query(m.Notification).filter_by(read=True)}
+        read = {n.id for n in db.scalars(select(m.Notification).filter_by(read=True))}
         assert read == {_nid(1)}
 
     def test_delete_removes_only_the_users_notification(self, db):
@@ -404,4 +405,4 @@ class TestDeleteAndMarkSeveral:
         assert crud.delete_user_notification(_nid(99), user_id=_ID_1, db=db) is False
         db.commit()
 
-        assert {n.id for n in db.query(m.Notification)} == {_nid(1), _nid(3), _nid(4)}
+        assert {n.id for n in db.scalars(select(m.Notification))} == {_nid(1), _nid(3), _nid(4)}

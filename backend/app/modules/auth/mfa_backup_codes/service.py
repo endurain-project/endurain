@@ -1,7 +1,5 @@
 """Utility helpers for MFA backup codes."""
 
-from __future__ import annotations
-
 import secrets
 import uuid
 

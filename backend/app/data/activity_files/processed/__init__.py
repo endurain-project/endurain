@@ -1,0 +1,1 @@
+"""Activity files already processed."""

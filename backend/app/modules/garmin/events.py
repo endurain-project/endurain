@@ -37,7 +37,7 @@ class SyncRequestedPayload(VersionedPayload):
     end_date: date | None = None
 
     @model_validator(mode="after")
-    def _health_needs_a_range(self) -> "SyncRequestedPayload":
+    def _health_needs_a_range(self) -> SyncRequestedPayload:
         """Require the date range a health sync reads.
 
         Returns:

@@ -216,6 +216,7 @@ describe('users service requests', () => {
 
     expect(apiFetch).toHaveBeenCalledWith('/users', {
       method: 'POST',
+      idempotent: true,
       body: JSON.stringify({
         name: 'New User',
         username: 'new',

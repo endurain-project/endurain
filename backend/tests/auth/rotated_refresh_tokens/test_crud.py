@@ -6,6 +6,7 @@ from types import SimpleNamespace
 from unittest.mock import patch
 
 import pytest
+from sqlalchemy import select, update
 
 import core.exceptions as core_exceptions
 import modules.auth.rotated_refresh_tokens.crud as rotated_token_crud
@@ -118,7 +119,7 @@ def test_a_replacement_is_cleared_once_the_grace_window_has_passed_and_the_recor
     _stage(db, "a" * 64, rotated_at=now - timedelta(minutes=1), refresh_token_exp=now + timedelta(days=1))
     _stage(db, "b" * 64, rotated_at=now, refresh_token_exp=now + timedelta(days=1))
     for digest, expires_at in (("a" * 64, now - timedelta(seconds=1)), ("b" * 64, now + timedelta(seconds=5))):
-        row = db.query(rotated_token_models.RotatedRefreshToken).filter_by(hashed_token=digest).one()
+        row = db.scalars(select(rotated_token_models.RotatedRefreshToken).filter_by(hashed_token=digest)).one()
         row.expires_at = expires_at
     db.flush()
 
@@ -141,7 +142,7 @@ def test_clearing_replacements_is_bounded_by_the_limit():
     now = datetime.now(UTC)
     for digest in ("a" * 64, "b" * 64, "c" * 64):
         _stage(db, digest, rotated_at=now - timedelta(minutes=1), refresh_token_exp=now + timedelta(days=1))
-    db.query(rotated_token_models.RotatedRefreshToken).update({"expires_at": now - timedelta(seconds=1)})
+    db.execute(update(rotated_token_models.RotatedRefreshToken).values({"expires_at": now - timedelta(seconds=1)}))
     db.flush()
 
     assert rotated_token_crud.clear_expired_replacements(now, 2, db) == 2
@@ -154,7 +155,7 @@ def test_reencryption_skips_a_cleared_replacement():
     db = create_sqlite_session()
     now = datetime.now(UTC)
     _stage(db, "a" * 64, rotated_at=now - timedelta(minutes=1), refresh_token_exp=now + timedelta(days=1))
-    db.query(rotated_token_models.RotatedRefreshToken).update({"expires_at": now - timedelta(seconds=1)})
+    db.execute(update(rotated_token_models.RotatedRefreshToken).values({"expires_at": now - timedelta(seconds=1)}))
     rotated_token_crud.clear_expired_replacements(now, 100, db)
 
     result = rotated_token_crud.stage_reencrypt_batch_tokens(None, 100, db)

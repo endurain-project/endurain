@@ -54,11 +54,11 @@ Authentication and authorization failures use the same shape. Typical causes:
 
 | Status | Common causes |
 | ------ | ------------- |
-| `400` | A request the server refuses (missing or malformed fields are `422`), a wrong MFA or backup code (problem type `urn:endurain:error:invalid-mfa-code`, on a live sign-in challenge and `POST /profile/mfa/enable`) |
+| `400` | A request the server refuses (missing or malformed fields are `422`), a malformed `Idempotency-Key` (`urn:endurain:error:idempotency-key-invalid`), a wrong MFA or backup code (problem type `urn:endurain:error:invalid-mfa-code`, on a live sign-in challenge and `POST /profile/mfa/enable`) |
 | `401` | Invalid credentials (a password sign-in also answers this when a security change on the account such as a password reset commits while its password is being checked), an unknown, expired, used or mismatched sign-in challenge, or one started before a security change on the account such as a password, MFA or email change or a sign-out everywhere (an `mfa_challenge` also ends after 3 wrong codes, is accepted only from the client network and client type of the step that answered it, and ends when the SSO session it finishes expired or was used; a `password_change_challenge` is accepted only for its client type), expired or invalid token |
 | `403` | Insufficient permissions, missing required scope, a web request to `/auth/refresh` or `/auth/logout` from an origin the server does not allow |
 | `404` | Unknown session ID, user not found |
-| `409` | A conflict with the current state: an MFA operation that does not fit the account's MFA state (already enabled, not enabled, no setup in progress), a user approval while the user's email is not verified, a username already taken, an activity upload while the user already has 10 uploads open |
+| `409` | A conflict with the current state: an MFA operation that does not fit the account's MFA state (already enabled, not enabled, no setup in progress), a user approval while the user's email is not verified, a username already taken, an activity upload while the user already has 10 uploads open, a create whose `Idempotency-Key` belongs to a request that is still running (`urn:endurain:error:idempotency-key-in-flight`, with `Retry-After`) |
 | `429` | Too many login or OAuth attempts, or too many failed [step-ups](account-security.md#step-up-lockout-policy): per session (the 15th failure also ends the session) and across the account (100 failures lock step-up for 30 days) |
 
 The `/auth/login` form takes a `username` (not an email address) and a `password` of at most 256 characters each; a longer one, like a NUL character, is `422` (`urn:endurain:error:validation-failed`). Every request that carries a password, new or current (including a step-up `current_password`), takes at most 256 characters.
@@ -139,6 +139,10 @@ Creating and the action endpoints (approve a user, change a password, link an ac
 
 !!! note
     A change made by the server itself also moves the version. For example, approving a user, a Garmin Connect sync that updates a day, or adding a water intake all change a record, so a form you opened before that gets a `412` on save. That is the intended behaviour: it tells you the record is not what you were looking at.
+
+## Repeating a create with `Idempotency-Key`
+
+Send an `Idempotency-Key` header with a create, and a repeat of the request after a lost answer returns the first answer instead of creating the record twice. A key used for another request is `422` with `urn:endurain:error:idempotency-key-reused`; a repeat while the first request runs is `409` with `urn:endurain:error:idempotency-key-in-flight` and `Retry-After`. The routes, the lifetimes and the limits are on [Idempotency keys](idempotency.md).
 
 ## Caching and correlation
 

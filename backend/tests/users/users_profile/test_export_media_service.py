@@ -5,6 +5,9 @@ import uuid
 import zipfile
 from unittest.mock import MagicMock
 
+import pytest
+from jasil.providers import StorageBackendUnavailableError
+
 import modules.users.users_profile.export_media_service as export_media_service
 import modules.users.users_profile.utils as profile_utils
 
@@ -66,7 +69,7 @@ class TestUserImages:
         buf = io.BytesIO()
         counts = _counts()
         storage = MagicMock()
-        storage.list_keys.side_effect = OSError("perms")
+        storage.list_keys.side_effect = StorageBackendUnavailableError("down")
 
         with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED, compresslevel=6) as z:
             export_media_service.add_user_images_to_zip(
@@ -79,3 +82,44 @@ class TestUserImages:
         counts, _, _ = self._export(_USER_ID, [f"{_USER_ID}.jpg"], blob=None)
 
         assert counts["user_images"] == 0
+
+    def test_an_unavailable_read_skips_only_that_blob(self) -> None:
+        buf = io.BytesIO()
+        counts = _counts()
+        storage = MagicMock()
+        storage.list_keys.return_value = [f"{_USER_ID}.png", f"{_USER_ID}.jpg"]
+        storage.get.side_effect = [StorageBackendUnavailableError("down"), b"ok"]
+        config = profile_utils.BasePerformanceConfig(enable_memory_monitoring=False)
+
+        with zipfile.ZipFile(buf, "w") as z:
+            export_media_service.add_user_images_to_zip(z, _USER_ID, storage, counts, config)
+
+        assert counts["user_images"] == 1
+
+    def test_an_unexpected_read_error_propagates(self) -> None:
+        storage = MagicMock()
+        storage.list_keys.return_value = [f"{_USER_ID}.jpg"]
+        storage.get.side_effect = RuntimeError("bug")
+        config = profile_utils.BasePerformanceConfig(enable_memory_monitoring=False)
+
+        with zipfile.ZipFile(io.BytesIO(), "w") as z, pytest.raises(RuntimeError, match="bug"):
+            export_media_service.add_user_images_to_zip(z, _USER_ID, storage, _counts(), config)
+
+    def test_an_unexpected_listing_error_propagates(self) -> None:
+        storage = MagicMock()
+        storage.list_keys.side_effect = RuntimeError("bug")
+        config = profile_utils.BasePerformanceConfig(enable_memory_monitoring=False)
+
+        with zipfile.ZipFile(io.BytesIO(), "w") as z, pytest.raises(RuntimeError, match="bug"):
+            export_media_service.add_user_images_to_zip(z, _USER_ID, storage, _counts(), config)
+
+    def test_an_archive_write_failure_propagates(self) -> None:
+        storage = MagicMock()
+        storage.list_keys.return_value = [f"{_USER_ID}.jpg"]
+        storage.get.return_value = b"image"
+        zipf = MagicMock()
+        zipf.writestr.side_effect = OSError("no space left")
+        config = profile_utils.BasePerformanceConfig(enable_memory_monitoring=False)
+
+        with pytest.raises(OSError, match="no space left"):
+            export_media_service.add_user_images_to_zip(zipf, _USER_ID, storage, _counts(), config)

@@ -12,7 +12,7 @@ from datetime import date
 from decimal import Decimal
 
 import pytest
-from sqlalchemy import func, select, text
+from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
 
 import core.exceptions as core_exceptions
@@ -24,15 +24,10 @@ import modules.health.health_water.models as water_models
 import modules.health.health_water.schema as water_schema
 import modules.health.health_water.service as water_service
 import modules.health.health_weight.models as weight_models
-from tests._helpers import alembic_chain
 from tests._helpers.db import ensure_user
 
 _THREADS = 6
 _DAY = date(2026, 10, 1)
-
-_MIGRATION_FILE = "2_constraints_versions_and_settings.py"
-_MIGRATION_STEP = "health_one_record_per_day"
-_REVISION_BEFORE = "c5cfe02a11c2"
 
 
 _USER_ID = uuid.UUID("11111111-1111-4111-8111-111111111111")
@@ -132,27 +127,3 @@ def test_the_database_refuses_a_second_record_for_a_day(factory, model, values):
         db.add(model(user_id=_USER_ID, date=_DAY, **values))
         with pytest.raises(IntegrityError):
             db.commit()
-
-
-def test_the_migration_merges_duplicates_before_enforcing_the_constraints(upgrade_db):
-    alembic_chain.upgrade(upgrade_db, _REVISION_BEFORE)
-    alembic_chain.run_steps_before(upgrade_db, _MIGRATION_FILE, _MIGRATION_STEP)
-    with upgrade_db.begin() as connection:
-        alembic_chain.seed_users(connection)
-        for steps in (100, 200, 300):
-            connection.execute(
-                text("INSERT INTO health_steps (user_id, date, steps) VALUES (1, :d, :s)"), {"d": _DAY, "s": steps}
-            )
-        connection.execute(text("INSERT INTO health_steps (user_id, date, steps) VALUES (2, :d, 50)"), {"d": _DAY})
-        for ml in (100, 250):
-            connection.execute(
-                text("INSERT INTO health_water (user_id, date, amount_ml) VALUES (1, :d, :ml)"), {"d": _DAY, "ml": ml}
-            )
-
-    alembic_chain.run_step(upgrade_db, _MIGRATION_FILE, _MIGRATION_STEP)
-
-    with upgrade_db.connect() as connection:
-        steps = connection.execute(text("SELECT user_id, steps FROM health_steps ORDER BY user_id")).all()
-        water = connection.execute(text("SELECT user_id, amount_ml FROM health_water")).all()
-    assert [tuple(row) for row in steps] == [(1, 300), (2, 50)]
-    assert [(row.user_id, row.amount_ml) for row in water] == [(1, Decimal(350))]

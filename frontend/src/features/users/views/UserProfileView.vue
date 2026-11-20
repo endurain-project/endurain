@@ -77,7 +77,7 @@ function refetchUser(): void {
   void userQuery.refetch()
 }
 
-// --- Activities (week-by-week browser, v1 parity) ---
+// --- Activities (week-by-week browser) ---
 /** Number of past weeks reachable as dated buttons before the oldest bucket. */
 const TOTAL_WEEKS = 50
 /** Selected week offset: 0 = this week, 1..50 = prior weeks, 51 = one year ago. */

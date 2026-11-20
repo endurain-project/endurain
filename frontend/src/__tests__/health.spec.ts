@@ -229,6 +229,7 @@ describe('weight service requests', () => {
 
     expect(apiFetch).toHaveBeenCalledWith('/health/weight', {
       method: 'POST',
+      idempotent: true,
       body: JSON.stringify({
         date: '2026-06-25',
         weight_kg: 72.5,
@@ -374,6 +375,7 @@ describe('steps service requests', () => {
 
     expect(apiFetch).toHaveBeenCalledWith('/health/steps', {
       method: 'POST',
+      idempotent: true,
       body: JSON.stringify({ date: '2026-06-25', steps: 8500 }),
     })
   })
@@ -509,6 +511,7 @@ describe('water service requests', () => {
 
     expect(apiFetch).toHaveBeenCalledWith('/health/water', {
       method: 'POST',
+      idempotent: true,
       body: JSON.stringify({ date: '2026-06-25', amount_ml: 1500 }),
     })
   })
@@ -651,6 +654,7 @@ describe('poop service requests', () => {
 
     expect(apiFetch).toHaveBeenCalledWith('/health/poop', {
       method: 'POST',
+      idempotent: true,
       body: JSON.stringify({
         date_time: '2026-06-25T08:30:00',
         bristol_type: 'type_4',
@@ -958,6 +962,7 @@ describe('fasting service requests', () => {
 
     expect(apiFetch).toHaveBeenCalledWith('/health/fasting', {
       method: 'POST',
+      idempotent: true,
       body: JSON.stringify({
         fast_start_time: '2026-06-25T08:00:00.000Z',
         fasting_type: '16:8',
@@ -1257,6 +1262,7 @@ describe('sleep service requests', () => {
 
     expect(apiFetch).toHaveBeenCalledWith('/health/sleep', {
       method: 'POST',
+      idempotent: true,
       body: JSON.stringify({
         date: '2026-06-25',
         sleep_start_time_local: '2026-06-24T23:00',

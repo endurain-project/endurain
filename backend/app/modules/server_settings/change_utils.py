@@ -3,7 +3,7 @@
 Pure: no session, no configuration and no I/O.
 """
 
-from collections.abc import Iterable, Mapping
+from collections.abc import Mapping
 
 from pydantic import BaseModel
 
@@ -109,28 +109,3 @@ def differing[V](current: BaseModel, target: Mapping[str, V]) -> dict[str, V]:
         The fields to write.
     """
     return {field: value for field, value in target.items() if getattr(current, field) != value}
-
-
-def refuse_env_managed(
-    changed_fields: set[str], env_managed: dict[str, str], order: Iterable[str] | None = None
-) -> None:
-    """Refuse a change to a field an environment variable sets.
-
-    Args:
-        changed_fields: The fields the request changes.
-        env_managed: Field name to the environment variable that sets it.
-        order: The order to name the fields in; sorted when omitted.
-
-    Raises:
-        ConflictError: If a changed field is set by an environment variable.
-    """
-    managed_changes = [
-        field for field in (order or sorted(env_managed)) if field in changed_fields & env_managed.keys()
-    ]
-    if managed_changes:
-        raise core_exceptions.ConflictError(
-            "; ".join(
-                f"{field} is set by the {env_managed[field]} environment variable; remove it to edit this setting here"
-                for field in managed_changes
-            )
-        )

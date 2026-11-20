@@ -6,6 +6,7 @@ from types import SimpleNamespace
 from unittest.mock import patch
 
 import pytest
+from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
 
 import core.etag as core_etag
@@ -242,7 +243,7 @@ def test_create_provider_with_a_shared_issuer_raises_issuer_in_use(second):
         idp_crud.create_identity_provider(_provider("one", "https://a.example.com/"), db)
         with pytest.raises(core_exceptions.IssuerInUseError):
             idp_crud.create_identity_provider(_provider("two", second), db)
-        assert [row.slug for row in db.query(idp_models.IdentityProvider)] == ["one"]
+        assert [row.slug for row in db.scalars(select(idp_models.IdentityProvider))] == ["one"]
     finally:
         db.close()
 
@@ -264,7 +265,7 @@ def test_providers_without_an_issuer_do_not_conflict():
     try:
         idp_crud.create_identity_provider(_provider("one", None), db)
         idp_crud.create_identity_provider(_provider("two", None), db)
-        assert db.query(idp_models.IdentityProvider).count() == 2
+        assert db.scalar(select(func.count()).select_from(idp_models.IdentityProvider)) == 2
     finally:
         db.close()
 

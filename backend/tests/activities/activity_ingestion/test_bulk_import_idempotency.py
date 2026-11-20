@@ -1,4 +1,4 @@
-"""Idempotency-Key on a bulk import, and the 409 that names the import already running.
+"""Idempotency-Key on a bulk import, the 422 for a reused key and the 409 that names the import already running.
 
 These run the real archive, storage and job rows, like ``test_bulk_import_archive``; only the publisher is
 stood in for.
@@ -13,6 +13,7 @@ from unittest.mock import patch
 
 import pytest
 from jasil.backends.storage_local import LocalStorage
+from sqlalchemy import select
 from tests._helpers.auth import MOCK_USER_ID
 from tests._helpers.db import create_sqlite_session_factory, ensure_user
 
@@ -77,7 +78,7 @@ def _saver(archive: Path):
 
 def _jobs(factory) -> list[ingestion_models.ActivityIngestionJob]:
     with factory() as db:
-        rows = db.query(ingestion_models.ActivityIngestionJob).all()
+        rows = db.scalars(select(ingestion_models.ActivityIngestionJob)).all()
         db.expunge_all()
         return rows
 
@@ -134,7 +135,7 @@ class TestIdempotencyKey:
     def test_the_same_key_with_a_different_archive_is_refused(self, tmp_path, factory, storage):
         _accept(factory, storage, _zip(tmp_path, {"a.fit": b"x"}), key="key-1")
 
-        with pytest.raises(core_exceptions.ConflictError, match="Idempotency-Key"):
+        with pytest.raises(core_exceptions.IdempotencyKeyReusedError, match="Idempotency-Key"):
             _accept(factory, storage, _zip(tmp_path, {"b.fit": b"y"}, "other.zip"), key="key-1")
 
         assert len(_jobs(factory)) == 1

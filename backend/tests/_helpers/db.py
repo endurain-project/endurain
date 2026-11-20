@@ -47,30 +47,6 @@ def setup_mock_execute(
     return execute_mock
 
 
-def setup_mock_query(
-    mock_db: MagicMock,
-    model_class: type,
-    return_all: Sequence[Any] | None = None,
-    return_one: Any | None = None,
-    return_first: Any | None = None,
-    return_scalar: Any | None = None,
-    return_count: int = 0,
-):
-    mock_query = mock_db.query.return_value
-    mock_query.filter.return_value = mock_query
-    mock_query.filter_by.return_value = mock_query
-    mock_query.order_by.return_value = mock_query
-    mock_query.offset.return_value = mock_query
-    mock_query.limit.return_value = mock_query
-    mock_query.all.return_value = return_all if return_all is not None else []
-    mock_query.first.return_value = return_first
-    mock_query.one.return_value = return_one
-    mock_query.one_or_none.return_value = return_one
-    mock_query.scalar.return_value = return_scalar if return_scalar is not None else return_count
-    mock_query.count.return_value = return_count
-    return mock_query
-
-
 def _import_all_models() -> None:
     """Import model contributions through the application composition root."""
     orm_model_registry.import_all_models()

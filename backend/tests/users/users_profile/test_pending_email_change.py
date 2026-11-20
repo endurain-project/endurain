@@ -5,6 +5,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 from jasil.backends.state_memory import MemoryState
+from sqlalchemy import select, update
 from sqlalchemy.orm import sessionmaker
 from tests._helpers.db import create_sqlite_session, ensure_user
 
@@ -40,7 +41,7 @@ def db():
     factory = sessionmaker(bind=session.get_bind())
     for user_id in (_USER_ID, _OTHER_USER_ID, _ADMIN_ID):
         ensure_user(factory, user_id)
-    session.query(users_models.Users).update({"preferred_language": "en", "email_verified": True})
+    session.execute(update(users_models.Users).values({"preferred_language": "en", "email_verified": True}))
     session.commit()
     yield session
     session.close()
@@ -71,7 +72,7 @@ def _user(db, user_id=_USER_ID):
 
 def _unused_tokens(db, user_id=_USER_ID):
     db.expire_all()
-    return db.query(sign_up_models.SignUpToken).filter_by(user_id=user_id, used=False).all()
+    return db.scalars(select(sign_up_models.SignUpToken).filter_by(user_id=user_id, used=False)).all()
 
 
 def _change_email(db, email, *, user_id=_USER_ID, revoke_other_sessions=False, state=None):
@@ -340,7 +341,7 @@ class TestAdminEmailEdit:
     def test_an_applied_address_tells_the_previous_one(self, db, mail, publish):
         self._edit(db, email="New@Example.com", email_verified=True)
 
-        notice = db.query(sign_up_models.SignUpToken).filter_by(user_id=_USER_ID).one()
+        notice = db.scalars(select(sign_up_models.SignUpToken).filter_by(user_id=_USER_ID)).one()
         assert (notice.previous_email, notice.email, notice.used) == (_EMAIL, "new@example.com", True)
         publish.assert_called_once()
         assert publish.call_args.args[0] == "auth.email_changed"

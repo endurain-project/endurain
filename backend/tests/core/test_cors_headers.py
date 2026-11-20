@@ -48,6 +48,11 @@ class TestCorsAllowHeaders:
         """The conditional-write header; without it no browser can send a PATCH."""
         assert "If-Match" in core_middleware.CORS_ALLOW_HEADERS
 
+    def test_idempotency_key_is_allowed(self):
+        """A browser that retries a create sends the key; without it the preflight of every create fails."""
+        assert "Idempotency-Key" in core_middleware.CORS_ALLOW_HEADERS
+        assert "idempotency-key" in _declared_header_parameters()
+
     def test_etag_is_exposed(self):
         """The client cannot echo back a tag it is not permitted to read."""
         assert "ETag" in core_middleware.CORS_EXPOSE_HEADERS

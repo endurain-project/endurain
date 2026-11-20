@@ -1,5 +1,4 @@
-"""
-Centralized rate limiting for the Endurain API.
+"""Centralized rate limiting for the Endurain API.
 
 Provides a single :data:`limiter` instance used by every
 router, named tier constants for different endpoint
@@ -134,7 +133,7 @@ def _verified_subject(token: str) -> str | None:
     try:
         decoded = core_jwt_keys.decode(token, key)
         _ACCESS_TOKEN_CLAIMS.validate(decoded.claims)
-    except (JoseError, ValueError):
+    except JoseError, ValueError:
         return None
     if decoded.header.get("typ") != core_jwt_keys.ACCESS_JWT_TYP:
         return None
@@ -144,8 +143,7 @@ def _verified_subject(token: str) -> str | None:
 
 
 def _get_rate_limit_key(request: Request) -> str:
-    """
-    Derive a per-caller rate-limit bucket key.
+    """Derive a per-caller rate-limit bucket key.
 
     Authenticated callers are identified by the user their
     Bearer token names, so users behind the same NAT are
@@ -170,8 +168,7 @@ def _get_rate_limit_key(request: Request) -> str:
 
 
 def build_limiter(*, storage_uri: str, enabled: bool) -> Limiter:
-    """
-    Build the application limiter.
+    """Build the application limiter.
 
     When the shared state backend cannot be reached, each process keeps enforcing every limit
     from its own memory and goes back to the shared backend once it answers again. The limits
@@ -219,8 +216,7 @@ def with_store_timeouts(storage_uri: str) -> str:
 
 
 def _route_handler(app: FastAPI, scope: Scope) -> Callable[..., Any] | None:
-    """
-    Find the endpoint a request is routed to.
+    """Find the endpoint a request is routed to.
 
     The routes are read through FastAPI's route contexts because a router included in the application is not
     flattened into ``app.routes``, which is all slowapi's own lookup sees. The first full match is the one the
@@ -249,8 +245,7 @@ def _route_handler(app: FastAPI, scope: Scope) -> Callable[..., Any] | None:
 
 
 def _refusal_budget_exhausted(limiter: Limiter, request: Request, handler: Callable[..., Any], *, count: bool) -> bool:
-    """
-    Check, and optionally count against, the refusal budget a client has on a decorated route.
+    """Check, and optionally count against, the refusal budget a client has on a decorated route.
 
     The budget is the default limits, keyed as the default is (the limiter's key function) and scoped to the route's
     endpoint rather than the URL, so a flood that varies the path parameters still spends one budget. It is a counter
@@ -308,16 +303,14 @@ def _is_decorated(limiter: Limiter, handler: Callable[..., Any]) -> bool:
 
 
 class RateLimitMiddleware(SlowAPIMiddleware):
-    """
-    Apply the default limits without blocking the event loop.
+    """Apply the default limits without blocking the event loop.
 
     slowapi's own middleware calls its synchronous limit check straight from ``dispatch``, so a
     slow shared store would stall every request. This runs that same check in the threadpool.
     """
 
     async def dispatch(self, request: Request, call_next: RequestResponseEndpoint) -> Response:
-        """
-        Check the default limits off the event loop, then pass the request on.
+        """Check the default limits off the event loop, then pass the request on.
 
         Args:
             request: Incoming request.
@@ -356,8 +349,7 @@ class RateLimitMiddleware(SlowAPIMiddleware):
     async def _dispatch_decorated(
         self, request: Request, call_next: RequestResponseEndpoint, handler: Callable[..., Any]
     ) -> Response:
-        """
-        Pass a request for a route with its own limit on, counting what authentication refuses.
+        """Pass a request for a route with its own limit on, counting what authentication refuses.
 
         The route's decorator counts a request only after authentication, so a request answered 401 or 403 is
         counted here against the default limits, in a budget of its own for the route. A client that has spent
@@ -399,8 +391,7 @@ limiter: Limiter = build_limiter(
 
 
 def _seconds_until_reset(request: Request, breached: RateLimitItem) -> int:
-    """
-    Find how long a caller must wait before the breached limit lets a request through.
+    """Find how long a caller must wait before the breached limit lets a request through.
 
     Args:
         request: The request that exceeded the limit.
@@ -422,8 +413,7 @@ def rate_limit_exceeded_handler(
     request: Request,
     exc: RateLimitExceeded,
 ) -> Response:
-    """
-    Return a JSON 429 response when a limit is breached.
+    """Return a JSON 429 response when a limit is breached.
 
     Sets ``Retry-After`` and the ``X-RateLimit-*`` headers so clients can back
     off gracefully rather than guessing an interval.

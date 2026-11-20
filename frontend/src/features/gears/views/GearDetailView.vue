@@ -195,7 +195,7 @@ function confirmDelete(): void {
         <h1 class="text-page-title">{{ gear.nickname }}</h1>
         <p class="text-body">{{ typeLabel }}</p>
       </header>
-      <!-- v1-style layout: a single stacked column on mobile, a three-column row
+      <!-- Layout: a single stacked column on mobile, a three-column row
            (gear info | components | activities) from lg up. -->
       <div class="grid gap-3 lg:grid-cols-12 lg:items-start">
         <GearInfoCard

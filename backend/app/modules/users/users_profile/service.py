@@ -202,7 +202,7 @@ def change_username(
     user_id: uuid.UUID,
     change: users_schema.UsernameChange,
     session_id: uuid.UUID,
-    step_up_store: "auth_dependencies.StepUpStore",
+    step_up_store: auth_dependencies.StepUpStore,
     db: Session,
 ) -> users_schema.UserMe:
     """Change the user's username after step-up verification.
@@ -266,7 +266,7 @@ def change_email(
     user_id: uuid.UUID,
     change: users_schema.EmailChange,
     session_id: uuid.UUID,
-    step_up_store: "auth_dependencies.StepUpStore",
+    step_up_store: auth_dependencies.StepUpStore,
     state: platform_providers.StateProvider,
     db: Session,
 ) -> users_schema.UserMe:
@@ -449,7 +449,7 @@ def delete_account(
     user_id: uuid.UUID,
     session_id: uuid.UUID,
     step_up: auth_schema.StepUpVerification,
-    step_up_store: "auth_dependencies.StepUpStore",
+    step_up_store: auth_dependencies.StepUpStore,
     state: platform_providers.StateProvider,
     storage: platform_providers.StorageProvider,
     mail: platform_providers.MailProvider,

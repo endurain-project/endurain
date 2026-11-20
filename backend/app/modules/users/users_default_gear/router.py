@@ -23,16 +23,7 @@ def read_user_default_gear(
     db: core_dependencies.DbSession,
     response: Response,
 ) -> user_default_gear_schema.UserDefaultGearRead | None:
-    """Retrieve default gear settings for authenticated user.
-
-    Args:
-        token_user_id: User ID from access token.
-        db: Database session dependency.
-        response: The response, which carries the settings' ETag.
-
-    Returns:
-        User default gear settings.
-    """
+    """Retrieve default gear settings for authenticated user."""
     default_gear = user_default_gear_service.get_default_gear(token_user_id, db)
     if default_gear is not None:
         core_etag.set_etag(response, default_gear.version)
@@ -53,19 +44,7 @@ def edit_user_default_gear(
     response: Response,
     if_match: core_dependencies.IfMatch,
 ) -> user_default_gear_schema.UserDefaultGearRead:
-    """Update default gear settings for authenticated user.
-
-    Args:
-        request: The incoming request, read by the rate limiter.
-        user_default_gear: Updated gear settings.
-        token_user_id: User ID from access token.
-        db: Database session dependency.
-        response: The response, which carries the new ETag.
-        if_match: The ``If-Match`` precondition.
-
-    Returns:
-        Updated user default gear settings.
-    """
+    """Update default gear settings for authenticated user."""
     updated = user_default_gear_service.edit_default_gear(user_default_gear, token_user_id, db, if_match=if_match)
     core_etag.set_etag(response, updated.version)
     return updated

@@ -5,16 +5,15 @@ import functools
 import tempfile
 import uuid
 from collections.abc import Callable
+from typing import Protocol
 
 import jasil.audit as jasil_audit
-from fastapi import UploadFile
 from sqlalchemy.orm import Session
 from stravalib.client import Client
 from stravalib.strava_model import DetailedGear, SummaryGear
 
 import core.database as core_database
 import core.exceptions as core_exceptions
-import core.file_uploads as core_file_uploads
 import core.logger as core_logger
 import core.text_imports as core_text_imports
 import modules.activities.activity.integration_service as activity_integration
@@ -380,31 +379,48 @@ def transform_csv_shoe_gear_to_schema_gear(
     return shoes
 
 
-def _save_gear_csv(file: UploadFile) -> tuple[tempfile.TemporaryDirectory[str], str]:
+class GearCsvSaver(Protocol):
+    """Callable that streams the request's gear CSV to local disk, capped on bytes."""
+
+    def __call__(self, *, upload_dir: str, filename: str) -> str:
+        """Save the upload as ``upload_dir/filename``.
+
+        The router binds the request's file and the size cap to the shared upload writer, so nothing below the
+        router handles the transport's file object.
+
+        Args:
+            upload_dir: Trusted destination directory.
+            filename: Server-generated filename within ``upload_dir``.
+
+        Returns:
+            Absolute filesystem path of the saved file.
+        """
+        ...
+
+
+def _save_gear_csv(save_csv: GearCsvSaver) -> tuple[tempfile.TemporaryDirectory[str], str]:
     """Stream an uploaded gear CSV to a private temp directory.
 
     Args:
-        file: The uploaded CSV.
+        save_csv: Saves the uploaded CSV into the directory it is given.
 
     Returns:
         The temp directory (the caller closes it) and the saved file's path.
     """
     work_dir = tempfile.TemporaryDirectory(prefix="strava-gear-")
     try:
-        path = core_file_uploads.save_text_upload_sync(
-            file, upload_dir=work_dir.name, filename="gear.csv", max_bytes=strava_constants.GEAR_CSV_MAX_BYTES
-        )
+        path = save_csv(upload_dir=work_dir.name, filename="gear.csv")
     except BaseException:
         work_dir.cleanup()
         raise
     return work_dir, path
 
 
-def import_gear(file: UploadFile, user_id: uuid.UUID, gear_type: gears_schema.GearType, db: Session) -> int:
+def import_gear(save_csv: GearCsvSaver, user_id: uuid.UUID, gear_type: gears_schema.GearType, db: Session) -> int:
     """Create the bikes or shoes listed in an uploaded Strava gear CSV.
 
     Args:
-        file: The uploaded CSV.
+        save_csv: Saves the uploaded CSV into the directory it is given.
         user_id: The user the gear belongs to.
         gear_type: Which export file it is: bikes or shoes.
         db: Database session.
@@ -415,7 +431,7 @@ def import_gear(file: UploadFile, user_id: uuid.UUID, gear_type: gears_schema.Ge
     Raises:
         InvalidInputError: When the file cannot be parsed or lacks the required columns.
     """
-    work_dir, path = _save_gear_csv(file)
+    work_dir, path = _save_gear_csv(save_csv)
     try:
         rows = parse_gear_csv(path, gear_type)
         if gear_type == gears_schema.GearType.BIKE:

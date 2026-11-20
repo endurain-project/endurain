@@ -3,7 +3,7 @@ export const PAGINATION_ELLIPSIS = '\u2026'
 
 /**
  * Builds the items a pager renders: page numbers interleaved with
- * {@link PAGINATION_ELLIPSIS} markers. Mirrors the v1 window — every page when
+ * {@link PAGINATION_ELLIPSIS} markers. Every page when
  * there are five or fewer, otherwise the first and last pages plus a sliding
  * window around the current page.
  *

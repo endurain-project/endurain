@@ -1,0 +1,1 @@
+"""Stored user profile images."""

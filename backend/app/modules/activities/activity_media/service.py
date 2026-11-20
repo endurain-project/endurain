@@ -35,7 +35,7 @@ import modules.activities.activity_media.signing as activity_media_signing
 logger = core_logger.get_logger(__name__)
 
 # A stored key is ``{activity_id}_{suffix}`` with the canonical lowercase UUID layout; ``suffix`` is a flat file
-# name. An integer-layout key belongs to the data migration that renames it and never matches.
+# name. Any other key never matches.
 _FLAT_SUFFIX_PATTERN = re.compile(r"[^/\\]+")
 _MEDIA_KEY_PATTERN = re.compile(
     r"(?P<activity_id>[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})_(?P<suffix>[^/\\]+)"

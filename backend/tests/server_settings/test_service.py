@@ -5,7 +5,6 @@ what deserializes settings on every *read*, so a validator there would put a DNS
 lookup on the read path of the whole app.
 """
 
-import io
 import uuid
 from datetime import timedelta
 from unittest.mock import MagicMock, patch
@@ -13,12 +12,9 @@ from unittest.mock import MagicMock, patch
 import jasil.providers as platform_providers
 import jasil.testing as jasil_testing
 import pytest
-from fastapi import UploadFile
 
-import core.config as core_config
 import core.cryptography as core_cryptography
 import core.exceptions as core_exceptions
-import core.file_uploads as core_file_uploads
 import core.geocoding as core_geocoding
 import core.mail as core_mail
 import core.network as core_network
@@ -27,7 +23,6 @@ import modules.auth.schema as auth_schema
 import modules.server_settings.audit_actions as server_settings_audit_actions
 import modules.server_settings.constants as server_settings_constants
 import modules.server_settings.contracts as server_settings_contracts
-import modules.server_settings.env_import_service as server_settings_env_import_service
 import modules.server_settings.login_photo_service as server_settings_login_photo_service
 import modules.server_settings.mail_service as server_settings_mail_service
 import modules.server_settings.schema as server_settings_schema
@@ -433,11 +428,7 @@ class TestOnlyRealChangesCount:
 class TestGeocodingSettingsOnWrite:
     @pytest.fixture
     def geo_env(self, edit_env):
-        with (
-            patch.object(server_settings_service, "server_settings_env_managed", return_value={}) as managed,
-            patch.object(core_network, "url_rejection_reason_bounded", return_value=None) as dns,
-        ):
-            edit_env.managed = managed
+        with patch.object(core_network, "url_rejection_reason_bounded", return_value=None) as dns:
             edit_env.geo_dns = dns
             yield edit_env
 
@@ -525,16 +516,14 @@ class TestGeocodingSettingsOnWrite:
 
 class TestAdminReadStepUpFields:
     def test_the_admin_read_lists_the_settings_that_need_the_step_up(self):
-        with patch.object(server_settings_service, "server_settings_env_managed", return_value={}):
-            result = server_settings_service._to_admin_read(_stored())
+        result = server_settings_service._to_admin_read(_stored())
 
         assert result.step_up_fields == sorted(server_settings_constants.SECURITY_FIELDS)
 
     def test_the_saved_settings_list_them_too(self, edit_env):
-        with patch.object(server_settings_service, "server_settings_env_managed", return_value={}):
-            result = server_settings_service.edit_server_settings(
-                _full_edit(edit_env.stored, currency="dollar"), None, VERIFIER, MagicMock(), if_match="*"
-            )
+        result = server_settings_service.edit_server_settings(
+            _full_edit(edit_env.stored, currency="dollar"), None, VERIFIER, MagicMock(), if_match="*"
+        )
 
         assert result.step_up_fields == sorted(server_settings_constants.SECURITY_FIELDS)
 
@@ -542,75 +531,10 @@ class TestAdminReadStepUpFields:
 class TestAdminReadLogsViewer:
     @pytest.mark.parametrize("enabled", [True, False])
     def test_the_admin_read_says_whether_the_log_viewer_is_available(self, enabled):
-        with (
-            patch.object(server_settings_service, "server_settings_env_managed", return_value={}),
-            patch("core.config.Settings.logs_viewer_enabled", enabled),
-        ):
+        with patch("core.config.Settings.logs_viewer_enabled", enabled):
             result = server_settings_service._to_admin_read(_stored())
 
         assert result.logs_viewer_enabled is enabled
-
-
-class TestServerSettingsEnvManaged:
-    def test_nothing_is_managed_without_a_geocoding_variable(self):
-        with patch.object(server_settings_service, "env_var_is_set", return_value=False):
-            assert server_settings_service.server_settings_env_managed() == {}
-
-    def test_one_variable_manages_every_geocoding_field(self):
-        with (
-            patch.object(
-                server_settings_service, "env_var_is_set", side_effect=lambda n: n == "REVERSE_GEO_RATE_LIMIT"
-            ),
-            patch.object(core_config, "settings", MagicMock(REVERSE_GEO_PROVIDER="nominatim")),
-        ):
-            managed = server_settings_service.server_settings_env_managed()
-
-        assert managed == {
-            "geocoding_service": "REVERSE_GEO_PROVIDER",
-            "geocoding_host": "NOMINATIM_API_HOST",
-            "geocoding_use_https": "NOMINATIM_API_USE_HTTPS",
-            "geocoding_rate_limit": "REVERSE_GEO_RATE_LIMIT",
-            "geocoding_api_key": "GEOCODES_MAPS_API",
-        }
-
-    def test_photon_names_its_own_host_variables(self):
-        with (
-            patch.object(server_settings_service, "env_var_is_set", return_value=True),
-            patch.object(core_config, "settings", MagicMock(REVERSE_GEO_PROVIDER="photon")),
-        ):
-            managed = server_settings_service.server_settings_env_managed()
-
-        assert managed["geocoding_host"] == "PHOTON_API_HOST"
-        assert managed["geocoding_use_https"] == "PHOTON_API_USE_HTTPS"
-
-    def test_a_change_to_an_env_managed_field_is_refused(self, edit_env):
-        with (
-            patch.object(
-                server_settings_service,
-                "server_settings_env_managed",
-                return_value={"geocoding_rate_limit": "REVERSE_GEO_RATE_LIMIT"},
-            ),
-            pytest.raises(core_exceptions.ConflictError) as exc_info,
-        ):
-            server_settings_service.edit_server_settings(
-                _full_edit(edit_env.stored, geocoding_rate_limit=2.0), None, VERIFIER, MagicMock(), if_match="*"
-            )
-
-        assert "REVERSE_GEO_RATE_LIMIT" in exc_info.value.detail
-        edit_env.write.assert_not_called()
-
-    def test_a_change_to_another_field_succeeds_while_geocoding_is_managed(self, edit_env):
-        with patch.object(
-            server_settings_service,
-            "server_settings_env_managed",
-            return_value={"geocoding_rate_limit": "REVERSE_GEO_RATE_LIMIT"},
-        ):
-            result = server_settings_service.edit_server_settings(
-                _full_edit(edit_env.stored, currency="dollar"), None, VERIFIER, MagicMock(), if_match="*"
-            )
-
-        assert result.currency == "dollar"
-        assert result.env_managed == {"geocoding_rate_limit": "REVERSE_GEO_RATE_LIMIT"}
 
 
 class TestGetGeocodingConfig:
@@ -626,124 +550,6 @@ class TestGetGeocodingConfig:
     def test_a_missing_row_means_geocoding_is_unavailable(self):
         with patch.object(server_settings_service.server_settings_crud, "get_server_settings", return_value=None):
             assert server_settings_service.get_geocoding_config(MagicMock()) is None
-
-
-def _geo_env_settings(**overrides):
-    values = dict(
-        REVERSE_GEO_PROVIDER="nominatim",
-        NOMINATIM_API_HOST="nominatim.openstreetmap.org",
-        NOMINATIM_API_USE_HTTPS=True,
-        PHOTON_API_HOST="photon.komoot.io",
-        PHOTON_API_USE_HTTPS=True,
-        GEOCODES_MAPS_API="changeme",
-        REVERSE_GEO_RATE_LIMIT=1.0,
-    )
-    values.update(overrides)
-    return MagicMock(**values)
-
-
-@pytest.fixture
-def import_geo(edit_env):
-    """Pretend the given geocoding variables are set; yield the knobs."""
-    state = MagicMock(set_vars={"REVERSE_GEO_PROVIDER"}, settings=_geo_env_settings(), stored=edit_env.stored)
-    with (
-        patch.object(server_settings_service, "env_var_is_set", side_effect=lambda n: n in state.set_vars),
-        patch.object(core_config, "settings", state.settings),
-        patch.object(server_settings_service.server_settings_crud, "get_server_settings", return_value=state.stored),
-    ):
-        state.write = edit_env.write
-        yield state
-
-
-class TestImportGeocodingEnv:
-    def test_nothing_happens_without_a_geocoding_variable(self, import_geo):
-        import_geo.set_vars = set()
-
-        assert server_settings_env_import_service._import_geocoding_env(MagicMock()).env_names == []
-        import_geo.write.assert_not_called()
-
-    def test_values_equal_to_the_stored_ones_write_nothing(self, import_geo):
-        names = server_settings_env_import_service._import_geocoding_env(MagicMock()).env_names
-
-        assert names == ["REVERSE_GEO_PROVIDER"]
-        import_geo.write.assert_not_called()
-
-    def test_only_the_differing_fields_are_written(self, import_geo):
-        import_geo.set_vars = {"REVERSE_GEO_PROVIDER", "REVERSE_GEO_RATE_LIMIT"}
-        import_geo.settings.REVERSE_GEO_RATE_LIMIT = 2.5
-
-        server_settings_env_import_service._import_geocoding_env(MagicMock())
-
-        assert import_geo.write.call_args.args[0].model_dump(exclude_unset=True) == {"geocoding_rate_limit": 2.5}
-
-    def test_photon_reads_its_own_host_only_when_set(self, import_geo):
-        import_geo.settings.REVERSE_GEO_PROVIDER = "photon"
-        import_geo.set_vars = {"REVERSE_GEO_PROVIDER", "PHOTON_API_HOST"}
-        import_geo.settings.PHOTON_API_HOST = "photon.example.com"
-        import_geo.settings.NOMINATIM_API_HOST = "ignored.example.com"
-
-        server_settings_env_import_service._import_geocoding_env(MagicMock())
-
-        written = import_geo.write.call_args.args[0].model_dump(exclude_unset=True)
-        assert written == {"geocoding_service": "photon", "geocoding_host": "photon.example.com"}
-
-    def test_an_unset_host_variable_means_the_default_host(self, import_geo):
-        import_geo.stored = import_geo.stored.model_copy(update={"geocoding_host": "old.example.com"})
-        with patch.object(
-            server_settings_service.server_settings_crud, "get_server_settings", return_value=import_geo.stored
-        ):
-            server_settings_env_import_service._import_geocoding_env(MagicMock())
-
-        assert import_geo.write.call_args.args[0].model_dump(exclude_unset=True) == {"geocoding_host": None}
-
-    def test_the_changeme_placeholder_is_no_key(self, import_geo):
-        import_geo.set_vars = {"GEOCODES_MAPS_API"}
-        import_geo.settings.GEOCODES_MAPS_API = "changeme"
-
-        server_settings_env_import_service._import_geocoding_env(MagicMock())
-
-        import_geo.write.assert_not_called()
-
-    def test_a_real_key_is_encrypted_and_written(self, import_geo):
-        import_geo.set_vars = {"REVERSE_GEO_PROVIDER", "GEOCODES_MAPS_API"}
-        import_geo.settings.REVERSE_GEO_PROVIDER = "geocode"
-        import_geo.settings.GEOCODES_MAPS_API = "a-real-key"
-
-        server_settings_env_import_service._import_geocoding_env(MagicMock())
-
-        written = import_geo.write.call_args.args[0].model_dump(exclude_unset=True)
-        assert written["geocoding_api_key"] == "enc-new"
-        assert written["geocoding_service"] == "geocode"
-        assert "a-real-key" not in str(written)
-
-    def test_an_unknown_provider_leaves_the_stored_settings_and_does_not_raise(self, import_geo):
-        import_geo.settings.REVERSE_GEO_PROVIDER = "bing"
-
-        names = server_settings_env_import_service._import_geocoding_env(MagicMock()).env_names
-
-        assert names == ["REVERSE_GEO_PROVIDER"]
-        import_geo.write.assert_not_called()
-
-
-class TestImportDeprecatedNamesBothBlocks:
-    def test_the_warning_names_mail_and_geocoding_variables(self):
-        with (
-            patch.object(
-                server_settings_env_import_service,
-                "_import_mail_env",
-                return_value=server_settings_env_import_service.ImportResult(["SMTP_HOST"], []),
-            ),
-            patch.object(
-                server_settings_env_import_service,
-                "_import_geocoding_env",
-                return_value=server_settings_env_import_service.ImportResult(["REVERSE_GEO_PROVIDER"], []),
-            ),
-            patch.object(server_settings_env_import_service.logger, "warning") as warn,
-        ):
-            server_settings_env_import_service.import_deprecated_env_settings(MagicMock())
-
-        warn.assert_called_once()
-        assert "SMTP_HOST, REVERSE_GEO_PROVIDER" in warn.call_args.args[0]
 
 
 class TestGetSessionPolicy:
@@ -784,178 +590,6 @@ class TestGetSessionPolicy:
             server_settings_service.get_session_policy(MagicMock())
 
 
-class TestSessionEnvManaged:
-    def test_each_variable_manages_only_its_own_field(self):
-        with patch.object(
-            server_settings_service, "env_var_is_set", side_effect=lambda n: n == "REFRESH_TOKEN_EXPIRE_DAYS"
-        ):
-            assert server_settings_service.server_settings_env_managed() == {
-                "refresh_token_expire_days": "REFRESH_TOKEN_EXPIRE_DAYS"
-            }
-
-    def test_a_change_to_a_managed_session_field_is_refused(self, edit_env):
-        with (
-            patch.object(
-                server_settings_service,
-                "server_settings_env_managed",
-                return_value={"access_token_expire_minutes": "ACCESS_TOKEN_EXPIRE_MINUTES"},
-            ),
-            pytest.raises(core_exceptions.ConflictError) as exc_info,
-        ):
-            server_settings_service.edit_server_settings(
-                _full_edit(edit_env.stored, access_token_expire_minutes=30), None, VERIFIER, MagicMock(), if_match="*"
-            )
-
-        assert "ACCESS_TOKEN_EXPIRE_MINUTES" in exc_info.value.detail
-        edit_env.write.assert_not_called()
-
-
-def _session_env_settings(**overrides):
-    values = dict(
-        ACCESS_TOKEN_EXPIRE_MINUTES=15,
-        REFRESH_TOKEN_EXPIRE_DAYS=7,
-        SESSION_IDLE_TIMEOUT_ENABLED=False,
-        SESSION_IDLE_TIMEOUT_HOURS=1,
-        SESSION_ABSOLUTE_TIMEOUT_HOURS=24,
-    )
-    values.update(overrides)
-    return MagicMock(**values)
-
-
-@pytest.fixture
-def import_session(edit_env):
-    state = MagicMock(set_vars=set(), settings=_session_env_settings(), stored=edit_env.stored, write=edit_env.write)
-    with (
-        patch.object(server_settings_service, "env_var_is_set", side_effect=lambda n: n in state.set_vars),
-        patch.object(core_config, "settings", state.settings),
-        patch.object(server_settings_service.server_settings_crud, "get_server_settings", return_value=state.stored),
-    ):
-        yield state
-
-
-class TestImportSessionEnv:
-    def test_nothing_happens_without_a_session_variable(self, import_session):
-        assert server_settings_env_import_service._import_session_env(MagicMock()).env_names == []
-        import_session.write.assert_not_called()
-
-    def test_values_equal_to_the_stored_ones_write_nothing(self, import_session):
-        import_session.set_vars = {"ACCESS_TOKEN_EXPIRE_MINUTES"}
-
-        assert server_settings_env_import_service._import_session_env(MagicMock()).env_names == [
-            "ACCESS_TOKEN_EXPIRE_MINUTES"
-        ]
-        import_session.write.assert_not_called()
-
-    def test_only_the_set_variables_are_imported_and_only_when_different(self, import_session):
-        import_session.set_vars = {"ACCESS_TOKEN_EXPIRE_MINUTES", "REFRESH_TOKEN_EXPIRE_DAYS"}
-        import_session.settings.ACCESS_TOKEN_EXPIRE_MINUTES = 60
-        # Not set in the environment, so it must not be touched even though it differs from the stored value.
-        import_session.settings.SESSION_IDLE_TIMEOUT_HOURS = 5
-
-        server_settings_env_import_service._import_session_env(MagicMock())
-
-        written = import_session.write.call_args.args[0].model_dump(exclude_unset=True)
-        assert written == {"access_token_expire_minutes": 60}
-
-    def test_the_enabled_flag_is_imported(self, import_session):
-        import_session.set_vars = {"SESSION_IDLE_TIMEOUT_ENABLED"}
-        import_session.settings.SESSION_IDLE_TIMEOUT_ENABLED = True
-
-        server_settings_env_import_service._import_session_env(MagicMock())
-
-        assert import_session.write.call_args.args[0].model_dump(exclude_unset=True) == {
-            "session_idle_timeout_enabled": True
-        }
-
-    def test_an_absolute_timeout_below_the_idle_timeout_stops_the_start(self, import_session):
-        import_session.set_vars = {"SESSION_IDLE_TIMEOUT_HOURS", "SESSION_ABSOLUTE_TIMEOUT_HOURS"}
-        import_session.settings.SESSION_IDLE_TIMEOUT_HOURS = 48
-        import_session.settings.SESSION_ABSOLUTE_TIMEOUT_HOURS = 24
-
-        with pytest.raises(ValueError, match="SESSION_ABSOLUTE_TIMEOUT_HOURS"):
-            server_settings_env_import_service._import_session_env(MagicMock())
-
-        import_session.write.assert_not_called()
-
-    def test_a_lone_idle_timeout_is_checked_against_the_stored_absolute_one(self, import_session):
-        import_session.set_vars = {"SESSION_IDLE_TIMEOUT_HOURS"}
-        import_session.settings.SESSION_IDLE_TIMEOUT_HOURS = 100
-
-        with pytest.raises(ValueError):
-            server_settings_env_import_service._import_session_env(MagicMock())
-
-    def test_a_lone_access_token_lifetime_is_checked_against_the_stored_idle_timeout(self, import_session):
-        import_session.stored = import_session.stored.model_copy(
-            update={"session_idle_timeout_enabled": True, "session_idle_timeout_hours": 1}
-        )
-        import_session.set_vars = {"ACCESS_TOKEN_EXPIRE_MINUTES"}
-        import_session.settings.ACCESS_TOKEN_EXPIRE_MINUTES = 60
-
-        with (
-            patch.object(
-                server_settings_service.server_settings_crud, "get_server_settings", return_value=import_session.stored
-            ),
-            pytest.raises(ValueError, match="ACCESS_TOKEN_EXPIRE_MINUTES"),
-        ):
-            server_settings_env_import_service._import_session_env(MagicMock())
-
-        import_session.write.assert_not_called()
-
-    def test_a_lone_idle_timeout_is_checked_against_the_stored_access_token_lifetime(self, import_session):
-        import_session.stored = import_session.stored.model_copy(
-            update={
-                "session_idle_timeout_enabled": True,
-                "session_idle_timeout_hours": 24,
-                "access_token_expire_minutes": 90,
-            }
-        )
-        import_session.set_vars = {"SESSION_IDLE_TIMEOUT_HOURS"}
-        import_session.settings.SESSION_IDLE_TIMEOUT_HOURS = 1
-
-        with (
-            patch.object(
-                server_settings_service.server_settings_crud, "get_server_settings", return_value=import_session.stored
-            ),
-            pytest.raises(ValueError, match="ACCESS_TOKEN_EXPIRE_MINUTES"),
-        ):
-            server_settings_env_import_service._import_session_env(MagicMock())
-
-        import_session.write.assert_not_called()
-
-    def test_an_unrelated_variable_is_not_blocked_by_a_stored_row_that_breaks_the_rule(self, import_session):
-        import_session.stored = import_session.stored.model_copy(
-            update={"session_idle_timeout_enabled": True, "access_token_expire_minutes": 90}
-        )
-        import_session.set_vars = {"REFRESH_TOKEN_EXPIRE_DAYS"}
-        import_session.settings.REFRESH_TOKEN_EXPIRE_DAYS = 30
-
-        with patch.object(
-            server_settings_service.server_settings_crud, "get_server_settings", return_value=import_session.stored
-        ):
-            server_settings_env_import_service._import_session_env(MagicMock())
-
-        assert import_session.write.call_args.args[0].model_dump(exclude_unset=True) == {
-            "refresh_token_expire_days": 30
-        }
-
-    def test_the_variables_may_fix_a_stored_row_that_breaks_the_rule(self, import_session):
-        import_session.stored = import_session.stored.model_copy(
-            update={"session_idle_timeout_enabled": True, "access_token_expire_minutes": 90}
-        )
-        import_session.set_vars = {"ACCESS_TOKEN_EXPIRE_MINUTES"}
-        import_session.settings.ACCESS_TOKEN_EXPIRE_MINUTES = 30
-        import_session.settings.SESSION_IDLE_TIMEOUT_ENABLED = True
-
-        with patch.object(
-            server_settings_service.server_settings_crud, "get_server_settings", return_value=import_session.stored
-        ):
-            server_settings_env_import_service._import_session_env(MagicMock())
-
-        assert import_session.write.call_args.args[0].model_dump(exclude_unset=True) == {
-            "access_token_expire_minutes": 30
-        }
-
-
 class TestRetention:
     def test_the_stored_value_is_returned_by_the_integration_read(self, edit_env):
         from modules.server_settings import integration_service
@@ -963,74 +597,6 @@ class TestRetention:
         stored = edit_env.stored.model_copy(update={"read_notification_retention_days": 30})
         with patch.object(server_settings_service.server_settings_crud, "get_server_settings", return_value=stored):
             assert integration_service.get_read_notification_retention_days(MagicMock()) == 30
-
-    def test_the_variable_manages_only_its_own_field(self):
-        with patch.object(
-            server_settings_service, "env_var_is_set", side_effect=lambda n: n == "READ_NOTIFICATION_RETENTION_DAYS"
-        ):
-            assert server_settings_service.server_settings_env_managed() == {
-                "read_notification_retention_days": "READ_NOTIFICATION_RETENTION_DAYS"
-            }
-
-    def test_a_change_to_the_managed_field_is_refused(self, edit_env):
-        with (
-            patch.object(
-                server_settings_service,
-                "server_settings_env_managed",
-                return_value={"read_notification_retention_days": "READ_NOTIFICATION_RETENTION_DAYS"},
-            ),
-            pytest.raises(core_exceptions.ConflictError) as exc_info,
-        ):
-            server_settings_service.edit_server_settings(
-                _full_edit(edit_env.stored, read_notification_retention_days=30),
-                None,
-                VERIFIER,
-                MagicMock(),
-                if_match="*",
-            )
-
-        assert "READ_NOTIFICATION_RETENTION_DAYS" in exc_info.value.detail
-        edit_env.write.assert_not_called()
-
-    @pytest.fixture
-    def import_env(self, edit_env):
-        state = MagicMock(is_set=True, settings=MagicMock(READ_NOTIFICATION_RETENTION_DAYS=90), write=edit_env.write)
-        with (
-            patch.object(server_settings_service, "env_var_is_set", side_effect=lambda n: state.is_set),
-            patch.object(core_config, "settings", state.settings),
-            patch.object(
-                server_settings_service.server_settings_crud, "get_server_settings", return_value=edit_env.stored
-            ),
-        ):
-            yield state
-
-    def test_nothing_happens_without_the_variable(self, import_env):
-        import_env.is_set = False
-
-        assert server_settings_env_import_service._import_retention_env(MagicMock()).env_names == []
-        import_env.write.assert_not_called()
-
-    def test_an_equal_value_writes_nothing(self, import_env):
-        assert server_settings_env_import_service._import_retention_env(MagicMock()).env_names == [
-            "READ_NOTIFICATION_RETENTION_DAYS"
-        ]
-        import_env.write.assert_not_called()
-
-    def test_a_different_value_is_written(self, import_env):
-        import_env.settings.READ_NOTIFICATION_RETENTION_DAYS = 7
-
-        server_settings_env_import_service._import_retention_env(MagicMock())
-
-        assert import_env.write.call_args.args[0].model_dump(exclude_unset=True) == {
-            "read_notification_retention_days": 7
-        }
-
-    def test_zero_is_imported(self, import_env):
-        import_env.settings.READ_NOTIFICATION_RETENTION_DAYS = 0
-
-        server_settings_env_import_service._import_retention_env(MagicMock())
-
-        assert import_env.write.call_args.args[0].read_notification_retention_days == 0
 
 
 class TestLoginPhoto:
@@ -1040,13 +606,9 @@ class TestLoginPhoto:
         storage.save.side_effect = lambda *a: calls.append("save")
         db = MagicMock()
         db.commit.side_effect = lambda: calls.append("commit")
-        file = MagicMock(content_type="text/plain")
 
-        with (
-            patch.object(core_file_uploads, "read_validated_upload_sync", return_value=_PNG),
-            patch.object(server_settings_service.server_settings_crud, "set_login_photo", return_value=(4, False)),
-        ):
-            photo = server_settings_login_photo_service.upload_login_photo(file, storage, db)
+        with patch.object(server_settings_service.server_settings_crud, "set_login_photo", return_value=(4, False)):
+            photo = server_settings_login_photo_service.upload_login_photo(_PNG, storage, db)
 
         assert photo == (server_settings_schema.LoginPhotoRead(version=4), False)
         assert calls == ["save", "commit"]
@@ -1059,22 +621,16 @@ class TestLoginPhoto:
         big = _PNG + b"0" * server_settings_constants.LOGIN_PHOTO_MAX_BYTES
         storage = MagicMock()
 
-        with (
-            patch.object(core_file_uploads, "read_validated_upload_sync", return_value=big),
-            pytest.raises(core_exceptions.PayloadTooLargeError),
-        ):
-            server_settings_login_photo_service.upload_login_photo(MagicMock(), storage, MagicMock())
+        with pytest.raises(core_exceptions.PayloadTooLargeError):
+            server_settings_login_photo_service.upload_login_photo(big, storage, MagicMock())
 
         storage.save.assert_not_called()
 
     def test_upload_rejects_an_unrecognised_format(self):
         storage = MagicMock()
 
-        with (
-            patch.object(core_file_uploads, "read_validated_upload_sync", return_value=b"not an image"),
-            pytest.raises(core_exceptions.UnsupportedMediaTypeError),
-        ):
-            server_settings_login_photo_service.upload_login_photo(MagicMock(), storage, MagicMock())
+        with pytest.raises(core_exceptions.UnsupportedMediaTypeError):
+            server_settings_login_photo_service.upload_login_photo(b"not an image", storage, MagicMock())
 
         storage.save.assert_not_called()
 
@@ -1178,7 +734,6 @@ def mail_env():
             side_effect=lambda attrs, db: stored.model_copy(update=attrs.model_dump(exclude_unset=True)),
         ) as write,
         patch.object(core_mail, "mail_problems", return_value=[]) as problems,
-        patch.object(server_settings_mail_service, "mail_env_managed", return_value={}) as managed,
         patch.object(
             core_cryptography,
             "decrypt_token_fernet",
@@ -1186,7 +741,7 @@ def mail_env():
         ),
         patch.object(core_cryptography, "encrypt_token_fernet", return_value="enc-new"),
     ):
-        yield MagicMock(stored=stored, read=read, write=write, problems=problems, managed=managed)
+        yield MagicMock(stored=stored, read=read, write=write, problems=problems)
 
 
 class TestEditMailSettings:
@@ -1302,67 +857,6 @@ class TestEditMailSettings:
         config = mail_env.problems.call_args.args[0]
         assert config.password == "plain-old"
         assert config.from_address == "me@example.com"
-
-    def test_a_change_to_an_env_managed_field_is_refused(self, mail_env):
-        mail_env.managed.return_value = {"host": "SMTP_HOST", "port": "SMTP_PORT"}
-
-        with pytest.raises(core_exceptions.ConflictError) as exc_info:
-            server_settings_mail_service.edit_mail_settings(
-                _mail_edit(mail_env.stored, port=465), _STEP_UP, _VERIFY, MagicMock(), if_match="*"
-            )
-
-        assert "port is set by the SMTP_PORT environment variable" in exc_info.value.detail
-        mail_env.write.assert_not_called()
-
-    def test_a_change_to_a_field_that_is_not_env_managed_succeeds(self, mail_env):
-        mail_env.managed.return_value = {"host": "SMTP_HOST"}
-
-        result = server_settings_mail_service.edit_mail_settings(
-            _mail_edit(mail_env.stored, port=465), _STEP_UP, _VERIFY, MagicMock(), if_match="*"
-        )
-
-        assert result.port == 465
-
-    def test_resending_an_env_managed_value_unchanged_is_allowed(self, mail_env):
-        mail_env.managed.return_value = {"host": "SMTP_HOST", "port": "SMTP_PORT"}
-
-        server_settings_mail_service.edit_mail_settings(
-            _mail_edit(mail_env.stored, username="other@example.com"), _STEP_UP, _VERIFY, MagicMock(), if_match="*"
-        )
-
-        assert mail_env.write.call_args.args[0].username == "other@example.com"
-
-
-class TestMailEnvManaged:
-    def test_nothing_is_managed_without_smtp_host(self):
-        with patch.object(server_settings_service, "env_var_is_set", return_value=False):
-            assert server_settings_mail_service.mail_env_managed() == {}
-
-    def test_every_mail_field_is_managed_when_smtp_host_is_set(self):
-        with patch.object(server_settings_service, "env_var_is_set", side_effect=lambda name: name == "SMTP_HOST"):
-            managed = server_settings_mail_service.mail_env_managed()
-
-        assert managed == server_settings_constants.MAIL_ENV_VARS
-        assert managed["password"] == "SMTP_PASSWORD"
-
-
-class TestEnvVarIsSet:
-    def test_a_default_value_does_not_count(self):
-        with patch.object(core_config, "settings", MagicMock(model_fields_set=set())):
-            assert server_settings_service.env_var_is_set("SMTP_PORT") is False
-
-    def test_an_explicit_value_counts(self):
-        with patch.object(core_config, "settings", MagicMock(model_fields_set={"SMTP_PORT"})):
-            assert server_settings_service.env_var_is_set("SMTP_PORT") is True
-
-    @pytest.mark.parametrize("variable", ["SMTP_PASSWORD", "SMTP_PASSWORD_FILE"])
-    def test_a_secret_counts_through_its_file_variant(self, variable):
-        with patch.dict("os.environ", {variable: "x"}, clear=True):
-            assert server_settings_service.env_var_is_set("SMTP_PASSWORD") is True
-
-    def test_an_unset_secret_does_not_count(self):
-        with patch.dict("os.environ", {}, clear=True):
-            assert server_settings_service.env_var_is_set("SMTP_PASSWORD") is False
 
 
 class TestMailConfig:
@@ -1495,144 +989,6 @@ class TestSendTestEmail:
             server_settings_mail_service.send_test_email(_ADMIN_ID, mail, MagicMock())
 
         assert "status 535" in exc_info.value.detail
-
-
-def _env_settings(**overrides):
-    values = dict(
-        SMTP_HOST="mail.example.com",
-        SMTP_PORT=587,
-        SMTP_USERNAME="me@example.com",
-        SMTP_FROM=None,
-        SMTP_SECURE=True,
-        SMTP_SECURE_TYPE="starttls",
-    )
-    values.update(overrides)
-    return MagicMock(**values)
-
-
-@pytest.fixture
-def import_env(mail_env):
-    """Pretend ``SMTP_*`` variables are set, with a password, on top of the mail fixture."""
-    with (
-        patch.object(server_settings_service, "env_var_is_set", return_value=True) as is_set,
-        patch.object(core_config, "settings", _env_settings()) as settings,
-        patch.object(core_config, "read_secret", return_value="plain-old") as secret,
-    ):
-        yield MagicMock(mail=mail_env, is_set=is_set, settings=settings, secret=secret)
-
-
-class TestImportMailEnv:
-    def test_nothing_happens_without_smtp_host(self, mail_env):
-        with patch.object(server_settings_service, "env_var_is_set", return_value=False):
-            names = server_settings_env_import_service._import_mail_env(MagicMock()).env_names
-
-        assert names == []
-        mail_env.read.assert_not_called()
-        mail_env.write.assert_not_called()
-
-    def test_values_equal_to_the_stored_ones_write_nothing(self, import_env):
-        names = server_settings_env_import_service._import_mail_env(MagicMock()).env_names
-
-        import_env.mail.write.assert_not_called()
-        assert "SMTP_HOST" in names and "SMTP_PASSWORD" in names
-
-    def test_only_the_differing_fields_are_written(self, import_env):
-        core_config.settings.SMTP_PORT = 465
-        core_config.settings.SMTP_SECURE_TYPE = "ssl"
-
-        result = server_settings_env_import_service._import_mail_env(MagicMock())
-
-        written = import_env.mail.write.call_args.args[0].model_dump(exclude_unset=True)
-        assert written == {"port": 465, "security": "ssl"}
-        assert result.changed_fields == ["port", "security"]
-
-    def test_a_different_password_is_encrypted_and_written(self, import_env):
-        import_env.secret.return_value = "plain-new"
-
-        server_settings_env_import_service._import_mail_env(MagicMock())
-
-        assert import_env.mail.write.call_args.args[0].model_dump(exclude_unset=True) == {"password": "enc-new"}
-
-    @pytest.mark.parametrize(
-        ("secure", "secure_type", "expected"),
-        [(False, "starttls", "none"), (True, "ssl", "ssl"), (True, "starttls", "starttls")],
-    )
-    def test_the_security_mode_is_mapped(self, import_env, secure, secure_type, expected):
-        core_config.settings.SMTP_SECURE = secure
-        core_config.settings.SMTP_SECURE_TYPE = secure_type
-        stored_security = "ssl" if expected == "starttls" else "starttls"
-        import_env.mail.read.return_value = import_env.mail.stored.model_copy(update={"security": stored_security})
-
-        server_settings_env_import_service._import_mail_env(MagicMock())
-
-        assert import_env.mail.write.call_args.args[0].model_dump(exclude_unset=True)["security"] == expected
-
-    def test_invalid_values_leave_the_stored_settings_and_do_not_raise(self, import_env, caplog):
-        import_env.mail.problems.return_value = ["Username and password must be set together"]
-
-        names = server_settings_env_import_service._import_mail_env(MagicMock()).env_names
-
-        import_env.mail.read.assert_not_called()
-        import_env.mail.write.assert_not_called()
-        assert "SMTP_HOST" in names
-        assert "plain-old" not in caplog.text
-
-    def test_the_row_is_locked(self, import_env):
-        server_settings_env_import_service._import_mail_env(MagicMock())
-
-        assert import_env.mail.read.call_args.kwargs == {"for_update": True}
-
-
-class TestImportDeprecatedEnvSettings:
-    def test_no_env_means_no_warning(self):
-        db = MagicMock()
-        with (
-            patch.object(
-                server_settings_env_import_service,
-                "_import_mail_env",
-                return_value=server_settings_env_import_service.ImportResult([], []),
-            ),
-            patch.object(server_settings_env_import_service.logger, "warning") as warn,
-        ):
-            server_settings_env_import_service.import_deprecated_env_settings(db)
-
-        warn.assert_not_called()
-
-    def test_one_warning_names_the_variables_but_never_values(self):
-        db = MagicMock()
-        with (
-            patch.object(
-                server_settings_env_import_service,
-                "_import_mail_env",
-                return_value=server_settings_env_import_service.ImportResult(["SMTP_HOST", "SMTP_PASSWORD"], []),
-            ),
-            patch.object(server_settings_env_import_service.logger, "warning") as warn,
-        ):
-            server_settings_env_import_service.import_deprecated_env_settings(db)
-
-        warn.assert_called_once()
-        message = warn.call_args.args[0]
-        assert "SMTP_HOST, SMTP_PASSWORD" in message
-        assert "v0.22.0" in message
-        db.commit.assert_called_once()
-
-    def test_commits_before_warning(self):
-        db = MagicMock()
-        order: list[str] = []
-        db.commit.side_effect = lambda: order.append("commit")
-        with (
-            patch.object(
-                server_settings_env_import_service,
-                "_import_mail_env",
-                return_value=server_settings_env_import_service.ImportResult(["SMTP_HOST"], []),
-            ),
-            patch.object(
-                server_settings_env_import_service.logger, "warning", side_effect=lambda *a, **k: order.append("warn")
-            ),
-        ):
-            server_settings_env_import_service.import_deprecated_env_settings(db)
-
-        assert order == ["commit", "warn"]
 
 
 class TestGetServerSettingsForPublic:
@@ -1818,22 +1174,17 @@ class TestMailSettingsAudit:
 class TestLoginPhotoAudit:
     def test_an_upload_is_audited_without_a_file_name(self):
         with (
-            patch.object(core_file_uploads, "read_validated_upload_sync", return_value=_PNG),
             patch.object(server_settings_service.server_settings_crud, "set_login_photo", return_value=(4, False)),
             jasil_testing.capture_audit() as audit,
         ):
-            server_settings_login_photo_service.upload_login_photo(MagicMock(), MagicMock(), MagicMock())
+            server_settings_login_photo_service.upload_login_photo(_PNG, MagicMock(), MagicMock())
 
         entry = audit.assert_audited(server_settings_audit_actions.LOGIN_PHOTO_UPDATE.id)
         assert entry.details is None
 
     def test_a_refused_upload_is_not_audited(self):
-        with (
-            patch.object(core_file_uploads, "read_validated_upload_sync", return_value=b"not an image"),
-            jasil_testing.capture_audit() as audit,
-            pytest.raises(core_exceptions.UnsupportedMediaTypeError),
-        ):
-            server_settings_login_photo_service.upload_login_photo(MagicMock(), MagicMock(), MagicMock())
+        with jasil_testing.capture_audit() as audit, pytest.raises(core_exceptions.UnsupportedMediaTypeError):
+            server_settings_login_photo_service.upload_login_photo(b"not an image", MagicMock(), MagicMock())
 
         audit.assert_not_audited(server_settings_audit_actions.LOGIN_PHOTO_UPDATE.id)
 
@@ -1850,84 +1201,23 @@ class TestLoginPhotoAudit:
         assert entry.details is None
 
 
-class TestEnvImportAudit:
-    @staticmethod
-    def _imported(env_names: list[str], changed_fields: list[str]):
-        return server_settings_env_import_service.ImportResult(env_names, changed_fields)
-
-    def test_the_changed_fields_of_every_block_are_one_sorted_row(self):
-        with (
-            patch.object(
-                server_settings_env_import_service,
-                "_import_mail_env",
-                return_value=self._imported(["SMTP_HOST"], ["port", "host"]),
-            ),
-            patch.object(
-                server_settings_env_import_service,
-                "_import_geocoding_env",
-                return_value=self._imported(["REVERSE_GEO_PROVIDER"], ["geocoding_service"]),
-            ),
-            patch.object(
-                server_settings_env_import_service, "_import_session_env", return_value=self._imported([], [])
-            ),
-            patch.object(
-                server_settings_env_import_service, "_import_retention_env", return_value=self._imported([], [])
-            ),
-            jasil_testing.capture_audit() as audit,
-        ):
-            server_settings_env_import_service.import_deprecated_env_settings(MagicMock())
-
-        entries = [e for e in audit.entries if e.action_id == server_settings_audit_actions.SETTINGS_IMPORT.id]
-        assert len(entries) == 1
-        assert entries[0].details == {"changed_fields": ["geocoding_service", "host", "port"]}
-
-    def test_variables_that_matched_the_stored_values_are_not_audited(self):
-        with (
-            patch.object(
-                server_settings_env_import_service,
-                "_import_mail_env",
-                return_value=self._imported(["SMTP_HOST"], []),
-            ),
-            patch.object(
-                server_settings_env_import_service, "_import_geocoding_env", return_value=self._imported([], [])
-            ),
-            patch.object(
-                server_settings_env_import_service, "_import_session_env", return_value=self._imported([], [])
-            ),
-            patch.object(
-                server_settings_env_import_service, "_import_retention_env", return_value=self._imported([], [])
-            ),
-            jasil_testing.capture_audit() as audit,
-        ):
-            server_settings_env_import_service.import_deprecated_env_settings(MagicMock())
-
-        audit.assert_not_audited(server_settings_audit_actions.SETTINGS_IMPORT.id)
-
-
 class TestLoginPhotoImageFormats:
-    def _upload(self, name: str, data: bytes) -> UploadFile:
-        return UploadFile(io.BytesIO(data), filename=name)
-
     def test_a_webp_is_stored_without_its_metadata(self):
         storage = MagicMock()
 
         with patch.object(server_settings_service.server_settings_crud, "set_login_photo", return_value=(4, False)):
-            server_settings_login_photo_service.upload_login_photo(
-                self._upload("login.webp", images.webp_with_exif()), storage, MagicMock()
-            )
+            server_settings_login_photo_service.upload_login_photo(images.webp_with_exif(), storage, MagicMock())
 
         _area, _key, data, content_type = storage.save.call_args.args
         assert content_type == "image/webp"
         assert not images.has_metadata(data)
 
-    @pytest.mark.parametrize(
-        ("name", "data"), [("a.gif", images.gif()), ("a.heic", images.heic_like())], ids=["gif", "heic"]
-    )
-    def test_gif_and_heic_are_refused(self, name: str, data: bytes):
+    @pytest.mark.parametrize("data", [images.gif(), images.heic_like()], ids=["gif", "heic"])
+    def test_gif_and_heic_are_refused(self, data: bytes):
         storage = MagicMock()
 
         with pytest.raises(core_exceptions.DomainError) as exc:
-            server_settings_login_photo_service.upload_login_photo(self._upload(name, data), storage, MagicMock())
+            server_settings_login_photo_service.upload_login_photo(data, storage, MagicMock())
 
         assert exc.value.status_code == 415
         storage.save.assert_not_called()

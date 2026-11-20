@@ -10,14 +10,13 @@ import uuid
 from datetime import UTC, datetime
 
 import pytest
-from sqlalchemy import func, select, text
+from sqlalchemy import func, select
 
 import core.etag as core_etag
 import core.exceptions as core_exceptions
 import modules.health.health_fasting.models as fasting_models
 import modules.health.health_fasting.schema as fasting_schema
 import modules.health.health_fasting.service as fasting_service
-from tests._helpers import alembic_chain
 from tests._helpers.db import ensure_user
 
 _USER_ID = uuid.UUID("11111111-1111-4111-8111-111111111111")
@@ -25,10 +24,6 @@ _OTHER_USER_ID = uuid.UUID("22222222-2222-4222-8222-222222222222")
 _THREADS = 6
 _START = datetime(2026, 10, 1, 8, 0, 0, tzinfo=UTC)
 _INDEX = "uq_health_fasting_one_in_progress_per_user"
-
-_MIGRATION_FILE = "2_constraints_versions_and_settings.py"
-_MIGRATION_STEP = "health_fasting_one_in_progress"
-_REVISION_BEFORE = "c5cfe02a11c2"
 
 
 @pytest.fixture
@@ -88,35 +83,3 @@ def test_a_finished_fast_does_not_block_a_new_one(factory):
         )
 
         assert db.scalar(select(func.count()).select_from(fasting_models.HealthFasting)) == 2
-
-
-def test_the_migration_cancels_older_running_fasts_before_enforcing_the_index(upgrade_db):
-    alembic_chain.upgrade(upgrade_db, _REVISION_BEFORE)
-    alembic_chain.run_steps_before(upgrade_db, _MIGRATION_FILE, _MIGRATION_STEP)
-    with upgrade_db.begin() as connection:
-        alembic_chain.seed_users(connection)
-        for hour in (6, 8, 10):
-            connection.execute(
-                text("INSERT INTO health_fasting (user_id, fast_start_time, status) VALUES (1, :start, 'in_progress')"),
-                {"start": datetime(2026, 10, 1, hour, 0, 0)},
-            )
-        connection.execute(
-            text("INSERT INTO health_fasting (user_id, fast_start_time, status) VALUES (2, :start, 'in_progress')"),
-            {"start": _START},
-        )
-
-    alembic_chain.run_step(upgrade_db, _MIGRATION_FILE, _MIGRATION_STEP)
-
-    with upgrade_db.connect() as connection:
-        rows = connection.execute(
-            text(
-                "SELECT user_id, extract(hour FROM fast_start_time)::int AS hour, status FROM health_fasting ORDER BY "
-                "id"
-            )
-        ).all()
-    assert [tuple(row) for row in rows] == [
-        (1, 6, "cancelled"),
-        (1, 8, "cancelled"),
-        (1, 10, "in_progress"),
-        (2, 8, "in_progress"),
-    ]

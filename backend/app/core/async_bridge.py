@@ -21,8 +21,6 @@ nothing from the domain layer or the platform substrate, so it is safe for any
 module to depend on.
 """
 
-from __future__ import annotations
-
 import asyncio
 from collections.abc import Coroutine
 from concurrent.futures import Future

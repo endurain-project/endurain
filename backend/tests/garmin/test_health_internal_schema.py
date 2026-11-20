@@ -1,7 +1,5 @@
 """The Garmin sync writes its provenance through the internal schemas, never the client ones."""
 
-from __future__ import annotations
-
 from datetime import UTC, datetime
 from unittest.mock import MagicMock, patch
 

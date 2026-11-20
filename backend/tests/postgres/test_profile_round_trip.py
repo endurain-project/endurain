@@ -4,7 +4,7 @@ Pins what the profile archive carries today: every section, the split per-activi
 stored blobs and the way archived ids are re-keyed onto the rows the import creates. The first test
 exports a seeded account, wipes it, imports the archive into a fresh account with the same
 username and email, exports again and expects the two archives to describe the same data. The
-second imports a checked-in archive, so an archive written by an older release keeps importing.
+second imports a checked-in archive, so the archive format stays importable.
 """
 
 import base64
@@ -642,7 +642,6 @@ def test_an_archive_written_by_a_uuid_era_release_still_imports(pg_factory, stor
         default_gear = default_gear_integration.get_default_gear(user_id, db)
         assert default_gear is not None
         assert (default_gear.ride_gear_id, default_gear.run_gear_id) == (gears["Road Bike"], gears["Trail Shoes"])
-        # The old names of the units are read at the import boundary.
         road = db.execute(
             text("SELECT initial_distance, purchase_value FROM gear WHERE user_id = :u AND nickname = 'Road Bike'"),
             {"u": user_id},

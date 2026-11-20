@@ -99,8 +99,7 @@ def _refresh_allowed_tile_domains(request: Request) -> None:
 
 
 class SecurityHeadersMiddleware(BaseHTTPMiddleware):
-    """
-    Add browser security headers to HTTP responses.
+    """Add browser security headers to HTTP responses.
 
     Attributes:
         None.
@@ -111,8 +110,7 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
         request: Request,
         call_next: Callable[[Request], Awaitable[Response]],
     ) -> Response:
-        """
-        Add security headers to the downstream response.
+        """Add security headers to the downstream response.
 
         Args:
             request: Incoming HTTP request.
@@ -177,8 +175,7 @@ DEFAULT_CACHE_CONTROL = "private, no-cache"
 
 
 class GetSemanticsMiddleware:
-    """
-    Give every ``GET`` route the HTTP semantics the routes do not repeat.
+    """Give every ``GET`` route the HTTP semantics the routes do not repeat.
 
     An ``ETag`` here is the version a write echoes in ``If-Match``, not a validator of the whole body, so a matching
     ``If-None-Match`` is not answered ``304``.
@@ -193,11 +190,15 @@ class GetSemanticsMiddleware:
     """
 
     def __init__(self, app: ASGIApp) -> None:
+        """Store the wrapped application.
+
+        Args:
+            app: The ASGI application to wrap.
+        """
         self.app = app
 
     async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
-        """
-        Run the wrapped application with the response rules applied.
+        """Run the wrapped application with the response rules applied.
 
         Args:
             scope: ASGI connection scope.
@@ -228,8 +229,7 @@ class GetSemanticsMiddleware:
 
 
 class CookieRouteOriginMiddleware(BaseHTTPMiddleware):
-    """
-    Refuse a web request to a cookie route that does not come from an allowed origin.
+    """Refuse a web request to a cookie route that does not come from an allowed origin.
 
     The refresh cookie is the one credential a browser attaches by itself, and only ``POST /auth/refresh`` and
     ``POST /auth/logout`` read it. A request that declares ``X-Client-Type: web`` to either route must carry an
@@ -245,8 +245,7 @@ class CookieRouteOriginMiddleware(BaseHTTPMiddleware):
         request: Request,
         call_next: Callable[[Request], Awaitable[Response]],
     ) -> Response:
-        """
-        Refuse a web request to a cookie route whose origin is not allowed.
+        """Refuse a web request to a cookie route whose origin is not allowed.
 
         Args:
             request: Incoming HTTP request.

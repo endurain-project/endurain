@@ -8,8 +8,6 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Select } from '@/components/ui/select'
 import { Switch } from '@/components/ui/switch'
-import EnvManagedHint from '@/features/serverSettings/components/EnvManagedHint.vue'
-import EnvManagedNotice from '@/features/serverSettings/components/EnvManagedNotice.vue'
 import {
   CUSTOM_TEMPLATE,
   useServerSettingsFormContext,
@@ -24,9 +22,6 @@ const {
   handleBlur,
   settings,
   templates,
-  envVar,
-  envHint,
-  envNames,
   isGeocodeService,
   geocodingHostPlaceholder,
   selectedTemplate,
@@ -34,15 +29,6 @@ const {
   isCustomTemplate,
   selectTemplate,
 } = useServerSettingsFormContext()
-
-/** The geocoding fields an environment variable can lock. */
-const GEOCODING_ENV_FIELDS = [
-  'geocoding_service',
-  'geocoding_host',
-  'geocoding_use_https',
-  'geocoding_rate_limit',
-  'geocoding_api_key',
-]
 </script>
 
 <template>
@@ -162,19 +148,14 @@ const GEOCODING_ENV_FIELDS = [
         <h2 class="text-card-heading">{{ t('settings.server.geocoding.title') }}</h2>
         <p class="text-body">{{ t('settings.server.geocoding.description') }}</p>
       </div>
-      <EnvManagedNotice :names="envNames(GEOCODING_ENV_FIELDS)" />
 
-      <FormField
-        data-setting="geocoding-service"
-        :label="t('settings.server.geocoding.service')"
-        :hint="envHint('geocoding_service')"
-      >
+      <FormField data-setting="geocoding-service" :label="t('settings.server.geocoding.service')">
         <template #default="{ fieldId, describedBy }">
           <Select
             :id="fieldId"
             v-model="values.geocodingService"
             :aria-describedby="describedBy"
-            :disabled="isSubmitting || Boolean(envVar('geocoding_service'))"
+            :disabled="isSubmitting"
           >
             <option value="nominatim">{{ t('settings.server.geocoding.serviceNominatim') }}</option>
             <option value="photon">{{ t('settings.server.geocoding.servicePhoton') }}</option>
@@ -187,7 +168,7 @@ const GEOCODING_ENV_FIELDS = [
         <FormField
           data-setting="geocoding-host"
           :label="t('settings.server.geocoding.host')"
-          :hint="envHint('geocoding_host') ?? t('settings.server.geocoding.hostHint')"
+          :hint="t('settings.server.geocoding.hostHint')"
         >
           <template #default="{ fieldId, describedBy }">
             <Input
@@ -198,7 +179,7 @@ const GEOCODING_ENV_FIELDS = [
               maxlength="253"
               autocomplete="off"
               :placeholder="geocodingHostPlaceholder"
-              :disabled="isSubmitting || Boolean(envVar('geocoding_host'))"
+              :disabled="isSubmitting"
             />
           </template>
         </FormField>
@@ -206,17 +187,16 @@ const GEOCODING_ENV_FIELDS = [
         <Switch
           v-model="values.geocodingUseHttps"
           data-setting="geocoding-use-https"
-          :disabled="isSubmitting || Boolean(envVar('geocoding_use_https'))"
+          :disabled="isSubmitting"
         >
           {{ t('settings.server.geocoding.useHttps') }}
         </Switch>
-        <EnvManagedHint :name="envVar('geocoding_use_https')" />
       </template>
 
       <FormField
         data-setting="geocoding-rate-limit"
         :label="t('settings.server.geocoding.rateLimit')"
-        :hint="envHint('geocoding_rate_limit') ?? t('settings.server.geocoding.rateLimitHint')"
+        :hint="t('settings.server.geocoding.rateLimitHint')"
         :error="errors.geocodingRateLimit"
       >
         <template #default="{ fieldId, describedBy, invalid }">
@@ -228,18 +208,14 @@ const GEOCODING_ENV_FIELDS = [
             type="text"
             inputmode="decimal"
             maxlength="6"
-            :disabled="isSubmitting || Boolean(envVar('geocoding_rate_limit'))"
+            :disabled="isSubmitting"
             @blur="handleBlur('geocodingRateLimit')"
           />
         </template>
       </FormField>
 
       <template v-if="isGeocodeService">
-        <FormField
-          data-setting="geocoding-api-key"
-          :label="t('settings.server.geocoding.apiKey')"
-          :hint="envHint('geocoding_api_key')"
-        >
+        <FormField data-setting="geocoding-api-key" :label="t('settings.server.geocoding.apiKey')">
           <template #default="{ fieldId, describedBy }">
             <Input
               :id="fieldId"
@@ -251,16 +227,14 @@ const GEOCODING_ENV_FIELDS = [
               :placeholder="
                 settings.geocodingApiKeySet ? t('settings.server.geocoding.apiKeyStored') : ''
               "
-              :disabled="
-                isSubmitting || values.removeGeocodingApiKey || Boolean(envVar('geocoding_api_key'))
-              "
+              :disabled="isSubmitting || values.removeGeocodingApiKey"
             />
           </template>
         </FormField>
         <Switch
           v-if="settings.geocodingApiKeySet"
           v-model="values.removeGeocodingApiKey"
-          :disabled="isSubmitting || Boolean(envVar('geocoding_api_key'))"
+          :disabled="isSubmitting"
         >
           {{ t('settings.server.geocoding.apiKeyRemove') }}
         </Switch>

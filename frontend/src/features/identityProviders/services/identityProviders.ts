@@ -181,6 +181,7 @@ export async function createIdentityProvider(
   const dto = await apiFetch<IdentityProviderDto>('/identity-providers', {
     method: 'POST',
     body: JSON.stringify(payload),
+    idempotent: true,
   })
   return mapIdentityProvider(dto)
 }

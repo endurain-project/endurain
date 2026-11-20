@@ -13,7 +13,6 @@ import jasil.providers as platform_providers
 import core.logger as core_logger
 import modules.users.users.constants as users_constants
 import modules.users.users_profile.utils as users_profile_utils
-from modules.users.users_profile.exceptions import MemoryAllocationError
 
 logger = core_logger.get_logger(__name__)
 
@@ -44,32 +43,29 @@ def add_user_images_to_zip(
 
     try:
         keys = storage.list_keys(area, f"{user_id}.")
-    except Exception as err:
+    except platform_providers.StorageBackendUnavailableError as err:
         logger.warning("Failed to list user images", exc_info=err, extra=core_logger.context(user_id=user_id))
         return
 
     for key in keys:
         try:
             data = storage.get(area, key)
-            if data is None:
-                logger.warning("User image blob not found", extra=core_logger.context(key=key))
-                continue
+        except platform_providers.StorageBackendUnavailableError as err:
+            logger.warning("Could not read a user image; skipping it", exc_info=err, extra=core_logger.context(key=key))
+            continue
+        if data is None:
+            logger.warning("User image blob not found", extra=core_logger.context(key=key))
+            continue
 
-            size = len(data)
-            if size > 10 * 1024 * 1024:
-                logger.warning(
-                    "Large user image file", extra=core_logger.context(key=key, size_mb=size / (1024 * 1024))
-                )
-            if size > 5 * 1024 * 1024:
-                users_profile_utils.check_memory_usage(
-                    f"before image {key}",
-                    performance_config.max_memory_mb,
-                    performance_config.enable_memory_monitoring,
-                )
+        size = len(data)
+        if size > 10 * 1024 * 1024:
+            logger.warning("Large user image file", extra=core_logger.context(key=key, size_mb=size / (1024 * 1024)))
+        if size > 5 * 1024 * 1024:
+            users_profile_utils.check_memory_usage(
+                f"before image {key}",
+                performance_config.max_memory_mb,
+                performance_config.enable_memory_monitoring,
+            )
 
-            zipf.writestr(os.path.join("user_images", key), data)
-            counts["user_images"] += 1
-        except MemoryAllocationError:
-            raise
-        except Exception as err:
-            logger.warning("Unexpected error adding user image", exc_info=err, extra=core_logger.context(key=key))
+        zipf.writestr(os.path.join("user_images", key), data)
+        counts["user_images"] += 1

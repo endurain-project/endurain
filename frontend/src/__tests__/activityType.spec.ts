@@ -21,7 +21,7 @@ import { GEAR_TYPE } from '@/features/gears/utils/gearType'
 const UNKNOWN = 'curling' as ActivityType
 
 describe('activityTypeToGearType', () => {
-  it('maps each activity family to its gear type (v1 parity)', () => {
+  it('maps each activity family to its gear type', () => {
     expect(activityTypeToGearType('ride')).toBe(GEAR_TYPE.BICYCLE)
     expect(activityTypeToGearType('run')).toBe(GEAR_TYPE.SHOES)
     expect(activityTypeToGearType('walk')).toBe(GEAR_TYPE.SHOES)

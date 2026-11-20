@@ -25,7 +25,7 @@ const { t, locale } = useI18n()
 const { duration } = useUnitFormat()
 
 /**
- * Lanes top → bottom (Awake, REM, Light, Deep), mirroring the v1 hypnogram and
+ * Lanes top → bottom (Awake, REM, Light, Deep), following
  * the convention of placing wakefulness at the top and deep sleep at the
  * bottom.
  */

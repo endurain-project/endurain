@@ -72,8 +72,7 @@ def delete_activity_file(
 def activity_id_of_processed_key(key: str) -> uuid.UUID | None:
     """Return the activity id a ``processed/{id}.{ext}`` key names.
 
-    Only the canonical lowercase UUID layout is recognised: an integer-layout key
-    belongs to the data migration that renames it and is never returned here.
+    Only the canonical lowercase UUID layout is recognised; any other key yields ``None``.
 
     Args:
         key: A storage key in the activity-files area.

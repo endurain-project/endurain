@@ -331,8 +331,6 @@
     "staleError": "Ces paramètres ont été modifiés par quelqu'un d'autre pendant que vous les modifiiez. Vos modifications n'ont pas été enregistrées. Rechargez la page pour voir les valeurs actuelles.",
     "stepUpTitle": "Confirmez votre identité",
     "stepUpDescription": "Ces modifications déterminent qui peut s'inscrire, se connecter ou conserver une session sur ce serveur, combien de temps le journal d'audit est conservé, ou si les liens publics indiquent qui les a partagés. Confirmez qu'il s'agit bien de vous pour continuer.",
-    "envLocked": "Défini par {name}",
-    "envSection": "Certains réglages ici sont définis par des variables d'environnement ({names}). Retirez-les de l'environnement pour modifier ces réglages ici.",
     "unsaved": "Modifications non enregistrées",
     "fixErrors": "Corrigez les erreurs ci-dessus pour enregistrer",
     "discard": "Annuler les modifications",

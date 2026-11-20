@@ -29,7 +29,7 @@ def _local_storage(tmp_path):
     here (prefix matching, symlink containment, skipping directories) lives in
     ``list_keys`` itself.
     """
-    return LocalStorage(str(tmp_path), legacy_layout=True)
+    return LocalStorage(str(tmp_path), plain_areas=frozenset({_AREA}))
 
 
 def _area_dir(tmp_path):
@@ -54,7 +54,7 @@ class TestDeleteMediaFilesForActivity:
         assert not (area / f"{ACT}_bbb.png").exists()
         assert (area / f"{OTHER}_ccc.jpeg").exists()
 
-    def test_another_activitys_and_an_integer_layout_blob_are_not_a_match(self, tmp_path):
+    def test_another_activitys_and_a_non_uuid_blob_are_not_a_match(self, tmp_path):
         area = _area_dir(tmp_path)
         (area / f"{OTHER}_aaa.jpeg").write_bytes(b"x")
         (area / "42_bbb.jpeg").write_bytes(b"x")

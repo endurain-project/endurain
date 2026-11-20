@@ -1,4 +1,4 @@
-"""Sign-in verifies the NFC form of a password, migrates legacy hashes, and commits a rehash on the MFA path."""
+"""Sign-in verifies the NFC form of a password and commits a rehash on the MFA path."""
 
 import uuid
 from types import SimpleNamespace
@@ -41,16 +41,11 @@ def test_a_password_set_composed_signs_in_typed_decomposed(hasher, mock_db):
     set_hash.assert_not_called()
 
 
-def test_a_legacy_raw_hash_signs_in_and_is_replaced_by_the_nfc_hash(hasher, mock_db):
-    legacy = hasher.hash_password(_DECOMPOSED)
+def test_a_hash_of_the_raw_non_nfc_text_no_longer_signs_in(hasher, mock_db):
+    raw_hash = hasher.hash_password(_DECOMPOSED)
 
-    user, set_hash = _authenticate(legacy, _DECOMPOSED, hasher, mock_db)
-
-    assert user.id == _USER_ID
-    new_hash = set_hash.call_args.args[1]
-    assert hasher.verify_password(_COMPOSED, new_hash)
-    # A rehash is not a password change: it leaves the must-change flag as it was.
-    assert set_hash.call_args.kwargs == {"change_required": True}
+    with pytest.raises(core_exceptions.UnauthenticatedError):
+        _authenticate(raw_hash, _DECOMPOSED, hasher, mock_db)
 
 
 def test_a_wrong_password_is_refused(hasher, mock_db):
@@ -188,11 +183,11 @@ def _dummy_verifies(hasher, mock_db, typed: str, *, user, credential) -> int:
     return dummy.call_count
 
 
-@pytest.mark.parametrize(("typed", "verifies"), [(_NFC, 1), (_NFD, 2)])
-def test_an_unknown_user_costs_the_verifies_of_a_known_user_with_a_wrong_password(hasher, mock_db, typed, verifies):
-    assert _dummy_verifies(hasher, mock_db, typed, user=None, credential=None) == verifies
+@pytest.mark.parametrize("typed", [_NFC, _NFD])
+def test_an_unknown_user_costs_the_verifies_of_a_known_user_with_a_wrong_password(hasher, mock_db, typed):
+    assert _dummy_verifies(hasher, mock_db, typed, user=None, credential=None) == 1
 
 
-@pytest.mark.parametrize(("typed", "verifies"), [(_NFC, 1), (_NFD, 2)])
-def test_an_account_without_a_local_credential_costs_the_verifies_of_a_wrong_password(hasher, mock_db, typed, verifies):
-    assert _dummy_verifies(hasher, mock_db, typed, user=SimpleNamespace(id=_USER_ID), credential=None) == verifies
+@pytest.mark.parametrize("typed", [_NFC, _NFD])
+def test_an_account_without_a_local_credential_costs_the_verifies_of_a_wrong_password(hasher, mock_db, typed):
+    assert _dummy_verifies(hasher, mock_db, typed, user=SimpleNamespace(id=_USER_ID), credential=None) == 1

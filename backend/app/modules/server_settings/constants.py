@@ -2,9 +2,8 @@
 
 from typing import TypedDict
 
-#: Storage area and key of the custom login-page photo. The area matches the legacy
-#: ``{DATA_DIR}/server_images`` directory, so a photo uploaded before the
-#: ``StorageProvider`` is found by the local backend without migrating it.
+#: Storage area and key of the custom login-page photo. On the local backend the area is the
+#: ``{DATA_DIR}/server_images`` directory.
 LOGIN_PHOTO_STORAGE_AREA = "server_images"
 LOGIN_PHOTO_STORAGE_KEY = "login.png"
 
@@ -21,47 +20,6 @@ DEFAULT_ALLOWED_TILE_DOMAINS: list[str] = [
     "https://*.openstreetmap.org",  # OpenStreetMap
     "https://*.stadiamaps.com",  # Stadia Maps
 ]
-
-#: Mail settings field -> the deprecated environment variable that sets it. The mail block is
-#: imported as a whole, so all of these are env-managed while ``SMTP_HOST`` is set.
-MAIL_ENV_VARS: dict[str, str] = {
-    "host": "SMTP_HOST",
-    "port": "SMTP_PORT",
-    "security": "SMTP_SECURE",
-    "username": "SMTP_USERNAME",
-    "password": "SMTP_PASSWORD",
-    "from_address": "SMTP_FROM",
-}
-
-#: Geocoding field -> the deprecated environment variable that sets it (the Nominatim variant
-#: for the per-service host and HTTPS fields). The block is imported as a whole, so all of
-#: these are env-managed while any variable in ``GEOCODING_ENV_VAR_NAMES`` is set.
-GEOCODING_ENV_VARS: dict[str, str] = {
-    "geocoding_service": "REVERSE_GEO_PROVIDER",
-    "geocoding_host": "NOMINATIM_API_HOST",
-    "geocoding_use_https": "NOMINATIM_API_USE_HTTPS",
-    "geocoding_rate_limit": "REVERSE_GEO_RATE_LIMIT",
-    "geocoding_api_key": "GEOCODES_MAPS_API",
-}
-
-#: The Photon variants of the per-service geocoding fields.
-GEOCODING_PHOTON_ENV_VARS: dict[str, str] = {
-    "geocoding_host": "PHOTON_API_HOST",
-    "geocoding_use_https": "PHOTON_API_USE_HTTPS",
-}
-
-#: Every deprecated geocoding variable; any one of them being set makes the block env-managed.
-GEOCODING_ENV_VAR_NAMES: tuple[str, ...] = (*GEOCODING_ENV_VARS.values(), *GEOCODING_PHOTON_ENV_VARS.values())
-
-#: Session policy field -> the deprecated environment variable that sets it. Each variable
-#: makes only its own field env-managed.
-SESSION_ENV_VARS: dict[str, str] = {
-    "session_idle_timeout_enabled": "SESSION_IDLE_TIMEOUT_ENABLED",
-    "session_idle_timeout_hours": "SESSION_IDLE_TIMEOUT_HOURS",
-    "session_absolute_timeout_hours": "SESSION_ABSOLUTE_TIMEOUT_HOURS",
-    "access_token_expire_minutes": "ACCESS_TOKEN_EXPIRE_MINUTES",
-    "refresh_token_expire_days": "REFRESH_TOKEN_EXPIRE_DAYS",
-}
 
 #: The settings that govern who can sign up or sign in, whether MFA is required, how long a session or token lives,
 #: whether public links reveal their owner, and where the server sends its own requests (the geocoding service and
@@ -94,18 +52,6 @@ SECURITY_FIELDS: frozenset[str] = frozenset(
         "geocoding_use_https",
         "tileserver_url",
     }
-)
-
-#: Read-notification retention field -> the deprecated environment variable that sets it.
-RETENTION_ENV_VARS: dict[str, str] = {"read_notification_retention_days": "READ_NOTIFICATION_RETENTION_DAYS"}
-
-#: Logged once at boot when deprecated environment variables were found; ``{names}`` is
-#: the comma-separated variable names, never their values.
-DEPRECATED_ENV_WARNING = (
-    "The environment variables {names} are deprecated. Their values were saved to the "
-    "database and are now edited in Settings > Server. Remove them from your "
-    "environment: while they are set they overwrite the stored values on every start, "
-    "and from v0.22.0 Endurain refuses to start while any of them is set."
 )
 
 
@@ -190,11 +136,9 @@ GEOCODING_API_KEY_LABEL = "geocoding API key"
 
 #: Write-only secret field name to what it is called in messages.
 SECRET_FIELDS = {API_KEY_FIELD: API_KEY_LABEL, GEOCODING_API_KEY_FIELD: GEOCODING_API_KEY_LABEL}
-GEOCODING_FIELDS = frozenset(GEOCODING_ENV_VARS)
+GEOCODING_FIELDS = frozenset(
+    {"geocoding_service", "geocoding_host", "geocoding_use_https", "geocoding_rate_limit", "geocoding_api_key"}
+)
 
 MAIL_CREDENTIAL_FIELD = "password"
 MAIL_CREDENTIAL_LABEL = "SMTP password"
-SMTP_ENV_VARS = (*MAIL_ENV_VARS.values(), "SMTP_SECURE_TYPE")
-
-#: Secrets read through ``read_secret``, which also counts when only their ``_FILE`` variant is set.
-FILE_SECRET_ENV_VARS = frozenset({"SMTP_PASSWORD"})

@@ -5,7 +5,7 @@ from datetime import UTC, datetime, timedelta
 from types import SimpleNamespace
 
 import pytest
-from sqlalchemy import event
+from sqlalchemy import event, select
 from tests._helpers.db import create_sqlite_session
 
 import modules.activities.activity_media.integration_service as media_integration
@@ -50,7 +50,7 @@ class TestMediaForActivities:
 
         assert sorted(result) == sorted([ACT1, ACT2])
         assert [m.activity_id for m in result[ACT1]] == [ACT1, ACT1]
-        by_path = {row.media_path: row.id for row in session.query(media_models.ActivityMedia)}
+        by_path = {row.media_path: row.id for row in session.scalars(select(media_models.ActivityMedia))}
         # Photo 1 was created first, so it comes first whatever the random ids sort as.
         assert [m.id for m in result[ACT1]] == [by_path[f"{ACT1}_1.jpg"], by_path[f"{ACT1}_0.jpg"]]
         assert all(m.url and "_0.jpg" not in m.url for m in result[ACT1])
@@ -83,7 +83,7 @@ def _restore(session, records):
     activity = SimpleNamespace(id=NEW_ACT)
     count = media_integration._restore_profile_records(records, ORIGINAL_ACT, activity, session)
     session.flush()
-    rows = session.query(media_models.ActivityMedia).order_by(media_models.ActivityMedia.media_path).all()
+    rows = session.scalars(select(media_models.ActivityMedia).order_by(media_models.ActivityMedia.media_path)).all()
     return count, [(r.media_path, r.content_hash) for r in rows]
 
 

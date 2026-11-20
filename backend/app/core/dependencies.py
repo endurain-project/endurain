@@ -22,8 +22,7 @@ DbSession = Annotated[Session, Depends(core_database.get_db, scope="function")]
 
 
 def require_if_match_header(if_match: Annotated[str | None, Header(alias=core_etag.IF_MATCH_HEADER)] = None) -> str:
-    """
-    Return the request's ``If-Match`` precondition, which a write to a versioned resource must carry.
+    """Return the request's ``If-Match`` precondition, which a write to a versioned resource must carry.
 
     Args:
         if_match: The ``If-Match`` header, if the client sent one.
@@ -48,8 +47,7 @@ IfMatch = Annotated[str, Depends(require_if_match_header)]
 
 
 def get_storage() -> platform_providers.StorageProvider:
-    """
-    Return the active platform's blob-storage provider.
+    """Return the active platform's blob-storage provider.
 
     Routers declare it with ``Depends`` so the provider reaches services as an
     argument and a test can override it without patching the runtime.
@@ -65,8 +63,7 @@ Storage = Annotated[platform_providers.StorageProvider, Depends(get_storage)]
 
 
 def get_platform_state() -> platform_providers.StateProvider:
-    """
-    Return the active platform's ephemeral-state provider.
+    """Return the active platform's ephemeral-state provider.
 
     Routers declare it with ``Depends`` so the provider reaches services and stores as
     an argument and a test can override it without patching the runtime.
@@ -82,8 +79,7 @@ PlatformState = Annotated[platform_providers.StateProvider, Depends(get_platform
 
 
 def get_platform_clock() -> platform_providers.ClockProvider:
-    """
-    Return the active platform's clock.
+    """Return the active platform's clock.
 
     Returns:
         The clock provider.
@@ -96,8 +92,7 @@ PlatformClock = Annotated[platform_providers.ClockProvider, Depends(get_platform
 
 
 def get_mail() -> platform_providers.MailProvider:
-    """
-    Return the active platform's outbound-mail provider.
+    """Return the active platform's outbound-mail provider.
 
     Routers declare it with ``Depends`` so the provider reaches services as an
     argument and a test can override it without patching the runtime.

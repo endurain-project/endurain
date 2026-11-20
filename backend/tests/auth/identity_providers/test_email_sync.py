@@ -6,6 +6,7 @@ from unittest.mock import MagicMock, patch
 
 import jasil.testing as jasil_testing
 import pytest
+from sqlalchemy import func, select
 from sqlalchemy.orm import sessionmaker
 
 import modules.auth.identity_providers.contracts as contracts
@@ -68,7 +69,7 @@ def test_a_synced_email_is_applied_audited_and_told_to_the_previous_address(db):
         users_audit_actions.USER_EMAIL_CHANGE.id, target_type="user", target_id=str(MOCK_USER_ID)
     )
     assert entry.details is None
-    notice = db.query(sign_up_models.SignUpToken).filter_by(user_id=MOCK_USER_ID).one()
+    notice = db.scalars(select(sign_up_models.SignUpToken).filter_by(user_id=MOCK_USER_ID)).one()
     assert (notice.previous_email, notice.email, notice.used) == (previous, "new@example.com", True)
     assert publish.call_args.args[0] == "auth.email_changed"
     assert publish.call_args.args[1] == {"user_id": str(MOCK_USER_ID), "token_id": str(notice.id)}
@@ -89,4 +90,4 @@ def test_sync_email_off_keeps_the_email_while_the_name_syncs(db):
     assert (updated.email, updated.name) == (user.email, "Brand New")
     audit.assert_not_audited(users_audit_actions.USER_EMAIL_CHANGE.id)
     publish.assert_not_called()
-    assert db.query(sign_up_models.SignUpToken).count() == 0
+    assert db.scalar(select(func.count()).select_from(sign_up_models.SignUpToken)) == 0

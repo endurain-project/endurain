@@ -41,7 +41,7 @@ const toasts = useToasts()
 const { data: currentUser } = useCurrentUser()
 const units = computed(() => currentUser.value?.units ?? 'metric')
 
-// Server-side filters (mirrors v1: changing a filter refetches with query params).
+// Server-side filters: changing a filter refetches with query params.
 const selectedInterval = ref<GoalInterval | ''>('')
 const selectedActivityType = ref<GoalActivityType | ''>('')
 const selectedGoalType = ref<GoalMetric | ''>('')

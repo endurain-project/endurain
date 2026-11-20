@@ -307,8 +307,7 @@ def _forwarded_hop_address(hop: str) -> str | None:
 
 
 def get_ip_address(request: HTTPConnection) -> str:
-    """
-    Extract client IP address from request, respecting TRUSTED_PROXIES.
+    """Extract client IP address from request, respecting TRUSTED_PROXIES.
 
     Proxy headers (``X-Forwarded-For``, ``X-Real-IP``) are only trusted
     when the direct TCP peer matches an entry in ``TRUSTED_PROXIES``.
@@ -469,7 +468,7 @@ def _resolve_checked_addresses(
     """
     try:
         infos = socket.getaddrinfo(hostname, None)
-    except (socket.gaierror, UnicodeError):
+    except socket.gaierror, UnicodeError:
         # UnicodeError: the name cannot be IDNA-encoded (an empty or over-long label), so it names no host
         return (), _UNRESOLVABLE
 

@@ -30,10 +30,7 @@ export function useBulkImportFromFolderMutation() {
 export function useBulkImportFromArchiveMutation() {
   const client = useQueryClient()
   return useMutation<ActivityIngestionJob, Error, { file: File; source: BulkImportSource }>({
-    // One key per submit, so a replay of this same request (the 401-refresh retry inside apiFetch)
-    // is answered with the original import instead of starting another.
-    mutationFn: ({ file, source }) =>
-      bulkImportFromArchive(file, source, { idempotencyKey: crypto.randomUUID() }),
+    mutationFn: ({ file, source }) => bulkImportFromArchive(file, source),
     onSuccess: (job) => seedJob(client, job),
     onError: (error) => refreshLatestJobOnConflict(client, 'activity_bulk_import', error),
   })

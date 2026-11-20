@@ -303,7 +303,7 @@ function onRefresh(): void {
       </template>
     </section>
 
-    <!-- Right sidebar (hidden on small screens, matching v1). -->
+    <!-- Right sidebar (hidden on small screens). -->
     <aside class="hidden flex-col gap-3 lg:col-span-3 lg:flex">
       <UserGoalResults
         :goals="goalResults.data.value ?? []"

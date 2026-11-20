@@ -73,8 +73,7 @@ logger = core_logger.get_logger(__name__)
 # ---------------------------------------------------------------------------
 
 # Activity files (.gpx/.tcx/.fit) and gzip-wrapped variants can be
-# large multi-day .fit files. 200 MiB matches the historical cap
-# enforced by the legacy activity-upload helper.
+# large multi-day .fit files. 200 MiB bounds an activity file and its gzip.
 _MAX_ACTIVITY_BYTES = 200 * 1024 * 1024
 _MAX_GZIP_BYTES = 200 * 1024 * 1024
 
@@ -327,8 +326,7 @@ def validate_local_file_sync(
 
 
 def _resolve_upload_path(upload_dir: str, filename: str) -> Path:
-    """
-    Resolve an upload filename inside the target directory.
+    """Resolve an upload filename inside the target directory.
 
     Args:
         upload_dir: Trusted upload directory.
@@ -930,8 +928,7 @@ def move_within(
 ) -> Path:
     """Move ``src`` into ``dest_dir`` as ``filename`` safely.
 
-    Replacement for the legacy ``move_file`` helper. The final
-    destination is always constrained to ``dest_dir``. When
+    The final destination is always constrained to ``dest_dir``. When
     ``src_base_dir`` is provided, the source path is also required
     to resolve under that trusted directory before the move.
 
@@ -1211,13 +1208,13 @@ MAX_ARCHIVE_UNCOMPRESSED_BYTES = 8 * 1024 * 1024 * 1024
 
 @dataclass(frozen=True)
 class ZipMember:
-    """One regular file inside an archive.
+    r"""One regular file inside an archive.
 
     Attributes:
         name: The member's path inside the archive, with ``/`` separators.
         size: Its uncompressed size in bytes.
         stored_name: The name the archive stores the member under, which opens it
-            (it keeps a ``\\`` the archive was written with).
+            (it keeps a ``\`` the archive was written with).
     """
 
     name: str

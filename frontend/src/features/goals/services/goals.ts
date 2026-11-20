@@ -143,6 +143,7 @@ export async function createGoal(input: GoalInput): Promise<Goal> {
   const dto = await apiFetch<GoalDto>('/profile/goals', {
     method: 'POST',
     body: JSON.stringify(payload),
+    idempotent: true,
   })
   return mapGoal(dto)
 }

@@ -397,7 +397,7 @@ def get_memory_usage_mb(enable_monitoring: bool = True) -> float:
             return 0.0
         process = psutil.Process()
         return process.memory_info().rss / (1024 * 1024)  # Convert to MB
-    except Exception as err:
+    except (psutil.Error, OSError) as err:
         logger.warning("Failed to get memory usage", exc_info=err)
         return 0.0
 
@@ -495,6 +495,6 @@ def detect_system_memory_tier() -> tuple[str, int]:
             return "medium", available_mb
         else:  # Low memory system
             return "low", available_mb
-    except Exception as err:
+    except (psutil.Error, OSError, RuntimeError) as err:  # RuntimeError: psutil's unsupported-platform errors
         logger.warning("Failed to detect system memory, using defaults", exc_info=err)
         return "medium", 1024  # Default to medium tier with 1GB

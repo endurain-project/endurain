@@ -57,8 +57,7 @@ def _alembic_is_at_head() -> bool:
 
 
 def _schema_is_current() -> bool:
-    """
-    Tell whether the application's and the platform's schemas are both at their latest revision.
+    """Tell whether the application's and the platform's schemas are both at their latest revision.
 
     Returns:
         True when neither is behind.
@@ -76,8 +75,7 @@ def _schema_is_current() -> bool:
 
 
 def _wait_for_current_schema(stop: threading.Event) -> None:
-    """
-    Block until the schema is current, so no job is claimed against an older one.
+    """Block until the schema is current, so no job is claimed against an older one.
 
     The API applies the migrations, so a worker that starts first polls until it has. It does not migrate.
 
@@ -101,8 +99,7 @@ def _wait_for_current_schema(stop: threading.Event) -> None:
 
 
 def run_worker_process(stop: threading.Event | None = None) -> None:
-    """
-    Build the platform, register durable handlers, and drain jobs until stopped.
+    """Build the platform, register durable handlers, and drain jobs until stopped.
 
     Args:
         stop: Optional stop event; defaults to a fresh event wired to SIGTERM/SIGINT.

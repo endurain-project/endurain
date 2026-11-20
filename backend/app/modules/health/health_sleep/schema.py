@@ -106,6 +106,17 @@ class SleepScore(Enum):
     POOR = "POOR"
 
 
+#: The most stages a sleep record holds: one per minute of a day. The stages are contiguous intervals of one sleep
+#: session, which ends within the day its record is dated; Garmin Connect reports them in whole minutes, the finest
+#: granularity any producer here (the provider sync, a profile import, the form, a client) writes, and a night has
+#: some dozens. The bound also keeps what a create echoes under ``core.idempotency.MAX_STORED_BODY``.
+MAX_SLEEP_STAGES = 24 * 60
+
+_SLEEP_STAGES_DESCRIPTION = (
+    f"List of sleep stages, at most {MAX_SLEEP_STAGES}: one per minute of a day, the finest granularity of a stage"
+)
+
+
 class HealthSleepStage(BaseModel):
     """Represents a sleep stage with timing and duration information.
 
@@ -120,8 +131,13 @@ class HealthSleepStage(BaseModel):
     """
 
     stage_type: StoredSleepStageType | None = Field(default=None, description="Type of sleep stage")
-    start_time_gmt: datetime | None = Field(default=None, description="Start time of the stage in GMT")
-    end_time_gmt: datetime | None = Field(default=None, description="End time of the stage in GMT")
+    # Written as ISO 8601 text by ``serialize_time``, so the published schema names the format, which bounds its length.
+    start_time_gmt: datetime | None = Field(
+        default=None, description="Start time of the stage in GMT", json_schema_extra={"format": "date-time"}
+    )
+    end_time_gmt: datetime | None = Field(
+        default=None, description="End time of the stage in GMT", json_schema_extra={"format": "date-time"}
+    )
     duration_seconds: StrictInt | None = Field(
         default=None, ge=0, le=core_types.INT32_MAX, description="Duration of the stage in seconds"
     )
@@ -297,7 +313,7 @@ class HealthSleepCore(BaseModel):
     )
 
     @model_validator(mode="after")
-    def validate_sleep_times(self) -> "HealthSleepCore":
+    def validate_sleep_times(self) -> HealthSleepCore:
         """Validate sleep start < end, reading a time without an offset as UTC."""
         if (
             self.sleep_start_time_gmt is not None
@@ -325,7 +341,9 @@ class HealthSleepBase(HealthSleepCore):
         sleep_stages (list[HealthSleepStage] | None): List of sleep stages.
     """
 
-    sleep_stages: Sequence[HealthSleepStage] | None = Field(default=None, description="List of sleep stages")
+    sleep_stages: Sequence[HealthSleepStage] | None = Field(
+        default=None, max_length=MAX_SLEEP_STAGES, description=_SLEEP_STAGES_DESCRIPTION
+    )
 
 
 class HealthSleepStageWrite(HealthSleepStage):
@@ -375,7 +393,9 @@ class HealthSleepCreate(HealthSleepWrite):
     The date is optional; ``service`` fills it in when the client sends none.
     """
 
-    sleep_stages: Sequence[HealthSleepStageWrite] | None = Field(default=None, description="List of sleep stages")
+    sleep_stages: Sequence[HealthSleepStageWrite] | None = Field(
+        default=None, max_length=MAX_SLEEP_STAGES, description=_SLEEP_STAGES_DESCRIPTION
+    )
 
 
 class HealthSleepIdentity(HealthSleepCore):
@@ -440,7 +460,9 @@ class HealthSleepUpdate(core_partial_update.NotClearable, HealthSleepWrite):
 
     not_clearable: ClassVar[tuple[str, ...]] = ("date",)
 
-    sleep_stages: Sequence[HealthSleepStageWrite] | None = Field(default=None, description="List of sleep stages")
+    sleep_stages: Sequence[HealthSleepStageWrite] | None = Field(
+        default=None, max_length=MAX_SLEEP_STAGES, description=_SLEEP_STAGES_DESCRIPTION
+    )
 
 
 class HealthSleepImport(HealthSleepWrite):
@@ -460,7 +482,9 @@ class HealthSleepImport(HealthSleepWrite):
     source: Source = Field(default=Source.MANUAL, validate_default=True, description="Source of the sleep data")
     sleep_start_time_gmt: core_types.ImportedInstant | None = Field(default=None, description="Start time of sleep")
     sleep_end_time_gmt: core_types.ImportedInstant | None = Field(default=None, description="End time of sleep")
-    sleep_stages: Sequence[HealthSleepStageImport] | None = Field(default=None, description="List of sleep stages")
+    sleep_stages: Sequence[HealthSleepStageImport] | None = Field(
+        default=None, max_length=MAX_SLEEP_STAGES, description=_SLEEP_STAGES_DESCRIPTION
+    )
 
 
 class HealthSleepImportUpdate(core_partial_update.NotClearable, HealthSleepWrite):
@@ -479,7 +503,9 @@ class HealthSleepImportUpdate(core_partial_update.NotClearable, HealthSleepWrite
     source: Source | None = Field(default=None, description="Source of the sleep data")
     sleep_start_time_gmt: core_types.ImportedInstant | None = Field(default=None, description="Start time of sleep")
     sleep_end_time_gmt: core_types.ImportedInstant | None = Field(default=None, description="End time of sleep")
-    sleep_stages: Sequence[HealthSleepStageImport] | None = Field(default=None, description="List of sleep stages")
+    sleep_stages: Sequence[HealthSleepStageImport] | None = Field(
+        default=None, max_length=MAX_SLEEP_STAGES, description=_SLEEP_STAGES_DESCRIPTION
+    )
 
 
 #: A sleep record to create: a client's, or the server's own from a provider sync or a profile import.

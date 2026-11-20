@@ -1,7 +1,5 @@
 """Auth-owned identity-provider link workflows exposed to profile routes."""
 
-from __future__ import annotations
-
 import uuid
 
 import jasil.audit as jasil_audit

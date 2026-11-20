@@ -3,6 +3,7 @@ from datetime import UTC, datetime, timedelta
 from unittest.mock import MagicMock, patch
 
 import pytest
+from sqlalchemy import update
 
 import core.hashing as hashing
 import core.network as network
@@ -622,7 +623,7 @@ class TestReplayAfterReplacementCleared:
                 replacement_refresh_token="new-token",
                 replacement_refresh_token_exp=now + timedelta(days=1),
             )
-        db.query(rotated_token_models.RotatedRefreshToken).update({"expires_at": now - timedelta(seconds=1)})
+        db.execute(update(rotated_token_models.RotatedRefreshToken).values({"expires_at": now - timedelta(seconds=1)}))
         db.flush()
 
         assert rotated_token_utils.clear_expired_replacements(now, db) == 1

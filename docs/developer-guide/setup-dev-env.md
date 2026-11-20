@@ -104,7 +104,7 @@ docker image remove unified-image
 
 ## Backend tooling
 
-The backend (Python 3.13) uses [uv](https://docs.astral.sh/uv/) for dependencies and [hatch](https://hatch.pypa.io/) for scripts. Install Python 3.13 and uv on your machine, then work from the `backend/` folder:
+The backend (Python 3.15) uses [uv](https://docs.astral.sh/uv/) for dependencies and [hatch](https://hatch.pypa.io/) for scripts. Install Python 3.15 and uv on your machine, then work from the `backend/` folder:
 
 ```bash
 cd backend
@@ -117,7 +117,7 @@ uv run ruff format --check . && uv run ruff check .   # format and lint
 Hatch scripts group the common checks, for example `uv run hatch run check` runs lint, format, tests and type checks without changing files. Backend code changes in the mounted `backend/app` folder apply after a container restart.
 
 ## Frontend
-Make sure you have Node.js 22.18+ or 24.12+ installed ([nodejs.org](https://nodejs.org/)).
+Make sure you have Node.js 26+ installed ([nodejs.org](https://nodejs.org/)).
 
 - Go to the root of the project and move to frontend folder and install the dependencies:
 

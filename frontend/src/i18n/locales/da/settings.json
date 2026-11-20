@@ -331,8 +331,6 @@
     "staleError": "Disse indstillinger blev ændret af en anden, mens du redigerede. Dine ændringer blev ikke gemt. Genindlæs siden for at se de aktuelle værdier.",
     "stepUpTitle": "Bekræft din identitet",
     "stepUpDescription": "Disse ændringer påvirker, hvem der kan tilmelde sig, logge ind eller beholde en session på denne server, hvor længe revisionsloggen gemmes, eller om offentlige links viser, hvem der har delt dem. Bekræft, at det er dig, for at fortsætte.",
-    "envLocked": "Angivet af {name}",
-    "envSection": "Nogle indstillinger her angives af miljøvariabler ({names}). Fjern dem fra miljøet for at redigere dem her.",
     "unsaved": "Ugemte ændringer",
     "fixErrors": "Ret fejlene ovenfor for at gemme",
     "discard": "Kassér",

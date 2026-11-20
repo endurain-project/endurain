@@ -87,7 +87,7 @@ function httpsUrlOrNull(url: string | null): string | null {
 let restorePromise: Promise<void> | null = null
 
 /**
- * Applies the authenticated user's preferred backend language when v2 supports it.
+ * Applies the authenticated user's preferred backend language when the app supports it.
  *
  * @param nextUser - Hydrated authenticated user.
  */

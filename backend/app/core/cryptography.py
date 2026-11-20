@@ -12,8 +12,7 @@ logger = core_logger.get_logger(__name__)
 
 
 def _configured_fernets() -> list[Fernet]:
-    """
-    Build one Fernet per configured key, the encrypting key first.
+    """Build one Fernet per configured key, the encrypting key first.
 
     Returns:
         The Fernets in the order the keys are configured.
@@ -33,8 +32,7 @@ def _configured_fernets() -> list[Fernet]:
 
 
 def create_fernet_cipher() -> MultiFernet:
-    """
-    Create a cipher that encrypts with the first configured key and decrypts with any of them.
+    """Create a cipher that encrypts with the first configured key and decrypts with any of them.
 
     Returns:
         MultiFernet initialised with the configured keys.
@@ -46,8 +44,7 @@ def create_fernet_cipher() -> MultiFernet:
 
 
 def has_older_keys() -> bool:
-    """
-    Report whether more than one key is configured, so stored values may sit under an older key.
+    """Report whether more than one key is configured, so stored values may sit under an older key.
 
     Returns:
         True when the key list holds an older key besides the encrypting one.
@@ -59,8 +56,7 @@ def has_older_keys() -> bool:
 
 
 def reencrypt_to_primary_key(token: str) -> str | None:
-    """
-    Re-encrypt a token under the first configured key when it was encrypted under an older one.
+    """Re-encrypt a token under the first configured key when it was encrypted under an older one.
 
     Args:
         token: Encrypted token string.
@@ -108,8 +104,7 @@ def encrypt_token_fernet(token: object | None) -> str | None: ...
 
 
 def encrypt_token_fernet(token: object | None) -> str | None:
-    """
-    Encrypt a token with Fernet symmetric encryption.
+    """Encrypt a token with Fernet symmetric encryption.
 
     Args:
         token: Token value to encrypt, or None.
@@ -151,8 +146,7 @@ def decrypt_token_fernet(encrypted_token: str | None) -> str | None: ...
 
 
 def decrypt_token_fernet(encrypted_token: str | None) -> str | None:
-    """
-    Decrypt a Fernet-encrypted token.
+    """Decrypt a Fernet-encrypted token.
 
     Args:
         encrypted_token: Encrypted token string, or None.
@@ -184,8 +178,7 @@ def decrypt_token_fernet(encrypted_token: str | None) -> str | None:
 
 
 def same_secret(first: str | None, second: str | None) -> bool:
-    """
-    Compare two stored secrets by what they decrypt to.
+    """Compare two stored secrets by what they decrypt to.
 
     Re-encrypting a secret changes its ciphertext but not its value, so a check that a stored secret is
     still the one a caller read must not compare ciphertext.

@@ -145,7 +145,7 @@ const visibilityOptions: { value: ActivityVisibility; labelKey: string }[] = [
   { value: 'private', labelKey: 'activities.visibility.private' },
 ]
 
-/** The per-metric "hide from others" toggles, mirroring v1's edit modal. */
+/** The per-metric "hide from others" toggles. */
 const privacyFields = [
   { key: 'hideStartTime', labelKey: 'activities.edit.hideStartTime' },
   { key: 'hideLocation', labelKey: 'activities.edit.hideLocation' },

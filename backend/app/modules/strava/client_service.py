@@ -170,7 +170,7 @@ def _error_details(err: Exception) -> list[dict[str, str]]:
         return []
     try:
         errors = err.response.json()["errors"]
-    except (ValueError, TypeError, KeyError):
+    except ValueError, TypeError, KeyError:
         return []
     if not isinstance(errors, list):
         return []
@@ -332,7 +332,7 @@ def _daily_limit_reached(err: Exception) -> bool:
         try:
             usage = int(headers[f"{prefix}-usage"].split(",")[1])
             limit = int(headers[f"{prefix}-limit"].split(",")[1])
-        except (KeyError, IndexError, ValueError, AttributeError):
+        except KeyError, IndexError, ValueError, AttributeError:
             continue
         if usage >= limit:
             return True
@@ -391,20 +391,20 @@ class _TimeoutSession(requests.Session):
         self,
         method: str | bytes,
         url: str | bytes,
-        params: "_Params | None" = None,
-        data: "_Data | None" = None,
-        headers: "_HeadersUpdateMapping | None" = None,
-        cookies: "RequestsCookieJar | _TextMapping | None" = None,
-        files: "_Files | None" = None,
-        auth: "_Auth | None" = None,
-        timeout: "_Timeout | None" = strava_constants.HTTP_TIMEOUT_SECONDS,
+        params: _Params | None = None,
+        data: _Data | None = None,
+        headers: _HeadersUpdateMapping | None = None,
+        cookies: RequestsCookieJar | _TextMapping | None = None,
+        files: _Files | None = None,
+        auth: _Auth | None = None,
+        timeout: _Timeout | None = strava_constants.HTTP_TIMEOUT_SECONDS,
         allow_redirects: bool = True,
-        proxies: "_TextMapping | None" = None,
-        hooks: "_HooksInput | None" = None,
+        proxies: _TextMapping | None = None,
+        hooks: _HooksInput | None = None,
         stream: bool | None = None,
-        verify: "_Verify | None" = None,
-        cert: "_Cert | None" = None,
-        json: "_JSON | None" = None,
+        verify: _Verify | None = None,
+        cert: _Cert | None = None,
+        json: _JSON | None = None,
     ) -> requests.Response:
         """Send a request, bounded by :data:`strava_constants.HTTP_TIMEOUT_SECONDS` unless one is given.
 

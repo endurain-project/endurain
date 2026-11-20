@@ -26,7 +26,7 @@ import {
 /**
  * Health dashboard zone. Renders a grid of metric cards combining today's
  * health stats with the user's targets (target value + an up/down arrow), in
- * the user's unit system. Mirrors v1's HealthDashboardZoneComponent.
+ * the user's unit system.
  */
 const { t } = useI18n()
 const { duration, unitLabel } = useUnitFormat()

@@ -120,8 +120,8 @@ const showLaps = computed(
 )
 
 // Workout steps/sets. Fetched for every activity (like laps/streams); the
-// section self-hides when there is no data, mirroring v1 which fetches these
-// regardless of activity type and lets data presence drive display.
+// section self-hides when there is no data, so data presence drives display
+// regardless of activity type.
 const { data: workoutSteps } = useActivityWorkoutStepsQuery(activityId, activityLoaded)
 const { data: workoutSets } = useActivitySetsQuery(activityId, activityLoaded)
 const hasWorkoutData = computed(
@@ -137,7 +137,7 @@ const showWorkout = computed(
     hasWorkoutData.value,
 )
 
-// Active tab when both laps and workout sets are available (v1's pill switch).
+// Active tab when both laps and workout sets are available.
 const splitsTab = ref('laps')
 
 // HR zones live on the HR stream; gate them by the same HR visibility as the
@@ -279,7 +279,7 @@ const notFound = computed(() => !isLoading.value && !isError.value && !activity.
 
     <!-- Content -->
     <template v-else-if="activity && metricVisibility">
-      <!-- Summary: title/user + at-a-glance metrics, before the map (v1 order). -->
+      <!-- Summary: title/user + at-a-glance metrics, before the map. -->
       <Card class="flex flex-col gap-3">
         <ActivityDetailHeader
           :activity="activity"
@@ -323,7 +323,7 @@ const notFound = computed(() => !isLoading.value && !isError.value && !activity.
       </div>
 
       <Card v-if="showLaps || showWorkout" class="flex flex-col gap-3">
-        <!-- Both available → switch between Laps and Sets (mirrors v1's pills). -->
+        <!-- Both available → switch between Laps and Sets. -->
         <Tabs v-if="showLaps && showWorkout" v-model="splitsTab">
           <TabsList>
             <TabsTrigger value="laps">{{ t('activities.laps.title') }}</TabsTrigger>

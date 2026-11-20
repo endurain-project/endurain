@@ -141,7 +141,7 @@ class HealthFastingCreate(HealthFastingWrite):
     )
 
     @model_validator(mode="after")
-    def set_defaults_and_validate(self) -> "HealthFastingCreate":
+    def set_defaults_and_validate(self) -> HealthFastingCreate:
         """Set the defaults of the fields left out.
 
         Returns:

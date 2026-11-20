@@ -73,31 +73,14 @@ class TestStoreAndGet:
         assert activity_file_storage_integration.get_activity_file(ID_5, storage) == (f"{ID_5}.tcx", b"tcx")
 
     def test_reads_files_already_at_the_plain_processed_path(self, tmp_path):
-        legacy_file = tmp_path / "activity_files" / "processed" / f"{ID_1}.gpx"
-        legacy_file.parent.mkdir(parents=True)
-        legacy_file.write_bytes(b"legacy")
+        plain_file = tmp_path / "activity_files" / "processed" / f"{ID_1}.gpx"
+        plain_file.parent.mkdir(parents=True)
+        plain_file.write_bytes(b"plain")
 
         assert activity_file_storage_integration.get_activity_file(ID_1, _plain_storage(tmp_path)) == (
             f"{ID_1}.gpx",
-            b"legacy",
+            b"plain",
         )
-
-    def test_reads_a_file_still_in_the_opaque_layout(self, tmp_path):
-        # Written by a release that stored the area in JASIL's private layout.
-        activity_file_storage_integration.store_activity_file(ID_7, ".fit", b"opaque", LocalStorage(str(tmp_path)))
-
-        assert activity_file_storage_integration.get_activity_file(ID_7, _plain_storage(tmp_path)) == (
-            f"{ID_7}.fit",
-            b"opaque",
-        )
-
-    def test_overwriting_moves_the_opaque_copy_to_the_plain_path(self, tmp_path):
-        activity_file_storage_integration.store_activity_file(ID_7, ".fit", b"opaque", LocalStorage(str(tmp_path)))
-
-        activity_file_storage_integration.store_activity_file(ID_7, ".fit", b"plain", _plain_storage(tmp_path))
-
-        assert (tmp_path / "activity_files" / "processed" / f"{ID_7}.fit").read_bytes() == b"plain"
-        assert list((tmp_path / ".jasil-objects").rglob("object")) == []
 
 
 class TestDelete:

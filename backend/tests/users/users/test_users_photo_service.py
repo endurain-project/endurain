@@ -5,6 +5,7 @@ import os
 import time
 import uuid
 from contextlib import nullcontext
+from functools import partial
 from unittest.mock import MagicMock, patch
 
 import jasil.providers as platform_providers
@@ -12,7 +13,6 @@ import pytest
 from fastapi import UploadFile
 from jasil.backends.storage_local import LocalStorage
 from PIL import Image
-from starlette.datastructures import Headers
 from tests._helpers import images
 from tests._helpers.db import create_sqlite_session
 
@@ -29,8 +29,8 @@ _CRUD = "modules.users.users.photo_service.users_crud"
 _PNG = images.png_with_text()
 
 
-def _upload(filename: str | None, content_type: str = "image/jpeg") -> UploadFile:
-    return UploadFile(io.BytesIO(b"data"), filename=filename, headers=Headers({"content-type": content_type}))
+def _reader(data: bytes = _PNG) -> MagicMock:
+    return MagicMock(return_value=data)
 
 
 class TestDeletePhotoFiles:
@@ -75,17 +75,13 @@ class TestSweepUnreferencedPhotos:
 
     @patch(_CRUD)
     def test_a_key_is_kept_only_while_its_user_names_it(self, mock_crud, mock_db):
-        mock_crud.get_photo_keys_by_user_ids.return_value = {
-            _U1: f"{_U1}.png",
-            _U3: f"/app/backend/data/user_images/{_U3}.png",
-        }
+        mock_crud.get_photo_keys_by_user_ids.return_value = {_U1: f"{_U1}.png", _U3: f"{_U3}.png"}
 
         referenced = users_photo_service._referenced_photo_keys(
             [f"{_U1}.png", f"{_U1}.jpg", f"{_U2}.png", f"{_U3}.png", "notes.txt"], mock_db
         )
 
-        # 1.jpg was replaced and 2.png's user is gone; a row not yet rewritten from a legacy path still
-        # owns its file, and a key that names no user is not this sweep's to judge.
+        # 1.jpg was replaced and 2.png's user is gone; a key that names no user is not this sweep's to judge.
         assert referenced == {f"{_U1}.png", f"{_U3}.png", "notes.txt"}
         mock_crud.get_photo_keys_by_user_ids.assert_called_once_with([_U1, _U2, _U3], mock_db)
 
@@ -98,7 +94,7 @@ class TestSweepUnreferencedPhotos:
         for path in (tmp_path / "user_images").iterdir():
             os.utime(path, (old, old))
         db = create_sqlite_session()
-        for user_id, photo in ((_U1, f"{_U1}.png"), (_U3, f"/app/backend/data/user_images/{_U3}.png")):
+        for user_id, photo in ((_U1, f"{_U1}.png"), (_U3, f"{_U3}.png")):
             db.add(
                 users_models.Users(
                     id=user_id,
@@ -151,14 +147,6 @@ class TestDeletePhoto:
         users_photo_service.delete_photo(_U7, storage, mock_db)
 
     @patch(_CRUD)
-    def test_a_legacy_path_the_storage_refuses_does_not_fail_the_request(self, mock_crud, mock_db):
-        storage = MagicMock()
-        mock_crud.replace_photo_key.return_value = f"/app/backend/data/user_images/{_U7}.jpg"
-        storage.delete.side_effect = ValueError("escapes base directory")
-
-        users_photo_service.delete_photo(_U7, storage, mock_db)
-
-    @patch(_CRUD)
     def test_an_unexpected_storage_error_propagates(self, mock_crud, mock_db):
         storage = MagicMock()
         mock_crud.replace_photo_key.return_value = f"{_U7}.jpg"
@@ -175,11 +163,7 @@ class TestUploadPhoto:
         mock_crud.replace_photo_key.return_value = None
         storage = MagicMock()
 
-        with patch(
-            "modules.users.users.photo_service.core_file_uploads.read_validated_upload_sync",
-            return_value=_PNG,
-        ):
-            replaced = users_photo_service.upload_photo(_U7, _upload("Avatar.JPG"), storage, mock_db)
+        replaced = users_photo_service.upload_photo(_U7, "Avatar.JPG", _reader(), storage, mock_db)
 
         assert replaced is False
         area, key, data, content_type = storage.save.call_args.args
@@ -192,11 +176,7 @@ class TestUploadPhoto:
         mock_crud.get_user_by_id.return_value = MagicMock()
         mock_crud.replace_photo_key.return_value = f"{_U7}.png"
 
-        with patch(
-            "modules.users.users.photo_service.core_file_uploads.read_validated_upload_sync",
-            return_value=_PNG,
-        ):
-            replaced = users_photo_service.upload_photo(_U7, _upload("Avatar.JPG"), MagicMock(), mock_db)
+        replaced = users_photo_service.upload_photo(_U7, "Avatar.JPG", _reader(), MagicMock(), mock_db)
 
         assert replaced is True
 
@@ -204,26 +184,57 @@ class TestUploadPhoto:
     def test_unknown_user_is_not_found(self, mock_crud, mock_db):
         mock_crud.get_user_by_id.return_value = None
 
+        read_data = _reader()
+
         with pytest.raises(core_exceptions.NotFoundError):
-            users_photo_service.upload_photo(_U7, _upload("a.jpg"), MagicMock(), mock_db)
+            users_photo_service.upload_photo(_U7, "a.jpg", read_data, MagicMock(), mock_db)
+
+        read_data.assert_not_called()
 
     @patch(_CRUD)
     def test_missing_filename_is_invalid(self, mock_crud, mock_db):
         mock_crud.get_user_by_id.return_value = MagicMock()
 
+        read_data = _reader()
+
         with pytest.raises(core_exceptions.InvalidInputError):
-            users_photo_service.upload_photo(_U7, _upload(None), MagicMock(), mock_db)
+            users_photo_service.upload_photo(_U7, None, read_data, MagicMock(), mock_db)
+
+        read_data.assert_not_called()
 
     @patch(_CRUD)
     def test_unsupported_extension_stores_nothing(self, mock_crud, mock_db):
         mock_crud.get_user_by_id.return_value = MagicMock()
         storage = MagicMock()
+        read_data = _reader()
 
         with pytest.raises(core_exceptions.UnsupportedMediaTypeError):
-            users_photo_service.upload_photo(_U7, _upload("a.exe"), storage, mock_db)
+            users_photo_service.upload_photo(_U7, "a.exe", read_data, storage, mock_db)
 
+        read_data.assert_not_called()
         storage.save.assert_not_called()
         mock_db.commit.assert_not_called()
+
+    @patch(_CRUD)
+    def test_the_data_is_read_once_the_user_and_name_are_accepted(self, mock_crud, mock_db):
+        mock_crud.get_user_by_id.return_value = MagicMock()
+        mock_crud.replace_photo_key.return_value = None
+        read_data = _reader()
+
+        users_photo_service.upload_photo(_U7, "a.png", read_data, MagicMock(), mock_db)
+
+        read_data.assert_called_once_with()
+
+    @patch(_CRUD)
+    def test_a_refused_read_stores_nothing(self, mock_crud, mock_db):
+        mock_crud.get_user_by_id.return_value = MagicMock()
+        storage = MagicMock()
+        read_data = MagicMock(side_effect=core_exceptions.PayloadTooLargeError("too large"))
+
+        with pytest.raises(core_exceptions.PayloadTooLargeError):
+            users_photo_service.upload_photo(_U7, "a.png", read_data, storage, mock_db)
+
+        storage.save.assert_not_called()
 
 
 class TestStorePhoto:
@@ -313,9 +324,8 @@ class TestUploadPhotoImageFormats:
     def test_a_webp_is_stored_without_its_metadata(self, mock_crud, mock_db):
         mock_crud.get_user_by_id.return_value = MagicMock()
         storage = MagicMock()
-        upload = UploadFile(io.BytesIO(images.webp_with_exif()), filename="me.webp")
 
-        users_photo_service.upload_photo(_U7, upload, storage, mock_db)
+        users_photo_service.upload_photo(_U7, "me.webp", _reader(images.webp_with_exif()), storage, mock_db)
 
         _area, _key, data, content_type = storage.save.call_args.args
         assert content_type == "image/webp"
@@ -331,8 +341,16 @@ class TestUploadPhotoImageFormats:
         mock_crud.get_user_by_id.return_value = MagicMock()
         storage = MagicMock()
 
+        upload = UploadFile(io.BytesIO(data), filename=name)
+
         with pytest.raises(core_exceptions.DomainError) as exc:
-            users_photo_service.upload_photo(_U7, UploadFile(io.BytesIO(data), filename=name), storage, mock_db)
+            users_photo_service.upload_photo(
+                _U7,
+                upload.filename,
+                partial(core_file_uploads.read_validated_upload_sync, upload, kind=core_file_uploads.UploadKind.IMAGE),
+                storage,
+                mock_db,
+            )
 
         assert exc.value.status_code in {400, 415}
         storage.save.assert_not_called()

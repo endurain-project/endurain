@@ -400,3 +400,33 @@ class TestHealthSleepListItem:
         item = set(health_sleep_schema.HealthSleepListItem.model_fields)
 
         assert item == (read - {"sleep_stages"}) | {"has_sleep_stages"}
+
+
+class TestSleepStageCount:
+    """A record holds at most one stage per minute of a day, so a response that echoes them has a bound."""
+
+    @staticmethod
+    def _stages(count: int) -> list[dict]:
+        return [{"stage_type": "light", "duration_seconds": 60} for _ in range(count)]
+
+    def test_the_bound_is_one_stage_per_minute_of_a_day(self):
+        assert health_sleep_schema.MAX_SLEEP_STAGES == 24 * 60
+
+    def test_a_create_accepts_the_most_a_day_can_hold(self):
+        created = health_sleep_schema.HealthSleepCreate(sleep_stages=self._stages(health_sleep_schema.MAX_SLEEP_STAGES))
+
+        assert len(created.sleep_stages or []) == health_sleep_schema.MAX_SLEEP_STAGES
+
+    @pytest.mark.parametrize("schema", [health_sleep_schema.HealthSleepCreate, health_sleep_schema.HealthSleepImport])
+    def test_one_more_stage_is_refused(self, schema):
+        with pytest.raises(ValidationError, match="sleep_stages"):
+            schema(sleep_stages=self._stages(health_sleep_schema.MAX_SLEEP_STAGES + 1))
+
+    def test_the_openapi_schemas_publish_the_bound(self):
+        for schema in (
+            health_sleep_schema.HealthSleepCreate,
+            health_sleep_schema.HealthSleepRead,
+            health_sleep_schema.HealthSleepImport,
+        ):
+            options = schema.model_json_schema()["properties"]["sleep_stages"]["anyOf"]
+            assert any(option.get("maxItems") == health_sleep_schema.MAX_SLEEP_STAGES for option in options)

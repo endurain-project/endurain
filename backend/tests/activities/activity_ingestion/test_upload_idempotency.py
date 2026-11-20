@@ -132,15 +132,15 @@ class TestKeyReuseWithDifferentContent:
             ),
             patch.object(ingestion_jobs.activity_ingestion_upload_entry_service, "discard_received_upload") as discard,
             patch.object(ingestion_jobs.activity_ingestion_upload_entry_service, "store_received_upload") as store,
-            pytest.raises(core_exceptions.ConflictError),
+            pytest.raises(core_exceptions.IdempotencyKeyReusedError),
         ):
             ingestion_jobs.accept_upload(MOCK_USER_ID, *_upload(), "storage", db, idempotency_key="key-1")
 
         store.assert_not_called()
         discard.assert_called_once()
 
-    def test_the_conflict_maps_to_409(self):
-        assert core_exceptions.ConflictError.status_code == 409
+    def test_the_reuse_maps_to_422(self):
+        assert core_exceptions.IdempotencyKeyReusedError.status_code == 422
 
 
 class TestDeletedActivities:
@@ -191,10 +191,10 @@ class TestDeletedActivities:
         release.assert_not_called()
         create.assert_not_called()
 
-    def test_different_content_conflicts_instead_of_releasing_the_key(self):
+    def test_different_content_is_refused_instead_of_releasing_the_key(self):
         original = self._job(core_job_status.JobState.SUCCEEDED, [str(_ID_A), str(_ID_B)])
         release = MagicMock()
-        with pytest.raises(core_exceptions.ConflictError):
+        with pytest.raises(core_exceptions.IdempotencyKeyReusedError):
             self._accept(original, set(), fingerprint="hash-of-another-file", release=release)
 
         release.assert_not_called()
@@ -266,7 +266,7 @@ class TestConcurrentSameKey:
                 ingestion_jobs.activity_ingestion_crud, "create_ingestion_job", side_effect=_integrity_error()
             ),
             patch.object(ingestion_jobs.activity_ingestion_upload_entry_service, "discard_staged_upload"),
-            pytest.raises(core_exceptions.ConflictError),
+            pytest.raises(core_exceptions.IdempotencyKeyReusedError),
         ):
             ingestion_jobs.accept_upload(MOCK_USER_ID, *_upload(), "storage", db, idempotency_key="key-1")
 

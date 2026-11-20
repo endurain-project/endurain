@@ -65,7 +65,7 @@ const DEFAULT_FILTERS: UserFilters = {
 /** The five list filters, surfaced in the Filters popover. */
 const filters = reactive<UserFilters>({ ...DEFAULT_FILTERS })
 
-/** Filter rows grouped for the popover; a divider separates each group (mirrors v1). */
+/** Filter rows grouped for the popover; a divider separates each group. */
 const FILTER_GROUPS: { key: keyof UserFilters; labelKey: string }[][] = [
   [{ key: 'showInactive', labelKey: 'settings.users.showInactive' }],
   [

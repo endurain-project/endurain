@@ -232,8 +232,7 @@ def to_utc_aware(dt: None) -> None: ...
 
 
 def to_utc_aware(dt: datetime | str | None) -> datetime | None:
-    """
-    Normalize a datetime or ISO string to UTC-aware.
+    """Normalize a datetime or ISO string to UTC-aware.
 
     Parses ISO 8601 strings and attaches UTC to naive
     datetimes (the import parsers emit naive UTC wall
@@ -262,8 +261,7 @@ def to_utc_aware(dt: datetime | str | None) -> datetime | None:
 
 
 def format_utc(dt: datetime | str | None) -> str:
-    """
-    Format a datetime as a UTC ISO 8601 string (no offset).
+    """Format a datetime as a UTC ISO 8601 string (no offset).
 
     File timestamps may carry a non-UTC offset (e.g.
     2026-03-28T08:19:19-07:00). Converting to UTC before
@@ -297,15 +295,11 @@ def to_utc_second(dt: None) -> None: ...
 
 
 def to_utc_second(dt: datetime | str | None) -> datetime | None:
-    """
-    Normalize to UTC-aware and truncate to whole seconds.
+    """Normalize to UTC-aware and truncate to whole seconds.
 
-    The resolution every ingestion producer already agreed on: the file parsers
-    and the provider adapters all used to format their activity start/end times
-    with a second-precision pattern and let the schema validator parse them
-    back. That round-trip made the value a ``str`` at the type level even though
-    every consumer needs a ``datetime``, so this does the same normalization
-    directly.
+    The resolution every ingestion producer shares: activity start/end times are
+    whole seconds, and every consumer needs a ``datetime``, so this normalizes a
+    value directly instead of formatting it to a ``str`` and parsing it back.
 
     Truncation is preserved rather than dropped because the start-time duplicate
     check compares stored instants for equality: devices report whole seconds,

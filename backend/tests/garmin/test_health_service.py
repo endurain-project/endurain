@@ -1,7 +1,5 @@
 """Tests for the Garmin Connect sleep sync: empty days and rows from other sources."""
 
-from __future__ import annotations
-
 from datetime import UTC, datetime
 from unittest.mock import MagicMock, patch
 

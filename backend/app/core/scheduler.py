@@ -1,11 +1,9 @@
 """Background scheduler: the APScheduler instance and the jobs it is handed.
 
-Knows *how* to schedule, never *what*. It used to import ``modules.activities``,
-``modules.auth``, ``modules.strava`` and ``modules.garmin`` to enumerate their
-recurring work, which put the platform above the domain — the wrong way round,
-and the reason adding a scheduled job to a module meant editing ``core``.
+Knows *how* to schedule, never *what*: it imports no domain module, so adding a
+scheduled job to a module never means editing ``core``.
 
-Each module now declares its own work in a ``scheduled_jobs`` module and the
+Each module declares its own work in a ``scheduled_jobs`` module and the
 composition root (``main``) hands the collected list to :func:`start_scheduler`.
 The only jobs declared here are core's and the substrate's own.
 """
@@ -37,8 +35,7 @@ _DUE_MARK_FRACTION = 0.9
 
 @dataclass(frozen=True)
 class ScheduledJob:
-    """
-    One recurring job a module asks the scheduler to run.
+    """One recurring job a module asks the scheduler to run.
 
     Attributes:
         func: Callable to execute.
@@ -205,8 +202,7 @@ async def _run_due_async_job(lock_name: str, minutes: int, func: Callable[..., o
 
 
 def platform_jobs() -> tuple[ScheduledJob, ...]:
-    """
-    Return the recurring jobs owned by core and the platform substrate.
+    """Return the recurring jobs owned by core and the platform substrate.
 
     Args:
         None.
@@ -243,8 +239,7 @@ def platform_jobs() -> tuple[ScheduledJob, ...]:
 
 
 def start_scheduler(jobs: Sequence[ScheduledJob] = ()) -> None:
-    """
-    Start the scheduler and register the given recurring jobs.
+    """Start the scheduler and register the given recurring jobs.
 
     Args:
         jobs: The recurring jobs to register, collected by the caller from each
@@ -284,8 +279,7 @@ def start_scheduler(jobs: Sequence[ScheduledJob] = ()) -> None:
 
 
 def run_once(func: Callable[..., object], *, job_id: str, description: str, lock_name: str | None = None) -> None:
-    """
-    Queue a one-shot job on the scheduler's own executor.
+    """Queue a one-shot job on the scheduler's own executor.
 
     Args:
         func: Callable to execute once.
@@ -316,8 +310,7 @@ def run_once(func: Callable[..., object], *, job_id: str, description: str, lock
 
 
 def _scheduler_job_id(description: str) -> str:
-    """
-    Build a stable scheduler job ID from its description.
+    """Build a stable scheduler job ID from its description.
 
     Args:
         description: Human-readable job description.
@@ -338,8 +331,7 @@ def add_scheduler_job(
     args: Sequence[object],
     description: str,
 ) -> None:
-    """
-    Register or replace a recurring scheduler job.
+    """Register or replace a recurring scheduler job.
 
     Args:
         func: Callable to execute.
@@ -367,8 +359,7 @@ def add_scheduler_job(
 
 
 def stop_scheduler() -> None:
-    """
-    Stop the scheduler if it is running.
+    """Stop the scheduler if it is running.
 
     Args:
         None.

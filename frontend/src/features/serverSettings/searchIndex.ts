@@ -8,14 +8,12 @@ import type { SettingsTab } from '@/features/serverSettings/settingsTabs'
  * @property tab - The tab the target lives on.
  * @property labelKey - i18n key of the setting's label (or the section title).
  * @property sectionId - `id` of the card the setting sits in; absent on a section entry.
- * @property envVars - Environment variables that set it, so they can be searched by name.
  */
 export interface SettingsSearchEntry {
   id: string
   tab: SettingsTab
   labelKey: string
   sectionId?: string
-  envVars?: readonly string[]
 }
 
 /** A matched entry with its display strings resolved. */
@@ -59,17 +57,11 @@ type SectionName = keyof typeof SECTIONS
  * @param section - The card the field sits in.
  * @param id - The field's `data-setting` value.
  * @param labelKey - i18n key of the field's label.
- * @param envVars - Environment variables that set the field.
  * @returns The search entry.
  */
-function field(
-  section: SectionName,
-  id: string,
-  labelKey: string,
-  envVars?: readonly string[],
-): SettingsSearchEntry {
+function field(section: SectionName, id: string, labelKey: string): SettingsSearchEntry {
   const { id: sectionId, tab } = SECTIONS[section]
-  return { id, tab, labelKey, sectionId, envVars }
+  return { id, tab, labelKey, sectionId }
 }
 
 /** Every searchable section and field, in page order. */
@@ -79,12 +71,7 @@ export const SETTINGS_SEARCH_ENTRIES: readonly SettingsSearchEntry[] = [
   field('general', 'general-currency', 'settings.server.general.currency'),
   field('general', 'general-num-records', 'settings.server.general.numRecords'),
   SECTIONS.retention,
-  field(
-    'retention',
-    'retention-read-notifications',
-    'settings.server.retention.readNotifications',
-    ['READ_NOTIFICATION_RETENTION_DAYS'],
-  ),
+  field('retention', 'retention-read-notifications', 'settings.server.retention.readNotifications'),
   SECTIONS.photo,
 
   SECTIONS.sso,
@@ -101,21 +88,11 @@ export const SETTINGS_SEARCH_ENTRIES: readonly SettingsSearchEntry[] = [
   field('password', 'password-length-regular', 'settings.server.password.lengthRegular'),
   field('password', 'password-length-admin', 'settings.server.password.lengthAdmin'),
   SECTIONS.session,
-  field('session', 'session-timeouts-enabled', 'settings.server.session.idleTimeoutEnabled', [
-    'SESSION_IDLE_TIMEOUT_ENABLED',
-  ]),
-  field('session', 'session-idle-hours', 'settings.server.session.idleHours', [
-    'SESSION_IDLE_TIMEOUT_HOURS',
-  ]),
-  field('session', 'session-absolute-hours', 'settings.server.session.absoluteHours', [
-    'SESSION_ABSOLUTE_TIMEOUT_HOURS',
-  ]),
-  field('session', 'session-access-minutes', 'settings.server.session.accessMinutes', [
-    'ACCESS_TOKEN_EXPIRE_MINUTES',
-  ]),
-  field('session', 'session-refresh-days', 'settings.server.session.refreshDays', [
-    'REFRESH_TOKEN_EXPIRE_DAYS',
-  ]),
+  field('session', 'session-timeouts-enabled', 'settings.server.session.idleTimeoutEnabled'),
+  field('session', 'session-idle-hours', 'settings.server.session.idleHours'),
+  field('session', 'session-absolute-hours', 'settings.server.session.absoluteHours'),
+  field('session', 'session-access-minutes', 'settings.server.session.accessMinutes'),
+  field('session', 'session-refresh-days', 'settings.server.session.refreshDays'),
   SECTIONS.sharing,
   field('sharing', 'sharing-enabled', 'settings.server.sharing.enabled'),
   field('sharing', 'sharing-user-info', 'settings.server.sharing.userInfo'),
@@ -128,31 +105,19 @@ export const SETTINGS_SEARCH_ENTRIES: readonly SettingsSearchEntry[] = [
   field('maps', 'maps-background-color', 'settings.server.maps.backgroundColor'),
   field('maps', 'maps-regenerate-thumbnails', 'settings.server.maps.regenerateThumbnails'),
   SECTIONS.geocoding,
-  field('geocoding', 'geocoding-service', 'settings.server.geocoding.service', [
-    'REVERSE_GEO_PROVIDER',
-  ]),
-  field('geocoding', 'geocoding-host', 'settings.server.geocoding.host', [
-    'NOMINATIM_API_HOST',
-    'PHOTON_API_HOST',
-  ]),
-  field('geocoding', 'geocoding-use-https', 'settings.server.geocoding.useHttps', [
-    'NOMINATIM_API_USE_HTTPS',
-    'PHOTON_API_USE_HTTPS',
-  ]),
-  field('geocoding', 'geocoding-rate-limit', 'settings.server.geocoding.rateLimit', [
-    'REVERSE_GEO_RATE_LIMIT',
-  ]),
-  field('geocoding', 'geocoding-api-key', 'settings.server.geocoding.apiKey', [
-    'GEOCODES_MAPS_API',
-  ]),
+  field('geocoding', 'geocoding-service', 'settings.server.geocoding.service'),
+  field('geocoding', 'geocoding-host', 'settings.server.geocoding.host'),
+  field('geocoding', 'geocoding-use-https', 'settings.server.geocoding.useHttps'),
+  field('geocoding', 'geocoding-rate-limit', 'settings.server.geocoding.rateLimit'),
+  field('geocoding', 'geocoding-api-key', 'settings.server.geocoding.apiKey'),
 
   SECTIONS.email,
-  field('email', 'email-host', 'settings.server.email.host', ['SMTP_HOST']),
-  field('email', 'email-port', 'settings.server.email.port', ['SMTP_PORT']),
-  field('email', 'email-security', 'settings.server.email.security', ['SMTP_SECURE']),
-  field('email', 'email-username', 'settings.server.email.username', ['SMTP_USERNAME']),
-  field('email', 'email-password', 'settings.server.email.password', ['SMTP_PASSWORD']),
-  field('email', 'email-from-address', 'settings.server.email.fromAddress', ['SMTP_FROM']),
+  field('email', 'email-host', 'settings.server.email.host'),
+  field('email', 'email-port', 'settings.server.email.port'),
+  field('email', 'email-security', 'settings.server.email.security'),
+  field('email', 'email-username', 'settings.server.email.username'),
+  field('email', 'email-password', 'settings.server.email.password'),
+  field('email', 'email-from-address', 'settings.server.email.fromAddress'),
 ]
 
 /** Maximum number of results offered at once. */
@@ -170,8 +135,7 @@ function normalize(text: string): string {
 
 /**
  * Finds the settings matching a query. Every whitespace-separated word must
- * appear in the setting's label, section title, tab name or environment variable
- * names; labels that start with the query rank first, then labels containing every
+ * appear in the setting's label, section title or tab name; labels that start with the query rank first, then labels containing every
  * word, then the rest, each in page order.
  *
  * @param query - What the user typed.
@@ -199,7 +163,7 @@ export function searchSettings(
     const section = entry.sectionId ? (sectionTitles.get(entry.sectionId) ?? null) : null
     const tab = tabLabel(entry.tab)
     const normalizedLabel = normalize(label)
-    const haystack = normalize([label, section, tab, ...(entry.envVars ?? [])].join(' '))
+    const haystack = normalize([label, section, tab].join(' '))
     if (!words.every((word) => haystack.includes(word))) {
       continue
     }

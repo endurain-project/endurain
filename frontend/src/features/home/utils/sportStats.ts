@@ -60,8 +60,8 @@ function metricValue(stats: ActivitySportStats, metric: StatMetric): number {
 
 /**
  * Selects the top sports for a timeframe, ranked by the chosen metric. Sports
- * with a zero value for that metric are dropped (mirroring v1, which only lists
- * sports with activity), and the result is capped at `limit` rows.
+ * with a zero value for that metric are dropped (only sports with activity
+ * are listed), and the result is capped at `limit` rows.
  *
  * @param stats - The per-sport stats for the timeframe, or `undefined`.
  * @param metric - The metric to rank and display by.

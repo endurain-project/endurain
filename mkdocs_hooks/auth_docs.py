@@ -99,7 +99,50 @@ def _rate_limits() -> str:
     return "| Tier | Limit | Applies to |\n| ---- | ----- | ---------- |\n" + rows
 
 
+def _router_prefixes() -> dict[Path, str]:
+    """Map each router file to the prefix ``api.py`` mounts it under."""
+    source = (APP / "api.py").read_text()
+    modules = dict(re.findall(r"^import ([\w.]+) as (\w+)$", source, re.M))
+    aliases = {alias: module for module, alias in modules.items()}
+    prefixes = {}
+    for alias, prefix in re.findall(r'(\w+)\.router,\s*prefix=core_config\.ROOT_PATH \+ "([^"]*)"', source):
+        if alias in aliases:
+            prefixes[APP / (aliases[alias].replace(".", "/") + ".py")] = prefix
+    return prefixes
+
+
+def idempotent_routes() -> list[tuple[str, str, str]]:
+    """Return ``(method, url, kind)`` of every route that reads ``Idempotency-Key``.
+
+    ``kind`` is ``response`` for a route that opts in to replay with ``core_idempotency.Idempotent`` and ``job`` for
+    an upload that reads the key through ``core_idempotency.IdempotencyKey``.
+    """
+    routes = []
+    for path, prefix in _router_prefixes().items():
+        for node in ast.parse(path.read_text()).body:
+            if not isinstance(node, ast.FunctionDef):
+                continue
+            names = {n.attr for n in ast.walk(node) if isinstance(n, ast.Attribute)}
+            if not names & {"Idempotent", "IdempotencyKey"}:
+                continue
+            kind = "response" if "Idempotent" in names else "job"
+            for deco in node.decorator_list:
+                func = getattr(deco, "func", None)
+                if isinstance(func, ast.Attribute) and func.attr in HTTP_METHODS:
+                    url = prefix + (ast.literal_eval(deco.args[0]) if deco.args else "")
+                    routes.append((func.attr.upper(), url, kind))
+    return sorted(routes, key=lambda route: (route[1], route[0]))
+
+
+def _idempotency_routes() -> str:
+    """Table of the routes that accept ``Idempotency-Key`` and what a repeat of the request returns."""
+    returns = {"response": "The stored response", "job": "The job of the first request"}
+    rows = "".join(f"| `{method}` | `{url}` | {returns[kind]} |\n" for method, url, kind in idempotent_routes())
+    return "| Method | Url | A repeat returns |\n| ------ | --- | ---------------- |\n" + rows
+
+
 GENERATORS = {
+    "idempotency-routes": _idempotency_routes,
     "error-types": _error_types,
     "rate-limits": _rate_limits,
     "scopes": _scopes,

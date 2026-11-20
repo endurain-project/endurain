@@ -1,5 +1,4 @@
-"""
-Sanitization utilities for user-generated content.
+"""Sanitization utilities for user-generated content.
 
 Provides functions to sanitize markdown and HTML content
 to prevent XSS attacks while preserving safe formatting, and to
@@ -59,8 +58,7 @@ MAX_MARKDOWN_LENGTH = 2500
 
 
 def sanitize_markdown(content: str | None) -> str | None:
-    """
-    Sanitize markdown content to prevent XSS attacks.
+    """Sanitize markdown content to prevent XSS attacks.
 
     Strips dangerous HTML tags and attributes while preserving
     safe markdown formatting elements.
@@ -91,8 +89,7 @@ def sanitize_markdown(content: str | None) -> str | None:
 
 
 def sanitize_attribution(content: str | None) -> str | None:
-    """
-    Sanitize attribution text to prevent XSS attacks.
+    """Sanitize attribution text to prevent XSS attacks.
 
     Allows only <a> tags with safe attributes for
     attribution links.

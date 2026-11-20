@@ -1,6 +1,4 @@
-"""
-Migration schema definitions.
-"""
+"""Migration schema definitions."""
 
 from pydantic import (
     BaseModel,
@@ -13,8 +11,7 @@ from pydantic import (
 
 
 class Migration(BaseModel):
-    """
-    Base schema for migration data.
+    """Base schema for migration data.
 
     Attributes:
         name: Name of the migration.
@@ -43,8 +40,7 @@ class Migration(BaseModel):
 
 
 class MigrationRead(Migration):
-    """
-    Schema for reading a migration record.
+    """Schema for reading a migration record.
 
     Attributes:
         id: Unique migration identifier.

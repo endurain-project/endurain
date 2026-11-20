@@ -39,8 +39,7 @@ export interface FormattedMetric {
 }
 
 /**
- * Formats a duration as `H:MM:SS` (or `MM:SS` under an hour), mirroring v1's
- * `formatSecondsToHoursMinutesSeconds`.
+ * Formats a duration as `H:MM:SS` (or `MM:SS` under an hour).
  *
  * @param seconds - Duration in seconds.
  * @returns The clock-formatted duration, or `--` for missing input.
@@ -122,7 +121,7 @@ export function paceToDisplaySeconds(
 
 /**
  * Formats a pace from seconds-per-metre into the unit appropriate for the
- * activity type, mirroring v1's pace formatters (running min/km·mi, swimming
+ * activity type (running min/km·mi, swimming
  * min/100m·100yd, rowing/SUP min/500m).
  *
  * @param secondsPerMeter - Pace in seconds per metre.

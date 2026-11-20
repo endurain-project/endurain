@@ -522,8 +522,7 @@ def _run_missing_thumbnail_generation(storage: platform_providers.StorageProvide
 def _activity_id_of_thumbnail_key(key: str) -> uuid.UUID | None:
     """Return the activity id a ``{id}.webp`` thumbnail key names.
 
-    Only the canonical lowercase UUID layout is recognised: an integer-layout key belongs to the
-    data migration that renames it and is never returned here.
+    Only the canonical lowercase UUID layout is recognised; any other key yields ``None``.
 
     Args:
         key: A storage key in the thumbnail area.

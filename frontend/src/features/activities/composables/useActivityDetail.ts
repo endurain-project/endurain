@@ -336,7 +336,7 @@ export function useSetActivityGearMutation() {
 /**
  * The unit system to present an activity in: the authenticated user's
  * preference, or the instance default (public server settings) for anonymous
- * public viewers. Mirrors v1's auth-vs-public unit resolution. Shares the
+ * public viewers. Shares the
  * `public.serverSettings` query key so it reuses any warm cache.
  *
  * @returns A reactive unit system.

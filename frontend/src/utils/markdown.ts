@@ -6,9 +6,7 @@ import { marked } from 'marked'
  *
  * This is the single place markdown becomes HTML. The output is sanitized with
  * DOMPurify against a strict tag/attribute allow-list, so the result is safe to
- * inject via `v-html` (done only inside `SafeHtml.vue`). Mirrors v1's
- * `markdownUtils.renderMarkdown` so descriptions render identically across the
- * two frontends.
+ * inject via `v-html` (done only inside `SafeHtml.vue`).
  */
 
 /** HTML tags permitted in rendered markdown output. */

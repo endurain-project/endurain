@@ -7,6 +7,7 @@ from unittest.mock import patch
 import jasil.testing as jasil_testing
 import pytest
 from jasil.backends.storage_local import LocalStorage
+from sqlalchemy import func, select
 from tests._helpers.auth import MOCK_USER_ID
 from tests._helpers.db import create_sqlite_session_factory, ensure_user
 
@@ -116,4 +117,4 @@ class TestFolderImportRequest:
         audit.assert_not_audited(ingestion_audit_actions.IMPORT_REQUEST.id)
         assert not os.listdir(tmp_path / "drop" / str(_USER))
         with factory() as db:
-            assert db.query(ingestion_models.ActivityIngestionJob).count() == 0
+            assert db.scalar(select(func.count()).select_from(ingestion_models.ActivityIngestionJob)) == 0

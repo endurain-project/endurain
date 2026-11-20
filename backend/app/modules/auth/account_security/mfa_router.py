@@ -39,15 +39,7 @@ def get_backup_code_status(
     token_user_id: auth_dependencies.CurrentUserId,
     db: core_dependencies.DbSession,
 ) -> mfa_backup_codes_schema.MFABackupCodeStatusRead:
-    """Retrieve MFA backup code status for authenticated user.
-
-    Args:
-        token_user_id: User ID from access token.
-        db: Database session.
-
-    Returns:
-        Backup code status with counts and creation date.
-    """
+    """Retrieve MFA backup code status for authenticated user."""
     return mfa_workflow_service.get_backup_code_status(token_user_id, db)
 
 
@@ -69,18 +61,7 @@ def setup_mfa(
     ],
     db: core_dependencies.DbSession,
 ) -> mfa_schema.MFASetupRead:
-    """Initiate MFA setup for authenticated user.
-
-    Args:
-        request: The incoming request, read by the rate limiter.
-        response: The response, marked as not cacheable because it carries the secret.
-        token_user_id: User ID from access token.
-        mfa_secret_store: Temporary secret storage.
-        db: Database session.
-
-    Returns:
-        MFA setup response with secret and QR code.
-    """
+    """Initiate MFA setup for authenticated user."""
     core_cache_control.set_no_store(response)
     return mfa_workflow_service.setup_mfa(token_user_id, mfa_secret_store, db)
 
@@ -88,7 +69,10 @@ def setup_mfa(
 @router.post(
     "/enable",
     response_model=mfa_backup_codes_schema.MFABackupCodesRead,
-    responses={200: {"headers": core_openapi_contract.NO_STORE_RESPONSE_HEADERS}},
+    responses={
+        200: {"headers": core_openapi_contract.NO_STORE_RESPONSE_HEADERS},
+        status.HTTP_400_BAD_REQUEST: {"description": "The authenticator code that confirms the setup is wrong."},
+    },
     dependencies=[Security(auth_dependencies.check_scopes, scopes=["account:security"])],
 )
 @core_rate_limit.limiter.limit(core_rate_limit.SENSITIVE)
@@ -122,23 +106,6 @@ def enable_mfa(
     :func:`modules.auth.mfa.service.enable_user_mfa` against the secret
     issued by ``POST /profile/mfa/setup``. The user's other sessions end with the
     change unless ``revoke_other_sessions`` is false.
-
-    Args:
-        request: The incoming request, read by the rate limiter.
-        response: The response, marked as not cacheable because it carries the backup codes.
-        mfa_request: MFA setup request with the TOTP code and the step-up verification.
-        token_user_id: User ID from access token.
-        token_session_id: Session ID from access token.
-        mfa_secret_store: Temporary secret storage.
-        step_up_store: Step-up lockout store.
-        db: Database session.
-
-    Returns:
-        The freshly issued backup codes and when they were created.
-
-    Raises:
-        DomainError: 409 if no setup is in progress or MFA is already enabled; 400 if the TOTP
-            code is invalid; 403 if step-up verification fails.
     """
     core_cache_control.set_no_store(response)
     return mfa_workflow_service.enable_mfa(
@@ -175,19 +142,6 @@ def disable_mfa(
     is the single source of truth for the MFA check;
     :func:`modules.auth.mfa.service.disable_user_mfa` only clears state. The user's
     other sessions end with the change unless ``revoke_other_sessions`` is false.
-
-    Args:
-        request: The incoming request, read by the rate limiter.
-        body: The step-up verification, with the MFA code, and whether to end the other sessions.
-        token_user_id: User ID from access token.
-        token_session_id: Session ID from access token.
-        step_up_store: Step-up lockout store.
-        db: Database session.
-
-    Raises:
-        DomainError: 403 if step-up verification fails (the current password
-            is wrong or the MFA code is invalid); 409 if MFA is not currently
-            enabled.
     """
     mfa_workflow_service.disable_mfa(
         body.step_up,
@@ -227,22 +181,6 @@ def generate_mfa_backup_codes(
     token must not be able to lock the legitimate user out of
     their second factor. The user's other sessions end with the change
     unless ``revoke_other_sessions`` is false.
-
-    Args:
-        response: The response, marked as not cacheable because it carries the codes.
-        request: FastAPI request object for rate limiting.
-        body: The step-up verification and whether to end the other sessions.
-        token_user_id: User ID from access token.
-        token_session_id: Session ID from access token.
-        step_up_store: Step-up lockout store.
-        db: Database session.
-
-    Returns:
-        Response with generated backup codes and timestamp.
-
-    Raises:
-        DomainError: 403 if step-up verification fails, 404 if
-            user not found, 409 if MFA is not enabled.
     """
     core_cache_control.set_no_store(response)
     return mfa_workflow_service.generate_backup_codes(

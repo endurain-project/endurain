@@ -69,15 +69,15 @@ A route or flag that ends sessions or forgets devices uses these names for these
 | `201` | A resource was created | The resource, `Location` and `ETag` when it can be read by id **(test)** |
 | `202` | Work was accepted for a background job | The job (a `core.job_status.JobStatus`: `id`, `kind`, `status` `queued`, `running`, `succeeded` or `failed`, `error_code`, `created_at`, `finished_at`), `Content-Location: /jobs/{job_id}` and `Retry-After` **(test)**. Every job is read at `GET /jobs/{job_id}`, `422` for an id that is not a UUID, `404` for an unknown, expired or foreign id, and listed at `GET /jobs`; there is no per-operation status route. The one `202` without a status resource is `POST /profile/delete-account`, whose owner can no longer poll. A refused second start is `409` naming the running job in `job_id` and `Content-Location` |
 | `204` | A write with nothing to return | No body. A body that only carries a message is a `204` **(test)** |
-| `400` | Input the schema accepted but the domain refuses | Problem document |
+| `400` | Input the schema accepted but the domain refuses, such as a malformed `Idempotency-Key` | Problem document |
 | `401` | The credential is missing, invalid or no longer valid (expired session, deleted or deactivated user) | `WWW-Authenticate` |
 | `403` | Signed in but not allowed (missing scope, a refusal the caller may know about) | `WWW-Authenticate: Bearer error="insufficient_scope", scope="a b"` for a scope, and the `missing_scopes` member |
 | `404` | Missing, or concealed from this caller (the same answer for both) | Problem document |
-| `409` | Conflicts with the current state, including "already running" | The running job's `Content-Location` for "already running" |
+| `409` | Conflicts with the current state, including "already running" and a repeat of a request that is still running under its `Idempotency-Key` | The running job's `Content-Location` for "already running"; `Retry-After` and `Link` for an `Idempotency-Key` in flight |
 | `412` / `428` | Stale or missing `If-Match` ([Optimistic concurrency](optimistic-concurrency.md)) | Problem document |
 | `413` | The body is too large | Problem document |
 | `415` | The uploaded file is a type the route does not accept | Problem document |
-| `422` | The request does not match the schema | Problem document with `errors[]` |
+| `422` | The request does not match the schema, or an `Idempotency-Key` was used for another request | Problem document with `errors[]` for a schema failure; `Link` for a reused key |
 | `429` | Rate limit or lockout | `Retry-After`: the seconds until a retry can succeed (a `TooManyRequestsError` with `retry_at` sets it). One problem type, `too-many-requests`, with a `scope` member (an open set) naming what was exhausted |
 | `503` | A dependency is unavailable for a moment | `Retry-After` |
 
@@ -90,8 +90,30 @@ A route or flag that ends sessions or forgets devices uses these names for these
 - **`Content-Location` and `Retry-After`** on every `202` and on a status read that is not finished.
 - **`Cache-Control: no-store`** on a response that carries a token or a secret: tokens, a new API key, an MFA secret
   or backup codes, a websocket ticket, a profile export. Other JSON is `private, no-cache` by default (`core.middleware.GetSemanticsMiddleware`). The `ETag` is the version for `If-Match`, not a validator of the body, so an authenticated read never answers `304`.
+- **`Idempotency-Key`** on a create, a quoted string; the replay of a stored answer sends the stored headers and no
+  header of its own ([Idempotency](#idempotency)).
 - A header a browser client must read is listed in `CORS_EXPOSE_HEADERS`, and one it must send in
   `CORS_ALLOW_HEADERS` (`core/middleware.py`).
+
+## Idempotency
+
+A create (a `POST` that answers `201`) accepts an optional `Idempotency-Key`, so a client that lost the answer can repeat
+the request without creating the record twice **(test)**. A create that returns a secret or a single-use credential
+(an API key, MFA secret or backup codes, a websocket ticket, a Strava state) takes none, because its answer must not be
+kept in the state store; the register of these routes in the test names each reason and only grows by decision.
+
+- The header is one RFC 9651 Structured Field String (`Idempotency-Key: "8e03978e"`): the quoted form only, 1 to 255
+  printable ASCII characters. `core.idempotency.parse_key` is the one parser; a route reads the key through
+  `core_idempotency.IdempotencyKey`, and a create opts in to replay with `core_idempotency.Idempotent` in its
+  `dependencies`, listed after its authentication.
+- The key is scoped to the user and the stored answer (`status`, `Content-Type`, `Location`, `ETag`,
+  `Content-Location`, `Cache-Control` and the body) is replayed byte for byte for 24 hours. A key used for another
+  request (method, path, query or JSON body) is `422`, and a repeat while the first request runs is `409` with
+  `Retry-After`. A failed request stores nothing.
+- A route that keeps its own idempotency (the upload and the bulk import keep it on the job row) reads the key
+  through `core_idempotency.IdempotencyKey` and answers `422` for a reused key.
+- A client documents the behaviour in `docs/integrate/idempotency.md`; its route table is generated from the route
+  source, and `test_the_idempotency_page_lists_the_routes_that_read_the_key` compares it with the OpenAPI document.
 
 ## Errors
 
@@ -157,17 +179,16 @@ These rules are for new fields and parameters; existing names are not renamed to
 ## OpenAPI contract
 
 - An endpoint docstring is the public OpenAPI description: what the endpoint does for a client, with no `Args:`,
-  `Returns:` or `Raises:` sections and no internal parameter names **(test)**.
+  `Returns:` or `Raises:` sections and no internal parameter names, in its docstring or its `description=`
+  **(test)**.
 - `core.problem_details.ProblemDetailsFastAPI` names an operation by its handler (`operationId` is the function name), so
   the id and a generated client's method name do not change when a route moves; two handlers never share a name
   **(test)**. Rename the handler, never add a suffix.
-- `core/openapi_contract.py` cuts an operation's description at the first Google section, so a docstring that still
-  carries `Args:` or `Returns:` does not reach a client; a new route has none.
 - A route that returns bytes declares its media types with `core.openapi_contract.binary_response` and
   `response_class=Response`.
 - `core/openapi_contract.py` derives the rest for every operation: `401`/`403` from the security requirement, `404` from a
   path parameter, `413`/`415`/`409` from a body, an upload or a write, `429`/`503` for all, a required `If-Match` with
-  `400`/`412`/`428`, `ETag` and `Location` on a versioned success response, and `readOnly` on `id`, `version`,
+  `400`/`412`/`428`, an `Idempotency-Key` with `400`/`409`/`422`, `ETag` and `Location` on a versioned success response, and `readOnly` on `id`, `version`,
   `created_at` and `updated_at` of a schema a client does not send. A `202` lists `ACCEPTED_RESPONSE` and a response
   whose version is not a body field lists `ETAG_HEADERS` itself **(test)**.
 
@@ -201,4 +222,3 @@ A list route takes no `updated_since`: offset paging over a changing order skips
 These rules are not met everywhere yet:
 
 - Some secret-bearing responses lack `no-store`.
-- Most endpoint docstrings still carry Google sections. The OpenAPI document cuts them, but the source should lose them (`_DOCSTRING_SECTIONS` in the test lists the handlers).

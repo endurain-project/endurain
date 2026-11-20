@@ -158,7 +158,10 @@ class TestExportLayout:
 
 class TestBuildSource:
     def test_it_parses_the_manifest_and_reads_the_users_gear(self, monkeypatch):
-        read = lambda name: b"csv" if name == "activities.csv" else None  # noqa: E731
+
+        def read(name: str) -> bytes | None:
+            return b"csv" if name == "activities.csv" else None
+
         monkeypatch.setattr(
             strava_bulk_import_source,
             "parse_activities_manifest",

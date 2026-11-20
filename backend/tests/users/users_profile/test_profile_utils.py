@@ -8,6 +8,7 @@ from datetime import date
 from decimal import Decimal
 from unittest.mock import MagicMock, PropertyMock, patch
 
+import psutil
 import pytest
 from pydantic import BaseModel
 
@@ -204,11 +205,19 @@ class TestGetMemoryUsageMB:
         mock_process.assert_not_called()
 
     @patch("modules.users.users_profile.utils.psutil.Process")
-    def test_exception_returns_zero(self, mock_process):
-        mock_process.side_effect = Exception("process error")
+    @pytest.mark.parametrize("error", [psutil.AccessDenied(), psutil.NoSuchProcess(1), OSError("process error")])
+    def test_psutil_failure_returns_zero(self, mock_process, error):
+        mock_process.side_effect = error
 
         result = profile_utils.get_memory_usage_mb(True)
         assert result == 0.0
+
+    @patch("modules.users.users_profile.utils.psutil.Process")
+    def test_unexpected_error_propagates(self, mock_process):
+        mock_process.side_effect = TypeError("bug")
+
+        with pytest.raises(TypeError, match="bug"):
+            profile_utils.get_memory_usage_mb(True)
 
 
 class TestCheckMemoryUsage:
@@ -321,12 +330,23 @@ class TestDetectSystemMemoryTier:
         assert mb == 500
 
     @patch("modules.users.users_profile.utils.psutil.virtual_memory")
-    def test_exception_defaults_to_medium(self, mock_vm):
-        mock_vm.side_effect = Exception("memory detection failed")
+    @pytest.mark.parametrize(
+        "error",
+        [psutil.AccessDenied(), OSError("meminfo"), RuntimeError("no meminfo"), NotImplementedError("platform")],
+    )
+    def test_psutil_failure_defaults_to_medium(self, mock_vm, error):
+        mock_vm.side_effect = error
 
         tier, mb = profile_utils.detect_system_memory_tier()
         assert tier == "medium"
         assert mb == 1024
+
+    @patch("modules.users.users_profile.utils.psutil.virtual_memory")
+    def test_unexpected_error_propagates(self, mock_vm):
+        mock_vm.side_effect = TypeError("bug")
+
+        with pytest.raises(TypeError, match="bug"):
+            profile_utils.detect_system_memory_tier()
 
 
 class TestWriteJsonArrayToZip:

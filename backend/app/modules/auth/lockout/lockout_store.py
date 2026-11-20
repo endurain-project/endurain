@@ -100,7 +100,7 @@ class ProgressiveLockout:
             return None
         try:
             gate_until = int(raw_gate.decode())
-        except (TypeError, ValueError):
+        except TypeError, ValueError:
             self._delete(gate_key)
             return None
         if gate_until <= int(datetime.now(UTC).timestamp()):

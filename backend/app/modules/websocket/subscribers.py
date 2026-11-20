@@ -82,7 +82,7 @@ def _close_revoked_sockets(user_id: uuid.UUID, message: dict[str, Any]) -> None:
     try:
         session_id = _optional_uuid(message.get("session_id"))
         except_session_id = _optional_uuid(message.get("except_session_id"))
-    except (TypeError, ValueError):
+    except TypeError, ValueError:
         logger.debug("Ignored a malformed socket control message")
         return
     core_async_bridge.dispatch(
