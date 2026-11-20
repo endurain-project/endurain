@@ -1269,11 +1269,12 @@ def check_required_dirs() -> None:
     ]
 
     for required_dir in required_dirs:
-        required_path = Path(required_dir)
-        if not required_path.exists():
-            required_path.mkdir(parents=True)
-        elif not required_path.is_dir():
+        try:
+            # ``exist_ok``: replicas sharing a data volume start together and create the same directories, so one
+            # may appear between a check and a create. A file in its place still raises FileExistsError.
+            Path(required_dir).mkdir(parents=True, exist_ok=True)
+        except FileExistsError as err:
             logger.error(
                 f"Required directory is not a directory: {required_dir}", extra=core_logger.context(console=True)
             )
-            raise OSError(f"Required directory is not a directory: {required_dir}")
+            raise OSError(f"Required directory is not a directory: {required_dir}") from err

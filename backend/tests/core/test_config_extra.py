@@ -778,6 +778,31 @@ class TestCheckRequiredDirs:
 
         assert test_data.exists()
 
+    def test_a_directory_another_replica_creates_at_the_same_moment_is_accepted(self, tmp_path, monkeypatch):
+        """Replicas sharing a data volume start together: each directory may appear between a check and a create."""
+        from pathlib import Path
+
+        from core.config import check_required_dirs
+
+        test_data = tmp_path / "data"
+        dirs = {
+            "core.config.settings.DATA_DIR": test_data,
+            "core.config.settings.LOGS_DIR": tmp_path / "logs",
+            "core.config.settings.FILES_DIR": test_data / "files",
+            "core.config.SERVER_IMAGES_DIR": test_data / "server_images",
+            "core.config.FILES_PROCESSED_DIR": test_data / "files" / "processed",
+            "core.config.FILES_BULK_IMPORT_DIR": test_data / "files" / "bulk_import",
+            "core.config.FILES_UPLOAD_INCOMING_DIR": test_data / "files" / "upload_incoming",
+        }
+        for path in dirs.values():
+            path.mkdir(parents=True, exist_ok=True)
+        # Every directory looked missing when checked, and another replica created it right after.
+        monkeypatch.setattr(Path, "exists", lambda self: False)
+        for target, path in dirs.items():
+            monkeypatch.setattr(target, str(path))
+
+        check_required_dirs()
+
     def test_file_path_where_dir_expected_raises(self, tmp_path):
         from core.config import check_required_dirs
 
