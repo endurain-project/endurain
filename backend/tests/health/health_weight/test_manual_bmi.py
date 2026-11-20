@@ -7,6 +7,7 @@ import pytest
 from tests._factories.health import make_health_weight
 from tests._factories.users import make_user
 
+import core.etag as core_etag
 import modules.health.health_weight.integration_service as health_weight_integration
 import modules.health.health_weight.models as health_weight_models
 import modules.health.health_weight.schema as health_weight_schema
@@ -29,7 +30,11 @@ def _create(db, user, *, bmi=None, weight=75.0, day=_DAY):
 
 def _edit(db, user, record, **changes):
     return health_weight_service.edit_health_weight(
-        user.id, record.id, health_weight_schema.HealthWeightUpdate(**changes), db, if_match=str(record.version)
+        user.id,
+        record.id,
+        health_weight_schema.HealthWeightUpdate(**changes),
+        db,
+        if_match=core_etag.format_etag(record.version),
     )
 
 

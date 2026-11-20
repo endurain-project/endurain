@@ -10,6 +10,7 @@ from sqlalchemy import text
 from sqlalchemy.orm import sessionmaker
 from tests._helpers.db import create_sqlite_session, ensure_user
 
+import core.etag as core_etag
 import core.exceptions as core_exceptions
 import modules.health.health_fasting.crud as fasting_crud
 import modules.health.health_fasting.schema as fasting_schema
@@ -132,7 +133,11 @@ class TestCreateOverlap:
 class TestEdit:
     def _edit(self, db, record, **changes):
         return fasting_service.edit_health_fasting(
-            _USER_ID, record.id, fasting_schema.HealthFastingUpdate(**changes), db, if_match=str(record.version)
+            _USER_ID,
+            record.id,
+            fasting_schema.HealthFastingUpdate(**changes),
+            db,
+            if_match=core_etag.format_etag(record.version),
         )
 
     def test_the_end_is_checked_against_the_stored_start(self, db):
@@ -226,7 +231,7 @@ class TestComplete:
             record.id,
             fasting_schema.HealthFastingComplete(fast_end_time=_hours(16)),
             db,
-            if_match=str(record.version),
+            if_match=core_etag.format_etag(record.version),
         )
 
         assert ended.actual_duration_seconds == 16 * 3600

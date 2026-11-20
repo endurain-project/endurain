@@ -7,6 +7,7 @@ import pytest
 from sqlalchemy.orm import sessionmaker
 from tests._helpers.db import create_sqlite_session, ensure_user
 
+import core.etag as core_etag
 import core.exceptions as core_exceptions
 import modules.health.health_sleep.integration_service as sleep_integration
 import modules.health.health_sleep.schema as sleep_schema
@@ -43,7 +44,11 @@ def _create(db, **fields):
 
 def _edit(db, record, **changes):
     return sleep_service.edit_health_sleep(
-        _USER_ID, record.id, sleep_schema.HealthSleepUpdate(**changes), db, if_match=str(record.version)
+        _USER_ID,
+        record.id,
+        sleep_schema.HealthSleepUpdate(**changes),
+        db,
+        if_match=core_etag.format_etag(record.version),
     )
 
 

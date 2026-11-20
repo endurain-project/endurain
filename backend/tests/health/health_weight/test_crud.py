@@ -10,6 +10,7 @@ from sqlalchemy.exc import IntegrityError
 from tests._factories.health import make_health_weight
 from tests._factories.users import make_user
 
+import core.etag as core_etag
 import core.exceptions as core_exceptions
 import modules.health.constants as health_constants
 import modules.health.health_weight.crud as health_weight_crud
@@ -212,7 +213,7 @@ class TestEdit:
             record.id,
             health_weight_schema.HealthWeightUpdate(**changes),
             db,
-            if_match=str(record.version) if if_match is None else if_match,
+            if_match=core_etag.format_etag(record.version) if if_match is None else if_match,
         )
 
     def test_only_the_fields_sent_change_and_the_version_moves_on(self, db, user):
@@ -252,7 +253,7 @@ class TestEdit:
 
         with pytest.raises(core_exceptions.NotFoundError):
             health_weight_crud.edit_health_weight(
-                user.id, uuid.uuid4(), health_weight_schema.HealthWeightUpdate(weight_kg=1.0), db, if_match="1"
+                user.id, uuid.uuid4(), health_weight_schema.HealthWeightUpdate(weight_kg=1.0), db, if_match='"1"'
             )
         assert _stored(db, record.id).weight_kg == Decimal("75.00")
 
@@ -277,7 +278,7 @@ class TestDelete:
     def test_the_record_is_removed_and_its_deletion_remembered_for_sync(self, db, user):
         record = make_health_weight(db, user.id)
 
-        health_weight_crud.delete_health_weight(user.id, record.id, db, if_match=str(record.version))
+        health_weight_crud.delete_health_weight(user.id, record.id, db, if_match=core_etag.format_etag(record.version))
 
         assert _stored(db, record.id) is None
         tombstones = db.scalars(sa.select(health_models.HealthRecordDeletion)).all()
@@ -287,19 +288,19 @@ class TestDelete:
         record = make_health_weight(db, user.id)
 
         with pytest.raises(core_exceptions.PreconditionFailedError):
-            health_weight_crud.delete_health_weight(user.id, record.id, db, if_match="2")
+            health_weight_crud.delete_health_weight(user.id, record.id, db, if_match='"2"')
 
         assert _stored(db, record.id) is not None
 
     def test_a_record_that_does_not_exist_is_not_found(self, db, user):
         with pytest.raises(core_exceptions.NotFoundError):
-            health_weight_crud.delete_health_weight(user.id, uuid.uuid4(), db, if_match="1")
+            health_weight_crud.delete_health_weight(user.id, uuid.uuid4(), db, if_match='"1"')
 
     def test_another_users_record_is_not_found_and_stays(self, db, user, other):
         theirs = make_health_weight(db, other.id)
 
         with pytest.raises(core_exceptions.NotFoundError):
-            health_weight_crud.delete_health_weight(user.id, theirs.id, db, if_match="1")
+            health_weight_crud.delete_health_weight(user.id, theirs.id, db, if_match='"1"')
 
         assert _stored(db, theirs.id) is not None
         assert db.scalars(sa.select(health_models.HealthRecordDeletion)).all() == []

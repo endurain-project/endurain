@@ -11,6 +11,7 @@ actually saw. The version travels as an ETag, which is the standard HTTP
 mechanism for exactly this and needs no bespoke field in every payload.
 """
 
+import re
 from collections.abc import Callable, Generator
 from contextlib import contextmanager
 
@@ -30,6 +31,11 @@ IF_MATCH_HEADER = "If-Match"
 # Matches any current representation. RFC 9110 requires servers to honour it, and
 # it is how a client says "create-or-overwrite, I don't care which version".
 WILDCARD = "*"
+
+# One element of an RFC 9110 §5.6.1 list of entity tags (§8.8.3: entity-tag = [ "W/" ] DQUOTE *etagc DQUOTE,
+# etagc = %x21 / %x23-7E / obs-text): optional whitespace, an optional tag, then a comma or the end. Elements may be
+# empty. The quantifiers are possessive, so a long malformed header is refused in linear time.
+_LIST_ELEMENT = re.compile(r'[ \t]*+(?:(W/)?+"([\x21\x23-\x7e\x80-\xff]*+)"[ \t]*+)?+(?:(,)|\Z)')
 
 
 def format_etag(version: int) -> str:
@@ -54,22 +60,46 @@ def set_etag(response: Response, version: int) -> None:
     response.headers["ETag"] = format_etag(version)
 
 
-def parse_if_match(header: str) -> set[str]:
-    """Parse an ``If-Match`` header into the set of tags it accepts.
+def is_wildcard(header: str) -> bool:
+    """Return whether an ``If-Match`` header is the wildcard, which matches any current version.
 
     Args:
-        header: The raw header value, which may be a comma-separated list.
+        header: The raw header value.
 
     Returns:
-        The unquoted tags. Weak tags (``W/"7"``) are left out: ``If-Match`` requires strong
-        comparison (RFC 9110 §13.1.1), so a weak tag never matches.
+        True when the header is ``*`` alone; a quoted ``"*"`` is an ordinary entity tag.
+    """
+    return header.strip(" \t") == WILDCARD
+
+
+def parse_if_match(header: str) -> set[str]:
+    """Parse an ``If-Match`` list of entity tags into the set of tags it accepts.
+
+    Args:
+        header: The raw header value, a comma-separated list of quoted entity tags. The wildcard
+            is checked first with :func:`is_wildcard`.
+
+    Returns:
+        The opaque values of the strong tags. Weak tags (``W/"7"``) are left out: ``If-Match``
+        requires strong comparison (RFC 9110 §13.1.1), so a weak tag never matches. An empty
+        list matches no version.
+
+    Raises:
+        InvalidInputError: When the header is not a list of quoted entity tags (``If-Match: 7``),
+            which is a malformed request rather than a stale one.
     """
     tags = set()
-    for candidate in header.split(","):
-        tag = candidate.strip()
-        if not tag.startswith("W/"):
-            tags.add(tag.strip('"'))
-    return tags
+    position = 0
+    while True:
+        element = _LIST_ELEMENT.match(header, position)
+        if element is None:
+            raise core_exceptions.InvalidInputError('If-Match must be a list of quoted entity tags, such as "3"')
+        weak, tag, separator = element.groups()
+        if tag is not None and weak is None:
+            tags.add(tag)
+        if separator is None:
+            return tags
+        position = element.end()
 
 
 def matches_if_none_match(header: str | None, version: int) -> bool:
@@ -106,12 +136,13 @@ def require_if_match(header: str, current_version: int | None, resource: str) ->
         None.
 
     Raises:
+        InvalidInputError: When the header is not ``*`` or a list of quoted entity tags.
         PreconditionFailedError: When the header names a version that is not the
             current one.
     """
-    accepted = parse_if_match(header)
-    if WILDCARD in accepted:
+    if is_wildcard(header):
         return
+    accepted = parse_if_match(header)
     if current_version is None or str(current_version) not in accepted:
         raise core_exceptions.PreconditionFailedError(
             f"The {resource} was modified by someone else; re-read it and retry"

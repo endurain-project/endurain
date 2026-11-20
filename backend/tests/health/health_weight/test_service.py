@@ -1,7 +1,7 @@
 """The weight records' application rules, on the real database."""
 
 import uuid
-from datetime import UTC, date, datetime, timedelta
+from datetime import date, timedelta
 from decimal import Decimal
 
 import pytest
@@ -10,7 +10,9 @@ from tests._factories.health import make_health_weight
 from tests._factories.users import make_user
 
 import core.date_range as core_date_range
+import core.etag as core_etag
 import core.exceptions as core_exceptions
+import core.timezone as core_timezone
 import modules.health.constants as health_constants
 import modules.health.health_weight.crud as health_weight_crud
 import modules.health.health_weight.models as health_weight_models
@@ -21,7 +23,8 @@ _DAY = date(2025, 3, 10)
 
 
 def _today() -> date:
-    return datetime.now(UTC).date()
+    """The user's today: the tests' users have no timezone, and the code reads the day from the platform clock."""
+    return core_timezone.today_in(core_timezone.or_default(None))
 
 
 def _stored(db, record_id):
@@ -40,7 +43,7 @@ def _edit(db, user, record, *, if_match=None, **changes):
         record.id,
         health_weight_schema.HealthWeightUpdate(**changes),
         db,
-        if_match=str(record.version) if if_match is None else if_match,
+        if_match=core_etag.format_etag(record.version) if if_match is None else if_match,
     )
 
 
@@ -154,7 +157,7 @@ class TestEdit:
     def test_a_record_that_does_not_exist_is_not_found(self, db, user):
         with pytest.raises(core_exceptions.NotFoundError):
             health_weight_service.edit_health_weight(
-                user.id, uuid.uuid4(), health_weight_schema.HealthWeightUpdate(weight_kg=1.0), db, if_match="1"
+                user.id, uuid.uuid4(), health_weight_schema.HealthWeightUpdate(weight_kg=1.0), db, if_match='"1"'
             )
 
 
@@ -162,7 +165,9 @@ class TestDelete:
     def test_the_record_is_gone_afterwards(self, db, user):
         record = _create(db, user)
 
-        health_weight_service.delete_health_weight(user.id, record.id, db, if_match=str(record.version))
+        health_weight_service.delete_health_weight(
+            user.id, record.id, db, if_match=core_etag.format_etag(record.version)
+        )
 
         with pytest.raises(core_exceptions.NotFoundError):
             health_weight_service.get_health_weight(user.id, record.id, db)
@@ -171,7 +176,7 @@ class TestDelete:
         record = _create(db, user)
 
         with pytest.raises(core_exceptions.PreconditionFailedError):
-            health_weight_service.delete_health_weight(user.id, record.id, db, if_match="7")
+            health_weight_service.delete_health_weight(user.id, record.id, db, if_match='"7"')
 
         assert _stored(db, record.id) is not None
 
@@ -179,7 +184,7 @@ class TestDelete:
         theirs = make_health_weight(db, other.id)
 
         with pytest.raises(core_exceptions.NotFoundError):
-            health_weight_service.delete_health_weight(user.id, theirs.id, db, if_match="1")
+            health_weight_service.delete_health_weight(user.id, theirs.id, db, if_match='"1"')
 
         assert _stored(db, theirs.id) is not None
 

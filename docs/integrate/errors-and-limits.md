@@ -108,13 +108,14 @@ If-Match: "3"
 | The header is missing | `428` | `urn:endurain:error:precondition-required` |
 | The header names a version that is no longer current | `412` | `urn:endurain:error:precondition-failed` |
 | The header is `*`, alone or in a list | `400` | `urn:endurain:error:invalid-input` |
+| The header is not a list of quoted tags (`If-Match: 3`) | `400` | `urn:endurain:error:invalid-input` |
 | The header names the current version | `200` or `204` | The edit applies and the version goes up. |
 
 Send the `ETag` you read, never `*`. The wildcard would match any version and so defeat the check, so the API refuses it on every route. A client that wants to overwrite what is there must read the record first and send the `ETag` it got.
 
 On a `412`, read the record again, apply your change on top of what is there now and retry with the new version. Do not retry the same request: it will fail the same way.
 
-A list of tags is accepted (`If-Match: "3", "4"`). A weak tag (`W/"3"`) never matches, as the HTTP standard requires for `If-Match`.
+A list of tags is accepted (`If-Match: "3", "4"`). A weak tag (`W/"3"`) never matches, as the HTTP standard requires for `If-Match`. Send the `ETag` with its quotes: a tag is always quoted, so a quoted `"*"` is an ordinary tag that matches no version, not the wildcard.
 
 ### Which requests need it
 

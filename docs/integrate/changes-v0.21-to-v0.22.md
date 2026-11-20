@@ -31,6 +31,7 @@ These changes affect clients of the administrator settings routes, which need th
 
 - **`env_managed` is gone** from the answer of `GET /server-settings` and `PUT /server-settings` (`ServerSettingsAdminRead`), and from the answer of `GET /server-settings/email/settings` and `PUT /server-settings/email/settings` (`MailSettingsAdminRead`). Settings are no longer tied to environment variables, so no field is read-only for that reason. A client that reads `env_managed` must stop doing so.
 - **The `409` for an environment-managed field is gone.** The two `PUT` routes used to answer `409` when the body changed a field that an environment variable set. They save the change now.
+- **`If-Match` takes quoted entity tags only.** On every route that requires it, an unquoted value (`If-Match: 3`) or any other value that is not `*` or a list of quoted tags is refused with `400` and `urn:endurain:error:invalid-input`; v0.21 read `3` as `"3"`. A quoted `"*"` is an ordinary tag, not the wildcard, so it matches no version (`412`). **A client that sent the version unquoted must send the `ETag` exactly as it was read** (`If-Match: "3"`). See [Concurrent edits](errors-and-limits.md#concurrent-edits-with-etag-and-if-match).
 
 ## Idempotency keys
 

@@ -114,5 +114,5 @@ def test_a_sleep_record_moved_onto_a_day_that_has_one_is_a_conflict(mock_db):
         pytest.raises(core_exceptions.ConflictError),
     ):
         sleep_crud.edit_health_sleep(
-            _USER_ID, uuid.uuid4(), sleep_schema.HealthSleepUpdate(date=_DAY_ONE), mock_db, if_match="1"
+            _USER_ID, uuid.uuid4(), sleep_schema.HealthSleepUpdate(date=_DAY_ONE), mock_db, if_match='"1"'
         )

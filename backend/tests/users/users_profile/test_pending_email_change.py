@@ -9,6 +9,7 @@ from sqlalchemy import select, update
 from sqlalchemy.orm import sessionmaker
 from tests._helpers.db import create_sqlite_session, ensure_user
 
+import core.etag as core_etag
 import core.exceptions as core_exceptions
 import modules.auth.password_reset_tokens.service as password_reset_service
 import modules.auth.sign_up_tokens.models as sign_up_models
@@ -303,7 +304,14 @@ class TestAdminEmailEdit:
             patch("modules.users.users.service.account_security_integration.verify_step_up"),
         ):
             updated = users_service.edit_user(
-                _USER_ID, edit, None, _ADMIN_ID, _SID_9, MagicMock(), db, if_match=str(current.version)
+                _USER_ID,
+                edit,
+                None,
+                _ADMIN_ID,
+                _SID_9,
+                MagicMock(),
+                db,
+                if_match=core_etag.format_etag(current.version),
             )
         return updated, sessions
 

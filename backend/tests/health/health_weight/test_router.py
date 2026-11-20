@@ -1,7 +1,7 @@
 """The weight routes, through the production application: real authentication, scopes, handlers and database."""
 
 import uuid
-from datetime import UTC, date, datetime, timedelta
+from datetime import date, timedelta
 from decimal import Decimal
 
 import pytest
@@ -9,6 +9,7 @@ from tests._factories.health import make_health_weight
 from tests._factories.users import make_user
 
 import core.config as core_config
+import core.timezone as core_timezone
 import modules.health.health_weight.models as health_weight_models
 
 _URL = f"{core_config.ROOT_PATH}/health/weight"
@@ -17,7 +18,8 @@ _ANY_ID = "6f1c2a4e-3b7d-4c58-9a10-5d2e8b7c9f01"
 
 
 def _today() -> date:
-    return datetime.now(UTC).date()
+    """The user's today: the tests' users have no timezone, and the code reads the day from the platform clock."""
+    return core_timezone.today_in(core_timezone.or_default(None))
 
 
 def _stored(committed_sessions, record_id):
@@ -363,7 +365,7 @@ class TestEdit:
         assert response.status_code == 400
         assert _stored(committed_sessions, record.id).weight_kg == Decimal("70.00")
 
-    @pytest.mark.parametrize("if_match", ['"7"', 'W/"1"', "garbage"])
+    @pytest.mark.parametrize("if_match", ['"7"', 'W/"1"', '"*"'])
     def test_a_version_that_is_not_the_current_one_is_412_and_nothing_changes(
         self, me, record, committed_sessions, if_match
     ):
@@ -372,8 +374,15 @@ class TestEdit:
         assert response.status_code == 412
         assert _stored(committed_sessions, record.id).weight_kg == Decimal("70.00")
 
-    def test_an_unquoted_version_names_the_current_one(self, me, record):
-        assert self._patch(me.client, record.id, {"weight_kg": 69.0}, if_match="1").status_code == 200
+    @pytest.mark.parametrize("if_match", ["1", "garbage", '"1" "2"'])
+    def test_a_header_that_is_not_quoted_tags_is_malformed_and_changes_nothing(
+        self, me, record, committed_sessions, if_match
+    ):
+        response = self._patch(me.client, record.id, {"weight_kg": 69.0}, if_match=if_match)
+
+        assert response.status_code == 400
+        assert response.json()["type"] == "urn:endurain:error:invalid-input"
+        assert _stored(committed_sessions, record.id).weight_kg == Decimal("70.00")
 
     def test_another_users_record_is_404_and_stays_as_it_was(self, sign_in, other, record, committed_sessions):
         response = self._patch(sign_in(other).client, record.id, {"weight_kg": 1.0})
@@ -444,6 +453,14 @@ class TestDelete:
 
     def test_the_wildcard_is_refused_and_the_record_stays(self, me, record, committed_sessions):
         assert me.client.delete(f"{_URL}/{record.id}", headers={"If-Match": "*"}).status_code == 400
+        assert _stored(committed_sessions, record.id) is not None
+
+    @pytest.mark.parametrize("if_match", ["1", '"*"'], ids=["unquoted", "quoted-asterisk"])
+    def test_a_tag_that_is_not_the_quoted_etag_deletes_nothing(self, me, record, committed_sessions, if_match):
+        """RFC 9110: a tag is quoted, so ``1`` is malformed (400) and ``"*"`` is a tag no version has (412)."""
+        response = me.client.delete(f"{_URL}/{record.id}", headers={"If-Match": if_match})
+
+        assert response.status_code == (400 if if_match == "1" else 412)
         assert _stored(committed_sessions, record.id) is not None
 
     def test_a_stale_version_is_412_and_the_record_stays(self, me, record, committed_sessions):
