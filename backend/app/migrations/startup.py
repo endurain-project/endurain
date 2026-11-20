@@ -4,6 +4,7 @@ The application's own startup step: it runs the Alembic and substrate upgrades a
 package, so it lives beside them rather than in ``core``, which knows nothing of the application.
 """
 
+import time
 from collections.abc import Generator
 from contextlib import contextmanager
 
@@ -23,6 +24,8 @@ logger = core_logger.get_logger(__name__)
 # Arbitrary constant identifying the migration lock among the database's advisory locks.
 _MIGRATION_LOCK_KEY = 7_203_419_001
 _MIGRATION_LOCK_TIMEOUT_SECONDS = 600
+#: Pause between two attempts to take the migration lock while another replica holds it.
+_MIGRATION_LOCK_POLL_SECONDS = 0.5
 
 
 @contextmanager
@@ -33,24 +36,29 @@ def migration_lock() -> Generator[None]:
     AUTOCOMMIT connection, which stays out of a transaction so an idle-in-transaction timeout cannot end the
     session (and release the lock) during a slow migration.
 
+    A replica waits by trying the lock again (``pg_try_advisory_lock``), not by blocking in ``pg_advisory_lock``:
+    a statement blocked there holds a snapshot for as long as it waits, and ``CREATE INDEX CONCURRENTLY`` in the
+    migrating replica waits for every older snapshot, so the two would deadlock and the migration would fail.
+
     Raises:
-        DBAPIError: When the lock is not granted within ``_MIGRATION_LOCK_TIMEOUT_SECONDS``.
+        TimeoutError: When the lock is not free within ``_MIGRATION_LOCK_TIMEOUT_SECONDS``.
     """
     with engine.connect().execution_options(isolation_level="AUTOCOMMIT") as lock_connection:
-        locked = False
-        try:
+        deadline = time.monotonic() + _MIGRATION_LOCK_TIMEOUT_SECONDS
+        while not lock_connection.execute(
+            text("SELECT pg_try_advisory_lock(:key)"), {"key": _MIGRATION_LOCK_KEY}
+        ).scalar_one():
             # A replica waits for the one migrating, but not forever if that one hangs.
-            lock_connection.execute(text(f"SET lock_timeout = '{_MIGRATION_LOCK_TIMEOUT_SECONDS}s'"))
-            lock_connection.execute(text("SELECT pg_advisory_lock(:key)"), {"key": _MIGRATION_LOCK_KEY})
-            locked = True
+            if time.monotonic() >= deadline:
+                raise TimeoutError(
+                    f"The migration lock was not free within {_MIGRATION_LOCK_TIMEOUT_SECONDS} seconds; "
+                    "another replica is still migrating the database"
+                )
+            time.sleep(_MIGRATION_LOCK_POLL_SECONDS)
+        try:
             yield
         finally:
-            # The connection goes back to the pool; do not leave the timeout on it, even when the wait timed out.
-            try:
-                if locked:
-                    lock_connection.execute(text("SELECT pg_advisory_unlock(:key)"), {"key": _MIGRATION_LOCK_KEY})
-            finally:
-                lock_connection.execute(text("RESET lock_timeout"))
+            lock_connection.execute(text("SELECT pg_advisory_unlock(:key)"), {"key": _MIGRATION_LOCK_KEY})
 
 
 def require_known_revision(connection: Connection, script: ScriptDirectory) -> None:

@@ -166,18 +166,28 @@ class Cluster:
 
     def start_api(self, *, distributed: bool, timeout: float = 150) -> _Process:
         """Start an API replica and wait until it has finished starting up."""
-        port = _free_port()
-        process = self._spawn(
-            f"api{self._apis}",
-            [sys.executable, "-m", "uvicorn", "main:app", "--port", str(port)],
-            self.env(distributed=distributed),
-            port=port,
-        )
-        self._apis += 1
-        assert self.wait_for(lambda: _STARTUP_MARKER in process.log_path.read_text(), timeout), (
-            f"{process.label} did not start:\n{process.log_path.read_text()[-2000:]}"
-        )
+        (process,) = self.start_apis(1, distributed=distributed, timeout=timeout)
         return process
+
+    def start_apis(self, count: int, *, distributed: bool, timeout: float = 150) -> list[_Process]:
+        """Start API replicas at the same moment, as a deployment's replicas start, and wait until all are up."""
+        processes = []
+        for _ in range(count):
+            port = _free_port()
+            processes.append(
+                self._spawn(
+                    f"api{self._apis}",
+                    [sys.executable, "-m", "uvicorn", "main:app", "--port", str(port)],
+                    self.env(distributed=distributed),
+                    port=port,
+                )
+            )
+            self._apis += 1
+        for process in processes:
+            assert self.wait_for(lambda process=process: _STARTUP_MARKER in process.log_path.read_text(), timeout), (
+                f"{process.label} did not start:\n{process.log_path.read_text()[-2000:]}"
+            )
+        return processes
 
     def start_worker(self, *, distributed: bool, slow_seconds: float | None = None) -> _Process:
         """Start a durable-job worker, optionally one whose upload processing is delayed."""
