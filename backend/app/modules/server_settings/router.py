@@ -15,6 +15,7 @@ from fastapi import (
 
 import core.dependencies as core_dependencies
 import core.etag as core_etag
+import core.file_uploads as core_file_uploads
 import core.middleware_body_limit as core_middleware_body_limit
 import core.openapi_contract as core_openapi_contract
 import core.rate_limit as core_rate_limit
@@ -138,7 +139,9 @@ def put_login_photo(
     Returns:
         The stored photo's version.
     """
-    photo, replaced = server_settings_login_photo_service.upload_login_photo(file, storage, db)
+    photo, replaced = server_settings_login_photo_service.upload_login_photo(
+        core_file_uploads.read_validated_upload_sync(file, kind=core_file_uploads.UploadKind.IMAGE), storage, db
+    )
     if replaced:
         response.status_code = status.HTTP_200_OK
     return photo

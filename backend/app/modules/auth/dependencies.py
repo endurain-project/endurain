@@ -184,7 +184,9 @@ def _resolve_principal(
         raise core_exceptions.InvalidTokenError(
             "Not authenticated. Provide a Bearer token or an API key.", scheme="Bearer"
         )
-    return authentication_integration.resolve_from_api_key(raw_key, request, db)
+    return authentication_integration.resolve_from_api_key(
+        raw_key, request.url.path, core_network.get_ip_address(request), db
+    )
 
 
 def get_principal(

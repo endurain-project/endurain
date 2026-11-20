@@ -1,6 +1,7 @@
 """Audit rows of the Strava client, the account link, unlink and revocation, and the gear import."""
 
 import io
+from functools import partial
 from types import SimpleNamespace
 from unittest.mock import MagicMock, Mock, patch
 
@@ -13,6 +14,7 @@ from stravalib.exc import AccessUnauthorized, RateLimitExceeded
 from stravalib.exc import Fault as StravaFault
 
 import core.exceptions as core_exceptions
+import core.file_uploads as core_file_uploads
 import modules.auth.schema as auth_schema
 import modules.gears.gear.schema as gears_schema
 import modules.strava.audit_actions as strava_audit_actions
@@ -322,13 +324,19 @@ def _upload(content: bytes) -> UploadFile:
     return UploadFile(filename="secret-name.csv", file=io.BytesIO(content))
 
 
+def _saver(content: bytes):
+    return partial(
+        core_file_uploads.save_text_upload_sync, _upload(content), max_bytes=strava_constants.GEAR_CSV_MAX_BYTES
+    )
+
+
 class TestGearImport:
     def test_imported_bikes_are_audited_with_the_type_and_count_only(self):
         with (
             patch.object(strava_gear_service.gears_integration, "create_multiple_gears"),
             jasil_testing.capture_audit() as audit,
         ):
-            strava_gear_service.import_gear(_upload(BIKES), MOCK_USER_ID, gears_schema.GearType.BIKE, MagicMock())
+            strava_gear_service.import_gear(_saver(BIKES), MOCK_USER_ID, gears_schema.GearType.BIKE, MagicMock())
 
         entry = audit.assert_audited(
             strava_audit_actions.GEAR_IMPORT.id,
@@ -344,7 +352,7 @@ class TestGearImport:
             patch.object(strava_gear_service.gears_integration, "get_gear_user", return_value=[]),
             jasil_testing.capture_audit() as audit,
         ):
-            strava_gear_service.import_gear(_upload(SHOES), MOCK_USER_ID, gears_schema.GearType.SHOES, MagicMock())
+            strava_gear_service.import_gear(_saver(SHOES), MOCK_USER_ID, gears_schema.GearType.SHOES, MagicMock())
 
         entry = audit.assert_audited(strava_audit_actions.GEAR_IMPORT.id)
         assert entry.details == {"gear_type": "shoes", "count": 1}
@@ -352,15 +360,13 @@ class TestGearImport:
     def test_a_file_listing_no_gear_is_not_audited(self):
         with jasil_testing.capture_audit() as audit:
             strava_gear_service.import_gear(
-                _upload(b"Bike Name,Bike Brand,Bike Model\n"), MOCK_USER_ID, gears_schema.GearType.BIKE, MagicMock()
+                _saver(b"Bike Name,Bike Brand,Bike Model\n"), MOCK_USER_ID, gears_schema.GearType.BIKE, MagicMock()
             )
 
         audit.assert_not_audited(strava_audit_actions.GEAR_IMPORT.id)
 
     def test_a_file_that_cannot_be_parsed_is_not_audited(self):
         with jasil_testing.capture_audit() as audit, pytest.raises(core_exceptions.InvalidInputError):
-            strava_gear_service.import_gear(
-                _upload(b"Name\nx\n"), MOCK_USER_ID, gears_schema.GearType.BIKE, MagicMock()
-            )
+            strava_gear_service.import_gear(_saver(b"Name\nx\n"), MOCK_USER_ID, gears_schema.GearType.BIKE, MagicMock())
 
         audit.assert_not_audited(strava_audit_actions.GEAR_IMPORT.id)

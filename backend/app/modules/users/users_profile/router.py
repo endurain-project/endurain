@@ -106,7 +106,13 @@ def put_profile_image(
     Returns:
         The servable URL of the new photo.
     """
-    photo, replaced = profile_photo_service.set_photo(token_user_id, file, storage, db)
+    photo, replaced = profile_photo_service.set_photo(
+        token_user_id,
+        file.filename,
+        partial(core_file_uploads.read_validated_upload_sync, file, kind=core_file_uploads.UploadKind.IMAGE),
+        storage,
+        db,
+    )
     if replaced:
         response.status_code = status.HTTP_200_OK
     return photo

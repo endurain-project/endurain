@@ -5,7 +5,6 @@ what deserializes settings on every *read*, so a validator there would put a DNS
 lookup on the read path of the whole app.
 """
 
-import io
 import uuid
 from datetime import timedelta
 from unittest.mock import MagicMock, patch
@@ -13,11 +12,9 @@ from unittest.mock import MagicMock, patch
 import jasil.providers as platform_providers
 import jasil.testing as jasil_testing
 import pytest
-from fastapi import UploadFile
 
 import core.cryptography as core_cryptography
 import core.exceptions as core_exceptions
-import core.file_uploads as core_file_uploads
 import core.geocoding as core_geocoding
 import core.mail as core_mail
 import core.network as core_network
@@ -609,13 +606,9 @@ class TestLoginPhoto:
         storage.save.side_effect = lambda *a: calls.append("save")
         db = MagicMock()
         db.commit.side_effect = lambda: calls.append("commit")
-        file = MagicMock(content_type="text/plain")
 
-        with (
-            patch.object(core_file_uploads, "read_validated_upload_sync", return_value=_PNG),
-            patch.object(server_settings_service.server_settings_crud, "set_login_photo", return_value=(4, False)),
-        ):
-            photo = server_settings_login_photo_service.upload_login_photo(file, storage, db)
+        with patch.object(server_settings_service.server_settings_crud, "set_login_photo", return_value=(4, False)):
+            photo = server_settings_login_photo_service.upload_login_photo(_PNG, storage, db)
 
         assert photo == (server_settings_schema.LoginPhotoRead(version=4), False)
         assert calls == ["save", "commit"]
@@ -628,22 +621,16 @@ class TestLoginPhoto:
         big = _PNG + b"0" * server_settings_constants.LOGIN_PHOTO_MAX_BYTES
         storage = MagicMock()
 
-        with (
-            patch.object(core_file_uploads, "read_validated_upload_sync", return_value=big),
-            pytest.raises(core_exceptions.PayloadTooLargeError),
-        ):
-            server_settings_login_photo_service.upload_login_photo(MagicMock(), storage, MagicMock())
+        with pytest.raises(core_exceptions.PayloadTooLargeError):
+            server_settings_login_photo_service.upload_login_photo(big, storage, MagicMock())
 
         storage.save.assert_not_called()
 
     def test_upload_rejects_an_unrecognised_format(self):
         storage = MagicMock()
 
-        with (
-            patch.object(core_file_uploads, "read_validated_upload_sync", return_value=b"not an image"),
-            pytest.raises(core_exceptions.UnsupportedMediaTypeError),
-        ):
-            server_settings_login_photo_service.upload_login_photo(MagicMock(), storage, MagicMock())
+        with pytest.raises(core_exceptions.UnsupportedMediaTypeError):
+            server_settings_login_photo_service.upload_login_photo(b"not an image", storage, MagicMock())
 
         storage.save.assert_not_called()
 
@@ -1187,22 +1174,17 @@ class TestMailSettingsAudit:
 class TestLoginPhotoAudit:
     def test_an_upload_is_audited_without_a_file_name(self):
         with (
-            patch.object(core_file_uploads, "read_validated_upload_sync", return_value=_PNG),
             patch.object(server_settings_service.server_settings_crud, "set_login_photo", return_value=(4, False)),
             jasil_testing.capture_audit() as audit,
         ):
-            server_settings_login_photo_service.upload_login_photo(MagicMock(), MagicMock(), MagicMock())
+            server_settings_login_photo_service.upload_login_photo(_PNG, MagicMock(), MagicMock())
 
         entry = audit.assert_audited(server_settings_audit_actions.LOGIN_PHOTO_UPDATE.id)
         assert entry.details is None
 
     def test_a_refused_upload_is_not_audited(self):
-        with (
-            patch.object(core_file_uploads, "read_validated_upload_sync", return_value=b"not an image"),
-            jasil_testing.capture_audit() as audit,
-            pytest.raises(core_exceptions.UnsupportedMediaTypeError),
-        ):
-            server_settings_login_photo_service.upload_login_photo(MagicMock(), MagicMock(), MagicMock())
+        with jasil_testing.capture_audit() as audit, pytest.raises(core_exceptions.UnsupportedMediaTypeError):
+            server_settings_login_photo_service.upload_login_photo(b"not an image", MagicMock(), MagicMock())
 
         audit.assert_not_audited(server_settings_audit_actions.LOGIN_PHOTO_UPDATE.id)
 
@@ -1220,29 +1202,22 @@ class TestLoginPhotoAudit:
 
 
 class TestLoginPhotoImageFormats:
-    def _upload(self, name: str, data: bytes) -> UploadFile:
-        return UploadFile(io.BytesIO(data), filename=name)
-
     def test_a_webp_is_stored_without_its_metadata(self):
         storage = MagicMock()
 
         with patch.object(server_settings_service.server_settings_crud, "set_login_photo", return_value=(4, False)):
-            server_settings_login_photo_service.upload_login_photo(
-                self._upload("login.webp", images.webp_with_exif()), storage, MagicMock()
-            )
+            server_settings_login_photo_service.upload_login_photo(images.webp_with_exif(), storage, MagicMock())
 
         _area, _key, data, content_type = storage.save.call_args.args
         assert content_type == "image/webp"
         assert not images.has_metadata(data)
 
-    @pytest.mark.parametrize(
-        ("name", "data"), [("a.gif", images.gif()), ("a.heic", images.heic_like())], ids=["gif", "heic"]
-    )
-    def test_gif_and_heic_are_refused(self, name: str, data: bytes):
+    @pytest.mark.parametrize("data", [images.gif(), images.heic_like()], ids=["gif", "heic"])
+    def test_gif_and_heic_are_refused(self, data: bytes):
         storage = MagicMock()
 
         with pytest.raises(core_exceptions.DomainError) as exc:
-            server_settings_login_photo_service.upload_login_photo(self._upload(name, data), storage, MagicMock())
+            server_settings_login_photo_service.upload_login_photo(data, storage, MagicMock())
 
         assert exc.value.status_code == 415
         storage.save.assert_not_called()

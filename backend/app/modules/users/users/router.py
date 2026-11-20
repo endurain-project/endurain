@@ -1,5 +1,6 @@
 """User management router for authenticated operations."""
 
+from functools import partial
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, Query, Request, Response, Security, UploadFile, status
@@ -200,7 +201,14 @@ def put_user_image(
     Returns:
         The servable URL of the new photo.
     """
-    replaced = users_photo_service.upload_photo(user_id, file, storage, db, audit=True)
+    replaced = users_photo_service.upload_photo(
+        user_id,
+        file.filename,
+        partial(core_file_uploads.read_validated_upload_sync, file, kind=core_file_uploads.UploadKind.IMAGE),
+        storage,
+        db,
+        audit=True,
+    )
     if replaced:
         response.status_code = status.HTTP_200_OK
     return users_schema.UserPhotoRead(photo_path=users_service.require_user(user_id, db).photo_path)

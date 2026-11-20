@@ -16,6 +16,7 @@ import core.exceptions as core_exceptions
 import modules.auth.dependencies as auth_dependencies
 import modules.auth.schema as auth_schema
 import modules.server_settings.schema as server_settings_schema
+from tests._helpers import images
 
 VERIFIER = MagicMock()
 STEP_UP = {"current_password": "admin-password"}
@@ -475,15 +476,30 @@ class TestUploadLoginPhoto:
     ):
         """A put stores the photo and names the version that now identifies it."""
         mock_upload.return_value = (server_settings_schema.LoginPhotoRead(version=4), replaced)
+        png = images.png_with_text()
 
+        response = fast_api_client.put(
+            "/server_settings/login-photo",
+            headers={"Authorization": "Bearer mock_token"},
+            files={"file": ("login.png", png, "image/png")},
+        )
+
+        assert response.status_code == status_code
+        assert response.json() == {"version": 4}
+        # The router reads the validated bytes and hands them to the service.
+        assert mock_upload.call_args.args[0] == png
+
+    @patch("modules.server_settings.router.server_settings_login_photo_service.upload_login_photo")
+    def test_put_login_photo_refuses_a_non_image_before_the_service(self, mock_upload, fast_api_client, fast_api_app):
+        """A file whose bytes are not an image is answered 415 and never reaches the service."""
         response = fast_api_client.put(
             "/server_settings/login-photo",
             headers={"Authorization": "Bearer mock_token"},
             files={"file": ("login.png", b"png", "image/png")},
         )
 
-        assert response.status_code == status_code
-        assert response.json() == {"version": 4}
+        assert response.status_code == 415
+        mock_upload.assert_not_called()
 
 
 class TestDeleteLoginPhoto:

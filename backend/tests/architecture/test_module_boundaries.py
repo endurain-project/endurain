@@ -366,28 +366,8 @@ def _layer_imports(*, only_roles: frozenset[str] | None = None) -> list[tuple[pa
     return found
 
 
-#: Services and integration surfaces that still import FastAPI, as ``{"<dotted module>": reason}``.
-_SERVICE_FASTAPI_EXCEPTIONS: dict[str, str] = {
-    "modules.server_settings.login_photo_service": (
-        "Receives the UploadFile and hands it to core.file_uploads; it should take the stored bytes instead."
-    ),
-    "modules.strava.gear_service": (
-        "Receives the UploadFile and hands it to core.file_uploads; it should take the stored bytes instead."
-    ),
-    "modules.users.users.photo_service": (
-        "Receives the UploadFile and hands it to core.file_uploads; it should take the stored bytes instead."
-    ),
-    "modules.users.users_profile.photo_service": (
-        "Receives the UploadFile and hands it to users.users.integration_service; it should take the "
-        "stored bytes instead."
-    ),
-    "modules.users.users.integration_service": (
-        "Publishes upload_user_photo, which receives the UploadFile and hands it to users.users.photo_service; not "
-        "yet take the stored bytes."
-    ),
-    "modules.auth.authentication.integration_service": (
-        "Takes the Request for the sign-in's client address and user agent; auth does not yet take plain values."
-    ),
+#: Services that may import FastAPI, as ``{"<dotted module>": reason}``.
+_SERVICE_FASTAPI_ALLOWED: dict[str, str] = {
     "modules.websocket.service": (
         "The service is the WebSocket connection manager, so the socket and its close codes are its subject."
     ),
@@ -1016,13 +996,13 @@ class TestLayerRules:
                 dotted = _module_dotted(path)
                 if not any(target == "fastapi" or target.startswith("fastapi.") for target in _imported_modules(path)):
                     continue
-                if dotted in _SERVICE_FASTAPI_EXCEPTIONS:
+                if dotted in _SERVICE_FASTAPI_ALLOWED:
                     used.add(dotted)
                 else:
                     offenders.append(dotted)
         assert not offenders, "A service takes plain values, not FastAPI objects:\n  " + "\n  ".join(sorted(offenders))
-        stale = sorted(set(_SERVICE_FASTAPI_EXCEPTIONS) - used)
-        assert not stale, "Remove from _SERVICE_FASTAPI_EXCEPTIONS:\n  " + "\n  ".join(stale)
+        stale = sorted(set(_SERVICE_FASTAPI_ALLOWED) - used)
+        assert not stale, "Remove from _SERVICE_FASTAPI_ALLOWED:\n  " + "\n  ".join(stale)
 
     def test_persistence_asks_no_other_package(self):
         """A query that must ask another bounded context first is a service decision.

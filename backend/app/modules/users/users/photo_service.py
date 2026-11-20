@@ -5,10 +5,10 @@ The photo itself lives in the platform ``StorageProvider``; the user row holds o
 
 import os
 import uuid
+from collections.abc import Callable
 
 import jasil.audit as jasil_audit
 import jasil.providers as platform_providers
-from fastapi import UploadFile
 from sqlalchemy.orm import Session
 
 import core.blob_sweep as core_blob_sweep
@@ -243,7 +243,8 @@ def _store_photo(
 
 def upload_photo(
     user_id: uuid.UUID,
-    file: UploadFile,
+    filename: str | None,
+    read_data: Callable[[], bytes],
     storage: platform_providers.StorageProvider,
     db: Session,
     *,
@@ -253,7 +254,9 @@ def upload_photo(
 
     Args:
         user_id: ID of the user whose photo is being saved.
-        file: The uploaded image.
+        filename: The uploaded file's name, whose extension picks the stored type.
+        read_data: Reads and validates the uploaded image, so nothing is read from the request before the user and
+            the extension are accepted.
         storage: The platform storage provider.
         db: Database session.
         audit: Record ``users.user.update``; set by the administrator's route, since a user's own photo is a
@@ -266,21 +269,21 @@ def upload_photo(
         NotFoundError: If the user does not exist.
         InvalidInputError: If the upload has no filename.
         UnsupportedMediaTypeError: If the extension is not an allowed image type.
+        PayloadTooLargeError: If ``read_data`` finds the upload over the size cap.
     """
     if users_crud.get_user_by_id(user_id, db) is None:
         raise core_exceptions.NotFoundError("User not found")
 
-    if not file.filename:
+    if not filename:
         raise core_exceptions.InvalidInputError("Filename is required")
 
     # Defense-in-depth allow-list on the user-supplied extension. The upload reader still
     # validates the magic number, so a mismatched signature is rejected even if this passes.
-    file_extension = os.path.splitext(file.filename)[1].lower()
+    file_extension = os.path.splitext(filename)[1].lower()
     if file_extension not in core_file_uploads.IMAGE_CONTENT_TYPES:
         raise core_exceptions.UnsupportedMediaTypeError("Unsupported user image file type")
 
-    data = core_file_uploads.read_validated_upload_sync(file, kind=core_file_uploads.UploadKind.IMAGE)
-    return _store_photo(user_id, file_extension, data, storage, db, audit=audit)[1]
+    return _store_photo(user_id, file_extension, read_data(), storage, db, audit=audit)[1]
 
 
 def read_photo(

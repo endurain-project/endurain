@@ -1,6 +1,7 @@
 """Strava routes: account linking, activity and gear sync, and gear CSV import."""
 
 from datetime import date
+from functools import partial
 from typing import Annotated
 
 from fastapi import APIRouter, Query, Request, Response, Security, UploadFile, status
@@ -8,6 +9,7 @@ from fastapi import APIRouter, Query, Request, Response, Security, UploadFile, s
 import core.date_range as core_date_range
 import core.dependencies as core_dependencies
 import core.etag as core_etag
+import core.file_uploads as core_file_uploads
 import core.location as core_location
 import core.middleware_body_limit as core_middleware_body_limit
 import core.openapi_contract as core_openapi_contract
@@ -132,8 +134,9 @@ def import_gear_from_strava_export(
     db: core_dependencies.DbSession,
 ) -> strava_schema.StravaGearImportResult:
     """Create the gear listed in an uploaded Strava ``bikes.csv`` or ``shoes.csv`` and report how many."""
+    save_csv = partial(core_file_uploads.save_text_upload_sync, file, max_bytes=strava_constants.GEAR_CSV_MAX_BYTES)
     return strava_schema.StravaGearImportResult(
-        imported=strava_gear_service.import_gear(file, token_user_id, gears_schema.GearType[gear_type.name], db)
+        imported=strava_gear_service.import_gear(save_csv, token_user_id, gears_schema.GearType[gear_type.name], db)
     )
 
 

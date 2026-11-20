@@ -16,13 +16,13 @@ class TestSetPhoto:
     def test_returns_the_servable_url_and_whether_a_photo_was_replaced(self, mock_users, replaced):
         mock_users.upload_user_photo.return_value = replaced
         mock_users.require_user.return_value = MagicMock(photo_path="/users/x/photo?t=1")
-        file, storage, db = MagicMock(), MagicMock(), MagicMock()
+        read_data, storage, db = MagicMock(), MagicMock(), MagicMock()
 
-        photo, was_replaced = profile_photo_service.set_photo(_USER_ID, file, storage, db)
+        photo, was_replaced = profile_photo_service.set_photo(_USER_ID, "me.png", read_data, storage, db)
 
         assert was_replaced is replaced
         assert photo.photo_path == "/users/x/photo?t=1"
-        mock_users.upload_user_photo.assert_called_once_with(_USER_ID, file, storage, db)
+        mock_users.upload_user_photo.assert_called_once_with(_USER_ID, "me.png", read_data, storage, db)
         mock_users.require_user.assert_called_once_with(_USER_ID, db)
 
 
