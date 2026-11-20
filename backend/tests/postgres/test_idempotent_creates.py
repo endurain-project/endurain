@@ -29,7 +29,6 @@ import modules.health.health_fasting.models as health_fasting_models
 import modules.health.health_fasting.router as health_fasting_router
 import modules.health.health_poop.models as health_poop_models
 import modules.health.health_poop.router as health_poop_router
-import modules.server_settings.models as server_settings_models
 import modules.users.users.audit_actions as users_audit_actions
 import modules.users.users.models as users_models
 import modules.users.users.router as users_router
@@ -66,9 +65,6 @@ def _principal(request: Request, x_user: str = Header(), x_credential: str = Hea
 def client(pg_factory) -> Generator[TestClient]:
     for user_id in (_USER, _OTHER, _ADMIN):
         ensure_user(pg_factory, user_id)
-    with pg_factory() as db:
-        db.add(server_settings_models.ServerSettings(id=1))
-        db.commit()
     app = FastAPI()
     core_exceptions.register_exception_handlers(app)
     app.include_router(gears_router.router, prefix="/gears")

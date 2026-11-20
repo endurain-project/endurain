@@ -45,11 +45,11 @@ cannot drift. What an agent most often gets wrong:
 ```bash
 cd backend
 PYTHONPATH=app uv run lint-imports
-uv run pytest tests/architecture -q --no-cov
+uv run pytest tests/architecture -q
 uv run ruff format --check . && uv run ruff check .
 ```
 
-CI runs the full `uv run pytest` with the 80% coverage gate, so run it without `--no-cov` before a PR.
+CI runs the whole suite with the 80% branch coverage gate (`uv run hatch run test`); run that before a PR.
 CI also gates on `uv run mypy` and `uv run ty check`: both must report no issues, without `# type: ignore` or casts.
 
 ## Repo hygiene

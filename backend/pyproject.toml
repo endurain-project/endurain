@@ -79,6 +79,8 @@ test = [
     "pytest-cov>=7.1.0",
     "boto3>=1.43.126",
     "redis>=8.1.0",
+    "pytest-xdist>=3.8.0",
+    "testcontainers[postgres]>=4.15.0",
 ]
 dev = [
     "hatch>=1.18.2",
@@ -126,7 +128,7 @@ lint = "ruff check . --fix"
 format = "ruff format ."
 lint-check = "ruff check ."
 format-check = "ruff format --check ."
-test = "pytest"
+test = "pytest -n auto --cov --cov-report=term-missing"
 typecheck = "mypy"
 typecheck-ty = "ty check"
 validate = ["lint", "format", "test", "typecheck"]
@@ -140,9 +142,9 @@ python_classes = ["Test*"]
 python_functions = ["test_*"]
 asyncio_mode = "auto"
 asyncio_default_fixture_loop_scope = "function"
-addopts = "--tb=short --strict-markers --cov --cov-report=term-missing"
+addopts = "--tb=short --strict-markers"
 markers = [
-    "postgres: needs a disposable PostgreSQL database (TEST_DATABASE_URL); skipped when it is unset",
+    "postgres: checks behaviour only PostgreSQL shows (isolation, locks, races, unique indexes); every run has the database",
     "distributed: runs real API and worker processes against disposable PostgreSQL, Redis and S3 (TEST_DATABASE_URL, TEST_REDIS_URL, TEST_S3_ENDPOINT_URL); skipped unless all are set",
 ]
 filterwarnings = [
@@ -151,6 +153,7 @@ filterwarnings = [
 
 [tool.coverage.run]
 source = ["app"]
+branch = true
 omit = ["*/tests/*", "*/__pycache__/*", "*/alembic/*", "*/migrations/*"]
 
 [tool.coverage.report]

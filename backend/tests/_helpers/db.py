@@ -1,11 +1,9 @@
-import os
 import uuid
 from collections.abc import Sequence
 from typing import Any
 from unittest.mock import MagicMock
 
 from sqlalchemy import create_engine
-from sqlalchemy.engine import make_url
 from sqlalchemy.orm import Session, sessionmaker
 from sqlalchemy.pool import StaticPool
 
@@ -91,68 +89,6 @@ def create_sqlite_session_factory() -> sessionmaker[Session]:
     )
     Base.metadata.create_all(engine)
     return sessionmaker(bind=engine)
-
-
-#: Environment variable naming a *disposable* PostgreSQL database for the tests
-#: marked ``postgres``. Unset, those tests are skipped.
-POSTGRES_TEST_URL_ENV = "TEST_DATABASE_URL"
-
-
-def postgres_test_url() -> str | None:
-    """Return the configured PostgreSQL test database URL, or ``None``."""
-    return os.environ.get(POSTGRES_TEST_URL_ENV) or None
-
-
-def disposable_postgres_url() -> str:
-    """Return ``TEST_DATABASE_URL`` after checking that it names a disposable database.
-
-    Raises:
-        RuntimeError: If the variable is unset or the database name does not contain ``test``.
-    """
-    url = postgres_test_url()
-    if url is None:
-        raise RuntimeError(f"{POSTGRES_TEST_URL_ENV} is not set")
-    database = make_url(url).database or ""
-    if "test" not in database:
-        raise RuntimeError(
-            f"Refusing to recreate the schema of '{database}': {POSTGRES_TEST_URL_ENV} must name a "
-            "disposable database whose name contains 'test'."
-        )
-    return url
-
-
-def create_postgres_session_factory() -> sessionmaker[Session]:
-    """Create a sessionmaker over a real PostgreSQL test database.
-
-    Unlike the SQLite helpers, sessions here get their own pooled connection, so
-    one session's uncommitted work is invisible to another and a failed flush
-    leaves the session unusable until it is rolled back, exactly as in
-    production. The schema is dropped and recreated, so the database named by
-    ``TEST_DATABASE_URL`` must be disposable: anything whose name does not
-    contain ``test`` is refused. Dispose in teardown with
-    :func:`drop_postgres_schema`.
-
-    Raises:
-        RuntimeError: If the database name does not contain ``test``.
-    """
-    from core.database import Base
-
-    url = disposable_postgres_url()
-
-    _import_all_models()
-    engine = create_engine(url)
-    Base.metadata.drop_all(engine)
-    Base.metadata.create_all(engine)
-    return sessionmaker(bind=engine)
-
-
-def drop_postgres_schema(factory: sessionmaker[Session]) -> None:
-    """Drop everything the factory created and release its connections."""
-    from core.database import Base
-
-    engine = factory.kw["bind"]
-    Base.metadata.drop_all(engine)
-    engine.dispose()
 
 
 def ensure_user(factory: sessionmaker[Session], user_id: uuid.UUID) -> None:

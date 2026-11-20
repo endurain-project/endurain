@@ -18,21 +18,12 @@ import modules.auth.credentials.contracts as credentials_contracts
 import modules.auth.onboarding.schema as onboarding_schema
 import modules.auth.onboarding.service as onboarding_service
 import modules.auth.onboarding.token_store as onboarding_token_store
-import modules.server_settings.models as server_settings_models
 import modules.users.users.crud as users_crud
 import modules.users.users.models as users_models
 import modules.users.users.schema as users_schema
 import modules.users.users.service as users_service
 
 _THREADS = 4
-
-
-@pytest.fixture(autouse=True)
-def _server_settings(pg_factory):
-    """The migrations create the settings row; the test schema does not."""
-    with pg_factory() as db:
-        db.add(server_settings_models.ServerSettings(id=1))
-        db.commit()
 
 
 def _admin(index: int) -> users_schema.FirstAdminCreate:

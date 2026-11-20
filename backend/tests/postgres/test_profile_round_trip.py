@@ -62,7 +62,6 @@ import modules.health.health_water.schema as water_schema
 import modules.health.health_water.service as water_service
 import modules.health.health_weight.integration_service as weight_integration
 import modules.health.health_weight.schema as weight_schema
-import modules.server_settings.models as server_settings_models
 import modules.users.users.constants as users_constants
 import modules.users.users.crud as users_crud
 import modules.users.users.integration_service as users_integration
@@ -125,14 +124,6 @@ _PRIVACY_FLAGS = (
 
 #: Keys that name another row; the normaliser re-keys them onto the position of the row they name.
 _GEAR_KEYS = re.compile(r"(^|_)gear_id$")
-
-
-@pytest.fixture(autouse=True)
-def _server_settings(pg_factory):
-    """The migrations create the settings row; the test schema does not."""
-    with pg_factory() as db:
-        db.add(server_settings_models.ServerSettings(id=1))
-        db.commit()
 
 
 @pytest.fixture(autouse=True)

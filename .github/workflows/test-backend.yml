@@ -27,8 +27,9 @@ jobs:
   test-backend:
     name: Backend (pytest)
     runs-on: ubuntu-latest
-    # Disposable database for the tests marked ``postgres``: per-session
-    # connections, row locks and unique indexes that SQLite cannot reproduce.
+    timeout-minutes: 30
+    # Disposable maintenance database: the run migrates a template beside it and
+    # gives each pytest-xdist worker a clone of its own.
     services:
       postgres:
         image: postgres:18@sha256:2ea8630df176ad090ec92136dee850397c5af8781e4bcf2e4162593691c61bbc
@@ -66,4 +67,4 @@ jobs:
         working-directory: backend
         env:
           TEST_DATABASE_URL: postgresql+psycopg://endurain:test@localhost:5432/endurain_test
-        run: uv run --no-sync pytest
+        run: uv run --no-sync pytest -n auto --cov --cov-report=term-missing

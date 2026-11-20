@@ -30,12 +30,13 @@ def _zip(files: dict[str, object]) -> zipfile.ZipFile:
     return zipfile.ZipFile(BytesIO(buf.getvalue()))
 
 
-_OLD_GEAR = uuid.uuid4()
-_NEW_GEAR = uuid.uuid4()
-_OLD_ACT = uuid.uuid4()
-_OTHER_ACT = uuid.uuid4()
-_UNKNOWN_ACT = uuid.uuid4()
-_NEW_ACT = uuid.uuid4()
+# Fixed values: some name parametrized test ids, which every pytest-xdist worker must collect alike.
+_OLD_GEAR = uuid.UUID("00000000-0000-4000-8000-00000000a001")
+_NEW_GEAR = uuid.UUID("00000000-0000-4000-8000-00000000a002")
+_OLD_ACT = uuid.UUID("00000000-0000-4000-8000-00000000a003")
+_OTHER_ACT = uuid.UUID("00000000-0000-4000-8000-00000000a004")
+_UNKNOWN_ACT = uuid.UUID("00000000-0000-4000-8000-00000000a005")
+_NEW_ACT = uuid.UUID("00000000-0000-4000-8000-00000000a006")
 
 
 def _ctx(

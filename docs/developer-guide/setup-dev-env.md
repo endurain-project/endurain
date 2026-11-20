@@ -114,6 +114,15 @@ uv run pytest tests/<area> -q                 # run tests for one area
 uv run ruff format --check . && uv run ruff check .   # format and lint
 ```
 
+The tests run against PostgreSQL. With Docker running, `uv run pytest` starts a throwaway `postgres:18` container for the run and removes it afterwards. To reuse a database you keep running, set `TEST_DATABASE_URL` to a disposable database whose name contains `test`; the run creates and drops its own databases beside it:
+
+```bash
+docker run -d --rm --name endurain-test-pg -e POSTGRES_USER=endurain -e POSTGRES_PASSWORD=test \
+  -e POSTGRES_DB=endurain_test -p 55432:5432 postgres:18
+export TEST_DATABASE_URL=postgresql+psycopg://endurain:test@localhost:55432/endurain_test
+uv run hatch run test                         # the whole suite in parallel, with the coverage gate CI applies
+```
+
 Hatch scripts group the common checks, for example `uv run hatch run check` runs lint, format, tests and type checks without changing files. Backend code changes in the mounted `backend/app` folder apply after a container restart.
 
 ## Frontend

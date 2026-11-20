@@ -1137,6 +1137,8 @@ class TestPublishedExampleSecrets:
 
     _SECRET_KEY = "69b85208190c96821050d4ba980a8a95d928ab7e0ebf1a40b8ef6d09fd8367d3"
     _FERNET_KEY = "7NfMMRSCWcoNDSjqBX8WoYH9nTFk1VdQOdZY13po53Y="
+    # Fixed, not generated: it is part of a parametrized test id, which every xdist worker must collect alike.
+    _OTHER_FERNET_KEY = "2-uSFktqm35FhVLqN-Gx54HPJWu51k4H347Hlb1tERg="
     _DB_PASSWORD = "aee5c0d342f5a88dfe657bff3d21ddb31643cdbedd21177e20ec8524b15e3648"
 
     @pytest.mark.parametrize(
@@ -1145,7 +1147,7 @@ class TestPublishedExampleSecrets:
             ("SECRET_KEY", _SECRET_KEY, "openssl rand -hex 32"),
             ("SECRET_KEY", f"{'x' * 32}, {_SECRET_KEY}", "openssl rand -hex 32"),
             ("FERNET_KEY", _FERNET_KEY, "openssl rand -base64 32"),
-            ("FERNET_KEY", f"{Fernet.generate_key().decode()},{_FERNET_KEY}", "openssl rand -base64 32"),
+            ("FERNET_KEY", f"{_OTHER_FERNET_KEY},{_FERNET_KEY}", "openssl rand -base64 32"),
             ("DB_PASSWORD", _DB_PASSWORD, "openssl rand -hex 32"),
         ],
     )
