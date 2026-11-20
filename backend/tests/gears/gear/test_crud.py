@@ -73,12 +73,6 @@ class TestReads:
         inactive_only = crud.get_gear_users_with_pagination(MOCK_USER_ID, db, active=False)
         assert [g.nickname for g in inactive_only] == ["B"]
 
-    def test_existing_nicknames_are_reported_normalized(self, db):
-        crud.create_gear(gear_create("Road Bike"), MOCK_USER_ID, db)
-        crud.create_gear(gear_create("Other"), OTHER_USER_ID, db)
-
-        assert crud.get_existing_nicknames(MOCK_USER_ID, {"road bike", "other"}, db) == {"road bike"}
-
 
 class TestWrites:
     def test_create_trims_text_and_sets_the_owner(self, db):

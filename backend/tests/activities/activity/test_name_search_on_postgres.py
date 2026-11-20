@@ -73,6 +73,11 @@ class TestNameSearchWithNonAsciiText:
     @pytest.mark.parametrize("name", _NAMES)
     def test_a_name_is_found_by_what_the_user_typed_of_it(self, db, user_id, name):
         assert _found(db, user_id, name) == [name]
+
+    # Python's lower() turns İ into i + U+0307 and a final Σ into ς, which PostgreSQL's lower() does not, so a term
+    # lower-cased in Python is a different string; the cases PostgreSQL folds the same way are checked here.
+    @pytest.mark.parametrize("name", [name for name in _NAMES if not any(char in name for char in "İΣ")])
+    def test_a_name_is_found_by_its_lower_case(self, db, user_id, name):
         assert _found(db, user_id, name.lower()) == [name]
 
     @pytest.mark.parametrize("name", [name for name in _NAMES if "ß" not in name])

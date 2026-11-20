@@ -268,12 +268,3 @@ class TestRequireOwnedGears:
         service.require_owned_gears(OTHER_USER_ID, [None], db)
 
         db.execute.assert_not_called()
-
-
-class TestConcurrentStaging:
-    def test_a_nickname_taken_between_check_and_insert_is_left_out(self, db):
-        crud.create_gear(gear_create("Taken"), MOCK_USER_ID, db)
-        with patch("modules.gears.gear.crud.get_existing_nicknames", return_value=set()):
-            service.stage_gears([gear_create("taken"), gear_create("Fresh")], MOCK_USER_ID, db)
-
-        assert sorted(g.nickname for g in crud.get_gear_user(MOCK_USER_ID, db)) == ["Fresh", "Taken"]

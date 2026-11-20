@@ -1654,7 +1654,7 @@ class TestNameSearchKeepsTheTermAsTyped:
     def test_a_plus_sign_is_matched_literally(self):
         sql = _compiled(activity_query.name_search_condition("Z2 + 6XACE", mask_hidden_location=False))
 
-        assert "LIKE '%z2 + 6xace%'" in sql
+        assert "LIKE lower('%Z2 + 6XACE%')" in sql
 
     def test_a_percent_sequence_is_not_decoded_again(self):
         sql = _compiled(activity_query.name_search_condition("100%41", mask_hidden_location=False))

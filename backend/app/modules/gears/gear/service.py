@@ -149,8 +149,8 @@ def create_gear(gear: gears_schema.GearCreateRequest, user_id: uuid.UUID, db: Se
 def stage_gears(gears: Iterable[gears_schema.GearCreate | None], user_id: uuid.UUID, db: Session) -> None:
     """Stage new gears for a user; the caller commits.
 
-    Drops entries without a nickname, repeated nicknames and nicknames the user already
-    has, so a re-sync from a provider adds only what is new.
+    Drops entries without a nickname; the database skips repeated nicknames and nicknames the user
+    already has, whatever their case, so a re-sync from a provider adds only what is new.
 
     Args:
         gears: Gear payloads to create.
@@ -160,29 +160,12 @@ def stage_gears(gears: Iterable[gears_schema.GearCreate | None], user_id: uuid.U
     Raises:
         ConflictError: If a Strava or Garmin Connect gear ID is already taken.
     """
-    candidates: dict[str, gears_schema.GearCreate] = {}
-    for gear in gears:
-        if gear is None or not str(gear.nickname).strip():
-            continue
-        nickname = gears_schema.normalize_nickname(gear.nickname)
-        if nickname in candidates:
-            logger.debug(
-                "Skipped a gear whose nickname repeats in the request",
-                extra=core_logger.context(user_id=user_id, nickname=gear.nickname),
-            )
-            continue
-        candidates[nickname] = gear
-
-    existing = gears_crud.get_existing_nicknames(user_id, set(candidates), db) if candidates else set()
-    for nickname in existing:
+    new_gears = [gear for gear in gears if gear is not None and gear.nickname.strip()]
+    if skipped := len(new_gears) - gears_crud.create_gears(new_gears, user_id, db):
         logger.debug(
-            "Skipped a gear whose nickname already exists",
-            extra=core_logger.context(user_id=user_id, nickname=candidates[nickname].nickname),
+            "Skipped gears whose nickname the user already has",
+            extra=core_logger.context(user_id=user_id, count=skipped),
         )
-
-    new_gears = [gear for nickname, gear in candidates.items() if nickname not in existing]
-    if new_gears:
-        gears_crud.create_gears(new_gears, user_id, db)
 
 
 def restore_profile_gears(

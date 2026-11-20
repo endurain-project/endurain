@@ -42,6 +42,11 @@ class TestNicknameSearch:
     @pytest.mark.parametrize("nickname", _NICKNAMES)
     def test_a_gear_is_found_by_what_the_user_typed_of_its_nickname(self, db, user_id, nickname):
         assert _listed(db, user_id, nickname) == [nickname]
+
+    # Python's lower() turns İ into i + U+0307 and a final Σ into ς, which PostgreSQL's lower() does not, so a term
+    # lower-cased in Python is a different string; the cases PostgreSQL folds the same way are checked here.
+    @pytest.mark.parametrize("nickname", [nickname for nickname in _NICKNAMES if not any(c in nickname for c in "İΣ")])
+    def test_a_gear_is_found_by_the_lower_case_of_its_nickname(self, db, user_id, nickname):
         assert _listed(db, user_id, nickname.lower()) == [nickname]
 
     @pytest.mark.parametrize("nickname", [nickname for nickname in _NICKNAMES if "ß" not in nickname])
@@ -65,7 +70,11 @@ class TestNicknameUniqueness:
         with pytest.raises(core_exceptions.ConflictError):
             self._create(db, user_id, nickname)
 
-    @pytest.mark.parametrize("nickname", _NICKNAMES)
+    # Python's lower() turns İ into i + U+0307 and a final Σ into ς, which PostgreSQL's lower() does not, so those
+    # strings are different nicknames to the index; the upper-case test covers them.
+    @pytest.mark.parametrize(
+        "nickname", [nickname for nickname in _NICKNAMES if not any(char in nickname for char in "İΣ")]
+    )
     def test_a_nickname_cannot_be_taken_again_in_lower_case(self, db, user_id, nickname):
         with pytest.raises(core_exceptions.ConflictError):
             self._create(db, user_id, nickname.lower())

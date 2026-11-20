@@ -36,8 +36,7 @@ def name_search_condition(name_search: str, *, mask_hidden_location: bool) -> Co
         A SQLAlchemy condition matching the term against name, town, city or
         country, with ``%``/``_`` escaped so user input cannot inject wildcards.
     """
-    raw = name_search.lower()
-    pattern = f"%{core_sanitization.escape_like(raw)}%"
+    pattern = func.lower(f"%{core_sanitization.escape_like(name_search)}%")
     location_match = or_(
         func.lower(activity_models.Activity.town).like(pattern, escape="\\"),
         func.lower(activity_models.Activity.city).like(pattern, escape="\\"),
