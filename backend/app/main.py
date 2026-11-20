@@ -189,7 +189,7 @@ async def startup_event(fastapi_app: FastAPI) -> None:
 
     # Phase 1: critical pre-flight tasks. Every migration step runs under one lock, and
     # nothing consumes events or hints until the schema is current.
-    migrations_startup.migrate_schema()
+    await migrations_startup.migrate_schema_and_data()
 
     # Publish the audit catalog for readers that cannot import this code, once its table exists. Only the API
     # does this: it owns the catalog, and a process registering fewer actions would mark the rest deprecated.

@@ -17,14 +17,14 @@ def _migration_module():
     return module
 
 
-def test_the_upgrade_drops_the_data_migration_table_then_the_id_mapping_table():
+def test_the_upgrade_deletes_the_retired_rows_then_drops_the_id_mapping_table():
     migration = _migration_module()
     with patch.object(migration, "op") as op:
         migration.upgrade()
 
     statements = [str(call.args[0]) for call in op.execute.call_args_list]
     assert statements == [
-        "DROP TABLE migrations",
+        "DELETE FROM migrations WHERE id IN (7, 11, 12, 13, 14)",
         "DROP TABLE IF EXISTS uuid_migration_ids",
     ]
 

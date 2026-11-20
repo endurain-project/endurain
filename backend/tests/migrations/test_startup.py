@@ -1,7 +1,8 @@
 """Every startup migration step runs while one lock is held, so replicas migrate one at a time."""
 
+import asyncio
 from contextlib import contextmanager
-from unittest.mock import patch
+from unittest.mock import AsyncMock, patch
 
 import pytest
 import sqlalchemy as sa
@@ -27,10 +28,11 @@ def test_every_step_runs_while_the_lock_is_held():
         patch.object(
             migrations_startup, "bootstrap_substrate_schema", lambda engine: order.append(("substrate", engine))
         ),
+        patch.object(migrations_startup, "check_migrations", AsyncMock(side_effect=lambda: order.append("data"))),
     ):
-        migrations_startup.migrate_schema()
+        asyncio.run(migrations_startup.migrate_schema_and_data())
 
-    assert order == ["lock", "alembic", ("substrate", migrations_startup.engine), "unlock"]
+    assert order == ["lock", "alembic", ("substrate", migrations_startup.engine), "data", "unlock"]
 
 
 def test_the_lock_is_released_when_a_step_fails():
@@ -51,7 +53,7 @@ def test_the_lock_is_released_when_a_step_fails():
         patch.object(migrations_startup, "run_alembic_upgrade", fail),
         pytest.raises(RuntimeError),
     ):
-        migrations_startup.migrate_schema()
+        asyncio.run(migrations_startup.migrate_schema_and_data())
 
     assert order == ["unlock"]
 

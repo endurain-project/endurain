@@ -16,6 +16,7 @@ from migrations import schema_scope
 _NON_UUID_PRIMARY_KEYS: dict[str, str] = {
     "server_settings": "A single row with id 1.",
     "mail_settings": "A single row with id 1.",
+    "migrations": "Internal tracking of the data migrations, numbered in order.",
     "activity_exercise_titles": "Lookup data keyed by the FIT exercise category and name enums.",
     "oauth_states": "The id is the OAuth state parameter, a secrets.token_urlsafe(32) secret, not an identifier.",
 }

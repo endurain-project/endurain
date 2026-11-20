@@ -86,6 +86,7 @@ rather than that its name is on a list. Ending a transaction (`commit`,
 | `contributor_registry.py` | **composition surface** | Process-local store of the contributors and resolvers that `app/module_registry.py` installs. Names no package. |
 | `computation.py` | **namespace helper** | Pure computation shared by a namespace's packages. Owns no table and calls no module. |
 | `model_registry.py` | **composition surface** | Declares the package's ORM model module without requiring core to scan domains. |
+| `migration_service.py` | **migration-only surface** | The only domain surface `app/migrations` may import; never an ordinary domain dependency. |
 
 Anything else (`utils.py`, `signing.py`, `render.py`, …) is package-private by
 default. A helper that orchestrates other modules or ends a transaction is not a
@@ -94,7 +95,7 @@ helper: it plays the `service` role and is named `<thing>_service.py`, such as
 
 ## Visibility
 
-Three classes. This is the whole rule. Each file name appears in exactly one.
+Four classes. This is the whole rule. Each file name appears in exactly one.
 
 ### 1. Module surface — importable by peers and outside modules
 
@@ -169,10 +170,24 @@ Every persistence-owning package declares its model module in
 `model_registry.py`. `app/model_registry.py` collects those declarations
 explicitly. `core.database` never discovers or imports domain models.
 
-`app/migrations` is the Alembic history and the startup step that runs it; it is not itself a module and imports
-no module's internals.
+`app/migrations` is application-level orchestration that consumes each module's
+`migration_service`; it is not itself a module.
+Its tracking CRUD stages changes, while the migration service owns the commit.
 
-### 3. Package-private — importable only from inside its own module
+### 3. Migration-only surface — imported only by `app/migrations`
+
+`migration_service.py` exposes the operations a versioned data migration still
+needs, and nothing else. It stops a migration reaching arbitrary CRUD, parser, render
+or signing internals, and gives the migration one place to find the commit, which CRUD
+never performs. The module-boundary tests forbid another module from consuming it.
+
+It is a boundary, **not a snapshot**: most entries alias live code, so changing a
+parser or a CRUD function changes what a historical migration does. A data migration
+that must stay byte-for-byte reproducible is rewritten in plain SQLAlchemy Core against
+the tables as they were at that revision, and stops importing `modules.*`; the
+wrapper is not a substitute for that.
+
+### 4. Package-private — importable only from inside its own module
 
 `service.py`, `store.py`, `query.py`, `crud.py`, `models.py`, `serializers.py`, `utils.py`,
 `signing.py`, `subscribers.py`, `event_publishers.py`, and every unlisted helper.
@@ -196,7 +211,7 @@ Read as *row imports column*.
 | `models` | — | ✗ | ✗ | ✗ | ✗ | ✗ |
 | `subscribers` | ✗ | ✓ | ✓ | ✗ | ✓ | `integration_service`/events only |
 | `integration_service` | ✓ | ✓ | ✓ | ✗ | ✓ | `integration_service` only |
-| `app/migrations` | ✗ | ✗ | ✗ | ✗ | ✓ | ✗ |
+| `app/migrations` | ✗ | ✗ | ✗ | ✗ | ✓ | `migration_service` only |
 
 Three entries deserve the reasoning:
 
@@ -315,7 +330,7 @@ is the precedent — never to re-raise a generic one.
 `test_crud_does_not_end_transactions` enforces it: a `crud`-role file in a
 module may not call `commit` or `rollback`, and there is no exception
 list. `test_only_transaction_owners_end_transactions` states the same rule for
-every file: only `service`, `subscribers` and
+every file: only `service`, `migration_service`, `subscribers` and
 `scheduled_jobs` may end a transaction, so a file whose name declares no role
 cannot slip past it.
 
@@ -395,7 +410,8 @@ the caller needs the answer to.
 `core.config` is the application's settings, which makes it a dependency like a provider:
 it has to be visible in a signature, not discovered in a function body. A module
 therefore reads it only in the layers that decide (`service`, `router`, `public_router`,
-`dependencies`, `subscribers`, `scheduled_jobs`, `integration_service`). Every other file is a pure layer, and a value it needs is a
+`dependencies`, `subscribers`, `scheduled_jobs`, `integration_service`,
+`migration_service`). Every other file is a pure layer, and a value it needs is a
 parameter: the file parsers take the fallback `default_timezone`, the thumbnail renderer
 takes a `user_agent`, and a `BulkImportSource` that needs a directory names none and lets
 the entry service apply the default. `TestConfigurationReads` fails on a `core.config`
@@ -496,7 +512,7 @@ Two mechanisms, deliberately:
 
 **`backend/.importlinter`** — what import-linter is good at: external packages
 (`redis`, `requests`, `fastapi` in the parsers), the platform direction
-(`core` never imports `modules`) and a few named design
+(`core` never imports `modules`), the migration surface and a few named design
 seams. Run in CI by `.github/workflows/test-backend.yml`:
 
 ```bash
@@ -542,7 +558,7 @@ compares each import against the importer's own package, and consults the explic
 - `TestModuleInventory` fails on a top-level module that is not in `MODULES`,
   and on an entry that is not on disk.
 - `test_only_transaction_owners_end_transactions` is the commit rule as an
-  allowlist: only `service`, `subscribers` and
+  allowlist: only `service`, `migration_service`, `subscribers` and
   `scheduled_jobs` files may end a transaction, so a file named for no role is
   not exempt.
 
@@ -562,20 +578,22 @@ when it goes stale, not an exemption in the rule.
    and is listed with its reason in `_NO_CROSS_MODULE_SURFACE`.
 3. Add `model_registry.py` when the module owns a table, and add its contribution
    to the namespace/application model registry.
-4. Add `subscriber_registry.py` if the module has subscribers, and `scheduled_jobs.py`
+4. Add `migration_service.py` only when an existing data migration needs a
+   domain operation; expose that operation and no more.
+5. Add `subscriber_registry.py` if the module has subscribers, and `scheduled_jobs.py`
    if it has recurring work. Register both with one `RuntimeModule(name=..., ...)`
    entry in `app/module_registry.py`. `main.py` and `worker.py` both consume that
    list, so registering "in the API but not the worker" is not possible.
-5. Add startup backfills as `StartupTask`s on the same `RuntimeModule` entry.
-6. For an activity child parsed or archived as JSON, add the applicable
+6. Add startup backfills as `StartupTask`s on the same `RuntimeModule` entry.
+7. For an activity child parsed or archived as JSON, add the applicable
    `ingestion_contributor`, `profile_contributor`, or
    `profile_global_contributor` factory to `integration_service.py`, then register
    that factory in `app/module_registry.py`. Do not register at import time.
-7. A module that keeps per-user data registers a profile section in
+8. A module that keeps per-user data registers a profile section in
    `module_registry.configure_user_contributors`, in import order: a `ProfileRecordsSection` for one
    `data/<key>.json` of plain rows, a `ProfileArchiveSection` when it writes its own entries or files.
    `users_profile` is forbidden from importing the module (`users-profile-owns-no-sections`).
-8. Add a new top-level bounded context to `MODULES` in
+9. Add a new top-level bounded context to `MODULES` in
    `backend/tests/_helpers/module_roles.py`; the architecture and logging tests
    both read it from there. A module missing from it fails `TestModuleInventory`,
    so a module cannot be added outside the rules by omission.
@@ -710,6 +728,9 @@ one pattern. Recorded here so a review does not reopen them.
 
 **Intentional variation:**
 
+- **`migration_service`.** Pure reads and constants are re-exported by alias; every
+  write is a wrapper that owns the commit, which CRUD never performs, so a
+  migration's unit of work is stated in one function.
 - **Component payload shape.** The ingestion contract carries what each parser
   emits: laps as dicts, sets as raw FIT rows or `ActivitySetsCreate`, workout steps
   as schemas. Normalising them is a change to `ParsedActivity.components` and

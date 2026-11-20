@@ -8,9 +8,13 @@ directory instead of the active one. These assertions move that failure to the
 test run.
 """
 
+from pathlib import Path
+
 import pytest
 from alembic.script import ScriptDirectory
 from tests._helpers import alembic_chain
+
+_APP_DIR = Path(__file__).resolve().parents[2] / "app"
 
 
 @pytest.fixture(scope="module")
@@ -61,3 +65,24 @@ def test_every_down_revision_resolves(script_directory: ScriptDirectory) -> None
         parents = revision.down_revision if isinstance(revision.down_revision, tuple) else (revision.down_revision,)
         for parent in parents:
             assert parent in revisions, f"Revision {revision.revision} points at unknown down_revision {parent}"
+
+
+def test_registered_data_migration_ids_are_unique() -> None:
+    """Each ``INSERT INTO migrations`` must claim an unused id.
+
+    The id is the primary key the data-migration runner keys off, so a duplicate
+    fails the Alembic upgrade with an integrity error at startup. The baseline
+    inserts its rows from a SQL script beside the revision, so both are read.
+    """
+    import re
+
+    pattern = re.compile(r"INSERT INTO (?:public\.)?migrations[^;]*?VALUES\s*\((\d+),", re.IGNORECASE | re.DOTALL)
+    seen: dict[str, Path] = {}
+    versions = _APP_DIR / "alembic" / "versions"
+    for path in [*versions.rglob("*.py"), *versions.rglob("*.sql")]:
+        for migration_id in pattern.findall(path.read_text()):
+            assert migration_id not in seen, (
+                f"Data migration id {migration_id} is registered twice: {seen[migration_id].name} and {path.name}"
+            )
+            seen[migration_id] = path
+    assert "7" in seen, "The baseline must register the v0.19.0 data migration"
