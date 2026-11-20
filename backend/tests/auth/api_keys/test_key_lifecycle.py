@@ -85,7 +85,9 @@ class TestRefusals:
         ]
         assert _key_row(committed_sessions, holder.key.id).last_used_at is None
 
-    def test_a_key_whose_owner_was_deactivated_is_refused_as_denied(self, app, committed_sessions):
+    def test_a_key_whose_owner_was_deactivated_no_longer_authenticates_and_is_refused_as_denied(
+        self, app, committed_sessions
+    ):
         holder = _key_of(committed_sessions, app)
         with committed_sessions() as db:
             db.execute(sa.text("UPDATE users SET active = false WHERE id = :id"), {"id": holder.user.id})
@@ -93,7 +95,8 @@ class TestRefusals:
 
         response = holder.client.get(_PROFILE)
 
-        assert response.status_code == 403
+        assert response.status_code == 401
+        assert response.headers["WWW-Authenticate"].startswith("ApiKey")
         assert _refusals(committed_sessions) == [("denied", "api_key", "owner_inactive")]
 
 

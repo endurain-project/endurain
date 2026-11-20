@@ -177,6 +177,7 @@ Permanently removes the key from the database. Returns HTTP 204 on success.
 | **Lookup** | The server hashes the presented key with SHA-256 and finds the row by an indexed equality match on the digest. The 256-bit random key cannot be guessed from timing differences in that lookup |
 | **Revocation** | Immediate — revoked keys are rejected at validation time, and deleted after 30 days |
 | **Expiry** | Every key expires, at most the server's maximum API key lifetime (365 days by default) after creation; expired keys are rejected at validation time with timezone-aware comparison |
+| **Refusal** | An unknown, revoked or expired key, and a key whose owner is inactive (deactivated or awaiting approval), is `401` with `urn:endurain:error:unauthorized` and `WWW-Authenticate: ApiKey`: the key no longer authenticates anyone, as an inactive user's access token does not. A key that authenticates but lacks a scope is `403` |
 | **Audit and usage tracking** | A successful authentication stamps `last_used_at` on the key, at most once every 5 minutes, and writes a debug log line with key prefix, user ID, endpoint and client IP; it is not an audit row. Every refusal (unknown, revoked or expired key, inactive owner) is audited as `auth.api_key.authenticate` without the key, its prefix or its hash |
 | **No self-escalation** | An API key never holds `account:security`, so it cannot create, list, or revoke API keys (JWT required) |
 | **Minimum privilege** | Keys carry only the scopes explicitly granted at creation time |

@@ -99,7 +99,7 @@ class TestApiKeyRefusal:
 
     def test_a_valid_key_of_an_inactive_owner_is_denied(self):
         inactive = SimpleNamespace(id=_USER_ID_5, username="alice", active=False, access_type="regular")
-        with jasil_testing.capture_audit() as audit, pytest.raises(core_exceptions.PermissionDeniedError):
+        with jasil_testing.capture_audit() as audit, pytest.raises(core_exceptions.UnauthenticatedError):
             _resolve(_db_key(), user=inactive)
 
         entry = audit.assert_audited(

@@ -476,7 +476,7 @@ class TestADeadCredentialIsRefused:
         assert response.headers["WWW-Authenticate"].startswith("ApiKey")
         _assert_key_refusal(committed_sessions, "unknown_key", outcome="failure")
 
-    def test_a_key_of_an_inactive_owner_is_a_403_and_the_refusal_is_audited(self, app, committed_sessions):
+    def test_a_key_of_an_inactive_owner_is_a_401_like_an_inactive_users_token(self, app, committed_sessions):
         holder = _holder(app, committed_sessions, {"gears:read"})
         with committed_sessions() as db:
             db.execute(
@@ -486,8 +486,9 @@ class TestADeadCredentialIsRefused:
 
         response = holder.client.get(_GEARS)
 
-        assert response.status_code == 403
-        assert response.json()["type"] == PERMISSION_DENIED
+        assert response.status_code == 401
+        assert response.json()["type"] == UNAUTHORIZED
+        assert response.headers["WWW-Authenticate"].startswith("ApiKey")
         _assert_key_refusal(committed_sessions, "owner_inactive", outcome="denied")
 
 
