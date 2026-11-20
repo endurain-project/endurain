@@ -46,6 +46,10 @@ class _Process:
     port: int | None = None
 
 
+#: The public address of the deployment, behind which its replicas listen on their own ports.
+PUBLIC_HOST = "http://localhost:8080"
+
+
 def _free_port() -> int:
     with socket.socket() as sock:
         sock.bind(("127.0.0.1", 0))
@@ -100,8 +104,13 @@ class Cluster:
                 for obj in page.get("Contents", []):
                     client.delete_object(Bucket=self._config.s3_bucket, Key=obj["Key"])
 
-    def env(self, *, distributed: bool, port: int = 8080) -> dict[str, str]:
-        """The environment of one process of this deployment."""
+    def env(self, *, distributed: bool) -> dict[str, str]:
+        """The environment of one process of this deployment.
+
+        Every process names the one public address a deployment has, so a token one replica signs carries the
+        audience the others check, and enforces the rate limits, as production does (``.env.test`` turns them off
+        for the in-process tests).
+        """
         env = dict(os.environ)
         for var in ("TEST_DATABASE_URL", "DATABASE_URL"):
             env.pop(var, None)
@@ -125,7 +134,8 @@ class Cluster:
             FRONTEND_DIR=str(frontend),
             BACKEND_DIR=str(_BACKEND_DIR),
             ENVIRONMENT="production",
-            ENDURAIN_HOST=f"http://localhost:{port}",
+            ENDURAIN_HOST=PUBLIC_HOST,
+            RATE_LIMIT_ENABLED="true",
             PYTHONUNBUFFERED="1",
             REDIS_URL=self._config.redis_url,
             JOBS_ENABLED="true",
@@ -160,7 +170,7 @@ class Cluster:
         process = self._spawn(
             f"api{self._apis}",
             [sys.executable, "-m", "uvicorn", "main:app", "--port", str(port)],
-            self.env(distributed=distributed, port=port),
+            self.env(distributed=distributed),
             port=port,
         )
         self._apis += 1

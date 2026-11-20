@@ -17,6 +17,7 @@ A test asserts an outcome (rows read back, response status, headers and body, au
 - `committed_sessions` gives real commits on separate connections; the worker database is cloned again from the template afterwards.
 - The `app` behind `client` is `main.create_app()`: real middleware, `/api/v1` routes, auth chain and scope checks, with no dependency overrides.
 - Real-database tests run with the real security generations and audit writes on, and the platform clock starts at the current time.
+- The `app` registers no event subscribers, so a request's events reach nobody; a test of a subscriber's effect registers that module's (`<module>.subscribers.register_bus_subscribers(jasil.runtime.get_active_platform().events)`).
 
 ## Writing them
 
