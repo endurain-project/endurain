@@ -3,9 +3,10 @@
 import re
 import uuid
 from datetime import datetime
-from typing import Any
+from typing import Annotated, Any
 
 from pydantic import (
+    AfterValidator,
     BaseModel,
     ConfigDict,
     Field,
@@ -13,7 +14,6 @@ from pydantic import (
     StrictInt,
     StrictStr,
     field_serializer,
-    field_validator,
     model_validator,
 )
 
@@ -24,6 +24,59 @@ import modules.auth.identity_providers.constants as idp_constants
 import modules.auth.identity_providers.utils as idp_utils
 import modules.auth.oauth_state.constants as oauth_state_constants
 import modules.auth.schema as auth_schema
+
+
+def _validate_slug(v: str) -> str:
+    """Validate that a slug contains only lowercase letters, numbers, and hyphens and is not reserved.
+
+    Args:
+        v: The slug string to validate.
+
+    Returns:
+        The validated slug string.
+
+    Raises:
+        ValueError: If the slug contains characters other than lowercase letters, numbers, or hyphens, or is a
+            word the public identity-provider routes use.
+    """
+    if not re.match(r"^[a-z0-9-]+$", v):
+        raise ValueError("Slug must contain only lowercase letters, numbers, and hyphens")
+    if v in idp_constants.RESERVED_SLUGS:
+        raise ValueError(f"Slug '{v}' is reserved; choose another")
+    return v
+
+
+def _validate_icon(v: str | None) -> str | None:
+    """Validate that the icon is one of the built-in icon keys.
+
+    Args:
+        v: The icon key to validate.
+
+    Returns:
+        The validated icon key.
+
+    Raises:
+        ValueError: If the icon is not a built-in icon key.
+    """
+    if v is not None and v not in idp_constants.BUILTIN_ICONS:
+        raise ValueError(f"Icon must be one of: {', '.join(sorted(idp_constants.BUILTIN_ICONS))}")
+    return v
+
+
+#: Display name of a provider.
+ProviderName = Annotated[StrictStr, Field(max_length=100, min_length=1)]
+
+#: URL-safe identifier of a provider.
+ProviderSlug = Annotated[StrictStr, Field(max_length=50, min_length=1), AfterValidator(_validate_slug)]
+
+#: Built-in icon key of a provider.
+ProviderIcon = Annotated[StrictStr, AfterValidator(_validate_icon)]
+
+#: A provider endpoint or issuer URL.
+ProviderUrl = Annotated[StrictStr, Field(max_length=500)]
+
+#: The scopes a provider requests.
+ProviderScopes = Annotated[StrictStr, Field(max_length=500)]
 
 
 class IdentityProviderBase(BaseModel):
@@ -48,13 +101,10 @@ class IdentityProviderBase(BaseModel):
         sync_email (bool): Whether to sync the verified email on each login. Defaults to False.
         user_mapping (Dict[str, Any] | None): Claims mapping configuration.
 
-    Validators:
-        - slug: Ensures the slug contains only lowercase letters, numbers, and hyphens and is not reserved.
-        - icon: Ensures the icon is a built-in icon key.
     """
 
-    name: StrictStr = Field(..., max_length=100, min_length=1, description="Display name of the IdP")
-    slug: StrictStr = Field(..., max_length=50, min_length=1, description="URL-safe identifier")
+    name: ProviderName = Field(..., description="Display name of the IdP")
+    slug: ProviderSlug = Field(..., description="URL-safe identifier")
     provider_type: idp_constants.ProviderType = Field(
         default=idp_constants.ProviderType.OIDC,
         description=(
@@ -63,18 +113,12 @@ class IdentityProviderBase(BaseModel):
         ),
     )
     enabled: StrictBool = Field(default=False, description="Whether this provider is enabled")
-    issuer_url: StrictStr | None = Field(default=None, max_length=500, description="OIDC issuer/discovery URL")
-    authorization_endpoint: StrictStr | None = Field(
-        default=None, max_length=500, description="OAuth2/OIDC authorization endpoint"
-    )
-    token_endpoint: StrictStr | None = Field(default=None, max_length=500, description="OAuth2/OIDC token endpoint")
-    userinfo_endpoint: StrictStr | None = Field(default=None, max_length=500, description="OIDC userinfo endpoint")
-    scopes: StrictStr = Field(
-        default=idp_constants.DEFAULT_SCOPES,
-        max_length=500,
-        description="OAuth2/OIDC scopes",
-    )
-    icon: StrictStr | None = Field(default=None, description="Built-in icon key")
+    issuer_url: ProviderUrl | None = Field(default=None, description="OIDC issuer/discovery URL")
+    authorization_endpoint: ProviderUrl | None = Field(default=None, description="OAuth2/OIDC authorization endpoint")
+    token_endpoint: ProviderUrl | None = Field(default=None, description="OAuth2/OIDC token endpoint")
+    userinfo_endpoint: ProviderUrl | None = Field(default=None, description="OIDC userinfo endpoint")
+    scopes: ProviderScopes = Field(default=idp_constants.DEFAULT_SCOPES, description="OAuth2/OIDC scopes")
+    icon: ProviderIcon | None = Field(default=None, description="Built-in icon key")
     auto_create_users: StrictBool = Field(default=True, description="Auto-create users on first login")
     link_by_email: StrictBool = Field(
         default=False,
@@ -90,45 +134,6 @@ class IdentityProviderBase(BaseModel):
         default=False, description="Sync the email the provider verified onto the local account on each login"
     )
     user_mapping: dict[str, Any] | None = Field(default=None, description="Claims mapping configuration")
-
-    @field_validator("slug")
-    @classmethod
-    def validate_slug(cls, v: str) -> str:
-        """Validates that the provided slug contains only lowercase letters, numbers, and hyphens and is not reserved.
-
-        Args:
-            v (str): The slug string to validate.
-
-        Returns:
-            str: The validated slug string.
-
-        Raises:
-            ValueError: If the slug contains characters other than lowercase letters, numbers, or hyphens, or is a
-                word the public identity-provider routes use.
-        """
-        if not re.match(r"^[a-z0-9-]+$", v):
-            raise ValueError("Slug must contain only lowercase letters, numbers, and hyphens")
-        if v in idp_constants.RESERVED_SLUGS:
-            raise ValueError(f"Slug '{v}' is reserved; choose another")
-        return v
-
-    @field_validator("icon")
-    @classmethod
-    def validate_icon(cls, v: str | None) -> str | None:
-        """Validates that the icon is one of the built-in icon keys.
-
-        Args:
-            v (str | None): The icon key to validate.
-
-        Returns:
-            str | None: The validated icon key.
-
-        Raises:
-            ValueError: If the icon is not a built-in icon key.
-        """
-        if v is not None and v not in idp_constants.BUILTIN_ICONS:
-            raise ValueError(f"Icon must be one of: {', '.join(sorted(idp_constants.BUILTIN_ICONS))}")
-        return v
 
 
 class IdentityProviderCreate(IdentityProviderBase):
@@ -166,24 +171,73 @@ class IdentityProviderCreate(IdentityProviderBase):
         return self
 
 
-class IdentityProviderUpdate(core_partial_update.NotClearable, IdentityProviderBase):
-    """Schema for updating an existing Identity Provider.
+class IdentityProviderUpdate(core_partial_update.NotClearable, BaseModel):
+    """Partial update of an Identity Provider: omit a field to keep it, send null to clear a nullable one.
 
-    An omitted ``client_id`` or ``client_secret`` keeps the stored credential; sending either as null is refused.
-
-    Inherits from:
-        NotClearable
-        IdentityProviderBase
+    Every field has the type and limits of ``IdentityProviderBase``. A field the provider always has refuses
+    null. The rules that span several fields, such as an ``oidc`` provider needing an issuer URL, are checked by
+    the service against the stored provider with these changes applied.
 
     Attributes:
-        client_id (str | None): The client ID for the provider (1-512 characters).
-        client_secret (str | None): The client secret for the provider (1-512 characters).
+        name: Display name of the IdP.
+        slug: URL-safe identifier.
+        provider_type: Protocol of the provider, 'oidc' or 'oauth2'.
+        enabled: Whether this provider is enabled.
+        client_id: The client ID for the provider (1-512 characters).
+        client_secret: The client secret for the provider (1-512 characters).
+        issuer_url: OIDC issuer/discovery URL.
+        authorization_endpoint: OAuth2/OIDC authorization endpoint.
+        token_endpoint: OAuth2/OIDC token endpoint.
+        userinfo_endpoint: OIDC userinfo endpoint.
+        scopes: OAuth2/OIDC scopes.
+        icon: Built-in icon key.
+        auto_create_users: Whether to auto-create users on first login.
+        link_by_email: Whether a sign-in with no link joins the local account with the same verified email.
+        sync_user_info: Whether to sync the mapped profile fields, except the email, on each login.
+        sync_email: Whether to sync the verified email on each login.
+        user_mapping: Claims mapping configuration.
     """
 
-    not_clearable = ("client_id", "client_secret")
+    not_clearable = (
+        "name",
+        "slug",
+        "provider_type",
+        "enabled",
+        "client_id",
+        "client_secret",
+        "scopes",
+        "auto_create_users",
+        "link_by_email",
+        "sync_user_info",
+        "sync_email",
+    )
 
+    name: ProviderName | None = Field(default=None, description="Display name of the IdP")
+    slug: ProviderSlug | None = Field(default=None, description="URL-safe identifier")
+    provider_type: idp_constants.ProviderType | None = Field(
+        default=None, description="Protocol of the provider: oidc, or oauth2"
+    )
+    enabled: StrictBool | None = Field(default=None, description="Whether this provider is enabled")
     client_id: StrictStr | None = Field(default=None, min_length=1, max_length=512)
     client_secret: StrictStr | None = Field(default=None, min_length=1, max_length=512)
+    issuer_url: ProviderUrl | None = Field(default=None, description="OIDC issuer/discovery URL")
+    authorization_endpoint: ProviderUrl | None = Field(default=None, description="OAuth2/OIDC authorization endpoint")
+    token_endpoint: ProviderUrl | None = Field(default=None, description="OAuth2/OIDC token endpoint")
+    userinfo_endpoint: ProviderUrl | None = Field(default=None, description="OIDC userinfo endpoint")
+    scopes: ProviderScopes | None = Field(default=None, description="OAuth2/OIDC scopes")
+    icon: ProviderIcon | None = Field(default=None, description="Built-in icon key")
+    auto_create_users: StrictBool | None = Field(default=None, description="Auto-create users on first login")
+    link_by_email: StrictBool | None = Field(
+        default=None,
+        description="Link a sign-in that has no link yet to the local account with the same verified email",
+    )
+    sync_user_info: StrictBool | None = Field(
+        default=None, description="Sync the mapped profile fields, except the email, on each login"
+    )
+    sync_email: StrictBool | None = Field(
+        default=None, description="Sync the email the provider verified onto the local account on each login"
+    )
+    user_mapping: dict[str, Any] | None = Field(default=None, description="Claims mapping configuration")
 
     model_config = ConfigDict(extra="forbid")
 

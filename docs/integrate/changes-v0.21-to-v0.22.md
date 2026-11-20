@@ -27,11 +27,12 @@ v0.21 saved the values of these variables (except `ALGORITHM` and `ALGORITHM_FIL
 
 ## API changes
 
-These changes affect clients of the administrator settings routes, which need the `server-settings:read` or `server-settings:write` scope.
+The first two affect clients of the administrator settings routes, which need the `server-settings:read` or `server-settings:write` scope.
 
 - **`env_managed` is gone** from the answer of `GET /server-settings` and `PUT /server-settings` (`ServerSettingsAdminRead`), and from the answer of `GET /server-settings/email/settings` and `PUT /server-settings/email/settings` (`MailSettingsAdminRead`). Settings are no longer tied to environment variables, so no field is read-only for that reason. A client that reads `env_managed` must stop doing so.
 - **The `409` for an environment-managed field is gone.** The two `PUT` routes used to answer `409` when the body changed a field that an environment variable set. They save the change now.
 - **`If-Match` takes quoted entity tags only.** On every route that requires it, an unquoted value (`If-Match: 3`) or any other value that is not `*` or a list of quoted tags is refused with `400` and `urn:endurain:error:invalid-input`; v0.21 read `3` as `"3"`. A quoted `"*"` is an ordinary tag, not the wildcard, so it matches no version (`412`). **A client that sent the version unquoted must send the `ETag` exactly as it was read** (`If-Match: "3"`). See [Concurrent edits](errors-and-limits.md#concurrent-edits-with-etag-and-if-match).
+- **`PATCH /identity-providers/{idp_id}` is a partial update.** `name` and `slug` are no longer required, and every field is optional: an omitted field keeps its stored value. A `null` for `name`, `slug`, `provider_type`, `enabled`, `scopes` or a boolean option is `422`. The rules that span fields (an `oidc` provider needs an `issuer_url` and the `openid` scope, `issuer-in-use`, `identity-provider-locked`) are checked on the stored provider with the changes applied. A client that sends the whole provider keeps working.
 
 ## Idempotency keys
 

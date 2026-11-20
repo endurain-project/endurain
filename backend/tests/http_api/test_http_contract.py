@@ -242,7 +242,7 @@ _VERSIONED = [
         "/identity-providers",
         _provider,
         "PATCH",
-        lambda c: {"name": "Renamed SSO", "slug": "company-sso", **_STEP_UP},
+        lambda c: {"enabled": True, **_STEP_UP},
         admin=True,
     ),
     Versioned(
