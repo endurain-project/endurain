@@ -55,6 +55,7 @@ Some tables are filled in from the backend source when the docs are built, so th
 | `<!-- generated:api-key-endpoints -->` | The API key management routes |
 | `<!-- generated:error-types -->` | The error types and their HTTP statuses |
 | `<!-- generated:rate-limits -->` | The rate-limit tiers |
+| `<!-- generated:idempotency-routes -->` | The routes that accept an `Idempotency-Key` |
 
 The code is in `mkdocs_hooks/auth_docs.py`. It reads the backend with Python's `ast` module and does not import it, so the docs build needs no backend dependencies. If a source it reads is moved or renamed, the build fails and you update the hook. To add a table, write a function that returns a Markdown table and add it to `GENERATORS`.
 

@@ -63,7 +63,8 @@ const FOLLOW_TIMEOUT_MS = 5 * 60 * 1_000
  *
  * @param error - What a start request threw.
  * @returns The running job's id, or `null` when the error is not a `409` that names one (an older
- *   server, or an `Idempotency-Key` reused for a different request).
+ *   server, or the `409` of an `Idempotency-Key` whose request is still running; a key reused for a different
+ *   request is a `422`).
  */
 export function runningJobId(error: unknown): string | null {
   return error instanceof HttpError && error.status === 409 ? error.jobId : null

@@ -8,6 +8,7 @@ from fastapi import APIRouter, Depends, Query, Request, Response, Security, Uplo
 import core.dependencies as core_dependencies
 import core.etag as core_etag
 import core.file_uploads as core_file_uploads
+import core.idempotency as core_idempotency
 import core.location as core_location
 import core.middleware_body_limit as core_middleware_body_limit
 import core.openapi_contract as core_openapi_contract
@@ -122,7 +123,7 @@ def read_user(
     "",
     status_code=status.HTTP_201_CREATED,
     response_model=users_schema.UserRead,
-    dependencies=[Security(auth_dependencies.check_scopes, scopes=["users:write"])],
+    dependencies=[Security(auth_dependencies.check_scopes, scopes=["users:write"]), core_idempotency.Idempotent],
 )
 @core_rate_limit.limiter.limit(core_rate_limit.SENSITIVE)
 def create_user(

@@ -197,6 +197,7 @@ export async function createGear(input: GearInput): Promise<Gear> {
   const dto = await apiFetch<GearDto>('/gears', {
     method: 'POST',
     body: JSON.stringify(payload),
+    idempotent: true,
   })
   return mapGear(dto)
 }

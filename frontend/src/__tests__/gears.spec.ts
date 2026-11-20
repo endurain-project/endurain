@@ -237,6 +237,7 @@ describe('gear service requests', () => {
     expect(apiFetch).toHaveBeenCalledWith('/gears', {
       method: 'POST',
       body: JSON.stringify(expectedWirePayload),
+      idempotent: true,
     })
   })
 

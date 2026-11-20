@@ -185,6 +185,7 @@ describe('gear-component service requests', () => {
 
     expect(apiFetch).toHaveBeenCalledWith('/gear-components', {
       method: 'POST',
+      idempotent: true,
       body: JSON.stringify(expectedComponentWire),
     })
   })

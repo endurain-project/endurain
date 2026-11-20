@@ -46,16 +46,16 @@ describe('import service', () => {
     expect((body.get('file') as File).name).toBe('export.zip')
   })
 
-  it('bulkImportFromArchive sends the idempotency key it is given, and none otherwise', async () => {
+  it('bulkImportFromArchive is an idempotent call, and the folder import is not', async () => {
     const archive = new File(['zip'], 'export.zip', { type: 'application/zip' })
 
-    await bulkImportFromArchive(archive, 'generic', { idempotencyKey: 'key-1' })
     await bulkImportFromArchive(archive, 'generic')
+    await bulkImportFromFolder('generic')
 
-    const [, keyed] = vi.mocked(apiFetch).mock.calls[0]!
-    const [, unkeyed] = vi.mocked(apiFetch).mock.calls[1]!
-    expect(keyed).toMatchObject({ headers: { 'Idempotency-Key': 'key-1' } })
-    expect((unkeyed as { headers?: unknown }).headers).toBeUndefined()
+    const [, archiveOptions] = vi.mocked(apiFetch).mock.calls[0]!
+    const [, folderOptions] = vi.mocked(apiFetch).mock.calls[1]!
+    expect(archiveOptions).toMatchObject({ idempotent: true })
+    expect((folderOptions as { idempotent?: boolean }).idempotent).toBeUndefined()
   })
 
   it.each([

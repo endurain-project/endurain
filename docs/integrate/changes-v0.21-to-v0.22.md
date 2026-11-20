@@ -32,6 +32,14 @@ These changes affect clients of the administrator settings routes, which need th
 - **`env_managed` is gone** from the answer of `GET /server-settings` and `PUT /server-settings` (`ServerSettingsAdminRead`), and from the answer of `GET /server-settings/email/settings` and `PUT /server-settings/email/settings` (`MailSettingsAdminRead`). Settings are no longer tied to environment variables, so no field is read-only for that reason. A client that reads `env_managed` must stop doing so.
 - **The `409` for an environment-managed field is gone.** The two `PUT` routes used to answer `409` when the body changed a field that an environment variable set. They save the change now.
 
+## Idempotency keys
+
+- **Creates accept an optional `Idempotency-Key` header.** `POST /gear-components`, `/gears`, `/health/{fasting,poop,sleep,steps,water,weight}`, `/identity-providers`, `/profile/goals`, `/users` and `/users/{user_id}/followers` answer a repeat of a request, sent with the same key, with the first answer instead of creating the record again. A request without the header behaves as before. See [Idempotency keys](idempotency.md).
+- **The key is a quoted string.** The header value is an RFC 9651 Structured Field String (`Idempotency-Key: "8e03978e-40d5-43e8-bc93"`), and the bare form is refused with `400` and `urn:endurain:error:idempotency-key-invalid`. This applies to the activity upload and the archive bulk import too: **a client that sent a bare key to those routes must now quote it.**
+- **A key reused for another request is `422`.** The upload and the archive bulk import answered `409` when a key came back with a different file; they answer `422` with `urn:endurain:error:idempotency-key-reused` now, as every route that takes a key does. A `409` on these routes now means a request with the key is still running (`urn:endurain:error:idempotency-key-in-flight`) or another existing conflict.
+
+- **A sleep record holds at most 1440 stages.** `POST /health/sleep` with more `sleep_stages` is `422`, and the schema publishes `maxItems`. The limit is one stage per minute of a day, the finest granularity of a stage.
+
 ## Requirements for bare-metal and development installs
 
 - **Python 3.15** for the backend.

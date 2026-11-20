@@ -21,7 +21,7 @@ Every `202` carries the job in its body and two headers:
 
 The only `202` whose job you cannot read is [your own account deletion](#delete-your-account).
 
-| Operation | Start | `kind` | Idempotency-Key |
+| Operation | Start | `kind` | [Idempotency-Key](idempotency.md) |
 | --------- | ----- | ------ | --------------- |
 | Upload an activity file | `POST /activities/upload` | `activity_upload` | Yes |
 | Import a ZIP archive of activity files | `POST /activities/bulk-import` | `activity_bulk_import` | Yes |
@@ -40,7 +40,7 @@ The only `202` whose job you cannot read is [your own account deletion](#delete-
 | Delete a user (administrators) | `POST /users/{user_id}/delete` | `user_deletion` | No |
 | Delete your account | `POST /profile/delete-account` | `user_deletion`, not readable, see [below](#delete-your-account) | No |
 
-The activity upload and the archive bulk import take an `Idempotency-Key`. Every other start route refuses a second request while one of the same kind is still running (see [`409`](#conflicts-409)), which is what protects a retry.
+The activity upload and the archive bulk import take an [`Idempotency-Key`](idempotency.md), a quoted string such as `"8e03978e-40d5-43e8-bc93"`. A repeat of the same request with the same key returns the first request's job, and the same key with another file is `422` with `urn:endurain:error:idempotency-key-reused`. Every other start route refuses a second request while one of the same kind is still running (see [`409`](#conflicts-409)), which is what protects a retry.
 
 ## Reading a job
 
@@ -97,10 +97,10 @@ Reading an upload job needs the `activities:upload` scope. Starting a bulk impor
 
 A user may have at most 10 uploads open at once, counting those pending, processing or deferred. The 11th is `409` with `urn:endurain:error:conflict` and a `detail` that names the limit. It is refused before the file is stored, and no job is created. Poll your open uploads until one finishes, then upload again. A replay with an `Idempotency-Key` that already has a job answers with that job even at the limit.
 
-Send an `Idempotency-Key` header (up to 255 characters) to make a retry safe. A client that never saw the `202` has no job id to poll, and a replay without a key would import the file twice.
+Send an [`Idempotency-Key`](idempotency.md) header, a quoted string of up to 255 characters, to make a retry safe. A client that never saw the `202` has no job id to poll, and a replay without a key would import the file twice.
 
 - **A replay with the same key and the same file** answers `202` with the original job, in whatever state it has now, and does not import again.
-- **The same key with a different file** is `409`.
+- **The same key with a different file** is `422` with `urn:endurain:error:idempotency-key-reused`.
 - **A key is scoped to the user** and to uploads. The same key may also be used on a bulk import.
 - **A key is released** only when the job succeeded, recorded activities and every one of them has since been deleted. The same file can then be uploaded again under that key. A job that failed, is still running or created no activities keeps its key.
 
@@ -113,7 +113,7 @@ Poll `GET /jobs/{job_id}` and read `files_done` and `files_failed` against `file
 - `409` when you already have a bulk import running. One runs per user. The problem document carries `job_id`, the running import, and the response carries `Content-Location` naming it, so a client that lost the `202` picks the import up again from there.
 - `400` for an unknown `source`, a name that is not `.zip`, an archive with no importable files, or an empty folder.
 
-`POST /activities/bulk-import` also takes an `Idempotency-Key` header (up to 255 characters), with the same rules as the [upload](#upload-an-activity-file): a repeat with the same key, the same archive and the same `source` answers `202` with the original import, in whatever state it has now (including while it is the import that is running), and does not start another. The same key with a different archive or `source` is `409`. A key is released only when its job record is removed. The folder import takes no key, because it has no request body to compare.
+`POST /activities/bulk-import` also takes an `Idempotency-Key` header, with the same rules as the [upload](#upload-an-activity-file): a repeat with the same key, the same archive and the same `source` answers `202` with the original import, in whatever state it has now (including while it is the import that is running), and does not start another. The same key with a different archive or `source` is `422` with `urn:endurain:error:idempotency-key-reused`. A key is released only when its job record is removed. The folder import takes no key, because it has no request body to compare.
 
 ### Provider refresh and range sync
 
@@ -171,7 +171,6 @@ A start route answers `409` with `urn:endurain:error:conflict` while the same ki
 
 The same `409` code, with no job, also answers:
 
-- an upload or a bulk import whose `Idempotency-Key` was used for a different request;
 - an upload while the user already has 10 uploads open (pending, processing or deferred);
 - `POST /garmin/mfa` when no login waits for a code.
 

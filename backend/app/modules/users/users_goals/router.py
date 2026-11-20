@@ -6,6 +6,7 @@ from fastapi import APIRouter, Query, Request, Response, Security, status
 
 import core.dependencies as core_dependencies
 import core.etag as core_etag
+import core.idempotency as core_idempotency
 import core.location as core_location
 import core.pagination as core_pagination
 import core.rate_limit as core_rate_limit
@@ -88,7 +89,7 @@ def get_user_goal(
     "",
     response_model=user_goals_schema.UserGoalRead,
     status_code=status.HTTP_201_CREATED,
-    dependencies=[Security(auth_dependencies.check_scopes, scopes=["account"])],
+    dependencies=[Security(auth_dependencies.check_scopes, scopes=["account"]), core_idempotency.Idempotent],
 )
 @core_rate_limit.limiter.limit(core_rate_limit.WRITE)
 def create_user_goal(

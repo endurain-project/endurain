@@ -5,6 +5,7 @@ from fastapi import APIRouter, Request, Response, Security, UploadFile, status
 import core.dependencies as core_dependencies
 import core.etag as core_etag
 import core.file_uploads as core_file_uploads
+import core.idempotency as core_idempotency
 import core.location as core_location
 import core.middleware_body_limit as core_middleware_body_limit
 import core.openapi_contract as core_openapi_contract
@@ -91,7 +92,10 @@ def read_identity_provider(
             }
         },
     },
-    dependencies=[Security(auth_dependencies.check_scopes, scopes=["identity-providers:write"])],
+    dependencies=[
+        Security(auth_dependencies.check_scopes, scopes=["identity-providers:write"]),
+        core_idempotency.Idempotent,
+    ],
 )
 @core_rate_limit.limiter.limit(core_rate_limit.WRITE)
 def create_identity_provider(

@@ -20,6 +20,7 @@ import datetime
 import functools
 import importlib.util
 import inspect
+import json
 import pathlib
 import re
 import typing
@@ -61,6 +62,22 @@ _NOT_READABLE_ITEMS: dict[str, str] = {
 _NO_STATUS_RESOURCE: dict[str, str] = {
     "POST /profile/delete-account": "the account is closed before the answer, so its owner can no longer poll",
 }
+
+#: Creates that take no ``Idempotency-Key``, as ``"POST <route>"``. Permanent; the value is the reason. A create that
+#: returns a secret or a single-use credential must not have that response kept in the state store, and a retry of a
+#: regenerating or replacing action is a new request by design.
+_NO_IDEMPOTENCY: dict[str, str] = {
+    "POST /activities/{activity_id}/media": "multipart; UNIQUE(activity_id, content_hash) makes a retry a no-op",
+    "POST /profile/api-keys": "the response carries the key secret, which must not be kept in the state store",
+    "POST /profile/mfa/backup-codes": "regenerates and returns the codes, which must not be kept in the state store",
+    "POST /profile/mfa/setup": "returns the MFA secret, which must not be kept in the state store",
+    "POST /public/onboarding": "public, so no caller scopes a key; the onboarding token is single-use",
+    "POST /strava/state": "returns a single-use state value, regenerated on every call",
+    "POST /ws/ticket": "returns a single-use credential, regenerated on every call",
+}
+
+#: What a free-text string with no ``maxLength`` counts for when the largest response is bounded.
+_FREE_STRING_BYTES = 4096
 
 #: Optional properties of a ``PUT`` body whose omission is part of a full replacement, as
 #: ``"PUT <route>: <field>"``. Permanent; the value says what omitting the field means: a write-only secret the
@@ -380,6 +397,70 @@ class TestApiContract:
                         broken.add(f"{route}: {code} is not a JobStatus")
 
         assert not broken, "Extend core.job_status.JobStatus:\n  " + "\n  ".join(sorted(broken))
+
+    def test_every_create_accepts_an_idempotency_key(self):
+        """A ``POST`` answering 201 declares the ``Idempotency-Key`` header, unless it is listed with its reason.
+
+        A client that never saw the ``201`` has no id to look the record up with, so repeating the request is its only
+        recovery, and without a key that repeat creates a second record. The header is declared by
+        ``core.idempotency.read_key``; a create whose response is a secret or a single-use credential is exempt.
+        """
+        without_key: set[str] = set()
+        creates: set[str] = set()
+        for method, path, operation in _operations():
+            if method != "post" or "201" not in operation["responses"]:
+                continue
+            route = f"POST {path}"
+            creates.add(route)
+            headers = {p["name"] for p in operation.get("parameters", []) if p["in"] == "header"}
+            if "Idempotency-Key" not in headers:
+                without_key.add(route)
+
+        _compare("A create takes no Idempotency-Key", without_key, _NO_IDEMPOTENCY, "Add core_idempotency.Idempotent")
+        stale = sorted(_NO_IDEMPOTENCY.keys() - creates)
+        assert not stale, "Remove from _NO_IDEMPOTENCY, the route no longer creates:\n  " + "\n  ".join(stale)
+
+    def test_the_idempotency_page_lists_the_routes_that_read_the_key(self):
+        """The route table of ``docs/integrate/idempotency.md`` is the set of routes that declare the header.
+
+        The table is generated from the route source by ``mkdocs_hooks/auth_docs.py``; this compares it with what
+        the OpenAPI document declares, so a route that gains or loses the header cannot leave the page wrong.
+        """
+        spec = importlib.util.spec_from_file_location("auth_docs", _DOCS.parent / "mkdocs_hooks" / "auth_docs.py")
+        assert spec is not None and spec.loader is not None
+        hook = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(hook)
+        documented = {f"{method} {url}" for method, url, _kind in hook.idempotent_routes()}
+        declared = {
+            f"{method.upper()} {path}"
+            for method, path, operation in _operations()
+            if any(p["in"] == "header" and p["name"] == "Idempotency-Key" for p in operation.get("parameters", []))
+        }
+
+        assert documented == declared
+        assert "<!-- generated:idempotency-routes -->" in (_DOCS / "integrate" / "idempotency.md").read_text()
+
+    def test_the_largest_stored_response_fits_the_cap(self):
+        """Every response a replay stores is, at its largest, under ``MAX_STORED_BODY``.
+
+        A response over the cap is sent and not stored, so a retry of that create runs again. The bound reads the
+        response schema: a string without ``maxLength`` counts for a fixed allowance, and an array without
+        ``maxItems`` fails the test, so every stored response has a bound.
+        """
+        import core.idempotency as core_idempotency
+
+        largest = 0
+        unbounded: set[str] = set()
+        for method, _path, operation in _operations():
+            if method != "post" or "201" not in operation["responses"]:
+                continue
+            if not any(p["in"] == "header" and p["name"] == "Idempotency-Key" for p in operation.get("parameters", [])):
+                continue
+            schema = operation["responses"]["201"]["content"]["application/json"]["schema"]
+            largest = max(largest, _max_json_bytes(schema, _ref_name(schema), unbounded))
+
+        assert not unbounded, f"Bound the arrays of a stored response with max_length: {sorted(unbounded)}"
+        assert largest < core_idempotency.MAX_STORED_BODY
 
     def test_a_put_replaces_the_whole_resource(self):
         """Every optional property of a ``PUT`` body is listed with what omitting it means.
@@ -902,6 +983,52 @@ class TestApiContract:
 
 
 # --- Helpers for the rules ------------------------------------------------------------------------------------
+
+
+def _max_json_bytes(schema: dict[str, Any], where: str, unbounded: set[str], depth: int = 0) -> int:
+    """Return the most bytes a JSON value of ``schema`` can take; ``unbounded`` collects arrays it cannot bound.
+
+    Args:
+        schema: The schema, possibly a ``$ref``.
+        where: ``<Schema>.<field>`` of the value, for ``unbounded``.
+        unbounded: Collects the arrays without ``maxItems``.
+        depth: How deep the walk is; a recursive schema stops counting at a few levels.
+
+    Returns:
+        The size in bytes.
+    """
+    if depth > 6:
+        return 0
+    name = _ref_name(schema)
+    schema = _resolve(schema)
+    where = name if name != "<inline>" else where
+    options = schema.get("anyOf") or schema.get("oneOf")
+    if options:
+        # A ``format`` beside ``anyOf`` (a nullable field) annotates the string option.
+        inherited = {"format": schema["format"]} if "format" in schema else {}
+        return max(_max_json_bytes({**inherited, **option}, where, unbounded, depth + 1) for option in options)
+    kind = schema.get("type")
+    if "enum" in schema:
+        return max(len(json.dumps(value)) for value in schema["enum"])
+    if kind == "string":
+        if "maxLength" in schema:
+            # Worst case: every character escaped as a \\uXXXX sequence.
+            return 6 * schema["maxLength"] + 2
+        return {"uuid": 38, "date-time": 38, "date": 12}.get(schema.get("format"), _FREE_STRING_BYTES)
+    if kind == "array":
+        if "maxItems" not in schema:
+            unbounded.add(where)
+            return 2
+        item = _max_json_bytes(schema.get("items", {}), where, unbounded, depth + 1)
+        return schema["maxItems"] * (item + 1) + 2
+    if kind == "object":
+        return 2 + sum(
+            len(field) + 4 + _max_json_bytes(prop, f"{where}.{field}", unbounded, depth + 1)
+            for field, prop in schema.get("properties", {}).items()
+        )
+    if kind == "integer":
+        return len(str(schema.get("maximum", 2**63)))
+    return {"boolean": 5, "number": 25, "null": 4}.get(kind, 0)
 
 
 def _is_reserved(segments: list[str]) -> bool:

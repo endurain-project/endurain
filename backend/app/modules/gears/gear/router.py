@@ -6,6 +6,7 @@ from fastapi import APIRouter, Query, Request, Response, Security, status
 
 import core.dependencies as core_dependencies
 import core.etag as core_etag
+import core.idempotency as core_idempotency
 import core.location as core_location
 import core.pagination as core_pagination
 import core.rate_limit as core_rate_limit
@@ -69,7 +70,7 @@ def read_gear_id(
     "",
     response_model=gears_schema.GearRead,
     status_code=status.HTTP_201_CREATED,
-    dependencies=[Security(auth_dependencies.check_scopes, scopes=["gears:write"])],
+    dependencies=[Security(auth_dependencies.check_scopes, scopes=["gears:write"]), core_idempotency.Idempotent],
 )
 @core_rate_limit.limiter.limit(core_rate_limit.WRITE)
 def create_gear(

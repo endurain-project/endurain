@@ -40,6 +40,11 @@ export interface ApiFetchOptions extends RequestInit {
   retryOnUnauthorized?: boolean
   /** Request timeout in ms; `0` disables it. Defaults to {@link DEFAULT_TIMEOUT_MS}. */
   timeoutMs?: number
+  /**
+   * Sends an `Idempotency-Key`, so a repeat of this call (the 401-refresh replay inside {@link apiFetch}) is
+   * answered with the first outcome instead of creating the resource twice. The key is generated once per call.
+   */
+  idempotent?: boolean
 }
 
 /** Error thrown for non-2xx API responses, carrying the HTTP status. */
@@ -205,6 +210,24 @@ function buildSignal(init: ApiFetchOptions): AbortSignal | undefined {
   return init.signal ?? timeoutSignal
 }
 
+/**
+ * Returns the options with a fresh `Idempotency-Key` header when the call is idempotent.
+ *
+ * The header value is an RFC 9651 Structured Field String, so the key is sent in double quotes. Generating it
+ * here, once per call, makes every replay of the call carry the same key.
+ *
+ * @param init - Fetch options supplied by the caller.
+ * @returns The options to send, with the key set on `headers` when `idempotent` is true.
+ */
+function withIdempotencyKey(init: ApiFetchOptions): ApiFetchOptions {
+  if (!init.idempotent) {
+    return init
+  }
+  const headers = new Headers(init.headers)
+  headers.set('Idempotency-Key', `"${crypto.randomUUID()}"`)
+  return { ...init, headers }
+}
+
 let refreshPromise: Promise<AuthTokenResponse> | null = null
 
 /**
@@ -318,16 +341,20 @@ async function rawApiFetch<T>(path: string, init: ApiFetchOptions = {}): Promise
  * request. Any other 401, such as a wrong step-up password, is thrown as-is. Opt out with
  * `auth: false` or `retryOnUnauthorized: false`; `/auth/refresh` never retries.
  *
+ * With `idempotent: true` the call sends one `Idempotency-Key` (a quoted UUID) that the 401 replay reuses, so a repeat
+ * of the call that the server already served is answered with its first outcome.
+ *
  * A 403 whose problem type is `urn:endurain:error:mfa-enrolment-required` (the server requires MFA of this
  * account, which has none) signals the handler registered with `onMfaEnrolmentRequired`, then is thrown as-is.
  *
  * @typeParam T - Expected shape of the parsed JSON response.
  * @param path - Path relative to {@link API_BASE_URL} (e.g. `/config`).
- * @param init - Standard `fetch` options plus auth/retry options.
+ * @param options - Standard `fetch` options plus auth, retry and idempotency options.
  * @returns The parsed JSON response body.
  * @throws {HttpError} When the response status is not 2xx.
  */
-export async function apiFetch<T>(path: string, init: ApiFetchOptions = {}): Promise<T> {
+export async function apiFetch<T>(path: string, options: ApiFetchOptions = {}): Promise<T> {
+  const init = withIdempotencyKey(options)
   try {
     return await rawApiFetch<T>(path, init)
   } catch (error) {

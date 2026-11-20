@@ -227,6 +227,7 @@ async function createHealthResource<Dto, Entry, Payload extends object>(
   const dto = await apiFetch<Dto>(`/health/${resource}`, {
     method: 'POST',
     body: JSON.stringify(payload),
+    idempotent: true,
   })
   return mapEntry(dto)
 }

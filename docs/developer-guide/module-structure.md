@@ -766,14 +766,6 @@ code it describes changes.
 
 - **Storage lifecycle.** The hourly thumbnail reconciliation and the daily orphan sweep each walk the whole
   thumbnail area: its keys are flat `{id}.webp`, so no prefix narrows the walk.
-- **Creates carry no `Idempotency-Key`.** None of the 19 `POST` routes that answer `201` accepts an
-  `Idempotency-Key`; only the activity file upload and the bulk archive import (both `202`) do. Most creates
-  refuse a repeated create through a unique constraint, but a retried poop record, gear component or completed
-  fasting session after a lost response is a duplicate. The upload keeps its key on the ingestion job row, with no
-  expiry, and its fingerprint and replay are specific to an uploaded file. A general key needs a stored-result
-  design (a claim and response held through the platform `StateProvider` with a TTL, replay and conflict rules),
-  and no client sends one yet, so it waits for one. A create sends `Location` (`core.location.set_location`) when
-  its resource has a GET-by-id route (`test_a_create_sends_location_and_etag`).
 - **Broad exception handling.** The 87 `except Exception` and `BaseException` handlers outside the migrations
   sit in `core` and `main.py` (25), `activities` (18, mostly ingestion), `users` (13, mostly the profile
   import), `auth` (17, mostly the identity providers), the provider services of `strava` (10) and `garmin`
@@ -790,6 +782,13 @@ code it describes changes.
 
 These constraints remain visible until a coordinated design change resolves them:
 
+- **A crash between a create's commit and its stored answer can repeat the create.** `core/idempotency.py` stores
+  the answer of a create sent with an `Idempotency-Key` in the platform `StateProvider` after the route has
+  committed. If the process stops between the two, the key holds a claim and no answer; a retry after the claim
+  expires (`CLAIM_TTL_SECONDS`, 120 seconds) runs the request again. Closing it needs the key stored in the same
+  transaction as the row, which the platform state store cannot join. A response over `MAX_STORED_BODY` is sent and
+  not stored, so a retry of it runs again; `test_the_largest_stored_response_fits_the_cap` bounds every opted-in
+  response from its schema, which is why a sleep record holds at most `MAX_SLEEP_STAGES` stages.
 - **Top-level cycles.** Five pairs import each other, and seven modules form one strongly connected set:
   `activities`, `auth`, `followers`, `gears`, `server_settings`, `users` and `websocket` (`followers`, `gears` and
   `websocket` join through longer loops: they import `auth.dependencies` or users surfaces, and `activities` or

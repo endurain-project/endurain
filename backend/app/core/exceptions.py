@@ -390,6 +390,98 @@ class JobAlreadyRunningError(ConflictError):
             self.extensions = {"job_id": str(job_id)}
 
 
+#: The page of the client documentation that describes ``Idempotency-Key``.
+IDEMPOTENCY_DOCS_URL = "https://docs.endurain.com/integrate/idempotency/"
+_IDEMPOTENCY_LINK = f'<{IDEMPOTENCY_DOCS_URL}>; rel="describedby"'
+
+
+class IdempotencyKeyInvalidError(InvalidInputError):
+    """The ``Idempotency-Key`` header is not one quoted printable-ASCII string of 1 to 255 characters.
+
+    Renders as ``400`` with the ``idempotency-key-invalid`` problem type and a ``Link`` to the page that states the
+    grammar.
+    """
+
+    code = "idempotency-key-invalid"
+    default_detail = "Idempotency-Key must be one quoted string of 1 to 255 printable ASCII characters"
+
+    def __init__(self, detail: str | None = None) -> None:
+        """Initialise the error with the ``Link`` to the page that describes the header.
+
+        Args:
+            detail: Message returned to the client.
+        """
+        super().__init__(detail)
+        self.headers = {"Link": _IDEMPOTENCY_LINK}
+
+
+class IdempotencyKeyReusedError(DomainError):
+    """An ``Idempotency-Key`` that was used for one request came back with another.
+
+    Renders as ``422`` with the ``idempotency-key-reused`` problem type: the request is well formed but cannot be
+    answered, because answering it with the first request's outcome would tell the client something false.
+    """
+
+    status_code = status.HTTP_422_UNPROCESSABLE_CONTENT
+    code = "idempotency-key-reused"
+    title = "Idempotency Key Reused"
+    default_detail = "This Idempotency-Key was already used for a different request"
+
+    def __init__(self, detail: str | None = None) -> None:
+        """Initialise the error with the ``Link`` to the page that describes the header.
+
+        Args:
+            detail: Message returned to the client.
+        """
+        super().__init__(detail)
+        self.headers = {"Link": _IDEMPOTENCY_LINK}
+
+
+class IdempotencyInFlightError(ConflictError):
+    """A request with this ``Idempotency-Key`` is still being served.
+
+    Renders as ``409`` with the ``idempotency-key-in-flight`` problem type and ``Retry-After``: the client repeats the
+    request once the first one has finished and gets its outcome.
+    """
+
+    code = "idempotency-key-in-flight"
+    title = "Idempotency Key In Flight"
+    default_detail = "A request with this Idempotency-Key is still being processed"
+
+    def __init__(self, detail: str | None = None, *, retry_after_seconds: int) -> None:
+        """Initialise the error with how long the client waits before it repeats the request.
+
+        Args:
+            detail: Message returned to the client.
+            retry_after_seconds: The ``Retry-After`` value.
+        """
+        super().__init__(detail)
+        self.headers = {"Link": _IDEMPOTENCY_LINK, "Retry-After": str(retry_after_seconds)}
+
+
+class IdempotentReplayError(Exception):
+    """The request repeats one already answered; the handler sends that answer again instead of running the route.
+
+    Attributes:
+        status_code: The stored status.
+        headers: The stored headers, as ``(name, value)`` pairs.
+        body: The stored body, byte for byte.
+    """
+
+    def __init__(self, status_code: int, headers: list[tuple[str, str]], body: bytes) -> None:
+        """Hold the stored response.
+
+        Args:
+            status_code: The stored status.
+            headers: The stored headers.
+            body: The stored body.
+        """
+        super().__init__(status_code)
+        self.status_code = status_code
+        self.headers = headers
+        self.body = body
+
+
 class PreconditionFailedError(DomainError):
     """The request's ``If-Match`` precondition does not hold.
 
@@ -657,6 +749,29 @@ async def domain_error_handler(request: Request, exc: DomainError) -> JSONRespon
     )
 
 
+async def idempotent_replay_handler(request: Request, exc: IdempotentReplayError) -> Response:
+    """Send the stored response of a request that repeats an answered one.
+
+    The route never ran, so nothing was created, audited or published a second time. The replay adds no header of
+    its own: the client sees the response it would have seen the first time.
+
+    Args:
+        request: The incoming request.
+        exc: The replay, carrying the stored response.
+
+    Returns:
+        The stored status, headers and body.
+    """
+    logger.info(
+        "Replayed the stored response of an idempotent request",
+        extra=core_logger.context(path=request.url.path, method=request.method, status_code=exc.status_code),
+    )
+    response = Response(content=exc.body, status_code=exc.status_code)
+    for name, value in exc.headers:
+        response.headers.append(name, value)
+    return response
+
+
 #: PostgreSQL SQLSTATEs for a lock wait (``lock_timeout``) and a cancelled statement (``statement_timeout``).
 _TRANSIENT_DB_SQLSTATES = frozenset({"55P03", "57014"})
 #: Seconds a client is told to wait before retrying a request the database could not serve.
@@ -896,6 +1011,7 @@ def register_exception_handlers(app: FastAPI) -> None:
         None.
     """
     register_handler(app, DomainError, domain_error_handler)
+    register_handler(app, IdempotentReplayError, idempotent_replay_handler)
     register_handler(app, SQLAlchemyError, database_error_handler)
     register_handler(app, HTTPException, http_exception_handler)
     register_handler(app, StarletteHTTPException, http_exception_handler)

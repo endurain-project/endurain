@@ -114,7 +114,7 @@ export async function fetchRelationship(
  * @throws {HttpError} When the request fails.
  */
 export async function followUser(targetId: string): Promise<void> {
-  await apiFetch<FollowerDto>(`/users/${targetId}/followers`, { method: 'POST' })
+  await apiFetch<FollowerDto>(`/users/${targetId}/followers`, { method: 'POST', idempotent: true })
 }
 
 /**

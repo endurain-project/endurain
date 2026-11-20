@@ -98,10 +98,10 @@ def require_same_request(stored_fingerprint: str | None, fingerprint: str | None
         fingerprint: The fingerprint of the request being checked.
 
     Raises:
-        ConflictError: When the two differ.
+        IdempotencyKeyReusedError: When the two differ (422).
     """
     if stored_fingerprint != fingerprint:
-        raise core_exceptions.ConflictError("This Idempotency-Key was already used for a different request")
+        raise core_exceptions.IdempotencyKeyReusedError
 
 
 def accept_upload(
@@ -151,8 +151,8 @@ def accept_upload(
     Raises:
         InvalidInputError: When the filename is missing.
         UnsupportedFormatError: When the extension is not a supported format.
-        ConflictError: When the key was already used for different content, or the user already has
-            the maximum number of uploads open.
+        IdempotencyKeyReusedError: When the key was already used for different content.
+        ConflictError: When the user already has the maximum number of uploads open.
         DomainError: When the shared upload validators reject the payload.
         PoolFullError: On the local profile, when the in-process pool is full.
     """

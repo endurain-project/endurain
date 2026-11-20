@@ -182,6 +182,7 @@ export async function createUser(
   const dto = await apiFetch<UserDto>('/users', {
     method: 'POST',
     body: JSON.stringify(payload),
+    idempotent: true,
   })
   return mapManagedUser(dto)
 }

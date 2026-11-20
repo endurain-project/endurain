@@ -28,6 +28,7 @@ import core.config as core_config
 import core.database as core_database
 import core.docs_pages as core_docs_pages
 import core.exceptions as core_exceptions
+import core.idempotency as core_idempotency
 import core.logger as core_logger
 import core.middleware as core_middleware
 import core.middleware_body_limit as core_middleware_body_limit
@@ -380,6 +381,11 @@ def create_app() -> FastAPI:
 
     # Answer HEAD and default the caching rule of JSON. Added first, so it is the innermost middleware.
     fastapi_app.add_middleware(core_middleware.GetSemanticsMiddleware)
+
+    # Store the outcome of a create that won an Idempotency-Key claim. Added right after the innermost layer, so it
+    # sees the response as the route made it, and inside the layers that refuse a request before any route runs (they
+    # never leave a claim); the replay itself is raised by a dependency and renders through every layer again.
+    fastapi_app.add_middleware(core_idempotency.IdempotencyMiddleware)
 
     # Refuse a web request to a cookie route from an origin that is not allowed. Added first, so it sits inside CORS and
     # the security headers and its 403 carries both.

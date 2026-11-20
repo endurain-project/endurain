@@ -27,8 +27,21 @@ logger = core_logger.get_logger(__name__)
 LIST_BATCH_SIZE = 50
 
 
+#: Seconds a client is told to wait before retrying a request the state store could not serve.
+RETRY_AFTER_SECONDS = 5
+
+
 class StateUnavailableError(core_exceptions.ServiceUnavailableError):
     """Raised when the attempt state storage backend cannot be reached."""
+
+    def __init__(self, detail: str | None = None) -> None:
+        """Initialise the error with the ``Retry-After`` the client waits.
+
+        Args:
+            detail: Message returned to the client.
+        """
+        super().__init__(detail)
+        self.headers = {"Retry-After": str(RETRY_AFTER_SECONDS)}
 
 
 def raise_unavailable(operation: str, err: StateBackendUnavailableError) -> NoReturn:
