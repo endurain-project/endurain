@@ -394,25 +394,6 @@ _SERVICE_FASTAPI_EXCEPTIONS: dict[str, str] = {
 }
 
 
-#: Routers that import another package's ``integration_service``, as ``{"<dotted module>": reason}``.
-_ROUTER_PEER_INTEGRATION_EXCEPTIONS: dict[str, str] = {
-    "modules.auth.account_security.public_router": (
-        "The auth module's packages are one sign-in flow served by public routers, which call the sibling packages' "
-        "surfaces directly (access tokens, authentication, credentials); folding the flow into per-package services "
-        "is part of converting auth."
-    ),
-    "modules.auth.authentication.public_router": (
-        "The auth module's packages are one sign-in flow served by public routers, which call the sibling packages' "
-        "surfaces directly (access tokens, credentials); folding the flow into per-package services is part of "
-        "converting auth."
-    ),
-    "modules.auth.authentication.sso_public_router": (
-        "The single sign-on callback reads the access-token surface to finish the sign-in; folding that into the "
-        "authentication service is part of converting auth."
-    ),
-}
-
-
 def _excepted(importer: str, imported: str) -> bool:
     """
     Return whether an import is a listed layer exception.
@@ -995,10 +976,9 @@ class TestLayerRules:
             ):
                 continue
             offenders.add(importer)
-        unlisted = sorted(offenders - set(_ROUTER_PEER_INTEGRATION_EXCEPTIONS))
-        assert not unlisted, "A router calls its service, not a peer's integration_service:\n  " + "\n  ".join(unlisted)
-        stale = sorted(set(_ROUTER_PEER_INTEGRATION_EXCEPTIONS) - offenders)
-        assert not stale, "Remove from _ROUTER_PEER_INTEGRATION_EXCEPTIONS:\n  " + "\n  ".join(stale)
+        assert not offenders, "A router calls its service, not a peer's integration_service:\n  " + "\n  ".join(
+            sorted(offenders)
+        )
 
     def test_persistence_raises_domain_errors_not_http_ones(self):
         """Persistence describes what went wrong, not which status to send.

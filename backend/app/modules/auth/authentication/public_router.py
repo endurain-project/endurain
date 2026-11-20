@@ -19,15 +19,14 @@ import core.logger as core_logger
 import core.network as core_network
 import core.openapi_contract as core_openapi_contract
 import core.rate_limit as core_rate_limit
-import modules.auth.access_tokens.integration_service as access_tokens_integration
+import modules.auth.access_tokens.dependencies as access_tokens_dependencies
 import modules.auth.authentication.dependencies as authentication_dependencies
 import modules.auth.authentication.failed_login_store as failed_login_store
-import modules.auth.authentication.pending_password_change_store as pending_password_change_store
 import modules.auth.authentication.refresh_service as auth_refresh_service
 import modules.auth.authentication.schema as auth_schema
 import modules.auth.authentication.service as auth_service
 import modules.auth.constants as auth_constants
-import modules.auth.credentials.integration_service as credentials_integration
+import modules.auth.credentials.dependencies as credentials_dependencies
 import modules.auth.known_devices.dependencies as known_devices_dependencies
 import modules.auth.mfa.dependencies as mfa_dependencies
 
@@ -59,18 +58,9 @@ def login_for_access_token(
         mfa_dependencies.PendingMFAStore,
         Depends(mfa_dependencies.get_pending_mfa_store),
     ],
-    password_change_store: Annotated[
-        pending_password_change_store.PendingPasswordChangeStore,
-        Depends(pending_password_change_store.get_pending_password_change_store),
-    ],
-    password_hasher: Annotated[
-        credentials_integration.PasswordHasher,
-        Depends(credentials_integration.get_password_hasher),
-    ],
-    token_manager: Annotated[
-        access_tokens_integration.TokenManager,
-        Depends(access_tokens_integration.get_token_manager),
-    ],
+    password_change_store: authentication_dependencies.PendingPasswordChangeStoreDep,
+    password_hasher: credentials_dependencies.PasswordHasherDep,
+    token_manager: access_tokens_dependencies.TokenManagerDep,
     db: core_dependencies.DbSession,
     device_id: known_devices_dependencies.DeviceId,
 ) -> auth_schema.LoginRead:
@@ -168,18 +158,9 @@ def verify_mfa_and_login(
         mfa_dependencies.PendingMFAStore,
         Depends(mfa_dependencies.get_pending_mfa_store),
     ],
-    password_change_store: Annotated[
-        pending_password_change_store.PendingPasswordChangeStore,
-        Depends(pending_password_change_store.get_pending_password_change_store),
-    ],
-    password_hasher: Annotated[
-        credentials_integration.PasswordHasher,
-        Depends(credentials_integration.get_password_hasher),
-    ],
-    token_manager: Annotated[
-        access_tokens_integration.TokenManager,
-        Depends(access_tokens_integration.get_token_manager),
-    ],
+    password_change_store: authentication_dependencies.PendingPasswordChangeStoreDep,
+    password_hasher: credentials_dependencies.PasswordHasherDep,
+    token_manager: access_tokens_dependencies.TokenManagerDep,
     db: core_dependencies.DbSession,
     device_id: known_devices_dependencies.DeviceId,
     state: core_dependencies.PlatformState,
@@ -242,10 +223,7 @@ def refresh_token(
         datetime,
         Depends(authentication_dependencies.get_exp_from_refresh_token),
     ],
-    token_manager: Annotated[
-        access_tokens_integration.TokenManager,
-        Depends(access_tokens_integration.get_token_manager),
-    ],
+    token_manager: access_tokens_dependencies.TokenManagerDep,
     db: core_dependencies.DbSession,
     client_type: Annotated[auth_constants.ClientType, Depends(authentication_dependencies.get_client_type)],
 ) -> auth_schema.TokenRead:

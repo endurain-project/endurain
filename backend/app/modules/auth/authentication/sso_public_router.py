@@ -8,7 +8,7 @@ import core.dependencies as core_dependencies
 import core.network as core_network
 import core.openapi_contract as core_openapi_contract
 import core.rate_limit as core_rate_limit
-import modules.auth.access_tokens.integration_service as access_tokens_integration
+import modules.auth.access_tokens.dependencies as access_tokens_dependencies
 import modules.auth.authentication.dependencies as authentication_dependencies
 import modules.auth.authentication.schema as auth_schema
 import modules.auth.authentication.sso_exchange_service as authentication_sso_exchange_service
@@ -43,10 +43,7 @@ def exchange_tokens_for_session(
         mfa_dependencies.PendingMFAStore,
         Depends(mfa_dependencies.get_pending_mfa_store),
     ],
-    token_manager: Annotated[
-        access_tokens_integration.TokenManager,
-        Depends(access_tokens_integration.get_token_manager),
-    ],
+    token_manager: access_tokens_dependencies.TokenManagerDep,
     db: core_dependencies.DbSession,
     device_id: known_devices_dependencies.DeviceId,
     state: core_dependencies.PlatformState,
