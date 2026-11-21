@@ -1,0 +1,3 @@
+results/
+.env.secrets
+data/users.json

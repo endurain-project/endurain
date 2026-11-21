@@ -125,6 +125,59 @@ uv run hatch run test                         # the whole suite in parallel, wit
 
 Hatch scripts group the common checks, for example `uv run hatch run check` runs lint, format, tests and type checks without changing files. Backend code changes in the mounted `backend/app` folder apply after a container restart.
 
+## Load tests
+
+`loadtest/` holds a load-test stack: a distributed Endurain (nginx in front of several API replicas, dedicated workers, PostgreSQL with `pg_stat_statements` behind toxiproxy, Redis, an S3-compatible store, adobe/s3mock as in the distributed CI job, and a stub for the providers the application calls) built from `docker/Dockerfile` with `PYTHON_EXTRAS=distributed`, a seeding script and a [Locust](https://locust.io/) scenario file. It needs Docker (about 4 GB of memory for the VM) and uv, and it has its own `pyproject.toml`, so the backend's dependencies are untouched. The stack runs as the Compose project `endurain-load` and publishes only `localhost:18080` (the proxy), `127.0.0.1:15432` (PostgreSQL), `127.0.0.1:18474` (toxiproxy's API) and `127.0.0.1:18081` (the stub's admin API). `run.sh` generates the stack's `SECRET_KEY`, `FERNET_KEY` and database password into `loadtest/.env.secrets` on first use (gitignored); `loadtest/.env.loadtest` holds the rest of its settings.
+
+```bash
+cd loadtest
+./run.sh smoke       # 1 API, 1 worker, 2 minutes, small seed: a few minutes in all
+./run.sh standard    # 2 APIs, 2 workers, 10 minutes, 50 users x 200 activities
+./run.sh soak        # 2 APIs, 2 workers, 2 hours; watch memory, connections and queue depth
+./run.sh scale       # the same load with 1, 2 and 4 API replicas; records throughput per step
+./run.sh faults      # 2 APIs, 2 workers: each fault scenario under a steady load, about 20 minutes
+./run.sh compare <run>   # p95 per group against loadtest/baseline.json
+```
+
+A profile brings the stack up, seeds it (`seed.py` runs inside the image and uses the application's own users, activities, health, gears and followers code; it is idempotent per seed name), runs Locust headless, runs `invariants.py` against the database, dumps the top `pg_stat_statements` and the connection counts, and tears the stack down. `LOADTEST_KEEP=1` leaves it up, and `LOADTEST_USERS` and `LOADTEST_RUNTIME` override a profile's virtual users and run time.
+
+Results go to `loadtest/results/<profile>-<timestamp>/` (git-ignored): `summary.json` (p50, p95 and p99, rate and failures per endpoint and per group), Locust's CSV files, `invariants.json`, `connections.csv`, `pg_stat_statements.txt`, `pg_stat_activity.txt`, the container logs and, for `scale`, `scale.json` next to the per-step folders.
+
+A run fails (non-zero exit) when:
+
+- a group's p95 or error rate in `thresholds.json` is exceeded. Requests are named `<group> <METHOD> <path>`, a group with fewer than `min_requests` requests is skipped, and a `429` is the rate limiter working, so it is counted as `throttled` and is neither a success nor a failure;
+- an invariant of `invariants.py` is violated: a duplicate activity per user and dedup key, more than one record for an `Idempotency-Key` (the same key fired at once from several sessions of one account), more open uploads than the cap of 10, a durable job stuck past its lease or run twice, an undrained outbox, an orphan row, or a count that does not match what the run created. A dead-lettered job, a failed Strava refresh, an upload job that never ended and a Strava 429 that did not defer a refresh also fail it.
+
+### Stub providers
+
+The `stub` service (`loadtest/stub/stub.py`, run in the application image) answers over https, with a certificate it makes at start, for `tile.openstreetmap.org` (a PNG for every tile), `nominatim.openstreetmap.org` (a reverse-geocoding answer) and `www.strava.com` (token refresh, athlete, activities list, activity, streams, laps and gear, with stable ids so a repeated sync meets the same activities). The stack gives it a fixed address on a fixed subnet and points those names at it with `extra_hosts`; `SSRF_ALLOWED_HOSTS` allows that subnet, and `SSL_CERT_FILE` and `REQUESTS_CA_BUNDLE` name a bundle of the system CAs plus the stub's CA. Thumbnails and geocoding therefore succeed, and **any dead-lettered job is an invariant violation**, except in a fault scenario that causes one on purpose.
+
+Strava answers 429 with Strava's rate-limit headers when a limit is set through the admin API (`POST 127.0.0.1:18081/strava/limit` with `{"limit": 40, "window": 900}` for a fixed window per Strava application, or `{"reject_for": 30}` for a burst). `seed.py --strava-users N` links the first N users, each as its own Strava application. The load test's `StravaUser` sessions (two per account, so syncs of one account overlap) call `POST /activities/refresh` and follow the job, and one burst of 429 is asked for 40 seconds into a run (`LOADTEST_STRAVA_BURST=<after>:<seconds>`, empty to turn it off). The invariants then require that no refresh job failed, that every deferred refresh carries `retry_after`, that a refresh used no retry attempt, that the 429 answers deferred refreshes, and that no activity is duplicated per Strava id.
+
+### Fault scenarios
+
+`./run.sh faults` brings the stack up and runs `faults.py`, which runs each scenario under a steady Locust load (16 users: browsing, uploads and Strava syncs), puts everything back, then runs `invariants.py` for it. A scenario fails on a violated invariant, on a failed assertion about the fault, or when the stack is not back within its recovery bound:
+
+| Scenario | Fault | Asserted | Bound |
+| --- | --- | --- | --- |
+| `worker_kill` | SIGKILL the worker while it holds jobs of an upload burst, then start a new one | every job ends once: the lease (45 s here) expires and the reaper requeues it | 240 s |
+| `api_restart` | restart one API replica during load and an upload burst | the replica and the proxy serve again; requests in flight may fail, but no accepted job is lost or duplicated | 120 s |
+| `redis_outage` | stop Redis for 20 s | as documented in [Monitoring](../getting-started/monitoring.md): `/health` answers 200 with `degraded`, reads keep working, WebSocket tickets answer 503; afterwards `/health` is `ok` and tickets and sign-in work | 60 s |
+| `postgres_faults` | toxiproxy: 200 ms latency for 30 s, then every connection reset for 10 s | the application answers again, no connection is stuck idle in a transaction, every job ends | 90 s |
+| `strava_429` | the stub answers 429 to every Strava call for 45 s | refreshes are deferred (with `retry_after`), not failed | n/a |
+
+Results go to `results/<run>/faults.json` (the outcome and notes of each scenario) and `results/<run>/<scenario>/` (Locust files, `ledger.json`, `invariants.json`). The scenarios that break connections or the shared state (`api_restart`, `redis_outage`, `postgres_faults`) run the invariants in fault mode: dead-lettered jobs and an upload job whose response the fault cut off are reported, not failed.
+
+### Weekly workflow and baseline
+
+`.github/workflows/load-test.yml` runs weekly (Sunday 03:17 UTC) and on demand (`workflow_dispatch`, input `profile`, default `standard`): it builds the stack, runs the profile, then `./run.sh faults`, compares the profile's `summary.json` with `loadtest/baseline.json` and uploads `loadtest/results/` as an artifact. It fails on a threshold, an invariant, a failed fault scenario or a regression. A group regresses when its p95 is more than **1.5 times** the baseline's and also more than 50 ms above it (2 s for the groups made of polling: `*_e2e`, `*_hint`): 1.5 is above the run-to-run spread seen on one machine and still catches a real slowdown, and the floor stops a 6 ms to 11 ms wobble on a shared runner from failing a run. The comparison is printed to the job summary. Only the `standard` profile has a baseline.
+
+`baseline.json` was made from a `standard` run on a developer machine, which is not the CI runner. **Regenerate it from the first scheduled run**: `uv run python compare.py <run> --write-baseline` on that run's results (download the artifact), and commit it. Do the same after a change that is meant to move the numbers.
+
+Locust runs as one process (its ledger of what the run created is in memory).
+
+Run `uv run python invariants.py --run <run>` again to re-check a kept stack, and `docker compose -p endurain-load --env-file .env.loadtest --env-file .env.secrets -f compose.yaml run --rm seed --users 50 --activities-per-user 200 --days 730` to seed by hand.
+
 ## Frontend
 Make sure you have Node.js 26+ installed ([nodejs.org](https://nodejs.org/)).
 

@@ -1,0 +1,152 @@
+# A distributed Endurain deployment for load tests: nginx -> N api replicas, M workers, PostgreSQL (behind toxiproxy),
+# Redis, S3 (adobe/s3mock) and a stub for the providers the application calls (map tiles, Nominatim, Strava).
+#
+#   docker compose -p endurain-load --env-file .env.loadtest --env-file .env.secrets -f compose.yaml up -d --build --wait --scale api=2
+#
+# run.sh wraps this. The footprint is small on purpose (a few hundred MB per replica).
+
+name: endurain-load
+
+x-endurain: &endurain
+  image: endurain-loadtest:local
+  env_file: [.env.loadtest, .env.secrets]
+  volumes:
+    - ./:/loadtest:ro
+    - stub-pki:/pki:ro
+  # The providers the application calls resolve to the stub (see the stub service): the application refuses private
+  # addresses, so SSRF_ALLOWED_HOSTS (.env.loadtest) allows the subnet the stub is on, and it trusts the stub's
+  # certificate through the bundle the stub writes to the stub-pki volume.
+  extra_hosts:
+    - "tile.openstreetmap.org:172.29.77.10"
+    - "nominatim.openstreetmap.org:172.29.77.10"
+    - "www.strava.com:172.29.77.10"
+  tmpfs:
+    - /app/backend/data:uid=1000,gid=1000,size=128m
+    - /app/backend/logs:uid=1000,gid=1000,size=128m
+  depends_on:
+    postgres: {condition: service_healthy}
+    toxiproxy: {condition: service_started}
+    redis: {condition: service_healthy}
+    s3: {condition: service_started}
+    stub: {condition: service_healthy}
+
+networks:
+  default:
+    ipam:
+      config:
+        - subnet: 172.29.77.0/24
+
+volumes:
+  stub-pki:
+
+services:
+  postgres:
+    image: postgres:18@sha256:2ea8630df176ad090ec92136dee850397c5af8781e4bcf2e4162593691c61bbc
+    env_file: [.env.loadtest, .env.secrets]
+    command:
+      - postgres
+      - -c
+      - shared_preload_libraries=pg_stat_statements
+      - -c
+      - pg_stat_statements.track=all
+      - -c
+      - max_connections=300
+      - -c
+      - fsync=off
+      - -c
+      - synchronous_commit=off
+      - -c
+      - full_page_writes=off
+    shm_size: 256m
+    volumes:
+      - ./postgres-init.sql:/docker-entrypoint-initdb.d/01-pg-stat-statements.sql:ro
+    ports:
+      - "127.0.0.1:15432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U endurain -d endurain"]
+      interval: 3s
+      timeout: 5s
+      retries: 20
+
+  # Every connection of the application to PostgreSQL goes through here, so the fault scenarios can drop them and add
+  # latency (faults.py, through the API on 127.0.0.1:18474). With no toxic it only relays.
+  toxiproxy:
+    image: ghcr.io/shopify/toxiproxy:2.12.0@sha256:9378ed52a28bc50edc1350f936f518f31fa95f0d15917d6eb40b8e376d1a214e
+    command: ["-host=0.0.0.0", "-config=/config/toxiproxy.json"]
+    volumes:
+      - ./toxiproxy.json:/config/toxiproxy.json:ro
+    ports:
+      - "127.0.0.1:18474:8474"
+    depends_on:
+      postgres: {condition: service_healthy}
+
+  redis:
+    image: redis:7@sha256:2e3eb11462c4e3759e6972678dd051d150ff54b1e60714b3c33b701260172a90
+    command: ["redis-server", "--save", "", "--appendonly", "no"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+
+  # The S3-compatible store the distributed CI job uses, pinned to the same image; it creates the bucket at start.
+  s3:
+    image: adobe/s3mock@sha256:ab01a6946750f451ca215a47e91030695b260e4003b8a5a6201d25029b8fca92
+    environment:
+      COM_ADOBE_TESTING_S3MOCK_STORE_INITIAL_BUCKETS: endurain-loadtest
+      COM_ADOBE_TESTING_S3MOCK_STORE_RETAIN_FILES_ON_EXIT: "false"
+
+  # Map tiles, Nominatim and Strava over https for the three public host names, with a certificate made at start; see
+  # stub/stub.py. It runs as root only to listen on 443. The admin API (rate limits, counters) is on 127.0.0.1:18081.
+  stub:
+    image: endurain-loadtest:local
+    user: "0"
+    entrypoint: ["python", "/loadtest/stub/stub.py"]
+    volumes:
+      - ./:/loadtest:ro
+      - stub-pki:/pki
+    environment:
+      PYTHONUNBUFFERED: "1"
+    ports:
+      - "127.0.0.1:18081:8081"
+    networks:
+      default:
+        ipv4_address: 172.29.77.10
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8081/health')"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+
+  api:
+    <<: *endurain
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+      args:
+        PYTHON_EXTRAS: distributed
+
+  worker:
+    <<: *endurain
+    environment:
+      APP_ROLE: worker
+    healthcheck:
+      disable: true
+
+  proxy:
+    image: nginx:1.29-alpine@sha256:5616878291a2eed594aee8db4dade5878cf7edcb475e59193904b198d9b830de
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+    ports:
+      - "18080:80"
+
+  # One-shot tools run inside the application image: `docker compose run --rm seed --users 5 ...`
+  seed:
+    <<: *endurain
+    profiles: [tools]
+    entrypoint: ["python", "/loadtest/seed.py"]
+    working_dir: /app/backend
+    environment:
+      PYTHONPATH: /app/backend
+    volumes:
+      - ./:/loadtest

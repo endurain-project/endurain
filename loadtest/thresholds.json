@@ -1,0 +1,58 @@
+{
+  "min_requests": 10,
+  "default": {
+    "p95_ms": 3000,
+    "max_error_rate": 0.01
+  },
+  "groups": {
+    "browse": {
+      "p95_ms": 600
+    },
+    "health_read": {
+      "p95_ms": 600
+    },
+    "health_write": {
+      "p95_ms": 800
+    },
+    "notifications": {
+      "p95_ms": 400
+    },
+    "idempotency": {
+      "p95_ms": 3000
+    },
+    "upload": {
+      "p95_ms": 2000,
+      "max_error_rate": 0.02
+    },
+    "upload_e2e": {
+      "p95_ms": 60000,
+      "max_error_rate": 0.02
+    },
+    "auth_login": {
+      "p95_ms": 1500
+    },
+    "auth_refresh": {
+      "p95_ms": 600
+    },
+    "auth_logout": {
+      "p95_ms": 600
+    },
+    "websocket": {
+      "p95_ms": 2000
+    },
+    "websocket_hint": {
+      "p95_ms": 60000,
+      "max_error_rate": 0.05
+    },
+    "strava": {
+      "p95_ms": 2000
+    },
+    "strava_job": {
+      "p95_ms": 2000
+    },
+    "strava_e2e": {
+      "p95_ms": 60000,
+      "max_error_rate": 0.02
+    }
+  }
+}
