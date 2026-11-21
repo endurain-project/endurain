@@ -346,14 +346,14 @@ def create_activity_objects(
                     # set local_timestamp == timestamp when the zone is
                     # unknown, so a 0 offset yields to a non-zero
                     # device_settings.time_offset.
-                    session_timezone = activity_file_import_fit_frames._timezone_from_offset(
+                    session_timezone = activity_file_import_fit_frames.timezone_from_offset(
                         activity_time_offset,
                         session_record["session"]["first_waypoint_time"],
                         default_timezone,
                         timezone,
                     )
                 elif time_offset := session_record["time_offset"]:
-                    session_timezone = activity_file_import_fit_frames._timezone_from_offset(
+                    session_timezone = activity_file_import_fit_frames.timezone_from_offset(
                         time_offset,
                         session_record["session"]["first_waypoint_time"],
                         default_timezone,

@@ -1230,7 +1230,7 @@ class TestParseGpxMaxSpeedSegmentPlaceholders:
         result = gpx_parser.parse_gpx_file(path, user_id=MOCK_USER_ID, default_timezone=_SERVER_TZ)
 
         assert result["activity"].max_speed == pytest.approx(3, abs=0.5)
-        assert result["laps"][0]["enhanced_avg_speed"] == pytest.approx(3, abs=0.5)
+        assert result["laps"][0]["enhanced_avg_speed"] == pytest.approx(3, abs=0.05)
 
     def test_sub_second_samples_sharing_a_second_all_count(self, tmp_path, monkeypatch):
         _patch_parser_side_effects(monkeypatch)
