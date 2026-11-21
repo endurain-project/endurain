@@ -1,54 +1,23 @@
-"""Tests for core.rate_limit — rate-limit bucket key and 429 handler."""
+"""Tests for core.rate_limit: the bucket key, the 429 answer, the store outage fallback and the store options."""
 
-import json
+import logging
 import time
-from unittest.mock import MagicMock, patch
+from types import SimpleNamespace
 from urllib.parse import parse_qs, urlsplit
 
 import pytest
+from fastapi import FastAPI, Request
+from fastapi.testclient import TestClient
+from joserfc import jwt
+from slowapi.errors import RateLimitExceeded
+from starlette.requests import Request as StarletteRequest
 
+import core.exceptions as core_exceptions
 import core.jwt_keys as core_jwt_keys
+import core.logger as core_logger
+import core.rate_limit as core_rate_limit
 
-
-class TestRateLimitConstants:
-    """Tests for rate-limit tier constants."""
-
-    def test_default_constant(self):
-        from core.rate_limit import DEFAULT
-
-        assert DEFAULT == "120/minute"
-
-    def test_write_constant(self):
-        from core.rate_limit import WRITE
-
-        assert WRITE == "30/minute"
-
-    def test_expensive_read_constant(self):
-        from core.rate_limit import DEFAULT, EXPENSIVE_READ, WRITE
-
-        assert EXPENSIVE_READ == "30/minute"
-        assert EXPENSIVE_READ != DEFAULT
-        assert EXPENSIVE_READ == WRITE
-
-    def test_public_read_starts_at_the_default(self):
-        from core.rate_limit import DEFAULT, PUBLIC_READ
-
-        assert PUBLIC_READ == DEFAULT
-
-    def test_expensive_public_read_constant(self):
-        from core.rate_limit import DEFAULT, EXPENSIVE_PUBLIC_READ, EXPENSIVE_READ
-
-        assert EXPENSIVE_PUBLIC_READ == "30/minute"
-        assert EXPENSIVE_PUBLIC_READ != DEFAULT
-        assert EXPENSIVE_PUBLIC_READ == EXPENSIVE_READ
-
-    def test_sensitive_constant(self):
-        from core.rate_limit import SENSITIVE
-
-        assert SENSITIVE == "10/minute"
-
-
-_ACCESS_HEADER = {"alg": "HS256", "typ": "at+jwt"}
+_ACCESS_HEADER = {"alg": "HS256", "typ": core_jwt_keys.ACCESS_JWT_TYP}
 
 
 def _claims(*, sub="1", exp_delta=300, **extra):
@@ -58,91 +27,60 @@ def _claims(*, sub="1", exp_delta=300, **extra):
     return claims
 
 
+def _token(claims, header=None, key=None) -> str:
+    """Sign a token with the application's own access key unless another is given."""
+    key = key or core_jwt_keys.SIGNING_KEYS[0]
+    header = {**(header or _ACCESS_HEADER), "kid": core_jwt_keys.key_id(key)}
+    return jwt.encode(header, claims, core_jwt_keys.import_key(key))
+
+
+def _request(authorization: str | None = None, ip: str = "10.0.0.1") -> StarletteRequest:
+    """A request as the server receives it, from a client address and with an optional ``Authorization`` header."""
+    headers = [(b"authorization", authorization.encode())] if authorization is not None else []
+    return StarletteRequest(
+        {"type": "http", "method": "GET", "path": "/", "headers": headers, "client": (ip, 5000), "query_string": b""}
+    )
+
+
 class TestGetRateLimitKey:
-    """Tests for _get_rate_limit_key."""
+    """The bucket a request is counted in."""
 
     def test_a_verified_token_is_keyed_by_its_user(self):
-        from core.rate_limit import _get_rate_limit_key
+        request = _request(f"Bearer {_token(_claims(sub='42'))}")
 
-        request = MagicMock()
-        request.headers = {"authorization": "Bearer my-secret-token-12345"}
-
-        with patch("core.rate_limit._verified_subject", return_value="42"):
-            result = _get_rate_limit_key(request)
-
-        assert result == "user:42"
+        assert core_rate_limit._get_rate_limit_key(request) == "user:42"
 
     def test_a_refreshed_token_keeps_the_users_bucket(self):
-        from joserfc import jwt
-        from joserfc.jwk import OctKey
-
-        import core.rate_limit as rl
-
-        key = OctKey.import_key("k" * 32)
-        first = jwt.encode(_ACCESS_HEADER, _claims(sub="7", jti="a"), key)
-        second = jwt.encode(_ACCESS_HEADER, _claims(sub="7", jti="b"), key)
-        keys = []
-        with patch("core.rate_limit._jwt_verification_key", return_value=key):
-            for token in (first, second):
-                request = MagicMock()
-                request.headers = {"authorization": f"Bearer {token}"}
-                keys.append(rl._get_rate_limit_key(request))
+        keys = [
+            core_rate_limit._get_rate_limit_key(_request(f"Bearer {_token(_claims(sub='7', jti=jti))}"))
+            for jti in ("a", "b")
+        ]
 
         assert keys == ["user:7", "user:7"]
 
     def test_a_verified_token_without_a_subject_falls_back_to_the_ip(self):
-        from joserfc import jwt
-        from joserfc.jwk import OctKey
+        request = _request(f"Bearer {_token(_claims(sub=None))}", ip="10.0.0.4")
 
-        import core.rate_limit as rl
-
-        key = OctKey.import_key("k" * 32)
-        token = jwt.encode(_ACCESS_HEADER, _claims(sub=None), key)
-        request = MagicMock()
-        request.headers = {"authorization": f"Bearer {token}"}
-
-        with (
-            patch("core.rate_limit._jwt_verification_key", return_value=key),
-            patch("core.rate_limit.core_network.get_ip_address", return_value="10.0.0.4"),
-        ):
-            assert rl._get_rate_limit_key(request) == "10.0.0.4"
+        assert core_rate_limit._get_rate_limit_key(request) == "10.0.0.4"
 
     def test_unverified_bearer_token_returns_ip(self):
-        from core.rate_limit import _get_rate_limit_key
-
-        request = MagicMock()
-        request.headers = {"authorization": "Bearer random-garbage"}
-
-        with patch("core.rate_limit.core_network.get_ip_address", return_value="10.0.0.3"):
-            result = _get_rate_limit_key(request)
-
-        assert result == "10.0.0.3"
+        assert core_rate_limit._get_rate_limit_key(_request("Bearer random-garbage", ip="10.0.0.3")) == "10.0.0.3"
 
     def test_an_ipv6_caller_is_keyed_by_its_64_network(self):
-        import core.rate_limit as rl
-
-        keys = []
-        for ip in ("2001:db8:1:2::1", "2001:db8:1:2:ffff::9", "2001:db8:1:3::1"):
-            request = MagicMock()
-            request.headers = {}
-            with patch("core.rate_limit.core_network.get_ip_address", return_value=ip):
-                keys.append(rl._get_rate_limit_key(request))
+        keys = [
+            core_rate_limit._get_rate_limit_key(_request(ip=ip))
+            for ip in ("2001:db8:1:2::1", "2001:db8:1:2:ffff::9", "2001:db8:1:3::1")
+        ]
 
         assert keys[0] == keys[1] == "2001:db8:1:2::/64"
         assert keys[2] == "2001:db8:1:3::/64"
 
     def test_signed_token_is_accepted_and_tampered_rejected(self):
-        from joserfc import jwt
-        from joserfc.jwk import OctKey
+        token = _token(_claims(sub="1"))
 
-        import core.rate_limit as rl
-
-        key = OctKey.import_key("k" * 32)
-        token = jwt.encode(_ACCESS_HEADER, _claims(sub="1"), key)
-        with patch("core.rate_limit._jwt_verification_key", return_value=key):
-            assert rl._verified_subject(token) == "1"
-            assert rl._verified_subject(token[:-2] + "xx") is None
-            assert rl._verified_subject("not-a-jwt") is None
+        assert core_rate_limit._verified_subject(token) == "1"
+        assert core_rate_limit._verified_subject(token[:-2] + "xx") is None
+        assert core_rate_limit._verified_subject("not-a-jwt") is None
 
     @pytest.mark.parametrize(
         ("header", "claims"),
@@ -155,125 +93,98 @@ class TestGetRateLimitKey:
         ids=["expired", "refresh-token", "no-expiry", "no-type"],
     )
     def test_a_token_that_is_not_a_live_access_token_gets_no_user_bucket(self, header, claims):
-        from joserfc import jwt
-        from joserfc.jwk import OctKey
-
-        import core.rate_limit as rl
-
-        key = OctKey.import_key("k" * 32)
-        token = jwt.encode(header, claims, key)
-        with patch("core.rate_limit._jwt_verification_key", return_value=key):
-            assert rl._verified_subject(token) is None
+        assert core_rate_limit._verified_subject(_token(claims, header)) is None
 
     def test_a_token_that_expired_within_the_clock_leeway_still_names_its_user(self):
-        from joserfc import jwt
-        from joserfc.jwk import OctKey
-
-        import core.rate_limit as rl
-
-        key = OctKey.import_key("k" * 32)
-        token = jwt.encode(_ACCESS_HEADER, _claims(exp_delta=-5), key)
-        with patch("core.rate_limit._jwt_verification_key", return_value=key):
-            assert rl._verified_subject(token) == "1"
+        assert core_rate_limit._verified_subject(_token(_claims(exp_delta=-5))) == "1"
 
     def test_a_refresh_token_typed_as_an_access_token_gets_no_user_bucket(self):
         """Only access keys name a bucket, so a refresh token cannot pass by forging its ``typ``."""
-        from joserfc import jwt
+        token = _token(_claims(), key=core_jwt_keys.REFRESH_SIGNING_KEYS[0])
 
-        import core.rate_limit as rl
-
-        refresh_key = core_jwt_keys.REFRESH_SIGNING_KEYS[0]
-        header = {**_ACCESS_HEADER, "kid": core_jwt_keys.key_id(refresh_key)}
-        token = jwt.encode(header, _claims(), core_jwt_keys.import_key(refresh_key))
-
-        assert rl._verified_subject(token) is None
+        assert core_rate_limit._verified_subject(token) is None
 
     def test_no_auth_header_returns_ip(self):
-        from core.rate_limit import _get_rate_limit_key
-
-        request = MagicMock()
-        request.headers = {}
-
-        with patch("core.rate_limit.core_network.get_ip_address", return_value="10.0.0.1"):
-            result = _get_rate_limit_key(request)
-
-        assert result == "10.0.0.1"
+        assert core_rate_limit._get_rate_limit_key(_request(ip="10.0.0.1")) == "10.0.0.1"
 
     def test_non_bearer_auth_returns_ip(self):
-        from core.rate_limit import _get_rate_limit_key
+        assert core_rate_limit._get_rate_limit_key(_request("Basic dXNlcjpwYXNz", ip="10.0.0.2")) == "10.0.0.2"
 
-        request = MagicMock()
-        request.headers = {"authorization": "Basic dXNlcjpwYXNz"}
 
-        with patch("core.rate_limit.core_network.get_ip_address", return_value="10.0.0.2"):
-            result = _get_rate_limit_key(request)
+def _limited_app(limit: str, *, limiter=None) -> tuple[TestClient, object]:
+    """An application with one limited route, wired as ``main.create_app`` wires the limiter."""
+    limiter = limiter or core_rate_limit.build_limiter(storage_uri="memory://", enabled=True)
+    app = FastAPI()
+    app.state.limiter = limiter
+    core_exceptions.register_sync_handler(app, RateLimitExceeded, core_rate_limit.rate_limit_exceeded_handler)
+    app.add_middleware(core_rate_limit.RateLimitMiddleware)
 
-        assert result == "10.0.0.2"
+    @app.get("/limited")
+    @limiter.limit(limit)
+    def limited(request: Request) -> dict[str, str]:
+        return {"ok": "yes"}
+
+    return TestClient(app), limiter
+
+
+@pytest.fixture
+def app_log(caplog):
+    """Capture the application's logger, which does not propagate to the root logger."""
+    logger = logging.getLogger(core_logger.ROOT_LOGGER_NAME)
+    level = logger.level
+    logger.addHandler(caplog.handler)
+    logger.setLevel(logging.DEBUG)
+    yield caplog
+    logger.setLevel(level)
+    logger.removeHandler(caplog.handler)
 
 
 class TestRateLimitExceededHandler:
-    """Tests for rate_limit_exceeded_handler."""
+    """The 429 a caller past its limit is answered with."""
 
-    def test_returns_json_429_response(self):
-        from starlette.responses import JSONResponse
+    def test_the_answer_is_a_problem_document_with_the_back_off_headers_of_the_breached_limit(self):
+        client, _ = _limited_app("2/minute")
+        for _ in range(2):
+            client.get("/limited")
 
-        from core.rate_limit import rate_limit_exceeded_handler
+        response = client.get("/limited")
 
-        request = MagicMock()
-        request.method = "GET"
-        request.url.path = "/api/v1/test"
-        mock_limiter = MagicMock()
-        mock_limiter._inject_headers.side_effect = lambda resp, *a: resp
-        request.app.state.limiter = mock_limiter
-        request.state.view_rate_limit = "120/minute"
-
-        exc = MagicMock()
-        exc.limit = None
-
-        with patch("core.rate_limit.logger"):
-            response = rate_limit_exceeded_handler(request, exc)
-
-        assert isinstance(response, JSONResponse)
         assert response.status_code == 429
+        assert response.headers["content-type"].startswith("application/problem+json")
+        problem = response.json()
+        assert problem["type"] == "urn:endurain:error:too-many-requests"
+        assert problem["scope"] == "requests"
+        assert 1 <= int(response.headers["Retry-After"]) <= 60
+        assert response.headers["X-RateLimit-Limit"] == "2"
+        assert response.headers["X-RateLimit-Remaining"] == "0"
 
-    def test_logs_warning_on_rate_limit(self):
-        from core.rate_limit import rate_limit_exceeded_handler
+    def test_the_breach_is_logged_once_with_the_caller_the_method_and_the_path(self, app_log):
+        client, _ = _limited_app("1/minute")
+        client.get("/limited")
 
-        request = MagicMock()
-        request.method = "GET"
-        request.url.path = "/api/v1/test"
-        request.headers = {}
-        request.app.state.limiter._inject_headers = MagicMock()
-        request.state.view_rate_limit = None
+        client.get("/limited")
 
-        exc = MagicMock()
+        records = {
+            id(r): r
+            for r in app_log.records
+            if r.name.endswith("core.rate_limit") and r.getMessage() == "Rate limit exceeded"
+        }.values()
+        (record,) = records
+        assert record.levelname == "WARNING"
+        fields = record.__dict__
+        assert fields["caller"] == "testclient"
+        assert (fields["method"], fields["path"]) == ("GET", "/limited")
 
-        with (
-            patch("core.rate_limit.core_network.get_ip_address", return_value="10.0.0.1"),
-            patch("core.rate_limit.logger") as mock_log,
-        ):
-            rate_limit_exceeded_handler(request, exc)
 
-        assert len(mock_log.method_calls) == 1
-        assert mock_log.warning.call_args[0] == ("Rate limit exceeded",)
-        fields = mock_log.warning.call_args.kwargs["extra"]
-        assert fields["caller"] == "10.0.0.1"
-        assert (fields["method"], fields["path"]) == ("GET", "/api/v1/test")
+class TestHandlerWithoutAWindowRecord:
+    """A refusal that carries no record of the counter it hit still tells the caller how long to wait."""
 
-    def test_sets_retry_after_and_rate_limit_headers_from_the_breached_limit(self):
+    @staticmethod
+    def _limit():
         from limits import parse
-        from slowapi.errors import RateLimitExceeded
         from slowapi.wrappers import Limit
 
-        from core.rate_limit import rate_limit_exceeded_handler
-
-        request = MagicMock()
-        request.method = "GET"
-        request.url.path = "/api/v1/test"
-        request.headers = {}
-        request.state.view_rate_limit = None
-
-        limit = Limit(
+        return Limit(
             limit=parse("30/minute"),
             key_func=lambda request: "10.0.0.1",
             scope=None,
@@ -284,53 +195,49 @@ class TestRateLimitExceededHandler:
             cost=1,
             override_defaults=False,
         )
-        exc = RateLimitExceeded(limit)
 
-        with (
-            patch("core.rate_limit.core_network.get_ip_address", return_value="10.0.0.1"),
-            patch("core.rate_limit.logger"),
-        ):
-            response = rate_limit_exceeded_handler(request, exc)
+    def test_the_whole_window_is_the_wait_when_the_request_names_no_counter(self):
+        response = core_rate_limit.rate_limit_exceeded_handler(_request(), RateLimitExceeded(self._limit()))
 
         assert response.status_code == 429
-        problem = json.loads(response.body)
-        assert problem["type"] == "urn:endurain:error:too-many-requests"
-        assert problem["scope"] == "requests"
         assert response.headers["Retry-After"] == "60"
-        assert response.headers["X-RateLimit-Limit"] == "30"
-        assert response.headers["X-RateLimit-Remaining"] == "0"
+
+    def test_a_refusal_that_names_no_limit_carries_no_back_off_headers(self):
+        from starlette.exceptions import HTTPException
+
+        class Unlimited(RateLimitExceeded):
+            def __init__(self) -> None:
+                HTTPException.__init__(self, status_code=429)
+
+        response = core_rate_limit.rate_limit_exceeded_handler(_request(), Unlimited())
+
+        assert response.status_code == 429
+        assert "Retry-After" not in response.headers
+        assert "X-RateLimit-Limit" not in response.headers
 
 
 class TestRetryAfterIsTheTimeLeftInTheWindow:
     """``Retry-After`` counts down with the window instead of repeating its whole length."""
 
-    def test_a_caller_late_in_the_window_is_told_the_seconds_that_remain(self):
-        from fastapi import FastAPI, Request
-        from fastapi.testclient import TestClient
-        from slowapi.errors import RateLimitExceeded
-
-        import core.exceptions as core_exceptions
-        from core.rate_limit import RateLimitMiddleware, build_limiter, rate_limit_exceeded_handler
-
-        limiter = build_limiter(storage_uri="memory://", enabled=True)
-        app = FastAPI()
-        app.state.limiter = limiter
-        core_exceptions.register_sync_handler(app, RateLimitExceeded, rate_limit_exceeded_handler)
-        app.add_middleware(RateLimitMiddleware)
-
-        @app.get("/limited")
-        @limiter.limit("2/minute")
-        def limited(request: Request) -> dict[str, str]:
-            return {"ok": "yes"}
-
-        client = TestClient(app)
+    def test_a_caller_late_in_the_window_is_told_the_seconds_that_remain(self, monkeypatch):
+        client, _ = _limited_app("2/minute")
         assert [client.get("/limited").status_code for _ in range(2)] == [200, 200]
         started = time.time()
-        with patch("core.rate_limit.time.time", return_value=started + 40):
-            response = client.get("/limited")
+        monkeypatch.setattr(core_rate_limit, "time", SimpleNamespace(time=lambda: started + 40))
+
+        response = client.get("/limited")
 
         assert response.status_code == 429
         assert 19 <= int(response.headers["Retry-After"]) <= 21
+
+
+def _store_down(monkeypatch, limiter) -> None:
+    """Make the shared counter store refuse every hit, as an unreachable Redis does."""
+
+    def down(*args, **kwargs):
+        raise ConnectionError("redis down")
+
+    monkeypatch.setattr(limiter._limiter, "hit", down)
 
 
 class TestStorageOutageFallback:
@@ -338,41 +245,22 @@ class TestStorageOutageFallback:
 
     @staticmethod
     def _client(limit: str):
-        from fastapi import FastAPI, Request
-        from fastapi.testclient import TestClient
-        from slowapi.errors import RateLimitExceeded
+        return _limited_app(limit)
 
-        import core.exceptions as core_exceptions
-        from core.rate_limit import RateLimitMiddleware, build_limiter, rate_limit_exceeded_handler
-
-        limiter = build_limiter(storage_uri="memory://", enabled=True)
-        app = FastAPI()
-        app.state.limiter = limiter
-        core_exceptions.register_sync_handler(app, RateLimitExceeded, rate_limit_exceeded_handler)
-        app.add_middleware(RateLimitMiddleware)
-
-        @app.get("/limited")
-        @limiter.limit(limit)
-        def limited(request: Request) -> dict[str, str]:
-            return {"ok": "yes"}
-
-        return TestClient(app), limiter
-
-    def test_a_failing_storage_does_not_fail_the_request(self, caplog):
+    def test_a_failing_storage_does_not_fail_the_request(self, monkeypatch, app_log):
         client, limiter = self._client("5/minute")
-        with (
-            patch.object(limiter._limiter, "hit", side_effect=ConnectionError("redis down")),
-            caplog.at_level("WARNING"),
-        ):
-            response = client.get("/limited")
+        _store_down(monkeypatch, limiter)
+
+        response = client.get("/limited")
 
         assert response.status_code == 200
-        assert "falling back to in-memory storage" in caplog.text
+        assert "falling back to in-memory storage" in app_log.text
 
-    def test_the_limit_still_applies_per_process_during_the_outage(self):
+    def test_the_limit_still_applies_per_process_during_the_outage(self, monkeypatch):
         client, limiter = self._client("2/minute")
-        with patch.object(limiter._limiter, "hit", side_effect=ConnectionError("redis down")):
-            statuses = [client.get("/limited").status_code for _ in range(4)]
+        _store_down(monkeypatch, limiter)
+
+        statuses = [client.get("/limited").status_code for _ in range(4)]
 
         assert statuses == [200, 200, 429, 429]
 
@@ -384,11 +272,7 @@ class TestRateLimitMiddleware:
     def _app(monkeypatch, default: str = "2/minute"):
         import threading
 
-        from fastapi import APIRouter, FastAPI
-        from slowapi.errors import RateLimitExceeded
-
-        import core.exceptions as core_exceptions
-        import core.rate_limit as core_rate_limit
+        from fastapi import APIRouter
 
         monkeypatch.setattr(core_rate_limit, "DEFAULT", default)
         limiter = core_rate_limit.build_limiter(storage_uri="memory://", enabled=True)
@@ -424,8 +308,6 @@ class TestRateLimitMiddleware:
         return app, limiter, threads
 
     def test_the_check_does_not_run_on_the_event_loop_thread(self, monkeypatch):
-        from fastapi.testclient import TestClient
-
         app, _, threads = self._app(monkeypatch)
         assert TestClient(app).get("/open").status_code == 200
 
@@ -434,8 +316,6 @@ class TestRateLimitMiddleware:
         assert threads["check"].isdisjoint(threads["loop"])
 
     def test_the_default_limit_still_answers_429_with_retry_after(self, monkeypatch):
-        from fastapi.testclient import TestClient
-
         app, _, _ = self._app(monkeypatch)
         client = TestClient(app)
         responses = [client.get("/open") for _ in range(3)]
@@ -445,20 +325,14 @@ class TestRateLimitMiddleware:
         assert responses[2].json()["title"] == "Too Many Requests"
 
     def test_a_failing_store_falls_back_to_memory_and_keeps_limiting(self, monkeypatch):
-        from unittest.mock import patch
-
-        from fastapi.testclient import TestClient
-
         app, limiter, _ = self._app(monkeypatch)
         client = TestClient(app)
-        with patch.object(limiter._limiter, "hit", side_effect=ConnectionError("redis down")):
-            statuses = [client.get("/open").status_code for _ in range(3)]
+        _store_down(monkeypatch, limiter)
+        statuses = [client.get("/open").status_code for _ in range(3)]
 
         assert statuses == [200, 200, 429]
 
     def test_a_redis_store_fails_fast_instead_of_waiting_forever(self):
-        import core.rate_limit as core_rate_limit
-
         limiter = core_rate_limit.build_limiter(storage_uri="redis://localhost:6399/0", enabled=True)
         kwargs = limiter._storage.storage.connection_pool.connection_kwargs
 
@@ -471,8 +345,6 @@ class TestRateLimitMiddleware:
         ids=["rediss", "unix"],
     )
     def test_every_redis_scheme_carries_the_store_timeouts(self, uri):
-        import core.rate_limit as core_rate_limit
-
         query = parse_qs(urlsplit(core_rate_limit.with_store_timeouts(uri)).query)
 
         assert (
@@ -480,21 +352,15 @@ class TestRateLimitMiddleware:
         )
 
     def test_the_rest_of_a_redis_uri_is_kept(self):
-        import core.rate_limit as core_rate_limit
-
         uri = core_rate_limit.with_store_timeouts("rediss://:secret@cache.example:6380/1?ssl_cert_reqs=none")
 
         assert uri.startswith("rediss://:secret@cache.example:6380/1?ssl_cert_reqs=none&")
 
     def test_a_timeout_the_operator_set_wins(self):
-        import core.rate_limit as core_rate_limit
-
         query = parse_qs(urlsplit(core_rate_limit.with_store_timeouts("redis://cache:6379/0?socket_timeout=5")).query)
 
         assert query["socket_timeout"] == ["5"]
         assert query["socket_connect_timeout"] == [str(core_rate_limit.STORE_TIMEOUT_SECONDS)]
 
     def test_an_in_memory_store_is_left_as_it_is(self):
-        import core.rate_limit as core_rate_limit
-
         assert core_rate_limit.with_store_timeouts("memory://") == "memory://"

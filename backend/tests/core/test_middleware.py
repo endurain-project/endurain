@@ -538,15 +538,21 @@ class TestAllowedTileDomainsRefresh:
         return TestClient(app)
 
     def test_a_stale_value_is_re_read_off_the_response_path(self):
-        import time
+        import threading
 
-        with self._client(read_at=-1e9, loader=lambda: ["https://new.example.com"]) as client:
+        read = threading.Event()
+
+        def loader():
+            read.set()
+            return ["https://new.example.com"]
+
+        with self._client(read_at=-1e9, loader=loader) as client:
             first = client.get("/html").headers["Content-Security-Policy"]
+            assert read.wait(timeout=5)
             csp = first
-            for _ in range(100):
+            for _ in range(1000):
                 if "new.example.com" in csp:
                     break
-                time.sleep(0.02)
                 csp = client.get("/html").headers["Content-Security-Policy"]
 
         assert "old.example.com" in first
@@ -555,18 +561,22 @@ class TestAllowedTileDomainsRefresh:
 
     def test_a_fresh_value_is_not_re_read(self):
         import time
-        from unittest.mock import MagicMock
 
-        loader = MagicMock()
+        reads = []
+
+        def loader():
+            reads.append(1)
+            return []
+
         csp = self._client(read_at=time.monotonic(), loader=loader).get("/html").headers["Content-Security-Policy"]
 
-        loader.assert_not_called()
+        assert reads == []
         assert "old.example.com" in csp
 
     def test_a_failed_read_keeps_the_previous_value(self):
-        from unittest.mock import MagicMock
+        def loader():
+            raise RuntimeError("db down")
 
-        loader = MagicMock(side_effect=RuntimeError("db down"))
         with self._client(read_at=-1e9, loader=loader) as client:
             client.get("/html")
             response = client.get("/html")
@@ -608,12 +618,9 @@ class TestCookieRouteRefusalIsAProblemDocument:
         assert response.headers["X-Content-Type-Options"] == "nosniff"
         assert "access-control-allow-origin" not in response.headers
 
-    def test_create_app_adds_the_origin_check_before_cors_and_security_headers(self):
-        from pathlib import Path
+    def test_the_real_application_refuses_a_foreign_origin_with_the_security_headers(self, app):
+        response = TestClient(app).post(REFRESH_PATH, headers={**WEB, "Origin": "https://evil.example"})
 
-        main_source = (Path(__file__).resolve().parents[2] / "app" / "main.py").read_text()
-        source = main_source[main_source.index("def create_app") :]
-
-        check = source.index("CookieRouteOriginMiddleware")
-        assert check < source.index("CORSMiddleware")
-        assert check < source.index("SecurityHeadersMiddleware")
+        assert response.status_code == 403
+        assert response.headers["X-Content-Type-Options"] == "nosniff"
+        assert "access-control-allow-origin" not in response.headers

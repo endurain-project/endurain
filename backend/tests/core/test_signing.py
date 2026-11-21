@@ -1,13 +1,30 @@
 """Tests for the shared signed-capability-token primitive."""
 
+import contextlib
+import dataclasses
+import os
 import time
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
+import jasil.runtime as platform_runtime
 import pytest
 
+import core.config as core_config
 import core.http_cache as core_http_cache
 import core.key_derivation as core_key_derivation
 import core.signing as core_signing
+
+
+@contextlib.contextmanager
+def _secret(value: str | None):
+    """Run with ``SECRET_KEY`` set to a value, or unset."""
+    with patch.dict(os.environ):
+        os.environ.pop("SECRET_KEY_FILE", None)
+        if value is None:
+            os.environ.pop("SECRET_KEY", None)
+        else:
+            os.environ["SECRET_KEY"] = value
+        yield
 
 
 class TestKeyRotation:
@@ -27,7 +44,7 @@ class TestKeyRotation:
     def _with_secret(self, secret: str):
         core_key_derivation.derive_keys.cache_clear()
         core_signing._serializer.cache_clear()
-        return patch("core.key_derivation.core_config.read_secret", return_value=secret)
+        return _secret(secret)
 
     def test_a_token_signed_with_an_old_listed_key_still_verifies(self):
         with self._with_secret(self._OLD):
@@ -93,9 +110,11 @@ class TestTokenExpiry:
 
         assert core_signing.verify_token("test-signing-expiry-salt", 1, token, max_age=60) is True
 
-    def test_token_older_than_max_age_is_rejected(self):
+    def test_token_older_than_max_age_is_rejected(self, monkeypatch):
+        now = time.time()
+        monkeypatch.setattr(time, "time", lambda: now)
         token = core_signing.sign_token("test-signing-expiry-salt", 1)
-        time.sleep(2.1)
+        monkeypatch.setattr(time, "time", lambda: now + 2)
 
         assert core_signing.verify_token("test-signing-expiry-salt", 1, token, max_age=1) is False
 
@@ -126,14 +145,14 @@ class TestCapabilitySigner:
 
         assert b.verify(42, a.sign(42)) is False
 
-    def test_an_expired_token_is_rejected(self):
-        import time
-
+    def test_an_expired_token_is_rejected(self, monkeypatch):
         import core.signing as core_signing
 
+        now = time.time()
+        monkeypatch.setattr(time, "time", lambda: now)
         signer = core_signing.CapabilitySigner(salt="test-area", max_age_seconds=1, bucket_seconds=1)
         token = signer.sign(42)
-        time.sleep(2.1)
+        monkeypatch.setattr(time, "time", lambda: now + 2)
 
         assert signer.verify(42, token) is False
 
@@ -144,70 +163,72 @@ class TestCapabilitySigner:
         assert 0 < core_signing.CapabilitySigner(salt="x").max_age_seconds <= 24 * 60 * 60
 
 
-class TestBlobUrl:
-    @patch("core.signing.core_config")
-    def test_local_storage_uses_the_token_gated_route(self, mock_config):
-        import core.signing as core_signing
+class _ObjectStorage:
+    """An object store that signs a URL for a key, as S3 does."""
 
-        mock_config.settings.resolved_storage_uri = "local://data"
-        mock_config.ROOT_PATH = "/api/v1"
+    def __init__(self, url: str) -> None:
+        self._url = url
+        self.asked: list[tuple[str, str]] = []
+
+    def url(self, area: str, key: str) -> str:
+        self.asked.append((area, key))
+        return self._url
+
+
+@pytest.fixture
+def object_storage(monkeypatch):
+    """Return a function that makes the platform serve blobs from an object store signing the given URL."""
+
+    def use(url: str) -> _ObjectStorage:
+        monkeypatch.setattr(core_config.settings, "STORAGE_URI", "s3://bucket/prefix")
+        storage = _ObjectStorage(url)
+        platform = platform_runtime.get_active_platform()
+        platform_runtime.set_active_platform(dataclasses.replace(platform, storage=storage))
+        return storage
+
+    return use
+
+
+class TestBlobUrl:
+    def test_local_storage_uses_the_token_gated_route(self, monkeypatch):
+        monkeypatch.setattr(core_config.settings, "STORAGE_URI", "local://data")
 
         url = core_signing.blob_url("area", "k.webp", local_path="/things/1/blob", token="tok")
 
-        assert url == "/api/v1/things/1/blob?t=tok"
+        assert url == f"{core_config.ROOT_PATH}/things/1/blob?t=tok"
 
-    @patch("core.signing.platform_runtime")
-    @patch("core.signing.core_config")
-    def test_object_storage_uses_its_presigned_url(self, mock_config, mock_runtime):
-        import core.signing as core_signing
-
-        mock_config.settings.resolved_storage_uri = "s3://bucket"
-        storage = MagicMock()
-        storage.url.return_value = "https://cdn/area/k.webp"
-        mock_runtime.get_active_platform.return_value.storage = storage
+    def test_object_storage_uses_its_presigned_url(self, object_storage):
+        storage = object_storage("https://cdn/area/k.webp")
 
         url = core_signing.blob_url("area", "k.webp", local_path="/things/1/blob", token="tok")
 
         assert url == "https://cdn/area/k.webp"
-        storage.url.assert_called_once_with("area", "k.webp")
+        assert storage.asked == [("area", "k.webp")]
 
-    @patch("core.signing.platform_runtime")
-    @patch("core.signing.core_config")
-    def test_falls_back_to_the_route_when_the_platform_is_uninitialised(self, mock_config, mock_runtime):
+    def test_falls_back_to_the_route_when_the_platform_is_uninitialised(self, object_storage):
         """Serialization must still work outside a running app (tests, migrations)."""
-        import core.signing as core_signing
-
-        mock_config.settings.resolved_storage_uri = "s3://bucket"
-        mock_config.ROOT_PATH = "/api/v1"
-        mock_runtime.get_active_platform.side_effect = RuntimeError("no platform")
+        object_storage("https://cdn/area/k.webp")
+        platform_runtime.reset()
 
         url = core_signing.blob_url("area", "k.webp", local_path="/things/1/blob", token="tok")
 
-        assert url == "/api/v1/things/1/blob?t=tok"
+        assert url == f"{core_config.ROOT_PATH}/things/1/blob?t=tok"
 
 
 class TestBlobOrigin:
-    @patch("core.signing.core_config")
-    def test_local_storage_needs_no_extra_origin(self, mock_config):
-        mock_config.settings.resolved_storage_uri = "local://"
+    def test_local_storage_needs_no_extra_origin(self, monkeypatch):
+        monkeypatch.setattr(core_config.settings, "STORAGE_URI", "local://")
 
         assert core_signing.blob_origin() is None
 
-    @patch("core.signing.platform_runtime")
-    @patch("core.signing.core_config")
-    def test_object_storage_origin_comes_from_the_presigned_url(self, mock_config, mock_runtime):
-        mock_config.settings.resolved_storage_uri = "s3://bucket/prefix"
-        storage = MagicMock()
-        storage.url.return_value = "https://bucket.s3.eu-west-1.amazonaws.com/prefix/a/k?X-Amz-Signature=s"
-        mock_runtime.get_active_platform.return_value.storage = storage
+    def test_object_storage_origin_comes_from_the_presigned_url(self, object_storage):
+        object_storage("https://bucket.s3.eu-west-1.amazonaws.com/prefix/a/k?X-Amz-Signature=s")
 
         assert core_signing.blob_origin() == "https://bucket.s3.eu-west-1.amazonaws.com"
 
-    @patch("core.signing.platform_runtime")
-    @patch("core.signing.core_config")
-    def test_uninitialised_platform_yields_no_origin(self, mock_config, mock_runtime):
-        mock_config.settings.resolved_storage_uri = "s3://bucket"
-        mock_runtime.get_active_platform.side_effect = RuntimeError("no platform")
+    def test_uninitialised_platform_yields_no_origin(self, object_storage):
+        object_storage("https://cdn/x")
+        platform_runtime.reset()
 
         assert core_signing.blob_origin() is None
 

@@ -6,20 +6,22 @@ error, a bare HTTPException, and a request
 validation failure — not just the happy one.
 """
 
-from unittest.mock import MagicMock, patch
-
 import pytest
 from fastapi import FastAPI, HTTPException, Query
 from fastapi.testclient import TestClient
 from sqlalchemy.exc import SQLAlchemyError
+from starlette.requests import Request
 
 import core.exceptions as core_exceptions
+import core.middleware_request_id as core_middleware_request_id
 import core.problem_details as core_problem_details
 
 
-def _client() -> TestClient:
+def _client(*, request_ids: bool = False) -> TestClient:
     app = FastAPI()
     core_exceptions.register_exception_handlers(app)
+    if request_ids:
+        app.add_middleware(core_middleware_request_id.RequestIdMiddleware)
 
     @app.get("/domain")
     def _domain():
@@ -138,13 +140,13 @@ class TestProblemDocumentShape:
 
 class TestRequestCorrelation:
     def test_request_id_is_included_when_assigned(self):
-        with patch("core.exceptions.core_middleware_request_id.get_request_id", return_value="req-123"):
-            body = _client().get("/domain").json()
+        body = _client(request_ids=True).get("/domain", headers={"X-Request-ID": "req-123"}).json()
+
         assert body["request_id"] == "req-123"
 
     def test_request_id_is_omitted_when_absent(self):
-        with patch("core.exceptions.core_middleware_request_id.get_request_id", return_value=""):
-            body = _client().get("/domain").json()
+        body = _client().get("/domain").json()
+
         assert "request_id" not in body
 
 
@@ -182,10 +184,13 @@ class TestErrorCodesAreStable:
         assert instance.status_code == expected_status
 
 
+def _request(path: str) -> Request:
+    return Request({"type": "http", "method": "GET", "path": path, "headers": [], "query_string": b""})
+
+
 class TestBuildProblemResponse:
     def test_extension_members_are_included(self):
-        request = MagicMock()
-        request.url.path = "/x"
+        request = _request("/x")
 
         response = core_exceptions.build_problem_response(
             request=request,
@@ -201,8 +206,7 @@ class TestBuildProblemResponse:
         assert b'"retry_after":30' in response.body
 
     def test_none_extensions_are_dropped(self):
-        request = MagicMock()
-        request.url.path = "/x"
+        request = _request("/x")
 
         response = core_exceptions.build_problem_response(
             request=request,

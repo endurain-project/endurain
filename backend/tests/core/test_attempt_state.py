@@ -3,8 +3,10 @@
 import uuid
 from datetime import UTC, datetime, timedelta
 from enum import StrEnum
-from unittest.mock import MagicMock, patch
+from types import SimpleNamespace
+from unittest.mock import patch
 
+import jasil.backends.state_memory as state_memory
 import pytest
 from jasil.backends.state_memory import MemoryState
 from jasil.providers import StateBackendUnavailableError
@@ -18,6 +20,28 @@ from tests._helpers.auth import MOCK_USER_ID, OTHER_USER_ID
 
 class _State(BaseModel):
     step: str
+
+
+class Announcements:
+    """A callback that records what it is told."""
+
+    def __init__(self) -> None:
+        self.told: list[object] = []
+
+    def __call__(self, job) -> None:
+        self.told.append(job)
+
+
+@pytest.fixture
+def advance(monkeypatch):
+    """Return a function that moves the in-process state's clock forward, so a TTL passes without a sleep."""
+    now = [state_memory.time.monotonic()]
+    monkeypatch.setattr(state_memory, "time", SimpleNamespace(monotonic=lambda: now[0]))
+
+    def move(seconds: float) -> None:
+        now[0] += seconds
+
+    return move
 
 
 def _store(state=None, ttl=60, announce=None) -> core_attempt_state.AttemptStateStore:
@@ -114,18 +138,18 @@ def test_read_returns_the_recorded_state_or_none():
 
 def test_a_finished_record_stamps_the_job_and_announces_it():
     state = MemoryState()
-    announce = MagicMock()
+    announce = Announcements()
     store = _store(state, announce=announce)
     job = _begin(store)
 
     store.record("1", job.id, _State(step="running"), finished=False)
-    announce.assert_not_called()
+    assert announce.told == []
     store.record("1", job.id, _State(step="done"), finished=True)
 
     finished = core_attempt_state.JobIndex(state).get(job.id)
     assert finished is not None
     assert finished.finished_at is not None
-    announce.assert_called_once_with(finished)
+    assert announce.told == [finished]
 
 
 def test_read_job_returns_the_job_only_while_its_subject_still_holds_it():
@@ -167,7 +191,7 @@ def _supersede(state, store):
 
 def test_a_superseded_attempt_neither_overwrites_the_newer_state_nor_frees_its_claim():
     state = MemoryState()
-    announce = MagicMock()
+    announce = Announcements()
     store = _store(state, announce=announce)
     first, second = _supersede(state, store)
 
@@ -177,7 +201,7 @@ def test_a_superseded_attempt_neither_overwrites_the_newer_state_nor_frees_its_c
     assert stored is not None
     assert stored.job == second
     assert _State.model_validate_json(stored.state_json()) == _State(step="queued")
-    announce.assert_not_called()
+    assert announce.told == []
     with pytest.raises(core_exceptions.JobAlreadyRunningError) as refused:
         _begin(store)
     assert refused.value.job_id == second.id
@@ -213,14 +237,25 @@ def test_read_by_job_id_returns_the_state_only_for_the_job_that_holds_it():
     assert store.read("1", job_id=uuid.uuid4()) is None
 
 
-def test_progress_renews_the_claim():
-    state = MemoryState()
-    store = _store(state)
+def test_progress_renews_the_claim(advance):
+    store = _store(ttl=60)
     job = _begin(store)
-    with patch.object(state, "expire_if_equals") as renew:
-        store.record("1", job.id, _State(step="running"), finished=False)
 
-    assert renew.call_args.args[0] == core_attempt_state.key("feature", "job:claim", "1")
+    advance(40)
+    store.record("1", job.id, _State(step="running"), finished=False)
+    advance(40)
+
+    with pytest.raises(core_exceptions.JobAlreadyRunningError):
+        _begin(store)
+
+
+def test_a_claim_nobody_renews_expires(advance):
+    store = _store(ttl=60)
+    _begin(store)
+
+    advance(61)
+
+    assert _begin(store) is not None
 
 
 def test_release_frees_the_claim_without_touching_the_state():
@@ -298,15 +333,17 @@ def test_an_outage_while_recording_strictly_raises():
 
 
 def test_an_outage_reading_the_index_is_a_service_unavailable_error():
-    state = MagicMock()
-    state.get.side_effect = StateBackendUnavailableError("down")
-    state.index_range.side_effect = StateBackendUnavailableError("down")
+    state = MemoryState()
     index = core_attempt_state.JobIndex(state)
 
-    with pytest.raises(core_attempt_state.StateUnavailableError):
-        index.get(uuid.uuid4())
-    with pytest.raises(core_attempt_state.StateUnavailableError):
-        list(index.iter_owned(MOCK_USER_ID))
+    def down(*args, **kwargs):
+        raise StateBackendUnavailableError("down")
+
+    with patch.object(state, "get", down), patch.object(state, "index_range", down):
+        with pytest.raises(core_attempt_state.StateUnavailableError):
+            index.get(uuid.uuid4())
+        with pytest.raises(core_attempt_state.StateUnavailableError):
+            list(index.iter_owned(MOCK_USER_ID))
 
 
 def _ref(created_at, job_id=None, owner_id=MOCK_USER_ID):
@@ -401,15 +438,15 @@ def test_a_superseded_attempt_neither_frees_nor_renews_the_new_owners_claim(fini
     assert state.get(core_attempt_state.key("feature", "job:claim", "1")) == str(newer).encode()
 
 
-def test_the_owning_attempt_frees_its_claim_when_finished_and_renews_it_otherwise():
+def test_the_owning_attempt_frees_its_claim_when_finished_and_renews_it_otherwise(advance):
     state = MemoryState()
-    store = _store(state)
+    store = _store(state, ttl=60)
     job = _begin(store)
     claim = core_attempt_state.key("feature", "job:claim", "1")
 
-    with patch.object(state, "expire_if_equals", wraps=state.expire_if_equals) as renew:
-        store.record("1", job.id, _State(step="running"), finished=False)
-    renew.assert_called_once_with(claim, str(job.id).encode(), 60)
+    advance(40)
+    store.record("1", job.id, _State(step="running"), finished=False)
+    advance(40)
     assert state.get(claim) == str(job.id).encode()
 
     store.record("1", job.id, _State(step="done"), finished=True)
@@ -451,7 +488,7 @@ class TestSyncStateStore:
         assert _queue(_syncs(), OTHER_USER_ID, _Kind.GEAR, owner_id=MOCK_USER_ID).owner_id == MOCK_USER_ID
 
     def test_progress_keeps_blocking_until_the_sync_finishes(self):
-        announce = MagicMock()
+        announce = Announcements()
         syncs = _syncs(announce=announce)
         job = _queue(syncs, MOCK_USER_ID, _Kind.HEALTH)
         syncs.set_status(MOCK_USER_ID, _Kind.HEALTH, Status.RUNNING, job_id=job.id)
@@ -461,7 +498,7 @@ class TestSyncStateStore:
         syncs.set_status(MOCK_USER_ID, _Kind.HEALTH, Status.SUCCEEDED, job_id=job.id)
 
         assert syncs.get(MOCK_USER_ID, _Kind.HEALTH).status == Status.SUCCEEDED
-        assert announce.call_args.args[0].id == job.id
+        assert [told.id for told in announce.told][-1] == job.id
         _queue(syncs, MOCK_USER_ID, _Kind.HEALTH)
 
     def test_a_failed_sync_can_be_retried(self):
@@ -551,9 +588,13 @@ class TestSyncStateStore:
         assert _syncs().close_pending(MOCK_USER_ID, _Kind.GEAR, job_id=uuid.uuid4()) is False
 
     def test_an_unavailable_backend_fails_a_read_and_a_begin_but_not_a_recorded_outcome(self):
-        state = MagicMock()
+        state = MemoryState()
+
+        def down(*args, **kwargs):
+            raise StateBackendUnavailableError("down")
+
         for method in ("set", "get", "delete", "set_if_absent"):
-            getattr(state, method).side_effect = StateBackendUnavailableError("down")
+            setattr(state, method, down)
         syncs = _syncs(state)
 
         with pytest.raises(core_attempt_state.StateUnavailableError):

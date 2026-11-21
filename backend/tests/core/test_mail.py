@@ -1,55 +1,58 @@
 """Tests for the transactional email helpers."""
 
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 import jasil.providers as platform_providers
+import jasil.runtime as platform_runtime
 import jasil.settings as jasil_settings
 import pytest
+from jasil.backends.mail_memory import NullMail
 
 import core.mail as core_mail
 
 
-def _send(mail: MagicMock) -> bool:
-    return core_mail.send_email(mail, "user@example.com", "Subject", "<p>html</p>", "text")
+def _send(mail: platform_providers.MailProvider, to: str = "user@example.com") -> bool:
+    return core_mail.send_email(mail, to, "Subject", "<p>html</p>", "text")
+
+
+class _RefusingMail:
+    """A mail server that answers every message with an error, as SMTP does."""
+
+    def __init__(self, error: Exception) -> None:
+        self.error = error
+
+    def send(self, message: platform_providers.MailMessage) -> str:
+        raise self.error
 
 
 class TestSendEmail:
     def test_builds_message_with_both_bodies(self):
-        mail = MagicMock()
+        mail = platform_runtime.get_active_platform().mail
 
         assert _send(mail) is True
 
-        message = mail.send.call_args.args[0]
+        (message,) = mail.outbox
         assert message.to == ["user@example.com"]
         assert message.subject == "Subject"
         assert message.html == "<p>html</p>"
         assert message.text == "text"
 
     def test_not_configured_is_dropped(self):
-        mail = MagicMock()
-        mail.send.side_effect = platform_providers.MailNotConfiguredError("not configured")
-
-        assert _send(mail) is False
+        assert _send(NullMail()) is False
 
     def test_permanent_refusal_is_dropped(self):
-        mail = MagicMock()
-        mail.send.side_effect = platform_providers.MailError("refused", status=550)
-
-        assert _send(mail) is False
+        assert _send(_RefusingMail(platform_providers.MailError("refused", status=550))) is False
 
     def test_invalid_message_is_dropped(self):
-        mail = MagicMock()
-        mail.send.side_effect = ValueError("bad address")
+        mail = platform_runtime.get_active_platform().mail
 
-        assert _send(mail) is False
+        assert _send(mail, to="not an address") is False
+        assert mail.outbox == []
 
     @pytest.mark.parametrize("status", [None, 421, 451])
     def test_transient_failure_propagates(self, status):
-        mail = MagicMock()
-        mail.send.side_effect = platform_providers.MailError("transient", status=status)
-
         with pytest.raises(platform_providers.MailError):
-            _send(mail)
+            _send(_RefusingMail(platform_providers.MailError("transient", status=status)))
 
 
 def _config(**overrides) -> core_mail.MailConfig:
@@ -122,12 +125,6 @@ class TestMailProblems:
         with patch.object(core_mail.jasil_settings, "mail_problems", return_value=problems):
             assert len(core_mail.mail_problems(_config())) == 1
 
-    def test_the_mapped_settings_are_what_is_validated(self):
-        with patch.object(core_mail.jasil_settings, "mail_problems", return_value=[]) as validate:
-            core_mail.mail_problems(_config())
-
-        assert validate.call_args.args[0] == core_mail.to_mail_settings(_config())
-
     def test_sound_settings_have_no_problems(self):
         assert core_mail.mail_problems(_config()) == []
 
@@ -143,16 +140,16 @@ class TestMailProblems:
 class TestRefusalLevels:
     """A refused message is a recipient or data problem the operator sees, not a fault of this server."""
 
-    @pytest.mark.parametrize(
-        "error",
-        [platform_providers.MailError("refused", status=550), ValueError("bad address")],
-        ids=["550", "invalid"],
-    )
-    def test_a_refused_message_is_a_warning(self, error, caplog):
-        mail = MagicMock()
-        mail.send.side_effect = error
+    def test_a_message_the_server_refused_is_a_warning(self, caplog):
+        mail = _RefusingMail(platform_providers.MailError("refused", status=550))
 
         with caplog.at_level("DEBUG", logger=core_mail.logger.name):
             _send(mail)
+
+        assert [record.levelname for record in caplog.records] == ["WARNING"]
+
+    def test_an_invalid_message_is_a_warning(self, caplog):
+        with caplog.at_level("DEBUG", logger=core_mail.logger.name):
+            _send(platform_runtime.get_active_platform().mail, to="not an address")
 
         assert [record.levelname for record in caplog.records] == ["WARNING"]

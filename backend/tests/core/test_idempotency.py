@@ -5,11 +5,10 @@ import base64
 import dataclasses
 import json
 import threading
-import time
 import uuid
 from types import SimpleNamespace
-from unittest.mock import MagicMock
 
+import jasil.backends.state_memory as state_memory
 import jasil.runtime as platform_runtime
 import pytest
 from fastapi import Depends, FastAPI, Header, Request, Response
@@ -18,7 +17,6 @@ from fastapi.testclient import TestClient
 from jasil.providers import StateBackendUnavailableError
 from pydantic import BaseModel
 
-import core.dependencies as core_dependencies
 import core.exceptions as core_exceptions
 import core.idempotency as core_idempotency
 
@@ -40,6 +38,31 @@ def _fingerprint(body: dict | None = None, path: str = "/things", query: str = "
 
 def _state():
     return platform_runtime.get_state()
+
+
+@pytest.fixture
+def advance(monkeypatch):
+    """Return a function that moves the in-process state's clock forward, so a TTL passes without a sleep."""
+    now = [state_memory.time.monotonic()]
+    monkeypatch.setattr(state_memory, "time", SimpleNamespace(monotonic=lambda: now[0]))
+
+    def move(seconds: float) -> None:
+        now[0] += seconds
+
+    return move
+
+
+class _ClaimThatExpiresBetweenTheReads:
+    """A state whose claim is there for the first write, gone for the read, and free again for the second write."""
+
+    def __init__(self) -> None:
+        self.writes = iter([False, True])
+
+    def get(self, key):
+        return None
+
+    def set_if_absent(self, key, value, ttl):
+        return next(self.writes)
 
 
 # ---------------------------------------------------------------------------------------------------------------------
@@ -171,13 +194,15 @@ class TestBegin:
         assert sum(isinstance(outcome, core_idempotency.Claim) for outcome in outcomes) == 1
         assert sum(isinstance(outcome, core_exceptions.IdempotencyInFlightError) for outcome in outcomes) == 7
 
-    def test_an_expired_claim_lets_the_key_be_claimed_again(self, monkeypatch):
-        monkeypatch.setattr(core_idempotency, "CLAIM_TTL_SECONDS", 1)
+    def test_a_claim_is_held_for_two_minutes_and_then_the_key_can_be_claimed_again(self, advance):
         state = _state()
         core_idempotency.begin(state, _USER, _RAW_KEY, _fingerprint())
 
-        time.sleep(1.2)
+        advance(core_idempotency.CLAIM_TTL_SECONDS - 1)
+        with pytest.raises(core_exceptions.IdempotencyInFlightError):
+            core_idempotency.begin(state, _USER, _RAW_KEY, _fingerprint())
 
+        advance(2)
         assert isinstance(core_idempotency.begin(state, _USER, _RAW_KEY, _fingerprint()), core_idempotency.Claim)
 
     def test_a_claim_is_released_only_by_its_holder(self):
@@ -245,24 +270,19 @@ class TestBegin:
         assert replay.body == b"first"
         assert state.get(claim.claim_key) is None
 
-    def test_a_result_is_kept_for_a_day_and_a_claim_for_two_minutes(self):
-        assert core_idempotency.RESULT_TTL_SECONDS == 24 * 3600
-        assert core_idempotency.CLAIM_TTL_SECONDS == 120
-        assert core_idempotency.MAX_STORED_BODY == 256 * 1024
-        state = MagicMock(wraps=_state())
-
+    def test_a_result_is_replayed_for_a_day_and_then_forgotten(self, advance):
+        state = _state()
         claim = core_idempotency.begin(state, _USER, _RAW_KEY, _fingerprint())
         core_idempotency.complete(state, claim, 201, [], b"{}")
 
-        ttls = {call.args[0].split(":")[2]: call.args[2] for call in state.set_if_absent.call_args_list}
-        assert ttls == {"claim": 120, "result": 24 * 3600}
+        advance(24 * 3600 - 1)
+        assert isinstance(core_idempotency.begin(state, _USER, _RAW_KEY, _fingerprint()), core_idempotency.StoredResult)
+
+        advance(2)
+        assert isinstance(core_idempotency.begin(state, _USER, _RAW_KEY, _fingerprint()), core_idempotency.Claim)
 
     def test_a_claim_that_expires_between_the_two_reads_is_looked_up_once_more(self):
-        state = MagicMock()
-        state.get.return_value = None
-        state.set_if_absent.side_effect = [False, True]
-
-        claim = core_idempotency.begin(state, _USER, _RAW_KEY, _fingerprint())
+        claim = core_idempotency.begin(_ClaimThatExpiresBetweenTheReads(), _USER, _RAW_KEY, _fingerprint())
 
         assert isinstance(claim, core_idempotency.Claim)
 
@@ -454,32 +474,29 @@ class TestWhatIsStored:
 
 
 class TestStateOutage:
-    @staticmethod
-    def _down():
-        state = MagicMock()
+    @pytest.fixture
+    def state_down(self, monkeypatch):
+        """Make every call to the platform's state backend fail as an unreachable Redis would."""
+        state = _state()
+
+        def down(*args, **kwargs):
+            raise StateBackendUnavailableError("down")
+
         for name in ("get", "set", "set_if_absent", "delete_if_equals"):
-            getattr(state, name).side_effect = StateBackendUnavailableError("down")
-        return state
+            monkeypatch.setattr(state, name, down)
 
-    def test_a_request_with_a_key_fails_closed_with_503_and_retry_after(self, probe):
-        app = _build_app(probe)
-        app.dependency_overrides[core_dependencies.get_platform_state] = self._down
-
-        response = TestClient(app).post("/things", json=_BODY, headers=_HEADERS)
+    def test_a_request_with_a_key_fails_closed_with_503_and_retry_after(self, client, probe, state_down):
+        response = client.post("/things", json=_BODY, headers=_HEADERS)
 
         assert response.status_code == 503
         assert "Retry-After" in response.headers
         assert probe.calls == 0
 
-    def test_a_request_without_a_key_never_touches_the_state(self, probe):
-        state = self._down()
-        app = _build_app(probe)
-        app.dependency_overrides[core_dependencies.get_platform_state] = lambda: state
-
-        response = TestClient(app).post("/things", json=_BODY)
+    def test_a_request_without_a_key_never_touches_the_state(self, client, probe, state_down):
+        response = client.post("/things", json=_BODY)
 
         assert response.status_code == 201
-        assert state.mock_calls == []
+        assert probe.calls == 1
 
 
 class TestMiddleware:
@@ -562,8 +579,11 @@ class TestMiddleware:
         async def app(scope, receive, send) -> None:
             calls.append(scope["type"])
 
+        async def send(message) -> None:
+            return None
+
         for scope_type in ("websocket", "lifespan"):
-            asyncio.run(core_idempotency.IdempotencyMiddleware(app)({"type": scope_type}, self._receive, MagicMock()))
+            asyncio.run(core_idempotency.IdempotencyMiddleware(app)({"type": scope_type}, self._receive, send))
 
         assert calls == ["websocket", "lifespan"]
 

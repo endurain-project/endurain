@@ -3,15 +3,28 @@
 import ipaddress
 import socket
 import threading
-import time
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 import pytest
-from fastapi import Request
-from starlette.datastructures import Headers
+from starlette.requests import Request
 
 import core.exceptions as core_exceptions
 import core.network as core_network
+
+
+def _request(peer: str | None, headers: dict[str, str] | None = None, *, raw: list[tuple[bytes, bytes]] | None = None):
+    """A request from ``peer`` with the given headers, as the server receives it."""
+    pairs = raw if raw is not None else [(k.lower().encode(), v.encode()) for k, v in (headers or {}).items()]
+    return Request(
+        {
+            "type": "http",
+            "method": "GET",
+            "path": "/",
+            "headers": pairs,
+            "client": (peer, 5000) if peer is not None else None,
+            "query_string": b"",
+        }
+    )
 
 
 class TestIsValidHostname:
@@ -78,7 +91,7 @@ class TestRefreshTrustedProxyHostnames:
                 100.0,
             ),
             patch("core.network.time.monotonic", return_value=110.0),
-            patch("core.network._resolve_hostname") as mock_resolve,
+            patch("socket.getaddrinfo") as mock_resolve,
         ):
             result = core_network.refresh_trusted_proxy_hostnames()
             assert result == {}
@@ -98,13 +111,13 @@ class TestRefreshTrustedProxyHostnames:
             ),
             patch("core.network.time.monotonic", return_value=110.0),
             patch(
-                "core.network._resolve_hostname",
-                return_value=["10.0.0.6"],
+                "socket.getaddrinfo",
+                return_value=[(socket.AF_INET, socket.SOCK_STREAM, 6, "", ("10.0.0.6", 0))],
             ) as mock_resolve,
         ):
             result = core_network.refresh_trusted_proxy_hostnames(force=True)
             assert result == {"proxy.internal": ["10.0.0.6"]}
-            mock_resolve.assert_called_once_with("proxy.internal")
+            mock_resolve.assert_called_once_with("proxy.internal", None)
 
     def test_replaces_old_ips_after_refresh(self):
         with (
@@ -125,8 +138,8 @@ class TestRefreshTrustedProxyHostnames:
             ),
             patch("core.network.time.monotonic", return_value=100.0),
             patch(
-                "core.network._resolve_hostname",
-                return_value=["10.0.0.6"],
+                "socket.getaddrinfo",
+                return_value=[(socket.AF_INET, socket.SOCK_STREAM, 6, "", ("10.0.0.6", 0))],
             ),
         ):
             core_network.refresh_trusted_proxy_hostnames()
@@ -282,55 +295,42 @@ class TestGetIpAddress:
     """Tests for get_ip_address function."""
 
     def test_no_client_returns_unknown(self):
-        request = MagicMock(spec=Request)
-        request.client = None
+        request = _request(None)
         result = core_network.get_ip_address(request)
         assert result == "unknown"
 
     def test_untrusted_peer_uses_direct_ip(self):
-        request = MagicMock(spec=Request)
-        request.client.host = "203.0.113.5"
-        request.headers = Headers({"X-Forwarded-For": "1.2.3.4"})
+        request = _request("203.0.113.5", {"X-Forwarded-For": "1.2.3.4"})
         with patch.object(core_network.core_config.settings, "TRUSTED_PROXIES", ["10.0.0.0/8"]):
             result = core_network.get_ip_address(request)
             assert result == "203.0.113.5"
 
     def test_trusted_proxy_x_forwarded_for(self):
-        request = MagicMock(spec=Request)
-        request.client.host = "10.0.0.1"
-        request.headers = Headers({"X-Forwarded-For": "1.2.3.4, 10.0.0.1"})
+        request = _request("10.0.0.1", {"X-Forwarded-For": "1.2.3.4, 10.0.0.1"})
         with patch.object(core_network.core_config.settings, "TRUSTED_PROXIES", ["10.0.0.0/8"]):
             result = core_network.get_ip_address(request)
             assert result == "1.2.3.4"
 
     def test_trusted_proxy_ignores_forged_prepended_hop(self):
-        request = MagicMock(spec=Request)
-        request.client.host = "10.0.0.1"
-        request.headers = Headers({"X-Forwarded-For": "198.51.100.1, 203.0.113.9"})
+        request = _request("10.0.0.1", {"X-Forwarded-For": "198.51.100.1, 203.0.113.9"})
         with patch.object(core_network.core_config.settings, "TRUSTED_PROXIES", ["10.0.0.0/8"]):
             result = core_network.get_ip_address(request)
             assert result == "203.0.113.9"
 
     def test_trusted_proxy_chain_skips_trusted_hops(self):
-        request = MagicMock(spec=Request)
-        request.client.host = "10.0.0.2"
-        request.headers = Headers({"X-Forwarded-For": "198.51.100.1, 203.0.113.9, 10.0.0.1"})
+        request = _request("10.0.0.2", {"X-Forwarded-For": "198.51.100.1, 203.0.113.9, 10.0.0.1"})
         with patch.object(core_network.core_config.settings, "TRUSTED_PROXIES", ["10.0.0.0/8"]):
             result = core_network.get_ip_address(request)
             assert result == "203.0.113.9"
 
     def test_trusted_proxy_all_hops_trusted_returns_leftmost(self):
-        request = MagicMock(spec=Request)
-        request.client.host = "10.0.0.2"
-        request.headers = Headers({"X-Forwarded-For": "10.0.0.3, 10.0.0.1"})
+        request = _request("10.0.0.2", {"X-Forwarded-For": "10.0.0.3, 10.0.0.1"})
         with patch.object(core_network.core_config.settings, "TRUSTED_PROXIES", ["10.0.0.0/8"]):
             result = core_network.get_ip_address(request)
             assert result == "10.0.0.3"
 
     def test_wildcard_trusts_every_hop_and_returns_leftmost(self):
-        request = MagicMock(spec=Request)
-        request.client.host = "10.0.0.1"
-        request.headers = Headers({"X-Forwarded-For": "1.2.3.4, 5.6.7.8"})
+        request = _request("10.0.0.1", {"X-Forwarded-For": "1.2.3.4, 5.6.7.8"})
         with patch.object(core_network.core_config.settings, "TRUSTED_PROXIES", ["*"]):
             result = core_network.get_ip_address(request)
             assert result == "1.2.3.4"
@@ -338,41 +338,31 @@ class TestGetIpAddress:
     def test_development_default_ignores_a_forged_forwarded_for(self, monkeypatch):
         monkeypatch.delenv("TRUSTED_PROXIES", raising=False)
         settings = core_network.core_config.Settings(_env_file=None, ENVIRONMENT="development")
-        request = MagicMock(spec=Request)
-        request.client.host = "203.0.113.5"
-        request.headers = Headers({"X-Forwarded-For": "198.51.100.1"})
+        request = _request("203.0.113.5", {"X-Forwarded-For": "198.51.100.1"})
         with patch.object(core_network.core_config, "settings", settings):
             result = core_network.get_ip_address(request)
         assert result == "203.0.113.5"
 
     def test_empty_x_forwarded_for_falls_back_to_x_real_ip(self):
-        request = MagicMock(spec=Request)
-        request.client.host = "10.0.0.1"
-        request.headers = Headers({"X-Forwarded-For": " , ", "X-Real-IP": "5.6.7.8"})
+        request = _request("10.0.0.1", {"X-Forwarded-For": " , ", "X-Real-IP": "5.6.7.8"})
         with patch.object(core_network.core_config.settings, "TRUSTED_PROXIES", ["10.0.0.0/8"]):
             result = core_network.get_ip_address(request)
             assert result == "5.6.7.8"
 
     def test_trusted_proxy_x_real_ip(self):
-        request = MagicMock(spec=Request)
-        request.client.host = "10.0.0.1"
-        request.headers = Headers({"X-Real-IP": "5.6.7.8"})
+        request = _request("10.0.0.1", {"X-Real-IP": "5.6.7.8"})
         with patch.object(core_network.core_config.settings, "TRUSTED_PROXIES", ["10.0.0.0/8"]):
             result = core_network.get_ip_address(request)
             assert result == "5.6.7.8"
 
     def test_trusted_proxy_prefers_x_forwarded_for(self):
-        request = MagicMock(spec=Request)
-        request.client.host = "10.0.0.1"
-        request.headers = Headers({"X-Forwarded-For": "1.2.3.4", "X-Real-IP": "5.6.7.8"})
+        request = _request("10.0.0.1", {"X-Forwarded-For": "1.2.3.4", "X-Real-IP": "5.6.7.8"})
         with patch.object(core_network.core_config.settings, "TRUSTED_PROXIES", ["*"]):
             result = core_network.get_ip_address(request)
             assert result == "1.2.3.4"
 
     def test_trusted_proxy_no_headers_returns_direct_ip(self):
-        request = MagicMock(spec=Request)
-        request.client.host = "10.0.0.1"
-        request.headers = Headers({})
+        request = _request("10.0.0.1", {})
         with patch.object(core_network.core_config.settings, "TRUSTED_PROXIES", ["10.0.0.0/8"]):
             result = core_network.get_ip_address(request)
             assert result == "10.0.0.1"
@@ -380,10 +370,7 @@ class TestGetIpAddress:
 
 def _forwarded_request(*forwarded_for_lines: str, peer: str = "10.0.0.1"):
     """Build a request from ``peer`` that carries one ``X-Forwarded-For`` header line per argument."""
-    request = MagicMock(spec=Request)
-    request.client.host = peer
-    request.headers = Headers(raw=[(b"x-forwarded-for", line.encode()) for line in forwarded_for_lines])
-    return request
+    return _request(peer, raw=[(b"x-forwarded-for", line.encode()) for line in forwarded_for_lines])
 
 
 class TestForwardedForLines:
@@ -622,16 +609,18 @@ class TestRejectPrivateUrl:
             mock_gai.return_value = [(socket.AF_INET, socket.SOCK_STREAM, 0, "", ("8.8.8.8", 0))]
             core_network.reject_private_url("http://google.com")
 
-    def test_allowlisted_private_url_logs(self):
+    def test_allowlisted_private_url_logs(self, caplog):
         with (
             patch("core.network.socket.getaddrinfo") as mock_gai,
             patch.object(core_network.core_config.settings, "SSRF_ALLOWED_HOSTS", ["10.0.0.0/8"]),
-            patch.object(core_network, "logger") as mock_log,
+            caplog.at_level("INFO", logger=core_network.logger.name),
         ):
             mock_gai.return_value = [(socket.AF_INET, socket.SOCK_STREAM, 0, "", ("10.0.0.1", 0))]
             core_network.reject_private_url("http://internal.example.com", purpose="test")
-            mock_log.info.assert_called_once()
-            assert "SSRF allowlist hit" in mock_log.info.call_args[0][0]
+
+        hits = [r for r in caplog.records if r.levelname == "INFO"]
+        assert len(hits) == 1
+        assert "SSRF allowlist hit" in hits[0].getMessage()
 
 
 class TestRequireTls:
@@ -778,15 +767,17 @@ class TestHostRejectionReason:
         ):
             assert core_network.host_rejection_reason("nominatim.internal") is None
 
-    def test_allowlisted_private_host_is_audited(self):
+    def test_allowlisted_private_host_is_audited(self, caplog):
         with (
             self._resolving_to("10.0.0.1"),
             patch.object(core_network.core_config.settings, "SSRF_ALLOWED_HOSTS", ["10.0.0.0/8"]),
-            patch.object(core_network, "logger") as mock_log,
+            caplog.at_level("INFO", logger=core_network.logger.name),
         ):
             core_network.host_rejection_reason("nominatim.internal", purpose="reverse_geocoding")
-            assert "SSRF allowlist hit" in mock_log.info.call_args[0][0]
-            assert "reverse_geocoding" in mock_log.info.call_args[0][0]
+
+        message = [r.getMessage() for r in caplog.records if r.levelname == "INFO"][-1]
+        assert "SSRF allowlist hit" in message
+        assert "reverse_geocoding" in message
 
 
 class TestUrlRejectionReasonBounded:
@@ -799,17 +790,28 @@ class TestUrlRejectionReasonBounded:
             yield
             core_network.shutdown_ssrf_dns_executor()
 
-    def test_a_stuck_lookup_keeps_its_slot_until_it_finishes(self):
+    @staticmethod
+    def _dns(monkeypatch, answer):
+        """Make ``getaddrinfo`` run ``answer(host)``, which returns addresses, in whichever thread asks."""
+
+        def getaddrinfo(host, port, *args, **kwargs):
+            return [(socket.AF_INET, socket.SOCK_STREAM, 0, "", (ip, port or 0)) for ip in answer(host)]
+
+        monkeypatch.setattr(socket, "getaddrinfo", getaddrinfo)
+
+    def test_a_stuck_lookup_keeps_its_slot_until_it_finishes(self, monkeypatch):
         """The caller gave up, but the lookup still runs: nothing may queue behind it."""
         release = threading.Event()
         calls: list[str] = []
 
-        def guard(url, *, purpose=None, require_tls=False):
-            calls.append(url)
+        def answer(host):
+            calls.append(host)
             release.wait(5)
+            return ["8.8.8.8"]
 
+        self._dns(monkeypatch, answer)
         with (
-            patch.object(core_network, "url_rejection_reason", guard),
+            patch.object(core_network.core_config.settings, "SSRF_ALLOWED_HOSTS", []),
             patch.object(core_network, "_SSRF_DNS_RESOLUTION_TIMEOUT_SECONDS", 0.05),
             patch.object(core_network, "_ssrf_dns_slots", threading.BoundedSemaphore(1)),
         ):
@@ -820,16 +822,14 @@ class TestUrlRejectionReasonBounded:
                 "URL hostname resolution is busy, try again"
             )
             release.set()
-            deadline = time.monotonic() + 2
-            while not core_network._ssrf_dns_slots.acquire(blocking=False):
-                assert time.monotonic() < deadline
-                time.sleep(0.01)
+            assert core_network._ssrf_dns_slots.acquire(timeout=5)
             core_network._ssrf_dns_slots.release()
 
-        assert calls == ["https://stuck.example.com"]
+        assert calls == ["stuck.example.com"]
 
-    def test_shutdown_stops_the_pool_and_the_next_lookup_starts_a_new_one(self):
-        with patch.object(core_network, "url_rejection_reason", lambda url, *, purpose=None, require_tls=False: None):
+    def test_shutdown_stops_the_pool_and_the_next_lookup_starts_a_new_one(self, monkeypatch):
+        self._dns(monkeypatch, lambda host: ["8.8.8.8"])
+        with patch.object(core_network.core_config.settings, "SSRF_ALLOWED_HOSTS", []):
             core_network.url_rejection_reason_bounded("https://idp.example.com")
             first_pool = core_network._ssrf_dns_executor
             assert first_pool is not None
@@ -841,27 +841,30 @@ class TestUrlRejectionReasonBounded:
             core_network.url_rejection_reason_bounded("https://idp.example.com")
             assert core_network._ssrf_dns_executor is not first_pool
 
-    def test_returns_the_guard_reason_from_the_dedicated_pool(self):
+    def test_returns_the_guard_reason_from_the_dedicated_pool(self, monkeypatch):
         seen = {}
 
-        def guard(url, *, purpose=None, require_tls=False):
+        def answer(host):
             seen["thread"] = threading.current_thread().name
-            return "URL resolves to a non-public address"
+            return ["10.0.0.5"]
 
-        with patch.object(core_network, "url_rejection_reason", guard):
+        self._dns(monkeypatch, answer)
+        with patch.object(core_network.core_config.settings, "SSRF_ALLOWED_HOSTS", []):
             reason = core_network.url_rejection_reason_bounded("https://internal.example.com/0/0/0.png")
 
         assert reason == "URL resolves to a non-public address"
         assert seen["thread"].startswith("ssrf-dns")
 
-    def test_a_lookup_that_never_returns_is_refused_not_awaited(self):
+    def test_a_lookup_that_never_returns_is_refused_not_awaited(self, monkeypatch):
         release = threading.Event()
 
-        def guard(url, *, purpose=None, require_tls=False):
+        def answer(host):
             release.wait(5)
+            return ["8.8.8.8"]
 
+        self._dns(monkeypatch, answer)
         with (
-            patch.object(core_network, "url_rejection_reason", guard),
+            patch.object(core_network.core_config.settings, "SSRF_ALLOWED_HOSTS", []),
             patch.object(core_network, "_SSRF_DNS_RESOLUTION_TIMEOUT_SECONDS", 0.05),
         ):
             reason = core_network.url_rejection_reason_bounded("https://slow.example.com/0/0/0.png")
@@ -889,31 +892,16 @@ class TestUrlRejectionReasonBounded:
 class TestXRealIpValidation:
     """X-Real-IP is only used when it is a valid IP address."""
 
-    @staticmethod
-    def _request(real_ip):
-        from unittest.mock import MagicMock
-
-        request = MagicMock()
-        request.client.host = "10.0.0.1"
-        request.headers = Headers({"X-Real-IP": real_ip})
-        return request
-
     def test_a_valid_address_is_used(self):
-        from unittest.mock import patch
+        with patch.object(core_network.core_config.settings, "TRUSTED_PROXIES", ["10.0.0.0/8"]):
+            request = _request("10.0.0.1", {"X-Real-IP": "203.0.113.7"})
 
-        import core.network as core_network
-
-        with patch.object(core_network, "_is_trusted_peer", return_value=True):
-            assert core_network.get_ip_address(self._request("203.0.113.7")) == "203.0.113.7"
+            assert core_network.get_ip_address(request) == "203.0.113.7"
 
     @pytest.mark.parametrize("value", ["not-an-ip", "x" * 500, "203.0.113.7, 1.1.1.1"])
     def test_an_invalid_value_falls_back_to_the_peer_address(self, value):
-        from unittest.mock import patch
-
-        import core.network as core_network
-
-        with patch.object(core_network, "_is_trusted_peer", return_value=True):
-            assert core_network.get_ip_address(self._request(value)) == "10.0.0.1"
+        with patch.object(core_network.core_config.settings, "TRUSTED_PROXIES", ["10.0.0.0/8"]):
+            assert core_network.get_ip_address(_request("10.0.0.1", {"X-Real-IP": value})) == "10.0.0.1"
 
 
 class TestClientNetwork:
