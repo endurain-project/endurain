@@ -1,57 +1,53 @@
+"""The public workout steps route, through the production application: it follows the parent's visibility."""
+
 import uuid
-from unittest.mock import patch
 
-from fastapi import FastAPI
-from fastapi.testclient import TestClient
+import pytest
 
-from modules.activities.activity_workout_steps.schema import ActivityWorkoutStepsPage
+import core.config as core_config
+import modules.activities.activity.constants as activity_constants
+from tests._factories.activities import make_workout_steps
 
-
-def _build_app(mock_db):
-    import core.database as core_db
-    import modules.activities.activity_workout_steps.public_router as router
-
-    app = FastAPI()
-    app.include_router(router.router, prefix="/public/activities/{activity_id}")
-    app.dependency_overrides[core_db.get_db] = lambda: mock_db
-    return app
+_VISIBILITY = activity_constants.ActivityVisibility
+_EMPTY = {"items": [], "total": 0, "page": 1, "num_records": 200, "next": None}
 
 
-class TestReadPublicWorkoutSteps:
-    @patch(
-        "modules.activities.activity_workout_steps.public_router.activity_workout_steps_service.list_public_activity_workout_steps"
-    )
-    def test_success(self, mock_get, mock_db):
-        from modules.activities.activity_workout_steps.schema import ActivityWorkoutStepsRead
+def _url(activity_id: uuid.UUID | str) -> str:
+    return f"{core_config.ROOT_PATH}/public/activities/{activity_id}/workout-steps"
 
-        client = TestClient(_build_app(mock_db))
-        mock_get.return_value = ActivityWorkoutStepsPage.build(
-            [
-                ActivityWorkoutStepsRead(
-                    id=uuid.uuid4(), activity_id=uuid.uuid4(), message_index=0, duration_type="active"
-                )
-            ],
-            1,
-            1,
-            200,
-        )
 
-        response = client.get("/public/activities/00000000-0000-4000-8000-000000000001/workout-steps")
+def _stage(db, activity):
+    make_workout_steps(db, activity, [{"message_index": 0, "duration_type": "time", "notes": "go"}])
+
+
+@pytest.mark.usefixtures("public_links")
+class TestPublicList:
+    def test_the_steps_of_a_public_activity_need_no_credentials(self, client, make_owned_activity):
+        activity = make_owned_activity(_VISIBILITY.PUBLIC, stage=_stage)
+
+        response = client.get(_url(activity.id))
+
         assert response.status_code == 200
+        assert [item["notes"] for item in response.json()["items"]] == ["go"]
 
-    @patch(
-        "modules.activities.activity_workout_steps.public_router.activity_workout_steps_service.list_public_activity_workout_steps"
-    )
-    def test_not_found(self, mock_get, mock_db):
-        client = TestClient(_build_app(mock_db))
-        mock_get.return_value = ActivityWorkoutStepsPage.build([], 0, 1, 200)
+    @pytest.mark.parametrize("visibility", [_VISIBILITY.FOLLOWERS, _VISIBILITY.PRIVATE])
+    def test_an_activity_that_is_not_public_answers_as_a_missing_one_does(
+        self, client, make_owned_activity, visibility
+    ):
+        activity = make_owned_activity(visibility, stage=_stage)
 
-        response = client.get("/public/activities/00000000-0000-4000-8000-000000000999/workout-steps")
-        assert response.status_code == 200
-        assert response.json()["items"] == [] and response.json()["total"] == 0
+        assert client.get(_url(activity.id)).json() == client.get(_url(uuid.uuid4())).json() == _EMPTY
 
-    def test_a_malformed_activity_id_answers_422(self, mock_db):
-        client = TestClient(_build_app(mock_db))
+    def test_hide_workout_sets_steps_serves_nothing(self, client, make_owned_activity):
+        activity = make_owned_activity(_VISIBILITY.PUBLIC, stage=_stage, hide_workout_sets_steps=True)
 
-        response = client.get("/public/activities/not-a-uuid/workout-steps")
-        assert response.status_code == 422
+        assert client.get(_url(activity.id)).json()["total"] == 0
+
+    def test_a_malformed_activity_id_is_a_validation_error(self, client):
+        assert client.get(_url("not-a-uuid")).status_code == 422
+
+
+def test_with_public_links_off_a_public_activity_serves_no_steps(client, make_owned_activity):
+    activity = make_owned_activity(_VISIBILITY.PUBLIC, stage=_stage)
+
+    assert client.get(_url(activity.id)).json() == _EMPTY

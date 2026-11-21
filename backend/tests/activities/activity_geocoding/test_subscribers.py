@@ -1,138 +1,123 @@
-"""Tests for the geocoding subscribers (activity.created)."""
+"""Activities are located when they are created, through the bus and the durable handler."""
 
 import uuid
-from datetime import UTC, datetime
-from unittest.mock import MagicMock, patch
+from datetime import timedelta
 
+import jasil.runtime as platform_runtime
+import pydantic
 import pytest
 from jasil.events import new_event
 from jasil.jobs import DeferJob
-from pydantic import ValidationError
+from jasil.jobs.registry import JobHandlerRegistry
 
-UUID_1 = uuid.UUID("11111111-1111-4111-8111-111111111111")
-RETRY_AT = datetime(2026, 10, 15, 12, 0, 30, tzinfo=UTC)
-_SUB = "modules.activities.activity_geocoding.subscribers"
+import modules.activities.activity.events as activity_events
+import modules.activities.activity.models as activity_models
+import modules.activities.activity_geocoding.subscriber_registry as geocoding_subscriber_registry
+import modules.activities.activity_geocoding.subscribers as geocoding_subscribers
+import modules.activities.activity_streams.constants as stream_constants
+from tests._factories.activities import make_activity, make_stream
+from tests._factories.users import make_user
 
-
-def _event(payload):
-    return new_event("activity.created", payload, source="test")
-
-
-class TestOnActivityCreatedGeocode:
-    """The bus wrapper: reverse-geocodes, swallowing any error."""
-
-    @patch(f"{_SUB}.activity_geocoding_service")
-    def test_noop_for_malformed_ids(self, mock_service):
-        from modules.activities.activity_geocoding.subscribers import on_activity_created_geocode
-
-        on_activity_created_geocode(_event({"activity_id": "x", "user_id": str(uuid.UUID(int=2))}))
-
-        mock_service.geocode_and_store_activity_location.assert_not_called()
-
-    @patch(f"{_SUB}.core_database")
-    @patch(f"{_SUB}.activity_geocoding_service")
-    def test_geocodes_for_activity(self, mock_service, _mock_db):
-        from modules.activities.activity_geocoding.subscribers import on_activity_created_geocode
-
-        mock_service.geocode_and_store_activity_location.return_value = None
-
-        on_activity_created_geocode(_event({"activity_id": str(UUID_1), "user_id": str(uuid.UUID(int=2))}))
-
-        assert mock_service.geocode_and_store_activity_location.call_args.args[0] == UUID_1
-
-    @patch("jasil.subscribers.logger")
-    @patch(f"{_SUB}.core_database")
-    @patch(f"{_SUB}.activity_geocoding_service")
-    def test_leaves_a_held_back_lookup_to_the_backfill(self, mock_service, _mock_db, mock_logger):
-        from modules.activities.activity_geocoding.subscribers import on_activity_created_geocode
-
-        mock_service.geocode_and_store_activity_location.return_value = RETRY_AT
-
-        on_activity_created_geocode(_event({"activity_id": str(UUID_1), "user_id": str(uuid.UUID(int=2))}))
-
-        # The rate limit holding a lookup back is expected under load, not a subscriber failure.
-        mock_logger.error.assert_not_called()
-
-    @patch("jasil.subscribers.logger")
-    @patch(f"{_SUB}.core_database")
-    @patch(f"{_SUB}.activity_geocoding_service")
-    def test_swallows_errors(self, mock_service, _mock_db, mock_logger):
-        from modules.activities.activity_geocoding.subscribers import on_activity_created_geocode
-
-        mock_service.geocode_and_store_activity_location.side_effect = RuntimeError("boom")
-
-        # Must not raise — a geocoding failure never breaks activity import.
-        on_activity_created_geocode(_event({"activity_id": str(UUID_1), "user_id": str(uuid.UUID(int=2))}))
-
-        mock_logger.error.assert_called()
-
-    def test_subscribes_to_created(self):
-        from modules.activities.activity_geocoding.subscribers import (
-            on_activity_created_geocode,
-            register_bus_subscribers,
-        )
-
-        events = MagicMock()
-        register_bus_subscribers(events)
-
-        events.subscribe.assert_called_once_with("activity.created", on_activity_created_geocode)
+_MAP = stream_constants.STREAM_TYPE_MAP
+_LISBON = [{"lat": 38.7, "lon": -9.1}, {"lat": 38.8, "lon": -9.2}]
 
 
-class TestGeocodeActivityForEvent:
-    """The durable core: propagates errors so the job runner can retry."""
+@pytest.fixture
+def events():
+    return platform_runtime.get_active_platform().events
 
-    @patch(f"{_SUB}.activity_geocoding_service")
-    def test_raises_on_missing_ids(self, mock_service):
-        from modules.activities.activity_geocoding.subscribers import geocode_activity_for_event
 
-        with pytest.raises(ValidationError):
-            geocode_activity_for_event(_event({"activity_id": str(UUID_1)}))
+@pytest.fixture
+def clock():
+    return platform_runtime.get_active_platform().clock
 
-        mock_service.geocode_and_store_activity_location.assert_not_called()
 
-    @patch(f"{_SUB}.core_database")
-    @patch(f"{_SUB}.activity_geocoding_service")
-    def test_raises_on_error(self, mock_service, _mock_db):
-        from modules.activities.activity_geocoding.subscribers import geocode_activity_for_event
+@pytest.fixture
+def created(db, geocoder):
+    """An activity with a GPS stream, and its ``activity.created`` event."""
+    user = make_user(db)
+    activity = make_activity(db, user.id)
+    make_stream(db, activity, _MAP, _LISBON)
+    payload = activity_events.ActivityCreatedPayload(activity_id=activity.id, user_id=user.id)
+    event = new_event(activity_events.ACTIVITY_CREATED, payload.model_dump(mode="json"), source="test")
+    return activity, event
 
-        mock_service.geocode_and_store_activity_location.side_effect = RuntimeError("boom")
 
-        with pytest.raises(RuntimeError):
-            geocode_activity_for_event(_event({"activity_id": str(UUID_1), "user_id": str(uuid.UUID(int=2))}))
+def _country(db, activity) -> str | None:
+    db.expire_all()
+    return db.get(activity_models.Activity, activity.id).country
 
-    @patch(f"{_SUB}.core_database")
-    @patch(f"{_SUB}.activity_geocoding_service")
-    def test_defers_a_held_back_lookup(self, mock_service, _mock_db):
-        from modules.activities.activity_geocoding.subscribers import geocode_activity_for_event
 
-        mock_service.geocode_and_store_activity_location.return_value = RETRY_AT
+class TestBus:
+    def test_a_created_activity_is_located_when_the_event_is_published(self, db, events, created):
+        activity, event = created
+        geocoding_subscribers.register_bus_subscribers(events)
 
-        with pytest.raises(DeferJob) as deferral:
-            geocode_activity_for_event(_event({"activity_id": str(UUID_1), "user_id": str(uuid.UUID(int=2))}))
+        events.publish(event)
 
-        assert deferral.value.retry_at == RETRY_AT
+        assert _country(db, activity) == "Portugal"
 
-    @patch(f"{_SUB}.core_database")
-    @patch(f"{_SUB}.activity_geocoding_service")
-    def test_a_final_answer_finishes_the_job(self, mock_service, _mock_db):
-        from modules.activities.activity_geocoding.subscribers import geocode_activity_for_event
+    def test_a_held_back_lookup_is_left_to_the_backfill_and_never_reaches_the_publisher(
+        self, db, events, created, geocoding_server, clock
+    ):
+        activity, event = created
+        geocoding_server.mode = "rate_limited"
+        geocoding_subscribers.register_bus_subscribers(events)
 
-        mock_service.geocode_and_store_activity_location.return_value = None
+        events.publish(event)
 
-        geocode_activity_for_event(_event({"activity_id": str(UUID_1), "user_id": str(uuid.UUID(int=2))}))
+        assert _country(db, activity) is None
 
-    def test_register_durable_handlers(self):
-        from modules.activities.activity_geocoding.subscribers import (
-            GEOCODING_SUBSCRIBER_ID,
-            geocode_activity_for_event,
-            register_durable_handlers,
-        )
+    def test_a_failure_in_the_handler_never_reaches_the_publisher(self, db, geocoder):
+        event = new_event(activity_events.ACTIVITY_CREATED, {"activity_id": "not-a-uuid"}, source="test")
 
-        registry = MagicMock()
-        register_durable_handlers(registry)
+        geocoding_subscribers.on_activity_created_geocode(event)
 
-        registry.register.assert_called_once_with(
-            "activity.created",
-            GEOCODING_SUBSCRIBER_ID,
-            geocode_activity_for_event,
-        )
+
+class TestDurableHandler:
+    def test_the_handler_locates_the_activity_named_in_the_event(self, db, created):
+        activity, event = created
+
+        geocoding_subscribers.geocode_activity_for_event(event)
+
+        assert _country(db, activity) == "Portugal"
+
+    def test_an_activity_without_a_route_is_left_alone_without_error(self, db, geocoder, geocoding_server):
+        user = make_user(db)
+        activity = make_activity(db, user.id)
+        payload = activity_events.ActivityCreatedPayload(activity_id=activity.id, user_id=user.id)
+        event = new_event(activity_events.ACTIVITY_CREATED, payload.model_dump(mode="json"), source="test")
+
+        geocoding_subscribers.geocode_activity_for_event(event)
+
+        assert (_country(db, activity), geocoding_server.requests) == (None, [])
+
+    def test_a_held_back_lookup_defers_the_job_to_the_time_the_service_names(
+        self, db, created, geocoding_server, clock
+    ):
+        _, event = created
+        geocoding_server.mode = "rate_limited"
+
+        with pytest.raises(DeferJob) as deferred:
+            geocoding_subscribers.geocode_activity_for_event(event)
+
+        assert deferred.value.retry_at == clock.now() + timedelta(seconds=120)
+
+    def test_an_event_without_a_valid_payload_is_refused_so_the_runner_retries(self, geocoder):
+        event = new_event(activity_events.ACTIVITY_CREATED, {"user_id": str(uuid.uuid4())}, source="test")
+
+        with pytest.raises(pydantic.ValidationError):
+            geocoding_subscribers.geocode_activity_for_event(event)
+
+
+class TestRegistry:
+    def test_the_package_registers_its_durable_handler_under_a_stable_id_and_wires_the_bus(self, db, events, created):
+        activity, event = created
+        registry = JobHandlerRegistry()
+
+        geocoding_subscriber_registry.register_durable_handlers(registry)
+        geocoding_subscriber_registry.register_bus_subscribers(events)
+        events.publish(event)
+
+        assert registry.subscribers_for(activity_events.ACTIVITY_CREATED) == ("activity_geocoding.reverse_geocode",)
+        assert _country(db, activity) == "Portugal"

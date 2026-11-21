@@ -1,141 +1,94 @@
-from unittest.mock import patch
+"""Heart-rate zone maths and the max heart rate it is derived from."""
 
-from modules.activities.activity_streams.hr_zones import compute_hr_zone_breakdown_sync
+from datetime import UTC, date, datetime
 
+import jasil.runtime as platform_runtime
+import pytest
 
-def test_compute_hr_zone_percentages_with_even_distribution():
-    waypoints = [
-        {"hr": 100},
-        {"hr": 130},
-        {"hr": 150},
-        {"hr": 170},
-        {"hr": 190},
-    ]
+import core.config as core_config
+import modules.activities.activity_streams.hr_zones as hr_zones
 
-    result = compute_hr_zone_breakdown_sync(waypoints, max_heart_rate=200, total_timer_time=100)
-
-    assert result is not None
-    assert result["zone_1"] == {"percent": 20.0, "hr": "< 120", "time_seconds": 20}
-    assert result["zone_2"] == {"percent": 20.0, "hr": "120 - 139", "time_seconds": 20}
-    assert result["zone_3"] == {"percent": 20.0, "hr": "140 - 159", "time_seconds": 20}
-    assert result["zone_4"] == {"percent": 20.0, "hr": "160 - 179", "time_seconds": 20}
-    assert result["zone_5"] == {"percent": 20.0, "hr": ">= 180", "time_seconds": 20}
+_EVEN = [{"hr": 100}, {"hr": 130}, {"hr": 150}, {"hr": 170}, {"hr": 190}]
 
 
-def test_compute_hr_zone_percentages_returns_none_for_empty_waypoints():
-    assert compute_hr_zone_breakdown_sync([], max_heart_rate=200, total_timer_time=100) is None
+class TestZoneBreakdown:
+    def test_samples_spread_over_the_zones_split_the_timer_time_evenly(self):
+        result = hr_zones.compute_hr_zone_breakdown_sync(_EVEN, max_heart_rate=200, total_timer_time=100)
+
+        assert result == {
+            "zone_1": {"percent": 20.0, "hr": "< 120", "time_seconds": 20},
+            "zone_2": {"percent": 20.0, "hr": "120 - 139", "time_seconds": 20},
+            "zone_3": {"percent": 20.0, "hr": "140 - 159", "time_seconds": 20},
+            "zone_4": {"percent": 20.0, "hr": "160 - 179", "time_seconds": 20},
+            "zone_5": {"percent": 20.0, "hr": ">= 180", "time_seconds": 20},
+        }
+
+    def test_a_sample_on_a_boundary_belongs_to_the_zone_above_it(self):
+        waypoints = [{"hr": hr} for hr in (119, 120, 139, 140, 159, 160, 179, 180, 199)]
+
+        result = hr_zones.compute_hr_zone_breakdown_sync(waypoints, max_heart_rate=200, total_timer_time=900)
+
+        assert result is not None
+        assert [result[f"zone_{n}"]["percent"] for n in range(1, 6)] == [11.11, 22.22, 22.22, 22.22, 22.22]
+
+    def test_a_zero_or_missing_timer_time_gives_zero_seconds_in_every_zone(self):
+        for timer_time in (0, None):
+            result = hr_zones.compute_hr_zone_breakdown_sync(_EVEN, max_heart_rate=200, total_timer_time=timer_time)
+
+            assert result is not None
+            assert all(zone["time_seconds"] == 0 for zone in result.values())
+
+    def test_samples_without_a_heart_rate_are_left_out_of_the_shares(self):
+        waypoints = [{"hr": 100}, {"hr": None}, {"cad": 90}, {"hr": 190}]
+
+        result = hr_zones.compute_hr_zone_breakdown_sync(waypoints, max_heart_rate=200, total_timer_time=100)
+
+        assert result is not None
+        assert (result["zone_1"]["percent"], result["zone_5"]["percent"], result["zone_3"]["percent"]) == (
+            50.0,
+            50.0,
+            0.0,
+        )
+
+    @pytest.mark.parametrize("waypoints", [[], [{"cad": 90}, {"cad": 95}], [{"hr": None}]])
+    def test_no_heart_rate_samples_give_no_breakdown(self, waypoints):
+        assert hr_zones.compute_hr_zone_breakdown_sync(waypoints, max_heart_rate=200, total_timer_time=100) is None
 
 
-def test_compute_hr_zone_percentages_returns_none_when_no_hr_values_exist():
-    waypoints = [{"cadence": 90}, {"cadence": 95}]
-
-    assert compute_hr_zone_breakdown_sync(waypoints, max_heart_rate=200, total_timer_time=100) is None
-
-
-def test_compute_hr_zone_percentages_uses_zero_time_seconds_for_falsy_timer_time():
-    waypoints = [{"hr": 100}, {"hr": 130}, {"hr": 150}, {"hr": 170}, {"hr": 190}]
-
-    result = compute_hr_zone_breakdown_sync(waypoints, max_heart_rate=200, total_timer_time=0)
-
-    assert result is not None
-    assert all(zone["time_seconds"] == 0 for zone in result.values())
-
-
-def test_compute_hr_zone_percentages_respects_known_zone_boundaries():
-    waypoints = [
-        {"hr": 119},
-        {"hr": 120},
-        {"hr": 139},
-        {"hr": 140},
-        {"hr": 159},
-        {"hr": 160},
-        {"hr": 179},
-        {"hr": 180},
-        {"hr": 199},
-    ]
-
-    result = compute_hr_zone_breakdown_sync(waypoints, max_heart_rate=200, total_timer_time=900)
-
-    assert result is not None
-    assert result["zone_1"]["percent"] == 11.11
-    assert result["zone_2"]["percent"] == 22.22
-    assert result["zone_3"]["percent"] == 22.22
-    assert result["zone_4"]["percent"] == 22.22
-    assert result["zone_5"]["percent"] == 22.22
-
-
-def test_compute_hr_zone_breakdown_sync_matches_even_distribution():
-    from modules.activities.activity_streams.hr_zones import compute_hr_zone_breakdown_sync
-
-    waypoints = [{"hr": 100}, {"hr": 130}, {"hr": 150}, {"hr": 170}, {"hr": 190}]
-
-    result = compute_hr_zone_breakdown_sync(waypoints, max_heart_rate=200, total_timer_time=100)
-
-    assert result is not None
-    assert result["zone_1"] == {"percent": 20.0, "hr": "< 120", "time_seconds": 20}
-    assert result["zone_5"] == {"percent": 20.0, "hr": ">= 180", "time_seconds": 20}
-
-
-def test_compute_hr_zone_breakdown_sync_returns_none_without_hr_values():
-    from modules.activities.activity_streams.hr_zones import compute_hr_zone_breakdown_sync
-
-    assert compute_hr_zone_breakdown_sync([{"cadence": 90}], max_heart_rate=200, total_timer_time=100) is None
+@pytest.fixture
+def clock(db):
+    """The platform's fixed clock, which the real-database harness installs, so a test can choose the day."""
+    return platform_runtime.get_active_platform().clock
 
 
 class TestResolveMaxHeartRate:
-    """``220 - age`` needs completed years, not a year subtraction."""
+    def test_a_stored_value_wins_over_the_birthdate(self):
+        assert hr_zones.resolve_max_heart_rate(190, date(1990, 1, 5), "UTC") == 190
 
-    def test_stored_value_wins(self):
-        import modules.activities.activity_streams.hr_zones as hr_zones
-
-        assert hr_zones.resolve_max_heart_rate(190, None, None) == 190
-
-    def test_no_birthdate_and_no_stored_value(self):
-        import modules.activities.activity_streams.hr_zones as hr_zones
-
+    def test_no_birthdate_and_no_stored_value_gives_none(self):
         assert hr_zones.resolve_max_heart_rate(None, None, None) is None
 
-    def test_birthday_not_yet_reached_this_year(self):
-        """Subtracting birth years alone aged a December-born user a year early."""
-        from datetime import date
+    def test_a_birthday_not_yet_reached_this_year_counts_the_previous_age(self, clock):
+        clock.moment = datetime(2026, 3, 1, 12, tzinfo=UTC)
 
-        import modules.activities.activity_streams.hr_zones as hr_zones
+        assert hr_zones.resolve_max_heart_rate(None, date(1990, 12, 25), "UTC") == 220 - 35
 
-        with patch.object(hr_zones.core_timezone, "today_in", return_value=date(2026, 3, 1)):
-            result = hr_zones.resolve_max_heart_rate(None, date(1990, 12, 25), "UTC")
+    def test_a_birthday_already_passed_this_year_counts_the_new_age(self, clock):
+        clock.moment = datetime(2026, 3, 1, 12, tzinfo=UTC)
 
-        # On 1 Mar 2026 a 1990-12-25 birthdate is 35, not 36.
-        assert result == 220 - 35
+        assert hr_zones.resolve_max_heart_rate(None, date(1990, 1, 5), "UTC") == 220 - 36
 
-    def test_birthday_already_passed_this_year(self):
-        from datetime import date
+    def test_the_age_is_counted_on_the_users_own_calendar_day(self, clock):
+        clock.moment = datetime(2026, 3, 1, 23, tzinfo=UTC)
+        birthdate = date(1990, 3, 2)
 
-        import modules.activities.activity_streams.hr_zones as hr_zones
+        assert hr_zones.resolve_max_heart_rate(None, birthdate, "UTC") == 220 - 35
+        assert hr_zones.resolve_max_heart_rate(None, birthdate, "Pacific/Kiritimati") == 220 - 36
 
-        with patch.object(hr_zones.core_timezone, "today_in", return_value=date(2026, 3, 1)):
-            result = hr_zones.resolve_max_heart_rate(None, date(1990, 1, 5), "UTC")
+    def test_a_user_without_a_timezone_is_aged_on_the_servers_calendar_day(self, clock):
+        clock.moment = datetime(2026, 3, 1, 23, tzinfo=UTC)
+        birthdate = date(1990, 3, 2)
 
-        assert result == 220 - 36
-
-    def test_age_is_resolved_in_the_users_own_timezone(self):
-        """A birthday is a local date: UTC would roll it a day early or late."""
-        from datetime import date
-
-        import modules.activities.activity_streams.hr_zones as hr_zones
-
-        with patch.object(hr_zones.core_timezone, "today_in", return_value=date(2026, 3, 1)) as today_in:
-            hr_zones.resolve_max_heart_rate(None, date(1990, 1, 5), "Pacific/Kiritimati")
-
-        today_in.assert_called_once_with("Pacific/Kiritimati")
-
-    def test_falls_back_to_the_server_timezone_when_the_user_has_none(self):
-        """``users.timezone`` is nullable for accounts predating the setting."""
-        from datetime import date
-
-        import core.config as core_config
-        import modules.activities.activity_streams.hr_zones as hr_zones
-
-        with patch.object(hr_zones.core_timezone, "today_in", return_value=date(2026, 3, 1)) as today_in:
-            hr_zones.resolve_max_heart_rate(None, date(1990, 1, 5), None)
-
-        today_in.assert_called_once_with(core_config.settings.TZ)
+        assert hr_zones.resolve_max_heart_rate(None, birthdate, None) == hr_zones.resolve_max_heart_rate(
+            None, birthdate, core_config.settings.TZ
+        )

@@ -6,7 +6,6 @@ from typing import Any
 from unittest.mock import MagicMock, patch
 
 import pytest
-from tests._helpers.auth import MOCK_USER_ID
 
 import modules.activities.activity.schema as activity_schema
 import modules.activities.activity_exercise_titles.integration_service as activity_exercise_titles_integration
@@ -15,6 +14,7 @@ import modules.activities.activity_media.integration_service as activity_media_i
 import modules.activities.activity_sets.integration_service as activity_sets_integration
 import modules.activities.activity_streams.integration_service as activity_streams_integration
 import modules.activities.activity_workout_steps.integration_service as activity_workout_steps_integration
+from tests._helpers.auth import MOCK_USER_ID
 
 _NEW_ID = uuid.UUID(int=10)
 _OLD_ID = uuid.UUID(int=1)

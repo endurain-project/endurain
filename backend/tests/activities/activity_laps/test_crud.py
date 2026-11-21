@@ -1,126 +1,85 @@
-import uuid
-from datetime import UTC, datetime, timedelta
-from unittest.mock import MagicMock, patch
+"""Laps are stored from parsed dicts and read back in recorded order, page by page, on the real database."""
 
-from tests._helpers.db import setup_mock_execute
-from tests._helpers.models import mock_model
+from datetime import timedelta
 
-_ACTIVITY_ID = uuid.UUID("00000000-0000-4000-8000-000000000005")
+import pytest
+from sqlalchemy.exc import IntegrityError
 
-_T0 = datetime(2024, 1, 15, 8, 0, tzinfo=UTC)
-
-
-class TestCreateActivityLaps:
-    @patch("modules.activities.activity_laps.crud.activity_laps_models.ActivityLaps")
-    def test_success(self, mock_laps_model, mock_db):
-        import modules.activities.activity_laps.crud as crud
-
-        mock_laps_model.return_value = MagicMock()
-        laps = [{"lap_number": 1, "lap_time": 3600.0}]
-        crud.create_activity_laps(laps, _ACTIVITY_ID, mock_db)
-        mock_db.add_all.assert_called_once()
-        mock_db.flush.assert_called_once()
-        mock_db.commit.assert_not_called()
-
-    def test_empty(self, mock_db):
-        import modules.activities.activity_laps.crud as crud
-
-        crud.create_activity_laps([], _ACTIVITY_ID, mock_db)
-        mock_db.flush.assert_called_once()
-        mock_db.commit.assert_not_called()
+import modules.activities.activity_laps.crud as laps_crud
+import modules.activities.activity_laps.models as laps_models
+from tests._factories.activities import DEFAULT_START, make_activity, make_laps
+from tests._factories.users import make_user
 
 
-class TestGetActivityLaps:
-    """Persistence only — the access decision lives in ``activity_laps.service``."""
+@pytest.fixture
+def activity(db):
+    return make_activity(db, make_user(db).id)
 
-    @patch("modules.activities.activity_laps.serializers.to_read_schema")
-    def test_success(self, mock_to_read, mock_db):
-        import modules.activities.activity_laps.crud as crud
-        import modules.activities.activity_laps.models as m
 
-        mock_to_read.return_value = MagicMock()
-        setup_mock_execute(
-            mock_db, return_scalars_all=[mock_model(m.ActivityLaps, id=uuid.uuid4(), activity_id=_ACTIVITY_ID)]
+def _lap(minutes: int, **fields) -> dict[str, object]:
+    return {"start_time": DEFAULT_START + timedelta(minutes=minutes), **fields}
+
+
+class TestCreate:
+    def test_a_lap_keeps_the_fields_it_was_given_and_stores_the_rest_as_null(self, db, activity):
+        [stored] = make_laps(db, activity, [_lap(0, total_distance=1000.0, avg_heart_rate=150, lap_trigger="manual")])
+
+        row = db.get(laps_models.ActivityLaps, stored.id)
+        assert (row.activity_id, row.total_distance, row.avg_heart_rate, row.lap_trigger) == (
+            activity.id,
+            1000.0,
+            150,
+            "manual",
         )
-        r = crud.get_activity_laps(activity_id=_ACTIVITY_ID, db=mock_db)
-        assert len(r) == 1
+        assert (row.avg_power, row.enhanced_avg_speed, row.start_position_lat) == (None, None, None)
 
-    def test_empty(self, mock_db):
-        import modules.activities.activity_laps.crud as crud
+    def test_no_laps_stores_nothing(self, db, activity):
+        laps_crud.create_activity_laps([], activity.id, db)
 
-        setup_mock_execute(mock_db, return_scalars_all=[])
-        assert crud.get_activity_laps(activity_id=_ACTIVITY_ID, db=mock_db) == []
+        assert laps_crud.count_activity_laps(activity.id, db) == 0
 
-
-class TestGetActivitiesLaps:
-    """The batch read no longer joins the parent: it is handed scoped ids."""
-
-    @patch("modules.activities.activity_laps.serializers.to_read_schema")
-    def test_success(self, mock_to_read, mock_db):
-        import modules.activities.activity_laps.crud as crud
-        import modules.activities.activity_laps.models as m
-
-        mock_to_read.return_value = MagicMock()
-        mock_db.scalars.return_value.all.return_value = [
-            MagicMock(spec=m.ActivityLaps, id=uuid.uuid4(), activity_id=_ACTIVITY_ID)
-        ]
-
-        assert len(crud.get_activities_laps(activity_ids=[_ACTIVITY_ID], db=mock_db)) == 1
-
-    def test_empty_ids_short_circuits(self, mock_db):
-        import modules.activities.activity_laps.crud as crud
-
-        assert crud.get_activities_laps(activity_ids=[], db=mock_db) == []
-        mock_db.scalars.assert_not_called()
-
-    def test_no_rows(self, mock_db):
-        import modules.activities.activity_laps.crud as crud
-
-        mock_db.scalars.return_value.all.return_value = []
-
-        assert crud.get_activities_laps(activity_ids=[_ACTIVITY_ID], db=mock_db) == []
+    def test_a_lap_without_a_start_time_is_refused_by_the_database(self, db, activity):
+        with pytest.raises(IntegrityError, match="start_time"):
+            laps_crud.create_activity_laps([{"total_distance": 1.0}], activity.id, db)
 
 
-def _ids(*numbers):
-    return [uuid.UUID(int=n) for n in numbers]
+class TestRead:
+    def test_laps_come_in_start_order_whatever_order_they_were_stored_in(self, db, activity):
+        make_laps(db, activity, [_lap(20), _lap(0), _lap(10)])
 
+        starts = [lap.start_time for lap in laps_crud.get_activity_laps(activity.id, db)]
 
-class TestOrdering:
-    """Rows come back by their natural key; the id only breaks a tie."""
+        assert starts == [DEFAULT_START + timedelta(minutes=m) for m in (0, 10, 20)]
 
-    def _row(self, row_id, key):
-        import modules.activities.activity_laps.models as m
+    def test_a_page_holds_its_slice_and_the_count_covers_all_laps(self, db, activity):
+        make_laps(db, activity, [_lap(m) for m in range(5)])
 
-        return m.ActivityLaps(id=row_id, activity_id=_ACTIVITY_ID, start_time=key)
+        page = laps_crud.get_activity_laps(activity.id, db, page_number=2, num_records=2)
 
-    def _read(self, rows, **page):
-        from tests._helpers.db import create_sqlite_session
+        assert [lap.start_time for lap in page] == [DEFAULT_START + timedelta(minutes=m) for m in (2, 3)]
+        assert laps_crud.count_activity_laps(activity.id, db) == 5
 
-        import modules.activities.activity_laps.crud as crud
+    def test_laps_of_laps_with_the_same_start_page_without_repeats(self, db, activity):
+        make_laps(db, activity, [_lap(0, total_distance=float(n)) for n in range(4)])
 
-        db = create_sqlite_session()
-        try:
-            for row in rows:
-                db.add(row)
-            db.commit()
-            return [(r.start_time, r.id) for r in crud.get_activity_laps(_ACTIVITY_ID, db, **page)]
-        finally:
-            db.close()
+        first = laps_crud.get_activity_laps(activity.id, db, page_number=1, num_records=2)
+        second = laps_crud.get_activity_laps(activity.id, db, page_number=2, num_records=2)
 
-    def test_rows_inserted_out_of_order_come_back_by_start_time(self):
-        a, b, c = _ids(3, 1, 2)
-        rows = [self._row(a, _T0 + timedelta(minutes=2)), self._row(b, _T0), self._row(c, _T0 + timedelta(minutes=1))]
+        assert len({lap.id for lap in first + second}) == 4
 
-        assert [row_id for _, row_id in self._read(rows)] == [b, c, a]
+    def test_another_activitys_laps_are_not_read_or_counted(self, db, activity):
+        other = make_activity(db, make_user(db).id)
+        make_laps(db, other, [_lap(0)])
 
-    def test_a_tie_breaks_by_id(self):
-        high, low = _ids(9, 4)
-        rows = [self._row(high, _T0), self._row(low, _T0)]
+        assert laps_crud.get_activity_laps(activity.id, db) == []
+        assert laps_crud.count_activity_laps(activity.id, db) == 0
 
-        assert [row_id for _, row_id in self._read(rows)] == [low, high]
+    def test_several_activities_are_read_at_once_and_none_reads_nothing(self, db, activity):
+        other = make_activity(db, make_user(db).id)
+        make_laps(db, activity, [_lap(0)])
+        make_laps(db, other, [_lap(0), _lap(5)])
 
-    def test_paging_follows_the_same_order(self):
-        a, b, c = _ids(3, 1, 2)
-        rows = [self._row(a, _T0 + timedelta(minutes=2)), self._row(b, _T0), self._row(c, _T0 + timedelta(minutes=1))]
+        rows = laps_crud.get_activities_laps([activity.id, other.id], db)
 
-        assert [row_id for _, row_id in self._read(rows, page_number=2, num_records=2)] == [a]
+        assert sorted(lap.activity_id == activity.id for lap in rows) == [False, False, True]
+        assert laps_crud.get_activities_laps([], db) == []

@@ -1,269 +1,247 @@
-"""Tests for the activity location service.
+"""Locating activities from their GPS stream, against a real database and a real reverse-geocoding service."""
 
-Scoped to what this module owns: *when* a location is resolved and *where* it is
-stored. How resolution happens is the platform's ``GeocodingProvider`` — the
-provider request building, SSRF host validation, the shared rate limit and
-response parsing are covered by jasil's own tests.
-"""
+from datetime import timedelta
 
-import inspect
-import uuid
-from datetime import UTC, datetime, timedelta
-from unittest.mock import MagicMock, patch
-
+import jasil.runtime as platform_runtime
 import pytest
-from jasil.providers import GeocodedPlace, GeocodingOutcome
+from sqlalchemy import delete as delete_statement
 
-from modules.activities.activity_geocoding.service import (
-    LOOKUP_MAX_WAIT_SECONDS,
-    LOOKUP_RETRY_DELAY,
-    backfill_missing_activity_locations,
-    geocode_and_store_activity_location,
-    reverse_geocode,
-)
+import modules.activities.activity.models as activity_models
+import modules.activities.activity_geocoding.service as geocoding_service
+import modules.activities.activity_streams.constants as stream_constants
+from tests._factories.activities import DEFAULT_START, make_activity, make_stream
+from tests._factories.users import make_user
 
-UUID_1 = uuid.UUID("11111111-1111-4111-8111-111111111111")
-UUID_2 = uuid.UUID("22222222-2222-4222-8222-222222222222")
-UUID_3 = uuid.UUID("33333333-3333-4333-8333-333333333333")
-_SVC = "modules.activities.activity_geocoding.service"
+_MAP = stream_constants.STREAM_TYPE_MAP
+_LISBON = [{"lat": 38.7, "lon": -9.1}, {"lat": 38.8, "lon": -9.2}]
+_MATOSINHOS = [{"lat": 41.2, "lon": -8.7}]
+_NOWHERE = [{"lat": 0.5, "lon": 0.5}]
 
 
-_RETRY_AT = datetime(2026, 10, 15, 12, 0, 30, tzinfo=UTC)
-_LISBON = GeocodedPlace(locality="Lisbon", sublocality="Belem", country="Portugal")
+@pytest.fixture
+def clock():
+    return platform_runtime.get_active_platform().clock
 
 
-def _provider_returning(outcome: GeocodingOutcome) -> MagicMock:
-    """A geocoding provider double whose lookup answers ``outcome``."""
-    provider = MagicMock()
-    provider.lookup.return_value = outcome
-    return provider
+@pytest.fixture
+def owner(db):
+    return make_user(db)
+
+
+def _activity(db, owner, route=None, day: int = 0, **fields):
+    start = DEFAULT_START + timedelta(days=day)
+    activity = make_activity(db, owner.id, start_time=start, end_time=start + timedelta(hours=1), **fields)
+    if route is not None:
+        make_stream(db, activity, _MAP, route)
+    return activity
+
+
+def _place(db, activity) -> tuple[str | None, str | None, str | None]:
+    db.expire_all()
+    row = db.get(activity_models.Activity, activity.id)
+    return row.city, row.town, row.country
 
 
 class TestReverseGeocode:
-    """The thin delegation to the platform provider."""
+    def test_a_coordinate_is_resolved_to_a_place_by_the_service(self, geocoder, geocoding_server):
+        outcome = geocoding_service.reverse_geocode(geocoder, 38.7, -9.1)
 
-    def test_missing_latitude_skips_the_provider(self):
-        provider = _provider_returning(GeocodingOutcome())
-        assert reverse_geocode(provider, None, -9.0) == GeocodingOutcome()
-        provider.lookup.assert_not_called()
-
-    def test_missing_longitude_skips_the_provider(self):
-        provider = _provider_returning(GeocodingOutcome())
-        assert reverse_geocode(provider, 38.0, None) == GeocodingOutcome()
-        provider.lookup.assert_not_called()
-
-    def test_delegates_coordinates_and_the_wait_bound_to_the_provider(self):
-        provider = _provider_returning(GeocodingOutcome(place=_LISBON))
-        assert reverse_geocode(provider, 38.0, -9.0) == GeocodingOutcome(place=_LISBON)
-        provider.lookup.assert_called_once_with(38.0, -9.0, max_wait_seconds=LOOKUP_MAX_WAIT_SECONDS)
-
-    @pytest.mark.parametrize(
-        "outcome", [GeocodingOutcome(), GeocodingOutcome(retry_at=_RETRY_AT)], ids=["nothing", "held_back"]
-    )
-    def test_the_outcome_is_passed_through(self, outcome):
-        assert reverse_geocode(_provider_returning(outcome), 38.0, -9.0) == outcome
-
-
-class TestGeocodeAndStore:
-    """The create-path store helper."""
-
-    def test_contract_takes_activity_session_and_provider(self):
-        assert tuple(inspect.signature(geocode_and_store_activity_location).parameters) == (
-            "activity_id",
-            "geocoding",
-            "db",
+        assert (outcome.place.locality, outcome.place.sublocality, outcome.place.country) == (
+            "Lisbon",
+            "Alvalade",
+            "Portugal",
         )
+        assert outcome.retry_at is None
+        assert (geocoding_server.requests[0]["lat"], geocoding_server.requests[0]["lon"]) == ("38.7", "-9.1")
 
-    @patch(f"{_SVC}.activity_streams_integration.get_stream_for_derivation", return_value=None)
-    @patch(f"{_SVC}.activity_integration.set_activity_location")
-    def test_no_stream_needs_no_retry(self, mock_update, _mock_stream):
-        assert geocode_and_store_activity_location(1, MagicMock(), MagicMock()) is None
-        mock_update.assert_not_called()
+    @pytest.mark.parametrize(("latitude", "longitude"), [(None, 1.0), (1.0, None), (None, None)])
+    def test_a_missing_coordinate_is_a_final_nothing_and_asks_the_service_nothing(
+        self, geocoder, geocoding_server, latitude, longitude
+    ):
+        outcome = geocoding_service.reverse_geocode(geocoder, latitude, longitude)
 
-    @patch(f"{_SVC}.activity_streams_integration.get_stream_for_derivation")
-    @patch(f"{_SVC}.activity_integration.set_activity_location")
-    def test_empty_waypoints_need_no_retry(self, mock_update, mock_stream):
-        mock_stream.return_value = MagicMock(stream_waypoints=[])
-        assert geocode_and_store_activity_location(1, MagicMock(), MagicMock()) is None
-        mock_update.assert_not_called()
+        assert (outcome.place, outcome.retry_at, geocoding_server.requests) == (None, None, [])
 
-    @patch(f"{_SVC}.reverse_geocode", return_value=GeocodingOutcome())
-    @patch(f"{_SVC}.activity_streams_integration.get_stream_for_derivation")
-    @patch(f"{_SVC}.activity_integration.set_activity_location")
-    def test_unresolved_location_needs_no_retry(self, mock_update, mock_stream, _mock_geo):
-        mock_stream.return_value = MagicMock(stream_waypoints=[{"lat": 1.0, "lon": 2.0}])
-        assert geocode_and_store_activity_location(1, MagicMock(), MagicMock()) is None
-        mock_update.assert_not_called()
+    def test_a_place_the_service_does_not_know_is_a_final_nothing(self, geocoder):
+        outcome = geocoding_service.reverse_geocode(geocoder, 0.5, 0.5)
 
-    @patch(f"{_SVC}.reverse_geocode", return_value=GeocodingOutcome(retry_at=_RETRY_AT))
-    @patch(f"{_SVC}.activity_streams_integration.get_stream_for_derivation")
-    @patch(f"{_SVC}.activity_integration.set_activity_location")
-    def test_a_held_back_lookup_returns_when_to_retry(self, mock_update, mock_stream, _mock_geo):
-        mock_stream.return_value = MagicMock(stream_waypoints=[{"lat": 1.0, "lon": 2.0}])
-        assert geocode_and_store_activity_location(1, MagicMock(), MagicMock()) == _RETRY_AT
-        mock_update.assert_not_called()
+        assert (outcome.place, outcome.retry_at) == (None, None)
 
-    @patch(f"{_SVC}.reverse_geocode", return_value=GeocodingOutcome(place=_LISBON))
-    @patch(f"{_SVC}.activity_streams_integration.get_stream_for_derivation")
-    @patch(f"{_SVC}.activity_integration.set_activity_location")
-    def test_success_stores_location(self, mock_update, mock_stream, _mock_geo):
-        db = MagicMock()
-        mock_stream.return_value = MagicMock(stream_waypoints=[{"lat": 38.0, "lon": -9.0}])
-        assert geocode_and_store_activity_location(42, MagicMock(), db) is None
-        mock_update.assert_called_once_with(42, "Lisbon", "Belem", "Portugal", db)
-        # The surface only stages; the geocoding service owns the commit.
-        # One commit ends the read transaction before the geocoder call, one persists the result.
-        assert db.commit.call_count == 2
+    def test_a_rate_limited_service_says_when_to_ask_again(self, geocoder, geocoding_server, clock):
+        geocoding_server.mode = "rate_limited"
 
-    @patch(f"{_SVC}.reverse_geocode", return_value=GeocodingOutcome(place=_LISBON))
-    @patch(f"{_SVC}.activity_streams_integration.get_stream_for_derivation")
-    @patch(f"{_SVC}.activity_integration.set_activity_location", return_value=False)
-    def test_does_not_commit_when_no_row_changed(self, _mock_update, mock_stream, _mock_geo):
-        db = MagicMock()
-        mock_stream.return_value = MagicMock(stream_waypoints=[{"lat": 38.0, "lon": -9.0}])
-        geocode_and_store_activity_location(999, MagicMock(), db)
-        # Only the read transaction is ended before the lookup; nothing is persisted.
-        assert db.commit.call_count == 1
+        outcome = geocoding_service.reverse_geocode(geocoder, 38.7, -9.1)
 
-    @patch(f"{_SVC}.reverse_geocode", return_value=GeocodingOutcome())
-    @patch(f"{_SVC}.activity_streams_integration.get_stream_for_derivation")
-    @patch(f"{_SVC}.activity_integration.set_activity_location")
-    def test_geocodes_the_first_waypoint(self, _mock_update, mock_stream, mock_geo):
-        mock_stream.return_value = MagicMock(stream_waypoints=[{"lat": 38.0, "lon": -9.0}, {"lat": 40.0, "lon": -8.0}])
-        provider = MagicMock()
-        geocode_and_store_activity_location(42, provider, MagicMock())
-        mock_geo.assert_called_once_with(provider, 38.0, -9.0)
+        assert outcome.place is None
+        assert outcome.retry_at == clock.now() + timedelta(seconds=120)
+
+    def test_a_service_that_is_down_says_to_ask_again_later_and_never_raises(self, geocoder, geocoding_server, clock):
+        geocoding_server.mode = "broken"
+
+        outcome = geocoding_service.reverse_geocode(geocoder, 38.7, -9.1)
+
+        assert outcome.place is None and outcome.retry_at > clock.now()
+
+    def test_without_a_configured_service_nothing_resolves(self, db):
+        outcome = geocoding_service.reverse_geocode(platform_runtime.get_active_platform().geocoding, 38.7, -9.1)
+
+        assert (outcome.place, outcome.retry_at) == (None, None)
 
 
-_NOW = datetime(2026, 10, 15, 12, 0, tzinfo=UTC)
+class TestGeocodeOneActivity:
+    def test_the_first_gps_point_of_the_activity_locates_it(self, db, owner, geocoder, geocoding_server):
+        activity = _activity(db, owner, _LISBON)
+
+        retry_at = geocoding_service.geocode_and_store_activity_location(activity.id, geocoder, db)
+
+        assert retry_at is None
+        assert _place(db, activity) == ("Lisbon", "Alvalade", "Portugal")
+        assert [r["lat"] for r in geocoding_server.requests] == ["38.7"]
+
+    def test_a_town_without_a_city_is_stored_as_the_locality(self, db, owner, geocoder):
+        activity = _activity(db, owner, _MATOSINHOS)
+
+        geocoding_service.geocode_and_store_activity_location(activity.id, geocoder, db)
+
+        assert _place(db, activity) == ("Matosinhos", None, "Portugal")
+
+    @pytest.mark.parametrize("route", [None, []])
+    def test_an_activity_without_a_gps_stream_or_points_asks_the_service_nothing(
+        self, db, owner, geocoder, geocoding_server, route
+    ):
+        activity = _activity(db, owner, route)
+
+        assert geocoding_service.geocode_and_store_activity_location(activity.id, geocoder, db) is None
+
+        assert (_place(db, activity), geocoding_server.requests) == ((None, None, None), [])
+
+    def test_a_place_the_service_does_not_know_stores_nothing_and_asks_for_no_retry(self, db, owner, geocoder):
+        activity = _activity(db, owner, _NOWHERE)
+
+        assert geocoding_service.geocode_and_store_activity_location(activity.id, geocoder, db) is None
+
+        assert _place(db, activity) == (None, None, None)
+
+    def test_a_held_back_lookup_stores_nothing_and_returns_when_to_ask_again(
+        self, db, owner, geocoder, geocoding_server, clock
+    ):
+        geocoding_server.mode = "rate_limited"
+        activity = _activity(db, owner, _LISBON)
+
+        retry_at = geocoding_service.geocode_and_store_activity_location(activity.id, geocoder, db)
+
+        assert retry_at == clock.now() + timedelta(seconds=120)
+        assert _place(db, activity) == (None, None, None)
 
 
-def _clock() -> MagicMock:
-    clock = MagicMock()
-    clock.now.return_value = _NOW
-    return clock
+class TestActivityDeletedWhileLocating:
+    """The activity can be deleted while the service is still answering; nothing is written for it."""
+
+    @pytest.fixture
+    def committed_routes(self, committed_sessions):
+        with committed_sessions() as db:
+            user = make_user(db)
+            activities = [_activity(db, user, _LISBON, day) for day in range(2)]
+            db.commit()
+        return activities
+
+    @staticmethod
+    def _delete_on_request(committed_sessions, geocoding_server, activity_id):
+        def delete() -> None:
+            with committed_sessions() as other:
+                other.execute(
+                    delete_statement(activity_models.Activity).where(activity_models.Activity.id == activity_id)
+                )
+                other.commit()
+
+        geocoding_server.on_request = delete
+
+    def test_a_single_lookup_for_an_activity_deleted_meanwhile_writes_nothing_and_asks_for_no_retry(
+        self, committed_sessions, committed_routes, geocoder, geocoding_server
+    ):
+        gone = committed_routes[0]
+        self._delete_on_request(committed_sessions, geocoding_server, gone.id)
+
+        with committed_sessions() as db:
+            retry_at = geocoding_service.geocode_and_store_activity_location(gone.id, geocoder, db)
+
+        assert retry_at is None
+        with committed_sessions() as db:
+            assert db.get(activity_models.Activity, gone.id) is None
+
+    def test_a_backfill_pass_skips_an_activity_deleted_meanwhile_and_locates_the_others(
+        self, committed_sessions, committed_routes, geocoder, geocoding_server
+    ):
+        gone, kept = committed_routes
+        self._delete_on_request(committed_sessions, geocoding_server, gone.id)
+
+        with committed_sessions() as db:
+            stored = geocoding_service.backfill_missing_activity_locations(
+                geocoder, platform_runtime.get_active_platform().clock, db
+            )
+
+        assert stored == 1
+        with committed_sessions() as db:
+            assert db.get(activity_models.Activity, kept.id).country == "Portugal"
 
 
-@patch(f"{_SVC}.activity_integration.defer_location_lookups")
-@patch(f"{_SVC}.activity_integration.set_activity_location")
-@patch(f"{_SVC}.activity_integration.list_activities_missing_location")
-@patch(f"{_SVC}.activity_streams_integration.get_gps_waypoints_for_activities")
-@patch(f"{_SVC}.reverse_geocode")
 class TestBackfill:
-    """The reconciliation backfill."""
+    def test_every_gps_activity_without_a_place_is_located_and_the_count_is_returned(self, db, owner, geocoder, clock):
+        lisbon, matosinhos = _activity(db, owner, _LISBON, 0), _activity(db, owner, _MATOSINHOS, 1)
 
-    def test_no_candidates_returns_zero(self, _geo, _waypoints, mock_candidates, _update, mock_defer):
-        mock_candidates.return_value = []
+        stored = geocoding_service.backfill_missing_activity_locations(geocoder, clock, db)
 
-        assert backfill_missing_activity_locations(MagicMock(), _clock(), MagicMock()) == 0
-        mock_defer.assert_not_called()
+        assert stored == 2
+        assert _place(db, lisbon)[2] == "Portugal" and _place(db, matosinhos)[0] == "Matosinhos"
 
-    def test_only_due_activities_are_listed(self, _geo, _waypoints, mock_candidates, _update, _defer):
-        mock_candidates.return_value = []
+    def test_an_activity_that_already_has_a_place_is_left_alone(self, db, owner, geocoder, geocoding_server, clock):
+        located = _activity(db, owner, _LISBON, 0, city="Elsewhere")
 
-        backfill_missing_activity_locations(MagicMock(), _clock(), MagicMock())
+        assert geocoding_service.backfill_missing_activity_locations(geocoder, clock, db) == 0
 
-        assert mock_candidates.call_args.kwargs["due_at"] == _NOW
+        assert (_place(db, located)[0], geocoding_server.requests) == ("Elsewhere", [])
 
-    def test_stores_a_resolved_location(self, mock_geo, mock_waypoints, mock_candidates, mock_update, mock_defer):
-        db = MagicMock()
-        mock_candidates.side_effect = [[MagicMock(id=UUID_1)], []]
-        mock_waypoints.return_value = {UUID_1: [{"lat": 38.0, "lon": -9.0}]}
-        mock_geo.return_value = GeocodingOutcome(place=GeocodedPlace(locality="Lisbon", country="Portugal"))
-
-        assert backfill_missing_activity_locations(MagicMock(), _clock(), db) == 1
-        mock_update.assert_called_once_with(UUID_1, "Lisbon", None, "Portugal", db)
-        # One commit ends the read transaction before the lookups, one persists the result.
-        assert db.commit.call_count == 2
-        mock_defer.assert_not_called()
-
-    def test_an_activity_without_gps_is_deferred_without_a_lookup(
-        self, mock_geo, mock_waypoints, mock_candidates, _update, mock_defer
+    def test_activities_with_no_route_or_no_known_place_wait_a_day_before_they_are_looked_up_again(
+        self, db, owner, geocoder, geocoding_server, clock
     ):
-        db = MagicMock()
-        mock_candidates.side_effect = [[MagicMock(id=UUID_1), MagicMock(id=UUID_2)], []]
-        mock_waypoints.return_value = {UUID_1: []}
+        bare, unknown = _activity(db, owner, None, 0), _activity(db, owner, _NOWHERE, 1)
 
-        backfill_missing_activity_locations(MagicMock(), _clock(), db)
+        first = geocoding_service.backfill_missing_activity_locations(geocoder, clock, db)
+        asked = len(geocoding_server.requests)
+        again = geocoding_service.backfill_missing_activity_locations(geocoder, clock, db)
+        clock.advance(geocoding_service.LOOKUP_RETRY_DELAY.total_seconds() + 1)
+        make_stream(db, bare, _MAP, _LISBON)
+        later = geocoding_service.backfill_missing_activity_locations(geocoder, clock, db)
 
-        mock_geo.assert_not_called()
-        mock_defer.assert_called_once_with([UUID_1, UUID_2], _NOW + LOOKUP_RETRY_DELAY, db)
+        assert (first, asked, again, len(geocoding_server.requests)) == (0, 1, 0, 3)
+        assert (later, _place(db, bare)[0], _place(db, unknown)) == (1, "Lisbon", (None, None, None))
 
-    @pytest.mark.parametrize(
-        "outcome", [GeocodingOutcome(), GeocodingOutcome(place=GeocodedPlace())], ids=["nothing", "empty_place"]
-    )
-    def test_a_lookup_that_resolves_nothing_is_deferred(
-        self, mock_geo, mock_waypoints, mock_candidates, mock_update, mock_defer, outcome
+    def test_a_held_back_lookup_ends_the_pass_and_leaves_the_activity_due(
+        self, db, owner, geocoder, geocoding_server, clock
     ):
-        """Open sea or a disabled provider: retried after the delay, never given up on."""
-        db = MagicMock()
-        mock_candidates.side_effect = [[MagicMock(id=UUID_1)], []]
-        mock_waypoints.return_value = {UUID_1: [{"lat": 0.0, "lon": -30.0}]}
-        mock_geo.return_value = outcome
+        geocoding_server.mode = "rate_limited"
+        first, second = _activity(db, owner, _LISBON, 0), _activity(db, owner, _LISBON, 1)
 
-        assert backfill_missing_activity_locations(MagicMock(), _clock(), db) == 0
-        mock_update.assert_not_called()
-        mock_defer.assert_called_once_with([UUID_1], _NOW + LOOKUP_RETRY_DELAY, db)
+        assert geocoding_service.backfill_missing_activity_locations(geocoder, clock, db) == 0
+        calls = len(geocoding_server.requests)
+        geocoding_server.mode = "ok"
+        clock.advance(121)
+        stored = geocoding_service.backfill_missing_activity_locations(geocoder, clock, db)
 
-    def test_does_not_count_a_row_that_did_not_change(
-        self, mock_geo, mock_waypoints, mock_candidates, mock_update, _defer
+        assert calls == 1
+        assert stored == 2 and _place(db, first)[0] == "Lisbon" and _place(db, second)[0] == "Lisbon"
+
+    def test_a_pass_makes_no_more_lookups_than_its_budget_and_the_next_pass_carries_on(
+        self, db, owner, geocoder, geocoding_server, clock
     ):
-        """An activity deleted between listing and writing is neither stored nor committed."""
-        db = MagicMock()
-        mock_candidates.side_effect = [[MagicMock(id=UUID_1)], []]
-        mock_waypoints.return_value = {UUID_1: [{"lat": 38.0, "lon": -9.0}]}
-        mock_geo.return_value = GeocodingOutcome(place=GeocodedPlace(locality="Lisbon", country="Portugal"))
-        mock_update.return_value = False
+        for day in range(3):
+            _activity(db, owner, _LISBON, day)
 
-        assert backfill_missing_activity_locations(MagicMock(), _clock(), db) == 0
-        # Only the read transaction is ended before the lookups; the row did not change.
-        assert db.commit.call_count == 1
+        first = geocoding_service.backfill_missing_activity_locations(geocoder, clock, db, max_lookups=2)
+        second = geocoding_service.backfill_missing_activity_locations(geocoder, clock, db, max_lookups=2)
 
-    def test_pages_past_activities_that_cannot_resolve(
-        self, mock_geo, mock_waypoints, mock_candidates, mock_update, _defer
-    ):
-        db = MagicMock()
-        mock_candidates.side_effect = [[MagicMock(id=UUID_1), MagicMock(id=UUID_2)], [MagicMock(id=UUID_3)], []]
-        mock_waypoints.side_effect = [{}, {UUID_3: [{"lat": 38.0, "lon": -9.0}]}]
-        mock_geo.return_value = GeocodingOutcome(place=GeocodedPlace(locality="Lisbon", country="Portugal"))
+        assert (first, second, len(geocoding_server.requests)) == (2, 1, 3)
 
-        assert backfill_missing_activity_locations(MagicMock(), _clock(), db) == 1
-        mock_update.assert_called_once_with(UUID_3, "Lisbon", None, "Portugal", db)
-        assert [call.kwargs["after_id"] for call in mock_candidates.call_args_list] == [None, UUID_2, UUID_3]
-
-    def test_lookups_are_capped_and_the_rest_stay_due(
-        self, mock_geo, mock_waypoints, mock_candidates, _update, mock_defer
-    ):
-        db = MagicMock()
-        mock_candidates.side_effect = [[MagicMock(id=UUID_1), MagicMock(id=UUID_2), MagicMock(id=UUID_3)], []]
-        mock_waypoints.return_value = {
-            UUID_1: [{"lat": 1.0, "lon": 1.0}],
-            UUID_2: [{"lat": 2.0, "lon": 2.0}],
-            UUID_3: [{"lat": 3.0, "lon": 3.0}],
-        }
-        mock_geo.return_value = GeocodingOutcome()
-
-        backfill_missing_activity_locations(MagicMock(), _clock(), db, max_lookups=2)
-
-        assert mock_geo.call_count == 2
-        # Activity 3 was never looked up, so it is not pushed back.
-        mock_defer.assert_called_once_with([UUID_1, UUID_2], _NOW + LOOKUP_RETRY_DELAY, db)
-
-    def test_a_held_back_lookup_ends_the_pass_and_stays_due(
-        self, mock_geo, mock_waypoints, mock_candidates, mock_update, mock_defer
-    ):
-        """The rate limit or an upstream failure: the pass stops instead of queueing behind it or retrying into it."""
-        db = MagicMock()
-        mock_candidates.side_effect = [
-            [MagicMock(id=UUID_1), MagicMock(id=UUID_2), MagicMock(id=UUID_3)],
-            [MagicMock(id=uuid.UUID(int=4))],
-        ]
-        mock_waypoints.return_value = {UUID_1: [{"lat": 38.0, "lon": -9.0}], UUID_2: [{"lat": 40.0, "lon": -8.0}]}
-        mock_geo.side_effect = [GeocodingOutcome(place=_LISBON), GeocodingOutcome(retry_at=_NOW + timedelta(minutes=1))]
-
-        assert backfill_missing_activity_locations(MagicMock(), _clock(), db) == 1
-        assert mock_geo.call_count == 2
-        mock_update.assert_called_once_with(UUID_1, "Lisbon", "Belem", "Portugal", db)
-        # Activity 2 got no final answer, so only the activity without GPS is pushed back.
-        mock_defer.assert_called_once_with([UUID_3], _NOW + LOOKUP_RETRY_DELAY, db)
-        mock_candidates.assert_called_once()
+    def test_a_pass_with_nothing_to_locate_asks_the_service_nothing(self, db, geocoder, geocoding_server, clock):
+        assert geocoding_service.backfill_missing_activity_locations(geocoder, clock, db) == 0
+        assert geocoding_server.requests == []

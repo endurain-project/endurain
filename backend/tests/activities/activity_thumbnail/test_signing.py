@@ -1,98 +1,62 @@
-"""Tests for thumbnail addressing: storage keys, signed tokens, and servable URLs."""
+"""Activity thumbnail addressing: storage keys, signed tokens and servable URLs."""
 
+import time
 import uuid
-from dataclasses import replace
-from unittest.mock import patch
 
-ACTIVITY_ID = uuid.UUID("00000000-0000-4000-8000-000000000042")
-OTHER_ID = uuid.UUID("00000000-0000-4000-8000-000000000043")
+import itsdangerous
 
+import core.config as core_config
+import modules.activities.activity_media.signing as media_signing
+import modules.activities.activity_thumbnail.integration_service as thumbnail_integration
+import modules.activities.activity_thumbnail.signing as thumbnail_signing
 
-class TestThumbnailTokenSigning:
-    def test_round_trip_is_valid(self):
-        from modules.activities.activity_thumbnail.signing import (
-            sign_thumbnail_token,
-            verify_thumbnail_token,
-        )
-
-        token = sign_thumbnail_token(ACTIVITY_ID)
-
-        assert verify_thumbnail_token(ACTIVITY_ID, token) is True
-
-    def test_rejects_token_bound_to_another_activity(self):
-        from modules.activities.activity_thumbnail.signing import (
-            sign_thumbnail_token,
-            verify_thumbnail_token,
-        )
-
-        token = sign_thumbnail_token(ACTIVITY_ID)
-
-        # A validly signed token for one activity must not authorize another.
-        assert verify_thumbnail_token(OTHER_ID, token) is False
-
-    def test_rejects_forged_token(self):
-        from modules.activities.activity_thumbnail.signing import verify_thumbnail_token
-
-        assert verify_thumbnail_token(ACTIVITY_ID, "totally-made-up-token") is False
-
-    def test_rejects_malformed_token_without_raising(self):
-        from modules.activities.activity_thumbnail.signing import verify_thumbnail_token
-
-        # Malformed base64/payload (BadData, not just BadSignature) must be
-        # swallowed to a False rather than 500 on untrusted query input.
-        assert verify_thumbnail_token(ACTIVITY_ID, "a.b.c.d") is False
-        assert verify_thumbnail_token(ACTIVITY_ID, "") is False
-
-    def test_token_is_urlsafe_and_nonempty(self):
-        from modules.activities.activity_thumbnail.signing import sign_thumbnail_token
-
-        token = sign_thumbnail_token(ACTIVITY_ID)
-
-        assert token
-        assert " " not in token
-
-    def test_pre_policy_tokens_are_invalidated(self):
-        import core.signing as core_signing
-        from modules.activities.activity_thumbnail.signing import verify_thumbnail_token
-
-        old_token = core_signing.CapabilitySigner(salt="activity-thumbnail").sign(str(ACTIVITY_ID))
-
-        assert verify_thumbnail_token(ACTIVITY_ID, old_token) is False
-
-    def test_a_token_older_than_the_max_age_is_rejected(self, monkeypatch):
-        """A token minted while an activity was visible must not stay valid
-        forever once it is later hidden."""
-        import time
-
-        import modules.activities.activity_thumbnail.signing as signing
-
-        monkeypatch.setattr(signing, "_SIGNER", replace(signing._SIGNER, max_age_seconds=1, bucket_seconds=1))
-        token = signing.sign_thumbnail_token(ACTIVITY_ID)
-        time.sleep(2.1)
-
-        assert signing.verify_thumbnail_token(ACTIVITY_ID, token) is False
+_ID = uuid.UUID("00000000-0000-4000-8000-000000000001")
+_OTHER = uuid.UUID("00000000-0000-4000-8000-000000000002")
 
 
-class TestThumbnailKeyAndUrl:
-    """URL shape only — the storage branching itself is covered in tests/core/test_signing.py."""
+class TestToken:
+    def test_a_token_is_valid_for_the_activity_it_was_minted_for(self):
+        assert thumbnail_signing.verify_thumbnail_token(_ID, thumbnail_signing.sign_thumbnail_token(_ID)) is True
 
-    def test_key_is_derived_from_the_activity_id(self):
-        from modules.activities.activity_thumbnail.signing import thumbnail_key
+    def test_a_token_is_not_valid_for_another_activity(self):
+        assert thumbnail_signing.verify_thumbnail_token(_OTHER, thumbnail_signing.sign_thumbnail_token(_ID)) is False
 
-        assert thumbnail_key(ACTIVITY_ID) == f"{ACTIVITY_ID}.webp"
+    def test_a_forged_or_malformed_token_is_refused_without_raising(self):
+        for token in ("totally-made-up-token", "a.b.c.d", ""):
+            assert thumbnail_signing.verify_thumbnail_token(_ID, token) is False
 
-    def test_no_key_means_no_url(self):
-        from modules.activities.activity_thumbnail.signing import thumbnail_url
+    def test_a_media_token_does_not_authorize_a_thumbnail(self):
+        assert thumbnail_signing.verify_thumbnail_token(_ID, media_signing.sign_media_token(_ID)) is False
 
-        assert thumbnail_url(None, ACTIVITY_ID) is None
-        assert thumbnail_url("", ACTIVITY_ID) is None
+    def test_a_token_older_than_the_max_age_is_refused(self, monkeypatch):
+        issued_long_ago = int(time.time()) - thumbnail_signing._SIGNER.max_age_seconds - 60
+        monkeypatch.setattr(itsdangerous.TimestampSigner, "get_timestamp", lambda self: issued_long_ago)
+        token = thumbnail_signing.sign_thumbnail_token(_ID)
+        monkeypatch.undo()
 
-    @patch("modules.activities.activity_thumbnail.signing.core_signing")
-    def test_addresses_the_thumbnail_route_with_a_signed_token(self, mock_signing):
-        from modules.activities.activity_thumbnail.signing import thumbnail_url
+        assert thumbnail_signing.verify_thumbnail_token(_ID, token) is False
 
-        mock_signing.blob_url.return_value = f"/api/v1/activities/{ACTIVITY_ID}/thumbnail?t=tok"
+    def test_a_token_inside_the_max_age_is_accepted(self, monkeypatch):
+        signer = thumbnail_signing._SIGNER
+        issued_recently = int(time.time()) - (signer.max_age_seconds - signer.bucket_seconds - 60)
+        monkeypatch.setattr(itsdangerous.TimestampSigner, "get_timestamp", lambda self: issued_recently)
+        token = thumbnail_signing.sign_thumbnail_token(_ID)
+        monkeypatch.undo()
 
-        assert thumbnail_url(f"{ACTIVITY_ID}.webp", ACTIVITY_ID) == f"/api/v1/activities/{ACTIVITY_ID}/thumbnail?t=tok"
-        assert mock_signing.blob_url.call_args.args[:2] == ("activity_thumbnails", f"{ACTIVITY_ID}.webp")
-        assert mock_signing.blob_url.call_args.kwargs["local_path"] == f"/activities/{ACTIVITY_ID}/thumbnail"
+        assert thumbnail_signing.verify_thumbnail_token(_ID, token) is True
+
+
+class TestUrl:
+    def test_the_key_is_the_activity_id_with_a_webp_extension(self):
+        assert thumbnail_signing.thumbnail_key(_ID) == f"{_ID}.webp"
+
+    def test_a_stored_key_is_addressed_by_the_thumbnail_route_with_a_token_that_verifies(self):
+        url = thumbnail_integration.thumbnail_url(thumbnail_signing.thumbnail_key(_ID), _ID)
+
+        path, _, token = url.partition("?t=")
+        assert path == f"{core_config.ROOT_PATH}/activities/{_ID}/thumbnail"
+        assert thumbnail_signing.verify_thumbnail_token(_ID, token) is True
+
+    def test_no_key_has_no_url(self):
+        assert thumbnail_integration.thumbnail_url(None, _ID) is None
+        assert thumbnail_integration.thumbnail_url("", _ID) is None

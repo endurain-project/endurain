@@ -1,58 +1,58 @@
+"""The public workout sets route, through the production application: it follows the parent activity's visibility."""
+
 import uuid
-from datetime import datetime
-from unittest.mock import patch
 
-from fastapi import FastAPI
-from fastapi.testclient import TestClient
+import pytest
 
-from modules.activities.activity_sets.schema import ActivitySetsPage
+import core.config as core_config
+import modules.activities.activity.constants as activity_constants
+from tests._factories.activities import DEFAULT_START, make_sets
 
-
-def _build_app(mock_db):
-    import core.database as core_db
-    import modules.activities.activity_sets.public_router as router
-
-    app = FastAPI()
-    app.include_router(router.router, prefix="/public/activities/{activity_id}")
-    app.dependency_overrides[core_db.get_db] = lambda: mock_db
-    return app
+_VISIBILITY = activity_constants.ActivityVisibility
+_EMPTY = {"items": [], "total": 0, "page": 1, "num_records": 200, "next": None}
 
 
-class TestReadPublicActivitySets:
-    @patch("modules.activities.activity_sets.public_router.activity_sets_service.list_public_activity_sets")
-    def test_success(self, mock_get, mock_db):
-        from modules.activities.activity_sets.schema import ActivitySetsRead
+def _url(activity_id: uuid.UUID | str) -> str:
+    return f"{core_config.ROOT_PATH}/public/activities/{activity_id}/sets"
 
-        client = TestClient(_build_app(mock_db))
-        mock_get.return_value = ActivitySetsPage.build(
-            [
-                ActivitySetsRead(
-                    id=uuid.uuid4(),
-                    activity_id=uuid.uuid4(),
-                    duration=300.0,
-                    set_type="active",
-                    start_time=datetime(2024, 1, 15, 8, 0, 0),
-                )
-            ],
-            1,
-            1,
-            200,
-        )
 
-        response = client.get("/public/activities/00000000-0000-4000-8000-000000000001/sets")
+def _stage(db, activity):
+    make_sets(
+        db,
+        activity,
+        [{"start_time": DEFAULT_START.isoformat(), "duration": 30.0, "set_type": "active", "weight": 20.0}],
+    )
+
+
+@pytest.mark.usefixtures("public_links")
+class TestPublicList:
+    def test_the_sets_of_a_public_activity_need_no_credentials_and_follow_its_flags(self, client, make_owned_activity):
+        activity = make_owned_activity(_VISIBILITY.PUBLIC, stage=_stage, hide_start_time=True)
+
+        response = client.get(_url(activity.id))
+
         assert response.status_code == 200
+        [item] = response.json()["items"]
+        assert (item["weight"], item["start_time"]) == (20.0, None)
 
-    @patch("modules.activities.activity_sets.public_router.activity_sets_service.list_public_activity_sets")
-    def test_not_found(self, mock_get, mock_db):
-        client = TestClient(_build_app(mock_db))
-        mock_get.return_value = ActivitySetsPage.build([], 0, 1, 200)
+    @pytest.mark.parametrize("visibility", [_VISIBILITY.FOLLOWERS, _VISIBILITY.PRIVATE])
+    def test_an_activity_that_is_not_public_answers_as_a_missing_one_does(
+        self, client, make_owned_activity, visibility
+    ):
+        activity = make_owned_activity(visibility, stage=_stage)
 
-        response = client.get("/public/activities/00000000-0000-4000-8000-000000000999/sets")
-        assert response.status_code == 200
-        assert response.json()["items"] == [] and response.json()["total"] == 0
+        assert client.get(_url(activity.id)).json() == client.get(_url(uuid.uuid4())).json() == _EMPTY
 
-    def test_a_malformed_activity_id_answers_422(self, mock_db):
-        client = TestClient(_build_app(mock_db))
+    def test_hide_workout_sets_steps_serves_nothing(self, client, make_owned_activity):
+        activity = make_owned_activity(_VISIBILITY.PUBLIC, stage=_stage, hide_workout_sets_steps=True)
 
-        response = client.get("/public/activities/not-a-uuid/sets")
-        assert response.status_code == 422
+        assert client.get(_url(activity.id)).json()["total"] == 0
+
+    def test_a_malformed_activity_id_is_a_validation_error(self, client):
+        assert client.get(_url("not-a-uuid")).status_code == 422
+
+
+def test_with_public_links_off_a_public_activity_serves_no_sets(client, make_owned_activity):
+    activity = make_owned_activity(_VISIBILITY.PUBLIC, stage=_stage)
+
+    assert client.get(_url(activity.id)).json() == _EMPTY

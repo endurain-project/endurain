@@ -1,109 +1,115 @@
+"""The stream routes, through the production application: what a viewer reads, per stream type."""
+
 import uuid
-from unittest.mock import patch
 
-from fastapi import FastAPI
-from fastapi.testclient import TestClient
+import pytest
 
-import core.exceptions as core_exceptions
+import core.config as core_config
+import modules.activities.activity.constants as activity_constants
+import modules.activities.activity_streams.constants as stream_constants
+from tests._factories.activities import make_stream
 
-ACTIVITY_ID = uuid.UUID("aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa")
-STREAM_ID = uuid.UUID("bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb")
-
-
-def _build_app(mock_db):
-    import core.database as core_db
-    import core.exceptions as core_exceptions
-    import modules.activities.activity_streams.router as router
-    import modules.auth.dependencies as auth_deps
-
-    app = FastAPI()
-    app.include_router(router.router, prefix="/activities/{activity_id}")
-    # Same domain-error boundary the real app registers, so these tests assert
-    # the status codes clients actually receive.
-    core_exceptions.register_exception_handlers(app)
-
-    def _mock():
-        return None
-
-    def _uid():
-        return 1
-
-    app.dependency_overrides[auth_deps.check_scopes] = _mock
-    app.dependency_overrides[auth_deps.get_current_user_id] = _uid
-    app.dependency_overrides[core_db.get_db] = lambda: mock_db
-    return app
+_VISIBILITY = activity_constants.ActivityVisibility
+_HR = stream_constants.STREAM_TYPE_HR
+_POWER = stream_constants.STREAM_TYPE_POWER
+_TIME = "2025-03-10T08:00:00"
 
 
-class TestReadActivityStreams:
-    @patch("modules.activities.activity_streams.router.activity_streams_service.list_activity_streams")
-    def test_read_streams_success(self, mock_get, mock_db):
-        from modules.activities.activity_streams.schema import ActivityStreamsPage
+def _url(activity_id: uuid.UUID | str, stream_type: str = "") -> str:
+    return f"{core_config.ROOT_PATH}/activities/{activity_id}/streams" + (f"/{stream_type}" if stream_type else "")
 
-        client = TestClient(_build_app(mock_db))
-        mock_get.return_value = ActivityStreamsPage.build([], 0, 1, 200)
 
-        response = client.get(f"/activities/{ACTIVITY_ID}/streams", headers={"Authorization": "Bearer x"})
+def _stage(db, activity):
+    make_stream(db, activity, _HR, [{"time": _TIME, "hr": 100}, {"time": _TIME, "hr": 190}])
+    make_stream(db, activity, _POWER, [{"time": _TIME, "power": 250.5}])
+
+
+class TestList:
+    def test_the_owner_gets_the_streams_in_a_page_envelope_with_the_hr_zones(
+        self, sign_in, people, make_owned_activity
+    ):
+        activity = make_owned_activity(stage=_stage, total_timer_time=100.0)
+
+        response = sign_in(people.owner).client.get(_url(activity.id))
+
         assert response.status_code == 200
-        assert response.json() == {"items": [], "total": 0, "page": 1, "num_records": 200, "next": None}
+        body = response.json()
+        assert (body["total"], body["page"], body["num_records"], body["next"]) == (2, 1, 200, None)
+        by_type = {item["stream_type"]: item for item in body["items"]}
+        assert set(by_type) == {"heart_rate", "power"}
+        assert by_type["heart_rate"]["zone_percentages"]["hr"]["zone_1"]["percent"] == 50.0
+        assert by_type["power"]["zone_percentages"] is None
+        assert by_type["power"]["stream_waypoints"] == [{"time": _TIME, "power": 250.5}]
 
-    @patch("modules.activities.activity_streams.router.activity_streams_service.get_activity_stream")
-    def test_read_stream_by_type_success(self, mock_get, mock_db):
-        from modules.activities.activity_streams.schema import ActivityStreamsRead
+    def test_a_page_holds_its_slice_and_names_the_next_one(self, sign_in, people, make_owned_activity):
+        activity = make_owned_activity(stage=_stage)
 
-        client = TestClient(_build_app(mock_db))
-        mock_get.return_value = ActivityStreamsRead(
-            id=STREAM_ID, activity_id=ACTIVITY_ID, stream_type=1, stream_waypoints=[{"x": 1}]
+        first = sign_in(people.owner).client.get(_url(activity.id), params={"page_number": 1, "num_records": 1}).json()
+
+        assert (len(first["items"]), first["total"], first["next"]) == (1, 2, 2)
+
+    @pytest.mark.parametrize("params", [{"page_number": 0}, {"num_records": 0}, {"num_records": 201}])
+    def test_a_paging_value_out_of_range_is_a_validation_error(self, sign_in, people, make_owned_activity, params):
+        activity = make_owned_activity(stage=_stage)
+
+        assert sign_in(people.owner).client.get(_url(activity.id), params=params).status_code == 422
+
+    def test_a_stranger_gets_the_page_an_activity_that_does_not_exist_gets(self, sign_in, people, make_owned_activity):
+        shared = make_owned_activity(_VISIBILITY.PRIVATE, stage=_stage)
+        client = sign_in(people.stranger).client
+
+        refused = client.get(_url(shared.id))
+        missing = client.get(_url(uuid.uuid4()))
+
+        assert refused.status_code == missing.status_code == 200
+        assert (
+            refused.json() == missing.json() == {"items": [], "total": 0, "page": 1, "num_records": 200, "next": None}
         )
 
-        response = client.get(f"/activities/{ACTIVITY_ID}/streams/heart_rate", headers={"Authorization": "Bearer x"})
+    def test_a_follower_gets_the_streams_a_followers_only_activity_does_not_hide(
+        self, sign_in, people, make_owned_activity
+    ):
+        activity = make_owned_activity(_VISIBILITY.FOLLOWERS, stage=_stage, hide_hr=True, hide_start_time=True)
+
+        body = sign_in(people.follower).client.get(_url(activity.id)).json()
+
+        assert [item["stream_type"] for item in body["items"]] == ["power"]
+        assert body["items"][0]["stream_waypoints"] == [{"power": 250.5}]
+        assert body["total"] == 1
+
+
+class TestOne:
+    def test_the_owner_gets_one_stream_by_its_type_name(self, sign_in, people, make_owned_activity):
+        activity = make_owned_activity(stage=_stage)
+
+        response = sign_in(people.owner).client.get(_url(activity.id, "power"))
+
         assert response.status_code == 200
+        body = response.json()
+        assert (body["stream_type"], body["activity_id"]) == ("power", str(activity.id))
 
-    @patch("modules.activities.activity_streams.router.activity_streams_service.get_activity_stream")
-    def test_read_stream_by_type_missing_is_404(self, mock_get, mock_db):
-        # A single resource that does not exist is a 404, not ``200 null``.
-        client = TestClient(_build_app(mock_db))
-        mock_get.side_effect = core_exceptions.NotFoundError("Activity stream not found")
+    def test_a_stream_the_activity_does_not_have_is_a_404_problem(self, sign_in, people, make_owned_activity):
+        activity = make_owned_activity(stage=_stage)
 
-        response = client.get(f"/activities/{ACTIVITY_ID}/streams/heart_rate", headers={"Authorization": "Bearer x"})
+        response = sign_in(people.owner).client.get(_url(activity.id, "cadence"))
+
         assert response.status_code == 404
-        assert response.json()["detail"] == "Activity stream not found"
+        assert response.json()["type"] == "urn:endurain:error:not-found"
 
+    def test_a_hidden_stream_is_the_same_404_for_a_follower_and_a_stream_for_the_owner(
+        self, sign_in, people, make_owned_activity
+    ):
+        activity = make_owned_activity(_VISIBILITY.FOLLOWERS, stage=_stage, hide_power=True)
 
-class TestStreamTypePath:
-    """The single-stream route accepts every type the list route can return."""
+        hidden = sign_in(people.follower).client.get(_url(activity.id, "power"))
+        missing = sign_in(people.follower).client.get(_url(activity.id, "cadence"))
 
-    @patch("modules.activities.activity_streams.router.activity_streams_service.get_activity_stream")
-    def test_every_stored_type_is_accepted(self, mock_get, mock_db):
-        from modules.activities.activity_streams import constants
-        from modules.activities.activity_streams.schema import ActivityStreamsRead
+        assert hidden.status_code == missing.status_code == 404
+        assert hidden.json()["detail"] == missing.json()["detail"]
+        assert sign_in(people.owner).client.get(_url(activity.id, "power")).status_code == 200
 
-        client = TestClient(_build_app(mock_db))
-        stored = list(constants.ActivityStreamType)
-        for stream_type in stored:
-            mock_get.return_value = ActivityStreamsRead(
-                id=STREAM_ID, activity_id=ACTIVITY_ID, stream_type=stream_type.stored, stream_waypoints=[]
-            )
+    def test_a_type_that_is_not_a_stream_type_is_a_validation_error(self, sign_in, people, make_owned_activity):
+        activity = make_owned_activity(stage=_stage)
 
-            response = client.get(
-                f"/activities/{ACTIVITY_ID}/streams/{stream_type.value}", headers={"Authorization": "Bearer x"}
-            )
-
-            assert response.status_code == 200, stream_type
-
-    def test_an_unknown_type_and_the_stored_integer_are_rejected(self, mock_db):
-        client = TestClient(_build_app(mock_db))
-
-        assert (
-            client.get(f"/activities/{ACTIVITY_ID}/streams/0", headers={"Authorization": "Bearer x"}).status_code == 422
-        )
-        assert (
-            client.get(f"/activities/{ACTIVITY_ID}/streams/1", headers={"Authorization": "Bearer x"}).status_code == 422
-        )
-
-
-class TestMalformedActivityId:
-    def test_a_malformed_activity_id_is_422(self, mock_db):
-        client = TestClient(_build_app(mock_db))
-
-        assert client.get("/activities/1/streams", headers={"Authorization": "Bearer x"}).status_code == 422
-        assert client.get("/activities/1/streams/heart_rate", headers={"Authorization": "Bearer x"}).status_code == 422
+        assert sign_in(people.owner).client.get(_url(activity.id, "3")).status_code == 422
+        assert sign_in(people.owner).client.get(_url(activity.id, "altitude")).status_code == 422

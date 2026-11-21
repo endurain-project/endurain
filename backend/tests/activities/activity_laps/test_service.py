@@ -1,174 +1,174 @@
-"""What the laps package declares itself to be.
+"""Who reads an activity's laps, and which of their fields each viewer gets, on the real database."""
 
-The paginated read itself is asserted once, in
-``tests/activities/activity/test_child_collection_service.py``. What remains
-package-specific is the declaration: the wrong hide flag or the wrong CRUD pair
-would silently serve — or refuse — the wrong rows — and the fields each flag clears, which
-keep a lap from serving what its activity hides.
-"""
-
-import dataclasses
-import uuid
-from datetime import UTC, datetime
-from types import SimpleNamespace
-from unittest.mock import MagicMock, patch
+from datetime import timedelta
 
 import pytest
 
-import modules.activities.activity_laps.crud as activity_laps_crud
-import modules.activities.activity_laps.schema as activity_laps_schema
-import modules.activities.activity_laps.service as service
+import modules.activities.activity.constants as activity_constants
+import modules.activities.activity_laps.service as laps_service
+from tests._factories.activities import DEFAULT_START, make_activity, make_laps
+from tests._factories.followers import make_follow
+from tests._factories.server_settings import edit_server_settings
+from tests._factories.users import make_user
 
-_OWNER_ID = uuid.UUID("00000000-0000-4000-8000-000000000001")
-_OTHER_ID = uuid.UUID("00000000-0000-4000-8000-000000000002")
-_ACTIVITY_ID = uuid.UUID("00000000-0000-4000-8000-000000000005")
-_ROW_ID = uuid.UUID("00000000-0000-4000-8000-0000000000a1")
+_VISIBILITY = activity_constants.ActivityVisibility
+
+#: Every lap field a parent flag withholds, with one value each.
+_FIELDS = {
+    "start_position_lat": 38.7,
+    "start_position_long": -9.1,
+    "end_position_lat": 38.8,
+    "end_position_long": -9.2,
+    "avg_heart_rate": 150,
+    "max_heart_rate": 170,
+    "avg_power": 200,
+    "max_power": 400,
+    "normalized_power": 210,
+    "total_work": 60000,
+    "avg_cadence": 85,
+    "max_cadence": 95,
+    "avg_fractional_cadence": 0.5,
+    "max_fractional_cadence": 0.5,
+    "total_cycles": 420,
+    "enhanced_avg_speed": 3.3,
+    "enhanced_max_speed": 4.1,
+    "enhanced_avg_pace": 0.3,
+    "enhanced_max_pace": 0.24,
+    "total_ascent": 12,
+    "total_descent": 10,
+    "enhanced_min_altitude": 40.0,
+    "enhanced_max_altitude": 52.0,
+}
+
+_FLAG_FIELDS = {
+    "hide_start_time": ["start_time"],
+    "hide_map": ["start_position_lat", "start_position_long", "end_position_lat", "end_position_long"],
+    "hide_hr": ["avg_heart_rate", "max_heart_rate"],
+    "hide_power": ["avg_power", "max_power", "normalized_power", "total_work"],
+    "hide_cadence": ["avg_cadence", "max_cadence", "avg_fractional_cadence", "max_fractional_cadence", "total_cycles"],
+    "hide_speed": ["enhanced_avg_speed", "enhanced_max_speed"],
+    "hide_pace": ["enhanced_avg_pace", "enhanced_max_pace"],
+    "hide_elevation": ["total_ascent", "total_descent", "enhanced_min_altitude", "enhanced_max_altitude"],
+}
 
 
-class TestCollectionDeclaration:
-    def test_it_is_guarded_by_the_right_parent_flag(self):
-        assert service._COLLECTION.hide_attr == "hide_laps"
-
-    def test_it_reads_through_its_own_crud(self):
-        assert service._COLLECTION.fetch is activity_laps_crud.get_activity_laps
-        assert service._COLLECTION.count is activity_laps_crud.count_activity_laps
-
-    def test_it_builds_its_own_page_type(self):
-        assert service._COLLECTION.build == activity_laps_schema.ActivityLapsPage.build
+@pytest.fixture
+def owner(db):
+    return make_user(db)
 
 
-class TestDelegation:
-    @patch("modules.activities.activity.child_collection_service.activity_child_access_service")
-    def test_the_authenticated_read_goes_through_the_shared_gate(self, mock_gate):
-        mock_gate.resolve_readable_parent.return_value = None
-        db = MagicMock()
+@pytest.fixture
+def follower(db, owner):
+    user = make_user(db)
+    make_follow(db, user.id, owner.id, accepted=True)
+    return user
 
-        page = service.list_activity_laps(_ACTIVITY_ID, _OWNER_ID, db)
+
+def _shared(db, owner, visibility=_VISIBILITY.FOLLOWERS, **flags):
+    activity = make_activity(db, owner.id, visibility=visibility, **flags)
+    make_laps(db, activity, [{"start_time": DEFAULT_START, "total_distance": 1000.0, **_FIELDS}])
+    return activity
+
+
+class TestAuthenticatedRead:
+    def test_the_owner_reads_every_field_of_a_lap_whatever_the_flags_say(self, db, owner):
+        flags = dict.fromkeys(_FLAG_FIELDS, True) | {"hide_laps": True}
+        activity = _shared(db, owner, _VISIBILITY.PRIVATE, **flags)
+
+        page = laps_service.list_activity_laps(activity.id, owner.id, db)
+
+        [lap] = page.items
+        assert (lap.start_time, lap.avg_heart_rate, lap.start_position_lat) == (DEFAULT_START, 150, 38.7)
+        assert page.total == 1
+
+    @pytest.mark.parametrize("flag", list(_FLAG_FIELDS))
+    def test_a_follower_gets_a_lap_without_what_the_flag_hides_and_with_the_rest(self, db, owner, follower, flag):
+        activity = _shared(db, owner, **{flag: True})
+
+        [lap] = laps_service.list_activity_laps(activity.id, follower.id, db).items
+
+        cleared = _FLAG_FIELDS[flag]
+        assert all(getattr(lap, field) is None for field in cleared)
+        kept = {field for field in {*_FIELDS, "start_time", "total_distance"} if field not in cleared}
+        assert all(getattr(lap, field) is not None for field in kept)
+
+    def test_a_follower_gets_a_lap_whole_when_no_flag_is_set(self, db, owner, follower):
+        activity = _shared(db, owner)
+
+        [lap] = laps_service.list_activity_laps(activity.id, follower.id, db).items
+
+        assert (lap.start_time, lap.avg_power, lap.start_position_long) == (DEFAULT_START, 200, -9.1)
+
+    def test_hide_laps_gives_a_follower_an_empty_page(self, db, owner, follower):
+        activity = _shared(db, owner, hide_laps=True)
+
+        page = laps_service.list_activity_laps(activity.id, follower.id, db)
 
         assert (page.items, page.total) == ([], 0)
-        mock_gate.resolve_readable_parent.assert_called_once_with(_ACTIVITY_ID, _OWNER_ID, db)
 
-    @patch("modules.activities.activity.child_collection_service.activity_child_access_service")
-    def test_the_public_read_goes_through_the_public_gate(self, mock_gate):
-        mock_gate.resolve_public_parent.return_value = None
-        db = MagicMock()
+    def test_a_stranger_gets_the_page_of_an_activity_that_does_not_exist(self, db, owner):
+        stranger = make_user(db)
+        activity = _shared(db, owner)
 
-        page = service.list_public_activity_laps(_ACTIVITY_ID, db)
+        refused = laps_service.list_activity_laps(activity.id, stranger.id, db)
 
-        assert (page.items, page.total) == ([], 0)
-        mock_gate.resolve_public_parent.assert_called_once_with(_ACTIVITY_ID, db)
+        assert refused.model_dump() == {"items": [], "total": 0, "page": 1, "num_records": 200, "next": None}
 
+    def test_a_page_reports_the_total_of_every_lap_and_the_next_page(self, db, owner):
+        activity = make_activity(db, owner.id)
+        make_laps(db, activity, [{"start_time": DEFAULT_START + timedelta(minutes=m)} for m in range(5)])
 
-_EVERY_FLAG = (
-    "hide_start_time",
-    "hide_map",
-    "hide_hr",
-    "hide_power",
-    "hide_cadence",
-    "hide_speed",
-    "hide_pace",
-    "hide_elevation",
-)
+        page = laps_service.list_activity_laps(activity.id, owner.id, db, page_number=1, num_records=2)
 
+        assert (len(page.items), page.total, page.next) == (2, 5, 2)
 
-def _lap(**fields) -> activity_laps_schema.ActivityLapsRead:
-    return activity_laps_schema.ActivityLapsRead(
-        id=_ROW_ID,
-        activity_id=_ACTIVITY_ID,
-        start_time=datetime(2024, 1, 15, 8, 0, 0, tzinfo=UTC),
-        start_position_lat=38.7,
-        start_position_long=-9.1,
-        end_position_lat=38.8,
-        end_position_long=-9.2,
-        total_distance=1000.0,
-        total_elapsed_time=300.0,
-        avg_heart_rate=150,
-        max_heart_rate=170,
-        avg_power=200,
-        max_power=400,
-        normalized_power=210,
-        total_work=60000,
-        avg_cadence=85,
-        max_cadence=95,
-        avg_fractional_cadence=0.5,
-        max_fractional_cadence=0.5,
-        total_cycles=420,
-        enhanced_avg_speed=3.3,
-        enhanced_max_speed=4.1,
-        enhanced_avg_pace=0.3,
-        enhanced_max_pace=0.24,
-        total_ascent=12,
-        total_descent=10,
-        enhanced_min_altitude=40.0,
-        enhanced_max_altitude=52.0,
-        **fields,
-    )
+    def test_the_laps_a_viewer_sees_with_the_activity_are_the_first_page_masked_for_them(self, db, owner, follower):
+        activity = _shared(db, owner, hide_hr=True)
+
+        as_follower = laps_service.list_for_activity(activity, follower.id, db)
+        as_anonymous = laps_service.list_for_activity(activity, None, db)
+
+        assert as_follower.items[0].avg_heart_rate is None
+        assert as_anonymous.items[0].avg_heart_rate is None
+        assert laps_service.list_for_activity(activity, owner.id, db).items[0].avg_heart_rate == 150
 
 
-def _parent(**flags) -> SimpleNamespace:
-    return SimpleNamespace(
-        id=_ACTIVITY_ID, user_id=_OWNER_ID, hide_laps=False, **dict.fromkeys(_EVERY_FLAG, False) | flags
-    )
+class TestPublicRead:
+    @pytest.fixture(autouse=True)
+    def _links_on(self, db):
+        edit_server_settings(db, public_shareable_links=True)
 
+    def test_the_laps_of_a_public_activity_are_served_masked_by_its_flags(self, db, owner):
+        activity = _shared(db, owner, _VISIBILITY.PUBLIC, hide_power=True)
 
-def _reading(*laps):
-    """The laps collection as declared, reading the given rows instead of the database."""
-    return dataclasses.replace(
-        service._COLLECTION, fetch=MagicMock(return_value=list(laps)), count=MagicMock(return_value=len(laps))
-    )
+        [lap] = laps_service.list_public_activity_laps(activity.id, db).items
 
+        assert (lap.avg_power, lap.total_work, lap.avg_heart_rate) == (None, None, 150)
 
-class TestViewerMask:
-    """A lap repeats the activity's hideable data, so each field follows its parent flag."""
+    @pytest.mark.parametrize("visibility", [_VISIBILITY.FOLLOWERS, _VISIBILITY.PRIVATE])
+    def test_an_activity_that_is_not_public_serves_no_laps(self, db, owner, visibility):
+        activity = _shared(db, owner, visibility)
 
-    def test_it_declares_the_field_map(self):
-        assert service._COLLECTION.fields_by_hide_flag is service._FIELDS_BY_HIDE_FLAG
+        assert laps_service.list_public_activity_laps(activity.id, db).items == []
 
-    @pytest.mark.parametrize(
-        ("flag", "fields"),
-        [
-            ("hide_start_time", ["start_time"]),
-            ("hide_map", ["start_position_lat", "start_position_long", "end_position_lat", "end_position_long"]),
-            ("hide_hr", ["avg_heart_rate", "max_heart_rate"]),
-            ("hide_power", ["avg_power", "max_power", "normalized_power", "total_work"]),
-            (
-                "hide_cadence",
-                ["avg_cadence", "max_cadence", "avg_fractional_cadence", "max_fractional_cadence", "total_cycles"],
-            ),
-            ("hide_speed", ["enhanced_avg_speed", "enhanced_max_speed"]),
-            ("hide_pace", ["enhanced_avg_pace", "enhanced_max_pace"]),
-            ("hide_elevation", ["total_ascent", "total_descent", "enhanced_min_altitude", "enhanced_max_altitude"]),
-        ],
-    )
-    def test_each_flag_clears_its_fields_and_nothing_else(self, flag, fields):
-        lap = _lap()
+    def test_a_hidden_public_activity_serves_no_laps(self, db, owner):
+        activity = _shared(db, owner, _VISIBILITY.PUBLIC, is_hidden=True)
 
-        with patch.object(service, "_COLLECTION", _reading(lap)):
-            [masked] = service.list_for_activity(_parent(**{flag: True}), _OTHER_ID, MagicMock()).items
+        assert laps_service.list_public_activity_laps(activity.id, db).items == []
 
-        assert service._COLLECTION.fields_by_hide_flag[flag] == tuple(fields)
+    def test_hide_laps_serves_none(self, db, owner):
+        activity = _shared(db, owner, _VISIBILITY.PUBLIC, hide_laps=True)
 
-        assert all(getattr(masked, field) is None for field in fields)
-        untouched = set(activity_laps_schema.ActivityLapsRead.model_fields) - set(fields)
-        assert all(getattr(masked, field) == getattr(lap, field) for field in untouched)
+        assert laps_service.list_public_activity_laps(activity.id, db).total == 0
 
-    def test_no_flag_leaves_the_laps_as_they_are(self):
-        laps = [_lap()]
+    def test_turning_public_links_off_serves_no_laps(self, db, owner):
+        activity = _shared(db, owner, _VISIBILITY.PUBLIC)
+        edit_server_settings(db, public_shareable_links=False)
 
-        with patch.object(service, "_COLLECTION", _reading(*laps)):
-            page = service.list_for_activity(_parent(), _OTHER_ID, MagicMock())
+        assert laps_service.list_public_activity_laps(activity.id, db).items == []
 
-        assert page.items == laps
+    def test_an_owner_who_is_no_longer_active_serves_no_laps(self, db):
+        gone = make_user(db, active=False)
+        activity = _shared(db, gone, _VISIBILITY.PUBLIC)
 
-    def test_a_non_owner_reads_the_masked_laps(self):
-        with patch.object(service, "_COLLECTION", _reading(_lap())):
-            page = service.list_for_activity(_parent(hide_map=True, hide_hr=True), _OTHER_ID, MagicMock())
-
-        assert (page.items[0].start_position_lat, page.items[0].avg_heart_rate) == (None, None)
-        assert page.items[0].total_distance == 1000.0
-
-    def test_the_owner_reads_the_laps_unmasked(self):
-        with patch.object(service, "_COLLECTION", _reading(_lap())):
-            page = service.list_for_activity(_parent(hide_map=True, hide_hr=True), _OWNER_ID, MagicMock())
-
-        assert page.items == [_lap()]
+        assert laps_service.list_public_activity_laps(activity.id, db).items == []

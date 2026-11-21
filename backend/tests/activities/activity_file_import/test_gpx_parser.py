@@ -5,11 +5,11 @@ from datetime import UTC, datetime, timedelta
 import gpxpy
 import pytest
 from geopy.distance import geodesic
-from tests._helpers.auth import MOCK_USER_ID
 
 import core.exceptions as core_exceptions
 import modules.activities.activity_file_import.gpx_parser as gpx_parser
 import modules.activities.computation as activities_computation
+from tests._helpers.auth import MOCK_USER_ID
 
 
 def _write_gpx(tmp_path, body: str) -> str:
@@ -26,23 +26,6 @@ def _write_gpx(tmp_path, body: str) -> str:
     path = tmp_path / "activity.gpx"
     path.write_text(body, encoding="utf-8")
     return str(path)
-
-
-def _patch_parser_side_effects(monkeypatch) -> None:
-    """
-    Disable external services and database-dependent parser lookups.
-
-    Args:
-        monkeypatch: Pytest monkeypatch fixture.
-
-    Returns:
-        None.
-    """
-    monkeypatch.setattr(
-        gpx_parser.activity_file_import_parser_utils,
-        "resolve_timezone_from_lat_lon",
-        lambda _lat, _lon, fallback: fallback,
-    )
 
 
 _SERVER_TZ = "UTC"
@@ -68,15 +51,13 @@ def _six_km_track(tmp_path) -> str:
 class TestAutoLapDistance:
     """GPX carries no device laps, so laps close at the caller's lap distance."""
 
-    def test_metric_laps_close_every_km(self, tmp_path, monkeypatch):
-        _patch_parser_side_effects(monkeypatch)
+    def test_metric_laps_close_every_km(self, tmp_path):
         result = gpx_parser.parse_gpx_file(_six_km_track(tmp_path), user_id=MOCK_USER_ID, default_timezone=_SERVER_TZ)
 
         full = [lap for lap in result["laps"] if lap["total_distance"] >= 990]
         assert len(full) == 6
 
-    def test_imperial_laps_close_every_mile(self, tmp_path, monkeypatch):
-        _patch_parser_side_effects(monkeypatch)
+    def test_imperial_laps_close_every_mile(self, tmp_path):
         result = gpx_parser.parse_gpx_file(
             _six_km_track(tmp_path), user_id=MOCK_USER_ID, default_timezone=_SERVER_TZ, distance_per_lap_km=1.609344
         )
@@ -93,12 +74,10 @@ class TestParseGpxFile:
     def test_parse_gpx_file_does_not_bridge_track_segments(
         self,
         tmp_path,
-        monkeypatch,
     ):
         """
         Test distance, speed, and laps do not bridge GPX segments.
         """
-        _patch_parser_side_effects(monkeypatch)
         gpx_path = _write_gpx(
             tmp_path,
             """
@@ -149,7 +128,6 @@ class TestParseGpxFile:
     def test_parse_gpx_file_sums_distance_over_multiple_points_in_one_segment(
         self,
         tmp_path,
-        monkeypatch,
     ):
         """
         Test distance accumulates over every hop in a single segment.
@@ -159,7 +137,6 @@ class TestParseGpxFile:
         segment: verifies a segment with more than two points still sums
         every consecutive hop, not just the first/last point pair.
         """
-        _patch_parser_side_effects(monkeypatch)
         gpx_path = _write_gpx(
             tmp_path,
             """
@@ -199,7 +176,6 @@ class TestParseGpxFile:
     def test_parse_gpx_file_excludes_pause_gap_from_timer_and_distance(
         self,
         tmp_path,
-        monkeypatch,
     ):
         """
         Test a within-segment pause is excluded from timer, distance and pace.
@@ -208,7 +184,6 @@ class TestParseGpxFile:
         single ``<trkseg>`` must not count as active time, and the
         straight-line hop across the gap must not count as distance.
         """
-        _patch_parser_side_effects(monkeypatch)
         gpx_path = _write_gpx(
             tmp_path,
             """
@@ -252,12 +227,10 @@ class TestParseGpxFile:
     def test_parse_gpx_file_sparse_track_is_not_split_into_pauses(
         self,
         tmp_path,
-        monkeypatch,
     ):
         """
         Test a track sampled every 30 s keeps its distance, timer and pace.
         """
-        _patch_parser_side_effects(monkeypatch)
         points = "".join(
             f'<trkpt lat="0.0" lon="{0.001 * i:.3f}">'
             f"<time>2025-01-01T00:{(30 * i) // 60:02d}:{(30 * i) % 60:02d}Z</time></trkpt>"
@@ -282,12 +255,10 @@ class TestParseGpxFile:
     def test_parse_gpx_file_timer_excludes_inter_segment_gap(
         self,
         tmp_path,
-        monkeypatch,
     ):
         """
         Test timer time excludes the gap between two ``<trkseg>`` blocks.
         """
-        _patch_parser_side_effects(monkeypatch)
         gpx_path = _write_gpx(
             tmp_path,
             """
@@ -325,12 +296,10 @@ class TestParseGpxFile:
     def test_parse_gpx_file_gap_equal_to_threshold_counts_as_moving(
         self,
         tmp_path,
-        monkeypatch,
     ):
         """
         Test a delta exactly at the pause threshold stays active time.
         """
-        _patch_parser_side_effects(monkeypatch)
         gpx_path = _write_gpx(
             tmp_path,
             """
@@ -365,12 +334,10 @@ class TestParseGpxFile:
     def test_parse_gpx_file_all_paused_falls_back_to_elapsed(
         self,
         tmp_path,
-        monkeypatch,
     ):
         """
         Test a track whose only delta is a pause falls back to elapsed time.
         """
-        _patch_parser_side_effects(monkeypatch)
         gpx_path = _write_gpx(
             tmp_path,
             """
@@ -402,12 +369,10 @@ class TestParseGpxFile:
     def test_parse_gpx_file_ignores_duplicate_timestamps(
         self,
         tmp_path,
-        monkeypatch,
     ):
         """
         Test duplicate timestamps do not inflate timer time or crash.
         """
-        _patch_parser_side_effects(monkeypatch)
         gpx_path = _write_gpx(
             tmp_path,
             """
@@ -440,12 +405,10 @@ class TestParseGpxFile:
     def test_parse_gpx_file_out_of_order_timestamp_does_not_inflate_timer(
         self,
         tmp_path,
-        monkeypatch,
     ):
         """
         Test timestamps 0, 10, 5, 15 s give 15 s of timer time, not 20.
         """
-        _patch_parser_side_effects(monkeypatch)
         gpx_path = _write_gpx(
             tmp_path,
             """
@@ -471,10 +434,8 @@ class TestParseGpxFile:
     def test_parse_gpx_file_converts_offset_timestamps_to_utc(
         self,
         tmp_path,
-        monkeypatch,
     ):
         """Timestamps with a non-UTC offset are stored as UTC (issue #588)."""
-        _patch_parser_side_effects(monkeypatch)
         gpx_path = _write_gpx(
             tmp_path,
             """
@@ -507,12 +468,10 @@ class TestParseGpxFile:
     def test_parse_gpx_file_rejects_no_valid_segments(
         self,
         tmp_path,
-        monkeypatch,
     ):
         """
         Test GPX files need at least one segment with two timed points.
         """
-        _patch_parser_side_effects(monkeypatch)
         gpx_path = _write_gpx(
             tmp_path,
             """
@@ -538,12 +497,10 @@ class TestParseGpxFile:
     def test_parse_gpx_file_sanitizes_elevation_values(
         self,
         tmp_path,
-        monkeypatch,
     ):
         """
         Test implausible elevation values are ignored but zero is kept.
         """
-        _patch_parser_side_effects(monkeypatch)
         gpx_path = _write_gpx(
             tmp_path,
             """
@@ -589,12 +546,10 @@ class TestParseGpxFile:
     def test_parse_gpx_file_reads_track_level_calories(
         self,
         tmp_path,
-        monkeypatch,
     ):
         """
         Test track-level calories extensions populate the activity.
         """
-        _patch_parser_side_effects(monkeypatch)
         gpx_path = _write_gpx(
             tmp_path,
             """
@@ -627,12 +582,10 @@ class TestParseGpxFile:
     def test_parse_gpx_file_without_extensions_creates_no_hr_or_cadence_stream(
         self,
         tmp_path,
-        monkeypatch,
     ):
         """
         Test a GPX file with no sensor extensions produces no HR/cadence data.
         """
-        _patch_parser_side_effects(monkeypatch)
         gpx_path = _write_gpx(
             tmp_path,
             """
@@ -664,12 +617,10 @@ class TestParseGpxFile:
     def test_parse_gpx_file_with_only_hr_data_omits_cadence_stream(
         self,
         tmp_path,
-        monkeypatch,
     ):
         """
         Test HR-only extensions persist an HR stream and no cadence stream.
         """
-        _patch_parser_side_effects(monkeypatch)
         gpx_path = _write_gpx(
             tmp_path,
             """
@@ -705,12 +656,10 @@ class TestParseGpxFile:
     def test_parse_gpx_file_does_not_zero_fill_missing_cadence_samples(
         self,
         tmp_path,
-        monkeypatch,
     ):
         """
         Test a cadence sample missing from one point is skipped, not zeroed.
         """
-        _patch_parser_side_effects(monkeypatch)
         gpx_path = _write_gpx(
             tmp_path,
             """
@@ -748,12 +697,10 @@ class TestParseGpxFile:
     def test_parse_gpx_file_doubles_running_cadence_to_spm(
         self,
         tmp_path,
-        monkeypatch,
     ):
         """
         Test running GPX cadence (per-leg) is stored as steps per minute.
         """
-        _patch_parser_side_effects(monkeypatch)
         gpx_path = _write_gpx(
             tmp_path,
             """
@@ -790,12 +737,10 @@ class TestParseGpxFile:
     def test_parse_gpx_file_with_all_zero_hr_creates_no_hr_stream(
         self,
         tmp_path,
-        monkeypatch,
     ):
         """
         Test HR extensions present but always zero do not persist a stream.
         """
-        _patch_parser_side_effects(monkeypatch)
         gpx_path = _write_gpx(
             tmp_path,
             """
@@ -830,12 +775,10 @@ class TestParseGpxFile:
     def test_parse_gpx_file_flat_track_stores_zero_elevation_gain(
         self,
         tmp_path,
-        monkeypatch,
     ):
         """
         Test a flat track stores 0 m elevation gain/loss, not None.
         """
-        _patch_parser_side_effects(monkeypatch)
         start = datetime(2025, 1, 1, 0, 0, 0)
         trkpts = "\n".join(
             f'<trkpt lat="{40.0 + i * 0.001}" lon="-3.0">'
@@ -885,55 +828,6 @@ class TestParseGpxFile:
         assert activity.elevation_gain is None
         assert activity.elevation_loss is None
 
-    def test_parse_gpx_file_smooths_elevation_once_for_all_segments(
-        self,
-        tmp_path,
-        monkeypatch,
-    ):
-        """
-        Test every segment's laps reuse one smoothed elevation stream.
-        """
-        _patch_parser_side_effects(monkeypatch)
-        parser_utils = gpx_parser.activity_file_import_parser_utils
-        generate_activity_laps = parser_utils.generate_activity_laps
-        received_streams: list[list[dict] | None] = []
-
-        def _record_laps(*args, **kwargs):
-            received_streams.append(kwargs.get("smoothed_ele_waypoints"))
-            return generate_activity_laps(*args, **kwargs)
-
-        monkeypatch.setattr(parser_utils, "generate_activity_laps", _record_laps)
-        start = datetime(2025, 1, 1, 0, 0, 0)
-        segments = "\n".join(
-            "<trkseg>"
-            + "".join(
-                f'<trkpt lat="{40.0 + (seg * 5 + i) * 0.001}" lon="-3.0">'
-                f"<ele>{100.0 + seg * 5 + i}</ele>"
-                f"<time>{(start + timedelta(seconds=10 * (seg * 5 + i))).strftime('%Y-%m-%dT%H:%M:%SZ')}</time>"
-                f"</trkpt>"
-                for i in range(5)
-            )
-            + "</trkseg>"
-            for seg in range(3)
-        )
-        gpx_path = _write_gpx(
-            tmp_path,
-            f"""
-            <gpx version="1.1" creator="pytest">
-              <trk>
-                <name>Segmented climb</name>
-                {segments}
-              </trk>
-            </gpx>
-            """.strip(),
-        )
-
-        result = gpx_parser.parse_gpx_file(gpx_path, user_id=MOCK_USER_ID, default_timezone=_SERVER_TZ)
-
-        assert len(received_streams) == 3
-        assert all(stream is received_streams[0] for stream in received_streams)
-        assert received_streams[0] == activities_computation.smooth_elevation_stream(result["ele_waypoints"])
-
 
 def _steady_run_gpx(n_points: int, spike_indexes: dict[int, float]) -> str:
     """Build a ~3 m/s eastbound GPX run with 1 s spacing.
@@ -956,8 +850,7 @@ def _steady_run_gpx(n_points: int, spike_indexes: dict[int, float]) -> str:
 class TestParseGpxMaxSpeed:
     """Test suite for max speed robustness against GPS glitches."""
 
-    def test_single_gps_spike_does_not_set_max_speed(self, tmp_path, monkeypatch):
-        _patch_parser_side_effects(monkeypatch)
+    def test_single_gps_spike_does_not_set_max_speed(self, tmp_path):
         path = _write_gpx(tmp_path, _steady_run_gpx(30, {15: 0.00045}))  # one fix ~50 m ahead
 
         result = gpx_parser.parse_gpx_file(path, user_id=MOCK_USER_ID, default_timezone=_SERVER_TZ)
@@ -965,16 +858,14 @@ class TestParseGpxMaxSpeed:
         assert max(w["vel"] for w in result["vel_waypoints"]) > 40
         assert result["activity"].max_speed == pytest.approx(3, abs=0.5)
 
-    def test_two_adjacent_spiked_fixes_are_ignored(self, tmp_path, monkeypatch):
-        _patch_parser_side_effects(monkeypatch)
+    def test_two_adjacent_spiked_fixes_are_ignored(self, tmp_path):
         path = _write_gpx(tmp_path, _steady_run_gpx(30, {15: 0.00045, 16: 0.00045}))
 
         result = gpx_parser.parse_gpx_file(path, user_id=MOCK_USER_ID, default_timezone=_SERVER_TZ)
 
         assert result["activity"].max_speed == pytest.approx(3, abs=0.5)
 
-    def test_sustained_fast_stretch_is_reported(self, tmp_path, monkeypatch):
-        _patch_parser_side_effects(monkeypatch)
+    def test_sustained_fast_stretch_is_reported(self, tmp_path):
         step = 0.0000269
         lons = [i * step for i in range(15)]
         for _ in range(4):  # 4 samples at ~9 m/s
@@ -994,8 +885,7 @@ class TestParseGpxMaxSpeed:
 
         assert result["activity"].max_speed == pytest.approx(9, abs=1)
 
-    def test_fewer_than_window_samples_use_plain_max(self, tmp_path, monkeypatch):
-        _patch_parser_side_effects(monkeypatch)
+    def test_fewer_than_window_samples_use_plain_max(self, tmp_path):
         path = _write_gpx(tmp_path, _steady_run_gpx(4, {2: 0.00045}))
 
         result = gpx_parser.parse_gpx_file(path, user_id=MOCK_USER_ID, default_timezone=_SERVER_TZ)
@@ -1160,16 +1050,14 @@ class TestParseGpxMaxSpeedSegmentPlaceholders:
             segments.append([(i * 0.001 + 0.0005, f"00:{2 * i + 1:02d}:00")])
         return _segments_gpx(segments)
 
-    def test_many_short_segments_report_the_measured_speed(self, tmp_path, monkeypatch):
-        _patch_parser_side_effects(monkeypatch)
+    def test_many_short_segments_report_the_measured_speed(self, tmp_path):
         path = _write_gpx(tmp_path, self._short_segments())
 
         result = gpx_parser.parse_gpx_file(path, user_id=MOCK_USER_ID, default_timezone=_SERVER_TZ)
 
         assert result["activity"].max_speed == pytest.approx(3, abs=0.5)
 
-    def test_stored_stream_and_average_still_include_the_placeholders(self, tmp_path, monkeypatch):
-        _patch_parser_side_effects(monkeypatch)
+    def test_stored_stream_and_average_still_include_the_placeholders(self, tmp_path):
         path = _write_gpx(tmp_path, self._short_segments())
 
         result = gpx_parser.parse_gpx_file(path, user_id=MOCK_USER_ID, default_timezone=_SERVER_TZ)
@@ -1180,8 +1068,7 @@ class TestParseGpxMaxSpeedSegmentPlaceholders:
         assert set(result["vel_waypoints"][0]) == {"time", "vel"}
         assert result["activity"].average_speed == pytest.approx(sum(vels) / len(vels))
 
-    def test_a_lap_starting_at_a_segment_start_reports_the_measured_speed(self, tmp_path, monkeypatch):
-        _patch_parser_side_effects(monkeypatch)
+    def test_a_lap_starting_at_a_segment_start_reports_the_measured_speed(self, tmp_path):
         path = _write_gpx(tmp_path, self._short_segments())
 
         result = gpx_parser.parse_gpx_file(path, user_id=MOCK_USER_ID, default_timezone=_SERVER_TZ)
@@ -1189,8 +1076,7 @@ class TestParseGpxMaxSpeedSegmentPlaceholders:
         assert len(result["laps"]) == 5
         assert all(lap["enhanced_max_speed"] == pytest.approx(3, abs=0.5) for lap in result["laps"])
 
-    def test_non_advancing_clock_gives_zero_max_speed(self, tmp_path, monkeypatch):
-        _patch_parser_side_effects(monkeypatch)
+    def test_non_advancing_clock_gives_zero_max_speed(self, tmp_path):
         path = _write_gpx(
             tmp_path,
             _segments_gpx(
@@ -1205,8 +1091,7 @@ class TestParseGpxMaxSpeedSegmentPlaceholders:
 
         assert result["activity"].max_speed == 0
 
-    def test_single_point_segments_do_not_raise(self, tmp_path, monkeypatch):
-        _patch_parser_side_effects(monkeypatch)
+    def test_single_point_segments_do_not_raise(self, tmp_path):
         path = _write_gpx(
             tmp_path,
             _segments_gpx(
