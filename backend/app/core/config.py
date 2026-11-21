@@ -31,6 +31,7 @@ from pydantic import field_validator, model_validator
 from pydantic_settings import BaseSettings, NoDecode, SettingsConfigDict
 
 import core.environment as core_environment
+import core.job_queues as core_job_queues
 import core.logger as core_logger
 import core.network as core_network
 import core.redirect_schemes as core_redirect_schemes
@@ -256,6 +257,10 @@ class Settings(BaseSettings):
     # single-node deployments; turn off when running dedicated worker processes
     # (APP_ROLE=worker) so the API only publishes and schedules maintenance.
     JOBS_RUN_IN_PROCESS_WORKER: bool = True
+    # The queues a dedicated worker (APP_ROLE=worker) serves, comma-separated (``default``, ``background``); unset,
+    # it serves them all. Running one worker for ``default`` and another for ``background`` keeps the work a user
+    # waits on from queueing behind thumbnails, geocoding, imports and exports (``core.job_queues``).
+    JOBS_QUEUES: Annotated[tuple[str, ...] | None, NoDecode] = None
     # Age in days after which completed durable-job bookkeeping is pruned by a
     # scheduled cleanup (daily, plus once at startup): relayed ``event_outbox``
     # rows and ``completed`` ``processing_jobs`` rows. In-flight and
@@ -386,6 +391,41 @@ class Settings(BaseSettings):
             return bool(parts.hostname) and "@" not in parts.netloc and (parts.port is None or parts.port > 0)
         except ValueError:
             return False
+
+    @field_validator("JOBS_QUEUES", mode="before")
+    @classmethod
+    def _parse_job_queues(cls, v: str | Iterable[str] | None) -> tuple[str, ...] | None:
+        """Accept a comma-separated env value or an iterable; each queue once, in order; empty means every queue.
+
+        Raises:
+            ValueError: If a name is not a queue a subscriber is registered on.
+        """
+        if v is None:
+            return None
+        entries = v.split(",") if isinstance(v, str) else [str(entry) for entry in v]
+        queues = tuple(dict.fromkeys(entry.strip() for entry in entries if entry.strip()))
+        unknown = [queue for queue in queues if queue not in core_job_queues.ALL]
+        if unknown:
+            raise ValueError(
+                f"JOBS_QUEUES names unknown queues {unknown}; the queues are {', '.join(core_job_queues.ALL)}"
+            )
+        return queues or None
+
+    @model_validator(mode="after")
+    def _require_a_dedicated_worker_for_job_queues(self) -> Self:
+        """Refuse ``JOBS_QUEUES`` where no dedicated worker reads it.
+
+        The API's in-process worker serves every queue, so the setting would silently do nothing there.
+
+        Raises:
+            ValueError: If ``JOBS_QUEUES`` is set while the API runs the in-process worker.
+        """
+        if self.JOBS_QUEUES is not None and self.job_worker_mode is platform_profile.JobWorkerMode.IN_PROCESS:
+            raise ValueError(
+                "JOBS_QUEUES selects the queues of a dedicated worker: set JOBS_ENABLED=true and "
+                "JOBS_RUN_IN_PROCESS_WORKER=false, and run the worker with APP_ROLE=worker"
+            )
+        return self
 
     @field_validator("TRUSTED_PROXIES", mode="before")
     @classmethod

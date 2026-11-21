@@ -23,6 +23,7 @@ from jasil.providers import EventBusProvider
 from jasil.subscribers import best_effort
 
 import core.database as core_database
+import core.job_queues as core_job_queues
 import core.logger as core_logger
 import core.scheduler as core_scheduler
 import modules.activities.activity.events as activity_events
@@ -160,6 +161,7 @@ def register_durable_handlers(registry: JobHandlerRegistry) -> None:
         activity_events.ACTIVITY_CREATED,
         THUMBNAIL_GENERATE_SUBSCRIBER_ID,
         generate_activity_thumbnail_for_event,
+        queue=core_job_queues.BACKGROUND,
     )
     registry.register(
         activity_events.ACTIVITY_DELETED,
@@ -170,4 +172,5 @@ def register_durable_handlers(registry: JobHandlerRegistry) -> None:
         server_settings_events.TILE_SETTINGS_CHANGED,
         THUMBNAIL_SETTINGS_CHANGED_SUBSCRIBER_ID,
         regenerate_thumbnails_for_tile_settings_event,
+        queue=core_job_queues.BACKGROUND,
     )

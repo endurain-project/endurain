@@ -126,10 +126,21 @@ services:
       args:
         PYTHON_EXTRAS: distributed
 
+  # The work a user waits on (uploads, syncs, emails, notifications); scaled by run.sh.
   worker:
     <<: *endurain
     environment:
       APP_ROLE: worker
+      JOBS_QUEUES: default
+    healthcheck:
+      disable: true
+
+  # Thumbnails, geocoding, imports, exports and deletions, so they never hold up the default queue.
+  worker-background:
+    <<: *endurain
+    environment:
+      APP_ROLE: worker
+      JOBS_QUEUES: background
     healthcheck:
       disable: true
 

@@ -478,3 +478,32 @@ class TestStartupWarnings:
 
     def test_https_is_silent(self):
         assert self._messages("https://endurain.example.com") == []
+
+
+#: The settings of a deployment with dedicated workers, which ``JOBS_QUEUES`` needs.
+_DEDICATED_WORKERS = {"JOBS_ENABLED": True, "JOBS_RUN_IN_PROCESS_WORKER": False, "REDIS_URL": "redis://redis:6379/0"}
+
+
+class TestJobQueues:
+    """``JOBS_QUEUES`` names the queues a dedicated worker serves; unset, it serves them all."""
+
+    def test_unset_serves_every_queue(self):
+        assert core_config.Settings(_env_file=None, **_DEDICATED_WORKERS).JOBS_QUEUES is None
+
+    def test_a_comma_separated_list_names_each_queue_once(self):
+        settings = core_config.Settings(
+            _env_file=None, **_DEDICATED_WORKERS, JOBS_QUEUES=" default , background,default"
+        )
+
+        assert settings.JOBS_QUEUES == ("default", "background")
+
+    def test_an_empty_value_serves_every_queue(self):
+        assert core_config.Settings(_env_file=None, **_DEDICATED_WORKERS, JOBS_QUEUES=" , ").JOBS_QUEUES is None
+
+    def test_an_unknown_queue_is_refused(self):
+        with pytest.raises(ValidationError, match="JOBS_QUEUES"):
+            core_config.Settings(_env_file=None, **_DEDICATED_WORKERS, JOBS_QUEUES="default,backgrund")
+
+    def test_queues_without_a_dedicated_worker_are_refused(self):
+        with pytest.raises(ValidationError, match="JOBS_RUN_IN_PROCESS_WORKER=false"):
+            core_config.Settings(_env_file=None, JOBS_ENABLED=True, JOBS_QUEUES="background")

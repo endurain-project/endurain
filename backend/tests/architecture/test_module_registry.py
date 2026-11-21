@@ -4,6 +4,7 @@ from unittest.mock import MagicMock
 
 from jasil.jobs.registry import JobHandlerRegistry
 
+import core.job_queues as core_job_queues
 import module_registry as runtime_module_registry
 import modules.activities.activity.events as activity_events
 import modules.activities.activity_ingestion.events as ingestion_events
@@ -18,6 +19,18 @@ _EXPECTED_DELETED_SUBSCRIBERS = {
     "activity_thumbnail.cleanup",
     "activity_file_storage.cleanup",
     "activity_media.cleanup",
+}
+
+#: Work nobody waits on that can take long, which a dedicated background worker may take.
+_BACKGROUND_SUBSCRIBERS = {
+    "activity_thumbnail.generate",
+    "activity_thumbnail.settings_changed",
+    "activity_geocoding.reverse_geocode",
+    "activity_ingestion.bulk_import",
+    "users.profile_export_requested",
+    "users.profile_import_requested",
+    "gears.deletion_requested",
+    "users.deletion_requested",
 }
 
 
@@ -264,3 +277,12 @@ class TestShutdownModulePools:
         declared = {module.name for module in runtime_module_registry.MODULES if module.shutdown is not None}
 
         assert {"activity", "activity_ingestion", "garmin", "strava", "users", "users_profile"} <= declared
+
+
+class TestJobQueues:
+    def test_deferrable_work_is_on_the_background_queue_and_everything_else_on_the_default_one(self):
+        registry = _register_durable_handlers()
+        queues = {subscriber: registry.queue_for(subscriber) for subscriber in registry.subscriber_ids()}
+
+        assert {s for s, queue in queues.items() if queue == core_job_queues.BACKGROUND} == _BACKGROUND_SUBSCRIBERS
+        assert set(queues.values()) == set(core_job_queues.ALL)

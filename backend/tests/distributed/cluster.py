@@ -189,9 +189,13 @@ class Cluster:
             )
         return processes
 
-    def start_worker(self, *, distributed: bool, slow_seconds: float | None = None) -> _Process:
-        """Start a durable-job worker, optionally one whose upload processing is delayed."""
+    def start_worker(
+        self, *, distributed: bool, slow_seconds: float | None = None, queues: str | None = None
+    ) -> _Process:
+        """Start a durable-job worker, optionally one whose upload processing is delayed or that serves some queues."""
         env = self.env(distributed=distributed)
+        if queues is not None:
+            env["JOBS_QUEUES"] = queues
         script = "worker.py"
         if slow_seconds is not None:
             env["SLOW_SECONDS"] = str(slow_seconds)

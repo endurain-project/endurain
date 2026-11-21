@@ -127,7 +127,7 @@ Hatch scripts group the common checks, for example `uv run hatch run check` runs
 
 ## Load tests
 
-`loadtest/` holds a load-test stack: a distributed Endurain (nginx in front of several API replicas, dedicated workers, PostgreSQL with `pg_stat_statements` behind toxiproxy, Redis, an S3-compatible store, adobe/s3mock as in the distributed CI job, and a stub for the providers the application calls) built from `docker/Dockerfile` with `PYTHON_EXTRAS=distributed`, a seeding script and a [Locust](https://locust.io/) scenario file. It needs Docker (about 4 GB of memory for the VM) and uv, and it has its own `pyproject.toml`, so the backend's dependencies are untouched. The stack runs as the Compose project `endurain-load` and publishes only `localhost:18080` (the proxy), `127.0.0.1:15432` (PostgreSQL), `127.0.0.1:18474` (toxiproxy's API) and `127.0.0.1:18081` (the stub's admin API). `run.sh` generates the stack's `SECRET_KEY`, `FERNET_KEY` and database password into `loadtest/.env.secrets` on first use (gitignored); `loadtest/.env.loadtest` holds the rest of its settings.
+`loadtest/` holds a load-test stack: a distributed Endurain (nginx in front of several API replicas, dedicated workers for the `default` queue and one for `background`, PostgreSQL with `pg_stat_statements` behind toxiproxy, Redis, an S3-compatible store, adobe/s3mock as in the distributed CI job, and a stub for the providers the application calls) built from `docker/Dockerfile` with `PYTHON_EXTRAS=distributed`, a seeding script and a [Locust](https://locust.io/) scenario file. It needs Docker (about 4 GB of memory for the VM) and uv, and it has its own `pyproject.toml`, so the backend's dependencies are untouched. The stack runs as the Compose project `endurain-load` and publishes only `localhost:18080` (the proxy), `127.0.0.1:15432` (PostgreSQL), `127.0.0.1:18474` (toxiproxy's API) and `127.0.0.1:18081` (the stub's admin API). `run.sh` generates the stack's `SECRET_KEY`, `FERNET_KEY` and database password into `loadtest/.env.secrets` on first use (gitignored); `loadtest/.env.loadtest` holds the rest of its settings.
 
 ```bash
 cd loadtest
@@ -160,7 +160,7 @@ Strava answers 429 with Strava's rate-limit headers when a limit is set through 
 
 | Scenario | Fault | Asserted | Bound |
 | --- | --- | --- | --- |
-| `worker_kill` | SIGKILL the worker while it holds jobs of an upload burst, then start a new one | every job ends once: the lease (45 s here) expires and the reaper requeues it | 240 s |
+| `worker_kill` | SIGKILL the `default`-queue worker while it holds jobs of an upload burst, then start a new one | every job ends once: the lease (45 s here) expires and the reaper requeues it | 240 s |
 | `api_restart` | restart one API replica during load and an upload burst | the replica and the proxy serve again; requests in flight may fail, but no accepted job is lost or duplicated | 120 s |
 | `redis_outage` | stop Redis for 20 s | as documented in [Monitoring](../getting-started/monitoring.md): `/health` answers 200 with `degraded`, reads keep working, WebSocket tickets answer 503; afterwards `/health` is `ok` and tickets and sign-in work | 60 s |
 | `postgres_faults` | toxiproxy: 200 ms latency for 30 s, then every connection reset for 10 s | the application answers again, no connection is stuck idle in a transaction, every job ends | 90 s |

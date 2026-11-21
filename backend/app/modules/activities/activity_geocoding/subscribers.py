@@ -21,6 +21,7 @@ from jasil.providers import EventBusProvider
 from jasil.subscribers import best_effort
 
 import core.database as core_database
+import core.job_queues as core_job_queues
 import core.logger as core_logger
 import modules.activities.activity.events as activity_events
 import modules.activities.activity_geocoding.service as activity_geocoding_service
@@ -118,4 +119,5 @@ def register_durable_handlers(registry: JobHandlerRegistry) -> None:
         activity_events.ACTIVITY_CREATED,
         GEOCODING_SUBSCRIBER_ID,
         geocode_activity_for_event,
+        queue=core_job_queues.BACKGROUND,
     )

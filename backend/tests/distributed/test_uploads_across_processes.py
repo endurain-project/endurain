@@ -12,6 +12,8 @@ _DERIVED_SUBSCRIBERS = {
     "activity.notify_created",
     "activity_thumbnail.generate",
 }
+#: The derived work a dedicated background worker takes.
+_BACKGROUND_SUBSCRIBERS = {"activity_geocoding.reverse_geocode", "activity_thumbnail.generate"}
 
 
 def _assert_everything_completed_exactly_once(cluster, job_ids, *, workers: int) -> None:
@@ -56,5 +58,36 @@ def test_two_replicas_and_two_workers_share_one_deployment(cluster):
 
     job_ids = cluster.accept_uploads(4, "replica-a", distributed=True)
     job_ids += cluster.accept_uploads(4, "replica-b", distributed=True)
+
+    _assert_everything_completed_exactly_once(cluster, job_ids, workers=2)
+
+
+def test_a_default_queue_worker_imports_while_background_work_waits_for_its_own_worker(cluster):
+    """Uploads and their notifications never queue behind thumbnails and geocoding: those wait for their own worker."""
+    cluster.start_api(distributed=False)
+    cluster.start_worker(distributed=False, queues="default")
+
+    job_ids = cluster.accept_uploads(3, "queues", distributed=False)
+
+    assert cluster.wait_for_uploads(job_ids), {job: cluster.job_status(job) for job in job_ids}
+    assert cluster.wait_for(
+        lambda: (
+            cluster.scalar(
+                "SELECT count(*) FROM jasil_processing_jobs WHERE subscriber_id = 'activity.notify_created' "
+                "AND status = 'completed'"
+            )
+            == len(job_ids)
+        ),
+        60,
+    )
+    waiting = cluster.query(
+        "SELECT subscriber_id, queue, status, attempts FROM jasil_processing_jobs WHERE subscriber_id = ANY(:ids)",
+        ids=sorted(_BACKGROUND_SUBSCRIBERS),
+    )
+    assert sorted(waiting) == sorted(
+        (subscriber, "background", "pending", 0) for subscriber in _BACKGROUND_SUBSCRIBERS for _ in job_ids
+    )
+
+    cluster.start_worker(distributed=False, queues="background")
 
     _assert_everything_completed_exactly_once(cluster, job_ids, workers=2)

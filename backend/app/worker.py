@@ -148,7 +148,12 @@ def run_worker_process(stop: threading.Event | None = None) -> None:
     runtime_module_registry.configure_application()
     runtime_module_registry.register_durable_handlers(jobs_registry.registry)
     try:
-        jobs_service.run_job_worker(role="worker", stop=stop)
+        queues = core_config.settings.JOBS_QUEUES
+        logger.info(
+            "Durable job worker serving " + (", ".join(queues) if queues else "every queue"),
+            extra=core_logger.context(console=True),
+        )
+        jobs_service.run_job_worker(queues=queues, role="worker", stop=stop)
     finally:
         # This process built a platform of its own, so it owns releasing it —
         # under the distributed profile that is a Redis consumer thread and a

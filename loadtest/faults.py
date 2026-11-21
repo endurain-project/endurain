@@ -334,9 +334,10 @@ class Load:
 
 
 def worker_kill(sc: Scenario, ctx: "Context") -> None:
-    """SIGKILL the only worker while it holds jobs of an upload burst; start a new one."""
-    # One worker, so the jobs the database shows claimed are known to be its (a worker's id there is a random UUID,
-    # not the container's name). The scale-down stops the second worker gracefully.
+    """SIGKILL the only default-queue worker while it holds jobs of an upload burst; start a new one."""
+    # One worker on the default queue, so the default-queue jobs the database shows claimed are known to be its (a
+    # worker's id there is a random UUID, not the container's name; the background worker serves only its own queue).
+    # The scale-down stops the second worker gracefully.
     compose("up", "-d", "--no-recreate", "--scale", "worker=1", "worker")
     victim = container_ids("worker")[0]
     uploads = ctx.uploads
@@ -345,7 +346,9 @@ def worker_kill(sc: Scenario, ctx: "Context") -> None:
 
     def claimed() -> int:
         with db() as conn:
-            return conn.execute("SELECT count(*) FROM jasil_processing_jobs WHERE status = 'claimed'").fetchone()[0]
+            return conn.execute(
+                "SELECT count(*) FROM jasil_processing_jobs WHERE status = 'claimed' AND queue = 'default'"
+            ).fetchone()[0]
 
     held = 0
     started = time.monotonic()
@@ -356,7 +359,10 @@ def worker_kill(sc: Scenario, ctx: "Context") -> None:
     killed_at = time.monotonic()
     # The attempts open at the kill are the dead worker's, whenever it claimed them (some during the warm-up load).
     with db() as conn:
-        open_attempts = [row[0] for row in conn.execute("SELECT id FROM jasil_job_attempts WHERE outcome IS NULL")]
+        open_attempts = [
+            row[0]
+            for row in conn.execute("SELECT id FROM jasil_job_attempts WHERE outcome IS NULL AND queue = 'default'")
+        ]
     sc.notes["jobs_claimed_at_the_kill"] = held
     sc.notes["attempts_open_at_the_kill"] = len(open_attempts)
     print(f"  killed the worker holding {held} claimed jobs", flush=True)
@@ -377,8 +383,8 @@ def worker_kill(sc: Scenario, ctx: "Context") -> None:
         f"{states.count('succeeded')} succeeded, {states.count('failed')} failed",
     )
 
-    # The jobs the worker held (thumbnails, geocoding, notifications of the uploads) wait for their lease to run out
-    # and for the reaper, so the fault is over when no durable job is open.
+    # The jobs the worker held (the uploads and their notifications) wait for their lease to run out and for the
+    # reaper, so the fault is over when no durable job is open.
     def nothing_open() -> bool:
         with db() as conn:
             return (

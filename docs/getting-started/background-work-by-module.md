@@ -320,6 +320,8 @@ Every durable job is one subscriber reacting to one event. The **subscriber id**
 
 "Runs without durable jobs" says where the handler runs when `JOBS_ENABLED=false`. A **bus** handler is queued on the 2-thread subscriber pool and a failure is dropped. A **command pool** is a bounded pool that the request submits to directly, described in the module's section above. The gear deletion and bulk edit pools run one job at a time and hold 5.
 
+Every job is on the `default` queue except `activity_thumbnail.generate`, `activity_thumbnail.settings_changed`, `activity_geocoding.reverse_geocode`, `activity_ingestion.bulk_import`, `users.profile_export_requested`, `users.profile_import_requested`, `gears.deletion_requested` and `users.deletion_requested`, which are on `background`: nobody waits on them and they can take long. See [Separate workers for background work](scaling-and-background-jobs.md#separate-workers-for-background-work).
+
 | Subscriber id | Event | Runs without durable jobs | Repaired by | On dead-letter |
 | ------------- | ----- | ------------------------- | ----------- | -------------- |
 | `activity_thumbnail.generate` | `activity.created` | Bus | [Hourly missing-thumbnail job](#scheduled-jobs) | Net fills the gap |

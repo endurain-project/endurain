@@ -122,7 +122,7 @@ run_once() {
   "${PSQL[@]}" -c "SELECT state, wait_event_type, wait_event, count(*) FROM pg_stat_activity WHERE datname = 'endurain' \
     GROUP BY 1, 2, 3 ORDER BY 4 DESC" -c "SHOW max_connections" >"$dir/pg_stat_activity.txt" 2>&1 || true
   "${DC[@]}" logs --no-color --no-log-prefix api >"$dir/api.log" 2>&1 || true
-  "${DC[@]}" logs --no-color --no-log-prefix worker >"$dir/worker.log" 2>&1 || true
+  "${DC[@]}" logs --no-color --no-log-prefix worker worker-background >"$dir/worker.log" 2>&1 || true
   "${DC[@]}" stats --no-stream --format 'table {{.Name}}\t{{.MemUsage}}\t{{.CPUPerc}}' >"$dir/containers.txt" 2>&1 || true
   local errors
   errors=$(grep -c '"level": "ERROR"' "$dir/api.log" "$dir/worker.log" 2>/dev/null | paste -sd' ' - || true)
@@ -139,7 +139,7 @@ if [ "$PROFILE" = "faults" ]; then
   echo "== $RUN: $WORKERS worker(s), ${APIS[0]} api"
   bring_up_and_seed "${APIS[0]}"
   uv run python faults.py --run "$RUN" || STATUS=1
-  for service in api worker stub; do
+  for service in api worker worker-background stub; do
     "${DC[@]}" logs --no-color --no-log-prefix "$service" >"results/$RUN/$service.log" 2>&1 || true
   done
   echo "== $RUN: faults $([ "$STATUS" -eq 0 ] && echo ok || echo FAILED)"
