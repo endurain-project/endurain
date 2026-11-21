@@ -1,56 +1,87 @@
-"""Tests for migrations.utils: how pending data migrations are run at startup."""
+"""How pending data migrations are run at startup: in order, off the event loop thread, stopping at a failure."""
 
 import asyncio
 import threading
-from unittest.mock import MagicMock, patch
 
 import pytest
 
 import migrations.utils as migrations_utils
+from tests._factories.migrations import make_migration
 
 
-def _pending(*ids: int) -> list[MagicMock]:
-    return [MagicMock(id=migration_id, name=f"m{migration_id}") for migration_id in ids]
+@pytest.fixture
+def handlers(monkeypatch):
+    """Register data migration handlers for the test; the production registry holds none once they are retired."""
+
+    def register(**by_id: object) -> None:
+        for migration_id, handler in by_id.items():
+            monkeypatch.setitem(migrations_utils._SYNC_MIGRATIONS, int(migration_id.removeprefix("m")), handler)
+
+    return register
 
 
-def _run(sync: dict, pending: list) -> None:
-    with (
-        patch.object(migrations_utils.migrations_crud, "get_migrations_not_executed", return_value=pending),
-        patch.object(migrations_utils, "_SYNC_MIGRATIONS", sync),
-    ):
-        asyncio.run(migrations_utils.check_migrations_not_executed(MagicMock()))
-
-
-def test_a_sync_migration_may_start_its_own_event_loop():
+async def test_a_sync_migration_may_start_its_own_event_loop(db, handlers):
     """Startup awaits the runner on a running loop, where ``asyncio.run`` is refused."""
     ran: list[bool] = []
 
+    async def nothing() -> None:
+        pass
+
     def migration(_db):
-        asyncio.run(asyncio.sleep(0))
+        asyncio.run(nothing())
         ran.append(True)
 
-    _run({1: migration}, _pending(1))
+    make_migration(db, 1)
+    handlers(m1=migration)
+
+    await migrations_utils.check_migrations_not_executed(db)
 
     assert ran == [True]
 
 
-def test_a_sync_migration_does_not_run_on_the_event_loop_thread():
-    loop_thread = threading.get_ident()
+async def test_a_sync_migration_does_not_run_on_the_event_loop_thread(db, handlers):
     seen: list[int] = []
+    make_migration(db, 1)
+    handlers(m1=lambda _db: seen.append(threading.get_ident()))
 
-    _run({1: lambda _db: seen.append(threading.get_ident())}, _pending(1))
+    await migrations_utils.check_migrations_not_executed(db)
 
-    assert seen and seen[0] != loop_thread
+    assert seen and seen[0] != threading.get_ident()
 
 
-def test_migrations_run_in_order_and_a_failure_stops_the_rest():
+async def test_migrations_run_in_order_and_a_failure_stops_the_rest(db, handlers):
     order: list[int] = []
 
     def fail(_db):
         order.append(2)
         raise RuntimeError("boom")
 
+    for migration_id in (1, 2, 3):
+        make_migration(db, migration_id)
+    handlers(m1=lambda _db: order.append(1), m2=fail, m3=lambda _db: order.append(3))
+
     with pytest.raises(RuntimeError):
-        _run({1: lambda _db: order.append(1), 2: fail, 3: lambda _db: order.append(3)}, _pending(1, 2, 3))
+        await migrations_utils.check_migrations_not_executed(db)
 
     assert order == [1, 2]
+
+
+async def test_an_executed_migration_and_one_without_a_handler_are_not_run(db, handlers):
+    ran: list[int] = []
+    make_migration(db, 1, executed=True)
+    make_migration(db, 2)
+    make_migration(db, 3)
+    handlers(m1=lambda _db: ran.append(1), m3=lambda _db: ran.append(3))
+
+    await migrations_utils.check_migrations_not_executed(db)
+
+    assert ran == [3]
+
+
+async def test_nothing_runs_when_no_migration_is_pending(db, handlers):
+    ran: list[int] = []
+    handlers(m1=lambda _db: ran.append(1))
+
+    await migrations_utils.check_migrations_not_executed(db)
+
+    assert ran == []

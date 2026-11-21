@@ -12,6 +12,7 @@ from pathlib import Path
 
 import pytest
 from alembic.script import ScriptDirectory
+
 from tests._helpers import alembic_chain
 
 _APP_DIR = Path(__file__).resolve().parents[2] / "app"

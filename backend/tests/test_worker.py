@@ -1,195 +1,144 @@
-"""Tests for the standalone durable-job worker entrypoint."""
+"""The standalone durable-job worker entrypoint: its refusal to start, its signals and its wait for the schema.
 
+Draining jobs in a worker process needs Redis and a second process, which ``tests/distributed`` runs for real.
+"""
+
+import os
+import signal
 import threading
-from unittest.mock import MagicMock, call, patch
+from pathlib import Path
 
+import jasil.runtime as jasil_runtime
 import pytest
+import sqlalchemy as sa
 from sqlalchemy.exc import OperationalError
 
+import core.config as core_config
+import core.database as core_database
 import worker
+from tests._helpers import alembic_chain
+
+_APP_DIR = Path(__file__).resolve().parents[1] / "app"
+
+
+@pytest.fixture
+def in_app_dir(monkeypatch):
+    """Run as the process does, from the application directory where ``alembic.ini`` lives."""
+    monkeypatch.chdir(_APP_DIR)
+
+
+def _set_version(committed_sessions, table: str, revision: str) -> None:
+    with committed_sessions() as db:
+        db.execute(sa.update(sa.table(table, sa.column("version_num"))).values(version_num=revision))
+        db.commit()
+
+
+@pytest.fixture
+def application_schema_behind(committed_sessions):
+    _set_version(committed_sessions, "alembic_version", alembic_chain.V0_21_HEAD)
+
+
+@pytest.fixture
+def substrate_schema_behind(committed_sessions):
+    _set_version(committed_sessions, "jasil_alembic_version", "rev0001")
+
+
+class _RepairingStop(threading.Event):
+    """A stop event whose wait lets the API finish migrating, as time passing would."""
+
+    def __init__(self, repair) -> None:
+        super().__init__()
+        self._repair = repair
+        self.waits = 0
+
+    def wait(self, timeout: float | None = None) -> bool:
+        self.waits += 1
+        self._repair()
+        return super().wait(0)
 
 
 class TestRunWorkerProcess:
-    def test_refuses_to_start_when_jobs_disabled(self):
+    def test_refuses_to_start_when_jobs_are_disabled(self, monkeypatch):
         """A worker without the durable queue is a misconfiguration; exiting 0 would hide it behind restarts."""
-        with patch("worker.core_config") as cfg, patch("worker.platform_container") as container:
-            cfg.settings.JOBS_ENABLED = False
-            with pytest.raises(OSError, match="JOBS_ENABLED"):
-                worker.run_worker_process(stop=threading.Event())
-        container.build_platform.assert_not_called()
+        monkeypatch.setattr(core_config.settings, "JOBS_ENABLED", False)
+        before = jasil_runtime.get_active_platform()
 
-    def test_builds_platform_and_drains(self):
-        stop = threading.Event()
-        with (
-            patch("worker.core_config") as cfg,
-            patch("worker.core_platform_settings") as platform_settings,
-            patch("worker.jasil_settings") as substrate_settings,
-            patch("worker.platform_container") as container,
-            patch("worker.platform_runtime") as runtime,
-            patch("worker.runtime_module_registry") as module_registry,
-            patch("worker.jobs_registry") as jobs_registry,
-            patch("worker.jobs_service") as service,
-            patch("worker.jasil_lifecycle") as lifecycle,
-            patch("worker._install_signal_handlers") as install_signals,
-            patch("worker._wait_for_current_schema") as wait_for_schema,
-        ):
-            cfg.settings.JOBS_ENABLED = True
-            cfg.settings.JOBS_POLL_INTERVAL_SECONDS = 2.0
-            worker.run_worker_process(stop=stop)
-
-        # The worker installs the host's configuration before building, exactly
-        # as the API does, or the substrate would read all-defaults settings.
-        built = platform_settings.build_jasil_settings.return_value
-        substrate_settings.configure.assert_called_once_with(built)
-        container.build_platform.assert_called_once_with(built, sources=module_registry.runtime_sources.return_value)
-        runtime.set_active_platform.assert_called_once()
-        # Every activity durable handler must be registered via the shared surface
-        # so the worker can resolve any claimed job — the SAME call main.startup_event
-        # makes, so the two entrypoints cannot drift.
-        module_registry.configure_application.assert_called_once_with()
-        module_registry.register_durable_handlers.assert_called_once_with(jobs_registry.registry)
-        assert module_registry.method_calls[2:4] == [
-            call.configure_application(),
-            call.register_durable_handlers(jobs_registry.registry),
-        ]
-        install_signals.assert_called_once_with(stop)
-        # Jobs are claimed only once the schema is current, so the wait comes before the platform is built.
-        wait_for_schema.assert_called_once_with(stop)
-        service.run_job_worker.assert_called_once_with(role="worker", stop=stop)
-        # Whatever the API's flag says, this process must present the standalone
-        # topology, or ``run_job_worker`` refuses to start.
-        cfg.settings.model_copy.assert_called_once_with(update={"JOBS_RUN_IN_PROCESS_WORKER": False})
-        platform_settings.build_jasil_settings.assert_called_once_with(
-            cfg.settings.model_copy.return_value,
-            plain_areas=module_registry.storage_plain_areas.return_value,
-        )
-        # This process built its own platform, so draining is not the end of it:
-        # the bus consumer thread and Redis clients have to be released too.
-        lifecycle.shutdown.assert_called_once_with()
-
-    def test_stops_module_pools_before_releasing_the_platform(self):
-        """A pool job started by a handler still uses the platform, so the pools stop first."""
-        manager = MagicMock()
-        with (
-            patch("worker.core_config") as cfg,
-            patch("worker.core_platform_settings"),
-            patch("worker.jasil_settings"),
-            patch("worker.platform_container"),
-            patch("worker.platform_runtime"),
-            patch("worker.runtime_module_registry") as module_registry,
-            patch("worker.jobs_registry"),
-            patch("worker.jobs_service"),
-            patch("worker.jasil_lifecycle") as lifecycle,
-            patch("worker._install_signal_handlers"),
-            patch("worker._wait_for_current_schema"),
-        ):
-            cfg.settings.JOBS_ENABLED = True
-            manager.attach_mock(module_registry.shutdown_module_pools, "pools")
-            manager.attach_mock(lifecycle.shutdown, "platform")
+        with pytest.raises(OSError, match="JOBS_ENABLED"):
             worker.run_worker_process(stop=threading.Event())
 
-        assert [c[0] for c in manager.mock_calls] == ["pools", "platform"]
+        assert jasil_runtime.get_active_platform() is before
 
-    def test_releases_the_platform_when_the_run_raises(self):
-        with (
-            patch("worker.core_config") as cfg,
-            patch("worker.core_platform_settings"),
-            patch("worker.jasil_settings"),
-            patch("worker.platform_container"),
-            patch("worker.platform_runtime"),
-            patch("worker.runtime_module_registry"),
-            patch("worker.jobs_registry"),
-            patch("worker.jobs_service") as service,
-            patch("worker.jasil_lifecycle") as lifecycle,
-            patch("worker._install_signal_handlers"),
-            patch("worker._wait_for_current_schema"),
-        ):
-            service.run_job_worker.side_effect = RuntimeError("boom")
-            cfg.settings.JOBS_ENABLED = True
-            with pytest.raises(RuntimeError):
-                worker.run_worker_process(stop=threading.Event())
+    def test_stops_without_building_a_platform_when_told_to_stop_while_the_schema_is_behind(
+        self, committed_sessions, in_app_dir, application_schema_behind, monkeypatch
+    ):
+        monkeypatch.setattr(core_config.settings, "JOBS_ENABLED", True)
+        before = jasil_runtime.get_active_platform()
+        stop = threading.Event()
+        stop.set()
 
-        lifecycle.shutdown.assert_called_once_with()
+        worker.run_worker_process(stop=stop)
 
-
-class TestMain:
-    def test_runs_preflight_then_process(self):
-        with (
-            patch("worker.core_config") as cfg,
-            patch("worker.core_logger") as logger,
-            patch("worker.run_worker_process") as run_process,
-        ):
-            worker.main()
-        cfg.check_deprecated_env_vars.assert_called_once()
-        cfg.check_required_env_vars.assert_called_once()
-        cfg.check_required_dirs.assert_called_once()
-        logger.setup_main_logger.assert_called_once()
-        run_process.assert_called_once()
+        assert jasil_runtime.get_active_platform() is before
 
 
 class TestInstallSignalHandlers:
-    def test_registers_handlers_that_set_stop(self):
+    @pytest.mark.parametrize("signum", [signal.SIGTERM, signal.SIGINT])
+    def test_a_shutdown_signal_sets_the_stop_event(self, signum):
+        previous = {number: signal.getsignal(number) for number in (signal.SIGTERM, signal.SIGINT)}
         stop = threading.Event()
-        with patch("worker.signal") as mock_signal, patch("worker.core_logger"):
+        try:
             worker._install_signal_handlers(stop)
-            assert mock_signal.signal.call_count == 2
-            # The registered handler must set the stop event when a signal arrives.
-            handler = mock_signal.signal.call_args_list[0].args[1]
-            handler(15, None)
-        assert stop.is_set()
+            os.kill(os.getpid(), signum)
+            assert stop.wait(5)
+        finally:
+            for number, handler in previous.items():
+                signal.signal(number, handler)
 
 
 class TestWaitForCurrentSchema:
-    def test_returns_at_once_when_the_schema_is_current(self):
-        stop = MagicMock()
-        with patch("worker._schema_is_current", return_value=True) as current:
-            worker._wait_for_current_schema(stop)
-        current.assert_called_once_with()
-        stop.wait.assert_not_called()
+    def test_returns_at_once_when_the_schema_is_current(self, committed_sessions, in_app_dir):
+        stop = _RepairingStop(lambda: None)
 
-    def test_waits_while_the_schema_is_behind_then_returns(self):
+        worker._wait_for_current_schema(stop)
+
+        assert stop.waits == 0
+
+    def test_waits_while_the_schema_is_behind_then_returns(
+        self, committed_sessions, in_app_dir, application_schema_behind
+    ):
         """A worker started before the API finishes migrating must not claim jobs against the old schema."""
-        stop = threading.Event()
-        with (
-            patch("worker._schema_is_current", side_effect=[False, False, True]) as current,
-            patch.object(stop, "wait", return_value=False) as wait,
-        ):
-            worker._wait_for_current_schema(stop)
-        assert current.call_count == 3
-        assert wait.call_count == 2
+        head = alembic_chain.script_directory().get_current_head()
+        stop = _RepairingStop(lambda: _set_version(committed_sessions, "alembic_version", head))
 
-    def test_stops_waiting_when_told_to_stop(self):
+        worker._wait_for_current_schema(stop)
+
+        assert stop.waits == 1
+        assert not stop.is_set()
+
+    def test_stops_waiting_when_told_to_stop(self, committed_sessions, in_app_dir, application_schema_behind):
         stop = threading.Event()
         stop.set()
-        with patch("worker._schema_is_current", return_value=False):
-            worker._wait_for_current_schema(stop)
 
-    def test_a_database_that_cannot_be_reached_is_an_error(self):
-        unreachable = OperationalError("SELECT 1", {}, Exception("down"))
-        with patch("worker._schema_is_current", side_effect=unreachable), pytest.raises(OperationalError):
+        worker._wait_for_current_schema(stop)
+
+    def test_a_database_that_cannot_be_reached_is_an_error(self, in_app_dir, monkeypatch):
+        unreachable = sa.create_engine(
+            "postgresql+psycopg://nobody:x@127.0.0.1:1/none", connect_args={"connect_timeout": 1}
+        )
+        monkeypatch.setattr(core_database, "engine", unreachable)
+
+        with pytest.raises(OperationalError):
             worker._wait_for_current_schema(threading.Event())
 
 
 class TestSchemaIsCurrent:
-    def test_false_when_the_application_schema_is_behind(self):
-        with (
-            patch("worker._alembic_is_at_head", return_value=False),
-            patch("worker.jasil_migrations") as substrate,
-        ):
-            assert worker._schema_is_current() is False
-        substrate.verify_schema_current.assert_not_called()
+    def test_true_when_both_schemas_are_current(self, committed_sessions, in_app_dir):
+        assert worker._schema_is_current() is True
 
-    def test_false_when_the_substrate_schema_is_behind(self):
-        with (
-            patch("worker._alembic_is_at_head", return_value=True),
-            patch("worker.jasil_migrations") as substrate,
-        ):
-            substrate.verify_schema_current.side_effect = RuntimeError("out of date")
-            assert worker._schema_is_current() is False
+    def test_false_when_the_application_schema_is_behind(
+        self, committed_sessions, in_app_dir, application_schema_behind
+    ):
+        assert worker._schema_is_current() is False
 
-    def test_true_when_both_are_current(self):
-        with (
-            patch("worker._alembic_is_at_head", return_value=True),
-            patch("worker.jasil_migrations"),
-        ):
-            assert worker._schema_is_current() is True
+    def test_false_when_the_substrate_schema_is_behind(self, committed_sessions, in_app_dir, substrate_schema_behind):
+        assert worker._schema_is_current() is False

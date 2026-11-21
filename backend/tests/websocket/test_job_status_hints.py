@@ -5,8 +5,9 @@ body, a request that never started it, the dead-letter close) can skip it.
 """
 
 import uuid
-from unittest.mock import patch
 
+import jasil.runtime as jasil_runtime
+import jasil.testing as jasil_testing
 import pytest
 from jasil.backends.state_memory import MemoryState
 
@@ -19,7 +20,6 @@ import modules.strava.sync_state_store as strava_sync_state_store
 import modules.users.users_profile.constants as profile_constants
 import modules.users.users_profile.export_state_store as export_state_store
 import modules.users.users_profile.import_state_store as import_state_store
-import modules.websocket.integration_service as websocket_integration
 
 _USER = uuid.UUID("2f6d8b52-47a0-4c3e-9a51-0c1e5d7b8a90")
 _SESSION = uuid.UUID(int=601)
@@ -27,12 +27,12 @@ _SESSION = uuid.UUID(int=601)
 
 @pytest.fixture
 def pushes():
-    with patch.object(websocket_integration, "push_to_user") as push:
-        yield push
+    """The hints the platform delivered, in order."""
+    return jasil_testing.capture_hints(jasil_runtime.get_active_platform())
 
 
-def _hint(job_id: uuid.UUID, kind: str) -> tuple[uuid.UUID, dict[str, str]]:
-    return _USER, {"message": "JOB_STATUS_CHANGED", "job_id": str(job_id), "kind": kind}
+def _hint(job_id: uuid.UUID, kind: str) -> tuple[str, dict[str, str]]:
+    return f"user:{_USER}", {"message": "JOB_STATUS_CHANGED", "job_id": str(job_id), "kind": kind}
 
 
 def _sync_cases():
@@ -55,11 +55,11 @@ class TestQueuedSyncs:
     def test_a_final_status_is_announced(self, pushes, states, kind, job, final):
         started = states.begin(_USER, kind, conflict="Busy")
         states.set_status(_USER, kind, "running", job_id=started.id)
-        pushes.assert_not_called()
+        assert pushes == []
 
         states.set_status(_USER, kind, final, job_id=started.id)
 
-        pushes.assert_called_once_with(*_hint(started.id, job))
+        assert pushes == [_hint(started.id, job)]
 
     @pytest.mark.parametrize(("states", "kind", "job"), _sync_cases())
     def test_closing_a_dead_lettered_sync_is_announced(self, pushes, states, kind, job):
@@ -67,17 +67,17 @@ class TestQueuedSyncs:
 
         assert states.close_pending(_USER, kind, job_id=started.id) is True
 
-        pushes.assert_called_once_with(*_hint(started.id, job))
+        assert pushes == [_hint(started.id, job)]
 
     @pytest.mark.parametrize(("states", "kind", "job"), _sync_cases())
     def test_closing_a_sync_that_already_ended_announces_nothing_more(self, pushes, states, kind, job):
         started = states.begin(_USER, kind, conflict="Busy")
         states.set_status(_USER, kind, "succeeded", job_id=started.id)
-        pushes.reset_mock()
+        pushes.clear()
 
         assert states.close_pending(_USER, kind, job_id=started.id) is False
 
-        pushes.assert_not_called()
+        assert pushes == []
 
 
 class TestProfileExport:
@@ -85,11 +85,11 @@ class TestProfileExport:
         states = export_state_store.ProfileExportStateStore(MemoryState())
         started = states.begin(_USER, _SESSION, conflict="Busy")
         states.set_status(_USER, started.id, profile_constants.ExportStatus.RUNNING)
-        pushes.assert_not_called()
+        assert pushes == []
 
         states.set_status(_USER, started.id, profile_constants.ExportStatus.SUCCEEDED, size_bytes=10)
 
-        pushes.assert_called_once_with(*_hint(started.id, "profile_export"))
+        assert pushes == [_hint(started.id, "profile_export")]
 
     def test_a_failed_export_is_announced(self, pushes):
         states = export_state_store.ProfileExportStateStore(MemoryState())
@@ -102,7 +102,7 @@ class TestProfileExport:
             error_code=profile_constants.ExportFailure.PROCESSING_FAILED,
         )
 
-        pushes.assert_called_once_with(*_hint(started.id, "profile_export"))
+        assert pushes == [_hint(started.id, "profile_export")]
 
 
 class TestProfileImport:
@@ -115,7 +115,7 @@ class TestProfileImport:
 
         states.set_status(_USER, started.id, progress)
 
-        pushes.assert_not_called()
+        assert pushes == []
 
     def test_a_completed_import_is_announced(self, pushes):
         states = import_state_store.ProfileImportStateStore(MemoryState())
@@ -123,7 +123,7 @@ class TestProfileImport:
 
         states.set_status(_USER, started.id, profile_constants.ImportStatus.SUCCEEDED, imported={"activities": 1})
 
-        pushes.assert_called_once_with(*_hint(started.id, "profile_import"))
+        assert pushes == [_hint(started.id, "profile_import")]
 
     def test_a_failed_import_is_announced(self, pushes):
         states = import_state_store.ProfileImportStateStore(MemoryState())
@@ -136,4 +136,4 @@ class TestProfileImport:
             error_code=profile_constants.ImportFailure.PROCESSING_FAILED,
         )
 
-        pushes.assert_called_once_with(*_hint(started.id, "profile_import"))
+        assert pushes == [_hint(started.id, "profile_import")]

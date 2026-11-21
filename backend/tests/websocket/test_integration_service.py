@@ -3,8 +3,9 @@
 import uuid
 from datetime import UTC, datetime
 
+import jasil.runtime as jasil_runtime
+import jasil.testing as jasil_testing
 import pytest
-from jasil.testing import capture_hints, install_test_platform
 
 import core.job_status as core_job_status
 import modules.websocket.integration_service as websocket_integration
@@ -16,12 +17,8 @@ JOB_2 = uuid.UUID("a1000000-0000-4000-8000-000000000012")
 
 
 @pytest.fixture
-def hints(tmp_path):
-    import jasil.testing as jasil_testing
-
-    platform = install_test_platform(tmp_path)
-    yield capture_hints(platform)
-    jasil_testing.reset_all()
+def hints():
+    return jasil_testing.capture_hints(jasil_runtime.get_active_platform())
 
 
 def test_a_push_is_published_for_the_user_key(hints):
@@ -62,3 +59,9 @@ def test_a_job_is_announced_to_the_user_who_started_it(hints):
     assert hints == [
         (f"user:{OTHER_USER}", {"message": "JOB_STATUS_CHANGED", "job_id": str(JOB_2), "kind": "user_deletion"})
     ]
+
+
+def test_a_push_with_no_platform_running_is_dropped_not_raised():
+    jasil_testing.reset_all()
+
+    websocket_integration.push_to_user(USER, {"message": "NEW"})
