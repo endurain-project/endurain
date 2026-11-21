@@ -1,82 +1,86 @@
-"""Tests for users.users_default_gear.service module."""
+"""The default gear service: ownership of the gears, commits and the profile import's remapping."""
 
 import uuid
-from unittest.mock import patch
 
 import pytest
 
 import core.exceptions as core_exceptions
-import modules.users.users_default_gear.schema as user_default_gear_schema
-import modules.users.users_default_gear.service as user_default_gear_service
-from tests._helpers.auth import MOCK_USER_ID, OTHER_USER_ID
-
-_GEAR_A = uuid.uuid4()
-_GEAR_B = uuid.uuid4()
-_NEW_A = uuid.uuid4()
-_NEW_B = uuid.uuid4()
+import modules.users.users_default_gear.crud as crud
+import modules.users.users_default_gear.schema as schema
+import modules.users.users_default_gear.service as service
+from tests._factories.gears import make_gear
 
 
-@patch("modules.users.users_default_gear.service.users_default_gear_crud")
-@patch("modules.users.users_default_gear.service.gears_integration")
 class TestEditDefaultGear:
-    def test_checks_ownership_stages_and_commits(self, mock_gears, mock_crud, mock_db):
-        update = user_default_gear_schema.UserDefaultGearUpdate(run_gear_id=_GEAR_A)
+    def test_the_users_own_gear_is_assigned(self, db, user):
+        gear = make_gear(db, user.id)
 
-        result = user_default_gear_service.edit_default_gear(update, MOCK_USER_ID, mock_db, if_match="*")
+        result = service.edit_default_gear(
+            schema.UserDefaultGearUpdate(run_gear_id=gear.id), user.id, db, if_match='"1"'
+        )
 
-        assert result == mock_crud.edit_user_default_gear.return_value
-        assert list(mock_gears.require_owned_gears.call_args.args[1]) == [_GEAR_A]
-        mock_db.commit.assert_called_once()
+        assert result.run_gear_id == gear.id
+        assert crud.get_user_default_gear_by_user_id(user.id, db) == result
 
-    def test_refuses_a_gear_the_user_does_not_own(self, mock_gears, mock_crud, mock_db):
-        update = user_default_gear_schema.UserDefaultGearUpdate(run_gear_id=_GEAR_A)
-        mock_gears.require_owned_gears.side_effect = core_exceptions.NotFoundError("Gear not found")
+    def test_another_users_gear_is_not_found_and_nothing_changes(self, db, user, other):
+        foreign = make_gear(db, other.id)
 
         with pytest.raises(core_exceptions.NotFoundError):
-            user_default_gear_service.edit_default_gear(update, MOCK_USER_ID, mock_db, if_match="*")
+            service.edit_default_gear(schema.UserDefaultGearUpdate(run_gear_id=foreign.id), user.id, db, if_match="*")
 
-        mock_crud.edit_user_default_gear.assert_not_called()
-        mock_db.commit.assert_not_called()
+        stored = crud.get_user_default_gear_by_user_id(user.id, db)
+        assert stored is not None
+        assert (stored.run_gear_id, stored.version) == (None, 1)
+
+    def test_a_stale_version_is_a_precondition_failure(self, db, user):
+        gear = make_gear(db, user.id)
+
+        with pytest.raises(core_exceptions.PreconditionFailedError):
+            service.edit_default_gear(schema.UserDefaultGearUpdate(run_gear_id=gear.id), user.id, db, if_match='"9"')
+
+    def test_missing_settings_are_not_found(self, db):
+        with pytest.raises(core_exceptions.NotFoundError):
+            service.edit_default_gear(schema.UserDefaultGearUpdate(), uuid.uuid4(), db, if_match="*")
 
 
-@patch("modules.users.users_default_gear.service.stage_default_gear_edit")
-@patch("modules.users.users_default_gear.service.users_default_gear_crud")
 class TestRestoreProfileDefaultGear:
-    def test_creates_the_settings_when_missing_and_remaps_the_gears(self, mock_crud, mock_edit, mock_db):
-        mock_crud.get_user_default_gear_by_user_id.return_value = None
+    def test_archived_gears_are_moved_onto_the_restored_ones(self, db, user):
+        archived_run, archived_ride = uuid.uuid4(), uuid.uuid4()
+        run, ride = make_gear(db, user.id), make_gear(db, user.id, nickname="Ride")
+        record = {
+            "id": str(uuid.uuid4()),
+            "user_id": str(uuid.uuid4()),
+            "version": 4,
+            "run_gear_id": str(archived_run),
+            "ride_gear_id": str(archived_ride),
+        }
 
-        restored = user_default_gear_service.restore_profile_default_gear(
-            {
-                "id": str(uuid.uuid4()),
-                "user_id": str(OTHER_USER_ID),
-                "version": 2,
-                "run_gear_id": str(_GEAR_A),
-                "ride_gear_id": str(_GEAR_B),
-            },
-            {"gears": {_GEAR_A: _NEW_A, _GEAR_B: _NEW_B}},
-            MOCK_USER_ID,
-            mock_db,
+        restored = service.restore_profile_default_gear(
+            record, {"gears": {archived_run: run.id, archived_ride: ride.id}}, user.id, db
         )
 
+        stored = crud.get_user_default_gear_by_user_id(user.id, db)
         assert restored is True
-        mock_crud.create_user_default_gear.assert_called_once_with(MOCK_USER_ID, mock_db)
-        update = mock_edit.call_args.args[0]
-        assert (update.run_gear_id, update.ride_gear_id, update.walk_gear_id) == (_NEW_A, _NEW_B, None)
-        assert mock_edit.call_args.kwargs == {"if_match": "*"}
+        assert stored is not None
+        assert (stored.run_gear_id, stored.ride_gear_id) == (run.id, ride.id)
+        assert stored.user_id == user.id
 
-    def test_keeps_existing_settings_and_drops_an_unmapped_gear(self, mock_crud, mock_edit, mock_db):
-        restored = user_default_gear_service.restore_profile_default_gear(
-            {"run_gear_id": str(_GEAR_A)}, {"gears": {}}, 1, mock_db
-        )
+    def test_a_gear_that_was_not_restored_is_dropped(self, db, user):
+        record = {"run_gear_id": str(uuid.uuid4()), "ride_gear_id": "not-a-uuid", "walk_gear_id": 5}
 
-        assert restored is True
-        mock_crud.create_user_default_gear.assert_not_called()
-        assert mock_edit.call_args.args[0].run_gear_id is None
+        assert service.restore_profile_default_gear(record, {}, user.id, db) is True
 
-    def test_skips_invalid_settings(self, mock_crud, mock_edit, mock_db):
-        restored = user_default_gear_service.restore_profile_default_gear(
-            {"unknown_field": 1}, {}, MOCK_USER_ID, mock_db
-        )
+        stored = crud.get_user_default_gear_by_user_id(user.id, db)
+        assert stored is not None
+        assert (stored.run_gear_id, stored.ride_gear_id, stored.walk_gear_id) == (None, None, None)
 
-        assert restored is False
-        mock_edit.assert_not_called()
+    def test_the_settings_are_created_when_the_user_has_none(self, db, user):
+        db.execute(crud.users_default_gear_models.UsersDefaultGear.__table__.delete())
+        assert crud.get_user_default_gear_by_user_id(user.id, db) is None
+
+        assert service.restore_profile_default_gear({}, {}, user.id, db) is True
+
+        assert crud.get_user_default_gear_by_user_id(user.id, db) is not None
+
+    def test_settings_the_schema_refuses_are_skipped(self, db, user):
+        assert service.restore_profile_default_gear({"unknown_field": "x"}, {}, user.id, db) is False

@@ -7,9 +7,9 @@
 import threading
 
 from sqlalchemy import text
-from tests._factories.users import make_user
 
 import modules.users.users.crud as users_crud
+from tests._factories.users import make_user
 
 
 def _race(count: int, task) -> list:

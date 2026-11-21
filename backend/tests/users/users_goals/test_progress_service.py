@@ -1,475 +1,236 @@
-"""Tests for user goals progress calculation."""
+"""Goal progress against real activities: windows, sports, hidden duplicates and the user's own day."""
 
 import uuid
-from datetime import datetime
-from unittest.mock import MagicMock, patch
+from datetime import UTC, date, datetime, timedelta
 
+import jasil.runtime as jasil_runtime
 import pytest
-from sqlalchemy.orm import Session
 
 import core.exceptions as core_exceptions
 import core.pagination as core_pagination
-import modules.activities.activity.contracts as activity_contracts
-import modules.users.users_goals.models as user_goals_models
-import modules.users.users_goals.progress_service as user_goals_progress_service
-import modules.users.users_goals.schema as user_goals_schema
-from tests._helpers.auth import MOCK_USER_ID
-
-GOAL_ID = uuid.UUID("00000000-0000-4000-8000-000000000001")
+import modules.activities.activity.constants as activity_constants
+import modules.users.users_goals.crud as goals_crud
+import modules.users.users_goals.progress_service as progress_service
+import modules.users.users_goals.schema as goals_schema
+from tests._factories.activities import make_activity
+from tests._factories.goals import make_goal
+from tests._factories.users import make_user
 
 _PAGE = core_pagination.PageParams(1, 25)
+_RUN = activity_constants.ActivityType.RUN.stored
+_RIDE = activity_constants.ActivityType.RIDE.stored
+# Wednesday 2025-03-12 noon UTC; the week runs Monday 10th to Sunday 16th.
+_WEDNESDAY = datetime(2025, 3, 12, 12, 0, tzinfo=UTC)
 
 
-def _progress(goal_id: uuid.UUID) -> user_goals_schema.UserGoalProgress:
-    return user_goals_schema.UserGoalProgress(
-        goal_id=goal_id,
-        interval="weekly",
-        activity_type="run",
-        goal_type="calories",
-        start_date="2024-01-15",
-        end_date="2024-01-21",
-        percentage_completed=0,
+def _at(day: int, hour: int = 8) -> datetime:
+    return datetime(2025, 3, day, hour, 0, tzinfo=UTC)
+
+
+def _progress(db, user, goal, on="2025-03-12", first_day="monday"):
+    return progress_service.calculate_goal_progress_by_activity_type(goal, on, first_day, db)
+
+
+@pytest.fixture(autouse=True)
+def clock():
+    platform_clock = jasil_runtime.get_active_platform().clock
+    platform_clock.moment = _WEDNESDAY
+    return platform_clock
+
+
+class TestGoalMetrics:
+    def test_a_distance_goal_adds_up_the_distance_in_the_window(self, db, user):
+        goal = make_goal(db, user.id, goal_distance=40000)
+        make_activity(db, user.id, start_time=_at(10), distance=10000)
+        make_activity(db, user.id, start_time=_at(12), distance=10000)
+        make_activity(db, user.id, start_time=_at(9), distance=99999)
+
+        progress = _progress(db, user, goal)
+
+        assert (progress.start_date, progress.end_date) == (date(2025, 3, 10), date(2025, 3, 16))
+        assert (progress.total_distance, progress.percentage_completed, progress.goal_distance) == (20000, 50, 40000)
+
+    def test_a_calories_goal_adds_up_the_calories(self, db, user):
+        goal = make_goal(db, user.id, goal_type="calories", goal_calories=1000, goal_distance=None)
+        make_activity(db, user.id, start_time=_at(11), calories=300)
+        make_activity(db, user.id, start_time=_at(13), calories=450)
+
+        progress = _progress(db, user, goal)
+
+        assert (progress.total_calories, progress.percentage_completed) == (750, 75)
+
+    def test_an_activities_goal_counts_the_activities(self, db, user):
+        goal = make_goal(db, user.id, goal_type="activities", goal_activities_number=4, goal_distance=None)
+        for day in (10, 11, 12):
+            make_activity(db, user.id, start_time=_at(day))
+
+        progress = _progress(db, user, goal)
+
+        assert (progress.total_activities_number, progress.percentage_completed) == (3, 75)
+
+    def test_an_elevation_goal_adds_up_the_elevation_gain(self, db, user):
+        goal = make_goal(db, user.id, goal_type="elevation", goal_elevation=1000, goal_distance=None)
+        make_activity(db, user.id, start_time=_at(10), elevation_gain=250)
+        make_activity(db, user.id, start_time=_at(11), elevation_gain=250)
+
+        progress = _progress(db, user, goal)
+
+        assert (progress.total_elevation, progress.percentage_completed) == (500, 50)
+
+    def test_a_duration_goal_adds_up_the_elapsed_time(self, db, user):
+        goal = make_goal(db, user.id, goal_type="duration", goal_duration=14400, goal_distance=None)
+        make_activity(db, user.id, start_time=_at(10), total_elapsed_time=3600)
+        make_activity(db, user.id, start_time=_at(11), total_elapsed_time=3600)
+
+        progress = _progress(db, user, goal)
+
+        assert (progress.total_duration, progress.percentage_completed) == (7200, 50)
+
+    def test_completion_is_capped_at_one_hundred_percent(self, db, user):
+        goal = make_goal(db, user.id, goal_distance=5000)
+        make_activity(db, user.id, start_time=_at(10), distance=20000)
+
+        progress = _progress(db, user, goal)
+
+        assert (progress.total_distance, progress.percentage_completed) == (20000, 100)
+
+    def test_no_activity_in_the_window_is_zero_progress(self, db, user):
+        goal = make_goal(db, user.id)
+        make_activity(db, user.id, start_time=_at(2))
+
+        progress = _progress(db, user, goal)
+
+        assert (progress.total_distance, progress.percentage_completed) == (0, 0)
+
+
+class TestWhatCounts:
+    def test_hidden_activities_do_not_count_twice(self, db, user):
+        goal = make_goal(db, user.id, goal_type="activities", goal_activities_number=2, goal_distance=None)
+        make_activity(db, user.id, start_time=_at(10))
+        make_activity(db, user.id, start_time=_at(10), is_hidden=True)
+
+        assert _progress(db, user, goal).total_activities_number == 1
+
+    def test_only_the_goals_sport_counts(self, db, user):
+        goal = make_goal(db, user.id, activity_type="bike", goal_distance=100000)
+        make_activity(db, user.id, start_time=_at(10), activity_type=_RUN, distance=7000)
+        make_activity(db, user.id, start_time=_at(11), activity_type=_RIDE, distance=30000)
+
+        assert _progress(db, user, goal).total_distance == 30000
+
+    def test_a_walking_goal_also_counts_hikes(self, db, user):
+        goal = make_goal(db, user.id, activity_type="walk", goal_distance=10000)
+        make_activity(
+            db, user.id, start_time=_at(10), activity_type=activity_constants.ActivityType.WALK.stored, distance=2000
+        )
+        make_activity(
+            db, user.id, start_time=_at(11), activity_type=activity_constants.ActivityType.HIKE.stored, distance=3000
+        )
+
+        assert _progress(db, user, goal).total_distance == 5000
+
+    def test_a_cardio_goal_counts_its_own_types(self, db, user):
+        goal = make_goal(
+            db, user.id, activity_type="cardio", goal_type="activities", goal_activities_number=2, goal_distance=None
+        )
+        make_activity(db, user.id, start_time=_at(10), activity_type=activity_constants.ActivityType.JUMP_ROPE.stored)
+        make_activity(db, user.id, start_time=_at(11), activity_type=_RUN)
+
+        assert _progress(db, user, goal).total_activities_number == 1
+
+    def test_a_strength_goal_counts_the_default_types(self, db, user):
+        goal = make_goal(
+            db, user.id, activity_type="strength", goal_type="activities", goal_activities_number=1, goal_distance=None
+        )
+        make_activity(db, user.id, start_time=_at(10), activity_type=10)
+        make_activity(db, user.id, start_time=_at(11), activity_type=_RUN)
+
+        assert _progress(db, user, goal).total_activities_number == 1
+
+    def test_another_users_activities_do_not_count(self, db, user, other):
+        goal = make_goal(db, user.id)
+        make_activity(db, other.id, start_time=_at(10), distance=9000)
+
+        assert _progress(db, user, goal).total_distance == 0
+
+
+class TestWindows:
+    @pytest.mark.parametrize(
+        ("interval", "start", "end"),
+        [
+            ("daily", date(2025, 3, 12), date(2025, 3, 12)),
+            ("weekly", date(2025, 3, 10), date(2025, 3, 16)),
+            ("monthly", date(2025, 3, 1), date(2025, 3, 31)),
+            ("yearly", date(2025, 1, 1), date(2025, 12, 31)),
+        ],
     )
+    def test_each_interval_spans_the_period_around_the_date(self, db, user, interval, start, end):
+        goal = make_goal(db, user.id, interval=interval)
+
+        progress = _progress(db, user, goal)
+
+        assert (progress.start_date, progress.end_date) == (start, end)
+
+    def test_the_week_starts_on_the_users_first_day(self, db, user):
+        goal = make_goal(db, user.id)
+
+        progress = _progress(db, user, goal, first_day="sunday")
+
+        assert (progress.start_date, progress.end_date) == (date(2025, 3, 9), date(2025, 3, 15))
 
 
 class TestCalculateUserGoals:
-    """
-    Test suite for calculate_user_goals function.
-    """
-
-    @patch("modules.users.users_goals.progress_service.user_goals_crud.get_user_goals_page")
-    @patch("modules.users.users_goals.progress_service.user_goals_crud.count_user_goals", return_value=5)
-    @patch("modules.users.users_goals.progress_service.calculate_goal_progress_by_activity_type")
-    def test_calculate_user_goals_success(self, mock_calc_progress, mock_count, mock_get_goals):
-        """Test successful calculation of user goals."""
-        # Arrange
-        user_id = MOCK_USER_ID
-        date = "2024-01-15"
-        mock_db = MagicMock(spec=Session)
-
-        mock_goal1 = MagicMock(spec=user_goals_models.UsersGoal)
-        mock_goal2 = MagicMock(spec=user_goals_models.UsersGoal)
-        mock_get_goals.return_value = [mock_goal1, mock_goal2]
-
-        mock_progress1 = _progress(GOAL_ID)
-        mock_progress2 = _progress(uuid.uuid4())
-        mock_calc_progress.side_effect = [mock_progress1, mock_progress2]
-
-        # Act
-        page = core_pagination.PageParams(2, 2)
-        result = user_goals_progress_service.calculate_user_goals(user_id, date, "sunday", page, mock_db)
-
-        # Assert
-        assert result.items == [mock_progress1, mock_progress2]
-        assert (result.total, result.page, result.num_records, result.next) == (5, 2, 2, 3)
-        mock_get_goals.assert_called_once_with(user_id, mock_db, limit=2, offset=2)
-        mock_count.assert_called_once_with(user_id, mock_db)
-        assert mock_calc_progress.call_args_list == [
-            ((mock_goal1, date, "sunday", mock_db),),
-            ((mock_goal2, date, "sunday", mock_db),),
-        ]
-
-    @patch("modules.users.users_goals.progress_service.user_goals_crud.count_user_goals", return_value=0)
-    @patch("modules.users.users_goals.progress_service.user_goals_crud.get_user_goals_page")
-    def test_calculate_user_goals_no_goals(self, mock_get_goals, mock_count):
-        """Test calculation returns an empty list when no goals exist."""
-        # Arrange
-        user_id = MOCK_USER_ID
-        date = "2024-01-15"
-        mock_db = MagicMock(spec=Session)
-        mock_get_goals.return_value = []
-
-        # Act
-        result = user_goals_progress_service.calculate_user_goals(user_id, date, "monday", _PAGE, mock_db)
-
-        # Assert
-        assert result.items == []
-        assert result.total == 0 and result.next is None
-
-    @patch("modules.users.users_goals.progress_service.users_integration.local_today")
-    @patch("modules.users.users_goals.progress_service.user_goals_crud.count_user_goals", return_value=0)
-    @patch("modules.users.users_goals.progress_service.user_goals_crud.get_user_goals_page")
-    def test_calculate_user_goals_no_date(self, mock_get_goals, mock_count, mock_today):
-        """Omitting the date anchors the period on the athlete's own calendar day."""
-        # Arrange
-        from datetime import date as date_type
-
-        user_id = MOCK_USER_ID
-        mock_db = MagicMock(spec=Session)
-        mock_get_goals.return_value = []
-        mock_today.return_value = date_type(2024, 1, 15)
-
-        # Act
-        result = user_goals_progress_service.calculate_user_goals(user_id, None, "monday", _PAGE, mock_db)
-
-        # Assert
-        assert result.items == []
-        mock_get_goals.assert_called_once()
-        # Resolved from the user's timezone, not the server's UTC clock.
-        mock_today.assert_called_once_with(user_id, mock_db)
-
-    @patch("modules.users.users_goals.progress_service.user_goals_crud.get_user_goals_page")
-    def test_calculate_user_goals_internal_error_is_not_a_client_error(self, mock_get_goals):
-        """An internal ValueError propagates unchanged instead of becoming a 400."""
-        mock_db = MagicMock(spec=Session)
-        mock_get_goals.side_effect = ValueError("Invalid value")
-
-        with pytest.raises(ValueError, match="Invalid value"):
-            user_goals_progress_service.calculate_user_goals(MOCK_USER_ID, "2024-01-15", "monday", _PAGE, mock_db)
-
-    @patch(
-        "modules.users.users_goals.progress_service.activity_integration.total_user_activities_in_timeframe_by_types"
-    )
-    def test_calculate_goal_progress_internal_error_is_not_a_client_error(self, mock_totals):
-        """An internal TypeError propagates unchanged instead of becoming a 400."""
-        mock_totals.side_effect = TypeError("bad total")
-        goal = user_goals_schema.UserGoalRead.model_validate(
-            user_goals_models.UsersGoal(
-                id=GOAL_ID,
-                user_id=MOCK_USER_ID,
-                interval="weekly",
-                activity_type="run",
-                goal_type="calories",
-                goal_calories=1000,
-                version=1,
-            ),
-            from_attributes=True,
-        )
-
-        with pytest.raises(TypeError, match="bad total"):
-            user_goals_progress_service.calculate_goal_progress_by_activity_type(
-                goal, "2024-01-15", "monday", MagicMock(spec=Session)
+    def test_a_page_of_goals_is_evaluated_with_the_total(self, db, user):
+        now = datetime.now(UTC)
+        for interval, age in (("daily", 3), ("weekly", 2), ("monthly", 1)):
+            goal = goals_schema.UserGoalCreate(
+                interval=interval, activity_type="run", goal_type="distance", goal_distance=50000
             )
+            goals_crud.create_user_goal(user.id, goal, db, created_at=now - timedelta(hours=age))
+        make_activity(db, user.id, start_time=_at(12), distance=25000)
 
-
-class TestCalculateGoalProgressByActivityType:
-    """
-    Test suite for calculate_goal_progress_by_activity_type.
-    """
-
-    @patch(
-        "modules.users.users_goals.progress_service.activity_integration.total_user_activities_in_timeframe_by_types"
-    )
-    @patch("modules.users.users_goals.progress_service.user_goals_utils.get_start_end_date_by_interval")
-    def test_calculate_progress_calories_goal(self, mock_get_dates, mock_get_activities):
-        """Test calculation for calories goal."""
-        # Arrange
-        mock_db = MagicMock(spec=Session)
-        mock_goal = MagicMock(spec=user_goals_models.UsersGoal)
-        mock_goal.id = GOAL_ID
-        mock_goal.user_id = MOCK_USER_ID
-        mock_goal.interval = "weekly"
-        mock_goal.activity_type = user_goals_schema.GoalActivityType.RUN
-        mock_goal.goal_type = user_goals_schema.GoalType.CALORIES
-        mock_goal.goal_calories = 5000
-        mock_goal.goal_activities_number = None
-        mock_goal.goal_distance = None
-        mock_goal.goal_elevation = None
-        mock_goal.goal_duration = None
-
-        mock_start = datetime(2024, 1, 15)
-        mock_end = datetime(2024, 1, 21)
-        mock_get_dates.return_value = (mock_start, mock_end)
-
-        mock_get_activities.return_value = activity_contracts.ActivityTotals(count=1, calories=1500)
-
-        # Act
-        result = user_goals_progress_service.calculate_goal_progress_by_activity_type(
-            mock_goal,
-            "2024-01-15",
-            "monday",
-            mock_db,
+        page = progress_service.calculate_user_goals(
+            user.id, "2025-03-12", "monday", core_pagination.PageParams(1, 2), db
         )
 
-        # Assert
-        assert result.goal_id == GOAL_ID
-        assert result.total_calories == 1500
-        assert result.percentage_completed == 30
+        assert (page.total, page.next, len(page.items)) == (3, 2, 2)
+        assert [item.interval for item in page.items] == ["daily", "weekly"]
+        assert [item.percentage_completed for item in page.items] == [50, 50]
 
-    @patch(
-        "modules.users.users_goals.progress_service.activity_integration.total_user_activities_in_timeframe_by_types"
-    )
-    @patch("modules.users.users_goals.progress_service.user_goals_utils.get_start_end_date_by_interval")
-    def test_calculate_progress_distance_goal(self, mock_get_dates, mock_get_activities):
-        """Test calculation for distance goal."""
-        # Arrange
-        mock_db = MagicMock(spec=Session)
-        mock_goal = MagicMock(spec=user_goals_models.UsersGoal)
-        mock_goal.id = GOAL_ID
-        mock_goal.user_id = MOCK_USER_ID
-        mock_goal.interval = "weekly"
-        mock_goal.activity_type = user_goals_schema.GoalActivityType.RUN
-        mock_goal.goal_type = user_goals_schema.GoalType.DISTANCE
-        mock_goal.goal_calories = None
-        mock_goal.goal_activities_number = None
-        mock_goal.goal_distance = 50000
-        mock_goal.goal_elevation = None
-        mock_goal.goal_duration = None
+    def test_no_goals_is_an_empty_page(self, db, user):
+        page = progress_service.calculate_user_goals(user.id, "2025-03-12", "monday", _PAGE, db)
 
-        mock_start = datetime(2024, 1, 15)
-        mock_end = datetime(2024, 1, 21)
-        mock_get_dates.return_value = (mock_start, mock_end)
+        assert (page.items, page.total) == ([], 0)
 
-        mock_get_activities.return_value = activity_contracts.ActivityTotals(count=1, distance=10000)
+    def test_without_a_date_the_users_own_day_is_used(self, db, clock):
+        # 23:30 UTC on the 12th is already the 13th in Tokyo.
+        clock.moment = datetime(2025, 3, 12, 23, 30, tzinfo=UTC)
+        tokyo = make_user(db, timezone="Asia/Tokyo", first_day_of_week="monday")
+        make_goal(db, tokyo.id, interval="daily")
 
-        # Act
-        result = user_goals_progress_service.calculate_goal_progress_by_activity_type(
-            mock_goal,
-            "2024-01-15",
-            "monday",
-            mock_db,
-        )
+        page = progress_service.calculate_user_goals(tokyo.id, None, "monday", _PAGE, db)
 
-        # Assert
-        assert result.total_distance == 10000
-        assert result.percentage_completed == 20
+        assert page.items[0].start_date == date(2025, 3, 13)
 
-    @patch(
-        "modules.users.users_goals.progress_service.activity_integration.total_user_activities_in_timeframe_by_types"
-    )
-    @patch("modules.users.users_goals.progress_service.user_goals_utils.get_start_end_date_by_interval")
-    def test_calculate_progress_activities_goal(self, mock_get_dates, mock_get_activities):
-        """Test calculation for activities count goal."""
-        # Arrange
-        mock_db = MagicMock(spec=Session)
-        mock_goal = MagicMock(spec=user_goals_models.UsersGoal)
-        mock_goal.id = GOAL_ID
-        mock_goal.user_id = MOCK_USER_ID
-        mock_goal.interval = "weekly"
-        mock_goal.activity_type = user_goals_schema.GoalActivityType.RUN
-        mock_goal.goal_type = user_goals_schema.GoalType.ACTIVITIES
-        mock_goal.goal_calories = None
-        mock_goal.goal_activities_number = 5
-        mock_goal.goal_distance = None
-        mock_goal.goal_elevation = None
-        mock_goal.goal_duration = None
+    def test_an_unknown_interval_is_invalid_input(self, db, user):
+        goal = make_goal(db, user.id)
+        broken = goal.model_copy(update={"interval": "hourly"})
 
-        mock_start = datetime(2024, 1, 15)
-        mock_end = datetime(2024, 1, 21)
-        mock_get_dates.return_value = (mock_start, mock_end)
-
-        mock_get_activities.return_value = activity_contracts.ActivityTotals(count=2)
-
-        # Act
-        result = user_goals_progress_service.calculate_goal_progress_by_activity_type(
-            mock_goal,
-            "2024-01-15",
-            "monday",
-            mock_db,
-        )
-
-        # Assert
-        assert result.total_activities_number == 2
-        assert result.percentage_completed == 40
-
-    @patch(
-        "modules.users.users_goals.progress_service.activity_integration.total_user_activities_in_timeframe_by_types"
-    )
-    @patch("modules.users.users_goals.progress_service.user_goals_utils.get_start_end_date_by_interval")
-    def test_calculate_progress_caps_at_100_percent(self, mock_get_dates, mock_get_activities):
-        """Test percentage is capped at 100."""
-        # Arrange
-        mock_db = MagicMock(spec=Session)
-        mock_goal = MagicMock(spec=user_goals_models.UsersGoal)
-        mock_goal.id = GOAL_ID
-        mock_goal.user_id = MOCK_USER_ID
-        mock_goal.interval = "weekly"
-        mock_goal.activity_type = user_goals_schema.GoalActivityType.RUN
-        mock_goal.goal_type = user_goals_schema.GoalType.CALORIES
-        mock_goal.goal_calories = 1000
-        mock_goal.goal_activities_number = None
-        mock_goal.goal_distance = None
-        mock_goal.goal_elevation = None
-        mock_goal.goal_duration = None
-
-        mock_start = datetime(2024, 1, 15)
-        mock_end = datetime(2024, 1, 21)
-        mock_get_dates.return_value = (mock_start, mock_end)
-
-        mock_get_activities.return_value = activity_contracts.ActivityTotals(count=1, calories=5000)  # Exceeds goal
-
-        # Act
-        result = user_goals_progress_service.calculate_goal_progress_by_activity_type(
-            mock_goal,
-            "2024-01-15",
-            "monday",
-            mock_db,
-        )
-
-        # Assert
-        assert result.percentage_completed == 100
-
-    @patch(
-        "modules.users.users_goals.progress_service.activity_integration.total_user_activities_in_timeframe_by_types"
-    )
-    @patch("modules.users.users_goals.progress_service.user_goals_utils.get_start_end_date_by_interval")
-    def test_calculate_progress_excludes_hidden_activities(self, mock_get_dates, mock_get_activities):
-        """Test that hidden activities are excluded from goal progress."""
-        # Arrange
-        mock_db = MagicMock(spec=Session)
-        mock_goal = MagicMock(spec=user_goals_models.UsersGoal)
-        mock_goal.id = GOAL_ID
-        mock_goal.user_id = MOCK_USER_ID
-        mock_goal.interval = "weekly"
-        mock_goal.activity_type = user_goals_schema.GoalActivityType.RUN
-        mock_goal.goal_type = user_goals_schema.GoalType.ACTIVITIES
-        mock_goal.goal_calories = None
-        mock_goal.goal_activities_number = 5
-        mock_goal.goal_distance = None
-        mock_goal.goal_elevation = None
-        mock_goal.goal_duration = None
-
-        mock_start = datetime(2024, 1, 15)
-        mock_end = datetime(2024, 1, 21)
-        mock_get_dates.return_value = (mock_start, mock_end)
-
-        mock_get_activities.return_value = activity_contracts.ActivityTotals(count=1)
-
-        # Act
-        user_goals_progress_service.calculate_goal_progress_by_activity_type(
-            mock_goal,
-            "2024-01-15",
-            "monday",
-            mock_db,
-        )
-
-        # Assert - verify exclude_hidden=True is passed
-        mock_get_activities.assert_called_once()
-        call_kwargs = mock_get_activities.call_args
-        assert call_kwargs.kwargs.get("exclude_hidden") is True
-
-    @patch(
-        "modules.users.users_goals.progress_service.activity_integration.total_user_activities_in_timeframe_by_types"
-    )
-    @patch("modules.users.users_goals.progress_service.user_goals_utils.get_start_end_date_by_interval")
-    @pytest.mark.parametrize(
-        ("goal_type", "goal_field", "totals", "field", "expected", "percent"),
-        [
-            (
-                user_goals_schema.GoalType.ELEVATION,
-                "goal_elevation",
-                {"elevation_gain": 400.4},
-                "total_elevation",
-                400,
-                40,
-            ),
-            (
-                user_goals_schema.GoalType.DURATION,
-                "goal_duration",
-                {"elapsed_time": 1800.0},
-                "total_duration",
-                1800,
-                50,
-            ),
-        ],
-    )
-    def test_elevation_and_duration_goals_use_the_summed_totals(
-        self, mock_get_dates, mock_get_totals, goal_type, goal_field, totals, field, expected, percent
-    ):
-        mock_goal = MagicMock(spec=user_goals_models.UsersGoal)
-        mock_goal.id = GOAL_ID
-        mock_goal.user_id = MOCK_USER_ID
-        mock_goal.interval = "weekly"
-        mock_goal.activity_type = user_goals_schema.GoalActivityType.RUN
-        mock_goal.goal_type = goal_type
-        for name in ("goal_calories", "goal_activities_number", "goal_distance", "goal_elevation", "goal_duration"):
-            setattr(mock_goal, name, None)
-        setattr(mock_goal, goal_field, {"goal_elevation": 1000, "goal_duration": 3600}[goal_field])
-        mock_get_dates.return_value = (datetime(2024, 1, 15), datetime(2024, 1, 21))
-        mock_get_totals.return_value = activity_contracts.ActivityTotals(count=1, **totals)
-
-        result = user_goals_progress_service.calculate_goal_progress_by_activity_type(
-            mock_goal, "2024-01-15", "monday", MagicMock(spec=Session)
-        )
-
-        assert getattr(result, field) == expected
-        assert result.percentage_completed == percent
-
-    @patch(
-        "modules.users.users_goals.progress_service.activity_integration.total_user_activities_in_timeframe_by_types"
-    )
-    @patch("modules.users.users_goals.progress_service.user_goals_utils.get_start_end_date_by_interval")
-    def test_no_matching_activities_is_zero_progress(self, mock_get_dates, mock_get_totals):
-        mock_goal = MagicMock(spec=user_goals_models.UsersGoal)
-        mock_goal.id = GOAL_ID
-        mock_goal.user_id = MOCK_USER_ID
-        mock_goal.interval = "weekly"
-        mock_goal.activity_type = user_goals_schema.GoalActivityType.RUN
-        mock_goal.goal_type = user_goals_schema.GoalType.CALORIES
-        mock_goal.goal_calories = 5000
-        for name in ("goal_activities_number", "goal_distance", "goal_elevation", "goal_duration"):
-            setattr(mock_goal, name, None)
-        mock_get_dates.return_value = (datetime(2024, 1, 15), datetime(2024, 1, 21))
-        mock_get_totals.return_value = activity_contracts.ActivityTotals()
-
-        result = user_goals_progress_service.calculate_goal_progress_by_activity_type(
-            mock_goal, "2024-01-15", "monday", MagicMock(spec=Session)
-        )
-
-        assert result.total_calories == 0
-        assert result.percentage_completed == 0
-
-
-class TestActivityTypeMap:
-    """
-    Test suite for activity type mapping constants.
-    """
-
-    def test_activity_type_map_exists(self):
-        """Test _ACTIVITY_TYPE_MAP constant exists."""
-        assert hasattr(user_goals_progress_service, "_ACTIVITY_TYPE_MAP")
-        assert isinstance(user_goals_progress_service._ACTIVITY_TYPE_MAP, dict)
-
-    def test_default_activity_types_exists(self):
-        """Test _DEFAULT_ACTIVITY_TYPES constant exists."""
-        assert hasattr(user_goals_progress_service, "_DEFAULT_ACTIVITY_TYPES")
-        assert isinstance(user_goals_progress_service._DEFAULT_ACTIVITY_TYPES, list)
-
-    def test_activity_type_map_has_expected_types(self):
-        """Test mapping contains expected activity types."""
-        type_map = user_goals_progress_service._ACTIVITY_TYPE_MAP
-
-        assert user_goals_schema.GoalActivityType.RUN in type_map
-        assert user_goals_schema.GoalActivityType.BIKE in type_map
-        assert user_goals_schema.GoalActivityType.SWIM in type_map
-        assert user_goals_schema.GoalActivityType.WALK in type_map
-        assert user_goals_schema.GoalActivityType.CARDIO in type_map
-
-    def test_cardio_includes_jump_rope_id(self):
-        """Test CARDIO mapping includes the jump rope activity ID (47)."""
-        type_map = user_goals_progress_service._ACTIVITY_TYPE_MAP
-
-        assert 47 in type_map[user_goals_schema.GoalActivityType.CARDIO]
-
-    def test_strength_uses_default_types(self):
-        """Test STRENGTH not in map, uses default."""
-        type_map = user_goals_progress_service._ACTIVITY_TYPE_MAP
-
-        # STRENGTH should NOT be in map (uses defaults)
-        assert user_goals_schema.GoalActivityType.STRENGTH not in type_map
+        with pytest.raises(core_exceptions.InvalidInputError):
+            progress_service.calculate_goal_progress_by_activity_type(broken, "2025-03-12", "monday", db)
 
 
 class TestGetGoalsProgress:
-    """Test suite for get_goals_progress function."""
+    def test_progress_is_anchored_on_the_users_own_day(self, db, clock):
+        clock.moment = datetime(2025, 3, 12, 23, 30, tzinfo=UTC)
+        tokyo = make_user(db, timezone="Asia/Tokyo", first_day_of_week="sunday")
+        make_goal(db, tokyo.id, interval="weekly")
 
-    @patch("modules.users.users_goals.progress_service.calculate_user_goals")
-    @patch("modules.users.users_goals.progress_service.core_timezone.today_in")
-    @patch("modules.users.users_goals.progress_service.users_integration")
-    def test_anchors_on_the_users_own_day(self, mock_users, mock_today, mock_calculate):
-        from datetime import date as date_type
+        page = progress_service.get_goals_progress(tokyo.id, _PAGE, db)
 
-        mock_db = MagicMock(spec=Session)
-        mock_users.get_user.return_value.first_day_of_week = "sunday"
-        mock_today.return_value = date_type(2026, 3, 12)
+        # Thursday the 13th in Tokyo; the week starts on Sunday the 9th.
+        assert (page.items[0].start_date, page.items[0].end_date) == (date(2025, 3, 9), date(2025, 3, 15))
 
-        result = user_goals_progress_service.get_goals_progress(MOCK_USER_ID, _PAGE, mock_db)
-
-        assert result == mock_calculate.return_value
-        mock_calculate.assert_called_once_with(MOCK_USER_ID, "2026-03-12", "sunday", _PAGE, mock_db)
-
-    @patch("modules.users.users_goals.progress_service.users_integration")
-    def test_unknown_user_is_not_found(self, mock_users):
-        mock_users.get_user.return_value = None
-
+    def test_an_unknown_user_is_not_found(self, db):
         with pytest.raises(core_exceptions.NotFoundError):
-            user_goals_progress_service.get_goals_progress(MOCK_USER_ID, _PAGE, MagicMock(spec=Session))
+            progress_service.get_goals_progress(uuid.uuid4(), _PAGE, db)

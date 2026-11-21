@@ -9,10 +9,10 @@ import uuid
 from datetime import UTC, datetime, timedelta
 
 from sqlalchemy import select, text
-from tests._factories.users import make_user
 
 import modules.auth.credentials.models as credentials_models
 import modules.users.users.crud as users_crud
+from tests._factories.users import make_user
 
 _OLD = datetime.now(UTC) - timedelta(days=3)
 _CUTOFF = datetime.now(UTC) - timedelta(days=1)

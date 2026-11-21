@@ -1,4 +1,4 @@
-"""Provider tokens: JSON column semantics and compare-and-swap row locks, against real PostgreSQL.
+"""Provider tokens: JSON column semantics and compare-and-swap row locks.
 
 The Garmin Connect token is a ``json`` column, where assigning ``None`` stores a JSON ``null`` and not SQL ``NULL``;
 the token refreshes, unlinks and listing rely on that. The ``FOR UPDATE`` compare-and-swap writes decide what two

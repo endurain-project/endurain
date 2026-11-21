@@ -1,46 +1,80 @@
-"""Tests for users_profile.import_job_service: accepting, running and sweeping profile imports."""
+"""Profile import jobs on the real database and storage: accepting, running, failing and sweeping imports."""
 
 import os
+import threading
 import time
 import uuid
-from unittest.mock import MagicMock, patch
 
-import jasil.providers as platform_providers
 import pytest
-from jasil.backends.state_memory import MemoryState
-from pydantic import TypeAdapter, ValidationError
-from sqlalchemy.exc import OperationalError
+from jasil.audit.models import AuditLog
+from jasil.providers import StorageBackendUnavailableError
+from sqlalchemy import select, text
 
 import core.attempt_state as core_attempt_state
+import core.config as core_config
 import core.exceptions as core_exceptions
+import modules.users.users.integration_service as users_integration
+import modules.users.users_goals.crud as goals_crud
+import modules.users.users_profile.audit_actions as profile_audit_actions
 import modules.users.users_profile.constants as profile_constants
 import modules.users.users_profile.events as profile_events
-import modules.users.users_profile.exceptions as profile_exceptions
 import modules.users.users_profile.import_job_service as job_service
+import modules.users.users_profile.import_service as import_service
 import modules.users.users_profile.import_state_store as import_state_store
+import modules.users.users_profile.transfer_pool as transfer_pool
+from tests._factories.profile import FaultyStorage, archive_of, png, profile_archive
+from tests._factories.users import make_user
 
-_MODULE = "modules.users.users_profile.import_job_service"
 _Status = profile_constants.ImportStatus
 _Failure = profile_constants.ImportFailure
 _AREA = profile_constants.IMPORT_STAGING_AREA
-_USER_ID = uuid.UUID(int=1)
-_OTHER_USER_ID = uuid.UUID(int=2)
-_JOB = uuid.UUID(int=500)
+_ROOMY = {"max_memory_mb": 1_000_000}
+_GOAL = {"interval": "daily", "activity_type": "run", "goal_type": "activities", "goal_activities_number": 1}
 
 
 @pytest.fixture
-def states():
-    return import_state_store.ProfileImportStateStore(MemoryState())
+def platform(_publish_local_platform):
+    return _publish_local_platform
 
 
 @pytest.fixture
-def storage():
-    store = MagicMock()
-    store.get.return_value = b"zip"
-    return store
+def storage(platform):
+    return platform.storage
 
 
-def _saver(data: bytes = b"zip"):
+@pytest.fixture
+def states(platform):
+    return import_state_store.ProfileImportStateStore(platform.state)
+
+
+@pytest.fixture
+def owner(committed_sessions):
+    with committed_sessions() as db:
+        created = make_user(db, city="Porto")
+        db.commit()
+    return created
+
+
+@pytest.fixture
+def requested(platform):
+    """The import-requested events the bus carries."""
+    seen = []
+    platform.events.subscribe(profile_events.USERS_PROFILE_IMPORT_REQUESTED, seen.append)
+    return seen
+
+
+def _use_config(monkeypatch, **settings):
+    config = import_service.ImportPerformanceConfig(**{**_ROOMY, **settings})
+    monkeypatch.setattr(import_service.ImportPerformanceConfig, "get_auto_config", classmethod(lambda cls: config))
+
+
+@pytest.fixture(autouse=True)
+def _default_config(monkeypatch):
+    """The pytest process holds what earlier tests allocated, which the memory limit is not about."""
+    _use_config(monkeypatch)
+
+
+def _saver(data: bytes):
     """An upload saver that writes ``data`` where the shared validator would."""
 
     def save(*, kind, upload_dir, filename):
@@ -52,393 +86,443 @@ def _saver(data: bytes = b"zip"):
     return save
 
 
-def _validation_error() -> ValidationError:
-    try:
-        TypeAdapter(int).validate_python("x")
-    except ValidationError as err:
-        return err
-    raise AssertionError
+def _rejecting(*, kind, upload_dir, filename):
+    raise core_exceptions.InvalidInputError("not a zip")
 
 
-def _payload(
-    job_id: uuid.UUID = _JOB, user_id: uuid.UUID = _USER_ID, key: str | None = None
-) -> profile_events.ProfileImportRequestedPayload:
-    return profile_events.ProfileImportRequestedPayload(
-        user_id=user_id, job_id=job_id, staged_key=key or f"{user_id}/abc.zip"
-    )
+def _stage(storage, owner_id, archive, name="abc.zip"):
+    key = f"{owner_id}/{name}"
+    storage.save(_AREA, key, archive)
+    return key
 
 
-def _queued(states, user_id: uuid.UUID = _USER_ID):
-    return states.begin(user_id, conflict="held")
+def _payload(owner_id, job_id, key):
+    return profile_events.ProfileImportRequestedPayload(user_id=owner_id, job_id=job_id, staged_key=key)
 
 
-def _run(job_id, states, storage, importer, *, will_retry=False, payload=None):
-    with patch(f"{_MODULE}._run_importer", side_effect=importer if isinstance(importer, Exception) else None) as run:
-        if not isinstance(importer, Exception):
-            run.return_value = importer
-        job_service.run_import(payload or _payload(job_id), states, storage, will_retry=will_retry)
-    return run
+def _queued(states, owner_id):
+    return states.begin(owner_id, conflict="held")
 
 
-def _supersede(states, state):
-    """Return a first import whose claim expired, and a second one that began after it."""
-    first = _queued(states)
-    state.delete(core_attempt_state.key("users", "profile_import:claim", str(_USER_ID)))
-    return first, _queued(states)
+def _run(owner_id, job, states, storage, key, *, will_retry=False):
+    job_service.run_import(_payload(owner_id, job.id, key), states, storage, will_retry=will_retry)
+
+
+def _audit(committed_sessions, action):
+    with committed_sessions() as db:
+        return db.scalars(select(AuditLog).where(AuditLog.action_id == action)).all()
+
+
+def _supersede(states, state, owner_id):
+    first = states.begin(owner_id, conflict="held")
+    state.delete(core_attempt_state.key("users", "profile_import:claim", str(owner_id)))
+    return first, states.begin(owner_id, conflict="held")
+
+
+@pytest.fixture
+def blocked_pool():
+    release = threading.Event()
+    for _ in range(profile_constants.TRANSFER_POOL_MAX_PENDING):
+        transfer_pool.pool.submit(release.wait)
+    yield
+    release.set()
+    transfer_pool.pool.shutdown(wait=True)
 
 
 class TestRequestImport:
-    def test_a_full_local_pool_refuses_before_anything_is_staged(self, states, storage, mock_db):
-        with (
-            patch(f"{_MODULE}.core_config.settings", MagicMock(JOBS_ENABLED=False)),
-            patch(f"{_MODULE}.profile_transfer_pool.pool") as pool,
-        ):
-            pool.require_capacity.side_effect = core_exceptions.ServiceUnavailableError("full")
-            with pytest.raises(core_exceptions.ServiceUnavailableError):
-                job_service.request_import(_USER_ID, _saver(), states, storage, mock_db)
+    def test_the_archive_is_staged_under_the_users_prefix_audited_and_published(
+        self, committed_sessions, owner, states, storage, requested
+    ):
+        with committed_sessions() as db:
+            status = job_service.request_import(owner.id, _saver(b"archive-bytes"), states, storage, db)
 
-        storage.save_stream.assert_not_called()
-        assert states.get(_USER_ID) is None
+        assert status.status == "queued"
+        (event,) = requested
+        key = event.payload["staged_key"]
+        assert key.startswith(f"{owner.id}/") and key.endswith(".zip")
+        assert event.payload["job_id"] == str(status.id)
+        assert storage.get(_AREA, key) == b"archive-bytes"
+        assert states.get(owner.id, job_id=status.id).status == _Status.QUEUED
+        rows = _audit(committed_sessions, profile_audit_actions.PROFILE_IMPORT_REQUEST.id)
+        assert [row.target_owner_id for row in rows] == [str(owner.id)]
 
-    def test_a_durable_deployment_does_not_look_at_the_local_pool(self, states, storage, mock_db):
-        with (
-            patch(f"{_MODULE}.core_config.settings", MagicMock(JOBS_ENABLED=True)),
-            patch(f"{_MODULE}.profile_transfer_pool.pool") as pool,
-            patch(f"{_MODULE}.profile_event_publishers.publish_import_requested"),
-        ):
-            job_service.request_import(_USER_ID, _saver(), states, storage, mock_db)
+    def test_a_pending_import_refuses_a_second_and_stages_nothing(self, committed_sessions, owner, states, storage):
+        _queued(states, owner.id)
+        read = []
 
-        pool.require_capacity.assert_not_called()
+        def saver(**kwargs):
+            read.append(kwargs)
 
-    def test_an_import_the_pool_could_not_take_is_closed_and_its_archive_removed(self, states, storage):
-        job = _queued(states)
+        with committed_sessions() as db, pytest.raises(core_exceptions.JobAlreadyRunningError):
+            job_service.request_import(owner.id, saver, states, storage, db)
 
-        job_service.fail_unstarted_import(_payload(job.id), states, storage)
+        assert read == []
+        assert storage.list_keys(_AREA, "") == []
 
-        assert states.get(_USER_ID).status == _Status.FAILED
-        assert states.get(_USER_ID).error_code == _Failure.PROCESSING_FAILED
-        storage.delete.assert_called_once_with(_AREA, f"{_USER_ID}/abc.zip")
+    def test_a_rejected_archive_frees_the_claim_and_records_no_import(
+        self, committed_sessions, owner, states, storage, requested
+    ):
+        with committed_sessions() as db, pytest.raises(core_exceptions.InvalidInputError):
+            job_service.request_import(owner.id, _rejecting, states, storage, db)
 
-    def test_stages_the_archive_under_the_users_prefix_and_queues_it(self, states, storage, mock_db):
-        with patch(f"{_MODULE}.profile_event_publishers.publish_import_requested") as publish:
-            state = job_service.request_import(_USER_ID, _saver(), states, storage, mock_db)
+        assert states.get(owner.id) is None
+        assert storage.list_keys(_AREA, "") == []
+        assert requested == []
+        states.begin(owner.id, conflict="held")
 
-        assert state.status == _Status.QUEUED
-        area, key = storage.save_stream.call_args.args[:2]
-        assert area == _AREA
-        assert key.startswith(f"{_USER_ID}/") and key.endswith(".zip")
-        job_id = publish.call_args.args[1]
-        publish.assert_called_once_with(_USER_ID, job_id, key, mock_db, commit=mock_db.commit)
-        # The published job is the one that owns the recorded state.
-        assert states.get(_USER_ID, job_id=job_id).status == _Status.QUEUED
+    def test_a_full_local_pool_refuses_before_anything_is_staged(
+        self, committed_sessions, owner, states, storage, blocked_pool
+    ):
+        with committed_sessions() as db, pytest.raises(core_exceptions.ServiceUnavailableError):
+            job_service.request_import(owner.id, _saver(b"zip"), states, storage, db)
 
-    def test_a_pending_import_refuses_a_second_and_stages_nothing(self, states, storage, mock_db):
-        states.begin(_USER_ID, conflict="held")
+        assert states.get(owner.id) is None
+        assert storage.list_keys(_AREA, "") == []
 
-        saver = MagicMock()
-        with pytest.raises(core_exceptions.JobAlreadyRunningError):
-            job_service.request_import(_USER_ID, saver, states, storage, mock_db)
+    def test_a_durable_deployment_does_not_look_at_the_local_pool(
+        self, committed_sessions, owner, states, storage, blocked_pool, monkeypatch
+    ):
+        monkeypatch.setattr(core_config.settings, "JOBS_ENABLED", True)
 
-        saver.assert_not_called()
-        storage.save_stream.assert_not_called()
+        with committed_sessions() as db:
+            status = job_service.request_import(owner.id, _saver(b"zip"), states, storage, db)
 
-    def test_the_archive_is_streamed_from_disk_never_read_into_memory(self, states, storage, mock_db):
-        streamed = []
-        storage.save_stream.side_effect = lambda area, key, source, **_: streamed.append(source.read())
+        assert status.status == "queued"
 
-        with patch(f"{_MODULE}.profile_event_publishers.publish_import_requested"):
-            job_service.request_import(_USER_ID, _saver(b"archive-bytes"), states, storage, mock_db)
+    def test_a_failure_to_queue_removes_the_archive_and_closes_the_state(
+        self, committed_sessions, owner, states, storage
+    ):
+        with committed_sessions() as db:
+            db.execute(text("DROP TABLE jasil_audit_log CASCADE"))
+            db.commit()
 
-        assert streamed == [b"archive-bytes"]
+        with committed_sessions() as db, pytest.raises(Exception, match="jasil_audit_log"):
+            job_service.request_import(owner.id, _saver(b"zip"), states, storage, db)
 
-    def test_a_rejected_archive_frees_the_claim_and_records_no_import(self, states, storage, mock_db):
-        saver = MagicMock(side_effect=core_exceptions.InvalidInputError("not a zip"))
+        assert storage.list_keys(_AREA, "") == []
+        assert states.get(owner.id).status == _Status.FAILED
+        states.begin(owner.id, conflict="held")
 
-        with pytest.raises(core_exceptions.InvalidInputError):
-            job_service.request_import(_USER_ID, saver, states, storage, mock_db)
+    def test_an_import_the_pool_could_not_take_is_closed_and_its_archive_removed(
+        self, committed_sessions, owner, states, storage
+    ):
+        job = _queued(states, owner.id)
+        key = _stage(storage, owner.id, b"zip")
 
-        storage.save_stream.assert_not_called()
-        storage.delete.assert_not_called()
-        assert states.get(_USER_ID) is None
-        states.begin(_USER_ID, conflict="held")
+        job_service.fail_unstarted_import(_payload(owner.id, job.id, key), states, storage)
 
-    def test_a_failure_to_queue_removes_the_archive_and_closes_the_state(self, states, storage, mock_db):
-        with (
-            patch(f"{_MODULE}.profile_event_publishers.publish_import_requested", side_effect=RuntimeError("down")),
-            pytest.raises(RuntimeError),
-        ):
-            job_service.request_import(_USER_ID, _saver(), states, storage, mock_db)
-
-        storage.delete.assert_called_once()
-        assert states.get(_USER_ID).status == _Status.FAILED
-        states.begin(_USER_ID, conflict="held")
+        state = states.get(owner.id)
+        assert (state.status, state.error_code) == (_Status.FAILED, _Failure.PROCESSING_FAILED)
+        assert storage.list_keys(_AREA, "") == []
+        rows = _audit(committed_sessions, profile_audit_actions.PROFILE_IMPORT_COMPLETE.id)
+        assert [row.outcome for row in rows] == ["failure"]
 
 
 class TestRunImport:
-    def test_a_successful_import_records_the_counts_and_removes_the_archive(self, states, storage):
-        job = _queued(states)
+    def test_a_successful_import_records_the_counts_and_removes_the_archive(
+        self, committed_sessions, owner, states, storage
+    ):
+        job = _queued(states, owner.id)
+        key = _stage(storage, owner.id, profile_archive(owner, user_goals=[_GOAL]))
 
-        _run(job.id, states, storage, {"activities": 3})
+        _run(owner.id, job, states, storage, key)
 
-        state = states.get(_USER_ID)
-        assert (state.status, state.imported) == (_Status.SUCCEEDED, {"activities": 3})
-        storage.delete.assert_called_once_with(_AREA, f"{_USER_ID}/abc.zip")
-        states.begin(_USER_ID, conflict="held")
-
-    def test_it_reads_the_archive_the_event_names(self, states, storage):
-        job = _queued(states)
-
-        run = _run(job.id, states, storage, {})
-
-        storage.get.assert_called_once_with(_AREA, f"{_USER_ID}/abc.zip")
-        assert run.call_args.args[:2] == (_USER_ID, b"zip")
-
-    def test_an_archive_outside_the_users_prefix_is_refused(self, states, storage):
-        job = _queued(states)
-
-        run = _run(job.id, states, storage, {}, payload=_payload(job.id, _USER_ID, f"{_OTHER_USER_ID}/abc.zip"))
-
-        run.assert_not_called()
-        storage.get.assert_not_called()
-        assert states.get(_USER_ID).status == _Status.QUEUED
+        state = states.get(owner.id)
+        assert state.status == _Status.SUCCEEDED
+        assert state.imported["user_goals"] == 1
+        assert storage.list_keys(_AREA, "") == []
+        with committed_sessions() as db:
+            assert goals_crud.count_user_goals(owner.id, db) == 1
+        rows = _audit(committed_sessions, profile_audit_actions.PROFILE_IMPORT_COMPLETE.id)
+        assert [row.outcome for row in rows] == ["success"]
+        states.begin(owner.id, conflict="held")
 
     @pytest.mark.parametrize(
-        ("error", "failure"),
+        ("build", "failure"),
         [
-            (profile_exceptions.FileFormatError("x"), _Failure.INVALID_FILE),
-            (profile_exceptions.SchemaValidationError("x"), _Failure.INVALID_FILE),
-            (_validation_error(), _Failure.INVALID_FILE),
-            (ValueError("x"), _Failure.PROCESSING_FAILED),
-            (core_exceptions.InvalidInputError("x"), _Failure.INVALID_FILE),
-            (profile_exceptions.FileSizeError("x"), _Failure.TOO_LARGE),
-            (profile_exceptions.ActivityLimitError("x"), _Failure.TOO_MANY_ACTIVITIES),
-            (profile_exceptions.ImportTimeoutError("x"), _Failure.TIMED_OUT),
-            (profile_exceptions.ImportAccountMismatchError("x"), _Failure.WRONG_ACCOUNT),
-            (profile_exceptions.ImportArchiveFromOlderVersionError("x"), _Failure.OLDER_VERSION),
-            (profile_exceptions.MemoryAllocationError("x"), _Failure.PROCESSING_FAILED),
-            (RuntimeError("x"), _Failure.PROCESSING_FAILED),
+            (lambda owner, stranger: b"not an archive", _Failure.INVALID_FILE),
+            (lambda owner, stranger: archive_of({"data/user.json": b"{ not json"}), _Failure.INVALID_FILE),
+            (
+                lambda owner, stranger: archive_of({"data/user.json": [{"weight_units": "stones"}]}),
+                _Failure.INVALID_FILE,
+            ),
+            (lambda owner, stranger: profile_archive(stranger, user_goals=[_GOAL]), _Failure.WRONG_ACCOUNT),
+            (lambda owner, stranger: archive_of({"data/user.json": [{"id": 3}]}), _Failure.OLDER_VERSION),
+            (lambda owner, stranger: archive_of({"data/readme.json": []}), _Failure.INVALID_FILE),
         ],
+        ids=["not-a-zip", "bad-json", "bad-profile", "wrong-account", "older-version", "nothing-to-import"],
     )
-    def test_a_failure_is_final_and_reported_with_a_sanitized_code(self, states, storage, error, failure):
-        job = _queued(states)
+    def test_a_rejected_archive_is_final_with_the_code_that_names_the_fault(
+        self, committed_sessions, owner, states, storage, build, failure
+    ):
+        with committed_sessions() as db:
+            stranger = make_user(db)
+            db.commit()
+        job = _queued(states, owner.id)
+        key = _stage(storage, owner.id, build(owner, stranger))
 
-        _run(job.id, states, storage, error, will_retry=False)
+        _run(owner.id, job, states, storage, key, will_retry=True)
 
-        state = states.get(_USER_ID)
+        state = states.get(owner.id)
         assert (state.status, state.error_code) == (_Status.FAILED, failure)
-        storage.delete.assert_called_once()
-        assert "x" not in state.model_dump_json().replace("error_code", "")
+        assert storage.list_keys(_AREA, "") == []
+        states.begin(owner.id, conflict="held")
 
-    def test_a_transient_failure_before_the_commit_is_retried(self, states, storage):
-        job = _queued(states)
+    @pytest.mark.parametrize(
+        ("settings", "archive", "failure"),
+        [
+            ({"max_file_size_mb": 0}, lambda owner: profile_archive(owner, user_goals=[_GOAL]), _Failure.TOO_LARGE),
+            (
+                {"max_activities": 0},
+                lambda owner: profile_archive(owner, activities=[{"id": str(uuid.uuid4())}]),
+                _Failure.TOO_MANY_ACTIVITIES,
+            ),
+            ({"timeout_seconds": -1}, lambda owner: profile_archive(owner, user_goals=[_GOAL]), _Failure.TIMED_OUT),
+            (
+                {"max_memory_mb": 0},
+                lambda owner: profile_archive(owner, user_goals=[_GOAL]),
+                _Failure.PROCESSING_FAILED,
+            ),
+        ],
+        ids=["too-large", "too-many-activities", "timed-out", "out-of-memory"],
+    )
+    def test_a_limit_the_archive_runs_into_is_reported_by_its_own_code(
+        self, owner, states, storage, monkeypatch, settings, archive, failure
+    ):
+        _use_config(monkeypatch, **settings)
+        job = _queued(states, owner.id)
+        key = _stage(storage, owner.id, archive(owner))
 
-        with pytest.raises(OperationalError):
-            _run(job.id, states, storage, OperationalError("s", {}, Exception("db down")), will_retry=True)
+        _run(owner.id, job, states, storage, key, will_retry=True)
 
-        assert states.get(_USER_ID).status == _Status.QUEUED
-        storage.delete.assert_not_called()
+        state = states.get(owner.id)
+        assert (state.status, state.error_code) == (_Status.FAILED, failure)
+        assert "Memory" not in state.model_dump_json()
 
-    def test_a_transient_failure_on_the_last_attempt_is_final(self, states, storage):
-        job = _queued(states)
+    def test_a_database_failure_before_the_commit_is_retried_while_attempts_remain(
+        self, committed_sessions, owner, states, storage
+    ):
+        job = _queued(states, owner.id)
+        key = _stage(storage, owner.id, profile_archive(owner, user_goals=[_GOAL]))
+        with committed_sessions() as db:
+            db.execute(text("DROP TABLE users_goals CASCADE"))
+            db.commit()
 
-        _run(job.id, states, storage, OperationalError("s", {}, Exception("db down")), will_retry=False)
+        with pytest.raises(Exception, match="users_goals"):
+            _run(owner.id, job, states, storage, key, will_retry=True)
 
-        assert states.get(_USER_ID).status == _Status.FAILED
-        storage.delete.assert_called_once()
+        assert states.get(owner.id).status == _Status.QUEUED
+        assert storage.list_keys(_AREA, "") == [f"{owner.id}/abc.zip"]
 
-    def test_a_rejected_archive_is_never_retried(self, states, storage):
-        job = _queued(states)
+    def test_the_same_failure_on_the_last_attempt_is_final(self, committed_sessions, owner, states, storage):
+        job = _queued(states, owner.id)
+        key = _stage(storage, owner.id, profile_archive(owner, user_goals=[_GOAL]))
+        with committed_sessions() as db:
+            db.execute(text("DROP TABLE users_goals CASCADE"))
+            db.commit()
 
-        _run(job.id, states, storage, profile_exceptions.FileFormatError("x"), will_retry=True)
+        _run(owner.id, job, states, storage, key, will_retry=False)
 
-        assert states.get(_USER_ID).error_code == _Failure.INVALID_FILE
+        state = states.get(owner.id)
+        assert (state.status, state.error_code) == (_Status.FAILED, _Failure.PROCESSING_FAILED)
+        assert storage.list_keys(_AREA, "") == []
 
-    def test_a_failure_after_the_commit_is_final_and_says_files_are_incomplete(self, states, storage):
-        job = _queued(states)
-
-        def commit_then_fail(_user_id, _zip, _storage, on_committed):
-            on_committed()
-            raise OperationalError("s", {}, Exception("storage down"))
-
-        with patch(f"{_MODULE}._run_importer", side_effect=commit_then_fail):
-            job_service.run_import(_payload(job.id), states, storage, will_retry=True)
-
-        assert (states.get(_USER_ID).status, states.get(_USER_ID).error_code) == (
-            _Status.FAILED,
-            _Failure.FILES_INCOMPLETE,
+    def test_a_failure_after_the_commit_says_files_are_incomplete_and_keeps_the_rows(
+        self, committed_sessions, owner, states, storage
+    ):
+        job = _queued(states, owner.id)
+        archive = archive_of(
+            {
+                "data/user.json": [{"username": owner.username, "city": "Faro"}],
+                f"user_images/{owner.id}.png": png(90, 8),
+            }
         )
-
-    def test_losing_the_committed_marker_fails_the_import_instead_of_retrying_it(self, states, storage):
-        job = _queued(states)
-
-        def commit_with_state_down(_user_id, _zip, _storage, on_committed):
-            with patch.object(states, "set_status", side_effect=core_attempt_state.StateUnavailableError("down")):
-                on_committed()
-
-        with patch(f"{_MODULE}._run_importer", side_effect=commit_with_state_down):
-            job_service.run_import(_payload(job.id), states, storage, will_retry=True)
-
-        assert (states.get(_USER_ID).status, states.get(_USER_ID).error_code) == (
-            _Status.FAILED,
-            _Failure.FILES_INCOMPLETE,
-        )
-
-    def test_a_redelivery_after_a_worker_died_in_the_database_part_runs_again(self, states, storage):
-        job = _queued(states)
-        states.set_status(_USER_ID, job.id, _Status.RUNNING)
-
-        run = _run(job.id, states, storage, {"gears": 1})
-
-        run.assert_called_once()
-        assert states.get(_USER_ID).status == _Status.SUCCEEDED
-
-    def test_a_redelivery_after_a_worker_died_writing_files_does_not_import_twice(self, states, storage):
-        job = _queued(states)
-        states.set_status(_USER_ID, job.id, _Status.WRITING_FILES)
-
-        run = _run(job.id, states, storage, {})
-
-        run.assert_not_called()
-        assert (states.get(_USER_ID).status, states.get(_USER_ID).error_code) == (
-            _Status.FAILED,
-            _Failure.FILES_INCOMPLETE,
-        )
-        storage.delete.assert_called_once()
-
-    @pytest.mark.parametrize("finished", [_Status.SUCCEEDED, _Status.FAILED])
-    def test_a_redelivery_of_a_finished_import_does_nothing(self, states, storage, finished):
-        job = _queued(states)
-        states.set_status(_USER_ID, job.id, finished)
-
-        run = _run(job.id, states, storage, {})
-
-        run.assert_not_called()
-        assert states.get(_USER_ID).status == finished
-
-    def test_a_superseded_import_leaves_the_newer_imports_state_and_claim(self, storage):
-        state = MemoryState()
-        states = import_state_store.ProfileImportStateStore(state)
-        first, second = _supersede(states, state)
-
-        run = _run(first.id, states, storage, {"activities": 3})
-
-        run.assert_not_called()
-        storage.get.assert_not_called()
-        # Only the superseded job's own archive is discarded.
-        storage.delete.assert_called_once_with(_AREA, f"{_USER_ID}/abc.zip")
-        assert states.get(_USER_ID, job_id=second.id).status == _Status.QUEUED
-        assert states.get(_USER_ID, job_id=first.id) is None
-        with pytest.raises(core_exceptions.JobAlreadyRunningError):
-            states.begin(_USER_ID, conflict="held")
-
-    def test_a_missing_archive_fails_the_import(self, states, storage):
-        job = _queued(states)
-        storage.get.return_value = None
-
-        run = _run(job.id, states, storage, {})
-
-        run.assert_not_called()
-        assert states.get(_USER_ID).status == _Status.FAILED
-
-
-class TestRunImporter:
-    def test_it_flips_the_state_once_the_rows_are_committed(self, states, storage):
-        job = _queued(states)
+        key = _stage(storage, owner.id, archive)
         seen = []
 
-        class FakeImporter:
-            def __init__(self, user_id, store, db, on_database_committed):
-                self.on_database_committed = on_database_committed
+        class Writing(FaultyStorage):
+            def __getattr__(self, name):
+                if name in ("save", "save_stream"):
 
-            def import_from_zip_data(self, data):
-                self.on_database_committed()
-                seen.append(states.get(_USER_ID).status)
-                return {"gears": 2}
+                    def fail(*args, **kwargs):
+                        seen.append(states.get(owner.id).status)
+                        raise OSError("disk full")
 
-        with (
-            patch(f"{_MODULE}.core_database.SessionLocal"),
-            patch(f"{_MODULE}.profile_import_service.ImportService", FakeImporter),
-        ):
-            result = job_service._run_importer(
-                _USER_ID, b"zip", storage, lambda: states.set_status(_USER_ID, job.id, _Status.WRITING_FILES)
-            )
+                    return fail
+                return super().__getattr__(name)
 
-        assert result == {"gears": 2}
+        _run(owner.id, job, states, Writing(storage), key, will_retry=True)
+
+        state = states.get(owner.id)
+        assert (state.status, state.error_code) == (_Status.FAILED, _Failure.FILES_INCOMPLETE)
         assert seen == [_Status.WRITING_FILES]
+        with committed_sessions() as db:
+            assert users_integration.require_user(owner.id, db).city == "Faro"
+
+    def test_a_redelivery_after_a_worker_died_in_the_database_part_runs_again(
+        self, committed_sessions, owner, states, storage
+    ):
+        job = _queued(states, owner.id)
+        states.set_status(owner.id, job.id, _Status.RUNNING)
+        key = _stage(storage, owner.id, profile_archive(owner, user_goals=[_GOAL]))
+
+        _run(owner.id, job, states, storage, key)
+
+        assert states.get(owner.id).status == _Status.SUCCEEDED
+
+    def test_a_redelivery_after_a_worker_died_writing_files_does_not_import_twice(
+        self, committed_sessions, owner, states, storage
+    ):
+        job = _queued(states, owner.id)
+        states.set_status(owner.id, job.id, _Status.WRITING_FILES)
+        key = _stage(storage, owner.id, profile_archive(owner, user_goals=[_GOAL]))
+
+        _run(owner.id, job, states, storage, key)
+
+        state = states.get(owner.id)
+        assert (state.status, state.error_code) == (_Status.FAILED, _Failure.FILES_INCOMPLETE)
+        assert storage.list_keys(_AREA, "") == []
+        with committed_sessions() as db:
+            assert goals_crud.count_user_goals(owner.id, db) == 0
+
+    @pytest.mark.parametrize("finished", [_Status.SUCCEEDED, _Status.FAILED])
+    def test_a_redelivery_of_a_finished_import_does_nothing_and_drops_the_archive(
+        self, committed_sessions, owner, states, storage, finished
+    ):
+        job = _queued(states, owner.id)
+        states.set_status(owner.id, job.id, finished)
+        key = _stage(storage, owner.id, profile_archive(owner, user_goals=[_GOAL]))
+
+        _run(owner.id, job, states, storage, key)
+
+        assert states.get(owner.id).status == finished
+        assert storage.list_keys(_AREA, "") == []
+        with committed_sessions() as db:
+            assert goals_crud.count_user_goals(owner.id, db) == 0
+
+    def test_a_superseded_import_leaves_the_newer_imports_state_and_claim(
+        self, committed_sessions, platform, owner, storage
+    ):
+        states = import_state_store.ProfileImportStateStore(platform.state)
+        first, second = _supersede(states, platform.state, owner.id)
+        key = _stage(storage, owner.id, profile_archive(owner, user_goals=[_GOAL]))
+
+        _run(owner.id, first, states, storage, key)
+
+        assert storage.list_keys(_AREA, "") == []
+        assert states.get(owner.id, job_id=second.id).status == _Status.QUEUED
+        assert states.get(owner.id, job_id=first.id) is None
+        with committed_sessions() as db:
+            assert goals_crud.count_user_goals(owner.id, db) == 0
+        with pytest.raises(core_exceptions.JobAlreadyRunningError):
+            states.begin(owner.id, conflict="held")
+
+    def test_an_archive_outside_the_users_prefix_is_refused_and_left_alone(self, owner, states, storage):
+        job = _queued(states, owner.id)
+        stranger = uuid.uuid4()
+        key = _stage(storage, stranger, profile_archive(owner))
+
+        _run(owner.id, job, states, storage, key)
+
+        assert states.get(owner.id).status == _Status.QUEUED
+        assert storage.list_keys(_AREA, "") == [key]
+
+    def test_a_finished_import_whose_archive_cannot_be_deleted_is_still_finished(
+        self, committed_sessions, owner, states, storage
+    ):
+        job = _queued(states, owner.id)
+        key = _stage(storage, owner.id, profile_archive(owner, user_goals=[_GOAL]))
+        stuck = FaultyStorage(storage, faults={"delete": StorageBackendUnavailableError("busy")})
+
+        _run(owner.id, job, states, stuck, key)
+
+        assert states.get(owner.id).status == _Status.SUCCEEDED
+        assert storage.list_keys(_AREA, "") == [key]
+
+    def test_a_missing_archive_fails_the_import(self, owner, states, storage):
+        job = _queued(states, owner.id)
+
+        _run(owner.id, job, states, storage, f"{owner.id}/gone.zip")
+
+        state = states.get(owner.id)
+        assert (state.status, state.error_code) == (_Status.FAILED, _Failure.PROCESSING_FAILED)
+
+
+class TestImportStatus:
+    def test_both_running_phases_read_as_running(self, owner, states):
+        job = _queued(states, owner.id)
+
+        for phase in (_Status.RUNNING, _Status.WRITING_FILES):
+            states.set_status(owner.id, job.id, phase)
+            status = job_service.import_status(job, states.get(owner.id))
+            assert status.status == "running"
 
 
 class TestSweepStagedImports:
+    def _stage(self, storage, name, *, age_seconds):
+        storage.save(_AREA, name, b"zip")
+        aged = time.time() - age_seconds
+        os.utime(storage._resolve(_AREA, name), (aged, aged))
+
     def test_removes_only_archives_older_than_the_cutoff(self, storage):
-        now = time.time()
-        storage.iter_objects.return_value = iter(
-            [(f"{_USER_ID}/old.zip", now - 100_000), (f"{_OTHER_USER_ID}/new.zip", now - 10)]
-        )
+        self._stage(storage, f"{uuid.uuid4()}/old.zip", age_seconds=100_000)
+        fresh = f"{uuid.uuid4()}/new.zip"
+        self._stage(storage, fresh, age_seconds=0)
 
         removed = job_service.sweep_staged_imports(storage, 3600)
 
         assert removed == 1
-        storage.delete.assert_called_once_with(_AREA, f"{_USER_ID}/old.zip")
+        assert storage.list_keys(_AREA, "") == [fresh]
 
     def test_nothing_stale_removes_nothing(self, storage):
-        storage.iter_objects.return_value = iter([])
+        self._stage(storage, f"{uuid.uuid4()}/new.zip", age_seconds=0)
 
         assert job_service.sweep_staged_imports(storage, 3600) == 0
-        storage.delete.assert_not_called()
 
-
-class TestSweepSurvivesAFailedDelete:
     def test_one_failing_delete_does_not_stop_the_rest(self, storage):
-        now = time.time()
-        storage.iter_objects.return_value = iter(
-            [(f"{_USER_ID}/a.zip", now - 100_000), (f"{_OTHER_USER_ID}/b.zip", now - 100_000)]
-        )
-        storage.delete.side_effect = [platform_providers.StorageBackendUnavailableError("busy"), None]
+        stuck, other = f"{uuid.uuid4()}/a.zip", f"{uuid.uuid4()}/b.zip"
+        self._stage(storage, stuck, age_seconds=100_000)
+        self._stage(storage, other, age_seconds=100_000)
+        busy = FaultyStorage(storage, key_faults={("delete", stuck): StorageBackendUnavailableError("busy")})
 
-        removed = job_service.sweep_staged_imports(storage, 3600)
+        removed = job_service.sweep_staged_imports(busy, 3600)
 
         assert removed == 1
-        assert storage.delete.call_count == 2
+        assert storage.list_keys(_AREA, "") == [stuck]
 
 
 class TestDiscardStagedImports:
-    def test_removes_every_archive_of_the_user(self, storage):
-        storage.list_keys.return_value = [f"{_USER_ID}/a.zip", f"{_USER_ID}/b.zip"]
+    def test_removes_every_archive_of_the_user_and_only_theirs(self, owner, storage):
+        _stage(storage, owner.id, b"zip", "a.zip")
+        _stage(storage, owner.id, b"zip", "b.zip")
+        theirs = _stage(storage, uuid.uuid4(), b"zip")
 
-        job_service.discard_staged_imports(_USER_ID, storage)
+        job_service.discard_staged_imports(owner.id, storage)
 
-        storage.list_keys.assert_called_once_with(_AREA, f"{_USER_ID}/")
-        assert [c.args for c in storage.delete.call_args_list] == [
-            (_AREA, f"{_USER_ID}/a.zip"),
-            (_AREA, f"{_USER_ID}/b.zip"),
-        ]
+        assert storage.list_keys(_AREA, "") == [theirs]
 
-    def test_a_storage_failure_is_logged_not_raised(self, storage):
-        storage.list_keys.side_effect = platform_providers.StorageBackendUnavailableError("down")
+    def test_a_listing_failure_is_logged_not_raised(self, owner, storage):
+        key = _stage(storage, owner.id, b"zip")
+        down = FaultyStorage(storage, faults={"list_keys": StorageBackendUnavailableError("down")})
 
-        job_service.discard_staged_imports(_USER_ID, storage)
+        job_service.discard_staged_imports(owner.id, down)
 
-    def test_a_failed_delete_is_logged_not_raised(self, storage):
-        storage.list_keys.return_value = [f"{_USER_ID}/a.zip"]
-        storage.delete.side_effect = platform_providers.StorageBackendUnavailableError("down")
+        assert storage.list_keys(_AREA, "") == [key]
 
-        job_service.discard_staged_imports(_USER_ID, storage)
+    def test_a_failed_delete_is_logged_not_raised(self, owner, storage):
+        key = _stage(storage, owner.id, b"zip")
+        down = FaultyStorage(storage, faults={"delete": StorageBackendUnavailableError("down")})
 
-    def test_an_unexpected_error_propagates(self, storage):
-        storage.list_keys.side_effect = TypeError("bug")
+        job_service.discard_staged_imports(owner.id, down)
 
-        with pytest.raises(TypeError):
-            job_service.discard_staged_imports(_USER_ID, storage)
+        assert storage.list_keys(_AREA, "") == [key]
 
-    def test_a_failed_single_discard_is_logged_not_raised(self, storage):
-        storage.delete.side_effect = platform_providers.StorageBackendUnavailableError("down")
+    def test_an_unexpected_error_propagates(self, owner, storage):
+        _stage(storage, owner.id, b"zip")
+        broken = FaultyStorage(storage, faults={"delete": RuntimeError("bug")})
 
-        job_service._discard_staged(f"{_USER_ID}/a.zip", storage)
-
-    def test_an_unexpected_error_in_a_single_discard_propagates(self, storage):
-        storage.delete.side_effect = TypeError("bug")
-
-        with pytest.raises(TypeError):
-            job_service._discard_staged(f"{_USER_ID}/a.zip", storage)
+        with pytest.raises(RuntimeError, match="bug"):
+            job_service.discard_staged_imports(owner.id, broken)
 
 
 class TestCloseDeadLetteredImport:
@@ -450,36 +534,36 @@ class TestCloseDeadLetteredImport:
             (_Status.WRITING_FILES, _Failure.FILES_INCOMPLETE),
         ],
     )
-    def test_a_pending_import_is_failed_with_the_reason_its_state_implies(self, states, storage, status, failure):
-        job = states.begin(_USER_ID, conflict="held")
-        states.set_status(_USER_ID, job.id, status)
+    def test_a_pending_import_is_failed_with_the_reason_its_state_implies(
+        self, owner, states, storage, status, failure
+    ):
+        job = _queued(states, owner.id)
+        states.set_status(owner.id, job.id, status)
+        key = _stage(storage, owner.id, b"zip")
 
-        job_service.close_dead_lettered_import(_payload(job.id), states, storage)
+        job_service.close_dead_lettered_import(_payload(owner.id, job.id, key), states, storage)
 
-        assert states.get(_USER_ID).status == _Status.FAILED
-        assert states.get(_USER_ID).error_code == failure
-        states.begin(_USER_ID, conflict="held")
+        state = states.get(owner.id)
+        assert (state.status, state.error_code) == (_Status.FAILED, failure)
+        assert storage.list_keys(_AREA, "") == []
+        states.begin(owner.id, conflict="held")
 
-    def test_a_superseded_import_leaves_the_newer_imports_state_and_claim(self, storage):
-        state = MemoryState()
-        states = import_state_store.ProfileImportStateStore(state)
-        first, second = _supersede(states, state)
+    def test_a_superseded_import_leaves_the_newer_imports_state_and_claim(self, platform, owner, storage):
+        states = import_state_store.ProfileImportStateStore(platform.state)
+        first, second = _supersede(states, platform.state, owner.id)
+        key = _stage(storage, owner.id, b"zip")
 
-        job_service.close_dead_lettered_import(_payload(first.id), states, storage)
+        job_service.close_dead_lettered_import(_payload(owner.id, first.id, key), states, storage)
 
-        assert states.get(_USER_ID, job_id=second.id).status == _Status.QUEUED
-        with pytest.raises(core_exceptions.JobAlreadyRunningError):
-            states.begin(_USER_ID, conflict="held")
+        assert states.get(owner.id, job_id=second.id).status == _Status.QUEUED
+        assert storage.list_keys(_AREA, "") == []
 
-    def test_the_staged_archive_is_always_removed(self, states, storage):
-        job_service.close_dead_lettered_import(_payload(), states, storage)
+    def test_an_import_that_already_finished_keeps_its_outcome(self, owner, states, storage):
+        job = _queued(states, owner.id)
+        states.set_status(owner.id, job.id, _Status.SUCCEEDED, imported={"gears": 1})
+        key = _stage(storage, owner.id, b"zip")
 
-        storage.delete.assert_called_once_with(_AREA, f"{_USER_ID}/abc.zip")
+        job_service.close_dead_lettered_import(_payload(owner.id, job.id, key), states, storage)
 
-    def test_an_import_that_already_finished_keeps_its_outcome(self, states, storage):
-        job = states.begin(_USER_ID, conflict="held")
-        states.set_status(_USER_ID, job.id, _Status.SUCCEEDED)
-
-        job_service.close_dead_lettered_import(_payload(job.id), states, storage)
-
-        assert states.get(_USER_ID).status == _Status.SUCCEEDED
+        assert states.get(owner.id).status == _Status.SUCCEEDED
+        assert storage.list_keys(_AREA, "") == []

@@ -1,381 +1,213 @@
-"""Tests for user goals API endpoints."""
+"""The goals routes through the production application: the user's own goals, ETags and their progress."""
 
 import uuid
-from unittest.mock import MagicMock, patch
+from datetime import UTC, datetime
 
-import core.exceptions as core_exceptions
-import core.pagination as core_pagination
-import modules.users.users_goals.models as user_goals_models
-import modules.users.users_goals.schema as user_goals_schema
-from tests._helpers.auth import MOCK_USER_ID
+import jasil.runtime as jasil_runtime
+import pytest
 
-GOAL_ID = uuid.UUID("00000000-0000-4000-8000-000000000001")
-OTHER_ID = uuid.UUID("00000000-0000-4000-8000-000000000002")
+import core.config as core_config
+import modules.users.users_goals.crud as crud
+from tests._factories.activities import make_activity
+from tests._factories.goals import make_goal
+from tests._factories.users import make_user
 
-
-class TestGetUserGoals:
-    """
-    Test suite for get_user_goals endpoint.
-    """
-
-    @patch("modules.users.users_goals.router.user_goals_service.list_goals")
-    def test_get_user_goals_success(self, mock_get_goals, fast_api_client, fast_api_app):
-        """Test successful retrieval of all user goals."""
-        # Arrange
-        mock_goal1 = MagicMock(spec=user_goals_models.UsersGoal)
-        mock_goal1.id = GOAL_ID
-        mock_goal1.user_id = MOCK_USER_ID
-        mock_goal1.version = 1
-        mock_goal1.interval = "weekly"
-        mock_goal1.activity_type = "run"
-        mock_goal1.goal_type = "calories"
-        mock_goal1.goal_calories = 5000
-        mock_goal1.goal_activities_number = None
-        mock_goal1.goal_distance = None
-        mock_goal1.goal_elevation = None
-        mock_goal1.goal_duration = None
-
-        mock_get_goals.return_value = user_goals_schema.UserGoalPage.build(
-            [user_goals_schema.UserGoalRead.model_validate(mock_goal1)], 1, 1, 25
-        )
-
-        # Act
-        response = fast_api_client.get(
-            "/user_goals",
-            headers={"Authorization": "Bearer mock_token"},
-        )
-
-        # Assert
-        assert response.status_code == 200
-        data = response.json()
-        assert len(data["items"]) == 1
-        assert (data["total"], data["next"]) == (1, None)
-
-    @patch("modules.users.users_goals.router.user_goals_service.list_goals")
-    def test_get_user_goals_empty(self, mock_get_goals, fast_api_client, fast_api_app):
-        """Test retrieval when user has no goals."""
-        # Arrange
-        mock_get_goals.return_value = user_goals_schema.UserGoalPage.build([], 0, 1, 25)
-
-        # Act
-        response = fast_api_client.get(
-            "/user_goals",
-            headers={"Authorization": "Bearer mock_token"},
-        )
-
-        # Assert
-        assert response.status_code == 200
-        assert response.json()["items"] == []
+_URL = f"{core_config.ROOT_PATH}/profile/goals"
+_BODY = {"interval": "weekly", "activity_type": "run", "goal_type": "distance", "goal_distance": 50000}
 
 
-class TestGetUserGoalsResults:
-    """
-    Test suite for get_user_goals_results endpoint.
-    """
+@pytest.fixture
+def user(committed_sessions):
+    with committed_sessions() as db:
+        created = make_user(db, timezone="UTC", first_day_of_week="monday")
+        db.commit()
+    return created
 
-    @patch("modules.users.users_goals.router.user_goals_progress_service.get_goals_progress")
-    def test_get_user_goals_results_success(self, mock_calculate, fast_api_client, fast_api_app):
-        """Returns the page of goal progress and forwards the window."""
-        progress = user_goals_schema.UserGoalProgress(
-            goal_id=GOAL_ID,
-            interval="weekly",
-            activity_type="run",
-            goal_type="calories",
-            start_date="2024-01-15",
-            end_date="2024-01-21",
-            percentage_completed=75,
-            total_calories=3750,
-            goal_calories=5000,
-        )
-        mock_calculate.return_value = user_goals_schema.UserGoalProgressPage.build([progress], 3, 2, 1)
 
-        response = fast_api_client.get(
-            "/user_goals/results?page_number=2&num_records=1",
-            headers={"Authorization": "Bearer mock_token"},
-        )
+@pytest.fixture
+def me(sign_in, user):
+    return sign_in(user)
+
+
+@pytest.fixture
+def make_owned(committed_sessions, user):
+    """Return a function that commits a goal of the signed-in user."""
+
+    def make(**overrides):
+        with committed_sessions() as db:
+            goal = make_goal(db, user.id, **overrides)
+            db.commit()
+        return goal
+
+    return make
+
+
+def _stored(committed_sessions, user_id, goal_id):
+    with committed_sessions() as db:
+        return crud.get_user_goal(user_id, goal_id, db) if crud.user_goal_exists(user_id, goal_id, db) else None
+
+
+class TestList:
+    def test_the_users_goals_come_in_a_page_and_the_filters_apply(self, me, make_owned):
+        weekly = make_owned(interval="weekly")
+        make_owned(interval="monthly")
+
+        everything = me.client.get(_URL).json()
+        filtered = me.client.get(_URL, params={"interval": "weekly"}).json()
+
+        assert (everything["total"], everything["next"]) == (2, None)
+        assert [item["id"] for item in filtered["items"]] == [str(weekly.id)]
+        assert filtered["total"] == 1
+
+    def test_another_users_goals_are_not_listed(self, me, committed_sessions):
+        with committed_sessions() as db:
+            stranger = make_user(db)
+            make_goal(db, stranger.id)
+            db.commit()
+
+        assert me.client.get(_URL).json()["items"] == []
+
+    def test_an_unknown_filter_value_is_a_validation_error(self, me):
+        assert me.client.get(_URL, params={"interval": "hourly"}).status_code == 422
+
+    def test_an_oversized_page_is_refused(self, me):
+        assert me.client.get(_URL, params={"num_records": 100000}).status_code == 422
+
+
+class TestRead:
+    def test_a_goal_carries_its_version_as_an_etag(self, me, make_owned):
+        goal = make_owned()
+
+        response = me.client.get(f"{_URL}/{goal.id}")
 
         assert response.status_code == 200
-        data = response.json()
-        assert [item["goal_id"] for item in data["items"]] == [str(GOAL_ID)]
-        assert (data["total"], data["page"], data["num_records"], data["next"]) == (3, 2, 1, 3)
-        assert mock_calculate.call_args.args[0] == MOCK_USER_ID
-        assert mock_calculate.call_args.args[1] == core_pagination.PageParams(2, 1)
-
-    @patch("modules.users.users_goals.router.user_goals_progress_service.get_goals_progress")
-    def test_get_user_goals_results_none(self, mock_calculate, fast_api_client, fast_api_app):
-        """Returns an empty page when there are no goals."""
-        mock_calculate.return_value = user_goals_schema.UserGoalProgressPage.build([], 0, 1, 25)
-
-        response = fast_api_client.get(
-            "/user_goals/results",
-            headers={"Authorization": "Bearer mock_token"},
-        )
-
-        assert response.status_code == 200
-        assert response.json()["items"] == []
-        assert mock_calculate.call_args.args[1] == core_pagination.PageParams(1, 25)
-
-    def test_get_user_goals_results_rejects_oversized_page(self, fast_api_client, fast_api_app):
-        """A page size above the cap is a validation error."""
-        response = fast_api_client.get(
-            "/user_goals/results?num_records=201",
-            headers={"Authorization": "Bearer mock_token"},
-        )
-
-        assert response.status_code == 422
-
-
-class TestCreateUserGoal:
-    """
-    Test suite for create_user_goal endpoint.
-    """
-
-    @patch("modules.users.users_goals.router.user_goals_service.create_goal")
-    def test_create_user_goal_success(self, mock_create, fast_api_client, fast_api_app):
-        """Test successful goal creation."""
-        # Arrange
-        mock_created_goal = MagicMock(spec=user_goals_models.UsersGoal)
-        mock_created_goal.id = GOAL_ID
-        mock_created_goal.user_id = MOCK_USER_ID
-        mock_created_goal.version = 1
-        mock_created_goal.interval = "weekly"
-        mock_created_goal.activity_type = "run"
-        mock_created_goal.goal_type = "calories"
-        mock_created_goal.goal_calories = 5000
-        mock_created_goal.goal_activities_number = None
-        mock_created_goal.goal_distance = None
-        mock_created_goal.goal_elevation = None
-        mock_created_goal.goal_duration = None
-
-        mock_create.return_value = mock_created_goal
-
-        # Act
-        response = fast_api_client.post(
-            "/user_goals",
-            headers={"Authorization": "Bearer mock_token"},
-            json={
-                "interval": "weekly",
-                "activity_type": "run",
-                "goal_type": "calories",
-                "goal_calories": 5000,
-                "goal_activities_number": None,
-                "goal_distance": None,
-                "goal_elevation": None,
-                "goal_duration": None,
-            },
-        )
-
-        # Assert
-        assert response.status_code == 201
-        data = response.json()
-        assert data["id"] == str(GOAL_ID)
-        assert data["goal_calories"] == 5000
-        assert response.headers["Location"] == f"/user_goals/{GOAL_ID}"
         assert response.headers["ETag"] == '"1"'
+        assert response.json()["goal_distance"] == 50000
 
-    def test_create_user_goal_invalid_data(self, fast_api_client, fast_api_app):
-        """Test creation fails with invalid data."""
-        # Act
-        response = fast_api_client.post(
-            "/user_goals",
-            headers={"Authorization": "Bearer mock_token"},
-            json={
-                "interval": "invalid",  # Invalid interval
-                "activity_type": 1,
-                "goal_type": 1,
-                "goal_calories": 5000,
-            },
-        )
+    def test_a_missing_goal_is_not_found(self, me):
+        assert me.client.get(f"{_URL}/{uuid.uuid4()}").status_code == 404
 
-        # Assert
-        assert response.status_code == 422
+    def test_a_goal_id_that_is_not_a_uuid_is_a_validation_error(self, me):
+        assert me.client.get(f"{_URL}/not-a-uuid").status_code == 422
 
 
-class TestUpdateUserGoal:
-    """
-    Test suite for update_user_goal endpoint.
-    """
+class TestCreate:
+    def test_a_goal_is_created_with_its_location_and_etag(self, me, user, committed_sessions):
+        response = me.client.post(_URL, json=_BODY)
 
-    @patch("modules.users.users_goals.router.user_goals_service.update_goal")
-    def test_update_user_goal_success(
-        self,
-        mock_update,
-        fast_api_client,
-        fast_api_app,
-    ):
-        """Test successful goal update."""
-        # Arrange
-        mock_update.return_value = user_goals_schema.UserGoalRead(
-            id=GOAL_ID,
-            user_id=MOCK_USER_ID,
-            interval=user_goals_schema.Interval.MONTHLY,
-            activity_type=user_goals_schema.GoalActivityType.RUN,
-            goal_type=user_goals_schema.GoalType.CALORIES,
-            goal_calories=10000,
-            goal_activities_number=None,
-            goal_distance=None,
-            goal_elevation=None,
-            goal_duration=None,
-        )
+        assert response.status_code == 201
+        goal_id = uuid.UUID(response.json()["id"])
+        assert response.headers["Location"].endswith(f"/profile/goals/{goal_id}")
+        assert response.headers["ETag"] == '"1"'
+        stored = _stored(committed_sessions, user.id, goal_id)
+        assert stored is not None
+        assert stored.goal_distance == 50000
 
-        # Act
-        response = fast_api_client.put(
-            f"/user_goals/{GOAL_ID}",
-            headers={"Authorization": "Bearer mock_token", "If-Match": '"1"'},
-            json={
-                "interval": "monthly",
-                "activity_type": "run",  # RUN
-                "goal_type": "calories",  # CALORIES
-                "goal_calories": 10000,
-            },
-        )
+    def test_a_second_goal_in_the_same_slot_is_a_conflict(self, me, make_owned):
+        make_owned()
 
-        # Assert
-        assert response.status_code == 200
-        data = response.json()
-        assert data["id"] == str(GOAL_ID)
-        assert data["goal_calories"] == 10000
+        response = me.client.post(_URL, json=_BODY)
 
-    @patch("modules.users.users_goals.router.user_goals_service.update_goal")
-    def test_update_user_goal_not_found(
-        self,
-        mock_update,
-        fast_api_client,
-        fast_api_app,
-    ):
-        """Test update fails when goal not found."""
-        # Arrange
-        mock_update.side_effect = core_exceptions.NotFoundError("User goal not found")
+        assert response.status_code == 409
 
-        # Act
-        response = fast_api_client.put(
-            f"/user_goals/{OTHER_ID}",
-            headers={"Authorization": "Bearer mock_token", "If-Match": '"1"'},
-            json={
-                "interval": "weekly",
-                "activity_type": "run",
-                "goal_type": "calories",
-                "goal_calories": 5000,
-                "goal_activities_number": None,
-                "goal_distance": None,
-                "goal_elevation": None,
-                "goal_duration": None,
-            },
-        )
-
-        # Assert
-        assert response.status_code == 404
+    @pytest.mark.parametrize(
+        "body",
+        [
+            {"interval": "weekly", "activity_type": "run", "goal_type": "distance"},
+            {**_BODY, "user_id": str(uuid.uuid4())},
+            {**_BODY, "goal_distance": -1},
+        ],
+        ids=["missing-target", "owner-field", "negative-target"],
+    )
+    def test_an_invalid_goal_is_a_validation_error(self, me, body):
+        assert me.client.post(_URL, json=body).status_code == 422
 
 
-class TestDeleteUserGoal:
-    """
-    Test suite for delete_user_goal endpoint.
-    """
+class TestReplace:
+    def test_the_goal_is_replaced_and_the_new_version_returned(self, me, user, make_owned, committed_sessions):
+        goal = make_owned()
+        body = {"interval": "weekly", "activity_type": "run", "goal_type": "calories", "goal_calories": 4000}
 
-    @patch("modules.users.users_goals.router.user_goals_service.delete_goal")
-    def test_delete_user_goal_success(
-        self,
-        mock_delete,
-        fast_api_client,
-        fast_api_app,
-    ):
-        """Test successful goal deletion."""
-        # Arrange
-        mock_delete.return_value = None
-
-        # Act
-        response = fast_api_client.delete(
-            f"/user_goals/{GOAL_ID}",
-            headers={"Authorization": "Bearer mock_token", "If-Match": '"3"'},
-        )
-
-        # Assert
-        assert response.status_code == 204
-        assert response.content == b""
-        assert mock_delete.call_args.kwargs == {"if_match": '"3"'}
-
-    @patch("modules.users.users_goals.router.user_goals_service.delete_goal")
-    def test_delete_user_goal_not_found(
-        self,
-        mock_delete,
-        fast_api_client,
-        fast_api_app,
-    ):
-        """Test deletion fails when goal not found."""
-        # Arrange
-        mock_delete.side_effect = core_exceptions.NotFoundError("User goal not found")
-
-        # Act
-        response = fast_api_client.delete(
-            f"/user_goals/{OTHER_ID}",
-            headers={"Authorization": "Bearer mock_token", "If-Match": '"1"'},
-        )
-
-        # Assert
-        assert response.status_code == 404
-
-    @patch("modules.users.users_goals.router.user_goals_service.delete_goal")
-    def test_delete_without_if_match_is_428(self, mock_delete, fast_api_client):
-        response = fast_api_client.delete(f"/user_goals/{GOAL_ID}", headers={"Authorization": "Bearer mock_token"})
-
-        assert response.status_code == 428
-        mock_delete.assert_not_called()
-
-    @patch("modules.users.users_goals.router.user_goals_service.delete_goal")
-    def test_a_stale_delete_is_412(self, mock_delete, fast_api_client):
-        mock_delete.side_effect = core_exceptions.PreconditionFailedError("stale")
-
-        response = fast_api_client.delete(
-            f"/user_goals/{GOAL_ID}", headers={"Authorization": "Bearer mock_token", "If-Match": '"1"'}
-        )
-
-        assert response.status_code == 412
-
-
-class TestUpdateNeedsIfMatch:
-    def test_an_update_without_if_match_is_428(self, fast_api_client):
-        response = fast_api_client.put(
-            f"/user_goals/{GOAL_ID}",
-            json={"interval": "weekly", "activity_type": "run", "goal_type": "calories", "goal_calories": 5000},
-            headers={"Authorization": "Bearer mock_token"},
-        )
-
-        assert response.status_code == 428
-
-
-class TestGetUserGoal:
-    @patch("modules.users.users_goals.router.user_goals_service.get_goal")
-    def test_returns_the_goal_with_its_etag(self, mock_get, fast_api_client, fast_api_app):
-        mock_get.return_value = user_goals_schema.UserGoalRead(
-            id=GOAL_ID,
-            user_id=MOCK_USER_ID,
-            version=2,
-            interval="weekly",
-            activity_type="run",
-            goal_type="calories",
-            goal_calories=5000,
-        )
-
-        response = fast_api_client.get(f"/user_goals/{GOAL_ID}", headers={"Authorization": "Bearer mock_token"})
+        response = me.client.put(f"{_URL}/{goal.id}", json=body, headers={"If-Match": '"1"'})
 
         assert response.status_code == 200
         assert response.headers["ETag"] == '"2"'
-        assert mock_get.call_args.args[:2] == (MOCK_USER_ID, GOAL_ID)
+        stored = _stored(committed_sessions, user.id, goal.id)
+        assert stored is not None
+        assert (stored.goal_calories, stored.goal_distance) == (4000, None)
 
-    @patch("modules.users.users_goals.router.user_goals_service.get_goal")
-    def test_a_goal_the_user_does_not_have_is_404(self, mock_get, fast_api_client, fast_api_app):
-        mock_get.side_effect = core_exceptions.NotFoundError("User goal not found")
+    def test_a_stale_version_is_refused_and_the_goal_is_unchanged(self, me, user, make_owned, committed_sessions):
+        goal = make_owned()
 
-        response = fast_api_client.get(f"/user_goals/{OTHER_ID}", headers={"Authorization": "Bearer mock_token"})
+        response = me.client.put(f"{_URL}/{goal.id}", json={**_BODY, "goal_distance": 1}, headers={"If-Match": '"9"'})
+
+        assert response.status_code == 412
+        stored = _stored(committed_sessions, user.id, goal.id)
+        assert stored is not None
+        assert (stored.goal_distance, stored.version) == (50000, 1)
+
+    def test_moving_a_goal_into_an_occupied_slot_is_a_conflict(self, me, make_owned):
+        make_owned(interval="weekly")
+        monthly = make_owned(interval="monthly")
+
+        response = me.client.put(f"{_URL}/{monthly.id}", json=_BODY, headers={"If-Match": '"1"'})
+
+        assert response.status_code == 409
+
+    def test_another_users_goal_is_not_found_and_stays_unchanged(self, me, committed_sessions):
+        with committed_sessions() as db:
+            stranger = make_user(db)
+            theirs = make_goal(db, stranger.id)
+            db.commit()
+
+        response = me.client.put(f"{_URL}/{theirs.id}", json={**_BODY, "goal_distance": 1}, headers={"If-Match": '"1"'})
 
         assert response.status_code == 404
+        stored = _stored(committed_sessions, stranger.id, theirs.id)
+        assert stored is not None
+        assert stored.goal_distance == 50000
 
 
-class TestMalformedGoalId:
-    def test_a_goal_id_that_is_not_a_uuid_is_422(self, fast_api_client, fast_api_app):
-        for method in ("get", "put", "delete"):
-            response = getattr(fast_api_client, method)(
-                "/user_goals/1", headers={"Authorization": "Bearer mock_token", "If-Match": '"1"'}
-            )
+class TestDelete:
+    def test_the_goal_is_deleted(self, me, user, make_owned, committed_sessions):
+        goal = make_owned()
 
-            assert response.status_code == 422, method
+        response = me.client.delete(f"{_URL}/{goal.id}", headers={"If-Match": '"1"'})
+
+        assert response.status_code == 204
+        assert _stored(committed_sessions, user.id, goal.id) is None
+
+    def test_a_stale_version_keeps_the_goal(self, me, user, make_owned, committed_sessions):
+        goal = make_owned()
+
+        response = me.client.delete(f"{_URL}/{goal.id}", headers={"If-Match": '"3"'})
+
+        assert response.status_code == 412
+        assert _stored(committed_sessions, user.id, goal.id) is not None
+
+    def test_a_missing_goal_is_not_found(self, me):
+        assert me.client.delete(f"{_URL}/{uuid.uuid4()}", headers={"If-Match": '"1"'}).status_code == 404
+
+
+class TestResults:
+    def test_progress_is_measured_on_the_users_own_day(self, me, user, make_owned, committed_sessions):
+        jasil_runtime.get_active_platform().clock.moment = datetime(2025, 3, 12, 12, 0, tzinfo=UTC)
+        make_owned()
+        with committed_sessions() as db:
+            make_activity(db, user.id, start_time=datetime(2025, 3, 11, 8, 0, tzinfo=UTC), distance=20000)
+            db.commit()
+
+        response = me.client.get(f"{_URL}/results")
+
+        assert response.status_code == 200
+        item = response.json()["items"][0]
+        assert (item["start_date"], item["end_date"]) == ("2025-03-10", "2025-03-16")
+        assert (item["total_distance"], item["percentage_completed"]) == (20000, 40)
+
+    def test_no_goals_is_an_empty_page(self, me):
+        body = me.client.get(f"{_URL}/results").json()
+
+        assert (body["items"], body["total"]) == ([], 0)
+
+    def test_an_oversized_page_is_refused(self, me):
+        assert me.client.get(f"{_URL}/results", params={"num_records": 100000}).status_code == 422

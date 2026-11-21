@@ -11,9 +11,9 @@ from collections.abc import Callable
 import pytest
 from httpx2 import Response
 from sqlalchemy import text
-from tests._factories.users import PASSWORD, make_admin
 
 import core.config as core_config
+from tests._factories.users import PASSWORD, make_admin
 
 _URL = f"{core_config.ROOT_PATH}/users"
 

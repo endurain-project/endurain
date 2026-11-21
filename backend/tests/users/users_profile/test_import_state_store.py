@@ -1,7 +1,6 @@
 """Tests for users_profile.import_state_store (provider-backed)."""
 
 import uuid
-from unittest.mock import MagicMock
 
 import pytest
 from jasil.backends.state_memory import MemoryState
@@ -67,10 +66,18 @@ def test_state_lives_under_the_users_namespace():
 
 
 def test_a_strict_status_raises_when_storage_is_down_and_a_plain_one_does_not():
-    state = MemoryState()
+    class GoingDown(MemoryState):
+        down = False
+
+        def set(self, *args, **kwargs):
+            if self.down:
+                raise StateBackendUnavailableError("down")
+            return super().set(*args, **kwargs)
+
+    state = GoingDown()
     store = _store(state)
     job = store.begin(_USER_ID, conflict="held")
-    state.set = MagicMock(side_effect=StateBackendUnavailableError("down"))
+    state.down = True
 
     store.set_status(_USER_ID, job.id, Status.RUNNING)
     with pytest.raises(core_attempt_state.StateUnavailableError):

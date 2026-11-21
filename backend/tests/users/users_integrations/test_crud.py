@@ -1,671 +1,374 @@
-"""Tests for user_integrations.crud module."""
+"""Integration settings and provider tokens against the real database."""
 
-from datetime import UTC, datetime
-from typing import ClassVar
-from unittest.mock import MagicMock, patch
+import uuid
+from datetime import UTC, datetime, timedelta
+from typing import Any
 
 import pytest
-from cryptography.fernet import Fernet
-from sqlalchemy.exc import IntegrityError
+from sqlalchemy import delete
 
 import core.cryptography as core_cryptography
 import core.exceptions as core_exceptions
-from modules.users.users_integrations import crud as user_integrations_crud
-from modules.users.users_integrations.models import UsersIntegrations
-from tests._helpers.auth import MOCK_USER_ID
+import modules.users.users.models as users_models
+import modules.users.users_integrations.crud as crud
+import modules.users.users_integrations.schema as schema
+from tests._factories.users import make_user
+
+_EXPIRES_AT = 1_900_000_000
 
 
-@pytest.fixture(autouse=True)
-def _fernet_key(monkeypatch):
-    monkeypatch.setenv("FERNET_KEY", Fernet.generate_key().decode())
+def _tokens(label: str = "a") -> dict[str, Any]:
+    return {"access_token": f"access-{label}", "refresh_token": f"refresh-{label}", "expires_at": _EXPIRES_AT}
 
 
-def _enc(value):
-    """Encrypt ``value``; each call yields a different ciphertext for the same plaintext."""
-    return core_cryptography.encrypt_token_fernet(value)
+def _garmin(label: str = "a") -> dict[str, Any]:
+    return {
+        "di_token": core_cryptography.encrypt_token_fernet(f"access-{label}"),
+        "di_refresh_token": core_cryptography.encrypt_token_fernet(f"refresh-{label}"),
+        "client_id": "garmin",
+    }
 
 
-@pytest.fixture(autouse=True)
-def _patch_transform():
-    """Patch _transform_users_integrations to a passthrough for MagicMock compatibility."""
-    with patch(
-        "modules.users.users_integrations.crud.user_integrations_serializers.to_read_schema",
-        side_effect=lambda x: x,
-    ):
-        yield
+def _read(db, user_id):
+    stored = crud.get_user_integrations_by_user_id(user_id, db)
+    assert stored is not None
+    return stored
 
 
-class TestGetUserIntegrationsByUserId:
-    """Test suite for get_user_integrations_by_user_id function."""
+class TestCreateAndRead:
+    def test_a_new_account_has_unlinked_integrations(self, db, user):
+        stored = _read(db, user.id)
 
-    def test_get_user_integrations_by_user_id_success(self, mock_db):
-        """Test retrieving integrations for a user.
+        assert stored.user_id == user.id
+        assert stored.version == 1
+        assert (stored.strava_token, stored.strava_refresh_token, stored.strava_client_id) == (None, None, None)
+        assert (stored.strava_sync_gear, stored.garminconnect_sync_gear) == (False, False)
+        assert (stored.garminconnect_token, stored.strava_revoked_at) == (None, None)
 
-        Args:
-            mock_db: Mocked database session
+    def test_a_user_without_integrations_reads_none(self, db):
+        assert crud.get_user_integrations_by_user_id(uuid.uuid4(), db) is None
 
-        Asserts:
-            - Returns UsersIntegrations object when found
-            - Database query is executed correctly
-        """
-        # Arrange
-        mock_integrations = MagicMock(spec=UsersIntegrations)
-        mock_integrations.id = 1
-        mock_integrations.user_id = MOCK_USER_ID
-        mock_db.execute.return_value.scalar_one_or_none.return_value = mock_integrations
-
-        # Act
-        result = user_integrations_crud.get_user_integrations_by_user_id(MOCK_USER_ID, mock_db)
-
-        # Assert
-        assert result == mock_integrations
-        mock_db.execute.assert_called_once()
-
-    def test_get_user_integrations_by_user_id_not_found(self, mock_db):
-        """Test retrieving integrations when not found.
-
-        Args:
-            mock_db: Mocked database session
-
-        Asserts:
-            - Returns None when integrations not found
-        """
-        # Arrange
-        mock_db.execute.return_value.scalar_one_or_none.return_value = None
-
-        # Act
-        result = user_integrations_crud.get_user_integrations_by_user_id(MOCK_USER_ID, mock_db)
-
-        # Assert
-        assert result is None
-
-
-class TestCreateUserIntegrations:
-    """Test suite for create_user_integrations function."""
-
-    def test_create_user_integrations_success(self, mock_db):
-        """Test creating user integrations.
-
-        Args:
-            mock_db: Mocked database session
-
-        Asserts:
-            - New integrations record is created
-            - Database operations are called correctly
-        """
-        # Arrange
-        mock_integrations = MagicMock(spec=UsersIntegrations)
-        mock_integrations.id = 1
-        mock_integrations.user_id = MOCK_USER_ID
-
-        with patch(
-            "modules.users.users_integrations.crud.user_integrations_models.UsersIntegrations"
-        ) as mock_constructor:
-            mock_constructor.return_value = mock_integrations
-            mock_db.add = MagicMock()
-            mock_db.flush = MagicMock()
-            mock_db.refresh = MagicMock()
-
-            # Act
-            result = user_integrations_crud.create_user_integrations(MOCK_USER_ID, mock_db)
-
-        # Assert
-        assert result == mock_integrations
-        mock_db.add.assert_called_once()
-        mock_db.flush.assert_called_once()
-        mock_db.refresh.assert_called_once()
-
-    def test_create_user_integrations_conflict(self, mock_db):
-        """Test creating integrations when already exist.
-
-        Args:
-            mock_db: Mocked database session
-
-        Asserts:
-            - ConflictError on IntegrityError
-        """
-        # Arrange
-        mock_db.add.side_effect = IntegrityError("", "", "duplicate key")
-
-        # Act & Assert
+    def test_a_second_row_for_a_user_is_a_conflict(self, db, user):
         with pytest.raises(core_exceptions.ConflictError):
-            user_integrations_crud.create_user_integrations(MOCK_USER_ID, mock_db)
+            crud.create_user_integrations(user.id, db)
+
+    def test_deleting_the_user_deletes_the_integrations(self, db, user):
+        db.execute(delete(users_models.Users).where(users_models.Users.id == user.id))
+
+        assert crud.get_user_integrations_by_user_id(user.id, db) is None
 
 
-class TestLinkStravaAccount:
-    """Test suite for link_strava_account function."""
+class TestEdit:
+    def test_only_the_set_fields_change(self, db, user):
+        updated = crud.edit_user_integrations(schema.UserIntegrationsUpdate(strava_sync_gear=True), user.id, db)
 
-    def test_link_strava_account_success(self, mock_db):
-        """Test linking a Strava account.
+        assert (updated.strava_sync_gear, updated.garminconnect_sync_gear) == (True, False)
+        assert _read(db, user.id).strava_sync_gear is True
 
-        Args:
-            mock_db: Mocked database session
-
-        Asserts:
-            - Strava tokens are stored
-            - Database operations are called
-        """
-        # Arrange
-        mock_integrations = MagicMock(spec=UsersIntegrations)
-        tokens = {
-            "access_token": "access_token_123",
-            "refresh_token": "refresh_token_456",
-            "expires_at": 1234567890,
-        }
-
-        with (
-            patch("modules.users.users_integrations.crud._get_user_integrations_model_by_user_id_or_404") as mock_get,
-            patch("modules.users.users_integrations.crud.core_cryptography.encrypt_token_fernet") as mock_encrypt,
-        ):
-            mock_get.return_value = mock_integrations
-            mock_encrypt.side_effect = lambda x: f"encrypted_{x}"
-            mock_db.flush = MagicMock()
-            mock_db.refresh = MagicMock()
-
-            # Act
-            user_integrations_crud.link_strava_account(MOCK_USER_ID, tokens, mock_db)
-
-        # Assert
-        assert mock_integrations.strava_token == "encrypted_access_token_123"
-        assert mock_integrations.strava_refresh_token == "encrypted_refresh_token_456"
-        mock_db.flush.assert_called_once()
+    def test_missing_integrations_are_not_found(self, db):
+        with pytest.raises(core_exceptions.NotFoundError):
+            crud.edit_user_integrations(schema.UserIntegrationsUpdate(strava_sync_gear=True), uuid.uuid4(), db)
 
 
-class TestUnlinkStravaAccount:
-    """Test suite for unlink_strava_account function."""
+class TestStravaLink:
+    def test_the_tokens_are_stored_encrypted_with_their_expiry(self, db, user):
+        crud.link_strava_account(user.id, _tokens(), db)
 
-    def test_unlink_strava_account_success(self, mock_db):
-        """
-        ...
-        """
-        # Arrange
-        mock_integrations = MagicMock(spec=UsersIntegrations)
+        stored = _read(db, user.id)
+        assert stored.strava_token != "access-a"
+        assert core_cryptography.decrypt_token_fernet(stored.strava_token) == "access-a"
+        assert core_cryptography.decrypt_token_fernet(stored.strava_refresh_token) == "refresh-a"
+        assert stored.strava_token_expires_at == datetime.fromtimestamp(_EXPIRES_AT, tz=UTC)
 
-        with patch("modules.users.users_integrations.crud._get_user_integrations_model_by_user_id_or_404") as mock_get:
-            mock_get.return_value = mock_integrations
-            mock_db.flush = MagicMock()
-            mock_db.refresh = MagicMock()
+    def test_relinking_clears_the_revocation_mark(self, db, user):
+        crud.link_strava_account(user.id, _tokens(), db)
+        crud.unlink_strava_tokens_if_refresh_token(
+            user.id, _read(db, user.id).strava_refresh_token, db, revoked_at=datetime.now(UTC)
+        )
+        assert _read(db, user.id).strava_revoked_at is not None
 
-            # Act
-            user_integrations_crud.unlink_strava_account(MOCK_USER_ID, mock_db)
+        crud.link_strava_account(user.id, _tokens("b"), db)
 
-        # Assert
-        assert mock_integrations.strava_token is None
-        assert mock_integrations.strava_refresh_token is None
-        assert mock_integrations.strava_token_expires_at is None
-        assert mock_integrations.strava_sync_gear is False
-        assert mock_integrations.strava_client_id is None
-        assert mock_integrations.strava_client_secret is None
-        mock_db.flush.assert_called_once()
+        assert _read(db, user.id).strava_revoked_at is None
 
-    def test_unlink_strava_account_not_found(self, mock_db):
-        """Test unlinking when integrations not found."""
-        # Arrange
-        with patch("modules.users.users_integrations.crud._get_user_integrations_model_by_user_id_or_404") as mock_get:
-            mock_get.side_effect = core_exceptions.NotFoundError("not found")
+    def test_linking_without_integrations_is_not_found(self, db):
+        with pytest.raises(core_exceptions.NotFoundError):
+            crud.link_strava_account(uuid.uuid4(), _tokens(), db)
 
-            # Act & Assert
-            with pytest.raises(core_exceptions.NotFoundError):
-                user_integrations_crud.unlink_strava_account(MOCK_USER_ID, mock_db)
+    def test_the_client_credentials_are_stored_encrypted_under_the_version_the_client_read(self, db, user):
+        crud.set_user_strava_client(user.id, "client", "secret", db, if_match='"1"')
+
+        stored = _read(db, user.id)
+        assert core_cryptography.decrypt_token_fernet(stored.strava_client_id) == "client"
+        assert core_cryptography.decrypt_token_fernet(stored.strava_client_secret) == "secret"
+        assert stored.version == 2
+
+    def test_a_stale_version_leaves_the_client_credentials_alone(self, db, user):
+        with pytest.raises(core_exceptions.PreconditionFailedError):
+            crud.set_user_strava_client(user.id, "client", "secret", db, if_match='"4"')
+
+        assert _read(db, user.id).strava_client_id is None
+
+    def test_setting_the_client_of_a_missing_user_is_not_found(self, db):
+        with pytest.raises(core_exceptions.NotFoundError):
+            crud.set_user_strava_client(uuid.uuid4(), "c", "s", db, if_match="*")
+
+    @pytest.mark.parametrize("sync_gear", [True, False])
+    def test_the_gear_sync_preference_is_stored(self, db, user, sync_gear):
+        crud.set_user_strava_sync_gear(user.id, sync_gear, db)
+
+        assert _read(db, user.id).strava_sync_gear is sync_gear
+
+    def test_the_gear_sync_preference_of_a_missing_user_is_not_found(self, db):
+        with pytest.raises(core_exceptions.NotFoundError):
+            crud.set_user_strava_sync_gear(uuid.uuid4(), True, db)
 
 
-class TestSetUserStravaClient:
-    """Test suite for set_user_strava_client function."""
+class TestStravaUnlink:
+    def test_an_unlink_clears_everything_including_the_client(self, db, user):
+        crud.link_strava_account(user.id, _tokens(), db)
+        crud.set_user_strava_client(user.id, "client", "secret", db, if_match="*")
+        crud.set_user_strava_sync_gear(user.id, True, db)
 
-    def test_set_user_strava_client_success(self, mock_db):
-        """
-        ...
-        """
-        # Arrange
-        mock_integrations = MagicMock(spec=UsersIntegrations)
+        crud.unlink_strava_account(user.id, db)
 
-        with (
-            patch("modules.users.users_integrations.crud._get_user_integrations_model_by_user_id_or_404") as mock_get,
-            patch("modules.users.users_integrations.crud.core_cryptography.encrypt_token_fernet") as mock_encrypt,
-        ):
-            mock_get.return_value = mock_integrations
-            mock_encrypt.side_effect = lambda x: f"encrypted_{x}"
-            mock_db.flush = MagicMock()
-            mock_db.refresh = MagicMock()
+        stored = _read(db, user.id)
+        assert (stored.strava_token, stored.strava_refresh_token, stored.strava_token_expires_at) == (None, None, None)
+        assert (stored.strava_client_id, stored.strava_client_secret, stored.strava_sync_gear) == (None, None, False)
 
-            # Act
-            user_integrations_crud.set_user_strava_client(
-                MOCK_USER_ID, "client_id", "client_secret", mock_db, if_match="*"
+    def test_unlinking_a_missing_user_is_not_found(self, db):
+        with pytest.raises(core_exceptions.NotFoundError):
+            crud.unlink_strava_account(uuid.uuid4(), db)
+
+    def test_a_rejected_refresh_token_clears_the_tokens_and_keeps_the_client(self, db, user):
+        crud.link_strava_account(user.id, _tokens(), db)
+        crud.set_user_strava_client(user.id, "client", "secret", db, if_match="*")
+        crud.set_user_strava_sync_gear(user.id, True, db)
+        refresh = _read(db, user.id).strava_refresh_token
+
+        cleared = crud.unlink_strava_tokens_if_refresh_token(user.id, refresh, db)
+
+        stored = _read(db, user.id)
+        assert cleared is True
+        assert (stored.strava_token, stored.strava_refresh_token, stored.strava_sync_gear) == (None, None, False)
+        assert stored.strava_client_id is not None
+        assert stored.strava_revoked_at is None
+
+    def test_a_revocation_stores_its_time_with_the_cleared_tokens(self, db, user):
+        crud.link_strava_account(user.id, _tokens(), db)
+        moment = datetime(2025, 3, 1, 12, 0, tzinfo=UTC)
+
+        crud.unlink_strava_tokens_if_refresh_token(
+            user.id, _read(db, user.id).strava_refresh_token, db, revoked_at=moment
+        )
+
+        assert _read(db, user.id).strava_revoked_at == moment
+
+    def test_a_token_linked_since_is_kept(self, db, user):
+        crud.link_strava_account(user.id, _tokens("old"), db)
+        old = _read(db, user.id).strava_refresh_token
+        crud.link_strava_account(user.id, _tokens("new"), db)
+
+        assert crud.unlink_strava_tokens_if_refresh_token(user.id, old, db) is False
+        assert _read(db, user.id).strava_token is not None
+
+    def test_a_missing_user_is_not_unlinked(self, db):
+        assert crud.unlink_strava_tokens_if_refresh_token(uuid.uuid4(), "x", db) is False
+
+    def test_the_refresh_replaces_the_tokens_while_the_refresh_token_is_the_one_it_came_from(self, db, user):
+        crud.link_strava_account(user.id, _tokens("old"), db)
+        old = _read(db, user.id).strava_refresh_token
+
+        replaced = crud.replace_strava_tokens_if_refresh_token(user.id, old, _tokens("new"), db)
+
+        stored = _read(db, user.id)
+        assert replaced is True
+        assert core_cryptography.decrypt_token_fernet(stored.strava_refresh_token) == "refresh-new"
+
+    def test_a_refresh_from_a_replaced_token_is_dropped(self, db, user):
+        crud.link_strava_account(user.id, _tokens("old"), db)
+        old = _read(db, user.id).strava_refresh_token
+        crud.link_strava_account(user.id, _tokens("new"), db)
+
+        assert crud.replace_strava_tokens_if_refresh_token(user.id, old, _tokens("late"), db) is False
+        assert core_cryptography.decrypt_token_fernet(_read(db, user.id).strava_refresh_token) == "refresh-new"
+
+    def test_a_refresh_of_a_missing_user_is_dropped(self, db):
+        assert crud.replace_strava_tokens_if_refresh_token(uuid.uuid4(), "x", _tokens(), db) is False
+
+
+class TestStravaRevocation:
+    def test_the_due_users_are_the_unlinked_ones_revoked_before_the_cutoff_in_id_order(self, db):
+        now = datetime(2025, 3, 10, tzinfo=UTC)
+        due = [make_user(db).id for _ in range(3)]
+        recent, relinked, never = make_user(db).id, make_user(db).id, make_user(db).id
+        for user_id, age in [(due[0], 40), (due[1], 35), (due[2], 31), (recent, 5)]:
+            crud.link_strava_account(user_id, _tokens(), db)
+            crud.unlink_strava_tokens_if_refresh_token(
+                user_id, _read(db, user_id).strava_refresh_token, db, revoked_at=now - timedelta(days=age)
             )
+        crud.link_strava_account(relinked, _tokens(), db)
+        cutoff = now - timedelta(days=30)
 
-        # Assert
-        assert mock_integrations.strava_client_id == "encrypted_client_id"
-        assert mock_integrations.strava_client_secret == "encrypted_client_secret"
-        mock_db.flush.assert_called_once()
+        listed = crud.list_user_ids_with_strava_revoked_before(cutoff, None, 100, db)
+        first = crud.list_user_ids_with_strava_revoked_before(cutoff, None, 2, db)
+        rest = crud.list_user_ids_with_strava_revoked_before(cutoff, first[-1], 2, db)
 
-    def test_a_stale_version_is_refused(self, mock_db):
-        mock_integrations = MagicMock(spec=UsersIntegrations)
-        mock_integrations.version = 4
+        assert listed == sorted(due)
+        assert first + rest == sorted(due)
+        assert recent not in listed and relinked not in listed and never not in listed
 
-        with (
-            patch(
-                "modules.users.users_integrations.crud._get_user_integrations_model_by_user_id_or_404",
-                return_value=mock_integrations,
-            ),
-            pytest.raises(core_exceptions.PreconditionFailedError),
-        ):
-            user_integrations_crud.set_user_strava_client(MOCK_USER_ID, "id", "secret", mock_db, if_match='"3"')
-
-        mock_db.flush.assert_not_called()
-
-    def test_set_user_strava_client_not_found(self, mock_db):
-        """Test setting client when integrations not found."""
-        # Arrange
-        with patch("modules.users.users_integrations.crud._get_user_integrations_model_by_user_id_or_404") as mock_get:
-            mock_get.side_effect = core_exceptions.NotFoundError("not found")
-
-            # Act & Assert
-            with pytest.raises(core_exceptions.NotFoundError):
-                user_integrations_crud.set_user_strava_client(MOCK_USER_ID, "id", "secret", mock_db, if_match="*")
-
-
-class TestSetUserStravaSyncGear:
-    """Test suite for set_user_strava_sync_gear function."""
-
-    def test_set_user_strava_sync_gear_true(self, mock_db):
-        """
-        ...
-        """
-        # Arrange
-        mock_integrations = MagicMock(spec=UsersIntegrations)
-
-        with patch("modules.users.users_integrations.crud._get_user_integrations_model_by_user_id_or_404") as mock_get:
-            mock_get.return_value = mock_integrations
-            mock_db.flush = MagicMock()
-
-            # Act
-            user_integrations_crud.set_user_strava_sync_gear(MOCK_USER_ID, True, mock_db)
-
-        # Assert
-        assert mock_integrations.strava_sync_gear is True
-
-    def test_set_user_strava_sync_gear_false(self, mock_db):
-        """
-        ...
-        """
-        # Arrange
-        mock_integrations = MagicMock(spec=UsersIntegrations)
-
-        with patch("modules.users.users_integrations.crud._get_user_integrations_model_by_user_id_or_404") as mock_get:
-            mock_get.return_value = mock_integrations
-            mock_db.flush = MagicMock()
-
-            # Act
-            user_integrations_crud.set_user_strava_sync_gear(MOCK_USER_ID, False, mock_db)
-
-        # Assert
-        assert mock_integrations.strava_sync_gear is False
-
-
-class TestLinkGarminConnectAccount:
-    """Test suite for link_garminconnect_account function."""
-
-    def test_link_garminconnect_account_success(self, mock_db):
-        """
-        ...
-        """
-        # Arrange
-        mock_integrations = MagicMock(spec=UsersIntegrations)
-        token = {"token": "garmin_token"}
-
-        with patch("modules.users.users_integrations.crud._get_user_integrations_model_by_user_id_or_404") as mock_get:
-            mock_get.return_value = mock_integrations
-            mock_db.flush = MagicMock()
-
-            # Act
-            user_integrations_crud.link_garminconnect_account(MOCK_USER_ID, token, mock_db)
-
-        # Assert
-        assert mock_integrations.garminconnect_token == token
-        mock_db.flush.assert_not_called()
-
-    def test_link_garminconnect_account_not_found(self, mock_db):
-        """Test linking when integrations not found."""
-        # Arrange
-        with patch("modules.users.users_integrations.crud._get_user_integrations_model_by_user_id_or_404") as mock_get:
-            mock_get.side_effect = core_exceptions.NotFoundError("not found")
-
-            # Act & Assert
-            with pytest.raises(core_exceptions.NotFoundError):
-                user_integrations_crud.link_garminconnect_account(MOCK_USER_ID, {}, mock_db)
-
-
-class TestSetUserGarminConnectSyncGear:
-    """Test suite for set_user_garminconnect_sync_gear function."""
-
-    def test_set_user_garminconnect_sync_gear_true(self, mock_db):
-        """
-        ...
-        """
-        # Arrange
-        mock_integrations = MagicMock(spec=UsersIntegrations)
-
-        with patch("modules.users.users_integrations.crud._get_user_integrations_model_by_user_id_or_404") as mock_get:
-            mock_get.return_value = mock_integrations
-            mock_db.flush = MagicMock()
-
-            # Act
-            user_integrations_crud.set_user_garminconnect_sync_gear(MOCK_USER_ID, True, mock_db)
-
-        # Assert
-        assert mock_integrations.garminconnect_sync_gear is True
-
-    def test_set_user_garminconnect_sync_gear_false(self, mock_db):
-        """
-        ...
-        """
-        # Arrange
-        mock_integrations = MagicMock(spec=UsersIntegrations)
-
-        with patch("modules.users.users_integrations.crud._get_user_integrations_model_by_user_id_or_404") as mock_get:
-            mock_get.return_value = mock_integrations
-            mock_db.flush = MagicMock()
-
-            # Act
-            user_integrations_crud.set_user_garminconnect_sync_gear(MOCK_USER_ID, False, mock_db)
-
-        # Assert
-        assert mock_integrations.garminconnect_sync_gear is False
-
-
-class TestUnlinkGarminConnectAccount:
-    """Test suite for unlink_garminconnect_account function."""
-
-    def test_unlink_garminconnect_account_success(self, mock_db):
-        """
-        ...
-        """
-        # Arrange
-        mock_integrations = MagicMock(spec=UsersIntegrations)
-
-        with patch("modules.users.users_integrations.crud._get_user_integrations_model_by_user_id_or_404") as mock_get:
-            mock_get.return_value = mock_integrations
-            mock_db.flush = MagicMock()
-
-            # Act
-            user_integrations_crud.unlink_garminconnect_account(MOCK_USER_ID, mock_db)
-
-        # Assert
-        assert mock_integrations.garminconnect_token is None
-        assert mock_integrations.garminconnect_sync_gear is False
-        mock_db.flush.assert_not_called()
-
-    def test_unlink_garminconnect_account_not_found(self, mock_db):
-        """Test unlinking when integrations not found."""
-        # Arrange
-        with patch("modules.users.users_integrations.crud._get_user_integrations_model_by_user_id_or_404") as mock_get:
-            mock_get.side_effect = core_exceptions.NotFoundError("not found")
-
-            # Act & Assert
-            with pytest.raises(core_exceptions.NotFoundError):
-                user_integrations_crud.unlink_garminconnect_account(MOCK_USER_ID, mock_db)
-
-
-class TestUnlinkGarminConnectAccountIfToken:
-    """Test suite for unlink_garminconnect_account_if_token function."""
-
-    def test_unlinks_while_the_stored_token_is_the_rejected_one(self, mock_db):
-        """The account is cleared, without committing, when the token is unchanged."""
-        mock_integrations = MagicMock(spec=UsersIntegrations)
-        mock_integrations.garminconnect_token = {"di_token": _enc("old")}
-        mock_db.execute.return_value.scalar_one_or_none.return_value = mock_integrations
-
-        result = user_integrations_crud.unlink_garminconnect_account_if_token(
-            MOCK_USER_ID, {"di_token": _enc("old")}, mock_db
+    def test_clearing_the_mark_after_the_data_was_deleted(self, db, user):
+        crud.link_strava_account(user.id, _tokens(), db)
+        crud.unlink_strava_tokens_if_refresh_token(
+            user.id, _read(db, user.id).strava_refresh_token, db, revoked_at=datetime.now(UTC)
         )
 
-        assert result is True
-        assert mock_integrations.garminconnect_token is None
-        assert mock_integrations.garminconnect_sync_gear is False
-        mock_db.flush.assert_not_called()
+        crud.clear_strava_revoked_at(user.id, db)
 
-    def test_keeps_a_token_linked_since(self, mock_db):
-        """A token replaced by a new link is left alone."""
-        mock_integrations = MagicMock(spec=UsersIntegrations)
-        mock_integrations.garminconnect_token = {"di_token": "new"}
-        mock_db.execute.return_value.scalar_one_or_none.return_value = mock_integrations
+        assert _read(db, user.id).strava_revoked_at is None
 
-        result = user_integrations_crud.unlink_garminconnect_account_if_token(
-            MOCK_USER_ID, {"di_token": "old"}, mock_db
+    def test_clearing_the_mark_of_a_missing_user_is_not_found(self, db):
+        with pytest.raises(core_exceptions.NotFoundError):
+            crud.clear_strava_revoked_at(uuid.uuid4(), db)
+
+    def test_an_in_app_unlink_clears_the_mark(self, db, user):
+        crud.link_strava_account(user.id, _tokens(), db)
+        crud.unlink_strava_tokens_if_refresh_token(
+            user.id, _read(db, user.id).strava_refresh_token, db, revoked_at=datetime.now(UTC)
         )
 
-        assert result is False
-        assert mock_integrations.garminconnect_token == {"di_token": "new"}
+        crud.unlink_strava_account(user.id, db)
 
-    def test_returns_false_without_integrations(self, mock_db):
-        """A user with no integrations row is not unlinked."""
-        mock_db.execute.return_value.scalar_one_or_none.return_value = None
-
-        assert user_integrations_crud.unlink_garminconnect_account_if_token(MOCK_USER_ID, {}, mock_db) is False
+        assert _read(db, user.id).strava_revoked_at is None
 
 
-class TestReplaceStravaTokensIfRefreshToken:
-    """Test suite for replace_strava_tokens_if_refresh_token function."""
+class TestStravaLinkedListing:
+    def test_only_users_with_a_token_are_listed_in_id_order_and_paged_by_cursor(self, db):
+        linked = [make_user(db).id for _ in range(3)]
+        make_user(db)
+        for user_id in linked:
+            crud.link_strava_account(user_id, _tokens(), db)
 
-    TOKENS: ClassVar[dict] = {"access_token": "a2", "refresh_token": "r2", "expires_at": 1234567890}
+        everyone = crud.list_user_ids_with_strava_linked(None, 100, db)
+        first = crud.list_user_ids_with_strava_linked(None, 2, db)
+        rest = crud.list_user_ids_with_strava_linked(first[-1], 2, db)
 
-    def test_replaces_while_the_stored_refresh_token_is_the_one_refreshed_from(self, mock_db):
-        """The new tokens are stored encrypted, without committing."""
-        mock_integrations = MagicMock(spec=UsersIntegrations)
-        refresh_read = _enc("old")
-        mock_integrations.strava_refresh_token = _enc("old")
-        mock_db.execute.return_value.scalar_one_or_none.return_value = mock_integrations
-
-        with patch("modules.users.users_integrations.crud.core_cryptography.encrypt_token_fernet") as encrypt:
-            encrypt.side_effect = lambda value: f"enc_{value}"
-            result = user_integrations_crud.replace_strava_tokens_if_refresh_token(
-                1, refresh_read, self.TOKENS, mock_db
-            )
-
-        assert result is True
-        assert mock_integrations.strava_token == "enc_a2"
-        assert mock_integrations.strava_refresh_token == "enc_r2"
-        mock_db.commit.assert_not_called()
-
-    def test_keeps_tokens_replaced_since(self, mock_db):
-        """A refresh or a relink that got there first is not overwritten."""
-        mock_integrations = MagicMock(spec=UsersIntegrations)
-        mock_integrations.strava_refresh_token = "newer"
-        mock_db.execute.return_value.scalar_one_or_none.return_value = mock_integrations
-
-        result = user_integrations_crud.replace_strava_tokens_if_refresh_token(
-            MOCK_USER_ID, "old", self.TOKENS, mock_db
-        )
-
-        assert result is False
-        assert mock_integrations.strava_refresh_token == "newer"
-
-    def test_returns_false_without_integrations(self, mock_db):
-        mock_db.execute.return_value.scalar_one_or_none.return_value = None
-
-        assert (
-            user_integrations_crud.replace_strava_tokens_if_refresh_token(MOCK_USER_ID, "old", self.TOKENS, mock_db)
-            is False
-        )
+        assert everyone == sorted(linked)
+        assert first + rest == sorted(linked)
 
 
-class TestUnlinkStravaTokensIfRefreshToken:
-    """Test suite for unlink_strava_tokens_if_refresh_token function."""
+class TestGarmin:
+    def test_the_token_is_stored_as_given(self, db, user):
+        token = _garmin()
 
-    def test_clears_the_tokens_and_keeps_the_client_while_the_refresh_token_is_the_rejected_one(self, mock_db):
-        """The tokens are cleared, without committing; the client id and secret stay for a quick relink."""
-        mock_integrations = MagicMock(spec=UsersIntegrations)
-        mock_integrations.strava_refresh_token = _enc("old")
-        mock_integrations.strava_client_id = "client"
-        mock_integrations.strava_client_secret = "secret"
-        mock_db.execute.return_value.scalar_one_or_none.return_value = mock_integrations
+        crud.link_garminconnect_account(user.id, token, db)
+        db.flush()
+        db.expire_all()
 
-        result = user_integrations_crud.unlink_strava_tokens_if_refresh_token(MOCK_USER_ID, _enc("old"), mock_db)
+        assert _read(db, user.id).garminconnect_token == token
 
-        assert result is True
-        assert mock_integrations.strava_token is None
-        assert mock_integrations.strava_refresh_token is None
-        assert mock_integrations.strava_token_expires_at is None
-        assert mock_integrations.strava_sync_gear is False
-        assert mock_integrations.strava_client_id == "client"
-        assert mock_integrations.strava_client_secret == "secret"
-        mock_db.flush.assert_not_called()
+    def test_linking_a_missing_user_is_not_found(self, db):
+        with pytest.raises(core_exceptions.NotFoundError):
+            crud.link_garminconnect_account(uuid.uuid4(), _garmin(), db)
 
-    def test_stores_the_revocation_time_with_the_cleared_tokens(self, mock_db):
-        """A revocation marks the row in the same update that clears the tokens."""
-        mock_integrations = MagicMock(spec=UsersIntegrations)
-        mock_integrations.strava_refresh_token = _enc("old")
-        mock_integrations.strava_revoked_at = None
-        mock_db.execute.return_value.scalar_one_or_none.return_value = mock_integrations
-        revoked_at = datetime(2026, 11, 5, tzinfo=UTC)
+    @pytest.mark.parametrize("sync_gear", [True, False])
+    def test_the_gear_sync_preference_is_stored(self, db, user, sync_gear):
+        crud.set_user_garminconnect_sync_gear(user.id, sync_gear, db)
 
-        result = user_integrations_crud.unlink_strava_tokens_if_refresh_token(
-            1, _enc("old"), mock_db, revoked_at=revoked_at
-        )
+        assert _read(db, user.id).garminconnect_sync_gear is sync_gear
 
-        assert result is True
-        assert mock_integrations.strava_revoked_at == revoked_at
+    def test_the_gear_sync_preference_of_a_missing_user_is_not_found(self, db):
+        with pytest.raises(core_exceptions.NotFoundError):
+            crud.set_user_garminconnect_sync_gear(uuid.uuid4(), True, db)
 
-    def test_a_plain_rejection_leaves_no_revocation_mark(self, mock_db):
-        """A rejected token that is not a revocation does not start the deletion clock."""
-        mock_integrations = MagicMock(spec=UsersIntegrations)
-        mock_integrations.strava_refresh_token = _enc("old")
-        mock_integrations.strava_revoked_at = None
-        mock_db.execute.return_value.scalar_one_or_none.return_value = mock_integrations
+    def test_an_unlink_clears_the_token_and_the_gear_sync(self, db, user):
+        crud.link_garminconnect_account(user.id, _garmin(), db)
+        crud.set_user_garminconnect_sync_gear(user.id, True, db)
 
-        user_integrations_crud.unlink_strava_tokens_if_refresh_token(MOCK_USER_ID, _enc("old"), mock_db)
+        crud.unlink_garminconnect_account(user.id, db)
+        db.flush()
+        db.expire_all()
 
-        assert mock_integrations.strava_revoked_at is None
+        stored = _read(db, user.id)
+        assert (stored.garminconnect_token, stored.garminconnect_sync_gear) == (None, False)
 
-    def test_keeps_a_token_linked_since(self, mock_db):
-        """A refresh token replaced by a new link or refresh is left alone."""
-        mock_integrations = MagicMock(spec=UsersIntegrations)
-        mock_integrations.strava_refresh_token = "new"
-        mock_db.execute.return_value.scalar_one_or_none.return_value = mock_integrations
+    def test_unlinking_a_missing_user_is_not_found(self, db):
+        with pytest.raises(core_exceptions.NotFoundError):
+            crud.unlink_garminconnect_account(uuid.uuid4(), db)
 
-        result = user_integrations_crud.unlink_strava_tokens_if_refresh_token(MOCK_USER_ID, "old", mock_db)
+    def test_a_rejected_token_unlinks_while_it_is_the_stored_one(self, db, user):
+        token = _garmin()
+        crud.link_garminconnect_account(user.id, token, db)
+        crud.set_user_garminconnect_sync_gear(user.id, True, db)
 
-        assert result is False
-        assert mock_integrations.strava_refresh_token == "new"
+        assert crud.unlink_garminconnect_account_if_token(user.id, token, db) is True
+        db.flush()
+        db.expire_all()
 
-    def test_returns_false_without_integrations(self, mock_db):
-        """A user with no integrations row is not unlinked."""
-        mock_db.execute.return_value.scalar_one_or_none.return_value = None
+        stored = _read(db, user.id)
+        assert (stored.garminconnect_token, stored.garminconnect_sync_gear) == (None, False)
 
-        assert user_integrations_crud.unlink_strava_tokens_if_refresh_token(MOCK_USER_ID, "old", mock_db) is False
+    def test_a_token_linked_since_is_kept_and_so_is_a_missing_one(self, db, user):
+        crud.link_garminconnect_account(user.id, _garmin("new"), db)
 
+        assert crud.unlink_garminconnect_account_if_token(user.id, _garmin("old"), db) is False
+        assert crud.unlink_garminconnect_account_if_token(uuid.uuid4(), _garmin("old"), db) is False
+        assert _read(db, user.id).garminconnect_token is not None
 
-class TestEditUserIntegrations:
-    """Test suite for edit_user_integrations function."""
+    def test_a_token_that_is_not_linked_is_not_unlinked(self, db, user):
+        assert crud.unlink_garminconnect_account_if_token(user.id, _garmin(), db) is False
 
-    def test_edit_user_integrations_success(self, mock_db):
-        """
-        ...
-        """
-        # Arrange
-        mock_integrations = MagicMock(spec=UsersIntegrations)
-        mock_update = MagicMock()
-        mock_update.model_dump.return_value = {"strava_sync_gear": True}
+    def test_the_refresh_replaces_the_token_it_came_from(self, db, user):
+        old, new = _garmin("old"), _garmin("new")
+        crud.link_garminconnect_account(user.id, old, db)
 
-        with patch("modules.users.users_integrations.crud._get_user_integrations_model_by_user_id_or_404") as mock_get:
-            mock_get.return_value = mock_integrations
-            mock_db.flush = MagicMock()
-            mock_db.refresh = MagicMock()
+        assert crud.replace_garminconnect_token_if_token(user.id, old, new, db) is True
+        db.flush()
+        db.expire_all()
 
-            # Act
-            result = user_integrations_crud.edit_user_integrations(mock_update, MOCK_USER_ID, mock_db)
+        assert _read(db, user.id).garminconnect_token == new
 
-        # Assert
-        assert result == mock_integrations
-        assert mock_integrations.strava_sync_gear is True
-        mock_db.flush.assert_called_once()
+    def test_a_secret_re_encrypted_under_a_new_key_still_matches_what_the_caller_read(self, db, user):
+        old = _garmin("old")
+        crud.link_garminconnect_account(user.id, old, db)
+        reencrypted = {**old, "di_token": core_cryptography.encrypt_token_fernet("access-old")}
+        assert reencrypted["di_token"] != old["di_token"]
+        crud.link_garminconnect_account(user.id, reencrypted, db)
 
-    def test_edit_user_integrations_not_found(self, mock_db):
-        """Test editing when integrations not found."""
-        # Arrange
-        mock_update = MagicMock()
+        assert crud.replace_garminconnect_token_if_token(user.id, old, _garmin("new"), db) is True
 
-        with patch("modules.users.users_integrations.crud._get_user_integrations_model_by_user_id_or_404") as mock_get:
-            mock_get.side_effect = core_exceptions.NotFoundError("not found")
+    def test_a_refresh_from_a_replaced_token_is_dropped(self, db, user):
+        current = _garmin("current")
+        crud.link_garminconnect_account(user.id, current, db)
 
-            # Act & Assert
-            with pytest.raises(core_exceptions.NotFoundError):
-                user_integrations_crud.edit_user_integrations(mock_update, MOCK_USER_ID, mock_db)
+        assert crud.replace_garminconnect_token_if_token(user.id, _garmin("old"), _garmin("late"), db) is False
+        assert crud.replace_garminconnect_token_if_token(uuid.uuid4(), _garmin("old"), _garmin("late"), db) is False
+        db.flush()
+        db.expire_all()
+        assert _read(db, user.id).garminconnect_token == current
 
+    def test_a_token_with_other_keys_is_not_the_one_read(self, db, user):
+        old = _garmin("old")
+        crud.link_garminconnect_account(user.id, old, db)
 
-class TestReplaceGarminConnectTokenIfToken:
-    """Test suite for replace_garminconnect_token_if_token function."""
+        assert crud.unlink_garminconnect_account_if_token(user.id, {"di_token": old["di_token"]}, db) is False
+        assert crud.unlink_garminconnect_account_if_token(user.id, {**old, "client_id": "other"}, db) is False
 
-    def test_replaces_while_the_stored_token_is_the_old_one(self, mock_db):
-        """The refreshed token is stored, without committing."""
-        mock_integrations = MagicMock(spec=UsersIntegrations)
-        mock_integrations.garminconnect_token = {"di_token": _enc("old")}
-        mock_db.execute.return_value.scalar_one_or_none.return_value = mock_integrations
+    def test_the_linked_listing_skips_unlinked_tokens_and_pages_past_them(self, db):
+        linked = sorted(make_user(db).id for _ in range(3))
+        for user_id in linked:
+            crud.link_garminconnect_account(user_id, _garmin(), db)
+        for _ in range(4):
+            gone = make_user(db).id
+            crud.link_garminconnect_account(gone, _garmin(), db)
+            crud.unlink_garminconnect_account(gone, db)
+        db.flush()
 
-        result = user_integrations_crud.replace_garminconnect_token_if_token(
-            1, {"di_token": _enc("old")}, {"di_token": "new"}, mock_db
-        )
+        everyone = crud.list_user_ids_with_garminconnect_linked(None, 100, db)
+        first = crud.list_user_ids_with_garminconnect_linked(None, 2, db)
+        rest = crud.list_user_ids_with_garminconnect_linked(first[-1], 2, db)
 
-        assert result is True
-        assert mock_integrations.garminconnect_token == {"di_token": "new"}
-        mock_db.flush.assert_not_called()
-
-    def test_keeps_a_token_linked_since(self, mock_db):
-        """A re-linked token is not overwritten by a refresh of the previous one."""
-        mock_integrations = MagicMock(spec=UsersIntegrations)
-        mock_integrations.garminconnect_token = {"di_token": "relinked"}
-        mock_db.execute.return_value.scalar_one_or_none.return_value = mock_integrations
-
-        result = user_integrations_crud.replace_garminconnect_token_if_token(
-            1, {"di_token": "old"}, {"di_token": "new"}, mock_db
-        )
-
-        assert result is False
-        assert mock_integrations.garminconnect_token == {"di_token": "relinked"}
-
-
-class TestStravaRevokedAt:
-    """Relinking, unlinking and the deletion clear the revocation mark."""
-
-    TOKENS: ClassVar[dict[str, str | int]] = {"access_token": "a", "refresh_token": "r", "expires_at": 1_800_000_000}
-
-    def _integrations(self, mock_db):
-        row = MagicMock(spec=UsersIntegrations)
-        row.strava_revoked_at = datetime(2026, 11, 1, tzinfo=UTC)
-        mock_db.execute.return_value.scalar_one_or_none.return_value = row
-        return row
-
-    def test_relinking_clears_it(self, mock_db):
-        row = self._integrations(mock_db)
-
-        user_integrations_crud.link_strava_account(MOCK_USER_ID, self.TOKENS, mock_db)
-
-        assert row.strava_revoked_at is None
-
-    def test_an_in_app_unlink_clears_it(self, mock_db):
-        row = self._integrations(mock_db)
-
-        user_integrations_crud.unlink_strava_account(MOCK_USER_ID, mock_db)
-
-        assert row.strava_revoked_at is None
-
-    def test_clearing_it_after_the_deletion_flushes_without_committing(self, mock_db):
-        row = self._integrations(mock_db)
-
-        user_integrations_crud.clear_strava_revoked_at(MOCK_USER_ID, mock_db)
-
-        assert row.strava_revoked_at is None
-        mock_db.flush.assert_called_once()
-        mock_db.commit.assert_not_called()
-
-    def test_the_due_users_are_the_unlinked_ones_revoked_before_the_cutoff(self, mock_db):
-        mock_db.scalars.return_value.all.return_value = [3, 9]
-
-        ids = user_integrations_crud.list_user_ids_with_strava_revoked_before(
-            datetime(2026, 11, 1, tzinfo=UTC), 0, 50, mock_db
-        )
-
-        assert ids == [3, 9]
-        sql = str(mock_db.scalars.call_args.args[0])
-        assert "strava_revoked_at <" in sql
-        assert "strava_token IS NULL" in sql
+        assert everyone == linked
+        assert first + rest == linked
+        assert len(first) == 2

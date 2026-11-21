@@ -1,9 +1,9 @@
 """The administrators' username search runs ``lower(username) LIKE`` on real PostgreSQL."""
 
 import pytest
-from tests._factories.users import make_user
 
 import modules.users.users.crud as users_crud
+from tests._factories.users import make_user
 
 _USERNAMES = ("Alice.Smith", "bob_jones", "bobxjones", "CAROL-99")
 
