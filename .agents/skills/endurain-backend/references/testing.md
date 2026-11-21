@@ -55,4 +55,6 @@ disposable, so it runs without durability (the flags above; the harness's own co
 template per test is several times faster. The tests hash passwords with Argon2 at a low cost; one test pins the cost
 the application ships with.
 Architecture tests (boundaries, layers, logging, module template) are in `tests/architecture/`; the role vocabulary is in `tests/_helpers/module_roles.py`.
-CI fails under 80% total branch coverage; cover every branch of new code (errors, empty, refusal).
+CI fails under the `fail_under` total branch coverage in `pyproject.toml`; cover every branch of new code (errors,
+empty, refusal) with a test that asserts the outcome. Raise the gate when the total rises; never lower it, and never
+pass it with an `omit` pattern, a `pragma: no cover` or a test that only executes code.

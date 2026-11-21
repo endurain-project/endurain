@@ -152,10 +152,12 @@ filterwarnings = [
 [tool.coverage.run]
 source = ["app"]
 branch = true
-omit = ["*/tests/*", "*/__pycache__/*", "*/alembic/*", "*/migrations/*"]
+omit = ["*/tests/*", "*/__pycache__/*"]
 
 [tool.coverage.report]
-fail_under = 80
+# Measured 97.53% branch coverage (2026-11-21). Raise it as the total rises; never lower it.
+fail_under = 97.0
+precision = 2
 exclude_lines = [
     "pragma: no cover",
     "def __repr__",
