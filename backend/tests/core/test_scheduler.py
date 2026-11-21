@@ -17,7 +17,7 @@ import pytest
 from apscheduler.events import EVENT_JOB_ERROR, EVENT_JOB_EXECUTED
 from jasil.backends.lock_pg import PgAdvisoryLock
 from jasil.providers import StateBackendUnavailableError
-from sqlalchemy.exc import IntegrityError
+from sqlalchemy.exc import IntegrityError, OperationalError
 
 import core.database as core_database
 import core.scheduler as core_scheduler
@@ -422,10 +422,18 @@ class TestDatabaseOutage:
         _assert_one_outage_warning(app_log, "sweep")
         assert core_scheduler.run_due_job("sweep", 5, operation) == "ran"
 
-    def test_any_other_database_error_reaches_the_scheduler(self):
-        error = IntegrityError("INSERT", {}, psycopg.errors.UniqueViolation("duplicate key"))
-
-        with pytest.raises(IntegrityError):
+    @pytest.mark.parametrize(
+        "error",
+        [
+            IntegrityError("INSERT", {}, psycopg.errors.UniqueViolation("duplicate key")),
+            # A job that times out on a lock or a statement points at a slow query, not at an outage.
+            OperationalError("UPDATE", {}, psycopg.errors.LockNotAvailable("lock timeout")),
+            OperationalError("SELECT", {}, psycopg.errors.QueryCanceled("statement timeout")),
+        ],
+        ids=["integrity", "lock-timeout", "statement-timeout"],
+    )
+    def test_any_other_database_error_reaches_the_scheduler(self, error):
+        with pytest.raises(type(error)):
             core_scheduler.run_due_job("sweep", 5, Recorder(error))
 
     async def test_an_async_job_is_skipped_too(self, database_down, app_log):

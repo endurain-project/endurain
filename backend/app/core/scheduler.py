@@ -15,13 +15,13 @@ from contextlib import contextmanager
 from dataclasses import dataclass, field
 
 import jasil.audit as jasil_audit
+import jasil.orm as jasil_orm
 import jasil.retention as platform_retention
 import jasil.runtime as platform_runtime
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from jasil.providers import StateBackendUnavailableError
 from sqlalchemy.exc import SQLAlchemyError
 
-import core.exceptions as core_exceptions
 import core.logger as core_logger
 import core.network as core_network
 
@@ -94,7 +94,7 @@ def _skipped_while_database_unavailable(lock_name: str) -> Generator[None]:
     try:
         yield
     except SQLAlchemyError as err:
-        if not core_exceptions.is_database_unavailable(err):
+        if not jasil_orm.is_database_unavailable(err):
             raise
         logger.warning(
             "Scheduler job skipped because the database is unavailable; the next tick runs it",
