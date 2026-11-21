@@ -1,7 +1,6 @@
 """Tests for what the backend stops, and releases, on shutdown."""
 
 import asyncio
-import logging
 
 import jasil.runtime as platform_runtime
 import pytest
@@ -9,7 +8,6 @@ from sqlalchemy import select
 
 import core.async_bridge as core_async_bridge
 import core.database as core_database
-import core.logger as core_logger
 import core.scheduler as core_scheduler
 
 
@@ -19,18 +17,6 @@ def main(app):
     import main as main_module
 
     return main_module
-
-
-@pytest.fixture
-def app_log(caplog):
-    """Capture the application's logger, which does not propagate to the root logger."""
-    logger = logging.getLogger(core_logger.ROOT_LOGGER_NAME)
-    level = logger.level
-    logger.addHandler(caplog.handler)
-    logger.setLevel(logging.DEBUG)
-    yield caplog
-    logger.setLevel(level)
-    logger.removeHandler(caplog.handler)
 
 
 async def test_shutdown_stops_the_scheduler_and_releases_the_platform_and_the_loop(main, app, committed_sessions):

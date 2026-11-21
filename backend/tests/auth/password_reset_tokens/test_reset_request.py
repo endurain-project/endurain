@@ -1,5 +1,6 @@
 """Requesting a password reset: the same answer for every address, one mail per admitted account."""
 
+import logging
 import uuid
 
 import jasil.events as platform_events
@@ -138,7 +139,7 @@ class TestAnAdmittedRequest:
         assert [message.to for message in outbox()] == [[admin.email]]
 
     def test_a_cooldown_store_that_is_down_sends_nothing_and_adds_no_row(
-        self, client, committed_sessions, mail_on, monkeypatch
+        self, client, committed_sessions, mail_on, monkeypatch, app_log
     ):
         user = _user(committed_sessions)
 
@@ -152,6 +153,8 @@ class TestAnAdmittedRequest:
         assert outbox() == []
         assert _requests_audited(committed_sessions) == []
         assert _tokens(committed_sessions, user.id) == []
+        # An outage is a degraded path: logged as a warning, nothing as an error.
+        assert max(r.levelno for r in app_log.records) == logging.WARNING
 
 
 class TestARequestThatGetsNoMail:

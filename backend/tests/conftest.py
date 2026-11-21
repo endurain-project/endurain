@@ -180,6 +180,31 @@ def _preserved_loggers() -> Iterator[None]:
 
 
 @pytest.fixture
+def app_log(caplog) -> Iterator[pytest.LogCaptureFixture]:
+    """Capture every record of the application's logger once, at every level.
+
+    The records reach caplog through its handler alone: the logger stops propagating meanwhile, so a record is not
+    captured a second time through the root logger in a process where application setup has not turned propagation
+    off.
+    """
+    import logging
+
+    import core.logger as core_logger
+
+    logger = logging.getLogger(core_logger.ROOT_LOGGER_NAME)
+    level, propagate = logger.level, logger.propagate
+    logger.addHandler(caplog.handler)
+    logger.setLevel(logging.DEBUG)
+    logger.propagate = False
+    try:
+        yield caplog
+    finally:
+        logger.propagate = propagate
+        logger.setLevel(level)
+        logger.removeHandler(caplog.handler)
+
+
+@pytest.fixture
 def app(committed_sessions, _publish_local_platform, tmp_path, monkeypatch) -> Iterator[FastAPI]:
     """The production application, built by ``main.create_app`` and wired as startup wires it, on the test database.
 

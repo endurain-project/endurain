@@ -1,5 +1,7 @@
 """The "Require MFA" setting: who it covers and which requests an account that must enrol may still make."""
 
+import logging
+
 import jasil.providers as platform_providers
 import jasil.runtime as jasil_runtime
 import pytest
@@ -204,7 +206,9 @@ class TestTheRefusalIsAudited:
 
         assert self._rows(committed_sessions) == []
 
-    def test_an_unreachable_state_store_still_audits_the_refusal(self, committed_sessions, sign_in, monkeypatch):
+    def test_an_unreachable_state_store_still_audits_the_refusal(
+        self, committed_sessions, sign_in, monkeypatch, app_log
+    ):
         _require(committed_sessions, _RequireMfa.EVERYONE)
         signed_in = _signed_in(committed_sessions, sign_in)
 
@@ -217,3 +221,5 @@ class TestTheRefusalIsAudited:
 
         assert response.status_code == 403
         assert len(self._rows(committed_sessions)) == 1
+        # An outage is a degraded path: logged as a warning, nothing as an error.
+        assert max(r.levelno for r in app_log.records) == logging.WARNING

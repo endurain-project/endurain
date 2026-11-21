@@ -33,10 +33,26 @@ class TestUnavailable:
             PoolTimeoutError("QueuePool limit of size 5 overflow 10 reached"),
             OperationalError(_STATEMENT, {}, psycopg.errors.LockNotAvailable("lock timeout")),
             OperationalError(_STATEMENT, {}, psycopg.errors.QueryCanceled("statement timeout")),
+            OperationalError(_STATEMENT, {}, psycopg.OperationalError("server closed the connection unexpectedly")),
+            OperationalError(_STATEMENT, {}, psycopg.errors.Error("connection is closed"), connection_invalidated=True),
+            OperationalError(_STATEMENT, {}, psycopg.errors.ConnectionFailure("connection failure")),
+            OperationalError(_STATEMENT, {}, psycopg.errors.AdminShutdown("terminating connection")),
+            OperationalError(_STATEMENT, {}, psycopg.errors.CannotConnectNow("the database system is starting up")),
+            OperationalError(_STATEMENT, {}, psycopg.errors.TooManyConnections("too many clients")),
         ],
-        ids=["pool-exhausted", "lock-timeout", "statement-timeout"],
+        ids=[
+            "pool-exhausted",
+            "lock-timeout",
+            "statement-timeout",
+            "connection-lost",
+            "connection-invalidated",
+            "connection-failure",
+            "server-shutdown",
+            "server-starting",
+            "too-many-connections",
+        ],
     )
-    def test_a_saturated_or_timed_out_database_is_a_503_with_retry_after(self, error):
+    def test_a_database_out_of_reach_is_a_503_with_retry_after(self, error):
         resp = _client(error).get("/fail")
 
         assert resp.status_code == 503
@@ -54,9 +70,24 @@ class TestUnavailable:
         assert {r.levelno for r in records} == {logging.WARNING}
 
     def test_any_other_operational_error_stays_a_500(self):
-        error = OperationalError(_STATEMENT, {}, psycopg.errors.AdminShutdown("shutting down"))
+        error = OperationalError(_STATEMENT, {}, psycopg.errors.DiskFull("could not extend file"))
 
         assert _client(error).get("/fail").status_code == 500
+
+    def test_a_connection_the_server_ended_is_a_503(self, committed_sessions):
+        import tests._helpers.database as test_database
+
+        engine = test_database.database_engine(test_database.worker_database())
+        try:
+            with engine.connect() as victim, engine.connect() as killer:
+                pid = victim.exec_driver_sql("SELECT pg_backend_pid()").scalar_one()
+                killer.exec_driver_sql(f"SELECT pg_terminate_backend({int(pid)})")
+                with pytest.raises(OperationalError) as lost:
+                    victim.exec_driver_sql("SELECT 1")
+        finally:
+            engine.dispose()
+
+        assert _client(lost.value).get("/fail").status_code == 503
 
 
 class TestConflict:

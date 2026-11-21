@@ -3,7 +3,6 @@
 import asyncio
 import contextlib
 import dataclasses
-import logging
 import threading
 from collections.abc import Callable
 from types import SimpleNamespace
@@ -18,7 +17,6 @@ from jasil.backends.lock_pg import PgAdvisoryLock
 from jasil.providers import StateBackendUnavailableError
 
 import core.database as core_database
-import core.logger as core_logger
 import core.scheduler as core_scheduler
 
 
@@ -59,18 +57,6 @@ def clock(monkeypatch):
         now[0] += seconds
 
     return advance
-
-
-@pytest.fixture
-def app_log(caplog):
-    """Capture the application's logger, which does not propagate to the root logger."""
-    logger = logging.getLogger(core_logger.ROOT_LOGGER_NAME)
-    level = logger.level
-    logger.addHandler(caplog.handler)
-    logger.setLevel(logging.DEBUG)
-    yield caplog
-    logger.setLevel(level)
-    logger.removeHandler(caplog.handler)
 
 
 def _platform():

@@ -371,7 +371,9 @@ def raise_auth_security_store_unavailable(
     Raises:
         ServiceUnavailableError: Always raised.
     """
-    logger.error("Auth security storage unavailable during authentication", exc_info=err)
+    logger.warning(
+        "Auth security storage unavailable during authentication", extra=core_logger.context(error=type(err).__name__)
+    )
     raise core_exceptions.ServiceUnavailableError("Authentication temporarily unavailable")
 
 

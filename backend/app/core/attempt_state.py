@@ -45,7 +45,7 @@ class StateUnavailableError(core_exceptions.ServiceUnavailableError):
 
 
 def raise_unavailable(operation: str, err: StateBackendUnavailableError) -> NoReturn:
-    """Log a storage outage and re-raise it as a state error.
+    """Log a storage outage as a degraded path and re-raise it as a state error.
 
     Args:
         operation: Storage operation that failed.
@@ -54,7 +54,10 @@ def raise_unavailable(operation: str, err: StateBackendUnavailableError) -> NoRe
     Raises:
         StateUnavailableError: Always raised.
     """
-    logger.error("Attempt state storage failed", exc_info=err, extra=core_logger.context(operation=operation))
+    logger.warning(
+        "Attempt state storage failed",
+        extra=core_logger.context(operation=operation, error=type(err).__name__),
+    )
     raise StateUnavailableError("State storage is unavailable") from err
 
 

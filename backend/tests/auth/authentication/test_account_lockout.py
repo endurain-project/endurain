@@ -1,5 +1,6 @@
 """An account locked by 100 failed codes or passwords in a row still admits its known devices, and tells its owner."""
 
+import logging
 import secrets
 import uuid
 
@@ -290,10 +291,12 @@ class TestLoginCounters:
 
         authentication_integration.clear_account_login_lockout(account.user.id)
 
-    def test_a_state_outage_answers_503_at_sign_in(self, state_outage, client, account):
+    def test_a_state_outage_answers_503_at_sign_in(self, state_outage, client, account, app_log):
         state_outage()
 
         assert login(client, account).status_code == 503
+        # An outage is a degraded path: logged as a warning, nothing as an error.
+        assert max(r.levelno for r in app_log.records) == logging.WARNING
 
 
 class TestTieredMfaLockIsPerNetwork:

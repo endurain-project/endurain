@@ -1,5 +1,7 @@
 """Signing up and asking for the verification mail again, on the real application with its mail subscribers."""
 
+import logging
+
 import jasil.runtime as platform_runtime
 import pytest
 import sqlalchemy as sa
@@ -265,7 +267,7 @@ class TestASignUpWithARegisteredAddress:
         assert len(_mailed_to(second.email)) == 1
 
     def test_an_unreachable_cooldown_store_skips_the_notice_without_changing_the_answer(
-        self, client, committed_sessions, mail_on, monkeypatch
+        self, client, committed_sessions, mail_on, monkeypatch, app_log
     ):
         _policy(committed_sessions)
         self._owner(committed_sessions)
@@ -279,6 +281,8 @@ class TestASignUpWithARegisteredAddress:
 
         assert (response.status_code, response.json()) == (200, {"next_step": "check_email"})
         assert outbox() == []
+        # An outage is a degraded path: logged as a warning, nothing as an error.
+        assert max(r.levelno for r in app_log.records) == logging.WARNING
 
     def test_without_a_mail_server_there_is_no_notice_and_the_answer_is_the_same(self, client, committed_sessions):
         _policy(committed_sessions)
@@ -370,7 +374,9 @@ class TestResendingTheVerificationMail:
         assert _resend(client, user.email).json() == {"next_step": "check_email"}
         assert outbox() == []
 
-    def test_an_unreachable_cooldown_store_skips_the_send(self, client, committed_sessions, mail_on, monkeypatch):
+    def test_an_unreachable_cooldown_store_skips_the_send(
+        self, client, committed_sessions, mail_on, monkeypatch, app_log
+    ):
         _policy(committed_sessions)
         user = self._pending(committed_sessions)
 
@@ -381,6 +387,8 @@ class TestResendingTheVerificationMail:
 
         assert _resend(client, user.email).status_code == 200
         assert outbox() == []
+        # An outage is a degraded path: logged as a warning, nothing as an error.
+        assert max(r.levelno for r in app_log.records) == logging.WARNING
 
     def test_with_sign_up_off_the_resend_is_refused_whatever_the_address(self, client, committed_sessions, mail_on):
         _policy(committed_sessions, enabled=False)

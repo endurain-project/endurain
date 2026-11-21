@@ -602,3 +602,18 @@ class TestSyncStateStore:
         with pytest.raises(core_attempt_state.StateUnavailableError):
             syncs.get(MOCK_USER_ID, _Kind.GEAR)
         syncs.set_status(MOCK_USER_ID, _Kind.GEAR, Status.SUCCEEDED, job_id=uuid.uuid4())
+
+
+def test_an_outage_is_logged_as_a_warning_without_a_traceback(app_log):
+    import logging
+
+    state = MemoryState()
+    store = _store(state)
+    with (
+        patch.object(state, "get", side_effect=StateBackendUnavailableError("down")),
+        pytest.raises(core_attempt_state.StateUnavailableError),
+    ):
+        store.read("1")
+
+    [record] = [r for r in app_log.records if "storage" in r.getMessage()]
+    assert (record.levelno, record.exc_info) == (logging.WARNING, None)

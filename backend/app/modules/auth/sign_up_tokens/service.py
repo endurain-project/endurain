@@ -417,7 +417,9 @@ def resend_sign_up_verification_email(email: str, state: StateProvider, db: Sess
         if not core_email_cooldown.claim_email(state, "sign_up_verification", user.id, SIGN_UP_RESEND_COOLDOWN_SECONDS):
             return response
     except StateBackendUnavailableError as err:
-        logger.error("Sign-up resend cooldown unavailable", exc_info=err, extra=core_logger.context(user_id=user.id))
+        logger.warning(
+            "Sign-up resend cooldown unavailable", extra=core_logger.context(user_id=user.id, error=type(err).__name__)
+        )
         return response
     # The row keeps the account alive from this commit until the delivery subscriber issues the mailed token, which
     # replaces it; its raw value is discarded.
@@ -468,7 +470,9 @@ def request_sign_up_existing_account_notice(user_id: uuid.UUID, state: StateProv
         ):
             return
     except StateBackendUnavailableError as err:
-        logger.error("Sign-up notice cooldown unavailable", exc_info=err, extra=core_logger.context(user_id=user_id))
+        logger.warning(
+            "Sign-up notice cooldown unavailable", extra=core_logger.context(user_id=user_id, error=type(err).__name__)
+        )
         return
     sign_up_event_publishers.publish_sign_up_existing_account(user_id, db)
 

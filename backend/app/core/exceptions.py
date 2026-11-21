@@ -705,10 +705,13 @@ def build_problem_response(
 async def domain_error_handler(request: Request, exc: DomainError) -> JSONResponse:
     """Render a :class:`DomainError` as an RFC 9457 problem document.
 
-    Server-side (5xx) errors are logged at ``error`` with a traceback because
-    they indicate a defect; client-side (4xx) errors are logged at ``debug``
-    because they are the API behaving as designed and would otherwise flood the
-    logs with routine 404s.
+    A server-side error the code did not plan for (500) is logged at ``error``
+    with a traceback because it indicates a defect. A dependency the request
+    could not use (502 and 503: a store, a provider or a mail server that is
+    down or not configured) is a degraded path, logged at ``warning`` without a
+    traceback; where it was detected logs the cause. Client-side (4xx) errors
+    are logged at ``debug`` because they are the API behaving as designed and
+    would otherwise flood the logs with routine 404s.
 
     Args:
         request: The incoming request (used for log context and ``instance``).
@@ -724,7 +727,9 @@ async def domain_error_handler(request: Request, exc: DomainError) -> JSONRespon
         error=type(exc).__name__,
         detail=exc.detail,
     )
-    if exc.status_code >= status.HTTP_500_INTERNAL_SERVER_ERROR:
+    if isinstance(exc, ServiceUnavailableError | UpstreamError):
+        logger.warning("Dependency unavailable", extra=log_context)
+    elif exc.status_code >= status.HTTP_500_INTERNAL_SERVER_ERROR:
         logger.error("Unhandled domain error", exc_info=exc, extra=log_context)
     else:
         logger.debug("Domain error", extra=log_context)
@@ -772,8 +777,12 @@ async def idempotent_replay_handler(request: Request, exc: IdempotentReplayError
     return response
 
 
-#: PostgreSQL SQLSTATEs for a lock wait (``lock_timeout``) and a cancelled statement (``statement_timeout``).
-_TRANSIENT_DB_SQLSTATES = frozenset({"55P03", "57014"})
+#: PostgreSQL SQLSTATEs of a database that cannot take the request right now: a lock wait (``lock_timeout``), a
+#: cancelled statement (``statement_timeout``), a server shutting down or not yet accepting connections, and a server
+#: at its connection limit.
+_TRANSIENT_DB_SQLSTATES = frozenset({"55P03", "57014", "57P01", "57P02", "57P03", "53300"})
+#: SQLSTATE class of a connection exception.
+_CONNECTION_EXCEPTION_CLASS = "08"
 #: Seconds a client is told to wait before retrying a request the database could not serve.
 _DB_RETRY_AFTER_SECONDS = 5
 
@@ -781,16 +790,25 @@ _DB_RETRY_AFTER_SECONDS = 5
 def _is_database_unavailable(exc: SQLAlchemyError) -> bool:
     """Tell whether a database error means the database could not take the request right now.
 
+    Every error the server sends carries a SQLSTATE, so an operational error without one was raised by the driver
+    itself: the connection could not be made or was lost.
+
     Args:
         exc: The database error.
 
     Returns:
-        True for an exhausted connection pool, a lock timeout or a statement timeout.
+        True for an exhausted connection pool, a lost or refused connection, a lock or statement timeout, and a
+        server that is shutting down, starting up or at its connection limit.
     """
     if isinstance(exc, SQLAlchemyTimeoutError):
         return True
     if isinstance(exc, OperationalError):
-        return getattr(exc.orig, "sqlstate", None) in _TRANSIENT_DB_SQLSTATES
+        if exc.connection_invalidated:
+            return True
+        sqlstate = getattr(exc.orig, "sqlstate", None)
+        return (
+            sqlstate is None or sqlstate.startswith(_CONNECTION_EXCEPTION_CLASS) or sqlstate in _TRANSIENT_DB_SQLSTATES
+        )
     return False
 
 
@@ -803,7 +821,7 @@ async def database_error_handler(request: Request, exc: SQLAlchemyError) -> JSON
     service.
     The session has already been rolled back by ``core.database.get_db``.
 
-    An exhausted connection pool, a lock timeout and a statement timeout are transient, so they answer 503 with
+    A database out of reach (see :func:`_is_database_unavailable`) is transient, so it answers 503 with
     ``Retry-After``; an ``IntegrityError`` is a unique or foreign-key conflict that only surfaced at commit, so it
     answers 409. Both are logged as warnings. Anything else is an opaque 500 logged as an error.
 
