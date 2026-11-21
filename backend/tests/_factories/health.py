@@ -137,3 +137,39 @@ def make_health_fasting(
     return health_fasting_crud.create_health_fasting(
         user_id, health_fasting_schema.HealthFastingImport.model_validate(values), db, actual_duration_seconds=None
     )
+
+
+def make_ended_health_fasting(
+    db: Session,
+    user_id: uuid.UUID,
+    fast_start_time: datetime,
+    fast_end_time: datetime,
+    *,
+    status: str = "completed",
+    **overrides: object,
+) -> health_fasting_schema.HealthFastingRead:
+    """Stage a fast that ended, with the duration the service derives from its times (flushed, not committed).
+
+    Args:
+        db: Database session.
+        user_id: The record's owner.
+        fast_start_time: When the fast started.
+        fast_end_time: When the fast ended.
+        status: The fast's final status.
+        **overrides: Further field values of :class:`~modules.health.health_fasting.schema.HealthFastingImport`.
+
+    Returns:
+        The staged record.
+    """
+    values: dict[str, object] = {
+        "fast_start_time": fast_start_time,
+        "fast_end_time": fast_end_time,
+        "status": status,
+        **overrides,
+    }
+    return health_fasting_crud.create_health_fasting(
+        user_id,
+        health_fasting_schema.HealthFastingImport.model_validate(values),
+        db,
+        actual_duration_seconds=int((fast_end_time - fast_start_time).total_seconds()),
+    )

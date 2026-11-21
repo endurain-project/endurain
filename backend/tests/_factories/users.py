@@ -4,6 +4,8 @@ import uuid
 from datetime import UTC, datetime
 from functools import cache
 
+from jasil.audit.models import AuditLog
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 import modules.auth.credentials.integration_service as credentials_integration
@@ -73,3 +75,41 @@ def make_user(
 def make_admin(db: Session, **fields: object) -> users_schema.UserRead:
     """Stage an active administrator (flushed, not committed); see :func:`make_user`."""
     return make_user(db, access_type=users_schema.UserAccessType.ADMIN, **fields)
+
+
+def make_sign_up(
+    db: Session, *, email_verified: bool = False, pending_admin_approval: bool = False, **fields: object
+) -> users_schema.UserRead:
+    """Stage an account a sign-up created and nobody deactivated: inactive, with no deactivation time.
+
+    Args:
+        db: Database session.
+        email_verified: Whether the address is proven.
+        pending_admin_approval: Whether the account waits for an administrator's approval.
+        **fields: Other column values; see :func:`make_user`.
+
+    Returns:
+        The staged user.
+    """
+    return make_user(
+        db,
+        active=False,
+        deactivated_at=None,
+        email_verified=email_verified,
+        pending_admin_approval=pending_admin_approval,
+        **fields,
+    )
+
+
+def audit_rows_of(db: Session, *action_ids: str) -> list[AuditLog]:
+    """List the audit rows of the given actions, oldest first.
+
+    Args:
+        db: Database session.
+        *action_ids: The actions to list.
+
+    Returns:
+        The rows, staged or committed.
+    """
+    statement = select(AuditLog).where(AuditLog.action_id.in_(action_ids)).order_by(AuditLog.occurred_at, AuditLog.id)
+    return list(db.scalars(statement))

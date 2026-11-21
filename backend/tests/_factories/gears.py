@@ -47,3 +47,35 @@ def make_gear_component(
     return gear_components_crud.create_gear_component(
         gear_components_schema.GearComponentCreate.model_validate(values), user_id, db
     )
+
+
+def gear_payload(nickname: str = "Road Bike", **overrides: object) -> gears_schema.GearCreate:
+    """Build the payload the provider syncs and the profile import hand to the module, with provider ids allowed.
+
+    Args:
+        nickname: The gear's nickname.
+        **overrides: Field values of :class:`~modules.gears.gear.schema.GearCreate`, which replace the defaults of a
+            bike.
+
+    Returns:
+        The payload, not yet stored.
+    """
+    values: dict[str, object] = {"nickname": nickname, "gear_type": gears_schema.GearType.BIKE}
+    values.update(overrides)
+    return gears_schema.GearCreate.model_validate(values)
+
+
+def component_payload(gear_id: uuid.UUID, **overrides: object) -> gear_components_schema.GearComponentCreate:
+    """Build the payload for a component on a gear.
+
+    Args:
+        gear_id: The gear the component belongs to.
+        **overrides: Field values of :class:`~modules.gears.gear_components.schema.GearComponentCreate`, which
+            replace the defaults of a chain.
+
+    Returns:
+        The payload, not yet stored.
+    """
+    values: dict[str, object] = {"gear_id": gear_id, "type": "chain", "brand": "Shimano", "model": "XT"}
+    values.update(overrides)
+    return gear_components_schema.GearComponentCreate.model_validate(values)
