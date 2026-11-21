@@ -267,18 +267,18 @@ def _refusal_budget_exhausted(limiter: Limiter, request: Request, handler: Calla
             args = [default.key_func(request), scope]
             if limiter._key_prefix:
                 args.insert(0, limiter._key_prefix)
+            # Requests run in the threadpool, so another one may mark the store dead while this one waits on it:
+            # whether to fall back depends on which store this request used, not on the flag.
+            fallback = limiter._fallback_limiter if limiter._storage_dead else None
+            strategy = fallback or limiter._limiter
             try:
-                strategy = (
-                    limiter._fallback_limiter
-                    if limiter._storage_dead and limiter._fallback_limiter
-                    else limiter.limiter
-                )
                 allowed = strategy.hit(default.limit, *args) if count else strategy.test(default.limit, *args)
             except Exception as err:
-                if limiter._storage_dead or not limiter._in_memory_fallback_enabled:
+                if fallback is not None or not limiter._in_memory_fallback_enabled:
                     raise
-                logger.warning("Rate limit storage unreachable - falling back to in-memory storage", exc_info=err)
-                limiter._storage_dead = True
+                if not limiter._storage_dead:
+                    logger.warning("Rate limit storage unreachable - falling back to in-memory storage", exc_info=err)
+                    limiter._storage_dead = True
                 return _refusal_budget_exhausted(limiter, request, handler, count=count)
             if not allowed:
                 request.state.view_rate_limit = (default.limit, args)

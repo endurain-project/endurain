@@ -1,6 +1,5 @@
 """Tests for core.rate_limit: the bucket key, the 429 answer, the store outage fallback and the store options."""
 
-import logging
 import time
 from types import SimpleNamespace
 from urllib.parse import parse_qs, urlsplit
@@ -14,7 +13,6 @@ from starlette.requests import Request as StarletteRequest
 
 import core.exceptions as core_exceptions
 import core.jwt_keys as core_jwt_keys
-import core.logger as core_logger
 import core.rate_limit as core_rate_limit
 
 _ACCESS_HEADER = {"alg": "HS256", "typ": core_jwt_keys.ACCESS_JWT_TYP}
@@ -125,18 +123,6 @@ def _limited_app(limit: str, *, limiter=None) -> tuple[TestClient, object]:
         return {"ok": "yes"}
 
     return TestClient(app), limiter
-
-
-@pytest.fixture
-def app_log(caplog):
-    """Capture the application's logger, which does not propagate to the root logger."""
-    logger = logging.getLogger(core_logger.ROOT_LOGGER_NAME)
-    level = logger.level
-    logger.addHandler(caplog.handler)
-    logger.setLevel(logging.DEBUG)
-    yield caplog
-    logger.setLevel(level)
-    logger.removeHandler(caplog.handler)
 
 
 class TestRateLimitExceededHandler:
@@ -263,6 +249,24 @@ class TestStorageOutageFallback:
         statuses = [client.get("/limited").status_code for _ in range(4)]
 
         assert statuses == [200, 200, 429, 429]
+
+    @pytest.mark.parametrize("count", [False, True], ids=["check", "count"])
+    def test_a_refusal_budget_check_that_fails_after_another_request_saw_the_outage_uses_memory(
+        self, monkeypatch, count
+    ):
+        _, limiter = self._client("5/minute")
+
+        def down_after_another_request_noticed(*args, **kwargs):
+            # Another request's thread marked the store dead while this one waited on it.
+            limiter._storage_dead = True
+            raise ConnectionError("redis down")
+
+        monkeypatch.setattr(limiter._limiter, "test", down_after_another_request_noticed)
+        monkeypatch.setattr(limiter._limiter, "hit", down_after_another_request_noticed)
+
+        def handler(request: Request) -> None: ...
+
+        assert core_rate_limit._refusal_budget_exhausted(limiter, _request(), handler, count=count) is False
 
 
 class TestRateLimitMiddleware:
