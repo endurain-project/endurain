@@ -63,6 +63,16 @@ jobs:
         working-directory: backend
         run: PYTHONPATH=app uv run --no-sync lint-imports
 
+      # The database is thrown away with the job, so nothing it writes needs to reach the disk: each test clones the
+      # template, and without the flushes a clone is several times faster. All three settings apply on a reload.
+      - name: Turn off durability on the test database
+        run: >-
+          docker exec ${{ job.services.postgres.id }} psql -U endurain -d endurain_test -v ON_ERROR_STOP=1
+          -c "ALTER SYSTEM SET fsync = off"
+          -c "ALTER SYSTEM SET synchronous_commit = off"
+          -c "ALTER SYSTEM SET full_page_writes = off"
+          -c "SELECT pg_reload_conf()"
+
       - name: Run tests
         working-directory: backend
         env:
