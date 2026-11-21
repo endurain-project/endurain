@@ -113,14 +113,18 @@ class TestChangedGears:
         assert [g.id for g in integration.list_changed_gears(user.id, None, FAR_FUTURE, 10, db)] == [mine.id]
         assert integration.list_changed_gears(other.id, None, datetime(2000, 1, 1, tzinfo=UTC), 10, db) == []
 
-    def test_each_gear_carries_its_totals(self, db, user):
-        gear = crud.create_gear(gear_payload(initial_distance=10.0), user.id, db)
+    def test_each_gear_carries_its_own_totals(self, db, user):
+        gear = crud.create_gear(gear_payload("Ridden", initial_distance=10.0), user.id, db)
+        idle = crud.create_gear(gear_payload("Idle"), user.id, db)
         make_activity(db, user.id, gear_id=gear.id, distance=5, total_timer_time=60.0)
         components_crud.create_gear_component(component_payload(gear.id, purchase_value="2.50"), user.id, db)
 
-        [gear] = integration.list_changed_gears(user.id, None, FAR_FUTURE, 10, db)
+        changed = integration.list_changed_gears(user.id, None, FAR_FUTURE, 10, db)
 
-        assert (gear.total_distance, gear.total_time, gear.total_components_cost) == (15.0, 60.0, "2.50")
+        assert {g.id: (g.total_distance, g.total_time, g.total_components_cost) for g in changed} == {
+            gear.id: (15.0, 60.0, "2.50"),
+            idle.id: (0.0, 0.0, "0.00"),
+        }
 
 
 class TestPrune:

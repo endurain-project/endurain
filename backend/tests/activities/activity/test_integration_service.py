@@ -88,7 +88,7 @@ class TestGearWrites:
         make_activity_at(db, owner.id, _DAY + timedelta(days=30), gear_id=gear.id, distance=2000, total_timer_time=30.0)
         window = gears_contracts.UsageWindow(key=gear.id, start_date=_DAY.date() + timedelta(days=20))
 
-        total = activity_integration.get_gear_usage_totals(gear.id, owner.id, db)
+        total = activity_integration.get_gear_usage_totals([gear.id], owner.id, db)[gear.id]
         by_window = activity_integration.get_gear_usage_totals_by_window(gear.id, owner.id, [window], db)
 
         assert (total.distance, total.time) == (3000.0, 90.0)

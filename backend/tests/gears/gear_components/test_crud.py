@@ -99,8 +99,14 @@ class TestReads:
         crud.create_gear_component(component_payload(gear.id, purchase_value="100.00"), other.id, db)
         crud.create_gear_component(component_payload(other_gear.id, purchase_value="100.00"), user.id, db)
 
-        assert crud.get_gear_components_total_cost(gear.id, user.id, db) == 15.0
-        assert crud.get_gear_components_total_cost(uuid.uuid4(), user.id, db) == 0.0
+        missing = uuid.uuid4()
+
+        assert crud.get_gear_components_total_cost([gear.id, other_gear.id, missing], user.id, db) == {
+            gear.id: 15.0,
+            other_gear.id: 100.0,
+            missing: 0.0,
+        }
+        assert crud.get_gear_components_total_cost([], user.id, db) == {}
 
 
 class TestOrdering:

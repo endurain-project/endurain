@@ -2,7 +2,7 @@
 
 import uuid
 from collections import defaultdict
-from collections.abc import Mapping, Sequence
+from collections.abc import Collection, Mapping, Sequence
 from datetime import UTC, date, datetime
 from typing import Any
 
@@ -724,27 +724,39 @@ def get_own_feed_after(
     return _feed_slice([activity_models.Activity.user_id == user_id], after, num_records, db, requester_user_id=user_id)
 
 
-def sum_gear_usage(gear_id: uuid.UUID, user_id: uuid.UUID, db: Session) -> gears_contracts.UsageTotals:
-    """Total distance and moving time a user recorded against a gear.
+def sum_gear_usage(
+    gear_ids: Collection[uuid.UUID], user_id: uuid.UUID, db: Session
+) -> dict[uuid.UUID, gears_contracts.UsageTotals]:
+    """Total distance and moving time a user recorded against each of a set of gears, in one query.
 
     Lives here rather than in the gears module so the activities table is only
     ever queried by its owner. Only the gear owner's own activities count, so an
-    activity another user linked to this gear never inflates its totals.
+    activity another user linked to one of these gears never inflates its totals.
 
     Args:
-        gear_id: The gear to accumulate usage for.
-        user_id: The gear's owner.
+        gear_ids: The gears to accumulate usage for.
+        user_id: The gears' owner.
         db: Database session.
 
     Returns:
-        The gear's totals; zeroes when it has no activities.
+        Totals per gear id; every requested id is present, with zeroes when the gear has no activities.
     """
-    stmt = select(
-        func.coalesce(func.sum(activity_models.Activity.distance), 0),
-        func.coalesce(func.sum(activity_models.Activity.total_timer_time), 0),
-    ).where(activity_models.Activity.gear_id == gear_id, activity_models.Activity.user_id == user_id)
-    distance, moving_time = db.execute(stmt).one()
-    return gears_contracts.UsageTotals(distance=float(distance), time=float(moving_time))
+    if not gear_ids:
+        return {}
+    stmt = (
+        select(
+            activity_models.Activity.gear_id,
+            func.coalesce(func.sum(activity_models.Activity.distance), 0),
+            func.coalesce(func.sum(activity_models.Activity.total_timer_time), 0),
+        )
+        .where(activity_models.Activity.gear_id.in_(gear_ids), activity_models.Activity.user_id == user_id)
+        .group_by(activity_models.Activity.gear_id)
+    )
+    recorded = {
+        gear_id: gears_contracts.UsageTotals(distance=float(distance), time=float(moving_time))
+        for gear_id, distance, moving_time in db.execute(stmt)
+    }
+    return {gear_id: recorded.get(gear_id, gears_contracts.UsageTotals()) for gear_id in gear_ids}
 
 
 def sum_gear_usage_by_window(

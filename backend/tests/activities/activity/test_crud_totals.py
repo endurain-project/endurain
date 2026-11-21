@@ -151,23 +151,31 @@ class TestSumByTypesForGoals:
 
 
 class TestGearUsage:
-    def test_the_distance_and_moving_time_of_the_owners_activities_on_the_gear_are_added_up(self, db, owner, other):
+    def test_each_gear_adds_up_the_distance_and_moving_time_of_the_owners_activities_on_it(self, db, owner, other):
         gear = make_gear(db, owner.id)
+        second = make_gear(db, owner.id, nickname="Spare bike")
         make_activity_at(db, owner.id, _DAY, gear_id=gear.id, distance=1000, total_timer_time=100.0)
         make_activity_at(db, owner.id, _DAY + timedelta(days=1), gear_id=gear.id, distance=2000, total_timer_time=50.0)
+        make_activity_at(db, owner.id, _DAY + timedelta(days=1), gear_id=second.id, distance=400, total_timer_time=40.0)
         make_activity_at(db, owner.id, _DAY + timedelta(days=2), distance=9999)
         make_activity_at(db, other.id, _DAY, gear_id=gear.id, distance=5000)
 
-        usage = activity_crud.sum_gear_usage(gear.id, owner.id, db)
+        usage = activity_crud.sum_gear_usage([gear.id, second.id], owner.id, db)
 
-        assert (usage.distance, usage.time) == (3000.0, 150.0)
+        assert {gear_id: (u.distance, u.time) for gear_id, u in usage.items()} == {
+            gear.id: (3000.0, 150.0),
+            second.id: (400.0, 40.0),
+        }
 
     def test_a_gear_without_activities_has_zero_usage(self, db, owner):
         gear = make_gear(db, owner.id)
 
-        usage = activity_crud.sum_gear_usage(gear.id, owner.id, db)
+        usage = activity_crud.sum_gear_usage([gear.id], owner.id, db)
 
-        assert (usage.distance, usage.time) == (0.0, 0.0)
+        assert (usage[gear.id].distance, usage[gear.id].time) == (0.0, 0.0)
+
+    def test_no_gears_ask_nothing(self, db, owner):
+        assert activity_crud.sum_gear_usage([], owner.id, db) == {}
 
     def test_each_window_adds_up_the_activities_on_its_local_days_and_every_key_is_answered(self, db, owner):
         gear = make_gear(db, owner.id)

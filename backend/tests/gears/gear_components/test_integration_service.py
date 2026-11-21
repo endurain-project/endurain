@@ -29,7 +29,7 @@ def test_restoring_a_component_stages_it_and_leaves_the_commit_to_the_caller(com
         )
         assert restored == 1
         assert len(integration.get_gear_components_user(owner.id, db)) == 1
-        assert integration.get_gear_components_total_cost(gear.id, owner.id, db) == 12.0
+        assert integration.get_gear_components_total_cost([gear.id], owner.id, db) == {gear.id: 12.0}
         db.rollback()
 
     with committed_sessions() as db:
