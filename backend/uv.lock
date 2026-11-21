@@ -617,7 +617,6 @@ distributed = [
 [package.dev-dependencies]
 dev = [
     { name = "boto3" },
-    { name = "faker" },
     { name = "hatch" },
     { name = "httpx2" },
     { name = "hypothesis" },
@@ -647,7 +646,6 @@ lint = [
 ]
 test = [
     { name = "boto3" },
-    { name = "faker" },
     { name = "httpx2" },
     { name = "hypothesis" },
     { name = "import-linter" },
@@ -715,7 +713,6 @@ provides-extras = ["distributed"]
 [package.metadata.requires-dev]
 dev = [
     { name = "boto3", specifier = ">=1.43.126" },
-    { name = "faker", specifier = ">=40.46.0" },
     { name = "hatch", specifier = ">=1.18.2" },
     { name = "httpx2", specifier = ">=2.16.0" },
     { name = "hypothesis", specifier = ">=6.170.15" },
@@ -743,7 +740,6 @@ docs = [
 lint = [{ name = "ruff", specifier = ">=0.17.4" }]
 test = [
     { name = "boto3", specifier = ">=1.43.126" },
-    { name = "faker", specifier = ">=40.46.0" },
     { name = "httpx2", specifier = ">=2.16.0" },
     { name = "hypothesis", specifier = ">=6.170.15" },
     { name = "import-linter", specifier = ">=2.16" },
@@ -770,18 +766,6 @@ source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/bf/89/780e11f9588d9e7128a3f87788354c7946a9cbb1401ad38a48c4db9a4f07/execnet-2.1.2.tar.gz", hash = "sha256:63d83bfdd9a23e35b9c6a3261412324f964c2ec8dcd8d3c6916ee9373e0befcd", size = 166622, upload-time = "2025-11-12T09:56:37.75Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/ab/84/02fc1827e8cdded4aa65baef11296a9bbe595c474f0d6d758af082d849fd/execnet-2.1.2-py3-none-any.whl", hash = "sha256:67fba928dd5a544b783f6056f449e5e3931a5c378b128bc18501f7ea79e296ec", size = 40708, upload-time = "2025-11-12T09:56:36.333Z" },
-]
-
-[[package]]
-name = "faker"
-version = "40.46.0"
-source = { registry = "https://pypi.org/simple" }
-dependencies = [
-    { name = "tzdata", marker = "sys_platform == 'win32'" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/cb/3a/73d36d90143592a566001943ed22df8f0e838438d721c0d3653a8941e8dd/faker-40.46.0.tar.gz", hash = "sha256:2e5de04805dac7484bc07bf3de8df4261a9f02632f5886eb677c610187c4ead2", size = 2035275, upload-time = "2026-11-09T17:45:11.132Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/00/7c/9d68e3faffa9ae3d1920f1b7be06a988acbaada8ed4e1d2fa6cec2fea007/faker-40.46.0-py3-none-any.whl", hash = "sha256:b3d67b1bcdc1f38bce9fda315b69d4d2a6654ea71eab11b1035b3ab8f1c5b540", size = 2069707, upload-time = "2026-11-09T17:45:09.283Z" },
 ]
 
 [[package]]

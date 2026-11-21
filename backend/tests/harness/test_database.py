@@ -7,12 +7,12 @@ import pytest
 import sqlalchemy as sa
 from jasil.audit.models import AuditLog
 from sqlalchemy.exc import IntegrityError, OperationalError, SAWarning
-from tests._helpers import database as test_database
 
 import core.database as core_database
 import modules.server_settings.audit_actions as server_settings_audit_actions
 import modules.server_settings.models as server_settings_models
 import modules.users.users.models as users_models
+from tests._helpers import database as test_database
 
 
 def _user(user_id: uuid.UUID | None = None) -> users_models.Users:
@@ -161,9 +161,6 @@ class TestCommittedSessions:
 
 
 class TestProductionBehaviour:
-    def test_a_test_on_the_real_database_keeps_the_real_security_generations(self, db, security_generations):
-        assert security_generations is None
-
     def test_a_test_on_the_real_database_writes_audit_rows_in_its_transaction(self, db):
         details = server_settings_audit_actions.SettingsChangeDetails(changed_fields=["units"])
         jasil_audit.stage(db, server_settings_audit_actions.SETTINGS_UPDATE, details=details)

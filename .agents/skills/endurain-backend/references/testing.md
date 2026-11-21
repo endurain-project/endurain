@@ -25,13 +25,13 @@ A test asserts an outcome (rows read back, response status, headers and body, au
 - With `committed_sessions`, arrange in a session you commit, act, then read the outcome back in a new session.
 - Sign in with the `sign_in` fixture; never override `get_principal`, `check_scopes`, `authenticate` or `get_db`.
 - Mock only what we do not own: provider APIs (Strava, Garmin, OIDC), SMTP, third-party HTTP; control time through the platform clock, never `sleep()`.
-- Never assert on generated SQL text, `mock_db` calls or `assert_called*` of our own code.
+- Never assert on generated SQL text, a mocked session or `assert_called*` of our own code.
 - Cover the empty, missing, malformed, refused and other-user cases, not just the happy path.
 - An HTTP test of a route that names a resource checks that another user gets `404` and the owner's row is unchanged.
 - Assert audit rows on the database (`jasil.audit.models.AuditLog`); `jasil.testing.capture_audit` lists rows at staging, including rolled-back ones.
 - `with pytest.raises(...) as exc_info` for exceptions; skips need `reason=`.
 - Tests are order-independent and parallel-safe: no random values in parametrize ids, no shared module state.
-- `mock_db`, `setup_mock_execute`, the SQLite helpers and `fast_api_app` are legacy, kept until their tests are migrated; do not use them in new tests.
+- A test that waits for another session to block polls `pg_stat_activity` on an AUTOCOMMIT connection or ends its transaction per poll: PostgreSQL snapshots that view once per transaction.
 
 ## Database
 

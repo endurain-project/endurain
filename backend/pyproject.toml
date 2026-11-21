@@ -71,7 +71,6 @@ lint = [
 ]
 test = [
     "httpx2>=2.16.0",
-    "faker>=40.46.0",
     "hypothesis>=6.170.15",
     "import-linter>=2.16",
     "pytest>=9.2.0",
@@ -144,7 +143,6 @@ asyncio_mode = "auto"
 asyncio_default_fixture_loop_scope = "function"
 addopts = "--tb=short --strict-markers"
 markers = [
-    "postgres: checks behaviour only PostgreSQL shows (isolation, locks, races, unique indexes); every run has the database",
     "distributed: runs real API and worker processes against disposable PostgreSQL, Redis and S3 (TEST_DATABASE_URL, TEST_REDIS_URL, TEST_S3_ENDPOINT_URL); skipped unless all are set",
 ]
 filterwarnings = [

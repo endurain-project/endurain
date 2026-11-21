@@ -2,11 +2,11 @@
 
 import sqlalchemy as sa
 from jasil.audit.models import AuditLog
-from tests._factories.users import make_admin, make_user
 
 import core.config as core_config
 import modules.auth.authentication.audit_actions as authentication_audit_actions
 import modules.auth.sessions.models as sessions_models
+from tests._factories.users import make_admin, make_user
 
 _PROFILE = f"{core_config.ROOT_PATH}/profile"
 
