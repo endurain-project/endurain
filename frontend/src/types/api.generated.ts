@@ -5161,6 +5161,7 @@ export interface components {
          *         hide_start_time: Hide start time from others.
          *         hide_location: Hide location from others.
          *         hide_map: Hide map from others.
+         *         hide_start_end: Hide the route's start and end from others.
          *         hide_hr: Hide heart rate from others.
          *         hide_power: Hide power from others.
          *         hide_cadence: Hide cadence from others.
@@ -5198,6 +5199,8 @@ export interface components {
             hide_power?: boolean | null;
             /** Hide Speed */
             hide_speed?: boolean | null;
+            /** Hide Start End */
+            hide_start_end?: boolean | null;
             /** Hide Start Time */
             hide_start_time?: boolean | null;
             /** Hide Workout Sets Steps */
@@ -5477,6 +5480,8 @@ export interface components {
             hide_power?: boolean | null;
             /** Hide Speed */
             hide_speed?: boolean | null;
+            /** Hide Start End */
+            hide_start_end?: boolean | null;
             /** Hide Start Time */
             hide_start_time?: boolean | null;
             /** Hide Workout Sets Steps */
@@ -11133,6 +11138,7 @@ export interface components {
          *         hide_activity_start_time: Hide start time setting.
          *         hide_activity_location: Hide location setting.
          *         hide_activity_map: Hide map setting.
+         *         hide_activity_start_end: Hide route start and end setting.
          *         hide_activity_hr: Hide heart rate setting.
          *         hide_activity_power: Hide power setting.
          *         hide_activity_cadence: Hide cadence setting.
@@ -11262,6 +11268,11 @@ export interface components {
              * @description Hide activity speed
              */
             hide_activity_speed?: boolean | null;
+            /**
+             * Hide Activity Start End
+             * @description Hide activity route start and end
+             */
+            hide_activity_start_end?: boolean | null;
             /**
              * Hide Activity Start Time
              * @description Hide activity start time
@@ -11408,6 +11419,12 @@ export interface components {
              * @default false
              */
             hide_activity_speed: boolean | null;
+            /**
+             * Hide Activity Start End
+             * @description Hide activity route start and end
+             * @default false
+             */
+            hide_activity_start_end: boolean | null;
             /**
              * Hide Activity Start Time
              * @description Hide activity start time

@@ -186,12 +186,58 @@ class TestStreamMask:
     def test_filter_keeps_only_the_visible_streams(self):
         from modules.activities.activity_streams import constants, service
 
-        activity = MagicMock(hide_hr=True, hide_map=False)
+        activity = MagicMock(hide_hr=True, hide_map=False, hide_start_end=False)
         streams = [_stream(constants.STREAM_TYPE_HR), _stream(constants.STREAM_TYPE_MAP)]
 
         visible = service._filter_visible_streams(streams, activity)
 
         assert [s.stream_type for s in visible] == [constants.STREAM_TYPE_MAP]
+
+    def test_hide_start_end_trims_only_the_gps_track(self):
+        from modules.activities.activity_streams import constants, service
+
+        activity = MagicMock(hide_hr=False, hide_map=False, hide_start_end=True)
+        track = [{"lat": 45.0 + i * 0.001, "lon": 6.0} for i in range(10)]
+        hr = _stream(constants.STREAM_TYPE_HR)
+        gps = _stream(constants.STREAM_TYPE_MAP).model_copy(update={"stream_waypoints": track})
+
+        visible = service._filter_visible_streams([hr, gps], activity)
+
+        assert visible[0] is hr
+        assert visible[1].stream_waypoints == track[3:7]
+
+    def test_hide_start_end_drops_a_track_too_short_to_trim(self):
+        from modules.activities.activity_streams import constants, service
+
+        activity = MagicMock(hide_hr=False, hide_map=False, hide_start_end=True)
+        track = [{"lat": 45.0, "lon": 6.0}, {"lat": 45.001, "lon": 6.0}]
+        gps = _stream(constants.STREAM_TYPE_MAP).model_copy(update={"stream_waypoints": track})
+
+        assert service._filter_visible_streams([gps], activity) == []
+
+    @patch("modules.activities.activity_streams.service.activity_streams_crud")
+    @patch("modules.activities.activity_streams.service.activity_integration")
+    def test_get_answers_not_found_when_the_trimmed_track_is_empty(self, mock_gate, mock_crud):
+        from modules.activities.activity_streams import constants, service
+
+        mock_gate.resolve_public_parent.return_value = MagicMock(hide_map=False, hide_start_end=True)
+        mock_crud.get_activity_stream_by_type.return_value = _stream(constants.STREAM_TYPE_MAP)
+
+        with pytest.raises(core_exceptions.NotFoundError):
+            service.get_public_activity_stream(5, constants.STREAM_TYPE_MAP, MagicMock())
+
+    @patch("modules.activities.activity_streams.service._max_heart_rate_of", return_value=None)
+    @patch("modules.activities.activity_streams.service.activity_streams_crud")
+    @patch("modules.activities.activity_streams.service.activity_integration")
+    def test_owner_gets_the_whole_track(self, mock_gate, mock_crud, _max_hr):
+        from modules.activities.activity_streams import constants, service
+
+        track = [{"lat": 45.0 + i * 0.001, "lon": 6.0} for i in range(10)]
+        gps = _stream(constants.STREAM_TYPE_MAP).model_copy(update={"stream_waypoints": track})
+        mock_gate.resolve_readable_parent.return_value = MagicMock(user_id=1, hide_start_end=True)
+        mock_crud.get_activity_stream_by_type.return_value = gps
+
+        assert service.get_activity_stream(5, constants.STREAM_TYPE_MAP, 1, MagicMock()) is gps
 
 
 def _hr_stream(waypoints=None) -> activity_streams_schema.ActivityStreamsRead:

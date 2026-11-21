@@ -63,6 +63,7 @@ class Activity(Base):
         hide_start_time: Hide start time from others.
         hide_location: Hide location from others.
         hide_map: Hide map from others.
+        hide_start_end: Hide the route's start and end from others.
         hide_hr: Hide heart rate from others.
         hide_power: Hide power from others.
         hide_cadence: Hide cadence from others.
@@ -307,6 +308,12 @@ class Activity(Base):
     hide_map: Mapped[bool] = mapped_column(
         nullable=False,
         comment="Hide activity map",
+    )
+    hide_start_end: Mapped[bool] = mapped_column(
+        nullable=False,
+        default=False,
+        server_default="false",
+        comment="Hide activity route start and end",
     )
     hide_hr: Mapped[bool] = mapped_column(
         nullable=False,

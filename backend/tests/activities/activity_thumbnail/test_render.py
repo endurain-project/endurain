@@ -26,6 +26,29 @@ class TestRenderActivityThumbnail:
         assert request.tile_url == "https://tiles/{z}/{x}/{y}.png"
         assert request.quality == 75
         assert request.request_timeout_seconds == 10.0
+        assert request.draw_endpoints is True
+
+    @patch("modules.activities.activity_thumbnail.render.core_route_map")
+    def test_hide_start_end_trims_the_route_and_drops_the_markers(self, mock_route_map):
+        from modules.activities.activity_thumbnail.render import render_activity_thumbnail
+
+        mock_route_map.render.return_value = b"webpdata"
+        track = [{"lat": 45.0 + i * 0.001, "lon": 6.0} for i in range(10)]
+
+        render_activity_thumbnail(1, track, hide_start_end=True)
+
+        request = mock_route_map.render.call_args.args[0]
+        assert request.coordinates == tuple((6.0, wp["lat"]) for wp in track[3:7])
+        assert request.draw_endpoints is False
+
+    @patch("modules.activities.activity_thumbnail.render.core_route_map")
+    def test_hide_start_end_skips_a_route_too_short_to_trim(self, mock_route_map):
+        from modules.activities.activity_thumbnail.render import render_activity_thumbnail
+
+        track = [{"lat": 45.0, "lon": 6.0}, {"lat": 45.001, "lon": 6.0}]
+
+        assert render_activity_thumbnail(1, track, hide_start_end=True) is None
+        mock_route_map.render.assert_not_called()
 
     def test_none_when_too_few_waypoints(self):
         from modules.activities.activity_thumbnail.render import render_activity_thumbnail

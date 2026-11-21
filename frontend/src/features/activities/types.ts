@@ -184,6 +184,7 @@ export interface ActivityPrivacy {
   hideStartTime: boolean
   hideLocation: boolean
   hideMap: boolean
+  hideStartEnd: boolean
   hideHr: boolean
   hidePower: boolean
   hideCadence: boolean
@@ -312,6 +313,7 @@ export interface ActivityEditInput {
   hideStartTime: boolean
   hideLocation: boolean
   hideMap: boolean
+  hideStartEnd: boolean
   hideHr: boolean
   hidePower: boolean
   hideCadence: boolean

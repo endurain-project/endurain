@@ -405,6 +405,45 @@ def double_running_cadence(cadence: float | None, fractional: float | None = 0.0
     return round((float(cadence) + float(fractional or 0.0)) * 2)
 
 
+#: Distance cut from each end of a route hidden with ``hide_start_end``: enough
+#: to keep a start or finish at home off the map without losing the route.
+START_END_TRIM_METERS = 300
+
+
+def _index_past_distance(waypoints: list[dict], meters: float) -> int:
+    """Return the index of the first waypoint at least ``meters`` along the track.
+
+    Args:
+        waypoints: GPS waypoints (dicts with ``lat`` and ``lon`` keys).
+        meters: Distance to cover from the first waypoint.
+
+    Returns:
+        The index, or ``len(waypoints)`` when the track is shorter than ``meters``.
+    """
+    covered = 0.0
+    for index, (prev, current) in enumerate(pairwise(waypoints), start=1):
+        covered += geodesic((prev["lat"], prev["lon"]), (current["lat"], current["lon"])).meters
+        if covered >= meters:
+            return index
+    return len(waypoints)
+
+
+def trim_track(waypoints: list[dict], meters: float) -> list[dict]:
+    """Drop the first and last ``meters`` of a GPS track.
+
+    Args:
+        waypoints: GPS waypoints (dicts with ``lat`` and ``lon`` keys), in order.
+        meters: Distance removed from each end of the track.
+
+    Returns:
+        The waypoints left in between, or an empty list when fewer than two remain.
+    """
+    start = _index_past_distance(waypoints, meters)
+    end = len(waypoints) - _index_past_distance(waypoints[::-1], meters)
+    trimmed = waypoints[start:end]
+    return trimmed if len(trimmed) >= 2 else []
+
+
 def double_cadence_waypoints(waypoints: list[dict]) -> list[dict]:
     """Return cadence waypoints with every ``cad`` converted from rpm to spm.
 

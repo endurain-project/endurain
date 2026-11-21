@@ -24,6 +24,7 @@ from modules.activities.computation import (
     double_running_cadence,
     smooth_elevation_stream,
     sum_elevation_deltas,
+    trim_track,
 )
 
 
@@ -392,3 +393,28 @@ class TestRunningCadenceNormalization:
             {"time": "t1", "cad": None},
             {"time": "t2", "cad": 175},
         ]
+
+
+def _meridian_track(points: int) -> list[dict]:
+    """Return a straight track with about 111 m between consecutive waypoints."""
+    return [{"lat": 45.0 + i * 0.001, "lon": 6.0} for i in range(points)]
+
+
+class TestTrimTrack:
+    def test_drops_the_first_and_last_meters(self):
+        track = _meridian_track(10)
+
+        assert trim_track(track, 200) == track[2:8]
+
+    def test_keeps_the_last_two_waypoints_left(self):
+        track = _meridian_track(6)
+
+        assert trim_track(track, 200) == track[2:4]
+
+    @pytest.mark.parametrize("points", [4, 5])
+    def test_returns_nothing_when_the_track_is_too_short(self, points):
+        assert trim_track(_meridian_track(points), 200) == []
+
+    @pytest.mark.parametrize("points", [0, 1])
+    def test_returns_nothing_without_two_waypoints(self, points):
+        assert trim_track(_meridian_track(points), 200) == []

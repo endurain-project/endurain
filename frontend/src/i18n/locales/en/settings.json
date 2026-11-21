@@ -865,6 +865,7 @@
       "hideStartTime": "Start time",
       "hideLocation": "Location",
       "hideMap": "Map",
+      "hideStartEnd": "Route start and end",
       "hideHr": "Heart rate",
       "hidePower": "Power",
       "hideCadence": "Cadence",

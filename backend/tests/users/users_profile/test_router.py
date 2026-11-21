@@ -47,6 +47,7 @@ def _make_user_mock() -> MagicMock:
     user.hide_activity_start_time = False
     user.hide_activity_location = False
     user.hide_activity_map = False
+    user.hide_activity_start_end = False
     user.hide_activity_hr = False
     user.hide_activity_power = False
     user.hide_activity_cadence = False
@@ -76,6 +77,7 @@ def _make_privacy_mock() -> MagicMock:
     p.hide_activity_start_time = False
     p.hide_activity_location = False
     p.hide_activity_map = False
+    p.hide_activity_start_end = False
     p.hide_activity_hr = False
     p.hide_activity_power = False
     p.hide_activity_cadence = False

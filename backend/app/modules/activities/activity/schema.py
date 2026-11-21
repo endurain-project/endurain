@@ -88,6 +88,7 @@ class ActivityBase(BaseModel):
         hide_start_time: Hide the start time from others.
         hide_location: Hide location data from others.
         hide_map: Hide the map from others.
+        hide_start_end: Hide the route's start and end from others.
         hide_hr: Hide heart rate data from others.
         hide_power: Hide power data from others.
         hide_cadence: Hide cadence data from others.
@@ -145,6 +146,7 @@ class ActivityBase(BaseModel):
     hide_start_time: bool | None = None
     hide_location: bool | None = None
     hide_map: bool | None = None
+    hide_start_end: bool | None = None
     hide_hr: bool | None = None
     hide_power: bool | None = None
     hide_cadence: bool | None = None
@@ -328,6 +330,7 @@ class ActivityEdit(BaseModel):
         hide_start_time: Hide start time from others.
         hide_location: Hide location from others.
         hide_map: Hide map from others.
+        hide_start_end: Hide the route's start and end from others.
         hide_hr: Hide heart rate from others.
         hide_power: Hide power from others.
         hide_cadence: Hide cadence from others.
@@ -351,6 +354,7 @@ class ActivityEdit(BaseModel):
     hide_start_time: StrictBool | None = None
     hide_location: StrictBool | None = None
     hide_map: StrictBool | None = None
+    hide_start_end: StrictBool | None = None
     hide_hr: StrictBool | None = None
     hide_power: StrictBool | None = None
     hide_cadence: StrictBool | None = None

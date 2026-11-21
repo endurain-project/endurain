@@ -7,12 +7,13 @@ import modules.activities.activity_ingestion.enrichment_service as enrichment
 
 
 def _privacy_settings() -> SimpleNamespace:
-    """Privacy-settings DTO with one hidden field (hide_location) to prove mapping."""
+    """Privacy-settings DTO with hidden fields (hide_location, hide_start_end) to prove mapping."""
     return SimpleNamespace(
         default_activity_visibility="public",
         hide_activity_start_time=False,
         hide_activity_location=True,
         hide_activity_map=False,
+        hide_activity_start_end=True,
         hide_activity_hr=False,
         hide_activity_power=False,
         hide_activity_cadence=False,
@@ -35,8 +36,9 @@ class TestBuildActivityPrivacyKwargs:
         assert kwargs["visibility"] == 0
         assert kwargs["hide_location"] is True
         assert kwargs["hide_start_time"] is False
-        # visibility + 12 hide_* flags.
-        assert len(kwargs) == 13
+        assert kwargs["hide_start_end"] is True
+        # visibility + 13 hide_* flags.
+        assert len(kwargs) == 14
 
 
 class TestResolveGearId:

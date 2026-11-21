@@ -42,6 +42,7 @@ const HIDE_FIELDS: { key: HideKey; labelKey: string }[] = [
   { key: 'hideStartTime', labelKey: 'settings.profile.privacy.hideStartTime' },
   { key: 'hideLocation', labelKey: 'settings.profile.privacy.hideLocation' },
   { key: 'hideMap', labelKey: 'settings.profile.privacy.hideMap' },
+  { key: 'hideStartEnd', labelKey: 'settings.profile.privacy.hideStartEnd' },
   { key: 'hideHr', labelKey: 'settings.profile.privacy.hideHr' },
   { key: 'hidePower', labelKey: 'settings.profile.privacy.hidePower' },
   { key: 'hideCadence', labelKey: 'settings.profile.privacy.hideCadence' },

@@ -1376,7 +1376,11 @@ def get_activities_without_thumbnail(
         ``map_thumbnail_path`` set to NULL.
     """
     stmt = (
-        select(activity_models.Activity.id, activity_models.Activity.map_thumbnail_path)
+        select(
+            activity_models.Activity.id,
+            activity_models.Activity.map_thumbnail_path,
+            activity_models.Activity.hide_start_end,
+        )
         .where(
             activity_models.Activity.map_thumbnail_path.is_(None),
             or_(
@@ -1389,7 +1393,9 @@ def get_activities_without_thumbnail(
         .limit(limit)
     )
     return [
-        activity_contracts.ActivityThumbnailRef(id=row.id, map_thumbnail_path=row.map_thumbnail_path)
+        activity_contracts.ActivityThumbnailRef(
+            id=row.id, map_thumbnail_path=row.map_thumbnail_path, hide_start_end=row.hide_start_end
+        )
         for row in db.execute(stmt)
     ]
 

@@ -31,6 +31,12 @@ DURABLE_SUBSCRIBER_NETS: tuple[DurableSubscriberNet, ...] = (
         activity_thumbnail_subscribers.THUMBNAIL_GENERATE_SUBSCRIBER_ID,
         activity_thumbnail_scheduled_jobs.generate_missing_thumbnails,
     ),
+    # The redraw clears the key before rendering, so a redraw that fails is
+    # picked up by the missing-thumbnail backfill.
+    DurableSubscriberNet(
+        activity_thumbnail_subscribers.THUMBNAIL_REGENERATE_SUBSCRIBER_ID,
+        activity_thumbnail_scheduled_jobs.generate_missing_thumbnails,
+    ),
     DurableSubscriberNet(
         activity_thumbnail_subscribers.THUMBNAIL_CLEANUP_SUBSCRIBER_ID,
         activity_thumbnail_scheduled_jobs.sweep_orphaned_thumbnails,

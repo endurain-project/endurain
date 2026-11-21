@@ -60,13 +60,18 @@ class TestOnActivityCreatedGenerateThumbnail:
         mock_resolve.assert_not_called()
         mock_generate.assert_not_called()
 
+    @patch("modules.activities.activity_thumbnail.service.activity_integration")
     @patch("modules.activities.activity_thumbnail.service.generate_and_store_thumbnail")
     @patch("modules.activities.activity_thumbnail.service.resolve_tile_settings")
     @patch("modules.activities.activity_thumbnail.service.activity_streams_integration")
     @patch("modules.activities.activity_thumbnail.subscribers.core_database.SessionLocal")
     @patch("modules.activities.activity_thumbnail.subscribers.platform_runtime")
-    def test_generates_for_gps_activity(self, mock_runtime, mock_session, mock_streams, mock_resolve, mock_generate):
+    def test_generates_for_gps_activity(
+        self, mock_runtime, mock_session, mock_streams, mock_resolve, mock_generate, mock_activity
+    ):
         from modules.activities.activity_thumbnail.subscribers import on_activity_created_generate_thumbnail
+
+        mock_activity.hides_route_start_end.return_value = True
 
         db = MagicMock()
         mock_session.return_value.__enter__.return_value = db
@@ -87,6 +92,7 @@ class TestOnActivityCreatedGenerateThumbnail:
         assert gen_args[0] == 5
         assert gen_args[1] == waypoints
         assert gen_args[2] is storage
+        assert mock_generate.call_args.kwargs["hide_start_end"] is True
 
     @patch("jasil.subscribers.logger")
     @patch("modules.activities.activity_thumbnail.subscribers.platform_runtime")
@@ -141,11 +147,67 @@ class TestOnActivityDeletedCleanupThumbnail:
         mock_logger.error.assert_called()
 
 
+class TestOnActivityUpdatedRegenerateThumbnail:
+    @staticmethod
+    def _event(payload):
+        return new_event("activity.updated", payload, source="test")
+
+    @patch("modules.activities.activity_thumbnail.service.regenerate_thumbnail_for_activity")
+    @patch("modules.activities.activity_thumbnail.subscribers.platform_runtime")
+    def test_ignores_an_edit_that_does_not_change_the_map(self, mock_runtime, mock_regenerate):
+        from modules.activities.activity_thumbnail.subscribers import on_activity_updated_regenerate_thumbnail
+
+        on_activity_updated_regenerate_thumbnail(
+            self._event({"activity_id": 1, "user_id": 2, "changed_fields": ["name", "hide_map"]})
+        )
+
+        mock_runtime.get_active_platform.assert_not_called()
+        mock_regenerate.assert_not_called()
+
+    @patch("modules.activities.activity_thumbnail.service.regenerate_thumbnail_for_activity")
+    @patch("modules.activities.activity_thumbnail.subscribers.platform_runtime")
+    def test_ignores_an_edit_without_owner(self, mock_runtime, mock_regenerate):
+        from modules.activities.activity_thumbnail.subscribers import on_activity_updated_regenerate_thumbnail
+
+        on_activity_updated_regenerate_thumbnail(self._event({"activity_id": 1, "changed_fields": ["hide_start_end"]}))
+
+        mock_regenerate.assert_not_called()
+
+    @patch("modules.activities.activity_thumbnail.service.regenerate_thumbnail_for_activity")
+    @patch("modules.activities.activity_thumbnail.subscribers.core_database.SessionLocal")
+    @patch("modules.activities.activity_thumbnail.subscribers.platform_runtime")
+    def test_redraws_when_hide_start_end_is_written(self, mock_runtime, mock_session, mock_regenerate):
+        from modules.activities.activity_thumbnail.subscribers import on_activity_updated_regenerate_thumbnail
+
+        db = MagicMock()
+        mock_session.return_value.__enter__.return_value = db
+        storage = MagicMock()
+        mock_runtime.get_active_platform.return_value.storage = storage
+
+        on_activity_updated_regenerate_thumbnail(
+            self._event({"activity_id": 5, "user_id": 9, "changed_fields": ["hide_start_end"]})
+        )
+
+        mock_regenerate.assert_called_once_with(5, 9, storage, db)
+
+    @patch("modules.activities.activity_thumbnail.subscribers.platform_runtime")
+    def test_the_durable_core_raises_on_error(self, mock_runtime):
+        from modules.activities.activity_thumbnail.subscribers import regenerate_activity_thumbnail_for_event
+
+        mock_runtime.get_active_platform.side_effect = RuntimeError("boom")
+
+        with pytest.raises(RuntimeError):
+            regenerate_activity_thumbnail_for_event(
+                self._event({"activity_id": 1, "user_id": 2, "changed_fields": ["hide_start_end"]})
+            )
+
+
 class TestRegisterThumbnailSubscribers:
-    def test_subscribes_to_created_and_deleted(self):
+    def test_subscribes_to_the_activity_lifecycle(self):
         from modules.activities.activity_thumbnail.subscribers import (
             on_activity_created_generate_thumbnail,
             on_activity_deleted_cleanup_thumbnail,
+            on_activity_updated_regenerate_thumbnail,
             on_tile_settings_changed_regenerate,
             register_thumbnail_subscribers,
         )
@@ -153,8 +215,9 @@ class TestRegisterThumbnailSubscribers:
         events = MagicMock()
         register_thumbnail_subscribers(events)
 
-        assert events.subscribe.call_count == 3
+        assert events.subscribe.call_count == 4
         events.subscribe.assert_any_call("activity.created", on_activity_created_generate_thumbnail)
+        events.subscribe.assert_any_call("activity.updated", on_activity_updated_regenerate_thumbnail)
         events.subscribe.assert_any_call("activity.deleted", on_activity_deleted_cleanup_thumbnail)
         events.subscribe.assert_any_call(
             "server_settings.tile_settings_changed",
@@ -205,8 +268,10 @@ class TestDurableThumbnailHandlers:
         from modules.activities.activity_thumbnail.subscribers import (
             THUMBNAIL_CLEANUP_SUBSCRIBER_ID,
             THUMBNAIL_GENERATE_SUBSCRIBER_ID,
+            THUMBNAIL_REGENERATE_SUBSCRIBER_ID,
             cleanup_activity_thumbnail_for_event,
             generate_activity_thumbnail_for_event,
+            regenerate_activity_thumbnail_for_event,
             register_thumbnail_durable_handlers,
         )
 
@@ -214,8 +279,10 @@ class TestDurableThumbnailHandlers:
         register_thumbnail_durable_handlers(registry)
 
         assert registry.get(THUMBNAIL_GENERATE_SUBSCRIBER_ID) is generate_activity_thumbnail_for_event
+        assert registry.get(THUMBNAIL_REGENERATE_SUBSCRIBER_ID) is regenerate_activity_thumbnail_for_event
         assert registry.get(THUMBNAIL_CLEANUP_SUBSCRIBER_ID) is cleanup_activity_thumbnail_for_event
         assert registry.subscribers_for("activity.created") == (THUMBNAIL_GENERATE_SUBSCRIBER_ID,)
+        assert registry.subscribers_for("activity.updated") == (THUMBNAIL_REGENERATE_SUBSCRIBER_ID,)
         assert registry.subscribers_for("activity.deleted") == (THUMBNAIL_CLEANUP_SUBSCRIBER_ID,)
 
 

@@ -293,6 +293,7 @@ const notFound = computed(() => !isPending.value && !isError.value && activity.v
         :points="showMap ? trackPoints : []"
         :activity-id="activity.id"
         :is-owner="isOwner"
+        :show-endpoints="canViewField(activity, 'hideStartEnd', currentUserId)"
       />
 
       <ActivityGearCard v-if="isOwner" :activity="activity" />

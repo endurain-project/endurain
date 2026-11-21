@@ -45,6 +45,8 @@ const props = withDefaults(
     heightClass?: string
     /** Whether the viewer owns the activity (gates the per-photo delete button). */
     isOwner?: boolean
+    /** Whether the map marks the track ends as the start and finish. */
+    showEndpoints?: boolean
   }>(),
   {
     thumbnailUrl: null,
@@ -52,6 +54,7 @@ const props = withDefaults(
     thumbnailPending: false,
     heightClass: 'h-72 lg:h-150',
     isOwner: false,
+    showEndpoints: true,
   },
 )
 
@@ -188,7 +191,7 @@ async function confirmDelete(): Promise<void> {
         :class="heightClass"
         :aria-hidden="index !== current"
       >
-        <ActivityMap v-if="slide.kind === 'map'" :points="points" />
+        <ActivityMap v-if="slide.kind === 'map'" :points="points" :show-endpoints="showEndpoints" />
         <component
           :is="thumbnailTo ? RouterLink : 'div'"
           v-else-if="slide.kind === 'thumbnail'"

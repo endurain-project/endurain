@@ -13,6 +13,7 @@ from urllib.parse import urlparse
 import core.exceptions as core_exceptions
 import core.logger as core_logger
 import core.route_map as core_route_map
+import modules.activities.computation as activities_computation
 from core.route_map import RouteMapRenderRequest
 
 logger = core_logger.get_logger(__name__)
@@ -109,12 +110,15 @@ def render_activity_thumbnail(
     user_agent: str = DEFAULT_USER_AGENT,
     width: int = THUMBNAIL_WIDTH,
     height: int = THUMBNAIL_HEIGHT,
+    hide_start_end: bool = False,
 ) -> bytes | None:
     """Render an activity map thumbnail as WebP bytes.
 
     Renders map tiles with the activity polyline and start/end
     markers overlaid, matching the Leaflet map appearance used
-    on the activity detail page.
+    on the activity detail page. When the activity hides its route's
+    start and end, the first and last meters of the route are cut and
+    no marker is drawn.
 
     Args:
         activity_id: The activity ID (used only for logging).
@@ -129,16 +133,19 @@ def render_activity_thumbnail(
             app version.
         width: Thumbnail width in pixels.
         height: Thumbnail height in pixels.
+        hide_start_end: Whether to cut the route's start and end and drop the markers.
 
     Returns:
         WebP-encoded bytes, or None when generation was deliberately skipped
         (too few waypoints, a tile provider that needs a key).
 
     Raises:
-        ProcessingError: When rendering was attempted and failed (tile server
+            ProcessingError: When rendering was attempted and failed (tile server
             unreachable, malformed waypoints). Distinct from a skip so a durable
             job is retried instead of recorded as done.
     """
+    if hide_start_end and waypoints:
+        waypoints = activities_computation.trim_track(waypoints, activities_computation.START_END_TRIM_METERS)
     if not waypoints or len(waypoints) < 2:
         logger.debug(
             "Skipping thumbnail render: fewer than 2 waypoints",
@@ -190,6 +197,7 @@ def render_activity_thumbnail(
                 marker_inner_radius=_MARKER_INNER_RADIUS,
                 quality=_THUMBNAIL_QUALITY,
                 encoder_method=_THUMBNAIL_METHOD,
+                draw_endpoints=not hide_start_end,
             )
         )
 

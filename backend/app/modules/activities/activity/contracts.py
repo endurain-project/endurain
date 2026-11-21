@@ -33,13 +33,15 @@ import modules.activities.activity.schema as activity_schema
 class ActivityThumbnailRef:
     """Lightweight activity reference for thumbnail maintenance.
 
-    Carries only the fields the thumbnail subsystem needs (the activity id and
-    the stored thumbnail key) so CRUD can hand out this DTO instead of leaking an
+    Carries only the fields the thumbnail subsystem needs (the activity id, the
+    stored thumbnail key, and whether the route's start and end are hidden, which
+    changes what is drawn) so CRUD can hand out this DTO instead of leaking an
     ORM ``Activity`` row.
     """
 
     id: int
     map_thumbnail_path: str | None = None
+    hide_start_end: bool = False
 
 
 @dataclass(frozen=True)

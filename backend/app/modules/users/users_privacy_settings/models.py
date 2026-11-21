@@ -23,6 +23,7 @@ class UsersPrivacySettings(Base):
         hide_activity_start_time: Hide activity start time.
         hide_activity_location: Hide activity location.
         hide_activity_map: Hide activity map.
+        hide_activity_start_end: Hide activity route start and end.
         hide_activity_hr: Hide activity heart rate.
         hide_activity_power: Hide activity power.
         hide_activity_cadence: Hide activity cadence.
@@ -69,6 +70,12 @@ class UsersPrivacySettings(Base):
         default=False,
         nullable=False,
         comment="Hide activity map",
+    )
+    hide_activity_start_end: Mapped[bool] = mapped_column(
+        default=False,
+        server_default="false",
+        nullable=False,
+        comment="Hide activity route start and end",
     )
     hide_activity_hr: Mapped[bool] = mapped_column(
         default=False,

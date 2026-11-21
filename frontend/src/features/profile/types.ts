@@ -21,6 +21,7 @@ export type ActivityVisibility = Schemas['ActivityVisibility']
  * @property hideStartTime - Hide the activity start time.
  * @property hideLocation - Hide the activity location.
  * @property hideMap - Hide the activity map/route.
+ * @property hideStartEnd - Hide the start and end of the activity route.
  * @property hideHr - Hide heart-rate data.
  * @property hidePower - Hide power data.
  * @property hideCadence - Hide cadence data.
@@ -36,6 +37,7 @@ export interface PrivacySettings {
   hideStartTime: boolean
   hideLocation: boolean
   hideMap: boolean
+  hideStartEnd: boolean
   hideHr: boolean
   hidePower: boolean
   hideCadence: boolean

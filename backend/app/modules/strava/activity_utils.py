@@ -337,6 +337,7 @@ def parse_activity(
         hide_start_time=user_privacy_settings.hide_activity_start_time or False,
         hide_location=user_privacy_settings.hide_activity_location or False,
         hide_map=user_privacy_settings.hide_activity_map or False,
+        hide_start_end=user_privacy_settings.hide_activity_start_end or False,
         hide_hr=user_privacy_settings.hide_activity_hr or False,
         hide_power=user_privacy_settings.hide_activity_power or False,
         hide_cadence=user_privacy_settings.hide_activity_cadence or False,

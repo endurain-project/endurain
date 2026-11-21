@@ -5,6 +5,7 @@ export const NO_PRIVACY: ActivityPrivacy = {
   hideStartTime: false,
   hideLocation: false,
   hideMap: false,
+  hideStartEnd: false,
   hideHr: false,
   hidePower: false,
   hideCadence: false,

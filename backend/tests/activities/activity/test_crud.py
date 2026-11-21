@@ -1327,9 +1327,10 @@ class TestGetActivitiesWithoutThumbnail:
     def test_success(self, mock_db):
         import modules.activities.activity.crud as crud
 
-        mock_db.execute.return_value = [SimpleNamespace(id=1, map_thumbnail_path=None)]
+        mock_db.execute.return_value = [SimpleNamespace(id=1, map_thumbnail_path=None, hide_start_end=True)]
         r = crud.get_activities_without_thumbnail(due_at=datetime(2026, 1, 1, tzinfo=UTC), db=mock_db)
         assert len(r) == 1
+        assert r[0].hide_start_end is True
 
     def test_empty(self, mock_db):
         import modules.activities.activity.crud as crud

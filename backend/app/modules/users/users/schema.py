@@ -380,6 +380,7 @@ class UsersMe(UsersRead):
         hide_activity_start_time: Hide start time setting.
         hide_activity_location: Hide location setting.
         hide_activity_map: Hide map setting.
+        hide_activity_start_end: Hide route start and end setting.
         hide_activity_hr: Hide heart rate setting.
         hide_activity_power: Hide power setting.
         hide_activity_cadence: Hide cadence setting.
@@ -400,6 +401,7 @@ class UsersMe(UsersRead):
     hide_activity_start_time: StrictBool | None = Field(default=None, description="Hide activity start time")
     hide_activity_location: StrictBool | None = Field(default=None, description="Hide activity location")
     hide_activity_map: StrictBool | None = Field(default=None, description="Hide activity map")
+    hide_activity_start_end: StrictBool | None = Field(default=None, description="Hide activity route start and end")
     hide_activity_hr: StrictBool | None = Field(default=None, description="Hide activity heart rate")
     hide_activity_power: StrictBool | None = Field(default=None, description="Hide activity power")
     hide_activity_cadence: StrictBool | None = Field(default=None, description="Hide activity cadence")

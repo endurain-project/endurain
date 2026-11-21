@@ -36,6 +36,10 @@ logger = core_logger.get_logger(__name__)
 # dedup survive refactors.
 THUMBNAIL_GENERATE_SUBSCRIBER_ID = "activity_thumbnail.generate"
 THUMBNAIL_CLEANUP_SUBSCRIBER_ID = "activity_thumbnail.cleanup"
+THUMBNAIL_REGENERATE_SUBSCRIBER_ID = "activity_thumbnail.regenerate"
+
+#: Activity columns that change what the thumbnail draws.
+_THUMBNAIL_FIELDS = frozenset({"hide_start_end"})
 THUMBNAIL_SETTINGS_CHANGED_SUBSCRIBER_ID = "activity_thumbnail.settings_changed"
 
 
@@ -65,6 +69,34 @@ def generate_activity_thumbnail_for_event(event: Event) -> None:
 # Bus subscriber: generates a map thumbnail, swallowing any error so a thumbnail
 # failure never breaks activity import (the hourly backfill regenerates any missed).
 on_activity_created_generate_thumbnail = best_effort(generate_activity_thumbnail_for_event)
+
+
+def regenerate_activity_thumbnail_for_event(event: Event) -> None:
+    """Redraw an edited activity's thumbnail when the edit changes what it shows; raises on failure.
+
+    The durable-job handler for ``activity.updated``: an edit that writes none of
+    the columns the thumbnail depends on is ignored.
+
+    Args:
+        event: The ``activity.updated`` event.
+    """
+    payload = platform_event_versioning.parse_payload(activity_events.ActivityUpdatedPayload, event)
+    if payload.user_id is None or _THUMBNAIL_FIELDS.isdisjoint(payload.changed_fields):
+        return
+    storage = platform_runtime.get_active_platform().storage
+    with core_database.SessionLocal() as db:
+        key = activity_thumbnail_service.regenerate_thumbnail_for_activity(
+            payload.activity_id, payload.user_id, storage, db
+        )
+    logger.debug(
+        "Handled activity.updated for thumbnails",
+        extra=core_logger.context(activity_id=payload.activity_id, stored=key is not None),
+    )
+
+
+# Bus subscriber: redraws the thumbnail, swallowing any error so a thumbnail
+# failure never breaks an activity edit (the hourly backfill draws any missed).
+on_activity_updated_regenerate_thumbnail = best_effort(regenerate_activity_thumbnail_for_event)
 
 
 def cleanup_activity_thumbnail_for_event(event: Event) -> None:
@@ -145,6 +177,7 @@ def register_thumbnail_subscribers(events: EventBusProvider) -> None:
         events: The event-bus provider to subscribe on.
     """
     events.subscribe(activity_events.ACTIVITY_CREATED, on_activity_created_generate_thumbnail)
+    events.subscribe(activity_events.ACTIVITY_UPDATED, on_activity_updated_regenerate_thumbnail)
     events.subscribe(activity_events.ACTIVITY_DELETED, on_activity_deleted_cleanup_thumbnail)
     events.subscribe(server_settings_events.TILE_SETTINGS_CHANGED, on_tile_settings_changed_regenerate)
 
@@ -164,6 +197,11 @@ def register_thumbnail_durable_handlers(registry: JobHandlerRegistry) -> None:
         activity_events.ACTIVITY_CREATED,
         THUMBNAIL_GENERATE_SUBSCRIBER_ID,
         generate_activity_thumbnail_for_event,
+    )
+    registry.register(
+        activity_events.ACTIVITY_UPDATED,
+        THUMBNAIL_REGENERATE_SUBSCRIBER_ID,
+        regenerate_activity_thumbnail_for_event,
     )
     registry.register(
         activity_events.ACTIVITY_DELETED,

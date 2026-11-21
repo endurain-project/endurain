@@ -50,6 +50,7 @@ const activityDto: ActivityDto = {
   total_timer_time: 3500,
   average_hr: 150,
   hide_hr: true,
+  hide_start_end: true,
   strava_activity_id: 999,
 }
 
@@ -73,6 +74,7 @@ describe('mapActivity', () => {
     })
     expect(activity.privacy.hideHr).toBe(true)
     expect(activity.privacy.hideMap).toBe(false)
+    expect(activity.privacy.hideStartEnd).toBe(true)
   })
 
   it('defaults a missing visibility', () => {
@@ -406,6 +408,7 @@ describe('editActivity', () => {
       hideStartTime: false,
       hideLocation: false,
       hideMap: true,
+      hideStartEnd: true,
       hideHr: false,
       hidePower: false,
       hideCadence: false,
@@ -430,6 +433,7 @@ describe('editActivity', () => {
         hide_start_time: false,
         hide_location: false,
         hide_map: true,
+        hide_start_end: true,
         hide_hr: false,
         hide_power: false,
         hide_cadence: false,
@@ -645,6 +649,7 @@ describe('conditional activity writes', () => {
         hideStartTime: false,
         hideLocation: false,
         hideMap: false,
+        hideStartEnd: false,
         hideHr: false,
         hidePower: false,
         hideCadence: false,

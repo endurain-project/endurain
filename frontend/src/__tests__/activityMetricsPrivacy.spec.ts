@@ -62,6 +62,9 @@ describe('hasHiddenFields', () => {
   it('detects any enabled hide flag', () => {
     expect(hasHiddenFields(makeActivity())).toBe(false)
     expect(hasHiddenFields(makeActivity({ privacy: { ...NO_PRIVACY, hideMap: true } }))).toBe(true)
+    expect(hasHiddenFields(makeActivity({ privacy: { ...NO_PRIVACY, hideStartEnd: true } }))).toBe(
+      true,
+    )
   })
 })
 

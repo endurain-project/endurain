@@ -37,6 +37,7 @@ import modules.activities.activity_streams.constants as activity_streams_constan
 import modules.activities.activity_streams.crud as activity_streams_crud
 import modules.activities.activity_streams.hr_zones as activity_streams_hr_zones
 import modules.activities.activity_streams.schema as activity_streams_schema
+import modules.activities.computation as activities_computation
 import modules.users.users.integration_service as users_integration
 
 logger = core_logger.get_logger(__name__)
@@ -78,9 +79,32 @@ def _filter_visible_streams(
         activity: The parent activity.
 
     Returns:
-        The streams that are not hidden.
+        The streams that are not hidden, the GPS track trimmed when the activity
+        hides its route's start and end.
     """
-    return [stream for stream in streams if not _is_stream_hidden(activity, stream.stream_type)]
+    visible = [stream for stream in streams if not _is_stream_hidden(activity, stream.stream_type)]
+    if not activity.hide_start_end:
+        return visible
+    return [trimmed for stream in visible if (trimmed := _without_start_end(stream)) is not None]
+
+
+def _without_start_end(
+    stream: activity_streams_schema.ActivityStreamsRead,
+) -> activity_streams_schema.ActivityStreamsRead | None:
+    """Cut the route's start and end off a GPS stream; other streams pass through.
+
+    Args:
+        stream: A stream of an activity that hides its route's start and end.
+
+    Returns:
+        The stream, its GPS track trimmed, or None when nothing of the track is left.
+    """
+    if stream.stream_type != activity_streams_constants.STREAM_TYPE_MAP:
+        return stream
+    waypoints = activities_computation.trim_track(stream.stream_waypoints, activities_computation.START_END_TRIM_METERS)
+    if not waypoints:
+        return None
+    return stream.model_copy(update={"stream_waypoints": waypoints})
 
 
 def _page_of(
@@ -237,10 +261,13 @@ def get_activity_stream(
     if stream is None:
         raise core_exceptions.NotFoundError("Activity stream not found")
 
-    if requester_user_id != activity.user_id and _is_stream_hidden(activity, stream.stream_type):
+    streams = [stream]
+    if requester_user_id != activity.user_id:
+        streams = _filter_visible_streams(streams, activity)
+    if not streams:
         raise core_exceptions.NotFoundError("Activity stream not found")
 
-    return _with_zones([stream], activity, db)[0]
+    return _with_zones(streams, activity, db)[0]
 
 
 def list_public_activity_streams(
@@ -305,7 +332,8 @@ def get_public_activity_stream(
     if stream is None:
         raise core_exceptions.NotFoundError("Activity stream not found")
 
-    if _is_stream_hidden(activity, stream.stream_type):
+    streams = _filter_visible_streams([stream], activity)
+    if not streams:
         raise core_exceptions.NotFoundError("Activity stream not found")
 
-    return _with_zones([stream], activity, db)[0]
+    return _with_zones(streams, activity, db)[0]

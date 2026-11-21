@@ -339,6 +339,20 @@ def set_thumbnail_key(activity_id: int, key: str | None, db: Session, *, expecte
     return activity_crud.set_activity_thumbnail_key(activity_id, key, db, expected_key=expected_key)
 
 
+def hides_route_start_end(activity_id: int, db: Session) -> bool:
+    """Return whether an activity hides its route's start and end from others.
+
+    Args:
+        activity_id: ID of the activity.
+        db: Database session.
+
+    Returns:
+        True when the activity exists and has ``hide_start_end`` set.
+    """
+    activity = activity_crud.get_activity_by_id(activity_id, db)
+    return bool(activity and activity.hide_start_end)
+
+
 def clear_all_thumbnail_keys(db: Session) -> None:
     """Stage clearing every stored activity thumbnail key.
 

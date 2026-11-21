@@ -66,7 +66,14 @@ class TestGenerateAndStoreThumbnail:
         storage = MagicMock()
 
         result = generate_and_store_thumbnail(
-            1, [{"lat": 1.0, "lon": 2.0}], storage, MagicMock(), tile_url="u", background_color="#fff", api_key=None
+            1,
+            [{"lat": 1.0, "lon": 2.0}],
+            storage,
+            MagicMock(),
+            tile_url="u",
+            background_color="#fff",
+            api_key=None,
+            hide_start_end=False,
         )
 
         assert result is None
@@ -88,7 +95,14 @@ class TestGenerateAndStoreThumbnail:
         storage = MagicMock()
 
         result = generate_and_store_thumbnail(
-            1, [{"lat": 1.0, "lon": 2.0}], storage, MagicMock(), tile_url="u", background_color="#fff", api_key=None
+            1,
+            [{"lat": 1.0, "lon": 2.0}],
+            storage,
+            MagicMock(),
+            tile_url="u",
+            background_color="#fff",
+            api_key=None,
+            hide_start_end=False,
         )
 
         assert result is None
@@ -108,7 +122,14 @@ class TestGenerateAndStoreThumbnail:
         db = MagicMock()
 
         result = generate_and_store_thumbnail(
-            1, [{"lat": 1.0, "lon": 2.0}], storage, db, tile_url="u", background_color="#fff", api_key=None
+            1,
+            [{"lat": 1.0, "lon": 2.0}],
+            storage,
+            db,
+            tile_url="u",
+            background_color="#fff",
+            api_key=None,
+            hide_start_end=False,
         )
 
         assert result == "1.webp"
@@ -120,22 +141,34 @@ class TestGenerateAndStoreThumbnail:
 
 
 class TestGenerateThumbnailForActivity:
+    @patch("modules.activities.activity_thumbnail.service.activity_integration")
     @patch("modules.activities.activity_thumbnail.service.generate_and_store_thumbnail")
     @patch("modules.activities.activity_thumbnail.service.resolve_tile_settings")
     @patch("modules.activities.activity_thumbnail.service.activity_streams_integration")
-    def test_renders_when_the_track_has_enough_waypoints(self, mock_streams, mock_settings, mock_generate):
+    def test_renders_when_the_track_has_enough_waypoints(
+        self, mock_streams, mock_settings, mock_generate, mock_activities
+    ):
         from modules.activities.activity_thumbnail import service
 
         track = [{"lat": 1.0, "lon": 2.0}, {"lat": 1.1, "lon": 2.1}]
         mock_streams.get_stream_for_derivation.return_value = MagicMock(stream_waypoints=track)
         mock_settings.return_value = ("https://tiles/{z}", "#fff", None)
         mock_generate.return_value = "key"
+        mock_activities.hides_route_start_end.return_value = True
         storage, db = MagicMock(), MagicMock()
 
         assert service.generate_thumbnail_for_activity(5, 2, storage, db) == "key"
 
+        mock_activities.hides_route_start_end.assert_called_once_with(5, db)
         mock_generate.assert_called_once_with(
-            5, track, storage, db, tile_url="https://tiles/{z}", background_color="#fff", api_key=None
+            5,
+            track,
+            storage,
+            db,
+            tile_url="https://tiles/{z}",
+            background_color="#fff",
+            api_key=None,
+            hide_start_end=True,
         )
 
     @patch("modules.activities.activity_thumbnail.service.generate_and_store_thumbnail")
@@ -157,6 +190,23 @@ class TestGenerateThumbnailForActivity:
 
         assert service.generate_thumbnail_for_activity(5, 2, MagicMock(), MagicMock()) is None
         mock_generate.assert_not_called()
+
+
+class TestRegenerateThumbnailForActivity:
+    @patch("modules.activities.activity_thumbnail.service.generate_thumbnail_for_activity")
+    @patch("modules.activities.activity_thumbnail.service.activity_integration")
+    def test_drops_the_old_thumbnail_before_drawing_the_new_one(self, mock_activities, mock_generate):
+        from modules.activities.activity_thumbnail import service
+
+        storage, db = MagicMock(), MagicMock()
+        mock_generate.return_value = None
+
+        assert service.regenerate_thumbnail_for_activity(5, 2, storage, db) is None
+
+        storage.delete.assert_called_once_with("activity_thumbnails", "5.webp")
+        mock_activities.set_thumbnail_key.assert_called_once_with(5, None, db)
+        db.commit.assert_called_once()
+        mock_generate.assert_called_once_with(5, 2, storage, db)
 
 
 class TestDeleteActivityThumbnail:
@@ -335,7 +385,7 @@ class TestGenerateMissingThumbnails:
         platform = self._platform(storage=storage)
         mock_activities.list_activities_with_thumbnail.return_value = []
 
-        act = MagicMock(id=1)
+        act = MagicMock(id=1, hide_start_end=True)
         mock_activities.list_activities_without_thumbnail.side_effect = _pages([act])
         mock_resolve.return_value = ("https://tiles/{z}/{x}/{y}.png", "#fff", None)
         mock_generate.return_value = "1.webp"
@@ -350,6 +400,7 @@ class TestGenerateMissingThumbnails:
         args = mock_generate.call_args.args
         assert args[0] == 1
         assert args[2] is storage
+        assert mock_generate.call_args.kwargs["hide_start_end"] is True
 
     @patch("modules.activities.activity_thumbnail.service.generate_and_store_thumbnail")
     @patch("modules.activities.activity_thumbnail.service.resolve_tile_settings")

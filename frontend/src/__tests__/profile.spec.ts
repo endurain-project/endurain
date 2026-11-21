@@ -49,6 +49,7 @@ function makeProfileDto(overrides: Partial<ProfileDto> = {}): ProfileDto {
     hide_activity_start_time: true,
     hide_activity_location: false,
     hide_activity_map: false,
+    hide_activity_start_end: true,
     hide_activity_hr: false,
     hide_activity_power: false,
     hide_activity_cadence: false,
@@ -85,6 +86,7 @@ describe('mapProfileDetails', () => {
     expect(profile.hasLocalPassword).toBe(true)
     expect(profile.privacy.defaultActivityVisibility).toBe('followers')
     expect(profile.privacy.hideStartTime).toBe(true)
+    expect(profile.privacy.hideStartEnd).toBe(true)
     expect(profile.privacy.hideGear).toBe(true)
   })
 
@@ -176,6 +178,7 @@ describe('profile service requests', () => {
       hideStartTime: true,
       hideLocation: true,
       hideMap: false,
+      hideStartEnd: true,
       hideHr: false,
       hidePower: false,
       hideCadence: false,
@@ -198,6 +201,7 @@ describe('profile service requests', () => {
     expect(parsed.hide_activity_location).toBe(true)
     expect(parsed.hide_activity_gear).toBe(true)
     expect(parsed.hide_activity_map).toBe(false)
+    expect(parsed.hide_activity_start_end).toBe(true)
   })
 
   it('uploadProfilePhoto posts the file as multipart form data', async () => {

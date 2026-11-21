@@ -44,6 +44,7 @@ class RouteMapRenderRequest:
     quality: int
     encoder_method: int
     request_timeout_seconds: float = _DEFAULT_TILE_REQUEST_TIMEOUT_SECONDS
+    draw_endpoints: bool = True
 
 
 class UnsafeTileServerError(ValueError):
@@ -134,12 +135,15 @@ def render(request: RouteMapRenderRequest) -> bytes:
         headers=request.headers,
     )
     static_map.add_line(Line(list(request.coordinates), request.line_color, request.line_width))
-    static_map.add_marker(CircleMarker(request.coordinates[0], request.marker_outer_color, request.marker_outer_radius))
-    static_map.add_marker(CircleMarker(request.coordinates[0], request.start_color, request.marker_inner_radius))
-    static_map.add_marker(
-        CircleMarker(request.coordinates[-1], request.marker_outer_color, request.marker_outer_radius)
-    )
-    static_map.add_marker(CircleMarker(request.coordinates[-1], request.end_color, request.marker_inner_radius))
+    if request.draw_endpoints:
+        static_map.add_marker(
+            CircleMarker(request.coordinates[0], request.marker_outer_color, request.marker_outer_radius)
+        )
+        static_map.add_marker(CircleMarker(request.coordinates[0], request.start_color, request.marker_inner_radius))
+        static_map.add_marker(
+            CircleMarker(request.coordinates[-1], request.marker_outer_color, request.marker_outer_radius)
+        )
+        static_map.add_marker(CircleMarker(request.coordinates[-1], request.end_color, request.marker_inner_radius))
 
     image = static_map.render()
     buffer = BytesIO()

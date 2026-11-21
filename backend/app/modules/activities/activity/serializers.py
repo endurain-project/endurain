@@ -226,6 +226,7 @@ def to_orm(
         hide_start_time=activity.hide_start_time,
         hide_location=activity.hide_location,
         hide_map=activity.hide_map,
+        hide_start_end=activity.hide_start_end or False,
         hide_hr=activity.hide_hr,
         hide_power=activity.hide_power,
         hide_cadence=activity.hide_cadence,

@@ -14,6 +14,7 @@ from sqlalchemy.orm import Session
 
 import core.pagination as core_pagination
 import modules.activities.activity.integration_service as activity_integration
+import modules.activities.activity.schema as activity_schema
 import modules.activities.activity_laps.crud as activity_laps_crud
 import modules.activities.activity_laps.schema as activity_laps_schema
 
@@ -26,6 +27,30 @@ _COLLECTION: activity_integration.ChildCollection[activity_laps_schema.ActivityL
         build=activity_laps_schema.ActivityLapsPage.build,
     )
 )
+
+_POSITION_FIELDS = ("start_position_lat", "start_position_long", "end_position_lat", "end_position_long")
+
+
+def _without_positions(
+    page: activity_laps_schema.ActivityLapsPage,
+    activity: activity_schema.ActivityRead | None,
+) -> activity_laps_schema.ActivityLapsPage:
+    """Clear the lap positions of an activity that hides its route's start and end.
+
+    The first lap starts and the last lap ends where the route does, so the
+    positions would give away what the trimmed map hides.
+
+    Args:
+        page: A page of laps read for a non-owner.
+        activity: The parent activity, or None when it is not visible.
+
+    Returns:
+        The page, with every lap position cleared when the parent hides them.
+    """
+    if activity is None or not activity.hide_start_end:
+        return page
+    items = [lap.model_copy(update=dict.fromkeys(_POSITION_FIELDS)) for lap in page.items]
+    return page.model_copy(update={"items": items})
 
 
 def list_activity_laps(
@@ -51,13 +76,19 @@ def list_activity_laps(
         indistinguishable, so the endpoint cannot be used to probe which
         activities exist.
     """
-    return _COLLECTION.list_for_requester(
+    page = _COLLECTION.list_for_requester(
         activity_id,
         requester_user_id,
         db,
         page_number=page_number,
         num_records=num_records,
     )
+    if not page.items:
+        return page
+    activity = activity_integration.resolve_readable_parent(activity_id, requester_user_id, db)
+    if activity is not None and activity.user_id == requester_user_id:
+        return page
+    return _without_positions(page, activity)
 
 
 def list_public_activity_laps(
@@ -79,4 +110,7 @@ def list_public_activity_laps(
         The page envelope, empty when the activity is not found, hidden, or not
         publicly visible.
     """
-    return _COLLECTION.list_public(activity_id, db, page_number=page_number, num_records=num_records)
+    page = _COLLECTION.list_public(activity_id, db, page_number=page_number, num_records=num_records)
+    if not page.items:
+        return page
+    return _without_positions(page, activity_integration.resolve_public_parent(activity_id, db))

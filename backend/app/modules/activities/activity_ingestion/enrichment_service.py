@@ -43,6 +43,7 @@ def build_activity_privacy_kwargs(
         "hide_start_time": ups.hide_activity_start_time or False,
         "hide_location": ups.hide_activity_location or False,
         "hide_map": ups.hide_activity_map or False,
+        "hide_start_end": ups.hide_activity_start_end or False,
         "hide_hr": ups.hide_activity_hr or False,
         "hide_power": ups.hide_activity_power or False,
         "hide_cadence": ups.hide_activity_cadence or False,

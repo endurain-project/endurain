@@ -142,6 +142,7 @@ async def read_users_me(
             "hide_activity_start_time": (user_privacy_settings.hide_activity_start_time),
             "hide_activity_location": (user_privacy_settings.hide_activity_location),
             "hide_activity_map": (user_privacy_settings.hide_activity_map),
+            "hide_activity_start_end": (user_privacy_settings.hide_activity_start_end),
             "hide_activity_hr": user_privacy_settings.hide_activity_hr,
             "hide_activity_power": (user_privacy_settings.hide_activity_power),
             "hide_activity_cadence": (user_privacy_settings.hide_activity_cadence),

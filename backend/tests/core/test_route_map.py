@@ -1,5 +1,6 @@
 """Tests for the SSRF-safe static route-map renderer."""
 
+import dataclasses
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -44,6 +45,20 @@ class TestRenderRouteMap:
         assert mock_static_map.call_args.kwargs["tile_request_timeout"] == 10.0
         assert image.save.call_args.args[1] == "WEBP"
         assert image.save.call_args.kwargs == {"quality": 75, "method": 6}
+        assert mock_static_map.return_value.add_marker.call_count == 4
+
+    @patch("core.route_map._GuardedStaticMap")
+    @patch(
+        "core.route_map.core_network.resolve_url_addresses",
+        return_value=(("203.0.113.10",), None),
+    )
+    def test_draws_no_marker_when_the_endpoints_are_hidden(self, _mock_resolve, mock_static_map):
+        mock_static_map.return_value.render.return_value = MagicMock()
+
+        render(dataclasses.replace(_request(), draw_endpoints=False))
+
+        mock_static_map.return_value.add_line.assert_called_once()
+        mock_static_map.return_value.add_marker.assert_not_called()
 
     @patch("core.route_map._GuardedStaticMap")
     @patch(

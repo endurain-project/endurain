@@ -149,6 +149,7 @@ def generate_and_store_thumbnail(
     tile_url: str,
     background_color: str,
     api_key: str | None,
+    hide_start_end: bool,
 ) -> str | None:
     """Render, persist, and record an activity thumbnail.
 
@@ -163,6 +164,8 @@ def generate_and_store_thumbnail(
         tile_url: Tile URL template.
         background_color: Map canvas background color.
         api_key: Optional tile-provider API key.
+        hide_start_end: Whether the activity hides its route's start and end. The
+            thumbnail is shared by every viewer, so it is then drawn without them.
 
     Returns:
         The stored storage key, or ``None`` when rendering was skipped/failed.
@@ -177,6 +180,7 @@ def generate_and_store_thumbnail(
         background_color=background_color,
         api_key=api_key,
         user_agent=f"Endurain {core_config.API_VERSION} - StaticMap backend thumbnail generator",
+        hide_start_end=hide_start_end,
     )
     if data is None:
         return None
@@ -243,7 +247,36 @@ def generate_thumbnail_for_activity(
         tile_url=tile_url,
         background_color=background_color,
         api_key=api_key,
+        hide_start_end=activity_integration.hides_route_start_end(activity_id, db),
     )
+
+
+def regenerate_thumbnail_for_activity(
+    activity_id: int,
+    user_id: int,
+    storage: platform_providers.StorageProvider,
+    db: Session,
+) -> str | None:
+    """Replace an activity's thumbnail after a change to what it must show.
+
+    The old thumbnail is deleted first: when the new one cannot be drawn (a route
+    too short to keep once its start and end are cut), the old picture of the
+    whole route must not stay behind.
+
+    Args:
+        activity_id: The activity whose thumbnail to replace.
+        user_id: The owning user, recorded when the generation is skipped.
+        storage: The blob-storage provider.
+        db: Database session.
+
+    Returns:
+        The stored storage key, or ``None`` when no thumbnail could be drawn.
+    """
+    delete_activity_thumbnail(activity_id, storage)
+    activity_integration.set_thumbnail_key(activity_id, None, db)
+    db.commit()
+    logger.info("Thumbnail cleared for a redraw", extra=core_logger.context(activity_id=activity_id))
+    return generate_thumbnail_for_activity(activity_id, user_id, storage, db)
 
 
 def read_activity_thumbnail(activity_id: int, token: str, storage: platform_providers.StorageProvider) -> bytes:
@@ -484,6 +517,7 @@ def _run_missing_thumbnail_generation(storage: platform_providers.StorageProvide
                     tile_url=tile_url,
                     background_color=background_color,
                     api_key=api_key,
+                    hide_start_end=activity.hide_start_end,
                 )
             except Exception as err:
                 # One bad activity must not stop the rest of the pass.

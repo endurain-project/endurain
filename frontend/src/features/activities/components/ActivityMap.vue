@@ -13,8 +13,10 @@ const props = withDefaults(
     points: GeoPoint[]
     /** Whether the map responds to pan/zoom. */
     interactive?: boolean
+    /** Whether to mark the track ends as the start and finish. */
+    showEndpoints?: boolean
   }>(),
-  { interactive: true },
+  { interactive: true, showEndpoints: true },
 )
 
 const ready = useRenderProvidersReady()
@@ -23,6 +25,9 @@ let instance: MapInstance | null = null
 
 /** Resolves the start/finish emphasis points from the track ends. */
 function endpoints(points: GeoPoint[]): { start?: GeoPoint; finish?: GeoPoint } {
+  if (!props.showEndpoints) {
+    return {}
+  }
   const first = points[0]
   const last = points[points.length - 1]
   return first && last ? { start: first, finish: last } : {}
