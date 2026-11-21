@@ -36,6 +36,8 @@ class ParseState:
 
     timezone: str
     activity_name: str = activity_constants.DEFAULT_ACTIVITY_NAME
+    #: Whether the caller named the activity, so the file's own name does not replace it.
+    activity_name_given: bool = False
     activity_type: str | int = "Workout"
     activity_description: str | None = None
     calories: int | None = None
@@ -252,6 +254,7 @@ def _init_parsing_state(
     return ParseState(
         timezone=timezone,
         activity_name=activity_name_input or activity_constants.DEFAULT_ACTIVITY_NAME,
+        activity_name_given=bool(activity_name_input),
     )
 
 
@@ -267,7 +270,8 @@ def _process_track_metadata(
         gpx: Root GPX object.
         state: Mutable parse state.
     """
-    state.activity_name = track.name or gpx.name or activity_constants.DEFAULT_ACTIVITY_NAME
+    if not state.activity_name_given:
+        state.activity_name = track.name or gpx.name or activity_constants.DEFAULT_ACTIVITY_NAME
     state.activity_description = track.description or gpx.description or None
     state.activity_type = track.type or "Workout"
 

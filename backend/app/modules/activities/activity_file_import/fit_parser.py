@@ -728,6 +728,8 @@ class FitParseState:
     """
 
     activity_name: str = activity_constants.DEFAULT_ACTIVITY_NAME
+    #: Whether the caller named the activity, so the file's workout name does not replace it.
+    activity_name_given: bool = False
     time_offset: int | None = 0
     activity_time_offset: int | None = None
     last_waypoint_time: datetime | None = None
@@ -1051,7 +1053,8 @@ def _dispatch_data_message(frame: fitdecode.FitDataMessage, state: FitParseState
     if name == "session":
         _handle_session_frame(frame, state)
     elif name == "workout":
-        state.activity_name = activity_file_import_fit_frames.parse_frame_workout(frame)
+        if not state.activity_name_given:
+            state.activity_name = activity_file_import_fit_frames.parse_frame_workout(frame)
     elif name == "lap":
         state.laps.append(activity_file_import_fit_frames.parse_frame_lap(frame))
     elif name in {"split", "unknown_312"}:
@@ -1102,6 +1105,7 @@ def parse_fit_file(file: str, activity_name_input: str | None = None) -> FitPars
         logger.debug("FIT parse start", extra=core_logger.context(file=Path(file).name))
         state = FitParseState(
             activity_name=activity_name_input or activity_constants.DEFAULT_ACTIVITY_NAME,
+            activity_name_given=bool(activity_name_input),
         )
 
         with open(file, "rb") as fit_file:
