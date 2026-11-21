@@ -1,987 +1,683 @@
-"""Tests for the Strava client service helpers."""
+"""The Strava client: stored credentials, token refresh, 401 confirmation and rate limits, against a fake Strava."""
 
-import json
+import uuid
 from datetime import UTC, datetime, timedelta
-from unittest.mock import MagicMock, Mock
 
 import jasil.runtime as platform_runtime
 import pytest
 import requests
-import sqlalchemy.exc
 from stravalib.exc import AccessUnauthorized, ObjectNotFound, RateLimitExceeded
 from stravalib.exc import Fault as StravaFault
 
+import core.cryptography as core_cryptography
+import core.database as core_database
 import core.exceptions as core_exceptions
-import modules.strava.client_service as strava_utils
+import modules.notifications.constants as notifications_constants
+import modules.strava.audit_actions as strava_audit_actions
+import modules.strava.client_service as strava_client_service
 import modules.strava.rate_limit_store as strava_rate_limit_store
-from tests._helpers.auth import MOCK_USER_ID
+import modules.users.users_integrations.integration_service as user_integrations_integration
+from tests._factories import strava as strava_factories
+from tests._factories.users import make_user
 
-# ---------------------------------------------------------------------------
-# Helpers
-# ---------------------------------------------------------------------------
+_REVOKE = strava_audit_actions.ACCOUNT_REVOKE.id
+_UNLINKED = notifications_constants.NotificationType.STRAVA_TOKEN_EXPIRED.stored
 
 
-def _make_strava_fault(status_code: int, body: bytes | None = None) -> StravaFault:
-    """Return a StravaFault whose .response.status_code equals *status_code*, with *body* as its content."""
-    if body is None:
-        response = Mock()
-        response.headers = {}
-    else:
-        response = requests.Response()
-        response._content = body
-    response.status_code = status_code
+def _linked(db, **link):
+    user = make_user(db)
+    strava_factories.link_strava(db, user.id, **link)
+    db.flush()
+    return user
+
+
+def _stored(user_id):
+    """Read a user's integrations in a session of its own, so no cached row hides what the code under test wrote."""
+    with core_database.SessionLocal() as session:
+        return user_integrations_integration.require_user_integrations(user_id, session)
+
+
+def _plain(stored: str | None) -> str | None:
+    return None if stored is None else core_cryptography.decrypt_token_fernet(stored)
+
+
+def _refresh_answer(access: str = "new-access", refresh: str = "new-refresh"):
+    return strava_factories.ok(strava_factories.token_payload(access, refresh))
+
+
+def _fault(status: int, *, headers: dict[str, str] | None = None) -> StravaFault:
+    response = requests.Response()
+    response.status_code = status
+    response.headers.update(headers or {})
     fault = StravaFault()
     fault.response = response
     return fault
 
 
-# ---------------------------------------------------------------------------
-# is_strava_not_found_error
-# ---------------------------------------------------------------------------
+class TestErrorClassification:
+    @pytest.mark.parametrize(
+        ("error", "rate_limit", "unauthorized", "not_found", "client_error"),
+        [
+            (_fault(429), True, False, False, True),
+            (RateLimitExceeded("limit"), True, False, False, False),
+            (_fault(401), False, True, False, True),
+            (AccessUnauthorized(), False, True, False, False),
+            (_fault(404), False, False, True, True),
+            (ObjectNotFound(), False, False, True, False),
+            (_fault(500), False, False, False, False),
+            (StravaFault(), False, False, False, False),
+            (RuntimeError("429 Too Many Requests"), False, False, False, False),
+        ],
+        ids=["429", "rate-limit-exc", "401", "unauthorized-exc", "404", "not-found-exc", "500", "no-response", "text"],
+    )
+    def test_an_error_is_classified_by_what_strava_answered_never_by_its_message(
+        self, error, rate_limit, unauthorized, not_found, client_error
+    ):
+        assert strava_client_service.is_strava_rate_limit_error(error) is rate_limit
+        assert strava_client_service.is_strava_unauthorized_error(error) is unauthorized
+        assert strava_client_service.is_strava_not_found_error(error) is not_found
+        assert strava_client_service.is_strava_client_error(error) is client_error
 
 
-class TestIsStravaNotFoundError:
-    """Unit tests for strava_utils.is_strava_not_found_error."""
+class TestStoredCredentials:
+    def test_the_client_id_and_secret_are_decrypted(self, db):
+        user = _linked(db)
 
-    def test_strava_fault_404_returns_true(self):
-        """StravaFault with status_code 404 is detected as a not-found error."""
-        err = _make_strava_fault(404)
-        assert strava_utils.is_strava_not_found_error(err) is True
+        integrations = _stored(user.id)
 
-    def test_strava_fault_non_404_returns_false(self):
-        """StravaFault with a non-404 status_code is not a not-found error."""
-        err = _make_strava_fault(500)
-        assert strava_utils.is_strava_not_found_error(err) is False
+        assert strava_client_service.get_client_id(integrations) == strava_factories.CLIENT_ID
+        assert strava_client_service.get_client_secret(integrations) == strava_factories.CLIENT_SECRET
 
-    def test_strava_fault_no_response_falls_back_to_str(self):
-        """StravaFault with no response attribute falls back to string check."""
-        fault = StravaFault()
-        # No .response set — string representation is empty → False
-        assert strava_utils.is_strava_not_found_error(fault) is False
+    def test_a_user_without_a_stored_client_is_told_to_reconnect(self, db):
+        user = _linked(db, client_id=None)
 
-    def test_object_not_found_returns_true(self):
-        assert strava_utils.is_strava_not_found_error(ObjectNotFound()) is True
-
-    def test_message_text_alone_is_not_enough(self):
-        """An id or message that merely contains the digits must not read as a 404."""
-        assert strava_utils.is_strava_not_found_error(RuntimeError("activity 14042 failed: not found")) is False
-
-    def test_plain_exception_unrelated_returns_false(self):
-        """Generic exception with an unrelated message is not detected."""
-        err = ValueError("Something completely different went wrong")
-        assert strava_utils.is_strava_not_found_error(err) is False
-
-
-# ---------------------------------------------------------------------------
-# is_strava_rate_limit_error
-# ---------------------------------------------------------------------------
-
-
-class TestIsStravaRateLimitError:
-    """Unit tests for strava_utils.is_strava_rate_limit_error."""
-
-    def test_strava_fault_429_returns_true(self):
-        """StravaFault with status_code 429 is detected as a rate-limit error."""
-        err = _make_strava_fault(429)
-        assert strava_utils.is_strava_rate_limit_error(err) is True
-
-    def test_strava_fault_non_429_returns_false(self):
-        """StravaFault with a non-429 status_code is not a rate-limit error."""
-        err = _make_strava_fault(404)
-        assert strava_utils.is_strava_rate_limit_error(err) is False
-
-    def test_rate_limit_exceeded_returns_true(self):
-        assert strava_utils.is_strava_rate_limit_error(RateLimitExceeded("limit")) is True
-
-    def test_message_text_alone_is_not_enough(self):
-        """An activity id that merely contains 429 must not mark the application rate limited."""
-        assert strava_utils.is_strava_rate_limit_error(RuntimeError("activity 14290429 failed")) is False
-
-    def test_plain_exception_unrelated_returns_false(self):
-        """Generic exception with an unrelated message is not detected."""
-        err = ValueError("Network timeout")
-        assert strava_utils.is_strava_rate_limit_error(err) is False
-
-
-class TestGetClientId:
-    def test_returns_the_decrypted_client_id(self, monkeypatch):
-        monkeypatch.setattr(strava_utils.core_cryptography, "decrypt_token_fernet", lambda value: f"plain-{value}")
-
-        assert strava_utils.get_client_id(Mock(strava_client_id="enc")) == "plain-enc"
-
-    def test_a_missing_client_id_fails_loudly(self):
         with pytest.raises(core_exceptions.DependencyFailedError):
-            strava_utils.get_client_id(Mock(strava_client_id=None))
-
-
-class TestGetClientSecret:
-    def test_returns_the_decrypted_client_secret(self, monkeypatch):
-        monkeypatch.setattr(strava_utils.core_cryptography, "decrypt_token_fernet", lambda value: f"plain-{value}")
-
-        assert strava_utils.get_client_secret(Mock(strava_client_secret="enc")) == "plain-enc"
-
-    def test_a_missing_client_secret_fails_loudly(self):
+            strava_client_service.get_client_id(_stored(user.id))
         with pytest.raises(core_exceptions.DependencyFailedError):
-            strava_utils.get_client_secret(Mock(strava_client_secret=None))
+            strava_client_service.get_client_secret(_stored(user.id))
+
+    def test_the_client_carries_the_stored_tokens_and_their_expiry(self, db):
+        user = _linked(db, expires_in=timedelta(hours=3))
+        integrations = _stored(user.id)
+
+        client = strava_client_service.create_strava_client(integrations)
+
+        assert (client.access_token, client.refresh_token) == (
+            strava_factories.ACCESS_TOKEN,
+            strava_factories.REFRESH_TOKEN,
+        )
+        assert client.token_expires == int(integrations.strava_token_expires_at.timestamp())
+
+    def test_a_user_who_is_not_linked_has_no_integrations_to_validate(self, db):
+        user = make_user(db)
+
+        assert strava_client_service.fetch_user_integrations_and_validate_token(user.id, db) is None
+
+    def test_a_user_without_an_integrations_row_is_not_found(self, db):
+        with pytest.raises(core_exceptions.NotFoundError):
+            strava_client_service.fetch_user_integrations_and_validate_token(uuid.uuid4(), db)
 
 
 class TestRefreshUserStravaToken:
-    @pytest.fixture
-    def rate_limits(self):
-        return strava_rate_limit_store.StravaRateLimitStore(platform_runtime.get_state())
+    def test_a_token_far_from_expiry_is_left_alone(self, db, strava, rate_limits):
+        user = _linked(db, expires_in=timedelta(hours=6))
 
-    def _integrations(self, expires_in_minutes: int):
-        from datetime import UTC, datetime, timedelta
+        strava_client_service.refresh_user_strava_token(user.id, rate_limits)
 
-        return Mock(
-            user_id=MOCK_USER_ID,
-            strava_token="t",
-            strava_refresh_token="r",
-            strava_client_id="123",
-            strava_client_secret="s",
-            strava_token_expires_at=datetime.now(UTC) + timedelta(minutes=expires_in_minutes),
-        )
+        assert strava.calls == []
 
-    @pytest.fixture(autouse=True)
-    def _session(self, monkeypatch):
-        monkeypatch.setattr(strava_utils.core_database, "SessionLocal", lambda: MagicMock())
+    def test_an_unlinked_user_is_left_alone(self, db, strava, rate_limits):
+        user = make_user(db)
 
-    def test_a_token_far_from_expiry_is_left_alone(self, monkeypatch, rate_limits):
-        monkeypatch.setattr(
-            strava_utils.user_integrations_integration,
-            "get_user_integrations",
-            Mock(return_value=self._integrations(expires_in_minutes=600)),
-        )
-        create_client = Mock()
-        monkeypatch.setattr(strava_utils, "create_strava_client", create_client)
+        strava_client_service.refresh_user_strava_token(user.id, rate_limits)
 
-        strava_utils.refresh_user_strava_token(MOCK_USER_ID, rate_limits)
+        assert strava.calls == []
 
-        create_client.assert_not_called()
-
-    def test_an_expiring_token_is_refreshed_and_stored_with_no_session_open_for_the_call(
-        self, monkeypatch, rate_limits, caplog
+    def test_an_expiring_token_is_refreshed_with_the_stored_credentials_and_the_new_tokens_stored(
+        self, db, strava, rate_limits
     ):
-        monkeypatch.setattr(
-            strava_utils.user_integrations_integration,
-            "get_user_integrations",
-            Mock(return_value=self._integrations(expires_in_minutes=10)),
-        )
-        monkeypatch.setattr(strava_utils.core_cryptography, "decrypt_token_fernet", lambda value: value)
-        open_sessions = 0
-        during_call: list[int] = []
+        user = _linked(db, expires_in=timedelta(minutes=30))
+        strava.on("POST", "/oauth/token", _refresh_answer())
 
-        class _Session:
-            def __enter__(self):
-                nonlocal open_sessions
-                open_sessions += 1
-                return MagicMock()
+        strava_client_service.refresh_user_strava_token(user.id, rate_limits)
 
-            def __exit__(self, *_exc):
-                nonlocal open_sessions
-                open_sessions -= 1
-                return False
+        (call,) = strava.made("POST", "/oauth/token")
+        assert call.form == {
+            "client_id": strava_factories.CLIENT_ID,
+            "client_secret": strava_factories.CLIENT_SECRET,
+            "refresh_token": strava_factories.REFRESH_TOKEN,
+            "grant_type": "refresh_token",
+        }
+        stored = _stored(user.id)
+        assert (_plain(stored.strava_token), _plain(stored.strava_refresh_token)) == ("new-access", "new-refresh")
+        assert stored.strava_token_expires_at > datetime.now(UTC) + timedelta(hours=1)
+        assert rate_limits.claim_token_refresh(user.id) is True, "the claim is released once the refresh is over"
 
-        monkeypatch.setattr(strava_utils.core_database, "SessionLocal", _Session)
-        client = Mock()
-        client.refresh_access_token.side_effect = lambda **_k: (
-            during_call.append(open_sessions) or {"access_token": "n"}
-        )
-        monkeypatch.setattr(strava_utils, "create_strava_client", Mock(return_value=client))
-        replace = Mock(return_value=True)
-        monkeypatch.setattr(
-            strava_utils.user_integrations_integration, "replace_strava_tokens_if_refresh_token", replace
-        )
+    def test_no_database_session_is_open_while_strava_is_called(self, committed_sessions, strava, rate_limits):
+        with committed_sessions() as db:
+            user = _linked(db, expires_in=timedelta(minutes=30))
+            db.commit()
+        open_connections = []
 
-        with caplog.at_level("DEBUG", logger=strava_utils.logger.name):
-            strava_utils.refresh_user_strava_token(MOCK_USER_ID, rate_limits)
+        def answer(_call):
+            open_connections.append(core_database.engine.pool.checkedout())
+            return _refresh_answer()
 
-        assert during_call == [0]
-        # A routine refresh, logged as Garmin Connect logs its own.
-        refreshed = [record for record in caplog.records if record.getMessage() == "Strava tokens refreshed"]
-        assert [record.levelname for record in refreshed] == ["DEBUG"]
-        replace.assert_called_once()
-        assert replace.call_args.args[:3] == (MOCK_USER_ID, "r", {"access_token": "n"})
+        strava.on("POST", "/oauth/token", answer)
 
-    def test_tokens_changed_since_the_read_are_not_overwritten(self, monkeypatch, rate_limits):
-        monkeypatch.setattr(
-            strava_utils.user_integrations_integration,
-            "get_user_integrations",
-            Mock(return_value=self._integrations(expires_in_minutes=10)),
-        )
-        monkeypatch.setattr(strava_utils.core_cryptography, "decrypt_token_fernet", lambda value: value)
-        client = Mock()
-        client.refresh_access_token.return_value = {"access_token": "n"}
-        monkeypatch.setattr(strava_utils, "create_strava_client", Mock(return_value=client))
-        db = MagicMock()
-        monkeypatch.setattr(
-            strava_utils.core_database,
-            "SessionLocal",
-            lambda: MagicMock(__enter__=lambda s: db, __exit__=lambda *a: False),
-        )
-        monkeypatch.setattr(
-            strava_utils.user_integrations_integration,
-            "replace_strava_tokens_if_refresh_token",
-            Mock(return_value=False),
-        )
+        strava_client_service.refresh_user_strava_token(user.id, rate_limits)
 
-        strava_utils.refresh_user_strava_token(MOCK_USER_ID, rate_limits)
+        assert open_connections == [0]
 
-        db.commit.assert_not_called()
+    def test_tokens_another_process_stored_meanwhile_are_not_overwritten(self, db, strava, rate_limits):
+        user = _linked(db, expires_in=timedelta(minutes=30))
 
-    def test_a_rate_limited_refresh_marks_the_limit_and_returns(self, monkeypatch, rate_limits):
-        monkeypatch.setattr(
-            strava_utils.user_integrations_integration,
-            "get_user_integrations",
-            Mock(return_value=self._integrations(expires_in_minutes=10)),
-        )
-        monkeypatch.setattr(strava_utils.core_cryptography, "decrypt_token_fernet", lambda value: value)
-        client = Mock()
-        client.refresh_access_token.side_effect = _make_strava_fault(429)
-        monkeypatch.setattr(strava_utils, "create_strava_client", Mock(return_value=client))
-        replace = Mock()
-        monkeypatch.setattr(
-            strava_utils.user_integrations_integration, "replace_strava_tokens_if_refresh_token", replace
-        )
+        def relinked_meanwhile(_call):
+            with core_database.SessionLocal() as session:
+                user_integrations_integration.link_strava_account(
+                    user.id, strava_factories.token_payload("relinked-access", "relinked-refresh"), session
+                )
+                session.commit()
+            return _refresh_answer()
 
-        strava_utils.refresh_user_strava_token(MOCK_USER_ID, rate_limits)
+        strava.on("POST", "/oauth/token", relinked_meanwhile)
 
-        assert rate_limits.is_rate_limited("123") is True
-        assert rate_limits.is_rate_limited("another-app") is False
-        replace.assert_not_called()
+        strava_client_service.refresh_user_strava_token(user.id, rate_limits)
 
-    def test_another_apps_limit_does_not_skip_the_refresh(self, monkeypatch, rate_limits):
-        monkeypatch.setattr(
-            strava_utils.user_integrations_integration,
-            "get_user_integrations",
-            Mock(return_value=self._integrations(expires_in_minutes=10)),
-        )
-        monkeypatch.setattr(strava_utils.core_cryptography, "decrypt_token_fernet", lambda value: value)
-        rate_limits.mark_rate_limited("another-app", is_long_term=True)
-        client = Mock()
-        client.refresh_access_token.return_value = {"access_token": "n"}
-        monkeypatch.setattr(strava_utils, "create_strava_client", Mock(return_value=client))
-        monkeypatch.setattr(strava_utils.user_integrations_integration, "link_strava_account", Mock())
+        assert _plain(_stored(user.id).strava_refresh_token) == "relinked-refresh"
 
-        strava_utils.refresh_user_strava_token(MOCK_USER_ID, rate_limits)
+    def test_a_rate_limited_refresh_marks_the_limit_and_leaves_the_tokens(self, db, strava, rate_limits):
+        user = _linked(db, expires_in=timedelta(minutes=30))
+        strava.on("POST", "/oauth/token", strava_factories.rate_limited())
 
-        client.refresh_access_token.assert_called_once()
+        strava_client_service.refresh_user_strava_token(user.id, rate_limits)
 
-    def test_a_limited_app_skips_the_refresh(self, monkeypatch, rate_limits):
-        monkeypatch.setattr(
-            strava_utils.user_integrations_integration,
-            "get_user_integrations",
-            Mock(return_value=self._integrations(expires_in_minutes=10)),
-        )
-        monkeypatch.setattr(strava_utils.core_cryptography, "decrypt_token_fernet", lambda value: value)
-        rate_limits.mark_rate_limited("123", is_long_term=True)
-        create_client = Mock()
-        monkeypatch.setattr(strava_utils, "create_strava_client", create_client)
+        assert rate_limits.is_rate_limited(strava_factories.CLIENT_ID) is True
+        assert _plain(_stored(user.id).strava_refresh_token) == strava_factories.REFRESH_TOKEN
 
-        strava_utils.refresh_user_strava_token(MOCK_USER_ID, rate_limits)
+    def test_a_limited_application_skips_the_refresh_but_another_application_does_not(self, db, strava, rate_limits):
+        limited = _linked(db, expires_in=timedelta(minutes=30))
+        other = _linked(db, expires_in=timedelta(minutes=30), client_id="777")
+        rate_limits.mark_rate_limited(strava_factories.CLIENT_ID)
+        strava.on("POST", "/oauth/token", _refresh_answer())
 
-        create_client.assert_not_called()
+        strava_client_service.refresh_user_strava_token(limited.id, rate_limits)
+        assert strava.calls == []
+        strava_client_service.refresh_user_strava_token(other.id, rate_limits)
 
-    def test_an_unexpected_failure_is_logged_not_raised(self, monkeypatch, rate_limits):
-        """The sync that follows fails visibly if the token really is unusable."""
-        monkeypatch.setattr(
-            strava_utils.user_integrations_integration,
-            "get_user_integrations",
-            Mock(return_value=self._integrations(expires_in_minutes=10)),
-        )
-        monkeypatch.setattr(strava_utils.core_cryptography, "decrypt_token_fernet", lambda value: value)
-        client = Mock()
-        client.refresh_access_token.side_effect = ValueError("bad refresh token")
-        monkeypatch.setattr(strava_utils, "create_strava_client", Mock(return_value=client))
+        assert [call.form["client_id"] for call in strava.calls] == ["777"]
 
-        strava_utils.refresh_user_strava_token(MOCK_USER_ID, rate_limits)  # must not raise
+    def test_a_failed_refresh_of_a_token_still_valid_is_left_to_the_sync(self, db, strava, rate_limits):
+        user = _linked(db, expires_in=timedelta(minutes=30))
+        strava.on("POST", "/oauth/token", strava_factories.refused(500))
 
-    def test_a_failed_store_of_the_rotated_tokens_is_logged_as_an_error_not_raised(
-        self, monkeypatch, rate_limits, caplog
+        strava_client_service.refresh_user_strava_token(user.id, rate_limits)
+
+        assert _plain(_stored(user.id).strava_refresh_token) == strava_factories.REFRESH_TOKEN
+        assert rate_limits.claim_token_refresh(user.id) is True, "a failed refresh still releases the claim"
+
+    def test_an_expired_token_that_could_not_be_refreshed_is_never_handed_to_the_sync(self, db, strava, rate_limits):
+        user = _linked(db, expires_in=timedelta(minutes=-5))
+        strava.on("POST", "/oauth/token", strava_factories.refused(500))
+
+        with pytest.raises(core_exceptions.DependencyFailedError):
+            strava_client_service.refresh_user_strava_token(user.id, rate_limits)
+
+    def test_an_expired_token_is_not_handed_to_the_sync_while_the_application_is_rate_limited(
+        self, db, strava, rate_limits
     ):
-        """Strava invalidated the old refresh token, so the loss is named; the sync then fails visibly and unlinks."""
-        monkeypatch.setattr(
-            strava_utils.user_integrations_integration,
-            "get_user_integrations",
-            Mock(return_value=self._integrations(expires_in_minutes=10)),
-        )
-        monkeypatch.setattr(strava_utils.core_cryptography, "decrypt_token_fernet", lambda value: value)
-        client = Mock()
-        client.refresh_access_token.return_value = {"access_token": "n"}
-        monkeypatch.setattr(strava_utils, "create_strava_client", Mock(return_value=client))
-        db = MagicMock()
-        monkeypatch.setattr(
-            strava_utils.core_database,
-            "SessionLocal",
-            lambda: MagicMock(__enter__=lambda s, db=db: db, __exit__=lambda *a: False),
-        )
-        monkeypatch.setattr(
-            strava_utils.user_integrations_integration,
-            "replace_strava_tokens_if_refresh_token",
-            Mock(side_effect=sqlalchemy.exc.OperationalError("update", {}, Exception("database down"))),
-        )
-
-        with caplog.at_level("ERROR"):
-            strava_utils.refresh_user_strava_token(MOCK_USER_ID, rate_limits)  # must not raise
-
-        assert any("could not be stored" in record.getMessage() for record in caplog.records)
-
-    def test_a_bug_while_storing_the_rotated_tokens_is_not_swallowed(self, monkeypatch, rate_limits, caplog):
-        """Strava invalidated the old refresh token, so the loss is named; the sync then fails visibly and unlinks."""
-        monkeypatch.setattr(
-            strava_utils.user_integrations_integration,
-            "get_user_integrations",
-            Mock(return_value=self._integrations(expires_in_minutes=10)),
-        )
-        monkeypatch.setattr(strava_utils.core_cryptography, "decrypt_token_fernet", lambda value: value)
-        client = Mock()
-        client.refresh_access_token.return_value = {"access_token": "n"}
-        monkeypatch.setattr(strava_utils, "create_strava_client", Mock(return_value=client))
-        db = MagicMock()
-        monkeypatch.setattr(
-            strava_utils.core_database,
-            "SessionLocal",
-            lambda: MagicMock(__enter__=lambda s, db=db: db, __exit__=lambda *a: False),
-        )
-        monkeypatch.setattr(
-            strava_utils.user_integrations_integration,
-            "replace_strava_tokens_if_refresh_token",
-            Mock(side_effect=RuntimeError("bug")),
-        )
-
-        with pytest.raises(RuntimeError):
-            strava_utils.refresh_user_strava_token(MOCK_USER_ID, rate_limits)
-
-
-class TestRaiseIfRateLimited:
-    def test_a_rate_limit_is_recorded_and_refused(self):
-        rate_limits = MagicMock()
-
-        with pytest.raises(core_exceptions.TooManyRequestsError) as refused:
-            strava_utils.raise_if_rate_limited(_make_strava_fault(429), "c", rate_limits)
-
-        assert refused.value.scope == core_exceptions.TooManyRequestsScope.PROVIDER
-        rate_limits.mark_rate_limited.assert_called_once_with("c", is_long_term=False)
-
-    @pytest.mark.parametrize(
-        ("headers", "long_term"),
-        [
-            ({"X-RateLimit-Limit": "200,2000", "X-RateLimit-Usage": "205,1500"}, False),
-            ({"X-RateLimit-Limit": "200,2000", "X-RateLimit-Usage": "40,2001"}, True),
-            ({"x-ratelimit-limit": "200,2000", "x-ratelimit-usage": "40,2000"}, True),
-            ({"X-ReadRateLimit-Limit": "100,1000", "X-ReadRateLimit-Usage": "20,1000"}, True),
-            ({"X-RateLimit-Limit": "garbage", "X-RateLimit-Usage": "1"}, False),
-            ({}, False),
-        ],
-    )
-    def test_the_daily_limit_is_read_from_the_response_headers(self, headers, long_term):
-        rate_limits = MagicMock()
-        fault = _make_strava_fault(429)
-        fault.response.headers = headers
-        fault.args = ("the text says daily but the headers decide",)
+        user = _linked(db, expires_in=timedelta(minutes=-5))
+        rate_limits.mark_rate_limited(strava_factories.CLIENT_ID)
 
         with pytest.raises(core_exceptions.TooManyRequestsError):
-            strava_utils.raise_if_rate_limited(fault, "c", rate_limits)
+            strava_client_service.refresh_user_strava_token(user.id, rate_limits)
 
-        rate_limits.mark_rate_limited.assert_called_once_with("c", is_long_term=long_term)
-
-    def test_an_error_without_a_response_is_a_short_term_limit(self):
-        rate_limits = MagicMock()
-
-        with pytest.raises(core_exceptions.TooManyRequestsError):
-            strava_utils.raise_if_rate_limited(RateLimitExceeded("limit"), "c", rate_limits)
-
-        rate_limits.mark_rate_limited.assert_called_once_with("c", is_long_term=False)
-
-    def test_any_other_error_passes_through(self):
-        rate_limits = MagicMock()
-
-        strava_utils.raise_if_rate_limited(ValueError("nope"), "c", rate_limits)
-
-        rate_limits.mark_rate_limited.assert_not_called()
-
-
-class TestRateLimitErrorsCarryTheRetryTime:
-    def test_a_limit_just_hit_says_when_it_clears(self):
-        from datetime import UTC, datetime
-
-        clears = datetime(2026, 1, 1, 12, 15, tzinfo=UTC)
-        rate_limits = MagicMock()
-        rate_limits.mark_rate_limited.return_value = clears
+    def test_an_expired_token_is_not_used_while_another_process_refreshes_it(self, db, strava, rate_limits):
+        user = _linked(db, expires_in=timedelta(minutes=-5))
+        rate_limits.claim_token_refresh(user.id)
 
         with pytest.raises(core_exceptions.TooManyRequestsError) as raised:
-            strava_utils.raise_if_rate_limited(_make_strava_fault(429), "c", rate_limits)
+            strava_client_service.refresh_user_strava_token(user.id, rate_limits)
 
-        assert raised.value.retry_at == clears
+        assert raised.value.retry_at > datetime.now(UTC)
+        assert strava.calls == []
 
-    def test_an_active_limit_says_when_it_clears(self):
-        from datetime import UTC, datetime
+    def test_a_token_still_valid_while_another_process_refreshes_it_is_left_to_it(self, db, strava, rate_limits):
+        user = _linked(db, expires_in=timedelta(minutes=30))
+        rate_limits.claim_token_refresh(user.id)
 
-        clears = datetime(2026, 1, 2, 0, 0, tzinfo=UTC)
-        rate_limits = MagicMock()
-        rate_limits.is_rate_limited.return_value = True
-        rate_limits.rate_limited_until.return_value = clears
+        strava_client_service.refresh_user_strava_token(user.id, rate_limits)
 
-        with pytest.raises(core_exceptions.TooManyRequestsError) as raised:
-            strava_utils.raise_if_rate_limit_active("c", MOCK_USER_ID, rate_limits)
+        assert strava.calls == []
 
-        assert raised.value.retry_at == clears
+    def test_tokens_that_cannot_be_stored_leave_the_old_ones_for_a_refresh_that_was_due(
+        self, committed_sessions, strava, rate_limits
+    ):
+        with committed_sessions() as db:
+            user = _linked(db, expires_in=timedelta(minutes=30))
+            db.commit()
+        # Encrypted, an access token this long no longer fits its column.
+        strava.on("POST", "/oauth/token", _refresh_answer(access="a" * 600))
 
+        strava_client_service.refresh_user_strava_token(user.id, rate_limits)
 
-class TestRaiseIfRateLimitActive:
-    def test_an_active_limit_refuses_the_call(self):
-        rate_limits = MagicMock()
-        rate_limits.is_rate_limited.return_value = True
-
-        with pytest.raises(core_exceptions.TooManyRequestsError):
-            strava_utils.raise_if_rate_limit_active("c", MOCK_USER_ID, rate_limits)
-
-    def test_no_limit_lets_the_call_through(self):
-        rate_limits = MagicMock()
-        rate_limits.is_rate_limited.return_value = False
-
-        strava_utils.raise_if_rate_limit_active("c", MOCK_USER_ID, rate_limits)
-
-
-class TestSkippedCallsLogAtDebug:
-    """A call skipped while a limit is held repeats for every caller; only the hit that set it is a WARNING."""
-
-    def test_a_call_skipped_for_an_active_limit_logs_no_warning(self, caplog):
-        rate_limits = MagicMock()
-        rate_limits.is_rate_limited.return_value = True
-
-        with (
-            caplog.at_level("DEBUG", logger=strava_utils.logger.name),
-            pytest.raises(core_exceptions.TooManyRequestsError),
-        ):
-            strava_utils.raise_if_rate_limit_active("c", MOCK_USER_ID, rate_limits)
-
-        skipped = [r for r in caplog.records if "skipping the call" in r.getMessage()]
-        assert [r.levelname for r in skipped] == ["DEBUG"]
-
-    def test_a_token_refresh_skipped_for_an_active_limit_logs_no_warning(self, monkeypatch, caplog):
-        integrations = Mock(
-            user_id=MOCK_USER_ID,
-            strava_token="t",
-            strava_refresh_token="r",
-            strava_client_id="123",
-            strava_client_secret="s",
-            strava_token_expires_at=datetime.now(UTC) + timedelta(minutes=10),
-        )
-        monkeypatch.setattr(strava_utils.core_database, "SessionLocal", lambda: MagicMock())
-        monkeypatch.setattr(strava_utils.core_cryptography, "decrypt_token_fernet", lambda value: value)
-        monkeypatch.setattr(
-            strava_utils.user_integrations_integration, "get_user_integrations", Mock(return_value=integrations)
-        )
-        rate_limits = MagicMock()
-        rate_limits.is_rate_limited.return_value = True
-
-        with caplog.at_level("DEBUG", logger=strava_utils.logger.name):
-            strava_utils.refresh_user_strava_token(MOCK_USER_ID, rate_limits)
-
-        skipped = [r for r in caplog.records if "skipping token refresh" in r.getMessage()]
-        assert [r.levelname for r in skipped] == ["DEBUG"]
-
-
-class TestIsStravaUnauthorizedError:
-    def test_an_access_unauthorized_error_is_detected(self):
-        assert strava_utils.is_strava_unauthorized_error(AccessUnauthorized()) is True
-
-    def test_a_401_fault_is_detected(self):
-        assert strava_utils.is_strava_unauthorized_error(_make_strava_fault(401)) is True
-
-    def test_another_fault_is_not(self):
-        assert strava_utils.is_strava_unauthorized_error(_make_strava_fault(500)) is False
-
-    def test_a_plain_exception_is_not(self):
-        assert strava_utils.is_strava_unauthorized_error(ValueError("nope")) is False
-
-
-class TestHandleRejectedToken:
-    def _run(self, *, unlinked: bool):
-        db = MagicMock()
-        sessions = MagicMock()
-        sessions.return_value.__enter__.return_value = db
-        with (
-            pytest.MonkeyPatch.context() as patch,
-        ):
-            patch.setattr(strava_utils.core_database, "SessionLocal", sessions)
-            unlink = Mock(return_value=unlinked)
-            patch.setattr(strava_utils.user_integrations_integration, "unlink_strava_tokens_if_refresh_token", unlink)
-            note = Mock(return_value=("n", "ws"))
-            patch.setattr(strava_utils.notifications_integration, "create_strava_token_expired_notification", note)
-            push = Mock()
-            patch.setattr(strava_utils.notifications_integration, "push_notification", push)
-            strava_utils.handle_rejected_token(MOCK_USER_ID, "enc-refresh", ValueError("401"))
-        return db, unlink, note, push
-
-    def test_the_rejected_token_is_unlinked_and_the_user_told_in_one_commit(self):
-        db, unlink, note, push = self._run(unlinked=True)
-
-        unlink.assert_called_once_with(MOCK_USER_ID, "enc-refresh", db, revoked_at=None)
-        note.assert_called_once_with(MOCK_USER_ID, db, delete_on=None)
-        db.commit.assert_called_once()
-        push.assert_called_once_with(MOCK_USER_ID, "n", "ws")
-
-    def test_a_revocation_stores_its_time_with_the_tokens_and_names_the_day_the_data_goes(self):
-        db = MagicMock()
-        sessions = MagicMock()
-        sessions.return_value.__enter__.return_value = db
-        with pytest.MonkeyPatch.context() as patch:
-            patch.setattr(strava_utils.core_database, "SessionLocal", sessions)
-            unlink = Mock(return_value=True)
-            patch.setattr(strava_utils.user_integrations_integration, "unlink_strava_tokens_if_refresh_token", unlink)
-            note = Mock(return_value=("n", "ws"))
-            patch.setattr(strava_utils.notifications_integration, "create_strava_token_expired_notification", note)
-            patch.setattr(strava_utils.notifications_integration, "push_notification", Mock())
-            before = datetime.now(UTC)
-            strava_utils.handle_rejected_token(MOCK_USER_ID, "enc-refresh", ValueError("400"), revoked=True)
-
-        revoked_at = unlink.call_args.kwargs["revoked_at"]
-        assert before <= revoked_at <= datetime.now(UTC)
-        note.assert_called_once_with(MOCK_USER_ID, db, delete_on=(revoked_at + timedelta(days=7)).date())
-        db.commit.assert_called_once()
-
-    def test_a_token_linked_since_is_left_alone_and_nobody_is_notified(self):
-        db, _unlink, note, push = self._run(unlinked=False)
-
-        db.commit.assert_not_called()
-        db.rollback.assert_called_once()
-        note.assert_not_called()
-        push.assert_not_called()
-
-
-class TestCallStrava:
-    """A 401 is confirmed with one refresh: only a refused refresh, or a 401 on the new token, is a revocation."""
-
-    @pytest.fixture(autouse=True)
-    def _setup(self, monkeypatch):
-        monkeypatch.setattr(strava_utils.core_database, "SessionLocal", lambda: MagicMock())
-        self.integrations = Mock(strava_refresh_token="enc", strava_token_expires_at=None)
-        self.refreshed = Mock(strava_refresh_token="enc-new")
-        self.refresh = Mock()
-        monkeypatch.setattr(strava_utils, "refresh_user_strava_token", self.refresh)
-        monkeypatch.setattr(
-            strava_utils, "fetch_user_integrations_and_validate_token", Mock(return_value=self.refreshed)
-        )
-        self.new_client = Mock()
-        monkeypatch.setattr(strava_utils, "create_strava_client", Mock(return_value=self.new_client))
-        self.handle = Mock()
-        monkeypatch.setattr(strava_utils, "handle_rejected_token", self.handle)
-        self.rate_limits = Mock()
-
-    def _call(self, client, call=lambda c: c.get_athlete()):
-        return strava_utils.call_strava(call, client, MOCK_USER_ID, self.integrations, self.rate_limits)
-
-    def test_a_successful_call_makes_no_refresh(self):
-        client = Mock()
-        client.get_athlete.return_value = "athlete"
-
-        assert self._call(client) == "athlete"
-
-        self.refresh.assert_not_called()
-        self.handle.assert_not_called()
-
-    def test_any_other_error_passes_through_untouched(self):
-        client = Mock()
-        client.get_athlete.side_effect = _make_strava_fault(500)
-
-        with pytest.raises(StravaFault):
-            self._call(client)
-
-        self.refresh.assert_not_called()
-        self.handle.assert_not_called()
-
-    def test_a_401_on_an_old_token_and_a_refused_refresh_is_a_revocation(self):
-        client = Mock()
-        client.get_athlete.side_effect = AccessUnauthorized()
-        self.refresh.side_effect = strava_utils.StravaTokenRejectedError("refused")
-
-        with pytest.raises(strava_utils.StravaTokenRejectedError):
-            self._call(client)
-
-        self.refresh.assert_called_once_with(MOCK_USER_ID, self.rate_limits, rejected_refresh_token="enc")
-
-    def test_a_401_then_a_successful_refresh_retries_once_with_the_new_token_and_clears_nothing(self):
-        client = Mock()
-        client.get_athlete.side_effect = AccessUnauthorized()
-        self.new_client.get_athlete.return_value = "athlete"
-
-        assert self._call(client) == "athlete"
-
-        self.refresh.assert_called_once()
-        self.new_client.get_athlete.assert_called_once()
-        self.handle.assert_not_called()
-
-    def test_a_401_again_on_the_new_token_is_a_revocation(self):
-        client = Mock()
-        client.get_athlete.side_effect = AccessUnauthorized()
-        self.new_client.get_athlete.side_effect = AccessUnauthorized()
-
-        with pytest.raises(strava_utils.StravaTokenRejectedError):
-            self._call(client)
-
-        assert self.handle.call_args.args[:2] == (MOCK_USER_ID, "enc-new")
-        assert self.handle.call_args.kwargs == {"revoked": True}
-
-    def test_a_refresh_that_fails_transiently_keeps_the_tokens_and_stops_the_sync(self):
-        client = Mock()
-        client.get_athlete.side_effect = AccessUnauthorized()
-        self.refresh.side_effect = core_exceptions.DependencyFailedError("Strava is down")
-
-        with pytest.raises(core_exceptions.DependencyFailedError):
-            self._call(client)
-
-        self.new_client.get_athlete.assert_not_called()
-        self.handle.assert_not_called()
-
-    def test_an_error_other_than_401_on_the_retry_passes_through_and_clears_nothing(self):
-        client = Mock()
-        client.get_athlete.side_effect = AccessUnauthorized()
-        self.new_client.get_athlete.side_effect = _make_strava_fault(500)
-
-        with pytest.raises(StravaFault):
-            self._call(client)
-
-        self.handle.assert_not_called()
-
-    def test_an_account_unlinked_meanwhile_stops_the_sync(self, monkeypatch):
-        client = Mock()
-        client.get_athlete.side_effect = AccessUnauthorized()
-        monkeypatch.setattr(strava_utils, "fetch_user_integrations_and_validate_token", Mock(return_value=None))
-
-        with pytest.raises(strava_utils.StravaTokenRejectedError):
-            self._call(client)
-
-        self.handle.assert_not_called()
-
-    def test_the_strava_calls_run_with_no_session_open(self, monkeypatch):
-        open_sessions = 0
-        during: list[int] = []
-
-        class _Session:
-            def __enter__(self):
-                nonlocal open_sessions
-                open_sessions += 1
-                return MagicMock()
-
-            def __exit__(self, *_exc):
-                nonlocal open_sessions
-                open_sessions -= 1
-                return False
-
-        monkeypatch.setattr(strava_utils.core_database, "SessionLocal", _Session)
-        client = Mock()
-        client.get_athlete.side_effect = lambda: (
-            during.append(open_sessions),
-            (_ for _ in ()).throw(AccessUnauthorized()),
-        )
-        self.new_client.get_athlete.side_effect = lambda: during.append(open_sessions) or "athlete"
-
-        self._call(client)
-
-        assert during == [0, 0]
-
-
-class TestForcedRefresh:
-    """A refresh asked for because Strava answered 401 never leaves the sync to guess."""
-
-    @pytest.fixture(autouse=True)
-    def _setup(self, monkeypatch):
-        monkeypatch.setattr(strava_utils.core_database, "SessionLocal", lambda: MagicMock())
-        monkeypatch.setattr(strava_utils.core_cryptography, "decrypt_token_fernet", lambda value: value)
-        monkeypatch.setattr(strava_utils.core_cryptography, "same_secret", lambda a, b: a == b)
-        self.stored = Mock(
-            user_id=MOCK_USER_ID,
-            strava_token="t",
-            strava_refresh_token="r",
-            strava_client_id="123",
-            strava_client_secret="s",
-            strava_token_expires_at=datetime.now(UTC) + timedelta(hours=5),
-        )
-        monkeypatch.setattr(
-            strava_utils.user_integrations_integration, "get_user_integrations", Mock(return_value=self.stored)
-        )
-        self.client = Mock()
-        monkeypatch.setattr(strava_utils, "create_strava_client", Mock(return_value=self.client))
-        self.replace = Mock(return_value=True)
-        monkeypatch.setattr(
-            strava_utils.user_integrations_integration, "replace_strava_tokens_if_refresh_token", self.replace
-        )
-        self.rate_limits = MagicMock()
-        self.rate_limits.is_rate_limited.return_value = False
-        self.rate_limits.claim_token_refresh.return_value = True
-
-    def _refresh(self, rejected="r"):
-        strava_utils.refresh_user_strava_token(MOCK_USER_ID, self.rate_limits, rejected_refresh_token=rejected)
-
-    def test_a_token_far_from_expiry_is_refreshed_anyway_and_the_claim_released(self):
-        self.client.refresh_access_token.return_value = {"access_token": "n"}
-
-        self._refresh()
-
-        self.client.refresh_access_token.assert_called_once()
-        self.replace.assert_called_once()
-        self.rate_limits.release_token_refresh.assert_called_once_with(MOCK_USER_ID)
-
-    def test_a_refresh_token_already_replaced_by_another_process_is_not_refreshed_again(self):
-        self._refresh(rejected="older")
-
-        self.client.refresh_access_token.assert_not_called()
-
-    @pytest.mark.parametrize("error", [_make_strava_fault(500), requests.ConnectionError()])
-    def test_a_transient_failure_stops_the_sync_with_the_tokens_kept(self, monkeypatch, error):
-        handle = Mock()
-        monkeypatch.setattr(strava_utils, "handle_rejected_token", handle)
-        self.client.refresh_access_token.side_effect = error
-
-        with pytest.raises(core_exceptions.DependencyFailedError):
-            self._refresh()
-
-        handle.assert_not_called()
-        self.rate_limits.release_token_refresh.assert_called_once_with(MOCK_USER_ID)
-
-    def test_a_refused_refresh_is_a_revocation(self, monkeypatch):
-        handle = Mock()
-        monkeypatch.setattr(strava_utils, "handle_rejected_token", handle)
-        self.client.refresh_access_token.side_effect = _fault_naming("RefreshToken")
-
-        with pytest.raises(strava_utils.StravaTokenRejectedError):
-            self._refresh()
-
-        assert handle.call_args.kwargs == {"revoked": True}
-
-    def test_a_rate_limit_defers_the_sync(self):
-        self.rate_limits.is_rate_limited.return_value = True
-
-        with pytest.raises(core_exceptions.TooManyRequestsError):
-            self._refresh()
-
-        self.client.refresh_access_token.assert_not_called()
-
-    def test_another_process_holding_the_refresh_defers_the_sync(self):
-        self.rate_limits.claim_token_refresh.return_value = False
-
-        with pytest.raises(core_exceptions.TooManyRequestsError):
-            self._refresh()
-
-        self.client.refresh_access_token.assert_not_called()
-        self.rate_limits.release_token_refresh.assert_not_called()
-
-    def test_tokens_that_could_not_be_stored_stop_the_sync(self):
-        self.client.refresh_access_token.return_value = {"access_token": "n"}
-        self.replace.side_effect = sqlalchemy.exc.OperationalError("s", {}, Exception())
-
-        with pytest.raises(core_exceptions.DependencyFailedError):
-            self._refresh()
-
-
-def _fault_naming(resource: str, status_code: int = 400) -> StravaFault:
-    body = {"message": "Bad Request", "errors": [{"resource": resource, "field": "x", "code": "invalid"}]}
-    return _make_strava_fault(status_code, json.dumps(body).encode())
+        assert _plain(_stored(user.id).strava_token) == strava_factories.ACCESS_TOKEN
 
 
 class TestRefreshRefused:
-    @pytest.fixture(autouse=True)
-    def _setup(self, monkeypatch):
-        monkeypatch.setattr(strava_utils.core_database, "SessionLocal", lambda: MagicMock())
-        monkeypatch.setattr(strava_utils.core_cryptography, "decrypt_token_fernet", lambda value: value)
-        monkeypatch.setattr(
-            strava_utils.user_integrations_integration,
-            "get_user_integrations",
-            Mock(
-                return_value=Mock(
-                    user_id=MOCK_USER_ID,
-                    strava_token="t",
-                    strava_refresh_token="r",
-                    strava_client_id="123",
-                    strava_client_secret="s",
-                    strava_token_expires_at=datetime.now(UTC) + timedelta(minutes=10),
-                )
-            ),
-        )
-        self.handle = Mock()
-        monkeypatch.setattr(strava_utils, "handle_rejected_token", self.handle)
-        self.client = Mock()
-        monkeypatch.setattr(strava_utils, "create_strava_client", Mock(return_value=self.client))
-
     @pytest.fixture
-    def rate_limits(self):
-        return strava_rate_limit_store.StravaRateLimitStore(platform_runtime.get_state())
+    def user(self, db):
+        return _linked(db, expires_in=timedelta(minutes=-5))
 
-    @pytest.mark.parametrize("error", [_fault_naming("RefreshToken"), _fault_naming("RefreshToken", 401)])
-    def test_a_refused_refresh_token_is_a_revocation_and_stops_the_sync(self, rate_limits, error):
-        self.client.refresh_access_token.side_effect = error
+    @pytest.mark.parametrize("status", [400, 401])
+    def test_a_refresh_token_strava_refuses_is_a_revocation_that_unlinks_and_stops_the_sync(
+        self, user, db, strava, rate_limits, status
+    ):
+        strava.on("POST", "/oauth/token", strava_factories.refused(status, resource="RefreshToken"))
 
-        with pytest.raises(strava_utils.StravaTokenRejectedError):
-            strava_utils.refresh_user_strava_token(MOCK_USER_ID, rate_limits)
+        with pytest.raises(strava_client_service.StravaTokenRejectedError):
+            strava_client_service.refresh_user_strava_token(user.id, rate_limits)
 
-        self.handle.assert_called_once_with(MOCK_USER_ID, "r", error, revoked=True)
+        stored = _stored(user.id)
+        assert (stored.strava_token, stored.strava_refresh_token) == (None, None)
+        assert stored.strava_revoked_at is not None
+        assert stored.strava_client_id is not None, "the client stays so relinking is one step"
+        assert len(strava_factories.notifications_of(db, user.id, _UNLINKED)) == 1
+        assert [row.target_owner_id for row in strava_factories.audit_rows(db, _REVOKE)] == [str(user.id)]
 
-    @pytest.mark.parametrize(
-        "error",
-        [
-            _fault_naming("Application"),
-            _fault_naming("Application", 401),
-            _make_strava_fault(400, b"<html>bad gateway</html>"),
-            _make_strava_fault(400, b'{"errors": {"resource": "RefreshToken"}}'),
-            _make_strava_fault(400),
-            AccessUnauthorized(),
-        ],
-    )
-    def test_a_refusal_that_does_not_name_the_refresh_token_keeps_the_tokens(self, rate_limits, error):
-        self.client.refresh_access_token.side_effect = error
-
-        with pytest.raises(core_exceptions.DependencyFailedError) as raised:
-            strava_utils.refresh_user_strava_token(MOCK_USER_ID, rate_limits, rejected_refresh_token="r")
-
-        assert not isinstance(raised.value, strava_utils.StravaTokenRejectedError)
-        self.handle.assert_not_called()
-
-    @pytest.mark.parametrize("error", [_make_strava_fault(500), _make_strava_fault(403), requests.ConnectionError()])
-    def test_any_other_refresh_failure_of_a_valid_token_is_not_a_revocation(self, rate_limits, error):
-        self.client.refresh_access_token.side_effect = error
-
-        strava_utils.refresh_user_strava_token(MOCK_USER_ID, rate_limits)
-
-        self.handle.assert_not_called()
-
-
-class TestTokenRefreshClaim:
-    @pytest.fixture(autouse=True)
-    def _session(self, monkeypatch):
-        monkeypatch.setattr(strava_utils.core_database, "SessionLocal", lambda: MagicMock())
-        monkeypatch.setattr(strava_utils.core_cryptography, "decrypt_token_fernet", lambda value: value)
-
-    def _due(self):
-        from datetime import UTC, datetime, timedelta
-
-        return Mock(
-            strava_token="t",
-            strava_refresh_token="r",
-            strava_client_id="123",
-            strava_client_secret="s",
-            strava_token_expires_at=datetime.now(UTC) + timedelta(minutes=10),
-        )
-
-    def test_a_process_that_loses_the_claim_does_not_refresh(self, monkeypatch):
-        rate_limits = MagicMock()
-        rate_limits.is_rate_limited.return_value = False
-        rate_limits.claim_token_refresh.return_value = False
-        monkeypatch.setattr(
-            strava_utils.user_integrations_integration, "get_user_integrations", Mock(return_value=self._due())
-        )
-        create_client = Mock()
-        monkeypatch.setattr(strava_utils, "create_strava_client", create_client)
-
-        strava_utils.refresh_user_strava_token(MOCK_USER_ID, rate_limits)
-
-        create_client.assert_not_called()
-
-    def test_an_expired_token_is_not_used_while_another_process_refreshes_it(self, monkeypatch):
-        """Calling Strava with the dead token would get a 401 and unlink a healthy account."""
-        from datetime import UTC, datetime, timedelta
-
-        rate_limits = MagicMock()
-        rate_limits.is_rate_limited.return_value = False
-        rate_limits.claim_token_refresh.return_value = False
-        expired = self._due()
-        expired.strava_token_expires_at = datetime.now(UTC) - timedelta(hours=1)
-        monkeypatch.setattr(
-            strava_utils.user_integrations_integration, "get_user_integrations", Mock(return_value=expired)
-        )
-        create_client = Mock()
-        monkeypatch.setattr(strava_utils, "create_strava_client", create_client)
-
-        with pytest.raises(core_exceptions.TooManyRequestsError) as exc_info:
-            strava_utils.refresh_user_strava_token(MOCK_USER_ID, rate_limits)
-
-        create_client.assert_not_called()
-        assert exc_info.value.retry_at is not None
-        assert exc_info.value.retry_at > datetime.now(UTC)
-
-    def test_an_expired_token_that_could_not_be_refreshed_is_not_used(self, monkeypatch):
-        from datetime import UTC, datetime, timedelta
-
-        rate_limits = MagicMock(
-            spec=["is_rate_limited", "claim_token_refresh", "release_token_refresh", "mark_rate_limited"]
-        )
-        rate_limits.is_rate_limited.return_value = False
-        rate_limits.claim_token_refresh.return_value = True
-        expired = self._due()
-        expired.strava_token_expires_at = datetime.now(UTC) - timedelta(hours=1)
-        monkeypatch.setattr(
-            strava_utils.user_integrations_integration, "get_user_integrations", Mock(return_value=expired)
-        )
-        client = Mock()
-        client.refresh_access_token.side_effect = ValueError("strava is down")
-        monkeypatch.setattr(strava_utils, "create_strava_client", Mock(return_value=client))
+    def test_a_refusal_that_does_not_name_the_refresh_token_keeps_the_tokens(self, user, db, strava, rate_limits):
+        strava.on("POST", "/oauth/token", strava_factories.refused(400, resource="Application"))
 
         with pytest.raises(core_exceptions.DependencyFailedError):
-            strava_utils.refresh_user_strava_token(MOCK_USER_ID, rate_limits)
+            strava_client_service.refresh_user_strava_token(user.id, rate_limits)
 
-    def test_a_refresh_another_process_just_finished_is_not_repeated(self, monkeypatch):
-        """The integration is read again under the claim, and a fresh token ends the refresh."""
-        from datetime import UTC, datetime, timedelta
-
-        rate_limits = MagicMock()
-        rate_limits.is_rate_limited.return_value = False
-        rate_limits.claim_token_refresh.return_value = True
-        fresh = self._due()
-        fresh.strava_token_expires_at = datetime.now(UTC) + timedelta(hours=5)
-        monkeypatch.setattr(
-            strava_utils.user_integrations_integration,
-            "get_user_integrations",
-            Mock(side_effect=[self._due(), fresh]),
-        )
-        create_client = Mock()
-        monkeypatch.setattr(strava_utils, "create_strava_client", create_client)
-
-        strava_utils.refresh_user_strava_token(MOCK_USER_ID, rate_limits)
-
-        create_client.assert_not_called()
-
-    def test_a_failed_refresh_still_releases_the_claim(self, monkeypatch):
-        rate_limits = MagicMock(
-            spec=["is_rate_limited", "claim_token_refresh", "release_token_refresh", "mark_rate_limited"]
-        )
-        rate_limits.is_rate_limited.return_value = False
-        rate_limits.claim_token_refresh.return_value = True
-        monkeypatch.setattr(
-            strava_utils.user_integrations_integration, "get_user_integrations", Mock(return_value=self._due())
-        )
-        client = Mock()
-        client.refresh_access_token.side_effect = ValueError("bad refresh token")
-        monkeypatch.setattr(strava_utils, "create_strava_client", Mock(return_value=client))
-
-        strava_utils.refresh_user_strava_token(MOCK_USER_ID, rate_limits)
-
-        rate_limits.claim_token_refresh.assert_called_once_with(MOCK_USER_ID)
-        rate_limits.release_token_refresh.assert_called_once_with(MOCK_USER_ID)
+        assert _plain(_stored(user.id).strava_refresh_token) == strava_factories.REFRESH_TOKEN
+        assert strava_factories.audit_rows(db, _REVOKE) == []
 
 
-class TestTokenExpiryEpoch:
-    def test_the_expiry_is_read_as_utc_whatever_the_server_timezone(self, monkeypatch):
-        import os
-        import time
-        from datetime import datetime
+class TestRefusalBodies:
+    """Only a body that names the refresh token is a revocation; a body that cannot be read never is."""
 
-        monkeypatch.setenv("TZ", "Pacific/Auckland")
-        time.tzset()
-        try:
-            monkeypatch.setattr(strava_utils.core_cryptography, "decrypt_token_fernet", lambda value: value)
-            integrations = Mock(
-                strava_token="t",
-                strava_refresh_token="r",
-                strava_token_expires_at=datetime(2026, 1, 1, 0, 0, 0),
+    @pytest.mark.parametrize(
+        "body",
+        [
+            "<html>Bad Gateway</html>",
+            {"message": "Bad Request"},
+            {"errors": "RefreshToken"},
+            {"errors": ["RefreshToken", 7]},
+        ],
+        ids=["not-json", "no-errors", "errors-not-a-list", "entries-not-mappings"],
+    )
+    def test_a_refusal_whose_body_does_not_name_the_refresh_token_keeps_the_tokens(self, db, strava, rate_limits, body):
+        user = _linked(db, expires_in=timedelta(minutes=-5))
+        strava.on("POST", "/oauth/token", strava_factories.Reply(400, body))
+
+        with pytest.raises(core_exceptions.DependencyFailedError):
+            strava_client_service.refresh_user_strava_token(user.id, rate_limits)
+
+        assert _plain(_stored(user.id).strava_refresh_token) == strava_factories.REFRESH_TOKEN
+
+    def test_a_refusal_naming_the_refresh_token_among_unreadable_entries_is_still_a_revocation(
+        self, db, strava, rate_limits
+    ):
+        user = _linked(db, expires_in=timedelta(minutes=-5))
+        body = {"errors": ["noise", {"resource": "RefreshToken", "field": "refresh_token", "code": "invalid"}]}
+        strava.on("POST", "/oauth/token", strava_factories.Reply(401, body))
+
+        with pytest.raises(strava_client_service.StravaTokenRejectedError):
+            strava_client_service.refresh_user_strava_token(user.id, rate_limits)
+
+
+class TestAConnectionThatFails:
+    def test_a_refresh_that_cannot_reach_strava_is_not_a_revocation(self, db, strava, rate_limits):
+        user = _linked(db, expires_in=timedelta(minutes=-5))
+
+        def unreachable(_call):
+            raise requests.ConnectionError("no route to Strava")
+
+        strava.on("POST", "/oauth/token", unreachable)
+
+        with pytest.raises(core_exceptions.DependencyFailedError):
+            strava_client_service.refresh_user_strava_token(user.id, rate_limits)
+
+        assert _plain(_stored(user.id).strava_refresh_token) == strava_factories.REFRESH_TOKEN
+
+
+class _RefreshedByAnotherProcess(strava_rate_limit_store.StravaRateLimitStore):
+    """A rate-limit store whose claim is taken just after another process stored fresh tokens."""
+
+    def __init__(self, state, user_id):
+        super().__init__(state)
+        self._user_id = user_id
+
+    def claim_token_refresh(self, user_id):
+        with core_database.SessionLocal() as session:
+            user_integrations_integration.link_strava_account(
+                self._user_id, strava_factories.token_payload("theirs", "their-refresh"), session
             )
-            with pytest.MonkeyPatch.context() as local:
-                captured = {}
-                local.setattr(strava_utils, "StravaClient", lambda **kwargs: captured.update(kwargs) or MagicMock())
-                strava_utils.create_strava_client(integrations)
-        finally:
-            monkeypatch.delenv("TZ")
-            time.tzset()
+            session.commit()
+        return super().claim_token_refresh(user_id)
 
-        assert captured["token_expires"] == 1767225600
-        assert os.environ.get("TZ") is None
+
+class TestAnotherProcessRefreshedFirst:
+    def test_a_refresh_another_process_just_finished_is_not_repeated(self, db, strava):
+        user = _linked(db, expires_in=timedelta(minutes=30))
+        rate_limits = _RefreshedByAnotherProcess(platform_runtime.get_state(), user.id)
+
+        strava_client_service.refresh_user_strava_token(user.id, rate_limits)
+
+        assert strava.calls == []
+        assert _plain(_stored(user.id).strava_refresh_token) == "their-refresh"
+
+
+class TestForcedRefresh:
+    def test_tokens_that_cannot_be_stored_stop_a_sync_that_asked_for_the_refresh(
+        self, committed_sessions, strava, rate_limits
+    ):
+        with committed_sessions() as db:
+            user = _linked(db)
+            db.commit()
+        strava.on("POST", "/oauth/token", _refresh_answer(access="a" * 600))
+        stored = _stored(user.id)
+
+        with pytest.raises(core_exceptions.DependencyFailedError):
+            strava_client_service.refresh_user_strava_token(
+                user.id, rate_limits, rejected_refresh_token=stored.strava_refresh_token
+            )
+
+        assert _plain(_stored(user.id).strava_token) == strava_factories.ACCESS_TOKEN
+
+
+class TestHandleRejectedToken:
+    def test_the_rejected_token_is_unlinked_and_the_user_told_and_audited(self, db):
+        user = _linked(db)
+        stored = _stored(user.id)
+
+        strava_client_service.handle_rejected_token(user.id, stored.strava_refresh_token, AccessUnauthorized())
+
+        after = _stored(user.id)
+        assert (after.strava_token, after.strava_refresh_token, after.strava_revoked_at) == (None, None, None)
+        (notice,) = strava_factories.notifications_of(db, user.id, _UNLINKED)
+        assert notice.options == {}
+        assert len(strava_factories.audit_rows(db, _REVOKE)) == 1
+
+    def test_a_revocation_stores_its_time_and_names_the_day_the_data_goes(self, db):
+        user = _linked(db)
+
+        strava_client_service.handle_rejected_token(
+            user.id, _stored(user.id).strava_refresh_token, AccessUnauthorized(), revoked=True
+        )
+
+        revoked_at = _stored(user.id).strava_revoked_at
+        (notice,) = strava_factories.notifications_of(db, user.id, _UNLINKED)
+        assert revoked_at is not None
+        assert notice.options == {"delete_on": (revoked_at + timedelta(days=_grace_days())).date().isoformat()}
+
+    def test_a_token_linked_since_is_left_alone_and_nobody_is_told(self, db):
+        user = _linked(db)
+        stale = _stored(user.id).strava_refresh_token
+        with core_database.SessionLocal() as session:
+            user_integrations_integration.link_strava_account(
+                user.id, strava_factories.token_payload("a", "relinked"), session
+            )
+            session.commit()
+
+        strava_client_service.handle_rejected_token(user.id, stale, AccessUnauthorized())
+
+        assert _plain(_stored(user.id).strava_refresh_token) == "relinked"
+        assert strava_factories.notifications_of(db, user.id, _UNLINKED) == []
+        assert strava_factories.audit_rows(db, _REVOKE) == []
+
+    def test_an_account_with_no_refresh_token_has_nothing_to_unlink(self, db):
+        user = make_user(db)
+
+        strava_client_service.handle_rejected_token(user.id, None, AccessUnauthorized())
+
+        assert strava_factories.notifications_of(db, user.id, _UNLINKED) == []
+
+
+def _grace_days() -> int:
+    import modules.users.users_integrations.constants as user_integrations_constants
+
+    return user_integrations_constants.STRAVA_REVOKED_DATA_GRACE_DAYS
+
+
+class TestCallStrava:
+    @pytest.fixture
+    def user(self, db):
+        return _linked(db)
+
+    def _call(self, user, rate_limits, integrations=None):
+        integrations = integrations or _stored(user.id)
+        return strava_client_service.call_strava(
+            lambda client: client.get_athlete(),
+            strava_client_service.create_strava_client(integrations),
+            user.id,
+            integrations,
+            rate_limits,
+        )
+
+    def test_a_successful_call_makes_no_refresh(self, user, strava, rate_limits):
+        strava.on("GET", "/athlete", strava_factories.ok(strava_factories.athlete_payload()))
+
+        athlete = self._call(user, rate_limits)
+
+        assert athlete.id == 12345
+        assert strava.made("POST", "/oauth/token") == []
+
+    def test_an_error_other_than_a_401_passes_through_untouched(self, user, db, strava, rate_limits):
+        strava.on("GET", "/athlete", strava_factories.refused(500))
+
+        with pytest.raises(StravaFault):
+            self._call(user, rate_limits)
+
+        assert _plain(_stored(user.id).strava_refresh_token) == strava_factories.REFRESH_TOKEN
+
+    def test_a_401_is_confirmed_with_a_refresh_and_the_call_made_again_with_the_new_token(
+        self, user, strava, rate_limits
+    ):
+        strava.on(
+            "GET",
+            "/athlete",
+            strava_factories.refused(401),
+            strava_factories.ok(strava_factories.athlete_payload()),
+        )
+        strava.on("POST", "/oauth/token", _refresh_answer())
+
+        athlete = self._call(user, rate_limits)
+
+        assert athlete.id == 12345
+        first, second = strava.made("GET", "/athlete")
+        assert first.headers["Authorization"] == f"Bearer {strava_factories.ACCESS_TOKEN}"
+        assert second.headers["Authorization"] == "Bearer new-access"
+        assert _plain(_stored(user.id).strava_refresh_token) == "new-refresh"
+
+    def test_a_401_whose_refresh_token_is_refused_is_a_revocation(self, user, db, strava, rate_limits):
+        strava.on("GET", "/athlete", strava_factories.refused(401))
+        strava.on("POST", "/oauth/token", strava_factories.refused(400, resource="RefreshToken"))
+
+        with pytest.raises(strava_client_service.StravaTokenRejectedError):
+            self._call(user, rate_limits)
+
+        assert _stored(user.id).strava_revoked_at is not None
+
+    def test_a_401_again_on_the_new_token_is_a_revocation(self, user, db, strava, rate_limits):
+        strava.on("GET", "/athlete", strava_factories.refused(401))
+        strava.on("POST", "/oauth/token", _refresh_answer())
+
+        with pytest.raises(strava_client_service.StravaTokenRejectedError):
+            self._call(user, rate_limits)
+
+        stored = _stored(user.id)
+        assert (stored.strava_token, stored.strava_revoked_at is not None) == (None, True)
+        assert len(strava_factories.audit_rows(db, _REVOKE)) == 1
+
+    def test_a_refresh_that_fails_transiently_keeps_the_tokens_and_stops_the_sync(self, user, strava, rate_limits):
+        strava.on("GET", "/athlete", strava_factories.refused(401))
+        strava.on("POST", "/oauth/token", strava_factories.refused(500))
+
+        with pytest.raises(core_exceptions.DependencyFailedError):
+            self._call(user, rate_limits)
+
+        stored = _stored(user.id)
+        assert _plain(stored.strava_refresh_token) == strava_factories.REFRESH_TOKEN
+        assert stored.strava_revoked_at is None
+
+    def test_an_error_other_than_a_401_on_the_retry_passes_through_and_clears_nothing(self, user, strava, rate_limits):
+        strava.on("GET", "/athlete", strava_factories.refused(401), strava_factories.refused(500))
+        strava.on("POST", "/oauth/token", _refresh_answer())
+
+        with pytest.raises(StravaFault):
+            self._call(user, rate_limits)
+
+        assert _plain(_stored(user.id).strava_refresh_token) == "new-refresh"
+
+    def test_a_rate_limit_while_confirming_a_401_defers_the_sync_with_when_it_clears(self, user, strava, rate_limits):
+        strava.on("GET", "/athlete", strava_factories.refused(401))
+        strava.on("POST", "/oauth/token", strava_factories.rate_limited())
+
+        with pytest.raises(core_exceptions.TooManyRequestsError) as raised:
+            self._call(user, rate_limits)
+
+        assert raised.value.retry_at == rate_limits.rate_limited_until(strava_factories.CLIENT_ID)
+        assert _plain(_stored(user.id).strava_refresh_token) == strava_factories.REFRESH_TOKEN
+
+    def test_a_limited_application_defers_the_confirmation_without_calling_strava_again(
+        self, user, strava, rate_limits
+    ):
+        strava.on("GET", "/athlete", strava_factories.refused(401))
+        rate_limits.mark_rate_limited(strava_factories.CLIENT_ID)
+
+        with pytest.raises(core_exceptions.TooManyRequestsError):
+            self._call(user, rate_limits)
+
+        assert strava.made("POST", "/oauth/token") == []
+
+    def test_another_process_refreshing_defers_the_confirmation(self, user, strava, rate_limits):
+        strava.on("GET", "/athlete", strava_factories.refused(401))
+        rate_limits.claim_token_refresh(user.id)
+
+        with pytest.raises(core_exceptions.TooManyRequestsError):
+            self._call(user, rate_limits)
+
+        assert strava.made("POST", "/oauth/token") == []
+
+    def test_a_refresh_token_another_process_already_replaced_is_not_refreshed_again(self, user, strava, rate_limits):
+        stale = _stored(user.id)
+        with core_database.SessionLocal() as session:
+            user_integrations_integration.link_strava_account(
+                user.id, strava_factories.token_payload("a", "relinked"), session
+            )
+            session.commit()
+        strava.on(
+            "GET", "/athlete", strava_factories.refused(401), strava_factories.ok(strava_factories.athlete_payload())
+        )
+
+        athlete = self._call(user, rate_limits, integrations=stale)
+
+        assert athlete.id == 12345
+        assert strava.made("POST", "/oauth/token") == []
+
+    def test_an_account_unlinked_meanwhile_stops_the_sync(self, user, db, strava, rate_limits):
+        stale = _stored(user.id)
+        with core_database.SessionLocal() as session:
+            user_integrations_integration.unlink_strava_account(user.id, session)
+            session.commit()
+        strava.on("GET", "/athlete", strava_factories.refused(401))
+
+        with pytest.raises(strava_client_service.StravaTokenRejectedError):
+            self._call(user, rate_limits, integrations=stale)
+
+    def test_a_client_without_a_refresh_token_cannot_confirm_a_401(self, user, strava, rate_limits):
+        strava.on("GET", "/athlete", strava_factories.refused(401))
+        integrations = _stored(user.id).model_copy(update={"strava_refresh_token": None})
+
+        with pytest.raises(strava_client_service.StravaTokenRejectedError):
+            self._call(user, rate_limits, integrations=integrations)
+
+    def test_strava_is_called_with_no_database_session_open(self, committed_sessions, strava, rate_limits):
+        with committed_sessions() as db:
+            user = _linked(db)
+            db.commit()
+        open_connections = []
+
+        def answer(_call):
+            open_connections.append(core_database.engine.pool.checkedout())
+            return (
+                strava_factories.refused(401)
+                if len(open_connections) == 1
+                else strava_factories.ok(strava_factories.athlete_payload())
+            )
+
+        strava.on("GET", "/athlete", answer)
+        strava.on(
+            "POST",
+            "/oauth/token",
+            lambda _call: (open_connections.append(core_database.engine.pool.checkedout()), _refresh_answer())[1],
+        )
+
+        self._call(user, rate_limits)
+
+        assert open_connections == [0, 0, 0]
+
+
+class TestRateLimitRefusal:
+    """A provider 429 becomes a TooManyRequestsError that says when the application may call again."""
+
+    @pytest.fixture
+    def user(self, db):
+        return _linked(db)
+
+    def _hit(self, strava, rate_limits, user, reply):
+        strava.on("GET", "/athlete", reply)
+        integrations = _stored(user.id)
+        client = strava_client_service.create_strava_client(integrations)
+        with pytest.raises(StravaFault) as raised:
+            client.get_athlete()
+        return raised.value
+
+    def test_a_429_is_recorded_for_the_application_and_refused_with_its_retry_time(self, user, strava, rate_limits):
+        error = self._hit(strava, rate_limits, user, strava_factories.rate_limited())
+
+        with pytest.raises(core_exceptions.TooManyRequestsError) as raised:
+            strava_client_service.raise_if_rate_limited(error, strava_factories.CLIENT_ID, rate_limits)
+
+        cooldown = timedelta(seconds=15 * 60)
+        assert raised.value.scope == core_exceptions.TooManyRequestsScope.PROVIDER
+        assert raised.value.retry_at == rate_limits.rate_limited_until(strava_factories.CLIENT_ID)
+        assert datetime.now(UTC) < raised.value.retry_at <= datetime.now(UTC) + cooldown
+        assert rate_limits.is_rate_limited("another-application") is False
+
+    def test_the_daily_limit_reads_from_the_usage_headers_and_clears_at_midnight(self, user, strava, rate_limits):
+        error = self._hit(strava, rate_limits, user, strava_factories.rate_limited(daily=True))
+
+        with pytest.raises(core_exceptions.TooManyRequestsError) as raised:
+            strava_client_service.raise_if_rate_limited(error, strava_factories.CLIENT_ID, rate_limits)
+
+        assert (raised.value.retry_at.hour, raised.value.retry_at.minute) == (0, 0)
+
+    def test_an_error_that_is_not_a_rate_limit_passes_through(self, user, strava, rate_limits):
+        error = self._hit(strava, rate_limits, user, strava_factories.refused(500))
+
+        strava_client_service.raise_if_rate_limited(error, strava_factories.CLIENT_ID, rate_limits)
+
+        assert rate_limits.is_rate_limited(strava_factories.CLIENT_ID) is False
+
+    def test_a_rate_limit_without_a_response_is_a_short_term_one(self, rate_limits):
+        with pytest.raises(core_exceptions.TooManyRequestsError) as raised:
+            strava_client_service.raise_if_rate_limited(
+                RateLimitExceeded("limit"), strava_factories.CLIENT_ID, rate_limits
+            )
+
+        assert raised.value.retry_at <= datetime.now(UTC) + timedelta(minutes=15)
+
+    def test_an_active_limit_refuses_the_call_and_says_when_it_clears(self, rate_limits):
+        until = rate_limits.mark_rate_limited(strava_factories.CLIENT_ID)
+
+        with pytest.raises(core_exceptions.TooManyRequestsError) as raised:
+            strava_client_service.raise_if_rate_limit_active(strava_factories.CLIENT_ID, uuid.uuid4(), rate_limits)
+
+        assert raised.value.retry_at == until
+
+    def test_no_limit_lets_the_call_through(self, rate_limits):
+        strava_client_service.raise_if_rate_limit_active(strava_factories.CLIENT_ID, uuid.uuid4(), rate_limits)

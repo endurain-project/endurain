@@ -1,346 +1,265 @@
-"""Strava account linking: the state is single-use and the caller's, and a failed exchange keeps the setup."""
+"""Unlinking Strava and deleting what it imported, and the work that deletes a revoked account's data."""
 
-from datetime import UTC, datetime, timedelta
-from unittest.mock import MagicMock, patch
+import uuid
+from datetime import timedelta
 
-import jasil.runtime as platform_runtime
-import jasil.testing as jasil_testing
 import pytest
-import requests
+from sqlalchemy import select
 
+import core.database as core_database
 import core.exceptions as core_exceptions
-import modules.auth.identity_providers.constants as identity_providers_constants
-import modules.auth.schema as auth_schema
+import modules.activities.activity.models as activity_models
+import modules.gears.gear.integration_service as gears_integration
+import modules.notifications.constants as notifications_constants
 import modules.strava.audit_actions as strava_audit_actions
-import modules.strava.client_service as strava_client_service
 import modules.strava.constants as strava_constants
-import modules.strava.oauth_state_store as strava_oauth_state_store
-import modules.strava.schema as strava_schema
 import modules.strava.service as strava_service
-from tests._helpers.auth import MOCK_USER_ID
+import modules.users.users_integrations.constants as user_integrations_constants
+import modules.users.users_integrations.integration_service as user_integrations_integration
+from tests._factories import strava as strava_factories
+from tests._factories.activities import DEFAULT_START, make_activity
+from tests._factories.gears import gear_payload
+from tests._factories.users import make_user
 
-_STEP_UP = auth_schema.StepUpVerification(current_password="pw")
-_verify = MagicMock()
-
-
-@pytest.fixture
-def oauth_states():
-    return strava_oauth_state_store.StravaOAuthStateStore(platform_runtime.get_state())
-
-
-class TestStoredCredentials:
-    def test_the_client_is_stored_and_committed(self):
-        db = MagicMock()
-        with (
-            patch.object(strava_service.user_integrations_integration, "set_strava_client") as store,
-            patch.object(
-                strava_service.user_integrations_integration,
-                "get_user_integrations",
-                return_value=MagicMock(version=3),
-            ),
-        ):
-            version = strava_service.set_client(
-                MOCK_USER_ID,
-                strava_schema.StravaClientCredentials(client_id=123, client_secret="secret", step_up=_STEP_UP),
-                _verify,
-                db,
-                if_match='"2"',
-            )
-
-        store.assert_called_once_with(MOCK_USER_ID, "123", "secret", db, if_match='"2"')
-        # One commit for the verified step-up, one for the stored client.
-        assert db.commit.call_count == 2
-        assert version == 3
-
-    def test_the_step_up_is_verified_for_the_client_action_before_anything_is_stored(self):
-        verify = MagicMock(side_effect=core_exceptions.StepUpFailedError("no"))
-        with (
-            patch.object(strava_service.user_integrations_integration, "set_strava_client") as store,
-            pytest.raises(core_exceptions.StepUpFailedError),
-        ):
-            strava_service.set_client(
-                MOCK_USER_ID,
-                strava_schema.StravaClientCredentials(client_id=123, client_secret="secret", step_up=_STEP_UP),
-                verify,
-                MagicMock(),
-                if_match='"2"',
-            )
-
-        verify.assert_called_once_with(_STEP_UP, identity_providers_constants.StepUpAction.STRAVA_CLIENT_SET)
-        store.assert_not_called()
-
-    def test_a_row_changed_by_another_request_is_a_stale_write_not_a_server_error(self):
-        from sqlalchemy.orm.exc import StaleDataError
-
-        db = MagicMock()
-        with (
-            patch.object(
-                strava_service.user_integrations_integration, "set_strava_client", side_effect=StaleDataError()
-            ),
-            patch.object(strava_service.user_integrations_integration, "get_user_integrations", return_value=object()),
-            pytest.raises(core_exceptions.PreconditionFailedError),
-        ):
-            strava_service.set_client(
-                MOCK_USER_ID,
-                strava_schema.StravaClientCredentials(client_id=123, client_secret="secret", step_up=_STEP_UP),
-                _verify,
-                db,
-                if_match='"2"',
-            )
-
-        # Only the verified step-up was committed.
-        assert db.commit.call_count == 1
+_DATA_DELETED = notifications_constants.NotificationType.STRAVA_DATA_DELETED.stored
+_GRACE = timedelta(days=user_integrations_constants.STRAVA_REVOKED_DATA_GRACE_DAYS)
 
 
-class TestOAuthState:
-    def test_a_begun_state_is_consumed_once(self, oauth_states):
-        state = strava_service.begin_state(MOCK_USER_ID, oauth_states)
+def _linked(db, **link):
+    user = make_user(db)
+    strava_factories.link_strava(db, user.id, **link)
+    db.flush()
+    return user
 
-        assert oauth_states.consume(MOCK_USER_ID, state) is True
-        assert oauth_states.consume(MOCK_USER_ID, state) is False
 
-    def test_the_state_is_unguessable_and_different_each_time(self, oauth_states):
-        states = {strava_service.begin_state(MOCK_USER_ID, oauth_states) for _ in range(5)}
+def _integrations(user_id):
+    with core_database.SessionLocal() as db:
+        return user_integrations_integration.require_user_integrations(user_id, db)
 
-        assert len(states) == 5
-        assert all(len(state) >= 32 for state in states)
 
-    def test_a_new_state_replaces_the_old_one(self, oauth_states):
-        old = strava_service.begin_state(MOCK_USER_ID, oauth_states)
-        strava_service.begin_state(MOCK_USER_ID, oauth_states)
+def _activity_ids(user_id) -> set[uuid.UUID]:
+    with core_database.SessionLocal() as db:
+        return set(db.scalars(select(activity_models.Activity.id).where(activity_models.Activity.user_id == user_id)))
 
-        assert oauth_states.consume(MOCK_USER_ID, old) is False
+
+def _gear_names(user_id) -> set[str]:
+    with core_database.SessionLocal() as db:
+        return {gear.nickname for gear in gears_integration.get_gear_user(user_id, db)}
+
+
+def _with_imported_data(db, user):
+    """Give a user two activities and a gear imported from Strava, and one of each of their own."""
+    imported = make_activity(db, user.id, strava_activity_id=1001)
+    own = make_activity(
+        db, user.id, start_time=DEFAULT_START + timedelta(days=1), end_time=DEFAULT_START + timedelta(days=1, hours=1)
+    )
+    gears_integration.create_multiple_gears(
+        [gear_payload("From Strava", user_id=user.id, strava_gear_id="b1"), gear_payload("Mine", user_id=user.id)],
+        user.id,
+        db,
+    )
+    return imported, own
 
 
 class TestUnlinkAccount:
-    def _run(self, *, linked=True, deauthorize_error=None, refresh_error=None, refreshed=None):
-        client = MagicMock()
-        stale = object()
-        refreshed = object() if refreshed is None else refreshed
-        refresh = MagicMock(side_effect=refresh_error)
-        rate_limits = MagicMock()
-        if deauthorize_error:
-            client.deauthorize.side_effect = deauthorize_error
-        open_sessions = []
-        sessions = MagicMock()
-        sessions.return_value.__enter__.side_effect = lambda: open_sessions.append(1) or MagicMock()
-        sessions.return_value.__exit__.side_effect = lambda *_e: open_sessions.pop() and False
-        during_deauthorize = []
-        client.deauthorize.side_effect = lambda: (
-            during_deauthorize.append(len(open_sessions)),
-            deauthorize_error and (_ for _ in ()).throw(deauthorize_error),
-        )
-        with (
-            patch.object(strava_service.core_database, "SessionLocal", sessions),
-            patch.object(
-                strava_service.strava_client_service,
-                "fetch_user_integrations_and_validate_token",
-                side_effect=[stale, refreshed] if linked else [None],
-            ),
-            patch.object(strava_service.strava_client_service, "refresh_user_strava_token", refresh),
-            patch.object(
-                strava_service.strava_client_service, "create_strava_client", return_value=client
-            ) as create_client,
-            patch.object(strava_service.gears_integration, "delete_all_strava_gear_for_user") as delete_gear,
-            patch.object(
-                strava_service.activity_integration, "delete_all_strava_activities", return_value=0
-            ) as delete_activities,
-            patch.object(strava_service.user_integrations_integration, "unlink_strava_account") as unlink,
-        ):
-            result = strava_service.unlink_account(MOCK_USER_ID, rate_limits)
-        self.refresh, self.create_client, self.rate_limits, self.refreshed = (
-            refresh,
-            create_client,
-            rate_limits,
-            refreshed,
-        )
-        return result, client, delete_gear, delete_activities, unlink, during_deauthorize
+    def test_strava_is_deauthorized_and_the_account_unlinked_with_what_was_imported_deleted(
+        self, db, strava, rate_limits
+    ):
+        user = _linked(db, sync_gear=True)
+        _imported, own = _with_imported_data(db, user)
+        strava.on("POST", "/oauth/deauthorize", strava_factories.ok({}))
 
-    def test_the_account_is_deauthorized_then_unlinked_and_imported_data_cleared(self):
-        result, client, delete_gear, delete_activities, unlink, _ = self._run()
+        assert strava_service.unlink_account(user.id, rate_limits) is True
 
-        assert result is True
-        client.deauthorize.assert_called_once()
-        delete_gear.assert_called_once()
-        delete_activities.assert_called_once()
-        unlink.assert_called_once()
+        (call,) = strava.made("POST", "/oauth/deauthorize")
+        assert call.headers["Authorization"] == f"Bearer {strava_factories.ACCESS_TOKEN}"
+        stored = _integrations(user.id)
+        assert (stored.strava_token, stored.strava_client_id, stored.strava_sync_gear) == (None, None, False)
+        assert _activity_ids(user.id) == {own.id}
+        assert _gear_names(user.id) == {"Mine"}
 
-    def test_a_refused_deauthorization_still_unlinks_and_clears_imported_data(self):
-        result, _client, delete_gear, delete_activities, unlink, _ = self._run(
-            deauthorize_error=requests.HTTPError("revoked already")
-        )
+    def test_a_refused_deauthorization_still_unlinks_and_clears_what_was_imported(self, db, strava, rate_limits):
+        user = _linked(db)
+        _imported, own = _with_imported_data(db, user)
+        strava.on("POST", "/oauth/deauthorize", strava_factories.refused(500))
 
-        assert result is True
-        delete_gear.assert_called_once()
-        delete_activities.assert_called_once()
-        unlink.assert_called_once()
+        assert strava_service.unlink_account(user.id, rate_limits) is True
 
-    def test_an_expired_token_is_refreshed_before_deauthorizing_with_the_new_token(self):
-        self._run()
+        assert _integrations(user.id).strava_token is None
+        assert _activity_ids(user.id) == {own.id}
 
-        self.refresh.assert_called_once_with(MOCK_USER_ID, self.rate_limits)
-        self.create_client.assert_called_once_with(self.refreshed)
+    def test_an_expired_token_is_refreshed_before_deauthorizing_with_the_new_token(self, db, strava, rate_limits):
+        user = _linked(db, expires_in=timedelta(minutes=-5))
+        strava.on("POST", "/oauth/token", strava_factories.ok(strava_factories.token_payload("fresh", "fresh-refresh")))
+        strava.on("POST", "/oauth/deauthorize", strava_factories.ok({}))
 
-    def test_a_revoked_grant_has_nothing_to_deauthorize_but_still_unlinks_locally(self):
-        result, client, delete_gear, delete_activities, unlink, _ = self._run(
-            refresh_error=strava_client_service.StravaTokenRejectedError("revoked")
-        )
+        strava_service.unlink_account(user.id, rate_limits)
 
-        assert result is True
-        client.deauthorize.assert_not_called()
-        delete_gear.assert_called_once()
-        delete_activities.assert_called_once()
-        unlink.assert_called_once()
+        (call,) = strava.made("POST", "/oauth/deauthorize")
+        assert call.headers["Authorization"] == "Bearer fresh"
 
-    def test_a_refresh_that_fails_otherwise_still_unlinks_locally(self):
-        result, client, *_rest, unlink, _ = self._run(
-            refresh_error=core_exceptions.DependencyFailedError("The Strava token could not be refreshed")
-        )
+    def test_a_grant_strava_already_revoked_has_nothing_to_deauthorize_but_still_unlinks_locally(
+        self, db, strava, rate_limits
+    ):
+        user = _linked(db, expires_in=timedelta(minutes=-5))
+        _imported, own = _with_imported_data(db, user)
+        strava.on("POST", "/oauth/token", strava_factories.refused(400, resource="RefreshToken"))
 
-        assert result is True
-        client.deauthorize.assert_not_called()
-        unlink.assert_called_once()
+        assert strava_service.unlink_account(user.id, rate_limits) is True
 
-    def test_a_rate_limited_refresh_leaves_the_account_linked_to_try_again(self):
-        error = core_exceptions.TooManyRequestsError("later", scope=core_exceptions.TooManyRequestsScope.PROVIDER)
-        with pytest.raises(core_exceptions.TooManyRequestsError):
-            self._run(refresh_error=error)
+        assert strava.made("POST", "/oauth/deauthorize") == []
+        assert _integrations(user.id).strava_revoked_at is None, "an unlink clears the revocation mark"
+        assert _activity_ids(user.id) == {own.id}
 
-    def test_a_bug_in_the_deauthorization_is_not_swallowed(self):
-        with pytest.raises(RuntimeError):
-            self._run(deauthorize_error=RuntimeError("bug"))
+    def test_a_refresh_that_fails_otherwise_still_unlinks_locally(self, db, strava, rate_limits):
+        user = _linked(db, expires_in=timedelta(minutes=-5))
+        strava.on("POST", "/oauth/token", strava_factories.refused(500))
 
-    def test_strava_is_called_with_no_database_session_open(self):
-        *_, during_deauthorize = self._run()
+        assert strava_service.unlink_account(user.id, rate_limits) is True
 
-        assert during_deauthorize == [0]
+        assert strava.made("POST", "/oauth/deauthorize") == []
+        assert _integrations(user.id).strava_token is None
 
-    def test_an_account_that_is_not_linked_is_left_alone(self):
-        result, client, delete_gear, delete_activities, unlink, _ = self._run(linked=False)
+    def test_a_rate_limited_refresh_leaves_the_account_linked_so_a_later_attempt_can_still_revoke_it(
+        self, db, strava, rate_limits
+    ):
+        user = _linked(db, expires_in=timedelta(minutes=-5))
+        imported, own = _with_imported_data(db, user)
+        strava.on("POST", "/oauth/token", strava_factories.rate_limited())
 
-        assert result is False
-        client.deauthorize.assert_not_called()
-        delete_gear.assert_not_called()
-        delete_activities.assert_not_called()
-        unlink.assert_not_called()
+        with pytest.raises(core_exceptions.TooManyRequestsError) as raised:
+            strava_service.unlink_account(user.id, rate_limits)
 
+        assert raised.value.retry_at == rate_limits.rate_limited_until(strava_factories.CLIENT_ID)
+        assert _integrations(user.id).strava_token is not None
+        assert _activity_ids(user.id) == {imported.id, own.id}
+        assert _gear_names(user.id) == {"From Strava", "Mine"}
 
-class TestUnlinkDeletesInBatches:
-    def test_activities_are_deleted_batch_by_batch_and_the_unlink_commits_last(self):
-        batch = strava_constants.UNLINK_DELETE_BATCH_SIZE
-        order: list[str] = []
-        batches = iter([batch, batch, 3])
-        with (
-            patch.object(strava_service.core_database, "SessionLocal"),
-            patch.object(
-                strava_service.strava_client_service,
-                "fetch_user_integrations_and_validate_token",
-                return_value=object(),
-            ),
-            patch.object(strava_service.strava_client_service, "refresh_user_strava_token"),
-            patch.object(strava_service.strava_client_service, "create_strava_client"),
-            patch.object(
-                strava_service.activity_integration,
-                "delete_all_strava_activities",
-                side_effect=lambda *_a, **_k: order.append("batch") or next(batches),
-            ) as delete_activities,
-            patch.object(
-                strava_service.gears_integration,
-                "delete_all_strava_gear_for_user",
-                side_effect=lambda *_a, **_k: order.append("gear"),
-            ),
-            patch.object(
-                strava_service.user_integrations_integration,
-                "unlink_strava_account",
-                side_effect=lambda *_a, **_k: order.append("unlink"),
-            ),
-        ):
-            assert strava_service.unlink_account(MOCK_USER_ID, MagicMock()) is True
+    def test_an_account_that_is_not_linked_is_left_alone(self, db, strava, rate_limits):
+        user = make_user(db)
+        _, _own = _with_imported_data(db, user)
 
-        assert delete_activities.call_count == 3
-        assert all(call.kwargs["limit"] == batch for call in delete_activities.call_args_list)
-        assert order == ["batch", "batch", "batch", "gear", "unlink"]
+        assert strava_service.unlink_account(user.id, rate_limits) is False
+
+        assert strava.calls == []
+        assert len(_activity_ids(user.id)) == 2
+
+    def test_a_user_without_integrations_is_not_found(self, db, rate_limits):
+        with pytest.raises(core_exceptions.NotFoundError):
+            strava_service.unlink_account(uuid.uuid4(), rate_limits)
+
+    def test_strava_is_called_with_no_database_session_open(self, committed_sessions, strava, rate_limits):
+        with committed_sessions() as db:
+            user = _linked(db)
+            db.commit()
+        open_connections = []
+
+        def answer(_call):
+            open_connections.append(core_database.engine.pool.checkedout())
+            return strava_factories.ok({})
+
+        strava.on("POST", "/oauth/deauthorize", answer)
+
+        strava_service.unlink_account(user.id, rate_limits)
+
+        assert open_connections == [0]
+
+    def test_more_activities_than_one_batch_are_all_deleted_and_the_unlink_still_completes(
+        self, committed_sessions, strava, rate_limits
+    ):
+        with committed_sessions() as db:
+            user = _linked(db)
+            for index in range(strava_constants.UNLINK_DELETE_BATCH_SIZE + 1):
+                moment = DEFAULT_START + timedelta(minutes=index)
+                make_activity(
+                    db,
+                    user.id,
+                    strava_activity_id=index + 1,
+                    start_time=moment,
+                    end_time=moment + timedelta(hours=1),
+                )
+            db.commit()
+        strava.on("POST", "/oauth/deauthorize", strava_factories.ok({}))
+
+        strava_service.unlink_account(user.id, rate_limits)
+
+        assert _activity_ids(user.id) == set()
+        assert _integrations(user.id).strava_token is None
 
 
 class TestDeleteRevokedData:
-    DAY = timedelta(days=1)
+    def _revoked(self, db, ago):
+        user = _linked(db, sync_gear=True)
+        strava_factories.revoke_strava_access(db, user.id, revoked_ago=ago)
+        return user
 
-    def _integrations(self, *, revoked_days_ago: float | None, token: str | None = None):
-        revoked_at = None if revoked_days_ago is None else datetime.now(UTC) - timedelta(days=revoked_days_ago)
-        return MagicMock(strava_revoked_at=revoked_at, strava_token=token)
+    def test_data_of_a_user_revoked_past_the_grace_period_is_deleted_audited_and_the_user_told(self, db):
+        user = self._revoked(db, _GRACE + timedelta(hours=1))
+        _imported, own = _with_imported_data(db, user)
 
-    def _run(self, integrations, *, batches=(2,)):
-        order: list[str] = []
-        sessions = MagicMock()
-        sessions.return_value.__enter__.side_effect = lambda: MagicMock()
-        batch_counts = iter(batches)
-        with (
-            patch.object(strava_service.core_database, "SessionLocal", sessions),
-            patch.object(
-                strava_service.user_integrations_integration, "get_user_integrations", return_value=integrations
-            ),
-            patch.object(
-                strava_service.activity_integration,
-                "delete_all_strava_activities",
-                side_effect=lambda *_a, **_k: order.append("batch") or next(batch_counts),
-            ),
-            patch.object(
-                strava_service.gears_integration,
-                "delete_all_strava_gear_for_user",
-                side_effect=lambda *_a, **_k: order.append("gear"),
-            ),
-            patch.object(
-                strava_service.user_integrations_integration,
-                "clear_strava_revoked_at",
-                side_effect=lambda *_a, **_k: order.append("clear"),
-            ),
-            patch.object(
-                strava_service.notifications_integration,
-                "create_strava_data_deleted_notification",
-                side_effect=lambda *_a, **_k: order.append("notify") or ("n", "ws"),
-            ),
-            patch.object(strava_service.notifications_integration, "push_notification") as push,
-            patch.object(strava_service.strava_client_service, "create_strava_client") as create_client,
-            jasil_testing.capture_audit() as audit,
-        ):
-            result = strava_service.delete_revoked_data(MOCK_USER_ID)
-        return result, order, push, create_client, audit
+        assert strava_service.delete_revoked_data(user.id) is True
 
-    def test_data_of_a_user_revoked_past_the_grace_period_is_deleted_and_the_user_told(self):
-        result, order, push, create_client, audit = self._run(self._integrations(revoked_days_ago=8))
-
-        assert result is True
-        assert order == ["batch", "gear", "clear", "notify"]
-        push.assert_called_once_with(MOCK_USER_ID, "n", "ws")
-        create_client.assert_not_called()
-        entry = audit.assert_audited(
-            strava_audit_actions.DATA_DELETE.id,
-            target_type="user",
-            target_id=str(MOCK_USER_ID),
-            target_owner_id=str(MOCK_USER_ID),
+        stored = _integrations(user.id)
+        assert (stored.strava_revoked_at, stored.strava_client_id) == (
+            None,
+            strava_factories.CLIENT_ID and stored.strava_client_id,
         )
-        assert entry.details == {"activity_count": 2}
+        assert stored.strava_client_id is not None, "the client id and secret stay"
+        assert _activity_ids(user.id) == {own.id}
+        assert _gear_names(user.id) == {"Mine"}
+        assert len(strava_factories.notifications_of(db, user.id, _DATA_DELETED)) == 1
+        (row,) = strava_factories.audit_rows(db, strava_audit_actions.DATA_DELETE.id)
+        assert (row.target_owner_id, row.details) == (str(user.id), {"activity_count": 1})
 
-    def test_a_user_still_inside_the_grace_period_is_left_alone(self):
-        result, order, push, _client, audit = self._run(self._integrations(revoked_days_ago=3))
+    def test_a_user_still_inside_the_grace_period_is_left_alone(self, db):
+        user = self._revoked(db, _GRACE - timedelta(hours=1))
+        imported, own = _with_imported_data(db, user)
 
-        assert result is False
-        assert order == []
-        push.assert_not_called()
-        audit.assert_not_audited(strava_audit_actions.DATA_DELETE.id)
+        assert strava_service.delete_revoked_data(user.id) is False
 
-    def test_a_user_who_relinked_is_left_alone(self):
-        result, order, _push, _client, _audit = self._run(self._integrations(revoked_days_ago=None))
-        assert (result, order) == (False, [])
+        assert _activity_ids(user.id) == {imported.id, own.id}
+        assert _integrations(user.id).strava_revoked_at is not None
+        assert strava_factories.notifications_of(db, user.id, _DATA_DELETED) == []
 
-        result, order, _push, _client, _audit = self._run(self._integrations(revoked_days_ago=8, token="enc"))
-        assert (result, order) == (False, [])
+    def test_a_user_who_relinked_is_left_alone(self, db):
+        user = self._revoked(db, _GRACE + timedelta(days=1))
+        imported, own = _with_imported_data(db, user)
+        user_integrations_integration.link_strava_account(user.id, strava_factories.token_payload("a", "b"), db)
 
-    def test_activities_are_deleted_in_batches_before_the_closing_transaction(self):
-        batch = strava_constants.UNLINK_DELETE_BATCH_SIZE
-        _result, order, _push, _client, audit = self._run(
-            self._integrations(revoked_days_ago=8), batches=(batch, batch, 3)
-        )
+        assert strava_service.delete_revoked_data(user.id) is False
 
-        assert order == ["batch", "batch", "batch", "gear", "clear", "notify"]
-        assert audit.assert_audited(strava_audit_actions.DATA_DELETE.id).details == {"activity_count": 2 * batch + 3}
+        assert _activity_ids(user.id) == {imported.id, own.id}
+
+    def test_a_user_who_never_revoked_is_left_alone(self, db):
+        user = _linked(db)
+        imported, own = _with_imported_data(db, user)
+
+        assert strava_service.delete_revoked_data(user.id) is False
+
+        assert _activity_ids(user.id) == {imported.id, own.id}
+
+    def test_a_user_without_integrations_is_left_alone(self, db):
+        assert strava_service.delete_revoked_data(uuid.uuid4()) is False
+
+
+class TestListingUsers:
+    def test_linked_users_are_listed_ascending_a_page_after_the_given_id(self, db):
+        linked = sorted([_linked(db).id for _ in range(3)])
+        make_user(db)
+
+        everyone = strava_service.linked_user_ids(None, 100)
+        page = strava_service.linked_user_ids(linked[0], 1)
+
+        assert [user_id for user_id in everyone if user_id in linked] == linked
+        assert page == [next(user_id for user_id in everyone if user_id > linked[0])]
+
+    def test_users_revoked_past_the_grace_period_are_listed(self, db):
+        due = _linked(db)
+        strava_factories.revoke_strava_access(db, due.id, revoked_ago=_GRACE + timedelta(days=1))
+        recent = _linked(db)
+        strava_factories.revoke_strava_access(db, recent.id, revoked_ago=timedelta(days=1))
+
+        listed = strava_service.revoked_user_ids_due(None, 100)
+
+        assert due.id in listed
+        assert recent.id not in listed

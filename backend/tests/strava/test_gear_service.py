@@ -1,343 +1,366 @@
-"""Tests for Strava gear parsing and sync."""
+"""Strava gear: the sync of the athlete's gear from the fake Strava, and the import of a Strava export's gear CSVs."""
 
-import logging
-import uuid
-from types import SimpleNamespace
-from unittest.mock import MagicMock, patch
+import contextlib
+import io
+import os
+from datetime import timedelta
+from functools import partial
 
+import jasil.audit.models as audit_models
 import pytest
-from stravalib.exc import AccessUnauthorized
+from fastapi import UploadFile
+from sqlalchemy import select
 
+import core.database as core_database
 import core.exceptions as core_exceptions
+import core.file_uploads as core_file_uploads
+import modules.activities.activity.models as activity_models
+import modules.gears.gear.integration_service as gears_integration
 import modules.gears.gear.schema as gears_schema
-import modules.strava.gear_service as gear_utils
-from tests._helpers.auth import MOCK_USER_ID
+import modules.strava.audit_actions as strava_audit_actions
+import modules.strava.client_service as strava_client_service
+import modules.strava.constants as strava_constants
+import modules.strava.gear_service as strava_gear_service
+import modules.users.users_integrations.integration_service as user_integrations_integration
+from tests._factories import strava as strava_factories
+from tests._factories.activities import DEFAULT_START, make_activity
+from tests._factories.gears import gear_payload
+from tests._factories.users import make_user
 
-_GEAR_A = uuid.uuid4()
-_ACT_10 = uuid.uuid4()
-_ACT_11 = uuid.uuid4()
-_GEAR_B = uuid.uuid4()
 BIKE = gears_schema.GearType.BIKE
 SHOES = gears_schema.GearType.SHOES
+_GEAR_IMPORT = strava_audit_actions.GEAR_IMPORT.id
 
 
-def _bike(name, brand=None, model=None):
-    return {"Bike Name": name, "Bike Brand": brand, "Bike Model": model}
+def _linked(db, **link):
+    user = make_user(db)
+    strava_factories.link_strava(db, user.id, **link)
+    db.flush()
+    return user
 
 
-def _shoe(name, brand=None, model=None):
-    return {"Shoe Name": name, "Shoe Brand": brand, "Shoe Model": model}
+def _gear_of(user_id):
+    with core_database.SessionLocal() as db:
+        return gears_integration.get_gear_user(user_id, db)
 
 
-def test_shoe_csv_is_parsed_from_the_path_it_is_given(tmp_path):
-    """The upload is parsed where the caller saved it; no configured directory is consulted."""
-    shoes_file = tmp_path / "gear.csv"
-    shoes_file.write_text("Shoe Name,Shoe Brand,Shoe Model\nPegasus,Nike,Pegasus\n")
-
-    assert gear_utils.parse_gear_csv(str(shoes_file), SHOES) == [_shoe("Pegasus", "Nike", "Pegasus")]
+def _integrations(user_id):
+    with core_database.SessionLocal() as db:
+        return user_integrations_integration.require_user_integrations(user_id, db)
 
 
-def test_bike_csv_is_parsed_from_the_path_it_is_given(tmp_path):
-    bikes_file = tmp_path / "gear.csv"
-    bikes_file.write_text("Bike Name,Bike Brand,Bike Model\nCommuter,Trek,Domane\n")
+def _csv_saver(content: bytes, seen: list[str] | None = None):
+    """Build the saver the route binds: it streams an upload through the shared writer, noting where it landed."""
+    upload = UploadFile(filename="whatever.csv", file=io.BytesIO(content))
+    save = partial(core_file_uploads.save_text_upload_sync, upload, max_bytes=strava_constants.GEAR_CSV_MAX_BYTES)
 
-    assert gear_utils.parse_gear_csv(str(bikes_file), BIKE) == [_bike("Commuter", "Trek", "Domane")]
+    def saver(*, upload_dir: str, filename: str) -> str:
+        path = save(upload_dir=upload_dir, filename=filename)
+        if seen is not None:
+            seen.append(path)
+        return path
 
-
-def test_a_csv_with_the_wrong_headers_is_refused_as_bad_input(tmp_path):
-    bikes_file = tmp_path / "gear.csv"
-    bikes_file.write_text("Name,Brand\nCommuter,Trek\n")
-
-    with pytest.raises(core_exceptions.InvalidInputError):
-        gear_utils.parse_gear_csv(str(bikes_file), BIKE)
-
-
-def test_shoes_headers_are_not_accepted_for_bikes(tmp_path):
-    shoes_file = tmp_path / "gear.csv"
-    shoes_file.write_text("Shoe Name,Shoe Brand,Shoe Model\nPegasus,Nike,Pegasus\n")
-
-    with pytest.raises(core_exceptions.InvalidInputError):
-        gear_utils.parse_gear_csv(str(shoes_file), BIKE)
+    return saver
 
 
-def test_bike_transform_strips_whitespace():
-    gears = gear_utils.transform_csv_bike_gear_to_schema_gear([_bike(" Trek ", " Trek ", " Domane ")], MOCK_USER_ID)
-
-    assert [(g.nickname, g.brand, g.model) for g in gears] == [("Trek", "Trek", "Domane")]
+def _bikes(*rows: str) -> bytes:
+    return ("Bike Name,Bike Brand,Bike Model\n" + "".join(f"{row}\n" for row in rows)).encode()
 
 
-def test_bike_transform_keeps_missing_brand_and_model_as_none():
-    gears = gear_utils.transform_csv_bike_gear_to_schema_gear(
-        [_bike("Commuter"), _bike("Road", "", "Defy")], MOCK_USER_ID
-    )
-
-    assert [(g.brand, g.model) for g in gears] == [(None, None), (None, "Defy")]
-
-
-def test_bike_transform_keeps_the_last_of_two_rows_with_one_name():
-    gears = gear_utils.transform_csv_bike_gear_to_schema_gear(
-        [_bike("Road", "Giant"), _bike("Road", "Trek")], MOCK_USER_ID
-    )
-
-    assert [(g.nickname, g.brand) for g in gears] == [("Road", "Trek")]
-
-
-def test_bike_transform_skips_a_row_without_a_name():
-    gears = gear_utils.transform_csv_bike_gear_to_schema_gear([_bike("  ", "Giant"), _bike("MTB")], MOCK_USER_ID)
-
-    assert [g.nickname for g in gears] == ["MTB"]
-
-
-def test_shoe_transform_strips_whitespace():
-    gears = gear_utils.transform_csv_shoe_gear_to_schema_gear(
-        [_shoe(" Pegasus ", " Nike ", " Pegasus ")], MOCK_USER_ID, MagicMock()
-    )
-
-    assert [(g.nickname, g.brand, g.model) for g in gears] == [("Pegasus", "Nike", "Pegasus")]
-
-
-def test_shoe_transform_keeps_a_trailing_plus_in_a_name():
-    with patch.object(gear_utils.gears_integration, "get_gear_user", return_value=[]):
-        gears = gear_utils.transform_csv_shoe_gear_to_schema_gear(
-            [_shoe("Pegasus+ ", "Nike", "Pegasus")], MOCK_USER_ID, MagicMock()
-        )
-
-    assert gears[0].nickname == "Pegasus+"
-
-
-@pytest.mark.parametrize("blank", [None, "", "  ", "+", "+ +"])
-def test_shoe_transform_names_a_nameless_shoe(blank, monkeypatch):
-    with patch.object(gear_utils.gears_integration, "get_gear_user", return_value=[]):
-        gears = gear_utils.transform_csv_shoe_gear_to_schema_gear(
-            [_shoe(blank, "Nike", "Pegasus")], MOCK_USER_ID, MagicMock()
-        )
-
-    assert [(g.nickname, g.brand) for g in gears] == [("Unnamed Shoe 1", "Nike")]
-
-
-def test_nameless_shoes_avoid_the_users_gear_and_each_other(monkeypatch):
-    existing = [SimpleNamespace(nickname="Unnamed Shoe 1")]
-    with patch.object(gear_utils.gears_integration, "get_gear_user", return_value=existing) as lookup:
-        gears = gear_utils.transform_csv_shoe_gear_to_schema_gear(
-            [_shoe(None), _shoe(""), _shoe("Speed")], MOCK_USER_ID, MagicMock()
-        )
-
-    assert [g.nickname for g in gears] == ["Unnamed Shoe 2", "Unnamed Shoe 3", "Speed"]
-    lookup.assert_called_once()
-
-
-class TestMatchGear:
-    def test_an_activity_without_strava_gear_matches_nothing(self):
-        assert gear_utils.match_gear_for_activity(SimpleNamespace(strava_gear_id=None), []) is None
-
-    def test_the_gear_with_the_same_strava_id_is_matched(self):
-        gears = [SimpleNamespace(id=_GEAR_A, strava_gear_id="a"), SimpleNamespace(id=_GEAR_B, strava_gear_id="b")]
-
-        assert gear_utils.match_gear_for_activity(SimpleNamespace(strava_gear_id="b"), gears) == _GEAR_B
-
-
-class TestSetActivitiesGear:
-    def test_activities_are_assigned_and_the_caller_commits(self):
-        db = MagicMock()
-        activities = [SimpleNamespace(id=_ACT_10, strava_gear_id="a"), SimpleNamespace(id=_ACT_11, strava_gear_id=None)]
-        gears = [SimpleNamespace(id=_GEAR_A, strava_gear_id="a")]
-        with (
-            patch.object(gear_utils.activity_integration, "list_user_activities_page", side_effect=[activities, []]),
-            patch.object(gear_utils.gears_integration, "get_gear_user", return_value=gears),
-            patch.object(gear_utils.activity_integration, "bulk_set_activities_gear") as bulk,
-        ):
-            assigned = gear_utils.set_activities_gear(MOCK_USER_ID, db)
-
-        assert assigned == 1
-        bulk.assert_called_once_with(MOCK_USER_ID, {_ACT_10: _GEAR_A}, db)
-        db.commit.assert_not_called()
-
-    def test_a_long_history_is_read_a_page_at_a_time_and_every_page_is_matched(self):
-        size = gear_utils._ACTIVITY_PAGE_SIZE
-        first = [SimpleNamespace(id=uuid.UUID(int=i), strava_gear_id="a") for i in range(size)]
-        second = [SimpleNamespace(id=uuid.UUID(int=size), strava_gear_id="a")]
-        gears = [SimpleNamespace(id=_GEAR_A, strava_gear_id="a")]
-        with (
-            patch.object(
-                gear_utils.activity_integration, "list_user_activities_page", side_effect=[first, second]
-            ) as listing,
-            patch.object(gear_utils.gears_integration, "get_gear_user", return_value=gears),
-            patch.object(gear_utils.activity_integration, "bulk_set_activities_gear") as bulk,
-        ):
-            assigned = gear_utils.set_activities_gear(MOCK_USER_ID, MagicMock())
-
-        assert assigned == size + 1
-        assert [c.kwargs["page_number"] for c in listing.call_args_list] == [1, 2]
-        assert all(c.kwargs["num_records"] == size for c in listing.call_args_list)
-        assert len(bulk.call_args.args[1]) == size + 1
-
-    def test_a_user_without_gear_reads_no_activities(self):
-        with (
-            patch.object(gear_utils.activity_integration, "list_user_activities_page") as listing,
-            patch.object(gear_utils.gears_integration, "get_gear_user", return_value=[]),
-            patch.object(gear_utils.activity_integration, "bulk_set_activities_gear") as bulk,
-        ):
-            assert gear_utils.set_activities_gear(MOCK_USER_ID, MagicMock()) == 0
-
-        listing.assert_not_called()
-        bulk.assert_not_called()
-
-    def test_no_matching_activity_writes_nothing(self):
-        gears = [SimpleNamespace(id=_GEAR_A, strava_gear_id="a")]
-        with (
-            patch.object(
-                gear_utils.activity_integration,
-                "list_user_activities_page",
-                side_effect=[[SimpleNamespace(id=uuid.UUID(int=1), strava_gear_id="zzz")]],
-            ),
-            patch.object(gear_utils.gears_integration, "get_gear_user", return_value=gears),
-            patch.object(gear_utils.activity_integration, "bulk_set_activities_gear") as bulk,
-        ):
-            assert gear_utils.set_activities_gear(MOCK_USER_ID, MagicMock()) == 0
-
-        bulk.assert_not_called()
-
-
-def _linked_sync(athlete, *, existing_ids=(), gear_error=None, fetched_gear=None):
-    """Run ``get_user_gear`` against a fake Strava; returns what it stored."""
-    client = MagicMock()
-    client.get_athlete.return_value = athlete
-    if gear_error:
-        client.get_gear.side_effect = gear_error
-    else:
-        client.get_gear.side_effect = lambda gear_id: (
-            fetched_gear or SimpleNamespace(brand_name="B", model_name="M", name=f"n-{gear_id}")
-        )
-    rate_limits = MagicMock()
-    rate_limits.is_rate_limited.return_value = False
-    sessions = MagicMock()
-    integrations = SimpleNamespace(
-        strava_client_id="enc", strava_refresh_token="enc-refresh", strava_token_expires_at=None
-    )
-    with (
-        patch.object(gear_utils.core_database, "SessionLocal", sessions),
-        patch.object(gear_utils.strava_client_service, "refresh_user_strava_token"),
-        patch.object(
-            gear_utils.strava_client_service, "fetch_user_integrations_and_validate_token", return_value=integrations
-        ),
-        patch.object(gear_utils.strava_client_service, "get_client_id", return_value="42"),
-        patch.object(gear_utils.strava_client_service, "create_strava_client", return_value=client),
-        patch.object(
-            gear_utils.gears_integration,
-            "get_gear_by_strava_id",
-            side_effect=lambda gear_id, user_id, db: object() if gear_id in existing_ids else None,
-        ),
-        patch.object(gear_utils.gears_integration, "create_multiple_gears") as create,
-        patch.object(gear_utils.user_integrations_integration, "set_strava_sync_gear") as sync_pref,
-        patch.object(gear_utils, "set_activities_gear", return_value=3) as assign,
-    ):
-        try:
-            result = gear_utils.get_user_gear(MOCK_USER_ID, rate_limits)
-            error = None
-        except core_exceptions.DomainError as err:
-            result, error = None, err
-    return result, error, create, sync_pref, assign, sessions, rate_limits
+def _shoes(*rows: str) -> bytes:
+    return ("Shoe Name,Shoe Brand,Shoe Model\n" + "".join(f"{row}\n" for row in rows)).encode()
 
 
 class TestGetUserGear:
-    def test_new_gear_is_created_with_the_preference_and_the_assignments_in_one_commit(self):
-        athlete = SimpleNamespace(bikes=[SimpleNamespace(id="b1")], shoes=[SimpleNamespace(id="s1")])
-
-        result, error, create, sync_pref, assign, sessions, _ = _linked_sync(athlete)
-
-        assert (result, error) == (True, None)
-        created = create.call_args.args[0]
-        assert [(g.strava_gear_id, g.gear_type) for g in created] == [("b1", BIKE), ("s1", SHOES)]
-        sync_pref.assert_called_once()
-        assign.assert_called_once()
-        sessions.return_value.__enter__.return_value.commit.assert_called_once()
-
-    def test_gear_the_user_already_has_is_not_fetched_again(self):
-        athlete = SimpleNamespace(bikes=[SimpleNamespace(id="b1")], shoes=[])
-
-        result, _error, create, *_ = _linked_sync(athlete, existing_ids={"b1"})
-
-        assert result is True
-        assert create.call_args.args[0] == []
-
-    def test_an_athlete_without_gear_is_fine(self):
-        result, error, *_ = _linked_sync(SimpleNamespace(bikes=None, shoes=None))
-
-        assert (result, error) == (True, None)
-
-    def test_an_unlinked_user_is_reported_not_crashed(self):
-        with (
-            patch.object(gear_utils.core_database, "SessionLocal"),
-            patch.object(gear_utils.strava_client_service, "refresh_user_strava_token"),
-            patch.object(
-                gear_utils.strava_client_service, "fetch_user_integrations_and_validate_token", return_value=None
+    def test_new_gear_is_created_with_the_sync_preference_and_matched_to_existing_activities(
+        self, db, strava, rate_limits
+    ):
+        user = _linked(db)
+        activity = make_activity(db, user.id, strava_gear_id="b1")
+        other_activity = make_activity(
+            db, user.id, strava_gear_id="elsewhere", start_time=activity.start_time.replace(hour=12)
+        )
+        ungeared = make_activity(db, user.id, start_time=activity.start_time.replace(hour=15))
+        strava.on("GET", "/athlete", strava_factories.ok(strava_factories.athlete_payload(bikes=["b1"], shoes=["s1"])))
+        strava.on("GET", "/gear/b1", strava_factories.ok(strava_factories.gear_payload("b1")))
+        strava.on(
+            "GET",
+            "/gear/s1",
+            strava_factories.ok(
+                strava_factories.gear_payload("s1", name="Pegasus", brand_name="Nike", model_name="Peg 40")
             ),
-            patch.object(gear_utils.strava_client_service, "create_strava_client") as create_client,
-        ):
-            assert gear_utils.get_user_gear(MOCK_USER_ID, MagicMock()) is False
+        )
 
-        create_client.assert_not_called()
+        assert strava_gear_service.get_user_gear(user.id, rate_limits) is True
 
-    def test_a_failed_fetch_stores_nothing_and_leaves_the_preference_off(self):
-        athlete = SimpleNamespace(bikes=[SimpleNamespace(id="b1")], shoes=[])
+        gear = {g.strava_gear_id: g for g in _gear_of(user.id)}
+        assert (gear["b1"].nickname, gear["b1"].brand, gear["b1"].gear_type) == ("Road bike", "Canyon", BIKE)
+        assert (gear["s1"].nickname, gear["s1"].model, gear["s1"].gear_type, gear["s1"].active) == (
+            "Pegasus",
+            "Peg 40",
+            SHOES,
+            True,
+        )
+        assert _integrations(user.id).strava_sync_gear is True
+        with core_database.SessionLocal() as session:
+            assigned = {
+                row.id: row.gear_id
+                for row in session.scalars(
+                    select(activity_models.Activity).where(activity_models.Activity.user_id == user.id)
+                )
+            }
+        assert assigned == {activity.id: gear["b1"].id, other_activity.id: None, ungeared.id: None}
 
-        _result, error, create, sync_pref, *_ = _linked_sync(athlete, gear_error=RuntimeError("boom"))
+    def test_gear_the_user_already_has_is_not_fetched_again(self, db, strava, rate_limits):
+        user = _linked(db)
+        gears_integration.create_multiple_gears(
+            [gear_payload("Mine", user_id=user.id, strava_gear_id="b1")], user.id, db
+        )
+        strava.on("GET", "/athlete", strava_factories.ok(strava_factories.athlete_payload(bikes=["b1"])))
 
-        assert isinstance(error, core_exceptions.DependencyFailedError)
-        create.assert_not_called()
-        sync_pref.assert_not_called()
+        assert strava_gear_service.get_user_gear(user.id, rate_limits) is True
 
-    def test_a_failed_fetch_is_left_to_the_job_runner_to_log_with_its_cause(self, caplog):
-        athlete = SimpleNamespace(bikes=[SimpleNamespace(id="b1")], shoes=[])
+        assert strava.made("GET", "/gear/b1") == []
+        assert [g.nickname for g in _gear_of(user.id)] == ["Mine"]
 
-        with caplog.at_level("DEBUG"):
-            _result, error, *_ = _linked_sync(athlete, gear_error=RuntimeError("boom"))
+    def test_an_athlete_without_gear_still_turns_the_preference_on(self, db, strava, rate_limits):
+        user = _linked(db)
+        strava.on("GET", "/athlete", strava_factories.ok(strava_factories.athlete_payload()))
 
-        assert isinstance(error.__cause__, RuntimeError)
-        assert [r.getMessage() for r in caplog.records if r.levelno >= logging.WARNING] == []
+        assert strava_gear_service.get_user_gear(user.id, rate_limits) is True
 
-    def test_a_gear_piece_strava_sent_without_an_id_fails_the_sync_and_stores_nothing(self):
-        athlete = SimpleNamespace(bikes=[SimpleNamespace(id=None)], shoes=[])
+        assert (_gear_of(user.id), _integrations(user.id).strava_sync_gear) == ([], True)
 
-        _result, error, create, sync_pref, *_ = _linked_sync(athlete)
+    def test_a_user_who_is_not_linked_is_reported_not_crashed(self, db, strava, rate_limits):
+        user = make_user(db)
 
-        assert isinstance(error, core_exceptions.DependencyFailedError)
-        create.assert_not_called()
-        sync_pref.assert_not_called()
+        assert strava_gear_service.get_user_gear(user.id, rate_limits) is False
+        assert strava.calls == []
 
-    def test_a_gear_piece_strava_sent_without_a_name_fails_the_sync_and_stores_nothing(self):
-        athlete = SimpleNamespace(bikes=[SimpleNamespace(id="b1")], shoes=[])
-        nameless = SimpleNamespace(brand_name="B", model_name="M", name=None)
+    def test_a_long_history_is_matched_page_by_page(self, db, strava, rate_limits):
+        user = _linked(db)
+        count = strava_gear_service._ACTIVITY_PAGE_SIZE + 1
+        for minute in range(count):
+            make_activity(
+                db,
+                user.id,
+                strava_gear_id="b1",
+                start_time=DEFAULT_START + timedelta(minutes=minute),
+                end_time=DEFAULT_START + timedelta(minutes=minute, hours=1),
+            )
+        strava.on("GET", "/athlete", strava_factories.ok(strava_factories.athlete_payload(bikes=["b1"])))
+        strava.on("GET", "/gear/b1", strava_factories.ok(strava_factories.gear_payload("b1")))
 
-        _result, error, create, sync_pref, *_ = _linked_sync(athlete, fetched_gear=nameless)
+        strava_gear_service.get_user_gear(user.id, rate_limits)
 
-        assert isinstance(error, core_exceptions.DependencyFailedError)
-        create.assert_not_called()
-        sync_pref.assert_not_called()
+        with core_database.SessionLocal() as session:
+            gear_ids = session.scalars(
+                select(activity_models.Activity.gear_id).where(
+                    activity_models.Activity.user_id == user.id, activity_models.Activity.strava_gear_id == "b1"
+                )
+            ).all()
+        assert len(gear_ids) == count
+        assert None not in gear_ids
 
-    def test_a_rejected_token_unlinks_the_account_and_stores_nothing(self):
-        athlete = SimpleNamespace(bikes=[SimpleNamespace(id="b1")], shoes=[])
-        with patch.object(gear_utils.strava_client_service, "handle_rejected_token") as handle:
-            _result, error, create, *_ = _linked_sync(athlete, gear_error=AccessUnauthorized())
+    def test_a_failed_gear_fetch_stores_nothing_and_leaves_the_preference_off(self, db, strava, rate_limits):
+        user = _linked(db)
+        strava.on("GET", "/athlete", strava_factories.ok(strava_factories.athlete_payload(bikes=["b1", "b2"])))
+        strava.on("GET", "/gear/b1", strava_factories.ok(strava_factories.gear_payload("b1")))
+        strava.on("GET", "/gear/b2", strava_factories.refused(500))
 
-        assert isinstance(error, core_exceptions.DependencyFailedError)
-        handle.assert_called_once()
-        create.assert_not_called()
+        with pytest.raises(core_exceptions.DependencyFailedError):
+            strava_gear_service.get_user_gear(user.id, rate_limits)
 
-    def test_an_active_rate_limit_stops_the_sync_before_any_strava_call(self):
-        client = MagicMock()
-        rate_limits = MagicMock()
-        rate_limits.is_rate_limited.return_value = True
-        with (
-            patch.object(gear_utils.core_database, "SessionLocal"),
-            patch.object(gear_utils.strava_client_service, "refresh_user_strava_token"),
-            patch.object(
-                gear_utils.strava_client_service, "fetch_user_integrations_and_validate_token", return_value=object()
-            ),
-            patch.object(gear_utils.strava_client_service, "get_client_id", return_value="42"),
-            patch.object(gear_utils.strava_client_service, "create_strava_client", return_value=client),
-            pytest.raises(core_exceptions.TooManyRequestsError),
-        ):
-            gear_utils.get_user_gear(MOCK_USER_ID, rate_limits)
+        assert (_gear_of(user.id), _integrations(user.id).strava_sync_gear) == ([], False)
 
-        client.get_athlete.assert_not_called()
+    def test_a_failed_athlete_fetch_is_a_failed_dependency(self, db, strava, rate_limits):
+        user = _linked(db)
+        strava.on("GET", "/athlete", strava_factories.refused(500))
+
+        with pytest.raises(core_exceptions.DependencyFailedError):
+            strava_gear_service.get_user_gear(user.id, rate_limits)
+
+    def test_a_gear_piece_strava_lists_without_an_id_fails_the_sync_and_stores_nothing(self, db, strava, rate_limits):
+        user = _linked(db)
+        athlete = strava_factories.athlete_payload()
+        athlete["bikes"] = [{"name": "no id", "primary": False, "distance": 0}]
+        strava.on("GET", "/athlete", strava_factories.ok(athlete))
+
+        with pytest.raises(core_exceptions.DependencyFailedError):
+            strava_gear_service.get_user_gear(user.id, rate_limits)
+
+        assert _gear_of(user.id) == []
+
+    def test_a_gear_piece_strava_returns_without_a_name_fails_the_sync_and_stores_nothing(
+        self, db, strava, rate_limits
+    ):
+        user = _linked(db)
+        strava.on("GET", "/athlete", strava_factories.ok(strava_factories.athlete_payload(bikes=["b1"])))
+        strava.on("GET", "/gear/b1", strava_factories.ok(strava_factories.gear_payload("b1", name=None)))
+
+        with pytest.raises(core_exceptions.DependencyFailedError):
+            strava_gear_service.get_user_gear(user.id, rate_limits)
+
+        assert (_gear_of(user.id), _integrations(user.id).strava_sync_gear) == ([], False)
+
+    def test_a_token_strava_rejects_unlinks_the_account_and_stores_nothing(self, db, strava, rate_limits):
+        user = _linked(db)
+        strava.on("GET", "/athlete", strava_factories.refused(401))
+        strava.on("POST", "/oauth/token", strava_factories.refused(400, resource="RefreshToken"))
+
+        with pytest.raises(strava_client_service.StravaTokenRejectedError):
+            strava_gear_service.get_user_gear(user.id, rate_limits)
+
+        stored = _integrations(user.id)
+        assert (stored.strava_token, stored.strava_revoked_at is not None, _gear_of(user.id)) == (None, True, [])
+
+    def test_an_active_rate_limit_stops_the_sync_before_strava_is_called(self, db, strava, rate_limits):
+        user = _linked(db)
+        until = rate_limits.mark_rate_limited(strava_factories.CLIENT_ID)
+
+        with pytest.raises(core_exceptions.TooManyRequestsError) as raised:
+            strava_gear_service.get_user_gear(user.id, rate_limits)
+
+        assert raised.value.retry_at == until
+        assert strava.calls == []
+
+    def test_a_429_marks_the_limit_and_refuses_with_when_it_clears(self, db, strava, rate_limits):
+        user = _linked(db)
+        strava.on("GET", "/athlete", strava_factories.rate_limited())
+
+        with pytest.raises(core_exceptions.TooManyRequestsError) as raised:
+            strava_gear_service.get_user_gear(user.id, rate_limits)
+
+        assert raised.value.retry_at == rate_limits.rate_limited_until(strava_factories.CLIENT_ID)
+
+    def test_strava_is_called_with_no_database_session_open(self, committed_sessions, strava, rate_limits):
+        with committed_sessions() as db:
+            user = _linked(db)
+            db.commit()
+        open_connections = []
+
+        def watching(reply):
+            def answer(_call):
+                open_connections.append(core_database.engine.pool.checkedout())
+                return reply
+
+            return answer
+
+        strava.on("GET", "/athlete", watching(strava_factories.ok(strava_factories.athlete_payload(bikes=["b1"]))))
+        strava.on("GET", "/gear/b1", watching(strava_factories.ok(strava_factories.gear_payload("b1"))))
+
+        strava_gear_service.get_user_gear(user.id, rate_limits)
+
+        assert open_connections == [0, 0]
+
+
+class TestImportBikes:
+    @pytest.fixture
+    def user(self, db):
+        return make_user(db)
+
+    def test_the_listed_bikes_are_created_for_the_caller_and_audited_with_type_and_count(self, user, db):
+        count = strava_gear_service.import_gear(
+            _csv_saver(_bikes("Commuter,Trek,Domane", "Gravel,Canyon,Grail")), user.id, BIKE, db
+        )
+
+        assert count == 2
+        assert sorted((g.nickname, g.brand, g.model, g.gear_type) for g in _gear_of(user.id)) == [
+            ("Commuter", "Trek", "Domane", BIKE),
+            ("Gravel", "Canyon", "Grail", BIKE),
+        ]
+        (row,) = db.scalars(select(audit_models.AuditLog).where(audit_models.AuditLog.action_id == _GEAR_IMPORT)).all()
+        assert (row.actor_id, row.target_owner_id, row.details) == (
+            None,
+            str(user.id),
+            {"gear_type": "bikes", "count": 2},
+        )
+
+    def test_names_are_stripped_blank_brands_are_none_and_the_last_of_two_rows_with_one_name_wins(self, user, db):
+        strava_gear_service.import_gear(
+            _csv_saver(_bikes(" Road , Giant ,  Defy ", "Road,Trek,", "MTB,,", "  ,Giant,Anthem")), user.id, BIKE, db
+        )
+
+        assert sorted((g.nickname, g.brand, g.model) for g in _gear_of(user.id)) == [
+            ("MTB", None, None),
+            ("Road", "Trek", None),
+        ]
+
+    def test_a_file_listing_no_gear_creates_and_audits_nothing(self, user, db):
+        count = strava_gear_service.import_gear(_csv_saver(_bikes()), user.id, BIKE, db)
+
+        assert count == 0
+        assert _gear_of(user.id) == []
+        assert (
+            db.scalars(select(audit_models.AuditLog).where(audit_models.AuditLog.action_id == _GEAR_IMPORT)).all() == []
+        )
+
+    @pytest.mark.parametrize("content", [b"Name,Brand\nCommuter,Trek\n", _shoes("Pegasus,Nike,Peg")])
+    def test_a_file_without_the_bike_columns_is_refused_and_not_audited(self, user, db, content):
+        with pytest.raises(core_exceptions.InvalidInputError):
+            strava_gear_service.import_gear(_csv_saver(content), user.id, BIKE, db)
+
+        assert _gear_of(user.id) == []
+        assert (
+            db.scalars(select(audit_models.AuditLog).where(audit_models.AuditLog.action_id == _GEAR_IMPORT)).all() == []
+        )
+
+    def test_a_file_that_is_not_text_is_refused_as_bad_input(self, user, db):
+        with pytest.raises(core_exceptions.InvalidInputError):
+            strava_gear_service.import_gear(
+                _csv_saver(b"Bike Name,Bike Brand,Bike Model\n\xff\xfe\x00\x81\n"), user.id, BIKE, db
+            )
+
+    def test_an_oversized_upload_is_refused(self, user, db):
+        big = _bikes() + b"x," * strava_constants.GEAR_CSV_MAX_BYTES
+
+        with pytest.raises(core_exceptions.PayloadTooLargeError):
+            strava_gear_service.import_gear(_csv_saver(big), user.id, BIKE, db)
+
+    @pytest.mark.parametrize("content", [_bikes("Commuter,Trek,Domane"), b"not a csv"])
+    def test_the_temporary_file_is_removed_whether_or_not_the_file_is_accepted(self, user, db, content):
+        seen: list[str] = []
+
+        with contextlib.suppress(core_exceptions.InvalidInputError):
+            strava_gear_service.import_gear(_csv_saver(content, seen), user.id, BIKE, db)
+
+        assert len(seen) == 1
+        assert not os.path.exists(seen[0])
+
+
+class TestImportShoes:
+    @pytest.fixture
+    def user(self, db):
+        return make_user(db)
+
+    def test_the_listed_shoes_are_created_and_audited_as_shoes(self, user, db):
+        count = strava_gear_service.import_gear(_csv_saver(_shoes(" Pegasus ,Nike, Peg 40 ")), user.id, SHOES, db)
+
+        assert count == 1
+        (shoe,) = _gear_of(user.id)
+        assert (shoe.nickname, shoe.brand, shoe.model, shoe.gear_type) == ("Pegasus", "Nike", "Peg 40", SHOES)
+        (row,) = db.scalars(select(audit_models.AuditLog).where(audit_models.AuditLog.action_id == _GEAR_IMPORT)).all()
+        assert row.details == {"gear_type": "shoes", "count": 1}
+
+    def test_a_trailing_plus_in_a_shoe_name_is_kept(self, user, db):
+        strava_gear_service.import_gear(_csv_saver(_shoes("Pegasus+ ,Nike,Peg")), user.id, SHOES, db)
+
+        assert [g.nickname for g in _gear_of(user.id)] == ["Pegasus+"]
+
+    @pytest.mark.parametrize("blank", ["", "  ", "+", "+ +"])
+    def test_a_nameless_shoe_gets_the_default_name(self, user, db, blank):
+        strava_gear_service.import_gear(_csv_saver(_shoes(f'"{blank}",Nike,Peg')), user.id, SHOES, db)
+
+        assert [(g.nickname, g.brand) for g in _gear_of(user.id)] == [("Unnamed Shoe 1", "Nike")]
+
+    def test_nameless_shoes_avoid_the_gear_the_user_has_and_each_other(self, user, db):
+        gears_integration.create_multiple_gears([gear_payload("Unnamed Shoe 1", user_id=user.id)], user.id, db)
+
+        strava_gear_service.import_gear(_csv_saver(_shoes(",,", ",,", "Speed,,")), user.id, SHOES, db)
+
+        assert sorted(g.nickname for g in _gear_of(user.id)) == [
+            "Speed",
+            "Unnamed Shoe 1",
+            "Unnamed Shoe 2",
+            "Unnamed Shoe 3",
+        ]

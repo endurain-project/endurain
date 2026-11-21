@@ -1,784 +1,558 @@
-"""Tests for strava.activity_utils stream-fetching logic."""
+"""Strava activity sync: a window fetched from the fake Strava is stored, with its streams and laps, on the database."""
 
-import logging
-import uuid
-from datetime import datetime
-from unittest.mock import MagicMock, Mock
+from datetime import UTC, datetime, timedelta
 
-import jasil.runtime as platform_runtime
 import pytest
-from stravalib.exc import AccessUnauthorized, ObjectNotFound
-from stravalib.exc import Fault as StravaFault
+from sqlalchemy import delete, select
 
+import core.database as core_database
 import core.exceptions as core_exceptions
-import modules.activities.activity_ingestion.window_service as activity_ingestion_window_service
-import modules.strava.activity_service as activity_utils
-import modules.strava.client_service as strava_utils
-import modules.strava.rate_limit_store as strava_rate_limit_store
-from tests._helpers.auth import MOCK_USER_ID
+import modules.activities.activity.constants as activity_constants
+import modules.activities.activity.models as activity_models
+import modules.activities.activity_laps.models as activity_laps_models
+import modules.activities.activity_streams.constants as activity_streams_constants
+import modules.activities.activity_streams.models as activity_streams_models
+import modules.gears.gear.integration_service as gears_integration
+import modules.strava.activity_service as strava_activity_service
+import modules.strava.client_service as strava_client_service
+import modules.users.users_integrations.integration_service as user_integrations_integration
+import modules.users.users_privacy_settings.models as privacy_models
+from tests._factories import strava as strava_factories
+from tests._factories.gears import gear_payload
+from tests._factories.users import make_user
 
-# ---------------------------------------------------------------------------
-# Helpers
-# ---------------------------------------------------------------------------
-
-
-def _integrations(client_id: str = "app-a") -> Mock:
-    """Integrations whose (already plain) client id is *client_id*; decryption is the identity."""
-    return Mock(strava_client_id=client_id)
-
-
-@pytest.fixture
-def rate_limits():
-    return strava_rate_limit_store.StravaRateLimitStore(platform_runtime.get_state())
-
-
-@pytest.fixture(autouse=True)
-def _plain_client_id(monkeypatch):
-    monkeypatch.setattr(strava_utils.core_cryptography, "decrypt_token_fernet", lambda value: value)
-
-
-def _make_strava_fault(status_code: int) -> StravaFault:
-    """Return a StravaFault whose .response.status_code equals *status_code*."""
-    response = Mock()
-    response.status_code = status_code
-    response.headers = {}
-    fault = StravaFault()
-    fault.response = response
-    return fault
+_START = datetime(2025, 3, 1, tzinfo=UTC)
+_END = datetime(2025, 3, 31, tzinfo=UTC)
+_SAMPLES = {
+    "time": [0, 10, 20, 30],
+    "heartrate": [120, 130, 140, 150],
+    "altitude": [100.0, 101.0, 103.0, 102.0],
+    "cadence": [80, 82, 84, 86],
+    "watts": [200, 210, 220, 230],
+    "velocity_smooth": [2.0, 4.0, 0.0, 5.0],
+}
+_STREAM_TYPES = activity_streams_constants
 
 
-# ---------------------------------------------------------------------------
-# fetch_and_process_activity_streams — empty-stream (404) path
-# ---------------------------------------------------------------------------
+def _linked(db, **link):
+    user = make_user(db, timezone="Europe/Lisbon")
+    strava_factories.link_strava(db, user.id, **link)
+    db.flush()
+    return user
 
 
-class TestFetchAndProcessActivityStreamsNotFound:
-    """Tests for the 404 / no-streams path in fetch_and_process_activity_streams."""
-
-    def _call(self, client: Mock, rate_limits) -> tuple:
-        return activity_utils.fetch_and_process_activity_streams(
-            strava_client=client,
-            strava_activity_id=99,
-            user_id=MOCK_USER_ID,
-            user_integrations=_integrations(),
-            rate_limits=rate_limits,
-        )
-
-    def test_not_found_fault_returns_empty_streams(self, monkeypatch, rate_limits):
-        """A StravaFault 404 yields thirteen empty/False return values."""
-        client = Mock()
-        client.get_activity_streams.side_effect = _make_strava_fault(404)
-
-        monkeypatch.setattr(rate_limits, "is_rate_limited", lambda client_id: False)
-        monkeypatch.setattr(activity_utils, "logger", Mock())
-
-        result = self._call(client, rate_limits)
-
-        assert result == (
-            [],
-            False,
-            [],
-            False,
-            [],
-            False,
-            [],
-            False,
-            [],
-            False,
-            [],
-            False,
-            [],
-        )
-
-    def test_not_found_plain_exception_returns_empty_streams(self, monkeypatch, rate_limits):
-        """stravalib's ObjectNotFound also yields empty stream data."""
-        client = Mock()
-        client.get_activity_streams.side_effect = ObjectNotFound()
-
-        monkeypatch.setattr(rate_limits, "is_rate_limited", lambda client_id: False)
-        monkeypatch.setattr(activity_utils, "logger", Mock())
-
-        result = self._call(client, rate_limits)
-
-        assert result == (
-            [],
-            False,
-            [],
-            False,
-            [],
-            False,
-            [],
-            False,
-            [],
-            False,
-            [],
-            False,
-            [],
-        )
-
-    def test_rate_limit_fault_raises_429(self, monkeypatch, rate_limits):
-        """A StravaFault 429 raises a domain error 429, not empty streams."""
-        client = Mock()
-        client.get_activity_streams.side_effect = _make_strava_fault(429)
-
-        monkeypatch.setattr(rate_limits, "is_rate_limited", lambda client_id: False)
-        monkeypatch.setattr(rate_limits, "mark_rate_limited", Mock())
-        monkeypatch.setattr(activity_utils, "logger", Mock())
-
-        with pytest.raises(core_exceptions.TooManyRequestsError):
-            self._call(client, rate_limits)
-
-    def test_pre_check_rate_limited_raises_429(self, monkeypatch, rate_limits):
-        """When already rate-limited, raises a domain error 429 before any API call."""
-        client = Mock()
-
-        monkeypatch.setattr(rate_limits, "is_rate_limited", lambda client_id: True)
-        monkeypatch.setattr(activity_utils, "logger", Mock())
-
-        with pytest.raises(core_exceptions.TooManyRequestsError):
-            self._call(client, rate_limits)
-
-        client.get_activity_streams.assert_not_called()
-
-    def test_a_limit_on_another_app_does_not_block_the_fetch(self, monkeypatch, rate_limits):
-        client = Mock()
-        client.get_activity_streams.side_effect = _make_strava_fault(404)
-        rate_limits.mark_rate_limited("app-b", is_long_term=True)
-        monkeypatch.setattr(activity_utils, "logger", Mock())
-
-        self._call(client, rate_limits)
-
-        client.get_activity_streams.assert_called_once()
-
-    def test_a_limit_hit_here_is_recorded_against_this_app_only(self, monkeypatch, rate_limits):
-        client = Mock()
-        client.get_activity_streams.side_effect = _make_strava_fault(429)
-        monkeypatch.setattr(activity_utils, "logger", Mock())
-
-        with pytest.raises(core_exceptions.TooManyRequestsError):
-            self._call(client, rate_limits)
-
-        assert rate_limits.is_rate_limited("app-a") is True
-        assert rate_limits.is_rate_limited("app-b") is False
-
-    def test_unrelated_exception_raises_424(self, monkeypatch, rate_limits):
-        """An unrelated exception raises a domain error 424."""
-        client = Mock()
-        client.get_activity_streams.side_effect = RuntimeError("network failure")
-
-        monkeypatch.setattr(rate_limits, "is_rate_limited", lambda client_id: False)
-        monkeypatch.setattr(activity_utils, "logger", Mock())
-
-        with pytest.raises(core_exceptions.DependencyFailedError):
-            self._call(client, rate_limits)
+def _reply(value, default):
+    """Turn an arranged payload into a reply: a ``Reply`` as it is, a payload as a 200, ``None`` as the default."""
+    if value is None:
+        value = default
+    return value if isinstance(value, strava_factories.Reply) else strava_factories.ok(value)
 
 
-# ---------------------------------------------------------------------------
-# save_activity_streams_laps — routes Strava sync through the ingestion seam
-# ---------------------------------------------------------------------------
+def _activity(strava, activity_id, *, detail=None, streams=None, laps=None):
+    """Answer the three calls one listed activity takes: its detail, its streams and its laps."""
+    strava.on("GET", f"/activities/{activity_id}", _reply(detail, strava_factories.detailed_activity(activity_id)))
+    strava.on(
+        "GET", f"/activities/{activity_id}/streams", _reply(streams, strava_factories.streams_payload(**_SAMPLES))
+    )
+    strava.on("GET", f"/activities/{activity_id}/laps", _reply(laps, [strava_factories.lap_payload()]))
 
 
-class TestSaveActivityStreamsLaps:
-    """Strava persists through the canonical store_parsed_activity seam."""
+def _list(strava, *activity_ids):
+    strava.on(
+        "GET",
+        "/athlete/activities",
+        strava_factories.ok([strava_factories.summary_activity(activity_id) for activity_id in activity_ids]),
+    )
 
-    def test_builds_parsed_activity_and_delegates_to_seam(self, monkeypatch):
-        """Only set streams are forwarded; laps and Strava provenance are carried."""
-        import modules.activities.activity.schema as activity_schema
 
-        captured: dict = {}
+def _sync(user, rate_limits):
+    return strava_activity_service.get_user_strava_activities_by_dates(user.id, _START, _END, rate_limits)
 
-        def _fake_store(parsed, db):
-            captured["parsed"] = parsed
-            captured["db"] = db
-            return activity_schema.ActivityRead(
-                id=uuid.UUID(int=42), user_id=MOCK_USER_ID, distance=0, name="X", activity_type=1
+
+def _stored(user_id):
+    with core_database.SessionLocal() as db:
+        rows = db.scalars(
+            select(activity_models.Activity)
+            .where(activity_models.Activity.user_id == user_id)
+            .order_by(activity_models.Activity.strava_activity_id)
+        ).all()
+        db.expunge_all()
+        return list(rows)
+
+
+def _streams_of(activity_id):
+    with core_database.SessionLocal() as db:
+        rows = db.scalars(
+            select(activity_streams_models.ActivityStreams).where(
+                activity_streams_models.ActivityStreams.activity_id == activity_id
             )
-
-        monkeypatch.setattr(activity_utils.activity_integration, "store_parsed_activity", _fake_store)
-
-        activity = activity_schema.ActivityRead(
-            id=uuid.UUID(int=1),
-            user_id=MOCK_USER_ID,
-            distance=1000,
-            name="Ride",
-            activity_type=1,
-            strava_activity_id=555,
-        )
-        stream_data = [
-            (True, 1, [{"hr": 140}]),
-            (False, 2, [{"power": 200}]),  # not set -> excluded
-            (True, 7, [{"lat": 1.0, "lon": 2.0}]),
-        ]
-        laps = [{"pace": 5.0}]
-        db = Mock()
-
-        result = activity_utils.save_activity_streams_laps(activity, stream_data, laps, db)
-
-        assert result.id == uuid.UUID(int=42)
-        parsed = captured["parsed"]
-        assert [stream.stream_type for stream in parsed.components["streams"]] == [1, 7]
-        assert parsed.components["laps"] == laps
-        assert parsed.source.kind == "strava"
-        assert parsed.source.provider_activity_id == 555
-        assert captured["db"] is db
-
-    def test_handles_empty_streams_and_no_laps(self, monkeypatch):
-        """Empty stream_data and None laps yield an empty-stream, no-lap ParsedActivity."""
-        import modules.activities.activity.schema as activity_schema
-
-        captured: dict = {}
-
-        def _fake_store(parsed, db):
-            captured["parsed"] = parsed
-            return activity_schema.ActivityRead(
-                id=uuid.UUID(int=1), user_id=MOCK_USER_ID, distance=0, name="X", activity_type=1
-            )
-
-        monkeypatch.setattr(activity_utils.activity_integration, "store_parsed_activity", _fake_store)
-
-        activity = activity_schema.ActivityRead(
-            id=uuid.UUID(int=1), user_id=MOCK_USER_ID, distance=0, name="X", activity_type=1
-        )
-        activity_utils.save_activity_streams_laps(activity, [], None, Mock())
-
-        parsed = captured["parsed"]
-        assert parsed.components == {"streams": [], "laps": None}
-        assert parsed.source.kind == "strava"
+        ).all()
+        return {row.stream_type: row.stream_waypoints for row in rows}
 
 
-class _TrackingSession:
-    """A ``SessionLocal`` stand-in that records how many sessions are open."""
-
-    open_count = 0
-
-    def __enter__(self):
-        type(self).open_count += 1
-        return Mock()
-
-    def __exit__(self, *_exc):
-        type(self).open_count -= 1
-        return False
+def _laps_of(activity_id):
+    with core_database.SessionLocal() as db:
+        rows = db.scalars(
+            select(activity_laps_models.ActivityLaps)
+            .where(activity_laps_models.ActivityLaps.activity_id == activity_id)
+            .order_by(activity_laps_models.ActivityLaps.start_time)
+        ).all()
+        db.expunge_all()
+        return list(rows)
 
 
-class TestProcessActivity:
-    """Processing one Strava activity: no session is held while Strava is being called."""
-
-    def _setup(self, monkeypatch, *, already_stored: bool = False):
-        import modules.activities.activity.schema as activity_schema
-
-        _TrackingSession.open_count = 0
-        seen: dict[str, int] = {}
-        monkeypatch.setattr(activity_utils.core_database, "SessionLocal", _TrackingSession)
-        monkeypatch.setattr(
-            activity_utils.activity_integration,
-            "get_activity_by_strava_id",
-            lambda *args, **kwargs: Mock() if already_stored else None,
+class TestASyncedWindow:
+    def test_a_listed_activity_is_stored_with_its_details_streams_and_laps(self, db, strava, rate_limits):
+        user = _linked(db)
+        _list(strava, 1001)
+        _activity(
+            strava,
+            1001,
+            detail=strava_factories.detailed_activity(
+                1001, name="Lunch run", gear_id=None, start_latlng=[38.7, -9.1], average_cadence=80.0
+            ),
+            streams=strava_factories.streams_payload(**_SAMPLES, latlng=[[38.7, -9.1]] * 4),
         )
 
-        def _fake_parse(*args, **kwargs):
-            seen["during_parse"] = _TrackingSession.open_count
-            return {"activity_to_store": Mock(), "stream_data": [], "laps": None}
+        stored = _sync(user, rate_limits)
 
-        def _fake_save(*args, **kwargs):
-            seen["during_save"] = _TrackingSession.open_count
-            return activity_schema.ActivityRead(
-                id=uuid.UUID(int=7), user_id=MOCK_USER_ID, distance=0, name="X", activity_type=1
-            )
+        (activity,) = _stored(user.id)
+        assert [a.id for a in stored] == [activity.id]
+        assert (activity.name, activity.distance, activity.strava_activity_id) == ("Lunch run", 10000, 1001)
+        assert activity.dedup_key == "strava:1001"
+        assert activity.activity_type == activity_constants.ActivityType.RUN.stored
+        assert (activity.average_hr, activity.max_hr, activity.calories) == (145, 175, 500)
+        assert activity.elevation_gain == 50, "Strava's own total wins over the one computed from the stream"
+        assert activity.timezone == "Europe/Lisbon"
+        assert activity.start_time == datetime(2025, 3, 10, 8, 0, tzinfo=UTC)
+        assert activity.end_time == activity.start_time + timedelta(seconds=3600)
+        assert set(_streams_of(activity.id)) == {
+            _STREAM_TYPES.STREAM_TYPE_HR,
+            _STREAM_TYPES.STREAM_TYPE_POWER,
+            _STREAM_TYPES.STREAM_TYPE_CADENCE,
+            _STREAM_TYPES.STREAM_TYPE_ELEVATION,
+            _STREAM_TYPES.STREAM_TYPE_SPEED,
+            _STREAM_TYPES.STREAM_TYPE_PACE,
+            _STREAM_TYPES.STREAM_TYPE_MAP,
+        }
+        (lap,) = _laps_of(activity.id)
+        assert (lap.avg_heart_rate, lap.max_heart_rate) == (140, 150)
 
-        monkeypatch.setattr(activity_utils, "parse_activity", _fake_parse)
-        monkeypatch.setattr(activity_utils, "save_activity_streams_laps", _fake_save)
-        return seen
+    def test_an_activity_that_is_already_stored_is_not_fetched_again(self, db, strava, rate_limits):
+        user = _linked(db)
+        _list(strava, 1001)
+        _activity(strava, 1001)
+        _sync(user, rate_limits)
+        strava.calls.clear()
 
-    def test_the_strava_calls_run_with_no_session_open(self, monkeypatch):
-        """A transaction held across Strava round trips is what this was restructured to avoid."""
-        seen = self._setup(monkeypatch)
+        stored = _sync(user, rate_limits)
 
-        result = activity_utils.process_activity(Mock(id=555), MOCK_USER_ID, Mock(), "UTC", Mock(), Mock(), Mock())
+        assert stored == []
+        assert [call.path for call in strava.calls] == ["/athlete/activities"]
+        assert len(_stored(user.id)) == 1
 
-        assert result.id == uuid.UUID(int=7)
-        assert seen["during_parse"] == 0
-        # The store gets its own short session.
-        assert seen["during_save"] == 1
+    def test_two_users_linked_to_the_same_athlete_each_store_the_activity(self, db, strava, rate_limits):
+        first, second = _linked(db), _linked(db)
+        _list(strava, 1001)
+        _activity(strava, 1001)
 
-    def test_an_activity_without_an_id_is_refused_before_it_is_looked_up_or_fetched(self, monkeypatch):
-        from stravalib.model import SummaryActivity
+        _sync(first, rate_limits)
+        _sync(second, rate_limits)
 
-        seen = self._setup(monkeypatch)
-        lookup = Mock(return_value=None)
-        monkeypatch.setattr(activity_utils.activity_integration, "get_activity_by_strava_id", lookup)
+        assert [a.strava_activity_id for a in _stored(first.id)] == [1001]
+        assert [a.strava_activity_id for a in _stored(second.id)] == [1001]
 
-        with pytest.raises(core_exceptions.DependencyFailedError):
-            activity_utils.process_activity(
-                SummaryActivity.model_validate({}), 1, Mock(), "UTC", Mock(), Mock(), Mock()
-            )
+    def test_a_window_with_no_activities_stores_nothing(self, db, strava, rate_limits):
+        user = _linked(db)
+        _list(strava)
 
-        lookup.assert_not_called()
-        assert seen == {}
+        assert _sync(user, rate_limits) is None
+        assert _stored(user.id) == []
 
-    def test_an_activity_already_stored_is_skipped_without_calling_strava(self, monkeypatch):
-        seen = self._setup(monkeypatch, already_stored=True)
+    def test_a_user_who_is_not_linked_is_skipped_without_calling_strava(self, db, strava, rate_limits):
+        user = make_user(db)
 
-        assert (
-            activity_utils.process_activity(Mock(id=555), MOCK_USER_ID, Mock(), "UTC", Mock(), Mock(), Mock()) is None
+        assert _sync(user, rate_limits) is None
+        assert strava.calls == []
+
+    def test_a_user_without_privacy_settings_is_refused_before_any_activity_is_fetched(self, db, strava, rate_limits):
+        user = _linked(db)
+        db.execute(
+            delete(privacy_models.UsersPrivacySettings).where(privacy_models.UsersPrivacySettings.user_id == user.id)
         )
-        assert seen == {}
-
-
-class TestFetchAndProcessActivityLapsRateLimit:
-    """Laps count against the same per-app Strava quota as streams."""
-
-    def _call(self, client: Mock, rate_limits):
-        return activity_utils.fetch_and_process_activity_laps(client, 1, MOCK_USER_ID, [], _integrations(), rate_limits)
-
-    def test_a_limited_app_raises_429_before_any_api_call(self, rate_limits):
-        client = Mock()
-        rate_limits.mark_rate_limited("app-a", is_long_term=True)
-
-        with pytest.raises(core_exceptions.TooManyRequestsError):
-            self._call(client, rate_limits)
-
-        client.get_activity_laps.assert_not_called()
-
-    def test_a_limit_on_another_app_does_not_block_the_fetch(self, rate_limits):
-        client = Mock()
-        client.get_activity_laps.return_value = []
-        rate_limits.mark_rate_limited("app-b", is_long_term=True)
-
-        assert self._call(client, rate_limits) == []
-
-    def test_a_429_is_recorded_against_this_app_and_raised(self, rate_limits):
-        client = Mock()
-        client.get_activity_laps.side_effect = _make_strava_fault(429)
-
-        with pytest.raises(core_exceptions.TooManyRequestsError):
-            self._call(client, rate_limits)
-
-        assert rate_limits.is_rate_limited("app-a") is True
-        assert rate_limits.is_rate_limited("app-b") is False
-
-    def test_not_found_returns_none(self, rate_limits):
-        client = Mock()
-        client.get_activity_laps.side_effect = _make_strava_fault(404)
-
-        assert self._call(client, rate_limits) is None
-
-    def test_another_failure_raises_so_the_activity_is_retried(self, rate_limits):
-        client = Mock()
-        client.get_activity_laps.side_effect = _make_strava_fault(503)
-
-        with pytest.raises(core_exceptions.DependencyFailedError):
-            self._call(client, rate_limits)
-
-    def test_a_network_failure_raises_so_the_activity_is_retried(self, rate_limits):
-        client = Mock()
-        client.get_activity_laps.side_effect = RuntimeError("network failure")
-
-        with pytest.raises(core_exceptions.DependencyFailedError):
-            self._call(client, rate_limits)
-
-
-class TestFetchAndProcessActivityLapsElevation:
-    """Lap ascent/descent computed from the Strava altitude stream."""
-
-    def _lap(self) -> Mock:
-        lap = Mock()
-        lap.start_index = 0
-        lap.end_index = 2
-        lap.start_date_local = datetime(2025, 1, 1, 8, 0, 0)
-        lap.average_heartrate = None
-        lap.max_heartrate = None
-        lap.average_speed = None
-        lap.max_speed = None
-        return lap
-
-    def _process(self, ele_stream: list[dict], rate_limits) -> dict:
-        client = Mock()
-        client.get_activity_laps.return_value = [self._lap()]
-        laps = activity_utils.fetch_and_process_activity_laps(
-            client, 1, MOCK_USER_ID, [(True, 4, ele_stream)], _integrations(), rate_limits
-        )
-        return laps[0]
-
-    def test_invalid_altitude_stream_leaves_lap_elevation_none(self, rate_limits):
-        """An altitude stream with no valid values yields None, not 0 m."""
-        lap = self._process(rate_limits=rate_limits, ele_stream=[{"ele": None}, {"ele": None}, {"ele": None}])
-
-        assert lap["total_ascent"] is None
-        assert lap["total_descent"] is None
-
-    def test_flat_altitude_stream_stores_zero(self, rate_limits):
-        """A flat altitude stream yields a genuine 0 m ascent/descent."""
-        lap = self._process(rate_limits=rate_limits, ele_stream=[{"ele": 100.0}, {"ele": 100.0}, {"ele": 100.0}])
-
-        assert lap["total_ascent"] == 0
-        assert lap["total_descent"] == 0
-
-
-class TestStreamsConversion:
-    """A stream is paired with the time stream; points without a timestamp are dropped."""
-
-    def _call(self, streams: dict, rate_limits):
-        client = Mock()
-        client.get_activity_streams.return_value = {name: Mock(data=data) for name, data in streams.items()}
-        return activity_utils.fetch_and_process_activity_streams(client, 99, MOCK_USER_ID, _integrations(), rate_limits)
-
-    def test_a_stream_longer_than_time_is_cut_instead_of_failing(self, rate_limits, monkeypatch):
-        monkeypatch.setattr(rate_limits, "is_rate_limited", lambda client_id: False)
-
-        result = self._call({"time": [0, 1], "heartrate": [100, 110, 120]}, rate_limits)
-
-        hr_waypoints, is_hr_set = result[4], result[5]
-        assert hr_waypoints == [{"time": 0, "hr": 100}, {"time": 1, "hr": 110}]
-        assert is_hr_set is True
-
-    def test_pace_is_derived_from_velocity_with_zero_for_a_standstill(self, rate_limits, monkeypatch):
-        monkeypatch.setattr(rate_limits, "is_rate_limited", lambda client_id: False)
-
-        result = self._call({"time": [0, 1], "velocity_smooth": [0, 4]}, rate_limits)
-
-        assert result[10] == [{"time": 0, "vel": 0}, {"time": 1, "vel": 4}]
-        assert result[12] == [{"time": 0, "pace": 0}, {"time": 1, "pace": 0.25}]
-
-    def test_missing_streams_are_reported_as_not_set(self, rate_limits, monkeypatch):
-        monkeypatch.setattr(rate_limits, "is_rate_limited", lambda client_id: False)
-
-        result = self._call({"time": [0, 1]}, rate_limits)
-
-        assert [result[i] for i in (1, 3, 5, 7, 9, 11)] == [False] * 6
-
-
-class TestFetchAndProcessActivitiesIsolation:
-    """One activity that cannot be processed does not stop the rest of the window, and the window then fails."""
-
-    def _run(self, monkeypatch, rate_limits, process, *, has_privacy_settings=True):
-        monkeypatch.setattr(rate_limits, "is_rate_limited", lambda client_id: False)
-        monkeypatch.setattr(activity_utils, "logger", Mock())
-        monkeypatch.setattr(activity_utils.core_database, "SessionLocal", lambda: MagicMock())
-        monkeypatch.setattr(
-            activity_utils.users_integration, "get_user", lambda *_a: Mock(id=1, timezone="Europe/Lisbon")
-        )
-        monkeypatch.setattr(
-            activity_utils.users_privacy_settings_integration,
-            "get_privacy_settings",
-            lambda *_a: Mock() if has_privacy_settings else None,
-        )
-        monkeypatch.setattr(activity_utils, "process_activity", process)
-        client = Mock()
-        client.get_activities.return_value = [Mock(id=1), Mock(id=2), Mock(id=3)]
-        return activity_utils.fetch_and_process_activities_by_dates(
-            client, datetime(2026, 1, 1), datetime(2026, 1, 2), MOCK_USER_ID, _integrations(), rate_limits
-        )
-
-    def test_a_failing_activity_does_not_stop_the_others_but_fails_the_window(self, monkeypatch, rate_limits):
-        processed = []
-
-        def process(activity, *_args):
-            processed.append(activity.id)
-            if activity.id == 2:
-                raise TypeError("calories is None")
-            return f"stored-{activity.id}"
-
-        with pytest.raises(TypeError, match="calories is None"):
-            self._run(monkeypatch, rate_limits, process)
-
-        assert processed == [1, 2, 3]
-
-    def test_a_rate_limit_still_stops_the_window(self, monkeypatch, rate_limits):
-        def process(activity, *_args):
-            raise core_exceptions.TooManyRequestsError("slow down", scope=core_exceptions.TooManyRequestsScope.PROVIDER)
-
-        with pytest.raises(core_exceptions.TooManyRequestsError):
-            self._run(monkeypatch, rate_limits, process)
-
-    def test_the_users_timezone_is_passed_down_once(self, monkeypatch, rate_limits):
-        seen = []
-
-        def process(activity, user_id, privacy, timezone, *_args):
-            seen.append(timezone)
-
-        self._run(monkeypatch, rate_limits, process)
-
-        assert seen == ["Europe/Lisbon"] * 3
-
-    def test_a_user_without_privacy_settings_is_refused_before_any_activity(self, monkeypatch, rate_limits):
-        processed = []
+        _list(strava, 1001)
 
         with pytest.raises(core_exceptions.NotFoundError):
-            self._run(
-                monkeypatch,
-                rate_limits,
-                lambda activity, *_a: processed.append(activity.id),
-                has_privacy_settings=False,
-            )
+            _sync(user, rate_limits)
 
-        assert processed == []
+        assert [call.path for call in strava.calls] == ["/athlete/activities"]
+
+    def test_the_users_privacy_defaults_are_applied_to_what_is_stored(self, db, strava, rate_limits):
+        user = _linked(db)
+        db.execute(
+            privacy_models.UsersPrivacySettings.__table__.update()
+            .where(privacy_models.UsersPrivacySettings.user_id == user.id)
+            .values(hide_activity_hr=True, hide_activity_map=True)
+        )
+        _list(strava, 1001)
+        _activity(strava, 1001)
+
+        _sync(user, rate_limits)
+
+        (activity,) = _stored(user.id)
+        assert (activity.hide_hr, activity.hide_map, activity.hide_power) == (True, True, False)
 
 
-class TestARejectedTokenUnlinksTheAccount:
-    """A Strava 401 anywhere in the activity sync, repeated after a refresh, is a revocation."""
-
+class TestAnActivityThatIsIncomplete:
     @pytest.fixture
-    def handle(self, monkeypatch):
-        handle = Mock()
-        monkeypatch.setattr(strava_utils, "handle_rejected_token", handle)
-        monkeypatch.setattr(strava_utils, "refresh_user_strava_token", Mock())
-        monkeypatch.setattr(
-            strava_utils, "fetch_user_integrations_and_validate_token", lambda *_a: self._integrations()
+    def user(self, db):
+        return _linked(db)
+
+    def test_an_activity_without_streams_is_stored_without_them(self, user, strava, rate_limits):
+        _list(strava, 1001)
+        _activity(strava, 1001, streams=strava_factories.refused(404))
+
+        _sync(user, rate_limits)
+
+        (activity,) = _stored(user.id)
+        assert _streams_of(activity.id) == {}
+
+    def test_an_activity_without_laps_is_stored_without_them(self, user, strava, rate_limits):
+        _list(strava, 1001)
+        _activity(strava, 1001, laps=strava_factories.refused(404))
+
+        _sync(user, rate_limits)
+
+        (activity,) = _stored(user.id)
+        assert _laps_of(activity.id) == []
+
+    def test_an_activity_without_speed_or_heart_rate_data_stores_none_of_them(self, user, strava, rate_limits):
+        _list(strava, 1001)
+        _activity(
+            strava,
+            1001,
+            detail=strava_factories.detailed_activity(
+                1001, average_speed=None, max_speed=None, average_heartrate=None, max_heartrate=None
+            ),
         )
-        monkeypatch.setattr(strava_utils, "create_strava_client", lambda *_a: self.client)
-        monkeypatch.setattr(activity_utils.core_database, "SessionLocal", MagicMock())
-        monkeypatch.setattr(activity_utils.activity_integration, "get_activity_by_strava_id", lambda *a, **k: None)
-        return handle
 
-    def _integrations(self):
-        return Mock(strava_client_id="app-a", strava_refresh_token="enc", strava_token_expires_at=None)
+        _sync(user, rate_limits)
 
-    @pytest.fixture(autouse=True)
-    def _client(self):
-        self.client = Mock()
-        self.client.get_activities.side_effect = AccessUnauthorized()
-        self.client.get_activity.side_effect = AccessUnauthorized()
-        self.client.get_activity_streams.side_effect = AccessUnauthorized()
-        self.client.get_activity_laps.side_effect = AccessUnauthorized()
+        (activity,) = _stored(user.id)
+        assert (activity.average_speed, activity.max_speed, activity.pace) == (None, None, None)
+        assert (activity.average_hr, activity.max_hr) == (None, None)
 
-    def test_the_window_fetch(self, handle, rate_limits):
-        client = self.client
+    def test_an_activity_without_a_name_is_stored_as_a_workout(self, user, strava, rate_limits):
+        _list(strava, 1001)
+        _activity(strava, 1001, detail=strava_factories.detailed_activity(1001, name=None))
 
-        with pytest.raises(core_exceptions.DependencyFailedError):
-            activity_utils.fetch_and_process_activities_by_dates(
-                client, datetime(2026, 1, 1), datetime(2026, 1, 2), MOCK_USER_ID, self._integrations(), rate_limits
-            )
+        _sync(user, rate_limits)
 
-        assert handle.call_args.args[:2] == (MOCK_USER_ID, "enc")
-        assert handle.call_args.kwargs == {"revoked": True}
+        assert [a.name for a in _stored(user.id)] == [activity_constants.DEFAULT_ACTIVITY_NAME]
 
-    def test_the_detail_fetch(self, handle, rate_limits):
-        client = self.client
+    @pytest.mark.parametrize("missing", ["start_date", "sport_type", "elapsed_time"])
+    def test_an_activity_without_a_required_field_fails_the_window_after_the_others_are_stored(
+        self, user, strava, rate_limits, missing
+    ):
+        _list(strava, 1001, 1002)
+        _activity(strava, 1001, detail=strava_factories.detailed_activity(1001, **{missing: None}))
+        _activity(strava, 1002)
 
         with pytest.raises(core_exceptions.DependencyFailedError):
-            activity_utils.process_activity(
-                Mock(id=9), MOCK_USER_ID, Mock(), "UTC", client, self._integrations(), rate_limits
-            )
+            _sync(user, rate_limits)
 
-        assert handle.call_args.args[:2] == (MOCK_USER_ID, "enc")
-        assert handle.call_args.kwargs == {"revoked": True}
+        assert [a.strava_activity_id for a in _stored(user.id)] == [1002]
 
-    def test_the_streams_fetch(self, handle, rate_limits):
-        client = self.client
-
-        with pytest.raises(core_exceptions.DependencyFailedError):
-            activity_utils.fetch_and_process_activity_streams(
-                strava_client=client,
-                strava_activity_id=99,
-                user_id=MOCK_USER_ID,
-                user_integrations=self._integrations(),
-                rate_limits=rate_limits,
-            )
-
-        assert handle.call_args.args[:2] == (MOCK_USER_ID, "enc")
-        assert handle.call_args.kwargs == {"revoked": True}
-
-    def test_the_laps_fetch(self, handle, rate_limits):
-        client = self.client
+    def test_a_failing_activity_does_not_stop_the_others_but_fails_the_window(self, user, strava, rate_limits):
+        _list(strava, 1001, 1002)
+        _activity(strava, 1001, detail=strava_factories.refused(500))
+        _activity(strava, 1002)
 
         with pytest.raises(core_exceptions.DependencyFailedError):
-            activity_utils.fetch_and_process_activity_laps(
-                client, 99, MOCK_USER_ID, [], self._integrations(), rate_limits
-            )
+            _sync(user, rate_limits)
 
-        assert handle.call_args.args[:2] == (MOCK_USER_ID, "enc")
-        assert handle.call_args.kwargs == {"revoked": True}
+        assert [a.strava_activity_id for a in _stored(user.id)] == [1002]
 
-    def test_a_rejected_token_stops_the_window_instead_of_skipping_the_activity(self, handle, rate_limits, monkeypatch):
-        calls = []
+    def test_a_listed_activity_without_an_id_fails_the_window(self, user, strava, rate_limits):
+        strava.on("GET", "/athlete/activities", strava_factories.ok([strava_factories.summary_activity(1001, id=None)]))
 
-        def process(activity, *_args):
-            calls.append(activity.id)
-            raise strava_utils.StravaTokenRejectedError("revoked")
+        with pytest.raises(core_exceptions.DependencyFailedError):
+            _sync(user, rate_limits)
 
-        monkeypatch.setattr(activity_utils, "process_activity", process)
-        monkeypatch.setattr(
-            activity_utils.users_integration, "get_user", Mock(return_value=Mock(id=1, timezone="UTC", spec_set=None))
+        assert _stored(user.id) == []
+
+    def test_cycling_cadence_stays_in_rpm_and_running_cadence_is_doubled(self, user, strava, rate_limits):
+        _list(strava, 1001, 1002)
+        _activity(
+            strava, 1001, detail=strava_factories.detailed_activity(1001, sport_type="Ride", average_cadence=80.0)
         )
-        monkeypatch.setattr(activity_utils.users_privacy_settings_integration, "get_privacy_settings", Mock())
-        monkeypatch.setattr(activity_utils.core_database, "SessionLocal", MagicMock())
-        client = Mock()
-        client.get_activities.return_value = [Mock(id=1), Mock(id=2)]
+        _activity(strava, 1002, detail=strava_factories.detailed_activity(1002, sport_type="Run", average_cadence=80.0))
 
-        with pytest.raises(strava_utils.StravaTokenRejectedError):
-            activity_utils.fetch_and_process_activities_by_dates(
-                client, datetime(2026, 1, 1), datetime(2026, 1, 2), MOCK_USER_ID, self._integrations(), rate_limits
-            )
+        _sync(user, rate_limits)
 
-        assert calls == [1]
+        ride, run = _stored(user.id)
+        assert (ride.average_cad, ride.max_cad) == (80, 86)
+        assert (run.average_cad, run.max_cad) == (160, 172)
 
 
-class _StravaClient:
-    """A Strava client that answers from real stravalib models instead of the network."""
+class TestGearAndTimezone:
+    def test_an_activity_gets_the_gear_the_user_synced_from_strava(self, db, strava, rate_limits):
+        user = _linked(db, sync_gear=True)
+        gears_integration.create_multiple_gears(
+            [gear_payload("Strava bike", user_id=user.id, strava_gear_id="b1")], user.id, db
+        )
+        gear = gears_integration.get_gear_by_strava_id("b1", user.id, db)
+        _list(strava, 1001)
+        _activity(strava, 1001, detail=strava_factories.detailed_activity(1001, gear_id="b1"))
 
-    def __init__(self, detailed_activity, streams: dict[str, list[float]]) -> None:
-        self._detailed_activity = detailed_activity
-        self._streams = streams
+        _sync(user, rate_limits)
 
-    def get_activity(self, _activity_id):
-        return self._detailed_activity
+        (activity,) = _stored(user.id)
+        assert (activity.gear_id, activity.strava_gear_id) == (gear.id, "b1")
 
-    def get_activity_streams(self, _activity_id, **_kwargs):
-        from stravalib.model import Stream
+    def test_an_activity_on_gear_the_user_does_not_have_is_stored_without_gear(self, db, strava, rate_limits):
+        user = _linked(db, sync_gear=True)
+        _list(strava, 1001)
+        _activity(strava, 1001, detail=strava_factories.detailed_activity(1001, gear_id="unknown"))
 
-        return {name: Stream(type=name, data=data) for name, data in self._streams.items()}
+        _sync(user, rate_limits)
 
-    def get_activity_laps(self, _activity_id):
-        return []
+        (activity,) = _stored(user.id)
+        assert (activity.gear_id, activity.strava_gear_id) == (None, "unknown")
+
+    def test_a_ride_with_a_gps_track_takes_the_timezone_of_where_it_was_ridden(self, db, strava, rate_limits):
+        user = _linked(db)
+        _list(strava, 1001)
+        _activity(
+            strava,
+            1001,
+            detail=strava_factories.detailed_activity(1001, sport_type="Ride", start_latlng=[40.7, -74.0]),
+            streams=strava_factories.streams_payload(time=[0, 10], latlng=[[40.7, -74.0], [40.71, -74.0]]),
+        )
+
+        _sync(user, rate_limits)
+
+        (activity,) = _stored(user.id)
+        assert activity.timezone == "America/New_York"
 
 
-class TestParseActivity:
-    """A detailed activity Strava returns with fields missing is refused or completed, never crashes the window."""
+class TestRefusalsEndTheWindow:
+    @pytest.fixture
+    def user(self, db):
+        return _linked(db)
 
-    @pytest.fixture(autouse=True)
-    def _database(self, monkeypatch):
-        from tests._helpers.db import create_sqlite_session_factory, ensure_user
+    def test_an_active_rate_limit_stops_the_window_before_strava_is_called(self, user, strava, rate_limits):
+        until = rate_limits.mark_rate_limited(strava_factories.CLIENT_ID)
 
-        factory = create_sqlite_session_factory()
-        ensure_user(factory, MOCK_USER_ID)
-        monkeypatch.setattr(activity_utils.core_database, "SessionLocal", factory)
-        yield
-        factory.kw["bind"].dispose()
+        with pytest.raises(core_exceptions.TooManyRequestsError) as raised:
+            _sync(user, rate_limits)
 
-    def _parse(self, rate_limits, *, streams=None, summary=None, **fields):
-        from stravalib.model import DetailedActivity
+        assert raised.value.retry_at == until
+        assert strava.calls == []
 
-        import modules.users.users_integrations.schema as integrations_schema
-        import modules.users.users_privacy_settings.schema as privacy_schema
+    @pytest.mark.parametrize("endpoint", ["", "/streams", "/laps"])
+    def test_a_429_from_strava_ends_the_window_and_says_when_to_try_again(self, user, strava, rate_limits, endpoint):
+        _list(strava, 1001, 1002)
+        _activity(strava, 1001)
+        _activity(strava, 1002)
+        strava.on("GET", f"/activities/1001{endpoint}", strava_factories.rate_limited())
 
-        detailed = {
-            "id": 42,
-            "name": "Morning Run",
-            "sport_type": "Run",
-            "start_date": "2026-01-01T07:00:00Z",
-            "elapsed_time": 1800,
-            "moving_time": 1700,
-            "distance": 5000.0,
-        }
-        detailed.update(fields)
-        return activity_utils.parse_activity(
-            summary if summary is not None else Mock(id=42),
-            MOCK_USER_ID,
-            privacy_schema.UserPrivacySettingsRead(id=uuid.uuid4(), user_id=MOCK_USER_ID),
-            "UTC",
-            _StravaClient(DetailedActivity.model_validate(detailed), streams or {"time": [0, 1]}),
-            integrations_schema.UserIntegrationsRead(id=uuid.uuid4(), user_id=MOCK_USER_ID, strava_client_id="app-a"),
+        with pytest.raises(core_exceptions.TooManyRequestsError) as raised:
+            _sync(user, rate_limits)
+
+        assert raised.value.scope == core_exceptions.TooManyRequestsScope.PROVIDER
+        assert raised.value.retry_at == rate_limits.rate_limited_until(strava_factories.CLIENT_ID)
+        assert strava.made("GET", "/activities/1002") == [], "the window stopped at the limit"
+
+    def test_a_429_on_the_listing_is_refused_the_same_way(self, user, strava, rate_limits):
+        strava.on("GET", "/athlete/activities", strava_factories.rate_limited(daily=True))
+
+        with pytest.raises(core_exceptions.TooManyRequestsError) as raised:
+            _sync(user, rate_limits)
+
+        assert (raised.value.retry_at.hour, raised.value.retry_at.minute) == (0, 0)
+
+    def test_an_error_listing_the_window_is_a_failed_dependency(self, user, strava, rate_limits):
+        strava.on("GET", "/athlete/activities", strava_factories.refused(500))
+
+        with pytest.raises(core_exceptions.DependencyFailedError):
+            _sync(user, rate_limits)
+
+    @pytest.mark.parametrize(
+        "endpoint", ["/athlete/activities", "/activities/1001", "/activities/1001/streams", "/activities/1001/laps"]
+    )
+    def test_a_token_strava_rejects_unlinks_the_account_and_stops_the_window(
+        self, db, user, strava, rate_limits, endpoint
+    ):
+        _list(strava, 1001, 1002)
+        _activity(strava, 1001)
+        _activity(strava, 1002)
+        strava.on("GET", endpoint, strava_factories.refused(401))
+        strava.on("POST", "/oauth/token", strava_factories.refused(400, resource="RefreshToken"))
+
+        with pytest.raises(strava_client_service.StravaTokenRejectedError):
+            _sync(user, rate_limits)
+
+        with core_database.SessionLocal() as session:
+            stored = user_integrations_integration.require_user_integrations(user.id, session)
+        assert (stored.strava_token, stored.strava_revoked_at is not None) == (None, True)
+        assert strava.made("GET", "/activities/1002") == []
+        assert _stored(user.id) == []
+
+
+class TestStreamConversion:
+    @pytest.fixture
+    def context(self, db, strava, rate_limits):
+        user = _linked(db)
+        with core_database.SessionLocal() as session:
+            integrations = user_integrations_integration.require_user_integrations(user.id, session)
+        return user, integrations, strava_client_service.create_strava_client(integrations)
+
+    def _streams(self, context, rate_limits, strava, **streams):
+        user, integrations, client = context
+        strava.on("GET", "/activities/1/streams", strava_factories.ok(strava_factories.streams_payload(**streams)))
+        return strava_activity_service.fetch_and_process_activity_streams(client, 1, user.id, integrations, rate_limits)
+
+    def test_a_stream_longer_than_the_time_stream_is_cut_instead_of_failing(self, context, strava, rate_limits):
+        lat_lon, _, _, _, hr, is_hr, *_ = self._streams(
+            context, rate_limits, strava, time=[0, 1], heartrate=[100, 110, 120], latlng=[[1.0, 2.0]]
+        )
+
+        assert hr == [{"time": 0, "hr": 100}, {"time": 1, "hr": 110}]
+        assert is_hr is True
+        assert lat_lon == [{"time": 0, "lat": 1.0, "lon": 2.0}]
+
+    def test_pace_is_derived_from_velocity_with_zero_for_a_standstill(self, context, strava, rate_limits):
+        *_, pace = self._streams(context, rate_limits, strava, time=[0, 1], velocity_smooth=[4.0, 0.0])
+
+        assert pace == [{"time": 0, "pace": 0.25}, {"time": 1, "pace": 0}]
+
+    def test_streams_strava_did_not_send_are_reported_as_not_set(self, context, strava, rate_limits):
+        lat_lon, is_lat_lon, ele, is_ele, _hr, is_hr, cad, is_cad, power, is_power, vel, is_vel, pace = self._streams(
+            context, rate_limits, strava, time=[0, 1], heartrate=[100, 110]
+        )
+
+        assert (is_hr, is_lat_lon, is_ele, is_cad, is_power, is_vel) == (True, False, False, False, False, False)
+        assert (lat_lon, ele, cad, power, vel, pace) == ([], [], [], [], [], [])
+
+    def test_an_activity_with_no_streams_at_all_is_not_an_error(self, context, strava, rate_limits):
+        user, integrations, client = context
+        strava.on("GET", "/activities/1/streams", strava_factories.refused(404))
+
+        streams = strava_activity_service.fetch_and_process_activity_streams(
+            client, 1, user.id, integrations, rate_limits
+        )
+
+        assert not any(streams)
+
+    def test_any_other_failure_fetching_streams_is_a_failed_dependency(self, context, strava, rate_limits):
+        user, integrations, client = context
+        strava.on("GET", "/activities/1/streams", strava_factories.refused(500))
+
+        with pytest.raises(core_exceptions.DependencyFailedError):
+            strava_activity_service.fetch_and_process_activity_streams(client, 1, user.id, integrations, rate_limits)
+
+
+class TestLaps:
+    @pytest.fixture
+    def context(self, db, strava, rate_limits):
+        user = _linked(db)
+        with core_database.SessionLocal() as session:
+            integrations = user_integrations_integration.require_user_integrations(user.id, session)
+        return user, integrations, strava_client_service.create_strava_client(integrations)
+
+    def _laps(self, context, rate_limits, strava, stream_data, *laps):
+        user, integrations, client = context
+        strava.on("GET", "/activities/1/laps", strava_factories.ok(list(laps)))
+        return strava_activity_service.fetch_and_process_activity_laps(
+            client, 1, user.id, stream_data, integrations, rate_limits
+        )
+
+    def test_a_lap_gets_the_metrics_of_its_slice_of_the_streams(self, context, strava, rate_limits):
+        cadence = [{"time": i, "cad": 80 + i} for i in range(12)]
+        power = [{"time": i, "power": 200 + 10 * i} for i in range(12)]
+        elevation = [{"time": i, "ele": 100.0 + 10 * i} for i in range(12)]
+        stream_data = [
+            (True, _STREAM_TYPES.STREAM_TYPE_CADENCE, cadence),
+            (True, _STREAM_TYPES.STREAM_TYPE_POWER, power),
+            (True, _STREAM_TYPES.STREAM_TYPE_ELEVATION, elevation),
+            (False, _STREAM_TYPES.STREAM_TYPE_HR, []),
+        ]
+
+        (lap,) = self._laps(context, rate_limits, strava, stream_data, strava_factories.lap_payload(end_index=11))
+
+        assert (lap["avg_cadence"], lap["max_cadence"]) == (86, 91)
+        assert (lap["avg_power"], lap["max_power"]) == (255, 310)
+        assert lap["total_ascent"] > 0
+        assert lap["total_descent"] == 0
+        assert (lap["enhanced_avg_speed"], lap["enhanced_avg_pace"]) == (3.0, pytest.approx(1 / 3))
+
+    def test_a_flat_altitude_stream_gives_a_genuine_zero_and_an_unreadable_one_gives_none(
+        self, context, strava, rate_limits
+    ):
+        flat = [(True, _STREAM_TYPES.STREAM_TYPE_ELEVATION, [{"time": i, "ele": 100.0} for i in range(4)])]
+        unreadable = [(True, _STREAM_TYPES.STREAM_TYPE_ELEVATION, [{"time": i, "ele": None} for i in range(4)])]
+
+        (flat_lap,) = self._laps(context, rate_limits, strava, flat, strava_factories.lap_payload())
+        (unreadable_lap,) = self._laps(context, rate_limits, strava, unreadable, strava_factories.lap_payload())
+
+        assert (flat_lap["total_ascent"], flat_lap["total_descent"]) == (0, 0)
+        assert (unreadable_lap["total_ascent"], unreadable_lap["total_descent"]) == (None, None)
+
+    def test_a_lap_without_a_start_time_is_left_out(self, context, strava, rate_limits):
+        laps = self._laps(
+            context,
             rate_limits,
+            strava,
+            [],
+            strava_factories.lap_payload(1, start_date_local=None),
+            strava_factories.lap_payload(2),
         )
 
-    def test_an_activity_without_an_id_is_refused_as_a_strava_failure(self, rate_limits):
-        from stravalib.model import SummaryActivity
+        assert [lap["start_time"] for lap in laps] == ["2025-03-10T08:00:00"]
 
-        with pytest.raises(core_exceptions.DependencyFailedError):
-            self._parse(rate_limits, summary=SummaryActivity.model_validate({}))
+    def test_a_lap_without_stream_indexes_is_stored_without_stream_metrics(self, context, strava, rate_limits):
+        cadence = [(True, _STREAM_TYPES.STREAM_TYPE_CADENCE, [{"time": 0, "cad": 80}])]
 
-    def test_an_activity_without_a_sport_type_is_refused_as_a_strava_failure(self, rate_limits):
-        with pytest.raises(core_exceptions.DependencyFailedError):
-            self._parse(rate_limits, sport_type=None)
-
-    def test_an_activity_without_a_name_is_stored_as_a_workout(self, rate_limits):
-        parsed = self._parse(rate_limits, name=None)
-
-        assert parsed["activity_to_store"].name == "Workout"
-
-    def test_an_activity_without_an_elapsed_time_is_refused_as_a_strava_failure(self, rate_limits):
-        with pytest.raises(core_exceptions.DependencyFailedError):
-            self._parse(rate_limits, elapsed_time=None)
-
-    def test_a_fractional_max_cadence_is_rounded(self, rate_limits):
-        parsed = self._parse(rate_limits, streams={"time": [0, 1, 2], "cadence": [80, 87.6, 85]})
-
-        assert parsed["activity_to_store"].max_cad == 175
-        cadence = next(points for _, kind, points in parsed["stream_data"] if kind == 3)
-        assert [point["cad"] for point in cadence] == [160, 175, 170]
-
-    def test_cycling_cadence_stays_in_rpm(self, rate_limits):
-        parsed = self._parse(rate_limits, sport_type="Ride", streams={"time": [0, 1], "cadence": [80, 90]})
-
-        assert parsed["activity_to_store"].max_cad == 90
-
-
-class TestIncompleteLaps:
-    """A lap Strava returns with fields missing is left out or stored without what it lacks, never crashes."""
-
-    def _laps(self, rate_limits, **fields):
-        from stravalib.model import Lap
-
-        import modules.activities.activity_streams.constants as activity_streams_constants
-
-        lap = {
-            "id": 1,
-            "start_index": 0,
-            "end_index": 1,
-            "start_date_local": "2026-01-01T07:00:00",
-            "elapsed_time": 60,
-            "moving_time": 60,
-            "distance": 100.0,
-        }
-        lap.update(fields)
-        client = Mock()
-        client.get_activity_laps.return_value = [Lap.model_validate(lap)]
-        cadence = [{"cad": 80}, {"cad": 90}]
-        return activity_utils.fetch_and_process_activity_laps(
-            client,
-            99,
-            MOCK_USER_ID,
-            [(True, activity_streams_constants.STREAM_TYPE_CADENCE, cadence)],
-            _integrations(),
+        (lap,) = self._laps(
+            context,
             rate_limits,
+            strava,
+            cadence,
+            strava_factories.lap_payload(start_index=None, end_index=None),
         )
 
-    def test_a_lap_with_its_streams_gets_their_metrics(self, rate_limits):
-        laps = self._laps(rate_limits)
+        assert lap["avg_cadence"] is None
 
-        assert laps[0]["avg_cadence"] == 85
+    def test_a_lap_with_zero_speed_has_no_pace(self, context, strava, rate_limits):
+        (lap,) = self._laps(
+            context, rate_limits, strava, [], strava_factories.lap_payload(average_speed=0.0, max_speed=0.0)
+        )
 
-    def test_a_lap_without_a_start_time_is_left_out(self, rate_limits):
-        assert self._laps(rate_limits, start_date_local=None) == []
+        assert (lap["enhanced_avg_pace"], lap["enhanced_max_pace"]) == (None, None)
 
-    def test_a_lap_without_stream_indexes_is_stored_without_stream_metrics(self, rate_limits):
-        laps = self._laps(rate_limits, start_index=None, end_index=None)
+    def test_an_activity_without_laps_is_not_an_error(self, context, strava, rate_limits):
+        user, integrations, client = context
+        strava.on("GET", "/activities/1/laps", strava_factories.refused(404))
 
-        assert laps[0]["start_time"] == "2026-01-01T07:00:00"
-        assert laps[0]["avg_cadence"] is None
+        assert (
+            strava_activity_service.fetch_and_process_activity_laps(client, 1, user.id, [], integrations, rate_limits)
+            is None
+        )
 
+    def test_a_429_is_recorded_against_this_application_and_refused(self, context, strava, rate_limits):
+        user, integrations, client = context
+        strava.on("GET", "/activities/1/laps", strava_factories.rate_limited())
 
-class TestAFailedActivityIsLoggedOnce:
-    """A Strava failure inside a window is logged by the window, whose traceback chains the cause."""
+        with pytest.raises(core_exceptions.TooManyRequestsError):
+            strava_activity_service.fetch_and_process_activity_laps(client, 1, user.id, [], integrations, rate_limits)
 
-    @pytest.mark.parametrize("fetch", ["detail", "streams", "laps"])
-    def test_one_failed_fetch_leaves_one_warning_with_the_cause(self, monkeypatch, rate_limits, caplog, fetch):
-        monkeypatch.setattr(rate_limits, "is_rate_limited", lambda client_id: False)
-        monkeypatch.setattr(activity_utils.strava_client_service, "call_strava", Mock(side_effect=RuntimeError("boom")))
-        integrations = _integrations()
-        privacy = Mock()
-        client = Mock()
-        fetches = {
-            "detail": lambda activity: activity_utils.parse_activity(
-                activity, MOCK_USER_ID, privacy, "UTC", client, integrations, rate_limits
-            ),
-            "streams": lambda activity: activity_utils.fetch_and_process_activity_streams(
-                client, activity.id, MOCK_USER_ID, integrations, rate_limits
-            ),
-            "laps": lambda activity: activity_utils.fetch_and_process_activity_laps(
-                client, activity.id, MOCK_USER_ID, [], integrations, rate_limits
-            ),
-        }
+        assert rate_limits.is_rate_limited(strava_factories.CLIENT_ID) is True
+        assert rate_limits.is_rate_limited("another-application") is False
 
-        with caplog.at_level("DEBUG"), pytest.raises(core_exceptions.DependencyFailedError):
-            activity_ingestion_window_service.run_window(
-                [Mock(id=1)],
-                fetches[fetch],
-                provider="strava",
-                user_id=MOCK_USER_ID,
-                describe=lambda activity: {"strava_activity_id": activity.id},
-            )
+    def test_any_other_failure_is_a_failed_dependency_so_the_activity_is_retried(self, context, strava, rate_limits):
+        user, integrations, client = context
+        strava.on("GET", "/activities/1/laps", strava_factories.refused(500))
 
-        per_activity = [r for r in caplog.records if r.levelno >= logging.WARNING and r.exc_info is not None]
-        assert len(per_activity) == 1
-        assert isinstance(per_activity[0].exc_info[1].__cause__, RuntimeError)
+        with pytest.raises(core_exceptions.DependencyFailedError):
+            strava_activity_service.fetch_and_process_activity_laps(client, 1, user.id, [], integrations, rate_limits)
