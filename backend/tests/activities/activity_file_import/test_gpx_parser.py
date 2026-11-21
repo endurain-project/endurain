@@ -1222,6 +1222,16 @@ class TestParseGpxMaxSpeedSegmentPlaceholders:
 
         assert result["activity"].max_speed == pytest.approx(3, abs=0.5)
 
+    def test_repeated_timestamps_leave_lap_and_max_speed_at_the_measured_speed(self, tmp_path, monkeypatch):
+        _patch_parser_side_effects(monkeypatch)
+        points = [(i * self._STEP, f"00:00:{i:02d}") for i in range(20) for _ in range(3)]
+        path = _write_gpx(tmp_path, _segments_gpx([points]))
+
+        result = gpx_parser.parse_gpx_file(path, user_id=MOCK_USER_ID, default_timezone=_SERVER_TZ)
+
+        assert result["activity"].max_speed == pytest.approx(3, abs=0.5)
+        assert result["laps"][0]["enhanced_avg_speed"] == pytest.approx(3, abs=0.5)
+
 
 class TestGenerateLapsMeasuredSamples:
     def _laps(self, measured_vel_times):

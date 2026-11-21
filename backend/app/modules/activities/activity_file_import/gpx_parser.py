@@ -431,7 +431,12 @@ def _compute_derived_metrics(
             "vel",
         )
         state.max_speed = activities_computation.calculate_robust_max(
-            [waypoint["vel"] for waypoint in state.vel_waypoints if waypoint["time"] in state.measured_vel_times],
+            [
+                waypoint["vel"]
+                for waypoint in activity_file_import_parser_utils._measured_speed_samples(
+                    state.vel_waypoints, state.measured_vel_times
+                )
+            ],
         )
 
     if state.power_waypoints:

@@ -363,6 +363,21 @@ def slice_lap_elevation(
     return _TimedStream(smoothed_ele_waypoints).lap_elevation(start_time, end_time)
 
 
+def _measured_speed_samples(
+    vel_waypoints: Sequence[Mapping[str, Any]],
+    measured_vel_times: set[str] | None,
+) -> list[Mapping[str, Any]]:
+    if measured_vel_times is None:
+        return list(vel_waypoints)
+    seen_times: set[str] = set()
+    samples: list[Mapping[str, Any]] = []
+    for waypoint in vel_waypoints:
+        if waypoint["time"] in measured_vel_times and waypoint["time"] not in seen_times:
+            seen_times.add(waypoint["time"])
+            samples.append(waypoint)
+    return samples
+
+
 def _compute_lap_metrics(
     start_time: str,
     end_time: str,
@@ -425,9 +440,7 @@ def _compute_lap_metrics(
 
     avg_speed, max_speed = None, None
     # Placeholder samples (a segment's first point) are not speeds, so neither average nor max sees them.
-    measured_vel = [
-        waypoint for waypoint in lap_vel if measured_vel_times is None or waypoint["time"] in measured_vel_times
-    ]
+    measured_vel = _measured_speed_samples(lap_vel, measured_vel_times)
     if measured_vel:
         avg_speed, _ = activities_computation.calculate_avg_and_max(measured_vel, "vel")
         max_speed = activities_computation.calculate_robust_max([waypoint["vel"] for waypoint in measured_vel])
