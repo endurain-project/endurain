@@ -38,4 +38,5 @@ def to_read_schema(
         created_at=orm_job.created_at,
         updated_at=orm_job.updated_at,
         finished_at=orm_job.completed_at,
+        retry_after=orm_job.retry_after,
     )
