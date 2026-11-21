@@ -122,6 +122,30 @@ def database_engine(database: str) -> Engine:
     return sa.create_engine(database_url(database), connect_args=_CONNECT_ARGS)
 
 
+def unreachable_engine() -> Engine:
+    """Create an engine on a port nothing listens on, so every connection is refused, as when the database is down.
+
+    The caller disposes it.
+    """
+    return sa.create_engine("postgresql+psycopg://nobody:x@127.0.0.1:1/none", connect_args={"connect_timeout": 1})
+
+
+def lost_connection_error() -> sa.exc.OperationalError:
+    """Return the error a query raises on a connection the server ended, as when the database restarts."""
+    engine = database_engine(worker_database())
+    try:
+        with engine.connect() as victim, engine.connect() as killer:
+            pid = victim.exec_driver_sql("SELECT pg_backend_pid()").scalar_one()
+            killer.exec_driver_sql(f"SELECT pg_terminate_backend({int(pid)})")
+            try:
+                victim.exec_driver_sql("SELECT 1")
+            except sa.exc.OperationalError as lost:
+                return lost
+    finally:
+        engine.dispose()
+    raise AssertionError("A query on a connection the server ended succeeded")
+
+
 def _start_container() -> str:
     """Start a throwaway PostgreSQL container and return the URL of its maintenance database."""
     global _container

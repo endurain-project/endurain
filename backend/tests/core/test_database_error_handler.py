@@ -77,17 +77,7 @@ class TestUnavailable:
     def test_a_connection_the_server_ended_is_a_503(self, committed_sessions):
         import tests._helpers.database as test_database
 
-        engine = test_database.database_engine(test_database.worker_database())
-        try:
-            with engine.connect() as victim, engine.connect() as killer:
-                pid = victim.exec_driver_sql("SELECT pg_backend_pid()").scalar_one()
-                killer.exec_driver_sql(f"SELECT pg_terminate_backend({int(pid)})")
-                with pytest.raises(OperationalError) as lost:
-                    victim.exec_driver_sql("SELECT 1")
-        finally:
-            engine.dispose()
-
-        assert _client(lost.value).get("/fail").status_code == 503
+        assert _client(test_database.lost_connection_error()).get("/fail").status_code == 503
 
 
 class TestConflict:

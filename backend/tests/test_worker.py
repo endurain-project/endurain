@@ -17,6 +17,7 @@ import core.config as core_config
 import core.database as core_database
 import worker
 from tests._helpers import alembic_chain
+from tests._helpers import database as test_database
 
 _APP_DIR = Path(__file__).resolve().parents[1] / "app"
 
@@ -122,10 +123,7 @@ class TestWaitForCurrentSchema:
         worker._wait_for_current_schema(stop)
 
     def test_a_database_that_cannot_be_reached_is_an_error(self, in_app_dir, monkeypatch):
-        unreachable = sa.create_engine(
-            "postgresql+psycopg://nobody:x@127.0.0.1:1/none", connect_args={"connect_timeout": 1}
-        )
-        monkeypatch.setattr(core_database, "engine", unreachable)
+        monkeypatch.setattr(core_database, "engine", test_database.unreachable_engine())
 
         with pytest.raises(OperationalError):
             worker._wait_for_current_schema(threading.Event())

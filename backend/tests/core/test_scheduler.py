@@ -3,6 +3,7 @@
 import asyncio
 import contextlib
 import dataclasses
+import logging
 import threading
 from collections.abc import Callable
 from types import SimpleNamespace
@@ -11,13 +12,16 @@ from typing import cast
 import jasil.audit as jasil_audit
 import jasil.retention as platform_retention
 import jasil.runtime as platform_runtime
+import psycopg.errors
 import pytest
 from apscheduler.events import EVENT_JOB_ERROR, EVENT_JOB_EXECUTED
 from jasil.backends.lock_pg import PgAdvisoryLock
 from jasil.providers import StateBackendUnavailableError
+from sqlalchemy.exc import IntegrityError
 
 import core.database as core_database
 import core.scheduler as core_scheduler
+from tests._helpers import database as test_database
 
 
 @pytest.fixture
@@ -397,3 +401,61 @@ class TestRunDueJob:
             assert await core_scheduler._run_due_async_job("sync", 5, operation.run) is None
 
         assert operation.calls == []
+
+
+class TestDatabaseOutage:
+    """A database out of reach is a degraded dependency: the run is skipped with a warning and the next tick runs it."""
+
+    def test_a_lock_the_database_cannot_take_skips_the_run_with_a_warning(self, database_down, app_log):
+        operation = Recorder()
+
+        assert core_scheduler.run_due_job("sweep", 5, operation) is None
+
+        assert operation.calls == []
+        _assert_one_outage_warning(app_log, "sweep")
+
+    def test_a_connection_lost_during_the_run_skips_it_and_the_next_tick_runs_it(self, app_log):
+        operation = Recorder(test_database.lost_connection_error(), "ran")
+
+        assert core_scheduler.run_due_job("sweep", 5, operation) is None
+        assert _mark("sweep") is None
+        _assert_one_outage_warning(app_log, "sweep")
+        assert core_scheduler.run_due_job("sweep", 5, operation) == "ran"
+
+    def test_any_other_database_error_reaches_the_scheduler(self):
+        error = IntegrityError("INSERT", {}, psycopg.errors.UniqueViolation("duplicate key"))
+
+        with pytest.raises(IntegrityError):
+            core_scheduler.run_due_job("sweep", 5, Recorder(error))
+
+    async def test_an_async_job_is_skipped_too(self, database_down, app_log):
+        operation = AsyncRecorder()
+
+        assert await core_scheduler._run_due_async_job("sync", 5, operation.run) is None
+
+        assert operation.calls == []
+        _assert_one_outage_warning(app_log, "sync")
+
+    def test_a_one_shot_locked_job_is_skipped_too(self, database_down, app_log):
+        operation = Recorder()
+
+        assert core_scheduler.run_locked_job("provider_sync", operation) is None
+
+        assert operation.calls == []
+        _assert_one_outage_warning(app_log, "provider_sync")
+
+
+@pytest.fixture
+def database_down():
+    """Coordinate through advisory locks on a database that refuses every connection."""
+    engine = test_database.unreachable_engine()
+    platform_runtime.set_active_platform(dataclasses.replace(_platform(), lock=PgAdvisoryLock(engine)))
+    yield
+    engine.dispose()
+
+
+def _assert_one_outage_warning(app_log, lock_name: str) -> None:
+    [record] = app_log.records
+    assert record.levelno == logging.WARNING
+    assert record.exc_info is None
+    assert (record.lock_name, record.error) == (lock_name, "OperationalError")

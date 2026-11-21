@@ -787,7 +787,7 @@ _CONNECTION_EXCEPTION_CLASS = "08"
 _DB_RETRY_AFTER_SECONDS = 5
 
 
-def _is_database_unavailable(exc: SQLAlchemyError) -> bool:
+def is_database_unavailable(exc: SQLAlchemyError) -> bool:
     """Tell whether a database error means the database could not take the request right now.
 
     Every error the server sends carries a SQLSTATE, so an operational error without one was raised by the driver
@@ -821,7 +821,7 @@ async def database_error_handler(request: Request, exc: SQLAlchemyError) -> JSON
     service.
     The session has already been rolled back by ``core.database.get_db``.
 
-    A database out of reach (see :func:`_is_database_unavailable`) is transient, so it answers 503 with
+    A database out of reach (see :func:`is_database_unavailable`) is transient, so it answers 503 with
     ``Retry-After``; an ``IntegrityError`` is a unique or foreign-key conflict that only surfaced at commit, so it
     answers 409. Both are logged as warnings. Anything else is an opaque 500 logged as an error.
 
@@ -839,7 +839,7 @@ async def database_error_handler(request: Request, exc: SQLAlchemyError) -> JSON
     log_context = core_logger.context(path=request.url.path, method=request.method, error=type(exc).__name__)
     message = f"Database error on {request.method} {request.url.path}: {type(exc).__name__}"
     headers: dict[str, str] | None = None
-    if _is_database_unavailable(exc):
+    if is_database_unavailable(exc):
         logger.warning(message, extra=log_context)
         error: type[DomainError] = ServiceUnavailableError
         headers = {"Retry-After": str(_DB_RETRY_AFTER_SECONDS)}

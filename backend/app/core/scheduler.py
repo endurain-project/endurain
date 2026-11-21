@@ -19,7 +19,9 @@ import jasil.retention as platform_retention
 import jasil.runtime as platform_runtime
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from jasil.providers import StateBackendUnavailableError
+from sqlalchemy.exc import SQLAlchemyError
 
+import core.exceptions as core_exceptions
 import core.logger as core_logger
 import core.network as core_network
 
@@ -72,6 +74,34 @@ def _held_lock(lock_name: str) -> Generator[bool]:
         yield acquired
 
 
+@contextmanager
+def _skipped_while_database_unavailable(lock_name: str) -> Generator[None]:
+    """Skip a locked job's run when the database is out of reach, at its lock or during the run.
+
+    A locked job needs the database for its lock and its work, so an outage fails it on every replica. That is a
+    degraded dependency, not a defect: it logs one warning without a traceback, and since nothing marks the run as
+    done, the next tick of any replica runs it. Any other error reaches the scheduler, which logs it as an error.
+
+    Args:
+        lock_name: Stable coordination-lock name, for the log.
+
+    Yields:
+        None.
+
+    Raises:
+        SQLAlchemyError: When the database error is not an outage.
+    """
+    try:
+        yield
+    except SQLAlchemyError as err:
+        if not core_exceptions.is_database_unavailable(err):
+            raise
+        logger.warning(
+            "Scheduler job skipped because the database is unavailable; the next tick runs it",
+            extra=core_logger.context(lock_name=lock_name, error=type(err).__name__),
+        )
+
+
 def run_locked_job(lock_name: str, func: Callable[..., object], *args: object) -> object | None:
     """Run a synchronous scheduled job only while holding its distributed lock.
 
@@ -81,10 +111,11 @@ def run_locked_job(lock_name: str, func: Callable[..., object], *args: object) -
         *args: Positional arguments forwarded to the operation.
 
     Returns:
-        The operation result, or ``None`` when another replica holds the lock.
+        The operation result, or ``None`` when another replica holds the lock or the database is unavailable.
     """
-    with _held_lock(lock_name) as acquired:
+    with _skipped_while_database_unavailable(lock_name), _held_lock(lock_name) as acquired:
         return func(*args) if acquired else None
+    return None
 
 
 def _mark_key(lock_name: str) -> str:
@@ -165,15 +196,17 @@ def run_due_job(lock_name: str, minutes: int, func: Callable[..., object], *args
         *args: Positional arguments forwarded to the operation.
 
     Returns:
-        The operation result, or ``None`` when another replica holds the lock or already ran the job.
+        The operation result, or ``None`` when another replica holds the lock or already ran the job, or the
+        database is unavailable.
     """
-    with _held_lock(lock_name) as acquired:
+    with _skipped_while_database_unavailable(lock_name), _held_lock(lock_name) as acquired:
         if not acquired or not _is_due(lock_name):
             return None
         started = time.monotonic()
         result = func(*args)
         _mark_run(lock_name, minutes, started)
         return result
+    return None
 
 
 async def _run_due_async_job(lock_name: str, minutes: int, func: Callable[..., object], *args: object) -> object | None:
@@ -188,9 +221,10 @@ async def _run_due_async_job(lock_name: str, minutes: int, func: Callable[..., o
         *args: Positional arguments forwarded to the operation.
 
     Returns:
-        The awaited result, or ``None`` when another replica holds the lock or already ran the job.
+        The awaited result, or ``None`` when another replica holds the lock or already ran the job, or the
+        database is unavailable.
     """
-    with _held_lock(lock_name) as acquired:
+    with _skipped_while_database_unavailable(lock_name), _held_lock(lock_name) as acquired:
         if not acquired or not _is_due(lock_name):
             return None
         started = time.monotonic()
@@ -199,6 +233,7 @@ async def _run_due_async_job(lock_name: str, minutes: int, func: Callable[..., o
             result = await result
         _mark_run(lock_name, minutes, started)
         return result
+    return None
 
 
 def platform_jobs() -> tuple[ScheduledJob, ...]:
