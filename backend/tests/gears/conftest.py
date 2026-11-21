@@ -1,29 +1,32 @@
-from unittest.mock import MagicMock
+"""Fixtures shared by the gears tests."""
 
 import pytest
-from sqlalchemy.orm import Session
 
-import modules.gears.contributor_registry as gears_contributor_registry
-from tests._helpers.db import create_sqlite_session
-
-
-@pytest.fixture
-def db():
-    session: Session = create_sqlite_session()
-    yield session
-    session.close()
+import modules.gears.gear.schema as gears_schema
+import modules.users.users.schema as users_schema
+from tests._factories.gears import make_gear
+from tests._factories.users import make_user
 
 
 @pytest.fixture
-def commit_spy(db) -> MagicMock:
-    """Wrap the session's ``commit`` so a test can assert who ended the transaction."""
-    spy = MagicMock(wraps=db.commit)
-    db.commit = spy
-    return spy
+def user(db) -> users_schema.UserRead:
+    """A user staged on the test's session."""
+    return make_user(db)
 
 
-@pytest.fixture(autouse=True)
-def _clean_gears_registry():
-    gears_contributor_registry.clear()
-    yield
-    gears_contributor_registry.clear()
+@pytest.fixture
+def other(db) -> users_schema.UserRead:
+    """A second user staged on the test's session."""
+    return make_user(db)
+
+
+@pytest.fixture
+def gear(db, user) -> gears_schema.GearRead:
+    """A bike of ``user``."""
+    return make_gear(db, user.id, nickname="Main bike")
+
+
+@pytest.fixture
+def other_gear(db, user) -> gears_schema.GearRead:
+    """A second bike of ``user``."""
+    return make_gear(db, user.id, nickname="Spare bike")

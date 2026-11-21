@@ -16,13 +16,6 @@ _NICKNAMES = ("Ärzte Bike", "İstanbul Shoes", "Straße Skis", "ΣΑΣ Racquet"
 
 
 @pytest.fixture
-def db(committed_sessions):
-    """A real PostgreSQL session; this directory's own ``db`` is a SQLite stand-in."""
-    with committed_sessions() as session:
-        yield session
-
-
-@pytest.fixture
 def user_id(db):
     owner_id = make_user(db).id
     for nickname in _NICKNAMES:

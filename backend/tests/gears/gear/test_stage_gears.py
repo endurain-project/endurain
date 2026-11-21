@@ -9,15 +9,8 @@ import pytest
 import core.exceptions as core_exceptions
 import modules.gears.gear.crud as gears_crud
 import modules.gears.gear.service as gears_service
+from tests._factories.gears import gear_payload
 from tests._factories.users import make_user
-from tests._helpers.gears import gear_create
-
-
-@pytest.fixture
-def db(committed_sessions):
-    """A real PostgreSQL session; this directory's own ``db`` is a SQLite stand-in."""
-    with committed_sessions() as session:
-        yield session
 
 
 @pytest.fixture
@@ -32,38 +25,38 @@ def _nicknames(db, user_id) -> list[str]:
 class TestStageGears:
     @pytest.mark.parametrize("existing", ["Road Bike", "İstanbul Shoes", "ΣΑΣ Racquet", "Ärzte Bike"])
     def test_a_nickname_the_user_has_in_another_case_is_skipped(self, db, user_id, existing):
-        gears_crud.create_gear(gear_create(existing), user_id, db)
+        gears_crud.create_gear(gear_payload(existing), user_id, db)
 
-        gears_service.stage_gears([gear_create(existing.upper()), gear_create("Fresh")], user_id, db)
+        gears_service.stage_gears([gear_payload(existing.upper()), gear_payload("Fresh")], user_id, db)
 
         assert _nicknames(db, user_id) == sorted([existing, "Fresh"])
 
     @pytest.mark.parametrize("nickname", ["Road Bike", "İstanbul Shoes", "ΣΑΣ Racquet"])
     def test_a_nickname_repeated_in_the_batch_is_staged_once(self, db, user_id, nickname):
         gears_service.stage_gears(
-            [gear_create(nickname), gear_create(nickname.upper()), gear_create("Other")], user_id, db
+            [gear_payload(nickname), gear_payload(nickname.upper()), gear_payload("Other")], user_id, db
         )
 
         assert _nicknames(db, user_id) == sorted([nickname, "Other"])
 
     def test_the_same_nickname_is_staged_for_another_user(self, db, user_id):
         other_id = make_user(db).id
-        gears_crud.create_gear(gear_create("Road Bike"), other_id, db)
+        gears_crud.create_gear(gear_payload("Road Bike"), other_id, db)
 
-        gears_service.stage_gears([gear_create("road bike")], user_id, db)
+        gears_service.stage_gears([gear_payload("road bike")], user_id, db)
 
         assert _nicknames(db, user_id) == ["road bike"]
 
     def test_a_taken_provider_id_is_still_a_conflict(self, db, user_id):
-        gears_crud.create_gear(gear_create("One", strava_gear_id="b1"), user_id, db)
+        gears_crud.create_gear(gear_payload("One", strava_gear_id="b1"), user_id, db)
 
         with pytest.raises(core_exceptions.ConflictError, match="Strava or Garmin Connect ID"):
-            gears_service.stage_gears([gear_create("Two", strava_gear_id="b1")], user_id, db)
+            gears_service.stage_gears([gear_payload("Two", strava_gear_id="b1")], user_id, db)
 
     def test_a_provider_id_repeated_in_the_batch_is_a_conflict(self, db, user_id):
         with pytest.raises(core_exceptions.ConflictError, match="Strava or Garmin Connect ID"):
             gears_service.stage_gears(
-                [gear_create("One", garminconnect_gear_id="g1"), gear_create("Two", garminconnect_gear_id="g1")],
+                [gear_payload("One", garminconnect_gear_id="g1"), gear_payload("Two", garminconnect_gear_id="g1")],
                 user_id,
                 db,
             )
@@ -71,8 +64,8 @@ class TestStageGears:
     @pytest.mark.parametrize("order", ["provider-gear-first", "plain-gear-first"])
     def test_each_gear_keeps_the_fields_it_sent_whatever_the_others_send(self, db, user_id, order):
         """Payloads set different fields; one gear's omissions must not drop or refuse another's."""
-        plain = gear_create("Plain")
-        provider = gear_create("Provider", brand="Trek", strava_gear_id="b7")
+        plain = gear_payload("Plain")
+        provider = gear_payload("Provider", brand="Trek", strava_gear_id="b7")
         batch = [provider, plain] if order == "provider-gear-first" else [plain, provider]
 
         gears_service.stage_gears(batch, user_id, db)
@@ -82,7 +75,7 @@ class TestStageGears:
 
     def test_inserted_rows_read_back_complete(self, db, user_id):
         gears_service.stage_gears(
-            [gear_create("  Road Bike ", brand=" Trek ", strava_gear_id="b1", initial_distance=1500.0)], user_id, db
+            [gear_payload("  Road Bike ", brand=" Trek ", strava_gear_id="b1", initial_distance=1500.0)], user_id, db
         )
         db.commit()
 
