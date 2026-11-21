@@ -342,8 +342,8 @@ def _process_trackpoint(
 
     timestamp = core_timezone.format_utc(time)
 
-    # A segment's first point (and a non-advancing clock) yields a 0 placeholder,
-    # not a measurement; only max speed ignores it, the stored stream keeps it.
+    # A segment's first point (and a non-advancing clock) yields a 0 placeholder, not a
+    # measurement; lap and max speed skip it by stream index, the stored stream keeps it.
     if (
         state.prev_waypoint_time is not None
         and state.prev_latitude is not None
@@ -433,7 +433,7 @@ def _compute_derived_metrics(
         state.max_speed = activities_computation.calculate_robust_max(
             [
                 waypoint["vel"]
-                for waypoint in activity_file_import_parser_utils._measured_speed_samples(
+                for waypoint in activity_file_import_parser_utils.measured_speed_samples(
                     state.vel_waypoints, state.measured_vel_indices
                 )
             ],
