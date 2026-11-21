@@ -32,3 +32,10 @@ class TestMFARequestNormalisation:
     def test_a_code_that_is_not_alphanumeric_is_rejected(self, submitted):
         with pytest.raises(ValidationError):
             garmin_schema.MFARequest(mfa_code=submitted)
+
+
+def test_the_password_does_not_appear_in_the_login_repr():
+    login = garmin_schema.GarminLogin(username="me@example.com", password="s3cret")
+
+    assert "s3cret" not in repr(login)
+    assert login.password.get_secret_value() == "s3cret"
