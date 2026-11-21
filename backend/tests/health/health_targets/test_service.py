@@ -1,68 +1,91 @@
-import uuid
-from unittest.mock import MagicMock, patch
+"""The health targets' application rules, on the real database."""
 
+import pytest
+import sqlalchemy as sa
+
+import core.exceptions as core_exceptions
+import modules.health.health_targets.models as health_targets_models
 import modules.health.health_targets.schema as health_targets_schema
 import modules.health.health_targets.service as health_targets_service
-
-_USER_ID = uuid.UUID("11111111-1111-4111-8111-111111111111")
-_OTHER_USER_ID = uuid.UUID("22222222-2222-4222-8222-222222222222")
+from tests._factories.users import make_user
 
 
-class TestGetHealthTargets:
-    @patch("modules.health.health_targets.service.health_targets_crud.get_health_targets_by_user_id")
-    def test_returns_crud_result(self, mock_get, mock_db):
-        mock_get.return_value = None
-
-        assert health_targets_service.get_health_targets(_USER_ID, mock_db) is None
-        mock_get.assert_called_once_with(_USER_ID, mock_db)
+@pytest.fixture
+def user(db):
+    return make_user(db)
 
 
-class TestUpdateHealthTargets:
-    @patch("modules.health.health_targets.service.health_targets_crud.edit_health_targets")
-    def test_commits_after_edit(self, mock_edit, mock_db):
-        update = health_targets_schema.HealthTargetsUpdate(weight_kg=75.0)
-        mock_edit.return_value = MagicMock()
+def _stored(db, user_id):
+    return db.scalar(
+        sa.select(health_targets_models.HealthTargets).where(health_targets_models.HealthTargets.user_id == user_id)
+    )
 
-        result = health_targets_service.update_health_targets(update, _USER_ID, mock_db, if_match="*")
 
-        assert result is mock_edit.return_value
-        mock_edit.assert_called_once_with(update, _USER_ID, mock_db, if_match="*")
-        mock_db.commit.assert_called_once()
+class TestUpdate:
+    def test_the_change_is_committed_and_read_back(self, committed_sessions):
+        with committed_sessions() as db:
+            user = make_user(db)
+            db.commit()
+
+        with committed_sessions() as db:
+            updated = health_targets_service.update_health_targets(
+                health_targets_schema.HealthTargetsUpdate(weight_kg=75.0), user.id, db, if_match='"1"'
+            )
+
+        with committed_sessions() as db:
+            assert health_targets_service.get_health_targets(user.id, db) == updated
+            assert (updated.weight_kg, updated.version) == (75.0, 2)
+
+    def test_a_stale_version_is_refused_and_nothing_changes(self, db, user):
+        with pytest.raises(core_exceptions.PreconditionFailedError):
+            health_targets_service.update_health_targets(
+                health_targets_schema.HealthTargetsUpdate(weight_kg=75.0), user.id, db, if_match='"5"'
+            )
+
+        assert _stored(db, user.id).weight_kg is None
+
+    def test_a_user_without_targets_is_not_found(self, db, user):
+        db.execute(
+            sa.delete(health_targets_models.HealthTargets).where(health_targets_models.HealthTargets.user_id == user.id)
+        )
+
+        with pytest.raises(core_exceptions.NotFoundError):
+            health_targets_service.update_health_targets(
+                health_targets_schema.HealthTargetsUpdate(weight_kg=75.0), user.id, db, if_match='"1"'
+            )
 
 
 class TestRestoreProfileRecords:
-    @patch("modules.health.health_targets.service.health_targets_crud.edit_health_targets")
-    def test_edits_the_targets_the_account_has_with_the_editable_fields_only(self, mock_edit, mock_db):
-        rows = [
-            {"id": str(uuid.uuid4()), "user_id": str(_OTHER_USER_ID), "version": 4, "weight_kg": 80.0, "steps": 10000}
-        ]
+    def test_the_archived_values_edit_the_targets_the_account_has_and_the_row_fields_are_ignored(self, db, user):
+        rows = [{"id": "x", "user_id": "y", "version": 4, "weight_kg": 80.0, "steps": 10000}]
 
-        assert health_targets_service.restore_profile_records(rows, _USER_ID, {}, mock_db) == 1
+        assert health_targets_service.restore_profile_records(rows, user.id, {}, db) == 1
 
-        target, user_id, db = mock_edit.call_args.args
-        assert (user_id, db) == (_USER_ID, mock_db)
-        assert (target.weight_kg, target.steps) == (80.0, 10000)
-        assert mock_edit.call_args.kwargs == {"if_match": "*"}
+        row = _stored(db, user.id)
+        assert (row.weight_kg, row.steps, row.user_id) == (80, 10000, user.id)
 
-    @patch("modules.health.health_targets.service.health_targets_crud.edit_health_targets")
-    def test_numbers_archived_as_strings_are_read_as_numbers(self, mock_edit, mock_db):
+    def test_numbers_archived_as_strings_are_read_as_numbers(self, db, user):
         rows = [{"weight_kg": "80.5", "steps": "10000", "sleep_seconds": "28800"}]
 
-        assert health_targets_service.restore_profile_records(rows, _USER_ID, {}, mock_db) == 1
+        assert health_targets_service.restore_profile_records(rows, user.id, {}, db) == 1
 
-        target = mock_edit.call_args.args[0]
-        assert (target.weight_kg, target.steps, target.sleep_seconds) == (80.5, 10000, 28800)
+        row = _stored(db, user.id)
+        assert (row.weight_kg, row.steps, row.sleep_seconds) == (80.5, 10000, 28800)
 
-    @patch("modules.health.health_targets.service.health_targets_crud.edit_health_targets")
-    def test_a_number_that_cannot_be_read_is_left_out_and_the_rest_staged(self, mock_edit, mock_db):
-        rows = [{"weight_kg": "bad", "steps": "wrong", "sleep_seconds": "nope"}]
+    def test_a_number_that_cannot_be_read_is_left_empty_and_the_rest_restored(self, db, user):
+        rows = [{"weight_kg": "bad", "steps": "wrong", "sleep_seconds": "nope", "water_ml": 2000.0}]
 
-        assert health_targets_service.restore_profile_records(rows, _USER_ID, {}, mock_db) == 1
+        assert health_targets_service.restore_profile_records(rows, user.id, {}, db) == 1
 
-        target = mock_edit.call_args.args[0]
-        assert (target.weight_kg, target.steps, target.sleep_seconds) == (None, None, None)
+        row = _stored(db, user.id)
+        assert (row.weight_kg, row.steps, row.sleep_seconds, row.water_ml) == (None, None, None, 2000)
 
-    @patch("modules.health.health_targets.service.health_targets_crud.edit_health_targets")
-    def test_an_archive_without_targets_stages_nothing(self, mock_edit, mock_db):
-        assert health_targets_service.restore_profile_records([], _USER_ID, {}, mock_db) == 0
-        mock_edit.assert_not_called()
+    def test_a_record_the_schema_refuses_is_skipped(self, db, user):
+        assert health_targets_service.restore_profile_records([{"steps": -5}, {"steps": 7}], user.id, {}, db) == 1
+
+        assert _stored(db, user.id).steps == 7
+
+    def test_an_archive_without_targets_changes_nothing(self, db, user):
+        assert health_targets_service.restore_profile_records([], user.id, {}, db) == 0
+
+        assert _stored(db, user.id).version == 1

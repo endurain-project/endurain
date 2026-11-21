@@ -4,14 +4,14 @@ from datetime import date, timedelta
 from decimal import Decimal
 
 import pytest
-from tests._factories.health import make_health_weight
-from tests._factories.users import make_user
 
 import core.etag as core_etag
 import modules.health.health_weight.integration_service as health_weight_integration
 import modules.health.health_weight.models as health_weight_models
 import modules.health.health_weight.schema as health_weight_schema
 import modules.health.health_weight.service as health_weight_service
+from tests._factories.health import make_health_weight
+from tests._factories.users import make_user
 
 _DAY = date(2024, 1, 15)
 _BMI_75_AT_175 = pytest.approx(75.0 / 1.75**2, abs=0.01)

@@ -7,8 +7,6 @@ from decimal import Decimal
 import pytest
 import sqlalchemy as sa
 from sqlalchemy.exc import IntegrityError
-from tests._factories.health import make_health_weight
-from tests._factories.users import make_user
 
 import core.etag as core_etag
 import core.exceptions as core_exceptions
@@ -17,6 +15,8 @@ import modules.health.health_weight.crud as health_weight_crud
 import modules.health.health_weight.models as health_weight_models
 import modules.health.health_weight.schema as health_weight_schema
 import modules.health.models as health_models
+from tests._factories.health import make_health_weight
+from tests._factories.users import make_user
 
 _DAY = date(2025, 3, 10)
 

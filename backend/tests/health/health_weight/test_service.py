@@ -6,8 +6,6 @@ from decimal import Decimal
 
 import pytest
 import sqlalchemy as sa
-from tests._factories.health import make_health_weight
-from tests._factories.users import make_user
 
 import core.date_range as core_date_range
 import core.etag as core_etag
@@ -18,6 +16,8 @@ import modules.health.health_weight.crud as health_weight_crud
 import modules.health.health_weight.models as health_weight_models
 import modules.health.health_weight.schema as health_weight_schema
 import modules.health.health_weight.service as health_weight_service
+from tests._factories.health import make_health_weight
+from tests._factories.users import make_user
 
 _DAY = date(2025, 3, 10)
 

@@ -5,12 +5,12 @@ from datetime import date, timedelta
 from decimal import Decimal
 
 import pytest
-from tests._factories.health import make_health_weight
-from tests._factories.users import make_user
 
 import core.config as core_config
 import core.timezone as core_timezone
 import modules.health.health_weight.models as health_weight_models
+from tests._factories.health import make_health_weight
+from tests._factories.users import make_user
 
 _URL = f"{core_config.ROOT_PATH}/health/weight"
 _DAY = date(2025, 3, 10)

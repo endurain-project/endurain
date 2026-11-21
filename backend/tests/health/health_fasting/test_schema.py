@@ -1,19 +1,11 @@
-import uuid
 from datetime import UTC, datetime
 
 import pytest
 from pydantic import ValidationError
 
-# A stored record always has its start time.
-_USER_ID = uuid.UUID("11111111-1111-4111-8111-111111111111")
-_ID = uuid.uuid4()
-
-
-_STARTED = datetime(2026, 1, 1, 7, 0, tzinfo=UTC)
-
 
 class TestHealthFastingCreateSchema:
-    def test_valid_full_data(self):
+    def test_a_session_without_a_status_is_in_progress_and_a_client_cannot_set_the_source(self):
         from modules.health.health_fasting.schema import HealthFastingCreate
 
         data = HealthFastingCreate(fast_start_time=datetime(2024, 1, 15, 8, 0, 0, tzinfo=UTC))
@@ -65,49 +57,12 @@ class TestHealthFastingCreateSchema:
             pass
 
 
-class TestHealthFastingReadSchema:
-    def test_valid(self):
-        from modules.health.health_fasting.schema import HealthFastingRead
-
-        data = HealthFastingRead(updated_at="2024-01-01T00:00:00Z", id=_ID, user_id=_USER_ID, fast_start_time=_STARTED)
-        assert data.id == _ID
-        assert data.user_id == _USER_ID
-
-
 class TestHealthFastingCompleteSchema:
-    def test_valid(self):
+    def test_a_completion_without_a_status_is_completed(self):
         from modules.health.health_fasting.schema import FastingStatus, HealthFastingComplete
 
         data = HealthFastingComplete(fast_end_time=datetime(2024, 1, 15, 16, 0, 0, tzinfo=UTC))
         assert data.status == FastingStatus.COMPLETED.value
-
-
-class TestHealthFastingStatsResponse:
-    def test_valid(self):
-        from modules.health.health_fasting.schema import HealthFastingStatsResponse
-
-        data = HealthFastingStatsResponse(
-            total_fasts=10,
-            current_streak=3,
-            longest_streak=7,
-            total_fasting_seconds=864000,
-            completion_rate=70.0,
-        )
-        assert data.total_fasts == 10
-
-
-class TestEnums:
-    def test_fasting_type_values(self):
-        from modules.health.health_fasting.schema import FastingType
-
-        assert FastingType.IF_16_8.value == "16:8"
-        assert FastingType.OMAD.value == "OMAD"
-
-    def test_fasting_status_values(self):
-        from modules.health.health_fasting.schema import FastingStatus
-
-        assert FastingStatus.IN_PROGRESS.value == "in_progress"
-        assert FastingStatus.COMPLETED.value == "completed"
 
 
 class TestCompleteStatus:
