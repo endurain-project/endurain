@@ -70,14 +70,44 @@ class TestGenerateActivityLapsSpeed:
     def test_first_point_placeholder_zero_speed_is_not_averaged_into_lap_one(self):
         """A constant-speed track gives every lap the same average speed, lap 1 included."""
         lat_lon, _ = _straight_track(25, lambda _i: None)
-        measured = {point["time"] for point in lat_lon[1:]}
         speed = 111.2 / 10
-        vel = [{"time": point["time"], "vel": speed if point["time"] in measured else 0} for point in lat_lon]
+        vel = [{"time": point["time"], "vel": speed if i else 0} for i, point in enumerate(lat_lon)]
+        measured = set(range(1, len(vel)))
 
-        laps = afi_utils.generate_activity_laps(lat_lon, [], [], [], [], vel, measured_vel_times=measured)
+        laps = afi_utils.generate_activity_laps(lat_lon, [], [], [], [], vel, measured_vel_indices=measured)
 
         assert len(laps) >= 2
         assert [lap["enhanced_avg_speed"] for lap in laps] == [pytest.approx(speed)] * len(laps)
+
+    def test_repeated_timestamp_placeholder_is_not_averaged_into_the_lap(self):
+        lat_lon, _ = _straight_track(25, lambda _i: None)
+        speed = 111.2 / 10
+        vel = []
+        measured = set()
+        for i, point in enumerate(lat_lon):
+            if i:
+                measured.add(len(vel))
+            vel.append({"time": point["time"], "vel": speed if i else 0})
+            vel.append({"time": point["time"], "vel": 0})
+
+        laps = afi_utils.generate_activity_laps(lat_lon, [], [], [], [], vel, measured_vel_indices=measured)
+
+        assert len(laps) >= 2
+        assert [lap["enhanced_avg_speed"] for lap in laps] == [pytest.approx(speed)] * len(laps)
+
+    def test_sub_second_samples_in_one_second_are_all_measured(self):
+        lat_lon, _ = _straight_track(25, lambda _i: None)
+        speed = 111.2 / 10
+        vel = []
+        for point in lat_lon:
+            vel.extend({"time": point["time"], "vel": v} for v in (0, speed))
+        measured = set(range(1, len(vel)))
+
+        laps = afi_utils.generate_activity_laps(lat_lon, [], [], [], [], vel, measured_vel_indices=measured)
+
+        assert len(laps) >= 2
+        assert [lap["enhanced_avg_speed"] for lap in laps] == [pytest.approx(speed / 2, rel=0.1)] * len(laps)
+        assert all(lap["enhanced_max_speed"] == pytest.approx(speed) for lap in laps)
 
     def test_every_sample_is_averaged_without_measured_times(self):
         """Sources without placeholder samples keep averaging every sample."""
