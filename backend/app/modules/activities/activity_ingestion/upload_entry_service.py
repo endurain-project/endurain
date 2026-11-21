@@ -140,12 +140,21 @@ def receive_upload(filename: str | None, save_upload: UploadSaver, *, fingerprin
             "File extension not supported. Supported file extensions are .gpx, .fit, .tcx and .gz"
         )
 
-    upload_kind = (
-        core_file_uploads.UploadKind.GZIP if file_extension.lower() == ".gz" else core_file_uploads.UploadKind.ACTIVITY
-    )
-    # Server-generated name, used both for the incoming file and as the storage
-    # key, so a hostile client filename never reaches either.
-    storage_key = f"{uuid.uuid4().hex}{file_extension.lower()}"
+    stored_extension = file_extension.lower()
+    upload_kind = core_file_uploads.UploadKind.ACTIVITY
+    if stored_extension == ".gz":
+        upload_kind = core_file_uploads.UploadKind.GZIP
+        # The payload's format is the extension inside the ``.gz`` (``ride.gpx.gz``); decompression reads it back from
+        # the stored name, so a name that gives none could never import.
+        inner_extension = os.path.splitext(os.path.splitext(filename)[0])[1].lower()
+        if inner_extension == ".gz" or inner_extension not in core_config.SUPPORTED_FILE_FORMATS:
+            raise core_exceptions.UnsupportedFormatError(
+                "A .gz upload must name the format it holds: .gpx.gz, .fit.gz or .tcx.gz"
+            )
+        stored_extension = f"{inner_extension}.gz"
+    # Server-generated name, used both for the incoming file and as the storage key, so a hostile client filename
+    # never reaches either: only an extension from the supported list is kept.
+    storage_key = f"{uuid.uuid4().hex}{stored_extension}"
 
     # Validate (signature/size/MIME via safeuploads) and stream
     # the upload to disk in one unified step. The streaming
