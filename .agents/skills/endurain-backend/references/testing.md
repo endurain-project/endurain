@@ -46,10 +46,13 @@ uv run pytest tests/<area> -q                 # one area, Docker starts the data
 uv run pytest tests/<area> -q -n auto         # in parallel
 uv run hatch run test                         # what CI runs: whole suite, parallel, branch coverage gate
 docker run -d --rm --name endurain-test-pg -e POSTGRES_USER=endurain -e POSTGRES_PASSWORD=test \
-  -e POSTGRES_DB=endurain_test -p 55432:5432 postgres:18
+  -e POSTGRES_DB=endurain_test -p 55432:5432 postgres:18 -c fsync=off -c synchronous_commit=off -c full_page_writes=off
 TEST_DATABASE_URL=postgresql+psycopg://endurain:test@localhost:55432/endurain_test uv run pytest tests/<area> -q
 ```
 
-Keep a database running and set `TEST_DATABASE_URL` to skip the container start on every run.
+Keep a database running and set `TEST_DATABASE_URL` to skip the container start on every run. A test database is
+disposable, so it runs without durability (the flags above; the harness's own container does the same): a clone of the
+template per test is several times faster. The tests hash passwords with Argon2 at a low cost; one test pins the cost
+the application ships with.
 Architecture tests (boundaries, layers, logging, module template) are in `tests/architecture/`; the role vocabulary is in `tests/_helpers/module_roles.py`.
 CI fails under 80% total branch coverage; cover every branch of new code (errors, empty, refusal).

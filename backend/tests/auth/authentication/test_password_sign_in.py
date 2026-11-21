@@ -255,7 +255,8 @@ class TestRehash:
 
     @staticmethod
     def _weak_hash(password: str) -> str:
-        return PasswordHash([Argon2Hasher(time_cost=1, memory_cost=1024, parallelism=1)]).hash(password)
+        """A hash below the configured cost, even the low one the tests hash with (``tests/conftest.py``)."""
+        return PasswordHash([Argon2Hasher(time_cost=1, memory_cost=8, parallelism=1)]).hash(password)
 
     def test_a_sign_in_replaces_the_hash_and_keeps_whether_the_owner_must_change_it(
         self, client, committed_sessions, must_change_account

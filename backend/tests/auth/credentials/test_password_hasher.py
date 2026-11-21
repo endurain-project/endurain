@@ -364,3 +364,24 @@ class TestConcurrentHashingBound:
 
         assert hasher.verify_password("a", "b")
         assert hasher.verify_password("c", "d")
+
+
+class TestProductionCost:
+    def test_the_shipped_hasher_writes_argon2id_at_64_mib_three_passes_and_four_lanes(self):
+        """The tests hash at a low cost for speed (``tests/conftest.py``); the application must not."""
+        from tests.conftest import PRODUCTION_PASSWORD_HASHER
+
+        encoded = PRODUCTION_PASSWORD_HASHER.hash_password("any password at all")
+
+        algorithm, version, parameters = encoded.split("$")[1:4]
+        assert (algorithm, version) == ("argon2id", "v=19")
+        assert dict(item.split("=") for item in parameters.split(",")) == {"m": "65536", "t": "3", "p": "4"}
+
+    def test_a_hash_made_at_the_production_cost_still_verifies_with_the_tests_hasher(self, password_hasher):
+        """A stored hash carries its parameters, so lowering the cost in tests changes no verification."""
+        from tests.conftest import PRODUCTION_PASSWORD_HASHER
+
+        encoded = PRODUCTION_PASSWORD_HASHER.hash_password("any password at all")
+
+        assert password_hasher.verify_password("any password at all", encoded)
+        assert not password_hasher.verify_password("another password", encoded)

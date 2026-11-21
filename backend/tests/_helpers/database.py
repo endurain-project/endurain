@@ -37,6 +37,8 @@ _UNAVAILABLE_ENV = "ENDURAIN_TEST_DATABASE_UNAVAILABLE"
 
 #: The image the run starts when ``TEST_DATABASE_URL`` is unset: the major version CI and the compose file run.
 _CONTAINER_IMAGE = "postgres:18"
+#: Server settings of a disposable database: nothing it writes needs to survive a crash.
+_NO_DURABILITY = "postgres -c fsync=off -c synchronous_commit=off -c full_page_writes=off"
 
 #: Arbitrary constant naming the harness's advisory lock on the maintenance database.
 _LOCK_KEY = 7_203_419_777
@@ -126,6 +128,9 @@ def _start_container() -> str:
     from testcontainers.community.postgres import PostgresContainer
 
     container = PostgresContainer(_CONTAINER_IMAGE, username="endurain", password="test", dbname="endurain_test")
+    # The data is thrown away with the container, so it is not flushed to disk: a clone of the template per test is
+    # then several times faster.
+    container.with_command(_NO_DURABILITY)
     container.start()
     _container = container
     host = container.get_container_host_ip()

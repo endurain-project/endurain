@@ -6,17 +6,41 @@ import httpx2
 import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
+from pwdlib.hashers.argon2 import Argon2Hasher
 from sqlalchemy.orm import Session, sessionmaker
 
 import core.database as core_database
 import modules.auth.access_tokens.service as auth_token_manager
 import modules.auth.credentials.integration_service as auth_password_hasher
+import modules.auth.credentials.password_hasher as credentials_password_hasher
 import modules.server_settings.contracts as server_settings_contracts
 import modules.users.contributor_registry as users_contributor_registry
 import modules.users.users.schema as user_schema
 from tests._factories import auth as auth_factories
 from tests._helpers import database as test_database
 from tests._helpers.auth import MOCK_USER_ID
+
+#: The hasher the application ships with, kept for the test that pins its Argon2 cost.
+PRODUCTION_PASSWORD_HASHER = credentials_password_hasher.password_hasher
+
+
+@pytest.fixture(scope="session", autouse=True)
+def _low_cost_password_hashing() -> Iterator[None]:
+    """Hash with Argon2 at a low cost: the same algorithm and code, without 64 MiB and several passes per hash.
+
+    Every sign-in, step-up and password change hashes or verifies, and parallel workers running the production cost
+    starve each other of CPU. A stored hash carries its own parameters, so verification is unchanged.
+    ``tests/auth/credentials/test_password_hasher.py`` pins the production cost.
+    """
+    with pytest.MonkeyPatch.context() as patch:
+        patch.setattr(
+            credentials_password_hasher,
+            "password_hasher",
+            credentials_password_hasher.PasswordHasher(
+                hasher=[Argon2Hasher(time_cost=1, memory_cost=1024, parallelism=1)]
+            ),
+        )
+        yield
 
 
 @pytest.fixture(autouse=True)

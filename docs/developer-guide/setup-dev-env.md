@@ -118,7 +118,7 @@ The tests run against PostgreSQL. With Docker running, `uv run pytest` starts a 
 
 ```bash
 docker run -d --rm --name endurain-test-pg -e POSTGRES_USER=endurain -e POSTGRES_PASSWORD=test \
-  -e POSTGRES_DB=endurain_test -p 55432:5432 postgres:18
+  -e POSTGRES_DB=endurain_test -p 55432:5432 postgres:18 -c fsync=off -c synchronous_commit=off -c full_page_writes=off
 export TEST_DATABASE_URL=postgresql+psycopg://endurain:test@localhost:55432/endurain_test
 uv run hatch run test                         # the whole suite in parallel, with the coverage gate CI applies
 ```
