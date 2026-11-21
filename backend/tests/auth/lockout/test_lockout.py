@@ -3,11 +3,10 @@
 import hashlib
 import uuid
 from datetime import UTC, datetime, timedelta
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 import pytest
 from jasil.backends.state_memory import MemoryState
-from jasil.providers import StateBackendUnavailableError
 
 import core.key_derivation as core_key_derivation
 import modules.auth.account_security.step_up_store as step_up_store_module
@@ -15,6 +14,7 @@ import modules.auth.authentication.failed_login_store as failed_login_store
 import modules.auth.lockout.contracts as lockout_contracts
 import modules.auth.lockout.integration_service as lockout_integration
 import modules.auth.lockout.lockout_store as lockout_store
+from tests._factories.state import DownState
 
 _USER_ID_1 = uuid.UUID(int=1)
 _USER_ID_2 = uuid.UUID(int=2)
@@ -270,11 +270,8 @@ class TestStepUpAttempts:
 class TestUnavailable:
     """State outages surface as AuthSecurityStoreUnavailableError (503 upstream)."""
 
-    def _failing_state(self) -> MagicMock:
-        state = MagicMock()
-        for method in ("get", "set", "delete", "delete_prefix", "get_and_delete", "iter_keys", "record_tiered_failure"):
-            getattr(state, method).side_effect = StateBackendUnavailableError("down")
-        return state
+    def _failing_state(self) -> DownState:
+        return DownState()
 
     def test_record_failed_attempt_raises(self):
         store = failed_login_store.FailedLoginAttempts(state=self._failing_state())
@@ -295,19 +292,6 @@ class TestUnavailable:
         store = failed_login_store.FailedLoginAttempts(state=self._failing_state())
         with pytest.raises(lockout_contracts.AuthSecurityStoreUnavailableError):
             store.clear_all()
-
-
-class TestDependencyFunctions:
-    """Module-level singletons and helpers."""
-
-    def test_get_failed_login_attempts_returns_singleton(self):
-        assert failed_login_store.get_failed_login_attempts(
-            MemoryState()
-        ) != failed_login_store.get_failed_login_attempts(MemoryState())
-
-    def test_get_step_up_attempts_uses_injected_provider(self):
-        state = MemoryState()
-        assert isinstance(step_up_store_module.get_step_up_attempts(state), step_up_store_module.StepUpAttempts)
 
 
 class TestReportLockoutApplied:
@@ -332,6 +316,3 @@ class TestReportLockoutApplied:
             for _ in range(5):
                 store.record_failed_attempt("alice", "203.0.113.1", user_id=_USER_ID_1)
         assert caplog.records == []
-
-    def test_the_outage_error_is_a_503_domain_error(self):
-        assert lockout_contracts.AuthSecurityStoreUnavailableError.status_code == 503

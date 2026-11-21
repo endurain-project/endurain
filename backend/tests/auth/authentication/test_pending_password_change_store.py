@@ -2,16 +2,27 @@
 
 import json
 import uuid
-from unittest.mock import MagicMock
 
 import pytest
 from jasil.backends.state_memory import MemoryState
-from jasil.providers import StateBackendUnavailableError
 
 import modules.auth.authentication.pending_password_change_store as pending_store
 import modules.auth.constants as auth_constants
+from tests.auth.authentication.conftest import DownState
 
 _USER_ID_12 = uuid.UUID(int=12)
+
+
+class _RecordingState(MemoryState):
+    """The in-memory state, which also records the lifetime every key was written with."""
+
+    def __init__(self) -> None:
+        super().__init__()
+        self.ttls: dict[str, int | None] = {}
+
+    def set(self, key: str, value: bytes, ttl_seconds: int | None = None) -> None:
+        self.ttls[key] = ttl_seconds
+        super().set(key, value, ttl_seconds)
 
 
 def _record(**overrides) -> pending_store.PendingPasswordChange:
@@ -67,14 +78,14 @@ def test_each_change_gets_its_own_256_bit_challenge():
 
 
 def test_only_a_digest_of_the_challenge_is_kept_and_it_lives_ten_minutes():
-    state = MagicMock()
+    state = _RecordingState()
     store = pending_store.PendingPasswordChanges(state)
 
     challenge = store.add(_record())
 
-    key = state.set.call_args.args[0]
+    (key,) = state.ttls
     assert challenge not in key
-    assert state.set.call_args.kwargs == {"ttl_seconds": 600}
+    assert state.ttls[key] == 600
 
 
 def test_a_corrupt_entry_is_removed_and_reads_as_unknown():
@@ -90,9 +101,7 @@ def test_a_corrupt_entry_is_removed_and_reads_as_unknown():
 
 @pytest.mark.parametrize("method", ["set", "get", "get_and_delete"])
 def test_provider_failures_become_auth_store_errors(method):
-    state = MagicMock()
-    getattr(state, method).side_effect = StateBackendUnavailableError("down")
-    store = pending_store.PendingPasswordChanges(state)
+    store = pending_store.PendingPasswordChanges(DownState())
 
     with pytest.raises(pending_store.AuthSecurityStoreUnavailableError):
         {

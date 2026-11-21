@@ -9,9 +9,11 @@ import pytest
 import core.exceptions as core_exceptions
 import modules.auth.access_tokens.integration_service as access_tokens_integration
 from modules.auth.constants import ClientType
+from tests._factories.users import make_user
 
 _USER_ID = uuid.UUID(int=1)
 _SESSION_ID = uuid.UUID(int=0x5E55)
+LOGIN = "/api/v1/auth/login"
 
 
 @pytest.mark.parametrize("token", ["garbage", "a.b.c", ""])
@@ -82,43 +84,24 @@ def test_a_missing_claim_is_a_warning_without_a_traceback(token_manager, sample_
 class TestFailedLoginIsLogged:
     """A refused sign-in is what an operator looks for when someone is guessing, and it must not name the account."""
 
-    @staticmethod
-    def _authenticate(username, user, credential, caplog):
-        from unittest.mock import MagicMock, patch
+    @pytest.mark.parametrize("case", ["unknown-user", "no-local-password", "wrong-password"])
+    def test_each_refusal_logs_one_warning_without_the_raw_username(self, client, committed_sessions, caplog, case):
+        with committed_sessions() as db:
+            user = make_user(db, with_password=case != "no-local-password", username="alice-the-user")
+            db.commit()
+        username = "alice-the-user" if case != "unknown-user" else "alice-the-ghost"
 
-        import modules.auth.authentication.service as auth_service
+        with caplog.at_level(logging.DEBUG):
+            response = client.post(
+                LOGIN, data={"username": username, "password": "wrong"}, headers={"X-Client-Type": "web"}
+            )
 
-        hasher = MagicMock()
-        hasher.verify_and_update.return_value = (False, None)
-        with (
-            caplog.at_level(logging.DEBUG),
-            patch.object(auth_service.users_integration, "get_user_by_username", return_value=user),
-            patch.object(auth_service.credentials_integration, "get_credential", return_value=credential),
-            pytest.raises(core_exceptions.UnauthenticatedError),
-        ):
-            auth_service.authenticate_user(user, username, "wrong", hasher, MagicMock())
-
-    @pytest.mark.parametrize(
-        ("user", "credential"),
-        [
-            (None, None),
-            ("user", None),
-            ("user", "credential"),
-        ],
-        ids=["unknown-user", "no-local-password", "wrong-password"],
-    )
-    def test_each_refusal_logs_one_warning_without_the_raw_username(self, caplog, user, credential):
-        from types import SimpleNamespace
-
-        user_obj = SimpleNamespace(id=_USER_ID) if user else None
-        credential_obj = SimpleNamespace(password_hash="hash") if credential else None
-
-        self._authenticate("alice-the-user", user_obj, credential_obj, caplog)
-
-        warnings = [record for record in caplog.records if record.levelno == logging.WARNING]
+        assert response.status_code == 401
+        warnings = [r for r in caplog.records if r.levelno == logging.WARNING and "Sign-in refused" in r.getMessage()]
         assert len(warnings) == 1
-        assert "alice-the-user" not in warnings[0].getMessage()
-        assert "alice-the-user" not in str(getattr(warnings[0], "__dict__", {}))
+        assert username not in warnings[0].getMessage()
+        assert username not in str(getattr(warnings[0], "__dict__", {}))
+        assert user.username == "alice-the-user"
 
 
 def test_a_refused_access_token_is_logged_below_error(token_manager, caplog):
@@ -132,20 +115,12 @@ def test_a_refused_access_token_is_logged_below_error(token_manager, caplog):
 class TestRefusedCredentialsAreLogged:
     """A guessed or stale credential is a security refusal: the service says so at WARNING."""
 
-    def test_an_unknown_api_key_is_a_warning(self, caplog):
-        from unittest.mock import MagicMock, patch
+    def test_an_unknown_api_key_is_a_warning(self, client, caplog):
+        with caplog.at_level(logging.DEBUG):
+            response = client.get("/api/v1/health/weight", headers={"X-API-Key": "endu_unknown"})
 
-        import modules.auth.authentication.principal_service as principal_service
-
-        with (
-            caplog.at_level(logging.DEBUG),
-            patch.object(principal_service.api_keys_integration, "hash_api_key", return_value="0" * 64),
-            patch.object(principal_service.api_keys_integration, "get_api_key_by_hash", return_value=None),
-            pytest.raises(core_exceptions.UnauthenticatedError),
-        ):
-            principal_service.resolve_from_api_key("endu_unknown", "/api/v1/x", "203.0.113.9", MagicMock())
-
-        warnings = [record for record in caplog.records if record.levelno == logging.WARNING]
+        assert response.status_code == 401
+        warnings = [r for r in caplog.records if r.levelno == logging.WARNING and "API key refused" in r.getMessage()]
         assert len(warnings) == 1
         assert "endu_unknown" not in warnings[0].getMessage()
         assert "endu_unknown" not in str(warnings[0].__dict__)

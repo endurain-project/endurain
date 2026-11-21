@@ -49,16 +49,6 @@ def _session(*, last_activity_at: datetime, created_at: datetime) -> sessions_co
     )
 
 
-def test_device_type_values():
-    assert [value.value for value in sessions_contracts.DeviceType] == ["Mobile", "Tablet", "PC"]
-
-
-def test_device_info_fields():
-    info = sessions_contracts.DeviceInfo(sessions_contracts.DeviceType.PC, "Linux", "1", "Firefox", "1")
-    assert info.operating_system == "Linux"
-    assert info.browser == "Firefox"
-
-
 def test_parse_user_agent_desktop():
     info = sessions_utils.parse_user_agent(
         "Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:120.0) Gecko/20100101 Firefox/120.0"

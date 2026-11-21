@@ -1,155 +1,145 @@
-"""Tests for auth.identity_provider_links.service module."""
+"""Ending the sessions of a provider's sign-ins, finding the sign-ins whose session is gone, and the link listing."""
 
 import uuid
-from datetime import UTC, datetime
-from unittest.mock import MagicMock, patch
 
-import modules.auth.identity_providers.integration_service as identity_links_utils
-from modules.auth.identity_provider_links.schema import IdentityProviderLinkRead
-from tests._helpers.auth import MOCK_USER_ID
+import pytest
+import sqlalchemy as sa
+from cryptography.fernet import Fernet
 
-IDP_1 = uuid.uuid4()
-
-
-class TestEnrichUserIdentityProviders:
-    """Tests for enrich_user_identity_providers."""
-
-    def test_returns_empty_list_for_empty_input(self, mock_db):
-        """
-        Returns empty list immediately without DB queries.
-
-        Args:
-            mock_db: Mocked database session.
-
-        Asserts:
-            - Returns empty list.
-            - No db.execute called.
-        """
-        result = identity_links_utils.enrich_user_identity_providers([], MOCK_USER_ID, mock_db)
-
-        assert result == []
-        mock_db.execute.assert_not_called()
-
-    def test_enriches_links_with_idp_details(self, mock_db):
-        """
-        Enriches links with name, slug, icon, provider_type.
-
-        Args:
-            mock_db: Mocked database session.
-
-        Asserts:
-            - Returns enriched IdentityProviderLinkRead list.
-            - idp_crud called once for batch fetch.
-        """
-        now = datetime.now(UTC)
-
-        mock_link = MagicMock()
-        mock_link.id = uuid.UUID(int=1)
-        mock_link.user_id = MOCK_USER_ID
-        mock_link.idp_id = IDP_1
-        mock_link.idp_subject = "sub-123"
-        mock_link.linked_at = now
-        mock_link.last_login = now
-
-        mock_idp = MagicMock()
-        mock_idp.id = IDP_1
-        mock_idp.name = "TestIdP"
-        mock_idp.slug = "test-idp"
-        mock_idp.icon = "https://example.com/icon.svg"
-        mock_idp.icon_uploaded = False
-        mock_idp.provider_type = "oidc"
-
-        with patch(
-            "modules.auth.identity_providers.crud.get_identity_providers_by_ids",
-            return_value=[mock_idp],
-        ) as mock_get_idps:
-            result = identity_links_utils.enrich_user_identity_providers([mock_link], MOCK_USER_ID, mock_db)
-
-        assert len(result) == 1
-        assert isinstance(result[0], IdentityProviderLinkRead)
-        assert result[0].idp_name == "TestIdP"
-        assert result[0].idp_slug == "test-idp"
-        assert result[0].idp_icon == "https://example.com/icon.svg"
-        assert result[0].idp_provider_type == "oidc"
-        mock_get_idps.assert_called_once_with([IDP_1], mock_db)
-
-    def test_skips_link_when_idp_not_found(self, mock_db):
-        """
-        Skips and logs warning when IdP missing from batch fetch.
-
-        Args:
-            mock_db: Mocked database session.
-
-        Asserts:
-            - Returns empty list when IdP not in map.
-        """
-        now = datetime.now(UTC)
-
-        mock_link = MagicMock()
-        mock_link.id = uuid.UUID(int=1)
-        mock_link.user_id = MOCK_USER_ID
-        mock_link.idp_id = uuid.uuid4()
-        mock_link.idp_subject = "sub-xyz"
-        mock_link.linked_at = now
-        mock_link.last_login = None
-
-        with patch(
-            "modules.auth.identity_providers.crud.get_identity_providers_by_ids",
-            return_value=[],
-        ):
-            result = identity_links_utils.enrich_user_identity_providers([mock_link], MOCK_USER_ID, mock_db)
-
-        assert result == []
-
-    def test_batch_fetches_all_idps_in_one_query(self, mock_db):
-        """
-        Uses a single batch query for all IdP IDs.
-
-        Args:
-            mock_db: Mocked database session.
-
-        Asserts:
-            - get_identity_providers_by_ids called once with all IDs.
-        """
-        now = datetime.now(UTC)
-
-        idp_ids = [uuid.uuid4() for _ in range(3)]
-        mock_links = []
-        for i in range(1, 4):
-            link = MagicMock()
-            link.id = uuid.UUID(int=i)
-            link.user_id = MOCK_USER_ID
-            link.idp_id = idp_ids[i - 1]
-            link.idp_subject = f"sub-{i}"
-            link.linked_at = now
-            link.last_login = None
-            mock_links.append(link)
-
-        mock_idps = []
-        for i in range(1, 4):
-            idp = MagicMock()
-            idp.id = idp_ids[i - 1]
-            idp.name = f"IdP {i}"
-            idp.slug = f"idp-{i}"
-            idp.icon = None
-            idp.icon_uploaded = False
-            idp.provider_type = "oidc"
-            mock_idps.append(idp)
-
-        with patch(
-            "modules.auth.identity_providers.crud.get_identity_providers_by_ids",
-            return_value=mock_idps,
-        ) as mock_get_idps:
-            result = identity_links_utils.enrich_user_identity_providers(mock_links, MOCK_USER_ID, mock_db)
-
-        assert len(result) == 3
-        mock_get_idps.assert_called_once_with(idp_ids, mock_db)
+import modules.auth.identity_provider_links.integration_service as links_integration
+import modules.auth.identity_provider_links.service as links_service
+import modules.auth.sessions.models as sessions_models
+from tests._factories.identity_links import make_identity_link, make_identity_provider, make_idp_session
+from tests._factories.users import make_user
 
 
-class TestIdentityLinkServiceOperations:
-    """Tests for Identity-link service operations.
+@pytest.fixture(autouse=True)
+def _fernet_key(monkeypatch):
+    monkeypatch.setenv("FERNET_KEY", Fernet.generate_key().decode())
 
-    Note: link_external_identity and unlink_external_identity were removed from
-    The identity-provider links module exposes its own integration behavior; operations are handled by
-    auth.identity_link_service. This class is retained as a placeholder.
-    """
+
+@pytest.fixture
+def world(db):
+    return {
+        "alice": make_user(db),
+        "bob": make_user(db),
+        "first": make_identity_provider(db, "first"),
+        "second": make_identity_provider(db, "second"),
+    }
+
+
+def _sessions(db) -> set[uuid.UUID]:
+    return set(db.scalars(sa.select(sessions_models.UsersSessions.id)))
+
+
+class TestEndingSessions:
+    def test_the_sessions_a_user_signed_in_through_a_provider_end_and_no_others(self, db, world):
+        mine = [make_idp_session(db, world["alice"], world["first"]) for _ in range(2)]
+        other_provider = make_idp_session(db, world["alice"], world["second"])
+        other_user = make_idp_session(db, world["bob"], world["first"])
+
+        ended = links_service.end_idp_sessions(world["alice"].id, world["first"], db)
+
+        assert ended == 2
+        assert _sessions(db) == {other_provider, other_user}
+        assert not set(mine) & _sessions(db)
+
+    def test_every_session_signed_in_through_a_provider_ends(self, db, world):
+        make_idp_session(db, world["alice"], world["first"])
+        make_idp_session(db, world["bob"], world["first"])
+        kept = make_idp_session(db, world["alice"], world["second"])
+
+        assert links_service.end_all_idp_sessions(world["first"], db) == 2
+        assert _sessions(db) == {kept}
+
+    def test_a_provider_session_id_names_the_sessions_that_end_and_how_many_per_user(self, db, world):
+        make_idp_session(db, world["alice"], world["first"], sid="shared")
+        make_idp_session(db, world["alice"], world["first"], sid="shared")
+        make_idp_session(db, world["bob"], world["first"], sid="shared")
+        kept = make_idp_session(db, world["bob"], world["first"], sid="other")
+
+        ended = links_service.end_idp_sessions_by_sid(world["first"], "shared", db)
+
+        assert ended == {world["alice"].id: 2, world["bob"].id: 1}
+        assert _sessions(db) == {kept}
+
+    def test_a_provider_session_id_can_be_narrowed_to_one_user(self, db, world):
+        make_idp_session(db, world["alice"], world["first"], sid="shared")
+        kept = make_idp_session(db, world["bob"], world["first"], sid="shared")
+
+        ended = links_service.end_idp_sessions_by_sid(world["first"], "shared", db, user_id=world["alice"].id)
+
+        assert ended == {world["alice"].id: 1}
+        assert _sessions(db) == {kept}
+
+    def test_a_sign_in_whose_session_is_already_gone_is_skipped_and_not_counted(self, db, world):
+        gone = make_idp_session(db, world["alice"], world["first"])
+        make_idp_session(db, world["alice"], world["first"])
+        db.execute(sa.delete(sessions_models.UsersSessions).where(sessions_models.UsersSessions.id == gone))
+        db.flush()
+
+        assert links_service.end_idp_sessions(world["alice"].id, world["first"], db) == 1
+
+    def test_the_integration_surface_ends_the_same_sessions(self, db, world):
+        make_idp_session(db, world["alice"], world["first"], sid="s")
+        make_idp_session(db, world["alice"], world["first"], sid="s")
+
+        assert links_integration.end_idp_sessions_by_sid(world["first"], "s", db) == {world["alice"].id: 2}
+        assert links_integration.end_idp_sessions(world["alice"].id, world["first"], db) == 0
+        assert links_integration.end_all_idp_sessions(world["first"], db) == 0
+
+
+class TestOrphans:
+    def test_the_sign_ins_without_a_session_come_back_with_the_windows_last_id(self, db, world):
+        kept = make_idp_session(db, world["alice"], world["first"])
+        orphan = make_idp_session(db, world["alice"], world["first"])
+        db.execute(sa.delete(sessions_models.UsersSessions).where(sessions_models.UsersSessions.id == orphan))
+        db.flush()
+
+        orphans, last_id = links_service.get_orphaned_idp_session_tokens_page(None, 100, db)
+
+        assert [row.session_id for row in orphans] == [orphan]
+        assert last_id is not None
+        assert kept not in {row.session_id for row in orphans}
+        assert links_service.get_orphaned_idp_session_tokens_page(last_id, 100, db) == ([], None)
+
+    def test_a_window_without_any_sign_in_has_no_last_id(self, db):
+        assert links_integration.get_orphaned_idp_session_tokens_page(None, 10, db) == ([], None)
+
+    def test_the_window_can_be_one_users(self, db, world):
+        mine = make_idp_session(db, world["alice"], world["first"])
+        theirs = make_idp_session(db, world["bob"], world["first"])
+        db.execute(sa.delete(sessions_models.UsersSessions).where(sessions_models.UsersSessions.id.in_([mine, theirs])))
+        db.flush()
+
+        orphans, _ = links_service.get_orphaned_idp_session_tokens_page(None, 100, db, user_id=world["bob"].id)
+
+        assert [row.session_id for row in orphans] == [theirs]
+
+
+class TestEnrichment:
+    def _provider(self, db, idp_id):
+        from modules.auth.identity_providers import crud as idp_crud
+
+        return idp_crud.get_identity_provider(idp_id, db)
+
+    def test_a_link_is_listed_with_the_name_slug_and_type_of_its_provider(self, db, world):
+        link = make_identity_link(db, world["alice"].id, world["first"], "sub-123")
+        provider = self._provider(db, world["first"])
+
+        (item,) = links_service.enrich_user_identity_providers([link], [provider], world["alice"].id)
+
+        assert (item.idp_id, item.idp_name, item.idp_slug, item.idp_provider_type) == (
+            world["first"],
+            provider.name,
+            "first",
+            provider.provider_type,
+        )
+        assert item.idp_subject == "sub-123"
+        assert item.last_login_at == link.last_login
+
+    def test_nothing_to_list_is_an_empty_list_and_a_link_whose_provider_is_missing_is_left_out(self, db, world):
+        link = make_identity_link(db, world["alice"].id, world["first"], "s")
+
+        assert links_service.enrich_user_identity_providers([], [], world["alice"].id) == []
+        assert links_service.enrich_user_identity_providers([link], [], world["alice"].id) == []

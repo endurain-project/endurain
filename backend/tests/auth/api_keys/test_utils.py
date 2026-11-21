@@ -1,79 +1,44 @@
-"""Tests for auth.api_keys utility functions.
-
-Covers: key generation, HMAC/SHA-256 hashing, scope validation,
-and JSON serialisation round-trips.
-"""
+"""API-key generation, hashing and scope encoding."""
 
 import hashlib
-import json
 
+import modules.auth.api_keys.constants as api_keys_constants
 import modules.auth.api_keys.utils as api_keys_utils
 
 
 class TestGenerateApiKey:
-    """Test suite for generate_api_key."""
-
-    def test_starts_with_endurain_prefix(self):
-        """Generated keys start with 'endurain_'."""
+    def test_a_key_is_the_prefix_and_a_256_bit_url_safe_token(self):
         key = api_keys_utils.generate_api_key()
+
         assert key.startswith("endurain_")
+        assert len(key) == len("endurain_") + 43
 
-    def test_sufficient_entropy(self):
-        """Key random part is at least 32 characters long (≥ 256 bits)."""
-        key = api_keys_utils.generate_api_key()
-        random_part = key[len("endurain_") :]
-        # token_urlsafe(32) produces 43 base64url chars
-        assert len(random_part) >= 32
-
-    def test_two_keys_are_unique(self):
-        """Two independently generated keys are different."""
+    def test_two_keys_differ(self):
         assert api_keys_utils.generate_api_key() != api_keys_utils.generate_api_key()
 
 
 class TestHashApiKey:
-    """Test suite for hash_api_key (SHA-256)."""
+    def test_the_hash_is_the_sha256_hex_digest(self):
+        raw = "endurain_known_test_value"
 
-    def test_returns_64_char_hex_string(self):
-        """SHA-256 digest is 64 lowercase hex chars."""
-        raw_key = "endurain_sometoken"
-        result = api_keys_utils.hash_api_key(raw_key)
-        assert len(result) == 64
-        assert result == result.lower()
+        digest = api_keys_utils.hash_api_key(raw)
 
-    def test_matches_stdlib_sha256(self):
-        """hash_api_key matches a direct hashlib.sha256 call."""
-        raw_key = "endurain_knownvalue"
-        expected = hashlib.sha256(raw_key.encode()).hexdigest()
-        assert api_keys_utils.hash_api_key(raw_key) == expected
+        assert digest == hashlib.sha256(raw.encode()).hexdigest()
+        assert len(digest) == 64
 
-    def test_deterministic(self):
-        """Same input always produces the same hash."""
-        raw_key = "endurain_deterministictest"
-        assert api_keys_utils.hash_api_key(raw_key) == api_keys_utils.hash_api_key(raw_key)
-
-    def test_different_inputs_different_hashes(self):
-        """Different raw keys produce different hashes."""
-        h1 = api_keys_utils.hash_api_key("endurain_aaa")
-        h2 = api_keys_utils.hash_api_key("endurain_bbb")
-        assert h1 != h2
+    def test_the_same_key_hashes_alike_and_different_keys_differ(self):
+        assert api_keys_utils.hash_api_key("endurain_keyA") == api_keys_utils.hash_api_key("endurain_keyA")
+        assert api_keys_utils.hash_api_key("endurain_keyA") != api_keys_utils.hash_api_key("endurain_keyB")
 
 
-class TestScopesJsonRoundTrip:
-    """Test suite for scopes_to_json and json_to_scopes."""
+class TestScopes:
+    def test_scope_members_are_stored_as_their_values_and_read_back_as_strings(self):
+        scopes = [api_keys_constants.ApiKeyScope.GEARS_READ, api_keys_constants.ApiKeyScope.ACCOUNT]
 
-    def test_scopes_to_json_produces_valid_json(self):
-        """scopes_to_json returns valid JSON string."""
-        scopes = ["activities:upload"]
-        result = api_keys_utils.scopes_to_json(scopes)
-        assert json.loads(result) == scopes
+        stored = api_keys_utils.scopes_to_json(scopes)
 
-    def test_json_to_scopes_deserialises_correctly(self):
-        """json_to_scopes recovers the original list."""
-        scopes = ["activities:upload"]
-        serialised = json.dumps(scopes)
-        assert api_keys_utils.json_to_scopes(serialised) == scopes
+        assert stored == '["gears:read", "account"]'
+        assert api_keys_utils.json_to_scopes(stored) == ["gears:read", "account"]
 
-    def test_round_trip_is_identity(self):
-        """scopes_to_json followed by json_to_scopes is the identity function."""
-        scopes = ["activities:upload"]
-        assert api_keys_utils.json_to_scopes(api_keys_utils.scopes_to_json(scopes)) == scopes
+    def test_an_empty_scope_list_round_trips(self):
+        assert api_keys_utils.json_to_scopes(api_keys_utils.scopes_to_json([])) == []

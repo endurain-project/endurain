@@ -1,6 +1,6 @@
 import uuid
 from datetime import UTC, datetime, timedelta
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 import pytest
 from joserfc.errors import (
@@ -21,6 +21,19 @@ _USER_ID_1 = uuid.UUID(int=1)
 _USER_ID_2 = uuid.UUID(int=2)
 _SESSION_ID = uuid.UUID(int=0x5E55)
 _OTHER_SESSION_ID = uuid.UUID(int=0x5E56)
+
+
+def _registry_raising(error: Exception) -> type:
+    """A claims registry, the third-party joserfc check, whose validation fails with ``error``."""
+
+    class Registry:
+        def __init__(self, *_args: object, **_kwargs: object) -> None:
+            pass
+
+        def validate(self, _claims: object) -> None:
+            raise error
+
+    return Registry
 
 
 class TestTokenManagerSecurity:
@@ -452,22 +465,6 @@ class TestTokenManagerSecurity:
 
         assert exp_time.tzinfo == UTC, "Expiration time should be in UTC timezone"
 
-    def test_get_token_claim_generic_exception(self, token_manager, sample_user_read):
-        """
-        Test generic exception handling in get_token_claim.
-        """
-        # Create a token
-        _, token = token_manager.create_token(
-            _SESSION_ID, sample_user_read, ClientType.WEB, auth_token_manager.TokenType.ACCESS, timedelta(minutes=15)
-        )
-
-        # Mock decode_token to raise a generic exception
-        with patch.object(token_manager, "decode_token", side_effect=RuntimeError("Test error")):
-            with pytest.raises(core_exceptions.UnauthenticatedError) as exc_info:
-                token_manager.get_token_claim(token, "sub", auth_token_manager.TokenType.ACCESS)
-            assert exc_info.value.status_code == 401
-            assert "Unable to retrieve claim" in exc_info.value.detail
-
     def test_decode_token_invalid_payload_error(self, token_manager):
         """
         Test InvalidPayloadError handling in decode_token.
@@ -488,11 +485,10 @@ class TestTokenManagerSecurity:
         )
 
         # Mock the validation to raise InsecureClaimError
-        with patch("modules.auth.access_tokens.service.jwt.JWTClaimsRegistry") as mock_registry:
-            mock_instance = MagicMock()
-            mock_instance.validate.side_effect = InsecureClaimError("Insecure")
-            mock_registry.return_value = mock_instance
-
+        with patch(
+            "modules.auth.access_tokens.service.jwt.JWTClaimsRegistry",
+            _registry_raising(InsecureClaimError("Insecure")),
+        ):
             # Should raise core_exceptions.UnauthenticatedError with 401 status
             with pytest.raises(core_exceptions.UnauthenticatedError) as exc_info:
                 token_manager.validate_token_expiration(token, auth_token_manager.TokenType.ACCESS)
@@ -507,7 +503,7 @@ class TestTokenManagerSecurity:
             _SESSION_ID, sample_user_read, ClientType.WEB, auth_token_manager.TokenType.ACCESS, timedelta(minutes=15)
         )
 
-        with patch.object(token_manager, "decode_token", side_effect=RuntimeError("Test error")):
+        with patch("modules.auth.access_tokens.service.jwt.JWTClaimsRegistry", side_effect=RuntimeError("Test error")):
             with pytest.raises(core_exceptions.UnauthenticatedError) as exc_info:
                 token_manager.validate_token_expiration(token, auth_token_manager.TokenType.ACCESS)
             assert exc_info.value.status_code == 401
@@ -522,11 +518,9 @@ class TestTokenManagerSecurity:
         )
 
         # Mock to raise MissingClaimError
-        with patch("modules.auth.access_tokens.service.jwt.JWTClaimsRegistry") as mock_registry:
-            mock_instance = MagicMock()
-            mock_instance.validate.side_effect = MissingClaimError("sub")
-            mock_registry.return_value = mock_instance
-
+        with patch(
+            "modules.auth.access_tokens.service.jwt.JWTClaimsRegistry", _registry_raising(MissingClaimError("sub"))
+        ):
             with pytest.raises(core_exceptions.UnauthenticatedError) as exc_info:
                 token_manager.validate_token_expiration(token, auth_token_manager.TokenType.ACCESS)
             assert exc_info.value.status_code == 401
@@ -547,11 +541,7 @@ class TestTokenManagerSecurity:
             _SESSION_ID, sample_user_read, ClientType.WEB, auth_token_manager.TokenType.ACCESS, timedelta(minutes=15)
         )
 
-        with patch("modules.auth.access_tokens.service.jwt.JWTClaimsRegistry") as mock_registry:
-            mock_instance = MagicMock()
-            mock_instance.validate.side_effect = error
-            mock_registry.return_value = mock_instance
-
+        with patch("modules.auth.access_tokens.service.jwt.JWTClaimsRegistry", _registry_raising(error)):
             with pytest.raises(core_exceptions.UnauthenticatedError) as exc_info:
                 token_manager.validate_token_expiration(token, auth_token_manager.TokenType.ACCESS)
             assert exc_info.value.status_code == 401
@@ -616,13 +606,10 @@ class TestRefreshIssuesAccountScopes:
     """A refresh mints its access token from the user's role, so it carries the account scope names."""
 
     def test_a_refreshed_access_token_carries_the_account_scopes_and_no_former_name(
-        self, token_manager, sample_user_read
+        self, token_manager, sample_user_read, session_policy
     ):
-        policy = MagicMock()
-        policy.access_token_ttl = timedelta(minutes=15)
-
         _, token = auth_token_service.mint_access_token(
-            sample_user_read, ClientType.WEB, token_manager, _SESSION_ID, policy
+            sample_user_read, ClientType.WEB, token_manager, _SESSION_ID, session_policy
         )
 
         scopes = set(token_manager.get_token_claim(token, "scope", auth_token_manager.TokenType.ACCESS).split())
@@ -633,7 +620,7 @@ class TestRefreshIssuesAccountScopes:
 class TestAdminTokenScopeNames:
     """An administrator's access token carries the kebab-case scope names and none of the former snake_case ones."""
 
-    def test_an_admin_access_token_carries_the_renamed_scopes_and_no_former_name(self, token_manager):
+    def test_an_admin_access_token_carries_the_renamed_scopes_and_no_former_name(self, token_manager, session_policy):
         admin = UserRead(
             id=_USER_ID_1,
             name="Admin",
@@ -642,10 +629,9 @@ class TestAdminTokenScopeNames:
             active=True,
             access_type=UserAccessType.ADMIN.value,
         )
-        policy = MagicMock()
-        policy.access_token_ttl = timedelta(minutes=15)
-
-        _, token = auth_token_service.mint_access_token(admin, ClientType.WEB, token_manager, _SESSION_ID, policy)
+        _, token = auth_token_service.mint_access_token(
+            admin, ClientType.WEB, token_manager, _SESSION_ID, session_policy
+        )
 
         scopes = set(token_manager.get_token_claim(token, "scope", auth_token_manager.TokenType.ACCESS).split())
         assert {

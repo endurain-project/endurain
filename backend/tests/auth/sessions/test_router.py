@@ -1,315 +1,251 @@
-"""Integration tests for users_sessions router endpoints."""
+"""The administrator's session routes: listing a user's sessions and ending one or all of them behind a step-up."""
 
 import uuid
-from datetime import UTC
-from unittest.mock import MagicMock, patch
+from datetime import UTC, datetime, timedelta
 
 import pytest
-from fastapi import FastAPI, HTTPException, status
-from fastapi.testclient import TestClient
-from sqlalchemy.orm import Session
+import sqlalchemy as sa
 
-import core.database as core_database
-import core.exceptions as core_exceptions
-import core.pagination as core_pagination
-import modules.auth.dependencies as auth_dependencies
-import modules.auth.schema as auth_schema
-import modules.auth.sessions.router as users_sessions_router
-import modules.auth.sessions.schema as users_session_schema
-from tests._helpers.auth import MOCK_USER_ID
+import core.config as core_config
+import modules.auth.security_generation.integration_service as security_generation_integration
+import modules.auth.sessions.audit_actions as sessions_audit_actions
+import modules.auth.sessions.models as sessions_models
+from tests._factories.auth import make_session
+from tests._factories.tokens import audit_rows
+from tests._factories.users import PASSWORD, make_admin, make_user
 
-SESSION_ID = uuid.UUID("00000000-0000-4000-8000-0000000005e1")
-VERIFIER = MagicMock()
-STEP_UP = {"current_password": "admin-password"}
-
-# ---------------------------------------------------------------------------
-# Fixtures
-# ---------------------------------------------------------------------------
-
-
-@pytest.fixture
-def mock_db() -> MagicMock:
-    """
-    Return a mock SQLAlchemy session.
-
-    Returns:
-        MagicMock: Mock database session.
-    """
-    return MagicMock(spec=Session)
+_USERS = f"{core_config.ROOT_PATH}/users"
+_SESSION_ID = uuid.UUID(int=0x5E55)
+_STEP_UP = {"step_up": {"current_password": PASSWORD}}
+_ITEM_FIELDS = {
+    "id",
+    "user_id",
+    "ip_address",
+    "device_type",
+    "operating_system",
+    "operating_system_version",
+    "browser",
+    "browser_version",
+    "created_at",
+    "last_activity_at",
+    "expires_at",
+    "is_current",
+    "app_redirect_uri",
+}
 
 
-@pytest.fixture
-def sessions_app(mock_db) -> FastAPI:
-    """
-    Create a minimal FastAPI app for users_sessions router tests.
-
-    All security dependencies are mocked to allow authenticated
-    endpoint testing without real JWTs.
-
-    Args:
-        mock_db: Mock database session.
-
-    Returns:
-        FastAPI: Configured test application.
-    """
-    app = FastAPI()
-    app.include_router(
-        users_sessions_router.router,
-        prefix="/users",
-    )
-
-    app.dependency_overrides[core_database.get_db] = lambda: mock_db
-    app.dependency_overrides[auth_dependencies.check_scopes] = lambda: None
-    app.dependency_overrides[auth_dependencies.get_optional_sid_from_access_token] = lambda: SESSION_ID
-    app.dependency_overrides[auth_dependencies.get_session_revoke_verifier] = lambda: VERIFIER
-    app.add_exception_handler(core_exceptions.DomainError, core_exceptions.domain_error_handler)
-
-    return app
+def _admin_and_user(committed_sessions, sign_in, *, sessions: int = 0):
+    with committed_sessions() as db:
+        admin, user = make_admin(db), make_user(db)
+        made = [make_session(db, user) for _ in range(sessions)]
+        db.commit()
+    return sign_in(admin), user, made
 
 
-@pytest.fixture
-def sessions_client(sessions_app: FastAPI) -> TestClient:
-    """
-    Return a TestClient for the users_sessions test app.
-
-    Args:
-        sessions_app: Configured test application.
-
-    Returns:
-        TestClient: HTTP test client.
-    """
-    return TestClient(sessions_app, raise_server_exceptions=False)
-
-
-# ---------------------------------------------------------------------------
-# GET /users/{user_id}/sessions
-# ---------------------------------------------------------------------------
-
-
-class TestReadSessionsUser:
-    """Tests for GET /users/{user_id}/sessions."""
-
-    @patch("modules.auth.sessions.router.sessions_service.list_user_sessions")
-    def test_returns_a_page_of_sessions_for_user(self, mock_list, sessions_client) -> None:
-        """Returns the page envelope and forwards the window."""
-        from datetime import datetime, timedelta
-
-        now = datetime.now(UTC)
-        session = users_session_schema.UserSessionsRead(
-            id=SESSION_ID,
-            user_id=MOCK_USER_ID,
-            ip_address="127.0.0.1",
-            device_type="PC",
-            operating_system="Linux",
-            operating_system_version="5.15",
-            browser="Firefox",
-            browser_version="120",
-            created_at=now,
-            last_activity_at=now,
-            expires_at=now + timedelta(days=7),
+def _remaining(committed_sessions, user_id) -> set[uuid.UUID]:
+    with committed_sessions() as db:
+        return set(
+            db.scalars(
+                sa.select(sessions_models.UsersSessions.id).where(sessions_models.UsersSessions.user_id == user_id)
+            )
         )
-        mock_list.return_value = users_session_schema.UserSessionsPage.build([session], 3, 2, 1)
 
-        response = sessions_client.get(f"/users/{MOCK_USER_ID}/sessions?page_number=2&num_records=1")
 
-        assert response.status_code == status.HTTP_200_OK
+class TestListSessions:
+    def test_an_administrator_reads_a_page_of_the_exchanged_sessions_of_a_user(self, committed_sessions, sign_in):
+        me, user, made = _admin_and_user(committed_sessions, sign_in, sessions=3)
+        with committed_sessions() as db:
+            make_session(db, user, exchanged=False)
+            db.commit()
+
+        response = me.client.get(f"{_USERS}/{user.id}/sessions", params={"page_number": 2, "num_records": 1})
+
         body = response.json()
-        assert [item["id"] for item in body["items"]] == [str(SESSION_ID)]
+        assert response.status_code == 200
         assert (body["total"], body["page"], body["num_records"], body["next"]) == (3, 2, 1, 3)
-        assert mock_list.call_args.args[:2] == (MOCK_USER_ID, core_pagination.PageParams(2, 1))
+        assert len(body["items"]) == 1
+        assert set(body["items"][0]) == _ITEM_FIELDS
+        assert uuid.UUID(body["items"][0]["id"]) in {s.id for s in made}
+        assert body["items"][0]["is_current"] is False
 
-    @patch("modules.auth.sessions.router.sessions_service.list_user_sessions")
-    def test_defaults_the_window_and_returns_an_empty_page(self, mock_list, sessions_client) -> None:
-        """Omitted paging parameters resolve to the default window."""
-        mock_list.return_value = users_session_schema.UserSessionsPage.build([], 0, 1, 25)
+    def test_the_default_window_holds_every_session_of_a_small_set_newest_first(self, committed_sessions, sign_in):
+        me, user, _ = _admin_and_user(committed_sessions, sign_in)
+        now = datetime.now(UTC)
+        with committed_sessions() as db:
+            old = make_session(db, user, created_at=now - timedelta(hours=2))
+            new = make_session(db, user, created_at=now - timedelta(hours=1))
+            db.commit()
 
-        response = sessions_client.get(f"/users/{MOCK_USER_ID}/sessions")
+        body = me.client.get(f"{_USERS}/{user.id}/sessions").json()
 
-        assert response.status_code == status.HTTP_200_OK
-        assert response.json()["items"] == []
-        assert mock_list.call_args.args[:2] == (MOCK_USER_ID, core_pagination.PageParams(1, 25))
+        assert [item["id"] for item in body["items"]] == [str(new.id), str(old.id)]
+        assert body["num_records"] == 25
 
-    def test_rejects_an_oversized_page(self, sessions_client) -> None:
-        """A page size above the cap is a validation error."""
-        response = sessions_client.get(f"/users/{MOCK_USER_ID}/sessions?num_records=201")
+    def test_a_user_with_no_sessions_has_an_empty_page(self, committed_sessions, sign_in):
+        me, user, _ = _admin_and_user(committed_sessions, sign_in)
 
-        assert response.status_code == status.HTTP_422_UNPROCESSABLE_CONTENT
+        body = me.client.get(f"{_USERS}/{user.id}/sessions").json()
+
+        assert (body["items"], body["total"]) == ([], 0)
+
+    def test_the_callers_own_session_is_marked_current(self, committed_sessions, sign_in):
+        me, _, _ = _admin_and_user(committed_sessions, sign_in)
+
+        items = me.client.get(f"{_USERS}/{me.user.id}/sessions").json()["items"]
+
+        assert {item["id"]: item["is_current"] for item in items} == {str(me.session_id): True}
+
+    def test_a_page_size_above_the_cap_is_422(self, committed_sessions, sign_in):
+        me, user, _ = _admin_and_user(committed_sessions, sign_in)
+
+        assert me.client.get(f"{_USERS}/{user.id}/sessions", params={"num_records": 201}).status_code == 422
+
+    def test_the_demo_environment_lists_nothing(self, monkeypatch, committed_sessions, sign_in):
+        me, user, _ = _admin_and_user(committed_sessions, sign_in, sessions=2)
+        monkeypatch.setattr(core_config.settings, "ENVIRONMENT", "demo")
+
+        body = me.client.get(f"{_USERS}/{user.id}/sessions").json()
+
+        assert (body["items"], body["total"]) == ([], 0)
 
     @pytest.mark.parametrize(
         ("method", "path", "kwargs"),
         [
-            ("get", "/users/{}/sessions", {}),
-            ("post", f"/users/{{}}/sessions/{SESSION_ID}/revoke", {"json": {"step_up": STEP_UP}}),
-            ("post", "/users/{}/sessions/revoke", {"json": {"step_up": STEP_UP}}),
+            ("get", "/{}/sessions", {}),
+            ("post", f"/{{}}/sessions/{_SESSION_ID}/revoke", {"json": _STEP_UP}),
+            ("post", "/{}/sessions/revoke", {"json": _STEP_UP}),
         ],
     )
     @pytest.mark.parametrize("malformed", ["0", "7", "not-a-uuid"])
-    def test_a_malformed_user_id_is_422(self, sessions_client, method, path, kwargs, malformed) -> None:
-        """A user id that is not a UUID is a validation error on every administrator session route."""
-        response = getattr(sessions_client, method)(path.format(malformed), **kwargs)
+    def test_a_malformed_user_id_is_422_on_every_session_route(
+        self, committed_sessions, sign_in, method, path, kwargs, malformed
+    ):
+        me, _, _ = _admin_and_user(committed_sessions, sign_in)
 
-        assert response.status_code == status.HTTP_422_UNPROCESSABLE_CONTENT
+        response = getattr(me.client, method)(_USERS + path.format(malformed), **kwargs)
 
-    @patch("modules.auth.sessions.service.core_config.settings")
-    def test_returns_an_empty_page_in_demo_environment(self, mock_settings, sessions_client) -> None:
-        """Demo hides sessions without querying the database."""
-        mock_settings.ENVIRONMENT = "demo"
+        assert response.status_code == 422
 
-        response = sessions_client.get(f"/users/{MOCK_USER_ID}/sessions")
 
-        assert response.status_code == status.HTTP_200_OK
-        assert response.json()["items"] == []
-        assert response.json()["total"] == 0
+class TestRevokeOne:
+    def test_an_administrator_ends_a_session_behind_a_step_up_and_it_is_audited(self, committed_sessions, sign_in):
+        me, user, made = _admin_and_user(committed_sessions, sign_in, sessions=2)
 
-    @patch("modules.auth.sessions.router.sessions_service.list_user_sessions")
-    def test_propagates_database_error_as_500(self, mock_list, sessions_client) -> None:
-        """Propagates the error raised below the router."""
-        mock_list.side_effect = HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Database error occurred",
+        response = me.client.post(f"{_USERS}/{user.id}/sessions/{made[0].id}/revoke", json=_STEP_UP)
+
+        assert response.status_code == 204
+        assert _remaining(committed_sessions, user.id) == {made[1].id}
+        (row,) = audit_rows(committed_sessions, sessions_audit_actions.SESSION_REVOKE)
+        assert (row.target_type, row.target_id, row.target_owner_id) == ("session", str(made[0].id), str(user.id))
+        assert (row.actor_id, row.details) == (str(me.user.id), {"sessions_revoked": 1})
+
+    def test_a_wrong_password_in_the_step_up_is_403_and_ends_nothing(self, committed_sessions, sign_in):
+        me, user, made = _admin_and_user(committed_sessions, sign_in, sessions=1)
+
+        response = me.client.post(
+            f"{_USERS}/{user.id}/sessions/{made[0].id}/revoke", json={"step_up": {"current_password": "wrong"}}
         )
 
-        response = sessions_client.get(f"/users/{MOCK_USER_ID}/sessions")
-
-        assert response.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR
-
-
-# ---------------------------------------------------------------------------
-# POST /users/{user_id}/sessions/{session_id}/revoke
-# ---------------------------------------------------------------------------
-
-
-class TestRevokeSessionUser:
-    """Tests for POST /users/{user_id}/sessions/{session_id}/revoke."""
-
-    @patch("modules.auth.sessions.router.sessions_service.delete_session")
-    def test_revoke_returns_204_and_hands_the_service_the_step_up_and_verifier(
-        self, mock_delete, sessions_client, mock_db
-    ) -> None:
-        """The service gets the ids, the step-up without wrapper, the verifier and the session."""
-        response = sessions_client.post(
-            f"/users/{MOCK_USER_ID}/sessions/{SESSION_ID}/revoke", json={"step_up": STEP_UP}
-        )
-
-        assert response.status_code == status.HTTP_204_NO_CONTENT
-        mock_delete.assert_called_once_with(
-            SESSION_ID,
-            MOCK_USER_ID,
-            auth_schema.StepUpVerification(current_password="admin-password"),
-            VERIFIER,
-            mock_db,
-        )
-
-    @patch("modules.auth.sessions.router.sessions_service.delete_session")
-    def test_revoke_without_a_step_up_is_422_and_never_reaches_the_service(self, mock_delete, sessions_client) -> None:
-        """An empty body, or a body without step_up, is refused before the service."""
-        assert sessions_client.post(f"/users/{MOCK_USER_ID}/sessions/{SESSION_ID}/revoke", json={}).status_code == 422
-        assert sessions_client.post(f"/users/{MOCK_USER_ID}/sessions/{SESSION_ID}/revoke").status_code == 422
-        mock_delete.assert_not_called()
-
-    @patch("modules.auth.sessions.router.sessions_service.delete_session")
-    def test_a_refused_step_up_is_403_step_up_failed(self, mock_delete, sessions_client) -> None:
-        """The service's step-up refusal is a 403 problem."""
-        mock_delete.side_effect = core_exceptions.StepUpFailedError()
-
-        response = sessions_client.post(
-            f"/users/{MOCK_USER_ID}/sessions/{SESSION_ID}/revoke", json={"step_up": STEP_UP}
-        )
-
-        assert response.status_code == status.HTTP_403_FORBIDDEN
+        assert response.status_code == 403
         assert response.json()["type"] == "urn:endurain:error:step-up-failed"
+        assert _remaining(committed_sessions, user.id) == {made[0].id}
 
-    @patch("modules.auth.sessions.router.sessions_service.delete_session")
-    def test_a_missing_session_is_404(self, mock_delete, sessions_client) -> None:
-        """A session that is not the user's is not found."""
-        mock_delete.side_effect = core_exceptions.NotFoundError("Session not found")
+    def test_a_request_without_a_step_up_is_422_and_ends_nothing(self, committed_sessions, sign_in):
+        me, user, made = _admin_and_user(committed_sessions, sign_in, sessions=1)
 
-        response = sessions_client.post(
-            f"/users/{MOCK_USER_ID}/sessions/{SESSION_ID}/revoke", json={"step_up": STEP_UP}
+        response = me.client.post(f"{_USERS}/{user.id}/sessions/{made[0].id}/revoke", json={})
+
+        assert response.status_code == 422
+        assert _remaining(committed_sessions, user.id) == {made[0].id}
+
+    def test_a_session_the_user_does_not_have_is_404(self, committed_sessions, sign_in):
+        me, user, made = _admin_and_user(committed_sessions, sign_in, sessions=1)
+        with committed_sessions() as db:
+            other = make_session(db, make_user(db))
+            db.commit()
+
+        missing = me.client.post(f"{_USERS}/{user.id}/sessions/{uuid.uuid4()}/revoke", json=_STEP_UP)
+        theirs = me.client.post(f"{_USERS}/{user.id}/sessions/{other.id}/revoke", json=_STEP_UP)
+
+        assert (missing.status_code, theirs.status_code) == (404, 404)
+        assert _remaining(committed_sessions, user.id) == {made[0].id}
+        assert _remaining(committed_sessions, other.user_id) == {other.id}
+        assert audit_rows(committed_sessions, sessions_audit_actions.SESSION_REVOKE) == []
+
+    def test_a_malformed_session_id_is_422(self, committed_sessions, sign_in):
+        me, user, _ = _admin_and_user(committed_sessions, sign_in)
+
+        assert me.client.post(f"{_USERS}/{user.id}/sessions/7/revoke", json=_STEP_UP).status_code == 422
+
+    def test_the_delete_route_is_gone(self, committed_sessions, sign_in):
+        me, user, made = _admin_and_user(committed_sessions, sign_in, sessions=1)
+
+        response = me.client.delete(f"{_USERS}/{user.id}/sessions/{made[0].id}")
+
+        assert response.status_code in (404, 405)
+        assert _remaining(committed_sessions, user.id) == {made[0].id}
+
+
+class TestRevokeAll:
+    def test_it_ends_every_session_bumps_the_security_generation_and_audits_the_count(
+        self, committed_sessions, sign_in
+    ):
+        me, user, _ = _admin_and_user(committed_sessions, sign_in, sessions=3)
+        with committed_sessions() as db:
+            before = security_generation_integration.current_generation(user.id, db)
+
+        response = me.client.post(f"{_USERS}/{user.id}/sessions/revoke", json=_STEP_UP)
+
+        assert response.status_code == 204
+        assert _remaining(committed_sessions, user.id) == set()
+        with committed_sessions() as db:
+            assert security_generation_integration.current_generation(user.id, db) == before + 1
+        (row,) = audit_rows(committed_sessions, sessions_audit_actions.SESSION_REVOKE)
+        assert (row.target_type, row.target_id, row.details) == ("user", str(user.id), {"sessions_revoked": 3})
+
+    def test_the_excluded_session_stays_and_the_generation_does_not_move(self, committed_sessions, sign_in):
+        me, user, made = _admin_and_user(committed_sessions, sign_in, sessions=3)
+        with committed_sessions() as db:
+            before = security_generation_integration.current_generation(user.id, db)
+
+        response = me.client.post(
+            f"{_USERS}/{user.id}/sessions/revoke", json=_STEP_UP, params={"exclude_session_id": str(made[1].id)}
         )
 
-        assert response.status_code == status.HTTP_404_NOT_FOUND
+        assert response.status_code == 204
+        assert _remaining(committed_sessions, user.id) == {made[1].id}
+        with committed_sessions() as db:
+            assert security_generation_integration.current_generation(user.id, db) == before
 
-    @patch("modules.auth.sessions.router.sessions_service.delete_session")
-    def test_a_malformed_session_id_is_422_and_never_reaches_the_service(self, mock_delete, sessions_client) -> None:
-        """A session id that is not a UUID is refused before the service."""
-        response = sessions_client.post(f"/users/{MOCK_USER_ID}/sessions/not-a-uuid/revoke", json={"step_up": STEP_UP})
+    def test_a_malformed_excluded_session_id_is_422(self, committed_sessions, sign_in):
+        me, user, made = _admin_and_user(committed_sessions, sign_in, sessions=1)
 
-        assert response.status_code == status.HTTP_422_UNPROCESSABLE_CONTENT
-        mock_delete.assert_not_called()
-
-    def test_the_delete_route_is_gone(self, sessions_client) -> None:
-        """DELETE on the session is not served any more."""
-        assert (
-            sessions_client.delete(f"/users/{MOCK_USER_ID}/sessions/{SESSION_ID}").status_code
-            == status.HTTP_404_NOT_FOUND
+        response = me.client.post(
+            f"{_USERS}/{user.id}/sessions/revoke", json=_STEP_UP, params={"exclude_session_id": "7"}
         )
 
+        assert response.status_code == 422
+        assert _remaining(committed_sessions, user.id) == {made[0].id}
 
-# ---------------------------------------------------------------------------
-# POST /users/{user_id}/sessions/revoke
-# ---------------------------------------------------------------------------
+    def test_a_wrong_password_in_the_step_up_is_403_and_ends_nothing(self, committed_sessions, sign_in):
+        me, user, made = _admin_and_user(committed_sessions, sign_in, sessions=2)
 
-
-class TestRevokeSessionsUser:
-    """Tests for POST /users/{user_id}/sessions/revoke."""
-
-    @patch("modules.auth.sessions.router.sessions_service.delete_sessions_by_user_and_commit")
-    def test_revoke_all_returns_204_without_an_exclusion(self, mock_delete, sessions_client, mock_db) -> None:
-        """Every session goes when no exclusion is supplied."""
-        response = sessions_client.post(f"/users/{MOCK_USER_ID}/sessions/revoke", json={"step_up": STEP_UP})
-
-        assert response.status_code == status.HTTP_204_NO_CONTENT
-        mock_delete.assert_called_once_with(
-            MOCK_USER_ID,
-            auth_schema.StepUpVerification(current_password="admin-password"),
-            VERIFIER,
-            mock_db,
-            exclude_session_id=None,
+        response = me.client.post(
+            f"{_USERS}/{user.id}/sessions/revoke", json={"step_up": {"current_password": "wrong"}}
         )
 
-    @patch("modules.auth.sessions.router.sessions_service.delete_sessions_by_user_and_commit")
-    def test_a_malformed_excluded_session_id_is_422(self, mock_delete, sessions_client) -> None:
-        """An exclude_session_id that is not a UUID is refused before the service."""
-        response = sessions_client.post(
-            f"/users/{MOCK_USER_ID}/sessions/revoke",
-            params={"exclude_session_id": "not-a-uuid"},
-            json={"step_up": STEP_UP},
-        )
-
-        assert response.status_code == status.HTTP_422_UNPROCESSABLE_CONTENT
-        mock_delete.assert_not_called()
-
-    @patch("modules.auth.sessions.router.sessions_service.delete_sessions_by_user_and_commit")
-    def test_revoke_forwards_the_excluded_session(self, mock_delete, sessions_client, mock_db) -> None:
-        """The exclude_session_id query parameter leaves that session intact."""
-        response = sessions_client.post(
-            f"/users/{MOCK_USER_ID}/sessions/revoke",
-            params={"exclude_session_id": str(SESSION_ID)},
-            json={"step_up": STEP_UP},
-        )
-
-        assert response.status_code == status.HTTP_204_NO_CONTENT
-        assert mock_delete.call_args.kwargs == {"exclude_session_id": SESSION_ID}
-
-    @patch("modules.auth.sessions.router.sessions_service.delete_sessions_by_user_and_commit")
-    def test_revoke_without_a_step_up_is_422_and_never_reaches_the_service(self, mock_delete, sessions_client) -> None:
-        """A missing step_up is refused before the service."""
-        assert sessions_client.post(f"/users/{MOCK_USER_ID}/sessions/revoke", json={}).status_code == 422
-        mock_delete.assert_not_called()
-
-    @patch("modules.auth.sessions.router.sessions_service.delete_sessions_by_user_and_commit")
-    def test_a_refused_step_up_is_403_step_up_failed(self, mock_delete, sessions_client) -> None:
-        """The service's step-up refusal is a 403 problem."""
-        mock_delete.side_effect = core_exceptions.StepUpFailedError()
-
-        response = sessions_client.post(f"/users/{MOCK_USER_ID}/sessions/revoke", json={"step_up": STEP_UP})
-
-        assert response.status_code == status.HTTP_403_FORBIDDEN
+        assert response.status_code == 403
         assert response.json()["type"] == "urn:endurain:error:step-up-failed"
+        assert _remaining(committed_sessions, user.id) == {s.id for s in made}
 
-    def test_the_delete_route_is_gone(self, sessions_client) -> None:
-        """DELETE on the sessions collection is not served any more."""
-        assert (
-            sessions_client.delete(f"/users/{MOCK_USER_ID}/sessions").status_code == status.HTTP_405_METHOD_NOT_ALLOWED
-        )
+    def test_a_request_without_a_step_up_is_422(self, committed_sessions, sign_in):
+        me, user, made = _admin_and_user(committed_sessions, sign_in, sessions=1)
+
+        assert me.client.post(f"{_USERS}/{user.id}/sessions/revoke", json={}).status_code == 422
+        assert _remaining(committed_sessions, user.id) == {made[0].id}
+
+    def test_the_delete_route_is_gone(self, committed_sessions, sign_in):
+        me, user, made = _admin_and_user(committed_sessions, sign_in, sessions=1)
+
+        assert me.client.delete(f"{_USERS}/{user.id}/sessions").status_code in (404, 405)
+        assert _remaining(committed_sessions, user.id) == {made[0].id}

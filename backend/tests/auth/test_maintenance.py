@@ -1,222 +1,158 @@
-"""Auth maintenance stays with its owning token and session packages."""
+"""Auth maintenance: stale sessions and past tokens are purged in bounded batches, and each job holds its lock."""
 
-import uuid
-from collections.abc import Callable
+import contextlib
+import types
 from datetime import UTC, datetime, timedelta
-from typing import Any
-from unittest.mock import MagicMock, patch
 
-import pytest
-from sqlalchemy import func, select
+import sqlalchemy as sa
 
 import core.database as core_database
-import modules.auth.oauth_state.constants as oauth_state_constants
-import modules.auth.oauth_state.crud as oauth_state_crud
-import modules.auth.oauth_state.models as oauth_state_models
-import modules.auth.oauth_state.scheduled_jobs as oauth_state_jobs
-import modules.auth.oauth_state.service as oauth_state_service
-import modules.auth.password_reset_tokens.crud as password_reset_crud
+import core.scheduler as core_scheduler
+import module_registry as runtime_module_registry
 import modules.auth.password_reset_tokens.models as password_reset_models
-import modules.auth.password_reset_tokens.scheduled_jobs as password_reset_jobs
 import modules.auth.password_reset_tokens.service as password_reset_service
-import modules.auth.rotated_refresh_tokens.crud as rotated_token_crud
-import modules.auth.rotated_refresh_tokens.models as rotated_token_models
-import modules.auth.rotated_refresh_tokens.scheduled_jobs as rotated_token_jobs
-import modules.auth.rotated_refresh_tokens.service as rotated_token_service
-import modules.auth.sessions.crud as sessions_crud
 import modules.auth.sessions.models as sessions_models
 import modules.auth.sessions.scheduled_jobs as sessions_jobs
 import modules.auth.sessions.service as sessions_service
-import modules.auth.sign_up_tokens.crud as sign_up_crud
 import modules.auth.sign_up_tokens.models as sign_up_models
-import modules.auth.sign_up_tokens.scheduled_jobs as sign_up_jobs
 import modules.auth.sign_up_tokens.service as sign_up_service
-from tests._helpers.db import create_sqlite_session
+from tests._factories.auth import make_session
+from tests._factories.server_settings import edit_server_settings
+from tests._factories.tokens import make_reset_token, make_sign_up_token
+from tests._factories.users import make_user
 
-_USER_ID = uuid.UUID(int=1)
-
-
-def test_token_and_session_packages_publish_cleanup_jobs():
-    """Each state-owning package publishes its recurring cleanup job."""
-    modules = (oauth_state_jobs, password_reset_jobs, rotated_token_jobs, sessions_jobs, sign_up_jobs)
-    assert all(module.recurring_jobs() for module in modules)
+_PAST = datetime.now(UTC) - timedelta(days=2)
+_CLEANED_UP_BY = ("oauth_state", "rotated_refresh_tokens", "password_reset_tokens", "sign_up_tokens", "sessions")
 
 
-def _oauth_state(key: uuid.UUID, expires_at: datetime) -> Any:
-    return oauth_state_models.OAuthState(
-        id=str(key),
-        nonce="n",
-        client_type="web",
-        expires_at=expires_at,
-        purpose=oauth_state_constants.OAuthStatePurpose.LOGIN,
-    )
+def _count(db, model) -> int:
+    return db.scalar(sa.select(sa.func.count()).select_from(model))
 
 
-def _password_reset(key: uuid.UUID, expires_at: datetime) -> Any:
-    return password_reset_models.PasswordResetToken(
-        id=key, user_id=_USER_ID, token_hash=str(key), created_at=expires_at, expires_at=expires_at
-    )
-
-
-def _sign_up(key: uuid.UUID, expires_at: datetime) -> Any:
-    return sign_up_models.SignUpToken(
-        id=key, user_id=_USER_ID, token_hash=str(key), created_at=expires_at, expires_at=expires_at
-    )
-
-
-def _session(key: uuid.UUID, at: datetime, *, column: str) -> Any:
-    fresh = datetime.now(UTC) + timedelta(days=1)
-    times = {"last_activity_at": fresh, "expires_at": fresh, column: at}
-    return sessions_models.UsersSessions(
-        id=key,
-        user_id=_USER_ID,
-        ip_address="127.0.0.1",
-        device_type="PC",
-        operating_system="Linux",
-        operating_system_version="1",
-        browser="Firefox",
-        browser_version="1",
-        created_at=at,
-        token_family_id=key,
-        client_type="web",
-        auth_time=at,
-        amr=["pwd"],
-        **times,
-    )
-
-
-def _rotated(key: uuid.UUID, refresh_token_exp: datetime) -> Any:
-    return rotated_token_models.RotatedRefreshToken(
-        token_family_id=key,
-        hashed_token=str(key),
-        client_fingerprint="c" * 64,
-        rotation_count=0,
-        rotated_at=refresh_token_exp,
-        expires_at=refresh_token_exp,
-        refresh_token_exp=refresh_token_exp,
-    )
-
-
-_PURGES: list[tuple[str, type, Callable[[str, datetime], Any], Callable[..., int]]] = [
-    ("oauth_state", oauth_state_models.OAuthState, _oauth_state, oauth_state_crud.delete_expired_oauth_states),
-    (
-        "password_reset",
-        password_reset_models.PasswordResetToken,
-        _password_reset,
-        password_reset_crud.delete_expired_password_reset_tokens,
-    ),
-    ("sign_up", sign_up_models.SignUpToken, _sign_up, sign_up_crud.delete_expired_sign_up_tokens),
-    (
-        "expired_session",
-        sessions_models.UsersSessions,
-        lambda key, at: _session(key, at, column="expires_at"),
-        sessions_crud.delete_expired_sessions,
-    ),
-    (
-        "idle_session",
-        sessions_models.UsersSessions,
-        lambda key, at: _session(key, at, column="last_activity_at"),
-        sessions_crud.delete_idle_sessions,
-    ),
-    ("rotated_token", rotated_token_models.RotatedRefreshToken, _rotated, rotated_token_crud.delete_expired_tokens),
-]
-
-
-def _staged(result):
-    """Return how many rows a purge staged: a count, or the rows it names."""
-    return result if isinstance(result, int) else len(result)
-
-
-@pytest.mark.parametrize(("model", "row", "purge"), [p[1:] for p in _PURGES], ids=[p[0] for p in _PURGES])
-def test_a_purge_deletes_at_most_one_batch_of_past_rows(model, row, purge):
-    """Each call stages one bounded batch, so the job's transaction never holds a long lock."""
-    db = create_sqlite_session()
-    now = datetime.now(UTC)
-    db.add_all(
-        [
-            row(uuid.UUID(int=1), now - timedelta(hours=1)),
-            row(uuid.UUID(int=2), now - timedelta(hours=2)),
-            row(uuid.UUID(int=3), now + timedelta(hours=1)),
-        ]
-    )
-    db.commit()
-
-    assert _staged(purge(now, 1, db)) == 1
-    assert _staged(purge(now, 1, db)) == 1
-    assert _staged(purge(now, 1, db)) == 0
-    assert db.execute(select(func.count()).select_from(model)).scalar_one() == 1
-    db.close()
-
-
-_SERVICE_PURGES = [
-    (
-        oauth_state_service,
-        "oauth_state_crud.delete_expired_oauth_states",
-        lambda db: oauth_state_service.delete_expired_oauth_states(db),
-    ),
-    (
-        password_reset_service,
-        "password_reset_crud.delete_expired_password_reset_tokens",
-        lambda db: password_reset_service.delete_expired_password_reset_tokens(db),
-    ),
-    (
-        sign_up_service,
-        "sign_up_crud.delete_expired_sign_up_tokens",
-        lambda db: sign_up_service.delete_expired_sign_up_tokens(db),
-    ),
-    (
-        rotated_token_service,
-        "rotated_token_crud.delete_expired_tokens",
-        lambda db: rotated_token_service.delete_expired_tokens(datetime.now(UTC), db),
-    ),
-]
-
-
-@pytest.mark.parametrize(("service", "crud_call", "purge"), _SERVICE_PURGES, ids=lambda v: getattr(v, "__name__", None))
-def test_a_purge_commits_each_batch_until_one_comes_back_short(service, crud_call, purge):
-    db = MagicMock()
-    with patch(f"{service.__name__}.{crud_call}", side_effect=[core_database.PURGE_BATCH_SIZE, 3]) as stage:
-        assert purge(db) == core_database.PURGE_BATCH_SIZE + 3
-    assert stage.call_count == 2
-    assert all(c.args[-2:] == (core_database.PURGE_BATCH_SIZE, db) for c in stage.call_args_list)
-    assert db.commit.call_count == 2
+def _module(name: str) -> runtime_module_registry.RuntimeModule:
+    return next(module for module in runtime_module_registry.MODULES if module.name == name)
 
 
 class TestSessionPurge:
-    """Expired sessions are dead whatever the idle policy, so they are always removed."""
+    def test_expired_sessions_go_with_the_idle_timeout_off(self, db):
+        edit_server_settings(db, session_idle_timeout_enabled=False)
+        user = make_user(db)
+        make_session(db, user, expires_at=_PAST)
+        live = make_session(db, user)
+        idle = make_session(db, user, last_activity_at=_PAST - timedelta(days=30))
 
-    @patch("modules.auth.sessions.service.server_settings_integration.get_session_policy")
-    @patch("modules.auth.sessions.service.sessions_crud")
-    def test_expired_sessions_go_with_the_idle_timeout_off(self, mock_crud, mock_policy):
-        mock_policy.return_value = MagicMock(idle_timeout=None)
-        mock_crud.delete_expired_sessions.return_value = [(7, "a"), (8, "b")]
-        db = MagicMock()
-
-        with patch("modules.auth.sessions.service.sessions_event_publishers.publish_sessions_revoked"):
-            assert sessions_service.delete_expired_sessions(db) == 2
+        assert sessions_service.delete_expired_sessions(db) == 1
         assert sessions_service.delete_idle_sessions(db) == 0
-        mock_crud.delete_idle_sessions.assert_not_called()
-        db.commit.assert_called_once()
 
-    @patch("modules.auth.sessions.service.server_settings_integration.get_session_policy")
-    @patch("modules.auth.sessions.service.sessions_crud")
-    def test_idle_sessions_go_past_the_configured_timeout(self, mock_crud, mock_policy):
-        mock_policy.return_value = MagicMock(idle_timeout=timedelta(minutes=30))
-        mock_crud.delete_idle_sessions.return_value = [(7, f"s{i}") for i in range(4)]
-        before = datetime.now(UTC)
+        remaining = set(db.scalars(sa.select(sessions_models.UsersSessions.id)))
+        assert remaining == {live.id, idle.id}
 
-        with patch("modules.auth.sessions.service.sessions_event_publishers.publish_sessions_revoked"):
-            assert sessions_service.delete_idle_sessions(MagicMock()) == 4
-        cutoff = mock_crud.delete_idle_sessions.call_args.args[0]
-        assert before - timedelta(minutes=30, seconds=5) < cutoff <= datetime.now(UTC) - timedelta(minutes=30)
+    def test_idle_sessions_go_past_the_configured_timeout(self, db):
+        edit_server_settings(db, session_idle_timeout_enabled=True, session_idle_timeout_hours=1)
+        user = make_user(db)
+        idle = make_session(db, user, last_activity_at=datetime.now(UTC) - timedelta(hours=2))
+        active = make_session(db, user, last_activity_at=datetime.now(UTC) - timedelta(minutes=30))
 
-    @patch("modules.auth.sessions.scheduled_jobs.sessions_service")
-    @patch("modules.auth.sessions.scheduled_jobs.SessionLocal")
-    def test_the_job_runs_both_purges(self, mock_session_local, mock_service):
-        mock_service.delete_expired_sessions.return_value = 1
-        mock_service.delete_idle_sessions.return_value = 0
+        assert sessions_service.delete_idle_sessions(db) == 1
+
+        assert set(db.scalars(sa.select(sessions_models.UsersSessions.id))) == {active.id}
+        assert idle.id not in set(db.scalars(sa.select(sessions_models.UsersSessions.id)))
+
+    def test_the_job_runs_both_purges(self, db):
+        edit_server_settings(db, session_idle_timeout_enabled=True, session_idle_timeout_hours=1)
+        user = make_user(db)
+        make_session(db, user, expires_at=_PAST)
+        make_session(db, user, last_activity_at=datetime.now(UTC) - timedelta(hours=3))
+        live = make_session(db, user)
 
         sessions_jobs.delete_stale_sessions()
 
-        mock_service.delete_expired_sessions.assert_called_once()
-        mock_service.delete_idle_sessions.assert_called_once()
+        assert set(db.scalars(sa.select(sessions_models.UsersSessions.id))) == {live.id}
+
+
+class TestTokenPurge:
+    def test_past_tokens_go_across_batches_and_current_ones_stay(self, db, monkeypatch):
+        monkeypatch.setattr(core_database, "PURGE_BATCH_SIZE", 2)
+        stale_reset, current_reset = make_user(db), make_user(db)
+        make_reset_token(db, stale_reset, expires_at=_PAST)
+        make_reset_token(db, current_reset)
+        stale_sign_ups = [make_user(db, active=False) for _ in range(3)]
+        for user in stale_sign_ups:
+            make_sign_up_token(db, user, expires_at=_PAST)
+        make_sign_up_token(db, make_user(db, active=False))
+
+        assert password_reset_service.delete_expired_password_reset_tokens(db) == 1
+        assert sign_up_service.delete_expired_sign_up_tokens(db) == 3
+
+        assert _count(db, password_reset_models.PasswordResetToken) == 1
+        assert _count(db, sign_up_models.SignUpToken) == 1
+
+
+class TestJobDeclarations:
+    def test_every_cleanup_job_holds_a_lock_of_its_own(self):
+        names = [job.lock_name for name in _CLEANED_UP_BY for job in _module(name).recurring_jobs()]
+
+        assert names and all(names)
+        assert len(names) == len(set(names))
+
+    def test_a_token_purge_at_startup_shares_the_lock_of_its_recurring_job(self):
+        for name in ("oauth_state", "password_reset_tokens", "sign_up_tokens"):
+            module = _module(name)
+            assert module.startup_tasks
+            assert {task.lock_name for task in module.startup_tasks} == {
+                job.lock_name for job in module.recurring_jobs()
+            }
+
+    def test_the_unverified_sign_up_purge_is_hourly_with_its_own_lock_and_startup_task(self):
+        module = _module("sign_up_tokens")
+        jobs = {job.func.__name__: job for job in module.recurring_jobs()}
+        purge = jobs["delete_unverified_sign_ups_from_db"]
+
+        assert purge.minutes == 60
+        assert purge.lock_name == "auth_unverified_sign_ups_purge"
+        assert purge.lock_name != jobs["delete_expired_tokens_from_db"].lock_name
+        assert any(
+            task.name == "purge_unverified_sign_ups" and task.lock_name == purge.lock_name
+            for task in module.startup_tasks
+        )
+
+    def test_the_reencryption_startup_tasks_hold_distinct_locks(self):
+        locks = [
+            task.lock_name
+            for module in runtime_module_registry.MODULES
+            for task in module.startup_tasks
+            if task.name.startswith("reencrypt_")
+        ]
+
+        assert len(locks) == 6 and all(locks) and len(set(locks)) == len(locks)
+
+    def test_mfa_has_no_recurring_job(self):
+        assert _module("mfa").recurring_jobs is None
+
+
+class TestStartupTaskLock:
+    def test_a_task_without_a_lock_runs(self):
+        ran: list[str] = []
+
+        runtime_module_registry.StartupTask("task", "Running task", lambda: ran.append("x")).run()
+
+        assert ran == ["x"]
+
+    def test_a_task_skips_while_another_replica_holds_its_lock(self, monkeypatch):
+        ran: list[str] = []
+        taken: list[str] = []
+
+        class _HeldElsewhere:
+            @contextlib.contextmanager
+            def try_acquire(self, name: str, ttl_seconds: int | None = None):
+                taken.append(name)
+                yield False
+
+        platform = types.SimpleNamespace(lock=_HeldElsewhere())
+        monkeypatch.setattr(
+            core_scheduler, "platform_runtime", types.SimpleNamespace(get_active_platform=lambda: platform)
+        )
+
+        runtime_module_registry.StartupTask("task", "Running task", lambda: ran.append("x"), lock_name="lock-b").run()
+
+        assert (ran, taken) == ([], ["lock-b"])

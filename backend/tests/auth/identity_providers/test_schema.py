@@ -747,8 +747,6 @@ class TestIdentityProviderReadClientId:
             - When decryption fails, original encrypted value is returned
         """
         # Arrange
-        from unittest.mock import patch
-
         now = datetime.now(UTC)
 
         idp_data = {
@@ -766,14 +764,27 @@ class TestIdentityProviderReadClientId:
             "updated_at": now,
         }
 
-        # Act & Assert - Test that exception during decryption is handled
-        with patch(
-            "core.cryptography.decrypt_token_fernet",
-            side_effect=Exception("Decryption error"),
-        ):
-            idp = IdentityProviderRead(**idp_data)
-            # Should return encrypted value if decryption fails
-            assert idp.client_id is not None
+        # Act & Assert - the value is not a token the key decrypts
+        idp = IdentityProviderRead(**idp_data)
+
+        assert idp.client_id == "gAAAAAB_invalid_encrypted_value"
+
+    def test_a_client_id_that_is_not_encrypted_is_serialized_as_it_is(self):
+        now = datetime.now(UTC)
+
+        idp = IdentityProviderRead(
+            id=IDP_ID,
+            name="Test Provider",
+            slug="test-provider",
+            provider_type="oidc",
+            issuer_url="https://auth.example.com",
+            scopes="openid",
+            client_id="plain-client-id",
+            created_at=now,
+            updated_at=now,
+        )
+
+        assert idp.model_dump()["client_id"] == "plain-client-id"
 
 
 class TestStepUpRequests:

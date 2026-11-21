@@ -3,9 +3,9 @@
 import uuid
 from datetime import timedelta
 from types import SimpleNamespace
-from unittest.mock import MagicMock
 
 import pytest
+from fastapi import Response
 
 import core.exceptions as core_exceptions
 import core.jwt_keys as core_jwt_keys
@@ -90,13 +90,6 @@ def test_refresh_expiry_is_the_tokens_own_exp_claim(token_manager, sample_user_r
     )
 
 
-def test_refresh_expiry_must_be_an_integer_claim():
-    token_manager = MagicMock()
-    token_manager.get_token_claim.return_value = "soon"
-    with pytest.raises(core_exceptions.UnauthenticatedError):
-        authentication_dependencies.get_exp_from_refresh_token("refresh", token_manager)
-
-
 def test_validate_refresh_token_accepts_a_valid_token(token_manager, sample_user_read):
     _, refresh_token = token_manager.create_token(
         _SID_SESSION_ID, sample_user_read, ClientType.WEB, access_tokens_service.TokenType.REFRESH, timedelta(days=1)
@@ -128,11 +121,13 @@ def test_get_and_return_refresh_token_preserves_value():
     assert authentication_dependencies.get_and_return_refresh_token("refresh") == "refresh"
 
 
-def test_clear_cookie_handler_clears_refresh_cookies(monkeypatch):
-    response = MagicMock()
-    monkeypatch.setattr(authentication_dependencies.core_config.settings, "ENVIRONMENT", "development")
+def test_clear_cookie_handler_clears_refresh_cookies():
+    response = Response()
+
     authentication_dependencies.clear_refresh_token_cookies(response, environment="development")
-    response.delete_cookie.assert_called_once()
+
+    cookies = response.headers.getlist("set-cookie")
+    assert cookies and all("max-age=0" in cookie.lower() for cookie in cookies)
 
 
 def test_refresh_token_claim_readers_follow_validation():

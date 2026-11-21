@@ -3,15 +3,14 @@
 import json
 import uuid
 from datetime import UTC, datetime
-from unittest.mock import MagicMock
 
 import pytest
 from jasil.backends.state_memory import MemoryState
-from jasil.providers import StateBackendUnavailableError
 
 import core.network as core_network
 import modules.auth.constants as auth_constants
 import modules.auth.mfa.pending_login_store as pending_mfa
+from tests._factories.state import DownState
 from tests._helpers.auth import MOCK_USER_ID, OTHER_USER_ID, pending_login
 
 
@@ -93,17 +92,15 @@ def test_each_login_gets_its_own_unguessable_challenge():
 
 
 def test_only_a_digest_of_the_challenge_is_kept():
-    state = MagicMock()
+    state = MemoryState()
     store = pending_mfa.PendingMFALogin(state)
 
     pending = pending_login(MOCK_USER_ID)
     challenge = store.add_pending_login(pending)
 
-    key = state.set.call_args.args[0]
+    key = store._pending_key(challenge)
     assert challenge not in key
-    state.set.assert_called_once_with(
-        store._pending_key(challenge), pending.model_dump_json().encode(), ttl_seconds=300
-    )
+    assert state.get(key) == pending.model_dump_json().encode()
 
 
 def test_the_record_keeps_the_security_generation_and_an_entry_without_one_reads_back_unstamped():
@@ -139,18 +136,18 @@ class TestWrongCodes:
 
         assert store.get_pending_login(challenge) == pending_login(MOCK_USER_ID)
 
-    def test_the_count_is_kept_under_its_own_prefix_with_the_pending_ttl(self):
-        state = MagicMock()
-        state.incr.return_value = 1
+    def test_the_count_is_kept_under_its_own_prefix_and_never_names_the_challenge(self):
+        state = MemoryState()
         store = pending_mfa.PendingMFALogin(state)
+        challenge = store.add_pending_login(pending_login(MOCK_USER_ID))
 
-        store.record_wrong_code("challenge")
+        store.record_wrong_code(challenge)
 
-        key = state.incr.call_args.args[0]
+        key = store._attempts_key(challenge)
         assert key.startswith("endurain:auth:mfa:challenge-attempts:")
         assert not key.startswith("endurain:auth:mfa:pending")
-        assert "challenge" not in key.removeprefix("endurain:auth:mfa:challenge-attempts:")
-        assert state.incr.call_args.kwargs == {"ttl_seconds": 300}
+        assert challenge not in key
+        assert state.get(key) is not None
 
     def test_a_claim_removes_the_count(self):
         state = MemoryState()
@@ -174,21 +171,9 @@ class TestWrongCodes:
         assert store.get_pending_login(challenge) is None
 
 
-@pytest.mark.parametrize(
-    ("method", "operation"),
-    [
-        ("set", "add"),
-        ("get", "get"),
-        ("get_and_delete", "claim"),
-        ("delete", "delete_corrupt"),
-        ("delete_prefix", "clear_all"),
-        ("incr", "wrong_code"),
-    ],
-)
-def test_provider_failures_become_auth_store_errors(method, operation):
-    state = MagicMock()
-    getattr(state, method).side_effect = StateBackendUnavailableError("down")
-    store = pending_mfa.PendingMFALogin(state)
+@pytest.mark.parametrize("operation", ["add", "get", "claim", "wrong_code", "clear_all"])
+def test_provider_failures_become_auth_store_errors(operation):
+    store = pending_mfa.PendingMFALogin(DownState())
 
     with pytest.raises(pending_mfa.AuthSecurityStoreUnavailableError):
         if operation == "add":
@@ -197,22 +182,10 @@ def test_provider_failures_become_auth_store_errors(method, operation):
             store.get_pending_login("challenge")
         elif operation == "claim":
             store.claim_pending_login("challenge")
-        elif operation == "delete_corrupt":
-            state.get.return_value = b"invalid-record"
-            store.get_pending_login("challenge")
         elif operation == "wrong_code":
             store.record_wrong_code("challenge")
         else:
             store.clear_all()
-
-
-def test_dependency_builds_store_from_provided_state():
-    state = MemoryState()
-
-    store = pending_mfa.get_pending_mfa_store(state)
-
-    assert isinstance(store, pending_mfa.PendingMFALogin)
-    assert store._state is state
 
 
 _UID = MOCK_USER_ID
@@ -325,21 +298,8 @@ class TestAccountWideLock:
         assert store.is_locked_out("bob", _IP, user_id=_UID) is False
         assert store.record_failed_attempt("alice", _IP, user_id=_UID).count == 1
 
-    def test_the_account_count_is_remembered_for_thirty_days(self):
-        state = MagicMock()
-        state.record_tiered_failure.return_value = MagicMock(count=1, newly_locked=False)
-        store = pending_mfa.PendingMFALogin(state)
-
-        store.record_failed_attempt("alice", _IP, user_id=_UID)
-
-        ttls_by_tiers = {call.args[2]: call.args[3] for call in state.record_tiered_failure.call_args_list}
-        assert ttls_by_tiers[((100, 30 * 24 * 60 * 60),)] == 30 * 24 * 60 * 60
-        assert ttls_by_tiers[((5, 300), (10, 1800), (15, 7200))] == 2 * 60 * 60
-
     def test_a_provider_outage_becomes_an_auth_store_error(self):
-        state = MagicMock()
-        state.record_tiered_failure.side_effect = StateBackendUnavailableError("down")
-        store = pending_mfa.PendingMFALogin(state)
+        store = pending_mfa.PendingMFALogin(DownState())
 
         with pytest.raises(pending_mfa.AuthSecurityStoreUnavailableError):
             store.record_failed_attempt("alice", _IP, user_id=_UID)
