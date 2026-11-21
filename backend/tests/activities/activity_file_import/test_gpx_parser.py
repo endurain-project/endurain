@@ -1232,18 +1232,29 @@ class TestParseGpxMaxSpeedSegmentPlaceholders:
         assert result["activity"].max_speed == pytest.approx(3, abs=0.5)
         assert result["laps"][0]["enhanced_avg_speed"] == pytest.approx(3, abs=0.5)
 
+    def test_sub_second_samples_sharing_a_second_all_count(self, tmp_path, monkeypatch):
+        _patch_parser_side_effects(monkeypatch)
+        points = [(((k + 1) // 2) * self._STEP, f"00:00:{k / 2:04.1f}") for k in range(20)]
+        path = _write_gpx(tmp_path, _segments_gpx([points]))
+
+        result = gpx_parser.parse_gpx_file(path, user_id=MOCK_USER_ID, default_timezone=_SERVER_TZ)
+
+        assert result["activity"].max_speed == pytest.approx(3, abs=0.5)
+        assert result["laps"][0]["enhanced_avg_speed"] == pytest.approx(1.5, abs=0.3)
+        assert result["laps"][0]["enhanced_avg_pace"] is not None
+
 
 class TestGenerateLapsMeasuredSamples:
-    def _laps(self, measured_vel_times):
+    def _laps(self, measured_vel_indices):
         times = [f"2025-01-01T00:00:0{i}" for i in range(5)]
         lat_lon = [{"time": t, "lat": 0.0, "lon": i * 0.0001} for i, t in enumerate(times)]
         vel = [{"time": t, "vel": v} for t, v in zip(times, [0, 0, 0, 3, 3], strict=True)]
         return gpx_parser.activity_file_import_parser_utils.generate_activity_laps(
-            lat_lon, [], [], [], [], vel, measured_vel_times=measured_vel_times
+            lat_lon, [], [], [], [], vel, measured_vel_indices=measured_vel_indices
         )
 
     def test_unmeasured_samples_are_left_out_of_the_lap_max_and_average(self):
-        laps = self._laps({"2025-01-01T00:00:03", "2025-01-01T00:00:04"})
+        laps = self._laps({3, 4})
 
         assert laps[0]["enhanced_max_speed"] == 3
         assert laps[0]["enhanced_avg_speed"] == pytest.approx(3)

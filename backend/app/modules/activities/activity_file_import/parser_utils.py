@@ -5,7 +5,7 @@ from __future__ import annotations
 import bisect
 import itertools
 import statistics
-from collections.abc import Mapping, Sequence
+from collections.abc import Iterable, Mapping, Sequence
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING, Any, NotRequired, TypedDict
 
@@ -365,17 +365,13 @@ def slice_lap_elevation(
 
 def _measured_speed_samples(
     vel_waypoints: Sequence[Mapping[str, Any]],
-    measured_vel_times: set[str] | None,
+    measured_vel_indices: set[int] | None,
+    indices: Iterable[int] | None = None,
 ) -> list[Mapping[str, Any]]:
-    if measured_vel_times is None:
-        return list(vel_waypoints)
-    seen_times: set[str] = set()
-    samples: list[Mapping[str, Any]] = []
-    for waypoint in vel_waypoints:
-        if waypoint["time"] in measured_vel_times and waypoint["time"] not in seen_times:
-            seen_times.add(waypoint["time"])
-            samples.append(waypoint)
-    return samples
+    candidates = range(len(vel_waypoints)) if indices is None else indices
+    if measured_vel_indices is None:
+        return [vel_waypoints[i] for i in candidates]
+    return [vel_waypoints[i] for i in candidates if i in measured_vel_indices]
 
 
 def _compute_lap_metrics(
@@ -389,7 +385,7 @@ def _compute_lap_metrics(
     hr: _TimedStream,
     cad: _TimedStream,
     vel: _TimedStream,
-    measured_vel_times: set[str] | None = None,
+    measured_vel_indices: set[int] | None = None,
 ) -> LapMetrics:
     """Compute metrics for a single activity lap.
 
@@ -404,8 +400,8 @@ def _compute_lap_metrics(
         hr: Full HR stream.
         cad: Full cadence stream.
         vel: Full velocity stream.
-        measured_vel_times: Timestamps of velocity samples that are real
-            measurements; average and max speed ignore the others. ``None``
+        measured_vel_indices: Positions in the velocity stream of samples that are
+            real measurements; average and max speed ignore the others. ``None``
             treats every sample as measured.
 
     Returns:
@@ -418,7 +414,7 @@ def _compute_lap_metrics(
     lap_power = power.between(start_time, end_time)
     lap_hr = hr.between(start_time, end_time)
     lap_cad = cad.between(start_time, end_time)
-    lap_vel = vel.between(start_time, end_time)
+    lap_vel_indices = vel.indices_between(_parse_utc(start_time), _parse_utc(end_time))
 
     ele_gain, ele_loss = None, None
     if lap_ele:
@@ -440,7 +436,7 @@ def _compute_lap_metrics(
 
     avg_speed, max_speed = None, None
     # Placeholder samples (a segment's first point) are not speeds, so neither average nor max sees them.
-    measured_vel = _measured_speed_samples(lap_vel, measured_vel_times)
+    measured_vel = _measured_speed_samples(vel.waypoints, measured_vel_indices, lap_vel_indices)
     if measured_vel:
         avg_speed, _ = activities_computation.calculate_avg_and_max(measured_vel, "vel")
         max_speed = activities_computation.calculate_robust_max([waypoint["vel"] for waypoint in measured_vel])
@@ -489,7 +485,7 @@ def generate_activity_laps(
     cad_waypoints: Sequence[Mapping[str, Any]],
     vel_waypoints: Sequence[Mapping[str, Any]],
     distance_per_lap_km: float = DEFAULT_LAP_DISTANCE_KM,
-    measured_vel_times: set[str] | None = None,
+    measured_vel_indices: set[int] | None = None,
     smoothed_ele_waypoints: Sequence[Mapping[str, Any]] | None = None,
 ) -> list[LapMetrics]:
     """Split waypoints into distance-based laps and compute metrics.
@@ -504,7 +500,7 @@ def generate_activity_laps(
         cad_waypoints: List of cadence dicts.
         vel_waypoints: List of velocity dicts.
         distance_per_lap_km: Km per lap (default 1 km).
-        measured_vel_times: Timestamps of velocity samples that are real
+        measured_vel_indices: Positions in ``vel_waypoints`` of samples that are real
             measurements, for sources that emit placeholder samples; ``None``
             treats every sample as measured.
         smoothed_ele_waypoints: ``ele_waypoints`` already smoothed once (see
@@ -559,7 +555,7 @@ def generate_activity_laps(
                     end_point=current_point,
                     total_distance=current_lap_distance,
                     **streams,
-                    measured_vel_times=measured_vel_times,
+                    measured_vel_indices=measured_vel_indices,
                 )
             )
             lap_start = current_point
@@ -574,7 +570,7 @@ def generate_activity_laps(
                 end_point=lat_lon_waypoints[-1],
                 total_distance=current_lap_distance,
                 **streams,
-                measured_vel_times=measured_vel_times,
+                measured_vel_indices=measured_vel_indices,
             )
         )
 
