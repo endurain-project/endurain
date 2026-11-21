@@ -1,87 +1,94 @@
-"""Tests for the notifications surface consumed by other modules."""
+"""The notifications surface other modules consume: staged notices, the cleanup of an erased user and the push."""
 
-import json
-import uuid
 from datetime import date
-from unittest.mock import MagicMock, patch
+
+import jasil.runtime as platform_runtime
+from jasil.testing import capture_hints
+from sqlalchemy import select
 
 import modules.notifications.constants as notifications_constants
 import modules.notifications.integration_service as notifications_integration
+import modules.notifications.models as notifications_models
+import modules.websocket.keys as websocket_keys
+from tests._factories.notifications import make_notification_of
+from tests._factories.users import make_user
 
-_ID_1 = uuid.uuid4()
-_ID_7 = uuid.uuid4()
-
-
-def test_garmin_token_expired_stages_without_committing(mock_db):
-    stored = MagicMock(id=uuid.UUID(int=4))
-    with patch(
-        "modules.notifications.integration_service.notifications_crud.create_notification", return_value=stored
-    ) as create:
-        notification, ws_message = notifications_integration.create_garmin_token_expired_notification(_ID_1, mock_db)
-
-    data = create.call_args.args[0]
-    assert data.user_id == _ID_1
-    assert data.type == notifications_constants.NotificationType.GARMIN_TOKEN_EXPIRED
-    assert notification is stored
-    assert ws_message == notifications_constants.GARMIN_UNLINKED_WS_MESSAGE
-    mock_db.commit.assert_not_called()
+_TYPES = notifications_constants.NotificationType
 
 
-def test_strava_token_expired_stages_without_committing(mock_db):
-    stored = MagicMock(id=uuid.UUID(int=5))
-    with patch(
-        "modules.notifications.integration_service.notifications_crud.create_notification", return_value=stored
-    ) as create:
-        notification, ws_message = notifications_integration.create_strava_token_expired_notification(_ID_1, mock_db)
-
-    data = create.call_args.args[0]
-    assert data.user_id == _ID_1
-    assert data.type == notifications_constants.NotificationType.STRAVA_TOKEN_EXPIRED
-    assert notification is stored
-    assert ws_message == notifications_constants.STRAVA_UNLINKED_WS_MESSAGE
-    mock_db.commit.assert_not_called()
+def _stored(db) -> list[notifications_models.Notification]:
+    return list(db.scalars(select(notifications_models.Notification)))
 
 
-def test_a_revoked_strava_notice_carries_the_day_the_data_is_deleted(mock_db):
-    with patch(
-        "modules.notifications.integration_service.notifications_crud.create_notification",
-        return_value=MagicMock(id=uuid.UUID(int=5)),
-    ) as create:
-        notifications_integration.create_strava_token_expired_notification(_ID_1, mock_db, delete_on=date(2026, 11, 12))
+class TestStagedNotices:
+    def test_a_garmin_notice_is_staged_for_the_user_and_not_committed(self, committed_sessions):
+        with committed_sessions() as db:
+            user = make_user(db)
+            db.commit()
 
-    data = create.call_args.args[0]
-    assert data.type == notifications_constants.NotificationType.STRAVA_TOKEN_EXPIRED
-    assert data.options == {"delete_on": "2026-11-12"}
+        with committed_sessions() as db:
+            notification, ws_message = notifications_integration.create_garmin_token_expired_notification(user.id, db)
+            assert [(n.id, n.user_id, n.type) for n in _stored(db)] == [
+                (notification.id, user.id, _TYPES.GARMIN_TOKEN_EXPIRED.stored)
+            ]
+            db.rollback()
+            assert _stored(db) == []
+        assert ws_message == notifications_constants.GARMIN_UNLINKED_WS_MESSAGE
+
+    def test_a_strava_notice_carries_no_day_when_the_token_was_only_rejected(self, db):
+        user = make_user(db)
+
+        notification, ws_message = notifications_integration.create_strava_token_expired_notification(user.id, db)
+
+        assert notification.type == _TYPES.STRAVA_TOKEN_EXPIRED
+        assert notification.options.delete_on is None
+        assert ws_message == notifications_constants.STRAVA_UNLINKED_WS_MESSAGE
+
+    def test_a_revoked_strava_notice_carries_the_day_the_data_is_deleted(self, db):
+        user = make_user(db)
+
+        notification, _ = notifications_integration.create_strava_token_expired_notification(
+            user.id, db, delete_on=date(2026, 11, 12)
+        )
+
+        assert notification.options.delete_on == date(2026, 11, 12)
+        (row,) = _stored(db)
+        assert row.options == {"delete_on": "2026-11-12"}
+
+    def test_a_strava_data_deleted_notice_is_staged_for_the_user(self, db):
+        user = make_user(db)
+
+        notification, ws_message = notifications_integration.create_strava_data_deleted_notification(user.id, db)
+
+        assert (notification.user_id, notification.type) == (user.id, _TYPES.STRAVA_DATA_DELETED)
+        assert ws_message == notifications_constants.STRAVA_DATA_DELETED_WS_MESSAGE
 
 
-def test_strava_data_deleted_stages_without_committing(mock_db):
-    stored = MagicMock(id=uuid.UUID(int=6))
-    with patch(
-        "modules.notifications.integration_service.notifications_crud.create_notification", return_value=stored
-    ) as create:
-        notification, ws_message = notifications_integration.create_strava_data_deleted_notification(_ID_1, mock_db)
+def test_erasing_a_user_removes_the_notifications_that_name_them(db):
+    owner, erased = make_user(db), make_user(db)
+    make_notification_of(
+        db,
+        owner.id,
+        _TYPES.NEW_FOLLOWER_REQUEST,
+        {"user_id": str(erased.id), "user_name": erased.name, "user_username": erased.username},
+    )
+    kept = make_notification_of(db, owner.id, _TYPES.GARMIN_TOKEN_EXPIRED)
 
-    data = create.call_args.args[0]
-    assert data.type == notifications_constants.NotificationType.STRAVA_DATA_DELETED
-    assert notification is stored
-    assert ws_message == notifications_constants.STRAVA_DATA_DELETED_WS_MESSAGE
-    mock_db.commit.assert_not_called()
+    notifications_integration.delete_notifications_naming_user(erased.id, db)
 
-
-def test_delete_notifications_naming_user_stages_through_the_crud(mock_db):
-    with patch(
-        "modules.notifications.integration_service.notifications_crud.delete_notifications_naming_user"
-    ) as delete:
-        notifications_integration.delete_notifications_naming_user(_ID_7, mock_db)
-
-    delete.assert_called_once_with(_ID_7, mock_db)
-    mock_db.commit.assert_not_called()
+    assert [n.id for n in _stored(db)] == [kept.id]
 
 
-def test_the_realtime_hint_is_json_serialisable_and_carries_the_notification_id():
-    notification = MagicMock(id=uuid.uuid4())
-    with patch("modules.notifications.integration_service.websocket_integration.push_to_user") as push:
-        notifications_integration.push_notification(_ID_1, notification, "NEW_ACTIVITY_NOTIFICATION")
+def test_the_push_reaches_the_users_channel_with_the_message_and_the_notification_id(db):
+    user = make_user(db)
+    notification = make_notification_of(db, user.id, _TYPES.GARMIN_TOKEN_EXPIRED)
+    hints = capture_hints(platform_runtime.get_active_platform())
 
-    hint = push.call_args.args[1]
-    assert json.loads(json.dumps(hint))["notification_id"] == str(notification.id)
+    notifications_integration.push_notification(user.id, notification, "GARMIN_TOKEN_EXPIRED_NOTIFICATION")
+
+    assert hints == [
+        (
+            websocket_keys.user_key(user.id),
+            {"message": "GARMIN_TOKEN_EXPIRED_NOTIFICATION", "notification_id": str(notification.id)},
+        )
+    ]
