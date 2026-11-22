@@ -24,6 +24,7 @@ import core.logger as core_logger
 import core.network as core_network
 import modules.activities.activity.integration_service as activity_integration
 import modules.activities.activity.schema as activity_schema
+import modules.activities.activity_ingestion.contracts as activity_ingestion_contracts
 import modules.activities.activity_ingestion.integration_service as activity_ingestion_integration
 import modules.coros.constants as coros_constants
 import modules.coros.contracts as coros_contracts
@@ -468,6 +469,7 @@ def _sync_locked(
         The stored activities, or None when nothing was stored.
     """
     stored: list[activity_schema.ActivityRead] = []
+    quota_exhausted = False
     try:
         connection = coros_service.get_valid_connection(user_id)
         with coros_mcp_client.CorosMCPClient(
@@ -480,17 +482,19 @@ def _sync_locked(
             if missing:
                 raise coros_mcp_client.CorosToolUnavailableError(", ".join(missing))
             summaries = fetch_activity_summaries(client, start_date, end_date)
-            quota_exhausted = False
-            for summary in summaries:
+
+            def process(summary: coros_contracts.CorosActivitySummary) -> list[activity_schema.ActivityRead]:
+                """Process one summary, returning what it stored."""
+                nonlocal quota_exhausted
                 if _already_stored(user_id, summary.label_id) or _already_skipped(user_id, summary.label_id):
-                    continue
+                    return []
                 if not coros_service.reserve_fit_download(user_id):
                     quota_exhausted = True
                     logger.warning(
                         "COROS daily FIT download quota reached",
                         extra=core_logger.context(user_id=user_id),
                     )
-                    break
+                    raise activity_ingestion_contracts.WindowStoppedError()
                 try:
                     fit_bytes = _download_fit(client, summary)
                 except coros_mcp_client.CorosMCPToolError as err:
@@ -499,14 +503,14 @@ def _sync_locked(
                         extra=core_logger.context(user_id=user_id, coros_activity_id=summary.label_id),
                         exc_info=err,
                     )
-                    continue
+                    return []
                 if fit_bytes is None:
                     _mark_skipped(user_id, summary.label_id, "no_file")
                     logger.debug(
                         "COROS activity has no FIT file; marked skipped",
                         extra=core_logger.context(user_id=user_id, coros_activity_id=summary.label_id),
                     )
-                    continue
+                    return []
                 created = _ingest_fit(user_id, summary.label_id, fit_bytes)
                 if not created:
                     _mark_skipped(user_id, summary.label_id, "invalid_file")
@@ -514,8 +518,26 @@ def _sync_locked(
                         "COROS FIT file produced no activity",
                         extra=core_logger.context(user_id=user_id, coros_activity_id=summary.label_id),
                     )
-                    continue
-                stored.extend(created)
+                    return []
+                return created
+
+            results = activity_ingestion_integration.run_provider_window(
+                summaries,
+                process,
+                provider=coros_constants.PROVIDER_NAME,
+                user_id=user_id,
+                describe=lambda summary: {"coros_activity_id": summary.label_id},
+                propagate=(
+                    coros_mcp_client.CorosMCPAuthenticationError,
+                    coros_mcp_client.CorosMCPRateLimitError,
+                    coros_mcp_client.CorosToolUnavailableError,
+                    coros_mcp_client.CorosMCPProtocolError,
+                    coros_mcp_client.CorosMCPTransientError,
+                    coros_oauth.CorosTransientError,
+                    coros_oauth.CorosAuthenticationError,
+                ),
+            )
+            stored = [activity for result in results for activity in result]
     except coros_mcp_client.CorosMCPAuthenticationError:
         coros_service.mark_sync_error(user_id, coros_constants.SyncErrorCode.AUTHORIZATION_EXPIRED)
         logger.warning(

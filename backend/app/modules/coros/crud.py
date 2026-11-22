@@ -31,7 +31,7 @@ def _now() -> datetime:
     return datetime.now(UTC)
 
 
-def _to_data(row: coros_models.CorosIntegration) -> coros_schema.CorosIntegrationData:
+def _to_data(row: coros_models.CorosIntegration) -> coros_contracts.CorosIntegrationData:
     """Decrypt a row into the internal service view.
 
     Args:
@@ -40,7 +40,7 @@ def _to_data(row: coros_models.CorosIntegration) -> coros_schema.CorosIntegratio
     Returns:
         The decrypted integration data.
     """
-    return coros_schema.CorosIntegrationData(
+    return coros_contracts.CorosIntegrationData(
         id=row.id,
         user_id=row.user_id,
         mcp_url=row.mcp_url,
@@ -123,7 +123,7 @@ def create_if_missing(user_id: uuid.UUID, db: Session) -> coros_models.CorosInte
         return existing
 
 
-def get_integration(user_id: uuid.UUID, db: Session) -> coros_schema.CorosIntegrationData | None:
+def get_integration(user_id: uuid.UUID, db: Session) -> coros_contracts.CorosIntegrationData | None:
     """Return a user's decrypted integration state.
 
     Args:
@@ -137,7 +137,7 @@ def get_integration(user_id: uuid.UUID, db: Session) -> coros_schema.CorosIntegr
     return _to_data(row) if row is not None else None
 
 
-def get_integration_for_update(user_id: uuid.UUID, db: Session) -> coros_schema.CorosIntegrationData | None:
+def get_integration_for_update(user_id: uuid.UUID, db: Session) -> coros_contracts.CorosIntegrationData | None:
     """Return a user's integration state with its row locked.
 
     Args:
@@ -151,7 +151,7 @@ def get_integration_for_update(user_id: uuid.UUID, db: Session) -> coros_schema.
     return _to_data(row) if row is not None else None
 
 
-def get_by_state(state: str, db: Session) -> coros_schema.CorosIntegrationData | None:
+def get_by_state(state: str, db: Session) -> coros_contracts.CorosIntegrationData | None:
     """Return the integration row carrying a pending OAuth state.
 
     Args:

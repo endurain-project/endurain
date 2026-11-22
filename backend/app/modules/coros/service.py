@@ -26,7 +26,7 @@ import modules.coros.schema as coros_schema
 logger = core_logger.get_logger(__name__)
 
 
-def _metadata_from_data(data: coros_schema.CorosIntegrationData) -> coros_contracts.CorosOAuthMetadata:
+def _metadata_from_data(data: coros_contracts.CorosIntegrationData) -> coros_contracts.CorosOAuthMetadata:
     """Rebuild OAuth metadata from a stored integration.
 
     Args:
@@ -297,7 +297,7 @@ def get_valid_connection(
     user_id: uuid.UUID,
     *,
     db: Session | None = None,
-) -> coros_schema.CorosIntegrationData:
+) -> coros_contracts.CorosIntegrationData:
     """Return a connection with a usable access token, refreshing it if needed.
 
     Args:
