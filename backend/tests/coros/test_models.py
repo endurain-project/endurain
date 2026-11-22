@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import uuid
+
 import modules.activities.activity.models as activity_models
 import modules.coros.models as coros_models
 
@@ -24,6 +26,11 @@ class TestCorosIntegrationModel:
         assert columns["access_token"].type.length is None
         assert columns["refresh_token"].type.length is None
 
+    def test_ids_are_uuids(self):
+        columns = coros_models.CorosIntegration.__table__.columns
+        assert columns["id"].type.python_type is uuid.UUID
+        assert columns["user_id"].type.python_type is uuid.UUID
+
     def test_activity_carries_the_coros_identifier(self):
         assert "coros_activity_id" in activity_models.Activity.__table__.columns
 
@@ -35,3 +42,8 @@ class TestSkippedActivityModel:
         constraints = coros_models.CorosSkippedActivity.__table__.constraints
         names = {constraint.name for constraint in constraints}
         assert "uq_coros_skipped_activities_user_label" in names
+
+    def test_ids_are_uuids(self):
+        columns = coros_models.CorosSkippedActivity.__table__.columns
+        assert columns["id"].type.python_type is uuid.UUID
+        assert columns["user_id"].type.python_type is uuid.UUID
