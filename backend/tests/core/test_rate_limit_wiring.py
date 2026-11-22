@@ -68,6 +68,7 @@ import modules.auth.onboarding.public_router as onboarding_public_router
 import modules.auth.password_reset_tokens.public_router as password_reset_router
 import modules.auth.sessions.router as auth_sessions_router
 import modules.auth.sign_up_tokens.public_router as sign_up_tokens_router
+import modules.coros.router as coros_router
 import modules.followers.blocks_router as followers_blocks_router
 import modules.followers.router as followers_router
 import modules.followers.user_router as followers_user_router
@@ -286,6 +287,10 @@ _TIERED_ENDPOINTS = [
     pytest.param(garmin_router.garminconnect_link, core_rate_limit.SENSITIVE, id="garmin-link"),
     pytest.param(garmin_router.garminconnect_mfa_code, core_rate_limit.SENSITIVE, id="garmin-mfa"),
     pytest.param(garmin_router.garminconnect_unlink, core_rate_limit.WRITE, id="garmin-unlink"),
+    pytest.param(coros_router.coros_authorize, core_rate_limit.SENSITIVE, id="coros-authorize"),
+    pytest.param(coros_router.coros_link, core_rate_limit.SENSITIVE, id="coros-link"),
+    pytest.param(coros_router.coros_sync, core_rate_limit.PROVIDER_SYNC, id="coros-sync"),
+    pytest.param(coros_router.coros_unlink, core_rate_limit.WRITE, id="coros-unlink"),
     pytest.param(activity_media_router.create_activity_media, core_rate_limit.UPLOAD, id="media-upload"),
     pytest.param(activity_media_router.delete_activity_media, core_rate_limit.WRITE, id="media-delete"),
     pytest.param(activity_router.edit_activity, core_rate_limit.WRITE, id="activity-edit"),
