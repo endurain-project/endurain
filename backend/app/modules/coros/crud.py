@@ -87,7 +87,7 @@ def _get_model(
     return db.execute(stmt).scalar_one_or_none()
 
 
-def create_if_missing(user_id: uuid.UUID, db: Session) -> coros_models.CorosIntegration:
+def _create_if_missing(user_id: uuid.UUID, db: Session) -> coros_models.CorosIntegration:
     """Return the user's integration row, creating an empty one if needed.
 
     Args:
@@ -188,7 +188,7 @@ def set_pending_authorization(
         state_expires_at: State expiry.
         db: Database session.
     """
-    row = create_if_missing(user_id, db)
+    row = _create_if_missing(user_id, db)
     row.mcp_url = metadata.mcp_url
     row.issuer = metadata.issuer
     row.redirect_uri = redirect_uri
@@ -214,7 +214,7 @@ def save_tokens(
         tokens: New token set.
         db: Database session.
     """
-    row = create_if_missing(user_id, db)
+    row = _create_if_missing(user_id, db)
     row.access_token = core_cryptography.encrypt_token_fernet(tokens.access_token)
     row.refresh_token = core_cryptography.encrypt_token_fernet(tokens.refresh_token)
     row.token_expires_at = tokens.token_expires_at

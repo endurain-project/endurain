@@ -203,7 +203,7 @@ class TestUnlinkAndQuota:
         assert revoke.call_count == 2
 
     def test_the_daily_fit_quota_is_fifty(self, db):
-        row = coros_crud.create_if_missing(USER_ID, db)
+        row = coros_crud._create_if_missing(USER_ID, db)
         db.commit()
 
         for _ in range(constants.MAX_FIT_DOWNLOADS_PER_DAY):
@@ -214,7 +214,7 @@ class TestUnlinkAndQuota:
         assert row.fit_download_count == constants.MAX_FIT_DOWNLOADS_PER_DAY
 
     def test_the_quota_resets_on_a_new_day(self, db):
-        row = coros_crud.create_if_missing(USER_ID, db)
+        row = coros_crud._create_if_missing(USER_ID, db)
         row.fit_download_date = datetime.now(UTC).date() - timedelta(days=1)
         row.fit_download_count = constants.MAX_FIT_DOWNLOADS_PER_DAY
         db.commit()
