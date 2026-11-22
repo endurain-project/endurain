@@ -3,12 +3,13 @@
 from __future__ import annotations
 
 import uuid
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from types import SimpleNamespace
 from unittest.mock import MagicMock, Mock
 
 import pytest
 
+import core.exceptions as core_exceptions
 import modules.coros.activity_service as activity_service
 import modules.coros.constants as constants
 import modules.coros.contracts as contracts
@@ -119,12 +120,13 @@ class TestSyncDecisions:
         monkeypatch.setattr(activity_service.coros_service, "get_valid_connection", Mock(return_value=connection))
         monkeypatch.setattr(activity_service.coros_mcp_client, "CorosMCPClient", fake_client)
         monkeypatch.setattr(activity_service, "fetch_activity_summaries", Mock(return_value=[_summary()]))
-        monkeypatch.setattr(activity_service, "_already_stored", Mock(return_value=False))
+        monkeypatch.setattr(activity_service, "_already_imported", Mock(return_value=False))
         monkeypatch.setattr(activity_service, "_already_skipped", Mock(return_value=False))
         monkeypatch.setattr(activity_service.coros_service, "reserve_fit_download", Mock(return_value=True))
         monkeypatch.setattr(activity_service, "_download_fit", Mock(return_value=b"fit"))
         monkeypatch.setattr(activity_service, "_ingest_fit", Mock(return_value=[SimpleNamespace(id=1)]))
         monkeypatch.setattr(activity_service, "_mark_skipped", Mock())
+        monkeypatch.setattr(activity_service, "_mark_imported", Mock())
         monkeypatch.setattr(activity_service.coros_service, "mark_sync_success", Mock())
         monkeypatch.setattr(activity_service.coros_service, "mark_sync_error", Mock())
         monkeypatch.setattr(activity_service.logger, "warning", Mock())
@@ -137,11 +139,24 @@ class TestSyncDecisions:
         assert result is not None and len(result) == 1
         activity_service.coros_service.mark_sync_success.assert_called_once_with(USER_ID, 1)
 
-    def test_already_stored_activity_is_not_downloaded(self, monkeypatch):
-        monkeypatch.setattr(activity_service, "_already_stored", Mock(return_value=True))
+    def test_completely_imported_activity_is_not_downloaded(self, monkeypatch):
+        monkeypatch.setattr(activity_service, "_already_imported", Mock(return_value=True))
 
         assert activity_service._sync_locked(USER_ID, START, END) is None
         activity_service._download_fit.assert_not_called()
+
+    def test_a_completed_import_is_marked(self):
+        activity_service._sync_locked(USER_ID, START, END)
+
+        activity_service._mark_imported.assert_called_once_with(USER_ID, "123")
+
+    def test_a_failed_import_is_not_marked_complete(self, monkeypatch):
+        monkeypatch.setattr(activity_service, "_ingest_fit", Mock(side_effect=RuntimeError("failed")))
+
+        with pytest.raises(RuntimeError):
+            activity_service._sync_locked(USER_ID, START, END)
+
+        activity_service._mark_imported.assert_not_called()
 
     def test_an_activity_without_a_fit_file_is_marked_once(self, monkeypatch):
         monkeypatch.setattr(activity_service, "_download_fit", Mock(return_value=None))
@@ -192,6 +207,37 @@ class TestSyncDecisions:
             activity_service._sync_locked(USER_ID, START, END)
         activity_service.coros_service.mark_sync_error.assert_called_once_with(
             USER_ID, constants.SyncErrorCode.NETWORK_ERROR
+        )
+
+    def test_a_rate_limit_is_raised_as_a_deferral(self, monkeypatch):
+        monkeypatch.setattr(
+            activity_service,
+            "fetch_activity_summaries",
+            Mock(side_effect=mcp_client.CorosMCPRateLimitError("limited", 30)),
+        )
+
+        with pytest.raises(core_exceptions.TooManyRequestsError) as caught:
+            activity_service._sync_locked(USER_ID, START, END)
+
+        assert caught.value.retry_at is not None
+        assert caught.value.retry_at > datetime.now(UTC) + timedelta(seconds=20)
+        activity_service.coros_service.mark_sync_error.assert_called_once_with(
+            USER_ID, constants.SyncErrorCode.RATE_LIMITED
+        )
+
+    def test_a_rate_limited_token_refresh_is_raised_for_the_deferral(self, monkeypatch):
+        limited = core_exceptions.TooManyRequestsError(
+            "limited",
+            scope=core_exceptions.TooManyRequestsScope.PROVIDER,
+            retry_at=datetime.now(UTC) + timedelta(minutes=1),
+        )
+        monkeypatch.setattr(activity_service.coros_service, "get_valid_connection", Mock(side_effect=limited))
+
+        with pytest.raises(core_exceptions.TooManyRequestsError):
+            activity_service._sync_locked(USER_ID, START, END)
+
+        activity_service.coros_service.mark_sync_error.assert_called_once_with(
+            USER_ID, constants.SyncErrorCode.RATE_LIMITED
         )
 
 

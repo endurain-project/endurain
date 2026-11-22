@@ -1,9 +1,10 @@
 """Pull COROS activities through MCP and feed them to the shared ingestion pipeline.
 
-The sync is idempotent: activities already stored are skipped by their COROS
-id, and the ingestion pipeline keys each parsed session on the COROS id plus its
-start time. FIT downloads are capped per user per day, and activities COROS has
-no usable file for are recorded once instead of retried on every sync.
+The sync is idempotent: labels whose FIT file was completely imported are
+skipped, and the ingestion pipeline keys each parsed session on the COROS id plus
+its start time. A partially imported file is retried instead of being treated as
+complete. FIT downloads are capped per user per day, and activities COROS has no
+usable file for are recorded once instead of retried on every sync.
 """
 
 import json
@@ -22,7 +23,7 @@ import core.exceptions as core_exceptions
 import core.file_uploads as core_file_uploads
 import core.logger as core_logger
 import core.network as core_network
-import modules.activities.activity.integration_service as activity_integration
+import core.provider_rate_limit as core_provider_rate_limit
 import modules.activities.activity.schema as activity_schema
 import modules.activities.activity_ingestion.contracts as activity_ingestion_contracts
 import modules.activities.activity_ingestion.integration_service as activity_ingestion_integration
@@ -410,18 +411,34 @@ def _ingest_fit(
         return created or []
 
 
-def _already_stored(user_id: uuid.UUID, label_id: str) -> bool:
-    """Return whether an activity was already imported.
+def _already_imported(user_id: uuid.UUID, label_id: str) -> bool:
+    """Return whether an activity's FIT file was completely imported.
 
     Args:
         user_id: Owning user.
         label_id: COROS activity identifier.
 
     Returns:
-        True when the activity row exists.
+        True when every session of the file was imported.
     """
     with SessionLocal() as db:
-        return activity_integration.get_activity_by_coros_id(label_id, user_id, db) is not None
+        return coros_crud.is_activity_imported(user_id, label_id, db)
+
+
+def _mark_imported(user_id: uuid.UUID, label_id: str) -> None:
+    """Record that an activity's FIT file was completely imported.
+
+    Args:
+        user_id: Owning user.
+        label_id: COROS activity identifier.
+    """
+    with SessionLocal() as db:
+        coros_crud.mark_activity_imported(user_id, label_id, db)
+        db.commit()
+        logger.debug(
+            "COROS activity import marked complete",
+            extra=core_logger.context(user_id=user_id, coros_activity_id=label_id),
+        )
 
 
 def _already_skipped(user_id: uuid.UUID, label_id: str) -> bool:
@@ -486,7 +503,7 @@ def _sync_locked(
             def process(summary: coros_contracts.CorosActivitySummary) -> list[activity_schema.ActivityRead]:
                 """Process one summary, returning what it stored."""
                 nonlocal quota_exhausted
-                if _already_stored(user_id, summary.label_id) or _already_skipped(user_id, summary.label_id):
+                if _already_imported(user_id, summary.label_id) or _already_skipped(user_id, summary.label_id):
                     return []
                 if not coros_service.reserve_fit_download(user_id):
                     quota_exhausted = True
@@ -519,6 +536,7 @@ def _sync_locked(
                         extra=core_logger.context(user_id=user_id, coros_activity_id=summary.label_id),
                     )
                     return []
+                _mark_imported(user_id, summary.label_id)
                 return created
 
             results = activity_ingestion_integration.run_provider_window(
@@ -544,10 +562,21 @@ def _sync_locked(
             "COROS access token rejected; account needs reconnecting", extra=core_logger.context(user_id=user_id)
         )
         return None
-    except coros_mcp_client.CorosMCPRateLimitError:
+    except coros_mcp_client.CorosMCPRateLimitError as err:
         coros_service.mark_sync_error(user_id, coros_constants.SyncErrorCode.RATE_LIMITED)
         logger.warning("COROS rate limit reached", extra=core_logger.context(user_id=user_id))
-        return None
+        raise core_exceptions.TooManyRequestsError(
+            "COROS rate limit reached. Please try again later.",
+            scope=core_exceptions.TooManyRequestsScope.PROVIDER,
+            retry_at=core_provider_rate_limit.retry_at(err.retry_after),
+        ) from err
+    except core_exceptions.TooManyRequestsError as err:
+        coros_service.mark_sync_error(user_id, coros_constants.SyncErrorCode.RATE_LIMITED)
+        logger.warning(
+            "COROS rate limit reached; the refresh will wait for it to clear",
+            extra=core_logger.context(user_id=user_id, retry_at=err.retry_at),
+        )
+        raise
     except coros_mcp_client.CorosToolUnavailableError as err:
         coros_service.mark_sync_error(user_id, coros_constants.SyncErrorCode.TOOLS_UNAVAILABLE)
         logger.error(
@@ -619,6 +648,10 @@ def get_user_coros_activities_by_dates(
     Returns:
         The stored activities, or None when COROS is not linked or nothing new
         arrived.
+
+    Raises:
+        core_exceptions.TooManyRequestsError: When COROS rate limits the sync, so
+            the refresh waits for the limit to clear.
     """
     guard_key = f"coros:sync:{user_id}"
     guard_acquired = False

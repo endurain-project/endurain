@@ -17,6 +17,7 @@ from typing import Any
 import httpx2
 
 import core.logger as core_logger
+import core.provider_rate_limit as core_provider_rate_limit
 import modules.coros.constants as coros_constants
 
 logger = core_logger.get_logger(__name__)
@@ -203,7 +204,7 @@ class CorosMCPClient:
             if response.status_code in (401, 403):
                 raise CorosMCPAuthenticationError("COROS rejected the access token")
             if response.status_code == 429:
-                retry_after = _retry_after_seconds(response.headers.get("retry-after"))
+                retry_after = core_provider_rate_limit.parse_retry_after(response.headers.get("retry-after"))
                 raise CorosMCPRateLimitError("COROS rate limit reached", retry_after)
             if response.status_code == 404 and attempt == 0:
                 last_error = CorosMCPTransientError("COROS MCP endpoint returned 404")
@@ -297,24 +298,6 @@ class CorosMCPClient:
         if is_error:
             raise CorosMCPToolError(name, _tool_error_text(tool_result))
         return tool_result
-
-
-def _retry_after_seconds(value: str | None) -> int | None:
-    """Parse a ``Retry-After`` header.
-
-    Args:
-        value: Header value.
-
-    Returns:
-        The delay in seconds, or None.
-    """
-    if value is None:
-        return None
-    try:
-        seconds = int(value)
-    except ValueError:
-        return None
-    return seconds if seconds > 0 else None
 
 
 def _payload_from_response(response: httpx2.Response, request_id: int) -> dict[str, Any]:

@@ -26,7 +26,9 @@ not create, change or delete anything in a COROS account.
 
 An activity COROS cannot provide a FIT file for is recorded once and skipped
 permanently, so it cannot consume the daily FIT quota on every sync. A file that
-is present but fails to parse is retried after seven days.
+is present but fails to parse is retried after seven days. A file whose import
+was interrupted after some sessions were stored is retried on the next sync; the
+sessions already stored are deduplicated.
 
 ## Configuration
 
@@ -74,9 +76,9 @@ COROS allows it and deletes them locally. Activities already imported are kept.
   366 days; older history can be imported in successive ranges.
 - **Concurrency:** a per-user lock prevents two COROS syncs from running at the
   same time. A second request is skipped, not queued twice.
-- **Idempotence:** an activity already stored for the user is skipped before any
-  FIT download. The shared ingestion pipeline also enforces a unique dedup key,
-  so a retry cannot create a duplicate.
+- **Idempotence:** an activity whose FIT file was completely imported is skipped
+  before any FIT download. The shared ingestion pipeline also enforces a unique
+  dedup key, so a retry cannot create a duplicate.
 - **Failures:** a transient network or COROS failure is recorded on the card and
   the job retry policy applies. An expired authorization asks you to reconnect.
 - **Rate limits:** COROS allows 50 FIT file requests per user in a 24-hour

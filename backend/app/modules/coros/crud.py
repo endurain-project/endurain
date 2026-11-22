@@ -45,6 +45,8 @@ def _to_data(row: coros_models.CorosIntegration) -> coros_contracts.CorosIntegra
         user_id=row.user_id,
         mcp_url=row.mcp_url,
         issuer=row.issuer,
+        token_endpoint=row.token_endpoint,
+        revocation_endpoint=row.revocation_endpoint,
         redirect_uri=row.redirect_uri,
         scope=row.scope,
         client_id=row.client_id,
@@ -191,6 +193,8 @@ def set_pending_authorization(
     row = _create_if_missing(user_id, db)
     row.mcp_url = metadata.mcp_url
     row.issuer = metadata.issuer
+    row.token_endpoint = metadata.token_endpoint
+    row.revocation_endpoint = metadata.revocation_endpoint
     row.redirect_uri = redirect_uri
     row.scope = " ".join(metadata.scopes)
     row.client_id = registration.client_id
@@ -457,6 +461,48 @@ def mark_activity_skipped(user_id: uuid.UUID, label_id: str, reason: str, db: Se
             user_id=user_id,
             label_id=label_id,
             reason=reason,
+            created_at=_now(),
+        )
+    )
+    db.flush()
+
+
+def is_activity_imported(user_id: uuid.UUID, label_id: str, db: Session) -> bool:
+    """Return whether an activity's FIT file was completely imported.
+
+    Args:
+        user_id: Owning user id.
+        label_id: COROS activity identifier.
+        db: Database session.
+
+    Returns:
+        True when every session of the file was imported.
+    """
+    stmt = select(coros_models.CorosImportedActivity).where(
+        coros_models.CorosImportedActivity.user_id == user_id,
+        coros_models.CorosImportedActivity.label_id == label_id,
+    )
+    return db.execute(stmt).scalar_one_or_none() is not None
+
+
+def mark_activity_imported(user_id: uuid.UUID, label_id: str, db: Session) -> None:
+    """Stage the completion marker for an activity's FIT file.
+
+    Args:
+        user_id: Owning user id.
+        label_id: COROS activity identifier.
+        db: Database session.
+    """
+    stmt = select(coros_models.CorosImportedActivity).where(
+        coros_models.CorosImportedActivity.user_id == user_id,
+        coros_models.CorosImportedActivity.label_id == label_id,
+    )
+    if db.execute(stmt).scalar_one_or_none() is not None:
+        return
+    db.add(
+        coros_models.CorosImportedActivity(
+            user_id=user_id,
+            label_id=label_id,
             created_at=_now(),
         )
     )

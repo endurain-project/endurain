@@ -87,6 +87,8 @@ class CorosIntegrationData(BaseModel):
         user_id: Owning user id.
         mcp_url: Regional MCP endpoint.
         issuer: OAuth issuer.
+        token_endpoint: Advertised token endpoint.
+        revocation_endpoint: Advertised revocation endpoint, when published.
         redirect_uri: Registered callback URI.
         scope: Granted scopes.
         client_id: Public OAuth client id.
@@ -112,6 +114,8 @@ class CorosIntegrationData(BaseModel):
     user_id: uuid.UUID
     mcp_url: str | None = None
     issuer: str | None = None
+    token_endpoint: str | None = None
+    revocation_endpoint: str | None = None
     redirect_uri: str | None = None
     scope: str | None = None
     client_id: str | None = None

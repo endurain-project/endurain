@@ -67,24 +67,6 @@ def get_activity_by_garminconnect_id(
     return activity_crud.get_activity_by_garminconnect_id_from_user_id(garminconnect_activity_id, user_id, db)
 
 
-def get_activity_by_coros_id(
-    coros_activity_id: str,
-    user_id: uuid.UUID,
-    db: Session,
-) -> activity_schema.ActivityRead | None:
-    """Return the user's activity imported from the given COROS activity id.
-
-    Args:
-        coros_activity_id: The COROS provider activity id.
-        user_id: The owning user id.
-        db: Database session.
-
-    Returns:
-        The matching activity, or ``None`` when the user has no such import.
-    """
-    return activity_crud.get_activity_by_coros_id_from_user_id(coros_activity_id, user_id, db)
-
-
 def list_garminconnect_gear_activity_refs(
     user_id: uuid.UUID,
     db: Session,

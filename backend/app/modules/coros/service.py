@@ -39,13 +39,13 @@ def _metadata_from_data(data: coros_contracts.CorosIntegrationData) -> coros_con
         coros_oauth.CorosAuthenticationError: When the stored connection is
             incomplete and the user must reconnect.
     """
-    if not data.issuer or not data.mcp_url:
+    if not data.issuer or not data.mcp_url or not data.token_endpoint:
         raise coros_oauth.CorosAuthenticationError("COROS connection must be renewed")
     return coros_contracts.CorosOAuthMetadata(
         issuer=data.issuer,
         authorization_endpoint=f"{data.issuer.rstrip('/')}/oauth2/authorize",
-        token_endpoint=f"{data.issuer.rstrip('/')}/oauth2/token",
-        revocation_endpoint=f"{data.issuer.rstrip('/')}/oauth2/revoke",
+        token_endpoint=data.token_endpoint,
+        revocation_endpoint=data.revocation_endpoint,
         registration_endpoint=f"{data.issuer.rstrip('/')}/connect/register",
         mcp_url=data.mcp_url,
         scopes=tuple((data.scope or coros_constants.SCOPE_STRING).split()),
@@ -68,7 +68,12 @@ def begin_authorization(user_id: uuid.UUID, redirect_uri: str, db: Session) -> s
 
     Raises:
         coros_oauth.CorosOAuthError: When discovery or registration fails.
+        core_exceptions.TooManyRequestsError: When COROS rate limits discovery or
+            registration.
     """
+    # The caller's authentication checks may have read through this session;
+    # end that transaction before the discovery round trip.
+    db.commit()
     try:
         metadata = coros_oauth.discover_metadata()
     except coros_oauth.CorosOAuthError as err:
@@ -91,6 +96,9 @@ def begin_authorization(user_id: uuid.UUID, redirect_uri: str, db: Session) -> s
             client_secret=existing.client_secret,
         )
     if registration is None:
+        # End the read transaction so no pooled connection is held across the
+        # provider call.
+        db.commit()
         try:
             registration = coros_oauth.register_client(metadata, redirect_uri)
         except coros_oauth.CorosOAuthError as err:
@@ -134,6 +142,7 @@ def complete_link(user_id: uuid.UUID, code: str, state: str, db: Session) -> Non
         core_exceptions.InvalidInputError: When the state is unknown, belongs to
             another user, or has expired.
         coros_oauth.CorosOAuthError: When the exchange fails.
+        core_exceptions.TooManyRequestsError: When COROS rate limits the exchange.
     """
     pending = coros_crud.get_by_state(state, db)
     if pending is None or pending.user_id != user_id:
@@ -152,12 +161,14 @@ def complete_link(user_id: uuid.UUID, code: str, state: str, db: Session) -> Non
         _audit_link_failure(user_id, coros_audit_actions.LinkFailureReason.INVALID_STATE)
         raise core_exceptions.InvalidInputError("COROS authorization state expired")
 
-    metadata = _metadata_from_data(pending)
     registration = coros_contracts.CorosClientRegistration(
         client_id=pending.client_id,
         client_secret=pending.client_secret,
     )
+    # End the read transaction before the token-endpoint round trip.
+    db.commit()
     try:
+        metadata = _metadata_from_data(pending)
         tokens = coros_oauth.exchange_code(
             metadata,
             registration,
@@ -241,7 +252,7 @@ def complete_link_and_queue_initial_sync(
     complete_link(user_id, code, state, db)
     try:
         request_initial_sync(user_id, storage, db)
-    except core_exceptions.DomainError as err:
+    except Exception as err:
         logger.warning(
             "COROS linked but the initial sync could not be queued",
             exc_info=err,
@@ -337,6 +348,7 @@ def get_valid_connection(
     Raises:
         coros_oauth.CorosAuthenticationError: When the user must reconnect.
         coros_oauth.CorosOAuthError: When the refresh fails.
+        core_exceptions.TooManyRequestsError: When COROS rate limits the refresh.
     """
     session = db or core_database.SessionLocal()
     try:
@@ -359,6 +371,8 @@ def get_valid_connection(
             client_id=data.client_id or "",
             client_secret=data.client_secret,
         )
+        # End the read transaction before the token-endpoint round trip.
+        session.commit()
         tokens = coros_oauth.refresh_tokens(metadata, registration, data.refresh_token)
         coros_crud.update_tokens(user_id, tokens, session)
         session.commit()
@@ -395,6 +409,8 @@ def unlink(
         coros_crud.clear_tokens(user_id, db)
         db.commit()
         return
+    # End the read transaction before the revocation round trips.
+    db.commit()
     try:
         metadata = _metadata_from_data(data)
         registration = coros_contracts.CorosClientRegistration(

@@ -5,11 +5,13 @@ from __future__ import annotations
 import base64
 import hashlib
 import json
+from dataclasses import replace
 from urllib.parse import parse_qs
 
 import httpx2
 import pytest
 
+import core.exceptions as core_exceptions
 import modules.coros.contracts as contracts
 import modules.coros.oauth as oauth
 
@@ -133,6 +135,21 @@ class TestDiscovery:
         with pytest.raises(oauth.CorosTransientError):
             oauth.discover_metadata(_client(handler))
 
+    def test_a_rate_limited_discovery_is_not_treated_as_missing_metadata(self):
+        requested: list[str] = []
+
+        def handler(request: httpx2.Request) -> httpx2.Response:
+            requested.append(request.url.path)
+            if request.url.path == "/.well-known/openid-configuration":
+                return httpx2.Response(429, headers={"retry-after": "60"})
+            return httpx2.Response(404)
+
+        with pytest.raises(core_exceptions.TooManyRequestsError) as caught:
+            oauth.discover_metadata(_client(handler))
+
+        assert caught.value.retry_at is not None
+        assert requested == ["/.well-known/openid-configuration"]
+
 
 class TestRegistration:
     """Dynamic registration is a public-client registration."""
@@ -161,6 +178,15 @@ class TestRegistration:
 
         with pytest.raises(oauth.CorosProtocolError):
             oauth.register_client(_metadata(), "https://app.example.com/coros/callback", client=_client(handler))
+
+    def test_a_rate_limited_registration_preserves_the_retry_time(self):
+        def handler(request: httpx2.Request) -> httpx2.Response:
+            return httpx2.Response(429, headers={"retry-after": "90"})
+
+        with pytest.raises(core_exceptions.TooManyRequestsError) as caught:
+            oauth.register_client(_metadata(), "https://app.example.com/coros/callback", client=_client(handler))
+
+        assert caught.value.retry_at is not None
 
 
 class TestAuthorizationUrl:
@@ -216,6 +242,7 @@ class TestTokens:
         assert tokens.refresh_token == "refresh"
         assert captured["grant_type"] == "authorization_code"
         assert captured["code_verifier"] == "verifier-1"
+        assert captured["resource"] == "https://mcpeu.coros.com/mcp"
 
     def test_invalid_grant_requires_reconnection(self):
         def handler(request: httpx2.Request) -> httpx2.Response:
@@ -231,8 +258,59 @@ class TestTokens:
                 client=_client(handler),
             )
 
-    def test_refresh_retains_the_old_refresh_token_when_coros_omits_a_new_one(self):
+    def test_a_non_string_error_field_is_a_protocol_error(self):
         def handler(request: httpx2.Request) -> httpx2.Response:
+            return httpx2.Response(400, json={"error": []})
+
+        with pytest.raises(oauth.CorosProtocolError):
+            oauth.exchange_code(
+                _metadata(),
+                contracts.CorosClientRegistration("client-1"),
+                "code-1",
+                "https://app.example.com/coros/callback",
+                "verifier-1",
+                client=_client(handler),
+            )
+
+    def test_a_rate_limited_token_request_preserves_the_retry_time(self):
+        def handler(request: httpx2.Request) -> httpx2.Response:
+            return httpx2.Response(429, headers={"retry-after": "120"})
+
+        with pytest.raises(core_exceptions.TooManyRequestsError) as caught:
+            oauth.exchange_code(
+                _metadata(),
+                contracts.CorosClientRegistration("client-1"),
+                "code-1",
+                "https://app.example.com/coros/callback",
+                "verifier-1",
+                client=_client(handler),
+            )
+
+        assert caught.value.retry_at is not None
+
+    @pytest.mark.parametrize("expires_in", ["not-a-number", -1, 1e100])
+    def test_an_unrepresentable_expiry_is_a_protocol_error(self, expires_in):
+        def handler(request: httpx2.Request) -> httpx2.Response:
+            return httpx2.Response(
+                200,
+                json={"access_token": "access", "refresh_token": "refresh", "expires_in": expires_in},
+            )
+
+        with pytest.raises(oauth.CorosProtocolError):
+            oauth.exchange_code(
+                _metadata(),
+                contracts.CorosClientRegistration("client-1"),
+                "code-1",
+                "https://app.example.com/coros/callback",
+                "verifier-1",
+                client=_client(handler),
+            )
+
+    def test_refresh_retains_the_old_refresh_token_when_coros_omits_a_new_one(self):
+        captured: dict = {}
+
+        def handler(request: httpx2.Request) -> httpx2.Response:
+            captured.update({key: value[0] for key, value in parse_qs(request.content.decode()).items()})
             return httpx2.Response(200, json={"access_token": "new-access", "expires_in": 60})
 
         tokens = oauth.refresh_tokens(
@@ -244,6 +322,7 @@ class TestTokens:
 
         assert tokens.access_token == "new-access"
         assert tokens.refresh_token == "old-refresh"
+        assert captured["resource"] == "https://mcpeu.coros.com/mcp"
 
     def test_revocation_posts_the_token_and_hint(self):
         captured: dict = {}
@@ -263,3 +342,20 @@ class TestTokens:
         assert captured["token"] == "refresh-1"
         assert captured["token_type_hint"] == "refresh_token"
         assert captured["client_id"] == "client-1"
+
+    def test_revocation_is_skipped_without_an_advertised_endpoint(self):
+        requested: list[str] = []
+
+        def handler(request: httpx2.Request) -> httpx2.Response:
+            requested.append(request.url.path)
+            return httpx2.Response(200)
+
+        oauth.revoke_token(
+            replace(_metadata(), revocation_endpoint=None),
+            contracts.CorosClientRegistration("client-1"),
+            "refresh-1",
+            "refresh_token",
+            client=_client(handler),
+        )
+
+        assert requested == []

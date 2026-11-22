@@ -47,3 +47,17 @@ class TestSkippedActivityModel:
         columns = coros_models.CorosSkippedActivity.__table__.columns
         assert columns["id"].type.python_type is uuid.UUID
         assert columns["user_id"].type.python_type is uuid.UUID
+
+
+class TestImportedActivityModel:
+    """A user cannot have the same activity marked complete twice."""
+
+    def test_user_and_label_are_unique_together(self):
+        constraints = coros_models.CorosImportedActivity.__table__.constraints
+        names = {constraint.name for constraint in constraints}
+        assert "uq_coros_imported_activities_user_label" in names
+
+    def test_ids_are_uuids(self):
+        columns = coros_models.CorosImportedActivity.__table__.columns
+        assert columns["id"].type.python_type is uuid.UUID
+        assert columns["user_id"].type.python_type is uuid.UUID

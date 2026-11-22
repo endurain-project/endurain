@@ -1064,29 +1064,6 @@ def get_activity_by_garminconnect_id_from_user_id(
     return activity_serializers.to_read_schema(activity)
 
 
-def get_activity_by_coros_id_from_user_id(
-    activity_coros_id: str, user_id: uuid.UUID, db: Session
-) -> activity_schema.ActivityRead | None:
-    """Get a user's activity by its COROS activity ID.
-
-    Args:
-        activity_coros_id: COROS activity ID.
-        user_id: Owner user ID.
-        db: Database session.
-
-    Returns:
-        Activity schema or None when not found.
-    """
-    stmt = select(activity_models.Activity).where(
-        activity_models.Activity.user_id == user_id,
-        activity_models.Activity.coros_activity_id == activity_coros_id,
-    )
-    activity = db.execute(stmt).scalars().first()
-    if not activity:
-        return None
-    return activity_serializers.to_read_schema(activity)
-
-
 def create_activity(
     activity: activity_contracts.ActivityCore,
     db: Session,

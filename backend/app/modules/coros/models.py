@@ -21,6 +21,8 @@ class CorosIntegration(Base):
         user_id: Foreign key to the owning user (unique).
         mcp_url: Regional MCP endpoint discovered during authorization.
         issuer: OAuth issuer discovered during authorization.
+        token_endpoint: Token endpoint advertised during discovery.
+        revocation_endpoint: Revocation endpoint advertised during discovery, when published.
         redirect_uri: Callback URI registered with COROS.
         scope: Granted OAuth scopes.
         client_id: Dynamically registered public OAuth client id.
@@ -63,6 +65,16 @@ class CorosIntegration(Base):
         String(255),
         nullable=True,
         comment="COROS OAuth issuer",
+    )
+    token_endpoint: Mapped[str | None] = mapped_column(
+        String(500),
+        nullable=True,
+        comment="COROS OAuth token endpoint advertised during discovery",
+    )
+    revocation_endpoint: Mapped[str | None] = mapped_column(
+        String(500),
+        nullable=True,
+        comment="COROS OAuth revocation endpoint advertised during discovery",
     )
     redirect_uri: Mapped[str | None] = mapped_column(
         String(500),
@@ -200,4 +212,40 @@ class CorosSkippedActivity(Base):
         DateTime(timezone=True),
         nullable=False,
         comment="When the activity was first skipped",
+    )
+
+
+class CorosImportedActivity(Base):
+    """An activity label whose FIT file was completely imported.
+
+    A FIT file can contain several sessions, and ingestion commits each one
+    separately. The marker is written only after every session succeeded, so a
+    partial import is downloaded again and its missing sessions are stored.
+
+    Attributes:
+        id: Primary key.
+        user_id: Foreign key to the owning user.
+        label_id: COROS activity identifier.
+        created_at: When the file's import completed.
+    """
+
+    __tablename__ = "coros_imported_activities"
+    __table_args__ = (UniqueConstraint("user_id", "label_id", name="uq_coros_imported_activities_user_label"),)
+
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    user_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+        comment="User ID that the imported COROS activity belongs to",
+    )
+    label_id: Mapped[str] = mapped_column(
+        String(64),
+        nullable=False,
+        comment="COROS activity identifier",
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+        comment="When the complete FIT file was imported",
     )

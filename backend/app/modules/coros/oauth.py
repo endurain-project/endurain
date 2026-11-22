@@ -10,12 +10,14 @@ import hashlib
 import re
 import secrets
 from datetime import UTC, datetime, timedelta
-from typing import Any
+from typing import Any, NoReturn
 from urllib.parse import urlparse
 
 import httpx2
 
+import core.exceptions as core_exceptions
 import core.logger as core_logger
+import core.provider_rate_limit as core_provider_rate_limit
 import modules.coros.constants as coros_constants
 import modules.coros.contracts as coros_contracts
 
@@ -86,6 +88,25 @@ def _client(client: httpx2.Client | None) -> httpx2.Client:
     return client or httpx2.Client(timeout=_HTTP_TIMEOUT_SECONDS, follow_redirects=True)
 
 
+def _raise_rate_limited(response: httpx2.Response, message: str) -> NoReturn:
+    """Raise the provider rate-limit error for a COROS 429 response.
+
+    Args:
+        response: The rate-limited response.
+        message: Safe error message.
+
+    Raises:
+        core_exceptions.TooManyRequestsError: Always, carrying when the limit clears.
+    """
+    raise core_exceptions.TooManyRequestsError(
+        message,
+        scope=core_exceptions.TooManyRequestsScope.PROVIDER,
+        retry_at=core_provider_rate_limit.retry_at(
+            core_provider_rate_limit.parse_retry_after(response.headers.get("retry-after"))
+        ),
+    )
+
+
 def _get_json(client: httpx2.Client, url: str) -> dict[str, Any]:
     """GET a JSON document and map transport failures to domain errors.
 
@@ -99,11 +120,14 @@ def _get_json(client: httpx2.Client, url: str) -> dict[str, Any]:
     Raises:
         CorosTransientError: On network, timeout or 5xx failures.
         CorosProtocolError: On a non-200 response or a non-object payload.
+        core_exceptions.TooManyRequestsError: When COROS rate limits discovery.
     """
     try:
         response = client.get(url)
     except (httpx2.TimeoutException, httpx2.RequestError) as err:
         raise CorosTransientError("COROS OAuth discovery failed") from err
+    if response.status_code == 429:
+        _raise_rate_limited(response, "COROS OAuth discovery is rate limited")
     if response.status_code >= 500:
         raise CorosTransientError("COROS OAuth discovery is unavailable")
     if response.status_code != 200:
@@ -202,11 +226,14 @@ def _discover_from_protected_resource(
 
     Raises:
         CorosProtocolError: When the endpoint does not advertise usable metadata.
+        core_exceptions.TooManyRequestsError: When COROS rate limits discovery.
     """
     try:
         response = client.get(coros_constants.MCP_URL)
     except (httpx2.TimeoutException, httpx2.RequestError) as err:
         raise CorosTransientError("COROS MCP discovery failed") from err
+    if response.status_code == 429:
+        _raise_rate_limited(response, "COROS OAuth discovery is rate limited")
     metadata_url = _resource_metadata_url(response.headers.get("www-authenticate", ""))
     if not metadata_url or not _is_coros_url(metadata_url):
         raise CorosProtocolError("COROS did not advertise OAuth metadata")
@@ -282,6 +309,7 @@ def register_client(
     Raises:
         CorosTransientError: When COROS cannot be reached.
         CorosProtocolError: When registration is rejected or malformed.
+        core_exceptions.TooManyRequestsError: When COROS rate limits registration.
     """
     if metadata.registration_endpoint is None:
         raise CorosProtocolError("COROS does not advertise dynamic client registration")
@@ -303,7 +331,9 @@ def register_client(
     finally:
         if client is None:
             http.close()
-    if response.status_code == 429 or response.status_code >= 500:
+    if response.status_code == 429:
+        _raise_rate_limited(response, "COROS client registration is rate limited")
+    if response.status_code >= 500:
         raise CorosTransientError("COROS client registration is unavailable")
     if response.status_code not in (200, 201):
         raise CorosProtocolError("COROS rejected client registration")
@@ -376,6 +406,7 @@ def _post_token(
         CorosTransientError: On network or server failures.
         CorosAuthenticationError: On a rejected grant or client.
         CorosProtocolError: On any other rejected request.
+        core_exceptions.TooManyRequestsError: When COROS rate limits the token endpoint.
     """
     http = _client(client)
     try:
@@ -385,7 +416,9 @@ def _post_token(
     finally:
         if client is None:
             http.close()
-    if response.status_code == 429 or response.status_code >= 500:
+    if response.status_code == 429:
+        _raise_rate_limited(response, "COROS token endpoint is rate limited")
+    if response.status_code >= 500:
         raise CorosTransientError("COROS token endpoint is unavailable")
     try:
         payload = response.json()
@@ -393,12 +426,46 @@ def _post_token(
         raise CorosProtocolError("COROS token endpoint returned invalid JSON") from err
     if response.status_code != 200:
         error = payload.get("error") if isinstance(payload, dict) else None
-        if error in {"invalid_grant", "invalid_client", "unauthorized_client"}:
+        if isinstance(error, str) and error in {"invalid_grant", "invalid_client", "unauthorized_client"}:
             raise CorosAuthenticationError("COROS rejected the OAuth grant")
         raise CorosProtocolError("COROS token request failed")
     if not isinstance(payload, dict):
         raise CorosProtocolError("COROS token response was not an object")
     return payload
+
+
+def _expiry(payload: dict[str, Any], key: str, now: datetime, fallback_days: int) -> datetime:
+    """Return a token expiry, rejecting values a datetime cannot represent.
+
+    A field COROS omits uses the documented fallback lifetime. A field it sends
+    but whose value is not a positive number of seconds is a malformed response.
+
+    Args:
+        payload: Token-endpoint response.
+        key: Expiry field name.
+        now: The token issue time.
+        fallback_days: Lifetime to use when the field is omitted.
+
+    Returns:
+        The expiry.
+
+    Raises:
+        CorosProtocolError: When a supplied value cannot become a datetime.
+    """
+    if key not in payload:
+        return now + timedelta(days=fallback_days)
+    value = payload[key]
+    if isinstance(value, str) and value.isdigit():
+        value = int(value)
+    if isinstance(value, bool) or not isinstance(value, int | float):
+        raise CorosProtocolError(f"COROS token response has an invalid {key}")
+    try:
+        seconds = int(value)
+        if seconds <= 0:
+            raise ValueError(key)
+        return now + timedelta(seconds=seconds)
+    except (OverflowError, ValueError) as err:
+        raise CorosProtocolError(f"COROS token response has an invalid {key}") from err
 
 
 def _token_set(
@@ -425,28 +492,13 @@ def _token_set(
     if not isinstance(refresh_token, str) or not refresh_token:
         raise CorosProtocolError("COROS token response has no refresh token")
     now = datetime.now(UTC)
-    expires_in = payload.get("expires_in")
-    if isinstance(expires_in, str) and expires_in.isdigit():
-        expires_in = int(expires_in)
-    access_seconds = (
-        int(expires_in)
-        if isinstance(expires_in, int | float) and expires_in > 0
-        else coros_constants.ACCESS_TOKEN_FALLBACK_DAYS * 86400
-    )
-    refresh_expires_in = payload.get("refresh_token_expires_in", payload.get("refresh_expires_in"))
-    if isinstance(refresh_expires_in, str) and refresh_expires_in.isdigit():
-        refresh_expires_in = int(refresh_expires_in)
-    refresh_seconds = (
-        int(refresh_expires_in)
-        if isinstance(refresh_expires_in, int | float) and refresh_expires_in > 0
-        else coros_constants.REFRESH_TOKEN_FALLBACK_DAYS * 86400
-    )
+    refresh_expiry_key = "refresh_token_expires_in" if "refresh_token_expires_in" in payload else "refresh_expires_in"
     scope = payload.get("scope")
     return coros_contracts.CorosTokenSet(
         access_token=access_token,
         refresh_token=refresh_token,
-        token_expires_at=now + timedelta(seconds=access_seconds),
-        refresh_token_expires_at=now + timedelta(seconds=refresh_seconds),
+        token_expires_at=_expiry(payload, "expires_in", now, coros_constants.ACCESS_TOKEN_FALLBACK_DAYS),
+        refresh_token_expires_at=_expiry(payload, refresh_expiry_key, now, coros_constants.REFRESH_TOKEN_FALLBACK_DAYS),
         scope=scope if isinstance(scope, str) and scope else coros_constants.SCOPE_STRING,
     )
 
@@ -478,6 +530,7 @@ def exchange_code(
         "code": code,
         "redirect_uri": redirect_uri,
         "code_verifier": code_verifier,
+        "resource": metadata.mcp_url,
     }
     if registration.client_secret:
         data["client_secret"] = registration.client_secret
@@ -505,6 +558,7 @@ def refresh_tokens(
         "grant_type": "refresh_token",
         "client_id": registration.client_id,
         "refresh_token": refresh_token,
+        "resource": metadata.mcp_url,
     }
     if registration.client_secret:
         data["client_secret"] = registration.client_secret

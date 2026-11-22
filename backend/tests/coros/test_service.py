@@ -73,6 +73,8 @@ class TestAuthorization:
         assert row.state is not None
         assert row.code_verifier is not None and row.code_verifier != "verifier"
         assert core_cryptography.decrypt_token_fernet(row.code_verifier) is not None
+        assert row.token_endpoint == "https://mcpeu.coros.com/oauth2/token"
+        assert row.revocation_endpoint == "https://mcpeu.coros.com/oauth2/revoke"
 
     def test_begin_authorization_reuses_a_client_registered_for_the_same_callback(self, db, monkeypatch):
         monkeypatch.setattr(coros_oauth, "discover_metadata", Mock(return_value=_metadata()))
@@ -157,6 +159,7 @@ class TestRefresh:
         assert connection.last_sync_activity_count == 4
         assert connection.fit_download_count == 10
         refresh.assert_called_once()
+        assert refresh.call_args.args[0].token_endpoint == "https://mcpeu.coros.com/oauth2/token"
 
     def test_an_expired_refresh_token_requires_reconnection(self, db, monkeypatch):
         monkeypatch.setattr(coros_oauth, "discover_metadata", Mock(return_value=_metadata()))
@@ -271,6 +274,7 @@ class TestAudit:
     def test_an_unlink_is_audited(self, db, monkeypatch):
         state = self._start_authorization(db, monkeypatch)
         coros_service.complete_link(USER_ID, "code", state, db)
+        monkeypatch.setattr(coros_oauth, "revoke_token", Mock())
 
         with jasil_testing.capture_audit() as audit:
             coros_service.unlink(USER_ID, Mock(), Mock(), db)
@@ -282,6 +286,34 @@ class TestAudit:
             target_id=str(USER_ID),
             target_owner_id=str(USER_ID),
         )
+
+
+class TestLinkQueueing:
+    """A committed link is not undone by a queueing failure."""
+
+    def test_a_failed_initial_sync_does_not_fail_a_committed_link(self, monkeypatch):
+        complete = Mock()
+        monkeypatch.setattr(coros_service, "complete_link", complete)
+        monkeypatch.setattr(coros_service, "request_initial_sync", Mock(side_effect=RuntimeError("queue down")))
+
+        coros_service.complete_link_and_queue_initial_sync(USER_ID, "code", "state", Mock(), Mock())
+
+        complete.assert_called_once()
+
+
+class TestImportedActivity:
+    """Completing an import is recorded once per user and label."""
+
+    def test_a_completion_marker_is_idempotent(self, db):
+        coros_crud.mark_activity_imported(USER_ID, "label-1", db)
+        db.commit()
+
+        assert coros_crud.is_activity_imported(USER_ID, "label-1", db) is True
+
+        coros_crud.mark_activity_imported(USER_ID, "label-1", db)
+        db.commit()
+
+        assert db.query(coros_models.CorosImportedActivity).filter_by(user_id=USER_ID, label_id="label-1").count() == 1
 
 
 class TestSkippedActivityRetry:
