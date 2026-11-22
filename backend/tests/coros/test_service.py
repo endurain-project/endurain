@@ -6,10 +6,13 @@ import uuid
 from datetime import UTC, datetime, timedelta
 from unittest.mock import Mock
 
+import jasil.testing as jasil_testing
 import pytest
+from sqlalchemy.orm import Session
 
 import core.cryptography as core_cryptography
 import core.exceptions as core_exceptions
+import modules.coros.audit_actions as coros_audit_actions
 import modules.coros.constants as constants
 import modules.coros.contracts as contracts
 import modules.coros.crud as coros_crud
@@ -146,7 +149,7 @@ class TestRefresh:
         row.fit_download_count = 10
         db.commit()
 
-        connection = coros_service.get_valid_connection(USER_ID, db)
+        connection = coros_service.get_valid_connection(USER_ID, db=db)
 
         assert connection.access_token == "new-access"
         assert connection.refresh_token == "new-refresh"
@@ -171,7 +174,7 @@ class TestRefresh:
         db.commit()
 
         with pytest.raises(coros_oauth.CorosAuthenticationError):
-            coros_service.get_valid_connection(USER_ID, db)
+            coros_service.get_valid_connection(USER_ID, db=db)
 
 
 class TestUnlinkAndQuota:
@@ -218,6 +221,67 @@ class TestUnlinkAndQuota:
 
         assert coros_crud.reserve_fit_download(USER_ID, db) is True
         assert row.fit_download_count == 1
+
+
+class TestAudit:
+    """A link and an unlink leave one audit row each."""
+
+    def _start_authorization(self, db: Session, monkeypatch) -> str:
+        monkeypatch.setattr(coros_oauth, "discover_metadata", Mock(return_value=_metadata()))
+        monkeypatch.setattr(
+            coros_oauth,
+            "register_client",
+            Mock(return_value=contracts.CorosClientRegistration("client-1")),
+        )
+        monkeypatch.setattr(coros_oauth, "exchange_code", Mock(return_value=_tokens()))
+        coros_service.begin_authorization(USER_ID, "https://app.example.com/coros/callback", db)
+        return db.query(coros_models.CorosIntegration).filter_by(user_id=USER_ID).one().state
+
+    def test_a_completed_link_is_audited(self, db, monkeypatch):
+        state = self._start_authorization(db, monkeypatch)
+
+        with jasil_testing.capture_audit() as audit:
+            coros_service.complete_link(USER_ID, "code", state, db)
+
+        entry = audit.assert_audited(
+            coros_audit_actions.ACCOUNT_LINK.id,
+            outcome="success",
+            target_type="user",
+            target_id=str(USER_ID),
+            target_owner_id=str(USER_ID),
+        )
+        assert entry.details == {"reason": None}
+
+    def test_a_refused_link_is_audited_with_its_reason(self, db):
+        with (
+            jasil_testing.capture_audit() as audit,
+            pytest.raises(core_exceptions.InvalidInputError),
+        ):
+            coros_service.complete_link(USER_ID, "code", "unknown-state", db)
+
+        entry = audit.assert_audited(
+            coros_audit_actions.ACCOUNT_LINK.id,
+            outcome="failure",
+            target_type="user",
+            target_id=str(USER_ID),
+            target_owner_id=str(USER_ID),
+        )
+        assert entry.details == {"reason": "invalid_state"}
+
+    def test_an_unlink_is_audited(self, db, monkeypatch):
+        state = self._start_authorization(db, monkeypatch)
+        coros_service.complete_link(USER_ID, "code", state, db)
+
+        with jasil_testing.capture_audit() as audit:
+            coros_service.unlink(USER_ID, Mock(), Mock(), db)
+
+        audit.assert_audited(
+            coros_audit_actions.ACCOUNT_UNLINK.id,
+            outcome="success",
+            target_type="user",
+            target_id=str(USER_ID),
+            target_owner_id=str(USER_ID),
+        )
 
 
 class TestSkippedActivityRetry:

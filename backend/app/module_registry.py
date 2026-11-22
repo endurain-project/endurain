@@ -76,6 +76,7 @@ import modules.auth.sessions.scheduled_jobs as auth_sessions_scheduled_jobs
 import modules.auth.sign_up_tokens.audit_actions as sign_up_tokens_audit_actions
 import modules.auth.sign_up_tokens.scheduled_jobs as sign_up_tokens_scheduled_jobs
 import modules.auth.sign_up_tokens.subscriber_registry as sign_up_tokens_subscriber_registry
+import modules.coros.audit_actions as coros_audit_actions
 import modules.coros.integration_service as coros_integration
 import modules.followers.audit_actions as followers_audit_actions
 import modules.followers.integration_service as followers_integration
@@ -494,6 +495,7 @@ MODULES: tuple[RuntimeModule, ...] = (
         audit_actions=users_profile_audit_actions.ACTIONS,
         shutdown=users_profile_integration.shutdown_transfer_pool,
     ),
+    RuntimeModule(name="coros", audit_actions=coros_audit_actions.ACTIONS),
     RuntimeModule(
         name="garmin",
         register_durable=garmin_subscriber_registry.register_durable_handlers,
