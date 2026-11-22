@@ -149,6 +149,7 @@ nav:
   - Backend reference:
     - Activities: reference/activities.md
     - Authentication: reference/authentication.md
+    - COROS: reference/coros.md
     - Followers: reference/followers.md
     - Garmin Connect: reference/garmin.md
     - Gears: reference/gears.md
