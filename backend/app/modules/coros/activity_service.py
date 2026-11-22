@@ -16,8 +16,9 @@ from urllib.parse import urljoin, urlparse
 
 import httpx2
 import jasil.providers as platform_providers
-import jasil.runtime as platform_runtime
+from jasil.container import Platform
 
+import core.exceptions as core_exceptions
 import core.file_uploads as core_file_uploads
 import core.logger as core_logger
 import core.network as core_network
@@ -391,7 +392,7 @@ def _ingest_fit(
                 upload_dir=work_dir,
                 filename="coros.fit",
             )
-        except Exception as err:
+        except core_exceptions.DomainError as err:
             logger.warning(
                 "COROS FIT file failed validation",
                 exc_info=err,
@@ -447,6 +448,10 @@ def _mark_skipped(user_id: uuid.UUID, label_id: str, reason: str) -> None:
     with SessionLocal() as db:
         coros_crud.mark_activity_skipped(user_id, label_id, reason, db)
         db.commit()
+        logger.debug(
+            "COROS activity marked skipped",
+            extra=core_logger.context(user_id=user_id, coros_activity_id=label_id),
+        )
 
 
 def _sync_locked(
@@ -497,7 +502,7 @@ def _sync_locked(
                     continue
                 if fit_bytes is None:
                     _mark_skipped(user_id, summary.label_id, "no_file")
-                    logger.info(
+                    logger.debug(
                         "COROS activity has no FIT file; marked skipped",
                         extra=core_logger.context(user_id=user_id, coros_activity_id=summary.label_id),
                     )
@@ -558,7 +563,7 @@ def _sync_locked(
     except Exception as err:
         coros_service.mark_sync_error(user_id, coros_constants.SyncErrorCode.PROCESSING_ERROR)
         logger.error("COROS sync failed unexpectedly", exc_info=err, extra=core_logger.context(user_id=user_id))
-        return None
+        raise
 
     if quota_exhausted:
         coros_service.mark_sync_error(user_id, coros_constants.SyncErrorCode.QUOTA_EXHAUSTED)
@@ -572,6 +577,7 @@ def _sync_locked(
 
 
 def get_user_coros_activities_by_dates(
+    platform: Platform,
     start_date: datetime,
     end_date: datetime,
     user_id: uuid.UUID,
@@ -583,6 +589,7 @@ def get_user_coros_activities_by_dates(
     session is held across an MCP or download call.
 
     Args:
+        platform: The platform providers, resolved by the caller.
         start_date: Inclusive start.
         end_date: Inclusive end.
         user_id: Owning user.
@@ -591,7 +598,6 @@ def get_user_coros_activities_by_dates(
         The stored activities, or None when COROS is not linked or nothing new
         arrived.
     """
-    platform = platform_runtime.get_active_platform()
     guard_key = f"coros:sync:{user_id}"
     guard_acquired = False
     try:
@@ -624,7 +630,7 @@ def get_user_coros_activities_by_dates(
         if guard_acquired:
             try:
                 platform.state.delete(guard_key)
-            except Exception as err:
+            except platform_providers.StateBackendUnavailableError as err:
                 logger.debug(
                     "Could not clear the COROS sync guard",
                     exc_info=err,

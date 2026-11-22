@@ -70,7 +70,7 @@ def begin_authorization(user_id: uuid.UUID, redirect_uri: str, db: Session) -> s
     try:
         metadata = coros_oauth.discover_metadata()
     except coros_oauth.CorosOAuthError as err:
-        logger.error(
+        logger.debug(
             "Unable to discover the COROS OAuth metadata",
             exc_info=err,
             extra=core_logger.context(user_id=user_id),
@@ -92,7 +92,7 @@ def begin_authorization(user_id: uuid.UUID, redirect_uri: str, db: Session) -> s
         try:
             registration = coros_oauth.register_client(metadata, redirect_uri)
         except coros_oauth.CorosOAuthError as err:
-            logger.error(
+            logger.debug(
                 "Unable to register the COROS OAuth client",
                 exc_info=err,
                 extra=core_logger.context(user_id=user_id),
@@ -265,6 +265,7 @@ def get_status(user_id: uuid.UUID, db: Session) -> coros_schema.CorosStatusRead:
 
 def get_valid_connection(
     user_id: uuid.UUID,
+    *,
     db: Session | None = None,
 ) -> coros_schema.CorosIntegrationData:
     """Return a connection with a usable access token, refreshing it if needed.
@@ -368,6 +369,7 @@ def mark_sync_success(user_id: uuid.UUID, activity_count: int) -> None:
     with core_database.SessionLocal() as db:
         coros_crud.mark_sync_success(user_id, activity_count, db)
         db.commit()
+        logger.debug("COROS sync success recorded", extra=core_logger.context(user_id=user_id))
 
 
 def mark_sync_error(user_id: uuid.UUID, error_code: coros_constants.SyncErrorCode) -> None:
@@ -380,6 +382,7 @@ def mark_sync_error(user_id: uuid.UUID, error_code: coros_constants.SyncErrorCod
     with core_database.SessionLocal() as db:
         coros_crud.mark_sync_error(user_id, error_code, db)
         db.commit()
+        logger.debug("COROS sync failure recorded", extra=core_logger.context(user_id=user_id))
 
 
 def reserve_fit_download(user_id: uuid.UUID) -> bool:
@@ -394,4 +397,5 @@ def reserve_fit_download(user_id: uuid.UUID) -> bool:
     with core_database.SessionLocal() as db:
         allowed = coros_crud.reserve_fit_download(user_id, db)
         db.commit()
+        logger.debug("COROS FIT download quota checked", extra=core_logger.context(user_id=user_id))
         return allowed

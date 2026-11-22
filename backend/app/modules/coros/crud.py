@@ -110,13 +110,13 @@ def create_if_missing(user_id: uuid.UUID, db: Session) -> coros_models.CorosInte
         updated_at=now,
     )
     try:
-        db.add(row)
-        db.flush()
+        with db.begin_nested():
+            db.add(row)
+            db.flush()
         return row
     except IntegrityError:
-        # A concurrent request created the row first; use it instead of
-        # surfacing a 500 for the same idempotent outcome.
-        db.rollback()
+        # A concurrent request created the row first. The savepoint keeps the
+        # caller's transaction usable, so the winner can be read back.
         existing = _get_model(user_id, db)
         if existing is None:
             raise
