@@ -10,6 +10,7 @@ import hashlib
 import re
 import secrets
 from datetime import UTC, datetime, timedelta
+from typing import Any
 from urllib.parse import urlparse
 
 import httpx2
@@ -85,7 +86,7 @@ def _client(client: httpx2.Client | None) -> httpx2.Client:
     return client or httpx2.Client(timeout=_HTTP_TIMEOUT_SECONDS, follow_redirects=True)
 
 
-def _get_json(client: httpx2.Client, url: str) -> dict:
+def _get_json(client: httpx2.Client, url: str) -> dict[str, Any]:
     """GET a JSON document and map transport failures to domain errors.
 
     Args:
@@ -164,7 +165,7 @@ def discover_metadata(client: httpx2.Client | None = None) -> coros_contracts.Co
             http.close()
 
 
-def _metadata_from_oidc(payload: dict, client: httpx2.Client) -> coros_contracts.CorosOAuthMetadata | None:
+def _metadata_from_oidc(payload: dict[str, Any], client: httpx2.Client) -> coros_contracts.CorosOAuthMetadata | None:
     """Build metadata from an OIDC document, falling back to resource metadata.
 
     Args:
@@ -222,7 +223,7 @@ def _discover_from_protected_resource(
     return _build_metadata(payload, mcp_url)
 
 
-def _build_metadata(payload: dict, mcp_url: str) -> coros_contracts.CorosOAuthMetadata:
+def _build_metadata(payload: dict[str, Any], mcp_url: str) -> coros_contracts.CorosOAuthMetadata:
     """Validate an authorization-server document and build the contract.
 
     Args:
@@ -360,7 +361,7 @@ def _post_token(
     metadata: coros_contracts.CorosOAuthMetadata,
     data: dict[str, str],
     client: httpx2.Client | None,
-) -> dict:
+) -> dict[str, Any]:
     """POST a token-endpoint form and return its JSON payload.
 
     Args:
@@ -401,7 +402,7 @@ def _post_token(
 
 
 def _token_set(
-    payload: dict,
+    payload: dict[str, Any],
     *,
     fallback_refresh_token: str | None = None,
 ) -> coros_contracts.CorosTokenSet:
