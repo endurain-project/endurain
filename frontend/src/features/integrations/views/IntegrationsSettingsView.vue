@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import CorosCard from '@/features/integrations/components/CorosCard.vue'
@@ -9,9 +9,24 @@ import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { ErrorState } from '@/components/ui/error-state'
 import { Skeleton } from '@/components/ui/skeleton'
+import { useToasts } from '@/composables/useToasts'
 import { useProfileQuery } from '@/features/profile/composables/useProfile'
+import { consumeIdpStepUpReturn } from '@/features/security/composables/useIdpStepUp'
 
 const { t } = useI18n()
+const toasts = useToasts()
+
+// Returning from an identity-provider sign-in, the callback leaves its outcome in the URL fragment. It is
+// consumed once; the card the sign-in was for reopens its step-up dialog, and a failure is reported once.
+const stepUpReturn = consumeIdpStepUpReturn()
+const resume = stepUpReturn && !stepUpReturn.error ? stepUpReturn : null
+onMounted(() => {
+  if (stepUpReturn?.error === 'not_fresh') {
+    toasts.error(t('settings.security.stepUp.notFresh'))
+  } else if (stepUpReturn?.error) {
+    toasts.error(t('settings.security.stepUp.failed'))
+  }
+})
 
 // The self-profile carries the Strava/Garmin link flags that gate each card's
 // connect-vs-options state; link/unlink mutations invalidate it.
@@ -55,9 +70,15 @@ const profile = computed(() => profileQuery.data.value ?? null)
 
     <!-- Loaded -->
     <template v-else-if="profile">
-      <StravaCard :linked="profile.stravaLinked" />
-      <GarminCard :linked="profile.garminLinked" />
-      <CorosCard :linked="profile.corosLinked" />
+      <StravaCard
+        :linked="profile.stravaLinked"
+        :revoked-at="profile.stravaRevokedAt"
+        :data-deletion-at="profile.stravaDataDeletionAt"
+        :integrations-version="profile.integrationsVersion"
+        :resume="resume"
+      />
+      <GarminCard :linked="profile.garminLinked" :resume="resume" />
+      <CorosCard :linked="profile.corosLinked" :resume="resume" />
     </template>
   </div>
 </template>

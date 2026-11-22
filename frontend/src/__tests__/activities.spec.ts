@@ -1,26 +1,32 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import type { ActivityDto, ActivityLapDto, ActivityStreamDto } from '@/features/activities/types'
 
 import { apiFetch } from '@/services/http'
+import { queryKeys } from '@/services/queryKeys'
 import {
   deleteActivity,
   editActivity,
   fetchActivity,
+  fetchActivityDetail,
   fetchActivityLaps,
   fetchActivityStats,
   fetchActivityStreams,
+  fetchFollowersActivities,
   fetchUserActivitiesPage,
-  fetchUserActivityTypeCodes,
-  fetchUserActivityTypeMap,
+  fetchUserActivityTypes,
   fetchUserWeekActivities,
   mapActivity,
+  mapActivitySummary,
   mapActivityLap,
   mapActivityStream,
   searchActivitiesByName,
   setActivityGear,
   updateUserActivitiesVisibility,
 } from '@/features/activities/services/activities'
+import { activityUuid, userUuid } from './fixtures/activity'
+
+const ACTIVITY_ID = activityUuid(5)
 
 vi.mock('@/services/http', () => {
   class HttpError extends Error {
@@ -28,6 +34,7 @@ vi.mock('@/services/http', () => {
       readonly status: number,
       statusText: string,
       readonly detail: unknown = null,
+      readonly type: string | null = null,
     ) {
       super(`HTTP ${status} ${statusText}`)
       this.name = 'HttpError'
@@ -37,15 +44,15 @@ vi.mock('@/services/http', () => {
 })
 
 const activityDto: ActivityDto = {
-  id: 5,
+  id: ACTIVITY_ID,
   version: 3,
-  user_id: 7,
+  user_id: userUuid(7),
   name: 'Morning run',
   description: 'Felt great',
-  activity_type: 1,
+  activity_type: 'run',
   distance: 10000,
   is_hidden: false,
-  visibility: 1,
+  visibility: 'followers',
   total_elapsed_time: 3600,
   total_timer_time: 3500,
   average_hr: 150,
@@ -61,12 +68,12 @@ describe('mapActivity', () => {
   it('maps wire fields and collapses nullable defaults', () => {
     const activity = mapActivity(activityDto)
     expect(activity).toMatchObject({
-      id: 5,
-      userId: 7,
+      id: ACTIVITY_ID,
+      userId: userUuid(7),
       name: 'Morning run',
       description: 'Felt great',
-      activityType: 1,
-      visibility: 1,
+      activityType: 'run',
+      visibility: 'followers',
       distance: 10000,
       averageHr: 150,
       stravaActivityId: 999,
@@ -75,33 +82,92 @@ describe('mapActivity', () => {
     expect(activity.privacy.hideMap).toBe(false)
   })
 
+  it('maps the embedded media, and defaults it to none', () => {
+    const media = [
+      {
+        id: activityUuid(9),
+        activity_id: ACTIVITY_ID,
+        media_type: 'photo' as const,
+        url: `/media/${ACTIVITY_ID}/${activityUuid(9)}?t=abc`,
+      },
+    ]
+    expect(mapActivity({ ...activityDto, media }).media).toEqual([
+      expect.objectContaining({ id: activityUuid(9), activityId: ACTIVITY_ID }),
+    ])
+    expect(mapActivity(activityDto).media).toEqual([])
+  })
+
   it('defaults a missing visibility', () => {
     const activity = mapActivity({ ...activityDto, visibility: null })
-    expect(activity.visibility).toBe(0)
+    expect(activity.visibility).toBe('public')
+  })
+})
+
+describe('mapActivitySummary', () => {
+  it('maps the list fields and has no private notes', () => {
+    const dto: ActivityDto = { ...activityDto, private_notes: 'secret' }
+    const summary = mapActivitySummary(dto)
+
+    expect(summary).toMatchObject({
+      id: ACTIVITY_ID,
+      userId: userUuid(7),
+      name: 'Morning run',
+      version: 3,
+    })
+    expect(summary.privacy.hideHr).toBe(true)
+    expect(summary).not.toHaveProperty('privateNotes')
+  })
+
+  it('is the base the full mapper builds on', () => {
+    const dto: ActivityDto = { ...activityDto, private_notes: 'secret' }
+    const { privateNotes, ...rest } = mapActivity(dto)
+
+    expect(privateNotes).toBe('secret')
+    expect(rest).toEqual(mapActivitySummary(dto))
+    expect(mapActivity(activityDto).privateNotes).toBeNull()
   })
 })
 
 describe('mapActivityStream', () => {
   it('maps stream type and waypoints with no HR zones', () => {
     const dto: ActivityStreamDto = {
-      id: 3,
-      activity_id: 5,
-      stream_type: 1,
+      id: activityUuid(3),
+      activity_id: ACTIVITY_ID,
+      stream_type: 'heart_rate',
       stream_waypoints: [{ hr: 120 }],
     }
     expect(mapActivityStream(dto)).toEqual({
-      id: 3,
-      streamType: 1,
+      id: activityUuid(3),
+      streamType: 'heart_rate',
       waypoints: [{ hr: 120 }],
+      hrZones: null,
+    })
+  })
+
+  it('keeps the typed waypoints of a map stream, whatever its sample times', () => {
+    const dto: ActivityStreamDto = {
+      id: activityUuid(4),
+      activity_id: ACTIVITY_ID,
+      stream_type: 'map',
+      stream_waypoints: [
+        { time: '2026-06-20T08:20:00', lat: 38.7223, lon: -9.1393 },
+        { time: 0.5, lat: 38.72, lon: -9.14 },
+        { lat: 38.7, lon: -9.1 },
+      ],
+    }
+    expect(mapActivityStream(dto)).toEqual({
+      id: activityUuid(4),
+      streamType: 'map',
+      waypoints: dto.stream_waypoints,
       hrZones: null,
     })
   })
 
   it('decodes the HR zone_percentages block into ordered buckets', () => {
     const dto: ActivityStreamDto = {
-      id: 3,
-      activity_id: 5,
-      stream_type: 1,
+      id: activityUuid(3),
+      activity_id: ACTIVITY_ID,
+      stream_type: 'heart_rate',
       stream_waypoints: [{ hr: 120 }],
       zone_percentages: {
         hr: {
@@ -128,24 +194,13 @@ describe('mapActivityStream', () => {
       timeSeconds: 180,
     })
   })
-
-  it('returns null HR zones for a malformed payload', () => {
-    const dto: ActivityStreamDto = {
-      id: 3,
-      activity_id: 5,
-      stream_type: 1,
-      stream_waypoints: [],
-      zone_percentages: { other: {} },
-    }
-    expect(mapActivityStream(dto).hrZones).toBeNull()
-  })
 })
 
 describe('mapActivityLap', () => {
   it('maps the consumed lap fields', () => {
     const dto: ActivityLapDto = {
-      id: 2,
-      activity_id: 5,
+      id: activityUuid(2),
+      activity_id: ACTIVITY_ID,
       start_time: '2024-05-01T07:00:00',
       total_distance: 1000,
       total_elapsed_time: 300,
@@ -153,7 +208,7 @@ describe('mapActivityLap', () => {
       avg_heart_rate: 150,
     }
     expect(mapActivityLap(dto)).toMatchObject({
-      id: 2,
+      id: activityUuid(2),
       totalDistance: 1000,
       totalElapsedTime: 300,
       enhancedAvgPace: 0.3,
@@ -163,32 +218,109 @@ describe('mapActivityLap', () => {
 })
 
 describe('fetchActivity', () => {
-  it('uses the authenticated endpoint when logged in', async () => {
+  it('reads the authenticated endpoint', async () => {
     vi.mocked(apiFetch).mockResolvedValueOnce(activityDto)
-    const activity = await fetchActivity(5, { authenticated: true })
-    expect(apiFetch).toHaveBeenCalledWith('/activities/5', expect.objectContaining({ auth: true }))
-    expect(activity?.id).toBe(5)
-  })
-
-  it('uses the public endpoint when unauthenticated', async () => {
-    vi.mocked(apiFetch).mockResolvedValueOnce(activityDto)
-    await fetchActivity(5, { authenticated: false })
-    expect(apiFetch).toHaveBeenCalledWith(
-      '/public/activities/5',
-      expect.objectContaining({ auth: false }),
-    )
+    const activity = await fetchActivity(ACTIVITY_ID)
+    expect(apiFetch).toHaveBeenCalledWith(`/activities/${ACTIVITY_ID}`)
+    expect(activity?.id).toBe(ACTIVITY_ID)
   })
 
   it('returns null on a 404/422 response', async () => {
     const { HttpError } = await import('@/services/http')
-    vi.mocked(apiFetch).mockRejectedValueOnce(new HttpError(404, 'Not Found'))
-    expect(await fetchActivity(5, { authenticated: true })).toBeNull()
+    vi.mocked(apiFetch).mockRejectedValueOnce(
+      new HttpError(404, 'Not Found', null, 'urn:endurain:error:not-found'),
+    )
+    expect(await fetchActivity(ACTIVITY_ID)).toBeNull()
   })
 
   it('rethrows non-not-found errors', async () => {
     const { HttpError } = await import('@/services/http')
     vi.mocked(apiFetch).mockRejectedValueOnce(new HttpError(500, 'Server Error'))
-    await expect(fetchActivity(5, { authenticated: true })).rejects.toBeInstanceOf(HttpError)
+    await expect(fetchActivity(ACTIVITY_ID)).rejects.toBeInstanceOf(HttpError)
+  })
+})
+
+describe('fetchActivityDetail', () => {
+  const lapDto = { id: activityUuid(1), total_distance: 1000 }
+  const setDto = { id: activityUuid(2), duration: 30, set_type: 1 }
+  const stepDto = { duration_type: 1, message_index: 0 }
+  const page = (items: unknown[], next: number | null = null) => ({
+    items,
+    total: items.length,
+    page: 1,
+    num_records: 200,
+    next,
+  })
+  const detailDto = {
+    activity: activityDto,
+    laps: page([lapDto]),
+    sets: page([setDto]),
+    workout_steps: page([stepDto]),
+    owner: null,
+  }
+
+  it('maps the owner the detail carries, and keeps a hidden one null', async () => {
+    const owner = { id: userUuid(7), name: 'Jane Runner', username: 'jane', photo_path: null }
+    vi.mocked(apiFetch).mockResolvedValueOnce({ ...detailDto, owner })
+    vi.mocked(apiFetch).mockResolvedValueOnce(detailDto)
+
+    const shown = await fetchActivityDetail(ACTIVITY_ID, { authenticated: false })
+    const hidden = await fetchActivityDetail(ACTIVITY_ID, { authenticated: false })
+
+    expect(shown?.owner).toMatchObject({ name: 'Jane Runner', username: 'jane' })
+    expect(hidden?.owner).toBeNull()
+  })
+
+  it('reads the activity and its collections in one request', async () => {
+    vi.mocked(apiFetch).mockResolvedValueOnce(detailDto)
+
+    const detail = await fetchActivityDetail(ACTIVITY_ID, { authenticated: true })
+
+    expect(apiFetch).toHaveBeenCalledExactlyOnceWith(
+      `/activities/${ACTIVITY_ID}/detail`,
+      expect.objectContaining({ auth: true }),
+    )
+    expect(detail?.activity.id).toBe(ACTIVITY_ID)
+    expect(detail?.laps).toHaveLength(1)
+    expect(detail?.laps?.[0]).toMatchObject({ id: activityUuid(1), totalDistance: 1000 })
+    expect(detail?.sets?.[0]).toMatchObject({ id: activityUuid(2), duration: 30 })
+    expect(detail?.workoutSteps?.[0]).toMatchObject({ messageIndex: 0 })
+  })
+
+  it('uses the public endpoint when unauthenticated', async () => {
+    vi.mocked(apiFetch).mockResolvedValueOnce(detailDto)
+
+    await fetchActivityDetail(ACTIVITY_ID, { authenticated: false })
+
+    expect(apiFetch).toHaveBeenCalledWith(
+      `/public/activities/${ACTIVITY_ID}/detail`,
+      expect.objectContaining({ auth: false }),
+    )
+  })
+
+  it('reports a collection with more pages as incomplete, to be read in full separately', async () => {
+    vi.mocked(apiFetch).mockResolvedValueOnce({ ...detailDto, laps: page([lapDto], 2) })
+
+    const detail = await fetchActivityDetail(ACTIVITY_ID, { authenticated: true })
+
+    expect(detail?.laps).toBeNull()
+    expect(detail?.sets).toHaveLength(1)
+  })
+
+  it('returns null on a 404/422 response', async () => {
+    const { HttpError } = await import('@/services/http')
+    vi.mocked(apiFetch).mockRejectedValueOnce(
+      new HttpError(404, 'Not Found', null, 'urn:endurain:error:not-found'),
+    )
+    expect(await fetchActivityDetail(ACTIVITY_ID, { authenticated: true })).toBeNull()
+  })
+
+  it('rethrows non-not-found errors', async () => {
+    const { HttpError } = await import('@/services/http')
+    vi.mocked(apiFetch).mockRejectedValueOnce(new HttpError(500, 'Server Error'))
+    await expect(fetchActivityDetail(ACTIVITY_ID, { authenticated: true })).rejects.toBeInstanceOf(
+      HttpError,
+    )
   })
 })
 
@@ -203,11 +335,11 @@ describe('searchActivitiesByName', () => {
     })
     const result = await searchActivitiesByName('morning run')
     expect(apiFetch).toHaveBeenCalledWith(
-      '/activities?name=morning+run',
+      '/activities?name_contains=morning+run',
       expect.objectContaining({ signal: undefined }),
     )
     expect(result).toHaveLength(1)
-    expect(result[0]?.id).toBe(5)
+    expect(result[0]?.id).toBe(ACTIVITY_ID)
   })
 
   it('treats an empty page as no matches', async () => {
@@ -222,6 +354,14 @@ describe('searchActivitiesByName', () => {
   })
 })
 
+describe('week activities query key', () => {
+  it('differs by first day of the week, so a changed setting refetches', () => {
+    expect(queryKeys.activities.weekActivities(userUuid(7), 1, 'monday')).not.toEqual(
+      queryKeys.activities.weekActivities(userUuid(7), 1, 'sunday'),
+    )
+  })
+})
+
 describe('fetchUserWeekActivities', () => {
   it('requests the user week endpoint and maps the results', async () => {
     vi.mocked(apiFetch).mockResolvedValueOnce({
@@ -231,15 +371,47 @@ describe('fetchUserWeekActivities', () => {
       num_records: 200,
       next: null,
     })
-    const result = await fetchUserWeekActivities(7, 3)
+    const result = await fetchUserWeekActivities(userUuid(7), 3, 'monday')
     expect(apiFetch).toHaveBeenCalledWith(
       expect.stringMatching(
-        /^\/activities\/users\/7\?start_date=\d{4}-\d{2}-\d{2}&end_date=\d{4}-\d{2}-\d{2}&num_records=200$/,
+        new RegExp(
+          `^/users/${userUuid(7)}/activities\\?start_date=\\d{4}-\\d{2}-\\d{2}&end_date=\\d{4}-\\d{2}-\\d{2}&num_records=200$`,
+        ),
       ),
       expect.objectContaining({ signal: undefined }),
     )
     expect(result).toHaveLength(1)
-    expect(result[0]?.id).toBe(5)
+    expect(result[0]?.id).toBe(ACTIVITY_ID)
+  })
+
+  describe('with a fixed date', () => {
+    beforeEach(() => {
+      vi.useFakeTimers()
+      // A Wednesday.
+      vi.setSystemTime(new Date(2026, 10, 4, 12))
+      vi.mocked(apiFetch).mockResolvedValue({ items: [] })
+    })
+    afterEach(() => {
+      vi.useRealTimers()
+    })
+
+    const requestedParams = (): URLSearchParams => {
+      const url = vi.mocked(apiFetch).mock.calls[0]?.[0] as string
+      return new URLSearchParams(url.split('?')[1])
+    }
+
+    it("starts the week on the viewer's first day of the week", async () => {
+      await fetchUserWeekActivities(userUuid(7), 0, 'sunday')
+      expect(requestedParams().get('start_date')).toBe('2026-11-01')
+      expect(requestedParams().get('end_date')).toBe('2026-11-07')
+    })
+
+    it('leaves the oldest bucket open-ended, ending before week 50 starts', async () => {
+      await fetchUserWeekActivities(userUuid(7), 51, 'monday')
+      // Week 50 starts 2025-11-17 (a Monday), so the bucket ends the day before.
+      expect(requestedParams().has('start_date')).toBe(false)
+      expect(requestedParams().get('end_date')).toBe('2025-11-16')
+    })
   })
 
   it('treats an empty page as no activities', async () => {
@@ -250,42 +422,42 @@ describe('fetchUserWeekActivities', () => {
       num_records: 200,
       next: null,
     })
-    await expect(fetchUserWeekActivities(7, 0)).resolves.toEqual([])
+    await expect(fetchUserWeekActivities(userUuid(7), 0, 'monday')).resolves.toEqual([])
   })
 })
 
 describe('fetchActivityStreams', () => {
   it('requests the authenticated and public stream endpoints', async () => {
     vi.mocked(apiFetch).mockResolvedValue({ items: [], next: null })
-    await fetchActivityStreams(5, { authenticated: true })
+    await fetchActivityStreams(ACTIVITY_ID, { authenticated: true })
     expect(apiFetch).toHaveBeenCalledWith(
-      '/activities/5/streams?page_number=1',
+      `/activities/${ACTIVITY_ID}/streams?num_records=200&page_number=1`,
       expect.objectContaining({ auth: true }),
     )
-    await fetchActivityStreams(5, { authenticated: false })
+    await fetchActivityStreams(ACTIVITY_ID, { authenticated: false })
     expect(apiFetch).toHaveBeenCalledWith(
-      '/public/activities/5/streams?page_number=1',
+      `/public/activities/${ACTIVITY_ID}/streams?num_records=200&page_number=1`,
       expect.objectContaining({ auth: false }),
     )
   })
 
   it('maps an empty page to an empty array', async () => {
     vi.mocked(apiFetch).mockResolvedValueOnce({ items: null, next: null })
-    expect(await fetchActivityStreams(5, { authenticated: true })).toEqual([])
+    expect(await fetchActivityStreams(ACTIVITY_ID, { authenticated: true })).toEqual([])
   })
 })
 
 describe('fetchActivityLaps', () => {
   it('requests the authenticated and public lap endpoints', async () => {
     vi.mocked(apiFetch).mockResolvedValue({ items: [], next: null })
-    await fetchActivityLaps(5, { authenticated: true })
+    await fetchActivityLaps(ACTIVITY_ID, { authenticated: true })
     expect(apiFetch).toHaveBeenCalledWith(
-      '/activities/5/laps?page_number=1',
+      `/activities/${ACTIVITY_ID}/laps?num_records=200&page_number=1`,
       expect.objectContaining({ auth: true }),
     )
-    await fetchActivityLaps(5, { authenticated: false })
+    await fetchActivityLaps(ACTIVITY_ID, { authenticated: false })
     expect(apiFetch).toHaveBeenCalledWith(
-      '/public/activities/5/laps?page_number=1',
+      `/public/activities/${ACTIVITY_ID}/laps?num_records=200&page_number=1`,
       expect.objectContaining({ auth: false }),
     )
   })
@@ -293,16 +465,20 @@ describe('fetchActivityLaps', () => {
   it('walks every page the server advertises', async () => {
     // The read is paginated server-side; showing only page 1 would silently
     // drop laps from a long activity.
-    const lap = { id: 1, activity_id: 5, start_time: '2024-01-15T08:00:00Z' }
+    const lap = {
+      id: activityUuid(1),
+      activity_id: ACTIVITY_ID,
+      start_time: '2024-01-15T08:00:00Z',
+    }
     vi.mocked(apiFetch)
       .mockResolvedValueOnce({ items: [lap], next: 2 })
-      .mockResolvedValueOnce({ items: [{ ...lap, id: 2 }], next: null })
+      .mockResolvedValueOnce({ items: [{ ...lap, id: activityUuid(2) }], next: null })
 
-    const laps = await fetchActivityLaps(5, { authenticated: true })
+    const laps = await fetchActivityLaps(ACTIVITY_ID, { authenticated: true })
 
     expect(laps).toHaveLength(2)
     expect(apiFetch).toHaveBeenLastCalledWith(
-      '/activities/5/laps?page_number=2',
+      `/activities/${ACTIVITY_ID}/laps?num_records=200&page_number=2`,
       expect.objectContaining({ auth: true }),
     )
   })
@@ -311,16 +487,19 @@ describe('fetchActivityLaps', () => {
 describe('setActivityGear', () => {
   it('sends the required edit fields plus the gear id and maps the result', async () => {
     const activity = mapActivity(activityDto)
-    vi.mocked(apiFetch).mockResolvedValueOnce({ ...activityDto, gear_id: 42 })
+    vi.mocked(apiFetch).mockResolvedValueOnce({
+      ...activityDto,
+      gear_id: '00000000-0000-4000-8000-000000000042',
+    })
 
-    const updated = await setActivityGear(activity, 42)
+    const updated = await setActivityGear(activity, '00000000-0000-4000-8000-000000000042')
 
-    expect(apiFetch).toHaveBeenCalledWith('/activities/5', {
+    expect(apiFetch).toHaveBeenCalledWith(`/activities/${ACTIVITY_ID}`, {
       method: 'PATCH',
-      body: JSON.stringify({ gear_id: 42 }),
+      body: JSON.stringify({ gear_id: '00000000-0000-4000-8000-000000000042' }),
       headers: { 'If-Match': '"3"' },
     })
-    expect(updated.gearId).toBe(42)
+    expect(updated.gearId).toBe('00000000-0000-4000-8000-000000000042')
   })
 
   it('clears the association when the gear id is null', async () => {
@@ -329,22 +508,20 @@ describe('setActivityGear', () => {
 
     await setActivityGear(activity, null)
 
-    expect(apiFetch).toHaveBeenCalledWith('/activities/5', {
+    expect(apiFetch).toHaveBeenCalledWith(`/activities/${ACTIVITY_ID}`, {
       method: 'PATCH',
       body: JSON.stringify({ gear_id: null }),
       headers: { 'If-Match': '"3"' },
     })
   })
 
-  it('omits If-Match when the copy carries no version', async () => {
-    // A conditional write needs something to be conditional on; sending a made
-    // up tag would fail every save.
-    const activity = { ...mapActivity(activityDto), version: null }
+  it('sends a version no stored row has when the copy carries none, so the backend refuses it', async () => {
+    const activity = mapActivity({ ...activityDto, version: null })
     vi.mocked(apiFetch).mockResolvedValueOnce(activityDto)
 
-    await setActivityGear(activity, 42)
+    await setActivityGear(activity, '00000000-0000-4000-8000-000000000042')
 
-    expect(vi.mocked(apiFetch).mock.lastCall?.[1]?.headers).toEqual({})
+    expect(vi.mocked(apiFetch).mock.lastCall?.[1]?.headers).toEqual({ 'If-Match': '"0"' })
   })
 })
 
@@ -352,39 +529,64 @@ describe('deleteActivity', () => {
   it('sends a DELETE to the activity delete endpoint', async () => {
     vi.mocked(apiFetch).mockResolvedValueOnce({ detail: 'deleted' })
 
-    await deleteActivity(5)
+    await deleteActivity(ACTIVITY_ID, 3)
 
-    expect(apiFetch).toHaveBeenCalledWith('/activities/5', { method: 'DELETE' })
+    expect(apiFetch).toHaveBeenCalledWith(`/activities/${ACTIVITY_ID}`, {
+      method: 'DELETE',
+      headers: { 'If-Match': '"3"' },
+    })
   })
 })
 
 describe('updateUserActivitiesVisibility', () => {
-  it('patches the collection with the wire value for the requested visibility', async () => {
-    vi.mocked(apiFetch).mockResolvedValueOnce(undefined)
+  const bulkEdit = (status: string) => ({
+    id: '00000000-0000-4000-8000-0000000000a1',
+    kind: 'activities_bulk_edit',
+    status,
+    created_at: '2026-01-01T00:00:00Z',
+  })
+
+  it('patches the collection with the requested visibility', async () => {
+    vi.mocked(apiFetch)
+      .mockResolvedValueOnce(bulkEdit('queued'))
+      .mockResolvedValueOnce(bulkEdit('succeeded'))
 
     await updateUserActivitiesVisibility('followers')
 
-    // The profile UI works in names, the activities API in integers; sending
-    // the name produced a 422 before this mapping existed.
     expect(apiFetch).toHaveBeenCalledWith('/activities', {
       method: 'PATCH',
-      body: JSON.stringify({ visibility: 1 }),
-      responseType: 'void',
+      body: JSON.stringify({ visibility: 'followers' }),
     })
   })
 
-  it('maps every visibility level to its wire value', async () => {
-    for (const [name, wire] of [
-      ['public', 0],
-      ['followers', 1],
-      ['private', 2],
-    ] as const) {
-      vi.mocked(apiFetch).mockResolvedValueOnce(undefined)
-      await updateUserActivitiesVisibility(name)
-      expect(vi.mocked(apiFetch).mock.lastCall?.[1]).toMatchObject({
-        body: JSON.stringify({ visibility: wire }),
+  it('follows the queued edit job until it completes', async () => {
+    vi.useFakeTimers()
+    try {
+      vi.mocked(apiFetch)
+        .mockResolvedValueOnce(bulkEdit('queued'))
+        .mockResolvedValueOnce(bulkEdit('running'))
+        .mockResolvedValueOnce(bulkEdit('succeeded'))
+
+      const done = updateUserActivitiesVisibility('private')
+      await vi.advanceTimersByTimeAsync(2_000)
+      await vi.advanceTimersByTimeAsync(2_000)
+      await done
+
+      expect(apiFetch).toHaveBeenNthCalledWith(2, '/jobs/00000000-0000-4000-8000-0000000000a1', {
+        signal: undefined,
       })
+      expect(apiFetch).toHaveBeenCalledTimes(3)
+    } finally {
+      vi.useRealTimers()
     }
+  })
+
+  it('reports an edit that failed on the server', async () => {
+    vi.mocked(apiFetch)
+      .mockResolvedValueOnce(bulkEdit('queued'))
+      .mockResolvedValueOnce(bulkEdit('failed'))
+
+    await expect(updateUserActivitiesVisibility('private')).rejects.toThrow(/failed/)
   })
 })
 
@@ -393,39 +595,43 @@ describe('editActivity', () => {
     vi.mocked(apiFetch).mockResolvedValueOnce({
       ...activityDto,
       name: 'Evening run',
-      visibility: 2,
+      visibility: 'private',
     })
 
-    const updated = await editActivity(5, {
-      name: 'Evening run',
-      activityType: 1,
-      description: '',
-      privateNotes: 'note',
-      visibility: 2,
-      isHidden: true,
-      hideStartTime: false,
-      hideLocation: false,
-      hideMap: true,
-      hideHr: false,
-      hidePower: false,
-      hideCadence: false,
-      hideElevation: false,
-      hideSpeed: false,
-      hidePace: false,
-      hideLaps: false,
-      hideWorkoutSetsSteps: false,
-      hideGear: false,
-    })
+    const updated = await editActivity(
+      ACTIVITY_ID,
+      {
+        name: 'Evening run',
+        activityType: 'run',
+        description: '',
+        privateNotes: 'note',
+        visibility: 'private',
+        isHidden: true,
+        hideStartTime: false,
+        hideLocation: false,
+        hideMap: true,
+        hideHr: false,
+        hidePower: false,
+        hideCadence: false,
+        hideElevation: false,
+        hideSpeed: false,
+        hidePace: false,
+        hideLaps: false,
+        hideWorkoutSetsSteps: false,
+        hideGear: false,
+      },
+      3,
+    )
 
-    expect(apiFetch).toHaveBeenCalledWith('/activities/5', {
+    expect(apiFetch).toHaveBeenCalledWith(`/activities/${ACTIVITY_ID}`, {
       method: 'PATCH',
-      headers: {},
+      headers: { 'If-Match': '"3"' },
       body: JSON.stringify({
         name: 'Evening run',
-        activity_type: 1,
+        activity_type: 'run',
         description: null,
         private_notes: 'note',
-        visibility: 2,
+        visibility: 'private',
         is_hidden: true,
         hide_start_time: false,
         hide_location: false,
@@ -456,10 +662,10 @@ describe('fetchUserActivitiesPage', () => {
     })
 
     const result = await fetchUserActivitiesPage({
-      userId: 7,
+      userId: userUuid(7),
       page: 2,
       numRecords: 25,
-      filters: { type: 1, startDate: '2024-01-01', endDate: '2024-12-31', nameSearch: ' run ' },
+      filters: { type: 'run', startDate: '2024-01-01', endDate: '2024-12-31', nameSearch: ' run ' },
       sortBy: 'distance',
       sortOrder: 'asc',
     })
@@ -468,12 +674,12 @@ describe('fetchUserActivitiesPage', () => {
     // cannot drift between a list call and a separate count call.
     expect(apiFetch).toHaveBeenCalledTimes(1)
     expect(apiFetch).toHaveBeenCalledWith(
-      '/activities?type=1&start_date=2024-01-01&end_date=2024-12-31&name=run&sort_by=distance&sort_order=asc&page_number=2&num_records=25',
+      '/activities?type=run&start_date=2024-01-01&end_date=2024-12-31&name_contains=run&sort_by=distance&sort_order=asc&page_number=2&num_records=25',
       expect.objectContaining({ signal: undefined }),
     )
     expect(result.total).toBe(42)
     expect(result.records).toHaveLength(1)
-    expect(result.records[0]?.id).toBe(5)
+    expect(result.records[0]?.id).toBe(ACTIVITY_ID)
   })
 
   it('omits empty filters from the list URL', async () => {
@@ -486,7 +692,7 @@ describe('fetchUserActivitiesPage', () => {
     })
 
     const result = await fetchUserActivitiesPage({
-      userId: 3,
+      userId: userUuid(3),
       page: 1,
       numRecords: 10,
       filters: { type: null, startDate: null, endDate: null, nameSearch: null },
@@ -512,10 +718,10 @@ describe('fetchUserActivitiesPage', () => {
     })
 
     await fetchUserActivitiesPage({
-      userId: 1,
+      userId: userUuid(1),
       page: 1,
       numRecords: 25,
-      filters: { type: 0, startDate: null, endDate: null, nameSearch: null },
+      filters: { type: null, startDate: null, endDate: null, nameSearch: null },
       sortBy: 'name',
       sortOrder: 'asc',
     })
@@ -528,46 +734,91 @@ describe('fetchUserActivitiesPage', () => {
   })
 })
 
-describe('fetchUserActivityTypeCodes', () => {
-  it('parses the type map into ascending numeric codes', async () => {
-    vi.mocked(apiFetch).mockResolvedValueOnce({ '9': 'Ride', '1': 'Run', '11': 'Walk' })
+describe('fetchFollowersActivities', () => {
+  const feedPage = {
+    items: [
+      { ...activityDto, id: activityUuid(1), user_id: userUuid(7) },
+      { ...activityDto, id: activityUuid(2), user_id: userUuid(8) },
+      { ...activityDto, id: activityUuid(3), user_id: userUuid(7) },
+    ],
+    num_records: 25,
+    next_cursor: 'cursor-2',
+    users: {
+      [userUuid(7)]: {
+        id: userUuid(7),
+        name: 'Jane Runner',
+        username: 'jane',
+        city: null,
+        photo_path: null,
+      },
+    },
+  }
 
-    await expect(fetchUserActivityTypeCodes()).resolves.toEqual([1, 9, 11])
+  it('requests the feed with the cursor and maps the slice', async () => {
+    vi.mocked(apiFetch).mockResolvedValueOnce(feedPage)
+
+    const slice = await fetchFollowersActivities('cursor-1', 25, 'following')
+
     expect(apiFetch).toHaveBeenCalledWith(
-      '/activities/types',
-      expect.objectContaining({ signal: undefined }),
+      '/activities/feed?num_records=25&scope=following&cursor=cursor-1',
+      {
+        signal: undefined,
+      },
     )
+    expect(slice.items.map((activity) => activity.id)).toEqual([
+      activityUuid(1),
+      activityUuid(2),
+      activityUuid(3),
+    ])
+    expect(slice.nextCursor).toBe('cursor-2')
   })
 
-  it('returns an empty list when the body is null', async () => {
-    vi.mocked(apiFetch).mockResolvedValueOnce(null)
-    await expect(fetchUserActivityTypeCodes()).resolves.toEqual([])
+  it("asks for the viewer's own activities with scope=mine", async () => {
+    vi.mocked(apiFetch).mockResolvedValueOnce(feedPage)
+
+    await fetchFollowersActivities(null, 25, 'mine')
+
+    expect(apiFetch).toHaveBeenCalledWith('/activities/feed?num_records=25&scope=mine', {
+      signal: undefined,
+    })
+  })
+
+  it('returns each distinct owner once, from the same response', async () => {
+    vi.mocked(apiFetch).mockResolvedValueOnce(feedPage)
+
+    const { owners } = await fetchFollowersActivities(null, 25, 'following')
+
+    expect(apiFetch).toHaveBeenCalledOnce()
+    expect([...owners.keys()].sort()).toEqual([userUuid(7), userUuid(8)].sort())
+    expect(owners.get(userUuid(7))).toMatchObject({ name: 'Jane Runner', username: 'jane' })
+    // 8 is inactive or awaiting approval, so the server left it out: same as a 404 lookup.
+    expect(owners.get(userUuid(8))).toBeNull()
+  })
+
+  it('returns no owners for an empty slice', async () => {
+    vi.mocked(apiFetch).mockResolvedValueOnce({ items: [], num_records: 25, next_cursor: null })
+
+    const slice = await fetchFollowersActivities(null, 25, 'following')
+
+    expect(slice).toEqual({ items: [], nextCursor: null, owners: new Map() })
   })
 })
 
-describe('fetchUserActivityTypeMap', () => {
-  it('parses the response into a code→name map with numeric keys', async () => {
-    vi.mocked(apiFetch).mockResolvedValueOnce({ '9': 'Ride', '1': 'Run', '11': 'Walk' })
+describe('fetchUserActivityTypes', () => {
+  it('returns the keys of the response, dropping any the client does not know', async () => {
+    vi.mocked(apiFetch).mockResolvedValueOnce({ ride: 'Ride', run: 'Run', curling: 'Curling' })
 
-    const map = await fetchUserActivityTypeMap()
+    await expect(fetchUserActivityTypes()).resolves.toEqual(['ride', 'run'])
 
-    expect(map).toBeInstanceOf(Map)
-    // Integer-like object keys iterate in ascending numeric order, so the map
-    // entries come out ordered by code regardless of the response's literal order.
-    expect([...map.entries()]).toEqual([
-      [1, 'Run'],
-      [9, 'Ride'],
-      [11, 'Walk'],
-    ])
     expect(apiFetch).toHaveBeenCalledWith(
       '/activities/types',
       expect.objectContaining({ signal: undefined }),
     )
   })
 
-  it('returns an empty map when the body is null', async () => {
+  it('returns no types when the body is null', async () => {
     vi.mocked(apiFetch).mockResolvedValueOnce(null)
-    await expect(fetchUserActivityTypeMap()).resolves.toEqual(new Map())
+    await expect(fetchUserActivityTypes()).resolves.toEqual([])
   })
 })
 
@@ -578,7 +829,7 @@ describe('local-calendar period anchoring', () => {
 
   it('sends the viewer local date so the backend resolves the right week/month', async () => {
     vi.mocked(apiFetch).mockResolvedValueOnce({})
-    await fetchActivityStats(7, 'week')
+    await fetchActivityStats(userUuid(7), 'week')
 
     const url = vi.mocked(apiFetch).mock.calls[0]?.[0] as string
     const sentDate = new URLSearchParams(url.split('?')[1]).get('date')
@@ -600,7 +851,7 @@ describe('local-calendar period anchoring', () => {
     try {
       vi.setSystemTime(new Date('2026-01-05T13:30:00Z'))
       vi.mocked(apiFetch).mockResolvedValueOnce([])
-      await fetchUserWeekActivities(7, 0)
+      await fetchUserWeekActivities(userUuid(7), 0, 'monday')
 
       const url = vi.mocked(apiFetch).mock.calls[0]?.[0] as string
       const params = new URLSearchParams(url.split('?')[1])
@@ -634,13 +885,13 @@ describe('conditional activity writes', () => {
     vi.mocked(apiFetch).mockResolvedValueOnce(activityDto)
 
     await editActivity(
-      5,
+      ACTIVITY_ID,
       {
         name: 'Evening run',
-        activityType: 1,
+        activityType: 'run',
         description: '',
         privateNotes: '',
-        visibility: 0,
+        visibility: 'public',
         isHidden: false,
         hideStartTime: false,
         hideLocation: false,

@@ -7,19 +7,22 @@ modules such as rate limiting — can use it without
 creating a dependency on the ``users`` package.
 """
 
-import asyncio
 import ipaddress
 import re
 import socket
 import threading
 import time
 from concurrent.futures import ThreadPoolExecutor
+from concurrent.futures import TimeoutError as FutureTimeoutError
 from functools import partial
 from urllib.parse import urlparse
 
-from fastapi import HTTPException, Request, status
+import httpx2
+from fastapi import Request
+from starlette.requests import HTTPConnection
 
 import core.config as core_config
+import core.exceptions as core_exceptions
 import core.logger as core_logger
 
 logger = core_logger.get_logger(__name__)
@@ -112,7 +115,7 @@ def _resolve_hostname(hostname: str) -> list[str]:
                 seen.add(ip)
                 unique_ips.append(ip)
         return unique_ips
-    except socket.gaierror as err:
+    except (socket.gaierror, UnicodeError) as err:
         logger.warning(
             f"Failed to resolve TRUSTED_PROXIES hostname '{hostname}': {err}", extra=core_logger.context(console=True)
         )
@@ -240,7 +243,70 @@ def _is_trusted_peer(peer_ip: str) -> bool:
     return peer_ip in resolved_ips
 
 
-def get_ip_address(request: Request) -> str:
+def get_user_agent(request: Request) -> str:
+    """Return the request's ``User-Agent`` header, or an empty string when it has none.
+
+    Args:
+        request: Request object with headers.
+
+    Returns:
+        The user agent string.
+    """
+    return request.headers.get("user-agent", "")
+
+
+def client_network(ip_address: str) -> str:
+    """Reduce an address to the network one client controls: an IPv6 address to its /64, IPv4 unchanged.
+
+    An IPv6 client usually holds a whole /64, so keying by the exact address would let it rotate
+    through addresses. An IPv4-mapped IPv6 address is its IPv4 address. A value that is not an IP
+    literal (such as ``"unknown"``) is returned as is.
+
+    Args:
+        ip_address: A client address as :func:`get_ip_address` returns it.
+
+    Returns:
+        The IPv4 address, the IPv6 /64 network in CIDR form, or the input when it is not an IP.
+    """
+    try:
+        address = ipaddress.ip_address(ip_address)
+    except ValueError:
+        return ip_address
+    if isinstance(address, ipaddress.IPv6Address):
+        if address.ipv4_mapped is not None:
+            return str(address.ipv4_mapped)
+        return str(ipaddress.ip_network(f"{address}/64", strict=False))
+    return str(address)
+
+
+_MAX_PORT = 65535
+
+
+def _forwarded_hop_address(hop: str) -> str | None:
+    """Read the IP address of one ``X-Forwarded-For`` hop, dropping an optional port.
+
+    Accepts ``1.2.3.4``, ``1.2.3.4:5678``, ``2001:db8::1``, ``[2001:db8::1]`` and ``[2001:db8::1]:443``.
+
+    Args:
+        hop: One comma-separated entry of the header, already stripped.
+
+    Returns:
+        The address without a port, or None when the hop is not an IP address.
+    """
+    host, port = hop, None
+    if hop.startswith("["):
+        host, bracket, rest = hop[1:].partition("]")
+        if not bracket or (rest and not rest.startswith(":")):
+            return None
+        port = rest[1:] if rest else None
+    elif hop.count(":") == 1:
+        host, _, port = hop.partition(":")
+    if port is not None and not (port.isascii() and port.isdigit() and int(port) <= _MAX_PORT):
+        return None
+    return host if _looks_like_ip(host) else None
+
+
+def get_ip_address(request: HTTPConnection) -> str:
     """
     Extract client IP address from request, respecting TRUSTED_PROXIES.
 
@@ -249,17 +315,20 @@ def get_ip_address(request: Request) -> str:
     This prevents attackers from spoofing their IP by injecting those
     headers on direct connections.
 
-    ``X-Forwarded-For`` is read right to left and the first hop that is not
+    Every ``X-Forwarded-For`` line is combined into one list (RFC 9110
+    section 5.3), which is read right to left; the first hop that is not
     itself a trusted proxy is the client. Proxies append to the header, so
     entries a client prepends are ignored. If every hop is trusted (always the
     case for ``TRUSTED_PROXIES=["*"]``) the leftmost entry is used, which a
-    client can forge.
+    client can forge. A hop is an IP address with an optional port. A hop the
+    walk reaches that is not one makes the peer address the result.
 
-    When ``TRUSTED_PROXIES`` is ``["*"]`` (the default) all peers are
-    trusted.
+    When ``TRUSTED_PROXIES`` is ``["*"]`` all peers are trusted, which is only
+    safe when nothing but a proxy can reach the application. An empty list (the
+    default in every environment) trusts no proxy.
 
     Args:
-        request: Request object with headers and client info.
+        request: Request or WebSocket with headers and client info.
 
     Returns:
         Client IP address or "unknown" if indeterminate.
@@ -268,17 +337,22 @@ def get_ip_address(request: Request) -> str:
 
     if peer_ip and _is_trusted_peer(peer_ip):
         # Peer is a trusted proxy — honour the forwarded headers
-        forwarded_for = request.headers.get("X-Forwarded-For")
-        hops = [hop.strip() for hop in forwarded_for.split(",") if hop.strip()] if forwarded_for else []
+        forwarded_for = ",".join(request.headers.getlist("X-Forwarded-For"))
+        hops = [hop.strip() for hop in forwarded_for.split(",") if hop.strip()]
         if hops:
+            trusted_hops: list[str] = []
             for hop in reversed(hops):
-                if not _is_trusted_peer(hop):
-                    return hop
+                address = _forwarded_hop_address(hop)
+                if address is None:
+                    return peer_ip
+                if not _is_trusted_peer(address):
+                    return address
+                trusted_hops.append(address)
             # Every hop is a trusted proxy, so the original client was one too
-            return hops[0]
+            return trusted_hops[-1]
 
         real_ip = request.headers.get("X-Real-IP")
-        if real_ip:
+        if real_ip and _looks_like_ip(real_ip):
             return real_ip
 
     # Untrusted peer or no peer info — use the raw socket IP
@@ -299,7 +373,10 @@ def _is_private_or_reserved(
     Combines every "do not dial" predicate Python's
     ``ipaddress`` module exposes: private (RFC1918,
     fc00::/7), loopback, link-local, multicast,
-    unspecified (0.0.0.0, ::), and reserved blocks. Any
+    unspecified (0.0.0.0, ::), reserved, and anything
+    else that is not globally routable, such as shared
+    address space (100.64.0.0/10, used by CGNAT and
+    overlay networks) which ``is_private`` misses. Any
     of these would let an attacker pivot to internal
     infrastructure or cloud metadata services.
     """
@@ -310,6 +387,7 @@ def _is_private_or_reserved(
         or addr.is_multicast
         or addr.is_unspecified
         or addr.is_reserved
+        or not addr.is_global
     )
 
 
@@ -359,7 +437,10 @@ def _is_ssrf_allowlisted(
 _UNRESOLVABLE = "hostname could not be resolved"
 _UNPARSEABLE = "resolves to an unparseable address"
 _NON_PUBLIC = "resolves to a non-public address"
+_RESOLUTION_BUSY = "hostname resolution is busy, try again"
+_RESOLUTION_TIMED_OUT = "hostname resolution timed out"
 _NOT_AN_AUTHORITY = "is not a bare host[:port] authority"
+_TLS_REQUIRED = "must use https unless its host is in SSRF_ALLOWED_HOSTS"
 
 
 def _resolve_checked_addresses(
@@ -388,7 +469,8 @@ def _resolve_checked_addresses(
     """
     try:
         infos = socket.getaddrinfo(hostname, None)
-    except socket.gaierror:
+    except (socket.gaierror, UnicodeError):
+        # UnicodeError: the name cannot be IDNA-encoded (an empty or over-long label), so it names no host
         return (), _UNRESOLVABLE
 
     addresses: list[str] = []
@@ -484,16 +566,35 @@ def _outbound_url_hostname(url: str) -> tuple[str | None, str | None]:
     return parsed.hostname, None
 
 
+def _plaintext_http_allowed(hostname: str, addresses: tuple[str, ...]) -> bool:
+    """Return True when ``SSRF_ALLOWED_HOSTS`` covers the host by name or every resolved address.
+
+    Args:
+        hostname: The URL's hostname.
+        addresses: The addresses the hostname resolved to.
+
+    Returns:
+        True when the operator allowlisted the host, so plain ``http`` may be dialed.
+    """
+    hosts, networks = _load_ssrf_allowlist()
+    if hostname.lower() in hosts:
+        return True
+    return all(any(ipaddress.ip_address(address) in network for network in networks) for address in addresses)
+
+
 def resolve_url_addresses(
     url: str,
     *,
     purpose: str | None = None,
+    require_tls: bool = False,
 ) -> tuple[tuple[str, ...], str | None]:
     """Resolve an outbound URL to validated addresses or a rejection reason.
 
     Args:
         url: Fully-qualified outbound URL.
         purpose: Optional audit tag for allowlisted private destinations.
+        require_tls: Refuse an ``http`` URL unless its host is allowlisted by name or every address it
+            resolves to is covered by ``SSRF_ALLOWED_HOSTS``.
 
     Returns:
         Validated addresses and ``None``, or no addresses and a safe reason.
@@ -503,24 +604,29 @@ def resolve_url_addresses(
         return (), reason
 
     addresses, reason = _resolve_checked_addresses(hostname, purpose=purpose)
-    return addresses, f"URL {reason}" if reason is not None else None
+    if reason is not None:
+        return addresses, f"URL {reason}"
+    if require_tls and urlparse(url).scheme.lower() == "http" and not _plaintext_http_allowed(hostname, addresses):
+        return (), f"URL {_TLS_REQUIRED}"
+    return addresses, None
 
 
-def url_rejection_reason(url: str, *, purpose: str | None = None) -> str | None:
+def url_rejection_reason(url: str, *, purpose: str | None = None, require_tls: bool = False) -> str | None:
     """Return why an outbound URL must not be dialed, or ``None``.
 
     Args:
         url: Fully-qualified outbound URL.
         purpose: Optional audit tag for allowlisted private destinations.
+        require_tls: Refuse plain ``http`` unless the host is in ``SSRF_ALLOWED_HOSTS``.
 
     Returns:
         A safe client-facing reason, or ``None`` when the URL may be dialed.
     """
-    _, reason = resolve_url_addresses(url, purpose=purpose)
+    _, reason = resolve_url_addresses(url, purpose=purpose, require_tls=require_tls)
     return reason
 
 
-def reject_private_url(url: str, *, purpose: str | None = None) -> None:
+def reject_private_url(url: str, *, purpose: str | None = None, require_tls: bool = False) -> None:
     """Refuse to dial URLs that resolve to private/internal hosts.
 
     Mitigates Server-Side Request Forgery (SSRF) by
@@ -535,12 +641,11 @@ def reject_private_url(url: str, *, purpose: str | None = None) -> None:
        returns a public IP on the first lookup and a
        private IP on the next.
 
-    Note: this is a *time-of-check* guard. Callers that
-    want full TOCTOU safety should also pin the resolved
-    public IP and dial it directly with the original
-    Host header. For our current use cases (admin-set
-    OIDC discovery / JWKS endpoints) the time-of-check
-    guard is sufficient hardening.
+    This is a time-of-check guard: it refuses the URL but does not control which
+    address the connection uses. A caller that sends the request must do so through
+    :class:`PinnedAddressTransport`, which dials only an address that passed these
+    checks, so a name that resolves differently on the next lookup cannot redirect
+    the connection.
 
     Args:
         url: The fully-qualified URL the caller intends
@@ -551,20 +656,82 @@ def reject_private_url(url: str, *, purpose: str | None = None) -> None:
             destination is allowed via
             ``SSRF_ALLOWED_HOSTS``; never trusted as a
             security boundary.
+        require_tls: Also refuse an ``http`` URL unless its
+            host is allowlisted by name or every address it
+            resolves to is covered by ``SSRF_ALLOWED_HOSTS``.
 
     Raises:
-        HTTPException: 400 if the URL is malformed,
+        InvalidInputError: If the URL is malformed,
             uses a forbidden scheme, has no hostname,
-            or resolves to any non-public address that
+            resolves to any non-public address that
             is not covered by the
-            ``SSRF_ALLOWED_HOSTS`` allowlist.
+            ``SSRF_ALLOWED_HOSTS`` allowlist, or is plain
+            ``http`` while ``require_tls`` is set and its
+            host is not allowlisted.
     """
-    reason = url_rejection_reason(url, purpose=purpose)
+    reason = url_rejection_reason(url, purpose=purpose, require_tls=require_tls)
     if reason is not None:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=reason,
-        )
+        raise core_exceptions.InvalidInputError(reason)
+
+
+class PinnedAddressTransport(httpx2.BaseTransport):
+    """HTTP transport that dials only an address the SSRF guard has checked.
+
+    Each request resolves its URL's host through :func:`resolve_url_addresses` (TLS required unless
+    ``SSRF_ALLOWED_HOSTS`` covers the host) and connects to one of the validated addresses, so the
+    connection cannot land on an address the guard did not see, whatever the name resolves to later.
+    The request keeps its ``Host`` header, and the ``sni_hostname`` extension keeps the original
+    hostname as the TLS server name, so certificate verification still covers the hostname.
+
+    A refused destination raises :class:`httpx2.ConnectError`. When a validated address does not
+    accept the connection, the next one is tried.
+    """
+
+    def __init__(self, *, purpose: str, transport: httpx2.BaseTransport | None = None) -> None:
+        """Wrap the transport that opens the connections.
+
+        Args:
+            purpose: Audit tag for allowlisted private destinations.
+            transport: Transport that sends the pinned request; a default ``httpx2.HTTPTransport`` when omitted.
+        """
+        self._purpose = purpose
+        self._transport = transport if transport is not None else httpx2.HTTPTransport()
+
+    def handle_request(self, request: httpx2.Request) -> httpx2.Response:
+        """Send a request to one of the host's validated addresses.
+
+        Args:
+            request: The request, addressed by hostname.
+
+        Returns:
+            The response.
+
+        Raises:
+            httpx2.ConnectError: If the destination is refused or no validated address accepts the connection.
+        """
+        original_url = request.url
+        addresses, reason = resolve_url_addresses(str(original_url), purpose=self._purpose, require_tls=True)
+        if reason is not None:
+            raise httpx2.ConnectError(reason, request=request)
+
+        request.extensions = {**request.extensions, "sni_hostname": original_url.raw_host.decode("ascii")}
+        last_error: httpx2.ConnectError | httpx2.ConnectTimeout | None = None
+        try:
+            for address in addresses:
+                request.url = original_url.copy_with(host=address)
+                try:
+                    return self._transport.handle_request(request)
+                except (httpx2.ConnectError, httpx2.ConnectTimeout) as err:
+                    last_error = err
+        finally:
+            request.url = original_url
+        if last_error is None:
+            raise httpx2.ConnectError(_UNRESOLVABLE, request=request)
+        raise last_error
+
+    def close(self) -> None:
+        """Close the wrapped transport."""
+        self._transport.close()
 
 
 def _get_ssrf_dns_executor() -> ThreadPoolExecutor:
@@ -593,65 +760,45 @@ def shutdown_ssrf_dns_executor() -> None:
     _ssrf_dns_executor = None
 
 
-async def reject_private_url_async(url: str, *, purpose: str | None = None) -> None:
-    """Await :func:`reject_private_url` without blocking the event loop.
+def url_rejection_reason_bounded(url: str, *, purpose: str | None = None, require_tls: bool = False) -> str | None:
+    """Return why an outbound URL must not be dialed, bounding the DNS wait.
 
-    The guard resolves every A/AAAA record with :func:`socket.getaddrinfo`, which
-    is blocking and cannot be cancelled once started. Async callers run it in a
-    small dedicated executor so stalled DNS calls cannot exhaust asyncio's shared
-    worker pool, and stop awaiting it after a bounded interval. At most
-    ``_SSRF_DNS_MAX_PENDING`` lookups may be running or queued; further callers
-    are refused at once, so a flood of lookups for an unresolvable host cannot
-    pile up work. A lookup still queued when its caller gives up is cancelled.
-    Synchronous callers (scheduled jobs, subscribers) call
-    :func:`reject_private_url` directly.
+    For a caller that must not sit in an unbounded ``getaddrinfo``: the lookup runs on
+    the dedicated SSRF executor and the caller stops waiting after
+    ``_SSRF_DNS_RESOLUTION_TIMEOUT_SECONDS``. A saturated pool or a timeout is
+    reported as a rejection reason, so the caller refuses the URL rather than
+    trusting one it could not check.
 
     Args:
-        url: The fully-qualified URL the caller intends to fetch.
-        purpose: Optional short tag identifying the outbound call, used only for
-            audit logging.
+        url: Fully-qualified outbound URL.
+        purpose: Optional audit tag for allowlisted private destinations.
+        require_tls: Refuse plain ``http`` unless the host is in ``SSRF_ALLOWED_HOSTS``.
 
-    Raises:
-        HTTPException: 400, for the reasons listed on :func:`reject_private_url`.
-        HTTPException: 503, with ``Retry-After``, when too many lookups are
-            already running or queued.
-        HTTPException: 504 when hostname resolution exceeds the allowed time.
+    Returns:
+        A safe client-facing reason, or ``None`` when the URL may be dialed.
     """
-    # A URL that can be refused without DNS never needs a slot, so it gets its 400
-    # even while the pool is full.
     hostname, reason = _outbound_url_hostname(url)
     if hostname is None:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=reason)
-
+        return reason
     if not _ssrf_dns_slots.acquire(blocking=False):
         logger.warning(
             "SSRF hostname resolution is saturated",
             extra=core_logger.context(purpose=purpose or "unspecified"),
         )
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="Hostname resolution is busy",
-            headers={"Retry-After": "1"},
-        )
+        return f"URL {_RESOLUTION_BUSY}"
     try:
-        future = _get_ssrf_dns_executor().submit(partial(reject_private_url, url, purpose=purpose))
+        future = _get_ssrf_dns_executor().submit(
+            partial(url_rejection_reason, url, purpose=purpose, require_tls=require_tls)
+        )
     except BaseException:
         _ssrf_dns_slots.release()
         raise
-    # Released when the lookup ends or is cancelled while still queued, not when
-    # the caller stops waiting.
     future.add_done_callback(lambda _: _ssrf_dns_slots.release())
     try:
-        await asyncio.wait_for(
-            asyncio.wrap_future(future),
-            timeout=_SSRF_DNS_RESOLUTION_TIMEOUT_SECONDS,
-        )
-    except TimeoutError as err:
+        return future.result(timeout=_SSRF_DNS_RESOLUTION_TIMEOUT_SECONDS)
+    except FutureTimeoutError:
         logger.warning(
             "SSRF hostname resolution timed out",
             extra=core_logger.context(purpose=purpose or "unspecified"),
         )
-        raise HTTPException(
-            status_code=status.HTTP_504_GATEWAY_TIMEOUT,
-            detail="Hostname resolution timed out",
-        ) from err
+        return f"URL {_RESOLUTION_TIMED_OUT}"

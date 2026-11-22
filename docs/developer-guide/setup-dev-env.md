@@ -30,7 +30,7 @@ services:
             - DB_HOST=postgres
             - DB_PORT=5432
             - DB_PASSWORD=changeme
-            - SECRET_KEY=changeme # openssl rand -hex 32 or use the Tools page Secret Generators
+            - SECRET_KEY=replace-with-at-least-32-random-characters # openssl rand -hex 32 or use the Tools page Secret Generators
             - FERNET_KEY=changeme # openssl rand -base64 32 or use the Tools page Secret Generators
             - ENDURAIN_HOST=http://localhost:8080 # change if needed
             - BEHIND_PROXY=false
@@ -117,7 +117,7 @@ uv run ruff format --check . && uv run ruff check .   # format and lint
 Hatch scripts group the common checks, for example `uv run hatch run check` runs lint, format, tests and type checks without changing files. Backend code changes in the mounted `backend/app` folder apply after a container restart.
 
 ## Frontend
-Make sure you have Node.js 24 (or 22.18+) installed ([nodejs.org](https://nodejs.org/)).
+Make sure you have Node.js 22.18+ or 24.12+ installed ([nodejs.org](https://nodejs.org/)).
 
 - Go to the root of the project and move to frontend folder and install the dependencies:
 
@@ -126,11 +126,7 @@ cd frontend
 npm install
 ```
 
-- Create a file called `.env.local` inside frontend and add the following to it:
-
-```conf
-VITE_ENDURAIN_HOST=http://localhost:8080 # Adapt this based on the docker compose of your dev environment
-```
+- The frontend reads the backend address from `frontend/public/env.js`, which sets `ENDURAIN_HOST` to `http://localhost:8080`. Edit that value if your docker compose publishes the backend on another address.
 
 - After the dependencies are installed run the frontend:
 

@@ -4,59 +4,115 @@ import { getQueryString } from '@/composables/useRouteQuery'
 export { getQueryString } from '@/composables/useRouteQuery'
 
 /**
- * Custom URL schemes accepted as redirect targets. This is a deny-by-default
- * allow-list: any scheme not listed here is rejected, which blocks dangerous
- * pseudo-schemes such as `javascript:`, `data:`, and `vbscript:` that would
- * otherwise execute when a redirect value is assigned to `window.location.href`.
- * It starts with the app's own native deep-link scheme and is replaced by the
- * server's `ALLOWED_REDIRECT_SCHEMES` once the public server settings load.
+ * Exact redirect addresses, from the server's `ALLOWED_REDIRECT_URIS`: custom-scheme deep
+ * links and claimed-https addresses (Android App Links, iOS Universal Links). This is a
+ * deny-by-default allow-list: only these addresses are accepted, which blocks dangerous
+ * pseudo-schemes such as `javascript:`, `data:`, and `vbscript:` that would otherwise
+ * execute when a redirect value is assigned to `window.location.href`. It is empty until
+ * the public server settings load.
  */
-const DEFAULT_CUSTOM_SCHEMES = ['endurain']
-let allowedCustomSchemes = new Set(DEFAULT_CUSTOM_SCHEMES)
+let allowedRedirectUris = new Set<string>()
 
 /**
  * Schemes that never become redirect targets, whatever the server configures:
- * `http(s)` would be an external redirect and the rest execute or embed content
- * when assigned to `window.location.href`.
+ * `http` would be an unencrypted external redirect and the rest execute or embed content
+ * when assigned to `window.location.href`. `https` is accepted only as a listed address
+ * with a host (see {@link isHttpsAddressWithHost}).
  */
-const UNSAFE_REDIRECT_SCHEMES = new Set(['http', 'https', 'javascript', 'data', 'vbscript', 'file'])
+const UNSAFE_REDIRECT_SCHEMES = new Set(['http', 'javascript', 'data', 'vbscript', 'file', 'blob'])
+
+/** RFC 3986 3.1: `scheme = ALPHA *( ALPHA / DIGIT / "+" / "-" / "." )`. */
+const SCHEME_PATTERN = /^[a-z][a-z0-9+.-]*$/i
 
 /**
- * Replaces the allowed custom redirect schemes with the server's configured
- * list, so the frontend accepts exactly what the backend accepts.
+ * Reads the scheme of an absolute URI. It runs up to the first `:` (RFC 3986 3.1),
+ * so `app:/callback` and `app://callback` both have the scheme `app`; a value
+ * starting with `/` never has one, because a scheme starts with a letter.
  *
- * Entries that are not well-formed URI schemes, or that are in
- * {@link UNSAFE_REDIRECT_SCHEMES}, are ignored. An empty result leaves no custom
- * scheme allowed.
- *
- * @param schemes - Scheme names from the public server settings (without `:`).
+ * @param uri - Value to read.
+ * @returns The scheme in lower case, or `undefined` when the value has none.
  */
-export function setAllowedRedirectSchemes(schemes: readonly string[]): void {
-  allowedCustomSchemes = new Set(
-    schemes
-      .map((scheme) => scheme.toLowerCase())
-      .filter(
-        (scheme) => /^[a-z][a-z0-9+.-]*$/.test(scheme) && !UNSAFE_REDIRECT_SCHEMES.has(scheme),
-      ),
+function uriScheme(uri: string): string | undefined {
+  const index = uri.indexOf(':')
+  const scheme = index < 0 ? '' : uri.slice(0, index)
+  return SCHEME_PATTERN.test(scheme) ? scheme.toLowerCase() : undefined
+}
+
+/**
+ * Lower-cases the scheme of an address and keeps the rest as written, the form in
+ * which the server compares addresses.
+ *
+ * @param uri - Address to normalise.
+ * @returns The address with its scheme in lower case, or unchanged when it has none.
+ */
+function normaliseRedirectUri(uri: string): string {
+  const scheme = uriScheme(uri)
+  return scheme === undefined ? uri : scheme + uri.slice(scheme.length)
+}
+
+/**
+ * Checks that an `https` address is `https://host...`: an authority with a host, no
+ * user info, no whitespace or backslash, and a port the URL parser accepts. `new URL`
+ * alone is not enough, as it reads `https:///x` as the host `x`.
+ *
+ * @param address - Address whose scheme is already lower case.
+ * @returns Whether the address has a usable host.
+ */
+function isHttpsAddressWithHost(address: string): boolean {
+  if (!address.startsWith('https://') || /[\s\\]/.test(address)) {
+    return false
+  }
+  const authority = address.slice('https://'.length).split(/[/?#]/, 1)[0] ?? ''
+  if (authority === '' || authority.includes('@')) {
+    return false
+  }
+  try {
+    return new URL(address).hostname !== ''
+  } catch {
+    return false
+  }
+}
+
+/**
+ * Replaces the allowed exact redirect addresses with the server's configured
+ * list.
+ *
+ * Entries without a well-formed scheme or a target after it (`scheme:target`, the
+ * `//` optional), whose scheme is in {@link UNSAFE_REDIRECT_SCHEMES}, or that are an
+ * `https` address without a host, are ignored.
+ *
+ * @param uris - Addresses from the public server settings.
+ */
+export function setAllowedRedirectUris(uris: readonly string[]): void {
+  allowedRedirectUris = new Set(
+    uris.map(normaliseRedirectUri).filter((uri) => {
+      const scheme = uriScheme(uri)
+      if (scheme === undefined || UNSAFE_REDIRECT_SCHEMES.has(scheme)) {
+        return false
+      }
+      if (scheme === 'https') {
+        return isHttpsAddressWithHost(uri)
+      }
+      return uri.slice(scheme.length + 1).replace(/^\/\//, '') !== ''
+    }),
   )
 }
 
 /**
- * Checks whether a redirect is an allowed native-app custom-scheme deep link
- * (e.g. `endurain://`).
+ * Checks whether a redirect is an allowed native-app address: a custom-scheme deep link
+ * (e.g. `app://callback` or `com.example.app:/callback`) or a claimed-https address
+ * (e.g. `https://app.example.org/auth/sso/callback`).
  *
- * Only schemes configured on the server pass. `http(s)` URLs are intentionally
- * rejected here (they are treated as external redirects and blocked), and
- * script-bearing pseudo-schemes such as `javascript://...` are rejected because
- * they are not on the allow-list — preventing the open-redirect check from being
- * turned into a DOM-XSS vector.
+ * Only the addresses the server lists pass (scheme in any letter case, the rest exactly,
+ * query and fragment included), so an unlisted `https` URL is an external redirect and
+ * is rejected, as are script-bearing pseudo-schemes such as `javascript://...`, which
+ * keeps the open-redirect check from becoming a DOM-XSS vector.
  *
  * @param value - Redirect candidate.
- * @returns Whether the redirect is an allowed custom-scheme URL.
+ * @returns Whether the redirect is an allowed native-app address.
  */
-export function isCustomSchemeRedirect(value: string): boolean {
-  const scheme = /^([a-z][a-z0-9+.-]*):\/\//i.exec(value)?.[1]?.toLowerCase()
-  return scheme !== undefined && allowedCustomSchemes.has(scheme)
+export function isNativeRedirect(value: string): boolean {
+  return allowedRedirectUris.has(normaliseRedirectUri(value))
 }
 
 /**
@@ -100,18 +156,18 @@ function isInternalPath(candidate: string): boolean {
 
 /**
  * Resolves redirect query values while blocking external HTTP redirects, to
- * prevent open-redirect attacks. Only internal paths and custom-scheme deep
- * links are allowed; anything else falls back to the app root.
+ * prevent open-redirect attacks. Only internal paths and listed native-app
+ * addresses are allowed; anything else falls back to the app root.
  *
  * @param value - Raw redirect query value.
- * @returns A safe internal path or custom-scheme URL, or `/` when unsafe.
+ * @returns A safe internal path or native-app address, or `/` when unsafe.
  */
 export function getSafeRedirect(value: unknown): string {
   const candidate = getQueryString(value)
   if (hasUrlParserSensitiveChar(candidate)) {
     return '/'
   }
-  if (isInternalPath(candidate) || isCustomSchemeRedirect(candidate)) {
+  if (isInternalPath(candidate) || isNativeRedirect(candidate)) {
     return candidate
   }
   return '/'
@@ -129,11 +185,11 @@ export function useSafeRedirect() {
 
   /**
    * Navigates to the post-login destination, honouring a safe `redirect`
-   * query and supporting native-app custom schemes.
+   * query and supporting native-app addresses.
    */
   async function navigateAfterLogin(): Promise<void> {
     const redirect = getSafeRedirect(route.query.redirect)
-    if (isCustomSchemeRedirect(redirect)) {
+    if (isNativeRedirect(redirect)) {
       window.location.href = redirect
       return
     }
@@ -144,7 +200,7 @@ export function useSafeRedirect() {
    * Returns a redirect value safe to forward to the backend SSO initiation
    * endpoint, or an empty string when the destination is the app root.
    *
-   * @returns Internal path or custom-scheme URL, or an empty string.
+   * @returns Internal path or native-app address, or an empty string.
    */
   function getSsoRedirect(): string {
     const redirect = getSafeRedirect(route.query.redirect)
@@ -153,7 +209,7 @@ export function useSafeRedirect() {
 
   return {
     getSafeRedirect,
-    isCustomSchemeRedirect,
+    isNativeRedirect,
     getQueryString,
     navigateAfterLogin,
     getSsoRedirect,

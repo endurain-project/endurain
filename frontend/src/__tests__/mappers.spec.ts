@@ -9,7 +9,7 @@ vi.mock('@/services/runtime', () => ({
 }))
 
 const baseDto: UserProfileDto = {
-  id: 7,
+  id: '00000000-0000-4000-8000-000000000007',
   name: 'Ada Lovelace',
   username: 'ada',
   email: 'ada@example.com',
@@ -18,11 +18,12 @@ const baseDto: UserProfileDto = {
   active: true,
   mfa_enabled: true,
   photo_path: '/api/v1/users/7/photo?t=sig',
-  is_strava_linked: 1,
-  is_garminconnect_linked: 0,
-  is_coros_linked: 1,
+  is_strava_linked: true,
+  is_garminconnect_linked: false,
+  is_coros_linked: true,
   has_local_password: true,
   units: 'metric',
+  weight_units: null,
   currency: 'euro',
   first_day_of_week: 'sunday',
 }
@@ -32,7 +33,7 @@ describe('mapUserProfile', () => {
     const user = mapUserProfile(baseDto)
 
     expect(user).toEqual({
-      id: 7,
+      id: '00000000-0000-4000-8000-000000000007',
       name: 'Ada Lovelace',
       username: 'ada',
       email: 'ada@example.com',
@@ -46,17 +47,25 @@ describe('mapUserProfile', () => {
       isCorosLinked: true,
       hasLocalPassword: true,
       units: 'metric',
+      weightUnits: 'metric',
       currency: 'euro',
       firstDayOfWeek: 'sunday',
     })
   })
 
-  it('coerces number-encoded link flags to booleans', () => {
+  it('resolves weightUnits from the explicit override, falling back to units', () => {
+    expect(mapUserProfile({ ...baseDto, weight_units: 'imperial' }).weightUnits).toBe('imperial')
+    expect(mapUserProfile({ ...baseDto, units: 'imperial', weight_units: null }).weightUnits).toBe(
+      'imperial',
+    )
+  })
+
+  it('reads the link flags', () => {
     const user = mapUserProfile({
       ...baseDto,
-      is_strava_linked: 0,
-      is_garminconnect_linked: 1,
-      is_coros_linked: 0,
+      is_strava_linked: false,
+      is_garminconnect_linked: true,
+      is_coros_linked: false,
     })
 
     expect(user.isStravaLinked).toBe(false)
@@ -89,10 +98,8 @@ describe('mapUserProfile', () => {
     ).toBe('https://cdn.test/api/v1/users/7/photo?t=a.b')
   })
 
-  it('defaults hasLocalPassword to false when absent', () => {
-    expect(mapUserProfile({ ...baseDto, has_local_password: null }).hasLocalPassword).toBe(false)
-    expect(mapUserProfile({ ...baseDto, has_local_password: undefined }).hasLocalPassword).toBe(
-      false,
-    )
+  it('maps hasLocalPassword straight from the payload', () => {
+    expect(mapUserProfile({ ...baseDto, has_local_password: true }).hasLocalPassword).toBe(true)
+    expect(mapUserProfile({ ...baseDto, has_local_password: false }).hasLocalPassword).toBe(false)
   })
 })

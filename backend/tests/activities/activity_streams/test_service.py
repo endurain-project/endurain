@@ -5,6 +5,7 @@ sibling child resources this service resolves the parent activity and filters,
 then cuts the masked result into the shared page envelope.
 """
 
+import uuid
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -12,11 +13,17 @@ import pytest
 import core.exceptions as core_exceptions
 import modules.activities.activity_streams.schema as activity_streams_schema
 
+ACTIVITY_ID = uuid.UUID("aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa")
+OWNER_ID = uuid.UUID("00000000-0000-4000-8000-000000000001")
+OTHER_ID = uuid.UUID("00000000-0000-4000-8000-000000000002")
+STRANGER_ID = uuid.UUID("00000000-0000-4000-8000-000000000099")
+STREAM_ID = uuid.UUID("bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb")
+
 
 def _stream(stream_type: int):
     return activity_streams_schema.ActivityStreamsRead(
-        id=stream_type,
-        activity_id=5,
+        id=uuid.UUID(int=stream_type),
+        activity_id=ACTIVITY_ID,
         stream_type=stream_type,
         stream_waypoints=[],
     )
@@ -30,10 +37,10 @@ class TestListActivityStreams:
         from modules.activities.activity_streams import service
 
         streams = [_stream(1), _stream(2)]
-        mock_gate.resolve_readable_parent.return_value = MagicMock(user_id=1)
+        mock_gate.resolve_readable_parent.return_value = MagicMock(user_id=OWNER_ID)
         mock_crud.get_activity_streams.return_value = streams
 
-        page = service.list_activity_streams(5, 1, MagicMock())
+        page = service.list_activity_streams(ACTIVITY_ID, OWNER_ID, MagicMock())
 
         assert (page.items, page.total) == (streams, 2)
 
@@ -44,10 +51,10 @@ class TestListActivityStreams:
         """The window is cut in Python, after the mask, so the total matches it."""
         from modules.activities.activity_streams import service
 
-        mock_gate.resolve_readable_parent.return_value = MagicMock(user_id=1)
+        mock_gate.resolve_readable_parent.return_value = MagicMock(user_id=OWNER_ID)
         mock_crud.get_activity_streams.return_value = [_stream(1), _stream(2), _stream(3)]
 
-        page = service.list_activity_streams(5, 1, MagicMock(), page_number=2, num_records=2)
+        page = service.list_activity_streams(ACTIVITY_ID, OWNER_ID, MagicMock(), page_number=2, num_records=2)
 
         assert ([s.stream_type for s in page.items], page.total, page.next) == ([3], 3, None)
 
@@ -57,12 +64,12 @@ class TestListActivityStreams:
     def test_non_owner_gets_the_masked_set(self, mock_gate, mock_crud, mock_filter):
         from modules.activities.activity_streams import service
 
-        activity = MagicMock(user_id=2)
+        activity = MagicMock(user_id=OTHER_ID)
         mock_gate.resolve_readable_parent.return_value = activity
         mock_crud.get_activity_streams.return_value = [_stream(1)]
         mock_filter.return_value = []
 
-        page = service.list_activity_streams(5, 1, MagicMock())
+        page = service.list_activity_streams(ACTIVITY_ID, OWNER_ID, MagicMock())
 
         assert (page.items, page.total) == ([], 0)
         mock_filter.assert_called_once_with([mock_crud.get_activity_streams.return_value[0]], activity)
@@ -74,7 +81,7 @@ class TestListActivityStreams:
 
         mock_gate.resolve_readable_parent.return_value = None
 
-        page = service.list_activity_streams(5, 1, MagicMock())
+        page = service.list_activity_streams(ACTIVITY_ID, OWNER_ID, MagicMock())
 
         assert (page.items, page.total) == ([], 0)
         mock_crud.get_activity_streams.assert_not_called()
@@ -87,12 +94,12 @@ class TestGetActivityStream:
     def test_hidden_stream_is_none_for_a_non_owner(self, mock_gate, mock_crud, mock_hidden):
         from modules.activities.activity_streams import service
 
-        mock_gate.resolve_readable_parent.return_value = MagicMock(user_id=2)
+        mock_gate.resolve_readable_parent.return_value = MagicMock(user_id=OTHER_ID)
         mock_crud.get_activity_stream_by_type.return_value = _stream(1)
         mock_hidden.return_value = True
 
         with pytest.raises(core_exceptions.NotFoundError):
-            service.get_activity_stream(5, 1, 1, MagicMock())
+            service.get_activity_stream(ACTIVITY_ID, 1, OWNER_ID, MagicMock())
 
     @patch("modules.activities.activity_streams.service._max_heart_rate_of", return_value=None)
     @patch("modules.activities.activity_streams.service._is_stream_hidden")
@@ -102,22 +109,22 @@ class TestGetActivityStream:
         from modules.activities.activity_streams import service
 
         stream = _stream(1)
-        mock_gate.resolve_readable_parent.return_value = MagicMock(user_id=1)
+        mock_gate.resolve_readable_parent.return_value = MagicMock(user_id=OWNER_ID)
         mock_crud.get_activity_stream_by_type.return_value = stream
         mock_hidden.return_value = True
 
-        assert service.get_activity_stream(5, 1, 1, MagicMock()) is stream
+        assert service.get_activity_stream(ACTIVITY_ID, 1, OWNER_ID, MagicMock()) is stream
 
     @patch("modules.activities.activity_streams.service.activity_streams_crud")
     @patch("modules.activities.activity_streams.service.activity_integration")
     def test_missing_stream_is_none(self, mock_gate, mock_crud):
         from modules.activities.activity_streams import service
 
-        mock_gate.resolve_readable_parent.return_value = MagicMock(user_id=1)
+        mock_gate.resolve_readable_parent.return_value = MagicMock(user_id=OWNER_ID)
         mock_crud.get_activity_stream_by_type.return_value = None
 
         with pytest.raises(core_exceptions.NotFoundError):
-            service.get_activity_stream(5, 1, 1, MagicMock())
+            service.get_activity_stream(ACTIVITY_ID, 1, OWNER_ID, MagicMock())
 
 
 class TestPublicStreams:
@@ -133,7 +140,7 @@ class TestPublicStreams:
         mock_crud.get_activity_streams.return_value = [_stream(1)]
         mock_filter.return_value = []
 
-        page = service.list_public_activity_streams(5, MagicMock())
+        page = service.list_public_activity_streams(ACTIVITY_ID, MagicMock())
 
         assert (page.items, page.total) == ([], 0)
         mock_filter.assert_called_once()
@@ -145,11 +152,11 @@ class TestPublicStreams:
 
         mock_gate.resolve_public_parent.return_value = None
 
-        page = service.list_public_activity_streams(5, MagicMock())
+        page = service.list_public_activity_streams(ACTIVITY_ID, MagicMock())
 
         assert (page.items, page.total) == ([], 0)
         with pytest.raises(core_exceptions.NotFoundError):
-            service.get_public_activity_stream(5, 1, MagicMock())
+            service.get_public_activity_stream(ACTIVITY_ID, 1, MagicMock())
         mock_crud.get_activity_streams.assert_not_called()
         mock_crud.get_activity_stream_by_type.assert_not_called()
 
@@ -164,7 +171,23 @@ class TestPublicStreams:
         mock_hidden.return_value = True
 
         with pytest.raises(core_exceptions.NotFoundError):
-            service.get_public_activity_stream(5, 1, MagicMock())
+            service.get_public_activity_stream(ACTIVITY_ID, 1, MagicMock())
+
+
+_EVERY_FLAG = (
+    "hide_start_time",
+    "hide_location",
+    "hide_map",
+    "hide_hr",
+    "hide_power",
+    "hide_cadence",
+    "hide_elevation",
+    "hide_speed",
+    "hide_pace",
+    "hide_laps",
+    "hide_workout_sets_steps",
+    "hide_gear",
+)
 
 
 class TestStreamMask:
@@ -178,10 +201,26 @@ class TestStreamMask:
         assert service._is_stream_hidden(activity, constants.STREAM_TYPE_HR) is True
         assert service._is_stream_hidden(activity, constants.STREAM_TYPE_MAP) is False
 
-    def test_an_unmapped_stream_type_is_never_hidden(self):
+    def test_a_stream_type_without_a_rule_is_hidden(self):
+        """A type the mask does not know is withheld, so a new stream type cannot ship visible by omission."""
         from modules.activities.activity_streams import service
 
-        assert service._is_stream_hidden(MagicMock(), 999) is False
+        assert service._is_stream_hidden(MagicMock(), 999) is True
+
+    def test_every_stored_stream_type_has_a_rule(self):
+        from modules.activities.activity_streams import constants, service
+
+        stored = {value for name, value in vars(constants).items() if name.startswith("STREAM_TYPE_")}
+
+        assert set(service._STREAM_HIDE_MAP) == stored
+
+    def test_no_flag_hides_the_temperature(self):
+        """There is no ``hide_temperature``: ambient temperature is none of the data a flag covers."""
+        from modules.activities.activity_streams import constants, service
+
+        activity = MagicMock(**dict.fromkeys(_EVERY_FLAG, True))
+
+        assert service._is_stream_hidden(activity, constants.STREAM_TYPE_TEMPERATURE) is False
 
     def test_filter_keeps_only_the_visible_streams(self):
         from modules.activities.activity_streams import constants, service
@@ -194,10 +233,98 @@ class TestStreamMask:
         assert [s.stream_type for s in visible] == [constants.STREAM_TYPE_MAP]
 
 
+def _timed_stream(stream_type: int = 2) -> activity_streams_schema.ActivityStreamsRead:
+    return activity_streams_schema.ActivityStreamsRead(
+        id=uuid.UUID(int=stream_type),
+        activity_id=ACTIVITY_ID,
+        stream_type=stream_type,
+        stream_waypoints=[
+            {"time": "2024-01-15T08:00:00Z", "power": 200},
+            {"time": "2024-01-15T08:00:01Z", "power": 210},
+        ],
+    )
+
+
+def _hidden_start(user_id: uuid.UUID = STRANGER_ID) -> MagicMock:
+    return MagicMock(user_id=user_id, hide_start_time=True, hide_power=False)
+
+
+class TestSampleTimes:
+    """Every sample carries an absolute instant, so ``hide_start_time`` withholds them too."""
+
+    @patch("modules.activities.activity_streams.service.activity_streams_crud")
+    @patch("modules.activities.activity_streams.service.activity_integration")
+    def test_a_non_owner_list_drops_the_times_and_keeps_the_values(self, mock_gate, mock_crud):
+        from modules.activities.activity_streams import service
+
+        mock_gate.resolve_readable_parent.return_value = _hidden_start()
+        mock_crud.get_activity_streams.return_value = [_timed_stream()]
+
+        page = service.list_activity_streams(ACTIVITY_ID, OWNER_ID, MagicMock())
+
+        assert page.items[0].stream_waypoints == [{"power": 200}, {"power": 210}]
+
+    @patch("modules.activities.activity_streams.service.activity_streams_crud")
+    @patch("modules.activities.activity_streams.service.activity_integration")
+    def test_a_non_owner_single_read_drops_the_times(self, mock_gate, mock_crud):
+        from modules.activities.activity_streams import service
+
+        mock_gate.resolve_readable_parent.return_value = _hidden_start()
+        mock_crud.get_activity_stream_by_type.return_value = _timed_stream()
+
+        stream = service.get_activity_stream(ACTIVITY_ID, 2, OWNER_ID, MagicMock())
+
+        assert stream.stream_waypoints == [{"power": 200}, {"power": 210}]
+
+    @patch("modules.activities.activity_streams.service.activity_streams_crud")
+    @patch("modules.activities.activity_streams.service.activity_integration")
+    def test_public_reads_drop_the_times(self, mock_gate, mock_crud):
+        from modules.activities.activity_streams import service
+
+        mock_gate.resolve_public_parent.return_value = _hidden_start()
+        mock_crud.get_activity_streams.return_value = [_timed_stream()]
+        mock_crud.get_activity_stream_by_type.return_value = _timed_stream()
+
+        page = service.list_public_activity_streams(ACTIVITY_ID, MagicMock())
+        stream = service.get_public_activity_stream(ACTIVITY_ID, 2, MagicMock())
+
+        assert page.items[0].stream_waypoints == [{"power": 200}, {"power": 210}]
+        assert stream.stream_waypoints == [{"power": 200}, {"power": 210}]
+
+    @patch("modules.activities.activity_streams.service.activity_streams_crud")
+    @patch("modules.activities.activity_streams.service.activity_integration")
+    def test_the_owner_keeps_the_times(self, mock_gate, mock_crud):
+        from modules.activities.activity_streams import service
+
+        mock_gate.resolve_readable_parent.return_value = _hidden_start(user_id=OWNER_ID)
+        mock_crud.get_activity_streams.return_value = [_timed_stream()]
+        mock_crud.get_activity_stream_by_type.return_value = _timed_stream()
+
+        page = service.list_activity_streams(ACTIVITY_ID, OWNER_ID, MagicMock())
+        stream = service.get_activity_stream(ACTIVITY_ID, 2, OWNER_ID, MagicMock())
+
+        assert page.items[0].stream_waypoints == _timed_stream().stream_waypoints
+        assert stream.stream_waypoints == _timed_stream().stream_waypoints
+
+    @patch("modules.activities.activity_streams.service.activity_streams_crud")
+    @patch("modules.activities.activity_streams.service.activity_integration")
+    def test_a_non_owner_keeps_the_times_when_the_start_is_shown(self, mock_gate, mock_crud):
+        from modules.activities.activity_streams import service
+
+        mock_gate.resolve_readable_parent.return_value = MagicMock(
+            user_id=STRANGER_ID, hide_start_time=False, hide_power=False
+        )
+        mock_crud.get_activity_streams.return_value = [_timed_stream()]
+
+        page = service.list_activity_streams(ACTIVITY_ID, OWNER_ID, MagicMock())
+
+        assert page.items[0].stream_waypoints == _timed_stream().stream_waypoints
+
+
 def _hr_stream(waypoints=None) -> activity_streams_schema.ActivityStreamsRead:
     return activity_streams_schema.ActivityStreamsRead(
-        id=1,
-        activity_id=5,
+        id=STREAM_ID,
+        activity_id=ACTIVITY_ID,
         stream_type=1,
         stream_waypoints=waypoints if waypoints is not None else [{"hr": 100}, {"hr": 150}, {"hr": 180}],
     )
@@ -208,7 +335,7 @@ class TestZonesAreComputedWhenServed:
 
     @pytest.fixture
     def parent(self):
-        return MagicMock(user_id=1, total_timer_time=3.0)
+        return MagicMock(user_id=OWNER_ID, total_timer_time=3.0)
 
     @patch("modules.activities.activity_streams.service.users_integration.get_user")
     @patch("modules.activities.activity_streams.service.activity_streams_crud")
@@ -220,9 +347,9 @@ class TestZonesAreComputedWhenServed:
         mock_gate.resolve_readable_parent.return_value = parent
         mock_crud.get_activity_stream_by_type.return_value = _hr_stream()
 
-        stream = service.get_activity_stream(5, 1, 1, MagicMock())
+        stream = service.get_activity_stream(ACTIVITY_ID, 1, OWNER_ID, MagicMock())
 
-        hr = stream.zone_percentages["hr"]
+        hr = stream.zone_percentages.hr
         # 100 < 120 (zone 1), 150 in [140,160) (zone 3), 180 >= 180 (zone 5)
         assert [hr[f"zone_{n}"]["percent"] for n in range(1, 6)] == [33.33, 0.0, 33.33, 0.0, 33.33]
 
@@ -237,9 +364,9 @@ class TestZonesAreComputedWhenServed:
         mock_crud.get_activity_stream_by_type.return_value = _hr_stream()
 
         mock_get_user.return_value = MagicMock(max_heart_rate=200, birthdate=None, timezone="UTC")
-        before = service.get_activity_stream(5, 1, 1, MagicMock()).zone_percentages
+        before = service.get_activity_stream(ACTIVITY_ID, 1, OWNER_ID, MagicMock()).zone_percentages
         mock_get_user.return_value = MagicMock(max_heart_rate=150, birthdate=None, timezone="UTC")
-        after = service.get_activity_stream(5, 1, 1, MagicMock()).zone_percentages
+        after = service.get_activity_stream(ACTIVITY_ID, 1, OWNER_ID, MagicMock()).zone_percentages
 
         assert before != after
 
@@ -253,7 +380,7 @@ class TestZonesAreComputedWhenServed:
         mock_gate.resolve_readable_parent.return_value = parent
         mock_crud.get_activity_stream_by_type.return_value = _hr_stream()
 
-        assert service.get_activity_stream(5, 1, 1, MagicMock()).zone_percentages is None
+        assert service.get_activity_stream(ACTIVITY_ID, 1, OWNER_ID, MagicMock()).zone_percentages is None
 
     @patch("modules.activities.activity_streams.service.users_integration.get_user")
     @patch("modules.activities.activity_streams.service.activity_streams_crud")
@@ -265,14 +392,14 @@ class TestZonesAreComputedWhenServed:
         mock_gate.resolve_readable_parent.return_value = parent
         mock_crud.get_activity_streams.return_value = [_hr_stream(), _stream(2), _stream(3)]
 
-        page = service.list_activity_streams(5, 1, MagicMock())
+        page = service.list_activity_streams(ACTIVITY_ID, OWNER_ID, MagicMock())
 
         mock_get_user.assert_called_once()
         assert [s.zone_percentages is not None for s in page.items] == [True, False, False]
 
         mock_get_user.reset_mock()
         mock_crud.get_activity_streams.return_value = [_stream(2), _stream(3)]
-        service.list_activity_streams(5, 1, MagicMock())
+        service.list_activity_streams(ACTIVITY_ID, OWNER_ID, MagicMock())
         mock_get_user.assert_not_called()
 
     @patch("modules.activities.activity_streams.service.users_integration.get_user")
@@ -281,12 +408,12 @@ class TestZonesAreComputedWhenServed:
     def test_a_stream_hidden_from_the_viewer_is_never_computed(self, mock_gate, mock_crud, mock_get_user, parent):
         from modules.activities.activity_streams import service
 
-        parent.user_id = 99
+        parent.user_id = STRANGER_ID
         parent.hide_hr = True
         mock_gate.resolve_readable_parent.return_value = parent
         mock_crud.get_activity_streams.return_value = [_hr_stream()]
 
-        page = service.list_activity_streams(5, 1, MagicMock())
+        page = service.list_activity_streams(ACTIVITY_ID, OWNER_ID, MagicMock())
 
         assert page.items == []
         mock_get_user.assert_not_called()
@@ -302,4 +429,4 @@ class TestZonesAreComputedWhenServed:
         mock_gate.resolve_public_parent.return_value = parent
         mock_crud.get_activity_stream_by_type.return_value = _hr_stream()
 
-        assert service.get_public_activity_stream(5, 1, MagicMock()).zone_percentages is not None
+        assert service.get_public_activity_stream(ACTIVITY_ID, 1, MagicMock()).zone_percentages is not None

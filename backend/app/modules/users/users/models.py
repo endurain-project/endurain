@@ -1,33 +1,18 @@
 """User database models."""
 
+import uuid
 from datetime import date as date_type
-from typing import TYPE_CHECKING
+from datetime import datetime
 
-from sqlalchemy import String
-from sqlalchemy.orm import Mapped, mapped_column, relationship
+from sqlalchemy import CheckConstraint, DateTime, String
+from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.sql import func
 
 from core.database import Base
 
-if TYPE_CHECKING:
-    from modules.gears.gear.models import Gear
-    from modules.gears.gear_components.models import GearComponents
-    from modules.health.health_fasting.models import HealthFasting
-    from modules.health.health_poop.models import HealthPoop
-    from modules.health.health_sleep.models import HealthSleep
-    from modules.health.health_steps.models import HealthSteps
-    from modules.health.health_targets.models import HealthTargets
-    from modules.health.health_water.models import HealthWater
-    from modules.health.health_weight.models import HealthWeight
-    from modules.notifications.models import Notification
-    from modules.users.users_default_gear.models import UsersDefaultGear
-    from modules.users.users_goals.models import UsersGoal
-    from modules.users.users_integrations.models import UsersIntegrations
-    from modules.users.users_privacy_settings.models import UsersPrivacySettings
-
 
 class Users(Base):
-    """
-    User account and profile information.
+    """User account and profile information.
 
     Attributes:
         id: Primary key.
@@ -39,6 +24,8 @@ class Users(Base):
         preferred_language: Preferred language code.
         gender: User's gender (male, female, unspecified).
         units: Measurement units (metric, imperial).
+        weight_units: Weight units override (metric - kg, imperial - lb),
+            null follows units.
         height: User's height in centimeters.
         max_heart_rate: User maximum heart rate (bpm).
         access_type: User type (regular, admin).
@@ -51,11 +38,15 @@ class Users(Base):
             been verified.
         pending_admin_approval: Whether the user is pending
             admin approval for activation.
-        users_integrations: List of integrations.
-        users_default_gear: List of default gear.
-        users_privacy_settings: List of privacy settings.
-        gear: List of gear owned by the user.
-        gear_components: List of gear components.
+        created_at: When the account was created; accounts that
+            existed before the column took the migration time.
+        deactivated_at: When the account was deactivated by an
+            administrator or by a deletion request, or None. A
+            sign-up that is not yet verified or approved has none.
+        deletion_requested_at: When the account was queued for
+            deletion, or None.
+        deletion_attempts: How many times the sweep queued the
+            deletion again.
         health_sleep: List of health sleep records.
         health_weight: List of health weight records.
         health_steps: List of health steps records.
@@ -63,15 +54,14 @@ class Users(Base):
         health_fasting: List of health fasting records.
         health_water: List of health water intake records.
         health_poop: List of health poop records.
-        notifications: List of notifications.
-        goals: List of user goals.
     """
 
     __tablename__ = "users"
+    __table_args__ = (CheckConstraint("access_type IN ('regular', 'admin')", name="ck_users_access_type"),)
 
-    id: Mapped[int] = mapped_column(
+    id: Mapped[uuid.UUID] = mapped_column(
         primary_key=True,
-        autoincrement=True,
+        default=uuid.uuid4,
     )
     name: Mapped[str] = mapped_column(
         String(250),
@@ -117,6 +107,11 @@ class Users(Base):
         default="metric",
         nullable=False,
         comment="User units (metric, imperial)",
+    )
+    weight_units: Mapped[str | None] = mapped_column(
+        String(20),
+        nullable=True,
+        comment="User weight units override (metric - kg, imperial - lb), null follows units",
     )
     height: Mapped[int | None] = mapped_column(
         nullable=True,
@@ -169,60 +164,39 @@ class Users(Base):
         comment=("Whether the user is pending admin approval for activation (true - yes, false - no)"),
     )
 
-    # Relationships
-    users_integrations: Mapped[list["UsersIntegrations"]] = relationship(
-        back_populates="users",
-        cascade="all, delete-orphan",
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+        nullable=False,
+        comment="When the account was created; accounts that predate the column carry the migration time",
     )
-    users_default_gear: Mapped[list["UsersDefaultGear"]] = relationship(
-        back_populates="users",
-        cascade="all, delete-orphan",
+    deactivated_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True),
+        nullable=True,
+        comment=(
+            "When the account was deactivated by an administrator or a deletion request; "
+            "null for an active account and for a sign-up not yet verified or approved"
+        ),
     )
-    users_privacy_settings: Mapped[list["UsersPrivacySettings"]] = relationship(
-        back_populates="users",
-        cascade="all, delete-orphan",
+    deletion_requested_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True),
+        nullable=True,
+        comment="When the account was queued for deletion; null for an account that is not being deleted",
     )
-    gear: Mapped[list["Gear"]] = relationship(
-        back_populates="users",
-        cascade="all, delete-orphan",
+    deletion_attempts: Mapped[int] = mapped_column(
+        nullable=False,
+        server_default="0",
+        default=0,
+        comment="How many times the sweep queued this account's deletion again",
     )
-    gear_components: Mapped[list["GearComponents"]] = relationship(
-        back_populates="users",
-        cascade="all, delete-orphan",
+
+    version: Mapped[int] = mapped_column(
+        nullable=False,
+        server_default="1",
+        default=1,
+        comment="Optimistic-concurrency counter, surfaced to clients as the ETag",
     )
-    health_sleep: Mapped[list["HealthSleep"]] = relationship(
-        back_populates="users",
-        cascade="all, delete-orphan",
-    )
-    health_weight: Mapped[list["HealthWeight"]] = relationship(
-        back_populates="users",
-        cascade="all, delete-orphan",
-    )
-    health_steps: Mapped[list["HealthSteps"]] = relationship(
-        back_populates="users",
-        cascade="all, delete-orphan",
-    )
-    health_targets: Mapped[list["HealthTargets"]] = relationship(
-        back_populates="users",
-        cascade="all, delete-orphan",
-    )
-    health_fasting: Mapped[list["HealthFasting"]] = relationship(
-        back_populates="users",
-        cascade="all, delete-orphan",
-    )
-    health_water: Mapped[list["HealthWater"]] = relationship(
-        back_populates="users",
-        cascade="all, delete-orphan",
-    )
-    health_poop: Mapped[list["HealthPoop"]] = relationship(
-        back_populates="users",
-        cascade="all, delete-orphan",
-    )
-    notifications: Mapped[list["Notification"]] = relationship(
-        back_populates="users",
-        cascade="all, delete-orphan",
-    )
-    goals: Mapped[list["UsersGoal"]] = relationship(
-        back_populates="users",
-        cascade="all, delete-orphan",
-    )
+
+    # SQLAlchemy bumps ``version`` on each ORM flush and adds it to the UPDATE's
+    # WHERE clause, raising StaleDataError when the row moved underneath.
+    __mapper_args__ = {"version_id_col": version}  # noqa: RUF012

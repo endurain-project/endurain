@@ -16,7 +16,6 @@ import {
   yearRange,
 } from '@/features/summary/utils/period'
 import {
-  combineSummaryMetric,
   formatSummaryCalories,
   formatSummaryDistance,
   formatSummaryDuration,
@@ -48,13 +47,13 @@ describe('fetchActivitySummary', () => {
         { ...metrics, day_of_week: 0 },
         { ...metrics, day_of_week: 5 },
       ],
-      type_breakdown: [{ ...metrics, activity_type_id: 1, activity_type: 'Run' }],
+      type_breakdown: [{ ...metrics, activity_type: 'run' }],
     })
 
-    const result = await fetchActivitySummary('week', { date: '2024-06-10', typeName: 'Run' })
+    const result = await fetchActivitySummary('week', { date: '2024-06-10', type: 'run' })
 
     expect(apiFetch).toHaveBeenCalledWith(
-      '/activities/summaries?period=week&date=2024-06-10&type=Run',
+      '/activities/summaries?period=week&date=2024-06-10&type=run',
       expect.objectContaining({ signal: undefined }),
     )
     expect(result.totals).toEqual({
@@ -65,7 +64,7 @@ describe('fetchActivitySummary', () => {
       activityCount: 2,
     })
     expect(result.breakdown.map((row) => row.bucket)).toEqual([0, 5])
-    expect(result.typeBreakdown[0]).toMatchObject({ activityType: 1, activityTypeName: 'Run' })
+    expect(result.typeBreakdown[0]).toMatchObject({ activityType: 'run' })
   })
 
   it('requests the month endpoint and maps week-number buckets', async () => {
@@ -117,10 +116,10 @@ describe('fetchActivitySummary', () => {
     expect(result.breakdown[0]?.bucket).toBe(2023)
   })
 
-  it('omits the date query for the week view when no date and a blank type are given', async () => {
+  it('omits the date query for the week view when no date and no type are given', async () => {
     vi.mocked(apiFetch).mockResolvedValueOnce({ ...metrics, breakdown: [], type_breakdown: [] })
 
-    await fetchActivitySummary('week', { typeName: '  ' })
+    await fetchActivitySummary('week', { type: null })
 
     expect(apiFetch).toHaveBeenCalledWith(
       '/activities/summaries?period=week',
@@ -204,19 +203,14 @@ describe('summary formatters', () => {
     expect(formatSummaryElevation(100, 'imperial')).toEqual({ value: '328', unit: 'ft' })
   })
 
-  it('formats duration as a compact clock', () => {
-    expect(formatSummaryDuration(3661)).toEqual({ value: '1h 1m', unit: '' })
-    expect(formatSummaryDuration(600)).toEqual({ value: '10m', unit: '' })
-    expect(formatSummaryDuration(0)).toEqual({ value: '0m', unit: '' })
+  it('splits duration into whole hours and minutes', () => {
+    expect(formatSummaryDuration(3661)).toEqual({ hours: 1, minutes: 1 })
+    expect(formatSummaryDuration(600)).toEqual({ hours: 0, minutes: 10 })
+    expect(formatSummaryDuration(0)).toEqual({ hours: 0, minutes: 0 })
   })
 
   it('formats calories grouped into thousands', () => {
     expect(formatSummaryCalories(1234)).toEqual({ value: '1,234', unit: 'kcal' })
     expect(formatSummaryCalories(999)).toEqual({ value: '999', unit: 'kcal' })
-  })
-
-  it('combines a metric value and unit, omitting an empty unit', () => {
-    expect(combineSummaryMetric({ value: '12.50', unit: 'km' })).toBe('12.50 km')
-    expect(combineSummaryMetric({ value: '5', unit: '' })).toBe('5')
   })
 })

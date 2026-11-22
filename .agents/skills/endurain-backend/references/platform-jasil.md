@@ -15,9 +15,10 @@ The application wires it once in `core/platform_settings.py` (settings) and `mai
 | Payload schemas + parsing | `jasil.event_versioning` (`VersionedPayload`, `parse_payload`) |
 | Durable handler registration | `jasil.jobs.registry` (`JobHandlerRegistry`) |
 | Reconciliation nets | `jasil.jobs.reconciliation` (`DurableSubscriberNet`) |
+| Audit trail (declare actions, write rows) | `jasil.audit` (`docs/developer-guide/audit-trail.md`) |
 
 Forbidden (enforced by `tests/architecture/test_jasil_boundary.py`):
-`jasil._core`, `jasil.backends`, `jasil.jobs.crud`, `jasil.event_log.crud`.
+`jasil._core`, `jasil.backends`, `jasil.jobs.crud`, `jasil.event_log.crud`, `jasil.audit._postgres`.
 `core` and `jasil` never import `modules`.
 
 ## Storage
@@ -27,7 +28,7 @@ Forbidden (enforced by `tests/architecture/test_jasil_boundary.py`):
 - The same applies to `geocoding`, `lock` and `state`.
 - Tests then pass a `MagicMock()` or a real `LocalStorage`, and route tests use `app.dependency_overrides[get_storage]`; no runtime patching.
 - `tests/architecture/test_module_boundaries.py::TestProviderResolution` fails on `get_active_platform` below an entry point.
-- Each domain owns a storage *area* constant (`ACTIVITY_FILE_STORAGE_AREA = "activity_files"`); an area is a single namespace component, so put hierarchy in the key (`processed/42.fit`).
+- Each domain owns a storage *area* constant (`ACTIVITY_FILE_STORAGE_AREA = "activity_files"`); an area is a single namespace component, so put hierarchy in the key (`processed/<activity id>.fit`).
 - Derive keys from ids; keep key builders next to the code that owns the area.
 - Local disk and object storage behave identically; never assume a filesystem path.
 - A new area needs an owner, a cleanup on parent deletion, a sweep for what an event missed and, for user data, removal on
@@ -63,6 +64,7 @@ When no backfill is possible pass `None` plus `exempt_reason=...` explaining why
 ## Scheduled and startup work
 
 - Recurring work: `scheduled_jobs.recurring_jobs()` returning `core_scheduler.ScheduledJob(...)` tuples; one-shots via `core_scheduler.run_once(...)`.
+- A pass that may be skipped when another replica is running it declares `lock_name=` on its `ScheduledJob` (and on the `run_once` that catches up after a restart); the service does not take the lock itself. A locked recurring job also marks itself run in the shared state, so it runs once per interval across replicas, not once per replica. An operation that must be retried rather than skipped (a full thumbnail regeneration) takes its own lock and raises `ConflictError` so a durable job retries it.
 - Startup backfills are `StartupTask`s on the module's `RuntimeModule`.
 - The scheduler schedules what it is handed and imports no module.
 - Everything must also run in `worker.py`; `module_registry` is what keeps API and worker from drifting.

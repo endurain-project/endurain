@@ -6,11 +6,14 @@ package-specific is the declaration: the wrong hide flag or the wrong CRUD pair
 would silently serve — or refuse — the wrong rows.
 """
 
+import uuid
 from unittest.mock import MagicMock, patch
 
 import modules.activities.activity_workout_steps.crud as activity_workout_steps_crud
 import modules.activities.activity_workout_steps.schema as activity_workout_steps_schema
 import modules.activities.activity_workout_steps.service as service
+
+_ACTIVITY_ID = uuid.UUID("00000000-0000-4000-8000-000000000005")
 
 
 class TestCollectionDeclaration:
@@ -28,20 +31,20 @@ class TestCollectionDeclaration:
 class TestDelegation:
     @patch("modules.activities.activity.child_collection_service.activity_child_access_service")
     def test_the_authenticated_read_goes_through_the_shared_gate(self, mock_gate):
-        mock_gate.may_read_child.return_value = False
+        mock_gate.resolve_readable_parent.return_value = None
         db = MagicMock()
 
-        page = service.list_activity_workout_steps(5, 1, db)
+        page = service.list_activity_workout_steps(_ACTIVITY_ID, 1, db)
 
         assert (page.items, page.total) == ([], 0)
-        mock_gate.may_read_child.assert_called_once_with(5, 1, db, hide_attr="hide_workout_sets_steps")
+        mock_gate.resolve_readable_parent.assert_called_once_with(_ACTIVITY_ID, 1, db)
 
     @patch("modules.activities.activity.child_collection_service.activity_child_access_service")
     def test_the_public_read_goes_through_the_public_gate(self, mock_gate):
-        mock_gate.may_read_public_child.return_value = False
+        mock_gate.resolve_public_parent.return_value = None
         db = MagicMock()
 
-        page = service.list_public_activity_workout_steps(5, db)
+        page = service.list_public_activity_workout_steps(_ACTIVITY_ID, db)
 
         assert (page.items, page.total) == ([], 0)
-        mock_gate.may_read_public_child.assert_called_once_with(5, db, hide_attr="hide_workout_sets_steps")
+        mock_gate.resolve_public_parent.assert_called_once_with(_ACTIVITY_ID, db)

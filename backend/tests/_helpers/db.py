@@ -1,4 +1,5 @@
 import os
+import uuid
 from collections.abc import Sequence
 from typing import Any
 from unittest.mock import MagicMock
@@ -126,6 +127,24 @@ def postgres_test_url() -> str | None:
     return os.environ.get(POSTGRES_TEST_URL_ENV) or None
 
 
+def disposable_postgres_url() -> str:
+    """Return ``TEST_DATABASE_URL`` after checking that it names a disposable database.
+
+    Raises:
+        RuntimeError: If the variable is unset or the database name does not contain ``test``.
+    """
+    url = postgres_test_url()
+    if url is None:
+        raise RuntimeError(f"{POSTGRES_TEST_URL_ENV} is not set")
+    database = make_url(url).database or ""
+    if "test" not in database:
+        raise RuntimeError(
+            f"Refusing to recreate the schema of '{database}': {POSTGRES_TEST_URL_ENV} must name a "
+            "disposable database whose name contains 'test'."
+        )
+    return url
+
+
 def create_postgres_session_factory() -> sessionmaker[Session]:
     """Create a sessionmaker over a real PostgreSQL test database.
 
@@ -142,15 +161,7 @@ def create_postgres_session_factory() -> sessionmaker[Session]:
     """
     from core.database import Base
 
-    url = postgres_test_url()
-    if url is None:
-        raise RuntimeError(f"{POSTGRES_TEST_URL_ENV} is not set")
-    database = make_url(url).database or ""
-    if "test" not in database:
-        raise RuntimeError(
-            f"Refusing to recreate the schema of '{database}': {POSTGRES_TEST_URL_ENV} must name a "
-            "disposable database whose name contains 'test'."
-        )
+    url = disposable_postgres_url()
 
     _import_all_models()
     engine = create_engine(url)
@@ -168,7 +179,7 @@ def drop_postgres_schema(factory: sessionmaker[Session]) -> None:
     engine.dispose()
 
 
-def ensure_user(factory: sessionmaker[Session], user_id: int) -> None:
+def ensure_user(factory: sessionmaker[Session], user_id: uuid.UUID) -> None:
     """Insert a minimal user row if it is missing.
 
     PostgreSQL enforces the ``users.id`` foreign keys that SQLite leaves
@@ -181,10 +192,10 @@ def ensure_user(factory: sessionmaker[Session], user_id: int) -> None:
             db.add(
                 users_models.Users(
                     id=user_id,
-                    name=f"User {user_id}",
-                    username=f"user{user_id}",
-                    email=f"user{user_id}@example.com",
-                    preferred_language="us",
+                    name=f"User {user_id.hex[-12:]}",
+                    username=f"user{user_id.hex}",
+                    email=f"user{user_id.hex}@example.com",
+                    preferred_language="en",
                     access_type="regular",
                 )
             )

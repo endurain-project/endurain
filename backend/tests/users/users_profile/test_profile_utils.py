@@ -1,11 +1,18 @@
 """Tests for profile utility functions."""
 
-from unittest.mock import MagicMock, patch
+import io
+import json
+import uuid
+import zipfile
+from datetime import date
+from decimal import Decimal
+from unittest.mock import MagicMock, PropertyMock, patch
 
 import pytest
+from pydantic import BaseModel
 
 import modules.users.users_profile.utils as profile_utils
-from modules.users.users_profile.exceptions import MemoryAllocationError
+from modules.users.users_profile.exceptions import FileSizeError, JSONParseError, MemoryAllocationError
 
 
 class TestBasePerformanceConfig:
@@ -44,7 +51,7 @@ class TestBasePerformanceConfig:
         class TestConfig(profile_utils.BasePerformanceConfig):
             @classmethod
             def _get_tier_configs(cls):
-                return {"high": {"batch_size": 5000, "max_memory_mb": 2048}}
+                return {"high": cls(batch_size=5000, max_memory_mb=2048)}
 
         config = TestConfig.get_auto_config()
         assert config.batch_size == 5000
@@ -57,51 +64,53 @@ class TestBasePerformanceConfig:
         class TestConfig(profile_utils.BasePerformanceConfig):
             @classmethod
             def _get_tier_configs(cls):
-                return {"high": {"batch_size": 5000}}
+                return {"high": cls(batch_size=5000)}
 
         config = TestConfig.get_auto_config()
         assert config.batch_size == 1000
 
     @patch("modules.users.users_profile.utils.detect_system_memory_tier")
-    def test_get_auto_config_detect_failure_defaults(self, mock_detect):
-        mock_detect.side_effect = Exception("detect failed")
+    def test_get_auto_config_detect_failure_propagates(self, mock_detect):
+        mock_detect.side_effect = RuntimeError("detect failed")
 
         class TestConfig(profile_utils.BasePerformanceConfig):
             @classmethod
             def _get_tier_configs(cls):
-                return {"high": {"batch_size": 5000}}
+                return {"high": cls(batch_size=5000)}
 
-        config = TestConfig.get_auto_config()
-        assert config.batch_size == 1000
+        with pytest.raises(RuntimeError, match="detect failed"):
+            TestConfig.get_auto_config()
+
+    @patch("modules.users.users_profile.utils.detect_system_memory_tier")
+    def test_get_auto_config_broken_tier_configs_propagate(self, mock_detect):
+        mock_detect.return_value = ("high", 4096)
+
+        class TestConfig(profile_utils.BasePerformanceConfig):
+            @classmethod
+            def _get_tier_configs(cls):
+                raise RuntimeError("broken tier configs")
+
+        with pytest.raises(RuntimeError, match="broken tier configs"):
+            TestConfig.get_auto_config()
+
+    @patch("modules.users.users_profile.utils.detect_system_memory_tier")
+    def test_get_auto_config_without_tier_configs_raises(self, mock_detect):
+        mock_detect.return_value = ("high", 4096)
+
+        with pytest.raises(NotImplementedError):
+            profile_utils.BasePerformanceConfig.get_auto_config()
 
 
-class TestSQLAlchemyObjToDict:
-    """Test suite for sqlalchemy_obj_to_dict function."""
+class TestModelToDict:
+    def test_a_schema_is_dumped_as_json(self):
+        class Record(BaseModel):
+            day: date
+            amount: Decimal
 
-    def test_with_sqlalchemy_object(self):
-        col_id = MagicMock()
-        col_id.name = "id"
-        col_name = MagicMock()
-        col_name.name = "name"
-
-        table_mock = MagicMock()
-        table_mock.columns.__iter__.return_value = iter([col_id, col_name])
-
-        obj = MagicMock()
-        obj.__table__ = table_mock
-        obj.id = 1
-        obj.name = "Test"
-
-        result = profile_utils.sqlalchemy_obj_to_dict(obj)
-        assert result == {"id": 1, "name": "Test"}
-
-    def test_without_table_attribute(self):
-        result = profile_utils.sqlalchemy_obj_to_dict("not_an_sa_obj")
-        assert result == "not_an_sa_obj"
-
-    def test_with_dict(self):
-        result = profile_utils.sqlalchemy_obj_to_dict({"key": "value"})
-        assert result == {"key": "value"}
+        assert profile_utils.model_to_dict(Record(day=date(2026, 1, 2), amount=Decimal("1.5"))) == {
+            "day": "2026-01-02",
+            "amount": "1.5",
+        }
 
 
 class TestWriteJsonToZip:
@@ -256,10 +265,9 @@ class TestInitializeOperationCounts:
 
     def test_all_counts_initialized_to_zero(self):
         counts = profile_utils.initialize_operation_counts()
-        assert counts["media"] == 0
-        assert counts["activities"] == 0
+        assert counts["user_images"] == 0
         assert counts["user"] == 0
-        assert len(counts) == 20
+        assert len(counts) == 7
 
     def test_with_user_count(self):
         counts = profile_utils.initialize_operation_counts(include_user_count=True)
@@ -268,19 +276,6 @@ class TestInitializeOperationCounts:
     def test_all_expected_keys_present(self):
         counts = profile_utils.initialize_operation_counts()
         expected_keys = {
-            "media",
-            "activity_files",
-            "activities",
-            "activity_laps",
-            "activity_sets",
-            "activity_streams",
-            "activity_workout_steps",
-            "activity_media",
-            "activity_exercise_titles",
-            "gears",
-            "gear_components",
-            "health_weight",
-            "health_targets",
             "user_images",
             "user",
             "user_default_gear",
@@ -332,3 +327,230 @@ class TestDetectSystemMemoryTier:
         tier, mb = profile_utils.detect_system_memory_tier()
         assert tier == "medium"
         assert mb == 1024
+
+
+class TestWriteJsonArrayToZip:
+    """The streamed entry is what ``write_json_to_zip`` writes for the same items, held a batch at a time."""
+
+    @staticmethod
+    def _entry(write) -> tuple[str, dict[str, int]]:
+        import io
+        import zipfile
+
+        buf = io.BytesIO()
+        counts: dict[str, int] = {}
+        with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as archive:
+            write(archive, counts)
+        with zipfile.ZipFile(buf) as archive:
+            return archive.read("data/items.json").decode(), counts
+
+    def test_matches_the_in_memory_writer_byte_for_byte(self):
+        items = [{"id": 1, "name": "Corrida ☀"}, {"id": 2, "when": __import__("datetime").date(2026, 1, 2)}, {"id": 3}]
+
+        streamed, streamed_counts = self._entry(
+            lambda z, c: profile_utils.write_json_array_to_zip(z, "data/items.json", [items[:2], items[2:]], c)
+        )
+        whole, whole_counts = self._entry(lambda z, c: profile_utils.write_json_to_zip(z, "data/items.json", items, c))
+
+        assert streamed == whole
+        assert streamed_counts == whole_counts == {"items": 3}
+
+    def test_no_batches_is_an_empty_array(self):
+        raw, counts = self._entry(lambda z, c: profile_utils.write_json_array_to_zip(z, "data/items.json", [], c))
+
+        assert raw == "[]"
+        assert counts == {"items": 0}
+
+    def test_empty_batches_are_ignored(self):
+        raw, counts = self._entry(
+            lambda z, c: profile_utils.write_json_array_to_zip(z, "data/items.json", [[], [{"id": 1}], []], c)
+        )
+
+        assert raw == '[{"id": 1}]'
+        assert counts == {"items": 1}
+
+    def test_batches_are_read_lazily(self):
+        seen: list[str] = []
+
+        def batches():
+            seen.append("first")
+            yield [{"id": 1}]
+            seen.append("second")
+            yield [{"id": 2}]
+
+        self._entry(lambda z, c: profile_utils.write_json_array_to_zip(z, "data/items.json", batches(), c))
+
+        assert seen == ["first", "second"]
+
+
+def _zip_of(files: dict[str, bytes]) -> zipfile.ZipFile:
+    buf = io.BytesIO()
+    with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as z:
+        for name, data in files.items():
+            z.writestr(name, data)
+    return zipfile.ZipFile(io.BytesIO(buf.getvalue()))
+
+
+def _reader(z, **overrides) -> profile_utils.ZipArchiveReader:
+    limits = {
+        "max_json_bytes": 1024 * 1024,
+        "max_uncompressed_bytes": 10 * 1024 * 1024,
+        "max_memory_mb": 1024,
+        "enable_memory_monitoring": False,
+    }
+    return profile_utils.ZipArchiveReader(z, **{**limits, **overrides})
+
+
+_ROW_A, _ROW_B, _ROW_C = (uuid.UUID(int=n) for n in (1, 2, 3))
+
+
+class _Row(BaseModel):
+    id: uuid.UUID
+
+
+class TestZipArchiveWriter:
+    def test_write_json_writes_the_entry_and_counts_it_by_stem(self):
+        buf = io.BytesIO()
+        counts: dict[str, int] = {}
+        with zipfile.ZipFile(buf, "w") as z:
+            profile_utils.ZipArchiveWriter(z, counts).write_json("data/gears.json", [_Row(id=_ROW_A), _Row(id=_ROW_B)])
+
+        with zipfile.ZipFile(buf) as z:
+            assert json.loads(z.read("data/gears.json")) == [{"id": str(_ROW_A)}, {"id": str(_ROW_B)}]
+        assert counts == {"gears": 2}
+
+    def test_an_empty_write_counts_zero(self):
+        counts: dict[str, int] = {}
+        with zipfile.ZipFile(io.BytesIO(), "w") as z:
+            profile_utils.ZipArchiveWriter(z, counts).write_json("data/gear_components.json", [])
+
+        assert counts == {"gear_components": 0}
+
+    def test_write_json_stream_matches_write_json_and_counts_every_record(self):
+        buf = io.BytesIO()
+        counts: dict[str, int] = {}
+        with zipfile.ZipFile(buf, "w") as z:
+            writer = profile_utils.ZipArchiveWriter(z, counts)
+            writer.write_json_stream(
+                "data/streamed.json", iter([[_Row(id=_ROW_A)], [], [_Row(id=_ROW_B), _Row(id=_ROW_C)]])
+            )
+            writer.write_json("data/whole.json", [_Row(id=_ROW_A), _Row(id=_ROW_B), _Row(id=_ROW_C)])
+
+        with zipfile.ZipFile(buf) as z:
+            assert z.read("data/streamed.json") == z.read("data/whole.json")
+        assert counts == {"streamed": 3, "whole": 3}
+
+    def test_write_bytes_writes_the_entry_without_counting(self):
+        buf = io.BytesIO()
+        counts: dict[str, int] = {}
+        with zipfile.ZipFile(buf, "w") as z:
+            profile_utils.ZipArchiveWriter(z, counts).write_bytes("activity_files/1.gpx", b"<gpx/>")
+
+        with zipfile.ZipFile(buf) as z:
+            assert z.read("activity_files/1.gpx") == b"<gpx/>"
+        assert counts == {}
+
+
+class TestZipArchiveReader:
+    def test_names_lists_the_entries(self):
+        reader = _reader(_zip_of({"data/a.json": b"[]", "user_images/1.png": b"x"}))
+
+        assert reader.names == frozenset({"data/a.json", "user_images/1.png"})
+
+    def test_load_json_returns_the_objects(self):
+        reader = _reader(_zip_of({"data/gears.json": b'[{"id": 1}, 7, "gear", null, {"id": 2}]'}))
+
+        assert reader.load_json("data/gears.json") == [{"id": 1}, {"id": 2}]
+
+    def test_an_absent_entry_loads_as_empty(self):
+        assert _reader(_zip_of({})).load_json("data/missing.json") == []
+
+    @pytest.mark.parametrize("content", [b"null", b"{}", b'"string"', b"42"])
+    def test_an_entry_that_is_not_a_list_loads_as_empty(self, content):
+        assert _reader(_zip_of({"data/t.json": content})).load_json("data/t.json") == []
+
+    def test_invalid_json_raises(self):
+        with pytest.raises(JSONParseError):
+            _reader(_zip_of({"data/bad.json": b"not-json"})).load_json("data/bad.json")
+
+    def test_an_oversized_json_entry_is_refused_before_it_is_parsed(self):
+        reader = _reader(_zip_of({"data/gears.json": b"[" + b'{"id": 1},' * 50 + b"{}]"}), max_json_bytes=10)
+
+        with pytest.raises(FileSizeError):
+            reader.load_json("data/gears.json")
+
+    def test_load_json_checks_memory_after_parsing_unless_told_not_to(self):
+        reader = _reader(_zip_of({"data/a.json": b"[]"}))
+
+        with patch.object(profile_utils, "check_memory_usage") as check:
+            reader.load_json("data/a.json")
+            reader.load_json("data/a.json", check_memory=False)
+
+        check.assert_called_once_with("loading data/a.json", 1024, False)
+
+    def test_memory_over_the_limit_raises(self):
+        reader = _reader(_zip_of({"data/a.json": b"[]"}), enable_memory_monitoring=True, max_memory_mb=0)
+
+        with pytest.raises(MemoryAllocationError):
+            reader.load_json("data/a.json")
+
+    def test_read_bytes_refuses_an_entry_declared_over_the_cap(self):
+        reader = _reader(_zip_of({"activity_files/1.gpx": b"x" * 100}))
+
+        with pytest.raises(FileSizeError, match="exceeds maximum"):
+            reader.read_bytes("activity_files/1.gpx", max_bytes=10)
+
+    def test_read_bytes_enforces_the_cap_against_the_decompressed_bytes(self):
+        z = _zip_of({"data/test.json": b"x" * 2048})
+        reader = _reader(z)
+        info = z.getinfo("data/test.json")
+
+        with (
+            patch.object(type(info), "file_size", new_callable=PropertyMock, return_value=10),
+            patch.object(z, "open", return_value=io.BytesIO(b"x" * 100)),
+            pytest.raises(FileSizeError, match="decompressed size exceeds"),
+        ):
+            reader.read_bytes("data/test.json", max_bytes=50)
+
+    def test_the_bytes_read_across_entries_are_capped(self):
+        reader = _reader(
+            _zip_of({"data/a.json": b'["' + b"x" * 60 + b'"]', "data/b.json": b'["' + b"y" * 60 + b'"]'}),
+            max_uncompressed_bytes=100,
+        )
+
+        reader.load_json("data/a.json")
+        with pytest.raises(FileSizeError, match="uncompressed"):
+            reader.load_json("data/b.json")
+
+    def test_load_json_part_returns_the_objects_of_a_part(self):
+        reader = _reader(_zip_of({"data/laps_000.json": b'[{"activity_id": 1}, 3]'}))
+
+        assert reader.load_json_part("data/laps_000.json") == [{"activity_id": 1}]
+
+    @pytest.mark.parametrize("content", [b"not-valid-json", b"{}"])
+    def test_a_bad_part_is_skipped(self, content):
+        assert _reader(_zip_of({"data/laps_000.json": content})).load_json_part("data/laps_000.json") == []
+
+    def test_a_part_over_the_cap_is_skipped(self):
+        reader = _reader(_zip_of({"data/laps_000.json": b'[{"activity_id": 1}]'}), max_json_bytes=5)
+
+        assert reader.load_json_part("data/laps_000.json") == []
+
+    def test_a_part_that_breaks_the_archive_cap_is_skipped(self):
+        reader = _reader(
+            _zip_of({"data/a.json": b'["' + b"x" * 60 + b'"]', "data/laps_000.json": b'[{"activity_id": 1}]'}),
+            max_uncompressed_bytes=70,
+        )
+
+        reader.load_json("data/a.json")
+
+        assert reader.load_json_part("data/laps_000.json") == []
+
+    def test_a_memory_error_while_reading_a_part_propagates(self):
+        reader = _reader(_zip_of({"data/laps_000.json": b"[]"}))
+
+        with (
+            patch.object(profile_utils.ZipArchiveReader, "_read", side_effect=MemoryAllocationError("oom")),
+            pytest.raises(MemoryAllocationError),
+        ):
+            reader.load_json_part("data/laps_000.json")

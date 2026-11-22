@@ -10,6 +10,7 @@
   "settings": "Nustatymai",
   "profile": "Profilis",
   "logout": "Atsijungti",
+  "logoutFailed": "Atsijungti nepavyko. Patikrinkite ryšį ir bandykite dar kartą.",
   "userMenu": "Naudotojo meniu",
   "menu": "Meniu",
   "primary": "Pagrindinė navigacija",

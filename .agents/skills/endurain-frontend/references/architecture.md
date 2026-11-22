@@ -13,9 +13,14 @@
 3. Composable `useXxxQuery()` calling `useQuery` with the service function and the key factory.
 4. View or component consumes the composable; it never calls `fetch`/`apiFetch` and never copies server data into Pinia.
 
+Lists:
+- A list a screen shows whole is read with `fetchAllPages` (or `fetchAllPageEnvelopes` when fields beside `items` are needed) from `src/services/pagination.ts`, which asks for full pages and follows `next` to the end. Never read one page of the maximum size and stop.
+- A list filtered by a field is filtered by the server; a service never drops rows from a page, so the page and its `total` stay in step.
+
 Writes:
 - Use `useInvalidatingMutation` so the affected domain's keys are invalidated.
 - Optimistic updates snapshot in `onMutate`, roll back in `onError`, invalidate in `onSettled` (reference: `useMarkNotificationReadMutation`).
+- A write to a versioned resource maps `version` through `rowVersion` and sends `ifMatchHeaders(version)` (`src/services/ifMatch.ts`); never `*`. On 412 refetch and show the conflict; a 428 is a bug.
 - Seed or invalidate `queryKeys.currentUser()` when a profile change must propagate everywhere.
 
 ## Typed API client

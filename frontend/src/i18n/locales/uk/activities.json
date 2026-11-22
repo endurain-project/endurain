@@ -11,7 +11,7 @@
     "subtitle": "Переглядайте, фільтруйте та сортуйте всі свої активності.",
     "searchPlaceholder": "Пошук за назвою або місцем",
     "clearSearch": "Очистити пошук",
-    "resultCount": "{count} активностей",
+    "resultCount": "{count} активність | {count} активності | {count} активностей",
     "filters": {
       "type": "Тип активності",
       "allTypes": "Усі типи",
@@ -184,10 +184,13 @@
   },
   "edit": {
     "title": "Редагувати активність",
+    "loading": "Завантаження активності",
+    "loadError": "Не вдалося завантажити активність",
     "save": "Зберегти зміни",
     "cancel": "Скасувати",
     "close": "Закрити",
     "name": "Назва",
+    "nameRequired": "Введіть назву активності",
     "type": "Тип активності",
     "description": "Опис",
     "privateNotes": "Приватні нотатки",
@@ -208,7 +211,7 @@
     "hideGear": "Приховати спорядження",
     "success": "Активність оновлено",
     "error": "Не вдалося оновити активність",
-    "staleError": "This activity was changed elsewhere while you were editing. Your changes were not saved. Reopen it to see the current version."
+    "staleError": "Цю активність було змінено деінде, поки ви її редагували. Ваші зміни не збережено. Відкрийте її знову, щоб побачити поточну версію."
   },
   "alerts": {
     "hidden": "Ця активність прихована. Тільки ви можете її бачити.",

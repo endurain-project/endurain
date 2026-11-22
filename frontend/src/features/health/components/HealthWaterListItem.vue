@@ -8,6 +8,7 @@ import type { WaterEntry } from '@/features/health/types'
 
 import { Button } from '@/components/ui/button'
 import { INTEGRATION_LOGOS } from '@/constants/integrationLogos'
+import { useUnitFormat } from '@/composables/useUnitFormat'
 import { formatHealthEntryDate, formatWater } from '@/features/health/utils/healthFormat'
 
 const props = defineProps<{
@@ -19,10 +20,11 @@ const props = defineProps<{
 const emit = defineEmits<{ edit: [entry: WaterEntry]; delete: [entry: WaterEntry] }>()
 
 const { t, locale } = useI18n()
+const { unitLabel } = useUnitFormat()
 
 /** Primary water string, or an em dash when the entry carries no amount. */
 const amountLabel = computed(() =>
-  props.entry.amountMl === null ? '—' : formatWater(props.entry.amountMl, props.units),
+  props.entry.amountMl === null ? '—' : formatWater(props.entry.amountMl, props.units, unitLabel),
 )
 
 const dateLabel = computed(() => formatHealthEntryDate(props.entry.date, locale.value))

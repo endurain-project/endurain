@@ -82,5 +82,13 @@
       "ownTitle": "Du hast noch keine Follower.",
       "otherTitle": "Noch keine Follower."
     }
+  },
+  "block": {
+    "block": "Blockieren",
+    "unblock": "Blockierung aufheben",
+    "confirmTitle": "{name} blockieren?",
+    "confirmBody": "{name} kann dir keine Follow-Anfragen mehr senden, und jedes Follow zwischen euch wird entfernt. Die Person wird nicht benachrichtigt.",
+    "blockError": "Dieser Nutzer konnte nicht blockiert werden. Bitte versuche es erneut.",
+    "unblockError": "Die Blockierung dieses Nutzers konnte nicht aufgehoben werden. Bitte versuche es erneut."
   }
 }

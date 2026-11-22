@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import uuid
 from datetime import UTC, datetime, timedelta
 from unittest.mock import Mock
 
@@ -16,6 +17,9 @@ import modules.coros.models as coros_models
 import modules.coros.oauth as coros_oauth
 import modules.coros.service as coros_service
 from tests._helpers.db import create_sqlite_session
+
+USER_ID = uuid.uuid4()
+OTHER_USER_ID = uuid.uuid4()
 
 
 def _metadata() -> contracts.CorosOAuthMetadata:
@@ -59,9 +63,9 @@ class TestAuthorization:
             Mock(return_value=contracts.CorosClientRegistration("client-1")),
         )
 
-        url = coros_service.begin_authorization(1, "https://app.example.com/coros/callback", db)
+        url = coros_service.begin_authorization(USER_ID, "https://app.example.com/coros/callback", db)
 
-        row = db.query(coros_models.CorosIntegration).filter_by(user_id=1).one()
+        row = db.query(coros_models.CorosIntegration).filter_by(user_id=USER_ID).one()
         assert "state=" in url and "code_challenge=" in url
         assert row.state is not None
         assert row.code_verifier is not None and row.code_verifier != "verifier"
@@ -72,14 +76,14 @@ class TestAuthorization:
         register = Mock(return_value=contracts.CorosClientRegistration("client-1"))
         monkeypatch.setattr(coros_oauth, "register_client", register)
 
-        coros_service.begin_authorization(1, "https://app.example.com/coros/callback", db)
-        coros_service.begin_authorization(1, "https://app.example.com/coros/callback", db)
+        coros_service.begin_authorization(USER_ID, "https://app.example.com/coros/callback", db)
+        coros_service.begin_authorization(USER_ID, "https://app.example.com/coros/callback", db)
 
         register.assert_called_once()
 
     def test_an_unknown_or_foreign_state_is_refused(self, db):
         with pytest.raises(core_exceptions.InvalidInputError):
-            coros_service.complete_link(2, "code", "unknown-state", db)
+            coros_service.complete_link(OTHER_USER_ID, "code", "unknown-state", db)
 
     def test_an_expired_state_is_cleared(self, db, monkeypatch):
         monkeypatch.setattr(coros_oauth, "discover_metadata", Mock(return_value=_metadata()))
@@ -88,14 +92,14 @@ class TestAuthorization:
             "register_client",
             Mock(return_value=contracts.CorosClientRegistration("client-1")),
         )
-        coros_service.begin_authorization(1, "https://app.example.com/coros/callback", db)
-        row = db.query(coros_models.CorosIntegration).filter_by(user_id=1).one()
+        coros_service.begin_authorization(USER_ID, "https://app.example.com/coros/callback", db)
+        row = db.query(coros_models.CorosIntegration).filter_by(user_id=USER_ID).one()
         state = row.state
         row.state_expires_at = datetime.now(UTC) - timedelta(minutes=1)
         db.commit()
 
         with pytest.raises(core_exceptions.InvalidInputError):
-            coros_service.complete_link(1, "code", state, db)
+            coros_service.complete_link(USER_ID, "code", state, db)
         assert coros_crud.get_by_state(state, db) is None
 
     def test_complete_link_stores_encrypted_tokens(self, db, monkeypatch):
@@ -106,13 +110,13 @@ class TestAuthorization:
             Mock(return_value=contracts.CorosClientRegistration("client-1")),
         )
         monkeypatch.setattr(coros_oauth, "exchange_code", Mock(return_value=_tokens()))
-        coros_service.begin_authorization(1, "https://app.example.com/coros/callback", db)
-        row = db.query(coros_models.CorosIntegration).filter_by(user_id=1).one()
+        coros_service.begin_authorization(USER_ID, "https://app.example.com/coros/callback", db)
+        row = db.query(coros_models.CorosIntegration).filter_by(user_id=USER_ID).one()
         state = row.state
 
-        coros_service.complete_link(1, "code", state, db)
+        coros_service.complete_link(USER_ID, "code", state, db)
 
-        stored = db.query(coros_models.CorosIntegration).filter_by(user_id=1).one()
+        stored = db.query(coros_models.CorosIntegration).filter_by(user_id=USER_ID).one()
         assert stored.access_token != "access"
         assert stored.refresh_token != "refresh"
         assert core_cryptography.decrypt_token_fernet(stored.access_token) == "access"
@@ -133,16 +137,16 @@ class TestRefresh:
         monkeypatch.setattr(coros_oauth, "exchange_code", Mock(return_value=_tokens(expired=True)))
         refresh = Mock(return_value=_tokens(access="new-access", refresh="new-refresh"))
         monkeypatch.setattr(coros_oauth, "refresh_tokens", refresh)
-        coros_service.begin_authorization(1, "https://app.example.com/coros/callback", db)
-        state = db.query(coros_models.CorosIntegration).filter_by(user_id=1).one().state
-        coros_service.complete_link(1, "code", state, db)
-        row = db.query(coros_models.CorosIntegration).filter_by(user_id=1).one()
+        coros_service.begin_authorization(USER_ID, "https://app.example.com/coros/callback", db)
+        state = db.query(coros_models.CorosIntegration).filter_by(user_id=USER_ID).one().state
+        coros_service.complete_link(USER_ID, "code", state, db)
+        row = db.query(coros_models.CorosIntegration).filter_by(user_id=USER_ID).one()
         row.last_sync_status = "success"
         row.last_sync_activity_count = 4
         row.fit_download_count = 10
         db.commit()
 
-        connection = coros_service.get_valid_connection(1, db)
+        connection = coros_service.get_valid_connection(USER_ID, db)
 
         assert connection.access_token == "new-access"
         assert connection.refresh_token == "new-refresh"
@@ -159,15 +163,15 @@ class TestRefresh:
             Mock(return_value=contracts.CorosClientRegistration("client-1")),
         )
         monkeypatch.setattr(coros_oauth, "exchange_code", Mock(return_value=_tokens(expired=True)))
-        coros_service.begin_authorization(1, "https://app.example.com/coros/callback", db)
-        state = db.query(coros_models.CorosIntegration).filter_by(user_id=1).one().state
-        coros_service.complete_link(1, "code", state, db)
-        row = db.query(coros_models.CorosIntegration).filter_by(user_id=1).one()
+        coros_service.begin_authorization(USER_ID, "https://app.example.com/coros/callback", db)
+        state = db.query(coros_models.CorosIntegration).filter_by(user_id=USER_ID).one().state
+        coros_service.complete_link(USER_ID, "code", state, db)
+        row = db.query(coros_models.CorosIntegration).filter_by(user_id=USER_ID).one()
         row.refresh_token_expires_at = datetime.now(UTC) - timedelta(minutes=1)
         db.commit()
 
         with pytest.raises(coros_oauth.CorosAuthenticationError):
-            coros_service.get_valid_connection(1, db)
+            coros_service.get_valid_connection(USER_ID, db)
 
 
 class TestUnlinkAndQuota:
@@ -183,34 +187,36 @@ class TestUnlinkAndQuota:
         monkeypatch.setattr(coros_oauth, "exchange_code", Mock(return_value=_tokens()))
         revoke = Mock()
         monkeypatch.setattr(coros_oauth, "revoke_token", revoke)
-        coros_service.begin_authorization(1, "https://app.example.com/coros/callback", db)
-        state = db.query(coros_models.CorosIntegration).filter_by(user_id=1).one().state
-        coros_service.complete_link(1, "code", state, db)
+        coros_service.begin_authorization(USER_ID, "https://app.example.com/coros/callback", db)
+        state = db.query(coros_models.CorosIntegration).filter_by(user_id=USER_ID).one().state
+        coros_service.complete_link(USER_ID, "code", state, db)
 
-        coros_service.unlink(1, db)
+        verify_step_up = Mock()
+        coros_service.unlink(USER_ID, Mock(), verify_step_up, db)
 
-        row = db.query(coros_models.CorosIntegration).filter_by(user_id=1).one()
+        verify_step_up.assert_called_once()
+        row = db.query(coros_models.CorosIntegration).filter_by(user_id=USER_ID).one()
         assert row.access_token is None and row.refresh_token is None
         assert revoke.call_count == 2
 
     def test_the_daily_fit_quota_is_fifty(self, db):
-        row = coros_crud.create_if_missing(1, db)
+        row = coros_crud.create_if_missing(USER_ID, db)
         db.commit()
 
         for _ in range(constants.MAX_FIT_DOWNLOADS_PER_DAY):
-            assert coros_crud.reserve_fit_download(1, db) is True
+            assert coros_crud.reserve_fit_download(USER_ID, db) is True
             db.commit()
 
-        assert coros_crud.reserve_fit_download(1, db) is False
+        assert coros_crud.reserve_fit_download(USER_ID, db) is False
         assert row.fit_download_count == constants.MAX_FIT_DOWNLOADS_PER_DAY
 
     def test_the_quota_resets_on_a_new_day(self, db):
-        row = coros_crud.create_if_missing(1, db)
+        row = coros_crud.create_if_missing(USER_ID, db)
         row.fit_download_date = datetime.now(UTC).date() - timedelta(days=1)
         row.fit_download_count = constants.MAX_FIT_DOWNLOADS_PER_DAY
         db.commit()
 
-        assert coros_crud.reserve_fit_download(1, db) is True
+        assert coros_crud.reserve_fit_download(USER_ID, db) is True
         assert row.fit_download_count == 1
 
 
@@ -218,23 +224,23 @@ class TestSkippedActivityRetry:
     """Missing files are permanent; parse failures are retried after a delay."""
 
     def test_a_missing_file_is_skipped_permanently(self, db):
-        coros_crud.mark_activity_skipped(1, "label-1", "no_file", db)
+        coros_crud.mark_activity_skipped(USER_ID, "label-1", "no_file", db)
         db.commit()
         row = db.query(coros_models.CorosSkippedActivity).filter_by(label_id="label-1").one()
         row.created_at = datetime.now(UTC) - timedelta(days=365)
         db.commit()
 
-        assert coros_crud.is_activity_skipped(1, "label-1", db) is True
+        assert coros_crud.is_activity_skipped(USER_ID, "label-1", db) is True
 
     def test_an_invalid_file_is_retried_after_a_week(self, db):
-        coros_crud.mark_activity_skipped(1, "label-2", "invalid_file", db)
+        coros_crud.mark_activity_skipped(USER_ID, "label-2", "invalid_file", db)
         db.commit()
         row = db.query(coros_models.CorosSkippedActivity).filter_by(label_id="label-2").one()
         row.created_at = datetime.now(UTC) - timedelta(days=constants.INVALID_FILE_RETRY_DAYS + 1)
         db.commit()
 
-        assert coros_crud.is_activity_skipped(1, "label-2", db) is False
+        assert coros_crud.is_activity_skipped(USER_ID, "label-2", db) is False
 
-        coros_crud.mark_activity_skipped(1, "label-2", "invalid_file", db)
+        coros_crud.mark_activity_skipped(USER_ID, "label-2", "invalid_file", db)
         db.commit()
-        assert coros_crud.is_activity_skipped(1, "label-2", db) is True
+        assert coros_crud.is_activity_skipped(USER_ID, "label-2", db) is True

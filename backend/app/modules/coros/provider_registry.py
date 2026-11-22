@@ -1,18 +1,18 @@
 """Registers COROS as an activity provider ingestion can pull from."""
 
+import uuid
 from datetime import datetime
 
 import modules.activities.activity.schema as activity_schema
 import modules.activities.activity_ingestion.integration_service as activity_ingestion_integration
 import modules.coros.activity_utils as coros_activity_utils
+import modules.coros.constants as coros_constants
 import modules.coros.crud as coros_crud
 from core.database import SessionLocal
 
-PROVIDER_NAME = "coros"
-
 
 def _fetch_window(
-    user_id: int,
+    user_id: uuid.UUID,
     window_start: datetime,
     window_end: datetime,
 ) -> list[activity_schema.ActivityRead] | None:
@@ -29,7 +29,7 @@ def _fetch_window(
     return coros_activity_utils.get_user_coros_activities_by_dates(window_start, window_end, user_id)
 
 
-def _linked_user_ids(after_id: int, limit: int) -> list[int]:
+def _linked_user_ids(after_id: uuid.UUID | None, limit: int) -> list[uuid.UUID]:
     """Page through the users who have linked COROS.
 
     Args:
@@ -45,4 +45,6 @@ def _linked_user_ids(after_id: int, limit: int) -> list[int]:
 
 def register_activity_provider() -> None:
     """Register COROS on the activities provider registry."""
-    activity_ingestion_integration.register_activity_provider(PROVIDER_NAME, _fetch_window, _linked_user_ids)
+    activity_ingestion_integration.register_activity_provider(
+        coros_constants.PROVIDER_NAME, _fetch_window, _linked_user_ids
+    )

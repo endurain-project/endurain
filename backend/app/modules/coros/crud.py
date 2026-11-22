@@ -6,6 +6,7 @@ the only exception is the FIT download reservation, which the service commits
 while the row is locked.
 """
 
+import uuid
 from datetime import UTC, date, datetime, timedelta
 
 from sqlalchemy import select
@@ -65,7 +66,7 @@ def _to_data(row: coros_models.CorosIntegration) -> coros_schema.CorosIntegratio
 
 
 def _get_model(
-    user_id: int,
+    user_id: uuid.UUID,
     db: Session,
     *,
     for_update: bool = False,
@@ -86,7 +87,7 @@ def _get_model(
     return db.execute(stmt).scalar_one_or_none()
 
 
-def create_if_missing(user_id: int, db: Session) -> coros_models.CorosIntegration:
+def create_if_missing(user_id: uuid.UUID, db: Session) -> coros_models.CorosIntegration:
     """Return the user's integration row, creating an empty one if needed.
 
     Args:
@@ -122,7 +123,7 @@ def create_if_missing(user_id: int, db: Session) -> coros_models.CorosIntegratio
         return existing
 
 
-def get_integration(user_id: int, db: Session) -> coros_schema.CorosIntegrationData | None:
+def get_integration(user_id: uuid.UUID, db: Session) -> coros_schema.CorosIntegrationData | None:
     """Return a user's decrypted integration state.
 
     Args:
@@ -136,7 +137,7 @@ def get_integration(user_id: int, db: Session) -> coros_schema.CorosIntegrationD
     return _to_data(row) if row is not None else None
 
 
-def get_integration_for_update(user_id: int, db: Session) -> coros_schema.CorosIntegrationData | None:
+def get_integration_for_update(user_id: uuid.UUID, db: Session) -> coros_schema.CorosIntegrationData | None:
     """Return a user's integration state with its row locked.
 
     Args:
@@ -166,7 +167,7 @@ def get_by_state(state: str, db: Session) -> coros_schema.CorosIntegrationData |
 
 
 def set_pending_authorization(
-    user_id: int,
+    user_id: uuid.UUID,
     metadata: coros_contracts.CorosOAuthMetadata,
     registration: coros_contracts.CorosClientRegistration,
     redirect_uri: str,
@@ -202,7 +203,7 @@ def set_pending_authorization(
 
 
 def save_tokens(
-    user_id: int,
+    user_id: uuid.UUID,
     tokens: coros_contracts.CorosTokenSet,
     db: Session,
 ) -> None:
@@ -233,7 +234,7 @@ def save_tokens(
 
 
 def update_tokens(
-    user_id: int,
+    user_id: uuid.UUID,
     tokens: coros_contracts.CorosTokenSet,
     db: Session,
 ) -> None:
@@ -256,7 +257,7 @@ def update_tokens(
     db.flush()
 
 
-def clear_pending_authorization(user_id: int, db: Session) -> None:
+def clear_pending_authorization(user_id: uuid.UUID, db: Session) -> None:
     """Stage clearing a pending OAuth state.
 
     Args:
@@ -273,7 +274,7 @@ def clear_pending_authorization(user_id: int, db: Session) -> None:
     db.flush()
 
 
-def clear_client_registration(user_id: int, db: Session) -> None:
+def clear_client_registration(user_id: uuid.UUID, db: Session) -> None:
     """Stage clearing a dynamically registered client that COROS rejected.
 
     Args:
@@ -289,7 +290,7 @@ def clear_client_registration(user_id: int, db: Session) -> None:
     db.flush()
 
 
-def clear_tokens(user_id: int, db: Session) -> None:
+def clear_tokens(user_id: uuid.UUID, db: Session) -> None:
     """Stage clearing every token and sync marker for a user.
 
     Args:
@@ -316,7 +317,7 @@ def clear_tokens(user_id: int, db: Session) -> None:
     db.flush()
 
 
-def mark_sync_success(user_id: int, activity_count: int, db: Session) -> None:
+def mark_sync_success(user_id: uuid.UUID, activity_count: int, db: Session) -> None:
     """Stage a successful sync outcome.
 
     Args:
@@ -335,7 +336,7 @@ def mark_sync_success(user_id: int, activity_count: int, db: Session) -> None:
     db.flush()
 
 
-def mark_sync_error(user_id: int, error_code: SyncErrorCode, db: Session) -> None:
+def mark_sync_error(user_id: uuid.UUID, error_code: SyncErrorCode, db: Session) -> None:
     """Stage a failed sync outcome.
 
     Args:
@@ -354,7 +355,7 @@ def mark_sync_error(user_id: int, error_code: SyncErrorCode, db: Session) -> Non
     db.flush()
 
 
-def reserve_fit_download(user_id: int, db: Session) -> bool:
+def reserve_fit_download(user_id: uuid.UUID, db: Session) -> bool:
     """Reserve one of the user's 50 daily FIT download requests.
 
     The row is locked so concurrent syncs cannot both pass the cap check.
@@ -382,30 +383,25 @@ def reserve_fit_download(user_id: int, db: Session) -> bool:
     return True
 
 
-def list_linked_user_ids(after_id: int, limit: int, db: Session) -> list[int]:
+def list_linked_user_ids(after_id: uuid.UUID | None, limit: int, db: Session) -> list[uuid.UUID]:
     """Page through users who have a COROS access token.
 
     Args:
-        after_id: Return only user ids greater than this.
+        after_id: Return only user ids greater than this, or ``None`` from the first page.
         limit: Maximum number of ids.
         db: Database session.
 
     Returns:
         The linked user ids, ascending.
     """
-    stmt = (
-        select(coros_models.CorosIntegration.user_id)
-        .where(
-            coros_models.CorosIntegration.user_id > after_id,
-            coros_models.CorosIntegration.access_token.is_not(None),
-        )
-        .order_by(coros_models.CorosIntegration.user_id)
-        .limit(limit)
-    )
+    stmt = select(coros_models.CorosIntegration.user_id).where(coros_models.CorosIntegration.access_token.is_not(None))
+    if after_id is not None:
+        stmt = stmt.where(coros_models.CorosIntegration.user_id > after_id)
+    stmt = stmt.order_by(coros_models.CorosIntegration.user_id).limit(limit)
     return list(db.scalars(stmt).all())
 
 
-def is_activity_skipped(user_id: int, label_id: str, db: Session) -> bool:
+def is_activity_skipped(user_id: uuid.UUID, label_id: str, db: Session) -> bool:
     """Return whether an activity should not be requested again yet.
 
     A missing file is permanent. A file that failed to parse is retried after a
@@ -435,7 +431,7 @@ def is_activity_skipped(user_id: int, label_id: str, db: Session) -> bool:
     return skipped_at > _now() - timedelta(days=INVALID_FILE_RETRY_DAYS)
 
 
-def mark_activity_skipped(user_id: int, label_id: str, reason: str, db: Session) -> None:
+def mark_activity_skipped(user_id: uuid.UUID, label_id: str, reason: str, db: Session) -> None:
     """Stage a skip marker for an activity without a usable FIT file.
 
     Re-marking an existing activity refreshes its retry date.
@@ -467,7 +463,7 @@ def mark_activity_skipped(user_id: int, label_id: str, reason: str, db: Session)
     db.flush()
 
 
-def get_status(user_id: int, db: Session) -> coros_schema.CorosStatusRead | None:
+def get_status(user_id: uuid.UUID, db: Session) -> coros_schema.CorosStatusRead | None:
     """Return the status view for a user's integration.
 
     Args:
@@ -489,7 +485,7 @@ def get_status(user_id: int, db: Session) -> coros_schema.CorosStatusRead | None
     )
 
 
-def is_linked(user_id: int, db: Session) -> bool:
+def is_linked(user_id: uuid.UUID, db: Session) -> bool:
     """Return whether a user has a stored COROS access token.
 
     Args:
@@ -506,7 +502,7 @@ def is_linked(user_id: int, db: Session) -> bool:
     return db.execute(stmt).scalar_one_or_none() is not None
 
 
-def fit_downloads_today(user_id: int, db: Session) -> tuple[date | None, int]:
+def fit_downloads_today(user_id: uuid.UUID, db: Session) -> tuple[date | None, int]:
     """Return the FIT download counter for display or tests.
 
     Args:

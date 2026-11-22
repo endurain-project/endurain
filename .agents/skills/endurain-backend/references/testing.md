@@ -8,6 +8,7 @@
 - `with pytest.raises(...) as exc_info` for exceptions.
 - Async tests: `async def test_*`, check with `assert_awaited_once()`.
 - Skips need `reason=`.
+- Assert audit rows with `jasil.testing.capture_audit()` (`assert_audited`), covering the success, denied and failure outcomes (`docs/developer-guide/audit-trail.md`).
 - CI fails under 80% total coverage; cover every branch of new code (errors, empty, refusal), not just the happy path.
 
 ```bash

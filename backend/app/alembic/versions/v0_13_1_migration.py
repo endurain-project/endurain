@@ -25,8 +25,13 @@ def upgrade() -> None:
         "gear",
         "gear_type",
         existing_type=sa.INTEGER(),
-        comment="Gear type (1 - bike, 2 - shoes, 3 - wetsuit, 4 - racquet, 5 - skis, 6 - snowboard, 7 - windsurf, 8 - water sports board)",
-        existing_comment="Gear type (1 - bike, 2 - shoes, 3 - wetsuit, 4 - racquet, 5 - skis, 6 - snowboard, 7 - windsurf)",
+        comment=(
+            "Gear type (1 - bike, 2 - shoes, 3 - wetsuit, 4 - racquet, 5 - skis, 6 - snowboard, 7 - windsurf, 8 - "
+            "water sports board)"
+        ),
+        existing_comment=(
+            "Gear type (1 - bike, 2 - shoes, 3 - wetsuit, 4 - racquet, 5 - skis, 6 - snowboard, 7 - windsurf)"
+        ),
         existing_nullable=False,
     )
     # Add the new entry to the migrations table
@@ -49,7 +54,10 @@ def downgrade() -> None:
         "gear_type",
         existing_type=sa.INTEGER(),
         comment="Gear type (1 - bike, 2 - shoes, 3 - wetsuit, 4 - racquet, 5 - skis, 6 - snowboard, 7 - windsurf)",
-        existing_comment="Gear type (1 - bike, 2 - shoes, 3 - wetsuit, 4 - racquet, 5 - skis, 6 - snowboard, 7 - windsurf, 8 - water sports board)",
+        existing_comment=(
+            "Gear type (1 - bike, 2 - shoes, 3 - wetsuit, 4 - racquet, 5 - skis, 6 - snowboard, 7 - windsurf, 8 - "
+            "water sports board)"
+        ),
         existing_nullable=False,
     )
     # ### end Alembic commands ###

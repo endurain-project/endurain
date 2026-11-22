@@ -1,10 +1,17 @@
 {
-  "repository": "Αποθετήριο",
+  "releaseNotes": "Σημειώσεις έκδοσης {version}",
+  "project": "Έργο",
+  "website": "Ιστότοπος",
   "documentation": "Τεκμηρίωση",
+  "sourceCode": "Πηγαίος κώδικας",
+  "community": "Κοινότητα",
   "mastodon": "Λογαριασμός Mastodon του Endurain",
   "bluesky": "Προφίλ Bluesky του Endurain",
   "discord": "Διακομιστής Discord του Endurain",
   "linkedin": "Σελίδα LinkedIn του Endurain",
+  "externalLink": "ανοίγει σε νέα καρτέλα",
+  "trademarkNotice": "Το Endurain® είναι σήμα κατατεθέν του João Vitória Silva.",
+  "trademarkPolicy": "Πολιτική σήματος",
   "compatibleStrava": "Συμβατό με το Strava",
   "worksGarmin": "Λειτουργεί με το Garmin Connect"
 }

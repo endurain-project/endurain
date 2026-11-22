@@ -1,5 +1,12 @@
-import type { CorosStatus, CorosStatusDto, DateRange } from '@/features/integrations/types'
+import type {
+  ActivityRefreshJob,
+  CorosStatus,
+  CorosStatusDto,
+  DateRange,
+} from '@/features/integrations/types'
+import type { StepUpInput } from '@/features/security/types'
 
+import { toStepUpWire } from '@/features/security/services/security'
 import { apiFetch } from '@/services/http'
 
 /**
@@ -13,7 +20,8 @@ export async function startCorosAuthorization(): Promise<string> {
     method: 'POST',
   })
   const url = new URL(dto.authorization_url)
-  if (url.protocol !== 'https:' || !url.hostname.endsWith('.coros.com')) {
+  const trustedHost = url.hostname === 'coros.com' || url.hostname.endsWith('.coros.com')
+  if (url.protocol !== 'https:' || !trustedHost) {
     throw new Error('COROS returned an invalid authorization URL')
   }
   return url.toString()
@@ -28,7 +36,7 @@ export async function startCorosAuthorization(): Promise<string> {
  */
 export async function completeCorosLink(code: string, state: string): Promise<void> {
   await apiFetch('/coros/link', {
-    method: 'PUT',
+    method: 'POST',
     body: JSON.stringify({ code, state }),
     responseType: 'void',
   })
@@ -56,20 +64,26 @@ export async function fetchCorosStatus(signal?: AbortSignal): Promise<CorosStatu
  * Queues a COROS activity sync.
  *
  * @param range - Optional explicit date range; the last seven days otherwise.
+ * @returns The queued refresh job.
  * @throws {HttpError} When the sync cannot be queued.
  */
-export async function syncCoros(range?: DateRange): Promise<void> {
+export async function syncCoros(range?: DateRange): Promise<ActivityRefreshJob> {
   const query = range
     ? `?start_date=${encodeURIComponent(range.startDate)}&end_date=${encodeURIComponent(range.endDate)}`
     : ''
-  await apiFetch(`/coros/sync${query}`, { method: 'POST', responseType: 'void' })
+  return apiFetch<ActivityRefreshJob>(`/coros/sync${query}`, { method: 'POST' })
 }
 
 /**
- * Disconnects the COROS account.
+ * Disconnects the COROS account after the user's step-up.
  *
+ * @param stepUp - The step-up credentials.
  * @throws {HttpError} When the request fails.
  */
-export async function unlinkCoros(): Promise<void> {
-  await apiFetch('/coros/unlink', { method: 'DELETE', responseType: 'void' })
+export async function unlinkCoros(stepUp: StepUpInput): Promise<void> {
+  await apiFetch('/coros/unlink', {
+    method: 'POST',
+    body: JSON.stringify({ step_up: toStepUpWire(stepUp) }),
+    responseType: 'void',
+  })
 }

@@ -6,13 +6,17 @@ import type { Schemas } from '@/types'
 import type { WaterEntry, WaterEntryInput } from '@/features/health/types'
 import type { Validator } from '@/utils/validators'
 
+import { useUnitFormat } from '@/composables/useUnitFormat'
 import { FormDialog } from '@/components/ui/form-dialog'
 import { FormField } from '@/components/ui/form-field'
 import { inputFieldClass } from '@/components/ui/input/fieldClasses'
 import { useForm } from '@/composables/useForm'
+import { applyServerFieldErrors } from '@/services/fieldErrors'
+import { isProblem } from '@/services/problems'
+import { isStaleWrite } from '@/services/ifMatch'
 import { todayIsoDate } from '@/utils/datetime'
 import { toNumberOrNull } from '@/utils/number'
-import { flOzToMl, mlToFlOz } from '@/utils/units'
+import { baseValueUnlessEdited, flOzToMl, mlToFlOz } from '@/utils/units'
 import { compose, required } from '@/utils/validators'
 import {
   useCreateWaterEntryMutation,
@@ -37,6 +41,7 @@ const emit = defineEmits<{
 }>()
 
 const { t } = useI18n()
+const { unitLabel } = useUnitFormat()
 
 const createMutation = useCreateWaterEntryMutation()
 const updateMutation = useUpdateWaterEntryMutation()
@@ -75,12 +80,9 @@ function displayAmountFromMl(ml: number | null): string {
   return String(value)
 }
 
-/** Converts a display-unit amount string back to whole millilitres for the wire. */
-function amountToMl(raw: string): number | null {
-  const value = toNumberOrNull(raw)
-  if (value === null) {
-    return null
-  }
+/** Converts a validated display-unit amount string back to whole millilitres for the wire. */
+function amountToMl(raw: string): number {
+  const value = Number(raw.trim())
   return Math.round(isImperial.value ? flOzToMl(value) : value)
 }
 
@@ -88,7 +90,12 @@ function amountToMl(raw: string): number | null {
 function buildInput(values: WaterFormValues): WaterEntryInput {
   return {
     date: values.date || null,
-    amountMl: amountToMl(values.amount),
+    amountMl: baseValueUnlessEdited(
+      values.amount,
+      displayAmountFromMl(props.entry?.amountMl ?? null),
+      props.entry?.amountMl,
+      (raw) => amountToMl(String(raw)),
+    ),
   }
 }
 
@@ -100,12 +107,17 @@ function buildInput(values: WaterFormValues): WaterEntryInput {
  * @param values - The validated form values.
  */
 async function submitForm(values: WaterFormValues): Promise<void> {
+  // Nothing changed: skip the request and just close.
+  if (props.entry && !isDirty.value) {
+    open.value = false
+    return
+  }
   const input = buildInput(values)
   try {
     if (props.entry) {
       await updateMutation.mutateAsync({
         id: props.entry.id,
-        userId: props.entry.userId,
+        version: props.entry.version,
         input,
       })
       emit('success', t('health.water.form.updateSuccess'))
@@ -114,29 +126,51 @@ async function submitForm(values: WaterFormValues): Promise<void> {
       emit('success', t('health.water.form.createSuccess'))
     }
     open.value = false
-  } catch {
-    emit('error', t('health.water.form.saveError'))
+  } catch (error) {
+    if (applyServerFieldErrors(error, setErrors, t, FORM_KEYS, { amount_ml: 'amount' })) {
+      return
+    }
+    if (isStaleWrite(error)) {
+      open.value = false
+      emit('error', t('app.staleError'))
+    } else if (!props.entry && isProblem(error, 'conflict')) {
+      emit('error', t('health.water.form.dayTakenError'))
+    } else {
+      emit('error', t('health.water.form.saveError'))
+    }
   }
 }
 
-const { values, errors, isValid, isSubmitting, handleSubmit, handleBlur, reset } =
-  useForm<WaterFormValues>({
-    initialValues: defaultValues(),
-    validators: {
-      date: required<string>(t('health.water.form.dateRequired')),
-      amount: compose(
-        required<string>(t('health.water.form.amountRequired')),
-        positiveNumber(t('health.water.form.amountInvalid')),
-      ),
-    },
-    onSubmit: submitForm,
-  })
+const FORM_KEYS = ['date', 'amount'] as const
+
+const {
+  values,
+  errors,
+  isValid,
+  isSubmitting,
+  handleSubmit,
+  handleBlur,
+  setErrors,
+  reset,
+  isDirty,
+  markPristine,
+} = useForm<WaterFormValues>({
+  initialValues: defaultValues(),
+  validators: {
+    date: required<string>(t('health.water.form.dateRequired')),
+    amount: compose(
+      required<string>(t('health.water.form.amountRequired')),
+      positiveNumber(t('health.water.form.amountInvalid')),
+    ),
+  },
+  onSubmit: submitForm,
+})
 
 const isEditing = computed(() => props.entry !== null)
 const dialogTitle = computed(() =>
   isEditing.value ? t('health.water.form.editTitle') : t('health.water.form.addTitle'),
 )
-const amountUnitLabel = computed(() => (isImperial.value ? 'fl oz' : 'ml'))
+const amountUnitLabel = computed(() => unitLabel(isImperial.value ? 'flOz' : 'ml'))
 const amountLabel = computed(() => `${t('health.water.form.amount')} (${amountUnitLabel.value})`)
 
 /** Seeds the form from the entry being edited, or pristine defaults for "add". */
@@ -149,6 +183,7 @@ function populate(): void {
   }
   values.date = entry.date ?? todayIsoDate()
   values.amount = displayAmountFromMl(entry.amountMl)
+  markPristine()
 }
 
 // Re-seed each time the dialog opens; the parent sets `entry` before opening.
@@ -181,6 +216,7 @@ watch(open, (isOpen) => {
             :aria-describedby="describedBy"
             :aria-invalid="invalid"
             type="date"
+            :max="todayIsoDate()"
             :disabled="isSubmitting"
             @blur="handleBlur('date')"
           />

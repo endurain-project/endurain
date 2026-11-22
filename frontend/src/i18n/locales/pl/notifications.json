@@ -5,10 +5,12 @@
   "unread": "Nieprzeczytane",
   "markRead": "Oznacz jako przeczytane",
   "markAllRead": "Oznacz wszystkie jako przeczytane",
+  "dismiss": "Odrzuć powiadomienie",
+  "dismissError": "Nie udało się odrzucić powiadomienia. Spróbuj ponownie.",
   "seeAll": "Zobacz wszystkie",
   "loadMore": "Wczytaj więcej",
   "loading": "Ładowanie…",
-  "badge": "{count} nieprzeczytanych powiadomień",
+  "badge": "{count} nieprzeczytane powiadomienie | {count} nieprzeczytane powiadomienia | {count} nieprzeczytanych powiadomień",
   "empty": {
     "title": "Wszystko na bieżąco",
     "description": "Aktualizacje dotyczące Twoich aktywności, obserwujących i integracji pojawią się tutaj."
@@ -39,9 +41,122 @@
       "title": "Garmin Connect wymaga uwagi",
       "body": "Twoja sesja Garmin Connect wygasła. Połącz ją ponownie, aby kontynuować synchronizację."
     },
+    "stravaTokenExpired": {
+      "title": "Strava wymaga uwagi",
+      "body": "Strava odrzuciła Twoje połączenie. Połącz ją ponownie, aby kontynuować synchronizację.",
+      "bodyRevoked": "Dostęp do Strava wygasł. Twoje aktywności i sprzęt zsynchronizowane ze Strava zostaną usunięte {date}, jeśli nie połączysz się ponownie."
+    },
+    "stravaDataDeleted": {
+      "title": "Dane ze Strava usunięte",
+      "body": "Twoje aktywności i sprzęt zsynchronizowane ze Strava zostały usunięte, ponieważ dostęp do Strava wygasł, a nie połączyłeś się ponownie."
+    },
+    "idpLinked": {
+      "title": "Połączono nowego dostawcę logowania",
+      "body": "{name} został połączony z Twoim kontem. Jeśli to nie Ty, sprawdź ustawienia zabezpieczeń.",
+      "bodyGeneric": "Dostawca logowania został połączony z Twoim kontem. Jeśli to nie Ty, sprawdź ustawienia zabezpieczeń."
+    },
+    "accountSecurityChanged": {
+      "passwordChanged": {
+        "title": "Hasło zostało zmienione",
+        "body": "Twoje hasło zostało zmienione. Jeśli to nie Ty, zresetuj hasło i sprawdź ustawienia zabezpieczeń."
+      },
+      "passwordReset": {
+        "title": "Hasło zostało zresetowane",
+        "body": "Twoje hasło zostało zresetowane za pomocą linku do resetowania. Jeśli to nie Ty, zresetuj hasło ponownie i sprawdź ustawienia zabezpieczeń. Any API keys were revoked and any pending email change was cancelled."
+      },
+      "passwordSetByAdmin": {
+        "title": "Hasło ustawione przez administratora",
+        "body": "Administrator ustawił nowe hasło dla Twojego konta. Jeśli się tego nie spodziewasz, skontaktuj się z administratorem. Any API keys were revoked and any pending email change was cancelled."
+      },
+      "mfaEnabled": {
+        "title": "Włączono uwierzytelnianie dwuskładnikowe",
+        "body": "Dla Twojego konta włączono uwierzytelnianie dwuskładnikowe. Jeśli to nie Ty, zresetuj hasło i sprawdź ustawienia zabezpieczeń."
+      },
+      "mfaDisabled": {
+        "title": "Wyłączono uwierzytelnianie dwuskładnikowe",
+        "body": "Dla Twojego konta wyłączono uwierzytelnianie dwuskładnikowe. Jeśli to nie Ty, zresetuj hasło i sprawdź ustawienia zabezpieczeń."
+      },
+      "mfaResetByAdmin": {
+        "title": "Uwierzytelnianie dwuskładnikowe zresetowane przez administratora",
+        "body": "Administrator zresetował uwierzytelnianie dwuskładnikowe na Twoim koncie i wylogował Cię ze wszystkich urządzeń. Skonfiguruj je ponownie w ustawieniach bezpieczeństwa. Jeśli się tego nie spodziewałeś(-aś), skontaktuj się z administratorem."
+      },
+      "passwordChangeRequiredByAdmin": {
+        "title": "Administrator wymaga zmiany hasła",
+        "body": "Administrator wymaga zmiany Twojego hasła i wylogował Cię ze wszystkich urządzeń. Nowe hasło wybierzesz przy następnym logowaniu hasłem. Jeśli się tego nie spodziewałeś(-aś), skontaktuj się z administratorem."
+      },
+      "backupCodesGenerated": {
+        "title": "Wygenerowano nowe kody zapasowe",
+        "body": "Dla Twojego konta wygenerowano nowe kody zapasowe. Jeśli to nie Ty, zresetuj hasło i sprawdź ustawienia zabezpieczeń."
+      },
+      "apiKeyCreated": {
+        "title": "Utworzono nowy klucz API",
+        "body": "Dla Twojego konta utworzono nowy klucz API. Jeśli to nie Ty, zresetuj hasło i sprawdź ustawienia zabezpieczeń."
+      },
+      "apiKeysRevokedByAdmin": {
+        "title": "Klucze API unieważnione przez administratora",
+        "body": "Administrator unieważnił jeden lub więcej Twoich kluczy API, więc nic, co ich używa, nie ma już dostępu do Twojego konta. Jeśli nie spodziewałeś się tego, skontaktuj się z administratorem."
+      },
+      "identityProviderUnlinked": {
+        "title": "Odłączono dostawcę logowania",
+        "body": "{name} został odłączony od Twojego konta. Jeśli to nie Ty, zresetuj hasło i sprawdź ustawienia zabezpieczeń.",
+        "bodyGeneric": "Dostawca logowania został odłączony od Twojego konta. Jeśli to nie Ty, zresetuj hasło i sprawdź ustawienia zabezpieczeń."
+      },
+      "accountLocked": {
+        "title": "Konto zablokowane",
+        "body": "Twoje konto zostało zablokowane po 100 nieudanych próbach logowania z rzędu. Przeglądarki i aplikacje, z których logowałeś(-aś) się od ostatniej zmiany zabezpieczeń, nadal mogą się logować. Jeśli to nie były Twoje próby, zmień lub zresetuj hasło, co także zdejmie blokadę."
+      },
+      "mfaLocked": {
+        "title": "Weryfikacja dwuetapowa zablokowana",
+        "body": "Twoje konto zostało zablokowane po 100 błędnych kodach weryfikacji dwuetapowej z rzędu, więc ktoś zna Twoje hasło. Przeglądarki i aplikacje, z których logowałeś(-aś) się od ostatniej zmiany zabezpieczeń, nadal mogą się logować. Jeśli to nie były Twoje próby, zmień hasło."
+      },
+      "stepUpSessionEnded": {
+        "title": "Sesja została wylogowana",
+        "body": "Jedna z sesji Twojego konta została wylogowana po wpisaniu 15 razy z rzędu błędnego hasła lub kodu uwierzytelniania dwuskładnikowego w celu potwierdzenia wrażliwej czynności. Pozostałe sesje nie zostały naruszone. Jeśli to nie Ty podejmowałeś(-aś) te próby, zmień hasło."
+      },
+      "stepUpLocked": {
+        "title": "Potwierdzanie wrażliwych czynności zablokowane",
+        "body": "Potwierdzanie wrażliwych czynności, takich jak zmiana hasła lub utworzenie klucza API, zostało zablokowane na 30 dni po 100 błędnych potwierdzeniach we wszystkich Twoich sesjach. Jeśli to nie Ty podejmowałeś(-aś) te próby, zresetuj hasło, co również zdejmuje blokadę."
+      },
+      "backupCodeUsed": {
+        "title": "Użyto kodu zapasowego",
+        "body": "Kod zapasowy został użyty do uwierzytelniania dwuskładnikowego na Twoim koncie. Jeśli to nie Ty, zmień hasło i wygeneruj nowe kody zapasowe.",
+        "bodyRemaining": "Kod zapasowy został użyty do uwierzytelniania dwuskładnikowego na Twoim koncie. Pozostało niewykorzystanych kodów zapasowych: {count}. Jeśli to nie Ty, zmień hasło i wygeneruj nowe kody zapasowe.",
+        "bodyNone": "Kod zapasowy został użyty do uwierzytelniania dwuskładnikowego na Twoim koncie. Nie masz już niewykorzystanych kodów zapasowych, więc wygeneruj nowe w ustawieniach bezpieczeństwa. Jeśli to nie Ty, zmień hasło."
+      },
+      "refreshTokenReuseDetected": {
+        "title": "Sesja została zakończona",
+        "body": "Sesja logowania na Twoim koncie została zakończona, ponieważ token, który został już użyty, został przedstawiony ponownie, co może oznaczać skopiowanie sesji. Pozostałe sesje nie zostały naruszone. Jeśli się tego nie spodziewałeś(-aś), zmień hasło."
+      },
+      "roleChangedByAdmin": {
+        "title": "Administrator zmienił dostęp",
+        "body": "Administrator zmienił dostęp Twojego konta i wylogował Cię ze wszystkich urządzeń. Jeśli się tego nie spodziewałeś(-aś), skontaktuj się ze swoim administratorem.",
+        "bodyAdmin": "Administrator zmienił dostęp Twojego konta na administratora i wylogował Cię ze wszystkich urządzeń. Jeśli się tego nie spodziewałeś(-aś), skontaktuj się ze swoim administratorem.",
+        "bodyRegular": "Administrator zmienił dostęp Twojego konta na zwykłego użytkownika i wylogował Cię ze wszystkich urządzeń. Jeśli się tego nie spodziewałeś(-aś), skontaktuj się ze swoim administratorem."
+      },
+      "accountDeactivatedByAdmin": {
+        "title": "Administrator dezaktywował konto",
+        "body": "Administrator dezaktywował Twoje konto i wylogował Cię ze wszystkich urządzeń. Nie możesz się zalogować, dopóki administrator go ponownie nie aktywuje."
+      },
+      "unknown": {
+        "title": "Zmieniono zabezpieczenia konta",
+        "body": "Zmieniono jedno z ustawień zabezpieczeń Twojego konta. Jeśli to nie Ty, zresetuj hasło i sprawdź ustawienia zabezpieczeń."
+      },
+      "usernameChanged": {
+        "title": "Nazwa użytkownika zmieniona",
+        "body": "Twoja nazwa użytkownika została zmieniona. Jeśli to nie ty, zresetuj hasło i sprawdź ustawienia zabezpieczeń."
+      }
+    },
+    "newDeviceSignIn": {
+      "title": "Nowe logowanie",
+      "body": "Nowe logowanie z przeglądarki {browser} w systemie {os} ({ip}). Jeśli to nie Ty, zmień hasło i wyloguj się z pozostałych sesji."
+    },
     "adminSignUpApproval": {
       "title": "Nowa rejestracja wymaga zatwierdzenia",
       "body": "{name} ({'@'}{username}) oczekuje na zatwierdzenie konta."
+    },
+    "adminUserPromoted": {
+      "title": "Użytkownik awansowany na administratora",
+      "body": "{name} ({'@'}{username}) otrzymał(-a) dostęp administratora."
     },
     "unknown": {
       "title": "Powiadomienie",

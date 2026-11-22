@@ -18,6 +18,17 @@
     "help": "Comprueba que ENDURAIN_HOST apunta a la URL donde tu instancia de Endurain es accesible (por ejemplo https://endurain.example.com) y que el backend está en ejecución; después, vuelve a cargar la página.",
     "reload": "Recargar"
   },
+  "staleError": "Esto se cambió en otro lugar mientras lo estabas viendo, así que no se guardó nada. Se ha cargado la versión actual. Revísala e inténtalo de nuevo.",
+  "sessionRestoreError": "No pudimos comprobar si has iniciado sesión. Puede que el servidor o tu conexión no estén disponibles.",
+  "fieldError": {
+    "required": "Este campo es obligatorio",
+    "tooShort": "Este valor es demasiado corto",
+    "tooLong": "Este valor es demasiado largo",
+    "tooLarge": "Este valor es demasiado grande",
+    "tooSmall": "Este valor es demasiado pequeño",
+    "invalidFormat": "Este valor tiene un formato no válido",
+    "invalid": "Este valor no es válido"
+  },
   "dismiss": "Descartar",
   "language": "Idioma",
   "theme": {
@@ -35,5 +46,28 @@
     "edit": "Editar",
     "supported": "Markdown admitido",
     "empty": "Nada que previsualizar"
+  },
+  "password": {
+    "hintLength": "Al menos {min} caracteres.",
+    "invalid": "La contraseña no cumple los requisitos",
+    "mismatch": "Las contraseñas no coinciden",
+    "tooShort": "Esta contraseña es demasiado corta. Usa al menos {min} caracteres.",
+    "tooCommon": "Esta contraseña es demasiado común. Elige una más difícil de adivinar.",
+    "breached": "Esta contraseña apareció en una filtración de datos conocida. Elige otra.",
+    "matchesAccount": "No uses tu nombre de usuario ni tu dirección de correo electrónico como contraseña.",
+    "blank": "Una contraseña no puede estar formada solo por espacios.",
+    "unchanged": "Elige una contraseña distinta de la actual.",
+    "strength": {
+      "label": "Seguridad de la contraseña: {level}",
+      "tooWeak": "Demasiado débil",
+      "weak": "Débil",
+      "fair": "Aceptable",
+      "good": "Buena",
+      "strong": "Fuerte"
+    }
+  },
+  "retryAfter": {
+    "tooManyAttempts": "Demasiados intentos. Inténtalo de nuevo en {seconds} segundos.",
+    "unavailable": "La autenticación no está disponible temporalmente. Inténtalo de nuevo en {seconds} segundos."
   }
 }

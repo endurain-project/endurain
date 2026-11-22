@@ -517,10 +517,10 @@ class TestCalculateSleepScoreOverall:
 
 class TestCalculateAndSetSleepScores:
     """
-    Test suite for _calculate_and_set_sleep_scores function.
+    Test suite for calculate_and_set_sleep_scores function.
     """
 
-    def test_calculate_and_set_sleep_scores_success(self):
+    def testcalculate_and_set_sleep_scores_success(self):
         """
         Test calculating and setting all sleep scores.
         """
@@ -539,7 +539,7 @@ class TestCalculateAndSetSleepScores:
         )
 
         # Act
-        sleep_scoring._calculate_and_set_sleep_scores(health_sleep)
+        sleep_scoring.calculate_and_set_sleep_scores(health_sleep)
 
         # Assert
         assert health_sleep.sleep_score_overall is not None
@@ -553,7 +553,7 @@ class TestCalculateAndSetSleepScores:
         assert health_sleep.light_percentage_score is not None
         assert health_sleep.sleep_stress_score is not None
 
-    def test_calculate_and_set_sleep_scores_minimal_data(self):
+    def testcalculate_and_set_sleep_scores_minimal_data(self):
         """
         Test calculating scores with minimal data.
         """
@@ -563,7 +563,7 @@ class TestCalculateAndSetSleepScores:
         )
 
         # Act
-        sleep_scoring._calculate_and_set_sleep_scores(health_sleep)
+        sleep_scoring.calculate_and_set_sleep_scores(health_sleep)
 
         # Assert
         assert health_sleep.sleep_score_overall is not None

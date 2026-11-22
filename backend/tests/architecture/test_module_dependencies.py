@@ -1,0 +1,136 @@
+"""What a module may take from ``core``.
+
+Two rules from ``docs/developer-guide/module-structure.md`` that import-linter
+states badly:
+
+* ``core.*`` is "always allowed", which makes it the largest hidden coupling
+  between a module and this application. The allowlist below names every
+  ``core`` module a module reaches today and why, so a new reach into
+  application-wide state is a reviewed diff instead of an unnoticed import.
+"""
+
+import ast
+import pathlib
+
+from tests._helpers.module_roles import MODULES
+
+_MODULES_ROOT = pathlib.Path("app/modules")
+
+#: ``core`` modules a module may import, as ``{core module: reason}``.
+#: Generic primitives sit first; the entries below the divider read
+#: application-wide state or wiring and are the ones to shrink, or to move into
+#: ``jasil`` when they are generic enough to be shared by other products.
+_ALLOWED_CORE: dict[str, str] = {
+    "core.attempt_state": "The claim-and-poll state of an attempt that runs off the request.",
+    "core.sync_runner": "The shared claim, run and dead-letter bookkeeping of a queued provider sync.",
+    "core.redirect_schemes": (
+        "The URI schemes a sign-in redirect may never use, refused by the setting and the validator."
+    ),
+    "core.provider_rate_limit": (
+        "The shared, expiring record of a provider's rate limit, which Strava and Garmin both keep."
+    ),
+    "core.async_bridge": "Hands a best-effort websocket push from a worker-thread subscriber to the main loop.",
+    "core.cache_control": (
+        "The no-store headers of a response that carries a token, a one-time secret or an archive of a user's data."
+    ),
+    "core.blob_sweep": "The storage-side reconciliation sweeps for blobs no row owns or names any more.",
+    "core.calendar": "Period boundaries for activity summaries.",
+    "core.cryptography": "Encrypts and decrypts the tile-provider API key at rest.",
+    "core.email_cooldown": "The per-account cooldown on emails anyone can trigger without signing in.",
+    "core.email_templates": "The shared layout the test email is wrapped in.",
+    "core.environment": "The set of deployed environments, asked by the cookie policy.",
+    "core.etag": "Conditional-response helpers for activity routes.",
+    "core.event_metadata": "Event envelope metadata shared by every publisher.",
+    "core.exceptions": "The domain error vocabulary raised by crud and service.",
+    "core.file_uploads": "The only path an ``UploadFile`` may take.",
+    "core.geocoding": "The reverse-geocoding configuration shape the settings store and the substrate is fed.",
+    "core.hashing": "Content digests for upload and media deduplication.",
+    "core.http_cache": "The browser cache lifetime of a signed photo, thumbnail or media URL.",
+    "core.i18n": "Localises the test email.",
+    "core.local_pool": "The bounded in-process pool background work runs on when no durable worker does.",
+    "core.location": "The Location header a create sends, naming the route that reads the new resource.",
+    "core.openapi_contract": "The OpenAPI declarations of a binary response and of an ETag the document cannot derive.",
+    "core.key_derivation": "The per-purpose key behind the token digests.",
+    "core.job_status": "The one status envelope every background job reports.",
+    "core.jwt_keys": (
+        "The JWT algorithm allow-list, secret and signature check that access-token issuing shares with the rate "
+        "limiter."
+    ),
+    "core.logger": "Structured logging.",
+    "core.mail": "The mail configuration shape the settings store, and its validation wording.",
+    "core.middleware_body_limit": "The body cap an upload route declares for the body-size middleware.",
+    "core.network": "The SSRF check on a tile server URL before it is saved.",
+    "core.date_range": "The inclusive start_date/end_date window of a list, chart or sync route.",
+    "core.pagination": "Page and cursor primitives.",
+    "core.sync": "The updated_at stamp, the tombstones and the keyset reads behind incremental sync.",
+    "core.partial_update": "The edit-schema base that refuses an explicit null for a NOT NULL column.",
+    "core.types": "Request-body id, date and money types bounded to what the database columns can store.",
+    "core.sanitization": "Cleaning user-supplied text before storage.",
+    "core.stored_enum": "String enums on the wire whose members map to the integer a column stores.",
+    "core.signing": "The token-signing primitive behind thumbnail URLs.",
+    "core.text_imports": "Size- and row-bounded reading of an imported Strava gear or activities CSV.",
+    "core.timezone": "Timezone resolution and conversion.",
+    # Application-wide state or wiring: a declared dependency, not a free one.
+    "core.config": "Environment-backed settings read directly rather than passed in.",
+    "core.database": "Session dependency and declarative ``Base``; the metadata is still shared.",
+    "core.dependencies": "``get_storage`` and id/type validators, resolved at the router edge.",
+    "core.key_rotation": "Batch re-encryption of a module's own encrypted columns after the FERNET_KEY list changes.",
+    "core.rate_limit": "Route-level rate limiting declared by routers.",
+    "core.request_context": "The request being served, read by the audit context provider to name the actor.",
+    "core.route_map": "Route-map render request used by thumbnail rendering.",
+    "core.scheduler": "``ScheduledJob`` value type published by ``scheduled_jobs``.",
+}
+
+
+def _module_files() -> list[pathlib.Path]:
+    """Return every non-test source file of a module."""
+    return sorted(
+        path for module in MODULES for path in (_MODULES_ROOT / module).rglob("*.py") if "__pycache__" not in path.parts
+    )
+
+
+def _core_imports(path: pathlib.Path) -> set[str]:
+    """
+    Return the ``core.<module>`` names a file imports.
+
+    Args:
+        path: The Python file to inspect.
+
+    Returns:
+        Two-segment names such as ``core.logger``; deeper paths collapse to
+        their top-level ``core`` module.
+    """
+    found: set[str] = set()
+    for node in ast.walk(ast.parse(path.read_text(encoding="utf-8"))):
+        if isinstance(node, ast.Import):
+            names = [alias.name for alias in node.names]
+        elif isinstance(node, ast.ImportFrom) and node.level == 0 and node.module:
+            names = [f"{node.module}.{alias.name}" if node.module == "core" else node.module for alias in node.names]
+        else:
+            continue
+        for name in names:
+            parts = name.split(".")
+            if parts[0] == "core" and len(parts) > 1:
+                found.add(".".join(parts[:2]))
+    return found
+
+
+class TestCoreAllowlist:
+    """A module reaches only the ``core`` modules it has declared."""
+
+    def test_modules_import_only_allowlisted_core_modules(self):
+        offenders = {
+            f"{path.relative_to(_MODULES_ROOT)} -> {name}"
+            for path in _module_files()
+            for name in _core_imports(path)
+            if name not in _ALLOWED_CORE
+        }
+        assert not offenders, (
+            "Modules import core modules that are not declared in _ALLOWED_CORE; add the entry with its "
+            f"reason, or move the dependency behind a parameter: {sorted(offenders)}"
+        )
+
+    def test_allowlist_has_no_unused_entries(self):
+        used = {name for path in _module_files() for name in _core_imports(path)}
+        stale = sorted(set(_ALLOWED_CORE) - used)
+        assert not stale, f"Remove allowlist entries that no module imports any more: {stale}"

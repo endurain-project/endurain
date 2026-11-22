@@ -82,5 +82,13 @@
       "ownTitle": "Vous n'avez pas encore d'abonnés.",
       "otherTitle": "Aucun abonné pour l'instant."
     }
+  },
+  "block": {
+    "block": "Bloquer",
+    "unblock": "Débloquer",
+    "confirmTitle": "Bloquer {name} ?",
+    "confirmBody": "{name} ne pourra plus demander à vous suivre et tout abonnement entre vous est supprimé. Cette personne n'en est pas informée.",
+    "blockError": "Impossible de bloquer cet utilisateur. Veuillez réessayer.",
+    "unblockError": "Impossible de débloquer cet utilisateur. Veuillez réessayer."
   }
 }

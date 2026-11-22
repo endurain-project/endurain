@@ -1,10 +1,17 @@
 {
-  "repository": "程式碼儲存庫",
+  "releaseNotes": "{version} 發行說明",
+  "project": "專案",
+  "website": "網站",
   "documentation": "說明文件",
+  "sourceCode": "原始碼",
+  "community": "社群",
   "mastodon": "Endurain 的 Mastodon 帳號",
   "bluesky": "Endurain 的 Bluesky 個人檔案",
   "discord": "Endurain 的 Discord 伺服器",
   "linkedin": "Endurain 的 LinkedIn 頁面",
+  "externalLink": "在新分頁中開啟",
+  "trademarkNotice": "Endurain® 是 João Vitória Silva 的註冊商標。",
+  "trademarkPolicy": "商標政策",
   "compatibleStrava": "與 Strava 相容",
   "worksGarmin": "支援 Garmin Connect"
 }

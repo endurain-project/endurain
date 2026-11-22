@@ -1,5 +1,6 @@
 """COROS integration database models."""
 
+import uuid
 from datetime import date, datetime
 
 from sqlalchemy import Date, DateTime, ForeignKey, Index, String, Text, UniqueConstraint
@@ -47,11 +48,8 @@ class CorosIntegration(Base):
         Index("ix_coros_integrations_state", "state", unique=True),
     )
 
-    id: Mapped[int] = mapped_column(
-        primary_key=True,
-        autoincrement=True,
-    )
-    user_id: Mapped[int] = mapped_column(
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    user_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("users.id", ondelete="CASCADE"),
         nullable=False,
         comment="User ID that the COROS integration belongs to",
@@ -181,11 +179,8 @@ class CorosSkippedActivity(Base):
     __tablename__ = "coros_skipped_activities"
     __table_args__ = (UniqueConstraint("user_id", "label_id", name="uq_coros_skipped_activities_user_label"),)
 
-    id: Mapped[int] = mapped_column(
-        primary_key=True,
-        autoincrement=True,
-    )
-    user_id: Mapped[int] = mapped_column(
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    user_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("users.id", ondelete="CASCADE"),
         nullable=False,
         index=True,

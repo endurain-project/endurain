@@ -1,5 +1,7 @@
 """Tests for users_api_keys database models."""
 
+import uuid
+
 import modules.auth.api_keys.models as users_api_keys_models
 
 
@@ -37,9 +39,9 @@ class TestUsersApiKeysModel:
         assert id_column.nullable is False
 
     def test_users_api_keys_model_id_type(self):
-        """Test id column is a String type."""
+        """Test id column is a UUID type."""
         id_column = users_api_keys_models.UsersApiKeys.id
-        assert id_column.type.python_type is str
+        assert id_column.type.python_type is uuid.UUID
 
     def test_users_api_keys_model_user_id_not_nullable(self):
         """Test user_id column is not nullable."""
@@ -85,9 +87,9 @@ class TestUsersApiKeysModel:
         """Test scopes column is not nullable."""
         assert users_api_keys_models.UsersApiKeys.scopes.nullable is False
 
-    def test_users_api_keys_model_expires_at_nullable(self):
-        """Test expires_at column is nullable (no expiry means NULL)."""
-        assert users_api_keys_models.UsersApiKeys.expires_at.nullable is True
+    def test_users_api_keys_model_expires_at_required(self):
+        """Test expires_at column is required: every key expires."""
+        assert users_api_keys_models.UsersApiKeys.expires_at.nullable is False
 
     def test_users_api_keys_model_last_used_at_nullable(self):
         """Test last_used_at column is nullable (not yet used means NULL)."""
@@ -100,3 +102,9 @@ class TestUsersApiKeysModel:
     def test_users_api_keys_model_is_active_not_nullable(self):
         """Test is_active column is not nullable."""
         assert users_api_keys_models.UsersApiKeys.is_active.nullable is False
+
+    def test_users_api_keys_model_revoked_at_nullable(self):
+        """Test revoked_at is nullable and timezone-aware (an active key has none)."""
+        column = users_api_keys_models.UsersApiKeys.revoked_at
+        assert column.nullable is True
+        assert column.type.timezone is True

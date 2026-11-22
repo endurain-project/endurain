@@ -1,3 +1,4 @@
+import type { PublicUser } from '@/features/users/types'
 import type { Schemas } from '@/types'
 
 /** Raw follow-relationship payload as returned by the backend. */
@@ -16,6 +17,17 @@ export type RelationshipDto = Schemas['RelationshipRead']
 export type FollowStatus = 'none' | 'pending' | 'accepted'
 
 /**
+ * The viewer's relationship with another user.
+ *
+ * @property status - The viewer's follow of the other user.
+ * @property isBlocked - Whether the viewer has blocked the other user.
+ */
+export interface Relationship {
+  status: FollowStatus
+  isBlocked: boolean
+}
+
+/**
  * One row in a followers/following list: the *other* user in the relationship
  * (the follower, or the followed user) plus whether the follow is accepted.
  * Mapped from {@link FollowerDto} at the service boundary so the raw directional
@@ -25,6 +37,19 @@ export type FollowStatus = 'none' | 'pending' | 'accepted'
  * @property isAccepted - Whether the follow relationship has been accepted.
  */
 export interface FollowEdge {
-  userId: number
+  userId: string
   isAccepted: boolean
+}
+
+/**
+ * A followers/following list with the profile of every user on it, as one response
+ * carries them.
+ *
+ * @property edges - The rows of the list.
+ * @property profiles - The profile of each row's user, or `null` for one the server left out
+ *   (inactive, or awaiting approval).
+ */
+export interface FollowList {
+  edges: FollowEdge[]
+  profiles: Map<string, PublicUser | null>
 }

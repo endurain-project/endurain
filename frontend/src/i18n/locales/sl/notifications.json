@@ -5,10 +5,12 @@
   "unread": "Neprebrano",
   "markRead": "Označi kot prebrano",
   "markAllRead": "Označi vse kot prebrano",
+  "dismiss": "Opusti obvestilo",
+  "dismissError": "Obvestila ni bilo mogoče opustiti. Poskusite znova.",
   "seeAll": "Pokaži vse",
   "loadMore": "Naloži več",
   "loading": "Nalaganje…",
-  "badge": "{count} neprebranih obvestil",
+  "badge": "{count} neprebrano obvestilo | {count} neprebrani obvestili | {count} neprebrana obvestila | {count} neprebranih obvestil",
   "empty": {
     "title": "Vse si prebralo",
     "description": "Tukaj se bodo prikazovale posodobitve o tvojih aktivnostih, sledilcih in integracijah."
@@ -39,9 +41,122 @@
       "title": "Garmin Connect potrebuje pozornost",
       "body": "Tvoja seja Garmin Connect je potekla. Znova jo poveži, da nadaljuješ s sinhronizacijo."
     },
+    "stravaTokenExpired": {
+      "title": "Strava potrebuje pozornost",
+      "body": "Strava je zavrnila tvojo povezavo. Znova jo poveži, da se sinhronizacija nadaljuje.",
+      "bodyRevoked": "Dostop do Strave se je končal. Vaše aktivnosti in oprema, sinhronizirane s Stravo, bodo izbrisane {date}, če se ne povežete znova."
+    },
+    "stravaDataDeleted": {
+      "title": "Podatki iz Strave izbrisani",
+      "body": "Vaše aktivnosti in oprema, sinhronizirane s Stravo, so bile izbrisane, ker se je dostop do Strave končal in se niste znova povezali."
+    },
+    "idpLinked": {
+      "title": "Povezan nov ponudnik prijave",
+      "body": "{name} je bil povezan z tvojim računom. Če to nisi bil ti, preglej varnostne nastavitve.",
+      "bodyGeneric": "Ponudnik prijave je bil povezan z tvojim računom. Če to nisi bil ti, preglej varnostne nastavitve."
+    },
+    "accountSecurityChanged": {
+      "passwordChanged": {
+        "title": "Geslo spremenjeno",
+        "body": "Tvoje geslo je bilo spremenjeno. Če to nisi bil ti, ponastavi geslo in preglej varnostne nastavitve."
+      },
+      "passwordReset": {
+        "title": "Geslo ponastavljeno",
+        "body": "Tvoje geslo je bilo ponastavljeno s povezavo za ponastavitev. Če to nisi bil ti, znova ponastavi geslo in preglej varnostne nastavitve. Any API keys were revoked and any pending email change was cancelled."
+      },
+      "passwordSetByAdmin": {
+        "title": "Geslo je nastavil skrbnik",
+        "body": "Skrbnik je nastavil novo geslo za tvoj račun. Če tega nisi pričakoval, se obrni na skrbnika. Any API keys were revoked and any pending email change was cancelled."
+      },
+      "mfaEnabled": {
+        "title": "Dvostopenjska avtentikacija vklopljena",
+        "body": "Za tvoj račun je bila vklopljena dvostopenjska avtentikacija. Če to nisi bil ti, ponastavi geslo in preglej varnostne nastavitve."
+      },
+      "mfaDisabled": {
+        "title": "Dvostopenjska avtentikacija izklopljena",
+        "body": "Za tvoj račun je bila izklopljena dvostopenjska avtentikacija. Če to nisi bil ti, ponastavi geslo in preglej varnostne nastavitve."
+      },
+      "mfaResetByAdmin": {
+        "title": "Skrbnik je ponastavil dvostopenjsko avtentikacijo",
+        "body": "Skrbnik je ponastavil dvostopenjsko avtentikacijo za tvoj račun in te odjavil z vseh naprav. Znova jo nastavi v varnostnih nastavitvah. Če tega nisi pričakoval, se obrni na skrbnika."
+      },
+      "passwordChangeRequiredByAdmin": {
+        "title": "Skrbnik zahteva spremembo gesla",
+        "body": "Skrbnik je zahteval, da spremeniš geslo, in te odjavil z vseh naprav. Novo geslo boš izbral ob naslednji prijavi z geslom. Če tega nisi pričakoval, se obrni na skrbnika."
+      },
+      "backupCodesGenerated": {
+        "title": "Ustvarjene nove varnostne kode",
+        "body": "Za tvoj račun so bile ustvarjene nove varnostne kode. Če to nisi bil ti, ponastavi geslo in preglej varnostne nastavitve."
+      },
+      "apiKeyCreated": {
+        "title": "Ustvarjen nov ključ API",
+        "body": "Za tvoj račun je bil ustvarjen nov ključ API. Če to nisi bil ti, ponastavi geslo in preglej varnostne nastavitve."
+      },
+      "apiKeysRevokedByAdmin": {
+        "title": "Skrbnik je preklical API ključe",
+        "body": "Skrbnik je preklical enega ali več vaših API ključev, zato nič, kar jih uporablja, nima več dostopa do vašega računa. Če tega niste pričakovali, se obrnite na skrbnika."
+      },
+      "identityProviderUnlinked": {
+        "title": "Ponudnik prijave odklopljen",
+        "body": "{name} je bil odklopljen od tvojega računa. Če to nisi bil ti, ponastavi geslo in preglej varnostne nastavitve.",
+        "bodyGeneric": "Ponudnik prijave je bil odklopljen od tvojega računa. Če to nisi bil ti, ponastavi geslo in preglej varnostne nastavitve."
+      },
+      "accountLocked": {
+        "title": "Račun je zaklenjen",
+        "body": "Tvoj račun je bil zaklenjen po 100 zaporednih neuspelih poskusih prijave. Brskalniki in aplikacije, iz katerih si se prijavil od zadnje varnostne spremembe, se še vedno lahko prijavijo. Če teh poskusov nisi izvedel ti, spremeni ali ponastavi geslo, kar tudi odpre zaklep."
+      },
+      "mfaLocked": {
+        "title": "Dvostopenjsko preverjanje je zaklenjeno",
+        "body": "Tvoj račun je bil zaklenjen po 100 zaporednih napačnih kodah dvostopenjskega preverjanja, zato nekdo pozna tvoje geslo. Brskalniki in aplikacije, iz katerih si se prijavil od zadnje varnostne spremembe, se še vedno lahko prijavijo. Če teh poskusov nisi izvedel ti, spremeni geslo."
+      },
+      "stepUpSessionEnded": {
+        "title": "Seja je bila odjavljena",
+        "body": "Ena seja tvojega računa je bila odjavljena, potem ko je bilo 15-krat zapored vneseno napačno geslo ali koda dvostopenjske avtentikacije pri potrjevanju občutljivega dejanja. Tvoje druge seje niso bile prizadete. Če teh poskusov nisi bil ti, spremeni geslo."
+      },
+      "stepUpLocked": {
+        "title": "Potrjevanje občutljivih dejanj je zaklenjeno",
+        "body": "Potrjevanje občutljivih dejanj, kot sta sprememba gesla ali ustvarjanje ključa API, je bilo zaklenjeno za 30 dni po 100 napačnih potrditvah v vseh tvojih sejah. Če teh poskusov nisi bil ti, ponastavi geslo, kar prav tako odpravi zaklep."
+      },
+      "backupCodeUsed": {
+        "title": "Uporabljena varnostna koda",
+        "body": "Za dvostopenjsko avtentikacijo tvojega računa je bila uporabljena varnostna koda. Če to nisi bil ti, spremeni geslo in ustvari nove varnostne kode.",
+        "bodyRemaining": "Za dvostopenjsko avtentikacijo tvojega računa je bila uporabljena varnostna koda. Preostale neuporabljene varnostne kode: {count}. Če to nisi bil ti, spremeni geslo in ustvari nove varnostne kode.",
+        "bodyNone": "Za dvostopenjsko avtentikacijo tvojega računa je bila uporabljena varnostna koda. Nimaš več neuporabljenih varnostnih kod, zato v varnostnih nastavitvah ustvari nove. Če to nisi bil ti, spremeni geslo."
+      },
+      "refreshTokenReuseDetected": {
+        "title": "Seja je bila končana",
+        "body": "Ena prijavna seja tvojega računa je bila končana, ker je bil ponovno predložen žeton, ki je bil že uporabljen, kar lahko pomeni, da je bila seja kopirana. Tvoje druge seje niso bile prizadete. Če tega nisi pričakoval, spremeni geslo."
+      },
+      "roleChangedByAdmin": {
+        "title": "Dostop je spremenil skrbnik",
+        "body": "Skrbnik je spremenil dostop tvojega računa in te odjavil z vseh naprav. Če tega nisi pričakoval, se obrni na svojega skrbnika.",
+        "bodyAdmin": "Skrbnik je dostop tvojega računa spremenil v skrbnika in te odjavil z vseh naprav. Če tega nisi pričakoval, se obrni na svojega skrbnika.",
+        "bodyRegular": "Skrbnik je dostop tvojega računa spremenil v navadnega uporabnika in te odjavil z vseh naprav. Če tega nisi pričakoval, se obrni na svojega skrbnika."
+      },
+      "accountDeactivatedByAdmin": {
+        "title": "Račun je deaktiviral skrbnik",
+        "body": "Skrbnik je deaktiviral tvoj račun in te odjavil z vseh naprav. Prijaviti se ne moreš, dokler ga skrbnik ponovno ne aktivira."
+      },
+      "unknown": {
+        "title": "Varnost računa spremenjena",
+        "body": "Spremenila se je ena od varnostnih nastavitev tvojega računa. Če to nisi bil ti, ponastavi geslo in preglej varnostne nastavitve."
+      },
+      "usernameChanged": {
+        "title": "Uporabniško ime spremenjeno",
+        "body": "Vaše uporabniško ime je bilo spremenjeno. Če tega niste bili vi, ponastavite geslo in preglejte varnostne nastavitve."
+      }
+    },
+    "newDeviceSignIn": {
+      "title": "Nova prijava",
+      "body": "Nova prijava iz brskalnika {browser} v sistemu {os} ({ip}). Če to nisi bil ti, spremeni geslo in se odjavi iz drugih sej."
+    },
     "adminSignUpApproval": {
       "title": "Nova registracija čaka na odobritev",
       "body": "{name} ({'@'}{username}) čaka na odobritev računa."
+    },
+    "adminUserPromoted": {
+      "title": "Uporabnik povišan v skrbnika",
+      "body": "Uporabnik {name} ({'@'}{username}) je dobil skrbniški dostop."
     },
     "unknown": {
       "title": "Obvestilo",

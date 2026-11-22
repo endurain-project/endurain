@@ -1,4 +1,14 @@
-import type { Activity, ActivityPrivacy } from '@/features/activities/types'
+import type { Activity, ActivityPrivacy, ActivitySummary } from '@/features/activities/types'
+
+/** Builds a stable activity-scoped UUID from a small number so ids stay readable in assertions. */
+export function activityUuid(n: number): string {
+  return `00000000-0000-4000-8000-${String(n).padStart(12, '0')}`
+}
+
+/** Builds a stable user-scoped UUID from a small number so ids stay readable in assertions. */
+export function userUuid(n: number): string {
+  return `00000000-0000-4000-9000-${String(n).padStart(12, '0')}`
+}
 
 /** All-false privacy flags (nothing hidden). */
 export const NO_PRIVACY: ActivityPrivacy = {
@@ -24,14 +34,14 @@ export const NO_PRIVACY: ActivityPrivacy = {
  */
 export function makeActivity(overrides: Partial<Activity> = {}): Activity {
   return {
-    id: 1,
-    userId: 7,
+    id: activityUuid(1),
+    userId: userUuid(7),
     version: 1,
     name: 'Morning run',
     description: null,
     privateNotes: null,
-    activityType: 1,
-    visibility: 0,
+    activityType: 'run',
+    visibility: 'public',
     isHidden: false,
     gearId: null,
     startTime: '2024-05-01T07:00:00Z',
@@ -59,7 +69,20 @@ export function makeActivity(overrides: Partial<Activity> = {}): Activity {
     stravaActivityId: null,
     garminActivityId: null,
     mapThumbnailUrl: null,
+    media: [],
     ...overrides,
     privacy: { ...NO_PRIVACY, ...overrides.privacy },
   }
+}
+
+/**
+ * Builds an activity summary fixture, the shape every list response returns: a full activity
+ * without the private notes.
+ *
+ * @param overrides - Fields to override on the default running activity.
+ * @returns A complete {@link ActivitySummary}.
+ */
+export function makeActivitySummary(overrides: Partial<ActivitySummary> = {}): ActivitySummary {
+  const { privateNotes: _privateNotes, ...summary } = makeActivity(overrides)
+  return summary
 }

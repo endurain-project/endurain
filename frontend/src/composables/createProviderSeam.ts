@@ -1,6 +1,6 @@
 /**
  * Shared registration mechanic for the deployment provider seams (telemetry,
- * map, chart, quota, billing, image source). Each seam is a module-level
+ * map, chart, image source). Each seam is a module-level
  * singleton that holds a default implementation until hosted/SaaS bootstrap
  * replaces it once. This factory captures that mechanic — default value,
  * one-time registration, current-value access, and a registered flag — so each

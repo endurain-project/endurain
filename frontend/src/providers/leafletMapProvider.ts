@@ -131,7 +131,12 @@ export function createLeafletMapProvider(config: LeafletMapProviderConfig = {}):
         keyboard: interactive,
       })
 
-      tileLayer(tileUrl, { attribution, maxZoom }).addTo(map)
+      // The page sends no Referer; tile servers such as OpenStreetMap require one, so the tile images set their own.
+      tileLayer(tileUrl, {
+        attribution,
+        maxZoom,
+        referrerPolicy: 'strict-origin-when-cross-origin',
+      }).addTo(map)
 
       let overlays: Layer[] = []
       let currentTrack: MapTrack = options.track

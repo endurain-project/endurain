@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
+import type { ActivityType } from '@/features/activities/types'
+
 import {
   ACTIVITY_CATEGORY_FILTERS,
   ALL_ACTIVITY_CATEGORIES,
@@ -9,21 +11,21 @@ import {
 } from '@/features/search/utils/filters'
 
 /** Minimal activity shape the filter reads (one representative type per family). */
-const activities = [
-  { activityType: 1 }, // running
-  { activityType: 4 }, // cycling
-  { activityType: 8 }, // swimming
-  { activityType: 11 }, // walking
-  { activityType: 21 }, // racquet
-  { activityType: 13 }, // rowing
-  { activityType: 15 }, // snow skiing -> winterSports
-  { activityType: 17 }, // snowboarding -> winterSports
-  { activityType: 37 }, // ice skating -> winterSports
-  { activityType: 30 }, // windsurf -> waterSports
-  { activityType: 43 }, // sailing -> waterSports
-  { activityType: 32 }, // stand-up paddling -> waterSports
-  { activityType: 33 }, // surf -> waterSports
-  { activityType: 45 }, // inline skating -> skating
+const activities: { activityType: ActivityType }[] = [
+  { activityType: 'run' }, // running
+  { activityType: 'ride' }, // cycling
+  { activityType: 'lap_swimming' }, // swimming
+  { activityType: 'walk' }, // walking
+  { activityType: 'tennis' }, // racquet
+  { activityType: 'rowing' }, // rowing
+  { activityType: 'alpine_ski' }, // snow skiing -> winterSports
+  { activityType: 'snowboard' }, // snowboarding -> winterSports
+  { activityType: 'ice_skate' }, // ice skating -> winterSports
+  { activityType: 'windsurf' }, // windsurf -> waterSports
+  { activityType: 'sailing' }, // sailing -> waterSports
+  { activityType: 'stand_up_paddling' }, // stand-up paddling -> waterSports
+  { activityType: 'surf' }, // surf -> waterSports
+  { activityType: 'inline_skating' }, // inline skating -> skating
 ]
 
 describe('filterActivitiesByCategory', () => {
@@ -39,32 +41,36 @@ describe('filterActivitiesByCategory', () => {
   })
 
   it('keeps only single-family disciplines', () => {
-    expect(filterActivitiesByCategory(activities, 'running')).toEqual([{ activityType: 1 }])
-    expect(filterActivitiesByCategory(activities, 'cycling')).toEqual([{ activityType: 4 }])
-    expect(filterActivitiesByCategory(activities, 'swimming')).toEqual([{ activityType: 8 }])
-    expect(filterActivitiesByCategory(activities, 'racquet')).toEqual([{ activityType: 21 }])
-    expect(filterActivitiesByCategory(activities, 'rowing')).toEqual([{ activityType: 13 }])
+    expect(filterActivitiesByCategory(activities, 'running')).toEqual([{ activityType: 'run' }])
+    expect(filterActivitiesByCategory(activities, 'cycling')).toEqual([{ activityType: 'ride' }])
+    expect(filterActivitiesByCategory(activities, 'swimming')).toEqual([
+      { activityType: 'lap_swimming' },
+    ])
+    expect(filterActivitiesByCategory(activities, 'racquet')).toEqual([{ activityType: 'tennis' }])
+    expect(filterActivitiesByCategory(activities, 'rowing')).toEqual([{ activityType: 'rowing' }])
   })
 
   it('groups skiing, snowboarding, and ice skating under winter sports', () => {
     expect(filterActivitiesByCategory(activities, 'winterSports')).toEqual([
-      { activityType: 15 },
-      { activityType: 17 },
-      { activityType: 37 },
+      { activityType: 'alpine_ski' },
+      { activityType: 'snowboard' },
+      { activityType: 'ice_skate' },
     ])
   })
 
   it('groups windsurf, sailing, paddling, and surf under water sports', () => {
     expect(filterActivitiesByCategory(activities, 'waterSports')).toEqual([
-      { activityType: 30 },
-      { activityType: 43 },
-      { activityType: 32 },
-      { activityType: 33 },
+      { activityType: 'windsurf' },
+      { activityType: 'sailing' },
+      { activityType: 'stand_up_paddling' },
+      { activityType: 'surf' },
     ])
   })
 
   it('keeps inline skating separate from ice skating', () => {
-    expect(filterActivitiesByCategory(activities, 'skating')).toEqual([{ activityType: 45 }])
+    expect(filterActivitiesByCategory(activities, 'skating')).toEqual([
+      { activityType: 'inline_skating' },
+    ])
   })
 
   it('exposes a stable, duplicate-free set of category values', () => {
@@ -76,7 +82,12 @@ describe('filterActivitiesByCategory', () => {
 })
 
 describe('filterGearsByType', () => {
-  const gears = [{ gearType: 1 }, { gearType: 2 }, { gearType: 2 }, { gearType: 5 }]
+  const gears = [
+    { gearType: 'bike' as const },
+    { gearType: 'shoes' as const },
+    { gearType: 'shoes' as const },
+    { gearType: 'ski' as const },
+  ]
 
   it('returns a copy of every gear for the "all" sentinel', () => {
     const result = filterGearsByType(gears, ALL_GEAR_TYPES)
@@ -86,11 +97,14 @@ describe('filterGearsByType', () => {
   })
 
   it('keeps only gears of the requested type', () => {
-    expect(filterGearsByType(gears, 2)).toEqual([{ gearType: 2 }, { gearType: 2 }])
-    expect(filterGearsByType(gears, 5)).toEqual([{ gearType: 5 }])
+    expect(filterGearsByType(gears, 'shoes')).toEqual([
+      { gearType: 'shoes' },
+      { gearType: 'shoes' },
+    ])
+    expect(filterGearsByType(gears, 'ski')).toEqual([{ gearType: 'ski' }])
   })
 
   it('returns nothing for a type with no matches', () => {
-    expect(filterGearsByType(gears, 99)).toEqual([])
+    expect(filterGearsByType(gears, 'wetsuit')).toEqual([])
   })
 })

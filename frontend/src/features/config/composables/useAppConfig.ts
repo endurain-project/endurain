@@ -2,8 +2,11 @@ import { computed, readonly, ref } from 'vue'
 
 import type { AppConfig, FeatureFlags } from '@/features/config/types'
 
+import { queryClient } from '@/plugins/vueQuery'
 import { HttpError } from '@/services/http'
-import { DEFAULT_APP_CONFIG, fetchAppConfig } from '@/features/config/services/config'
+import { queryKeys } from '@/services/queryKeys'
+import { DEFAULT_APP_CONFIG, mapServerSettingsToAppConfig } from '@/features/config/services/config'
+import { fetchPublicServerSettings } from '@/features/config/services/serverSettings'
 import { useTelemetry } from '@/composables/useTelemetry'
 
 const config = ref<AppConfig>(DEFAULT_APP_CONFIG)
@@ -24,6 +27,10 @@ const configError = ref(false)
  * still boots; that fallback is expected and stays quiet, so only unexpected
  * failures are reported.
  *
+ * The fetched settings also seed the public-settings query, so the first screen
+ * that reads them (the list page size, the login screen) does not request them
+ * again.
+ *
  * A reachable backend that answers with an HTTP error ({@link HttpError}) is
  * treated as a transient backend problem and stays quiet. Any other failure —
  * a `TypeError` ("Failed to fetch"), CORS block, or timeout — means the host
@@ -33,7 +40,9 @@ const configError = ref(false)
 export async function loadAppConfig(): Promise<void> {
   configError.value = false
   try {
-    config.value = await fetchAppConfig()
+    const settings = await fetchPublicServerSettings()
+    queryClient.setQueryData(queryKeys.public.serverSettings(), settings)
+    config.value = mapServerSettingsToAppConfig(settings)
   } catch (error) {
     if (error instanceof HttpError) {
       return

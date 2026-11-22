@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import uuid
 from datetime import UTC, datetime
 
 import modules.activities.activity.contracts as activity_contracts
@@ -11,7 +12,7 @@ import modules.activities.activity_ingestion.contracts as ingestion_contracts
 
 def _activity(start: datetime) -> activity_contracts.ActivityCore:
     return activity_contracts.ActivityCore(
-        user_id=1,
+        user_id=uuid.uuid4(),
         distance=0,
         name="COROS activity",
         activity_type=1,

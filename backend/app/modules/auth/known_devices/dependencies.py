@@ -1,0 +1,75 @@
+"""The device id a client keeps, read at the HTTP boundary: a web browser in a cookie, the mobile app in a header."""
+
+import math
+import re
+from typing import Annotated
+
+from fastapi import Cookie, Depends, Header, Response
+
+import core.config as core_config
+import modules.auth.computation as auth_computation
+import modules.auth.known_devices.constants as known_devices_constants
+
+#: The cookie that names the browser a user signs in from. Strict because every sign-in that reads it is a
+#: same-site request from the web app.
+_DEVICE_COOKIE_BASE_NAME = "endurain_device"
+#: The name the browser sends the cookie back under, fixed when the server starts.
+DEVICE_COOKIE_NAME = auth_computation.host_cookie_name(_DEVICE_COOKIE_BASE_NAME, core_config.settings.ENVIRONMENT)
+#: The header the mobile app, which keeps no cookies, sends its device id in.
+DEVICE_HEADER_NAME = "X-Device-Id"
+#: The ``__Host-`` prefix requires ``Path=/``; the cookie is set without a ``Domain`` attribute.
+DEVICE_COOKIE_PATH = "/"
+_DEVICE_COOKIE_MAX_AGE_SECONDS = known_devices_constants.DEVICE_RETENTION_DAYS * 24 * 60 * 60
+_DEVICE_ID_PATTERN = re.compile(rf"[A-Za-z0-9_-]{{{math.ceil(known_devices_constants.DEVICE_ID_BYTES * 4 / 3)}}}")
+
+
+def get_device_id(
+    device_cookie: Annotated[str | None, Cookie(alias=DEVICE_COOKIE_NAME, include_in_schema=False)] = None,
+    device_header: Annotated[
+        str | None,
+        Header(
+            alias=DEVICE_HEADER_NAME,
+            description=(
+                "The device id the mobile app keeps, as the server returned it on an earlier sign-in: 43 characters"
+                " of `A-Z a-z 0-9 - _`. Optional: a missing or malformed value counts as none and the server mints"
+                " one. A browser sends its device cookie instead."
+            ),
+        ),
+    ] = None,
+) -> str | None:
+    """Return the device id the client sent, or None when it sent none or a malformed one.
+
+    The mobile app's header wins over a cookie; a browser sends only the cookie.
+
+    Args:
+        device_cookie: The raw cookie value.
+        device_header: The raw ``X-Device-Id`` header value.
+
+    Returns:
+        The device id, or None.
+    """
+    device_id = device_header if device_header is not None else device_cookie
+    if device_id is None or _DEVICE_ID_PATTERN.fullmatch(device_id) is None:
+        return None
+    return device_id
+
+
+DeviceId = Annotated[str | None, Depends(get_device_id)]
+
+
+def set_device_cookie(response: Response, device_id: str) -> None:
+    """Keep the device id in the browser for the retention period, counted from this sign-in.
+
+    Args:
+        response: The response that completes the sign-in.
+        device_id: The device id the sign-in recorded.
+    """
+    response.set_cookie(
+        key=auth_computation.host_cookie_name(_DEVICE_COOKIE_BASE_NAME, core_config.settings.ENVIRONMENT),
+        value=device_id,
+        max_age=_DEVICE_COOKIE_MAX_AGE_SECONDS,
+        path=DEVICE_COOKIE_PATH,
+        httponly=True,
+        secure=auth_computation.secure_cookie(core_config.settings.ENVIRONMENT),
+        samesite="strict",
+    )

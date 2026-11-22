@@ -19,23 +19,29 @@ class TestReadPublicExerciseTitles:
         "modules.activities.activity_exercise_titles.public_router.activity_exercise_titles_service.list_public_activity_exercise_titles"
     )
     def test_success(self, mock_get, mock_db):
-        from modules.activities.activity_exercise_titles.schema import ActivityExerciseTitlesRead
+        from modules.activities.activity_exercise_titles.schema import (
+            ActivityExerciseTitlesPage,
+            ActivityExerciseTitlesRead,
+        )
 
         client = TestClient(_build_app(mock_db))
-        mock_get.return_value = [
-            ActivityExerciseTitlesRead(id=1, exercise_category=1, exercise_name=1, wkt_step_name="Run")
-        ]
+        mock_get.return_value = ActivityExerciseTitlesPage.build(
+            [ActivityExerciseTitlesRead(id=1, exercise_category=1, exercise_name=1, wkt_step_name="Run")], 1, 1, 25
+        )
 
-        response = client.get("/public/activity_exercise_titles/all")
+        response = client.get("/public/activity_exercise_titles")
         assert response.status_code == 200
+        assert response.json()["total"] == 1
 
     @patch(
         "modules.activities.activity_exercise_titles.public_router.activity_exercise_titles_service.list_public_activity_exercise_titles"
     )
     def test_not_found(self, mock_get, mock_db):
-        client = TestClient(_build_app(mock_db))
-        mock_get.return_value = []
+        from modules.activities.activity_exercise_titles.schema import ActivityExerciseTitlesPage
 
-        response = client.get("/public/activity_exercise_titles/all")
+        client = TestClient(_build_app(mock_db))
+        mock_get.return_value = ActivityExerciseTitlesPage.build([], 0, 1, 25)
+
+        response = client.get("/public/activity_exercise_titles")
         assert response.status_code == 200
-        assert response.json() == []
+        assert response.json()["items"] == []

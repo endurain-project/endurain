@@ -11,7 +11,7 @@
     "subtitle": "Bla gjennom, filtrer og sorter alle aktivitetene dine.",
     "searchPlaceholder": "Søk etter navn eller sted",
     "clearSearch": "Tøm søk",
-    "resultCount": "{count} aktiviteter",
+    "resultCount": "{count} aktivitet | {count} aktiviteter",
     "filters": {
       "type": "Aktivitetstype",
       "allTypes": "Alle typer",
@@ -184,10 +184,13 @@
   },
   "edit": {
     "title": "Rediger aktivitet",
+    "loading": "Laster aktiviteten",
+    "loadError": "Kunne ikke laste aktiviteten",
     "save": "Lagre endringer",
     "cancel": "Avbryt",
     "close": "Lukk",
     "name": "Navn",
+    "nameRequired": "Skriv inn et navn på aktiviteten",
     "type": "Aktivitetstype",
     "description": "Beskrivelse",
     "privateNotes": "Private notater",
@@ -208,7 +211,7 @@
     "hideGear": "Skjul utstyr",
     "success": "Aktivitet oppdatert",
     "error": "Kunne ikke oppdatere aktiviteten",
-    "staleError": "This activity was changed elsewhere while you were editing. Your changes were not saved. Reopen it to see the current version."
+    "staleError": "Denne aktiviteten ble endret et annet sted mens du redigerte. Endringene dine ble ikke lagret. Åpne den på nytt for å se gjeldende versjon."
   },
   "alerts": {
     "hidden": "Denne aktiviteten er skjult. Bare du kan se den.",

@@ -1,5 +1,6 @@
 """COROS integration API and internal persistence schemas."""
 
+import uuid
 from datetime import date, datetime
 
 from pydantic import BaseModel, ConfigDict, Field, StrictStr
@@ -78,8 +79,8 @@ class CorosIntegrationData(BaseModel):
 
     model_config = ConfigDict(from_attributes=True)
 
-    id: int
-    user_id: int
+    id: uuid.UUID
+    user_id: uuid.UUID
     mcp_url: str | None = None
     issuer: str | None = None
     redirect_uri: str | None = None

@@ -14,7 +14,7 @@ _UPLOAD_SUBSCRIBER = "activity_ingestion.uploaded_file"
 def _upload_attempts(cluster) -> list[tuple[str, str]]:
     """``(outcome, worker)`` for each attempt at the upload job, oldest first."""
     return cluster.query(
-        "SELECT a.outcome, a.worker_id FROM job_attempts a JOIN processing_jobs p ON p.id = a.job_id "
+        "SELECT a.outcome, a.worker_id FROM jasil_job_attempts a JOIN jasil_processing_jobs p ON p.id = a.job_id "
         "WHERE p.subscriber_id = :subscriber ORDER BY a.claimed_at",
         subscriber=_UPLOAD_SUBSCRIBER,
     )
@@ -24,12 +24,12 @@ def _wait_for_upload_job_completed(cluster) -> bool:
     """Wait for JASIL to record the upload job's completion.
 
     The handler commits the ingestion job's ``completed`` status in its own transaction; the runner closes the
-    ``processing_jobs`` row and its attempt in a later one, so the attempts are only final after that.
+    ``jasil_processing_jobs`` row and its attempt in a later one, so the attempts are only final after that.
     """
     return cluster.wait_for(
         lambda: (
             cluster.scalar(
-                "SELECT count(*) FROM processing_jobs WHERE subscriber_id = :subscriber AND status = 'completed'",
+                "SELECT count(*) FROM jasil_processing_jobs WHERE subscriber_id = :subscriber AND status = 'completed'",
                 subscriber=_UPLOAD_SUBSCRIBER,
             )
             == 1

@@ -1,5 +1,6 @@
 """Activity laps ORM models."""
 
+import uuid
 from datetime import datetime
 from decimal import Decimal
 
@@ -14,8 +15,8 @@ class ActivityLaps(Base):
 
     __tablename__ = "activity_laps"
 
-    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
-    activity_id: Mapped[int] = mapped_column(
+    id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
+    activity_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("activities.id", ondelete="CASCADE"),
         nullable=False,
         index=True,

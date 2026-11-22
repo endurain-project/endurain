@@ -76,4 +76,4 @@ export function sortByToExtraColumn(sortBy: string): ActivityMetricColumn | null
 }
 
 /** Placeholder metric for a column that does not apply to an activity. */
-export const NA_METRIC: FormattedMetric = { value: '--', unit: '' }
+export const NA_METRIC: FormattedMetric = { value: '--', unit: null }

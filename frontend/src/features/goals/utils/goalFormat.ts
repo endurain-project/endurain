@@ -74,26 +74,6 @@ export function elevationValueToMeters(value: number, units: Schemas['Units']): 
   return Math.round(units === 'imperial' ? value * METERS_PER_FOOT : value)
 }
 
-/** An hours/minutes breakdown of a duration. */
-export interface HoursMinutes {
-  hours: number
-  minutes: number
-}
-
-/**
- * Splits a duration in seconds into whole hours and minutes.
- *
- * @param seconds - Duration in seconds.
- * @returns The hours and (rounded) minutes components.
- */
-export function secondsToHoursMinutes(seconds: number): HoursMinutes {
-  const safe = Math.max(0, Math.floor(seconds))
-  return {
-    hours: Math.floor(safe / SECONDS_PER_HOUR),
-    minutes: Math.round((safe % SECONDS_PER_HOUR) / SECONDS_PER_MINUTE),
-  }
-}
-
 /**
  * Combines hours and minutes into a total duration in seconds.
  *
@@ -106,18 +86,6 @@ export function hoursMinutesToSeconds(hours: number, minutes: number): number {
     0,
     Math.round(hours) * SECONDS_PER_HOUR + Math.round(minutes) * SECONDS_PER_MINUTE,
   )
-}
-
-/**
- * Formats a duration in seconds as a compact `Hh Mm` string (or `Mm` under an
- * hour), matching how the rest of the app summarizes durations.
- *
- * @param seconds - Duration in seconds.
- * @returns A compact human-readable duration, e.g. `12h 30m` or `45m`.
- */
-export function formatGoalDuration(seconds: number): string {
-  const { hours, minutes } = secondsToHoursMinutes(seconds)
-  return hours > 0 ? `${hours}h ${minutes}m` : `${minutes}m`
 }
 
 /** Recurrence intervals in display order, shared by the goal form and filters. */

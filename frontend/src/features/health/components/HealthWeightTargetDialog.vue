@@ -5,11 +5,14 @@ import { useI18n } from 'vue-i18n'
 import type { Schemas } from '@/types'
 import type { HealthTargets } from '@/features/health/types'
 
+import { useUnitFormat } from '@/composables/useUnitFormat'
 import { FormDialog } from '@/components/ui/form-dialog'
 import { FormField } from '@/components/ui/form-field'
 import { inputFieldClass } from '@/components/ui/input/fieldClasses'
 import { useForm } from '@/composables/useForm'
+import { isStaleWrite } from '@/services/ifMatch'
 import { toNumberOrNull } from '@/utils/number'
+import { numberBetween } from '@/utils/validators'
 import { kgToLbs, lbsToKg } from '@/utils/units'
 import { useUpdateWeightTargetMutation } from '@/features/health/composables/useHealth'
 
@@ -18,8 +21,8 @@ const open = defineModel<boolean>('open', { required: true })
 const props = defineProps<{
   /** The current health targets, providing the record id, owner, and weight. */
   targets: HealthTargets
-  /** The viewer's measurement system, used for the target field unit. */
-  units: Schemas['Units']
+  /** The measurement system used to present the target body mass (kg or lb). */
+  weightUnits: Schemas['Units']
 }>()
 
 const emit = defineEmits<{
@@ -28,8 +31,12 @@ const emit = defineEmits<{
 }>()
 
 const { t } = useI18n()
+const { unitLabel } = useUnitFormat()
 
 const updateTargetMutation = useUpdateWeightTargetMutation()
+
+/** Smallest accepted target, one step of the field (0.1 in the viewer's unit). */
+const MIN_WEIGHT = 0.1
 
 /** Form shape: the numeric target is kept as a string and parsed at submit. */
 interface TargetFormValues {
@@ -41,17 +48,17 @@ function displayMassFromKg(kg: number | null): string {
   if (kg === null) {
     return ''
   }
-  const value = props.units === 'imperial' ? kgToLbs(kg) : kg
+  const value = props.weightUnits === 'imperial' ? kgToLbs(kg) : kg
   return String(Math.round(value * 100) / 100)
 }
 
 /** Converts the display-unit target string back to kilograms (or `null` to clear). */
 function targetToKg(raw: string): number | null {
   const value = toNumberOrNull(raw)
-  if (value === null || value <= 0) {
+  if (value === null) {
     return null
   }
-  const kg = props.units === 'imperial' ? lbsToKg(value) : value
+  const kg = props.weightUnits === 'imperial' ? lbsToKg(value) : value
   return Math.round(kg * 1000) / 1000
 }
 
@@ -62,31 +69,41 @@ function targetToKg(raw: string): number | null {
  * @param values - The form values.
  */
 async function submitForm(values: TargetFormValues): Promise<void> {
+  // Nothing changed: skip the request, which would otherwise store the unit round-trip of the target.
+  if (!isDirty.value) {
+    open.value = false
+    return
+  }
   try {
     await updateTargetMutation.mutateAsync({
-      id: props.targets.id,
-      userId: props.targets.userId,
+      version: props.targets.version,
       weightKg: targetToKg(values.weight),
     })
     emit('success', t('health.weight.target.saveSuccess'))
     open.value = false
-  } catch {
-    emit('error', t('health.weight.target.saveError'))
+  } catch (error) {
+    if (isStaleWrite(error)) {
+      open.value = false
+    }
+    emit('error', isStaleWrite(error) ? t('app.staleError') : t('health.weight.target.saveError'))
   }
 }
 
-const { values, isSubmitting, handleSubmit, reset } = useForm<TargetFormValues>({
-  initialValues: { weight: '' },
-  onSubmit: submitForm,
-})
+const { values, errors, isSubmitting, handleSubmit, reset, isDirty, markPristine } =
+  useForm<TargetFormValues>({
+    initialValues: { weight: '' },
+    validators: { weight: numberBetween(MIN_WEIGHT, undefined, t('health.targetInvalid')) },
+    onSubmit: submitForm,
+  })
 
-const massUnitLabel = computed(() => (props.units === 'imperial' ? 'lb' : 'kg'))
+const massUnitLabel = computed(() => unitLabel(props.weightUnits === 'imperial' ? 'lb' : 'kg'))
 const weightLabel = computed(() => `${t('health.weight.target.weight')} (${massUnitLabel.value})`)
 
 /** Seeds the field from the current target each time the dialog opens. */
 function populate(): void {
   reset()
   values.weight = displayMassFromKg(props.targets.weightKg)
+  markPristine()
 }
 
 watch(open, (isOpen) => {
@@ -110,6 +127,7 @@ watch(open, (isOpen) => {
     <FormField
       :label="weightLabel"
       :placeholder="weightLabel"
+      :error="errors.weight"
       :hint="t('health.weight.target.hint')"
     >
       <template #default="{ fieldId, placeholder }">
@@ -119,7 +137,7 @@ watch(open, (isOpen) => {
           :class="inputFieldClass"
           :placeholder="placeholder"
           type="number"
-          min="0"
+          :min="MIN_WEIGHT"
           step="0.1"
           inputmode="decimal"
           :disabled="isSubmitting"

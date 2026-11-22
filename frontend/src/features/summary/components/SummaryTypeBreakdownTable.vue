@@ -5,9 +5,9 @@ import type { Units } from '@/features/activities/utils/format'
 import type { SummaryTypeBreakdownRow } from '@/features/summary/types'
 
 import { Card } from '@/components/ui/card'
+import { useUnitFormat } from '@/composables/useUnitFormat'
 import { activityTypeIcon, presentActivityType } from '@/features/activities/utils/activityType'
 import {
-  combineSummaryMetric,
   formatSummaryCalories,
   formatSummaryDistance,
   formatSummaryDuration,
@@ -22,6 +22,13 @@ defineProps<{
 }>()
 
 const { t } = useI18n()
+const { formatMetric, duration } = useUnitFormat()
+
+/** Renders the aggregate duration in the localized hours-and-minutes format. */
+function summaryDuration(seconds: number): string {
+  const { hours, minutes } = formatSummaryDuration(seconds)
+  return duration(hours, minutes)
+}
 </script>
 
 <template>
@@ -71,16 +78,16 @@ const { t } = useI18n()
               </span>
             </td>
             <td class="px-3 py-2 text-end tabular-nums">
-              {{ combineSummaryMetric(formatSummaryDistance(row.totalDistance, units)) }}
+              {{ formatMetric(formatSummaryDistance(row.totalDistance, units)) }}
             </td>
             <td class="px-3 py-2 text-end tabular-nums">
-              {{ combineSummaryMetric(formatSummaryDuration(row.totalDuration)) }}
+              {{ summaryDuration(row.totalDuration) }}
             </td>
             <td class="hidden px-3 py-2 text-end tabular-nums sm:table-cell">
-              {{ combineSummaryMetric(formatSummaryElevation(row.totalElevationGain, units)) }}
+              {{ formatMetric(formatSummaryElevation(row.totalElevationGain, units)) }}
             </td>
             <td class="hidden px-3 py-2 text-end tabular-nums sm:table-cell">
-              {{ combineSummaryMetric(formatSummaryCalories(row.totalCalories)) }}
+              {{ formatMetric(formatSummaryCalories(row.totalCalories)) }}
             </td>
             <td class="hidden py-2 ps-3 text-end tabular-nums md:table-cell">
               {{ row.activityCount }}

@@ -1,4 +1,12 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
+
+const tileLayerSpy = vi.hoisted(() => vi.fn<typeof import('leaflet').tileLayer>())
+
+vi.mock('leaflet', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('leaflet')>()
+  tileLayerSpy.mockImplementation(actual.tileLayer)
+  return { ...actual, tileLayer: tileLayerSpy }
+})
 
 import { setMapProvider, useMapProvider } from '@/composables/useMapProvider'
 import { boundsOf, createLeafletMapProvider, toLatLngs } from '@/providers/leafletMapProvider'
@@ -71,5 +79,14 @@ describe('createLeafletMapProvider', () => {
     const { provider: active, isAvailable } = useMapProvider()
     expect(active.name).toBe('leaflet')
     expect(isAvailable).toBe(true)
+  })
+
+  it('gives the tile requests their own referrer policy, because the page sends none', () => {
+    createLeafletMapProvider().mount(document.createElement('div'), { track: { points: [] } })
+
+    expect(tileLayerSpy).toHaveBeenCalledWith(
+      expect.any(String),
+      expect.objectContaining({ referrerPolicy: 'strict-origin-when-cross-origin' }),
+    )
   })
 })

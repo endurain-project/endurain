@@ -1,9 +1,10 @@
 import { describe, expect, it } from 'vitest'
 
 import {
-  buildPasswordRequirements,
+  isUuid,
   isValidEmail,
   isValidPassword,
+  PASSWORD_MAX_LENGTH,
   resolvePasswordMinLength,
 } from '@/utils/validation'
 
@@ -21,50 +22,33 @@ describe('isValidEmail', () => {
   })
 })
 
-describe('buildPasswordRequirements', () => {
-  it('enforces character-class diversity for the strict policy', () => {
-    expect(buildPasswordRequirements('strict', 10)).toEqual({
-      minLength: 10,
-      requireUppercase: true,
-      requireLowercase: true,
-      requireDigit: true,
-      requireSpecialChar: true,
-    })
-  })
-
-  it('enforces length only for the length_only policy', () => {
-    expect(buildPasswordRequirements('length_only', 12)).toEqual({
-      minLength: 12,
-      requireUppercase: false,
-      requireLowercase: false,
-      requireDigit: false,
-      requireSpecialChar: false,
-    })
-  })
-})
-
 describe('isValidPassword', () => {
-  const strict = buildPasswordRequirements('strict', 8)
-  const lengthOnly = buildPasswordRequirements('length_only', 8)
-
-  it('accepts a password meeting every strict requirement', () => {
-    expect(isValidPassword('Abcdef1!', strict)).toBe(true)
+  it('accepts a password of the maximum length and refuses a longer one', () => {
+    expect(PASSWORD_MAX_LENGTH).toBe(256)
+    expect(isValidPassword('a'.repeat(256), 8)).toBe(true)
+    expect(isValidPassword('a'.repeat(257), 8)).toBe(false)
   })
 
-  it('rejects passwords missing a required character class', () => {
-    expect(isValidPassword('abcdef1!', strict)).toBe(false)
-    expect(isValidPassword('ABCDEF1!', strict)).toBe(false)
-    expect(isValidPassword('Abcdefg!', strict)).toBe(false)
-    expect(isValidPassword('Abcdefg1', strict)).toBe(false)
+  it('accepts any password of at least the minimum length', () => {
+    expect(isValidPassword('aaaaaaaa', 8)).toBe(true)
+    expect(isValidPassword('correct horse battery', 15)).toBe(true)
   })
 
   it('rejects passwords shorter than the minimum length', () => {
-    expect(isValidPassword('Ab1!', strict)).toBe(false)
+    expect(isValidPassword('aaaaaaa', 8)).toBe(false)
+    expect(isValidPassword('Ab1!', 8)).toBe(false)
   })
 
-  it('accepts any sufficiently long password under the length-only policy', () => {
-    expect(isValidPassword('aaaaaaaa', lengthOnly)).toBe(true)
-    expect(isValidPassword('aaaaaaa', lengthOnly)).toBe(false)
+  it('does not require any character class', () => {
+    expect(isValidPassword('abcdefghijklmno', 15)).toBe(true)
+  })
+
+  it('counts Unicode characters of the NFC form, like the server', () => {
+    // Seven emoji are 14 UTF-16 code units but 7 characters.
+    expect(isValidPassword('😀'.repeat(7), 8)).toBe(false)
+    // A decomposed "é" (e + combining accent) is one character once normalized.
+    expect(isValidPassword('é'.repeat(7), 8)).toBe(false)
+    expect(isValidPassword('é'.repeat(8), 8)).toBe(true)
   })
 })
 
@@ -76,5 +60,20 @@ describe('resolvePasswordMinLength', () => {
   it('picks the regular length for any other access type', () => {
     expect(resolvePasswordMinLength(8, 12, 'regular')).toBe(8)
     expect(resolvePasswordMinLength(8, 12, '')).toBe(8)
+  })
+})
+
+describe('isUuid', () => {
+  it('accepts a canonical UUID in either case', () => {
+    expect(isUuid('00000000-0000-4000-8000-000000000005')).toBe(true)
+    expect(isUuid('5F1C9A2E-7B3D-4E8A-9C1F-0A2B3C4D5E6F')).toBe(true)
+  })
+
+  it('rejects malformed ids', () => {
+    expect(isUuid('')).toBe(false)
+    expect(isUuid('5')).toBe(false)
+    expect(isUuid('00000000000040008000000000000005')).toBe(false)
+    expect(isUuid('00000000-0000-4000-8000-00000000000g')).toBe(false)
+    expect(isUuid(' 00000000-0000-4000-8000-000000000005')).toBe(false)
   })
 })

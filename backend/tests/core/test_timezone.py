@@ -104,3 +104,21 @@ class TestCanonical:
 
         for target in set(core_timezone._LEGACY_ALIASES.values()):
             ZoneInfo(target)
+
+
+class TestKnownTimezones:
+    """The IANA name set is scanned once and shared."""
+
+    def test_names_contain_known_zones(self):
+        names = core_timezone.known_names()
+        assert "Europe/Lisbon" in names
+        assert "Etc/GMT-9" in names
+        assert "Not/AZone" not in names
+
+    def test_names_are_computed_once(self):
+        assert core_timezone.known_names() is core_timezone.known_names()
+
+    def test_sorted_names_are_ordered_and_cover_the_set(self):
+        ordered = core_timezone.known_names_sorted()
+        assert list(ordered) == sorted(core_timezone.known_names())
+        assert core_timezone.known_names_sorted() is ordered

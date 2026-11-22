@@ -9,6 +9,7 @@ no usable file for are recorded once instead of retried on every sync.
 import json
 import re
 import tempfile
+import uuid
 from collections.abc import Iterator
 from datetime import date, datetime, timedelta
 from urllib.parse import urljoin, urlparse
@@ -368,7 +369,7 @@ def _download_fit(
 
 
 def _ingest_fit(
-    user_id: int,
+    user_id: uuid.UUID,
     label_id: str,
     fit_bytes: bytes,
 ) -> list[activity_schema.ActivityRead]:
@@ -407,7 +408,7 @@ def _ingest_fit(
         return created or []
 
 
-def _already_stored(user_id: int, label_id: str) -> bool:
+def _already_stored(user_id: uuid.UUID, label_id: str) -> bool:
     """Return whether an activity was already imported.
 
     Args:
@@ -421,7 +422,7 @@ def _already_stored(user_id: int, label_id: str) -> bool:
         return activity_integration.get_activity_by_coros_id(label_id, user_id, db) is not None
 
 
-def _already_skipped(user_id: int, label_id: str) -> bool:
+def _already_skipped(user_id: uuid.UUID, label_id: str) -> bool:
     """Return whether an activity is marked as having no usable FIT file.
 
     Args:
@@ -435,7 +436,7 @@ def _already_skipped(user_id: int, label_id: str) -> bool:
         return coros_crud.is_activity_skipped(user_id, label_id, db)
 
 
-def _mark_skipped(user_id: int, label_id: str, reason: str) -> None:
+def _mark_skipped(user_id: uuid.UUID, label_id: str, reason: str) -> None:
     """Record a permanent skip for an activity.
 
     Args:
@@ -448,7 +449,9 @@ def _mark_skipped(user_id: int, label_id: str, reason: str) -> None:
         db.commit()
 
 
-def _sync_locked(user_id: int, start_date: datetime, end_date: datetime) -> list[activity_schema.ActivityRead] | None:
+def _sync_locked(
+    user_id: uuid.UUID, start_date: datetime, end_date: datetime
+) -> list[activity_schema.ActivityRead] | None:
     """Run one sync while the caller holds the per-user lock.
 
     Args:
@@ -571,7 +574,7 @@ def _sync_locked(user_id: int, start_date: datetime, end_date: datetime) -> list
 def get_user_coros_activities_by_dates(
     start_date: datetime,
     end_date: datetime,
-    user_id: int,
+    user_id: uuid.UUID,
 ) -> list[activity_schema.ActivityRead] | None:
     """Fetch and store a user's COROS activities in a window.
 

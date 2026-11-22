@@ -11,6 +11,7 @@ import type {
 import { queryKeys } from '@/services/queryKeys'
 import { useInvalidatingMutation } from '@/composables/useInvalidatingMutation'
 import { useAuthStore } from '@/features/auth/stores/auth'
+import { GEAR_QUERY_STALE_TIME_MS } from '@/features/gears/constants'
 import {
   createGearComponent,
   deleteGearComponent,
@@ -26,16 +27,15 @@ import {
  * @param gearId - The reactive parent gear id, or `null` when none is selected.
  * @returns The TanStack Query result for the gear's components.
  */
-export function useGearComponentsQuery(gearId: MaybeRefOrGetter<number | null>) {
+export function useGearComponentsQuery(gearId: MaybeRefOrGetter<string | null>) {
   const { isAuthenticated } = storeToRefs(useAuthStore())
   const id = computed(() => toValue(gearId))
 
   return useQuery<GearComponent[]>({
-    queryKey: computed(() => queryKeys.gears.components(id.value ?? -1)),
-    queryFn: ({ signal }) => fetchGearComponents(id.value as number, signal),
-    enabled: computed(
-      () => isAuthenticated.value && id.value !== null && Number.isFinite(id.value),
-    ),
+    queryKey: computed(() => queryKeys.gears.components(id.value ?? '')),
+    queryFn: ({ signal }) => fetchGearComponents(id.value as string, signal),
+    staleTime: GEAR_QUERY_STALE_TIME_MS,
+    enabled: computed(() => isAuthenticated.value && id.value !== null),
   })
 }
 
@@ -78,9 +78,12 @@ export function useCreateGearComponentMutation() {
  * @returns The TanStack Query mutation for updating a component.
  */
 export function useUpdateGearComponentMutation() {
-  return useInvalidatingMutation<GearComponent, { id: number; input: GearComponentInput }>({
+  return useInvalidatingMutation<
+    GearComponent,
+    { id: string; input: GearComponentInput; version: number }
+  >({
     mutationKey: queryKeys.gears.componentsLists(),
-    mutationFn: ({ id, input }) => updateGearComponent(id, input),
+    mutationFn: ({ id, input, version }) => updateGearComponent(id, input, version),
     invalidateKey: queryKeys.gears.all(),
   })
 }
@@ -91,9 +94,9 @@ export function useUpdateGearComponentMutation() {
  * @returns The TanStack Query mutation for deleting a component.
  */
 export function useDeleteGearComponentMutation() {
-  return useInvalidatingMutation<void, number>({
+  return useInvalidatingMutation<void, { id: string; version: number }>({
     mutationKey: queryKeys.gears.componentsLists(),
-    mutationFn: (id) => deleteGearComponent(id),
+    mutationFn: ({ id, version }) => deleteGearComponent(id, version),
     invalidateKey: queryKeys.gears.all(),
   })
 }

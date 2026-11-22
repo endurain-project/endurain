@@ -9,7 +9,7 @@ import GearFormDialog from '@/features/gears/components/GearFormDialog.vue'
 import GearListItem from '@/features/gears/components/GearListItem.vue'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
-import { ConfirmDialog } from '@/components/ui/confirm-dialog'
+import GearDeleteDialog from '@/features/gears/components/GearDeleteDialog.vue'
 import { CountBadge } from '@/components/ui/count-badge'
 import { EmptyState } from '@/components/ui/empty-state'
 import { Input } from '@/components/ui/input'
@@ -21,6 +21,7 @@ import { useCurrentUser } from '@/features/auth/composables/useCurrentUser'
 import { useRecordsPerPage } from '@/features/config/composables/useRecordsPerPage'
 import { useListPagination } from '@/composables/useListPagination'
 import { useToasts } from '@/composables/useToasts'
+import { deleteGearErrorKey } from '@/features/gears/services/gears'
 import {
   useDeleteGearMutation,
   useGearSearchQuery,
@@ -168,6 +169,10 @@ function onFormError(message: string): void {
 const isDeleteOpen = ref(false)
 const gearToDelete = ref<Gear | null>(null)
 const deleteMutation = useDeleteGearMutation()
+// The gear stays listed, shown as being deleted, until the queued deletion succeeds.
+const deletingGearId = computed(() =>
+  deleteMutation.isPending.value ? (deleteMutation.variables.value?.id ?? null) : null,
+)
 
 function openDelete(gear: Gear): void {
   gearToDelete.value = gear
@@ -179,15 +184,14 @@ function confirmDelete(): void {
   if (!gear) {
     return
   }
-  deleteMutation.mutate(gear.id, {
-    onSuccess: () => {
-      isDeleteOpen.value = false
-      toasts.success(t('gears.delete.success'))
+  deleteMutation.mutate(
+    { id: gear.id, version: gear.version },
+    {
+      onSuccess: () => toasts.success(t('gears.delete.success')),
+      onError: (error) => toasts.error(t(deleteGearErrorKey(error))),
     },
-    onError: () => {
-      toasts.error(t('gears.delete.error'))
-    },
-  })
+  )
+  isDeleteOpen.value = false
 }
 </script>
 
@@ -305,7 +309,12 @@ function confirmDelete(): void {
 
         <ul class="divide-y divide-border">
           <li v-for="gear in displayedGears" :key="gear.id">
-            <GearListItem :gear="gear" @edit="openEdit" @delete="openDelete" />
+            <GearListItem
+              :gear="gear"
+              :deleting="gear.id === deletingGearId"
+              @edit="openEdit"
+              @delete="openDelete"
+            />
           </li>
         </ul>
       </ListPanel>
@@ -319,13 +328,9 @@ function confirmDelete(): void {
       @success="onFormSuccess"
       @error="onFormError"
     />
-    <ConfirmDialog
+    <GearDeleteDialog
       v-model:open="isDeleteOpen"
-      :title="t('gears.delete.title')"
-      :description="t('gears.delete.body', { nickname: gearToDelete?.nickname ?? '' })"
-      :confirm-label="t('gears.delete.confirm')"
-      :cancel-label="t('gears.delete.cancel')"
-      :close-label="t('gears.delete.close')"
+      :gear="gearToDelete"
       :pending="deleteMutation.isPending.value"
       @confirm="confirmDelete"
     />

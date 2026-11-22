@@ -4,6 +4,8 @@
     "uploading": "Nalaganje…",
     "success": "Aktivnost je bila uspešno naložena",
     "error": "Datoteke aktivnosti ni bilo mogoče naložiti",
+    "tooLarge": "Datoteka je prevelika",
+    "tooManyInProgress": "Že imate prenose v teku. Počakajte, da se eden konča, nato poskusite znova.",
     "timeout": "Tvoja datoteka se še uvaža. Prikazala se bo, ko bo končano.",
     "failed": {
       "unsupported_format": "Ta vrsta datoteke ni podprta",
@@ -46,7 +48,6 @@
     "thisWeek": "Ta teden",
     "thisMonth": "Ta mesec",
     "empty": "Ni aktivnosti v tem obdobju",
-    "caloriesUnit": "kcal",
     "metric": {
       "distance": "Razdalja",
       "time": "Čas",
@@ -61,14 +62,15 @@
     "hike": "Pohod",
     "rowing": "Veslanje",
     "snow_ski": "Smučanje",
-    "snowboard": "Snowboarding",
-    "windsurf": "Windsurfing",
-    "stand_up_paddleboarding": "Veslanje stoje",
-    "surfing": "Surfanje",
+    "snowboard": "Deskanje na snegu",
+    "windsurf": "Jadranje na deski",
+    "stand_up_paddling": "Veslanje stoje",
+    "surf": "Surfanje",
     "kayaking": "Kajakaštvo",
     "sailing": "Jadranje",
-    "snowshoeing": "Pohod s krpljami",
-    "inline_skating": "Rolkanje"
+    "snow_shoeing": "Pohod s krpljami",
+    "inline_skating": "Rolkanje",
+    "other": "Drugo"
   },
   "goals": {
     "title": "Cilji",

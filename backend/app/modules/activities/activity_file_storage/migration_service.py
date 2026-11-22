@@ -1,0 +1,9 @@
+"""The activity-file storage operations exposed only to data migrations."""
+
+import modules.activities.activity_file_storage.constants as activity_file_storage_constants
+import modules.activities.activity_file_storage.files as activity_file_storage_files
+
+ACTIVITY_FILE_STORAGE_AREA = activity_file_storage_constants.ACTIVITY_FILE_STORAGE_AREA
+STORED_EXTENSIONS = activity_file_storage_files.STORED_EXTENSIONS
+activity_file_key = activity_file_storage_files.activity_file_key
+processed_storage_key = activity_file_storage_files.processed_storage_key

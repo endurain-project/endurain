@@ -6,6 +6,9 @@
  * trivial to test and reuse.
  */
 
+import type { ActivityType } from '@/features/activities/types'
+import type { GearType } from '@/features/gears/types'
+
 import {
   activityTypeIsCycling,
   activityTypeIsIceSkating,
@@ -27,12 +30,12 @@ import {
 export const ALL_ACTIVITY_CATEGORIES = 'all'
 
 /** Sentinel gear type meaning "no gear filter" (show every gear type). */
-export const ALL_GEAR_TYPES = 0
+export const ALL_GEAR_TYPES = 'all'
 
 /**
  * A selectable activity-discipline filter for the search view: a stable `value`
  * (also the i18n label leaf under `search.activityCategories`) and a predicate
- * over the numeric activity type. Built on the shared `activityType` predicates
+ * over the activity type. Built on the shared `activityType` predicates
  * so the families stay consistent with the rest of the app.
  *
  * @property value - Stable identifier and i18n label leaf.
@@ -40,7 +43,7 @@ export const ALL_GEAR_TYPES = 0
  */
 export interface ActivityCategoryFilter {
   value: string
-  matches: (activityType: number) => boolean
+  matches: (activityType: ActivityType) => boolean
 }
 
 /**
@@ -85,7 +88,7 @@ const CATEGORY_BY_VALUE = new Map(ACTIVITY_CATEGORY_FILTERS.map((filter) => [fil
  * @param category - The selected category value.
  * @returns A new array of the activities matching the category.
  */
-export function filterActivitiesByCategory<T extends { activityType: number }>(
+export function filterActivitiesByCategory<T extends { activityType: ActivityType }>(
   activities: readonly T[],
   category: string,
 ): T[] {
@@ -97,16 +100,16 @@ export function filterActivitiesByCategory<T extends { activityType: number }>(
 }
 
 /**
- * Narrows gears to a single gear type. The {@link ALL_GEAR_TYPES} sentinel (0)
+ * Narrows gears to a single gear type. The {@link ALL_GEAR_TYPES} sentinel
  * returns a copy of the list unfiltered.
  *
  * @param gears - The gears to filter.
  * @param gearType - The selected gear type, or {@link ALL_GEAR_TYPES}.
  * @returns A new array of the gears of the chosen type.
  */
-export function filterGearsByType<T extends { gearType: number }>(
+export function filterGearsByType<T extends { gearType: GearType }>(
   gears: readonly T[],
-  gearType: number,
+  gearType: GearType | typeof ALL_GEAR_TYPES,
 ): T[] {
   if (gearType === ALL_GEAR_TYPES) {
     return gears.slice()

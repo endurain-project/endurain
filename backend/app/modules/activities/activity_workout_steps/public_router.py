@@ -1,12 +1,10 @@
 """Public (unauthenticated) routes for activity workout steps."""
 
-from typing import Annotated
+from fastapi import APIRouter, Request
 
-from fastapi import APIRouter, Depends
-from sqlalchemy.orm import Session
-
-import core.database as core_database
+import core.dependencies as core_dependencies
 import core.pagination as core_pagination
+import core.rate_limit as core_rate_limit
 import modules.activities.activity.dependencies as activity_dependencies
 import modules.activities.activity_workout_steps.schema as activity_workout_steps_schema
 import modules.activities.activity_workout_steps.service as activity_workout_steps_service
@@ -18,10 +16,12 @@ router = APIRouter()
     "/workout-steps",
     response_model=activity_workout_steps_schema.ActivityWorkoutStepsPage,
 )
+@core_rate_limit.limiter.limit(core_rate_limit.PUBLIC_READ)
 def list_public_activity_workout_steps(
+    request: Request,
     activity_id: activity_dependencies.ActivityId,
-    db: Annotated[Session, Depends(core_database.get_db)],
-    page: Annotated[core_pagination.PageParams, Depends(core_pagination.child_page_params)],
+    db: core_dependencies.DbSession,
+    page: core_pagination.ChildPage,
 ) -> activity_workout_steps_schema.ActivityWorkoutStepsPage:
     """Return one page of a publicly shared activity's workout steps."""
     return activity_workout_steps_service.list_public_activity_workout_steps(

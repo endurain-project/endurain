@@ -27,6 +27,20 @@ describe('buildChartConfiguration', () => {
     expect(dataset?.tension).toBe(0.3)
   })
 
+  it('marks the point of a single-entry line series, which would otherwise draw nothing', () => {
+    const config = buildChartConfiguration({
+      kind: 'line',
+      series: [
+        { label: 'One', data: [4] },
+        { label: 'Two', data: [4, 5] },
+      ],
+    })
+
+    const datasets = config.data.datasets as unknown as Record<string, unknown>[]
+    expect(datasets[0]?.pointRadius).toBeGreaterThan(0)
+    expect(datasets[1]?.pointRadius).toBe(0)
+  })
+
   it('fills the area for area charts while staying a line type', () => {
     const config = buildChartConfiguration({
       kind: 'area',

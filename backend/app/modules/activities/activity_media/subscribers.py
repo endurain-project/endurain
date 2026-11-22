@@ -14,8 +14,9 @@ event, so they are covered too.
 Cleanup is keyed on the activity id rather than the stored paths, because the
 rows holding those paths are already gone by the time the event is handled.
 
-There is deliberately no reconciliation net: like the sibling cleanups this is an
-idempotent teardown keyed by activity id, and a stray orphaned file is harmless.
+A failed delete raises, so the durable runner retries it. The scheduled
+``sweep_orphaned_media`` job is the reconciliation net for blobs left behind when
+the event is lost or exhausts its retries.
 """
 
 import jasil.event_versioning as platform_event_versioning
@@ -44,7 +45,7 @@ def cleanup_activity_media_for_event(event: Event) -> None:
     needed and the delete is idempotent.
 
     Args:
-        event: The ``activity.deleted`` event (payload ``{"activity_id": int}``).
+        event: The ``activity.deleted`` event (payload ``{"activity_id": uuid}``).
     """
     payload = platform_event_versioning.parse_payload(activity_events.ActivityDeletedPayload, event)
     activity_media_service.delete_media_files_for_activity(
@@ -61,7 +62,7 @@ def cleanup_activity_media_for_event(event: Event) -> None:
 on_activity_deleted_cleanup_media = best_effort(cleanup_activity_media_for_event)
 
 
-def register_activity_media_cleanup_subscribers(events: EventBusProvider) -> None:
+def register_bus_subscribers(events: EventBusProvider) -> None:
     """Register the media cleanup subscriber for ``activity.deleted``.
 
     Called once at startup before the event bus is started.
@@ -72,7 +73,7 @@ def register_activity_media_cleanup_subscribers(events: EventBusProvider) -> Non
     events.subscribe(activity_events.ACTIVITY_DELETED, on_activity_deleted_cleanup_media)
 
 
-def register_activity_media_cleanup_durable_handlers(registry: JobHandlerRegistry) -> None:
+def register_durable_handlers(registry: JobHandlerRegistry) -> None:
     """Register the media cleanup handler as a durable job subscriber.
 
     Used when durable jobs are enabled: the outbox relay fans ``activity.deleted``

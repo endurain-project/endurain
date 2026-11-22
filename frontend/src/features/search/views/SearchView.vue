@@ -33,6 +33,7 @@ const {
   activityCategory,
   gearTypeFilter,
   isSearching,
+  minUserSearchLength,
   isPending,
   isError,
   isEmpty,
@@ -172,7 +173,9 @@ const scopeModel = computed<string>({
           :description="
             isSearching
               ? t('search.empty.description', { term: debouncedSearch })
-              : t('search.idle.description')
+              : scope === 'users'
+                ? t('search.idle.usersDescription', { min: minUserSearchLength })
+                : t('search.idle.description')
           "
           :variant="isSearching ? 'filtered' : 'first-time'"
         >

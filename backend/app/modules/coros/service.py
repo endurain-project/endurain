@@ -1,13 +1,20 @@
 """Application service for the COROS connection lifecycle and sync state."""
 
-from datetime import UTC, datetime, timedelta
+import uuid
+from datetime import UTC, date, datetime, timedelta
 
+import jasil.providers as platform_providers
 from sqlalchemy.orm import Session
 
 import core.database as core_database
 import core.exceptions as core_exceptions
 import core.logger as core_logger
 import core.timezone as core_timezone
+import modules.activities.activity_ingestion.integration_service as activity_ingestion_integration
+import modules.activities.activity_ingestion.schema as activity_ingestion_schema
+import modules.auth.identity_providers.constants as identity_providers_constants
+import modules.auth.identity_providers.contracts as identity_providers_contracts
+import modules.auth.schema as auth_schema
 import modules.coros.constants as coros_constants
 import modules.coros.contracts as coros_contracts
 import modules.coros.crud as coros_crud
@@ -43,7 +50,7 @@ def _metadata_from_data(data: coros_schema.CorosIntegrationData) -> coros_contra
     )
 
 
-def begin_authorization(user_id: int, redirect_uri: str, db: Session) -> str:
+def begin_authorization(user_id: uuid.UUID, redirect_uri: str, db: Session) -> str:
     """Start a COROS OAuth authorization.
 
     Reuses the user's dynamically registered client when it belongs to the same
@@ -60,7 +67,15 @@ def begin_authorization(user_id: int, redirect_uri: str, db: Session) -> str:
     Raises:
         coros_oauth.CorosOAuthError: When discovery or registration fails.
     """
-    metadata = coros_oauth.discover_metadata()
+    try:
+        metadata = coros_oauth.discover_metadata()
+    except coros_oauth.CorosOAuthError as err:
+        logger.error(
+            "Unable to discover the COROS OAuth metadata",
+            exc_info=err,
+            extra=core_logger.context(user_id=user_id),
+        )
+        raise core_exceptions.UpstreamError("Unable to connect to COROS") from err
     existing = coros_crud.get_integration(user_id, db)
     registration: coros_contracts.CorosClientRegistration | None = None
     if (
@@ -74,7 +89,15 @@ def begin_authorization(user_id: int, redirect_uri: str, db: Session) -> str:
             client_secret=existing.client_secret,
         )
     if registration is None:
-        registration = coros_oauth.register_client(metadata, redirect_uri)
+        try:
+            registration = coros_oauth.register_client(metadata, redirect_uri)
+        except coros_oauth.CorosOAuthError as err:
+            logger.error(
+                "Unable to register the COROS OAuth client",
+                exc_info=err,
+                extra=core_logger.context(user_id=user_id),
+            )
+            raise core_exceptions.UpstreamError("Unable to connect to COROS") from err
 
     state = coros_oauth.generate_state()
     verifier, challenge = coros_oauth.generate_pkce_pair()
@@ -96,7 +119,7 @@ def begin_authorization(user_id: int, redirect_uri: str, db: Session) -> str:
     return coros_oauth.build_authorization_url(metadata, registration.client_id, redirect_uri, state, challenge)
 
 
-def complete_link(user_id: int, code: str, state: str, db: Session) -> None:
+def complete_link(user_id: uuid.UUID, code: str, state: str, db: Session) -> None:
     """Finish the OAuth round-trip and store the tokens.
 
     Args:
@@ -138,18 +161,95 @@ def complete_link(user_id: int, code: str, state: str, db: Session) -> None:
             pending.redirect_uri,
             pending.code_verifier,
         )
-    except coros_oauth.CorosAuthenticationError:
+    except coros_oauth.CorosAuthenticationError as err:
         # A rejected client means the next attempt must register a fresh one.
         coros_crud.clear_client_registration(user_id, db)
         coros_crud.clear_pending_authorization(user_id, db)
         db.commit()
-        raise
+        raise core_exceptions.UpstreamError("Unable to link the COROS account") from err
+    except coros_oauth.CorosOAuthError as err:
+        raise core_exceptions.UpstreamError("Unable to link the COROS account") from err
     coros_crud.save_tokens(user_id, tokens, db)
     db.commit()
     logger.info("COROS account linked", extra=core_logger.context(user_id=user_id))
 
 
-def get_status(user_id: int, db: Session) -> coros_schema.CorosStatusRead:
+def _request_range_sync(
+    user_id: uuid.UUID,
+    start_date: date,
+    end_date: date,
+    storage: platform_providers.StorageProvider,
+    db: Session,
+) -> activity_ingestion_schema.ActivityIngestionJobRead:
+    """Queue one COROS range through the shared ingestion surface."""
+    return activity_ingestion_integration.request_range_sync(
+        coros_constants.PROVIDER_NAME,
+        user_id,
+        start_date,
+        end_date,
+        storage,
+        db,
+    )
+
+
+def request_initial_sync(
+    user_id: uuid.UUID,
+    storage: platform_providers.StorageProvider,
+    db: Session,
+) -> activity_ingestion_schema.ActivityIngestionJobRead:
+    """Queue the initial COROS sync of the last thirty days.
+
+    Args:
+        user_id: The authenticated user.
+        storage: The platform storage provider.
+        db: Database session.
+
+    Returns:
+        The accepted refresh job.
+    """
+    end_date = datetime.now(UTC).date()
+    return _request_range_sync(
+        user_id,
+        end_date - timedelta(days=coros_constants.INITIAL_SYNC_DAYS),
+        end_date,
+        storage,
+        db,
+    )
+
+
+def request_sync(
+    user_id: uuid.UUID,
+    start_date: date | None,
+    end_date: date | None,
+    storage: platform_providers.StorageProvider,
+    db: Session,
+) -> activity_ingestion_schema.ActivityIngestionJobRead:
+    """Queue a COROS sync, defaulting to the last seven days.
+
+    Args:
+        user_id: The authenticated user.
+        start_date: First day of an explicit range, or ``None`` for the default window.
+        end_date: Last day of an explicit range, or ``None`` for the default window.
+        storage: The platform storage provider.
+        db: Database session.
+
+    Returns:
+        The accepted refresh job.
+
+    Raises:
+        core_exceptions.InvalidInputError: When only one of the two dates is given.
+    """
+    if (start_date is None) != (end_date is None):
+        raise core_exceptions.InvalidInputError("start_date and end_date must be provided together")
+    if start_date is None or end_date is None:
+        end_date = datetime.now(UTC).date()
+        start_date = end_date - timedelta(days=coros_constants.MANUAL_SYNC_DAYS)
+    if not get_status(user_id, db).linked:
+        raise core_exceptions.ConflictError("COROS is not connected")
+    return _request_range_sync(user_id, start_date, end_date, storage, db)
+
+
+def get_status(user_id: uuid.UUID, db: Session) -> coros_schema.CorosStatusRead:
     """Return the caller's COROS status.
 
     Args:
@@ -164,7 +264,7 @@ def get_status(user_id: int, db: Session) -> coros_schema.CorosStatusRead:
 
 
 def get_valid_connection(
-    user_id: int,
+    user_id: uuid.UUID,
     db: Session | None = None,
 ) -> coros_schema.CorosIntegrationData:
     """Return a connection with a usable access token, refreshing it if needed.
@@ -214,13 +314,24 @@ def get_valid_connection(
             session.close()
 
 
-def unlink(user_id: int, db: Session) -> None:
+def unlink(
+    user_id: uuid.UUID,
+    step_up: auth_schema.StepUpVerification,
+    verify_step_up: identity_providers_contracts.StepUpVerifier,
+    db: Session,
+) -> None:
     """Revoke the stored tokens when possible and clear the connection.
 
     Args:
         user_id: Authenticated user.
+        step_up: The user's step-up verification.
+        verify_step_up: Verifies the step-up for the calling user.
         db: Database session.
+
+    Raises:
+        StepUpFailedError: If the step-up does not verify.
     """
+    verify_step_up(step_up, identity_providers_constants.StepUpAction.COROS_UNLINK)
     data = coros_crud.get_integration(user_id, db)
     if data is None:
         coros_crud.clear_tokens(user_id, db)
@@ -247,7 +358,7 @@ def unlink(user_id: int, db: Session) -> None:
     logger.info("COROS account unlinked", extra=core_logger.context(user_id=user_id))
 
 
-def mark_sync_success(user_id: int, activity_count: int) -> None:
+def mark_sync_success(user_id: uuid.UUID, activity_count: int) -> None:
     """Record a successful sync in a short session.
 
     Args:
@@ -259,7 +370,7 @@ def mark_sync_success(user_id: int, activity_count: int) -> None:
         db.commit()
 
 
-def mark_sync_error(user_id: int, error_code: coros_constants.SyncErrorCode) -> None:
+def mark_sync_error(user_id: uuid.UUID, error_code: coros_constants.SyncErrorCode) -> None:
     """Record a failed sync in a short session.
 
     Args:
@@ -271,7 +382,7 @@ def mark_sync_error(user_id: int, error_code: coros_constants.SyncErrorCode) -> 
         db.commit()
 
 
-def reserve_fit_download(user_id: int) -> bool:
+def reserve_fit_download(user_id: uuid.UUID) -> bool:
     """Reserve one FIT download from the user's daily quota.
 
     Args:

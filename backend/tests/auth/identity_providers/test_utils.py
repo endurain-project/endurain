@@ -1,20 +1,22 @@
 """Tests for identity_providers.utils module."""
 
-from unittest.mock import patch
+from types import SimpleNamespace
+from typing import ClassVar
 
 import pytest
-from fastapi import HTTPException
 
-from modules.auth.identity_providers.schema import IdentityProviderTemplate
+import core.exceptions as core_exceptions
+import modules.auth.identity_providers.utils as idp_utils
+from modules.auth.computation import validate_pkce_challenge
 from modules.auth.identity_providers.utils import (
-    _secure_compare,
-    get_idp_template,
-    get_idp_templates,
-    is_custom_scheme_redirect,
-    validate_pkce_challenge,
-    validate_pkce_verifier,
-    validate_redirect_url,
+    validate_redirect_url as _validate_redirect_url,
 )
+
+HOST = "https://app.example.com"
+
+
+def validate_redirect_url(redirect, allowed_uris=None):
+    return _validate_redirect_url(redirect, allowed_uris or set())
 
 
 class TestValidatePkceChallenge:
@@ -45,7 +47,7 @@ class TestValidatePkceChallenge:
         code_challenge_method = "plain"
 
         # Act & Assert
-        with pytest.raises(HTTPException) as exc_info:
+        with pytest.raises(core_exceptions.InvalidInputError) as exc_info:
             validate_pkce_challenge(code_challenge, code_challenge_method)
 
         assert exc_info.value.status_code == 400
@@ -62,7 +64,7 @@ class TestValidatePkceChallenge:
         code_challenge_method = "S256"
 
         # Act & Assert
-        with pytest.raises(HTTPException) as exc_info:
+        with pytest.raises(core_exceptions.InvalidInputError) as exc_info:
             validate_pkce_challenge(code_challenge, code_challenge_method)
 
         assert exc_info.value.status_code == 400
@@ -79,7 +81,7 @@ class TestValidatePkceChallenge:
         code_challenge_method = "S256"
 
         # Act & Assert
-        with pytest.raises(HTTPException) as exc_info:
+        with pytest.raises(core_exceptions.InvalidInputError) as exc_info:
             validate_pkce_challenge(code_challenge, code_challenge_method)
 
         assert exc_info.value.status_code == 400
@@ -96,7 +98,7 @@ class TestValidatePkceChallenge:
         code_challenge_method = "S256"
 
         # Act & Assert
-        with pytest.raises(HTTPException) as exc_info:
+        with pytest.raises(core_exceptions.InvalidInputError) as exc_info:
             validate_pkce_challenge(code_challenge, code_challenge_method)
 
         assert exc_info.value.status_code == 400
@@ -114,385 +116,6 @@ class TestValidatePkceChallenge:
 
         # Act & Assert (no exception should be raised)
         validate_pkce_challenge(code_challenge, code_challenge_method)
-
-
-class TestValidatePkceVerifier:
-    """Test suite for validate_pkce_verifier function."""
-
-    def test_validate_pkce_verifier_success(self):
-        """Test validating a valid PKCE verifier.
-
-        Asserts:
-            - Valid verifier that matches challenge passes validation
-        """
-        # Arrange
-        # Valid verifier (RFC 7636 compliant)
-        code_verifier = "dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk"
-        # Corresponding S256 challenge
-        code_challenge = "E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM"
-        code_challenge_method = "S256"
-
-        # Act & Assert (no exception should be raised)
-        validate_pkce_verifier(code_verifier, code_challenge, code_challenge_method)
-
-    def test_validate_pkce_verifier_min_length_violation(self):
-        """Test PKCE verifier minimum length validation.
-
-        Asserts:
-            - HTTPException is raised for verifier shorter than 43 chars
-        """
-        # Arrange
-        code_verifier = "a" * 42  # Too short
-        code_challenge = "E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM"
-        code_challenge_method = "S256"
-
-        # Act & Assert
-        with pytest.raises(HTTPException) as exc_info:
-            validate_pkce_verifier(code_verifier, code_challenge, code_challenge_method)
-
-        assert exc_info.value.status_code == 400
-        assert "43-128 characters" in str(exc_info.value.detail)
-
-    def test_validate_pkce_verifier_max_length_violation(self):
-        """Test PKCE verifier maximum length validation.
-
-        Asserts:
-            - HTTPException is raised for verifier longer than 128 chars
-        """
-        # Arrange
-        code_verifier = "a" * 129  # Too long
-        code_challenge = "E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM"
-        code_challenge_method = "S256"
-
-        # Act & Assert
-        with pytest.raises(HTTPException) as exc_info:
-            validate_pkce_verifier(code_verifier, code_challenge, code_challenge_method)
-
-        assert exc_info.value.status_code == 400
-        assert "43-128 characters" in str(exc_info.value.detail)
-
-    def test_validate_pkce_verifier_invalid_characters(self):
-        """Test PKCE verifier with invalid characters.
-
-        Asserts:
-            - HTTPException is raised for non-base64url characters
-        """
-        # Arrange
-        code_verifier = "a" * 43 + "!@#"  # Invalid characters
-        code_challenge = "E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM"
-        code_challenge_method = "S256"
-
-        # Act & Assert
-        with pytest.raises(HTTPException) as exc_info:
-            validate_pkce_verifier(code_verifier, code_challenge, code_challenge_method)
-
-        assert exc_info.value.status_code == 400
-        assert "valid base64url" in str(exc_info.value.detail)
-
-    def test_validate_pkce_verifier_wrong_method(self):
-        """Test PKCE verifier with wrong challenge method.
-
-        Asserts:
-            - HTTPException is raised for non-S256 method
-        """
-        # Arrange
-        code_verifier = "dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk"
-        code_challenge = "E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM"
-        code_challenge_method = "plain"
-
-        # Act & Assert
-        with pytest.raises(HTTPException) as exc_info:
-            validate_pkce_verifier(code_verifier, code_challenge, code_challenge_method)
-
-        assert exc_info.value.status_code == 400
-        assert "Only S256 PKCE method is supported" in str(exc_info.value.detail)
-
-    def test_validate_pkce_verifier_mismatch(self):
-        """Test PKCE verifier that doesn't match challenge.
-
-        Asserts:
-            - HTTPException is raised for mismatched verifier
-        """
-        # Arrange
-        code_verifier = "dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk"
-        code_challenge = "wrong_challenge_value_that_does_not_match_verifier"
-        code_challenge_method = "S256"
-
-        # Act & Assert
-        with pytest.raises(HTTPException) as exc_info:
-            validate_pkce_verifier(code_verifier, code_challenge, code_challenge_method)
-
-        assert exc_info.value.status_code == 400
-        assert "Invalid code_verifier" in str(exc_info.value.detail)
-
-
-class TestSecureCompare:
-    """Test suite for _secure_compare function."""
-
-    def test_secure_compare_equal_strings(self):
-        """Test secure comparison of equal strings.
-
-        Asserts:
-            - Returns True for identical strings
-        """
-        # Arrange
-        str1 = "test_string_123"
-        str2 = "test_string_123"
-
-        # Act
-        result = _secure_compare(str1, str2)
-
-        # Assert
-        assert result is True
-
-    def test_secure_compare_different_strings(self):
-        """Test secure comparison of different strings.
-
-        Asserts:
-            - Returns False for different strings
-        """
-        # Arrange
-        str1 = "test_string_123"
-        str2 = "test_string_456"
-
-        # Act
-        result = _secure_compare(str1, str2)
-
-        # Assert
-        assert result is False
-
-    def test_secure_compare_different_lengths(self):
-        """Test secure comparison of strings with different lengths.
-
-        Asserts:
-            - Returns False for strings of different lengths
-        """
-        # Arrange
-        str1 = "short"
-        str2 = "much_longer_string"
-
-        # Act
-        result = _secure_compare(str1, str2)
-
-        # Assert
-        assert result is False
-
-    def test_secure_compare_empty_strings(self):
-        """Test secure comparison of empty strings.
-
-        Asserts:
-            - Returns True for both empty strings
-        """
-        # Arrange
-        str1 = ""
-        str2 = ""
-
-        # Act
-        result = _secure_compare(str1, str2)
-
-        # Assert
-        assert result is True
-
-    def test_secure_compare_one_empty_string(self):
-        """Test secure comparison with one empty string.
-
-        Asserts:
-            - Returns False when one string is empty
-        """
-        # Arrange
-        str1 = "non_empty"
-        str2 = ""
-
-        # Act
-        result = _secure_compare(str1, str2)
-
-        # Assert
-        assert result is False
-
-    def test_secure_compare_case_sensitive(self):
-        """Test secure comparison is case-sensitive.
-
-        Asserts:
-            - Returns False for strings differing only in case
-        """
-        # Arrange
-        str1 = "TestString"
-        str2 = "teststring"
-
-        # Act
-        result = _secure_compare(str1, str2)
-
-        # Assert
-        assert result is False
-
-
-class TestGetIdpTemplate:
-    """Test suite for get_idp_template function."""
-
-    def test_get_idp_template_keycloak(self):
-        """Test retrieving Keycloak IdP template.
-
-        Asserts:
-            - Keycloak template is returned with correct structure
-        """
-        # Act
-        template = get_idp_template("keycloak")
-
-        # Assert
-        assert template is not None
-        assert template["name"] == "Keycloak"
-        assert template["provider_type"] == "oidc"
-        assert "issuer_url" in template
-        assert "scopes" in template
-        assert "user_mapping" in template
-
-    def test_get_idp_template_authentik(self):
-        """Test retrieving Authentik IdP template.
-
-        Asserts:
-            - Authentik template is returned with correct structure
-        """
-        # Act
-        template = get_idp_template("authentik")
-
-        # Assert
-        assert template is not None
-        assert template["name"] == "Authentik"
-        assert template["provider_type"] == "oidc"
-
-    def test_get_idp_template_authelia(self):
-        """Test retrieving Authelia IdP template.
-
-        Asserts:
-            - Authelia template is returned with correct structure
-        """
-        # Act
-        template = get_idp_template("authelia")
-
-        # Assert
-        assert template is not None
-        assert template["name"] == "Authelia"
-        assert template["provider_type"] == "oidc"
-
-    def test_get_idp_template_casdoor(self):
-        """Test retrieving Casdoor IdP template.
-
-        Asserts:
-            - Casdoor template is returned with correct structure
-        """
-        # Act
-        template = get_idp_template("casdoor")
-
-        # Assert
-        assert template is not None
-        assert template["name"] == "Casdoor"
-        assert template["provider_type"] == "oidc"
-
-    def test_get_idp_template_pocketid(self):
-        """Test retrieving Pocket ID template.
-
-        Asserts:
-            - Pocket ID template is returned with correct structure
-        """
-        # Act
-        template = get_idp_template("pocketid")
-
-        # Assert
-        assert template is not None
-        assert template["name"] == "Pocket ID"
-        assert template["provider_type"] == "oidc"
-
-    def test_get_idp_template_nonexistent(self):
-        """Test retrieving non-existent IdP template.
-
-        Asserts:
-            - None is returned for non-existent template
-        """
-        # Act
-        template = get_idp_template("nonexistent_provider")
-
-        # Assert
-        assert template is None
-
-
-class TestGetIdpTemplates:
-    """Test suite for get_idp_templates function."""
-
-    def test_get_idp_templates_returns_list(self):
-        """Test get_idp_templates returns a list.
-
-        Asserts:
-            - Returns a list of IdentityProviderTemplate objects
-        """
-        # Act
-        templates = get_idp_templates()
-
-        # Assert
-        assert isinstance(templates, list)
-        assert len(templates) > 0
-        assert all(isinstance(t, IdentityProviderTemplate) for t in templates)
-
-    def test_get_idp_templates_contains_expected_providers(self):
-        """Test get_idp_templates contains expected providers.
-
-        Asserts:
-            - List contains Keycloak, Authentik, Authelia, Casdoor, Pocket ID
-        """
-        # Act
-        templates = get_idp_templates()
-
-        # Assert
-        template_ids = [t.template_id for t in templates]
-        assert "keycloak" in template_ids
-        assert "authentik" in template_ids
-        assert "authelia" in template_ids
-        assert "casdoor" in template_ids
-        assert "pocketid" in template_ids
-
-    def test_get_idp_templates_structure(self):
-        """Test each template has required structure.
-
-        Asserts:
-            - Each template has required fields
-        """
-        # Act
-        templates = get_idp_templates()
-
-        # Assert
-        for template in templates:
-            assert hasattr(template, "template_id")
-            assert hasattr(template, "name")
-            assert hasattr(template, "provider_type")
-            assert hasattr(template, "scopes")
-            assert hasattr(template, "description")
-
-    def test_get_idp_templates_all_oidc(self):
-        """Test all templates are OIDC providers.
-
-        Asserts:
-            - All templates have provider_type 'oidc'
-        """
-        # Act
-        templates = get_idp_templates()
-
-        # Assert
-        for template in templates:
-            assert template.provider_type == "oidc"
-
-    def test_get_idp_templates_has_user_mapping(self):
-        """Test templates include user mapping configuration.
-
-        Asserts:
-            - Each template has user_mapping with username and email
-        """
-        # Act
-        templates = get_idp_templates()
-
-        # Assert
-        for template in templates:
-            assert template.user_mapping is not None
-            assert "username" in template.user_mapping
-            assert "email" in template.user_mapping
 
 
 class TestValidateRedirectUrl:
@@ -554,47 +177,107 @@ class TestValidateRedirectUrl:
         """
         validate_redirect_url("/settings?tab=security")
 
-    def test_custom_scheme_allowed_when_configured(self):
-        """Custom URI scheme in ALLOWED_REDIRECT_SCHEMES must pass.
+    def test_custom_scheme_allowed_when_listed(self):
+        """A custom-scheme address in ALLOWED_REDIRECT_URIS must pass.
 
         Asserts:
-            - No exception when scheme is in allowed set
+            - No exception when the address is in the allowed set
         """
-        with patch(
-            "modules.auth.identity_providers.utils.core_config.settings.ALLOWED_REDIRECT_SCHEMES",
-            {"endurain"},
-        ):
-            validate_redirect_url("endurain://endurain/oauth/callback")
+        validate_redirect_url("endurain://endurain/oauth/callback", {"endurain://endurain/oauth/callback"})
 
     def test_custom_scheme_case_insensitive(self):
-        """Scheme comparison must be case-insensitive.
+        """The scheme comparison must be case-insensitive.
 
         Asserts:
-            - ENDURAIN:// is allowed when 'endurain' configured
+            - ENDURAIN:// matches a listed endurain:// address
         """
-        with patch(
-            "modules.auth.identity_providers.utils.core_config.settings.ALLOWED_REDIRECT_SCHEMES",
-            {"endurain"},
-        ):
-            validate_redirect_url("ENDURAIN://endurain/callback")
+        validate_redirect_url("ENDURAIN://endurain/callback", {"endurain://endurain/callback"})
 
-    def test_multiple_custom_schemes_allowed(self):
-        """Multiple schemes can be configured simultaneously.
+    @pytest.mark.parametrize(
+        "redirect", ["com.example.app:/oauth2redirect", "Com.Example.App:/oauth2redirect", "endurain:callback"]
+    )
+    def test_a_custom_scheme_without_an_authority_is_allowed_when_listed(self, redirect):
+        """RFC 3986 ends the scheme at the first ':'; the '//' authority is optional (RFC 8252 7.1 callbacks)."""
+        validate_redirect_url(redirect, {"com.example.app:/oauth2redirect", "endurain:callback"})
 
-        Asserts:
-            - Both schemes accepted independently
-        """
-        schemes = {"endurain", "myapp"}
-        with patch(
-            "modules.auth.identity_providers.utils.core_config.settings.ALLOWED_REDIRECT_SCHEMES",
-            schemes,
-        ):
-            validate_redirect_url("endurain://callback")
-            validate_redirect_url("myapp://callback")
+    def test_a_relative_path_with_a_colon_is_a_path(self):
+        """A scheme starts with a letter, so a value starting with '/' never has one."""
+        validate_redirect_url("/activities/a:b", set())
 
     # ------------------------------------------------------------------
     # Inputs that MUST raise HTTPException(400)
     # ------------------------------------------------------------------
+
+    @pytest.mark.parametrize("redirect", ["HtTp://evil.example", "http://evil.example"])
+    def test_http_scheme_in_any_case_is_rejected(self, redirect):
+        """HTTP must be rejected regardless of letter case, even when listed.
+
+        Asserts:
+            - InvalidInputError with the external-redirect message
+        """
+        with pytest.raises(core_exceptions.InvalidInputError) as exc_info:
+            validate_redirect_url(redirect, {redirect})
+        assert "External HTTP redirects are not allowed" in exc_info.value.detail
+
+    @pytest.mark.parametrize("redirect", ["http:evil.example", "HTTP:evil.example/cb"])
+    def test_http_scheme_without_slashes_is_rejected(self, redirect):
+        """A browser reads "http:evil.example" as "http://evil.example/", so it is an external redirect too."""
+        with pytest.raises(core_exceptions.InvalidInputError) as exc_info:
+            validate_redirect_url(redirect, {"endurain://cb", "http:evil.example"})
+        assert "External HTTP redirects are not allowed" in exc_info.value.detail
+
+    @pytest.mark.parametrize(
+        "redirect",
+        [
+            "https://evil.example",
+            "HTTPS://evil.example",
+            "HtTpS://evil.example/cb",
+            "https:evil.example/cb",
+            "https://",
+        ],
+    )
+    def test_an_unlisted_https_redirect_is_rejected(self, redirect):
+        """An https address is allowed only as an exact listed entry, in any letter case.
+
+        Asserts:
+            - InvalidInputError when the address is not listed, even if another https address is
+        """
+        with pytest.raises(core_exceptions.InvalidInputError) as exc_info:
+            validate_redirect_url(redirect, {"https://app.example.org/auth/sso/callback"})
+        assert exc_info.value.status_code == 400
+
+    @pytest.mark.parametrize(
+        "redirect",
+        [
+            "https://app.example.org/auth/sso/callback/",
+            "https://app.example.org/auth/sso/callback?x=1",
+            "https://app.example.org:8443/auth/sso/callback",
+            "https://evil.example/auth/sso/callback",
+        ],
+    )
+    def test_a_near_miss_of_a_listed_https_address_is_rejected(self, redirect):
+        with pytest.raises(core_exceptions.InvalidInputError):
+            validate_redirect_url(redirect, {"https://app.example.org/auth/sso/callback"})
+
+    @pytest.mark.parametrize(
+        "redirect", ["https://app.example.org/auth/sso/callback", "HTTPS://app.example.org/auth/sso/callback"]
+    )
+    def test_a_listed_https_address_is_allowed(self, redirect):
+        """An App Link / Universal Link address in ALLOWED_REDIRECT_URIS passes, the scheme in any letter case."""
+        validate_redirect_url(redirect, {"https://app.example.org/auth/sso/callback"})
+
+    @pytest.mark.parametrize(
+        "redirect", ["JavaScript://x", "data://x", "file://x", "JavaScript:alert(1)", "data:text/html,x", "blob:x"]
+    )
+    def test_unsafe_scheme_is_rejected_even_when_allowed(self, redirect):
+        """Unsafe schemes must be refused even when the address is listed.
+
+        Asserts:
+            - InvalidInputError when the address is in the allow-list
+        """
+        with pytest.raises(core_exceptions.InvalidInputError) as exc_info:
+            validate_redirect_url(redirect, {redirect})
+        assert exc_info.value.status_code == 400
 
     def test_http_url_is_rejected(self):
         """External http:// URL must be rejected.
@@ -602,7 +285,7 @@ class TestValidateRedirectUrl:
         Asserts:
             - HTTPException 400 for http://evil.com
         """
-        with pytest.raises(HTTPException) as exc_info:
+        with pytest.raises(core_exceptions.InvalidInputError) as exc_info:
             validate_redirect_url("http://evil.com")
         assert exc_info.value.status_code == 400
 
@@ -612,7 +295,7 @@ class TestValidateRedirectUrl:
         Asserts:
             - HTTPException 400 for https://evil.com
         """
-        with pytest.raises(HTTPException) as exc_info:
+        with pytest.raises(core_exceptions.InvalidInputError) as exc_info:
             validate_redirect_url("https://evil.com")
         assert exc_info.value.status_code == 400
 
@@ -622,41 +305,29 @@ class TestValidateRedirectUrl:
         Asserts:
             - HTTPException 400 for https://localhost:8080
         """
-        with pytest.raises(HTTPException) as exc_info:
+        with pytest.raises(core_exceptions.InvalidInputError) as exc_info:
             validate_redirect_url("https://localhost:8080")
         assert exc_info.value.status_code == 400
 
     def test_custom_scheme_not_in_allowlist_is_rejected(self):
-        """Custom scheme not in ALLOWED_REDIRECT_SCHEMES must be rejected.
+        """A custom-scheme address with no ALLOWED_REDIRECT_URIS entry must be rejected.
 
         Asserts:
-            - HTTPException 400 when scheme not configured
+            - HTTPException 400 when no address is configured
         """
-        with (
-            patch(
-                "modules.auth.identity_providers.utils.core_config.settings.ALLOWED_REDIRECT_SCHEMES",
-                set(),
-            ),
-            pytest.raises(HTTPException) as exc_info,
-        ):
-            validate_redirect_url("endurain://callback")
+        with pytest.raises(core_exceptions.InvalidInputError) as exc_info:
+            validate_redirect_url("endurain://callback", set())
         assert exc_info.value.status_code == 400
         assert "not allowed" in exc_info.value.detail.lower()
 
     def test_wrong_custom_scheme_is_rejected(self):
-        """Scheme not in the allow-list must be rejected even if others are.
+        """An address not in the allow-list must be rejected even if others are.
 
         Asserts:
-            - HTTPException 400 when only a different scheme is configured
+            - HTTPException 400 when only a different address is configured
         """
-        with (
-            patch(
-                "modules.auth.identity_providers.utils.core_config.settings.ALLOWED_REDIRECT_SCHEMES",
-                {"endurain"},
-            ),
-            pytest.raises(HTTPException) as exc_info,
-        ):
-            validate_redirect_url("myapp://callback")
+        with pytest.raises(core_exceptions.InvalidInputError) as exc_info:
+            validate_redirect_url("myapp://callback", {"endurain://callback"})
         assert exc_info.value.status_code == 400
 
     def test_path_traversal_double_dot_is_rejected(self):
@@ -665,7 +336,7 @@ class TestValidateRedirectUrl:
         Asserts:
             - HTTPException 400 for /../etc/passwd
         """
-        with pytest.raises(HTTPException) as exc_info:
+        with pytest.raises(core_exceptions.InvalidInputError) as exc_info:
             validate_redirect_url("/../etc/passwd")
         assert exc_info.value.status_code == 400
 
@@ -675,7 +346,7 @@ class TestValidateRedirectUrl:
         Asserts:
             - HTTPException 400 for /valid/../etc/passwd
         """
-        with pytest.raises(HTTPException) as exc_info:
+        with pytest.raises(core_exceptions.InvalidInputError) as exc_info:
             validate_redirect_url("/valid/../etc/passwd")
         assert exc_info.value.status_code == 400
 
@@ -685,7 +356,7 @@ class TestValidateRedirectUrl:
         Asserts:
             - HTTPException 400 for /path\\to\\file
         """
-        with pytest.raises(HTTPException) as exc_info:
+        with pytest.raises(core_exceptions.InvalidInputError) as exc_info:
             validate_redirect_url("/path\\to\\file")
         assert exc_info.value.status_code == 400
 
@@ -700,7 +371,7 @@ class TestValidateRedirectUrl:
             - HTTPException 400 for control characters anywhere in the value, including
               leading and trailing ones that ``strip()`` would otherwise hide
         """
-        with pytest.raises(HTTPException) as exc_info:
+        with pytest.raises(core_exceptions.InvalidInputError) as exc_info:
             validate_redirect_url(redirect)
         assert exc_info.value.status_code == 400
 
@@ -710,7 +381,7 @@ class TestValidateRedirectUrl:
         Asserts:
             - HTTPException 400 for //evil.com
         """
-        with pytest.raises(HTTPException) as exc_info:
+        with pytest.raises(core_exceptions.InvalidInputError) as exc_info:
             validate_redirect_url("//evil.com")
         assert exc_info.value.status_code == 400
 
@@ -720,7 +391,7 @@ class TestValidateRedirectUrl:
         Asserts:
             - HTTPException 400 for 'dashboard' (no leading slash)
         """
-        with pytest.raises(HTTPException) as exc_info:
+        with pytest.raises(core_exceptions.InvalidInputError) as exc_info:
             validate_redirect_url("dashboard")
         assert exc_info.value.status_code == 400
 
@@ -730,72 +401,201 @@ class TestValidateRedirectUrl:
         Asserts:
             - HTTPException 400 for javascript:alert(1)
         """
-        with pytest.raises(HTTPException) as exc_info:
+        with pytest.raises(core_exceptions.InvalidInputError) as exc_info:
             validate_redirect_url("javascript:alert(1)")
         assert exc_info.value.status_code == 400
 
-    def test_dotted_and_dashed_scheme_allowed_when_configured(self):
-        """An application-id scheme with dots and dashes is a valid URI scheme.
+
+class TestIsNativeRedirect:
+    """Test suite for is_native_redirect."""
+
+    def test_custom_scheme_is_true(self):
+        """A custom URI scheme redirect is reported as custom.
 
         Asserts:
-            - No exception for a configured Gadgetbridge nopebble callback
+            - True for endurain://callback
         """
-        scheme = "nodomain.freeyourgadget.gadgetbridge.nightly-nopebble"
-        with patch(
-            "modules.auth.identity_providers.utils.core_config.settings.ALLOWED_REDIRECT_SCHEMES",
-            {scheme},
-        ):
-            validate_redirect_url(f"{scheme}://endurain/oauth/callback")
+        assert idp_utils.is_native_redirect("endurain://callback") is True
 
-    def test_invalid_scheme_syntax_is_rejected_even_when_configured(self):
-        """A scheme outside RFC 3986 syntax must be rejected, configured or not.
+    @pytest.mark.parametrize("redirect", ["https://app.example.org/auth/sso/callback", "HTTPS://app.example.org/cb"])
+    def test_a_validated_https_address_is_true(self, redirect):
+        """A listed claimed-https address is a native-app redirect, so it has already passed validation."""
+        assert idp_utils.is_native_redirect(redirect) is True
 
-        Browsers do not treat ``a_b://x`` as a custom-scheme URL, so the frontend
-        could never hand the session over to it.
+    def test_custom_scheme_without_an_authority_is_true(self):
+        """RFC 3986 ends the scheme at the first ':', so an RFC 8252 7.1 callback is a custom scheme."""
+        assert idp_utils.is_native_redirect("com.example.app:/oauth2redirect") is True
+
+    @pytest.mark.parametrize("redirect", ["/activities/a:b", "/x://y", "my app:/cb", "1app:/cb"])
+    def test_a_value_without_a_well_formed_scheme_is_false(self, redirect):
+        """A path or a malformed scheme name is not a custom-scheme redirect."""
+        assert idp_utils.is_native_redirect(redirect) is False
+
+    @pytest.mark.parametrize(
+        "redirect", ["JavaScript://x", "data://x", "file://x", "javascript:alert(1)", "http:x", "HTTP://x"]
+    )
+    def test_unsafe_scheme_is_false(self, redirect):
+        """Unsafe schemes are never treated as custom-scheme redirects.
 
         Asserts:
-            - HTTPException 400 naming the scheme as invalid
+            - False for each unsafe scheme
         """
-        scheme = "nodomain.freeyourgadget.gadgetbridge.nightly_nopebble"
-        with (
-            patch(
-                "modules.auth.identity_providers.utils.core_config.settings.ALLOWED_REDIRECT_SCHEMES",
-                {scheme},
-            ),
-            pytest.raises(HTTPException) as exc_info,
-        ):
-            validate_redirect_url(f"{scheme}://endurain/oauth/callback")
-        assert exc_info.value.status_code == 400
-        assert "not a valid uri scheme" in exc_info.value.detail.lower()
+        assert idp_utils.is_native_redirect(redirect) is False
 
 
-class TestIsCustomSchemeRedirect:
-    """Test suite for is_custom_scheme_redirect function."""
+class TestAppendQueryParams:
+    def test_appends_to_path_without_query(self):
+        assert idp_utils.append_query_params("/settings/security", {"idp_link": "success"}) == (
+            "/settings/security?idp_link=success"
+        )
+
+    def test_preserves_existing_query(self):
+        assert idp_utils.append_query_params("/settings?tab=security", {"idp_link": "success"}) == (
+            "/settings?tab=security&idp_link=success"
+        )
+
+    def test_url_encodes_values(self):
+        assert idp_utils.append_query_params("/settings/security", {"idp_name": "My IdP"}) == (
+            "/settings/security?idp_name=My+IdP"
+        )
+
+
+class TestBuildLinkResultUrl:
+    def test_default_path_when_no_return_path(self):
+        assert idp_utils.build_link_result_url(HOST, None, "Google", success=True) == (
+            f"{HOST}/settings/security?idp_link=success&idp_name=Google"
+        )
+
+    def test_honors_relative_return_path(self):
+        assert idp_utils.build_link_result_url(HOST, "/settings/security", "Google", success=True) == (
+            f"{HOST}/settings/security?idp_link=success&idp_name=Google"
+        )
+
+    def test_custom_scheme_is_not_host_prefixed(self):
+        assert idp_utils.build_link_result_url(HOST, "gadgetbridge://callback", "Google", success=True) == (
+            "gadgetbridge://callback?idp_link=success&idp_name=Google"
+        )
+
+    def test_a_listed_https_address_is_not_host_prefixed(self):
+        assert (
+            idp_utils.build_link_result_url(HOST, "https://app.example.org/auth/sso/callback", "Google", success=True)
+            == "https://app.example.org/auth/sso/callback?idp_link=success&idp_name=Google"
+        )
+
+    def test_error_omits_idp_name(self):
+        assert idp_utils.build_link_result_url(HOST, "/settings/security", None, success=False) == (
+            f"{HOST}/settings/security?idp_link=error"
+        )
+
+    def test_error_falls_back_to_default_path(self):
+        assert idp_utils.build_link_result_url(HOST, None, None, success=False) == (
+            f"{HOST}/settings/security?idp_link=error"
+        )
+
+
+class TestBuildLoginErrorUrl:
+    def test_a_web_login_goes_to_the_login_page(self):
+        assert idp_utils.build_login_error_url(HOST, None, "sso_failed") == f"{HOST}/login?error=sso_failed"
+
+    def test_a_relative_return_path_is_ignored(self):
+        assert idp_utils.build_login_error_url(HOST, "/activities", "sso_failed") == f"{HOST}/login?error=sso_failed"
+
+    def test_a_native_address_gets_the_error_in_its_query(self):
+        assert idp_utils.build_login_error_url(
+            HOST, "com.endurain.endurain:/auth/sso/callback", "sso_account_disabled"
+        ) == ("com.endurain.endurain:/auth/sso/callback?error=sso_account_disabled")
+
+
+class TestBuildRedirectUri:
+    """build_redirect_uri builds the public callback URL."""
+
+    def test_builds_expected_callback_url(self):
+        uri = idp_utils.build_redirect_uri("https://endurain.example", "my-idp")
+        assert uri == "https://endurain.example/api/v1/public/idp/callback/my-idp"
+
+
+class TestRequiresIdToken:
+    """A sign-in must carry a verified ID token when the provider will issue one."""
+
+    @pytest.mark.parametrize(
+        ("provider_type", "scopes", "expected"),
+        [
+            ("oidc", "openid profile email", True),
+            ("oidc", "profile email", True),
+            ("oauth2", "openid profile email", True),
+            ("oauth2", "profile openid", True),
+            ("oauth2", None, True),
+            ("oauth2", "", True),
+            ("oauth2", "read:user user:email", False),
+            ("oauth2", "openid2 profile", False),
+        ],
+    )
+    def test_oidc_always_and_oauth2_only_with_the_openid_scope(self, provider_type, scopes, expected):
+        idp = SimpleNamespace(provider_type=provider_type, scopes=scopes)
+
+        assert idp_utils.requires_id_token(idp) is expected
+
+
+class TestNormalizeIssuerUrl:
+    """The normalized issuer drops every trailing slash, as the SQL ``rtrim(issuer_url, '/')`` does."""
+
+    @pytest.mark.parametrize(
+        ("value", "expected"),
+        [
+            ("https://a.example.com", "https://a.example.com"),
+            ("https://a.example.com/", "https://a.example.com"),
+            ("https://a.example.com//", "https://a.example.com"),
+            ("https://a.example.com/realm/", "https://a.example.com/realm"),
+        ],
+    )
+    def test_removes_every_trailing_slash(self, value, expected):
+        assert idp_utils.normalize_issuer_url(value) == expected
+
+
+class TestValidateRedirectUrlWithExactAddresses:
+    """Only the exact addresses in ALLOWED_REDIRECT_URIS are allowed; an empty set allows none."""
+
+    URIS: ClassVar[set[str]] = {"endurain://oauth/callback", "gadgetbridge://auth"}
+
+    def test_an_exact_address_is_allowed(self):
+        validate_redirect_url("endurain://oauth/callback", self.URIS)
+        validate_redirect_url("gadgetbridge://auth", self.URIS)
+
+    def test_the_scheme_matches_in_any_letter_case(self):
+        validate_redirect_url("ENDURAIN://oauth/callback", self.URIS)
+
+    def test_the_rest_of_the_address_matches_exactly(self):
+        validate_redirect_url("endurain://oauth/callback", self.URIS)
+        with pytest.raises(core_exceptions.InvalidInputError, match="ALLOWED_REDIRECT_URIS"):
+            validate_redirect_url("endurain://oauth/Callback", self.URIS)
 
     @pytest.mark.parametrize(
         "redirect",
         [
-            "endurain://callback",
-            "nodomain.freeyourgadget.gadgetbridge.nightly-nopebble://endurain/oauth/callback",
-            "com.espruino.gadgetbridge.banglejs.nightly://endurain/oauth/callback",
+            "endurain://other",
+            "endurain://oauth/callback/extra",
+            "endurain://oauth/callback?x=1",
+            "endurain://oauth/callback#frag",
         ],
     )
-    def test_valid_custom_scheme(self, redirect):
-        """A syntactically valid custom scheme is a custom-scheme redirect."""
-        assert is_custom_scheme_redirect(redirect) is True
+    def test_another_address_under_a_listed_scheme_is_refused(self, redirect):
+        with pytest.raises(core_exceptions.InvalidInputError, match="ALLOWED_REDIRECT_URIS"):
+            validate_redirect_url(redirect, self.URIS)
 
-    @pytest.mark.parametrize(
-        "redirect",
-        [
-            None,
-            "",
-            "/dashboard",
-            "https://evil.com",
-            "a_b://callback",
-            "1app://callback",
-            "://callback",
-        ],
-    )
-    def test_not_custom_scheme(self, redirect):
-        """Paths, HTTP(S) URLs and invalid scheme syntax are not custom-scheme redirects."""
-        assert is_custom_scheme_redirect(redirect) is False
+    def test_an_address_without_an_authority_matches_with_its_path_case_kept(self):
+        uris = {"com.example.app:/Callback"}
+        validate_redirect_url("com.example.app:/Callback", uris)
+        validate_redirect_url("COM.Example.App:/Callback", uris)
+        with pytest.raises(core_exceptions.InvalidInputError, match="ALLOWED_REDIRECT_URIS"):
+            validate_redirect_url("com.example.app:/callback", uris)
+
+    def test_relative_paths_stay_allowed(self):
+        validate_redirect_url("/dashboard", self.URIS)
+
+    def test_an_unsafe_scheme_is_refused_even_when_listed(self):
+        with pytest.raises(core_exceptions.InvalidInputError):
+            validate_redirect_url("javascript://x", {"javascript://x"})
+
+    def test_without_addresses_a_custom_scheme_is_refused(self):
+        with pytest.raises(core_exceptions.InvalidInputError, match="ALLOWED_REDIRECT_URIS"):
+            validate_redirect_url("endurain://anything/at/all", set())

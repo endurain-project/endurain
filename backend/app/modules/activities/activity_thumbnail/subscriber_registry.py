@@ -14,7 +14,7 @@ def register_bus_subscribers(events: EventBusProvider) -> None:
     Args:
         events: The event bus to subscribe on.
     """
-    activity_thumbnail_subscribers.register_thumbnail_subscribers(events)
+    activity_thumbnail_subscribers.register_bus_subscribers(events)
 
 
 def register_durable_handlers(registry: JobHandlerRegistry) -> None:
@@ -23,7 +23,7 @@ def register_durable_handlers(registry: JobHandlerRegistry) -> None:
     Args:
         registry: The durable-handler registry to register on.
     """
-    activity_thumbnail_subscribers.register_thumbnail_durable_handlers(registry)
+    activity_thumbnail_subscribers.register_durable_handlers(registry)
 
 
 DURABLE_SUBSCRIBER_NETS: tuple[DurableSubscriberNet, ...] = (

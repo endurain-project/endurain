@@ -3,6 +3,8 @@
 ``crud`` calls these at its edges so ORM rows never leave the persistence layer.
 """
 
+import uuid
+
 import modules.activities.activity_workout_steps.contracts as activity_workout_steps_contracts
 import modules.activities.activity_workout_steps.models as activity_workout_steps_models
 import modules.activities.activity_workout_steps.schema as activity_workout_steps_schema
@@ -24,7 +26,7 @@ def to_read_schema(
 
 def to_orm(
     step: activity_workout_steps_contracts.ActivityWorkoutStepsCreate,
-    activity_id: int,
+    activity_id: uuid.UUID,
 ) -> activity_workout_steps_models.ActivityWorkoutSteps:
     """Build an ORM row from a workout step schema.
 

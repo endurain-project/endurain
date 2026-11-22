@@ -1,15 +1,17 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { ChevronDown } from '@lucide/vue'
 
 import type { CorosStatus, DateRange } from '@/features/integrations/types'
+import type { IdpReauth, StepUpInput } from '@/features/security/types'
+import type { IdpStepUpResume } from '@/features/security/composables/useIdpStepUp'
 
 import RetrieveRangeDialog from '@/features/integrations/components/RetrieveRangeDialog.vue'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
-import { ConfirmDialog } from '@/components/ui/confirm-dialog'
+import StepUpDialog from '@/features/security/components/StepUpDialog.vue'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -19,8 +21,15 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { INTEGRATION_LOGOS } from '@/constants/integrationLogos'
 import { useToasts } from '@/composables/useToasts'
+import { useAdminStepUp } from '@/features/security/composables/useAdminStepUp'
+import {
+  isStepUpFailed,
+  isStepUpLocked,
+  useIdpReauthChallenge,
+} from '@/features/security/composables/useIdpStepUp'
 import {
   useCorosStatusQuery,
+  useRetrievalOutcome,
   useSyncCorosMutation,
   useUnlinkCorosMutation,
 } from '@/features/integrations/composables/useIntegrations'
@@ -30,10 +39,13 @@ import { formatMediumDateTime } from '@/utils/datetime'
 const props = defineProps<{
   /** Whether a COROS account is currently connected. */
   linked: boolean
+  /** The identity-provider sign-in the browser just returned from, if any. */
+  resume: IdpStepUpResume | null
 }>()
 
 const { t, te, locale } = useI18n()
 const toasts = useToasts()
+const retrieval = useRetrievalOutcome('COROS')
 
 const statusQuery = useCorosStatusQuery(() => props.linked)
 const syncMutation = useSyncCorosMutation()
@@ -42,6 +54,17 @@ const unlinkMutation = useUnlinkCorosMutation()
 const isConnecting = ref(false)
 const isActivitiesOpen = ref(false)
 const isUnlinkOpen = ref(false)
+const unlinkReauth = ref<IdpReauth | null>(null)
+const handleIdpChallenge = useIdpReauthChallenge()
+const { requirePassword, requireMfa } = useAdminStepUp()
+
+/** Reopens the unlink dialog once the identity-provider sign-in returns. */
+onMounted(() => {
+  if (props.resume?.action === 'coros_unlink') {
+    unlinkReauth.value = props.resume.reauth
+    isUnlinkOpen.value = true
+  }
+})
 
 const status = computed<CorosStatus | null>(() => statusQuery.data.value ?? null)
 
@@ -81,28 +104,51 @@ async function connectCoros(): Promise<void> {
 
 function syncNow(): void {
   syncMutation.mutate(undefined, {
-    onSuccess: () => toasts.info(t('settings.integrations.coros.syncQueued')),
-    onError: () => toasts.error(t('settings.integrations.coros.syncError')),
+    onSuccess: (job) => {
+      toasts.info(t('settings.integrations.coros.syncQueued'))
+      void retrieval.follow(job.id)
+    },
+    onError: (error) => {
+      if (!retrieval.resumeOnConflict(error)) {
+        toasts.error(t('settings.integrations.coros.syncError'))
+      }
+    },
   })
 }
 
 function onRetrieveActivities(range: DateRange): void {
   syncMutation.mutate(range, {
-    onSuccess: () => {
+    onSuccess: (job) => {
       isActivitiesOpen.value = false
       toasts.info(t('settings.integrations.coros.syncQueued'))
+      void retrieval.follow(job.id)
     },
-    onError: () => toasts.error(t('settings.integrations.coros.syncError')),
+    onError: (error) => {
+      if (!retrieval.resumeOnConflict(error)) {
+        toasts.error(t('settings.integrations.coros.syncError'))
+      }
+    },
   })
 }
 
-function confirmUnlink(): void {
-  unlinkMutation.mutate(undefined, {
+function confirmUnlink(stepUp: StepUpInput): void {
+  unlinkMutation.mutate(stepUp, {
     onSuccess: () => {
       isUnlinkOpen.value = false
       toasts.success(t('settings.integrations.coros.unlinkSuccess'))
     },
-    onError: () => toasts.error(t('settings.integrations.coros.unlinkError')),
+    onError: (error) => {
+      if (handleIdpChallenge(error)) {
+        return
+      }
+      if (isStepUpLocked(error)) {
+        toasts.error(t('settings.security.stepUp.tooManyAttempts'))
+      } else if (isStepUpFailed(error)) {
+        toasts.error(t('settings.security.linked.invalidCredentials'))
+      } else {
+        toasts.error(t('settings.integrations.coros.unlinkError'))
+      }
+    },
   })
 }
 </script>
@@ -169,13 +215,16 @@ function confirmUnlink(): void {
       @submit="onRetrieveActivities"
     />
 
-    <ConfirmDialog
+    <StepUpDialog
       v-model:open="isUnlinkOpen"
+      v-model:reauth="unlinkReauth"
+      action="coros_unlink"
       :title="t('settings.integrations.coros.unlinkTitle')"
       :description="t('settings.integrations.coros.unlinkBody')"
       :confirm-label="t('settings.integrations.unlink')"
-      :cancel-label="t('settings.integrations.cancel')"
-      :close-label="t('settings.integrations.close')"
+      :require-password="requirePassword"
+      :require-mfa="requireMfa"
+      destructive
       :pending="unlinkMutation.isPending.value"
       @confirm="confirmUnlink"
     />

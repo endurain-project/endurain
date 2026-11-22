@@ -1,0 +1,33 @@
+{
+  "km": "公里",
+  "mi": "英里",
+  "m": "米",
+  "ft": "英尺",
+  "yd": "码",
+  "cm": "厘米",
+  "in": "英寸",
+  "kg": "千克",
+  "lb": "磅",
+  "ml": "毫升",
+  "flOz": "液量盎司",
+  "kmh": "公里/小时",
+  "mph": "英里/小时",
+  "kn": "节",
+  "minPerKm": "分钟/公里",
+  "minPerMi": "分钟/英里",
+  "minPer100m": "分钟/100米",
+  "minPer100yd": "分钟/100码",
+  "minPer500m": "分钟/500米",
+  "bpm": "次/分",
+  "w": "W",
+  "kcal": "千卡",
+  "rpm": "转/分",
+  "spm": "步/分",
+  "celsius": "°C",
+  "fahrenheit": "°F",
+  "h": "小时",
+  "duration": {
+    "hoursMinutes": "{hours}小时{minutes}分钟",
+    "minutes": "{minutes}分钟"
+  }
+}

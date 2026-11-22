@@ -19,12 +19,12 @@ import BulkImportProgress from '@/features/import/components/BulkImportProgress.
 import {
   useBulkImportFromArchiveMutation,
   useBulkImportFromFolderMutation,
-  useBulkImportJobQuery,
+  useBulkImportJob,
   useImportStravaBikesMutation,
   useImportStravaShoesMutation,
 } from '@/features/import/composables/useImport'
 import { isTerminalIngestionJob } from '@/features/upload/types'
-import { HttpError } from '@/services/http'
+import { isProblem } from '@/services/problems'
 
 type PendingChoice = 'archive' | 'bikes' | 'shoes'
 
@@ -36,12 +36,10 @@ const fromArchive = useBulkImportFromArchiveMutation()
 const bikesMutation = useImportStravaBikesMutation()
 const shoesMutation = useImportStravaShoesMutation()
 
-const jobId = ref<string | null>(null)
-const jobQuery = useBulkImportJobQuery(jobId)
+const job = useBulkImportJob('strava')
 const fileInput = ref<HTMLInputElement | null>(null)
 const pendingChoice = ref<PendingChoice | null>(null)
 
-const job = computed(() => jobQuery.data.value ?? null)
 const importing = computed(
   () =>
     fromFolder.isPending.value ||
@@ -55,13 +53,12 @@ const accept = computed(() =>
   pendingChoice.value === 'archive' ? '.zip,application/zip' : '.csv,text/csv',
 )
 
-function onAccepted(id: string): void {
-  jobId.value = id
+function onAccepted(): void {
   toasts.info(t('settings.import.strava.activitiesQueued'))
 }
 
 function onActivitiesError(error: Error): void {
-  if (error instanceof HttpError && error.status === 409) {
+  if (isProblem(error, 'conflict')) {
     toasts.error(t('settings.import.bulk.alreadyRunning'))
     return
   }
@@ -70,7 +67,7 @@ function onActivitiesError(error: Error): void {
 
 function importFromFolder(): void {
   fromFolder.mutate('strava', {
-    onSuccess: (accepted) => onAccepted(accepted.id),
+    onSuccess: onAccepted,
     onError: onActivitiesError,
   })
 }
@@ -93,7 +90,7 @@ function onFileChosen(event: Event): void {
   if (choice === 'archive') {
     fromArchive.mutate(
       { file, source: 'strava' },
-      { onSuccess: (accepted) => onAccepted(accepted.id), onError: onActivitiesError },
+      { onSuccess: onAccepted, onError: onActivitiesError },
     )
   } else if (choice === 'bikes') {
     bikesMutation.mutate(file, {

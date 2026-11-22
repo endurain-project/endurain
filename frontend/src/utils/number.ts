@@ -28,3 +28,24 @@ export function toNumberOrNull(value: string | number): number | null {
   const parsed = Number(trimmed)
   return Number.isFinite(parsed) ? parsed : null
 }
+
+/**
+ * Reads a price the API sends as a decimal string (`"129.90"`) as a number.
+ *
+ * @param value - The decimal string, or `null`/`undefined` when the price is unset.
+ * @returns The number, or `null` when unset or unparseable.
+ */
+export function moneyToNumber(value: string | null | undefined): number | null {
+  return value == null ? null : toNumberOrNull(value)
+}
+
+/**
+ * Writes a price as the decimal string the API expects: two decimals, a dot as
+ * the separator.
+ *
+ * @param value - The price, or `null` when it is unset.
+ * @returns The decimal string (`"129.90"`), or `null` when unset.
+ */
+export function numberToMoney(value: number | null): string | null {
+  return value === null ? null : value.toFixed(2)
+}

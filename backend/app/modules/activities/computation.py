@@ -4,20 +4,24 @@ Turn raw waypoint streams into activity metrics (speed, elevation, pace,
 averages, normalized power). Side-effect-free: no network, database or
 filesystem I/O, and no import of any other module.
 
-Module-level rather than inside a sub-package because three different consumers
-need them — the file parsers, the Strava adapter, and the data migrations — and
-the Strava one is outside this module. Living in ``activity_file_import`` made
+Module-level rather than inside a sub-package because two different consumers
+need them — the file parsers and the Strava adapter — and the Strava one is
+outside this module. Living in ``activity_file_import`` made
 that a reach into a package whose whole contract is "parsers only"; living here
 says the activities namespace publishes its metric maths alongside its explicit
 composition and contributor surfaces.
 """
 
 import statistics
+from collections.abc import Mapping, Sequence
 from datetime import UTC, datetime
 from itertools import pairwise
 from statistics import mean
+from typing import Any
 
 from geopy.distance import geodesic
+
+import modules.activities.activity_streams.contracts as activity_streams_contracts
 
 
 def _elapsed_seconds(start: datetime, end: datetime) -> float:
@@ -44,27 +48,9 @@ def _elapsed_seconds(start: datetime, end: datetime) -> float:
     return (end.astimezone(UTC) - start.astimezone(UTC)).total_seconds()
 
 
-def append_if_not_none(
-    waypoint_list: list[dict],
-    waypoint_time,
-    value,
-    key: str,
-) -> None:
-    """Append ``{time, key: value}`` to ``waypoint_list`` if value is set.
-
-    Args:
-        waypoint_list: List to mutate in place.
-        waypoint_time: Timestamp associated with the value.
-        value: The value to record; ignored when ``None``.
-        key: Dict key under which ``value`` is stored.
-    """
-    if value is not None:
-        waypoint_list.append({"time": waypoint_time, key: value})
-
-
 def calculate_instant_speed(
-    prev_time,
-    waypoint_time,
+    prev_time: datetime | None,
+    waypoint_time: datetime,
     latitude: float,
     longitude: float,
     prev_latitude: float | None,
@@ -159,10 +145,10 @@ def _smooth_elevations(
 
 
 def smooth_elevation_stream(
-    elevations: list[dict],
+    elevations: Sequence[Mapping[str, Any]],
     median_window: int = ELEVATION_MEDIAN_WINDOW,
     avg_window: int = ELEVATION_AVG_WINDOW,
-) -> list[dict]:
+) -> Sequence[Mapping[str, Any]]:
     """Return an elevation stream with ``ele`` smoothed and other keys unchanged.
 
     Uses the same series that :func:`compute_elevation_gain_and_loss` sums, so the
@@ -186,7 +172,7 @@ def smooth_elevation_stream(
 
 
 def sum_elevation_deltas(
-    elevations: list[dict],
+    elevations: Sequence[Mapping[str, Any]],
     threshold: float = ELEVATION_THRESHOLD,
 ) -> tuple[float, float]:
     """Sum per-step elevation deltas above ``threshold``.
@@ -215,7 +201,7 @@ def sum_elevation_deltas(
 
 
 def compute_elevation_gain_and_loss(
-    elevations: list[dict],
+    elevations: Sequence[Mapping[str, Any]],
     median_window: int = ELEVATION_MEDIAN_WINDOW,
     avg_window: int = ELEVATION_AVG_WINDOW,
     threshold: float = ELEVATION_THRESHOLD,
@@ -248,8 +234,8 @@ def compute_elevation_gain_and_loss(
 
 def calculate_pace(
     distance: float,
-    first_waypoint_time,
-    last_waypoint_time,
+    first_waypoint_time: datetime,
+    last_waypoint_time: datetime,
 ) -> float:
     """Compute average pace (seconds per meter).
 
@@ -297,7 +283,11 @@ def calculate_pace_from_duration(
     return duration_seconds / distance
 
 
-def calculate_avg_and_max(data: list[dict], stream_type: str, exclude_zeros: bool = False) -> tuple[float, float]:
+def calculate_avg_and_max(
+    data: Sequence[Mapping[str, Any]],
+    stream_type: str,
+    exclude_zeros: bool = False,
+) -> tuple[float, float]:
     """Compute the mean and max of ``stream_type`` across waypoints.
 
     Zero values are always excluded when ``stream_type`` is ``"hr"`` because
@@ -356,7 +346,7 @@ def calculate_robust_max(values: list[float], window: int = 5) -> float:
     return max(statistics.median(values[i : i + window]) for i in range(len(values) - window + 1))
 
 
-def calculate_np(data: list[dict]) -> float:
+def calculate_np(data: Sequence[Mapping[str, Any]]) -> float:
     """Compute Normalized Power (NP) from power waypoints.
 
     Args:
@@ -405,7 +395,9 @@ def double_running_cadence(cadence: float | None, fractional: float | None = 0.0
     return round((float(cadence) + float(fractional or 0.0)) * 2)
 
 
-def double_cadence_waypoints(waypoints: list[dict]) -> list[dict]:
+def double_cadence_waypoints(
+    waypoints: list[activity_streams_contracts.CadenceWaypoint],
+) -> list[activity_streams_contracts.CadenceWaypoint]:
     """Return cadence waypoints with every ``cad`` converted from rpm to spm.
 
     Waypoints whose ``cad`` is ``None`` are kept unchanged.
@@ -416,6 +408,4 @@ def double_cadence_waypoints(waypoints: list[dict]) -> list[dict]:
     Returns:
         New waypoint dicts with ``cad`` doubled and rounded.
     """
-    return [
-        {**wp, "cad": double_running_cadence(wp.get("cad"))} if wp.get("cad") is not None else wp for wp in waypoints
-    ]
+    return [{**wp, "cad": round(wp["cad"] * 2)} if wp.get("cad") is not None else wp for wp in waypoints]

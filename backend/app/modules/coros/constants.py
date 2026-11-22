@@ -2,6 +2,9 @@
 
 from enum import StrEnum
 
+#: Stable provider identifier registered with activity ingestion.
+PROVIDER_NAME = "coros"
+
 #: Official COROS MCP endpoint. COROS routes it to the account's regional
 #: server and publishes the matching OAuth metadata from the gateway.
 MCP_URL = "https://mcp.coros.com/mcp"

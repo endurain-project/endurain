@@ -5,10 +5,12 @@
   "unread": "Nepročitano",
   "markRead": "Označi kao pročitano",
   "markAllRead": "Označi sve kao pročitano",
+  "dismiss": "Odbaci obaveštenje",
+  "dismissError": "Obaveštenje nije moguće odbaciti. Pokušajte ponovo.",
   "seeAll": "Prikaži sve",
   "loadMore": "Učitaj još",
   "loading": "Učitavanje…",
-  "badge": "{count} nepročitanih obaveštenja",
+  "badge": "{count} nepročitano obaveštenje | {count} nepročitana obaveštenja | {count} nepročitanih obaveštenja",
   "empty": {
     "title": "Sve ste pregledali",
     "description": "Ažuriranja o vašim aktivnostima, pratiocima i integracijama pojaviće se ovde."
@@ -39,9 +41,122 @@
       "title": "Garmin Connect zahteva pažnju",
       "body": "Vaša Garmin Connect sesija je istekla. Ponovo je povežite da biste nastavili sinhronizaciju."
     },
+    "stravaTokenExpired": {
+      "title": "Strava traži vašu pažnju",
+      "body": "Strava je odbila vašu vezu. Povežite je ponovo da bi se sinhronizacija nastavila.",
+      "bodyRevoked": "Pristup Strava nalogu je završen. Vaše aktivnosti i oprema sinhronizovane sa Stravom biće izbrisane {date} ako se ponovo ne povežete."
+    },
+    "stravaDataDeleted": {
+      "title": "Podaci sa Strave izbrisani",
+      "body": "Vaše aktivnosti i oprema sinhronizovane sa Stravom su izbrisane jer je pristup Strava nalogu završen, a niste se ponovo povezali."
+    },
+    "idpLinked": {
+      "title": "Povezan je novi provajder prijave",
+      "body": "{name} je povezan sa vašim nalogom. Ako to niste bili vi, pregledajte svoja bezbednosna podešavanja.",
+      "bodyGeneric": "Provajder prijave je povezan sa vašim nalogom. Ako to niste bili vi, pregledajte svoja bezbednosna podešavanja."
+    },
+    "accountSecurityChanged": {
+      "passwordChanged": {
+        "title": "Lozinka promenjena",
+        "body": "Vaša lozinka je promenjena. Ako to niste bili vi, resetujte lozinku i pregledajte svoja bezbednosna podešavanja."
+      },
+      "passwordReset": {
+        "title": "Lozinka resetovana",
+        "body": "Vaša lozinka je resetovana pomoću linka za resetovanje. Ako to niste bili vi, ponovo resetujte lozinku i pregledajte svoja bezbednosna podešavanja. Any API keys were revoked and any pending email change was cancelled."
+      },
+      "passwordSetByAdmin": {
+        "title": "Administrator je postavio lozinku",
+        "body": "Administrator je postavio novu lozinku za vaš nalog. Ako to niste očekivali, obratite se administratoru. Any API keys were revoked and any pending email change was cancelled."
+      },
+      "mfaEnabled": {
+        "title": "Dvofaktorska autentifikacija uključena",
+        "body": "Dvofaktorska autentifikacija je uključena za vaš nalog. Ako to niste bili vi, resetujte lozinku i pregledajte svoja bezbednosna podešavanja."
+      },
+      "mfaDisabled": {
+        "title": "Dvofaktorska autentifikacija isključena",
+        "body": "Dvofaktorska autentifikacija je isključena za vaš nalog. Ako to niste bili vi, resetujte lozinku i pregledajte svoja bezbednosna podešavanja."
+      },
+      "mfaResetByAdmin": {
+        "title": "Administrator je resetovao dvofaktorsku autentifikaciju",
+        "body": "Administrator je resetovao dvofaktorsku autentifikaciju za vaš nalog i odjavio vas sa svih uređaja. Podesite je ponovo u bezbednosnim podešavanjima. Ako to niste očekivali, kontaktirajte administratora."
+      },
+      "passwordChangeRequiredByAdmin": {
+        "title": "Administrator zahteva promenu lozinke",
+        "body": "Administrator je zahtevao da promenite lozinku i odjavio vas sa svih uređaja. Novu lozinku ćete izabrati pri sledećoj prijavi lozinkom. Ako to niste očekivali, kontaktirajte administratora."
+      },
+      "backupCodesGenerated": {
+        "title": "Generisani su novi rezervni kodovi",
+        "body": "Za vaš nalog su generisani novi rezervni kodovi. Ako to niste bili vi, resetujte lozinku i pregledajte svoja bezbednosna podešavanja."
+      },
+      "apiKeyCreated": {
+        "title": "Napravljen je novi API ključ",
+        "body": "Za vaš nalog je napravljen novi API ključ. Ako to niste bili vi, resetujte lozinku i pregledajte svoja bezbednosna podešavanja."
+      },
+      "apiKeysRevokedByAdmin": {
+        "title": "Administrator je opozvao API ključeve",
+        "body": "Administrator je opozvao jedan ili više vaših API ključeva, pa ništa što ih koristi više nema pristup vašem nalogu. Ako ovo niste očekivali, obratite se svom administratoru."
+      },
+      "identityProviderUnlinked": {
+        "title": "Provajder prijave odvezan",
+        "body": "{name} je odvezan od vašeg naloga. Ako to niste bili vi, resetujte lozinku i pregledajte svoja bezbednosna podešavanja.",
+        "bodyGeneric": "Provajder prijave je odvezan od vašeg naloga. Ako to niste bili vi, resetujte lozinku i pregledajte svoja bezbednosna podešavanja."
+      },
+      "accountLocked": {
+        "title": "Nalog je zaključan",
+        "body": "Vaš nalog je zaključan nakon 100 neuspešnih pokušaja prijave zaredom. Pregledači i aplikacije iz kojih ste se prijavili od poslednje bezbednosne promene i dalje mogu da se prijave. Ako ove pokušaje niste izvršili vi, promenite ili resetujte lozinku, čime se i uklanja zaključavanje."
+      },
+      "mfaLocked": {
+        "title": "Dvostepena verifikacija je zaključana",
+        "body": "Vaš nalog je zaključan nakon 100 pogrešnih kodova dvostepene verifikacije zaredom, pa neko zna vašu lozinku. Pregledači i aplikacije iz kojih ste se prijavili od poslednje bezbednosne promene i dalje mogu da se prijave. Ako ove pokušaje niste izvršili vi, promenite lozinku."
+      },
+      "stepUpSessionEnded": {
+        "title": "Sesija je odjavljena",
+        "body": "Jedna sesija vašeg naloga je odjavljena nakon što je 15 puta zaredom uneta pogrešna lozinka ili kod dvofaktorske autentifikacije radi potvrde osetljive radnje. Vaše ostale sesije nisu pogođene. Ako ovi pokušaji nisu bili vaši, promenite lozinku."
+      },
+      "stepUpLocked": {
+        "title": "Potvrđivanje osetljivih radnji je zaključano",
+        "body": "Potvrđivanje osetljivih radnji, kao što su promena lozinke ili kreiranje API ključa, zaključano je na 30 dana nakon 100 pogrešnih potvrda u svim vašim sesijama. Ako ovi pokušaji nisu bili vaši, resetujte lozinku, čime se zaključavanje takođe ukida."
+      },
+      "backupCodeUsed": {
+        "title": "Rezervni kod je iskorišćen",
+        "body": "Rezervni kod je iskorišćen za dvofaktorsku autentifikaciju na vašem nalogu. Ako to niste bili vi, promenite lozinku i generišite nove rezervne kodove.",
+        "bodyRemaining": "Rezervni kod je iskorišćen za dvofaktorsku autentifikaciju na vašem nalogu. Preostalo neiskorišćenih rezervnih kodova: {count}. Ako to niste bili vi, promenite lozinku i generišite nove rezervne kodove.",
+        "bodyNone": "Rezervni kod je iskorišćen za dvofaktorsku autentifikaciju na vašem nalogu. Nemate više neiskorišćenih rezervnih kodova, pa generišite nove u podešavanjima bezbednosti. Ako to niste bili vi, promenite lozinku."
+      },
+      "refreshTokenReuseDetected": {
+        "title": "Sesija je prekinuta",
+        "body": "Jedna sesija prijave na vaš nalog je prekinuta jer je token koji je već bio iskorišćen ponovo predočen, što može značiti da je sesija kopirana. Vaše ostale sesije nisu pogođene. Ako ovo niste očekivali, promenite lozinku."
+      },
+      "roleChangedByAdmin": {
+        "title": "Administrator je promenio pristup",
+        "body": "Administrator je promenio pristup vašeg naloga i odjavio vas sa svih uređaja. Ako ovo niste očekivali, obratite se svom administratoru.",
+        "bodyAdmin": "Administrator je promenio pristup vašeg naloga u administratorski i odjavio vas sa svih uređaja. Ako ovo niste očekivali, obratite se svom administratoru.",
+        "bodyRegular": "Administrator je promenio pristup vašeg naloga u običnog korisnika i odjavio vas sa svih uređaja. Ako ovo niste očekivali, obratite se svom administratoru."
+      },
+      "accountDeactivatedByAdmin": {
+        "title": "Administrator je deaktivirao nalog",
+        "body": "Administrator je deaktivirao vaš nalog i odjavio vas sa svih uređaja. Ne možete se prijaviti dok ga administrator ponovo ne aktivira."
+      },
+      "unknown": {
+        "title": "Bezbednost naloga promenjena",
+        "body": "Promenjeno je bezbednosno podešavanje vašeg naloga. Ako to niste bili vi, resetujte lozinku i pregledajte svoja bezbednosna podešavanja."
+      },
+      "usernameChanged": {
+        "title": "Korisničko ime promenjeno",
+        "body": "Vaše korisničko ime je promenjeno. Ako to niste bili vi, resetujte lozinku i pregledajte bezbednosna podešavanja."
+      }
+    },
+    "newDeviceSignIn": {
+      "title": "Nova prijava",
+      "body": "Nova prijava iz pregledača {browser} na sistemu {os} ({ip}). Ako to niste bili vi, promenite lozinku i odjavite se iz ostalih sesija."
+    },
     "adminSignUpApproval": {
       "title": "Nova registracija zahteva odobrenje",
       "body": "{name} ({'@'}{username}) čeka odobrenje naloga."
+    },
+    "adminUserPromoted": {
+      "title": "Korisnik je unapređen u administratora",
+      "body": "{name} ({'@'}{username}) je dobio administratorski pristup."
     },
     "unknown": {
       "title": "Obaveštenje",

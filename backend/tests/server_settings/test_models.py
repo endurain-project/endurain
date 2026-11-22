@@ -35,7 +35,7 @@ class TestServerSettingsModel:
         assert hasattr(server_settings_models.ServerSettings, "tileserver_url")
         assert hasattr(server_settings_models.ServerSettings, "tileserver_attribution")
         assert hasattr(server_settings_models.ServerSettings, "map_background_color")
-        assert hasattr(server_settings_models.ServerSettings, "password_type")
+        assert not hasattr(server_settings_models.ServerSettings, "password_type")
         assert hasattr(server_settings_models.ServerSettings, "password_length_regular_users")
         assert hasattr(server_settings_models.ServerSettings, "password_length_admin_users")
 
@@ -60,9 +60,38 @@ class TestServerSettingsModel:
             == "https://tile.openstreetmap.org/{z}/{x}/{y}.png"
         )
         assert server_settings_models.ServerSettings.map_background_color.default.arg == "#dddddd"
-        assert server_settings_models.ServerSettings.password_type.default.arg == "strict"
-        assert server_settings_models.ServerSettings.password_length_regular_users.default.arg == 8
-        assert server_settings_models.ServerSettings.password_length_admin_users.default.arg == 12
+        assert server_settings_models.ServerSettings.password_length_regular_users.default.arg == 15
+        assert server_settings_models.ServerSettings.password_length_admin_users.default.arg == 15
+
+    def test_breach_check_is_off_by_default(self):
+        """Hash prefixes go to a third party only after an administrator opts in (docs/features/server-settings.md)."""
+        column = server_settings_models.ServerSettings.password_breach_check_enabled
+        assert column.default.arg is False
+        assert str(column.server_default.arg) == "false"
+        assert column.nullable is False
+
+    def test_require_mfa_is_off_by_default(self):
+        """No install forces MFA on its users until an administrator opts in (docs/features/server-settings.md)."""
+        column = server_settings_models.ServerSettings.require_mfa
+        assert column.default.arg == "off"
+        assert str(column.server_default.arg) == "off"
+        assert column.nullable is False
+
+    def test_require_mfa_is_restricted_to_its_three_values_by_a_check_constraint(self):
+        checks = {
+            constraint.name: str(constraint.sqltext)
+            for constraint in server_settings_models.ServerSettings.__table__.constraints
+            if constraint.name
+        }
+        assert checks["require_mfa_check"] == "require_mfa IN ('off', 'administrators', 'everyone')"
+
+    def test_sso_sign_up_is_off_by_default(self):
+        """A public identity provider must not open registration until an administrator opts in
+        (docs/features/single-sign-on.md)."""
+        column = server_settings_models.ServerSettings.signup_sso_enabled
+        assert column.default.arg is False
+        assert str(column.server_default.arg) == "false"
+        assert column.nullable is False
 
     def test_server_settings_nullable_fields(self):
         """Test ServerSettings model nullable configuration."""
@@ -82,6 +111,34 @@ class TestServerSettingsModel:
     def test_server_settings_check_constraint(self):
         """Test that single_row_check constraint exists."""
         constraints = server_settings_models.ServerSettings.__table_args__
-        assert len(constraints) == 1
-        constraint = constraints[0]
-        assert constraint.name == "single_row_check"
+        assert {c.name for c in constraints} == {
+            "single_row_check",
+            "geocoding_service_check",
+            "geocoding_rate_limit_check",
+            "session_absolute_not_below_idle_check",
+            "session_idle_timeout_hours_check",
+            "session_absolute_timeout_hours_check",
+            "access_token_expire_minutes_check",
+            "refresh_token_expire_days_check",
+            "api_key_max_lifetime_days_check",
+            "read_notification_retention_days_check",
+            "require_mfa_check",
+        }
+
+
+class TestSessionAbsoluteTimeoutDefault:
+    """The absolute session timeout defaults to 30 days."""
+
+    def test_default_and_server_default_are_720_hours(self):
+        column = server_settings_models.ServerSettings.__table__.c.session_absolute_timeout_hours
+        assert column.default.arg == 720
+        assert str(column.server_default.arg) == "720"
+
+
+class TestApiKeyMaxLifetimeDefault:
+    """New API keys last at most 365 days unless an administrator changes it (docs/features and docs/integrate)."""
+
+    def test_default_and_server_default_are_365_days(self):
+        column = server_settings_models.ServerSettings.__table__.c.api_key_max_lifetime_days
+        assert column.default.arg == 365
+        assert str(column.server_default.arg) == "365"

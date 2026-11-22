@@ -2,30 +2,34 @@
 
 from __future__ import annotations
 
+import uuid
 from datetime import date
 from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
 import pytest
+from fastapi.exceptions import RequestValidationError
 
 import core.exceptions as core_exceptions
+import modules.auth.dependencies as auth_dependencies
+import modules.auth.schema as auth_schema
 import modules.coros.router as coros_router
 import modules.coros.schema as coros_schema
 
+USER_ID = uuid.uuid4()
 
-def _call_link(user_id: int = 1):
+
+def _call_link():
     with (
         patch.object(coros_router.coros_service, "complete_link") as complete,
-        patch.object(coros_router.activity_ingestion_integration, "request_provider_sync") as queue,
+        patch.object(coros_router.coros_service, "request_initial_sync") as queue,
     ):
         error = None
         try:
             coros_router.coros_link(
                 request=MagicMock(),
                 payload=coros_schema.CorosLinkRequest(code="code", state="state"),
-                _validate_access_token=None,
-                _check_scopes=None,
-                token_user_id=user_id,
+                token_user_id=USER_ID,
                 db=MagicMock(),
                 storage=MagicMock(),
             )
@@ -49,15 +53,13 @@ def test_an_invalid_state_does_not_queue_a_sync():
             "complete_link",
             side_effect=core_exceptions.InvalidInputError("bad state"),
         ) as complete,
-        patch.object(coros_router.activity_ingestion_integration, "request_provider_sync") as queue,
+        patch.object(coros_router.coros_service, "request_initial_sync") as queue,
         pytest.raises(core_exceptions.InvalidInputError),
     ):
         coros_router.coros_link(
             request=MagicMock(),
             payload=coros_schema.CorosLinkRequest(code="code", state="state"),
-            _validate_access_token=None,
-            _check_scopes=None,
-            token_user_id=1,
+            token_user_id=USER_ID,
             db=MagicMock(),
             storage=MagicMock(),
         )
@@ -66,41 +68,29 @@ def test_an_invalid_state_does_not_queue_a_sync():
     queue.assert_not_called()
 
 
-def test_sync_requires_a_connected_account():
-    with (
-        patch.object(
-            coros_router.coros_service,
-            "get_status",
-            return_value=SimpleNamespace(linked=False),
-        ),
-        pytest.raises(core_exceptions.ConflictError),
-    ):
-        coros_router.coros_sync(
+def test_sync_delegates_to_the_service():
+    job = SimpleNamespace(id=uuid.uuid4(), kind="activity_refresh")
+    with patch.object(coros_router.coros_service, "request_sync", return_value=job) as request_sync:
+        response = coros_router.coros_sync(
             request=MagicMock(),
-            _validate_access_token=None,
-            _check_scopes=None,
-            token_user_id=1,
+            response=MagicMock(),
+            token_user_id=USER_ID,
             db=MagicMock(),
             storage=MagicMock(),
-            start_date=None,
-            end_date=None,
+            start_date=date(2026, 1, 1),
+            end_date=date(2026, 1, 7),
         )
+
+    assert response is job
+    request_sync.assert_called_once()
 
 
 def test_sync_rejects_a_reversed_range():
-    with (
-        patch.object(
-            coros_router.coros_service,
-            "get_status",
-            return_value=SimpleNamespace(linked=True),
-        ),
-        pytest.raises(core_exceptions.InvalidInputError),
-    ):
+    with pytest.raises(RequestValidationError):
         coros_router.coros_sync(
             request=MagicMock(),
-            _validate_access_token=None,
-            _check_scopes=None,
-            token_user_id=1,
+            response=MagicMock(),
+            token_user_id=USER_ID,
             db=MagicMock(),
             storage=MagicMock(),
             start_date=date(2026, 2, 1),
@@ -108,41 +98,23 @@ def test_sync_rejects_a_reversed_range():
         )
 
 
-def test_sync_rejects_an_oversized_backfill():
-    with (
-        patch.object(
-            coros_router.coros_service,
-            "get_status",
-            return_value=SimpleNamespace(linked=True),
-        ),
-        pytest.raises(core_exceptions.InvalidInputError),
-    ):
-        coros_router.coros_sync(
-            request=MagicMock(),
-            _validate_access_token=None,
-            _check_scopes=None,
-            token_user_id=1,
-            db=MagicMock(),
-            storage=MagicMock(),
-            start_date=date(2020, 1, 1),
-            end_date=date(2026, 1, 1),
-        )
-
-
 def test_unlink_delegates_to_the_service():
     db = MagicMock()
+    body = auth_schema.StepUpRequest(step_up=auth_schema.StepUpVerification(current_password="secret"))
+    verify_step_up = MagicMock()
     with patch.object(coros_router.coros_service, "unlink") as unlink:
         coros_router.coros_unlink(
-            _validate_access_token=None,
-            _check_scopes=None,
-            token_user_id=1,
+            request=MagicMock(),
+            body=body,
+            token_user_id=USER_ID,
+            verify_step_up=verify_step_up,
             db=db,
         )
 
-    unlink.assert_called_once_with(1, db)
+    unlink.assert_called_once_with(USER_ID, body.step_up, verify_step_up, db)
 
 
-def test_every_route_requires_authentication():
+def test_every_route_declares_a_scope():
     for route in coros_router.router.routes:
         dependencies = {dependency.call for dependency in route.dependant.dependencies}
-        assert coros_router.auth_dependencies.validate_access_token in dependencies
+        assert auth_dependencies.check_scopes in dependencies

@@ -1,6 +1,6 @@
 import type { PublicServerSettings } from '@/features/config/types'
 
-import { setAllowedRedirectSchemes } from '@/composables/useSafeRedirect'
+import { setAllowedRedirectUris } from '@/composables/useSafeRedirect'
 import { apiFetch } from '@/services/http'
 
 import { DEFAULT_MAP_CONFIG } from '../defaults'
@@ -9,32 +9,32 @@ import { DEFAULT_MAP_CONFIG } from '../defaults'
 export const DEFAULT_PUBLIC_SERVER_SETTINGS: PublicServerSettings = {
   login_photo_set: false,
   signup_enabled: false,
+  signup_require_email_verification: false,
   sso_enabled: false,
   local_login_enabled: true,
   sso_auto_redirect: false,
   units: 'metric',
   currency: 'euro',
-  password_type: 'strict',
-  password_length_regular_users: 8,
-  password_length_admin_users: 12,
+  password_length_regular_users: 15,
+  password_length_admin_users: 15,
   num_records_per_page: 25,
   tileserver_url: DEFAULT_MAP_CONFIG.tileUrl,
   tileserver_attribution: DEFAULT_MAP_CONFIG.attribution,
-  allowed_redirect_schemes: ['endurain'],
+  allowed_redirect_uris: [],
 }
 
 /**
  * Fetches public server settings needed by unauthenticated pages and applies the
- * server's allowed redirect schemes.
+ * server's allowed redirect addresses.
  *
  * @returns Public server settings.
  * @throws {HttpError} When the endpoint cannot be reached.
  */
 export async function fetchPublicServerSettings(): Promise<PublicServerSettings> {
-  const settings = await apiFetch<PublicServerSettings>('/public/server_settings', {
+  const settings = await apiFetch<PublicServerSettings>('/public/server-settings', {
     auth: false,
     retryOnUnauthorized: false,
   })
-  setAllowedRedirectSchemes(settings.allowed_redirect_schemes)
+  setAllowedRedirectUris(settings.allowed_redirect_uris)
   return settings
 }

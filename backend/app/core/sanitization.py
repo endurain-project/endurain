@@ -2,7 +2,8 @@
 Sanitization utilities for user-generated content.
 
 Provides functions to sanitize markdown and HTML content
-to prevent XSS attacks while preserving safe formatting.
+to prevent XSS attacks while preserving safe formatting, and to
+escape search text before it goes into a SQL ``LIKE`` pattern.
 
 Backed by ``nh3`` (Rust ``ammonia``) rather than ``bleach``, which is
 unmaintained. Beyond maintenance, ``nh3`` validates attribute *values* and not
@@ -89,27 +90,6 @@ def sanitize_markdown(content: str | None) -> str | None:
     )
 
 
-def sanitize_plain_text(content: str | None) -> str | None:
-    """
-    Sanitize plain text content by stripping all HTML.
-
-    Args:
-        content: The raw text content to sanitize.
-
-    Returns:
-        Sanitized plain text with all HTML removed,
-        or None if input is None.
-    """
-    if content is None:
-        return None
-
-    if not isinstance(content, str):
-        return None
-
-    # Strip all HTML tags
-    return nh3.clean(content, tags=set(), attributes={})
-
-
 def sanitize_attribution(content: str | None) -> str | None:
     """
     Sanitize attribution text to prevent XSS attacks.
@@ -137,3 +117,19 @@ def sanitize_attribution(content: str | None) -> str | None:
         url_schemes=ALLOWED_URL_SCHEMES,
         link_rel="noopener noreferrer",
     )
+
+
+def escape_like(term: str) -> str:
+    r"""Escape SQL LIKE wildcards in a user-provided term.
+
+    Escapes ``\``, ``%`` and ``_`` so they are matched literally. Use together
+    with ``.like(..., escape="\\")`` to keep user input from injecting LIKE
+    wildcards into search filters.
+
+    Args:
+        term: Raw search term.
+
+    Returns:
+        Escaped search term safe for use inside a ``LIKE`` pattern.
+    """
+    return term.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")

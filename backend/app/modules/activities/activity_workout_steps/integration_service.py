@@ -1,17 +1,21 @@
 """Module surface for activity workout steps: ingestion and profile contributors."""
 
+import uuid
 from typing import Any
 
+from pydantic import InstanceOf, TypeAdapter
 from sqlalchemy.orm import Session
 
+import modules.activities.activity.schema as activity_schema
 import modules.activities.activity_workout_steps.contracts as activity_workout_steps_contracts
 import modules.activities.activity_workout_steps.crud as activity_workout_steps_crud
 import modules.activities.activity_workout_steps.schema as activity_workout_steps_schema
+import modules.activities.activity_workout_steps.service as activity_workout_steps_service
 import modules.activities.contributors as activities_contributors
 
 
 def _list_workout_steps_for_activities(
-    activity_ids: list[int],
+    activity_ids: list[uuid.UUID],
     db: Session,
 ) -> list[activity_workout_steps_schema.ActivityWorkoutStepsRead]:
     """Return workout steps for activity IDs already scoped by the caller.
@@ -26,9 +30,15 @@ def _list_workout_steps_for_activities(
     return activity_workout_steps_crud.get_activities_workout_steps(activity_ids, db)
 
 
+#: The parsed workout steps.
+_PAYLOAD: TypeAdapter[list[activity_workout_steps_contracts.ActivityWorkoutStepsCreate]] = TypeAdapter(
+    list[InstanceOf[activity_workout_steps_contracts.ActivityWorkoutStepsCreate]]
+)
+
+
 def _store_workout_steps(
     steps: list[activity_workout_steps_contracts.ActivityWorkoutStepsCreate],
-    activity_id: int,
+    activity_id: uuid.UUID,
     db: Session,
 ) -> None:
     """Store parsed workout steps for an activity.
@@ -42,7 +52,7 @@ def _store_workout_steps(
 
 
 def _parse_profile_record(
-    record: dict[str, Any], _activity_id: int
+    record: dict[str, Any], _activity_id: uuid.UUID
 ) -> activity_workout_steps_contracts.ActivityWorkoutStepsCreate:
     """Validate one archived workout step.
 
@@ -66,7 +76,9 @@ def ingestion_contributor() -> activities_contributors.ActivityIngestionContribu
     Returns:
         The contributor.
     """
-    return activities_contributors.child_ingestion_contributor(key="workout_steps", store=_store_workout_steps)
+    return activities_contributors.child_ingestion_contributor(
+        key="workout_steps", payload=_PAYLOAD, store=_store_workout_steps
+    )
 
 
 def profile_contributor() -> activities_contributors.ProfileActivityContributor:
@@ -84,3 +96,21 @@ def profile_contributor() -> activities_contributors.ProfileActivityContributor:
         store=_store_workout_steps,
         parse_record=_parse_profile_record,
     )
+
+
+def list_for_activity(
+    activity: activity_schema.ActivityRead,
+    requester_user_id: uuid.UUID | None,
+    db: Session,
+) -> activity_workout_steps_schema.ActivityWorkoutStepsPage:
+    """Return the first page of an activity's workout steps for a viewer who may already see the activity.
+
+    Args:
+        activity: The parent activity, as the viewer is allowed to see it.
+        requester_user_id: The authenticated viewer, or ``None`` for an anonymous one.
+        db: Database session.
+
+    Returns:
+        The page envelope, empty when the workout steps are hidden from this viewer.
+    """
+    return activity_workout_steps_service.list_for_activity(activity, requester_user_id, db)

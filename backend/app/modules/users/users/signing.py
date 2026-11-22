@@ -2,10 +2,9 @@
 
 The third and last blob kind to move off a public path, after activity
 thumbnails and activity media. Profile photos were the worst of the three: the
-stored filename is ``{user_id}.{ext}``, so ``/user_images/1.png``,
-``/user_images/2.png``, … walked the entire user base with no authentication at
-all. Both the ``StaticFiles`` mount and ``GET /user_images/{user_img}`` served
-them.
+stored filename is ``{user_id}.{ext}``, so a public path would serve the entire
+user base with no authentication at all. A photo is served only through a signed
+URL.
 
 The access model is deliberately looser than activity media, and matches how
 avatars are actually used. A photo is not owner-only — it appears in a follower
@@ -20,19 +19,17 @@ stale token within that window rather than for as long as ``SECRET_KEY`` is
 unchanged.
 """
 
+import uuid
+
 import core.signing as core_signing
+import modules.users.users.constants as users_constants
 
 # Namespaces this signer from the activity-thumbnail and activity-media signers,
-# all of which bind a bare integer id.
+# all of which bind the id as a string.
 _SIGNER = core_signing.CapabilitySigner(salt="user-image")
 
-# Domain-owned storage namespace. For the ``local`` backend this maps to
-# ``{DATA_DIR}/user_images`` — the directory the photos already live in — so an
-# existing install needs no data migration; for S3 it is the object key prefix.
-USER_IMAGE_STORAGE_AREA = "user_images"
 
-
-def sign_user_image_token(user_id: int) -> str:
+def sign_user_image_token(user_id: uuid.UUID) -> str:
     """Return a signed token binding a photo URL to ``user_id``.
 
     Args:
@@ -41,10 +38,10 @@ def sign_user_image_token(user_id: int) -> str:
     Returns:
         An unforgeable, URL-safe token.
     """
-    return _SIGNER.sign(user_id)
+    return _SIGNER.sign(str(user_id))
 
 
-def verify_user_image_token(user_id: int, token: str) -> bool:
+def verify_user_image_token(user_id: uuid.UUID, token: str) -> bool:
     """Return whether ``token`` is a valid, unexpired signature for ``user_id``.
 
     Args:
@@ -54,10 +51,10 @@ def verify_user_image_token(user_id: int, token: str) -> bool:
     Returns:
         True if the token is authentic, bound to ``user_id``, and unexpired.
     """
-    return _SIGNER.verify(user_id, token)
+    return _SIGNER.verify(str(user_id), token)
 
 
-def user_image_url(key: str | None, user_id: int | None) -> str | None:
+def user_image_url(key: str | None, user_id: uuid.UUID | None) -> str | None:
     """Resolve a stored photo key to a signed, ``<img>``-compatible URL.
 
     Args:
@@ -70,7 +67,7 @@ def user_image_url(key: str | None, user_id: int | None) -> str | None:
     if not key or user_id is None:
         return None
     return core_signing.blob_url(
-        USER_IMAGE_STORAGE_AREA,
+        users_constants.USER_IMAGE_STORAGE_AREA,
         key,
         local_path=f"/users/{user_id}/photo",
         token=sign_user_image_token(user_id),

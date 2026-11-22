@@ -25,19 +25,19 @@ vi.mock('@/services/http', () => {
 })
 
 const createdDto: GearComponentDto = {
-  id: 7,
-  user_id: 1,
-  gear_id: 5,
+  id: '00000000-0000-4000-8000-0000000000c7',
+  user_id: '00000000-0000-4000-8000-000000000001',
+  gear_id: '00000000-0000-4000-8000-000000000005',
   type: 'chain',
   brand: 'Shimano',
   model: 'XT',
   purchase_date: '2024-01-10',
   retired_date: null,
   active: true,
-  expected_kms: 5_000_000,
-  purchase_value: 45,
-  current_distance: 0,
-  current_time: 0,
+  expected_usage: 5_000_000,
+  purchase_value: '45.00',
+  version: 1,
+  updated_at: '2024-06-01T10:00:00Z',
 }
 
 /** Passthrough stub so the reka-ui portal/focus-trap is skipped and the form
@@ -48,7 +48,7 @@ function mountDialog() {
   return mount(GearComponentFormDialog, {
     props: {
       open: true,
-      gearId: 5,
+      gearId: '00000000-0000-4000-8000-000000000005',
       gearType: GEAR_TYPE.BICYCLE,
       availableTypes: ['chain'],
       units: 'metric' as const,
@@ -92,18 +92,18 @@ describe('GearComponentFormDialog submit', () => {
     await flushPromises()
 
     expect(apiFetch).toHaveBeenCalledTimes(1)
-    expect(apiFetch).toHaveBeenCalledWith('/gear_components', {
+    expect(apiFetch).toHaveBeenCalledWith('/gear-components', {
       method: 'POST',
       body: JSON.stringify({
-        gear_id: 5,
+        gear_id: '00000000-0000-4000-8000-000000000005',
         type: 'chain',
         brand: 'Shimano',
         model: 'XT',
         purchase_date: '2024-01-10',
         retired_date: null,
         active: true,
-        expected_kms: 5_000_000,
-        purchase_value: 45,
+        expected_usage: 5_000_000,
+        purchase_value: '45.00',
       }),
     })
     expect(wrapper.emitted('success')).toBeTruthy()

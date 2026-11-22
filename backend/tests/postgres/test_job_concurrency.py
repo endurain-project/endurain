@@ -9,6 +9,7 @@ index.
 import threading
 import uuid
 from datetime import UTC, datetime, timedelta
+from unittest.mock import patch
 
 import pytest
 from jasil.backends.lock_pg import PgAdvisoryLock
@@ -23,10 +24,13 @@ import modules.activities.activity_ingestion.constants as ingestion_constants
 import modules.activities.activity_ingestion.crud as ingestion_crud
 import modules.activities.activity_ingestion.models as ingestion_models
 import modules.activities.activity_thumbnail.service as thumbnail_service
+from tests._helpers.auth import MOCK_USER_ID
 from tests._helpers.db import ensure_user
 
-_USER_ID = 1
+_USER_ID = MOCK_USER_ID
 _LEASE = timedelta(seconds=300)
+_ACTIVITY_ID_1 = uuid.UUID("00000000-0000-4000-8000-0000000000c1")
+_ACTIVITY_ID_2 = uuid.UUID("00000000-0000-4000-8000-0000000000c2")
 _PRIVACY_FLAGS = (
     "hide_start_time",
     "hide_location",
@@ -49,10 +53,12 @@ def factory(pg_factory):
     return pg_factory
 
 
-def _add_job(factory, kind=ingestion_constants.IngestionJobKind.UPLOAD, *, idle_hours: int = 0, **extra) -> str:
-    job_id = str(uuid.uuid4())
+def _add_job(factory, kind=ingestion_constants.IngestionJobKind.UPLOAD, *, idle_hours: int = 0, **extra) -> uuid.UUID:
+    job_id = uuid.uuid4()
     with factory() as db:
-        ingestion_crud.create_ingestion_job(job_id, _USER_ID, kind, db, filename="ride.gpx", staged_key=job_id, **extra)
+        ingestion_crud.create_ingestion_job(
+            job_id, _USER_ID, kind, db, filename="ride.gpx", staged_key=str(job_id), **extra
+        )
         db.commit()
     if idle_hours:
         with factory() as db:
@@ -66,7 +72,7 @@ def _add_job(factory, kind=ingestion_constants.IngestionJobKind.UPLOAD, *, idle_
     return job_id
 
 
-def _state(factory, job_id: str) -> tuple[str, str | None]:
+def _state(factory, job_id: uuid.UUID) -> tuple[str, str | None]:
     """Read a job through a fresh session: ``(status, error_code)``."""
     with factory() as db:
         row = db.get(ingestion_models.ActivityIngestionJob, job_id)
@@ -79,7 +85,7 @@ class TestTerminalJobsAreFinal:
         """A worker that lost its lease finishing after the replacement worker did."""
         job_id = _add_job(factory)
         with factory() as db:
-            ingestion_crud.mark_completed(job_id, [1], db)
+            ingestion_crud.mark_completed(job_id, [_ACTIVITY_ID_1], db)
             db.commit()
 
         with factory() as db:
@@ -91,7 +97,7 @@ class TestTerminalJobsAreFinal:
     def test_two_writers_of_one_job_serialize_on_the_row_lock(self, factory):
         job_id = _add_job(factory)
         first = factory()
-        ingestion_crud.mark_completed(job_id, [1], first)  # holds the row lock, uncommitted
+        ingestion_crud.mark_completed(job_id, [_ACTIVITY_ID_1], first)  # holds the row lock, uncommitted
         second_done = threading.Event()
 
         def second_writer() -> None:
@@ -118,18 +124,21 @@ class TestStaleJobReaper:
         idle = _add_job(factory, idle_hours=48)
         with factory() as db:
             failed = ingestion_crud.fail_jobs_idle_since(
-                datetime.now(UTC) - timedelta(hours=24), ingestion_constants.IngestionJobErrorCode.PROCESSING_FAILED, db
+                datetime.now(UTC) - timedelta(hours=24),
+                ingestion_constants.IngestionJobErrorCode.PROCESSING_FAILED,
+                100,
+                db,
             )
             db.commit()
 
-        assert failed == [(idle, idle)]
+        assert failed == [(idle, str(idle))]
         assert _state(factory, idle) == ("failed", "processing_failed")
 
     def test_it_skips_a_row_a_worker_is_writing_without_blocking(self, factory):
         busy = _add_job(factory, idle_hours=48)
         idle = _add_job(factory, idle_hours=48)
         worker = factory()
-        ingestion_crud.mark_completed(busy, [2], worker)  # the worker's uncommitted outcome
+        ingestion_crud.mark_completed(busy, [_ACTIVITY_ID_2], worker)  # the worker's uncommitted outcome
         result: dict = {}
 
         def reap() -> None:
@@ -137,6 +146,7 @@ class TestStaleJobReaper:
                 result["failed"] = ingestion_crud.fail_jobs_idle_since(
                     datetime.now(UTC) - timedelta(hours=24),
                     ingestion_constants.IngestionJobErrorCode.PROCESSING_FAILED,
+                    100,
                     db,
                 )
                 db.commit()
@@ -208,7 +218,7 @@ class TestClaiming:
             _add_job(factory, kind, import_source="strava", files_total=1)
 
 
-def _add_activity_without_location(factory) -> int:
+def _add_activity_without_location(factory) -> uuid.UUID:
     core = activity_contracts.ActivityCore(
         user_id=_USER_ID,
         name="Ride",
@@ -280,12 +290,28 @@ class TestRegenerationLock:
         with factory() as db:
             thumbnail_service.delete_and_regenerate_all_activity_thumbnails(platform.storage, lock, platform.clock, db)
 
-    def test_the_backfill_pass_skips_quietly_while_the_lock_is_held(self, factory, lock, _publish_local_platform):
-        platform = _publish_local_platform
-        release, thread = self._hold(lock, "thumbnail_backfill")
+    def test_the_scheduled_backfill_is_skipped_while_another_holder_has_the_lock(self, lock):
+        """The scheduler takes the lock for the pass, so a held lock means the pass does not run at all."""
+        import core.scheduler as core_scheduler
+
+        ran = []
+        platform = type("Platform", (), {"lock": lock})()
+        release, thread = self._hold(lock, thumbnail_service.BACKFILL_LOCK_NAME)
         try:
-            with factory() as db:
-                thumbnail_service.generate_missing_activity_thumbnails(platform.storage, lock, platform.clock, db)
+            with patch.object(core_scheduler.platform_runtime, "get_active_platform", return_value=platform):
+                core_scheduler.run_locked_job(thumbnail_service.BACKFILL_LOCK_NAME, lambda: ran.append(True))
         finally:
             release.set()
             thread.join(timeout=10)
+
+        assert ran == []
+
+    def test_the_scheduled_backfill_runs_once_the_lock_is_free(self, lock):
+        import core.scheduler as core_scheduler
+
+        ran = []
+        platform = type("Platform", (), {"lock": lock})()
+        with patch.object(core_scheduler.platform_runtime, "get_active_platform", return_value=platform):
+            core_scheduler.run_locked_job(thumbnail_service.BACKFILL_LOCK_NAME, lambda: ran.append(True))
+
+        assert ran == [True]

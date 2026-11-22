@@ -4,6 +4,7 @@ import { useI18n } from 'vue-i18n'
 
 import type { SleepStage } from '@/features/health/types'
 
+import { useUnitFormat } from '@/composables/useUnitFormat'
 import { formatHoursMinutes } from '@/features/health/utils/healthFormat'
 
 const props = defineProps<{
@@ -21,17 +22,18 @@ const props = defineProps<{
 }>()
 
 const { t, locale } = useI18n()
+const { duration } = useUnitFormat()
 
 /**
  * Lanes top → bottom (Awake, REM, Light, Deep), mirroring the v1 hypnogram and
  * the convention of placing wakefulness at the top and deep sleep at the
- * bottom. `stageType` follows the backend enum (`0` deep … `3` awake).
+ * bottom.
  */
 const LANES = [
-  { stageType: 3, labelKey: 'awake', color: '#9ca3af' },
-  { stageType: 2, labelKey: 'rem', color: '#60a5fa' },
-  { stageType: 1, labelKey: 'light', color: '#2563eb' },
-  { stageType: 0, labelKey: 'deep', color: '#1e40af' },
+  { stageType: 'awake', labelKey: 'awake', fillClass: 'fill-sleep-awake' },
+  { stageType: 'rem', labelKey: 'rem', fillClass: 'fill-sleep-rem' },
+  { stageType: 'light', labelKey: 'light', fillClass: 'fill-sleep-light' },
+  { stageType: 'deep', labelKey: 'deep', fillClass: 'fill-sleep-deep' },
 ] as const
 
 // SVG layout, in a fixed coordinate space scaled responsively by the viewBox.
@@ -130,11 +132,11 @@ const segments = computed(() =>
       x,
       width,
       y: laneY(laneIndex),
-      color: item.lane.color,
+      fillClass: item.lane.fillClass,
       label: t(`health.sleep.hypnogram.${item.lane.labelKey}`),
       startLabel: clockLabel.value(item.startMs),
       endLabel: clockLabel.value(item.endMs),
-      durationLabel: formatHoursMinutes(durationSeconds),
+      durationLabel: formatHoursMinutes(durationSeconds, duration),
     }
   }),
 )
@@ -156,7 +158,6 @@ const laneRows = computed(() =>
   LANES.map((lane, index) => ({
     key: lane.labelKey,
     label: t(`health.sleep.hypnogram.${lane.labelKey}`),
-    color: lane.color,
     centerY: laneY(index) + LANE_H / 2,
   })),
 )
@@ -214,7 +215,7 @@ const laneRows = computed(() =>
         :y="segment.y"
         :width="segment.width"
         :height="LANE_H"
-        :fill="segment.color"
+        :class="segment.fillClass"
         rx="2"
       >
         <title>

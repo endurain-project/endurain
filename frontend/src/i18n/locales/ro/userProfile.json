@@ -82,5 +82,13 @@
       "ownTitle": "Încă nu ai niciun urmăritor.",
       "otherTitle": "Încă niciun urmăritor."
     }
+  },
+  "block": {
+    "block": "Blochează",
+    "unblock": "Deblochează",
+    "confirmTitle": "Blochezi pe {name}?",
+    "confirmBody": "{name} nu va mai putea cere să te urmărească, iar orice urmărire dintre voi este eliminată. Nu este înștiințat.",
+    "blockError": "Nu s-a putut bloca acest utilizator. Încearcă din nou.",
+    "unblockError": "Nu s-a putut debloca acest utilizator. Încearcă din nou."
   }
 }

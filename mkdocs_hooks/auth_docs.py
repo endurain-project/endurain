@@ -30,8 +30,20 @@ def _scopes() -> str:
     return "| Scope | Description |\n| ----- | ----------- |\n" + rows
 
 
+def _enum_values(path: Path, name: str) -> list[str]:
+    """Return the string values of the members of the enum class ``name`` in ``path``."""
+    for node in ast.parse(path.read_text()).body:
+        if isinstance(node, ast.ClassDef) and node.name == name:
+            return [
+                ast.literal_eval(stmt.value)
+                for stmt in node.body
+                if isinstance(stmt, ast.Assign) and isinstance(stmt.value, ast.Constant)
+            ]
+    raise LookupError(f"{name} not found in {path}")
+
+
 def _api_key_scopes() -> str:
-    scopes = sorted(_assigned_literal(APP / "modules/auth/api_keys/utils.py", "SUPPORTED_API_KEY_SCOPES"))
+    scopes = sorted(_enum_values(APP / "modules/auth/api_keys/constants.py", "ApiKeyScope"))
     scope_dict = _assigned_literal(APP / "modules/auth/constants.py", "SCOPE_DICT")
     rows = "".join(f"| `{scope}` | {scope_dict[scope]} |\n" for scope in scopes)
     return "| Scope | Description |\n| ----- | ----------- |\n" + rows
@@ -45,7 +57,7 @@ def _api_key_endpoints() -> str:
     if prefix is None:
         raise LookupError("API key router prefix not found in api.py")
     rows = ""
-    for node in ast.parse((APP / "modules/auth/api_keys/router.py").read_text()).body:
+    for node in ast.parse((APP / "modules/auth/account_security/api_keys_router.py").read_text()).body:
         if not isinstance(node, ast.AsyncFunctionDef | ast.FunctionDef):
             continue
         for deco in node.decorator_list:

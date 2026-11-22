@@ -1,5 +1,6 @@
 """Auth-owned API key database models (table: ``users_api_keys``)."""
 
+import uuid
 from datetime import datetime
 
 from sqlalchemy import DateTime, ForeignKey, String, Text
@@ -9,8 +10,7 @@ from core.database import Base
 
 
 class UsersApiKeys(Base):
-    """
-    User API key for third-party integrations.
+    """User API key for third-party integrations.
 
     Attributes:
         id: Unique key identifier (UUID).
@@ -21,24 +21,24 @@ class UsersApiKeys(Base):
         key_hash: SHA-256 hex digest of the full raw
             key. Never stored plaintext.
         scopes: JSON-encoded list of granted scopes.
-        expires_at: Optional expiration timestamp.
-            NULL means the key never expires.
+        expires_at: Expiration timestamp.
         last_used_at: Timestamp of last successful
             authentication. Updated on each use.
         created_at: Key creation timestamp.
         is_active: Whether the key is active. Set to
             False to revoke without deleting.
+        revoked_at: When the key was revoked, or None while
+            it has not been.
     """
 
     __tablename__ = "users_api_keys"
 
-    id: Mapped[str] = mapped_column(
-        String(36),
+    id: Mapped[uuid.UUID] = mapped_column(
         primary_key=True,
-        nullable=False,
+        default=uuid.uuid4,
         comment="Unique key identifier (UUID4)",
     )
-    user_id: Mapped[int] = mapped_column(
+    user_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("users.id", ondelete="CASCADE"),
         nullable=False,
         index=True,
@@ -66,10 +66,10 @@ class UsersApiKeys(Base):
         nullable=False,
         comment="JSON-encoded list of granted scope strings",
     )
-    expires_at: Mapped[datetime | None] = mapped_column(
+    expires_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
-        nullable=True,
-        comment="Key expiration timestamp (NULL = no expiry)",
+        nullable=False,
+        comment="Key expiration timestamp",
     )
     last_used_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True),
@@ -85,4 +85,9 @@ class UsersApiKeys(Base):
         default=True,
         nullable=False,
         comment=("Whether the key is active. False = revoked (soft delete)"),
+    )
+    revoked_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True),
+        nullable=True,
+        comment="When the key was revoked; null while it has not been",
     )

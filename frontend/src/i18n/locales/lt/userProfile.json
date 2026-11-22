@@ -82,5 +82,13 @@
       "ownTitle": "Jūs dar neturite sekėjų.",
       "otherTitle": "Sekėjų dar nėra."
     }
+  },
+  "block": {
+    "block": "Blokuoti",
+    "unblock": "Atblokuoti",
+    "confirmTitle": "Užblokuoti {name}?",
+    "confirmBody": "{name} nebegalės prašyti tavęs sekti, o bet koks jūsų tarpusavio sekimas bus pašalintas. Naudotojas apie tai nebus informuotas.",
+    "blockError": "Nepavyko užblokuoti šio naudotojo. Bandyk dar kartą.",
+    "unblockError": "Nepavyko atblokuoti šio naudotojo. Bandyk dar kartą."
   }
 }

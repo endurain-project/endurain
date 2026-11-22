@@ -1,5 +1,6 @@
 """User session schemas."""
 
+import uuid
 from datetime import datetime
 
 from pydantic import (
@@ -11,10 +12,12 @@ from pydantic import (
     StrictStr,
 )
 
+import core.pagination as core_pagination
+import modules.auth.constants as auth_constants
 
-class UsersSessionsBase(BaseModel):
-    """
-    Base user session schema with safe fields.
+
+class UserSessionsBase(BaseModel):
+    """Base user session schema with safe fields.
 
     Attributes:
         id: Unique session identifier.
@@ -27,9 +30,10 @@ class UsersSessionsBase(BaseModel):
         created_at: Session creation timestamp.
         last_activity_at: Last activity timestamp.
         expires_at: Session expiration timestamp.
+        app_redirect_uri: The native-app redirect address the session was handed to, or null.
     """
 
-    id: StrictStr = Field(..., description="Unique session identifier")
+    id: uuid.UUID = Field(..., description="Unique session identifier")
     ip_address: StrictStr = Field(..., max_length=45, description="Client IP address")
     device_type: StrictStr = Field(..., max_length=45, description="Device type")
     operating_system: StrictStr = Field(..., max_length=45, description="Operating system")
@@ -39,27 +43,39 @@ class UsersSessionsBase(BaseModel):
     created_at: datetime = Field(..., description="Session creation timestamp")
     last_activity_at: datetime = Field(..., description="Last activity timestamp")
     expires_at: datetime = Field(..., description="Session expiration timestamp")
+    app_redirect_uri: StrictStr | None = Field(
+        None,
+        max_length=500,
+        description="Redirect address of the native app the session was signed in through, or null",
+    )
 
     model_config = ConfigDict(from_attributes=True)
 
 
-class UsersSessionsRead(UsersSessionsBase):
+class UserSessionsRead(UserSessionsBase):
+    """User session read schema for API responses.
+
+    Extends base with user_id and the current-session marker. Excludes sensitive fields
+    like refresh_token.
+
+    Attributes:
+        user_id: User ID that owns this session.
+        is_current: Whether the session is the caller's own.
     """
-    User session read schema for API responses.
 
-    Extends base with user_id. Excludes sensitive fields
-    like refresh_token and csrf_token_hash.
-    """
-
-    user_id: StrictInt = Field(..., ge=1, description="User ID that owns this session")
+    user_id: uuid.UUID = Field(..., description="User ID that owns this session")
+    is_current: StrictBool = Field(False, description="Whether this is the session the request is made from")
 
 
-class UsersSessionsInternal(UsersSessionsBase):
-    """
-    Internal user session schema with all fields.
+#: One page of a user's sessions.
+UserSessionsPage = core_pagination.Page[UserSessionsRead]
+
+
+class UserSessionsInternal(UserSessionsBase):
+    """Internal user session schema with all fields.
 
     Used for CRUD operations. Includes sensitive fields like
-    refresh_token and csrf_token_hash that should never be
+    refresh_token that should never be
     exposed in API responses.
 
     Attributes:
@@ -73,11 +89,13 @@ class UsersSessionsInternal(UsersSessionsBase):
         rotation_count: Number of times refresh token
             rotated.
         last_rotation_at: Timestamp of last token rotation.
-        csrf_token_hash: Hashed CSRF token for refresh
-            validation.
+        client_type: The client the session was created for.
+        auth_time: When the user signed in.
+        amr: Authentication methods of the sign-in.
+        device_hash: SHA-256 hex digest of the known-device id the session signed in from, or null.
     """
 
-    user_id: StrictInt = Field(..., ge=1, description="User ID that owns this session")
+    user_id: uuid.UUID = Field(..., description="User ID that owns this session")
     refresh_token: StrictStr | None = Field(None, description="Hashed session refresh token")
     oauth_state_id: StrictStr | None = Field(
         None,
@@ -88,7 +106,7 @@ class UsersSessionsInternal(UsersSessionsBase):
         default=False,
         description="Prevents duplicate token exchange for mobile",
     )
-    token_family_id: StrictStr = Field(
+    token_family_id: uuid.UUID = Field(
         ...,
         description="UUID identifying token family for reuse detection",
     )
@@ -98,10 +116,13 @@ class UsersSessionsInternal(UsersSessionsBase):
         description="Number of times refresh token has been rotated",
     )
     last_rotation_at: datetime | None = Field(None, description="Timestamp of last token rotation")
-    csrf_token_hash: StrictStr | None = Field(
+    client_type: auth_constants.ClientType = Field(..., description="Client type the session was created for")
+    auth_time: datetime = Field(..., description="When the user signed in")
+    amr: list[StrictStr] = Field(..., description="Authentication methods of the sign-in (RFC 8176 values)")
+    device_hash: StrictStr | None = Field(
         None,
-        max_length=255,
-        description="Hashed CSRF token for refresh validation",
+        max_length=64,
+        description="SHA-256 hex digest of the known-device id the session signed in from",
     )
 
     model_config = ConfigDict(

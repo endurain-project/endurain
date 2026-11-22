@@ -11,7 +11,7 @@
     "subtitle": "Böngészd, szűrd és rendezd az összes tevékenységedet.",
     "searchPlaceholder": "Keresés név vagy hely szerint",
     "clearSearch": "Keresés törlése",
-    "resultCount": "{count} tevékenység",
+    "resultCount": "{count} tevékenység | {count} tevékenység",
     "filters": {
       "type": "Tevékenységtípus",
       "allTypes": "Minden típus",
@@ -184,10 +184,13 @@
   },
   "edit": {
     "title": "Tevékenység szerkesztése",
+    "loading": "Tevékenység betöltése",
+    "loadError": "Nem sikerült betölteni a tevékenységet",
     "save": "Módosítások mentése",
     "cancel": "Mégse",
     "close": "Bezárás",
     "name": "Név",
+    "nameRequired": "Add meg a tevékenység nevét",
     "type": "Tevékenységtípus",
     "description": "Leírás",
     "privateNotes": "Privát jegyzetek",
@@ -208,7 +211,7 @@
     "hideGear": "Felszerelés elrejtése",
     "success": "Tevékenység frissítve",
     "error": "Nem sikerült frissíteni a tevékenységet",
-    "staleError": "This activity was changed elsewhere while you were editing. Your changes were not saved. Reopen it to see the current version."
+    "staleError": "Ezt a tevékenységet máshol módosították, miközben szerkesztetted. A módosításaid nem lettek mentve. Nyisd meg újra a jelenlegi verzió megtekintéséhez."
   },
   "alerts": {
     "hidden": "Ez a tevékenység rejtett. Csak te láthatod.",

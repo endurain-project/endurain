@@ -18,6 +18,17 @@
     "help": "Verifică dacă ENDURAIN_HOST indică URL-ul la care instanța ta Endurain este accesibilă (de exemplu https://endurain.example.com) și dacă backendul rulează, apoi reîncarcă pagina.",
     "reload": "Reîncarcă"
   },
+  "staleError": "Acest lucru a fost modificat în altă parte în timp ce îl vizualizai, așa că nimic nu a fost salvat. Versiunea actuală a fost încărcată. Verifică-o și încearcă din nou.",
+  "sessionRestoreError": "Nu am putut verifica dacă ești autentificat. Serverul sau conexiunea ta ar putea fi indisponibile.",
+  "fieldError": {
+    "required": "Acest câmp este obligatoriu",
+    "tooShort": "Această valoare este prea scurtă",
+    "tooLong": "Această valoare este prea lungă",
+    "tooLarge": "Această valoare este prea mare",
+    "tooSmall": "Această valoare este prea mică",
+    "invalidFormat": "Această valoare are un format nevalid",
+    "invalid": "Această valoare este nevalidă"
+  },
   "dismiss": "Închide",
   "language": "Limbă",
   "theme": {
@@ -35,5 +46,28 @@
     "edit": "Editează",
     "supported": "Markdown acceptat",
     "empty": "Nimic de previzualizat"
+  },
+  "password": {
+    "hintLength": "Cel puțin {min} caractere.",
+    "invalid": "Parola nu îndeplinește cerințele",
+    "mismatch": "Parolele nu coincid",
+    "tooShort": "Această parolă este prea scurtă. Folosește cel puțin {min} caractere.",
+    "tooCommon": "Această parolă este prea comună. Alege una mai greu de ghicit.",
+    "breached": "Această parolă a apărut într-o breșă de date cunoscută. Alege alta.",
+    "matchesAccount": "Nu folosi numele de utilizator sau adresa de e-mail ca parolă.",
+    "blank": "O parolă nu poate conține doar spații.",
+    "unchanged": "Alege o parolă diferită de cea curentă.",
+    "strength": {
+      "label": "Puterea parolei: {level}",
+      "tooWeak": "Prea slabă",
+      "weak": "Slabă",
+      "fair": "Acceptabilă",
+      "good": "Bună",
+      "strong": "Puternică"
+    }
+  },
+  "retryAfter": {
+    "tooManyAttempts": "Prea multe încercări. Încearcă din nou peste {seconds} secunde.",
+    "unavailable": "Autentificarea este temporar indisponibilă. Încearcă din nou peste {seconds} secunde."
   }
 }

@@ -12,10 +12,10 @@ fetched, no ORM instances returned.
 """
 
 from datetime import UTC, date, datetime, time, timedelta
-from urllib.parse import unquote
 
-from sqlalchemy import func, or_
+from sqlalchemy import ColumnElement, and_, func, or_
 
+import core.sanitization as core_sanitization
 import core.timezone as core_timezone
 import modules.activities.activity.models as activity_models
 
@@ -23,43 +23,32 @@ import modules.activities.activity.models as activity_models
 MAX_UTC_OFFSET = core_timezone.MAX_UTC_OFFSET
 
 
-def escape_like(term: str) -> str:
-    r"""Escape SQL LIKE wildcards in a user-provided term.
-
-    Escapes ``\``, ``%`` and ``_`` so they are matched literally. Use together
-    with ``.like(..., escape="\\")`` to keep user input from injecting LIKE
-    wildcards into search filters.
-
-    Args:
-        term: Raw search term.
-
-    Returns:
-        Escaped search term safe for use inside a ``LIKE`` pattern.
-    """
-    return term.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
-
-
-def name_search_condition(name_search: str):
+def name_search_condition(name_search: str, *, mask_hidden_location: bool) -> ColumnElement[bool]:
     """A case-insensitive LIKE search across an activity's name and location.
 
     Args:
-        name_search: URL-encoded search term, as it arrives on the query string.
+        name_search: The search term, already URL-decoded by the framework, so ``+`` and ``%`` are literal text.
+        mask_hidden_location: Whether the reader must not learn a hidden location. The term then matches
+            the town, city or country only of activities that show their location, because a match on a
+            hidden one would reveal where it took place.
 
     Returns:
         A SQLAlchemy condition matching the term against name, town, city or
         country, with ``%``/``_`` escaped so user input cannot inject wildcards.
     """
-    raw = unquote(name_search).replace("+", " ").lower()
-    pattern = f"%{escape_like(raw)}%"
-    return or_(
-        func.lower(activity_models.Activity.name).like(pattern, escape="\\"),
+    raw = name_search.lower()
+    pattern = f"%{core_sanitization.escape_like(raw)}%"
+    location_match = or_(
         func.lower(activity_models.Activity.town).like(pattern, escape="\\"),
         func.lower(activity_models.Activity.city).like(pattern, escape="\\"),
         func.lower(activity_models.Activity.country).like(pattern, escape="\\"),
     )
+    if mask_hidden_location:
+        location_match = and_(activity_models.Activity.hide_location.is_(False), location_match)
+    return or_(func.lower(activity_models.Activity.name).like(pattern, escape="\\"), location_match)
 
 
-def local_start_time_expression():
+def local_start_time_expression() -> ColumnElement[datetime]:
     """``Activity.start_time`` as a naive wall clock in the activity's own timezone.
 
     "Which day did this activity happen on?" is a *local* question: a 07:00 ride
@@ -89,7 +78,7 @@ def local_date_range_conditions(
     end_date: date | None,
     *,
     end_exclusive: bool,
-) -> list:
+) -> list[ColumnElement[bool]]:
     """Restrict rows to a date range evaluated in each activity's *local* timezone.
 
     Pairs the exact local-time predicate with an indexable pre-filter on the raw
@@ -108,7 +97,7 @@ def local_date_range_conditions(
         ``None``.
     """
     local = local_start_time_expression()
-    conditions: list = []
+    conditions: list[ColumnElement[bool]] = []
 
     if start_date is not None:
         start_dt = datetime.combine(start_date, time.min)

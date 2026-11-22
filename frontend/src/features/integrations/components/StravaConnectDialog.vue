@@ -3,22 +3,32 @@ import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import type { StravaClientInput } from '@/features/integrations/types'
+import type { IdpReauth, StepUpInput } from '@/features/security/types'
+import type { StepUpPending } from '@/features/security/composables/useIdpStepUp'
 
-import { FormDialog } from '@/components/ui/form-dialog'
 import { inputFieldClass } from '@/components/ui/input/fieldClasses'
 import { Label } from '@/components/ui/label'
 import PasswordInput from '@/features/security/components/PasswordInput.vue'
+import StepUpDialog from '@/features/security/components/StepUpDialog.vue'
 import { toNumberOrNull } from '@/utils/number'
 
 const open = defineModel<boolean>('open', { required: true })
+// The identity-provider sign-in proof, used when the account has no password.
+const reauth = defineModel<IdpReauth | null>('reauth', { default: null })
 
-defineProps<{
-  /** Whether the connect flow is in flight (state + client + redirect). */
+const props = defineProps<{
+  /** Whether the connect flow is in flight (step-up + state + client + redirect). */
   pending: boolean
+  /** Whether a password is required; when not, the account signs in again with its identity provider. */
+  requirePassword: boolean
+  /** Whether an MFA/backup code is required (MFA is enabled). */
+  requireMfa: boolean
+  /** The context the identity-provider round-trip brought back, which refills the client id once. */
+  restoredContext?: StepUpPending
 }>()
 
 const emit = defineEmits<{
-  submit: [input: StravaClientInput]
+  submit: [input: StravaClientInput, stepUp: StepUpInput]
 }>()
 
 const { t } = useI18n()
@@ -32,62 +42,73 @@ const parsedClientId = computed(() => toNumberOrNull(clientId.value))
 
 const canSubmit = computed(() => parsedClientId.value !== null && clientSecret.value.length > 0)
 
-watch(open, (isOpen) => {
-  if (isOpen) {
-    clientId.value = ''
-    clientSecret.value = ''
-  }
-})
+// The client id is not a secret, so it survives the identity-provider round-trip; the secret is typed again.
+const pendingContext = computed<StepUpPending>(() => ({ clientId: parsedClientId.value }))
+let restoredClientId =
+  typeof props.restoredContext?.clientId === 'number' ? props.restoredContext.clientId : ''
 
-function onSubmit(): void {
+watch(
+  open,
+  (isOpen) => {
+    if (isOpen) {
+      clientId.value = restoredClientId
+      clientSecret.value = ''
+      restoredClientId = ''
+    }
+  },
+  { immediate: true },
+)
+
+function onConfirm(stepUp: StepUpInput): void {
   if (parsedClientId.value === null) {
     return
   }
-  emit('submit', { clientId: parsedClientId.value, clientSecret: clientSecret.value })
+  emit('submit', { clientId: parsedClientId.value, clientSecret: clientSecret.value }, stepUp)
 }
 </script>
 
 <template>
-  <FormDialog
+  <StepUpDialog
     v-model:open="open"
+    v-model:reauth="reauth"
+    action="strava_client_set"
     :title="t('settings.integrations.strava.connectTitle')"
     :description="t('settings.integrations.strava.connectDescription')"
-    :submit-label="t('settings.integrations.strava.connect')"
-    :cancel-label="t('settings.integrations.cancel')"
-    :close-label="t('settings.integrations.close')"
-    :submitting="pending"
-    :can-submit="canSubmit"
-    @submit="onSubmit"
+    :confirm-label="t('settings.integrations.strava.connect')"
+    :require-password="requirePassword"
+    :require-mfa="requireMfa"
+    :pending-context="pendingContext"
+    :pending="pending"
+    :extra-valid="canSubmit"
+    @confirm="onConfirm"
   >
-    <div class="flex flex-col gap-3">
-      <div class="flex flex-col gap-1.5">
-        <Label for="strava-client-id">{{ t('settings.integrations.strava.clientId') }}</Label>
-        <input
-          id="strava-client-id"
-          v-model="clientId"
-          type="number"
-          inputmode="numeric"
-          :placeholder="t('settings.integrations.strava.clientIdPlaceholder')"
-          :disabled="pending"
-          :class="inputFieldClass"
-        />
-      </div>
-
-      <div class="flex flex-col gap-1.5">
-        <Label for="strava-client-secret">
-          {{ t('settings.integrations.strava.clientSecret') }}
-        </Label>
-        <PasswordInput
-          id="strava-client-secret"
-          v-model="clientSecret"
-          name="strava-client-secret"
-          autocomplete="off"
-          :disabled="pending"
-          :placeholder="t('settings.integrations.strava.clientSecret')"
-        />
-      </div>
-
-      <p class="text-hint">{{ t('settings.integrations.strava.connectHint') }}</p>
+    <div class="flex flex-col gap-1.5">
+      <Label for="strava-client-id">{{ t('settings.integrations.strava.clientId') }}</Label>
+      <input
+        id="strava-client-id"
+        v-model="clientId"
+        type="number"
+        inputmode="numeric"
+        :placeholder="t('settings.integrations.strava.clientIdPlaceholder')"
+        :disabled="pending"
+        :class="inputFieldClass"
+      />
     </div>
-  </FormDialog>
+
+    <div class="flex flex-col gap-1.5">
+      <Label for="strava-client-secret">
+        {{ t('settings.integrations.strava.clientSecret') }}
+      </Label>
+      <PasswordInput
+        id="strava-client-secret"
+        v-model="clientSecret"
+        name="strava-client-secret"
+        autocomplete="off"
+        :disabled="pending"
+        :placeholder="t('settings.integrations.strava.clientSecret')"
+      />
+    </div>
+
+    <p class="text-hint">{{ t('settings.integrations.strava.connectHint') }}</p>
+  </StepUpDialog>
 </template>

@@ -56,3 +56,22 @@ class TestCreateExerciseTitle:
         assert "ON CONFLICT ON CONSTRAINT uq_activity_exercise_titles_category_name DO NOTHING" in sql
         assert sql.count("'Sprint'") == 2
         mock_db.commit.assert_not_called()
+
+
+class TestExerciseTitlesPage:
+    def test_a_window_is_ordered_and_bounded(self, mock_db):
+        import modules.activities.activity_exercise_titles.crud as crud
+
+        mock_db.execute.return_value.scalars.return_value.all.return_value = []
+
+        crud.get_activity_exercise_titles_page(mock_db, limit=200, offset=400)
+
+        sql = str(mock_db.execute.call_args.args[0].compile(compile_kwargs={"literal_binds": True}))
+        assert "ORDER BY" in sql and "LIMIT 200" in sql and "OFFSET 400" in sql
+
+    def test_the_total_is_counted(self, mock_db):
+        import modules.activities.activity_exercise_titles.crud as crud
+
+        mock_db.execute.return_value.scalar_one.return_value = 450
+
+        assert crud.count_activity_exercise_titles(mock_db) == 450

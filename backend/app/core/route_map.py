@@ -8,6 +8,7 @@ call sits behind this host-owned seam next to the ``core.network`` host checks
 it enforces.
 """
 
+import re
 from dataclasses import dataclass
 from io import BytesIO
 from typing import Any
@@ -50,13 +51,48 @@ class UnsafeTileServerError(ValueError):
     """Raised when a tile URL violates the shared outbound-network policy."""
 
 
+def normalise_tile_url(url: str) -> str:
+    """Convert a Leaflet tile URL template to staticmap format.
+
+    staticmap uses Python's str.format() with only {z}, {x}, {y}
+    substitutions. Any other placeholders (e.g. {s} for subdomains,
+    {r} for retina tiles) cause a KeyError at render time.
+
+    This function:
+    - Replaces {s} with the literal subdomain 'a'
+    - Removes {r} (retina suffix — not needed for thumbnails)
+    - Escapes any remaining unknown placeholders so they are
+      passed through as literal strings.
+
+    Args:
+        url: Leaflet-style tile URL template.
+
+    Returns:
+        Tile URL safe for use with staticmap.
+    """
+    # The OSM default no longer uses {s}, but custom providers and older
+    # stored URLs may; staticmap can't rotate subdomains, so pin it to 'a'.
+    url = re.sub(r"\{s\}", "a", url, flags=re.IGNORECASE)
+    # Remove {r} retina placeholder (e.g. Stadia Maps)
+    url = re.sub(r"\{r\}", "", url, flags=re.IGNORECASE)
+    # Escape any remaining unknown {placeholders} that are not
+    # the three staticmap knows about ({z}, {x}, {y})
+    url = re.sub(
+        r"\{(?!z\}|x\}|y\})([^{}]+)\}",
+        lambda m: "{{" + m.group(1) + "}}",
+        url,
+    )
+    return url
+
+
 def _ensure_safe_url(url: str) -> tuple[str, ...]:
     """Resolve a tile URL or reject one that could target an internal service."""
     addresses, reason = core_network.resolve_url_addresses(url, purpose="activity_thumbnail_tile")
     if reason is not None:
+        # The host is public configuration, unlike the query string, which can carry the API key.
         logger.warning(
             "Rejected an unsafe activity thumbnail tile URL",
-            extra=core_logger.context(reason=reason),
+            extra=core_logger.context(reason=reason, host=urlparse(url).hostname),
         )
         raise UnsafeTileServerError(reason)
     return addresses
@@ -73,6 +109,7 @@ def _pinned_get(url: str, address: str, *, timeout: float, headers: dict[str, st
     request_headers["Host"] = parsed.netloc.rsplit("@", maxsplit=1)[-1]
     target = urlunparse(("", "", parsed.path or "/", parsed.params, parsed.query, ""))
     port = parsed.port or (443 if parsed.scheme.lower() == "https" else 80)
+    pool: HTTPConnectionPool
     if parsed.scheme.lower() == "https":
         pool = HTTPSConnectionPool(
             address,
@@ -98,14 +135,49 @@ def _pinned_get(url: str, address: str, *, timeout: float, headers: dict[str, st
 
 
 class _GuardedStaticMap(StaticMap):
-    """StaticMap variant that validates every request and refuses redirects."""
+    """StaticMap variant that dials one validated address and refuses redirects.
 
-    def get(self, url: str, **kwargs: Any) -> tuple[int, bytes]:
-        """Fetch one validated tile without following redirects."""
-        addresses = _ensure_safe_url(url)
-        timeout = kwargs.pop("timeout", None) or _DEFAULT_TILE_REQUEST_TIMEOUT_SECONDS
-        headers = kwargs.pop("headers", {})
-        return _pinned_get(url, addresses[0], timeout=timeout, headers=headers)
+    The tile host is resolved and checked once per render; every tile request reuses that address, so a render
+    makes one DNS lookup instead of one per tile and a name that changes its answer mid-render cannot redirect it.
+    """
+
+    def __init__(self, *args: Any, pinned_host: str, pinned_address: str, **kwargs: Any) -> None:
+        """Build the map for tiles served by one validated host.
+
+        Args:
+            *args: Positional ``StaticMap`` arguments.
+            pinned_host: The only host tile URLs may name.
+            pinned_address: The validated address of ``pinned_host`` every tile request dials.
+            **kwargs: Keyword ``StaticMap`` arguments.
+        """
+        super().__init__(*args, **kwargs)
+        self._pinned_host = pinned_host
+        self._pinned_address = pinned_address
+
+    def get(
+        self,
+        url: str,
+        *,
+        timeout: float | None = None,
+        headers: dict[str, str] | None = None,
+        **requests_options: object,
+    ) -> tuple[int, bytes]:
+        """Fetch one validated tile without following redirects.
+
+        Args:
+            url: The tile URL.
+            timeout: The tile request timeout ``StaticMap`` was built with, when it has one.
+            headers: The request headers ``StaticMap`` was built with.
+            **requests_options: Other ``requests.get`` options the base fetch takes; the pinned fetch has none.
+
+        Returns:
+            The status code and body of the tile response.
+        """
+        if urlparse(url).hostname != self._pinned_host:
+            raise UnsafeTileServerError("URL names a host other than the validated tile host")
+        return _pinned_get(
+            url, self._pinned_address, timeout=timeout or _DEFAULT_TILE_REQUEST_TIMEOUT_SECONDS, headers=headers or {}
+        )
 
 
 def render(request: RouteMapRenderRequest) -> bytes:
@@ -124,7 +196,8 @@ def render(request: RouteMapRenderRequest) -> bytes:
     if len(request.coordinates) < 2:
         raise ValueError("At least two route coordinates are required")
 
-    _ensure_safe_url(request.tile_url.format(z=0, x=0, y=0))
+    sample_url = request.tile_url.format(z=0, x=0, y=0)
+    addresses = _ensure_safe_url(sample_url)
     static_map = _GuardedStaticMap(
         request.width,
         request.height,
@@ -132,6 +205,8 @@ def render(request: RouteMapRenderRequest) -> bytes:
         tile_request_timeout=request.request_timeout_seconds,
         background_color=request.background_color,
         headers=request.headers,
+        pinned_host=urlparse(sample_url).hostname or "",
+        pinned_address=addresses[0],
     )
     static_map.add_line(Line(list(request.coordinates), request.line_color, request.line_width))
     static_map.add_marker(CircleMarker(request.coordinates[0], request.marker_outer_color, request.marker_outer_radius))

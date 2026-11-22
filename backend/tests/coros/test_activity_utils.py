@@ -205,7 +205,9 @@ class TestPerUserLock:
         state = MagicMock()
         state.set_if_absent.return_value = True
         platform = SimpleNamespace(lock=lock, state=state)
-        monkeypatch.setattr(activity_utils.platform_runtime, "get_active_platform", Mock(return_value=platform))
+        monkeypatch.setattr(
+            activity_utils, "platform_runtime", SimpleNamespace(get_active_platform=Mock(return_value=platform))
+        )
         monkeypatch.setattr(activity_utils, "_sync_locked", Mock())
 
         assert (
@@ -224,7 +226,9 @@ class TestPerUserLock:
         state = MagicMock()
         state.set_if_absent.return_value = False
         platform = SimpleNamespace(lock=lock, state=state)
-        monkeypatch.setattr(activity_utils.platform_runtime, "get_active_platform", Mock(return_value=platform))
+        monkeypatch.setattr(
+            activity_utils, "platform_runtime", SimpleNamespace(get_active_platform=Mock(return_value=platform))
+        )
         monkeypatch.setattr(activity_utils, "_sync_locked", Mock())
 
         assert (
