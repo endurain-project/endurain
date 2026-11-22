@@ -222,6 +222,33 @@ def _request_range_sync(
     )
 
 
+def complete_link_and_queue_initial_sync(
+    user_id: uuid.UUID,
+    code: str,
+    state: str,
+    storage: platform_providers.StorageProvider,
+    db: Session,
+) -> None:
+    """Finish the link, then queue the initial sync without failing a completed link.
+
+    Args:
+        user_id: The authenticated user.
+        code: Authorization code returned by COROS.
+        state: State echoed by COROS.
+        storage: The platform storage provider.
+        db: Database session.
+    """
+    complete_link(user_id, code, state, db)
+    try:
+        request_initial_sync(user_id, storage, db)
+    except core_exceptions.DomainError as err:
+        logger.warning(
+            "COROS linked but the initial sync could not be queued",
+            exc_info=err,
+            extra=core_logger.context(user_id=user_id),
+        )
+
+
 def request_initial_sync(
     user_id: uuid.UUID,
     storage: platform_providers.StorageProvider,
@@ -240,7 +267,7 @@ def request_initial_sync(
     end_date = datetime.now(UTC).date()
     return _request_range_sync(
         user_id,
-        end_date - timedelta(days=coros_constants.INITIAL_SYNC_DAYS),
+        end_date - timedelta(days=coros_constants.INITIAL_SYNC_DAYS - 1),
         end_date,
         storage,
         db,
@@ -273,7 +300,7 @@ def request_sync(
         raise core_exceptions.InvalidInputError("start_date and end_date must be provided together")
     if start_date is None or end_date is None:
         end_date = datetime.now(UTC).date()
-        start_date = end_date - timedelta(days=coros_constants.MANUAL_SYNC_DAYS)
+        start_date = end_date - timedelta(days=coros_constants.MANUAL_SYNC_DAYS - 1)
     if not get_status(user_id, db).linked:
         raise core_exceptions.ConflictError("COROS is not connected")
     return _request_range_sync(user_id, start_date, end_date, storage, db)

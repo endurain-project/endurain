@@ -61,8 +61,8 @@ its Europe, United States or mainland China service.
 The COROS card then shows the connection, the last sync time, the last outcome
 and a **Sync now** action.
 
-Disconnecting revokes the stored tokens when COROS allows it and deletes them
-locally. Activities already imported are kept.
+Disconnecting requires step-up verification, revokes the stored tokens when
+COROS allows it and deletes them locally. Activities already imported are kept.
 
 ## How synchronization works
 

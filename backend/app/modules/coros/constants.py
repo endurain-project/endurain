@@ -60,11 +60,6 @@ INITIAL_SYNC_DAYS = 30
 #: uploads without re-downloading the whole history.
 MANUAL_SYNC_DAYS = 7
 
-#: Longest explicit backfill one job accepts. Older history can be imported in
-#: successive ranges, which keeps one request from fanning out into years of MCP
-#: calls.
-MAX_MANUAL_SYNC_DAYS = 366
-
 #: COROS record queries use the documented ``yyyyMMdd`` format.
 COROS_DATE_FORMAT = "%Y%m%d"
 

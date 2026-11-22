@@ -62,8 +62,7 @@ def coros_link(
     storage: core_dependencies.Storage,
 ) -> None:
     """Finish the COROS OAuth callback and queue the initial sync."""
-    coros_service.complete_link(token_user_id, payload.code, payload.state, db)
-    coros_service.request_initial_sync(token_user_id, storage, db)
+    coros_service.complete_link_and_queue_initial_sync(token_user_id, payload.code, payload.state, storage, db)
 
 
 @router.get(
