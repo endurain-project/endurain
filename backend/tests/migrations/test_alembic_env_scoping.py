@@ -49,11 +49,19 @@ class TestIncludeObject:
         assert include_object(None, "jasil_event_log", "index", True, None) is True
 
 
-class TestConfiguredOnBothPaths:
-    @pytest.mark.parametrize("path", ["offline", "online"])
-    def test_context_configure_passes_include_object(self, path):
-        # Autogenerate runs online, but a filter wired into only one path is a
-        # trap for whoever next runs offline.
+class TestConfiguredOnTheMigrationPath:
+    def test_context_configure_passes_include_object(self):
         source = _ENV_PATH.read_text()
-        body = source.split(f"def run_migrations_{path}")[1].split("\ndef ")[0]
+        body = source.split("def run_migrations_online")[1].split("\ndef ")[0]
         assert "include_object=include_object" in body
+
+
+class TestOfflineMode:
+    def test_generating_sql_without_a_database_is_refused(self):
+        from alembic.util import CommandError
+
+        from alembic import command
+        from tests._helpers import alembic_chain
+
+        with pytest.raises(CommandError, match="Offline mode"):
+            command.upgrade(alembic_chain.alembic_config(), "head", sql=True)
