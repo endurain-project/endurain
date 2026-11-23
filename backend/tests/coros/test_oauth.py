@@ -150,6 +150,15 @@ class TestDiscovery:
         assert caught.value.retry_at is not None
         assert requested == ["/.well-known/openid-configuration"]
 
+    def test_a_rate_limit_without_a_reset_time_has_no_retry_time(self):
+        def handler(request: httpx2.Request) -> httpx2.Response:
+            return httpx2.Response(429)
+
+        with pytest.raises(core_exceptions.TooManyRequestsError) as caught:
+            oauth.discover_metadata(_client(handler))
+
+        assert caught.value.retry_at is None
+
 
 class TestRegistration:
     """Dynamic registration is a public-client registration."""

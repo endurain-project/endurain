@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import uuid
+from dataclasses import replace
 from datetime import UTC, datetime, timedelta
 from unittest.mock import Mock
 
@@ -133,7 +134,12 @@ class TestRefresh:
     """Expired access tokens rotate the refresh token before a sync."""
 
     def test_an_expired_access_token_is_refreshed_and_persisted(self, db, monkeypatch):
-        monkeypatch.setattr(coros_oauth, "discover_metadata", Mock(return_value=_metadata()))
+        advertised_token_endpoint = "https://mcpeu.coros.com/custom/token"
+        monkeypatch.setattr(
+            coros_oauth,
+            "discover_metadata",
+            Mock(return_value=replace(_metadata(), token_endpoint=advertised_token_endpoint)),
+        )
         monkeypatch.setattr(
             coros_oauth,
             "register_client",
@@ -159,7 +165,7 @@ class TestRefresh:
         assert connection.last_sync_activity_count == 4
         assert connection.fit_download_count == 10
         refresh.assert_called_once()
-        assert refresh.call_args.args[0].token_endpoint == "https://mcpeu.coros.com/oauth2/token"
+        assert refresh.call_args.args[0].token_endpoint == advertised_token_endpoint
 
     def test_an_expired_refresh_token_requires_reconnection(self, db, monkeypatch):
         monkeypatch.setattr(coros_oauth, "discover_metadata", Mock(return_value=_metadata()))

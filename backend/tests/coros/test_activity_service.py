@@ -7,6 +7,7 @@ from datetime import UTC, datetime, timedelta
 from types import SimpleNamespace
 from unittest.mock import MagicMock, Mock
 
+import httpx2
 import pytest
 
 import core.exceptions as core_exceptions
@@ -83,6 +84,34 @@ class TestDateChunks:
             (datetime(2026, 1, 8).date(), datetime(2026, 1, 14).date()),
             (datetime(2026, 1, 15).date(), datetime(2026, 1, 15).date()),
         ]
+
+
+class TestFitDownload:
+    """A FIT download maps its response to the sync's errors."""
+
+    @staticmethod
+    def _use_response(monkeypatch, response):
+        real_client = httpx2.Client
+        monkeypatch.setattr(activity_service, "_url_is_allowed", Mock(return_value=True))
+        monkeypatch.setattr(
+            activity_service.httpx2,
+            "Client",
+            lambda **_kwargs: real_client(transport=httpx2.MockTransport(lambda _request: response)),
+        )
+
+    def test_a_rate_limited_download_carries_the_retry_after(self, monkeypatch):
+        self._use_response(monkeypatch, httpx2.Response(429, headers={"retry-after": "45"}))
+
+        with pytest.raises(mcp_client.CorosMCPRateLimitError) as caught:
+            activity_service._download_url("https://mcpeu.coros.com/fit/1")
+
+        assert caught.value.retry_after == 45
+
+    def test_another_failed_download_is_transient(self, monkeypatch):
+        self._use_response(monkeypatch, httpx2.Response(503))
+
+        with pytest.raises(mcp_client.CorosMCPTransientError):
+            activity_service._download_url("https://mcpeu.coros.com/fit/1")
 
 
 class TestSyncDecisions:
@@ -224,6 +253,18 @@ class TestSyncDecisions:
         activity_service.coros_service.mark_sync_error.assert_called_once_with(
             USER_ID, constants.SyncErrorCode.RATE_LIMITED
         )
+
+    def test_a_rate_limit_without_a_reset_time_has_no_retry_at(self, monkeypatch):
+        monkeypatch.setattr(
+            activity_service,
+            "fetch_activity_summaries",
+            Mock(side_effect=mcp_client.CorosMCPRateLimitError("limited")),
+        )
+
+        with pytest.raises(core_exceptions.TooManyRequestsError) as caught:
+            activity_service._sync_locked(USER_ID, START, END)
+
+        assert caught.value.retry_at is None
 
     def test_a_rate_limited_token_refresh_is_raised_for_the_deferral(self, monkeypatch):
         limited = core_exceptions.TooManyRequestsError(

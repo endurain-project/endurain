@@ -83,11 +83,12 @@ def test_retry_after_parses_only_positive_seconds(header, expected):
     assert core_provider_rate_limit.parse_retry_after(header) == expected
 
 
-def test_a_retry_time_uses_the_server_delay_or_the_default():
+def test_a_retry_time_comes_only_from_a_server_delay():
     before = datetime.now(UTC)
 
     from_header = core_provider_rate_limit.retry_at(30)
-    from_default = core_provider_rate_limit.retry_at(None)
+    without_header = core_provider_rate_limit.retry_at(None)
 
+    assert from_header is not None
     assert before + timedelta(seconds=30) <= from_header <= datetime.now(UTC) + timedelta(seconds=30)
-    assert before + timedelta(seconds=core_provider_rate_limit.DEFAULT_RETRY_SECONDS) <= from_default
+    assert without_header is None

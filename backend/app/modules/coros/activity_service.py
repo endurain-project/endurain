@@ -292,6 +292,7 @@ def _download_url(url: str) -> bytes | None:
         The file bytes, or None when the URL no longer serves a file.
 
     Raises:
+        coros_mcp_client.CorosMCPRateLimitError: When COROS rate limits the download.
         coros_mcp_client.CorosMCPTransientError: On retryable network failures.
         coros_mcp_client.CorosMCPProtocolError: On an unsafe or oversized file.
     """
@@ -310,6 +311,11 @@ def _download_url(url: str) -> bytes | None:
                         continue
                     if response.status_code in (404, 410):
                         return None
+                    if response.status_code == 429:
+                        raise coros_mcp_client.CorosMCPRateLimitError(
+                            "COROS FIT download is rate limited",
+                            core_provider_rate_limit.parse_retry_after(response.headers.get("retry-after")),
+                        )
                     if response.status_code != 200:
                         raise coros_mcp_client.CorosMCPTransientError("COROS FIT download failed")
                     length = response.headers.get("content-length")

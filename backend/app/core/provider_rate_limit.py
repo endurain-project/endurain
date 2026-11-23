@@ -17,8 +17,8 @@ import core.logger as core_logger
 
 logger = core_logger.get_logger(__name__)
 
-#: How long a limit lasts when the provider does not say, so a sync that waits never waits for less
-#: than a limit typically lasts.
+#: How long a flag whose recorded expiry cannot be read is taken to last, so a sync that waits never
+#: waits for less than a limit typically lasts.
 DEFAULT_RETRY_SECONDS = 15 * 60
 
 
@@ -40,16 +40,18 @@ def parse_retry_after(value: str | None) -> int | None:
     return seconds if seconds > 0 else None
 
 
-def retry_at(seconds: int | None) -> datetime:
-    """Return when a provider's limit clears, using the shared default when unknown.
+def retry_at(seconds: int | None) -> datetime | None:
+    """Return when a provider's limit clears, when the provider said.
 
     Args:
         seconds: The provider's ``Retry-After`` delay, or None.
 
     Returns:
-        The instant the limit is assumed to clear.
+        The instant the limit clears, or None when the provider did not say.
     """
-    return datetime.now(UTC) + timedelta(seconds=seconds if seconds and seconds > 0 else DEFAULT_RETRY_SECONDS)
+    if seconds is None or seconds <= 0:
+        return None
+    return datetime.now(UTC) + timedelta(seconds=seconds)
 
 
 class ProviderRateLimitStore:

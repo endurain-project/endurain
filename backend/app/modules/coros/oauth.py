@@ -96,7 +96,7 @@ def _raise_rate_limited(response: httpx2.Response, message: str) -> NoReturn:
         message: Safe error message.
 
     Raises:
-        core_exceptions.TooManyRequestsError: Always, carrying when the limit clears.
+        core_exceptions.TooManyRequestsError: Always; it carries when the limit clears only when COROS said.
     """
     raise core_exceptions.TooManyRequestsError(
         message,
