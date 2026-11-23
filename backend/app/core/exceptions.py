@@ -34,6 +34,7 @@ from datetime import UTC, datetime
 from enum import StrEnum
 
 import jasil.orm as jasil_orm
+import jasil.providers as platform_providers
 from fastapi import FastAPI, HTTPException, Request, Response, status
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
@@ -780,8 +781,9 @@ async def idempotent_replay_handler(request: Request, exc: IdempotentReplayError
 #: PostgreSQL SQLSTATEs of a database too busy to take the request now: a lock wait (``lock_timeout``) and a cancelled
 #: statement (``statement_timeout``).
 _BUSY_DB_SQLSTATES = frozenset({"55P03", "57014"})
-#: Seconds a client is told to wait before retrying a request the database could not serve.
-_DB_RETRY_AFTER_SECONDS = 5
+#: Seconds a client is told to wait before retrying a request a dependency (the database, the blob storage) could not
+#: serve.
+_UNAVAILABLE_RETRY_AFTER_SECONDS = 5
 
 
 def _is_database_busy(exc: SQLAlchemyError) -> bool:
@@ -827,7 +829,7 @@ async def database_error_handler(request: Request, exc: SQLAlchemyError) -> JSON
     if jasil_orm.is_database_unavailable(exc) or _is_database_busy(exc):
         logger.warning(message, extra=log_context)
         error: type[DomainError] = ServiceUnavailableError
-        headers = {"Retry-After": str(_DB_RETRY_AFTER_SECONDS)}
+        headers = {"Retry-After": str(_UNAVAILABLE_RETRY_AFTER_SECONDS)}
     elif isinstance(exc, IntegrityError):
         logger.warning(message, extra=log_context)
         error = ConflictError
@@ -841,6 +843,36 @@ async def database_error_handler(request: Request, exc: SQLAlchemyError) -> JSON
         title=error.title,
         detail=error.default_detail,
         headers=headers,
+    )
+
+
+async def storage_unavailable_handler(
+    request: Request, exc: platform_providers.StorageBackendUnavailableError
+) -> JSONResponse:
+    """Render a blob-storage outage that reached the boundary as a 503 with ``Retry-After``.
+
+    The storage backend being out of reach is transient, so it is logged as a warning without a traceback. A call site
+    that can carry on without the blob (a best-effort delete) catches the error itself; any other reaches this one
+    place instead of each route translating it.
+
+    Args:
+        request: The incoming request (used for log context and ``instance``).
+        exc: The storage error raised by the platform storage provider.
+
+    Returns:
+        The problem document.
+    """
+    logger.warning(
+        f"Storage unavailable on {request.method} {request.url.path}: {type(exc).__name__}",
+        extra=core_logger.context(path=request.url.path, method=request.method, error=type(exc).__name__),
+    )
+    return build_problem_response(
+        request=request,
+        status_code=ServiceUnavailableError.status_code,
+        code=ServiceUnavailableError.code,
+        title=ServiceUnavailableError.title,
+        detail=ServiceUnavailableError.default_detail,
+        headers={"Retry-After": str(_UNAVAILABLE_RETRY_AFTER_SECONDS)},
     )
 
 
@@ -1016,6 +1048,7 @@ def register_exception_handlers(app: FastAPI) -> None:
     register_handler(app, DomainError, domain_error_handler)
     register_handler(app, IdempotentReplayError, idempotent_replay_handler)
     register_handler(app, SQLAlchemyError, database_error_handler)
+    register_handler(app, platform_providers.StorageBackendUnavailableError, storage_unavailable_handler)
     register_handler(app, HTTPException, http_exception_handler)
     register_handler(app, StarletteHTTPException, http_exception_handler)
     register_handler(app, RequestValidationError, validation_error_handler)
