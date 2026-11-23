@@ -17,6 +17,8 @@ import boto3
 from sqlalchemy import create_engine, text
 from sqlalchemy.engine import Engine, make_url
 
+import modules.activities.activity_thumbnail.subscribers as thumbnail_subscribers
+
 _BACKEND_DIR = Path(__file__).resolve().parents[2]
 _APP_DIR = _BACKEND_DIR / "app"
 _SUPPORT_DIR = Path(__file__).resolve().parent / "support"
@@ -24,6 +26,11 @@ _SUPPORT_DIR = Path(__file__).resolve().parent / "support"
 #: Short enough to see a reclaim in a test, long enough to satisfy JASIL's
 #: ``lease_seconds >= 3 * heartbeat_interval_seconds`` rule (15 s heartbeat).
 LEASE_SECONDS = 60
+
+#: The durable jobs an API process queues by itself when it starts (the thumbnail backfill request, one per hour). How
+#: many exist depends on how many processes started and in which hour, not on what a test did, so the counts of a
+#: test's jobs leave them out; they must still complete.
+STARTUP_SUBSCRIBERS = [thumbnail_subscribers.THUMBNAIL_BACKFILL_SUBSCRIBER_ID]
 
 _STARTUP_MARKER = "Application startup complete"
 
@@ -263,15 +270,20 @@ class Cluster:
         return self.wait_for(lambda: all(self.job_status(job) in ("completed", "failed") for job in job_ids), timeout)
 
     def wait_for_durable_jobs(self, expected: int, timeout: float = 90) -> bool:
-        """Wait until exactly ``expected`` durable jobs exist and every one has completed.
+        """Wait until exactly ``expected`` durable jobs exist besides the startup ones, and every job has completed.
 
         The count matters: the upload job completes before the outbox relay has
         turned its ``activity.created`` into the derived jobs, so "nothing is open"
-        is also true in that gap.
+        is also true in that gap. The startup jobs (:data:`STARTUP_SUBSCRIBERS`)
+        are not counted but must complete as well.
         """
         return self.wait_for(
             lambda: (
-                self.scalar("SELECT count(*) FROM jasil_processing_jobs") == expected
+                self.scalar(
+                    "SELECT count(*) FROM jasil_processing_jobs WHERE subscriber_id <> ALL(:startup)",
+                    startup=STARTUP_SUBSCRIBERS,
+                )
+                == expected
                 and self.scalar("SELECT count(*) FROM jasil_processing_jobs WHERE status <> 'completed'") == 0
             ),
             timeout,

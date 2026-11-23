@@ -114,7 +114,7 @@ Every durable subscriber must say how lost work is repaired. Add a `DurableSubsc
 DURABLE_SUBSCRIBER_NETS = (
     DurableSubscriberNet(
         THUMBNAIL_GENERATE_SUBSCRIBER_ID,
-        activity_thumbnail_scheduled_jobs.generate_missing_thumbnails,
+        activity_thumbnail_scheduled_jobs.request_thumbnail_backfill,
     ),
 )
 ```

@@ -34,6 +34,7 @@ _BACKGROUND_SUBSCRIBERS = {
 _ENRICHMENT_SUBSCRIBERS = {
     "activity_thumbnail.generate",
     "activity_thumbnail.settings_changed",
+    "activity_thumbnail.backfill",
     "activity_geocoding.reverse_geocode",
 }
 

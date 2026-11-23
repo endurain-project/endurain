@@ -7,6 +7,8 @@ subscribers. Nothing here is mocked: the processes only share PostgreSQL, Redis 
 storage.
 """
 
+from tests.distributed.cluster import STARTUP_SUBSCRIBERS
+
 _DERIVED_SUBSCRIBERS = {
     "activity_geocoding.reverse_geocode",
     "activity.notify_created",
@@ -24,7 +26,12 @@ def _assert_everything_completed_exactly_once(cluster, job_ids, *, workers: int)
     assert cluster.wait_for_durable_jobs(len(job_ids) * (1 + len(_DERIVED_SUBSCRIBERS))), cluster.query(
         "SELECT subscriber_id, status FROM jasil_processing_jobs"
     )
-    per_subscriber = dict(cluster.query("SELECT subscriber_id, count(*) FROM jasil_processing_jobs GROUP BY 1"))
+    per_subscriber = dict(
+        cluster.query(
+            "SELECT subscriber_id, count(*) FROM jasil_processing_jobs WHERE subscriber_id <> ALL(:startup) GROUP BY 1",
+            startup=STARTUP_SUBSCRIBERS,
+        )
+    )
     assert per_subscriber.pop("activity_ingestion.uploaded_file") == len(job_ids)
     assert per_subscriber == dict.fromkeys(_DERIVED_SUBSCRIBERS, len(job_ids))
 

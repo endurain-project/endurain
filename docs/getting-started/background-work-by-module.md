@@ -100,8 +100,9 @@ sequenceDiagram
     Q->>W: Queue it on the 2-thread pool, 500 waiting at most
     W->>DB: Render and record the thumbnail
     Note over Q,W: If the queue is full, the handler is skipped and a warning is logged
-    S->>DB: Hourly: find activities with no thumbnail
-    S->>W: Render the missing ones
+    S->>Q: Hourly: publish a thumbnail backfill request
+    Q->>W: Queue it on the subscriber pool
+    W->>DB: Render up to 200 activities that have no thumbnail
     end
 
     rect rgb(240, 255, 240)
@@ -112,7 +113,9 @@ sequenceDiagram
     W->>DB: Render and record the thumbnail
     Note over Q,W: A failure retries with backoff, then dead-letters after 5 attempts
     S->>DB: Reaper, every minute: requeue jobs whose lease lapsed
-    S->>DB: Hourly net, under a lock: only one replica runs it
+    S->>DB: Hourly, under a lock: only one replica publishes the backfill request
+    Q->>W: Relay it as a job on an enrichment worker
+    W->>DB: Render up to 200 activities that have no thumbnail
     end
 ```
 
@@ -174,7 +177,7 @@ Recurring jobs are declared by each module and run by the scheduler of the API p
 
 | Job | Every | Lock | What it does |
 | --- | ----- | ---- | ------------ |
-| Generate missing thumbnails | 60 min | yes | Net for thumbnail generation |
+| Request a thumbnail backfill | 60 min | yes | Net for thumbnail generation; a subscriber renders up to 200 missing thumbnails. Requests made in the same hour, by the tick or by replicas starting, share one pass |
 | Remove orphaned thumbnails | 24 h | yes | Net for thumbnail cleanup |
 | Backfill missing locations | 60 min | yes | Net for reverse geocoding |
 | Remove orphaned retained activity files | 24 h | yes | Net for file cleanup |
@@ -208,7 +211,7 @@ A job with a lock uses the platform's coordination lock. With the default `noop:
 
 Strava's hourly activity pull is the provider refresh fan-out above; its only scheduled job of its own is the deletion of revoked data.
 
-Startup also queues a catch-up run of the thumbnail, location, provider refresh and Garmin health jobs, so a restart does not wait a full interval.
+Startup also queues a catch-up run of the thumbnail backfill request and the location, provider refresh and Garmin health jobs, so a restart does not wait a full interval.
 
 ## Module by module
 
@@ -221,7 +224,7 @@ Each section says what triggers the work, what happens locally and when distribu
 | Triggers | `activity.created` (render), `activity.deleted` (remove), and a change of the tile server (re-render everything, when that option is on) |
 | Local | The handler runs on the 2-thread subscriber pool, after the request has returned. A map needs tiles, so a slow tile server delays only thumbnails |
 | Distributed | One durable job per subscriber on a worker, with retries. Thumbnails are written to the bucket |
-| If dropped | The hourly net renders any activity that still has no thumbnail. The daily sweep removes thumbnails whose activity is gone. The tile-change re-render has no net: it is an admin command, so repeat the settings save |
+| If dropped | The hourly net asks for a backfill pass, which renders up to 200 activities that still have no thumbnail, and the next hour's pass takes the rest. The pass runs on the subscriber pool, or on an enrichment worker when durable jobs are on, never on the scheduler. The daily sweep removes thumbnails whose activity is gone. The tile-change re-render has no net: it is an admin command, so repeat the settings save |
 
 ### Reverse geocoding
 
@@ -320,13 +323,14 @@ Every durable job is one subscriber reacting to one event. The **subscriber id**
 
 "Runs without durable jobs" says where the handler runs when `JOBS_ENABLED=false`. A **bus** handler is queued on the 2-thread subscriber pool and a failure is dropped. A **command pool** is a bounded pool that the request submits to directly, described in the module's section above. The gear deletion and bulk edit pools run one job at a time and hold 5.
 
-Every job is on the `default` queue except two kinds. `activity_ingestion.bulk_import`, `users.profile_export_requested`, `users.profile_import_requested`, `gears.deletion_requested` and `users.deletion_requested` are on `background`: a user asked for them and they can take minutes. `activity_thumbnail.generate`, `activity_thumbnail.settings_changed` and `activity_geocoding.reverse_geocode` are on `enrichment`: nobody waits on them and they call outside servers at their pace. See [Separate workers for background work](scaling-and-background-jobs.md#separate-workers-for-background-work).
+Every job is on the `default` queue except two kinds. `activity_ingestion.bulk_import`, `users.profile_export_requested`, `users.profile_import_requested`, `gears.deletion_requested` and `users.deletion_requested` are on `background`: a user asked for them and they can take minutes. `activity_thumbnail.generate`, `activity_thumbnail.settings_changed`, `activity_thumbnail.backfill` and `activity_geocoding.reverse_geocode` are on `enrichment`: nobody waits on them and they call outside servers at their pace. See [Separate workers for background work](scaling-and-background-jobs.md#separate-workers-for-background-work).
 
 | Subscriber id | Event | Runs without durable jobs | Repaired by | On dead-letter |
 | ------------- | ----- | ------------------------- | ----------- | -------------- |
-| `activity_thumbnail.generate` | `activity.created` | Bus | [Hourly missing-thumbnail job](#scheduled-jobs) | Net fills the gap |
+| `activity_thumbnail.generate` | `activity.created` | Bus | [Hourly thumbnail backfill request](#scheduled-jobs) | Net fills the gap |
 | `activity_thumbnail.cleanup` | `activity.deleted` | Bus | Daily orphan sweep | Net fills the gap |
 | `activity_thumbnail.settings_changed` | `server_settings.tile_settings_changed` | Bus | Nothing: repeat the settings save | Nothing |
+| `activity_thumbnail.backfill` | `activity_thumbnail.backfill_requested` | Bus | Nothing: the scheduler requests a new pass every hour | Nothing |
 | `activity_geocoding.reverse_geocode` | `activity.created` | Bus | Hourly location backfill | Net fills the gap |
 | `activity_file_storage.cleanup` | `activity.deleted` | Bus | Daily orphan sweep | Net fills the gap |
 | `activity_media.cleanup` | `activity.deleted` | Bus | Daily orphan sweep | Net fills the gap |

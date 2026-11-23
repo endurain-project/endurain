@@ -378,6 +378,19 @@ def set_thumbnail_key(activity_id: uuid.UUID, key: str | None, db: Session, *, e
     return activity_crud.set_activity_thumbnail_key(activity_id, key, db, expected_key=expected_key)
 
 
+def get_thumbnail_key(activity_id: uuid.UUID, db: Session) -> str | None:
+    """Return an activity's stored thumbnail key.
+
+    Args:
+        activity_id: ID of the activity.
+        db: Database session.
+
+    Returns:
+        The stored storage key, or None when the activity has none or does not exist.
+    """
+    return activity_crud.get_activity_thumbnail_key(activity_id, db)
+
+
 def clear_all_thumbnail_keys(db: Session) -> None:
     """Stage clearing every stored activity thumbnail key.
 

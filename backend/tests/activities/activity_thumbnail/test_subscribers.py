@@ -16,6 +16,7 @@ import modules.activities.activity.integration_service as activity_integration
 import modules.activities.activity.models as activity_models
 import modules.activities.activity_streams.constants as stream_constants
 import modules.activities.activity_thumbnail.constants as thumbnail_constants
+import modules.activities.activity_thumbnail.events as thumbnail_events
 import modules.activities.activity_thumbnail.subscriber_registry as thumbnail_subscriber_registry
 import modules.activities.activity_thumbnail.subscribers as thumbnail_subscribers
 import modules.server_settings.events as server_settings_events
@@ -50,6 +51,10 @@ def _deleted(activity_id: uuid.UUID):
 def _tiles_changed(*, regenerate: bool):
     payload = {"changed_fields": ["tileserver_url"], "regenerate_thumbnails": regenerate}
     return new_event(server_settings_events.TILE_SETTINGS_CHANGED, payload, source="test")
+
+
+def _backfill_requested():
+    return new_event(thumbnail_events.THUMBNAIL_BACKFILL_REQUESTED, {}, source="test")
 
 
 @pytest.fixture
@@ -174,6 +179,28 @@ class TestTileSettingsChanged:
         assert (storage.get(_AREA, f"{activity.id}.webp"), tile_server.requests) == (b"stale", [])
 
 
+class TestBackfillRequested:
+    def test_a_request_renders_the_missing_thumbnails_through_the_bus(self, db, events, storage, routed):
+        _, activity = routed
+        thumbnail_subscribers.register_bus_subscribers(events)
+
+        events.publish(_backfill_requested())
+
+        assert _key_of(db, activity) == f"{activity.id}.webp"
+        assert list(storage.list_keys(_AREA, "")) == [f"{activity.id}.webp"]
+
+    def test_a_tile_server_failure_is_swallowed_on_the_bus_and_the_activity_stays_due(
+        self, db, events, routed, tile_server
+    ):
+        _, activity = routed
+        tile_server.status = 500
+        thumbnail_subscribers.register_bus_subscribers(events)
+
+        events.publish(_backfill_requested())
+
+        assert _key_of(db, activity) is None
+
+
 class TestRegistry:
     def test_the_package_registers_its_bus_subscribers_and_durable_handlers_under_stable_ids(self):
         registry = JobHandlerRegistry()
@@ -184,6 +211,9 @@ class TestRegistry:
         assert registry.subscribers_for(activity_events.ACTIVITY_DELETED) == ("activity_thumbnail.cleanup",)
         assert registry.subscribers_for(server_settings_events.TILE_SETTINGS_CHANGED) == (
             "activity_thumbnail.settings_changed",
+        )
+        assert registry.subscribers_for(thumbnail_events.THUMBNAIL_BACKFILL_REQUESTED) == (
+            "activity_thumbnail.backfill",
         )
 
     def test_the_package_wires_the_bus_through_its_registry(self, events, storage):

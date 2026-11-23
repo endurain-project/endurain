@@ -4,19 +4,17 @@ Each of these is a race between processes (API replicas, workers, the stale-job 
 connections, real row locks and a database-enforced unique index.
 """
 
-import dataclasses
 import threading
 import uuid
 from datetime import UTC, datetime, timedelta
+from unittest.mock import MagicMock
 
-import jasil.runtime as jasil_runtime
 import pytest
 from jasil.backends.lock_pg import PgAdvisoryLock
 from sqlalchemy import select, text
 from sqlalchemy.exc import IntegrityError
 
 import core.exceptions as core_exceptions
-import core.scheduler as core_scheduler
 import modules.activities.activity.contracts as activity_contracts
 import modules.activities.activity.crud as activity_crud
 import modules.activities.activity.models as activity_models
@@ -299,26 +297,27 @@ class TestRegenerationLock:
         with factory() as db:
             thumbnail_service.delete_and_regenerate_all_activity_thumbnails(platform.storage, lock, platform.clock, db)
 
-    @pytest.fixture
-    def locked_platform(self, lock, _publish_local_platform):
-        """The platform with PostgreSQL advisory locks, as a replica of a distributed deployment has."""
-        jasil_runtime.set_active_platform(dataclasses.replace(_publish_local_platform, lock=lock))
-
-    def test_the_scheduled_backfill_is_skipped_while_another_holder_has_the_lock(self, lock, locked_platform):
-        """The scheduler takes the lock for the pass, so a held lock means the pass does not run at all."""
-        ran = []
+    def test_the_backfill_pass_skips_quietly_while_another_holder_has_the_lock(
+        self, factory, lock, _publish_local_platform
+    ):
+        platform = _publish_local_platform
+        storage = MagicMock()
         release, thread = self._hold(lock, thumbnail_service.BACKFILL_LOCK_NAME)
         try:
-            core_scheduler.run_locked_job(thumbnail_service.BACKFILL_LOCK_NAME, lambda: ran.append(True))
+            with factory() as db:
+                thumbnail_service.generate_missing_activity_thumbnails(storage, lock, platform.clock, db)
         finally:
             release.set()
             thread.join(timeout=10)
 
-        assert ran == []
+        assert storage.mock_calls == []
 
-    def test_the_scheduled_backfill_runs_once_the_lock_is_free(self, lock, locked_platform):
-        ran = []
+    def test_the_backfill_pass_runs_once_the_lock_is_free(self, factory, lock, _publish_local_platform):
+        platform = _publish_local_platform
+        storage = MagicMock()
+        storage.iter_objects.return_value = iter(())
 
-        core_scheduler.run_locked_job(thumbnail_service.BACKFILL_LOCK_NAME, lambda: ran.append(True))
+        with factory() as db:
+            thumbnail_service.generate_missing_activity_thumbnails(storage, lock, platform.clock, db)
 
-        assert ran == [True]
+        storage.iter_objects.assert_called_once()

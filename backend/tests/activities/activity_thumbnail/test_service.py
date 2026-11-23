@@ -58,6 +58,11 @@ def clock():
 
 
 @pytest.fixture
+def lock():
+    return platform_runtime.get_active_platform().lock
+
+
+@pytest.fixture
 def owner(db):
     return make_user(db)
 
@@ -120,6 +125,16 @@ class TestGenerateForActivity:
         with Image.open(io.BytesIO(storage.get(_AREA, key))) as image:
             assert (image.format, image.size) == ("WEBP", (1200, 400))
         assert tiles.requests
+
+    def test_an_activity_that_already_has_a_thumbnail_is_not_rendered_or_written_again(self, db, owner, storage, tiles):
+        activity = _routed(db, owner)
+        activity_integration.set_thumbnail_key(activity.id, f"{activity.id}.webp", db)
+        storage.save(_AREA, f"{activity.id}.webp", b"existing")
+
+        key = thumbnail_service.generate_thumbnail_for_activity(activity.id, owner.id, storage, db)
+
+        assert key == f"{activity.id}.webp"
+        assert (tiles.requests, storage.get(_AREA, f"{activity.id}.webp")) == ([], b"existing")
 
     @pytest.mark.parametrize("waypoints", [None, [], _ROUTE[:1]])
     def test_an_activity_without_a_route_of_two_points_stores_nothing_and_asks_for_no_tiles(
@@ -201,77 +216,101 @@ class TestReadAndDelete:
 
 class TestBackfill:
     def test_every_activity_with_a_route_gets_a_thumbnail_and_the_others_are_left_without(
-        self, db, owner, storage, clock, tiles
+        self, db, owner, storage, lock, clock, tiles
     ):
         first, second, plain = _routed(db, owner, 0), _routed(db, owner, 1), _plain(db, owner, 2)
 
-        thumbnail_service.generate_missing_activity_thumbnails(storage, clock, db)
+        thumbnail_service.generate_missing_activity_thumbnails(storage, lock, clock, db)
 
         assert _key_of(db, first) == f"{first.id}.webp" and _key_of(db, second) == f"{second.id}.webp"
         assert _key_of(db, plain) is None
         assert sorted(storage.list_keys(_AREA, "")) == sorted([f"{first.id}.webp", f"{second.id}.webp"])
 
     def test_an_activity_that_ended_a_pass_without_a_thumbnail_waits_before_it_is_tried_again(
-        self, db, owner, storage, clock, tiles
+        self, db, owner, storage, lock, clock, tiles
     ):
         activity = _plain(db, owner)
-        thumbnail_service.generate_missing_activity_thumbnails(storage, clock, db)
+        thumbnail_service.generate_missing_activity_thumbnails(storage, lock, clock, db)
         make_stream(db, activity, _MAP, _ROUTE)
 
-        thumbnail_service.generate_missing_activity_thumbnails(storage, clock, db)
+        thumbnail_service.generate_missing_activity_thumbnails(storage, lock, clock, db)
         still_waiting = _key_of(db, activity)
         clock.advance(thumbnail_service.THUMBNAIL_RETRY_DELAY.total_seconds() + 1)
-        thumbnail_service.generate_missing_activity_thumbnails(storage, clock, db)
+        thumbnail_service.generate_missing_activity_thumbnails(storage, lock, clock, db)
 
         assert (still_waiting, _key_of(db, activity)) == (None, f"{activity.id}.webp")
 
     def test_a_tile_server_that_fails_is_survived_and_the_activity_is_tried_again_later(
-        self, db, owner, storage, clock, tiles
+        self, db, owner, storage, lock, clock, tiles
     ):
         activity = _routed(db, owner)
         tiles.status = 500
-        thumbnail_service.generate_missing_activity_thumbnails(storage, clock, db)
+        thumbnail_service.generate_missing_activity_thumbnails(storage, lock, clock, db)
         failed = _key_of(db, activity)
         tiles.status = 200
         clock.advance(thumbnail_service.THUMBNAIL_RETRY_DELAY.total_seconds() + 1)
 
-        thumbnail_service.generate_missing_activity_thumbnails(storage, clock, db)
+        thumbnail_service.generate_missing_activity_thumbnails(storage, lock, clock, db)
 
         assert (failed, _key_of(db, activity)) == (None, f"{activity.id}.webp")
 
-    def test_one_activity_that_cannot_be_rendered_does_not_stop_the_pass(self, db, owner, storage, clock, tiles):
+    def test_one_activity_that_cannot_be_rendered_does_not_stop_the_pass(self, db, owner, storage, lock, clock, tiles):
         bad = _plain(db, owner, 0)
         make_stream(db, bad, _MAP, [{"lat": 38.7}, {"lat": 38.8}])
         good = _routed(db, owner, 1)
 
-        thumbnail_service.generate_missing_activity_thumbnails(storage, clock, db)
+        thumbnail_service.generate_missing_activity_thumbnails(storage, lock, clock, db)
 
         assert (_key_of(db, bad), _key_of(db, good)) == (None, f"{good.id}.webp")
 
     def test_a_key_whose_blob_is_gone_is_cleared_and_one_whose_blob_exists_is_kept(
-        self, db, owner, storage, clock, tiles
+        self, db, owner, storage, lock, clock, tiles
     ):
         gone, kept = _plain(db, owner, 0), _plain(db, owner, 1)
         activity_integration.set_thumbnail_key(gone.id, f"{gone.id}.webp", db)
         activity_integration.set_thumbnail_key(kept.id, f"{kept.id}.webp", db)
         storage.save(_AREA, f"{kept.id}.webp", b"webp")
 
-        thumbnail_service.generate_missing_activity_thumbnails(storage, clock, db)
+        thumbnail_service.generate_missing_activity_thumbnails(storage, lock, clock, db)
 
         assert (_key_of(db, gone), _key_of(db, kept)) == (None, f"{kept.id}.webp")
         assert tiles.requests == []
 
-    def test_a_key_outside_the_uuid_layout_whose_blob_exists_survives(self, db, owner, storage, clock, tiles):
+    def test_a_key_outside_the_uuid_layout_whose_blob_exists_survives(self, db, owner, storage, lock, clock, tiles):
         activity = _plain(db, owner)
         activity_integration.set_thumbnail_key(activity.id, "custom-name.webp", db)
         storage.save(_AREA, "custom-name.webp", b"webp")
 
-        thumbnail_service.generate_missing_activity_thumbnails(storage, clock, db)
+        thumbnail_service.generate_missing_activity_thumbnails(storage, lock, clock, db)
 
         assert _key_of(db, activity) == "custom-name.webp"
 
-    def test_a_pass_with_nothing_to_do_does_nothing(self, db, storage, clock, tiles):
-        thumbnail_service.generate_missing_activity_thumbnails(storage, clock, db)
+    def test_a_pass_renders_at_most_the_cap_and_leaves_the_rest_due_instead_of_deferred(
+        self, db, owner, storage, lock, clock, tiles
+    ):
+        activities = [_routed(db, owner, day) for day in range(3)]
+
+        thumbnail_service.generate_missing_activity_thumbnails(storage, lock, clock, db, max_renders=2)
+
+        keys = [_key_of(db, activity) for activity in activities]
+        assert sum(key is not None for key in keys) == 2
+        left = [a for a, key in zip(activities, keys, strict=True) if key is None]
+        due = activity_integration.list_activities_without_thumbnail(db, due_at=clock.now())
+        assert [ref.id for ref in due] == [left[0].id]
+
+        thumbnail_service.generate_missing_activity_thumbnails(storage, lock, clock, db, max_renders=2)
+
+        assert _key_of(db, left[0]) == f"{left[0].id}.webp"
+
+    def test_a_pass_renders_nothing_while_the_backfill_lock_is_held(self, db, owner, storage, clock, tiles):
+        activity = _routed(db, owner)
+
+        thumbnail_service.generate_missing_activity_thumbnails(storage, HeldLock(), clock, db)
+
+        assert (_key_of(db, activity), tiles.requests, list(storage.list_keys(_AREA, ""))) == (None, [], [])
+
+    def test_a_pass_with_nothing_to_do_does_nothing(self, db, storage, lock, clock, tiles):
+        thumbnail_service.generate_missing_activity_thumbnails(storage, lock, clock, db)
 
         assert (list(storage.list_keys(_AREA, "")), tiles.requests) == ([], [])
 
@@ -285,11 +324,11 @@ class TestLeaseLost:
         lost.set()
         return lost
 
-    def test_a_backfill_that_lost_its_lease_renders_nothing(self, db, owner, storage, clock, tiles):
+    def test_a_backfill_that_lost_its_lease_renders_nothing(self, db, owner, storage, lock, clock, tiles):
         activity = _routed(db, owner)
 
         with job_lease(self._lost()):
-            thumbnail_service.generate_missing_activity_thumbnails(storage, clock, db)
+            thumbnail_service.generate_missing_activity_thumbnails(storage, lock, clock, db)
 
         assert (_key_of(db, activity), tiles.requests) == (None, [])
 

@@ -1292,6 +1292,21 @@ def clear_all_activity_thumbnail_keys(db: Session) -> None:
     db.execute(sa_update(activity_models.Activity).values(map_thumbnail_path=None, thumbnail_next_attempt_at=None))
 
 
+def get_activity_thumbnail_key(activity_id: uuid.UUID, db: Session) -> str | None:
+    """Return the stored thumbnail key of one activity.
+
+    Args:
+        activity_id: Target activity ID.
+        db: Database session.
+
+    Returns:
+        The ``map_thumbnail_path``, or ``None`` when the activity has none or does not exist.
+    """
+    return db.scalar(
+        select(activity_models.Activity.map_thumbnail_path).where(activity_models.Activity.id == activity_id)
+    )
+
+
 def get_activities_with_thumbnail(
     db: Session,
     *,
