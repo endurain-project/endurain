@@ -128,8 +128,8 @@ run_once() {
   echo "== invariants"
   local inv_status=0
   # The enrichment queue drains at the geocoding rate limit (one lookup a second), so a run that uploads faster ends
-  # with a backlog: wait for it rather than call it stuck.
-  uv run python invariants.py --run "$run" --drain-timeout 900 || inv_status=$?
+  # with a backlog: wait while jobs keep finishing, and give up only when none finishes for the stall window.
+  uv run python invariants.py --run "$run" --stall-timeout 180 || inv_status=$?
 
   echo "== database and container dumps"
   "${PSQL[@]}" -c "SELECT calls, round(total_exec_time::numeric, 1) AS total_ms, round(mean_exec_time::numeric, 2) AS mean_ms, \
@@ -148,10 +148,16 @@ run_once() {
   "${DC[@]}" logs --no-color --no-log-prefix worker worker-background worker-enrichment >"$dir/worker.log" 2>&1 || true
   # nginx logs only its own errors: why it answered a 502 or 504 (a refused, reset or timed-out upstream).
   "${DC[@]}" logs --no-color --no-log-prefix proxy >"$dir/proxy.log" 2>&1 || true
+  # PostgreSQL's own log: why it restarted, if it did.
+  "${DC[@]}" logs --no-color --no-log-prefix postgres >"$dir/postgres.log" 2>&1 || true
   "${DC[@]}" stats --no-stream --format 'table {{.Name}}\t{{.MemUsage}}\t{{.CPUPerc}}' >"$dir/containers.txt" 2>&1 || true
   local errors
   errors=$(grep -c '"level": "ERROR"' "$dir/api.log" "$dir/worker.log" 2>/dev/null | paste -sd' ' - || true)
-  echo "peak connections: $(tail -n +2 "$dir/connections.csv" | cut -d, -f2 | sort -n | tail -1)  error log lines: $errors"
+  # A server process that died or a restart, not the ordinary ERROR lines (unique violations are expected under load).
+  local pg_crashes
+  pg_crashes=$(grep -c -E 'terminated by signal|PANIC|database system was interrupted|was not properly shut down|all server processes terminated' \
+    "$dir/postgres.log" 2>/dev/null || true)
+  echo "peak connections: $(tail -n +2 "$dir/connections.csv" | cut -d, -f2 | sort -n | tail -1)  error log lines: $errors  postgres crash lines: ${pg_crashes:-0}"
   echo "top statements: $dir/pg_stat_statements.txt"
 
   if [ "$locust_status" -ne 0 ] || [ "$inv_status" -ne 0 ]; then STATUS=1; fi
@@ -164,7 +170,7 @@ if [ "$PROFILE" = "faults" ]; then
   echo "== $RUN: $WORKERS worker(s), ${APIS[0]} api"
   bring_up_and_seed "${APIS[0]}"
   uv run python faults.py --run "$RUN" || STATUS=1
-  for service in api worker worker-background worker-enrichment stub; do
+  for service in api worker worker-background worker-enrichment stub postgres; do
     "${DC[@]}" logs --no-color --no-log-prefix "$service" >"results/$RUN/$service.log" 2>&1 || true
   done
   echo "== $RUN: faults $([ "$STATUS" -eq 0 ] && echo ok || echo FAILED)"

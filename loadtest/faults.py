@@ -55,9 +55,10 @@ BACKGROUND_CLASSES = ["AthleteUser", "UploaderUser", "StravaUser"]
 #: Seconds of load before a fault, and after the stack is back, so recovery is shown under load.
 WARM_UP = 20
 SETTLE = 20
-#: Seconds the invariants wait for the jobs and the outbox to drain once the load has stopped. A killed worker's jobs
-#: wait for the lease (45 s) and the reaper (every minute), so this is the bound of "every job ends".
-DRAIN_TIMEOUT = 240.0
+#: Seconds without progress after which the invariants stop waiting for the jobs and the outbox to drain once the load has
+#: stopped. A killed worker's jobs wait for the lease (45 s) and the reaper (every minute) before one finishes, so this
+#: is the bound of "every job ends".
+STALL_TIMEOUT = 240.0
 
 
 @dataclass
@@ -654,7 +655,7 @@ def run_scenario(run: str, name: str) -> dict:
         ledger["uploads"] = ledger.get("uploads", []) + uploads.entries
         ledger_path.write_text(json.dumps(ledger, indent=2))
     print("  invariants", flush=True)
-    report = invariants.check(DATABASE_URL, name, RESULTS / run, DRAIN_TIMEOUT, fault=fault, since=started_at)
+    report = invariants.check(DATABASE_URL, name, RESULTS / run, STALL_TIMEOUT, fault=fault, since=started_at)
     report.print()
     (RESULTS / run / name / "invariants.json").write_text(json.dumps(report.rows, indent=2))
     summary = load.summary().get("total", {})

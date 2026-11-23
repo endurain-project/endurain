@@ -44,6 +44,10 @@ def database_url() -> str:
 UPLOAD_CAP = 10
 #: Seconds past its lease (or past becoming due) after which a job counts as stuck; the reaper runs every minute.
 STUCK_GRACE_SECONDS = 180
+#: Seconds without progress after which the drain wait gives up. A killed worker's jobs wait for the lease (45 s) and the
+#: reaper (every minute) before anyone finishes one, about 105 s; 180 s covers that with margin and equals the stuck grace.
+#: It is also the look-ahead: a job that becomes available within it is waited for, a later one is only reported.
+STALL_SECONDS = 180.0
 
 #: (child table, parent table, child column, parent column): rows whose parent is gone.
 ORPHAN_PAIRS = (
@@ -264,34 +268,69 @@ def check_lifecycles(cur: psycopg.Cursor, report: Report, cycles: list[dict]) ->
     )
 
 
-def wait_for_drain(cur: psycopg.Cursor, timeout: float) -> float:
-    """Wait until no durable job is due or running and the outbox is relayed, or the timeout passes; return the seconds.
+def wait_for_drain(cur: psycopg.Cursor, report: Report, stall: float) -> None:
+    """Wait while due work makes progress; stop when none is left or none has been done for ``stall`` seconds.
 
-    A job scheduled for later (a retry's backoff) is settled, as a deferred refresh is; the stuck check below still
-    fails one that is due and was left.
+    Work is a durable job that is claimed or pending and available within ``stall`` seconds, an ingestion job still
+    open, or an outbox row not relayed. Progress is a job attempt that ended or an outbox row relayed. A job deferred
+    beyond the window (a refresh waiting for a provider's rate limit) is not waited for; it is reported. A stall leaves
+    its jobs open, so the stuck check below fails the ones still due past the grace.
     """
-    started = time.monotonic()
+    started = last_progress = time.monotonic()
+    initial: str | None = None
+    progress = None
     while True:
         open_jobs = scalar(
             cur,
-            "SELECT count(*) FROM jasil_processing_jobs "
-            "WHERE status = 'claimed' OR (status = 'pending' AND available_at <= now())",
+            "SELECT count(*) FROM jasil_processing_jobs WHERE status = 'claimed' "
+            "OR (status = 'pending' AND available_at <= now() + make_interval(secs => %s))",
+            stall,
         )
         unrelayed = scalar(cur, "SELECT count(*) FROM jasil_event_outbox WHERE relayed_at IS NULL")
-        # A deferred refresh waits for a provider's rate limit to clear, which is minutes away: it is settled.
         ingesting = scalar(
             cur,
             "SELECT count(*) FROM activity_ingestion_jobs WHERE status IN ('pending', 'processing') "
-            "OR (status = 'deferred' AND (retry_after IS NULL OR retry_after <= now()))",
+            "OR (status = 'deferred' AND (retry_after IS NULL OR retry_after <= now() + make_interval(secs => %s)))",
+            stall,
         )
-        if (open_jobs == 0 and unrelayed == 0 and ingesting == 0) or time.monotonic() - started > timeout:
-            return time.monotonic() - started
+        now = time.monotonic()
+        if initial is None:
+            initial = f"{open_jobs} jobs, {ingesting} ingestion jobs, {unrelayed} unrelayed events"
+        cur.execute(
+            "SELECT (SELECT count(*) FROM jasil_job_attempts WHERE outcome IS NOT NULL), "
+            "(SELECT count(*) FROM jasil_event_outbox WHERE relayed_at IS NOT NULL)"
+        )
+        done = cur.fetchone()
+        if done != progress:
+            progress, last_progress = done, now
+        if open_jobs == 0 and unrelayed == 0 and ingesting == 0:
+            verdict = "drained"
+            break
+        if now - last_progress > stall:
+            verdict = (
+                f"stalled (no progress for {stall:.0f}s; {open_jobs} jobs, {ingesting} ingestion jobs, "
+                f"{unrelayed} unrelayed events left)"
+            )
+            break
         time.sleep(2)
         cur.connection.rollback()  # a fresh snapshot for the next look
+    report.add("drain began with", None, initial)
+    report.add("queues drained", None, f"{verdict} after {time.monotonic() - started:.0f}s")
+    cur.execute(
+        "SELECT subscriber_id, count(*), max(available_at) FROM jasil_processing_jobs "
+        "WHERE status = 'pending' AND available_at > now() + make_interval(secs => %s) GROUP BY 1 ORDER BY 1",
+        (stall,),
+    )
+    deferred = cur.fetchall()
+    report.add(
+        "jobs deferred beyond the stall window (not waited for)",
+        None,
+        "; ".join(f"{s}={n} until {latest:%H:%M:%S}" for s, n, latest in deferred) or "none",
+    )
 
 
 def check(
-    url: str, run: str, results: Path, drain_timeout: float, *, fault: bool = False, since: datetime | None = None
+    url: str, run: str, results: Path, stall_timeout: float, *, fault: bool = False, since: datetime | None = None
 ) -> Report:
     report = Report()
     ledger_file = results / run / "ledger.json"
@@ -299,9 +338,8 @@ def check(
     with psycopg.connect(url) as conn:
         conn.read_only = True
         with conn.cursor() as cur:
-            waited = wait_for_drain(cur, drain_timeout)
+            wait_for_drain(cur, report, stall_timeout)
             conn.rollback()
-            report.add("queues drained", None, f"waited {waited:.0f}s for open jobs and the outbox")
 
             # -- duplicates ------------------------------------------------------------------------------------------------
             cur.execute(
@@ -597,12 +635,17 @@ def main() -> int:
     parser.add_argument("--run", default="manual")
     parser.add_argument("--url", default=None, help="the database URL; by default the stack's (database_url)")
     parser.add_argument("--results", type=Path, default=Path(os.environ.get("LOADTEST_RESULTS", HERE / "results")))
-    parser.add_argument("--drain-timeout", type=float, default=120.0, help="seconds to wait for jobs and the outbox")
+    parser.add_argument(
+        "--stall-timeout",
+        type=float,
+        default=STALL_SECONDS,
+        help="seconds without a finished job attempt or relayed event after which the drain gives up",
+    )
     parser.add_argument(
         "--fault", action="store_true", help="a fault was injected: report dead-letters, do not fail on them"
     )
     args = parser.parse_args()
-    report = check(args.url or database_url(), args.run, args.results, args.drain_timeout, fault=args.fault)
+    report = check(args.url or database_url(), args.run, args.results, args.stall_timeout, fault=args.fault)
     report.print()
     (args.results / args.run).mkdir(parents=True, exist_ok=True)
     (args.results / args.run / "invariants.json").write_text(json.dumps(report.rows, indent=2))
