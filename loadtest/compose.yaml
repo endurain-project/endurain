@@ -1,5 +1,5 @@
 # A distributed Endurain deployment for load tests: nginx -> N api replicas, M workers, PostgreSQL (behind toxiproxy),
-# Redis, S3 (adobe/s3mock) and a stub for the providers the application calls (map tiles, Nominatim, Strava).
+# Redis, S3 (Versity S3 Gateway) and a stub for the providers the application calls (map tiles, Nominatim, Strava).
 #
 #   docker compose -p endurain-load --env-file .env.loadtest --env-file .env.secrets -f compose.yaml up -d --build --wait --scale api=2
 #
@@ -89,15 +89,15 @@ services:
       timeout: 3s
       retries: 20
 
-  # The S3-compatible store the distributed CI job uses, pinned to the same image; it creates the bucket at start.
+  # An S3 gateway over a plain directory (Versity S3 Gateway, posix backend); the bucket is a directory made before it
+  # starts. CI's s3mock is not used here: it rewrites a bucket's whole key index on every write, so after 2 hours (about
+  # 20,000 objects) a 100 KB PUT took 74 ms against 3 ms into an empty bucket, and the run measured the mock.
   s3:
-    image: adobe/s3mock@sha256:ab01a6946750f451ca215a47e91030695b260e4003b8a5a6201d25029b8fca92
+    image: versity/versitygw:v1.11.0@sha256:8319a530d08d537426e2f855bae5280709795dc73a3f0c347973ef915d6343c5
+    entrypoint: ["sh", "-c", "mkdir -p /data/endurain-loadtest && exec versitygw --port :9090 posix /data"]
     environment:
-      COM_ADOBE_TESTING_S3MOCK_STORE_INITIAL_BUCKETS: endurain-loadtest
-      COM_ADOBE_TESTING_S3MOCK_STORE_RETAIN_FILES_ON_EXIT: "false"
-      # The JVM sizes its heap from the whole VM, a quarter of it, and grew past its share in a soak until the kernel
-      # killed it. The objects are kept on disk, so a small heap serves the run.
-      JAVA_TOOL_OPTIONS: -Xmx384m
+      ROOT_ACCESS_KEY: ${AWS_ACCESS_KEY_ID:?set in .env.loadtest}
+      ROOT_SECRET_KEY: ${AWS_SECRET_ACCESS_KEY:?set in .env.loadtest}
 
   # Map tiles, Nominatim and Strava over https for the three public host names, with a certificate made at start; see
   # stub/stub.py. It runs as root only to listen on 443. The admin API (rate limits, counters) is on 127.0.0.1:18081.
