@@ -233,9 +233,10 @@ def accept_upload(
         )
     except IntegrityError:
         # Two requests carrying the same key raced past the check above. The
-        # constraint is what actually decides; the loser reports the winner's job.
-        activity_ingestion_upload_entry_service.discard_staged_upload(staged_key, storage)
+        # constraint is what actually decides; the loser reports the winner's job. The rollback comes
+        # first: it releases the user's upload lock, which must not wait on a storage call.
         db.rollback()
+        activity_ingestion_upload_entry_service.discard_staged_upload(staged_key, storage)
         prior = (
             activity_ingestion_crud.get_job_for_idempotency(
                 idempotency_key, token_user_id, activity_ingestion_constants.IngestionJobKind.UPLOAD, db
@@ -249,8 +250,9 @@ def accept_upload(
         require_same_request(fingerprint, received.fingerprint)
         return replayed
     except Exception:
-        # The row is gone (or never committed), so nothing will consume the
-        # staged bytes.
+        # The row is gone (or never committed), so nothing will consume the staged bytes. The rollback
+        # comes first: it releases the user's upload lock, which must not wait on a storage call.
+        db.rollback()
         activity_ingestion_upload_entry_service.discard_staged_upload(staged_key, storage)
         raise
 

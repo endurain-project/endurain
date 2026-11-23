@@ -3,12 +3,16 @@
 The durable profile keeps every accepted upload pending, so a request count is a job count.
 """
 
+import dataclasses
 import threading
 import uuid
 
+import jasil.runtime as jasil_runtime
 import pytest
+from sqlalchemy import text
 
 import core.config as core_config
+import core.database as core_database
 import modules.activities.activity_ingestion.constants as ingestion_constants
 import modules.activities.activity_ingestion.crud as ingestion_crud
 from tests._factories.garmin import activity_gpx
@@ -106,6 +110,54 @@ class TestTheRoute:
 
         statuses = sorted(response.status_code for response in responses)
         assert statuses == [202] * _CAP + [409] * 5
+        assert len(all_jobs(committed_sessions)) == _CAP
+
+
+class _ObservedStorage:
+    """Storage that fills the user's cap once a file is staged and reports the user's upload lock on every delete."""
+
+    def __init__(self, inner, on_staged, user_id: uuid.UUID) -> None:
+        self._inner = inner
+        self._on_staged = on_staged
+        self._user_id = user_id
+        self.lock_free_at_delete: list[bool] = []
+
+    def __getattr__(self, name: str):
+        return getattr(self._inner, name)
+
+    def save_stream(self, *args, **kwargs):
+        result = self._inner.save_stream(*args, **kwargs)
+        self._on_staged()
+        return result
+
+    def delete(self, *args, **kwargs):
+        self.lock_free_at_delete.append(self._upload_lock_is_free())
+        return self._inner.delete(*args, **kwargs)
+
+    def _upload_lock_is_free(self) -> bool:
+        with core_database.engine.connect() as connection:
+            return bool(
+                connection.execute(
+                    text("SELECT pg_try_advisory_xact_lock(:namespace, hashtext(:user_id))"),
+                    {"namespace": ingestion_crud._UPLOAD_LOCK_NAMESPACE, "user_id": str(self._user_id)},
+                ).scalar_one()
+            )
+
+
+class TestTheStagedFileOfARefusedUpload:
+    @pytest.fixture(autouse=True)
+    def _durable(self, durable_jobs):
+        """Nothing runs the jobs, so the open ones stay open."""
+
+    def test_is_removed_after_the_users_upload_lock_is_released(self, me, committed_sessions, platform):
+        observed = _ObservedStorage(platform.storage, lambda: _fill(committed_sessions, me, _CAP), me.user.id)
+        jasil_runtime.set_active_platform(dataclasses.replace(platform, storage=observed))
+
+        response = _upload(me)
+
+        assert response.status_code == 409
+        assert observed.lock_free_at_delete == [True]
+        assert staged_keys(platform.storage) == []
         assert len(all_jobs(committed_sessions)) == _CAP
 
 
