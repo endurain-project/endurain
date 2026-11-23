@@ -222,6 +222,21 @@ class TestABrokenServer:
         outage = [record for record in app_log.records if "StorageBackendUnavailableError" in record.getMessage()]
         assert [(record.levelname, record.exc_info) for record in outage] == [("WARNING", None)]
 
+    def test_a_storage_refusal_while_staging_answers_500_without_retry_after_and_queues_nothing(
+        self, me, pool, committed_sessions, break_storage, app_log
+    ):
+        break_storage(save_stream=StorageBackendUnavailableError("access denied", transient=False))
+
+        response = _upload(me, "ride.gpx", activity_gpx())
+
+        assert response.status_code == 500
+        assert response.json()["type"].endswith("internal-error")
+        assert "retry-after" not in response.headers
+        assert all_jobs(committed_sessions) == []
+        assert _incoming_files() == []
+        refusal = [record for record in app_log.records if "StorageBackendUnavailableError" in record.getMessage()]
+        assert [(record.levelname, record.exc_info is not None) for record in refusal] == [("ERROR", True)]
+
     def test_a_storage_outage_while_importing_fails_the_job_since_nothing_retries_it(
         self, me, pool, committed_sessions, break_storage
     ):

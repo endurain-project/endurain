@@ -849,11 +849,13 @@ async def database_error_handler(request: Request, exc: SQLAlchemyError) -> JSON
 async def storage_unavailable_handler(
     request: Request, exc: platform_providers.StorageBackendUnavailableError
 ) -> JSONResponse:
-    """Render a blob-storage outage that reached the boundary as a 503 with ``Retry-After``.
+    """Render a blob-storage failure that reached the boundary as a problem document.
 
-    The storage backend being out of reach is transient, so it is logged as a warning without a traceback. A call site
-    that can carry on without the blob (a best-effort delete) catches the error itself; any other reaches this one
-    place instead of each route translating it.
+    An outage (``jasil.providers.is_storage_unavailable``) is transient, so it answers 503 with ``Retry-After`` and is
+    logged as a warning without a traceback. A refusal (access denied, a missing bucket, bad credentials) is a fault of
+    this server's configuration that trying again does not mend, so it is answered and logged as any unhandled error. A
+    call site that can carry on without the blob (a best-effort delete) catches the error itself; any other reaches
+    this one place instead of each route translating it.
 
     Args:
         request: The incoming request (used for log context and ``instance``).
@@ -862,6 +864,8 @@ async def storage_unavailable_handler(
     Returns:
         The problem document.
     """
+    if not platform_providers.is_storage_unavailable(exc):
+        return await unhandled_error_handler(request, exc)
     logger.warning(
         f"Storage unavailable on {request.method} {request.url.path}: {type(exc).__name__}",
         extra=core_logger.context(path=request.url.path, method=request.method, error=type(exc).__name__),
