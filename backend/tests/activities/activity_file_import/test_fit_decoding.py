@@ -332,83 +332,17 @@ class TestWorkoutStepMessages:
 
 
 class TestMonitoringMessages:
-    def test_a_walking_sample_gives_steps_and_its_activity_at_the_full_timestamp(self, tmp_path):
-        sample = fit_files.raw_message(
-            _MONITORING,
-            [
-                (253, _UINT32, _fit_time(_T0)),
-                (3, _UINT32, 40),
-                (5, _ENUM, 6),
-                (4, _UINT32, 30_000),
-                (19, _UINT16, 5),
-                (29, _UINT16, 1),
-            ],
+    def test_monitoring_messages_do_not_change_what_the_file_reads(self, tmp_path):
+        """Daily wellness samples (steps, heart rate, resting heart rate) are not activity data and are not read."""
+        step = fit_files.raw_message(_WORKOUT_STEP, [(1, _ENUM, 0)])
+        monitoring = fit_files.raw_message(
+            _MONITORING, [(253, _UINT32, _fit_time(_T0)), (3, _UINT32, 40), (27, _UINT8, 62)], local_type=1
+        )
+        resting = fit_files.raw_message(
+            _MONITORING_HR_DATA, [(253, _UINT32, _fit_time(_T0)), (0, _UINT8, 48), (1, _UINT8, 50)], local_type=2
         )
 
-        [steps] = _parse(tmp_path, sample)["intraday_steps"]
-
-        # Once the activity is walking, ``cycles`` is the step count, which the profile does not scale.
-        assert steps["steps"] == 40
-        assert steps["activity_type"] == "walking"
-        assert steps["active_time"] == 30.0
-        assert steps["active_calories"] == 5
-        assert steps["duration_min"] == 1
-        assert steps["timestamp"] == _T0
-
-    def test_a_sample_without_an_activity_type_counts_its_cycles_as_steps(self, tmp_path):
-        sample = fit_files.raw_message(_MONITORING, [(253, _UINT32, _fit_time(_T0)), (3, _UINT32, 40)])
-
-        [steps] = _parse(tmp_path, sample)["intraday_steps"]
-
-        assert (steps["steps"], steps["activity_type"]) == (40, None)
-
-    def test_a_sample_with_a_heart_rate_gives_a_heart_rate_reading(self, tmp_path):
-        sample = fit_files.raw_message(_MONITORING, [(253, _UINT32, _fit_time(_T0)), (27, _UINT8, 62)])
-
-        payload = _parse(tmp_path, sample)
-
-        assert payload["intraday_heart_rate"] == [{"heart_rate": 62, "timestamp": _T0}]
-        assert payload["intraday_steps"] == []
-
-    def test_a_sample_with_neither_steps_nor_heart_rate_gives_nothing(self, tmp_path):
-        sample = fit_files.raw_message(_MONITORING, [(253, _UINT32, _fit_time(_T0)), (1, _UINT16, 12)])
-
-        payload = _parse(tmp_path, sample)
-
-        assert (payload["intraday_steps"], payload["intraday_heart_rate"]) == ([], [])
-
-    def test_a_sixteen_bit_timestamp_continues_from_the_last_full_timestamp(self, tmp_path):
-        full = fit_files.raw_message(_MONITORING, [(253, _UINT32, _fit_time(_T0)), (27, _UINT8, 60)])
-        short = fit_files.raw_message(
-            _MONITORING, [(26, _UINT16, (_fit_time(_T0) + 30) & 0xFFFF), (27, _UINT8, 61)], local_type=1
-        )
-
-        readings = _parse(tmp_path, full, short)["intraday_heart_rate"]
-
-        assert [(reading["heart_rate"], reading["timestamp"]) for reading in readings] == [
-            (60, _T0),
-            (61, _at(30)),
-        ]
-
-    def test_a_sixteen_bit_timestamp_that_wrapped_carries_into_the_next_block(self, tmp_path):
-        before_wrap = (_fit_time(_T0) & ~0xFFFF) | 0xFFF0
-        full = fit_files.raw_message(_MONITORING, [(253, _UINT32, before_wrap), (27, _UINT8, 60)])
-        wrapped = fit_files.raw_message(_MONITORING, [(26, _UINT16, 0x0010), (27, _UINT8, 61)], local_type=1)
-
-        readings = _parse(tmp_path, full, wrapped)["intraday_heart_rate"]
-
-        assert readings[1]["timestamp"] - readings[0]["timestamp"] == timedelta(seconds=32)
-
-    def test_a_resting_heart_rate_message_is_read(self, tmp_path):
-        message = fit_files.raw_message(
-            _MONITORING_HR_DATA, [(253, _UINT32, _fit_time(_T0)), (0, _UINT8, 48), (1, _UINT8, 50)]
-        )
-
-        assert _parse(tmp_path, message)["resting_heart_rate"] == {
-            "timestamp": _T0,
-            "resting_heart_rate": 48,
-            "current_day_resting_heart_rate": 50,
-        }
+        assert _parse(tmp_path, step, monitoring, resting) == _parse(tmp_path, step)
 
 
 class TestDeviceSettingsOffset:

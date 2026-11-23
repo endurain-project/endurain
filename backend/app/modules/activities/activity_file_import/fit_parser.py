@@ -126,9 +126,6 @@ class FitParsePayload(TypedDict):
         workout_steps: Every planned workout step.
         lengths: Every pool length.
         file_id: The file's identification.
-        intraday_steps: Monitoring step samples.
-        intraday_heart_rate: Monitoring heart-rate samples.
-        resting_heart_rate: The monitoring resting heart rate, when the file has one.
         exercise_titles: The file's exercise titles.
     """
 
@@ -158,9 +155,6 @@ class FitParsePayload(TypedDict):
     workout_steps: list[activity_workout_steps_contracts.ActivityWorkoutStepsCreate]
     lengths: list[activity_file_import_fit_frames.FitLength]
     file_id: activity_file_import_fit_frames.FitFileId
-    intraday_steps: list[activity_file_import_fit_frames.FitMonitoringSteps]
-    intraday_heart_rate: list[activity_file_import_fit_frames.FitMonitoringHeartRate]
-    resting_heart_rate: activity_file_import_fit_frames.FitRestingHeartRate | None
     exercise_titles: list[activity_exercise_titles_contracts.ActivityExerciseTitlesCreate]
 
 
@@ -723,7 +717,6 @@ class FitParseState:
     time_offset: int | None = 0
     activity_time_offset: int | None = None
     last_waypoint_time: datetime | None = None
-    resting_heart_rate: activity_file_import_fit_frames.FitRestingHeartRate | None = None
     sessions: list[FitSession] = field(default_factory=list)
     laps: list[activity_file_import_fit_frames.FitLap] = field(default_factory=list)
     splits: list[FitSplit] = field(default_factory=list)
@@ -734,8 +727,6 @@ class FitParseState:
         default_factory=list
     )
     lengths: list[activity_file_import_fit_frames.FitLength] = field(default_factory=list)
-    intraday_steps: list[activity_file_import_fit_frames.FitMonitoringSteps] = field(default_factory=list)
-    intraday_heart_rate: list[activity_file_import_fit_frames.FitMonitoringHeartRate] = field(default_factory=list)
     # Empty until the file's file_id message is read.
     file_id: activity_file_import_fit_frames.FitFileId = field(
         default_factory=activity_file_import_fit_frames.FitFileId
@@ -797,9 +788,6 @@ class FitParseState:
             "workout_steps": self.workout_steps,
             "lengths": self.lengths,
             "file_id": self.file_id,
-            "intraday_steps": self.intraday_steps,
-            "intraday_heart_rate": self.intraday_heart_rate,
-            "resting_heart_rate": self.resting_heart_rate,
             "exercise_titles": self.exercises_titles,
         }
 
@@ -1019,26 +1007,12 @@ def _handle_record_frame(frame: fitdecode.FitDataMessage, state: FitParseState) 
     state.last_waypoint_time = time
 
 
-def _handle_monitoring_frame(frame: fitdecode.FitDataMessage, state: FitParseState, last_timestamp: int) -> None:
-    """Parse a monitoring frame and extend intraday collections.
-
-    Args:
-        frame: The decoded FIT monitoring message.
-        state: Mutable parse state for the current file.
-        last_timestamp: Timestamp of the previous monitoring frame.
-    """
-    steps, heart_rate = activity_file_import_fit_frames.parse_frame_monitoring(frame, last_timestamp)
-    state.intraday_steps.extend(steps)
-    state.intraday_heart_rate.extend(heart_rate)
-
-
-def _dispatch_data_message(frame: fitdecode.FitDataMessage, state: FitParseState, last_timestamp: int) -> None:
+def _dispatch_data_message(frame: fitdecode.FitDataMessage, state: FitParseState) -> None:
     """Route a FIT data message to the appropriate handler.
 
     Args:
         frame: The decoded FIT data message.
         state: Mutable parse state for the current file.
-        last_timestamp: Timestamp of the previous monitoring frame.
     """
     name = frame.name
     if name == "session":
@@ -1072,10 +1046,6 @@ def _dispatch_data_message(frame: fitdecode.FitDataMessage, state: FitParseState
         state.lengths.append(activity_file_import_fit_frames.parse_frame_length(frame))
     elif name == "file_id":
         state.file_id = activity_file_import_fit_frames.parse_frame_file_id(frame)
-    elif name == "monitoring":
-        _handle_monitoring_frame(frame, state, last_timestamp)
-    elif name == "monitoring_hr_data":
-        state.resting_heart_rate = activity_file_import_fit_frames.parse_frame_monitoring_hr_data(frame)
 
 
 def parse_fit_file(file: str, activity_name_input: str | None = None) -> FitParsePayload:
@@ -1103,7 +1073,7 @@ def parse_fit_file(file: str, activity_name_input: str | None = None) -> FitPars
             fit_data = fitdecode.FitReader(fit_file)
             for frame in fit_data:
                 if isinstance(frame, fitdecode.FitDataMessage):
-                    _dispatch_data_message(frame, state, fit_data.last_timestamp)
+                    _dispatch_data_message(frame, state)
 
         logger.debug(
             "FIT parse complete",

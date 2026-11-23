@@ -13,7 +13,7 @@ dispatch imports these, and nothing here imports back.
 """
 
 from collections.abc import Sequence
-from datetime import UTC, datetime
+from datetime import datetime
 from typing import Any, NotRequired, TypedDict
 from zoneinfo import ZoneInfo
 
@@ -194,58 +194,6 @@ class FitFileId(TypedDict, total=False):
     product: FitEnum | None
     serial_number: int | None
     time_created: datetime | None
-
-
-class FitMonitoringSteps(TypedDict):
-    """A step sample of a FIT monitoring message.
-
-    Attributes:
-        steps: Steps.
-        active_time: Active seconds.
-        active_calories: Active calories.
-        current_activity_type_intensity: The packed activity type and intensity bytes, as fitdecode reads them.
-        activity_type: The activity type.
-        intensity: The intensity.
-        distance: Distance in meters.
-        duration_min: Duration in minutes.
-        timestamp: When the sample was taken, UTC.
-    """
-
-    steps: int | None
-    active_time: float | None
-    active_calories: int | None
-    current_activity_type_intensity: tuple[int, ...] | None
-    activity_type: FitEnum | None
-    intensity: int | None
-    distance: float | None
-    duration_min: int | None
-    timestamp: datetime
-
-
-class FitMonitoringHeartRate(TypedDict):
-    """A heart-rate sample of a FIT monitoring message.
-
-    Attributes:
-        heart_rate: Heart rate in bpm.
-        timestamp: When the sample was taken, UTC.
-    """
-
-    heart_rate: int | None
-    timestamp: datetime
-
-
-class FitRestingHeartRate(TypedDict):
-    """A FIT monitoring heart-rate-data message's fields.
-
-    Attributes:
-        timestamp: When the message was recorded.
-        resting_heart_rate: Resting heart rate in bpm.
-        current_day_resting_heart_rate: The day's resting heart rate in bpm.
-    """
-
-    timestamp: datetime | None
-    resting_heart_rate: int | None
-    current_day_resting_heart_rate: int | None
 
 
 def parse_frame_session(frame: fitdecode.FitDataMessage) -> FitSessionFields:
@@ -704,85 +652,6 @@ def parse_frame_file_id(frame: fitdecode.FitDataMessage) -> FitFileId:
         "product": get_value_from_frame(frame, "product"),
         "serial_number": get_value_from_frame(frame, "serial_number"),
         "time_created": get_value_from_frame(frame, "time_created"),
-    }
-
-
-def parse_frame_monitoring(
-    frame: fitdecode.FitDataMessage,
-    last_timestamp: int,
-) -> tuple[list[FitMonitoringSteps], list[FitMonitoringHeartRate]]:
-    """Extract step and heart-rate samples from a FIT monitoring frame.
-
-    Args:
-        frame: The decoded FIT data message.
-        last_timestamp: Timestamp of the previous monitoring frame.
-
-    Returns:
-        A tuple of step samples and heart-rate samples.
-    """
-    steps: list[FitMonitoringSteps] = []
-    heart_rate: list[FitMonitoringHeartRate] = []
-
-    # Field name -> decoded value, subfields included; the fields a frame carries vary by device.
-    data: dict[str, Any] = {}
-    for frame_field in frame.fields:
-        data.update({frame_field.name: frame_field.value})
-        for sf in getattr(frame_field.field, "subfields", []) or []:
-            data.update({sf.name: sf.render(frame_field.raw_value)})
-
-    # Reconstruct timestamp with timestamp_16.
-    current_timestamp = None
-    if data.get("timestamp_16") is not None:
-        current_timestamp = (last_timestamp & 0xFFFF0000) | data["timestamp_16"]
-        if current_timestamp < last_timestamp:
-            current_timestamp += 0x10000
-    else:
-        current_timestamp = last_timestamp
-
-    timestamp = datetime.fromtimestamp(
-        current_timestamp + fitdecode.FIT_UTC_REFERENCE,
-        tz=UTC,
-    )
-
-    if data.get("steps"):
-        steps.append(
-            {
-                "steps": data.get("steps"),
-                "active_time": data.get("active_time"),
-                "active_calories": data.get("active_calories"),
-                "current_activity_type_intensity": data.get("current_activity_type_intensity"),
-                "activity_type": data.get("activity_type"),
-                "intensity": data.get("intensity"),
-                "distance": data.get("distance"),
-                "duration_min": data.get("duration_min"),
-                "timestamp": timestamp,
-            }
-        )
-
-    if data.get("heart_rate"):
-        heart_rate.append(
-            {
-                "heart_rate": data.get("heart_rate"),
-                "timestamp": timestamp,
-            }
-        )
-
-    return steps, heart_rate
-
-
-def parse_frame_monitoring_hr_data(frame: fitdecode.FitDataMessage) -> FitRestingHeartRate:
-    """Extract the resting heart-rate fields from a FIT monitoring frame.
-
-    Args:
-        frame: The decoded FIT data message.
-
-    Returns:
-        The timestamp and resting heart-rate fields as a dict.
-    """
-    return {
-        "timestamp": get_value_from_frame(frame, "timestamp"),
-        "resting_heart_rate": get_value_from_frame(frame, "resting_heart_rate"),
-        "current_day_resting_heart_rate": get_value_from_frame(frame, "current_day_resting_heart_rate"),
     }
 
 

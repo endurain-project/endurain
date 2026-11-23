@@ -997,7 +997,7 @@ class TestActivityLocalTimestampOffset:
         frame.name = "activity"
         state = fit_parser.FitParseState()
 
-        fit_parser._dispatch_data_message(frame, state, None)
+        fit_parser._dispatch_data_message(frame, state)
 
         assert state.activity_time_offset == 7200
         assert state.to_payload()["activity_time_offset"] == 7200
@@ -1141,12 +1141,12 @@ class TestExerciseTitleDispatch:
 
     def test_unnamed_title_frame_is_not_appended(self):
         state = fit_parser.FitParseState()
-        fit_parser._dispatch_data_message(_ExerciseTitleFrame(exercise_category=1, exercise_name=2), state, None)
+        fit_parser._dispatch_data_message(_ExerciseTitleFrame(exercise_category=1, exercise_name=2), state)
         assert state.exercises_titles == []
 
     def test_named_title_frame_is_appended(self):
         state = fit_parser.FitParseState()
         frame = _ExerciseTitleFrame(wkt_step_name="Press", exercise_category=1, exercise_name=2)
-        fit_parser._dispatch_data_message(frame, state, None)
+        fit_parser._dispatch_data_message(frame, state)
         assert len(state.exercises_titles) == 1
         assert state.exercises_titles[0].wkt_step_name == "Press"
