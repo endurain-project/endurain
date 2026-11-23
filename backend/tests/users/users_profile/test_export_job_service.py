@@ -15,6 +15,7 @@ import core.config as core_config
 import core.exceptions as core_exceptions
 import modules.auth.account_security.integration_service as account_security_integration
 import modules.auth.schema as auth_schema
+import modules.users.users.constants as users_constants
 import modules.users.users_profile.audit_actions as profile_audit_actions
 import modules.users.users_profile.constants as profile_constants
 import modules.users.users_profile.events as profile_events
@@ -230,6 +231,31 @@ class TestRunExport:
             _run(owner.id, job.id, states, unreachable, will_retry=True)
 
         assert states.get(owner.id).status == _Status.QUEUED
+
+    def test_a_storage_outage_while_reading_the_photo_is_retried_while_attempts_remain(self, owner, states, storage):
+        job = states.begin(owner.id, _SESSION, conflict="held")
+        storage.save(users_constants.USER_IMAGE_STORAGE_AREA, f"{owner.id}.png", b"png")
+        down = FaultyStorage(
+            storage,
+            key_faults={("get", f"{owner.id}.png"): StorageBackendUnavailableError("storage down")},
+        )
+
+        with pytest.raises(StorageBackendUnavailableError, match="storage down"):
+            _run(owner.id, job.id, states, down, will_retry=True)
+
+        assert states.get(owner.id).status == _Status.QUEUED
+
+    def test_a_storage_refusal_while_reading_the_photo_skips_it_and_the_export_completes(self, owner, states, storage):
+        job = states.begin(owner.id, _SESSION, conflict="held")
+        storage.save(users_constants.USER_IMAGE_STORAGE_AREA, f"{owner.id}.png", b"png")
+        refused = FaultyStorage(
+            storage,
+            key_faults={("get", f"{owner.id}.png"): StorageBackendUnavailableError("access denied", transient=False)},
+        )
+
+        _run(owner.id, job.id, states, refused, will_retry=True)
+
+        assert states.get(owner.id).status == _Status.SUCCEEDED
 
     def test_a_database_failure_wrapped_by_the_collection_is_retried(self, committed_sessions, owner, states, storage):
         job = states.begin(owner.id, _SESSION, conflict="held")

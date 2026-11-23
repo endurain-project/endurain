@@ -1,4 +1,4 @@
-"""The profile photo in the export: read through the storage provider, skipped when it cannot be read."""
+"""The profile photo in the export: read through the storage provider, skipped when storage refuses it."""
 
 import io
 import uuid
@@ -76,9 +76,11 @@ def test_a_large_photo_over_the_memory_limit_stops_the_export(storage):
         _export(storage, memory_limit_mb=0)
 
 
-def test_a_listing_failure_skips_the_photo_and_is_not_raised(storage):
+def test_a_refused_listing_skips_the_photo_and_is_not_raised(storage):
     storage.save(_AREA, f"{_USER_ID}.png", b"image-bytes")
-    unreachable = FaultyStorage(storage, faults={"list_keys": StorageBackendUnavailableError("down")})
+    unreachable = FaultyStorage(
+        storage, faults={"list_keys": StorageBackendUnavailableError("denied", transient=False)}
+    )
 
     entries, counts = _export(unreachable)
 
@@ -86,15 +88,33 @@ def test_a_listing_failure_skips_the_photo_and_is_not_raised(storage):
     assert counts["user_images"] == 0
 
 
-def test_a_read_failure_skips_only_that_photo(storage):
+def test_a_refused_read_skips_only_that_photo(storage):
     storage.save(_AREA, f"{_USER_ID}.png", b"png")
     storage.save(_AREA, f"{_USER_ID}.webp", b"webp")
-    flaky = FaultyStorage(storage, key_faults={("get", f"{_USER_ID}.png"): StorageBackendUnavailableError("down")})
+    flaky = FaultyStorage(
+        storage, key_faults={("get", f"{_USER_ID}.png"): StorageBackendUnavailableError("denied", transient=False)}
+    )
 
     entries, counts = _export(flaky)
 
     assert entries == {f"user_images/{_USER_ID}.webp": b"webp"}
     assert counts["user_images"] == 1
+
+
+def test_an_outage_while_listing_stops_the_export_instead_of_dropping_the_photo(storage):
+    storage.save(_AREA, f"{_USER_ID}.png", b"image-bytes")
+    down = FaultyStorage(storage, faults={"list_keys": StorageBackendUnavailableError("down")})
+
+    with pytest.raises(StorageBackendUnavailableError, match="down"):
+        _export(down)
+
+
+def test_an_outage_while_reading_a_photo_stops_the_export_instead_of_dropping_it(storage):
+    storage.save(_AREA, f"{_USER_ID}.png", b"png")
+    down = FaultyStorage(storage, key_faults={("get", f"{_USER_ID}.png"): StorageBackendUnavailableError("down")})
+
+    with pytest.raises(StorageBackendUnavailableError, match="down"):
+        _export(down)
 
 
 def test_a_photo_listed_but_gone_is_skipped(storage):

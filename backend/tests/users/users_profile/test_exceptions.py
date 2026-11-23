@@ -2,6 +2,7 @@
 
 import pytest
 from fastapi import status
+from jasil.providers import StorageBackendUnavailableError
 from sqlalchemy.exc import OperationalError
 
 import core.exceptions as core_exceptions
@@ -55,16 +56,23 @@ class TestIsTransient:
             OperationalError("s", {}, Exception("db down")),
             OSError("disk"),
             core_exceptions.ServiceUnavailableError("x"),
+            StorageBackendUnavailableError("down"),
         ],
-        ids=["database", "storage", "unavailable"],
+        ids=["database", "storage", "unavailable", "storage-outage"],
     )
     def test_a_database_storage_or_availability_failure_may_pass_on_its_own(self, error):
         assert profile_exceptions.is_transient(error) is True
 
     @pytest.mark.parametrize(
         "error",
-        [_E.FileFormatError("x"), _E.FileSizeError("x"), _E.ImportTimeoutError("x"), ValueError("x")],
-        ids=["format", "size", "timeout", "other"],
+        [
+            _E.FileFormatError("x"),
+            _E.FileSizeError("x"),
+            _E.ImportTimeoutError("x"),
+            ValueError("x"),
+            StorageBackendUnavailableError("denied", transient=False),
+        ],
+        ids=["format", "size", "timeout", "other", "storage-refusal"],
     )
     def test_the_archives_own_faults_and_limits_are_final(self, error):
         assert profile_exceptions.is_transient(error) is False

@@ -1,7 +1,8 @@
 """Storage-backed file writers for the profile data export.
 
 Adds the user's profile image to the export ZIP. It is read through the platform ``StorageProvider``,
-so an export is complete whichever storage backend is configured.
+so an export is complete whichever storage backend is configured. An image that storage refuses is skipped; an
+outage stops the export.
 """
 
 import os
@@ -38,12 +39,18 @@ def add_user_images_to_zip(
         storage: The platform storage provider.
         counts: Exported item counts, updated as items are written.
         performance_config: Memory limits.
+
+    Raises:
+        StorageBackendUnavailableError: When storage is unreachable for now, so the export is run again instead of
+            completing without the image. A refusal skips the image.
     """
     area = users_constants.USER_IMAGE_STORAGE_AREA
 
     try:
         keys = storage.list_keys(area, f"{user_id}.")
     except platform_providers.StorageBackendUnavailableError as err:
+        if platform_providers.is_storage_unavailable(err):
+            raise
         logger.warning("Failed to list user images", exc_info=err, extra=core_logger.context(user_id=user_id))
         return
 
@@ -51,6 +58,8 @@ def add_user_images_to_zip(
         try:
             data = storage.get(area, key)
         except platform_providers.StorageBackendUnavailableError as err:
+            if platform_providers.is_storage_unavailable(err):
+                raise
             logger.warning("Could not read a user image; skipping it", exc_info=err, extra=core_logger.context(key=key))
             continue
         if data is None:
