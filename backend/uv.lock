@@ -671,15 +671,15 @@ requires-dist = [
     { name = "apscheduler", specifier = ">=3.11.3" },
     { name = "authlib", specifier = ">=1.9.5" },
     { name = "boto3", marker = "extra == 'distributed'", specifier = ">=1.43.126" },
-    { name = "fastapi", specifier = ">=0.162.2" },
+    { name = "fastapi", specifier = ">=0.163.1" },
     { name = "fitdecode", specifier = ">=0.11.0" },
     { name = "garminconnect", specifier = ">=0.3.20" },
     { name = "geopy", specifier = ">=2.5.0" },
     { name = "gpxpy", specifier = ">=1.6.2" },
     { name = "httpx2", specifier = ">=2.16.0" },
     { name = "itsdangerous", specifier = ">=2.2.0" },
-    { name = "jasil", extras = ["audit", "fastapi", "geocoding", "jobs", "migrations"], specifier = ">=0.23.0,<0.24.0" },
-    { name = "jasil", extras = ["redis", "s3"], marker = "extra == 'distributed'", specifier = ">=0.23.0,<0.24.0" },
+    { name = "jasil", extras = ["audit", "fastapi", "geocoding", "jobs", "migrations"], specifier = ">=0.24.0,<0.25.0" },
+    { name = "jasil", extras = ["redis", "s3"], marker = "extra == 'distributed'", specifier = ">=0.24.0,<0.25.0" },
     { name = "joserfc", specifier = ">=1.8.0" },
     { name = "nh3", specifier = ">=0.3.7" },
     { name = "numpy", specifier = ">=2.5.4" },
@@ -770,7 +770,7 @@ wheels = [
 
 [[package]]
 name = "fastapi"
-version = "0.163.0"
+version = "0.163.1"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "annotated-doc" },
@@ -781,9 +781,9 @@ dependencies = [
     { name = "typing-extensions" },
     { name = "typing-inspection" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/f1/98/5411252e1c08bdd919c5d55774cebe9da0bebfb174c4e4ffa1a5821935ff/fastapi-0.163.0.tar.gz", hash = "sha256:ef55fa066d74b922aac7231af7869c4469b88ca00cac5d0421e42ceee213a902", size = 543109, upload-time = "2026-11-14T16:53:16.356Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/a4/62/19000d0f3699cacaeffe8a3c4cc7046d87aac3291163ffeb2ef08b82d859/fastapi-0.163.1.tar.gz", hash = "sha256:3d364b02a68b67292e833ff2dfed3b8dc3aeadf73e271c15316c6c166668792f", size = 544796, upload-time = "2026-11-15T09:51:31.271Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/de/b0/2d68e967b2fc6012ef1e7e91253c8222a2a895a45dee3677562deb93987e/fastapi-0.163.0-py3-none-any.whl", hash = "sha256:7572550ab4935e3ff373dc0191aea410d6c48127cc5477bc290b992fe539e345", size = 154381, upload-time = "2026-11-14T16:53:14.67Z" },
+    { url = "https://files.pythonhosted.org/packages/20/b6/2424da1e40825d3fc54539621811f34e21472499677c9490e4967270e38e/fastapi-0.163.1-py3-none-any.whl", hash = "sha256:68f2d8050f5c3583121c0d203046cc7def5c16a7d6c43a0e7707a8ea610fe2d3", size = 154541, upload-time = "2026-11-15T09:51:29.726Z" },
 ]
 
 [[package]]
@@ -1153,15 +1153,15 @@ wheels = [
 
 [[package]]
 name = "jasil"
-version = "0.23.0"
+version = "0.24.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "pydantic" },
     { name = "sqlalchemy" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/98/28/584cf90fc7e1ae48ae89570100065af9bc58ee889f26ae173325faeaa539/jasil-0.23.0.tar.gz", hash = "sha256:4656b18bcac5f099eb4bfa5222045dc40be08993df8d59252ce139bdb1d40063", size = 347460, upload-time = "2026-11-21T18:06:50.811Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/66/0c/9e090b8ee58c5a9cf15655df60dbe3f42d0eb5900ad0ab8727dac3b7b5c8/jasil-0.24.0.tar.gz", hash = "sha256:827819b2812793120d35fcc46d3aa87f7cb3da07dbe8936ff0936586318a152c", size = 357262, upload-time = "2026-11-23T12:34:32.981Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/70/2f/1d51d70b11505e78cc29c258d83cfe3215bc8b21dec4e4e4087b20d5073e/jasil-0.23.0-py3-none-any.whl", hash = "sha256:a78ec17dd72b6209aed427b5041b51b5d85d144917052ec83a79dfa566329594", size = 372608, upload-time = "2026-11-21T18:06:49.535Z" },
+    { url = "https://files.pythonhosted.org/packages/05/97/22286e74c2707f3bd99052697b12b77e00ee8c129ae93ecf7c3bb6bca66e/jasil-0.24.0-py3-none-any.whl", hash = "sha256:6f938eed6056e43833d9c4a76af40a786a89488aa2d9c44be1322ce9d6edbe23", size = 381624, upload-time = "2026-11-23T12:34:31.446Z" },
 ]
 
 [package.optional-dependencies]

@@ -6,7 +6,7 @@ authors = [{name = "João Vitória Silva", email = "joao@endurain.com"}]
 # readme intentionally omitted — internal app, not published to PyPI
 requires-python = ">=3.15,<4.0"
 dependencies = [
-    "fastapi>=0.162.2",
+    "fastapi>=0.163.1",
     "uvicorn>=0.54.0",
     "python-dotenv>=1.2.4",
     "sqlalchemy>=2.1.8",
@@ -44,7 +44,7 @@ dependencies = [
     "staticmap>=0.5.7",
     # Pinned below the next minor: JASIL is pre-1.0 and documents breaking
     # changes on minor versions.
-    "jasil[audit,fastapi,geocoding,jobs,migrations]>=0.23.0,<0.24.0",
+    "jasil[audit,fastapi,geocoding,jobs,migrations]>=0.24.0,<0.25.0",
 ]
 
 [project.optional-dependencies]
@@ -54,7 +54,7 @@ dependencies = [
 distributed = [
     "boto3>=1.43.126",
     "redis>=8.1.0",
-    "jasil[redis,s3]>=0.23.0,<0.24.0",
+    "jasil[redis,s3]>=0.24.0,<0.25.0",
 ]
 
 [dependency-groups]
