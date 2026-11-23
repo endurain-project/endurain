@@ -46,6 +46,21 @@ esac
 USERS="${LOADTEST_USERS:-$USERS}"
 RUNTIME="${LOADTEST_RUNTIME:-$RUNTIME}"
 
+# Refuse a profile the Docker VM cannot hold, before the kernel kills a container mid-run and the run reports what
+# it dropped as failures. Measured at rest: about 1 GiB for PostgreSQL, S3 (its heap capped in compose.yaml), Redis,
+# the proxy and the stub, about 300 MiB per API replica, which hashes up to four passwords at once at 64 MiB each, and
+# 256 MiB per worker (the default-queue workers plus the background and enrichment ones). It is compared with the
+# memory the VM has available now, so containers of other projects count against it.
+MAX_APIS=0
+for apis in "${APIS[@]}"; do [ "$apis" -gt "$MAX_APIS" ] && MAX_APIS=$apis; done
+NEEDED_MIB=$((1024 + MAX_APIS * 560 + (WORKERS + 2) * 256))
+AVAILABLE_MIB=$("${DC[@]}" run --rm --no-deps --entrypoint cat redis /proc/meminfo | awk '/^MemAvailable:/ {print int($2 / 1024)}')
+if [ "$AVAILABLE_MIB" -lt "$NEEDED_MIB" ]; then
+  echo "the $PROFILE profile needs about $NEEDED_MIB MiB for Docker ($MAX_APIS api, $((WORKERS + 2)) workers);" \
+    "its VM has $AVAILABLE_MIB MiB available: stop other containers or give the VM more memory" >&2
+  exit 2
+fi
+
 cleanup() {
   [ -n "$SAMPLER_PID" ] && kill "$SAMPLER_PID" 2>/dev/null || true
   if [ "${LOADTEST_KEEP:-0}" != "1" ]; then
@@ -112,7 +127,9 @@ run_once() {
 
   echo "== invariants"
   local inv_status=0
-  uv run python invariants.py --run "$run" || inv_status=$?
+  # The enrichment queue drains at the geocoding rate limit (one lookup a second), so a run that uploads faster ends
+  # with a backlog: wait for it rather than call it stuck.
+  uv run python invariants.py --run "$run" --drain-timeout 900 || inv_status=$?
 
   echo "== database and container dumps"
   "${PSQL[@]}" -c "SELECT calls, round(total_exec_time::numeric, 1) AS total_ms, round(mean_exec_time::numeric, 2) AS mean_ms, \
@@ -121,8 +138,16 @@ run_once() {
     >"$dir/pg_stat_statements.txt" 2>&1 || true
   "${PSQL[@]}" -c "SELECT state, wait_event_type, wait_event, count(*) FROM pg_stat_activity WHERE datname = 'endurain' \
     GROUP BY 1, 2, 3 ORDER BY 4 DESC" -c "SHOW max_connections" >"$dir/pg_stat_activity.txt" 2>&1 || true
+  # Which queue a backlog is on, and what its jobs cost: the open jobs per queue and subscriber, and the attempts.
+  "${PSQL[@]}" -c "SELECT queue, subscriber_id, status, count(*), min(available_at) AS oldest_available \
+    FROM jasil_processing_jobs WHERE status IN ('pending', 'claimed') GROUP BY 1, 2, 3 ORDER BY 4 DESC" \
+    -c "SELECT queue, subscriber_id, count(*) AS attempts, round(avg(duration_ms)) AS avg_ms, max(duration_ms) AS max_ms, \
+    round(sum(duration_ms) / 1000.0) AS total_s FROM jasil_job_attempts GROUP BY 1, 2 ORDER BY total_s DESC NULLS LAST" \
+    >"$dir/jobs.txt" 2>&1 || true
   "${DC[@]}" logs --no-color --no-log-prefix api >"$dir/api.log" 2>&1 || true
-  "${DC[@]}" logs --no-color --no-log-prefix worker worker-background >"$dir/worker.log" 2>&1 || true
+  "${DC[@]}" logs --no-color --no-log-prefix worker worker-background worker-enrichment >"$dir/worker.log" 2>&1 || true
+  # nginx logs only its own errors: why it answered a 502 or 504 (a refused, reset or timed-out upstream).
+  "${DC[@]}" logs --no-color --no-log-prefix proxy >"$dir/proxy.log" 2>&1 || true
   "${DC[@]}" stats --no-stream --format 'table {{.Name}}\t{{.MemUsage}}\t{{.CPUPerc}}' >"$dir/containers.txt" 2>&1 || true
   local errors
   errors=$(grep -c '"level": "ERROR"' "$dir/api.log" "$dir/worker.log" 2>/dev/null | paste -sd' ' - || true)
@@ -139,7 +164,7 @@ if [ "$PROFILE" = "faults" ]; then
   echo "== $RUN: $WORKERS worker(s), ${APIS[0]} api"
   bring_up_and_seed "${APIS[0]}"
   uv run python faults.py --run "$RUN" || STATUS=1
-  for service in api worker worker-background stub; do
+  for service in api worker worker-background worker-enrichment stub; do
     "${DC[@]}" logs --no-color --no-log-prefix "$service" >"results/$RUN/$service.log" 2>&1 || true
   done
   echo "== $RUN: faults $([ "$STATUS" -eq 0 ] && echo ok || echo FAILED)"

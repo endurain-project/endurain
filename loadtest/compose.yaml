@@ -95,6 +95,9 @@ services:
     environment:
       COM_ADOBE_TESTING_S3MOCK_STORE_INITIAL_BUCKETS: endurain-loadtest
       COM_ADOBE_TESTING_S3MOCK_STORE_RETAIN_FILES_ON_EXIT: "false"
+      # The JVM sizes its heap from the whole VM, a quarter of it, and grew past its share in a soak until the kernel
+      # killed it. The objects are kept on disk, so a small heap serves the run.
+      JAVA_TOOL_OPTIONS: -Xmx384m
 
   # Map tiles, Nominatim and Strava over https for the three public host names, with a certificate made at start; see
   # stub/stub.py. It runs as root only to listen on 443. The admin API (rate limits, counters) is on 127.0.0.1:18081.
@@ -135,12 +138,21 @@ services:
     healthcheck:
       disable: true
 
-  # Thumbnails, geocoding, imports, exports and deletions, so they never hold up the default queue.
+  # Imports, exports and deletions, so they never hold up the default queue.
   worker-background:
     <<: *endurain
     environment:
       APP_ROLE: worker
       JOBS_QUEUES: background
+    healthcheck:
+      disable: true
+
+  # Thumbnails and geocoding, at the pace of the servers they call, so they never hold up the queues above.
+  worker-enrichment:
+    <<: *endurain
+    environment:
+      APP_ROLE: worker
+      JOBS_QUEUES: enrichment
     healthcheck:
       disable: true
 

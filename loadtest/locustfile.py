@@ -12,6 +12,7 @@ One Locust process only: the ledger of what the run created lives in this proces
 ``results/<run>/ledger.json`` for ``invariants.py``.
 """
 
+import io
 import itertools
 import json
 import logging
@@ -19,6 +20,8 @@ import os
 import random
 import time
 import uuid
+import zipfile
+from contextlib import contextmanager
 from datetime import UTC, datetime, timedelta
 from http.cookies import SimpleCookie
 from pathlib import Path
@@ -54,11 +57,29 @@ STRAVA_BURST = os.environ.get("LOADTEST_STRAVA_BURST", "40:30")
 STRAVA_SESSIONS_PER_ACCOUNT = 2
 #: Virtual users that share one account in the Idempotency-Key collision scenario.
 COLLISION_GROUP_SIZE = 4
+#: Sessions that each run the lifecycle of one disposable account at a time, so the jobs of several accounts overlap.
+LIFECYCLE_SESSIONS = 2
+#: Seconds the lifecycle waits for one job (an export, a deletion, a Strava link or sync) before it gives up on it.
+LIFECYCLE_JOB_TIMEOUT = 240
+#: The Strava application id of the first disposable account; the seeded accounts use 900000 and up (seed.py).
+LIFECYCLE_STRAVA_CLIENT_BASE = 1_000_000
+#: What each cycle of the lifecycle does, by cycle number: ``(export, strava, end)``. A cycle always uploads, creates
+#: a gear and deletes it; ``end`` is ``keep`` (the account stays, so ``invariants.py`` can read its state), ``admin``
+#: (an administrator deletes it and polls the job) or ``self`` (the user deletes it; only an administrator can read
+#: that job).
+LIFECYCLE_PLANS = (
+    (True, False, "keep"),
+    (False, False, "admin"),
+    (False, True, "keep"),
+    (True, True, "self"),
+    (False, False, "self"),
+)
 
 SEED = json.loads(USERS_FILE.read_text()) if USERS_FILE.exists() else {"password": "", "users": []}
 _vid_counter = itertools.count()
 _collision_counter = itertools.count()
 _strava_counter = itertools.count()
+_lifecycle_counter = itertools.count()
 
 #: What the run did, for ``invariants.py``. Appends are atomic under gevent, so no lock.
 LEDGER: dict[str, list] = {
@@ -70,6 +91,9 @@ LEDGER: dict[str, list] = {
     "idempotency_violations": [],  # {key, detail}
     "refreshes": [],  # {job_id, user_id, status, retry_after}: a Strava refresh job and where it ended
     "strava_bursts": [],  # {at, seconds}: a window in which the stub answered every Strava call with 429
+    # One disposable account of the lifecycle scenario and the jobs it ran: {n, username, user_id, plan, uploads,
+    # activity_ids, gear, export, strava, deletion}; each of the last four is None until the cycle reaches it.
+    "lifecycles": [],
 }
 THROTTLED: dict[str, int] = {}
 STARTED = {"at": 0.0, "ws_established": 0, "ws_closed": {}}
@@ -131,7 +155,11 @@ class ApiUser(HttpUser):
         return {"X-LoadTest-Client-IP": self.ip, "X-Client-Type": "web"}
 
     def login(self, *, retries: int = 1) -> bool:
-        """Sign in with the account's password; a throttled attempt waits for ``Retry-After`` and tries again."""
+        """Sign in with the account's password, as many times as ``retries`` allows.
+
+        A throttled attempt waits for ``Retry-After`` and an unavailable server (502, 503, 504) a few seconds before
+        trying again, as a person signing in would; both still count as failed requests.
+        """
         for _ in range(retries):
             with self.client.post(
                 "/api/v1/auth/login",
@@ -149,11 +177,17 @@ class ApiUser(HttpUser):
                     gevent.sleep(min(float(resp.headers.get("Retry-After", 5)), 30))
                     continue
                 resp.failure(f"login {resp.status_code}: {resp.text[:200]}")
+                if resp.status_code in (502, 503, 504):
+                    gevent.sleep(min(float(resp.headers.get("Retry-After", 5)), 30))
+                    continue
                 return False
         return False
 
     def refresh(self) -> bool:
-        """Renew the tokens with the refresh cookie, as the web app does on reload, with the origin the server checks."""
+        """Renew the tokens with the refresh cookie, as the web app does on reload, with the origin the server checks.
+
+        A session the server ended (401) signs in again, as the web app sends its user back to the sign-in page.
+        """
         with self.client.post(
             "/api/v1/auth/refresh",
             name="auth_refresh POST /auth/refresh",
@@ -168,7 +202,9 @@ class ApiUser(HttpUser):
                 _throttled(resp, "auth_refresh POST /auth/refresh")
                 return False
             resp.failure(f"refresh {resp.status_code}: {resp.text[:200]}")
-            return False
+        if resp.status_code == 401:
+            return self.login(retries=3)
+        return False
 
     # -- requests -----------------------------------------------------------------------------------------------
 
@@ -396,13 +432,18 @@ class AthleteUser(ApiUser):
 class UploadMixin:
     """Upload GPX files and follow their jobs to the end."""
 
-    def post_upload(self, *, repeat_key: bool = False) -> dict | None:
-        """Upload one unique GPX with an Idempotency-Key; return its ledger entry, or None when it was not accepted."""
+    def post_upload(self, *, repeat_key: bool = False, ledger: list | None = None, prefix: str = "load") -> dict | None:
+        """Upload one unique GPX with an Idempotency-Key; return its ledger entry, or None when it was not accepted.
+
+        ``ledger`` is where the entry goes (the run's uploads by default); the lifecycle scenario keeps its own, since
+        the account's jobs and activities are gone once it deletes the account. ``prefix`` starts the file name, which
+        ``invariants.py`` uses to find the run's upload jobs.
+        """
         self.upload_n = getattr(self, "upload_n", 0) + 1
         n = self.upload_n
         data = gpx(self.vid, n)
         key = f'"{uuid.uuid4()}"'
-        name = f"load-{RUN}-{self.vid}-{n}.gpx"
+        name = f"{prefix}-{RUN}-{self.vid}-{n}.gpx"
         resp = self.api(
             "POST",
             "/activities/upload",
@@ -422,7 +463,7 @@ class UploadMixin:
             "activity_ids": [],
             "bytes": len(data),
         }
-        LEDGER["uploads"].append(entry)
+        (LEDGER["uploads"] if ledger is None else ledger).append(entry)
         if repeat_key:  # the same file again with the same key must answer the same job
             again = self.api(
                 "POST",
@@ -785,6 +826,476 @@ class WebSocketUser(UploadMixin, ApiUser):
             context={},
         )
         uploader.join(timeout=120)
+
+
+# ------------------------------------------------------------------------------------------------------------------
+# Account lifecycle: exports and deletions as jobs
+# ------------------------------------------------------------------------------------------------------------------
+
+
+def _burst_overlaps(since: float) -> bool:
+    """Whether the stub answered 429 to every Strava call at some moment since ``since`` (or does now)."""
+    now = time.time()
+    return any(b["at"] <= now and b["at"] + b["seconds"] + 5 >= since for b in LEDGER["strava_bursts"])
+
+
+class LifecycleUser(UploadMixin, ApiUser):
+    """Creates a disposable account as an administrator and puts it through the jobs that export or delete data.
+
+    The seeded accounts are never touched. Each cycle (``LIFECYCLE_PLANS``) creates an account, signs in as it (the
+    password an administrator set must be replaced at the first sign-in), uploads two activities, creates a gear,
+    gives the activities that gear, a weight too, and then, as the plan says:
+
+    * exports the profile (``POST /profile/export``, a second request while it runs is the documented ``409``),
+      follows the job, downloads the archive and checks it holds exactly what the account has;
+    * deletes the gear (a job that unassigns it from its activities) and checks it is gone and unassigned;
+    * links Strava through the stub, syncs a day, and unlinks again (a job that deletes what was imported);
+    * keeps the account, or deletes it as an administrator (``POST /users/{id}/delete``) or as the user
+      (``POST /profile/delete-account``; the user cannot read that job, an administrator can).
+
+    The session holds two identities, the administrator's and the account's, and swaps between them; the ledger
+    keeps what each cycle did, for ``invariants.py`` (the work left behind by a deleted account, the gear, the jobs).
+    """
+
+    fixed_count = LIFECYCLE_SESSIONS
+    wait_time = between(3.0, 8.0)
+
+    _IDENTITY = ("account_info", "user_id", "cookies", "token", "token_exp")
+
+    def account(self) -> dict:
+        admins = SEED["admins"]
+        return admins[self.vid % len(admins)]
+
+    def on_start(self) -> None:
+        super().on_start()
+        self.admin = self._identity()
+
+    def _identity(self) -> dict:
+        return {field: getattr(self, field) for field in self._IDENTITY}
+
+    @contextmanager
+    def acting_as(self, identity: dict):
+        """Send the requests inside the block as another account; its refreshed tokens are kept in ``identity``."""
+        away = self._identity()
+        for field, value in identity.items():
+            setattr(self, field, value)
+        try:
+            yield
+        finally:
+            identity.update(self._identity())
+            for field, value in away.items():
+                setattr(self, field, value)
+
+    # -- jobs -----------------------------------------------------------------------------------------------------
+
+    def wait_final(self, job_id: str, name: str, *, deferrable: bool = False) -> dict | None:
+        """Poll a job until it succeeded or failed (or, for a ``deferrable`` refresh, waits on a rate limit).
+
+        Returns the last body read, ``None`` when the job could not be read, whatever the reason it stopped.
+        """
+        body = None
+        deadline = time.monotonic() + LIFECYCLE_JOB_TIMEOUT
+        while time.monotonic() < deadline:
+            gevent.sleep(random.uniform(1.0, 2.0))
+            read = self.get_json(f"/jobs/{job_id}", name)
+            if read is None:
+                continue
+            body = read
+            if body["status"] in ("succeeded", "failed") or (deferrable and body.get("retry_after")):
+                break
+        return body
+
+    @staticmethod
+    def _e2e(name: str, started: float, error: str | None, length: int = 0) -> None:
+        events.request.fire(
+            request_type="E2E",
+            name=name,
+            response_time=(time.monotonic() - started) * 1000,
+            response_length=length,
+            exception=RuntimeError(error) if error else None,
+            context={},
+        )
+
+    # -- the account ----------------------------------------------------------------------------------------------
+
+    def _create_account(self, n: int, plan: tuple) -> tuple[dict, dict, str] | None:
+        """Create the account as the administrator and sign in as it; return ``(cycle, identity, password)``."""
+        tag = uuid.uuid4().hex[:10]
+        username = f"lc.{tag}"
+        initial = f"LoadTest-{tag}-Initial-2026!"
+        chosen = f"LoadTest-{tag}-Chosen-2026!"
+        created = self.api(
+            "POST",
+            "/users",
+            "lifecycle POST /users",
+            ok=(201,),
+            json={
+                "name": f"Lifecycle {tag}",
+                "username": username,
+                "email": f"{username}@example.com",
+                "password": initial,
+                "access_type": "regular",
+                "active": True,
+                "email_verified": True,
+                "preferred_language": "en",
+            },
+            headers={"Idempotency-Key": f'"{uuid.uuid4()}"'},
+        )
+        if created.status_code != 201:
+            return None
+        cycle = {
+            "n": n,
+            "username": username,
+            "user_id": created.json()["id"],
+            "plan": {"export": plan[0], "strava": plan[1], "end": plan[2]},
+            "uploads": [],
+            "activity_ids": [],
+            "gear": None,
+            "export": None,
+            "strava": None,
+            "deletion": None,
+        }
+        LEDGER["lifecycles"].append(cycle)
+        identity = {
+            "account_info": {"username": username},
+            "user_id": cycle["user_id"],
+            "cookies": {},
+            "token": "",
+            "token_exp": 0.0,
+        }
+        with self.acting_as(identity):
+            if not self._first_sign_in(username, initial, chosen):
+                return None
+        return cycle, identity, chosen
+
+    def _first_sign_in(self, username: str, initial: str, chosen: str) -> bool:
+        """Sign in with the password the administrator set, replace it, and keep the tokens of the new session."""
+        headers = {**self._base_headers(), "Cookie": ""}
+        with self.client.post(
+            "/api/v1/auth/login",
+            name="auth_login POST /auth/login (first sign-in)",
+            data={"username": username, "password": initial},
+            headers=headers,
+            catch_response=True,
+        ) as resp:
+            body = resp.json() if resp.status_code == 200 else {}
+            if body.get("next_step") != "password_change":
+                if resp.status_code == 429:
+                    _throttled(resp, "auth_login POST /auth/login (first sign-in)")
+                else:
+                    resp.failure(f"first sign-in {resp.status_code}: {resp.text[:200]}")
+                return False
+            resp.success()
+        with self.client.post(
+            "/api/v1/auth/password-change",
+            name="auth_login POST /auth/password-change",
+            json={"password_change_challenge": body["password_change_challenge"], "password": chosen},
+            headers=headers,
+            catch_response=True,
+        ) as resp:
+            if resp.status_code == 200 and resp.json().get("next_step") == "tokens":
+                self._store_tokens(resp)
+                resp.success()
+                return True
+            if resp.status_code == 429:
+                _throttled(resp, "auth_login POST /auth/password-change")
+            else:
+                resp.failure(f"password change {resp.status_code}: {resp.text[:200]}")
+            return False
+
+    def _populate(self, cycle: dict) -> None:
+        """As the account: upload two activities, create a gear, give the activities the gear, record a weight."""
+        for _ in range(2):
+            if (entry := self.post_upload(ledger=cycle["uploads"], prefix="lc")) is not None:
+                self.wait_job(entry)
+        cycle["activity_ids"] = [a for u in cycle["uploads"] if u["status"] == "succeeded" for a in u["activity_ids"]]
+        created = self.api(
+            "POST",
+            "/gears",
+            "lifecycle POST /gears",
+            ok=(201,),
+            json={"nickname": f"lc-{cycle['username']}", "gear_type": "bike"},
+            headers={"Idempotency-Key": f'"{uuid.uuid4()}"'},
+        )
+        if created.status_code == 201:
+            cycle["gear"] = {"id": created.json()["id"], "activity_ids": [], "job_id": None, "status": None}
+            for activity_id in cycle["activity_ids"]:
+                read = self.api("GET", f"/activities/{activity_id}", "lifecycle GET /activities/{id}")
+                if read.status_code != 200:
+                    continue
+                patched = self.api(
+                    "PATCH",
+                    f"/activities/{activity_id}",
+                    "lifecycle PATCH /activities/{id}",
+                    json={"gear_id": cycle["gear"]["id"]},
+                    headers={"If-Match": read.headers["ETag"]},
+                )
+                if patched.status_code == 200:
+                    cycle["gear"]["activity_ids"].append(activity_id)
+        self.api(
+            "POST",
+            "/health/weight",
+            "lifecycle POST /health/weight",
+            ok=(201,),
+            json={"date": (datetime.now(UTC) - timedelta(days=1)).date().isoformat(), "weight_kg": 70.5},
+            headers={"Idempotency-Key": f'"{uuid.uuid4()}"'},
+        )
+
+    # -- export ---------------------------------------------------------------------------------------------------
+
+    def _export(self, cycle: dict, password: str) -> None:
+        """As the account: request an export, follow it, download the archive and check what is in it."""
+        started = time.monotonic()
+        export = cycle["export"] = {"job_id": None, "superseded": [], "status": "not-accepted", "size_bytes": None}
+        export["archive"] = None  # "ok", or what was wrong with the archive
+        body = {"step_up": {"current_password": password}}
+        accepted = self.api("POST", "/profile/export", "export POST /profile/export", ok=(202,), json=body)
+        if accepted.status_code != 202:
+            return
+        export.update(job_id=accepted.json()["id"], status="queued")
+        # One export at a time: a second request while it is pending is refused and names the running job. One that
+        # arrives after the first finished is a new export, which replaces the first.
+        again = self.api(
+            "POST", "/profile/export", "export POST /profile/export (while running)", ok=(202, 409), json=body
+        )
+        if again.status_code == 202:
+            export.update(superseded=[export["job_id"]], job_id=again.json()["id"])
+        elif again.status_code == 409 and again.json().get("job_id") not in (None, export["job_id"]):
+            export["archive"] = f"409 named another job: {again.json().get('job_id')}"
+        job = self.wait_final(export["job_id"], "export GET /jobs/{id}")
+        if job is None:
+            return
+        export.update(status=job["status"], size_bytes=job.get("size_bytes"))
+        if job["status"] != "succeeded":
+            self._e2e("export_e2e accepted -> downloaded", started, f"export ended {job['status']}")
+            return
+        downloaded = self.api("GET", "/profile/export/download", "export GET /profile/export/download")
+        problem = (
+            self._archive_problem(downloaded.content, job.get("size_bytes"), cycle)
+            if downloaded.status_code == 200
+            else f"download answered {downloaded.status_code}"
+        )
+        if export["archive"] is None:
+            export["archive"] = problem or "ok"
+        self._e2e(
+            "export_e2e accepted -> downloaded",
+            started,
+            export["archive"] if export["archive"] != "ok" else None,
+            len(downloaded.content),
+        )
+
+    @staticmethod
+    def _archive_problem(content: bytes, size: int | None, cycle: dict) -> str | None:
+        """What is wrong with a downloaded export, or ``None``: a valid ZIP holding the account's own data."""
+        if size is not None and len(content) != size:
+            return f"{len(content)} bytes downloaded, the job said {size}"
+        try:
+            with zipfile.ZipFile(io.BytesIO(content)) as archive:
+                if (bad := archive.testzip()) is not None:
+                    return f"corrupt entry {bad}"
+                names = set(archive.namelist())
+                missing = {"counts.json", "data/user.json", "data/activities.json"} - names
+                if missing:
+                    return f"entries missing: {sorted(missing)}"
+                user = json.loads(archive.read("data/user.json"))[0]
+                activities = json.loads(archive.read("data/activities.json"))
+                counts = json.loads(archive.read("counts.json"))[0]
+                weights = (
+                    json.loads(archive.read("data/health_weight.json")) if "data/health_weight.json" in names else []
+                )
+        except (zipfile.BadZipFile, KeyError, ValueError, IndexError) as err:
+            return f"not a readable export: {err!r}"
+        if user.get("username") != cycle["username"]:
+            return f"user.json names {user.get('username')!r}"
+        if {a["id"] for a in activities} != set(cycle["activity_ids"]) or counts.get("activities") != len(
+            cycle["activity_ids"]
+        ):
+            return (
+                f"{len(activities)} activities in the archive (counts {counts.get('activities')}), "
+                f"ledger {len(cycle['activity_ids'])}"
+            )
+        if len(weights) != 1:
+            return f"{len(weights)} weights in the archive, ledger 1"
+        return None
+
+    # -- gear -----------------------------------------------------------------------------------------------------
+
+    def _delete_gear(self, cycle: dict) -> None:
+        """As the account: delete the gear (a job), then check it is gone and its activities no longer carry it."""
+        gear = cycle["gear"]
+        read = self.api("GET", f"/gears/{gear['id']}", "lifecycle GET /gears/{id}")
+        if read.status_code != 200:
+            return
+        started = time.monotonic()
+        accepted = self.api(
+            "DELETE",
+            f"/gears/{gear['id']}",
+            "deletion DELETE /gears/{id}",
+            ok=(202,),
+            headers={"If-Match": read.headers["ETag"]},
+        )
+        if accepted.status_code != 202:
+            return
+        gear.update(job_id=accepted.json()["id"], status="queued")
+        job = self.wait_final(gear["job_id"], "deletion GET /jobs/{id}")
+        gear["status"] = job["status"] if job else "unknown"
+        error = None if gear["status"] == "succeeded" else f"gear deletion ended {gear['status']}"
+        self._e2e("deletion_e2e gear accepted -> succeeded", started, error)
+        if gear["status"] != "succeeded":
+            return
+        gone = self.api("GET", f"/gears/{gear['id']}", "lifecycle GET /gears/{id} (deleted)", ok=(404,))
+        unassigned = True
+        for activity_id in gear["activity_ids"]:
+            read = self.api("GET", f"/activities/{activity_id}", "lifecycle GET /activities/{id} (after gear deletion)")
+            unassigned = unassigned and read.status_code == 200 and read.json().get("gear_id") is None
+        gear.update(gone=gone.status_code == 404, unassigned=unassigned)
+
+    # -- strava ---------------------------------------------------------------------------------------------------
+
+    def _strava(self, cycle: dict, password: str) -> None:
+        """As the account: link Strava (the stub), sync a day, and unlink, which deletes what the sync imported.
+
+        The stub's 429 burst can stop any step; the cycle then records the burst and leaves Strava as it is.
+        """
+        strava = cycle["strava"] = {"client_id": LIFECYCLE_STRAVA_CLIENT_BASE + RUN_INDEX * 100_000 + cycle["n"]}
+        started_at = time.time()
+        if _burst_overlaps(started_at):
+            strava["outcome"] = "skipped: a 429 burst is on"
+            return
+        step_up = {"current_password": password}
+        profile = self.api("GET", "/profile", "lifecycle GET /profile")
+        if profile.status_code != 200:
+            return
+        client = self.api(
+            "PUT",
+            "/strava/client",
+            "lifecycle PUT /strava/client",
+            ok=(204,),
+            json={
+                "client_id": strava["client_id"],
+                "client_secret": f"lt-secret-{strava['client_id']}",
+                "step_up": step_up,
+            },
+            headers={"If-Match": f'"{profile.json()["integrations_version"]}"'},
+        )
+        state = (
+            self.api("POST", "/strava/state", "lifecycle POST /strava/state", ok=(201,))
+            if client.status_code == 204
+            else None
+        )
+        if state is None or state.status_code != 201:
+            return
+        link = self.api(
+            "POST",
+            "/strava/link",
+            "strava POST /strava/link",
+            ok=(202,),
+            json={
+                "state": state.json()["state"],
+                "code": "lt-code",
+                "scope": "read,profile:read_all,activity:read_all",
+            },
+        )
+        if link.status_code != 202:
+            return
+        job = self.wait_final(link.json()["id"], "strava_job GET /jobs/{id}")
+        strava["link"] = job["status"] if job else "unknown"
+        if strava["link"] != "succeeded":
+            strava["outcome"] = "burst" if _burst_overlaps(started_at) else strava["link"]
+            return
+        day = (datetime.now(UTC) - timedelta(days=1)).date().isoformat()
+        sync = self.api(
+            "POST",
+            "/strava/activities",
+            "strava POST /strava/activities",
+            ok=(202,),
+            params={"start_date": day, "end_date": day},
+        )
+        if sync.status_code != 202:
+            return
+        job = self.wait_final(sync.json()["id"], "strava_job GET /jobs/{id}", deferrable=True)
+        strava["sync"] = job["status"] if job else "unknown"
+        strava["imported"] = len((job or {}).get("activity_ids") or [])
+        if job is None or job["status"] != "succeeded":
+            # A deferred sync would import again after the unlink, so it is left to run and the unlink is not asked.
+            strava["outcome"] = "burst" if _burst_overlaps(started_at) else strava["sync"]
+            return
+        started = time.monotonic()
+        unlink = self.api(
+            "POST", "/strava/unlink", "deletion POST /strava/unlink", ok=(202,), json={"step_up": step_up}
+        )
+        if unlink.status_code != 202:
+            return
+        job = self.wait_final(unlink.json()["id"], "deletion GET /jobs/{id}")
+        strava["unlink"] = job["status"] if job else "unknown"
+        strava["outcome"] = strava["unlink"]
+        if _burst_overlaps(started_at) and strava["unlink"] != "succeeded":
+            strava["outcome"] = "burst"
+            return
+        error = None if strava["unlink"] == "succeeded" else f"strava unlink ended {strava['unlink']}"
+        self._e2e("deletion_e2e strava unlink accepted -> succeeded", started, error)
+
+    # -- the end of the account -----------------------------------------------------------------------------------
+
+    def _delete_account(self, cycle: dict, identity: dict, password: str) -> None:
+        """Delete the account as its administrator or as the user, and follow the job as the administrator."""
+        deletion = cycle["deletion"] = {"by": cycle["plan"]["end"], "job_id": None, "status": None}
+        user_id = cycle["user_id"]
+        started = time.monotonic()
+        if deletion["by"] == "self":
+            with self.acting_as(identity):
+                accepted = self.api(
+                    "POST",
+                    "/profile/delete-account",
+                    "deletion POST /profile/delete-account",
+                    ok=(202,),
+                    json={"step_up": {"current_password": password}},
+                )
+        else:
+            with self.acting_as(self.admin):
+                read = self.api("GET", f"/users/{user_id}", "lifecycle GET /users/{id}")
+                if read.status_code != 200:
+                    return
+                accepted = self.api(
+                    "POST",
+                    f"/users/{user_id}/delete",
+                    "deletion POST /users/{id}/delete",
+                    ok=(202,),
+                    json={"step_up": {"current_password": SEED["password"]}},
+                    headers={"If-Match": read.headers["ETag"]},
+                )
+        if accepted.status_code != 202:
+            return
+        deletion.update(job_id=accepted.json()["id"], status="queued")
+        with self.acting_as(self.admin):  # only an administrator can read an account deletion
+            job = self.wait_final(deletion["job_id"], "deletion GET /jobs/{id}")
+            deletion["status"] = job["status"] if job else "unknown"
+            if deletion["status"] == "succeeded":
+                deletion["gone"] = (
+                    self.api("GET", f"/users/{user_id}", "lifecycle GET /users/{id} (deleted)", ok=(404,)).status_code
+                    == 404
+                )
+        error = None if deletion["status"] == "succeeded" else f"account deletion ended {deletion['status']}"
+        self._e2e("deletion_e2e user accepted -> succeeded", started, error)
+
+    @task
+    def lifecycle(self) -> None:
+        n = next(_lifecycle_counter)
+        plan = LIFECYCLE_PLANS[n % len(LIFECYCLE_PLANS)]
+        created = self._create_account(n, plan)
+        if created is None:
+            return
+        cycle, identity, password = created
+        with self.acting_as(identity):
+            self._populate(cycle)
+            if plan[0]:
+                self._export(cycle, password)
+            if cycle["gear"] is not None:
+                self._delete_gear(cycle)
+            if plan[1]:
+                self._strava(cycle, password)
+        if plan[2] != "keep":
+            self._delete_account(cycle, identity, password)
 
 
 # ------------------------------------------------------------------------------------------------------------------

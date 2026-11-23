@@ -299,6 +299,56 @@ def _stage_health(db: Session, rng: random.Random, user_id: uuid.UUID, days: int
     return days * 4
 
 
+def _stage_account(
+    db: Session, username: str, name: str, access_type: users_schema.UserAccessType, password_hash: str
+) -> users_models.Users:
+    """Stage an active, verified account with a local password and the defaults every user has (flushed).
+
+    Args:
+        db: Database session.
+        username: The account's username; its email is ``<username>@example.com``.
+        name: The account's display name.
+        access_type: Regular or administrator.
+        password_hash: The Argon2 hash of the seed's password.
+
+    Returns:
+        The new user.
+    """
+    user = users_crud.create_user(
+        {
+            "name": name,
+            "username": username,
+            "email": f"{username}@example.com",
+            "preferred_language": "en",
+            "access_type": access_type.value,
+            "active": True,
+            "email_verified": True,
+            "pending_admin_approval": False,
+        },
+        db,
+    )
+    credentials_integration.set_local_password_hash(user.id, password_hash, db, change_required=False)
+    users_service._stage_default_data(user.id, db)
+    return user
+
+
+def _user_exists(username: str) -> bool:
+    """Return whether a user with this username exists.
+
+    Args:
+        username: The username to look for.
+
+    Returns:
+        True when the user exists.
+    """
+    with core_database.SessionLocal() as db:
+        return bool(
+            db.scalar(
+                select(func.count()).select_from(users_models.Users).where(users_models.Users.username == username)
+            )
+        )
+
+
 def _create_user(index: int, args: argparse.Namespace, password_hash: str) -> uuid.UUID | None:
     """Create user ``index`` with everything that hangs off it, in one transaction.
 
@@ -312,26 +362,10 @@ def _create_user(index: int, args: argparse.Namespace, password_hash: str) -> uu
     """
     username = f"lt-{args.name}-{index:04d}"
     rng = random.Random(f"{args.name}:{index}")
+    if _user_exists(username):
+        return None
     with core_database.SessionLocal() as db:
-        if db.scalar(
-            select(func.count()).select_from(users_models.Users).where(users_models.Users.username == username)
-        ):
-            return None
-        user = users_crud.create_user(
-            {
-                "name": f"Load User {index}",
-                "username": username,
-                "email": f"{username}@example.com",
-                "preferred_language": "en",
-                "access_type": users_schema.UserAccessType.REGULAR.value,
-                "active": True,
-                "email_verified": True,
-                "pending_admin_approval": False,
-            },
-            db,
-        )
-        credentials_integration.set_local_password_hash(user.id, password_hash, db, change_required=False)
-        users_service._stage_default_data(user.id, db)
+        user = _stage_account(db, username, f"Load User {index}", users_schema.UserAccessType.REGULAR, password_hash)
         if index < args.strava_users:
             _link_strava(db, user.id, index)
         gear_ids = [
@@ -351,6 +385,25 @@ def _create_user(index: int, args: argparse.Namespace, password_hash: str) -> uu
             )
         db.commit()
         return user.id
+
+
+def _create_admin(index: int, args: argparse.Namespace, password_hash: str) -> None:
+    """Create administrator ``index``, who creates and deletes the accounts of the lifecycle scenario.
+
+    The username is ``lta-<name>-<n>``, so it is never among the seed's ``lt-<name>-<n>`` users that the other
+    scenarios use. An administrator that exists is kept.
+
+    Args:
+        index: The administrator's number within the seed.
+        args: The parsed command line.
+        password_hash: The Argon2 hash of the seed's password.
+    """
+    username = f"lta-{args.name}-{index:02d}"
+    if _user_exists(username):
+        return
+    with core_database.SessionLocal() as db:
+        _stage_account(db, username, f"Load Admin {index}", users_schema.UserAccessType.ADMIN, password_hash)
+        db.commit()
 
 
 def _ensure_follows(args: argparse.Namespace, user_ids: list[uuid.UUID]) -> int:
@@ -406,6 +459,9 @@ def main() -> int:
         "--strava-users", type=int, default=0, help="how many of the first users are linked to the stub Strava"
     )
     parser.add_argument("--follows-per-user", type=int, default=5)
+    parser.add_argument(
+        "--admins", type=int, default=2, help="administrators the lifecycle scenario creates and deletes accounts with"
+    )
     parser.add_argument("--sample", type=int, default=60, help="activity ids per user written to the credentials file")
     parser.add_argument("--out", default="/loadtest/data/users.json", help="where the credentials go")
     args = parser.parse_args()
@@ -422,6 +478,9 @@ def main() -> int:
             created += 1
         if (index + 1) % 10 == 0:
             print(f"seed: {index + 1}/{args.users} users ({time.monotonic() - started:.0f}s)", flush=True)
+
+    for index in range(args.admins):
+        _create_admin(index, args, password_hash)
 
     with core_database.SessionLocal() as db:
         rows = db.execute(
@@ -456,9 +515,17 @@ def main() -> int:
                     "activities": [{"id": r[0], "streams": r[1], "laps": r[2]} for r in sample],
                 }
             )
+        admins = [
+            {"username": row.username, "user_id": str(row.id)}
+            for row in db.execute(
+                select(users_models.Users.id, users_models.Users.username)
+                .where(users_models.Users.username.like(f"lta-{args.name}-%"))
+                .order_by(users_models.Users.username)
+            )
+        ]
     out = Path(args.out)
     out.parent.mkdir(parents=True, exist_ok=True)
-    out.write_text(json.dumps({"seed": args.name, "password": password, "users": users}, indent=2))
+    out.write_text(json.dumps({"seed": args.name, "password": password, "users": users, "admins": admins}, indent=2))
     print(
         f"seed {args.name!r}: {created} users created, {len(rows)} in total, {activities} activities, "
         f"{follows} follows created, credentials in {out} ({time.monotonic() - started:.0f}s)"

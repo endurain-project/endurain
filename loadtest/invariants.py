@@ -23,6 +23,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 
 import psycopg
+from psycopg import sql
 
 HERE = Path(__file__).resolve().parent
 #: The secrets ``run.sh`` makes for the stack, among them the database password.
@@ -63,6 +64,10 @@ ORPHAN_PAIRS = (
 )
 
 
+#: The durable events of the jobs the lifecycle scenario starts: a profile export, a gear deletion, an account deletion.
+LIFECYCLE_EVENTS = ("users.profile_export_requested", "gears.deletion_requested", "users.deletion_requested")
+
+
 class Report:
     """The rows of the result table."""
 
@@ -92,11 +97,186 @@ def scalar(cur: psycopg.Cursor, sql: str, *params):
     return cur.fetchone()[0]
 
 
+def referencing_columns(cur: psycopg.Cursor, table: str) -> list[tuple[str, str]]:
+    """Return ``(table, column)`` of every foreign key that points at ``table``, from the catalog."""
+    cur.execute(
+        "SELECT (SELECT relname FROM pg_class WHERE oid = c.conrelid), a.attname FROM pg_constraint c "
+        "JOIN pg_attribute a ON a.attrelid = c.conrelid AND a.attnum = ANY (c.conkey) "
+        "WHERE c.contype = 'f' AND c.confrelid = %s::regclass ORDER BY 1, 2",
+        (table,),
+    )
+    return cur.fetchall()
+
+
+def rows_naming(cur: psycopg.Cursor, table: str, column: str, ids: list[str]) -> int:
+    """Count the rows of ``table`` whose ``column`` is one of ``ids``."""
+    if not ids:
+        return 0
+    query = sql.SQL("SELECT count(*) FROM {} WHERE {} = ANY(%s::uuid[])").format(
+        sql.Identifier(table), sql.Identifier(column)
+    )
+    return scalar(cur, query, ids)
+
+
+def check_lifecycles(cur: psycopg.Cursor, report: Report, cycles: list[dict]) -> None:
+    """Check what the lifecycle scenario's accounts left in the database: exports, gear deletions, account deletions.
+
+    The ledger says which jobs were accepted; the database says whether the work was done, whatever the client saw
+    (a cycle cut off by the end of the run asked for its jobs all the same).
+
+    Args:
+        cur: A cursor on the stack's database.
+        report: Where the checks go.
+        cycles: ``ledger["lifecycles"]``.
+    """
+    user_ids = [c["user_id"] for c in cycles]
+    alive = {row[0] for row in cur.execute("SELECT id::text FROM users WHERE id = ANY(%s::uuid[])", (user_ids,))}
+    report.add(
+        "lifecycle accounts",
+        None,
+        f"{len(cycles)} created by an administrator, {len(alive)} still exist; plans: "
+        + ", ".join(
+            f"{name} {sum(1 for c in cycles if c['plan'].get(name) == value)}"
+            for name, value in (("export", True), ("strava", True), ("end", "keep"), ("end", "admin"), ("end", "self"))
+        ),
+    )
+
+    # -- exports ---------------------------------------------------------------------------------------------------
+    exports = [c["export"] for c in cycles if c["export"] and c["export"]["job_id"]]
+    failed = [e["job_id"] for e in exports if e["status"] == "failed"]
+    bad = [f"{e['job_id']}: {e['archive']}" for e in exports if e["status"] == "succeeded" and e["archive"] != "ok"]
+    open_exports = sum(1 for e in exports if e["status"] not in ("succeeded", "failed"))
+    report.add(
+        "every export succeeded and its archive was a valid ZIP of the account's data",
+        not failed and not bad,
+        f"{len(exports)} exports, {len(failed)} failed, {len(bad)} bad archives"
+        + (f" ({bad[0]})" if bad else "")
+        + (f", {open_exports} not read to the end when the run stopped" if open_exports else ""),
+    )
+
+    # -- gear deletions --------------------------------------------------------------------------------------------
+    gears = [(c, c["gear"]) for c in cycles if c["gear"] and c["gear"]["job_id"]]
+    gear_ids = [g["id"] for _, g in gears]
+    still_there = rows_naming(cur, "gear", "id", gear_ids)
+    client_problems = [g["id"] for _, g in gears if g["status"] == "failed" or g.get("gone") is False]
+    client_problems += [g["id"] for _, g in gears if g.get("unassigned") is False]
+    # An account that still exists keeps its activities and the sync tombstone of the gear; one deleted has neither.
+    kept = [(c, g) for c, g in gears if c["user_id"] in alive]
+    kept_activities = [a for _, g in kept for a in g["activity_ids"]]
+    activities_stored = rows_naming(cur, "activities", "id", kept_activities)
+    still_assigned = (
+        scalar(
+            cur,
+            "SELECT count(*) FROM activities WHERE id = ANY(%s::uuid[]) AND gear_id = ANY(%s::uuid[])",
+            kept_activities,
+            gear_ids,
+        )
+        if kept_activities
+        else 0
+    )
+    tombstones = rows_naming(cur, "gear_deletions", "record_id", [g["id"] for _, g in kept])
+    report.add(
+        "deleted gears are gone, their activities kept and no longer assigned",
+        still_there == 0
+        and not client_problems
+        and activities_stored == len(kept_activities)
+        and still_assigned == 0
+        and tombstones == len(kept),
+        f"{len(gears)} deletions accepted: {still_there} gears left; accounts kept: {activities_stored}/"
+        f"{len(kept_activities)} activities stored, {still_assigned} still assigned, {tombstones}/{len(kept)} "
+        f"tombstones; the client saw {len(client_problems)} problems",
+    )
+
+    # -- strava unlinks --------------------------------------------------------------------------------------------
+    unlinked = [c for c in cycles if c["strava"] and c["strava"].get("unlink") == "succeeded" and c["user_id"] in alive]
+    ids = [c["user_id"] for c in unlinked]
+    leftover_activities = (
+        scalar(
+            cur,
+            "SELECT count(*) FROM activities WHERE user_id = ANY(%s::uuid[]) AND strava_activity_id IS NOT NULL",
+            ids,
+        )
+        if ids
+        else 0
+    )
+    leftover_gear = (
+        scalar(cur, "SELECT count(*) FROM gear WHERE user_id = ANY(%s::uuid[]) AND strava_gear_id IS NOT NULL", ids)
+        if ids
+        else 0
+    )
+    still_linked = (
+        scalar(
+            cur,
+            "SELECT count(*) FROM users_integrations WHERE user_id = ANY(%s::uuid[]) "
+            "AND (strava_token IS NOT NULL OR strava_refresh_token IS NOT NULL)",
+            ids,
+        )
+        if ids
+        else 0
+    )
+    strava = [c["strava"] for c in cycles if c["strava"]]
+    outcomes: dict[str, int] = {}
+    for entry in strava:
+        outcome = entry.get("outcome", "not finished")
+        outcomes[outcome] = outcomes.get(outcome, 0) + 1
+    report.add(
+        "strava unlink leaves no imported activity or gear and no token",
+        leftover_activities == 0 and leftover_gear == 0 and still_linked == 0,
+        f"{len(unlinked)} unlinked accounts kept: {leftover_activities} strava activities, {leftover_gear} strava "
+        f"gears, {still_linked} still linked; {sum(e.get('imported', 0) for e in strava)} activities imported in all; "
+        f"cycle outcomes {outcomes or 'none'}",
+    )
+
+    # -- account deletions -----------------------------------------------------------------------------------------
+    deleted = [c for c in cycles if c["deletion"] and c["deletion"]["job_id"]]
+    left = [c["user_id"] for c in deleted if c["user_id"] in alive]
+    targets = (
+        ("users", [c["user_id"] for c in deleted]),
+        ("activities", [a for c in deleted for a in c["activity_ids"]]),
+        ("gear", [c["gear"]["id"] for c in deleted if c["gear"]]),
+    )
+    leftovers = []
+    tables = set()
+    for table, ids_ in targets:
+        for child, column in referencing_columns(cur, table):
+            tables.add(child)
+            if count := rows_naming(cur, child, column, ids_):
+                leftovers.append(f"{child}.{column}: {count}")
+    report.add(
+        "deleted accounts leave no row behind in the tables that reference them",
+        not left and not leftovers and not any(c["deletion"]["status"] == "failed" for c in deleted),
+        f"{len(deleted)} deletions accepted ({sum(1 for c in deleted if c['deletion']['by'] == 'self')} by the user), "
+        f"{len(left)} users left; {len(tables)} tables checked; " + ("; ".join(leftovers[:5]) or "no leftover rows"),
+    )
+
+    # -- the jobs --------------------------------------------------------------------------------------------------
+    cur.execute(
+        "SELECT event_type, status, count(*) FROM jasil_processing_jobs WHERE event_type = ANY(%s) GROUP BY 1, 2 "
+        "ORDER BY 1, 2",
+        (list(LIFECYCLE_EVENTS),),
+    )
+    jobs = cur.fetchall()
+    unfinished = sum(n for _, status, n in jobs if status in ("pending", "claimed", "dead_letter"))
+    report.add(
+        "every export and deletion job ended in the database",
+        unfinished == 0,
+        "; ".join(f"{event} {status}={n}" for event, status, n in jobs) or "no such jobs",
+    )
+
+
 def wait_for_drain(cur: psycopg.Cursor, timeout: float) -> float:
-    """Wait until no durable job is open and the outbox is relayed, or the timeout passes; return the seconds waited."""
+    """Wait until no durable job is due or running and the outbox is relayed, or the timeout passes; return the seconds.
+
+    A job scheduled for later (a retry's backoff) is settled, as a deferred refresh is; the stuck check below still
+    fails one that is due and was left.
+    """
     started = time.monotonic()
     while True:
-        open_jobs = scalar(cur, "SELECT count(*) FROM jasil_processing_jobs WHERE status IN ('pending', 'claimed')")
+        open_jobs = scalar(
+            cur,
+            "SELECT count(*) FROM jasil_processing_jobs "
+            "WHERE status = 'claimed' OR (status = 'pending' AND available_at <= now())",
+        )
         unrelayed = scalar(cur, "SELECT count(*) FROM jasil_event_outbox WHERE relayed_at IS NULL")
         # A deferred refresh waits for a provider's rate limit to clear, which is minutes away: it is settled.
         ingesting = scalar(
@@ -123,7 +303,7 @@ def check(
             conn.rollback()
             report.add("queues drained", None, f"waited {waited:.0f}s for open jobs and the outbox")
 
-            # -- duplicates ------------------------------------------------------------------------------------
+            # -- duplicates ------------------------------------------------------------------------------------------------
             cur.execute(
                 "SELECT user_id, dedup_key, count(*) FROM activities WHERE dedup_key IS NOT NULL "
                 "GROUP BY 1, 2 HAVING count(*) > 1 LIMIT 5"
@@ -142,7 +322,7 @@ def check(
                 f"{len(duplicates)} duplicated",
             )
 
-            # -- idempotency -----------------------------------------------------------------------------------
+            # -- idempotency -----------------------------------------------------------------------------------------------
             bad_keys = []
             created_keys = 0
             for entry in ledger.get("gears", []):
@@ -193,7 +373,7 @@ def check(
                 f"{len(ledger.get('idempotency_violations', []))} violations",
             )
 
-            # -- upload cap ------------------------------------------------------------------------------------
+            # -- upload cap ------------------------------------------------------------------------------------------------
             cur.execute(
                 """
                 WITH ev AS (
@@ -216,7 +396,7 @@ def check(
                 f"peak {peak} open (cap {UPLOAD_CAP}), {users} users uploaded",
             )
 
-            # -- jobs ------------------------------------------------------------------------------------------
+            # -- jobs ------------------------------------------------------------------------------------------------------
             stuck = scalar(
                 cur,
                 "SELECT count(*) FROM jasil_processing_jobs WHERE "
@@ -308,10 +488,19 @@ def check(
                     or "none",
                 )
             if limited:
+                # A deferral ends the refresh's durable job and the redispatch queues another for the same row, so a
+                # refresh was deferred if it still is or has more than one durable job, however long the run went on.
+                deferred = scalar(
+                    cur,
+                    "SELECT count(*) FROM activity_ingestion_jobs i WHERE i.kind = 'refresh' AND i.created_at >= %s "
+                    "AND (i.status = 'deferred' OR (SELECT count(*) FROM jasil_processing_jobs j "
+                    "WHERE j.event_type = 'activity.refresh_requested' AND j.payload->>'job_id' = i.id::text) > 1)",
+                    floor,
+                )
                 report.add(
                     "429 from strava deferred refreshes",
-                    refresh.get("deferred", 0) > 0,
-                    f"{refresh.get('deferred', 0)} deferred after {limited} answers of 429",
+                    deferred > 0,
+                    f"{deferred} deferred after {limited} answers of 429",
                 )
             strava_activities = scalar(cur, "SELECT count(*) FROM activities WHERE strava_activity_id IS NOT NULL")
             report.add(
@@ -320,12 +509,12 @@ def check(
                 f"{strava_activities}",
             )
 
-            # -- outbox ----------------------------------------------------------------------------------------
+            # -- outbox ----------------------------------------------------------------------------------------------------
             unrelayed = scalar(cur, "SELECT count(*) FROM jasil_event_outbox WHERE relayed_at IS NULL")
             total = scalar(cur, "SELECT count(*) FROM jasil_event_outbox")
             report.add("outbox drained", unrelayed == 0, f"{unrelayed} of {total} events not relayed")
 
-            # -- orphans ---------------------------------------------------------------------------------------
+            # -- orphans ---------------------------------------------------------------------------------------------------
             orphans = []
             for child, parent, child_col, parent_col in ORPHAN_PAIRS:
                 count = scalar(
@@ -337,7 +526,7 @@ def check(
                     orphans.append(f"{child}->{parent}: {count}")
             report.add("no orphan rows", not orphans, "; ".join(orphans) or f"{len(ORPHAN_PAIRS)} parent links checked")
 
-            # -- counts match the run --------------------------------------------------------------------------
+            # -- counts match the run --------------------------------------------------------------------------------------
             steps = ledger.get("steps", [])
             found = (
                 scalar(cur, "SELECT count(*) FROM health_steps WHERE id = ANY(%s::uuid[])", [s["id"] for s in steps])
@@ -396,6 +585,10 @@ def check(
                 in_database >= len(uploads) if fault else in_database == len(uploads),
                 f"ledger {len(uploads)}, database {in_database}",
             )
+
+            # -- lifecycle: exports and deletions --------------------------------------------------------------
+            if cycles := ledger.get("lifecycles"):
+                check_lifecycles(cur, report, cycles)
     return report
 
 

@@ -6,10 +6,10 @@ those names at this container. At start it makes a CA and a server certificate f
 writes ``ca-bundle.pem`` (the system CAs plus the stub's CA) that the application trusts through ``SSL_CERT_FILE`` and
 ``REQUESTS_CA_BUNDLE``.
 
-Strava answers what a sync uses (token refresh, athlete, activities list, activity, streams, laps, gear) with
-deterministic data: each Strava application (client id) has one activity per 6 hours, with a stable id, so repeated
-syncs meet the same activities and a duplicate would show. A fixed-window rate limit per client id answers ``429`` with
-Strava's rate-limit headers; it is off by default and set through the admin API.
+Strava answers what a sync and an unlink use (token refresh, athlete, activities list, activity, streams, laps, gear,
+deauthorization) with deterministic data: each Strava application (client id) has one activity per 6 hours, with a
+stable id, so repeated syncs meet the same activities and a duplicate would show. A fixed-window rate limit per
+client id answers ``429`` with Strava's rate-limit headers; it is off by default and set through the admin API.
 
 The admin API (plain http, port 8081, published on 127.0.0.1:18081)::
 
@@ -415,6 +415,9 @@ class Handler(BaseHTTPRequestHandler):
                     "expires_in": 6 * 3600,
                 },
             )
+        if path == "/oauth/deauthorize" and method == "POST":  # the unlink of an account revokes the grant
+            _count("strava_deauthorize")
+            return self._json(200, {"access_token": "revoked"})
         auth = self.headers.get("Authorization", "")
         client_id = _client_id(auth.removeprefix("Bearer ").strip()) if auth.startswith("Bearer ") else None
         if client_id is None:

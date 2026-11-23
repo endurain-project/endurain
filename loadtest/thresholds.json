@@ -53,6 +53,23 @@
     "strava_e2e": {
       "p95_ms": 60000,
       "max_error_rate": 0.02
+    },
+    "lifecycle": {
+      "p95_ms": 2000
+    },
+    "export": {
+      "p95_ms": 1500
+    },
+    "export_e2e": {
+      "p95_ms": 60000,
+      "max_error_rate": 0.02
+    },
+    "deletion": {
+      "p95_ms": 1500
+    },
+    "deletion_e2e": {
+      "p95_ms": 60000,
+      "max_error_rate": 0.02
     }
   }
 }
