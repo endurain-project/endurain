@@ -492,10 +492,10 @@ class TestJobQueues:
 
     def test_a_comma_separated_list_names_each_queue_once(self):
         settings = core_config.Settings(
-            _env_file=None, **_DEDICATED_WORKERS, JOBS_QUEUES=" default , background,default"
+            _env_file=None, **_DEDICATED_WORKERS, JOBS_QUEUES=" default , background,enrichment,default"
         )
 
-        assert settings.JOBS_QUEUES == ("default", "background")
+        assert settings.JOBS_QUEUES == ("default", "background", "enrichment")
 
     def test_an_empty_value_serves_every_queue(self):
         assert core_config.Settings(_env_file=None, **_DEDICATED_WORKERS, JOBS_QUEUES=" , ").JOBS_QUEUES is None

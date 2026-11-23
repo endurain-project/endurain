@@ -119,5 +119,5 @@ def register_durable_handlers(registry: JobHandlerRegistry) -> None:
         activity_events.ACTIVITY_CREATED,
         GEOCODING_SUBSCRIBER_ID,
         geocode_activity_for_event,
-        queue=core_job_queues.BACKGROUND,
+        queue=core_job_queues.ENRICHMENT,
     )

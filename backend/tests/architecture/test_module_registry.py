@@ -21,16 +21,20 @@ _EXPECTED_DELETED_SUBSCRIBERS = {
     "activity_media.cleanup",
 }
 
-#: Work nobody waits on that can take long, which a dedicated background worker may take.
+#: Long work a user asked for and waits to finish, which a dedicated background worker may take.
 _BACKGROUND_SUBSCRIBERS = {
-    "activity_thumbnail.generate",
-    "activity_thumbnail.settings_changed",
-    "activity_geocoding.reverse_geocode",
     "activity_ingestion.bulk_import",
     "users.profile_export_requested",
     "users.profile_import_requested",
     "gears.deletion_requested",
     "users.deletion_requested",
+}
+
+#: Work derived from a stored activity that calls an outside provider at its pace, which nobody waits on.
+_ENRICHMENT_SUBSCRIBERS = {
+    "activity_thumbnail.generate",
+    "activity_thumbnail.settings_changed",
+    "activity_geocoding.reverse_geocode",
 }
 
 
@@ -280,9 +284,10 @@ class TestShutdownModulePools:
 
 
 class TestJobQueues:
-    def test_deferrable_work_is_on_the_background_queue_and_everything_else_on_the_default_one(self):
+    def test_long_requested_work_is_on_background_derived_work_on_enrichment_and_the_rest_on_default(self):
         registry = _register_durable_handlers()
         queues = {subscriber: registry.queue_for(subscriber) for subscriber in registry.subscriber_ids()}
 
         assert {s for s, queue in queues.items() if queue == core_job_queues.BACKGROUND} == _BACKGROUND_SUBSCRIBERS
+        assert {s for s, queue in queues.items() if queue == core_job_queues.ENRICHMENT} == _ENRICHMENT_SUBSCRIBERS
         assert set(queues.values()) == set(core_job_queues.ALL)

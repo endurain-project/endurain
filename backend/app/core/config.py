@@ -257,8 +257,8 @@ class Settings(BaseSettings):
     # single-node deployments; turn off when running dedicated worker processes
     # (APP_ROLE=worker) so the API only publishes and schedules maintenance.
     JOBS_RUN_IN_PROCESS_WORKER: bool = True
-    # The queues a dedicated worker (APP_ROLE=worker) serves, comma-separated (``default``, ``background``); unset,
-    # it serves them all. Running one worker for ``default`` and another for ``background`` keeps the work a user
+    # The queues a dedicated worker (APP_ROLE=worker) serves, comma-separated (``default``, ``background``,
+    # ``enrichment``); unset, it serves them all. A worker per queue keeps the work a user
     # waits on from queueing behind thumbnails, geocoding, imports and exports (``core.job_queues``).
     JOBS_QUEUES: Annotated[tuple[str, ...] | None, NoDecode] = None
     # Age in days after which completed durable-job bookkeeping is pruned by a

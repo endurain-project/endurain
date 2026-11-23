@@ -161,7 +161,7 @@ def register_durable_handlers(registry: JobHandlerRegistry) -> None:
         activity_events.ACTIVITY_CREATED,
         THUMBNAIL_GENERATE_SUBSCRIBER_ID,
         generate_activity_thumbnail_for_event,
-        queue=core_job_queues.BACKGROUND,
+        queue=core_job_queues.ENRICHMENT,
     )
     registry.register(
         activity_events.ACTIVITY_DELETED,
@@ -172,5 +172,5 @@ def register_durable_handlers(registry: JobHandlerRegistry) -> None:
         server_settings_events.TILE_SETTINGS_CHANGED,
         THUMBNAIL_SETTINGS_CHANGED_SUBSCRIBER_ID,
         regenerate_thumbnails_for_tile_settings_event,
-        queue=core_job_queues.BACKGROUND,
+        queue=core_job_queues.ENRICHMENT,
     )

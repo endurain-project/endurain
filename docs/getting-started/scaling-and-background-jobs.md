@@ -104,7 +104,7 @@ The `custom` profile is held to the same rule: if it declares more than one proc
 | `STORAGE_URI` | `local://` | Where blobs go (thumbnails, media, images, retained files). `local://` uses `DATA_DIR`; `s3://bucket/prefix` uses S3-compatible storage. |
 | `LOCK_URI` | profile default | `noop://` (single process) or `postgres-advisory://` (coordinates scheduled jobs across replicas). Defaults to `postgres-advisory://` when more than one process runs. |
 | `JOBS_ENABLED` | `false` | Turns on the durable job queue. |
-| `JOBS_QUEUES` | unset | The queues a dedicated worker (`APP_ROLE=worker`) serves, comma-separated: `default`, `background`. Unset, it serves both. Needs `JOBS_ENABLED=true` and `JOBS_RUN_IN_PROCESS_WORKER=false`; see [Separate workers for background work](#separate-workers-for-background-work). |
+| `JOBS_QUEUES` | unset | The queues a dedicated worker (`APP_ROLE=worker`) serves, comma-separated: `default`, `background`, `enrichment`. Unset, it serves all three. Needs `JOBS_ENABLED=true` and `JOBS_RUN_IN_PROCESS_WORKER=false`; see [Separate workers for background work](#separate-workers-for-background-work). |
 | `JOBS_RUN_IN_PROCESS_WORKER` | `true` | Whether the API process also drains jobs. Set `false` when running dedicated workers, and set it on the API and every worker container: a dedicated worker is a separate process, so the deployment then needs shared state (see [Startup validation](#startup-validation)). |
 | `JOBS_MAX_ATTEMPTS` | `5` | Attempts before a job is dead-lettered. |
 | `JOBS_BACKOFF_BASE_SECONDS` | `5` | First retry delay; doubles each attempt, randomised to 50 to 100 % of the computed delay. |
@@ -125,7 +125,7 @@ Endurain refuses to start on an inconsistent topology and names the variable at 
 - `distributed` with `STORAGE_URI` unset or `local://`, because replicas do not share a disk;
 - `distributed` with `JOBS_ENABLED=false`, because the Redis event bus has no retry and does not recover a crashed consumer's in-flight events; only the durable outbox cannot silently drop them;
 - more than one process with `LOCK_URI=noop://`;
-- `JOBS_QUEUES` without dedicated workers (`JOBS_ENABLED=true` and `JOBS_RUN_IN_PROCESS_WORKER=false`), or naming a queue other than `default` and `background`;
+- `JOBS_QUEUES` without dedicated workers (`JOBS_ENABLED=true` and `JOBS_RUN_IN_PROCESS_WORKER=false`), or naming a queue other than `default`, `background` and `enrichment`;
 - dedicated workers (`JOBS_RUN_IN_PROCESS_WORKER=false` with `JOBS_ENABLED=true`) with state or events resolving to `memory://`, because the API and the workers are separate processes. Every rule above applies to them, even on the `local` profile with one web worker;
 - a non-`local` profile that leaves a capability unset.
 
@@ -168,7 +168,15 @@ The API applies database migrations at startup; the worker does not. A worker st
 
 ### Separate workers for background work
 
-A worker claims up to `JOBS_BATCH_SIZE` jobs at a time and runs them one after another. Map thumbnails and reverse geocoding call outside servers that can take seconds per job, and a bulk import, a profile export or import, and a gear or account deletion can take minutes. A worker busy with a batch of them makes the work a user waits on (an upload's import, a provider sync, an email, a notification) wait too. Those slow jobs are on the `background` queue and everything else is on `default`, so give each queue workers of its own:
+A worker claims up to `JOBS_BATCH_SIZE` jobs at a time and runs them one after another, so a batch of slow jobs makes everything behind it wait. Endurain puts each kind of slow work on a queue of its own:
+
+| Queue | Work | Why it is separate |
+| --- | --- | --- |
+| `default` | Everything a user waits on: an upload's import, a provider sync, an email, a notification | Short; it must never wait behind the others |
+| `background` | A bulk import, a profile export or import, a gear or account deletion | A user asked for it and waits for it to finish, but it can take minutes |
+| `enrichment` | Map thumbnails and reverse geocoding of stored activities | It calls outside servers at their pace: a lookup waits for its turn under the geocoding rate limit (one a second for the public Nominatim), so a burst of uploads leaves a backlog that drains at that rate |
+
+Give each queue workers of its own:
 
 ```yaml
   endurain-worker:
@@ -188,7 +196,18 @@ A worker claims up to `JOBS_BATCH_SIZE` jobs at a time and runs them one after a
       JOBS_QUEUES: background
     depends_on:
       - endurain
+
+  endurain-enrichment-worker:
+    image: ghcr.io/endurain-project/endurain:latest
+    env_file: .env
+    environment:
+      APP_ROLE: worker
+      JOBS_QUEUES: enrichment
+    depends_on:
+      - endurain
 ```
+
+A worker that serves several queues takes a batch from each in turn, so `JOBS_QUEUES: background,enrichment` on one worker still keeps an export or a deletion from waiting behind more than one batch of thumbnails and lookups. More enrichment workers make thumbnails faster, but not geocoding, whose rate limit is shared by every process.
 
 A worker logs the queues it serves when it starts. Jobs on a queue no running worker serves stay pending. The API's in-process worker serves every queue, so a single container has no such split, and Endurain refuses to start when `JOBS_QUEUES` is set without `JOBS_RUN_IN_PROCESS_WORKER=false`.
 

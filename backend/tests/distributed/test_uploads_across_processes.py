@@ -12,8 +12,8 @@ _DERIVED_SUBSCRIBERS = {
     "activity.notify_created",
     "activity_thumbnail.generate",
 }
-#: The derived work a dedicated background worker takes.
-_BACKGROUND_SUBSCRIBERS = {"activity_geocoding.reverse_geocode", "activity_thumbnail.generate"}
+#: The derived work a dedicated enrichment worker takes.
+_ENRICHMENT_SUBSCRIBERS = {"activity_geocoding.reverse_geocode", "activity_thumbnail.generate"}
 
 
 def _assert_everything_completed_exactly_once(cluster, job_ids, *, workers: int) -> None:
@@ -62,7 +62,7 @@ def test_two_replicas_and_two_workers_share_one_deployment(cluster):
     _assert_everything_completed_exactly_once(cluster, job_ids, workers=2)
 
 
-def test_a_default_queue_worker_imports_while_background_work_waits_for_its_own_worker(cluster):
+def test_a_default_queue_worker_imports_while_enrichment_waits_for_its_own_worker(cluster):
     """Uploads and their notifications never queue behind thumbnails and geocoding: those wait for their own worker."""
     cluster.start_api(distributed=False)
     cluster.start_worker(distributed=False, queues="default")
@@ -82,12 +82,12 @@ def test_a_default_queue_worker_imports_while_background_work_waits_for_its_own_
     )
     waiting = cluster.query(
         "SELECT subscriber_id, queue, status, attempts FROM jasil_processing_jobs WHERE subscriber_id = ANY(:ids)",
-        ids=sorted(_BACKGROUND_SUBSCRIBERS),
+        ids=sorted(_ENRICHMENT_SUBSCRIBERS),
     )
     assert sorted(waiting) == sorted(
-        (subscriber, "background", "pending", 0) for subscriber in _BACKGROUND_SUBSCRIBERS for _ in job_ids
+        (subscriber, "enrichment", "pending", 0) for subscriber in _ENRICHMENT_SUBSCRIBERS for _ in job_ids
     )
 
-    cluster.start_worker(distributed=False, queues="background")
+    cluster.start_worker(distributed=False, queues="enrichment")
 
     _assert_everything_completed_exactly_once(cluster, job_ids, workers=2)
