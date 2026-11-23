@@ -144,3 +144,21 @@ def geocoder(geocoding_server) -> HttpGeocoding:
     )
     platform_runtime.set_active_platform(dataclasses.replace(platform, geocoding=provider))
     return provider
+
+
+@pytest.fixture
+def paced_geocoder(geocoding_server) -> HttpGeocoding:
+    """The geocoder of ``geocoder`` with one lookup per second, installed as the active platform's.
+
+    The first lookup takes the turn it finds free; the next one finds none for a second.
+    """
+    platform = platform_runtime.get_active_platform()
+    provider = HttpGeocoding(
+        "nominatim",
+        f"http://127.0.0.1:{geocoding_server.port}/reverse",
+        state=platform.state,
+        clock=platform.clock,
+        min_interval_seconds=1,
+    )
+    platform_runtime.set_active_platform(dataclasses.replace(platform, geocoding=provider))
+    return provider

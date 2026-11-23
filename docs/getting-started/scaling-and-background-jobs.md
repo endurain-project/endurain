@@ -174,7 +174,7 @@ A worker claims up to `JOBS_BATCH_SIZE` jobs at a time and runs them one after a
 | --- | --- | --- |
 | `default` | Everything a user waits on: an upload's import, a provider sync, an email, a notification | Short; it must never wait behind the others |
 | `background` | A bulk import, a profile export or import, a gear or account deletion | A user asked for it and waits for it to finish, but it can take minutes |
-| `enrichment` | Map thumbnails and reverse geocoding of stored activities | It calls outside servers at their pace: a lookup waits for its turn under the geocoding rate limit (one a second for the public Nominatim), so a burst of uploads leaves a backlog that drains at that rate |
+| `enrichment` | Map thumbnails and reverse geocoding of stored activities | It calls outside servers at their pace: a lookup books its turn under the geocoding rate limit (one a second for the public Nominatim) and the job runs again then, so a burst of uploads leaves a geocoding backlog that drains at that rate without holding the worker |
 
 Give each queue workers of its own:
 
@@ -207,7 +207,7 @@ Give each queue workers of its own:
       - endurain
 ```
 
-A worker that serves several queues takes a batch from each in turn, so `JOBS_QUEUES: background,enrichment` on one worker still keeps an export or a deletion from waiting behind more than one batch of thumbnails and lookups. More enrichment workers make thumbnails faster, but not geocoding, whose rate limit is shared by every process.
+A worker that serves several queues takes a batch from each in turn, so `JOBS_QUEUES: background,enrichment` on one worker still keeps an export or a deletion from waiting behind more than one batch of thumbnails and lookups. A geocoding lookup waits for no turn, so it never holds an enrichment worker back from thumbnails. More enrichment workers make thumbnails faster, but not geocoding, whose rate limit is shared by every process.
 
 A worker logs the queues it serves when it starts. Jobs on a queue no running worker serves stay pending. The API's in-process worker serves every queue, so a single container has no such split, and Endurain refuses to start when `JOBS_QUEUES` is set without `JOBS_RUN_IN_PROCESS_WORKER=false`.
 

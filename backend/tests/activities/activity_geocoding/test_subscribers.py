@@ -1,5 +1,6 @@
 """Activities are located when they are created, through the bus and the durable handler."""
 
+import time
 import uuid
 from datetime import timedelta
 
@@ -108,6 +109,40 @@ class TestDurableHandler:
 
         with pytest.raises(pydantic.ValidationError):
             geocoding_subscribers.geocode_activity_for_event(event)
+
+
+def _take_the_free_turn(paced_geocoder) -> None:
+    """Spend the turn the rate gate has free now, as a lookup of another activity would."""
+    paced_geocoder.lookup(38.7, -9.1, max_wait_seconds=0)
+
+
+class TestWaitingForATurn:
+    def test_the_durable_handler_books_its_turn_instead_of_waiting_and_runs_at_it_when_the_job_returns(
+        self, db, created, paced_geocoder, geocoding_server, clock
+    ):
+        activity, event = created
+        _take_the_free_turn(paced_geocoder)
+
+        started = time.monotonic()
+        with pytest.raises(DeferJob) as deferred:
+            geocoding_subscribers.geocode_activity_for_event(event)
+        waited = time.monotonic() - started
+
+        assert (waited < 0.5, _country(db, activity), len(geocoding_server.requests)) == (True, None, 1)
+        time.sleep(max((deferred.value.retry_at - clock.now()).total_seconds(), 0) + 0.05)
+        geocoding_subscribers.geocode_activity_for_event(event)
+        assert (_country(db, activity), len(geocoding_server.requests)) == ("Portugal", 2)
+
+    def test_the_bus_subscriber_waits_for_its_turn_and_books_nothing(
+        self, db, events, created, paced_geocoder, geocoding_server
+    ):
+        activity, event = created
+        _take_the_free_turn(paced_geocoder)
+        geocoding_subscribers.register_bus_subscribers(events)
+
+        events.publish(event)
+
+        assert (_country(db, activity), len(geocoding_server.requests)) == ("Portugal", 2)
 
 
 class TestRegistry:

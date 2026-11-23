@@ -229,7 +229,7 @@ Each section says what triggers the work, what happens locally and when distribu
 | --- | --- |
 | Trigger | `activity.created` |
 | Local | Runs on the subscriber pool, throttled by the geocoding rate limit. A lookup that would wait more than a few seconds for its turn, or that the service refuses or fails, is left to the backfill |
-| Distributed | Durable job with retries. A lookup that would wait more than a few seconds for its turn, or that the service refuses or fails, runs again when the service allows, without using up a retry. The rate limit holds for every replica and worker together |
+| Distributed | Durable job with retries. A lookup books its turn under the rate limit instead of waiting for it, and a lookup that the service refuses or fails also runs again when the service allows, without using up a retry. The rate limit holds for every replica and worker together |
 | If dropped | The hourly backfill fills in activities that still have no location, in batches that respect the rate limit |
 
 ### Retained files and activity photos

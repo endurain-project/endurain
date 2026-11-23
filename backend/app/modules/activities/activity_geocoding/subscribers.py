@@ -4,7 +4,8 @@ Mirrors the thumbnail subscriber pattern: a durable ``*_for_event`` core that
 **raises** so the durable-job runner can retry and eventually dead-letter, and an
 ``on_*`` bus subscriber that **swallows** so a geocoding failure never breaks
 activity import. A lookup the rate limit or an upstream failure held back is
-deferred on the durable path and left to the backfill on the bus. The scheduled
+deferred on the durable path, which books its turn rather than waiting for it, and
+left to the backfill on the bus, which waits briefly for its turn. The scheduled
 backfill (``scheduled_jobs.run_missing_location_backfill``) is the reconciliation
 net for any activity the create-path handler misses (delivery dropped on the
 best-effort bus, a held-back lookup, etc.).
@@ -33,18 +34,25 @@ logger = core_logger.get_logger(__name__)
 GEOCODING_SUBSCRIBER_ID = "activity_geocoding.reverse_geocode"
 
 
-def _geocode_created_activity(payload: activity_events.ActivityCreatedPayload) -> datetime | None:
+def _geocode_created_activity(
+    payload: activity_events.ActivityCreatedPayload, *, reservation_key: str | None = None
+) -> datetime | None:
     """Resolve and store a created activity's location.
 
     Args:
         payload: The ``activity.created`` payload.
+        reservation_key: Books the lookup's turn instead of waiting for it, for a caller that
+            defers a held-back lookup.
 
     Returns:
         When to look it up again if the lookup was held back, else None.
     """
     with core_database.SessionLocal() as db:
         return activity_geocoding_service.geocode_and_store_activity_location(
-            payload.activity_id, platform_runtime.get_active_platform().geocoding, db
+            payload.activity_id,
+            platform_runtime.get_active_platform().geocoding,
+            db,
+            reservation_key=reservation_key,
         )
 
 
@@ -54,7 +62,9 @@ def geocode_activity_for_event(event: Event) -> None:
     The durable-job handler for ``activity.created``: any error propagates so the
     runner retries and eventually dead-letters the job. A lookup the rate limit or
     an upstream failure held back ends with ``DeferJob``, so the job runs again
-    when the provider says, without spending an attempt. No-ops for activities
+    when the provider says, without spending an attempt. The lookup waits for no turn
+    under the rate limit: it books the next one under the event id, which holds across
+    the job's retries, so the worker is free for other jobs meanwhile. No-ops for activities
     without a GPS stream or whose coordinates do not resolve.
 
     Args:
@@ -65,7 +75,7 @@ def geocode_activity_for_event(event: Event) -> None:
         DeferJob: When the lookup was held back; ``retry_at`` is when to look again.
     """
     payload = platform_event_versioning.parse_payload(activity_events.ActivityCreatedPayload, event)
-    retry_at = _geocode_created_activity(payload)
+    retry_at = _geocode_created_activity(payload, reservation_key=event.event_id)
     if retry_at is not None:
         raise DeferJob(retry_at, reason="reverse geocoding lookup held back by the rate limit or the upstream")
     logger.debug(

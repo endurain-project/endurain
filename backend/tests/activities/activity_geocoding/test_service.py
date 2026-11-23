@@ -194,6 +194,16 @@ class TestBackfill:
         assert stored == 2
         assert _place(db, lisbon)[2] == "Portugal" and _place(db, matosinhos)[0] == "Matosinhos"
 
+    def test_a_lookup_waits_for_its_turn_under_the_rate_limit_instead_of_ending_the_pass(
+        self, db, owner, paced_geocoder, clock
+    ):
+        lisbon, matosinhos = _activity(db, owner, _LISBON, 0), _activity(db, owner, _MATOSINHOS, 1)
+
+        stored = geocoding_service.backfill_missing_activity_locations(paced_geocoder, clock, db)
+
+        assert stored == 2
+        assert _place(db, lisbon)[2] == "Portugal" and _place(db, matosinhos)[0] == "Matosinhos"
+
     def test_an_activity_that_already_has_a_place_is_left_alone(self, db, owner, geocoder, geocoding_server, clock):
         located = _activity(db, owner, _LISBON, 0, city="Elsewhere")
 
