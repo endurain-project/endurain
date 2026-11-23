@@ -104,13 +104,34 @@ run_once() {
   bring_up_and_seed "$apis"
 
   "${PSQL[@]}" -c "SELECT pg_stat_statements_reset()" >/dev/null
-  # Sample the connections every 5 s for the whole run.
-  echo "time,total,active,idle,idle_in_transaction" >"$dir/connections.csv"
+  # Sample for the whole run, so growth and contention show over time (resources.py sums them up): every 5 s the
+  # connections, the sessions waiting on a lock and the open jobs per queue; every 15 s each container's CPU and
+  # memory, and Redis's keys and memory.
+  echo "time,total,active,idle,idle_in_transaction,lock_waits" >"$dir/connections.csv"
+  echo "time,queue,due,deferred,claimed" >"$dir/queues.csv"
+  echo "time,container,cpu_percent,memory" >"$dir/containers.csv"
+  echo "time,keys,used_memory" >"$dir/redis.csv"
   (
+    tick=0
     while true; do
       "${PSQL[@]}" -At -F, -c "SELECT now(), count(*), count(*) FILTER (WHERE state = 'active'), \
-        count(*) FILTER (WHERE state = 'idle'), count(*) FILTER (WHERE state = 'idle in transaction') \
+        count(*) FILTER (WHERE state = 'idle'), count(*) FILTER (WHERE state = 'idle in transaction'), \
+        count(*) FILTER (WHERE wait_event_type = 'Lock') \
         FROM pg_stat_activity WHERE datname = 'endurain'" >>"$dir/connections.csv" 2>/dev/null || true
+      "${PSQL[@]}" -At -F, -c "SELECT now(), queue, count(*) FILTER (WHERE status = 'pending' AND available_at <= now()), \
+        count(*) FILTER (WHERE status = 'pending' AND available_at > now()), count(*) FILTER (WHERE status = 'claimed') \
+        FROM jasil_processing_jobs WHERE status IN ('pending', 'claimed') GROUP BY queue" \
+        >>"$dir/queues.csv" 2>/dev/null || true
+      if [ $((tick % 3)) -eq 0 ]; then
+        now=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+        docker stats --no-stream --format '{{.Name}},{{.CPUPerc}},{{.MemUsage}}' \
+          $("${DC[@]}" ps -q) 2>/dev/null | sed "s|^|$now,|" >>"$dir/containers.csv" || true
+        redis_info=$("${DC[@]}" exec -T redis redis-cli INFO 2>/dev/null | tr -d '\r') || true
+        keys=$(printf '%s\n' "$redis_info" | sed -n 's/^db0:keys=\([0-9]*\).*/\1/p')
+        memory=$(printf '%s\n' "$redis_info" | sed -n 's/^used_memory:\([0-9]*\)$/\1/p')
+        [ -n "$memory" ] && echo "$now,${keys:-0},$memory" >>"$dir/redis.csv"
+      fi
+      tick=$((tick + 1))
       sleep 5
     done
   ) &
@@ -159,6 +180,8 @@ run_once() {
     "$dir/postgres.log" 2>/dev/null || true)
   echo "peak connections: $(tail -n +2 "$dir/connections.csv" | cut -d, -f2 | sort -n | tail -1)  error log lines: $errors  postgres crash lines: ${pg_crashes:-0}"
   echo "top statements: $dir/pg_stat_statements.txt"
+  echo "== resources over the load"
+  uv run python resources.py "$dir" "$(docker info --format '{{.NCPU}}')" || true
 
   if [ "$locust_status" -ne 0 ] || [ "$inv_status" -ne 0 ]; then STATUS=1; fi
   echo "== $run: thresholds $([ "$locust_status" -eq 0 ] && echo ok || echo FAILED), invariants $([ "$inv_status" -eq 0 ] && echo ok || echo VIOLATED)"
