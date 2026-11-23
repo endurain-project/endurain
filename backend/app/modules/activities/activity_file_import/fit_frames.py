@@ -39,7 +39,7 @@ type FitSessionFields = tuple[
     FitEnum,
     datetime,
     float,
-    float,
+    float | None,
     int | None,
     float | None,
     int | None,
@@ -203,7 +203,7 @@ class FitMonitoringSteps(TypedDict):
         steps: Steps.
         active_time: Active seconds.
         active_calories: Active calories.
-        current_activity_type_intensity: The packed activity type and intensity.
+        current_activity_type_intensity: The packed activity type and intensity bytes, as fitdecode reads them.
         activity_type: The activity type.
         intensity: The intensity.
         distance: Distance in meters.
@@ -214,7 +214,7 @@ class FitMonitoringSteps(TypedDict):
     steps: int | None
     active_time: float | None
     active_calories: int | None
-    current_activity_type_intensity: int | None
+    current_activity_type_intensity: tuple[int, ...] | None
     activity_type: FitEnum | None
     intensity: int | None
     distance: float | None
@@ -273,10 +273,8 @@ def parse_frame_session(frame: fitdecode.FitDataMessage) -> FitSessionFields:
             activity_type = "commuting_ride"
         elif activity_type == "cycling" and sub_sport == "mixed_surface":
             activity_type = "mixed_surface_ride"
-        elif (activity_type == "generic" and sub_sport == "breathing") or activity_type == 62:
+        elif activity_type == "generic" and sub_sport == "breathing":
             activity_type = "hiit"
-        elif activity_type == 64 and sub_sport == 85:
-            activity_type = "padel"
         elif isinstance(sub_sport, str) and sub_sport.lower() in activity_constants.ACTIVITY_NAME_TO_ID:
             activity_type = sub_sport
 
@@ -489,14 +487,8 @@ def parse_frame_split_summary(frame: fitdecode.FitDataMessage) -> tuple[FitEnum 
     """
     # split type
     split_type = get_value_from_frame(frame, "split_type")
-    if split_type is None:
-        split_type = get_value_from_frame(frame, 0)
     # total working time
     total_timer_time = get_value_from_frame(frame, "total_timer_time")
-    if total_timer_time is None:
-        total_timer_time = get_value_from_frame(frame, 4)
-        if total_timer_time is not None:
-            total_timer_time = total_timer_time / 1000
 
     return split_type, total_timer_time
 

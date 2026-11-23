@@ -7,7 +7,7 @@ crud coupling, so a parser is unit-testable with a file alone.
 import uuid
 from collections.abc import Sequence
 from dataclasses import dataclass, field
-from datetime import UTC, datetime, timedelta
+from datetime import datetime, timedelta
 from pathlib import Path
 from typing import TypedDict
 
@@ -585,19 +585,9 @@ def split_records_by_activity(parsed_data: FitParsePayload) -> list[FitSessionRe
 
     # Convert session times to datetime objects for easier comparison
     for session in sessions:
-        # Use the time as is if it is already a datetime object; otherwise, parse it
+        # fitdecode decodes FIT times as timezone-aware datetimes, so they compare directly.
         start_time = session["first_waypoint_time"]
-        if not isinstance(start_time, datetime):
-            start_time = datetime.strptime(start_time, "%Y-%m-%dT%H:%M:%S")
-        # Ensure tz-aware for consistent comparisons
-        if start_time.tzinfo is None:
-            start_time = start_time.replace(tzinfo=UTC)
-
         end_time = session.get("last_waypoint_time", start_time)
-        if not isinstance(end_time, datetime):
-            end_time = datetime.strptime(end_time, "%Y-%m-%dT%H:%M:%S")
-        if end_time.tzinfo is None:
-            end_time = end_time.replace(tzinfo=UTC)
 
         laps_records: list[activity_file_import_fit_frames.FitLap] = []
 
@@ -861,7 +851,8 @@ def _handle_session_frame(frame: fitdecode.FitDataMessage, state: FitParseState)
             "first_waypoint_time": first_waypoint_time,
             "last_waypoint_time": first_waypoint_time + timedelta(seconds=total_elapsed_time),
             "total_elapsed_time": total_elapsed_time,
-            "total_timer_time": total_timer_time,
+            # The timer time is optional in FIT; a device that tracks no pauses reports only the elapsed time.
+            "total_timer_time": total_elapsed_time if total_timer_time is None else total_timer_time,
             "calories": calories,
             "distance": distance,
             "avg_hr": avg_hr,

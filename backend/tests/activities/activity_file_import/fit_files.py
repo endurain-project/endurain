@@ -134,3 +134,91 @@ def fit_file(*messages: bytes) -> bytes:
     header = struct.pack("<BBHI4s", 14, 0x20, 2140, len(body), b".FIT")
     header += struct.pack("<H", _crc(header))
     return header + body + struct.pack("<H", _crc(header + body))
+
+
+#: Base type byte to (struct character, size, the value the FIT protocol reserves for "invalid").
+_BASE_TYPES: dict[int, tuple[str, int, object]] = {
+    0x00: ("B", 1, 0xFF),  # enum
+    0x01: ("b", 1, 0x7F),  # sint8
+    0x02: ("B", 1, 0xFF),  # uint8
+    0x83: ("h", 2, 0x7FFF),  # sint16
+    0x84: ("H", 2, 0xFFFF),  # uint16
+    0x85: ("i", 4, 0x7FFFFFFF),  # sint32
+    0x86: ("I", 4, 0xFFFFFFFF),  # uint32
+    0x88: ("f", 4, float("nan")),  # float32
+    0x0A: ("B", 1, 0),  # uint8z
+    0x0D: ("B", 1, 0xFF),  # byte
+    0x8B: ("H", 2, 0),  # uint16z
+    0x8C: ("I", 4, 0),  # uint32z
+}
+
+#: A field of :func:`raw_message`: (field number, base type byte, value); a value of ``None`` is the base type's
+#: invalid sentinel, a ``tuple`` is an array, a ``str`` is a string.
+type RawField = tuple[int, int, object]
+
+
+def raw_message(
+    global_number: int,
+    fields: list[RawField],
+    *,
+    local_type: int = 0,
+    big_endian: bool = False,
+    with_definition: bool = True,
+    time_offset: int | None = None,
+    developer_fields: list[tuple[int, int, bytes]] | None = None,
+) -> bytes:
+    """Encode one message of any global number, field by field, in raw FIT values.
+
+    Unlike :func:`message`, nothing is scaled: each value is what goes on the wire.
+
+    Args:
+        global_number: The global message number.
+        fields: The fields in wire order.
+        local_type: The local message type; 0 to 3 when ``time_offset`` is given.
+        big_endian: Whether the definition declares big-endian architecture.
+        with_definition: Whether to emit the definition before the data (False reuses an earlier one).
+        time_offset: A 5-bit time offset; when given the data record carries a compressed timestamp header.
+        developer_fields: Developer fields as (field number, developer data index, value bytes).
+
+    Returns:
+        The definition (when asked for) followed by the data message.
+    """
+    endian = ">" if big_endian else "<"
+    flags = 0x40 | 0x20 if developer_fields else 0x40
+    definition = struct.pack(f"{endian}BBBHB", flags | local_type, 0, int(big_endian), global_number, len(fields))
+    data = bytes([0x80 | (local_type << 5) | time_offset]) if time_offset is not None else bytes([local_type])
+    for field_number, base_type, value in fields:
+        char, size, invalid = _BASE_TYPES.get(base_type, ("", 0, None))
+        if base_type == _STRING:
+            assert isinstance(value, str)
+            encoded = value.encode("utf-8") + b"\0"
+            definition += struct.pack("<BBB", field_number, len(encoded), base_type)
+            data += encoded
+            continue
+        values = list(value) if isinstance(value, tuple) else [invalid if value is None else value]
+        definition += struct.pack("<BBB", field_number, size * len(values), base_type)
+        for item in values:
+            data += struct.pack(f"{endian}{char}", item)
+    if developer_fields:
+        definition += bytes([len(developer_fields)])
+        for field_number, index, value in developer_fields:
+            definition += struct.pack("<BBB", field_number, len(value), index)
+            data += value
+    return (definition if with_definition else b"") + data
+
+
+def damaged_fit_file(*messages: bytes, corrupt_crc: bool = False, truncate: int = 0) -> bytes:
+    """Wrap messages in a FIT file and damage it.
+
+    Args:
+        *messages: Encoded messages.
+        corrupt_crc: Whether to write a wrong trailing CRC.
+        truncate: How many trailing bytes to cut off.
+
+    Returns:
+        The file bytes.
+    """
+    content = fit_file(*messages)
+    if corrupt_crc:
+        content = content[:-2] + struct.pack("<H", struct.unpack("<H", content[-2:])[0] ^ 0xFFFF)
+    return content[: len(content) - truncate]
