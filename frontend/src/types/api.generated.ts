@@ -5839,7 +5839,7 @@ export interface components {
              */
             activity_id: string;
             /** Duration Type */
-            duration_type: string;
+            duration_type?: string | null;
             /**
              * Duration Value
              * @description Duration of the step, in the unit its duration_type names (seconds, meters and so on)

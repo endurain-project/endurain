@@ -110,6 +110,15 @@ describe('workout mappers', () => {
     })
   })
 
+  it('maps a workout step whose file named no duration type to a null duration type', () => {
+    const dto: ActivityWorkoutStepDto = {
+      activity_id: activityUuid(5),
+      id: activityUuid(7),
+      message_index: 1,
+    }
+    expect(mapActivityWorkoutStep(dto).durationType).toBeNull()
+  })
+
   it('maps a workout set', () => {
     const dto: ActivitySetDto = {
       activity_id: activityUuid(5),

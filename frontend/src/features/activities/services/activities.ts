@@ -585,7 +585,7 @@ export async function fetchActivityLaps(
  */
 export function mapActivityWorkoutStep(dto: ActivityWorkoutStepDto): ActivityWorkoutStep {
   return {
-    durationType: dto.duration_type,
+    durationType: dto.duration_type ?? null,
     durationValue: dto.duration_value ?? null,
     exerciseCategory: dto.exercise_category ?? null,
     exerciseName: dto.exercise_name ?? null,

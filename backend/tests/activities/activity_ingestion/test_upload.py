@@ -81,6 +81,18 @@ class TestAnImportedFile:
         assert file_storage.get_activity_file(activity.id, storage) == (f"{activity.id}.{name.split('.')[-1]}", content)
         assert staged_keys(storage) == [], "the staged upload is consumed with the job"
 
+    def test_a_fit_workout_step_without_a_duration_type_is_stored_without_one(self, me, pool, committed_sessions):
+        # FIT duration type 0 is "time".
+        response = _upload(me, "ride.fit", fit_file(workout_steps=(0, None)))
+        pool.drain()
+
+        assert _job_state(me, response.json()["id"])["status"] == "succeeded"
+        (activity,) = activities_of(committed_sessions, me.user.id)
+        steps = me.client.get(f"{_API}/activities/{activity.id}/workout-steps")
+        assert steps.status_code == 200, steps.text
+        stored = [(step["message_index"], step["duration_type"]) for step in steps.json()["items"]]
+        assert stored == [(0, "time"), (1, None)]
+
     def test_leaves_nothing_in_the_incoming_directory(self, me, pool):
         _upload(me, "ride.gpx", activity_gpx())
         pool.drain()

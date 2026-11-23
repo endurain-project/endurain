@@ -325,11 +325,10 @@ class TestWorkoutStepMessages:
 
         assert (decoded.exercise_category, decoded.exercise_name) == (None, None)
 
-    def test_a_step_without_a_duration_type_refuses_the_file_as_invalid(self, tmp_path):
-        step = fit_files.raw_message(_WORKOUT_STEP, [(3, _ENUM, 1)])
+    def test_a_step_without_a_duration_type_is_kept_without_one(self, tmp_path):
+        [decoded] = _parse(tmp_path, fit_files.raw_message(_WORKOUT_STEP, [(3, _ENUM, 1)]))["workout_steps"]
 
-        with pytest.raises(core_exceptions.InvalidInputError):
-            _parse(tmp_path, step)
+        assert (decoded.duration_type, decoded.target_type) == (None, "heart_rate")
 
 
 class TestMonitoringMessages:

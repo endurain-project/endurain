@@ -114,6 +114,7 @@ def fit_file(
     with_gps: bool = True,
     activities: int = 1,
     exercise_titles: tuple[tuple[str, int, int], ...] = (),
+    workout_steps: tuple[int | None, ...] = (),
 ) -> bytes:
     """Build a small, valid FIT activity file: a running session with a record every 30 seconds.
 
@@ -125,6 +126,8 @@ def fit_file(
         with_gps: Whether the records carry a position.
         activities: How many sessions the file holds, an hour apart.
         exercise_titles: ``(step name, exercise category, exercise name)`` of each exercise title the file holds.
+        workout_steps: The FIT ``duration_type`` of each planned workout step the file holds, ``None`` for a step
+            that does not name one.
 
     Returns:
         The FIT file's bytes.
@@ -136,6 +139,11 @@ def fit_file(
     )
     for step_name, category, name in exercise_titles:
         body += _message(3, 264, [(0, _UINT16, category), (1, _UINT16, name), (2, _STRING, step_name.encode())])
+    for index, duration_type in enumerate(workout_steps):
+        step_fields: list[tuple[int, int, int | bytes]] = [(254, _UINT16, index)]
+        if duration_type is not None:
+            step_fields.append((1, _ENUM, duration_type))
+        body += _message(3, 27, step_fields)
     for index in range(activities):
         first = start + timedelta(hours=index)
         last = first + timedelta(seconds=30 * (points - 1))

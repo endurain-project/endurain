@@ -10,7 +10,7 @@ import migrations.startup as migrations_startup
 from tests._helpers import alembic_chain
 
 _RETIREMENT_REVISION = "50ac9225ce4f"
-_HEAD_REVISION = "8d2f61b0c7a4"
+_HEAD_REVISION = "3c9e5a7d1f20"
 _DATA_MIGRATIONS = (11, 12, 13, 14)
 _SUBSTRATE_TABLES = ("event_log", "event_outbox", "processing_jobs", "job_attempts", "job_workers")
 
@@ -119,14 +119,23 @@ def test_a_fresh_install_upgrades_to_head_and_matches_the_models(upgrade_db):
     assert _scalar(upgrade_db, "SELECT version_num FROM alembic_version") == _HEAD_REVISION
 
 
-def test_the_baseline_alone_differs_from_the_models_only_in_the_nickname_index_and_makes_no_substrate_table(upgrade_db):
+def test_the_baseline_alone_differs_from_the_models_only_where_v0_22_changes_the_schema_and_makes_no_substrate_table(
+    upgrade_db,
+):
     alembic_chain.upgrade(upgrade_db, alembic_chain.V0_21_HEAD)
 
-    # The baseline's nickname index is ``lower(nickname)``, which the models no longer describe.
-    assert {(kind, index.name) for kind, index in alembic_chain.schema_differences(upgrade_db)} == {
-        ("remove_index", "uq_gear_user_nickname"),
-        ("add_index", "uq_gear_user_nickname"),
-    }
+    differences = alembic_chain.schema_differences(upgrade_db)
+    # An index difference is a tuple; a column difference is a list of the column's changes.
+    indexes = {(entry[0], entry[1].name) for entry in differences if isinstance(entry, tuple)}
+    columns = [
+        (change[0], change[2], change[3], change[5], change[6])
+        for entry in differences
+        if isinstance(entry, list)
+        for change in entry
+    ]
+    # The baseline's nickname index is ``lower(nickname)``, and its workout step duration type is required.
+    assert indexes == {("remove_index", "uq_gear_user_nickname"), ("add_index", "uq_gear_user_nickname")}
+    assert columns == [("modify_nullable", "activity_workout_steps", "duration_type", False, True)]
     tables = _tables(upgrade_db)
     assert not tables & {*_SUBSTRATE_TABLES, "uuid_migration_ids"}
     assert not {name for name in tables if name.startswith("jasil_")}
