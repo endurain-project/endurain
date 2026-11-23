@@ -53,6 +53,10 @@ ALLOWED_ATTRIBUTES = {
 # ``vbscript:``, ``file:`` — has the attribute dropped.
 ALLOWED_URL_SCHEMES = {"http", "https", "mailto"}
 
+#: The PostgreSQL ICU collation (created by an Alembic revision) that compares text case-insensitively at the
+#: secondary level: ``Σ`` equals ``ς``, composed equals decomposed, accents and ``ß`` stay different.
+CASE_INSENSITIVE_COLLATION = "case_insensitive"
+
 # Maximum length for markdown fields
 MAX_MARKDOWN_LENGTH = 2500
 

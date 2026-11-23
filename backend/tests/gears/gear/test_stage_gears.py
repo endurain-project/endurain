@@ -39,6 +39,16 @@ class TestStageGears:
 
         assert _nicknames(db, user_id) == sorted([nickname, "Other"])
 
+    def test_a_final_sigma_and_a_capital_sigma_are_the_same_nickname(self, db, user_id):
+        gears_service.stage_gears([gear_payload("ΟΔΟΣ"), gear_payload("οδος"), gear_payload("Other")], user_id, db)
+
+        assert _nicknames(db, user_id) == sorted(["ΟΔΟΣ", "Other"])
+
+    def test_a_decomposed_nickname_is_the_same_as_its_composed_form(self, db, user_id):
+        gears_service.stage_gears([gear_payload("Caf\u00e9"), gear_payload("Cafe\u0301")], user_id, db)
+
+        assert _nicknames(db, user_id) == ["Caf\u00e9"]
+
     def test_the_same_nickname_is_staged_for_another_user(self, db, user_id):
         other_id = make_user(db).id
         gears_crud.create_gear(gear_payload("Road Bike"), other_id, db)

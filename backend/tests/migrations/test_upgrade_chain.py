@@ -10,6 +10,7 @@ import migrations.startup as migrations_startup
 from tests._helpers import alembic_chain
 
 _RETIREMENT_REVISION = "50ac9225ce4f"
+_HEAD_REVISION = "8d2f61b0c7a4"
 _DATA_MIGRATIONS = (11, 12, 13, 14)
 _SUBSTRATE_TABLES = ("event_log", "event_outbox", "processing_jobs", "job_attempts", "job_workers")
 
@@ -115,13 +116,17 @@ def test_a_fresh_install_upgrades_to_head_and_matches_the_models(upgrade_db):
     assert alembic_chain.schema_differences(upgrade_db) == []
     alembic_chain.bootstrap_substrate(upgrade_db)
     assert alembic_chain.schema_differences(upgrade_db) == []
-    assert _scalar(upgrade_db, "SELECT version_num FROM alembic_version") == _RETIREMENT_REVISION
+    assert _scalar(upgrade_db, "SELECT version_num FROM alembic_version") == _HEAD_REVISION
 
 
-def test_the_baseline_alone_matches_the_models_and_creates_no_substrate_or_scratch_table(upgrade_db):
+def test_the_baseline_alone_differs_from_the_models_only_in_the_nickname_index_and_makes_no_substrate_table(upgrade_db):
     alembic_chain.upgrade(upgrade_db, alembic_chain.V0_21_HEAD)
 
-    assert alembic_chain.schema_differences(upgrade_db) == []
+    # The baseline's nickname index is ``lower(nickname)``, which the models no longer describe.
+    assert {(kind, index.name) for kind, index in alembic_chain.schema_differences(upgrade_db)} == {
+        ("remove_index", "uq_gear_user_nickname"),
+        ("add_index", "uq_gear_user_nickname"),
+    }
     tables = _tables(upgrade_db)
     assert not tables & {*_SUBSTRATE_TABLES, "uuid_migration_ids"}
     assert not {name for name in tables if name.startswith("jasil_")}
@@ -171,7 +176,7 @@ def test_the_v0_22_upgrade_retires_the_v0_21_data_migrations_once_they_have_all_
     assert _migrations_state(upgrade_db) == {}
     assert _scalar(upgrade_db, "SELECT to_regclass('uuid_migration_ids')") is None
     assert _scalar(upgrade_db, "SELECT count(*) FROM users") == 1
-    assert _scalar(upgrade_db, "SELECT version_num FROM alembic_version") == _RETIREMENT_REVISION
+    assert _scalar(upgrade_db, "SELECT version_num FROM alembic_version") == _HEAD_REVISION
 
 
 def test_startup_refuses_a_database_at_an_unknown_revision_before_any_revision_runs(upgrade_db, monkeypatch):
@@ -189,7 +194,7 @@ def test_startup_refuses_a_database_at_an_unknown_revision_before_any_revision_r
 
 
 def test_the_v0_21_data_migration_retirement_is_irreversible(upgrade_db):
-    alembic_chain.upgrade(upgrade_db, "head")
+    alembic_chain.upgrade(upgrade_db, _RETIREMENT_REVISION)
 
     with pytest.raises(NotImplementedError, match="restore the database from the backup"):
         alembic_chain.downgrade(upgrade_db, alembic_chain.V0_21_HEAD)

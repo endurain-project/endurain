@@ -36,6 +36,8 @@ The first two affect clients of the administrator settings routes, which need th
 - **A gzipped upload names its format.** `POST /activities/upload` takes `ride.gpx.gz`, `ride.fit.gz` or `ride.tcx.gz`; a `.gz` whose name gives no supported format inside it (`ride.gz`) is `415` `urn:endurain:error:unsupported-format` at once, where it used to be accepted and then fail its job.
 - **An API key whose owner is inactive is `401`.** v0.21 answered `403` `permission-denied` for a key of a deactivated account or one awaiting approval; it is now `401` with `urn:endurain:error:unauthorized` and `WWW-Authenticate: ApiKey`, like an unknown, revoked or expired key, because the key no longer authenticates anyone. See [API keys](api-keys.md).
 
+- **Text matching is case-insensitive through a PostgreSQL ICU collation.** The activity search (`name_search`: name, town, city, country), the gear search (`nickname_contains`) and the gear nickname lookup and uniqueness compare text so that case, a Greek final sigma (`ς` equals `Σ`) and Unicode normal forms (composed equals decomposed, full-width equals ASCII) do not matter; accents and `ß` against `ss` still do. **Gear nicknames that are equal under this rule within one user were renamed by the upgrade:** the earliest acquired keeps its nickname and each other gets a numeric suffix (`Bike`, `bike (2)`), with its `version` bumped and `updated_at` stamped, so a client refetches it and `GET /sync` reports it. A `POST /gears` whose nickname equals an existing one under this rule is `409`.
+
 ## Idempotency keys
 
 - **Creates accept an optional `Idempotency-Key` header.** `POST /gear-components`, `/gears`, `/health/{fasting,poop,sleep,steps,water,weight}`, `/identity-providers`, `/profile/goals`, `/users` and `/users/{user_id}/followers` answer a repeat of a request, sent with the same key, with the first answer instead of creating the record again. A request without the header behaves as before. See [Idempotency keys](idempotency.md).
@@ -48,5 +50,6 @@ The first two affect clients of the administrator settings routes, which need th
 
 - **Python 3.15** for the backend.
 - **Node.js 26** for the frontend.
+- **PostgreSQL 18 built with ICU**, which the case-insensitive collation needs. The official packages and the `postgres` image include it.
 
 The Docker image already ships both, so a Docker install needs nothing. See [Setup a development environment](../developer-guide/setup-dev-env.md).

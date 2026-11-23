@@ -20,7 +20,9 @@ import modules.gears.gear.serializers as gears_serializers
 
 _DUPLICATE_EXTERNAL_ID = "A gear with this Strava or Garmin Connect ID already exists"
 
-#: The unique index on ``(user_id, lower(nickname))``.
+_COLLATION = core_sanitization.CASE_INSENSITIVE_COLLATION
+
+#: The unique index on ``(user_id, nickname COLLATE case_insensitive)``.
 _UNIQUE_NICKNAME_INDEX = "uq_gear_user_nickname"
 
 
@@ -155,7 +157,7 @@ def _filter_gears[*Ts](
         stmt = stmt.where(gears_models.Gear.gear_type == gear_type.stored)
     if nickname_contains:
         pattern = f"%{core_sanitization.escape_like(nickname_contains.strip())}%"
-        stmt = stmt.where(func.lower(gears_models.Gear.nickname).like(func.lower(pattern), escape="\\"))
+        stmt = stmt.where(gears_models.Gear.nickname.collate(_COLLATION).like(pattern, escape="\\"))
     return stmt
 
 
@@ -255,7 +257,7 @@ def get_gear_user_by_nickname(user_id: uuid.UUID, nickname: str, db: Session) ->
         The gear, or None if there is no match.
     """
     stmt = select(gears_models.Gear).where(
-        func.lower(gears_models.Gear.nickname) == func.lower(nickname.strip()),
+        gears_models.Gear.nickname.collate(_COLLATION) == nickname.strip(),
         gears_models.Gear.user_id == user_id,
     )
     db_gear = db.execute(stmt).scalar_one_or_none()
@@ -331,7 +333,7 @@ def create_gears(gears: list[gears_schema.GearCreate], user_id: uuid.UUID, db: S
                     pg_insert(gears_models.Gear)
                     .values(gears_serializers.to_insert_values(gear, user_id))
                     .on_conflict_do_nothing(
-                        index_elements=[gears_models.Gear.user_id, func.lower(gears_models.Gear.nickname)]
+                        index_elements=[gears_models.Gear.user_id, gears_models.Gear.nickname.collate(_COLLATION)]
                     )
                     .returning(gears_models.Gear.id)
                 )

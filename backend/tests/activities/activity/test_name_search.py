@@ -118,3 +118,32 @@ class TestNameSearchWithNonAsciiText:
         assert _found(db, user_id, "ZÜRICH") == ["Morning run"]
         assert _found(db, user_id, "männe") == ["Morning run"]
         assert _found(db, user_id, "ÖSTERREICH") == ["Morning run"]
+
+
+class TestNameSearchThroughTheCaseInsensitiveCollation:
+    """PostgreSQL's ICU collation folds what ``lower()`` does not: the final sigma and the Unicode normal forms."""
+
+    @pytest.mark.parametrize("term", ["ΣΑΣ", "\u03c3\u03b1\u03c3", "σας", "ΣΑς", "σΑΣ TRAIL"])
+    def test_every_form_of_sigma_finds_the_name(self, db, user_id, term):
+        assert _found(db, user_id, term) == ["ΣΑΣ Trail"]
+
+    def test_a_final_sigma_in_a_location_is_found(self, db, user_id):
+        _add(db, user_id, "Morning run", 700, city="ΟΔΟΣ")
+
+        assert _found(db, user_id, "οδος") == ["Morning run"]
+
+    def test_a_decomposed_term_finds_a_composed_name(self, db, user_id):
+        _add(db, user_id, "Caf\u00e9 Ride", 800)
+
+        assert _found(db, user_id, "CAFE\u0301") == ["Caf\u00e9 Ride"]
+
+    def test_a_composed_term_finds_a_decomposed_name(self, db, user_id):
+        _add(db, user_id, "Cafe\u0301 Ride", 800)
+
+        assert _found(db, user_id, "caf\u00c9") == ["Cafe\u0301 Ride"]
+
+    def test_an_accent_still_tells_letters_apart(self, db, user_id):
+        _add(db, user_id, "Cafe Ride", 800)
+
+        assert _found(db, user_id, "café") == []
+        assert _found(db, user_id, "cafe") == ["Cafe Ride"]
