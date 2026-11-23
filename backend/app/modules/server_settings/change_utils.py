@@ -3,8 +3,6 @@
 Pure: no session, no configuration and no I/O.
 """
 
-from collections.abc import Mapping
-
 from pydantic import BaseModel
 
 import core.cryptography as core_cryptography
@@ -96,16 +94,3 @@ def changed_fields(
         elif getattr(current, field) != value:
             changed.add(field)
     return changed
-
-
-def differing[V](current: BaseModel, target: Mapping[str, V]) -> dict[str, V]:
-    """Return the target fields whose value differs from the stored one.
-
-    Args:
-        current: The settings as stored.
-        target: Field name to the value it should have.
-
-    Returns:
-        The fields to write.
-    """
-    return {field: value for field, value in target.items() if getattr(current, field) != value}

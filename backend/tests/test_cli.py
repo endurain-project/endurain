@@ -1,5 +1,8 @@
 """The operator recovery commands, run against the real database."""
 
+import jasil.runtime as platform_runtime
+import jasil.settings as jasil_settings
+import jasil.testing as jasil_testing
 import pytest
 from jasil.audit.models import AuditLog
 from sqlalchemy import select
@@ -8,6 +11,7 @@ import cli
 import modules.auth.credentials.integration_service as credentials_integration
 import modules.auth.mfa.integration_service as mfa_integration
 import modules.auth.sessions.integration_service as sessions_integration
+import modules.users.contributor_registry as users_contributor_registry
 from tests._factories.tokens import make_mfa
 from tests._factories.users import PASSWORD, make_user
 
@@ -30,6 +34,86 @@ def alice(committed_sessions, sign_in):
         make_mfa(db, user)
         db.commit()
     return sign_in(user)
+
+
+def _printed_password(out: str) -> str | None:
+    """The password the command wrote to the terminal, apart from the log lines the process also writes there."""
+    for line in out.splitlines():
+        if line.startswith("New password: "):
+            return line.removeprefix("New password: ")
+    return None
+
+
+@pytest.fixture
+def run_command(app, committed_sessions):
+    """Run ``cli.main`` as a fresh process does, then give the test its own platform and settings back.
+
+    The command builds and publishes its own platform and releases it on exit, so the registrations the harness made
+    are cleared first and what the test had published is restored afterwards, for a request or a sign-in after it.
+    """
+    platform = platform_runtime.get_active_platform()
+    settings = jasil_settings.get_settings()
+
+    def run(argv: list[str]) -> int:
+        jasil_testing.reset_all()
+        users_contributor_registry.clear()
+        try:
+            return cli.main(argv)
+        finally:
+            assert not platform_runtime.is_platform_active()
+            jasil_settings.configure(settings)
+            platform_runtime.set_active_platform(platform)
+
+    return run
+
+
+class TestMain:
+    def test_set_password_starts_the_platform_sets_a_password_that_signs_in_and_releases_it(
+        self, run_command, client, committed_sessions, alice, capsys
+    ):
+        assert run_command(["set-password", "alice"]) == 0
+
+        out = capsys.readouterr().out
+        password = _printed_password(out)
+        assert password
+        assert out.count(password) == 1
+        assert not _session_survives(committed_sessions, alice)
+        (row,) = _audit(committed_sessions, "auth.password.set")
+        assert (row.source, row.actor_type) == ("cli", "system")
+        response = client.post(
+            "/api/v1/auth/login",
+            data={"username": "alice", "password": password},
+            headers={"X-Client-Type": "web"},
+        )
+        assert response.status_code == 200, response.text
+
+    def test_reset_mfa_starts_the_platform_turns_off_mfa_and_ends_the_sessions(
+        self, run_command, committed_sessions, alice
+    ):
+        assert run_command(["reset-mfa", "alice"]) == 0
+
+        with committed_sessions() as db:
+            assert mfa_integration.is_mfa_enabled_for_user(alice.user.id, db) is False
+        assert not _session_survives(committed_sessions, alice)
+        (row,) = _audit(committed_sessions, "auth.mfa.reset")
+        assert (row.source, row.actor_type, row.target_id) == ("cli", "system", str(alice.user.id))
+
+    @pytest.mark.parametrize("command", ["set-password", "reset-mfa"])
+    def test_an_unknown_username_exits_with_one_and_releases_the_platform(
+        self, run_command, committed_sessions, alice, capsys, command
+    ):
+        assert run_command([command, "nobody"]) == 1
+
+        assert _printed_password(capsys.readouterr().out) is None
+        assert _session_survives(committed_sessions, alice)
+        assert _audit(committed_sessions, "auth.password.set") == []
+        assert _audit(committed_sessions, "auth.mfa.reset") == []
+
+    def test_a_missing_command_is_refused_before_anything_starts(self, run_command):
+        with pytest.raises(SystemExit) as exit_info:
+            run_command([])
+
+        assert exit_info.value.code == 2
 
 
 class TestResetMfa:

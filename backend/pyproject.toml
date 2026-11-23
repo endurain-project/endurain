@@ -155,8 +155,8 @@ branch = true
 omit = ["*/tests/*", "*/__pycache__/*"]
 
 [tool.coverage.report]
-# Measured 97.53% branch coverage (2026-11-21). Raise it as the total rises; never lower it.
-fail_under = 97.0
+# Measured 98.25% branch coverage (2026-11-21). Raise it as the total rises; never lower it.
+fail_under = 97.7
 precision = 2
 exclude_lines = [
     "pragma: no cover",
