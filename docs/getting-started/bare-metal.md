@@ -26,7 +26,7 @@ Install the required tools from their official sources:
 
 - uv (Python) → https://docs.astral.sh/uv/
 - Node.js 26 → https://nodejs.org/en/download
-- PostgreSQL 18 → https://www.postgresql.org/download/
+- PostgreSQL 18 → https://www.postgresql.org/download/ (the build must include ICU, as the official packages and the `postgres` image do; Endurain's case-insensitive search relies on it)
 
 ## 3. Download Endurain Release
 

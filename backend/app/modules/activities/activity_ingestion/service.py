@@ -21,6 +21,7 @@ from collections.abc import Callable, Collection, Iterator
 from datetime import UTC, datetime, timedelta
 from itertools import batched
 
+import jasil.orm as jasil_orm
 import jasil.providers as platform_providers
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from sqlalchemy.orm import Session
@@ -233,9 +234,10 @@ def accept_upload(
         )
     except IntegrityError:
         # Two requests carrying the same key raced past the check above. The
-        # constraint is what actually decides; the loser reports the winner's job.
-        activity_ingestion_upload_entry_service.discard_staged_upload(staged_key, storage)
+        # constraint is what actually decides; the loser reports the winner's job. The rollback comes
+        # first: it releases the user's upload lock, which must not wait on a storage call.
         db.rollback()
+        activity_ingestion_upload_entry_service.discard_staged_upload(staged_key, storage)
         prior = (
             activity_ingestion_crud.get_job_for_idempotency(
                 idempotency_key, token_user_id, activity_ingestion_constants.IngestionJobKind.UPLOAD, db
@@ -249,8 +251,9 @@ def accept_upload(
         require_same_request(fingerprint, received.fingerprint)
         return replayed
     except Exception:
-        # The row is gone (or never committed), so nothing will consume the
-        # staged bytes.
+        # The row is gone (or never committed), so nothing will consume the staged bytes. The rollback
+        # comes first: it releases the user's upload lock, which must not wait on a storage call.
+        db.rollback()
         activity_ingestion_upload_entry_service.discard_staged_upload(staged_key, storage)
         raise
 
@@ -731,11 +734,16 @@ def release_ingestion_job(job_id: uuid.UUID) -> None:
             activity_ingestion_crud.release_job(job_id, db)
             db.commit()
     except SQLAlchemyError as err:
-        logger.error(
-            "Could not release an ingestion job for retry",
-            exc_info=err,
-            extra=core_logger.context(job_id=job_id),
-        )
+        # An unavailable database passes, and the lease brings the job back; any other database error is a fault.
+        if jasil_orm.is_database_unavailable(err):
+            logger.warning(
+                "Could not release an ingestion job for retry",
+                extra=core_logger.context(job_id=job_id, error=type(err).__name__),
+            )
+        else:
+            logger.error(
+                "Could not release an ingestion job for retry", exc_info=err, extra=core_logger.context(job_id=job_id)
+            )
 
 
 def defer_ingestion_job(job_id: uuid.UUID, retry_at: datetime) -> None:
@@ -748,7 +756,7 @@ def defer_ingestion_job(job_id: uuid.UUID, retry_at: datetime) -> None:
     with core_database.SessionLocal() as db:
         activity_ingestion_crud.mark_deferred(job_id, retry_at, db)
         db.commit()
-    logger.warning(
+    logger.info(
         "Provider refresh deferred until the rate limit clears",
         extra=core_logger.context(job_id=job_id, retry_at=retry_at),
     )
@@ -823,12 +831,15 @@ def fail_ingestion_job(
             failed = activity_ingestion_crud.mark_failed(job_id, error_code, db)
             db.commit()
     except SQLAlchemyError as err:
-        # Never mask the original failure with a bookkeeping one.
-        logger.error(
-            "Could not mark an upload job failed",
-            exc_info=err,
-            extra=core_logger.context(job_id=job_id),
-        )
+        # Never mask the original failure with a bookkeeping one. An unavailable database passes, and the lease
+        # brings the job back; any other database error is a fault.
+        if jasil_orm.is_database_unavailable(err):
+            logger.warning(
+                "Could not mark an upload job failed",
+                extra=core_logger.context(job_id=job_id, error=type(err).__name__),
+            )
+        else:
+            logger.error("Could not mark an upload job failed", exc_info=err, extra=core_logger.context(job_id=job_id))
         return
 
     if failed is not None:

@@ -5,6 +5,7 @@ from datetime import date, datetime, timedelta
 from typing import overload
 from zoneinfo import ZoneInfo, available_timezones
 
+import jasil.runtime as platform_runtime
 from timezonefinder import TimezoneFinder
 
 import core.config as core_config
@@ -212,7 +213,8 @@ def today_in(tz_name: str) -> date:
 
     Callers supply the zone explicitly (typically the athlete's stored
     ``users.timezone``, falling back to ``settings.TZ``) so the choice is
-    visible at the call site rather than buried in a default.
+    visible at the call site rather than buried in a default. The instant comes
+    from the active platform's clock, so every process and test agrees on it.
 
     Args:
         tz_name: IANA timezone name to resolve "today" in.
@@ -220,7 +222,7 @@ def today_in(tz_name: str) -> date:
     Returns:
         The current calendar date in that timezone.
     """
-    return datetime.now(ZoneInfo(tz_name)).date()
+    return platform_runtime.get_active_platform().clock.now().astimezone(ZoneInfo(tz_name)).date()
 
 
 @overload

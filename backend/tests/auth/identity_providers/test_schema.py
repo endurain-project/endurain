@@ -360,6 +360,10 @@ class TestIdentityProviderCreate:
 
 
 class TestIdentityProviderUpdate:
+    def test_an_update_can_change_every_field_a_create_sets(self):
+        """A field added to the provider but not to the partial update could be created and never edited."""
+        assert set(IdentityProviderUpdate.model_fields) == set(idp_schema.IdentityProviderCreate.model_fields)
+
     """Test suite for IdentityProviderUpdate schema."""
 
     def test_valid_identity_provider_update(self):
@@ -438,6 +442,45 @@ class TestIdentityProviderUpdate:
             )
 
         assert "String should have at least 1 character" in str(exc_info.value)
+
+    def test_an_empty_update_is_valid_and_sets_no_field(self):
+        """Test every field of an update is optional.
+
+        Asserts:
+            - an update with no field validates and its model_fields_set is empty
+        """
+        assert IdentityProviderUpdate().model_fields_set == set()
+
+    @pytest.mark.parametrize("field", ["name", "slug", "provider_type", "enabled", "scopes", "sync_email"])
+    def test_a_field_the_provider_always_has_refuses_null(self, field):
+        """Test a field stored as NOT NULL cannot be sent as null.
+
+        Asserts:
+            - the field sent as null raises a ValidationError
+        """
+        with pytest.raises(ValidationError, match=f"{field} cannot be null"):
+            IdentityProviderUpdate.model_validate({field: None})
+
+    def test_a_nullable_field_may_be_cleared(self):
+        """Test a field stored as nullable accepts null.
+
+        Asserts:
+            - issuer_url, icon and user_mapping sent as null are set to None
+        """
+        idp = IdentityProviderUpdate.model_validate({"issuer_url": None, "icon": None, "user_mapping": None})
+
+        assert idp.model_fields_set == {"issuer_url", "icon", "user_mapping"}
+
+    def test_the_slug_and_icon_rules_apply_to_a_partial_update(self):
+        """Test the slug and icon validators run on the fields an update sends.
+
+        Asserts:
+            - a malformed slug and an unknown icon raise a ValidationError
+        """
+        with pytest.raises(ValidationError):
+            IdentityProviderUpdate(slug="Not Valid")
+        with pytest.raises(ValidationError):
+            IdentityProviderUpdate(icon="no-such-icon")
 
 
 class TestIdentityProvider:
@@ -704,8 +747,6 @@ class TestIdentityProviderReadClientId:
             - When decryption fails, original encrypted value is returned
         """
         # Arrange
-        from unittest.mock import patch
-
         now = datetime.now(UTC)
 
         idp_data = {
@@ -723,14 +764,27 @@ class TestIdentityProviderReadClientId:
             "updated_at": now,
         }
 
-        # Act & Assert - Test that exception during decryption is handled
-        with patch(
-            "core.cryptography.decrypt_token_fernet",
-            side_effect=Exception("Decryption error"),
-        ):
-            idp = IdentityProviderRead(**idp_data)
-            # Should return encrypted value if decryption fails
-            assert idp.client_id is not None
+        # Act & Assert - the value is not a token the key decrypts
+        idp = IdentityProviderRead(**idp_data)
+
+        assert idp.client_id == "gAAAAAB_invalid_encrypted_value"
+
+    def test_a_client_id_that_is_not_encrypted_is_serialized_as_it_is(self):
+        now = datetime.now(UTC)
+
+        idp = IdentityProviderRead(
+            id=IDP_ID,
+            name="Test Provider",
+            slug="test-provider",
+            provider_type="oidc",
+            issuer_url="https://auth.example.com",
+            scopes="openid",
+            client_id="plain-client-id",
+            created_at=now,
+            updated_at=now,
+        )
+
+        assert idp.model_dump()["client_id"] == "plain-client-id"
 
 
 class TestStepUpRequests:

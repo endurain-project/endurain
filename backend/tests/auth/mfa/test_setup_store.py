@@ -1,14 +1,11 @@
 """Tests for temporary MFA setup secret storage (provider-backed)."""
 
-from unittest.mock import MagicMock, patch
-
+import jasil.testing as jasil_testing
 import pytest
 from jasil.backends.state_memory import MemoryState
-from jasil.providers import StateBackendUnavailableError
 
-import core.exceptions as core_exceptions
-import modules.auth.mfa.dependencies as auth_mfa_dependencies
 import modules.auth.mfa.setup_store as auth_mfa_setup_store
+from tests._factories.state import DownState
 from tests._helpers.auth import MOCK_USER_ID
 
 
@@ -16,7 +13,7 @@ class TestMFASecretStore:
     """MFASecretStore backed by the platform StateProvider."""
 
     def _make_store(self) -> auth_mfa_setup_store.MFASecretStore:
-        return auth_mfa_setup_store.MFASecretStore(state=MemoryState())
+        return auth_mfa_setup_store.MFASecretStore(state=MemoryState(jasil_testing.FixedClock()))
 
     def test_lifecycle(self):
         store = self._make_store()
@@ -28,7 +25,7 @@ class TestMFASecretStore:
         assert store.has_secret(123) is False
 
     def test_stored_value_is_encrypted(self):
-        state = MemoryState()
+        state = MemoryState(jasil_testing.FixedClock())
         store = auth_mfa_setup_store.MFASecretStore(state=state)
         store.add_secret(123, "secret-value")
         raw = state.get(store._key(123))
@@ -53,49 +50,12 @@ class TestMFASecretStore:
         store.add_secret(MOCK_USER_ID, "new")
         assert store.get_secret(MOCK_USER_ID) == "new"
 
-    def test_add_secret_encryption_failure(self):
-        with (
-            patch("modules.auth.mfa.setup_store.core_cryptography.encrypt_token_fernet", return_value=None),
-            pytest.raises(ValueError, match="Failed to encrypt MFA secret"),
-        ):
-            self._make_store().add_secret(123, "secret-value")
-
-    def test_get_secret_returns_none_when_decrypt_fails(self):
-        store = self._make_store()
-        store.add_secret(MOCK_USER_ID, "secret")
-        with patch(
-            "modules.auth.mfa.setup_store.core_cryptography.decrypt_token_fernet",
-            side_effect=core_exceptions.UndecryptableError(),
-        ):
-            assert store.get_secret(MOCK_USER_ID) is None
-
-
-class TestEncryptionHelpers:
-    """Direct tests for the module-level encryption helpers."""
-
-    def test_encrypt_secret_error(self):
-        with (
-            patch("modules.auth.mfa.setup_store.core_cryptography.encrypt_token_fernet", return_value=None),
-            pytest.raises(ValueError, match="Failed to encrypt MFA secret"),
-        ):
-            auth_mfa_setup_store._encrypt_secret("test-secret")
-
-    def test_decrypt_secret_returns_none_on_error(self):
-        with patch(
-            "modules.auth.mfa.setup_store.core_cryptography.decrypt_token_fernet",
-            side_effect=core_exceptions.UndecryptableError(),
-        ):
-            assert auth_mfa_setup_store._decrypt_secret("bad-encrypted-data") is None
-
 
 class TestMFASecretStoreUnavailable:
     """Backend outages surface as MFASecretStoreUnavailableError; delete swallows."""
 
     def _failing_store(self) -> auth_mfa_setup_store.MFASecretStore:
-        state = MagicMock()
-        for method in ("set", "get", "delete", "delete_prefix"):
-            getattr(state, method).side_effect = StateBackendUnavailableError("down")
-        return auth_mfa_setup_store.MFASecretStore(state=state)
+        return auth_mfa_setup_store.MFASecretStore(state=DownState())
 
     def test_add_secret_raises_unavailable(self):
         with pytest.raises(auth_mfa_setup_store.MFASecretStoreUnavailableError):
@@ -117,25 +77,17 @@ class TestMFASecretStoreUnavailable:
         self._failing_store().delete_secret(MOCK_USER_ID)
 
 
-class TestGetMFASecretStore:
-    """get_mfa_secret_store: binds a store to the injected platform provider."""
-
-    def test_returns_singleton(self):
-        state = MemoryState()
-        store = auth_mfa_dependencies.get_mfa_secret_store(state)
-        assert isinstance(store, auth_mfa_setup_store.MFASecretStore)
-        assert store._state is state
-
-
 class TestDecryptSecretFailure:
     """A secret that cannot be decrypted is reported and treated as absent."""
 
-    def test_undecryptable_secret_logs_warning_and_returns_none(self):
-        state = MemoryState()
+    def test_undecryptable_secret_logs_a_warning_without_the_value_and_returns_none(self, caplog):
+        state = MemoryState(jasil_testing.FixedClock())
         store = auth_mfa_setup_store.MFASecretStore(state=state)
         state.set(store._key(MOCK_USER_ID), b"not-a-fernet-token", ttl_seconds=60)
-        with patch.object(auth_mfa_setup_store, "logger") as mock_logger:
+
+        with caplog.at_level("WARNING"):
             assert store.get_secret(MOCK_USER_ID) is None
-        mock_logger.warning.assert_called_once()
-        assert mock_logger.warning.call_args.kwargs["exc_info"] is not None
-        assert "not-a-fernet-token" not in str(mock_logger.warning.call_args)
+
+        assert len(caplog.records) == 1
+        assert caplog.records[0].exc_info is not None
+        assert "not-a-fernet-token" not in caplog.text

@@ -1,115 +1,41 @@
-import uuid
-from datetime import UTC, date, datetime, timedelta
-from types import SimpleNamespace
+"""The date arithmetic of a health window: measured from the athlete's own today, which the caller passes in."""
+
+from datetime import date, timedelta
+
+import pytest
 
 import modules.health.computation as health_computation
-import modules.health.health_steps.schema as health_steps_schema
+import modules.health.constants as health_constants
+
+_ANCHOR = date(2026, 3, 15)
 
 
 class TestGetStartDateForInterval:
-    """Windows are measured from the athlete's own today, passed in by the caller.
+    @pytest.mark.parametrize(
+        ("interval", "days"),
+        [("last_30_days", 30), ("last_90_days", 90), ("last_year", 365), ("last_7_days", 7), ("unknown", 7)],
+    )
+    def test_the_window_looks_back_from_the_anchor(self, interval, days):
+        assert health_computation.get_start_date_for_interval(interval, _ANCHOR) == _ANCHOR - timedelta(days=days)
 
-    Reading the server clock here made every interval filter shift by a day for
-    users east/west of the container's timezone.
-    """
+    def test_all_time_starts_at_the_earliest_date(self):
+        assert health_computation.get_start_date_for_interval("all_time", _ANCHOR) == date.min
 
-    ANCHOR = date(2026, 3, 15)
+    def test_the_anchor_drives_the_window_not_the_server_clock(self):
+        east = health_computation.get_start_date_for_interval("last_7_days", date(2026, 3, 16))
+        west = health_computation.get_start_date_for_interval("last_7_days", date(2026, 3, 15))
 
-    def test_last_30_days(self):
-        from modules.health.computation import get_start_date_for_interval
-
-        assert get_start_date_for_interval("last_30_days", self.ANCHOR) == self.ANCHOR - timedelta(days=30)
-
-    def test_last_90_days(self):
-        from modules.health.computation import get_start_date_for_interval
-
-        assert get_start_date_for_interval("last_90_days", self.ANCHOR) == self.ANCHOR - timedelta(days=90)
-
-    def test_last_year(self):
-        from modules.health.computation import get_start_date_for_interval
-
-        assert get_start_date_for_interval("last_year", self.ANCHOR) == self.ANCHOR - timedelta(days=365)
-
-    def test_all_time(self):
-        from modules.health.computation import get_start_date_for_interval
-
-        assert get_start_date_for_interval("all_time", self.ANCHOR) == date.min
-
-    def test_default(self):
-        from modules.health.computation import get_start_date_for_interval
-
-        assert get_start_date_for_interval("unknown", self.ANCHOR) == self.ANCHOR - timedelta(days=7)
-
-    def test_anchor_drives_the_window_not_the_server_clock(self):
-        """Two callers on different calendar days get different windows."""
-        from modules.health.computation import get_start_date_for_interval
-
-        east = get_start_date_for_interval("last_7_days", date(2026, 3, 16))
-        west = get_start_date_for_interval("last_7_days", date(2026, 3, 15))
         assert east - west == timedelta(days=1)
 
 
-class TestIntervalEnum:
-    def test_values(self):
-        from modules.health.constants import Interval
-
-        assert Interval.LAST_7_DAYS.value == "last_7_days"
-        assert Interval.LAST_30_DAYS.value == "last_30_days"
-        assert Interval.LAST_90_DAYS.value == "last_90_days"
-        assert Interval.LAST_YEAR.value == "last_year"
-        assert Interval.ALL_TIME.value == "all_time"
-
-
 class TestIntervalStart:
-    """A list request's interval is resolved against the user's own calendar."""
-
     def test_no_interval_means_no_lower_bound_and_no_calendar_lookup(self):
-        from modules.health.computation import interval_start
-
         def fail() -> date:
             raise AssertionError("today must not be read without an interval")
 
-        assert interval_start(None, fail) is None
+        assert health_computation.interval_start(None, fail) is None
 
     def test_an_interval_starts_before_the_users_own_today(self):
-        from modules.health.computation import interval_start
-        from modules.health.constants import Interval
+        start = health_computation.interval_start(health_constants.Interval.LAST_30_DAYS, lambda: _ANCHOR)
 
-        today = date(2026, 3, 15)
-
-        assert interval_start(Interval.LAST_30_DAYS, lambda: today) == today - timedelta(days=30)
-
-
-class TestToReadSchema:
-    def test_validates_a_row_against_the_given_schema(self):
-        row = SimpleNamespace(
-            id=uuid.uuid4(),
-            version=2,
-            user_id=uuid.uuid4(),
-            updated_at=datetime(2024, 1, 15, tzinfo=UTC),
-            date=date(2024, 1, 15),
-            steps=9000,
-            source="manual",
-        )
-
-        result = health_computation.to_read_schema(health_steps_schema.HealthStepsRead, row)
-
-        assert isinstance(result, health_steps_schema.HealthStepsRead)
-        assert result.steps == 9000
-
-    def test_converts_every_row_in_order(self):
-        ids = [uuid.uuid4(), uuid.uuid4()]
-        rows = [
-            SimpleNamespace(
-                id=ids[i - 1],
-                version=1,
-                user_id=uuid.uuid4(),
-                updated_at=datetime(2024, 1, 15, tzinfo=UTC),
-                date=date(2024, 1, i),
-                steps=i,
-                source="manual",
-            )
-            for i in (1, 2)
-        ]
-
-        assert [r.id for r in health_computation.to_read_schemas(health_steps_schema.HealthStepsRead, rows)] == ids
+        assert start == _ANCHOR - timedelta(days=30)

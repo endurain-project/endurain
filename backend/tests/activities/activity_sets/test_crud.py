@@ -1,137 +1,94 @@
-import uuid
-from datetime import UTC, datetime, timedelta
-from unittest.mock import MagicMock, patch
+"""Workout sets are stored from schemas or raw FIT rows and read back in start order, on the real database."""
 
-from tests._helpers.db import setup_mock_execute
-from tests._helpers.models import mock_model
+from datetime import timedelta
 
-_ACTIVITY_ID = uuid.UUID("00000000-0000-4000-8000-000000000005")
+import pytest
 
-_T0 = datetime(2024, 1, 15, 8, 0, tzinfo=UTC)
-
-
-class TestCreateActivitySets:
-    @patch("modules.activities.activity_sets.crud.activity_sets_models.ActivitySets")
-    def test_success(self, mock_sets_model, mock_db):
-        import modules.activities.activity_sets.crud as crud
-        from modules.activities.activity_sets.contracts import ActivitySetsCreate
-
-        mock_sets_model.return_value = MagicMock()
-        sets = [
-            ActivitySetsCreate(
-                activity_id=_ACTIVITY_ID, duration=300.0, set_type="interval", start_time="2024-01-15T08:00:00"
-            )
-        ]
-        crud.create_activity_sets(sets, _ACTIVITY_ID, mock_db)
-        mock_db.add_all.assert_called_once()
-        mock_db.flush.assert_called_once()
-        mock_db.commit.assert_not_called()
-
-    def test_empty(self, mock_db):
-        import modules.activities.activity_sets.crud as crud
-
-        crud.create_activity_sets([], _ACTIVITY_ID, mock_db)
-        mock_db.flush.assert_called_once()
-        mock_db.commit.assert_not_called()
+import modules.activities.activity_sets.crud as sets_crud
+import modules.activities.activity_sets.models as sets_models
+from tests._factories.activities import DEFAULT_START, make_activity, make_sets
+from tests._factories.users import make_user
 
 
-class TestGetActivitySets:
-    """Persistence only — the access decision lives in ``activity_sets.service``."""
+@pytest.fixture
+def activity(db):
+    return make_activity(db, make_user(db).id)
 
-    @patch("modules.activities.activity_sets.crud.activity_sets_schema.ActivitySetsRead.model_validate")
-    def test_success(self, mock_validate, mock_db):
-        import modules.activities.activity_sets.crud as crud
-        import modules.activities.activity_sets.models as m
-        from modules.activities.activity_sets.schema import ActivitySetsRead
 
-        mock_validate.return_value = ActivitySetsRead(
-            id=uuid.uuid4(),
-            activity_id=_ACTIVITY_ID,
-            duration=300.0,
-            set_type="interval",
-            start_time=MagicMock(),
+def _set(minutes: int, **fields) -> dict[str, object]:
+    start = (DEFAULT_START + timedelta(minutes=minutes)).isoformat()
+    return {"start_time": start, "duration": 30.0, "set_type": "active", **fields}
+
+
+class TestCreate:
+    def test_a_set_keeps_the_fields_it_was_given(self, db, activity):
+        [stored] = make_sets(db, activity, [_set(0, repetitions=10, weight=42.5, category=3, category_subtype=4)])
+
+        row = db.get(sets_models.ActivitySets, stored.id)
+        assert (row.activity_id, row.repetitions, float(row.weight), row.category, row.category_subtype) == (
+            activity.id,
+            10,
+            42.5,
+            3,
+            4,
         )
-        setup_mock_execute(
-            mock_db, return_scalars_all=[mock_model(m.ActivitySets, id=uuid.uuid4(), activity_id=_ACTIVITY_ID)]
-        )
-        assert len(crud.get_activity_sets(activity_id=_ACTIVITY_ID, db=mock_db)) == 1
+        assert (float(row.duration), row.set_type, row.start_time) == (30.0, "active", DEFAULT_START)
 
-    def test_empty(self, mock_db):
-        import modules.activities.activity_sets.crud as crud
+    def test_the_raw_rows_of_the_fit_parser_are_stored_with_their_tuple_values_unwrapped(self, db, activity):
+        raw = [45.0, 8, 20.0, "active", DEFAULT_START, (7, "extra"), (None, "ignored")]
 
-        setup_mock_execute(mock_db, return_scalars_all=[])
-        assert crud.get_activity_sets(activity_id=_ACTIVITY_ID, db=mock_db) == []
+        sets_crud.create_activity_sets([raw], activity.id, db)
 
+        [stored] = sets_crud.get_activity_sets(activity.id, db)
+        assert (stored.duration, stored.repetitions, stored.weight, stored.set_type) == (45.0, 8, 20.0, "active")
+        assert (stored.category, stored.category_subtype, stored.start_time) == (7, None, DEFAULT_START)
 
-class TestGetActivitiesSets:
-    """The batch read no longer joins the parent: it is handed scoped ids."""
+    def test_a_raw_row_with_plain_category_values_stores_them_as_they_are(self, db, activity):
+        sets_crud.create_activity_sets([[10.0, 5, 10.0, "active", DEFAULT_START, 3, 4]], activity.id, db)
 
-    @patch("modules.activities.activity_sets.serializers.to_read_schema")
-    def test_success(self, mock_to_read, mock_db):
-        import modules.activities.activity_sets.crud as crud
-        import modules.activities.activity_sets.models as m
+        [stored] = sets_crud.get_activity_sets(activity.id, db)
+        assert (stored.category, stored.category_subtype) == (3, 4)
 
-        mock_to_read.return_value = MagicMock()
-        mock_db.scalars.return_value.all.return_value = [
-            MagicMock(spec=m.ActivitySets, id=uuid.uuid4(), activity_id=_ACTIVITY_ID)
-        ]
+    def test_a_raw_row_with_no_category_stores_null(self, db, activity):
+        sets_crud.create_activity_sets([[10.0, None, None, "rest", DEFAULT_START, None, None]], activity.id, db)
 
-        assert len(crud.get_activities_sets(activity_ids=[_ACTIVITY_ID], db=mock_db)) == 1
+        [stored] = sets_crud.get_activity_sets(activity.id, db)
+        assert (stored.category, stored.category_subtype, stored.repetitions) == (None, None, None)
 
-    def test_empty_ids_short_circuits(self, mock_db):
-        import modules.activities.activity_sets.crud as crud
+    def test_no_sets_stores_nothing(self, db, activity):
+        sets_crud.create_activity_sets([], activity.id, db)
 
-        assert crud.get_activities_sets(activity_ids=[], db=mock_db) == []
-        mock_db.scalars.assert_not_called()
-
-    def test_no_rows(self, mock_db):
-        import modules.activities.activity_sets.crud as crud
-
-        mock_db.scalars.return_value.all.return_value = []
-
-        assert crud.get_activities_sets(activity_ids=[_ACTIVITY_ID], db=mock_db) == []
+        assert sets_crud.count_activity_sets(activity.id, db) == 0
 
 
-def _ids(*numbers):
-    return [uuid.UUID(int=n) for n in numbers]
+class TestRead:
+    def test_sets_come_in_start_order_whatever_order_they_were_stored_in(self, db, activity):
+        make_sets(db, activity, [_set(20), _set(0), _set(10)])
 
+        starts = [s.start_time for s in sets_crud.get_activity_sets(activity.id, db)]
 
-class TestOrdering:
-    """Rows come back by their natural key; the id only breaks a tie."""
+        assert starts == [DEFAULT_START + timedelta(minutes=m) for m in (0, 10, 20)]
 
-    def _row(self, row_id, key):
-        import modules.activities.activity_sets.models as m
+    def test_a_page_holds_its_slice_and_the_count_covers_all_sets(self, db, activity):
+        make_sets(db, activity, [_set(m) for m in range(5)])
 
-        return m.ActivitySets(id=row_id, activity_id=_ACTIVITY_ID, duration=1, set_type="active", start_time=key)
+        page = sets_crud.get_activity_sets(activity.id, db, page_number=3, num_records=2)
 
-    def _read(self, rows, **page):
-        from tests._helpers.db import create_sqlite_session
+        assert [s.start_time for s in page] == [DEFAULT_START + timedelta(minutes=4)]
+        assert sets_crud.count_activity_sets(activity.id, db) == 5
 
-        import modules.activities.activity_sets.crud as crud
+    def test_another_activitys_sets_are_not_read_or_counted(self, db, activity):
+        make_sets(db, make_activity(db, make_user(db).id), [_set(0)])
 
-        db = create_sqlite_session()
-        try:
-            for row in rows:
-                db.add(row)
-            db.commit()
-            return [(r.start_time, r.id) for r in crud.get_activity_sets(_ACTIVITY_ID, db, **page)]
-        finally:
-            db.close()
+        assert sets_crud.get_activity_sets(activity.id, db) == []
+        assert sets_crud.count_activity_sets(activity.id, db) == 0
 
-    def test_rows_inserted_out_of_order_come_back_by_start_time(self):
-        a, b, c = _ids(3, 1, 2)
-        rows = [self._row(a, _T0 + timedelta(minutes=2)), self._row(b, _T0), self._row(c, _T0 + timedelta(minutes=1))]
+    def test_several_activities_are_read_at_once_and_none_reads_nothing(self, db, activity):
+        other = make_activity(db, make_user(db).id)
+        make_sets(db, activity, [_set(0)])
+        make_sets(db, other, [_set(0), _set(5)])
 
-        assert [row_id for _, row_id in self._read(rows)] == [b, c, a]
+        rows = sets_crud.get_activities_sets([activity.id, other.id], db)
 
-    def test_a_tie_breaks_by_id(self):
-        high, low = _ids(9, 4)
-        rows = [self._row(high, _T0), self._row(low, _T0)]
-
-        assert [row_id for _, row_id in self._read(rows)] == [low, high]
-
-    def test_paging_follows_the_same_order(self):
-        a, b, c = _ids(3, 1, 2)
-        rows = [self._row(a, _T0 + timedelta(minutes=2)), self._row(b, _T0), self._row(c, _T0 + timedelta(minutes=1))]
-
-        assert [row_id for _, row_id in self._read(rows, page_number=2, num_records=2)] == [a]
+        assert sorted(s.activity_id == activity.id for s in rows) == [False, False, True]
+        assert sets_crud.get_activities_sets([], db) == []

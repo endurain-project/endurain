@@ -1,363 +1,403 @@
-import uuid
-from unittest.mock import MagicMock, patch
+"""Follow relationships, blocks and declines as the module stores and reads them, on the real database."""
+
+from datetime import UTC, datetime, timedelta
 
 import pytest
+from sqlalchemy import delete, func, select, text
 from sqlalchemy.exc import IntegrityError
-from sqlalchemy.orm import Session
 
 import core.exceptions as core_exceptions
-from modules.followers.constants import FollowStatus
+import modules.followers.constants as followers_constants
+import modules.followers.crud as followers_crud
+import modules.followers.models as followers_models
+import modules.users.users.models as users_models
+from tests._factories.followers import make_block, make_decline, make_follow, make_follow_at
+from tests._factories.users import make_user
 
-_ID_1 = uuid.uuid4()
-_ID_2 = uuid.uuid4()
-_ID_3 = uuid.uuid4()
-_ID_9 = uuid.uuid4()
-_ID_999 = uuid.uuid4()
+_PENDING = followers_constants.FollowStatus.PENDING
+_ACCEPTED = followers_constants.FollowStatus.ACCEPTED
+_NOW = datetime(2025, 3, 10, 12, 0, tzinfo=UTC)
 
 
-class TestGetAllFollowersByUserId:
-    def test_success(self, mock_db):
-        import modules.followers.crud as crud
-        import modules.followers.models as m
-        from modules.followers.schema import FollowRelationshipRead
+class TestListingFollowers:
+    def test_the_followers_of_a_user_are_the_rows_where_they_are_followed(self, db, alice, bob, carol):
+        make_follow(db, bob.id, alice.id, accepted=True)
+        make_follow(db, alice.id, carol.id, accepted=True)
 
-        f = MagicMock(spec=m.Follower, follower_id=_ID_2, followee_id=_ID_1, status="accepted")
-        mock_db.scalars.return_value.all.return_value = [f]
-        r = crud.get_all_followers_by_user_id(user_id=_ID_1, db=mock_db)
-        assert r == [FollowRelationshipRead(follower_id=_ID_2, followee_id=_ID_1, status="accepted")]
+        rows = followers_crud.get_all_followers_by_user_id(alice.id, db)
 
-    def test_empty(self, mock_db):
-        import modules.followers.crud as crud
+        assert [(row.follower_id, row.followee_id) for row in rows] == [(bob.id, alice.id)]
 
-        mock_db.scalars.return_value.all.return_value = []
-        r = crud.get_all_followers_by_user_id(user_id=_ID_1, db=mock_db)
-        assert r == []
+    def test_accepted_only_leaves_out_pending_requests(self, db, alice, bob, carol):
+        make_follow(db, bob.id, alice.id, accepted=True)
+        make_follow(db, carol.id, alice.id, accepted=False)
 
+        everyone = followers_crud.get_all_followers_by_user_id(alice.id, db)
+        accepted = followers_crud.get_all_followers_by_user_id(alice.id, db, accepted_only=True)
 
-class TestGetAllFollowingByUserId:
-    def test_success(self, mock_db):
-        import modules.followers.crud as crud
-        import modules.followers.models as m
-        from modules.followers.schema import FollowRelationshipRead
+        assert {row.follower_id for row in everyone} == {bob.id, carol.id}
+        assert [(row.follower_id, row.status) for row in accepted] == [(bob.id, _ACCEPTED)]
 
-        f = MagicMock(spec=m.Follower, follower_id=_ID_1, followee_id=_ID_2, status="accepted")
-        mock_db.scalars.return_value.all.return_value = [f]
-        r = crud.get_all_following_by_user_id(user_id=_ID_1, db=mock_db)
-        assert r == [FollowRelationshipRead(follower_id=_ID_1, followee_id=_ID_2, status="accepted")]
+    def test_who_a_user_follows_are_the_rows_where_they_follow(self, db, alice, bob, carol):
+        make_follow(db, alice.id, bob.id, accepted=True)
+        make_follow(db, alice.id, carol.id, accepted=False)
+        make_follow(db, bob.id, alice.id, accepted=True)
 
-    def test_empty(self, mock_db):
-        import modules.followers.crud as crud
+        everyone = followers_crud.get_all_following_by_user_id(alice.id, db)
+        accepted = followers_crud.get_all_following_by_user_id(alice.id, db, accepted_only=True)
 
-        mock_db.scalars.return_value.all.return_value = []
-        r = crud.get_all_following_by_user_id(user_id=_ID_1, db=mock_db)
-        assert r == []
+        assert {row.followee_id for row in everyone} == {bob.id, carol.id}
+        assert [row.followee_id for row in accepted] == [bob.id]
 
+    def test_a_user_nobody_follows_has_an_empty_list(self, db, alice):
+        assert followers_crud.get_all_followers_by_user_id(alice.id, db) == []
+        assert followers_crud.get_all_following_by_user_id(alice.id, db) == []
 
-class TestCountFollowersByUserId:
-    def test_success(self, mock_db):
-        import modules.followers.crud as crud
+    def test_the_lists_run_by_creation_time_whatever_the_ids(self, db, alice, bob, carol):
+        make_follow_at(db, carol.id, alice.id, _NOW, accepted=True)
+        make_follow_at(db, bob.id, alice.id, _NOW - timedelta(hours=1), accepted=True)
+        make_follow_at(db, alice.id, bob.id, _NOW, accepted=True)
+        make_follow_at(db, alice.id, carol.id, _NOW - timedelta(hours=1), accepted=True)
 
-        mock_db.scalar.return_value = 10
-        r = crud.count_followers_by_user_id(user_id=_ID_1, db=mock_db)
-        assert r == 10
+        followers = followers_crud.get_all_followers_by_user_id(alice.id, db)
+        following = followers_crud.get_all_following_by_user_id(alice.id, db)
 
-    def test_success_accepted_only(self, mock_db):
-        import modules.followers.crud as crud
+        assert [row.follower_id for row in followers] == [bob.id, carol.id]
+        assert [row.followee_id for row in following] == [carol.id, bob.id]
 
-        mock_db.scalar.return_value = 5
-        r = crud.count_followers_by_user_id(user_id=_ID_1, db=mock_db, accepted_only=True)
-        assert r == 5
+    def test_a_page_holds_its_slice_in_a_stable_order(self, db, alice):
+        followers = [make_user(db) for _ in range(5)]
+        for index, follower in enumerate(followers):
+            make_follow_at(db, follower.id, alice.id, _NOW + timedelta(minutes=index), accepted=True)
 
-    def test_none_returns_zero(self, mock_db):
-        import modules.followers.crud as crud
+        first = followers_crud.get_all_followers_by_user_id(alice.id, db, page_number=1, num_records=2)
+        last = followers_crud.get_all_followers_by_user_id(alice.id, db, page_number=3, num_records=2)
 
-        mock_db.scalar.return_value = None
-        r = crud.count_followers_by_user_id(user_id=_ID_1, db=mock_db)
-        assert r == 0
+        assert [row.follower_id for row in first] == [followers[0].id, followers[1].id]
+        assert [row.follower_id for row in last] == [followers[4].id]
 
 
-class TestCountFollowingByUserId:
-    def test_success(self, mock_db):
-        import modules.followers.crud as crud
+class TestCounting:
+    def test_counts_cover_one_side_and_honour_accepted_only(self, db, alice, bob, carol):
+        make_follow(db, bob.id, alice.id, accepted=True)
+        make_follow(db, carol.id, alice.id, accepted=False)
+        make_follow(db, alice.id, bob.id, accepted=True)
 
-        mock_db.scalar.return_value = 8
-        r = crud.count_following_by_user_id(user_id=_ID_1, db=mock_db)
-        assert r == 8
+        assert followers_crud.count_followers_by_user_id(alice.id, db) == 2
+        assert followers_crud.count_followers_by_user_id(alice.id, db, accepted_only=True) == 1
+        assert followers_crud.count_following_by_user_id(alice.id, db) == 1
+        assert followers_crud.count_following_by_user_id(carol.id, db) == 1
+        assert followers_crud.count_following_by_user_id(carol.id, db, accepted_only=True) == 0
 
-    def test_success_accepted_only(self, mock_db):
-        import modules.followers.crud as crud
+    def test_a_user_with_no_relationships_counts_zero(self, db, alice):
+        assert followers_crud.count_followers_by_user_id(alice.id, db) == 0
+        assert followers_crud.count_following_by_user_id(alice.id, db) == 0
+        assert followers_crud.count_pending_requests_for_user_id(alice.id, db) == 0
 
-        mock_db.scalar.return_value = 3
-        r = crud.count_following_by_user_id(user_id=_ID_1, db=mock_db, accepted_only=True)
-        assert r == 3
 
-    def test_none_returns_zero(self, mock_db):
-        import modules.followers.crud as crud
+class TestPendingRequests:
+    def test_only_pending_requests_addressed_to_the_user_are_listed_and_counted(self, db, alice, bob, carol):
+        make_follow(db, bob.id, alice.id, accepted=False)
+        make_follow(db, carol.id, alice.id, accepted=True)
+        make_follow(db, alice.id, carol.id, accepted=False)
 
-        mock_db.scalar.return_value = None
-        r = crud.count_following_by_user_id(user_id=_ID_1, db=mock_db)
-        assert r == 0
+        pending = followers_crud.get_pending_requests_for_user_id(alice.id, db)
 
+        assert [(row.follower_id, row.status) for row in pending] == [(bob.id, _PENDING)]
+        assert followers_crud.count_pending_requests_for_user_id(alice.id, db) == 1
 
-class TestGetFollowerForUserIdAndTargetUserId:
-    def test_success(self, mock_db):
-        import modules.followers.crud as crud
-        import modules.followers.models as m
-        from modules.followers.schema import FollowRelationshipRead
+    def test_pending_requests_page_in_creation_order(self, db, alice):
+        requesters = [make_user(db) for _ in range(3)]
+        for index, requester in enumerate(requesters):
+            make_follow_at(db, requester.id, alice.id, _NOW + timedelta(minutes=index), accepted=False)
 
-        f = MagicMock(spec=m.Follower, follower_id=_ID_1, followee_id=_ID_2, status="pending")
-        mock_db.scalars.return_value.first.return_value = f
-        r = crud.get_follower_for_user_id_and_target_user_id(user_id=_ID_1, target_user_id=_ID_2, db=mock_db)
-        assert r == FollowRelationshipRead(follower_id=_ID_1, followee_id=_ID_2, status="pending")
+        page = followers_crud.get_pending_requests_for_user_id(alice.id, db, page_number=2, num_records=2)
 
-    def test_not_found(self, mock_db):
-        import modules.followers.crud as crud
+        assert [row.follower_id for row in page] == [requesters[2].id]
 
-        mock_db.scalars.return_value.first.return_value = None
-        r = crud.get_follower_for_user_id_and_target_user_id(user_id=_ID_1, target_user_id=_ID_999, db=mock_db)
-        assert r is None
 
+class TestReadingOneRelationship:
+    def test_the_relationship_is_found_in_the_direction_asked(self, db, alice, bob):
+        make_follow(db, alice.id, bob.id, accepted=True)
 
-class TestListAcceptedFolloweeIds:
-    def test_success(self, mock_db):
-        import modules.followers.crud as crud
+        found = followers_crud.get_follower_for_user_id_and_target_user_id(alice.id, bob.id, db)
+        reverse = followers_crud.get_follower_for_user_id_and_target_user_id(bob.id, alice.id, db)
 
-        mock_db.scalars.return_value.all.return_value = [_ID_2, _ID_3]
-        r = crud.list_accepted_followee_ids(user_id=_ID_1, db=mock_db)
-        assert r == [_ID_2, _ID_3]
+        assert found is not None
+        assert (found.follower_id, found.followee_id, found.status) == (alice.id, bob.id, _ACCEPTED)
+        assert reverse is None
 
-    def test_empty(self, mock_db):
-        import modules.followers.crud as crud
 
-        mock_db.scalars.return_value.all.return_value = []
-        assert crud.list_accepted_followee_ids(user_id=_ID_1, db=mock_db) == []
+class TestAcceptedFolloweeIds:
+    def test_only_accepted_followees_are_listed(self, db, alice, bob, carol):
+        make_follow(db, alice.id, bob.id, accepted=True)
+        make_follow(db, alice.id, carol.id, accepted=False)
+        make_follow(db, carol.id, alice.id, accepted=True)
 
+        assert followers_crud.list_accepted_followee_ids(alice.id, db) == [bob.id]
+        assert followers_crud.list_accepted_followee_ids(bob.id, db) == []
 
-class TestFolloweeIdsAreMemoizedPerSession:
-    """One request asks this repeatedly; the answer cannot change underneath it.
+    def test_a_session_answers_again_from_its_first_read(self, db, alice, bob, carol):
+        make_follow(db, alice.id, bob.id, accepted=True)
+        assert followers_crud.list_accepted_followee_ids(alice.id, db) == [bob.id]
 
-    A paginated activity list resolves it once for the page and again for the
-    matching total, and an activity detail page asks once more per child resource
-    through the visibility gate.
-    """
+        # A row written behind the module's back is not seen: the list is read once per session.
+        db.add(followers_models.Follower(follower_id=alice.id, followee_id=carol.id, status="accepted"))
+        db.flush()
 
-    @staticmethod
-    def _session(followee_ids):
-        # ``Session.info`` is a real dict on a real session; the shared mock_db
-        # fixture answers with a MagicMock, which would never register a hit.
-        db = MagicMock(spec=Session)
-        db.info = {}
-        db.scalars.return_value.all.return_value = followee_ids
-        return db
+        assert followers_crud.list_accepted_followee_ids(alice.id, db) == [bob.id]
 
-    def test_the_second_call_does_not_query(self):
-        import modules.followers.crud as crud
-
-        db = self._session([_ID_2, _ID_3])
-
-        assert crud.list_accepted_followee_ids(_ID_1, db) == [_ID_2, _ID_3]
-        assert crud.list_accepted_followee_ids(_ID_1, db) == [_ID_2, _ID_3]
-        assert db.scalars.call_count == 1
+    def test_each_user_is_read_separately(self, db, alice, bob, carol):
+        make_follow(db, alice.id, bob.id, accepted=True)
+        make_follow(db, bob.id, carol.id, accepted=True)
 
-    def test_each_user_is_cached_separately(self):
-        import modules.followers.crud as crud
+        assert followers_crud.list_accepted_followee_ids(alice.id, db) == [bob.id]
+        assert followers_crud.list_accepted_followee_ids(bob.id, db) == [carol.id]
 
-        db = self._session([_ID_2, _ID_3])
-        crud.list_accepted_followee_ids(_ID_1, db)
-        crud.list_accepted_followee_ids(_ID_2, db)
+    def test_a_write_through_the_module_makes_the_next_read_see_it(self, db, alice, bob, carol):
+        make_follow(db, alice.id, bob.id, accepted=False)
+        assert followers_crud.list_accepted_followee_ids(alice.id, db) == []
 
-        assert db.scalars.call_count == 2
-
-    def test_a_write_makes_the_next_read_see_it(self):
-        """Accept-then-read on one session must not answer from the stale list."""
-        import modules.followers.crud as crud
-
-        db = self._session([_ID_2])
-        assert crud.list_accepted_followee_ids(_ID_1, db) == [_ID_2]
+        followers_crud.accept_follower(bob.id, alice.id, db)
+        assert followers_crud.list_accepted_followee_ids(alice.id, db) == [bob.id]
 
-        crud._invalidate_followee_cache(db)
-        db.scalars.return_value.all.return_value = [_ID_2, _ID_3]
+        followers_crud.create_follower(alice.id, carol.id, db)
+        followers_crud.accept_follower(carol.id, alice.id, db)
+        assert set(followers_crud.list_accepted_followee_ids(alice.id, db)) == {bob.id, carol.id}
 
-        assert crud.list_accepted_followee_ids(_ID_1, db) == [_ID_2, _ID_3]
-        assert db.scalars.call_count == 2
+        followers_crud.delete_follower(alice.id, bob.id, db)
+        assert followers_crud.list_accepted_followee_ids(alice.id, db) == [carol.id]
 
-    def test_the_cache_does_not_leak_across_sessions(self):
-        import modules.followers.crud as crud
+        followers_crud.delete_follows_between(alice.id, carol.id, db)
+        assert followers_crud.list_accepted_followee_ids(alice.id, db) == []
 
-        first = self._session([_ID_2])
-        second = self._session([_ID_9])
+    def test_a_new_session_does_not_see_another_sessions_memo(self, committed_sessions):
+        with committed_sessions() as arrange:
+            first, second = make_user(arrange), make_user(arrange)
+            make_follow(arrange, first.id, second.id, accepted=True)
+            arrange.commit()
+        with committed_sessions() as reader:
+            assert followers_crud.list_accepted_followee_ids(first.id, reader) == [second.id]
+        with committed_sessions() as writer:
+            followers_crud.delete_follower(first.id, second.id, writer)
+            writer.commit()
 
-        assert crud.list_accepted_followee_ids(_ID_1, first) == [_ID_2]
-        assert crud.list_accepted_followee_ids(_ID_1, second) == [_ID_9]
+        with committed_sessions() as later:
+            assert followers_crud.list_accepted_followee_ids(first.id, later) == []
 
 
-class TestCreateFollower:
-    @patch("modules.followers.crud.get_follower_for_user_id_and_target_user_id")
-    def test_success(self, mock_get_follow, mock_db):
-        import modules.followers.crud as crud
-        import modules.followers.models as m
-        from modules.followers.schema import FollowRelationshipRead
-
-        mock_get_follow.return_value = None
-        new_follow = MagicMock(spec=m.Follower, follower_id=_ID_1, followee_id=_ID_2, status="pending")
-        mock_db.refresh.side_effect = lambda x: None
+class TestCreatingAFollow:
+    def test_a_new_follow_is_pending_and_stored(self, db, alice, bob):
+        created = followers_crud.create_follower(alice.id, bob.id, db)
 
-        with patch.object(crud.followers_models, "Follower", return_value=new_follow):
-            r = crud.create_follower(user_id=_ID_1, target_user_id=_ID_2, db=mock_db)
-        assert r == FollowRelationshipRead(follower_id=_ID_1, followee_id=_ID_2, status="pending")
-        mock_db.add.assert_called_once_with(new_follow)
-        mock_db.flush.assert_called_once()
-        mock_db.commit.assert_not_called()
+        assert (created.follower_id, created.followee_id, created.status) == (alice.id, bob.id, _PENDING)
+        stored = db.scalars(select(followers_models.Follower)).all()
+        assert [(row.follower_id, row.followee_id, row.status) for row in stored] == [(alice.id, bob.id, "pending")]
 
-    @patch("modules.followers.crud.get_follower_for_user_id_and_target_user_id")
-    def test_already_exists(self, mock_get_follow, mock_db):
-        import modules.followers.crud as crud
+    def test_asking_twice_is_a_conflict(self, db, alice, bob):
+        make_follow(db, alice.id, bob.id, accepted=False)
 
-        mock_get_follow.return_value = MagicMock()
-        with pytest.raises(core_exceptions.ConflictError) as e:
-            crud.create_follower(user_id=_ID_1, target_user_id=_ID_2, db=mock_db)
-        assert e.value.status_code == 409
+        with pytest.raises(core_exceptions.ConflictError):
+            followers_crud.create_follower(alice.id, bob.id, db)
 
-    @patch("modules.followers.crud.get_follower_for_user_id_and_target_user_id")
-    def test_integrity_error(self, mock_get_follow, mock_db):
-        import modules.followers.crud as crud
-        import modules.followers.models as m
+        assert db.scalar(select(func.count()).select_from(followers_models.Follower)) == 1
 
-        mock_get_follow.return_value = None
-        mock_db.flush.side_effect = IntegrityError(
-            "stmt", "params", Exception("UNIQUE constraint failed: followers.follower_id, followers.followee_id")
-        )
+    def test_the_opposite_directions_are_independent_relationships(self, db, alice, bob):
+        make_follow(db, alice.id, bob.id, accepted=False)
+        make_follow(db, bob.id, alice.id, accepted=True)
 
-        with (
-            patch.object(crud.followers_models, "Follower", return_value=MagicMock(spec=m.Follower)),
-            pytest.raises(core_exceptions.ConflictError) as e,
-        ):
-            crud.create_follower(user_id=_ID_1, target_user_id=_ID_2, db=mock_db)
-        assert e.value.status_code == 409
-        # The transaction owner rolls back, not persistence.
-        mock_db.rollback.assert_not_called()
-
-    @patch("modules.followers.crud.get_follower_for_user_id_and_target_user_id")
-    def test_a_target_user_that_does_not_exist_is_not_found_not_a_conflict(self, mock_get_follow, mock_db):
-        """The foreign key to ``users`` fails, which is not "relationship already exists"."""
-        import modules.followers.crud as crud
-        import modules.followers.models as m
-
-        mock_get_follow.return_value = None
-        mock_db.flush.side_effect = IntegrityError(
-            "stmt", "params", Exception('insert or update on table "followers" violates foreign key constraint')
-        )
-
-        with (
-            patch.object(crud.followers_models, "Follower", return_value=MagicMock(spec=m.Follower)),
-            pytest.raises(core_exceptions.NotFoundError) as e,
-        ):
-            crud.create_follower(user_id=_ID_1, target_user_id=_ID_999, db=mock_db)
-        assert e.value.status_code == 404
-
-
-class TestAcceptFollower:
-    def test_success(self, mock_db):
-        import modules.followers.crud as crud
-        import modules.followers.models as m
-
-        accept_follow = MagicMock(spec=m.Follower, id=_ID_1, follower_id=_ID_2, followee_id=_ID_1, status="accepted")
-        mock_db.execute.return_value.scalars.return_value.first.return_value = accept_follow
-
-        crud.accept_follower(user_id=_ID_1, target_user_id=_ID_2, db=mock_db)
-        mock_db.flush.assert_called_once()
-        mock_db.commit.assert_not_called()
-        mock_db.refresh.assert_called_once_with(accept_follow)
-
-    def test_not_found(self, mock_db):
-        import modules.followers.crud as crud
-
-        mock_db.execute.return_value.scalars.return_value.first.return_value = None
-        with pytest.raises(core_exceptions.NotFoundError) as e:
-            crud.accept_follower(user_id=_ID_1, target_user_id=_ID_999, db=mock_db)
-        assert e.value.status_code == 404
-
-
-class TestDeleteFollower:
-    def test_success(self, mock_db):
-        import modules.followers.crud as crud
-
-        mock_db.execute.return_value.scalar_one_or_none.return_value = "pending"
-        deleted = crud.delete_follower(user_id=_ID_1, target_user_id=_ID_2, db=mock_db)
-        assert deleted == FollowStatus.PENDING
-        mock_db.flush.assert_called_once()
-        mock_db.commit.assert_not_called()
-
-    def test_not_found(self, mock_db):
-        import modules.followers.crud as crud
-
-        mock_db.execute.return_value.scalar_one_or_none.return_value = None
-        with pytest.raises(core_exceptions.NotFoundError) as e:
-            crud.delete_follower(user_id=_ID_1, target_user_id=_ID_999, db=mock_db)
-        assert e.value.status_code == 404
-        mock_db.flush.assert_not_called()
-        mock_db.rollback.assert_not_called()
-
-
-class TestAcceptIsAtomic:
-    """Against a real session: the accept is one conditional UPDATE."""
-
-    def test_the_second_accept_of_a_request_finds_nothing_to_accept(self):
-        import modules.followers.crud as crud
-        from tests._helpers.db import create_sqlite_session
-
-        db = create_sqlite_session()
-        try:
-            crud.create_follower(_ID_2, _ID_1, db)
-
-            first = crud.accept_follower(user_id=_ID_1, target_user_id=_ID_2, db=db)
-            assert first.status == "accepted"
-
-            # What a concurrent second request would do; it must not be a second success.
-            with pytest.raises(core_exceptions.NotFoundError):
-                crud.accept_follower(user_id=_ID_1, target_user_id=_ID_2, db=db)
-        finally:
-            db.close()
-            db.bind.dispose()
-
-
-class TestFollowerListOrder:
-    def test_followers_and_following_list_by_creation_time(self):
-        from datetime import UTC, datetime, timedelta
-
-        import modules.followers.crud as crud
-        import modules.followers.models as m
-        from tests._helpers.db import create_sqlite_session_factory, ensure_user
-
-        factory = create_sqlite_session_factory()
-        for user_id in (_ID_1, _ID_2, _ID_3):
-            ensure_user(factory, user_id)
-        now = datetime.now(UTC)
-        # The older row has the larger id: the order follows the creation time.
-        rows = [(_ID_2, _ID_1, now - timedelta(hours=1), uuid.UUID(int=2)), (_ID_3, _ID_1, now, uuid.UUID(int=1))]
-        with factory() as db:
-            for follower_id, followee_id, created_at, row_id in rows:
-                db.add(
-                    m.Follower(
-                        id=row_id,
-                        follower_id=follower_id,
-                        followee_id=followee_id,
-                        status="accepted",
-                        created_at=created_at,
-                    )
-                )
-            db.commit()
-            followers = crud.get_all_followers_by_user_id(user_id=_ID_1, db=db)
-        factory.kw["bind"].dispose()
-
-        assert [row.follower_id for row in followers] == [_ID_2, _ID_3]
-
-
-class TestAdvisoryLocks:
-    def test_the_lock_is_keyed_by_the_user_in_its_own_namespace(self, mock_db):
-        import modules.followers.crud as crud
-
-        with patch.object(crud.core_database, "lock_user_scope") as lock:
-            crud.lock_pending_requests(_ID_1, mock_db)
-
-        lock.assert_called_once_with(7301, _ID_1, mock_db)
+        assert db.scalar(select(func.count()).select_from(followers_models.Follower)) == 2
+
+
+class TestAcceptingAFollow:
+    def test_a_pending_request_becomes_accepted(self, db, alice, bob):
+        make_follow(db, bob.id, alice.id, accepted=False)
+
+        accepted = followers_crud.accept_follower(alice.id, bob.id, db)
+
+        assert (accepted.follower_id, accepted.followee_id, accepted.status) == (bob.id, alice.id, _ACCEPTED)
+        assert db.scalar(select(followers_models.Follower.status)) == "accepted"
+
+    def test_a_request_the_other_way_round_is_not_accepted(self, db, alice, bob):
+        make_follow(db, bob.id, alice.id, accepted=False)
+
+        with pytest.raises(core_exceptions.NotFoundError):
+            followers_crud.accept_follower(bob.id, alice.id, db)
+
+        assert db.scalar(select(followers_models.Follower.status)) == "pending"
+
+    def test_the_second_accept_of_a_request_finds_nothing_to_accept(self, db, alice, bob):
+        make_follow(db, bob.id, alice.id, accepted=False)
+        followers_crud.accept_follower(alice.id, bob.id, db)
+
+        with pytest.raises(core_exceptions.NotFoundError):
+            followers_crud.accept_follower(alice.id, bob.id, db)
+
+    def test_there_is_nothing_to_accept_without_a_request(self, db, alice, bob):
+        with pytest.raises(core_exceptions.NotFoundError):
+            followers_crud.accept_follower(alice.id, bob.id, db)
+
+
+class TestDeletingAFollow:
+    def test_the_row_goes_and_its_status_is_returned(self, db, alice, bob, carol):
+        make_follow(db, alice.id, bob.id, accepted=True)
+        make_follow(db, alice.id, carol.id, accepted=False)
+
+        assert followers_crud.delete_follower(alice.id, bob.id, db) == _ACCEPTED
+        assert followers_crud.delete_follower(alice.id, carol.id, db) == _PENDING
+
+        assert db.scalar(select(func.count()).select_from(followers_models.Follower)) == 0
+
+    def test_a_missing_relationship_is_not_found(self, db, alice, bob):
+        with pytest.raises(core_exceptions.NotFoundError):
+            followers_crud.delete_follower(alice.id, bob.id, db)
+
+    def test_deleting_one_direction_keeps_the_other(self, db, alice, bob):
+        make_follow(db, alice.id, bob.id, accepted=True)
+        make_follow(db, bob.id, alice.id, accepted=True)
+
+        followers_crud.delete_follower(alice.id, bob.id, db)
+
+        remaining = db.scalars(select(followers_models.Follower)).all()
+        assert [(row.follower_id, row.followee_id) for row in remaining] == [(bob.id, alice.id)]
+
+    def test_a_status_scoped_delete_cannot_remove_an_accepted_follower(self, db, alice, bob):
+        make_follow(db, alice.id, bob.id, accepted=True)
+
+        with pytest.raises(core_exceptions.NotFoundError):
+            followers_crud.delete_follower(alice.id, bob.id, db, status=_PENDING)
+
+        assert db.scalar(select(followers_models.Follower.status)) == "accepted"
+
+    def test_a_status_scoped_delete_removes_a_pending_request(self, db, alice, bob):
+        make_follow(db, alice.id, bob.id, accepted=False)
+
+        assert followers_crud.delete_follower(alice.id, bob.id, db, status=_PENDING) == _PENDING
+
+        assert db.scalar(select(func.count()).select_from(followers_models.Follower)) == 0
+
+    def test_deleting_the_follows_between_two_users_covers_both_directions_only(self, db, alice, bob, carol):
+        make_follow(db, alice.id, bob.id, accepted=True)
+        make_follow(db, bob.id, alice.id, accepted=False)
+        make_follow(db, carol.id, alice.id, accepted=True)
+
+        removed = followers_crud.delete_follows_between(alice.id, bob.id, db)
+
+        assert {(row.follower_id, row.status) for row in removed} == {(alice.id, _ACCEPTED), (bob.id, _PENDING)}
+        remaining = db.scalars(select(followers_models.Follower)).all()
+        assert [row.follower_id for row in remaining] == [carol.id]
+
+    def test_unrelated_users_have_no_follows_to_delete(self, db, alice, bob):
+        assert followers_crud.delete_follows_between(alice.id, bob.id, db) == []
+
+
+class TestDeclines:
+    def test_a_user_who_was_never_declined_has_no_decline_time(self, db, alice, bob):
+        assert followers_crud.get_last_decline_at(alice.id, bob.id, db) is None
+
+    def test_the_decline_time_is_stored_in_utc(self, db, alice, bob):
+        make_decline(db, alice.id, bob.id, _NOW)
+
+        declined_at = followers_crud.get_last_decline_at(alice.id, bob.id, db)
+
+        assert declined_at == _NOW
+        assert declined_at is not None and declined_at.utcoffset() == timedelta(0)
+
+    def test_a_later_decline_of_the_same_pair_replaces_the_earlier_one(self, db, alice, bob):
+        make_decline(db, alice.id, bob.id, _NOW)
+        make_decline(db, alice.id, bob.id, _NOW + timedelta(days=2))
+
+        assert followers_crud.get_last_decline_at(alice.id, bob.id, db) == _NOW + timedelta(days=2)
+        assert db.scalar(select(func.count()).select_from(followers_models.FollowRequestDecline)) == 1
+
+    def test_a_decline_belongs_to_one_direction_of_the_pair(self, db, alice, bob):
+        make_decline(db, alice.id, bob.id, _NOW)
+
+        assert followers_crud.get_last_decline_at(bob.id, alice.id, db) is None
+
+
+class TestBlocks:
+    def test_a_block_is_the_blockers_and_one_directional(self, db, alice, bob):
+        assert not followers_crud.is_blocked(alice.id, bob.id, db)
+
+        assert followers_crud.create_block(alice.id, bob.id, db) is True
+
+        assert followers_crud.is_blocked(alice.id, bob.id, db)
+        assert not followers_crud.is_blocked(bob.id, alice.id, db)
+
+    def test_blocking_again_changes_nothing(self, db, alice, bob):
+        make_block(db, alice.id, bob.id)
+
+        assert followers_crud.create_block(alice.id, bob.id, db) is False
+
+        assert db.scalar(select(func.count()).select_from(followers_models.FollowerBlock)) == 1
+
+    def test_deleting_a_block_removes_it(self, db, alice, bob):
+        make_block(db, alice.id, bob.id)
+
+        followers_crud.delete_block(alice.id, bob.id, db)
+
+        assert not followers_crud.is_blocked(alice.id, bob.id, db)
+
+    def test_deleting_a_block_that_does_not_exist_is_not_found(self, db, alice, bob):
+        make_block(db, bob.id, alice.id)
+
+        with pytest.raises(core_exceptions.NotFoundError):
+            followers_crud.delete_block(alice.id, bob.id, db)
+
+        assert followers_crud.is_blocked(bob.id, alice.id, db)
+
+    def test_blocked_ids_come_newest_block_first_and_only_the_blockers(self, db, alice, bob, carol):
+        make_block(db, alice.id, bob.id, created_at=_NOW)
+        make_block(db, alice.id, carol.id, created_at=_NOW + timedelta(hours=1))
+        make_block(db, bob.id, alice.id, created_at=_NOW + timedelta(hours=2))
+
+        assert followers_crud.list_blocked_user_ids(alice.id, db) == [carol.id, bob.id]
+        assert followers_crud.list_blocked_user_ids(carol.id, db) == []
+
+
+class TestTheDatabaseGuaranteesTheRules:
+    def test_a_user_cannot_follow_themselves(self, db, alice):
+        db.add(followers_models.Follower(follower_id=alice.id, followee_id=alice.id, status="pending"))
+
+        with pytest.raises(IntegrityError, match="ck_followers_not_self"):
+            db.flush()
+
+    def test_a_follow_has_a_known_status(self, db, alice, bob):
+        db.add(followers_models.Follower(follower_id=alice.id, followee_id=bob.id, status="blocked"))
+
+        with pytest.raises(IntegrityError, match="ck_followers_status"):
+            db.flush()
+
+    def test_a_pair_has_one_follow_row(self, db, alice, bob):
+        make_follow(db, alice.id, bob.id, accepted=False)
+        db.add(followers_models.Follower(follower_id=alice.id, followee_id=bob.id, status="accepted"))
+
+        with pytest.raises(IntegrityError, match="uq_followers_follower_followee"):
+            db.flush()
+
+    def test_a_user_cannot_block_themselves(self, db, alice):
+        db.add(followers_models.FollowerBlock(blocker_id=alice.id, blocked_id=alice.id))
+
+        with pytest.raises(IntegrityError, match="ck_follower_blocks_not_self"):
+            db.flush()
+
+    def test_a_pair_has_one_decline_row(self, db, alice, bob):
+        make_decline(db, alice.id, bob.id, _NOW)
+        db.add(followers_models.FollowRequestDecline(follower_id=alice.id, followee_id=bob.id, declined_at=_NOW))
+
+        with pytest.raises(IntegrityError, match="uq_follow_request_declines_follower_followee"):
+            db.flush()
+
+    def test_deleting_a_user_removes_their_follows_blocks_and_declines(self, db, alice, bob, carol):
+        make_follow(db, alice.id, bob.id, accepted=True)
+        make_follow(db, carol.id, alice.id, accepted=False)
+        make_block(db, bob.id, alice.id)
+        make_decline(db, alice.id, carol.id, _NOW)
+        make_follow(db, bob.id, carol.id, accepted=True)
+
+        db.execute(delete(users_models.Users).where(users_models.Users.id == alice.id))
+
+        assert db.scalar(text("SELECT count(*) FROM followers")) == 1
+        assert db.scalar(text("SELECT count(*) FROM follower_blocks")) == 0
+        assert db.scalar(text("SELECT count(*) FROM follow_request_declines")) == 0

@@ -23,20 +23,18 @@ import pathlib
 import time
 import uuid
 from collections.abc import Iterator
-from types import SimpleNamespace
-from unittest.mock import patch
 
 import pytest
 from fastapi import FastAPI, Request
 from fastapi.testclient import TestClient
 from joserfc import jwt
-from joserfc.jwk import OctKey
 from limits import parse as parse_limit
 from slowapi.errors import RateLimitExceeded
+from sqlalchemy import delete
 
 import core.config as core_config
 import core.exceptions as core_exceptions
-import core.logger as core_logger
+import core.jwt_keys as core_jwt_keys
 import core.rate_limit as core_rate_limit
 import modules.activities.activity.public_router as activity_public_router
 import modules.activities.activity.router as activity_router
@@ -61,11 +59,11 @@ import modules.auth.account_security.public_router as password_change_router
 import modules.auth.account_security.sessions_router as auth_sessions_profile_router
 import modules.auth.authentication.public_router as auth_router
 import modules.auth.authentication.sso_public_router as sso_public_router
-import modules.auth.dependencies as auth_dependencies
 import modules.auth.identity_providers.public_router as idp_public_router
 import modules.auth.identity_providers.router as identity_providers_router
 import modules.auth.onboarding.public_router as onboarding_public_router
 import modules.auth.password_reset_tokens.public_router as password_reset_router
+import modules.auth.sessions.models as sessions_models
 import modules.auth.sessions.router as auth_sessions_router
 import modules.auth.sign_up_tokens.public_router as sign_up_tokens_router
 import modules.followers.blocks_router as followers_blocks_router
@@ -94,6 +92,7 @@ import modules.users.users_default_gear.router as users_default_gear_router
 import modules.users.users_goals.router as users_goals_router
 import modules.users.users_profile.router as users_profile_router
 import modules.websocket.router as websocket_router
+from tests._factories.users import make_user
 
 
 def _registered_limits(func) -> list[str]:
@@ -517,46 +516,32 @@ def test_the_refusal_is_a_problem_document_with_retry_after(enabled_limiter):
     assert "Retry-After" in refused.headers
 
 
-def test_buckets_are_per_caller_not_global(enabled_limiter, monkeypatch):
+def _access_token(subject: str) -> str:
+    """Sign an access token for a subject with the application's own access key."""
+    key = core_jwt_keys.SIGNING_KEYS[0]
+    header = {"alg": core_jwt_keys.ALGORITHM, "typ": core_jwt_keys.ACCESS_JWT_TYP, "kid": core_jwt_keys.key_id(key)}
+    return jwt.encode(header, {"sub": subject, "exp": int(time.time()) + 300}, core_jwt_keys.import_key(key))
+
+
+def test_buckets_are_per_caller_not_global(enabled_limiter):
     """One user exhausting a tier must not lock everyone else out.
 
-    The limiter only buckets by token when the signature verifies, so the callers
-    carry real tokens signed with a key the limiter is pointed at.
+    The limiter only buckets by token when the signature verifies, so the callers carry real access tokens.
     """
-    key = OctKey.import_key("rate-limit-test-secret-key-min-32-chars")
-    monkeypatch.setattr(core_rate_limit, "_jwt_verification_key", lambda: key)
-    noisy, quiet = (
-        jwt.encode({"alg": "HS256", "typ": "at+jwt"}, {"sub": sub, "exp": int(time.time()) + 300}, key)
-        for sub in ("noisy", "quiet")
-    )
+    noisy, quiet = _access_token("noisy"), _access_token("quiet")
     client = TestClient(_app_with(core_rate_limit.PROVIDER_SYNC, "probe_per_caller"))
 
     assert _burst(client, noisy, 7)[-1] == 429
     assert _burst(client, quiet, 1) == [200]
 
 
-@pytest.fixture(scope="module")
-def real_app() -> FastAPI:
-    """Build the real application, skipping the startup pre-flight checks."""
-    with (
-        patch.object(core_config, "check_deprecated_env_vars"),
-        patch.object(core_config, "check_required_env_vars"),
-        patch.object(core_config, "warn_unsafe_settings"),
-        patch.object(core_config, "check_required_dirs"),
-        patch.object(core_logger, "setup_main_logger"),
-    ):
-        import main as main_module
-
-        return main_module.create_app()
-
-
 def _statuses(client: TestClient, path: str, count: int) -> list[int]:
     return [client.get(path).status_code for _ in range(count)]
 
 
-def test_the_default_limit_applies_to_an_undecorated_route(enabled_limiter, real_app):
+def test_the_default_limit_applies_to_an_undecorated_route(enabled_limiter, app):
     """The default tier reaches routes that carry no decorator, through the application's included routers."""
-    client = TestClient(real_app)
+    client = TestClient(app)
 
     statuses = _statuses(client, f"{core_config.ROOT_PATH}/about", 121)
 
@@ -564,9 +549,9 @@ def test_the_default_limit_applies_to_an_undecorated_route(enabled_limiter, real
     assert statuses[120] == 429
 
 
-def test_a_head_request_counts_against_the_default_limit(enabled_limiter, real_app):
+def test_a_head_request_counts_against_the_default_limit(enabled_limiter, app):
     """A HEAD request is served as the GET of its route, so it spends the same default limit as that GET."""
-    client = TestClient(real_app)
+    client = TestClient(app)
 
     statuses = [client.head(f"{core_config.ROOT_PATH}/about").status_code for _ in range(121)]
 
@@ -574,12 +559,12 @@ def test_a_head_request_counts_against_the_default_limit(enabled_limiter, real_a
     assert statuses[120] == 429
 
 
-def test_a_decorated_route_counts_only_its_own_limit(enabled_limiter, real_app):
+def test_a_decorated_route_counts_only_its_own_limit(enabled_limiter, app):
     """A route with its own tier is checked by its decorator alone, so the default does not count it again.
 
     The tier here equals the default, so a request counted by both would share one bucket and refuse at the 61st.
     """
-    client = TestClient(real_app)
+    client = TestClient(app)
 
     statuses = _statuses(client, f"{core_config.ROOT_PATH}/public/server-settings/tile-maps-templates", 121)
 
@@ -587,9 +572,9 @@ def test_a_decorated_route_counts_only_its_own_limit(enabled_limiter, real_app):
     assert statuses[120] == 429
 
 
-def test_frontend_files_do_not_count_against_the_default_limit(enabled_limiter, real_app):
+def test_frontend_files_do_not_count_against_the_default_limit(enabled_limiter, app):
     """The SPA fallback serves every frontend file, so a page load must never meet the default cap."""
-    client = TestClient(real_app)
+    client = TestClient(app)
 
     statuses = _statuses(client, "/assets/app.js", 121)
 
@@ -597,9 +582,9 @@ def test_frontend_files_do_not_count_against_the_default_limit(enabled_limiter, 
     assert set(statuses) <= {200, 404}
 
 
-def test_unknown_api_paths_still_count_against_the_default_limit(enabled_limiter, real_app):
+def test_unknown_api_paths_still_count_against_the_default_limit(enabled_limiter, app):
     """An unknown API path reaches the same fallback, so it stays limited to keep probing bounded."""
-    client = TestClient(real_app)
+    client = TestClient(app)
 
     statuses = _statuses(client, f"{core_config.ROOT_PATH}/no-such-route", 121)
 
@@ -607,32 +592,25 @@ def test_unknown_api_paths_still_count_against_the_default_limit(enabled_limiter
     assert statuses[120] == 429
 
 
-def test_unknown_well_known_paths_still_count_against_the_default_limit(enabled_limiter, real_app):
+def test_unknown_well_known_paths_still_count_against_the_default_limit(enabled_limiter, app):
     """``.well-known`` has no frontend file either, so it is limited like an unknown API path."""
-    client = TestClient(real_app)
+    client = TestClient(app)
 
     statuses = _statuses(client, "/.well-known/no-such-file", 121)
 
     assert statuses[120] == 429
 
 
-def test_job_polling_has_its_own_tier(enabled_limiter, real_app):
+def test_job_polling_has_its_own_tier(enabled_limiter, me):
     """Polling a job every second or two outruns the default, so ``GET /jobs/{id}`` takes the JOB_POLL tier.
 
-    The tier is counted once the caller is authenticated, so the principal is supplied; what the route answers
-    after that does not matter, only that it is not a 429 until the tier's cap is passed.
+    The tier is counted once the caller is authenticated; what the route answers after that does not matter, only
+    that it is not a 429 until the tier's cap is passed.
     """
     cap = parse_limit(core_rate_limit.JOB_POLL).amount
     assert cap > 121
-    real_app.dependency_overrides[auth_dependencies.get_principal] = lambda: SimpleNamespace(
-        user_id=uuid.uuid4(), scopes=frozenset()
-    )
-    try:
-        client = TestClient(real_app, raise_server_exceptions=False)
 
-        statuses = _statuses(client, f"{core_config.ROOT_PATH}/jobs/{uuid.uuid4()}", cap + 1)
-    finally:
-        real_app.dependency_overrides.pop(auth_dependencies.get_principal)
+    statuses = _statuses(me.client, f"{core_config.ROOT_PATH}/jobs/{uuid.uuid4()}", cap + 1)
 
     assert 429 not in statuses[:cap]
     assert statuses[cap] == 429
@@ -645,20 +623,17 @@ def _refused_polls(client: TestClient, count: int) -> list[int]:
 
 
 @pytest.fixture
-def signed_in(real_app) -> Iterator[None]:
-    """Authenticate every request of the real application as one user."""
-    real_app.dependency_overrides[auth_dependencies.get_principal] = lambda: SimpleNamespace(
-        user_id=uuid.uuid4(), scopes=frozenset()
-    )
-    try:
-        yield
-    finally:
-        real_app.dependency_overrides.pop(auth_dependencies.get_principal)
+def me(sign_in, committed_sessions):
+    """A signed-in user of the application."""
+    with committed_sessions() as db:
+        user = make_user(db)
+        db.commit()
+    return sign_in(user)
 
 
-def test_refused_requests_to_a_decorated_route_count_against_the_default_limit(enabled_limiter, real_app):
+def test_refused_requests_to_a_decorated_route_count_against_the_default_limit(enabled_limiter, app):
     """A flood the authentication layer refuses is capped like one against an undecorated route."""
-    client = TestClient(real_app, raise_server_exceptions=False)
+    client = TestClient(app)
 
     statuses = _refused_polls(client, 121)
 
@@ -666,9 +641,9 @@ def test_refused_requests_to_a_decorated_route_count_against_the_default_limit(e
     assert statuses[120] == 429
 
 
-def test_the_refusal_answer_carries_the_back_off_headers(enabled_limiter, real_app):
+def test_the_refusal_answer_carries_the_back_off_headers(enabled_limiter, app):
     """The 429 for a spent refusal budget tells the client how long to wait, as every other 429 does."""
-    client = TestClient(real_app, raise_server_exceptions=False)
+    client = TestClient(app)
     _refused_polls(client, 120)
 
     refused = client.get(f"{core_config.ROOT_PATH}/jobs/{uuid.uuid4()}", headers={"Authorization": "Bearer nope"})
@@ -680,39 +655,43 @@ def test_the_refusal_answer_carries_the_back_off_headers(enabled_limiter, real_a
     assert refused.headers["X-RateLimit-Remaining"] == "0"
 
 
-def test_a_spent_refusal_budget_refuses_later_requests_to_decorated_routes(enabled_limiter, real_app, signed_in):
-    """Once the budget is spent the client is answered 429 on the route until the window resets."""
-    client = TestClient(real_app, raise_server_exceptions=False)
-    real_app.dependency_overrides.pop(auth_dependencies.get_principal)
-    _refused_polls(client, 120)
-    real_app.dependency_overrides[auth_dependencies.get_principal] = lambda: SimpleNamespace(
-        user_id=uuid.uuid4(), scopes=frozenset()
-    )
+def test_a_spent_refusal_budget_refuses_later_requests_to_decorated_routes(
+    enabled_limiter, me, sign_in, committed_sessions
+):
+    """Once the budget is spent the client is answered 429 on the route until the window resets.
 
-    assert client.get(f"{core_config.ROOT_PATH}/jobs/{uuid.uuid4()}").status_code == 429
+    The client is the user its token names, so the refusals come from a session that has ended and the later request
+    from a second sign-in of the same user.
+    """
+    with committed_sessions() as db:
+        db.execute(delete(sessions_models.UsersSessions).where(sessions_models.UsersSessions.id == me.session_id))
+        db.commit()
+    assert _statuses(me.client, f"{core_config.ROOT_PATH}/jobs/{uuid.uuid4()}", 120) == [401] * 120
+
+    again = sign_in(me.user)
+
+    assert again.client.get(f"{core_config.ROOT_PATH}/jobs/{uuid.uuid4()}").status_code == 429
 
 
-def test_valid_requests_are_not_counted_against_the_default_limit(enabled_limiter, real_app, signed_in):
+def test_valid_requests_are_not_counted_against_the_default_limit(enabled_limiter, me):
     """Requests the route accepts keep to the route's own limit, so more than the default's worth are served."""
-    client = TestClient(real_app, raise_server_exceptions=False)
-
-    statuses = _statuses(client, f"{core_config.ROOT_PATH}/jobs/{uuid.uuid4()}", 130)
+    statuses = _statuses(me.client, f"{core_config.ROOT_PATH}/jobs/{uuid.uuid4()}", 130)
 
     assert 429 not in statuses
 
 
-def test_refused_requests_are_counted_once(enabled_limiter, real_app):
+def test_refused_requests_are_counted_once(enabled_limiter, app):
     """A refused request spends one unit of the refusal budget, not two."""
-    client = TestClient(real_app, raise_server_exceptions=False)
+    client = TestClient(app)
 
     statuses = _refused_polls(client, 120)
 
     assert 429 not in statuses
 
 
-def test_the_refusal_budget_is_kept_per_route_not_per_url(enabled_limiter, real_app):
+def test_the_refusal_budget_is_kept_per_route_not_per_url(enabled_limiter, app):
     """A flood that varies the path parameters of a route still spends one budget."""
-    client = TestClient(real_app, raise_server_exceptions=False)
+    client = TestClient(app)
     headers = {"Authorization": "Bearer not-a-token"}
 
     statuses = [
@@ -723,9 +702,9 @@ def test_the_refusal_budget_is_kept_per_route_not_per_url(enabled_limiter, real_
     assert statuses[120] == 429
 
 
-def test_the_refusal_answer_reads_the_window_off_the_event_loop(enabled_limiter, real_app, monkeypatch):
+def test_the_refusal_answer_reads_the_window_off_the_event_loop(enabled_limiter, app, monkeypatch):
     """The 429 for a spent refusal budget asks the shared store for the reset time, which must not stall the loop."""
-    client = TestClient(real_app, raise_server_exceptions=False)
+    client = TestClient(app)
     _refused_polls(client, 120)
     on_loop: list[bool] = []
     original = core_rate_limit.limiter.limiter.get_window_stats

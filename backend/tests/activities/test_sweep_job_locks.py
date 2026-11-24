@@ -40,7 +40,7 @@ def test_the_startup_catch_up_passes_hold_the_same_lock_as_the_scheduled_ones():
         (
             "schedule_missing_thumbnail_generation",
             thumbnail_jobs.schedule_missing_thumbnail_generation,
-            thumbnail_jobs.BACKFILL_LOCK_NAME,
+            thumbnail_jobs.BACKFILL_REQUEST_LOCK_NAME,
         ),
     ):
         with patch("core.scheduler.run_once") as run_once:
@@ -48,12 +48,13 @@ def test_the_startup_catch_up_passes_hold_the_same_lock_as_the_scheduled_ones():
         assert run_once.call_args.kwargs["lock_name"] == lock, name
 
 
-def test_the_thumbnail_backfill_and_regeneration_share_one_lock():
-    """They touch the same thumbnails, so they exclude each other; only the backfill is skipped when it is held."""
+def test_the_thumbnail_backfill_request_does_not_hold_the_lock_the_pass_takes():
+    """The pass skips when the backfill lock is held, so the scheduler must not hold it while it publishes."""
     import modules.activities.activity_thumbnail.service as thumbnail_service
 
-    backfill = next(
-        job for job in thumbnail_jobs.recurring_jobs() if job.func is thumbnail_jobs.generate_missing_thumbnails
+    request = next(
+        job for job in thumbnail_jobs.recurring_jobs() if job.func is thumbnail_jobs.request_thumbnail_backfill
     )
 
-    assert backfill.lock_name == thumbnail_service.BACKFILL_LOCK_NAME
+    assert request.lock_name == thumbnail_jobs.BACKFILL_REQUEST_LOCK_NAME
+    assert request.lock_name != thumbnail_service.BACKFILL_LOCK_NAME

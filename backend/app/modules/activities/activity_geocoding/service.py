@@ -32,10 +32,11 @@ logger = core_logger.get_logger(__name__)
 #: looks it up again.
 LOOKUP_RETRY_DELAY = timedelta(days=1)
 
-#: The longest a lookup waits for its turn under the geocoding rate limit, which every
-#: process sharing the platform state shares. A longer wait sends nothing: the durable
-#: handler defers until the provider's retry time and the backfill ends its pass, so a
-#: worker is not held queueing behind the limit.
+#: The longest a lookup without a reservation key waits for its turn under the geocoding
+#: rate limit, which every process sharing the platform state shares. A longer wait sends
+#: nothing and the backfill ends its pass, so a worker is not held queueing behind the
+#: limit. A lookup with a reservation key (the durable handler's) waits for no turn: it
+#: books the next one and the job is deferred to it.
 LOOKUP_MAX_WAIT_SECONDS = 5.0
 
 
@@ -43,6 +44,8 @@ def reverse_geocode(
     geocoding: GeocodingProvider,
     latitude: float | None,
     longitude: float | None,
+    *,
+    reservation_key: str | None = None,
 ) -> GeocodingOutcome:
     """Reverse-geocode a ``(lat, lon)`` pair through the platform provider.
 
@@ -50,6 +53,10 @@ def reverse_geocode(
         geocoding: The platform geocoding provider.
         latitude: Latitude in decimal degrees, or None.
         longitude: Longitude in decimal degrees, or None.
+        reservation_key: Names a caller that can be deferred. The lookup then waits for no
+            turn: when none is free it books the next one under this key, returns it as
+            ``retry_at``, and runs at it when called again with the same key. Without a
+            key the lookup waits up to :data:`LOOKUP_MAX_WAIT_SECONDS` for its turn.
 
     Returns:
         The provider's outcome: the resolved place (any field may be ``None``);
@@ -60,11 +67,12 @@ def reverse_geocode(
     """
     if latitude is None or longitude is None:
         return GeocodingOutcome()
-    return geocoding.lookup(latitude, longitude, max_wait_seconds=LOOKUP_MAX_WAIT_SECONDS)
+    max_wait_seconds = 0 if reservation_key is not None else LOOKUP_MAX_WAIT_SECONDS
+    return geocoding.lookup(latitude, longitude, max_wait_seconds=max_wait_seconds, reservation_key=reservation_key)
 
 
 def geocode_and_store_activity_location(
-    activity_id: uuid.UUID, geocoding: GeocodingProvider, db: Session
+    activity_id: uuid.UUID, geocoding: GeocodingProvider, db: Session, *, reservation_key: str | None = None
 ) -> datetime | None:
     """Resolve and persist a created activity's location from its GPS stream.
 
@@ -76,6 +84,8 @@ def geocode_and_store_activity_location(
         activity_id: The activity to geocode.
         geocoding: The platform geocoding provider.
         db: Database session.
+        reservation_key: Passed to :func:`reverse_geocode`; set by a caller that defers a
+            held-back lookup and comes back for it.
 
     Returns:
         When to look the location up again if the rate limit or an upstream
@@ -94,7 +104,9 @@ def geocode_and_store_activity_location(
     # End the read transaction before the network call so no connection is held
     # while the geocoder answers.
     db.commit()
-    outcome = reverse_geocode(geocoding, first_waypoint.get("lat"), first_waypoint.get("lon"))
+    outcome = reverse_geocode(
+        geocoding, first_waypoint.get("lat"), first_waypoint.get("lon"), reservation_key=reservation_key
+    )
     location = outcome.place
     if location is None:
         return outcome.retry_at

@@ -153,7 +153,7 @@ def send_email(
     try:
         mail.send(message)
     except platform_providers.MailNotConfiguredError:
-        logger.warning("Email not sent: mail is not configured", extra=core_logger.context(console=True))
+        logger.info("Email not sent: mail is not configured")
         return False
     except platform_providers.MailError as err:
         if err.permanent:

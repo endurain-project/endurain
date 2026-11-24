@@ -9,7 +9,8 @@ import base64
 import hashlib
 import json
 import time
-from unittest.mock import MagicMock, patch
+from contextlib import contextmanager
+from types import SimpleNamespace
 
 import pytest
 from fastapi import status
@@ -18,7 +19,6 @@ from joserfc.jwk import ECKey, OctKey, RSAKey
 
 import core.exceptions as core_exceptions
 import modules.auth.identity_providers.id_token_service as id_token_service
-import modules.auth.identity_providers.oidc_client_service as oidc_client_service
 
 # ---------------------------------------------------------------------------
 # Test constants and real-key fixtures
@@ -93,10 +93,52 @@ def _fake_jwt(header: dict, payload: dict | None = None) -> str:
     return f"{b64(header)}.{b64(payload or {})}.signature"
 
 
+class Jwks:
+    """The provider's key endpoint, as the verifier's ``fetch_jwks`` calls it.
+
+    Answers the documents it was given in turn, the last one for every call after them, and records the calls.
+    """
+
+    def __init__(self, *answers: dict) -> None:
+        self._answers = list(answers)
+        self.call_args_list: list[SimpleNamespace] = []
+
+    def __call__(self, jwks_uri: str, **kwargs: object) -> dict:
+        self.call_args_list.append(SimpleNamespace(args=(jwks_uri,), kwargs=kwargs))
+        return self._answers[min(len(self.call_args_list), len(self._answers)) - 1]
+
+    @property
+    def call_count(self) -> int:
+        return len(self.call_args_list)
+
+    def assert_fetched_once(self, jwks_uri: str) -> None:
+        assert [(call.args, call.kwargs) for call in self.call_args_list] == [((jwks_uri,), {})]
+
+
+class Verifier:
+    """What a test verifies tokens with: the key endpoint it serves, none until a test names one."""
+
+    def __init__(self) -> None:
+        self.fetch_jwks = self._no_fetch_expected
+
+    @staticmethod
+    def _no_fetch_expected(jwks_uri: str, **kwargs: object) -> dict:
+        raise AssertionError("the signing keys were fetched")
+
+    @contextmanager
+    def serving(self, source: Jwks):
+        """Serve the given key endpoint while the block runs."""
+        previous, self.fetch_jwks = self.fetch_jwks, source
+        try:
+            yield source
+        finally:
+            self.fetch_jwks = previous
+
+
 @pytest.fixture
-def service() -> oidc_client_service.OidcClientService:
-    """Return a client whose ``fetch_jwks`` is what the verifier asks for signing keys."""
-    return oidc_client_service.OidcClientService(MagicMock(), "test")
+def service() -> Verifier:
+    """Return what the tests verify tokens with."""
+    return Verifier()
 
 
 def _verify(service, token, jwks_uri, issuer, audience, **kwargs):
@@ -161,7 +203,7 @@ class TestVerifyIdTokenKeyResolution:
         token = _sign(rsa_key, _valid_claims())
         jwks = {"keys": [{**rsa_key.as_dict(private=False), "kid": "different-kid"}]}
         with (
-            patch.object(service, "fetch_jwks", MagicMock(return_value=jwks)),
+            service.serving(Jwks(jwks)),
             pytest.raises(core_exceptions.DomainError) as exc_info,
         ):
             _verify(service, token, JWKS_URI, ISS, AUD)
@@ -171,8 +213,8 @@ class TestVerifyIdTokenKeyResolution:
     def test_a_kid_missing_from_the_cached_set_is_looked_up_in_a_fresh_set(self, service, rsa_key):
         token = _sign(rsa_key, _valid_claims())
         stale = {"keys": [{**rsa_key.as_dict(private=False), "kid": "older-kid"}]}
-        fetch = MagicMock(side_effect=[stale, _public_jwks(rsa_key)])
-        with patch.object(service, "fetch_jwks", fetch):
+        fetch = Jwks(*[stale, _public_jwks(rsa_key)])
+        with service.serving(fetch):
             claims = _verify(service, token, JWKS_URI, ISS, AUD)
         assert claims["sub"] == "user-1"
         assert fetch.call_args_list[0].args == (JWKS_URI,)
@@ -183,9 +225,9 @@ class TestVerifyIdTokenKeyResolution:
     def test_a_kid_missing_from_the_fresh_set_too_is_an_unknown_key(self, service, rsa_key):
         token = _sign(rsa_key, _valid_claims())
         stale = {"keys": [{**rsa_key.as_dict(private=False), "kid": "older-kid"}]}
-        fetch = MagicMock(return_value=stale)
+        fetch = Jwks(stale)
         with (
-            patch.object(service, "fetch_jwks", fetch),
+            service.serving(fetch),
             pytest.raises(core_exceptions.DomainError) as exc_info,
         ):
             _verify(service, token, JWKS_URI, ISS, AUD)
@@ -195,8 +237,8 @@ class TestVerifyIdTokenKeyResolution:
 
     def test_a_key_rotated_under_a_cached_kid_is_verified_with_a_fresh_set(self, service, rsa_key, other_rsa_key):
         token = _sign(rsa_key, _valid_claims())
-        fetch = MagicMock(side_effect=[_public_jwks(other_rsa_key), _public_jwks(rsa_key)])
-        with patch.object(service, "fetch_jwks", fetch):
+        fetch = Jwks(*[_public_jwks(other_rsa_key), _public_jwks(rsa_key)])
+        with service.serving(fetch):
             claims = _verify(service, token, JWKS_URI, ISS, AUD)
         assert claims["sub"] == "user-1"
         assert fetch.call_count == 2
@@ -209,9 +251,9 @@ class TestVerifyIdTokenKeyResolution:
         self, service, rsa_key, other_rsa_key
     ):
         token = _sign(rsa_key, _valid_claims())
-        fetch = MagicMock(return_value=_public_jwks(other_rsa_key))
+        fetch = Jwks(_public_jwks(other_rsa_key))
         with (
-            patch.object(service, "fetch_jwks", fetch),
+            service.serving(fetch),
             pytest.raises(core_exceptions.DomainError) as exc_info,
         ):
             _verify(service, token, JWKS_URI, ISS, AUD)
@@ -225,9 +267,9 @@ class TestVerifyIdTokenKeyResolution:
     ):
         token = _sign(rsa_key, _valid_claims())
         stale = {"keys": [{**rsa_key.as_dict(private=False), "kid": "older-kid"}]}
-        fetch = MagicMock(side_effect=[stale, _public_jwks(other_rsa_key)])
+        fetch = Jwks(*[stale, _public_jwks(other_rsa_key)])
         with (
-            patch.object(service, "fetch_jwks", fetch),
+            service.serving(fetch),
             pytest.raises(core_exceptions.DomainError) as exc_info,
         ):
             _verify(service, token, JWKS_URI, ISS, AUD)
@@ -240,9 +282,9 @@ class TestVerifyIdTokenKeyResolution:
     ):
         token = _sign(rsa_key, _valid_claims())
         gone = {"keys": [{**rsa_key.as_dict(private=False), "kid": "older-kid"}]}
-        fetch = MagicMock(side_effect=[_public_jwks(other_rsa_key), gone])
+        fetch = Jwks(*[_public_jwks(other_rsa_key), gone])
         with (
-            patch.object(service, "fetch_jwks", fetch),
+            service.serving(fetch),
             pytest.raises(core_exceptions.DomainError) as exc_info,
         ):
             _verify(service, token, JWKS_URI, ISS, AUD)
@@ -252,19 +294,19 @@ class TestVerifyIdTokenKeyResolution:
 
     def test_a_known_kid_does_not_refetch(self, service, rsa_key):
         token = _sign(rsa_key, _valid_claims())
-        fetch = MagicMock(return_value=_public_jwks(rsa_key))
-        with patch.object(service, "fetch_jwks", fetch):
+        fetch = Jwks(_public_jwks(rsa_key))
+        with service.serving(fetch):
             _verify(service, token, JWKS_URI, ISS, AUD)
-        fetch.assert_called_once_with(JWKS_URI)
+        fetch.assert_fetched_once(JWKS_URI)
 
     def test_a_token_without_kid_is_verified_with_the_only_usable_key(self, service, rsa_key):
         token = _sign_without_kid(rsa_key, _valid_claims())
         jwks = {"keys": [{**rsa_key.as_dict(private=False), "use": "sig"}]}
-        fetch = MagicMock(return_value=jwks)
-        with patch.object(service, "fetch_jwks", fetch):
+        fetch = Jwks(jwks)
+        with service.serving(fetch):
             claims = _verify(service, token, JWKS_URI, ISS, AUD)
         assert claims["sub"] == "user-1"
-        fetch.assert_called_once_with(JWKS_URI)
+        fetch.assert_fetched_once(JWKS_URI)
 
     def test_keys_of_another_use_type_or_algorithm_are_not_candidates(self, service, rsa_key, other_rsa_key):
         token = _sign_without_kid(rsa_key, _valid_claims())
@@ -277,7 +319,7 @@ class TestVerifyIdTokenKeyResolution:
                 rsa_key.as_dict(private=False),
             ]
         }
-        with patch.object(service, "fetch_jwks", MagicMock(return_value=jwks)):
+        with service.serving(Jwks(jwks)):
             claims = _verify(service, token, JWKS_URI, ISS, AUD)
         assert claims["sub"] == "user-1"
 
@@ -286,9 +328,9 @@ class TestVerifyIdTokenKeyResolution:
     ):
         token = _sign_without_kid(rsa_key, _valid_claims())
         jwks = {"keys": [rsa_key.as_dict(private=False), other_rsa_key.as_dict(private=False)]}
-        fetch = MagicMock(return_value=jwks)
+        fetch = Jwks(jwks)
         with (
-            patch.object(service, "fetch_jwks", fetch),
+            service.serving(fetch),
             pytest.raises(core_exceptions.DomainError) as exc_info,
         ):
             _verify(service, token, JWKS_URI, ISS, AUD)
@@ -298,9 +340,9 @@ class TestVerifyIdTokenKeyResolution:
 
     def test_a_token_without_kid_is_refused_when_no_key_could_have_signed_it(self, service, rsa_key):
         token = _sign_without_kid(rsa_key, _valid_claims())
-        fetch = MagicMock(return_value={"keys": []})
+        fetch = Jwks({"keys": []})
         with (
-            patch.object(service, "fetch_jwks", fetch),
+            service.serving(fetch),
             pytest.raises(core_exceptions.DomainError) as exc_info,
         ):
             _verify(service, token, JWKS_URI, ISS, AUD)
@@ -309,8 +351,8 @@ class TestVerifyIdTokenKeyResolution:
 
     def test_a_token_without_kid_looks_in_a_fresh_set_when_the_cached_one_has_no_candidate(self, service, rsa_key):
         token = _sign_without_kid(rsa_key, _valid_claims())
-        fetch = MagicMock(side_effect=[{"keys": []}, {"keys": [rsa_key.as_dict(private=False)]}])
-        with patch.object(service, "fetch_jwks", fetch):
+        fetch = Jwks(*[{"keys": []}, {"keys": [rsa_key.as_dict(private=False)]}])
+        with service.serving(fetch):
             claims = _verify(service, token, JWKS_URI, ISS, AUD)
         assert claims["sub"] == "user-1"
         assert fetch.call_args_list[1].kwargs == {"refresh": True}
@@ -319,7 +361,7 @@ class TestVerifyIdTokenKeyResolution:
         token = _sign(rsa_key, _valid_claims(), kid="named")
         jwks = {"keys": [rsa_key.as_dict(private=False)]}
         with (
-            patch.object(service, "fetch_jwks", MagicMock(return_value=jwks)),
+            service.serving(Jwks(jwks)),
             pytest.raises(core_exceptions.DomainError) as exc_info,
         ):
             _verify(service, token, JWKS_URI, ISS, AUD)
@@ -329,7 +371,7 @@ class TestVerifyIdTokenKeyResolution:
         token = _sign(rsa_key, _valid_claims())
         jwks = {"keys": [{"kid": KID, "kty": "UNKNOWN"}]}
         with (
-            patch.object(service, "fetch_jwks", MagicMock(return_value=jwks)),
+            service.serving(Jwks(jwks)),
             pytest.raises(core_exceptions.DomainError) as exc_info,
         ):
             _verify(service, token, JWKS_URI, ISS, AUD)
@@ -348,7 +390,7 @@ class TestVerifyIdTokenKeyResolution:
         token = _sign(rsa_key, _valid_claims())
         jwks = {"keys": [{**advertised().as_dict(private=False), "kid": KID}]}
         with (
-            patch.object(service, "fetch_jwks", MagicMock(return_value=jwks)),
+            service.serving(Jwks(jwks)),
             pytest.raises(core_exceptions.DomainError) as exc_info,
         ):
             _verify(service, token, JWKS_URI, ISS, AUD)
@@ -365,7 +407,7 @@ class TestVerifyIdTokenSignatureAndClaims:
 
     def test_valid_token_returns_claims(self, service, rsa_key):
         token = _sign(rsa_key, _valid_claims())
-        with patch.object(service, "fetch_jwks", MagicMock(return_value=_public_jwks(rsa_key))):
+        with service.serving(Jwks(_public_jwks(rsa_key))):
             claims = _verify(service, token, JWKS_URI, ISS, AUD)
             assert claims["sub"] == "user-1"
             assert claims["iss"] == ISS
@@ -375,7 +417,7 @@ class TestVerifyIdTokenSignatureAndClaims:
         token = _sign(rsa_key, _valid_claims())
         # JWKS advertises the *other* key's public half under the same kid.
         with (
-            patch.object(service, "fetch_jwks", MagicMock(return_value=_public_jwks(other_rsa_key))),
+            service.serving(Jwks(_public_jwks(other_rsa_key))),
             pytest.raises(core_exceptions.DomainError) as exc_info,
         ):
             _verify(service, token, JWKS_URI, ISS, AUD)
@@ -386,7 +428,7 @@ class TestVerifyIdTokenSignatureAndClaims:
         now = int(time.time())
         token = _sign(rsa_key, _valid_claims(exp=now - 120, iat=now - 3600))
         with (
-            patch.object(service, "fetch_jwks", MagicMock(return_value=_public_jwks(rsa_key))),
+            service.serving(Jwks(_public_jwks(rsa_key))),
             pytest.raises(core_exceptions.DomainError) as exc_info,
         ):
             _verify(service, token, JWKS_URI, ISS, AUD)
@@ -396,7 +438,7 @@ class TestVerifyIdTokenSignatureAndClaims:
     def test_issuer_mismatch_raises_401(self, service, rsa_key):
         token = _sign(rsa_key, _valid_claims(iss="https://evil.example.com"))
         with (
-            patch.object(service, "fetch_jwks", MagicMock(return_value=_public_jwks(rsa_key))),
+            service.serving(Jwks(_public_jwks(rsa_key))),
             pytest.raises(core_exceptions.DomainError) as exc_info,
         ):
             _verify(service, token, JWKS_URI, ISS, AUD)
@@ -406,7 +448,7 @@ class TestVerifyIdTokenSignatureAndClaims:
     def test_audience_mismatch_raises_401(self, service, rsa_key):
         token = _sign(rsa_key, _valid_claims(aud="some-other-client"))
         with (
-            patch.object(service, "fetch_jwks", MagicMock(return_value=_public_jwks(rsa_key))),
+            service.serving(Jwks(_public_jwks(rsa_key))),
             pytest.raises(core_exceptions.DomainError) as exc_info,
         ):
             _verify(service, token, JWKS_URI, ISS, AUD)
@@ -417,7 +459,7 @@ class TestVerifyIdTokenSignatureAndClaims:
         del claims["sub"]
         token = _sign(rsa_key, claims)
         with (
-            patch.object(service, "fetch_jwks", MagicMock(return_value=_public_jwks(rsa_key))),
+            service.serving(Jwks(_public_jwks(rsa_key))),
             pytest.raises(core_exceptions.DomainError) as exc_info,
         ):
             _verify(service, token, JWKS_URI, ISS, AUD)
@@ -435,14 +477,14 @@ class TestVerifyIdTokenNonce:
 
     def test_matching_nonce_passes(self, service, rsa_key):
         token = _sign(rsa_key, _valid_claims(nonce="session-nonce"))
-        with patch.object(service, "fetch_jwks", MagicMock(return_value=_public_jwks(rsa_key))):
+        with service.serving(Jwks(_public_jwks(rsa_key))):
             claims = _verify(service, token, JWKS_URI, ISS, AUD, expected_nonce="session-nonce")
             assert claims["nonce"] == "session-nonce"
 
     def test_missing_nonce_when_expected_raises_401(self, service, rsa_key):
         token = _sign(rsa_key, _valid_claims())  # no nonce claim
         with (
-            patch.object(service, "fetch_jwks", MagicMock(return_value=_public_jwks(rsa_key))),
+            service.serving(Jwks(_public_jwks(rsa_key))),
             pytest.raises(core_exceptions.DomainError) as exc_info,
         ):
             _verify(service, token, JWKS_URI, ISS, AUD, expected_nonce="session-nonce")
@@ -452,7 +494,7 @@ class TestVerifyIdTokenNonce:
     def test_nonce_mismatch_raises_401(self, service, rsa_key):
         token = _sign(rsa_key, _valid_claims(nonce="attacker-nonce"))
         with (
-            patch.object(service, "fetch_jwks", MagicMock(return_value=_public_jwks(rsa_key))),
+            service.serving(Jwks(_public_jwks(rsa_key))),
             pytest.raises(core_exceptions.DomainError) as exc_info,
         ):
             _verify(service, token, JWKS_URI, ISS, AUD, expected_nonce="session-nonce")
@@ -462,7 +504,7 @@ class TestVerifyIdTokenNonce:
     def test_nonce_not_checked_when_not_expected(self, service, rsa_key):
         """When no nonce is expected, a token without nonce still verifies."""
         token = _sign(rsa_key, _valid_claims())
-        with patch.object(service, "fetch_jwks", MagicMock(return_value=_public_jwks(rsa_key))):
+        with service.serving(Jwks(_public_jwks(rsa_key))):
             claims = _verify(service, token, JWKS_URI, ISS, AUD)
             assert claims["sub"] == "user-1"
 
@@ -480,7 +522,7 @@ class TestVerifyIdTokenKeyAttributes:
         token = _sign(rsa_key, _valid_claims())
         jwks = {"keys": [{**_public_jwks(rsa_key)["keys"][0], **attributes}]}
         with (
-            patch.object(service, "fetch_jwks", MagicMock(return_value=jwks)),
+            service.serving(Jwks(jwks)),
             pytest.raises(core_exceptions.DomainError) as exc_info,
         ):
             _verify(service, token, JWKS_URI, ISS, AUD)
@@ -490,7 +532,7 @@ class TestVerifyIdTokenKeyAttributes:
     def test_a_key_that_declares_signature_use_and_the_token_algorithm_verifies(self, service, rsa_key):
         token = _sign(rsa_key, _valid_claims())
         jwks = {"keys": [{**_public_jwks(rsa_key)["keys"][0], "use": "sig", "alg": "RS256"}]}
-        with patch.object(service, "fetch_jwks", MagicMock(return_value=jwks)):
+        with service.serving(Jwks(jwks)):
             assert _verify(service, token, JWKS_URI, ISS, AUD)["sub"] == "user-1"
 
 
@@ -509,7 +551,7 @@ class TestVerifyIdTokenAccessTokenHash:
 
     def _verify_with(self, service, rsa_key, claims, access_token):
         token = _sign(rsa_key, claims)
-        with patch.object(service, "fetch_jwks", MagicMock(return_value=_public_jwks(rsa_key))):
+        with service.serving(Jwks(_public_jwks(rsa_key))):
             return _verify(service, token, JWKS_URI, ISS, AUD, access_token=access_token)
 
     def test_a_matching_at_hash_verifies(self, service, rsa_key):

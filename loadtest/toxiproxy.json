@@ -1,0 +1,3 @@
+[
+  {"name": "postgres", "listen": "0.0.0.0:5432", "upstream": "postgres:5432", "enabled": true}
+]

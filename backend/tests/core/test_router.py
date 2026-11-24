@@ -1,140 +1,136 @@
-"""Tests for core.router — metadata and static-fallback routes."""
+"""Tests for core.router: metadata, health and the frontend fallback, on the production application."""
 
+import logging
 from datetime import UTC, date, datetime, timedelta
-from unittest.mock import MagicMock, patch
 
+import jasil.audit as jasil_audit
+import jasil.runtime as platform_runtime
+import jasil.settings as jasil_settings
 import pytest
-from fastapi import FastAPI
-from fastapi.responses import FileResponse
-from fastapi.testclient import TestClient
 from jasil.providers import StateBackendUnavailableError
 from sqlalchemy.exc import OperationalError
+from sqlalchemy.orm import Session
 
-import core.dependencies as core_dependencies
-import core.exceptions as core_exceptions
-from core.database import get_db
-from core.router import router
+import core.config as core_config
+import core.logger as core_logger
 
-app = FastAPI()
-core_exceptions.register_exception_handlers(app)
-app.include_router(router)
-client = TestClient(app)
+_API = core_config.ROOT_PATH
 
 
 class TestAbout:
-    """Tests for GET {ROOT_PATH}/about — API metadata."""
+    """GET {ROOT_PATH}/about answers the API metadata."""
 
-    def test_returns_correct_metadata(self):
-        from core.config import API_VERSION, LICENSE_IDENTIFIER, LICENSE_NAME, LICENSE_URL
+    def test_returns_correct_metadata(self, client):
+        response = client.get(f"{_API}/about")
 
-        response = client.get("/api/v1/about")
         assert response.status_code == 200
         data = response.json()
         assert data["name"] == "Endurain API"
-        assert data["version"] == API_VERSION
-        assert data["license"]["name"] == LICENSE_NAME
-        assert data["license"]["identifier"] == LICENSE_IDENTIFIER
-        assert data["license"]["url"] == LICENSE_URL
+        assert data["version"] == core_config.API_VERSION
+        assert data["license"]["name"] == core_config.LICENSE_NAME
+        assert data["license"]["identifier"] == core_config.LICENSE_IDENTIFIER
+        assert data["license"]["url"] == core_config.LICENSE_URL
+
+
+def _audit_health(**overrides):
+    now = datetime.now(UTC)
+    health = {
+        "write_failures": 0,
+        "last_failure_at": None,
+        "furthest_partition_date": now.date() + timedelta(days=7),
+        "last_checkpoint_at": now - timedelta(minutes=10),
+    }
+    return {**health, **overrides}
 
 
 class TestHealth:
-    """Tests for GET {ROOT_PATH}/health — database-backed liveness and the state backend."""
+    """GET {ROOT_PATH}/health: database-backed liveness, the state backend and the audit trail."""
 
-    @staticmethod
-    def _audit_health(**overrides):
-        now = datetime.now(UTC)
-        health = {
-            "write_failures": 0,
-            "last_failure_at": None,
-            "furthest_partition_date": now.date() + timedelta(days=7),
-            "last_checkpoint_at": now - timedelta(minutes=10),
-        }
-        return {**health, **overrides}
+    @pytest.fixture
+    def caplog(self, caplog, app):
+        """Capture the application's own logger, which the real app does not propagate to the root logger."""
+        app_logger = logging.getLogger(core_logger.ROOT_LOGGER_NAME)
+        level = app_logger.level
+        app_logger.addHandler(caplog.handler)
+        app_logger.setLevel(logging.DEBUG)
+        yield caplog
+        app_logger.setLevel(level)
+        app_logger.removeHandler(caplog.handler)
 
-    @pytest.fixture(autouse=True)
-    def _healthy_audit(self):
-        settings = MagicMock()
-        settings.audit.enabled = True
-        with (
-            patch("jasil.settings.get_settings", return_value=settings),
-            patch("jasil.audit.get_audit_health", return_value=self._audit_health()) as healthy,
-        ):
-            self.healthy = healthy
-            self.settings = settings
-            yield
+    @pytest.fixture
+    def broken_database(self, monkeypatch):
+        """Make the liveness query fail the way an exhausted pool does."""
+        execute = Session.execute
 
-    @staticmethod
-    def _get(db, state):
-        app.dependency_overrides[get_db] = lambda: db
-        app.dependency_overrides[core_dependencies.get_platform_state] = lambda: state
-        try:
-            return client.get("/api/v1/health")
-        finally:
-            app.dependency_overrides.pop(get_db, None)
-            app.dependency_overrides.pop(core_dependencies.get_platform_state, None)
+        def failing(self, statement, *args, **kwargs):
+            if str(statement) == "SELECT 1":
+                raise TimeoutError("pool exhausted")
+            return execute(self, statement, *args, **kwargs)
 
-    def test_returns_ok_when_the_database_and_the_state_answer(self):
-        response = self._get(MagicMock(), MagicMock())
+        monkeypatch.setattr(Session, "execute", failing)
+
+    @pytest.fixture
+    def broken_state(self, monkeypatch, _publish_local_platform):
+        """Make the shared state backend unreachable."""
+
+        def down(key):
+            raise StateBackendUnavailableError("redis down")
+
+        monkeypatch.setattr(_publish_local_platform.state, "get", down)
+
+    @pytest.fixture
+    def audit_health(self, monkeypatch):
+        """Return a function that sets what the audit trail reports about itself."""
+
+        def report(**overrides):
+            monkeypatch.setattr(jasil_audit, "get_audit_health", lambda: _audit_health(**overrides))
+
+        return report
+
+    def test_returns_ok_when_the_database_the_state_and_the_audit_trail_answer(self, client, audit_health, caplog):
+        audit_health()
+        with caplog.at_level("WARNING"):
+            response = client.get(f"{_API}/health")
 
         assert response.status_code == 200
         assert response.json() == {"status": "ok", "state": "ok", "audit": "ok"}
+        assert caplog.text == ""
 
-    def test_returns_503_when_database_fails(self):
-        db = MagicMock()
-        db.execute.side_effect = TimeoutError("pool exhausted")
-
-        response = self._get(db, MagicMock())
+    def test_returns_503_when_database_fails(self, client, broken_database):
+        response = client.get(f"{_API}/health")
 
         assert response.status_code == 503
         assert response.headers["Content-Type"].startswith("application/problem+json")
         assert response.headers["Retry-After"] == "5"
         assert response.json()["detail"] == "Database unavailable"
 
-    def test_an_unreachable_state_backend_is_degraded_not_down(self, caplog):
-        state = MagicMock()
-        state.get.side_effect = StateBackendUnavailableError("redis down")
-
+    def test_an_unreachable_state_backend_is_degraded_not_down(self, client, broken_state, audit_health, caplog):
+        audit_health()
         with caplog.at_level("DEBUG"):
-            response = self._get(MagicMock(), state)
+            response = client.get(f"{_API}/health")
 
         assert response.status_code == 200
         assert response.json() == {"status": "degraded", "state": "unavailable", "audit": "ok"}
         assert [r.levelname for r in caplog.records if "health probe" in r.getMessage()] == ["DEBUG"]
 
-    def test_the_probe_only_reads(self):
-        state = MagicMock()
+    def test_the_probe_only_reads(self, client):
+        state = platform_runtime.get_active_platform().state
 
-        self._get(MagicMock(), state)
+        client.get(f"{_API}/health")
 
-        state.get.assert_called_once()
-        state.set.assert_not_called()
+        assert list(state.iter_keys("endurain:health:")) == []
 
-    def test_a_database_failure_wins_over_a_state_failure(self):
-        db = MagicMock()
-        db.execute.side_effect = TimeoutError("pool exhausted")
-        state = MagicMock()
-        state.get.side_effect = StateBackendUnavailableError("redis down")
-
-        assert self._get(db, state).status_code == 503
-
-    def test_a_healthy_probe_does_not_log(self, caplog):
-        with caplog.at_level("WARNING"):
-            self._get(MagicMock(), MagicMock())
-
-        assert caplog.text == ""
+    def test_a_database_failure_wins_over_a_state_failure(self, client, broken_database, broken_state):
+        assert client.get(f"{_API}/health").status_code == 503
 
     @pytest.mark.parametrize(
         "overrides",
         [
             pytest.param({"furthest_partition_date": None}, id="no-partition"),
-            pytest.param(
-                {"furthest_partition_date": datetime.now(UTC).date()},
-                id="no-partition-for-tomorrow",
-            ),
+            pytest.param({"furthest_partition_date": datetime.now(UTC).date()}, id="no-partition-for-tomorrow"),
             pytest.param({"furthest_partition_date": date(2000, 1, 1)}, id="old-partition"),
             pytest.param(
-                {"last_checkpoint_at": datetime.now(UTC) - timedelta(hours=1, minutes=1)},
-                id="stale-checkpoint",
+                {"last_checkpoint_at": datetime.now(UTC) - timedelta(hours=1, minutes=1)}, id="stale-checkpoint"
             ),
             pytest.param(
                 {"last_failure_at": datetime.now(UTC) - timedelta(minutes=5), "write_failures": 1},
@@ -142,191 +138,165 @@ class TestHealth:
             ),
         ],
     )
-    def test_an_audit_problem_is_degraded_but_still_200(self, overrides, caplog):
-        self.healthy.return_value = self._audit_health(**overrides)
+    def test_an_audit_problem_is_degraded_but_still_200(self, client, audit_health, overrides, caplog):
+        audit_health(**overrides)
 
         with caplog.at_level("DEBUG"):
-            response = self._get(MagicMock(), MagicMock())
+            response = client.get(f"{_API}/health")
 
         assert response.status_code == 200
         assert response.json() == {"status": "degraded", "state": "ok", "audit": "degraded"}
         assert [r.levelname for r in caplog.records if "audit trail is degraded" in r.getMessage()] == ["DEBUG"]
 
-    def test_a_partition_for_tomorrow_is_enough(self):
-        self.healthy.return_value = self._audit_health(
-            furthest_partition_date=datetime.now(UTC).date() + timedelta(days=1)
+    def test_a_partition_for_tomorrow_is_enough(self, client, audit_health):
+        audit_health(furthest_partition_date=datetime.now(UTC).date() + timedelta(days=1))
+
+        assert client.get(f"{_API}/health").json()["audit"] == "ok"
+
+    def test_a_failure_older_than_an_hour_is_ok(self, client, audit_health):
+        audit_health(last_failure_at=datetime.now(UTC) - timedelta(hours=1, minutes=1), write_failures=3)
+
+        assert client.get(f"{_API}/health").json()["audit"] == "ok"
+
+    def test_a_checkpoint_that_was_never_sealed_is_not_flagged(self, client, audit_health):
+        audit_health(last_checkpoint_at=None)
+
+        assert client.get(f"{_API}/health").json()["audit"] == "ok"
+
+    def test_a_disabled_audit_trail_is_ok_and_is_not_read(self, client, audit_health, monkeypatch):
+        audit_health(furthest_partition_date=None)
+        monkeypatch.setattr(
+            jasil_settings,
+            "get_settings",
+            lambda: jasil_settings.JasilSettings(audit=jasil_settings.AuditSettings(enabled=False)),
         )
 
-        assert self._get(MagicMock(), MagicMock()).json()["audit"] == "ok"
-
-    def test_a_failure_older_than_an_hour_is_ok(self):
-        self.healthy.return_value = self._audit_health(
-            last_failure_at=datetime.now(UTC) - timedelta(hours=1, minutes=1), write_failures=3
-        )
-
-        assert self._get(MagicMock(), MagicMock()).json()["audit"] == "ok"
-
-    def test_a_checkpoint_that_was_never_sealed_is_not_flagged(self):
-        self.healthy.return_value = self._audit_health(last_checkpoint_at=None)
-
-        assert self._get(MagicMock(), MagicMock()).json()["audit"] == "ok"
-
-    def test_a_disabled_audit_trail_is_ok_and_is_not_read(self):
-        self.healthy.return_value = self._audit_health(furthest_partition_date=None)
-        self.settings.audit.enabled = False
-
-        response = self._get(MagicMock(), MagicMock())
+        response = client.get(f"{_API}/health")
 
         assert response.json() == {"status": "ok", "state": "ok", "audit": "ok"}
-        self.healthy.assert_not_called()
 
     @pytest.mark.parametrize("error", [RuntimeError("no sessionmaker"), OperationalError("SELECT 1", {}, Exception())])
-    def test_an_unreadable_audit_health_is_degraded_not_a_failure(self, caplog, error):
-        self.healthy.side_effect = error
+    def test_an_unreadable_audit_health_is_degraded_not_a_failure(self, client, monkeypatch, caplog, error):
+        def unreadable():
+            raise error
+
+        monkeypatch.setattr(jasil_audit, "get_audit_health", unreadable)
 
         with caplog.at_level("DEBUG"):
-            response = self._get(MagicMock(), MagicMock())
+            response = client.get(f"{_API}/health")
 
         assert response.status_code == 200
         assert response.json() == {"status": "degraded", "state": "ok", "audit": "degraded"}
         assert [r.levelname for r in caplog.records if "audit trail is degraded" in r.getMessage()] == ["DEBUG"]
 
-    def test_a_database_failure_does_not_read_the_audit_health(self):
-        db = MagicMock()
-        db.execute.side_effect = TimeoutError("pool exhausted")
 
-        assert self._get(db, MagicMock()).status_code == 503
-        self.healthy.assert_not_called()
-
-
-class _FileResponseTestMixin:
-    """Mixin providing a helper to create a real FileResponse via tmp_path."""
-
-    @staticmethod
-    def _make_file_response(tmp_path):
-        path = tmp_path / "test.txt"
-        path.write_text("content")
-        return FileResponse(str(path))
+@pytest.fixture
+def frontend(tmp_path, monkeypatch):
+    """A built frontend bundle with an index page and one asset."""
+    bundle = tmp_path / "dist"
+    (bundle / "assets").mkdir(parents=True)
+    (bundle / "index.html").write_text("<html>the app shell</html>")
+    (bundle / "assets" / "app.js").write_text("console.log('app')")
+    monkeypatch.setattr(core_config.settings, "FRONTEND_DIR", str(bundle))
+    return bundle
 
 
-class TestPrivateBlobsAreNotServedByFilename(_FileResponseTestMixin):
+@pytest.fixture
+def no_frontend(tmp_path, monkeypatch):
+    """A frontend directory without a build."""
+    monkeypatch.setattr(core_config.settings, "FRONTEND_DIR", str(tmp_path / "missing"))
+
+
+class TestPrivateBlobsAreNotServedByFilename:
     """Activity media and thumbnails must not be reachable by filename.
 
-    Both used to have an unauthenticated ``GET /<dir>/{name}`` route here, which
-    was a complete bypass of the signed-token gates that guard them. The catch-all
-    frontend fallback answers these paths now, so the assertion is that no image
-    is returned — not merely that the status is non-200.
+    Both used to have an unauthenticated ``GET /<dir>/{name}`` route here, which was a complete bypass of the
+    signed-token gates that guard them. The catch-all frontend fallback answers these paths now, so the assertion
+    is that no image is returned, not merely that the status is non-200.
     """
 
-    def test_activity_media_is_not_served_by_filename(self):
-        with patch("core.router.core_utils.return_frontend_index") as mock:
-            mock.return_value = None
-            response = client.get("/activity_media/5_abc123.jpg")
+    @pytest.mark.parametrize(
+        "path",
+        [
+            "/activity_media/5_abc123.jpg",
+            "/activity_thumbnails/5.webp",
+            "/user_images/1.png",
+        ],
+    )
+    def test_a_private_file_is_not_served_by_filename(self, client, no_frontend, path):
+        assert client.get(path).status_code == 404
+
+
+class TestCatchAll:
+    """GET /{path:path} serves the frontend bundle."""
+
+    def test_path_with_extension_returns_the_file(self, client, frontend):
+        response = client.get("/assets/app.js")
+
+        assert response.status_code == 200
+        assert response.text == "console.log('app')"
+
+    def test_path_with_extension_returns_404_when_missing(self, client, frontend):
+        response = client.get("/assets/missing.js")
+
         assert response.status_code == 404
+        assert response.json()["detail"] == "Resource not found"
 
-    def test_activity_thumbnail_is_not_served_by_filename(self):
-        with patch("core.router.core_utils.return_frontend_index") as mock:
-            mock.return_value = None
-            response = client.get("/activity_thumbnails/5.webp")
+    @pytest.mark.parametrize("path", ["/some/path", "/"])
+    def test_a_page_without_extension_returns_index_html(self, client, frontend, path):
+        response = client.get(path)
+
+        assert response.status_code == 200
+        assert response.text == "<html>the app shell</html>"
+
+    def test_a_path_that_climbs_out_of_the_bundle_is_a_404(self, client, frontend):
+        (frontend.parent / "secret.txt").write_text("TOPSECRET")
+
+        response = client.get("/assets/..%2f..%2fsecret.txt")
+
         assert response.status_code == 404
+        assert "TOPSECRET" not in response.text
 
-    def test_user_photo_is_not_served_by_filename(self):
-        """Photos are stored as ``{user_id}.{ext}`` — this path enumerated users."""
-        with patch("core.router.core_utils.return_frontend_index") as mock:
-            mock.return_value = None
-            response = client.get("/user_images/1.png")
+    def test_root_path_returns_404_when_index_html_is_missing(self, client, no_frontend):
+        response = client.get("/")
+
         assert response.status_code == 404
+        assert response.json()["detail"] == "Frontend index not found"
 
 
-class TestCatchAll(_FileResponseTestMixin):
-    """Tests for GET /{path:path} — frontend fallback."""
-
-    def test_path_with_extension_returns_file_response(self, tmp_path):
-        with patch("core.router.core_utils.return_frontend_index") as mock:
-            mock.return_value = self._make_file_response(tmp_path)
-            response = client.get("/assets/app.js")
-            assert response.status_code == 200
-
-    def test_path_with_extension_returns_404_when_missing(self):
-        with patch("core.router.core_utils.return_frontend_index") as mock:
-            mock.return_value = None
-            response = client.get("/assets/missing.js")
-            assert response.status_code == 404
-            assert response.json()["detail"] == "Resource not found"
-
-    def test_path_without_extension_returns_index_html(self, tmp_path):
-        with patch("core.router.core_utils.return_frontend_index") as mock:
-            mock.return_value = self._make_file_response(tmp_path)
-            response = client.get("/some/path")
-            mock.assert_called_once_with("index.html")
-            assert response.status_code == 200
-
-    def test_root_path_returns_index_html(self, tmp_path):
-        with patch("core.router.core_utils.return_frontend_index") as mock:
-            mock.return_value = self._make_file_response(tmp_path)
-            response = client.get("/")
-            mock.assert_called_once_with("index.html")
-            assert response.status_code == 200
-
-    def test_root_path_returns_404_when_index_html_is_missing(self):
-        with patch("core.router.core_utils.return_frontend_index") as mock:
-            mock.return_value = None
-            response = client.get("/")
-            mock.assert_called_once_with("index.html")
-            assert response.status_code == 404
-            assert response.json()["detail"] == "Frontend index not found"
-
-
-class TestFrontendFallbackMethods(_FileResponseTestMixin):
+class TestFrontendFallbackMethods:
     """Only a GET reaches the frontend fallback; HEAD is served by the GET semantics middleware."""
 
     @pytest.mark.parametrize("method", ["POST", "PUT", "PATCH", "DELETE"])
-    def test_another_method_on_a_frontend_path_is_a_404_not_a_405(self, method):
-        with patch("core.router.core_utils.return_frontend_index") as mock:
-            response = client.request(method, "/some/page")
+    def test_another_method_on_a_frontend_path_is_a_404_not_a_405(self, client, frontend, method):
+        response = client.request(method, "/some/page")
 
-        mock.assert_not_called()
         assert response.status_code == 404
+        assert "the app shell" not in response.text
 
 
-class TestUnknownApiPath(_FileResponseTestMixin):
+class TestUnknownApiPath:
     """An unknown path under the API prefix is a 404 problem document, never the SPA shell."""
 
-    @staticmethod
-    def _client() -> TestClient:
-        import core.exceptions as core_exceptions
+    def test_an_unknown_api_path_is_a_404_problem_document(self, client, frontend):
+        response = client.get(f"{_API}/does/not/exist")
 
-        problem_app = FastAPI()
-        core_exceptions.register_exception_handlers(problem_app)
-        problem_app.include_router(router)
-        return TestClient(problem_app)
-
-    def test_an_unknown_api_path_is_a_404_problem_document(self, tmp_path):
-        with patch("core.router.core_utils.return_frontend_index") as mock:
-            mock.return_value = self._make_file_response(tmp_path)
-            response = self._client().get("/api/v1/does/not/exist")
-
-        mock.assert_not_called()
         assert response.status_code == 404
         assert response.headers["content-type"].startswith("application/problem+json")
         assert response.json()["type"] == "urn:endurain:error:not-found"
+        assert "the app shell" not in response.text
 
-    def test_the_bare_api_prefix_is_a_404_too(self, tmp_path):
-        with patch("core.router.core_utils.return_frontend_index") as mock:
-            mock.return_value = self._make_file_response(tmp_path)
-            response = self._client().get("/api/v1")
+    def test_the_bare_api_prefix_is_a_404_too(self, client, frontend):
+        assert client.get(_API).status_code == 404
 
-        assert response.status_code == 404
-
-    def test_a_frontend_route_that_only_starts_like_the_prefix_still_gets_the_app(self, tmp_path):
-        with patch("core.router.core_utils.return_frontend_index") as mock:
-            mock.return_value = self._make_file_response(tmp_path)
-            response = self._client().get("/api/v10/x")
+    def test_a_frontend_route_that_only_starts_like_the_prefix_still_gets_the_app(self, client, frontend):
+        response = client.get(f"{_API}0/x")
 
         assert response.status_code == 200
+        assert "the app shell" in response.text
 
 
-class TestWellKnownPaths(_FileResponseTestMixin):
+class TestWellKnownPaths:
     """Nothing under /.well-known/ is the SPA shell: it answers the same 404 problem as an unknown API path."""
 
     @pytest.mark.parametrize(
@@ -338,19 +308,15 @@ class TestWellKnownPaths(_FileResponseTestMixin):
             "/.well-known/nested/anything",
         ],
     )
-    def test_a_well_known_path_is_a_404_problem_document(self, tmp_path, path):
-        with patch("core.router.core_utils.return_frontend_index") as mock:
-            mock.return_value = self._make_file_response(tmp_path)
-            response = TestUnknownApiPath._client().get(path)
+    def test_a_well_known_path_is_a_404_problem_document(self, client, frontend, path):
+        response = client.get(path)
 
-        mock.assert_not_called()
         assert response.status_code == 404
         assert response.headers["content-type"].startswith("application/problem+json")
         assert response.json()["type"] == "urn:endurain:error:not-found"
 
-    def test_a_path_that_only_starts_like_well_known_still_gets_the_app(self, tmp_path):
-        with patch("core.router.core_utils.return_frontend_index") as mock:
-            mock.return_value = self._make_file_response(tmp_path)
-            response = TestUnknownApiPath._client().get("/.well-knownx/page")
+    def test_a_path_that_only_starts_like_well_known_still_gets_the_app(self, client, frontend):
+        response = client.get("/.well-knownx/page")
 
         assert response.status_code == 200
+        assert "the app shell" in response.text

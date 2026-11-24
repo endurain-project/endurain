@@ -1,36 +1,76 @@
-"""The profile photo flows a router delegates to."""
+"""The signed-in user's photo flows on the real database and storage."""
 
 import uuid
-from unittest.mock import MagicMock, patch
 
 import pytest
 
-import modules.users.users_profile.photo_service as profile_photo_service
+import core.exceptions as core_exceptions
+import modules.users.users.constants as users_constants
+import modules.users.users.integration_service as users_integration
+import modules.users.users_profile.photo_service as photo_service
+from tests._factories.profile import png
+from tests._factories.users import make_user
 
-_USER_ID = uuid.UUID(int=11)
+_AREA = users_constants.USER_IMAGE_STORAGE_AREA
+
+
+@pytest.fixture
+def storage(_publish_local_platform):
+    return _publish_local_platform.storage
 
 
 class TestSetPhoto:
-    @pytest.mark.parametrize("replaced", [False, True])
-    @patch("modules.users.users_profile.photo_service.users_integration")
-    def test_returns_the_servable_url_and_whether_a_photo_was_replaced(self, mock_users, replaced):
-        mock_users.upload_user_photo.return_value = replaced
-        mock_users.require_user.return_value = MagicMock(photo_path="/users/x/photo?t=1")
-        read_data, storage, db = MagicMock(), MagicMock(), MagicMock()
+    def test_the_first_photo_is_stored_and_served_and_a_second_one_replaces_it(self, db, storage):
+        user = make_user(db)
 
-        photo, was_replaced = profile_photo_service.set_photo(_USER_ID, "me.png", read_data, storage, db)
+        photo, replaced = photo_service.set_photo(user.id, "me.png", lambda: png(60, 8), storage, db)
+        again, replaced_again = photo_service.set_photo(user.id, "me.png", lambda: png(120, 8), storage, db)
 
-        assert was_replaced is replaced
-        assert photo.photo_path == "/users/x/photo?t=1"
-        mock_users.upload_user_photo.assert_called_once_with(_USER_ID, "me.png", read_data, storage, db)
-        mock_users.require_user.assert_called_once_with(_USER_ID, db)
+        assert (replaced, replaced_again) == (False, True)
+        assert photo.photo_path == again.photo_path
+        assert photo.photo_path is not None
+        assert storage.list_keys(_AREA, f"{user.id}.") == [f"{user.id}.png"]
+        assert users_integration.require_user(user.id, db).photo_path == again.photo_path
+
+    def test_an_extension_that_is_not_an_image_is_refused_before_the_file_is_read(self, db, storage):
+        user = make_user(db)
+
+        def read():
+            raise AssertionError("the upload must not be read")
+
+        with pytest.raises(core_exceptions.UnsupportedMediaTypeError):
+            photo_service.set_photo(user.id, "me.exe", read, storage, db)
+
+        assert users_integration.require_user(user.id, db).photo_path is None
+
+    def test_an_upload_without_a_name_is_refused(self, db, storage):
+        user = make_user(db)
+
+        with pytest.raises(core_exceptions.InvalidInputError):
+            photo_service.set_photo(user.id, None, lambda: png(), storage, db)
+
+    def test_an_unknown_user_is_not_found(self, db, storage):
+        with pytest.raises(core_exceptions.NotFoundError):
+            photo_service.set_photo(uuid.uuid4(), "me.png", lambda: png(), storage, db)
 
 
 class TestDeletePhoto:
-    @patch("modules.users.users_profile.photo_service.users_integration")
-    def test_clears_the_photo(self, mock_users):
-        storage, db = MagicMock(), MagicMock()
+    def test_the_reference_and_the_stored_blob_go(self, db, storage):
+        user = make_user(db)
+        photo_service.set_photo(user.id, "me.png", lambda: png(60, 8), storage, db)
 
-        profile_photo_service.delete_photo(_USER_ID, storage, db)
+        photo_service.delete_photo(user.id, storage, db)
 
-        mock_users.delete_user_photo.assert_called_once_with(_USER_ID, storage, db)
+        assert users_integration.require_user(user.id, db).photo_path is None
+        assert storage.list_keys(_AREA, f"{user.id}.") == []
+
+    def test_a_user_without_a_photo_is_left_as_they_are(self, db, storage):
+        user = make_user(db)
+
+        photo_service.delete_photo(user.id, storage, db)
+
+        assert users_integration.require_user(user.id, db).photo_path is None
+
+    def test_an_unknown_user_is_not_found(self, db, storage):
+        with pytest.raises(core_exceptions.NotFoundError):
+            photo_service.delete_photo(uuid.uuid4(), storage, db)

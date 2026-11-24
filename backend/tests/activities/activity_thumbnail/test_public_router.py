@@ -1,108 +1,79 @@
-"""Tests for the public, token-gated activity thumbnail route."""
+"""The token-gated thumbnail route, through the production application: the signed token is the only credential."""
 
+import io
 import uuid
-from unittest.mock import MagicMock, patch
 
-import pytest
+import jasil.runtime as platform_runtime
+from PIL import Image
 
-ACTIVITY_ID = uuid.UUID("00000000-0000-4000-8000-000000000042")
-OTHER_ID = uuid.UUID("00000000-0000-4000-8000-000000000043")
+import core.config as core_config
+import modules.activities.activity_thumbnail.constants as thumbnail_constants
+import modules.activities.activity_thumbnail.signing as thumbnail_signing
 
-
-class TestReadActivityThumbnailUnit:
-    @patch("modules.activities.activity_thumbnail.service.activity_thumbnail_signing")
-    def test_serves_webp_bytes_for_valid_token(self, mock_signing):
-        from modules.activities.activity_thumbnail.public_router import read_activity_thumbnail
-
-        mock_signing.verify_thumbnail_token.return_value = True
-        mock_signing.thumbnail_key.return_value = f"{ACTIVITY_ID}.webp"
-        storage = MagicMock()
-        storage.get.return_value = b"webpdata"
-
-        resp = read_activity_thumbnail(MagicMock(), ACTIVITY_ID, "tok", storage)
-
-        assert resp.status_code == 200
-        assert resp.media_type == "image/webp"
-        assert resp.body == b"webpdata"
-        assert resp.headers["Cache-Control"] == "private, max-age=3600"
-        storage.get.assert_called_once_with("activity_thumbnails", f"{ACTIVITY_ID}.webp")
-        mock_signing.verify_thumbnail_token.assert_called_once_with(ACTIVITY_ID, "tok")
-
-    @patch("modules.activities.activity_thumbnail.service.activity_thumbnail_signing")
-    def test_404_for_invalid_token_without_touching_storage(self, mock_signing):
-        import core.exceptions as core_exceptions
-        from modules.activities.activity_thumbnail.public_router import read_activity_thumbnail
-
-        mock_signing.verify_thumbnail_token.return_value = False
-        storage = MagicMock()
-
-        with pytest.raises(core_exceptions.NotFoundError):
-            read_activity_thumbnail(MagicMock(), ACTIVITY_ID, "bad", storage)
-
-        storage.get.assert_not_called()
-
-    @patch("modules.activities.activity_thumbnail.service.activity_thumbnail_signing")
-    def test_404_when_blob_missing(self, mock_signing):
-        import core.exceptions as core_exceptions
-        from modules.activities.activity_thumbnail.public_router import read_activity_thumbnail
-
-        mock_signing.verify_thumbnail_token.return_value = True
-        storage = MagicMock()
-        storage.get.return_value = None
-
-        with pytest.raises(core_exceptions.NotFoundError):
-            read_activity_thumbnail(MagicMock(), ACTIVITY_ID, "tok", storage)
+_AREA = thumbnail_constants.THUMBNAIL_STORAGE_AREA
 
 
-class TestReadActivityThumbnailEndToEnd:
-    def _client(self, storage):
-        from fastapi import FastAPI
-        from fastapi.testclient import TestClient
+def _url(activity_id) -> str:
+    return f"{core_config.ROOT_PATH}/activities/{activity_id}/thumbnail"
 
-        import core.dependencies as core_dependencies
-        import core.exceptions as core_exceptions
-        import modules.activities.activity_thumbnail.public_router as thumb_router
 
-        app = FastAPI()
-        core_exceptions.register_exception_handlers(app)
-        app.include_router(thumb_router.router)
-        app.dependency_overrides[core_dependencies.get_storage] = lambda: storage
-        return TestClient(app)
+def _webp() -> bytes:
+    buffer = io.BytesIO()
+    Image.new("RGB", (12, 4), (10, 200, 30)).save(buffer, "WEBP")
+    return buffer.getvalue()
 
-    def test_valid_signed_token_serves_image(self):
-        import modules.activities.activity_thumbnail.signing as signing
 
-        storage = MagicMock()
-        storage.get.return_value = b"webpdata"
-        client = self._client(storage)
+def _store(activity_id: uuid.UUID) -> bytes:
+    data = _webp()
+    platform_runtime.get_active_platform().storage.save(
+        _AREA, thumbnail_signing.thumbnail_key(activity_id), data, "image/webp"
+    )
+    return data
 
-        token = signing.sign_thumbnail_token(ACTIVITY_ID)
-        resp = client.get(f"/{ACTIVITY_ID}/thumbnail", params={"t": token})
 
-        assert resp.status_code == 200
-        assert resp.headers["content-type"] == "image/webp"
-        assert resp.content == b"webpdata"
+def test_a_valid_token_serves_the_stored_image_as_webp_with_a_private_cache(client):
+    activity_id = uuid.uuid4()
+    data = _store(activity_id)
 
-    def test_forged_token_is_rejected(self):
-        storage = MagicMock()
-        storage.get.return_value = b"webpdata"
-        client = self._client(storage)
+    response = client.get(_url(activity_id), params={"t": thumbnail_signing.sign_thumbnail_token(activity_id)})
 
-        resp = client.get(f"/{ACTIVITY_ID}/thumbnail", params={"t": "forged"})
+    assert response.status_code == 200
+    assert response.content == data
+    assert response.headers["content-type"] == "image/webp"
+    assert response.headers["cache-control"].startswith("private, max-age=")
 
-        assert resp.status_code == 404
-        storage.get.assert_not_called()
 
-    def test_missing_token_is_unprocessable(self):
-        client = self._client(MagicMock())
+def test_a_forged_token_is_the_same_404_as_a_thumbnail_that_does_not_exist(client):
+    activity_id = uuid.uuid4()
+    _store(activity_id)
 
-        resp = client.get(f"/{ACTIVITY_ID}/thumbnail")
+    forged = client.get(_url(activity_id), params={"t": "forged"})
+    missing = client.get(_url(uuid.uuid4()), params={"t": "forged"})
 
-        assert resp.status_code == 422
+    assert forged.status_code == missing.status_code == 404
+    assert forged.json()["type"] == missing.json()["type"] == "urn:endurain:error:not-found"
 
-    def test_malformed_activity_id_is_unprocessable(self):
-        client = self._client(MagicMock())
 
-        resp = client.get("/7/thumbnail", params={"t": "tok"})
+def test_a_token_minted_for_another_activity_is_a_404(client):
+    activity_id = uuid.uuid4()
+    _store(activity_id)
 
-        assert resp.status_code == 422
+    response = client.get(_url(activity_id), params={"t": thumbnail_signing.sign_thumbnail_token(uuid.uuid4())})
+
+    assert response.status_code == 404
+
+
+def test_a_valid_token_for_an_activity_with_no_thumbnail_is_a_404(client):
+    activity_id = uuid.uuid4()
+
+    response = client.get(_url(activity_id), params={"t": thumbnail_signing.sign_thumbnail_token(activity_id)})
+
+    assert response.status_code == 404
+
+
+def test_a_request_without_a_token_is_a_validation_error(client):
+    assert client.get(_url(uuid.uuid4())).status_code == 422
+
+
+def test_a_malformed_activity_id_is_a_validation_error(client):
+    assert client.get(_url("not-a-uuid"), params={"t": "x"}).status_code == 422

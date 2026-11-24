@@ -1,9 +1,6 @@
 """Tests for the activity_file_storage integration service (storage-backed source files)."""
 
-import os
-import time
 import uuid
-from unittest.mock import patch
 
 from jasil.backends.storage_local import LocalStorage
 
@@ -11,6 +8,10 @@ import modules.activities.activity_file_storage.constants as activity_file_stora
 import modules.activities.activity_file_storage.files as activity_file_storage_files
 import modules.activities.activity_file_storage.integration_service as activity_file_storage_integration
 import modules.activities.activity_file_storage.scheduled_jobs as activity_file_storage_scheduled_jobs
+from tests._factories.activities import make_activity
+from tests._factories.ingestion import age_stored_objects
+from tests._factories.users import make_user
+from tests._helpers.clock import platform_clock
 
 AREA = activity_file_storage_constants.ACTIVITY_FILE_STORAGE_AREA
 
@@ -26,13 +27,7 @@ ID_123 = uuid.UUID("00000000-0000-4000-8000-000000000123")
 
 def _plain_storage(root) -> LocalStorage:
     """A local backend configured the way the application configures it."""
-    return LocalStorage(str(root), plain_areas=frozenset({AREA}))
-
-
-def _age(path, seconds: int) -> None:
-    """Backdate a file so the orphan sweep's age guard lets it through."""
-    stamp = time.time() - seconds
-    os.utime(path, (stamp, stamp))
+    return LocalStorage(str(root), clock=platform_clock(), plain_areas=frozenset({AREA}))
 
 
 class TestActivityFileKey:
@@ -91,7 +86,9 @@ class TestDelete:
         assert activity_file_storage_integration.get_activity_file(ID_42, storage) is None
 
     def test_delete_removes_a_file_left_in_the_opaque_layout(self, tmp_path):
-        activity_file_storage_integration.store_activity_file(ID_7, ".fit", b"opaque", LocalStorage(str(tmp_path)))
+        activity_file_storage_integration.store_activity_file(
+            ID_7, ".fit", b"opaque", LocalStorage(str(tmp_path), clock=platform_clock())
+        )
 
         activity_file_storage_files.delete_activity_file(ID_7, _plain_storage(tmp_path))
 
@@ -104,36 +101,28 @@ class TestDelete:
         assert activity_file_storage_integration.get_activity_file(ID_123, storage) is None
 
 
-class TestOrphanSweepOnPlainLayout:
-    def test_deletes_orphans_and_leaves_the_shared_directory_alone(self, tmp_path):
-        storage = _plain_storage(tmp_path)
-        activity_file_storage_integration.store_activity_file(ID_1, ".fit", b"alive", storage)
-        activity_file_storage_integration.store_activity_file(ID_2, ".fit", b"orphan", storage)
+class TestOrphanSweep:
+    def test_deletes_the_files_of_activities_that_are_gone_and_leaves_everything_else(
+        self, storage, committed_sessions, tmp_path
+    ):
+        with committed_sessions() as db:
+            alive = make_activity(db, make_user(db).id)
+            db.commit()
+        orphan = uuid.uuid4()
+        activity_file_storage_integration.store_activity_file(alive.id, ".fit", b"alive", storage)
+        activity_file_storage_integration.store_activity_file(orphan, ".fit", b"orphan", storage)
         storage.save(AREA, "upload_staging/staged.fit", b"staged")
         storage.save(AREA, "processed/42.fit", b"integer layout")
-        bulk_upload = tmp_path / "activity_files" / "bulk_import" / "1" / "drop.fit"
-        bulk_upload.parent.mkdir(parents=True)
-        bulk_upload.write_bytes(b"bulk")
-        for path in (
-            tmp_path / "activity_files" / "processed" / f"{ID_2}.fit",
-            tmp_path / "activity_files" / "processed" / "42.fit",
-            tmp_path / "activity_files" / "upload_staging" / "staged.fit",
-            bulk_upload,
-        ):
-            _age(path, 2 * 3600)
+        age_stored_objects(tmp_path, 2 * 3600)
+        recent_orphan = uuid.uuid4()
+        activity_file_storage_integration.store_activity_file(recent_orphan, ".fit", b"just written", storage)
 
-        with (
-            patch("modules.activities.activity_file_storage.scheduled_jobs.platform_runtime") as runtime,
-            patch("core.blob_sweep.core_database"),
-            patch("modules.activities.activity_file_storage.scheduled_jobs.activity_integration") as integration,
-        ):
-            runtime.get_active_platform.return_value.storage = storage
-            integration.filter_existing_activity_ids.return_value = {ID_1}
+        activity_file_storage_scheduled_jobs.sweep_orphaned_activity_files()
 
-            activity_file_storage_scheduled_jobs.sweep_orphaned_activity_files()
-
-        assert not (tmp_path / "activity_files" / "processed" / f"{ID_2}.fit").exists()
-        assert (tmp_path / "activity_files" / "processed" / f"{ID_1}.fit").exists()
-        assert (tmp_path / "activity_files" / "processed" / "42.fit").exists()
-        assert (tmp_path / "activity_files" / "upload_staging" / "staged.fit").exists()
-        assert bulk_upload.exists()
+        assert activity_file_storage_integration.get_activity_file(orphan, storage) is None
+        assert activity_file_storage_integration.get_activity_file(alive.id, storage) is not None
+        assert activity_file_storage_integration.get_activity_file(recent_orphan, storage) is not None, (
+            "a file written moments ago may belong to a row that has not committed yet"
+        )
+        assert storage.get(AREA, "upload_staging/staged.fit") == b"staged"
+        assert storage.get(AREA, "processed/42.fit") == b"integer layout"

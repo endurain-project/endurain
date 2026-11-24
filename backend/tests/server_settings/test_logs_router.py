@@ -1,89 +1,166 @@
-"""Tests for the server-log read route: it pages like every cursor feed."""
+"""The admin log routes on the production application: paging, download and the step-up-guarded clear."""
 
-import uuid
-from unittest.mock import MagicMock, patch
+import json
+from pathlib import Path
 
 import pytest
-from fastapi import FastAPI
-from fastapi.testclient import TestClient
+import sqlalchemy as sa
+from jasil.audit.models import AuditLog
 
-import core.database as core_database
-import core.exceptions as core_exceptions
-import modules.auth.dependencies as auth_dependencies
-import modules.server_settings.logs_router as logs_router
-import modules.server_settings.logs_schema as logs_schema
+import core.config as core_config
+import modules.server_settings.logs_service as logs_service
+from tests.server_settings.conftest import API, STEP_UP
 
-_SERVICE = "modules.server_settings.logs_router.logs_service.read_logs"
+_LOGS_URL = f"{API}/server-settings/logs"
+
+
+def _line(level: str, message: str) -> str:
+    return json.dumps({"timestamp": "2026-01-01T00:00:00+00:00", "level": level, "logger": "x", "message": message})
 
 
 @pytest.fixture
-def client():
-    app = FastAPI()
-    app.include_router(logs_router.router, prefix="/server-settings/logs")
-    core_exceptions.register_exception_handlers(app)
-    app.dependency_overrides[auth_dependencies.check_scopes] = lambda: None
-    app.dependency_overrides[auth_dependencies.get_current_user_id] = lambda: uuid.uuid4()
-    app.dependency_overrides[auth_dependencies.get_step_up_verifier] = lambda: lambda step_up, action: None
-    app.dependency_overrides[core_database.get_db] = lambda: MagicMock()
-    return TestClient(app)
+def log_file() -> Path:
+    """The log file the viewer reads, holding three records of known messages."""
+    path = Path(core_config.settings.LOGS_DIR) / logs_service.LOG_FILE_NAME
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text("".join(f"{_line(level, message)}\n" for level, message in _RECORDS))
+    return path
 
 
-def _page() -> logs_schema.LogPage:
-    entry = logs_schema.LogEntry(
-        timestamp=None, level="INFO", logger=None, message="m", request_id=None, context=None, exception=None
-    )
-    return logs_schema.LogPage(items=[entry], num_records=50, next_cursor="120")
+_RECORDS = (("INFO", "probe-one"), ("WARNING", "probe-two"), ("ERROR", "probe-three"))
 
 
-def test_the_page_uses_the_cursor_page_names(client):
-    with patch(_SERVICE, return_value=_page()) as read:
-        response = client.get("/server-settings/logs?num_records=50&cursor=77&level=WARNING")
-
-    assert response.status_code == 200
-    body = response.json()
-    assert set(body) == {"items", "num_records", "next_cursor"}
-    assert body["next_cursor"] == "120"
-    assert read.call_args.args == (50, logs_schema.LogLevel.WARNING, None, 77)
+@pytest.fixture
+def no_log_file(tmp_path, monkeypatch) -> None:
+    """Point the viewer at a directory where no log has been written."""
+    monkeypatch.setattr(core_config.settings, "LOGS_DIR", str(tmp_path / "no-logs-here"))
 
 
-def test_the_text_filter_is_message_contains(client):
-    with patch(_SERVICE, return_value=_page()) as read:
-        client.get("/server-settings/logs?message_contains=strava")
-
-    assert read.call_args.args == (200, None, "strava", None)
-
-
-def test_clearing_posts_the_step_up_to_the_clear_route(client):
-    with patch("modules.server_settings.logs_router.logs_service.clear_logs") as clear:
-        response = client.post("/server-settings/logs/clear", json={"step_up": {"current_password": "pw"}})
-
-    assert response.status_code == 204
-    assert clear.call_args.args[1].current_password == "pw"
+def _audit_rows(committed_sessions, action_id: str) -> list[AuditLog]:
+    with committed_sessions() as db:
+        rows = list(db.scalars(sa.select(AuditLog).where(AuditLog.action_id == action_id)))
+        db.expunge_all()
+    return rows
 
 
-def test_clearing_without_a_step_up_is_refused(client):
-    response = client.post("/server-settings/logs/clear", json={})
+class TestReadLogs:
+    def test_the_page_names_its_records_and_the_cursor_to_continue_from(self, admin_client, log_file):
+        response = admin_client.get(f"{_LOGS_URL}?message_contains=probe&num_records=2")
 
-    assert response.status_code == 422
+        assert response.status_code == 200
+        body = response.json()
+        assert set(body) == {"items", "num_records", "next_cursor"}
+        assert [item["message"] for item in body["items"]] == ["probe-two", "probe-three"]
+        assert body["num_records"] == 2
+
+    def test_the_level_query_keeps_the_given_severity_and_above(self, admin_client, log_file):
+        response = admin_client.get(f"{_LOGS_URL}?message_contains=probe&level=WARNING")
+
+        assert [item["message"] for item in response.json()["items"]] == ["probe-two", "probe-three"]
+
+    def test_the_cursor_returns_only_records_written_after_it(self, admin_client, log_file):
+        cursor = admin_client.get(f"{_LOGS_URL}?message_contains=probe").json()["next_cursor"]
+        with log_file.open("a") as handle:
+            handle.write(_line("INFO", "probe-four") + "\n")
+
+        response = admin_client.get(f"{_LOGS_URL}?message_contains=probe&cursor={cursor}")
+
+        assert [item["message"] for item in response.json()["items"]] == ["probe-four"]
+
+    @pytest.mark.parametrize("query", ["after=3", "limit=5", "search=probe-two"])
+    def test_the_names_of_the_old_api_are_ignored(self, admin_client, log_file, query):
+        response = admin_client.get(f"{_LOGS_URL}?message_contains=probe&{query}")
+
+        assert response.status_code == 200
+        assert len(response.json()["items"]) == 3
+
+    @pytest.mark.parametrize("cursor", ["abc", "-1", "1" * 19])
+    def test_a_cursor_that_is_not_a_position_is_a_422(self, admin_client, log_file, cursor):
+        assert admin_client.get(f"{_LOGS_URL}?cursor={cursor}").status_code == 422
+
+    def test_a_missing_log_file_is_an_empty_page(self, admin_client, no_log_file):
+        response = admin_client.get(_LOGS_URL)
+
+        assert response.status_code == 200
+        assert response.json()["items"] == []
+
+    def test_a_disabled_viewer_is_a_404(self, admin_client, log_file, monkeypatch):
+        monkeypatch.setattr(core_config.settings, "ENVIRONMENT", "demo")
+
+        assert admin_client.get(_LOGS_URL).status_code == 404
+
+    def test_the_status_route_and_the_delete_method_do_not_exist(self, admin_client):
+        assert admin_client.get(f"{_LOGS_URL}/status").status_code == 404
+        assert admin_client.delete(_LOGS_URL).status_code == 405
 
 
-def test_the_delete_route_is_gone(client):
-    assert client.delete("/server-settings/logs").status_code == 405
+class TestDownloadLogs:
+    def test_the_current_file_is_downloaded_and_the_download_audited(self, admin_client, log_file, committed_sessions):
+        response = admin_client.get(f"{_LOGS_URL}/download")
+
+        assert response.status_code == 200
+        assert response.headers["content-type"].startswith("text/plain")
+        assert "app.log" in response.headers["content-disposition"]
+        assert response.content == log_file.read_bytes()
+        (row,) = _audit_rows(committed_sessions, "server_settings.logs.download")
+        assert row.details is None
+
+    def test_no_log_file_is_a_404_and_is_not_audited(self, admin_client, committed_sessions, no_log_file):
+        response = admin_client.get(f"{_LOGS_URL}/download")
+
+        assert response.status_code == 404
+        assert _audit_rows(committed_sessions, "server_settings.logs.download") == []
+
+    def test_a_disabled_viewer_is_a_404(self, admin_client, log_file, monkeypatch):
+        monkeypatch.setattr(core_config.settings, "ENVIRONMENT", "demo")
+
+        assert admin_client.get(f"{_LOGS_URL}/download").status_code == 404
 
 
-@pytest.mark.parametrize("query", ["after=3", "limit=5", "search=strava"])
-def test_the_old_names_are_ignored(client, query):
-    with patch(_SERVICE, return_value=_page()) as read:
-        client.get(f"/server-settings/logs?{query}")
+class TestClearLogs:
+    def test_the_log_and_its_rotated_backups_are_emptied_and_the_clear_audited(
+        self, admin_client, log_file, committed_sessions
+    ):
+        (log_file.parent / "app.log.1").write_text("older")
+        (log_file.parent / "app.log.2").write_text("oldest")
+        (log_file.parent / "other.log").write_text("keep")
+        (log_file.parent / "app.log.bak").write_text("keep too")
 
-    assert read.call_args.args == (200, None, None, None)
+        response = admin_client.post(f"{_LOGS_URL}/clear", json={"step_up": STEP_UP})
 
+        assert response.status_code == 204
+        assert "probe-one" not in log_file.read_text()
+        assert not (log_file.parent / "app.log.1").exists()
+        assert not (log_file.parent / "app.log.2").exists()
+        assert (log_file.parent / "other.log").read_text() == "keep"
+        assert (log_file.parent / "app.log.bak").read_text() == "keep too"
+        (row,) = _audit_rows(committed_sessions, "server_settings.logs.clear")
+        assert row.details is None
 
-@pytest.mark.parametrize("cursor", ["abc", "-1", "1" * 19])
-def test_a_cursor_that_is_not_a_position_is_refused(client, cursor):
-    with patch(_SERVICE, return_value=_page()):
-        assert client.get(f"/server-settings/logs?cursor={cursor}").status_code == 422
+    def test_clearing_when_no_file_was_written_is_a_204(self, admin_client, no_log_file):
+        assert admin_client.post(f"{_LOGS_URL}/clear", json={"step_up": STEP_UP}).status_code == 204
 
+    def test_a_wrong_password_is_a_403_that_clears_and_audits_nothing(self, admin_client, log_file, committed_sessions):
+        (log_file.parent / "app.log.1").write_text("older")
 
-def test_the_separate_status_route_is_gone(client):
-    assert client.get("/server-settings/logs/status").status_code == 404
+        response = admin_client.post(f"{_LOGS_URL}/clear", json={"step_up": {"current_password": "not-my-password"}})
+
+        assert response.status_code == 403
+        assert response.json()["type"] == "urn:endurain:error:step-up-failed"
+        assert "probe-one" in log_file.read_text()
+        assert (log_file.parent / "app.log.1").exists()
+        assert _audit_rows(committed_sessions, "server_settings.logs.clear") == []
+
+    def test_a_body_without_a_step_up_is_a_422(self, admin_client, log_file):
+        response = admin_client.post(f"{_LOGS_URL}/clear", json={})
+
+        assert response.status_code == 422
+        assert "probe-one" in log_file.read_text()
+
+    def test_a_disabled_viewer_is_a_404_and_clears_nothing(self, admin_client, log_file, monkeypatch):
+        monkeypatch.setattr(core_config.settings, "ENVIRONMENT", "demo")
+
+        response = admin_client.post(f"{_LOGS_URL}/clear", json={"step_up": STEP_UP})
+
+        assert response.status_code == 404
+        assert "probe-one" in log_file.read_text()

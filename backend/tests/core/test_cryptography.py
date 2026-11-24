@@ -9,8 +9,6 @@ Verifies:
 5. Error handling for invalid keys and malformed data
 """
 
-from unittest.mock import patch
-
 import pytest
 from cryptography.fernet import Fernet, InvalidToken, MultiFernet
 
@@ -37,12 +35,11 @@ class TestCreateFernetCipher:
         monkeypatch.delenv("FERNET_KEY", raising=False)
         monkeypatch.delenv("FERNET_KEY_FILE", raising=False)
 
-        with patch("core.config.read_secret", return_value=None):
-            with pytest.raises(core_exceptions.CryptographyError) as exc_info:
-                cryptography.create_fernet_cipher()
+        with pytest.raises(core_exceptions.CryptographyError) as exc_info:
+            cryptography.create_fernet_cipher()
 
-            assert exc_info.value.status_code == 500
-            assert exc_info.value.detail == "Internal Server Error"
+        assert exc_info.value.status_code == 500
+        assert exc_info.value.detail == "Internal Server Error"
 
     def test_create_fernet_cipher_invalid_key(self, monkeypatch):
         """Test Fernet cipher creation fails with invalid key."""

@@ -1,0 +1,81 @@
+name: Load Test
+
+# Weekly, and on demand. Builds the distributed stack from docker/Dockerfile, runs a load profile, then the fault
+# scenarios, and fails on a threshold, an invariant, a fault scenario or a p95 regression against loadtest/baseline.json.
+# Not per PR: a profile takes 15 minutes and the faults about as long.
+on:
+  schedule:
+    - cron: "17 3 * * 0"
+  workflow_dispatch:
+    inputs:
+      profile:
+        description: "Load profile (smoke, standard, soak, scale); the faults run after it"
+        type: choice
+        options:
+          - smoke
+          - standard
+          - soak
+          - scale
+        default: standard
+
+concurrency:
+  group: ${{ github.workflow }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  load-test:
+    name: Load test (${{ inputs.profile || 'standard' }} + faults)
+    runs-on: ubuntu-latest
+    # standard: image build ~5 min, seed ~2, run 10 + invariants, faults ~20; soak is 2 hours of load.
+    timeout-minutes: ${{ (inputs.profile || 'standard') == 'soak' && 210 || 90 }}
+    env:
+      PROFILE: ${{ inputs.profile || 'standard' }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 1
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
+        with:
+          working-directory: loadtest
+
+      - name: Sync dependencies
+        working-directory: loadtest
+        run: uv sync --frozen
+
+      # The profile gates itself: run.sh exits non-zero on a threshold of thresholds.json or an invariant of
+      # invariants.py. Both steps run, so one failing does not hide the other; the job fails on either.
+      - name: Run the ${{ env.PROFILE }} profile
+        id: profile
+        working-directory: loadtest
+        run: ./run.sh "$PROFILE"
+
+      - name: Run the fault scenarios
+        id: faults
+        if: ${{ !cancelled() }}
+        working-directory: loadtest
+        run: ./run.sh faults
+
+      # Only the standard profile has a baseline; the comparison prints a table and fails on a p95 regression.
+      - name: Compare with the baseline
+        id: compare
+        if: ${{ !cancelled() && env.PROFILE == 'standard' }}
+        shell: bash
+        working-directory: loadtest
+        run: |
+          run="$(ls -1t results | grep "^${PROFILE}-" | head -n 1)"
+          ./run.sh compare "$run" | tee -a "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload results
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: load-test-results-${{ github.run_id }}
+          path: loadtest/results/
+          if-no-files-found: warn
+          retention-days: 30

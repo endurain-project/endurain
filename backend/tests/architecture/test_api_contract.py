@@ -29,6 +29,7 @@ from typing import Annotated, Any
 
 from fastapi.routing import APIRoute
 from pydantic import BaseModel, TypeAdapter, ValidationError
+
 from tests._helpers.routes import route_decorators, router_functions
 
 _APP = pathlib.Path("app")

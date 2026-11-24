@@ -1,47 +1,32 @@
-from unittest.mock import patch
+"""The public exercise-title route, through the production application: it follows the public-links setting."""
 
-from fastapi import FastAPI
-from fastapi.testclient import TestClient
+import pytest
 
+import core.config as core_config
+from tests._factories.activities import make_exercise_titles
 
-def _build_app(mock_db):
-    import core.database as core_db
-    import modules.activities.activity_exercise_titles.public_router as router
-
-    app = FastAPI()
-    app.include_router(router.router, prefix="/public/activity_exercise_titles")
-    app.dependency_overrides[core_db.get_db] = lambda: mock_db
-    return app
+_URL = f"{core_config.ROOT_PATH}/public/activities/exercise-titles"
 
 
-class TestReadPublicExerciseTitles:
-    @patch(
-        "modules.activities.activity_exercise_titles.public_router.activity_exercise_titles_service.list_public_activity_exercise_titles"
-    )
-    def test_success(self, mock_get, mock_db):
-        from modules.activities.activity_exercise_titles.schema import (
-            ActivityExerciseTitlesPage,
-            ActivityExerciseTitlesRead,
-        )
+@pytest.fixture
+def catalogue(committed_sessions):
+    with committed_sessions() as db:
+        make_exercise_titles(db, [(1, 1, "Bench Press"), (1, 2, "Squat")])
+        db.commit()
 
-        client = TestClient(_build_app(mock_db))
-        mock_get.return_value = ActivityExerciseTitlesPage.build(
-            [ActivityExerciseTitlesRead(id=1, exercise_category=1, exercise_name=1, wkt_step_name="Run")], 1, 1, 25
-        )
 
-        response = client.get("/public/activity_exercise_titles")
-        assert response.status_code == 200
-        assert response.json()["total"] == 1
+@pytest.mark.usefixtures("public_links")
+def test_with_public_links_on_anyone_reads_the_catalogue(client, catalogue):
+    response = client.get(_URL, params={"num_records": 1})
 
-    @patch(
-        "modules.activities.activity_exercise_titles.public_router.activity_exercise_titles_service.list_public_activity_exercise_titles"
-    )
-    def test_not_found(self, mock_get, mock_db):
-        from modules.activities.activity_exercise_titles.schema import ActivityExerciseTitlesPage
+    assert response.status_code == 200
+    body = response.json()
+    assert ([i["wkt_step_name"] for i in body["items"]], body["total"], body["next"]) == (["Bench Press"], 2, 2)
 
-        client = TestClient(_build_app(mock_db))
-        mock_get.return_value = ActivityExerciseTitlesPage.build([], 0, 1, 25)
 
-        response = client.get("/public/activity_exercise_titles")
-        assert response.status_code == 200
-        assert response.json()["items"] == []
+def test_with_public_links_off_the_catalogue_is_an_empty_page(client, catalogue):
+    response = client.get(_URL)
+
+    assert response.status_code == 200
+    body = response.json()
+    assert (body["items"], body["total"], body["page"]) == ([], 0, 1)

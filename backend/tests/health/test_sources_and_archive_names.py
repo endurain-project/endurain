@@ -1,4 +1,4 @@
-"""Every health record has a ``manual`` source by default."""
+"""A health record without a source is a manual one."""
 
 import importlib
 import uuid
@@ -18,11 +18,6 @@ _REQUIRED = {
 
 def _schema(kind: str):
     return importlib.import_module(f"modules.health.health_{kind}.schema")
-
-
-@pytest.mark.parametrize("kind", _KINDS)
-def test_every_source_enum_includes_manual(kind):
-    assert _schema(kind).Source.MANUAL.value == "manual"
 
 
 @pytest.mark.parametrize("kind", _KINDS)

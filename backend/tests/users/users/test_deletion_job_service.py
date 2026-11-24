@@ -1,717 +1,916 @@
-"""Tests for users.deletion_job_service: accepting, running and closing account deletions."""
+"""Account deletions on the real database: accepting, running in batches and passes, retrying, closing and sweeping."""
 
+import dataclasses
 import uuid
 from datetime import UTC, datetime, timedelta
-from unittest.mock import MagicMock, patch
 
 import jasil.providers as platform_providers
 import pytest
-from jasil.backends.state_memory import MemoryState
-from sqlalchemy.orm.exc import StaleDataError
+import sqlalchemy as sa
+from jasil.audit.models import AuditLog
 
-import core.attempt_state as core_attempt_state
+import core.config as core_config
 import core.exceptions as core_exceptions
 import core.local_pool as core_local_pool
-import modules.auth.identity_providers.constants as identity_providers_constants
+import modules.activities.activity.models as activity_models
+import modules.auth.account_security.integration_service as account_security_integration
+import modules.auth.schema as auth_schema
+import modules.auth.security_generation.integration_service as security_generation_integration
+import modules.auth.sessions.models as sessions_models
+import modules.auth.sign_up_tokens.models as sign_up_models
+import modules.users.contributor_registry as users_contributor_registry
+import modules.users.users.audit_actions as users_audit_actions
 import modules.users.users.constants as users_constants
+import modules.users.users.crud as users_crud
 import modules.users.users.deletion_job_service as job_service
 import modules.users.users.deletion_state_store as deletion_state_store
 import modules.users.users.events as users_events
+import modules.users.users.models as users_models
+import modules.users.users.photo_service as users_photo_service
+import modules.users.users.subscribers as users_subscribers
+from tests._factories.activities import make_activity
+from tests._factories.server_settings import edit_mail_settings
+from tests._factories.tokens import make_sign_up_token
+from tests._factories.users import PASSWORD, make_admin, make_user
 
-_SID_9 = uuid.UUID(int=109)
-_JOB = uuid.UUID(int=500)
-_U1, _U2, _U3, _U9 = (uuid.UUID(int=n) for n in (1, 2, 3, 9))
-
-_MODULE = "modules.users.users.deletion_job_service"
 _Status = users_constants.DeletionStatus
 _Kind = users_constants.DeletionKind.ACCOUNT
+_PNG_KEY = ".png"
 
 
 @pytest.fixture
-def states():
-    return deletion_state_store.UserDeletionStateStore(MemoryState())
+def platform(_publish_local_platform):
+    return _publish_local_platform
 
 
 @pytest.fixture
-def mock_db():
-    return MagicMock()
+def states(platform):
+    return deletion_state_store.UserDeletionStateStore(platform.state)
 
 
-def _payload(job_id: uuid.UUID, user_id: uuid.UUID = _U1) -> users_events.DeletionRequestedPayload:
-    return users_events.DeletionRequestedPayload(user_id=user_id, job_id=job_id)
+@pytest.fixture
+def deletion_pool(monkeypatch):
+    """Replace the module's in-process pool with one of its own, which the test drains before it reads."""
+    pool = core_local_pool.BoundedPool("user-deletion-test", workers=1, max_pending=5)
+    monkeypatch.setattr(job_service, "_deletion_pool", pool)
+    yield pool
+    pool.shutdown(wait=True)
 
 
-def _repeat_last(values):
-    """Yield each value once, then the last one for every further call."""
-    items = iter(values)
-    last = values[-1]
+@pytest.fixture
+def durable(monkeypatch, platform):
+    """Run as the durable profile does: the request publishes the work, and the test runs it as a worker would."""
+    monkeypatch.setattr(core_config.settings, "JOBS_ENABLED", True)
+    published: list = []
+    platform.events.subscribe(users_events.USERS_DELETION_REQUESTED, published.append)
+    return published
 
-    def _next(*_args, **_kwargs):
-        nonlocal last
-        last = next(items, last)
-        return last
 
-    return _next
+@pytest.fixture
+def user(committed_sessions):
+    with committed_sessions() as db:
+        created = make_user(db)
+        db.commit()
+    return created
+
+
+@pytest.fixture
+def admin(committed_sessions):
+    with committed_sessions() as db:
+        created = make_admin(db)
+        db.commit()
+    return created
+
+
+def _row(committed_sessions, user_id) -> users_models.Users | None:
+    with committed_sessions() as db:
+        row = db.get(users_models.Users, user_id)
+        if row is not None:
+            db.expunge(row)
+        return row
+
+
+def _activity_count(committed_sessions, user_id) -> int:
+    with committed_sessions() as db:
+        return db.scalar(
+            sa.select(sa.func.count(activity_models.Activity.id)).where(activity_models.Activity.user_id == user_id)
+        )
+
+
+def _with_activities(committed_sessions, user, count: int) -> None:
+    with committed_sessions() as db:
+        for _ in range(count):
+            make_activity(db, user.id)
+        db.commit()
+
+
+def _queue(committed_sessions, states, user):
+    """Mark the account as queued for deletion and claim the job, as a request does; return the job."""
+    with committed_sessions() as db:
+        users_crud.stage_deletion_request(user.id, db)
+        db.commit()
+    return states.begin(user.id, _Kind, conflict="held", owner_id=user.id)
+
+
+def _payload(user, job) -> users_events.DeletionRequestedPayload:
+    return users_events.DeletionRequestedPayload(user_id=user.id, job_id=job.id)
+
+
+def _run(platform, states, user, job, **kwargs) -> bool:
+    return job_service.run_deletion(
+        _payload(user, job), states, platform.storage, platform.mail, **({"first_pass": False} | kwargs)
+    )
+
+
+def _audit_actions(committed_sessions) -> list[str]:
+    with committed_sessions() as db:
+        return list(db.scalars(sa.select(AuditLog.action_id).order_by(AuditLog.occurred_at, AuditLog.id)))
+
+
+def _erasers_with(**replacements):
+    users_contributor_registry.register(dataclasses.replace(users_contributor_registry.erasers(), **replacements))
+
+
+class _Storage:
+    """The platform storage with the failures of an unreachable backend arranged on chosen calls."""
+
+    def __init__(self, storage, *, list_keys=None):
+        self._storage = storage
+        self._list_keys = list_keys
+
+    def __getattr__(self, name):
+        if name == "list_keys" and self._list_keys is not None:
+
+            def fail(*_args, **_kwargs):
+                raise self._list_keys
+
+            return fail
+        return getattr(self._storage, name)
+
+
+class _Mail:
+    """A mail provider whose server refuses the message."""
+
+    def send(self, message):
+        raise platform_providers.MailError("refused", kind=platform_providers.MailFailure.OTHER)
 
 
 class TestRequestDeletion:
-    def _request(self, states, db, *, jobs_enabled, identity=None):
-        identity = identity or MagicMock()
-        with (
-            patch(f"{_MODULE}.core_config.settings", MagicMock(JOBS_ENABLED=jobs_enabled)),
-            patch(
-                f"{_MODULE}.account_security_integration.delete_all_user_sessions",
-                side_effect=lambda user_id, db: identity.delete_all_user_sessions(user_id),
-            ),
-            patch(f"{_MODULE}.sign_up_tokens_integration.revoke_pending_tokens") as revoke_tokens,
-            patch(f"{_MODULE}.users_service") as users_service,
-            patch(f"{_MODULE}.users_crud") as users_crud,
-            patch(f"{_MODULE}.users_event_publishers") as publishers,
-            patch(f"{_MODULE}._deletion_pool") as pool,
-            patch(f"{_MODULE}.security_generation_integration.stage_bump") as bump,
-        ):
-            result = job_service.request_deletion(_U1, _U1, states, MagicMock(), MagicMock(), db, if_match='"1"')
-        self.revoke_tokens = revoke_tokens
-        self.bump = bump
-        return result, identity, users_service, users_crud, publishers, pool
+    def test_without_durable_jobs_the_work_runs_on_the_pool_and_the_account_is_erased(
+        self, committed_sessions, platform, states, deletion_pool, user
+    ):
+        _with_activities(committed_sessions, user, 3)
+        with committed_sessions() as db:
+            users_photo_service.store_photo(user.id, _PNG_KEY, _png(), platform.storage, db)
 
-    def test_a_durable_deletion_signs_out_deactivates_and_publishes(self, states, mock_db):
-        result, identity, users_service, users_crud, publishers, pool = self._request(
-            states, mock_db, jobs_enabled=True
+        with committed_sessions() as db:
+            result = job_service.request_deletion(
+                user.id, user.id, states, platform.storage, platform.mail, db, if_match="*"
+            )
+        deletion_pool.shutdown(wait=True)
+
+        assert (result.kind, result.status) == (users_constants.DELETION_JOB, _Status.QUEUED)
+        assert states.get(user.id, _Kind, job_id=result.id).status == _Status.SUCCEEDED
+        assert _row(committed_sessions, user.id) is None
+        assert _activity_count(committed_sessions, user.id) == 0
+        assert list(platform.storage.list_keys(users_constants.USER_IMAGE_STORAGE_AREA)) == []
+
+    def test_a_durable_request_deactivates_signs_out_marks_and_audits_before_the_worker_runs(
+        self, committed_sessions, platform, states, durable, user, sign_in
+    ):
+        signed_in = sign_in(user)
+        with committed_sessions() as db:
+            make_sign_up_token(db, user)
+            db.commit()
+            before = security_generation_integration.current_generation(user.id, db)
+
+        with committed_sessions() as db:
+            result = job_service.request_deletion(
+                user.id, user.id, states, platform.storage, platform.mail, db, if_match='"1"'
+            )
+
+        row = _row(committed_sessions, user.id)
+        assert (row.active, row.deactivated_at is not None, row.deletion_requested_at is not None) == (
+            False,
+            True,
+            True,
+        )
+        with committed_sessions() as db:
+            assert (
+                db.scalars(
+                    sa.select(sessions_models.UsersSessions).where(sessions_models.UsersSessions.user_id == user.id)
+                ).all()
+                == []
+            )
+            assert db.scalars(sa.select(sign_up_models.SignUpToken.used)).all() == [True]
+            assert security_generation_integration.current_generation(user.id, db) == before + 1
+        assert users_audit_actions.USER_DELETE.id in _audit_actions(committed_sessions)
+        [event] = durable
+        assert (event.payload["user_id"], event.payload["job_id"]) == (str(user.id), str(result.id))
+        assert event.source == users_constants.DELETION_SOURCE_API
+        assert signed_in.session_id
+
+    def test_a_durable_request_is_erased_by_the_worker_that_runs_the_event(
+        self, committed_sessions, platform, states, durable, user
+    ):
+        _with_activities(committed_sessions, user, 2)
+        with committed_sessions() as db:
+            job_service.request_deletion(user.id, user.id, states, platform.storage, platform.mail, db, if_match="*")
+
+        users_subscribers.process_deletion_requested_for_event(durable[0])
+
+        assert _row(committed_sessions, user.id) is None
+        assert _activity_count(committed_sessions, user.id) == 0
+
+    def test_a_stale_version_is_refused_before_anything_is_queued(
+        self, committed_sessions, platform, states, deletion_pool, user
+    ):
+        with committed_sessions() as db, pytest.raises(core_exceptions.PreconditionFailedError):
+            job_service.request_deletion(user.id, user.id, states, platform.storage, platform.mail, db, if_match='"99"')
+
+        row = _row(committed_sessions, user.id)
+        assert (row.active, row.deletion_requested_at) == (True, None)
+        assert states.get(user.id, _Kind) is None
+
+    def test_a_missing_user_is_not_found(self, committed_sessions, platform, states, deletion_pool):
+        with committed_sessions() as db, pytest.raises(core_exceptions.NotFoundError):
+            job_service.request_deletion(
+                uuid.uuid4(), uuid.uuid4(), states, platform.storage, platform.mail, db, if_match="*"
+            )
+
+    def test_the_only_administrator_is_refused_and_stays_active(
+        self, committed_sessions, platform, states, deletion_pool, admin
+    ):
+        with committed_sessions() as db, pytest.raises(core_exceptions.LastAdministratorError):
+            job_service.request_deletion(admin.id, admin.id, states, platform.storage, platform.mail, db, if_match="*")
+
+        assert _row(committed_sessions, admin.id).active is True
+        assert states.get(admin.id, _Kind) is None
+
+    def test_a_pending_deletion_is_refused_naming_the_running_job_and_the_account_is_untouched(
+        self, committed_sessions, platform, states, deletion_pool, user
+    ):
+        running = states.begin(user.id, _Kind, conflict="held", owner_id=user.id)
+
+        with committed_sessions() as db, pytest.raises(core_exceptions.JobAlreadyRunningError) as refused:
+            job_service.request_deletion(user.id, user.id, states, platform.storage, platform.mail, db, if_match="*")
+
+        assert refused.value.job_id == running.id
+        assert _row(committed_sessions, user.id).deletion_requested_at is None
+
+    def test_a_full_local_pool_refuses_before_the_claim_is_taken(
+        self, committed_sessions, monkeypatch, platform, states, user
+    ):
+        monkeypatch.setattr(
+            job_service, "_deletion_pool", core_local_pool.BoundedPool("full", workers=1, max_pending=0)
         )
 
-        assert result.status == _Status.QUEUED
-        users_service.require_deletable_user.assert_called_once_with(_U1, mock_db, if_match='"1"')
-        identity.delete_all_user_sessions.assert_called_once_with(_U1)
-        users_crud.stage_deletion_request.assert_called_once_with(_U1, mock_db)
-        # A verification link issued before the deletion must not reactivate the account.
-        self.revoke_tokens.assert_called_once_with(_U1, mock_db)
-        publishers.publish_deletion_requested.assert_called_once_with(
-            _U1,
-            publishers.publish_deletion_requested.call_args.args[1],
-            mock_db,
-            commit=mock_db.commit,
-            source=users_constants.DELETION_SOURCE_API,
-        )
-        pool.submit.assert_not_called()
-        job_id = publishers.publish_deletion_requested.call_args.args[1]
-        # The published job is the one that owns the recorded state.
-        assert states.get(_U1, _Kind, job_id=job_id).status == _Status.QUEUED
+        with committed_sessions() as db, pytest.raises(core_local_pool.PoolFullError):
+            job_service.request_deletion(user.id, user.id, states, platform.storage, platform.mail, db, if_match="*")
 
-    def test_the_deletion_request_advances_the_security_generation(self, states, mock_db):
-        self._request(states, mock_db, jobs_enabled=True)
+        assert states.get(user.id, _Kind) is None
+        assert _row(committed_sessions, user.id).active is True
 
-        # A proof started before the account was deactivated must not be redeemed after it.
-        self.bump.assert_called_once_with(_U1, mock_db)
+    def test_a_failure_before_the_job_starts_frees_the_claim(
+        self, committed_sessions, monkeypatch, platform, states, user
+    ):
+        class RefusesAtSubmit(core_local_pool.BoundedPool):
+            """A pool that had room when asked and lost it before the job was submitted."""
 
-    def test_the_bump_comes_before_every_other_write_and_lock(self, states, mock_db):
-        order = MagicMock()
+            def submit(self, run, /, *args, **kwargs):
+                raise core_local_pool.PoolFullError("taken meanwhile")
 
-        def _record(name, result=None):
-            return lambda *args, **kwargs: order.record(name) or result
+        monkeypatch.setattr(job_service, "_deletion_pool", RefusesAtSubmit("race", workers=1, max_pending=1))
 
-        with (
-            patch(f"{_MODULE}.core_config.settings", MagicMock(JOBS_ENABLED=True)),
-            patch(f"{_MODULE}.account_security_integration.delete_all_user_sessions", side_effect=_record("sessions")),
-            patch(f"{_MODULE}.sign_up_tokens_integration.revoke_pending_tokens", side_effect=_record("tokens")),
-            patch(f"{_MODULE}.users_service.require_user", side_effect=_record("require_user")),
-            patch(f"{_MODULE}.users_service.require_deletable_user", side_effect=_record("lock_admins")),
-            patch(f"{_MODULE}.users_crud.stage_deletion_request", side_effect=_record("deactivate")),
-            patch(f"{_MODULE}.users_event_publishers"),
-            patch(f"{_MODULE}.security_generation_integration.stage_bump", side_effect=_record("bump")),
-        ):
-            job_service.request_deletion(_U1, _U1, states, MagicMock(), MagicMock(), mock_db, if_match='"1"')
+        with committed_sessions() as db, pytest.raises(core_local_pool.PoolFullError):
+            job_service.request_deletion(user.id, user.id, states, platform.storage, platform.mail, db, if_match="*")
 
-        names = [call.args[0] for call in order.record.call_args_list]
-        assert names[:3] == ["require_user", "bump", "lock_admins"]
-        assert names.index("bump") < names.index("sessions") < names.index("deactivate")
+        assert states.get(user.id, _Kind).status == _Status.FAILED
+        states.begin(user.id, _Kind, conflict="held", owner_id=user.id)
 
-    def test_without_durable_jobs_the_commit_precedes_the_pool_submit(self, states, mock_db):
-        _, _, _, _, publishers, pool = self._request(states, mock_db, jobs_enabled=False)
 
-        pool.require_capacity.assert_called_once_with()
-        mock_db.commit.assert_called_once_with()
-        pool.submit.assert_called_once()
-        publishers.publish_deletion_requested.assert_not_called()
+def _png() -> bytes:
+    from tests._helpers import images
 
-    def test_a_pending_deletion_is_refused_without_touching_the_account(self, states, mock_db):
-        states.begin(_U1, _Kind, conflict="held")
-        identity = MagicMock()
-
-        with pytest.raises(core_exceptions.JobAlreadyRunningError):
-            self._request(states, mock_db, jobs_enabled=True, identity=identity)
-
-        identity.delete_all_user_sessions.assert_not_called()
-
-    def test_a_failure_before_the_job_starts_frees_the_claim(self, states, mock_db):
-        identity = MagicMock()
-        identity.delete_all_user_sessions.side_effect = RuntimeError("boom")
-
-        with pytest.raises(RuntimeError):
-            self._request(states, mock_db, jobs_enabled=True, identity=identity)
-
-        assert states.get(_U1, _Kind).status == _Status.FAILED
-        states.begin(_U1, _Kind, conflict="held")
-
-    def test_a_full_local_pool_refuses_before_the_claim_is_taken(self, states, mock_db):
-        with (
-            patch(f"{_MODULE}.core_config.settings", MagicMock(JOBS_ENABLED=False)),
-            patch(f"{_MODULE}.users_service"),
-            patch(f"{_MODULE}._deletion_pool") as pool,
-        ):
-            pool.require_capacity.side_effect = core_exceptions.ServiceUnavailableError("full")
-            with pytest.raises(core_exceptions.ServiceUnavailableError):
-                job_service.request_deletion(_U1, _U1, states, MagicMock(), MagicMock(), mock_db, if_match='"1"')
-
-        assert states.get(_U1, _Kind) is None
-
-    def test_the_only_administrator_is_refused_first(self, states, mock_db):
-        identity = MagicMock()
-        with (
-            patch(f"{_MODULE}.users_service") as users_service,
-            patch(f"{_MODULE}.users_crud") as users_crud,
-        ):
-            users_service.require_deletable_user.side_effect = core_exceptions.ConflictError("only admin")
-            with pytest.raises(core_exceptions.ConflictError):
-                job_service.request_deletion(_U1, _U1, states, MagicMock(), MagicMock(), mock_db, if_match='"1"')
-
-        identity.delete_all_user_sessions.assert_not_called()
-        users_crud.stage_deletion_request.assert_not_called()
-        assert states.get(_U1, _Kind) is None
+    return images.png_with_text()
 
 
 class TestRequestDeletionByAdministrator:
-    def _request(self, states, mock_db, actor_id=_U9, *, step_up=None, store=None, storage=None):
-        return job_service.request_deletion_by_administrator(
-            _U1,
-            actor_id,
-            _SID_9,
-            step_up or MagicMock(),
-            store or MagicMock(),
-            states,
-            storage or MagicMock(),
-            MagicMock(),
-            mock_db,
-            if_match='"4"',
-        )
+    @staticmethod
+    def _request(committed_sessions, platform, states, store, admin, user, *, password=PASSWORD, if_match='"1"'):
+        with committed_sessions() as db:
+            return job_service.request_deletion_by_administrator(
+                user.id,
+                admin.id,
+                uuid.uuid4(),
+                auth_schema.StepUpVerification(current_password=password),
+                store,
+                states,
+                platform.storage,
+                platform.mail,
+                db,
+                if_match=if_match,
+            )
 
-    def test_an_administrator_cannot_delete_their_own_account_here(self, states, mock_db):
-        with (
-            patch(f"{_MODULE}.request_deletion") as request,
-            patch(f"{_MODULE}.account_security_integration") as account_security,
-            pytest.raises(core_exceptions.PermissionDeniedError),
-        ):
-            self._request(states, mock_db, actor_id=_U1)
+    @pytest.fixture
+    def store(self, platform):
+        return account_security_integration.get_step_up_attempts(platform.state)
 
-        account_security.verify_step_up.assert_not_called()
-        request.assert_not_called()
+    def test_another_users_account_is_queued_after_the_administrators_step_up_and_the_admin_owns_the_job(
+        self, committed_sessions, platform, states, deletion_pool, store, admin, user
+    ):
+        result = self._request(committed_sessions, platform, states, store, admin, user)
+        deletion_pool.shutdown(wait=True)
 
-    def test_another_users_account_is_queued_after_the_administrators_step_up(self, states, mock_db):
-        storage = MagicMock()
-        store = MagicMock()
-        step_up = MagicMock()
-        with (
-            patch(f"{_MODULE}.request_deletion") as request,
-            patch(f"{_MODULE}.account_security_integration") as account_security,
-        ):
-            order = MagicMock()
-            order.attach_mock(account_security.verify_step_up, "step_up")
-            order.attach_mock(request, "delete")
+        assert states.get(user.id, _Kind, job_id=result.id).status == _Status.SUCCEEDED
+        assert _row(committed_sessions, user.id) is None
 
-            result = self._request(states, mock_db, step_up=step_up, store=store, storage=storage)
+    def test_an_administrator_cannot_delete_their_own_account_here(
+        self, committed_sessions, platform, states, deletion_pool, store, admin
+    ):
+        with pytest.raises(core_exceptions.PermissionDeniedError):
+            self._request(committed_sessions, platform, states, store, admin, admin)
 
-        assert [call[0] for call in order.mock_calls] == ["step_up", "delete"]
-        account_security.verify_step_up.assert_called_once_with(
-            step_up, _U9, _SID_9, identity_providers_constants.StepUpAction.ADMIN_USER_DELETE, store, mock_db
-        )
-        request.assert_called_once_with(_U1, _U9, states, storage, request.call_args.args[4], mock_db, if_match='"4"')
-        assert result is request.return_value
+        assert _row(committed_sessions, admin.id).active is True
 
-    def test_a_failed_step_up_queues_nothing(self, states, mock_db):
-        with (
-            patch(f"{_MODULE}.request_deletion") as request,
-            patch(f"{_MODULE}.account_security_integration") as account_security,
-            pytest.raises(core_exceptions.PermissionDeniedError),
-        ):
-            account_security.verify_step_up.side_effect = core_exceptions.PermissionDeniedError("wrong password")
-            self._request(states, mock_db)
+    def test_a_failed_step_up_queues_nothing(
+        self, committed_sessions, platform, states, deletion_pool, store, admin, user
+    ):
+        with pytest.raises(core_exceptions.StepUpFailedError):
+            self._request(committed_sessions, platform, states, store, admin, user, password="wrong-password")
 
-        request.assert_not_called()
+        assert _row(committed_sessions, user.id).deletion_requested_at is None
+        assert states.get(user.id, _Kind) is None
 
-    def test_a_deletion_that_races_past_the_version_check_is_a_precondition_failure(self, states, mock_db):
-        with (
-            patch(f"{_MODULE}.request_deletion", side_effect=StaleDataError("moved")),
-            patch(f"{_MODULE}.account_security_integration"),
-            patch(f"{_MODULE}.users_crud") as users_crud,
-        ):
-            users_crud.get_user_by_id.return_value = MagicMock()
-            with pytest.raises(core_exceptions.PreconditionFailedError):
-                self._request(states, mock_db)
+    def test_a_stale_version_is_refused_after_the_step_up(
+        self, committed_sessions, platform, states, deletion_pool, store, admin, user
+    ):
+        with pytest.raises(core_exceptions.PreconditionFailedError):
+            self._request(committed_sessions, platform, states, store, admin, user, if_match='"99"')
 
-
-def _supersede(states, state):
-    """Return a first deletion whose claim expired, and a second one that began after it."""
-    first = states.begin(_U1, _Kind, conflict="held")
-    state.delete(core_attempt_state.key("users", "sync:claim", f"{_U1}:{_Kind.value}"))
-    return first, states.begin(_U1, _Kind, conflict="held")
+        assert _row(committed_sessions, user.id).deletion_requested_at is None
 
 
 class TestRunDeletion:
-    def _run(
-        self,
-        states,
-        job_id,
-        *,
-        batches,
-        row_exists=True,
-        delete_error=None,
-        photo_error=None,
-        will_retry=False,
-        cancelled=(False,),
+    def test_the_activities_the_photo_the_row_and_the_staged_files_are_erased_and_the_job_succeeds(
+        self, committed_sessions, monkeypatch, platform, states, user
     ):
-        erasers = MagicMock()
-        erasers.delete_activities.side_effect = [*batches, 0] if delete_error is None else delete_error
-        with (
-            patch(f"{_MODULE}.core_database.SessionLocal") as session_local,
-            patch(f"{_MODULE}.users_contributor_registry.erasers", return_value=erasers),
-            patch(f"{_MODULE}.users_crud") as users_crud,
-            patch(f"{_MODULE}.users_photo_service") as photos,
-        ):
-            users_crud.get_user_by_id.return_value = MagicMock() if row_exists else None
-            users_crud.is_deletion_cancelled.side_effect = _repeat_last(cancelled)
-            photos.delete_photo_files.side_effect = photo_error
-            storage = MagicMock()
-            job_service.run_deletion(
-                _payload(job_id), states, storage, MagicMock(), first_pass=False, will_retry=will_retry
-            )
-        return erasers, users_crud, photos, session_local, storage
+        monkeypatch.setattr(users_constants, "DELETION_BATCH_SIZE", 2)
+        _with_activities(committed_sessions, user, 5)
+        with committed_sessions() as db:
+            users_photo_service.store_photo(user.id, _PNG_KEY, _png(), platform.storage, db)
+        job = _queue(committed_sessions, states, user)
 
-    def test_erases_in_batches_then_the_photo_then_the_row_then_the_staged_files(self, states):
-        job = states.begin(_U1, _Kind, conflict="held")
+        assert _run(platform, states, user, job) is False
 
-        erasers, users_crud, photos, session_local, storage = self._run(states, job.id, batches=[100, 40])
+        assert states.get(user.id, _Kind, job_id=job.id).status == _Status.SUCCEEDED
+        assert _row(committed_sessions, user.id) is None
+        assert _activity_count(committed_sessions, user.id) == 0
+        assert list(platform.storage.list_keys(users_constants.USER_IMAGE_STORAGE_AREA)) == []
 
-        assert erasers.delete_activities.call_count == 3
-        assert erasers.delete_activities.call_args.args[:2] == (_U1, users_constants.DELETION_BATCH_SIZE)
-        users_crud.replace_photo_key.assert_called_once_with(
-            _U1, None, session_local.return_value.__enter__.return_value
+    def test_another_users_data_is_left_alone(self, committed_sessions, platform, states, user):
+        with committed_sessions() as db:
+            bystander = make_user(db)
+            make_activity(db, bystander.id)
+            db.commit()
+        job = _queue(committed_sessions, states, user)
+
+        _run(platform, states, user, job)
+
+        assert _row(committed_sessions, bystander.id) is not None
+        assert _activity_count(committed_sessions, bystander.id) == 1
+
+    def test_the_photo_is_erased_while_the_row_still_marks_the_deletion(
+        self, committed_sessions, monkeypatch, platform, states, user
+    ):
+        with committed_sessions() as db:
+            users_photo_service.store_photo(user.id, _PNG_KEY, _png(), platform.storage, db)
+        job = _queue(committed_sessions, states, user)
+        marked_when_photo_files_go: list[bool] = []
+        real_delete = users_photo_service.delete_photo_files
+
+        def record_then_delete(user_id, storage) -> None:
+            marked_when_photo_files_go.append(_row(committed_sessions, user_id).deletion_requested_at is not None)
+            real_delete(user_id, storage)
+
+        monkeypatch.setattr(users_photo_service, "delete_photo_files", record_then_delete)
+
+        _run(platform, states, user, job)
+
+        assert marked_when_photo_files_go == [True]
+
+    def test_a_row_an_earlier_attempt_already_deleted_is_not_deleted_again(
+        self, committed_sessions, platform, states, user
+    ):
+        job = _queue(committed_sessions, states, user)
+        with committed_sessions() as db:
+            users_crud.delete_user(user.id, db)
+            db.commit()
+
+        assert _run(platform, states, user, job) is False
+
+        assert states.get(user.id, _Kind, job_id=job.id).status == _Status.SUCCEEDED
+
+    def test_a_photo_storage_failure_nothing_retries_fails_the_deletion_and_keeps_the_row(
+        self, committed_sessions, platform, states, user
+    ):
+        job = _queue(committed_sessions, states, user)
+
+        result = job_service.run_deletion(
+            _payload(user, job),
+            states,
+            _Storage(platform.storage, list_keys=OSError("storage down")),
+            platform.mail,
+            first_pass=False,
         )
-        photos.delete_photo_files.assert_called_once_with(_U1, storage)
-        users_crud.delete_user.assert_called_once()
-        erasers.delete_staged_files.assert_called_once_with(_U1, storage)
-        erasers.delete_bulk_import_errors.assert_called_once_with(_U1, storage)
-        erasers.delete_notifications.assert_called_once_with(_U1, session_local.return_value.__enter__.return_value)
-        assert states.get(_U1, _Kind).status == _Status.SUCCEEDED
-        # Every batch, the cleared photo reference and the row commit in a transaction of their own.
-        assert session_local.return_value.__enter__.return_value.commit.call_count == 5
 
-    def test_the_photo_is_erased_while_the_row_still_marks_the_deletion(self, states):
-        """The row is the deletion's record: a photo erased after it went could not be retried."""
-        job = states.begin(_U1, _Kind, conflict="held")
-        order: list[str] = []
-        with patch(f"{_MODULE}.users_photo_service") as photos, patch(f"{_MODULE}.users_crud") as users_crud:
-            photos.delete_photo_files.side_effect = lambda *_: order.append("photo")
-            users_crud.delete_user.side_effect = lambda *_: order.append("row")
-            users_crud.is_deletion_cancelled.return_value = False
-            with (
-                patch(f"{_MODULE}.core_database.SessionLocal"),
-                patch(f"{_MODULE}.users_contributor_registry.erasers") as erasers,
-            ):
-                erasers.return_value.delete_activities.return_value = 0
-                job_service.run_deletion(_payload(job.id), states, MagicMock(), MagicMock(), first_pass=False)
+        assert result is False
+        assert states.get(user.id, _Kind, job_id=job.id).status == _Status.FAILED
+        assert _row(committed_sessions, user.id) is not None
+        states.begin(user.id, _Kind, conflict="held", owner_id=user.id)
 
-        assert order == ["photo", "row"]
-
-    def test_a_row_an_earlier_attempt_deleted_is_not_deleted_again(self, states):
-        job = states.begin(_U1, _Kind, conflict="held")
-
-        _, users_crud, photos, _, storage = self._run(states, job.id, batches=[], row_exists=False)
-
-        users_crud.delete_user.assert_not_called()
-        users_crud.replace_photo_key.assert_not_called()
-        photos.delete_photo_files.assert_called_once_with(_U1, storage)
-        assert states.get(_U1, _Kind).status == _Status.SUCCEEDED
-
-    def test_a_photo_storage_failure_nothing_retries_fails_the_deletion_and_keeps_the_row(self, states):
-        """A deletion is only complete once the photo is gone; the kept row lets the sweep queue it again."""
-        job = states.begin(_U1, _Kind, conflict="held")
-
-        _, users_crud, _, _, _ = self._run(states, job.id, batches=[], photo_error=OSError("storage down"))
-
-        users_crud.delete_user.assert_not_called()
-        assert states.get(_U1, _Kind).status == _Status.FAILED
-
-    def test_a_photo_storage_failure_a_worker_will_retry_stays_queued_and_raises(self, states):
-        job = states.begin(_U1, _Kind, conflict="held")
+    def test_a_failure_a_worker_will_retry_stays_queued_with_the_claim_held_and_raises(
+        self, committed_sessions, platform, states, user
+    ):
+        job = _queue(committed_sessions, states, user)
 
         with pytest.raises(OSError):
-            self._run(states, job.id, batches=[], photo_error=OSError("storage down"), will_retry=True)
+            job_service.run_deletion(
+                _payload(user, job),
+                states,
+                _Storage(platform.storage, list_keys=OSError("storage down")),
+                platform.mail,
+                first_pass=False,
+                will_retry=True,
+            )
 
-        assert states.get(_U1, _Kind).status == _Status.QUEUED
-
-    def test_a_superseded_deletion_leaves_the_newer_deletions_state_and_claim(self):
-        state = MemoryState()
-        states = deletion_state_store.UserDeletionStateStore(state)
-        first, second = _supersede(states, state)
-
-        erasers, users_crud, photos, _, _ = self._run(states, first.id, batches=[100])
-
-        erasers.delete_activities.assert_not_called()
-        erasers.delete_staged_files.assert_not_called()
-        users_crud.delete_user.assert_not_called()
-        photos.delete_photo_files.assert_not_called()
-        assert states.get(_U1, _Kind, job_id=second.id).status == _Status.QUEUED
+        assert states.get(user.id, _Kind, job_id=job.id).status == _Status.QUEUED
         with pytest.raises(core_exceptions.JobAlreadyRunningError):
-            states.begin(_U1, _Kind, conflict="held")
+            states.begin(user.id, _Kind, conflict="held", owner_id=user.id)
 
-    def test_a_deletion_that_is_not_pending_is_skipped(self, states):
-        erasers, users_crud, _, _, _ = self._run(states, _JOB, batches=[])
+    def test_a_failure_in_the_activity_erasure_nothing_retries_fails_the_deletion(
+        self, committed_sessions, platform, states, user
+    ):
+        def boom(*_args) -> int:
+            raise RuntimeError("boom")
 
-        erasers.delete_activities.assert_not_called()
-        users_crud.delete_user.assert_not_called()
+        _erasers_with(delete_activities=boom)
+        job = _queue(committed_sessions, states, user)
 
-    def test_a_reactivated_account_is_not_erased(self, states):
-        job = states.begin(_U1, _Kind, conflict="held")
+        assert _run(platform, states, user, job) is False
 
-        erasers, users_crud, photos, _, _ = self._run(states, job.id, batches=[100], cancelled=(True,))
+        assert states.get(user.id, _Kind, job_id=job.id).status == _Status.FAILED
+        assert _row(committed_sessions, user.id) is not None
 
-        erasers.delete_activities.assert_not_called()
-        users_crud.delete_user.assert_not_called()
-        photos.delete_photo_files.assert_not_called()
-        # Nothing is left for the status route to report, and a later deletion can be queued.
-        assert states.get(_U1, _Kind) is None
-        states.begin(_U1, _Kind, conflict="held")
+    def test_running_the_job_again_after_a_failure_finishes_it(self, committed_sessions, platform, states, user):
+        _with_activities(committed_sessions, user, 2)
+        job = _queue(committed_sessions, states, user)
+        original = users_contributor_registry.erasers().delete_activities
 
-    def test_a_reactivation_between_batches_stops_the_erasure(self, states):
-        job = states.begin(_U1, _Kind, conflict="held")
+        def boom(*_args) -> int:
+            raise RuntimeError("boom")
 
-        erasers, users_crud, photos, _, _ = self._run(states, job.id, batches=[100, 100], cancelled=(False, True))
+        _erasers_with(delete_activities=boom)
+        _run(platform, states, user, job)
+        _erasers_with(delete_activities=original)
+        retry = states.begin(user.id, _Kind, conflict="held", owner_id=user.id)
 
-        assert erasers.delete_activities.call_count == 1
-        users_crud.delete_user.assert_not_called()
-        photos.delete_photo_files.assert_not_called()
-        assert states.get(_U1, _Kind) is None
+        _run(platform, states, user, retry)
 
-    def test_a_reactivation_before_the_row_is_deleted_keeps_the_row(self, states):
-        job = states.begin(_U1, _Kind, conflict="held")
+        assert states.get(user.id, _Kind, job_id=retry.id).status == _Status.SUCCEEDED
+        assert _row(committed_sessions, user.id) is None
 
-        erasers, users_crud, photos, _, _ = self._run(states, job.id, batches=[], cancelled=(False, True))
+    def test_a_deletion_that_is_not_pending_is_skipped(self, committed_sessions, platform, states, user):
+        job = _queue(committed_sessions, states, user)
+        states.set_status(user.id, _Kind, _Status.SUCCEEDED, job_id=job.id)
 
-        erasers.delete_activities.assert_called_once()
-        users_crud.delete_user.assert_not_called()
-        photos.delete_photo_files.assert_not_called()
-        assert states.get(_U1, _Kind) is None
+        assert _run(platform, states, user, job) is False
 
-    def test_a_failure_nothing_retries_fails_the_deletion_and_frees_the_claim(self, states):
-        job = states.begin(_U1, _Kind, conflict="held")
+        assert _row(committed_sessions, user.id) is not None
 
-        _, users_crud, photos, _, _ = self._run(states, job.id, batches=[], delete_error=RuntimeError("boom"))
+    def test_a_superseded_deletion_leaves_the_newer_deletions_state(self, committed_sessions, platform, states, user):
+        old = _queue(committed_sessions, states, user)
+        states.set_status(user.id, _Kind, _Status.FAILED, job_id=old.id)
+        newer = states.begin(user.id, _Kind, conflict="held", owner_id=user.id)
 
-        users_crud.delete_user.assert_not_called()
-        photos.delete_photo_files.assert_not_called()
-        assert states.get(_U1, _Kind).status == _Status.FAILED
-        states.begin(_U1, _Kind, conflict="held")
+        _run(platform, states, user, old)
 
-    def test_a_failure_a_worker_will_retry_stays_queued_and_raises(self, states):
-        job = states.begin(_U1, _Kind, conflict="held")
+        assert states.get(user.id, _Kind, job_id=newer.id).status == _Status.QUEUED
+        assert _row(committed_sessions, user.id) is not None
 
-        with pytest.raises(RuntimeError):
-            self._run(states, job.id, batches=[], delete_error=RuntimeError("boom"), will_retry=True)
+    def test_an_account_reactivated_before_the_job_runs_is_not_erased_and_the_state_is_discarded(
+        self, committed_sessions, platform, states, user
+    ):
+        _with_activities(committed_sessions, user, 1)
+        job = _queue(committed_sessions, states, user)
+        with committed_sessions() as db:
+            users_crud.update_user(user.id, {"active": True}, db)
+            db.commit()
 
-        assert states.get(_U1, _Kind).status == _Status.QUEUED
-        with pytest.raises(core_exceptions.JobAlreadyRunningError):
-            states.begin(_U1, _Kind, conflict="held")
+        assert _run(platform, states, user, job) is False
+
+        assert states.get(user.id, _Kind) is None
+        assert _row(committed_sessions, user.id) is not None
+        assert _activity_count(committed_sessions, user.id) == 1
+
+    def test_a_reactivation_between_batches_stops_the_erasure(
+        self, committed_sessions, monkeypatch, platform, states, user
+    ):
+        monkeypatch.setattr(users_constants, "DELETION_BATCH_SIZE", 1)
+        _with_activities(committed_sessions, user, 3)
+        job = _queue(committed_sessions, states, user)
+        real_delete = users_contributor_registry.erasers().delete_activities
+
+        def delete_then_reactivate(user_id, limit, db) -> int:
+            deleted = real_delete(user_id, limit, db)
+            if deleted:
+                users_crud.update_user(user_id, {"active": True}, db)
+            return deleted
+
+        _erasers_with(delete_activities=delete_then_reactivate)
+
+        _run(platform, states, user, job)
+
+        assert states.get(user.id, _Kind) is None
+        assert _row(committed_sessions, user.id) is not None
+        assert _activity_count(committed_sessions, user.id) == 2
+
+    def test_a_reactivation_before_the_row_is_deleted_keeps_the_row(
+        self, committed_sessions, monkeypatch, platform, states, user
+    ):
+        job = _queue(committed_sessions, states, user)
+        real_delete = users_photo_service.delete_photo_files
+
+        def reactivate_then_delete(user_id, storage) -> None:
+            with committed_sessions() as db:
+                users_crud.update_user(user_id, {"active": True}, db)
+                db.commit()
+            real_delete(user_id, storage)
+
+        monkeypatch.setattr(users_photo_service, "delete_photo_files", reactivate_then_delete)
+
+        _run(platform, states, user, job)
+
+        assert _row(committed_sessions, user.id) is not None
+        assert states.get(user.id, _Kind) is None
 
 
 class TestRunDeletionInPasses:
-    """On the durable profile a pass is bounded by a time budget and the job continues itself."""
+    @pytest.fixture
+    def three_batches(self, monkeypatch, committed_sessions, user):
+        monkeypatch.setattr(users_constants, "DELETION_BATCH_SIZE", 2)
+        _with_activities(committed_sessions, user, 5)
 
-    def _pass(self, states, job_id, erasers, *, time_budget, cancelled=False, clock=(0.0, 10.0)):
-        with (
-            patch(f"{_MODULE}.core_database.SessionLocal"),
-            patch(f"{_MODULE}.users_contributor_registry.erasers", return_value=erasers),
-            patch(f"{_MODULE}.users_crud") as users_crud,
-            patch(f"{_MODULE}.users_photo_service") as photos,
-            patch(f"{_MODULE}.time", MagicMock(monotonic=_repeat_last(clock))),
-        ):
-            users_crud.get_user_by_id.return_value = MagicMock()
-            users_crud.is_deletion_cancelled.return_value = cancelled
-            more = job_service.run_deletion(
-                _payload(job_id), states, MagicMock(), MagicMock(), first_pass=False, time_budget=time_budget
-            )
-        return more, users_crud, photos
+    def test_a_pass_that_spends_its_budget_with_activities_left_asks_to_continue_and_keeps_the_claim(
+        self, committed_sessions, platform, states, user, three_batches
+    ):
+        job = _queue(committed_sessions, states, user)
 
-    def test_a_pass_that_spends_its_budget_with_activities_left_asks_to_continue(self, states):
-        job = states.begin(_U1, _Kind, conflict="held")
-        erasers = MagicMock()
-        erasers.delete_activities.side_effect = [100, 100, 40, 0]
+        assert _run(platform, states, user, job, time_budget=0.0) is True
 
-        more, users_crud, photos = self._pass(states, job.id, erasers, time_budget=5.0)
-
-        assert more is True
-        assert erasers.delete_activities.call_count == 1
-        users_crud.delete_user.assert_not_called()
-        photos.delete_photo_files.assert_not_called()
-        erasers.delete_staged_files.assert_not_called()
-        erasers.delete_bulk_import_errors.assert_not_called()
-        # Still the same deletion: running, with its claim held.
-        assert states.get(_U1, _Kind).status == _Status.RUNNING
+        assert states.get(user.id, _Kind, job_id=job.id).status == _Status.RUNNING
+        assert _activity_count(committed_sessions, user.id) == 3
+        assert _row(committed_sessions, user.id) is not None
         with pytest.raises(core_exceptions.JobAlreadyRunningError):
-            states.begin(_U1, _Kind, conflict="held")
+            states.begin(user.id, _Kind, conflict="held", owner_id=user.id)
 
-    def test_the_next_pass_deletes_what_is_left_then_the_photo_and_the_row(self, states):
-        job = states.begin(_U1, _Kind, conflict="held")
-        erasers = MagicMock()
-        erasers.delete_activities.side_effect = [100, 40, 0]
+    def test_the_next_pass_starts_from_what_is_left_and_finishes_the_erasure(
+        self, committed_sessions, platform, states, user, three_batches
+    ):
+        job = _queue(committed_sessions, states, user)
+        _run(platform, states, user, job, time_budget=0.0)
 
-        first, *_ = self._pass(states, job.id, erasers, time_budget=5.0)
-        second, users_crud, photos = self._pass(states, job.id, erasers, time_budget=5.0, clock=(0.0,))
+        while _run(platform, states, user, job, time_budget=0.0):
+            pass
 
-        assert (first, second) == (True, False)
-        assert erasers.delete_activities.call_count == 3
-        photos.delete_photo_files.assert_called_once()
-        users_crud.delete_user.assert_called_once()
-        assert states.get(_U1, _Kind).status == _Status.SUCCEEDED
+        assert states.get(user.id, _Kind, job_id=job.id).status == _Status.SUCCEEDED
+        assert _row(committed_sessions, user.id) is None
+        assert _activity_count(committed_sessions, user.id) == 0
 
-    def test_a_pass_that_finishes_inside_its_budget_does_not_continue(self, states):
-        job = states.begin(_U1, _Kind, conflict="held")
-        erasers = MagicMock()
-        erasers.delete_activities.side_effect = [40, 0]
+    def test_a_pass_that_finishes_inside_its_budget_does_not_continue(
+        self, committed_sessions, platform, states, user, three_batches
+    ):
+        job = _queue(committed_sessions, states, user)
 
-        more, users_crud, _ = self._pass(states, job.id, erasers, time_budget=5.0, clock=(0.0,))
+        assert _run(platform, states, user, job, time_budget=3600.0) is False
 
-        assert more is False
-        users_crud.delete_user.assert_called_once()
-        assert states.get(_U1, _Kind).status == _Status.SUCCEEDED
+        assert _row(committed_sessions, user.id) is None
 
-    def test_a_reactivation_between_passes_cancels_the_deletion(self, states):
-        job = states.begin(_U1, _Kind, conflict="held")
-        erasers = MagicMock()
-        erasers.delete_activities.side_effect = [100, 100, 0]
-        first, *_ = self._pass(states, job.id, erasers, time_budget=5.0)
+    def test_a_reactivation_between_passes_cancels_the_deletion(
+        self, committed_sessions, platform, states, user, three_batches
+    ):
+        job = _queue(committed_sessions, states, user)
+        assert _run(platform, states, user, job, time_budget=0.0) is True
+        with committed_sessions() as db:
+            users_crud.update_user(user.id, {"active": True}, db)
+            db.commit()
 
-        second, users_crud, photos = self._pass(states, job.id, erasers, time_budget=5.0, cancelled=True)
+        assert _run(platform, states, user, job, time_budget=0.0) is False
 
-        assert (first, second) == (True, False)
-        assert erasers.delete_activities.call_count == 1
-        users_crud.delete_user.assert_not_called()
-        photos.delete_photo_files.assert_not_called()
-        assert states.get(_U1, _Kind) is None
+        assert states.get(user.id, _Kind) is None
+        assert _activity_count(committed_sessions, user.id) == 3
 
-    def test_without_a_budget_every_batch_runs_in_one_pass(self, states):
-        job = states.begin(_U1, _Kind, conflict="held")
-        erasers = MagicMock()
-        erasers.delete_activities.side_effect = [100, 100, 40, 0]
+    @pytest.mark.parametrize(("lease", "expected"), [(300, 100.0), (3000, 1000.0), (30, 30.0)])
+    def test_the_pass_budget_is_a_third_of_the_lease_with_a_floor(self, monkeypatch, lease, expected):
+        monkeypatch.setattr(core_config.settings, "JOBS_LEASE_SECONDS", lease)
 
-        more, users_crud, _ = self._pass(states, job.id, erasers, time_budget=None, clock=(0.0,))
-
-        assert more is False
-        assert erasers.delete_activities.call_count == 4
-        users_crud.delete_user.assert_called_once()
-
-    @pytest.mark.parametrize(
-        ("lease", "seconds"), [(300, 100.0), (30, float(users_constants.DELETION_PASS_MIN_SECONDS))]
-    )
-    def test_the_pass_budget_is_a_third_of_the_lease_with_a_floor(self, lease, seconds):
-        with patch(f"{_MODULE}.core_config.settings", MagicMock(JOBS_LEASE_SECONDS=lease)):
-            assert job_service.durable_pass_seconds() == seconds
+        assert job_service.durable_pass_seconds() == expected
 
 
 class TestDeadLetter:
-    def test_a_dead_lettered_deletion_is_failed_and_its_claim_freed(self, states):
-        job = states.begin(_U1, _Kind, conflict="held")
+    def test_a_dead_lettered_deletion_is_failed_and_its_claim_freed(self, committed_sessions, states, user):
+        job = _queue(committed_sessions, states, user)
 
-        job_service.close_dead_lettered_deletion(_payload(job.id), states)
+        job_service.close_dead_lettered_deletion(_payload(user, job), states)
 
-        assert states.get(_U1, _Kind).status == _Status.FAILED
-        states.begin(_U1, _Kind, conflict="held")
+        assert states.get(user.id, _Kind, job_id=job.id).status == _Status.FAILED
+        states.begin(user.id, _Kind, conflict="held", owner_id=user.id)
 
-    def test_a_superseded_deletion_leaves_the_newer_deletions_state_and_claim(self):
-        state = MemoryState()
-        states = deletion_state_store.UserDeletionStateStore(state)
-        first, second = _supersede(states, state)
+    def test_a_superseded_deletion_leaves_the_newer_deletions_state(self, committed_sessions, states, user):
+        old = _queue(committed_sessions, states, user)
+        states.set_status(user.id, _Kind, _Status.FAILED, job_id=old.id)
+        newer = states.begin(user.id, _Kind, conflict="held", owner_id=user.id)
 
-        job_service.close_dead_lettered_deletion(_payload(first.id), states)
+        job_service.close_dead_lettered_deletion(_payload(user, old), states)
 
-        assert states.get(_U1, _Kind, job_id=second.id).status == _Status.QUEUED
-        with pytest.raises(core_exceptions.JobAlreadyRunningError):
-            states.begin(_U1, _Kind, conflict="held")
+        assert states.get(user.id, _Kind, job_id=newer.id).status == _Status.QUEUED
 
-    def test_a_finished_deletion_is_left_as_it_is(self, states):
-        job = states.begin(_U1, _Kind, conflict="held")
-        states.set_status(_U1, _Kind, _Status.SUCCEEDED, job_id=job.id)
+    def test_a_finished_deletion_is_left_as_it_is(self, committed_sessions, states, user):
+        job = _queue(committed_sessions, states, user)
+        states.set_status(user.id, _Kind, _Status.SUCCEEDED, job_id=job.id)
 
-        job_service.close_dead_lettered_deletion(_payload(job.id), states)
+        job_service.close_dead_lettered_deletion(_payload(user, job), states)
 
-        assert states.get(_U1, _Kind).status == _Status.SUCCEEDED
+        assert states.get(user.id, _Kind, job_id=job.id).status == _Status.SUCCEEDED
 
 
 class TestRequeueStalledDeletions:
-    def _sweep(self, states, pages, *, attempts=1, jobs_enabled=True, publish_error=None):
-        clock = MagicMock()
-        clock.now.return_value = datetime(2026, 1, 1, tzinfo=UTC)
-        with (
-            patch(f"{_MODULE}.core_config.settings", MagicMock(JOBS_ENABLED=jobs_enabled)),
-            patch(f"{_MODULE}.core_database.SessionLocal"),
-            patch(f"{_MODULE}.users_crud") as users_crud,
-            patch(f"{_MODULE}.users_event_publishers") as publishers,
-            patch(f"{_MODULE}._deletion_pool") as pool,
-        ):
-            users_crud.list_stalled_deletion_ids.side_effect = [*pages, []]
-            users_crud.record_deletion_attempt.return_value = attempts
-            publishers.publish_deletion_requested.side_effect = publish_error
-            queued = job_service.requeue_stalled_deletions(states, MagicMock(), MagicMock(), clock)
-        return queued, users_crud, publishers, pool
+    @staticmethod
+    def _stalled(committed_sessions, user, *, attempts: int = 0) -> None:
+        """Queue the account's deletion five hours ago, longer than any live job's claim."""
+        with committed_sessions() as db:
+            users_crud.stage_deletion_request(user.id, db)
+            db.execute(
+                sa.update(users_models.Users)
+                .where(users_models.Users.id == user.id)
+                .values(deletion_requested_at=datetime.now(UTC) - timedelta(hours=5), deletion_attempts=attempts)
+            )
+            db.commit()
 
-    def test_queues_each_stalled_deletion_again_with_the_sweep_as_source(self, states):
-        queued, users_crud, publishers, _ = self._sweep(states, [[_U1, _U2]])
+    @staticmethod
+    def _sweep(platform, states) -> int:
+        return job_service.requeue_stalled_deletions(states, platform.storage, platform.mail, platform.clock)
 
-        assert queued == 2
-        assert [c.args[0] for c in publishers.publish_deletion_requested.call_args_list] == [_U1, _U2]
-        assert publishers.publish_deletion_requested.call_args.kwargs["source"] == users_constants.DELETION_SOURCE_SWEEP
-        cutoff = users_crud.list_stalled_deletion_ids.call_args_list[0].args[0]
-        assert cutoff == datetime(2026, 1, 1, tzinfo=UTC) - timedelta(
-            seconds=users_constants.DELETION_STALL_AFTER_SECONDS
+    def test_a_stalled_deletion_is_queued_again_and_erased(
+        self, committed_sessions, platform, states, deletion_pool, user
+    ):
+        self._stalled(committed_sessions, user)
+
+        assert self._sweep(platform, states) == 1
+        deletion_pool.shutdown(wait=True)
+
+        assert _row(committed_sessions, user.id) is None
+
+    def test_a_deletion_queued_recently_is_not_stalled(self, committed_sessions, platform, states, deletion_pool, user):
+        with committed_sessions() as db:
+            users_crud.stage_deletion_request(user.id, db)
+            db.commit()
+
+        assert self._sweep(platform, states) == 0
+        assert states.get(user.id, _Kind) is None
+
+    def test_the_sweep_is_the_recorded_source_and_counts_the_attempt(
+        self, committed_sessions, platform, states, durable, user
+    ):
+        self._stalled(committed_sessions, user)
+
+        assert self._sweep(platform, states) == 1
+
+        [event] = durable
+        assert event.source == users_constants.DELETION_SOURCE_SWEEP
+        assert _row(committed_sessions, user.id).deletion_attempts == 1
+
+    def test_the_sweep_pages_through_the_stalled_accounts_by_id(
+        self, committed_sessions, monkeypatch, platform, states, durable
+    ):
+        monkeypatch.setattr(users_constants, "DELETION_SWEEP_BATCH_SIZE", 1)
+        with committed_sessions() as db:
+            users = [make_user(db) for _ in range(3)]
+            db.commit()
+        for user in users:
+            self._stalled(committed_sessions, user)
+
+        assert self._sweep(platform, states) == 3
+        assert sorted(event.payload["user_id"] for event in durable) == sorted(str(user.id) for user in users)
+
+    def test_a_deletion_a_live_job_holds_is_left_alone(self, committed_sessions, platform, states, durable, user):
+        self._stalled(committed_sessions, user)
+        states.begin(user.id, _Kind, conflict="held", owner_id=user.id)
+
+        assert self._sweep(platform, states) == 0
+
+        assert durable == []
+        assert _row(committed_sessions, user.id).deletion_attempts == 0
+
+    def test_an_account_an_administrator_reactivated_is_not_queued(
+        self, committed_sessions, platform, states, durable, user
+    ):
+        self._stalled(committed_sessions, user)
+        with committed_sessions() as db:
+            users_crud.update_user(user.id, {"active": True}, db)
+            db.commit()
+
+        assert self._sweep(platform, states) == 0
+
+        assert durable == []
+
+    def test_an_account_reactivated_after_it_was_listed_is_closed_without_an_attempt(
+        self, committed_sessions, platform, states, durable, user
+    ):
+        with committed_sessions() as db:
+            users_crud.update_user(user.id, {"active": False}, db)
+            db.commit()
+        with committed_sessions() as db:
+            users_crud.update_user(user.id, {"active": True}, db)
+            db.commit()
+
+        assert job_service._requeue(user.id, states, platform.storage, platform.mail) == 0
+
+        assert states.get(user.id, _Kind).status == _Status.SUCCEEDED
+        assert durable == []
+
+    def test_an_account_the_sweep_queued_the_maximum_number_of_times_is_left_for_an_administrator(
+        self, committed_sessions, platform, states, durable, user
+    ):
+        self._stalled(committed_sessions, user, attempts=users_constants.DELETION_SWEEP_MAX_ATTEMPTS)
+
+        assert self._sweep(platform, states) == 0
+
+        assert durable == []
+
+    def test_the_last_automatic_attempt_still_queues_the_deletion(
+        self, committed_sessions, platform, states, durable, user
+    ):
+        self._stalled(committed_sessions, user, attempts=users_constants.DELETION_SWEEP_MAX_ATTEMPTS - 1)
+
+        assert self._sweep(platform, states) == 1
+
+        assert _row(committed_sessions, user.id).deletion_attempts == users_constants.DELETION_SWEEP_MAX_ATTEMPTS
+
+    def test_one_account_that_cannot_be_queued_does_not_stop_the_rest(
+        self, committed_sessions, monkeypatch, platform, states
+    ):
+        class FailsOnce(core_local_pool.BoundedPool):
+            """A pool whose first submission fails with something other than being full."""
+
+            failed = False
+
+            def submit(self, run, /, *args, **kwargs):
+                if not self.failed:
+                    FailsOnce.failed = True
+                    raise RuntimeError("cannot start")
+                return super().submit(run, *args, **kwargs)
+
+        pool = FailsOnce("flaky", workers=1, max_pending=5)
+        monkeypatch.setattr(job_service, "_deletion_pool", pool)
+        with committed_sessions() as db:
+            users = sorted((make_user(db) for _ in range(2)), key=lambda created: created.id)
+            db.commit()
+        for user in users:
+            self._stalled(committed_sessions, user)
+
+        assert self._sweep(platform, states) == 1
+        pool.shutdown(wait=True)
+
+        assert states.get(users[0].id, _Kind).status == _Status.FAILED
+        assert _row(committed_sessions, users[0].id) is not None
+        assert _row(committed_sessions, users[1].id) is None
+
+    def test_a_full_pool_stops_the_pass_before_an_attempt_is_spent(
+        self, committed_sessions, monkeypatch, platform, states, user
+    ):
+        monkeypatch.setattr(
+            job_service, "_deletion_pool", core_local_pool.BoundedPool("full", workers=1, max_pending=0)
         )
+        self._stalled(committed_sessions, user)
 
-    def test_pages_through_the_table_by_id(self, states):
-        _, users_crud, _, _ = self._sweep(states, [[_U1, _U2], [_U3]])
+        assert self._sweep(platform, states) == 0
 
-        assert [c.args[2] for c in users_crud.list_stalled_deletion_ids.call_args_list] == [None, _U2, _U3]
+        assert _row(committed_sessions, user.id).deletion_attempts == 0
+        assert states.get(user.id, _Kind) is None
 
-    def test_a_deletion_a_live_job_holds_is_left_alone(self, states):
-        states.begin(_U1, _Kind, conflict="held")
+    def test_a_pool_that_fills_up_after_the_claim_fails_the_job_and_stops_the_pass(
+        self, committed_sessions, monkeypatch, platform, states, user
+    ):
+        class RefusesAtSubmit(core_local_pool.BoundedPool):
+            def submit(self, run, /, *args, **kwargs):
+                raise core_local_pool.PoolFullError("taken meanwhile")
 
-        queued, users_crud, publishers, _ = self._sweep(states, [[_U1]])
+        monkeypatch.setattr(job_service, "_deletion_pool", RefusesAtSubmit("race", workers=1, max_pending=1))
+        self._stalled(committed_sessions, user)
 
-        assert queued == 0
-        users_crud.record_deletion_attempt.assert_not_called()
-        publishers.publish_deletion_requested.assert_not_called()
+        assert self._sweep(platform, states) == 0
 
-    def test_an_account_no_longer_queued_for_deletion_is_not_queued(self, states):
-        queued, _, publishers, _ = self._sweep(states, [[_U1]], attempts=None)
-
-        assert queued == 0
-        publishers.publish_deletion_requested.assert_not_called()
-        states.begin(_U1, _Kind, conflict="held")
-
-    def test_one_failure_does_not_stop_the_rest(self, states):
-        queued, _, publishers, _ = self._sweep(states, [[_U1, _U2]], publish_error=[RuntimeError("boom"), None])
-
-        assert queued == 1
-        assert publishers.publish_deletion_requested.call_count == 2
-        assert states.get(_U1, _Kind).status == _Status.FAILED
-
-    def test_the_last_automatic_attempt_is_logged_as_an_error(self, states, caplog):
-        with caplog.at_level("ERROR"):
-            self._sweep(states, [[_U1]], attempts=users_constants.DELETION_SWEEP_MAX_ATTEMPTS)
-
-        assert "last automatic attempt" in caplog.text
-
-    def test_a_full_pool_stops_the_pass_before_an_attempt_is_spent(self, states):
-        clock = MagicMock()
-        with (
-            patch(f"{_MODULE}.core_config.settings", MagicMock(JOBS_ENABLED=False)),
-            patch(f"{_MODULE}.core_database.SessionLocal"),
-            patch(f"{_MODULE}.users_crud") as users_crud,
-            patch(f"{_MODULE}._deletion_pool") as pool,
-        ):
-            users_crud.list_stalled_deletion_ids.side_effect = [[_U1, _U2], []]
-            pool.require_capacity.side_effect = core_local_pool.PoolFullError("full")
-
-            queued = job_service.requeue_stalled_deletions(states, MagicMock(), MagicMock(), clock)
-
-        assert queued == 0
-        users_crud.record_deletion_attempt.assert_not_called()
-        assert states.get(_U1, _Kind) is None
+        assert states.get(user.id, _Kind).status == _Status.FAILED
 
 
 class TestDeletionNotice:
-    """The job mails the owner the address on the row it is about to erase, once, before erasing."""
+    @pytest.fixture
+    def mail_on(self, committed_sessions):
+        with committed_sessions() as db:
+            edit_mail_settings(
+                db, host="smtp.example.com", port=587, security="starttls", username=None, from_address=None
+            )
+            db.commit()
 
-    def _run(
-        self, states, job_id, *, first_pass=True, attempts=0, mail_configured=True, message="default", send_error=None
+    def test_the_first_pass_mails_the_address_on_the_row_before_erasing(
+        self, committed_sessions, platform, states, mail_on, user
     ):
-        order = []
-        erasers = MagicMock()
-        erasers.delete_activities.side_effect = lambda *a, **k: order.append("erase") or 0
-        mail = MagicMock()
+        job = _queue(committed_sessions, states, user)
 
-        def send(*_args, **_kwargs):
-            order.append("mail")
-            if send_error is not None:
-                raise send_error
-            return True
+        _run(platform, states, user, job, first_pass=True)
 
-        message = ("owner@example.test", "subject", "html", "text") if message == "default" else message
-        with (
-            patch(f"{_MODULE}.core_database.SessionLocal"),
-            patch(f"{_MODULE}.users_contributor_registry.erasers", return_value=erasers),
-            patch(f"{_MODULE}.users_crud") as users_crud,
-            patch(f"{_MODULE}.users_photo_service"),
-            patch(f"{_MODULE}.server_settings_integration.is_mail_configured", return_value=mail_configured),
-            patch(
-                f"{_MODULE}.account_security_integration.prepare_account_deletion_email", return_value=message
-            ) as prepare,
-            patch(f"{_MODULE}.core_mail.send_email", side_effect=send) as send_email,
-        ):
-            users_crud.get_user_by_id.return_value = MagicMock()
-            users_crud.is_deletion_cancelled.return_value = False
-            users_crud.get_deletion_attempts.return_value = attempts
-            job_service.run_deletion(_payload(job_id), states, MagicMock(), mail, first_pass=first_pass)
-        return order, prepare, send_email, mail
+        [message] = platform.mail.outbox
+        assert list(message.to) == [user.email]
+        assert _row(committed_sessions, user.id) is None
 
-    def test_the_first_attempt_sends_one_email_to_the_row_before_erasing(self, states):
-        job = states.begin(_U1, _Kind, conflict="held")
+    def test_a_later_delivery_of_the_job_does_not_send_again(self, committed_sessions, platform, states, mail_on, user):
+        job = _queue(committed_sessions, states, user)
 
-        order, prepare, send_email, mail = self._run(states, job.id)
+        _run(platform, states, user, job, first_pass=False)
 
-        prepare.assert_called_once()
-        assert prepare.call_args.args[0] == _U1
-        send_email.assert_called_once_with(mail, "owner@example.test", "subject", "html", "text")
-        assert order[0] == "mail"
-        assert "erase" in order
+        assert platform.mail.outbox == []
 
-    def test_a_later_delivery_of_the_job_does_not_send_again(self, states):
-        job = states.begin(_U1, _Kind, conflict="held")
+    def test_a_deletion_the_sweep_queued_again_does_not_send_again(
+        self, committed_sessions, platform, states, mail_on, user
+    ):
+        job = _queue(committed_sessions, states, user)
+        with committed_sessions() as db:
+            users_crud.record_deletion_attempt(user.id, db)
+            db.commit()
 
-        _, _, send_email, _ = self._run(states, job.id, first_pass=False)
+        _run(platform, states, user, job, first_pass=True)
 
-        send_email.assert_not_called()
-        assert states.get(_U1, _Kind).status == _Status.SUCCEEDED
+        assert platform.mail.outbox == []
+        assert _row(committed_sessions, user.id) is None
 
-    def test_a_requeue_by_the_sweep_does_not_send_again(self, states):
-        job = states.begin(_U1, _Kind, conflict="held")
+    def test_without_mail_configured_nothing_is_sent_and_the_deletion_goes_on(
+        self, committed_sessions, platform, states, user
+    ):
+        job = _queue(committed_sessions, states, user)
 
-        _, _, send_email, _ = self._run(states, job.id, attempts=1)
+        _run(platform, states, user, job, first_pass=True)
 
-        send_email.assert_not_called()
+        assert platform.mail.outbox == []
+        assert _row(committed_sessions, user.id) is None
 
-    def test_without_mail_configured_nothing_is_prepared_or_sent(self, states):
-        job = states.begin(_U1, _Kind, conflict="held")
+    def test_a_missing_row_sends_nothing_and_the_deletion_goes_on(
+        self, committed_sessions, platform, states, mail_on, user
+    ):
+        job = _queue(committed_sessions, states, user)
+        with committed_sessions() as db:
+            users_crud.delete_user(user.id, db)
+            db.commit()
 
-        _, prepare, send_email, _ = self._run(states, job.id, mail_configured=False)
+        _run(platform, states, user, job, first_pass=True)
 
-        prepare.assert_not_called()
-        send_email.assert_not_called()
-        assert states.get(_U1, _Kind).status == _Status.SUCCEEDED
+        assert platform.mail.outbox == []
+        assert states.get(user.id, _Kind, job_id=job.id).status == _Status.SUCCEEDED
 
-    def test_a_missing_row_sends_nothing_and_the_deletion_goes_on(self, states):
-        job = states.begin(_U1, _Kind, conflict="held")
+    def test_a_mail_failure_does_not_stop_the_deletion_and_the_address_is_not_logged(
+        self, committed_sessions, caplog, platform, states, mail_on, user
+    ):
+        job = _queue(committed_sessions, states, user)
 
-        _, _, send_email, _ = self._run(states, job.id, message=None)
+        with caplog.at_level("WARNING"):
+            job_service.run_deletion(_payload(user, job), states, platform.storage, _Mail(), first_pass=True)
 
-        send_email.assert_not_called()
-        assert states.get(_U1, _Kind).status == _Status.SUCCEEDED
+        assert _row(committed_sessions, user.id) is None
+        assert user.email not in caplog.text
 
-    def test_a_mail_failure_is_logged_without_the_address_and_the_deletion_proceeds(self, states, caplog):
-        job = states.begin(_U1, _Kind, conflict="held")
 
-        order, _, _, _ = self._run(
-            states, job.id, send_error=platform_providers.MailError("refused owner@example.test")
-        )
+class TestUnverifiedSignUpPurge:
+    def test_the_old_unverified_sign_ups_are_deleted_and_audited_as_the_system(self, committed_sessions):
+        from tests._factories.users import make_sign_up
 
-        assert "erase" in order
-        assert states.get(_U1, _Kind).status == _Status.SUCCEEDED
-        assert "owner@example.test" not in caplog.text
-        assert any(record.levelname == "WARNING" for record in caplog.records)
+        with committed_sessions() as db:
+            stale = make_sign_up(db, created_at=datetime.now(UTC) - timedelta(days=3))
+            fresh = make_sign_up(db)
+            verified = make_user(db, active=False, deactivated_at=None, email_verified=True)
+            db.commit()
+
+        with committed_sessions() as db:
+            purged = job_service.stage_unverified_sign_up_purge(datetime.now(UTC) - timedelta(days=1), [], 10, db)
+            db.commit()
+
+        assert purged == 1
+        assert _row(committed_sessions, stale.id) is None
+        assert _row(committed_sessions, fresh.id) is not None
+        assert _row(committed_sessions, verified.id) is not None
+        with committed_sessions() as db:
+            [row] = db.scalars(sa.select(AuditLog).where(AuditLog.action_id == users_audit_actions.USER_PURGE.id))
+        assert row.target_id == str(stale.id)
+
+    def test_nothing_to_purge_stages_nothing(self, committed_sessions):
+        with committed_sessions() as db:
+            assert job_service.stage_unverified_sign_up_purge(datetime.now(UTC), [], 10, db) == 0

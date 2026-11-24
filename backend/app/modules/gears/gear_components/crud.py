@@ -187,22 +187,35 @@ def get_gear_components_user_by_gear_id(
     return [gear_components_serializers.to_read_schema(row) for row in db.execute(stmt).scalars().all()]
 
 
-def get_gear_components_total_cost(gear_id: uuid.UUID, user_id: uuid.UUID, db: Session) -> float:
-    """Sum the purchase value of a gear's components.
+def get_gear_components_total_cost(
+    gear_ids: Collection[uuid.UUID], user_id: uuid.UUID, db: Session
+) -> dict[uuid.UUID, float]:
+    """Sum the purchase value of the components of each of a set of gears, in one query.
 
     Args:
-        gear_id: Gear to sum costs for.
+        gear_ids: Gears to sum costs for.
         user_id: Owner user ID.
         db: Database session.
 
     Returns:
-        The total cost, zero when no component has a value.
+        The total cost per gear id; every requested id is present, zero when no component of it has a value.
     """
-    stmt = select(func.coalesce(func.sum(gear_components_models.GearComponents.purchase_value), 0)).where(
-        gear_components_models.GearComponents.gear_id == gear_id,
-        gear_components_models.GearComponents.user_id == user_id,
+    if not gear_ids:
+        return {}
+    stmt = (
+        select(
+            gear_components_models.GearComponents.gear_id,
+            func.sum(gear_components_models.GearComponents.purchase_value),
+        )
+        .where(
+            gear_components_models.GearComponents.gear_id.in_(gear_ids),
+            gear_components_models.GearComponents.user_id == user_id,
+        )
+        .group_by(gear_components_models.GearComponents.gear_id)
     )
-    return float(db.execute(stmt).scalar_one() or 0)
+    # The sum is NULL for a gear none of whose components has a value.
+    recorded = {gear_id: float(cost or 0) for gear_id, cost in db.execute(stmt)}
+    return {gear_id: recorded.get(gear_id, 0.0) for gear_id in gear_ids}
 
 
 def count_gear_components_outside_types(

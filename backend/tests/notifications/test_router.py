@@ -1,271 +1,230 @@
+"""The notification routes, through the production application: real authentication, handlers and database."""
+
 import uuid
-from datetime import datetime
-from unittest.mock import patch
+from datetime import UTC, datetime, timedelta
 
 import pytest
-from fastapi import FastAPI
-from fastapi.testclient import TestClient
+from sqlalchemy import select
 
-import core.exceptions as core_exceptions
+import core.config as core_config
 import core.pagination as core_pagination
-import modules.notifications.schema as notifications_schema
+import modules.notifications.constants as notifications_constants
+import modules.notifications.models as notifications_models
+from tests._factories.notifications import make_notification_of
+from tests._factories.users import make_user
 
-_ID_1 = uuid.uuid4()
+_URL = f"{core_config.ROOT_PATH}/notifications"
+_NEW_ACTIVITY = notifications_constants.NotificationType.NEW_ACTIVITY
+_T0 = datetime(2024, 1, 1, 10, 30, tzinfo=UTC)
 
-_ID = uuid.UUID(int=1)
-_OTHER_ID = uuid.UUID(int=2)
+
+@pytest.fixture
+def user(committed_sessions):
+    with committed_sessions() as db:
+        created = make_user(db)
+        db.commit()
+    return created
 
 
-def _read(**fields):
-    """Build a stored new-activity notification."""
-    import modules.notifications.schema as notifications_schema
+@pytest.fixture
+def other(committed_sessions):
+    with committed_sessions() as db:
+        created = make_user(db)
+        db.commit()
+    return created
 
-    return notifications_schema.NOTIFICATION_READ_ADAPTER.validate_python(
-        {
-            "id": _ID,
-            "user_id": str(_ID_1),
+
+@pytest.fixture
+def me(sign_in, user):
+    return sign_in(user)
+
+
+@pytest.fixture
+def make_record(committed_sessions):
+    """Return a function that commits a new-activity notification for a user and returns it."""
+
+    def make(owner, **overrides):
+        with committed_sessions() as db:
+            record = make_notification_of(db, owner.id, _NEW_ACTIVITY, {"activity_id": str(uuid.uuid4())}, **overrides)
+            db.commit()
+        return record
+
+    return make
+
+
+def _read_flags(committed_sessions) -> dict[uuid.UUID, bool]:
+    """Read every stored notification's read flag back in a new session."""
+    with committed_sessions() as db:
+        rows = db.execute(select(notifications_models.Notification.id, notifications_models.Notification.read))
+        return {row.id: row.read for row in rows}
+
+
+class TestUnreadCount:
+    def test_it_counts_the_callers_unread_notifications_only(self, me, user, other, make_record):
+        make_record(user)
+        make_record(user)
+        make_record(user, read=True)
+        make_record(other)
+
+        response = me.client.get(f"{_URL}/unread-count")
+
+        assert response.status_code == 200
+        assert response.json() == {"count": 2}
+
+    def test_a_caller_without_notifications_has_a_zero_count(self, me):
+        assert me.client.get(f"{_URL}/unread-count").json() == {"count": 0}
+
+    def test_the_old_number_route_is_gone(self, me):
+        assert me.client.get(f"{_URL}/number").status_code == 422
+
+
+class TestRead:
+    def test_the_notification_comes_with_its_options_and_a_utc_timestamp(self, me, user, make_record):
+        record = make_record(user, created_at=_T0)
+
+        response = me.client.get(f"{_URL}/{record.id}")
+
+        assert response.status_code == 200
+        assert response.json() == {
+            "id": str(record.id),
+            "user_id": str(user.id),
             "type": "new_activity",
-            "options": {"activity_id": "11111111-1111-4111-8111-111111111111"},
-            "created_at": datetime(2024, 1, 1),
-            **fields,
+            "options": {"activity_id": str(record.options.activity_id)},
+            "read": False,
+            "created_at": "2024-01-01T10:30:00Z",
         }
-    )
+
+    def test_a_missing_notification_is_404(self, me):
+        assert me.client.get(f"{_URL}/{uuid.uuid4()}").status_code == 404
+
+    def test_an_id_that_is_not_a_uuid_is_422(self, me):
+        assert me.client.get(f"{_URL}/not-a-uuid").status_code == 422
 
 
-def _build_app(mock_db):
-    import core.database as core_db
-    import modules.auth.dependencies as auth_deps
-    import modules.notifications.router as router
+class TestList:
+    def test_the_slice_is_newest_first_and_holds_only_the_callers_rows(self, me, user, other, make_record):
+        old = make_record(user, created_at=_T0)
+        new = make_record(user, created_at=_T0 + timedelta(days=1))
+        make_record(other)
 
-    app = FastAPI()
-    core_exceptions.register_exception_handlers(app)
-    app.include_router(router.router, prefix="/notifications")
+        response = me.client.get(_URL)
 
-    def _mock():
-        return None
-
-    def _uid():
-        return _ID_1
-
-    app.dependency_overrides[auth_deps.check_scopes] = _mock
-    app.dependency_overrides[auth_deps.get_current_user_id] = _uid
-    app.dependency_overrides[core_db.get_db] = lambda: mock_db
-    return app
-
-
-class TestReadUnreadCount:
-    @patch("modules.notifications.router.notifications_service.count_unread_notifications")
-    def test_unread_count(self, mock_get, mock_db):
-        client = TestClient(_build_app(mock_db))
-        mock_get.return_value = 5
-
-        response = client.get("/notifications/unread-count", headers={"Authorization": "Bearer x"})
-
-        assert response.status_code == 200
-        assert response.json() == {"count": 5}
-        mock_get.assert_called_once_with(_ID_1, mock_db)
-
-    def test_the_old_number_route_is_gone(self, mock_db):
-        client = TestClient(_build_app(mock_db))
-
-        response = client.get("/notifications/number", headers={"Authorization": "Bearer x"})
-
-        assert response.status_code == 422
-
-
-class TestReadNotificationById:
-    @patch("modules.notifications.router.notifications_service.get_notification")
-    def test_success(self, mock_get, mock_db):
-        client = TestClient(_build_app(mock_db))
-        mock_get.return_value = _read(read=False)
-
-        response = client.get(f"/notifications/{_ID}", headers={"Authorization": "Bearer x"})
-        assert response.status_code == 200
-        assert response.json()["id"] == str(_ID)
-
-    @patch("modules.notifications.router.notifications_service.get_notification")
-    def test_created_at_is_full_utc_iso_timestamp(self, mock_get, mock_db):
-        client = TestClient(_build_app(mock_db))
-        mock_get.return_value = _read(read=False, created_at=datetime(2026, 7, 16, 10, 30))
-
-        response = client.get(f"/notifications/{_ID}", headers={"Authorization": "Bearer x"})
-        assert response.status_code == 200
-        assert response.json()["created_at"] == "2026-07-16T10:30:00Z"
-
-    @patch("modules.notifications.router.notifications_service.get_notification")
-    def test_not_found(self, mock_get, mock_db):
-        client = TestClient(_build_app(mock_db))
-        mock_get.side_effect = core_exceptions.NotFoundError("Notification not found")
-
-        response = client.get(f"/notifications/{_OTHER_ID}", headers={"Authorization": "Bearer x"})
-        assert response.status_code == 404
-
-
-class TestReadNotificationsPagination:
-    @patch("modules.notifications.router.notifications_service.list_notifications")
-    def test_first_slice_success(self, mock_get, mock_db):
-        client = TestClient(_build_app(mock_db))
-        mock_get.return_value = notifications_schema.NotificationPage(
-            items=[_read(read=False)], num_records=10, next_cursor="abc"
-        )
-
-        response = client.get("/notifications?num_records=10", headers={"Authorization": "Bearer x"})
         assert response.status_code == 200
         body = response.json()
-        assert body["next_cursor"] == "abc"
-        assert "total" not in body
-        assert body["items"][0]["id"] == str(_ID)
-        mock_get.assert_called_once_with(_ID_1, mock_db, cursor=None, num_records=10, unread_only=False)
+        assert [item["id"] for item in body["items"]] == [str(new.id), str(old.id)]
+        assert (body["num_records"], body["next_cursor"]) == (core_pagination.DEFAULT_NUM_RECORDS, None)
+        assert body["items"][0]["created_at"] == "2024-01-02T10:30:00Z"
 
-    @patch("modules.notifications.router.notifications_service.list_notifications")
-    def test_cursor_and_default_size_are_forwarded(self, mock_get, mock_db):
-        client = TestClient(_build_app(mock_db))
-        mock_get.return_value = notifications_schema.NotificationPage(items=[], num_records=25)
+    def test_the_next_cursor_resumes_the_walk_until_it_is_null(self, me, user, make_record):
+        records = [make_record(user, created_at=_T0 + timedelta(days=d)) for d in range(5)]
+        newest_first = [str(r.id) for r in reversed(records)]
 
-        response = client.get("/notifications?cursor=abc", headers={"Authorization": "Bearer x"})
+        first = me.client.get(_URL, params={"num_records": 2}).json()
+        second = me.client.get(_URL, params={"num_records": 2, "cursor": first["next_cursor"]}).json()
+        third = me.client.get(_URL, params={"num_records": 2, "cursor": second["next_cursor"]}).json()
 
-        assert response.status_code == 200
-        mock_get.assert_called_once_with(
-            _ID_1, mock_db, cursor="abc", num_records=core_pagination.DEFAULT_NUM_RECORDS, unread_only=False
-        )
+        assert [i["id"] for i in first["items"]] == newest_first[:2]
+        assert [i["id"] for i in second["items"]] == newest_first[2:4]
+        assert [i["id"] for i in third["items"]] == newest_first[4:]
+        assert third["next_cursor"] is None
 
-    @patch("modules.notifications.router.notifications_service.list_notifications")
-    def test_unread_only_is_forwarded_to_the_service(self, mock_get, mock_db):
-        client = TestClient(_build_app(mock_db))
-        mock_get.return_value = notifications_schema.NotificationPage(items=[], num_records=1)
+    def test_unread_only_leaves_out_the_read_notifications(self, me, user, make_record):
+        unread = make_record(user, created_at=_T0)
+        make_record(user, read=True, created_at=_T0 + timedelta(days=1))
 
-        response = client.get("/notifications?unread_only=true&num_records=1", headers={"Authorization": "Bearer x"})
+        body = me.client.get(_URL, params={"unread_only": "true"}).json()
 
-        assert response.status_code == 200
-        mock_get.assert_called_once_with(_ID_1, mock_db, cursor=None, num_records=1, unread_only=True)
+        assert [i["id"] for i in body["items"]] == [str(unread.id)]
 
-    @patch("modules.notifications.router.notifications_service.list_notifications")
-    def test_created_at_is_full_utc_iso_timestamp(self, mock_get, mock_db):
-        client = TestClient(_build_app(mock_db))
-        mock_get.return_value = notifications_schema.NotificationPage(
-            items=[_read(read=False, created_at=datetime(2026, 7, 16, 10, 30))], num_records=10
-        )
+    def test_a_cursor_the_server_did_not_issue_is_400(self, me):
+        assert me.client.get(_URL, params={"cursor": "garbage"}).status_code == 400
 
-        response = client.get("/notifications?num_records=10", headers={"Authorization": "Bearer x"})
-        assert response.status_code == 200
-        assert response.json()["items"][0]["created_at"] == "2026-07-16T10:30:00Z"
-
-    def test_a_bad_cursor_is_a_400(self, mock_db):
-        client = TestClient(_build_app(mock_db))
-        mock_db.execute.return_value.scalars.return_value.all.return_value = []
-
-        response = client.get("/notifications?cursor=garbage", headers={"Authorization": "Bearer x"})
-
-        assert response.status_code == 400
+    @pytest.mark.parametrize("num_records", [0, core_pagination.MAX_NUM_RECORDS + 1])
+    def test_a_page_size_out_of_range_is_422(self, me, num_records):
+        assert me.client.get(_URL, params={"num_records": num_records}).status_code == 422
 
 
-class TestMarkNotificationAsRead:
-    @patch("modules.notifications.router.notifications_service.mark_notification_as_read")
-    def test_mark_read_success(self, mock_mark, mock_db):
-        client = TestClient(_build_app(mock_db))
+class TestMarkAsRead:
+    def test_the_notification_is_marked_read(self, me, user, make_record, committed_sessions):
+        record = make_record(user)
 
-        response = client.post(f"/notifications/{_ID}/read", headers={"Authorization": "Bearer x"})
-        assert response.status_code == 204
-
-    @patch("modules.notifications.router.notifications_service.mark_notification_as_read")
-    def test_mark_read_missing_is_404(self, mock_mark, mock_db):
-        client = TestClient(_build_app(mock_db))
-        mock_mark.side_effect = core_exceptions.NotFoundError("Notification not found")
-
-        response = client.post(f"/notifications/{_OTHER_ID}/read", headers={"Authorization": "Bearer x"})
-        assert response.status_code == 404
-
-
-class TestMarkAllNotificationsAsRead:
-    @patch("modules.notifications.router.notifications_service.mark_all_notifications_as_read")
-    def test_mark_all_read_success(self, mock_mark, mock_db):
-        client = TestClient(_build_app(mock_db))
-
-        response = client.post("/notifications/read", headers={"Authorization": "Bearer x"})
-        assert response.status_code == 204
-        mock_mark.assert_called_once()
-
-
-class TestPathValidation:
-    def test_a_malformed_notification_id_is_rejected(self, mock_db):
-        client = TestClient(_build_app(mock_db))
-
-        response = client.get("/notifications/not-a-uuid", headers={"Authorization": "Bearer x"})
-        assert response.status_code == 422
-
-    def test_oversized_page_is_rejected(self, mock_db):
-        client = TestClient(_build_app(mock_db))
-
-        response = client.get(
-            f"/notifications?num_records={core_pagination.MAX_NUM_RECORDS + 1}", headers={"Authorization": "Bearer x"}
-        )
-        assert response.status_code == 422
-
-    def test_non_positive_size_is_rejected(self, mock_db):
-        client = TestClient(_build_app(mock_db))
-
-        response = client.get("/notifications?num_records=0", headers={"Authorization": "Bearer x"})
-        assert response.status_code == 422
-
-
-class TestMarkNotificationsAsRead:
-    @patch("modules.notifications.router.notifications_service.mark_notifications_as_read")
-    def test_ids_mark_only_those(self, mock_mark, mock_db):
-        client = TestClient(_build_app(mock_db))
-
-        response = client.post(
-            "/notifications/read", json={"ids": [str(_ID), str(_OTHER_ID)]}, headers={"Authorization": "Bearer x"}
-        )
+        response = me.client.post(f"{_URL}/{record.id}/read")
 
         assert response.status_code == 204
-        mock_mark.assert_called_once_with([_ID, _OTHER_ID], _ID_1, mock_db)
+        assert _read_flags(committed_sessions) == {record.id: True}
 
-    @patch("modules.notifications.router.notifications_service.mark_all_notifications_as_read")
-    def test_no_body_still_marks_everything(self, mock_all, mock_db):
-        client = TestClient(_build_app(mock_db))
+    def test_another_users_or_a_missing_notification_is_404_and_stays_unread(
+        self, me, other, make_record, committed_sessions
+    ):
+        theirs = make_record(other)
 
-        response = client.post("/notifications/read", headers={"Authorization": "Bearer x"})
+        assert me.client.post(f"{_URL}/{theirs.id}/read").status_code == 404
+        assert me.client.post(f"{_URL}/{uuid.uuid4()}/read").status_code == 404
+        assert _read_flags(committed_sessions) == {theirs.id: False}
+
+    def test_the_ids_in_the_body_are_marked_and_the_ones_that_are_not_the_callers_are_skipped(
+        self, me, user, other, make_record, committed_sessions
+    ):
+        mine = [make_record(user) for _ in range(3)]
+        theirs = make_record(other)
+
+        response = me.client.post(f"{_URL}/read", json={"ids": [str(mine[0].id), str(theirs.id), str(uuid.uuid4())]})
 
         assert response.status_code == 204
-        mock_all.assert_called_once_with(_ID_1, mock_db)
+        assert _read_flags(committed_sessions) == {
+            mine[0].id: True,
+            mine[1].id: False,
+            mine[2].id: False,
+            theirs.id: False,
+        }
+
+    def test_without_a_body_every_unread_notification_of_the_caller_is_marked(
+        self, me, user, other, make_record, committed_sessions
+    ):
+        mine = [make_record(user) for _ in range(2)]
+        theirs = make_record(other)
+
+        response = me.client.post(f"{_URL}/read")
+
+        assert response.status_code == 204
+        assert _read_flags(committed_sessions) == {mine[0].id: True, mine[1].id: True, theirs.id: False}
 
     @pytest.mark.parametrize(
         "body",
         [
             {"ids": []},
-            {"ids": [str(uuid.uuid4()) for _ in range(101)]},
             {"ids": [0]},
-            {"ids": ["a"]},
-            {"ids": [str(_ID), "not-a-uuid"]},
-            {"ids": [str(_ID)], "all": True},
+            {"ids": ["not-a-uuid"]},
+            {"ids": [str(uuid.UUID(int=1))], "all": True},
             {},
         ],
     )
-    @patch("modules.notifications.router.notifications_service.mark_notifications_as_read")
-    def test_a_bad_list_is_refused(self, mock_mark, body, mock_db):
-        client = TestClient(_build_app(mock_db))
+    def test_a_body_the_route_does_not_accept_is_422_and_marks_nothing(
+        self, me, user, make_record, committed_sessions, body
+    ):
+        record = make_record(user)
 
-        response = client.post("/notifications/read", json=body, headers={"Authorization": "Bearer x"})
+        assert me.client.post(f"{_URL}/read", json=body).status_code == 422
+        assert _read_flags(committed_sessions) == {record.id: False}
 
-        assert response.status_code == 422
-        mock_mark.assert_not_called()
+    def test_more_ids_than_one_request_may_mark_is_422(self, me):
+        ids = [str(uuid.uuid4()) for _ in range(101)]
+
+        assert me.client.post(f"{_URL}/read", json={"ids": ids}).status_code == 422
 
 
-class TestDeleteNotification:
-    @patch("modules.notifications.router.notifications_service.delete_notification")
-    def test_delete_answers_204(self, mock_delete, mock_db):
-        client = TestClient(_build_app(mock_db))
+class TestDelete:
+    def test_the_callers_notification_is_deleted(self, me, user, make_record, committed_sessions):
+        record = make_record(user)
 
-        response = client.delete(f"/notifications/{_ID}", headers={"Authorization": "Bearer x"})
+        response = me.client.delete(f"{_URL}/{record.id}")
 
         assert response.status_code == 204
-        mock_delete.assert_called_once_with(_ID, _ID_1, mock_db)
+        assert _read_flags(committed_sessions) == {}
 
-    @patch("modules.notifications.router.notifications_service.delete_notification")
-    def test_someone_elses_or_a_missing_id_is_404(self, mock_delete, mock_db):
-        mock_delete.side_effect = core_exceptions.NotFoundError("Notification not found")
-        client = TestClient(_build_app(mock_db))
+    def test_another_users_or_a_missing_notification_is_404_and_kept(self, me, other, make_record, committed_sessions):
+        theirs = make_record(other)
 
-        response = client.delete(f"/notifications/{_ID}", headers={"Authorization": "Bearer x"})
-
-        assert response.status_code == 404
+        assert me.client.delete(f"{_URL}/{theirs.id}").status_code == 404
+        assert me.client.delete(f"{_URL}/{uuid.uuid4()}").status_code == 404
+        assert _read_flags(committed_sessions) == {theirs.id: False}

@@ -1,65 +1,49 @@
-"""Retention and erasure of the failed bulk-import files kept in the ``bulk_import_errors`` storage area."""
+"""Erasure of the failed bulk-import files kept in the ``bulk_import_errors`` storage area.
 
-import time
-from unittest.mock import MagicMock, patch
+Their retention sweep is tested with the other scheduled passes (``test_job_lifecycle.py``).
+"""
 
-import jasil.providers as platform_providers
+import uuid
+
+import jasil.runtime as platform_runtime
 import pytest
-from tests._helpers.auth import MOCK_USER_ID
+from jasil.providers import StorageBackendUnavailableError
 
 import modules.activities.activity_ingestion.constants as activity_ingestion_constants
 import modules.activities.activity_ingestion.integration_service as ingestion_integration
-import modules.activities.activity_ingestion.service as ingestion_service
+from tests._factories.profile import FaultyStorage
+from tests._helpers.auth import MOCK_USER_ID
 
 _AREA = activity_ingestion_constants.BULK_IMPORT_ERROR_STORAGE_AREA
-_DAY = 86400
-
-
-class TestSweepStaleBulkImportErrors:
-    def test_removes_only_files_older_than_the_retention_window(self):
-        storage = MagicMock()
-        now = time.time()
-        storage.iter_objects.return_value = iter(
-            [(f"{MOCK_USER_ID}/job/old.fit", now - 10 * _DAY), (f"{MOCK_USER_ID}/job/new.fit", now - _DAY)]
-        )
-
-        with patch.object(ingestion_service.core_config.settings, "JOBS_RETENTION_DAYS", 5):
-            removed = ingestion_service.sweep_stale_bulk_import_errors(storage)
-
-        assert removed == 1
-        storage.iter_objects.assert_called_once_with(_AREA)
-        storage.delete.assert_called_once_with(_AREA, f"{MOCK_USER_ID}/job/old.fit")
-
-    @pytest.mark.parametrize("retention_days", [0, -1])
-    def test_does_nothing_when_retention_is_disabled(self, retention_days):
-        storage = MagicMock()
-
-        with patch.object(ingestion_service.core_config.settings, "JOBS_RETENTION_DAYS", retention_days):
-            removed = ingestion_service.sweep_stale_bulk_import_errors(storage)
-
-        assert removed == 0
-        assert storage.mock_calls == []
 
 
 class TestDeleteBulkImportErrors:
-    def test_deletes_only_that_users_prefix(self):
-        storage = MagicMock()
+    def test_deletes_that_users_files_and_no_one_elses_on_the_real_storage(self):
+        """``delete_prefix`` takes the user's path; a prefix ending in ``/`` is refused by the storage provider."""
+        storage = platform_runtime.get_active_platform().storage
+        other = uuid.UUID("00000000-0000-4000-8000-0000000000b2")
+        mine = f"{activity_ingestion_constants.bulk_import_error_prefix(MOCK_USER_ID)}job/a.fit"
+        theirs = f"{activity_ingestion_constants.bulk_import_error_prefix(other)}job/a.fit"
+        for key in (mine, theirs):
+            storage.save(_AREA, key, b"fit")
 
         ingestion_integration.delete_bulk_import_errors(MOCK_USER_ID, storage)
 
-        storage.delete_prefix.assert_called_once_with(_AREA, f"{MOCK_USER_ID}/")
+        assert list(storage.list_keys(_AREA, "")) == [theirs]
 
     def test_a_storage_failure_is_logged_not_raised(self):
-        storage = MagicMock()
-        storage.delete_prefix.side_effect = platform_providers.StorageBackendUnavailableError("down")
+        storage = platform_runtime.get_active_platform().storage
+        mine = f"{activity_ingestion_constants.bulk_import_error_prefix(MOCK_USER_ID)}job/a.fit"
+        storage.save(_AREA, mine, b"fit")
+        down = FaultyStorage(storage, faults={"delete_prefix": StorageBackendUnavailableError("down")})
 
-        ingestion_integration.delete_bulk_import_errors(MOCK_USER_ID, storage)
+        ingestion_integration.delete_bulk_import_errors(MOCK_USER_ID, down)
 
-        storage.delete_prefix.assert_called_once()
+        assert list(storage.list_keys(_AREA, "")) == [mine], "left for the retention sweep"
 
     def test_an_unexpected_error_propagates(self):
-        storage = MagicMock()
-        storage.delete_prefix.side_effect = TypeError("bug")
+        storage = platform_runtime.get_active_platform().storage
+        buggy = FaultyStorage(storage, faults={"delete_prefix": TypeError("bug")})
 
         with pytest.raises(TypeError):
-            ingestion_integration.delete_bulk_import_errors(MOCK_USER_ID, storage)
+            ingestion_integration.delete_bulk_import_errors(MOCK_USER_ID, buggy)

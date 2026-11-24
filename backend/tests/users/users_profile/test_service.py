@@ -1,315 +1,302 @@
-"""Tests for users_profile.service module."""
+"""The profile service on the real database: the assembled profile, the user's own edits, export and deletion."""
 
 import io
+import json
 import uuid
-from unittest.mock import MagicMock, patch
+import zipfile
+from datetime import UTC, datetime, timedelta
 
 import pytest
 
 import core.exceptions as core_exceptions
-import modules.auth.identity_providers.constants as identity_providers_constants
-import modules.users.users_profile.exceptions as profile_exceptions
+import modules.auth.account_security.integration_service as account_security_integration
+import modules.auth.credentials.integration_service as credentials_integration
+import modules.auth.schema as auth_schema
+import modules.users.users.integration_service as users_integration
+import modules.users.users.schema as users_schema
+import modules.users.users_integrations.constants as integrations_constants
+import modules.users.users_integrations.integration_service as integrations_integration
+import modules.users.users_privacy_settings.integration_service as privacy_integration
+import modules.users.users_privacy_settings.schema as privacy_schema
+import modules.users.users_profile.constants as profile_constants
+import modules.users.users_profile.export_service as export_service
 import modules.users.users_profile.service as profile_service
+from tests._factories.profile import FaultyStorage
+from tests._factories.users import PASSWORD, make_admin, make_user
 
-_SID_1 = uuid.UUID(int=101)
-_MODULE = "modules.users.users_profile.service"
-_USER_ID = uuid.UUID(int=1)
-
-
-class TestEdits:
-    @patch(f"{_MODULE}.users_integration")
-    def test_profile_edit_stages_then_commits(self, mock_users, mock_db):
-        profile = MagicMock()
-
-        mock_users.edit_profile.return_value = MagicMock(version=4)
-
-        with patch(f"{_MODULE}.get_profile", return_value=MagicMock(version=4)) as mock_get:
-            updated = profile_service.edit_profile(_USER_ID, profile, mock_db, if_match="*")
-
-        mock_users.edit_profile.assert_called_once_with(_USER_ID, profile, mock_db, if_match="*")
-        mock_db.commit.assert_called_once()
-        mock_get.assert_called_once_with(_USER_ID, mock_db)
-        assert updated.version == 4
-
-    @patch(f"{_MODULE}.users_privacy_settings_integration")
-    def test_privacy_edit_stages_then_commits(self, mock_privacy, mock_db):
-        settings = MagicMock()
-
-        mock_privacy.edit_privacy_settings.return_value = MagicMock(version=6)
-
-        updated = profile_service.edit_privacy_settings(_USER_ID, settings, mock_db, if_match="*")
-
-        mock_privacy.edit_privacy_settings.assert_called_once_with(_USER_ID, settings, mock_db, if_match="*")
-        mock_db.commit.assert_called_once()
-        assert updated.version == 6
-
-    @patch(f"{_MODULE}.users_integration")
-    def test_a_failed_edit_does_not_commit(self, mock_users, mock_db):
-        mock_users.edit_profile.side_effect = core_exceptions.ConflictError("taken")
-
-        with pytest.raises(core_exceptions.ConflictError):
-            profile_service.edit_profile(_USER_ID, MagicMock(), mock_db, if_match="*")
-
-        mock_db.commit.assert_not_called()
+_SESSION = uuid.UUID(int=601)
+_TOKENS = {"access_token": "access", "refresh_token": "refresh", "expires_at": 1_900_000_000}
 
 
-class TestChangeEmail:
-    @staticmethod
-    def _change(identity, store, mock_db, *, state=None, **fields):
-        import modules.users.users.schema as users_schema
+@pytest.fixture
+def platform(_publish_local_platform):
+    return _publish_local_platform
 
-        change = users_schema.EmailChange(
-            email="New@Example.com",
-            step_up={"current_password": "pw", "mfa_code": "123456"},
-            **fields,
+
+@pytest.fixture
+def step_up_store(platform):
+    return account_security_integration.get_step_up_attempts(platform.state)
+
+
+@pytest.fixture
+def owner(committed_sessions):
+    with committed_sessions() as db:
+        created = make_user(db, name="Before", city="Porto")
+        db.commit()
+    return created
+
+
+def _version(committed_sessions, user_id):
+    with committed_sessions() as db:
+        return users_integration.require_user(user_id, db).version
+
+
+class TestGetProfile:
+    def test_the_profile_assembles_the_account_its_links_and_its_privacy_settings(self, db):
+        user = make_user(db, name="Ada")
+        integrations_integration.link_strava_account(user.id, _TOKENS, db)
+        integrations_integration.link_garminconnect_account(user.id, {"di_token": "x"}, db)
+        privacy_integration.edit_privacy_settings(
+            user.id,
+            privacy_schema.UserPrivacySettingsUpdate(hide_activity_map=True, discoverable=False),
+            db,
+            if_match="*",
         )
-        with (
-            patch(
-                "modules.auth.account_security.integration_service.verify_step_up",
-                side_effect=lambda step_up, user_id, session_id, action, step_up_store, db: identity.verify_step_up(
-                    step_up, user_id, session_id, action, step_up_store
-                ),
-            ),
-            patch(
-                "modules.auth.account_security.integration_service.delete_other_user_sessions",
-                side_effect=lambda user_id, session_id, db: identity.delete_other_user_sessions(user_id, session_id),
-            ),
-            patch(f"{_MODULE}.get_profile"),
-        ):
-            profile_service.change_email(_USER_ID, change, _SID_1, store, state or MagicMock(), mock_db)
 
-    @staticmethod
-    def _users(mock_users, *, current="user1@example.com"):
-        mock_users.require_user.return_value = MagicMock(email=current)
-        return mock_users
+        profile = profile_service.get_profile(user.id, db)
 
-    @patch(f"{_MODULE}.users_integration")
-    def test_requests_the_change_only_after_the_step_up_and_commits_once(self, mock_users, mock_db):
-        self._users(mock_users)
-        identity = MagicMock()
-        store = MagicMock()
-        sign_up = MagicMock()
-        sign_up.request_self_service_email_change.return_value = True
-        order = MagicMock()
-        order.attach_mock(identity.verify_step_up, "step_up")
-        order.attach_mock(sign_up.request_self_service_email_change, "request")
-        order.attach_mock(identity.delete_other_user_sessions, "revoke")
-        order.attach_mock(mock_db.commit, "commit")
+        assert (profile.id, profile.name) == (user.id, "Ada")
+        assert (profile.is_strava_linked, profile.is_garminconnect_linked) == (True, True)
+        assert profile.strava_revoked_at is None and profile.strava_data_deletion_at is None
+        assert (profile.hide_activity_map, profile.discoverable) == (True, False)
+        assert profile.default_activity_visibility == "private"
+        assert (profile.has_local_password, profile.mfa_enabled) == (True, False)
+        assert profile.pending_email is None
+        assert profile.integrations_version >= 1 and profile.privacy_settings_version >= 1
 
-        with patch(f"{_MODULE}.sign_up_tokens_integration", sign_up):
-            self._change(identity, store, mock_db)
+    def test_a_revoked_strava_link_names_when_its_data_will_be_deleted(self, db):
+        user = make_user(db)
+        integrations_integration.link_strava_account(user.id, _TOKENS, db)
+        refresh = integrations_integration.require_user_integrations(user.id, db).strava_refresh_token
+        revoked_at = datetime(2025, 3, 1, tzinfo=UTC)
+        integrations_integration.unlink_strava_tokens_if_refresh_token(user.id, refresh, db, revoked_at=revoked_at)
+        db.flush()
 
-        assert [call[0] for call in order.mock_calls] == ["step_up", "request", "revoke", "commit"]
-        identity.delete_other_user_sessions.assert_called_once_with(_USER_ID, _SID_1)
-        verification = identity.verify_step_up.call_args.args
-        assert (verification[0].current_password, verification[0].mfa_code) == ("pw", "123456")
-        assert verification[1:] == (_USER_ID, _SID_1, identity_providers_constants.StepUpAction.EMAIL_CHANGE, store)
-        sign_up.request_self_service_email_change.assert_called_once()
-        assert sign_up.request_self_service_email_change.call_args.args[:3] == (
-            _USER_ID,
-            "new@example.com",
-            "user1@example.com",
+        profile = profile_service.get_profile(user.id, db)
+
+        assert profile.is_strava_linked is False
+        assert profile.strava_revoked_at == revoked_at
+        grace = timedelta(days=integrations_constants.STRAVA_REVOKED_DATA_GRACE_DAYS)
+        assert profile.strava_data_deletion_at == revoked_at + grace
+
+    def test_an_account_without_a_password_says_so(self, db):
+        user = make_user(db, with_password=False)
+
+        assert profile_service.get_profile(user.id, db).has_local_password is False
+
+    @pytest.mark.parametrize("table", ["users_integrations", "users_privacy_settings"])
+    def test_a_missing_part_is_not_found(self, db, table):
+        from sqlalchemy import column, delete
+        from sqlalchemy import table as sa_table
+
+        user = make_user(db)
+        db.execute(delete(sa_table(table, column("user_id"))).where(column("user_id") == user.id))
+
+        with pytest.raises(core_exceptions.NotFoundError):
+            profile_service.get_profile(user.id, db)
+
+    def test_an_unknown_user_is_not_found(self, db):
+        with pytest.raises(core_exceptions.NotFoundError):
+            profile_service.get_profile(uuid.uuid4(), db)
+
+
+class TestEditProfile:
+    def test_the_edit_commits_and_the_profile_comes_back_with_the_new_version(self, committed_sessions, owner):
+        with committed_sessions() as db:
+            edited = profile_service.edit_profile(
+                owner.id,
+                users_schema.ProfileUpdate(city="Lisbon", height=181),
+                db,
+                if_match=f'"{owner.version}"',
+            )
+
+        assert (edited.city, edited.height, edited.name) == ("Lisbon", 181, "Before")
+        assert edited.version == owner.version + 1
+        assert _version(committed_sessions, owner.id) == edited.version
+
+    def test_a_stale_version_is_refused_and_nothing_changes(self, committed_sessions, owner):
+        with committed_sessions() as db, pytest.raises(core_exceptions.PreconditionFailedError):
+            profile_service.edit_profile(
+                owner.id, users_schema.ProfileUpdate(city="Lisbon"), db, if_match=f'"{owner.version + 5}"'
+            )
+
+        with committed_sessions() as db:
+            assert users_integration.require_user(owner.id, db).city == "Porto"
+
+    def test_an_unknown_user_is_not_found(self, committed_sessions):
+        with committed_sessions() as db, pytest.raises(core_exceptions.NotFoundError):
+            profile_service.edit_profile(uuid.uuid4(), users_schema.ProfileUpdate(city="x"), db, if_match="*")
+
+
+class TestPrivacySettings:
+    def test_the_settings_are_read_with_their_version(self, db):
+        user = make_user(db)
+
+        settings = profile_service.get_privacy_settings(user.id, db)
+
+        assert (settings.user_id, settings.version) == (user.id, 1)
+
+    def test_a_user_without_settings_is_not_found(self, db):
+        with pytest.raises(core_exceptions.NotFoundError):
+            profile_service.get_privacy_settings(uuid.uuid4(), db)
+
+    def test_the_edit_commits_and_returns_the_new_version(self, committed_sessions, owner):
+        with committed_sessions() as db:
+            edited = profile_service.edit_privacy_settings(
+                owner.id, privacy_schema.UserPrivacySettingsUpdate(hide_activity_hr=True), db, if_match='"1"'
+            )
+
+        assert (edited.hide_activity_hr, edited.version) == (True, 2)
+        with committed_sessions() as db:
+            assert profile_service.get_privacy_settings(owner.id, db) == edited
+
+    def test_a_stale_version_is_refused(self, committed_sessions, owner):
+        with committed_sessions() as db, pytest.raises(core_exceptions.PreconditionFailedError):
+            profile_service.edit_privacy_settings(
+                owner.id, privacy_schema.UserPrivacySettingsUpdate(hide_activity_hr=True), db, if_match='"9"'
+            )
+
+    def test_missing_settings_are_not_found(self, committed_sessions):
+        with committed_sessions() as db, pytest.raises(core_exceptions.NotFoundError):
+            profile_service.edit_privacy_settings(
+                uuid.uuid4(), privacy_schema.UserPrivacySettingsUpdate(hide_activity_hr=True), db, if_match="*"
+            )
+
+
+class TestChangePassword:
+    def _change(self, committed_sessions, owner, step_up_store, new="A completely new passphrase 2026!", **fields):
+        change = users_schema.UserEditPassword(password=new, step_up={"current_password": PASSWORD}, **fields)
+        with committed_sessions() as db:
+            profile_service.change_password(owner.id, change, _SESSION, step_up_store, db)
+
+    def test_the_new_password_replaces_the_old_one(self, committed_sessions, owner, step_up_store):
+        self._change(committed_sessions, owner, step_up_store)
+
+        with committed_sessions() as db:
+            stored = credentials_integration.get_password_hash(owner.id, db)
+        hasher = credentials_integration.get_password_hasher()
+        assert stored is not None
+        assert hasher.verify_password("A completely new passphrase 2026!", stored)
+        assert not hasher.verify_password(PASSWORD, stored)
+
+    def test_a_wrong_current_password_changes_nothing(self, committed_sessions, owner, step_up_store):
+        change = users_schema.UserEditPassword(
+            password="A completely new passphrase 2026!", step_up={"current_password": "wrong"}
         )
-        assert sign_up.request_self_service_email_change.call_args.args[4] is mock_db
-        mock_users.stage_email_change.assert_not_called()
 
-    @patch(f"{_MODULE}.users_integration")
-    def test_a_failed_step_up_changes_nothing(self, mock_users, mock_db):
-        identity = MagicMock()
-        identity.verify_step_up.side_effect = core_exceptions.PermissionDeniedError("wrong password")
+        with committed_sessions() as db, pytest.raises(core_exceptions.StepUpFailedError):
+            profile_service.change_password(owner.id, change, _SESSION, step_up_store, db)
 
-        with pytest.raises(core_exceptions.PermissionDeniedError):
-            self._change(identity, MagicMock(), mock_db)
+    def test_the_other_sessions_end_unless_the_client_opts_out(self, committed_sessions, owner, step_up_store, sign_in):
+        import sqlalchemy as sa
 
-        mock_db.commit.assert_not_called()
+        import modules.auth.sessions.models as session_models
 
-    @patch(f"{_MODULE}.users_integration")
-    def test_other_sessions_end_when_the_request_omits_the_flag(self, mock_users, mock_db):
-        self._users(mock_users)
-        identity = MagicMock()
+        mine, other = sign_in(owner), sign_in(owner)
+        change = users_schema.UserEditPassword(
+            password="A completely new passphrase 2026!", step_up={"current_password": PASSWORD}
+        )
 
-        with patch(f"{_MODULE}.sign_up_tokens_integration", MagicMock()):
-            self._change(identity, MagicMock(), mock_db)
+        with committed_sessions() as db:
+            profile_service.change_password(owner.id, change, mine.session_id, step_up_store, db)
 
-        identity.delete_other_user_sessions.assert_called_once_with(_USER_ID, _SID_1)
-
-    @patch(f"{_MODULE}.users_integration")
-    def test_other_sessions_stay_signed_in_when_the_client_sends_false(self, mock_users, mock_db):
-        self._users(mock_users)
-        identity = MagicMock()
-
-        with patch(f"{_MODULE}.sign_up_tokens_integration", MagicMock()):
-            self._change(identity, MagicMock(), mock_db, revoke_other_sessions=False)
-
-        mock_db.commit.assert_called_once()
-        identity.delete_other_user_sessions.assert_not_called()
-
-    @patch(f"{_MODULE}.users_integration")
-    def test_resubmitting_the_current_address_cancels_a_pending_change_and_keeps_the_sessions(
-        self, mock_users, mock_db
-    ):
-        self._users(mock_users, current="new@example.com")
-        identity = MagicMock()
-        sign_up = MagicMock()
-
-        with patch(f"{_MODULE}.sign_up_tokens_integration", sign_up):
-            self._change(identity, MagicMock(), mock_db)
-
-        sign_up.revoke_pending_tokens.assert_called_once_with(_USER_ID, mock_db)
-        sign_up.request_self_service_email_change.assert_not_called()
-        mock_db.commit.assert_called_once()
-        identity.delete_other_user_sessions.assert_not_called()
-
-    @patch(f"{_MODULE}.users_integration")
-    def test_an_instance_that_cannot_send_mail_still_changes_the_address(self, mock_users, mock_db):
-        self._users(mock_users)
-        sign_up = MagicMock()
-        sign_up.request_self_service_email_change.return_value = False
-
-        with patch(f"{_MODULE}.sign_up_tokens_integration", sign_up):
-            self._change(MagicMock(), MagicMock(), mock_db)
-
-        mock_users.stage_email_change.assert_called_once_with(_USER_ID, "new@example.com", mock_db)
-        mock_db.commit.assert_called_once()
-
-
-class TestResendAndCancelEmailChange:
-    def test_resend_asks_for_the_resend_then_commits(self, mock_db):
-        sign_up = MagicMock()
-        state = MagicMock()
-
-        with patch(f"{_MODULE}.sign_up_tokens_integration", sign_up):
-            profile_service.resend_email_change(_USER_ID, state, mock_db)
-
-        sign_up.request_email_change_resend.assert_called_once_with(_USER_ID, state, mock_db)
-        mock_db.commit.assert_called_once()
-
-    def test_cancel_revokes_the_pending_tokens_then_commits(self, mock_db):
-        sign_up = MagicMock()
-
-        with patch(f"{_MODULE}.sign_up_tokens_integration", sign_up):
-            profile_service.cancel_email_change(_USER_ID, mock_db)
-
-        sign_up.revoke_pending_tokens.assert_called_once_with(_USER_ID, mock_db)
-        mock_db.commit.assert_called_once()
+        with committed_sessions() as db:
+            left = set(db.scalars(sa.select(session_models.UsersSessions.id).filter_by(user_id=owner.id)))
+        assert left == {mine.session_id}
+        assert other.session_id not in left
 
 
 class TestStageExport:
-    @patch(f"{_MODULE}.profile_export_service")
-    @patch(f"{_MODULE}.profile_utils")
-    @patch(f"{_MODULE}.users_integration")
-    def test_server_managed_fields_never_reach_the_archive(self, mock_users, mock_utils, mock_export, mock_db):
-        mock_utils.model_to_dict.return_value = {
-            "name": "Test",
-            "weight_units": "imperial",
-            "password": "secret",
-            "mfa_secret": "s",
-            "access_type": "admin",
-            "active": True,
-            "mfa_enabled": True,
-            "email_verified": True,
-            "pending_admin_approval": False,
-        }
-        storage = MagicMock()
-        mock_export.ExportService.return_value.build_export_archive.return_value = io.BytesIO(b"12345")
-        storage.save_stream.return_value = 5
+    def test_the_archive_is_staged_and_server_managed_fields_never_reach_it(self, committed_sessions, platform, owner):
+        with committed_sessions() as db:
+            size = profile_service.stage_export(owner.id, platform.storage, db)
 
-        size = profile_service.stage_export(_USER_ID, storage, mock_db)
-
-        mock_export.ExportService.assert_called_once_with(_USER_ID, storage, mock_db)
-        exported = mock_export.ExportService.return_value.build_export_archive.call_args.args[0]
-        assert exported == {"name": "Test", "weight_units": "imperial"}
-        assert size == 5
-        area, key, archive = storage.save_stream.call_args.args
-        assert (area, key) == ("profile_export_staging", f"{_USER_ID}.zip")
-        assert archive.closed
-
-    @patch(f"{_MODULE}.profile_export_service")
-    @patch(f"{_MODULE}.profile_utils")
-    @patch(f"{_MODULE}.users_integration")
-    def test_a_failed_build_stages_nothing_and_is_a_domain_error(self, mock_users, mock_utils, mock_export, mock_db):
-        mock_utils.model_to_dict.return_value = {}
-        mock_export.ExportService.return_value.build_export_archive.side_effect = (
-            profile_exceptions.DataCollectionError("boom")
+        data = platform.storage.get(
+            profile_constants.EXPORT_STAGING_AREA, profile_constants.export_staged_key(owner.id)
         )
+        assert data is not None and size == len(data)
+        with zipfile.ZipFile(io.BytesIO(data)) as zipf:
+            (user_row,) = json.loads(zipf.read("data/user.json"))
+        assert user_row["city"] == "Porto"
+        for field in profile_service._NON_EXPORTED_USER_FIELDS:
+            assert field not in user_row
 
-        storage = MagicMock()
-        with pytest.raises(core_exceptions.DomainError):
-            profile_service.stage_export(_USER_ID, storage, mock_db)
+    def test_a_build_that_fails_is_a_domain_error_and_stages_nothing(
+        self, committed_sessions, platform, owner, monkeypatch
+    ):
+        config = export_service.ExportPerformanceConfig(timeout_seconds=-1, max_memory_mb=1_000_000)
+        monkeypatch.setattr(export_service.ExportPerformanceConfig, "get_auto_config", classmethod(lambda cls: config))
 
-        storage.save_stream.assert_not_called()
+        with committed_sessions() as db, pytest.raises(core_exceptions.DomainError):
+            profile_service.stage_export(owner.id, platform.storage, db)
 
-    @patch(f"{_MODULE}.users_integration")
-    def test_unknown_user_is_not_found(self, mock_users, mock_db):
-        mock_users.require_user.side_effect = core_exceptions.NotFoundError("User not found")
+        assert platform.storage.list_keys(profile_constants.EXPORT_STAGING_AREA, "") == []
 
-        with pytest.raises(core_exceptions.NotFoundError):
-            profile_service.stage_export(_USER_ID, MagicMock(), mock_db)
+    def test_a_storage_failure_while_staging_propagates(self, committed_sessions, platform, owner):
+        broken = FaultyStorage(platform.storage, faults={"save_stream": OSError("disk full")})
+
+        with committed_sessions() as db, pytest.raises(OSError, match="disk full"):
+            profile_service.stage_export(owner.id, broken, db)
+
+    def test_an_unknown_user_is_not_found(self, committed_sessions, platform):
+        with committed_sessions() as db, pytest.raises(core_exceptions.NotFoundError):
+            profile_service.stage_export(uuid.uuid4(), platform.storage, db)
 
 
 class TestDeleteAccount:
-    @patch(f"{_MODULE}.users_integration")
-    def test_queues_the_deletion_only_after_the_step_up_passes(self, mock_users, mock_db):
-        identity = MagicMock()
-        step_up = MagicMock()
-        store = MagicMock()
-        state = MagicMock()
-        storage = MagicMock()
-        mail = MagicMock()
-        order = MagicMock()
-        order.attach_mock(identity.verify_step_up, "step_up")
-        order.attach_mock(mock_users.request_user_deletion, "delete")
-
-        with patch(
-            "modules.auth.account_security.integration_service.verify_step_up",
-            side_effect=lambda value, user_id, session_id, action, step_up_store, db: identity.verify_step_up(
-                value, user_id, session_id, action, step_up_store
-            ),
-        ):
-            result = profile_service.delete_account(_USER_ID, _SID_1, step_up, store, state, storage, mail, mock_db)
-
-        assert [call[0] for call in order.mock_calls] == ["step_up", "delete"]
-        identity.verify_step_up.assert_called_once_with(
-            step_up, _USER_ID, _SID_1, identity_providers_constants.StepUpAction.ACCOUNT_DELETE, store
-        )
-        mock_users.request_user_deletion.assert_called_once_with(_USER_ID, state, storage, mail, mock_db)
-        assert result is mock_users.request_user_deletion.return_value
-
-    @patch(f"{_MODULE}.users_integration")
-    def test_a_failed_step_up_deletes_nothing(self, mock_users, mock_db):
-        identity = MagicMock()
-        identity.verify_step_up.side_effect = core_exceptions.PermissionDeniedError("wrong password")
-
-        with (
-            pytest.raises(core_exceptions.PermissionDeniedError),
-            patch(
-                "modules.auth.account_security.integration_service.verify_step_up",
-                side_effect=lambda step_up, user_id, session_id, action, step_up_store, db: identity.verify_step_up(
-                    step_up, user_id, session_id, action, step_up_store
-                ),
-            ),
-        ):
-            profile_service.delete_account(
-                _USER_ID, _SID_1, MagicMock(), MagicMock(), MagicMock(), MagicMock(), MagicMock(), mock_db
+    def _delete(self, committed_sessions, platform, user, step_up_store, password=PASSWORD):
+        with committed_sessions() as db:
+            return profile_service.delete_account(
+                user.id,
+                _SESSION,
+                auth_schema.StepUpVerification(current_password=password),
+                step_up_store,
+                platform.state,
+                platform.storage,
+                platform.mail,
+                db,
             )
 
-        mock_users.request_user_deletion.assert_not_called()
+    def test_the_deletion_is_queued_and_the_account_is_deactivated_and_signed_out(
+        self, committed_sessions, platform, owner, step_up_store, sign_in
+    ):
+        import sqlalchemy as sa
 
+        import modules.auth.sessions.models as session_models
 
-class TestStateChangesAreLoggedAtInfo:
-    @patch(f"{_MODULE}.users_integration")
-    def test_a_profile_edit_logs_at_info(self, mock_users, mock_db, caplog):
-        with (
-            patch(f"{_MODULE}.get_profile", return_value=MagicMock(version=4)),
-            caplog.at_level("DEBUG", logger=profile_service.logger.name),
-        ):
-            profile_service.edit_profile(_USER_ID, MagicMock(), mock_db, if_match="*")
+        sign_in(owner)
 
-        assert [record.levelname for record in caplog.records] == ["INFO"]
+        status = self._delete(committed_sessions, platform, owner, step_up_store)
 
-    @patch(f"{_MODULE}.users_privacy_settings_integration")
-    def test_a_privacy_edit_logs_at_info(self, mock_privacy, mock_db, caplog):
-        with caplog.at_level("DEBUG", logger=profile_service.logger.name):
-            profile_service.edit_privacy_settings(_USER_ID, MagicMock(), mock_db, if_match="*")
+        assert status.kind == "user_deletion"
+        with committed_sessions() as db:
+            assert users_integration.require_user(owner.id, db).active is False
+            assert db.scalars(sa.select(session_models.UsersSessions.id).filter_by(user_id=owner.id)).all() == []
 
-        assert [record.levelname for record in caplog.records] == ["INFO"]
+    def test_a_wrong_password_deletes_nothing(self, committed_sessions, platform, owner, step_up_store):
+        with pytest.raises(core_exceptions.StepUpFailedError):
+            self._delete(committed_sessions, platform, owner, step_up_store, password="wrong")
+
+        with committed_sessions() as db:
+            assert users_integration.require_user(owner.id, db).active is True
+
+    def test_the_only_administrator_cannot_delete_their_account(self, committed_sessions, platform, step_up_store):
+        with committed_sessions() as db:
+            admin = make_admin(db)
+            db.commit()
+
+        with pytest.raises(core_exceptions.LastAdministratorError):
+            self._delete(committed_sessions, platform, admin, step_up_store)
+
+        with committed_sessions() as db:
+            assert users_integration.require_user(admin.id, db).active is True

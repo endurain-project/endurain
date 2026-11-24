@@ -1,43 +1,52 @@
-"""Tests for core.database module — get_db generator coverage."""
+"""Tests for core.database: pool and connect options, the connection budget, batched purges and ``get_db``."""
 
 import uuid
-from unittest.mock import MagicMock, call, patch
 
 import pytest
-from sqlalchemy import delete, select, update
+from sqlalchemy import delete, func, select, update
 
 import core.database as core_database
 import modules.users.users.models as users_models
-from tests._helpers.auth import MOCK_USER_ID, OTHER_USER_ID
-from tests._helpers.db import create_sqlite_session_factory, ensure_user
+from tests._factories.users import make_user
 
 
 class TestGetDb:
-    """Tests for get_db generator."""
+    """``get_db`` yields a session on the database and owns its end."""
 
-    def test_get_db_cleans_up(self):
-        """get_db closes session after yield (finally block)."""
-        mock_db = MagicMock()
-        with patch("core.database.SessionLocal", return_value=mock_db):
-            gen = core_database.get_db()
-            db = next(gen)
-            assert db is mock_db
-            with pytest.raises(StopIteration):
-                next(gen)
-            mock_db.close.assert_called_once()
-            mock_db.rollback.assert_not_called()
+    def test_the_session_is_closed_when_the_request_ends(self, committed_sessions):
+        gen = core_database.get_db()
+        session = next(gen)
+        session.execute(select(1))
+        assert session.in_transaction()
 
-    def test_get_db_rolls_back_on_exception(self):
-        """get_db rolls back and re-raises on exception (lines 118-120)."""
-        mock_db = MagicMock()
-        with patch("core.database.SessionLocal", return_value=mock_db):
-            gen = core_database.get_db()
-            db = next(gen)
-            assert db is mock_db
-            with pytest.raises(RuntimeError, match="db error"):
-                gen.throw(RuntimeError("db error"))
-            mock_db.rollback.assert_called_once()
-            mock_db.close.assert_called_once()
+        with pytest.raises(StopIteration):
+            next(gen)
+
+        assert not session.in_transaction()
+
+    def test_staged_work_is_rolled_back_when_the_request_fails(self, committed_sessions):
+        gen = core_database.get_db()
+        session = next(gen)
+        user = make_user(session)
+
+        with pytest.raises(RuntimeError, match="db error"):
+            gen.throw(RuntimeError("db error"))
+
+        assert not session.in_transaction()
+        with committed_sessions() as other:
+            assert other.get(users_models.Users, user.id) is None
+
+    def test_work_committed_before_the_request_failed_is_kept(self, committed_sessions):
+        gen = core_database.get_db()
+        session = next(gen)
+        user = make_user(session)
+        session.commit()
+
+        with pytest.raises(RuntimeError):
+            gen.throw(RuntimeError("late failure"))
+
+        with committed_sessions() as other:
+            assert other.get(users_models.Users, user.id) is not None
 
 
 class TestEngineErrorRedaction:
@@ -150,33 +159,15 @@ class TestConnectionBudgetWarning:
 
         assert "replica" in warning and "worker" in warning
 
-    def test_the_server_limits_are_read_and_a_warning_is_logged(self, caplog):
-        connection = MagicMock()
-        connection.execute.return_value.scalar_one.side_effect = ["100", "3"]
-        engine = MagicMock()
-        engine.connect.return_value.__enter__.return_value = connection
-
-        with (
-            patch.object(core_database, "engine", engine),
-            patch.object(core_database, "_POOL_OPTIONS", {"pool_size": 20, "max_overflow": 40}),
-            caplog.at_level("WARNING"),
-        ):
-            core_database.check_connection_budget(2)
+    def test_the_server_limits_are_read_and_a_warning_is_logged(self, committed_sessions, caplog):
+        with caplog.at_level("WARNING"):
+            core_database.check_connection_budget(1000)
 
         assert "database connections" in caplog.text
 
-    def test_a_fitting_budget_logs_nothing(self, caplog):
-        connection = MagicMock()
-        connection.execute.return_value.scalar_one.side_effect = ["200", "3"]
-        engine = MagicMock()
-        engine.connect.return_value.__enter__.return_value = connection
-
-        with (
-            patch.object(core_database, "engine", engine),
-            patch.object(core_database, "_POOL_OPTIONS", {"pool_size": 20, "max_overflow": 40}),
-            caplog.at_level("WARNING"),
-        ):
-            core_database.check_connection_budget(2)
+    def test_a_fitting_budget_logs_nothing(self, committed_sessions, caplog):
+        with caplog.at_level("WARNING"):
+            core_database.check_connection_budget(1)
 
         assert caplog.text == ""
 
@@ -184,58 +175,80 @@ class TestConnectionBudgetWarning:
 class TestDeleteInBatches:
     """A maintenance purge runs one bounded batch per transaction, so it never holds a long lock."""
 
-    def test_full_batches_continue_and_a_short_one_ends_the_purge(self):
-        db = MagicMock()
+    def _users(self, committed_sessions, count: int) -> list[uuid.UUID]:
+        with committed_sessions() as db:
+            ids = [make_user(db).id for _ in range(count)]
+            db.commit()
+        return ids
+
+    def _remaining(self, committed_sessions, ids: list[uuid.UUID]) -> int:
+        with committed_sessions() as db:
+            return db.scalar(select(func.count()).select_from(users_models.Users).where(users_models.Users.id.in_(ids)))
+
+    def test_full_batches_continue_and_a_short_one_ends_the_purge(self, committed_sessions):
+        ids = self._users(committed_sessions, 3)
         size = core_database.PURGE_BATCH_SIZE
-        stage_batch = MagicMock(side_effect=[size, size, 3])
+        counts = iter([size, size, 3])
+        limits: list[int] = []
+        remaining = iter(ids)
 
-        assert core_database.delete_in_batches(stage_batch, db) == 2 * size + 3
-        assert stage_batch.call_args_list == [call(size)] * 3
-        assert db.commit.call_count == 3
+        with committed_sessions() as db:
 
-    def test_nothing_to_delete_still_ends_the_transaction(self):
-        db = MagicMock()
+            def stage_batch(limit: int) -> int:
+                limits.append(limit)
+                db.execute(delete(users_models.Users).where(users_models.Users.id == next(remaining)))
+                return next(counts)
 
-        assert core_database.delete_in_batches(MagicMock(return_value=0), db) == 0
-        db.commit.assert_called_once()
+            assert core_database.delete_in_batches(stage_batch, db) == 2 * size + 3
 
-    def test_each_batch_is_committed_before_the_next_is_staged(self):
-        db = MagicMock()
-        order: list[str] = []
-        db.commit.side_effect = lambda: order.append("commit")
+        assert limits == [size] * 3
+        assert self._remaining(committed_sessions, ids) == 0
 
-        def stage_batch(limit):
-            order.append("stage")
-            return limit if len(order) < 2 else 0
+    def test_each_batch_is_committed_before_the_next_is_staged(self, committed_sessions):
+        ids = self._users(committed_sessions, 2)
+        size = core_database.PURGE_BATCH_SIZE
+        visible_to_others: list[int] = []
+        batches = iter([size, 0])
+        victims = iter(ids)
 
-        core_database.delete_in_batches(stage_batch, db)
+        with committed_sessions() as db:
 
-        assert order == ["stage", "commit", "stage", "commit"]
+            def stage_batch(limit: int) -> int:
+                visible_to_others.append(self._remaining(committed_sessions, ids))
+                db.execute(delete(users_models.Users).where(users_models.Users.id == next(victims)))
+                return next(batches)
+
+            core_database.delete_in_batches(stage_batch, db)
+
+        assert visible_to_others == [2, 1]
+        assert self._remaining(committed_sessions, ids) == 0
+
+    def test_nothing_to_delete_still_ends_the_transaction(self, committed_sessions):
+        with committed_sessions() as db:
+            db.execute(select(1))
+
+            assert core_database.delete_in_batches(lambda limit: 0, db) == 0
+
+            assert not db.in_transaction()
 
 
 class TestRowcount:
     """rowcount executes a DML statement and returns how many rows it matched."""
 
     @pytest.fixture
-    def session_factory(self):
-        factory = create_sqlite_session_factory()
-        ensure_user(factory, MOCK_USER_ID)
-        ensure_user(factory, OTHER_USER_ID)
-        yield factory
-        factory.kw["bind"].dispose()
+    def user_id(self, db):
+        return make_user(db).id
 
-    def test_an_update_returns_the_rows_it_matched(self, session_factory):
-        with session_factory() as db:
-            stmt = update(users_models.Users).where(users_models.Users.id == MOCK_USER_ID).values(height=180)
+    def test_an_update_returns_the_rows_it_matched(self, db, user_id):
+        stmt = update(users_models.Users).where(users_models.Users.id == user_id).values(height=180)
 
-            assert core_database.rowcount(db, stmt) == 1
+        assert core_database.rowcount(db, stmt) == 1
 
-    def test_a_delete_that_matches_nothing_returns_zero(self, session_factory):
-        with session_factory() as db:
-            stmt = delete(users_models.Users).where(users_models.Users.id == uuid.uuid4())
+    def test_a_delete_that_matches_nothing_returns_zero(self, db, user_id):
+        stmt = delete(users_models.Users).where(users_models.Users.id == uuid.uuid4())
 
-            assert core_database.rowcount(db, stmt) == 0
+        assert core_database.rowcount(db, stmt) == 0
 
-    def test_a_statement_that_returns_rows_is_refused(self, session_factory):
-        with session_factory() as db, pytest.raises(TypeError):
+    def test_a_statement_that_returns_rows_is_refused(self, db, user_id):
+        with pytest.raises(TypeError):
             core_database.rowcount(db, select(users_models.Users))

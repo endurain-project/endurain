@@ -1,597 +1,493 @@
-"""Tests for the activity media service (authorization, storage, cleanup)."""
+"""Activity media on the real database and the platform's local storage: stored, listed, served and swept."""
 
-import io
+import os
+import re
 import uuid
-from unittest.mock import MagicMock, patch
+from datetime import UTC, datetime, timedelta
 
 import jasil.providers as platform_providers
+import jasil.runtime as platform_runtime
 import pytest
-from fastapi import UploadFile
-from tests._helpers import images
+from jasil.backends.storage_local import LocalStorage
 
 import core.exceptions as core_exceptions
-import core.file_uploads as core_file_uploads
 import core.hashing as core_hashing
+import modules.activities.activity_media.constants as media_constants
+import modules.activities.activity_media.crud as media_crud
+import modules.activities.activity_media.service as media_service
+import modules.activities.activity_media.signing as media_signing
+from tests._factories.activities import make_activity, make_stored_media
+from tests._factories.users import make_user
+from tests._helpers import images
+from tests._helpers.clock import platform_clock
 
-ACT = uuid.UUID("00000000-0000-4000-8000-000000000001")
-ACT42 = uuid.UUID("00000000-0000-4000-8000-000000000042")
-OTHER = uuid.UUID("00000000-0000-4000-8000-000000000099")
-M2 = uuid.UUID("00000000-0000-4000-8000-0000000000a2")
-M3 = uuid.UUID("00000000-0000-4000-8000-0000000000a3")
-M4 = uuid.UUID("00000000-0000-4000-8000-0000000000a4")
-M5 = uuid.UUID("00000000-0000-4000-8000-0000000000a5")
-M9 = uuid.UUID("00000000-0000-4000-8000-0000000000a9")
-
-_SVC = "modules.activities.activity_media.service"
-_JPEG = images.jpeg_with_exif()
-
-
-def _read_jpeg() -> bytes:
-    """The upload reader the service is handed."""
-    return _JPEG
+_AREA = media_constants.MEDIA_STORAGE_AREA
+_KEY = re.compile(r"[0-9a-f-]{36}_[0-9a-f]{32}\.(jpg|jpeg|png|webp)")
 
 
-class TestBuildStorageKey:
-    def test_generates_server_side_key_with_allowed_extension(self):
-        from modules.activities.activity_media.service import _build_storage_key
+class UnavailableStorage(LocalStorage):
+    """Local storage whose deletes fail, as an object store that is down does."""
 
-        key = _build_storage_key(ACT42, "holiday photo.JPG")
-
-        assert key.startswith(f"{ACT42}_")
-        assert key.endswith(".jpg")
-        # The original stem never survives, so a hostile name cannot be echoed back.
-        assert "holiday" not in key
-
-    def test_strips_directory_components(self):
-        from modules.activities.activity_media.service import _build_storage_key
-
-        key = _build_storage_key(ACT, "../../etc/passwd.png")
-
-        assert "/" not in key
-        assert key.endswith(".png")
-
-    def test_rejects_disallowed_extension(self):
-        from modules.activities.activity_media.service import _build_storage_key
-
-        with pytest.raises(core_exceptions.UnsupportedMediaTypeError) as exc:
-            _build_storage_key(ACT, "payload.svg")
-        assert exc.value.status_code == 415
-
-    def test_rejects_missing_filename(self):
-        from modules.activities.activity_media.service import _build_storage_key
-
-        with pytest.raises(core_exceptions.UnsupportedMediaTypeError) as exc:
-            _build_storage_key(ACT, None)
-        assert exc.value.status_code == 415
+    def delete(self, area: str, key: str) -> None:
+        raise platform_providers.StorageBackendUnavailableError("storage down")
 
 
-class TestRekeyMediaPath:
-    def test_re_addresses_a_key_named_by_the_archived_key_text(self):
-        from modules.activities.activity_media.service import rekey_media_path
-
-        assert rekey_media_path("17_abc.jpg", "17", ACT) == f"{ACT}_abc.jpg"
-        assert rekey_media_path(f"{OTHER}_abc.jpg", str(OTHER), ACT) == f"{ACT}_abc.jpg"
-
-    def test_a_key_of_another_activity_is_refused(self):
-        from modules.activities.activity_media.service import rekey_media_path
-
-        assert rekey_media_path("18_abc.jpg", "17", ACT) is None
-        assert rekey_media_path("abc.jpg", "17", ACT) is None
-
-    @pytest.mark.parametrize("old_key", ["17_", "17_a/b.jpg", "17_a\\b.jpg", "17_../x.jpg"])
-    def test_a_suffix_that_is_not_a_flat_file_name_is_refused(self, old_key):
-        from modules.activities.activity_media.service import rekey_media_path
-
-        assert rekey_media_path(old_key, "17", ACT) is None
+@pytest.fixture
+def storage():
+    return platform_runtime.get_active_platform().storage
 
 
-class TestSweepOrphanedMedia:
-    @patch(f"{_SVC}.core_blob_sweep.sweep_unreferenced_blobs", return_value=0)
-    @patch(f"{_SVC}.activity_integration")
-    @patch("core.blob_sweep.core_database")
-    def test_a_uuid_key_whose_activity_is_gone_is_swept_and_a_key_outside_the_uuid_layout_is_kept(
-        self, _database, mock_activities, _unreferenced
+@pytest.fixture
+def owner(db):
+    return make_user(db)
+
+
+@pytest.fixture
+def activity(db, owner):
+    return make_activity(db, owner.id)
+
+
+class RacingStorage(LocalStorage):
+    """Local storage that lets a competing request commit its row between this request's check and its insert."""
+
+    def __init__(self, *args, competitor, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._competitor = competitor
+
+    def save(self, area: str, key: str, data: bytes, *args, **kwargs):
+        self._competitor(key)
+        return super().save(area, key, data, *args, **kwargs)
+
+
+class FlakyStorage(LocalStorage):
+    """Local storage whose reads fail for one key and find nothing for another."""
+
+    def get(self, area: str, key: str):
+        if "unreadable" in key:
+            raise platform_providers.StorageBackendUnavailableError("storage down")
+        if "vanished" in key:
+            return None
+        return super().get(area, key)
+
+
+@pytest.fixture
+def plain_storage(tmp_path):
+    """Local storage that keeps each blob under its own name, so a test can age one on disk."""
+    return LocalStorage(str(tmp_path / "plain"), clock=platform_clock(), plain_areas=frozenset({_AREA}))
+
+
+class TestStoreUpload:
+    def test_an_image_is_stored_without_its_metadata_under_a_server_made_key(self, db, owner, activity, storage):
+        original = images.jpeg_with_exif()
+
+        read = media_service.store_activity_media(activity.id, owner.id, "holiday.JPG", lambda: original, storage, db)
+
+        [record] = media_crud.get_media_for_activity(activity.id, db)
+        assert _KEY.fullmatch(record.media_path) and record.media_path.startswith(f"{activity.id}_")
+        assert record.content_hash == core_hashing.sha256_hex(original)
+        stored = storage.get(_AREA, record.media_path)
+        assert stored is not None and not images.has_metadata(stored) and images.has_metadata(original)
+        assert (read.id, read.activity_id) == (record.id, activity.id)
+        assert media_signing.verify_media_token(read.id, read.url.partition("?t=")[2])
+
+    @pytest.mark.parametrize(
+        ("name", "data"),
+        [("a.png", images.png_with_text()), ("a.jpeg", images.jpeg_with_exif()), ("a.webp", images.webp_with_exif())],
+    )
+    def test_every_accepted_format_is_stored_stripped_under_its_extension(
+        self, db, owner, activity, storage, name, data
     ):
-        from modules.activities.activity_media.service import sweep_orphaned_media
+        media_service.store_activity_media(activity.id, owner.id, name, lambda: data, storage, db)
 
-        mock_activities.filter_existing_activity_ids.return_value = set()
-        storage = MagicMock()
-        storage.iter_objects.return_value = iter([(f"{ACT}_a.jpg", 0.0), ("42_x.jpg", 0.0)])
+        [record] = media_crud.get_media_for_activity(activity.id, db)
+        assert record.media_path.endswith(os.path.splitext(name)[1])
+        assert not images.has_metadata(storage.get(_AREA, record.media_path))
 
-        assert sweep_orphaned_media(storage) == 1
+    def test_the_same_bytes_twice_store_one_photo_and_one_blob(self, db, owner, activity, storage):
+        data = images.jpeg_with_exif()
 
-        storage.delete.assert_called_once_with("activity_media", f"{ACT}_a.jpg")
+        first = media_service.store_activity_media(activity.id, owner.id, "a.jpg", lambda: data, storage, db)
+        second = media_service.store_activity_media(activity.id, owner.id, "b.jpg", lambda: data, storage, db)
 
+        assert first.id == second.id
+        assert media_crud.count_media_for_activity(activity.id, db) == 1
+        assert len(list(storage.list_keys(_AREA, f"{activity.id}_"))) == 1
 
-class TestListActivityMedia:
-    @patch(f"{_SVC}.activity_media_crud")
-    @patch(f"{_SVC}.activity_integration")
-    def test_returns_media_for_owned_activity(self, mock_activities_service, mock_media_crud):
-        from modules.activities.activity_media.contracts import ActivityMediaRecord
-        from modules.activities.activity_media.service import list_activity_media
+    def test_the_same_bytes_on_two_activities_are_two_photos(self, db, owner, activity, storage):
+        other = make_activity(db, owner.id, start_time=activity.start_time + timedelta(days=1))
+        data = images.png_with_text()
 
-        mock_activities_service.owns_activity.return_value = True
-        mock_media_crud.get_media_for_activity.return_value = [
-            ActivityMediaRecord(id=M3, activity_id=ACT, media_path=f"{ACT}_abc.jpg", media_type=1)
-        ]
-        mock_media_crud.count_media_for_activity.return_value = 1
+        a = media_service.store_activity_media(activity.id, owner.id, "a.png", lambda: data, storage, db)
+        b = media_service.store_activity_media(other.id, owner.id, "a.png", lambda: data, storage, db)
 
-        page = list_activity_media(ACT, 2, MagicMock())
+        assert a.id != b.id
 
-        # The storage key never reaches the caller; a servable URL does.
-        assert page.total == 1
-        assert len(page.items) == 1
-        assert not hasattr(page.items[0], "media_path")
-        assert f"/activities/{ACT}/media/{M3}/file?t=" in page.items[0].url
+    def test_an_activity_that_is_not_the_callers_reads_no_upload_and_stores_nothing(self, db, activity, storage):
+        stranger = make_user(db)
 
-    @patch(f"{_SVC}.activity_media_crud")
-    @patch(f"{_SVC}.activity_integration")
-    def test_returns_empty_when_activity_not_owned(self, mock_activities_service, mock_media_crud):
-        from modules.activities.activity_media.service import list_activity_media
-
-        mock_activities_service.owns_activity.return_value = False
-
-        page = list_activity_media(ACT, 2, MagicMock())
-
-        assert page.items == []
-        assert page.total == 0
-        mock_media_crud.get_media_for_activity.assert_not_called()
-
-    @patch(f"{_SVC}.activity_media_crud")
-    @patch(f"{_SVC}.activity_integration")
-    def test_returns_empty_when_no_media(self, mock_activities_service, mock_media_crud):
-        from modules.activities.activity_media.service import list_activity_media
-
-        mock_activities_service.owns_activity.return_value = True
-        mock_media_crud.get_media_for_activity.return_value = []
-        mock_media_crud.count_media_for_activity.return_value = 0
-
-        assert list_activity_media(ACT, 2, MagicMock()).items == []
-
-
-class TestStoreActivityMedia:
-    @patch(f"{_SVC}.activity_integration")
-    def test_an_activity_that_is_not_the_callers_is_refused_before_the_upload_is_read(self, mock_activities_service):
-        from modules.activities.activity_media.service import store_activity_media
-
-        mock_activities_service.owns_activity.return_value = False
-        storage, read_upload = MagicMock(), MagicMock()
+        def read_upload() -> bytes:
+            raise AssertionError("the upload was read")
 
         with pytest.raises(core_exceptions.NotFoundError):
-            store_activity_media(ACT, 2, "ride.jpg", read_upload, storage, MagicMock())
+            media_service.store_activity_media(activity.id, stranger.id, "a.jpg", read_upload, storage, db)
 
-        read_upload.assert_not_called()
-        storage.save.assert_not_called()
+        assert media_crud.count_media_for_activity(activity.id, db) == 0
 
-    @patch(f"{_SVC}.activity_media_crud")
-    @patch(f"{_SVC}.activity_integration")
-    def test_saves_blob_and_creates_record(self, mock_activities_service, mock_media_crud):
-        from modules.activities.activity_media.contracts import ActivityMediaRecord
-        from modules.activities.activity_media.service import store_activity_media
+    @pytest.mark.parametrize("name", ["a.gif", "a.heic", "a", None, "a.JPG.exe", "a.svg"])
+    def test_a_name_without_an_accepted_extension_is_refused_and_stores_nothing(
+        self, db, owner, activity, storage, name
+    ):
+        with pytest.raises(core_exceptions.UnsupportedMediaTypeError):
+            media_service.store_activity_media(activity.id, owner.id, name, images.jpeg_with_exif, storage, db)
 
-        mock_activities_service.owns_activity.return_value = True
-        storage = MagicMock()
-        mock_media_crud.get_activity_media_by_content_hash.return_value = None
-        mock_media_crud.create_activity_media.return_value = ActivityMediaRecord(
-            id=M9, activity_id=ACT, media_path=f"{ACT}_abc.jpg", media_type=1
+        assert list(storage.list_keys(_AREA, f"{activity.id}_")) == []
+
+    def test_a_directory_in_the_name_never_reaches_the_key(self, db, owner, activity, storage):
+        media_service.store_activity_media(
+            activity.id, owner.id, "../../etc/passwd.jpg", images.jpeg_with_exif, storage, db
         )
 
-        result = store_activity_media(ACT, 2, "ride.jpg", _read_jpeg, storage, MagicMock())
+        [key] = storage.list_keys(_AREA, f"{activity.id}_")
+        assert _KEY.fullmatch(key)
 
-        assert result.id == M9
-        assert f"/activities/{ACT}/media/{M9}/file?t=" in result.url
-        area, key, data, content_type = storage.save.call_args.args
-        assert area == "activity_media"
-        assert key.startswith(f"{ACT}_") and key.endswith(".jpg")
-        assert not images.has_metadata(data)
-        # Derived from the validated extension: the client's Content-Type header
-        # must never reach the storage backend as object metadata.
-        assert content_type == "image/jpeg"
-        # The row records the storage key, never a filesystem path.
-        assert mock_media_crud.create_activity_media.call_args.args[1] == key
-        # ... and the bytes' hash, so a later re-store of the same photo no-ops.
-        assert mock_media_crud.create_activity_media.call_args.kwargs["content_hash"]
+    def test_bytes_that_are_not_an_image_store_no_row_and_no_blob(self, db, owner, activity, storage):
+        with pytest.raises(core_exceptions.InvalidInputError):
+            media_service.store_activity_media(activity.id, owner.id, "a.jpg", lambda: b"not an image", storage, db)
 
-    @patch(f"{_SVC}.activity_media_crud")
-    @patch(f"{_SVC}.activity_integration")
-    def test_returns_existing_record_without_storing_when_content_matches(
-        self, mock_activities_service, mock_media_crud
-    ):
-        """A retried upload of the exact same photo must not create a second row."""
-        from modules.activities.activity_media.contracts import ActivityMediaRecord
-        from modules.activities.activity_media.service import store_activity_media
+        assert media_crud.count_media_for_activity(activity.id, db) == 0
+        assert list(storage.list_keys(_AREA, f"{activity.id}_")) == []
 
-        mock_activities_service.owns_activity.return_value = True
-        storage = MagicMock()
-        existing = ActivityMediaRecord(id=M4, activity_id=ACT, media_path=f"{ACT}_existing.jpg", media_type=1)
-        mock_media_crud.get_activity_media_by_content_hash.return_value = existing
+    def test_a_validation_failure_of_the_upload_is_raised_as_it_is(self, db, owner, activity, storage):
+        def too_big() -> bytes:
+            raise core_exceptions.PayloadTooLargeError("too big")
 
-        result = store_activity_media(ACT, 2, "ride.jpg", _read_jpeg, storage, MagicMock())
+        with pytest.raises(core_exceptions.PayloadTooLargeError):
+            media_service.store_activity_media(activity.id, owner.id, "a.jpg", too_big, storage, db)
 
-        assert result.id == M4
-        storage.save.assert_not_called()
-        mock_media_crud.create_activity_media.assert_not_called()
 
-    @patch(f"{_SVC}.activity_media_crud")
-    @patch(f"{_SVC}.activity_integration")
-    def test_rejects_activity_owned_by_another_user(self, mock_activities_service, mock_media_crud):
-        from modules.activities.activity_media.service import store_activity_media
+class TestStoreBytes:
+    def test_server_side_bytes_are_stored_for_an_activity_without_an_ownership_check(self, db, activity, storage):
+        record = media_service.store_activity_media_bytes(
+            activity.id, "sidecar.png", images.png_with_text(), storage, db
+        )
 
-        mock_activities_service.owns_activity.return_value = False
+        assert storage.get(_AREA, record.media_path) is not None
+        assert record.content_hash == core_hashing.sha256_hex(images.png_with_text())
 
-        with pytest.raises(core_exceptions.NotFoundError) as exc:
-            storage = MagicMock()
-            store_activity_media(ACT, 2, "ride.jpg", _read_jpeg, storage, MagicMock())
+    def test_a_bulk_import_re_run_does_not_duplicate_the_photo(self, db, activity, storage):
+        data = images.png_with_text()
 
-        assert exc.value.status_code == 404
-        # Nothing is stored for an activity the caller does not own.
-        storage.save.assert_not_called()
+        first = media_service.store_activity_media_bytes(activity.id, "a.png", data, storage, db)
+        again = media_service.store_activity_media_bytes(activity.id, "a.png", data, storage, db)
 
-    @patch(f"{_SVC}.activity_media_crud")
-    @patch(f"{_SVC}.activity_integration")
-    def test_removes_blob_when_record_creation_fails(self, mock_activities_service, mock_media_crud):
-        from modules.activities.activity_media.service import store_activity_media
+        assert again.id == first.id
+        assert media_crud.count_media_for_activity(activity.id, db) == 1
 
-        mock_activities_service.owns_activity.return_value = True
-        storage = MagicMock()
-        mock_media_crud.get_activity_media_by_content_hash.return_value = None
-        mock_media_crud.create_activity_media.side_effect = core_exceptions.ConflictError("dup")
+    def test_the_blob_is_removed_when_its_row_cannot_be_recorded(self, db, activity, storage, monkeypatch):
+        def refuse(*args, **kwargs):
+            raise core_exceptions.ConflictError("duplicate")
+
+        monkeypatch.setattr(media_crud, "create_activity_media", refuse)
 
         with pytest.raises(core_exceptions.ConflictError):
-            store_activity_media(ACT, 2, "ride.jpg", _read_jpeg, storage, MagicMock())
+            media_service.store_activity_media_bytes(activity.id, "a.png", images.png_with_text(), storage, db)
 
-        # A failed upload leaves no orphaned blob.
-        stored_key = storage.save.call_args.args[1]
-        storage.delete.assert_called_once_with("activity_media", stored_key)
+        assert list(storage.list_keys(_AREA, f"{activity.id}_")) == []
 
-    @patch(f"{_SVC}.activity_media_crud")
-    @patch(f"{_SVC}.activity_integration")
-    def test_removes_blob_when_the_commit_fails(self, mock_activities_service, mock_media_crud):
-        """A database failure that is not a domain error still leaves no orphan blob."""
-        from sqlalchemy.exc import OperationalError
 
-        from modules.activities.activity_media.service import store_activity_media
+class TestStoreRaces:
+    """Two requests storing the same photo at once: the unique keys decide, and the loser answers the winner."""
 
-        mock_activities_service.owns_activity.return_value = True
-        storage = MagicMock()
-        db = MagicMock()
-        # The first commit ends the duplicate check's transaction; the second stores the row.
-        db.commit.side_effect = [None, OperationalError("stmt", {}, Exception("connection lost"))]
-        mock_media_crud.get_activity_media_by_content_hash.return_value = None
+    @pytest.fixture
+    def committed_activity(self, committed_sessions):
+        with committed_sessions() as db:
+            activity = make_activity(db, make_user(db).id)
+            db.commit()
+        return activity
 
-        with pytest.raises(OperationalError):
-            store_activity_media(ACT, 2, "ride.jpg", _read_jpeg, storage, db)
+    def _racing(self, committed_sessions, tmp_path, activity, *, content_hash):
+        def competitor(key: str) -> None:
+            with committed_sessions() as other:
+                media_crud.create_activity_media(
+                    activity.id, f"{activity.id}_winner.png" if content_hash else key, other, content_hash=content_hash
+                )
+                other.commit()
 
-        stored_key = storage.save.call_args.args[1]
-        storage.delete.assert_called_once_with("activity_media", stored_key)
-
-    @patch(f"{_SVC}.activity_media_crud")
-    @patch(f"{_SVC}.activity_integration")
-    def test_race_lost_to_a_concurrent_store_returns_the_winner(self, mock_activities_service, mock_media_crud):
-        """The pre-check is read-then-write; losing the race to the unique index
-        must return the winner rather than surfacing a conflict for what the
-        caller experiences as a successful store."""
-        from modules.activities.activity_media.contracts import ActivityMediaRecord
-        from modules.activities.activity_media.service import store_activity_media
-
-        mock_activities_service.owns_activity.return_value = True
-        storage = MagicMock()
-        winner = ActivityMediaRecord(id=M4, activity_id=ACT, media_path=f"{ACT}_winner.jpg", media_type=1)
-        # Miss on the pre-check, then find the winner once the insert conflicts.
-        mock_media_crud.get_activity_media_by_content_hash.side_effect = [None, winner]
-        mock_media_crud.create_activity_media.side_effect = core_exceptions.ConflictError("dup")
-
-        result = store_activity_media(ACT, 2, "ride.jpg", _read_jpeg, storage, MagicMock())
-
-        assert result.id == M4
-        stored_key = storage.save.call_args.args[1]
-        storage.delete.assert_called_once_with("activity_media", stored_key)
-
-    @patch(f"{_SVC}.activity_media_crud")
-    def test_a_lost_race_rolls_back_before_looking_up_the_winner(self, mock_media_crud):
-        """A failed flush leaves the session unusable until it is rolled back, so
-        the winner lookup has to come after the rollback."""
-        from modules.activities.activity_media.contracts import ActivityMediaRecord
-        from modules.activities.activity_media.service import store_activity_media_bytes
-
-        events: list[str] = []
-        db = MagicMock()
-        db.rollback.side_effect = lambda: events.append("rollback")
-        winner = ActivityMediaRecord(id=M4, activity_id=ACT, media_path=f"{ACT}_winner.jpg", media_type=1)
-
-        def lookup(*_args, **_kwargs):
-            events.append("lookup")
-            return None if events.count("lookup") == 1 else winner
-
-        mock_media_crud.get_activity_media_by_content_hash.side_effect = lookup
-        mock_media_crud.create_activity_media.side_effect = core_exceptions.ConflictError("dup")
-
-        result = store_activity_media_bytes(ACT, "photo.jpg", _JPEG, MagicMock(), db)
-
-        assert result.id == M4
-        assert events == ["lookup", "rollback", "lookup"]
-        # Only the commit that ended the duplicate check's transaction; the row was never stored.
-        db.commit.assert_called_once()
-
-    @patch(f"{_SVC}.activity_integration")
-    @patch(f"{_SVC}.activity_media_crud")
-    def test_a_successful_store_commits(self, mock_media_crud, mock_activity_integration):
-        from modules.activities.activity_media.contracts import ActivityMediaRecord
-        from modules.activities.activity_media.service import store_activity_media_bytes
-
-        db = MagicMock()
-        mock_media_crud.get_activity_media_by_content_hash.return_value = None
-        mock_media_crud.create_activity_media.return_value = ActivityMediaRecord(
-            id=M9, activity_id=ACT, media_path=f"{ACT}_abc.jpg", media_type=1
+        return RacingStorage(
+            str(tmp_path / "race"), clock=platform_clock(), plain_areas=frozenset({_AREA}), competitor=competitor
         )
 
-        store_activity_media_bytes(ACT, "photo.jpg", _JPEG, MagicMock(), db)
-
-        # One commit ends the duplicate check before the blob is written, one stores the row.
-        assert db.commit.call_count == 2
-        mock_activity_integration.touch_activity.assert_called_once_with(ACT, db)
-
-
-class TestStoredMediaMetadata:
-    @patch(f"{_SVC}.activity_media_crud")
-    def test_the_hash_covers_the_original_bytes_while_the_blob_is_stripped(self, mock_media_crud):
-        """A re-run import of the same original photo is still recognised as a duplicate."""
-        from modules.activities.activity_media.contracts import ActivityMediaRecord
-        from modules.activities.activity_media.service import store_activity_media_bytes
-
-        storage = MagicMock()
-        mock_media_crud.get_activity_media_by_content_hash.return_value = None
-        mock_media_crud.create_activity_media.return_value = ActivityMediaRecord(
-            id=M9, activity_id=ACT, media_path=f"{ACT}_abc.jpg", media_type=1
+    def test_the_loser_of_a_race_on_the_same_bytes_answers_the_winner_and_leaves_no_blob(
+        self, committed_sessions, committed_activity, tmp_path
+    ):
+        data = images.png_with_text()
+        racing = self._racing(
+            committed_sessions, tmp_path, committed_activity, content_hash=core_hashing.sha256_hex(data)
         )
 
-        store_activity_media_bytes(ACT, "photo.jpg", _JPEG, storage, MagicMock())
+        with committed_sessions() as db:
+            answered = media_service.store_activity_media_bytes(committed_activity.id, "a.png", data, racing, db)
 
-        stored = storage.save.call_args.args[2]
-        assert stored != _JPEG
-        assert not images.has_metadata(stored)
-        assert mock_media_crud.get_activity_media_by_content_hash.call_args.args[1] == core_hashing.sha256_hex(_JPEG)
-        assert mock_media_crud.create_activity_media.call_args.kwargs["content_hash"] == core_hashing.sha256_hex(_JPEG)
+        assert answered.media_path == f"{committed_activity.id}_winner.png"
+        assert list(racing.list_keys(_AREA, f"{committed_activity.id}_")) == []
+        with committed_sessions() as db:
+            assert media_crud.count_media_for_activity(committed_activity.id, db) == 1
 
-    @patch(f"{_SVC}.activity_media_crud")
-    def test_an_undecodable_image_stores_nothing(self, mock_media_crud):
-        from modules.activities.activity_media.service import store_activity_media_bytes
+    def test_a_clash_that_is_not_a_content_duplicate_is_a_conflict_and_leaves_no_blob(
+        self, committed_sessions, committed_activity, tmp_path
+    ):
+        racing = self._racing(committed_sessions, tmp_path, committed_activity, content_hash=None)
 
-        storage = MagicMock()
-        mock_media_crud.get_activity_media_by_content_hash.return_value = None
+        with committed_sessions() as db, pytest.raises(core_exceptions.ConflictError):
+            media_service.store_activity_media_bytes(committed_activity.id, "a.png", images.png_with_text(), racing, db)
 
-        with pytest.raises(core_exceptions.InvalidInputError):
-            store_activity_media_bytes(ACT, "photo.jpg", b"not an image", storage, MagicMock())
+        assert list(racing.list_keys(_AREA, f"{committed_activity.id}_")) == []
 
-        storage.save.assert_not_called()
-        mock_media_crud.create_activity_media.assert_not_called()
+    def test_a_blob_that_cannot_be_removed_after_a_failed_store_is_only_logged(
+        self, db, activity, tmp_path, monkeypatch
+    ):
+        down = UnavailableStorage(str(tmp_path / "down"), clock=platform_clock(), plain_areas=frozenset({_AREA}))
 
+        def refuse(*args, **kwargs):
+            raise core_exceptions.NotFoundError("gone")
 
-class TestStoreActivityMediaBytes:
-    """The server-side ingestion counterpart (Strava bulk-export sidecar photos)."""
+        monkeypatch.setattr(media_crud, "create_activity_media", refuse)
 
-    @patch(f"{_SVC}.activity_media_crud")
-    def test_saves_blob_and_creates_record(self, mock_media_crud):
-        from modules.activities.activity_media.contracts import ActivityMediaRecord
-        from modules.activities.activity_media.service import store_activity_media_bytes
-
-        storage = MagicMock()
-        mock_media_crud.get_activity_media_by_content_hash.return_value = None
-        mock_media_crud.create_activity_media.return_value = ActivityMediaRecord(
-            id=M9, activity_id=ACT, media_path=f"{ACT}_abc.jpg", media_type=1
-        )
-
-        result = store_activity_media_bytes(ACT, "photo.jpg", _JPEG, storage, MagicMock())
-
-        assert result.id == M9
-        area, _key, data, content_type = storage.save.call_args.args
-        assert area == "activity_media"
-        assert not images.has_metadata(data)
-        assert content_type == "image/jpeg"
-        assert mock_media_crud.create_activity_media.call_args.kwargs["content_hash"]
-
-    @patch(f"{_SVC}.activity_media_crud")
-    def test_re_running_a_bulk_import_does_not_duplicate_the_photo(self, mock_media_crud):
-        """A Strava bulk-export re-run must not create a second media row for a
-        photo it already imported for this activity."""
-        from modules.activities.activity_media.contracts import ActivityMediaRecord
-        from modules.activities.activity_media.service import store_activity_media_bytes
-
-        storage = MagicMock()
-        existing = ActivityMediaRecord(id=M4, activity_id=ACT, media_path=f"{ACT}_existing.jpg", media_type=1)
-        mock_media_crud.get_activity_media_by_content_hash.return_value = existing
-
-        result = store_activity_media_bytes(ACT, "photo.jpg", _JPEG, storage, MagicMock())
-
-        assert result.id == M4
-        storage.save.assert_not_called()
-        mock_media_crud.create_activity_media.assert_not_called()
+        with pytest.raises(core_exceptions.NotFoundError):
+            media_service.store_activity_media_bytes(activity.id, "a.png", images.png_with_text(), down, db)
 
 
-class TestDeleteActivityMedia:
-    @patch(f"{_SVC}.activity_media_crud")
-    @patch(f"{_SVC}.activity_integration")
-    def test_deletes_record_and_blob(self, mock_activities_service, mock_media_crud):
-        from modules.activities.activity_media.service import delete_activity_media
+class TestList:
+    def test_the_owner_lists_the_photos_oldest_first_with_a_signed_url_each(self, db, owner, activity):
+        first = make_stored_media(db, activity, images.png_with_text(), "a.png")
+        second = make_stored_media(db, activity, images.jpeg_with_exif(), "b.jpg")
 
-        mock_media_crud.get_activity_media_by_id.return_value = MagicMock(activity_id=ACT, media_path=f"{ACT}_abc.jpg")
-        mock_activities_service.owns_activity.return_value = True
+        page = media_service.list_activity_media(activity.id, owner.id, db)
 
-        storage = MagicMock()
-        db = MagicMock()
-        delete_activity_media(ACT, M5, 2, storage, db)
+        assert [item.id for item in page.items] == [first.id, second.id]
+        assert page.total == 2
+        for item in page.items:
+            assert media_signing.verify_media_token(item.id, item.url.partition("?t=")[2])
 
-        mock_media_crud.delete_activity_media.assert_called_once()
-        mock_activities_service.touch_activity.assert_called_once_with(ACT, db)
-        storage.delete.assert_called_once_with("activity_media", f"{ACT}_abc.jpg")
+    def test_a_page_holds_its_slice_and_names_the_next_one(self, db, owner, activity):
+        for name, data in (("a.png", images.png_with_text()), ("b.jpg", images.jpeg_with_exif())):
+            make_stored_media(db, activity, data, name)
 
-    @patch(f"{_SVC}.activity_media_crud")
-    def test_missing_media_is_404(self, mock_media_crud):
-        from modules.activities.activity_media.service import delete_activity_media
+        page = media_service.list_activity_media(activity.id, owner.id, db, page_number=1, num_records=1)
 
-        mock_media_crud.get_activity_media_by_id.return_value = None
+        assert (len(page.items), page.total, page.next) == (1, 2, 2)
 
-        with pytest.raises(core_exceptions.NotFoundError) as exc:
-            storage = MagicMock()
-            delete_activity_media(ACT, M5, 2, storage, MagicMock())
-        assert exc.value.status_code == 404
+    def test_a_stranger_gets_the_page_of_an_activity_that_does_not_exist(self, db, activity):
+        make_stored_media(db, activity, images.png_with_text(), "a.png")
 
-    @patch(f"{_SVC}.activity_media_crud")
-    def test_media_belonging_to_another_activity_is_404(self, mock_media_crud):
-        """The media id must match the activity in the route path.
+        refused = media_service.list_activity_media(activity.id, make_user(db).id, db)
+        missing = media_service.list_activity_media(uuid.uuid4(), make_user(db).id, db)
 
-        Now that the route is ``/activities/{activity_id}/media/{media_id}``, a
-        media id reached through an unrelated activity's URL must not resolve —
-        otherwise the path would claim a relationship the handler never checked.
-        """
-        from modules.activities.activity_media.service import delete_activity_media
+        assert refused.model_dump() == missing.model_dump()
+        assert refused.total == 0
 
-        mock_media_crud.get_activity_media_by_id.return_value = MagicMock(activity_id=OTHER, media_path="/media/x.jpg")
+    def test_the_media_of_several_activities_is_listed_by_activity(self, db, owner, activity):
+        other = make_activity(db, owner.id, start_time=activity.start_time + timedelta(days=1))
+        make_stored_media(db, activity, images.png_with_text(), "a.png")
+        bare = make_activity(db, owner.id, start_time=activity.start_time + timedelta(days=2))
 
-        with pytest.raises(core_exceptions.NotFoundError) as exc:
-            storage = MagicMock()
-            delete_activity_media(ACT, M5, 2, storage, MagicMock())
+        listed = media_service.list_media_for_activities([activity.id, other.id, bare.id], db)
 
-        assert exc.value.status_code == 404
-        mock_media_crud.delete_activity_media.assert_not_called()
-
-    @patch(f"{_SVC}.activity_media_crud")
-    @patch(f"{_SVC}.activity_integration")
-    def test_media_on_another_users_activity_is_404(self, mock_activities_service, mock_media_crud):
-        from modules.activities.activity_media.service import delete_activity_media
-
-        mock_media_crud.get_activity_media_by_id.return_value = MagicMock(activity_id=ACT, media_path="/media/x.jpg")
-        mock_activities_service.owns_activity.return_value = False
-
-        with pytest.raises(core_exceptions.NotFoundError) as exc:
-            storage = MagicMock()
-            delete_activity_media(ACT, M5, 2, storage, MagicMock())
-
-        assert exc.value.status_code == 404
-        # 404 rather than 403 so media ids cannot be probed, and nothing is deleted.
-        mock_media_crud.delete_activity_media.assert_not_called()
-
-    @patch(f"{_SVC}.logger")
-    @patch(f"{_SVC}.activity_media_crud")
-    @patch(f"{_SVC}.activity_integration")
-    def test_cleanup_failure_is_logged_not_raised(self, mock_activities_service, mock_media_crud, mock_logger):
-        from modules.activities.activity_media.service import delete_activity_media
-
-        mock_media_crud.get_activity_media_by_id.return_value = MagicMock(activity_id=ACT, media_path=f"{ACT}_abc.jpg")
-        mock_activities_service.owns_activity.return_value = True
-        storage = MagicMock()
-        storage.delete.side_effect = platform_providers.StorageBackendUnavailableError("backend down")
-
-        delete_activity_media(ACT, M5, 2, storage, MagicMock())
-
-        # The row is still gone; only the blob cleanup failed.
-        mock_media_crud.delete_activity_media.assert_called_once()
-        mock_logger.warning.assert_called_once()
+        assert set(listed) == {activity.id}
+        assert len(listed[activity.id]) == 1
 
 
-class TestNoConnectionHeldWhileUsingStorage:
-    """A read leaves the session holding a pooled connection, so the blob is moved only after it has ended."""
+class TestDelete:
+    def test_the_row_and_the_blob_go_together_and_the_owner_is_the_only_one_who_may(self, db, owner, activity, storage):
+        record = make_stored_media(db, activity, images.png_with_text(), "a.png")
 
-    def test_storing_media_commits_the_duplicate_check_before_the_blob_is_written(self):
-        from modules.activities.activity_media import service
+        with pytest.raises(core_exceptions.NotFoundError):
+            media_service.delete_activity_media(activity.id, record.id, make_user(db).id, storage, db)
+        assert storage.exists(_AREA, record.media_path)
 
-        db = MagicMock()
-        storage = MagicMock()
-        order = MagicMock()
-        order.attach_mock(db.commit, "commit")
-        order.attach_mock(storage.save, "save")
-        storage.save.side_effect = RuntimeError("stop here")
+        media_service.delete_activity_media(activity.id, record.id, owner.id, storage, db)
 
-        with (
-            patch(f"{_SVC}.activity_media_crud.get_activity_media_by_content_hash", return_value=None),
-            pytest.raises(RuntimeError, match="stop here"),
-        ):
-            service._persist_media_bytes(ACT, "a.jpg", _JPEG, storage, db)
+        assert media_crud.get_activity_media_by_id(record.id, db) is None
+        assert not storage.exists(_AREA, record.media_path)
 
-        assert [call[0] for call in order.mock_calls] == ["commit", "save"]
+    def test_a_missing_media_id_is_not_found(self, db, owner, activity, storage):
+        with pytest.raises(core_exceptions.NotFoundError):
+            media_service.delete_activity_media(activity.id, uuid.uuid4(), owner.id, storage, db)
 
-    def test_serving_media_ends_the_read_before_the_blob_is_fetched(self):
-        from modules.activities.activity_media import service
+    def test_media_reached_through_another_of_the_owners_activities_is_not_found_and_stays(
+        self, db, owner, activity, storage
+    ):
+        other = make_activity(db, owner.id, start_time=activity.start_time + timedelta(days=1))
+        record = make_stored_media(db, activity, images.png_with_text(), "a.png")
 
-        db = MagicMock()
-        storage = MagicMock()
-        storage.get.return_value = b"image"
-        order = MagicMock()
-        order.attach_mock(db.commit, "commit")
-        order.attach_mock(storage.get, "get")
+        with pytest.raises(core_exceptions.NotFoundError):
+            media_service.delete_activity_media(other.id, record.id, owner.id, storage, db)
 
-        with (
-            patch(f"{_SVC}.activity_media_signing.verify_media_token", return_value=True),
-            patch(
-                f"{_SVC}.activity_media_crud.get_activity_media_by_id",
-                return_value=MagicMock(activity_id=ACT, media_path=f"{ACT}_x.jpg"),
-            ),
-        ):
-            service.read_activity_media_blob(ACT, M2, "token", storage, db)
+        assert media_crud.get_activity_media_by_id(record.id, db) is not None
+        assert storage.exists(_AREA, record.media_path)
 
-        assert [call[0] for call in order.mock_calls] == ["commit", "get"]
+    def test_a_storage_that_is_down_leaves_the_blob_but_the_row_is_still_deleted(self, db, owner, activity, tmp_path):
+        down = UnavailableStorage(str(tmp_path / "down"), clock=platform_clock(), plain_areas=frozenset({_AREA}))
+        record = media_service.store_activity_media_bytes(activity.id, "a.png", images.png_with_text(), down, db)
+
+        media_service.delete_activity_media(activity.id, record.id, owner.id, down, db)
+
+        assert media_crud.get_activity_media_by_id(record.id, db) is None
+        assert down.exists(_AREA, record.media_path)
 
 
-class TestImageFormats:
-    @pytest.mark.parametrize(
-        ("key", "expected"),
-        [
-            ("1_a.jpg", "image/jpeg"),
-            ("1_a.JPEG", "image/jpeg"),
-            ("1_a.png", "image/png"),
-            ("1_a.webp", "image/webp"),
-            ("1_a.heic", "application/octet-stream"),
-        ],
-    )
-    def test_a_stored_key_is_served_with_the_type_of_its_extension(self, key, expected):
-        from modules.activities.activity_media.service import _content_type_for
+class TestReadBlob:
+    def test_a_valid_token_serves_the_blob_with_the_type_of_its_extension(self, db, activity, storage):
+        record = make_stored_media(db, activity, images.png_with_text(), "a.png")
+        token = media_signing.sign_media_token(record.id)
 
-        assert _content_type_for(key) == expected
+        data, content_type = media_service.read_activity_media_blob(activity.id, record.id, token, storage, db)
 
-    @pytest.mark.parametrize("name", ["a.gif", "a.heic", "a.heif"])
-    def test_gif_and_heic_names_are_refused(self, name):
-        from modules.activities.activity_media.service import _build_storage_key
+        assert (data, content_type) == (storage.get(_AREA, record.media_path), "image/png")
 
-        with pytest.raises(core_exceptions.UnsupportedMediaTypeError):
-            _build_storage_key(ACT, name)
+    def test_a_forged_token_is_refused_as_not_found(self, db, activity, storage):
+        record = make_stored_media(db, activity, images.png_with_text(), "a.png")
 
-    @patch(f"{_SVC}.activity_media_crud")
-    @patch(f"{_SVC}.activity_integration")
-    def test_a_webp_is_stored_without_its_metadata(self, mock_activities_service, mock_media_crud):
-        from modules.activities.activity_media.contracts import ActivityMediaRecord
-        from modules.activities.activity_media.service import store_activity_media
+        with pytest.raises(core_exceptions.AccessConcealedError):
+            media_service.read_activity_media_blob(activity.id, record.id, "forged", storage, db)
 
-        mock_activities_service.owns_activity.return_value = True
-        mock_media_crud.get_activity_media_by_content_hash.return_value = None
-        mock_media_crud.create_activity_media.return_value = ActivityMediaRecord(
-            id=M9, activity_id=ACT, media_path=f"{ACT}_abc.webp", media_type=1
-        )
-        storage = MagicMock()
-        webp = images.webp_with_exif()
+    def test_a_token_minted_for_another_photo_is_refused(self, db, activity, storage):
+        record = make_stored_media(db, activity, images.png_with_text(), "a.png")
+        other = make_stored_media(db, activity, images.jpeg_with_exif(), "b.jpg")
 
-        store_activity_media(
-            ACT,
-            2,
-            "ride.webp",
-            lambda: core_file_uploads.read_validated_upload_sync(
-                UploadFile(io.BytesIO(webp), filename="ride.webp"), kind=core_file_uploads.UploadKind.IMAGE
-            ),
-            storage,
-            MagicMock(),
-        )
-
-        _area, key, data, content_type = storage.save.call_args.args
-        assert key.endswith(".webp")
-        assert content_type == "image/webp"
-        assert not images.has_metadata(data)
-
-    @pytest.mark.parametrize(
-        ("name", "data"), [("a.gif", images.gif()), ("a.heic", images.heic_like())], ids=["gif", "heic"]
-    )
-    def test_gif_and_heic_uploads_are_refused_by_the_validator(self, name, data):
-        with pytest.raises(core_exceptions.DomainError) as exc:
-            core_file_uploads.read_validated_upload_sync(
-                UploadFile(io.BytesIO(data), filename=name), kind=core_file_uploads.UploadKind.IMAGE
+        with pytest.raises(core_exceptions.AccessConcealedError):
+            media_service.read_activity_media_blob(
+                activity.id, record.id, media_signing.sign_media_token(other.id), storage, db
             )
 
-        assert exc.value.status_code == 415
+    def test_a_token_replayed_under_another_activity_is_not_found(self, db, owner, activity, storage):
+        other = make_activity(db, owner.id, start_time=activity.start_time + timedelta(days=1))
+        record = make_stored_media(db, activity, images.png_with_text(), "a.png")
+
+        with pytest.raises(core_exceptions.NotFoundError):
+            media_service.read_activity_media_blob(
+                other.id, record.id, media_signing.sign_media_token(record.id), storage, db
+            )
+
+    def test_a_row_whose_blob_is_gone_is_not_found(self, db, activity, storage):
+        record = make_stored_media(db, activity, images.png_with_text(), "a.png")
+        storage.delete(_AREA, record.media_path)
+
+        with pytest.raises(core_exceptions.NotFoundError):
+            media_service.read_activity_media_blob(
+                activity.id, record.id, media_signing.sign_media_token(record.id), storage, db
+            )
+
+    def test_a_key_stored_under_a_no_longer_accepted_extension_is_served_as_a_download(self, db, activity, storage):
+        record = media_crud.create_activity_media(activity.id, f"{activity.id}_old.gif", db)
+        storage.save(_AREA, record.media_path, images.gif())
+
+        _, content_type = media_service.read_activity_media_blob(
+            activity.id, record.id, media_signing.sign_media_token(record.id), storage, db
+        )
+
+        assert content_type == "application/octet-stream"
+
+
+class TestCleanup:
+    def test_the_blobs_of_a_deleted_activity_go_and_another_activitys_stay(self, db, owner, activity, storage):
+        other = make_activity(db, owner.id, start_time=activity.start_time + timedelta(days=1))
+        mine = make_stored_media(db, activity, images.png_with_text(), "a.png")
+        theirs = make_stored_media(db, other, images.png_with_text(), "a.png")
+
+        removed = media_service.delete_media_files_for_activity(activity.id, storage)
+
+        assert removed == 1
+        assert not storage.exists(_AREA, mine.media_path) and storage.exists(_AREA, theirs.media_path)
+        assert media_service.delete_media_files_for_activity(activity.id, storage) == 0
+
+    def test_a_storage_failure_propagates_so_the_runner_retries(self, db, activity, tmp_path):
+        down = UnavailableStorage(str(tmp_path / "down"), clock=platform_clock(), plain_areas=frozenset({_AREA}))
+        media_service.store_activity_media_bytes(activity.id, "a.png", images.png_with_text(), down, db)
+
+        with pytest.raises(platform_providers.StorageBackendUnavailableError):
+            media_service.delete_media_files_for_activity(activity.id, down)
+
+    def test_the_blobs_of_an_activity_are_listed_for_the_export_and_a_missing_blob_is_skipped(
+        self, db, activity, storage
+    ):
+        kept = make_stored_media(db, activity, images.png_with_text(), "a.png")
+        storage.save(_AREA, f"{activity.id}_vanishing.png", b"x")
+
+        blobs = media_service.list_media_blobs(activity.id, storage)
+
+        assert (kept.media_path, storage.get(_AREA, kept.media_path)) in blobs
+        assert len(blobs) == 2
+
+    def test_a_blob_that_cannot_be_read_or_has_vanished_is_skipped_from_the_export(self, activity, tmp_path):
+        flaky = FlakyStorage(str(tmp_path / "flaky"), clock=platform_clock(), plain_areas=frozenset({_AREA}))
+        for name in ("ok", "unreadable", "vanished"):
+            flaky.save(_AREA, f"{activity.id}_{name}.png", b"x")
+
+        blobs = media_service.list_media_blobs(activity.id, flaky)
+
+        assert [key for key, _ in blobs] == [f"{activity.id}_ok.png"]
+
+    def test_restoring_a_blob_stores_it_under_the_new_activitys_key(self, activity, storage):
+        key = media_service.store_media_blob(activity.id, "photo", ".png", b"bytes", storage)
+
+        assert (key, storage.get(_AREA, key)) == (f"{activity.id}_photo.png", b"bytes")
+
+
+class TestRekey:
+    def test_an_archived_key_is_re_addressed_to_the_restored_activity(self):
+        archived, new = uuid.uuid4(), uuid.uuid4()
+
+        assert media_service.rekey_media_path(f"{archived}_a.jpg", archived, new) == f"{new}_a.jpg"
+
+    @pytest.mark.parametrize("suffix", ["../escape.jpg", "dir/a.jpg", "dir\\a.jpg", ""])
+    def test_a_suffix_that_is_not_a_flat_file_name_is_refused(self, suffix):
+        archived = uuid.uuid4()
+
+        assert media_service.rekey_media_path(f"{archived}_{suffix}", archived, uuid.uuid4()) is None
+
+    def test_a_key_of_another_activity_is_refused(self):
+        assert media_service.rekey_media_path(f"{uuid.uuid4()}_a.jpg", uuid.uuid4(), uuid.uuid4()) is None
+
+
+class TestSweep:
+    @staticmethod
+    def _age(tmp_path, key: str) -> None:
+        old = (datetime.now(UTC) - timedelta(days=2)).timestamp()
+        os.utime(tmp_path / "plain" / _AREA / key, (old, old))
+
+    def test_an_old_blob_of_a_deleted_activity_is_swept_and_a_young_one_is_kept(self, tmp_path, plain_storage):
+        gone = uuid.uuid4()
+        plain_storage.save(_AREA, f"{gone}_old.png", b"x")
+        plain_storage.save(_AREA, f"{gone}_young.png", b"x")
+        self._age(tmp_path, f"{gone}_old.png")
+
+        removed = media_service.sweep_orphaned_media(plain_storage)
+
+        assert removed == 1
+        assert not plain_storage.exists(_AREA, f"{gone}_old.png")
+        assert plain_storage.exists(_AREA, f"{gone}_young.png")
+
+    def test_an_old_blob_no_row_names_is_swept_and_one_a_row_names_is_kept(self, db, activity, tmp_path, plain_storage):
+        named = media_service.store_activity_media_bytes(
+            activity.id, "a.png", images.png_with_text(), plain_storage, db
+        )
+        stray = f"{activity.id}_stray.png"
+        plain_storage.save(_AREA, stray, b"x")
+        self._age(tmp_path, stray)
+        self._age(tmp_path, named.media_path)
+
+        removed = media_service.sweep_orphaned_media(plain_storage)
+
+        assert removed == 1
+        assert not plain_storage.exists(_AREA, stray)
+        assert plain_storage.exists(_AREA, named.media_path)
+
+    def test_a_key_outside_the_uuid_layout_is_left_alone_by_the_activity_sweep_and_swept_when_no_row_names_it(
+        self, tmp_path, plain_storage
+    ):
+        plain_storage.save(_AREA, "not-a-media-key.png", b"x")
+        self._age(tmp_path, "not-a-media-key.png")
+
+        assert media_service.sweep_orphaned_media(plain_storage) == 1
+        assert not plain_storage.exists(_AREA, "not-a-media-key.png")

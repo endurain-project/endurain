@@ -18,24 +18,27 @@ import modules.users.users_integrations.schema as user_integrations_schema
 import modules.users.users_integrations.serializers as user_integrations_serializers
 
 
-def _get_user_integrations_model_by_user_id_or_404(
-    user_id: uuid.UUID, db: Session
-) -> user_integrations_models.UsersIntegrations:
-    """Retrieve integrations for a specific user.
+def _lock_user_integrations_or_404(user_id: uuid.UUID, db: Session) -> user_integrations_models.UsersIntegrations:
+    """Lock and return a user's integrations row for a write.
+
+    The row is versioned, so a write on a copy read before another transaction committed would fail with
+    ``StaleDataError``. Locking it makes the write wait for that transaction (a token refresh, a key-rotation batch)
+    and then apply to the row as committed; an ``If-Match`` check compares against that same version.
 
     Args:
-        user_id: The ID of the user to fetch integrations for.
+        user_id: The ID of the user whose integrations are written.
         db: SQLAlchemy database session.
 
     Returns:
-        The UsersIntegrations ORM model for the user.
+        The UsersIntegrations ORM model for the user, locked until the transaction ends.
 
     Raises:
         NotFoundError: If the user has no integrations.
     """
-    # Get the user integrations by the user id
-    stmt = select(user_integrations_models.UsersIntegrations).where(
-        user_integrations_models.UsersIntegrations.user_id == user_id
+    stmt = (
+        select(user_integrations_models.UsersIntegrations)
+        .where(user_integrations_models.UsersIntegrations.user_id == user_id)
+        .with_for_update()
     )
     db_user_integrations = db.execute(stmt).scalar_one_or_none()
 
@@ -167,7 +170,7 @@ def link_strava_account(
         db: SQLAlchemy database session.
     """
     # Get the user integrations by the user id
-    db_user_integrations = _get_user_integrations_model_by_user_id_or_404(user_id, db)
+    db_user_integrations = _lock_user_integrations_or_404(user_id, db)
 
     # Update the user integrations with the tokens
     db_user_integrations.strava_token = core_cryptography.encrypt_token_fernet(tokens["access_token"])
@@ -251,7 +254,7 @@ def unlink_strava_account(user_id: uuid.UUID, db: Session) -> None:
         NotFoundError: If the user has no integrations.
     """
     # Get the user integrations by the user id
-    db_user_integrations = _get_user_integrations_model_by_user_id_or_404(user_id, db)
+    db_user_integrations = _lock_user_integrations_or_404(user_id, db)
 
     # Clear all Strava integration data
     db_user_integrations.strava_token = None
@@ -346,7 +349,7 @@ def clear_strava_revoked_at(user_id: uuid.UUID, db: Session) -> None:
     Raises:
         NotFoundError: If the user has no integrations.
     """
-    db_user_integrations = _get_user_integrations_model_by_user_id_or_404(user_id, db)
+    db_user_integrations = _lock_user_integrations_or_404(user_id, db)
     db_user_integrations.strava_revoked_at = None
     db.flush()
 
@@ -368,7 +371,7 @@ def set_user_strava_client(
         PreconditionFailedError: When ``if_match`` does not name the row's version.
     """
     # Get the user integrations by the user id
-    db_user_integrations = _get_user_integrations_model_by_user_id_or_404(user_id, db)
+    db_user_integrations = _lock_user_integrations_or_404(user_id, db)
     core_etag.require_if_match(if_match, db_user_integrations.version, "Strava client")
 
     # Encrypt and store Strava client credentials
@@ -391,7 +394,7 @@ def set_user_strava_sync_gear(user_id: uuid.UUID, strava_sync_gear: bool, db: Se
         NotFoundError: If the user has no integrations.
     """
     # Get the user integrations by the user id
-    db_user_integrations = _get_user_integrations_model_by_user_id_or_404(user_id, db)
+    db_user_integrations = _lock_user_integrations_or_404(user_id, db)
 
     # Set the Strava gear sync preference
     db_user_integrations.strava_sync_gear = strava_sync_gear
@@ -418,7 +421,7 @@ def link_garminconnect_account(
         NotFoundError: If the user has no integrations.
     """
     # Get the user integrations by the user id
-    db_user_integrations = _get_user_integrations_model_by_user_id_or_404(user_id, db)
+    db_user_integrations = _lock_user_integrations_or_404(user_id, db)
 
     # Store Garmin Connect token
     db_user_integrations.garminconnect_token = token
@@ -437,7 +440,7 @@ def set_user_garminconnect_sync_gear(user_id: uuid.UUID, garminconnect_sync_gear
         NotFoundError: If the user has no integrations.
     """
     # Get the user integrations by the user id
-    db_user_integrations = _get_user_integrations_model_by_user_id_or_404(user_id, db)
+    db_user_integrations = _lock_user_integrations_or_404(user_id, db)
 
     # Set the Garmin Connect gear sync preference
     db_user_integrations.garminconnect_sync_gear = garminconnect_sync_gear
@@ -459,7 +462,7 @@ def unlink_garminconnect_account(user_id: uuid.UUID, db: Session) -> None:
         NotFoundError: If the user has no integrations.
     """
     # Get the user integrations by the user id
-    db_user_integrations = _get_user_integrations_model_by_user_id_or_404(user_id, db)
+    db_user_integrations = _lock_user_integrations_or_404(user_id, db)
 
     # Clear all Garmin Connect integration data
     db_user_integrations.garminconnect_token = None
@@ -546,7 +549,7 @@ def edit_user_integrations(
         NotFoundError: If the user has no integrations.
     """
     # Get the user integrations from the database
-    db_user_integrations = _get_user_integrations_model_by_user_id_or_404(user_id, db)
+    db_user_integrations = _lock_user_integrations_or_404(user_id, db)
 
     # Get fields to update
     user_integrations_data = user_integrations.model_dump(exclude_unset=True, exclude={"user_id", "id"})

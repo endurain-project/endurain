@@ -1,6 +1,6 @@
 """Tests for the translation of identity-provider claims into local user fields."""
 
-from unittest.mock import MagicMock
+from types import SimpleNamespace
 
 import pytest
 
@@ -10,8 +10,8 @@ import modules.auth.identity_providers.claim_mapping as claim_mapping
 class TestMapUserClaims:
     """map_user_claims maps IdP claims to standard user fields."""
 
-    def _idp(self, user_mapping=None) -> MagicMock:
-        idp = MagicMock()
+    def _idp(self, user_mapping=None) -> SimpleNamespace:
+        idp = SimpleNamespace()
         idp.user_mapping = user_mapping
         return idp
 
@@ -77,8 +77,8 @@ class TestIsEmailVerified:
     """is_email_verified trusts email_verified only for an address taken from the standard email claim."""
 
     @staticmethod
-    def _idp(user_mapping=None) -> MagicMock:
-        idp = MagicMock()
+    def _idp(user_mapping=None) -> SimpleNamespace:
+        idp = SimpleNamespace()
         idp.user_mapping = user_mapping
         return idp
 

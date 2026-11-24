@@ -10,10 +10,23 @@ import core.job_status as core_job_status
 BULK_IMPORT_ERROR_STORAGE_AREA = "bulk_import_errors"
 
 
-def bulk_import_error_prefix(user_id: uuid.UUID) -> str:
-    """Return the storage prefix under which one user's failed bulk-import files live.
+def bulk_import_error_root(user_id: uuid.UUID) -> str:
+    """Return the storage path that holds one user's failed bulk-import files.
 
-    The trailing slash keeps a prefix delete of one user from reaching another user's keys.
+    ``StorageProvider.delete_prefix`` takes this path, not a prefix ending in ``/``: it removes the object at the path
+    and every object under ``<path>/``, so another user's keys are never reached.
+
+    Args:
+        user_id: The user the failed files belong to.
+
+    Returns:
+        The path, ``"<user_id>"``.
+    """
+    return str(user_id)
+
+
+def bulk_import_error_prefix(user_id: uuid.UUID) -> str:
+    """Return the key prefix under which one user's failed bulk-import files are stored.
 
     Args:
         user_id: The user the failed files belong to.
@@ -21,7 +34,7 @@ def bulk_import_error_prefix(user_id: uuid.UUID) -> str:
     Returns:
         The prefix, ``"<user_id>/"``.
     """
-    return f"{user_id}/"
+    return f"{bulk_import_error_root(user_id)}/"
 
 
 #: Seconds a scheduled fan-out waits for a free slot in the local pool before it fails a refresh. The pool

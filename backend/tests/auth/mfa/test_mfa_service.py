@@ -1,684 +1,279 @@
-"""Tests for auth.mfa.service (moved from profile.utils)."""
+"""MFA enrolment, verification and removal on the real database: factors, backup codes, replay and generations."""
 
+import base64
 import uuid
-from datetime import UTC, datetime
-from types import SimpleNamespace
-from unittest.mock import MagicMock, patch
 
+import jasil.runtime as jasil_runtime
 import pyotp
 import pytest
 
+import core.cryptography as core_cryptography
 import core.exceptions as core_exceptions
+import modules.auth.credentials.integration_service as credentials_integration
+import modules.auth.mfa.crud as mfa_crud
+import modules.auth.mfa.integration_service as mfa_integration
 import modules.auth.mfa.service as mfa_service
-from tests._helpers.auth import MOCK_USER_ID
+import modules.auth.mfa.totp_replay_store as mfa_totp_replay_store
+import modules.auth.mfa_backup_codes.crud as backup_codes_crud
+import modules.auth.security_generation.integration_service as security_generation_integration
+from tests._factories.tokens import make_mfa, totp_code
+from tests._factories.users import make_user
 
 
-class TestGenerateTOTPSecret:
-    """Test suite for generate_totp_secret function."""
+class _ReplayGuard:
+    """Claims TOTP steps in the platform state, as the routes' replay guard does."""
 
-    @patch("modules.auth.mfa.service.pyotp.random_base32")
-    def test_returns_base32_secret(self, mock_random_base32):
-        mock_random_base32.return_value = "JBSWY3DPEHPK3PXP"
-
-        result = mfa_service.generate_totp_secret()
-
-        assert result == "JBSWY3DPEHPK3PXP"
-        mock_random_base32.assert_called_once()
+    def claim_totp_step(self, user_id: uuid.UUID, step: int) -> bool:
+        return mfa_totp_replay_store.claim_totp_step(jasil_runtime.get_active_platform().state, user_id, step)
 
 
-class TestSignInMethods:
-    """The methods an MFA-required sign-in lists follow the factors the user has."""
-
-    @staticmethod
-    def _methods(factor_types):
-        factors = [SimpleNamespace(type=factor_type) for factor_type in factor_types]
-        with patch("modules.auth.mfa.service.auth_mfa_crud.get_user_factors", return_value=factors):
-            return mfa_service.get_sign_in_methods(MOCK_USER_ID, MagicMock())
-
-    def test_a_user_with_totp_answers_with_totp_or_a_backup_code(self):
-        assert self._methods(["totp"]) == ["totp", "backup_code"]
-
-    def test_a_factor_type_is_listed_once(self):
-        assert self._methods(["totp", "totp"]) == ["totp", "backup_code"]
-
-    def test_a_user_without_a_factor_has_no_method(self):
-        assert self._methods([]) == []
+@pytest.fixture
+def hasher():
+    return credentials_integration.get_password_hasher()
 
 
-class TestVerifyUserMfaTotpReplay:
-    """A TOTP step is accepted once per user, so an observed code cannot be replayed."""
-
-    _SECRET = "JBSWY3DPEHPK3PXP"
-
-    def _verify(self, code, guard):
-        row = SimpleNamespace(id=uuid.uuid4(), credential="encrypted")
-        with (
-            patch(
-                "modules.auth.mfa.service.users_integration.require_user", return_value=SimpleNamespace(id=MOCK_USER_ID)
-            ),
-            patch("modules.auth.mfa.service.auth_mfa_crud.get_totp_factor", return_value=row),
-            patch("modules.auth.mfa.service.core_cryptography.decrypt_token_fernet", return_value=self._SECRET),
-        ):
-            return mfa_service.verify_user_mfa(MOCK_USER_ID, code, MagicMock(), MagicMock(), replay_guard=guard)
-
-    def test_a_fresh_code_is_accepted_and_its_step_claimed(self):
-        guard = MagicMock()
-        guard.claim_totp_step.return_value = True
-        totp = pyotp.TOTP(self._SECRET)
-
-        assert self._verify(totp.now(), guard) is True
-
-        user_id, step = guard.claim_totp_step.call_args.args
-        assert user_id == MOCK_USER_ID
-        assert abs(step - totp.timecode(datetime.now(UTC))) <= 1
-
-    def test_a_code_whose_step_was_already_used_is_rejected(self):
-        guard = MagicMock()
-        guard.claim_totp_step.return_value = False
-
-        assert self._verify(pyotp.TOTP(self._SECRET).now(), guard) is False
-
-    def test_a_wrong_code_claims_nothing(self):
-        guard = MagicMock()
-        wrong = "000000" if pyotp.TOTP(self._SECRET).now() != "000000" else "111111"
-
-        assert self._verify(wrong, guard) is False
-        guard.claim_totp_step.assert_not_called()
-
-    @pytest.mark.parametrize("code", ["12345\u00b2", "\u0661\u0662\u0663\u0664\u0665\u0666"])
-    def test_a_code_with_non_ascii_digits_is_rejected(self, code):
-        guard = MagicMock()
-
-        assert self._verify(code, guard) is False
-        guard.claim_totp_step.assert_not_called()
+def _wrong_code(secret: str) -> str:
+    accepted = {totp_code(secret, steps_ahead=offset) for offset in (-1, 0, 1)}
+    return next(code for code in (f"{n:06d}" for n in range(1_000_000)) if code not in accepted)
 
 
-class TestGenerateQRCode:
-    """Test suite for generate_qr_code function."""
-
-    @patch("modules.auth.mfa.service.qrcode.QRCode")
-    @patch("modules.auth.mfa.service.pyotp.TOTP")
-    def test_generates_qr_code(self, mock_totp_class, mock_qr_class):
-        mock_totp = MagicMock()
-        mock_totp.provisioning_uri.return_value = "otpauth://totp/Endurain:testuser?secret=SECRET"
-        mock_totp_class.return_value = mock_totp
-
-        mock_qr = MagicMock()
-        mock_qr_class.return_value = mock_qr
-
-        mock_img = MagicMock()
-        mock_qr.make_image.return_value = mock_img
-
-        mock_img.save = MagicMock()
-
-        with patch("modules.auth.mfa.service.BytesIO") as mock_bytesio:
-            mock_buffer = MagicMock()
-            mock_bytesio.return_value = mock_buffer
-            mock_buffer.getvalue.return_value = b"png_data"
-
-            with patch("modules.auth.mfa.service.base64.b64encode") as mock_b64:
-                mock_b64.return_value = b"cG5nX2RhdGE="
-                result = mfa_service.generate_qr_code("SECRET", "testuser")
-
-        assert result == "data:image/png;base64,cG5nX2RhdGE="
-        mock_totp.provisioning_uri.assert_called_once_with(name="testuser", issuer_name="Endurain")
-        mock_qr.add_data.assert_called_once_with("otpauth://totp/Endurain:testuser?secret=SECRET")
-        mock_qr.make.assert_called_once_with(fit=True)
-
-    @patch("modules.auth.mfa.service.pyotp.TOTP")
-    def test_generates_qr_code_with_custom_app_name(self, mock_totp_class):
-        mock_totp = MagicMock()
-        mock_totp.provisioning_uri.return_value = "otpauth://totp/CustomApp:testuser?secret=SECRET"
-        mock_totp_class.return_value = mock_totp
-
-        with patch("modules.auth.mfa.service.qrcode.QRCode") as mock_qr_class:
-            mock_qr = MagicMock()
-            mock_qr_class.return_value = mock_qr
-            mock_img = MagicMock()
-            mock_qr.make_image.return_value = mock_img
-
-            with patch("modules.auth.mfa.service.BytesIO") as mock_bytesio:
-                mock_buffer = MagicMock()
-                mock_bytesio.return_value = mock_buffer
-                mock_buffer.getvalue.return_value = b"png_data"
-
-                with patch("modules.auth.mfa.service.base64.b64encode") as mock_b64:
-                    mock_b64.return_value = b"cG5nX2RhdGE="
-                    result = mfa_service.generate_qr_code("SECRET", "testuser", "CustomApp")
-
-        mock_totp.provisioning_uri.assert_called_once_with(name="testuser", issuer_name="CustomApp")
-        assert "data:image/png;base64" in result
+def _generation(db, user_id) -> int:
+    return security_generation_integration.current_generation(user_id, db)
 
 
-class TestSetupUserMFA:
-    """Test suite for setup_user_mfa function."""
+def _enrol(db, user, secret: str | None = None, *, code: str | None = None) -> list[str]:
+    secret = secret or pyotp.random_base32()
+    return mfa_service.enable_user_mfa(
+        user.id,
+        secret,
+        code or totp_code(secret),
+        credentials_integration.get_password_hasher(),
+        db,
+        replay_guard=_ReplayGuard(),
+    )
 
-    @patch("modules.auth.mfa.service.generate_qr_code")
-    @patch("modules.auth.mfa.service.generate_totp_secret")
-    @patch("modules.auth.mfa.service.users_integration.require_user")
-    def test_successful_setup(self, mock_get_user, mock_gen_secret, mock_gen_qr):
-        mock_user = MagicMock()
-        mock_user.username = "testuser"
-        mock_user.mfa_enabled = False
-        mock_get_user.return_value = mock_user
-        mock_gen_secret.return_value = "NEWSECRET"
-        mock_gen_qr.return_value = "data:image/png;base64,QRCODE"
 
-        with patch("modules.auth.mfa.service.is_mfa_enabled_for_user", return_value=False):
-            result = mfa_service.setup_user_mfa(MOCK_USER_ID, MagicMock())
+def _verify(db, user, code: str, hasher) -> bool:
+    return mfa_service.verify_user_mfa(user.id, code, hasher, db, replay_guard=_ReplayGuard())
 
-        assert result.secret == "NEWSECRET"
-        assert result.qr_code == "data:image/png;base64,QRCODE"
-        assert result.app_name == "Endurain"
-        mock_gen_qr.assert_called_once_with("NEWSECRET", "testuser")
 
-    @patch("modules.auth.mfa.service.users_integration.require_user")
-    def test_user_not_found(self, mock_get_user):
-        mock_get_user.side_effect = core_exceptions.NotFoundError("User not found")
+class TestSetup:
+    def test_setup_offers_a_fresh_secret_and_a_png_qr_code_and_stores_nothing(self, db):
+        user = make_user(db)
 
+        setup = mfa_service.setup_user_mfa(user.id, db)
+
+        assert len(setup.secret) == 32 and setup.app_name == "Endurain"
+        header, _, payload = setup.qr_code.partition(",")
+        assert header == "data:image/png;base64"
+        assert base64.b64decode(payload).startswith(b"\x89PNG")
+        assert mfa_service.setup_user_mfa(user.id, db).secret != setup.secret
+        assert mfa_crud.get_user_factors(user.id, db) == []
+
+    def test_setup_is_refused_for_a_user_who_already_has_mfa_and_for_a_missing_user(self, db):
+        user = make_user(db)
+        make_mfa(db, user)
+
+        with pytest.raises(core_exceptions.ConflictError):
+            mfa_integration.setup_user_mfa(user.id, db)
         with pytest.raises(core_exceptions.NotFoundError):
-            mfa_service.setup_user_mfa(MOCK_USER_ID, MagicMock())
+            mfa_integration.setup_user_mfa(uuid.uuid4(), db)
 
-    @patch("modules.auth.mfa.service.users_integration.require_user")
-    def test_mfa_already_enabled(self, mock_get_user):
-        mock_user = MagicMock()
-        mock_user.mfa_enabled = True
-        mock_get_user.return_value = mock_user
+    def test_the_qr_code_is_a_png_data_uri_that_depends_on_the_app_name(self):
+        secret = pyotp.random_base32()
 
-        with (
-            patch("modules.auth.mfa.service.is_mfa_enabled_for_user", return_value=True),
-            pytest.raises(core_exceptions.ConflictError) as refused,
-        ):
-            mfa_service.setup_user_mfa(MOCK_USER_ID, MagicMock())
+        first = mfa_service.generate_qr_code(secret, "alice")
+        second = mfa_service.generate_qr_code(secret, "alice", app_name="Other")
 
-        assert refused.value.status_code == 409
-        assert refused.value.detail == "MFA is already enabled for this user"
+        assert first.startswith("data:image/png;base64,") and first != second
 
 
-class TestEnableUserMFA:
-    """Test suite for enable_user_mfa function."""
+class TestEnable:
+    def test_a_valid_code_stores_the_encrypted_secret_creates_ten_backup_codes_and_bumps_the_generation(self, db):
+        user = make_user(db)
+        secret = pyotp.random_base32()
+        generation = _generation(db, user.id)
 
-    @patch("modules.auth.mfa.service.mfa_backup_codes_integration.create_backup_codes")
-    @patch("modules.auth.mfa.service.mfa_totp_replay_store.matching_totp_step")
-    @patch("modules.auth.mfa.service.core_cryptography.encrypt_token_fernet")
-    @patch("modules.auth.mfa.service.auth_mfa_crud.set_totp_factor")
-    @patch("modules.auth.mfa.service.users_integration.require_user")
-    def test_successful_enable(self, mock_get_user, mock_update_mfa, mock_encrypt, mock_verify, mock_create_backup):
-        mock_user = MagicMock()
-        mock_user.mfa_enabled = False
-        mock_get_user.return_value = mock_user
-        mock_encrypt.return_value = "encrypted_secret"
-        mock_verify.return_value = 7
-        mock_create_backup.return_value = ["CODE1", "CODE2"]
+        codes = _enrol(db, user, secret)
 
-        mock_password_verifier = MagicMock()
-        guard = MagicMock()
-        guard.claim_totp_step.return_value = True
+        (factor,) = mfa_crud.get_user_factors(user.id, db)
+        assert (factor.type, factor.last_used_at) == ("totp", None)
+        assert factor.credential != secret
+        assert core_cryptography.decrypt_token_fernet(factor.credential) == secret
+        assert len(codes) == len(set(codes)) == 10
+        assert len(backup_codes_crud.get_user_unused_backup_codes(user.id, db)) == 10
+        assert _generation(db, user.id) == generation + 1
+        assert mfa_service.is_mfa_enabled_for_user(user.id, db) is True
 
-        mock_db = MagicMock()
-        with patch("modules.auth.mfa.service.is_mfa_enabled_for_user", return_value=False):
-            result = mfa_service.enable_user_mfa(
-                MOCK_USER_ID, "secret", "123456", mock_password_verifier, mock_db, replay_guard=guard
+    def test_a_wrong_code_enrols_nothing_and_does_not_bump(self, db):
+        user = make_user(db)
+        secret = pyotp.random_base32()
+        generation = _generation(db, user.id)
+
+        with pytest.raises(core_exceptions.InvalidMfaCodeError):
+            _enrol(db, user, secret, code=_wrong_code(secret))
+
+        assert mfa_crud.get_user_factors(user.id, db) == []
+        assert backup_codes_crud.get_user_backup_codes(user.id, db) == []
+        assert _generation(db, user.id) == generation
+
+    def test_an_enrolment_code_cannot_be_used_twice(self, db):
+        user, other = make_user(db), make_user(db)
+        secret = pyotp.random_base32()
+        code = totp_code(secret)
+        _enrol(db, user, secret, code=code)
+        mfa_service.disable_user_mfa(user.id, db)
+
+        with pytest.raises(core_exceptions.InvalidMfaCodeError):
+            _enrol(db, user, secret, code=code)
+        _enrol(db, other, secret, code=totp_code(secret, steps_ahead=1))
+
+    def test_enabling_twice_and_for_a_missing_user_is_refused_without_a_bump(self, db):
+        user = make_user(db)
+        make_mfa(db, user)
+        generation = _generation(db, user.id)
+
+        with pytest.raises(core_exceptions.ConflictError):
+            _enrol(db, user)
+        with pytest.raises(core_exceptions.NotFoundError):
+            mfa_integration.enable_user_mfa(
+                uuid.uuid4(),
+                "x",
+                "000000",
+                credentials_integration.get_password_hasher(),
+                db,
+                replay_guard=_ReplayGuard(),
             )
 
-        assert result == ["CODE1", "CODE2"]
-        guard.claim_totp_step.assert_called_once_with(MOCK_USER_ID, 7)
-        mock_update_mfa.assert_called_once()
-        mock_create_backup.assert_called_once_with(
-            MOCK_USER_ID, mock_password_verifier, mock_create_backup.call_args[0][2]
+        assert _generation(db, user.id) == generation
+
+
+class TestDisable:
+    def test_disabling_removes_the_factor_and_the_backup_codes_and_bumps_the_generation(self, db):
+        user, other = make_user(db), make_user(db)
+        make_mfa(db, user)
+        make_mfa(db, other)
+        generation = _generation(db, user.id)
+
+        mfa_integration.disable_user_mfa(user.id, db)
+
+        assert mfa_service.is_mfa_enabled_for_user(user.id, db) is False
+        assert backup_codes_crud.get_user_backup_codes(user.id, db) == []
+        assert _generation(db, user.id) == generation + 1
+        assert mfa_service.is_mfa_enabled_for_user(other.id, db) is True
+        assert len(backup_codes_crud.get_user_backup_codes(other.id, db)) == 10
+
+    def test_disabling_without_mfa_and_for_a_missing_user_is_refused_without_a_bump(self, db):
+        user = make_user(db)
+        generation = _generation(db, user.id)
+
+        with pytest.raises(core_exceptions.ConflictError):
+            mfa_service.disable_user_mfa(user.id, db)
+        with pytest.raises(core_exceptions.NotFoundError):
+            mfa_service.disable_user_mfa(uuid.uuid4(), db)
+
+        assert _generation(db, user.id) == generation
+
+
+class TestVerify:
+    def test_a_current_code_is_accepted_once_and_stamps_the_factor(self, db, hasher):
+        user = make_user(db)
+        factors = make_mfa(db, user)
+        code = totp_code(factors.secret, steps_ahead=1)
+
+        assert _verify(db, user, code, hasher) is True
+        assert mfa_crud.get_totp_factor(user.id, db).last_used_at is not None
+        assert _verify(db, user, code, hasher) is False
+
+    def test_a_code_with_surrounding_spaces_is_accepted(self, db, hasher):
+        user = make_user(db)
+        factors = make_mfa(db, user)
+
+        assert _verify(db, user, f"  {totp_code(factors.secret, steps_ahead=1)} ", hasher) is True
+
+    def test_a_wrong_code_is_refused_without_a_stamp_or_a_claimed_step(self, db, hasher):
+        user = make_user(db)
+        factors = make_mfa(db, user)
+
+        assert _verify(db, user, _wrong_code(factors.secret), hasher) is False
+        assert mfa_crud.get_totp_factor(user.id, db).last_used_at is None
+        assert _verify(db, user, totp_code(factors.secret, steps_ahead=1), hasher) is True
+
+    @pytest.mark.parametrize("code", ["12345²", "١٢٣٤٥٦", "12345", "1234567", ""])
+    def test_a_code_that_is_not_six_ascii_digits_or_a_backup_code_is_refused(self, db, hasher, code):
+        user = make_user(db)
+        make_mfa(db, user)
+
+        assert _verify(db, user, code, hasher) is False
+
+    def test_a_backup_code_is_accepted_once_in_any_case_and_a_wrong_one_is_refused(self, db, hasher):
+        user = make_user(db)
+        factors = make_mfa(db, user)
+        backup = factors.backup_codes[0]
+
+        assert _verify(db, user, "WRNG-CODE", hasher) is False
+        assert _verify(db, user, backup.lower(), hasher) is True
+        assert _verify(db, user, backup, hasher) is False
+        assert len(backup_codes_crud.get_user_unused_backup_codes(user.id, db)) == 9
+
+    def test_a_missing_user_has_no_mfa(self, db):
+        assert mfa_integration.is_mfa_enabled_for_user(uuid.uuid4(), db) is False
+
+    def test_a_user_without_mfa_is_refused_and_a_missing_user_is_not_found(self, db, hasher):
+        user = make_user(db)
+
+        assert _verify(db, user, "123456", hasher) is False
+        assert mfa_integration.is_mfa_enabled_for_user(user.id, db) is False
+        with pytest.raises(core_exceptions.NotFoundError):
+            mfa_integration.verify_user_mfa(uuid.uuid4(), "123456", hasher, db, replay_guard=_ReplayGuard())
+
+    def test_a_secret_that_is_not_base32_is_refused(self, db, hasher):
+        user = make_user(db)
+        mfa_crud.set_totp_factor(user.id, core_cryptography.encrypt_token_fernet("not base32 !"), db)
+
+        assert _verify(db, user, "123456", hasher) is False
+
+    def test_an_empty_stored_secret_is_refused(self, db, hasher):
+        user = make_user(db)
+        mfa_crud.set_totp_factor(user.id, core_cryptography.encrypt_token_fernet(""), db)
+
+        assert _verify(db, user, "123456", hasher) is False
+
+    def test_a_stored_secret_that_cannot_be_decrypted_surfaces_as_an_error(self, db, hasher):
+        user = make_user(db)
+        mfa_crud.set_totp_factor(user.id, "not-a-fernet-token", db)
+
+        with pytest.raises(core_exceptions.UndecryptableError):
+            _verify(db, user, "123456", hasher)
+
+
+class TestFactorsAndMethods:
+    def test_a_user_with_totp_answers_with_totp_or_a_backup_code(self, db):
+        user = make_user(db)
+        make_mfa(db, user)
+
+        assert mfa_integration.get_sign_in_methods(user.id, db) == ["totp", "backup_code"]
+        assert [factor.type for factor in mfa_integration.get_user_factors(user.id, db)] == ["totp"]
+
+    def test_a_user_without_a_factor_has_no_method(self, db):
+        user = make_user(db)
+
+        assert mfa_integration.get_sign_in_methods(user.id, db) == []
+
+    def test_enabled_users_are_found_in_one_call(self, db):
+        enrolled, plain = make_user(db), make_user(db)
+        make_mfa(db, enrolled)
+
+        assert mfa_integration.get_mfa_enabled_for_users([enrolled.id, plain.id], db) == {enrolled.id: True}
+
+
+class TestReencrypt:
+    def test_re_encrypting_keeps_the_secret_readable(self, db, hasher):
+        user = make_user(db)
+        factors = make_mfa(db, user)
+
+        mfa_service.reencrypt_stored_secrets(db)
+
+        assert (
+            core_cryptography.decrypt_token_fernet(mfa_crud.get_totp_factor(user.id, db).credential) == factors.secret
         )
-        mock_db.commit.assert_not_called()
-
-    @patch("modules.auth.mfa.service.users_integration.require_user")
-    def test_user_not_found(self, mock_get_user):
-        mock_get_user.side_effect = core_exceptions.NotFoundError("User not found")
-
-        with pytest.raises(core_exceptions.NotFoundError):
-            mfa_service.enable_user_mfa(
-                MOCK_USER_ID, "secret", "123456", MagicMock(), MagicMock(), replay_guard=MagicMock()
-            )
-
-    @patch("modules.auth.mfa.service.users_integration.require_user")
-    def test_mfa_already_enabled(self, mock_get_user):
-        mock_user = MagicMock()
-        mock_user.mfa_enabled = True
-        mock_get_user.return_value = mock_user
-
-        with (
-            patch("modules.auth.mfa.service.is_mfa_enabled_for_user", return_value=True),
-            pytest.raises(core_exceptions.ConflictError) as refused,
-        ):
-            mfa_service.enable_user_mfa(
-                MOCK_USER_ID, "secret", "123456", MagicMock(), MagicMock(), replay_guard=MagicMock()
-            )
-
-        assert refused.value.status_code == 409
-        assert refused.value.detail == "MFA is already enabled for this user"
-
-    @patch("modules.auth.mfa.service.mfa_totp_replay_store.matching_totp_step")
-    @patch("modules.auth.mfa.service.users_integration.require_user")
-    def test_invalid_mfa_code(self, mock_get_user, mock_verify):
-        mock_user = MagicMock()
-        mock_user.mfa_enabled = False
-        mock_get_user.return_value = mock_user
-        mock_verify.return_value = None
-
-        with (
-            patch("modules.auth.mfa.service.is_mfa_enabled_for_user", return_value=False),
-            pytest.raises(core_exceptions.InvalidInputError),
-        ):
-            mfa_service.enable_user_mfa(
-                MOCK_USER_ID, "secret", "000000", MagicMock(), MagicMock(), replay_guard=MagicMock()
-            )
-
-    @patch("modules.auth.mfa.service.mfa_totp_replay_store.matching_totp_step", return_value=7)
-    @patch("modules.auth.mfa.service.users_integration.require_user")
-    def test_replayed_enrolment_code_is_rejected(self, mock_get_user, mock_verify):
-        guard = MagicMock()
-        guard.claim_totp_step.return_value = False
-
-        with (
-            patch("modules.auth.mfa.service.is_mfa_enabled_for_user", return_value=False),
-            patch("modules.auth.mfa.service.auth_mfa_crud.set_totp_factor") as mock_update_mfa,
-            pytest.raises(core_exceptions.InvalidMfaCodeError),
-        ):
-            mfa_service.enable_user_mfa(MOCK_USER_ID, "secret", "123456", MagicMock(), MagicMock(), replay_guard=guard)
-
-        mock_update_mfa.assert_not_called()
-
-    @patch("modules.auth.mfa.service.mfa_totp_replay_store.matching_totp_step")
-    @patch("modules.auth.mfa.service.core_cryptography.encrypt_token_fernet")
-    @patch("modules.auth.mfa.service.users_integration.require_user")
-    def test_encryption_failure(self, mock_get_user, mock_encrypt, mock_verify):
-        mock_user = MagicMock()
-        mock_user.mfa_enabled = False
-        mock_get_user.return_value = mock_user
-        mock_encrypt.return_value = None
-        mock_verify.return_value = 7
-
-        with (
-            patch("modules.auth.mfa.service.is_mfa_enabled_for_user", return_value=False),
-            pytest.raises(core_exceptions.ProcessingError),
-        ):
-            mfa_service.enable_user_mfa(
-                MOCK_USER_ID, "secret", "123456", MagicMock(), MagicMock(), replay_guard=MagicMock()
-            )
-
-
-class TestDisableUserMFA:
-    """Test suite for disable_user_mfa function."""
-
-    @patch("modules.auth.mfa.service.mfa_backup_codes_integration.delete_user_backup_codes")
-    @patch("modules.auth.mfa.service.auth_mfa_crud.delete_user_factors")
-    @patch("modules.auth.mfa.service.users_integration.require_user")
-    def test_successful_disable(self, mock_get_user, mock_update_mfa, mock_delete_codes):
-        mock_user = MagicMock()
-        mock_user.mfa_enabled = True
-        mock_get_user.return_value = mock_user
-
-        with patch("modules.auth.mfa.service.is_mfa_enabled_for_user", return_value=True):
-            mfa_service.disable_user_mfa(MOCK_USER_ID, MagicMock())
-
-        mock_update_mfa.assert_called_once()
-        mock_delete_codes.assert_called_once()
-
-    @patch("modules.auth.mfa.service.users_integration.require_user")
-    def test_user_not_found(self, mock_get_user):
-        mock_get_user.side_effect = core_exceptions.NotFoundError("User not found")
-
-        with pytest.raises(core_exceptions.NotFoundError):
-            mfa_service.disable_user_mfa(MOCK_USER_ID, MagicMock())
-
-    @patch("modules.auth.mfa.service.users_integration.require_user")
-    def test_mfa_not_enabled(self, mock_get_user):
-        mock_user = MagicMock()
-        mock_user.mfa_enabled = False
-        mock_get_user.return_value = mock_user
-
-        with (
-            patch("modules.auth.mfa.service.is_mfa_enabled_for_user", return_value=False),
-            pytest.raises(core_exceptions.ConflictError) as refused,
-        ):
-            mfa_service.disable_user_mfa(MOCK_USER_ID, MagicMock())
-
-        assert refused.value.status_code == 409
-        assert refused.value.detail == "MFA is not enabled for this user"
-
-
-class TestVerifyUserMFA:
-    """Test suite for verify_user_mfa function."""
-
-    @pytest.fixture(autouse=True)
-    def _wire_mfa_row(self):
-        """Mirror auth_mfa_crud.get_totp_factor to the mocked user's auth_mfa.
-
-        Production reads the TOTP factor via
-        ``auth_mfa_crud.get_totp_factor`` rather than a
-        ``UserRead.auth_mfa`` relationship (which the API schema does not
-        expose), so resolve the row from the patched user mock.
-        """
-
-        def _row(_user_id, _db):
-            auth_mfa = getattr(mfa_service.users_integration.require_user.return_value, "auth_mfa", None)
-            if auth_mfa is None or not auth_mfa.mfa_enabled or not auth_mfa.mfa_secret:
-                return None
-            return SimpleNamespace(id=uuid.uuid4(), credential=auth_mfa.mfa_secret)
-
-        with patch("modules.auth.mfa.service.auth_mfa_crud.get_totp_factor", side_effect=_row):
-            yield
-
-    @patch("modules.auth.mfa.service.mfa_totp_replay_store.matching_totp_step")
-    @patch("modules.auth.mfa.service.core_cryptography.decrypt_token_fernet")
-    @patch("modules.auth.mfa.service.users_integration.require_user")
-    def test_totp_verification_success(self, mock_get_user, mock_decrypt, mock_verify):
-        mock_user = MagicMock()
-        mock_user.auth_mfa.mfa_enabled = True
-        mock_user.auth_mfa.mfa_secret = "encrypted_secret"
-        mock_get_user.return_value = mock_user
-        mock_decrypt.return_value = "decrypted_secret"
-        mock_verify.return_value = 7
-
-        result = mfa_service.verify_user_mfa(MOCK_USER_ID, "123456", MagicMock(), MagicMock(), replay_guard=MagicMock())
-        assert result is True
-        mock_decrypt.assert_called_once_with("encrypted_secret")
-        assert mock_verify.call_args.args[:2] == ("decrypted_secret", "123456")
-
-    @patch("modules.auth.mfa.service.mfa_totp_replay_store.matching_totp_step")
-    @patch("modules.auth.mfa.service.core_cryptography.decrypt_token_fernet")
-    @patch("modules.auth.mfa.service.users_integration.require_user")
-    def test_totp_verify_value_error_returns_false(self, mock_get_user, mock_decrypt, mock_verify):
-        mock_user = MagicMock()
-        mock_user.auth_mfa.mfa_enabled = True
-        mock_user.auth_mfa.mfa_secret = "encrypted_secret"
-        mock_get_user.return_value = mock_user
-        mock_decrypt.return_value = "decrypted_secret"
-        mock_verify.side_effect = ValueError("invalid token")
-
-        result = mfa_service.verify_user_mfa(MOCK_USER_ID, "123456", MagicMock(), MagicMock(), replay_guard=MagicMock())
-        assert result is False
-
-    @patch("modules.auth.mfa.service.mfa_totp_replay_store.matching_totp_step")
-    @patch("modules.auth.mfa.service.core_cryptography.decrypt_token_fernet")
-    @patch("modules.auth.mfa.service.users_integration.require_user")
-    def test_totp_verify_unexpected_exception_propagates(self, mock_get_user, mock_decrypt, mock_verify):
-        """Unexpected non-OTP errors bubble up instead of being swallowed as False."""
-        mock_user = MagicMock()
-        mock_user.auth_mfa.mfa_enabled = True
-        mock_user.auth_mfa.mfa_secret = "encrypted_secret"
-        mock_get_user.return_value = mock_user
-        mock_decrypt.return_value = "decrypted_secret"
-        mock_verify.side_effect = RuntimeError("unexpected infrastructure error")
-
-        with pytest.raises(RuntimeError, match="unexpected infrastructure error"):
-            mfa_service.verify_user_mfa(MOCK_USER_ID, "123456", MagicMock(), MagicMock(), replay_guard=MagicMock())
-
-    @patch("modules.auth.mfa.service.users_integration.require_user")
-    def test_user_not_found(self, mock_get_user):
-        mock_get_user.side_effect = core_exceptions.NotFoundError("User not found")
-
-        with pytest.raises(core_exceptions.NotFoundError):
-            mfa_service.verify_user_mfa(MOCK_USER_ID, "123456", MagicMock(), MagicMock(), replay_guard=MagicMock())
-
-    @patch("modules.auth.mfa.service.users_integration.require_user")
-    def test_mfa_not_enabled_returns_false(self, mock_get_user):
-        mock_user = MagicMock()
-        mock_user.auth_mfa = None
-        mock_get_user.return_value = mock_user
-
-        result = mfa_service.verify_user_mfa(MOCK_USER_ID, "123456", MagicMock(), MagicMock(), replay_guard=MagicMock())
-        assert result is False
-
-    @patch("modules.auth.mfa.service.users_integration.require_user")
-    def test_mfa_disabled_returns_false(self, mock_get_user):
-        mock_user = MagicMock()
-        mock_user.auth_mfa.mfa_enabled = False
-        mock_get_user.return_value = mock_user
-
-        result = mfa_service.verify_user_mfa(MOCK_USER_ID, "123456", MagicMock(), MagicMock(), replay_guard=MagicMock())
-        assert result is False
-
-    @patch("modules.auth.mfa.service.users_integration.require_user")
-    def test_mfa_no_secret_returns_false(self, mock_get_user):
-        mock_user = MagicMock()
-        mock_user.auth_mfa.mfa_enabled = True
-        mock_user.auth_mfa.mfa_secret = None
-        mock_get_user.return_value = mock_user
-
-        result = mfa_service.verify_user_mfa(MOCK_USER_ID, "123456", MagicMock(), MagicMock(), replay_guard=MagicMock())
-        assert result is False
-
-    @patch("modules.auth.mfa.service.core_cryptography.decrypt_token_fernet")
-    @patch("modules.auth.mfa.service.users_integration.require_user")
-    def test_totp_decrypt_failure_returns_false(self, mock_get_user, mock_decrypt):
-        mock_user = MagicMock()
-        mock_user.auth_mfa.mfa_enabled = True
-        mock_user.auth_mfa.mfa_secret = "encrypted_secret"
-        mock_get_user.return_value = mock_user
-        mock_decrypt.return_value = None
-
-        result = mfa_service.verify_user_mfa(MOCK_USER_ID, "123456", MagicMock(), MagicMock(), replay_guard=MagicMock())
-        assert result is False
-
-    @patch("modules.auth.mfa.service.mfa_totp_replay_store.matching_totp_step")
-    @patch("modules.auth.mfa.service.core_cryptography.decrypt_token_fernet")
-    @patch("modules.auth.mfa.service.users_integration.require_user")
-    def test_backup_code_verification_success(self, mock_get_user, mock_decrypt, mock_verify):
-        mock_user = MagicMock()
-        mock_user.auth_mfa.mfa_enabled = True
-        mock_user.auth_mfa.mfa_secret = "encrypted_secret"
-        mock_get_user.return_value = mock_user
-        mock_verify.return_value = None
-
-        mock_password_verifier = MagicMock()
-
-        with patch(
-            "modules.auth.mfa.service.mfa_backup_codes_integration.verify_and_consume_backup_code", return_value=True
-        ) as mock_backup:
-            result = mfa_service.verify_user_mfa(
-                MOCK_USER_ID, "ABCD-EFGH", mock_password_verifier, MagicMock(), replay_guard=MagicMock()
-            )
-            assert result is True
-            mock_backup.assert_called_once_with(
-                MOCK_USER_ID, "ABCD-EFGH", mock_password_verifier, mock_backup.call_args[0][3]
-            )
-
-    @patch("modules.auth.mfa.service.mfa_totp_replay_store.matching_totp_step")
-    @patch("modules.auth.mfa.service.core_cryptography.decrypt_token_fernet")
-    @patch("modules.auth.mfa.service.users_integration.require_user")
-    def test_backup_code_verification_failure_returns_false(self, mock_get_user, mock_decrypt, mock_verify):
-        mock_user = MagicMock()
-        mock_user.auth_mfa.mfa_enabled = True
-        mock_user.auth_mfa.mfa_secret = "encrypted_secret"
-        mock_get_user.return_value = mock_user
-        mock_verify.return_value = None
-
-        mock_password_verifier = MagicMock()
-
-        with patch(
-            "modules.auth.mfa.service.mfa_backup_codes_integration.verify_and_consume_backup_code", return_value=False
-        ):
-            result = mfa_service.verify_user_mfa(
-                MOCK_USER_ID, "ABCD-EFGH", mock_password_verifier, MagicMock(), replay_guard=MagicMock()
-            )
-            assert result is False
-
-    @patch("modules.auth.mfa.service.users_integration.require_user")
-    def test_invalid_code_format_returns_false(self, mock_get_user):
-        mock_user = MagicMock()
-        mock_user.auth_mfa.mfa_enabled = True
-        mock_user.auth_mfa.mfa_secret = "encrypted_secret"
-        mock_get_user.return_value = mock_user
-
-        result = mfa_service.verify_user_mfa(
-            MOCK_USER_ID, "invalid", MagicMock(), MagicMock(), replay_guard=MagicMock()
-        )
-        assert result is False
-
-    @patch("modules.auth.mfa.service.mfa_totp_replay_store.matching_totp_step")
-    @patch("modules.auth.mfa.service.core_cryptography.decrypt_token_fernet")
-    @patch("modules.auth.mfa.service.users_integration.require_user")
-    def test_backup_code_unexpected_exception_propagates(self, mock_get_user, mock_decrypt, mock_verify):
-        """Unexpected errors from backup-code verification propagate to the global handler.
-
-        Backup-code verification does not swallow unexpected exceptions; only
-        legitimate False returns map to a failed check.
-        """
-        mock_user = MagicMock()
-        mock_user.auth_mfa.mfa_enabled = True
-        mock_user.auth_mfa.mfa_secret = "encrypted_secret"
-        mock_get_user.return_value = mock_user
-        mock_verify.return_value = None
-
-        mock_password_verifier = MagicMock()
-
-        with (
-            patch(
-                "modules.auth.mfa.service.mfa_backup_codes_integration.verify_and_consume_backup_code",
-                side_effect=RuntimeError("storage failure"),
-            ),
-            pytest.raises(RuntimeError, match="storage failure"),
-        ):
-            mfa_service.verify_user_mfa(
-                MOCK_USER_ID, "ABCD-EFGH", mock_password_verifier, MagicMock(), replay_guard=MagicMock()
-            )
-
-
-class TestIsMFAEnabledForUser:
-    """Test suite for is_mfa_enabled_for_user function."""
-
-    @pytest.fixture(autouse=True)
-    def _wire_mfa_row(self):
-        """Mirror auth_mfa_crud.get_totp_factor to the mocked user's auth_mfa.
-
-        Production reads the TOTP factor via
-        ``auth_mfa_crud.get_totp_factor`` rather than a
-        ``UserRead.auth_mfa`` relationship (which the API schema does not
-        expose), so resolve the row from the patched user mock.
-        """
-
-        def _enabled(user_ids, _db):
-            user = mfa_service.users_integration.require_user.return_value
-            auth_mfa = getattr(user, "auth_mfa", None)
-            if auth_mfa is None or not auth_mfa.mfa_enabled or not auth_mfa.mfa_secret:
-                return {}
-            return {user.id: True}
-
-        with patch("modules.auth.mfa.service.auth_mfa_crud.get_mfa_enabled_for_users", side_effect=_enabled):
-            yield
-
-    @patch("modules.auth.mfa.service.users_integration.require_user")
-    def test_mfa_enabled(self, mock_get_user):
-        mock_user = MagicMock()
-        mock_user.auth_mfa.mfa_enabled = True
-        mock_user.auth_mfa.mfa_secret = "secret"
-        mock_get_user.return_value = mock_user
-
-        result = mfa_service.is_mfa_enabled_for_user(MOCK_USER_ID, MagicMock())
-        assert result is True
-
-    @patch("modules.auth.mfa.service.users_integration.require_user")
-    def test_user_not_found_returns_false(self, mock_get_user):
-        mock_get_user.side_effect = core_exceptions.NotFoundError("User not found")
-
-        result = mfa_service.is_mfa_enabled_for_user(MOCK_USER_ID, MagicMock())
-        assert result is False
-
-    @patch("modules.auth.mfa.service.users_integration.require_user")
-    def test_mfa_not_enabled_returns_false(self, mock_get_user):
-        mock_user = MagicMock()
-        mock_user.auth_mfa = None
-        mock_get_user.return_value = mock_user
-
-        result = mfa_service.is_mfa_enabled_for_user(MOCK_USER_ID, MagicMock())
-        assert result is False
-
-    @patch("modules.auth.mfa.service.users_integration.require_user")
-    def test_mfa_disabled_returns_false(self, mock_get_user):
-        mock_user = MagicMock()
-        mock_user.auth_mfa.mfa_enabled = False
-        mock_get_user.return_value = mock_user
-
-        result = mfa_service.is_mfa_enabled_for_user(MOCK_USER_ID, MagicMock())
-        assert result is False
-
-    @patch("modules.auth.mfa.service.users_integration.require_user")
-    def test_mfa_no_secret_returns_false(self, mock_get_user):
-        mock_user = MagicMock()
-        mock_user.auth_mfa.mfa_enabled = True
-        mock_user.auth_mfa.mfa_secret = None
-        mock_get_user.return_value = mock_user
-
-        result = mfa_service.is_mfa_enabled_for_user(MOCK_USER_ID, MagicMock())
-        assert result is False
-
-
-class TestSecurityGenerationBump:
-    """Enabling or disabling MFA advances the account's security generation in the caller's transaction."""
-
-    _PREFIX = "modules.auth.mfa.service."
-
-    def test_enabling_bumps(self):
-        guard = MagicMock()
-        guard.claim_totp_step.return_value = True
-        db = MagicMock()
-        with (
-            patch(self._PREFIX + "users_integration.require_user"),
-            patch(self._PREFIX + "is_mfa_enabled_for_user", return_value=False),
-            patch(self._PREFIX + "mfa_totp_replay_store.matching_totp_step", return_value=7),
-            patch(self._PREFIX + "core_cryptography.encrypt_token_fernet", return_value="encrypted"),
-            patch(self._PREFIX + "auth_mfa_crud.set_totp_factor") as update_mfa,
-            patch(self._PREFIX + "mfa_backup_codes_integration.create_backup_codes", return_value=["C1"]) as create,
-            patch(self._PREFIX + "security_generation_integration.stage_bump") as bump,
-        ):
-            order = MagicMock()
-            order.attach_mock(bump, "bump")
-            order.attach_mock(update_mfa, "update_mfa")
-            order.attach_mock(create, "create_backup_codes")
-            mfa_service.enable_user_mfa(MOCK_USER_ID, "secret", "123456", MagicMock(), db, replay_guard=guard)
-
-        bump.assert_called_once_with(MOCK_USER_ID, db)
-        assert [call[0] for call in order.mock_calls] == ["bump", "update_mfa", "create_backup_codes"]
-        db.commit.assert_not_called()
-
-    def test_a_refused_enable_does_not_bump(self):
-        with (
-            patch(self._PREFIX + "users_integration.require_user"),
-            patch(self._PREFIX + "is_mfa_enabled_for_user", return_value=True),
-            patch(self._PREFIX + "security_generation_integration.stage_bump") as bump,
-            pytest.raises(core_exceptions.ConflictError),
-        ):
-            mfa_service.enable_user_mfa(
-                MOCK_USER_ID, "secret", "123456", MagicMock(), MagicMock(), replay_guard=MagicMock()
-            )
-
-        bump.assert_not_called()
-
-    def test_disabling_bumps(self):
-        db = MagicMock()
-        with (
-            patch(self._PREFIX + "users_integration.require_user"),
-            patch(self._PREFIX + "is_mfa_enabled_for_user", return_value=True),
-            patch(self._PREFIX + "auth_mfa_crud.delete_user_factors") as update_mfa,
-            patch(self._PREFIX + "mfa_backup_codes_integration.delete_user_backup_codes") as delete_codes,
-            patch(self._PREFIX + "security_generation_integration.stage_bump") as bump,
-        ):
-            order = MagicMock()
-            order.attach_mock(bump, "bump")
-            order.attach_mock(update_mfa, "update_mfa")
-            order.attach_mock(delete_codes, "delete_backup_codes")
-            mfa_service.disable_user_mfa(MOCK_USER_ID, db)
-
-        bump.assert_called_once_with(MOCK_USER_ID, db)
-        assert [call[0] for call in order.mock_calls] == ["bump", "update_mfa", "delete_backup_codes"]
-        db.commit.assert_not_called()
-
-    def test_a_refused_disable_does_not_bump(self):
-        with (
-            patch(self._PREFIX + "users_integration.require_user"),
-            patch(self._PREFIX + "is_mfa_enabled_for_user", return_value=False),
-            patch(self._PREFIX + "security_generation_integration.stage_bump") as bump,
-            pytest.raises(core_exceptions.ConflictError),
-        ):
-            mfa_service.disable_user_mfa(MOCK_USER_ID, MagicMock())
-
-        bump.assert_not_called()

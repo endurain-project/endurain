@@ -477,8 +477,8 @@ def setup_main_logger() -> logging.Logger:
     Selects handlers appropriate for the current
     environment (JSON stdout in production, plain-text
     file plus console mirror in development). Attaches the
-    same handlers to the Alembic and APScheduler loggers so
-    their output is captured consistently.
+    same handlers to the Alembic, APScheduler, slowapi and jasil
+    loggers so their output is captured consistently.
 
     Returns:
         logging.Logger: The configured main logger instance.
@@ -504,6 +504,9 @@ def setup_main_logger() -> logging.Logger:
     # slowapi reports a rate-limit storage outage and its recovery here; without handlers they would
     # reach stderr unstructured, and its own handler discards them.
     slowapi_logger = logging.getLogger("slowapi")
+    # jasil, the platform package, logs through ``jasil.*`` (jobs, backends, event log); without handlers its
+    # warnings would reach stderr unstructured.
+    jasil_logger = logging.getLogger("jasil")
     if not any(isinstance(f, _SlowapiLimitExceededFilter) for f in slowapi_logger.filters):
         slowapi_logger.addFilter(_SlowapiLimitExceededFilter())
 
@@ -513,6 +516,7 @@ def setup_main_logger() -> logging.Logger:
         scheduler_logger,
         safeuploads_audit_logger,
         slowapi_logger,
+        jasil_logger,
     ):
         logger.setLevel(log_level)
 
@@ -524,6 +528,7 @@ def setup_main_logger() -> logging.Logger:
             scheduler_logger,
             safeuploads_audit_logger,
             slowapi_logger,
+            jasil_logger,
         ),
         handlers,
     )

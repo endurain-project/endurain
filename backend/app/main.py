@@ -1,15 +1,8 @@
 """FastAPI application entry point: lifespan and middleware wiring."""
 
-import os
 import time
 from collections.abc import AsyncGenerator, Awaitable, Callable
 from contextlib import asynccontextmanager
-
-# Silence stravalib token warnings as early as
-# possible: this env var is consulted at import time by
-# stravalib, so it must be set before any module that
-# transitively imports it runs.
-os.environ["SILENCE_TOKEN_WARNINGS"] = "TRUE"
 
 import jasil.audit as jasil_audit
 import jasil.container as platform_container
@@ -138,6 +131,23 @@ async def _resolve_trusted_proxy_hostnames() -> dict[str, list[str]]:
     )
 
 
+def attach_platform(fastapi_app: FastAPI, platform: platform_container.Platform) -> None:
+    """Publish the platform and attach it to the application, with what its requests read from app state.
+
+    Startup calls this once the platform is built; the tests call it on the application they build, so a request
+    in a test resolves the same providers as one in production.
+
+    Args:
+        fastapi_app: The application to attach the platform to.
+        platform: The platform its requests and background work resolve providers from.
+    """
+    fastapi_app.state.platform = platform
+    # Published process-wide so background work (scheduler, Garmin login thread) that has no request can resolve
+    # providers via jasil.runtime.
+    platform_runtime.set_active_platform(platform)
+    fastapi_app.state.storage_origin = core_signing.blob_origin()
+
+
 async def startup_event(fastapi_app: FastAPI) -> None:
     """Run startup tasks in well-defined phases.
 
@@ -161,28 +171,23 @@ async def startup_event(fastapi_app: FastAPI) -> None:
     jasil_settings.configure(substrate_settings)
     jasil_correlation.configure_provider(lambda: core_middleware_request_id.get_request_id() or None)
 
-    # Build the platform substrate (providers + backends) and attach it to app state.
+    # Build the platform substrate (providers + backends) and attach it to the application.
     platform = platform_container.build_platform(substrate_settings, sources=runtime_module_registry.runtime_sources())
-    fastapi_app.state.platform = platform
-
-    # Publish it process-wide so background work (scheduler, Garmin login thread)
-    # that has no request can resolve providers via jasil.runtime.
-    platform_runtime.set_active_platform(platform)
-    fastapi_app.state.storage_origin = core_signing.blob_origin()
+    attach_platform(fastapi_app, platform)
 
     # Capture the running event loop so synchronous code (sync routes in the
     # threadpool, in-process event subscribers) can dispatch async I/O — e.g. a
     # websocket push — back onto it via core.async_bridge.
     core_async_bridge.capture_running_loop()
 
-    # Configure activity contributors, then register every event-bus subscriber
-    # and durable-job handler through the shared app composition root so the API
-    # and standalone worker cannot drift. The bus subscribers (thumbnail, notification,
-    # HR-zone, geocoding) react to activity.created / activity.deleted; the durable
-    # handlers are the same set keyed by stable subscriber id (harmless when durable
-    # jobs are off, retryable per-subscriber when on). Each durable subscriber that
-    # writes durable derived state declares a reconciliation net (scheduled backfill)
-    # in that module.
+    # Install the contributors, activity providers and audit catalog, then register
+    # every event-bus subscriber and durable-job handler through the shared app
+    # composition root so the API and standalone worker cannot drift. The bus
+    # subscribers (thumbnail, notification, HR-zone, geocoding) react to
+    # activity.created / activity.deleted; the durable handlers are the same set keyed
+    # by stable subscriber id (harmless when durable jobs are off, retryable
+    # per-subscriber when on). Each durable subscriber that writes durable derived
+    # state declares a reconciliation net (scheduled backfill) in that module.
     runtime_module_registry.configure_application()
     runtime_module_registry.register_bus_subscribers(platform.events)
     runtime_module_registry.register_durable_handlers(jobs_registry.registry)

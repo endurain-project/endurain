@@ -1,7 +1,9 @@
 """Tests for the per-purpose keys derived from the server ``SECRET_KEY``."""
 
+import contextlib
 import hashlib
 import hmac
+import os
 from unittest.mock import patch
 
 import pytest
@@ -17,6 +19,18 @@ import modules.auth.computation as auth_computation
 _SECRET = "s" * 64
 
 
+@contextlib.contextmanager
+def _secret(value: str | None):
+    """Run with ``SECRET_KEY`` set to a value, or unset."""
+    with patch.dict(os.environ):
+        os.environ.pop("SECRET_KEY_FILE", None)
+        if value is None:
+            os.environ.pop("SECRET_KEY", None)
+        else:
+            os.environ["SECRET_KEY"] = value
+        yield
+
+
 @pytest.fixture(autouse=True)
 def _fresh_cache():
     core_key_derivation.derive_keys.cache_clear()
@@ -26,13 +40,13 @@ def _fresh_cache():
 
 class TestDeriveKey:
     def test_is_an_hmac_of_the_purpose_keyed_by_the_secret(self):
-        with patch("core.key_derivation.core_config.read_secret", return_value=_SECRET):
+        with _secret(_SECRET):
             key = core_key_derivation.derive_key("jwt")
 
         assert key == hmac.new(_SECRET.encode(), b"endurain:jwt", hashlib.sha256).hexdigest()
 
     def test_differs_per_purpose_and_from_the_secret(self):
-        with patch("core.key_derivation.core_config.read_secret", return_value=_SECRET):
+        with _secret(_SECRET):
             keys = {
                 core_key_derivation.derive_key(p)
                 for p in ("jwt", "refresh-jwt", "token-hmac", "email-token", "capability-urls")
@@ -42,20 +56,20 @@ class TestDeriveKey:
         assert _SECRET not in keys
 
     def test_is_long_enough_to_key_an_hmac(self):
-        with patch("core.key_derivation.core_config.read_secret", return_value=_SECRET):
+        with _secret(_SECRET):
             assert len(core_key_derivation.derive_key("jwt")) == 64
 
     def test_follows_the_secret(self):
-        with patch("core.key_derivation.core_config.read_secret", return_value=_SECRET):
+        with _secret(_SECRET):
             first = core_key_derivation.derive_key("jwt")
         core_key_derivation.derive_keys.cache_clear()
-        with patch("core.key_derivation.core_config.read_secret", return_value="t" * 64):
+        with _secret("t" * 64):
             second = core_key_derivation.derive_key("jwt")
 
         assert first != second
 
     def test_is_none_without_a_secret(self):
-        with patch("core.key_derivation.core_config.read_secret", return_value=None):
+        with _secret(None):
             assert core_key_derivation.derive_key("jwt") is None
 
 
@@ -63,7 +77,7 @@ class TestKeyList:
     """``SECRET_KEY`` may list several secrets: the first signs, every one verifies."""
 
     def test_a_list_derives_one_key_per_secret_in_order(self):
-        with patch("core.key_derivation.core_config.read_secret", return_value=f"{_SECRET},{'t' * 64}"):
+        with _secret(f"{_SECRET},{'t' * 64}"):
             keys = core_key_derivation.derive_keys("jwt")
 
         assert keys == tuple(
@@ -71,29 +85,29 @@ class TestKeyList:
         )
 
     def test_the_single_key_is_the_first(self):
-        with patch("core.key_derivation.core_config.read_secret", return_value=f"{_SECRET},{'t' * 64}"):
+        with _secret(f"{_SECRET},{'t' * 64}"):
             assert core_key_derivation.derive_key("jwt") == core_key_derivation.derive_keys("jwt")[0]
 
     def test_a_single_secret_is_a_list_of_one(self):
-        with patch("core.key_derivation.core_config.read_secret", return_value=_SECRET):
+        with _secret(_SECRET):
             assert len(core_key_derivation.derive_keys("jwt")) == 1
 
     def test_whitespace_around_an_entry_is_dropped(self):
-        with patch("core.key_derivation.core_config.read_secret", return_value=f" {_SECRET} , {'t' * 64} "):
+        with _secret(f" {_SECRET} , {'t' * 64} "):
             keys = core_key_derivation.derive_keys("jwt")
         core_key_derivation.derive_keys.cache_clear()
-        with patch("core.key_derivation.core_config.read_secret", return_value=f"{_SECRET},{'t' * 64}"):
+        with _secret(f"{_SECRET},{'t' * 64}"):
             assert keys == core_key_derivation.derive_keys("jwt")
 
     def test_an_empty_entry_is_refused(self):
         with (
-            patch("core.key_derivation.core_config.read_secret", return_value=f"{_SECRET},"),
+            _secret(f"{_SECRET},"),
             pytest.raises(ValueError, match="SECRET_KEY contains an empty entry"),
         ):
             core_key_derivation.derive_keys("jwt")
 
     def test_no_secret_is_no_keys(self):
-        with patch("core.key_derivation.core_config.read_secret", return_value=None):
+        with _secret(None):
             assert core_key_derivation.derive_keys("jwt") == ()
 
 

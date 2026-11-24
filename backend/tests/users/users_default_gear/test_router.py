@@ -1,77 +1,67 @@
-import uuid
-from unittest.mock import patch
+"""The default gear routes: the user's own settings with their version, and edits."""
 
-from fastapi import FastAPI
-from fastapi.testclient import TestClient
+import pytest
 
-import core.exceptions as core_exceptions
-from tests._helpers.auth import MOCK_USER_ID
+import core.config as core_config
+import modules.users.users_default_gear.crud as crud
+from tests._factories.gears import make_gear
+from tests._factories.users import make_user
 
-
-def _build_app(mock_db):
-    import core.database as core_db
-    import modules.auth.dependencies as auth_deps
-    import modules.users.users_default_gear.router as router
-
-    app = FastAPI()
-    core_exceptions.register_exception_handlers(app)
-    app.include_router(router.router, prefix="/user_default_gear")
-
-    def _uid():
-        return 1
-
-    app.dependency_overrides[auth_deps.get_current_user_id] = _uid
-    app.dependency_overrides[auth_deps.check_scopes] = lambda: None
-    app.dependency_overrides[core_db.get_db] = lambda: mock_db
-    return app
+_URL = f"{core_config.ROOT_PATH}/profile/default-gear"
 
 
-class TestReadUserDefaultGear:
-    @patch("modules.users.users_default_gear.router.user_default_gear_service.get_default_gear")
-    def test_read_success(self, mock_get, mock_db):
-        from modules.users.users_default_gear.schema import UserDefaultGearRead
+@pytest.fixture
+def me(sign_in, committed_sessions):
+    with committed_sessions() as db:
+        user = make_user(db)
+        db.commit()
+    return sign_in(user)
 
-        client = TestClient(_build_app(mock_db))
-        mock_get.return_value = UserDefaultGearRead(id=uuid.uuid4(), user_id=MOCK_USER_ID)
 
-        response = client.get("/user_default_gear", headers={"Authorization": "Bearer x"})
+def _stored(committed_sessions, user_id):
+    with committed_sessions() as db:
+        return crud.get_user_default_gear_by_user_id(user_id, db)
+
+
+class TestRead:
+    def test_the_settings_come_with_their_version_as_an_etag(self, me):
+        response = me.client.get(_URL)
+
         assert response.status_code == 200
+        assert response.headers["ETag"] == '"1"'
+        assert response.json()["user_id"] == str(me.user.id)
+        assert response.json()["run_gear_id"] is None
 
 
-class TestEditUserDefaultGear:
-    @patch("modules.users.users_default_gear.router.user_default_gear_service.edit_default_gear")
-    def test_edit_success(self, mock_edit, mock_db):
-        from modules.users.users_default_gear.schema import UserDefaultGearRead
+class TestEdit:
+    def test_a_gear_is_assigned_and_the_new_version_is_returned(self, me, committed_sessions):
+        with committed_sessions() as db:
+            gear = make_gear(db, me.user.id)
+            db.commit()
 
-        client = TestClient(_build_app(mock_db))
-        mock_edit.return_value = UserDefaultGearRead(
-            id=uuid.uuid4(), user_id=MOCK_USER_ID, run_gear_id=uuid.uuid4(), ride_gear_id=uuid.uuid4()
-        )
+        response = me.client.patch(_URL, json={"run_gear_id": str(gear.id)}, headers={"If-Match": '"1"'})
 
-        response = client.patch(
-            "/user_default_gear",
-            json={"run_gear_id": str(uuid.uuid4())},
-            headers={**{"Authorization": "Bearer x"}, "If-Match": '"1"'},
-        )
         assert response.status_code == 200
+        assert response.headers["ETag"] == '"2"'
+        assert response.json()["run_gear_id"] == str(gear.id)
+        stored = _stored(committed_sessions, me.user.id)
+        assert stored is not None
+        assert stored.run_gear_id == gear.id
 
+    def test_a_gear_of_another_user_is_not_found_and_nothing_changes(self, me, committed_sessions):
+        with committed_sessions() as db:
+            stranger = make_user(db)
+            foreign = make_gear(db, stranger.id)
+            db.commit()
 
-class TestEditNeedsIfMatch:
-    def test_an_edit_without_if_match_is_428(self, mock_db):
-        response = TestClient(_build_app(mock_db)).patch(
-            "/user_default_gear", json={}, headers={"Authorization": "Bearer mock_token"}
-        )
+        response = me.client.patch(_URL, json={"run_gear_id": str(foreign.id)}, headers={"If-Match": '"1"'})
 
-        assert response.status_code == 428
+        assert response.status_code == 404
+        stored = _stored(committed_sessions, me.user.id)
+        assert stored is not None
+        assert (stored.run_gear_id, stored.version) == (None, 1)
 
+    def test_a_stale_version_is_refused(self, me, committed_sessions):
+        response = me.client.patch(_URL, json={}, headers={"If-Match": '"5"'})
 
-class TestReadSendsTheETag:
-    @patch("modules.users.users_default_gear.router.user_default_gear_service.get_default_gear")
-    def test_the_settings_carry_their_version(self, mock_get, mock_db):
-        from modules.users.users_default_gear.schema import UserDefaultGearRead
-
-        mock_get.return_value = UserDefaultGearRead(id=uuid.uuid4(), user_id=MOCK_USER_ID, version=6)
-
-        response = TestClient(_build_app(mock_db)).get("/user_default_gear", headers={"Authorization": "Bearer x"})
-
-        assert response.headers["ETag"] == '"6"'
+        assert response.status_code == 412

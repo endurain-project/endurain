@@ -226,3 +226,50 @@ class TestProblemHeadersAndExtensions:
         assert response.status_code == 409
         assert response.json()["job_id"] == str(job_id)
         assert response.headers["Content-Location"] == f"/jobs/{job_id}"
+
+
+class TestServerSideErrorLogging:
+    """A defect is logged as an error with its traceback; a dependency the request could not use, as a warning."""
+
+    @staticmethod
+    def _logged(app_log, error) -> list:
+        from fastapi import FastAPI
+        from fastapi.testclient import TestClient
+
+        import core.exceptions as core_exceptions
+
+        app = FastAPI()
+        core_exceptions.register_exception_handlers(app)
+
+        @app.get("/fail")
+        def _fail():
+            raise error
+
+        app_log.clear()
+        TestClient(app, raise_server_exceptions=False).get("/fail")
+        return app_log.records
+
+    def test_a_processing_error_is_an_error_with_its_traceback(self, app_log):
+        import logging
+
+        import core.exceptions as core_exceptions
+
+        [record] = self._logged(app_log, core_exceptions.ProcessingError())
+
+        assert record.levelno == logging.ERROR
+        assert record.exc_info is not None
+
+    def test_an_unavailable_or_failed_dependency_is_a_warning_without_a_traceback(self, app_log):
+        import logging
+
+        import core.attempt_state as core_attempt_state
+        import core.exceptions as core_exceptions
+
+        for error in (
+            core_exceptions.ServiceUnavailableError(),
+            core_exceptions.UpstreamError(),
+            core_attempt_state.StateUnavailableError(),
+        ):
+            [record] = self._logged(app_log, error)
+
+            assert (record.levelno, record.exc_info) == (logging.WARNING, None), type(error).__name__

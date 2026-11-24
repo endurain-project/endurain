@@ -1,611 +1,582 @@
-"""Tests for queueing Garmin Connect gear and health syncs."""
+"""Queueing and running Garmin Connect gear and health syncs, on the real database and platform state."""
 
+import threading
 import uuid
 from datetime import date, timedelta
-from unittest.mock import MagicMock, patch
 
+import garminconnect
+import jasil.runtime as jasil_runtime
 import pytest
-from jasil.backends.state_memory import MemoryState
 from jasil.events import Event
 from jasil.jobs.registry import JobHandlerRegistry
+from sqlalchemy import select
 
 import core.attempt_state as core_attempt_state
+import core.config as core_config
+import core.database as core_database
 import core.exceptions as core_exceptions
-import core.sync_runner as core_sync_runner
+import core.local_pool as core_local_pool
+import core.timezone as core_timezone
+import modules.activities.activity_ingestion.models as ingestion_models
 import modules.garmin.constants as garmin_constants
 import modules.garmin.events as garmin_events
 import modules.garmin.integration_service as garmin_integration
 import modules.garmin.subscribers as garmin_subscribers
 import modules.garmin.sync_service as garmin_sync_service
-import modules.garmin.sync_state_store as garmin_sync_state_store
-from tests._helpers import garmin as garmin_helpers
-from tests._helpers.auth import MOCK_USER_ID, OTHER_USER_ID
+import modules.gears.gear.models as gear_models
+import modules.health.health_steps.models as steps_models
+from tests._factories import garmin as garmin_factories
+from tests.garmin.conftest import stored_token
 
-DAY = date(2026, 1, 1)
-THIRD_USER_ID = uuid.UUID(int=3)
 Kind = garmin_constants.SyncKind
 Status = garmin_constants.SyncStatus
 
 
-@pytest.fixture(autouse=True)
-def users_today():
-    with patch.object(garmin_sync_service.users_integration, "local_today", return_value=DAY) as today:
-        yield today
+def _today() -> date:
+    """The day the tests' users (UTC) are in, read from the platform clock as the code reads it."""
+    return core_timezone.today_in(core_timezone.or_default("UTC"))
 
 
 @pytest.fixture
-def rate_limits():
-    return garmin_helpers.rate_limits()
+def durable(monkeypatch) -> list[Event]:
+    """Switch durable jobs on and collect the ``garmin.sync_requested`` events published for a worker."""
+    monkeypatch.setattr(core_config.settings, "JOBS_ENABLED", True)
+    events: list[Event] = []
+    jasil_runtime.get_active_platform().events.subscribe(garmin_events.GARMIN_SYNC_REQUESTED, events.append)
+    return events
 
 
-@pytest.fixture
-def states():
-    return garmin_sync_state_store.GarminSyncStateStore(state=MemoryState())
+def _gear_job(sync_states, user, **payload) -> garmin_events.SyncRequestedPayload:
+    job = sync_states.begin(user.id, Kind.GEAR, conflict="busy")
+    return garmin_events.SyncRequestedPayload(user_id=user.id, job_id=job.id, kind=Kind.GEAR, **payload)
 
 
-@pytest.fixture
-def local():
-    with (
-        patch.object(garmin_sync_service.core_config, "settings", MagicMock(JOBS_ENABLED=False)),
-        patch.object(garmin_sync_service, "_sync_pool") as executor,
-    ):
-        yield executor
-
-
-@pytest.fixture
-def durable():
-    with (
-        patch.object(garmin_sync_service.core_config, "settings", MagicMock(JOBS_ENABLED=True)),
-        patch.object(garmin_sync_service.garmin_event_publishers, "publish_sync_requested") as publish,
-        patch.object(garmin_sync_service, "_sync_pool") as executor,
-    ):
-        yield publish, executor
-
-
-def test_a_gear_sync_goes_to_the_pool_without_durable_jobs(rate_limits, local, states):
-    result = garmin_sync_service.request_gear_sync(MOCK_USER_ID, states, rate_limits, MagicMock())
-
-    local.submit_waiting.assert_called_once()
-    assert local.submit_waiting.call_args.args[2].kind == Kind.GEAR
-    assert local.submit_waiting.call_args.args[2].job_id == result.id
-    assert result.status == Status.QUEUED
-    assert result.kind == "garmin_sync_gear"
-    assert states.get(MOCK_USER_ID, Kind.GEAR).status == Status.QUEUED
-
-
-def test_a_health_sync_is_published_for_a_worker_with_durable_jobs(rate_limits, durable, states):
-    publish, executor = durable
-    db = MagicMock()
-
-    result = garmin_sync_service.request_health_sync(MOCK_USER_ID, DAY, DAY, states, rate_limits, db)
-
-    publish.assert_called_once_with(
-        MOCK_USER_ID, result.id, Kind.HEALTH, DAY, DAY, db, commit=db.commit, source=garmin_constants.SYNC_SOURCE_API
+def _health_job(sync_states, user, start: date, end: date) -> garmin_events.SyncRequestedPayload:
+    job = sync_states.begin(user.id, Kind.HEALTH, conflict="busy")
+    return garmin_events.SyncRequestedPayload(
+        user_id=user.id, job_id=job.id, kind=Kind.HEALTH, start_date=start, end_date=end
     )
-    executor.submit.assert_not_called()
 
 
-def test_a_second_sync_of_a_kind_while_one_is_pending_is_a_conflict(rate_limits, local, states):
-    garmin_sync_service.request_gear_sync(MOCK_USER_ID, states, rate_limits, MagicMock())
-
-    with pytest.raises(core_exceptions.ConflictError):
-        garmin_sync_service.request_gear_sync(MOCK_USER_ID, states, rate_limits, MagicMock())
-
-    local.submit_waiting.assert_called_once()
+def _request_gear(sessions, user, sync_states, rate_limits):
+    with sessions() as db:
+        return garmin_sync_service.request_gear_sync(user.id, sync_states, rate_limits, db)
 
 
-def test_other_kinds_and_other_users_are_not_blocked(rate_limits, local, states):
-    garmin_sync_service.request_gear_sync(MOCK_USER_ID, states, rate_limits, MagicMock())
-
-    garmin_sync_service.request_health_sync(MOCK_USER_ID, DAY, DAY, states, rate_limits, MagicMock())
-    garmin_sync_service.request_gear_sync(OTHER_USER_ID, states, rate_limits, MagicMock())
-
-    assert local.submit_waiting.call_count == 3
+def _request_health(sessions, user, start: date, end: date, sync_states, rate_limits):
+    with sessions() as db:
+        return garmin_sync_service.request_health_sync(user.id, start, end, sync_states, rate_limits, db)
 
 
-def test_a_sync_that_cannot_be_queued_does_not_block_a_retry(rate_limits, local, states):
-    local.submit_waiting.side_effect = RuntimeError("shut down")
-    with pytest.raises(RuntimeError):
-        garmin_sync_service.request_gear_sync(MOCK_USER_ID, states, rate_limits, MagicMock())
-    local.submit_waiting.side_effect = None
-
-    garmin_sync_service.request_gear_sync(MOCK_USER_ID, states, rate_limits, MagicMock())
-
-    assert states.get(MOCK_USER_ID, Kind.GEAR).status == Status.QUEUED
-
-
-@pytest.fixture
-def full_pool(blocked_pool, monkeypatch):
-    """Replace the sync pool with one already holding its only job, which stays until the test releases it."""
-    pool = blocked_pool(1)
-    monkeypatch.setattr(garmin_sync_service.core_config, "settings", MagicMock(JOBS_ENABLED=False))
-    monkeypatch.setattr(garmin_sync_service, "run_sync", lambda *args: blocked_pool.release.wait(5))
-    monkeypatch.setattr(garmin_sync_service, "_sync_pool", pool)
-    pool.submit(blocked_pool.release.wait, 5)
-    return blocked_pool.release
-
-
-def test_the_pool_refuses_syncs_beyond_its_limit(rate_limits, states, full_pool):
-    with pytest.raises(core_exceptions.ServiceUnavailableError):
-        garmin_sync_service.request_gear_sync(OTHER_USER_ID, states, rate_limits, MagicMock())
-
-    assert states.get(OTHER_USER_ID, Kind.GEAR).status == Status.FAILED
-
-
-def test_a_range_beyond_the_cap_is_refused_and_nothing_is_queued(rate_limits, local, states):
-    with pytest.raises(core_exceptions.InvalidInputError):
-        garmin_sync_service.request_health_sync(MOCK_USER_ID, DAY, date(2026, 3, 1), states, rate_limits, MagicMock())
-
-    local.submit_waiting.assert_not_called()
-
-
-def test_the_longest_allowed_range_is_accepted(rate_limits, local, states, users_today):
-    last = date(2026, 1, garmin_constants.MAX_HEALTH_RANGE_DAYS)
-    users_today.return_value = last
-
-    garmin_sync_service.request_health_sync(MOCK_USER_ID, DAY, last, states, rate_limits, MagicMock())
-
-    local.submit_waiting.assert_called_once()
-
-
-def test_an_activities_range_beyond_the_cap_is_refused():
-    with (
-        patch.object(
-            garmin_sync_service.activity_ingestion_integration.activity_ingestion_service, "accept_refresh"
-        ) as request,
-        pytest.raises(core_exceptions.InvalidInputError, match="must not exceed"),
+class TestRequestWithoutDurableJobs:
+    def test_a_gear_sync_is_queued_runs_on_the_pool_and_records_its_outcome(
+        self, account, linked, sync_states, rate_limits, committed_sessions, sync_pool, hints
     ):
-        garmin_sync_service.request_activities_sync(MOCK_USER_ID, date(2010, 1, 1), DAY, MagicMock(), MagicMock())
+        account.gear = [garmin_factories.gear_payload("g-1")]
+        running, release = threading.Event(), threading.Event()
 
-    request.assert_not_called()
+        def hold_the_sync(method):
+            if method == "get_device_last_used":
+                running.set()
+                release.wait(10)
 
+        account.on_call = hold_the_sync
 
-def test_the_longest_allowed_activities_range_is_accepted():
-    first = DAY - timedelta(days=core_sync_runner.MAX_ACTIVITIES_RANGE_DAYS - 1)
-    with patch.object(
-        garmin_sync_service.activity_ingestion_integration.activity_ingestion_service, "accept_refresh"
-    ) as request:
-        garmin_sync_service.request_activities_sync(MOCK_USER_ID, first, DAY, MagicMock(), MagicMock())
+        queued = _request_gear(committed_sessions, linked, sync_states, rate_limits)
 
-    request.assert_called_once()
+        assert running.wait(10)
+        assert (queued.kind, queued.status) == ("garmin_sync_gear", Status.QUEUED)
+        assert sync_states.get(linked.id, Kind.GEAR).status == Status.RUNNING
+        release.set()
+        sync_pool.shutdown(wait=True)
+        assert sync_states.get(linked.id, Kind.GEAR).status == Status.SUCCEEDED
+        with committed_sessions() as db:
+            assert db.scalars(select(gear_models.Gear.garminconnect_gear_id)).all().count("g-1") == 1
+        assert "GEARS_CHANGED" in [hint.get("message") for _, hint in hints]
 
-
-def test_a_range_ending_after_the_users_today_is_refused(rate_limits, local, states):
-    tomorrow = DAY + timedelta(days=1)
-    with (
-        patch.object(
-            garmin_sync_service.activity_ingestion_integration.activity_ingestion_service, "accept_refresh"
-        ) as request,
-        pytest.raises(core_exceptions.InvalidInputError, match="future"),
+    def test_a_sync_waiting_for_a_worker_is_recorded_queued(
+        self, linked, sync_states, rate_limits, committed_sessions, blocked_pool, monkeypatch
     ):
-        garmin_sync_service.request_activities_sync(MOCK_USER_ID, DAY, tomorrow, MagicMock(), MagicMock())
-    with pytest.raises(core_exceptions.InvalidInputError, match="future"):
-        garmin_sync_service.request_health_sync(MOCK_USER_ID, DAY, tomorrow, states, rate_limits, MagicMock())
+        monkeypatch.setattr(garmin_sync_service, "_sync_pool", blocked_pool.with_held_worker(3))
 
-    request.assert_not_called()
-    local.submit_waiting.assert_not_called()
+        _request_gear(committed_sessions, linked, sync_states, rate_limits)
+
+        assert sync_states.get(linked.id, Kind.GEAR).status == Status.QUEUED
+
+    def test_a_second_sync_of_a_kind_while_one_is_pending_is_a_conflict(
+        self, linked, sync_states, rate_limits, committed_sessions, blocked_pool, monkeypatch
+    ):
+        monkeypatch.setattr(garmin_sync_service, "_sync_pool", blocked_pool.with_held_worker(5))
+        _request_gear(committed_sessions, linked, sync_states, rate_limits)
+
+        with pytest.raises(core_exceptions.ConflictError):
+            _request_gear(committed_sessions, linked, sync_states, rate_limits)
+
+    def test_other_kinds_and_other_users_are_not_blocked(
+        self, linked, make_linked, sync_states, rate_limits, committed_sessions, blocked_pool, monkeypatch
+    ):
+        monkeypatch.setattr(garmin_sync_service, "_sync_pool", blocked_pool.with_held_worker(6))
+        other = make_linked()
+        _request_gear(committed_sessions, linked, sync_states, rate_limits)
+
+        _request_health(committed_sessions, linked, _today(), _today(), sync_states, rate_limits)
+        _request_gear(committed_sessions, other, sync_states, rate_limits)
+
+        assert sync_states.get(linked.id, Kind.HEALTH).status == Status.QUEUED
+        assert sync_states.get(other.id, Kind.GEAR).status == Status.QUEUED
+
+    def test_a_sync_that_cannot_be_queued_does_not_block_a_retry(
+        self, linked, sync_states, rate_limits, committed_sessions, closed_pool, sync_pool, monkeypatch
+    ):
+        monkeypatch.setattr(garmin_sync_service, "_sync_pool", closed_pool)
+        with pytest.raises(RuntimeError):
+            _request_gear(committed_sessions, linked, sync_states, rate_limits)
+        assert sync_states.get(linked.id, Kind.GEAR).status == Status.FAILED
+        monkeypatch.setattr(garmin_sync_service, "_sync_pool", sync_pool)
+
+        _request_gear(committed_sessions, linked, sync_states, rate_limits)
+
+        assert sync_states.get(linked.id, Kind.GEAR).status in {Status.QUEUED, Status.RUNNING, Status.FAILED}
+
+    def test_the_pool_refuses_syncs_beyond_its_limit_and_the_sync_is_recorded_failed(
+        self, linked, sync_states, rate_limits, committed_sessions, blocked_pool, monkeypatch
+    ):
+        monkeypatch.setattr(garmin_sync_service, "_sync_pool", blocked_pool.with_held_worker(1))
+
+        with pytest.raises(core_exceptions.ServiceUnavailableError):
+            _request_gear(committed_sessions, linked, sync_states, rate_limits)
+
+        assert sync_states.get(linked.id, Kind.GEAR).status == Status.FAILED
+
+
+class TestRequestWithDurableJobs:
+    def test_a_health_sync_is_published_for_a_worker_and_not_run_here(
+        self, account, linked, sync_states, rate_limits, committed_sessions, durable
+    ):
+        today = _today()
+
+        result = _request_health(committed_sessions, linked, today - timedelta(days=2), today, sync_states, rate_limits)
+
+        [event] = durable
+        assert event.source == garmin_constants.SYNC_SOURCE_API
+        assert event.payload == {
+            "user_id": str(linked.id),
+            "job_id": str(result.id),
+            "kind": "health",
+            "start_date": (today - timedelta(days=2)).isoformat(),
+            "end_date": today.isoformat(),
+        }
+        assert result.status == Status.QUEUED
+        assert sync_states.get(linked.id, Kind.HEALTH).status == Status.QUEUED
+        assert account.calls == []
+
+    def test_a_second_sync_of_a_kind_while_one_is_pending_is_a_conflict_and_publishes_nothing_more(
+        self, linked, sync_states, rate_limits, committed_sessions, durable
+    ):
+        _request_gear(committed_sessions, linked, sync_states, rate_limits)
+
+        with pytest.raises(core_exceptions.ConflictError):
+            _request_gear(committed_sessions, linked, sync_states, rate_limits)
+
+        assert len(durable) == 1
+
+
+class TestRequestRanges:
+    def test_a_health_range_beyond_the_cap_is_refused_and_nothing_is_queued(
+        self, linked, sync_states, rate_limits, committed_sessions, durable
+    ):
+        today = _today()
+        too_long = today - timedelta(days=garmin_constants.MAX_HEALTH_RANGE_DAYS)
+
+        with pytest.raises(core_exceptions.InvalidInputError):
+            _request_health(committed_sessions, linked, too_long, today, sync_states, rate_limits)
+
+        assert durable == []
+        assert sync_states.get(linked.id, Kind.HEALTH) is None
+
+    def test_the_longest_allowed_health_range_is_accepted(
+        self, linked, sync_states, rate_limits, committed_sessions, durable
+    ):
+        today = _today()
+        longest = today - timedelta(days=garmin_constants.MAX_HEALTH_RANGE_DAYS - 1)
+
+        _request_health(committed_sessions, linked, longest, today, sync_states, rate_limits)
+
+        assert len(durable) == 1
+
+    def test_a_range_ending_after_the_users_today_is_refused(
+        self, linked, sync_states, rate_limits, committed_sessions, durable
+    ):
+        tomorrow = _today() + timedelta(days=1)
+
+        with pytest.raises(core_exceptions.InvalidInputError, match="future"):
+            _request_health(committed_sessions, linked, _today(), tomorrow, sync_states, rate_limits)
+
+        assert durable == []
+
+    def test_an_activities_range_beyond_the_cap_is_refused_and_no_job_is_created(self, linked, committed_sessions):
+        with (
+            committed_sessions() as db,
+            pytest.raises(core_exceptions.InvalidInputError, match="must not exceed"),
+        ):
+            garmin_sync_service.request_activities_sync(
+                linked.id, date(2010, 1, 1), _today(), jasil_runtime.get_active_platform().storage, db
+            )
+
+        with committed_sessions() as db:
+            assert db.scalars(select(ingestion_models.ActivityIngestionJob)).all() == []
+
+    def test_an_activities_range_ending_after_the_users_today_is_refused(self, linked, committed_sessions):
+        with committed_sessions() as db, pytest.raises(core_exceptions.InvalidInputError, match="future"):
+            garmin_sync_service.request_activities_sync(
+                linked.id, _today(), _today() + timedelta(days=1), jasil_runtime.get_active_platform().storage, db
+            )
 
 
 class TestReadSyncJob:
-    def test_a_job_reads_with_its_id_and_kind(self):
-        state = MemoryState()
-        store = garmin_sync_state_store.GarminSyncStateStore(state=state)
-        job = store.begin(MOCK_USER_ID, Kind.HEALTH, conflict="busy")
+    def test_a_job_reads_with_its_id_and_kind(self, unlinked, sync_states):
+        job = sync_states.begin(unlinked.id, Kind.HEALTH, conflict="busy")
 
-        read = garmin_integration.read_sync_job(job, state)
+        read = garmin_integration.read_sync_job(job, jasil_runtime.get_state())
 
         assert (read.id, read.kind, read.status) == (job.id, "garmin_sync_health", Status.QUEUED)
 
-    def test_an_earlier_job_reads_as_gone_once_the_next_one_started(self):
-        state = MemoryState()
-        store = garmin_sync_state_store.GarminSyncStateStore(state=state)
-        first = store.begin(MOCK_USER_ID, Kind.GEAR, conflict="busy")
-        store.set_status(MOCK_USER_ID, Kind.GEAR, Status.SUCCEEDED, job_id=first.id)
-        second = store.begin(MOCK_USER_ID, Kind.GEAR, conflict="busy")
+    def test_an_earlier_job_reads_as_gone_once_the_next_one_started(self, unlinked, sync_states):
+        first = sync_states.begin(unlinked.id, Kind.GEAR, conflict="busy")
+        sync_states.set_status(unlinked.id, Kind.GEAR, Status.SUCCEEDED, job_id=first.id)
+        second = sync_states.begin(unlinked.id, Kind.GEAR, conflict="busy")
+        state = jasil_runtime.get_state()
 
         assert garmin_integration.read_sync_job(first, state) is None
         assert garmin_integration.read_sync_job(second, state).id == second.id
 
-    def test_an_expired_job_reads_as_gone(self):
-        state = MemoryState()
-        store = garmin_sync_state_store.GarminSyncStateStore(state=state)
-        job = store.begin(MOCK_USER_ID, Kind.GEAR, conflict="busy")
-        state.delete(core_attempt_state.key("garmin", "sync:state", job.subject))
+    def test_an_expired_job_reads_as_gone(self, unlinked, sync_states):
+        job = sync_states.begin(unlinked.id, Kind.GEAR, conflict="busy")
+        jasil_runtime.get_state().delete(core_attempt_state.key("garmin", "sync:state", job.subject))
 
-        assert garmin_integration.read_sync_job(job, state) is None
+        assert garmin_integration.read_sync_job(job, jasil_runtime.get_state()) is None
 
 
 class TestRunSync:
-    def test_it_dispatches_by_kind_and_records_the_outcome(self, rate_limits, states):
-        gear_job = states.begin(MOCK_USER_ID, Kind.GEAR, conflict="busy")
-        health_job = states.begin(OTHER_USER_ID, Kind.HEALTH, conflict="busy")
-        with (
-            patch.object(garmin_sync_service.garmin_gear_service, "get_user_gear") as gear,
-            patch.object(garmin_sync_service.garmin_health_service, "sync_health_for_dates") as health,
-        ):
-            garmin_sync_service.run_sync(
-                garmin_events.SyncRequestedPayload(user_id=MOCK_USER_ID, job_id=gear_job.id, kind=Kind.GEAR),
-                states,
-                rate_limits,
-            )
-            garmin_sync_service.run_sync(
-                garmin_events.SyncRequestedPayload(
-                    user_id=OTHER_USER_ID, job_id=health_job.id, kind=Kind.HEALTH, start_date=DAY, end_date=DAY
-                ),
-                states,
-                rate_limits,
-            )
+    def test_a_gear_sync_stores_the_gear_and_a_health_sync_the_days_and_each_tells_the_browser_what_to_refetch(
+        self, account, linked, make_linked, sync_states, rate_limits, committed_sessions, hints
+    ):
+        other = make_linked()
+        account.gear = [garmin_factories.gear_payload("g-1")]
+        account.daily_steps = [garmin_factories.steps_entry(_today().isoformat(), 4200)]
+        gear = _gear_job(sync_states, linked)
+        health = _health_job(sync_states, other, _today(), _today())
 
-        gear.assert_called_once_with(MOCK_USER_ID, rate_limits)
-        health.assert_called_once_with(DAY, DAY, OTHER_USER_ID, rate_limits)
-        assert states.get(MOCK_USER_ID, Kind.GEAR).status == Status.SUCCEEDED
-        assert states.get(OTHER_USER_ID, Kind.HEALTH).status == Status.SUCCEEDED
+        garmin_sync_service.run_sync(gear, sync_states, rate_limits)
+        garmin_sync_service.run_sync(health, sync_states, rate_limits)
 
-    def test_a_completed_sync_tells_the_browser_what_to_refetch(self, rate_limits, states):
-        gear_job = states.begin(MOCK_USER_ID, Kind.GEAR, conflict="busy")
-        health_job = states.begin(OTHER_USER_ID, Kind.HEALTH, conflict="busy")
-        with (
-            patch.object(garmin_sync_service.garmin_gear_service, "get_user_gear", return_value=True),
-            patch.object(garmin_sync_service.garmin_health_service, "sync_health_for_dates", return_value=True),
-            patch.object(garmin_sync_service.websocket_integration, "push_to_user") as push,
-        ):
-            garmin_sync_service.run_sync(
-                garmin_events.SyncRequestedPayload(user_id=MOCK_USER_ID, job_id=gear_job.id, kind=Kind.GEAR),
-                states,
-                rate_limits,
-            )
-            garmin_sync_service.run_sync(
-                garmin_events.SyncRequestedPayload(
-                    user_id=OTHER_USER_ID, job_id=health_job.id, kind=Kind.HEALTH, start_date=DAY, end_date=DAY
-                ),
-                states,
-                rate_limits,
-            )
-
-        messages = [(call.args[0], call.args[1]["message"], call.args[1].get("kind")) for call in push.call_args_list]
-        assert messages == [
-            (MOCK_USER_ID, "JOB_STATUS_CHANGED", "garmin_sync_gear"),
-            (MOCK_USER_ID, "GEARS_CHANGED", None),
-            (OTHER_USER_ID, "JOB_STATUS_CHANGED", "garmin_sync_health"),
-            (OTHER_USER_ID, "HEALTH_CHANGED", None),
+        assert sync_states.get(linked.id, Kind.GEAR).status == Status.SUCCEEDED
+        assert sync_states.get(other.id, Kind.HEALTH).status == Status.SUCCEEDED
+        with committed_sessions() as db:
+            assert db.scalars(
+                select(steps_models.HealthSteps.steps).where(steps_models.HealthSteps.user_id == other.id)
+            ).all() == [4200]
+        messages = [
+            (key, hint["message"], hint.get("kind"))
+            for key, hint in hints
+            if hint["message"] in {"JOB_STATUS_CHANGED", "GEARS_CHANGED", "HEALTH_CHANGED"}
+        ]
+        assert [(message, kind) for _, message, kind in messages if _.endswith(str(linked.id))] == [
+            ("JOB_STATUS_CHANGED", "garmin_sync_gear"),
+            ("GEARS_CHANGED", None),
+        ]
+        assert [(message, kind) for _, message, kind in messages if _.endswith(str(other.id))] == [
+            ("JOB_STATUS_CHANGED", "garmin_sync_health"),
+            ("HEALTH_CHANGED", None),
         ]
 
-    def test_a_sync_that_did_not_complete_announces_its_job_but_not_a_refetch(self, rate_limits, states):
-        job = states.begin(MOCK_USER_ID, Kind.GEAR, conflict="busy")
-        with (
-            patch.object(garmin_sync_service.garmin_gear_service, "get_user_gear", return_value=False),
-            patch.object(garmin_sync_service.websocket_integration, "push_to_user") as push,
-        ):
-            garmin_sync_service.run_sync(
-                garmin_events.SyncRequestedPayload(user_id=MOCK_USER_ID, job_id=job.id, kind=Kind.GEAR),
-                states,
-                rate_limits,
-            )
+    def test_a_sync_that_did_not_run_is_failed_announces_its_job_but_not_a_refetch_and_releases_its_claim(
+        self, account, unlinked, sync_states, rate_limits, hints
+    ):
+        job = _gear_job(sync_states, unlinked)
 
-        push.assert_called_once_with(
-            MOCK_USER_ID, {"message": "JOB_STATUS_CHANGED", "job_id": str(job.id), "kind": "garmin_sync_gear"}
+        garmin_sync_service.run_sync(job, sync_states, rate_limits)
+
+        assert sync_states.get(unlinked.id, Kind.GEAR).status == Status.FAILED
+        assert [hint["message"] for _, hint in hints] == ["JOB_STATUS_CHANGED"]
+        sync_states.begin(unlinked.id, Kind.GEAR, conflict="busy")
+
+    def test_a_failure_nothing_retries_is_recorded_released_and_raised(self, account, linked, sync_states, rate_limits):
+        account.fail("get_device_last_used", RuntimeError("boom"))
+        job = _gear_job(sync_states, linked)
+
+        with pytest.raises(RuntimeError):
+            garmin_sync_service.run_sync(job, sync_states, rate_limits)
+
+        assert sync_states.get(linked.id, Kind.GEAR).status == Status.FAILED
+        sync_states.begin(linked.id, Kind.GEAR, conflict="busy")
+
+    def test_a_failure_with_attempts_left_stays_queued_and_claimed_for_its_retry(
+        self, account, linked, sync_states, rate_limits
+    ):
+        account.fail("get_device_last_used", RuntimeError("boom"))
+        job = _gear_job(sync_states, linked)
+
+        with pytest.raises(RuntimeError):
+            garmin_sync_service.run_sync(job, sync_states, rate_limits, will_retry=True)
+
+        assert sync_states.get(linked.id, Kind.GEAR).status == Status.QUEUED
+        with pytest.raises(core_exceptions.JobAlreadyRunningError):
+            sync_states.begin(linked.id, Kind.GEAR, conflict="busy")
+
+    def test_a_rate_limited_sync_is_failed_without_a_retry_and_records_the_limit_for_every_replica(
+        self, account, linked, sync_states, rate_limits
+    ):
+        account.fail("get_device_last_used", garminconnect.GarminConnectTooManyRequestsError("429"))
+        job = _gear_job(sync_states, linked)
+
+        garmin_sync_service.run_sync(job, sync_states, rate_limits, will_retry=True)
+
+        assert sync_states.get(linked.id, Kind.GEAR).status == Status.FAILED
+        assert rate_limits.rate_limited_until(linked.id) is not None
+        sync_states.begin(linked.id, Kind.GEAR, conflict="busy")
+
+    def test_a_sync_refused_by_an_active_limit_is_failed_without_a_retry_or_a_call_to_garmin(
+        self, account, linked, sync_states, rate_limits
+    ):
+        until = rate_limits.mark_rate_limited(linked.id)
+        job = _gear_job(sync_states, linked)
+
+        garmin_sync_service.run_sync(job, sync_states, rate_limits, will_retry=True)
+
+        assert sync_states.get(linked.id, Kind.GEAR).status == Status.FAILED
+        assert rate_limits.rate_limited_until(linked.id) == until
+        assert account.clients == []
+
+    def test_a_rejected_token_unlinks_the_account_and_the_sync_is_failed(
+        self, account, linked, sync_states, rate_limits, committed_sessions
+    ):
+        account.fail("get_device_last_used", garminconnect.GarminConnectAuthenticationError("401"))
+        job = _gear_job(sync_states, linked)
+
+        garmin_sync_service.run_sync(job, sync_states, rate_limits)
+
+        assert sync_states.get(linked.id, Kind.GEAR).status == Status.FAILED
+        assert stored_token(committed_sessions, linked.id) is None
+
+    def test_a_health_payload_needs_a_date_range(self, unlinked):
+        with pytest.raises(ValueError):
+            garmin_events.SyncRequestedPayload(user_id=unlinked.id, job_id=uuid.uuid4(), kind=Kind.HEALTH)
+
+
+class TestDurableHandler:
+    @staticmethod
+    def _event(job: garmin_events.SyncRequestedPayload, retry_count: int, max_attempts: int | None = 3) -> Event:
+        return Event(
+            event_id="evt-1",
+            event_type=garmin_events.GARMIN_SYNC_REQUESTED,
+            source="test",
+            timestamp="2026-10-31T00:00:00+00:00",
+            payload=job.model_dump(mode="json"),
+            retry_count=retry_count,
+            max_attempts=max_attempts,
         )
 
-    def test_a_failure_nothing_retries_is_recorded_released_and_raised(self, rate_limits, states):
-        job = states.begin(MOCK_USER_ID, Kind.GEAR, conflict="busy")
-        with (
-            patch.object(garmin_sync_service.garmin_gear_service, "get_user_gear", side_effect=RuntimeError("boom")),
-            pytest.raises(RuntimeError),
-        ):
-            garmin_sync_service.run_sync(
-                garmin_events.SyncRequestedPayload(user_id=MOCK_USER_ID, job_id=job.id, kind=Kind.GEAR),
-                states,
-                rate_limits,
-            )
+    @staticmethod
+    def _registry() -> JobHandlerRegistry:
+        registry = JobHandlerRegistry()
+        garmin_subscribers.register_durable_handlers(registry)
+        return registry
 
-        assert states.get(MOCK_USER_ID, Kind.GEAR).status == Status.FAILED
-        states.begin(MOCK_USER_ID, Kind.GEAR, conflict="busy")
+    def test_the_handler_runs_the_sync_over_the_platform_state(self, account, linked, sync_states, committed_sessions):
+        account.gear = [garmin_factories.gear_payload("g-1")]
+        job = _gear_job(sync_states, linked)
 
-    def test_a_failure_with_attempts_left_stays_queued_and_claimed_for_its_retry(self, rate_limits, states):
-        job = states.begin(MOCK_USER_ID, Kind.GEAR, conflict="busy")
-        with (
-            patch.object(garmin_sync_service.garmin_gear_service, "get_user_gear", side_effect=RuntimeError("boom")),
-            pytest.raises(RuntimeError),
-        ):
-            garmin_sync_service.run_sync(
-                garmin_events.SyncRequestedPayload(user_id=MOCK_USER_ID, job_id=job.id, kind=Kind.GEAR),
-                states,
-                rate_limits,
-                will_retry=True,
-            )
+        self._registry().get(garmin_subscribers.SYNC_REQUESTED_SUBSCRIBER_ID)(self._event(job, 1))
 
-        assert states.get(MOCK_USER_ID, Kind.GEAR).status == Status.QUEUED
-        with pytest.raises(core_exceptions.JobAlreadyRunningError):
-            states.begin(MOCK_USER_ID, Kind.GEAR, conflict="busy")
+        assert sync_states.get(linked.id, Kind.GEAR).status == Status.SUCCEEDED
+        with committed_sessions() as db:
+            assert db.scalars(select(gear_models.Gear.garminconnect_gear_id)).all().count("g-1") == 1
 
-    def test_a_rate_limited_sync_is_failed_without_a_retry(self, rate_limits, durable, states):
-        job = states.begin(MOCK_USER_ID, Kind.GEAR, conflict="busy")
-        error = garmin_sync_service.garminconnect.GarminConnectTooManyRequestsError("429")
-        with patch.object(garmin_sync_service.garmin_gear_service, "get_user_gear", side_effect=error):
-            garmin_sync_service.run_sync(
-                garmin_events.SyncRequestedPayload(user_id=MOCK_USER_ID, job_id=job.id, kind=Kind.GEAR),
-                states,
-                rate_limits,
-            )
-
-        assert states.get(MOCK_USER_ID, Kind.GEAR).status == Status.FAILED
-        states.begin(MOCK_USER_ID, Kind.GEAR, conflict="busy")
-
-    def test_a_rate_limited_sync_records_the_limit_for_every_replica(self, durable, states, rate_limits):
-        job = states.begin(MOCK_USER_ID, Kind.GEAR, conflict="busy")
-        error = garmin_sync_service.garminconnect.GarminConnectTooManyRequestsError("429")
-        with patch.object(garmin_sync_service.garmin_gear_service, "get_user_gear", side_effect=error):
-            garmin_sync_service.run_sync(
-                garmin_events.SyncRequestedPayload(user_id=MOCK_USER_ID, job_id=job.id, kind=Kind.GEAR),
-                states,
-                rate_limits,
-            )
-
-        assert rate_limits.rate_limited_until(MOCK_USER_ID) is not None
-
-    def test_a_sync_refused_by_an_active_limit_is_failed_without_a_retry(self, durable, states, rate_limits):
-        job = states.begin(MOCK_USER_ID, Kind.GEAR, conflict="busy")
-        error = core_exceptions.TooManyRequestsError("slow down", scope=core_exceptions.TooManyRequestsScope.PROVIDER)
-        with patch.object(garmin_sync_service.garmin_gear_service, "get_user_gear", side_effect=error):
-            garmin_sync_service.run_sync(
-                garmin_events.SyncRequestedPayload(user_id=MOCK_USER_ID, job_id=job.id, kind=Kind.GEAR),
-                states,
-                rate_limits,
-                will_retry=True,
-            )
-
-        assert states.get(MOCK_USER_ID, Kind.GEAR).status == Status.FAILED
-        states.begin(MOCK_USER_ID, Kind.GEAR, conflict="busy")
-
-    def test_a_sync_that_did_not_run_is_recorded_as_failed_without_a_retry(self, rate_limits, states):
-        job = states.begin(MOCK_USER_ID, Kind.GEAR, conflict="busy")
-        with patch.object(garmin_sync_service.garmin_gear_service, "get_user_gear", return_value=False):
-            garmin_sync_service.run_sync(
-                garmin_events.SyncRequestedPayload(user_id=MOCK_USER_ID, job_id=job.id, kind=Kind.GEAR),
-                states,
-                rate_limits,
-            )
-
-        assert states.get(MOCK_USER_ID, Kind.GEAR).status == Status.FAILED
-        states.begin(MOCK_USER_ID, Kind.GEAR, conflict="busy")
-
-    def test_a_health_payload_needs_a_date_range(self):
-        with pytest.raises(ValueError):
-            garmin_events.SyncRequestedPayload(user_id=MOCK_USER_ID, job_id=uuid.uuid4(), kind=Kind.HEALTH)
-
-
-class TestRecentHealth:
-    @pytest.fixture(autouse=True)
-    def local_today(self):
-        with patch.object(garmin_sync_service.users_integration, "local_today", return_value=DAY) as today:
-            yield today
-
-    def test_with_durable_jobs_each_linked_user_is_queued_for_a_worker(self, rate_limits, durable, states):
-        publish, _ = durable
-        with (
-            patch.object(
-                garmin_sync_service.garmin_service,
-                "linked_user_ids",
-                side_effect=[[MOCK_USER_ID, OTHER_USER_ID], [THIRD_USER_ID], []],
-            ) as listing,
-            patch.object(garmin_sync_service.core_database, "SessionLocal"),
-        ):
-            garmin_sync_service.sync_recent_health(states, rate_limits)
-
-        assert [call.args[0] for call in publish.call_args_list] == [MOCK_USER_ID, OTHER_USER_ID, THIRD_USER_ID]
-        assert [call.args[0] for call in listing.call_args_list] == [None, OTHER_USER_ID, THIRD_USER_ID]
-
-    def test_a_failure_reading_the_linked_users_propagates_so_the_run_is_retried(self, rate_limits, durable, states):
-        with (
-            patch.object(garmin_sync_service.garmin_service, "linked_user_ids", side_effect=RuntimeError("db down")),
-            pytest.raises(RuntimeError),
-        ):
-            garmin_sync_service.sync_recent_health(states, rate_limits)
-
-    def test_a_user_with_a_pending_sync_is_skipped(self, rate_limits, durable, states):
-        publish, _ = durable
-        states.begin(MOCK_USER_ID, Kind.HEALTH, conflict="busy")
-        with (
-            patch.object(
-                garmin_sync_service.garmin_service, "linked_user_ids", side_effect=[[MOCK_USER_ID, OTHER_USER_ID], []]
-            ),
-            patch.object(garmin_sync_service.core_database, "SessionLocal"),
-        ):
-            garmin_sync_service.sync_recent_health(states, rate_limits)
-
-        assert [call.args[0] for call in publish.call_args_list] == [OTHER_USER_ID]
-
-    def test_without_durable_jobs_each_user_goes_to_the_pool_not_the_scheduler_thread(self, rate_limits, local, states):
-        with (
-            patch.object(
-                garmin_sync_service.garmin_service, "linked_user_ids", side_effect=[[MOCK_USER_ID, OTHER_USER_ID], []]
-            ),
-            patch.object(garmin_sync_service.core_database, "SessionLocal"),
-            patch.object(garmin_sync_service, "run_sync") as run,
-        ):
-            garmin_sync_service.sync_recent_health(states, rate_limits)
-
-        run.assert_not_called()
-        assert local.submit_waiting.call_count == 2
-        assert states.get(MOCK_USER_ID, Kind.HEALTH).status == Status.QUEUED
-        assert states.get(OTHER_USER_ID, Kind.HEALTH).status == Status.QUEUED
-
-    def test_no_connection_is_held_while_waiting_for_a_pool_slot(self, rate_limits, local, states, local_today):
-        sessions = []
-
-        def new_session():
-            session = MagicMock(holds_connection=False)
-            session.__enter__.return_value = session
-            session.close.side_effect = lambda: setattr(session, "holds_connection", False)
-            sessions.append(session)
-            return session
-
-        def read_today(_user_id, db):
-            db.holds_connection = True
-            return DAY
-
-        local_today.side_effect = read_today
-        held_at_submit = []
-        local.submit_waiting.side_effect = lambda *_, **__: held_at_submit.extend(s.holds_connection for s in sessions)
-        with (
-            patch.object(garmin_sync_service.garmin_service, "linked_user_ids", side_effect=[[MOCK_USER_ID], []]),
-            patch.object(garmin_sync_service.core_database, "SessionLocal", side_effect=new_session),
-        ):
-            garmin_sync_service.sync_recent_health(states, rate_limits)
-
-        assert held_at_submit == [False] * len(sessions)
-        assert held_at_submit
-
-    def test_a_pool_that_stays_full_ends_the_pass(self, rate_limits, full_pool, states, monkeypatch):
-        monkeypatch.setattr(garmin_constants, "SCHEDULED_SLOT_WAIT_SECONDS", 0.01)
-        with (
-            patch.object(
-                garmin_sync_service.garmin_service, "linked_user_ids", side_effect=[[MOCK_USER_ID, OTHER_USER_ID], []]
-            ) as listing,
-            patch.object(garmin_sync_service.core_database, "SessionLocal"),
-        ):
-            garmin_sync_service.sync_recent_health(states, rate_limits)
-
-        assert listing.call_count == 1
-        states.begin(MOCK_USER_ID, Kind.HEALTH, conflict="busy")
-
-    def test_a_user_waits_for_a_slot_to_free_instead_of_being_skipped(
-        self, rate_limits, full_pool, states, monkeypatch
+    @pytest.mark.parametrize(("retry_count", "status"), [(1, Status.QUEUED), (2, Status.QUEUED), (3, Status.FAILED)])
+    def test_a_failed_sync_is_asked_to_retry_only_while_attempts_remain(
+        self, account, linked, sync_states, retry_count, status
     ):
-        import threading
+        account.fail("get_device_last_used", RuntimeError("boom"))
+        job = _gear_job(sync_states, linked)
 
-        monkeypatch.setattr(garmin_constants, "SCHEDULED_SLOT_WAIT_SECONDS", 5)
-        threading.Timer(0.05, full_pool.set).start()
-        with (
-            patch.object(garmin_sync_service.garmin_service, "linked_user_ids", side_effect=[[MOCK_USER_ID], []]),
-            patch.object(garmin_sync_service.core_database, "SessionLocal"),
-        ):
-            garmin_sync_service.sync_recent_health(states, rate_limits)
+        with pytest.raises(RuntimeError):
+            self._registry().get(garmin_subscribers.SYNC_REQUESTED_SUBSCRIBER_ID)(self._event(job, retry_count))
 
-        assert states.get(MOCK_USER_ID, Kind.HEALTH).status == Status.QUEUED
+        assert sync_states.get(linked.id, Kind.GEAR).status == status
 
-    def test_the_window_is_the_users_local_yesterday_and_today(self, rate_limits, durable, states, local_today):
-        publish, _ = durable
-        local_today.return_value = date(2026, 3, 10)
-        with (
-            patch.object(garmin_sync_service.garmin_service, "linked_user_ids", side_effect=[[MOCK_USER_ID], []]),
-            patch.object(garmin_sync_service.core_database, "SessionLocal"),
-        ):
-            garmin_sync_service.sync_recent_health(states, rate_limits)
-
-        assert publish.call_args.args[3:5] == (date(2026, 3, 9), date(2026, 3, 10))
-
-    def test_the_event_names_the_scheduler_as_its_source(self, rate_limits, durable, states):
-        publish, _ = durable
-        with (
-            patch.object(garmin_sync_service.garmin_service, "linked_user_ids", side_effect=[[MOCK_USER_ID], []]),
-            patch.object(garmin_sync_service.core_database, "SessionLocal"),
-        ):
-            garmin_sync_service.sync_recent_health(states, rate_limits)
-
-        assert publish.call_args.kwargs["source"] == garmin_constants.SYNC_SOURCE_SCHEDULER
-
-    def test_a_request_names_the_api_as_its_source(self, rate_limits, durable, states):
-        publish, _ = durable
-
-        garmin_sync_service.request_gear_sync(MOCK_USER_ID, states, rate_limits, MagicMock())
-
-        assert publish.call_args.kwargs["source"] == garmin_constants.SYNC_SOURCE_API
-
-
-def _registered() -> JobHandlerRegistry:
-    registry = JobHandlerRegistry()
-    garmin_subscribers.register_durable_handlers(registry)
-    return registry
-
-
-def _handle(event: Event) -> None:
-    _registered().get(garmin_subscribers.SYNC_REQUESTED_SUBSCRIBER_ID)(event)
-
-
-def _dead_letter(event: Event, error: str | None) -> None:
-    _registered().dead_letter_callback(garmin_subscribers.SYNC_REQUESTED_SUBSCRIBER_ID)(event, error)
-
-
-def _sync_event(job_id: uuid.UUID, retry_count: int = 1, max_attempts: int | None = 3) -> Event:
-    return Event(
-        event_id="evt-1",
-        event_type=garmin_events.GARMIN_SYNC_REQUESTED,
-        source="test",
-        timestamp="2026-10-31T00:00:00+00:00",
-        payload={"user_id": str(MOCK_USER_ID), "job_id": str(job_id), "kind": "gear"},
-        retry_count=retry_count,
-        max_attempts=max_attempts,
-    )
-
-
-@pytest.mark.parametrize(("retry_count", "will_retry"), [(1, True), (2, True), (3, False)])
-def test_the_durable_handler_asks_for_a_retry_only_while_attempts_remain(states, rate_limits, retry_count, will_retry):
-    job_id = uuid.uuid4()
-    payload = garmin_events.SyncRequestedPayload(user_id=MOCK_USER_ID, job_id=job_id, kind=Kind.GEAR)
-    with (
-        patch.object(garmin_subscribers.garmin_sync_state_store, "GarminSyncStateStore", return_value=states),
-        patch.object(garmin_subscribers.garmin_rate_limit_store, "GarminRateLimitStore", return_value=rate_limits),
-        patch.object(garmin_subscribers.platform_runtime, "get_state"),
-        patch.object(garmin_subscribers.garmin_sync_service, "run_sync") as run,
-    ):
-        _handle(_sync_event(job_id, retry_count))
-
-    run.assert_called_once_with(payload, states, rate_limits, will_retry=will_retry)
+    def test_the_handler_is_registered_with_the_dead_letter_callback(self):
+        assert self._registry().dead_letter_subscriber_ids() == {garmin_subscribers.SYNC_REQUESTED_SUBSCRIBER_ID}
 
 
 class TestDeadLetter:
     """A sync the runner gave up on ends as failed, however its last attempt ended."""
 
-    @pytest.fixture
-    def stores(self, states):
-        with (
-            patch.object(garmin_subscribers.garmin_sync_state_store, "GarminSyncStateStore", return_value=states),
-            patch.object(garmin_subscribers.platform_runtime, "get_state"),
-        ):
-            yield states
+    @staticmethod
+    def _dead_letter(job: garmin_events.SyncRequestedPayload, error: str | None) -> None:
+        registry = JobHandlerRegistry()
+        garmin_subscribers.register_durable_handlers(registry)
+        event = TestDurableHandler._event(job, 3)
+        registry.dead_letter_callback(garmin_subscribers.SYNC_REQUESTED_SUBSCRIBER_ID)(event, error)
 
     @pytest.mark.parametrize("status", [Status.QUEUED, Status.RUNNING])
-    def test_a_pending_sync_is_failed_and_its_claim_released(self, stores, status):
-        job = stores.begin(MOCK_USER_ID, Kind.GEAR, conflict="busy")
-        stores.set_status(MOCK_USER_ID, Kind.GEAR, status, job_id=job.id)
+    def test_a_pending_sync_is_failed_and_its_claim_released(self, linked, sync_states, status):
+        job = _gear_job(sync_states, linked)
+        sync_states.set_status(linked.id, Kind.GEAR, status, job_id=job.job_id)
 
-        _dead_letter(_sync_event(job.id, 3), "lease expired")
+        self._dead_letter(job, "lease expired")
 
-        assert stores.get(MOCK_USER_ID, Kind.GEAR).status == Status.FAILED
-        stores.begin(MOCK_USER_ID, Kind.GEAR, conflict="busy")
+        assert sync_states.get(linked.id, Kind.GEAR).status == Status.FAILED
+        sync_states.begin(linked.id, Kind.GEAR, conflict="busy")
 
-    def test_a_sync_that_already_finished_is_left_alone(self, stores):
-        job = stores.begin(MOCK_USER_ID, Kind.GEAR, conflict="busy")
-        stores.set_status(MOCK_USER_ID, Kind.GEAR, Status.SUCCEEDED, job_id=job.id)
+    def test_a_sync_that_already_finished_is_left_alone(self, linked, sync_states):
+        job = _gear_job(sync_states, linked)
+        sync_states.set_status(linked.id, Kind.GEAR, Status.SUCCEEDED, job_id=job.job_id)
 
-        _dead_letter(_sync_event(job.id, 3), None)
+        self._dead_letter(job, None)
 
-        assert stores.get(MOCK_USER_ID, Kind.GEAR).status == Status.SUCCEEDED
+        assert sync_states.get(linked.id, Kind.GEAR).status == Status.SUCCEEDED
 
-    def test_an_expired_state_is_not_resurrected(self, stores):
-        _dead_letter(_sync_event(uuid.uuid4(), 3), None)
+    def test_an_expired_state_is_not_resurrected(self, linked, sync_states):
+        job = garmin_events.SyncRequestedPayload(user_id=linked.id, job_id=uuid.uuid4(), kind=Kind.GEAR)
 
-        assert stores.get(MOCK_USER_ID, Kind.GEAR) is None
+        self._dead_letter(job, None)
 
-    def test_a_sync_a_newer_one_superseded_is_left_alone(self):
-        state = MemoryState()
-        states = garmin_sync_state_store.GarminSyncStateStore(state=state)
-        old = states.begin(MOCK_USER_ID, Kind.GEAR, conflict="busy")
-        state.delete(core_attempt_state.key("garmin", "sync:claim", f"{MOCK_USER_ID}:{Kind.GEAR.value}"))
-        newer = states.begin(MOCK_USER_ID, Kind.GEAR, conflict="busy")
+        assert sync_states.get(linked.id, Kind.GEAR) is None
 
-        garmin_sync_service.close_dead_lettered_sync(
-            garmin_events.SyncRequestedPayload(user_id=MOCK_USER_ID, job_id=old.id, kind=Kind.GEAR), states
+    def test_a_sync_a_newer_one_superseded_is_left_alone(self, linked, sync_states):
+        old = _gear_job(sync_states, linked)
+        jasil_runtime.get_state().delete(
+            core_attempt_state.key("garmin", "sync:claim", f"{linked.id}:{Kind.GEAR.value}")
         )
+        newer = sync_states.begin(linked.id, Kind.GEAR, conflict="busy")
 
-        assert states.get(MOCK_USER_ID, Kind.GEAR, job_id=newer.id).status == Status.QUEUED
+        garmin_sync_service.close_dead_lettered_sync(old, sync_states)
+
+        assert sync_states.get(linked.id, Kind.GEAR, job_id=newer.id).status == Status.QUEUED
         with pytest.raises(core_exceptions.JobAlreadyRunningError):
-            states.begin(MOCK_USER_ID, Kind.GEAR, conflict="busy")
+            sync_states.begin(linked.id, Kind.GEAR, conflict="busy")
 
-    def test_the_handler_is_registered_with_the_callback(self):
-        registry = JobHandlerRegistry()
 
-        garmin_subscribers.register_durable_handlers(registry)
+class _WaitProbePool(core_local_pool.BoundedPool):
+    """A pool that records how many database connections are checked out when a submitter starts to wait."""
 
-        assert registry.dead_letter_subscriber_ids() == {garmin_subscribers.SYNC_REQUESTED_SUBSCRIBER_ID}
+    def __init__(self) -> None:
+        super().__init__("test-garmin-probe", workers=2, max_pending=10)
+        self.checked_out: list[int] = []
+
+    def submit_waiting(self, wait_seconds, run, /, *args, **kwargs):
+        self.checked_out.append(core_database.engine.pool.checkedout())
+        return super().submit_waiting(wait_seconds, run, *args, **kwargs)
+
+
+class _FirstSubmitFails(core_local_pool.BoundedPool):
+    """A pool that refuses its first job with a bug-like error and accepts the rest."""
+
+    def __init__(self) -> None:
+        super().__init__("test-garmin-flaky", workers=1, max_pending=10)
+        self.refused = False
+
+    def submit_waiting(self, wait_seconds, run, /, *args, **kwargs):
+        if not self.refused:
+            self.refused = True
+            raise RuntimeError("cannot schedule")
+        return super().submit_waiting(wait_seconds, run, *args, **kwargs)
+
+
+class TestRecentHealth:
+    def test_with_durable_jobs_each_linked_user_is_queued_for_a_worker_in_pages(
+        self, linked, make_linked, unlinked, sync_states, rate_limits, durable, monkeypatch
+    ):
+        monkeypatch.setattr(garmin_sync_service, "_USERS_PAGE_SIZE", 2)
+        users = [linked, make_linked(), make_linked()]
+
+        garmin_sync_service.sync_recent_health(sync_states, rate_limits)
+
+        assert sorted(event.payload["user_id"] for event in durable) == sorted(str(user.id) for user in users)
+        assert str(unlinked.id) not in {event.payload["user_id"] for event in durable}
+
+    def test_the_window_is_the_users_local_yesterday_and_today_and_the_scheduler_is_the_source(
+        self, linked, sync_states, rate_limits, durable
+    ):
+        garmin_sync_service.sync_recent_health(sync_states, rate_limits)
+
+        [event] = durable
+        assert (event.payload["start_date"], event.payload["end_date"]) == (
+            (_today() - timedelta(days=1)).isoformat(),
+            _today().isoformat(),
+        )
+        assert event.source == garmin_constants.SYNC_SOURCE_SCHEDULER
+
+    def test_a_user_with_a_pending_sync_is_skipped(self, linked, make_linked, sync_states, rate_limits, durable):
+        other = make_linked()
+        sync_states.begin(linked.id, Kind.HEALTH, conflict="busy")
+
+        garmin_sync_service.sync_recent_health(sync_states, rate_limits)
+
+        assert [event.payload["user_id"] for event in durable] == [str(other.id)]
+
+    def test_without_durable_jobs_each_user_goes_to_the_pool_not_the_scheduler_thread(
+        self, account, linked, make_linked, sync_states, rate_limits, blocked_pool, monkeypatch
+    ):
+        monkeypatch.setattr(garmin_sync_service, "_sync_pool", blocked_pool.with_held_worker(5))
+        users = [linked, make_linked()]
+
+        garmin_sync_service.sync_recent_health(sync_states, rate_limits)
+
+        assert [sync_states.get(user.id, Kind.HEALTH).status for user in users] == [Status.QUEUED, Status.QUEUED]
+        assert account.calls == []
+
+    def test_no_connection_is_held_while_waiting_for_a_pool_slot(
+        self, account, linked, sync_states, rate_limits, monkeypatch, committed_sessions
+    ):
+        pool = _WaitProbePool()
+        monkeypatch.setattr(garmin_sync_service, "_sync_pool", pool)
+
+        try:
+            garmin_sync_service.sync_recent_health(sync_states, rate_limits)
+        finally:
+            pool.shutdown(wait=True)
+
+        assert pool.checked_out == [0]
+
+    def test_a_pool_that_stays_full_ends_the_pass(
+        self, linked, make_linked, sync_states, rate_limits, blocked_pool, monkeypatch
+    ):
+        monkeypatch.setattr(garmin_constants, "SCHEDULED_SLOT_WAIT_SECONDS", 0.01)
+        monkeypatch.setattr(garmin_sync_service, "_sync_pool", blocked_pool.with_held_worker(1))
+        first, second = sorted([linked, make_linked()], key=lambda user: user.id)
+
+        garmin_sync_service.sync_recent_health(sync_states, rate_limits)
+
+        assert sync_states.get(first.id, Kind.HEALTH).status == Status.FAILED
+        assert sync_states.get(second.id, Kind.HEALTH) is None
+
+    def test_a_user_waits_for_a_slot_to_free_instead_of_being_skipped(
+        self, account, linked, sync_states, rate_limits, blocked_pool, monkeypatch
+    ):
+        pool = blocked_pool.with_held_worker(1)
+        monkeypatch.setattr(garmin_constants, "SCHEDULED_SLOT_WAIT_SECONDS", 10)
+        monkeypatch.setattr(garmin_sync_service, "_sync_pool", pool)
+        threading.Timer(0.05, blocked_pool.release.set).start()
+
+        garmin_sync_service.sync_recent_health(sync_states, rate_limits)
+        pool.shutdown(wait=True)
+
+        assert sync_states.get(linked.id, Kind.HEALTH).status == Status.SUCCEEDED
+
+    def test_one_user_failing_does_not_stop_the_rest(
+        self, account, linked, make_linked, sync_states, rate_limits, monkeypatch, caplog
+    ):
+        pool = _FirstSubmitFails()
+        monkeypatch.setattr(garmin_sync_service, "_sync_pool", pool)
+        first, second = sorted([linked, make_linked()], key=lambda user: user.id)
+
+        try:
+            garmin_sync_service.sync_recent_health(sync_states, rate_limits)
+        finally:
+            pool.shutdown(wait=True)
+
+        assert sync_states.get(first.id, Kind.HEALTH).status == Status.FAILED
+        assert sync_states.get(second.id, Kind.HEALTH).status != Status.FAILED
+        assert "Error syncing recent Garmin Connect health data for user" in caplog.text

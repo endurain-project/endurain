@@ -27,10 +27,17 @@ v0.21 saved the values of these variables (except `ALGORITHM` and `ALGORITHM_FIL
 
 ## API changes
 
-These changes affect clients of the administrator settings routes, which need the `server-settings:read` or `server-settings:write` scope.
+The first two affect clients of the administrator settings routes, which need the `server-settings:read` or `server-settings:write` scope.
 
 - **`env_managed` is gone** from the answer of `GET /server-settings` and `PUT /server-settings` (`ServerSettingsAdminRead`), and from the answer of `GET /server-settings/email/settings` and `PUT /server-settings/email/settings` (`MailSettingsAdminRead`). Settings are no longer tied to environment variables, so no field is read-only for that reason. A client that reads `env_managed` must stop doing so.
 - **The `409` for an environment-managed field is gone.** The two `PUT` routes used to answer `409` when the body changed a field that an environment variable set. They save the change now.
+- **`If-Match` takes quoted entity tags only.** On every route that requires it, an unquoted value (`If-Match: 3`) or any other value that is not `*` or a list of quoted tags is refused with `400` and `urn:endurain:error:invalid-input`; v0.21 read `3` as `"3"`. A quoted `"*"` is an ordinary tag, not the wildcard, so it matches no version (`412`). **A client that sent the version unquoted must send the `ETag` exactly as it was read** (`If-Match: "3"`). See [Concurrent edits](errors-and-limits.md#concurrent-edits-with-etag-and-if-match).
+- **`PATCH /identity-providers/{idp_id}` is a partial update.** `name` and `slug` are no longer required, and every field is optional: an omitted field keeps its stored value. A `null` for `name`, `slug`, `provider_type`, `enabled`, `scopes` or a boolean option is `422`. The rules that span fields (an `oidc` provider needs an `issuer_url` and the `openid` scope, `issuer-in-use`, `identity-provider-locked`) are checked on the stored provider with the changes applied. A client that sends the whole provider keeps working.
+- **A gzipped upload names its format.** `POST /activities/upload` takes `ride.gpx.gz`, `ride.fit.gz` or `ride.tcx.gz`; a `.gz` whose name gives no supported format inside it (`ride.gz`) is `415` `urn:endurain:error:unsupported-format` at once, where it used to be accepted and then fail its job.
+- **An API key whose owner is inactive is `401`.** v0.21 answered `403` `permission-denied` for a key of a deactivated account or one awaiting approval; it is now `401` with `urn:endurain:error:unauthorized` and `WWW-Authenticate: ApiKey`, like an unknown, revoked or expired key, because the key no longer authenticates anyone. See [API keys](api-keys.md).
+
+- **Text matching is case-insensitive through a PostgreSQL ICU collation.** The activity search (`name_search`: name, town, city, country), the gear search (`nickname_contains`) and the gear nickname lookup and uniqueness compare text so that case, a Greek final sigma (`ς` equals `Σ`) and Unicode normal forms (composed equals decomposed, full-width equals ASCII) do not matter; accents and `ß` against `ss` still do. **Gear nicknames that are equal under this rule within one user were renamed by the upgrade:** the earliest acquired keeps its nickname and each other gets a numeric suffix (`Bike`, `bike (2)`), with its `version` bumped and `updated_at` stamped, so a client refetches it and `GET /sync` reports it. A `POST /gears` whose nickname equals an existing one under this rule is `409`.
+- **A workout step can have no `duration_type`.** In `GET /activities/{activity_id}/workout-steps` (and the public variant) `duration_type` is `null` for a step whose FIT file names none. v0.21 refused such a file as invalid; it imports now. A client must not assume the field holds a string.
 
 ## Idempotency keys
 
@@ -44,5 +51,6 @@ These changes affect clients of the administrator settings routes, which need th
 
 - **Python 3.15** for the backend.
 - **Node.js 26** for the frontend.
+- **PostgreSQL 18 built with ICU**, which the case-insensitive collation needs. The official packages and the `postgres` image include it.
 
 The Docker image already ships both, so a Docker install needs nothing. See [Setup a development environment](../developer-guide/setup-dev-env.md).

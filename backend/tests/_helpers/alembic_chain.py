@@ -1,4 +1,4 @@
-"""Helpers that run the application's real Alembic history against a disposable PostgreSQL database."""
+"""Helpers that run the application's real Alembic history against a test PostgreSQL database."""
 
 from pathlib import Path
 
@@ -14,7 +14,6 @@ import model_registry as orm_model_registry
 from alembic import command
 from core.database import Base
 from migrations import schema_scope
-from tests._helpers.db import disposable_postgres_url
 
 #: The baseline revision, which is the head of the v0.21.x install, the only supported source of an upgrade to v0.22.
 V0_21_HEAD = "e95a7c1d4b36"
@@ -41,29 +40,6 @@ def alembic_config(connection: Connection | None = None) -> Config:
 def script_directory() -> ScriptDirectory:
     """Return the revision graph of the application's Alembic history."""
     return ScriptDirectory.from_config(alembic_config())
-
-
-def upgrade_engine() -> Engine:
-    """Create an engine on the disposable database with the session time zone the application pins (UTC).
-
-    Raises:
-        RuntimeError: If ``TEST_DATABASE_URL`` is unset or does not name a disposable database.
-    """
-    return sa.create_engine(disposable_postgres_url(), connect_args={"options": "-c timezone=utc"})
-
-
-def reset_public_schema(engine: Engine) -> None:
-    """Drop and recreate the ``public`` schema, leaving the database empty.
-
-    Raises:
-        RuntimeError: If the database name does not contain ``test``.
-    """
-    database = engine.url.database or ""
-    if "test" not in database:
-        raise RuntimeError(f"Refusing to drop the public schema of '{database}': it is not a disposable database.")
-    with engine.begin() as connection:
-        connection.execute(sa.text("DROP SCHEMA public CASCADE"))
-        connection.execute(sa.text("CREATE SCHEMA public"))
 
 
 def upgrade(engine: Engine, revision: str) -> None:

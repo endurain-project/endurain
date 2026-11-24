@@ -1,206 +1,246 @@
+"""The gear component routes, through the production application: real authentication, handlers and database."""
+
 import uuid
-from datetime import UTC, datetime
-from unittest.mock import patch
+from datetime import date
 
 import pytest
-from fastapi import FastAPI
-from fastapi.testclient import TestClient
 
-import core.database as core_db
-import core.exceptions as core_exceptions
-import core.pagination as core_pagination
-import modules.auth.dependencies as auth_deps
-import modules.gears.gear_components.gear_router as gear_router
-import modules.gears.gear_components.router as router
-import modules.gears.gear_components.schema as schema
-from tests._helpers.auth import MOCK_USER_ID
+import core.config as core_config
+import modules.gears.gear_components.crud as crud
+from tests._factories.activities import make_activity
+from tests._factories.gears import make_gear, make_gear_component
+from tests._factories.users import make_user
 
-_HEADERS = {"Authorization": "Bearer x"}
-GEAR_ID = uuid.uuid4()
-COMPONENT_ID = uuid.uuid4()
-_BODY = {"gear_id": str(GEAR_ID), "type": "chain", "brand": "Shimano", "model": "XT"}
+_URL = f"{core_config.ROOT_PATH}/gear-components"
+_GEARS = f"{core_config.ROOT_PATH}/gears"
 
 
 @pytest.fixture
-def client(mock_db):
-    app = FastAPI()
-    app.include_router(router.router, prefix="/gear_components")
-    app.include_router(gear_router.router, prefix="/gears")
-    core_exceptions.register_exception_handlers(app)
-    app.dependency_overrides[auth_deps.check_scopes] = lambda: None
-    app.dependency_overrides[auth_deps.get_current_user_id] = lambda: MOCK_USER_ID
-    app.dependency_overrides[core_db.get_db] = lambda: mock_db
-    return TestClient(app)
+def user(committed_sessions):
+    with committed_sessions() as db:
+        created = make_user(db)
+        db.commit()
+    return created
 
 
-def _read(**overrides) -> schema.GearComponentRead:
-    return schema.GearComponentRead(
-        **{
-            "id": COMPONENT_ID,
-            "user_id": MOCK_USER_ID,
-            "updated_at": datetime(2025, 1, 1, tzinfo=UTC),
-            **_BODY,
-            **overrides,
-        }
+@pytest.fixture
+def other(committed_sessions):
+    with committed_sessions() as db:
+        created = make_user(db)
+        db.commit()
+    return created
+
+
+@pytest.fixture
+def me(sign_in, user):
+    return sign_in(user)
+
+
+@pytest.fixture
+def bike(committed_sessions, user):
+    """A committed bike of the user."""
+    with committed_sessions() as db:
+        created = make_gear(db, user.id)
+        db.commit()
+    return created
+
+
+@pytest.fixture
+def make_component(committed_sessions):
+    """Return a function that commits a component for a user and returns it."""
+
+    def make(owner, gear_id, **overrides):
+        with committed_sessions() as db:
+            component = make_gear_component(db, owner.id, gear_id, **overrides)
+            db.commit()
+        return component
+
+    return make
+
+
+def _body(gear_id, **overrides):
+    return {"gear_id": str(gear_id), "type": "chain", "brand": "Shimano", "model": "XT", **overrides}
+
+
+def _stored(committed_sessions, owner):
+    with committed_sessions() as db:
+        return crud.get_gear_components_user(owner.id, db)
+
+
+class TestTypes:
+    def test_every_gear_type_with_a_catalogue_is_listed(self, me):
+        response = me.client.get(f"{_URL}/types")
+
+        assert response.status_code == 200
+        body = response.json()
+        assert {"bike", "shoes", "racquet", "windsurf"} <= set(body)
+        assert "chain" in body["bike"]
+
+
+class TestList:
+    def test_the_users_components_are_listed_without_usage(
+        self, me, user, other, bike, make_component, committed_sessions
+    ):
+        mine = make_component(user, bike.id)
+        with committed_sessions() as db:
+            theirs = make_gear(db, other.id)
+            db.commit()
+        make_component(other, theirs.id)
+
+        body = me.client.get(_URL).json()
+
+        assert [i["id"] for i in body["items"]] == [str(mine.id)]
+        assert "current_distance" not in body["items"][0]
+        assert "current_time" not in body["items"][0]
+        assert (body["total"], body["next"]) == (1, None)
+
+    def test_a_gears_components_carry_the_usage_of_their_window(
+        self, me, user, bike, make_component, committed_sessions
+    ):
+        component = make_component(user, bike.id, purchase_date=date(2025, 1, 1))
+        retired = make_component(user, bike.id, purchase_date=date(2024, 1, 1), retired_date=date(2024, 6, 1))
+        with committed_sessions() as db:
+            make_activity(db, user.id, gear_id=bike.id, distance=300, total_timer_time=30.0)
+            db.commit()
+
+        body = me.client.get(f"{_GEARS}/{bike.id}/components").json()
+
+        usage = {i["id"]: (i["current_distance"], i["current_time"]) for i in body["items"]}
+        assert usage == {str(component.id): (300.0, 30.0), str(retired.id): (0, 0)}
+
+    def test_a_gears_components_filter_on_active(self, me, user, bike, make_component):
+        make_component(user, bike.id)
+        retired = make_component(user, bike.id, purchase_date=date(2024, 1, 1), retired_date=date(2024, 6, 1))
+
+        body = me.client.get(f"{_GEARS}/{bike.id}/components", params={"active": "false"}).json()
+
+        assert [i["id"] for i in body["items"]] == [str(retired.id)]
+
+    def test_the_components_of_another_users_gear_are_not_listed(self, me, other, make_component, committed_sessions):
+        with committed_sessions() as db:
+            theirs = make_gear(db, other.id)
+            db.commit()
+        make_component(other, theirs.id)
+
+        assert me.client.get(f"{_GEARS}/{theirs.id}/components").json()["items"] == []
+
+    @pytest.mark.parametrize("path", ["", "/1/components"])
+    def test_a_query_or_id_the_route_does_not_accept_is_422(self, me, path):
+        url = f"{_GEARS}{path}" if path else f"{_URL}?num_records=0"
+
+        assert me.client.get(url).status_code == 422
+
+
+class TestRead:
+    def test_the_component_comes_with_its_version_as_the_etag(self, me, user, bike, make_component):
+        component = make_component(user, bike.id)
+
+        response = me.client.get(f"{_URL}/{component.id}")
+
+        assert response.status_code == 200
+        assert response.headers["ETag"] == '"1"'
+        assert response.json()["id"] == str(component.id)
+
+    def test_a_component_that_does_not_exist_is_404(self, me):
+        assert me.client.get(f"{_URL}/{uuid.uuid4()}").status_code == 404
+
+    def test_an_id_that_is_not_a_uuid_is_422(self, me):
+        assert me.client.get(f"{_URL}/1").status_code == 422
+
+
+class TestCreate:
+    def test_a_component_is_created_with_its_location_etag_and_expected_usage(self, me, user, bike, committed_sessions):
+        response = me.client.post(_URL, json=_body(bike.id, expected_usage=5_000_000))
+
+        assert response.status_code == 201
+        body = response.json()
+        assert response.headers["Location"].endswith(f"{_URL}/{body['id']}")
+        assert response.headers["ETag"] == '"1"'
+        assert (body["gear_id"], body["expected_usage"], body["active"]) == (str(bike.id), 5_000_000, True)
+        assert "current_distance" not in body
+        assert [c.id for c in _stored(committed_sessions, user)] == [uuid.UUID(body["id"])]
+
+    def test_a_gear_the_user_does_not_have_is_404(self, me, other, committed_sessions):
+        with committed_sessions() as db:
+            theirs = make_gear(db, other.id)
+            db.commit()
+
+        assert me.client.post(_URL, json=_body(theirs.id)).status_code == 404
+        assert me.client.post(_URL, json=_body(uuid.uuid4())).status_code == 404
+
+    def test_a_type_that_does_not_fit_the_gear_is_400(self, me, user, bike, committed_sessions):
+        response = me.client.post(_URL, json=_body(bike.id, type="laces"))
+
+        assert response.status_code == 400
+        assert _stored(committed_sessions, user) == []
+
+    @pytest.mark.parametrize(
+        "overrides",
+        [{"expected_kms": 5_000_000}, {"gear_id": "not-a-uuid"}, {"gear_id": 1}, {"user_id": str(uuid.uuid4())}],
     )
+    def test_a_body_the_route_does_not_accept_is_422(self, me, bike, overrides):
+        assert me.client.post(_URL, json=_body(bike.id) | overrides).status_code == 422
 
 
-def test_types_lists_every_gear_type(client):
-    response = client.get("/gear_components/types", headers=_HEADERS)
+class TestEdit:
+    def test_an_edit_is_partial_and_returns_the_new_etag(self, me, user, bike, make_component, committed_sessions):
+        component = make_component(user, bike.id)
 
-    assert response.status_code == 200
-    assert set(response.json()) == {"bike", "shoes", "racquet", "windsurf"}
+        response = me.client.patch(f"{_URL}/{component.id}", json={"brand": "SRAM"}, headers={"If-Match": '"1"'})
 
+        assert response.status_code == 200
+        assert response.headers["ETag"] == '"2"'
+        assert (response.json()["brand"], response.json()["model"]) == ("SRAM", "CN-HG71")
+        assert _stored(committed_sessions, user)[0].brand == "SRAM"
 
-@patch("modules.gears.gear_components.service.list_gear_components")
-def test_list(mock_list, client):
-    mock_list.return_value = core_pagination.Page.build([_read()], 1, 1, 200)
+    def test_a_retired_component_is_always_inactive(self, me, user, bike, make_component):
+        component = make_component(user, bike.id, purchase_date=date(2024, 1, 1))
 
-    item = client.get("/gear_components", headers=_HEADERS).json()["items"][0]
+        response = me.client.patch(
+            f"{_URL}/{component.id}",
+            json={"retired_date": "2025-01-01", "active": True},
+            headers={"If-Match": '"1"'},
+        )
 
-    assert item["id"] == str(COMPONENT_ID)
-    assert "current_distance" not in item
-    assert "current_time" not in item
+        assert (response.json()["retired_date"], response.json()["active"]) == ("2025-01-01", False)
 
+    def test_retiring_before_the_purchase_is_400(self, me, user, bike, make_component):
+        component = make_component(user, bike.id, purchase_date=date(2024, 5, 1))
 
-@patch("modules.gears.gear_components.service.create_gear_component")
-def test_create_response_carries_no_usage(mock_create, client):
-    mock_create.return_value = _read()
+        response = me.client.patch(
+            f"{_URL}/{component.id}", json={"retired_date": "2024-05-01"}, headers={"If-Match": '"1"'}
+        )
 
-    body = client.post("/gear_components", json=_BODY, headers=_HEADERS).json()
+        assert response.status_code == 400
 
-    assert "current_distance" not in body
-    assert "current_time" not in body
+    def test_a_stale_edit_is_412_and_changes_nothing(self, me, user, bike, make_component, committed_sessions):
+        component = make_component(user, bike.id)
 
+        response = me.client.patch(f"{_URL}/{component.id}", json={"brand": "x"}, headers={"If-Match": '"9"'})
 
-@patch("modules.gears.gear_components.service.list_components_for_gear")
-def test_list_for_gear_passes_the_active_filter(mock_list, client, mock_db):
-    usage = schema.GearComponentUsageRead(**_read().model_dump(), current_distance=3.0)
-    mock_list.return_value = core_pagination.Page.build([usage], 1, 1, 200)
+        assert response.status_code == 412
+        assert _stored(committed_sessions, user)[0].brand == "Shimano"
 
-    response = client.get(f"/gears/{GEAR_ID}/components?active=true", headers=_HEADERS)
+    @pytest.mark.parametrize("body", [{"purchase_date": None}, {"brand": None}, {"gear_id": str(uuid.uuid4())}])
+    def test_a_body_the_route_does_not_accept_is_422(self, me, user, bike, make_component, body):
+        component = make_component(user, bike.id)
 
-    assert response.json()["items"][0]["current_distance"] == 3.0
-    mock_list.assert_called_once_with(GEAR_ID, MOCK_USER_ID, mock_db, active=True, page_number=1, num_records=200)
-
-
-def test_a_malformed_gear_id_is_rejected(client):
-    assert client.get("/gears/1/components", headers=_HEADERS).status_code == 422
-
-
-@pytest.mark.parametrize("method", ["get", "patch", "delete"])
-def test_a_malformed_gear_component_id_is_rejected(method, client):
-    response = getattr(client, method)("/gear_components/1", headers={**_HEADERS, "If-Match": '"1"'})
-
-    assert response.status_code == 422
+        assert me.client.patch(f"{_URL}/{component.id}", json=body, headers={"If-Match": '"1"'}).status_code == 422
 
 
-@patch("modules.gears.gear_components.service.create_gear_component")
-def test_create(mock_create, client):
-    mock_create.return_value = _read()
+class TestDelete:
+    def test_the_component_is_deleted(self, me, user, bike, make_component, committed_sessions):
+        component = make_component(user, bike.id)
 
-    response = client.post("/gear_components", json=_BODY, headers=_HEADERS)
+        response = me.client.delete(f"{_URL}/{component.id}", headers={"If-Match": '"1"'})
 
-    assert response.status_code == 201
-    assert response.headers["Location"] == f"/gear_components/{COMPONENT_ID}"
-    assert response.headers["ETag"] == '"1"'
+        assert response.status_code == 204
+        assert _stored(committed_sessions, user) == []
 
+    def test_a_stale_delete_is_412_and_keeps_the_component(self, me, user, bike, make_component, committed_sessions):
+        component = make_component(user, bike.id)
 
-@patch("modules.gears.gear_components.service.create_gear_component")
-def test_create_stores_and_returns_the_expected_usage(mock_create, client):
-    mock_create.return_value = _read(expected_usage=5_000_000)
+        response = me.client.delete(f"{_URL}/{component.id}", headers={"If-Match": '"9"'})
 
-    response = client.post("/gear_components", json={**_BODY, "expected_usage": 5_000_000}, headers=_HEADERS)
-
-    assert response.status_code == 201
-    assert response.json()["expected_usage"] == 5_000_000
-    assert mock_create.call_args.args[0].expected_usage == 5_000_000
-
-
-@patch("modules.gears.gear_components.service.create_gear_component")
-def test_create_refuses_the_old_expected_kms_name(mock_create, client):
-    response = client.post("/gear_components", json={**_BODY, "expected_kms": 5_000_000}, headers=_HEADERS)
-
-    assert response.status_code == 422
-    mock_create.assert_not_called()
-
-
-@patch("modules.gears.gear_components.service.get_gear_component")
-def test_read_returns_the_component_with_its_etag(mock_get, client, mock_db):
-    mock_get.return_value = _read(version=3)
-
-    response = client.get(f"/gear_components/{COMPONENT_ID}", headers=_HEADERS)
-
-    assert response.status_code == 200
-    assert response.headers["ETag"] == '"3"'
-    mock_get.assert_called_once_with(MOCK_USER_ID, COMPONENT_ID, mock_db)
-
-
-@patch("modules.gears.gear_components.service.get_gear_component")
-def test_read_of_a_component_the_user_does_not_have_is_404(mock_get, client):
-    mock_get.side_effect = core_exceptions.NotFoundError("Gear component not found")
-
-    assert client.get(f"/gear_components/{uuid.uuid4()}", headers=_HEADERS).status_code == 404
-
-
-@pytest.mark.parametrize(
-    ("error", "status_code"),
-    [(core_exceptions.NotFoundError("Gear not found"), 404), (core_exceptions.InvalidInputError("bad type"), 400)],
-)
-@patch("modules.gears.gear_components.service.create_gear_component")
-def test_create_maps_domain_errors(mock_create, error, status_code, client):
-    mock_create.side_effect = error
-
-    assert client.post("/gear_components", json=_BODY, headers=_HEADERS).status_code == status_code
-
-
-@patch("modules.gears.gear_components.service.edit_gear_component")
-def test_edit_is_partial_and_returns_the_etag(mock_edit, client, mock_db):
-    mock_edit.return_value = _read(brand="SRAM", version=3)
-
-    response = client.patch(
-        f"/gear_components/{COMPONENT_ID}", json={"brand": "SRAM"}, headers={**_HEADERS, "If-Match": '"2"'}
-    )
-
-    assert response.json()["brand"] == "SRAM"
-    assert response.headers["ETag"] == '"3"'
-    assert mock_edit.call_args.kwargs == {"if_match": '"2"'}
-
-
-@patch("modules.gears.gear_components.service.edit_gear_component")
-def test_an_edit_without_if_match_is_428(mock_edit, client):
-    response = client.patch(f"/gear_components/{COMPONENT_ID}", json={"brand": "SRAM"}, headers=_HEADERS)
-
-    assert response.status_code == 428
-    mock_edit.assert_not_called()
-
-
-@patch("modules.gears.gear_components.service.edit_gear_component")
-def test_edit_clearing_the_purchase_date_is_rejected(mock_edit, client):
-    response = client.patch(
-        f"/gear_components/{COMPONENT_ID}", json={"purchase_date": None}, headers={**_HEADERS, "If-Match": '"1"'}
-    )
-
-    assert response.status_code == 422
-    mock_edit.assert_not_called()
-
-
-@patch("modules.gears.gear_components.service.delete_gear_component")
-def test_delete(mock_delete, client, mock_db):
-    response = client.delete(f"/gear_components/{COMPONENT_ID}", headers={**_HEADERS, "If-Match": '"3"'})
-
-    assert response.status_code == 204
-    mock_delete.assert_called_once_with(MOCK_USER_ID, COMPONENT_ID, mock_db, if_match='"3"')
-
-
-@patch("modules.gears.gear_components.service.delete_gear_component")
-def test_delete_without_if_match_is_428(mock_delete, client):
-    assert client.delete(f"/gear_components/{COMPONENT_ID}", headers=_HEADERS).status_code == 428
-    mock_delete.assert_not_called()
-
-
-@patch("modules.gears.gear_components.service.delete_gear_component")
-def test_a_stale_delete_is_412(mock_delete, client):
-    mock_delete.side_effect = core_exceptions.PreconditionFailedError("stale")
-
-    assert client.delete(f"/gear_components/{COMPONENT_ID}", headers={**_HEADERS, "If-Match": '"1"'}).status_code == 412
+        assert response.status_code == 412
+        assert len(_stored(committed_sessions, user)) == 1

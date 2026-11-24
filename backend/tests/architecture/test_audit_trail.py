@@ -10,9 +10,9 @@ import importlib
 import pathlib
 
 import jasil.audit as jasil_audit
-from tests._helpers.routes import MODULES_ROOT, WRITE_METHODS, route_decorators, router_functions
 
 import module_registry as runtime_module_registry
+from tests._helpers.routes import MODULES_ROOT, WRITE_METHODS, route_decorators, router_functions
 
 _APP = pathlib.Path("app")
 _MODULES_ROOT = _APP / "modules"
@@ -399,3 +399,55 @@ class TestWriteRouteCoverage:
 
         assert not unknown, f"Not declared in any audit_actions.py: {unknown}"
         assert not empty, f"An audited route names at least one action: {empty}"
+
+
+def _module_aliases(tree: ast.Module) -> dict[str, str]:
+    """Map each ``import a.b as alias`` of a module to the dotted module it names."""
+    return {
+        alias.asname: alias.name
+        for node in tree.body
+        if isinstance(node, ast.Import)
+        for alias in node.names
+        if alias.asname
+    }
+
+
+def _audit_calls_without_details() -> list[tuple[str, int, str, str]]:
+    """Return every ``jasil_audit.stage`` / ``record_detached`` call that passes no ``details``, by the action it names.
+
+    Each entry is the file, line, the module the action is imported from and the action's name. A call whose action
+    is not a ``<module alias>.<ACTION>`` attribute (one passed in as a parameter) is left out.
+    """
+    calls = []
+    for path in sorted(_APP.rglob("*.py")):
+        tree = ast.parse(path.read_text())
+        aliases = _module_aliases(tree)
+        for node in ast.walk(tree):
+            if not (
+                isinstance(node, ast.Call)
+                and isinstance(node.func, ast.Attribute)
+                and node.func.attr in {"stage", "record_detached"}
+                and isinstance(node.func.value, ast.Name)
+                and node.func.value.id == "jasil_audit"
+                and "details" not in {keyword.arg for keyword in node.keywords}
+            ):
+                continue
+            action = node.args[1 if node.func.attr == "stage" else 0] if node.args else None
+            if isinstance(action, ast.Attribute) and isinstance(action.value, ast.Name) and action.value.id in aliases:
+                calls.append((path.as_posix(), node.lineno, aliases[action.value.id], action.attr))
+    return calls
+
+
+class TestAuditDetails:
+    def test_a_write_of_an_action_whose_details_have_required_fields_passes_them(self):
+        """jasil drops a row whose details do not validate, so a refusal or change would go unrecorded."""
+        missing = []
+        for path, line, module, name in _audit_calls_without_details():
+            model = getattr(importlib.import_module(module), name).details_model
+            required = sorted(
+                field for field, info in (model.model_fields if model else {}).items() if info.is_required()
+            )
+            if required:
+                missing.append(f"{path}:{line} {name} needs details {required}")
+
+        assert not missing, "Pass details=... to:\n  " + "\n  ".join(missing)

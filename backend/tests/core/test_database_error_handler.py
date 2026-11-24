@@ -2,6 +2,7 @@
 
 import logging
 
+import jasil.providers as platform_providers
 import psycopg.errors
 import pytest
 from fastapi import FastAPI
@@ -33,10 +34,26 @@ class TestUnavailable:
             PoolTimeoutError("QueuePool limit of size 5 overflow 10 reached"),
             OperationalError(_STATEMENT, {}, psycopg.errors.LockNotAvailable("lock timeout")),
             OperationalError(_STATEMENT, {}, psycopg.errors.QueryCanceled("statement timeout")),
+            OperationalError(_STATEMENT, {}, psycopg.OperationalError("server closed the connection unexpectedly")),
+            OperationalError(_STATEMENT, {}, psycopg.errors.Error("connection is closed"), connection_invalidated=True),
+            OperationalError(_STATEMENT, {}, psycopg.errors.ConnectionFailure("connection failure")),
+            OperationalError(_STATEMENT, {}, psycopg.errors.AdminShutdown("terminating connection")),
+            OperationalError(_STATEMENT, {}, psycopg.errors.CannotConnectNow("the database system is starting up")),
+            OperationalError(_STATEMENT, {}, psycopg.errors.TooManyConnections("too many clients")),
         ],
-        ids=["pool-exhausted", "lock-timeout", "statement-timeout"],
+        ids=[
+            "pool-exhausted",
+            "lock-timeout",
+            "statement-timeout",
+            "connection-lost",
+            "connection-invalidated",
+            "connection-failure",
+            "server-shutdown",
+            "server-starting",
+            "too-many-connections",
+        ],
     )
-    def test_a_saturated_or_timed_out_database_is_a_503_with_retry_after(self, error):
+    def test_a_database_out_of_reach_is_a_503_with_retry_after(self, error):
         resp = _client(error).get("/fail")
 
         assert resp.status_code == 503
@@ -54,9 +71,14 @@ class TestUnavailable:
         assert {r.levelno for r in records} == {logging.WARNING}
 
     def test_any_other_operational_error_stays_a_500(self):
-        error = OperationalError(_STATEMENT, {}, psycopg.errors.AdminShutdown("shutting down"))
+        error = OperationalError(_STATEMENT, {}, psycopg.errors.DiskFull("could not extend file"))
 
         assert _client(error).get("/fail").status_code == 500
+
+    def test_a_connection_the_server_ended_is_a_503(self, committed_sessions):
+        import tests._helpers.database as test_database
+
+        assert _client(test_database.lost_connection_error()).get("/fail").status_code == 503
 
 
 class TestConflict:
@@ -84,3 +106,35 @@ class TestConflict:
 class TestOtherErrors:
     def test_a_generic_database_error_stays_an_opaque_500(self):
         assert _client(SQLAlchemyError(_STATEMENT)).get("/fail").status_code == 500
+
+
+class TestTheLogLineNamesTheFailureNotTheRequest:
+    """One failure logs one message whatever the URL, so a log aggregator groups it; the request is in the context."""
+
+    @pytest.mark.parametrize(
+        ("error", "message"),
+        [
+            (PoolTimeoutError("QueuePool limit of size 5 overflow 10 reached"), "Database error"),
+            (platform_providers.StorageBackendUnavailableError("storage is down"), "Storage unavailable"),
+            (RuntimeError("a bug"), "Unhandled error"),
+        ],
+        ids=["database", "storage", "unhandled"],
+    )
+    def test_two_paths_log_the_same_message_and_carry_their_own_path(self, app_log, error, message):
+        app = FastAPI()
+        core_exceptions.register_exception_handlers(app)
+
+        @app.get("/jobs/{job_id}")
+        def _fail(job_id: str):
+            raise error
+
+        client = TestClient(app, raise_server_exceptions=False)
+        client.get("/jobs/first")
+        client.get("/jobs/second")
+
+        records = [r for r in app_log.records if r.name.endswith("core.exceptions")]
+        assert [r.getMessage() for r in records] == [message, message]
+        assert [(r.method, r.path, r.error) for r in records] == [
+            ("GET", "/jobs/first", type(error).__name__),
+            ("GET", "/jobs/second", type(error).__name__),
+        ]

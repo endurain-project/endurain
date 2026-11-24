@@ -5839,7 +5839,7 @@ export interface components {
              */
             activity_id: string;
             /** Duration Type */
-            duration_type: string;
+            duration_type?: string | null;
             /**
              * Duration Value
              * @description Duration of the step, in the unit its duration_type names (seconds, meters and so on)
@@ -9787,9 +9787,8 @@ export interface components {
             /**
              * Auto Create Users
              * @description Auto-create users on first login
-             * @default true
              */
-            auto_create_users: boolean;
+            auto_create_users?: boolean | null;
             /** Client Id */
             client_id?: string | null;
             /** Client Secret */
@@ -9797,9 +9796,8 @@ export interface components {
             /**
              * Enabled
              * @description Whether this provider is enabled
-             * @default false
              */
-            enabled: boolean;
+            enabled?: boolean | null;
             /**
              * Icon
              * @description Built-in icon key
@@ -9812,45 +9810,38 @@ export interface components {
             issuer_url?: string | null;
             /**
              * Link By Email
-             * @description Link a sign-in that has no link yet to the local account with the same verified email. When off, that sign-in is refused and the user links the provider from their settings
-             * @default false
+             * @description Link a sign-in that has no link yet to the local account with the same verified email
              */
-            link_by_email: boolean;
+            link_by_email?: boolean | null;
             /**
              * Name
              * @description Display name of the IdP
              */
-            name: string;
-            /**
-             * @description Protocol of the provider: oidc, or oauth2. With the openid scope an oauth2 provider's sign-in must carry a verified ID token too
-             * @default oidc
-             */
-            provider_type: components["schemas"]["ProviderType"];
+            name?: string | null;
+            /** @description Protocol of the provider: oidc, or oauth2 */
+            provider_type?: components["schemas"]["ProviderType"] | null;
             /**
              * Scopes
              * @description OAuth2/OIDC scopes
-             * @default openid profile email
              */
-            scopes: string;
+            scopes?: string | null;
             /**
              * Slug
              * @description URL-safe identifier
              */
-            slug: string;
+            slug?: string | null;
             /** @description The administrator's step-up verification, required to edit an identity provider */
             step_up: components["schemas"]["StepUpVerification"];
             /**
              * Sync Email
              * @description Sync the email the provider verified onto the local account on each login
-             * @default false
              */
-            sync_email: boolean;
+            sync_email?: boolean | null;
             /**
              * Sync User Info
              * @description Sync the mapped profile fields, except the email, on each login
-             * @default true
              */
-            sync_user_info: boolean;
+            sync_user_info?: boolean | null;
             /**
              * Token Endpoint
              * @description OAuth2/OIDC token endpoint

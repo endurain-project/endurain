@@ -1,15 +1,16 @@
 """A lockout applied by a failed attempt is audited against the account, never with the username."""
 
 import uuid
-from unittest.mock import MagicMock
 
 import jasil.testing as jasil_testing
 import pytest
 
-import modules.auth.account_security.step_up_service as step_up_service
+import core.config as core_config
 import modules.auth.lockout.audit_actions as lockout_audit_actions
 import modules.auth.lockout.contracts as lockout_contracts
 import modules.auth.lockout.integration_service as lockout_integration
+from tests._factories.tokens import audit_rows
+from tests._factories.users import make_user
 
 _USER_ID = uuid.UUID(int=7)
 
@@ -58,14 +59,24 @@ def test_a_count_below_the_first_tier_writes_nothing():
     audit.assert_not_audited(_ACTION)
 
 
-def test_a_refused_step_up_that_locks_the_user_audits_the_lockout_against_them():
-    store = MagicMock()
-    store.record_failed_attempt.return_value = lockout_contracts.STEP_UP_LOCKOUT_TIERS[0][0]
-    store.record_account_failure.return_value = False
-    with jasil_testing.capture_audit() as audit:
-        step_up_service._record_failure(store, "key", _USER_ID, "sid", MagicMock())
+def test_a_refused_step_up_that_locks_the_user_audits_the_lockout_against_them(committed_sessions, sign_in):
+    with committed_sessions() as db:
+        user = make_user(db)
+        db.commit()
+    owner = sign_in(user)
+    tier = lockout_contracts.STEP_UP_LOCKOUT_TIERS[0][0]
+    body = {"name": "k", "scopes": ["activities:upload"], "step_up": {"current_password": "wrong"}}
 
-    entry = audit.assert_audited(
-        _ACTION, outcome="success", target_type="user", target_id=str(_USER_ID), target_owner_id=str(_USER_ID)
+    statuses = [
+        owner.client.post(f"{core_config.ROOT_PATH}/profile/api-keys", json=body).status_code for _ in range(tier)
+    ]
+
+    assert statuses == [403] * tier
+    (row,) = audit_rows(committed_sessions, lockout_audit_actions.LOCKOUT_APPLY)
+    assert (row.outcome, row.target_type, row.target_id, row.target_owner_id) == (
+        "success",
+        "user",
+        str(user.id),
+        str(user.id),
     )
-    assert entry.details["counter"] == "step_up"
+    assert row.details == {"counter": "step_up", "failed_attempts": tier}

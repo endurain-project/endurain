@@ -24,6 +24,7 @@ from jasil.events import Event
 from jasil.jobs import ContinueJob
 from jasil.jobs.registry import JobHandlerRegistry
 
+import core.job_queues as core_job_queues
 import core.logger as core_logger
 import modules.activities.activity_ingestion.bulk_import_service as activity_ingestion_bulk_import_service
 import modules.activities.activity_ingestion.constants as activity_ingestion_constants
@@ -184,4 +185,5 @@ def register_durable_handlers(registry: JobHandlerRegistry) -> None:
         BULK_IMPORT_SUBSCRIBER_ID,
         process_bulk_import_for_event,
         on_dead_letter=on_bulk_import_dead_letter,
+        queue=core_job_queues.BACKGROUND,
     )

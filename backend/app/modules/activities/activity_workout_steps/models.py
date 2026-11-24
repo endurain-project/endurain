@@ -16,7 +16,7 @@ class ActivityWorkoutSteps(Base):
         id: Primary key.
         activity_id: FK to activities table.
         message_index: Workout step message index.
-        duration_type: Workout step duration type.
+        duration_type: Workout step duration type, or None when the file names none.
         duration_value: Workout step duration value.
         target_type: Workout step target type.
         target_value: Workout step target value.
@@ -48,9 +48,9 @@ class ActivityWorkoutSteps(Base):
         nullable=False,
         comment="Workout step message index",
     )
-    duration_type: Mapped[str] = mapped_column(
+    duration_type: Mapped[str | None] = mapped_column(
         String(250),
-        nullable=False,
+        nullable=True,
         comment="Workout step duration type",
     )
     duration_value: Mapped[Decimal | None] = mapped_column(

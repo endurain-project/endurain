@@ -417,7 +417,9 @@ def resend_sign_up_verification_email(email: str, state: StateProvider, db: Sess
         if not core_email_cooldown.claim_email(state, "sign_up_verification", user.id, SIGN_UP_RESEND_COOLDOWN_SECONDS):
             return response
     except StateBackendUnavailableError as err:
-        logger.error("Sign-up resend cooldown unavailable", exc_info=err, extra=core_logger.context(user_id=user.id))
+        logger.warning(
+            "Sign-up resend cooldown unavailable", extra=core_logger.context(user_id=user.id, error=type(err).__name__)
+        )
         return response
     # The row keeps the account alive from this commit until the delivery subscriber issues the mailed token, which
     # replaces it; its raw value is discarded.
@@ -468,7 +470,9 @@ def request_sign_up_existing_account_notice(user_id: uuid.UUID, state: StateProv
         ):
             return
     except StateBackendUnavailableError as err:
-        logger.error("Sign-up notice cooldown unavailable", exc_info=err, extra=core_logger.context(user_id=user_id))
+        logger.warning(
+            "Sign-up notice cooldown unavailable", extra=core_logger.context(user_id=user_id, error=type(err).__name__)
+        )
         return
     sign_up_event_publishers.publish_sign_up_existing_account(user_id, db)
 
@@ -897,7 +901,7 @@ def revoke_user_tokens(user_id: uuid.UUID, db: Session) -> None:
     sign_up_crud.mark_user_sign_up_tokens_used(user_id, db)
 
 
-def _refuse_sign_up_token(reason: str | None = None) -> NoReturn:
+def _refuse_sign_up_token(reason: sign_up_audit_actions.SignUpConfirmRefusalReason | None = None) -> NoReturn:
     """Record a refused confirmation and raise the problem an unknown token gets."""
     details = sign_up_audit_actions.SignUpConfirmDetails(reason=reason) if reason else None
     jasil_audit.record_detached(
@@ -944,7 +948,7 @@ def verify_sign_up_token(token: str, db: Session, *, email_change: bool) -> sign
     if isinstance(usable, sign_up_contracts.EmailChangeClaim) and not security_generation_integration.matches_locked(
         usable.user_id, usable.security_generation, db
     ):
-        _refuse_sign_up_token("security_changed")
+        _refuse_sign_up_token(sign_up_audit_actions.SignUpConfirmRefusalReason.SECURITY_CHANGED)
     if usable is not None:
         security_generation_integration.stage_bump(usable.user_id, db)
     claim = sign_up_crud.claim_sign_up_token(token_hash, db)
@@ -1119,7 +1123,9 @@ def confirm_sign_up(token: str, password: str, db: Session) -> sign_up_schema.Si
             target_type="user",
             target_id=str(user_id),
             target_owner_id=str(user_id),
-            details=sign_up_audit_actions.SignUpConfirmDetails(reason="sign_up_disabled"),
+            details=sign_up_audit_actions.SignUpConfirmDetails(
+                reason=sign_up_audit_actions.SignUpConfirmRefusalReason.SIGN_UP_DISABLED
+            ),
         )
         _require_sign_up_enabled(server_settings)
     if is_sign_up and not server_settings.signup_require_email_verification:

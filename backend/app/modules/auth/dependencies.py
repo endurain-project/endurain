@@ -113,7 +113,9 @@ def _claim_mfa_enrolment_audit(principal: auth_contracts.Principal, state: State
     try:
         return state.set_if_absent(key, b"1", _MFA_ENROLMENT_AUDIT_WINDOW_SECONDS)
     except StateBackendUnavailableError as err:
-        logger.error("MFA-enrolment refusal audit guard unavailable", exc_info=err)
+        logger.warning(
+            "MFA-enrolment refusal audit guard unavailable", extra=core_logger.context(error=type(err).__name__)
+        )
         return True
 
 

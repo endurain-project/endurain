@@ -3,11 +3,19 @@
 Ids are stable forever: rows outlive the code. ``details`` carry flags only, never a password or a token.
 """
 
+from enum import StrEnum
 from typing import ClassVar
 
 import jasil.audit as jasil_audit
 from jasil.event_versioning import VersionedPayload
 from pydantic import ConfigDict
+
+
+class SignUpConfirmRefusalReason(StrEnum):
+    """Why a sign-up or email-change confirmation was refused, when it is known."""
+
+    SIGN_UP_DISABLED = "sign_up_disabled"
+    SECURITY_CHANGED = "security_changed"
 
 
 class SignUpConfirmDetails(VersionedPayload):
@@ -21,10 +29,10 @@ class SignUpConfirmDetails(VersionedPayload):
 
     model_config = ConfigDict(extra="forbid")
 
-    SCHEMA_VERSION: ClassVar[int] = 2
+    SCHEMA_VERSION: ClassVar[int] = 3
 
     password_set: bool | None = None
-    reason: str | None = None
+    reason: SignUpConfirmRefusalReason | None = None
 
 
 class EmailChangeCancelDetails(VersionedPayload):

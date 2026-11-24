@@ -54,13 +54,15 @@ if TYPE_CHECKING:
 
 
 def _stage_sessions_revoked(user_id: uuid.UUID, revoked: int, db: Session) -> None:
-    """Stage the audit row of several sessions a user lost at once.
+    """Stage the audit row of several sessions a user lost at once, or nothing when none ended.
 
     Args:
         user_id: ID of the user whose sessions ended.
         revoked: How many sessions ended.
         db: SQLAlchemy session.
     """
+    if not revoked:
+        return
     jasil_audit.stage(
         db,
         sessions_audit_actions.SESSION_REVOKE,

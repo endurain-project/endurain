@@ -13,6 +13,12 @@ from dotenv import load_dotenv
 # Load test environment variables before any app module is imported.
 load_dotenv(dotenv_path=Path(__file__).parent / ".env.test")
 
+# Point the application's database settings at this process's test database before ``core.database`` builds its
+# engine from them. The controller starts a PostgreSQL container when ``TEST_DATABASE_URL`` is unset.
+from tests._helpers import database as _test_database  # noqa: E402  (must follow the dotenv load)
+
+_test_database.bootstrap()
+
 # Disable HTTP rate limiting for the whole test run so rate-limited routes can be
 # exercised directly and via TestClient without tripping slowapi's per-bucket
 # caps. slowapi short-circuits on ``limiter.enabled``, so this turns every
@@ -27,3 +33,14 @@ _core_rate_limit.limiter.enabled = False
 import module_registry as _module_registry  # noqa: E402
 
 _module_registry.configure_activity_contributors()
+
+
+def pytest_unconfigure(config):
+    """Drop the template and stop the container once the whole run is over (the controller, or the only process)."""
+    if hasattr(config, "workerinput"):
+        return
+    try:
+        if _test_database.is_available():
+            _test_database.drop_template()
+    finally:
+        _test_database.stop_container()

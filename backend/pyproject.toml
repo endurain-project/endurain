@@ -6,7 +6,7 @@ authors = [{name = "João Vitória Silva", email = "joao@endurain.com"}]
 # readme intentionally omitted — internal app, not published to PyPI
 requires-python = ">=3.15,<4.0"
 dependencies = [
-    "fastapi>=0.162.2",
+    "fastapi>=0.163.1",
     "uvicorn>=0.54.0",
     "python-dotenv>=1.2.4",
     "sqlalchemy>=2.1.8",
@@ -44,7 +44,7 @@ dependencies = [
     "staticmap>=0.5.7",
     # Pinned below the next minor: JASIL is pre-1.0 and documents breaking
     # changes on minor versions.
-    "jasil[audit,fastapi,geocoding,jobs,migrations]>=0.22.2,<0.23.0",
+    "jasil[audit,fastapi,geocoding,jobs,migrations]>=0.25.0,<0.26.0",
 ]
 
 [project.optional-dependencies]
@@ -54,7 +54,7 @@ dependencies = [
 distributed = [
     "boto3>=1.43.126",
     "redis>=8.1.0",
-    "jasil[redis,s3]>=0.22.2,<0.23.0",
+    "jasil[redis,s3]>=0.25.0,<0.26.0",
 ]
 
 [dependency-groups]
@@ -71,7 +71,6 @@ lint = [
 ]
 test = [
     "httpx2>=2.16.0",
-    "faker>=40.46.0",
     "hypothesis>=6.170.15",
     "import-linter>=2.16",
     "pytest>=9.2.0",
@@ -79,6 +78,8 @@ test = [
     "pytest-cov>=7.1.0",
     "boto3>=1.43.126",
     "redis>=8.1.0",
+    "pytest-xdist>=3.8.0",
+    "testcontainers[postgres]>=4.15.0",
 ]
 dev = [
     "hatch>=1.18.2",
@@ -126,7 +127,7 @@ lint = "ruff check . --fix"
 format = "ruff format ."
 lint-check = "ruff check ."
 format-check = "ruff format --check ."
-test = "pytest"
+test = "pytest -n auto --cov --cov-report=term-missing"
 typecheck = "mypy"
 typecheck-ty = "ty check"
 validate = ["lint", "format", "test", "typecheck"]
@@ -140,9 +141,8 @@ python_classes = ["Test*"]
 python_functions = ["test_*"]
 asyncio_mode = "auto"
 asyncio_default_fixture_loop_scope = "function"
-addopts = "--tb=short --strict-markers --cov --cov-report=term-missing"
+addopts = "--tb=short --strict-markers"
 markers = [
-    "postgres: needs a disposable PostgreSQL database (TEST_DATABASE_URL); skipped when it is unset",
     "distributed: runs real API and worker processes against disposable PostgreSQL, Redis and S3 (TEST_DATABASE_URL, TEST_REDIS_URL, TEST_S3_ENDPOINT_URL); skipped unless all are set",
 ]
 filterwarnings = [
@@ -151,10 +151,13 @@ filterwarnings = [
 
 [tool.coverage.run]
 source = ["app"]
-omit = ["*/tests/*", "*/__pycache__/*", "*/alembic/*", "*/migrations/*"]
+branch = true
+omit = ["*/tests/*", "*/__pycache__/*"]
 
 [tool.coverage.report]
-fail_under = 80
+# Measured 98.25% branch coverage (2026-11-21). Raise it as the total rises; never lower it.
+fail_under = 97.7
+precision = 2
 exclude_lines = [
     "pragma: no cover",
     "def __repr__",
@@ -251,7 +254,7 @@ classmethod-decorators = ["sqlalchemy.orm.declared_attr"]
 "app/modules/auth/authentication/dependencies.py" = ["S105", "S106"]  # false positive on cookie name constants
 "app/modules/auth/account_security/events.py" = ["S105"]  # false positive on the password-change event values
 "app/modules/auth/known_devices/events.py" = ["S105"]  # false positive on the password sign-in method value
-"app/main.py" = ["S105"]  # false positive on env var value
+"app/modules/strava/client_service.py" = ["S105"]  # false positive on the SILENCE_TOKEN_WARNINGS switch value
 "app/modules/**/audit_actions.py" = ["S105"]  # false positive on enum members naming a credential kind ("password")
 
 [tool.ruff.format]

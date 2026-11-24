@@ -210,7 +210,7 @@ def delete_bulk_import_errors(user_id: uuid.UUID, storage: platform_providers.St
     try:
         storage.delete_prefix(
             activity_ingestion_constants.BULK_IMPORT_ERROR_STORAGE_AREA,
-            activity_ingestion_constants.bulk_import_error_prefix(user_id),
+            activity_ingestion_constants.bulk_import_error_root(user_id),
         )
     except platform_providers.StorageBackendUnavailableError as err:
         logger.warning(

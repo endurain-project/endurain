@@ -15,6 +15,7 @@ on:
   pull_request:
     branches:
       - master
+      - release/**
     paths:
       - backend/**
       - .github/workflows/test-backend-distributed.yml
@@ -53,6 +54,10 @@ jobs:
             tests: tests/distributed/test_followers_across_processes.py
           - name: realtime
             tests: tests/distributed/test_realtime_across_processes.py
+          - name: shared state
+            tests: tests/distributed/test_shared_state_across_processes.py
+          - name: concurrent startup
+            tests: tests/distributed/test_startup_across_processes.py
     # Disposable infrastructure shared by every process the tests start. The
     # tests create and drop a database of their own, flush this Redis database
     # and empty the bucket.

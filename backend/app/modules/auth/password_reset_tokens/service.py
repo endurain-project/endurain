@@ -105,7 +105,10 @@ def _claim_reset_cooldown(user_id: uuid.UUID, event_id: str, state: StateProvide
             state, "password_reset", user_id, RESET_EMAIL_COOLDOWN_SECONDS, claimant=event_id
         )
     except StateBackendUnavailableError as err:
-        logger.error("Password-reset cooldown unavailable", exc_info=err, extra=core_logger.context(user_id=user_id))
+        logger.warning(
+            "Password-reset cooldown unavailable",
+            extra=core_logger.context(user_id=user_id, error=type(err).__name__),
+        )
         return False
 
 

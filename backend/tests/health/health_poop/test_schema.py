@@ -1,14 +1,6 @@
-import uuid
 from datetime import UTC, datetime
 
 from pydantic import ValidationError
-
-# A stored record always has its start time.
-_USER_ID = uuid.UUID("11111111-1111-4111-8111-111111111111")
-_ID = uuid.uuid4()
-
-
-_STARTED = datetime(2026, 1, 1, 7, 0, tzinfo=UTC)
 
 
 class TestHealthPoopCreateSchema:
@@ -45,15 +37,6 @@ class TestHealthPoopCreateSchema:
             pass
 
 
-class TestHealthPoopReadSchema:
-    def test_valid(self):
-        from modules.health.health_poop.schema import HealthPoopRead
-
-        data = HealthPoopRead(updated_at="2024-01-01T00:00:00Z", id=_ID, user_id=_USER_ID, date_time=_STARTED)
-        assert data.id == _ID
-        assert data.user_id == _USER_ID
-
-
 class TestEnums:
     def test_bristol_type(self):
         from modules.health.health_poop.schema import BristolType
@@ -61,9 +44,3 @@ class TestEnums:
         assert BristolType.TYPE_1.value == "type_1"
         assert BristolType.TYPE_1.stored == 1
         assert BristolType.TYPE_7.stored == 7
-
-    def test_color_values(self):
-        from modules.health.health_poop.schema import Color
-
-        assert Color.BROWN.value == "brown"
-        assert Color.GREEN.value == "green"

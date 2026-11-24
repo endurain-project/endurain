@@ -1,7 +1,6 @@
 """Tests for core.utils — path-safety and static-file serving."""
 
 import os
-from unittest.mock import MagicMock, patch
 
 import pytest
 
@@ -101,22 +100,25 @@ class TestServeFrom:
 class TestReturnFrontendIndex:
     """Tests for return_frontend_index."""
 
-    def test_calls_serve_from_with_frontend_dir(self):
+    def test_serves_a_file_of_the_frontend_directory(self, tmp_path, monkeypatch):
+        import core.config as core_config
         from core.utils import return_frontend_index
 
-        mock_core_config = MagicMock()
-        mock_core_config.settings.FRONTEND_DIR = "/mock/frontend"
-        mock_serve_from = MagicMock(return_value="response")
+        (tmp_path / "index.html").write_text("<html></html>")
+        monkeypatch.setattr(core_config.settings, "FRONTEND_DIR", str(tmp_path))
 
-        with patch.multiple(
-            "core.utils",
-            core_config=mock_core_config,
-            _serve_from=mock_serve_from,
-        ):
-            result = return_frontend_index("index.html")
+        result = return_frontend_index("index.html")
 
-        mock_serve_from.assert_called_once_with("/mock/frontend", "index.html")
-        assert result == "response"
+        assert result is not None
+        assert result.path == str(tmp_path / "index.html")
+
+    def test_a_missing_file_is_none(self, tmp_path, monkeypatch):
+        import core.config as core_config
+        from core.utils import return_frontend_index
+
+        monkeypatch.setattr(core_config.settings, "FRONTEND_DIR", str(tmp_path))
+
+        assert return_frontend_index("index.html") is None
 
 
 class TestNoBlobPathHelpers:

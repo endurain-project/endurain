@@ -184,7 +184,7 @@ Every upload route declares its body limit in the OpenAPI document as `x-max-bod
 
 | Route | Accepts | Largest file |
 | ----- | ------- | ------------ |
-| `POST /activities/upload` | `.gpx`, `.fit`, `.tcx`, or any of them gzipped (`.gz`) | 200 MiB |
+| `POST /activities/upload` | `.gpx`, `.fit`, `.tcx`, or any of them gzipped and named for it (`.gpx.gz`, `.fit.gz`, `.tcx.gz`; a `.gz` whose name gives no such format is `415`) | 200 MiB |
 | `POST /activities/bulk-import` | A `.zip` of activity files (the same extensions, and `.fit.gz` entries). `source=strava` reads a Strava export | 500 MiB |
 | `POST /profile/import` | A `.zip` made by `POST /profile/export` | 500 MiB |
 

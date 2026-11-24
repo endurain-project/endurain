@@ -17,6 +17,9 @@ import boto3
 from sqlalchemy import create_engine, text
 from sqlalchemy.engine import Engine, make_url
 
+import modules.activities.activity_thumbnail.subscribers as thumbnail_subscribers
+from tests._helpers.stand_ins import GeocodingServer, TileServer
+
 _BACKEND_DIR = Path(__file__).resolve().parents[2]
 _APP_DIR = _BACKEND_DIR / "app"
 _SUPPORT_DIR = Path(__file__).resolve().parent / "support"
@@ -24,6 +27,11 @@ _SUPPORT_DIR = Path(__file__).resolve().parent / "support"
 #: Short enough to see a reclaim in a test, long enough to satisfy JASIL's
 #: ``lease_seconds >= 3 * heartbeat_interval_seconds`` rule (15 s heartbeat).
 LEASE_SECONDS = 60
+
+#: The durable jobs an API process queues by itself when it starts (the thumbnail backfill request, one per hour). How
+#: many exist depends on how many processes started and in which hour, not on what a test did, so the counts of a
+#: test's jobs leave them out; they must still complete.
+STARTUP_SUBSCRIBERS = [thumbnail_subscribers.THUMBNAIL_BACKFILL_SUBSCRIBER_ID]
 
 _STARTUP_MARKER = "Application startup complete"
 
@@ -44,6 +52,10 @@ class _Process:
     popen: subprocess.Popen
     log_path: Path
     port: int | None = None
+
+
+#: The public address of the deployment, behind which its replicas listen on their own ports.
+PUBLIC_HOST = "http://localhost:8080"
 
 
 def _free_port() -> int:
@@ -76,6 +88,10 @@ class Cluster:
             connection.execute(text(f'CREATE DATABASE "{self._db_name}"'))
         self.engine: Engine = create_engine(url.set(database=self._db_name))
         self._reset_shared_services()
+        #: What the deployment's thumbnails and reverse geocoding call instead of the public OpenStreetMap services.
+        self.tiles = TileServer()
+        self.tiles.start()
+        self.geocoder = GeocodingServer()
 
     # -- environment ---------------------------------------------------------
 
@@ -100,8 +116,13 @@ class Cluster:
                 for obj in page.get("Contents", []):
                     client.delete_object(Bucket=self._config.s3_bucket, Key=obj["Key"])
 
-    def env(self, *, distributed: bool, port: int = 8080) -> dict[str, str]:
-        """The environment of one process of this deployment."""
+    def env(self, *, distributed: bool) -> dict[str, str]:
+        """The environment of one process of this deployment.
+
+        Every process names the one public address a deployment has, so a token one replica signs carries the
+        audience the others check, and enforces the rate limits, as production does (``.env.test`` turns them off
+        for the in-process tests).
+        """
         env = dict(os.environ)
         for var in ("TEST_DATABASE_URL", "DATABASE_URL"):
             env.pop(var, None)
@@ -125,7 +146,8 @@ class Cluster:
             FRONTEND_DIR=str(frontend),
             BACKEND_DIR=str(_BACKEND_DIR),
             ENVIRONMENT="production",
-            ENDURAIN_HOST=f"http://localhost:{port}",
+            ENDURAIN_HOST=PUBLIC_HOST,
+            RATE_LIMIT_ENABLED="true",
             PYTHONUNBUFFERED="1",
             REDIS_URL=self._config.redis_url,
             JOBS_ENABLED="true",
@@ -133,6 +155,7 @@ class Cluster:
             JOBS_POLL_INTERVAL_SECONDS="1",
             JOBS_LEASE_SECONDS=str(LEASE_SECONDS),
             DEPLOYMENT_PROFILE="distributed" if distributed else "local",
+            SSRF_ALLOWED_HOSTS="127.0.0.1/32",
         )
         if distributed:
             env.update(STORAGE_URI=f"s3://{self._config.s3_bucket}", **self._s3_env)
@@ -156,22 +179,53 @@ class Cluster:
 
     def start_api(self, *, distributed: bool, timeout: float = 150) -> _Process:
         """Start an API replica and wait until it has finished starting up."""
-        port = _free_port()
-        process = self._spawn(
-            f"api{self._apis}",
-            [sys.executable, "-m", "uvicorn", "main:app", "--port", str(port)],
-            self.env(distributed=distributed, port=port),
-            port=port,
-        )
-        self._apis += 1
-        assert self.wait_for(lambda: _STARTUP_MARKER in process.log_path.read_text(), timeout), (
-            f"{process.label} did not start:\n{process.log_path.read_text()[-2000:]}"
-        )
+        (process,) = self.start_apis(1, distributed=distributed, timeout=timeout)
         return process
 
-    def start_worker(self, *, distributed: bool, slow_seconds: float | None = None) -> _Process:
-        """Start a durable-job worker, optionally one whose upload processing is delayed."""
+    def start_apis(self, count: int, *, distributed: bool, timeout: float = 150) -> list[_Process]:
+        """Start API replicas at the same moment, as a deployment's replicas start, and wait until all are up."""
+        processes = []
+        for _ in range(count):
+            port = _free_port()
+            processes.append(
+                self._spawn(
+                    f"api{self._apis}",
+                    [sys.executable, "-m", "uvicorn", "main:app", "--port", str(port)],
+                    self.env(distributed=distributed),
+                    port=port,
+                )
+            )
+            self._apis += 1
+        for process in processes:
+            assert self.wait_for(lambda process=process: _STARTUP_MARKER in process.log_path.read_text(), timeout), (
+                f"{process.label} did not start:\n{process.log_path.read_text()[-2000:]}"
+            )
+        self._use_stand_ins()
+        return processes
+
+    def _use_stand_ins(self) -> None:
+        """Point the migrated server settings at the loopback tile and geocoding stand-ins.
+
+        The geocoding rate limit stays at its default of one lookup a second. Processes read these settings per job
+        (geocoding reuses them for a few seconds), and no upload exists before a test drives one.
+        """
+        with self.engine.begin() as connection:
+            updated = connection.execute(
+                text(
+                    "UPDATE server_settings SET tileserver_url = :tiles, geocoding_host = :geocoder, "
+                    "geocoding_use_https = false"
+                ),
+                {"tiles": self.tiles.url(), "geocoder": f"127.0.0.1:{self.geocoder.port}"},
+            )
+        assert updated.rowcount == 1, "the migrated database holds one server_settings row"
+
+    def start_worker(
+        self, *, distributed: bool, slow_seconds: float | None = None, queues: str | None = None
+    ) -> _Process:
+        """Start a durable-job worker, optionally one whose upload processing is delayed or that serves some queues."""
         env = self.env(distributed=distributed)
+        if queues is not None:
+            env["JOBS_QUEUES"] = queues
         script = "worker.py"
         if slow_seconds is not None:
             env["SLOW_SECONDS"] = str(slow_seconds)
@@ -239,15 +293,20 @@ class Cluster:
         return self.wait_for(lambda: all(self.job_status(job) in ("completed", "failed") for job in job_ids), timeout)
 
     def wait_for_durable_jobs(self, expected: int, timeout: float = 90) -> bool:
-        """Wait until exactly ``expected`` durable jobs exist and every one has completed.
+        """Wait until exactly ``expected`` durable jobs exist besides the startup ones, and every job has completed.
 
         The count matters: the upload job completes before the outbox relay has
         turned its ``activity.created`` into the derived jobs, so "nothing is open"
-        is also true in that gap.
+        is also true in that gap. The startup jobs (:data:`STARTUP_SUBSCRIBERS`)
+        are not counted but must complete as well.
         """
         return self.wait_for(
             lambda: (
-                self.scalar("SELECT count(*) FROM jasil_processing_jobs") == expected
+                self.scalar(
+                    "SELECT count(*) FROM jasil_processing_jobs WHERE subscriber_id <> ALL(:startup)",
+                    startup=STARTUP_SUBSCRIBERS,
+                )
+                == expected
                 and self.scalar("SELECT count(*) FROM jasil_processing_jobs WHERE status <> 'completed'") == 0
             ),
             timeout,
@@ -265,6 +324,8 @@ class Cluster:
             except subprocess.TimeoutExpired:
                 with contextlib.suppress(ProcessLookupError, PermissionError):
                     os.killpg(process.popen.pid, signal.SIGKILL)
+        self.tiles.stop()
+        self.geocoder.stop()
         self.engine.dispose()
         with self._admin.connect() as connection:
             connection.execute(text(f'DROP DATABASE IF EXISTS "{self._db_name}" WITH (FORCE)'))

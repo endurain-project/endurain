@@ -1,15 +1,15 @@
 """Tests for FIT activity file import utilities."""
 
 from datetime import UTC, datetime, timedelta
-from unittest.mock import patch
 
 import pytest
-from tests._helpers.auth import MOCK_USER_ID
 
 import core.exceptions as core_exceptions
 import modules.activities.activity_file_import.fit_frames as fit_frames
 import modules.activities.activity_file_import.fit_parser as fit_parser
 import modules.activities.computation as activities_computation
+from tests._helpers.auth import MOCK_USER_ID
+from tests.activities.activity_file_import import fit_files
 
 _SERVER_TZ = "UTC"
 
@@ -980,18 +980,13 @@ class TestActivityLocalTimestampOffset:
 
         assert activities[0]["activity"].timezone == "Europe/Paris"
 
-    def test_gps_track_takes_precedence_over_activity_offset(self, monkeypatch):
+    def test_gps_track_takes_precedence_over_activity_offset(self):
         record = _session_record("garmin")
         record["activity_time_offset"] = 2 * 3600
         record["is_lat_lon_set"] = True
         record["lat_lon_waypoints"] = [
             {"time": datetime(2026, 6, 20, 8, 20, 3, tzinfo=UTC), "lat": 35.68, "lon": 139.69},
         ]
-        monkeypatch.setattr(
-            fit_parser.activity_file_import_parser_utils,
-            "resolve_timezone_from_lat_lon",
-            lambda lat, lon, fallback: "Asia/Tokyo",
-        )
 
         activities = fit_parser.create_activity_objects([record], user_id=MOCK_USER_ID, default_timezone=_SERVER_TZ)
 
@@ -1002,7 +997,7 @@ class TestActivityLocalTimestampOffset:
         frame.name = "activity"
         state = fit_parser.FitParseState()
 
-        fit_parser._dispatch_data_message(frame, state, None)
+        fit_parser._dispatch_data_message(frame, state)
 
         assert state.activity_time_offset == 7200
         assert state.to_payload()["activity_time_offset"] == 7200
@@ -1069,10 +1064,13 @@ class TestMalformedFitFile:
         path = tmp_path / "odd.fit"
         path.write_bytes(b"\x00" * 40)
 
-        with (
-            patch.object(fit_parser.fitdecode, "FitReader", side_effect=KeyError("field")),
-            pytest.raises(core_exceptions.InvalidInputError),
-        ):
+        path.write_bytes(
+            fit_files.fit_file(
+                fit_files.message("record", heart_rate=140),  # a record without its timestamp
+            )
+        )
+
+        with pytest.raises(core_exceptions.InvalidInputError):
             fit_parser.parse_fit_file(str(path))
 
 
@@ -1143,12 +1141,12 @@ class TestExerciseTitleDispatch:
 
     def test_unnamed_title_frame_is_not_appended(self):
         state = fit_parser.FitParseState()
-        fit_parser._dispatch_data_message(_ExerciseTitleFrame(exercise_category=1, exercise_name=2), state, None)
+        fit_parser._dispatch_data_message(_ExerciseTitleFrame(exercise_category=1, exercise_name=2), state)
         assert state.exercises_titles == []
 
     def test_named_title_frame_is_appended(self):
         state = fit_parser.FitParseState()
         frame = _ExerciseTitleFrame(wkt_step_name="Press", exercise_category=1, exercise_name=2)
-        fit_parser._dispatch_data_message(frame, state, None)
+        fit_parser._dispatch_data_message(frame, state)
         assert len(state.exercises_titles) == 1
         assert state.exercises_titles[0].wkt_step_name == "Press"

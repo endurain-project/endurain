@@ -1,78 +1,66 @@
-import uuid
-from unittest.mock import patch
+"""The dashboard route, through the production application."""
 
-from fastapi import FastAPI
-from fastapi.testclient import TestClient
+import pytest
 
-import modules.health.health_dashboard.schema as health_dashboard_schema
-import modules.health.health_targets.schema as health_targets_schema
+import core.config as core_config
+import core.timezone as core_timezone
+import modules.auth.api_keys.constants as api_keys_constants
+from tests._factories.api_keys import key_client, make_api_key
+from tests._factories.health import make_health_steps
+from tests._factories.users import make_user
 
-_ID = uuid.uuid4()
-
-
-_USER_ID = uuid.UUID("11111111-1111-4111-8111-111111111111")
-
-
-def _build_app(mock_db, scopes=frozenset({"health:read", "health-targets:read"})):
-    import core.database as core_db
-    import modules.auth.dependencies as auth_deps
-    import modules.health.health_dashboard.router as router
-
-    app = FastAPI()
-    app.include_router(router.router, prefix="/health")
-
-    def _mock():
-        return None
-
-    def _uid():
-        return _USER_ID
-
-    app.dependency_overrides[auth_deps.check_scopes] = _mock
-    app.dependency_overrides[auth_deps.get_current_user_id] = _uid
-    app.dependency_overrides[auth_deps.get_current_scopes] = lambda: scopes
-    app.dependency_overrides[core_db.get_db] = lambda: mock_db
-    return app
+_URL = f"{core_config.ROOT_PATH}/health/stats/daily"
+_EMPTY_METRICS = ("sleep", "weight", "steps", "fasting", "water", "poop")
 
 
-class TestReadHealthDailyStats:
-    @patch("modules.health.health_dashboard.router.health_dashboard_service.get_daily_stats")
-    def test_returns_the_dashboard(self, mock_stats, mock_db):
-        mock_stats.return_value = health_dashboard_schema.HealthDashboardResponse(
-            steps=health_dashboard_schema.HealthStepsDashboard(steps=8000),
-            poop=health_dashboard_schema.HealthPoopDashboard(count=1),
-            targets=health_targets_schema.HealthTargetsRead(
-                updated_at="2024-01-01T00:00:00Z",
-                id=_ID,
-                user_id=_USER_ID,
-                version=3,
-                sleep_seconds=28800,
-                steps=8000,
-                weight_kg=70.0,
-                fasting_seconds=57600,
-                water_ml=2000,
-                poop_count=1,
-            ),
-        )
+@pytest.fixture
+def user(committed_sessions):
+    with committed_sessions() as db:
+        created = make_user(db, timezone="UTC")
+        make_health_steps(db, created.id, date=core_timezone.today_in(core_timezone.or_default(None)), steps=4321)
+        db.commit()
+    return created
 
-        response = TestClient(_build_app(mock_db)).get("/health/stats/daily", headers={"Authorization": "Bearer x"})
+
+def _key_client(app, committed_sessions, user, *scopes):
+    with committed_sessions() as db:
+        key, raw_key = make_api_key(db, user, scopes=list(scopes))
+        db.commit()
+    return key_client(app, user, key, raw_key).client
+
+
+class TestDailyStats:
+    def test_a_signed_in_user_gets_their_dashboard_with_the_targets(self, sign_in, user):
+        response = sign_in(user).client.get(_URL)
 
         assert response.status_code == 200
-        data = response.json()
-        assert data["steps"] == {"steps": 8000}
-        assert data["poop"] == {"count": 1}
-        assert data["targets"]["steps"] == 8000
-        assert data["sleep"] is None
-        assert mock_stats.call_args.args[0] == _USER_ID
-        assert mock_stats.call_args.kwargs == {"include_targets": True}
+        body = response.json()
+        assert body["steps"] == {"steps": 4321}
+        assert [body[m] for m in _EMPTY_METRICS if m != "steps"] == [None] * 5
+        assert body["targets"]["user_id"] == str(user.id)
 
-    @patch("modules.health.health_dashboard.router.health_dashboard_service.get_daily_stats")
-    def test_targets_are_withheld_without_the_targets_scope(self, mock_stats, mock_db):
-        mock_stats.return_value = health_dashboard_schema.HealthDashboardResponse(targets=None)
+    def test_without_the_targets_scope_the_targets_are_null_and_the_rest_is_shown(self, app, committed_sessions, user):
+        client = _key_client(app, committed_sessions, user, api_keys_constants.ApiKeyScope.HEALTH_READ)
 
-        response = TestClient(_build_app(mock_db, frozenset({"health:read"}))).get(
-            "/health/stats/daily", headers={"Authorization": "Bearer x"}
+        body = client.get(_URL).json()
+
+        assert body["targets"] is None
+        assert body["steps"] == {"steps": 4321}
+
+    def test_with_the_targets_scope_the_targets_are_shown(self, app, committed_sessions, user):
+        client = _key_client(
+            app,
+            committed_sessions,
+            user,
+            api_keys_constants.ApiKeyScope.HEALTH_READ,
+            api_keys_constants.ApiKeyScope.HEALTH_TARGETS_READ,
         )
 
-        assert response.status_code == 200
-        assert response.json()["targets"] is None
-        assert mock_stats.call_args.kwargs == {"include_targets": False}
+        assert client.get(_URL).json()["targets"]["user_id"] == str(user.id)
+
+    def test_another_users_records_are_not_in_the_dashboard(self, sign_in, committed_sessions, user):
+        with committed_sessions() as db:
+            stranger = make_user(db, timezone="UTC")
+            db.commit()
+
+        assert sign_in(stranger).client.get(_URL).json()["steps"] is None

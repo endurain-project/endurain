@@ -1,148 +1,86 @@
-"""Tests for the public, token-gated activity media route.
-
-The route replaces two unauthenticated filename-addressed paths (a ``StaticFiles``
-mount and ``GET /activity_media/{media}``), so the assertions that matter are: an
-invalid token never reaches storage, and a token minted for one activity cannot
-be replayed under another activity's URL.
-"""
+"""The token-gated media file route, through the production application: the signed token is the only credential."""
 
 import uuid
-from unittest.mock import MagicMock, patch
 
-import pytest
+import core.config as core_config
+import modules.activities.activity_media.signing as media_signing
+from tests._factories.activities import make_stored_media
+from tests._helpers import images
 
-import core.exceptions as core_exceptions
-
-ACT = uuid.UUID("00000000-0000-4000-8000-000000000001")
-OTHER = uuid.UUID("00000000-0000-4000-8000-000000000099")
-MEDIA = uuid.UUID("00000000-0000-4000-8000-0000000000a5")
-
-_ROUTER = "modules.activities.activity_media.public_router"
-_SVC = "modules.activities.activity_media.service"
+_ROOT = core_config.ROOT_PATH
 
 
-class TestReadActivityMediaFile:
-    @patch(f"{_ROUTER}.activity_media_service")
-    def test_serves_bytes_for_valid_token(self, mock_service):
-        from modules.activities.activity_media.public_router import read_activity_media_file
-
-        mock_service.read_activity_media_blob.return_value = (b"imagedata", "image/jpeg")
-        db = MagicMock()
-        storage = MagicMock()
-
-        resp = read_activity_media_file(MagicMock(), ACT, MEDIA, "tok", db, storage)
-
-        assert resp.status_code == 200
-        assert resp.media_type == "image/jpeg"
-        assert resp.body == b"imagedata"
-        assert resp.headers["Cache-Control"] == "private, max-age=3600"
-        mock_service.read_activity_media_blob.assert_called_once_with(ACT, MEDIA, "tok", storage, db)
-
-    @patch(f"{_ROUTER}.activity_media_service")
-    def test_a_refused_read_propagates_as_not_found(self, mock_service):
-        from modules.activities.activity_media.public_router import read_activity_media_file
-
-        mock_service.read_activity_media_blob.side_effect = core_exceptions.NotFoundError("Activity media not found")
-
-        with pytest.raises(core_exceptions.NotFoundError):
-            read_activity_media_file(MagicMock(), ACT, MEDIA, "forged", MagicMock(), MagicMock())
+def _url(activity_id, media_id) -> str:
+    return f"{_ROOT}/activities/{activity_id}/media/{media_id}/file"
 
 
-class TestReadActivityMediaBlob:
-    @pytest.fixture(autouse=True)
-    def _valid_token(self):
-        with patch(f"{_SVC}.activity_media_signing.verify_media_token", return_value=True) as verify:
-            self.verify = verify
-            yield
+def _photo(committed_sessions, make_owned_activity, data: bytes, name: str):
+    holder = {}
 
-    @patch(f"{_SVC}.activity_media_crud")
-    def test_returns_bytes_and_content_type(self, mock_crud):
-        from modules.activities.activity_media.service import read_activity_media_blob
+    def stage(db, activity):
+        holder["media"] = make_stored_media(db, activity, data, name)
 
-        mock_crud.get_activity_media_by_id.return_value = MagicMock(activity_id=ACT, media_path=f"{ACT}_abc.png")
-        storage = MagicMock()
-        storage.get.return_value = b"png"
-
-        assert read_activity_media_blob(ACT, MEDIA, "tok", storage, MagicMock()) == (b"png", "image/png")
-        self.verify.assert_called_once_with(MEDIA, "tok")
-
-    @patch(f"{_SVC}.activity_media_crud")
-    def test_jpg_maps_to_the_jpeg_media_type(self, mock_crud):
-        from modules.activities.activity_media.service import read_activity_media_blob
-
-        mock_crud.get_activity_media_by_id.return_value = MagicMock(activity_id=ACT, media_path=f"{ACT}_abc.jpg")
-        storage = MagicMock()
-        storage.get.return_value = b"jpg"
-
-        assert read_activity_media_blob(ACT, MEDIA, "tok", storage, MagicMock())[1] == "image/jpeg"
-
-    @patch(f"{_SVC}.activity_media_crud")
-    def test_an_invalid_token_never_reaches_persistence_or_storage(self, mock_crud):
-        from modules.activities.activity_media.service import read_activity_media_blob
-
-        self.verify.return_value = False
-        storage = MagicMock()
-
-        with pytest.raises(core_exceptions.NotFoundError):
-            read_activity_media_blob(ACT, MEDIA, "forged", storage, MagicMock())
-
-        mock_crud.get_activity_media_by_id.assert_not_called()
-        storage.get.assert_not_called()
-
-    @patch(f"{_SVC}.activity_media_crud")
-    def test_media_from_another_activity_is_not_served(self, mock_crud):
-        """A valid token bound to a media id must not serve it under a foreign activity."""
-        from modules.activities.activity_media.service import read_activity_media_blob
-
-        mock_crud.get_activity_media_by_id.return_value = MagicMock(activity_id=OTHER, media_path=f"{OTHER}_abc.jpg")
-
-        storage = MagicMock()
-        with pytest.raises(core_exceptions.NotFoundError):
-            read_activity_media_blob(ACT, MEDIA, "tok", storage, MagicMock())
-        storage.get.assert_not_called()
-
-    @patch(f"{_SVC}.activity_media_crud")
-    def test_missing_record_is_not_found(self, mock_crud):
-        from modules.activities.activity_media.service import read_activity_media_blob
-
-        mock_crud.get_activity_media_by_id.return_value = None
-
-        storage = MagicMock()
-        with pytest.raises(core_exceptions.NotFoundError):
-            read_activity_media_blob(ACT, MEDIA, "tok", storage, MagicMock())
-        storage.get.assert_not_called()
-
-    @patch(f"{_SVC}.activity_media_crud")
-    def test_missing_blob_is_not_found(self, mock_crud):
-        from modules.activities.activity_media.service import read_activity_media_blob
-
-        mock_crud.get_activity_media_by_id.return_value = MagicMock(activity_id=ACT, media_path=f"{ACT}_abc.jpg")
-        storage = MagicMock()
-        storage.get.return_value = None
-
-        with pytest.raises(core_exceptions.NotFoundError):
-            read_activity_media_blob(ACT, MEDIA, "tok", storage, MagicMock())
+    activity = make_owned_activity(stage=stage)
+    return activity, holder["media"]
 
 
-class TestMalformedIds:
-    def _client(self):
-        from fastapi import FastAPI
-        from fastapi.testclient import TestClient
+class TestFile:
+    def test_a_valid_token_serves_the_stored_bytes_with_the_type_of_the_extension_and_a_private_cache(
+        self, client, committed_sessions, make_owned_activity
+    ):
+        activity, media = _photo(committed_sessions, make_owned_activity, images.png_with_text(), "a.png")
+        token = media_signing.sign_media_token(media.id)
 
-        import core.exceptions as core_exceptions
-        import modules.activities.activity_media.public_router as media_router
+        response = client.get(_url(activity.id, media.id), params={"t": token})
 
-        app = FastAPI()
-        core_exceptions.register_exception_handlers(app)
-        app.include_router(media_router.router, prefix="/activities")
-        return TestClient(app)
+        assert response.status_code == 200
+        assert response.headers["content-type"] == "image/png"
+        assert response.headers["cache-control"].startswith("private, max-age=")
+        assert not images.has_metadata(response.content)
 
-    def test_a_malformed_media_id_is_unprocessable(self):
-        resp = self._client().get(f"/activities/{ACT}/media/5/file", params={"t": "tok"})
+    def test_a_jpeg_and_a_webp_are_served_with_their_own_types(self, client, committed_sessions, make_owned_activity):
+        activity, jpeg = _photo(committed_sessions, make_owned_activity, images.jpeg_with_exif(), "a.jpg")
+        types = {}
+        types["jpeg"] = client.get(_url(activity.id, jpeg.id), params={"t": media_signing.sign_media_token(jpeg.id)})
+        other, webp = _photo(committed_sessions, make_owned_activity, images.webp_with_exif(), "a.webp")
 
-        assert resp.status_code == 422
+        types["webp"] = client.get(_url(other.id, webp.id), params={"t": media_signing.sign_media_token(webp.id)})
 
-    def test_a_malformed_activity_id_is_unprocessable(self):
-        resp = self._client().get(f"/activities/1/media/{MEDIA}/file", params={"t": "tok"})
+        assert (types["jpeg"].headers["content-type"], types["webp"].headers["content-type"]) == (
+            "image/jpeg",
+            "image/webp",
+        )
 
-        assert resp.status_code == 422
+    def test_a_forged_token_is_a_404_problem_that_confirms_nothing(
+        self, client, committed_sessions, make_owned_activity
+    ):
+        activity, media = _photo(committed_sessions, make_owned_activity, images.png_with_text(), "a.png")
+
+        forged = client.get(_url(activity.id, media.id), params={"t": "forged"})
+        missing = client.get(_url(activity.id, uuid.uuid4()), params={"t": "forged"})
+
+        assert forged.status_code == missing.status_code == 404
+        assert forged.json()["type"] == missing.json()["type"] == "urn:endurain:error:not-found"
+
+    def test_a_token_minted_for_another_photo_is_a_404(self, client, committed_sessions, make_owned_activity):
+        activity, media = _photo(committed_sessions, make_owned_activity, images.png_with_text(), "a.png")
+
+        response = client.get(_url(activity.id, media.id), params={"t": media_signing.sign_media_token(uuid.uuid4())})
+
+        assert response.status_code == 404
+
+    def test_a_token_replayed_under_another_activity_is_a_404(self, client, committed_sessions, make_owned_activity):
+        _, media = _photo(committed_sessions, make_owned_activity, images.png_with_text(), "a.png")
+
+        response = client.get(_url(uuid.uuid4(), media.id), params={"t": media_signing.sign_media_token(media.id)})
+
+        assert response.status_code == 404
+
+    def test_a_request_without_a_token_is_a_validation_error(self, client, committed_sessions, make_owned_activity):
+        activity, media = _photo(committed_sessions, make_owned_activity, images.png_with_text(), "a.png")
+
+        assert client.get(_url(activity.id, media.id)).status_code == 422
+
+    def test_malformed_ids_are_a_validation_error(self, client):
+        assert client.get(_url("not-a-uuid", uuid.uuid4()), params={"t": "x"}).status_code == 422
+        assert client.get(_url(uuid.uuid4(), "not-a-uuid"), params={"t": "x"}).status_code == 422

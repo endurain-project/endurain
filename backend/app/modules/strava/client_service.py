@@ -1,6 +1,7 @@
 """Strava API access: the client, its token refresh and the rate-limit checks."""
 
 import calendar
+import os
 import uuid
 from collections.abc import Callable
 from datetime import UTC, datetime, timedelta
@@ -41,6 +42,12 @@ if TYPE_CHECKING:
         _Timeout,
         _Verify,
     )
+
+# stravalib checks the environment on every client it builds for one application's credentials to refresh tokens
+# itself, and logs two warnings to the root logger when they are missing. Endurain refreshes each user's token with
+# that user's own Strava application, so the check never applies; setting this once at import keeps it silent in
+# every process that builds a client, the API and the workers alike.
+os.environ["SILENCE_TOKEN_WARNINGS"] = "TRUE"
 
 logger = core_logger.get_logger(__name__)
 
@@ -571,7 +578,7 @@ def refresh_user_strava_token(
     client_id = get_client_id(linked.integrations)
     if rate_limits.is_rate_limited(client_id):
         logger.debug("Strava rate limit active, skipping token refresh", extra=core_logger.context(user_id=user_id))
-        if forced:
+        if forced or _token_expired(linked):
             raise core_exceptions.TooManyRequestsError(
                 "Strava API rate limit exceeded. Please try again later.",
                 scope=core_exceptions.TooManyRequestsScope.PROVIDER,
@@ -627,7 +634,8 @@ def _refresh_under_claim(
             refresh that was due.
 
     Raises:
-        TooManyRequestsError: When a refresh was asked for and Strava's rate limit was hit.
+        TooManyRequestsError: When the token has expired or a refresh was asked for, and Strava's rate limit
+            was hit.
         DependencyFailedError: When the token has expired or a refresh was asked for, and it could not be
             done or stored.
         StravaTokenRejectedError: When Strava refused the refresh token, so the account was unlinked.
@@ -650,7 +658,7 @@ def _refresh_under_claim(
             raise_if_rate_limited(err, client_id, rate_limits)
         except core_exceptions.TooManyRequestsError:
             logger.warning("Strava rate limit hit during token refresh", extra=core_logger.context(user_id=user_id))
-            if forced:
+            if forced or _token_expired(linked):
                 raise
             return
         if _refresh_grant_refused(err):

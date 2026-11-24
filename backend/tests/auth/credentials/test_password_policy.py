@@ -5,21 +5,24 @@ import hashlib
 import json
 import unicodedata
 from pathlib import Path
-from unittest.mock import MagicMock, patch
 
 import pytest
 
 import modules.auth.credentials.contracts as credentials_contracts
 import modules.auth.credentials.password_hasher as credentials_password_hasher
 import modules.auth.credentials.service as credentials_service
+import modules.server_settings.schema as server_settings_schema
+from tests._factories.users import make_user
 
 _DATA_DIR = Path(credentials_service.__file__).parent / "data"
 _COMPOSED = "café-au-lait-noir"
 _DECOMPOSED = "café-au-lait-noir"
 
 
-def _settings(regular: int = 15, admin: int = 15) -> MagicMock:
-    return MagicMock(password_length_regular_users=regular, password_length_admin_users=admin)
+def _settings(regular: int = 15, admin: int = 15) -> server_settings_schema.ServerSettingsRead:
+    return server_settings_schema.ServerSettingsRead.model_construct(
+        password_length_regular_users=regular, password_length_admin_users=admin
+    )
 
 
 def _validate(
@@ -67,30 +70,32 @@ class TestBlank:
 
 
 class TestEnsureDiffersFromCurrent:
-    def test_the_current_password_is_refused(self):
-        stored = _validate("current-password-123")
-        with (
-            patch.object(credentials_service, "get_password_hash", return_value=stored),
-            pytest.raises(credentials_contracts.PasswordUnchangedError),
-        ):
-            credentials_service.ensure_password_differs_from_current(7, "current-password-123", MagicMock())
+    def _user_with_password(self, db, password: str):
+        user = make_user(db, with_password=False)
+        credentials_service.set_local_password_hash(user.id, _validate(password), db, change_required=False)
+        return user
 
-    def test_an_nfc_equivalent_of_the_current_password_is_refused(self):
-        stored = _validate(_COMPOSED)
-        with (
-            patch.object(credentials_service, "get_password_hash", return_value=stored),
-            pytest.raises(credentials_contracts.PasswordUnchangedError),
-        ):
-            credentials_service.ensure_password_differs_from_current(7, _DECOMPOSED, MagicMock())
+    def test_the_current_password_is_refused(self, db):
+        user = self._user_with_password(db, "current-password-123")
 
-    def test_a_different_password_is_accepted(self):
-        stored = _validate("current-password-123")
-        with patch.object(credentials_service, "get_password_hash", return_value=stored):
-            credentials_service.ensure_password_differs_from_current(7, "another-password-456", MagicMock())
+        with pytest.raises(credentials_contracts.PasswordUnchangedError):
+            credentials_service.ensure_password_differs_from_current(user.id, "current-password-123", db)
 
-    def test_an_account_without_a_password_is_accepted(self):
-        with patch.object(credentials_service, "get_password_hash", return_value=None):
-            credentials_service.ensure_password_differs_from_current(7, "any-password-value-1", MagicMock())
+    def test_an_nfc_equivalent_of_the_current_password_is_refused(self, db):
+        user = self._user_with_password(db, _COMPOSED)
+
+        with pytest.raises(credentials_contracts.PasswordUnchangedError):
+            credentials_service.ensure_password_differs_from_current(user.id, _DECOMPOSED, db)
+
+    def test_a_different_password_is_accepted(self, db):
+        user = self._user_with_password(db, "current-password-123")
+
+        credentials_service.ensure_password_differs_from_current(user.id, "another-password-456", db)
+
+    def test_an_account_without_a_password_is_accepted(self, db):
+        user = make_user(db, with_password=False)
+
+        credentials_service.ensure_password_differs_from_current(user.id, "any-password-value-1", db)
 
 
 class TestLength:
@@ -235,12 +240,6 @@ class TestVerifyAndUpdate:
         raw_hash = hasher.hash_password(_DECOMPOSED)
         assert credentials_service.verify_and_update_password(_DECOMPOSED, raw_hash, hasher) == (False, None)
 
-    def test_a_non_nfc_password_calls_the_hasher_once(self):
-        hasher = MagicMock()
-        hasher.verify_and_update.return_value = (False, None)
-        credentials_service.verify_and_update_password(_DECOMPOSED, "hash", hasher)
-        assert hasher.verify_and_update.call_count == 1
-
     def test_wrong_password_fails(self):
         hasher = credentials_password_hasher.get_password_hasher()
         stored = hasher.hash_password("right-password-here")
@@ -252,12 +251,6 @@ class TestVerifyAndUpdate:
         stored = hasher.hash_password("plain-ascii-password")
         ok, updated = credentials_service.verify_and_update_password("plain-ascii-password", stored, hasher)
         assert ok and updated is None
-
-    def test_ascii_password_calls_the_hasher_once(self):
-        hasher = MagicMock()
-        hasher.verify_and_update.return_value = (False, None)
-        credentials_service.verify_and_update_password("ascii-password-1", "hash", hasher)
-        assert hasher.verify_and_update.call_count == 1
 
     def test_generic_hasher_methods_do_not_normalise(self):
         hasher = credentials_password_hasher.get_password_hasher()

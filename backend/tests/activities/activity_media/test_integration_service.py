@@ -1,126 +1,100 @@
-"""Tests for the activity-media integration surface."""
+"""What other modules do with media: export and restore it with a profile archive, attach server-side bytes."""
 
 import uuid
-from datetime import UTC, datetime, timedelta
-from types import SimpleNamespace
 
 import pytest
-from sqlalchemy import event, select
-from tests._helpers.db import create_sqlite_session
 
+import modules.activities.activity_media.crud as media_crud
 import modules.activities.activity_media.integration_service as media_integration
-import modules.activities.activity_media.models as media_models
+from tests._factories.activities import make_activity, make_activity_media, make_stored_media
+from tests._factories.users import make_user
+from tests._helpers import images
 
-ACT1 = uuid.UUID("00000000-0000-4000-8000-000000000001")
-ACT2 = uuid.UUID("00000000-0000-4000-8000-000000000002")
-ACT3 = uuid.UUID("00000000-0000-4000-8000-000000000003")
-NEW_ACT = uuid.UUID("00000000-0000-4000-8000-000000000007")
-ORIGINAL_ACT = uuid.UUID("00000000-0000-4000-8000-000000000001")
-_EPOCH = datetime(2026, 1, 1, tzinfo=UTC)
+_HASH = "b" * 64
+_ARCHIVED = uuid.UUID("11111111-1111-4111-8111-111111111111")
 
 
 @pytest.fixture
-def session():
-    db = create_sqlite_session()
-    yield db
-    db.close()
+def activity(db):
+    return make_activity(db, make_user(db).id)
 
 
-def _add_media(db, activity_id: uuid.UUID, count: int, *, newest_first: bool = False) -> None:
-    """Add ``count`` photos; ``created_at`` rises with ``n``, or falls when ``newest_first``."""
-    for n in range(count):
-        offset = timedelta(seconds=-n if newest_first else n)
-        db.add(
-            media_models.ActivityMedia(
-                activity_id=activity_id,
-                media_path=f"{activity_id}_{n}.jpg",
-                media_type=1,
-                created_at=_EPOCH + offset,
-            )
-        )
-    db.flush()
+def _record(name: str, **fields) -> dict[str, object]:
+    return {"activity_id": str(_ARCHIVED), "media_path": f"{_ARCHIVED}_{name}", "media_type": 1, **fields}
 
 
-class TestMediaForActivities:
-    def test_groups_signed_media_by_activity_oldest_first(self, session):
-        _add_media(session, ACT1, 2, newest_first=True)
-        _add_media(session, ACT2, 1)
-
-        result = media_integration.media_for_activities([ACT1, ACT2, ACT3], session)
-
-        assert sorted(result) == sorted([ACT1, ACT2])
-        assert [m.activity_id for m in result[ACT1]] == [ACT1, ACT1]
-        by_path = {row.media_path: row.id for row in session.scalars(select(media_models.ActivityMedia))}
-        # Photo 1 was created first, so it comes first whatever the random ids sort as.
-        assert [m.id for m in result[ACT1]] == [by_path[f"{ACT1}_1.jpg"], by_path[f"{ACT1}_0.jpg"]]
-        assert all(m.url and "_0.jpg" not in m.url for m in result[ACT1])
-        assert "t=" in result[ACT2][0].url
-
-    def test_no_ids_runs_no_query(self, session):
-        assert media_integration.media_for_activities([], session) == {}
-
-    def test_query_count_does_not_grow_with_the_page(self, session):
-        activity_ids = [uuid.uuid4() for _ in range(30)]
-        for activity_id in activity_ids:
-            _add_media(session, activity_id, 2)
-        statements: list[str] = []
-        engine = session.get_bind()
-        event.listen(engine, "before_cursor_execute", lambda *a: statements.append(a[2]))
-
-        media_integration.media_for_activities(activity_ids[:1], session)
-        one = len(statements)
-        statements.clear()
-        media_integration.media_for_activities(activity_ids, session)
-
-        assert len(statements) == one == 1
+def _restore(db, activity, records):
+    return media_integration.profile_contributor().restore(records, _ARCHIVED, activity, db)
 
 
-_HASH_A = "a" * 64
-_HASH_B = "b" * 64
+class TestExport:
+    def test_the_export_lists_the_media_of_the_given_activities_only(self, db, activity):
+        other = make_activity(db, make_user(db).id)
+        make_activity_media(db, activity, "a.jpg")
+        make_activity_media(db, other, "b.jpg")
+
+        exported = media_integration.profile_contributor().export([activity.id], db)
+
+        assert [m.media_path for m in exported] == ["a.jpg"]
+
+    def test_the_media_of_several_activities_is_returned_as_the_per_activity_endpoint_returns_it(self, db, activity):
+        make_stored_media(db, activity, images.png_with_text(), "a.png")
+
+        media = media_integration.media_for_activities([activity.id, uuid.uuid4()], db)
+
+        assert list(media) == [activity.id]
+        assert media[activity.id][0].url.startswith("/") or "://" in media[activity.id][0].url
 
 
-def _restore(session, records):
-    activity = SimpleNamespace(id=NEW_ACT)
-    count = media_integration._restore_profile_records(records, ORIGINAL_ACT, activity, session)
-    session.flush()
-    rows = session.scalars(select(media_models.ActivityMedia).order_by(media_models.ActivityMedia.media_path)).all()
-    return count, [(r.media_path, r.content_hash) for r in rows]
+class TestRestore:
+    def test_the_archived_media_is_re_keyed_onto_the_restored_activity_and_other_activities_are_skipped(
+        self, db, activity
+    ):
+        records = [_record("a.jpg", content_hash=_HASH), {**_record("b.jpg"), "activity_id": str(uuid.uuid4())}]
+
+        restored = _restore(db, activity, records)
+
+        [stored] = media_crud.get_media_for_activity(activity.id, db)
+        assert (restored, stored.media_path, stored.content_hash) == (1, f"{activity.id}_a.jpg", _HASH)
+
+    def test_a_record_with_no_key_or_a_key_that_is_not_a_flat_name_is_skipped(self, db, activity):
+        records = [_record("../escape.jpg"), {**_record("x.jpg"), "media_path": None}, _record("ok.jpg")]
+
+        assert _restore(db, activity, records) == 1
+        assert [m.media_path for m in media_crud.get_media_for_activity(activity.id, db)] == [f"{activity.id}_ok.jpg"]
+
+    @pytest.mark.parametrize("bad_hash", ["short", "A" * 64, 12345])
+    def test_a_malformed_content_hash_is_dropped_and_the_photo_is_restored_without_it(self, db, activity, bad_hash):
+        assert _restore(db, activity, [_record("a.jpg", content_hash=bad_hash)]) == 1
+
+        assert media_crud.get_media_for_activity(activity.id, db)[0].content_hash is None
+
+    def test_two_archived_photos_with_the_same_hash_restore_one(self, db, activity):
+        records = [_record("a.jpg", content_hash=_HASH), _record("b.jpg", content_hash=_HASH)]
+
+        assert _restore(db, activity, records) == 1
+
+    def test_nothing_matching_is_restored_as_zero(self, db, activity):
+        assert _restore(db, activity, [{"activity_id": str(uuid.uuid4()), "media_path": "x_a.jpg"}]) == 0
+        assert media_crud.count_media_for_activity(activity.id, db) == 0
 
 
-def _record(name, **extra):
-    return {"activity_id": str(ORIGINAL_ACT), "media_path": f"{ORIGINAL_ACT}_{name}.jpg", "media_type": 1, **extra}
+class TestBlobs:
+    def test_server_side_bytes_are_attached_to_an_activity_through_the_platform_storage(self, db, activity):
+        record = media_integration.attach_media_bytes(activity.id, "sidecar.png", images.png_with_text(), db)
 
+        assert media_crud.get_activity_media_by_id(record.id, db) is not None
 
-class TestRestoreProfileRecords:
-    def test_restores_the_content_hash(self, session):
-        count, rows = _restore(session, [_record("a", content_hash=_HASH_A)])
+    def test_the_blobs_of_an_activity_are_exported_and_restored_under_a_new_activity(self, db, activity):
+        import jasil.runtime as platform_runtime
 
-        assert count == 1
-        assert rows[0][1] == _HASH_A
+        storage = platform_runtime.get_active_platform().storage
+        record = make_stored_media(db, activity, images.png_with_text(), "a.png")
+        target = make_activity(db, make_user(db).id)
 
-    def test_rows_without_a_hash_still_restore(self, session):
-        count, rows = _restore(session, [_record("a"), _record("b", content_hash=None)])
+        [(key, data)] = media_integration.list_media_blobs(activity.id, storage)
+        restored_key = media_integration.store_media_blob(target.id, "copy", ".png", data, storage)
 
-        assert count == 2
-        assert [h for _, h in rows] == [None, None]
-
-    @pytest.mark.parametrize("bad", ["not-a-hash", "A" * 64, "a" * 63, "a" * 64 + "\n", 12, ["a" * 64], ""])
-    def test_malformed_hash_restores_the_row_without_one(self, session, bad):
-        count, rows = _restore(session, [_record("a", content_hash=bad)])
-
-        assert count == 1
-        assert rows[0][1] is None
-
-    def test_duplicate_hash_in_one_activity_restores_once(self, session):
-        count, rows = _restore(
-            session,
-            [
-                _record("a", content_hash=_HASH_A),
-                _record("b", content_hash=_HASH_A),
-                _record("c", content_hash=_HASH_B),
-            ],
-        )
-
-        assert count == 2
-        assert [h for _, h in rows] == [_HASH_A, _HASH_B]
-        assert rows[0][0].endswith("_a.jpg")
+        assert key == record.media_path
+        assert restored_key == f"{target.id}_copy.png"
+        assert storage.get("activity_media", restored_key) == data

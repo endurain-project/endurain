@@ -1,40 +1,44 @@
-import uuid
-from datetime import date
+"""The water schemas' own rules."""
 
-_ID = uuid.uuid4()
-_OTHER_ID = uuid.uuid4()
+import pytest
+from pydantic import ValidationError
 
-
-_USER_ID = uuid.UUID("11111111-1111-4111-8111-111111111111")
+import modules.health.health_water.schema as health_water_schema
 
 
-class TestHealthWaterCreateSchema:
-    def test_valid(self):
-        from modules.health.health_water.schema import HealthWaterCreate
+class TestAmount:
+    @pytest.mark.parametrize("amount", [0, 500.5, health_water_schema.MAX_WATER_ML])
+    def test_an_amount_from_zero_up_to_the_daily_cap_is_accepted(self, amount):
+        assert health_water_schema.HealthWaterCreate(amount_ml=amount).amount_ml == amount
 
-        data = HealthWaterCreate(amount_ml=500.0)
-        assert data.amount_ml == 500.0
-        assert data.date is None
+    @pytest.mark.parametrize("amount", [-1, health_water_schema.MAX_WATER_ML + 1, "500", True])
+    def test_anything_else_is_refused(self, amount):
+        with pytest.raises(ValidationError):
+            health_water_schema.HealthWaterCreate(amount_ml=amount)
 
-    def test_with_date(self):
-        from modules.health.health_water.schema import HealthWaterCreate
-
-        data = HealthWaterCreate(amount_ml=1000.0, date=date(2024, 1, 15))
-        assert data.date == date(2024, 1, 15)
-
-
-class TestHealthWaterReadSchema:
-    def test_valid(self):
-        from modules.health.health_water.schema import HealthWaterRead
-
-        data = HealthWaterRead(updated_at="2024-01-01T00:00:00Z", id=_ID, user_id=_USER_ID, amount_ml=500.0)
-        assert data.id == _ID
-        assert data.amount_ml == 500.0
+    def test_an_amount_is_required_to_create_but_not_to_edit(self):
+        with pytest.raises(ValidationError):
+            health_water_schema.HealthWaterCreate()
+        assert health_water_schema.HealthWaterUpdate(date="2025-03-01").amount_ml is None
 
 
-class TestEnums:
-    def test_source_values(self):
-        from modules.health.health_water.schema import Source
+class TestWrites:
+    def test_a_client_write_refuses_fields_the_server_owns(self):
+        for field, value in (("source", "garmin"), ("id", "x"), ("user_id", "x"), ("version", 1)):
+            with pytest.raises(ValidationError):
+                health_water_schema.HealthWaterCreate(amount_ml=1, **{field: value})
 
-        assert Source.MANUAL.value == "manual"
-        assert Source.GARMIN.value == "garmin"
+    def test_an_edit_cannot_clear_the_amount_or_the_date(self):
+        for field in ("amount_ml", "date"):
+            with pytest.raises(ValidationError):
+                health_water_schema.HealthWaterUpdate(**{field: None})
+
+    def test_a_date_outside_the_recordable_range_is_refused(self):
+        for day in ("1899-12-31", "not-a-date"):
+            with pytest.raises(ValidationError):
+                health_water_schema.HealthWaterCreate(amount_ml=1, date=day)
+
+    def test_an_import_without_a_source_is_manual_and_a_source_must_be_known(self):
+        assert health_water_schema.HealthWaterImport(amount_ml=1).source == "manual"
+        with pytest.raises(ValidationError):
+            health_water_schema.HealthWaterImport(amount_ml=1, source="invalid")

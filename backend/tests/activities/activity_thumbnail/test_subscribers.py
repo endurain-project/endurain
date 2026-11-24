@@ -1,278 +1,226 @@
-"""Tests for the activity lifecycle thumbnail subscribers."""
+"""Thumbnails follow their activity's life: created, deleted, and a changed tile source, through the bus."""
 
 import uuid
-from unittest.mock import MagicMock, patch
 
+import jasil.runtime as platform_runtime
+import pydantic
 import pytest
 from jasil.events import new_event
+from jasil.jobs.registry import JobHandlerRegistry
 
-ID1 = uuid.UUID("00000000-0000-4000-8000-000000000001")
-ID5 = uuid.UUID("00000000-0000-4000-8000-000000000005")
-ID9 = uuid.UUID("00000000-0000-4000-8000-000000000009")
+import core.config as core_config
+import core.exceptions as core_exceptions
+import core.scheduler as core_scheduler
+import modules.activities.activity.events as activity_events
+import modules.activities.activity.integration_service as activity_integration
+import modules.activities.activity.models as activity_models
+import modules.activities.activity_streams.constants as stream_constants
+import modules.activities.activity_thumbnail.constants as thumbnail_constants
+import modules.activities.activity_thumbnail.events as thumbnail_events
+import modules.activities.activity_thumbnail.subscriber_registry as thumbnail_subscriber_registry
+import modules.activities.activity_thumbnail.subscribers as thumbnail_subscribers
+import modules.server_settings.events as server_settings_events
+from tests._factories.activities import make_activity, make_stream
+from tests._factories.server_settings import edit_server_settings
+from tests._factories.users import make_user
 
-
-class TestOnActivityCreatedGenerateThumbnail:
-    @staticmethod
-    def _event(payload):
-        return new_event("activity.created", payload, source="test")
-
-    @patch("modules.activities.activity_thumbnail.subscribers.platform_runtime")
-    def test_noop_for_malformed_activity_id(self, mock_runtime):
-        from modules.activities.activity_thumbnail.subscribers import on_activity_created_generate_thumbnail
-
-        on_activity_created_generate_thumbnail(self._event({"activity_id": "x", "user_id": str(uuid.UUID(int=2))}))
-
-        mock_runtime.get_active_platform.assert_not_called()
-
-    @patch("modules.activities.activity_thumbnail.subscribers.platform_runtime")
-    def test_noop_when_user_id_missing(self, mock_runtime):
-        from modules.activities.activity_thumbnail.subscribers import on_activity_created_generate_thumbnail
-
-        # The owner id is required to load the activity's stream; without it, skip.
-        on_activity_created_generate_thumbnail(self._event({"activity_id": str(ID1)}))
-
-        mock_runtime.get_active_platform.assert_not_called()
-
-    @patch("modules.activities.activity_thumbnail.service.generate_and_store_thumbnail")
-    @patch("modules.activities.activity_thumbnail.service.resolve_tile_settings")
-    @patch("modules.activities.activity_thumbnail.service.activity_streams_integration")
-    @patch("modules.activities.activity_thumbnail.subscribers.core_database.SessionLocal")
-    @patch("modules.activities.activity_thumbnail.subscribers.platform_runtime")
-    def test_noop_when_stream_missing(self, mock_runtime, mock_session, mock_streams, mock_resolve, mock_generate):
-        from modules.activities.activity_thumbnail.subscribers import on_activity_created_generate_thumbnail
-
-        mock_session.return_value.__enter__.return_value = MagicMock()
-        mock_streams.get_stream_for_derivation.return_value = None
-
-        on_activity_created_generate_thumbnail(self._event({"activity_id": str(ID1), "user_id": str(uuid.UUID(int=2))}))
-
-        mock_resolve.assert_not_called()
-        mock_generate.assert_not_called()
-
-    @patch("modules.activities.activity_thumbnail.service.generate_and_store_thumbnail")
-    @patch("modules.activities.activity_thumbnail.service.resolve_tile_settings")
-    @patch("modules.activities.activity_thumbnail.service.activity_streams_integration")
-    @patch("modules.activities.activity_thumbnail.subscribers.core_database.SessionLocal")
-    @patch("modules.activities.activity_thumbnail.subscribers.platform_runtime")
-    def test_noop_when_too_few_waypoints(self, mock_runtime, mock_session, mock_streams, mock_resolve, mock_generate):
-        from modules.activities.activity_thumbnail.subscribers import on_activity_created_generate_thumbnail
-
-        mock_session.return_value.__enter__.return_value = MagicMock()
-        mock_streams.get_stream_for_derivation.return_value = MagicMock(stream_waypoints=[{"lat": 1.0, "lon": 2.0}])
-
-        on_activity_created_generate_thumbnail(self._event({"activity_id": str(ID1), "user_id": str(uuid.UUID(int=2))}))
-
-        mock_resolve.assert_not_called()
-        mock_generate.assert_not_called()
-
-    @patch("modules.activities.activity_thumbnail.service.generate_and_store_thumbnail")
-    @patch("modules.activities.activity_thumbnail.service.resolve_tile_settings")
-    @patch("modules.activities.activity_thumbnail.service.activity_streams_integration")
-    @patch("modules.activities.activity_thumbnail.subscribers.core_database.SessionLocal")
-    @patch("modules.activities.activity_thumbnail.subscribers.platform_runtime")
-    def test_generates_for_gps_activity(self, mock_runtime, mock_session, mock_streams, mock_resolve, mock_generate):
-        from modules.activities.activity_thumbnail.subscribers import on_activity_created_generate_thumbnail
-
-        db = MagicMock()
-        mock_session.return_value.__enter__.return_value = db
-        storage = MagicMock()
-        mock_runtime.get_active_platform.return_value.storage = storage
-        waypoints = [{"lat": 1.0, "lon": 2.0}, {"lat": 1.1, "lon": 2.1}]
-        mock_streams.get_stream_for_derivation.return_value = MagicMock(stream_waypoints=waypoints)
-        mock_resolve.return_value = ("u", "#fff", None)
-
-        on_activity_created_generate_thumbnail(self._event({"activity_id": str(ID5), "user_id": str(uuid.UUID(int=9))}))
-
-        # The stream read is now access-free; the subscriber addresses it by activity id.
-        stream_args = mock_streams.get_stream_for_derivation.call_args.args
-        assert stream_args[0] == ID5
-        assert stream_args[2] is db
-        mock_generate.assert_called_once()
-        gen_args = mock_generate.call_args.args
-        assert gen_args[0] == ID5
-        assert gen_args[1] == waypoints
-        assert gen_args[2] is storage
-
-    @patch("jasil.subscribers.logger")
-    @patch("modules.activities.activity_thumbnail.subscribers.platform_runtime")
-    def test_swallows_errors(self, mock_runtime, mock_logger):
-        from modules.activities.activity_thumbnail.subscribers import on_activity_created_generate_thumbnail
-
-        mock_runtime.get_active_platform.side_effect = RuntimeError("boom")
-
-        # Must not raise — a thumbnail failure never breaks activity import.
-        on_activity_created_generate_thumbnail(self._event({"activity_id": str(ID1), "user_id": str(uuid.UUID(int=2))}))
-
-        mock_logger.error.assert_called()
+_AREA = thumbnail_constants.THUMBNAIL_STORAGE_AREA
+_MAP = stream_constants.STREAM_TYPE_MAP
+_ROUTE = [{"lat": 38.70, "lon": -9.10}, {"lat": 38.72, "lon": -9.14}]
 
 
-class TestOnActivityDeletedCleanupThumbnail:
-    @staticmethod
-    def _event(payload):
-        return new_event("activity.deleted", payload, source="test")
-
-    @patch("modules.activities.activity_thumbnail.subscribers.platform_runtime")
-    def test_noop_for_malformed_payload(self, mock_runtime):
-        from modules.activities.activity_thumbnail.subscribers import on_activity_deleted_cleanup_thumbnail
-
-        on_activity_deleted_cleanup_thumbnail(self._event({"activity_id": None}))
-
-        mock_runtime.get_active_platform.assert_not_called()
-
-    @patch("modules.activities.activity_thumbnail.service.delete_activity_thumbnail")
-    @patch("modules.activities.activity_thumbnail.subscribers.platform_runtime")
-    def test_deletes_thumbnail(self, mock_runtime, mock_delete):
-        from modules.activities.activity_thumbnail.subscribers import on_activity_deleted_cleanup_thumbnail
-
-        storage = MagicMock()
-        mock_runtime.get_active_platform.return_value.storage = storage
-
-        on_activity_deleted_cleanup_thumbnail(self._event({"activity_id": str(ID9)}))
-
-        mock_delete.assert_called_once_with(ID9, storage)
-
-    @patch("modules.activities.activity_thumbnail.service.delete_activity_thumbnail")
-    @patch("jasil.subscribers.logger")
-    @patch("modules.activities.activity_thumbnail.subscribers.platform_runtime")
-    def test_swallows_errors(self, mock_runtime, mock_logger, mock_delete):
-        from modules.activities.activity_thumbnail.subscribers import on_activity_deleted_cleanup_thumbnail
-
-        mock_delete.side_effect = OSError("boom")
-        mock_runtime.get_active_platform.return_value.storage = MagicMock()
-
-        # Must not raise — a cleanup failure never breaks activity deletion.
-        on_activity_deleted_cleanup_thumbnail(self._event({"activity_id": str(ID1)}))
-
-        mock_logger.error.assert_called()
+@pytest.fixture
+def storage():
+    return platform_runtime.get_active_platform().storage
 
 
-class TestRegisterThumbnailSubscribers:
-    def test_subscribes_to_created_and_deleted(self):
-        from modules.activities.activity_thumbnail.subscribers import (
-            on_activity_created_generate_thumbnail,
-            on_activity_deleted_cleanup_thumbnail,
-            on_tile_settings_changed_regenerate,
-            register_bus_subscribers,
+@pytest.fixture
+def events():
+    return platform_runtime.get_active_platform().events
+
+
+def _created(activity_id: uuid.UUID, user_id: uuid.UUID):
+    payload = activity_events.ActivityCreatedPayload(activity_id=activity_id, user_id=user_id)
+    return new_event(activity_events.ACTIVITY_CREATED, payload.model_dump(mode="json"), source="test")
+
+
+def _deleted(activity_id: uuid.UUID):
+    return new_event(activity_events.ACTIVITY_DELETED, {"activity_id": str(activity_id)}, source="test")
+
+
+def _tiles_changed(*, regenerate: bool):
+    payload = {"changed_fields": ["tileserver_url"], "regenerate_thumbnails": regenerate}
+    return new_event(server_settings_events.TILE_SETTINGS_CHANGED, payload, source="test")
+
+
+def _backfill_requested():
+    return new_event(thumbnail_events.THUMBNAIL_BACKFILL_REQUESTED, {}, source="test")
+
+
+@pytest.fixture
+def routed(db, tile_server):
+    edit_server_settings(db, tileserver_url=tile_server.url())
+    user = make_user(db)
+    activity = make_activity(db, user.id)
+    make_stream(db, activity, _MAP, _ROUTE)
+    return user, activity
+
+
+def _key_of(db, activity) -> str | None:
+    db.expire_all()
+    return db.get(activity_models.Activity, activity.id).map_thumbnail_path
+
+
+class TestCreated:
+    def test_a_created_activity_with_a_route_gets_its_thumbnail_through_the_bus(self, db, events, storage, routed):
+        user, activity = routed
+        thumbnail_subscribers.register_bus_subscribers(events)
+
+        events.publish(_created(activity.id, user.id))
+
+        assert _key_of(db, activity) == f"{activity.id}.webp"
+        assert storage.exists(_AREA, f"{activity.id}.webp")
+
+    def test_an_activity_without_a_route_gets_none(self, db, events, storage, tile_server):
+        user = make_user(db)
+        activity = make_activity(db, user.id)
+        thumbnail_subscribers.register_bus_subscribers(events)
+
+        events.publish(_created(activity.id, user.id))
+
+        assert (_key_of(db, activity), list(storage.list_keys(_AREA, ""))) == (None, [])
+
+    def test_a_tile_server_failure_is_raised_to_the_durable_runner_and_swallowed_on_the_bus(
+        self, db, storage, routed, tile_server
+    ):
+        user, activity = routed
+        tile_server.status = 500
+
+        with pytest.raises(core_exceptions.ProcessingError):
+            thumbnail_subscribers.generate_activity_thumbnail_for_event(_created(activity.id, user.id))
+        thumbnail_subscribers.on_activity_created_generate_thumbnail(_created(activity.id, user.id))
+
+        assert _key_of(db, activity) is None
+
+    def test_an_event_without_an_owner_is_refused_so_the_runner_retries(self):
+        event = new_event(activity_events.ACTIVITY_CREATED, {"activity_id": str(uuid.uuid4())}, source="test")
+
+        with pytest.raises(pydantic.ValidationError):
+            thumbnail_subscribers.generate_activity_thumbnail_for_event(event)
+
+
+class TestDeleted:
+    def test_deleting_an_activity_over_http_removes_its_thumbnail(
+        self, events, sign_in, people, make_owned_activity, storage
+    ):
+        activity = make_owned_activity()
+        storage.save(_AREA, f"{activity.id}.webp", b"webp")
+        thumbnail_subscribers.register_bus_subscribers(events)
+
+        response = sign_in(people.owner).client.delete(
+            f"{core_config.ROOT_PATH}/activities/{activity.id}", headers={"If-Match": '"1"'}
         )
 
-        events = MagicMock()
-        register_bus_subscribers(events)
+        assert response.status_code == 204
+        assert not storage.exists(_AREA, f"{activity.id}.webp")
 
-        assert events.subscribe.call_count == 3
-        events.subscribe.assert_any_call("activity.created", on_activity_created_generate_thumbnail)
-        events.subscribe.assert_any_call("activity.deleted", on_activity_deleted_cleanup_thumbnail)
-        events.subscribe.assert_any_call(
-            "server_settings.tile_settings_changed",
-            on_tile_settings_changed_regenerate,
-        )
+    def test_only_the_deleted_activitys_thumbnail_goes_and_a_repeat_is_harmless(self, events, storage):
+        gone, kept = uuid.uuid4(), uuid.uuid4()
+        for activity_id in (gone, kept):
+            storage.save(_AREA, f"{activity_id}.webp", b"webp")
+        thumbnail_subscribers.register_bus_subscribers(events)
+
+        events.publish(_deleted(gone))
+        events.publish(_deleted(gone))
+
+        assert list(storage.list_keys(_AREA, "")) == [f"{kept}.webp"]
 
 
-class TestDurableThumbnailHandlers:
-    @patch("modules.activities.activity_thumbnail.subscribers.platform_runtime")
-    def test_generate_core_raises_without_owner(self, mock_runtime):
-        from pydantic import ValidationError
+class TestTileSettingsChanged:
+    def test_a_change_that_asks_for_regeneration_renders_every_thumbnail_again(
+        self, db, events, storage, routed, tile_server
+    ):
+        _, activity = routed
+        storage.save(_AREA, f"{activity.id}.webp", b"stale")
+        activity_integration.set_thumbnail_key(activity.id, f"{activity.id}.webp", db)
+        thumbnail_subscribers.register_bus_subscribers(events)
 
-        from modules.activities.activity_thumbnail.subscribers import generate_activity_thumbnail_for_event
+        events.publish(_tiles_changed(regenerate=True))
 
-        # A malformed payload (missing user_id) raises so the durable job surfaces
-        # it via retry / dead-letter instead of silently completing.
-        with pytest.raises(ValidationError):
-            generate_activity_thumbnail_for_event(
-                new_event("activity.created", {"activity_id": str(ID1)}, source="test")
-            )
+        assert storage.get(_AREA, f"{activity.id}.webp") != b"stale"
+        assert tile_server.requests
 
-        mock_runtime.get_active_platform.assert_not_called()
+    async def test_with_a_scheduler_in_the_process_the_pass_is_queued_on_it_instead_of_run_inline(
+        self, db, events, storage, routed, tile_server
+    ):
+        _, activity = routed
+        storage.save(_AREA, f"{activity.id}.webp", b"stale")
+        thumbnail_subscribers.register_bus_subscribers(events)
+        job_id = "endurain_regenerate_all_thumbnails"
+        core_scheduler.scheduler.start(paused=True)
+        try:
+            events.publish(_tiles_changed(regenerate=True))
 
-    @patch("modules.activities.activity_thumbnail.subscribers.platform_runtime")
-    def test_generate_core_raises_on_error(self, mock_runtime):
-        from modules.activities.activity_thumbnail.subscribers import generate_activity_thumbnail_for_event
+            assert core_scheduler.scheduler.get_job(job_id) is not None
+            assert (storage.get(_AREA, f"{activity.id}.webp"), tile_server.requests) == (b"stale", [])
+        finally:
+            core_scheduler.scheduler.remove_all_jobs()
+            core_scheduler.scheduler.shutdown(wait=False)
 
-        mock_runtime.get_active_platform.side_effect = RuntimeError("boom")
+    def test_a_change_that_does_not_ask_for_it_leaves_the_thumbnails_alone(
+        self, db, events, storage, routed, tile_server
+    ):
+        _, activity = routed
+        storage.save(_AREA, f"{activity.id}.webp", b"stale")
+        thumbnail_subscribers.register_bus_subscribers(events)
 
-        # The durable core propagates so the runner can retry/dead-letter.
-        with pytest.raises(RuntimeError):
-            generate_activity_thumbnail_for_event(
-                new_event(
-                    "activity.created", {"activity_id": str(ID1), "user_id": str(uuid.UUID(int=2))}, source="test"
-                )
-            )
+        events.publish(_tiles_changed(regenerate=False))
 
-    @patch("modules.activities.activity_thumbnail.service.delete_activity_thumbnail")
-    @patch("modules.activities.activity_thumbnail.subscribers.platform_runtime")
-    def test_cleanup_core_raises_on_error(self, mock_runtime, mock_delete):
-        from modules.activities.activity_thumbnail.subscribers import cleanup_activity_thumbnail_for_event
+        assert (storage.get(_AREA, f"{activity.id}.webp"), tile_server.requests) == (b"stale", [])
 
-        mock_delete.side_effect = OSError("boom")
-        mock_runtime.get_active_platform.return_value.storage = MagicMock()
 
-        with pytest.raises(OSError):
-            cleanup_activity_thumbnail_for_event(
-                new_event("activity.deleted", {"activity_id": str(ID1)}, source="test")
-            )
+class TestBackfillRequested:
+    def test_a_request_renders_the_missing_thumbnails_through_the_bus(self, db, events, storage, routed):
+        _, activity = routed
+        thumbnail_subscribers.register_bus_subscribers(events)
 
-    def test_register_durable_handlers(self):
-        from jasil.jobs.registry import JobHandlerRegistry
+        events.publish(_backfill_requested())
 
-        from modules.activities.activity_thumbnail.subscribers import (
-            THUMBNAIL_CLEANUP_SUBSCRIBER_ID,
-            THUMBNAIL_GENERATE_SUBSCRIBER_ID,
-            cleanup_activity_thumbnail_for_event,
-            generate_activity_thumbnail_for_event,
-            register_durable_handlers,
-        )
+        assert _key_of(db, activity) == f"{activity.id}.webp"
+        assert list(storage.list_keys(_AREA, "")) == [f"{activity.id}.webp"]
 
+    def test_a_tile_server_failure_is_swallowed_on_the_bus_and_the_activity_stays_due(
+        self, db, events, routed, tile_server
+    ):
+        _, activity = routed
+        tile_server.status = 500
+        thumbnail_subscribers.register_bus_subscribers(events)
+
+        events.publish(_backfill_requested())
+
+        assert _key_of(db, activity) is None
+
+
+class TestRegistry:
+    def test_the_package_registers_its_bus_subscribers_and_durable_handlers_under_stable_ids(self):
         registry = JobHandlerRegistry()
-        register_durable_handlers(registry)
 
-        assert registry.get(THUMBNAIL_GENERATE_SUBSCRIBER_ID) is generate_activity_thumbnail_for_event
-        assert registry.get(THUMBNAIL_CLEANUP_SUBSCRIBER_ID) is cleanup_activity_thumbnail_for_event
-        assert registry.subscribers_for("activity.created") == (THUMBNAIL_GENERATE_SUBSCRIBER_ID,)
-        assert registry.subscribers_for("activity.deleted") == (THUMBNAIL_CLEANUP_SUBSCRIBER_ID,)
+        thumbnail_subscriber_registry.register_durable_handlers(registry)
 
-
-class TestTileSettingsRegeneration:
-    @staticmethod
-    def _event(payload):
-        return new_event("server_settings.tile_settings_changed", payload, source="test")
-
-    @patch(
-        "modules.activities.activity_thumbnail.subscribers.activity_thumbnail_scheduled_jobs.regenerate_all_thumbnails"
-    )
-    @patch("modules.activities.activity_thumbnail.subscribers.core_scheduler.scheduler")
-    @patch("modules.activities.activity_thumbnail.subscribers.core_scheduler.run_once")
-    def test_runs_inline_when_the_process_has_no_scheduler(self, mock_run_once, mock_scheduler, mock_regenerate):
-        """A dedicated worker never starts the scheduler; a queued one-shot would be dropped."""
-        from modules.activities.activity_thumbnail.subscribers import regenerate_thumbnails_for_tile_settings_event
-
-        mock_scheduler.running = False
-        regenerate_thumbnails_for_tile_settings_event(
-            self._event({"changed_fields": ["tile_url"], "regenerate_thumbnails": True})
+        assert registry.subscribers_for(activity_events.ACTIVITY_CREATED) == ("activity_thumbnail.generate",)
+        assert registry.subscribers_for(activity_events.ACTIVITY_DELETED) == ("activity_thumbnail.cleanup",)
+        assert registry.subscribers_for(server_settings_events.TILE_SETTINGS_CHANGED) == (
+            "activity_thumbnail.settings_changed",
+        )
+        assert registry.subscribers_for(thumbnail_events.THUMBNAIL_BACKFILL_REQUESTED) == (
+            "activity_thumbnail.backfill",
         )
 
-        mock_regenerate.assert_called_once_with()
-        mock_run_once.assert_not_called()
+    def test_the_package_wires_the_bus_through_its_registry(self, events, storage):
+        activity_id = uuid.uuid4()
+        storage.save(_AREA, f"{activity_id}.webp", b"webp")
 
-    @patch("modules.activities.activity_thumbnail.subscribers.core_scheduler.scheduler")
-    @patch("modules.activities.activity_thumbnail.subscribers.core_scheduler.run_once")
-    def test_queues_regeneration_when_requested(self, mock_run_once, mock_scheduler):
-        mock_scheduler.running = True
-        from modules.activities.activity_thumbnail import scheduled_jobs
-        from modules.activities.activity_thumbnail.subscribers import regenerate_thumbnails_for_tile_settings_event
+        thumbnail_subscriber_registry.register_bus_subscribers(events)
+        events.publish(_deleted(activity_id))
 
-        regenerate_thumbnails_for_tile_settings_event(
-            self._event({"changed_fields": ["tile_url"], "regenerate_thumbnails": True})
-        )
-
-        mock_run_once.assert_called_once()
-        assert mock_run_once.call_args.args[0] is scheduled_jobs.regenerate_all_thumbnails
-        assert mock_run_once.call_args.kwargs["job_id"] == "endurain_regenerate_all_thumbnails"
-
-    @patch("modules.activities.activity_thumbnail.subscribers.core_scheduler.run_once")
-    def test_skips_when_not_requested(self, mock_run_once):
-        from modules.activities.activity_thumbnail.subscribers import regenerate_thumbnails_for_tile_settings_event
-
-        regenerate_thumbnails_for_tile_settings_event(
-            self._event({"changed_fields": ["x"], "regenerate_thumbnails": False})
-        )
-
-        mock_run_once.assert_not_called()
+        assert list(storage.list_keys(_AREA, "")) == []

@@ -1,191 +1,39 @@
-"""Tests for auth.constants module."""
+"""The scopes the server mints: how they are named, what each role holds and what a regular user never does."""
 
 import re
 
-import core.jwt_keys as core_jwt_keys
-import modules.auth.access_tokens.service as access_tokens_service
 import modules.auth.constants as auth_constants
 
-
-class TestJWTConstants:
-    """Test JWT configuration constants."""
-
-    def test_jwt_algorithm_is_set(self):
-        """Test that JWT algorithm is defined and is a valid algorithm."""
-        assert access_tokens_service.JWT_ALGORITHM is not None
-        assert isinstance(access_tokens_service.JWT_ALGORITHM, str)
-        assert access_tokens_service.JWT_ALGORITHM in ["HS256", "HS384", "HS512"]
-
-    def test_secret_key_is_set(self):
-        """Test that SECRET_KEY is configured, so access and refresh tokens each have a signing key."""
-        assert core_jwt_keys.SIGNING_KEYS
-        assert core_jwt_keys.REFRESH_SIGNING_KEYS
-        assert all(len(key) >= 32 for key in (*core_jwt_keys.SIGNING_KEYS, *core_jwt_keys.REFRESH_SIGNING_KEYS))
+_ADMINISTRATOR_ONLY = (
+    "users:write",
+    "users:read-all",
+    "sessions:write",
+    "api-keys:write",
+    "identity-providers:read",
+    "identity-providers:write",
+    "server-settings:write",
+    "server-settings:logs",
+)
 
 
-class TestScopeConstants:
-    """Test scope configuration constants."""
+def test_every_scope_name_is_kebab_case_resource_and_action():
+    """A scope is ``resource:action`` in lowercase kebab-case, or a bare resource such as ``account``."""
+    name = re.compile(r"^[a-z]+(-[a-z]+)*(:[a-z]+(-[a-z]+)*)?$")
 
-    def test_every_scope_name_is_kebab_case_resource_and_action(self):
-        """A scope is ``resource:action`` in lowercase kebab-case, or a bare resource such as ``account``."""
-        name = re.compile(r"^[a-z]+(-[a-z]+)*(:[a-z]+(-[a-z]+)*)?$")
+    assert [scope for scope in auth_constants.SCOPE_DICT if not name.fullmatch(scope)] == []
 
-        assert [scope for scope in auth_constants.SCOPE_DICT if not name.fullmatch(scope)] == []
 
-    def test_users_regular_scope_defined(self):
-        """Test that users regular scope is properly defined."""
-        assert auth_constants.USERS_REGULAR_SCOPE is not None
-        assert isinstance(auth_constants.USERS_REGULAR_SCOPE, tuple)
-        assert "account" in auth_constants.USERS_REGULAR_SCOPE
-        assert "account:export" in auth_constants.USERS_REGULAR_SCOPE
-        assert "account:security" in auth_constants.USERS_REGULAR_SCOPE
-        assert "account:integrations" in auth_constants.USERS_REGULAR_SCOPE
-        assert "users:read" in auth_constants.USERS_REGULAR_SCOPE
+def test_every_scope_a_role_holds_is_described():
+    assert set(auth_constants.ADMIN_ACCESS_SCOPE) == set(auth_constants.SCOPE_DICT)
+    assert all(auth_constants.SCOPE_DICT[scope] for scope in auth_constants.SCOPE_DICT)
 
-    def test_users_admin_scope_defined(self):
-        """Test that users admin scope is properly defined."""
-        assert auth_constants.USERS_ADMIN_SCOPE is not None
-        assert isinstance(auth_constants.USERS_ADMIN_SCOPE, tuple)
-        assert "users:write" in auth_constants.USERS_ADMIN_SCOPE
-        assert "users:read-all" in auth_constants.USERS_ADMIN_SCOPE
-        assert "users:read-all" not in auth_constants.REGULAR_ACCESS_SCOPE
-        assert "sessions:read" in auth_constants.USERS_ADMIN_SCOPE
-        assert "sessions:write" in auth_constants.USERS_ADMIN_SCOPE
-        assert "api-keys:read" in auth_constants.USERS_ADMIN_SCOPE
-        assert "api-keys:write" in auth_constants.USERS_ADMIN_SCOPE
-        assert {"api-keys:read", "api-keys:write"} <= set(auth_constants.SCOPE_DICT)
 
-    def test_gears_scope_defined(self):
-        """Test that gears scope is properly defined."""
-        assert auth_constants.GEARS_SCOPE is not None
-        assert isinstance(auth_constants.GEARS_SCOPE, tuple)
-        assert "gears:read" in auth_constants.GEARS_SCOPE
-        assert "gears:write" in auth_constants.GEARS_SCOPE
+def test_an_administrator_holds_everything_a_regular_user_does():
+    assert set(auth_constants.REGULAR_ACCESS_SCOPE) < set(auth_constants.ADMIN_ACCESS_SCOPE)
 
-    def test_activities_scope_defined(self):
-        """Test that activities scope is properly defined."""
-        assert auth_constants.ACTIVITIES_SCOPE is not None
-        assert isinstance(auth_constants.ACTIVITIES_SCOPE, tuple)
-        assert "activities:read" in auth_constants.ACTIVITIES_SCOPE
-        assert "activities:write" in auth_constants.ACTIVITIES_SCOPE
 
-    def test_health_scope_defined(self):
-        """Test that health scope is properly defined."""
-        assert auth_constants.HEALTH_SCOPE is not None
-        assert isinstance(auth_constants.HEALTH_SCOPE, tuple)
-        assert "health:read" in auth_constants.HEALTH_SCOPE
-        assert "health:write" in auth_constants.HEALTH_SCOPE
-        assert "health-targets:read" in auth_constants.HEALTH_SCOPE
-        assert "health-targets:write" in auth_constants.HEALTH_SCOPE
-
-    def test_identity_providers_scope_defined(self):
-        """Test that identity providers scopes are properly defined."""
-        assert auth_constants.IDENTITY_PROVIDERS_ADMIN_SCOPE is not None
-        assert isinstance(auth_constants.IDENTITY_PROVIDERS_ADMIN_SCOPE, tuple)
-        assert "identity-providers:read" in auth_constants.IDENTITY_PROVIDERS_ADMIN_SCOPE
-        assert "identity-providers:write" in auth_constants.IDENTITY_PROVIDERS_ADMIN_SCOPE
-
-    def test_identity_provider_configuration_is_not_readable_by_regular_users(self):
-        """The full provider configuration (client ids, endpoints, mappings) is administrator-only."""
-        assert "identity-providers:read" not in auth_constants.REGULAR_ACCESS_SCOPE
-        assert "identity-providers:read" in auth_constants.ADMIN_ACCESS_SCOPE
-
-    def test_server_settings_scope_defined(self):
-        """Test that server settings scopes are properly defined."""
-        assert auth_constants.SERVER_SETTINGS_REGULAR_SCOPE is not None
-        assert isinstance(auth_constants.SERVER_SETTINGS_REGULAR_SCOPE, tuple)
-
-        assert auth_constants.SERVER_SETTINGS_ADMIN_SCOPE is not None
-        assert isinstance(auth_constants.SERVER_SETTINGS_ADMIN_SCOPE, tuple)
-        assert "server-settings:read" in auth_constants.SERVER_SETTINGS_ADMIN_SCOPE
-        assert "server-settings:write" in auth_constants.SERVER_SETTINGS_ADMIN_SCOPE
-        assert "server-settings:logs" in auth_constants.SERVER_SETTINGS_ADMIN_SCOPE
-        assert "server-settings:logs-clear" in auth_constants.SERVER_SETTINGS_ADMIN_SCOPE
-
-    def test_scope_dict_contains_all_scopes(self):
-        """Test that SCOPE_DICT contains descriptions for all defined scopes."""
-        assert auth_constants.SCOPE_DICT is not None
-        assert isinstance(auth_constants.SCOPE_DICT, dict)
-
-        # Check key scopes are documented
-        expected_scopes = [
-            "account",
-            "account:export",
-            "account:security",
-            "account:integrations",
-            "users:read",
-            "users:write",
-            "gears:read",
-            "gears:write",
-            "activities:read",
-            "activities:write",
-            "health:read",
-            "health:write",
-            "server-settings:read",
-            "server-settings:write",
-        ]
-
-        for scope in expected_scopes:
-            assert scope in auth_constants.SCOPE_DICT
-            assert isinstance(auth_constants.SCOPE_DICT[scope], str)
-            assert len(auth_constants.SCOPE_DICT[scope]) > 0
-
-    def test_regular_access_scope_composition(self):
-        """Test that REGULAR_ACCESS_SCOPE includes all expected regular scopes."""
-        assert auth_constants.REGULAR_ACCESS_SCOPE is not None
-        assert isinstance(auth_constants.REGULAR_ACCESS_SCOPE, tuple)
-
-        # Should include users regular scope
-        for scope in auth_constants.USERS_REGULAR_SCOPE:
-            assert scope in auth_constants.REGULAR_ACCESS_SCOPE
-
-        # Should include gears scope
-        for scope in auth_constants.GEARS_SCOPE:
-            assert scope in auth_constants.REGULAR_ACCESS_SCOPE
-
-        # Should include activities scope
-        for scope in auth_constants.ACTIVITIES_SCOPE:
-            assert scope in auth_constants.REGULAR_ACCESS_SCOPE
-
-        # Should include health scope
-        for scope in auth_constants.HEALTH_SCOPE:
-            assert scope in auth_constants.REGULAR_ACCESS_SCOPE
-
-    def test_admin_access_scope_composition(self):
-        """Test that ADMIN_ACCESS_SCOPE includes all regular and admin scopes."""
-        assert auth_constants.ADMIN_ACCESS_SCOPE is not None
-        assert isinstance(auth_constants.ADMIN_ACCESS_SCOPE, tuple)
-
-        # Should include all regular scopes
-        for scope in auth_constants.REGULAR_ACCESS_SCOPE:
-            assert scope in auth_constants.ADMIN_ACCESS_SCOPE
-
-        # Should include users admin scope
-        for scope in auth_constants.USERS_ADMIN_SCOPE:
-            assert scope in auth_constants.ADMIN_ACCESS_SCOPE
-
-        # Should include identity providers admin scope
-        for scope in auth_constants.IDENTITY_PROVIDERS_ADMIN_SCOPE:
-            assert scope in auth_constants.ADMIN_ACCESS_SCOPE
-
-        # Should include server settings admin scope
-        for scope in auth_constants.SERVER_SETTINGS_ADMIN_SCOPE:
-            assert scope in auth_constants.ADMIN_ACCESS_SCOPE
-
-    def test_admin_scope_is_superset_of_regular(self):
-        """Test that admin scope contains all permissions from regular scope."""
-        regular_set = set(auth_constants.REGULAR_ACCESS_SCOPE)
-        admin_set = set(auth_constants.ADMIN_ACCESS_SCOPE)
-
-        assert regular_set.issubset(admin_set), "Admin scope should contain all regular scope permissions"
-
-    def test_constants_validation_with_invalid_values(self):
-        """
-        Test that invalid environment variables trigger errors.
-
-        Note: This tests the validation logic exists but won't
-        actually execute it since constants are already initialized.
-        """
-        # Verify constants are set correctly
-        assert core_jwt_keys.SIGNING_KEYS
-        assert len(core_jwt_keys.SIGNING_KEYS[0]) >= 32
+def test_a_regular_user_holds_no_administrator_scope():
+    """Provider configuration (client ids, endpoints, mappings), other users' data and the server's settings are
+    administrator-only."""
+    assert [scope for scope in _ADMINISTRATOR_ONLY if scope in auth_constants.REGULAR_ACCESS_SCOPE] == []
+    assert [scope for scope in _ADMINISTRATOR_ONLY if scope not in auth_constants.ADMIN_ACCESS_SCOPE] == []

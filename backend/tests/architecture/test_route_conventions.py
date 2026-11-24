@@ -8,10 +8,9 @@ module, so a new route or function is covered the day it is written.
 import ast
 import pathlib
 
+import modules.auth.constants as auth_constants
 from tests._helpers.module_roles import MODULES, files_with_role, role_of
 from tests._helpers.routes import WRITE_METHODS, route_decorators, router_functions
-
-import modules.auth.constants as auth_constants
 
 _ROOT = pathlib.Path("app/modules")
 _MODULE_ROOTS = tuple(_ROOT / name for name in MODULES)

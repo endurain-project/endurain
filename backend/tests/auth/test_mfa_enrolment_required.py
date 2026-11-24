@@ -1,278 +1,153 @@
-"""The "Require MFA" setting: who it covers, how a principal carries it and which requests it still lets through."""
+"""The "Require MFA" setting: who it covers and which requests an account that must enrol may still make."""
 
-import uuid
-from datetime import UTC, datetime, timedelta
-from types import SimpleNamespace
-from unittest.mock import MagicMock, patch
+import logging
 
-import jasil.testing as jasil_testing
+import jasil.providers as platform_providers
+import jasil.runtime as jasil_runtime
 import pytest
-from fastapi import Depends, FastAPI
-from fastapi.testclient import TestClient
-from jasil.backends.state_memory import MemoryState
-from jasil.providers import StateBackendUnavailableError
 
 import core.config as core_config
-import core.database as core_database
-import core.dependencies as core_dependencies
-import core.exceptions as core_exceptions
-import modules.auth.authentication.principal_service as principal_service
+import modules.auth.api_keys.constants as api_keys_constants
+import modules.auth.authentication.audit_actions as authentication_audit_actions
 import modules.auth.constants as auth_constants
-import modules.auth.dependencies as auth_dependencies
 import modules.server_settings.contracts as server_settings_contracts
-from modules.auth.access_tokens.contracts import TokenType
-from modules.auth.contracts import AccessTokenCred, Principal
-from tests._helpers.auth import MOCK_USER_ID
+from tests._factories.api_keys import key_client, make_api_key
+from tests._factories.server_settings import edit_server_settings
+from tests._factories.tokens import audit_rows, make_mfa
+from tests._factories.users import make_admin, make_user
 
-_SID = uuid.UUID("00000000-0000-4000-8000-0000000000a1")
-
-_MODULE = "modules.auth.authentication.principal_service"
+_ROOT = core_config.ROOT_PATH
 _ENROLMENT_REQUIRED = "urn:endurain:error:mfa-enrolment-required"
 _RequireMfa = server_settings_contracts.RequireMfa
+#: A route the enrolment page does not need, open to any signed-in user.
+_ELSEWHERE = f"{_ROOT}/gears"
 
 
-def _policy(require_mfa: _RequireMfa) -> server_settings_contracts.AccessPolicy:
-    return server_settings_contracts.AccessPolicy(
-        session=server_settings_contracts.SessionPolicy(
-            access_token_ttl=timedelta(minutes=15),
-            refresh_token_ttl=timedelta(days=7),
-            idle_timeout=None,
-            absolute_timeout=timedelta(days=30),
-            api_key_max_lifetime=timedelta(days=365),
-        ),
-        require_mfa=require_mfa,
-    )
+def _require(committed_sessions, setting: _RequireMfa) -> None:
+    with committed_sessions() as db:
+        edit_server_settings(db, require_mfa=setting.value)
+        db.commit()
 
 
-def _user(access_type: str):
-    return SimpleNamespace(id=MOCK_USER_ID, username="u", email="u@example.com", active=True, access_type=access_type)
+def _signed_in(committed_sessions, sign_in, *, admin: bool = False, enrolled: bool = False):
+    with committed_sessions() as db:
+        user = make_admin(db) if admin else make_user(db)
+        if enrolled:
+            make_mfa(db, user)
+        db.commit()
+    return sign_in(user)
 
 
-def _token_manager():
-    claims = {"sub": str(MOCK_USER_ID), "sid": str(_SID), "scope": " ".join(auth_constants.ADMIN_ACCESS_SCOPE)}
-    manager = MagicMock()
-
-    def claim(_token, name, token_type):
-        assert token_type is TokenType.ACCESS
-        return claims[name]
-
-    manager.get_token_claim.side_effect = claim
-    return manager
-
-
-def _session():
-    now = datetime.now(UTC)
-    return SimpleNamespace(user_id=MOCK_USER_ID, last_activity_at=now, created_at=now)
-
-
-def _resolve(access_type: str, require_mfa: _RequireMfa, *, enrolled: bool):
-    with (
-        patch(f"{_MODULE}.users_integration.get_user", return_value=_user(access_type)),
-        patch(f"{_MODULE}.sessions_integration.get_session_by_id_not_expired", return_value=_session()),
-        patch(f"{_MODULE}.server_settings_integration.get_access_policy", return_value=_policy(require_mfa)),
-        patch(
-            f"{_MODULE}.mfa_integration.get_mfa_enabled_for_users",
-            return_value={MOCK_USER_ID: True} if enrolled else {},
-        ) as mfa,
-    ):
-        principal = principal_service.resolve_from_access_token("token", _token_manager(), MagicMock())
-    return principal, mfa
-
-
-class TestPrincipalCarriesTheRequirement:
+class TestWhoMustEnrol:
     @pytest.mark.parametrize(
-        ("require_mfa", "access_type", "refused"),
+        ("setting", "admin", "refused"),
         [
-            (_RequireMfa.OFF, "admin", False),
-            (_RequireMfa.OFF, "regular", False),
-            (_RequireMfa.ADMINISTRATORS, "admin", True),
-            (_RequireMfa.ADMINISTRATORS, "regular", False),
-            (_RequireMfa.EVERYONE, "admin", True),
-            (_RequireMfa.EVERYONE, "regular", True),
+            (_RequireMfa.OFF, True, False),
+            (_RequireMfa.OFF, False, False),
+            (_RequireMfa.ADMINISTRATORS, True, True),
+            (_RequireMfa.ADMINISTRATORS, False, False),
+            (_RequireMfa.EVERYONE, True, True),
+            (_RequireMfa.EVERYONE, False, True),
         ],
+        ids=lambda value: str(getattr(value, "value", value)),
     )
-    def test_a_covered_account_without_mfa_must_enrol(self, require_mfa, access_type, refused):
-        principal, _ = _resolve(access_type, require_mfa, enrolled=False)
+    def test_a_covered_account_without_mfa_is_refused_everywhere_else(
+        self, committed_sessions, sign_in, setting, admin, refused
+    ):
+        _require(committed_sessions, setting)
+        signed_in = _signed_in(committed_sessions, sign_in, admin=admin)
 
-        assert principal.mfa_enrolment_required is refused
+        response = signed_in.client.get(_ELSEWHERE)
 
-    @pytest.mark.parametrize("require_mfa", list(_RequireMfa))
-    @pytest.mark.parametrize("access_type", ["admin", "regular"])
-    def test_an_account_with_mfa_never_has_to_enrol(self, require_mfa, access_type):
-        principal, _ = _resolve(access_type, require_mfa, enrolled=True)
+        assert response.status_code == (403 if refused else 200)
+        if refused:
+            assert response.json()["type"] == _ENROLMENT_REQUIRED
 
-        assert principal.mfa_enrolment_required is False
+    @pytest.mark.parametrize("setting", list(_RequireMfa))
+    @pytest.mark.parametrize("admin", [True, False], ids=["admin", "regular"])
+    def test_an_account_with_mfa_is_never_refused(self, committed_sessions, sign_in, setting, admin):
+        _require(committed_sessions, setting)
+        signed_in = _signed_in(committed_sessions, sign_in, admin=admin, enrolled=True)
 
-    def test_nothing_extra_is_read_while_the_setting_is_off(self):
-        _, mfa = _resolve("admin", _RequireMfa.OFF, enrolled=False)
+        assert signed_in.client.get(_ELSEWHERE).status_code == 200
 
-        mfa.assert_not_called()
+    def test_the_refusal_is_not_an_insufficient_scope_challenge(self, committed_sessions, sign_in):
+        _require(committed_sessions, _RequireMfa.EVERYONE)
+        signed_in = _signed_in(committed_sessions, sign_in)
 
-    def test_nothing_extra_is_read_for_an_account_the_setting_does_not_cover(self):
-        _, mfa = _resolve("regular", _RequireMfa.ADMINISTRATORS, enrolled=False)
+        assert "www-authenticate" not in signed_in.client.get(_ELSEWHERE).headers
 
-        mfa.assert_not_called()
+    def test_a_scope_checked_route_is_refused_the_same_way(self, committed_sessions, sign_in):
+        _require(committed_sessions, _RequireMfa.EVERYONE)
+        signed_in = _signed_in(committed_sessions, sign_in)
 
-    def test_a_covered_account_costs_one_indexed_lookup(self):
-        _, mfa = _resolve("admin", _RequireMfa.ADMINISTRATORS, enrolled=False)
-
-        mfa.assert_called_once()
-        assert mfa.call_args.args[0] == [MOCK_USER_ID]
-
-
-def _principal(*, enrolment_required: bool) -> Principal:
-    return Principal(
-        user_id=MOCK_USER_ID,
-        username="u",
-        email="u@example.com",
-        is_active=True,
-        is_superuser=True,
-        scopes=frozenset(auth_constants.ADMIN_ACCESS_SCOPE),
-        credential=AccessTokenCred(session_id=_SID),
-        mfa_enrolment_required=enrolment_required,
-    )
-
-
-@pytest.fixture
-def client():
-    app = FastAPI()
-    core_exceptions.register_exception_handlers(app)
-    app.dependency_overrides[core_database.get_db] = lambda: MagicMock()
-    state = MemoryState()
-    app.dependency_overrides[core_dependencies.get_platform_state] = lambda: state
-    root = core_config.ROOT_PATH
-
-    def _ok():
-        return {}
-
-    protected = [Depends(auth_dependencies.authenticate)]
-    scoped = [Depends(auth_dependencies.check_scopes)]
-    for method, path in auth_constants.MFA_ENROLMENT_ROUTES:
-        app.add_api_route(root + path, _ok, methods=[method], dependencies=protected)
-    app.add_api_route(root + "/profile/mfa/disable", _ok, methods=["POST"], dependencies=scoped)
-    app.add_api_route(root + "/profile/mfa/status", _ok, methods=["POST"], dependencies=protected)
-    app.add_api_route(root + "/profile/password/change", _ok, methods=["POST"], dependencies=protected)
-    app.add_api_route(root + "/server_settings", _ok, methods=["GET"], dependencies=protected)
-    return TestClient(app, headers={"Authorization": "Bearer token"})
-
-
-def _resolving(principal: Principal):
-    return patch.object(
-        auth_dependencies.authentication_integration, "resolve_from_access_token", return_value=principal
-    )
-
-
-class TestTheRefusal:
-    def test_a_covered_account_without_mfa_is_refused_with_its_own_problem_type(self, client):
-        with _resolving(_principal(enrolment_required=True)):
-            response = client.post(core_config.ROOT_PATH + "/profile/password/change")
+        response = signed_in.client.post(f"{_ROOT}/profile/mfa/disable", json={"step_up": {"current_password": "x"}})
 
         assert response.status_code == 403
         assert response.json()["type"] == _ENROLMENT_REQUIRED
 
-    def test_the_refusal_is_not_an_insufficient_scope_challenge(self, client):
-        with _resolving(_principal(enrolment_required=True)):
-            response = client.post(core_config.ROOT_PATH + "/profile/password/change")
+    def test_an_api_key_of_such_an_account_is_refused_too(self, app, committed_sessions):
+        _require(committed_sessions, _RequireMfa.EVERYONE)
+        with committed_sessions() as db:
+            user = make_user(db)
+            key, raw_key = make_api_key(db, user, scopes=[api_keys_constants.ApiKeyScope.GEARS_READ])
+            db.commit()
 
-        assert "www-authenticate" not in response.headers
-
-    def test_a_scope_checked_route_is_refused_the_same_way(self, client):
-        with _resolving(_principal(enrolment_required=True)):
-            response = client.post(core_config.ROOT_PATH + "/profile/mfa/disable")
-
-        assert response.status_code == 403
-        assert response.json()["type"] == _ENROLMENT_REQUIRED
-
-    def test_an_api_key_of_such_an_account_is_refused_too(self, client):
-        with patch.object(
-            auth_dependencies.authentication_integration,
-            "resolve_from_api_key",
-            return_value=_principal(enrolment_required=True),
-        ):
-            response = TestClient(client.app).get(
-                core_config.ROOT_PATH + "/server_settings", headers={"X-API-Key": "k"}
-            )
+        response = key_client(app, user, key, raw_key).client.get(_ELSEWHERE)
 
         assert response.status_code == 403
         assert response.json()["type"] == _ENROLMENT_REQUIRED
 
-    def test_an_account_that_need_not_enrol_is_served(self, client):
-        with _resolving(_principal(enrolment_required=False)):
-            response = client.post(core_config.ROOT_PATH + "/profile/password/change")
+    def test_the_account_is_served_again_once_it_has_enrolled(self, committed_sessions, sign_in):
+        _require(committed_sessions, _RequireMfa.EVERYONE)
+        signed_in = _signed_in(committed_sessions, sign_in)
+        assert signed_in.client.get(_ELSEWHERE).status_code == 403
+        with committed_sessions() as db:
+            make_mfa(db, signed_in.user)
+            db.commit()
 
-        assert response.status_code == 200
-
-
-class TestTheRefusalIsAudited:
-    def _refused(self, client, principal: Principal | None = None):
-        with _resolving(principal or _principal(enrolment_required=True)):
-            return client.post(core_config.ROOT_PATH + "/profile/password/change")
-
-    def test_a_refusal_writes_a_denied_row_without_any_credential_value(self, client):
-        with jasil_testing.capture_audit() as audit:
-            self._refused(client)
-
-        entry = audit.assert_audited("auth.mfa_enrolment.denied", outcome="denied")
-        assert entry.details == {"credential_type": "access_token"}
-
-    def test_a_client_retrying_in_the_same_session_is_audited_once(self, client):
-        with jasil_testing.capture_audit() as audit:
-            for _ in range(3):
-                assert self._refused(client).status_code == 403
-
-        assert len(audit.matching("auth.mfa_enrolment.denied")) == 1
-
-    def test_another_session_is_audited_on_its_own(self, client):
-        other = Principal(
-            user_id=MOCK_USER_ID,
-            username="u",
-            email="u@example.com",
-            is_active=True,
-            is_superuser=True,
-            scopes=frozenset(auth_constants.ADMIN_ACCESS_SCOPE),
-            credential=AccessTokenCred(session_id=uuid.UUID("00000000-0000-4000-8000-0000000000a2")),
-            mfa_enrolment_required=True,
-        )
-
-        with jasil_testing.capture_audit() as audit:
-            self._refused(client)
-            self._refused(client, other)
-
-        assert len(audit.matching("auth.mfa_enrolment.denied")) == 2
-
-    def test_an_account_that_need_not_enrol_writes_nothing(self, client):
-        with jasil_testing.capture_audit() as audit:
-            self._refused(client, _principal(enrolment_required=False))
-
-        audit.assert_not_audited("auth.mfa_enrolment.denied")
-
-    def test_an_unreachable_state_store_still_audits_the_refusal(self, client):
-        class _Down(MemoryState):
-            def set_if_absent(self, *args, **kwargs):
-                raise StateBackendUnavailableError("down")
-
-        client.app.dependency_overrides[core_dependencies.get_platform_state] = lambda: _Down()
-        with jasil_testing.capture_audit() as audit:
-            response = self._refused(client)
-
-        assert response.status_code == 403
-        audit.assert_audited("auth.mfa_enrolment.denied", outcome="denied")
+        assert signed_in.client.get(_ELSEWHERE).status_code == 200
 
 
 class TestWhatAnUnenrolledAccountMayStillDo:
-    @pytest.mark.parametrize(("method", "path"), sorted(auth_constants.MFA_ENROLMENT_ROUTES))
-    def test_each_route_it_needs_to_enrol_is_served(self, client, method, path):
-        with _resolving(_principal(enrolment_required=True)):
-            response = client.request(method, core_config.ROOT_PATH + path.replace("{idp_id}", "3"))
+    def _unenrolled(self, committed_sessions, sign_in):
+        _require(committed_sessions, _RequireMfa.EVERYONE)
+        return _signed_in(committed_sessions, sign_in).client
 
-        assert response.status_code == 200
+    def test_it_can_read_its_profile_and_mfa_status_and_start_and_finish_an_enrolment(
+        self, committed_sessions, sign_in
+    ):
+        client = self._unenrolled(committed_sessions, sign_in)
 
-    def test_the_exemption_is_the_method_and_the_route_not_the_path_alone(self, client):
-        """``POST /profile/mfa/status`` is not ``GET``: the exemption names the method."""
-        with _resolving(_principal(enrolment_required=True)):
-            response = client.post(core_config.ROOT_PATH + "/profile/mfa/status")
+        assert client.get(f"{_ROOT}/profile").status_code == 200
+        assert client.get(f"{_ROOT}/profile/mfa/status").status_code == 200
+        assert client.post(f"{_ROOT}/profile/mfa/setup").status_code == 201
+        assert client.get(f"{_ROOT}/profile/identity-providers").status_code == 200
 
-        assert response.status_code == 403
+    def test_enable_is_reached_and_answers_for_itself_not_with_the_enrolment_refusal(self, committed_sessions, sign_in):
+        client = self._unenrolled(committed_sessions, sign_in)
+
+        response = client.post(
+            f"{_ROOT}/profile/mfa/enable", json={"totp_code": "123456", "step_up": {"current_password": "x"}}
+        )
+
+        assert response.json()["type"] != _ENROLMENT_REQUIRED
+
+    def test_the_identity_provider_step_up_is_reached(self, committed_sessions, sign_in):
+        client = self._unenrolled(committed_sessions, sign_in)
+
+        response = client.post(
+            f"{_ROOT}/profile/identity-providers/{'0' * 8}-0000-4000-8000-{'0' * 12}/step-up",
+            json={"code_challenge": "c" * 43, "action": "mfa_disable", "redirect": "/"},
+        )
+
+        assert response.json()["type"] != _ENROLMENT_REQUIRED
+
+    def test_the_exemption_is_the_method_and_the_route_not_the_path_alone(self, committed_sessions, sign_in):
+        client = self._unenrolled(committed_sessions, sign_in)
+
+        assert client.get(f"{_ROOT}/profile/mfa/backup-codes/status").status_code == 403
+        assert client.post(f"{_ROOT}/profile/mfa/disable", json={"step_up": {}}).status_code == 403
 
     def test_the_exempt_set_is_exactly_what_the_enrolment_page_needs(self):
         needed = {
@@ -285,3 +160,66 @@ class TestWhatAnUnenrolledAccountMayStillDo:
         }
 
         assert set(auth_constants.MFA_ENROLMENT_ROUTES) == needed
+
+
+class TestTheRefusalIsAudited:
+    def _rows(self, committed_sessions):
+        return audit_rows(committed_sessions, authentication_audit_actions.MFA_ENROLMENT_DENIED)
+
+    def test_a_refusal_writes_a_denied_row_without_any_credential_value(self, committed_sessions, sign_in):
+        _require(committed_sessions, _RequireMfa.EVERYONE)
+        signed_in = _signed_in(committed_sessions, sign_in)
+
+        signed_in.client.get(_ELSEWHERE)
+
+        (row,) = self._rows(committed_sessions)
+        assert (row.outcome, row.actor_id, row.details) == (
+            "denied",
+            str(signed_in.user.id),
+            {"credential_type": "access_token"},
+        )
+        assert signed_in.access_token not in str(row.__dict__)
+
+    def test_a_client_retrying_in_the_same_session_is_audited_once(self, committed_sessions, sign_in):
+        _require(committed_sessions, _RequireMfa.EVERYONE)
+        signed_in = _signed_in(committed_sessions, sign_in)
+
+        for _ in range(3):
+            assert signed_in.client.get(_ELSEWHERE).status_code == 403
+
+        assert len(self._rows(committed_sessions)) == 1
+
+    def test_another_session_is_audited_on_its_own(self, committed_sessions, sign_in):
+        _require(committed_sessions, _RequireMfa.EVERYONE)
+        first = _signed_in(committed_sessions, sign_in)
+        second = sign_in(first.user)
+
+        first.client.get(_ELSEWHERE)
+        second.client.get(_ELSEWHERE)
+
+        assert len(self._rows(committed_sessions)) == 2
+
+    def test_an_account_that_need_not_enrol_writes_nothing(self, committed_sessions, sign_in):
+        signed_in = _signed_in(committed_sessions, sign_in)
+
+        signed_in.client.get(_ELSEWHERE)
+
+        assert self._rows(committed_sessions) == []
+
+    def test_an_unreachable_state_store_still_audits_the_refusal(
+        self, committed_sessions, sign_in, monkeypatch, app_log
+    ):
+        _require(committed_sessions, _RequireMfa.EVERYONE)
+        signed_in = _signed_in(committed_sessions, sign_in)
+
+        def down(*_args, **_kwargs):
+            raise platform_providers.StateBackendUnavailableError("down")
+
+        monkeypatch.setattr(jasil_runtime.get_active_platform().state, "set_if_absent", down)
+
+        response = signed_in.client.get(_ELSEWHERE)
+
+        assert response.status_code == 403
+        assert len(self._rows(committed_sessions)) == 1
+        # An outage is a degraded path: logged as a warning, nothing as an error.
+        assert max(r.levelno for r in app_log.records) == logging.WARNING

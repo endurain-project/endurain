@@ -25,11 +25,9 @@ class TestIsTrustedPeerEdgeCases:
 class TestRejectPrivateUrlEdgeCases:
     """Edge cases for reject_private_url."""
 
-    @patch("core.network.urlparse")
-    def test_urlparse_raises_value_error(self, mock_urlparse):
-        """urlparse ValueError raises 400 (lines 197-198)."""
-        mock_urlparse.side_effect = ValueError("Bad URL")
+    def test_a_url_that_cannot_be_parsed_is_a_400(self):
+        """``urlparse`` refuses an unterminated IPv6 literal."""
         with pytest.raises(core_exceptions.InvalidInputError) as exc:
-            core_network.reject_private_url("http://bad-url")
+            core_network.reject_private_url("http://[::1")
         assert exc.value.status_code == 400
         assert "Malformed URL" in exc.value.detail

@@ -24,7 +24,7 @@ MAX_UTC_OFFSET = core_timezone.MAX_UTC_OFFSET
 
 
 def name_search_condition(name_search: str, *, mask_hidden_location: bool) -> ColumnElement[bool]:
-    """A case-insensitive LIKE search across an activity's name and location.
+    """A case-insensitive LIKE search (through the ICU collation) across an activity's name and location.
 
     Args:
         name_search: The search term, already URL-decoded by the framework, so ``+`` and ``%`` are literal text.
@@ -36,16 +36,16 @@ def name_search_condition(name_search: str, *, mask_hidden_location: bool) -> Co
         A SQLAlchemy condition matching the term against name, town, city or
         country, with ``%``/``_`` escaped so user input cannot inject wildcards.
     """
-    raw = name_search.lower()
-    pattern = f"%{core_sanitization.escape_like(raw)}%"
+    pattern = f"%{core_sanitization.escape_like(name_search)}%"
+    collation = core_sanitization.CASE_INSENSITIVE_COLLATION
     location_match = or_(
-        func.lower(activity_models.Activity.town).like(pattern, escape="\\"),
-        func.lower(activity_models.Activity.city).like(pattern, escape="\\"),
-        func.lower(activity_models.Activity.country).like(pattern, escape="\\"),
+        activity_models.Activity.town.collate(collation).like(pattern, escape="\\"),
+        activity_models.Activity.city.collate(collation).like(pattern, escape="\\"),
+        activity_models.Activity.country.collate(collation).like(pattern, escape="\\"),
     )
     if mask_hidden_location:
         location_match = and_(activity_models.Activity.hide_location.is_(False), location_match)
-    return or_(func.lower(activity_models.Activity.name).like(pattern, escape="\\"), location_match)
+    return or_(activity_models.Activity.name.collate(collation).like(pattern, escape="\\"), location_match)
 
 
 def local_start_time_expression() -> ColumnElement[datetime]:

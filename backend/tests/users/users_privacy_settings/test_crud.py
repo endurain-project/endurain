@@ -1,96 +1,87 @@
-from unittest.mock import MagicMock, patch
+"""Privacy settings against the real database: the defaults a new account gets, edits, and discovery opt-outs."""
+
+import uuid
 
 import pytest
-from sqlalchemy.exc import IntegrityError
+from sqlalchemy import delete
 
 import core.exceptions as core_exceptions
 import modules.activities.activity.constants as activity_constants
-import modules.users.users_privacy_settings.crud as users_privacy_settings_crud
-import modules.users.users_privacy_settings.models as users_privacy_settings_models
-import modules.users.users_privacy_settings.schema as users_privacy_settings_schema
-from tests._helpers.auth import MOCK_USER_ID, OTHER_USER_ID
+import modules.users.users.models as users_models
+import modules.users.users_privacy_settings.crud as crud
+import modules.users.users_privacy_settings.schema as schema
+from tests._factories.users import make_user
 
 
-@pytest.fixture(autouse=True)
-def _patch_serializer():
-    """Patch the serializer to a passthrough for MagicMock compatibility."""
-    with patch(
-        "modules.users.users_privacy_settings.crud.users_privacy_settings_serializers.to_read_schema",
-        side_effect=lambda x: x,
-    ):
-        yield
+@pytest.fixture
+def user(db):
+    return make_user(db)
 
 
-def _found(mock_db, row):
-    """Make the session's SELECT return ``row`` (or None)."""
-    mock_result = MagicMock()
-    mock_result.scalar_one_or_none.return_value = row
-    mock_db.execute.return_value = mock_result
+class TestDefaults:
+    def test_a_new_account_is_private_discoverable_and_hides_nothing(self, db, user):
+        settings = crud.get_user_privacy_settings_by_user_id(user.id, db)
 
+        assert settings is not None
+        assert settings.default_activity_visibility == activity_constants.ActivityVisibility.PRIVATE
+        assert settings.discoverable is True
+        assert settings.version == 1
+        hidden = [name for name, value in settings.model_dump().items() if name.startswith("hide_") and value]
+        assert hidden == []
 
-class TestGetUserPrivacySettingsByUserId:
-    def test_returns_the_settings(self, mock_db):
-        row = MagicMock(spec=users_privacy_settings_models.UsersPrivacySettings)
-        _found(mock_db, row)
+    def test_a_user_without_settings_reads_none(self, db):
+        assert crud.get_user_privacy_settings_by_user_id(uuid.uuid4(), db) is None
 
-        assert users_privacy_settings_crud.get_user_privacy_settings_by_user_id(MOCK_USER_ID, mock_db) == row
-        mock_db.execute.assert_called_once()
-
-    def test_returns_none_when_missing(self, mock_db):
-        _found(mock_db, None)
-
-        assert users_privacy_settings_crud.get_user_privacy_settings_by_user_id(MOCK_USER_ID, mock_db) is None
-
-
-class TestCreateUserPrivacySettings:
-    def test_stages_without_committing(self, mock_db):
-        row = MagicMock(spec=users_privacy_settings_models.UsersPrivacySettings)
-
-        with patch.object(users_privacy_settings_models, "UsersPrivacySettings", return_value=row):
-            result = users_privacy_settings_crud.create_user_privacy_settings(MOCK_USER_ID, mock_db)
-
-        assert result == row
-        mock_db.add.assert_called_once_with(row)
-        mock_db.flush.assert_called_once()
-        mock_db.commit.assert_not_called()
-
-    def test_duplicate_is_a_conflict(self, mock_db):
-        mock_db.flush.side_effect = IntegrityError("Duplicate entry", None, None)
-
+    def test_a_second_row_for_a_user_is_a_conflict(self, db, user):
         with pytest.raises(core_exceptions.ConflictError):
-            users_privacy_settings_crud.create_user_privacy_settings(MOCK_USER_ID, mock_db)
+            crud.create_user_privacy_settings(user.id, db)
+
+    def test_deleting_the_user_deletes_the_settings(self, db, user):
+        db.execute(delete(users_models.Users).where(users_models.Users.id == user.id))
+
+        assert crud.get_user_privacy_settings_by_user_id(user.id, db) is None
 
 
-class TestEditUserPrivacySettings:
-    def test_applies_only_the_set_fields_and_stages(self, mock_db):
-        row = MagicMock(spec=users_privacy_settings_models.UsersPrivacySettings)
-        _found(mock_db, row)
-        update = users_privacy_settings_schema.UserPrivacySettingsUpdate(
-            default_activity_visibility=activity_constants.ActivityVisibility.PRIVATE,
-            hide_activity_map=True,
+class TestEdit:
+    def test_only_the_set_fields_change_and_the_version_moves(self, db, user):
+        update = schema.UserPrivacySettingsUpdate(
+            default_activity_visibility=activity_constants.ActivityVisibility.FOLLOWERS, hide_activity_map=True
         )
 
-        result = users_privacy_settings_crud.edit_user_privacy_settings(MOCK_USER_ID, update, mock_db, if_match="*")
+        updated = crud.edit_user_privacy_settings(user.id, update, db, if_match='"1"')
 
-        assert result == row
-        assert row.hide_activity_map is True
-        assert row.default_activity_visibility == update.default_activity_visibility
-        mock_db.flush.assert_called_once()
-        mock_db.commit.assert_not_called()
+        assert updated.default_activity_visibility == activity_constants.ActivityVisibility.FOLLOWERS
+        assert updated.hide_activity_map is True
+        assert updated.hide_activity_hr is False
+        assert updated.discoverable is True
+        assert updated.version == 2
+        assert crud.get_user_privacy_settings_by_user_id(user.id, db) == updated
 
-    def test_missing_settings_are_not_found(self, mock_db):
-        _found(mock_db, None)
-        update = users_privacy_settings_schema.UserPrivacySettingsUpdate(hide_activity_map=True)
-
+    def test_missing_settings_are_not_found(self, db):
         with pytest.raises(core_exceptions.NotFoundError):
-            users_privacy_settings_crud.edit_user_privacy_settings(MOCK_USER_ID, update, mock_db, if_match="*")
+            crud.edit_user_privacy_settings(
+                uuid.uuid4(), schema.UserPrivacySettingsUpdate(hide_activity_map=True), db, if_match="*"
+            )
+
+    def test_a_stale_version_is_refused_and_nothing_changes(self, db, user):
+        with pytest.raises(core_exceptions.PreconditionFailedError):
+            crud.edit_user_privacy_settings(
+                user.id, schema.UserPrivacySettingsUpdate(hide_activity_map=True), db, if_match='"4"'
+            )
+
+        stored = crud.get_user_privacy_settings_by_user_id(user.id, db)
+        assert stored is not None
+        assert stored.hide_activity_map is False
 
 
 class TestListUndiscoverableUserIds:
-    def test_selects_the_users_who_switched_discovery_off(self, mock_db):
-        mock_db.execute.return_value.scalars.return_value.all.return_value = [OTHER_USER_ID, MOCK_USER_ID]
+    def test_only_the_users_who_switched_discovery_off_are_listed(self, db):
+        hidden, visible = make_user(db), make_user(db)
+        crud.edit_user_privacy_settings(
+            hidden.id, schema.UserPrivacySettingsUpdate(discoverable=False), db, if_match="*"
+        )
 
-        assert users_privacy_settings_crud.list_undiscoverable_user_ids(mock_db) == [OTHER_USER_ID, MOCK_USER_ID]
+        listed = crud.list_undiscoverable_user_ids(db)
 
-        sql = str(mock_db.execute.call_args.args[0].compile(compile_kwargs={"literal_binds": True}))
-        assert "discoverable IS false" in sql
+        assert hidden.id in listed
+        assert visible.id not in listed

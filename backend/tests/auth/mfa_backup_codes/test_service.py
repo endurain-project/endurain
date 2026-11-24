@@ -1,205 +1,189 @@
-"""Tests for MFA backup codes utilities."""
+"""Backup codes are generated hashed, verified against every unused hash and consumed once, with audit and event."""
 
 import string
-import uuid
-from unittest.mock import MagicMock, patch
+from datetime import UTC, datetime, timedelta
 
-import core.exceptions as core_exceptions
-import modules.auth.mfa_backup_codes.crud as backup_crud
-import modules.auth.mfa_backup_codes.service as backup_utils
-from tests._helpers.auth import MOCK_USER_ID
+import jasil.runtime as jasil_runtime
+import pytest
+import sqlalchemy as sa
+from jasil.events import Event
 
+import modules.auth.credentials.integration_service as credentials_integration
+import modules.auth.mfa_backup_codes.audit_actions as backup_codes_audit_actions
+import modules.auth.mfa_backup_codes.crud as backup_codes_crud
+import modules.auth.mfa_backup_codes.events as backup_codes_events
+import modules.auth.mfa_backup_codes.models as backup_codes_models
+import modules.auth.mfa_backup_codes.service as backup_codes_service
+from tests._factories.users import audit_rows_of, make_user
 
-class TestGenerateBackupCode:
-    """Test suite for generate_backup_code function."""
-
-    def test_generate_backup_code_format(self):
-        """Test that generated code has correct format (XXXX-XXXX)."""
-        code = backup_utils.generate_backup_code()
-
-        assert len(code) == 9, "Code should be 9 characters (8 + 1 dash)"
-        assert code[4] == "-", "Character at position 4 should be dash"
-        assert code[:4].isalnum(), "First 4 characters should be alphanumeric"
-        assert code[5:].isalnum(), "Last 4 characters should be alphanumeric"
-        assert code.isupper(), "Code should be uppercase"
-
-    def test_generate_backup_code_no_ambiguous_chars(self):
-        """Test that generated codes don't contain ambiguous characters."""
-        ambiguous_chars = {"0", "O", "1", "I"}
-
-        # Generate multiple codes to test randomness
-        for _ in range(100):
-            code = backup_utils.generate_backup_code().replace("-", "")
-            for char in code:
-                assert char not in ambiguous_chars, f"Code contains ambiguous character: {char}"
-
-    def test_generate_backup_code_uniqueness(self):
-        """Test that generated codes are unique."""
-        codes = [backup_utils.generate_backup_code() for _ in range(100)]
-
-        # All codes should be unique (extremely high probability)
-        assert len(set(codes)) == 100, "Generated codes should be unique"
-
-    def test_generate_backup_code_character_set(self):
-        """Test that generated codes only use allowed characters."""
-        allowed_chars = set(string.ascii_uppercase + string.digits) - {
-            "0",
-            "O",
-            "1",
-            "I",
-        }
-
-        for _ in range(50):
-            code = backup_utils.generate_backup_code().replace("-", "")
-            for char in code:
-                assert char in allowed_chars, f"Invalid character in code: {char}"
+_ACTION = backup_codes_audit_actions.BACKUP_CODE_USE
 
 
-class TestVerifyAndConsumeBackupCode:
-    """Test suite for verify_and_consume_backup_code function."""
+@pytest.fixture
+def hasher():
+    return credentials_integration.get_password_hasher()
 
-    def test_verify_valid_code_success(self, mock_db, password_hasher):
-        """Test successful verification of valid backup code."""
-        # Arrange
-        user_id = MOCK_USER_ID
-        code = "A3K97BDF"
 
-        mock_code_obj = MagicMock()
-        mock_code_obj.code_hash = password_hasher.hash_password(code)
-        mock_code_obj.used = False
+@pytest.fixture
+def used_events() -> list[Event]:
+    """The backup-code-used events published during the test, as the bus delivers them."""
+    events: list[Event] = []
+    jasil_runtime.get_active_platform().events.subscribe(backup_codes_events.BACKUP_CODE_USED, events.append)
+    return events
 
-        with (
-            patch.object(backup_crud, "get_user_unused_backup_codes", return_value=[mock_code_obj]),
-            patch.object(backup_crud, "mark_backup_code_as_used") as mock_mark_used,
-        ):
-            # Act
-            result = backup_utils.verify_and_consume_backup_code(user_id, code, password_hasher, mock_db)
 
-            # Assert
-            assert result is True
-            mock_mark_used.assert_called_once_with(mock_code_obj.id, user_id, mock_db)
+class _CountingVerifier:
+    """Verifies with the real hasher and counts the hashes it was asked about."""
 
-    def test_a_code_consumed_by_a_concurrent_request_is_rejected(self, mock_db, password_hasher):
-        """Losing the race for a code is a rejection, not an error."""
-        code = "A3K97BDF"
-        mock_code_obj = MagicMock()
-        mock_code_obj.code_hash = password_hasher.hash_password(code)
+    def __init__(self, hasher) -> None:
+        self._hasher = hasher
+        self.calls = 0
 
-        with (
-            patch.object(backup_crud, "get_user_unused_backup_codes", return_value=[mock_code_obj]),
-            patch.object(
-                backup_crud, "mark_backup_code_as_used", side_effect=core_exceptions.NotFoundError("already used")
-            ),
-        ):
-            assert backup_utils.verify_and_consume_backup_code(MOCK_USER_ID, code, password_hasher, mock_db) is False
+    def verify_password(self, candidate: str, password_hash: str) -> bool:
+        self.calls += 1
+        return self._hasher.verify_password(candidate, password_hash)
 
-    def test_verify_invalid_code_failure(self, mock_db, password_hasher):
-        """Test verification fails with invalid code."""
-        # Arrange
-        user_id = MOCK_USER_ID
-        correct_code = "A3K97BDF"
-        wrong_code = "WRONGCOD"
 
-        mock_code_obj = MagicMock()
-        mock_code_obj.code_hash = password_hasher.hash_password(correct_code)
-        mock_code_obj.used = False
+def _stored(db, user_id) -> list[backup_codes_models.MFABackupCode]:
+    return list(
+        db.scalars(
+            sa.select(backup_codes_models.MFABackupCode).where(backup_codes_models.MFABackupCode.user_id == user_id)
+        )
+    )
 
-        with (
-            patch.object(backup_crud, "get_user_unused_backup_codes", return_value=[mock_code_obj]),
-            patch.object(backup_crud, "mark_backup_code_as_used") as mock_mark_used,
-        ):
-            # Act
-            result = backup_utils.verify_and_consume_backup_code(user_id, wrong_code, password_hasher, mock_db)
 
-            # Assert
-            assert result is False
-            mock_mark_used.assert_not_called()
+class TestGenerate:
+    def test_a_code_is_two_groups_of_four_from_the_alphabet_without_ambiguous_characters(self):
+        allowed = set(string.ascii_uppercase + string.digits) - set("01OI")
 
-    def test_verify_no_unused_codes(self, mock_db, password_hasher):
-        """Test verification fails when no unused codes exist."""
-        # Arrange
-        user_id = MOCK_USER_ID
-        code = "A3K97BDF"
+        codes = [backup_codes_service.generate_backup_code() for _ in range(200)]
 
-        with (
-            patch.object(backup_crud, "get_user_unused_backup_codes", return_value=[]),
-            patch.object(backup_crud, "mark_backup_code_as_used") as mock_mark_used,
-        ):
-            # Act
-            result = backup_utils.verify_and_consume_backup_code(user_id, code, password_hasher, mock_db)
+        assert all(len(code) == 9 and code[4] == "-" for code in codes)
+        assert all(set(code.replace("-", "")) <= allowed for code in codes)
+        assert len(set(codes)) == len(codes)
 
-            # Assert
-            assert result is False
-            mock_mark_used.assert_not_called()
 
-    def test_verify_multiple_codes_finds_match(self, mock_db, password_hasher):
-        """Test verification finds correct code among multiple codes."""
-        # Arrange
-        user_id = MOCK_USER_ID
-        correct_code = "CORRECT9"
+class TestCreate:
+    def test_ten_codes_are_returned_once_and_only_their_hashes_are_stored(self, db, hasher):
+        user = make_user(db)
 
-        mock_codes = []
-        for code_str in ["WRONG111", "WRONG222", correct_code, "WRONG333"]:
-            mock_code = MagicMock()
-            mock_code.code_hash = password_hasher.hash_password(code_str)
-            mock_code.used = False
-            mock_codes.append(mock_code)
+        codes = backup_codes_service.create_backup_codes(user.id, hasher, db)
 
-        with (
-            patch.object(backup_crud, "get_user_unused_backup_codes", return_value=mock_codes),
-            patch.object(backup_crud, "mark_backup_code_as_used") as mock_mark_used,
-        ):
-            # Act
-            result = backup_utils.verify_and_consume_backup_code(user_id, correct_code, password_hasher, mock_db)
+        stored = _stored(db, user.id)
+        assert len(codes) == len(set(codes)) == len(stored) == 10
+        assert not set(codes) & {row.code_hash for row in stored}
+        assert all(any(hasher.verify_password(code, row.code_hash) for row in stored) for code in codes[:2])
 
-            # Assert
-            assert result is True
-            mock_mark_used.assert_called_once()
+    def test_new_codes_replace_the_old_ones_so_an_old_code_no_longer_works(self, db, hasher):
+        user = make_user(db)
+        old = backup_codes_service.create_backup_codes(user.id, hasher, db)
+        new = backup_codes_service.create_backup_codes(user.id, hasher, db)
 
-    def test_verify_does_not_short_circuit_on_first_match(self, mock_db):
-        """Verification must check every code regardless of match position.
+        assert len(_stored(db, user.id)) == 10
+        assert backup_codes_service.verify_and_consume_backup_code(user.id, old[0], hasher, db) is False
+        assert backup_codes_service.verify_and_consume_backup_code(user.id, new[0], hasher, db) is True
 
-        This guards the constant-time-equivalent property: the number of
-        password verifications must not depend on where (or whether) a match
-        is found, so an attacker cannot infer remaining-code count or match
-        position from response latency.
-        """
-        # Arrange: the FIRST code is the valid one. A short-circuiting
-        # implementation would verify only once; the hardened version must
-        # still verify all four hashes.
-        user_id = MOCK_USER_ID
-        correct_code = "CORRECT9"
-        codes_in_order = [correct_code, "WRONG111", "WRONG222", "WRONG333"]
 
-        mock_codes = []
-        for code_str in codes_in_order:
-            mock_code = MagicMock()
-            mock_code.id = uuid.uuid4()
-            mock_code.code_hash = f"hash-for-{code_str}"
-            mock_code.used = False
-            mock_codes.append(mock_code)
+class TestVerifyAndConsume:
+    def test_a_valid_code_is_consumed_audited_with_the_number_left_and_announced(self, db, hasher, used_events):
+        user = make_user(db)
+        codes = backup_codes_service.create_backup_codes(user.id, hasher, db)
 
-        # A verifier that returns True only for the matching hash and counts
-        # how many times it was invoked.
-        verify_calls: list[str] = []
+        assert backup_codes_service.verify_and_consume_backup_code(user.id, codes[3], hasher, db) is True
+        db.commit()
 
-        class CountingVerifier:
+        assert sum(row.used for row in _stored(db, user.id)) == 1
+        (row,) = audit_rows_of(db, _ACTION.id)
+        assert (row.outcome, row.target_type, row.target_id, row.target_owner_id) == (
+            "success",
+            "user",
+            str(user.id),
+            str(user.id),
+        )
+        assert row.details == {"remaining_codes": 9}
+        assert codes[3] not in repr(row.details)
+        (event,) = used_events
+        assert event.payload == {"user_id": str(user.id), "backup_codes_remaining": 9}
+        assert codes[3] not in repr(event)
+
+    def test_a_consumed_code_is_refused_the_second_time(self, db, hasher, used_events):
+        user = make_user(db)
+        codes = backup_codes_service.create_backup_codes(user.id, hasher, db)
+        assert backup_codes_service.verify_and_consume_backup_code(user.id, codes[0], hasher, db) is True
+
+        assert backup_codes_service.verify_and_consume_backup_code(user.id, codes[0], hasher, db) is False
+        assert backup_codes_service.verify_and_consume_backup_code(user.id, codes[1], hasher, db) is True
+        db.commit()
+
+        assert [row.details["remaining_codes"] for row in audit_rows_of(db, _ACTION.id)] == [9, 8]
+        assert len(used_events) == 2
+
+    def test_a_wrong_code_and_another_users_code_consume_nothing_and_write_nothing(self, db, hasher, used_events):
+        user, other = make_user(db), make_user(db)
+        backup_codes_service.create_backup_codes(user.id, hasher, db)
+        theirs = backup_codes_service.create_backup_codes(other.id, hasher, db)
+
+        assert backup_codes_service.verify_and_consume_backup_code(user.id, "WRNG-CODE", hasher, db) is False
+        assert backup_codes_service.verify_and_consume_backup_code(user.id, theirs[0], hasher, db) is False
+        db.commit()
+
+        assert not any(row.used for row in _stored(db, user.id))
+        assert audit_rows_of(db, _ACTION.id) == []
+        assert used_events == []
+
+    def test_an_expired_code_is_refused(self, db, hasher):
+        user = make_user(db)
+        codes = backup_codes_service.create_backup_codes(user.id, hasher, db)
+        db.execute(
+            sa.update(backup_codes_models.MFABackupCode).values(expires_at=datetime.now(UTC) - timedelta(seconds=1))
+        )
+
+        assert backup_codes_service.verify_and_consume_backup_code(user.id, codes[0], hasher, db) is False
+
+    def test_a_user_without_codes_is_refused(self, db, hasher):
+        assert backup_codes_service.verify_and_consume_backup_code(make_user(db).id, "AAAA-BBBB", hasher, db) is False
+
+    def test_every_unused_hash_is_verified_whatever_the_position_of_the_match(self, db, hasher):
+        user = make_user(db)
+        codes = backup_codes_service.create_backup_codes(user.id, hasher, db)
+        unused = len(backup_codes_crud.get_user_unused_backup_codes(user.id, db))
+        matching, missing = _CountingVerifier(hasher), _CountingVerifier(hasher)
+
+        assert backup_codes_service.verify_and_consume_backup_code(user.id, codes[0], matching, db) is True
+        assert backup_codes_service.verify_and_consume_backup_code(user.id, "WRNG-CODE", missing, db) is False
+
+        assert matching.calls == unused
+        assert missing.calls == unused - 1
+
+    def test_a_code_consumed_by_a_concurrent_request_is_refused_and_writes_nothing(
+        self, committed_sessions, hasher, used_events
+    ):
+        with committed_sessions() as db:
+            user = make_user(db)
+            codes = backup_codes_service.create_backup_codes(user.id, hasher, db)
+            db.commit()
+
+        class RacingVerifier:
+            """Another request consumes the matching code while this one is still verifying."""
+
             def verify_password(self, candidate: str, password_hash: str) -> bool:
-                verify_calls.append(password_hash)
-                return password_hash == f"hash-for-{candidate}"
+                matched = hasher.verify_password(candidate, password_hash)
+                if matched:
+                    with committed_sessions() as other:
+                        row = other.scalars(
+                            sa.select(backup_codes_models.MFABackupCode).where(
+                                backup_codes_models.MFABackupCode.code_hash == password_hash
+                            )
+                        ).one()
+                        backup_codes_crud.mark_backup_code_as_used(row.id, user.id, other)
+                        other.commit()
+                return matched
 
-        verifier = CountingVerifier()
+        with committed_sessions() as db:
+            assert backup_codes_service.verify_and_consume_backup_code(user.id, codes[0], RacingVerifier(), db) is False
+            db.commit()
 
-        with (
-            patch.object(backup_crud, "get_user_unused_backup_codes", return_value=mock_codes),
-            patch.object(backup_crud, "mark_backup_code_as_used") as mock_mark_used,
-        ):
-            # Act
-            result = backup_utils.verify_and_consume_backup_code(user_id, correct_code, verifier, mock_db)
-
-            # Assert
-            assert result is True
-            # Every stored hash must have been verified (no early break).
-            assert len(verify_calls) == len(mock_codes)
-            # The first (matching) code is the one consumed.
-            mock_mark_used.assert_called_once_with(mock_codes[0].id, user_id, mock_db)
+        with committed_sessions() as db:
+            assert audit_rows_of(db, _ACTION.id) == []
+            assert sum(row.used for row in _stored(db, user.id)) == 1
+        assert used_events == []
