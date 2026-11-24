@@ -427,7 +427,7 @@ def rate_limit_exceeded_handler(
         JSON response with 429 status and rate-limit
         headers attached when available.
     """
-    logger.warning(
+    logger.info(
         "Rate limit exceeded",
         extra=core_logger.context(caller=_get_rate_limit_key(request), method=request.method, path=request.url.path),
     )

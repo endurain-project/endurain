@@ -156,7 +156,7 @@ class TestRateLimitExceededHandler:
             if r.name.endswith("core.rate_limit") and r.getMessage() == "Rate limit exceeded"
         }.values()
         (record,) = records
-        assert record.levelname == "WARNING"
+        assert record.levelname == "INFO"
         fields = record.__dict__
         assert fields["caller"] == "testclient"
         assert (fields["method"], fields["path"]) == ("GET", "/limited")

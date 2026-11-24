@@ -8,6 +8,7 @@ import jasil.settings as jasil_settings
 import pytest
 from jasil.backends.mail_memory import NullMail
 
+import core.logger as core_logger
 import core.mail as core_mail
 
 
@@ -135,6 +136,20 @@ class TestMailProblems:
 
         assert problems
         assert all("secret" not in p and "bad address" not in p and "me@example.com" not in p for p in problems)
+
+
+class TestNotConfiguredLevel:
+    """An instance without mail is a setting the admin page reports, not a fault: one INFO line, off the console."""
+
+    def test_a_message_without_mail_configured_is_an_info_line_not_mirrored_to_the_console(self, caplog):
+        mail = _RefusingMail(platform_providers.MailNotConfiguredError("not configured"))
+
+        with caplog.at_level("DEBUG", logger=core_mail.logger.name):
+            assert _send(mail) is False
+
+        (record,) = caplog.records
+        assert record.levelname == "INFO"
+        assert not getattr(record, core_logger.CONSOLE_FIELD, False)
 
 
 class TestRefusalLevels:
