@@ -4,6 +4,7 @@ The route and the handlers are the production ones; the outbox row a request lea
 worker receives, and handed to the handler the registry holds. Nothing runs on the in-process pool.
 """
 
+import logging
 import threading
 import uuid
 from datetime import UTC, datetime, timedelta
@@ -206,6 +207,27 @@ class TestAnAcceptedRefresh:
         row = read_job(committed_sessions, uuid.UUID(response.json()["id"]))
         assert (row.status, row.error_code) == ("deferred", None)
         assert row.retry_after > datetime.now(UTC)
+
+    def test_a_deferral_is_one_info_line_as_the_provider_already_reported_its_limit(
+        self, me, registry, stub_provider, committed_sessions, app_log
+    ):
+        stub_provider.link(me.user.id)
+        stub_provider.failure = core_exceptions.TooManyRequestsError(
+            "Provider rate limit", scope=core_exceptions.TooManyRequestsScope.PROVIDER, retry_at=None
+        )
+        response = me.client.post(f"{_API}/activities/refresh")
+        (event,) = queued_events(committed_sessions)
+
+        registry.get(ingestion_subscribers.REFRESH_REQUESTED_SUBSCRIBER_ID)(event)
+
+        lines = [
+            record
+            for record in app_log.records
+            if record.levelno > logging.DEBUG and "rate limit" in record.getMessage().lower()
+        ]
+        assert [(record.levelno, record.getMessage(), record.job_id) for record in lines] == [
+            (logging.INFO, "Provider refresh deferred until the rate limit clears", uuid.UUID(response.json()["id"]))
+        ]
 
     def test_a_provider_failure_is_raised_for_the_retry_and_the_job_stays_claimable(
         self, me, registry, stub_provider, committed_sessions

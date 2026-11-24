@@ -577,14 +577,17 @@ class TestRegisteringAProvider:
         assert left.calls[0][1:] == right.calls[0][1:]
 
 
-class TestARateLimitIsAWarning:
-    def test_it_is_logged_as_a_warning_not_an_error(self, me, stub_provider, pool, caplog):
+class TestARateLimitIsNotAFailure:
+    def test_the_deferral_is_logged_at_info_and_nothing_at_warning_or_above(self, me, stub_provider, pool, app_log):
         stub_provider.link(me.user.id)
         stub_provider.failure = _rate_limited(datetime.now(UTC) + timedelta(hours=1))
 
-        with caplog.at_level(logging.WARNING):
-            _refresh(me)
-            pool.drain()
+        _refresh(me)
+        pool.drain()
 
-        assert [record for record in caplog.records if record.levelno >= logging.ERROR] == []
-        assert any("rate limited" in record.getMessage() for record in caplog.records)
+        assert [record for record in app_log.records if record.levelno >= logging.WARNING] == []
+        assert any(
+            (record.levelno, record.getMessage())
+            == (logging.INFO, "Provider refresh deferred until the rate limit clears")
+            for record in app_log.records
+        )

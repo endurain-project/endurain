@@ -756,7 +756,7 @@ def defer_ingestion_job(job_id: uuid.UUID, retry_at: datetime) -> None:
     with core_database.SessionLocal() as db:
         activity_ingestion_crud.mark_deferred(job_id, retry_at, db)
         db.commit()
-    logger.warning(
+    logger.info(
         "Provider refresh deferred until the rate limit clears",
         extra=core_logger.context(job_id=job_id, retry_at=retry_at),
     )

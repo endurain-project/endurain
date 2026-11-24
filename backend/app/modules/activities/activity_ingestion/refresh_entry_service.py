@@ -111,7 +111,8 @@ def sync_linked_providers(
         try:
             produced = candidate.fetch_window(user_id, start, end)
         except core_exceptions.TooManyRequestsError as err:
-            logger.warning(
+            # The provider reported the limit when it was hit, and the job's deferral is logged once.
+            logger.debug(
                 "Provider is rate limited; the refresh waits for the limit to clear",
                 extra=core_logger.context(user_id=user_id, provider=candidate.name, retry_at=err.retry_at),
             )
