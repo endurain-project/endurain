@@ -205,9 +205,9 @@ class LapMetrics(TypedDict):
         total_ascent: Total ascent in metres.
         total_descent: Total descent in metres.
         normalized_power: Normalized power.
-        enhanced_avg_pace: Average pace (min/km).
+        enhanced_avg_pace: Average pace (s/m).
         enhanced_avg_speed: Average speed (m/s).
-        enhanced_max_pace: Maximum pace (min/km).
+        enhanced_max_pace: Maximum pace (s/m).
         enhanced_max_speed: Maximum speed (m/s).
     """
 

@@ -209,12 +209,12 @@ class Activity(UpdatedAtMixin, Base):
     average_speed: Mapped[Decimal | None] = mapped_column(
         DECIMAL(precision=20, scale=10),
         nullable=True,
-        comment="Average speed seconds per meter (s/m)",
+        comment="Average speed in meters per second (m/s)",
     )
     max_speed: Mapped[Decimal | None] = mapped_column(
         DECIMAL(precision=20, scale=10),
         nullable=True,
-        comment="Max speed seconds per meter (s/m)",
+        comment="Max speed in meters per second (m/s)",
     )
     average_power: Mapped[int | None] = mapped_column(
         nullable=True,

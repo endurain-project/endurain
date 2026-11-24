@@ -10,7 +10,7 @@ import migrations.startup as migrations_startup
 from tests._helpers import alembic_chain
 
 _RETIREMENT_REVISION = "50ac9225ce4f"
-_HEAD_REVISION = "3c9e5a7d1f20"
+_HEAD_REVISION = "86ddd2645a0c"
 _DATA_MIGRATIONS = (11, 12, 13, 14)
 _SUBSTRATE_TABLES = ("event_log", "event_outbox", "processing_jobs", "job_attempts", "job_workers")
 
@@ -133,9 +133,26 @@ def test_the_baseline_alone_differs_from_the_models_only_where_v0_22_changes_the
         if isinstance(entry, list)
         for change in entry
     ]
-    # The baseline's nickname index is ``lower(nickname)``, and its workout step duration type is required.
+    # The baseline's nickname index is ``lower(nickname)``, its workout step duration type is required, and its
+    # speed columns are commented as seconds per meter.
     assert indexes == {("remove_index", "uq_gear_user_nickname"), ("add_index", "uq_gear_user_nickname")}
-    assert columns == [("modify_nullable", "activity_workout_steps", "duration_type", False, True)]
+    assert columns == [
+        (
+            "modify_comment",
+            "activities",
+            "average_speed",
+            "Average speed seconds per meter (s/m)",
+            "Average speed in meters per second (m/s)",
+        ),
+        (
+            "modify_comment",
+            "activities",
+            "max_speed",
+            "Max speed seconds per meter (s/m)",
+            "Max speed in meters per second (m/s)",
+        ),
+        ("modify_nullable", "activity_workout_steps", "duration_type", False, True),
+    ]
     tables = _tables(upgrade_db)
     assert not tables & {*_SUBSTRATE_TABLES, "uuid_migration_ids"}
     assert not {name for name in tables if name.startswith("jasil_")}
