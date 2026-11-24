@@ -111,6 +111,7 @@ class GarminSource:
     rather than on a file content hash.
 
     Attributes:
+        activity_id: The Garmin Connect activity id the file was downloaded for.
         gear_id: Internal gear id the Garmin sync already resolved from the
             activity's synced gear, when the athlete has gear sync enabled.
             Resolved provider-side so ingestion never has to ask a provider
@@ -119,6 +120,7 @@ class GarminSource:
         activity_name: Optional override for the parsed activity's name.
     """
 
+    activity_id: int
     gear_id: uuid.UUID | None = None
     provider_gear_id: str | None = None
     activity_name: str | None = None

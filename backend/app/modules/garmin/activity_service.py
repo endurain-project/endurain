@@ -93,6 +93,7 @@ def _download_and_ingest_activity(
                     file_path=str(full_file_path),
                     db=db,
                     source=activity_ingestion_integration.GarminSource(
+                        activity_id=int(activity_id),
                         # Resolved here rather than inside ingestion: which local gear
                         # a Garmin UUID maps to (and whether gear sync is even on) is
                         # this module's knowledge, not the pipeline's.

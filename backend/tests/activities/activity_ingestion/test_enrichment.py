@@ -96,10 +96,26 @@ class TestAGarminFile:
                 owner.user.id,
                 str(path),
                 db,
-                source=ingestion_integration.GarminSource(gear_id=synced_gear.id, provider_gear_id="garmin-gear-1"),
+                source=ingestion_integration.GarminSource(
+                    activity_id=555, gear_id=synced_gear.id, provider_gear_id="garmin-gear-1"
+                ),
             )
 
         assert created is not None
         (activity,) = activities_of(committed_sessions, owner.user.id)
         assert (activity.garminconnect_activity_id, activity.garminconnect_gear_id) == (555, "garmin-gear-1")
         assert activity.gear_id == synced_gear.id
+
+    def test_takes_the_activity_id_from_the_source_not_the_file_name(self, owner, committed_sessions, tmp_path):
+        owner, _shoes = owner
+        path = tmp_path / "ride.gpx"
+        path.write_bytes(activity_gpx())
+
+        with committed_sessions() as db:
+            created = ingestion_integration.ingest_activity_file(
+                owner.user.id, str(path), db, source=ingestion_integration.GarminSource(activity_id=777)
+            )
+
+        assert created is not None
+        (activity,) = activities_of(committed_sessions, owner.user.id)
+        assert activity.garminconnect_activity_id == 777

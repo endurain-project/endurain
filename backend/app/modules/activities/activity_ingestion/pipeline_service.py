@@ -165,7 +165,6 @@ def store_activities_from_file(
     *,
     source: activity_ingestion_contracts.IngestionSource,
     storage: platform_providers.StorageProvider,
-    garmin_connect_activity_id: str | None = None,
 ) -> list[activity_schema.ActivityRead] | None:
     """Parse a validated, on-disk activity file and persist its activities.
 
@@ -189,8 +188,6 @@ def store_activities_from_file(
         db: SQLAlchemy database session.
         source: Where the file came from, and any source-specific metadata.
         storage: The blob-storage provider the source file is retained in.
-        garmin_connect_activity_id: Garmin Connect activity id parsed from the
-            filename, for a Garmin sync.
 
     Returns:
         List of created activity schemas, or ``None`` if the file yielded no
@@ -277,7 +274,7 @@ def store_activities_from_file(
         kind=source.kind,
         content_hash=None if garmin_source else core_file_uploads.sha256_file(file_path),
     )
-    garmin_activity_id = int(garmin_connect_activity_id) if garmin_connect_activity_id else None
+    garmin_activity_id = garmin_source.activity_id if garmin_source else None
 
     created_activities: list[activity_schema.ActivityRead] = []
     for parsed in parsed_file.activities:
@@ -405,13 +402,9 @@ def validate_prepare_and_store_file(
     )
 
     # The Strava bulk-import metadata is keyed by the original
-    # (pre-decompression) base filename, and the Garmin activity id is parsed
-    # from it — capture both before any ``.gz`` handling rewrites the path.
+    # (pre-decompression) base filename — capture it before any ``.gz``
+    # handling rewrites the path.
     _, file_base_name = os.path.split(file_path)
-
-    garmin_connect_activity_id = None
-    if isinstance(source, activity_ingestion_contracts.GarminSource):
-        garmin_connect_activity_id = os.path.basename(file_path).split("_")[0]
 
     original_path = file_path
     decompressed_path: str | None = None
@@ -435,7 +428,6 @@ def validate_prepare_and_store_file(
             db,
             source=source,
             storage=storage,
-            garmin_connect_activity_id=garmin_connect_activity_id,
         )
         if decompressed_path is not None:
             # The archive is consumed only once its contents are imported, so a

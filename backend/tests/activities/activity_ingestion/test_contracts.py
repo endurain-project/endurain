@@ -34,7 +34,7 @@ _GEAR_ID = uuid.uuid4()
 class TestSourceKinds:
     def test_each_source_names_its_provenance(self):
         assert sources.UploadSource().kind == "upload"
-        assert sources.GarminSource().kind == "garmin"
+        assert sources.GarminSource(activity_id=1).kind == "garmin"
         assert sources.BulkImportSource().kind == "bulk_import"
 
 
@@ -42,7 +42,7 @@ class TestGarminSource:
     def test_carries_a_gear_id_the_provider_already_resolved(self):
         # Ingestion never asks a provider module which local gear a Garmin UUID
         # maps to; the provider resolves it and hands the id over.
-        source = sources.GarminSource(gear_id=_GEAR_ID, provider_gear_id="uuid-1")
+        source = sources.GarminSource(activity_id=1, gear_id=_GEAR_ID, provider_gear_id="uuid-1")
         assert (source.gear_id, source.provider_gear_id) == (_GEAR_ID, "uuid-1")
 
 
