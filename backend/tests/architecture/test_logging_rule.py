@@ -10,10 +10,9 @@ import ast
 import pathlib
 import re
 
+import core.exceptions as core_exceptions
 from tests._helpers.handlers import own_nodes
 from tests._helpers.module_roles import MODULES, files_with_role, role_of
-
-import core.exceptions as core_exceptions
 
 #: Modules the logging rule applies to: the shared ``MODULES`` list in ``tests/_helpers/module_roles.py``.
 _MODULE_ROOTS = tuple(pathlib.Path("app/modules") / name for name in MODULES)
@@ -95,12 +94,10 @@ _HELPERS_THAT_LOG: dict[str, str] = {
 }
 
 #: Modules whose ``console=True`` records are operator-facing: bulk-import progress (including the Strava export and
-#: gear CSV imports), migrations, the boot
-#: import of deprecated settings and the first-run onboarding setup token.
+#: gear CSV imports), migrations and the first-run onboarding setup token.
 _CONSOLE_ALLOWED_PREFIXES = (
     "activities/activity_ingestion/",
     "auth/onboarding/scheduled_jobs.py",
-    "server_settings/",
     "strava/bulk_import_service.py",
     "strava/gear_service.py",
 )

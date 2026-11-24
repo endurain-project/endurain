@@ -81,7 +81,7 @@ export interface paths {
          *     is answered ``409`` with the running job's ``job_id`` and a ``Content-Location`` naming it.
          *
          *     Send an ``Idempotency-Key`` to make a retry safe: a repeat of the same archive and ``source`` returns the
-         *     original job instead of starting another, and the same key with a different archive is ``409``.
+         *     original job instead of starting another, and the same key with a different archive is ``422``.
          */
         post: operations["create_bulk_import_from_archive"];
         delete?: never;
@@ -1702,7 +1702,7 @@ export interface paths {
          * Create Identity Provider
          * @description Create a new identity provider.
          *
-         *     Needs the administrator's own step-up verification in step_up.
+         *     Needs the administrator's own step-up verification in `step_up`, as a rogue provider can claim accounts.
          */
         post: operations["create_identity_provider"];
         delete?: never;
@@ -1754,7 +1754,7 @@ export interface paths {
          * Update Identity Provider
          * @description Update an existing identity provider.
          *
-         *     Needs the administrator's own step-up verification in step_up.
+         *     Needs the administrator's own step-up verification in `step_up`, as a rogue provider can claim accounts.
          */
         patch: operations["update_identity_provider"];
         trace?: never;
@@ -3226,6 +3226,14 @@ export interface paths {
          *
          *     This endpoint processes the OAuth authorization callback from external identity providers.
          *     It finishes a login, a link of the provider to the signed-in account, or a step-up re-authentication.
+         *
+         *     Every outcome is an HTTP 307 redirect, so the browser never ends on a JSON error once the state is claimed:
+         *
+         *     - Link: back to `/settings` without a new session.
+         *     - Login: to `/login` with a `session_id`; the client exchanges it, with its PKCE verifier, at the `/tokens`
+         *       endpoint for the JWT tokens.
+         *     - Step-up: to the page that started it, with the ticket or the error in the fragment.
+         *     - Failure: to `/login` with an `error` parameter.
          */
         get: operations["handle_callback"];
         put?: never;
@@ -5831,7 +5839,7 @@ export interface components {
              */
             activity_id: string;
             /** Duration Type */
-            duration_type: string;
+            duration_type?: string | null;
             /**
              * Duration Value
              * @description Duration of the step, in the unit its duration_type names (seconds, meters and so on)
@@ -7901,7 +7909,7 @@ export interface components {
             sleep_score_quality?: components["schemas"]["SleepScore"] | null;
             /**
              * Sleep Stages
-             * @description List of sleep stages
+             * @description List of sleep stages, at most 1440: one per minute of a day, the finest granularity of a stage
              */
             sleep_stages?: components["schemas"]["HealthSleepStageWrite"][] | null;
             /**
@@ -8318,7 +8326,7 @@ export interface components {
             sleep_score_quality?: components["schemas"]["SleepScore"] | null;
             /**
              * Sleep Stages
-             * @description List of sleep stages
+             * @description List of sleep stages, at most 1440: one per minute of a day, the finest granularity of a stage
              */
             sleep_stages?: components["schemas"]["HealthSleepStage"][] | null;
             /**
@@ -8388,6 +8396,7 @@ export interface components {
             duration_seconds?: number | null;
             /**
              * End Time Gmt
+             * Format: date-time
              * @description End time of the stage in GMT
              */
             end_time_gmt?: string | null;
@@ -8395,6 +8404,7 @@ export interface components {
             stage_type?: components["schemas"]["SleepStageType"] | null;
             /**
              * Start Time Gmt
+             * Format: date-time
              * @description Start time of the stage in GMT
              */
             start_time_gmt?: string | null;
@@ -8568,7 +8578,7 @@ export interface components {
             sleep_score_quality?: components["schemas"]["SleepScore"] | null;
             /**
              * Sleep Stages
-             * @description List of sleep stages
+             * @description List of sleep stages, at most 1440: one per minute of a day, the finest granularity of a stage
              */
             sleep_stages?: components["schemas"]["HealthSleepStageWrite"][] | null;
             /**
@@ -9777,9 +9787,8 @@ export interface components {
             /**
              * Auto Create Users
              * @description Auto-create users on first login
-             * @default true
              */
-            auto_create_users: boolean;
+            auto_create_users?: boolean | null;
             /** Client Id */
             client_id?: string | null;
             /** Client Secret */
@@ -9787,9 +9796,8 @@ export interface components {
             /**
              * Enabled
              * @description Whether this provider is enabled
-             * @default false
              */
-            enabled: boolean;
+            enabled?: boolean | null;
             /**
              * Icon
              * @description Built-in icon key
@@ -9802,45 +9810,38 @@ export interface components {
             issuer_url?: string | null;
             /**
              * Link By Email
-             * @description Link a sign-in that has no link yet to the local account with the same verified email. When off, that sign-in is refused and the user links the provider from their settings
-             * @default false
+             * @description Link a sign-in that has no link yet to the local account with the same verified email
              */
-            link_by_email: boolean;
+            link_by_email?: boolean | null;
             /**
              * Name
              * @description Display name of the IdP
              */
-            name: string;
-            /**
-             * @description Protocol of the provider: oidc, or oauth2. With the openid scope an oauth2 provider's sign-in must carry a verified ID token too
-             * @default oidc
-             */
-            provider_type: components["schemas"]["ProviderType"];
+            name?: string | null;
+            /** @description Protocol of the provider: oidc, or oauth2 */
+            provider_type?: components["schemas"]["ProviderType"] | null;
             /**
              * Scopes
              * @description OAuth2/OIDC scopes
-             * @default openid profile email
              */
-            scopes: string;
+            scopes?: string | null;
             /**
              * Slug
              * @description URL-safe identifier
              */
-            slug: string;
+            slug?: string | null;
             /** @description The administrator's step-up verification, required to edit an identity provider */
             step_up: components["schemas"]["StepUpVerification"];
             /**
              * Sync Email
              * @description Sync the email the provider verified onto the local account on each login
-             * @default false
              */
-            sync_email: boolean;
+            sync_email?: boolean | null;
             /**
              * Sync User Info
              * @description Sync the mapped profile fields, except the email, on each login
-             * @default true
              */
-            sync_user_info: boolean;
+            sync_user_info?: boolean | null;
             /**
              * Token Endpoint
              * @description OAuth2/OIDC token endpoint
@@ -10501,20 +10502,11 @@ export interface components {
          *         username: Authentication username.
          *         from_address: Sender address, or null when the username is used.
          *         password_set: Whether a password is stored.
-         *         env_managed: Field name to the environment variable that sets it; those
-         *             fields cannot be edited while the variable is set.
          *         email_status: Whether outgoing email is usable with these settings; read-only.
          */
         MailSettingsAdminRead: {
             /** @description Whether outgoing email is usable with these settings */
             email_status: components["schemas"]["EmailStatus"];
-            /**
-             * Env Managed
-             * @description Field name to the environment variable that sets it (not editable while set)
-             */
-            env_managed: {
-                [key: string]: string;
-            };
             /** From Address */
             from_address: string | null;
             /** Host */
@@ -11676,8 +11668,6 @@ export interface components {
          *         version: Optimistic-concurrency counter, also sent as the ``ETag``.
          *         tileserver_api_key_set: Whether a tile API key is stored.
          *         geocoding_api_key_set: Whether a geocoding API key is stored.
-         *         env_managed: Field name to the environment variable that sets it; those
-         *             fields cannot be edited while the variable is set.
          *         signup_sso_enabled: Allow identity providers to create accounts at first sign-in.
          *         signup_require_admin_approval: Require admin approval for new sign-ups.
          *         signup_require_email_verification: Require email verification for new sign-ups.
@@ -11699,13 +11689,6 @@ export interface components {
             api_key_max_lifetime_days: number;
             /** @description Currency (euro, dollar, pound) */
             currency: components["schemas"]["Currency"];
-            /**
-             * Env Managed
-             * @description Field name to the environment variable that sets it (not editable while set)
-             */
-            env_managed: {
-                [key: string]: string;
-            };
             /**
              * Geocoding Api Key Set
              * @description Is a geocoding API key stored (true - yes, false - no)
@@ -15065,6 +15048,15 @@ export interface operations {
                     "application/json": components["schemas"]["ActivitiesBulkEditStatus"];
                 };
             };
+            /** @description The body names no field to change. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
             /** @description The credential is missing, invalid or no longer valid. */
             401: {
                 headers: {
@@ -15156,7 +15148,7 @@ export interface operations {
                 source?: string;
             };
             header?: {
-                /** @description Optional client-generated key. Replaying a request with the same key returns the original job instead of importing the file again. */
+                /** @description Optional client-generated key, a quoted string of 1 to 255 printable ASCII characters (`"8e03978e"`). A repeat of the same request with the same key is answered with the first outcome instead of being done twice; the same key with another request is refused. */
                 "Idempotency-Key"?: string | null;
             };
             path?: never;
@@ -15179,6 +15171,15 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ActivityIngestionJobRead"];
+                };
+            };
+            /** @description The request is refused. A malformed `Idempotency-Key` is refused with this status. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
                 };
             };
             /** @description The credential is missing, invalid or no longer valid. */
@@ -15228,7 +15229,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["ProblemDetail"];
                 };
             };
-            /** @description Validation Error */
+            /** @description The request does not match the schema. An `Idempotency-Key` already used for a different request is refused with this status. */
             422: {
                 headers: {
                     [name: string]: unknown;
@@ -15810,7 +15811,7 @@ export interface operations {
         parameters: {
             query?: never;
             header?: {
-                /** @description Optional client-generated key. Replaying a request with the same key returns the original job instead of importing the file again. */
+                /** @description Optional client-generated key, a quoted string of 1 to 255 printable ASCII characters (`"8e03978e"`). A repeat of the same request with the same key is answered with the first outcome instead of being done twice; the same key with another request is refused. */
                 "Idempotency-Key"?: string | null;
             };
             path?: never;
@@ -15833,6 +15834,15 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ActivityIngestionJobRead"];
+                };
+            };
+            /** @description The request is refused. A malformed `Idempotency-Key` is refused with this status. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
                 };
             };
             /** @description The credential is missing, invalid or no longer valid. */
@@ -15882,7 +15892,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["ProblemDetail"];
                 };
             };
-            /** @description Validation Error */
+            /** @description The request does not match the schema. An `Idempotency-Key` already used for a different request is refused with this status. */
             422: {
                 headers: {
                     [name: string]: unknown;
@@ -18764,7 +18774,10 @@ export interface operations {
     create_gear_component: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                /** @description Optional client-generated key, a quoted string of 1 to 255 printable ASCII characters (`"8e03978e"`). A repeat of the same request with the same key is answered with the first outcome instead of being done twice; the same key with another request is refused. */
+                "Idempotency-Key"?: string | null;
+            };
             path?: never;
             cookie?: never;
         };
@@ -18785,6 +18798,15 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["GearComponentRead"];
+                };
+            };
+            /** @description The request is refused. A malformed `Idempotency-Key` is refused with this status. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
                 };
             };
             /** @description The credential is missing, invalid or no longer valid. */
@@ -18825,7 +18847,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["ProblemDetail"];
                 };
             };
-            /** @description Validation Error */
+            /** @description The request does not match the schema. An `Idempotency-Key` already used for a different request is refused with this status. */
             422: {
                 headers: {
                     [name: string]: unknown;
@@ -19418,7 +19440,10 @@ export interface operations {
     create_gear: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                /** @description Optional client-generated key, a quoted string of 1 to 255 printable ASCII characters (`"8e03978e"`). A repeat of the same request with the same key is answered with the first outcome instead of being done twice; the same key with another request is refused. */
+                "Idempotency-Key"?: string | null;
+            };
             path?: never;
             cookie?: never;
         };
@@ -19439,6 +19464,15 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["GearRead"];
+                };
+            };
+            /** @description The request is refused. A malformed `Idempotency-Key` is refused with this status. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
                 };
             };
             /** @description The credential is missing, invalid or no longer valid. */
@@ -19479,7 +19513,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["ProblemDetail"];
                 };
             };
-            /** @description Validation Error */
+            /** @description The request does not match the schema. An `Idempotency-Key` already used for a different request is refused with this status. */
             422: {
                 headers: {
                     [name: string]: unknown;
@@ -20157,7 +20191,10 @@ export interface operations {
     create_health_fasting: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                /** @description Optional client-generated key, a quoted string of 1 to 255 printable ASCII characters (`"8e03978e"`). A repeat of the same request with the same key is answered with the first outcome instead of being done twice; the same key with another request is refused. */
+                "Idempotency-Key"?: string | null;
+            };
             path?: never;
             cookie?: never;
         };
@@ -20178,6 +20215,15 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HealthFastingRead"];
+                };
+            };
+            /** @description The request is refused. A malformed `Idempotency-Key` is refused with this status. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
                 };
             };
             /** @description The credential is missing, invalid or no longer valid. */
@@ -20218,7 +20264,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["ProblemDetail"];
                 };
             };
-            /** @description Validation Error */
+            /** @description The request does not match the schema. An `Idempotency-Key` already used for a different request is refused with this status. */
             422: {
                 headers: {
                     [name: string]: unknown;
@@ -21036,7 +21082,10 @@ export interface operations {
     create_health_poop: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                /** @description Optional client-generated key, a quoted string of 1 to 255 printable ASCII characters (`"8e03978e"`). A repeat of the same request with the same key is answered with the first outcome instead of being done twice; the same key with another request is refused. */
+                "Idempotency-Key"?: string | null;
+            };
             path?: never;
             cookie?: never;
         };
@@ -21057,6 +21106,15 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HealthPoopRead"];
+                };
+            };
+            /** @description The request is refused. A malformed `Idempotency-Key` is refused with this status. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
                 };
             };
             /** @description The credential is missing, invalid or no longer valid. */
@@ -21097,7 +21155,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["ProblemDetail"];
                 };
             };
-            /** @description Validation Error */
+            /** @description The request does not match the schema. An `Idempotency-Key` already used for a different request is refused with this status. */
             422: {
                 headers: {
                     [name: string]: unknown;
@@ -21708,7 +21766,10 @@ export interface operations {
     create_health_sleep: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                /** @description Optional client-generated key, a quoted string of 1 to 255 printable ASCII characters (`"8e03978e"`). A repeat of the same request with the same key is answered with the first outcome instead of being done twice; the same key with another request is refused. */
+                "Idempotency-Key"?: string | null;
+            };
             path?: never;
             cookie?: never;
         };
@@ -21729,6 +21790,15 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HealthSleepRead"];
+                };
+            };
+            /** @description The request is refused. A malformed `Idempotency-Key` is refused with this status. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
                 };
             };
             /** @description The credential is missing, invalid or no longer valid. */
@@ -21769,7 +21839,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["ProblemDetail"];
                 };
             };
-            /** @description Validation Error */
+            /** @description The request does not match the schema. An `Idempotency-Key` already used for a different request is refused with this status. */
             422: {
                 headers: {
                     [name: string]: unknown;
@@ -22544,7 +22614,10 @@ export interface operations {
     create_health_steps: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                /** @description Optional client-generated key, a quoted string of 1 to 255 printable ASCII characters (`"8e03978e"`). A repeat of the same request with the same key is answered with the first outcome instead of being done twice; the same key with another request is refused. */
+                "Idempotency-Key"?: string | null;
+            };
             path?: never;
             cookie?: never;
         };
@@ -22565,6 +22638,15 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HealthStepsRead"];
+                };
+            };
+            /** @description The request is refused. A malformed `Idempotency-Key` is refused with this status. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
                 };
             };
             /** @description The credential is missing, invalid or no longer valid. */
@@ -22605,7 +22687,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["ProblemDetail"];
                 };
             };
-            /** @description Validation Error */
+            /** @description The request does not match the schema. An `Idempotency-Key` already used for a different request is refused with this status. */
             422: {
                 headers: {
                     [name: string]: unknown;
@@ -23250,6 +23332,15 @@ export interface operations {
                     "application/problem+json": components["schemas"]["ProblemDetail"];
                 };
             };
+            /** @description The user has no health targets yet. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
             /** @description The request conflicts with the current state. */
             409: {
                 headers: {
@@ -23428,7 +23519,10 @@ export interface operations {
     create_health_water: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                /** @description Optional client-generated key, a quoted string of 1 to 255 printable ASCII characters (`"8e03978e"`). A repeat of the same request with the same key is answered with the first outcome instead of being done twice; the same key with another request is refused. */
+                "Idempotency-Key"?: string | null;
+            };
             path?: never;
             cookie?: never;
         };
@@ -23449,6 +23543,15 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HealthWaterRead"];
+                };
+            };
+            /** @description The request is refused. A malformed `Idempotency-Key` is refused with this status. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
                 };
             };
             /** @description The credential is missing, invalid or no longer valid. */
@@ -23489,7 +23592,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["ProblemDetail"];
                 };
             };
-            /** @description Validation Error */
+            /** @description The request does not match the schema. An `Idempotency-Key` already used for a different request is refused with this status. */
             422: {
                 headers: {
                     [name: string]: unknown;
@@ -24098,7 +24201,10 @@ export interface operations {
     create_health_weight: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                /** @description Optional client-generated key, a quoted string of 1 to 255 printable ASCII characters (`"8e03978e"`). A repeat of the same request with the same key is answered with the first outcome instead of being done twice; the same key with another request is refused. */
+                "Idempotency-Key"?: string | null;
+            };
             path?: never;
             cookie?: never;
         };
@@ -24119,6 +24225,15 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HealthWeightRead"];
+                };
+            };
+            /** @description The request is refused. A malformed `Idempotency-Key` is refused with this status. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
                 };
             };
             /** @description The credential is missing, invalid or no longer valid. */
@@ -24159,7 +24274,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["ProblemDetail"];
                 };
             };
-            /** @description Validation Error */
+            /** @description The request does not match the schema. An `Idempotency-Key` already used for a different request is refused with this status. */
             422: {
                 headers: {
                     [name: string]: unknown;
@@ -24762,7 +24877,10 @@ export interface operations {
     create_identity_provider: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                /** @description Optional client-generated key, a quoted string of 1 to 255 printable ASCII characters (`"8e03978e"`). A repeat of the same request with the same key is answered with the first outcome instead of being done twice; the same key with another request is refused. */
+                "Idempotency-Key"?: string | null;
+            };
             path?: never;
             cookie?: never;
         };
@@ -24783,6 +24901,15 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["IdentityProviderRead"];
+                };
+            };
+            /** @description A URL field is plain http to a host outside the allowed hosts, or resolves to a non-public address. A malformed `Idempotency-Key` is refused with this status. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
                 };
             };
             /** @description The credential is missing, invalid or no longer valid. */
@@ -24823,7 +24950,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["ProblemDetail"];
                 };
             };
-            /** @description Validation Error */
+            /** @description The request does not match the schema. An `Idempotency-Key` already used for a different request is refused with this status. */
             422: {
                 headers: {
                     [name: string]: unknown;
@@ -25069,7 +25196,7 @@ export interface operations {
                     "application/json": components["schemas"]["IdentityProviderRead"];
                 };
             };
-            /** @description The request is refused, for example `If-Match: *`. */
+            /** @description A URL field is plain http to a host outside the allowed hosts, or resolves to a non-public address; or `If-Match` is `*`. */
             400: {
                 headers: {
                     [name: string]: unknown;
@@ -28817,7 +28944,10 @@ export interface operations {
     create_user_goal: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                /** @description Optional client-generated key, a quoted string of 1 to 255 printable ASCII characters (`"8e03978e"`). A repeat of the same request with the same key is answered with the first outcome instead of being done twice; the same key with another request is refused. */
+                "Idempotency-Key"?: string | null;
+            };
             path?: never;
             cookie?: never;
         };
@@ -28838,6 +28968,15 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["UserGoalRead"];
+                };
+            };
+            /** @description The request is refused. A malformed `Idempotency-Key` is refused with this status. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
                 };
             };
             /** @description The credential is missing, invalid or no longer valid. */
@@ -28878,7 +29017,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["ProblemDetail"];
                 };
             };
-            /** @description Validation Error */
+            /** @description The request does not match the schema. An `Idempotency-Key` already used for a different request is refused with this status. */
             422: {
                 headers: {
                     [name: string]: unknown;
@@ -30255,6 +30394,15 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["MFABackupCodesRead"];
+                };
+            };
+            /** @description The authenticator code that confirms the setup is wrong. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
                 };
             };
             /** @description The credential is missing, invalid or no longer valid. */
@@ -33234,6 +33382,15 @@ export interface operations {
                 };
                 content?: never;
             };
+            /** @description No custom login photo is stored. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
             /** @description The rate limit was reached. */
             429: {
                 headers: {
@@ -34117,6 +34274,15 @@ export interface operations {
                     "application/problem+json": components["schemas"]["ProblemDetail"];
                 };
             };
+            /** @description The mail server did not accept the message. */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
             /** @description A dependency is unavailable for a moment. */
             503: {
                 headers: {
@@ -34392,6 +34558,15 @@ export interface operations {
                     "application/problem+json": components["schemas"]["ProblemDetail"];
                 };
             };
+            /** @description The log viewer is not available on this deployment. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
             /** @description Validation Error */
             422: {
                 headers: {
@@ -34573,6 +34748,15 @@ export interface operations {
             };
             /** @description The caller is signed in but not allowed, for example a scope is missing. */
             403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description The log viewer is not available, or no log has been written. */
+            404: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -35553,7 +35737,10 @@ export interface operations {
     create_user: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                /** @description Optional client-generated key, a quoted string of 1 to 255 printable ASCII characters (`"8e03978e"`). A repeat of the same request with the same key is answered with the first outcome instead of being done twice; the same key with another request is refused. */
+                "Idempotency-Key"?: string | null;
+            };
             path?: never;
             cookie?: never;
         };
@@ -35574,6 +35761,15 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["UserRead"];
+                };
+            };
+            /** @description The request is refused. A malformed `Idempotency-Key` is refused with this status. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
                 };
             };
             /** @description The credential is missing, invalid or no longer valid. */
@@ -35614,7 +35810,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["ProblemDetail"];
                 };
             };
-            /** @description Validation Error */
+            /** @description The request does not match the schema. An `Idempotency-Key` already used for a different request is refused with this status. */
             422: {
                 headers: {
                     [name: string]: unknown;
@@ -36794,7 +36990,10 @@ export interface operations {
     follow_user: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                /** @description Optional client-generated key, a quoted string of 1 to 255 printable ASCII characters (`"8e03978e"`). A repeat of the same request with the same key is answered with the first outcome instead of being done twice; the same key with another request is refused. */
+                "Idempotency-Key"?: string | null;
+            };
             path: {
                 user_id: string;
             };
@@ -36809,6 +37008,15 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["FollowRelationshipRead"];
+                };
+            };
+            /** @description The request is refused. A malformed `Idempotency-Key` is refused with this status. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
                 };
             };
             /** @description The credential is missing, invalid or no longer valid. */
@@ -36849,7 +37057,7 @@ export interface operations {
                     "application/problem+json": components["schemas"]["ProblemDetail"];
                 };
             };
-            /** @description Validation Error */
+            /** @description The request does not match the schema. An `Idempotency-Key` already used for a different request is refused with this status. */
             422: {
                 headers: {
                     [name: string]: unknown;

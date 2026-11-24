@@ -15,6 +15,7 @@ from fastapi import (
 
 import core.dependencies as core_dependencies
 import core.etag as core_etag
+import core.file_uploads as core_file_uploads
 import core.middleware_body_limit as core_middleware_body_limit
 import core.openapi_contract as core_openapi_contract
 import core.rate_limit as core_rate_limit
@@ -42,14 +43,6 @@ def read_server_settings(
     """Get current server settings.
 
     Requires admin authentication with server-settings:read scope.
-
-    Args:
-        db: Database session.
-        response: The response, which carries the ETag.
-
-    Returns:
-        Current server settings configuration. The tile API key is never returned,
-        only whether one is stored.
     """
     settings = server_settings_service.get_server_settings_for_admin(db)
     # The tag the client echoes back in If-Match when it later saves.
@@ -80,17 +73,6 @@ def edit_server_settings(
     ones. ``If-Match`` with the ETag from the read is required: a request without it is
     refused with 428, and a stale tag with 412 rather than reverting an admin who saved
     in between.
-
-    Args:
-        request: The HTTP request object.
-        server_settings_attributes: Settings to update, and the administrator's step-up.
-        db: Database session.
-        response: The response, which carries the new ETag.
-        if_match: The ``If-Match`` precondition.
-        verify_step_up: Verifies the administrator's step-up.
-
-    Returns:
-        Updated server settings configuration, without the tile API key.
     """
     updated = server_settings_service.edit_server_settings(
         server_settings_attributes.to_edit(),
@@ -127,18 +109,10 @@ def put_login_photo(
 
     Requires admin authentication with server-settings:write scope. Answers 201 when there was no
     custom photo and 200 when it replaced one.
-
-    Args:
-        request: The HTTP request object.
-        file: Image file to upload.
-        storage: The platform storage provider.
-        db: Database session.
-        response: The response, whose status is 200 when a photo was replaced.
-
-    Returns:
-        The stored photo's version.
     """
-    photo, replaced = server_settings_login_photo_service.upload_login_photo(file, storage, db)
+    photo, replaced = server_settings_login_photo_service.upload_login_photo(
+        core_file_uploads.read_validated_upload_sync(file, kind=core_file_uploads.UploadKind.IMAGE), storage, db
+    )
     if replaced:
         response.status_code = status.HTTP_200_OK
     return photo
@@ -159,11 +133,6 @@ def delete_login_photo(
     """Delete custom login page photo.
 
     Requires admin authentication with server-settings:write scope.
-
-    Args:
-        request: The HTTP request object.
-        storage: The platform storage provider.
-        db: Database session.
     """
     server_settings_login_photo_service.delete_login_photo(storage, db)
 
@@ -180,14 +149,6 @@ def read_mail_settings(
     """Get the mail server settings.
 
     Requires admin authentication with server-settings:read scope.
-
-    Args:
-        db: Database session.
-        response: The response, which carries the ETag.
-
-    Returns:
-        The mail settings. The password is never returned, only whether one is stored;
-        ``env_managed`` names the fields an environment variable currently sets.
     """
     mail_settings = server_settings_mail_service.get_mail_settings_for_admin(db)
     core_etag.set_etag(response, mail_settings.version)
@@ -216,23 +177,6 @@ def edit_mail_settings(
     password may be omitted, which keeps the stored one.
     ``If-Match`` with the ETag from the read is required: a request without it is refused
     with 428, and a stale tag with 412.
-
-    Args:
-        request: The HTTP request object.
-        mail_settings_attributes: Settings to update, and the administrator's step-up.
-        db: Database session.
-        response: The response, which carries the new ETag.
-        if_match: The ``If-Match`` precondition.
-        verify_step_up: Verifies the administrator's step-up.
-
-    Returns:
-        Updated mail settings, without the password.
-
-    Raises:
-        StepUpFailedError: 403 if the step-up fails.
-        InvalidInputError: 400 if the configuration is not usable.
-        ConflictError: 409 if a field is set by an environment variable.
-        PreconditionFailedError: 412 if the settings changed since the client read them.
     """
     updated = server_settings_mail_service.edit_mail_settings(
         mail_settings_attributes.to_edit(), mail_settings_attributes.step_up, verify_step_up, db, if_match=if_match
@@ -245,6 +189,7 @@ def edit_mail_settings(
     "/email/test",
     response_model=None,
     status_code=status.HTTP_204_NO_CONTENT,
+    responses={status.HTTP_502_BAD_GATEWAY: {"description": "The mail server did not accept the message."}},
     dependencies=[Security(auth_dependencies.check_scopes, scopes=["server-settings:write"])],
 )
 @core_rate_limit.limiter.limit(core_rate_limit.SENSITIVE)
@@ -261,15 +206,5 @@ def send_test_email(
 
     Requires admin authentication with server-settings:write scope. The recipient
     is always the caller's own email address.
-
-    Args:
-        request: The HTTP request object.
-        token_user_id: The requesting admin's user ID, from the access token.
-        mail: The platform mail provider.
-        db: Database session.
-
-    Raises:
-        ServiceUnavailableError: 503 if email is not configured.
-        UpstreamError: 502 if the mail server did not accept the message.
     """
     server_settings_mail_service.send_test_email(token_user_id, mail, db)

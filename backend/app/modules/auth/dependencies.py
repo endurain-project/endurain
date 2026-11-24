@@ -1,7 +1,5 @@
 """Public authentication dependencies for routers and application modules."""
 
-from __future__ import annotations
-
 import uuid
 from collections.abc import Iterable
 from typing import Annotated
@@ -115,7 +113,9 @@ def _claim_mfa_enrolment_audit(principal: auth_contracts.Principal, state: State
     try:
         return state.set_if_absent(key, b"1", _MFA_ENROLMENT_AUDIT_WINDOW_SECONDS)
     except StateBackendUnavailableError as err:
-        logger.error("MFA-enrolment refusal audit guard unavailable", exc_info=err)
+        logger.warning(
+            "MFA-enrolment refusal audit guard unavailable", extra=core_logger.context(error=type(err).__name__)
+        )
         return True
 
 
@@ -186,7 +186,9 @@ def _resolve_principal(
         raise core_exceptions.InvalidTokenError(
             "Not authenticated. Provide a Bearer token or an API key.", scheme="Bearer"
         )
-    return authentication_integration.resolve_from_api_key(raw_key, request, db)
+    return authentication_integration.resolve_from_api_key(
+        raw_key, request.url.path, core_network.get_ip_address(request), db
+    )
 
 
 def get_principal(

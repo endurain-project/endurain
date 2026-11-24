@@ -1,0 +1,13 @@
+[project]
+name = "endurain-loadtest"
+version = "0.1.0"
+description = "Load tests for a distributed Endurain deployment (Locust, with invariant checks against PostgreSQL)"
+requires-python = ">=3.12"
+dependencies = [
+    "locust>=2.43.0",
+    "psycopg[binary]>=3.3.8",
+    "websocket-client>=1.9.0",
+]
+
+[tool.uv]
+package = false

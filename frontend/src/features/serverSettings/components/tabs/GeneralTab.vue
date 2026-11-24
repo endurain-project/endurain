@@ -5,24 +5,14 @@ import { Card } from '@/components/ui/card'
 import { FormField } from '@/components/ui/form-field'
 import { Input } from '@/components/ui/input'
 import { Select } from '@/components/ui/select'
-import EnvManagedNotice from '@/features/serverSettings/components/EnvManagedNotice.vue'
 import LoginPhotoCard from '@/features/serverSettings/components/LoginPhotoCard.vue'
 import { useServerSettingsFormContext } from '@/features/serverSettings/composables/useServerSettingsForm'
 
 const { t } = useI18n()
-const {
-  values,
-  errors,
-  isSubmitting,
-  handleSubmit,
-  handleBlur,
-  settings,
-  envVar,
-  envHint,
-  envNames,
-} = useServerSettingsFormContext()
+const { values, errors, isSubmitting, handleSubmit, handleBlur, settings } =
+  useServerSettingsFormContext()
 
-/** Records-per-page options offered in the list (mirrors v1). */
+/** Records-per-page options offered in the list. */
 const NUM_RECORDS_OPTIONS = [5, 10, 25, 50, 100] as const
 </script>
 
@@ -67,14 +57,10 @@ const NUM_RECORDS_OPTIONS = [5, 10, 25, 50, 100] as const
 
     <Card class="flex flex-col gap-3" data-setting="section-retention">
       <h2 class="text-card-heading">{{ t('settings.server.retention.title') }}</h2>
-      <EnvManagedNotice :names="envNames(['read_notification_retention_days'])" />
       <FormField
         data-setting="retention-read-notifications"
         :label="t('settings.server.retention.readNotifications')"
-        :hint="
-          envHint('read_notification_retention_days') ??
-          t('settings.server.retention.readNotificationsHint')
-        "
+        :hint="t('settings.server.retention.readNotificationsHint')"
         :error="errors.readNotificationRetentionDays"
       >
         <template #default="{ fieldId, describedBy, invalid }">
@@ -86,7 +72,7 @@ const NUM_RECORDS_OPTIONS = [5, 10, 25, 50, 100] as const
             type="text"
             inputmode="numeric"
             maxlength="4"
-            :disabled="isSubmitting || Boolean(envVar('read_notification_retention_days'))"
+            :disabled="isSubmitting"
             @blur="handleBlur('readNotificationRetentionDays')"
           />
         </template>

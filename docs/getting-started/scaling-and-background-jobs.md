@@ -99,11 +99,12 @@ The `custom` profile is held to the same rule: if it declares more than one proc
 | `DEPLOYMENT_PROFILE` | `local` | `local`, `distributed` or `custom`. Only `local` has defaults; the others must name every capability below. |
 | `WEB_WORKERS` | `1` | Number of web-server processes. Above 1 requires shared state and a shared lock. |
 | `STATE_URI` | unset | Shared ephemeral state: rate-limit counters, the geocoding rate limit, login lockout, pending MFA, MFA setup secrets, Garmin MFA codes, websocket tickets, background job status records and sync claims, and scheduled-job run marks. Falls back to `REDIS_URL`, then `memory://`. |
-| `EVENTS_URI` | unset | Event bus. Falls back to `REDIS_URL`, then `memory://` (in-process). `redis://…` uses Redis Streams. The same URI carries the live-update hints between processes (Redis pub/sub). |
+| `EVENTS_URI` | unset | Event bus. Falls back to `REDIS_URL`, then `memory://` (in-process). `redis://…` uses Redis Streams. The same URI carries the live-update hints between processes (Redis pub/sub). Run that Redis with persistence (`appendonly yes`): one restarted without it loses the events not yet handled, which the scheduled backfills and sweeps repair later, and the log shows an `Event bus consumer poll failed` error with `NOGROUP`. |
 | `REDIS_URL` | unset | Default DSN for every Redis-backed capability that has no explicit URI. |
 | `STORAGE_URI` | `local://` | Where blobs go (thumbnails, media, images, retained files). `local://` uses `DATA_DIR`; `s3://bucket/prefix` uses S3-compatible storage. |
 | `LOCK_URI` | profile default | `noop://` (single process) or `postgres-advisory://` (coordinates scheduled jobs across replicas). Defaults to `postgres-advisory://` when more than one process runs. |
 | `JOBS_ENABLED` | `false` | Turns on the durable job queue. |
+| `JOBS_QUEUES` | unset | The queues a dedicated worker (`APP_ROLE=worker`) serves, comma-separated: `default`, `background`, `enrichment`. Unset, it serves all three. Needs `JOBS_ENABLED=true` and `JOBS_RUN_IN_PROCESS_WORKER=false`; see [Separate workers for background work](#separate-workers-for-background-work). |
 | `JOBS_RUN_IN_PROCESS_WORKER` | `true` | Whether the API process also drains jobs. Set `false` when running dedicated workers, and set it on the API and every worker container: a dedicated worker is a separate process, so the deployment then needs shared state (see [Startup validation](#startup-validation)). |
 | `JOBS_MAX_ATTEMPTS` | `5` | Attempts before a job is dead-lettered. |
 | `JOBS_BACKOFF_BASE_SECONDS` | `5` | First retry delay; doubles each attempt, randomised to 50 to 100 % of the computed delay. |
@@ -124,6 +125,7 @@ Endurain refuses to start on an inconsistent topology and names the variable at 
 - `distributed` with `STORAGE_URI` unset or `local://`, because replicas do not share a disk;
 - `distributed` with `JOBS_ENABLED=false`, because the Redis event bus has no retry and does not recover a crashed consumer's in-flight events; only the durable outbox cannot silently drop them;
 - more than one process with `LOCK_URI=noop://`;
+- `JOBS_QUEUES` without dedicated workers (`JOBS_ENABLED=true` and `JOBS_RUN_IN_PROCESS_WORKER=false`), or naming a queue other than `default`, `background` and `enrichment`;
 - dedicated workers (`JOBS_RUN_IN_PROCESS_WORKER=false` with `JOBS_ENABLED=true`) with state or events resolving to `memory://`, because the API and the workers are separate processes. Every rule above applies to them, even on the `local` profile with one web worker;
 - a non-`local` profile that leaves a capability unset.
 
@@ -164,6 +166,51 @@ Set `JOBS_RUN_IN_PROCESS_WORKER=false` for the API and for the worker alike. `RE
 
 The API applies database migrations at startup; the worker does not. A worker started earlier waits, logging that it is waiting, until the schema is current, then starts claiming jobs.
 
+### Separate workers for background work
+
+A worker claims up to `JOBS_BATCH_SIZE` jobs at a time and runs them one after another, so a batch of slow jobs makes everything behind it wait. Endurain puts each kind of slow work on a queue of its own:
+
+| Queue | Work | Why it is separate |
+| --- | --- | --- |
+| `default` | Everything a user waits on: an upload's import, a provider sync, an email, a notification | Short; it must never wait behind the others |
+| `background` | A bulk import, a profile export or import, a gear or account deletion | A user asked for it and waits for it to finish, but it can take minutes |
+| `enrichment` | Map thumbnails and reverse geocoding of stored activities | It calls outside servers at their pace: a lookup books its turn under the geocoding rate limit (one a second for the public Nominatim) and the job runs again then, so a burst of uploads leaves a geocoding backlog that drains at that rate without holding the worker |
+
+Give each queue workers of its own:
+
+```yaml
+  endurain-worker:
+    image: ghcr.io/endurain-project/endurain:latest
+    env_file: .env
+    environment:
+      APP_ROLE: worker
+      JOBS_QUEUES: default
+    depends_on:
+      - endurain
+
+  endurain-background-worker:
+    image: ghcr.io/endurain-project/endurain:latest
+    env_file: .env
+    environment:
+      APP_ROLE: worker
+      JOBS_QUEUES: background
+    depends_on:
+      - endurain
+
+  endurain-enrichment-worker:
+    image: ghcr.io/endurain-project/endurain:latest
+    env_file: .env
+    environment:
+      APP_ROLE: worker
+      JOBS_QUEUES: enrichment
+    depends_on:
+      - endurain
+```
+
+A worker that serves several queues takes a batch from each in turn, so `JOBS_QUEUES: background,enrichment` on one worker still keeps an export or a deletion from waiting behind more than one batch of thumbnails and lookups. A geocoding lookup waits for no turn, so it never holds an enrichment worker back from thumbnails. More enrichment workers make thumbnails faster, but not geocoding, whose rate limit is shared by every process.
+
+A worker logs the queues it serves when it starts. Jobs on a queue no running worker serves stay pending. The API's in-process worker serves every queue, so a single container has no such split, and Endurain refuses to start when `JOBS_QUEUES` is set without `JOBS_RUN_IN_PROCESS_WORKER=false`.
+
 ### Distributed
 
 ```env
@@ -181,7 +228,7 @@ Every replica must share the same database, Redis and bucket. Run one or more wo
 - When the event bus is Redis and `JOBS_ENABLED=false`, the API logs a warning at startup: delivery is best-effort, with no per-subscriber retry and no recovery of a crashed consumer's in-flight events. The scheduled backfills still repair the results; enable `JOBS_ENABLED` for retries you can see.
 - Without `JOBS_ENABLED`, a Strava or Garmin Connect sync runs on a small pool inside the API process and is lost if that process stops. Its claim in the shared state then blocks another sync of the same kind for that user until it expires (30 minutes). A Strava or Garmin Connect account link always runs on such a pool, because it holds a one-time code or the user's credentials that are never stored in a job; a link lost this way is simply started again once its claim expires.
 - A burst of events that fills the in-process subscriber pool (500 pending) drops the excess subscribers with a warning. Derived work such as thumbnails is repaired by its scheduled backfill; a notification is not, so enable `JOBS_ENABLED` when losing one is not acceptable.
-- With `JOBS_ENABLED=true` and `JOBS_RUN_IN_PROCESS_WORKER=false`, jobs accumulate unless a worker is running.
+- With `JOBS_ENABLED=true` and `JOBS_RUN_IN_PROCESS_WORKER=false`, jobs accumulate unless a worker is running, and with `JOBS_QUEUES` set, unless a worker serves their queue.
 - A worker killed mid-job is not noticed instantly: its job is requeued once the lease expires and the reaper (which runs every minute) sees it, so expect it to finish a few minutes late rather than be lost.
 - A single job is abandoned after 30 minutes of running, even while its worker is healthy; it is handed back to the reaper like a job whose worker died.
 - Dead-lettered jobs are kept for review and are never pruned automatically.

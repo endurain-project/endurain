@@ -9,7 +9,6 @@ import ast
 from pathlib import Path
 
 import pytest
-from tests._helpers.module_roles import MODULES
 
 import model_registry as app_model_registry
 import module_registry as runtime_module_registry
@@ -22,6 +21,7 @@ import modules.health.model_registry as health_model_registry
 import modules.notifications.model_registry as notifications_model_registry
 import modules.server_settings.model_registry as server_settings_model_registry
 import modules.users.model_registry as users_model_registry
+from tests._helpers.module_roles import MODULES
 
 _MODULES_DIR = Path(__file__).resolve().parents[2] / "app" / "modules"
 _APP_DIR = _MODULES_DIR.parent

@@ -2,12 +2,23 @@
 
 from unittest.mock import MagicMock
 
+import jasil.audit as jasil_audit
+import jasil.testing as jasil_testing
+import pytest
 from jasil.jobs.registry import JobHandlerRegistry
 
+import core.job_queues as core_job_queues
 import module_registry as runtime_module_registry
 import modules.activities.activity.events as activity_events
 import modules.activities.activity_ingestion.events as ingestion_events
+import modules.activities.activity_ingestion.provider_registry as activity_ingestion_provider_registry
 import modules.activities.contributor_registry as activities_contributor_registry
+import modules.garmin.constants as garmin_constants
+import modules.gears.contributor_registry as gears_contributor_registry
+import modules.strava.constants as strava_constants
+import modules.users.contributor_registry as users_contributor_registry
+from tests._factories.activities import make_activity, make_activity_media
+from tests._factories.users import make_user
 
 _EXPECTED_CREATED_SUBSCRIBERS = {
     "activity_thumbnail.generate",
@@ -18,6 +29,23 @@ _EXPECTED_DELETED_SUBSCRIBERS = {
     "activity_thumbnail.cleanup",
     "activity_file_storage.cleanup",
     "activity_media.cleanup",
+}
+
+#: Long work a user asked for and waits to finish, which a dedicated background worker may take.
+_BACKGROUND_SUBSCRIBERS = {
+    "activity_ingestion.bulk_import",
+    "users.profile_export_requested",
+    "users.profile_import_requested",
+    "gears.deletion_requested",
+    "users.deletion_requested",
+}
+
+#: Work derived from a stored activity that calls an outside provider at its pace, which nobody waits on.
+_ENRICHMENT_SUBSCRIBERS = {
+    "activity_thumbnail.generate",
+    "activity_thumbnail.settings_changed",
+    "activity_thumbnail.backfill",
+    "activity_geocoding.reverse_geocode",
 }
 
 
@@ -67,23 +95,26 @@ class TestRuntimeModuleRegistry:
         assert activities_contributor_registry.resolve_thumbnail_url("42.webp", 42) is not None
         assert activities_contributor_registry.resolve_thumbnail_url(None, 42) is None
 
-    def test_installs_the_media_resolver(self):
+    def test_installs_the_media_resolver(self, db):
         """Without it every activity list silently loses its photos.
 
         The root activity package asks the registry rather than importing the
         media package, so a missing registration is an empty ``media`` on every
         activity in the API.
         """
+        activity = make_activity(db, make_user(db).id)
+        stored = make_activity_media(db, activity, "0_photo.jpg")
+
         activities_contributor_registry.clear()
-        db = MagicMock()
-        assert activities_contributor_registry.resolve_media([1], db) == {}
-        db.scalars.assert_not_called()
+        try:
+            assert activities_contributor_registry.resolve_media([activity.id], db) == {}
 
-        runtime_module_registry.configure_activity_contributors()
-        db.scalars.return_value.all.return_value = []
+            runtime_module_registry.configure_activity_contributors()
+            media = activities_contributor_registry.resolve_media([activity.id], db)
+        finally:
+            runtime_module_registry.configure_activity_contributors()
 
-        assert activities_contributor_registry.resolve_media([1], db) == {}
-        db.scalars.assert_called_once()
+        assert [(item.id, item.activity_id) for item in media[activity.id]] == [(stored.id, activity.id)]
 
     def test_registers_every_activity_bus_subscriber(self):
         events = MagicMock()
@@ -133,21 +164,69 @@ class TestRuntimeModuleRegistry:
 class TestConfigureApplication:
     """The API and the standalone worker install the same seams through one call."""
 
-    def test_installs_contributors_erasers_and_providers_together(self):
-        from unittest.mock import patch
+    def test_installs_contributors_erasers_and_providers_together(self, db):
+        """A seam missing from this one call is a silent no-op in whichever process relies on it."""
+        activity = make_activity(db, make_user(db).id)
+        stored = make_activity_media(db, activity, "0_photo.jpg")
+        jasil_testing.reset_all()
+        activities_contributor_registry.clear()
+        gears_contributor_registry.clear()
+        users_contributor_registry.clear()
+        activity_ingestion_provider_registry.clear()
+        with pytest.raises(RuntimeError):
+            gears_contributor_registry.readers()
+        with pytest.raises(RuntimeError):
+            users_contributor_registry.erasers()
+        assert activity_ingestion_provider_registry.registered() == ()
 
-        with (
-            patch.object(runtime_module_registry, "configure_activity_contributors") as activity,
-            patch.object(runtime_module_registry, "configure_gear_contributors") as gear,
-            patch.object(runtime_module_registry, "configure_user_contributors") as users,
-            patch.object(runtime_module_registry.strava_integration, "register_activity_provider") as strava,
-            patch.object(runtime_module_registry.garmin_integration, "register_activity_provider") as garmin,
-            patch.object(runtime_module_registry, "configure_audit") as audit,
-        ):
-            runtime_module_registry.configure_application()
+        runtime_module_registry.configure_application()
 
-        for installed in (activity, gear, users, strava, garmin, audit):
-            installed.assert_called_once_with()
+        assert {item.key for item in activities_contributor_registry.activity_ingestion_contributors()} == {
+            "laps",
+            "sets",
+            "streams",
+            "workout_steps",
+        }
+        assert {item.key for item in activities_contributor_registry.profile_activity_contributors()} == {
+            "laps",
+            "sets",
+            "streams",
+            "workout_steps",
+            "media",
+        }
+        assert activities_contributor_registry.resolve_thumbnail_url("42.webp", 42) is not None
+        media = activities_contributor_registry.resolve_media([activity.id], db)
+        assert [(item.id, item.activity_id) for item in media[activity.id]] == [(stored.id, activity.id)]
+        assert gears_contributor_registry.readers() is not None
+        assert users_contributor_registry.erasers() is not None
+        assert users_contributor_registry.lifecycle_hooks() is not None
+        assert users_contributor_registry.profile_readers() is not None
+        assert [section.key for section in users_contributor_registry.profile_sections()] == [
+            "gears",
+            "gear_components",
+            "activities",
+            "health_weight",
+            "health_targets",
+            "health_sleep",
+            "health_steps",
+            "health_water",
+            "health_fasting",
+            "health_poop",
+        ]
+        assert {provider.name for provider in activity_ingestion_provider_registry.registered()} == {
+            strava_constants.PROVIDER_NAME,
+            garmin_constants.PROVIDER_NAME,
+        }
+        strava_format = activity_ingestion_provider_registry.get_bulk_format(strava_constants.BULK_IMPORT_FORMAT_NAME)
+        assert strava_format is not None
+        catalog = jasil_audit.get_catalog()
+        for module in runtime_module_registry.MODULES:
+            for action in module.audit_actions:
+                assert action.id in catalog
+        # Outside a request the installed provider says the worker is acting; the built-in default does not.
+        context = jasil_audit.get_context()
+        assert context.actor_type is jasil_audit.ActorType.SYSTEM
+        assert context.source is jasil_audit.Source.WORKER
 
 
 class TestConfigureUserContributors:
@@ -264,3 +343,13 @@ class TestShutdownModulePools:
         declared = {module.name for module in runtime_module_registry.MODULES if module.shutdown is not None}
 
         assert {"activity", "activity_ingestion", "garmin", "strava", "users", "users_profile"} <= declared
+
+
+class TestJobQueues:
+    def test_long_requested_work_is_on_background_derived_work_on_enrichment_and_the_rest_on_default(self):
+        registry = _register_durable_handlers()
+        queues = {subscriber: registry.queue_for(subscriber) for subscriber in registry.subscriber_ids()}
+
+        assert {s for s, queue in queues.items() if queue == core_job_queues.BACKGROUND} == _BACKGROUND_SUBSCRIBERS
+        assert {s for s, queue in queues.items() if queue == core_job_queues.ENRICHMENT} == _ENRICHMENT_SUBSCRIBERS
+        assert set(queues.values()) == set(core_job_queues.ALL)

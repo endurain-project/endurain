@@ -1,32 +1,34 @@
 """An SSO sign-in changes nothing on an existing account until the sign-in completes, after its second factor.
 
-The callback runs for real over SQLite: it matches the account by its verified email and creates the session, and
-the exchange and ``/auth/mfa/verify`` routes finish it. The link, the profile sync and their audit rows and events
-appear only when the sign-in completes; an MFA step that is abandoned, fails, or is outdated leaves the account as it
-was.
+The callback's account match and session creation run for real: it matches the account by its verified email and
+creates the session, and the exchange and ``/auth/mfa/verify`` routes finish it. The link, the profile sync and their
+audit rows and events appear only when the sign-in completes; an MFA step that is abandoned, fails, or is outdated
+leaves the account as it was.
 """
 
 import uuid
-from contextlib import contextmanager
-from unittest.mock import MagicMock, patch
 
-import jasil.testing as jasil_testing
-import pytest
-from sqlalchemy import select, update
+import sqlalchemy as sa
+from jasil.audit.models import AuditLog
 
 import core.dependencies as core_dependencies
 import modules.auth.identity_provider_links.models as links_models
-import modules.auth.identity_providers.callback_service as callback_service
 import modules.auth.identity_providers.crud as idp_crud
-import modules.auth.identity_providers.event_publishers as idp_event_publishers
+import modules.auth.identity_providers.events as idp_events
 import modules.auth.identity_providers.schema as idp_schema
 import modules.auth.identity_providers.user_provisioning_service as user_provisioning_service
-import modules.auth.oauth_state.constants as oauth_state_constants
-import modules.auth.oauth_state.integration_service as oauth_state_integration
+import modules.auth.security_generation.integration_service as security_generation_integration
 import modules.auth.sessions.models as sessions_models
 import modules.users.users.models as users_models
 from modules.auth.identity_providers.staged_sign_in_store import StagedSignInStore
-from tests.auth.authentication.conftest import BACKUP_CODE, SSO_CHALLENGE, SSO_VERIFIER, USER_ID, WEB
+from tests.auth.authentication.conftest import (
+    WEB,
+    WRONG_CODE,
+    Account,
+    exchange,
+    make_sso_session,
+    verify,
+)
 
 _SUBJECT = "subject-at-the-provider"
 _SYNCED_NAME = "Name From The Provider"
@@ -34,18 +36,15 @@ _LINK = "auth.identity_link.link"
 _EMAIL_CHANGE = "users.email.change"
 _LOGIN = "auth.session.login"
 _SESSION_ENDED = "urn:endurain:error:session-ended"
-_NOTICE = "modules.auth.sign_up_tokens.event_publishers.platform_publisher.publish_on_commit"
-
-pytestmark = pytest.mark.usefixtures("aware_session_expiry")
 
 
 def _store() -> StagedSignInStore:
     return StagedSignInStore(core_dependencies.get_platform_state())
 
 
-def _provider(stack) -> uuid.UUID:
-    """Store a provider that links by email and syncs the name and the email, and verify the account's email."""
-    with stack.factory() as db:
+def _provider(sessions) -> uuid.UUID:
+    """Store a provider that links by email and syncs the name and the email."""
+    with sessions() as db:
         idp = idp_crud.create_identity_provider(
             idp_schema.IdentityProviderCreate(
                 name="Keycloak",
@@ -60,239 +59,229 @@ def _provider(stack) -> uuid.UUID:
             ),
             db,
         )
-        db.execute(update(users_models.Users).where(users_models.Users.id == USER_ID).values(email_verified=True))
         db.commit()
         return idp.id
 
 
-def _account(stack) -> tuple[str, str]:
-    with stack.factory() as db:
-        user = db.get(users_models.Users, USER_ID)
+def _callback(sessions, account: Account, idp_id: uuid.UUID, *, email: str | None = None) -> uuid.UUID:
+    """Run the login callback's account match and session creation for the provider's verified claims."""
+    with sessions() as db:
+        idp = idp_crud.get_identity_provider(idp_id, db)
+        userinfo = {
+            "sub": _SUBJECT,
+            "email": email or account.user.email,
+            "email_verified": True,
+            "name": _SYNCED_NAME,
+        }
+        user, staged = user_provisioning_service.find_or_create_user(idp, _SUBJECT, userinfo, db)
+        db.commit()
+    return make_sso_session(sessions, user, idp_id=idp_id, staged=staged)
+
+
+def _account(sessions, account: Account) -> tuple[str, str]:
+    with sessions() as db:
+        user = db.get(users_models.Users, account.user.id)
         return user.name, user.email
 
 
-def _links(stack) -> list[tuple[uuid.UUID, str]]:
-    with stack.factory() as db:
-        rows = db.execute(select(links_models.IdentityLink.user_id, links_models.IdentityLink.idp_subject)).all()
+def _links(sessions) -> list[tuple[uuid.UUID, str]]:
+    with sessions() as db:
+        rows = db.execute(sa.select(links_models.IdentityLink.user_id, links_models.IdentityLink.idp_subject)).all()
         return [(row.user_id, row.idp_subject) for row in rows]
 
 
-def _callback(stack, idp_id: uuid.UUID, *, email: str | None = None, subject: str = _SUBJECT) -> uuid.UUID:
-    """Run the login callback's account match and session creation for the provider's verified claims."""
-    with stack.factory() as db:
-        idp = idp_crud.get_identity_provider(idp_id, db)
-        account_email = db.get(users_models.Users, USER_ID).email
-        userinfo = {"sub": subject, "email": email or account_email, "email_verified": True, "name": _SYNCED_NAME}
-        user, staged = user_provisioning_service.find_or_create_user(idp, subject, userinfo, db)
-        db.commit()
-        state_id, nonce = oauth_state_integration.create_state_id_and_nonce()
-        oauth_state_integration.create_oauth_state(
-            state_id,
-            nonce,
-            "web",
-            "127.0.0.1",
-            db,
-            idp_id=idp_id,
-            code_challenge=SSO_CHALLENGE,
-            code_challenge_method="S256",
-            purpose=oauth_state_constants.OAuthStatePurpose.LOGIN,
-        )
-        state = oauth_state_integration.get_oauth_state_by_id_and_not_used(state_id, db)
-        service = callback_service.CallbackService(MagicMock(), MagicMock(), MagicMock(), _store(), "https://app")
-        return service.create_callback_session(
-            user, "127.0.0.1", "agent", state, idp_id, {}, db, idp_sid=None, staged=staged
-        )
+def _rows(sessions, action_id: str) -> list[AuditLog]:
+    with sessions() as db:
+        return list(db.scalars(sa.select(AuditLog).where(AuditLog.action_id == action_id)))
 
 
-def _exchange(stack, session_id):
-    return stack.client.post(f"/auth/sessions/{session_id}/tokens", json={"code_verifier": SSO_VERIFIER}, headers=WEB)
+def _assert_untouched(sessions, account, before, events) -> None:
+    assert _account(sessions, account) == before
+    assert _links(sessions) == []
+    assert _rows(sessions, _LINK) == []
+    assert _rows(sessions, _EMAIL_CHANGE) == []
+    assert events == []
 
 
-def _verify(stack, challenge, code=BACKUP_CODE):
-    return stack.client.post("/auth/mfa/verify", json={"mfa_challenge": challenge, "mfa_code": code}, headers=WEB)
-
-
-@contextmanager
-def _recorded():
-    """Capture the audit rows and the ``auth.idp_linked`` events of the requests in the block."""
-    with (
-        jasil_testing.capture_audit() as audit,
-        patch.object(idp_event_publishers, "publish_idp_linked") as linked,
-        patch(_NOTICE),
-    ):
-        yield audit, linked
-
-
-def _assert_untouched(stack, before, audit, linked) -> None:
-    assert _account(stack) == before
-    assert _links(stack) == []
-    audit.assert_not_audited(_LINK)
-    audit.assert_not_audited(_EMAIL_CHANGE)
-    linked.assert_not_called()
-
-
-def _assert_unclaimed(stack, session_id) -> None:
-    with stack.factory() as db:
+def _assert_unclaimed(sessions, session_id) -> None:
+    with sessions() as db:
         assert db.get(sessions_models.UsersSessions, session_id).tokens_exchanged is False
 
 
 class TestAnAccountWithMfaMatchedByEmail:
-    def test_the_callback_and_the_exchange_write_nothing_to_the_account(self, mfa_plain_signin):
-        stack = mfa_plain_signin
-        idp_id = _provider(stack)
-        before = _account(stack)
+    def test_the_callback_and_the_exchange_write_nothing_to_the_account(
+        self, client, committed_sessions, mfa_account, published
+    ):
+        events = published(idp_events.IDP_LINKED)
+        idp_id = _provider(committed_sessions)
+        before = _account(committed_sessions, mfa_account)
 
-        with _recorded() as (audit, linked):
-            session_id = _callback(stack, idp_id)
-            response = _exchange(stack, session_id)
+        session_id = _callback(committed_sessions, mfa_account, idp_id)
+        response = exchange(client, session_id, headers=WEB)
 
-        assert response.status_code == 200, response.text
+        assert response.status_code == 200
         assert response.json()["next_step"] == "mfa"
-        _assert_untouched(stack, before, audit, linked)
+        _assert_untouched(committed_sessions, mfa_account, before, events)
         assert _store().read(session_id) is not None
 
-    def test_a_wrong_code_leaves_the_account_as_it_was(self, mfa_plain_signin):
-        stack = mfa_plain_signin
-        idp_id = _provider(stack)
-        before = _account(stack)
+    def test_a_wrong_code_leaves_the_account_as_it_was(self, client, committed_sessions, mfa_account, published):
+        events = published(idp_events.IDP_LINKED)
+        idp_id = _provider(committed_sessions)
+        before = _account(committed_sessions, mfa_account)
+        session_id = _callback(committed_sessions, mfa_account, idp_id)
 
-        with _recorded() as (audit, linked):
-            session_id = _callback(stack, idp_id)
-            response = _verify(stack, _exchange(stack, session_id).json()["mfa_challenge"], code="ZZZZ-ZZZZ")
+        response = verify(client, exchange(client, session_id, headers=WEB).json()["mfa_challenge"], WRONG_CODE)
 
         assert response.status_code == 400
-        _assert_untouched(stack, before, audit, linked)
-        _assert_unclaimed(stack, session_id)
+        _assert_untouched(committed_sessions, mfa_account, before, events)
+        _assert_unclaimed(committed_sessions, session_id)
 
     def test_a_security_change_before_the_code_leaves_the_account_as_it_was(
-        self, mfa_plain_signin, security_generations
+        self, client, committed_sessions, mfa_account, published
     ):
-        stack = mfa_plain_signin
-        idp_id = _provider(stack)
-        before = _account(stack)
+        events = published(idp_events.IDP_LINKED)
+        idp_id = _provider(committed_sessions)
+        before = _account(committed_sessions, mfa_account)
+        session_id = _callback(committed_sessions, mfa_account, idp_id)
+        challenge = exchange(client, session_id, headers=WEB).json()["mfa_challenge"]
+        with committed_sessions() as db:
+            security_generation_integration.stage_bump(mfa_account.user.id, db)
+            db.commit()
 
-        with _recorded() as (audit, linked):
-            session_id = _callback(stack, idp_id)
-            challenge = _exchange(stack, session_id).json()["mfa_challenge"]
-            security_generations.stage_bump(USER_ID, None)
-            response = _verify(stack, challenge)
+        response = verify(client, challenge, mfa_account.backup_code)
 
         assert response.status_code == 401
         assert response.json()["type"] == _SESSION_ENDED
-        _assert_untouched(stack, before, audit, linked)
-        _assert_unclaimed(stack, session_id)
+        _assert_untouched(committed_sessions, mfa_account, before, events)
+        _assert_unclaimed(committed_sessions, session_id)
 
-    def test_a_deactivation_before_the_code_leaves_the_account_as_it_was(self, mfa_plain_signin, security_generations):
-        stack = mfa_plain_signin
-        idp_id = _provider(stack)
-        before = _account(stack)
-
-        with _recorded() as (audit, linked):
-            session_id = _callback(stack, idp_id)
-            challenge = _exchange(stack, session_id).json()["mfa_challenge"]
+    def test_a_deactivation_before_the_code_leaves_the_account_as_it_was(
+        self, client, committed_sessions, mfa_account, published
+    ):
+        events = published(idp_events.IDP_LINKED)
+        idp_id = _provider(committed_sessions)
+        before = _account(committed_sessions, mfa_account)
+        session_id = _callback(committed_sessions, mfa_account, idp_id)
+        challenge = exchange(client, session_id, headers=WEB).json()["mfa_challenge"]
+        with committed_sessions() as db:
             # Deactivation bumps the account's security generation in the transaction that deactivates it.
-            security_generations.stage_bump(USER_ID, None)
-            with stack.factory() as db:
-                db.execute(update(users_models.Users).where(users_models.Users.id == USER_ID).values(active=False))
-                db.commit()
-            response = _verify(stack, challenge)
+            security_generation_integration.stage_bump(mfa_account.user.id, db)
+            db.execute(
+                sa.update(users_models.Users).where(users_models.Users.id == mfa_account.user.id).values(active=False)
+            )
+            db.commit()
+
+        response = verify(client, challenge, mfa_account.backup_code)
 
         assert response.status_code == 401
-        _assert_untouched(stack, before, audit, linked)
-        _assert_unclaimed(stack, session_id)
+        assert _links(committed_sessions) == []
+        assert events == []
+        assert _account(committed_sessions, mfa_account) == before
+        _assert_unclaimed(committed_sessions, session_id)
 
-    def test_the_right_code_links_and_syncs_the_account_as_the_user_when_the_sign_in_completes(self, mfa_plain_signin):
-        stack = mfa_plain_signin
-        idp_id = _provider(stack)
-        _, email = _account(stack)
+    def test_the_right_code_links_and_syncs_the_account_as_the_user_when_the_sign_in_completes(
+        self, client, committed_sessions, mfa_account, published
+    ):
+        events = published(idp_events.IDP_LINKED)
+        idp_id = _provider(committed_sessions)
+        _, email = _account(committed_sessions, mfa_account)
+        session_id = _callback(committed_sessions, mfa_account, idp_id)
 
-        with _recorded() as (audit, linked):
-            session_id = _callback(stack, idp_id)
-            response = _verify(stack, _exchange(stack, session_id).json()["mfa_challenge"])
+        response = verify(
+            client, exchange(client, session_id, headers=WEB).json()["mfa_challenge"], mfa_account.backup_code
+        )
 
-        assert response.status_code == 200, response.text
-        assert _links(stack) == [(USER_ID, _SUBJECT)]
-        assert _account(stack) == (_SYNCED_NAME, email)
-        entry = audit.assert_audited(_LINK, outcome="success", target_id=str(USER_ID))
-        assert entry.details == {"idp_id": str(idp_id), "reason": None}
-        assert (entry.actor_type, entry.actor_id) == ("user", str(USER_ID))
-        audit.assert_audited(_LOGIN, outcome="success", target_id=str(USER_ID))
-        linked.assert_called_once()
-        assert linked.call_args.args[:2] == (USER_ID, idp_id)
+        assert response.status_code == 200
+        assert _links(committed_sessions) == [(mfa_account.user.id, _SUBJECT)]
+        assert _account(committed_sessions, mfa_account) == (_SYNCED_NAME, email)
+        (link,) = _rows(committed_sessions, _LINK)
+        assert (link.outcome, link.target_id) == ("success", str(mfa_account.user.id))
+        assert link.details == {"idp_id": str(idp_id), "reason": None}
+        assert (link.actor_type, link.actor_id) == ("user", str(mfa_account.user.id))
+        (login_row,) = _rows(committed_sessions, _LOGIN)
+        assert (login_row.outcome, login_row.target_id) == ("success", str(mfa_account.user.id))
+        assert [(e.payload["user_id"], e.payload["idp_id"]) for e in events] == [
+            (str(mfa_account.user.id), str(idp_id))
+        ]
         assert _store().read(session_id) is None
 
-    def test_a_staged_record_lost_before_the_code_fails_closed(self, mfa_plain_signin):
-        stack = mfa_plain_signin
-        idp_id = _provider(stack)
-        before = _account(stack)
+    def test_a_staged_record_lost_before_the_code_fails_closed(
+        self, client, committed_sessions, mfa_account, published
+    ):
+        events = published(idp_events.IDP_LINKED)
+        idp_id = _provider(committed_sessions)
+        before = _account(committed_sessions, mfa_account)
+        session_id = _callback(committed_sessions, mfa_account, idp_id)
+        challenge = exchange(client, session_id, headers=WEB).json()["mfa_challenge"]
+        _store().discard(session_id)
 
-        with _recorded() as (audit, linked):
-            session_id = _callback(stack, idp_id)
-            challenge = _exchange(stack, session_id).json()["mfa_challenge"]
-            _store().discard(session_id)
-            response = _verify(stack, challenge)
+        response = verify(client, challenge, mfa_account.backup_code)
 
         assert response.status_code == 401
         assert response.json()["type"] == _SESSION_ENDED
         assert "set-cookie" not in response.headers
-        _assert_untouched(stack, before, audit, linked)
-        _assert_unclaimed(stack, session_id)
-        entry = audit.assert_audited(_LOGIN, outcome="failure", target_id=str(USER_ID))
-        assert entry.details["reason"] == "sso_session_ended"
+        _assert_untouched(committed_sessions, mfa_account, before, events)
+        _assert_unclaimed(committed_sessions, session_id)
+        (row,) = _rows(committed_sessions, _LOGIN)
+        assert (row.outcome, row.target_id) == ("failure", str(mfa_account.user.id))
+        assert row.details["reason"] == "sso_session_ended"
 
 
 class TestAnAccountWithMfaLinkedBySubject:
-    def test_the_email_sync_waits_for_the_code(self, mfa_plain_signin):
-        stack = mfa_plain_signin
-        idp_id = _provider(stack)
-        with stack.factory() as db:
-            db.add(links_models.IdentityLink(user_id=USER_ID, idp_id=idp_id, idp_subject=_SUBJECT))
+    def test_the_email_sync_waits_for_the_code(self, client, committed_sessions, mfa_account):
+        idp_id = _provider(committed_sessions)
+        with committed_sessions() as db:
+            db.add(links_models.IdentityLink(user_id=mfa_account.user.id, idp_id=idp_id, idp_subject=_SUBJECT))
             db.commit()
-        before = _account(stack)
+        before = _account(committed_sessions, mfa_account)
+        session_id = _callback(committed_sessions, mfa_account, idp_id, email="synced@example.com")
+        challenge = exchange(client, session_id, headers=WEB).json()["mfa_challenge"]
+        assert _account(committed_sessions, mfa_account) == before
+        assert _rows(committed_sessions, _EMAIL_CHANGE) == []
 
-        with _recorded() as (audit, _):
-            session_id = _callback(stack, idp_id, email="synced@example.com")
-            challenge = _exchange(stack, session_id).json()["mfa_challenge"]
-            assert _account(stack) == before
-            audit.assert_not_audited(_EMAIL_CHANGE)
+        response = verify(client, challenge, mfa_account.backup_code)
 
-            response = _verify(stack, challenge)
-
-        assert response.status_code == 200, response.text
-        assert _account(stack) == (_SYNCED_NAME, "synced@example.com")
-        audit.assert_audited(_EMAIL_CHANGE, target_id=str(USER_ID))
-        audit.assert_not_audited(_LINK)
+        assert response.status_code == 200
+        assert _account(committed_sessions, mfa_account) == (_SYNCED_NAME, "synced@example.com")
+        (change,) = _rows(committed_sessions, _EMAIL_CHANGE)
+        assert change.target_id == str(mfa_account.user.id)
+        assert _rows(committed_sessions, _LINK) == []
 
 
 class TestAnAccountWithoutMfaMatchedByEmail:
-    def test_the_exchange_links_and_syncs_the_account(self, plain_signin):
-        stack = plain_signin
-        idp_id = _provider(stack)
+    def test_the_exchange_links_and_syncs_the_account(self, client, committed_sessions, account, published):
+        events = published(idp_events.IDP_LINKED)
+        idp_id = _provider(committed_sessions)
+        session_id = _callback(committed_sessions, account, idp_id)
+        assert _links(committed_sessions) == []
 
-        with _recorded() as (audit, linked):
-            session_id = _callback(stack, idp_id)
-            assert _links(stack) == []
-            response = _exchange(stack, session_id)
+        response = exchange(client, session_id, headers=WEB)
 
-        assert response.status_code == 200, response.text
+        assert response.status_code == 200
         assert "access_token" in response.json()
-        assert _links(stack) == [(USER_ID, _SUBJECT)]
-        assert _account(stack)[0] == _SYNCED_NAME
-        audit.assert_audited(_LINK, outcome="success", target_id=str(USER_ID))
-        linked.assert_called_once()
+        assert _links(committed_sessions) == [(account.user.id, _SUBJECT)]
+        assert _account(committed_sessions, account)[0] == _SYNCED_NAME
+        (link,) = _rows(committed_sessions, _LINK)
+        assert (link.outcome, link.target_id) == ("success", str(account.user.id))
+        assert len(events) == 1
 
-    def test_a_lost_staged_record_is_answered_like_a_session_that_cannot_be_exchanged(self, plain_signin):
-        stack = plain_signin
-        idp_id = _provider(stack)
-        before = _account(stack)
+    def test_a_lost_staged_record_is_answered_like_a_session_that_cannot_be_exchanged(
+        self, client, committed_sessions, account, published
+    ):
+        events = published(idp_events.IDP_LINKED)
+        idp_id = _provider(committed_sessions)
+        before = _account(committed_sessions, account)
+        session_id = _callback(committed_sessions, account, idp_id)
+        _store().discard(session_id)
 
-        with _recorded() as (audit, linked):
-            session_id = _callback(stack, idp_id)
-            _store().discard(session_id)
-            response = _exchange(stack, session_id)
+        response = exchange(client, session_id, headers=WEB)
 
         assert response.status_code == 404
-        _assert_untouched(stack, before, audit, linked)
-        _assert_unclaimed(stack, session_id)
-        entry = audit.assert_audited(_LOGIN, outcome="failure", target_id=str(USER_ID))
-        assert entry.details["reason"] == "sso_session_ended"
+        _assert_untouched(committed_sessions, account, before, events)
+        _assert_unclaimed(committed_sessions, session_id)
+        (row,) = _rows(committed_sessions, _LOGIN)
+        assert (row.outcome, row.target_id, row.details["reason"]) == (
+            "failure",
+            str(account.user.id),
+            "sso_session_ended",
+        )

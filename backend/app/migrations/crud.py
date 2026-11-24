@@ -1,20 +1,13 @@
 """CRUD operations for migration tracking."""
 
-import uuid
 from typing import overload
 
-from sqlalchemy import Integer, Uuid, column, select, table, text
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 import core.exceptions as core_exceptions
 import migrations.models as migrations_models
 import migrations.schema as migrations_schema
-
-#: Scratch table of the UUID conversion revisions: the old and new id of every converted row, until migration 13
-#: has renamed the stored files and drops it.
-_UUID_MIGRATION_IDS = table(
-    "uuid_migration_ids", column("table_name"), column("old_id", Integer), column("new_id", Uuid)
-)
 
 # Private internal helpers
 
@@ -34,13 +27,12 @@ def _transform_migrations(
 def _transform_migrations(
     migrations: migrations_models.Migration | list[migrations_models.Migration],
 ) -> migrations_schema.MigrationRead | list[migrations_schema.MigrationRead]:
-    """
-    Transform a migration or list of migrations to a Pydantic schema.
+    """Transform a migration or list of migrations to a Pydantic schema.
 
-      Args:
+    Args:
         migrations: The migration ORM instance or list of instances.
 
-      Returns:
+    Returns:
         The migration(s) as a schema.
     """
     if isinstance(migrations, list):
@@ -49,8 +41,7 @@ def _transform_migrations(
 
 
 def _get_migration_by_id(migration_id: int, db: Session) -> migrations_models.Migration:
-    """
-    Retrieve a migration by its ID from the database.
+    """Retrieve a migration by its ID from the database.
 
     Args:
         migration_id: ID of the migration to retrieve.
@@ -77,16 +68,13 @@ def _get_migration_by_id(migration_id: int, db: Session) -> migrations_models.Mi
 def get_migrations_not_executed(
     db: Session,
 ) -> list[migrations_schema.MigrationRead]:
-    """
-    Retrieve all unexecuted migrations.
+    """Retrieve all unexecuted migrations.
 
     Args:
         db: Database session.
 
     Returns:
         List of unexecuted Migration schemas.
-
-    Raises:
     """
     stmt = select(migrations_models.Migration).where(migrations_models.Migration.executed.is_(False))
     db_migrations = db.execute(stmt).scalars().all()
@@ -97,8 +85,7 @@ def set_migration_as_executed(
     migration_id: int,
     db: Session,
 ) -> migrations_schema.MigrationRead:
-    """
-    Mark a migration as executed by its ID.
+    """Mark a migration as executed by its ID.
 
     Args:
         migration_id: ID of the migration to mark as executed.
@@ -116,30 +103,3 @@ def set_migration_as_executed(
     db.flush()
     db.refresh(db_migration)
     return _transform_migrations(db_migration)
-
-
-def get_uuid_migration_ids(table_name: str, db: Session) -> dict[int, uuid.UUID]:
-    """
-    Retrieve the old and new ids a conversion revision recorded for one table.
-
-    Args:
-        table_name: The converted table.
-        db: Database session.
-
-    Returns:
-        The new UUID of each old integer id.
-    """
-    stmt = select(_UUID_MIGRATION_IDS.c.old_id, _UUID_MIGRATION_IDS.c.new_id).where(
-        _UUID_MIGRATION_IDS.c.table_name == table_name
-    )
-    return {old_id: new_id for old_id, new_id in db.execute(stmt).all()}
-
-
-def drop_uuid_migration_ids(db: Session) -> None:
-    """
-    Drop the table of recorded ids. The caller commits.
-
-    Args:
-        db: Database session.
-    """
-    db.execute(text("DROP TABLE uuid_migration_ids"))

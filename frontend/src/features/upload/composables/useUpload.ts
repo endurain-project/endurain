@@ -315,10 +315,7 @@ export function useUploadActivityFileMutation() {
 
   return useMutation<ActivityIngestionJob, Error, File>({
     mutationFn: async (file) => {
-      // One key per logical upload, so any replay of this same request — the
-      // 401-refresh retry inside apiFetch today, a mutation retry later — is
-      // answered with the original job instead of importing the file twice.
-      const job = await uploadActivityFile(file, { idempotencyKey: crypto.randomUUID() })
+      const job = await uploadActivityFile(file)
       return followIngestionJob(job.id)
     },
     onSuccess: async (job) => {

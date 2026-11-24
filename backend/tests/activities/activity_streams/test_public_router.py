@@ -1,110 +1,78 @@
+"""The public stream routes, through the production application: they follow the parent activity's visibility."""
+
 import uuid
-from unittest.mock import patch
 
-from fastapi import FastAPI
-from fastapi.testclient import TestClient
+import pytest
 
-import core.exceptions as core_exceptions
+import core.config as core_config
+import modules.activities.activity.constants as activity_constants
+import modules.activities.activity_streams.constants as stream_constants
+from tests._factories.activities import make_stream
 
-ACTIVITY_ID = uuid.UUID("aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa")
-STREAM_ID = uuid.UUID("bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb")
-
-
-def _build_app(mock_db):
-    import core.database as core_db
-    import core.exceptions as core_exceptions
-    import modules.activities.activity_streams.public_router as router
-
-    app = FastAPI()
-    app.include_router(router.router, prefix="/public/activities/{activity_id}")
-    # Same domain-error boundary the real app registers, so these tests assert
-    # the status codes clients actually receive.
-    core_exceptions.register_exception_handlers(app)
-    app.dependency_overrides[core_db.get_db] = lambda: mock_db
-    return app
+_VISIBILITY = activity_constants.ActivityVisibility
+_HR = stream_constants.STREAM_TYPE_HR
+_POWER = stream_constants.STREAM_TYPE_POWER
+_TIME = "2025-03-10T08:00:00"
+_EMPTY = {"items": [], "total": 0, "page": 1, "num_records": 200, "next": None}
 
 
-class TestReadPublicActivityStreams:
-    @patch("modules.activities.activity_streams.public_router.activity_streams_service.list_public_activity_streams")
-    def test_all_success(self, mock_get, mock_db):
-        from modules.activities.activity_streams.schema import ActivityStreamsPage, ActivityStreamsRead
+def _url(activity_id: uuid.UUID | str, stream_type: str = "") -> str:
+    base = f"{core_config.ROOT_PATH}/public/activities/{activity_id}/streams"
+    return base + (f"/{stream_type}" if stream_type else "")
 
-        client = TestClient(_build_app(mock_db))
-        stream = ActivityStreamsRead(id=STREAM_ID, activity_id=ACTIVITY_ID, stream_type=1, stream_waypoints=[{"x": 1}])
-        mock_get.return_value = ActivityStreamsPage.build([stream], 1, 1, 200)
 
-        response = client.get(f"/public/activities/{ACTIVITY_ID}/streams")
+def _stage(db, activity):
+    make_stream(db, activity, _HR, [{"time": _TIME, "hr": 100}, {"time": _TIME, "hr": 190}])
+    make_stream(db, activity, _POWER, [{"time": _TIME, "power": 250.5}])
+
+
+@pytest.mark.usefixtures("public_links")
+class TestPublic:
+    def test_the_streams_of_a_public_activity_need_no_credentials_and_follow_its_flags(
+        self, client, make_owned_activity
+    ):
+        activity = make_owned_activity(_VISIBILITY.PUBLIC, stage=_stage, hide_hr=True, hide_start_time=True)
+
+        response = client.get(_url(activity.id))
+
         assert response.status_code == 200
-        assert response.json()["total"] == 1
+        body = response.json()
+        assert [item["stream_type"] for item in body["items"]] == ["power"]
+        assert body["items"][0]["stream_waypoints"] == [{"power": 250.5}]
 
-    @patch("modules.activities.activity_streams.public_router.activity_streams_service.list_public_activity_streams")
-    def test_all_not_found(self, mock_get, mock_db):
-        from modules.activities.activity_streams.schema import ActivityStreamsPage
+    def test_one_stream_of_a_public_activity_is_served_with_its_hr_zones(self, client, make_owned_activity):
+        activity = make_owned_activity(_VISIBILITY.PUBLIC, stage=_stage, total_timer_time=100.0)
 
-        client = TestClient(_build_app(mock_db))
-        # Not-found is an empty page, never None: the refusal and the empty
-        # collection answer alike so the endpoint cannot be used to probe which
-        # activities exist.
-        mock_get.return_value = ActivityStreamsPage.build([], 0, 1, 200)
+        response = client.get(_url(activity.id, "heart_rate"))
 
-        response = client.get(f"/public/activities/{ACTIVITY_ID}/streams")
         assert response.status_code == 200
-        assert response.json() == {"items": [], "total": 0, "page": 1, "num_records": 200, "next": None}
+        assert response.json()["zone_percentages"]["hr"]["zone_5"]["percent"] == 50.0
 
-    @patch("modules.activities.activity_streams.public_router.activity_streams_service.get_public_activity_stream")
-    def test_by_type_success(self, mock_get, mock_db):
-        from modules.activities.activity_streams.schema import ActivityStreamsRead
+    @pytest.mark.parametrize("visibility", [_VISIBILITY.FOLLOWERS, _VISIBILITY.PRIVATE])
+    def test_an_activity_that_is_not_public_answers_as_a_missing_one_does(
+        self, client, make_owned_activity, visibility
+    ):
+        activity = make_owned_activity(visibility, stage=_stage)
 
-        client = TestClient(_build_app(mock_db))
-        mock_get.return_value = ActivityStreamsRead(
-            id=STREAM_ID, activity_id=ACTIVITY_ID, stream_type=1, stream_waypoints=[{"x": 1}]
-        )
+        assert client.get(_url(activity.id)).json() == client.get(_url(uuid.uuid4())).json() == _EMPTY
+        assert client.get(_url(activity.id, "power")).status_code == 404
 
-        response = client.get(f"/public/activities/{ACTIVITY_ID}/streams/heart_rate")
-        assert response.status_code == 200
+    def test_a_hidden_stream_is_a_404(self, client, make_owned_activity):
+        activity = make_owned_activity(_VISIBILITY.PUBLIC, stage=_stage, hide_power=True)
 
-    @patch("modules.activities.activity_streams.public_router.activity_streams_service.get_public_activity_stream")
-    def test_by_type_not_found(self, mock_get, mock_db):
-        client = TestClient(_build_app(mock_db))
-        mock_get.side_effect = core_exceptions.NotFoundError("Activity stream not found")
+        response = client.get(_url(activity.id, "power"))
 
-        response = client.get(f"/public/activities/{ACTIVITY_ID}/streams/heart_rate")
-        # Missing, not public, and public-links-disabled are one answer: this
-        # endpoint is unauthenticated, so distinguishing them would let anyone
-        # enumerate activity ids.
         assert response.status_code == 404
-        assert response.json()["detail"] == "Activity stream not found"
+        assert response.json()["type"] == "urn:endurain:error:not-found"
+
+    def test_a_type_that_is_not_a_stream_type_is_a_validation_error(self, client, make_owned_activity):
+        activity = make_owned_activity(_VISIBILITY.PUBLIC, stage=_stage)
+
+        assert client.get(_url(activity.id, "altitude")).status_code == 422
 
 
-class TestStreamTypePath:
-    """The single-stream route accepts every type the list route can return."""
+def test_with_public_links_off_a_public_activity_serves_no_streams(client, make_owned_activity):
+    activity = make_owned_activity(_VISIBILITY.PUBLIC, stage=_stage)
 
-    @patch("modules.activities.activity_streams.public_router.activity_streams_service.get_public_activity_stream")
-    def test_every_stored_type_is_accepted(self, mock_get, mock_db):
-        from modules.activities.activity_streams import constants
-        from modules.activities.activity_streams.schema import ActivityStreamsRead
-
-        client = TestClient(_build_app(mock_db))
-        stored = list(constants.ActivityStreamType)
-        for stream_type in stored:
-            mock_get.return_value = ActivityStreamsRead(
-                id=STREAM_ID, activity_id=ACTIVITY_ID, stream_type=stream_type.stored, stream_waypoints=[]
-            )
-
-            response = client.get(f"/public/activities/{ACTIVITY_ID}/streams/{stream_type.value}")
-
-            assert response.status_code == 200, stream_type
-
-    def test_an_unknown_type_and_the_stored_integer_are_rejected(self, mock_db):
-        client = TestClient(_build_app(mock_db))
-
-        assert client.get(f"/public/activities/{ACTIVITY_ID}/streams/0").status_code == 422
-        assert client.get(f"/public/activities/{ACTIVITY_ID}/streams/1").status_code == 422
-
-
-class TestMalformedActivityId:
-    def test_a_malformed_activity_id_is_422(self, mock_db):
-        client = TestClient(_build_app(mock_db))
-
-        assert client.get("/public/activities/1/streams").status_code == 422
-        assert client.get("/public/activities/1/streams/heart_rate").status_code == 422
+    assert client.get(_url(activity.id)).json() == _EMPTY
+    assert client.get(_url(activity.id, "power")).status_code == 404

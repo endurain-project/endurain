@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, ref, watch } from 'vue'
+import { onBeforeUnmount, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { LoaderCircle } from '@lucide/vue'
 
@@ -17,7 +17,6 @@ import { Switch } from '@/components/ui/switch'
 import { useForm } from '@/composables/useForm'
 import { applyServerFieldErrors } from '@/services/fieldErrors'
 import { useToasts } from '@/composables/useToasts'
-import EnvManagedNotice from '@/features/serverSettings/components/EnvManagedNotice.vue'
 import StepUpDialog from '@/features/security/components/StepUpDialog.vue'
 import { useMailStepUpResume } from '@/features/serverSettings/composables/useMailStepUpResume'
 import { useUpdateMailSettingsMutation } from '@/features/serverSettings/composables/useServerSettings'
@@ -89,27 +88,6 @@ function portValidator(message: string): Validator<string> {
 }
 
 /**
- * The environment variable that sets a field, or undefined when it is editable.
- *
- * @param field - The backend field name (snake_case, as in `env_managed`).
- * @returns The variable name.
- */
-function envVar(field: string): string | undefined {
-  return props.settings.envManaged[field]
-}
-
-/**
- * The hint under an env-managed field, naming the variable that sets it.
- *
- * @param field - The backend field name.
- * @returns The hint, or undefined when the field is editable.
- */
-function envHint(field: string): string | undefined {
-  const name = envVar(field)
-  return name ? t('settings.server.envLocked', { name }) : undefined
-}
-
-/**
  * The form values that survive the identity-provider sign-in. The password is left out, so it never
  * reaches storage; `passwordTyped` tells the resumed form that the administrator has to enter it again.
  *
@@ -164,7 +142,7 @@ function submitForm(): void {
 
 /**
  * Persists the mail settings with the administrator's step-up. Outcomes are surfaced as toasts; a rejection
- * by the backend (unusable configuration, env-managed field) shows its reason, and a refused step-up keeps
+ * by the backend (unusable configuration) shows its reason, and a refused step-up keeps
  * the dialog open for another try.
  *
  * @param stepUp - The administrator's step-up from the dialog.
@@ -232,8 +210,6 @@ useResumeOnce(
   (resume) => reopen(resume),
 )
 
-const envNames = computed(() => [...new Set(Object.values(props.settings.envManaged))])
-
 watch(isDirty, (dirty) => emit('dirtyChange', dirty))
 // The parent rebuilds this form after a save; clear its flag with the old instance.
 onBeforeUnmount(() => emit('dirtyChange', false))
@@ -241,14 +217,12 @@ onBeforeUnmount(() => emit('dirtyChange', false))
 
 <template>
   <form class="flex flex-col gap-3" novalidate @submit.prevent="handleSubmit">
-    <EnvManagedNotice :names="envNames" />
-
     <div class="grid grid-cols-1 gap-3 sm:grid-cols-3">
       <FormField
         class="sm:col-span-2"
         data-setting="email-host"
         :label="t('settings.server.email.host')"
-        :hint="envHint('host') ?? t('settings.server.email.hostHint')"
+        :hint="t('settings.server.email.hostHint')"
       >
         <template #default="{ fieldId, describedBy }">
           <Input
@@ -258,7 +232,7 @@ onBeforeUnmount(() => emit('dirtyChange', false))
             type="text"
             maxlength="253"
             autocomplete="off"
-            :disabled="isSubmitting || Boolean(envVar('host'))"
+            :disabled="isSubmitting"
           />
         </template>
       </FormField>
@@ -266,7 +240,6 @@ onBeforeUnmount(() => emit('dirtyChange', false))
       <FormField
         data-setting="email-port"
         :label="t('settings.server.email.port')"
-        :hint="envHint('port')"
         :error="errors.port"
       >
         <template #default="{ fieldId, describedBy, invalid }">
@@ -278,24 +251,20 @@ onBeforeUnmount(() => emit('dirtyChange', false))
             type="text"
             inputmode="numeric"
             maxlength="5"
-            :disabled="isSubmitting || Boolean(envVar('port'))"
+            :disabled="isSubmitting"
             @blur="handleBlur('port')"
           />
         </template>
       </FormField>
     </div>
 
-    <FormField
-      data-setting="email-security"
-      :label="t('settings.server.email.security')"
-      :hint="envHint('security')"
-    >
+    <FormField data-setting="email-security" :label="t('settings.server.email.security')">
       <template #default="{ fieldId, describedBy }">
         <Select
           :id="fieldId"
           v-model="values.security"
           :aria-describedby="describedBy"
-          :disabled="isSubmitting || Boolean(envVar('security'))"
+          :disabled="isSubmitting"
         >
           <option value="starttls">{{ t('settings.server.email.securityStarttls') }}</option>
           <option value="ssl">{{ t('settings.server.email.securitySsl') }}</option>
@@ -308,11 +277,7 @@ onBeforeUnmount(() => emit('dirtyChange', false))
     </Alert>
 
     <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
-      <FormField
-        data-setting="email-username"
-        :label="t('settings.server.email.username')"
-        :hint="envHint('username')"
-      >
+      <FormField data-setting="email-username" :label="t('settings.server.email.username')">
         <template #default="{ fieldId, describedBy }">
           <Input
             :id="fieldId"
@@ -321,16 +286,12 @@ onBeforeUnmount(() => emit('dirtyChange', false))
             type="text"
             maxlength="320"
             autocomplete="off"
-            :disabled="isSubmitting || Boolean(envVar('username'))"
+            :disabled="isSubmitting"
           />
         </template>
       </FormField>
 
-      <FormField
-        data-setting="email-password"
-        :label="t('settings.server.email.password')"
-        :hint="envHint('password')"
-      >
+      <FormField data-setting="email-password" :label="t('settings.server.email.password')">
         <template #default="{ fieldId, describedBy }">
           <Input
             :id="fieldId"
@@ -340,23 +301,19 @@ onBeforeUnmount(() => emit('dirtyChange', false))
             maxlength="256"
             autocomplete="new-password"
             :placeholder="settings.passwordSet ? t('settings.server.email.passwordStored') : ''"
-            :disabled="isSubmitting || values.removePassword || Boolean(envVar('password'))"
+            :disabled="isSubmitting || values.removePassword"
           />
         </template>
       </FormField>
     </div>
-    <Switch
-      v-if="settings.passwordSet"
-      v-model="values.removePassword"
-      :disabled="isSubmitting || Boolean(envVar('password'))"
-    >
+    <Switch v-if="settings.passwordSet" v-model="values.removePassword" :disabled="isSubmitting">
       {{ t('settings.server.email.passwordRemove') }}
     </Switch>
 
     <FormField
       data-setting="email-from-address"
       :label="t('settings.server.email.fromAddress')"
-      :hint="envHint('from_address') ?? t('settings.server.email.fromAddressHint')"
+      :hint="t('settings.server.email.fromAddressHint')"
     >
       <template #default="{ fieldId, describedBy }">
         <Input
@@ -367,7 +324,7 @@ onBeforeUnmount(() => emit('dirtyChange', false))
           inputmode="email"
           maxlength="320"
           autocomplete="off"
-          :disabled="isSubmitting || Boolean(envVar('from_address'))"
+          :disabled="isSubmitting"
         />
       </template>
     </FormField>

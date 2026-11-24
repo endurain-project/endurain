@@ -1,7 +1,7 @@
 # Code standards
 
 ## Python
-- Python 3.13 syntax: `int | None`, `list[str]`; no `typing.Optional/List/Dict`.
+- Python 3.15 syntax: `int | None`, `list[str]`; no `typing.Optional/List/Dict`.
 - Lines up to 120 characters, code and prose alike (the formatter does not wrap docstrings; keep paragraphs readable).
 - Imports grouped stdlib / third-party / local; `TYPE_CHECKING` to avoid cycles.
 - Every module has a top-level docstring.

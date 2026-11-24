@@ -11,7 +11,7 @@ so the durable-job runner can retry and eventually dead-letter them (used when
 durable jobs are enabled). The ``on_*`` bus subscribers wrap those cores and
 **swallow** errors so a thumbnail failure never breaks activity import or
 deletion (used on the best-effort bus path). Either way the scheduled backfill
-(:func:`service.generate_missing_activity_thumbnails`) is the safety net for the
+(requested through :func:`service.request_missing_thumbnail_backfill`) is the safety net for the
 create path.
 """
 
@@ -23,9 +23,11 @@ from jasil.providers import EventBusProvider
 from jasil.subscribers import best_effort
 
 import core.database as core_database
+import core.job_queues as core_job_queues
 import core.logger as core_logger
 import core.scheduler as core_scheduler
 import modules.activities.activity.events as activity_events
+import modules.activities.activity_thumbnail.events as activity_thumbnail_events
 import modules.activities.activity_thumbnail.scheduled_jobs as activity_thumbnail_scheduled_jobs
 import modules.activities.activity_thumbnail.service as activity_thumbnail_service
 import modules.server_settings.events as server_settings_events
@@ -37,6 +39,7 @@ logger = core_logger.get_logger(__name__)
 THUMBNAIL_GENERATE_SUBSCRIBER_ID = "activity_thumbnail.generate"
 THUMBNAIL_CLEANUP_SUBSCRIBER_ID = "activity_thumbnail.cleanup"
 THUMBNAIL_SETTINGS_CHANGED_SUBSCRIBER_ID = "activity_thumbnail.settings_changed"
+THUMBNAIL_BACKFILL_SUBSCRIBER_ID = "activity_thumbnail.backfill"
 
 
 def generate_activity_thumbnail_for_event(event: Event) -> None:
@@ -132,6 +135,29 @@ def regenerate_thumbnails_for_tile_settings_event(event: Event) -> None:
 on_tile_settings_changed_regenerate = best_effort(regenerate_thumbnails_for_tile_settings_event)
 
 
+def backfill_thumbnails_for_event(event: Event) -> None:
+    """Render the missing thumbnails, up to the per-pass cap; raises on failure.
+
+    The durable-job handler for ``activity_thumbnail.backfill_requested``, on the enrichment queue. A pass
+    that finds the backfill lock held, by a full regeneration or another pass, does nothing: the next
+    request asks again.
+
+    Args:
+        event: The ``activity_thumbnail.backfill_requested`` event.
+    """
+    platform_event_versioning.parse_payload(activity_thumbnail_events.ThumbnailBackfillRequestedPayload, event)
+    platform = platform_runtime.get_active_platform()
+    with core_database.SessionLocal() as db:
+        activity_thumbnail_service.generate_missing_activity_thumbnails(
+            platform.storage, platform.lock, platform.clock, db
+        )
+    logger.debug("Handled thumbnail backfill request")
+
+
+# Bus subscriber for the non-durable profile: swallows any error, as the next hourly request repeats the pass.
+on_backfill_requested = best_effort(backfill_thumbnails_for_event)
+
+
 def register_bus_subscribers(events: EventBusProvider) -> None:
     """Register the thumbnail subscribers for the activity lifecycle events.
 
@@ -143,6 +169,7 @@ def register_bus_subscribers(events: EventBusProvider) -> None:
     events.subscribe(activity_events.ACTIVITY_CREATED, on_activity_created_generate_thumbnail)
     events.subscribe(activity_events.ACTIVITY_DELETED, on_activity_deleted_cleanup_thumbnail)
     events.subscribe(server_settings_events.TILE_SETTINGS_CHANGED, on_tile_settings_changed_regenerate)
+    events.subscribe(activity_thumbnail_events.THUMBNAIL_BACKFILL_REQUESTED, on_backfill_requested)
 
 
 def register_durable_handlers(registry: JobHandlerRegistry) -> None:
@@ -160,6 +187,7 @@ def register_durable_handlers(registry: JobHandlerRegistry) -> None:
         activity_events.ACTIVITY_CREATED,
         THUMBNAIL_GENERATE_SUBSCRIBER_ID,
         generate_activity_thumbnail_for_event,
+        queue=core_job_queues.ENRICHMENT,
     )
     registry.register(
         activity_events.ACTIVITY_DELETED,
@@ -170,4 +198,11 @@ def register_durable_handlers(registry: JobHandlerRegistry) -> None:
         server_settings_events.TILE_SETTINGS_CHANGED,
         THUMBNAIL_SETTINGS_CHANGED_SUBSCRIBER_ID,
         regenerate_thumbnails_for_tile_settings_event,
+        queue=core_job_queues.ENRICHMENT,
+    )
+    registry.register(
+        activity_thumbnail_events.THUMBNAIL_BACKFILL_REQUESTED,
+        THUMBNAIL_BACKFILL_SUBSCRIBER_ID,
+        backfill_thumbnails_for_event,
+        queue=core_job_queues.ENRICHMENT,
     )

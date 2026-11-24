@@ -21,8 +21,6 @@ nothing from the domain layer or the platform substrate, so it is safe for any
 module to depend on.
 """
 
-from __future__ import annotations
-
 import asyncio
 from collections.abc import Coroutine
 from concurrent.futures import Future
@@ -98,8 +96,9 @@ def dispatch[T](coro: Coroutine[Any, Any, T]) -> Future[T] | None:
         if error is None:
             return
         logger.error(
-            f"async_bridge dispatched coroutine failed: {type(error).__name__}",
+            "async_bridge dispatched coroutine failed",
             exc_info=error if isinstance(error, Exception) else None,
+            extra=core_logger.context(error=type(error).__name__),
         )
 
     future.add_done_callback(_log_failure)

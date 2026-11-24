@@ -29,7 +29,7 @@ def register_durable_handlers(registry: JobHandlerRegistry) -> None:
 DURABLE_SUBSCRIBER_NETS: tuple[DurableSubscriberNet, ...] = (
     DurableSubscriberNet(
         activity_thumbnail_subscribers.THUMBNAIL_GENERATE_SUBSCRIBER_ID,
-        activity_thumbnail_scheduled_jobs.generate_missing_thumbnails,
+        activity_thumbnail_scheduled_jobs.request_thumbnail_backfill,
     ),
     DurableSubscriberNet(
         activity_thumbnail_subscribers.THUMBNAIL_CLEANUP_SUBSCRIBER_ID,
@@ -43,5 +43,10 @@ DURABLE_SUBSCRIBER_NETS: tuple[DurableSubscriberNet, ...] = (
             "commits its outbox event atomically; without durable jobs the admin "
             "can repeat the settings update if scheduling fails."
         ),
+    ),
+    DurableSubscriberNet(
+        activity_thumbnail_subscribers.THUMBNAIL_BACKFILL_SUBSCRIBER_ID,
+        None,
+        exempt_reason="The scheduler publishes a new request every hour, so a lost one is replaced within the hour.",
     ),
 )

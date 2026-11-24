@@ -28,7 +28,7 @@ PRs that are too large to review efficiently will be asked to be split before th
 
 ## Prerequisites
 
-- **Python 3.13+**
+- **Python 3.15+**
 - **uv** (installed globally) — see [docs.astral.sh/uv](https://docs.astral.sh/uv/)
 - **Hatch** is included as a dev dependency — run `cd backend && uv sync` once to install it
 

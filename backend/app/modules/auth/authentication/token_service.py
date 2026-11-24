@@ -1,7 +1,5 @@
 """Access token minting and the token response shared by login, refresh and SSO exchange."""
 
-from __future__ import annotations
-
 import uuid
 from datetime import UTC, datetime
 

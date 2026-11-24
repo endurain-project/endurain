@@ -1,88 +1,103 @@
-"""Tests for the activity source-file cleanup subscriber."""
+"""A deleted activity's retained source file is removed, on the in-process bus and by a durable worker."""
 
 import uuid
-from unittest.mock import MagicMock, patch
 
+import jasil.jobs.registry as jobs_registry
 import pytest
-from jasil.events import new_event
+from jasil.events import Event
 from pydantic import ValidationError
 
+import core.config as core_config
 import modules.activities.activity.events as activity_events
+import modules.activities.activity_file_storage.integration_service as file_storage
+import modules.activities.activity_file_storage.subscribers as file_subscribers
+from tests._factories.activities import make_activity
+from tests._factories.garmin import activity_gpx
+from tests._factories.ingestion import fit_file
+from tests._factories.users import make_user
 
-ACTIVITY_ID = uuid.UUID("00000000-0000-4000-8000-000000000042")
-
-
-def _deleted_event(payload):
-    return new_event(activity_events.ACTIVITY_DELETED, payload, source="test")
-
-
-class TestCleanupActivityFileForEvent:
-    @patch("modules.activities.activity_file_storage.subscribers.platform_runtime")
-    def test_raises_for_malformed_activity_id(self, mock_runtime):
-        from modules.activities.activity_file_storage.subscribers import cleanup_activity_file_for_event
-
-        with pytest.raises(ValidationError):
-            cleanup_activity_file_for_event(_deleted_event({"activity_id": "x"}))
-
-        mock_runtime.get_active_platform.assert_not_called()
-
-    @patch("modules.activities.activity_file_storage.files.delete_activity_file")
-    @patch("modules.activities.activity_file_storage.subscribers.platform_runtime")
-    def test_deletes_via_service(self, mock_runtime, mock_delete):
-        from modules.activities.activity_file_storage.subscribers import cleanup_activity_file_for_event
-
-        storage = MagicMock()
-        mock_runtime.get_active_platform.return_value.storage = storage
-
-        cleanup_activity_file_for_event(_deleted_event({"activity_id": str(ACTIVITY_ID)}))
-
-        mock_delete.assert_called_once_with(ACTIVITY_ID, storage)
+_API = core_config.ROOT_PATH
 
 
-class TestOnActivityDeletedCleanupFile:
-    @patch("modules.activities.activity_file_storage.subscribers.platform_runtime")
-    @patch("modules.activities.activity_file_storage.files.delete_activity_file")
-    def test_swallows_errors(self, mock_delete, mock_runtime):
-        from modules.activities.activity_file_storage.subscribers import on_activity_deleted_cleanup_file
-
-        mock_delete.side_effect = RuntimeError("boom")
-
-        # A cleanup failure must never propagate out of the bus handler.
-        on_activity_deleted_cleanup_file(_deleted_event({"activity_id": str(ACTIVITY_ID)}))
-
-    @patch("modules.activities.activity_file_storage.subscribers.platform_runtime")
-    @patch("modules.activities.activity_file_storage.files.delete_activity_file")
-    def test_delegates_to_core(self, mock_delete, mock_runtime):
-        from modules.activities.activity_file_storage.subscribers import on_activity_deleted_cleanup_file
-
-        storage = MagicMock()
-        mock_runtime.get_active_platform.return_value.storage = storage
-
-        on_activity_deleted_cleanup_file(_deleted_event({"activity_id": str(ACTIVITY_ID)}))
-
-        mock_delete.assert_called_once_with(ACTIVITY_ID, storage)
+def _deleted_event(activity_id: object) -> Event:
+    return Event(
+        event_id=str(uuid.uuid4()),
+        event_type=activity_events.ACTIVITY_DELETED,
+        source="test",
+        timestamp="2026-01-01T00:00:00+00:00",
+        payload={"activity_id": str(activity_id)},
+        retry_count=1,
+        max_attempts=3,
+    )
 
 
-class TestRegistration:
-    def test_register_bus_subscribes_deleted(self):
-        from modules.activities.activity_file_storage.subscribers import register_bus_subscribers
+class TestOnTheBus:
+    def test_deleting_an_activity_removes_its_retained_file(self, platform, storage, committed_sessions, sign_in):
+        file_subscribers.register_bus_subscribers(platform.events)
+        with committed_sessions() as db:
+            user = make_user(db)
+            activity = make_activity(db, user.id)
+            db.commit()
+        file_storage.store_activity_file(activity.id, ".fit", fit_file(), storage)
+        other = uuid.uuid4()
+        file_storage.store_activity_file(other, ".gpx", activity_gpx(), storage)
+        me = sign_in(user)
+        etag = me.client.get(f"{_API}/activities/{activity.id}").headers["ETag"]
 
-        events = MagicMock()
-        register_bus_subscribers(events)
+        response = me.client.delete(f"{_API}/activities/{activity.id}", headers={"If-Match": etag})
 
-        events.subscribe.assert_called_once()
-        assert events.subscribe.call_args[0][0] == activity_events.ACTIVITY_DELETED
+        assert response.status_code == 204
+        assert file_storage.get_activity_file(activity.id, storage) is None
+        assert file_storage.get_activity_file(other, storage) is not None
 
-    def test_register_durable_registers_handler(self):
-        from modules.activities.activity_file_storage.subscribers import (
-            ACTIVITY_FILE_CLEANUP_SUBSCRIBER_ID,
-            register_durable_handlers,
+    def test_a_storage_failure_never_breaks_the_deletion(
+        self, platform, storage, committed_sessions, sign_in, break_storage
+    ):
+        file_subscribers.register_bus_subscribers(platform.events)
+        with committed_sessions() as db:
+            user = make_user(db)
+            activity = make_activity(db, user.id)
+            db.commit()
+        file_storage.store_activity_file(activity.id, ".fit", fit_file(), storage)
+        break_storage(delete=RuntimeError("storage is down"))
+        me = sign_in(user)
+        etag = me.client.get(f"{_API}/activities/{activity.id}").headers["ETag"]
+
+        response = me.client.delete(f"{_API}/activities/{activity.id}", headers={"If-Match": etag})
+
+        assert response.status_code == 204
+        assert file_storage.get_activity_file(activity.id, storage) is not None, "the sweep removes it later"
+
+
+class TestOnADurableWorker:
+    @pytest.fixture
+    def handler(self):
+        registry = jobs_registry.JobHandlerRegistry()
+        file_subscribers.register_durable_handlers(registry)
+        assert registry.subscribers_for(activity_events.ACTIVITY_DELETED) == (
+            file_subscribers.ACTIVITY_FILE_CLEANUP_SUBSCRIBER_ID,
         )
+        return registry.get(file_subscribers.ACTIVITY_FILE_CLEANUP_SUBSCRIBER_ID)
 
-        registry = MagicMock()
-        register_durable_handlers(registry)
+    def test_removes_the_file_of_the_deleted_activity_and_no_other(self, handler, storage):
+        gone, kept = uuid.uuid4(), uuid.uuid4()
+        file_storage.store_activity_file(gone, ".fit", fit_file(), storage)
+        file_storage.store_activity_file(kept, ".fit", fit_file(), storage)
 
-        registry.register.assert_called_once()
-        args = registry.register.call_args[0]
-        assert args[0] == activity_events.ACTIVITY_DELETED
-        assert args[1] == ACTIVITY_FILE_CLEANUP_SUBSCRIBER_ID
+        handler(_deleted_event(gone))
+
+        assert file_storage.get_activity_file(gone, storage) is None
+        assert file_storage.get_activity_file(kept, storage) is not None
+
+    def test_an_activity_that_never_had_a_file_is_not_an_error(self, handler):
+        handler(_deleted_event(uuid.uuid4()))
+
+    def test_a_malformed_event_is_refused(self, handler):
+        with pytest.raises(ValidationError):
+            handler(_deleted_event("not-a-uuid"))
+
+    def test_a_storage_failure_is_raised_so_the_runner_retries(self, handler, break_storage):
+        break_storage(delete=RuntimeError("storage is down"))
+
+        with pytest.raises(RuntimeError, match="storage is down"):
+            handler(_deleted_event(uuid.uuid4()))

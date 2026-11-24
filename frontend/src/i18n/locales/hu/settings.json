@@ -331,8 +331,6 @@
     "staleError": "Más módosította ezeket a beállításokat, miközben szerkesztetted őket. A módosításaid nem lettek mentve. Töltsd újra az oldalt az aktuális értékek megtekintéséhez.",
     "stepUpTitle": "Erősítsd meg a személyazonosságodat",
     "stepUpDescription": "Ezek a módosítások befolyásolják, hogy ki regisztrálhat, jelentkezhet be vagy tarthat fenn munkamenetet ezen a szerveren, mennyi ideig őrizzük meg az auditnaplót, illetve hogy a nyilvános hivatkozások megmutatják-e, ki osztotta meg őket. A folytatáshoz erősítsd meg, hogy te vagy az.",
-    "envLocked": "{name} állítja be",
-    "envSection": "Az itteni beállítások egy részét környezeti változók ({names}) határozzák meg. Töröld őket a környezetből, hogy itt szerkeszthesd ezeket a beállításokat.",
     "unsaved": "Nem mentett módosítások",
     "fixErrors": "A mentéshez javítsd a fenti hibákat",
     "discard": "Elvetés",

@@ -29,7 +29,7 @@ class RotationCounts:
     rotated: int = 0
     undecryptable: int = 0
 
-    def __add__(self, other: "RotationCounts") -> "RotationCounts":
+    def __add__(self, other: RotationCounts) -> RotationCounts:
         """Sum two counts."""
         return RotationCounts(self.rotated + other.rotated, self.undecryptable + other.undecryptable)
 

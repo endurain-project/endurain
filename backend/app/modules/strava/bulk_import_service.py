@@ -236,7 +236,7 @@ def build_import_dictionary(
     if activity_id_value:
         try:
             import_dict["strava_activity_id"] = int(activity_id_value)
-        except (TypeError, ValueError):
+        except TypeError, ValueError:
             logger.warning(
                 "Bulk file import: ignoring invalid Strava activity id",
                 extra=core_logger.context(console=True, file_name=file_base_name),

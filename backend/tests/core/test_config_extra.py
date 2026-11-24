@@ -13,6 +13,12 @@ from pydantic import ValidationError
 import core.config as core_config
 from core.config import Settings
 from tests._helpers.auth import MOCK_USER_ID, OTHER_USER_ID
+from tests.core._logs import capture
+
+
+def _config_log():
+    """Capture what ``core.config`` logs."""
+    return capture(core_config.logger)
 
 
 class TestLookLikeIp:
@@ -64,13 +70,6 @@ class TestSettings:
 
         s = Settings(_env_file=None, ENVIRONMENT="PRODUCTION")
         assert s.ENVIRONMENT == "production"
-
-    def test_host_names_lowercased(self):
-        from core.config import Settings
-
-        s = Settings(_env_file=None, PHOTON_API_HOST="PHOTON.EXAMPLE.COM", NOMINATIM_API_HOST="NOMINATIM.EXAMPLE.ORG")
-        assert s.PHOTON_API_HOST == "photon.example.com"
-        assert s.NOMINATIM_API_HOST == "nominatim.example.org"
 
     def test_allowed_redirect_uris_default_is_the_mobile_app_callback(self):
         s = Settings(_env_file=None)
@@ -168,43 +167,6 @@ class TestSettings:
 
         s = Settings(_env_file=None, TRUSTED_PROXIES=None)
         assert s.TRUSTED_PROXIES == []
-
-    def test_smtp_secure_type_starttls(self):
-        from core.config import Settings
-
-        s = Settings(_env_file=None, SMTP_SECURE_TYPE="STARTTLS")
-        assert s.SMTP_SECURE_TYPE == "starttls"
-
-    def test_smtp_secure_type_ssl(self):
-        from core.config import Settings
-
-        s = Settings(_env_file=None, SMTP_SECURE_TYPE="SSL")
-        assert s.SMTP_SECURE_TYPE == "ssl"
-
-    def test_smtp_secure_type_none(self):
-        from core.config import Settings
-
-        s = Settings(_env_file=None, SMTP_SECURE_TYPE=None)
-        assert s.SMTP_SECURE_TYPE == "starttls"
-
-    def test_smtp_secure_type_empty(self):
-        from core.config import Settings
-
-        s = Settings(_env_file=None, SMTP_SECURE_TYPE="")
-        assert s.SMTP_SECURE_TYPE == "starttls"
-
-    def test_smtp_secure_type_invalid(self):
-        from core.config import Settings
-
-        with patch("core.config.logger"):
-            s = Settings(_env_file=None, SMTP_SECURE_TYPE="invalid_value")
-        assert s.SMTP_SECURE_TYPE == "starttls"
-
-    def test_smtp_secure_type_not_string_defaults_to_starttls(self):
-        from core.config import Settings
-
-        s = Settings(_env_file=None, SMTP_SECURE_TYPE=123)
-        assert s.SMTP_SECURE_TYPE == "starttls"
 
     def test_filesystem_defaults(self):
         from core.config import Settings
@@ -334,7 +296,7 @@ class TestSettings:
     def test_csp_additional_connect_src_rejects_injection_entries(self):
         from core.config import Settings
 
-        with patch("core.config.logger"):
+        with _config_log():
             s = Settings(
                 _env_file=None,
                 CSP_ADDITIONAL_CONNECT_SRC="https://ok.example.com,bad; script-src *,has space",
@@ -345,7 +307,7 @@ class TestSettings:
     def test_csp_additional_connect_src_drops_bare_wildcard_keeps_host_wildcard(self):
         from core.config import Settings
 
-        with patch("core.config.logger"):
+        with _config_log():
             s = Settings(
                 _env_file=None,
                 CSP_ADDITIONAL_CONNECT_SRC="*,https://*.example.com,https://auth.example.com",
@@ -359,33 +321,13 @@ class TestSettings:
     def test_csp_additional_connect_src_drops_scheme_only_sources(self):
         from core.config import Settings
 
-        with patch("core.config.logger"):
+        with _config_log():
             s = Settings(
                 _env_file=None,
                 CSP_ADDITIONAL_CONNECT_SRC="https:,ws:,https://auth.example.com",
             )
         # Scheme-only sources are dropped; the exact origin survives.
         assert s.CSP_ADDITIONAL_CONNECT_SRC == ["https://auth.example.com"]
-
-    def test_reverse_geo_rate_limit_float(self):
-        from core.config import Settings
-
-        s = Settings(_env_file=None, REVERSE_GEO_RATE_LIMIT="2.5")
-        assert s.REVERSE_GEO_RATE_LIMIT == 2.5
-
-    def test_reverse_geo_rate_limit_empty(self):
-        from core.config import Settings
-
-        with patch("core.config.logger"):
-            s = Settings(_env_file=None, REVERSE_GEO_RATE_LIMIT="")
-        assert s.REVERSE_GEO_RATE_LIMIT == 1.0
-
-    def test_reverse_geo_rate_limit_invalid(self):
-        from core.config import Settings
-
-        with patch("core.config.logger"):
-            s = Settings(_env_file=None, REVERSE_GEO_RATE_LIMIT="not-a-number")
-        assert s.REVERSE_GEO_RATE_LIMIT == 1.0
 
 
 @patch.dict(os.environ, {}, clear=True)
@@ -443,35 +385,35 @@ class TestSettingsSsrfAllowedHosts:
     def test_wildcard_rejected(self):
         from core.config import Settings
 
-        with patch("core.config.logger"):
+        with _config_log():
             s = Settings(_env_file=None, SSRF_ALLOWED_HOSTS="*")
         assert s.SSRF_ALLOWED_HOSTS == []
 
     def test_broad_ipv4_range_rejected(self):
         from core.config import Settings
 
-        with patch("core.config.logger"):
+        with _config_log():
             s = Settings(_env_file=None, SSRF_ALLOWED_HOSTS="0.0.0.0/0")
         assert s.SSRF_ALLOWED_HOSTS == []
 
     def test_broad_ipv6_range_rejected(self):
         from core.config import Settings
 
-        with patch("core.config.logger"):
+        with _config_log():
             s = Settings(_env_file=None, SSRF_ALLOWED_HOSTS="::/0")
         assert s.SSRF_ALLOWED_HOSTS == []
 
     def test_invalid_cidr_rejected(self):
         from core.config import Settings
 
-        with patch("core.config.logger"):
+        with _config_log():
             s = Settings(_env_file=None, SSRF_ALLOWED_HOSTS="not-a-cidr/abc")
         assert s.SSRF_ALLOWED_HOSTS == []
 
     def test_mixed_valid_and_invalid(self):
         from core.config import Settings
 
-        with patch("core.config.logger"):
+        with _config_log():
             s = Settings(_env_file=None, SSRF_ALLOWED_HOSTS="valid.example.com,*,10.10.0.0/24")
         assert "valid.example.com" in s.SSRF_ALLOWED_HOSTS
         assert "10.10.0.0/24" in s.SSRF_ALLOWED_HOSTS
@@ -492,7 +434,7 @@ class TestSettingsSsrfAllowedHosts:
     def test_bracket_only_hostname_empty_after_strip(self):
         from core.config import Settings
 
-        with patch("core.config.logger"):
+        with _config_log():
             s = Settings(_env_file=None, SSRF_ALLOWED_HOSTS="[]")
         assert s.SSRF_ALLOWED_HOSTS == []
 
@@ -517,7 +459,7 @@ class TestReadSecret:
 
         with (
             patch.dict(os.environ, {"MY_SECRET_FILE": str(secret_file)}),
-            patch("core.config._is_safe_path", return_value=True),
+            patch.object(core_config.settings, "ENVIRONMENT", "development"),
         ):
             result = read_secret("MY_SECRET")
 
@@ -553,7 +495,7 @@ class TestReadSecret:
 
         with (
             patch.dict(os.environ, {"MY_SECRET_FILE": str(tmp_path)}),
-            patch("core.config._is_safe_path", return_value=True),
+            patch.object(core_config.settings, "ENVIRONMENT", "development"),
             pytest.raises(OSError, match="Error reading secret file"),
         ):
             read_secret("MY_SECRET")
@@ -567,7 +509,7 @@ class TestReadSecret:
 
         with (
             patch.dict(os.environ, {"MY_SECRET_FILE": str(large_file)}),
-            patch("core.config._is_safe_path", return_value=True),
+            patch.object(core_config.settings, "ENVIRONMENT", "development"),
             pytest.raises(OSError, match="Error reading secret file"),
         ):
             read_secret("MY_SECRET")
@@ -581,13 +523,13 @@ class TestReadSecret:
 
         with (
             patch.dict(os.environ, {"MY_SECRET_FILE": str(secret_file)}),
-            patch("core.config._is_safe_path", return_value=True),
-            patch("core.config.logger") as mock_log,
+            patch.object(core_config.settings, "ENVIRONMENT", "development"),
+            _config_log() as mock_log,
         ):
             result = read_secret("MY_SECRET")
 
         assert result == "secret_value"
-        warning_calls = [c for c in mock_log.method_calls if "world-readable" in str(c)]
+        warning_calls = [m for m in mock_log.messages if "world-readable" in m]
         assert len(warning_calls) >= 1
 
     def test_empty_file_warning(self, tmp_path):
@@ -599,13 +541,13 @@ class TestReadSecret:
 
         with (
             patch.dict(os.environ, {"MY_SECRET_FILE": str(empty_file)}),
-            patch("core.config._is_safe_path", return_value=True),
-            patch("core.config.logger") as mock_log,
+            patch.object(core_config.settings, "ENVIRONMENT", "development"),
+            _config_log() as mock_log,
         ):
             result = read_secret("MY_SECRET")
 
         assert result is None
-        warning_calls = [c for c in mock_log.method_calls if "empty" in str(c)]
+        warning_calls = [m for m in mock_log.messages if "empty" in m]
         assert len(warning_calls) >= 1
 
     def test_unsafe_path_raises(self):
@@ -613,7 +555,7 @@ class TestReadSecret:
 
         with (
             patch.dict(os.environ, {"MY_SECRET_FILE": "/etc/passwd"}),
-            patch("core.config._is_safe_path", return_value=False),
+            patch.object(core_config.settings, "ENVIRONMENT", "production"),
             pytest.raises(OSError, match="Error reading secret file"),
         ):
             read_secret("MY_SECRET")
@@ -627,7 +569,7 @@ class TestReadSecret:
 
         with (
             patch.dict(os.environ, {"MY_SECRET_FILE": str(secret_file)}),
-            patch("core.config._is_safe_path", return_value=True),
+            patch.object(core_config.settings, "ENVIRONMENT", "development"),
             patch("pathlib.Path.open", side_effect=TypeError("unexpected type")),
             pytest.raises(OSError, match="Unexpected error reading secret"),
         ):
@@ -768,7 +710,7 @@ class TestCheckRequiredEnvVars:
 
         with (
             patch.dict(os.environ, self._minimal_env(), clear=True),
-            patch("core.config.logger"),
+            _config_log(),
         ):
             check_required_env_vars()
 
@@ -814,7 +756,7 @@ class TestCheckRequiredEnvVars:
                 ),
                 clear=True,
             ),
-            patch("core.config.logger"),
+            _config_log(),
         ):
             check_required_env_vars()
 
@@ -842,6 +784,31 @@ class TestCheckRequiredDirs:
 
         assert test_data.exists()
 
+    def test_a_directory_another_replica_creates_at_the_same_moment_is_accepted(self, tmp_path, monkeypatch):
+        """Replicas sharing a data volume start together: each directory may appear between a check and a create."""
+        from pathlib import Path
+
+        from core.config import check_required_dirs
+
+        test_data = tmp_path / "data"
+        dirs = {
+            "core.config.settings.DATA_DIR": test_data,
+            "core.config.settings.LOGS_DIR": tmp_path / "logs",
+            "core.config.settings.FILES_DIR": test_data / "files",
+            "core.config.SERVER_IMAGES_DIR": test_data / "server_images",
+            "core.config.FILES_PROCESSED_DIR": test_data / "files" / "processed",
+            "core.config.FILES_BULK_IMPORT_DIR": test_data / "files" / "bulk_import",
+            "core.config.FILES_UPLOAD_INCOMING_DIR": test_data / "files" / "upload_incoming",
+        }
+        for path in dirs.values():
+            path.mkdir(parents=True, exist_ok=True)
+        # Every directory looked missing when checked, and another replica created it right after.
+        monkeypatch.setattr(Path, "exists", lambda self: False)
+        for target, path in dirs.items():
+            monkeypatch.setattr(target, str(path))
+
+        check_required_dirs()
+
     def test_file_path_where_dir_expected_raises(self, tmp_path):
         from core.config import check_required_dirs
 
@@ -866,7 +833,7 @@ class TestModuleLevelConstants:
     def test_api_version(self):
         from core.config import API_VERSION
 
-        assert API_VERSION == "v0.21.0"
+        assert API_VERSION == "v0.22.0-beta1"
 
     def test_license_constants(self):
         from core.config import LICENSE_IDENTIFIER, LICENSE_NAME, LICENSE_URL
@@ -898,38 +865,66 @@ class TestModuleLevelConstants:
         assert ".gpx" in SUPPORTED_FILE_FORMATS
 
 
+#: Variables whose settings moved to the admin UI and are no longer read from the environment.
+RETIRED_IN_V0_22_ADMIN_UI = frozenset(
+    {
+        "READ_NOTIFICATION_RETENTION_DAYS",
+        "ACCESS_TOKEN_EXPIRE_MINUTES",
+        "REFRESH_TOKEN_EXPIRE_DAYS",
+        "SESSION_IDLE_TIMEOUT_ENABLED",
+        "SESSION_IDLE_TIMEOUT_HOURS",
+        "SESSION_ABSOLUTE_TIMEOUT_HOURS",
+        "REVERSE_GEO_PROVIDER",
+        "PHOTON_API_HOST",
+        "NOMINATIM_API_HOST",
+        "PHOTON_API_USE_HTTPS",
+        "NOMINATIM_API_USE_HTTPS",
+        "GEOCODES_MAPS_API",
+        "REVERSE_GEO_RATE_LIMIT",
+        "SMTP_HOST",
+        "SMTP_PORT",
+        "SMTP_USERNAME",
+        "SMTP_FROM",
+        "SMTP_SECURE",
+        "SMTP_SECURE_TYPE",
+        "SMTP_PASSWORD",
+        "SMTP_PASSWORD_FILE",
+    }
+)
+
+
 class TestCheckDeprecatedEnvVars:
-    """check_deprecated_env_vars: fail-fast on variables retired in v0.19.x."""
+    """check_deprecated_env_vars: fail-fast on variables retired in v0.19.x to v0.22.0."""
 
     @patch.dict(os.environ, {}, clear=True)
     def test_no_deprecated_vars_passes_silently(self):
         from core.config import check_deprecated_env_vars
 
-        with patch("core.config.logger") as mock_log:
+        with _config_log() as mock_log:
             check_deprecated_env_vars()
 
-        assert len(mock_log.method_calls) == 0
+        assert mock_log.records == []
 
     @patch.dict(os.environ, {"SOME_CURRENT_VAR": "value"}, clear=True)
     def test_unrelated_var_passes_silently(self):
         from core.config import check_deprecated_env_vars
 
-        with patch("core.config.logger") as mock_log:
+        with _config_log() as mock_log:
             check_deprecated_env_vars()
 
-        assert len(mock_log.method_calls) == 0
+        assert mock_log.records == []
 
     @patch.dict(os.environ, {"FRONTEND_PROTOCOL": "https"}, clear=True)
     def test_frontend_protocol_aborts_with_replacement_hint(self):
         from core.config import check_deprecated_env_vars
 
         with (
-            patch("core.config.logger") as mock_log,
+            _config_log() as mock_log,
             pytest.raises(OSError, match="FRONTEND_PROTOCOL"),
         ):
             check_deprecated_env_vars()
 
-        logged = " ".join(str(call) for call in mock_log.method_calls)
+        logged = mock_log.text
         assert "FRONTEND_PROTOCOL" in logged
         # Remediation points operators at the replacement variable.
         assert "ENVIRONMENT" in logged
@@ -939,12 +934,12 @@ class TestCheckDeprecatedEnvVars:
         from core.config import check_deprecated_env_vars
 
         with (
-            patch("core.config.logger") as mock_log,
+            _config_log() as mock_log,
             pytest.raises(OSError, match="UID"),
         ):
             check_deprecated_env_vars()
 
-        logged = " ".join(str(call) for call in mock_log.method_calls)
+        logged = mock_log.text
         assert "docker-compose" in logged
 
     @patch.dict(
@@ -956,7 +951,7 @@ class TestCheckDeprecatedEnvVars:
         from core.config import check_deprecated_env_vars
 
         with (
-            patch("core.config.logger") as mock_log,
+            _config_log() as mock_log,
             pytest.raises(OSError) as exc_info,
         ):
             check_deprecated_env_vars()
@@ -969,20 +964,47 @@ class TestCheckDeprecatedEnvVars:
         assert "FRONTEND_PROTOCOL" in message
 
         # One header line plus one line per offending variable.
-        assert len(mock_log.method_calls) == 4
+        assert len(mock_log.records) == 4
 
     @patch.dict(os.environ, {"ALLOWED_REDIRECT_SCHEMES": "endurain"}, clear=True)
     def test_allowed_redirect_schemes_aborts_pointing_to_allowed_redirect_uris(self):
         from core.config import check_deprecated_env_vars
 
         with (
-            patch("core.config.logger") as mock_log,
+            _config_log() as mock_log,
             pytest.raises(OSError, match="ALLOWED_REDIRECT_SCHEMES"),
         ):
             check_deprecated_env_vars()
 
-        logged = " ".join(str(call) for call in mock_log.method_calls)
+        logged = mock_log.text
         assert "ALLOWED_REDIRECT_URIS" in logged
+
+    @pytest.mark.parametrize("name", sorted(RETIRED_IN_V0_22_ADMIN_UI))
+    def test_variable_moved_to_the_admin_ui_aborts_naming_server_settings(self, name):
+        from core.config import check_deprecated_env_vars
+
+        with (
+            patch.dict(os.environ, {name: "value"}, clear=True),
+            _config_log() as mock_log,
+            pytest.raises(OSError, match=name),
+        ):
+            check_deprecated_env_vars()
+
+        logged = mock_log.text
+        assert "Server settings" in logged
+
+    @pytest.mark.parametrize("name", ["ALGORITHM", "ALGORITHM_FILE"])
+    def test_algorithm_variable_aborts_saying_the_algorithm_is_fixed(self, name):
+        from core.config import check_deprecated_env_vars
+
+        with (
+            patch.dict(os.environ, {name: "HS256"}, clear=True),
+            _config_log() as mock_log,
+            pytest.raises(OSError, match=name),
+        ):
+            check_deprecated_env_vars()
+
+        assert "HS256" in mock_log.text
 
     def test_mapping_contains_expected_keys(self):
         from core.config import DEPRECATED_ENV_VARS
@@ -994,6 +1016,9 @@ class TestCheckDeprecatedEnvVars:
             "RATE_LIMIT_STORAGE_URI",
             "AUTH_SECURITY_STORAGE_URI",
             "ALLOWED_REDIRECT_SCHEMES",
+            "ALGORITHM",
+            "ALGORITHM_FILE",
+            *RETIRED_IN_V0_22_ADMIN_UI,
         }
         assert all(isinstance(hint, str) and hint for hint in DEPRECATED_ENV_VARS.values())
 
@@ -1021,45 +1046,6 @@ class TestBulkImportDirectoriesArePerUser:
         with patch("core.config.FILES_BULK_IMPORT_DIR", "/data/bulk_import"):
             directory = core_config.bulk_import_dir_for(uuid.uuid4())
         assert directory.count("/") == "/data/bulk_import".count("/") + 1
-
-
-class TestSessionPolicySettings:
-    """The deprecated session and token variables keep the bounds the database enforces."""
-
-    def test_defaults_are_the_documented_ones(self):
-        s = Settings(_env_file=None)
-        assert (s.ACCESS_TOKEN_EXPIRE_MINUTES, s.REFRESH_TOKEN_EXPIRE_DAYS) == (15, 7)
-        assert (s.SESSION_IDLE_TIMEOUT_ENABLED, s.SESSION_IDLE_TIMEOUT_HOURS, s.SESSION_ABSOLUTE_TIMEOUT_HOURS) == (
-            False,
-            1,
-            24,
-        )
-
-    @pytest.mark.parametrize(
-        ("name", "value"),
-        [
-            ("ACCESS_TOKEN_EXPIRE_MINUTES", 0),
-            ("ACCESS_TOKEN_EXPIRE_MINUTES", 1441),
-            ("REFRESH_TOKEN_EXPIRE_DAYS", 0),
-            ("REFRESH_TOKEN_EXPIRE_DAYS", 366),
-            ("READ_NOTIFICATION_RETENTION_DAYS", -1),
-            ("READ_NOTIFICATION_RETENTION_DAYS", 3651),
-            ("SESSION_IDLE_TIMEOUT_HOURS", 0),
-            ("SESSION_IDLE_TIMEOUT_HOURS", 8761),
-            ("SESSION_ABSOLUTE_TIMEOUT_HOURS", 0),
-            ("SESSION_ABSOLUTE_TIMEOUT_HOURS", 8761),
-        ],
-    )
-    def test_out_of_range_values_fail_settings_construction(self, name, value):
-        with pytest.raises(ValidationError):
-            Settings(_env_file=None, **{name: value})
-
-    def test_values_are_read_from_the_environment(self):
-        with patch.dict(os.environ, {"ACCESS_TOKEN_EXPIRE_MINUTES": "30", "SESSION_IDLE_TIMEOUT_ENABLED": "true"}):
-            s = Settings(_env_file=None)
-        assert s.ACCESS_TOKEN_EXPIRE_MINUTES == 30
-        assert s.SESSION_IDLE_TIMEOUT_ENABLED is True
-        assert {"ACCESS_TOKEN_EXPIRE_MINUTES", "SESSION_IDLE_TIMEOUT_ENABLED"} <= s.model_fields_set
 
 
 class TestEnvironmentValidation:
@@ -1100,7 +1086,7 @@ class TestSecretKeyLength:
         env = TestCheckRequiredEnvVars()._minimal_env(SECRET_KEY="short")
         with (
             patch.dict(os.environ, env, clear=True),
-            patch("core.config.logger"),
+            _config_log(),
             pytest.raises(ValueError, match="SECRET_KEY must be at least 32 characters"),
         ):
             check_required_env_vars()
@@ -1111,7 +1097,7 @@ class TestSecretKeyLength:
         env = TestCheckRequiredEnvVars()._minimal_env(SECRET_KEY=f"{_VARIED_KEY},short")
         with (
             patch.dict(os.environ, env, clear=True),
-            patch("core.config.logger"),
+            _config_log(),
             pytest.raises(ValueError, match="SECRET_KEY must be at least 32 characters"),
         ):
             check_required_env_vars()
@@ -1120,7 +1106,7 @@ class TestSecretKeyLength:
         from core.config import check_required_env_vars
 
         env = TestCheckRequiredEnvVars()._minimal_env(SECRET_KEY=f"{_VARIED_KEY}, {_VARIED_KEY_2}")
-        with patch.dict(os.environ, env, clear=True), patch("core.config.logger"):
+        with patch.dict(os.environ, env, clear=True), _config_log():
             check_required_env_vars()
 
     def test_an_empty_entry_stops_startup(self):
@@ -1129,7 +1115,7 @@ class TestSecretKeyLength:
         env = TestCheckRequiredEnvVars()._minimal_env(SECRET_KEY=f"{_VARIED_KEY},")
         with (
             patch.dict(os.environ, env, clear=True),
-            patch("core.config.logger"),
+            _config_log(),
             pytest.raises(ValueError, match="SECRET_KEY contains an empty entry"),
         ):
             check_required_env_vars()
@@ -1143,7 +1129,7 @@ class TestSecretKeyVariety:
         from core.config import check_required_env_vars
 
         env = TestCheckRequiredEnvVars()._minimal_env(SECRET_KEY=secret_key)
-        with patch.dict(os.environ, env, clear=True), patch("core.config.logger"):
+        with patch.dict(os.environ, env, clear=True), _config_log():
             check_required_env_vars()
 
     @pytest.mark.parametrize(
@@ -1182,6 +1168,8 @@ class TestPublishedExampleSecrets:
 
     _SECRET_KEY = "69b85208190c96821050d4ba980a8a95d928ab7e0ebf1a40b8ef6d09fd8367d3"
     _FERNET_KEY = "7NfMMRSCWcoNDSjqBX8WoYH9nTFk1VdQOdZY13po53Y="
+    # Fixed, not generated: it is part of a parametrized test id, which every xdist worker must collect alike.
+    _OTHER_FERNET_KEY = "2-uSFktqm35FhVLqN-Gx54HPJWu51k4H347Hlb1tERg="
     _DB_PASSWORD = "aee5c0d342f5a88dfe657bff3d21ddb31643cdbedd21177e20ec8524b15e3648"
 
     @pytest.mark.parametrize(
@@ -1190,7 +1178,7 @@ class TestPublishedExampleSecrets:
             ("SECRET_KEY", _SECRET_KEY, "openssl rand -hex 32"),
             ("SECRET_KEY", f"{'x' * 32}, {_SECRET_KEY}", "openssl rand -hex 32"),
             ("FERNET_KEY", _FERNET_KEY, "openssl rand -base64 32"),
-            ("FERNET_KEY", f"{Fernet.generate_key().decode()},{_FERNET_KEY}", "openssl rand -base64 32"),
+            ("FERNET_KEY", f"{_OTHER_FERNET_KEY},{_FERNET_KEY}", "openssl rand -base64 32"),
             ("DB_PASSWORD", _DB_PASSWORD, "openssl rand -hex 32"),
         ],
     )
@@ -1200,7 +1188,7 @@ class TestPublishedExampleSecrets:
         env = TestCheckRequiredEnvVars()._minimal_env(**{name: value})
         with (
             patch.dict(os.environ, env, clear=True),
-            patch("core.config.logger"),
+            _config_log(),
             pytest.raises(ValueError, match=name) as raised,
         ):
             check_required_env_vars()
@@ -1217,8 +1205,8 @@ class TestPublishedExampleSecrets:
         env["DB_PASSWORD_FILE"] = str(secret_file)
         with (
             patch.dict(os.environ, env, clear=True),
-            patch("core.config.logger"),
-            patch("core.config._is_safe_path", return_value=True),
+            _config_log(),
+            patch.object(core_config.settings, "ENVIRONMENT", "development"),
             pytest.raises(ValueError, match="DB_PASSWORD"),
         ):
             check_required_env_vars()
@@ -1227,5 +1215,5 @@ class TestPublishedExampleSecrets:
         from core.config import check_required_env_vars
 
         env = TestCheckRequiredEnvVars()._minimal_env()
-        with patch.dict(os.environ, env, clear=True), patch("core.config.logger"):
+        with patch.dict(os.environ, env, clear=True), _config_log():
             check_required_env_vars()

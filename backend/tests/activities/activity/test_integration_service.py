@@ -1,216 +1,216 @@
-"""Tests for the activities integration service — the provider-facing interface.
+"""The activities surface other modules use (Strava, Garmin, gears, goals, account deletion, profile export)."""
 
-These verify each thin interface function delegates to the correct underlying
-CRUD function with the arguments unchanged, so a miswiring is caught even though
-the provider modules that call this in production (Strava/Garmin) mock it out.
-"""
+from datetime import UTC, datetime, timedelta
 
-import uuid
-from unittest.mock import MagicMock, patch
+import pytest
+from sqlalchemy import select
 
-from jasil.backends.state_memory import MemoryState
+import modules.activities.activity.constants as activity_constants
+import modules.activities.activity.crud as activity_crud
+import modules.activities.activity.events as activity_events
+import modules.activities.activity.integration_service as activity_integration
+import modules.activities.activity.models as activity_models
+import modules.gears.contracts as gears_contracts
+from tests._factories.activities import make_activity, make_activity_at, make_activity_media, make_parsed_activity
+from tests._factories.gears import make_gear
+from tests._factories.users import make_user
 
-import modules.activities.activity.bulk_edit_constants as bulk_edit_constants
-import modules.activities.activity.bulk_edit_state_store as bulk_edit_state_store
-
-_USER_1 = uuid.UUID(int=1)
-_USER_3 = uuid.UUID(int=3)
-_USER_7 = uuid.UUID(int=7)
-_AFTER_ID = uuid.uuid4()
-_Kind = bulk_edit_constants.BulkEditKind.VISIBILITY
-_Status = bulk_edit_constants.BulkEditStatus
+_NOW = datetime(2026, 10, 15, 12, 0, tzinfo=UTC)
+_DAY = datetime(2026, 7, 15, 9, tzinfo=UTC)
 
 
-class TestIntegrationService:
-    @patch("modules.activities.activity.integration_service.activity_crud")
-    def test_get_activity_by_strava_id_delegates(self, mock_crud):
-        from modules.activities.activity import integration_service
+@pytest.fixture
+def owner(db):
+    return make_user(db, timezone="UTC")
 
-        db = MagicMock()
-        mock_crud.get_activity_by_strava_id_from_user_id.return_value = "activity"
 
-        result = integration_service.get_activity_by_strava_id(111, _USER_3, db)
+@pytest.fixture
+def other(db):
+    return make_user(db, timezone="UTC")
 
-        assert result == "activity"
-        mock_crud.get_activity_by_strava_id_from_user_id.assert_called_once_with(111, _USER_3, db)
 
-    @patch("modules.activities.activity.integration_service.activity_crud")
-    def test_get_activity_by_garminconnect_id_delegates(self, mock_crud):
-        from modules.activities.activity import integration_service
+class TestProviderLookups:
+    def test_an_import_is_found_by_the_providers_id_for_its_owner_only(self, db, owner, other):
+        mine = make_activity(db, owner.id, strava_activity_id=7, garminconnect_activity_id=8)
 
-        db = MagicMock()
-        mock_crud.get_activity_by_garminconnect_id_from_user_id.return_value = "activity"
+        assert activity_integration.get_activity_by_strava_id(7, owner.id, db).id == mine.id
+        assert activity_integration.get_activity_by_garminconnect_id(8, owner.id, db).id == mine.id
+        assert activity_integration.get_activity_by_strava_id(7, other.id, db) is None
+        assert activity_integration.get_activity_by_garminconnect_id(8, other.id, db) is None
 
-        result = integration_service.get_activity_by_garminconnect_id(222, _USER_3, db)
-
-        assert result == "activity"
-        mock_crud.get_activity_by_garminconnect_id_from_user_id.assert_called_once_with(222, _USER_3, db)
-
-    @patch("modules.activities.activity.integration_service.activity_crud")
-    def test_list_garminconnect_gear_activity_refs_delegates(self, mock_crud):
-        from modules.activities.activity import integration_service
-
-        db = MagicMock()
-        mock_crud.get_garminconnect_gear_activity_refs.return_value = ["a"]
-
-        result = integration_service.list_garminconnect_gear_activity_refs(_USER_3, db, after_id=_AFTER_ID, limit=10)
-
-        assert result == ["a"]
-        mock_crud.get_garminconnect_gear_activity_refs.assert_called_once_with(
-            _USER_3, db, after_id=_AFTER_ID, limit=10
+    def test_the_garmin_gear_refs_page_in_id_order(self, db, owner):
+        ids = sorted(
+            make_activity_at(db, owner.id, _DAY + timedelta(days=n), garminconnect_gear_id=f"g{n}").id for n in range(3)
         )
 
-    @patch("modules.activities.activity.integration_service.activity_service")
-    def test_bulk_set_activities_gear_delegates(self, mock_service):
-        """The surface names the caller; the service arranges the write."""
-        from modules.activities.activity import integration_service
+        first = activity_integration.list_garminconnect_gear_activity_refs(owner.id, db, limit=2)
+        rest = activity_integration.list_garminconnect_gear_activity_refs(owner.id, db, after_id=first[-1].id)
 
-        db = MagicMock()
-        assignments = {1: uuid.uuid4(), 2: None}
-        mock_service.bulk_set_activities_gear.return_value = 2
+        assert [ref.id for ref in first + rest] == ids
 
-        result = integration_service.bulk_set_activities_gear(_USER_3, assignments, db)
+    def test_which_of_some_activity_ids_still_exist(self, db, owner):
+        mine = make_activity(db, owner.id)
 
-        assert result == 2
-        mock_service.bulk_set_activities_gear.assert_called_once_with(
-            _USER_3, assignments, db, source="api:bulk_set_activities_gear"
+        assert activity_integration.filter_existing_activity_ids([mine.id], db) == {mine.id}
+
+    def test_ownership_is_asked_through_the_surface_too(self, db, owner, other):
+        mine = make_activity(db, owner.id)
+
+        assert activity_integration.owns_activity(mine.id, owner.id, db) is True
+        assert activity_integration.owns_activity(mine.id, other.id, db) is False
+
+
+class TestGearWrites:
+    def test_a_bulk_assignment_changes_the_gear_and_publishes_from_its_own_source(self, db, owner, published):
+        gear = make_gear(db, owner.id)
+        activity = make_activity(db, owner.id)
+
+        assert activity_integration.bulk_set_activities_gear(owner.id, {activity.id: gear.id}, db) == 1
+        db.commit()
+
+        assert db.get(activity_models.Activity, activity.id).gear_id == gear.id
+        [event] = published[activity_events.ACTIVITY_UPDATED]
+        assert event.source == "api:bulk_set_activities_gear"
+
+    def test_clearing_a_gear_unassigns_it_and_publishes_from_the_gear_deletion_source(self, db, owner, published):
+        gear = make_gear(db, owner.id)
+        activity = make_activity(db, owner.id, gear_id=gear.id)
+
+        assert activity_integration.clear_activities_gear(gear.id, owner.id, 10, db) == 1
+        db.commit()
+
+        assert db.get(activity_models.Activity, activity.id).gear_id is None
+        assert len(published[activity_events.ACTIVITY_UPDATED]) == 1
+
+    def test_the_usage_of_a_gear_is_summed_overall_and_per_window(self, db, owner):
+        gear = make_gear(db, owner.id)
+        make_activity_at(db, owner.id, _DAY, gear_id=gear.id, distance=1000, total_timer_time=60.0)
+        make_activity_at(db, owner.id, _DAY + timedelta(days=30), gear_id=gear.id, distance=2000, total_timer_time=30.0)
+        window = gears_contracts.UsageWindow(key=gear.id, start_date=_DAY.date() + timedelta(days=20))
+
+        total = activity_integration.get_gear_usage_totals([gear.id], owner.id, db)[gear.id]
+        by_window = activity_integration.get_gear_usage_totals_by_window(gear.id, owner.id, [window], db)
+
+        assert (total.distance, total.time) == (3000.0, 90.0)
+        assert by_window[gear.id].distance == 2000.0
+
+
+class TestDeletes:
+    def test_a_batch_delete_removes_up_to_the_limit_and_publishes_deleted_for_each(self, db, owner, published):
+        for n in range(3):
+            make_activity_at(db, owner.id, _DAY + timedelta(days=n))
+
+        assert activity_integration.delete_activities_batch_for_user(owner.id, 2, db) == 2
+        db.commit()
+
+        assert len(published[activity_events.ACTIVITY_DELETED]) == 2
+        assert {e.source for e in published[activity_events.ACTIVITY_DELETED]} == {"api:delete_user"}
+
+    def test_the_strava_delete_removes_the_synced_activities_only(self, db, owner, published):
+        synced = make_activity_at(db, owner.id, _DAY, strava_activity_id=1)
+        kept = make_activity_at(db, owner.id, _DAY + timedelta(days=1))
+
+        assert activity_integration.delete_all_strava_activities(owner.id, db, limit=10) == 1
+        db.commit()
+
+        remaining = set(db.scalars(select(activity_models.Activity.id)))
+        assert (synced.id in remaining, kept.id in remaining) == (False, True)
+        assert len(published[activity_events.ACTIVITY_DELETED]) == 1
+
+
+class TestReadsForOtherModules:
+    def test_the_owners_pages_come_newest_first_for_the_profile_export(self, db, owner, other):
+        old = make_activity_at(db, owner.id, _DAY, visibility=activity_constants.ActivityVisibility.PRIVATE)
+        new = make_activity_at(db, owner.id, _DAY + timedelta(days=1))
+        make_activity_at(db, other.id, _DAY)
+
+        page = activity_integration.list_user_activities_page(owner.id, db, page_number=1, num_records=10)
+
+        assert [a.id for a in page] == [new.id, old.id]
+        assert activity_integration.list_user_activities_page(owner.id, db, page_number=2, num_records=10) == []
+
+    def test_a_goal_window_leaves_out_hidden_duplicates_unless_asked(self, db, owner):
+        make_activity_at(db, owner.id, _DAY)
+        make_activity_at(db, owner.id, _DAY + timedelta(days=1), is_hidden=True)
+        window = (_DAY - timedelta(days=1), _DAY + timedelta(days=5))
+
+        by_default = activity_integration.total_user_activities_in_timeframe_by_types(owner.id, [1], *window, db)
+        with_hidden = activity_integration.total_user_activities_in_timeframe_by_types(
+            owner.id, [1], *window, db, exclude_hidden=False
         )
 
-    @patch("modules.activities.activity.integration_service.activity_service")
-    def test_delete_all_strava_activities_delegates(self, mock_service):
-        from modules.activities.activity import integration_service
+        assert (by_default.count, with_hidden.count) == (1, 2)
 
-        db = MagicMock()
-        mock_service.delete_all_strava_activities.return_value = 5
+    def test_the_profile_summary_is_the_services(self, db, owner):
+        make_activity_at(db, owner.id, _DAY)
 
-        result = integration_service.delete_all_strava_activities(_USER_3, db, limit=500)
+        summary = activity_integration.get_user_profile_summary(owner.id, owner.id, db, anchor=_DAY.date())
 
-        assert result == 5
-        mock_service.delete_all_strava_activities.assert_called_once_with(
-            _USER_3, db, source="api:delete_all_strava_activities", limit=500
-        )
+        assert (summary.month_activity_count, summary.month_stats.run.distance) == (1, 10000.0)
 
-    @patch("modules.activities.activity.integration_service.activity_service")
-    def test_delete_activities_batch_for_user_delegates(self, mock_service):
-        from modules.activities.activity import integration_service
+    def test_a_restored_activity_is_stored_without_publishing_created(self, db, owner, published):
+        core = make_parsed_activity(owner.id).activity
 
-        db = MagicMock()
-        mock_service.delete_activities_batch_for_user.return_value = 2
+        restored = activity_integration.restore_activity(core, db)
+        db.commit()
 
-        result = integration_service.delete_activities_batch_for_user(_USER_7, 50, db)
+        assert db.get(activity_models.Activity, restored.id) is not None
+        assert published[activity_events.ACTIVITY_CREATED] == []
 
-        assert result == 2
-        mock_service.delete_activities_batch_for_user.assert_called_once_with(_USER_7, 50, db, source="api:delete_user")
+    def test_the_readable_activity_media_and_public_reads_go_through_the_service(self, db, owner, other):
+        mine = make_activity(db, owner.id, visibility=activity_constants.ActivityVisibility.PUBLIC)
+        make_activity_media(db, mine, "a.jpg")
+
+        read = activity_integration.get_readable_activity(mine.id, other.id, db)
+
+        assert activity_integration.with_media(read, other.id, db).media == []
+        assert len(activity_integration.with_media(read, owner.id, db).media) == 1
+        assert activity_integration.resolve_readable_parent(mine.id, other.id, db).id == mine.id
+        assert activity_integration.resolve_public_parent(mine.id, db) is None
 
 
 class TestDerivedArtifactWritesStageOnly:
-    """The thumbnail and geocoding writes stage in CRUD; the caller commits.
+    def test_a_thumbnail_key_is_recorded_listed_and_cleared_without_ending_the_callers_transaction(self, db, owner):
+        activity = make_activity(db, owner.id)
 
-    A cross-module call must not end the caller's transaction, so none of these
-    commits or rolls back.
-    """
+        assert activity_integration.set_thumbnail_key(activity.id, "k.webp", db) is True
+        assert [ref.id for ref in activity_integration.list_activities_with_thumbnail(db)] == [activity.id]
+        activity_integration.clear_all_thumbnail_keys(db)
 
-    @patch("modules.activities.activity.integration_service.activity_crud")
-    def test_set_thumbnail_key_stages_without_committing(self, mock_crud):
-        from modules.activities.activity import integration_service
+        assert [ref.id for ref in activity_integration.list_activities_without_thumbnail(db, due_at=_NOW)] == [
+            activity.id
+        ]
 
-        db = MagicMock()
-        integration_service.set_thumbnail_key(7, "7.png", db)
+    def test_a_deferred_thumbnail_attempt_waits_for_its_time(self, db, owner):
+        activity = make_activity(db, owner.id)
+        activity_integration.defer_thumbnail_attempts([activity.id], _NOW + timedelta(hours=1), db)
 
-        mock_crud.set_activity_thumbnail_key.assert_called_once_with(7, "7.png", db, expected_key=None)
-        db.commit.assert_not_called()
-        db.rollback.assert_not_called()
+        assert activity_integration.list_activities_without_thumbnail(db, due_at=_NOW) == []
+        assert len(activity_integration.list_activities_without_thumbnail(db, due_at=_NOW + timedelta(hours=2))) == 1
 
-    @patch("modules.activities.activity.integration_service.activity_crud")
-    def test_clear_all_thumbnail_keys_stages_without_committing(self, mock_crud):
-        from modules.activities.activity import integration_service
+    def test_a_location_is_written_only_while_none_is_set_and_a_deferred_lookup_waits(self, db, owner):
+        activity = make_activity(db, owner.id)
+        activity_integration.defer_location_lookups([activity.id], _NOW + timedelta(hours=1), db)
+        assert activity_integration.list_activities_missing_location(db, due_at=_NOW) == []
 
-        db = MagicMock()
-        integration_service.clear_all_thumbnail_keys(db)
+        assert activity_integration.set_activity_location(activity.id, "Lisbon", None, "Portugal", db) is True
+        assert activity_integration.set_activity_location(activity.id, "Porto", None, "Portugal", db) is False
 
-        mock_crud.clear_all_activity_thumbnail_keys.assert_called_once_with(db)
-        db.commit.assert_not_called()
+    def test_touching_an_activity_restamps_it_without_a_new_version(self, db, owner):
+        activity = make_activity(db, owner.id)
 
-    @patch("modules.activities.activity.integration_service.activity_crud")
-    def test_set_activity_location_reports_whether_a_row_changed(self, mock_crud):
-        from modules.activities.activity import integration_service
+        activity_integration.touch_activity(activity.id, db)
 
-        db = MagicMock()
-        mock_crud.update_activity_location.return_value = True
-        assert integration_service.set_activity_location(7, "Lisbon", None, "Portugal", db) is True
-        mock_crud.update_activity_location.return_value = False
-        assert integration_service.set_activity_location(999, "Lisbon", None, "Portugal", db) is False
+        assert db.get(activity_models.Activity, activity.id).version == activity.version
 
-        mock_crud.update_activity_location.assert_called_with(999, "Lisbon", None, "Portugal", db)
-        db.commit.assert_not_called()
+    def test_the_change_surface_lists_changed_activities_and_deletions_of_the_owner(self, db, owner):
+        mine = make_activity(db, owner.id)
+        gone = make_activity_at(db, owner.id, _DAY + timedelta(days=1))
+        activity_crud.delete_activity(gone.id, owner.id, db, if_match="*")
+        until = datetime.now(UTC) + timedelta(days=1)
 
+        changed = activity_integration.list_changed_activities(owner.id, None, until, 10, db)
+        deleted = activity_integration.list_activity_deletions(owner.id, None, until, 10, db)
 
-class TestWithMedia:
-    @patch("modules.activities.activity.integration_service.activity_service")
-    def test_fills_the_media_the_list_responses_carry(self, mock_service):
-        from modules.activities.activity import integration_service
-
-        db = MagicMock()
-        activity = MagicMock()
-        mock_service.with_media.return_value = [activity]
-
-        assert integration_service.with_media(activity, _USER_1, db) is activity
-        mock_service.with_media.assert_called_once_with([activity], _USER_1, db)
-
-
-class TestReadableActivity:
-    @patch("modules.activities.activity.integration_service.activity_service")
-    def test_the_requesters_activity_reads_through_the_service(self, mock_service):
-        from modules.activities.activity import integration_service
-
-        db = MagicMock()
-        mock_service.get_activity.return_value = "activity"
-
-        assert integration_service.get_readable_activity(5, _USER_1, db) == "activity"
-        mock_service.get_activity.assert_called_once_with(5, _USER_1, db)
-
-    @patch("modules.activities.activity.integration_service.activity_service")
-    def test_the_public_activity_reads_through_the_service(self, mock_service):
-        from modules.activities.activity import integration_service
-
-        db = MagicMock()
-        mock_service.get_public_activity.return_value = "public"
-
-        assert integration_service.get_public_activity(5, db) == "public"
-        mock_service.get_public_activity.assert_called_once_with(5, db)
-
-
-class TestReadBulkEditJob:
-    def test_the_current_job_reads_as_its_status(self):
-        from modules.activities.activity import integration_service
-
-        state = MemoryState()
-        job = bulk_edit_state_store.ActivityBulkEditStateStore(state).begin(_USER_7, _Kind, conflict="x")
-
-        result = integration_service.read_bulk_edit_job(job, state)
-
-        assert result is not None
-        assert (result.id, result.kind, result.status) == (job.id, "activities_bulk_edit", _Status.QUEUED)
-
-    def test_a_job_whose_subject_started_a_later_one_reads_as_none(self):
-        from modules.activities.activity import integration_service
-
-        state = MemoryState()
-        store = bulk_edit_state_store.ActivityBulkEditStateStore(state)
-        earlier = store.begin(_USER_7, _Kind, conflict="x")
-        store.set_status(_USER_7, _Kind, _Status.SUCCEEDED, job_id=earlier.id)
-        later = store.begin(_USER_7, _Kind, conflict="x")
-
-        assert integration_service.read_bulk_edit_job(earlier, state) is None
-        current = integration_service.read_bulk_edit_job(later, state)
-        assert current is not None and current.id == later.id
-
-    def test_an_expired_job_reads_as_none(self):
-        from modules.activities.activity import integration_service
-
-        state = MemoryState()
-        store = bulk_edit_state_store.ActivityBulkEditStateStore(state)
-        job = store.begin(_USER_7, _Kind, conflict="x")
-        store.discard(_USER_7, _Kind)
-
-        assert integration_service.read_bulk_edit_job(job, state) is None
+        assert [a.id for a in changed] == [mine.id]
+        assert [d.record_id for d in deleted] == [gone.id]

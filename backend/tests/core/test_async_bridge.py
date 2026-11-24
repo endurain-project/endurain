@@ -3,7 +3,6 @@
 import asyncio
 import threading
 from concurrent.futures import Future
-from unittest.mock import patch
 
 import pytest
 
@@ -65,24 +64,23 @@ class TestSetGetLoop:
 
 
 class TestDispatchWithoutLoop:
-    @patch("core.async_bridge.logger")
-    def test_returns_none_logs_and_closes_coroutine(self, mock_logger):
+    def test_returns_none_logs_and_closes_coroutine(self, caplog):
         state = {"ran": False}
 
         async def _work() -> None:
             state["ran"] = True
 
         coro = _work()
-        result = async_bridge.dispatch(coro)
+        with caplog.at_level("DEBUG", logger=async_bridge.logger.name):
+            result = async_bridge.dispatch(coro)
 
         assert result is None
-        mock_logger.warning.assert_called_once()
+        assert [r.levelname for r in caplog.records] == ["WARNING"]
         # The coroutine was closed (never scheduled), not executed.
         assert state["ran"] is False
         assert coro.cr_frame is None
 
-    @patch("core.async_bridge.logger")
-    def test_treats_closed_loop_as_no_loop(self, mock_logger):
+    def test_treats_closed_loop_as_no_loop(self, caplog):
         loop = asyncio.new_event_loop()
         loop.close()
         async_bridge.set_main_loop(loop)
@@ -90,8 +88,9 @@ class TestDispatchWithoutLoop:
         async def _work() -> None: ...
 
         coro = _work()
-        assert async_bridge.dispatch(coro) is None
-        mock_logger.warning.assert_called_once()
+        with caplog.at_level("DEBUG", logger=async_bridge.logger.name):
+            assert async_bridge.dispatch(coro) is None
+        assert [r.levelname for r in caplog.records] == ["WARNING"]
         assert coro.cr_frame is None
 
 
@@ -116,8 +115,7 @@ class TestDispatchWithLoop:
             async_bridge.set_main_loop(None)
             _stop_loop(loop, thread)
 
-    @patch("core.async_bridge.logger")
-    def test_logs_failure_from_coroutine(self, mock_logger):
+    def test_logs_failure_from_coroutine(self, caplog):
         loop, thread = _run_loop_in_thread()
         try:
             async_bridge.set_main_loop(loop)
@@ -125,17 +123,19 @@ class TestDispatchWithLoop:
             async def _boom() -> None:
                 raise ValueError("kaboom")
 
-            future = async_bridge.dispatch(_boom())
+            with caplog.at_level("DEBUG", logger=async_bridge.logger.name):
+                future = async_bridge.dispatch(_boom())
 
-            # A second callback (registered after the bridge's) guarantees the
-            # bridge's logging callback has already run when this one fires.
-            logged = threading.Event()
-            future.add_done_callback(lambda _f: logged.set())
+                # A second callback (registered after the bridge's) guarantees the
+                # bridge's logging callback has already run when this one fires.
+                logged = threading.Event()
+                future.add_done_callback(lambda _f: logged.set())
 
-            with pytest.raises(ValueError):
-                future.result(timeout=5)
-            assert logged.wait(timeout=5)
-            mock_logger.error.assert_called_once()
+                with pytest.raises(ValueError):
+                    future.result(timeout=5)
+                assert logged.wait(timeout=5)
+
+            assert [r.levelname for r in caplog.records] == ["ERROR"]
         finally:
             async_bridge.set_main_loop(None)
             _stop_loop(loop, thread)

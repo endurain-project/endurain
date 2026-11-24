@@ -9,10 +9,11 @@ derived for every operation instead of repeated on each route:
 - a security requirement can answer 401 (``WWW-Authenticate``) and 403;
 - a path parameter can answer 404, a request body 413, an upload (``x-max-body-bytes``) 415, and a write 409;
 - ``If-Match`` is required, because its absence is refused with 428, and a stale or wildcard tag is 412 or 400;
+- an operation that declares ``Idempotency-Key`` can answer 400 for a malformed key and 422 for a key used for another
+  request, and one that replays a stored response (:func:`replays_responses`) 409 for a request with that key still
+  running;
 - a success response carrying a ``version`` sends an ``ETag``, and a create that can be read by id a ``Location``;
-- ``id``, ``version``, ``created_at`` and ``updated_at`` are ``readOnly`` in every schema a client does not send;
-- an operation's description is its docstring up to the first Google section, so ``Args:``, ``Returns:`` and
-  ``Raises:`` (which name the handler's own parameters) never reach a client.
+- ``id``, ``version``, ``created_at`` and ``updated_at`` are ``readOnly`` in every schema a client does not send.
 
 A route lists in ``responses=`` only what the document cannot derive: ``core.location.ACCEPTED_RESPONSE`` and
 ``POLLED_STATUS_HEADERS``, :data:`ETAG_HEADERS` where the version is not a field of the body,
@@ -22,9 +23,13 @@ operation fact implies (a refusal of its own, a status the dependencies and midd
 """
 
 import re
+from collections.abc import Callable, Iterable
 from typing import Any
 
+from fastapi.dependencies.models import Dependant
+from fastapi.routing import APIRoute
 from pydantic import BaseModel
+from starlette.routing import BaseRoute
 
 import core.etag as core_etag
 
@@ -32,8 +37,7 @@ _METHODS = ("get", "post", "put", "patch", "delete")
 _SCHEMA_REF = "#/components/schemas/"
 _SERVER_OWNED_FIELDS = frozenset({"id", "version", "created_at", "updated_at"})
 _UPLOAD_EXTENSION = "x-max-body-bytes"
-#: A Google docstring section header. Matches what the architecture test refuses in a new route docstring.
-_SECTION = re.compile(r"^\s*(Args|Arguments|Returns|Raises|Yields|Attributes|Notes?|Examples?):\s*$", re.M)
+_IDEMPOTENCY_HEADER = "Idempotency-Key"
 
 _ETAG_HEADER: dict[str, Any] = {
     "description": "The version of the resource, to send back as `If-Match` on the next write.",
@@ -97,6 +101,7 @@ _ERRORS: dict[str, tuple[str, dict[str, Any]]] = {
     "412": ("The `If-Match` tag is stale: the resource changed since it was read.", {}),
     "413": ("The body is larger than the route accepts.", {}),
     "415": ("The uploaded file is a type the route does not accept.", {}),
+    "422": ("The request does not match the schema.", {}),
     "428": ("The `If-Match` header is missing.", {}),
     "429": (
         "The rate limit was reached.",
@@ -108,6 +113,14 @@ _ERRORS: dict[str, tuple[str, dict[str, Any]]] = {
     ),
     "503": ("A dependency is unavailable for a moment.", {"Retry-After": _RETRY_AFTER_HEADER}),
 }
+
+#: What an ``Idempotency-Key`` adds to the description of an error the operation can answer.
+_IDEMPOTENCY_NOTES: dict[str, str] = {
+    "400": "A malformed `Idempotency-Key` is refused with this status.",
+    "409": "A request whose `Idempotency-Key` is still being served is answered with this status and `Retry-After`.",
+    "422": "An `Idempotency-Key` already used for a different request is refused with this status.",
+}
+_FRAMEWORK_VALIDATION_DESCRIPTION = "Validation Error"
 
 
 def binary_response(
@@ -172,9 +185,20 @@ def _declare_headers(document: dict[str, Any], path: str, method: str, operation
             response["headers"]["Location"] = _LOCATION_HEADER
 
 
-def _declare_errors(operation: dict[str, Any], method: str) -> None:
-    """Add the errors the operation can answer, keeping any a route declared itself."""
+def _declare_errors(operation: dict[str, Any], method: str, replays: bool) -> None:
+    """Add the errors the operation can answer, keeping any a route declared itself.
+
+    Args:
+        operation: The operation, mutated in place.
+        method: Its HTTP method.
+        replays: Whether the route replays a stored response (:func:`replays_responses`), which only it can answer
+            ``409`` in flight for.
+    """
     parameters = operation.get("parameters", [])
+    idempotent = any(
+        parameter["in"] == "header" and parameter["name"] == _IDEMPOTENCY_HEADER for parameter in parameters
+    )
+    has_if_match = False
     codes = ["429", "503"]
     if operation.get("security"):
         codes += ["401", "403"]
@@ -191,11 +215,22 @@ def _declare_errors(operation: dict[str, Any], method: str) -> None:
             parameter["required"] = True
             parameter["schema"] = {"type": "string"}
             codes += ["400", "412", "428"]
+            has_if_match = True
+    if idempotent:
+        codes += [code for code in ("400", "422") if code not in codes]
     # A route that answers an error of its own (a sign-in's 401) gets that error's headers too.
     codes += [code for code in operation["responses"] if code in _ERRORS and code not in codes]
     for code in codes:
         description, headers = _ERRORS[code]
+        if idempotent and code == "400" and not has_if_match:
+            description = "The request is refused."
         response = operation["responses"].setdefault(code, {"description": description})
+        if idempotent and code in _IDEMPOTENCY_NOTES and (replays or code != "409"):
+            if response["description"] == _FRAMEWORK_VALIDATION_DESCRIPTION:
+                response["description"] = _ERRORS[code][0]
+            response["description"] = f"{response['description']} {_IDEMPOTENCY_NOTES[code]}"
+            if code == "409":
+                headers = {"Retry-After": _RETRY_AFTER_HEADER}
         if headers:
             response.setdefault("headers", headers)
 
@@ -224,24 +259,51 @@ def _mark_read_only(document: dict[str, Any]) -> None:
                 prop["readOnly"] = True
 
 
-def _trim_description(operation: dict[str, Any]) -> None:
-    """Cut an operation's description at the first docstring section, and drop it when nothing is left."""
-    description = operation.get("description")
-    if description is None:
-        return
-    section = _SECTION.search(description)
-    trimmed = (description[: section.start()] if section else description).strip()
-    if trimmed:
-        operation["description"] = trimmed
-    else:
-        del operation["description"]
+_REPLAYS_MARKER = "openapi_replays_response"
 
 
-def declare_contract(document: dict[str, Any]) -> dict[str, Any]:
+def replays_responses[F: Callable[..., Any]](dependency: F) -> F:
+    """Mark a route dependency as one that answers a repeat of a request with a stored response.
+
+    Only such a route can answer ``409`` for a request whose key is still being served, so the document derives that
+    status (and its ``Retry-After``) for the routes that list the dependency, not for every route that reads the key.
+
+    Args:
+        dependency: The dependency function.
+
+    Returns:
+        The same function, marked.
+    """
+    setattr(dependency, _REPLAYS_MARKER, True)
+    return dependency
+
+
+def replaying_operations(routes: Iterable[BaseRoute]) -> frozenset[str]:
+    """Return the operation ids of the routes that list a dependency marked with :func:`replays_responses`.
+
+    Args:
+        routes: The application's routes.
+
+    Returns:
+        The ids, as the OpenAPI document names the operations.
+    """
+
+    def marked(dependant: Dependant) -> bool:
+        return any(getattr(dep.call, _REPLAYS_MARKER, False) or marked(dep) for dep in dependant.dependencies)
+
+    return frozenset(
+        route.operation_id or route.unique_id
+        for route in routes
+        if isinstance(route, APIRoute) and marked(route.dependant)
+    )
+
+
+def declare_contract(document: dict[str, Any], replaying: frozenset[str] = frozenset()) -> dict[str, Any]:
     """Declare in the OpenAPI document the errors, headers and read-only fields that follow from each operation.
 
     Args:
         document: The OpenAPI document, mutated in place.
+        replaying: The operation ids of the routes that replay a stored response.
 
     Returns:
         The same document.
@@ -249,8 +311,7 @@ def declare_contract(document: dict[str, Any]) -> dict[str, Any]:
     for path, item in document["paths"].items():
         for method in _METHODS:
             if method in item:
-                _trim_description(item[method])
-                _declare_errors(item[method], method)
+                _declare_errors(item[method], method, item[method].get("operationId") in replaying)
                 _declare_headers(document, path, method, item[method])
     _mark_read_only(document)
     return document

@@ -39,16 +39,7 @@ def read_notifications_by_id(
     token_user_id: auth_dependencies.CurrentUserId,
     db: core_dependencies.DbSession,
 ) -> notifications_schema.NotificationRead:
-    """Retrieve a notification by ID for the user.
-
-    Args:
-        notification_id: Unique ID of the notification.
-        token_user_id: ID of the user from the access token.
-        db: Database session dependency.
-
-    Returns:
-        The notification.
-    """
+    """Retrieve a notification by ID for the user."""
     return notifications_service.get_notification(notification_id, token_user_id, db)
 
 
@@ -92,17 +83,7 @@ def mark_notification_as_read(
     token_user_id: auth_dependencies.CurrentUserId,
     db: core_dependencies.DbSession,
 ) -> None:
-    """Mark a specific notification as read.
-
-    Args:
-        request: The incoming request, used by the rate limiter.
-        notification_id: ID of the notification to mark as read.
-        token_user_id: ID of the user from the access token.
-        db: Database session dependency.
-
-    Returns:
-        None.
-    """
+    """Mark a specific notification as read."""
     notifications_service.mark_notification_as_read(notification_id, token_user_id, db)
 
 

@@ -1,178 +1,67 @@
-"""
-Tests for server_settings.public_router module.
+"""The unauthenticated server-settings routes on the production application."""
 
-This module tests public API endpoints for server settings,
-accessible without authentication.
-"""
+from sqlalchemy import delete
 
-from unittest.mock import patch
+import core.config as core_config
+import modules.server_settings.constants as server_settings_constants
+import modules.server_settings.models as server_settings_models
+from tests._factories.server_settings import edit_server_settings
 
-import core.exceptions as core_exceptions
-import modules.server_settings.schema as server_settings_schema
+_PUBLIC_URL = f"{core_config.ROOT_PATH}/public/server-settings"
+_ADMIN_ONLY = (
+    "signup_require_admin_approval",
+    "signup_sso_enabled",
+    "password_breach_check_enabled",
+    "require_mfa",
+    "tileserver_api_key",
+    "geocoding_api_key",
+    "session_idle_timeout_hours",
+    "access_token_expire_minutes",
+    "version",
+    "id",
+)
 
 
 class TestReadPublicServerSettings:
-    """Test suite for read_public_server_settings endpoint."""
+    def test_an_anonymous_client_reads_the_settings_the_sign_in_page_needs(self, client, committed_sessions):
+        with committed_sessions() as db:
+            edit_server_settings(db, signup_enabled=True, sso_enabled=True, units="imperial")
+            db.commit()
 
-    @patch("modules.server_settings.public_router.server_settings_service.get_server_settings_for_public")
-    def test_read_public_server_settings_success(self, mock_get_settings, fast_api_client_public, fast_api_app):
-        """Test successful retrieval of public server settings."""
-        # Arrange
-        mock_settings = server_settings_schema.ServerSettingsReadPublic(
-            units=server_settings_schema.Units.METRIC,
-            public_shareable_links=False,
-            public_shareable_links_user_info=False,
-            login_photo_set=False,
-            currency=server_settings_schema.Currency.EURO,
-            num_records_per_page=25,
-            signup_enabled=False,
-            signup_require_email_verification=True,
-            sso_enabled=False,
-            local_login_enabled=True,
-            sso_auto_redirect=False,
-            tileserver_url="https://tile.openstreetmap.org/{z}/{x}/{y}.png",
-            tileserver_attribution="&copy; OpenStreetMap",
-            map_background_color="#dddddd",
-            tileserver_regenerate_thumbnails_on_change=False,
-            password_length_regular_users=8,
-            password_length_admin_users=12,
-            allowed_redirect_uris=["endurain://cb"],
-        )
-
-        mock_get_settings.return_value = mock_settings
-
-        # Act
-        response = fast_api_client_public.get("/server_settings/public")
-
-        # Assert
-        assert response.status_code == 200
-        data = response.json()
-        assert data["units"] == "metric"
-        assert data["public_shareable_links"] is False
-        # Ensure sensitive fields are not exposed
-        assert "signup_require_admin_approval" not in data
-        assert data["signup_require_email_verification"] is True
-        assert "allowed_redirect_schemes" not in data
-        assert data["allowed_redirect_uris"] == ["endurain://cb"]
-
-    @patch("modules.server_settings.public_router.server_settings_service.get_server_settings_for_public")
-    def test_read_public_server_settings_not_found(
-        self, mock_get_settings, fast_api_client_public, fast_api_app_public
-    ):
-        """Test retrieval when settings not found."""
-        # Arrange
-        mock_get_settings.side_effect = core_exceptions.NotFoundError("Server settings not found")
-        core_exceptions.register_exception_handlers(fast_api_app_public)
-
-        # Act
-        response = fast_api_client_public.get("/server_settings/public")
-
-        # Assert
-        assert response.status_code == 404
-
-
-class TestListTileMapsTemplatesPublic:
-    """Test suite for list_tile_maps_templates public endpoint."""
-
-    @patch("modules.server_settings.public_router.server_settings_tile_service.get_tile_maps_templates")
-    def test_list_tile_maps_templates_public_success(self, mock_get_templates, fast_api_client_public, fast_api_app):
-        """Test successful retrieval of tile map templates (public)."""
-        # Arrange
-        mock_templates = [
-            server_settings_schema.TileMapsTemplate(
-                template_id="openstreetmap",
-                name="OpenStreetMap",
-                url_template="https://tile.openstreetmap.org/{z}/{x}/{y}.png",
-                attribution="&copy; OpenStreetMap",
-                map_background_color="#e8e8e8",
-                requires_api_key_frontend=False,
-                requires_api_key_backend=False,
-            ),
-            server_settings_schema.TileMapsTemplate(
-                template_id="alidade_smooth",
-                name="Stadia Maps Alidade Smooth",
-                url_template="https://tiles.stadiamaps.com/{z}/{x}/{y}.png",
-                attribution="&copy; Stadia Maps",
-                map_background_color="#f5f5f5",
-                requires_api_key_frontend=False,
-                requires_api_key_backend=True,
-            ),
-        ]
-        mock_get_templates.return_value = mock_templates
-
-        # Act
-        response = fast_api_client_public.get("/server_settings/public/tile-maps-templates")
-
-        # Assert
-        assert response.status_code == 200
-        data = response.json()
-        assert len(data) == 2
-        assert data[0]["template_id"] == "openstreetmap"
-        assert data[1]["template_id"] == "alidade_smooth"
-
-    @patch("modules.server_settings.public_router.server_settings_tile_service.get_tile_maps_templates")
-    def test_list_tile_maps_templates_public_empty(self, mock_get_templates, fast_api_client_public, fast_api_app):
-        """Test retrieval when no templates available."""
-        # Arrange
-        mock_get_templates.return_value = []
-
-        # Act
-        response = fast_api_client_public.get("/server_settings/public/tile-maps-templates")
-
-        # Assert
-        assert response.status_code == 200
-        data = response.json()
-        assert len(data) == 0
-
-
-class TestReadLoginPhoto:
-    """Test suite for the public login photo route."""
-
-    @patch("modules.server_settings.public_router.server_settings_login_photo_service.get_login_photo_version")
-    @patch("modules.server_settings.public_router.server_settings_login_photo_service.read_login_photo")
-    def test_serves_the_stored_image(self, mock_read, mock_version, fast_api_client_public, fast_api_app):
-        mock_version.return_value = 3
-        mock_read.return_value = (b"\x89PNG", "image/png")
-
-        response = fast_api_client_public.get("/server_settings/public/login-photo")
+        response = client.get(_PUBLIC_URL)
 
         assert response.status_code == 200
-        assert response.content == b"\x89PNG"
-        assert response.headers["content-type"] == "image/png"
-        assert "max-age" in response.headers["cache-control"]
-        assert response.headers["etag"] == '"3"'
+        body = response.json()
+        assert (body["signup_enabled"], body["sso_enabled"], body["units"]) == (True, True, "imperial")
+        assert body["login_photo_set"] is False
+        assert body["allowed_redirect_uris"] == sorted(core_config.settings.ALLOWED_REDIRECT_URIS)
 
-    @patch("modules.server_settings.public_router.server_settings_login_photo_service.get_login_photo_version")
-    @patch("modules.server_settings.public_router.server_settings_login_photo_service.read_login_photo")
-    def test_a_matching_etag_is_a_304_without_reading_storage(
-        self, mock_read, mock_version, fast_api_client_public, fast_api_app
-    ):
-        mock_version.return_value = 3
+    def test_no_admin_only_setting_or_secret_is_exposed(self, client, committed_sessions):
+        with committed_sessions() as db:
+            edit_server_settings(db, tileserver_api_key="tile-key", geocoding_api_key="geo-key", require_mfa="everyone")
+            db.commit()
 
-        response = fast_api_client_public.get("/server_settings/public/login-photo", headers={"If-None-Match": '"3"'})
+        response = client.get(_PUBLIC_URL)
 
-        assert response.status_code == 304
-        assert response.content == b""
-        mock_read.assert_not_called()
+        for field in _ADMIN_ONLY:
+            assert field not in response.json()
+        assert "tile-key" not in response.text
+        assert "geo-key" not in response.text
 
-    @patch("modules.server_settings.public_router.server_settings_login_photo_service.get_login_photo_version")
-    @patch("modules.server_settings.public_router.server_settings_login_photo_service.read_login_photo")
-    def test_404_when_no_photo_is_set(self, mock_read, mock_version, fast_api_client_public, fast_api_app_public):
-        mock_version.return_value = None
-        core_exceptions.register_exception_handlers(fast_api_app_public)
+    def test_a_missing_settings_row_is_a_503(self, client, committed_sessions):
+        with committed_sessions() as db:
+            db.execute(delete(server_settings_models.ServerSettings))
+            db.commit()
 
-        response = fast_api_client_public.get("/server_settings/public/login-photo")
+        assert client.get(_PUBLIC_URL).status_code == 503
 
-        assert response.status_code == 404
-        mock_read.assert_not_called()
 
-    @patch("modules.server_settings.public_router.server_settings_login_photo_service.get_login_photo_version")
-    @patch("modules.server_settings.public_router.server_settings_login_photo_service.read_login_photo")
-    def test_404_when_the_blob_is_missing(self, mock_read, mock_version, fast_api_client_public, fast_api_app_public):
-        mock_version.return_value = 3
-        mock_read.return_value = None
-        core_exceptions.register_exception_handlers(fast_api_app_public)
+class TestListTileMapsTemplates:
+    def test_an_anonymous_client_lists_every_built_in_template(self, client):
+        response = client.get(f"{_PUBLIC_URL}/tile-maps-templates")
 
-        response = fast_api_client_public.get("/server_settings/public/login-photo")
-
-        assert response.status_code == 404
+        assert response.status_code == 200
+        templates = response.json()
+        assert {template["template_id"] for template in templates} == set(server_settings_constants.TILE_MAPS_TEMPLATES)
+        openstreetmap = next(template for template in templates if template["template_id"] == "openstreetmap")
+        assert openstreetmap["url_template"] == server_settings_constants.DEFAULT_TILE_URL

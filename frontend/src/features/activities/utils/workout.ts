@@ -2,8 +2,7 @@ import type { ActivityExerciseTitle, ActivityWorkoutStep } from '@/features/acti
 
 /**
  * Expands `repeat_until_steps_cmplt` directives into concrete steps by repeating
- * the two preceding steps `targetValue - 1` times, mirroring v1's
- * `processedWorkoutSteps`. Pure, so it is unit-testable.
+ * the two preceding steps `targetValue - 1` times. Pure, so it is unit-testable.
  *
  * @param steps - The raw workout steps, in order.
  * @returns The expanded list of steps.
@@ -26,7 +25,7 @@ export function expandWorkoutSteps(steps: ActivityWorkoutStep[]): ActivityWorkou
 
 /**
  * Resolves a human-readable exercise name from a FIT category/name code pair via
- * the exercise-title catalogue, mirroring v1's lookup. Used by both steps
+ * the exercise-title catalogue. Used by both steps
  * (exercise name/category) and sets (category subtype/category).
  *
  * @param titles - The exercise-title catalogue.

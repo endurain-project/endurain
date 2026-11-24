@@ -119,7 +119,7 @@ def _problem_content() -> dict[str, Any]:
     return {PROBLEM_CONTENT_TYPE: {"schema": {"$ref": f"#/components/schemas/{ProblemDetail.__name__}"}}}
 
 
-def _rewrite_error_responses(schema: dict[str, Any]) -> dict[str, Any]:
+def _rewrite_error_responses(schema: dict[str, Any], replaying: frozenset[str] = frozenset()) -> dict[str, Any]:
     """Point every error response in an OpenAPI document at :class:`ProblemDetail`.
 
     FastAPI documents its *default* error shapes, not the ones this app installs:
@@ -135,6 +135,7 @@ def _rewrite_error_responses(schema: dict[str, Any]) -> dict[str, Any]:
 
     Args:
         schema: The OpenAPI document, mutated in place.
+        replaying: The operation ids of the routes that replay a stored response.
 
     Returns:
         The same document.
@@ -145,7 +146,7 @@ def _rewrite_error_responses(schema: dict[str, Any]) -> dict[str, Any]:
     components.update(problem_schema.pop("$defs", {}))
     components[ProblemDetail.__name__] = problem_schema
 
-    core_openapi_contract.declare_contract(schema)
+    core_openapi_contract.declare_contract(schema, replaying)
     for path_item in schema.get("paths", {}).values():
         for operation in path_item.values():
             if not isinstance(operation, dict) or "responses" not in operation:
@@ -218,5 +219,7 @@ class ProblemDetailsFastAPI(FastAPI):
         """
         if self.openapi_schema:
             return self.openapi_schema
-        self.openapi_schema = _rewrite_error_responses(super().openapi())
+        self.openapi_schema = _rewrite_error_responses(
+            super().openapi(), core_openapi_contract.replaying_operations(self.routes)
+        )
         return self.openapi_schema

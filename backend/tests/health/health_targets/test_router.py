@@ -1,374 +1,137 @@
-import uuid
-from unittest.mock import MagicMock, patch
+"""The targets routes, through the production application: real authentication, scopes and database."""
 
-import core.exceptions as core_exceptions
+import pytest
+import sqlalchemy as sa
+
+import core.config as core_config
 import modules.health.health_targets.models as health_targets_models
+from tests._factories.users import make_user
 
-_ID = uuid.uuid4()
-
-
-_USER_ID = uuid.UUID("11111111-1111-4111-8111-111111111111")
+_URL = f"{core_config.ROOT_PATH}/health/targets"
 
 
-class TestReadHealthTargetsAll:
-    """
-    Test suite for read_health_targets_all endpoint.
-    """
-
-    @patch("modules.health.health_targets.router.health_targets_service.get_health_targets")
-    def test_read_health_targets_all_success(self, mock_get_targets, fast_api_client, fast_api_app):
-        """
-        Test successful retrieval of health targets.
-        """
-        # Arrange
-        mock_targets = MagicMock(spec=health_targets_models.HealthTargets)
-        mock_targets.id = _ID
-        mock_targets.user_id = _USER_ID
-        mock_targets.version = 1
-        mock_targets.weight_kg = 75.5
-        mock_targets.steps = 10000
-        mock_targets.sleep_seconds = 28800
-        mock_targets.fasting_seconds = None
-        mock_targets.water_ml = None
-        mock_targets.poop_count = None
-
-        mock_get_targets.return_value = mock_targets
-
-        # Act
-        response = fast_api_client.get(
-            "/health/targets/",
-            headers={"Authorization": "Bearer mock_token", "If-Match": '"1"'},
+def _stored(committed_sessions, user_id):
+    with committed_sessions() as db:
+        row = db.scalar(
+            sa.select(health_targets_models.HealthTargets).where(health_targets_models.HealthTargets.user_id == user_id)
         )
-
-        # Assert
-        assert response.status_code == 200
-        data = response.json()
-        assert data["weight_kg"] == 75.5
-        assert data["steps"] == 10000
-        assert data["sleep_seconds"] == 28800
-
-    @patch("modules.health.health_targets.router.health_targets_service.get_health_targets")
-    def test_read_health_targets_all_not_found(self, mock_get_targets, fast_api_client, fast_api_app):
-        """
-        Test retrieval when user has no health targets.
-        """
-        # Arrange
-        mock_get_targets.return_value = None
-
-        # Act
-        response = fast_api_client.get(
-            "/health/targets/",
-            headers={"Authorization": "Bearer mock_token", "If-Match": '"1"'},
-        )
-
-        # Assert
-        assert response.status_code == 200
-        assert response.json() is None
-
-    @patch("modules.health.health_targets.router.health_targets_service.get_health_targets")
-    def test_read_health_targets_all_partial_data(self, mock_get_targets, fast_api_client, fast_api_app):
-        """
-        Test retrieval when health targets have partial data.
-        """
-        # Arrange
-        mock_targets = MagicMock(spec=health_targets_models.HealthTargets)
-        mock_targets.id = _ID
-        mock_targets.user_id = _USER_ID
-        mock_targets.version = 1
-        mock_targets.weight_kg = 75.5
-        mock_targets.steps = None
-        mock_targets.sleep_seconds = None
-        mock_targets.fasting_seconds = None
-        mock_targets.water_ml = None
-        mock_targets.poop_count = None
-
-        mock_get_targets.return_value = mock_targets
-
-        # Act
-        response = fast_api_client.get(
-            "/health/targets/",
-            headers={"Authorization": "Bearer mock_token", "If-Match": '"1"'},
-        )
-
-        # Assert
-        assert response.status_code == 200
-        data = response.json()
-        assert data["weight_kg"] == 75.5
-        assert data["steps"] is None
-        assert data["sleep_seconds"] is None
+        db.expunge(row)
+        return row
 
 
-class TestUpdateNeedsIfMatch:
-    @patch("modules.health.health_targets.router.health_targets_service.update_health_targets")
-    def test_an_update_without_if_match_is_428(self, mock_update, fast_api_client):
-        response = fast_api_client.patch(
-            "/health/targets/", json={"weight_kg": 80.0}, headers={"Authorization": "Bearer mock_token"}
-        )
-
-        assert response.status_code == 428
-        mock_update.assert_not_called()
+@pytest.fixture
+def user(committed_sessions):
+    with committed_sessions() as db:
+        created = make_user(db)
+        db.commit()
+    return created
 
 
-class TestUpdateHealthTargets:
-    """
-    Test suite for update_health_targets endpoint.
-    """
-
-    @patch("modules.health.health_targets.router.health_targets_service.update_health_targets")
-    def test_update_health_targets_success(self, mock_edit, fast_api_client, fast_api_app):
-        """
-        Test successful update of health targets.
-        """
-        # Arrange
-        mock_updated_targets = MagicMock(spec=health_targets_models.HealthTargets)
-        mock_updated_targets.id = _ID
-        mock_updated_targets.user_id = _USER_ID
-        mock_updated_targets.version = 1
-        mock_updated_targets.weight_kg = 80.0
-        mock_updated_targets.steps = 12000
-        mock_updated_targets.sleep_seconds = 32400
-        mock_updated_targets.fasting_seconds = None
-        mock_updated_targets.water_ml = None
-        mock_updated_targets.poop_count = None
-
-        mock_edit.return_value = mock_updated_targets
-
-        # Act
-        response = fast_api_client.patch(
-            "/health/targets/",
-            json={
-                "weight_kg": 80.0,
-                "steps": 12000,
-                "sleep_seconds": 32400,
-            },
-            headers={"Authorization": "Bearer mock_token", "If-Match": '"1"'},
-        )
-
-        # Assert
-        assert response.status_code == 200
-        data = response.json()
-        assert data["weight_kg"] == 80.0
-        assert data["steps"] == 12000
-        assert data["sleep_seconds"] == 32400
-
-    @patch("modules.health.health_targets.router.health_targets_service.update_health_targets")
-    def test_update_health_targets_partial_update(self, mock_edit, fast_api_client, fast_api_app):
-        """
-        Test partial update of health targets.
-        """
-        # Arrange
-        mock_updated_targets = MagicMock(spec=health_targets_models.HealthTargets)
-        mock_updated_targets.id = _ID
-        mock_updated_targets.user_id = _USER_ID
-        mock_updated_targets.version = 1
-        mock_updated_targets.weight_kg = 75.0
-        mock_updated_targets.steps = 10000
-        mock_updated_targets.sleep_seconds = 28800
-        mock_updated_targets.fasting_seconds = None
-        mock_updated_targets.water_ml = None
-        mock_updated_targets.poop_count = None
-
-        mock_edit.return_value = mock_updated_targets
-
-        # Act
-        response = fast_api_client.patch(
-            "/health/targets/",
-            json={
-                "weight_kg": 75.0,
-            },
-            headers={"Authorization": "Bearer mock_token", "If-Match": '"1"'},
-        )
-
-        # Assert
-        assert response.status_code == 200
-        data = response.json()
-        assert data["weight_kg"] == 75.0
-
-    @patch("modules.health.health_targets.router.health_targets_service.update_health_targets")
-    def test_update_health_targets_clear_values(self, mock_edit, fast_api_client, fast_api_app):
-        """
-        Test clearing health target values by setting to null.
-        """
-        # Arrange
-        mock_updated_targets = MagicMock(spec=health_targets_models.HealthTargets)
-        mock_updated_targets.id = _ID
-        mock_updated_targets.user_id = _USER_ID
-        mock_updated_targets.version = 1
-        mock_updated_targets.weight_kg = None
-        mock_updated_targets.steps = None
-        mock_updated_targets.sleep_seconds = None
-        mock_updated_targets.fasting_seconds = None
-        mock_updated_targets.water_ml = None
-        mock_updated_targets.poop_count = None
-
-        mock_edit.return_value = mock_updated_targets
-
-        # Act
-        response = fast_api_client.patch(
-            "/health/targets/",
-            json={
-                "weight_kg": None,
-                "steps": None,
-                "sleep_seconds": None,
-            },
-            headers={"Authorization": "Bearer mock_token", "If-Match": '"1"'},
-        )
-
-        # Assert
-        assert response.status_code == 200
-        data = response.json()
-        assert data["weight_kg"] is None
-        assert data["steps"] is None
-        assert data["sleep_seconds"] is None
-
-    @patch("modules.health.health_targets.router.health_targets_service.update_health_targets")
-    def test_update_health_targets_not_found(self, mock_edit, fast_api_client, fast_api_app):
-        """
-        Test update when health targets not found.
-        """
-        # Arrange
-        mock_edit.side_effect = core_exceptions.NotFoundError("Health targets not found")
-
-        # Act
-        response = fast_api_client.patch(
-            "/health/targets/",
-            json={
-                "weight_kg": 80.0,
-            },
-            headers={"Authorization": "Bearer mock_token", "If-Match": '"1"'},
-        )
-
-        # Assert
-        assert response.status_code == 404
-
-    @patch("modules.health.health_targets.router.health_targets_service.update_health_targets")
-    def test_update_health_targets_with_all_fields(self, mock_edit, fast_api_client, fast_api_app):
-        """
-        Test update with all fields provided.
-        """
-        # Arrange
-        mock_updated_targets = MagicMock(spec=health_targets_models.HealthTargets)
-        mock_updated_targets.id = _ID
-        mock_updated_targets.user_id = _USER_ID
-        mock_updated_targets.version = 1
-        mock_updated_targets.weight_kg = 85.5
-        mock_updated_targets.steps = 15000
-        mock_updated_targets.sleep_seconds = 36000
-        mock_updated_targets.fasting_seconds = None
-        mock_updated_targets.water_ml = None
-        mock_updated_targets.poop_count = None
-
-        mock_edit.return_value = mock_updated_targets
-
-        # Act
-        response = fast_api_client.patch(
-            "/health/targets/",
-            json={
-                "weight_kg": 85.5,
-                "steps": 15000,
-                "sleep_seconds": 36000,
-            },
-            headers={"Authorization": "Bearer mock_token", "If-Match": '"1"'},
-        )
-
-        # Assert
-        assert response.status_code == 200
-        data = response.json()
-        assert data["weight_kg"] == 85.5
-        assert data["steps"] == 15000
-        assert data["sleep_seconds"] == 36000
+@pytest.fixture
+def me(sign_in, user):
+    return sign_in(user)
 
 
-class TestReadSendsTheETag:
-    @patch("modules.health.health_targets.router.health_targets_service.get_health_targets")
-    def test_the_targets_carry_their_version(self, mock_get_targets, fast_api_client):
-        mock_targets = MagicMock(spec=health_targets_models.HealthTargets)
-        mock_targets.id = _ID
-        mock_targets.user_id = _USER_ID
-        mock_targets.version = 4
-        for field in ("weight_kg", "steps", "sleep_seconds", "fasting_seconds", "water_ml", "poop_count"):
-            setattr(mock_targets, field, None)
-        mock_get_targets.return_value = mock_targets
-
-        response = fast_api_client.get("/health/targets/", headers={"Authorization": "Bearer mock_token"})
-
-        assert response.headers["ETag"] == '"4"'
-
-
-class TestTargetsScopes:
-    """The targets routes require the health targets scopes, not the generic health ones."""
-
-    @staticmethod
-    def _client(mock_db, scopes: set[str]):
-        from fastapi import FastAPI
-        from fastapi.testclient import TestClient
-
-        import core.database as core_db
-        import modules.auth.dependencies as auth_deps
-        import modules.health.health_targets.router as targets_router
-
-        app = FastAPI()
-        core_exceptions.register_exception_handlers(app)
-        app.include_router(targets_router.router, prefix="/health/targets")
-        app.dependency_overrides[core_db.get_db] = lambda: mock_db
-        principal = MagicMock(user_id=_USER_ID, scopes=frozenset(scopes), mfa_enrolment_required=False)
-        return (
-            TestClient(app, headers={"Authorization": "Bearer token"}),
-            patch.object(auth_deps.authentication_integration, "resolve_from_access_token", return_value=principal),
-        )
-
-    @patch("modules.health.health_targets.router.health_targets_service.get_health_targets", return_value=None)
-    def test_read_with_only_health_read_is_refused(self, _get, mock_db):
-        client, principal = self._client(mock_db, {"health:read", "health:write"})
-
-        with principal:
-            response = client.get("/health/targets")
-
-        assert response.status_code == 403
-
-    @patch("modules.health.health_targets.router.health_targets_service.get_health_targets", return_value=None)
-    def test_read_with_health_targets_read_is_allowed(self, _get, mock_db):
-        client, principal = self._client(mock_db, {"health-targets:read"})
-
-        with principal:
-            response = client.get("/health/targets")
+class TestRead:
+    def test_a_new_account_reads_empty_targets_with_their_etag(self, me, user):
+        response = me.client.get(_URL)
 
         assert response.status_code == 200
+        assert response.headers["ETag"] == '"1"'
+        body = response.json()
+        assert body["user_id"] == str(user.id)
+        assert [
+            body[f] for f in ("weight_kg", "steps", "sleep_seconds", "fasting_seconds", "water_ml", "poop_count")
+        ] == [None] * 6
 
-    @patch("modules.health.health_targets.router.health_targets_service.update_health_targets")
-    def test_write_with_only_health_write_is_refused(self, mock_update, mock_db):
-        client, principal = self._client(mock_db, {"health:read", "health:write", "health-targets:read"})
+    def test_a_user_without_targets_reads_null_and_no_etag(self, me, user, committed_sessions):
+        with committed_sessions() as db:
+            db.execute(
+                sa.delete(health_targets_models.HealthTargets).where(
+                    health_targets_models.HealthTargets.user_id == user.id
+                )
+            )
+            db.commit()
 
-        with principal:
-            response = client.patch("/health/targets", json={"steps": 1}, headers={"If-Match": '"1"'})
+        response = me.client.get(_URL)
 
-        assert response.status_code == 403
-        mock_update.assert_not_called()
+        assert (response.status_code, response.json()) == (200, None)
+        assert "ETag" not in response.headers
 
-    @patch("modules.health.health_targets.router.health_targets_service.update_health_targets")
-    def test_write_with_health_targets_write_is_allowed(self, mock_update, mock_db):
-        import modules.health.health_targets.schema as health_targets_schema
+    def test_another_users_targets_are_never_read(self, me, sign_in, committed_sessions):
+        with committed_sessions() as db:
+            theirs = make_user(db)
+            db.commit()
+        assert sign_in(theirs).client.patch(_URL, json={"steps": 9000}, headers={"If-Match": '"1"'}).status_code == 200
 
-        mock_update.return_value = health_targets_schema.HealthTargetsRead(
-            updated_at="2024-01-01T00:00:00Z", id=_ID, user_id=_USER_ID, version=2, steps=1
-        )
-        client, principal = self._client(mock_db, {"health-targets:write"})
+        assert me.client.get(_URL).json()["steps"] is None
 
-        with principal:
-            response = client.patch("/health/targets", json={"steps": 1}, headers={"If-Match": '"1"'})
+
+class TestUpdate:
+    def test_every_field_is_stored_and_the_etag_moves_on(self, me, user, committed_sessions):
+        body = {
+            "weight_kg": 75.5,
+            "steps": 10000,
+            "sleep_seconds": 28800,
+            "fasting_seconds": 57600,
+            "water_ml": 2500.0,
+            "poop_count": 2,
+        }
+
+        response = me.client.patch(_URL, json=body, headers={"If-Match": '"1"'})
 
         assert response.status_code == 200
-        mock_update.assert_called_once()
+        assert response.headers["ETag"] == '"2"'
+        assert {k: response.json()[k] for k in body} == body
+        row = _stored(committed_sessions, user.id)
+        assert (row.weight_kg, row.steps, row.water_ml, row.version) == (75.5, 10000, 2500, 2)
+        assert me.client.get(_URL).json()["version"] == 2
 
+    def test_a_partial_update_keeps_the_other_fields(self, me):
+        me.client.patch(_URL, json={"steps": 10000, "weight_kg": 70.0}, headers={"If-Match": '"1"'})
 
-class TestOversizedValuesAre422:
-    @patch("modules.health.health_targets.router.health_targets_service.update_health_targets")
-    def test_steps_beyond_the_column_are_refused(self, mock_update, fast_api_client, fast_api_app):
-        response = fast_api_client.patch(
-            "/health/targets/",
-            json={"steps": 3_000_000_000},
-            headers={"Authorization": "Bearer mock_token", "If-Match": '"1"'},
-        )
+        response = me.client.patch(_URL, json={"steps": 12000}, headers={"If-Match": '"2"'})
 
-        assert response.status_code == 422
-        mock_update.assert_not_called()
+        assert (response.json()["steps"], response.json()["weight_kg"]) == (12000, 70.0)
+
+    def test_a_field_set_to_null_is_cleared(self, me):
+        me.client.patch(_URL, json={"steps": 10000}, headers={"If-Match": '"1"'})
+
+        response = me.client.patch(_URL, json={"steps": None}, headers={"If-Match": '"2"'})
+
+        assert response.json()["steps"] is None
+
+    def test_a_stale_version_is_412_and_nothing_changes(self, me, user, committed_sessions):
+        assert me.client.patch(_URL, json={"steps": 1}, headers={"If-Match": '"9"'}).status_code == 412
+        assert _stored(committed_sessions, user.id).version == 1
+
+    def test_a_user_without_targets_is_404(self, me, user, committed_sessions):
+        with committed_sessions() as db:
+            db.execute(
+                sa.delete(health_targets_models.HealthTargets).where(
+                    health_targets_models.HealthTargets.user_id == user.id
+                )
+            )
+            db.commit()
+
+        assert me.client.patch(_URL, json={"steps": 1}, headers={"If-Match": '"1"'}).status_code == 404
+
+    @pytest.mark.parametrize(
+        "body",
+        [
+            {"steps": 3_000_000_000},
+            {"steps": -1},
+            {"weight_kg": 0.0},
+            {"weight_kg": 600.0},
+            {"sleep_seconds": 86401},
+            {"fasting_seconds": 259201},
+            {"water_ml": 20001.0},
+            {"poop_count": 21},
+            {"steps": "100"},
+            {"user_id": "6f1c2a4e-3b7d-4c58-9a10-5d2e8b7c9f01"},
+            {"version": 5},
+        ],
+    )
+    def test_a_body_the_schema_refuses_is_422_and_nothing_changes(self, me, user, committed_sessions, body):
+        assert me.client.patch(_URL, json=body, headers={"If-Match": '"1"'}).status_code == 422
+        assert _stored(committed_sessions, user.id).version == 1

@@ -1,7 +1,8 @@
 """Tests for core.timezone module."""
 
-from datetime import UTC, datetime, timedelta, timezone
+from datetime import UTC, date, datetime, timedelta, timezone
 
+import jasil.runtime as platform_runtime
 import pytest
 
 import core.timezone as core_timezone
@@ -50,8 +51,6 @@ class TestTodayIn:
     """ "Which day is it?" must be answered in an explicit zone, never the server's."""
 
     def test_returns_a_date(self):
-        from datetime import date
-
         assert isinstance(core_timezone.today_in("UTC"), date)
 
     def test_zones_either_side_of_the_dateline_can_disagree(self):
@@ -64,12 +63,14 @@ class TestTodayIn:
         # western one has not yet reached its own midnight.
         assert (east - west).days in (1, 2)
 
-    def test_matches_an_explicit_conversion(self):
-        from datetime import UTC, datetime
-        from zoneinfo import ZoneInfo
+    def test_follows_the_platform_clock(self):
+        """Today is read from the platform clock, so a test or a worker sees the day its clock says."""
+        clock = platform_runtime.get_active_platform().clock
+        clock.moment = datetime(2030, 6, 30, 23, 30, tzinfo=UTC)
 
-        expected = datetime.now(UTC).astimezone(ZoneInfo("Asia/Tokyo")).date()
-        assert core_timezone.today_in("Asia/Tokyo") == expected
+        assert core_timezone.today_in("UTC") == date(2030, 6, 30)
+        assert core_timezone.today_in("Asia/Tokyo") == date(2030, 7, 1)
+        assert core_timezone.today_in("America/Los_Angeles") == date(2030, 6, 30)
 
     def test_rejects_an_unknown_zone(self):
         from zoneinfo import ZoneInfoNotFoundError

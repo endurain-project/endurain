@@ -49,18 +49,20 @@ def restore_profile_gear_components(
     return gear_components_service.restore_profile_gear_components(records, user_id, ids, db)
 
 
-def get_gear_components_total_cost(gear_id: uuid.UUID, user_id: uuid.UUID, db: Session) -> float:
-    """Return the summed purchase value of a gear's components.
+def get_gear_components_total_cost(
+    gear_ids: Collection[uuid.UUID], user_id: uuid.UUID, db: Session
+) -> dict[uuid.UUID, float]:
+    """Return the summed purchase value of the components of each of a set of gears.
 
     Args:
-        gear_id: Gear to sum costs for.
+        gear_ids: Gears to sum costs for.
         user_id: Owner user ID.
         db: Database session.
 
     Returns:
-        The total cost, zero when no component has a value.
+        The total cost per gear id; every requested id is present, zero when no component of it has a value.
     """
-    return gear_components_crud.get_gear_components_total_cost(gear_id, user_id, db)
+    return gear_components_crud.get_gear_components_total_cost(gear_ids, user_id, db)
 
 
 def count_components_outside_gear_type(

@@ -57,8 +57,7 @@ def build_jasil_settings(
             enabled=settings.EVENT_LOG_ENABLED,
             retention_days=settings.EVENT_LOG_RETENTION_DAYS,
         ),
-        # Every area uses the readable flat layout on local storage, so the older
-        # hashed objects are read natively alongside it and retired on overwrite or delete.
+        # Every area uses the readable flat layout on local storage.
         storage=jasil_settings.StorageSettings(local_plain_areas=plain_areas),
         network=jasil_settings.NetworkSettings(ssrf_allowed_hosts=tuple(settings.SSRF_ALLOWED_HOSTS)),
         audit=_build_audit_settings(settings),

@@ -1,7 +1,5 @@
 """Auth-owned step-up verification with progressive lockout."""
 
-from __future__ import annotations
-
 import uuid
 from typing import NoReturn
 

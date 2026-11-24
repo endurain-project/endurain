@@ -7,7 +7,7 @@ Writes that publish events (bulk deletes, bulk re-gearing, ingestion) delegate t
 """
 
 import uuid
-from collections.abc import Mapping, Sequence
+from collections.abc import Collection, Mapping, Sequence
 from datetime import date, datetime
 
 from jasil.providers import StateProvider
@@ -129,18 +129,20 @@ def clear_activities_gear(gear_id: uuid.UUID, user_id: uuid.UUID, limit: int, db
     return activity_service.clear_activities_gear(gear_id, user_id, limit, db, source=gears_constants.DELETION_SOURCE)
 
 
-def get_gear_usage_totals(gear_id: uuid.UUID, user_id: uuid.UUID, db: Session) -> gears_contracts.UsageTotals:
-    """Return the total distance and moving time a user recorded against a gear.
+def get_gear_usage_totals(
+    gear_ids: Collection[uuid.UUID], user_id: uuid.UUID, db: Session
+) -> dict[uuid.UUID, gears_contracts.UsageTotals]:
+    """Return the total distance and moving time a user recorded against each of a set of gears.
 
     Args:
-        gear_id: The gear to accumulate usage for.
-        user_id: The gear's owner; only their activities count.
+        gear_ids: The gears to accumulate usage for.
+        user_id: The gears' owner; only their activities count.
         db: Database session.
 
     Returns:
-        The gear's totals; zeroes when it has no activities.
+        Totals per gear id; every requested id is present, with zeroes when the gear has no activities.
     """
-    return activity_crud.sum_gear_usage(gear_id, user_id, db)
+    return activity_crud.sum_gear_usage(gear_ids, user_id, db)
 
 
 def get_gear_usage_totals_by_window(
@@ -374,6 +376,19 @@ def set_thumbnail_key(activity_id: uuid.UUID, key: str | None, db: Session, *, e
         updated, False otherwise.
     """
     return activity_crud.set_activity_thumbnail_key(activity_id, key, db, expected_key=expected_key)
+
+
+def get_thumbnail_key(activity_id: uuid.UUID, db: Session) -> str | None:
+    """Return an activity's stored thumbnail key.
+
+    Args:
+        activity_id: ID of the activity.
+        db: Database session.
+
+    Returns:
+        The stored storage key, or None when the activity has none or does not exist.
+    """
+    return activity_crud.get_activity_thumbnail_key(activity_id, db)
 
 
 def clear_all_thumbnail_keys(db: Session) -> None:

@@ -7,6 +7,12 @@ import pytest
 from pydantic import ValidationError
 
 import core.config as core_config
+from tests.core._logs import capture
+
+
+def _config_log():
+    """Capture what ``core.config`` logs."""
+    return capture(core_config.logger)
 
 
 class TestDeploymentProfileEnforcement:
@@ -297,13 +303,13 @@ class TestDeploymentProfileEnforcement:
         assert settings.DEPLOYMENT_PROFILE is platform_profile.DeploymentProfile.DISTRIBUTED
 
     def test_development_multi_worker_warns(self):
-        with patch("core.config.logger") as mock_logger:
+        with _config_log() as mock_logger:
             core_config.Settings(_env_file=None, ENVIRONMENT="development", WEB_WORKERS=3)
 
-        assert "WEB_WORKERS>1 or a non-local deployment profile" in str(mock_logger.warning.call_args)
+        assert "WEB_WORKERS>1 or a non-local deployment profile" in mock_logger.warning_text
 
     def test_development_distributed_warns(self):
-        with patch("core.config.logger") as mock_logger:
+        with _config_log() as mock_logger:
             core_config.Settings(
                 _env_file=None,
                 ENVIRONMENT="development",
@@ -311,10 +317,10 @@ class TestDeploymentProfileEnforcement:
                 JOBS_ENABLED=True,
             )
 
-        assert "WEB_WORKERS>1 or a non-local deployment profile" in str(mock_logger.warning.call_args)
+        assert "WEB_WORKERS>1 or a non-local deployment profile" in mock_logger.warning_text
 
     def test_development_custom_warns(self):
-        with patch("core.config.logger") as mock_logger:
+        with _config_log() as mock_logger:
             core_config.Settings(
                 _env_file=None,
                 ENVIRONMENT="development",
@@ -325,13 +331,13 @@ class TestDeploymentProfileEnforcement:
                 LOCK_URI="noop://",
             )
 
-        assert "WEB_WORKERS>1 or a non-local deployment profile" in str(mock_logger.warning.call_args)
+        assert "WEB_WORKERS>1 or a non-local deployment profile" in mock_logger.warning_text
 
     def test_development_local_single_worker_is_silent(self):
-        with patch("core.config.logger") as mock_logger:
+        with _config_log() as mock_logger:
             core_config.Settings(_env_file=None, ENVIRONMENT="development")
 
-        mock_logger.warning.assert_not_called()
+        assert mock_logger.warnings == []
 
     def test_custom_profile_single_process_memory_not_fatal(self):
         settings = core_config.Settings(
@@ -456,10 +462,10 @@ class TestStartupWarnings:
         with (
             patch.dict("os.environ", environ or {}, clear=True),
             patch.object(core_config.settings, "ENDURAIN_HOST", host),
-            patch("core.config.logger") as logger,
+            _config_log() as logger,
         ):
             core_config.warn_unsafe_settings()
-        return [call.args[0] for call in logger.warning.call_args_list]
+        return logger.warnings
 
     def test_plain_http_warns(self):
         messages = self._messages("http://endurain.example.com")
@@ -473,13 +479,31 @@ class TestStartupWarnings:
     def test_https_is_silent(self):
         assert self._messages("https://endurain.example.com") == []
 
-    def test_algorithm_variable_warns_that_it_is_ignored(self):
-        messages = self._messages("https://endurain.example.com", {"ALGORITHM": "HS256"})
-        assert len(messages) == 1
-        assert "ALGORITHM" in messages[0]
-        assert "ignored" in messages[0]
 
-    def test_algorithm_file_variable_warns_that_it_is_ignored(self):
-        messages = self._messages("https://endurain.example.com", {"ALGORITHM_FILE": "/run/secrets/algorithm"})
-        assert len(messages) == 1
-        assert "ALGORITHM_FILE" in messages[0]
+#: The settings of a deployment with dedicated workers, which ``JOBS_QUEUES`` needs.
+_DEDICATED_WORKERS = {"JOBS_ENABLED": True, "JOBS_RUN_IN_PROCESS_WORKER": False, "REDIS_URL": "redis://redis:6379/0"}
+
+
+class TestJobQueues:
+    """``JOBS_QUEUES`` names the queues a dedicated worker serves; unset, it serves them all."""
+
+    def test_unset_serves_every_queue(self):
+        assert core_config.Settings(_env_file=None, **_DEDICATED_WORKERS).JOBS_QUEUES is None
+
+    def test_a_comma_separated_list_names_each_queue_once(self):
+        settings = core_config.Settings(
+            _env_file=None, **_DEDICATED_WORKERS, JOBS_QUEUES=" default , background,enrichment,default"
+        )
+
+        assert settings.JOBS_QUEUES == ("default", "background", "enrichment")
+
+    def test_an_empty_value_serves_every_queue(self):
+        assert core_config.Settings(_env_file=None, **_DEDICATED_WORKERS, JOBS_QUEUES=" , ").JOBS_QUEUES is None
+
+    def test_an_unknown_queue_is_refused(self):
+        with pytest.raises(ValidationError, match="JOBS_QUEUES"):
+            core_config.Settings(_env_file=None, **_DEDICATED_WORKERS, JOBS_QUEUES="default,backgrund")
+
+    def test_queues_without_a_dedicated_worker_are_refused(self):
+        with pytest.raises(ValidationError, match="JOBS_RUN_IN_PROCESS_WORKER=false"):
+            core_config.Settings(_env_file=None, JOBS_ENABLED=True, JOBS_QUEUES="background")

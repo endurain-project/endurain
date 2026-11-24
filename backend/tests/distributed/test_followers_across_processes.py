@@ -8,7 +8,7 @@ is mocked: the processes only share PostgreSQL, Redis and storage.
 import subprocess
 import sys
 
-from tests.distributed.cluster import _APP_DIR, _SUPPORT_DIR
+from tests.distributed.cluster import _APP_DIR, _SUPPORT_DIR, STARTUP_SUBSCRIBERS
 
 _SUBSCRIBERS = {"followers.notify_requested", "followers.notify_accepted"}
 
@@ -29,7 +29,11 @@ def _assert_each_user_notified_once(cluster, *, workers: int) -> None:
     assert cluster.wait_for_durable_jobs(len(_SUBSCRIBERS)), cluster.query(
         "SELECT subscriber_id, status FROM jasil_processing_jobs"
     )
-    assert {row[0] for row in cluster.query("SELECT subscriber_id FROM jasil_processing_jobs")} == _SUBSCRIBERS
+    subscribers = cluster.query(
+        "SELECT subscriber_id FROM jasil_processing_jobs WHERE subscriber_id <> ALL(:startup)",
+        startup=STARTUP_SUBSCRIBERS,
+    )
+    assert {row[0] for row in subscribers} == _SUBSCRIBERS
     notified = dict(
         cluster.query("SELECT u.username, count(*) FROM notifications n JOIN users u ON u.id = n.user_id GROUP BY 1")
     )

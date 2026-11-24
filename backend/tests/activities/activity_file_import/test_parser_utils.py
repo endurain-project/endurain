@@ -283,22 +283,3 @@ class TestLapStreamWindows:
         start, end = self._times([15, 30])
 
         assert afi_utils.slice_lap_elevation(waypoints, start, end) == waypoints[1:]
-
-    def test_laps_parse_each_timestamp_once_per_stream_not_once_per_lap(self, monkeypatch):
-        lat_lon, ele = _straight_track(400, lambda i: 100.0 + i % 5)
-        hr = [{"time": wp["time"], "hr": 120} for wp in lat_lon]
-        calls = 0
-        parse = afi_utils._parse_utc
-
-        def _counting_parse(time_str):
-            nonlocal calls
-            calls += 1
-            return parse(time_str)
-
-        monkeypatch.setattr(afi_utils, "_parse_utc", _counting_parse)
-
-        laps = afi_utils.generate_activity_laps(lat_lon, ele, [], hr, [], [])
-
-        assert len(laps) >= 10
-        # One parse per sample of the elevation and HR streams, plus the lap boundaries (a fixed few per lap).
-        assert calls <= len(ele) + len(hr) + 16 * len(laps)

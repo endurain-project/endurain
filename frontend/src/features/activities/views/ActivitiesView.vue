@@ -79,7 +79,7 @@ const endDate = ref(parseIsoDateQuery(route.query.endDate))
 const searchTerm = ref(getScalarQueryString(route.query.q))
 const debouncedSearch = ref(searchTerm.value)
 
-// Sort state, defaulting to newest first (mirrors v1).
+// Sort state, defaulting to newest first.
 const sortBy = ref<ActivitySortBy>(parseSortByParam(route.query.sortBy))
 const sortOrder = ref<ActivitySortOrder>(parseSortOrderParam(route.query.sortOrder))
 
@@ -95,7 +95,7 @@ const visibleColumns = computed(() => {
 const { recordsPerPage } = useRecordsPerPage()
 
 // Debounce the name/location search so typing doesn't fire a request per
-// keystroke (mirrors GearsView and v1's 500ms debounce, tuned to 400ms).
+// keystroke (mirrors GearsView).
 let searchTimer: ReturnType<typeof setTimeout> | undefined
 watch(searchTerm, (value) => {
   if (searchTimer) {

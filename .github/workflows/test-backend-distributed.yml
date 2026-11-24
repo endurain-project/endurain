@@ -15,6 +15,7 @@ on:
   pull_request:
     branches:
       - master
+      - release/**
     paths:
       - backend/**
       - .github/workflows/test-backend-distributed.yml
@@ -47,6 +48,16 @@ jobs:
             tests: tests/distributed/test_worker_recovery.py::test_a_job_whose_worker_is_killed_is_finished_by_another_worker
           - name: lease heartbeat
             tests: tests/distributed/test_worker_recovery.py::test_a_handler_that_outlives_its_lease_is_not_taken_over
+          - name: idempotency
+            tests: tests/distributed/test_idempotency_across_processes.py
+          - name: followers
+            tests: tests/distributed/test_followers_across_processes.py
+          - name: realtime
+            tests: tests/distributed/test_realtime_across_processes.py
+          - name: shared state
+            tests: tests/distributed/test_shared_state_across_processes.py
+          - name: concurrent startup
+            tests: tests/distributed/test_startup_across_processes.py
     # Disposable infrastructure shared by every process the tests start. The
     # tests create and drop a database of their own, flush this Redis database
     # and empty the bucket.

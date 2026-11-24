@@ -2,7 +2,6 @@
 
 import jasil.audit as jasil_audit
 import jasil.providers as platform_providers
-from fastapi import UploadFile
 from sqlalchemy.orm import Session
 
 import core.exceptions as core_exceptions
@@ -18,7 +17,7 @@ logger = core_logger.get_logger(__name__)
 
 
 def upload_login_photo(
-    file: UploadFile, storage: platform_providers.StorageProvider, db: Session
+    data: bytes, storage: platform_providers.StorageProvider, db: Session
 ) -> tuple[server_settings_schema.LoginPhotoRead, bool]:
     """Save the custom login page photo and mark it as set.
 
@@ -29,7 +28,7 @@ def upload_login_photo(
     claimed. The image is re-encoded without its metadata.
 
     Args:
-        file: The uploaded image.
+        data: The image bytes, already read and validated by the router.
         storage: The platform storage provider.
         db: Database session.
 
@@ -37,11 +36,11 @@ def upload_login_photo(
         The stored photo's version, and whether it replaced a login photo.
 
     Raises:
-        DomainError: If the upload fails validation or exceeds the login-photo size cap.
+        PayloadTooLargeError: If the image exceeds the login-photo size cap.
+        UnsupportedMediaTypeError: If the bytes are not a JPEG, PNG or WebP image.
         InvalidInputError: If the image cannot be decoded for the metadata strip.
         ServiceUnavailableError: If the settings row does not exist.
     """
-    data = core_file_uploads.read_validated_upload_sync(file, kind=core_file_uploads.UploadKind.IMAGE)
     if len(data) > server_settings_constants.LOGIN_PHOTO_MAX_BYTES:
         raise core_exceptions.PayloadTooLargeError("Login photo is too large")
     media_type = core_file_uploads.sniff_image_type(data)

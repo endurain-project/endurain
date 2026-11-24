@@ -6,13 +6,41 @@ import uuid
 import zipfile
 from datetime import date
 from decimal import Decimal
-from unittest.mock import MagicMock, PropertyMock, patch
+from unittest.mock import PropertyMock, patch
 
+import psutil
 import pytest
 from pydantic import BaseModel
 
 import modules.users.users_profile.utils as profile_utils
 from modules.users.users_profile.exceptions import FileSizeError, JSONParseError, MemoryAllocationError
+
+
+def _memory(monkeypatch, *, available_mb: float | None = None, rss_mb: float | None = None, error=None):
+    """Make psutil report the memory the test wants: the machine's available memory, or this process's use."""
+
+    class Memory:
+        available = int((available_mb or 0) * 1024 * 1024)
+
+    class Info:
+        rss = int((rss_mb or 0) * 1024 * 1024)
+
+    class Process:
+        def memory_info(self):
+            return Info()
+
+    def virtual_memory():
+        if error is not None:
+            raise error
+        return Memory()
+
+    def process():
+        if error is not None:
+            raise error
+        return Process()
+
+    monkeypatch.setattr(psutil, "virtual_memory", virtual_memory)
+    monkeypatch.setattr(psutil, "Process", process)
 
 
 class TestBasePerformanceConfig:
@@ -44,9 +72,8 @@ class TestBasePerformanceConfig:
         with pytest.raises(NotImplementedError):
             profile_utils.BasePerformanceConfig._get_tier_configs()
 
-    @patch("modules.users.users_profile.utils.detect_system_memory_tier")
-    def test_get_auto_config_calls_get_tier_configs(self, mock_detect):
-        mock_detect.return_value = ("high", 4096)
+    def test_the_config_of_the_detected_tier_is_used(self, monkeypatch):
+        _memory(monkeypatch, available_mb=4096)
 
         class TestConfig(profile_utils.BasePerformanceConfig):
             @classmethod
@@ -57,33 +84,24 @@ class TestBasePerformanceConfig:
         assert config.batch_size == 5000
         assert config.max_memory_mb == 2048
 
-    @patch("modules.users.users_profile.utils.detect_system_memory_tier")
-    def test_get_auto_config_unknown_tier_defaults(self, mock_detect):
-        mock_detect.return_value = ("unknown", 1024)
+    def test_a_tier_without_a_config_falls_back_to_the_default(self, monkeypatch):
+        _memory(monkeypatch, available_mb=4096)
 
         class TestConfig(profile_utils.BasePerformanceConfig):
             @classmethod
             def _get_tier_configs(cls):
-                return {"high": cls(batch_size=5000)}
+                return {"low": cls(batch_size=5000)}
 
-        config = TestConfig.get_auto_config()
-        assert config.batch_size == 1000
+        assert TestConfig.get_auto_config().batch_size == 1000
 
-    @patch("modules.users.users_profile.utils.detect_system_memory_tier")
-    def test_get_auto_config_detect_failure_propagates(self, mock_detect):
-        mock_detect.side_effect = RuntimeError("detect failed")
+    def test_a_failure_that_is_not_the_machines_propagates(self, monkeypatch):
+        _memory(monkeypatch, error=TypeError("bug"))
 
-        class TestConfig(profile_utils.BasePerformanceConfig):
-            @classmethod
-            def _get_tier_configs(cls):
-                return {"high": cls(batch_size=5000)}
+        with pytest.raises(TypeError, match="bug"):
+            profile_utils.BasePerformanceConfig.get_auto_config()
 
-        with pytest.raises(RuntimeError, match="detect failed"):
-            TestConfig.get_auto_config()
-
-    @patch("modules.users.users_profile.utils.detect_system_memory_tier")
-    def test_get_auto_config_broken_tier_configs_propagate(self, mock_detect):
-        mock_detect.return_value = ("high", 4096)
+    def test_broken_tier_configs_propagate(self, monkeypatch):
+        _memory(monkeypatch, available_mb=4096)
 
         class TestConfig(profile_utils.BasePerformanceConfig):
             @classmethod
@@ -93,9 +111,8 @@ class TestBasePerformanceConfig:
         with pytest.raises(RuntimeError, match="broken tier configs"):
             TestConfig.get_auto_config()
 
-    @patch("modules.users.users_profile.utils.detect_system_memory_tier")
-    def test_get_auto_config_without_tier_configs_raises(self, mock_detect):
-        mock_detect.return_value = ("high", 4096)
+    def test_a_config_without_tier_configs_raises(self, monkeypatch):
+        _memory(monkeypatch, available_mb=4096)
 
         with pytest.raises(NotImplementedError):
             profile_utils.BasePerformanceConfig.get_auto_config()
@@ -116,67 +133,56 @@ class TestModelToDict:
 class TestWriteJsonToZip:
     """Test suite for write_json_to_zip function."""
 
-    def test_with_data_list(self):
-        mock_zip = MagicMock()
-        counts = {}
+    @staticmethod
+    def _write(name, data):
+        buffer = io.BytesIO()
+        counts: dict[str, int] = {}
+        with zipfile.ZipFile(buffer, "w") as archive:
+            profile_utils.write_json_to_zip(archive, name, data, counts)
+        with zipfile.ZipFile(buffer) as archive:
+            return json.loads(archive.read(name)), counts
 
-        profile_utils.write_json_to_zip(mock_zip, "activities/data.json", [{"id": 1}], counts)
+    def test_a_list_is_written_and_counted_by_its_file_stem(self):
+        written, counts = self._write("activities/data.json", [{"id": 1}])
 
-        assert counts["data"] == 1
-        mock_zip.writestr.assert_called_once()
-        args = mock_zip.writestr.call_args[0]
-        assert args[0] == "activities/data.json"
+        assert written == [{"id": 1}]
+        assert counts == {"data": 1}
 
-    def test_with_data_dict(self):
-        mock_zip = MagicMock()
-        counts = {}
+    def test_a_dict_is_written_as_it_is_and_counted_once(self):
+        written, counts = self._write("user/profile.json", {"name": "test"})
 
-        profile_utils.write_json_to_zip(mock_zip, "user/profile.json", {"name": "test"}, counts)
+        assert written == {"name": "test"}
+        assert counts == {"profile": 1}
 
-        assert counts["profile"] == 1
+    def test_an_empty_dict_is_still_written(self):
+        written, counts = self._write("activities/data.json", {})
 
-    def test_with_empty_dict_writes_to_zip(self):
-        mock_zip = MagicMock()
-        counts = {}
+        assert written == {}
+        assert counts == {"data": 1}
 
-        profile_utils.write_json_to_zip(mock_zip, "activities/data.json", {}, counts)
+    def test_an_empty_list_is_still_written_and_counts_zero(self):
+        written, counts = self._write("activities/data.json", [])
 
-        assert counts["data"] == 1
-        mock_zip.writestr.assert_called_once()
+        assert written == []
+        assert counts == {"data": 0}
 
-    def test_with_empty_list_writes_to_zip(self):
-        mock_zip = MagicMock()
-        counts = {}
+    def test_no_data_is_written_as_an_empty_list(self):
+        written, counts = self._write("activities/data.json", None)
 
-        profile_utils.write_json_to_zip(mock_zip, "activities/data.json", [], counts)
-
-        assert counts["data"] == 0
-        mock_zip.writestr.assert_called_once()
-
-    def test_with_none_data_coerces_to_empty_list(self):
-        mock_zip = MagicMock()
-        counts = {}
-
-        profile_utils.write_json_to_zip(mock_zip, "activities/data.json", None, counts)
-
-        assert counts["data"] == 0
-        mock_zip.writestr.assert_called_once()
-        _, written_content = mock_zip.writestr.call_args[0]
-        assert written_content == "[]"
+        assert written == []
+        assert counts == {"data": 0}
 
 
 class TestCheckTimeout:
     """Test suite for check_timeout function."""
 
-    @patch("modules.users.users_profile.utils.time.time")
-    def test_timeout_not_exceeded(self, mock_time):
-        mock_time.return_value = 5.0
+    def test_timeout_not_exceeded(self, monkeypatch):
+        monkeypatch.setattr(profile_utils.time, "time", lambda: 5.0)
 
         profile_utils.check_timeout(10, 0.0, TimeoutError, "test")
 
-    @patch("modules.users.users_profile.utils.time.time")
-    def test_timeout_exceeded(self, mock_time):
-        mock_time.return_value = 15.0
+    def test_timeout_exceeded(self, monkeypatch):
+        monkeypatch.setattr(profile_utils.time, "time", lambda: 15.0)
 
         with pytest.raises(TimeoutError, match="test exceeded 10 seconds"):
             profile_utils.check_timeout(10, 0.0, TimeoutError, "test")
@@ -188,76 +194,75 @@ class TestCheckTimeout:
 class TestGetMemoryUsageMB:
     """Test suite for get_memory_usage_mb function."""
 
-    @patch("modules.users.users_profile.utils.psutil.Process")
-    def test_returns_memory_usage(self, mock_process):
-        mock_proc = MagicMock()
-        mock_proc.memory_info.return_value.rss = 104857600
-        mock_process.return_value = mock_proc
+    def test_returns_the_memory_this_process_uses_in_megabytes(self, monkeypatch):
+        _memory(monkeypatch, rss_mb=100)
 
-        result = profile_utils.get_memory_usage_mb(True)
-        assert result == 100.0
+        assert profile_utils.get_memory_usage_mb(True) == 100.0
 
-    @patch("modules.users.users_profile.utils.psutil.Process")
-    def test_monitoring_disabled_returns_zero(self, mock_process):
-        result = profile_utils.get_memory_usage_mb(False)
-        assert result == 0.0
-        mock_process.assert_not_called()
+    def test_monitoring_disabled_reads_nothing_and_returns_zero(self, monkeypatch):
+        _memory(monkeypatch, error=AssertionError("must not be read"))
 
-    @patch("modules.users.users_profile.utils.psutil.Process")
-    def test_exception_returns_zero(self, mock_process):
-        mock_process.side_effect = Exception("process error")
+        assert profile_utils.get_memory_usage_mb(False) == 0.0
 
-        result = profile_utils.get_memory_usage_mb(True)
-        assert result == 0.0
+    @pytest.mark.parametrize("error", [psutil.AccessDenied(), psutil.NoSuchProcess(1), OSError("process error")])
+    def test_psutil_failure_returns_zero(self, monkeypatch, error):
+        _memory(monkeypatch, error=error)
+
+        assert profile_utils.get_memory_usage_mb(True) == 0.0
+
+    def test_unexpected_error_propagates(self, monkeypatch):
+        _memory(monkeypatch, error=TypeError("bug"))
+
+        with pytest.raises(TypeError, match="bug"):
+            profile_utils.get_memory_usage_mb(True)
 
 
 class TestCheckMemoryUsage:
     """Test suite for check_memory_usage function."""
 
-    @patch("modules.users.users_profile.utils.get_memory_usage_mb")
-    def test_memory_within_limits(self, mock_get_memory):
-        mock_get_memory.return_value = 500.0
+    def test_memory_within_limits(self, monkeypatch):
+        _memory(monkeypatch, rss_mb=500)
 
         profile_utils.check_memory_usage("export", 1024)
 
-    @patch("modules.users.users_profile.utils.get_memory_usage_mb")
-    def test_memory_exceeds_limit(self, mock_get_memory):
-        mock_get_memory.return_value = 1100.0
+    def test_memory_exceeds_limit(self, monkeypatch):
+        _memory(monkeypatch, rss_mb=1100)
 
         with pytest.raises(MemoryAllocationError):
             profile_utils.check_memory_usage("export", 1024)
 
-    @patch("modules.users.users_profile.utils.get_memory_usage_mb")
-    def test_monitoring_disabled_skips_check(self, mock_get_memory):
-        profile_utils.check_memory_usage("export", 1024, enable_monitoring=False)
-        mock_get_memory.assert_not_called()
+    def test_monitoring_disabled_skips_check(self, monkeypatch):
+        _memory(monkeypatch, rss_mb=10_000)
 
-    @patch("modules.users.users_profile.utils.get_memory_usage_mb")
-    def test_memory_intensive_operation_higher_threshold(self, mock_get_memory):
-        mock_get_memory.return_value = 1500.0
+        profile_utils.check_memory_usage("export", 1024, enable_monitoring=False)
+
+    def test_memory_intensive_operation_higher_threshold(self, monkeypatch):
+        _memory(monkeypatch, rss_mb=1500)
 
         profile_utils.check_memory_usage("data collection export", 1024)
 
-    @patch("modules.users.users_profile.utils.get_memory_usage_mb")
-    def test_memory_intensive_operation_still_exceeds(self, mock_get_memory):
-        mock_get_memory.return_value = 2000.0
+    def test_memory_intensive_operation_still_exceeds(self, monkeypatch):
+        _memory(monkeypatch, rss_mb=2000)
 
         with pytest.raises(MemoryAllocationError):
             profile_utils.check_memory_usage("data collection export", 1024)
 
-    @patch("modules.users.users_profile.utils.get_memory_usage_mb")
-    def test_custom_memory_intensive_operations_still_exceeds(self, mock_get_memory):
-        mock_get_memory.return_value = 2000.0
+    def test_custom_memory_intensive_operations_still_exceeds(self, monkeypatch):
+        _memory(monkeypatch, rss_mb=2000)
 
         with pytest.raises(MemoryAllocationError):
             profile_utils.check_memory_usage("custom operation", 1024, memory_intensive_operations=["custom operation"])
 
-    @patch("modules.users.users_profile.utils.get_memory_usage_mb")
-    def test_custom_ops_not_matched_raises_at_normal_limit(self, mock_get_memory):
-        mock_get_memory.return_value = 1100.0
+    def test_custom_ops_not_matched_raises_at_normal_limit(self, monkeypatch):
+        _memory(monkeypatch, rss_mb=1100)
 
         with pytest.raises(MemoryAllocationError):
             profile_utils.check_memory_usage("random task", 1024, memory_intensive_operations=["specific op"])
+
+    def test_a_use_near_the_limit_is_allowed(self, monkeypatch):
+        _memory(monkeypatch, rss_mb=950)
+
+        profile_utils.check_memory_usage("export", 1024)
 
 
 class TestInitializeOperationCounts:
@@ -290,43 +295,28 @@ class TestInitializeOperationCounts:
 class TestDetectSystemMemoryTier:
     """Test suite for detect_system_memory_tier function."""
 
-    @patch("modules.users.users_profile.utils.psutil.virtual_memory")
-    def test_high_tier(self, mock_vm):
-        mock_mem = MagicMock()
-        mock_mem.available = 3000 * 1024 * 1024
-        mock_vm.return_value = mock_mem
+    @pytest.mark.parametrize(
+        ("available_mb", "tier"), [(3000, "high"), (1500, "medium"), (500, "low")], ids=["high", "medium", "low"]
+    )
+    def test_the_tier_follows_the_memory_available(self, monkeypatch, available_mb, tier):
+        _memory(monkeypatch, available_mb=available_mb)
 
-        tier, mb = profile_utils.detect_system_memory_tier()
-        assert tier == "high"
-        assert mb == 3000
+        assert profile_utils.detect_system_memory_tier() == (tier, available_mb)
 
-    @patch("modules.users.users_profile.utils.psutil.virtual_memory")
-    def test_medium_tier(self, mock_vm):
-        mock_mem = MagicMock()
-        mock_mem.available = 1500 * 1024 * 1024
-        mock_vm.return_value = mock_mem
+    @pytest.mark.parametrize(
+        "error",
+        [psutil.AccessDenied(), OSError("meminfo"), RuntimeError("no meminfo")],
+    )
+    def test_psutil_failure_defaults_to_medium(self, monkeypatch, error):
+        _memory(monkeypatch, error=error)
 
-        tier, mb = profile_utils.detect_system_memory_tier()
-        assert tier == "medium"
-        assert mb == 1500
+        assert profile_utils.detect_system_memory_tier() == ("medium", 1024)
 
-    @patch("modules.users.users_profile.utils.psutil.virtual_memory")
-    def test_low_tier(self, mock_vm):
-        mock_mem = MagicMock()
-        mock_mem.available = 500 * 1024 * 1024
-        mock_vm.return_value = mock_mem
+    def test_unexpected_error_propagates(self, monkeypatch):
+        _memory(monkeypatch, error=TypeError("bug"))
 
-        tier, mb = profile_utils.detect_system_memory_tier()
-        assert tier == "low"
-        assert mb == 500
-
-    @patch("modules.users.users_profile.utils.psutil.virtual_memory")
-    def test_exception_defaults_to_medium(self, mock_vm):
-        mock_vm.side_effect = Exception("memory detection failed")
-
-        tier, mb = profile_utils.detect_system_memory_tier()
-        assert tier == "medium"
-        assert mb == 1024
+        with pytest.raises(TypeError, match="bug"):
+            profile_utils.detect_system_memory_tier()
 
 
 class TestWriteJsonArrayToZip:
@@ -334,9 +324,6 @@ class TestWriteJsonArrayToZip:
 
     @staticmethod
     def _entry(write) -> tuple[str, dict[str, int]]:
-        import io
-        import zipfile
-
         buf = io.BytesIO()
         counts: dict[str, int] = {}
         with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as archive:
@@ -345,7 +332,7 @@ class TestWriteJsonArrayToZip:
             return archive.read("data/items.json").decode(), counts
 
     def test_matches_the_in_memory_writer_byte_for_byte(self):
-        items = [{"id": 1, "name": "Corrida ☀"}, {"id": 2, "when": __import__("datetime").date(2026, 1, 2)}, {"id": 3}]
+        items = [{"id": 1, "name": "Corrida ☀"}, {"id": 2, "when": date(2026, 1, 2)}, {"id": 3}]
 
         streamed, streamed_counts = self._entry(
             lambda z, c: profile_utils.write_json_array_to_zip(z, "data/items.json", [items[:2], items[2:]], c)
@@ -479,18 +466,10 @@ class TestZipArchiveReader:
         with pytest.raises(FileSizeError):
             reader.load_json("data/gears.json")
 
-    def test_load_json_checks_memory_after_parsing_unless_told_not_to(self):
-        reader = _reader(_zip_of({"data/a.json": b"[]"}))
-
-        with patch.object(profile_utils, "check_memory_usage") as check:
-            reader.load_json("data/a.json")
-            reader.load_json("data/a.json", check_memory=False)
-
-        check.assert_called_once_with("loading data/a.json", 1024, False)
-
-    def test_memory_over_the_limit_raises(self):
+    def test_memory_over_the_limit_raises_unless_the_check_is_skipped(self):
         reader = _reader(_zip_of({"data/a.json": b"[]"}), enable_memory_monitoring=True, max_memory_mb=0)
 
+        assert reader.load_json("data/a.json", check_memory=False) == []
         with pytest.raises(MemoryAllocationError):
             reader.load_json("data/a.json")
 
@@ -545,12 +524,3 @@ class TestZipArchiveReader:
         reader.load_json("data/a.json")
 
         assert reader.load_json_part("data/laps_000.json") == []
-
-    def test_a_memory_error_while_reading_a_part_propagates(self):
-        reader = _reader(_zip_of({"data/laps_000.json": b"[]"}))
-
-        with (
-            patch.object(profile_utils.ZipArchiveReader, "_read", side_effect=MemoryAllocationError("oom")),
-            pytest.raises(MemoryAllocationError),
-        ):
-            reader.load_json_part("data/laps_000.json")

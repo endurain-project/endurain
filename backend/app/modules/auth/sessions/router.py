@@ -56,20 +56,6 @@ def revoke_session_user(
     """End one session of a user.
 
     Needs the administrator's own step-up verification in `step_up`, as ending a session locks the user out.
-
-    Args:
-        session_id: The ID of the session to end.
-        user_id: The ID of the user who owns the session.
-        body: The administrator's step-up verification.
-        db: Database session dependency.
-        verify_step_up: Verifies the administrator's step-up.
-        request: Incoming request.
-
-    Returns:
-        None.
-
-    Raises:
-        HTTPException: 403 if the step-up fails, 404 if the session is not found.
     """
     sessions_service.delete_session(session_id, user_id, body.step_up, verify_step_up, db)
     return Response(status_code=status.HTTP_204_NO_CONTENT)
@@ -98,20 +84,6 @@ def revoke_sessions_user(
     Needs the administrator's own step-up verification in `step_up`, as ending sessions locks the user out.
     Pass the caller's current ``exclude_session_id`` to sign out every other device while staying logged in, or
     omit it to end all of that user's sessions.
-
-    Args:
-        user_id: The ID of the user whose sessions to end.
-        body: The administrator's step-up verification.
-        db: Database session dependency.
-        verify_step_up: Verifies the administrator's step-up.
-        exclude_session_id: Optional session to leave intact.
-        request: Incoming request.
-
-    Returns:
-        None.
-
-    Raises:
-        HTTPException: 403 if the step-up fails.
     """
     sessions_service.delete_sessions_by_user_and_commit(
         user_id, body.step_up, verify_step_up, db, exclude_session_id=exclude_session_id

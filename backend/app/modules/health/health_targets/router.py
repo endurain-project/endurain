@@ -1,6 +1,6 @@
 """FastAPI router for health targets endpoints."""
 
-from fastapi import APIRouter, Request, Response, Security
+from fastapi import APIRouter, Request, Response, Security, status
 
 import core.dependencies as core_dependencies
 import core.etag as core_etag
@@ -27,17 +27,6 @@ def read_health_targets_all(
 
     This endpoint fetches all health targets associated with the user identified by the
     access token. It requires the 'health-targets:read' scope for authorization.
-
-    Args:
-        token_user_id (uuid.UUID): The user ID extracted from the JWT access token, automatically
-            injected by the authentication dependency.
-        db (Session): SQLAlchemy database session dependency for executing database queries.
-        response: The response, which carries the targets' ETag.
-
-    Returns:
-        health_targets_schema.HealthTargetsRead | None: The
-            health targets object containing all targets for
-            the user, or None if no targets are found.
     """
     targets = health_targets_service.get_health_targets(token_user_id, db)
     if targets is not None:
@@ -48,6 +37,7 @@ def read_health_targets_all(
 @router.patch(
     "",
     response_model=health_targets_schema.HealthTargetsRead,
+    responses={status.HTTP_404_NOT_FOUND: {"description": "The user has no health targets yet."}},
     dependencies=[Security(auth_dependencies.check_scopes, scopes=["health-targets:write"])],
 )
 @core_rate_limit.limiter.limit(core_rate_limit.WRITE)
@@ -63,26 +53,6 @@ def update_health_targets(
 
     This endpoint allows users to modify their health-related targets such as
     weight goals, activity targets, or other health metrics.
-
-    Args:
-        request: The incoming request, read by the rate limiter.
-        health_targets: The health targets to update, containing the new values for
-            the health metrics.
-        token_user_id (uuid.UUID): The authenticated user's ID
-            extracted from the access token.
-        db (Session): Database session dependency for database
-            operations.
-        response: The response, which carries the new ETag.
-        if_match: The ``If-Match`` precondition.
-
-    Returns:
-        health_targets_schema.HealthTargetsRead: The updated
-            health targets object reflecting the changes made
-            in the database.
-
-    Raises:
-        NotFoundError: If the user has no targets.
-        PreconditionFailedError: If the targets changed since the client read them.
     """
     updated = health_targets_service.update_health_targets(health_targets, token_user_id, db, if_match=if_match)
     core_etag.set_etag(response, updated.version)

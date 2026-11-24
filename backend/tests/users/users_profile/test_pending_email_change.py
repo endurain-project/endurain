@@ -1,390 +1,439 @@
-"""Tests for a pending email change from the profile and the admin edit, against a real database."""
-
-import uuid
-from unittest.mock import MagicMock, patch
+"""A pending email change from the profile and from the administrator's edit, on the real database."""
 
 import pytest
-from jasil.backends.state_memory import MemoryState
-from sqlalchemy.orm import sessionmaker
-from tests._helpers.db import create_sqlite_session, ensure_user
+from sqlalchemy import select
 
+import core.etag as core_etag
 import core.exceptions as core_exceptions
+import modules.auth.account_security.integration_service as account_security_integration
 import modules.auth.password_reset_tokens.service as password_reset_service
+import modules.auth.schema as auth_schema
+import modules.auth.security_generation.integration_service as security_generation_integration
+import modules.auth.sessions.models as session_models
+import modules.auth.sign_up_tokens.events as sign_up_events
 import modules.auth.sign_up_tokens.models as sign_up_models
-import modules.users.users.models as users_models
 import modules.users.users.schema as users_schema
 import modules.users.users.service as users_service
 import modules.users.users_profile.service as profile_service
+from tests._factories.server_settings import edit_mail_settings
+from tests._factories.users import PASSWORD, make_admin, make_user
 
-_SID_9 = uuid.UUID(int=109)
-_PUBLISH = "modules.auth.sign_up_tokens.event_publishers.platform_publisher.publish_on_commit"
-_MAIL = "modules.auth.sign_up_tokens.service.server_settings_integration.is_mail_configured"
-_STEP_UP = "modules.auth.account_security.integration_service.verify_step_up"
-_OTHER_SESSIONS = "modules.auth.account_security.integration_service.delete_other_user_sessions"
-_ALL_SESSIONS = "modules.auth.account_security.integration_service.delete_all_user_sessions"
-_EVENT = "auth.email_change_verification_requested"
-_TAKEN_EVENT = "auth.email_change_address_taken"
-_REQUESTED_EVENT = "auth.email_change_requested"
-_PROFILE = "modules.users.users_profile.service.get_profile"
-_USER_ID = uuid.UUID(int=7)
-_OTHER_USER_ID = uuid.UUID(int=8)
-_ADMIN_ID = uuid.UUID(int=9)
-_EMAIL = f"user{_USER_ID.hex}@example.com"
-_OTHER_EMAIL = f"user{_OTHER_USER_ID.hex}@example.com"
-_NAME = f"User {_USER_ID.hex[-12:]}"
+_REQUESTED = sign_up_events.EMAIL_CHANGE_REQUESTED
+_VERIFICATION = sign_up_events.EMAIL_CHANGE_VERIFICATION_REQUESTED
+_TAKEN = sign_up_events.EMAIL_CHANGE_ADDRESS_TAKEN
+_CHANGED = sign_up_events.EMAIL_CHANGED
+_RESET = "auth.password_reset_requested"
+_CHANNELS = (_REQUESTED, _VERIFICATION, _TAKEN, _CHANGED, _RESET)
 
 
 @pytest.fixture
-def db():
-    session = create_sqlite_session()
-    factory = sessionmaker(bind=session.get_bind())
-    for user_id in (_USER_ID, _OTHER_USER_ID, _ADMIN_ID):
-        ensure_user(factory, user_id)
-    session.query(users_models.Users).update({"preferred_language": "en", "email_verified": True})
-    session.commit()
-    yield session
-    session.close()
+def platform(_publish_local_platform):
+    return _publish_local_platform
 
 
 @pytest.fixture
-def mail():
-    with patch(_MAIL, return_value=True):
-        yield
+def events(platform):
+    """The email events the bus carries, in order."""
+    seen = []
+    for channel in _CHANNELS:
+        platform.events.subscribe(channel, seen.append)
+    return seen
 
 
 @pytest.fixture
-def no_mail():
-    with patch(_MAIL, return_value=False):
-        yield
+def mail(committed_sessions):
+    """Configure a mail server, so a new address can be confirmed by email."""
+    with committed_sessions() as db:
+        edit_mail_settings(db, host="smtp.example.com")
+        db.commit()
 
 
 @pytest.fixture
-def publish():
-    with patch(_PUBLISH) as publish:
-        yield publish
+def owner(committed_sessions):
+    with committed_sessions() as db:
+        created = make_user(db, name="Owner")
+        db.commit()
+    return created
 
 
-def _user(db, user_id=_USER_ID):
-    db.expire_all()
-    return db.get(users_models.Users, user_id)
+@pytest.fixture
+def holder(committed_sessions):
+    """Another account, which holds an address the owner may ask for."""
+    with committed_sessions() as db:
+        created = make_user(db)
+        db.commit()
+    return created
 
 
-def _unused_tokens(db, user_id=_USER_ID):
-    db.expire_all()
-    return db.query(sign_up_models.SignUpToken).filter_by(user_id=user_id, used=False).all()
+@pytest.fixture
+def step_up_store(platform):
+    return account_security_integration.get_step_up_attempts(platform.state)
 
 
-def _change_email(db, email, *, user_id=_USER_ID, revoke_other_sessions=False, state=None):
-    change = users_schema.EmailChange(
-        email=email, step_up={"current_password": "pw"}, revoke_other_sessions=revoke_other_sessions
-    )
-    with patch(_STEP_UP), patch(_OTHER_SESSIONS) as other_sessions, patch(_PROFILE):
-        profile_service.change_email(user_id, change, "sid", MagicMock(), state or MemoryState(), db)
-    return other_sessions
+def _change(committed_sessions, owner, email, step_up_store, platform, *, session=None, revoke=False):
+    change = users_schema.EmailChange(email=email, step_up={"current_password": PASSWORD}, revoke_other_sessions=revoke)
+    with committed_sessions() as db:
+        return profile_service.change_email(owner.id, change, session or owner.id, step_up_store, platform.state, db)
+
+
+def _user(committed_sessions, user_id):
+    with committed_sessions() as db:
+        return users_service.require_user(user_id, db)
+
+
+def _unused_tokens(committed_sessions, user_id):
+    with committed_sessions() as db:
+        return db.scalars(select(sign_up_models.SignUpToken).filter_by(user_id=user_id, used=False)).all()
+
+
+def _names(events):
+    return [event.event_type for event in events]
+
+
+def _session_ids(committed_sessions, user_id):
+    with committed_sessions() as db:
+        return set(
+            db.scalars(select(session_models.UsersSessions.id).where(session_models.UsersSessions.user_id == user_id))
+        )
 
 
 class TestSelfServiceEmailChange:
-    def test_the_address_and_verified_flag_stay_and_a_token_and_event_are_staged(self, db, mail, publish):
-        _change_email(db, "New@Example.com")
+    def test_the_address_and_verified_flag_stay_while_a_token_and_the_events_are_staged(
+        self, committed_sessions, platform, owner, step_up_store, mail, events
+    ):
+        _change(committed_sessions, owner, "New@Example.com", step_up_store, platform)
 
-        user = _user(db)
-        assert (user.email, user.email_verified) == (_EMAIL, True)
-        tokens = _unused_tokens(db)
-        assert [(t.email, t.previous_email) for t in tokens] == [("new@example.com", _EMAIL)]
-        assert [(call.args[0], call.args[1]) for call in publish.call_args_list] == [
-            (_REQUESTED_EVENT, {"user_id": str(_USER_ID)}),
-            (_EVENT, {"user_id": str(_USER_ID)}),
-        ]
+        user = _user(committed_sessions, owner.id)
+        assert (user.email, user.email_verified) == (owner.email, True)
+        tokens = _unused_tokens(committed_sessions, owner.id)
+        assert [(t.email, t.previous_email) for t in tokens] == [("new@example.com", owner.email)]
+        assert _names(events) == [_REQUESTED, _VERIFICATION]
+        assert all(event.payload["user_id"] == str(owner.id) for event in events)
 
-    def test_the_change_is_shown_as_pending_in_the_profile(self, db, mail, publish):
-        _change_email(db, "new@example.com")
-
-        with (
-            patch("modules.users.users_profile.service.user_integrations_integration") as integrations,
-            patch("modules.users.users_profile.service.users_privacy_settings_integration") as privacy,
-            patch("modules.users.users_profile.service.credentials_integration") as credentials,
-            patch("modules.users.users_profile.service.account_security_integration") as security,
-        ):
-            integrations.get_user_integrations.return_value = MagicMock(
-                version=1, strava_token=None, garminconnect_token=None
-            )
-            privacy.get_privacy_settings.return_value = MagicMock(
-                version=1,
-                default_activity_visibility="public",
-                discoverable=True,
-                **{
-                    f"hide_activity_{name}": False
-                    for name in (
-                        "start_time",
-                        "location",
-                        "map",
-                        "hr",
-                        "power",
-                        "cadence",
-                        "elevation",
-                        "speed",
-                        "pace",
-                        "laps",
-                        "workout_sets_steps",
-                        "gear",
-                    )
-                },
-            )
-            credentials.has_local_password.return_value = True
-            security.get_mfa_status.return_value = MagicMock(mfa_enabled=False)
-            profile = profile_service.get_profile(_USER_ID, db)
+    def test_the_answer_is_the_profile_with_the_change_pending(
+        self, committed_sessions, platform, owner, step_up_store, mail, events
+    ):
+        profile = _change(committed_sessions, owner, "new@example.com", step_up_store, platform)
 
         assert profile.pending_email == "new@example.com"
         assert profile.pending_email_expires_at is not None
-        assert profile.email == _EMAIL
+        assert profile.email == owner.email
 
-    def test_a_second_change_replaces_the_first(self, db, mail, publish):
-        _change_email(db, "first@example.com")
-        _change_email(db, "second@example.com")
+    def test_a_second_change_replaces_the_first(self, committed_sessions, platform, owner, step_up_store, mail, events):
+        _change(committed_sessions, owner, "first@example.com", step_up_store, platform)
+        _change(committed_sessions, owner, "second@example.com", step_up_store, platform)
 
-        assert [t.email for t in _unused_tokens(db)] == ["second@example.com"]
-        assert _user(db).email == _EMAIL
+        assert [t.email for t in _unused_tokens(committed_sessions, owner.id)] == ["second@example.com"]
+        assert _user(committed_sessions, owner.id).email == owner.email
 
-    def test_resubmitting_the_current_address_cancels_a_pending_change(self, db, mail, publish):
-        _change_email(db, "new@example.com")
-
-        other_sessions = _change_email(db, _EMAIL.upper(), revoke_other_sessions=True)
-
-        assert _unused_tokens(db) == []
-        assert _user(db).email_verified is True
-        other_sessions.assert_not_called()
-
-    def test_an_address_of_another_account_is_pending_like_a_free_one_and_its_holder_is_told(self, db, mail, publish):
-        _change_email(db, _OTHER_EMAIL.capitalize())
-
-        assert [(t.email, t.previous_email) for t in _unused_tokens(db)] == [(_OTHER_EMAIL, _EMAIL)]
-        assert _user(db).email == _EMAIL
-        assert _user(db, _OTHER_USER_ID).email == _OTHER_EMAIL
-        assert [(call.args[0], call.args[1]) for call in publish.call_args_list] == [
-            (_REQUESTED_EVENT, {"user_id": str(_USER_ID)}),
-            (_TAKEN_EVENT, {"user_id": str(_OTHER_USER_ID)}),
-        ]
-
-    def test_a_second_attempt_inside_the_hour_answers_the_same(self, db, mail, publish):
-        state = MemoryState()
-
-        _change_email(db, _OTHER_EMAIL, state=state)
-        _change_email(db, _OTHER_EMAIL, state=state)
-
-        assert [t.email for t in _unused_tokens(db)] == [_OTHER_EMAIL]
-        assert [call.args[0] for call in publish.call_args_list] == [
-            _REQUESTED_EVENT,
-            _TAKEN_EVENT,
-            _REQUESTED_EVENT,
-        ]
-
-    def test_a_taken_address_without_mail_is_a_conflict(self, db, no_mail, publish):
-        with pytest.raises(core_exceptions.ConflictError):
-            _change_email(db, _OTHER_EMAIL)
-
-        assert _user(db).email == _EMAIL
-        publish.assert_not_called()
-
-    def test_without_mail_the_address_changes_at_once_unverified_and_tokens_are_revoked(self, db, publish):
-        with patch(_MAIL, return_value=True):
-            _change_email(db, "pending@example.com")
-        assert len(_unused_tokens(db)) == 1
-        publish.reset_mock()
-
-        with patch(_MAIL, return_value=False):
-            _change_email(db, "new@example.com")
-
-        user = _user(db)
-        assert (user.email, user.email_verified) == ("new@example.com", False)
-        assert _unused_tokens(db) == []
-        publish.assert_not_called()
-
-    def test_a_requested_address_leaves_the_security_generation_alone(self, db, mail, publish, security_generations):
-        _change_email(db, "new@example.com")
-
-        assert security_generations.bumps == []
-
-    def test_an_address_applied_at_once_advances_the_security_generation(
-        self, db, no_mail, publish, security_generations
+    def test_resubmitting_the_current_address_cancels_a_pending_change_and_keeps_the_sessions(
+        self, committed_sessions, platform, owner, step_up_store, mail, events, sign_in
     ):
-        _change_email(db, "new@example.com")
+        mine, other_session = sign_in(owner), sign_in(owner)
+        _change(committed_sessions, owner, "new@example.com", step_up_store, platform, session=mine.session_id)
 
-        assert security_generations.bumps == [_USER_ID]
+        profile = _change(
+            committed_sessions,
+            owner,
+            owner.email.upper(),
+            step_up_store,
+            platform,
+            session=mine.session_id,
+            revoke=True,
+        )
 
-    def test_other_sessions_are_revoked_when_asked(self, db, mail, publish):
-        other_sessions = _change_email(db, "new@example.com", revoke_other_sessions=True)
+        assert _unused_tokens(committed_sessions, owner.id) == []
+        assert profile.pending_email is None
+        assert _user(committed_sessions, owner.id).email_verified is True
+        assert _session_ids(committed_sessions, owner.id) == {mine.session_id, other_session.session_id}
 
-        other_sessions.assert_called_once_with(_USER_ID, "sid", db)
+    def test_an_address_of_another_account_is_pending_like_a_free_one_and_its_holder_is_told(
+        self, committed_sessions, platform, owner, holder, step_up_store, mail, events
+    ):
+        profile = _change(committed_sessions, owner, holder.email.capitalize(), step_up_store, platform)
 
+        assert profile.pending_email == holder.email
+        assert [(t.email, t.previous_email) for t in _unused_tokens(committed_sessions, owner.id)] == [
+            (holder.email, owner.email)
+        ]
+        assert _user(committed_sessions, holder.id).email == holder.email
+        assert _names(events) == [_REQUESTED, _TAKEN]
+        assert events[1].payload["user_id"] == str(holder.id)
 
-class TestChangeEmailAnswersWithTheProfile:
-    @staticmethod
-    def _request(db, email):
-        change = users_schema.EmailChange(email=email, step_up={"current_password": "pw"})
-        with (
-            patch(_STEP_UP),
-            patch(_OTHER_SESSIONS),
-            patch(_PROFILE) as get_profile,
-        ):
-            result = profile_service.change_email(_USER_ID, change, "sid", MagicMock(), MemoryState(), db)
-        return result, get_profile
+    def test_a_second_attempt_inside_the_hour_answers_the_same_without_telling_the_holder_again(
+        self, committed_sessions, platform, owner, holder, step_up_store, mail, events
+    ):
+        _change(committed_sessions, owner, holder.email, step_up_store, platform)
+        _change(committed_sessions, owner, holder.email, step_up_store, platform)
 
-    def test_a_pending_change_returns_the_profile_read_after_the_commit(self, db, mail, publish):
-        result, get_profile = self._request(db, "new@example.com")
+        assert [t.email for t in _unused_tokens(committed_sessions, owner.id)] == [holder.email]
+        assert _names(events) == [_REQUESTED, _TAKEN, _REQUESTED]
 
-        assert result is get_profile.return_value
-        get_profile.assert_called_once_with(_USER_ID, db)
-        assert len(_unused_tokens(db)) == 1
+    def test_a_taken_address_without_mail_is_a_conflict_and_changes_nothing(
+        self, committed_sessions, platform, owner, holder, step_up_store, events
+    ):
+        with pytest.raises(core_exceptions.ConflictError):
+            _change(committed_sessions, owner, holder.email, step_up_store, platform)
 
-    def test_an_address_applied_without_mail_returns_the_profile(self, db, no_mail, publish):
-        result, get_profile = self._request(db, "new@example.com")
+        assert _user(committed_sessions, owner.id).email == owner.email
+        assert events == []
 
-        assert result is get_profile.return_value
-        assert _user(db).email == "new@example.com"
+    def test_without_mail_the_address_changes_at_once_unverified_and_pending_links_are_voided(
+        self, committed_sessions, platform, owner, step_up_store, events
+    ):
+        with committed_sessions() as db:
+            edit_mail_settings(db, host="smtp.example.com")
+            db.commit()
+        _change(committed_sessions, owner, "pending@example.com", step_up_store, platform)
+        assert len(_unused_tokens(committed_sessions, owner.id)) == 1
+        with committed_sessions() as db:
+            edit_mail_settings(db, host=None)
+            db.commit()
+        events.clear()
 
-    def test_the_current_address_cancelling_a_change_returns_the_profile(self, db, mail, publish):
-        _change_email(db, "new@example.com")
+        profile = _change(committed_sessions, owner, "new@example.com", step_up_store, platform)
 
-        result, get_profile = self._request(db, _EMAIL)
+        user = _user(committed_sessions, owner.id)
+        assert (user.email, user.email_verified) == ("new@example.com", False)
+        assert profile.email == "new@example.com"
+        assert _unused_tokens(committed_sessions, owner.id) == []
+        assert events == []
 
-        assert result is get_profile.return_value
-        assert _unused_tokens(db) == []
+    def test_a_requested_address_leaves_the_security_generation_alone_and_an_applied_one_advances_it(
+        self, committed_sessions, platform, owner, step_up_store, events
+    ):
+        with committed_sessions() as db:
+            before = security_generation_integration.current_generation(owner.id, db)
+            edit_mail_settings(db, host="smtp.example.com")
+            db.commit()
+
+        _change(committed_sessions, owner, "requested@example.com", step_up_store, platform)
+        with committed_sessions() as db:
+            after_request = security_generation_integration.current_generation(owner.id, db)
+            edit_mail_settings(db, host=None)
+            db.commit()
+        _change(committed_sessions, owner, "applied@example.com", step_up_store, platform)
+
+        with committed_sessions() as db:
+            after_applied = security_generation_integration.current_generation(owner.id, db)
+        assert after_request == before
+        assert after_applied > before
+
+    def test_other_sessions_are_revoked_when_asked(
+        self, committed_sessions, platform, owner, step_up_store, mail, events, sign_in
+    ):
+        mine, other_session = sign_in(owner), sign_in(owner)
+
+        _change(
+            committed_sessions, owner, "new@example.com", step_up_store, platform, session=mine.session_id, revoke=True
+        )
+
+        assert _session_ids(committed_sessions, owner.id) == {mine.session_id}
+        assert other_session.session_id not in _session_ids(committed_sessions, owner.id)
+
+    def test_other_sessions_stay_when_the_client_opts_out(
+        self, committed_sessions, platform, owner, step_up_store, mail, events, sign_in
+    ):
+        mine, other_session = sign_in(owner), sign_in(owner)
+
+        _change(committed_sessions, owner, "new@example.com", step_up_store, platform, session=mine.session_id)
+
+        assert _session_ids(committed_sessions, owner.id) == {mine.session_id, other_session.session_id}
+
+    def test_a_failed_step_up_changes_nothing(self, committed_sessions, platform, owner, step_up_store, mail, events):
+        change = users_schema.EmailChange(email="new@example.com", step_up={"current_password": "wrong"})
+
+        with committed_sessions() as db, pytest.raises(core_exceptions.StepUpFailedError):
+            profile_service.change_email(owner.id, change, owner.id, step_up_store, platform.state, db)
+
+        assert _unused_tokens(committed_sessions, owner.id) == []
+        assert events == []
 
 
 class TestResendAndCancel:
-    def test_cancelling_lapses_the_link_and_clears_the_pending_change(self, db, mail, publish):
-        _change_email(db, "new@example.com")
+    def test_cancelling_lapses_the_link_and_clears_the_pending_change(
+        self, committed_sessions, platform, owner, step_up_store, mail, events
+    ):
+        _change(committed_sessions, owner, "new@example.com", step_up_store, platform)
 
-        profile_service.cancel_email_change(_USER_ID, db)
+        with committed_sessions() as db:
+            profile_service.cancel_email_change(owner.id, db)
 
-        assert _unused_tokens(db) == []
-        assert _user(db).email == _EMAIL
+        assert _unused_tokens(committed_sessions, owner.id) == []
+        assert _user(committed_sessions, owner.id).email == owner.email
 
-    def test_resending_stages_the_event_once_per_cooldown(self, db, mail, publish):
-        _change_email(db, "new@example.com")
-        publish.reset_mock()
-        state = MemoryState()
+    def test_resending_stages_the_event_once_per_cooldown(
+        self, committed_sessions, platform, owner, step_up_store, mail, events
+    ):
+        _change(committed_sessions, owner, "new@example.com", step_up_store, platform)
+        events.clear()
 
-        profile_service.resend_email_change(_USER_ID, state, db)
-        profile_service.resend_email_change(_USER_ID, state, db)
+        for _ in range(2):
+            with committed_sessions() as db:
+                profile_service.resend_email_change(owner.id, platform.state, db)
 
-        publish.assert_called_once()
-        assert publish.call_args.args[0] == _EVENT
+        assert _names(events) == [_VERIFICATION]
 
-    def test_resending_with_nothing_pending_does_nothing(self, db, mail, publish):
-        profile_service.resend_email_change(_USER_ID, MemoryState(), db)
+    def test_resending_with_nothing_pending_does_nothing(self, committed_sessions, platform, owner, mail, events):
+        with committed_sessions() as db:
+            profile_service.resend_email_change(owner.id, platform.state, db)
 
-        publish.assert_not_called()
+        assert events == []
 
 
 class TestPasswordResetWhilePending:
-    def test_the_reset_still_targets_the_old_address(self, db, mail, publish):
-        _change_email(db, "new@example.com")
-        reset = (
-            "modules.auth.password_reset_tokens.service."
-            "password_reset_event_publishers.publish_password_reset_requested"
-        )
+    def test_the_reset_still_targets_the_old_address(
+        self, committed_sessions, platform, owner, step_up_store, mail, events
+    ):
+        _change(committed_sessions, owner, "new@example.com", step_up_store, platform)
+        events.clear()
 
-        with patch(reset) as requested:
+        with committed_sessions() as db:
             password_reset_service.request_password_reset_email("new@example.com", "203.0.113.7", "agent", db)
-            password_reset_service.request_password_reset_email(_EMAIL, "203.0.113.7", "agent", db)
+            password_reset_service.request_password_reset_email(owner.email, "203.0.113.7", "agent", db)
 
-        assert [call.args[0] for call in requested.call_args_list] == [None, _USER_ID]
+        assert [event.payload["user_id"] for event in events if event.event_type == _RESET] == [None, str(owner.id)]
 
 
 class TestAdminEmailEdit:
-    @staticmethod
-    def _edit(db, **overrides):
-        current = users_service.require_user(_USER_ID, db)
-        edit = users_schema.UserEdit.from_read(current).model_copy(update=overrides)
-        with (
-            patch(_ALL_SESSIONS) as sessions,
-            patch("modules.users.users.service.account_security_integration.verify_step_up"),
-        ):
-            updated = users_service.edit_user(
-                _USER_ID, edit, None, _ADMIN_ID, _SID_9, MagicMock(), db, if_match=str(current.version)
+    @pytest.fixture
+    def admin(self, committed_sessions):
+        with committed_sessions() as db:
+            created = make_admin(db)
+            db.commit()
+        return created
+
+    def _edit(self, committed_sessions, step_up_store, admin, target, **overrides):
+        with committed_sessions() as db:
+            current = users_service.require_user(target.id, db)
+            edit = users_schema.UserEdit.from_read(current).model_copy(update=overrides)
+            return users_service.edit_user(
+                target.id,
+                edit,
+                auth_schema.StepUpVerification(current_password=PASSWORD),
+                admin.id,
+                admin.id,
+                step_up_store,
+                db,
+                if_match=core_etag.format_etag(current.version),
             )
-        return updated, sessions
 
-    def test_an_unchanged_email_edits_as_before(self, db, mail, publish):
-        updated, sessions = self._edit(db, name="Renamed")
+    def test_an_unchanged_email_edits_as_before(
+        self, committed_sessions, platform, owner, admin, step_up_store, mail, events, sign_in
+    ):
+        session = sign_in(owner)
 
-        assert updated.name == "Renamed"
-        assert updated.pending_email is None
-        publish.assert_not_called()
-        sessions.assert_not_called()
+        updated = self._edit(committed_sessions, step_up_store, admin, owner, name="Renamed")
 
-    def test_a_changed_unverified_email_is_pending_and_ends_the_sessions(self, db, mail, publish):
-        updated, sessions = self._edit(db, email="New@Example.com", email_verified=False)
+        assert (updated.name, updated.pending_email) == ("Renamed", None)
+        assert events == []
+        assert _session_ids(committed_sessions, owner.id) == {session.session_id}
 
-        user = _user(db)
-        assert (user.email, user.email_verified) == (_EMAIL, True)
-        assert (updated.email, updated.email_verified) == (_EMAIL, True)
+    def test_a_changed_unverified_email_is_pending_and_ends_the_sessions(
+        self, committed_sessions, platform, owner, admin, step_up_store, mail, events, sign_in
+    ):
+        sign_in(owner)
+
+        updated = self._edit(
+            committed_sessions, step_up_store, admin, owner, email="New@Example.com", email_verified=False
+        )
+
+        user = _user(committed_sessions, owner.id)
+        assert (user.email, user.email_verified) == (owner.email, True)
+        assert (updated.email, updated.email_verified) == (owner.email, True)
         assert updated.pending_email == "new@example.com"
         assert updated.pending_email_expires_at is not None
-        assert [call.args[0] for call in publish.call_args_list] == ["auth.email_change_requested", _EVENT]
-        sessions.assert_called_once_with(_USER_ID, db)
+        assert _names(events) == [_REQUESTED, _VERIFICATION]
+        assert _session_ids(committed_sessions, owner.id) == set()
 
-    def test_a_changed_email_marked_verified_applies_at_once_and_cancels_a_pending_change(self, db, mail, publish):
-        _change_email(db, "pending@example.com")
-        publish.reset_mock()
+    def test_a_changed_email_marked_verified_applies_at_once_and_cancels_a_pending_change(
+        self, committed_sessions, platform, owner, admin, step_up_store, mail, events, sign_in
+    ):
+        sign_in(owner)
+        _change(committed_sessions, owner, "pending@example.com", step_up_store, platform)
 
-        updated, sessions = self._edit(db, email="New@Example.com", email_verified=True)
+        updated = self._edit(
+            committed_sessions, step_up_store, admin, owner, email="New@Example.com", email_verified=True
+        )
 
-        user = _user(db)
+        user = _user(committed_sessions, owner.id)
         assert (user.email, user.email_verified) == ("new@example.com", True)
         assert updated.pending_email is None
-        assert _unused_tokens(db) == []
-        sessions.assert_called_once_with(_USER_ID, db)
+        assert _unused_tokens(committed_sessions, owner.id) == []
+        assert _session_ids(committed_sessions, owner.id) == set()
 
-    def test_an_applied_address_tells_the_previous_one(self, db, mail, publish):
-        self._edit(db, email="New@Example.com", email_verified=True)
+    def test_an_applied_address_tells_the_previous_one(
+        self, committed_sessions, platform, owner, admin, step_up_store, mail, events
+    ):
+        self._edit(committed_sessions, step_up_store, admin, owner, email="New@Example.com", email_verified=True)
 
-        notice = db.query(sign_up_models.SignUpToken).filter_by(user_id=_USER_ID).one()
-        assert (notice.previous_email, notice.email, notice.used) == (_EMAIL, "new@example.com", True)
-        publish.assert_called_once()
-        assert publish.call_args.args[0] == "auth.email_changed"
-        assert publish.call_args.args[1] == {"user_id": str(_USER_ID), "token_id": str(notice.id)}
+        with committed_sessions() as db:
+            notice = db.scalars(select(sign_up_models.SignUpToken).filter_by(user_id=owner.id)).one()
+        assert (notice.previous_email, notice.email, notice.used) == (owner.email, "new@example.com", True)
+        assert _names(events) == [_CHANGED]
+        assert events[0].payload == {"user_id": str(owner.id), "token_id": str(notice.id)}
 
-    def test_without_mail_an_applied_address_stages_no_notice_and_voids_pending_links(self, db, no_mail, publish):
-        with patch(_MAIL, return_value=True):
-            _change_email(db, "pending@example.com")
-        publish.reset_mock()
+    def test_without_mail_an_applied_address_stages_no_notice_and_voids_pending_links(
+        self, committed_sessions, platform, owner, admin, step_up_store, events
+    ):
+        with committed_sessions() as db:
+            edit_mail_settings(db, host="smtp.example.com")
+            db.commit()
+        _change(committed_sessions, owner, "pending@example.com", step_up_store, platform)
+        with committed_sessions() as db:
+            edit_mail_settings(db, host=None)
+            db.commit()
+        events.clear()
 
-        self._edit(db, email="new@example.com", email_verified=True)
+        self._edit(committed_sessions, step_up_store, admin, owner, email="new@example.com", email_verified=True)
 
-        assert _user(db).email == "new@example.com"
-        assert _unused_tokens(db) == []
-        publish.assert_not_called()
+        assert _user(committed_sessions, owner.id).email == "new@example.com"
+        assert _unused_tokens(committed_sessions, owner.id) == []
+        assert events == []
 
-    def test_without_mail_a_changed_email_applies_unverified(self, db, no_mail, publish):
-        updated, sessions = self._edit(db, email="new@example.com", email_verified=False)
+    def test_without_mail_a_changed_email_applies_unverified(
+        self, committed_sessions, platform, owner, admin, step_up_store, events, sign_in
+    ):
+        sign_in(owner)
 
-        user = _user(db)
+        updated = self._edit(
+            committed_sessions, step_up_store, admin, owner, email="new@example.com", email_verified=False
+        )
+
+        user = _user(committed_sessions, owner.id)
         assert (user.email, user.email_verified) == ("new@example.com", False)
-        assert (updated.email, updated.email_verified) == ("new@example.com", False)
+        assert (updated.email, updated.email_verified, updated.pending_email) == ("new@example.com", False, None)
+        assert _session_ids(committed_sessions, owner.id) == set()
+
+    def test_deactivating_with_a_changed_email_leaves_no_link_that_could_reactivate(
+        self, committed_sessions, platform, owner, admin, step_up_store, mail, events
+    ):
+        updated = self._edit(
+            committed_sessions, step_up_store, admin, owner, email="new@example.com", email_verified=False, active=False
+        )
+
+        user = _user(committed_sessions, owner.id)
+        assert (user.email, user.active) == (owner.email, False)
         assert updated.pending_email is None
-        sessions.assert_called_once_with(_USER_ID, db)
+        assert _unused_tokens(committed_sessions, owner.id) == []
 
-    def test_deactivating_with_a_changed_email_leaves_no_link_that_could_reactivate(self, db, mail, publish):
-        updated, _ = self._edit(db, email="new@example.com", email_verified=False, active=False)
-
-        assert (_user(db).email, _user(db).active) == (_EMAIL, False)
-        assert updated.pending_email is None
-        assert _unused_tokens(db) == []
-
-    def test_a_changed_email_of_another_account_is_a_conflict_and_changes_nothing(self, db, mail, publish):
+    def test_a_changed_email_of_another_account_is_a_conflict_and_changes_nothing(
+        self, committed_sessions, platform, owner, holder, admin, step_up_store, mail, events
+    ):
         with pytest.raises(core_exceptions.ConflictError):
-            self._edit(db, email=_OTHER_EMAIL, name="Renamed")
+            self._edit(committed_sessions, step_up_store, admin, owner, email=holder.email, name="Renamed")
 
-        assert _user(db).name == _NAME
-        assert _unused_tokens(db) == []
-        publish.assert_not_called()
+        assert _user(committed_sessions, owner.id).name == "Owner"
+        assert _unused_tokens(committed_sessions, owner.id) == []
+        assert events == []
 
-    def test_the_admin_read_and_the_list_carry_the_pending_change(self, db, mail, publish):
-        _change_email(db, "new@example.com")
+    def test_the_admin_read_and_the_list_carry_the_pending_change(
+        self, committed_sessions, platform, owner, holder, step_up_store, mail, events
+    ):
+        _change(committed_sessions, owner, "new@example.com", step_up_store, platform)
 
-        assert users_service.require_user_with_pending_email(_USER_ID, db).pending_email == "new@example.com"
-        listed = {user.id: user for user in users_service.list_users(db).items}
-        assert listed[_USER_ID].pending_email == "new@example.com"
-        assert listed[_OTHER_USER_ID].pending_email is None
+        with committed_sessions() as db:
+            assert users_service.require_user_with_pending_email(owner.id, db).pending_email == "new@example.com"
+            listed = {user.id: user for user in users_service.list_users(db).items}
+        assert listed[owner.id].pending_email == "new@example.com"
+        assert listed[holder.id].pending_email is None

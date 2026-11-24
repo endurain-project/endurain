@@ -1,13 +1,8 @@
-import os
+"""FastAPI application entry point: lifespan and middleware wiring."""
+
 import time
 from collections.abc import AsyncGenerator, Awaitable, Callable
 from contextlib import asynccontextmanager
-
-# Silence stravalib token warnings as early as
-# possible: this env var is consulted at import time by
-# stravalib, so it must be set before any module that
-# transitively imports it runs.
-os.environ["SILENCE_TOKEN_WARNINGS"] = "TRUE"
 
 import jasil.audit as jasil_audit
 import jasil.container as platform_container
@@ -26,6 +21,7 @@ import core.config as core_config
 import core.database as core_database
 import core.docs_pages as core_docs_pages
 import core.exceptions as core_exceptions
+import core.idempotency as core_idempotency
 import core.logger as core_logger
 import core.middleware as core_middleware
 import core.middleware_body_limit as core_middleware_body_limit
@@ -135,6 +131,23 @@ async def _resolve_trusted_proxy_hostnames() -> dict[str, list[str]]:
     )
 
 
+def attach_platform(fastapi_app: FastAPI, platform: platform_container.Platform) -> None:
+    """Publish the platform and attach it to the application, with what its requests read from app state.
+
+    Startup calls this once the platform is built; the tests call it on the application they build, so a request
+    in a test resolves the same providers as one in production.
+
+    Args:
+        fastapi_app: The application to attach the platform to.
+        platform: The platform its requests and background work resolve providers from.
+    """
+    fastapi_app.state.platform = platform
+    # Published process-wide so background work (scheduler, Garmin login thread) that has no request can resolve
+    # providers via jasil.runtime.
+    platform_runtime.set_active_platform(platform)
+    fastapi_app.state.storage_origin = core_signing.blob_origin()
+
+
 async def startup_event(fastapi_app: FastAPI) -> None:
     """Run startup tasks in well-defined phases.
 
@@ -158,28 +171,23 @@ async def startup_event(fastapi_app: FastAPI) -> None:
     jasil_settings.configure(substrate_settings)
     jasil_correlation.configure_provider(lambda: core_middleware_request_id.get_request_id() or None)
 
-    # Build the platform substrate (providers + backends) and attach it to app state.
+    # Build the platform substrate (providers + backends) and attach it to the application.
     platform = platform_container.build_platform(substrate_settings, sources=runtime_module_registry.runtime_sources())
-    fastapi_app.state.platform = platform
-
-    # Publish it process-wide so background work (scheduler, Garmin login thread)
-    # that has no request can resolve providers via jasil.runtime.
-    platform_runtime.set_active_platform(platform)
-    fastapi_app.state.storage_origin = core_signing.blob_origin()
+    attach_platform(fastapi_app, platform)
 
     # Capture the running event loop so synchronous code (sync routes in the
     # threadpool, in-process event subscribers) can dispatch async I/O — e.g. a
     # websocket push — back onto it via core.async_bridge.
     core_async_bridge.capture_running_loop()
 
-    # Configure activity contributors, then register every event-bus subscriber
-    # and durable-job handler through the shared app composition root so the API
-    # and standalone worker cannot drift. The bus subscribers (thumbnail, notification,
-    # HR-zone, geocoding) react to activity.created / activity.deleted; the durable
-    # handlers are the same set keyed by stable subscriber id (harmless when durable
-    # jobs are off, retryable per-subscriber when on). Each durable subscriber that
-    # writes durable derived state declares a reconciliation net (scheduled backfill)
-    # in that module.
+    # Install the contributors, activity providers and audit catalog, then register
+    # every event-bus subscriber and durable-job handler through the shared app
+    # composition root so the API and standalone worker cannot drift. The bus
+    # subscribers (thumbnail, notification, HR-zone, geocoding) react to
+    # activity.created / activity.deleted; the durable handlers are the same set keyed
+    # by stable subscriber id (harmless when durable jobs are off, retryable
+    # per-subscriber when on). Each durable subscriber that writes durable derived
+    # state declares a reconciliation net (scheduled backfill) in that module.
     runtime_module_registry.configure_application()
     runtime_module_registry.register_bus_subscribers(platform.events)
     runtime_module_registry.register_durable_handlers(jobs_registry.registry)
@@ -202,9 +210,6 @@ async def startup_event(fastapi_app: FastAPI) -> None:
     runtime_module_registry.register_realtime_subscribers(platform.realtime)
     platform.realtime.start()
 
-    # Before anything can send mail: save deprecated environment variables into the database.
-    with SessionLocal() as db:
-        server_settings_integration.import_deprecated_env_settings(db)
     # The composition root collects each module's own declaration; the scheduler
     # knows how to schedule, never what.
     core_scheduler.start_scheduler(
@@ -381,6 +386,11 @@ def create_app() -> FastAPI:
 
     # Answer HEAD and default the caching rule of JSON. Added first, so it is the innermost middleware.
     fastapi_app.add_middleware(core_middleware.GetSemanticsMiddleware)
+
+    # Store the outcome of a create that won an Idempotency-Key claim. Added right after the innermost layer, so it
+    # sees the response as the route made it, and inside the layers that refuse a request before any route runs (they
+    # never leave a claim); the replay itself is raised by a dependency and renders through every layer again.
+    fastapi_app.add_middleware(core_idempotency.IdempotencyMiddleware)
 
     # Refuse a web request to a cookie route from an origin that is not allowed. Added first, so it sits inside CORS and
     # the security headers and its 403 carries both.

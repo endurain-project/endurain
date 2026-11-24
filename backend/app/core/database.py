@@ -167,8 +167,7 @@ jasil_orm.configure_sessionmaker(SessionLocal)
 
 
 class TimestampMixin:
-    """
-    Mixin that adds created_at and updated_at columns.
+    """Mixin that adds created_at and updated_at columns.
 
     Mix into any ORM model that should track record
     creation and modification timestamps. Both columns
@@ -338,8 +337,7 @@ def delete_in_batches(stage_batch: Callable[[int], int], db: Session) -> int:
 
 
 def get_db() -> Generator[Session]:
-    """
-    Yields a new SQLAlchemy database session.
+    """Yields a new SQLAlchemy database session.
 
     Rolls back on any unhandled exception so that partial
     writes are never silently committed to the database,

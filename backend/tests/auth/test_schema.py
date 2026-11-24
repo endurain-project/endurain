@@ -7,18 +7,11 @@ tests and the router-level error-path tests.
 """
 
 import uuid
-from types import SimpleNamespace
-from unittest.mock import MagicMock
 
 import pytest
-from jasil.backends.state_memory import MemoryState
 from pydantic import ValidationError
 
-import core.exceptions as core_exceptions
 import modules.auth.authentication.schema as auth_schema
-import modules.auth.authentication.service as auth_service
-import modules.auth.mfa.pending_login_store as pending_login_store
-from tests._helpers.auth import pending_login
 
 _USER_ID = uuid.UUID(int=123)
 
@@ -84,139 +77,3 @@ class TestMFARequiredResponse:
         """The step is the literal ``mfa``."""
         with pytest.raises(ValueError, match="next_step"):
             auth_schema.MFARequiredRead(next_step="tokens", mfa_challenge="c" * 43, methods=[])
-
-
-class TestAuthRouterErrors:
-    """Tests for auth router error responses."""
-
-    @pytest.mark.asyncio
-    async def test_invalid_mfa_response_hides_attempt_count(
-        self,
-        monkeypatch,
-    ):
-        """Test invalid MFA response does not disclose counters."""
-        raw_username = "Raw.User@example.com"
-        log_messages = []
-
-        class PendingMFAStore:
-            """Minimal pending MFA store for router testing."""
-
-            def is_locked_out(self, username, ip_address, *, user_id, known_device=False):
-                """Return unlocked for test user."""
-                return False
-
-            def get_pending_login(self, username):
-                """Return a pending login."""
-                return pending_login(_USER_ID)
-
-            def claim_pending_login(self, username):
-                """Return a claimed pending login."""
-                return pending_login(_USER_ID)
-
-            def record_failed_attempt(self, username, ip_address, *, user_id):
-                """Return a count that must stay server-side only."""
-                return pending_login_store.FailedMfaRecord(count=4, account_locked_now=False)
-
-            def record_wrong_code(self, challenge):
-                """Leave the challenge live."""
-                return False
-
-        def capture_log(message, *args, **kwargs):
-            """Capture warning log messages for assertions."""
-            log_messages.append(f"{message} {kwargs.get('extra', {})}")
-
-        monkeypatch.setattr(
-            auth_service.mfa_integration,
-            "verify_user_mfa",
-            lambda *args, **kwargs: False,
-        )
-        monkeypatch.setattr(
-            auth_service.logger,
-            "warning",
-            capture_log,
-        )
-        monkeypatch.setattr(
-            auth_service.users_integration,
-            "get_user",
-            lambda *args, **kwargs: SimpleNamespace(id=_USER_ID, username=raw_username),
-        )
-
-        with pytest.raises(core_exceptions.DomainError) as exc_info:
-            auth_service.verify_mfa_and_login(
-                ip_address="127.0.0.1",
-                user_agent="pytest-agent",
-                mfa_request=auth_schema.MFALoginRequest(
-                    mfa_challenge="c" * 43,
-                    mfa_code="123456",
-                ),
-                client_type="web",
-                failed_attempts=object(),
-                pending_mfa_store=PendingMFAStore(),
-                password_hasher=object(),
-                token_manager=object(),
-                db=object(),
-                password_change_store=MagicMock(),
-                device_id=None,
-                state=MemoryState(),
-            )
-
-        assert exc_info.value.status_code == 400
-        assert exc_info.value.detail == ("Invalid MFA code, backup code or backup code already used.")
-        assert "Failed attempts" not in exc_info.value.detail
-        assert raw_username not in " ".join(log_messages)
-        assert "username_log_id" in " ".join(log_messages)
-
-    @pytest.mark.asyncio
-    async def test_valid_mfa_rejects_already_claimed_pending_login(
-        self,
-        monkeypatch,
-    ):
-        """Test valid MFA cannot complete if pending login was claimed; the challenge is dead, so the answer is 401."""
-
-        class PendingMFAStore:
-            """Minimal pending MFA store for claim testing."""
-
-            def is_locked_out(self, username, ip_address, *, user_id):
-                """Return unlocked for test user."""
-                return False
-
-            def get_pending_login(self, username):
-                """Return a pending login."""
-                return pending_login(_USER_ID)
-
-            def claim_pending_login(self, username):
-                """Simulate another request already claiming the login."""
-                return None
-
-        monkeypatch.setattr(
-            auth_service.mfa_integration,
-            "verify_user_mfa",
-            lambda *args, **kwargs: True,
-        )
-        monkeypatch.setattr(
-            auth_service.users_integration,
-            "get_user",
-            lambda *args, **kwargs: SimpleNamespace(id=_USER_ID, username="testuser"),
-        )
-
-        with pytest.raises(core_exceptions.DomainError) as exc_info:
-            auth_service.verify_mfa_and_login(
-                ip_address="127.0.0.1",
-                user_agent="pytest-agent",
-                mfa_request=auth_schema.MFALoginRequest(
-                    mfa_challenge="c" * 43,
-                    mfa_code="123456",
-                ),
-                client_type="web",
-                failed_attempts=object(),
-                pending_mfa_store=PendingMFAStore(),
-                password_hasher=object(),
-                token_manager=object(),
-                db=MagicMock(),
-                password_change_store=MagicMock(),
-                device_id=None,
-                state=MemoryState(),
-            )
-
-        assert exc_info.value.status_code == 401
-        assert exc_info.value.detail == "Unable to authenticate with provided credentials"

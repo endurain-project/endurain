@@ -1,54 +1,40 @@
-"""Storage-side sweeps for blobs no row owns or names."""
+"""Storage-side sweeps for blobs no row owns or names, on the platform's storage and the real database."""
 
 import uuid
 from time import time
-from unittest.mock import MagicMock, patch
 
+import jasil.runtime as platform_runtime
 import pytest
 from jasil.providers import StorageBackendUnavailableError
+from sqlalchemy import select
 
 import core.blob_sweep as blob_sweep
+import core.database as core_database
+import modules.users.users.models as users_models
+from tests._factories.users import make_user
 
-_OLD = time() - 10 * blob_sweep.MIN_AGE_SECONDS
-
-
-class _Sessions:
-    """Stands in for ``SessionLocal`` and counts the sessions open at any moment."""
-
-    def __init__(self) -> None:
-        self.open = 0
-        self.opened = 0
-
-    def __call__(self):
-        sessions = self
-
-        class _Session:
-            def __enter__(self):
-                sessions.open += 1
-                sessions.opened += 1
-                return MagicMock()
-
-            def __exit__(self, *exc):
-                sessions.open -= 1
-
-        return _Session()
+_AREA = "sweep_area"
+_HOUR = 3600
 
 
-@pytest.fixture(autouse=True)
-def sessions():
-    tracker = _Sessions()
-    with patch.object(blob_sweep.core_database, "SessionLocal", tracker):
-        yield tracker
+@pytest.fixture
+def storage():
+    return platform_runtime.get_active_platform().storage
 
 
-def _storage(objects: list[tuple[str, float]]) -> MagicMock:
-    storage = MagicMock()
-    storage.iter_objects.return_value = iter(objects)
-    return storage
+@pytest.fixture
+def clock(monkeypatch):
+    """Return a function that sets how far ahead of the files' modification time the sweeps think it is."""
+    started = time()
+
+    def ahead(seconds: float) -> None:
+        monkeypatch.setattr(blob_sweep, "time", lambda: started + seconds)
+
+    return ahead
 
 
-_ONE = uuid.UUID("00000000-0000-4000-8000-000000000001")
-_TWO = uuid.UUID("00000000-0000-4000-8000-000000000002")
+def _keys(storage) -> set[str]:
+    return {key for key, _modified in storage.iter_objects(_AREA, "")}
 
 
 def _id_of(key: str) -> uuid.UUID | None:
@@ -58,99 +44,151 @@ def _id_of(key: str) -> uuid.UUID | None:
         return None
 
 
-class TestSweepOrphanedBlobs:
-    def test_deletes_only_blobs_whose_owner_is_gone(self):
-        storage = _storage([(str(_ONE), _OLD), (str(_TWO), _OLD)])
+def _users_that_exist(ids: list[uuid.UUID], db) -> set[uuid.UUID]:
+    return set(db.scalars(select(users_models.Users.id).where(users_models.Users.id.in_(ids))))
 
-        removed = blob_sweep.sweep_orphaned_blobs(storage, "area", lambda ids, db: {_ONE}, _id_of)
+
+@pytest.fixture
+def user_id(committed_sessions) -> uuid.UUID:
+    with committed_sessions() as db:
+        created = make_user(db)
+        db.commit()
+    return created.id
+
+
+class TestSweepOrphanedBlobs:
+    def test_deletes_only_blobs_whose_owner_is_gone(self, storage, user_id, clock):
+        gone = uuid.uuid4()
+        storage.save(_AREA, str(user_id), b"kept")
+        storage.save(_AREA, str(gone), b"orphan")
+        clock(2 * _HOUR)
+
+        removed = blob_sweep.sweep_orphaned_blobs(storage, _AREA, _users_that_exist, _id_of)
 
         assert removed == 1
-        storage.delete.assert_called_once_with("area", str(_TWO))
+        assert _keys(storage) == {str(user_id)}
 
-    def test_skips_blobs_younger_than_the_age_guard(self):
-        storage = _storage([(str(_TWO), time())])
+    def test_skips_blobs_younger_than_the_age_guard(self, storage, clock):
+        gone = uuid.uuid4()
+        storage.save(_AREA, str(gone), b"fresh")
+        clock(_HOUR // 2)
 
-        removed = blob_sweep.sweep_orphaned_blobs(storage, "area", lambda ids, db: set(), _id_of)
-
-        assert removed == 0
-        storage.delete.assert_not_called()
-
-    def test_leaves_keys_it_does_not_own(self):
-        storage = _storage([("not-an-id", _OLD)])
-
-        removed = blob_sweep.sweep_orphaned_blobs(storage, "area", lambda ids, db: set(), _id_of)
+        removed = blob_sweep.sweep_orphaned_blobs(storage, _AREA, _users_that_exist, _id_of)
 
         assert removed == 0
-        storage.delete.assert_not_called()
+        assert _keys(storage) == {str(gone)}
 
-    def test_empty_area_does_not_query_existence(self):
-        lookup = MagicMock()
+    def test_leaves_keys_it_does_not_own(self, storage, clock):
+        storage.save(_AREA, "not-an-id", b"foreign")
+        clock(2 * _HOUR)
 
-        assert blob_sweep.sweep_orphaned_blobs(_storage([]), "area", lookup, _id_of) == 0
-        lookup.assert_not_called()
+        removed = blob_sweep.sweep_orphaned_blobs(storage, _AREA, _users_that_exist, _id_of)
+
+        assert removed == 0
+        assert _keys(storage) == {"not-an-id"}
+
+    def test_an_empty_area_does_not_query_existence(self, storage, clock):
+        looked_up: list[list[uuid.UUID]] = []
+
+        def lookup(ids, db):
+            looked_up.append(ids)
+            return set()
+
+        assert blob_sweep.sweep_orphaned_blobs(storage, _AREA, lookup, _id_of) == 0
+        assert looked_up == []
 
 
 class TestSweepUnreferencedBlobs:
-    def test_deletes_only_old_blobs_no_row_names(self):
-        storage = _storage([("1_a.jpg", _OLD), ("1_b.jpg", _OLD), ("1_c.jpg", time())])
+    def test_deletes_only_old_blobs_no_row_names(self, storage, clock):
+        for key in ("1_a.jpg", "1_b.jpg"):
+            storage.save(_AREA, key, b"x")
+        clock(2 * _HOUR)
+        storage.save(_AREA, "1_c.jpg", b"x")
 
-        removed = blob_sweep.sweep_unreferenced_blobs(storage, "area", lambda keys, db: {"1_a.jpg"})
+        removed = blob_sweep.sweep_unreferenced_blobs(storage, _AREA, lambda keys, db: {"1_a.jpg"})
 
-        assert removed == 1
-        storage.delete.assert_called_once_with("area", "1_b.jpg")
+        assert removed == 2
+        assert _keys(storage) == {"1_a.jpg"}
 
 
 class TestNoSessionAcrossStorageCalls:
     """A storage call on object storage is a network round trip, so no connection may wait on it."""
 
-    @staticmethod
-    def _watching_storage(objects, sessions):
-        def iter_objects(area, prefix):
-            for item in objects:
-                assert sessions.open == 0, "a session was open while the storage listing was read"
-                yield item
+    @pytest.fixture
+    def watched(self, storage, committed_sessions):
+        """Storage that fails the test when a database connection is checked out during a call."""
 
-        def delete(area, key):
-            assert sessions.open == 0, "a session was open while a blob was deleted"
+        class Watching:
+            def iter_objects(self, area, prefix=""):
+                for item in storage.iter_objects(area, prefix):
+                    assert core_database.engine.pool.checkedout() == 0, "a session was open while listing"
+                    yield item
 
-        storage = MagicMock()
-        storage.iter_objects.side_effect = iter_objects
-        storage.delete.side_effect = delete
-        return storage
+            def delete(self, area, key):
+                assert core_database.engine.pool.checkedout() == 0, "a session was open while deleting"
+                storage.delete(area, key)
 
-    def test_orphan_sweep_looks_up_each_batch_in_its_own_short_session(self, sessions):
-        storage = self._watching_storage([(str(_ONE), _OLD), (str(_TWO), _OLD)], sessions)
+        return Watching()
+
+    def test_orphan_sweep_looks_up_each_batch_in_its_own_short_session(self, watched, storage, user_id, clock):
+        storage.save(_AREA, str(user_id), b"kept")
+        storage.save(_AREA, str(uuid.uuid4()), b"orphan")
+        clock(2 * _HOUR)
+        lookups = []
 
         def existing(ids, db):
-            assert sessions.open == 1
-            return {_ONE}
+            db.execute(select(1))
+            assert core_database.engine.pool.checkedout() == 1
+            lookups.append(ids)
+            return _users_that_exist(ids, db)
 
-        assert blob_sweep.sweep_orphaned_blobs(storage, "area", existing, _id_of) == 1
-        assert sessions.opened == 1
+        assert blob_sweep.sweep_orphaned_blobs(watched, _AREA, existing, _id_of) == 1
+        assert len(lookups) == 1
 
-    def test_unreferenced_sweep_looks_up_each_batch_in_its_own_short_session(self, sessions):
-        storage = self._watching_storage([("a", _OLD), ("b", _OLD)], sessions)
+    def test_unreferenced_sweep_looks_up_each_batch_in_its_own_short_session(self, watched, storage, clock):
+        for key in ("a", "b"):
+            storage.save(_AREA, key, b"x")
+        clock(2 * _HOUR)
+        lookups = []
 
         def referenced(keys, db):
-            assert sessions.open == 1
+            db.execute(select(1))
+            assert core_database.engine.pool.checkedout() == 1
+            lookups.append(keys)
             return {"a"}
 
-        assert blob_sweep.sweep_unreferenced_blobs(storage, "area", referenced) == 1
-        assert sessions.opened == 1
+        assert blob_sweep.sweep_unreferenced_blobs(watched, _AREA, referenced) == 1
+        assert len(lookups) == 1
 
 
 class TestSweepAgedBlobs:
-    def test_removes_only_blobs_older_than_the_age(self):
-        storage = MagicMock()
-        storage.iter_objects.return_value = iter([("old", time() - 7200), ("new", time())])
+    def test_removes_blobs_older_than_the_age(self, storage, clock):
+        storage.save(_AREA, "old", b"x")
+        clock(7200)
 
-        assert blob_sweep.sweep_aged_blobs(storage, "area", 3600) == 1
-        storage.delete.assert_called_once_with("area", "old")
+        assert blob_sweep.sweep_aged_blobs(storage, _AREA, 3600) == 1
+        assert _keys(storage) == set()
 
-    def test_a_failing_delete_does_not_stop_the_sweep(self):
-        storage = MagicMock()
-        storage.iter_objects.return_value = iter([("a", time() - 7200), ("b", time() - 7200)])
-        storage.delete.side_effect = [StorageBackendUnavailableError("busy"), None]
+    def test_a_blob_younger_than_the_age_stays(self, storage, clock):
+        storage.save(_AREA, "new", b"x")
+        clock(60)
 
-        assert blob_sweep.sweep_aged_blobs(storage, "area", 3600) == 1
-        assert storage.delete.call_count == 2
+        assert blob_sweep.sweep_aged_blobs(storage, _AREA, 3600) == 0
+        assert _keys(storage) == {"new"}
+
+    def test_a_failing_delete_does_not_stop_the_sweep(self, storage, clock):
+        for key in ("a", "b"):
+            storage.save(_AREA, key, b"x")
+        clock(7200)
+
+        class Flaky:
+            def iter_objects(self, area, prefix=""):
+                return storage.iter_objects(area, prefix)
+
+            def delete(self, area, key):
+                if key == "a":
+                    raise StorageBackendUnavailableError("busy")
+                storage.delete(area, key)
+
+        assert blob_sweep.sweep_aged_blobs(Flaky(), _AREA, 3600) == 1
+        assert _keys(storage) == {"a"}

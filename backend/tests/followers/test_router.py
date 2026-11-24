@@ -1,320 +1,502 @@
+"""The followers routes through the production application: real authentication, scopes, handlers and database."""
+
 import uuid
-from unittest.mock import patch
+from datetime import UTC, datetime, timedelta
 
-from fastapi import FastAPI
-from fastapi.testclient import TestClient
+import pytest
+from sqlalchemy import func, select
 
-_ID_1 = uuid.uuid4()
-_ID_2 = uuid.uuid4()
-_ID_3 = uuid.uuid4()
+import core.config as core_config
+import modules.followers.models as followers_models
+import modules.users.users.models as users_models
+from tests._factories.followers import make_block, make_decline, make_follow, make_follow_at
+from tests._factories.users import make_user
 
-
-def _build_app(mock_db):
-    import core.database as core_db
-    import core.exceptions as core_exceptions
-    import modules.auth.dependencies as auth_deps
-    import modules.followers.router as router
-    import modules.followers.user_router as user_router
-
-    app = FastAPI()
-    app.include_router(router.router, prefix="/profile/follow-requests")
-    app.include_router(user_router.router, prefix="/users")
-    # Same domain-error boundary the real app registers, so these tests assert
-    # the status codes clients actually receive.
-    core_exceptions.register_exception_handlers(app)
-
-    def _mock():
-        return None
-
-    def _uid():
-        return _ID_1
-
-    app.dependency_overrides[auth_deps.check_scopes] = _mock
-    app.dependency_overrides[auth_deps.get_current_user_id] = _uid
-    app.dependency_overrides[core_db.get_db] = lambda: mock_db
-    return app
+_API = core_config.ROOT_PATH
+_NOW = datetime(2025, 3, 10, 12, 0, tzinfo=UTC)
+_ANY_ID = "6f1c2a4e-3b7d-4c58-9a10-5d2e8b7c9f01"
 
 
-class TestGetUserFollowers:
-    @patch("modules.followers.crud.count_followers_by_user_id")
-    @patch("modules.followers.crud.get_all_followers_by_user_id")
-    def test_self_success(self, mock_get, mock_count, mock_db):
-        from modules.followers.schema import FollowRelationshipRead
+@pytest.fixture
+def make_person(committed_sessions):
+    """Return a function that commits an active user and returns it."""
 
-        client = TestClient(_build_app(mock_db))
-        mock_get.return_value = [FollowRelationshipRead(follower_id=_ID_3, followee_id=_ID_1, status="accepted")]
-        mock_count.return_value = 1
+    def make(**fields):
+        with committed_sessions() as db:
+            created = make_user(db, **fields)
+            db.commit()
+        return created
 
-        # Requester (1) == target (1): always allowed.
-        response = client.get(f"/users/{_ID_1}/followers", headers={"Authorization": "Bearer x"})
+    return make
+
+
+@pytest.fixture
+def arrange(committed_sessions):
+    """Return a function that commits what ``build(db)`` stages."""
+
+    def run(build):
+        with committed_sessions() as db:
+            build(db)
+            db.commit()
+
+    return run
+
+
+@pytest.fixture
+def alice(make_person):
+    return make_person()
+
+
+@pytest.fixture
+def bob(make_person):
+    return make_person()
+
+
+@pytest.fixture
+def carol(make_person):
+    return make_person()
+
+
+@pytest.fixture
+def me(sign_in, alice):
+    return sign_in(alice)
+
+
+@pytest.fixture
+def stored(committed_sessions):
+    """Return a function that reads a follow row's status back in a new session, or ``None`` when it is gone."""
+
+    def read(follower_id, followee_id):
+        with committed_sessions() as db:
+            return db.scalar(
+                select(followers_models.Follower.status).where(
+                    followers_models.Follower.follower_id == follower_id,
+                    followers_models.Follower.followee_id == followee_id,
+                )
+            )
+
+    return read
+
+
+def _count(committed_sessions, model) -> int:
+    with committed_sessions() as db:
+        return db.scalar(select(func.count()).select_from(model))
+
+
+class TestListFollowers:
+    def test_the_owner_lists_followers_with_their_profiles_and_the_total(self, me, alice, bob, carol, arrange):
+        arrange(lambda db: make_follow_at(db, bob.id, alice.id, _NOW, accepted=True))
+        arrange(lambda db: make_follow_at(db, carol.id, alice.id, _NOW + timedelta(hours=1), accepted=False))
+
+        response = me.client.get(f"{_API}/users/{alice.id}/followers")
+
         assert response.status_code == 200
-        # The list is a page envelope, matching the activities list endpoints.
         body = response.json()
+        assert [(row["follower_id"], row["followee_id"], row["status"]) for row in body["items"]] == [
+            (str(bob.id), str(alice.id), "accepted"),
+            (str(carol.id), str(alice.id), "pending"),
+        ]
+        assert (body["total"], body["page"], body["num_records"], body["next"]) == (2, 1, 25, None)
+        assert body["users"][str(bob.id)] == {
+            "id": str(bob.id),
+            "name": bob.name,
+            "username": bob.username,
+            "city": None,
+            "photo_path": None,
+        }
+        assert set(body["users"]) == {str(bob.id), str(carol.id)}
+
+    def test_accepted_only_leaves_out_pending_requests(self, me, alice, bob, carol, arrange):
+        arrange(lambda db: make_follow(db, bob.id, alice.id, accepted=True))
+        arrange(lambda db: make_follow(db, carol.id, alice.id, accepted=False))
+
+        body = me.client.get(f"{_API}/users/{alice.id}/followers", params={"accepted_only": "true"}).json()
+
+        assert [row["follower_id"] for row in body["items"]] == [str(bob.id)]
         assert body["total"] == 1
-        assert body["page"] == 1
-        assert body["next"] is None
-        assert len(body["items"]) == 1
 
-    @patch("modules.followers.crud.count_followers_by_user_id")
-    @patch("modules.followers.crud.get_all_followers_by_user_id")
-    def test_pagination_is_passed_through_and_next_is_derived(self, mock_get, mock_count, mock_db):
-        from modules.followers.schema import FollowRelationshipRead
+    def test_a_page_holds_its_slice_and_names_the_next_one(self, me, alice, arrange, make_person):
+        followers = [make_person() for _ in range(3)]
+        for index, follower in enumerate(followers):
+            arrange(
+                lambda db, f=follower, i=index: make_follow_at(
+                    db, f.id, alice.id, _NOW + timedelta(hours=i), accepted=True
+                )
+            )
 
-        client = TestClient(_build_app(mock_db))
-        mock_get.return_value = [FollowRelationshipRead(follower_id=_ID_3, followee_id=_ID_1, status="accepted")]
-        mock_count.return_value = 40
+        first = me.client.get(f"{_API}/users/{alice.id}/followers", params={"page_number": 1, "num_records": 2}).json()
+        last = me.client.get(f"{_API}/users/{alice.id}/followers", params={"page_number": 2, "num_records": 2}).json()
 
-        response = client.get(
-            f"/users/{_ID_1}/followers?page_number=2&num_records=10",
-            headers={"Authorization": "Bearer x"},
+        assert ([row["follower_id"] for row in first["items"]], first["total"], first["next"]) == (
+            [str(followers[0].id), str(followers[1].id)],
+            3,
+            2,
         )
+        assert ([row["follower_id"] for row in last["items"]], last["next"]) == ([str(followers[2].id)], None)
 
-        assert response.status_code == 200
-        assert mock_get.call_args.kwargs == {"page_number": 2, "num_records": 10, "accepted_only": False}
-        # 2 * 10 < 40, so another page exists.
-        assert response.json()["next"] == 3
+    def test_a_page_size_over_the_cap_is_refused(self, me, alice):
+        assert me.client.get(f"{_API}/users/{alice.id}/followers", params={"num_records": 5000}).status_code == 422
 
-    def test_page_size_is_capped(self, mock_db):
-        response = TestClient(_build_app(mock_db)).get(
-            f"/users/{_ID_1}/followers?num_records=5000",
-            headers={"Authorization": "Bearer x"},
-        )
-        assert response.status_code == 422
+    def test_a_stranger_is_answered_not_found(self, me, bob, carol, arrange):
+        arrange(lambda db: make_follow(db, carol.id, bob.id, accepted=True))
 
-    @patch("modules.followers.crud.get_all_followers_by_user_id")
-    @patch("modules.followers.crud.get_follower_for_user_id_and_target_user_id")
-    def test_stranger_is_answered_not_found(self, mock_rel, mock_get, mock_db):
-        client = TestClient(_build_app(mock_db))
-        mock_rel.return_value = None  # requester is not an accepted follower of the target
+        response = me.client.get(f"{_API}/users/{bob.id}/followers")
 
-        response = client.get(f"/users/{_ID_2}/followers", headers={"Authorization": "Bearer x"})
         assert response.status_code == 404
-        mock_get.assert_not_called()
 
-    @patch("modules.followers.crud.count_followers_by_user_id")
-    @patch("modules.followers.crud.get_all_followers_by_user_id")
-    @patch("modules.followers.crud.get_follower_for_user_id_and_target_user_id")
-    def test_accepted_follower_allowed(self, mock_rel, mock_get, mock_count, mock_db):
-        from modules.followers.schema import FollowRelationshipRead
+    def test_a_requester_still_pending_is_answered_not_found(self, me, alice, bob, arrange):
+        arrange(lambda db: make_follow(db, alice.id, bob.id, accepted=False))
 
-        client = TestClient(_build_app(mock_db))
-        # Requester (1) is an accepted follower of target (2).
-        mock_rel.return_value = FollowRelationshipRead(follower_id=_ID_1, followee_id=_ID_2, status="accepted")
-        mock_get.return_value = []
-        mock_count.return_value = 0
+        assert me.client.get(f"{_API}/users/{bob.id}/followers").status_code == 404
 
-        response = client.get(f"/users/{_ID_2}/followers", headers={"Authorization": "Bearer x"})
-        assert response.status_code == 200
+    def test_an_accepted_follower_sees_the_accepted_followers_only(self, me, alice, bob, carol, arrange):
+        arrange(lambda db: make_follow(db, alice.id, bob.id, accepted=True))
+        arrange(lambda db: make_follow(db, carol.id, bob.id, accepted=False))
 
-
-class TestFollowerListsCarryProfiles:
-    @patch("modules.followers.service.users_integration.list_public_profiles")
-    @patch("modules.followers.crud.count_followers_by_user_id")
-    @patch("modules.followers.crud.get_all_followers_by_user_id")
-    def test_followers_response_includes_the_users_by_id(self, mock_get, mock_count, mock_profiles, mock_db):
-        from modules.followers.schema import FollowRelationshipRead
-        from modules.users.users.schema import UserPublicRead
-
-        client = TestClient(_build_app(mock_db))
-        mock_get.return_value = [FollowRelationshipRead(follower_id=_ID_3, followee_id=_ID_1, status="accepted")]
-        mock_count.return_value = 1
-        mock_profiles.return_value = {_ID_3: UserPublicRead(id=_ID_3, name="Ada", username="ada", city="Porto")}
-
-        response = client.get(f"/users/{_ID_1}/followers", headers={"Authorization": "Bearer x"})
+        response = me.client.get(f"{_API}/users/{bob.id}/followers")
 
         assert response.status_code == 200
-        assert response.json()["users"] == {
-            str(_ID_3): {"id": str(_ID_3), "name": "Ada", "username": "ada", "city": "Porto", "photo_path": None}
+        body = response.json()
+        assert [row["follower_id"] for row in body["items"]] == [str(alice.id)]
+        assert body["total"] == 1
+
+    def test_an_empty_list_has_an_empty_users_object(self, me, alice):
+        body = me.client.get(f"{_API}/users/{alice.id}/followers").json()
+
+        assert (body["items"], body["users"], body["total"]) == ([], {}, 0)
+
+    def test_a_follower_without_a_public_profile_has_a_row_but_no_user_entry(
+        self, me, alice, bob, arrange, committed_sessions
+    ):
+        arrange(lambda db: make_follow(db, bob.id, alice.id, accepted=True))
+        with committed_sessions() as db:
+            db.get(users_models.Users, bob.id).active = False
+            db.commit()
+
+        body = me.client.get(f"{_API}/users/{alice.id}/followers").json()
+
+        assert [row["follower_id"] for row in body["items"]] == [str(bob.id)]
+        assert body["users"] == {}
+
+
+class TestListFollowing:
+    def test_the_owner_lists_who_they_follow_with_profiles(self, me, alice, bob, carol, arrange):
+        arrange(lambda db: make_follow(db, alice.id, bob.id, accepted=True))
+        arrange(lambda db: make_follow(db, alice.id, carol.id, accepted=False))
+        arrange(lambda db: make_follow(db, bob.id, alice.id, accepted=True))
+
+        body = me.client.get(f"{_API}/users/{alice.id}/following").json()
+
+        assert {row["followee_id"] for row in body["items"]} == {str(bob.id), str(carol.id)}
+        assert body["total"] == 2
+        assert set(body["users"]) == {str(bob.id), str(carol.id)}
+
+    def test_a_stranger_is_answered_not_found(self, me, bob):
+        assert me.client.get(f"{_API}/users/{bob.id}/following").status_code == 404
+
+    def test_an_accepted_follower_sees_only_the_accepted_ones(self, me, alice, bob, carol, arrange):
+        arrange(lambda db: make_follow(db, alice.id, bob.id, accepted=True))
+        arrange(lambda db: make_follow(db, bob.id, carol.id, accepted=True))
+        arrange(lambda db: make_follow(db, bob.id, alice.id, accepted=False))
+
+        body = me.client.get(f"{_API}/users/{bob.id}/following").json()
+
+        assert [row["followee_id"] for row in body["items"]] == [str(carol.id)]
+
+
+class TestReadRelationship:
+    def test_both_directions_and_the_block_are_reported(self, me, alice, bob, arrange):
+        arrange(lambda db: make_follow(db, alice.id, bob.id, accepted=True))
+        arrange(lambda db: make_follow(db, bob.id, alice.id, accepted=False))
+        arrange(lambda db: make_block(db, alice.id, bob.id))
+
+        response = me.client.get(f"{_API}/users/{bob.id}/relationship")
+
+        assert response.status_code == 200
+        assert response.json() == {
+            "outgoing": {"follower_id": str(alice.id), "followee_id": str(bob.id), "status": "accepted"},
+            "incoming": {"follower_id": str(bob.id), "followee_id": str(alice.id), "status": "pending"},
+            "is_blocked": True,
         }
 
-    @patch("modules.followers.service.users_integration.list_public_profiles", return_value={})
-    @patch("modules.followers.crud.count_followers_by_user_id", return_value=0)
-    @patch("modules.followers.crud.get_all_followers_by_user_id", return_value=[])
-    def test_an_empty_list_has_an_empty_users_object(self, _get, _count, _profiles, mock_db):
-        client = TestClient(_build_app(mock_db))
+    def test_unrelated_users_have_an_empty_relationship(self, me, bob):
+        response = me.client.get(f"{_API}/users/{bob.id}/relationship")
 
-        response = client.get(f"/users/{_ID_1}/followers", headers={"Authorization": "Bearer x"})
+        assert response.json() == {"outgoing": None, "incoming": None, "is_blocked": False}
 
-        assert response.json()["users"] == {}
+    def test_a_relationship_between_two_other_users_is_not_visible(self, me, bob, carol, arrange):
+        arrange(lambda db: make_follow(db, bob.id, carol.id, accepted=True))
 
+        body = me.client.get(f"{_API}/users/{bob.id}/relationship").json()
 
-class TestGetUserFollowing:
-    @patch("modules.followers.crud.count_following_by_user_id")
-    @patch("modules.followers.crud.get_all_following_by_user_id")
-    def test_self_success(self, mock_get, mock_count, mock_db):
-        from modules.followers.schema import FollowRelationshipRead
-
-        client = TestClient(_build_app(mock_db))
-        mock_get.return_value = [FollowRelationshipRead(follower_id=_ID_1, followee_id=_ID_2, status="accepted")]
-        mock_count.return_value = 1
-
-        # Requester (1) == target (1): always allowed.
-        response = client.get(f"/users/{_ID_1}/following", headers={"Authorization": "Bearer x"})
-        assert response.status_code == 200
-        assert response.json()["total"] == 1
-
-    @patch("modules.followers.crud.get_all_following_by_user_id")
-    @patch("modules.followers.crud.get_follower_for_user_id_and_target_user_id")
-    def test_stranger_is_answered_not_found(self, mock_rel, mock_get, mock_db):
-        client = TestClient(_build_app(mock_db))
-        mock_rel.return_value = None
-
-        response = client.get(f"/users/{_ID_2}/following", headers={"Authorization": "Bearer x"})
-        assert response.status_code == 404
-        mock_get.assert_not_called()
-
-
-class TestReadUserRelationship:
-    @patch("modules.followers.crud.get_follower_for_user_id_and_target_user_id")
-    def test_success(self, mock_get, mock_db):
-        from modules.followers.schema import FollowRelationshipRead
-
-        client = TestClient(_build_app(mock_db))
-        mock_get.return_value = FollowRelationshipRead(follower_id=_ID_1, followee_id=_ID_2, status="accepted")
-
-        response = client.get(f"/users/{_ID_2}/relationship", headers={"Authorization": "Bearer x"})
-        assert response.status_code == 200
-        body = response.json()
-        assert body["outgoing"]["followee_id"] == str(_ID_2)
-        assert body["incoming"]["followee_id"] == str(_ID_2)
-
-    @patch("modules.followers.crud.get_follower_for_user_id_and_target_user_id")
-    def test_no_relationship(self, mock_get, mock_db):
-        client = TestClient(_build_app(mock_db))
-        mock_get.return_value = None
-
-        response = client.get(f"/users/{_ID_2}/relationship", headers={"Authorization": "Bearer x"})
-        assert response.status_code == 200
-        body = response.json()
-        assert body["outgoing"] is None
-        assert body["incoming"] is None
+        assert (body["outgoing"], body["incoming"]) == (None, None)
 
 
 class TestFollowUser:
-    @patch("modules.followers.service.follow_user")
-    def test_success(self, mock_follow, mock_db):
-        from modules.followers.schema import FollowRelationshipRead
+    def test_a_follow_is_created_pending(self, me, alice, bob, stored):
+        response = me.client.post(f"{_API}/users/{bob.id}/followers")
 
-        client = TestClient(_build_app(mock_db))
-        mock_follow.return_value = FollowRelationshipRead(follower_id=_ID_1, followee_id=_ID_2, status="pending")
-
-        response = client.post(f"/users/{_ID_2}/followers", headers={"Authorization": "Bearer x"})
         assert response.status_code == 201
-        mock_follow.assert_called_once_with(_ID_1, _ID_2, mock_db)
+        assert response.json() == {"follower_id": str(alice.id), "followee_id": str(bob.id), "status": "pending"}
+        assert stored(alice.id, bob.id) == "pending"
+
+    def test_following_yourself_is_refused(self, me, alice, committed_sessions):
+        response = me.client.post(f"{_API}/users/{alice.id}/followers")
+
+        assert response.status_code == 400
+        assert response.json()["detail"] == "Cannot follow yourself"
+        assert _count(committed_sessions, followers_models.Follower) == 0
+
+    def test_following_twice_is_a_conflict(self, me, alice, bob, committed_sessions):
+        assert me.client.post(f"{_API}/users/{bob.id}/followers").status_code == 201
+
+        response = me.client.post(f"{_API}/users/{bob.id}/followers")
+
+        assert response.status_code == 409
+        assert _count(committed_sessions, followers_models.Follower) == 1
+
+    def test_a_user_that_does_not_exist_is_not_found(self, me):
+        assert me.client.post(f"{_API}/users/{uuid.uuid4()}/followers").status_code == 404
+
+    @pytest.mark.parametrize("state", ["inactive", "pending"])
+    def test_a_user_without_a_public_profile_is_not_found(self, me, make_person, committed_sessions, state):
+        target = make_person(active=state != "inactive", pending_admin_approval=state == "pending")
+
+        assert me.client.post(f"{_API}/users/{target.id}/followers").status_code == 404
+
+    def test_a_user_who_blocked_the_caller_is_not_found(self, me, alice, bob, arrange, committed_sessions):
+        arrange(lambda db: make_block(db, bob.id, alice.id))
+
+        assert me.client.post(f"{_API}/users/{bob.id}/followers").status_code == 404
+        assert _count(committed_sessions, followers_models.Follower) == 0
+
+    def test_following_a_user_the_caller_blocked_is_a_conflict(self, me, alice, bob, arrange):
+        arrange(lambda db: make_block(db, alice.id, bob.id))
+
+        response = me.client.post(f"{_API}/users/{bob.id}/followers")
+
+        assert response.status_code == 409
+
+    def test_a_decline_makes_the_requester_wait_and_says_until_when(self, me, alice, bob, arrange, committed_sessions):
+        declined_at = datetime.now(UTC) - timedelta(days=1)
+        arrange(lambda db: make_decline(db, alice.id, bob.id, declined_at))
+
+        response = me.client.post(f"{_API}/users/{bob.id}/followers")
+
+        assert response.status_code == 429
+        assert 5 * 86400 < int(response.headers["Retry-After"]) <= 6 * 86400
+        assert _count(committed_sessions, followers_models.Follower) == 0
 
 
 class TestListFollowRequests:
-    @patch("modules.followers.crud.count_pending_requests_for_user_id")
-    @patch("modules.followers.crud.get_pending_requests_for_user_id")
-    def test_lists_only_the_callers_requests(self, mock_get, mock_count, mock_db):
-        """There is no user id in the path, so no other inbox is addressable."""
-        from modules.followers.schema import FollowRelationshipRead
+    def test_the_caller_lists_only_the_requests_addressed_to_them(self, me, alice, bob, carol, arrange):
+        arrange(lambda db: make_follow(db, bob.id, alice.id, accepted=False))
+        arrange(lambda db: make_follow(db, carol.id, alice.id, accepted=True))
+        arrange(lambda db: make_follow(db, alice.id, carol.id, accepted=False))
+        arrange(lambda db: make_follow(db, carol.id, bob.id, accepted=False))
 
-        client = TestClient(_build_app(mock_db))
-        mock_get.return_value = [FollowRelationshipRead(follower_id=_ID_3, followee_id=_ID_1, status="pending")]
-        mock_count.return_value = 1
-
-        response = client.get("/profile/follow-requests", headers={"Authorization": "Bearer x"})
+        response = me.client.get(f"{_API}/profile/follow-requests")
 
         assert response.status_code == 200
-        assert response.json()["total"] == 1
-        assert mock_get.call_args.args[0] == _ID_1
+        body = response.json()
+        assert [(row["follower_id"], row["followee_id"], row["status"]) for row in body["items"]] == [
+            (str(bob.id), str(alice.id), "pending")
+        ]
+        assert body["total"] == 1
+        assert set(body["users"]) == {str(bob.id)}
+
+    def test_no_requests_is_an_empty_page(self, me):
+        body = me.client.get(f"{_API}/profile/follow-requests").json()
+
+        assert (body["items"], body["total"], body["users"]) == ([], 0, {})
 
 
 class TestAcceptFollowRequest:
-    @patch("modules.followers.service.accept_follow_request")
-    def test_accept(self, mock_accept, mock_db):
-        import modules.followers.constants as followers_constants
-        import modules.followers.schema as followers_schema
+    def test_accepting_answers_with_the_stored_row(self, me, alice, bob, arrange, stored):
+        arrange(lambda db: make_follow(db, bob.id, alice.id, accepted=False))
 
-        # The response must be the row as persisted, not one built from the
-        # request body — a fabricated body could claim a state the DB lacks.
-        mock_accept.return_value = followers_schema.FollowRelationshipRead(
-            follower_id=_ID_2, followee_id=_ID_1, status=followers_constants.FollowStatus.ACCEPTED
-        )
-        client = TestClient(_build_app(mock_db))
-
-        response = client.post(f"/profile/follow-requests/{_ID_2}/accept", headers={"Authorization": "Bearer x"})
+        response = me.client.post(f"{_API}/profile/follow-requests/{bob.id}/accept")
 
         assert response.status_code == 200
-        assert response.json() == {"follower_id": str(_ID_2), "followee_id": str(_ID_1), "status": "accepted"}
-        mock_accept.assert_called_once_with(_ID_1, _ID_2, mock_db)
+        assert response.json() == {"follower_id": str(bob.id), "followee_id": str(alice.id), "status": "accepted"}
+        assert stored(bob.id, alice.id) == "accepted"
 
-    @patch("modules.followers.service.accept_follow_request")
-    def test_the_old_patch_with_a_status_body_is_gone(self, mock_accept, mock_db):
-        client = TestClient(_build_app(mock_db))
+    def test_a_request_that_does_not_exist_is_not_found(self, me, bob):
+        assert me.client.post(f"{_API}/profile/follow-requests/{bob.id}/accept").status_code == 404
 
-        response = client.patch(
-            f"/profile/follow-requests/{_ID_2}", json={"status": "accepted"}, headers={"Authorization": "Bearer x"}
-        )
+    def test_a_request_the_caller_sent_cannot_be_accepted_by_them(self, me, alice, bob, arrange, stored):
+        arrange(lambda db: make_follow(db, alice.id, bob.id, accepted=False))
+
+        assert me.client.post(f"{_API}/profile/follow-requests/{bob.id}/accept").status_code == 404
+        assert stored(alice.id, bob.id) == "pending"
+
+    def test_accepting_twice_is_not_found_the_second_time(self, me, alice, bob, arrange):
+        arrange(lambda db: make_follow(db, bob.id, alice.id, accepted=False))
+        assert me.client.post(f"{_API}/profile/follow-requests/{bob.id}/accept").status_code == 200
+
+        assert me.client.post(f"{_API}/profile/follow-requests/{bob.id}/accept").status_code == 404
+
+    def test_a_request_from_a_blocked_user_cannot_be_accepted(self, me, alice, bob, arrange):
+        arrange(lambda db: make_follow(db, bob.id, alice.id, accepted=False))
+        assert me.client.put(f"{_API}/profile/blocked-users/{bob.id}").status_code == 204
+
+        assert me.client.post(f"{_API}/profile/follow-requests/{bob.id}/accept").status_code == 404
+
+    def test_the_old_patch_with_a_status_body_is_gone(self, me, bob):
+        response = me.client.patch(f"{_API}/profile/follow-requests/{bob.id}", json={"status": "accepted"})
 
         assert response.status_code == 405
-        mock_accept.assert_not_called()
 
 
 class TestRejectFollowRequest:
-    @patch("modules.followers.service.reject_follow_request")
-    def test_success(self, mock_reject, mock_db):
-        client = TestClient(_build_app(mock_db))
+    def test_declining_removes_the_request_and_blocks_an_immediate_new_one(
+        self, me, alice, bob, arrange, stored, sign_in
+    ):
+        arrange(lambda db: make_follow(db, bob.id, alice.id, accepted=False))
 
-        response = client.delete(f"/profile/follow-requests/{_ID_2}", headers={"Authorization": "Bearer x"})
+        response = me.client.delete(f"{_API}/profile/follow-requests/{bob.id}")
 
         assert response.status_code == 204
-        mock_reject.assert_called_once_with(_ID_1, _ID_2, mock_db)
+        assert response.content == b""
+        assert stored(bob.id, alice.id) is None
+        assert sign_in(bob).client.post(f"{_API}/users/{alice.id}/followers").status_code == 429
+
+    def test_declining_cannot_remove_an_accepted_follower(self, me, alice, bob, arrange, stored):
+        arrange(lambda db: make_follow(db, bob.id, alice.id, accepted=True))
+
+        assert me.client.delete(f"{_API}/profile/follow-requests/{bob.id}").status_code == 404
+        assert stored(bob.id, alice.id) == "accepted"
+
+    def test_a_request_that_does_not_exist_is_not_found(self, me, bob):
+        assert me.client.delete(f"{_API}/profile/follow-requests/{bob.id}").status_code == 404
 
 
 class TestDeleteFollowRelationship:
-    @patch("modules.followers.service.delete_relationship")
-    def test_unfollowing_is_the_caller_as_follower(self, mock_delete, mock_db):
-        client = TestClient(_build_app(mock_db))
+    def test_unfollowing_is_the_caller_as_follower(self, me, alice, bob, arrange, stored):
+        arrange(lambda db: make_follow(db, alice.id, bob.id, accepted=True))
 
-        response = client.delete(f"/users/{_ID_2}/followers/{_ID_1}", headers={"Authorization": "Bearer x"})
-
-        assert response.status_code == 204
-        mock_delete.assert_called_once_with(_ID_2, _ID_1, _ID_1, mock_db)
-
-    @patch("modules.followers.service.delete_relationship")
-    def test_removing_a_follower_is_the_caller_as_followee(self, mock_delete, mock_db):
-        """Same route, opposite direction — previously two endpoints told apart
-        only by a singular/plural path segment."""
-        client = TestClient(_build_app(mock_db))
-
-        response = client.delete(f"/users/{_ID_1}/followers/{_ID_2}", headers={"Authorization": "Bearer x"})
+        response = me.client.delete(f"{_API}/users/{bob.id}/followers/{alice.id}")
 
         assert response.status_code == 204
-        mock_delete.assert_called_once_with(_ID_1, _ID_2, _ID_1, mock_db)
+        assert stored(alice.id, bob.id) is None
 
-    def test_a_third_party_cannot_delete_someone_elses_relationship(self, mock_db):
-        client = TestClient(_build_app(mock_db))
+    def test_removing_a_follower_is_the_caller_as_followee(self, me, alice, bob, arrange, stored):
+        arrange(lambda db: make_follow(db, bob.id, alice.id, accepted=True))
 
-        response = client.delete(f"/users/{_ID_2}/followers/{_ID_3}", headers={"Authorization": "Bearer x"})
+        response = me.client.delete(f"{_API}/users/{alice.id}/followers/{bob.id}")
+
+        assert response.status_code == 204
+        assert stored(bob.id, alice.id) is None
+
+    def test_a_third_party_cannot_delete_someone_elses_relationship(self, me, bob, carol, arrange, stored):
+        arrange(lambda db: make_follow(db, bob.id, carol.id, accepted=True))
+
+        response = me.client.delete(f"{_API}/users/{carol.id}/followers/{bob.id}")
 
         assert response.status_code == 404
+        assert stored(bob.id, carol.id) == "accepted"
 
-
-class TestRemovedCountEndpoints:
-    def test_counts_are_gone(self, mock_db):
-        """``total`` on the page envelope replaced them, for the same filter."""
-        client = TestClient(_build_app(mock_db))
-
-        for path in (f"/users/{_ID_1}/followers/count", f"/users/{_ID_1}/following/count"):
-            # 405 rather than 404 for the followers path: it now matches the
-            # DELETE relationship route, which does not serve GET.
-            assert client.get(path, headers={"Authorization": "Bearer x"}).status_code in {404, 405}
+    def test_a_relationship_that_does_not_exist_is_not_found(self, me, alice, bob):
+        assert me.client.delete(f"{_API}/users/{bob.id}/followers/{alice.id}").status_code == 404
 
 
 class TestMalformedIds:
-    def test_a_malformed_path_id_is_422(self, mock_db):
-        client = TestClient(_build_app(mock_db))
-        headers = {"Authorization": "Bearer x"}
+    @pytest.mark.parametrize(
+        ("method", "path"),
+        [
+            ("get", "/users/not-a-uuid/followers"),
+            ("get", "/users/7/followers"),
+            ("post", "/users/not-a-uuid/followers"),
+            ("delete", f"/users/{_ANY_ID}/followers/not-a-uuid"),
+            ("post", "/profile/follow-requests/not-a-uuid/accept"),
+            ("delete", "/profile/follow-requests/not-a-uuid"),
+            ("put", "/profile/blocked-users/not-a-uuid"),
+            ("delete", "/profile/blocked-users/not-a-uuid"),
+        ],
+    )
+    def test_a_path_id_that_is_not_a_uuid_is_refused(self, me, method, path):
+        assert getattr(me.client, method)(f"{_API}{path}").status_code == 422
 
-        assert client.get("/users/not-a-uuid/followers", headers=headers).status_code == 422
-        assert client.post("/users/not-a-uuid/followers", headers=headers).status_code == 422
-        assert client.delete(f"/users/{_ID_2}/followers/not-a-uuid", headers=headers).status_code == 422
-        assert client.post("/profile/follow-requests/not-a-uuid/accept", headers=headers).status_code == 422
-        assert client.delete("/profile/follow-requests/not-a-uuid", headers=headers).status_code == 422
 
-    def test_a_numeric_path_id_is_422(self, mock_db):
-        client = TestClient(_build_app(mock_db))
+class TestRemovedCountEndpoints:
+    @pytest.mark.parametrize("side", ["followers", "following"])
+    def test_the_count_paths_are_gone(self, me, alice, side):
+        assert me.client.get(f"{_API}/users/{alice.id}/{side}/count").status_code in {404, 405}
 
-        assert client.get("/users/7/followers", headers={"Authorization": "Bearer x"}).status_code == 422
+
+class TestBlockedUsers:
+    def test_blocking_stores_the_block_and_answers_204(self, me, alice, bob, committed_sessions):
+        response = me.client.put(f"{_API}/profile/blocked-users/{bob.id}")
+
+        assert response.status_code == 204
+        assert response.content == b""
+        with committed_sessions() as db:
+            assert db.scalar(select(func.count()).select_from(followers_models.FollowerBlock)) == 1
+
+    def test_blocking_yourself_is_refused(self, me, alice, committed_sessions):
+        response = me.client.put(f"{_API}/profile/blocked-users/{alice.id}")
+
+        assert response.status_code == 422
+        assert _count(committed_sessions, followers_models.FollowerBlock) == 0
+
+    def test_blocking_a_user_that_does_not_exist_answers_as_for_one_that_does(self, me, committed_sessions):
+        response = me.client.put(f"{_API}/profile/blocked-users/{uuid.uuid4()}")
+
+        assert response.status_code == 204
+        assert _count(committed_sessions, followers_models.FollowerBlock) == 0
+
+    def test_blocking_removes_the_follows_between_the_two(self, me, alice, bob, arrange, stored):
+        arrange(lambda db: make_follow(db, alice.id, bob.id, accepted=True))
+        arrange(lambda db: make_follow(db, bob.id, alice.id, accepted=False))
+
+        assert me.client.put(f"{_API}/profile/blocked-users/{bob.id}").status_code == 204
+
+        assert (stored(alice.id, bob.id), stored(bob.id, alice.id)) == (None, None)
+
+    def test_unblocking_removes_the_block(self, me, alice, bob, arrange, committed_sessions):
+        arrange(lambda db: make_block(db, alice.id, bob.id))
+
+        response = me.client.delete(f"{_API}/profile/blocked-users/{bob.id}")
+
+        assert response.status_code == 204
+        assert _count(committed_sessions, followers_models.FollowerBlock) == 0
+
+    def test_unblocking_someone_not_blocked_is_not_found(self, me, bob):
+        assert me.client.delete(f"{_API}/profile/blocked-users/{bob.id}").status_code == 404
+
+    def test_the_list_holds_the_public_profiles_newest_block_first(self, me, alice, bob, carol, arrange):
+        arrange(lambda db: make_block(db, alice.id, bob.id, created_at=_NOW))
+        arrange(lambda db: make_block(db, alice.id, carol.id, created_at=_NOW + timedelta(hours=1)))
+        arrange(lambda db: make_block(db, bob.id, alice.id))
+
+        response = me.client.get(f"{_API}/profile/blocked-users")
+
+        assert response.status_code == 200
+        body = response.json()
+        assert [item["id"] for item in body["items"]] == [str(carol.id), str(bob.id)]
+        assert body["items"][0] == {
+            "id": str(carol.id),
+            "name": carol.name,
+            "username": carol.username,
+            "city": None,
+            "photo_path": None,
+        }
+        assert (body["total"], body["next"]) == (2, None)
+
+    def test_the_list_pages(self, me, alice, arrange, make_person):
+        blocked = [make_person() for _ in range(3)]
+        for index, user in enumerate(blocked):
+            arrange(lambda db, u=user, i=index: make_block(db, alice.id, u.id, created_at=_NOW + timedelta(hours=i)))
+
+        body = me.client.get(f"{_API}/profile/blocked-users", params={"page_number": 1, "num_records": 2}).json()
+
+        assert ([item["id"] for item in body["items"]], body["total"], body["next"]) == (
+            [str(blocked[2].id), str(blocked[1].id)],
+            3,
+            2,
+        )
+
+    def test_an_empty_list_is_an_empty_page(self, me):
+        body = me.client.get(f"{_API}/profile/blocked-users").json()
+
+        assert (body["items"], body["total"]) == ([], 0)

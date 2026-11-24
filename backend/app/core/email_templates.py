@@ -30,8 +30,7 @@ _LOGO_URL = "https://raw.githubusercontent.com/endurain-project/endurain/master/
 
 
 def html_header(title: str, heading: str, lang: str = "en") -> str:
-    """
-    Return the opening HTML block shared by all Endurain emails.
+    """Return the opening HTML block shared by all Endurain emails.
 
     Includes the doctype, ``<head>``, ``<body>`` wrapper, branded logo
     header with ``heading``, and the opening tag of the content
@@ -96,8 +95,7 @@ def html_footer(
     visit_label: str = "Visit Endurain at:",
     source_code_label: str = "Source code at:",
 ) -> str:
-    """
-    Return the closing HTML block shared by all Endurain emails.
+    """Return the closing HTML block shared by all Endurain emails.
 
     Closes the content ``<div>`` opened by :func:`html_header`,
     renders the footer with a sign-off greeting and links to the
@@ -162,11 +160,11 @@ def wrap_email(
     link_color: str,
     sign_off_key: str = "team",
 ) -> str:
-    """
-    Render a complete localized email by wrapping ``body_inner`` in the
-    shared header/footer chrome.
+    """Render a complete localized email around ``body_inner``.
 
-    Centralizes the boilerplate that every email builder used to repeat
+    Wraps the body in the shared header/footer chrome.
+
+    Centralizes the boilerplate that every email builder needs
     (HTML escaping of header/footer fields, fetching the six common
     catalog labels, computing the BCP 47 ``lang`` tag, and threading
     them into :func:`html_header` and :func:`html_footer`).

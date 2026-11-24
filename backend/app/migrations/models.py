@@ -7,8 +7,7 @@ from core.database import Base
 
 
 class Migration(Base):
-    """
-    Tracks data migration execution state.
+    """Tracks data migration execution state.
 
     Attributes:
         id: Primary key.

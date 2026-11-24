@@ -191,7 +191,6 @@ class _DeferredSubscriptions:
             event_type: The event channel.
             handler: The subscriber to run.
         """
-
         # A callable need not have a name; the event bus names one the same way.
         handler_name = getattr(handler, "__name__", repr(handler))
 

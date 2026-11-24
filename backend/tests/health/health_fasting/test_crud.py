@@ -1,238 +1,380 @@
-import uuid
-from datetime import UTC, date, datetime
-from unittest.mock import MagicMock
+"""The fasting records' persistence, on the real database."""
+
+from datetime import UTC, date, datetime, timedelta
 
 import pytest
+import sqlalchemy as sa
 from sqlalchemy.exc import IntegrityError
 
+import core.etag as core_etag
 import core.exceptions as core_exceptions
 import modules.health.health_fasting.crud as health_fasting_crud
 import modules.health.health_fasting.models as health_fasting_models
 import modules.health.health_fasting.schema as health_fasting_schema
+import modules.health.models as health_models
+from tests._factories.health import make_ended_health_fasting, make_health_fasting
+from tests._factories.users import make_user
 
-pytestmark = pytest.mark.usefixtures("passthrough_serializers")
-
-
-_USER_ID = uuid.UUID("11111111-1111-4111-8111-111111111111")
-_ID = uuid.uuid4()
-_OTHER_ID = uuid.uuid4()
+_T0 = datetime(2025, 3, 10, 8, 0, tzinfo=UTC)
 
 
-def _row(record_id: uuid.UUID = _ID) -> MagicMock:
-    row = MagicMock(spec=health_fasting_models.HealthFasting)
-    row.id = record_id
-    row.version = 1
-    row.user_id = _USER_ID
-    row.status = "in_progress"
-    return row
+def _hours(n: float) -> datetime:
+    return _T0 + timedelta(hours=n)
 
 
-def _returns_scalars(mock_db, rows):
-    mock_db.execute.return_value.scalars.return_value.all.return_value = rows
+def _stored(db, record_id):
+    return db.get(health_fasting_models.HealthFasting, record_id)
 
 
-def _returns_one(mock_db, row):
-    mock_db.execute.return_value.scalar_one_or_none.return_value = row
+@pytest.fixture
+def user(db):
+    return make_user(db)
 
 
-class TestReads:
-    def test_number_counts(self, mock_db):
-        mock_db.execute.return_value.scalar_one.return_value = 4
+@pytest.fixture
+def other(db):
+    return make_user(db)
 
-        assert health_fasting_crud.get_health_fasting_number_by_user_id(_USER_ID, mock_db) == 4
 
-    def test_number_with_a_lower_bound(self, mock_db):
-        mock_db.execute.return_value.scalar_one.return_value = 1
-
-        health_fasting_crud.get_health_fasting_number_by_user_id(_USER_ID, mock_db, date(2024, 1, 1))
-
-        assert "date(timezone(:timezone_1, health_fasting.fast_start_time)) >=" in str(
-            mock_db.execute.call_args.args[0]
+class TestCreate:
+    def test_the_record_is_stored_for_the_user_with_its_values_and_the_given_duration(self, db, user):
+        created = health_fasting_crud.create_health_fasting(
+            user.id,
+            health_fasting_schema.HealthFastingImport(
+                fast_start_time=_hours(0),
+                fast_end_time=_hours(16),
+                status="completed",
+                fasting_type="16:8",
+                target_duration_seconds=57600,
+                notes="done",
+            ),
+            db,
+            actual_duration_seconds=57600,
         )
 
-    def test_list_paginates_and_bounds(self, mock_db):
-        _returns_scalars(mock_db, [_row()])
-
-        result = health_fasting_crud.get_health_fasting_by_user_id(_USER_ID, mock_db, 2, 10, date(2024, 1, 1))
-
-        assert len(result) == 1
-        compiled = str(mock_db.execute.call_args.args[0].compile(compile_kwargs={"literal_binds": True}))
-        assert "LIMIT 10 OFFSET 10" in compiled
-        assert "date(timezone('UTC', health_fasting.fast_start_time)) >=" in compiled
-
-    def test_by_id_found(self, mock_db):
-        _returns_one(mock_db, _row())
-
-        assert health_fasting_crud.get_health_fasting_by_id_and_user_id(_ID, 1, mock_db).id == _ID
-
-    def test_by_id_not_found(self, mock_db):
-        _returns_one(mock_db, None)
-
-        assert health_fasting_crud.get_health_fasting_by_id_and_user_id(_OTHER_ID, 1, mock_db) is None
-
-    def test_active_found(self, mock_db):
-        _returns_one(mock_db, _row())
-
-        assert health_fasting_crud.get_active_fasting_by_user_id(_USER_ID, mock_db).status == "in_progress"
-
-    def test_active_none(self, mock_db):
-        _returns_one(mock_db, None)
-
-        assert health_fasting_crud.get_active_fasting_by_user_id(_USER_ID, mock_db) is None
-
-
-class TestAggregates:
-    def test_completed_count(self, mock_db):
-        mock_db.execute.return_value.scalar_one.return_value = 7
-
-        assert health_fasting_crud.get_completed_fasting_count(_USER_ID, mock_db) == 7
-
-    def test_total_seconds_defaults_to_zero(self, mock_db):
-        mock_db.execute.return_value.scalar_one.return_value = None
-
-        assert health_fasting_crud.get_total_fasting_seconds(_USER_ID, mock_db) == 0
-
-    def test_average_is_truncated_to_seconds(self, mock_db):
-        mock_db.execute.return_value.scalar_one.return_value = 3600.7
-
-        assert health_fasting_crud.get_avg_fasting_duration(_USER_ID, mock_db) == 3600
-
-    def test_average_is_none_without_data(self, mock_db):
-        mock_db.execute.return_value.scalar_one.return_value = None
-
-        assert health_fasting_crud.get_avg_fasting_duration(_USER_ID, mock_db) is None
-
-    def test_completed_dates_are_bucketed_in_the_given_timezone(self, mock_db):
-        _returns_scalars(mock_db, [date(2024, 1, 14), date(2024, 1, 15)])
-
-        result = health_fasting_crud.get_completed_fasting_dates_by_user_id(_USER_ID, "Asia/Tokyo", mock_db)
-
-        assert result == [date(2024, 1, 14), date(2024, 1, 15)]
-        compiled = str(mock_db.execute.call_args.args[0].compile(compile_kwargs={"literal_binds": True}))
-        assert "Asia/Tokyo" in compiled
-
-
-class TestCreateHealthFasting:
-    def test_stages_without_committing(self, mock_db, stub_model):
-        record = health_fasting_schema.HealthFastingCreate(fast_start_time=datetime(2024, 1, 15, 8, 0, 0, tzinfo=UTC))
-
-        with stub_model(health_fasting_crud, _row()) as model:
-            health_fasting_crud.create_health_fasting(_USER_ID, record, mock_db, actual_duration_seconds=None)
-
-        assert model.call_args.kwargs["user_id"] == _USER_ID
-        assert model.call_args.kwargs["actual_duration_seconds"] is None
-        mock_db.flush.assert_called_once()
-        mock_db.commit.assert_not_called()
-
-    def test_integrity_error_is_a_conflict(self, mock_db, stub_model):
-        mock_db.flush.side_effect = IntegrityError("constraint", None, None)
-        record = health_fasting_schema.HealthFastingCreate(fast_start_time=datetime(2024, 1, 15, 8, 0, 0, tzinfo=UTC))
-
-        with (
-            stub_model(health_fasting_crud, _row()),
-            pytest.raises(core_exceptions.ConflictError),
-        ):
-            health_fasting_crud.create_health_fasting(_USER_ID, record, mock_db, actual_duration_seconds=None)
-
-
-class TestEditHealthFasting:
-    def test_updates_the_given_fields_and_stages(self, mock_db):
-        row = _row()
-        _returns_one(mock_db, row)
-        update = health_fasting_schema.HealthFastingUpdate(notes="felt good")
-
-        health_fasting_crud.edit_health_fasting(
-            _USER_ID, _ID, update, mock_db, actual_duration_seconds=None, if_match="*"
+        row = _stored(db, created.id)
+        assert (row.user_id, row.fast_start_time, row.fast_end_time, row.status, row.actual_duration_seconds) == (
+            user.id,
+            _hours(0),
+            _hours(16),
+            "completed",
+            57600,
+        )
+        assert (row.fasting_type, row.target_duration_seconds, row.notes, row.source, row.version) == (
+            "16:8",
+            57600,
+            "done",
+            "manual",
+            1,
         )
 
-        assert row.notes == "felt good"
-        assert row.actual_duration_seconds is None
-        mock_db.flush.assert_called_once()
-        mock_db.commit.assert_not_called()
+    def test_a_user_cannot_have_two_running_fasts(self, db, user):
+        make_health_fasting(db, user.id, fast_start_time=_hours(0), status="in_progress")
 
-    def test_a_second_active_fast_is_a_conflict(self, mock_db):
-        _returns_one(mock_db, _row())
-        mock_db.flush.side_effect = IntegrityError("constraint", None, None)
-        update = health_fasting_schema.HealthFastingUpdate(status="in_progress")
+        with pytest.raises(core_exceptions.ConflictError, match="already has an active fasting session"):
+            make_health_fasting(db, user.id, fast_start_time=_hours(5), status="in_progress")
 
-        with pytest.raises(core_exceptions.ConflictError):
-            health_fasting_crud.edit_health_fasting(
-                _USER_ID, _ID, update, mock_db, actual_duration_seconds=None, if_match="*"
+    def test_the_database_allows_one_running_fast_per_user(self, db, user, other):
+        make_health_fasting(db, user.id, status="in_progress")
+        make_health_fasting(db, other.id, status="in_progress")
+
+        with pytest.raises(IntegrityError, match="uq_health_fasting_one_in_progress_per_user"):
+            db.add(
+                health_fasting_models.HealthFasting(user_id=user.id, fast_start_time=_hours(3), status="in_progress")
             )
+            db.flush()
 
-    def test_unknown_record_is_not_found(self, mock_db):
-        _returns_one(mock_db, None)
-        update = health_fasting_schema.HealthFastingUpdate(notes="x")
+    def test_a_running_fast_does_not_stop_other_fasts_being_recorded(self, db, user):
+        make_health_fasting(db, user.id, fast_start_time=_hours(100), status="in_progress")
+        make_ended_health_fasting(db, user.id, _hours(0), _hours(10))
+        make_ended_health_fasting(db, user.id, _hours(20), _hours(30), status="cancelled")
 
-        with pytest.raises(core_exceptions.NotFoundError, match="Health fasting not found"):
-            health_fasting_crud.edit_health_fasting(
-                1, _OTHER_ID, update, mock_db, actual_duration_seconds=None, if_match="*"
-            )
+        assert health_fasting_crud.get_health_fasting_number_by_user_id(user.id, db) == 3
+
+    def test_deleting_the_user_deletes_their_records(self, db, user):
+        record = make_health_fasting(db, user.id)
+
+        db.execute(sa.text("DELETE FROM users WHERE id = :id"), {"id": user.id})
+
+        assert _stored(db, record.id) is None
 
 
-class TestEndHealthFasting:
-    def test_a_stale_version_is_refused(self, mock_db):
-        row = _row()
-        row.version = 4
-        _returns_one(mock_db, row)
+class TestRead:
+    def test_a_record_is_found_by_id_only_for_its_owner(self, db, user, other):
+        record = make_health_fasting(db, user.id)
+
+        assert health_fasting_crud.get_health_fasting_by_id_and_user_id(record.id, user.id, db) == record
+        assert health_fasting_crud.get_health_fasting_by_id_and_user_id(record.id, other.id, db) is None
+
+    def test_the_active_fast_is_the_users_running_one(self, db, user, other):
+        make_ended_health_fasting(db, user.id, _hours(0), _hours(10))
+        running = make_health_fasting(db, user.id, fast_start_time=_hours(20), status="in_progress")
+        make_health_fasting(db, other.id, status="in_progress")
+
+        assert health_fasting_crud.get_active_fasting_by_user_id(user.id, db) == running
+
+    def test_without_a_running_fast_there_is_no_active_one(self, db, user):
+        make_ended_health_fasting(db, user.id, _hours(0), _hours(10))
+
+        assert health_fasting_crud.get_active_fasting_by_user_id(user.id, db) is None
+
+    def test_a_fast_is_known_by_its_exact_start_and_only_for_its_owner(self, db, user, other):
+        make_health_fasting(db, user.id, fast_start_time=_hours(0))
+
+        exists = health_fasting_crud.health_fasting_exists_at
+        assert (exists(user.id, _hours(0), db), exists(user.id, _hours(1), db), exists(other.id, _hours(0), db)) == (
+            True,
+            False,
+            False,
+        )
+
+    def test_the_list_is_newest_start_first_bounded_by_local_start_days_paged_and_only_the_users(self, db, user, other):
+        for day in range(1, 6):
+            start = datetime(2025, 3, day, 22, 0, tzinfo=UTC)
+            make_ended_health_fasting(db, user.id, start, start + timedelta(hours=2))
+        make_ended_health_fasting(db, other.id, _hours(0), _hours(1))
+        get = health_fasting_crud.get_health_fasting_by_user_id
+        count = health_fasting_crud.get_health_fasting_number_by_user_id
+
+        assert [r.fast_start_time.day for r in get(user.id, db)] == [5, 4, 3, 2, 1]
+        assert [r.fast_start_time.day for r in get(user.id, db, page_number=2, num_records=2)] == [3, 2]
+        assert [r.fast_start_time.day for r in get(user.id, db, since=date(2025, 3, 2), until=date(2025, 3, 3))] == [
+            3,
+            2,
+        ]
+        assert (count(user.id, db), count(user.id, db, date(2025, 3, 2), date(2025, 3, 3))) == (5, 2)
+
+    def test_the_bounds_are_the_start_days_in_the_users_zone(self, db, user):
+        make_ended_health_fasting(db, user.id, datetime(2025, 3, 10, 22, 0, tzinfo=UTC), _hours(30))
+
+        count = health_fasting_crud.get_health_fasting_number_by_user_id
+        assert (
+            count(user.id, db, date(2025, 3, 11), None, "UTC"),
+            count(user.id, db, date(2025, 3, 11), None, "Asia/Tokyo"),
+        ) == (0, 1)
+
+
+class TestStatistics:
+    def test_only_completed_fasts_are_counted_summed_and_averaged(self, db, user, other):
+        make_ended_health_fasting(db, user.id, _hours(0), _hours(10))
+        make_ended_health_fasting(db, user.id, _hours(24), _hours(38))
+        make_ended_health_fasting(db, user.id, _hours(48), _hours(50), status="broken")
+        make_ended_health_fasting(db, user.id, _hours(72), _hours(73), status="cancelled")
+        make_ended_health_fasting(db, other.id, _hours(0), _hours(100))
+
+        assert health_fasting_crud.get_completed_fasting_count(user.id, db) == 2
+        assert health_fasting_crud.get_total_fasting_seconds(user.id, db) == 24 * 3600
+        assert health_fasting_crud.get_avg_fasting_duration(user.id, db) == 12 * 3600
+
+    def test_without_completed_fasts_the_totals_are_zero_and_the_average_is_none(self, db, user):
+        make_health_fasting(db, user.id, status="in_progress")
+
+        assert health_fasting_crud.get_completed_fasting_count(user.id, db) == 0
+        assert health_fasting_crud.get_total_fasting_seconds(user.id, db) == 0
+        assert health_fasting_crud.get_avg_fasting_duration(user.id, db) is None
+
+    def test_the_completed_dates_are_the_distinct_local_start_days_ascending(self, db, user):
+        make_ended_health_fasting(
+            db, user.id, datetime(2025, 3, 12, 8, 0, tzinfo=UTC), datetime(2025, 3, 12, 9, 0, tzinfo=UTC)
+        )
+        make_ended_health_fasting(
+            db, user.id, datetime(2025, 3, 10, 22, 0, tzinfo=UTC), datetime(2025, 3, 10, 23, 0, tzinfo=UTC)
+        )
+        make_ended_health_fasting(
+            db, user.id, datetime(2025, 3, 10, 6, 0, tzinfo=UTC), datetime(2025, 3, 10, 7, 0, tzinfo=UTC)
+        )
+        make_ended_health_fasting(
+            db,
+            user.id,
+            datetime(2025, 3, 14, 6, 0, tzinfo=UTC),
+            datetime(2025, 3, 14, 7, 0, tzinfo=UTC),
+            status="broken",
+        )
+
+        dates = health_fasting_crud.get_completed_fasting_dates_by_user_id
+        assert dates(user.id, "UTC", db) == [date(2025, 3, 10), date(2025, 3, 12)]
+        assert dates(user.id, "Asia/Tokyo", db) == [date(2025, 3, 10), date(2025, 3, 11), date(2025, 3, 12)]
+
+
+class TestOverlap:
+    def _overlaps(self, db, user, start, end, **kwargs):
+        return health_fasting_crud.fasting_overlaps(user.id, start, end, db, **kwargs)
+
+    @pytest.fixture
+    def ended(self, db, user):
+        return make_ended_health_fasting(db, user.id, _hours(0), _hours(10))
+
+    @pytest.mark.usefixtures("ended")
+    @pytest.mark.parametrize(
+        ("start", "end", "expected"),
+        [
+            (5, 15, True),
+            (2, 4, True),
+            (-5, 20, True),
+            (-5, 5, True),
+            (10, 12, False),
+            (-5, 0, False),
+            (20, None, False),
+        ],
+        ids=["overlapping", "inside", "around", "head", "starts-at-its-end", "ends-at-its-start", "open-after"],
+    )
+    def test_a_span_overlaps_an_ended_fast_when_they_share_more_than_an_endpoint(self, db, user, start, end, expected):
+        assert self._overlaps(db, user, _hours(start), None if end is None else _hours(end)) is expected
+
+    def test_a_running_fast_lasts_indefinitely(self, db, user):
+        make_health_fasting(db, user.id, fast_start_time=_hours(0), status="in_progress")
+
+        assert self._overlaps(db, user, _hours(1000), _hours(1001)) is True
+        assert self._overlaps(db, user, _hours(-10), _hours(0)) is False
+
+    def test_a_cancelled_fast_without_an_end_has_no_extent(self, db, user):
+        make_health_fasting(db, user.id, fast_start_time=_hours(0), status="cancelled")
+
+        assert self._overlaps(db, user, _hours(1), _hours(2)) is False
+
+    def test_the_fast_being_edited_does_not_overlap_itself(self, db, user, ended):
+        assert self._overlaps(db, user, _hours(1), _hours(2), exclude_id=ended.id) is False
+
+    def test_another_users_fast_is_not_an_overlap(self, db, user, other):
+        make_ended_health_fasting(db, other.id, _hours(0), _hours(10))
+
+        assert self._overlaps(db, user, _hours(1), _hours(2)) is False
+
+
+class TestEdit:
+    def _edit(self, db, user_id, record, *, if_match=None, duration=None, **changes):
+        return health_fasting_crud.edit_health_fasting(
+            user_id,
+            record.id,
+            health_fasting_schema.HealthFastingUpdate(**changes),
+            db,
+            actual_duration_seconds=duration,
+            if_match=core_etag.format_etag(record.version) if if_match is None else if_match,
+        )
+
+    def test_only_the_fields_sent_change_and_the_version_moves_on(self, db, user):
+        record = make_ended_health_fasting(db, user.id, _hours(0), _hours(10), notes="before", fasting_type="16:8")
+
+        edited = self._edit(db, user.id, record, duration=36000, notes="after")
+
+        row = _stored(db, record.id)
+        assert (row.notes, row.fasting_type, row.fast_end_time, row.actual_duration_seconds) == (
+            "after",
+            "16:8",
+            _hours(10),
+            36000,
+        )
+        assert (record.version, edited.version, row.version) == (1, 2, 2)
+
+    def test_a_stale_version_is_refused_and_nothing_changes(self, db, user):
+        record = make_health_fasting(db, user.id, notes="one")
+        self._edit(db, user.id, record, notes="two")
 
         with pytest.raises(core_exceptions.PreconditionFailedError):
-            health_fasting_crud.end_health_fasting(
-                1, 1, datetime(2024, 1, 16, 8, 0, 0), "completed", 86400, None, mock_db, if_match='"3"'
-            )
+            self._edit(db, user.id, record, notes="three")
 
-        mock_db.flush.assert_not_called()
+        assert _stored(db, record.id).notes == "two"
 
-    def test_stages_the_end_fields(self, mock_db):
-        row = _row()
-        _returns_one(mock_db, row)
-        end = datetime(2024, 1, 16, 8, 0, 0)
+    def test_another_users_record_is_not_found_and_stays_as_it_was(self, db, user, other):
+        theirs = make_health_fasting(db, other.id, notes="theirs")
 
-        health_fasting_crud.end_health_fasting(_USER_ID, _ID, end, "completed", 86400, "done", mock_db, if_match="*")
+        with pytest.raises(core_exceptions.NotFoundError):
+            self._edit(db, user.id, theirs, notes="mine")
 
+        assert (_stored(db, theirs.id).notes, _stored(db, theirs.id).version) == ("theirs", 1)
+
+    def test_a_change_that_would_leave_two_running_fasts_is_a_conflict(self, db, user):
+        make_health_fasting(db, user.id, fast_start_time=_hours(0), status="in_progress")
+        ended = make_ended_health_fasting(db, user.id, _hours(-30), _hours(-20), fasting_type="16:8")
+
+        with pytest.raises(core_exceptions.ConflictError, match="already has an active fasting session"):
+            self._edit(db, user.id, ended, status="in_progress", fast_end_time=None)
+
+
+class TestEnd:
+    def _end(self, db, user_id, record, *, status="completed", notes=None, if_match=None):
+        return health_fasting_crud.end_health_fasting(
+            user_id,
+            record.id,
+            _hours(16),
+            status,
+            57600,
+            notes,
+            db,
+            if_match=core_etag.format_etag(record.version) if if_match is None else if_match,
+        )
+
+    def test_the_end_status_and_duration_are_stored_and_the_notes_kept_when_none_are_sent(self, db, user):
+        record = make_health_fasting(db, user.id, fast_start_time=_hours(0), status="in_progress", notes="kept")
+
+        ended = self._end(db, user.id, record)
+
+        row = _stored(db, record.id)
         assert (row.fast_end_time, row.status, row.actual_duration_seconds, row.notes) == (
-            end,
+            _hours(16),
             "completed",
-            86400,
-            "done",
+            57600,
+            "kept",
         )
-        mock_db.flush.assert_called_once()
-        mock_db.commit.assert_not_called()
+        assert ended.version == 2
 
-    def test_keeps_existing_notes_when_none_are_given(self, mock_db):
-        row = _row()
-        row.notes = "before"
-        _returns_one(mock_db, row)
+    def test_notes_that_are_sent_replace_the_stored_ones(self, db, user):
+        record = make_health_fasting(db, user.id, status="in_progress", notes="old")
 
-        health_fasting_crud.end_health_fasting(
-            _USER_ID, _ID, datetime(2024, 1, 16), "broken", 10, None, mock_db, if_match="*"
-        )
+        self._end(db, user.id, record, notes="new")
 
-        assert row.notes == "before"
+        assert _stored(db, record.id).notes == "new"
 
-    def test_unknown_record_is_not_found(self, mock_db):
-        _returns_one(mock_db, None)
+    def test_a_stale_version_is_refused_and_the_fast_keeps_running(self, db, user):
+        record = make_health_fasting(db, user.id, status="in_progress")
+
+        with pytest.raises(core_exceptions.PreconditionFailedError):
+            self._end(db, user.id, record, if_match='"4"')
+
+        assert _stored(db, record.id).status == "in_progress"
+
+    def test_another_users_fast_is_not_found(self, db, user, other):
+        theirs = make_health_fasting(db, other.id, status="in_progress")
 
         with pytest.raises(core_exceptions.NotFoundError):
-            health_fasting_crud.end_health_fasting(
-                1, 9, datetime(2024, 1, 16), "broken", 10, None, mock_db, if_match="*"
-            )
+            self._end(db, user.id, theirs)
 
 
-class TestDeleteHealthFasting:
-    def test_deletes_and_stages(self, mock_db):
-        row = _row()
-        _returns_one(mock_db, row)
+class TestDelete:
+    def test_the_record_is_removed_and_its_deletion_remembered_for_sync(self, db, user):
+        record = make_health_fasting(db, user.id)
 
-        health_fasting_crud.delete_health_fasting(_USER_ID, _ID, mock_db, if_match="*")
+        health_fasting_crud.delete_health_fasting(
+            user.id, record.id, db, if_match=core_etag.format_etag(record.version)
+        )
 
-        mock_db.delete.assert_called_once_with(row)
-        mock_db.flush.assert_called_once()
-        mock_db.commit.assert_not_called()
+        assert _stored(db, record.id) is None
+        tombstones = db.scalars(sa.select(health_models.HealthRecordDeletion)).all()
+        assert [(t.user_id, t.record_id, t.record_type) for t in tombstones] == [(user.id, record.id, "health_fasting")]
 
-    def test_unknown_record_is_not_found(self, mock_db):
-        _returns_one(mock_db, None)
+    def test_a_stale_version_is_refused_and_the_record_stays(self, db, user):
+        record = make_health_fasting(db, user.id)
+
+        with pytest.raises(core_exceptions.PreconditionFailedError):
+            health_fasting_crud.delete_health_fasting(user.id, record.id, db, if_match='"2"')
+
+        assert _stored(db, record.id) is not None
+
+    def test_another_users_record_is_not_found_and_stays(self, db, user, other):
+        theirs = make_health_fasting(db, other.id)
 
         with pytest.raises(core_exceptions.NotFoundError):
-            health_fasting_crud.delete_health_fasting(_USER_ID, _OTHER_ID, mock_db, if_match="*")
-        mock_db.delete.assert_not_called()
+            health_fasting_crud.delete_health_fasting(user.id, theirs.id, db, if_match='"1"')
+
+        assert _stored(db, theirs.id) is not None
+        assert db.scalars(sa.select(health_models.HealthRecordDeletion)).all() == []
+
+
+class TestChanged:
+    def test_changed_records_are_the_users_only(self, db, user, other):
+        mine = make_ended_health_fasting(db, user.id, _hours(0), _hours(1))
+        make_health_fasting(db, other.id)
+
+        changed = health_fasting_crud.list_changed(user.id, None, datetime.now(UTC) + timedelta(days=1), 10, db)
+
+        assert [r.id for r in changed] == [mine.id]

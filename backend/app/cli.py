@@ -34,7 +34,6 @@ import core.platform_settings as core_platform_settings
 import model_registry as orm_model_registry
 import module_registry as runtime_module_registry
 import modules.auth.account_security.integration_service as account_security_integration
-import modules.auth.credentials.contracts as credentials_contracts
 import modules.auth.credentials.integration_service as credentials_integration
 import modules.server_settings.integration_service as server_settings_integration
 import modules.users.users.integration_service as users_integration
@@ -100,8 +99,7 @@ def set_password(username: str) -> int:
         username: The account's username.
 
     Returns:
-        The process exit code: 0 when the password was set, 1 when the account does not exist or the password
-        policy refuses the generated one.
+        The process exit code: 0 when the password was set, 1 when the account does not exist.
     """
     with core_database.SessionLocal() as db:
         user = users_integration.get_user_by_username(username, db)
@@ -112,12 +110,7 @@ def set_password(username: str) -> int:
             server_settings_integration.get_server_settings(db), users_schema.normalize_access_type(user.access_type)
         )
         with jasil_audit.audit_context(actor_type=jasil_audit.ActorType.SYSTEM, source=jasil_audit.Source.CLI):
-            try:
-                account_security_integration.change_managed_user_password(user.id, password, db)
-            except credentials_contracts.PasswordPolicyError as err:
-                db.rollback()
-                logger.error("The generated password is refused: %s", err, extra=core_logger.context(console=True))
-                return 1
+            account_security_integration.change_managed_user_password(user.id, password, db)
             db.commit()
     logger.info(
         "The password is set, every session of the account has ended and a new password is required at sign-in",

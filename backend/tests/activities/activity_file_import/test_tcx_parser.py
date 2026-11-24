@@ -2,15 +2,14 @@
 
 from datetime import UTC, datetime, timedelta, timezone
 from types import SimpleNamespace
-from unittest.mock import patch
 
 import pytest
 from tcxreader.tcx_track_point import TCXTrackPoint
-from tests._helpers.auth import MOCK_USER_ID
 
 import core.exceptions as core_exceptions
 import modules.activities.activity_file_import.tcx_parser as tcx_parser
 import modules.activities.computation as activities_computation
+from tests._helpers.auth import MOCK_USER_ID
 
 _SERVER_TZ = "UTC"
 
@@ -171,119 +170,27 @@ class TestUtilsTcx:
         assert activity.start_time == datetime(2026, 3, 28, 15, 19, 19, tzinfo=UTC)
         assert activity.end_time == datetime(2026, 3, 28, 16, 19, 19, tzinfo=UTC)
 
-    def test_parse_tcx_file_recomputes_hr_from_waypoints(self):
-        """parse_tcx_file overwrites hr_avg/hr_max from hr_waypoints, dropping zeros."""
-        dt_start = datetime(2026, 6, 20, 8, 0, 0, tzinfo=UTC)
-        dt_end = datetime(2026, 6, 20, 9, 0, 0, tzinfo=UTC)
+    def test_parse_tcx_file_recomputes_hr_from_waypoints(self, tmp_path):
+        """parse_tcx_file recomputes the HR summary from the samples, dropping sensor-off zeros."""
+        points = "".join(_tp(10 * i, hr=hr, lat=40.0 + 0.0001 * i, lon=-3.0) for i, hr in enumerate((0, 150, 160)))
 
-        mock_tcx = SimpleNamespace(
-            activity_type="Running",
-            distance=5000.0,
-            start_time=dt_start,
-            end_time=dt_end,
-            ascent=None,
-            descent=None,
-            hr_avg=103.0,  # stale — includes sensor-off zeros
-            hr_max=160.0,
-            cadence_avg=None,
-            cadence_max=None,
-            calories=None,
-            laps=[],
-            trackpoints=[],
+        result = tcx_parser.parse_tcx_file(
+            file=_write_tcx(tmp_path, points), user_id=MOCK_USER_ID, default_timezone=_SERVER_TZ
         )
-        mock_tcx.trackpoints_to_dict = lambda: []
-
-        fake_waypoints = {
-            "lat_lon_waypoints": [],
-            "lat_lon_segments": [],
-            "hr_waypoints": [
-                {"time": "2026-06-20T08:00:00", "hr": 0},
-                {"time": "2026-06-20T08:00:10", "hr": 150},
-                {"time": "2026-06-20T08:00:20", "hr": 160},
-            ],
-            "cad_waypoints": [],
-            "ele_waypoints": [],
-            "power_waypoints": [],
-            "vel_waypoints": [],
-            "pace_waypoints": [],
-        }
-
-        with (
-            patch("tcxreader.TCXReader") as mock_reader_class,
-            patch(
-                "modules.activities.activity_file_import.tcx_parser._extract_waypoints",
-                return_value=fake_waypoints,
-            ),
-        ):
-            mock_reader_class.return_value.read.return_value = mock_tcx
-
-            result = tcx_parser.parse_tcx_file(file="dummy.tcx", user_id=MOCK_USER_ID, default_timezone=_SERVER_TZ)
 
         activity = result["activity"]
         # Zeros excluded: mean([150, 160]) = 155, max = 160.
         assert activity.average_hr == 155
         assert activity.max_hr == 160
 
-    def test_parse_tcx_file_derives_distance_from_gps_track_when_missing(self):
-        """Missing tcx_file.distance falls back to the geodesic sum over the GPS track."""
-        dt_start = datetime(2026, 6, 20, 8, 20, 3, tzinfo=UTC)
-        dt_end = datetime(2026, 6, 20, 8, 25, 3, tzinfo=UTC)
+    def test_parse_tcx_file_derives_distance_from_gps_track_when_missing(self, tmp_path):
+        """Missing lap distance falls back to the geodesic sum over the GPS track."""
+        # ~0.01 deg of latitude is about 1.1 km, covered in 30 hops of 10 s.
+        points = "".join(_tp(10 * i, lat=40.0 + 0.01 * i / 30, lon=-3.0) for i in range(31))
 
-        mock_tcx = SimpleNamespace(
-            activity_type="Running",
-            distance=None,
-            start_time=dt_start,
-            end_time=dt_end,
-            ascent=None,
-            descent=None,
-            hr_avg=None,
-            hr_max=None,
-            cadence_avg=None,
-            cadence_max=None,
-            calories=None,
-            laps=[],
-            trackpoints=[],
+        result = tcx_parser.parse_tcx_file(
+            file=_write_tcx(tmp_path, points), user_id=MOCK_USER_ID, default_timezone=_SERVER_TZ
         )
-        trackpoints = [
-            {"time": dt_start, "latitude": 40.0, "longitude": -3.0},
-            {"time": dt_end, "latitude": 40.01, "longitude": -3.0},
-        ]
-        mock_tcx.trackpoints_to_dict = lambda: trackpoints
-
-        fake_waypoints = {
-            # ~0.01 deg of latitude ≈ 1.1 km.
-            "lat_lon_waypoints": [
-                {"time": "2026-06-20T08:20:03", "lat": 40.0, "lon": -3.0},
-                {"time": "2026-06-20T08:25:03", "lat": 40.01, "lon": -3.0},
-            ],
-            "lat_lon_segments": [
-                [
-                    {"time": "2026-06-20T08:20:03", "lat": 40.0, "lon": -3.0},
-                    {"time": "2026-06-20T08:25:03", "lat": 40.01, "lon": -3.0},
-                ]
-            ],
-            "hr_waypoints": [],
-            "cad_waypoints": [],
-            "ele_waypoints": [],
-            "power_waypoints": [],
-            "vel_waypoints": [],
-            "pace_waypoints": [],
-        }
-
-        with (
-            patch("tcxreader.TCXReader") as mock_reader_class,
-            patch(
-                "modules.activities.activity_file_import.tcx_parser._extract_waypoints",
-                return_value=fake_waypoints,
-            ),
-            patch(
-                "modules.activities.activity_file_import.tcx_parser.activity_file_import_parser_utils.resolve_timezone_from_lat_lon",
-                return_value="UTC",
-            ),
-        ):
-            mock_reader_class.return_value.read.return_value = mock_tcx
-
-            result = tcx_parser.parse_tcx_file(file="dummy.tcx", user_id=MOCK_USER_ID, default_timezone=_SERVER_TZ)
 
         assert 1000 < result["activity"].distance < 1200
         assert result["activity"].pace > 0
@@ -343,11 +250,7 @@ class TestUtilsTcx:
             encoding="utf-8",
         )
 
-        with patch(
-            "modules.activities.activity_file_import.tcx_parser.activity_file_import_parser_utils.resolve_timezone_from_lat_lon",
-            return_value="UTC",
-        ):
-            result = tcx_parser.parse_tcx_file(file=str(tcx_path), user_id=MOCK_USER_ID, default_timezone=_SERVER_TZ)
+        result = tcx_parser.parse_tcx_file(file=str(tcx_path), user_id=MOCK_USER_ID, default_timezone=_SERVER_TZ)
 
         activity = result["activity"]
         # 4 hops of 0.001 deg latitude, about 111 m each.
@@ -355,175 +258,37 @@ class TestUtilsTcx:
         assert activity.total_timer_time == 120
         assert activity.pace > 0
 
-    def test_parse_tcx_file_uses_moving_time_for_timer_and_pace(self):
+    def test_parse_tcx_file_uses_moving_time_for_timer_and_pace(self, tmp_path):
         """total_timer_time and pace come from moving time; elapsed stays wall-clock."""
-        dt_start = datetime(2026, 6, 20, 8, 0, 0, tzinfo=UTC)
-        dt_end = datetime(2026, 6, 20, 9, 0, 0, tzinfo=UTC)
+        moving = "".join(_tp(10 * i, lat=40.0 + 0.0001 * i, lon=-3.0) for i in range(121))
+        after_pause = _tp(3600, lat=40.02, lon=-3.0)
+        file = _write_tcx(tmp_path, moving + after_pause, lap_distance=5000, lap_seconds=3600)
 
-        mock_tcx = SimpleNamespace(
-            activity_type="Running",
-            distance=5000.0,
-            start_time=dt_start,
-            end_time=dt_end,
-            ascent=None,
-            descent=None,
-            hr_avg=None,
-            hr_max=None,
-            cadence_avg=None,
-            cadence_max=None,
-            calories=None,
-            laps=[],
-            trackpoints=[],
-        )
-        trackpoints = [
-            {"time": dt_start, "latitude": 40.0, "longitude": -3.0},
-            {"time": dt_end, "latitude": 40.01, "longitude": -3.0},
-        ]
-        mock_tcx.trackpoints_to_dict = lambda: trackpoints
-
-        fake_waypoints = {
-            "lat_lon_waypoints": [
-                {"time": "2026-06-20T08:00:00", "lat": 40.0, "lon": -3.0},
-                {"time": "2026-06-20T09:00:00", "lat": 40.01, "lon": -3.0},
-            ],
-            "lat_lon_segments": [
-                [
-                    {"time": "2026-06-20T08:00:00", "lat": 40.0, "lon": -3.0},
-                    {"time": "2026-06-20T09:00:00", "lat": 40.01, "lon": -3.0},
-                ]
-            ],
-            "moving_time": 1200.0,
-            "hr_waypoints": [],
-            "cad_waypoints": [],
-            "ele_waypoints": [],
-            "power_waypoints": [],
-            "vel_waypoints": [],
-            "pace_waypoints": [],
-        }
-
-        with (
-            patch("tcxreader.TCXReader") as mock_reader_class,
-            patch(
-                "modules.activities.activity_file_import.tcx_parser._extract_waypoints",
-                return_value=fake_waypoints,
-            ),
-            patch(
-                "modules.activities.activity_file_import.tcx_parser.activity_file_import_parser_utils.resolve_timezone_from_lat_lon",
-                return_value="UTC",
-            ),
-        ):
-            mock_reader_class.return_value.read.return_value = mock_tcx
-
-            result = tcx_parser.parse_tcx_file(file="dummy.tcx", user_id=MOCK_USER_ID, default_timezone=_SERVER_TZ)
+        result = tcx_parser.parse_tcx_file(file=file, user_id=MOCK_USER_ID, default_timezone=_SERVER_TZ)
 
         activity = result["activity"]
         assert activity.total_elapsed_time == 3600
         assert activity.total_timer_time == 1200
         assert activity.pace == 1200 / 5000
 
-    def test_parse_tcx_file_distance_fallback_skips_pause_gap(self):
+    def test_parse_tcx_file_distance_fallback_skips_pause_gap(self, tmp_path):
         """The geodesic distance fallback sums pause-split segments only."""
-        dt_start = datetime(2026, 6, 20, 8, 0, 0, tzinfo=UTC)
-        dt_end = datetime(2026, 6, 20, 8, 10, 0, tzinfo=UTC)
+        moving = "".join(_tp(10 * i, lat=40.0 + 0.01 * i / 6, lon=-3.0) for i in range(7))
+        # A single fix after a ten-minute pause, ~1.1 km further on, forms no segment of its own.
+        file = _write_tcx(tmp_path, moving + _tp(600, lat=40.02, lon=-3.0))
 
-        mock_tcx = SimpleNamespace(
-            activity_type="Running",
-            distance=None,
-            start_time=dt_start,
-            end_time=dt_end,
-            ascent=None,
-            descent=None,
-            hr_avg=None,
-            hr_max=None,
-            cadence_avg=None,
-            cadence_max=None,
-            calories=None,
-            laps=[],
-            trackpoints=[],
-        )
-        trackpoints = [
-            {"time": dt_start, "latitude": 40.0, "longitude": -3.0},
-            {"time": dt_end, "latitude": 40.01, "longitude": -3.0},
-        ]
-        mock_tcx.trackpoints_to_dict = lambda: trackpoints
+        result = tcx_parser.parse_tcx_file(file=file, user_id=MOCK_USER_ID, default_timezone=_SERVER_TZ)
 
-        fake_waypoints = {
-            # Flat stream contains the far post-pause point (~2.2 km away)...
-            "lat_lon_waypoints": [
-                {"time": "2026-06-20T08:00:00", "lat": 40.0, "lon": -3.0},
-                {"time": "2026-06-20T08:00:10", "lat": 40.01, "lon": -3.0},
-                {"time": "2026-06-20T08:10:00", "lat": 40.02, "lon": -3.0},
-            ],
-            # ...but pause-splitting isolated it, so only the first hop counts.
-            "lat_lon_segments": [
-                [
-                    {"time": "2026-06-20T08:00:00", "lat": 40.0, "lon": -3.0},
-                    {"time": "2026-06-20T08:00:10", "lat": 40.01, "lon": -3.0},
-                ]
-            ],
-            "moving_time": 10.0,
-            "hr_waypoints": [],
-            "cad_waypoints": [],
-            "ele_waypoints": [],
-            "power_waypoints": [],
-            "vel_waypoints": [],
-            "pace_waypoints": [],
-        }
-
-        with (
-            patch("tcxreader.TCXReader") as mock_reader_class,
-            patch(
-                "modules.activities.activity_file_import.tcx_parser._extract_waypoints",
-                return_value=fake_waypoints,
-            ),
-            patch(
-                "modules.activities.activity_file_import.tcx_parser.activity_file_import_parser_utils.resolve_timezone_from_lat_lon",
-                return_value="UTC",
-            ),
-        ):
-            mock_reader_class.return_value.read.return_value = mock_tcx
-
-            result = tcx_parser.parse_tcx_file(file="dummy.tcx", user_id=MOCK_USER_ID, default_timezone=_SERVER_TZ)
-
-        # ~0.01 deg of latitude ≈ 1.1 km; the ~1.1 km pause hop is excluded.
+        # ~0.01 deg of latitude is about 1.1 km; the ~1.1 km pause hop is excluded.
         assert 1000 < result["activity"].distance < 1200
 
-    def test_parse_tcx_file_distance_fallback_is_zero_when_pause_leaves_no_segment(self):
-        """Two GPS points split by a pause form no segment, so the fallback distance is 0."""
-        dt_start = datetime(2026, 6, 20, 8, 0, 0, tzinfo=UTC)
-        dt_end = dt_start + timedelta(seconds=20)
+    def test_parse_tcx_file_distance_fallback_is_zero_when_pause_leaves_no_segment(self, tmp_path):
+        """GPS points that every pause separates form no segment, so the fallback distance is 0."""
+        points = "".join(_tp(20 * i, lat=40.0 + 0.01 * i, lon=-3.0) for i in range(3))
 
-        mock_tcx = SimpleNamespace(
-            activity_type="Running",
-            distance=None,
-            start_time=dt_start,
-            end_time=dt_end,
-            ascent=None,
-            descent=None,
-            hr_avg=None,
-            hr_max=None,
-            cadence_avg=None,
-            cadence_max=None,
-            calories=None,
-            laps=[],
-            trackpoints=[],
+        result = tcx_parser.parse_tcx_file(
+            file=_write_tcx(tmp_path, points), user_id=MOCK_USER_ID, default_timezone=_SERVER_TZ
         )
-        trackpoints = [
-            {"time": dt_start, "latitude": 40.0, "longitude": -3.0},
-            {"time": dt_end, "latitude": 40.01, "longitude": -3.0},
-        ]
-        mock_tcx.trackpoints_to_dict = lambda: trackpoints
-
-        with (
-            patch("tcxreader.TCXReader") as mock_reader_class,
-            patch(
-                "modules.activities.activity_file_import.tcx_parser.activity_file_import_parser_utils.resolve_timezone_from_lat_lon",
-                return_value="UTC",
-            ),
-        ):
-            mock_reader_class.return_value.read.return_value = mock_tcx
-
-            result = tcx_parser.parse_tcx_file(file="dummy.tcx", user_id=MOCK_USER_ID, default_timezone=_SERVER_TZ)
 
         assert result["activity"].distance == 0
 
@@ -620,65 +385,12 @@ class TestUtilsTcx:
         assert activity.total_elapsed_time == 3600
         assert activity.total_timer_time == 3600
 
-    def test_parse_tcx_file_keeps_reported_distance_when_present(self):
-        """A real tcx_file.distance is used as-is, ignoring the GPS fallback."""
-        dt_start = datetime(2026, 6, 20, 8, 20, 3, tzinfo=UTC)
-        dt_end = datetime(2026, 6, 20, 8, 25, 3, tzinfo=UTC)
+    def test_parse_tcx_file_keeps_reported_distance_when_present(self, tmp_path):
+        """A reported lap distance is used as-is, ignoring the GPS fallback."""
+        points = "".join(_tp(10 * i, lat=40.0 + 0.01 * i / 30, lon=-3.0) for i in range(31))
+        file = _write_tcx(tmp_path, points, lap_distance=5000)
 
-        mock_tcx = SimpleNamespace(
-            activity_type="Running",
-            distance=5000.0,
-            start_time=dt_start,
-            end_time=dt_end,
-            ascent=None,
-            descent=None,
-            hr_avg=None,
-            hr_max=None,
-            cadence_avg=None,
-            cadence_max=None,
-            calories=None,
-            laps=[],
-            trackpoints=[],
-        )
-        trackpoints = [
-            {"time": dt_start, "latitude": 40.0, "longitude": -3.0},
-            {"time": dt_end, "latitude": 40.01, "longitude": -3.0},
-        ]
-        mock_tcx.trackpoints_to_dict = lambda: trackpoints
-
-        fake_waypoints = {
-            "lat_lon_waypoints": [
-                {"time": "2026-06-20T08:20:03", "lat": 40.0, "lon": -3.0},
-                {"time": "2026-06-20T08:25:03", "lat": 40.01, "lon": -3.0},
-            ],
-            "lat_lon_segments": [
-                [
-                    {"time": "2026-06-20T08:20:03", "lat": 40.0, "lon": -3.0},
-                    {"time": "2026-06-20T08:25:03", "lat": 40.01, "lon": -3.0},
-                ]
-            ],
-            "hr_waypoints": [],
-            "cad_waypoints": [],
-            "ele_waypoints": [],
-            "power_waypoints": [],
-            "vel_waypoints": [],
-            "pace_waypoints": [],
-        }
-
-        with (
-            patch("tcxreader.TCXReader") as mock_reader_class,
-            patch(
-                "modules.activities.activity_file_import.tcx_parser._extract_waypoints",
-                return_value=fake_waypoints,
-            ),
-            patch(
-                "modules.activities.activity_file_import.tcx_parser.activity_file_import_parser_utils.resolve_timezone_from_lat_lon",
-                return_value="UTC",
-            ),
-        ):
-            mock_reader_class.return_value.read.return_value = mock_tcx
-
-            result = tcx_parser.parse_tcx_file(file="dummy.tcx", user_id=MOCK_USER_ID, default_timezone=_SERVER_TZ)
+        result = tcx_parser.parse_tcx_file(file=file, user_id=MOCK_USER_ID, default_timezone=_SERVER_TZ)
 
         assert result["activity"].distance == 5000
 
@@ -715,11 +427,7 @@ class TestUtilsTcx:
             encoding="utf-8",
         )
 
-        with patch(
-            "modules.activities.activity_file_import.tcx_parser.activity_file_import_parser_utils.resolve_timezone_from_lat_lon",
-            return_value="UTC",
-        ):
-            return tcx_parser.parse_tcx_file(file=str(tcx_path), user_id=MOCK_USER_ID, default_timezone=_SERVER_TZ)
+        return tcx_parser.parse_tcx_file(file=str(tcx_path), user_id=MOCK_USER_ID, default_timezone=_SERVER_TZ)
 
     def test_parse_tcx_file_doubles_run_cadence_only_running_file(self, tmp_path):
         """A running TCX with cadence only in TPX RunCadence derives and doubles it to spm."""
@@ -864,123 +572,46 @@ class TestParseTcxFileElevation:
     """Activity-level elevation from the smoothed stream."""
 
     @staticmethod
-    def _run_parse(mock_tcx, fake_waypoints):
-        with (
-            patch("tcxreader.TCXReader") as mock_reader_class,
-            patch(
-                "modules.activities.activity_file_import.tcx_parser._extract_waypoints",
-                return_value=fake_waypoints,
-            ),
-        ):
-            mock_reader_class.return_value.read.return_value = mock_tcx
-            return tcx_parser.parse_tcx_file(file="dummy.tcx", user_id=MOCK_USER_ID, default_timezone=_SERVER_TZ)
-
-    @staticmethod
-    def _mock_tcx(**overrides):
-        defaults = dict(
-            activity_type="Biking",
-            distance=5000.0,
-            start_time=datetime(2026, 6, 20, 8, 0, 0, tzinfo=UTC),
-            end_time=datetime(2026, 6, 20, 9, 0, 0, tzinfo=UTC),
-            ascent=None,
-            descent=None,
-            hr_avg=None,
-            hr_max=None,
-            cadence_avg=None,
-            cadence_max=None,
-            calories=None,
-            laps=[],
-            trackpoints=[],
+    def _parse(tmp_path, elevations):
+        points = "".join(_tp(10 * i, lat=40.0 + 0.0001 * i, lon=-3.0, ele=ele) for i, ele in enumerate(elevations))
+        return tcx_parser.parse_tcx_file(
+            file=_write_tcx(tmp_path, points, sport="Biking"), user_id=MOCK_USER_ID, default_timezone=_SERVER_TZ
         )
-        defaults.update(overrides)
-        mock_tcx = SimpleNamespace(**defaults)
-        mock_tcx.trackpoints_to_dict = lambda: []
-        return mock_tcx
 
-    @staticmethod
-    def _fake_waypoints(ele_waypoints):
-        return {
-            "lat_lon_waypoints": [],
-            "lat_lon_segments": [],
-            "hr_waypoints": [],
-            "cad_waypoints": [],
-            "ele_waypoints": ele_waypoints,
-            "power_waypoints": [],
-            "vel_waypoints": [],
-            "pace_waypoints": [],
-        }
-
-    def test_activity_elevation_from_smoothed_stream(self):
-        """Activity gain uses the smoothed stream, ignoring tcx_file.ascent."""
-        start = datetime(2026, 6, 20, 8, 0, 0, tzinfo=UTC)
-        ele_waypoints = [
-            {
-                "time": (start + timedelta(seconds=10 * i)).strftime("%Y-%m-%dT%H:%M:%S"),
-                "ele": 100.0 + i,
-            }
-            for i in range(31)
-        ]
-        mock_tcx = self._mock_tcx(ascent=429.0, descent=441.0)
-
-        result = self._run_parse(mock_tcx, self._fake_waypoints(ele_waypoints))
+    def test_activity_elevation_from_smoothed_stream(self, tmp_path):
+        """Activity gain uses the smoothed stream."""
+        result = self._parse(tmp_path, [100.0 + i for i in range(31)])
 
         activity = result["activity"]
-        expected_gain, expected_loss = activities_computation.compute_elevation_gain_and_loss(ele_waypoints)
+        expected_gain, expected_loss = activities_computation.compute_elevation_gain_and_loss(result["ele_waypoints"])
         assert activity.elevation_gain == round(expected_gain) > 0
         assert activity.elevation_loss == round(expected_loss) == 0
 
-    def test_no_altitude_keeps_elevation_none(self):
+    def test_no_altitude_keeps_elevation_none(self, tmp_path):
         """Without altitude data elevation gain/loss stay None."""
-        mock_tcx = self._mock_tcx()
-
-        result = self._run_parse(mock_tcx, self._fake_waypoints([]))
+        result = self._parse(tmp_path, [None] * 31)
 
         activity = result["activity"]
         assert activity.elevation_gain is None
         assert activity.elevation_loss is None
 
-    def test_flat_altitude_stores_zero(self):
+    def test_flat_altitude_stores_zero(self, tmp_path):
         """A flat altitude stream stores 0 m gain/loss, not None."""
-        start = datetime(2026, 6, 20, 8, 0, 0, tzinfo=UTC)
-        ele_waypoints = [
-            {
-                "time": (start + timedelta(seconds=10 * i)).strftime("%Y-%m-%dT%H:%M:%S"),
-                "ele": 100.0,
-            }
-            for i in range(31)
-        ]
-        mock_tcx = self._mock_tcx()
-
-        result = self._run_parse(mock_tcx, self._fake_waypoints(ele_waypoints))
+        result = self._parse(tmp_path, [100.0] * 31)
 
         activity = result["activity"]
         assert activity.elevation_gain == 0
         assert activity.elevation_loss == 0
 
-    def test_trackpoints_without_altitude_are_skipped(self):
-        """Trackpoints whose elevation is None stay out of the elevation stream."""
-        start = datetime(2026, 6, 20, 8, 0, 0, tzinfo=UTC)
-        trackpoints = [
-            {
-                "time": start + timedelta(seconds=10 * i),
-                "latitude": 40.0 + i * 0.001,
-                "longitude": -3.0,
-                "elevation": None if i % 3 == 0 else 100.0 + i,
-            }
-            for i in range(30)
-        ]
-        mock_tcx = self._mock_tcx(trackpoints=[SimpleNamespace(time=tp["time"], tpx_ext={}) for tp in trackpoints])
-        mock_tcx.trackpoints_to_dict = lambda: trackpoints
+    def test_trackpoints_without_altitude_are_skipped(self, tmp_path):
+        """Trackpoints that carry no altitude stay out of the elevation stream."""
+        points = "".join(
+            _tp(10 * i, lat=40.0 + i * 0.001, lon=-3.0, ele=None if i % 3 == 0 else 100.0 + i) for i in range(30)
+        )
 
-        with (
-            patch("tcxreader.TCXReader") as mock_reader_class,
-            patch(
-                "modules.activities.activity_file_import.tcx_parser.activity_file_import_parser_utils.resolve_timezone_from_lat_lon",
-                return_value="UTC",
-            ),
-        ):
-            mock_reader_class.return_value.read.return_value = mock_tcx
-            result = tcx_parser.parse_tcx_file(file="dummy.tcx", user_id=MOCK_USER_ID, default_timezone=_SERVER_TZ)
+        result = tcx_parser.parse_tcx_file(
+            file=_write_tcx(tmp_path, points), user_id=MOCK_USER_ID, default_timezone=_SERVER_TZ
+        )
 
         assert len(result["ele_waypoints"]) == 20
         assert all(wp["ele"] is not None for wp in result["ele_waypoints"])
@@ -1006,49 +637,63 @@ class TestMalformedTcxFile:
     def test_a_file_the_parser_chokes_on_is_rejected_as_invalid_input(self, tmp_path):
         """The same bytes fail the same way every time, so retrying such a file is wasted work."""
         path = tmp_path / "odd.tcx"
-        path.write_text("<TrainingCenterDatabase/>")
+        path.write_text(
+            '<TrainingCenterDatabase xmlns="http://www.garmin.com/xmlschemas/TrainingCenterDatabase/v2">'
+            "<Activities><Activity><Id>2026-06-20T08:00:00Z</Id>"  # an activity without its Sport
+            '<Lap StartTime="2026-06-20T08:00:00Z"><TotalTimeSeconds>5</TotalTimeSeconds><Track>'
+            "<Trackpoint><Time>2026-06-20T08:00:00Z</Time></Trackpoint>"
+            "<Trackpoint><Time>2026-06-20T08:00:10Z</Time></Trackpoint>"
+            "</Track></Lap></Activity></Activities></TrainingCenterDatabase>"
+        )
 
-        with (
-            patch.object(tcx_parser.tcxreader, "TCXReader", side_effect=KeyError("Lap")),
-            pytest.raises(core_exceptions.InvalidInputError),
-        ):
+        with pytest.raises(core_exceptions.InvalidInputError):
             tcx_parser.parse_tcx_file(file=str(path), user_id=MOCK_USER_ID, default_timezone=_SERVER_TZ)
 
 
-def _write_tcx(tmp_path, trackpoints: str) -> str:
-    """Write a single-lap running TCX with the given <Trackpoint> elements and return its path."""
+_T0 = datetime(2026, 6, 20, 8, 0, 0, tzinfo=UTC)
+
+
+def _tp(
+    seconds: int,
+    *,
+    lat: float | None = None,
+    lon: float | None = None,
+    ele: float | None = None,
+    hr: int | None = None,
+) -> str:
+    """Return one <Trackpoint> recorded ``seconds`` after the start of the activity."""
+    when = (_T0 + timedelta(seconds=seconds)).strftime("%Y-%m-%dT%H:%M:%SZ")
+    position = (
+        f"<Position><LatitudeDegrees>{lat}</LatitudeDegrees><LongitudeDegrees>{lon}</LongitudeDegrees></Position>"
+        if lat is not None and lon is not None
+        else ""
+    )
+    altitude = f"<AltitudeMeters>{ele}</AltitudeMeters>" if ele is not None else ""
+    heart_rate = f"<HeartRateBpm><Value>{hr}</Value></HeartRateBpm>" if hr is not None else ""
+    return f"<Trackpoint><Time>{when}</Time>{position}{altitude}{heart_rate}</Trackpoint>"
+
+
+def _write_tcx(
+    tmp_path,
+    trackpoints: str,
+    *,
+    sport: str = "Running",
+    lap_distance: float | None = None,
+    lap_seconds: int = 180,
+) -> str:
+    """Write a single-lap TCX with the given <Trackpoint> elements and return its path."""
     path = tmp_path / "activity.tcx"
+    distance = f"<DistanceMeters>{lap_distance}</DistanceMeters>" if lap_distance is not None else ""
     path.write_text(
         '<?xml version="1.0" encoding="UTF-8"?>'
         '<TrainingCenterDatabase xmlns="http://www.garmin.com/xmlschemas/TrainingCenterDatabase/v2">'
-        '<Activities><Activity Sport="Running"><Id>2026-06-20T08:00:00Z</Id>'
-        '<Lap StartTime="2026-06-20T08:00:00Z"><TotalTimeSeconds>180</TotalTimeSeconds>'
-        f"<DistanceMeters>500</DistanceMeters><Track>{trackpoints}</Track></Lap>"
+        f'<Activities><Activity Sport="{sport}"><Id>2026-06-20T08:00:00Z</Id>'
+        f'<Lap StartTime="2026-06-20T08:00:00Z"><TotalTimeSeconds>{lap_seconds}</TotalTimeSeconds>'
+        f"{distance}<Track>{trackpoints}</Track></Lap>"
         "</Activity></Activities></TrainingCenterDatabase>",
         encoding="utf-8",
     )
     return str(path)
-
-
-def _gps_less_tcx(trackpoints: list[dict]) -> SimpleNamespace:
-    """Build a tcxreader-like TCX whose trackpoints carry no <Position>."""
-    tcx = SimpleNamespace(
-        activity_type="Running",
-        distance=None,
-        start_time=datetime(2026, 6, 20, 8, 0, 0, tzinfo=UTC),
-        end_time=datetime(2026, 6, 20, 9, 0, 0, tzinfo=UTC),
-        ascent=None,
-        descent=None,
-        hr_avg=None,
-        hr_max=None,
-        cadence_avg=None,
-        cadence_max=None,
-        calories=None,
-        laps=[],
-        trackpoints=[],
-    )
-    tcx.trackpoints_to_dict = lambda: trackpoints
-    return tcx
 
 
 class TestTcxWithoutGps:
@@ -1104,47 +749,25 @@ class TestTcxWithoutGps:
         # 0.0005 deg of latitude is ~55.6 m, covered in the 10 s since the point at 10 s.
         assert waypoints["vel_waypoints"][3]["vel"] == pytest.approx(55.6 / 10, rel=0.01)
 
-    def test_parse_tcx_file_without_gps_uses_default_timezone(self):
-        trackpoints = [
-            {"time": datetime(2026, 6, 20, 8, 0, 0, tzinfo=UTC), "latitude": None, "longitude": None, "hr_value": 120},
-            {"time": datetime(2026, 6, 20, 9, 0, 0, tzinfo=UTC), "latitude": None, "longitude": None, "hr_value": 140},
-        ]
+    def test_parse_tcx_file_without_gps_uses_default_timezone(self, tmp_path):
+        points = _tp(0, hr=120) + _tp(1800, hr=130) + _tp(3600, hr=140)
 
-        with (
-            patch("tcxreader.TCXReader") as mock_reader_class,
-            patch(
-                "modules.activities.activity_file_import.tcx_parser.activity_file_import_parser_utils.resolve_timezone_from_lat_lon",
-            ) as mock_resolve_timezone,
-        ):
-            mock_reader_class.return_value.read.return_value = _gps_less_tcx(trackpoints)
-
-            result = tcx_parser.parse_tcx_file(file="dummy.tcx", user_id=MOCK_USER_ID, default_timezone="Europe/Lisbon")
+        result = tcx_parser.parse_tcx_file(
+            file=_write_tcx(tmp_path, points), user_id=MOCK_USER_ID, default_timezone="Europe/Lisbon"
+        )
 
         assert result["is_lat_lon_set"] is False
         assert result["lat_lon_waypoints"] == []
         assert result["is_heart_rate_set"] is True
         assert result["activity"].timezone == "Europe/Lisbon"
-        mock_resolve_timezone.assert_not_called()
 
-    def test_parse_tcx_file_resolves_timezone_from_first_positioned_point(self):
-        trackpoints = [
-            {"time": datetime(2026, 6, 20, 8, 0, 0, tzinfo=UTC), "latitude": None, "longitude": None},
-            {"time": datetime(2026, 6, 20, 8, 30, 0, tzinfo=UTC), "latitude": 40.0, "longitude": -3.0},
-            {"time": datetime(2026, 6, 20, 9, 0, 0, tzinfo=UTC), "latitude": 40.01, "longitude": -3.0},
-        ]
+    def test_parse_tcx_file_resolves_timezone_from_first_positioned_point(self, tmp_path):
+        points = _tp(0) + _tp(1800, lat=40.0, lon=-3.0) + _tp(3600, lat=40.01, lon=-3.0)
 
-        with (
-            patch("tcxreader.TCXReader") as mock_reader_class,
-            patch(
-                "modules.activities.activity_file_import.tcx_parser.activity_file_import_parser_utils.resolve_timezone_from_lat_lon",
-                return_value="Europe/Madrid",
-            ) as mock_resolve_timezone,
-        ):
-            mock_reader_class.return_value.read.return_value = _gps_less_tcx(trackpoints)
+        result = tcx_parser.parse_tcx_file(
+            file=_write_tcx(tmp_path, points), user_id=MOCK_USER_ID, default_timezone=_SERVER_TZ
+        )
 
-            result = tcx_parser.parse_tcx_file(file="dummy.tcx", user_id=MOCK_USER_ID, default_timezone=_SERVER_TZ)
-
-        mock_resolve_timezone.assert_called_once_with(40.0, -3.0, _SERVER_TZ)
         assert result["activity"].timezone == "Europe/Madrid"
 
     def test_parse_tcx_file_reads_real_gps_less_file(self, tmp_path):
@@ -1177,11 +800,7 @@ class TestTcxWithoutGps:
         )
         file = _write_tcx(tmp_path, trackpoints)
 
-        with patch(
-            "modules.activities.activity_file_import.tcx_parser.activity_file_import_parser_utils.resolve_timezone_from_lat_lon",
-            return_value="Europe/Madrid",
-        ):
-            result = tcx_parser.parse_tcx_file(file=file, user_id=MOCK_USER_ID, default_timezone="Europe/Lisbon")
+        result = tcx_parser.parse_tcx_file(file=file, user_id=MOCK_USER_ID, default_timezone="Europe/Lisbon")
 
         activity = result["activity"]
         assert activity.start_time == datetime(2026, 6, 20, 8, 0, 0, tzinfo=UTC)
@@ -1197,11 +816,7 @@ class TestTcxWithoutGps:
         )
         file = _write_tcx(tmp_path, trackpoints)
 
-        with patch(
-            "modules.activities.activity_file_import.tcx_parser.activity_file_import_parser_utils.resolve_timezone_from_lat_lon",
-            return_value="Europe/Madrid",
-        ):
-            result = tcx_parser.parse_tcx_file(file=file, user_id=MOCK_USER_ID, default_timezone=_SERVER_TZ)
+        result = tcx_parser.parse_tcx_file(file=file, user_id=MOCK_USER_ID, default_timezone=_SERVER_TZ)
 
         assert result["activity"].start_time == datetime(2026, 6, 20, 8, 1, 0, tzinfo=UTC)
         assert result["is_lat_lon_set"] is True

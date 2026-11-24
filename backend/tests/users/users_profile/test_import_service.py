@@ -1,1058 +1,524 @@
-"""Tests for profile data import service."""
+"""The profile import on the real database: what an archive may write, what it is refused for, and what a failure
+leaves behind."""
 
-import contextlib
-import json
-import uuid
-import zipfile
-from datetime import timedelta
-from io import BytesIO
-from typing import Any
-from unittest.mock import MagicMock, patch
+import io
 
 import pytest
-from sqlalchemy.orm import Session
+from PIL import Image
+from sqlalchemy import select
 
-import core.exceptions as core_exceptions
-import modules.gears.gear.constants as gear_constants
-import modules.gears.gear.integration_service as gear_integration
-import modules.gears.gear_components.constants as gear_components_constants
-import modules.gears.gear_components.integration_service as gear_components_integration
-import modules.users.contributor_registry as users_contributor_registry
-import modules.users.users_profile.contracts as users_profile_contracts
-import modules.users.users_profile.import_service as profile_import_service
-import modules.users.users_profile.utils as profile_utils
-from modules.users.users_profile.exceptions import (
-    ActivityLimitError,
-    FileFormatError,
-    FileSizeError,
-    FileSystemError,
-    ImportAccountMismatchError,
-    ImportArchiveFromOlderVersionError,
-    JSONParseError,
-)
+import modules.auth.identity_provider_links.models as identity_link_models
+import modules.users.users.integration_service as users_integration
+import modules.users.users_default_gear.integration_service as default_gear_integration
+import modules.users.users_goals.crud as goals_crud
+import modules.users.users_integrations.integration_service as integrations_integration
+import modules.users.users_privacy_settings.integration_service as privacy_integration
+import modules.users.users_profile.exceptions as profile_exceptions
+import modules.users.users_profile.import_service as import_service
+from tests._factories.gears import make_gear
+from tests._factories.goals import make_goal
+from tests._factories.profile import archive_of, png, profile_archive
+from tests._factories.users import make_user
 
-_USER_ID = uuid.UUID(int=1)
-_OTHER_ID = uuid.UUID(int=2)
-_ARCHIVED_ID = uuid.UUID(int=3)
-_GOAL_A = uuid.UUID(int=31)
-_GOAL_B = uuid.UUID(int=32)
-_GOAL_C = uuid.UUID(int=33)
+#: The pytest process holds what earlier tests allocated, which the memory limit is not about.
+_ROOMY = {"max_memory_mb": 1_000_000}
 
 
-@contextlib.contextmanager
-def _storage_of(service):
-    """Expose a service's storage provider the way the old runtime patch did."""
-    runtime = MagicMock()
-    runtime.get_active_platform.return_value.storage = service.storage
-    yield runtime
+@pytest.fixture
+def owner(committed_sessions):
+    """A committed user the archives are imported into."""
+    with committed_sessions() as db:
+        created = make_user(db, name="Before", city="Porto", height=170)
+        db.commit()
+    return created
 
 
-@pytest.fixture(autouse=True)
-def _gear_sections():
-    """Register the gear sections the import runs, as composition does."""
-    users_contributor_registry.clear()
-    for key, restore in (
-        (gear_constants.PROFILE_ARCHIVE_KEY, gear_integration.restore_profile_gears),
-        (gear_components_constants.PROFILE_ARCHIVE_KEY, gear_components_integration.restore_profile_gear_components),
-    ):
-        users_contributor_registry.register_profile_section(
-            users_profile_contracts.ProfileRecordsSection(key=key, export=lambda user_id, db: [], restore=restore)
+def _import(committed_sessions, storage, user_id, archive, **config):
+    """Run the import on a session of its own, as the import job does, and return its counts."""
+    settings = {**_ROOMY, **config}
+    with committed_sessions() as db:
+        importer = import_service.ImportService(
+            user_id, storage, db, import_service.ImportPerformanceConfig(**settings)
         )
-    yield
-    users_contributor_registry.clear()
+        return importer.import_from_zip_data(archive)
 
 
-def _reader(service, z: zipfile.ZipFile) -> profile_utils.ZipArchiveReader:
-    """Wrap an open archive the way the import does, with the service's limits."""
-    config = service.performance_config
-    return profile_utils.ZipArchiveReader(
-        z,
-        max_json_bytes=int(config.max_json_mb * 1024 * 1024),
-        max_uncompressed_bytes=int(config.max_uncompressed_mb * 1024 * 1024),
-        max_memory_mb=config.max_memory_mb,
-        enable_memory_monitoring=config.enable_memory_monitoring,
-    )
+@pytest.fixture
+def storage(_publish_local_platform):
+    return _publish_local_platform.storage
 
 
-class TestImportPerformanceConfig:
-    def test_tier_configs(self) -> None:
-        configs = profile_import_service.ImportPerformanceConfig._get_tier_configs()
-        assert "high" in configs
-        assert "medium" in configs
-        assert "low" in configs
-
-    def test_init_defaults(self) -> None:
-        config = profile_import_service.ImportPerformanceConfig()
-        assert config.batch_size == 125
-        assert config.max_memory_mb == 1024
-        assert config.max_file_size_mb == 500
-        assert config.max_json_mb == 128
-
-    def test_get_auto_config(self, monkeypatch) -> None:
-        monkeypatch.setattr(
-            profile_utils,
-            "detect_system_memory_tier",
-            lambda: ("low", 512),
-        )
-        config = profile_import_service.ImportPerformanceConfig.get_auto_config()
-        assert config.batch_size == 50
-
-
-@pytest.fixture(autouse=True)
-def _process_memory_is_not_the_suites(monkeypatch: pytest.MonkeyPatch) -> None:
-    """Read no process memory: the pytest process holds what earlier tests allocated, which these tests are not
-    about."""
-    monkeypatch.setattr("modules.users.users_profile.utils.get_memory_usage_mb", lambda *_args, **_kwargs: 0.0)
-
-
-class TestImportServiceInit:
-    def test_init_creates_service(self) -> None:
-        mock_db = MagicMock(spec=Session)
-        service = profile_import_service.ImportService(user_id=_USER_ID, storage=MagicMock(), db=mock_db)
-        assert service.user_id == _USER_ID
-        assert service.db is mock_db
-
-    def test_init_with_custom_config(self) -> None:
-        mock_db = MagicMock(spec=Session)
-        config = profile_import_service.ImportPerformanceConfig(batch_size=10)
-        service = profile_import_service.ImportService(
-            user_id=_USER_ID,
-            storage=MagicMock(),
-            db=mock_db,
-            performance_config=config,
-        )
-        assert service.performance_config.batch_size == 10
-
-
-def _make_zip_with_json(files: dict[str, object]) -> bytes:
-    buf = BytesIO()
-    with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as z:
-        for name, data in files.items():
-            z.writestr(name, json.dumps(data))
-    return buf.getvalue()
-
-
-class TestImportServiceZipValidation:
-    def test_file_size_exceeds_limit(self) -> None:
-        mock_db = MagicMock(spec=Session)
-        service = profile_import_service.ImportService(
-            user_id=_USER_ID,
-            storage=MagicMock(),
-            db=mock_db,
-        )
-        service.performance_config.max_file_size_mb = 0.001
-
-        with pytest.raises(FileSizeError, match="exceeds maximum"):
-            service.import_from_zip_data(b"x" * 2000)
-
-    def test_bad_zip_format(self) -> None:
-        mock_db = MagicMock(spec=Session)
-        service = profile_import_service.ImportService(
-            user_id=_USER_ID,
-            storage=MagicMock(),
-            db=mock_db,
-        )
-        service.performance_config.max_file_size_mb = 100
-
-        with pytest.raises(FileFormatError, match="Invalid ZIP"):
-            service.import_from_zip_data(b"not-a-zip")
-
-
-class _PastTheCheckError(Exception):
-    """Stands in for the import going on once the account check has passed."""
-
-
-class TestImportServiceAccountCheck:
-    """An archive is imported only into the account it was exported from."""
-
-    def _service(self) -> profile_import_service.ImportService:
-        return profile_import_service.ImportService(user_id=_USER_ID, storage=MagicMock(), db=MagicMock(spec=Session))
-
-    def _run(self, archived: dict[str, str], current: dict[str, str]) -> profile_import_service.ImportService:
-        service = self._service()
-        zip_data = _make_zip_with_json({"data/user.json": [archived], "data/gears.json": [{"nickname": "x"}]})
-        account = MagicMock(**current)
-        with (
-            patch("modules.users.users_profile.import_service.users_integration.require_user", return_value=account),
-            patch.object(service, "collect_and_import_user_data", side_effect=_PastTheCheckError) as gears,
-        ):
-            try:
-                service.import_from_zip_data(zip_data)
-            except ImportAccountMismatchError:
-                gears.assert_not_called()
-                service.db.commit.assert_not_called()
-                raise
-        return service
-
-    def test_an_archive_from_another_account_is_refused_before_anything_is_imported(self) -> None:
-        with pytest.raises(ImportAccountMismatchError):
-            self._run(
-                {"username": "source", "email": "source@example.com"},
-                {"username": "other", "email": "other@example.com"},
-            )
-
-    def test_the_same_account_passes_the_check(self) -> None:
-        with pytest.raises(_PastTheCheckError):
-            self._run(
-                {"username": "Source", "email": "source@example.com"},
-                {"username": "source", "email": "source@example.com"},
-            )
-
-    def test_a_renamed_account_still_matches_by_email(self) -> None:
-        with pytest.raises(_PastTheCheckError):
-            self._run(
-                {"username": "old_name", "email": "me@example.com"},
-                {"username": "new_name", "email": "ME@example.com"},
-            )
-
-    def test_an_archive_with_an_integer_account_id_is_refused_as_from_an_older_version(self) -> None:
-        with pytest.raises(ImportArchiveFromOlderVersionError, match="older Endurain version"):
-            self._run(
-                {"id": 4, "username": "source", "email": "source@example.com"},
-                {"username": "source", "email": "source@example.com"},
-            )
-
-    def test_an_integer_id_is_refused_whatever_the_account_row_says(self) -> None:
-        with pytest.raises(ImportArchiveFromOlderVersionError):
-            self._run({"id": 4}, {"username": "other", "email": "other@example.com"})
-
-    def test_a_uuid_archive_of_another_account_is_refused_as_a_wrong_account(self) -> None:
-        with pytest.raises(ImportAccountMismatchError):
-            self._run(
-                {"id": str(_ARCHIVED_ID), "username": "source", "email": "source@example.com"},
-                {"username": "other", "email": "other@example.com"},
-            )
-
-    def test_a_uuid_archive_of_the_same_account_passes_the_check(self) -> None:
-        with pytest.raises(_PastTheCheckError):
-            self._run(
-                {"id": str(_ARCHIVED_ID), "username": "source", "email": "source@example.com"},
-                {"username": "source", "email": "source@example.com"},
-            )
-
-
-class TestImportServiceArchiveCaps:
-    def _service(self) -> profile_import_service.ImportService:
-        return profile_import_service.ImportService(user_id=_USER_ID, storage=MagicMock(), db=MagicMock(spec=Session))
-
-    def test_an_archive_with_too_many_entries_is_refused_before_anything_is_read(self) -> None:
-        service = self._service()
-        service.performance_config.max_entries = 2
-        zip_data = _make_zip_with_json({f"data/f{i}.json": [] for i in range(3)})
-
-        with pytest.raises(FileSizeError, match="entries"):
-            service.import_from_zip_data(zip_data)
-
-
-class TestImportedRowsLoseTheirIdentity:
-    """An archive's rows carry the exporting account's id, owner and version, which an import must not write."""
-
-    def _service(self) -> profile_import_service.ImportService:
-        return profile_import_service.ImportService(user_id=_USER_ID, storage=MagicMock(), db=MagicMock(spec=Session))
-
-    def test_a_goal_exported_with_its_version_is_still_imported(self) -> None:
-        service = self._service()
+class TestWhatTheArchiveWrites:
+    def test_the_profile_fields_are_applied_and_the_account_keeps_its_name(self, committed_sessions, storage, owner):
         row = {
-            "id": str(uuid.uuid4()),
-            "user_id": str(_ARCHIVED_ID),
-            "version": 4,
-            "interval": "weekly",
-            "activity_type": "run",
-            "goal_type": "calories",
-            "goal_calories": 5000,
+            "username": owner.username,
+            "email": owner.email,
+            "city": "Lisbon",
+            "height": 181,
+            "max_heart_rate": 190,
+            "weight_units": "imperial",
         }
 
-        with patch.object(profile_import_service.users_goals_integration, "create_goal") as create:
-            service.collect_and_import_user_goals([row])
+        counts = _import(committed_sessions, storage, owner.id, archive_of({"data/user.json": [row]}))
 
-        create.assert_called_once()
-        assert service.counts["user_goals"] == 1
+        with committed_sessions() as db:
+            stored = users_integration.require_user(owner.id, db)
+        assert counts["user"] == 1
+        assert (stored.city, stored.height, stored.max_heart_rate) == ("Lisbon", 181, 190)
+        assert stored.weight_units == "imperial"
+        assert (stored.username, stored.email) == (owner.username, owner.email)
 
-    def test_privacy_settings_exported_with_their_version_are_still_imported(self) -> None:
-        service = self._service()
-        row = {"id": str(uuid.uuid4()), "user_id": str(_ARCHIVED_ID), "version": 4, "hide_activity_map": True}
+    def test_privileged_fields_in_a_crafted_archive_are_dropped(self, committed_sessions, storage, owner):
+        row = {
+            "username": owner.username,
+            "city": "Faro",
+            "access_type": "admin",
+            "active": False,
+            "email_verified": False,
+            "pending_admin_approval": True,
+            "id": "00000000-0000-4000-8000-000000000001",
+        }
 
-        with patch.object(profile_import_service.users_privacy_settings_integration, "edit_privacy_settings") as edit:
-            service.collect_and_import_user_privacy_settings([row])
+        _import(committed_sessions, storage, owner.id, archive_of({"data/user.json": [row]}))
 
-        edit.assert_called_once()
-        assert service.counts["user_privacy_settings"] == 1
+        with committed_sessions() as db:
+            stored = users_integration.require_user(owner.id, db)
+        assert stored.city == "Faro"
+        assert (stored.access_type, stored.active, stored.email_verified) == ("regular", True, True)
+        assert stored.pending_admin_approval is False
 
-    def test_the_discoverable_choice_is_imported_and_an_old_archive_without_it_leaves_it_alone(self) -> None:
-        service = self._service()
-
-        with patch.object(profile_import_service.users_privacy_settings_integration, "edit_privacy_settings") as edit:
-            service.collect_and_import_user_privacy_settings([{"discoverable": False}])
-            service.collect_and_import_user_privacy_settings([{"hide_activity_map": True}])
-
-        imported, old_archive = (call.args[1] for call in edit.call_args_list)
-        assert imported.model_dump(exclude_unset=True) == {"discoverable": False}
-        assert "discoverable" not in old_archive.model_dump(exclude_unset=True)
-
-
-class TestImportServiceUserData:
-    def test_import_user_default_gear_empty(self) -> None:
-        service = profile_import_service.ImportService(
-            user_id=_USER_ID, storage=MagicMock(), db=MagicMock(spec=Session)
+    def test_the_settings_import_even_without_a_profile_row(self, committed_sessions, storage, owner):
+        archive = archive_of(
+            {
+                "data/user_privacy_settings.json": [{"hide_activity_map": True}],
+                "data/user_integrations.json": [{"strava_sync_gear": True}],
+            }
         )
-        with patch(
-            "modules.users.users_profile.import_service.users_default_gear_integration.restore_profile_default_gear"
-        ) as restore:
-            service.import_user_default_gear([], {})
-        restore.assert_not_called()
-        assert service.counts["user_default_gear"] == 0
 
-    def test_import_user_default_gear_counts_a_staged_record(self) -> None:
-        mock_db = MagicMock(spec=Session)
-        service = profile_import_service.ImportService(user_id=_USER_ID, storage=MagicMock(), db=mock_db)
-        archived = uuid.uuid4()
-        ids = {"gears": {archived: uuid.uuid4()}}
-        with patch(
-            "modules.users.users_profile.import_service.users_default_gear_integration.restore_profile_default_gear",
-            return_value=True,
-        ) as restore:
-            service.import_user_default_gear([{"run_gear_id": str(archived)}], ids)
-        restore.assert_called_once_with({"run_gear_id": str(archived)}, ids, _USER_ID, mock_db)
-        assert service.counts["user_default_gear"] == 1
+        counts = _import(committed_sessions, storage, owner.id, archive)
 
-    def test_import_user_default_gear_does_not_count_a_skipped_record(self) -> None:
-        service = profile_import_service.ImportService(
-            user_id=_USER_ID, storage=MagicMock(), db=MagicMock(spec=Session)
-        )
-        with patch(
-            "modules.users.users_profile.import_service.users_default_gear_integration.restore_profile_default_gear",
-            return_value=False,
-        ):
-            service.import_user_default_gear([{"unknown_field": 1}], {})
-        assert service.counts["user_default_gear"] == 0
+        assert (counts["user"], counts["user_privacy_settings"], counts["user_integrations"]) == (0, 1, 1)
 
-    def test_collect_and_import_user_integrations_empty(self) -> None:
-        mock_db = MagicMock(spec=Session)
-        service = profile_import_service.ImportService(
-            user_id=_USER_ID,
-            storage=MagicMock(),
-            db=mock_db,
-        )
-        service.collect_and_import_user_integrations([])
-        assert service.counts.get("user_integrations", 0) == 0
-
-    def test_goals_the_user_already_has_or_that_are_invalid_are_skipped(self) -> None:
-        service = profile_import_service.ImportService(
-            user_id=_USER_ID, storage=MagicMock(), db=MagicMock(spec=Session)
-        )
+    def test_goals_keep_their_archive_order_and_skip_invalid_and_existing_ones(
+        self, committed_sessions, storage, owner
+    ):
+        with committed_sessions() as db:
+            make_goal(db, owner.id, interval="daily", goal_distance=1000)
+            db.commit()
         goals = [
             {
-                "id": str(_GOAL_A),
+                "id": "x",
+                "version": 9,
                 "interval": "weekly",
                 "activity_type": "run",
                 "goal_type": "distance",
                 "goal_distance": 5000,
             },
-            {"id": str(_GOAL_B), "interval": "nonsense"},
-            {
-                "id": str(_GOAL_C),
-                "interval": "daily",
-                "activity_type": "run",
-                "goal_type": "distance",
-                "goal_distance": 100,
-            },
+            {"interval": "daily", "activity_type": "run", "goal_type": "distance", "goal_distance": 7777},
+            {"interval": "hourly", "activity_type": "run", "goal_type": "distance", "goal_distance": 1},
+            {"interval": "monthly", "activity_type": "bike", "goal_type": "calories", "goal_calories": 900},
         ]
-        with patch(
-            "modules.users.users_profile.import_service.users_goals_integration.create_goal",
-            side_effect=[None, core_exceptions.ConflictError("exists")],
-        ) as create:
-            service.collect_and_import_user_goals(goals)
 
-        assert create.call_count == 2
-        assert service.counts["user_goals"] == 1
+        counts = _import(committed_sessions, storage, owner.id, profile_archive(owner, user_goals=goals))
 
-    def test_goals_keep_their_archive_order(self) -> None:
-        service = profile_import_service.ImportService(
-            user_id=_USER_ID, storage=MagicMock(), db=MagicMock(spec=Session)
-        )
-        goals = [
-            {"interval": "daily", "activity_type": "run", "goal_type": "distance", "goal_distance": 100},
-            {"interval": "weekly", "activity_type": "run", "goal_type": "distance", "goal_distance": 200},
-            {"interval": "monthly", "activity_type": "run", "goal_type": "distance", "goal_distance": 300},
+        with committed_sessions() as db:
+            stored = goals_crud.get_user_goals_page(owner.id, db, limit=10, offset=0)
+        assert counts["user_goals"] == 2
+        assert [(g.interval, g.activity_type) for g in stored] == [
+            ("daily", "run"),
+            ("weekly", "run"),
+            ("monthly", "bike"),
         ]
-        with patch.object(profile_import_service.users_goals_integration, "create_goal") as create:
-            service.collect_and_import_user_goals(goals)
+        assert stored[0].goal_distance == 1000
 
-        stamps = [call.kwargs["created_at"] for call in create.call_args_list]
-        assert [call.args[1].interval for call in create.call_args_list] == ["daily", "weekly", "monthly"]
-        assert stamps == sorted(stamps)
-        assert len(set(stamps)) == 3
-        assert stamps[1] - stamps[0] == timedelta(microseconds=1)
-
-    def test_invalid_singleton_settings_are_skipped_not_fatal(self) -> None:
-        service = profile_import_service.ImportService(
-            user_id=_USER_ID, storage=MagicMock(), db=MagicMock(spec=Session)
-        )
-        base = "modules.users.users_profile.import_service"
-        with (
-            patch(f"{base}.users_privacy_settings_integration.edit_privacy_settings") as privacy,
-            patch(f"{base}.user_integrations_integration.edit_integrations") as integrations,
-        ):
-            service.collect_and_import_user_privacy_settings([{"default_activity_visibility": "bogus"}])
-            service.collect_and_import_user_integrations([{"strava_sync_gear": "not-a-bool"}])
-
-        privacy.assert_not_called()
-        integrations.assert_not_called()
-        assert service.counts["user_privacy_settings"] == 0
-
-    def test_collect_and_import_user_goals_empty(self) -> None:
-        mock_db = MagicMock(spec=Session)
-        service = profile_import_service.ImportService(
-            user_id=_USER_ID,
-            storage=MagicMock(),
-            db=mock_db,
-        )
-        service.collect_and_import_user_goals([])
-        assert service.counts.get("user_goals", 0) == 0
-
-    def test_collect_and_import_user_privacy_settings_empty(self) -> None:
-        mock_db = MagicMock(spec=Session)
-        service = profile_import_service.ImportService(
-            user_id=_USER_ID,
-            storage=MagicMock(),
-            db=mock_db,
-        )
-        service.collect_and_import_user_privacy_settings([])
-        assert service.counts.get("user_privacy_settings", 0) == 0
-
-    def test_collect_and_import_user_data(self) -> None:
-        mock_db = MagicMock(spec=Session)
-        service = profile_import_service.ImportService(
-            user_id=_USER_ID,
-            storage=MagicMock(),
-            db=mock_db,
-        )
-
-        with (
-            patch(
-                "modules.users.users_profile.import_service.users_integration.edit_profile",
-            ),
-            patch.object(service, "collect_and_import_user_goals"),
-            patch.object(service, "collect_and_import_user_integrations"),
-            patch.object(service, "collect_and_import_user_privacy_settings"),
-        ):
-            service.collect_and_import_user_data(
-                [{"photo_path": "data/user_images/old_user.jpg"}],
-                [],
-                [],
-                [],
+    def test_privacy_settings_import_without_their_version_and_an_old_archive_leaves_discovery_alone(
+        self, committed_sessions, storage, owner
+    ):
+        with committed_sessions() as db:
+            privacy_integration.edit_privacy_settings(
+                owner.id,
+                privacy_integration.users_privacy_settings_schema.UserPrivacySettingsUpdate(discoverable=False),
+                db,
+                if_match="*",
             )
+            db.commit()
+        settings = [{"id": "x", "version": 5, "hide_activity_hr": True, "default_activity_visibility": "followers"}]
 
-        assert service.counts["user"] == 1
+        counts = _import(committed_sessions, storage, owner.id, profile_archive(owner, user_privacy_settings=settings))
 
-    def _imported_profile(self, user_row: dict[str, Any]) -> Any:
-        """Imports one archived user row and returns the profile update it staged."""
-        service = profile_import_service.ImportService(
-            user_id=_USER_ID, storage=MagicMock(), db=MagicMock(spec=Session)
-        )
-        with (
-            patch("modules.users.users_profile.import_service.users_integration.edit_profile") as mock_edit,
-            patch.object(service, "collect_and_import_user_goals"),
-            patch.object(service, "collect_and_import_user_integrations"),
-            patch.object(service, "collect_and_import_user_privacy_settings"),
-        ):
-            service.collect_and_import_user_data([user_row], [], [], [])
-        return mock_edit.call_args.args[1]
-
-    def test_an_archive_never_renames_the_account(self) -> None:
-        profile = self._imported_profile({"username": "someone_else", "city": "Porto"})
-
-        assert profile.model_dump(exclude_unset=True) == {"city": "Porto"}
-
-    def test_an_archive_carries_the_weight_units_override_over(self) -> None:
-        profile = self._imported_profile({"units": "metric", "weight_units": "imperial"})
-
-        assert profile.model_dump(exclude_unset=True) == {"units": "metric", "weight_units": "imperial"}
-
-    def test_an_archive_without_weight_units_leaves_the_override_untouched(self) -> None:
-        profile = self._imported_profile({"units": "imperial"})
-
-        assert "weight_units" not in profile.model_fields_set
-
-    def test_collect_and_import_user_data_empty_still_imports_sub_settings(self) -> None:
-        mock_db = MagicMock(spec=Session)
-        service = profile_import_service.ImportService(
-            user_id=_USER_ID,
-            storage=MagicMock(),
-            db=mock_db,
+        with committed_sessions() as db:
+            stored = privacy_integration.get_privacy_settings(owner.id, db)
+        assert counts["user_privacy_settings"] == 1
+        assert stored is not None
+        assert (stored.hide_activity_hr, stored.default_activity_visibility, stored.discoverable) == (
+            True,
+            "followers",
+            False,
         )
 
-        with (
-            patch.object(service, "collect_and_import_user_goals") as mock_goals,
-            patch.object(service, "collect_and_import_user_integrations") as mock_int,
-            patch.object(service, "collect_and_import_user_privacy_settings") as mock_priv,
-        ):
-            service.collect_and_import_user_data([], [], [], [])
-
-        assert service.counts.get("user", 0) == 0
-        mock_goals.assert_called_once()
-        mock_int.assert_called_once()
-        mock_priv.assert_called_once()
-
-    def test_collect_and_import_user_integrations(self) -> None:
-        mock_db = MagicMock(spec=Session)
-        service = profile_import_service.ImportService(
-            user_id=_USER_ID,
-            storage=MagicMock(),
-            db=mock_db,
+    def test_the_discoverable_choice_is_imported(self, committed_sessions, storage, owner):
+        _import(
+            committed_sessions,
+            storage,
+            owner.id,
+            profile_archive(owner, user_privacy_settings=[{"discoverable": False}]),
         )
 
-        with patch(
-            "modules.users.users_profile.import_service.user_integrations_integration.edit_integrations",
-        ):
-            service.collect_and_import_user_integrations([{"strava_sync_gear": True}])
+        with committed_sessions() as db:
+            stored = privacy_integration.get_privacy_settings(owner.id, db)
+        assert stored is not None
+        assert stored.discoverable is False
 
-        assert service.counts["user_integrations"] == 1
-
-    def test_user_integrations_import_drops_credentials_and_oauth_state(self) -> None:
-        service = profile_import_service.ImportService(
-            user_id=_USER_ID, storage=MagicMock(), db=MagicMock(spec=Session)
-        )
-        crafted = {
-            "id": str(uuid.uuid4()),
-            "user_id": str(_OTHER_ID),
-            "strava_client_id": "stolen-id",
-            "strava_client_secret": "stolen-secret",
-            "strava_state": "state",
-            "strava_token": "stolen-token",
-            "strava_refresh_token": "stolen-refresh",
-            "garminconnect_token": {"di_token": "stolen"},
-            "strava_sync_gear": True,
-            "garminconnect_sync_gear": False,
-        }
-
-        with patch(
-            "modules.users.users_profile.import_service.user_integrations_integration.edit_integrations",
-        ) as mock_edit:
-            service.collect_and_import_user_integrations([crafted])
-
-        applied = mock_edit.call_args.args[0]
-        assert applied.model_dump(exclude_unset=True) == {"strava_sync_gear": True, "garminconnect_sync_gear": False}
-
-    def test_user_integrations_import_with_only_credentials_imports_nothing(self) -> None:
-        service = profile_import_service.ImportService(
-            user_id=_USER_ID, storage=MagicMock(), db=MagicMock(spec=Session)
+    def test_invalid_singleton_settings_are_skipped_not_fatal(self, committed_sessions, storage, owner):
+        archive = profile_archive(
+            owner,
+            user_privacy_settings=[{"hide_activity_map": "not a boolean"}],
+            user_integrations=[{"strava_sync_gear": "not a boolean"}],
+            user_goals=[{"interval": "weekly", "activity_type": "run", "goal_type": "distance", "goal_distance": 100}],
         )
 
-        with patch(
-            "modules.users.users_profile.import_service.user_integrations_integration.edit_integrations",
-        ) as mock_edit:
-            service.collect_and_import_user_integrations([{"strava_token": "stolen"}])
+        counts = _import(committed_sessions, storage, owner.id, archive)
 
-        mock_edit.assert_not_called()
-        assert service.counts["user_integrations"] == 0
+        assert (counts["user_privacy_settings"], counts["user_integrations"], counts["user_goals"]) == (0, 0, 1)
 
-    def test_collect_and_import_user_goals(self) -> None:
-        mock_db = MagicMock(spec=Session)
-        service = profile_import_service.ImportService(
-            user_id=_USER_ID,
-            storage=MagicMock(),
-            db=mock_db,
-        )
-
-        with patch("modules.users.users_profile.import_service.users_goals_integration.create_goal"):
-            service.collect_and_import_user_goals(
-                [{"interval": "daily", "activity_type": "run", "goal_type": "distance", "goal_distance": 5000}]
-            )
-
-        assert service.counts["user_goals"] == 1
-
-    def test_collect_and_import_user_privacy_settings(self) -> None:
-        mock_db = MagicMock(spec=Session)
-        service = profile_import_service.ImportService(
-            user_id=_USER_ID,
-            storage=MagicMock(),
-            db=mock_db,
-        )
-
-        with patch(
-            "modules.users.users_profile.import_service.users_privacy_settings_integration.edit_privacy_settings",
-        ):
-            service.collect_and_import_user_privacy_settings([{"hide_activity_map": True}])
-
-        assert service.counts["user_privacy_settings"] == 1
-
-    def test_crafted_zip_cannot_recreate_identity_links(self) -> None:
-        """A crafted profile ZIP with identity-provider data must not recreate identity links."""
-        mock_db = MagicMock(spec=Session)
-        service = profile_import_service.ImportService(
-            user_id=_USER_ID,
-            storage=MagicMock(),
-            db=mock_db,
-        )
-        service.performance_config.enable_memory_monitoring = False
-        service.performance_config.max_file_size_mb = 100
-
-        zip_data = _make_zip_with_json(
+    def test_only_the_sync_preferences_of_the_integrations_are_imported(self, committed_sessions, storage, owner):
+        integrations = [
             {
-                "data/gears.json": [],
-                "data/gear_components.json": [],
-                "data/user.json": [{"name": "Crafted Import"}],
-                "data/user_default_gear.json": [],
-                "data/user_goals.json": [],
-                "data/user_integrations.json": [],
-                "data/user_privacy_settings.json": [],
-                "data/user_identity_providers.json": [
+                "strava_sync_gear": True,
+                "garminconnect_sync_gear": True,
+                "strava_token": "planted",
+                "strava_refresh_token": "planted",
+                "strava_client_id": "planted",
+                "garminconnect_token": {"di_token": "planted"},
+            }
+        ]
+
+        counts = _import(committed_sessions, storage, owner.id, profile_archive(owner, user_integrations=integrations))
+
+        with committed_sessions() as db:
+            stored = integrations_integration.require_user_integrations(owner.id, db)
+        assert counts["user_integrations"] == 1
+        assert (stored.strava_sync_gear, stored.garminconnect_sync_gear) == (True, True)
+        assert (stored.strava_token, stored.strava_refresh_token, stored.strava_client_id) == (None, None, None)
+        assert stored.garminconnect_token is None
+
+    def test_credentials_alone_import_nothing(self, committed_sessions, storage, owner):
+        archive = profile_archive(
+            owner,
+            user_integrations=[{"strava_token": "planted"}],
+            user_goals=[
+                {"interval": "daily", "activity_type": "run", "goal_type": "activities", "goal_activities_number": 1}
+            ],
+        )
+
+        counts = _import(committed_sessions, storage, owner.id, archive)
+
+        assert counts["user_integrations"] == 0
+
+    def test_a_crafted_archive_cannot_recreate_identity_provider_links(self, committed_sessions, storage, owner):
+        archive = archive_of(
+            {
+                "data/user.json": [{"username": owner.username}],
+                "data/user_identity_providers.json": [{"idp_id": "x", "idp_subject": "attacker"}],
+                "data/identity_provider_links.json": [{"idp_id": "x", "idp_subject": "attacker"}],
+                "data/user_goals.json": [
                     {
-                        "user_id": str(_OTHER_ID),
-                        "idp_id": str(uuid.UUID(int=21)),
-                        "idp_subject": "attacker-subject",
+                        "interval": "daily",
+                        "activity_type": "run",
+                        "goal_type": "activities",
+                        "goal_activities_number": 1,
                     }
                 ],
-                "data/activities.json": [],
-                "data/notifications.json": [],
             }
         )
 
-        assert not hasattr(service, "collect_and_import_user_identity_providers")
-        with patch(
-            "modules.users.users_profile.import_service.users_integration.edit_profile",
-        ) as mock_edit_profile:
-            result = service.import_from_zip_data(zip_data)
+        _import(committed_sessions, storage, owner.id, archive)
 
-        assert result is service.counts
-        mock_edit_profile.assert_called_once()
-        assert service.counts["user"] == 1
-        assert service.counts.get("user_identity_providers", 0) == 0
+        with committed_sessions() as db:
+            assert db.scalars(select(identity_link_models.IdentityLink)).all() == []
 
-
-class TestImportServiceFromZip:
-    def test_import_from_zip_success(self) -> None:
-        mock_db = MagicMock(spec=Session)
-        service = profile_import_service.ImportService(
-            user_id=_USER_ID,
-            storage=MagicMock(),
-            db=mock_db,
+    def test_the_default_gear_is_moved_onto_the_restored_gears(self, committed_sessions, storage, owner):
+        with committed_sessions() as db:
+            gear = make_gear(db, owner.id)
+            db.commit()
+        archive = profile_archive(
+            owner,
+            user_default_gear=[{"id": "x", "run_gear_id": str(gear.id), "ride_gear_id": "not-a-gear"}],
         )
-        service.performance_config.enable_memory_monitoring = False
-        service.performance_config.max_file_size_mb = 100
 
-        zip_data = _make_zip_with_json(
+        counts = _import(committed_sessions, storage, owner.id, archive)
+
+        with committed_sessions() as db:
+            stored = default_gear_integration.get_default_gear(owner.id, db)
+        assert counts["user_default_gear"] == 1
+        assert stored is not None
+        # No gear section restored any gear, so an archived gear id names nothing.
+        assert (stored.run_gear_id, stored.ride_gear_id) == (None, None)
+
+    def test_invalid_default_gear_is_not_counted(self, committed_sessions, storage, owner):
+        archive = profile_archive(
+            owner,
+            user_default_gear=[{"unknown": 1}],
+            user_goals=[
+                {"interval": "daily", "activity_type": "run", "goal_type": "activities", "goal_activities_number": 1}
+            ],
+        )
+
+        counts = _import(committed_sessions, storage, owner.id, archive)
+
+        assert counts["user_default_gear"] == 0
+
+
+class TestRefusals:
+    def test_an_archive_from_another_account_imports_nothing(self, committed_sessions, storage, owner):
+        with committed_sessions() as db:
+            stranger = make_user(db)
+            db.commit()
+        archive = profile_archive(
+            stranger,
+            user_goals=[
+                {"interval": "daily", "activity_type": "run", "goal_type": "activities", "goal_activities_number": 1}
+            ],
+        )
+
+        with pytest.raises(profile_exceptions.ImportAccountMismatchError):
+            _import(committed_sessions, storage, owner.id, archive)
+
+        with committed_sessions() as db:
+            assert goals_crud.count_user_goals(owner.id, db) == 0
+
+    def test_a_renamed_account_still_matches_by_email_and_the_check_ignores_case(
+        self, committed_sessions, storage, owner
+    ):
+        goals = [{"interval": "daily", "activity_type": "run", "goal_type": "activities", "goal_activities_number": 1}]
+        by_email = archive_of(
+            {"data/user.json": [{"username": "old-name", "email": owner.email.upper()}], "data/user_goals.json": goals}
+        )
+        by_username = archive_of(
+            {"data/user.json": [{"username": owner.username.upper(), "email": "gone@example.com"}]}
+            | {"data/user_goals.json": [{**goals[0], "interval": "weekly"}]}
+        )
+
+        assert _import(committed_sessions, storage, owner.id, by_email)["user_goals"] == 1
+        assert _import(committed_sessions, storage, owner.id, by_username)["user_goals"] == 1
+
+    def test_an_archive_without_a_username_or_email_is_accepted(self, committed_sessions, storage, owner):
+        archive = archive_of(
             {
-                "data/gears.json": [{"id": str(_OTHER_ID), "nickname": "Garmin", "gear_type": 1}],
-                "data/gear_components.json": [],
-                "data/user.json": [{"username": "test"}],
-                "data/user_default_gear.json": [],
-                "data/user_goals.json": [],
-                "data/user_integrations.json": [],
-                "data/user_privacy_settings.json": [],
-                "data/activities.json": [],
-                "data/notifications.json": [],
+                "data/user.json": [{"city": "Faro"}],
             }
         )
 
-        def _increment_gears(*_args):
-            service.counts["gears"] = 1
-            return []
+        assert _import(committed_sessions, storage, owner.id, archive)["user"] == 1
 
-        with (
-            patch(
-                "modules.users.users_profile.import_service.users_integration.require_user",
-                return_value=MagicMock(username="test", email="test@example.com"),
-            ),
-            patch.object(service, "restore_profile_sections", side_effect=_increment_gears),
-            patch.object(service, "collect_and_import_user_data"),
-            patch.object(service, "add_user_images_from_zip"),
-        ):
-            result = service.import_from_zip_data(zip_data)
+    @pytest.mark.parametrize("archived_id", [7, 0])
+    def test_an_integer_account_id_marks_an_older_archive_whatever_else_it_says(
+        self, committed_sessions, storage, owner, archived_id
+    ):
+        archive = archive_of({"data/user.json": [{"id": archived_id, "username": owner.username}]})
 
-        assert result is service.counts
+        with pytest.raises(profile_exceptions.ImportArchiveFromOlderVersionError):
+            _import(committed_sessions, storage, owner.id, archive)
 
-    @staticmethod
-    def _atomic_service():
-        mock_db = MagicMock(spec=Session)
-        service = profile_import_service.ImportService(user_id=_USER_ID, storage=MagicMock(), db=mock_db)
-        service.performance_config.enable_memory_monitoring = False
-        service.performance_config.max_file_size_mb = 100
-        return service, mock_db
+    def test_a_true_id_is_not_an_integer_id(self, committed_sessions, storage, owner):
+        archive = archive_of({"data/user.json": [{"id": True, "username": owner.username, "city": "Faro"}]})
 
-    def test_the_database_part_commits_once_before_any_file_is_written(self) -> None:
-        service, mock_db = self._atomic_service()
-        order = MagicMock()
-        order.attach_mock(mock_db.commit, "commit")
-        zip_data = _make_zip_with_json({"data/gears.json": [{"id": str(_OTHER_ID), "nickname": "Bike"}]})
-        section_files = MagicMock()
+        assert _import(committed_sessions, storage, owner.id, archive)["user"] == 1
 
-        with (
-            patch.object(service, "restore_profile_sections", return_value=[section_files]) as gears,
-            patch.object(service, "add_user_images_from_zip") as images,
-        ):
-            order.attach_mock(gears, "gears")
-            order.attach_mock(section_files, "files")
-            order.attach_mock(images, "images")
-            service.counts["gears"] = 1
-            service.import_from_zip_data(zip_data)
+    def test_an_archive_with_nothing_to_import_is_refused(self, committed_sessions, storage, owner):
+        with pytest.raises(profile_exceptions.FileFormatError):
+            _import(committed_sessions, storage, owner.id, archive_of({"data/readme.json": []}))
 
-        names = [call[0] for call in order.mock_calls]
-        assert names.count("commit") == 1
-        assert names.index("commit") < names.index("files") < names.index("images")
-        mock_db.rollback.assert_not_called()
+    def test_a_file_that_is_not_a_zip_is_refused(self, committed_sessions, storage, owner):
+        with pytest.raises(profile_exceptions.FileFormatError):
+            _import(committed_sessions, storage, owner.id, b"this is not an archive")
 
-    @pytest.mark.parametrize("failing", ["restore_profile_sections", "collect_and_import_user_data"])
-    def test_a_failure_in_the_database_part_rolls_everything_back(self, failing) -> None:
-        service, mock_db = self._atomic_service()
-        zip_data = _make_zip_with_json({"data/gears.json": []})
-        section_files = MagicMock()
+    def test_an_archive_over_the_size_limit_is_refused(self, committed_sessions, storage, owner):
+        with pytest.raises(profile_exceptions.FileSizeError):
+            _import(committed_sessions, storage, owner.id, profile_archive(owner), max_file_size_mb=0)
 
-        with (
-            patch.object(service, "restore_profile_sections", return_value=[section_files]),
-            patch.object(
-                service,
-                failing,
-                side_effect=RuntimeError("boom"),
-            ),
-            pytest.raises(RuntimeError),
-        ):
-            service.import_from_zip_data(zip_data)
+    def test_an_archive_with_too_many_entries_is_refused_before_anything_is_read(
+        self, committed_sessions, storage, owner
+    ):
+        archive = archive_of({f"data/extra_{n}.json": [] for n in range(3)})
 
-        mock_db.commit.assert_not_called()
-        mock_db.rollback.assert_called_once()
-        section_files.assert_not_called()
+        with pytest.raises(profile_exceptions.FileSizeError):
+            _import(committed_sessions, storage, owner.id, archive, max_entries=2)
 
-    def test_a_failure_writing_files_keeps_the_committed_rows(self) -> None:
-        service, mock_db = self._atomic_service()
-        zip_data = _make_zip_with_json({"data/gears.json": []})
+    def test_a_data_file_over_its_size_cap_is_refused(self, committed_sessions, storage, owner):
+        archive = archive_of({"data/user.json": [{"username": owner.username, "about": "x" * 3_000_000}]})
 
-        with (
-            patch.object(service, "restore_profile_sections", return_value=[MagicMock(side_effect=OSError("disk"))]),
-            pytest.raises(FileSystemError),
-        ):
-            service.import_from_zip_data(zip_data)
+        with pytest.raises(profile_exceptions.FileSizeError):
+            _import(committed_sessions, storage, owner.id, archive, max_json_mb=1)
 
-        mock_db.commit.assert_called_once()
-        mock_db.rollback.assert_not_called()
+    def test_an_archive_that_decompresses_past_the_archive_cap_is_refused(self, committed_sessions, storage, owner):
+        archive = archive_of({"data/user.json": [{"username": owner.username, "about": "x" * 3_000_000}]})
 
-    def test_an_archive_with_nothing_to_import_is_rejected_before_the_commit(self) -> None:
-        service, mock_db = self._atomic_service()
-        zip_data = _make_zip_with_json({"data/gears.json": []})
+        with pytest.raises(profile_exceptions.FileSizeError):
+            _import(committed_sessions, storage, owner.id, archive, max_uncompressed_mb=1)
 
-        with (
-            patch.object(service, "restore_profile_sections", return_value=[]),
-            pytest.raises(FileFormatError, match="zero items"),
-        ):
-            service.import_from_zip_data(zip_data)
+    def test_a_data_file_that_is_not_json_is_refused(self, committed_sessions, storage, owner):
+        archive = archive_of({"data/user.json": b"{ not json"})
 
-        mock_db.commit.assert_not_called()
-        mock_db.rollback.assert_called_once()
+        with pytest.raises(profile_exceptions.JSONParseError):
+            _import(committed_sessions, storage, owner.id, archive)
 
-    def test_the_commit_callback_fires_once_the_rows_are_committed(self) -> None:
-        mock_db = MagicMock(spec=Session)
+    def test_a_data_file_that_is_not_a_list_or_holds_other_things_is_read_as_what_it_lists(
+        self, committed_sessions, storage, owner
+    ):
+        archive = archive_of(
+            {
+                "data/user.json": [{"username": owner.username}],
+                "data/user_goals.json": {"not": "a list"},
+                "data/user_privacy_settings.json": ["text", {"hide_activity_map": True}],
+            }
+        )
+
+        counts = _import(committed_sessions, storage, owner.id, archive)
+
+        assert (counts["user_goals"], counts["user_privacy_settings"]) == (0, 1)
+
+    def test_the_memory_limit_is_checked_before_anything_is_loaded(self, committed_sessions, storage, owner):
+        with pytest.raises(profile_exceptions.MemoryAllocationError):
+            _import(committed_sessions, storage, owner.id, profile_archive(owner), max_memory_mb=0)
+
+    def test_an_import_out_of_time_stops_and_leaves_nothing(self, committed_sessions, storage, owner):
+        archive = profile_archive(
+            owner,
+            user_goals=[
+                {"interval": "daily", "activity_type": "run", "goal_type": "activities", "goal_activities_number": 1}
+            ],
+        )
+
+        with pytest.raises(profile_exceptions.ImportTimeoutError):
+            _import(committed_sessions, storage, owner.id, archive, timeout_seconds=-1)
+
+        with committed_sessions() as db:
+            assert goals_crud.count_user_goals(owner.id, db) == 0
+
+    def test_a_refused_archive_leaves_no_rows_even_when_part_of_it_was_staged(self, committed_sessions, storage, owner):
+        archive = archive_of(
+            {
+                "data/user.json": [{"username": owner.username, "city": "Faro"}],
+                "data/user_goals.json": [
+                    {
+                        "interval": "daily",
+                        "activity_type": "run",
+                        "goal_type": "activities",
+                        "goal_activities_number": 1,
+                    }
+                ],
+                "data/activities.json": [{"id": "not-an-activity"}] * 3,
+            }
+        )
+
+        try:
+            _import(committed_sessions, storage, owner.id, archive, max_activities=2)
+        except profile_exceptions.ActivityLimitError:
+            pass
+        else:
+            pytest.fail("the activity limit did not apply")
+
+        with committed_sessions() as db:
+            assert users_integration.require_user(owner.id, db).city == "Porto"
+            assert goals_crud.count_user_goals(owner.id, db) == 0
+
+
+class TestFilesAndCommit:
+    def test_the_photo_is_stored_after_the_rows_commit(self, committed_sessions, storage, owner):
         calls = []
-        service = profile_import_service.ImportService(
-            user_id=_USER_ID,
-            storage=MagicMock(),
-            db=mock_db,
-            on_database_committed=lambda: calls.append(mock_db.commit.call_count),
-        )
-        service.performance_config.enable_memory_monitoring = False
-        service.performance_config.max_file_size_mb = 100
-        zip_data = _make_zip_with_json({"data/gears.json": [], "user_images/a.png": []})
-
-        with (
-            patch.object(service, "restore_profile_sections", return_value=[]),
-            patch.object(service, "add_user_images_from_zip"),
-        ):
-            service.counts["user_images"] = 1
-            service.import_from_zip_data(zip_data)
-
-        assert calls == [1]
-
-    def test_a_rejected_archive_rolls_back(self) -> None:
-        service, mock_db = self._atomic_service()
-
-        with pytest.raises(FileFormatError):
-            service.import_from_zip_data(b"not a zip")
-
-        mock_db.commit.assert_not_called()
-        mock_db.rollback.assert_called_once()
-
-    def test_import_from_zip_os_error(self) -> None:
-        mock_db = MagicMock(spec=Session)
-        service = profile_import_service.ImportService(
-            user_id=_USER_ID,
-            storage=MagicMock(),
-            db=mock_db,
-        )
-        service.performance_config.enable_memory_monitoring = False
-        service.performance_config.max_file_size_mb = 100
-
-        zip_data = _make_zip_with_json({"data/gears.json": []})
-
-        with (
-            patch.object(service, "restore_profile_sections", side_effect=OSError("disk full")),
-            pytest.raises(FileSystemError),
-        ):
-            service.import_from_zip_data(zip_data)
-
-    def test_import_from_zip_all_empty_raises_error(self) -> None:
-        mock_db = MagicMock(spec=Session)
-        service = profile_import_service.ImportService(
-            user_id=_USER_ID,
-            storage=MagicMock(),
-            db=mock_db,
-        )
-        service.performance_config.enable_memory_monitoring = False
-        service.performance_config.max_file_size_mb = 100
-
-        zip_data = _make_zip_with_json(
+        archive = archive_of(
             {
-                "data/gears.json": [],
-                "data/gear_components.json": [],
-                "data/user.json": [],
-                "data/user_default_gear.json": [],
-                "data/user_goals.json": [],
-                "data/user_identity_providers.json": [],
-                "data/user_integrations.json": [],
-                "data/user_privacy_settings.json": [],
-                "data/activities.json": [],
-                "data/notifications.json": [],
+                "data/user.json": [{"username": owner.username, "city": "Faro"}],
+                f"user_images/{owner.id}.png": png(90, 8),
             }
         )
 
-        with (
-            patch.object(service, "restore_profile_sections", return_value=[]),
-            patch.object(service, "collect_and_import_user_data"),
-            patch.object(service, "add_user_images_from_zip"),
-            pytest.raises(FileFormatError, match="zero items"),
-        ):
-            service.import_from_zip_data(zip_data)
-
-
-class TestImportServiceFiles:
-    def test_add_user_images_from_zip(self) -> None:
-        mock_db = MagicMock(spec=Session)
-        service = profile_import_service.ImportService(
-            user_id=_USER_ID,
-            storage=MagicMock(),
-            db=mock_db,
-        )
-        service.performance_config.enable_memory_monitoring = False
-
-        zip_data = _make_zip_with_json({})
-        with zipfile.ZipFile(BytesIO(zip_data)) as z:
-            service.add_user_images_from_zip(_reader(service, z))
-
-
-class TestImportServiceAddUserImages:
-    def test_add_user_images_from_zip_accepts_webp_like_the_upload_does(self) -> None:
-        service = profile_import_service.ImportService(
-            user_id=_USER_ID, storage=MagicMock(), db=MagicMock(spec=Session)
-        )
-        service.performance_config.enable_memory_monitoring = False
-        buf = BytesIO()
-        with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as z:
-            z.writestr("user_images/photo.WEBP", b"image-data")
-        mock_validator = MagicMock()
-        mock_validator.config.limits.max_image_size = 1000000
-
-        with (
-            patch("modules.users.users_profile.import_service.file_uploads.file_validator", mock_validator),
-            patch("modules.users.users_profile.import_service.file_uploads.validate_bytes_sync"),
-            patch("modules.users.users_profile.import_service.users_integration.store_user_photo") as mock_store,
-            zipfile.ZipFile(BytesIO(buf.getvalue())) as z,
-        ):
-            service.add_user_images_from_zip(_reader(service, z))
-
-        assert mock_store.call_args.args[:3] == (_USER_ID, ".webp", b"image-data")
-
-    def test_add_user_images_from_zip_valid(self) -> None:
-        mock_db = MagicMock(spec=Session)
-        service = profile_import_service.ImportService(
-            user_id=_USER_ID,
-            storage=MagicMock(),
-            db=mock_db,
-        )
-        service.performance_config.enable_memory_monitoring = False
-
-        buf = BytesIO()
-        with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as z:
-            z.writestr("user_images/old_photo.jpg", b"image-data")
-        zip_data = buf.getvalue()
-
-        mock_validator = MagicMock()
-        mock_validator.config.limits.max_image_size = 1000000
-        with (
-            patch("modules.users.users_profile.import_service.file_uploads.file_validator", mock_validator),
-            patch("modules.users.users_profile.import_service.file_uploads.validate_bytes_sync"),
-            patch("modules.users.users_profile.import_service.users_integration.store_user_photo") as mock_store,
-            zipfile.ZipFile(BytesIO(zip_data)) as z,
-        ):
-            service.add_user_images_from_zip(_reader(service, z))
-
-        assert service.counts["user_images"] == 1
-        # The archive's filename is discarded: the key is minted for the
-        # importing user so a crafted ZIP cannot write over someone else's blob.
-        mock_store.assert_called_once_with(_USER_ID, ".jpg", b"image-data", service.storage, mock_db)
-
-    def test_add_user_images_from_zip_domain_error(self) -> None:
-        mock_db = MagicMock(spec=Session)
-        service = profile_import_service.ImportService(
-            user_id=_USER_ID,
-            storage=MagicMock(),
-            db=mock_db,
-        )
-        service.performance_config.enable_memory_monitoring = False
-
-        buf = BytesIO()
-        with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as z:
-            z.writestr("user_images/old_photo.jpg", b"image-data")
-        zip_data = buf.getvalue()
-
-        mock_validator = MagicMock()
-        mock_validator.config.limits.max_image_size = 1000000
-        with (
-            patch("modules.users.users_profile.import_service.file_uploads.file_validator", mock_validator),
-            patch(
-                "modules.users.users_profile.import_service.file_uploads.validate_bytes_sync",
-                side_effect=core_exceptions.InvalidInputError("invalid image"),
-            ),
-            _storage_of(service) as runtime,
-            zipfile.ZipFile(BytesIO(zip_data)) as z,
-        ):
-            service.add_user_images_from_zip(_reader(service, z))
-
-        assert service.counts.get("user_images", 0) == 0
-        runtime.get_active_platform.return_value.storage.save.assert_not_called()
-
-
-class TestImportServiceFromZipExtended:
-    def test_import_from_zip_json_decode_error(self) -> None:
-        mock_db = MagicMock(spec=Session)
-        service = profile_import_service.ImportService(
-            user_id=_USER_ID,
-            storage=MagicMock(),
-            db=mock_db,
-        )
-        service.performance_config.enable_memory_monitoring = False
-        service.performance_config.max_file_size_mb = 100
-
-        buf = BytesIO()
-        with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as z:
-            z.writestr("data/gears.json", "not-valid-json")
-        zip_data = buf.getvalue()
-
-        with pytest.raises(JSONParseError, match="Failed to parse JSON"):
-            service.import_from_zip_data(zip_data)
-
-
-class TestImportServiceProfileSections:
-    """The import runs the registered sections in order and keeps what they report."""
-
-    @staticmethod
-    def _service() -> profile_import_service.ImportService:
-        service = profile_import_service.ImportService(
-            user_id=_USER_ID, storage=MagicMock(), db=MagicMock(spec=Session)
-        )
-        service.performance_config.enable_memory_monitoring = False
-        return service
-
-    @staticmethod
-    def _archive(files: dict[str, object], service) -> profile_utils.ZipArchiveReader:
-        return _reader(service, zipfile.ZipFile(BytesIO(_make_zip_with_json(files))))
-
-    def test_a_records_section_restores_its_entry_and_its_count_is_kept(self) -> None:
-        users_contributor_registry.clear()
-        restore = MagicMock(return_value=2)
-        users_contributor_registry.register_profile_section(
-            users_profile_contracts.ProfileRecordsSection(key="extra", export=lambda u, d: [], restore=restore)
-        )
-        service = self._service()
-        ids: users_profile_contracts.ProfileIdMaps = {}
-
-        files = service.restore_profile_sections(
-            self._archive({"data/extra.json": [{"id": str(_GOAL_A)}, {"id": str(_GOAL_B)}]}, service), ids, lambda: None
-        )
-
-        restore.assert_called_once_with([{"id": str(_GOAL_A)}, {"id": str(_GOAL_B)}], _USER_ID, ids, service.db)
-        assert service.counts["extra"] == 2
-        assert files == []
-
-    def test_a_section_without_an_entry_restores_nothing_and_reports_zero(self) -> None:
-        users_contributor_registry.clear()
-        restore = MagicMock(return_value=0)
-        users_contributor_registry.register_profile_section(
-            users_profile_contracts.ProfileRecordsSection(key="extra", export=lambda u, d: [], restore=restore)
-        )
-        service = self._service()
-
-        service.restore_profile_sections(self._archive({}, service), {}, lambda: None)
-
-        assert restore.call_args.args[0] == []
-        assert service.counts["extra"] == 0
-
-    def test_sections_run_in_order_and_a_later_one_reads_the_ids_of_an_earlier_one(self) -> None:
-        users_contributor_registry.clear()
-        seen: list[object] = []
-
-        def first(records, user_id, ids, db) -> int:
-            ids["first"] = {_GOAL_A: _GOAL_B}
-            return 1
-
-        def second(records, user_id, ids, db) -> int:
-            seen.append(dict(ids))
-            return 0
-
-        for key, restore in (("first", first), ("second", second)):
-            users_contributor_registry.register_profile_section(
-                users_profile_contracts.ProfileRecordsSection(key=key, export=lambda u, d: [], restore=restore)
+        with committed_sessions() as db:
+            importer = import_service.ImportService(
+                owner.id,
+                storage,
+                db,
+                import_service.ImportPerformanceConfig(**_ROOMY),
+                on_database_committed=lambda: calls.append(users_integration.get_user(owner.id, db)),
             )
-        service = self._service()
-        timeouts: list[int] = []
+            counts = importer.import_from_zip_data(archive)
 
-        service.restore_profile_sections(self._archive({}, service), {}, lambda: timeouts.append(1))
+        assert counts["user_images"] == 1
+        # The callback ran once the rows were in, and before the photo was written.
+        assert [user.city for user in calls if user is not None] == ["Faro"]
+        with committed_sessions() as db:
+            stored = users_integration.require_user(owner.id, db)
+        assert stored.photo_path is not None
 
-        assert seen == [{"first": {_GOAL_A: _GOAL_B}}]
-        assert len(timeouts) == 2
-
-    def test_an_archive_section_gets_the_context_and_its_files_are_returned(self) -> None:
-        users_contributor_registry.clear()
-        after_commit = MagicMock()
-        contexts: list[users_profile_contracts.ProfileImportContext] = []
-
-        def restore(context):
-            contexts.append(context)
-            return after_commit
-
-        users_contributor_registry.register_profile_section(
-            users_profile_contracts.ProfileArchiveSection(key="extra", export=lambda c: None, restore=restore)
+    def test_an_invalid_image_is_dropped_and_other_files_are_ignored(self, committed_sessions, storage, owner):
+        archive = archive_of(
+            {
+                "data/user.json": [{"username": owner.username, "city": "Faro"}],
+                "user_images/bad.png": b"not an image",
+                "user_images/notes.txt": b"ignored",
+            }
         )
-        service = self._service()
-        service.performance_config.max_activities = 1
-        ids: users_profile_contracts.ProfileIdMaps = {}
 
-        files = service.restore_profile_sections(self._archive({}, service), ids, lambda: None)
+        counts = _import(committed_sessions, storage, owner.id, archive)
 
-        assert files == [after_commit]
-        after_commit.assert_not_called()
-        context = contexts[0]
-        assert (context.user_id, context.db, context.counts, context.ids) == (_USER_ID, service.db, service.counts, ids)
-        assert context.batch_size == service.performance_config.batch_size
-        context.check_activity_count(1)
-        with pytest.raises(ActivityLimitError):
-            context.check_activity_count(2)
+        assert counts["user_images"] == 0
+        with committed_sessions() as db:
+            assert users_integration.require_user(owner.id, db).photo_path is None
 
-    def test_the_files_of_a_section_are_written_after_the_commit(self) -> None:
-        users_contributor_registry.clear()
-        after_commit = MagicMock()
-        users_contributor_registry.register_profile_section(
-            users_profile_contracts.ProfileArchiveSection(
-                key="extra", export=lambda c: None, restore=lambda c: after_commit
-            )
+    def test_a_webp_photo_is_accepted_like_the_upload_accepts_it(self, committed_sessions, storage, owner):
+        buffer = io.BytesIO()
+        Image.new("RGB", (8, 8), (10, 20, 30)).save(buffer, format="WEBP")
+        archive = archive_of(
+            {"data/user.json": [{"username": owner.username}], f"user_images/{owner.id}.webp": buffer.getvalue()}
         )
-        service = self._service()
-        service.performance_config.max_file_size_mb = 100
-        order = MagicMock()
-        order.attach_mock(service.db.commit, "commit")
-        order.attach_mock(after_commit, "files")
 
-        with (
-            patch.object(service, "add_user_images_from_zip"),
-        ):
-            service.import_from_zip_data(_make_zip_with_json({"data/user.json": []}))
+        counts = _import(committed_sessions, storage, owner.id, archive)
 
-        assert [call[0] for call in order.mock_calls] == ["commit", "files"]
+        assert counts["user_images"] == 1
+
+    def test_a_failure_writing_files_keeps_the_committed_rows(self, committed_sessions, storage, owner):
+        class FailingStorage:
+            def __getattr__(self, name):
+                return getattr(storage, name)
+
+            def save(self, *args, **kwargs):
+                raise OSError("disk full")
+
+            def save_stream(self, *args, **kwargs):
+                raise OSError("disk full")
+
+        archive = archive_of(
+            {
+                "data/user.json": [{"username": owner.username, "city": "Faro"}],
+                f"user_images/{owner.id}.png": png(90, 8),
+            }
+        )
+
+        with pytest.raises(profile_exceptions.FileSystemError):
+            _import(committed_sessions, FailingStorage(), owner.id, archive)
+
+        with committed_sessions() as db:
+            assert users_integration.require_user(owner.id, db).city == "Faro"
+
+
+def test_a_truncated_zip_is_refused_as_a_bad_archive(committed_sessions, storage, owner):
+    archive = profile_archive(owner, user_privacy_settings=[{"hide_activity_map": True}])
+
+    with pytest.raises(profile_exceptions.FileFormatError):
+        _import(committed_sessions, storage, owner.id, archive[:-10])
+
+
+class TestPerformanceConfig:
+    @pytest.mark.parametrize(
+        ("available_mb", "batch_size"),
+        [(4096, 250), (1500, 125), (512, 50)],
+        ids=["high", "medium", "low"],
+    )
+    def test_the_tier_follows_the_memory_available(self, monkeypatch, available_mb, batch_size):
+        class Memory:
+            available = available_mb * 1024 * 1024
+
+        monkeypatch.setattr("psutil.virtual_memory", lambda: Memory())
+
+        assert import_service.ImportPerformanceConfig.get_auto_config().batch_size == batch_size

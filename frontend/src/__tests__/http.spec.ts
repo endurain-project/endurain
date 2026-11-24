@@ -127,6 +127,75 @@ describe('apiFetch', () => {
     expect(setAuthTokens).toHaveBeenCalledWith('access-new')
   })
 
+  describe('idempotent calls', () => {
+    /**
+     * Reads the `Idempotency-Key` header a fetch call was made with.
+     *
+     * @param call - The `[url, init]` arguments of the call.
+     * @returns The header value, or `null` when none was sent.
+     */
+    function sentKey(call: [string, RequestInit]): string | null {
+      return new Headers(call[1].headers).get('Idempotency-Key')
+    }
+
+    it('sends one key, quoted as an RFC 9651 string, when the call is idempotent', async () => {
+      fetchMock.mockImplementation(() => Promise.resolve(jsonResponse({ ok: true })))
+
+      await apiFetch('/data', { method: 'POST', body: '{}', idempotent: true })
+
+      expect(sentKey(fetchMock.mock.calls[0]!)).toMatch(/^"[0-9a-f-]{36}"$/)
+    })
+
+    it('sends a different key for every call', async () => {
+      fetchMock.mockImplementation(() => Promise.resolve(jsonResponse({ ok: true })))
+
+      await apiFetch('/data', { method: 'POST', idempotent: true })
+      await apiFetch('/data', { method: 'POST', idempotent: true })
+
+      expect(sentKey(fetchMock.mock.calls[0]!)).not.toBe(sentKey(fetchMock.mock.calls[1]!))
+    })
+
+    it('reuses the key when the 401 refresh replays the call', async () => {
+      let dataAttempts = 0
+      fetchMock.mockImplementation((url: string) => {
+        if (url === '/auth/refresh') {
+          return Promise.resolve(jsonResponse(refreshTokenResponse))
+        }
+        dataAttempts += 1
+        return Promise.resolve(
+          dataAttempts === 1
+            ? jsonResponse({ type: INVALID_TOKEN }, 401)
+            : jsonResponse({ ok: true }),
+        )
+      })
+
+      await apiFetch('/data', { method: 'POST', idempotent: true })
+
+      const dataCalls = fetchMock.mock.calls.filter(([url]) => url === '/data')
+      expect(dataCalls).toHaveLength(2)
+      expect(sentKey(dataCalls[0]!)).not.toBeNull()
+      expect(sentKey(dataCalls[1]!)).toBe(sentKey(dataCalls[0]!))
+    })
+
+    it('keeps the headers the caller set', async () => {
+      fetchMock.mockImplementation(() => Promise.resolve(jsonResponse({ ok: true })))
+
+      await apiFetch('/data', { method: 'POST', idempotent: true, headers: { 'X-Test': '1' } })
+
+      expect(new Headers(fetchMock.mock.calls[0]![1].headers).get('X-Test')).toBe('1')
+    })
+
+    it('sends no key when the call is not idempotent', async () => {
+      fetchMock.mockImplementation(() => Promise.resolve(jsonResponse({ ok: true })))
+
+      await apiFetch('/data', { method: 'POST' })
+      await apiFetch('/data', { method: 'POST', idempotent: false })
+
+      expect(sentKey(fetchMock.mock.calls[0]!)).toBeNull()
+      expect(sentKey(fetchMock.mock.calls[1]!)).toBeNull()
+    })
+  })
+
   it('coalesces concurrent 401 refreshes into a single refresh call', async () => {
     const attempts: Record<string, number> = {}
     let refreshCount = 0

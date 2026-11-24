@@ -27,16 +27,7 @@ def list_user_api_keys(
     page: core_pagination.ListPage,
     db: core_dependencies.DbSession,
 ) -> api_keys_schema.UserApiKeyPage:
-    """List one page of API keys for the authenticated user.
-
-    Args:
-        token_user_id: User ID from access token.
-        page: The requested window.
-        db: Database session.
-
-    Returns:
-        The page of API keys, newest first.
-    """
+    """List one page of API keys for the authenticated user."""
     return api_key_service.list_user_api_keys(token_user_id, page, db)
 
 

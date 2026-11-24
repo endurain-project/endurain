@@ -331,8 +331,6 @@
     "staleError": "Tato nastavení během úprav změnil někdo jiný. Vaše změny nebyly uloženy. Načtěte stránku znovu, abyste viděli aktuální hodnoty.",
     "stepUpTitle": "Potvrďte svou totožnost",
     "stepUpDescription": "Tyto změny ovlivňují, kdo se může na tomto serveru registrovat, přihlašovat nebo udržet relaci, jak dlouho se uchovává auditní záznam a zda veřejné odkazy zobrazují, kdo je sdílel. Pro pokračování potvrďte, že jste to vy.",
-    "envLocked": "Nastaveno proměnnou {name}",
-    "envSection": "Některá nastavení zde jsou určena proměnnými prostředí ({names}). Odeberte je z prostředí, abyste tato nastavení mohli upravit zde.",
     "unsaved": "Neuložené změny",
     "fixErrors": "Pro uložení opravte výše uvedené chyby",
     "discard": "Zahodit",

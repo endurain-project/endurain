@@ -76,8 +76,7 @@ type Slide =
   | { kind: 'thumbnailPending' }
   | { kind: 'photo'; media: ActivityMedia }
 
-// The lead slide (interactive map or static thumbnail) comes first, mirroring
-// v1's gallery, then the photos.
+// The lead slide (interactive map or static thumbnail) comes first, then the photos.
 const slides = computed<Slide[]>(() => [
   ...(hasMap.value ? [{ kind: 'map' as const }] : []),
   ...(hasThumbnail.value ? [{ kind: 'thumbnail' as const }] : []),

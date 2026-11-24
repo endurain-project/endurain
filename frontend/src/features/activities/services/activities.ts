@@ -348,8 +348,7 @@ export const OLDEST_WEEK_BUCKET = 51
 
 /**
  * Fetches a user's activities for a single week, newest first. Week `0` is the
- * current week and each increment steps one week into the past (mirrors v1's
- * public-profile week browser). Weeks begin on the viewer's first day of the
+ * current week and each increment steps one week into the past. Weeks begin on the viewer's first day of the
  * week, using the viewer's local calendar; {@link OLDEST_WEEK_BUCKET} reaches
  * back without limit. Authenticated-only; the backend applies the viewer's
  * visibility rules.
@@ -586,7 +585,7 @@ export async function fetchActivityLaps(
  */
 export function mapActivityWorkoutStep(dto: ActivityWorkoutStepDto): ActivityWorkoutStep {
   return {
-    durationType: dto.duration_type,
+    durationType: dto.duration_type ?? null,
     durationValue: dto.duration_value ?? null,
     exerciseCategory: dto.exercise_category ?? null,
     exerciseName: dto.exercise_name ?? null,
@@ -767,7 +766,7 @@ export async function updateUserActivitiesVisibility(
  * Applies a full edit to an activity via `PATCH /activities/{id}`. Empty
  * description / private notes are sent as `null` to clear them; the remaining
  * fields are sent so the partial update (backend `exclude_unset`) applies every
- * editable value, mirroring v1.
+ * editable value.
  *
  * @param id - Activity identifier.
  * @param input - The edited field values from the form.

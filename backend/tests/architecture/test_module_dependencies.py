@@ -45,6 +45,7 @@ _ALLOWED_CORE: dict[str, str] = {
     "core.file_uploads": "The only path an ``UploadFile`` may take.",
     "core.geocoding": "The reverse-geocoding configuration shape the settings store and the substrate is fed.",
     "core.hashing": "Content digests for upload and media deduplication.",
+    "core.idempotency": "The ``Idempotency-Key`` parser and the replay of a create a client repeats.",
     "core.http_cache": "The browser cache lifetime of a signed photo, thumbnail or media URL.",
     "core.i18n": "Localises the test email.",
     "core.local_pool": "The bounded in-process pool background work runs on when no durable worker does.",
@@ -52,6 +53,7 @@ _ALLOWED_CORE: dict[str, str] = {
     "core.openapi_contract": "The OpenAPI declarations of a binary response and of an ETag the document cannot derive.",
     "core.key_derivation": "The per-purpose key behind the token digests.",
     "core.job_status": "The one status envelope every background job reports.",
+    "core.job_queues": "The named durable-job queues a subscriber is registered on and a dedicated worker serves.",
     "core.jwt_keys": (
         "The JWT algorithm allow-list, secret and signature check that access-token issuing shares with the rate "
         "limiter."

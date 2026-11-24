@@ -331,8 +331,6 @@
     "staleError": "Te ustawienia zostały zmienione przez kogoś innego podczas edycji. Twoje zmiany nie zostały zapisane. Odśwież stronę, aby zobaczyć aktualne wartości.",
     "stepUpTitle": "Potwierdź swoją tożsamość",
     "stepUpDescription": "Te zmiany wpływają na to, kto może się zarejestrować, zalogować lub utrzymać sesję na tym serwerze, jak długo przechowywany jest dziennik audytu oraz czy publiczne linki pokazują, kto je udostępnił. Potwierdź, że to Ty, aby kontynuować.",
-    "envLocked": "Ustawione przez {name}",
-    "envSection": "Niektóre ustawienia tutaj są ustawiane przez zmienne środowiskowe ({names}). Usuń je ze środowiska, aby edytować te ustawienia tutaj.",
     "unsaved": "Niezapisane zmiany",
     "fixErrors": "Popraw powyższe błędy, aby zapisać",
     "discard": "Odrzuć",

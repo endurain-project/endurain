@@ -6,7 +6,7 @@ lives in :mod:`modules.gears.gear.integration_service`.
 """
 
 import uuid
-from collections.abc import Iterable
+from collections.abc import Iterable, Sequence
 from datetime import datetime
 from typing import Any
 
@@ -83,29 +83,38 @@ def read_gear_detail(gear_id: uuid.UUID, user_id: uuid.UUID, db: Session) -> gea
     gear = gears_crud.get_gear_user_by_id(user_id, gear_id, db)
     if gear is None:
         raise core_exceptions.NotFoundError("Gear not found")
-    return _with_totals(gear, user_id, db)
+    [detail] = _with_totals([gear], user_id, db)
+    return detail
 
 
-def _with_totals(gear: gears_schema.GearRead, user_id: uuid.UUID, db: Session) -> gears_schema.GearDetailRead:
-    """Add the recorded usage and component cost to a gear.
+def _with_totals(
+    gears: Sequence[gears_schema.GearRead], user_id: uuid.UUID, db: Session
+) -> list[gears_schema.GearDetailRead]:
+    """Add the recorded usage and component cost to gears, reading each total for all of them at once.
 
     Args:
-        gear: The gear to extend.
+        gears: The gears to extend.
         user_id: Owner user ID.
         db: Database session.
 
     Returns:
-        The gear with totals.
+        The gears with totals, in the order given.
     """
+    if not gears:
+        return []
     readers = gears_contributor_registry.readers()
-    usage = readers.usage(gear.id, user_id, db)
-    components_cost = readers.components_cost(gear.id, user_id, db)
-    return gears_schema.GearDetailRead(
-        **gear.model_dump(),
-        total_distance=usage.distance + (gear.initial_distance or 0.0),
-        total_time=usage.time,
-        total_components_cost=f"{components_cost:.2f}",
-    )
+    gear_ids = [gear.id for gear in gears]
+    usage = readers.usage(gear_ids, user_id, db)
+    components_cost = readers.components_cost(gear_ids, user_id, db)
+    return [
+        gears_schema.GearDetailRead(
+            **gear.model_dump(),
+            total_distance=usage[gear.id].distance + (gear.initial_distance or 0.0),
+            total_time=usage[gear.id].time,
+            total_components_cost=f"{components_cost[gear.id]:.2f}",
+        )
+        for gear in gears
+    ]
 
 
 def list_changed_gears(
@@ -123,7 +132,7 @@ def list_changed_gears(
     Returns:
         The gears with totals, in ``(updated_at, id)`` order.
     """
-    return [_with_totals(gear, user_id, db) for gear in gears_crud.list_changed_gears(user_id, after, until, limit, db)]
+    return _with_totals(gears_crud.list_changed_gears(user_id, after, until, limit, db), user_id, db)
 
 
 def create_gear(gear: gears_schema.GearCreateRequest, user_id: uuid.UUID, db: Session) -> gears_schema.GearRead:
@@ -149,8 +158,8 @@ def create_gear(gear: gears_schema.GearCreateRequest, user_id: uuid.UUID, db: Se
 def stage_gears(gears: Iterable[gears_schema.GearCreate | None], user_id: uuid.UUID, db: Session) -> None:
     """Stage new gears for a user; the caller commits.
 
-    Drops entries without a nickname, repeated nicknames and nicknames the user already
-    has, so a re-sync from a provider adds only what is new.
+    Drops entries without a nickname; the database skips repeated nicknames and nicknames the user
+    already has, whatever their case, so a re-sync from a provider adds only what is new.
 
     Args:
         gears: Gear payloads to create.
@@ -160,29 +169,12 @@ def stage_gears(gears: Iterable[gears_schema.GearCreate | None], user_id: uuid.U
     Raises:
         ConflictError: If a Strava or Garmin Connect gear ID is already taken.
     """
-    candidates: dict[str, gears_schema.GearCreate] = {}
-    for gear in gears:
-        if gear is None or not str(gear.nickname).strip():
-            continue
-        nickname = gears_schema.normalize_nickname(gear.nickname)
-        if nickname in candidates:
-            logger.debug(
-                "Skipped a gear whose nickname repeats in the request",
-                extra=core_logger.context(user_id=user_id, nickname=gear.nickname),
-            )
-            continue
-        candidates[nickname] = gear
-
-    existing = gears_crud.get_existing_nicknames(user_id, set(candidates), db) if candidates else set()
-    for nickname in existing:
+    new_gears = [gear for gear in gears if gear is not None and gear.nickname.strip()]
+    if skipped := len(new_gears) - gears_crud.create_gears(new_gears, user_id, db):
         logger.debug(
-            "Skipped a gear whose nickname already exists",
-            extra=core_logger.context(user_id=user_id, nickname=candidates[nickname].nickname),
+            "Skipped gears whose nickname the user already has",
+            extra=core_logger.context(user_id=user_id, count=skipped),
         )
-
-    new_gears = [gear for nickname, gear in candidates.items() if nickname not in existing]
-    if new_gears:
-        gears_crud.create_gears(new_gears, user_id, db)
 
 
 def restore_profile_gears(

@@ -207,6 +207,7 @@ describe('goal service requests', () => {
     expect(apiFetch).toHaveBeenCalledWith('/profile/goals', {
       method: 'POST',
       body: JSON.stringify(expectedWirePayload),
+      idempotent: true,
     })
   })
 

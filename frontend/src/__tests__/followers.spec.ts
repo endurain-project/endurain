@@ -278,7 +278,10 @@ describe('follow-graph mutations', () => {
 
     await followUser(userUuid(2))
 
-    expect(apiFetch).toHaveBeenCalledWith(`/users/${userUuid(2)}/followers`, { method: 'POST' })
+    expect(apiFetch).toHaveBeenCalledWith(`/users/${userUuid(2)}/followers`, {
+      method: 'POST',
+      idempotent: true,
+    })
   })
 
   it('accepts a pending request by posting the accept action', async () => {

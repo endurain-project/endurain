@@ -707,6 +707,7 @@ def _refuse_pending_activation(
             target_type="user",
             target_id=str(user_id),
             target_owner_id=str(user_id),
+            details=users_audit_actions.UserUpdateDetails(changed_fields=["active"]),
         )
         raise core_exceptions.ApprovalPendingError(
             f"User is awaiting approval, approve them with POST /users/{user_id}/approve"

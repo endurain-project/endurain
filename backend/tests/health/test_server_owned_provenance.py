@@ -1,114 +1,111 @@
 """A client never sets the provenance of a health record: the server assigns it."""
 
-import importlib
 import uuid
-from unittest.mock import patch
 
 import pytest
-from fastapi import FastAPI
-from fastapi.testclient import TestClient
+import sqlalchemy as sa
 
-import core.exceptions as core_exceptions
+import core.config as core_config
+import modules.health.health_fasting.models as fasting_models
+import modules.health.health_poop.models as poop_models
+import modules.health.health_sleep.models as sleep_models
+import modules.health.health_steps.models as steps_models
+import modules.health.health_water.models as water_models
+import modules.health.health_weight.models as weight_models
+from tests._factories import health as health_factories
+from tests._factories.users import make_user
 
-_RECORD_ID = uuid.uuid4()
+_URL = f"{core_config.ROOT_PATH}/health"
 
-# kind -> (router prefix, valid create body, provenance fields a client must not send)
+# kind -> (valid create body, provenance fields a client must not send, model, record maker)
 _KINDS = {
-    "weight": ("health_weight", {"weight_kg": 70.0}, {"source": "garmin"}),
-    "steps": ("health_steps", {"steps": 100}, {"source": "garmin"}),
-    "sleep": ("health_sleep", {}, {"source": "garmin"}),
-    "water": ("health_water", {"amount_ml": 250}, {"source": "garmin"}),
-    "poop": ("health_poop", {"date_time": "2026-01-01T07:00:00Z"}, {"source": "manual"}),
-    "fasting": ("health_fasting", {"fast_start_time": "2026-01-01T07:00:00Z"}, {"source": "garmin"}),
+    "weight": (
+        {"weight_kg": 70.0},
+        {"source": "garmin"},
+        weight_models.HealthWeight,
+        health_factories.make_health_weight,
+    ),
+    "steps": ({"steps": 100}, {"source": "garmin"}, steps_models.HealthSteps, health_factories.make_health_steps),
+    "sleep": (
+        {},
+        {"source": "garmin", "garminconnect_sleep_id": "42"},
+        sleep_models.HealthSleep,
+        health_factories.make_health_sleep,
+    ),
+    "water": ({"amount_ml": 250}, {"source": "garmin"}, water_models.HealthWater, health_factories.make_health_water),
+    "poop": (
+        {"date_time": "2025-01-01T07:00:00Z"},
+        {"source": "manual"},
+        poop_models.HealthPoop,
+        health_factories.make_health_poop,
+    ),
+    "fasting": (
+        {"fast_start_time": "2025-01-01T07:00:00Z"},
+        {"source": "garmin"},
+        fasting_models.HealthFasting,
+        health_factories.make_health_fasting,
+    ),
 }
 _FIELDS = [
-    (kind, field, value)
-    for kind, (_, _, forged) in _KINDS.items()
-    for field, value in {**forged, **({"garminconnect_sleep_id": "42"} if kind == "sleep" else {})}.items()
+    pytest.param(kind, field, value, id=f"{kind}-{field}")
+    for kind, (_, forged, _, _) in _KINDS.items()
+    for field, value in forged.items()
 ]
-_USER_ID = uuid.uuid4()
-_HEADERS = {"Authorization": "Bearer x", "If-Match": '"1"'}
+_DATED = {"weight", "steps", "sleep", "water"}
 
 
-def _client(kind: str, mock_db) -> TestClient:
-    import core.database as core_db
-    import modules.auth.dependencies as auth_deps
-
-    package = _KINDS[kind][0]
-    router = importlib.import_module(f"modules.health.{package}.router")
-    app = FastAPI()
-    core_exceptions.register_exception_handlers(app)
-    app.include_router(router.router, prefix=f"/{package}")
-    app.dependency_overrides[auth_deps.check_scopes] = lambda: None
-    app.dependency_overrides[auth_deps.get_current_user_id] = lambda: _USER_ID
-    app.dependency_overrides[core_db.get_db] = lambda: mock_db
-    return TestClient(app)
+def _body(kind: str) -> dict:
+    """The valid create body of a kind, dated where the kind has a day."""
+    body = dict(_KINDS[kind][0])
+    return {"date": "2025-01-01", **body} if kind in _DATED else body
 
 
-def _post(kind, body, mock_db):
-    package = _KINDS[kind][0]
-    with patch(f"modules.health.{package}.router.{package}_service"):
-        return _client(kind, mock_db).post(f"/{package}", json=body, headers=_HEADERS)
+@pytest.fixture
+def user(committed_sessions):
+    with committed_sessions() as db:
+        created = make_user(db, timezone="UTC")
+        db.commit()
+    return created
 
 
-def _patch(kind, body, mock_db):
-    package = _KINDS[kind][0]
-    with patch(f"modules.health.{package}.router.{package}_service"):
-        return _client(kind, mock_db).patch(f"/{package}/{_RECORD_ID}", json=body, headers=_HEADERS)
+@pytest.fixture
+def me(sign_in, user):
+    return sign_in(user)
+
+
+def _count(committed_sessions, model) -> int:
+    with committed_sessions() as db:
+        return db.scalar(sa.select(sa.func.count()).select_from(model))
 
 
 @pytest.mark.parametrize(("kind", "field", "value"), _FIELDS)
 class TestClientCannotSetProvenance:
-    def test_post_is_refused(self, kind, field, value, mock_db):
-        body = _KINDS[kind][1]
-
-        response = _post(kind, {**body, field: value}, mock_db)
+    def test_a_create_is_refused_and_stores_nothing(self, me, committed_sessions, kind, field, value):
+        response = me.client.post(f"{_URL}/{kind}", json={**_body(kind), field: value})
 
         assert response.status_code == 422
+        assert _count(committed_sessions, _KINDS[kind][2]) == 0
 
-    def test_patch_is_refused(self, kind, field, value, mock_db):
-        response = _patch(kind, {field: value}, mock_db)
+    def test_an_edit_is_refused(self, me, user, committed_sessions, kind, field, value):
+        with committed_sessions() as db:
+            record = _KINDS[kind][3](db, user.id)
+            db.commit()
+
+        response = me.client.patch(f"{_URL}/{kind}/{record.id}", json={field: value}, headers={"If-Match": '"1"'})
 
         assert response.status_code == 422
+        with committed_sessions() as db:
+            assert db.get(_KINDS[kind][2], record.id).version == 1
 
 
 class TestServerAssignedSource:
-    def test_a_client_poop_is_stored_as_manual(self, mock_db):
-        import modules.health.health_poop.schema as schema
-        import modules.health.health_poop.service as service
+    @pytest.mark.parametrize("kind", list(_KINDS))
+    def test_a_client_record_is_stored_as_manual(self, me, committed_sessions, kind):
+        response = me.client.post(f"{_URL}/{kind}", json=_body(kind))
 
-        with patch.object(service.health_poop_crud, "create_health_poop") as create:
-            service.create_health_poop(_USER_ID, schema.HealthPoopCreate(date_time="2026-01-01T07:00:00Z"), mock_db)
-
-        assert create.call_args.args[1].source == "manual"
-
-    def test_a_client_fasting_session_is_stored_as_manual(self, mock_db):
-        import modules.health.health_fasting.schema as schema
-        import modules.health.health_fasting.service as service
-
-        with (
-            patch.object(service.health_fasting_crud, "get_active_fasting_by_user_id", return_value=None),
-            patch.object(service, "_overlaps", return_value=False),
-            patch.object(service.health_fasting_crud, "create_health_fasting") as create,
-        ):
-            service.create_health_fasting(
-                _USER_ID, schema.HealthFastingCreate(fast_start_time="2026-01-01T07:00:00Z"), mock_db
-            )
-
-        assert create.call_args.args[1].source == "manual"
-
-    @pytest.mark.parametrize(
-        ("kind", "body"),
-        [("weight", {"weight_kg": 70.0}), ("steps", {"steps": 100}), ("sleep", {}), ("water", {"amount_ml": 250})],
-    )
-    def test_a_client_record_is_stored_without_a_source(self, kind, body, mock_db):
-        crud = importlib.import_module(f"modules.health.health_{kind}.crud")
-        schema = importlib.import_module(f"modules.health.health_{kind}.schema")
-        create = getattr(schema, f"Health{kind.capitalize()}Create")
-
-        with patch.object(crud.health_record_crud, "create") as stage:
-            getattr(crud, f"create_health_{kind}")(1, create(date="2026-01-01", **body), mock_db)
-
-        record = stage.call_args.args[2]
-        assert record.model_dump().get("source") is None
-        assert record.model_dump().get("garminconnect_sleep_id") is None
+        assert response.status_code == 201
+        assert response.json()["source"] == "manual"
+        with committed_sessions() as db:
+            row = db.get(_KINDS[kind][2], uuid.UUID(response.json()["id"]))
+            assert row.source == "manual"
+            assert getattr(row, "garminconnect_sleep_id", None) is None

@@ -1,31 +1,35 @@
+"""The gear component service on the real database: creation against the gear type, edits, deletes, usage listing."""
+
 import uuid
 from datetime import UTC, date, datetime, timedelta
-from unittest.mock import MagicMock
 
 import pytest
 from sqlalchemy import update
 
 import core.exceptions as core_exceptions
-import modules.gears.contracts as gears_contracts
-import modules.gears.gear.crud as gear_crud
 import modules.gears.gear.schema as gear_schema
 import modules.gears.gear_components.crud as crud
 import modules.gears.gear_components.models as models
+import modules.gears.gear_components.schema as schema
 import modules.gears.gear_components.service as service
-from tests._helpers.auth import MOCK_USER_ID, OTHER_USER_ID
-from tests._helpers.gears import component_create, component_update, gear_create, install_readers
+from tests._factories.activities import make_activity
+from tests._factories.gears import component_payload, make_gear
+from tests._factories.users import make_user
 
 
-def _gear(db, gear_type=gear_schema.GearType.BIKE, user_id=MOCK_USER_ID) -> uuid.UUID:
-    return gear_crud.create_gear(gear_create("G", gear_type=gear_type), user_id, db).id
+@pytest.fixture
+def owner(committed_sessions):
+    """A committed user with a committed bike."""
+    with committed_sessions() as db:
+        created = make_user(db)
+        bike = make_gear(db, created.id)
+        db.commit()
+    return created, bike
 
 
-GEAR = uuid.uuid4()
-
-
-def _component(db, index: int, gear_id: uuid.UUID = GEAR):
+def _component(db, user_id: uuid.UUID, gear_id: uuid.UUID, index: int):
     """Create a component whose creation time is ``index`` seconds after a fixed instant."""
-    created = crud.create_gear_component(component_create(gear_id), MOCK_USER_ID, db)
+    created = crud.create_gear_component(component_payload(gear_id), user_id, db)
     db.execute(
         update(models.GearComponents)
         .where(models.GearComponents.id == created.id)
@@ -36,183 +40,221 @@ def _component(db, index: int, gear_id: uuid.UUID = GEAR):
 
 
 class TestCreate:
-    def test_a_component_matching_the_gear_type_is_created_and_committed(self, db, commit_spy):
-        gear_id = _gear(db)
+    def test_a_component_matching_the_gear_type_is_created_and_committed(self, committed_sessions, owner):
+        user, bike = owner
 
-        created = service.create_gear_component(component_create(gear_id), MOCK_USER_ID, db)
+        with committed_sessions() as db:
+            created = service.create_gear_component(component_payload(bike.id), user.id, db)
 
-        assert created.gear_id == gear_id
-        commit_spy.assert_called_once_with()
+        with committed_sessions() as db:
+            assert [c.id for c in crud.get_gear_components_user(user.id, db)] == [created.id]
+        assert created.gear_id == bike.id
 
-    def test_a_gear_the_user_does_not_own_is_not_found(self, db):
-        gear_id = _gear(db, user_id=OTHER_USER_ID)
+    def test_a_gear_the_user_does_not_own_is_not_found(self, db, user, other):
+        foreign = make_gear(db, other.id)
 
         with pytest.raises(core_exceptions.NotFoundError):
-            service.create_gear_component(component_create(gear_id), MOCK_USER_ID, db)
+            service.create_gear_component(component_payload(foreign.id), user.id, db)
 
-    def test_a_type_that_does_not_fit_the_gear_is_refused_and_nothing_is_written(self, db, commit_spy):
-        gear_id = _gear(db, gear_schema.GearType.SHOES)
+    def test_a_gear_that_does_not_exist_is_not_found(self, db, user):
+        with pytest.raises(core_exceptions.NotFoundError):
+            service.create_gear_component(component_payload(uuid.uuid4()), user.id, db)
 
-        with pytest.raises(core_exceptions.InvalidInputError, match="shoes"):
-            service.create_gear_component(component_create(gear_id, type="chain"), MOCK_USER_ID, db)
+    def test_a_type_that_does_not_fit_the_gear_is_refused_and_nothing_is_written(self, committed_sessions, owner):
+        user, _ = owner
+        with committed_sessions() as db:
+            shoes = make_gear(db, user.id, nickname="Shoes", gear_type="shoes")
+            db.commit()
 
-        commit_spy.assert_not_called()
-        assert crud.get_gear_components_user(MOCK_USER_ID, db) == []
+        with committed_sessions() as db, pytest.raises(core_exceptions.InvalidInputError, match="shoes"):
+            service.create_gear_component(component_payload(shoes.id, type="chain"), user.id, db)
 
-    def test_a_gear_type_without_a_restriction_accepts_any_type(self, db):
-        gear_id = _gear(db, gear_schema.GearType.WETSUIT)
+        with committed_sessions() as db:
+            assert crud.get_gear_components_user(user.id, db) == []
 
-        created = service.create_gear_component(component_create(gear_id, type="anything"), MOCK_USER_ID, db)
+    def test_a_gear_type_without_a_restriction_accepts_any_type(self, db, user):
+        wetsuit = make_gear(db, user.id, gear_type=gear_schema.GearType.WETSUIT)
+
+        created = service.create_gear_component(component_payload(wetsuit.id, type="anything"), user.id, db)
 
         assert created.type == "anything"
 
 
 class TestGet:
-    def test_returns_the_users_component(self, db):
-        created = crud.create_gear_component(component_create(_gear(db)), MOCK_USER_ID, db)
+    def test_returns_the_users_component(self, db, user, gear):
+        created = crud.create_gear_component(component_payload(gear.id), user.id, db)
 
-        assert service.get_gear_component(MOCK_USER_ID, created.id, db).id == created.id
+        assert service.get_gear_component(user.id, created.id, db).id == created.id
 
-    def test_a_component_of_another_user_is_not_found(self, db):
-        created = crud.create_gear_component(
-            component_create(
-                _gear(db, user_id=OTHER_USER_ID),
-            ),
-            OTHER_USER_ID,
-            db,
-        )
+    def test_a_component_of_another_user_is_not_found(self, db, user, other):
+        theirs = make_gear(db, other.id)
+        created = crud.create_gear_component(component_payload(theirs.id), other.id, db)
 
         with pytest.raises(core_exceptions.NotFoundError):
-            service.get_gear_component(MOCK_USER_ID, created.id, db)
+            service.get_gear_component(user.id, created.id, db)
 
 
-class TestEditAndDelete:
-    def test_retiring_before_purchase_is_refused(self, db):
-        gear_id = _gear(db)
+class TestEdit:
+    def test_retiring_before_purchase_is_refused(self, db, user, gear):
+        created = crud.create_gear_component(component_payload(gear.id, purchase_date=date(2024, 5, 1)), user.id, db)
+
+        with pytest.raises(core_exceptions.InvalidInputError):
+            service.edit_gear_component(
+                created.id, schema.GearComponentUpdate(retired_date=date(2024, 5, 1)), user.id, db, if_match="*"
+            )
+
+    def test_moving_the_purchase_past_the_stored_retired_date_is_refused(self, db, user, gear):
         created = crud.create_gear_component(
-            component_create(gear_id, purchase_date=date(2024, 5, 1)), MOCK_USER_ID, db
+            component_payload(gear.id, purchase_date=date(2024, 1, 1), retired_date=date(2024, 6, 1)), user.id, db
         )
 
         with pytest.raises(core_exceptions.InvalidInputError):
             service.edit_gear_component(
-                created.id, component_update(retired_date=date(2024, 5, 1)), MOCK_USER_ID, db, if_match="*"
+                created.id, schema.GearComponentUpdate(purchase_date=date(2024, 7, 1)), user.id, db, if_match="*"
             )
 
-    def test_moving_the_purchase_past_the_stored_retired_date_is_refused(self, db):
-        gear_id = _gear(db)
-        created = crud.create_gear_component(
-            component_create(gear_id, purchase_date=date(2024, 1, 1), retired_date=date(2024, 6, 1)), MOCK_USER_ID, db
-        )
+    def test_a_type_that_does_not_fit_the_gear_is_refused(self, db, user, gear):
+        created = crud.create_gear_component(component_payload(gear.id), user.id, db)
 
         with pytest.raises(core_exceptions.InvalidInputError):
             service.edit_gear_component(
-                created.id, component_update(purchase_date=date(2024, 7, 1)), MOCK_USER_ID, db, if_match="*"
+                created.id, schema.GearComponentUpdate(type="not-a-bike-part"), user.id, db, if_match="*"
             )
 
-    def test_a_type_that_does_not_fit_the_gear_is_refused(self, db):
-        gear_id = _gear(db)
-        created = crud.create_gear_component(component_create(gear_id), MOCK_USER_ID, db)
-
-        with pytest.raises(core_exceptions.InvalidInputError):
-            service.edit_gear_component(
-                created.id, component_update(type="not-a-bike-part"), MOCK_USER_ID, db, if_match="*"
-            )
-
-    def test_editing_a_missing_component_is_not_found(self, db):
+    def test_editing_a_missing_component_is_not_found(self, db, user):
         with pytest.raises(core_exceptions.NotFoundError):
-            service.edit_gear_component(uuid.uuid4(), component_update(brand="x"), MOCK_USER_ID, db, if_match="*")
+            service.edit_gear_component(uuid.uuid4(), schema.GearComponentUpdate(brand="x"), user.id, db, if_match="*")
 
-    def test_a_stale_edit_is_a_precondition_failure(self, db, commit_spy):
-        gear_id = _gear(db)
-        created = crud.create_gear_component(component_create(gear_id), MOCK_USER_ID, db)
+    def test_a_stale_edit_is_a_precondition_failure_and_changes_nothing(self, committed_sessions, owner):
+        user, bike = owner
+        with committed_sessions() as db:
+            created = crud.create_gear_component(component_payload(bike.id), user.id, db)
+            db.commit()
 
-        with pytest.raises(core_exceptions.PreconditionFailedError):
-            service.edit_gear_component(created.id, component_update(brand="x"), MOCK_USER_ID, db, if_match='"99"')
+        with committed_sessions() as db, pytest.raises(core_exceptions.PreconditionFailedError):
+            service.edit_gear_component(created.id, schema.GearComponentUpdate(brand="x"), user.id, db, if_match='"99"')
 
-        commit_spy.assert_not_called()
+        with committed_sessions() as db:
+            assert crud.get_gear_components_user(user.id, db)[0].brand == "Shimano"
 
-    def test_edit_commits(self, db, commit_spy):
-        gear_id = _gear(db)
-        created = crud.create_gear_component(component_create(gear_id), MOCK_USER_ID, db)
+    def test_edit_commits(self, committed_sessions, owner):
+        user, bike = owner
+        with committed_sessions() as db:
+            created = crud.create_gear_component(component_payload(bike.id), user.id, db)
+            db.commit()
 
-        updated = service.edit_gear_component(
-            created.id, component_update(brand="SRAM"), MOCK_USER_ID, db, if_match="*"
-        )
+        with committed_sessions() as db:
+            updated = service.edit_gear_component(
+                created.id, schema.GearComponentUpdate(brand="SRAM"), user.id, db, if_match="*"
+            )
 
-        commit_spy.assert_called_once_with()
         assert updated.brand == "SRAM"
+        with committed_sessions() as db:
+            assert crud.get_gear_components_user(user.id, db)[0].brand == "SRAM"
 
-    def test_delete_commits(self, db, commit_spy):
-        created = crud.create_gear_component(component_create(GEAR), MOCK_USER_ID, db)
 
-        service.delete_gear_component(MOCK_USER_ID, created.id, db, if_match=f'"{created.version}"')
+class TestDelete:
+    def test_delete_commits(self, committed_sessions, owner):
+        user, bike = owner
+        with committed_sessions() as db:
+            created = crud.create_gear_component(component_payload(bike.id), user.id, db)
+            db.commit()
 
-        commit_spy.assert_called_once_with()
-        assert crud.get_gear_components_user(MOCK_USER_ID, db) == []
+        with committed_sessions() as db:
+            service.delete_gear_component(user.id, created.id, db, if_match=f'"{created.version}"')
 
-    def test_a_stale_delete_is_a_precondition_failure_and_not_committed(self, db, commit_spy):
-        created = crud.create_gear_component(component_create(GEAR), MOCK_USER_ID, db)
+        with committed_sessions() as db:
+            assert crud.get_gear_components_user(user.id, db) == []
 
-        with pytest.raises(core_exceptions.PreconditionFailedError):
-            service.delete_gear_component(MOCK_USER_ID, created.id, db, if_match='"99"')
+    def test_a_stale_delete_is_a_precondition_failure_and_keeps_the_component(self, committed_sessions, owner):
+        user, bike = owner
+        with committed_sessions() as db:
+            created = crud.create_gear_component(component_payload(bike.id), user.id, db)
+            db.commit()
 
-        commit_spy.assert_not_called()
-        assert len(crud.get_gear_components_user(MOCK_USER_ID, db)) == 1
+        with committed_sessions() as db, pytest.raises(core_exceptions.PreconditionFailedError):
+            service.delete_gear_component(user.id, created.id, db, if_match='"99"')
+
+        with committed_sessions() as db:
+            assert len(crud.get_gear_components_user(user.id, db)) == 1
 
 
 class TestListForGear:
-    def test_each_component_gets_the_usage_of_its_own_window(self, db):
-        first = _component(db, 0)
-        second = _component(db, 1)
-        reader = MagicMock(
-            return_value={
-                first.id: gears_contracts.UsageTotals(distance=100.0, time=10.0),
-                second.id: gears_contracts.UsageTotals(distance=5.0, time=1.0),
-            }
+    def test_each_component_gets_the_usage_of_its_own_window(self, db, user, gear):
+        first = crud.create_gear_component(
+            component_payload(gear.id, purchase_date=date(2025, 1, 1), retired_date=date(2025, 3, 1)), user.id, db
         )
-        install_readers(usage_by_window=reader)
+        second = crud.create_gear_component(component_payload(gear.id, purchase_date=date(2025, 3, 1)), user.id, db)
+        make_activity(
+            db,
+            user.id,
+            gear_id=gear.id,
+            distance=100,
+            total_timer_time=10.0,
+            start_time=datetime(2025, 2, 1, 8, tzinfo=UTC),
+            end_time=datetime(2025, 2, 1, 9, tzinfo=UTC),
+        )
+        make_activity(
+            db,
+            user.id,
+            gear_id=gear.id,
+            distance=5,
+            total_timer_time=1.0,
+            start_time=datetime(2025, 4, 1, 8, tzinfo=UTC),
+            end_time=datetime(2025, 4, 1, 9, tzinfo=UTC),
+        )
 
-        result = service.list_components_for_gear(GEAR, MOCK_USER_ID, db)
+        result = service.list_components_for_gear(gear.id, user.id, db)
 
         assert {c.id: (c.current_distance, c.current_time) for c in result.items} == {
             first.id: (100.0, 10.0),
             second.id: (5.0, 1.0),
         }
-        assert sorted(w.key for w in reader.call_args.args[2]) == sorted([first.id, second.id])
 
-    def test_a_component_missing_from_the_totals_reports_zero(self, db):
-        crud.create_gear_component(component_create(GEAR), MOCK_USER_ID, db)
-        install_readers()
+    def test_a_component_with_no_activities_in_its_window_reports_zero(self, db, user, gear):
+        crud.create_gear_component(component_payload(gear.id), user.id, db)
 
-        assert service.list_components_for_gear(GEAR, MOCK_USER_ID, db).items[0].current_distance == 0
+        item = service.list_components_for_gear(gear.id, user.id, db).items[0]
 
-    def test_no_components_means_no_usage_query(self, db):
-        reader = MagicMock()
-        install_readers(usage_by_window=reader)
+        assert (item.current_distance, item.current_time) == (0, 0)
 
-        result = service.list_components_for_gear(GEAR, MOCK_USER_ID, db)
+    def test_no_components_gives_an_empty_page(self, db, user, gear):
+        result = service.list_components_for_gear(gear.id, user.id, db)
 
         assert (result.items, result.total) == ([], 0)
-        reader.assert_not_called()
 
-    def test_the_windows_cover_only_the_page(self, db):
-        _component(db, 0)
-        second = _component(db, 1)
-        reader = MagicMock(return_value={})
-        install_readers(usage_by_window=reader)
+    def test_a_page_lists_its_slice_and_the_total_counts_every_component(self, db, user, gear):
+        _component(db, user.id, gear.id, 0)
+        second = _component(db, user.id, gear.id, 1)
 
-        result = service.list_components_for_gear(GEAR, MOCK_USER_ID, db, page_number=2, num_records=1)
+        result = service.list_components_for_gear(gear.id, user.id, db, page_number=2, num_records=1)
 
         assert [c.id for c in result.items] == [second.id]
         assert result.total == 2
-        assert [w.key for w in reader.call_args.args[2]] == [second.id]
+
+    def test_the_active_filter_applies(self, db, user, gear):
+        _component(db, user.id, gear.id, 0)
+        retired = _component(db, user.id, gear.id, 1)
+        crud.edit_gear_component(
+            retired.id, schema.GearComponentUpdate(retired_date=date(2025, 1, 1)), user.id, db, if_match="*"
+        )
+
+        result = service.list_components_for_gear(gear.id, user.id, db, active=False)
+
+        assert [c.id for c in result.items] == [retired.id]
+
+    def test_another_users_gear_lists_nothing(self, db, user, other):
+        theirs = make_gear(db, other.id)
+        crud.create_gear_component(component_payload(theirs.id), other.id, db)
+
+        assert service.list_components_for_gear(theirs.id, user.id, db).total == 0
 
 
-def test_the_user_list_is_paged_with_the_total(db):
+def test_the_user_list_is_paged_with_the_total(db, user, gear):
     for _ in range(3):
-        crud.create_gear_component(component_create(GEAR), MOCK_USER_ID, db)
+        crud.create_gear_component(component_payload(gear.id), user.id, db)
 
-    page = service.list_gear_components(MOCK_USER_ID, db, page_number=1, num_records=2)
+    page = service.list_gear_components(user.id, db, page_number=1, num_records=2)
 
     assert (len(page.items), page.total, page.next) == (2, 3, 2)
 

@@ -1,128 +1,77 @@
-import uuid
-from unittest.mock import patch
+"""The public activity link, through the production application: no credentials, and only what is shared."""
 
 import pytest
-from fastapi import FastAPI
-from fastapi.testclient import TestClient
 
-_USER_1 = uuid.UUID(int=1)
+import core.config as core_config
+import modules.activities.activity.constants as activity_constants
+from tests._factories.activities import make_activity
+from tests._factories.server_settings import edit_server_settings
+from tests._factories.users import make_user
 
-_ACTIVITY_ID = uuid.uuid4()
-
-
-@pytest.fixture(autouse=True)
-def visible_owner():
-    """Treat the activity's owner as active and approved; the owner rule itself is tested separately."""
-    with patch(
-        "modules.activities.activity.child_access_service.users_integration.list_public_profiles",
-        side_effect=lambda ids, db: {i: object() for i in ids},
-    ):
-        yield
+_URL = f"{core_config.ROOT_PATH}/public/activities"
+_Visibility = activity_constants.ActivityVisibility
+_MISSING = "6f1c2a4e-3b7d-4c58-9a10-5d2e8b7c9f01"
 
 
-def _build_app(mock_db):
-    import core.database as core_db
-    import core.exceptions as core_exceptions
-    import modules.activities.activity.public_router as router
-
-    app = FastAPI()
-    app.include_router(router.router, prefix="/public/activities")
-    # Same domain-error boundary the real app registers, so these tests assert
-    # the status codes clients actually receive.
-    core_exceptions.register_exception_handlers(app)
-    app.dependency_overrides[core_db.get_db] = lambda: mock_db
-    return app
-
-
-def _valid_activity(**kw):
-    from modules.activities.activity.schema import ActivityRead
-
-    data = dict(
-        distance=10000,
-        name="Test",
-        activity_type=1,
-        start_time="2024-01-15T08:00:00Z",
-        end_time="2024-01-15T09:00:00Z",
-        timezone="UTC",
-        total_elapsed_time=3600.0,
-        total_timer_time=3600.0,
-        calories=500,
-        visibility=0,
-        elevation_gain=50,
-        elevation_loss=45,
-        pace=300.0,
-        average_hr=145,
-        max_hr=175,
-        average_speed=2.78,
-        max_speed=5.0,
-        city="City",
-        town="Town",
-        country="Country",
-        description="desc",
-        gear_id=uuid.uuid4(),
-        id=_ACTIVITY_ID,
-        user_id=_USER_1,
-    )
-    data.update(kw)
-    return ActivityRead(**data)
+@pytest.fixture
+def links_shared(arrange):
+    arrange(lambda db: edit_server_settings(db, public_shareable_links=True))
 
 
 class TestReadPublicActivity:
-    @patch(
-        "modules.activities.activity.service.server_settings_integration.public_shareable_links_enabled",
-        return_value=True,
-    )
-    @patch("modules.activities.activity.service.activity_crud.get_activity_by_id_if_is_public")
-    def test_success(self, mock_get, _mock_settings, mock_db):
-        client = TestClient(_build_app(mock_db))
-        mock_get.return_value = _valid_activity()
+    def test_a_public_activity_is_served_without_credentials_and_without_what_its_owner_hid(
+        self, client, links_shared, owner, make_committed_activity
+    ):
+        activity = make_committed_activity(
+            owner, visibility=_Visibility.PUBLIC, private_notes="mine", hide_hr=True, average_hr=150, city="Porto"
+        )
 
-        response = client.get(f"/public/activities/{_ACTIVITY_ID}")
+        response = client.get(f"{_URL}/{activity.id}")
+
         assert response.status_code == 200
-        assert response.json()["id"] == str(_ACTIVITY_ID)
+        body = response.json()
+        assert (body["id"], body["city"], body["average_hr"], body["private_notes"]) == (
+            str(activity.id),
+            "Porto",
+            None,
+            None,
+        )
 
-    @patch(
-        "modules.activities.activity.service.server_settings_integration.public_shareable_links_enabled",
-        return_value=True,
+    def test_nothing_is_served_while_the_server_does_not_share_public_links(
+        self, client, owner, make_committed_activity
+    ):
+        activity = make_committed_activity(owner, visibility=_Visibility.PUBLIC)
+
+        assert client.get(f"{_URL}/{activity.id}").status_code == 404
+
+    @pytest.mark.parametrize(
+        "fields",
+        [{"visibility": _Visibility.FOLLOWERS}, {"visibility": _Visibility.PRIVATE}, {"is_hidden": True}],
     )
-    @patch("modules.activities.activity.service.activity_crud.get_activity_by_id_if_is_public")
-    def test_not_found(self, mock_get, _mock_settings, mock_db):
-        client = TestClient(_build_app(mock_db))
-        mock_get.return_value = None
+    def test_an_activity_that_is_not_public_is_404_exactly_like_one_that_does_not_exist(
+        self, client, links_shared, owner, make_committed_activity, fields
+    ):
+        activity = make_committed_activity(owner, **{"visibility": _Visibility.PUBLIC, **fields})
 
-        # Missing and not-public are the same answer on purpose: this endpoint is
-        # unauthenticated, so distinguishing them would let anyone enumerate ids.
-        response = client.get(f"/public/activities/{uuid.uuid4()}")
-        assert response.status_code == 404
-        assert response.json()["detail"] == "Activity not found"
+        hidden = client.get(f"{_URL}/{activity.id}")
+        missing = client.get(f"{_URL}/{_MISSING}")
 
-    @patch(
-        "modules.activities.activity.service.server_settings_integration.public_shareable_links_enabled",
-        return_value=False,
-    )
-    @patch("modules.activities.activity.service.activity_crud.get_activity_by_id_if_is_public")
-    def test_disabled_shareable_links_never_touch_persistence(self, mock_get, _mock_settings, mock_db):
-        client = TestClient(_build_app(mock_db))
+        assert (hidden.status_code, missing.status_code) == (404, 404)
+        assert hidden.json()["detail"] == missing.json()["detail"]
 
-        response = client.get(f"/public/activities/{_ACTIVITY_ID}")
-        assert response.status_code == 404
-        mock_get.assert_not_called()
+    def test_an_activity_synced_from_the_strava_api_is_never_public(
+        self, client, links_shared, owner, make_committed_activity
+    ):
+        activity = make_committed_activity(owner, visibility=_Visibility.PUBLIC, strava_activity_id=1)
 
-    @pytest.mark.parametrize("activity_id", ["1", "not-a-uuid"])
-    def test_a_malformed_activity_id_is_rejected(self, mock_db, activity_id):
-        client = TestClient(_build_app(mock_db))
+        assert client.get(f"{_URL}/{activity.id}").status_code == 404
 
-        assert client.get(f"/public/activities/{activity_id}").status_code == 422
+    @pytest.mark.parametrize("state", [{"active": False}, {"active": False, "pending_admin_approval": True}])
+    def test_the_activity_of_an_inactive_or_pending_owner_is_404(self, client, links_shared, arrange, state):
+        gone = arrange(lambda db: make_user(db, **state))
+        activity = arrange(lambda db: make_activity(db, gone.id, visibility=_Visibility.PUBLIC))
 
+        assert client.get(f"{_URL}/{activity.id}").status_code == 404
 
-def test_public_user_route_is_removed():
-    from fastapi import FastAPI
-
-    from api import router
-
-    app = FastAPI()
-    app.include_router(router)
-    paths = set(app.openapi()["paths"])
-
-    assert not any(path.endswith("/public/activities/{activity_id}/owner") for path in paths)
-    assert not any("/public/users" in path for path in paths)
+    def test_a_malformed_activity_id_is_422(self, client):
+        assert client.get(f"{_URL}/not-a-uuid").status_code == 422

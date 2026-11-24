@@ -331,8 +331,6 @@
     "staleError": "Netko je promijenio ove postavke dok ste ih uređivali. Vaše promjene nisu spremljene. Ponovno učitajte stranicu da vidite trenutne vrijednosti.",
     "stepUpTitle": "Potvrdite svoj identitet",
     "stepUpDescription": "Ove promjene utječu na to tko se može registrirati, prijaviti ili zadržati sesiju na ovom poslužitelju, koliko se dugo čuva revizijski zapis i prikazuju li javne poveznice tko ih je podijelio. Potvrdite da ste to vi za nastavak.",
-    "envLocked": "Postavljeno varijablom {name}",
-    "envSection": "Neke postavke ovdje određuju varijable okoline ({names}). Uklonite ih iz okoline kako biste te postavke mogli uređivati ovdje.",
     "unsaved": "Nespremljene promjene",
     "fixErrors": "Ispravite gornje pogreške da biste spremili",
     "discard": "Odbaci",

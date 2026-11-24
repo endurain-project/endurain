@@ -19,7 +19,7 @@ class ActivityWorkoutStepsBase(BaseModel):
 
     Attributes:
         message_index: Workout step message index.
-        duration_type: Workout step duration type.
+        duration_type: Workout step duration type, or None when the file names none.
         duration_value: Workout step duration value.
         target_type: Workout step target type.
         target_value: Workout step target value.
@@ -36,7 +36,7 @@ class ActivityWorkoutStepsBase(BaseModel):
     """
 
     message_index: StrictInt
-    duration_type: StrictStr
+    duration_type: StrictStr | None = None
     duration_value: StrictFloat | None = Field(
         default=None,
         description="Duration of the step, in the unit its duration_type names (seconds, meters and so on)",

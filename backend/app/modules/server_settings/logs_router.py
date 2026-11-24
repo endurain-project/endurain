@@ -20,6 +20,7 @@ router = APIRouter()
 @router.get(
     "",
     response_model=logs_schema.LogPage,
+    responses={404: {"description": "The log viewer is not available on this deployment."}},
     dependencies=[Security(auth_dependencies.check_scopes, scopes=["server-settings:logs"])],
 )
 def read_logs(
@@ -44,18 +45,6 @@ def read_logs(
     Requires admin authentication with server-settings:logs scope. Without ``cursor``
     the newest matching records are returned; pass the returned ``next_cursor`` as
     ``cursor`` to receive only what was written since.
-
-    Args:
-        num_records: Most records to return.
-        level: Lowest severity to include.
-        message_contains: Case-insensitive text a record must contain.
-        cursor: ``next_cursor`` of an earlier page.
-
-    Returns:
-        The matching records, oldest first, and the cursor for the next call.
-
-    Raises:
-        NotFoundError: 404 if the log viewer is not available on this deployment.
     """
     return logs_service.read_logs(num_records, level, message_contains, None if cursor is None else int(cursor))
 
@@ -63,7 +52,10 @@ def read_logs(
 @router.get(
     "/download",
     response_class=FileResponse,
-    responses=core_openapi_contract.binary_response("text/plain", description="The current log file."),
+    responses={
+        **core_openapi_contract.binary_response("text/plain", description="The current log file."),
+        404: {"description": "The log viewer is not available, or no log has been written."},
+    },
     dependencies=[Security(auth_dependencies.check_scopes, scopes=["server-settings:logs"])],
 )
 def download_logs() -> FileResponse:
@@ -71,12 +63,6 @@ def download_logs() -> FileResponse:
 
     Requires admin authentication with server-settings:logs scope. Rotated backups
     are not included.
-
-    Returns:
-        The log file as plain text.
-
-    Raises:
-        NotFoundError: 404 if the log viewer is not available or no log has been written.
     """
     return FileResponse(
         logs_service.get_log_file_path(),

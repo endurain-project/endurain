@@ -1,0 +1,88 @@
+{
+  "profile": "standard",
+  "generated": "2026-11-21",
+  "run": "standard-20261121-112634",
+  "total": {
+    "requests": 25669,
+    "rps": 42.05,
+    "p95_ms": 89,
+    "failures": 0
+  },
+  "groups": {
+    "auth_login": {
+      "p95_ms": 310,
+      "requests": 311,
+      "rps": 0.509
+    },
+    "auth_logout": {
+      "p95_ms": 29,
+      "requests": 200,
+      "rps": 0.328
+    },
+    "auth_refresh": {
+      "p95_ms": 35,
+      "requests": 733,
+      "rps": 1.201
+    },
+    "browse": {
+      "p95_ms": 32,
+      "requests": 8313,
+      "rps": 13.618
+    },
+    "health_read": {
+      "p95_ms": 25,
+      "requests": 2051,
+      "rps": 3.36
+    },
+    "health_write": {
+      "p95_ms": 25,
+      "requests": 2794,
+      "rps": 4.577
+    },
+    "idempotency": {
+      "p95_ms": 37,
+      "requests": 892,
+      "rps": 1.461
+    },
+    "notifications": {
+      "p95_ms": 25,
+      "requests": 1439,
+      "rps": 2.357
+    },
+    "strava": {
+      "p95_ms": 32,
+      "requests": 124,
+      "rps": 0.203
+    },
+    "strava_e2e": {
+      "p95_ms": 26000,
+      "requests": 105,
+      "rps": 0.172
+    },
+    "strava_job": {
+      "p95_ms": 23,
+      "requests": 1032,
+      "rps": 1.691
+    },
+    "upload": {
+      "p95_ms": 140,
+      "requests": 7101,
+      "rps": 11.633
+    },
+    "upload_e2e": {
+      "p95_ms": 28000,
+      "requests": 244,
+      "rps": 0.4
+    },
+    "websocket": {
+      "p95_ms": 520,
+      "requests": 220,
+      "rps": 0.36
+    },
+    "websocket_hint": {
+      "p95_ms": 27000,
+      "requests": 110,
+      "rps": 0.18
+    }
+  }
+}

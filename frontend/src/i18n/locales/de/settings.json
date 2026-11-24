@@ -331,8 +331,6 @@
     "staleError": "Diese Einstellungen wurden von jemand anderem geändert, während du sie bearbeitet hast. Deine Änderungen wurden nicht gespeichert. Lade die Seite neu, um die aktuellen Werte zu sehen.",
     "stepUpTitle": "Bestätige deine Identität",
     "stepUpDescription": "Diese Änderungen betreffen, wer sich auf diesem Server registrieren, anmelden oder eine Sitzung behalten kann, wie lange das Audit-Protokoll aufbewahrt wird oder ob öffentliche Links anzeigen, wer sie geteilt hat. Bestätige, dass du es bist, um fortzufahren.",
-    "envLocked": "Festgelegt durch {name}",
-    "envSection": "Einige Einstellungen hier werden durch Umgebungsvariablen ({names}) festgelegt. Entferne sie aus der Umgebung, um diese Einstellungen hier zu bearbeiten.",
     "unsaved": "Nicht gespeicherte Änderungen",
     "fixErrors": "Behebe die Fehler oben, um zu speichern",
     "discard": "Verwerfen",

@@ -1,7 +1,5 @@
 """Principal resolution and authentication operations."""
 
-from __future__ import annotations
-
 import uuid
 from datetime import UTC, datetime
 
@@ -260,9 +258,8 @@ def resolve_from_api_key(
             :class:`~auth.contracts.ApiKeyCred`.
 
     Raises:
-        UnauthenticatedError: If the key is not found,
-            revoked, or expired.
-        PermissionDeniedError: If the key's owner is inactive.
+        UnauthenticatedError: If the key is not found, its owner
+            is inactive, or it is revoked or expired.
 
     Notes:
         Every refusal is audited as ``auth.api_key.authenticate``.
@@ -278,16 +275,21 @@ def resolve_from_api_key(
         raise core_exceptions.UnauthenticatedError("Invalid API key", scheme="ApiKey")
 
     user = users_integration.require_user(db_key.user_id, db)
-    try:
-        users_integration.require_active_user(user)
-    except core_exceptions.PermissionDeniedError:
+    if not user.active:
+        # The key no longer authenticates anyone, as an inactive user's access token does not: 401, not 403.
         _refuse_api_key(
             authentication_audit_actions.ApiKeyRefusalReason.OWNER_INACTIVE,
             jasil_audit.Outcome.DENIED,
             api_key_id=db_key.id,
             owner_id=db_key.user_id,
         )
-        raise
+        logger.warning(
+            "API key refused: its owner is inactive",
+            extra=core_logger.context(
+                key_prefix=db_key.key_prefix, user_id=db_key.user_id, endpoint=endpoint, ip=ip_address
+            ),
+        )
+        raise core_exceptions.UnauthenticatedError("The API key's owner is inactive", scheme="ApiKey")
 
     if not db_key.is_active:
         _refuse_api_key(

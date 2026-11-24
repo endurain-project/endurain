@@ -17,7 +17,7 @@ export interface DefaultGearField {
   gearType: GearType
 }
 
-/** A labelled group of default-gear selectors (mirrors v1's activity sections). */
+/** A labelled group of default-gear selectors (one per activity section). */
 export interface DefaultGearGroup {
   titleKey: string
   fields: DefaultGearField[]

@@ -1,277 +1,361 @@
+"""The weight records' application rules, on the real database."""
+
 import uuid
-from datetime import date as datetime_date
-from unittest.mock import MagicMock, patch
+from datetime import date, timedelta
+from decimal import Decimal
 
 import pytest
-from sqlalchemy.orm.exc import StaleDataError
+import sqlalchemy as sa
 
 import core.date_range as core_date_range
+import core.etag as core_etag
 import core.exceptions as core_exceptions
+import core.timezone as core_timezone
 import modules.health.constants as health_constants
+import modules.health.health_weight.crud as health_weight_crud
+import modules.health.health_weight.models as health_weight_models
 import modules.health.health_weight.schema as health_weight_schema
 import modules.health.health_weight.service as health_weight_service
+from tests._factories.health import make_health_weight
+from tests._factories.users import make_user
 
-_PREFIX = "modules.health.health_weight.service"
-
-_NO_RANGE = core_date_range.DateRange()
-
-
-_ID = uuid.uuid4()
-_OTHER_ID = uuid.uuid4()
+_DAY = date(2025, 3, 10)
 
 
-_USER_ID = uuid.UUID("11111111-1111-4111-8111-111111111111")
-_OTHER_USER_ID = uuid.UUID("22222222-2222-4222-8222-222222222222")
+def _today() -> date:
+    """The user's today: the tests' users have no timezone, and the code reads the day from the platform clock."""
+    return core_timezone.today_in(core_timezone.or_default(None))
 
 
-def _user(height):
-    return MagicMock(height=height)
+def _stored(db, record_id):
+    return db.get(health_weight_models.HealthWeight, record_id)
 
 
-@pytest.fixture(autouse=True)
-def _known_user():
-    """Give the user a height, as every manual write derives its BMI from it, and a local today."""
-    with (
-        patch(f"{_PREFIX}.users_integration.get_user", return_value=_user(175)),
-        patch(f"{_PREFIX}.users_integration.local_today", return_value=datetime_date(2024, 1, 15)),
-    ):
-        yield
+def _create(db, user, **fields):
+    return health_weight_service.create_health_weight(
+        user.id, health_weight_schema.HealthWeightCreate(**{"date": _DAY, "weight_kg": 75.0, **fields}), db
+    )
 
 
-class TestStageCreate:
-    @patch(f"{_PREFIX}.health_weight_crud.create_health_weight")
-    @patch(f"{_PREFIX}.users_integration.get_user", return_value=_user(175))
-    def test_derives_bmi_from_user_height(self, _get_user, mock_create, mock_db):
-        record = health_weight_schema.HealthWeightCreate(date=datetime_date(2024, 1, 15), weight_kg=75.0)
+def _edit(db, user, record, *, if_match=None, **changes):
+    return health_weight_service.edit_health_weight(
+        user.id,
+        record.id,
+        health_weight_schema.HealthWeightUpdate(**changes),
+        db,
+        if_match=core_etag.format_etag(record.version) if if_match is None else if_match,
+    )
 
-        health_weight_service.stage_create_health_weight(_USER_ID, record, mock_db)
 
-        stored = mock_create.call_args.args[1]
-        assert stored.bmi == pytest.approx(75.0 / 1.75**2)
-        mock_db.commit.assert_not_called()
+@pytest.fixture
+def user(db):
+    return make_user(db, timezone="UTC")
 
-    @patch(f"{_PREFIX}.health_weight_crud.create_health_weight")
-    @patch(f"{_PREFIX}.users_integration.get_user", return_value=_user(70))
-    def test_bmi_is_none_when_the_height_gives_an_out_of_range_value(self, _get_user, mock_create, mock_db):
-        record = health_weight_schema.HealthWeightCreate(date=datetime_date(2024, 1, 15), weight_kg=80.0)
 
-        health_weight_service.stage_create_health_weight(_USER_ID, record, mock_db)
+@pytest.fixture
+def other(db):
+    return make_user(db, timezone="UTC")
 
-        stored = mock_create.call_args.args[1]
-        assert stored.bmi is None
-        health_weight_schema.HealthWeightRead.model_validate(
-            {**stored.model_dump(), "id": _ID, "user_id": _USER_ID, "version": 1, "updated_at": "2024-01-01T00:00:00Z"}
+
+class TestCreate:
+    def test_the_record_is_stored_and_committed(self, db, user):
+        created = _create(db, user, weight_kg=71.5)
+
+        assert health_weight_service.get_health_weight(user.id, created.id, db) == created
+        assert (created.user_id, created.date, created.weight_kg, created.source) == (user.id, _DAY, 71.5, "manual")
+
+    def test_without_a_date_the_record_is_for_the_users_today(self, db, user):
+        created = _create(db, user, date=None)
+
+        assert created.date == _today()
+
+    def test_a_date_after_the_users_today_is_refused_and_nothing_is_stored(self, db, user):
+        tomorrow = _today() + timedelta(days=1)
+
+        with pytest.raises(core_exceptions.InvalidInputError, match="cannot be dated in the future"):
+            _create(db, user, date=tomorrow)
+
+        assert health_weight_crud.get_health_weight_number_by_user_id(user.id, db) == 0
+
+    def test_the_users_today_is_accepted(self, db, user):
+        assert _create(db, user, date=_today()).date == _today()
+
+    def test_a_day_that_has_a_record_is_a_conflict_and_the_record_is_unchanged(self, committed_sessions):
+        with committed_sessions() as db:
+            user = make_user(db, timezone="UTC")
+            first = make_health_weight(db, user.id, date=_DAY, weight_kg=70.0)
+            db.commit()
+
+        with committed_sessions() as db, pytest.raises(core_exceptions.ConflictError):
+            _create(db, user, weight_kg=99.0)
+
+        with committed_sessions() as db:
+            assert _stored(db, first.id).weight_kg == Decimal("70.00")
+            assert health_weight_crud.get_health_weight_number_by_user_id(user.id, db) == 1
+
+
+class TestGet:
+    def test_a_record_the_user_does_not_have_is_not_found(self, db, user):
+        with pytest.raises(core_exceptions.NotFoundError, match="Health weight not found"):
+            health_weight_service.get_health_weight(user.id, uuid.uuid4(), db)
+
+    def test_another_users_record_is_not_found(self, db, user, other):
+        theirs = make_health_weight(db, other.id)
+
+        with pytest.raises(core_exceptions.NotFoundError):
+            health_weight_service.get_health_weight(user.id, theirs.id, db)
+
+
+class TestEdit:
+    def test_the_change_is_stored_and_the_version_moves_on(self, db, user):
+        record = _create(db, user, weight_kg=70.0)
+
+        edited = _edit(db, user, record, weight_kg=68.0)
+
+        assert (edited.weight_kg, edited.version) == (68.0, record.version + 1)
+        assert _stored(db, record.id).weight_kg == Decimal("68.00")
+
+    def test_a_stale_version_is_refused_and_the_record_keeps_the_newer_value(self, db, user):
+        record = _create(db, user, weight_kg=70.0)
+        _edit(db, user, record, weight_kg=71.0)
+
+        with pytest.raises(core_exceptions.PreconditionFailedError):
+            _edit(db, user, record, weight_kg=99.0)
+
+        assert _stored(db, record.id).weight_kg == Decimal("71.00")
+
+    def test_a_date_after_the_users_today_is_refused_and_the_record_keeps_its_date(self, db, user):
+        record = _create(db, user)
+
+        with pytest.raises(core_exceptions.InvalidInputError, match="cannot be dated in the future"):
+            _edit(db, user, record, date=_today() + timedelta(days=1))
+
+        assert _stored(db, record.id).date == _DAY
+
+    def test_moving_to_a_taken_day_is_a_conflict_and_the_record_keeps_its_day(self, committed_sessions):
+        with committed_sessions() as db:
+            user = make_user(db, timezone="UTC")
+            make_health_weight(db, user.id, date=date(2025, 3, 1))
+            moved = make_health_weight(db, user.id, date=date(2025, 3, 2))
+            db.commit()
+
+        with committed_sessions() as db, pytest.raises(core_exceptions.ConflictError):
+            _edit(db, user, moved, date=date(2025, 3, 1))
+
+        with committed_sessions() as db:
+            row = _stored(db, moved.id)
+            assert (row.date, row.version) == (date(2025, 3, 2), 1)
+
+    def test_another_users_record_is_not_found_and_unchanged(self, db, user, other):
+        theirs = make_health_weight(db, other.id, weight_kg=75.0)
+
+        with pytest.raises(core_exceptions.NotFoundError):
+            _edit(db, user, theirs, weight_kg=1.0)
+
+        assert (_stored(db, theirs.id).weight_kg, _stored(db, theirs.id).version) == (Decimal("75.00"), 1)
+
+    def test_a_record_that_does_not_exist_is_not_found(self, db, user):
+        with pytest.raises(core_exceptions.NotFoundError):
+            health_weight_service.edit_health_weight(
+                user.id, uuid.uuid4(), health_weight_schema.HealthWeightUpdate(weight_kg=1.0), db, if_match='"1"'
+            )
+
+
+class TestDelete:
+    def test_the_record_is_gone_afterwards(self, db, user):
+        record = _create(db, user)
+
+        health_weight_service.delete_health_weight(
+            user.id, record.id, db, if_match=core_etag.format_etag(record.version)
         )
 
-    @patch(f"{_PREFIX}.health_weight_crud.create_health_weight")
-    @patch(f"{_PREFIX}.users_integration.get_user", return_value=None)
-    def test_bmi_is_none_for_unknown_user(self, _get_user, mock_create, mock_db):
-        record = health_weight_schema.HealthWeightCreate(date=datetime_date(2024, 1, 15), weight_kg=75.0)
+        with pytest.raises(core_exceptions.NotFoundError):
+            health_weight_service.get_health_weight(user.id, record.id, db)
 
-        health_weight_service.stage_create_health_weight(_USER_ID, record, mock_db)
+    def test_a_stale_version_is_refused_and_the_record_stays(self, db, user):
+        record = _create(db, user)
 
-        assert mock_create.call_args.args[1].bmi is None
+        with pytest.raises(core_exceptions.PreconditionFailedError):
+            health_weight_service.delete_health_weight(user.id, record.id, db, if_match='"7"')
 
-    @patch(f"{_PREFIX}.health_weight_crud.create_health_weight")
-    def test_ignores_a_given_bmi(self, mock_create, mock_db):
-        record = health_weight_schema.HealthWeightCreate(date=datetime_date(2024, 1, 15), weight_kg=75.0, bmi=22.0)
+        assert _stored(db, record.id) is not None
 
-        health_weight_service.stage_create_health_weight(_USER_ID, record, mock_db)
+    def test_another_users_record_is_not_found_and_stays(self, db, user, other):
+        theirs = make_health_weight(db, other.id)
 
-        assert mock_create.call_args.args[1].bmi == pytest.approx(75.0 / 1.75**2)
+        with pytest.raises(core_exceptions.NotFoundError):
+            health_weight_service.delete_health_weight(user.id, theirs.id, db, if_match='"1"')
 
-
-class TestStageEdit:
-    @patch(f"{_PREFIX}.health_weight_crud.edit_health_weight")
-    @patch(f"{_PREFIX}.users_integration.get_user", return_value=_user(180))
-    def test_derives_bmi_when_weight_changes(self, _get_user, mock_edit, mock_db):
-        record = health_weight_schema.HealthWeightUpdate(date=datetime_date(2024, 1, 15), weight_kg=81.0)
-
-        health_weight_service.stage_edit_health_weight(_USER_ID, _ID, record, mock_db, if_match="*")
-
-        assert mock_edit.call_args.args[2].bmi == pytest.approx(81.0 / 1.8**2)
+        assert _stored(db, theirs.id) is not None
 
 
-class TestCreateHealthWeight:
-    @patch(f"{_PREFIX}.health_weight_crud.create_health_weight")
-    @patch(f"{_PREFIX}.health_weight_crud.get_health_weight_by_date_and_user_id", return_value=None)
-    def test_creates_and_commits_when_the_date_is_free(self, _get_by_date, mock_create, mock_db):
-        record = health_weight_schema.HealthWeightCreate(date=datetime_date(2024, 1, 15), weight_kg=75.0, bmi=22.0)
+class TestList:
+    @pytest.fixture
+    def records(self, db, user):
+        today = _today()
+        return {
+            offset: make_health_weight(db, user.id, date=today - timedelta(days=offset)) for offset in (0, 3, 20, 400)
+        }
 
-        result = health_weight_service.create_health_weight(_USER_ID, record, mock_db)
+    def _page(self, db, user, **kwargs):
+        return health_weight_service.list_health_weight(user.id, db, **kwargs)
 
-        assert result is mock_create.return_value
-        mock_db.commit.assert_called_once()
+    @pytest.mark.usefixtures("records")
+    def test_without_an_interval_every_record_is_listed_newest_first_with_the_total(self, db, user):
+        page = self._page(db, user)
 
-    @patch(f"{_PREFIX}.health_weight_crud.edit_health_weight")
-    @patch(f"{_PREFIX}.health_weight_crud.create_health_weight", side_effect=core_exceptions.ConflictError("duplicate"))
-    def test_a_date_that_already_has_a_record_is_a_conflict(self, _create, mock_edit, mock_db):
-        record = health_weight_schema.HealthWeightCreate(date=datetime_date(2024, 1, 15), weight_kg=72.0, bmi=22.0)
+        assert [r.date for r in page.items] == [_today() - timedelta(days=d) for d in (0, 3, 20, 400)]
+        assert (page.total, page.page, page.num_records, page.next) == (4, 1, 25, None)
 
-        with pytest.raises(core_exceptions.ConflictError):
-            health_weight_service.create_health_weight(_USER_ID, record, mock_db)
+    @pytest.mark.usefixtures("records")
+    @pytest.mark.parametrize(
+        ("interval", "kept_offsets"),
+        [
+            (health_constants.Interval.LAST_7_DAYS, (0, 3)),
+            (health_constants.Interval.LAST_30_DAYS, (0, 3, 20)),
+            (health_constants.Interval.LAST_YEAR, (0, 3, 20)),
+            (health_constants.Interval.ALL_TIME, (0, 3, 20, 400)),
+        ],
+    )
+    def test_an_interval_keeps_the_records_looking_back_from_the_users_today(self, db, user, interval, kept_offsets):
+        page = self._page(db, user, interval=interval)
 
-        mock_edit.assert_not_called()
-        mock_db.commit.assert_not_called()
+        assert [r.date for r in page.items] == [_today() - timedelta(days=d) for d in kept_offsets]
+        assert page.total == len(kept_offsets)
 
+    @pytest.mark.usefixtures("records")
+    def test_a_date_range_replaces_the_interval(self, db, user):
+        window = core_date_range.DateRange(_today() - timedelta(days=400), _today() - timedelta(days=20))
 
-class TestUpsertHealthWeight:
-    @patch(f"{_PREFIX}.health_weight_crud.edit_health_weight")
-    @patch(f"{_PREFIX}.health_weight_crud.get_health_weight_by_date_and_user_id")
-    def test_a_writer_that_changed_the_row_first_is_retried_against_its_version(
-        self, mock_get_by_date, mock_edit, mock_db
-    ):
-        mock_get_by_date.return_value = MagicMock(id=_ID)
-        mock_edit.side_effect = [StaleDataError("moved"), "stored"]
-        record = health_weight_schema.HealthWeightCreate(date=datetime_date(2024, 1, 15), weight_kg=72.0, bmi=22.0)
+        page = self._page(db, user, interval=health_constants.Interval.LAST_7_DAYS, date_range=window)
 
-        result = health_weight_service.stage_upsert_health_weight(_USER_ID, record, mock_db)
+        assert [r.date for r in page.items] == [_today() - timedelta(days=d) for d in (20, 400)]
+        assert page.total == 2
 
-        assert result == "stored"
-        assert mock_edit.call_count == 2
+    @pytest.mark.usefixtures("records")
+    def test_the_total_counts_every_record_in_the_window_while_the_page_holds_its_slice(self, db, user):
+        first = self._page(db, user, page_number=1, num_records=3)
+        second = self._page(db, user, page_number=2, num_records=3)
 
-    @patch(f"{_PREFIX}.health_weight_crud.edit_health_weight", side_effect=StaleDataError("moved"))
-    @patch(f"{_PREFIX}.health_weight_crud.get_health_weight_by_date_and_user_id")
-    def test_a_row_that_keeps_moving_is_given_up_on(self, mock_get_by_date, mock_edit, mock_db):
-        mock_get_by_date.return_value = MagicMock(id=_ID)
-        record = health_weight_schema.HealthWeightCreate(date=datetime_date(2024, 1, 15), weight_kg=72.0, bmi=22.0)
+        assert (len(first.items), first.total, first.next) == (3, 4, 2)
+        assert (len(second.items), second.total, second.next) == (1, 4, None)
 
-        with pytest.raises(StaleDataError):
-            health_weight_service.stage_upsert_health_weight(_USER_ID, record, mock_db)
+    def test_another_users_records_are_not_listed(self, db, user, other):
+        make_health_weight(db, other.id, date=_today())
 
-        assert mock_edit.call_count == health_constants.UPSERT_ATTEMPTS
+        page = self._page(db, user)
 
-    @patch(f"{_PREFIX}.health_weight_crud.edit_health_weight")
-    @patch(f"{_PREFIX}.health_weight_crud.get_health_weight_by_date_and_user_id")
-    def test_updates_the_existing_record_of_the_date(self, mock_get_by_date, mock_edit, mock_db):
-        mock_get_by_date.return_value = MagicMock(id=_ID)
-        record = health_weight_schema.HealthWeightCreate(date=datetime_date(2024, 1, 15), weight_kg=75.0, bmi=22.0)
-
-        health_weight_service.stage_upsert_health_weight(_USER_ID, record, mock_db)
-
-        assert mock_edit.call_args.args[:2] == (_USER_ID, _ID)
-        assert mock_edit.call_args.args[2].date == datetime_date(2024, 1, 15)
-        mock_db.commit.assert_not_called()
+        assert (page.items, page.total) == ([], 0)
 
 
-class TestEditAndDelete:
-    @patch(f"{_PREFIX}.health_weight_crud.edit_health_weight")
-    def test_edit_commits(self, mock_edit, mock_db):
-        record = health_weight_schema.HealthWeightUpdate(date=datetime_date(2024, 1, 15), weight_kg=75.0, bmi=22.0)
+class TestChart:
+    def test_a_window_is_one_averaged_point_per_day_with_a_value(self, db, user):
+        today = _today()
+        make_health_weight(db, user.id, date=today, weight_kg=70.0)
+        make_health_weight(db, user.id, date=today - timedelta(days=2), weight_kg=72.0)
+        make_health_weight(db, user.id, date=today - timedelta(days=30), weight_kg=99.0)
 
-        health_weight_service.edit_health_weight(_USER_ID, _ID, record, mock_db, if_match="*")
+        series = health_weight_service.get_health_weight_chart(user.id, health_constants.Interval.LAST_7_DAYS, db)
 
-        mock_db.commit.assert_called_once()
+        assert series.bucket == health_constants.ChartBucket.DAY
+        assert [(p.date, p.value) for p in series.points] == [(today - timedelta(days=2), 72.0), (today, 70.0)]
 
-    @patch(f"{_PREFIX}.health_weight_crud.delete_health_weight")
-    def test_delete_commits(self, mock_delete, mock_db):
-        health_weight_service.delete_health_weight(_USER_ID, _ID, mock_db, if_match="*")
+    def test_a_date_range_replaces_the_interval(self, db, user):
+        make_health_weight(db, user.id, date=date(2025, 3, 1), weight_kg=70.0)
 
-        mock_delete.assert_called_once_with(_USER_ID, _ID, mock_db, if_match="*")
-        mock_db.commit.assert_called_once()
-
-
-class TestListHealthWeight:
-    @patch(f"{_PREFIX}.health_weight_crud.get_health_weight_by_user_id", return_value=[])
-    @patch(f"{_PREFIX}.health_weight_crud.get_health_weight_number_by_user_id", return_value=0)
-    @patch(f"{_PREFIX}.users_integration.local_today", return_value=datetime_date(2024, 1, 15))
-    def test_resolves_the_interval_in_the_users_calendar(self, _today, mock_number, mock_list, mock_db):
-        result = health_weight_service.list_health_weight(
-            _USER_ID,
-            mock_db,
-            page_number=2,
-            num_records=10,
-            interval=health_constants.Interval.LAST_30_DAYS,
-            date_range=_NO_RANGE,
+        series = health_weight_service.get_health_weight_chart(
+            user.id,
+            health_constants.Interval.LAST_7_DAYS,
+            db,
+            date_range=core_date_range.DateRange(date(2025, 3, 1), date(2025, 3, 2)),
         )
 
-        since = datetime_date(2023, 12, 16)
-        mock_number.assert_called_once_with(_USER_ID, mock_db, since, None)
-        mock_list.assert_called_once_with(_USER_ID, mock_db, 2, 10, since, None)
-        assert (result.total, result.page, result.num_records) == (0, 2, 10)
-
-    @patch(f"{_PREFIX}.health_weight_crud.get_health_weight_by_user_id", return_value=[])
-    @patch(f"{_PREFIX}.health_weight_crud.get_health_weight_number_by_user_id", return_value=0)
-    def test_no_interval_means_no_lower_bound(self, mock_number, mock_list, mock_db):
-        health_weight_service.list_health_weight(_USER_ID, mock_db, date_range=_NO_RANGE)
-
-        mock_number.assert_called_once_with(_USER_ID, mock_db, None, None)
-
-
-class TestMissingDate:
-    @patch(f"{_PREFIX}.health_weight_crud.create_health_weight")
-    @patch(f"{_PREFIX}.health_weight_crud.get_health_weight_by_date_and_user_id", return_value=None)
-    @patch(f"{_PREFIX}.users_integration.local_today", return_value=datetime_date(2024, 1, 15))
-    def test_defaults_to_the_athletes_local_today(self, mock_today, _get_by_date, mock_create, mock_db):
-        record = health_weight_schema.HealthWeightCreate(weight_kg=75.0, bmi=22.0)
-
-        health_weight_service.create_health_weight(_USER_ID, record, mock_db)
-
-        assert mock_create.call_args.args[1].date == datetime_date(2024, 1, 15)
-        mock_today.assert_called_once_with(_USER_ID, mock_db)
-
-
-class TestFutureDate:
-    @patch(f"{_PREFIX}.health_weight_crud.create_health_weight")
-    @patch(f"{_PREFIX}.users_integration.local_today", return_value=datetime_date(2024, 1, 15))
-    def test_create_refuses_a_date_after_the_local_today(self, _today, mock_create, mock_db):
-        record = health_weight_schema.HealthWeightCreate(date=datetime_date(2024, 1, 16), weight_kg=75.0)
-
-        with pytest.raises(core_exceptions.InvalidInputError):
-            health_weight_service.create_health_weight(_USER_ID, record, mock_db)
-
-        mock_create.assert_not_called()
-
-    @patch(f"{_PREFIX}.health_weight_crud.create_health_weight")
-    @patch(f"{_PREFIX}.users_integration.local_today", return_value=datetime_date(2024, 1, 15))
-    def test_create_accepts_the_local_today(self, _today, mock_create, mock_db):
-        record = health_weight_schema.HealthWeightCreate(date=datetime_date(2024, 1, 15), weight_kg=75.0)
-
-        health_weight_service.create_health_weight(_USER_ID, record, mock_db)
-
-        mock_create.assert_called_once()
-
-    @patch(f"{_PREFIX}.health_weight_crud.edit_health_weight")
-    @patch(f"{_PREFIX}.users_integration.local_today", return_value=datetime_date(2024, 1, 15))
-    def test_edit_refuses_a_date_after_the_local_today(self, _today, mock_edit, mock_db):
-        update = health_weight_schema.HealthWeightUpdate(date=datetime_date(2024, 1, 16))
-
-        with pytest.raises(core_exceptions.InvalidInputError):
-            health_weight_service.edit_health_weight(_USER_ID, _ID, update, mock_db, if_match="1")
-
-        mock_edit.assert_not_called()
+        assert [(p.date, p.value) for p in series.points] == [(date(2025, 3, 1), 70.0)]
 
 
 class TestRestoreProfileRecords:
-    @patch(f"{_PREFIX}.stage_upsert_health_weight")
-    def test_stages_each_row_without_the_row_identity(self, mock_upsert, mock_db):
-        rows = [{"id": str(_ID), "user_id": str(_OTHER_USER_ID), "version": 4, "date": "2024-01-15", "weight_kg": 75.5}]
+    def _restore(self, db, user, records):
+        return health_weight_service.restore_profile_records(records, user.id, {}, db)
 
-        assert health_weight_service.restore_profile_records(rows, _USER_ID, {}, mock_db) == 1
+    def test_the_archived_records_are_stored_for_the_importing_user_not_the_exporter(self, db, user):
+        exporter, archived_id = uuid.uuid4(), uuid.uuid4()
+        record = {
+            "id": str(archived_id),
+            "user_id": str(exporter),
+            "version": 9,
+            "updated_at": "2020-01-01T00:00:00Z",
+            "date": "2025-03-01",
+            "weight_kg": 70.5,
+            "source": "garmin",
+            "bmi": 21.5,
+        }
 
-        user_id, record, db = mock_upsert.call_args.args
-        assert (user_id, db) == (_USER_ID, mock_db)
-        assert record.weight_kg == 75.5
+        assert self._restore(db, user, [record]) == 1
 
-    @patch(f"{_PREFIX}.stage_upsert_health_weight")
-    def test_numbers_archived_as_strings_are_read_as_numbers(self, mock_upsert, mock_db):
-        rows = [
-            {"date": "2024-01-15", "weight_kg": "75.5", "bmi": "24.1", "physique_rating": "5", "metabolic_age": "30"}
+        stored = health_weight_crud.get_all_health_weight_by_user_id(user.id, db)
+        assert [(r.user_id, r.date, r.weight_kg, r.source, r.bmi, r.version) for r in stored] == [
+            (user.id, date(2025, 3, 1), 70.5, "garmin", 21.5, 1)
+        ]
+        assert stored[0].id != archived_id
+
+    def test_numbers_archived_as_text_are_read_as_numbers(self, db, user):
+        record = {"date": "2025-03-01", "weight_kg": "70.5", "body_fat_percent": "18.25", "physique_rating": "4"}
+
+        self._restore(db, user, [record])
+
+        (stored,) = health_weight_crud.get_all_health_weight_by_user_id(user.id, db)
+        assert (stored.weight_kg, stored.body_fat_percent, stored.physique_rating) == (70.5, 18.25, 4)
+
+    def test_a_record_that_is_invalid_is_skipped_and_the_rest_are_stored(self, db, user):
+        records = [
+            {"date": "2025-03-01", "weight_kg": "not a number"},
+            {"date": "2025-03-02", "weight_kg": 600.0},
+            {"date": "2025-03-03", "weight_kg": 70.0},
         ]
 
-        assert health_weight_service.restore_profile_records(rows, _USER_ID, {}, mock_db) == 1
+        assert self._restore(db, user, records) == 1
 
-        record = mock_upsert.call_args.args[1]
-        assert (record.weight_kg, record.bmi, record.physique_rating, record.metabolic_age) == (75.5, 24.1, 5, 30)
+        stored = health_weight_crud.get_all_health_weight_by_user_id(user.id, db)
+        assert [r.date for r in stored] == [date(2025, 3, 3)]
 
-    @patch(f"{_PREFIX}.stage_upsert_health_weight")
-    def test_a_number_that_cannot_be_read_leaves_a_record_that_is_skipped(self, mock_upsert, mock_db):
-        rows = [{"weight_kg": "abc", "physique_rating": "xyz", "metabolic_age": "invalid"}]
+    def test_a_record_for_a_day_the_user_has_updates_it(self, db, user):
+        existing = make_health_weight(db, user.id, date=date(2025, 3, 1), weight_kg=70.0)
 
-        assert health_weight_service.restore_profile_records(rows, _USER_ID, {}, mock_db) == 0
-        mock_upsert.assert_not_called()
+        self._restore(db, user, [{"date": "2025-03-01", "weight_kg": 65.0}])
 
-    @patch(f"{_PREFIX}.stage_upsert_health_weight")
-    def test_no_rows_stages_nothing(self, mock_upsert, mock_db):
-        assert health_weight_service.restore_profile_records([], _USER_ID, {}, mock_db) == 0
-        mock_upsert.assert_not_called()
+        stored = health_weight_crud.get_all_health_weight_by_user_id(user.id, db)
+        assert [(r.id, r.weight_kg) for r in stored] == [(existing.id, 65.0)]
+
+    def test_an_empty_archive_stores_nothing(self, db, user):
+        assert self._restore(db, user, []) == 0
+        assert db.scalar(sa.select(sa.func.count()).select_from(health_weight_models.HealthWeight)) == 0
+
+
+class TestUpsert:
+    def _upsert(self, db, user, **fields):
+        record = health_weight_schema.HealthWeightImport(**{"date": _DAY, "weight_kg": 75.0, **fields})
+        return health_weight_service.stage_upsert_health_weight(user.id, record, db)
+
+    def test_a_new_day_is_created_with_the_source_it_came_from(self, db, user):
+        staged = self._upsert(db, user, source="garmin")
+
+        assert (staged.source, staged.version) == ("garmin", 1)
+
+    def test_a_day_that_has_a_record_is_updated_instead_of_conflicting(self, db, user):
+        first = self._upsert(db, user, weight_kg=70.0, source="garmin")
+
+        second = self._upsert(db, user, weight_kg=71.0, source="garmin")
+
+        assert (second.id, second.weight_kg) == (first.id, 71.0)
+        assert health_weight_crud.get_health_weight_number_by_user_id(user.id, db) == 1
+
+    def test_without_a_date_the_record_is_for_the_users_today(self, db, user):
+        assert self._upsert(db, user, date=None).date == _today()
+
+    def test_another_users_record_of_the_day_is_left_alone(self, db, user, other):
+        theirs = make_health_weight(db, other.id, date=_DAY, weight_kg=60.0)
+
+        mine = self._upsert(db, user, weight_kg=75.0)
+
+        assert mine.id != theirs.id
+        assert _stored(db, theirs.id).weight_kg == Decimal("60.00")

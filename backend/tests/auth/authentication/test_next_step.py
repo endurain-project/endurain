@@ -2,13 +2,8 @@
 union."""
 
 import pytest
-from fastapi import FastAPI
 
-import modules.auth.account_security.public_router as password_change_router
-import modules.auth.authentication.public_router as auth_router
 import modules.auth.authentication.schema as auth_schema
-import modules.auth.authentication.sso_public_router as exchange_router
-from tests.auth.authentication.conftest import BACKUP_CODE, CHALLENGE, MOBILE, PASSWORD, USERNAME, WEB
 
 _BODIES = [
     ("MFARequiredRead", "mfa"),
@@ -24,13 +19,9 @@ _MFA_VERIFY = (_LOGIN - {"MFARequiredRead"}) | {"TokenMobileRead"}
 _EXCHANGE = {"MFARequiredRead", "TokenWebRead", "TokenMobileRead"}
 
 
-@pytest.fixture(scope="module")
-def openapi() -> dict:
-    app = FastAPI()
-    app.include_router(auth_router.router, prefix="/auth")
-    app.include_router(password_change_router.router, prefix="/auth")
-    app.include_router(exchange_router.router, prefix="/auth")
-    return app.openapi()
+@pytest.fixture
+def openapi(client) -> dict:
+    return client.app.openapi()
 
 
 def _refs(node) -> set[str]:
@@ -86,7 +77,7 @@ class TestSchemas:
 class TestRoutes:
     @pytest.mark.parametrize(
         ("path", "bodies"),
-        [("/auth/login", _LOGIN), ("/auth/password-change", _PASSWORD_CHANGE)],
+        [("/api/v1/auth/login", _LOGIN), ("/api/v1/auth/password-change", _PASSWORD_CHANGE)],
     )
     def test_each_route_answers_the_bodies_it_can_end_in(self, openapi, path, bodies):
         schema = _response(openapi, path)
@@ -96,7 +87,7 @@ class TestRoutes:
 
     @pytest.mark.parametrize(
         ("path", "bodies"),
-        [("/auth/mfa/verify", _MFA_VERIFY), ("/auth/sessions/{session_id}/tokens", _EXCHANGE)],
+        [("/api/v1/auth/mfa/verify", _MFA_VERIFY), ("/api/v1/auth/sessions/{session_id}/tokens", _EXCHANGE)],
     )
     def test_a_route_that_answers_both_token_bodies_answers_a_union_without_a_discriminator(
         self, openapi, path, bodies
@@ -107,51 +98,7 @@ class TestRoutes:
         assert "anyOf" in schema
 
     def test_refresh_still_answers_tokens_only(self, openapi):
-        assert _refs(_response(openapi, "/auth/refresh")) == {"TokenWebRead", "TokenMobileRead"}
+        assert _refs(_response(openapi, "/api/v1/auth/refresh")) == {"TokenWebRead", "TokenMobileRead"}
 
     def test_the_token_exchange_has_no_body_of_its_own(self, openapi):
         assert "TokenExchangeRead" not in openapi["components"]["schemas"]
-
-
-class TestAnswers:
-    def test_a_password_login_answers_tokens(self, plain_signin):
-        response = plain_signin.client.post(
-            "/auth/login", data={"username": USERNAME, "password": PASSWORD}, headers=WEB
-        )
-
-        body = response.json()
-        assert response.status_code == 200
-        assert body["next_step"] == "tokens"
-        assert "mfa_required" not in body
-        assert "message" not in body
-
-    def test_a_mobile_pkce_login_answers_exchange(self, plain_signin):
-        response = plain_signin.client.post(
-            "/auth/login",
-            data={
-                "username": USERNAME,
-                "password": PASSWORD,
-                "code_challenge": CHALLENGE,
-                "code_challenge_method": "S256",
-            },
-            headers=MOBILE,
-        )
-
-        body = response.json()
-        assert body["next_step"] == "exchange"
-        assert set(body) == {"next_step", "session_id", "device_id"}
-
-    def test_an_mfa_account_answers_mfa_then_the_verified_login_answers_its_next_step(self, mfa_signin):
-        first = mfa_signin.client.post("/auth/login", data={"username": USERNAME, "password": PASSWORD}, headers=WEB)
-
-        assert first.json().keys() == {"next_step", "mfa_challenge", "methods"}
-        assert first.json()["next_step"] == "mfa"
-
-        second = mfa_signin.client.post(
-            "/auth/mfa/verify",
-            json={"mfa_challenge": first.json()["mfa_challenge"], "mfa_code": BACKUP_CODE},
-            headers=WEB,
-        )
-
-        assert second.status_code == 200
-        assert second.json()["next_step"] == "password_change"

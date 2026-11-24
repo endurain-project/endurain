@@ -117,8 +117,11 @@ class Gear(core_sync.UpdatedAtMixin, Base):
     )
 
 
-#: One nickname per user, compared case-insensitively like the nickname lookup.
-Index("uq_gear_user_nickname", Gear.user_id, func.lower(Gear.nickname), unique=True)
+#: One nickname per user, compared case-insensitively. The migrated index is on
+#: ``(user_id, nickname COLLATE case_insensitive)``; PostgreSQL stores a collated column as a plain key column and
+#: Alembic reflects it without the collation, so the metadata names the columns, which is what autogenerate compares.
+#: Queries and ``ON CONFLICT`` name the collation themselves (``core.sanitization.CASE_INSENSITIVE_COLLATION``).
+Index("uq_gear_user_nickname", Gear.user_id, Gear.nickname, unique=True)
 
 
 class GearDeletion(core_sync.TombstoneMixin, Base):

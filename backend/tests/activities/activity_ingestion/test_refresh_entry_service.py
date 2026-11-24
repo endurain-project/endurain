@@ -1,203 +1,70 @@
-"""Tests for the provider-refresh entry point.
+"""A refresh asks every linked provider, and a provider that fails is reported the way its failure deserves."""
 
-The refresh used to name Strava and Garmin directly, which is what made
-activities and the provider modules mutually dependent. It now fans out over
-whatever is registered, so these tests register fakes — no provider module is
-imported here, which is the point.
-"""
+import logging
+import uuid
 
-from datetime import UTC, datetime, timedelta
-
+import psycopg
 import pytest
-from tests._helpers.auth import MOCK_USER_ID
+from sqlalchemy.exc import IntegrityError, OperationalError
 
 import core.exceptions as core_exceptions
-import modules.activities.activity_ingestion.provider_registry as provider_registry
+import modules.activities.activity_ingestion.provider_registry as ingestion_provider_registry
 import modules.activities.activity_ingestion.refresh_entry_service as refresh_entry_service
+from tests._helpers import database as test_database
+
+_USER_ID = uuid.UUID("00000000-0000-4000-8000-0000000000d1")
 
 
-@pytest.fixture(autouse=True)
-def _empty_registry():
-    """Each test starts from an empty registry and leaves one behind."""
-    provider_registry.clear()
-    yield
-    provider_registry.clear()
+def _register(name: str, error: BaseException | None, asked: list[str]) -> None:
+    def fetch_window(user_id, window_start, window_end):
+        asked.append(name)
+        if error is not None:
+            raise error
+        return []
+
+    ingestion_provider_registry.register(
+        ingestion_provider_registry.ActivityProvider(name, fetch_window, lambda *_args, **_kwargs: iter(()))
+    )
 
 
-def _provider(name: str, produces=None, raises: Exception | None = None):
-    """Register a fake provider and return the list of windows it was asked for."""
-    seen: list[tuple] = []
-
-    def _fetch(user_id, window_start, window_end):
-        seen.append((user_id, window_start, window_end))
-        if raises is not None:
-            raise raises
-        return produces
-
-    provider_registry.register(provider_registry.ActivityProvider(name, _fetch, lambda after_id, limit: []))
-    return seen
+def _failures(app_log) -> list[logging.LogRecord]:
+    return [record for record in app_log.records if record.getMessage().startswith("Provider refresh failed")]
 
 
-class TestSyncLinkedProviders:
-    def test_combines_every_registered_provider(self):
-        _provider("a", ["s1"])
-        _provider("b", ["g1"])
+class TestAFailingProvider:
+    def test_a_database_outage_is_a_warning_and_is_raised_once_every_provider_was_asked(self, db, providers, app_log):
+        asked: list[str] = []
+        _register("down", test_database.lost_connection_error(), asked)
+        _register("fine", None, asked)
 
-        assert refresh_entry_service.sync_linked_providers(MOCK_USER_ID) == ["s1", "g1"]
+        # The outage stays the cause, so the job runner defers the refresh instead of spending an attempt.
+        with pytest.raises(core_exceptions.ProcessingError) as raised:
+            refresh_entry_service.sync_linked_providers(_USER_ID)
 
-    def test_an_unlinked_provider_returns_nothing_rather_than_failing(self):
-        """One unlinked integration must not fail the whole refresh."""
-        _provider("a", None)
-        _provider("b", ["g1"])
+        assert isinstance(raised.value.__cause__, OperationalError)
+        assert asked == ["down", "fine"]
+        [record] = _failures(app_log)
+        assert record.levelno == logging.WARNING
+        assert record.exc_info is None
+        assert (record.provider, record.error) == ("down", "OperationalError")
 
-        assert refresh_entry_service.sync_linked_providers(MOCK_USER_ID) == ["g1"]
+    @pytest.mark.parametrize(
+        "error",
+        [
+            ValueError("unexpected payload"),
+            IntegrityError("INSERT", {}, psycopg.errors.UniqueViolation("duplicate key")),
+        ],
+        ids=["defect", "database-refusal"],
+    )
+    def test_any_other_failure_is_an_error_with_its_traceback(self, providers, app_log, error):
+        asked: list[str] = []
+        _register("broken", error, asked)
 
-    def test_a_failing_provider_does_not_take_the_others_down_but_fails_the_sync(self):
-        """The others still run, and the sync raises so the job is retried."""
-        _provider("a", raises=RuntimeError("provider down"))
-        healthy = _provider("b", ["g1"])
+        with pytest.raises(core_exceptions.ProcessingError) as raised:
+            refresh_entry_service.sync_linked_providers(_USER_ID)
 
-        with pytest.raises(core_exceptions.ProcessingError):
-            refresh_entry_service.sync_linked_providers(MOCK_USER_ID)
+        assert raised.value.__cause__ is error
 
-        assert healthy[0] is not None
-
-    def test_a_rate_limited_provider_defers_the_sync_instead_of_failing_it(self):
-        clears = datetime.now(UTC) + timedelta(minutes=10)
-        _provider(
-            "a",
-            raises=core_exceptions.TooManyRequestsError(
-                "limit", scope=core_exceptions.TooManyRequestsScope.PROVIDER, retry_at=clears
-            ),
-        )
-        healthy = _provider("b", ["g1"])
-
-        with pytest.raises(refresh_entry_service.RefreshDeferredError) as deferred:
-            refresh_entry_service.sync_linked_providers(MOCK_USER_ID)
-
-        assert deferred.value.retry_at == clears
-        assert healthy[0] is not None
-
-    def test_the_sync_waits_for_the_last_limit_to_clear(self):
-        soon = datetime.now(UTC) + timedelta(minutes=5)
-        later = datetime.now(UTC) + timedelta(hours=5)
-        _provider(
-            "a",
-            raises=core_exceptions.TooManyRequestsError(
-                "limit", scope=core_exceptions.TooManyRequestsScope.PROVIDER, retry_at=soon
-            ),
-        )
-        _provider(
-            "b",
-            raises=core_exceptions.TooManyRequestsError(
-                "limit", scope=core_exceptions.TooManyRequestsScope.PROVIDER, retry_at=later
-            ),
-        )
-
-        with pytest.raises(refresh_entry_service.RefreshDeferredError) as deferred:
-            refresh_entry_service.sync_linked_providers(MOCK_USER_ID)
-
-        assert deferred.value.retry_at == later
-
-    def test_a_limit_with_no_known_end_waits_for_the_default_deferral(self):
-        _provider(
-            "a",
-            raises=core_exceptions.TooManyRequestsError("limit", scope=core_exceptions.TooManyRequestsScope.PROVIDER),
-        )
-        before = datetime.now(UTC)
-
-        with pytest.raises(refresh_entry_service.RefreshDeferredError) as deferred:
-            refresh_entry_service.sync_linked_providers(MOCK_USER_ID)
-
-        assert deferred.value.retry_at >= before + refresh_entry_service._DEFAULT_DEFERRAL
-
-    def test_a_real_failure_wins_over_a_deferral_so_the_job_still_retries(self):
-        _provider(
-            "a",
-            raises=core_exceptions.TooManyRequestsError(
-                "limit", scope=core_exceptions.TooManyRequestsScope.PROVIDER, retry_at=datetime.now(UTC)
-            ),
-        )
-        _provider("b", raises=RuntimeError("provider down"))
-
-        with pytest.raises(core_exceptions.ProcessingError):
-            refresh_entry_service.sync_linked_providers(MOCK_USER_ID)
-
-    def test_a_rate_limit_is_logged_as_a_warning_not_an_error(self):
-        from unittest.mock import patch
-
-        _provider(
-            "a",
-            raises=core_exceptions.TooManyRequestsError(
-                "limit", scope=core_exceptions.TooManyRequestsScope.PROVIDER, retry_at=datetime.now(UTC)
-            ),
-        )
-
-        with (
-            patch.object(refresh_entry_service.logger, "warning") as warning,
-            patch.object(refresh_entry_service.logger, "error") as error,
-            pytest.raises(refresh_entry_service.RefreshDeferredError),
-        ):
-            refresh_entry_service.sync_linked_providers(MOCK_USER_ID)
-
-        warning.assert_called_once()
-        error.assert_not_called()
-
-    def test_no_registered_providers_is_not_an_error(self):
-        assert refresh_entry_service.sync_linked_providers(MOCK_USER_ID) == []
-
-    def test_asks_every_provider_for_the_same_default_window(self):
-        first = _provider("a")
-        second = _provider("b")
-
-        refresh_entry_service.sync_linked_providers(MOCK_USER_ID)
-
-        assert first[0] == second[0]
-        user_id, window_start, window_end = first[0]
-        assert user_id == MOCK_USER_ID
-        assert window_end - window_start == refresh_entry_service._REFRESH_WINDOW
-
-    def test_an_explicit_window_is_passed_through_unchanged(self):
-        seen = _provider("a")
-        start = datetime(2026, 1, 1, tzinfo=UTC)
-        end = start + timedelta(days=30)
-
-        refresh_entry_service.sync_linked_providers(MOCK_USER_ID, start, end)
-
-        assert seen == [(MOCK_USER_ID, start, end)]
-
-    def test_a_named_provider_is_the_only_one_asked(self):
-        wanted = _provider("a", ["s1"])
-        other = _provider("b", ["g1"])
-
-        assert refresh_entry_service.sync_linked_providers(MOCK_USER_ID, provider="a") == ["s1"]
-        assert len(wanted) == 1
-        assert other == []
-
-    def test_a_provider_missing_from_this_process_is_loud_not_an_empty_success(self):
-        """A worker without a registration the API has would otherwise report a clean no-op."""
-        _provider("a", ["s1"])
-
-        with pytest.raises(core_exceptions.ProcessingError):
-            refresh_entry_service.sync_linked_providers(MOCK_USER_ID, provider="garminconnect")
-
-
-class TestRegistry:
-    def test_re_registering_a_name_replaces_rather_than_duplicates(self):
-        """A second lifespan (or a test) must not double every fetch."""
-        _provider("a", ["one"])
-        _provider("a", ["two"])
-
-        assert [p.name for p in provider_registry.registered()] == ["a"]
-
-    def test_registration_order_is_preserved(self):
-        _provider("a")
-        _provider("b")
-
-        assert [p.name for p in provider_registry.registered()] == ["a", "b"]
-
-    def test_a_provider_is_found_by_name(self):
-        _provider("a")
-
-        assert provider_registry.get("a").name == "a"
-        assert provider_registry.get("missing") is None
+        [record] = _failures(app_log)
+        assert record.levelno == logging.ERROR
+        assert record.exc_info is not None

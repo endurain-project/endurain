@@ -92,10 +92,17 @@ In `subscriber_registry.py`, register the bus subscriber and, for durable mode, 
 THUMBNAIL_GENERATE_SUBSCRIBER_ID = "activity_thumbnail.generate"
 
 events.subscribe(activity_events.ACTIVITY_CREATED, on_activity_created_generate_thumbnail)
-registry.register(activity_events.ACTIVITY_CREATED, THUMBNAIL_GENERATE_SUBSCRIBER_ID, generate_activity_thumbnail_for_event)
+registry.register(
+    activity_events.ACTIVITY_CREATED,
+    THUMBNAIL_GENERATE_SUBSCRIBER_ID,
+    generate_activity_thumbnail_for_event,
+    queue=core_job_queues.ENRICHMENT,
+)
 ```
 
 The id is independent of the module path, so job history and deduplication survive refactors. Pick it once and keep it.
+
+A handler that can take long goes on a queue of its own, so a deployment can give that work workers of its own: long work a user asked for and waits to finish (an import, an export, a deletion that works through a whole account) on `core_job_queues.BACKGROUND`, and work derived from stored data that calls an outside provider at its pace (a thumbnail, a geocoding lookup) on `core_job_queues.ENRICHMENT`. Anything a user waits on that is short keeps the default queue. `tests/architecture/test_module_registry.py` lists the subscribers of each.
 
 The existing subscribers and their ids are listed in the [subscriber catalog](../getting-started/background-work-by-module.md#subscriber-catalog); add yours to it when you add one.
 
@@ -107,7 +114,7 @@ Every durable subscriber must say how lost work is repaired. Add a `DurableSubsc
 DURABLE_SUBSCRIBER_NETS = (
     DurableSubscriberNet(
         THUMBNAIL_GENERATE_SUBSCRIBER_ID,
-        activity_thumbnail_scheduled_jobs.generate_missing_thumbnails,
+        activity_thumbnail_scheduled_jobs.request_thumbnail_backfill,
     ),
 )
 ```

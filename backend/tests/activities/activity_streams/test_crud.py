@@ -1,135 +1,100 @@
-import uuid
-from unittest.mock import MagicMock, patch
+"""Streams are stored as the parsers hand them over and read back unchanged, on the real database."""
 
-from tests._helpers.db import setup_mock_execute
-from tests._helpers.models import mock_model
+import pytest
 
-ACTIVITY_ID = uuid.UUID("aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa")
-STREAM_ID = uuid.UUID("bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb")
+import modules.activities.activity_streams.constants as stream_constants
+import modules.activities.activity_streams.contracts as stream_contracts
+import modules.activities.activity_streams.crud as streams_crud
+from tests._factories.activities import make_activity, make_stream
+from tests._factories.users import make_user
 
-
-class TestCreateActivityStreams:
-    @patch("modules.activities.activity_streams.crud.activity_streams_models.ActivityStreams")
-    def test_success(self, mock_streams_model, mock_db):
-        import modules.activities.activity_streams.crud as crud
-        from modules.activities.activity_streams.contracts import ActivityStreamsCreate
-
-        mock_activity = MagicMock(user_id=STREAM_ID, id=ACTIVITY_ID)
-        mock_streams_model.return_value = MagicMock()
-        s = [
-            ActivityStreamsCreate(
-                activity_id=ACTIVITY_ID, stream_type=1, stream_waypoints=[{"hr": 145}], strava_activity_stream_id=None
-            )
-        ]
-        crud.create_activity_streams(s, mock_activity, mock_db)
-        mock_db.add_all.assert_called_once()
-        mock_db.flush.assert_called_once()
-        mock_db.commit.assert_not_called()
-
-    def test_empty(self, mock_db):
-        import modules.activities.activity_streams.crud as crud
-
-        mock_activity = MagicMock(user_id=STREAM_ID, id=ACTIVITY_ID)
-        crud.create_activity_streams([], mock_activity, mock_db)
-        mock_db.add_all.assert_not_called()
+_HR = stream_constants.STREAM_TYPE_HR
+_MAP = stream_constants.STREAM_TYPE_MAP
 
 
-class TestGetActivityStreams:
-    """Persistence only — access and per-type masking live in ``activity_streams.service``."""
+@pytest.fixture
+def activity(db):
+    return make_activity(db, make_user(db).id)
 
-    @patch("modules.activities.activity_streams.crud.activity_streams_serializers.to_read_schemas")
-    def test_success(self, mock_transform, mock_db):
-        import modules.activities.activity_streams.crud as crud
-        import modules.activities.activity_streams.models as m
-        from modules.activities.activity_streams.schema import ActivityStreamsRead
 
-        mock_transform.return_value = [
-            ActivityStreamsRead(
-                id=STREAM_ID,
-                activity_id=ACTIVITY_ID,
-                stream_type=1,
-                stream_waypoints=[],
-                strava_activity_stream_id=None,
-            )
-        ]
-        setup_mock_execute(
-            mock_db,
-            return_scalars_all=[mock_model(m.ActivityStreams, id=STREAM_ID, activity_id=ACTIVITY_ID, stream_type=1)],
+class TestCreate:
+    def test_a_stream_keeps_its_samples_in_order_with_their_json_types(self, db, activity):
+        waypoints = [{"time": "2025-03-10T08:00:01", "hr": 120, "x": None}, {"time": "2025-03-10T08:00:00", "hr": 0.5}]
+
+        stored = make_stream(db, activity, _HR, waypoints)
+
+        assert (stored.activity_id, stored.stream_type, stored.stream_waypoints) == (activity.id, _HR, waypoints)
+        assert streams_crud.get_activity_streams(activity.id, db)[0].stream_waypoints == waypoints
+
+    def test_the_strava_stream_id_is_kept(self, db, activity):
+        streams_crud.create_activity_streams(
+            [
+                stream_contracts.ActivityStreamsCreate(
+                    activity_id=activity.id, stream_type=_HR, stream_waypoints=[], strava_activity_stream_id=77
+                )
+            ],
+            activity,
+            db,
         )
-        assert len(crud.get_activity_streams(activity_id=ACTIVITY_ID, db=mock_db)) == 1
 
-    @patch("modules.activities.activity_streams.crud.activity_streams_schema.ActivityStreamsRead.model_validate")
-    def test_by_type(self, mock_validate, mock_db):
-        import modules.activities.activity_streams.crud as crud
-        import modules.activities.activity_streams.models as m
-        from modules.activities.activity_streams.schema import ActivityStreamsRead
+        assert streams_crud.get_activity_stream_by_type(activity.id, _HR, db).strava_activity_stream_id == 77
 
-        mock_validate.return_value = ActivityStreamsRead(
-            id=STREAM_ID, activity_id=ACTIVITY_ID, stream_type=1, stream_waypoints=[], strava_activity_stream_id=None
+    def test_no_streams_store_nothing(self, db, activity):
+        streams_crud.create_activity_streams([], activity, db)
+
+        assert streams_crud.get_activity_streams(activity.id, db) == []
+
+    def test_streams_of_an_activity_without_an_owner_are_not_stored(self, db, activity):
+        orphan = activity.model_copy(update={"user_id": None})
+
+        streams_crud.create_activity_streams(
+            [stream_contracts.ActivityStreamsCreate(activity_id=activity.id, stream_type=_HR, stream_waypoints=[])],
+            orphan,
+            db,
         )
-        setup_mock_execute(
-            mock_db,
-            return_one_or_none=mock_model(m.ActivityStreams, id=STREAM_ID, activity_id=ACTIVITY_ID, stream_type=1),
-        )
-        assert crud.get_activity_stream_by_type(activity_id=ACTIVITY_ID, stream_type=1, db=mock_db) is not None
 
-    def test_by_type_missing(self, mock_db):
-        import modules.activities.activity_streams.crud as crud
-
-        mock_db.scalars.return_value.first.return_value = None
-        assert crud.get_activity_stream_by_type(activity_id=ACTIVITY_ID, stream_type=1, db=mock_db) is None
-
-    @patch("modules.activities.activity_streams.crud.activity_streams_serializers.to_read_schemas")
-    def test_empty(self, mock_transform, mock_db):
-        import modules.activities.activity_streams.crud as crud
-
-        mock_transform.return_value = []
-        mock_db.scalars.return_value.all.return_value = []
-        assert crud.get_activity_streams(activity_id=ACTIVITY_ID, db=mock_db) == []
+        assert streams_crud.get_activity_streams(activity.id, db) == []
 
 
-class TestGetActivitiesStreams:
-    """The batch read no longer joins the parent: it is handed scoped ids."""
+class TestRead:
+    def test_an_activitys_streams_are_read_and_another_activitys_are_not(self, db, activity):
+        other = make_activity(db, make_user(db).id)
+        make_stream(db, activity, _HR, [{"hr": 1}])
+        make_stream(db, activity, _MAP, [{"lat": 1.0, "lon": 2.0}])
+        make_stream(db, other, _HR, [{"hr": 9}])
 
-    @patch("modules.activities.activity_streams.crud.activity_streams_serializers.to_read_schemas")
-    def test_success(self, mock_transform, mock_db):
-        import modules.activities.activity_streams.crud as crud
-        import modules.activities.activity_streams.models as m
+        streams = streams_crud.get_activity_streams(activity.id, db)
 
-        mock_transform.return_value = [MagicMock()]
-        mock_db.scalars.return_value.all.return_value = [
-            MagicMock(spec=m.ActivityStreams, id=STREAM_ID, activity_id=ACTIVITY_ID)
-        ]
+        assert sorted(s.stream_type for s in streams) == [_HR, _MAP]
+        assert all(s.activity_id == activity.id for s in streams)
 
-        assert len(crud.get_activities_streams(activity_ids=[ACTIVITY_ID], db=mock_db)) == 1
+    def test_one_type_is_read_and_a_missing_type_is_none(self, db, activity):
+        make_stream(db, activity, _HR, [{"hr": 1}])
 
-    def test_empty_ids_short_circuits(self, mock_db):
-        import modules.activities.activity_streams.crud as crud
+        assert streams_crud.get_activity_stream_by_type(activity.id, _HR, db).stream_waypoints == [{"hr": 1}]
+        assert streams_crud.get_activity_stream_by_type(activity.id, _MAP, db) is None
 
-        assert crud.get_activities_streams(activity_ids=[], db=mock_db) == []
-        mock_db.scalars.assert_not_called()
+    def test_several_activities_are_read_at_once_and_none_reads_nothing(self, db, activity):
+        other = make_activity(db, make_user(db).id)
+        make_stream(db, activity, _HR, [{"hr": 1}])
+        make_stream(db, other, _HR, [{"hr": 2}])
 
-    def test_no_streams(self, mock_db):
-        import modules.activities.activity_streams.crud as crud
+        streams = streams_crud.get_activities_streams([activity.id, other.id], db)
 
-        mock_db.scalars.return_value.all.return_value = []
+        assert sorted(s.activity_id == activity.id for s in streams) == [False, True]
+        assert streams_crud.get_activities_streams([], db) == []
+        assert streams_crud.get_activities_streams([make_activity(db, make_user(db).id).id], db) == []
 
-        assert crud.get_activities_streams(activity_ids=[ACTIVITY_ID], db=mock_db) == []
+    def test_gps_samples_are_read_per_activity_and_only_for_map_streams(self, db, activity):
+        gps = [{"lat": 1.0, "lon": 2.0}, {"lat": 1.1, "lon": 2.1}]
+        no_gps = make_activity(db, make_user(db).id)
+        empty_gps = make_activity(db, make_user(db).id)
+        make_stream(db, activity, _MAP, gps)
+        make_stream(db, activity, _HR, [{"hr": 1}])
+        make_stream(db, no_gps, _HR, [{"hr": 1}])
+        make_stream(db, empty_gps, _MAP, [])
 
+        found = streams_crud.get_gps_stream_waypoints_for_activities([activity.id, no_gps.id, empty_gps.id], db)
 
-class TestGetGpsStreamWaypointsForActivities:
-    def test_empty_ids_short_circuits(self, mock_db):
-        import modules.activities.activity_streams.crud as crud
-
-        assert crud.get_gps_stream_waypoints_for_activities([], mock_db) == {}
-        mock_db.execute.assert_not_called()
-
-    def test_returns_mapping_and_coalesces_none(self, mock_db):
-        import modules.activities.activity_streams.crud as crud
-
-        mock_db.execute.return_value.all.return_value = [
-            (1, [{"lat": 38.0, "lon": -9.0}]),
-            (2, None),
-        ]
-        result = crud.get_gps_stream_waypoints_for_activities([1, 2], mock_db)
-        assert result == {1: [{"lat": 38.0, "lon": -9.0}], 2: []}
+        assert found == {activity.id: gps, empty_gps.id: []}
+        assert streams_crud.get_gps_stream_waypoints_for_activities([], db) == {}

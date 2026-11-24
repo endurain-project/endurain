@@ -1,214 +1,244 @@
-"""Tests for websocket.router module."""
+"""The websocket routes through the production application: the ticket, the handshake and the live socket."""
 
+import dataclasses
 import uuid
-from unittest.mock import AsyncMock, MagicMock, patch
 
+import jasil.runtime as jasil_runtime
 import pytest
-from fastapi import FastAPI, WebSocketDisconnect, WebSocketException
+from fastapi import WebSocketDisconnect
 from fastapi.testclient import TestClient
-from jasil.backends.state_memory import MemoryState
-from jasil.testing import FixedClock
+from sqlalchemy import delete, update
+from starlette.testclient import WebSocketDenialResponse
 
-import modules.websocket.router as websocket_router
-from core.attempt_state import StateUnavailableError
-from modules.websocket.ticket_store import MAX_HANDSHAKES_PER_WINDOW, WsTicketOwner, WsTicketStore
+import core.config as core_config
+import modules.auth.authentication.dependencies as authentication_dependencies
+import modules.auth.sessions.models as sessions_models
+import modules.websocket.dependencies as websocket_dependencies
+import modules.websocket.integration_service as websocket_integration
+import modules.websocket.manager as websocket_manager
+import modules.websocket.service as websocket_service
+import modules.websocket.subscriber_registry as websocket_subscriber_registry
+import modules.websocket.ticket_store as websocket_ticket_store
+from tests._factories.users import make_user
+from tests._factories.websockets import UnavailableState
 
-USER = uuid.UUID("2f6d8b52-47a0-4c3e-9a51-0c1e5d7b8a90")
-OTHER_USER = uuid.UUID("7b1c93e4-5d28-4f6a-8e03-a94d2c6f1b57")
-SESSION_1 = uuid.UUID("5b0f6c1e-2d3a-4b7c-8e91-3a4d5c6b7e01")
-SESSION_9 = uuid.UUID("5b0f6c1e-2d3a-4b7c-8e91-3a4d5c6b7e09")
-SESSION_GONE = uuid.UUID("5b0f6c1e-2d3a-4b7c-8e91-3a4d5c6b7e0f")
+_TICKET_URL = f"{core_config.ROOT_PATH}/ws/ticket"
+_SOCKET_URL = f"{core_config.ROOT_PATH}/ws"
 
 
-class TestIssueWsTicket:
-    """Tests for the ticket endpoint."""
+@pytest.fixture
+def signed_in(committed_sessions, sign_in):
+    with committed_sessions() as db:
+        user = make_user(db)
+        db.commit()
+    return sign_in(user)
 
-    @staticmethod
-    def _client(store: WsTicketStore, user_id: uuid.UUID = USER) -> TestClient:
-        import modules.auth.dependencies as auth_deps
-        import modules.websocket.dependencies as websocket_dependencies
 
-        app = FastAPI()
-        app.include_router(websocket_router.router, prefix="/ws")
-        app.dependency_overrides[auth_deps.check_scopes] = lambda: None
-        app.dependency_overrides[auth_deps.get_current_user_id] = lambda: user_id
-        app.dependency_overrides[auth_deps.get_sid_from_access_token] = lambda: SESSION_1
-        app.dependency_overrides[websocket_dependencies.get_ws_ticket_store] = lambda: store
-        return TestClient(app)
+def _store() -> websocket_ticket_store.WsTicketStore:
+    platform = jasil_runtime.get_active_platform()
+    return websocket_dependencies.get_ws_ticket_store(platform.state, platform.clock)
 
-    def test_returns_ticket_dict(self):
-        """The endpoint answers 201 with a 'ticket' key."""
-        response = self._client(WsTicketStore(MemoryState(), FixedClock())).post("/ws/ticket")
+
+def _ticket(signed_in) -> str:
+    return signed_in.client.post(_TICKET_URL).json()["ticket"]
+
+
+def _refused_with(client, ticket: str, **kwargs) -> int:
+    """Open the socket and return the close code the server answered the handshake with."""
+    with (
+        pytest.raises((WebSocketDisconnect, WebSocketDenialResponse)) as refusal,
+        client.websocket_connect(f"{_SOCKET_URL}?ticket={ticket}", **kwargs),
+    ):
+        pass
+    return refusal.value.code if isinstance(refusal.value, WebSocketDisconnect) else refusal.value.status_code
+
+
+class TestIssueTicket:
+    def test_the_ticket_is_bound_to_the_user_and_session_that_asked(self, signed_in):
+        response = signed_in.client.post(_TICKET_URL)
+
         assert response.status_code == 201
-        assert isinstance(response.json()["ticket"], str)
-        assert len(response.json()["ticket"]) > 0
+        owner = _store().consume_ticket(response.json()["ticket"])
+        assert owner == websocket_ticket_store.WsTicketOwner(user_id=signed_in.user.id, session_id=signed_in.session_id)
 
-    def test_response_is_not_cacheable(self):
-        """The ticket is a single-use credential, so no cache may keep it."""
-        response = self._client(WsTicketStore(MemoryState(), FixedClock())).post("/ws/ticket")
+    def test_the_ticket_is_a_credential_no_cache_may_keep(self, signed_in):
+        response = signed_in.client.post(_TICKET_URL)
+
         assert response.headers["cache-control"] == "no-store"
         assert response.headers["pragma"] == "no-cache"
 
-    def test_ticket_is_consumable_for_correct_user(self):
-        """The returned ticket is valid and bound to the authenticated user."""
-        store = WsTicketStore(MemoryState(), FixedClock())
-        ticket = self._client(store, user_id=OTHER_USER).post("/ws/ticket").json()["ticket"]
-        assert store.consume_ticket(ticket) == WsTicketOwner(user_id=OTHER_USER, session_id=SESSION_1)
+    def test_every_request_gets_a_different_ticket(self, signed_in):
+        assert _ticket(signed_in) != _ticket(signed_in)
 
-    def test_different_calls_produce_unique_tickets(self):
-        """Each call issues a unique ticket."""
-        client = self._client(WsTicketStore(MemoryState(), FixedClock()))
-        assert client.post("/ws/ticket").json()["ticket"] != client.post("/ws/ticket").json()["ticket"]
+    def test_a_state_outage_is_a_503_not_a_ticket(self, signed_in):
+        platform = jasil_runtime.get_active_platform()
+        jasil_runtime.set_active_platform(dataclasses.replace(platform, state=UnavailableState(platform.clock)))
+
+        assert signed_in.client.post(_TICKET_URL).status_code == 503
 
 
-class TestWebSocketEndpoint:
-    """Tests for websocket_endpoint function."""
+class TestHandshake:
+    def test_a_valid_ticket_opens_a_socket_that_receives_the_users_hints(self, holding_client, signed_in):
+        ticket = _ticket(signed_in)
 
-    @pytest.fixture
-    def mock_websocket(self):
-        """Create a mock WebSocket instance."""
-        websocket = AsyncMock()
-        websocket.receive = AsyncMock()
-        websocket.client = None
-        return websocket
+        with holding_client.websocket_connect(f"{_SOCKET_URL}?ticket={ticket}") as socket:
+            websocket_integration.push_to_user(signed_in.user.id, {"message": "NEW", "notification_id": 3})
+            assert socket.receive_json() == {"message": "NEW", "notification_id": 3}
 
-    @pytest.fixture(autouse=True)
-    def live_session(self):
-        """By default the ticket's session still exists."""
-        with patch("modules.websocket.service.has_live_session", return_value=True) as check:
-            yield check
+    def test_another_users_hint_does_not_reach_the_socket(self, holding_client, signed_in):
+        ticket = _ticket(signed_in)
 
-    @pytest.fixture
-    def mock_manager(self):
-        """Create a mock WebSocketManager."""
-        manager = MagicMock()
-        manager.connect = AsyncMock()
-        manager.disconnect = MagicMock()
-        return manager
+        with holding_client.websocket_connect(f"{_SOCKET_URL}?ticket={ticket}") as socket:
+            websocket_integration.push_to_user(uuid.uuid4(), {"message": "NOT_FOR_YOU"})
+            websocket_integration.push_to_user(signed_in.user.id, {"message": "FOR_YOU"})
+            assert socket.receive_json() == {"message": "FOR_YOU"}
 
-    @pytest.fixture
-    def ticket_store_with_user(self):
-        """Return a WsTicketStore pre-loaded with a ticket for user 1."""
-        store = WsTicketStore(MemoryState(), FixedClock())
-        ticket = store.create_ticket(user_id=USER, session_id=SESSION_1)
-        return store, ticket
+    def test_an_unknown_ticket_is_refused_as_a_policy_violation(self, holding_client):
+        assert _refused_with(holding_client, "bad-ticket") == 1008
 
-    async def test_invalid_ticket_raises_policy_violation(self, mock_websocket, mock_manager):
-        """websocket_endpoint raises WS_1008 for an unknown ticket."""
-        store = WsTicketStore(MemoryState(), FixedClock())
-        with pytest.raises(WebSocketException) as exc_info:
-            await websocket_router.websocket_endpoint(mock_websocket, "bad-ticket", store, mock_manager)
-        assert exc_info.value.code == 1008
-        mock_manager.connect.assert_not_awaited()
+    def test_a_ticket_opens_one_socket_only(self, holding_client, signed_in):
+        ticket = _ticket(signed_in)
+        with holding_client.websocket_connect(f"{_SOCKET_URL}?ticket={ticket}"):
+            pass
 
-    async def test_a_network_over_the_handshake_limit_is_refused_before_the_ticket_is_spent(
-        self, mock_websocket, mock_manager
-    ):
-        """A handshake past the per-network limit closes with 1013 and leaves the ticket usable."""
-        store = WsTicketStore(MemoryState(), FixedClock())
-        ticket = store.create_ticket(user_id=USER, session_id=SESSION_1)
-        for _ in range(MAX_HANDSHAKES_PER_WINDOW):
-            assert store.allow_handshake("unknown")
+        assert _refused_with(holding_client, ticket) == 1008
 
-        with pytest.raises(WebSocketException) as exc_info:
-            await websocket_router.websocket_endpoint(mock_websocket, ticket, store, mock_manager)
+    def test_a_missing_ticket_is_refused(self, holding_client):
+        with (
+            pytest.raises((WebSocketDisconnect, WebSocketDenialResponse)),
+            holding_client.websocket_connect(_SOCKET_URL),
+        ):
+            pass
 
-        assert exc_info.value.code == 1013
-        mock_manager.connect.assert_not_awaited()
-        assert store.consume_ticket(ticket) == WsTicketOwner(user_id=USER, session_id=SESSION_1)
+    def test_a_foreign_browser_origin_is_refused_and_keeps_the_ticket(self, holding_client, signed_in):
+        ticket = _ticket(signed_in)
 
-    async def test_a_ticket_whose_session_is_gone_is_closed_as_revoked(
-        self, mock_websocket, mock_manager, live_session
-    ):
-        """A ticket issued before a revocation cannot open a socket the close event already missed."""
-        live_session.return_value = False
-        store = WsTicketStore(MemoryState(), FixedClock())
-        ticket = store.create_ticket(user_id=USER, session_id=SESSION_GONE)
+        assert _refused_with(holding_client, ticket, headers={"origin": "https://evil.example"}) == 1008
+        assert _store().consume_ticket(ticket) is not None
 
-        await websocket_router.websocket_endpoint(mock_websocket, ticket, store, mock_manager)
+    def test_the_null_origin_is_refused(self, holding_client, signed_in):
+        assert _refused_with(holding_client, _ticket(signed_in), headers={"origin": "null"}) == 1008
 
-        live_session.assert_called_once_with(USER, SESSION_GONE)
-        mock_websocket.accept.assert_awaited_once()
-        mock_websocket.close.assert_awaited_once_with(code=4401)
-        mock_manager.connect.assert_not_awaited()
+    def test_every_browser_origin_is_refused_when_none_are_configured(self, holding_client, signed_in):
+        origin = holding_client.app.state.cors_allow_origins[0]
+        holding_client.app.state.cors_allow_origins = []
 
-    async def test_the_socket_is_bound_to_the_session_of_its_ticket(self, mock_websocket, mock_manager):
-        """The manager registers the connection under the session the ticket was issued for."""
-        store = WsTicketStore(MemoryState(), FixedClock())
-        ticket = store.create_ticket(user_id=USER, session_id=SESSION_9)
-        mock_websocket.receive.side_effect = [{"type": "websocket.disconnect", "code": 1001}]
+        assert _refused_with(holding_client, _ticket(signed_in), headers={"origin": origin}) == 1008
 
-        await websocket_router.websocket_endpoint(mock_websocket, ticket, store, mock_manager)
+    def test_a_client_that_sends_no_origin_is_not_a_browser_and_is_let_through(self, holding_client, signed_in):
+        with holding_client.websocket_connect(f"{_SOCKET_URL}?ticket={_ticket(signed_in)}"):
+            pass
 
-        mock_manager.connect.assert_awaited_once_with(USER, SESSION_9, mock_websocket)
+    def test_a_served_origin_is_let_through(self, holding_client, signed_in):
+        origin = holding_client.app.state.cors_allow_origins[0]
+        ticket = _ticket(signed_in)
 
-    async def test_a_state_outage_closes_with_try_again_later(self, mock_websocket, mock_manager):
-        """websocket_endpoint raises WS_1013 when the ticket store cannot be reached."""
-        store = MagicMock()
-        store.consume_ticket.side_effect = StateUnavailableError("down")
-        with pytest.raises(WebSocketException) as exc_info:
-            await websocket_router.websocket_endpoint(mock_websocket, "ticket", store, mock_manager)
-        assert exc_info.value.code == 1013
-        mock_manager.connect.assert_not_awaited()
+        with holding_client.websocket_connect(f"{_SOCKET_URL}?ticket={ticket}", headers={"origin": origin}):
+            pass
 
-    @patch("modules.websocket.service.logger")
-    async def test_websocket_endpoint_normal_operation(self, mock_log, mock_websocket, mock_manager):
-        """Test WebSocket endpoint normal operation until disconnect."""
-        user_id = USER
-        store = WsTicketStore(MemoryState(), FixedClock())
-        ticket = store.create_ticket(user_id=user_id, session_id=SESSION_1)
+    def test_a_network_over_the_handshake_limit_is_refused_and_keeps_the_ticket(self, holding_client, signed_in):
+        ticket = _ticket(signed_in)
+        store = _store()
+        for _ in range(websocket_ticket_store.MAX_HANDSHAKES_PER_WINDOW):
+            assert store.allow_handshake("testclient")
 
-        # Simulate the client leaving
-        mock_websocket.receive.side_effect = [{"type": "websocket.disconnect", "code": 1001}]
+        assert _refused_with(holding_client, ticket) == 1013
+        assert store.consume_ticket(ticket) is not None
 
-        await websocket_router.websocket_endpoint(mock_websocket, ticket, store, mock_manager)
+    def test_a_state_outage_closes_with_try_again_later(self, holding_client, signed_in):
+        ticket = _ticket(signed_in)
+        platform = jasil_runtime.get_active_platform()
+        jasil_runtime.set_active_platform(dataclasses.replace(platform, state=UnavailableState(platform.clock)))
 
-        # Verify connection was established with correct user_id
-        mock_manager.connect.assert_awaited_once_with(user_id, SESSION_1, mock_websocket)
+        assert _refused_with(holding_client, ticket) == 1013
 
-        assert mock_websocket.receive.await_count == 1
+    def test_a_ticket_whose_session_is_gone_is_closed_as_revoked(self, holding_client, committed_sessions, signed_in):
+        ticket = _ticket(signed_in)
+        with committed_sessions() as db:
+            db.execute(
+                delete(sessions_models.UsersSessions).where(sessions_models.UsersSessions.id == signed_in.session_id)
+            )
+            db.commit()
 
-        # Verify disconnect was called
-        mock_manager.disconnect.assert_called_once_with(user_id, mock_websocket)
+        with (
+            holding_client.websocket_connect(f"{_SOCKET_URL}?ticket={ticket}") as socket,
+            pytest.raises(WebSocketDisconnect) as closed,
+        ):
+            socket.receive_json()
 
-        # No error logs for valid JSON
-        mock_log.assert_not_called()
+        assert closed.value.code == websocket_manager.SESSION_ENDED_CLOSE_CODE
 
-    @patch("modules.websocket.service.logger")
-    async def test_websocket_endpoint_immediate_disconnect(self, mock_log, mock_websocket, mock_manager):
-        """Test WebSocket endpoint with immediate disconnect."""
-        user_id = USER
-        store = WsTicketStore(MemoryState(), FixedClock())
-        ticket = store.create_ticket(user_id=user_id, session_id=SESSION_1)
+    def test_the_ticket_of_an_expired_session_is_closed_as_revoked(self, holding_client, committed_sessions, signed_in):
+        ticket = _ticket(signed_in)
+        with committed_sessions() as db:
+            db.execute(
+                update(sessions_models.UsersSessions)
+                .where(sessions_models.UsersSessions.id == signed_in.session_id)
+                .values(expires_at=sessions_models.UsersSessions.created_at)
+            )
+            db.commit()
 
-        mock_websocket.receive.side_effect = WebSocketDisconnect()
+        with (
+            holding_client.websocket_connect(f"{_SOCKET_URL}?ticket={ticket}") as socket,
+            pytest.raises(WebSocketDisconnect) as closed,
+        ):
+            socket.receive_json()
 
-        await websocket_router.websocket_endpoint(mock_websocket, ticket, store, mock_manager)
+        assert closed.value.code == websocket_manager.SESSION_ENDED_CLOSE_CODE
 
-        mock_manager.connect.assert_awaited_once_with(user_id, SESSION_1, mock_websocket)
-        mock_manager.disconnect.assert_called_once_with(user_id, mock_websocket)
-        mock_log.assert_not_called()
 
-    async def test_websocket_endpoint_different_users(self, mock_manager):
-        """Test WebSocket endpoint with different user IDs."""
-        store = WsTicketStore(MemoryState(), FixedClock())
-        ticket1 = store.create_ticket(user_id=USER, session_id=SESSION_1)
-        ticket2 = store.create_ticket(user_id=OTHER_USER, session_id=SESSION_1)
+class TestLiveSocket:
+    def test_a_frame_from_the_client_closes_the_socket_as_a_policy_violation(self, holding_client, signed_in):
+        ticket = _ticket(signed_in)
 
-        ws1 = AsyncMock()
-        ws1.client = None
-        ws1.receive = AsyncMock(side_effect=WebSocketDisconnect())
+        with holding_client.websocket_connect(f"{_SOCKET_URL}?ticket={ticket}") as socket:
+            socket.send_text("hello")
+            with pytest.raises(WebSocketDisconnect) as closed:
+                socket.receive_json()
 
-        ws2 = AsyncMock()
-        ws2.client = None
-        ws2.receive = AsyncMock(side_effect=WebSocketDisconnect())
+        assert closed.value.code == 1008
 
-        await websocket_router.websocket_endpoint(ws1, ticket1, store, mock_manager)
-        await websocket_router.websocket_endpoint(ws2, ticket2, store, mock_manager)
+    def test_a_socket_older_than_the_limit_is_closed_as_going_away(self, holding_client, signed_in, monkeypatch):
+        monkeypatch.setattr(websocket_service, "MAX_CONNECTION_SECONDS", 0.05)
+        ticket = _ticket(signed_in)
 
-        assert mock_manager.connect.await_count == 2
-        mock_manager.connect.assert_any_await(USER, SESSION_1, ws1)
-        mock_manager.connect.assert_any_await(OTHER_USER, SESSION_1, ws2)
-        assert mock_manager.disconnect.call_count == 2
-        mock_manager.disconnect.assert_any_call(USER, ws1)
-        mock_manager.disconnect.assert_any_call(OTHER_USER, ws2)
+        with (
+            holding_client.websocket_connect(f"{_SOCKET_URL}?ticket={ticket}") as socket,
+            pytest.raises(WebSocketDisconnect) as closed,
+        ):
+            socket.receive_json()
+
+        assert closed.value.code == 1001
+
+    def test_a_leaving_client_is_dropped_from_the_registry(self, holding_client, signed_in):
+        ticket = _ticket(signed_in)
+
+        with holding_client.websocket_connect(f"{_SOCKET_URL}?ticket={ticket}"):
+            assert len(websocket_manager.get_websocket_manager().get_connections(signed_in.user.id)) == 1
+        holding_client.portal.call(lambda: None)
+
+        assert websocket_manager.get_websocket_manager().get_connections(signed_in.user.id) == []
+
+    def test_logging_out_closes_the_sockets_of_that_session_only(self, holding_client, signed_in, sign_in):
+        platform = jasil_runtime.get_active_platform()
+        websocket_subscriber_registry.register_bus_subscribers(platform.events)
+        other_session = sign_in(signed_in.user)
+        ours, theirs = _ticket(signed_in), _ticket(other_session)
+
+        with (
+            holding_client.websocket_connect(f"{_SOCKET_URL}?ticket={ours}") as closing,
+            holding_client.websocket_connect(f"{_SOCKET_URL}?ticket={theirs}") as staying,
+        ):
+            browser = TestClient(
+                holding_client.app,
+                headers={"X-Client-Type": "web", "Origin": holding_client.app.state.cors_allow_origins[0]},
+            )
+            browser.cookies.set(authentication_dependencies.REFRESH_TOKEN_COOKIE_NAME, signed_in.refresh_token)
+            assert browser.post(f"{core_config.ROOT_PATH}/auth/logout").status_code == 200
+
+            with pytest.raises(WebSocketDisconnect) as closed:
+                closing.receive_json()
+            websocket_integration.push_to_user(signed_in.user.id, {"message": "STILL_HERE"})
+            assert staying.receive_json() == {"message": "STILL_HERE"}
+
+        assert closed.value.code == websocket_manager.SESSION_ENDED_CLOSE_CODE

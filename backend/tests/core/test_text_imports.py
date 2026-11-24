@@ -1,7 +1,5 @@
 """Tests for ``core.text_imports.read_bounded_csv``."""
 
-from __future__ import annotations
-
 from pathlib import Path
 
 import pytest

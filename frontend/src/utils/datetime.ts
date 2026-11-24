@@ -1,6 +1,5 @@
 /**
- * Date/time formatting helpers — the first of the v1 domain utilities to be
- * ported. Kept as pure functions (no Vue, no i18n instance) so they are trivial
+ * Date/time formatting helpers. Kept as pure functions (no Vue, no i18n instance) so they are trivial
  * to unit-test and can be reused by any view or composable. Locale-aware output
  * is delegated to the platform `Intl` APIs rather than a bundled date library.
  */

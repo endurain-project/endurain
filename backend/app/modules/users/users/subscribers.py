@@ -11,6 +11,7 @@ from jasil.events import Event
 from jasil.jobs import ContinueJob
 from jasil.jobs.registry import JobHandlerRegistry
 
+import core.job_queues as core_job_queues
 import core.logger as core_logger
 import modules.users.users.deletion_job_service as users_deletion_job_service
 import modules.users.users.deletion_state_store as users_deletion_state_store
@@ -70,4 +71,5 @@ def register_durable_handlers(registry: JobHandlerRegistry) -> None:
         DELETION_REQUESTED_SUBSCRIBER_ID,
         process_deletion_requested_for_event,
         on_dead_letter=on_deletion_requested_dead_letter,
+        queue=core_job_queues.BACKGROUND,
     )

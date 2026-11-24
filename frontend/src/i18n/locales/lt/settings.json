@@ -331,8 +331,6 @@
     "staleError": "Šiuos nustatymus pakeitė kitas asmuo, kol juos redagavote. Jūsų pakeitimai neišsaugoti. Įkelkite puslapį iš naujo, kad pamatytumėte dabartines reikšmes.",
     "stepUpTitle": "Patvirtinkite savo tapatybę",
     "stepUpDescription": "Šie pakeitimai veikia, kas gali registruotis, prisijungti ar išlaikyti sesiją šiame serveryje, kiek laiko saugomas audito žurnalas ir ar vieši saitai rodo, kas jais pasidalijo. Patvirtinkite, kad tai Jūs, kad tęstumėte.",
-    "envLocked": "Nustatyta kintamuoju {name}",
-    "envSection": "Kai kuriuos čia esančius nustatymus nustato aplinkos kintamieji ({names}). Pašalinkite juos iš aplinkos, kad galėtumėte tuos nustatymus redaguoti čia.",
     "unsaved": "Neišsaugoti pakeitimai",
     "fixErrors": "Norėdami išsaugoti, ištaisykite aukščiau nurodytas klaidas",
     "discard": "Atmesti",

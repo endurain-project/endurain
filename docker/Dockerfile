@@ -2,7 +2,7 @@
 FROM ghcr.io/astral-sh/uv:0.13.9@sha256:d3b601f0c7b118bc1753febf7c41cc80981df678445e0254284eecf84db79a7d AS uv-dist
 
 # Stage 1: Build Vue.js app
-FROM node:24-slim@sha256:dc26ae92c9fb15cf6b1d63e20f0944b2efe0f115b20e00be48fb23fceb061c54 AS frontend-build
+FROM node:26-slim@sha256:e6bedef217677b276c591795e169840edd9096dbf13f29df8ef8d1856b8820bc AS frontend-build
 
 # Set the working directory to /tmp/frontend
 WORKDIR /tmp/frontend
@@ -18,7 +18,7 @@ COPY frontend ./
 RUN npm run build
 
 # Stage 2: Install requirements
-FROM python:3.13-alpine@sha256:9ef1a599f863231c3d91e941389bfdc4a2d6070557243d54df1a4e57015b960e AS requirements-stage
+FROM python:3.15-alpine@sha256:0f9552bb28711333da16915ec146f5e6bb44a7fdac9ced15dc17c2e0206346dd AS requirements-stage
 
 # Optional project extras baked into the image. Empty by default so the image
 # stays lean for `local` deployments. Build with
@@ -39,7 +39,7 @@ COPY backend/pyproject.toml backend/uv.lock ./
 RUN uv export --no-emit-project --no-dev ${PYTHON_EXTRAS:+--extra "$PYTHON_EXTRAS"} -o requirements.txt
 
 # Stage 3: Build FastAPI app
-FROM python:3.13-alpine@sha256:9ef1a599f863231c3d91e941389bfdc4a2d6070557243d54df1a4e57015b960e
+FROM python:3.15-alpine@sha256:0f9552bb28711333da16915ec146f5e6bb44a7fdac9ced15dc17c2e0206346dd
 
 ARG UID=1000
 ARG GID=1000

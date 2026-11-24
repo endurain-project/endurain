@@ -42,9 +42,8 @@ export async function bulkImportFromFolder(
  *
  * @param file - The ZIP archive.
  * @param source - The archive's layout.
- * @param options - Optional abort signal, and an idempotency key to make a retry of this same
- *   import safe: a client that never saw the `202` has no job id to poll, and a replay without a
- *   key would start the import twice.
+ * @param options - Optional abort signal. The call sends an `Idempotency-Key`, so the replay after a
+ *   401 refresh returns the first request's job instead of starting the import twice.
  * @returns The accepted import job, in the pending state.
  * @throws {HttpError} `409` when an import is already running, `400` when the
  *   archive holds nothing importable, `413` when it is too large.
@@ -52,15 +51,15 @@ export async function bulkImportFromFolder(
 export async function bulkImportFromArchive(
   file: File,
   source: BulkImportSource,
-  options: { signal?: AbortSignal; idempotencyKey?: string } = {},
+  options: { signal?: AbortSignal } = {},
 ): Promise<ActivityIngestionJob> {
   const formData = new FormData()
   formData.append(UPLOAD_FIELD, file, file.name)
   return apiFetch<ActivityIngestionJob>(`/activities/bulk-import?source=${source}`, {
     method: 'POST',
     body: formData,
-    headers: options.idempotencyKey ? { 'Idempotency-Key': options.idempotencyKey } : undefined,
     signal: options.signal,
+    idempotent: true,
     // An archive can be hundreds of MiB; cancellation is the caller's signal.
     timeoutMs: 0,
   })

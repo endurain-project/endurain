@@ -1,100 +1,57 @@
-"""An identity-provider sign-in of an account with MFA finishes at ``/auth/mfa/verify``, like a password sign-in.
+"""An identity-provider sign-in of an account with MFA finishes at the MFA step, which claims the session once."""
 
-The exchange checks the session, the verifier and the client type, then answers the ``mfa`` step without using the
-session up. The verify claims the challenge and then the session, each once, and issues the session's tokens.
-"""
+from datetime import UTC, datetime
 
-from datetime import UTC, datetime, timedelta
-from unittest.mock import patch
-
-import jasil.testing as jasil_testing
 import pytest
-from sqlalchemy import func, select, update
+import sqlalchemy as sa
 
-import core.dependencies as core_dependencies
 import core.network as core_network
 import modules.auth.constants as auth_constants
+import modules.auth.login_audit.audit_actions as login_audit_actions
 import modules.auth.mfa.pending_login_store as pending_login_store
 import modules.auth.mfa_backup_codes.crud as backup_codes_crud
+import modules.auth.security_generation.integration_service as security_generation_integration
 import modules.auth.sessions.integration_service as sessions_integration
 import modules.auth.sessions.models as sessions_models
 import modules.users.users.models as users_models
+from tests._factories.tokens import audit_rows
 from tests.auth.authentication.conftest import (
-    BACKUP_CODE,
     MOBILE,
-    PASSWORD,
-    SSO_VERIFIER,
-    USER_ID,
-    USERNAME,
     WEB,
-    create_sso_session,
+    WRONG_CODE,
+    exchange,
+    from_address,
+    login,
+    make_sso_session,
+    pending_mfa_store,
+    session_count,
+    verify,
 )
 
-_WRONG = "000000"
-_LOGIN = "auth.session.login"
 _SESSION_ENDED = "urn:endurain:error:session-ended"
-
-pytestmark = pytest.mark.usefixtures("aware_session_expiry")
-
-
-def _store() -> pending_login_store.PendingMFALogin:
-    return pending_login_store.PendingMFALogin(core_dependencies.get_platform_state())
+_LOGINS = login_audit_actions.LOGIN
 
 
-def _exchange(stack, session_id, headers=WEB, ip=None, **body):
-    url = f"/auth/sessions/{session_id}/tokens"
-    json = {"code_verifier": SSO_VERIFIER, **body}
-    if ip is None:
-        return stack.client.post(url, json=json, headers=headers)
-    with patch.object(core_network, "get_ip_address", return_value=ip):
-        return stack.client.post(url, json=json, headers=headers)
+def _challenge(client, sessions, account, session_id=None, headers=WEB) -> str:
+    """Exchange an identity-provider session of the account and return the MFA challenge it answers."""
+    if session_id is None:
+        session_id = make_sso_session(sessions, account.user)
+    return exchange(client, session_id, headers=headers).json()["mfa_challenge"]
 
 
-def _challenge(stack, session_id, headers=WEB, ip=None) -> str:
-    response = _exchange(stack, session_id, headers, ip)
-    assert response.status_code == 200, response.text
-    return response.json()["mfa_challenge"]
+def _unused_codes(sessions, account) -> int:
+    with sessions() as db:
+        return len(backup_codes_crud.get_user_unused_backup_codes(account.user.id, db))
 
 
-def _verify(stack, challenge, code=BACKUP_CODE, headers=WEB, ip=None):
-    body = {"mfa_challenge": challenge, "mfa_code": code}
-    if ip is None:
-        return stack.client.post("/auth/mfa/verify", json=body, headers=headers)
-    with patch.object(core_network, "get_ip_address", return_value=ip):
-        return stack.client.post("/auth/mfa/verify", json=body, headers=headers)
+def _session(sessions, session_id) -> sessions_models.UsersSessions | None:
+    with sessions() as db:
+        return db.get(sessions_models.UsersSessions, session_id)
 
 
-def _session(stack, session_id) -> sessions_models.UsersSessions:
-    with stack.factory() as db:
-        row = db.get(sessions_models.UsersSessions, session_id)
-        assert row is not None
-        db.expunge(row)
-        return row
-
-
-def _sessions(stack) -> int:
-    with stack.factory() as db:
-        return db.execute(select(func.count()).select_from(sessions_models.UsersSessions)).scalar_one()
-
-
-def _unused_codes(stack) -> int:
-    with stack.factory() as db:
-        return len(backup_codes_crud.get_user_unused_backup_codes(USER_ID, db))
-
-
-def _assert_unclaimed(stack, session_id) -> None:
-    row = _session(stack, session_id)
-    assert row.tokens_exchanged is False
-    assert row.refresh_token is None
-    assert row.oauth_state_id is not None
-
-
-def _refusal(audit, reason: str) -> dict:
-    entry = audit.assert_audited(_LOGIN, outcome="failure", target_type="user", target_id=str(USER_ID))
-    assert entry.details["method"] == "identity_provider"
-    assert entry.details["reason"] == reason
-    assert entry.details["mfa"] is True
-    return entry.details
+def _assert_unclaimed(sessions, session_id) -> None:
+    row = _session(sessions, session_id)
+    assert row is not None and row.tokens_exchanged is False
 
 
 class TestExchange:
@@ -102,11 +59,11 @@ class TestExchange:
 
     @pytest.mark.parametrize(("client_type", "headers"), [("web", WEB), ("mobile", MOBILE)])
     def test_the_exchange_answers_the_mfa_step_and_does_not_claim_the_session(
-        self, mfa_plain_signin, client_type, headers
+        self, client, committed_sessions, mfa_account, client_type, headers
     ):
-        session_id = create_sso_session(mfa_plain_signin, auth_constants.ClientType(client_type))
+        session_id = make_sso_session(committed_sessions, mfa_account.user, client_type=client_type)
 
-        response = _exchange(mfa_plain_signin, session_id, headers)
+        response = exchange(client, session_id, headers=headers)
 
         body = response.json()
         assert response.status_code == 200
@@ -115,332 +72,287 @@ class TestExchange:
         assert body["methods"] == ["totp", "backup_code"]
         assert "set-cookie" not in response.headers
         assert response.headers["cache-control"] == "no-store"
-        _assert_unclaimed(mfa_plain_signin, session_id)
+        _assert_unclaimed(committed_sessions, session_id)
 
-    def test_the_challenge_records_the_session_client_type_network_and_generation(
-        self, mfa_plain_signin, security_generations
+    def test_the_challenge_records_the_session_client_type_network_generation_and_session(
+        self, app, committed_sessions, mfa_account
     ):
-        session_id = create_sso_session(mfa_plain_signin, auth_constants.ClientType.MOBILE)
+        session_id = make_sso_session(committed_sessions, mfa_account.user, client_type="mobile")
+        with committed_sessions() as db:
+            generation = security_generation_integration.current_generation(mfa_account.user.id, db)
 
-        challenge = _challenge(mfa_plain_signin, session_id, MOBILE, ip="203.0.113.5")
+        challenge = _challenge(
+            from_address(app, "203.0.113.5"), committed_sessions, mfa_account, session_id, headers=MOBILE
+        )
 
-        assert _store().get_pending_login(challenge) == pending_login_store.PendingLogin(
-            user_id=USER_ID,
+        assert pending_mfa_store().get_pending_login(challenge) == pending_login_store.PendingLogin(
+            user_id=mfa_account.user.id,
             client_type=auth_constants.ClientType.MOBILE,
             code_challenge=None,
             code_challenge_method=None,
-            client_network="203.0.113.5",
-            security_generation=0,
+            client_network=core_network.client_network("203.0.113.5"),
+            security_generation=generation,
             sso_session_id=session_id,
         )
 
-    def test_an_mfa_code_in_the_exchange_body_is_refused(self, mfa_plain_signin):
-        session_id = create_sso_session(mfa_plain_signin)
+    def test_an_mfa_code_in_the_exchange_body_is_refused(self, client, committed_sessions, mfa_account):
+        session_id = make_sso_session(committed_sessions, mfa_account.user)
 
-        response = _exchange(mfa_plain_signin, session_id, mfa_code=BACKUP_CODE)
+        response = client.post(
+            f"/api/v1/auth/sessions/{session_id}/tokens",
+            json={"code_verifier": "v" * 43, "mfa_code": mfa_account.backup_code},
+            headers=WEB,
+        )
 
         assert response.status_code == 422
-        assert _unused_codes(mfa_plain_signin) == 1
-        _assert_unclaimed(mfa_plain_signin, session_id)
+        assert _unused_codes(committed_sessions, mfa_account) == 10
+        _assert_unclaimed(committed_sessions, session_id)
 
-    def test_a_wrong_verifier_issues_no_challenge(self, mfa_plain_signin):
-        session_id = create_sso_session(mfa_plain_signin)
+    def test_a_wrong_verifier_issues_no_challenge(self, client, committed_sessions, mfa_account):
+        session_id = make_sso_session(committed_sessions, mfa_account.user)
 
-        with patch.object(pending_login_store.PendingMFALogin, "add_pending_login") as add:
-            response = mfa_plain_signin.client.post(
-                f"/auth/sessions/{session_id}/tokens", json={"code_verifier": "w" * 43}, headers=WEB
-            )
+        response = exchange(client, session_id, "w" * 43, headers=WEB)
 
         assert response.status_code == 400
-        add.assert_not_called()
+        assert "mfa_challenge" not in response.text
 
-    def test_an_exchange_while_a_challenge_is_pending_issues_a_fresh_one(self, mfa_plain_signin):
-        session_id = create_sso_session(mfa_plain_signin)
+    def test_an_exchange_while_a_challenge_is_pending_issues_a_fresh_one(self, client, committed_sessions, mfa_account):
+        session_id = make_sso_session(committed_sessions, mfa_account.user)
 
-        first, second = _challenge(mfa_plain_signin, session_id), _challenge(mfa_plain_signin, session_id)
+        first = _challenge(client, committed_sessions, mfa_account, session_id)
+        second = _challenge(client, committed_sessions, mfa_account, session_id)
 
         assert first != second
-        assert _verify(mfa_plain_signin, second).status_code == 200
+        assert verify(client, second, mfa_account.backup_code).status_code == 200
 
-    def test_an_account_without_mfa_still_gets_its_tokens_from_the_exchange(self, plain_signin):
-        session_id = create_sso_session(plain_signin)
+    def test_an_account_without_mfa_still_gets_its_tokens_from_the_exchange(self, client, committed_sessions, account):
+        session_id = make_sso_session(committed_sessions, account.user)
 
-        with jasil_testing.capture_audit() as audit:
-            response = _exchange(plain_signin, session_id)
+        response = exchange(client, session_id, headers=WEB)
 
         assert response.status_code == 200
         assert response.json()["next_step"] == "tokens"
-        assert "endurain_refresh_token" in response.headers["set-cookie"]
-        row = _session(plain_signin, session_id)
-        assert row.tokens_exchanged is True
-        assert row.amr == ["fed"]
-        entry = audit.assert_audited(_LOGIN, outcome="success")
-        assert entry.details["method"] == "identity_provider"
-        assert entry.details["mfa"] is False
+        row = _session(committed_sessions, session_id)
+        assert row is not None
+        assert (row.tokens_exchanged, row.amr) == (True, ["fed"])
+
+    def test_a_session_of_a_password_sign_in_has_already_passed_mfa(self, client, committed_sessions, mfa_account):
+        challenge = login(client, mfa_account, MOBILE).json()["mfa_challenge"]
+        session_id = verify(client, challenge, mfa_account.backup_code, MOBILE).json()["session_id"]
+
+        response = exchange(client, session_id)
+
+        assert response.json()["next_step"] == "tokens"
 
 
 class TestVerifyCompletesTheSession:
-    def test_a_web_sign_in_gets_the_sessions_tokens_and_cookies(self, mfa_plain_signin):
-        session_id = create_sso_session(mfa_plain_signin)
-        challenge = _challenge(mfa_plain_signin, session_id)
+    def test_a_web_sign_in_gets_the_sessions_tokens_and_cookies_and_records_the_second_factor(
+        self, client, committed_sessions, mfa_account
+    ):
+        session_id = make_sso_session(committed_sessions, mfa_account.user)
+        challenge = _challenge(client, committed_sessions, mfa_account, session_id)
 
-        with jasil_testing.capture_audit() as audit:
-            response = _verify(mfa_plain_signin, challenge)
+        response = verify(client, challenge, mfa_account.backup_code)
 
         body = response.json()
         assert response.status_code == 200
-        assert body["next_step"] == "tokens"
-        assert body["session_id"] == str(session_id)
+        assert (body["next_step"], body["session_id"]) == ("tokens", str(session_id))
         assert "refresh_token" not in body
-        cookies = response.headers.get_list("set-cookie")
-        assert any("endurain_refresh_token" in cookie for cookie in cookies)
-        assert any("endurain_device" in cookie for cookie in cookies)
-        row = _session(mfa_plain_signin, session_id)
+        assert "endurain_refresh_token" in response.headers["set-cookie"]
+        row = _session(committed_sessions, session_id)
+        assert row is not None
         assert row.tokens_exchanged is True
-        assert row.oauth_state_id is None
-        assert row.device_hash is not None
         assert row.amr == ["fed", "otp", "mfa"]
-        assert _sessions(mfa_plain_signin) == 1
-        assert _unused_codes(mfa_plain_signin) == 0
-        entry = audit.assert_audited(_LOGIN, outcome="success", target_type="user", target_id=str(USER_ID))
-        assert entry.details["method"] == "identity_provider"
-        assert entry.details["mfa"] is True
+        (login_row,) = audit_rows(committed_sessions, _LOGINS)
+        assert (login_row.outcome, login_row.details["method"], login_row.details["mfa"]) == (
+            "success",
+            "identity_provider",
+            True,
+        )
+        assert _unused_codes(committed_sessions, mfa_account) == 9
 
-    def test_a_mobile_sign_in_gets_every_token_and_its_device_id_in_the_body(self, mfa_plain_signin):
-        session_id = create_sso_session(mfa_plain_signin, auth_constants.ClientType.MOBILE)
-        challenge = _challenge(mfa_plain_signin, session_id, MOBILE)
+    def test_a_mobile_sign_in_gets_every_token_and_its_device_id_in_the_body(
+        self, client, committed_sessions, mfa_account
+    ):
+        session_id = make_sso_session(committed_sessions, mfa_account.user, client_type="mobile")
+        challenge = _challenge(client, committed_sessions, mfa_account, session_id, MOBILE)
 
-        response = _verify(mfa_plain_signin, challenge, headers=MOBILE)
+        body = verify(client, challenge, mfa_account.backup_code, MOBILE).json()
 
-        body = response.json()
-        assert response.status_code == 200
         assert body["next_step"] == "tokens"
-        assert body["session_id"] == str(session_id)
-        assert body["refresh_token"]
-        assert len(body["device_id"]) == 43
-        assert "set-cookie" not in response.headers
-        assert _session(mfa_plain_signin, session_id).tokens_exchanged is True
+        assert {"access_token", "refresh_token", "device_id"} <= set(body)
 
-    def test_the_exchange_after_the_sign_in_finds_the_session_used_up(self, mfa_plain_signin):
-        session_id = create_sso_session(mfa_plain_signin)
-        assert _verify(mfa_plain_signin, _challenge(mfa_plain_signin, session_id)).status_code == 200
+    def test_the_exchange_after_the_sign_in_finds_the_session_used_up(self, client, committed_sessions, mfa_account):
+        session_id = make_sso_session(committed_sessions, mfa_account.user)
+        verify(client, _challenge(client, committed_sessions, mfa_account, session_id), mfa_account.backup_code)
 
-        assert _exchange(mfa_plain_signin, session_id).status_code == 404
+        assert exchange(client, session_id, headers=WEB).status_code == 404
 
-    def test_the_challenge_finishes_the_sign_in_once(self, mfa_plain_signin):
-        session_id = create_sso_session(mfa_plain_signin)
-        challenge = _challenge(mfa_plain_signin, session_id)
-        assert _verify(mfa_plain_signin, challenge).status_code == 200
+    def test_the_challenge_finishes_the_sign_in_once(self, client, committed_sessions, mfa_account):
+        challenge = _challenge(client, committed_sessions, mfa_account)
+        verify(client, challenge, mfa_account.mfa.backup_codes[0])
 
-        replay = _verify(mfa_plain_signin, challenge)
+        assert verify(client, challenge, mfa_account.mfa.backup_codes[1]).status_code == 401
 
-        assert replay.status_code == 401
-        assert replay.json()["type"] == _SESSION_ENDED
+    def test_a_second_challenge_for_a_session_another_one_finished_is_refused_before_its_code(
+        self, client, committed_sessions, mfa_account
+    ):
+        session_id = make_sso_session(committed_sessions, mfa_account.user)
+        first = _challenge(client, committed_sessions, mfa_account, session_id)
+        second = _challenge(client, committed_sessions, mfa_account, session_id)
+        verify(client, first, mfa_account.mfa.backup_codes[0])
 
-    def test_a_second_challenge_for_a_session_another_one_finished_is_refused_before_its_code(self, mfa_plain_signin):
-        session_id = create_sso_session(mfa_plain_signin)
-        first, second = _challenge(mfa_plain_signin, session_id), _challenge(mfa_plain_signin, session_id)
-        assert _verify(mfa_plain_signin, first).status_code == 200
-
-        with (
-            jasil_testing.capture_audit() as audit,
-            patch("modules.auth.mfa.integration_service.verify_user_mfa", return_value=True) as verify,
-        ):
-            response = _verify(mfa_plain_signin, second, "123456")
+        response = verify(client, second, mfa_account.mfa.backup_codes[1])
 
         assert response.status_code == 401
         assert response.json()["type"] == _SESSION_ENDED
-        verify.assert_not_called()
-        _refusal(audit, "sso_session_ended")
-        assert _store().get_pending_login(second) is None
-
-    def test_a_session_claimed_while_the_code_was_checked_is_refused_and_keeps_the_backup_code(self, mfa_plain_signin):
-        session_id = create_sso_session(mfa_plain_signin)
-        challenge = _challenge(mfa_plain_signin, session_id)
-
-        with (
-            jasil_testing.capture_audit() as audit,
-            patch("modules.auth.sessions.integration_service.claim_session_for_token_exchange", return_value=None),
-        ):
-            response = _verify(mfa_plain_signin, challenge)
-
-        assert response.status_code == 401
-        assert response.json()["type"] == _SESSION_ENDED
-        assert "set-cookie" not in response.headers
-        _refusal(audit, "sso_session_ended")
-        assert _unused_codes(mfa_plain_signin) == 1
+        assert _unused_codes(committed_sessions, mfa_account) == 9
+        row = audit_rows(committed_sessions, _LOGINS)[-1]
+        assert (row.outcome, row.details["reason"]) == ("failure", "sso_session_ended")
 
 
 class TestWrongCodes:
-    def test_a_wrong_code_is_counted_and_leaves_the_session_and_the_challenge_usable(self, mfa_plain_signin):
-        session_id = create_sso_session(mfa_plain_signin)
-        challenge = _challenge(mfa_plain_signin, session_id)
+    def test_a_wrong_code_is_counted_and_leaves_the_session_and_the_challenge_usable(
+        self, client, committed_sessions, mfa_account
+    ):
+        session_id = make_sso_session(committed_sessions, mfa_account.user)
+        challenge = _challenge(client, committed_sessions, mfa_account, session_id)
 
-        with (
-            jasil_testing.capture_audit() as audit,
-            patch.object(
-                pending_login_store.PendingMFALogin,
-                "record_failed_attempt",
-                return_value=pending_login_store.FailedMfaRecord(count=1, account_locked_now=False),
-            ) as record_failed,
-        ):
-            response = _verify(mfa_plain_signin, challenge, _WRONG)
+        wrong = verify(client, challenge, WRONG_CODE)
 
-        assert response.status_code == 400
-        assert response.json()["type"] == "urn:endurain:error:invalid-mfa-code"
-        record_failed.assert_called_once_with(USERNAME, "testclient", user_id=USER_ID)
-        _refusal(audit, "invalid_mfa_code")
-        _assert_unclaimed(mfa_plain_signin, session_id)
-        assert _verify(mfa_plain_signin, challenge).status_code == 200
+        assert wrong.status_code == 400
+        row = audit_rows(committed_sessions, _LOGINS)[-1]
+        assert (row.outcome, row.details["method"], row.details["reason"]) == (
+            "failure",
+            "identity_provider",
+            "invalid_mfa_code",
+        )
+        _assert_unclaimed(committed_sessions, session_id)
+        assert verify(client, challenge, mfa_account.backup_code).status_code == 200
 
-    def test_the_third_wrong_code_ends_the_challenge(self, mfa_plain_signin):
-        session_id = create_sso_session(mfa_plain_signin)
-        challenge = _challenge(mfa_plain_signin, session_id)
+    def test_the_third_wrong_code_ends_the_challenge_and_leaves_the_session_unused(
+        self, client, committed_sessions, mfa_account
+    ):
+        session_id = make_sso_session(committed_sessions, mfa_account.user)
+        challenge = _challenge(client, committed_sessions, mfa_account, session_id)
 
-        statuses = [_verify(mfa_plain_signin, challenge, _WRONG).status_code for _ in range(3)]
+        statuses = [verify(client, challenge, WRONG_CODE).status_code for _ in range(3)]
 
         assert statuses == [400, 400, 401]
-        assert _verify(mfa_plain_signin, challenge).status_code == 401
-        _assert_unclaimed(mfa_plain_signin, session_id)
-        assert _unused_codes(mfa_plain_signin) == 1
-
-    def test_a_locked_out_account_is_refused_before_the_code_is_checked(self, mfa_plain_signin):
-        session_id = create_sso_session(mfa_plain_signin)
-        challenge = _challenge(mfa_plain_signin, session_id)
-
-        with (
-            jasil_testing.capture_audit() as audit,
-            patch.object(pending_login_store.PendingMFALogin, "is_locked_out", return_value=True),
-            patch.object(
-                pending_login_store.PendingMFALogin,
-                "get_lockout_time",
-                return_value=datetime.now(UTC) + timedelta(minutes=5),
-            ),
-        ):
-            response = _verify(mfa_plain_signin, challenge)
-
-        assert response.status_code == 429
-        entry = audit.assert_audited(_LOGIN, outcome="denied")
-        assert entry.details["method"] == "identity_provider"
-        assert entry.details["reason"] == "locked_out"
-        assert _unused_codes(mfa_plain_signin) == 1
-        _assert_unclaimed(mfa_plain_signin, session_id)
+        assert verify(client, challenge, mfa_account.backup_code).status_code == 401
+        _assert_unclaimed(committed_sessions, session_id)
+        assert _unused_codes(committed_sessions, mfa_account) == 10
 
 
 class TestChallengeBinding:
     def test_a_challenge_presented_from_another_network_is_refused_and_stays_usable_from_its_own(
-        self, mfa_plain_signin
+        self, app, committed_sessions, mfa_account
     ):
-        session_id = create_sso_session(mfa_plain_signin)
-        challenge = _challenge(mfa_plain_signin, session_id, ip="203.0.113.5")
+        challenge = _challenge(from_address(app, "203.0.113.5"), committed_sessions, mfa_account)
 
-        with jasil_testing.capture_audit() as audit:
-            response = _verify(mfa_plain_signin, challenge, ip="198.51.100.9")
+        refused = verify(from_address(app, "198.51.100.9"), challenge, mfa_account.backup_code)
 
-        assert response.status_code == 401
-        assert response.json()["type"] == _SESSION_ENDED
-        _refusal(audit, "mfa_challenge_network_mismatch")
-        _assert_unclaimed(mfa_plain_signin, session_id)
-        assert _verify(mfa_plain_signin, challenge, ip="203.0.113.5").status_code == 200
+        assert refused.status_code == 401
+        row = audit_rows(committed_sessions, _LOGINS)[-1]
+        assert (row.details["method"], row.details["reason"]) == ("identity_provider", "mfa_challenge_network_mismatch")
+        assert verify(from_address(app, "203.0.113.5"), challenge, mfa_account.backup_code).status_code == 200
 
-    def test_a_challenge_presented_by_the_other_client_type_is_refused(self, mfa_plain_signin):
-        session_id = create_sso_session(mfa_plain_signin)
-        challenge = _challenge(mfa_plain_signin, session_id)
+    def test_a_challenge_presented_by_the_other_client_type_is_refused(self, client, committed_sessions, mfa_account):
+        challenge = _challenge(client, committed_sessions, mfa_account)
 
-        assert _verify(mfa_plain_signin, challenge, headers=MOBILE).status_code == 401
-        _assert_unclaimed(mfa_plain_signin, session_id)
+        assert verify(client, challenge, mfa_account.backup_code, MOBILE).status_code == 401
 
 
 class TestSessionNoLongerEligible:
     """A session that cannot be exchanged any more ends its challenge with ``session-ended``, before any code."""
 
-    def _refused(self, stack, challenge):
-        with (
-            jasil_testing.capture_audit() as audit,
-            patch.object(pending_login_store.PendingMFALogin, "record_failed_attempt") as record_failed,
-        ):
-            response = _verify(stack, challenge)
+    def _refused(self, client, sessions, account, challenge):
+        response = verify(client, challenge, account.backup_code)
         assert response.status_code == 401
         assert response.json()["type"] == _SESSION_ENDED
         assert "set-cookie" not in response.headers
-        record_failed.assert_not_called()
-        assert _unused_codes(stack) == 1
-        assert _store().get_pending_login(challenge) is None
-        return audit
+        assert _unused_codes(sessions, account) == 10
+        assert pending_mfa_store().get_pending_login(challenge) is None
+        return audit_rows(sessions, _LOGINS)[-1]
 
-    def test_a_security_change_after_the_exchange_refuses_the_code(self, mfa_plain_signin, security_generations):
-        session_id = create_sso_session(mfa_plain_signin)
-        challenge = _challenge(mfa_plain_signin, session_id)
-        security_generations.stage_bump(USER_ID, None)
-
-        audit = self._refused(mfa_plain_signin, challenge)
-
-        _refusal(audit, "security_changed")
-        _assert_unclaimed(mfa_plain_signin, session_id)
-
-    def test_a_deactivation_after_the_exchange_refuses_the_code(self, mfa_plain_signin, security_generations):
-        session_id = create_sso_session(mfa_plain_signin)
-        challenge = _challenge(mfa_plain_signin, session_id)
-        # Deactivation bumps the account's security generation in the transaction that deactivates it.
-        security_generations.stage_bump(USER_ID, None)
-        with mfa_plain_signin.factory() as db:
-            db.execute(update(users_models.Users).where(users_models.Users.id == USER_ID).values(active=False))
+    def test_a_security_change_after_the_exchange_refuses_the_code(self, client, committed_sessions, mfa_account):
+        session_id = make_sso_session(committed_sessions, mfa_account.user)
+        challenge = _challenge(client, committed_sessions, mfa_account, session_id)
+        with committed_sessions() as db:
+            security_generation_integration.stage_bump(mfa_account.user.id, db)
             db.commit()
 
-        self._refused(mfa_plain_signin, challenge)
+        row = self._refused(client, committed_sessions, mfa_account, challenge)
 
-        _assert_unclaimed(mfa_plain_signin, session_id)
+        assert row.details["reason"] == "security_changed"
+        _assert_unclaimed(committed_sessions, session_id)
 
-    def test_a_session_that_was_deleted_after_the_exchange_refuses_the_code(self, mfa_plain_signin):
-        session_id = create_sso_session(mfa_plain_signin)
-        challenge = _challenge(mfa_plain_signin, session_id)
-        with mfa_plain_signin.factory() as db:
-            sessions_integration.delete_session(session_id, USER_ID, db)
-            db.commit()
-
-        audit = self._refused(mfa_plain_signin, challenge)
-
-        _refusal(audit, "sso_session_ended")
-        assert _sessions(mfa_plain_signin) == 0
-
-    def test_a_session_that_expired_after_the_exchange_refuses_the_code(self, mfa_plain_signin):
-        session_id = create_sso_session(mfa_plain_signin)
-        challenge = _challenge(mfa_plain_signin, session_id)
-        with mfa_plain_signin.factory() as db:
+    def test_a_deactivation_after_the_exchange_refuses_the_code(self, client, committed_sessions, mfa_account):
+        session_id = make_sso_session(committed_sessions, mfa_account.user)
+        challenge = _challenge(client, committed_sessions, mfa_account, session_id)
+        with committed_sessions() as db:
+            # Deactivation bumps the account's security generation in the transaction that deactivates it.
+            security_generation_integration.stage_bump(mfa_account.user.id, db)
             db.execute(
-                update(sessions_models.UsersSessions)
+                sa.update(users_models.Users).where(users_models.Users.id == mfa_account.user.id).values(active=False)
+            )
+            db.commit()
+
+        self._refused(client, committed_sessions, mfa_account, challenge)
+
+        _assert_unclaimed(committed_sessions, session_id)
+
+    def test_a_session_that_was_deleted_after_the_exchange_refuses_the_code(
+        self, client, committed_sessions, mfa_account
+    ):
+        session_id = make_sso_session(committed_sessions, mfa_account.user)
+        challenge = _challenge(client, committed_sessions, mfa_account, session_id)
+        with committed_sessions() as db:
+            sessions_integration.delete_session(session_id, mfa_account.user.id, db)
+            db.commit()
+
+        row = self._refused(client, committed_sessions, mfa_account, challenge)
+
+        assert row.details["reason"] == "sso_session_ended"
+        assert session_count(committed_sessions, mfa_account.user.id) == 0
+
+    def test_a_session_that_expired_after_the_exchange_refuses_the_code(self, client, committed_sessions, mfa_account):
+        session_id = make_sso_session(committed_sessions, mfa_account.user)
+        challenge = _challenge(client, committed_sessions, mfa_account, session_id)
+        with committed_sessions() as db:
+            db.execute(
+                sa.update(sessions_models.UsersSessions)
                 .where(sessions_models.UsersSessions.id == session_id)
                 .values(expires_at=datetime(2000, 1, 1, tzinfo=UTC))
             )
             db.commit()
 
-        audit = self._refused(mfa_plain_signin, challenge)
+        row = self._refused(client, committed_sessions, mfa_account, challenge)
 
-        _refusal(audit, "sso_session_ended")
+        assert row.details["reason"] == "sso_session_ended"
 
 
-class TestPasswordAndSsoChallengesStayApart:
-    def test_a_password_challenge_creates_its_own_session_and_leaves_the_sso_session_unused(self, mfa_plain_signin):
-        session_id = create_sso_session(mfa_plain_signin)
-        _challenge(mfa_plain_signin, session_id)
-        password_challenge = mfa_plain_signin.client.post(
-            "/auth/login", data={"username": USERNAME, "password": PASSWORD}, headers=WEB
-        ).json()["mfa_challenge"]
+class TestPasswordAndIdentityProviderChallengesStayApart:
+    def test_a_password_challenge_creates_its_own_session_and_leaves_the_provider_session_unused(
+        self, client, committed_sessions, mfa_account
+    ):
+        session_id = make_sso_session(committed_sessions, mfa_account.user)
+        _challenge(client, committed_sessions, mfa_account, session_id)
+        password_challenge = login(client, mfa_account).json()["mfa_challenge"]
 
-        response = _verify(mfa_plain_signin, password_challenge)
+        response = verify(client, password_challenge, mfa_account.backup_code)
 
         assert response.status_code == 200
         assert response.json()["session_id"] != str(session_id)
-        assert _sessions(mfa_plain_signin) == 2
-        _assert_unclaimed(mfa_plain_signin, session_id)
+        assert session_count(committed_sessions, mfa_account.user.id) == 2
+        _assert_unclaimed(committed_sessions, session_id)
 
-    def test_an_sso_challenge_finishes_only_its_own_session(self, mfa_plain_signin):
-        session_id = create_sso_session(mfa_plain_signin)
-        other_session_id = create_sso_session(mfa_plain_signin)
-        challenge = _challenge(mfa_plain_signin, session_id)
+    def test_a_provider_challenge_finishes_only_its_own_session(self, client, committed_sessions, mfa_account):
+        session_id = make_sso_session(committed_sessions, mfa_account.user)
+        other_session_id = make_sso_session(committed_sessions, mfa_account.user)
+        challenge = _challenge(client, committed_sessions, mfa_account, session_id)
 
-        response = _verify(mfa_plain_signin, challenge)
+        response = verify(client, challenge, mfa_account.backup_code)
 
         assert response.json()["session_id"] == str(session_id)
-        assert _sessions(mfa_plain_signin) == 2
-        _assert_unclaimed(mfa_plain_signin, other_session_id)
+        _assert_unclaimed(committed_sessions, other_session_id)

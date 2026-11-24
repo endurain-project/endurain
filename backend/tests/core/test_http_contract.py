@@ -7,11 +7,11 @@ from fastapi import FastAPI, Response
 from fastapi.responses import HTMLResponse
 from fastapi.testclient import TestClient
 
+import core.config as core_config
 import core.etag as core_etag
 import core.exceptions as core_exceptions
 import core.middleware as core_middleware
 import core.middleware_request_id as core_middleware_request_id
-import core.router as core_router
 
 _TRACE_ID = "4bf92f3577b34da6a3ce929d0e0e4736"
 _TRACEPARENT = f"00-{_TRACE_ID}-00f067aa0ba902b7-01"
@@ -153,26 +153,16 @@ class TestCorrelation:
         assert "traceparent" not in response.headers
 
 
-def _stack(*routes: Callable[[], None]) -> FastAPI:
-    """The layers ``create_app`` stacks, in its order: semantics innermost, then security headers, then the id.
-
-    Args:
-        *routes: Handlers to serve under ``/api/v1/<function name>``, registered before the frontend fallback.
-    """
-    app = FastAPI()
-    core_exceptions.register_exception_handlers(app)
-    for route in routes:
-        app.get(f"/api/v1/{route.__name__}")(route)
-    app.include_router(core_router.router)
-    app.add_middleware(core_middleware.GetSemanticsMiddleware)
-    app.add_middleware(core_middleware.SecurityHeadersMiddleware)
-    app.add_middleware(core_middleware_request_id.RequestIdMiddleware)
-    return app
+def _served(app: FastAPI, route: Callable[[], None]) -> TestClient:
+    """A client for the production application with one more route answering ahead of the frontend fallback."""
+    app.add_api_route(f"{core_config.ROOT_PATH}/{route.__name__}", route, methods=["GET"])
+    app.router.routes.insert(0, app.router.routes.pop())
+    return TestClient(app, raise_server_exceptions=False)
 
 
 @pytest.fixture
-def full_client() -> TestClient:
-    return TestClient(_stack(), raise_server_exceptions=False)
+def full_client(app) -> TestClient:
+    return TestClient(app, raise_server_exceptions=False)
 
 
 _SECURITY_HEADERS = {
@@ -186,25 +176,25 @@ _SECURITY_HEADERS = {
 
 class TestSecurityHeaders:
     def test_a_404_problem_document_carries_them(self, full_client):
-        response = full_client.get("/api/v1/does-not-exist")
+        response = full_client.get(f"{core_config.ROOT_PATH}/does-not-exist")
 
         assert response.status_code == 404
         assert {name: response.headers[name] for name in _SECURITY_HEADERS} == _SECURITY_HEADERS
 
-    def test_a_429_carries_them(self):
+    def test_a_429_carries_them(self, app):
         def limited() -> None:
             raise core_exceptions.TooManyRequestsError("slow down", scope=core_exceptions.TooManyRequestsScope.PROVIDER)
 
-        response = TestClient(_stack(limited)).get("/api/v1/limited")
+        response = _served(app, limited).get(f"{core_config.ROOT_PATH}/limited")
 
         assert response.status_code == 429
         assert {name: response.headers[name] for name in _SECURITY_HEADERS} == _SECURITY_HEADERS
 
-    def test_an_unhandled_500_carries_them(self):
+    def test_an_unhandled_500_carries_them(self, app):
         def explodes() -> None:
             raise RuntimeError("boom")
 
-        response = TestClient(_stack(explodes), raise_server_exceptions=False).get("/api/v1/explodes")
+        response = _served(app, explodes).get(f"{core_config.ROOT_PATH}/explodes")
 
         assert response.status_code == 500
         assert {name: response.headers[name] for name in _SECURITY_HEADERS} == _SECURITY_HEADERS
@@ -228,19 +218,21 @@ class TestSecurityHeaders:
 class TestUnknownApiPaths:
     @pytest.mark.parametrize("method", ["GET", "POST", "PUT", "PATCH", "DELETE"])
     def test_an_unknown_api_path_is_a_404_problem_document_for_every_method(self, full_client, method):
-        response = full_client.request(method, "/api/v1/nothing/here", headers={"X-Client-Type": "mobile"})
+        response = full_client.request(
+            method, f"{core_config.ROOT_PATH}/nothing/here", headers={"X-Client-Type": "mobile"}
+        )
 
         assert response.status_code == 404
         assert response.headers["Content-Type"].startswith("application/problem+json")
 
     def test_a_known_path_with_the_wrong_method_is_still_a_405(self, full_client):
-        response = full_client.delete("/api/v1/about", headers={"X-Client-Type": "mobile"})
+        response = full_client.delete(f"{core_config.ROOT_PATH}/about", headers={"X-Client-Type": "mobile"})
 
         assert response.status_code == 405
         assert "GET" in response.headers["Allow"]
 
     def test_head_on_a_get_route_has_no_body(self, full_client):
-        response = full_client.head("/api/v1/about")
+        response = full_client.head(f"{core_config.ROOT_PATH}/about")
 
         assert response.status_code == 200
         assert response.content == b""

@@ -7,7 +7,7 @@ crud coupling, so a parser is unit-testable with a file alone.
 import uuid
 from collections.abc import Sequence
 from dataclasses import dataclass, field
-from datetime import UTC, datetime, timedelta
+from datetime import datetime, timedelta
 from pathlib import Path
 from typing import TypedDict
 
@@ -126,9 +126,6 @@ class FitParsePayload(TypedDict):
         workout_steps: Every planned workout step.
         lengths: Every pool length.
         file_id: The file's identification.
-        intraday_steps: Monitoring step samples.
-        intraday_heart_rate: Monitoring heart-rate samples.
-        resting_heart_rate: The monitoring resting heart rate, when the file has one.
         exercise_titles: The file's exercise titles.
     """
 
@@ -158,9 +155,6 @@ class FitParsePayload(TypedDict):
     workout_steps: list[activity_workout_steps_contracts.ActivityWorkoutStepsCreate]
     lengths: list[activity_file_import_fit_frames.FitLength]
     file_id: activity_file_import_fit_frames.FitFileId
-    intraday_steps: list[activity_file_import_fit_frames.FitMonitoringSteps]
-    intraday_heart_rate: list[activity_file_import_fit_frames.FitMonitoringHeartRate]
-    resting_heart_rate: activity_file_import_fit_frames.FitRestingHeartRate | None
     exercise_titles: list[activity_exercise_titles_contracts.ActivityExerciseTitlesCreate]
 
 
@@ -585,19 +579,9 @@ def split_records_by_activity(parsed_data: FitParsePayload) -> list[FitSessionRe
 
     # Convert session times to datetime objects for easier comparison
     for session in sessions:
-        # Use the time as is if it is already a datetime object; otherwise, parse it
+        # fitdecode decodes FIT times as timezone-aware datetimes, so they compare directly.
         start_time = session["first_waypoint_time"]
-        if not isinstance(start_time, datetime):
-            start_time = datetime.strptime(start_time, "%Y-%m-%dT%H:%M:%S")
-        # Ensure tz-aware for consistent comparisons
-        if start_time.tzinfo is None:
-            start_time = start_time.replace(tzinfo=UTC)
-
         end_time = session.get("last_waypoint_time", start_time)
-        if not isinstance(end_time, datetime):
-            end_time = datetime.strptime(end_time, "%Y-%m-%dT%H:%M:%S")
-        if end_time.tzinfo is None:
-            end_time = end_time.replace(tzinfo=UTC)
 
         laps_records: list[activity_file_import_fit_frames.FitLap] = []
 
@@ -728,10 +712,11 @@ class FitParseState:
     """
 
     activity_name: str = activity_constants.DEFAULT_ACTIVITY_NAME
+    #: Whether the caller named the activity, so the file's workout name does not replace it.
+    activity_name_given: bool = False
     time_offset: int | None = 0
     activity_time_offset: int | None = None
     last_waypoint_time: datetime | None = None
-    resting_heart_rate: activity_file_import_fit_frames.FitRestingHeartRate | None = None
     sessions: list[FitSession] = field(default_factory=list)
     laps: list[activity_file_import_fit_frames.FitLap] = field(default_factory=list)
     splits: list[FitSplit] = field(default_factory=list)
@@ -742,8 +727,6 @@ class FitParseState:
         default_factory=list
     )
     lengths: list[activity_file_import_fit_frames.FitLength] = field(default_factory=list)
-    intraday_steps: list[activity_file_import_fit_frames.FitMonitoringSteps] = field(default_factory=list)
-    intraday_heart_rate: list[activity_file_import_fit_frames.FitMonitoringHeartRate] = field(default_factory=list)
     # Empty until the file's file_id message is read.
     file_id: activity_file_import_fit_frames.FitFileId = field(
         default_factory=activity_file_import_fit_frames.FitFileId
@@ -805,9 +788,6 @@ class FitParseState:
             "workout_steps": self.workout_steps,
             "lengths": self.lengths,
             "file_id": self.file_id,
-            "intraday_steps": self.intraday_steps,
-            "intraday_heart_rate": self.intraday_heart_rate,
-            "resting_heart_rate": self.resting_heart_rate,
             "exercise_titles": self.exercises_titles,
         }
 
@@ -859,7 +839,8 @@ def _handle_session_frame(frame: fitdecode.FitDataMessage, state: FitParseState)
             "first_waypoint_time": first_waypoint_time,
             "last_waypoint_time": first_waypoint_time + timedelta(seconds=total_elapsed_time),
             "total_elapsed_time": total_elapsed_time,
-            "total_timer_time": total_timer_time,
+            # The timer time is optional in FIT; a device that tracks no pauses reports only the elapsed time.
+            "total_timer_time": total_elapsed_time if total_timer_time is None else total_timer_time,
             "calories": calories,
             "distance": distance,
             "avg_hr": avg_hr,
@@ -1026,32 +1007,19 @@ def _handle_record_frame(frame: fitdecode.FitDataMessage, state: FitParseState) 
     state.last_waypoint_time = time
 
 
-def _handle_monitoring_frame(frame: fitdecode.FitDataMessage, state: FitParseState, last_timestamp: int) -> None:
-    """Parse a monitoring frame and extend intraday collections.
-
-    Args:
-        frame: The decoded FIT monitoring message.
-        state: Mutable parse state for the current file.
-        last_timestamp: Timestamp of the previous monitoring frame.
-    """
-    steps, heart_rate = activity_file_import_fit_frames.parse_frame_monitoring(frame, last_timestamp)
-    state.intraday_steps.extend(steps)
-    state.intraday_heart_rate.extend(heart_rate)
-
-
-def _dispatch_data_message(frame: fitdecode.FitDataMessage, state: FitParseState, last_timestamp: int) -> None:
+def _dispatch_data_message(frame: fitdecode.FitDataMessage, state: FitParseState) -> None:
     """Route a FIT data message to the appropriate handler.
 
     Args:
         frame: The decoded FIT data message.
         state: Mutable parse state for the current file.
-        last_timestamp: Timestamp of the previous monitoring frame.
     """
     name = frame.name
     if name == "session":
         _handle_session_frame(frame, state)
     elif name == "workout":
-        state.activity_name = activity_file_import_fit_frames.parse_frame_workout(frame)
+        if not state.activity_name_given:
+            state.activity_name = activity_file_import_fit_frames.parse_frame_workout(frame)
     elif name == "lap":
         state.laps.append(activity_file_import_fit_frames.parse_frame_lap(frame))
     elif name in {"split", "unknown_312"}:
@@ -1078,10 +1046,6 @@ def _dispatch_data_message(frame: fitdecode.FitDataMessage, state: FitParseState
         state.lengths.append(activity_file_import_fit_frames.parse_frame_length(frame))
     elif name == "file_id":
         state.file_id = activity_file_import_fit_frames.parse_frame_file_id(frame)
-    elif name == "monitoring":
-        _handle_monitoring_frame(frame, state, last_timestamp)
-    elif name == "monitoring_hr_data":
-        state.resting_heart_rate = activity_file_import_fit_frames.parse_frame_monitoring_hr_data(frame)
 
 
 def parse_fit_file(file: str, activity_name_input: str | None = None) -> FitParsePayload:
@@ -1102,13 +1066,14 @@ def parse_fit_file(file: str, activity_name_input: str | None = None) -> FitPars
         logger.debug("FIT parse start", extra=core_logger.context(file=Path(file).name))
         state = FitParseState(
             activity_name=activity_name_input or activity_constants.DEFAULT_ACTIVITY_NAME,
+            activity_name_given=bool(activity_name_input),
         )
 
         with open(file, "rb") as fit_file:
             fit_data = fitdecode.FitReader(fit_file)
             for frame in fit_data:
                 if isinstance(frame, fitdecode.FitDataMessage):
-                    _dispatch_data_message(frame, state, fit_data.last_timestamp)
+                    _dispatch_data_message(frame, state)
 
         logger.debug(
             "FIT parse complete",

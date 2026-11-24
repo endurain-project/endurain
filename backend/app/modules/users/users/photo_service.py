@@ -5,10 +5,10 @@ The photo itself lives in the platform ``StorageProvider``; the user row holds o
 
 import os
 import uuid
+from collections.abc import Callable
 
 import jasil.audit as jasil_audit
 import jasil.providers as platform_providers
-from fastapi import UploadFile
 from sqlalchemy.orm import Session
 
 import core.blob_sweep as core_blob_sweep
@@ -60,9 +60,8 @@ def sweep_unreferenced_photos(storage: platform_providers.StorageProvider) -> in
 def _referenced_photo_keys(keys: list[str], db: Session) -> set[str]:
     """Tell which of the given photo-area keys must be kept.
 
-    A key is ``{user_id}{extension}``. It is kept while its user's row names it, by its file name, so a
-    row a failed data migration left on a legacy filesystem path still owns its photo. A key that names
-    no user is not this area's to judge and is kept too.
+    A key is ``{user_id}{extension}``. It is kept while its user's row names it. A key that names no user
+    is not this area's to judge and is kept too.
 
     Args:
         keys: Keys found in the photo area.
@@ -73,7 +72,7 @@ def _referenced_photo_keys(keys: list[str], db: Session) -> set[str]:
     """
     owners = {key: _owner_of(key) for key in keys}
     named = users_crud.get_photo_keys_by_user_ids(sorted({owner for owner in owners.values() if owner is not None}), db)
-    return {key for key, owner in owners.items() if owner is None or _file_name(named.get(owner)) == key}
+    return {key for key, owner in owners.items() if owner is None or named.get(owner) == key}
 
 
 def _owner_of(key: str) -> uuid.UUID | None:
@@ -91,18 +90,6 @@ def _owner_of(key: str) -> uuid.UUID | None:
     except ValueError:
         return None
     return owner if str(owner) == stem else None
-
-
-def _file_name(photo: str | None) -> str | None:
-    """Return the file name a stored photo reference ends in.
-
-    Args:
-        photo: The row's photo reference: a storage key, a legacy filesystem path, or None.
-
-    Returns:
-        The file name, or None when there is no photo.
-    """
-    return photo.replace("\\", "/").rsplit("/", 1)[-1] if photo else None
 
 
 def _delete_replaced_blob(
@@ -125,8 +112,7 @@ def _delete_replaced_blob(
         return
     try:
         storage.delete(users_constants.USER_IMAGE_STORAGE_AREA, replaced)
-    except (platform_providers.StorageBackendUnavailableError, ValueError) as err:
-        # A ValueError is a row still holding a legacy filesystem path, which storage refuses as a key.
+    except platform_providers.StorageBackendUnavailableError as err:
         logger.warning(
             "Could not remove a replaced user photo", exc_info=err, extra=core_logger.context(user_id=user_id)
         )
@@ -257,7 +243,8 @@ def _store_photo(
 
 def upload_photo(
     user_id: uuid.UUID,
-    file: UploadFile,
+    filename: str | None,
+    read_data: Callable[[], bytes],
     storage: platform_providers.StorageProvider,
     db: Session,
     *,
@@ -267,7 +254,9 @@ def upload_photo(
 
     Args:
         user_id: ID of the user whose photo is being saved.
-        file: The uploaded image.
+        filename: The uploaded file's name, whose extension picks the stored type.
+        read_data: Reads and validates the uploaded image, so nothing is read from the request before the user and
+            the extension are accepted.
         storage: The platform storage provider.
         db: Database session.
         audit: Record ``users.user.update``; set by the administrator's route, since a user's own photo is a
@@ -280,21 +269,21 @@ def upload_photo(
         NotFoundError: If the user does not exist.
         InvalidInputError: If the upload has no filename.
         UnsupportedMediaTypeError: If the extension is not an allowed image type.
+        PayloadTooLargeError: If ``read_data`` finds the upload over the size cap.
     """
     if users_crud.get_user_by_id(user_id, db) is None:
         raise core_exceptions.NotFoundError("User not found")
 
-    if not file.filename:
+    if not filename:
         raise core_exceptions.InvalidInputError("Filename is required")
 
     # Defense-in-depth allow-list on the user-supplied extension. The upload reader still
     # validates the magic number, so a mismatched signature is rejected even if this passes.
-    file_extension = os.path.splitext(file.filename)[1].lower()
+    file_extension = os.path.splitext(filename)[1].lower()
     if file_extension not in core_file_uploads.IMAGE_CONTENT_TYPES:
         raise core_exceptions.UnsupportedMediaTypeError("Unsupported user image file type")
 
-    data = core_file_uploads.read_validated_upload_sync(file, kind=core_file_uploads.UploadKind.IMAGE)
-    return _store_photo(user_id, file_extension, data, storage, db, audit=audit)[1]
+    return _store_photo(user_id, file_extension, read_data(), storage, db, audit=audit)[1]
 
 
 def read_photo(

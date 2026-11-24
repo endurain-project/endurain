@@ -1,42 +1,101 @@
-"""The streams package's surface for ingestion and profile restore."""
+"""What other modules do with streams: store parsed ones, export them for a profile archive, restore them, read GPS."""
 
 import uuid
-from unittest.mock import MagicMock, patch
 
-import modules.activities.activity_streams.integration_service as integration
+import pydantic
+import pytest
 
-ORIGINAL = uuid.UUID("cccccccc-cccc-4ccc-8ccc-cccccccccccc")
-OTHER = uuid.UUID("dddddddd-dddd-4ddd-8ddd-dddddddddddd")
-NEW_ID = uuid.UUID("eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee")
-_CRUD = "modules.activities.activity_streams.integration_service.activity_streams_crud"
+import modules.activities.activity_streams.constants as stream_constants
+import modules.activities.activity_streams.contracts as stream_contracts
+import modules.activities.activity_streams.crud as streams_crud
+import modules.activities.activity_streams.integration_service as streams_integration
+from tests._factories.activities import make_activity, make_stream
+from tests._factories.users import make_user
+
+_HR = stream_constants.STREAM_TYPE_HR
+_MAP = stream_constants.STREAM_TYPE_MAP
 
 
-class TestRestoreProfileRecords:
-    def _activity(self) -> MagicMock:
-        return MagicMock(id=NEW_ID)
+@pytest.fixture
+def activity(db):
+    return make_activity(db, make_user(db).id)
 
-    @patch(_CRUD)
-    def test_an_archive_written_with_stored_zones_still_restores(self, mock_crud):
-        """Exports from before zones were computed on read carry ``zone_percentages``."""
-        record = {
-            "id": "ffffffff-ffff-4fff-8fff-ffffffffffff",
-            "activity_id": str(ORIGINAL),
-            "stream_type": 1,
-            "stream_waypoints": [{"hr": 120}],
-            "strava_activity_stream_id": None,
-            "zone_percentages": {"hr": {"zone_1": {"percent": 100.0}}},
-        }
 
-        restored = integration._restore_profile_records([record], ORIGINAL, self._activity(), MagicMock())
+class TestIngestion:
+    def test_parsed_streams_are_stored_for_the_new_activity_with_plain_dict_samples(self, db, activity):
+        parsed = [stream_contracts.ParsedStream(stream_type=_HR, stream_waypoints=[{"time": "t", "hr": 120}])]
 
-        assert restored == 1
-        stored = mock_crud.create_activity_streams.call_args.args[0][0]
-        assert stored.activity_id == NEW_ID
-        assert not hasattr(stored, "zone_percentages")
+        streams_integration.ingestion_contributor().persist(parsed, activity, db)
 
-    @patch(_CRUD)
-    def test_a_record_for_another_activity_is_skipped(self, mock_crud):
-        record = {"activity_id": str(OTHER), "stream_type": 1, "stream_waypoints": []}
+        [stored] = streams_crud.get_activity_streams(activity.id, db)
+        assert (stored.stream_type, stored.stream_waypoints, stored.strava_activity_stream_id) == (
+            _HR,
+            [{"time": "t", "hr": 120}],
+            None,
+        )
 
-        assert integration._restore_profile_records([record], ORIGINAL, self._activity(), MagicMock()) == 0
-        mock_crud.create_activity_streams.assert_not_called()
+    def test_streams_of_another_shape_are_refused_before_anything_is_stored(self, db, activity):
+        with pytest.raises(pydantic.ValidationError):
+            streams_integration.ingestion_contributor().persist([{"stream_type": _HR}], activity, db)
+
+        assert streams_crud.get_activity_streams(activity.id, db) == []
+
+
+class TestProfileArchive:
+    def test_the_export_lists_the_streams_of_the_given_activities_only(self, db, activity):
+        other = make_activity(db, make_user(db).id)
+        make_stream(db, activity, _HR, [{"hr": 1}])
+        make_stream(db, other, _HR, [{"hr": 2}])
+
+        exported = streams_integration.profile_contributor().export([activity.id], db)
+
+        assert [s.activity_id for s in exported] == [activity.id]
+
+    def test_restore_re_keys_the_archived_streams_and_drops_stored_zones_and_other_activities(self, db, activity):
+        archived_id = uuid.uuid4()
+        records = [
+            {
+                "id": str(uuid.uuid4()),
+                "activity_id": str(archived_id),
+                "stream_type": _HR,
+                "stream_waypoints": [{"hr": 1}],
+                "strava_activity_stream_id": 9,
+                "zone_percentages": {"hr": {}},
+            },
+            {"activity_id": str(uuid.uuid4()), "stream_type": _HR, "stream_waypoints": []},
+        ]
+
+        restored = streams_integration.profile_contributor().restore(records, archived_id, activity, db)
+
+        [stored] = streams_crud.get_activity_streams(activity.id, db)
+        assert (restored, stored.strava_activity_stream_id, stored.stream_waypoints) == (1, 9, [{"hr": 1}])
+
+    def test_nothing_matching_is_restored_as_zero(self, db, activity):
+        records = [{"activity_id": str(uuid.uuid4()), "stream_type": _HR, "stream_waypoints": []}]
+
+        assert streams_integration.profile_contributor().restore(records, uuid.uuid4(), activity, db) == 0
+        assert streams_crud.get_activity_streams(activity.id, db) == []
+
+    def test_an_archived_stream_with_an_unknown_field_is_refused(self, db, activity):
+        archived_id = uuid.uuid4()
+        record = {"activity_id": str(archived_id), "stream_type": _HR, "stream_waypoints": [], "bogus": 1}
+
+        with pytest.raises(pydantic.ValidationError):
+            streams_integration.profile_contributor().restore([record], archived_id, activity, db)
+
+
+class TestDerivation:
+    def test_one_stream_is_read_unmasked_for_a_derived_artifact(self, db, activity):
+        make_stream(db, activity, _MAP, [{"lat": 1.0, "lon": 2.0}])
+
+        stream = streams_integration.get_stream_for_derivation(activity.id, _MAP, db)
+
+        assert stream.stream_waypoints == [{"lat": 1.0, "lon": 2.0}]
+        assert streams_integration.get_stream_for_derivation(activity.id, _HR, db) is None
+
+    def test_the_gps_samples_of_several_activities_are_read_in_one_call(self, db, activity):
+        make_stream(db, activity, _MAP, [{"lat": 1.0, "lon": 2.0}])
+
+        found = streams_integration.get_gps_waypoints_for_activities([activity.id, uuid.uuid4()], db)
+
+        assert found == {activity.id: [{"lat": 1.0, "lon": 2.0}]}

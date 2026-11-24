@@ -14,6 +14,7 @@ from jasil.jobs.registry import JobHandlerRegistry
 from jasil.providers import EventBusProvider
 from jasil.subscribers import best_effort
 
+import core.job_queues as core_job_queues
 import core.local_pool as core_local_pool
 import core.logger as core_logger
 import modules.users.users_profile.events as profile_events
@@ -183,10 +184,12 @@ def register_durable_handlers(registry: JobHandlerRegistry) -> None:
         IMPORT_REQUESTED_SUBSCRIBER_ID,
         process_import_requested_for_event,
         on_dead_letter=on_import_requested_dead_letter,
+        queue=core_job_queues.BACKGROUND,
     )
     registry.register(
         profile_events.USERS_PROFILE_EXPORT_REQUESTED,
         EXPORT_REQUESTED_SUBSCRIBER_ID,
         process_export_requested_for_event,
         on_dead_letter=on_export_requested_dead_letter,
+        queue=core_job_queues.BACKGROUND,
     )

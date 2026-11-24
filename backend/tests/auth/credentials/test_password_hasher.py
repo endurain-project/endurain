@@ -1,6 +1,5 @@
 import threading
 from types import SimpleNamespace
-from unittest.mock import patch
 
 import pytest
 from pwdlib import PasswordHash
@@ -281,6 +280,20 @@ class TestUnrecognisedStoredHash:
         assert PasswordHasher().verify_password("TestPassword123!", "$argon2id$garbage") is False
 
 
+@pytest.fixture
+def argon2_verifications(monkeypatch):
+    """Record each Argon2 verification the pwdlib hasher runs, while it still does the work."""
+    calls: list[str] = []
+    real_verify = Argon2Hasher.verify
+
+    def verify(self, password, stored_hash):
+        calls.append("verify")
+        return real_verify(self, password, stored_hash)
+
+    monkeypatch.setattr(Argon2Hasher, "verify", verify)
+    return calls
+
+
 class TestDummyVerifyCost:
     """A request that finds nothing to verify against still pays for the Argon2 work a real verify does."""
 
@@ -288,29 +301,26 @@ class TestDummyVerifyCost:
         assert PasswordHasher()._dummy_hash.startswith("$argon2")
 
     @pytest.mark.parametrize("stored", [_BCRYPT_HASH, "not-a-hash", ""])
-    def test_verify_password_runs_a_dummy_verify_for_an_unrecognised_hash(self, stored):
-        hasher = PasswordHasher()
-        with patch.object(hasher, "dummy_verify") as dummy:
-            hasher.verify_password("TestPassword123!", stored)
+    def test_verify_password_does_one_argon2_verify_for_an_unrecognised_hash(self, stored, argon2_verifications):
+        assert PasswordHasher(hasher=[Argon2Hasher()]).verify_password("TestPassword123!", stored) is False
 
-        dummy.assert_called_once_with()
+        assert argon2_verifications == ["verify"]
 
     @pytest.mark.parametrize("stored", [_BCRYPT_HASH, "not-a-hash", ""])
-    def test_verify_and_update_runs_a_dummy_verify_for_an_unrecognised_hash(self, stored):
-        hasher = PasswordHasher()
-        with patch.object(hasher, "dummy_verify") as dummy:
-            hasher.verify_and_update("TestPassword123!", stored)
+    def test_verify_and_update_does_one_argon2_verify_for_an_unrecognised_hash(self, stored, argon2_verifications):
+        assert PasswordHasher(hasher=[Argon2Hasher()]).verify_and_update("TestPassword123!", stored) == (False, None)
 
-        dummy.assert_called_once_with()
+        assert argon2_verifications == ["verify"]
 
-    def test_a_recognised_hash_runs_no_dummy_verify(self):
-        hasher = PasswordHasher()
+    def test_a_recognised_hash_does_one_argon2_verify_each_time_and_no_dummy(self, argon2_verifications):
+        hasher = PasswordHasher(hasher=[Argon2Hasher()])
         stored = hasher.hash_password("TestPassword123!")
-        with patch.object(hasher, "dummy_verify") as dummy:
-            hasher.verify_password("wrong", stored)
-            hasher.verify_and_update("wrong", stored)
+        argon2_verifications.clear()
 
-        dummy.assert_not_called()
+        hasher.verify_password("wrong", stored)
+        hasher.verify_and_update("wrong", stored)
+
+        assert argon2_verifications == ["verify", "verify"]
 
 
 class TestConcurrentHashingBound:
@@ -354,3 +364,24 @@ class TestConcurrentHashingBound:
 
         assert hasher.verify_password("a", "b")
         assert hasher.verify_password("c", "d")
+
+
+class TestProductionCost:
+    def test_the_shipped_hasher_writes_argon2id_at_64_mib_three_passes_and_four_lanes(self):
+        """The tests hash at a low cost for speed (``tests/conftest.py``); the application must not."""
+        from tests.conftest import PRODUCTION_PASSWORD_HASHER
+
+        encoded = PRODUCTION_PASSWORD_HASHER.hash_password("any password at all")
+
+        algorithm, version, parameters = encoded.split("$")[1:4]
+        assert (algorithm, version) == ("argon2id", "v=19")
+        assert dict(item.split("=") for item in parameters.split(",")) == {"m": "65536", "t": "3", "p": "4"}
+
+    def test_a_hash_made_at_the_production_cost_still_verifies_with_the_tests_hasher(self, password_hasher):
+        """A stored hash carries its parameters, so lowering the cost in tests changes no verification."""
+        from tests.conftest import PRODUCTION_PASSWORD_HASHER
+
+        encoded = PRODUCTION_PASSWORD_HASHER.hash_password("any password at all")
+
+        assert password_hasher.verify_password("any password at all", encoded)
+        assert not password_hasher.verify_password("another password", encoded)

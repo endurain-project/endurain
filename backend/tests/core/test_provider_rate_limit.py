@@ -4,14 +4,14 @@ from datetime import UTC, datetime, timedelta
 
 import jasil.providers as platform_providers
 import pytest
-from jasil.backends.state_memory import MemoryState
 
 import core.provider_rate_limit as core_provider_rate_limit
+from tests._helpers.clock import memory_state
 
 
 @pytest.fixture
 def state():
-    return MemoryState()
+    return memory_state()
 
 
 @pytest.fixture

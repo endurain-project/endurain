@@ -331,8 +331,6 @@
     "staleError": "Neko je promenio ova podešavanja dok ste ih uređivali. Vaše izmene nisu sačuvane. Ponovo učitajte stranicu da vidite trenutne vrednosti.",
     "stepUpTitle": "Potvrdite svoj identitet",
     "stepUpDescription": "Ove izmene utiču na to ko može da se registruje, prijavi ili zadrži sesiju na ovom serveru, koliko dugo se čuva revizorski trag ili da li javni linkovi prikazuju ko ih je delio. Potvrdite da ste to vi da biste nastavili.",
-    "envLocked": "Postavljeno promenljivom {name}",
-    "envSection": "Neka podešavanja ovde određuju promenljive okruženja ({names}). Uklonite ih iz okruženja da biste ta podešavanja mogli da menjate ovde.",
     "unsaved": "Nesačuvane izmene",
     "fixErrors": "Ispravite gornje greške da biste sačuvali",
     "discard": "Odbaci",

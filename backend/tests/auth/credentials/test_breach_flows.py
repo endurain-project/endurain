@@ -1,170 +1,179 @@
-"""Every flow that sets a password refuses a breached one when the check is on, before it stages any write."""
-
-import uuid
-from contextlib import contextmanager
-from unittest.mock import MagicMock, patch
+"""Every flow that sets a password refuses a breached one when the check is on, and changes nothing."""
 
 import pytest
-from jasil.backends.state_memory import MemoryState
+import sqlalchemy as sa
 
-import modules.auth.account_security.account_security_service as account_security_service
-import modules.auth.authentication.schema as authentication_schema
-import modules.auth.credentials.contracts as credentials_contracts
-import modules.auth.credentials.service as credentials_service
-import modules.auth.onboarding.schema as onboarding_schema
-import modules.auth.onboarding.service as onboarding_service
+import core.config as core_config
+import modules.auth.credentials.models as credentials_models
 import modules.auth.onboarding.token_store as onboarding_token_store
-import modules.auth.password_reset_tokens.service as password_reset_service
-import modules.auth.sign_up_tokens.service as sign_up_service
-import modules.users.users.schema as users_schema
-import modules.users.users.service as users_service
-import modules.users.users_profile.service as users_profile_service
-from tests._helpers.auth import MOCK_USER_ID, OTHER_USER_ID
+import modules.auth.sign_up_tokens.models as sign_up_models
+import modules.users.users.models as users_models
+from tests._factories.breach import fake_range_api
+from tests._factories.server_settings import edit_server_settings
+from tests._factories.tokens import make_reset_token, make_sign_up_token
+from tests._factories.users import PASSWORD, make_admin, make_user
 
-_PASSWORD = "a-password-that-leaked-somewhere"
-
-
-class _ReachedError(Exception):
-    """Raised by the first step after the breach check, to show the flow got past it."""
-
-
-def _settings(enabled: bool) -> MagicMock:
-    return MagicMock(
-        password_breach_check_enabled=enabled, signup_enabled=True, signup_require_email_verification=False
-    )
+_API = core_config.ROOT_PATH
+_PUBLIC = f"{_API}/public"
+_LEAKED = "a-password-that-leaked-somewhere"
+_FRESH = "a-password-nobody-has-leaked-1"
+_BREACHED = "urn:endurain:error:password-breached"
+_STEP_UP = {"step_up": {"current_password": PASSWORD}}
 
 
-@contextmanager
-def _breach(enabled: bool, *, breached: bool = True):
-    with patch.object(credentials_service.credentials_password_breach, "is_breached", return_value=breached) as check:
-        yield check, _settings(enabled)
+@pytest.fixture
+def range_api(monkeypatch, committed_sessions):
+    """The range API lists ``_LEAKED``, and the administrator switched the check on."""
+    api = fake_range_api(monkeypatch)
+    api.breach(_LEAKED)
+    _configure(committed_sessions, check=True)
+    return api
 
 
-def _reset(settings, db):
-    with (
-        patch.object(password_reset_service.server_settings_integration, "get_server_settings", return_value=settings),
-        patch.object(
-            password_reset_service.password_reset_crud, "claim_password_reset_token", side_effect=_ReachedError
-        ),
+def _configure(committed_sessions, *, check: bool, **settings) -> None:
+    with committed_sessions() as db:
+        edit_server_settings(db, password_breach_check_enabled=check, **settings)
+        db.commit()
+
+
+def _hash_of(committed_sessions, user_id) -> str:
+    with committed_sessions() as db:
+        return db.scalars(
+            sa.select(credentials_models.LocalCredential.password_hash).where(
+                credentials_models.LocalCredential.user_id == user_id
+            )
+        ).one()
+
+
+def _user_count(committed_sessions) -> int:
+    with committed_sessions() as db:
+        return db.scalar(sa.select(sa.func.count()).select_from(users_models.Users)) or 0
+
+
+class TestPasswordReset:
+    def _arrange(self, committed_sessions):
+        with committed_sessions() as db:
+            user = make_user(db)
+            token = make_reset_token(db, user)
+            db.commit()
+        return user, token
+
+    def test_a_breached_password_is_refused_and_the_token_still_works(self, client, committed_sessions, range_api):
+        user, token = self._arrange(committed_sessions)
+        before = _hash_of(committed_sessions, user.id)
+        url = f"{_PUBLIC}/password-reset/confirm"
+
+        refused = client.post(url, json={"token": token, "password": _LEAKED})
+
+        assert refused.status_code == 422
+        assert refused.json()["type"] == _BREACHED
+        assert _hash_of(committed_sessions, user.id) == before
+        assert client.post(url, json={"token": token, "password": _FRESH}).status_code == 204
+
+    def test_with_the_check_off_the_breached_password_is_accepted_and_nothing_is_sent(
+        self, client, committed_sessions, range_api
     ):
-        password_reset_service.use_password_reset_token("token", _PASSWORD, db)
+        _configure(committed_sessions, check=False)
+        _, token = self._arrange(committed_sessions)
+
+        response = client.post(f"{_PUBLIC}/password-reset/confirm", json={"token": token, "password": _LEAKED})
+
+        assert response.status_code == 204
+        assert range_api.requests == []
 
 
-def _confirm_sign_up(settings, db):
-    with (
-        patch.object(sign_up_service.server_settings_integration, "get_server_settings", return_value=settings),
-        patch.object(sign_up_service, "verify_sign_up_token", side_effect=_ReachedError),
-    ):
-        sign_up_service.confirm_sign_up("token", _PASSWORD, db)
+class TestSignUp:
+    def test_a_breached_password_is_refused_and_no_account_is_made(self, client, committed_sessions, range_api):
+        _configure(committed_sessions, check=True, signup_enabled=True, signup_require_email_verification=False)
+        before = _user_count(committed_sessions)
 
-
-def _signup(settings, db):
-    user = users_schema.UserSignup(
-        name="Test", username="testuser", email="test@example.com", password=_PASSWORD, preferred_language="en"
-    )
-    with (
-        patch.object(sign_up_service.server_settings_integration, "get_server_settings", return_value=settings),
-        patch.object(sign_up_service.users_integration, "get_user_by_username", return_value=None),
-        patch.object(sign_up_service.users_integration, "stage_signup_user", side_effect=_ReachedError),
-    ):
-        sign_up_service.signup(user, MemoryState(), db)
-
-
-def _onboarding(settings, db):
-    store = onboarding_token_store.OnboardingTokenStore(MemoryState())
-    request = onboarding_schema.OnboardingCreate(
-        token=store.issue(), name="Owner", username="owner", email="owner@example.com", password=_PASSWORD
-    )
-    with (
-        patch.object(onboarding_service.users_integration, "any_user_exists", return_value=False),
-        patch.object(onboarding_service.users_integration, "stage_first_admin", side_effect=_ReachedError),
-        patch.object(onboarding_service.server_settings_integration, "get_server_settings", return_value=settings),
-    ):
-        onboarding_service.complete_onboarding(request, store, db)
-
-
-def _admin_create(settings, db):
-    user = users_schema.UserCreate(
-        name="N", username="n", email="n@example.com", active=True, access_type="admin", password=_PASSWORD
-    )
-    with (
-        patch.object(users_service.server_settings_integration, "get_server_settings", return_value=settings),
-        patch.object(users_service.account_security_integration, "verify_step_up", side_effect=_ReachedError),
-    ):
-        users_service.create_user(
-            user, None, OTHER_USER_ID, uuid.UUID("00000000-0000-4000-8000-0000000000a9"), MagicMock(), db
+        response = client.post(
+            f"{_PUBLIC}/sign-up/request",
+            json={"name": "Test", "username": "testuser", "email": "test@example.com", "password": _LEAKED},
         )
 
+        assert response.status_code == 422
+        assert response.json()["type"] == _BREACHED
+        assert _user_count(committed_sessions) == before
 
-def _admin_set_password(settings, db):
-    attributes = users_schema.UserAdminEditPassword(password=_PASSWORD, step_up={"current_password": "admin-password"})
-    with (
-        patch.object(users_service.server_settings_integration, "get_server_settings", return_value=settings),
-        patch.object(users_service.account_security_integration, "verify_step_up", side_effect=_ReachedError),
+    def test_a_breached_password_chosen_at_confirmation_is_refused_and_the_link_survives(
+        self, client, committed_sessions, range_api
     ):
-        users_service.change_user_password(
-            MOCK_USER_ID, attributes, OTHER_USER_ID, uuid.UUID("00000000-0000-4000-8000-0000000000a9"), MagicMock(), db
-        )
+        _configure(committed_sessions, check=True, signup_enabled=True, signup_require_email_verification=True)
+        with committed_sessions() as db:
+            user = make_user(db, active=False, email_verified=False, with_password=False, deactivated_at=None)
+            token = make_sign_up_token(db, user)
+            db.commit()
+        url = f"{_PUBLIC}/sign-up/confirm"
+
+        refused = client.post(url, json={"token": token, "password": _LEAKED})
+
+        assert refused.status_code == 422
+        assert refused.json()["type"] == _BREACHED
+        with committed_sessions() as db:
+            used = db.scalars(
+                sa.select(sign_up_models.SignUpToken.used).where(sign_up_models.SignUpToken.user_id == user.id)
+            ).all()
+        assert used == [False]
+        assert client.post(url, json={"token": token, "password": _FRESH}).status_code == 200
 
 
-def _own_change(settings, db):
-    change = users_schema.UserEditPassword(password=_PASSWORD, step_up={"current_password": "current"})
-    with (
-        patch.object(users_profile_service.server_settings_integration, "get_server_settings", return_value=settings),
-        patch.object(
-            users_profile_service.account_security_integration, "change_own_password", side_effect=_ReachedError
-        ),
+class TestOnboarding:
+    def _token(self) -> str:
+        import jasil.runtime as platform_runtime
+
+        return onboarding_token_store.OnboardingTokenStore(platform_runtime.get_state()).issue()
+
+    def _body(self, token: str, password: str) -> dict[str, str]:
+        return {
+            "token": token,
+            "name": "Owner",
+            "username": "owner",
+            "email": "owner@example.com",
+            "password": password,
+        }
+
+    def test_a_breached_password_is_refused_and_the_setup_token_is_not_burnt(
+        self, client, committed_sessions, range_api
     ):
-        users_profile_service.change_password(MOCK_USER_ID, change, "sid", MagicMock(), db)
+        with committed_sessions() as db:
+            db.execute(sa.delete(users_models.Users))
+            db.commit()
+        token = self._token()
+
+        refused = client.post(f"{_PUBLIC}/onboarding", json=self._body(token, _LEAKED))
+
+        assert refused.status_code == 422
+        assert refused.json()["type"] == _BREACHED
+        assert _user_count(committed_sessions) == 0
+        assert client.post(f"{_PUBLIC}/onboarding", json=self._body(token, _FRESH)).status_code == 201
 
 
-def _required_change(settings, db):
-    store = MagicMock()
-    store.get.return_value = MagicMock(user_id=MOCK_USER_ID, client_type="web", security_generation=0)
-    request = authentication_schema.PasswordChangeLoginRequest(password_change_challenge="c" * 43, password=_PASSWORD)
-    with (
-        patch.object(account_security_service.users_integration, "get_user", return_value=MagicMock(id=MOCK_USER_ID)),
-        patch.object(account_security_service.users_integration, "require_active_user"),
-        patch.object(
-            account_security_service.credentials_integration, "is_password_change_required", return_value=True
-        ),
-        patch.object(
-            account_security_service.server_settings_integration, "get_server_settings", return_value=settings
-        ),
-        patch.object(account_security_service, "stage_required_password_change", side_effect=_ReachedError),
+class TestAccountPasswordChanges:
+    def test_a_user_changing_their_own_password_to_a_breached_one_is_refused(
+        self, client, committed_sessions, sign_in, range_api
     ):
-        account_security_service.complete_password_change(
-            "203.0.113.7", "agent", request, "web", store, MagicMock(), MagicMock(), db, device_id=None
-        )
+        with committed_sessions() as db:
+            user = make_user(db)
+            db.commit()
+        me = sign_in(user)
+        before = _hash_of(committed_sessions, user.id)
 
+        response = me.client.post(f"{_API}/profile/password/change", json={"password": _LEAKED, **_STEP_UP})
 
-_FLOWS = [
-    pytest.param(_reset, id="password-reset"),
-    pytest.param(_confirm_sign_up, id="sign-up-confirmation"),
-    pytest.param(_signup, id="sign-up"),
-    pytest.param(_onboarding, id="onboarding"),
-    pytest.param(_admin_create, id="admin-create"),
-    pytest.param(_admin_set_password, id="admin-set-password"),
-    pytest.param(_own_change, id="own-change"),
-    pytest.param(_required_change, id="required-change"),
-]
+        assert response.status_code == 422
+        assert response.json()["type"] == _BREACHED
+        assert _hash_of(committed_sessions, user.id) == before
 
+    def test_an_administrator_setting_a_breached_password_is_refused(self, committed_sessions, sign_in, range_api):
+        with committed_sessions() as db:
+            admin, subject = make_admin(db), make_user(db)
+            db.commit()
+        me = sign_in(admin)
+        before = _hash_of(committed_sessions, subject.id)
 
-@pytest.mark.parametrize("flow", _FLOWS)
-class TestBreachCheckInEveryFlow:
-    def test_a_breached_password_is_refused_after_the_transaction_ends_and_before_the_flow_goes_on(self, flow):
-        db = MagicMock()
-        with _breach(True) as (check, settings), pytest.raises(credentials_contracts.PasswordBreachedError):
-            flow(settings, db)
+        response = me.client.post(f"{_API}/users/{subject.id}/password/change", json={"password": _LEAKED, **_STEP_UP})
 
-        check.assert_called_once_with(_PASSWORD)
-        db.rollback.assert_called_once()
-        db.commit.assert_not_called()
-
-    def test_with_the_setting_off_nothing_is_sent_and_the_flow_goes_on(self, flow):
-        db = MagicMock()
-        with _breach(False) as (check, settings), pytest.raises(_ReachedError):
-            flow(settings, db)
-
-        check.assert_not_called()
-        db.rollback.assert_not_called()
+        assert response.status_code == 422
+        assert response.json()["type"] == _BREACHED
+        assert _hash_of(committed_sessions, subject.id) == before

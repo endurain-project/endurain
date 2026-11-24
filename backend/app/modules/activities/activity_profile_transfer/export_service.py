@@ -9,6 +9,7 @@ read from storage after the export's read transaction is committed.
 import uuid
 from collections.abc import Callable, Iterator, Sequence
 
+import jasil.providers as platform_providers
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
@@ -319,27 +320,25 @@ def _write_activity_files(ctx: users_profile_contracts.ProfileExportContext, act
     Args:
         ctx: The export context.
         activity_ids: IDs of the exported activities.
+
+    Raises:
+        OSError: When the archive cannot be written, so the export fails instead of ending partial.
     """
     for activity_id in activity_ids:
         try:
             stored = activity_file_storage_integration.get_activity_file(activity_id, ctx.storage)
-            if stored is None:
-                continue
-            key, data = stored
-            ctx.archive.write_bytes(f"{constants.ACTIVITY_FILES_FOLDER}{key}", data)
-            ctx.counts["activity_files"] += 1
-        except OSError as err:
+        except platform_providers.StorageBackendUnavailableError as err:
             logger.warning(
-                "Failed to add activity file", exc_info=err, extra=core_logger.context(activity_id=activity_id)
-            )
-            continue
-        except Exception as err:
-            logger.warning(
-                "Unexpected error adding activity file",
+                "Could not read an activity file; skipping it",
                 exc_info=err,
                 extra=core_logger.context(activity_id=activity_id),
             )
             continue
+        if stored is None:
+            continue
+        key, data = stored
+        ctx.archive.write_bytes(f"{constants.ACTIVITY_FILES_FOLDER}{key}", data)
+        ctx.counts["activity_files"] += 1
 
 
 def _write_activity_media(ctx: users_profile_contracts.ProfileExportContext, activity_ids: list[uuid.UUID]) -> None:
@@ -357,7 +356,7 @@ def _write_activity_media(ctx: users_profile_contracts.ProfileExportContext, act
     for activity_id in activity_ids:
         try:
             blobs = activity_media_integration.list_media_blobs(activity_id, ctx.storage)
-        except Exception as err:
+        except platform_providers.StorageBackendUnavailableError as err:
             logger.warning(
                 "Failed to list media for activity",
                 exc_info=err,
@@ -366,9 +365,5 @@ def _write_activity_media(ctx: users_profile_contracts.ProfileExportContext, act
             continue
 
         for key, data in blobs:
-            try:
-                ctx.archive.write_bytes(f"{constants.ACTIVITY_MEDIA_FOLDER}{key}", data)
-                ctx.counts["media"] += 1
-            except Exception as err:
-                logger.warning("Unexpected error adding media file", exc_info=err, extra=core_logger.context(key=key))
-                continue
+            ctx.archive.write_bytes(f"{constants.ACTIVITY_MEDIA_FOLDER}{key}", data)
+            ctx.counts["media"] += 1

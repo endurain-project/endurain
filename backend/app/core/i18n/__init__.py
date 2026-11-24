@@ -80,8 +80,7 @@ _COMMON_LABEL_KEYS: Final[tuple[str, ...]] = (
 
 
 def normalize_locale(locale: str | None) -> str:
-    """
-    Return a supported backend locale, falling back to English.
+    """Return a supported backend locale, falling back to English.
 
     Args:
         locale: Raw locale string from user preference or None.
@@ -106,8 +105,7 @@ def normalize_locale(locale: str | None) -> str:
 
 
 def html_lang(locale: str | None) -> str:
-    """
-    Return the BCP 47 HTML lang value for a backend locale.
+    """Return the BCP 47 HTML lang value for a backend locale.
 
     Args:
         locale: Raw locale string or None.
@@ -121,8 +119,7 @@ def html_lang(locale: str | None) -> str:
 
 @functools.lru_cache(maxsize=32)
 def _load_catalog(locale: str) -> dict[str, str]:
-    """
-    Load and cache a translation catalog JSON file.
+    """Load and cache a translation catalog JSON file.
 
     Args:
         locale: A normalized locale code (must be in
@@ -153,8 +150,7 @@ def _load_catalog(locale: str) -> dict[str, str]:
 
 
 def t(key: str, locale: str | None, **kwargs: str) -> str:
-    """
-    Translate a key for the given locale.
+    """Translate a key for the given locale.
 
     Named placeholders in the catalog value (``{name}``) are replaced
     with the keyword arguments supplied.
@@ -180,8 +176,7 @@ def t(key: str, locale: str | None, **kwargs: str) -> str:
 
 
 def common_labels(locale: str | None) -> dict[str, str]:
-    """
-    Return the localized common labels reused by every email layout.
+    """Return the localized common labels reused by every email layout.
 
     Args:
         locale: Raw locale string or None.

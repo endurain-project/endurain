@@ -1,382 +1,174 @@
-"""Tests for Idempotency-Key handling on activity upload."""
+"""An ``Idempotency-Key`` on an upload makes a client's retry safe, through the real route and database.
 
+The durable profile keeps every job pending (nothing runs it), so what a replay stores is visible: one job row and one
+staged blob however often the request is repeated. The deleted-activity cases run on the local profile, where the job
+finishes.
+"""
+
+import threading
 import uuid
-from unittest.mock import ANY, MagicMock, patch
 
 import pytest
-from sqlalchemy.exc import IntegrityError
-from tests._helpers.auth import MOCK_USER_ID
 
-import core.exceptions as core_exceptions
-import core.job_status as core_job_status
-import modules.activities.activity_ingestion.constants as activity_ingestion_constants
-import modules.activities.activity_ingestion.service as ingestion_jobs
-import modules.activities.activity_ingestion.upload_entry_service as upload_entry_service
+import core.config as core_config
+import modules.activities.activity_ingestion.constants as ingestion_constants
+from tests._factories.garmin import EMPTY_GPX, activity_gpx
+from tests._factories.ingestion import all_jobs, read_job, staged_keys
 
-_JOB_1 = uuid.UUID("00000000-0000-4000-8000-0000000000a1")
-
-_ID_A = uuid.UUID("00000000-0000-4000-8000-00000000000a")
-_ID_B = uuid.UUID("00000000-0000-4000-8000-00000000000b")
-
-_UPLOAD = activity_ingestion_constants.IngestionJobKind.UPLOAD
+_API = core_config.ROOT_PATH
+_UPLOAD = ingestion_constants.IngestionJobKind.UPLOAD
 
 
-def _upload(filename: str = "ride.gpx") -> tuple[str, MagicMock]:
-    """The client filename and the router-bound saver ``accept_upload`` takes."""
-    return filename, MagicMock()
+@pytest.fixture
+def me(make_signed_in):
+    """A signed-in regular user."""
+    return make_signed_in()
 
 
-def _received(fingerprint: str = "hash-of-this-file") -> upload_entry_service.ReceivedUpload:
-    return upload_entry_service.ReceivedUpload(
-        incoming_path="/incoming/x.gpx", storage_key="abc.gpx", fingerprint=fingerprint
+def _upload(user, key: str | None, content: bytes | None = None, name: str = "ride.gpx"):
+    headers = {"Idempotency-Key": f'"{key}"'} if key else {}
+    return user.client.post(
+        f"{_API}/activities/upload", files={"file": (name, content or activity_gpx())}, headers=headers
     )
 
 
-def _integrity_error() -> IntegrityError:
-    return IntegrityError("insert", {}, Exception("duplicate key"))
+def _delete_activity(user, activity_id: str) -> None:
+    etag = user.client.get(f"{_API}/activities/{activity_id}").headers["ETag"]
+    response = user.client.delete(f"{_API}/activities/{activity_id}", headers={"If-Match": etag})
+    assert response.status_code == 204, response.text
 
 
-@pytest.fixture(autouse=True)
-def _no_upload_cap():
-    """These tests run against a mocked session, which cannot count open uploads or take the user lock."""
-    with (
-        patch.object(ingestion_jobs.activity_ingestion_crud, "count_open_uploads", return_value=0),
-        patch.object(ingestion_jobs.activity_ingestion_crud, "lock_user_uploads"),
-    ):
-        yield
+class TestAReplayOnTheDurableProfile:
+    @pytest.fixture(autouse=True)
+    def _durable(self, durable_jobs):
+        """Nothing runs the jobs, so a repeated request leaves a trace in the rows and the storage."""
+
+    def test_returns_the_original_job_and_stores_nothing_again(self, me, committed_sessions, storage):
+        first = _upload(me, "retry-1")
+        replay = _upload(me, "retry-1")
+
+        assert (first.status_code, replay.status_code) == (202, 202)
+        assert replay.json()["id"] == first.json()["id"]
+        assert replay.headers["Content-Location"] == first.headers["Content-Location"]
+        assert len(all_jobs(committed_sessions)) == 1
+        assert len(staged_keys(storage)) == 1
+
+    def test_stores_the_key_and_the_fingerprint_of_what_was_sent(self, me, committed_sessions):
+        response = _upload(me, "retry-2")
+
+        row = read_job(committed_sessions, uuid.UUID(response.json()["id"]))
+        assert row.idempotency_key == "retry-2"
+        assert row.request_fingerprint is not None
+        assert len(row.request_fingerprint) == 64
+
+    def test_without_a_key_nothing_is_stored_on_the_job(self, me, committed_sessions):
+        response = _upload(me, None)
+
+        row = read_job(committed_sessions, uuid.UUID(response.json()["id"]))
+        assert (row.idempotency_key, row.request_fingerprint) == (None, None)
+
+    def test_is_scoped_to_the_caller(self, me, make_signed_in, committed_sessions):
+        other = make_signed_in()
+        mine = _upload(me, "shared-key")
+        theirs = _upload(other, "shared-key")
+
+        assert theirs.status_code == 202
+        assert theirs.json()["id"] != mine.json()["id"]
+        assert len(all_jobs(committed_sessions)) == 2
+
+    def test_with_different_content_is_refused_and_stores_nothing(self, me, committed_sessions, storage):
+        first = _upload(me, "retry-3")
+
+        reused = _upload(me, "retry-3", activity_gpx(name="A different ride"))
+
+        assert (first.status_code, reused.status_code) == (202, 422)
+        assert reused.json()["type"].endswith("idempotency-key-reused")
+        assert len(all_jobs(committed_sessions)) == 1
+        assert len(staged_keys(storage)) == 1
+
+    def test_requests_racing_with_one_key_end_in_one_job(self, me, committed_sessions, storage):
+        barrier = threading.Barrier(4)
+        responses: list = []
+
+        def send() -> None:
+            barrier.wait()
+            responses.append(_upload(me, "race-1"))
+
+        threads = [threading.Thread(target=send) for _ in range(4)]
+        for thread in threads:
+            thread.start()
+        for thread in threads:
+            thread.join(timeout=30)
+
+        assert sorted(response.status_code for response in responses) == [202] * 4
+        assert len({response.json()["id"] for response in responses}) == 1
+        assert len(all_jobs(committed_sessions)) == 1
+        assert len(staged_keys(storage)) == 1
+
+    def test_racing_with_one_key_and_different_content_admits_one_file(self, me, committed_sessions, storage):
+        barrier = threading.Barrier(2)
+        responses: list = []
+
+        def send(content: bytes) -> None:
+            barrier.wait()
+            responses.append(_upload(me, "race-2", content))
+
+        threads = [
+            threading.Thread(target=send, args=(activity_gpx(name=name),)) for name in ("First ride", "Second ride")
+        ]
+        for thread in threads:
+            thread.start()
+        for thread in threads:
+            thread.join(timeout=30)
+
+        assert sorted(response.status_code for response in responses) == [202, 422]
+        assert len(all_jobs(committed_sessions)) == 1
+        assert len(staged_keys(storage)) == 1
 
 
-class TestReplay:
-    def test_a_replay_returns_the_original_job_without_storing_or_parsing_again(self):
-        """The content dedup would catch the duplicate, but only after both costs."""
-        db = MagicMock()
-        original = MagicMock(id=_JOB_1)
-        with (
-            patch.object(
-                ingestion_jobs.activity_ingestion_upload_entry_service, "receive_upload", return_value=_received()
-            ),
-            patch.object(
-                ingestion_jobs.activity_ingestion_crud,
-                "get_job_for_idempotency",
-                return_value=(original, "hash-of-this-file"),
-            ),
-            patch.object(ingestion_jobs.activity_ingestion_upload_entry_service, "store_received_upload") as store,
-            patch.object(ingestion_jobs.activity_ingestion_upload_entry_service, "discard_received_upload") as discard,
-            patch.object(ingestion_jobs.activity_ingestion_crud, "create_ingestion_job") as create,
-        ):
-            result = ingestion_jobs.accept_upload(MOCK_USER_ID, *_upload(), "storage", db, idempotency_key="key-1")
+class TestAKeyAfterTheImportFinished:
+    def test_a_replay_of_a_surviving_activity_answers_with_the_finished_job(self, me, pool, committed_sessions):
+        first = _upload(me, "done-1")
+        pool.drain()
 
-        assert result is original
-        store.assert_not_called()
-        create.assert_not_called()
-        # The received bytes are dropped rather than left in the incoming dir.
-        discard.assert_called_once()
+        replay = _upload(me, "done-1")
 
-    def test_the_lookup_is_scoped_to_the_caller_and_the_job_kind(self):
-        """Otherwise one user could discover another's job, or a refresh key could collide."""
-        db = MagicMock()
-        with (
-            patch.object(
-                ingestion_jobs.activity_ingestion_upload_entry_service, "receive_upload", return_value=_received()
-            ),
-            patch.object(
-                ingestion_jobs.activity_ingestion_crud, "get_job_for_idempotency", return_value=None
-            ) as lookup,
-            patch.object(
-                ingestion_jobs.activity_ingestion_upload_entry_service, "store_received_upload", return_value="abc.gpx"
-            ),
-            patch.object(ingestion_jobs.activity_ingestion_crud, "create_ingestion_job"),
-            patch.object(ingestion_jobs.activity_ingestion_crud, "get_ingestion_job", return_value="job-view"),
-            patch.object(ingestion_jobs.core_config.settings, "JOBS_ENABLED", False),
-            patch.object(ingestion_jobs.activity_ingestion_dispatch_service.activity_ingestion_background, "submit"),
-        ):
-            ingestion_jobs.accept_upload(MOCK_USER_ID, *_upload(), "storage", db, idempotency_key="key-1")
+        assert replay.json()["id"] == first.json()["id"]
+        assert replay.json()["status"] == "succeeded"
+        assert len(all_jobs(committed_sessions)) == 1
 
-        assert lookup.call_args.args == ("key-1", MOCK_USER_ID, _UPLOAD, db)
+    def test_the_key_is_released_once_every_activity_it_created_is_deleted(self, me, pool, committed_sessions):
+        first = _upload(me, "done-2")
+        pool.drain()
+        (activity_id,) = me.client.get(f"{_API}/jobs/{first.json()['id']}").json()["activity_ids"]
+        _delete_activity(me, activity_id)
 
-    def test_the_key_and_fingerprint_are_both_stored(self):
-        db = MagicMock()
-        with (
-            patch.object(ingestion_jobs.core_config.settings, "JOBS_ENABLED", True),
-            patch.object(
-                ingestion_jobs.activity_ingestion_upload_entry_service, "receive_upload", return_value=_received("fp-1")
-            ),
-            patch.object(ingestion_jobs.activity_ingestion_crud, "get_job_for_idempotency", return_value=None),
-            patch.object(
-                ingestion_jobs.activity_ingestion_upload_entry_service, "store_received_upload", return_value="abc.gpx"
-            ),
-            patch.object(ingestion_jobs.activity_ingestion_crud, "create_ingestion_job") as create,
-            patch.object(ingestion_jobs.activity_ingestion_crud, "get_ingestion_job", return_value="job-view"),
-            patch.object(ingestion_jobs.activity_ingestion_event_publishers.platform_publisher, "publish_committing"),
-        ):
-            ingestion_jobs.accept_upload(MOCK_USER_ID, *_upload(), "storage", db, idempotency_key="key-1")
+        again = _upload(me, "done-2")
+        pool.drain()
 
-        assert create.call_args.kwargs["idempotency_key"] == "key-1"
-        assert create.call_args.kwargs["request_fingerprint"] == "fp-1"
+        assert again.status_code == 202
+        assert again.json()["id"] != first.json()["id"]
+        state = me.client.get(f"{_API}/jobs/{again.json()['id']}").json()
+        assert state["status"] == "succeeded"
+        assert state["activity_ids"] != [activity_id]
+        assert read_job(committed_sessions, uuid.UUID(first.json()["id"])).idempotency_key is None
 
+    def test_different_content_is_refused_instead_of_releasing_the_key(self, me, pool, committed_sessions):
+        first = _upload(me, "done-3")
+        pool.drain()
+        (activity_id,) = me.client.get(f"{_API}/jobs/{first.json()['id']}").json()["activity_ids"]
+        _delete_activity(me, activity_id)
 
-class TestKeyReuseWithDifferentContent:
-    def test_is_rejected_rather_than_silently_dropping_the_file(self):
-        """Returning the first job would report success for a file never imported."""
-        db = MagicMock()
-        with (
-            patch.object(
-                ingestion_jobs.activity_ingestion_upload_entry_service,
-                "receive_upload",
-                return_value=_received("fp-second"),
-            ),
-            patch.object(
-                ingestion_jobs.activity_ingestion_crud,
-                "get_job_for_idempotency",
-                return_value=(MagicMock(id=_JOB_1), "fp-first"),
-            ),
-            patch.object(ingestion_jobs.activity_ingestion_upload_entry_service, "discard_received_upload") as discard,
-            patch.object(ingestion_jobs.activity_ingestion_upload_entry_service, "store_received_upload") as store,
-            pytest.raises(core_exceptions.ConflictError),
-        ):
-            ingestion_jobs.accept_upload(MOCK_USER_ID, *_upload(), "storage", db, idempotency_key="key-1")
+        reused = _upload(me, "done-3", activity_gpx(name="Another ride"))
 
-        store.assert_not_called()
-        discard.assert_called_once()
+        assert reused.status_code == 422
+        assert len(all_jobs(committed_sessions)) == 1
 
-    def test_the_conflict_maps_to_409(self):
-        assert core_exceptions.ConflictError.status_code == 409
+    def test_a_job_that_failed_keeps_its_key(self, me, pool, committed_sessions):
+        first = _upload(me, "failed-1", EMPTY_GPX)
+        pool.drain()
 
+        replay = _upload(me, "failed-1", EMPTY_GPX)
 
-class TestDeletedActivities:
-    def _accept(self, original, existing_ids, fingerprint="hash-of-this-file", release=None):
-        db = MagicMock()
-        release = release or MagicMock()
-        with (
-            patch.object(ingestion_jobs.core_config.settings, "JOBS_ENABLED", True),
-            patch.object(
-                ingestion_jobs.activity_ingestion_upload_entry_service, "receive_upload", return_value=_received()
-            ),
-            patch.object(
-                ingestion_jobs.activity_ingestion_crud,
-                "get_job_for_idempotency",
-                return_value=(original, fingerprint),
-            ),
-            patch.object(
-                ingestion_jobs.activity_integration, "filter_existing_activity_ids", return_value=existing_ids
-            ) as existing,
-            patch.object(ingestion_jobs.activity_ingestion_crud, "release_idempotency_key", release),
-            patch.object(
-                ingestion_jobs.activity_ingestion_upload_entry_service, "store_received_upload", return_value="abc.gpx"
-            ),
-            patch.object(ingestion_jobs.activity_ingestion_upload_entry_service, "discard_received_upload"),
-            patch.object(ingestion_jobs.activity_ingestion_crud, "create_ingestion_job") as create,
-            patch.object(ingestion_jobs.activity_ingestion_crud, "get_ingestion_job"),
-            patch.object(ingestion_jobs.activity_ingestion_dispatch_service, "commit_or_publish"),
-            patch.object(ingestion_jobs.activity_ingestion_dispatch_service, "run_in_background"),
-        ):
-            ingestion_jobs.accept_upload(MOCK_USER_ID, *_upload(), "storage", db, idempotency_key="key-1")
-        return existing, release, create
-
-    @staticmethod
-    def _job(status, activity_ids):
-        return MagicMock(id=_JOB_1, status=status, activity_ids=activity_ids)
-
-    def test_the_key_is_released_and_the_file_imported_again(self):
-        original = self._job(core_job_status.JobState.SUCCEEDED, [str(_ID_A), str(_ID_B)])
-        _, release, create = self._accept(original, set())
-
-        release.assert_called_once_with(_JOB_1, ANY)
-        create.assert_called_once()
-
-    def test_a_surviving_activity_keeps_the_replay(self):
-        original = self._job(core_job_status.JobState.SUCCEEDED, [str(_ID_A), str(_ID_B)])
-        _, release, create = self._accept(original, {_ID_B})
-
-        release.assert_not_called()
-        create.assert_not_called()
-
-    def test_different_content_conflicts_instead_of_releasing_the_key(self):
-        original = self._job(core_job_status.JobState.SUCCEEDED, [str(_ID_A), str(_ID_B)])
-        release = MagicMock()
-        with pytest.raises(core_exceptions.ConflictError):
-            self._accept(original, set(), fingerprint="hash-of-another-file", release=release)
-
-        release.assert_not_called()
-
-    @pytest.mark.parametrize(
-        ("status", "activity_ids"),
-        [
-            (core_job_status.JobState.QUEUED, None),
-            (core_job_status.JobState.FAILED, None),
-            (core_job_status.JobState.SUCCEEDED, []),
-        ],
-    )
-    def test_a_job_that_created_nothing_is_not_checked(self, status, activity_ids):
-        existing, release, create = self._accept(self._job(status, activity_ids), set())
-
-        existing.assert_not_called()
-        release.assert_not_called()
-        create.assert_not_called()
-
-
-class TestConcurrentSameKey:
-    def test_the_loser_reports_the_winners_job(self):
-        """The constraint decides, not the read-then-write check above it."""
-        db = MagicMock()
-        winner = MagicMock(id=_JOB_1)
-        with (
-            patch.object(ingestion_jobs.core_config.settings, "JOBS_ENABLED", True),
-            patch.object(
-                ingestion_jobs.activity_ingestion_upload_entry_service, "receive_upload", return_value=_received("fp-1")
-            ),
-            patch.object(
-                ingestion_jobs.activity_ingestion_crud,
-                "get_job_for_idempotency",
-                side_effect=[None, (winner, "fp-1")],
-            ),
-            patch.object(
-                ingestion_jobs.activity_ingestion_upload_entry_service, "store_received_upload", return_value="abc.gpx"
-            ),
-            patch.object(
-                ingestion_jobs.activity_ingestion_crud, "create_ingestion_job", side_effect=_integrity_error()
-            ),
-            patch.object(ingestion_jobs.activity_ingestion_upload_entry_service, "discard_staged_upload") as discard,
-        ):
-            result = ingestion_jobs.accept_upload(MOCK_USER_ID, *_upload(), "storage", db, idempotency_key="key-1")
-
-        assert result is winner
-        discard.assert_called_once_with("abc.gpx", ANY)
-        # Once to end the key lookup before the upload was staged, once after the insert lost the race.
-        assert db.rollback.call_count == 2
-
-    def test_a_racing_key_reuse_with_different_content_still_conflicts(self):
-        db = MagicMock()
-        with (
-            patch.object(ingestion_jobs.core_config.settings, "JOBS_ENABLED", True),
-            patch.object(
-                ingestion_jobs.activity_ingestion_upload_entry_service,
-                "receive_upload",
-                return_value=_received("fp-second"),
-            ),
-            patch.object(
-                ingestion_jobs.activity_ingestion_crud,
-                "get_job_for_idempotency",
-                side_effect=[None, (MagicMock(id=_JOB_1), "fp-first")],
-            ),
-            patch.object(
-                ingestion_jobs.activity_ingestion_upload_entry_service, "store_received_upload", return_value="abc.gpx"
-            ),
-            patch.object(
-                ingestion_jobs.activity_ingestion_crud, "create_ingestion_job", side_effect=_integrity_error()
-            ),
-            patch.object(ingestion_jobs.activity_ingestion_upload_entry_service, "discard_staged_upload"),
-            pytest.raises(core_exceptions.ConflictError),
-        ):
-            ingestion_jobs.accept_upload(MOCK_USER_ID, *_upload(), "storage", db, idempotency_key="key-1")
-
-    def test_an_integrity_error_without_a_key_still_propagates(self):
-        """Only a key collision is recoverable; anything else is a real failure."""
-        db = MagicMock()
-        with (
-            patch.object(ingestion_jobs.core_config.settings, "JOBS_ENABLED", True),
-            patch.object(
-                ingestion_jobs.activity_ingestion_upload_entry_service, "receive_upload", return_value=_received()
-            ),
-            patch.object(
-                ingestion_jobs.activity_ingestion_upload_entry_service, "store_received_upload", return_value="abc.gpx"
-            ),
-            patch.object(
-                ingestion_jobs.activity_ingestion_crud, "create_ingestion_job", side_effect=_integrity_error()
-            ),
-            patch.object(ingestion_jobs.activity_ingestion_upload_entry_service, "discard_staged_upload"),
-            pytest.raises(IntegrityError),
-        ):
-            ingestion_jobs.accept_upload(MOCK_USER_ID, *_upload(), "storage", db)
-
-
-class TestWithoutAKey:
-    def test_no_lookup_happens_and_nothing_is_stored_on_the_job(self):
-        db = MagicMock()
-        with (
-            patch.object(ingestion_jobs.core_config.settings, "JOBS_ENABLED", False),
-            patch.object(
-                ingestion_jobs.activity_ingestion_upload_entry_service, "receive_upload", return_value=_received("fp-1")
-            ),
-            patch.object(ingestion_jobs.activity_ingestion_crud, "get_job_for_idempotency") as lookup,
-            patch.object(
-                ingestion_jobs.activity_ingestion_upload_entry_service, "store_received_upload", return_value="abc.gpx"
-            ),
-            patch.object(ingestion_jobs.activity_ingestion_crud, "create_ingestion_job") as create,
-            patch.object(ingestion_jobs.activity_ingestion_crud, "get_ingestion_job", return_value="job-view"),
-            patch.object(ingestion_jobs.activity_ingestion_dispatch_service.activity_ingestion_background, "submit"),
-        ):
-            ingestion_jobs.accept_upload(MOCK_USER_ID, *_upload(), "storage", db)
-
-        lookup.assert_not_called()
-        assert create.call_args.kwargs["idempotency_key"] is None
-        # The fingerprint is still recorded, so a later key could be validated.
-        assert create.call_args.kwargs["request_fingerprint"] == "fp-1"
-
-
-class TestRefreshIsUnaffected:
-    def test_a_refresh_never_carries_an_idempotency_key(self):
-        """The header is upload-only; a refresh has no body to replay."""
-        db = MagicMock()
-        with (
-            patch.object(ingestion_jobs.core_config.settings, "JOBS_ENABLED", True),
-            patch.object(ingestion_jobs.activity_ingestion_crud, "create_ingestion_job") as create,
-            patch.object(ingestion_jobs.activity_ingestion_crud, "get_ingestion_job", return_value="job-view"),
-            patch.object(ingestion_jobs.activity_ingestion_event_publishers.platform_publisher, "publish_committing"),
-        ):
-            ingestion_jobs.accept_refresh(MOCK_USER_ID, "storage", db)
-
-        assert create.call_args.args[2] == activity_ingestion_constants.IngestionJobKind.REFRESH
-        assert "idempotency_key" not in create.call_args.kwargs
-
-
-class TestReceivedUploadIsNeverLeftBehind:
-    def test_a_failing_idempotency_lookup_discards_the_received_upload(self):
-        from unittest.mock import MagicMock, patch
-
-        import pytest
-
-        import modules.activities.activity_ingestion.service as ingestion_jobs
-
-        received = _received()
-        with (
-            patch.object(
-                ingestion_jobs.activity_ingestion_upload_entry_service, "receive_upload", return_value=received
-            ),
-            patch.object(
-                ingestion_jobs.activity_ingestion_crud, "get_job_for_idempotency", side_effect=RuntimeError("db down")
-            ),
-            patch.object(ingestion_jobs.activity_ingestion_upload_entry_service, "discard_received_upload") as discard,
-            pytest.raises(RuntimeError),
-        ):
-            ingestion_jobs.accept_upload(
-                MOCK_USER_ID, "ride.gpx", MagicMock(), "storage", MagicMock(), idempotency_key="k"
-            )
-
-        discard.assert_called_once_with(received)
-
-
-class TestNoConnectionHeldWhileStoring:
-    """The idempotency lookup reads, and the staged upload can be 200 MiB, so the read must end first."""
-
-    def test_the_upload_is_staged_after_the_lookup_has_ended_its_transaction(self):
-        db = MagicMock()
-        order = MagicMock()
-        order.attach_mock(db.rollback, "end_read")
-        store = MagicMock(side_effect=RuntimeError("stop here"))
-        order.attach_mock(store, "store_received_upload")
-
-        with (
-            patch.object(ingestion_jobs.activity_ingestion_dispatch_service, "require_capacity"),
-            patch.object(
-                ingestion_jobs.activity_ingestion_upload_entry_service,
-                "receive_upload",
-                return_value=MagicMock(fingerprint="f"),
-            ),
-            patch.object(ingestion_jobs.activity_ingestion_crud, "get_job_for_idempotency", return_value=None),
-            patch.object(ingestion_jobs.activity_ingestion_upload_entry_service, "store_received_upload", store),
-            pytest.raises(RuntimeError, match="stop here"),
-        ):
-            ingestion_jobs.accept_upload(MOCK_USER_ID, "a.fit", MagicMock(), MagicMock(), db, idempotency_key="key")
-
-        assert [call[0] for call in order.mock_calls] == ["end_read", "store_received_upload"]
+        assert first.json()["id"] == replay.json()["id"]
+        assert replay.json()["status"] == "failed"

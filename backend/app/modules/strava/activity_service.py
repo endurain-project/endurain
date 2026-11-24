@@ -771,7 +771,9 @@ def fetch_and_process_activity_laps(
 
     try:
         laps = strava_client_service.call_strava(
-            lambda client: client.get_activity_laps(strava_activity_id),
+            # stravalib pages laps lazily: listing them here makes the request inside the call, where its 401,
+            # 404 and 429 are handled, not in the loop below.
+            lambda client: list(client.get_activity_laps(strava_activity_id)),
             strava_client,
             user_id,
             user_integrations,

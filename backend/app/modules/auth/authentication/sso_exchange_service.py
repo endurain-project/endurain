@@ -1,7 +1,5 @@
 """Exchange of a sign-in session and its PKCE verifier for tokens."""
 
-from __future__ import annotations
-
 import uuid
 
 import jasil.audit as jasil_audit

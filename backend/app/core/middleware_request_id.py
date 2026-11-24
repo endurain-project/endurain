@@ -41,8 +41,7 @@ request_id_ctx: ContextVar[str] = ContextVar("request_id", default="")
 
 
 def get_request_id() -> str:
-    """
-    Return the current request ID from context.
+    """Return the current request ID from context.
 
     Returns:
         The request ID string, or empty string when
@@ -52,8 +51,7 @@ def get_request_id() -> str:
 
 
 class RequestIdMiddleware(BaseHTTPMiddleware):
-    """
-    Starlette middleware that assigns a request ID.
+    """Starlette middleware that assigns a request ID.
 
     Reads ``X-Request-ID`` from the incoming request
     (if it matches the validation regex) or generates
@@ -68,8 +66,7 @@ class RequestIdMiddleware(BaseHTTPMiddleware):
         request: Request,
         call_next: Callable[[Request], Awaitable[Response]],
     ) -> Response:
-        """
-        Set the request ID and forward the request.
+        """Set the request ID and forward the request.
 
         Args:
             request: Incoming HTTP request.

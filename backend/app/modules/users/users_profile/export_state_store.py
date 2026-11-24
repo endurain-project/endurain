@@ -16,7 +16,7 @@ import uuid
 from datetime import UTC, datetime, timedelta
 
 from jasil.providers import StateProvider
-from pydantic import BaseModel, model_validator
+from pydantic import BaseModel
 
 import core.attempt_state as core_attempt_state
 import core.job_status as core_job_status
@@ -30,11 +30,11 @@ class ProfileExportState(BaseModel):
     Attributes:
         status: Where the export is.
         session_id: The session that requested the export and passed step-up for it; only that session may
-            download it. A state recorded before this field existed reads as None, and nothing may download it.
+            download it. None when no session is recorded, and nothing may download such a state.
         error_code: Why it failed; set only when ``status`` is ``FAILED``.
-        size_bytes: Size of the staged archive; set only when ``status`` is ``COMPLETED``.
+        size_bytes: Size of the staged archive; set only when ``status`` is ``SUCCEEDED``.
         expires_at: When the state, and with it the download, expires; set only when ``status`` is
-            ``SUCCEEDED``. A state recorded before this field existed reads as None.
+            ``SUCCEEDED``.
     """
 
     status: profile_constants.ExportStatus
@@ -42,12 +42,6 @@ class ProfileExportState(BaseModel):
     error_code: profile_constants.ExportFailure | None = None
     size_bytes: int | None = None
     expires_at: datetime | None = None
-
-    @model_validator(mode="before")
-    @classmethod
-    def _read_stored_state(cls, data: object) -> object:
-        """Read a state stored before the shared job vocabulary as the current one."""
-        return core_job_status.upgrade_stored_state(data, "failure")
 
 
 _FINISHED = tuple(core_job_status.TERMINAL_STATES)

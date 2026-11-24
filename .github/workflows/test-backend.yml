@@ -11,6 +11,7 @@ on:
   pull_request:
     branches:
       - master
+      - release/**
     paths:
       - backend/**
       - .github/workflows/test-backend.yml
@@ -27,8 +28,9 @@ jobs:
   test-backend:
     name: Backend (pytest)
     runs-on: ubuntu-latest
-    # Disposable database for the tests marked ``postgres``: per-session
-    # connections, row locks and unique indexes that SQLite cannot reproduce.
+    timeout-minutes: 30
+    # Disposable maintenance database: the run migrates a template beside it and
+    # gives each pytest-xdist worker a clone of its own.
     services:
       postgres:
         image: postgres:18@sha256:2ea8630df176ad090ec92136dee850397c5af8781e4bcf2e4162593691c61bbc
@@ -62,8 +64,18 @@ jobs:
         working-directory: backend
         run: PYTHONPATH=app uv run --no-sync lint-imports
 
+      # The database is thrown away with the job, so nothing it writes needs to reach the disk: each test clones the
+      # template, and without the flushes a clone is several times faster. All three settings apply on a reload.
+      - name: Turn off durability on the test database
+        run: >-
+          docker exec ${{ job.services.postgres.id }} psql -U endurain -d endurain_test -v ON_ERROR_STOP=1
+          -c "ALTER SYSTEM SET fsync = off"
+          -c "ALTER SYSTEM SET synchronous_commit = off"
+          -c "ALTER SYSTEM SET full_page_writes = off"
+          -c "SELECT pg_reload_conf()"
+
       - name: Run tests
         working-directory: backend
         env:
           TEST_DATABASE_URL: postgresql+psycopg://endurain:test@localhost:5432/endurain_test
-        run: uv run --no-sync pytest
+        run: uv run --no-sync pytest -n auto --cov --cov-report=term-missing

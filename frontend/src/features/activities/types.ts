@@ -138,8 +138,8 @@ export interface ActivityLap {
  * `repeat_until_steps_cmplt` steps are expanded before display.
  */
 export interface ActivityWorkoutStep {
-  /** Duration kind: `time`, `reps`, `repeat_until_steps_cmplt`, etc. */
-  durationType: string
+  /** Duration kind: `time`, `reps`, `repeat_until_steps_cmplt`, etc.; null when the file named none. */
+  durationType: string | null
   /** Duration value: seconds for `time`, repetition count for `reps`. */
   durationValue: number | null
   /** FIT exercise category code (pairs with {@link exerciseName} for lookup). */

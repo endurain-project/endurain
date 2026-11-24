@@ -1,7 +1,5 @@
 """Tests for the unified file-upload pipeline in ``core.file_uploads``."""
 
-from __future__ import annotations
-
 import asyncio
 import gzip
 import io
@@ -373,7 +371,7 @@ def test_a_validator_fault_is_logged_as_a_warning_with_its_traceback(caplog, mon
     def broken(_file, _filename):
         raise FileProcessingError("validator crashed")
 
-    monkeypatch.setattr(core_file_uploads, "_validator_for", lambda _kind: broken)
+    monkeypatch.setattr(core_file_uploads.file_validator, "validate_image_file_sync", broken)
 
     with caplog.at_level(logging.DEBUG), pytest.raises(core_exceptions.ProcessingError):
         core_file_uploads._validate_file(io.BytesIO(b"x"), "a.png", kind=UploadKind.IMAGE)
@@ -502,19 +500,19 @@ def test_extract_validated_zip_sync_logs_a_corrupt_archive_at_debug(tmp_path: Pa
     assert _logged_above_debug(caplog) == []
 
 
-def test_extract_validated_zip_sync_logs_an_io_failure_as_a_warning(tmp_path: Path, caplog, monkeypatch):
+def test_extract_validated_zip_sync_logs_an_io_failure_as_a_warning(tmp_path: Path, caplog):
     """A disk fault while extracting is the server's and keeps its WARNING and traceback."""
     payload = _build_zip_with_entries([("a.gpx", _make_gpx_bytes())])
     zip_path = tmp_path / "archive.zip"
     zip_path.write_bytes(payload)
+    read_only = tmp_path / "out"
+    read_only.mkdir(mode=0o500)
 
-    def fail(*_args):
-        raise OSError("disk full")
-
-    monkeypatch.setattr(core_file_uploads, "_extract_to_staging", fail)
-
-    with caplog.at_level(logging.DEBUG), pytest.raises(core_exceptions.InvalidInputError):
-        extract_validated_zip_sync(zip_path, dest_dir=tmp_path / "out")
+    try:
+        with caplog.at_level(logging.DEBUG), pytest.raises(core_exceptions.InvalidInputError):
+            extract_validated_zip_sync(zip_path, dest_dir=read_only)
+    finally:
+        read_only.chmod(0o700)
 
     (record,) = _logged_above_debug(caplog)
     assert record.levelno == logging.WARNING

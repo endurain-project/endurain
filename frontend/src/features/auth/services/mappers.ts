@@ -8,7 +8,7 @@ import { getBackendAssetUrl } from '@/services/runtime'
  *
  * The backend returns a ready-to-use URL: a same-origin signed path
  * (`/api/v1/users/7/photo?t=…`) for local storage, or an absolute presigned URL
- * for object storage. `getBackendAssetUrl` handles both, so the client no longer
+ * for object storage. `getBackendAssetUrl` handles both, so the client never
  * reverses a filesystem path.
  *
  * @param photoPath - Raw `photo_path` from the backend, or null/undefined.

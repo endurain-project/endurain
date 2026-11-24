@@ -332,7 +332,9 @@ def bucket_day_count(start: date, bucket: health_constants.ChartBucket, since: d
     if bucket is health_constants.ChartBucket.DAY:
         return 1
     if bucket is health_constants.ChartBucket.WEEK:
-        end = start + timedelta(days=6)
+        # The week ends on its Sunday (``date_trunc('week')`` starts it on Monday); the bucket of the week the
+        # window opens in starts on ``since``, not on that Monday.
+        end = start + timedelta(days=6 - start.weekday())
     else:
         end = start.replace(day=calendar.monthrange(start.year, start.month)[1])
     return max((min(end, today) - max(start, since)).days + 1, 1)

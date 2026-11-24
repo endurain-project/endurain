@@ -26,16 +26,5 @@ def read_health_daily_stats(
     """Retrieve the user's health dashboard for today.
 
     The `targets` field is null unless the caller holds the `health-targets:read` scope.
-
-    Args:
-        request: The incoming request, read by the rate limiter.
-        token_user_id: The ID of the authenticated user extracted from the
-            access token.
-        scopes: The scopes granted to the caller.
-        db: Database session for executing queries.
-
-    Returns:
-        The consolidated daily metrics and, when the caller holds
-        ``health-targets:read``, the user's health targets.
     """
     return health_dashboard_service.get_daily_stats(token_user_id, db, include_targets="health-targets:read" in scopes)

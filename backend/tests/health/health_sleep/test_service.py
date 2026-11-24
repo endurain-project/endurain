@@ -1,261 +1,305 @@
+"""The sleep records' application rules, on the real database."""
+
 import uuid
-from datetime import date as datetime_date
-from unittest.mock import MagicMock, patch
+from datetime import date, timedelta
 
 import pytest
-from sqlalchemy.orm.exc import StaleDataError
 
 import core.date_range as core_date_range
+import core.etag as core_etag
 import core.exceptions as core_exceptions
+import core.timezone as core_timezone
 import modules.health.constants as health_constants
+import modules.health.health_sleep.models as health_sleep_models
 import modules.health.health_sleep.schema as health_sleep_schema
 import modules.health.health_sleep.service as health_sleep_service
-import modules.health.health_sleep.sleep_scoring as health_sleep_sleep_scoring
+from tests._factories.health import make_health_sleep
+from tests._factories.users import make_user
 
-_USER_ID = uuid.UUID("11111111-1111-4111-8111-111111111111")
-_ID = uuid.uuid4()
-_OTHER_ID = uuid.uuid4()
-_PREFIX = "modules.health.health_sleep.service"
-_SCORING = f"{_PREFIX}.health_sleep_sleep_scoring.calculate_and_set_sleep_scores"
-
-_NO_RANGE = core_date_range.DateRange()
-
-
-def _update() -> health_sleep_schema.HealthSleepUpdate:
-    return health_sleep_schema.HealthSleepUpdate(date=datetime_date(2024, 1, 15), total_sleep_seconds=28800)
-
-
-class TestStageEdit:
-    @patch(_SCORING)
-    @patch(f"{_PREFIX}.health_sleep_crud.edit_health_sleep")
-    def test_stages_without_scoring_or_committing(self, mock_edit, mock_scoring, mock_db):
-        record = _update()
-
-        health_sleep_service.stage_edit_health_sleep(_USER_ID, _ID, record, mock_db, if_match="*")
-
-        mock_edit.assert_called_once_with(_USER_ID, _ID, record, mock_db, if_match="*")
-        mock_scoring.assert_not_called()
-        mock_db.commit.assert_not_called()
+_DAY = date(2025, 3, 10)
+# Deep, light and REM make up the total of 8 hours; awake time is counted apart.
+_FULL_NIGHT = {
+    "total_sleep_seconds": 28800,
+    "deep_sleep_seconds": 5184,
+    "light_sleep_seconds": 14400,
+    "rem_sleep_seconds": 6480,
+    "awake_sleep_seconds": 720,
+    "awake_count": 0,
+    "restless_moments_count": 0,
+    "avg_sleep_stress": 20,
+}
 
 
-class TestCreateHealthSleep:
-    @patch(_SCORING)
-    @patch(f"{_PREFIX}.health_sleep_crud.create_health_sleep")
-    @patch(f"{_PREFIX}.health_sleep_crud.get_health_sleep_by_date_and_user_id", return_value=None)
-    def test_scores_creates_and_commits_when_the_date_is_free(self, _get_by_date, mock_create, mock_scoring, mock_db):
-        record = health_sleep_schema.HealthSleepCreate(date=datetime_date(2024, 1, 15), total_sleep_seconds=28800)
-
-        result = health_sleep_service.create_health_sleep(_USER_ID, record, mock_db)
-
-        mock_scoring.assert_called_once_with(record)
-        assert result is mock_create.return_value
-        mock_db.commit.assert_called_once()
-
-    @patch(_SCORING)
-    @patch(f"{_PREFIX}.health_sleep_crud.edit_health_sleep")
-    @patch(f"{_PREFIX}.health_sleep_crud.create_health_sleep", side_effect=core_exceptions.ConflictError("duplicate"))
-    def test_a_date_that_already_has_a_record_is_a_conflict(self, _create, mock_edit, _scoring, mock_db):
-        record = health_sleep_schema.HealthSleepCreate(date=datetime_date(2024, 1, 15), total_sleep_seconds=28800)
-
-        with pytest.raises(core_exceptions.ConflictError):
-            health_sleep_service.create_health_sleep(_USER_ID, record, mock_db)
-
-        mock_edit.assert_not_called()
-        mock_db.commit.assert_not_called()
+def _today() -> date:
+    return core_timezone.today_in(core_timezone.or_default(None))
 
 
-class TestUpsertHealthSleep:
-    @patch(f"{_PREFIX}.health_sleep_crud.edit_health_sleep")
-    @patch(f"{_PREFIX}.health_sleep_crud.get_health_sleep_by_date_and_user_id")
-    def test_a_writer_that_changed_the_row_first_is_retried_against_its_version(
-        self, mock_get_by_date, mock_edit, mock_db
-    ):
-        mock_get_by_date.return_value = MagicMock(id=_ID)
-        mock_edit.side_effect = [StaleDataError("moved"), "stored"]
-        record = health_sleep_schema.HealthSleepCreate(date=datetime_date(2024, 1, 15), total_sleep_seconds=28800)
-
-        result = health_sleep_service.stage_upsert_health_sleep(_USER_ID, record, mock_db)
-
-        assert result == "stored"
-        assert mock_edit.call_count == 2
-
-    @patch(f"{_PREFIX}.health_sleep_crud.edit_health_sleep", side_effect=StaleDataError("moved"))
-    @patch(f"{_PREFIX}.health_sleep_crud.get_health_sleep_by_date_and_user_id")
-    def test_a_row_that_keeps_moving_is_given_up_on(self, mock_get_by_date, mock_edit, mock_db):
-        mock_get_by_date.return_value = MagicMock(id=_ID)
-        record = health_sleep_schema.HealthSleepCreate(date=datetime_date(2024, 1, 15), total_sleep_seconds=28800)
-
-        with pytest.raises(StaleDataError):
-            health_sleep_service.stage_upsert_health_sleep(_USER_ID, record, mock_db)
-
-        assert mock_edit.call_count == health_constants.UPSERT_ATTEMPTS
-
-    @patch(_SCORING)
-    @patch(f"{_PREFIX}.health_sleep_crud.edit_health_sleep")
-    @patch(f"{_PREFIX}.health_sleep_crud.get_health_sleep_by_date_and_user_id")
-    def test_updates_the_existing_record_of_the_date(self, mock_get_by_date, mock_edit, _scoring, mock_db):
-        mock_get_by_date.return_value = MagicMock(id=_ID)
-        record = health_sleep_schema.HealthSleepCreate(date=datetime_date(2024, 1, 15), total_sleep_seconds=28800)
-
-        health_sleep_service.stage_upsert_health_sleep(_USER_ID, record, mock_db)
-
-        assert mock_edit.call_args.args[:2] == (_USER_ID, _ID)
-        assert mock_edit.call_args.args[2].date == datetime_date(2024, 1, 15)
-        mock_db.commit.assert_not_called()
+def _stored(db, record_id):
+    return db.get(health_sleep_models.HealthSleep, record_id)
 
 
-def _stored() -> health_sleep_schema.HealthSleepRead:
-    """A stored record whose scores came from a full set of inputs."""
-    return health_sleep_schema.HealthSleepRead(
-        updated_at="2024-01-01T00:00:00Z",
-        id=_ID,
-        user_id=_USER_ID,
-        date=datetime_date(2024, 1, 15),
-        total_sleep_seconds=28800,
-        deep_sleep_seconds=5184,
-        light_sleep_seconds=14400,
-        rem_sleep_seconds=6480,
-        awake_sleep_seconds=720,
-        awake_count=0,
-        restless_moments_count=0,
-        avg_sleep_stress=20,
-        sleep_score_overall=95,
-        sleep_score_duration="EXCELLENT",
-        sleep_score_quality="EXCELLENT",
-        awake_count_score="EXCELLENT",
-        rem_percentage_score="GOOD",
-        deep_percentage_score="GOOD",
-        light_percentage_score="GOOD",
-        sleep_stress_score="EXCELLENT",
+def _create(db, user, **fields):
+    return health_sleep_service.create_health_sleep(
+        user.id, health_sleep_schema.HealthSleepCreate(**{"date": _DAY, **fields}), db
     )
 
 
-def _edit_and_capture(mock_db, patch_body: dict) -> health_sleep_schema.HealthSleepUpdate:
-    """Run the service edit on ``_stored()`` and return the update that reached the crud."""
-    update = health_sleep_schema.HealthSleepUpdate(**patch_body)
-    with (
-        patch(f"{_PREFIX}.health_sleep_crud.get_health_sleep_by_id", return_value=_stored()),
-        patch(f"{_PREFIX}.health_sleep_crud.edit_health_sleep") as mock_edit,
-    ):
-        health_sleep_service.edit_health_sleep(_USER_ID, _ID, update, mock_db, if_match="*")
-    return mock_edit.call_args.args[2]
+def _edit(db, user, record, *, if_match=None, **changes):
+    return health_sleep_service.edit_health_sleep(
+        user.id,
+        record.id,
+        health_sleep_schema.HealthSleepUpdate(**changes),
+        db,
+        if_match=core_etag.format_etag(record.version) if if_match is None else if_match,
+    )
 
 
-class TestEditAndDelete:
-    def test_edit_commits(self, mock_db):
-        _edit_and_capture(mock_db, {"awake_count": 2})
-
-        mock_db.commit.assert_called_once()
-
-    def test_edit_scores_the_merged_record_not_the_partial_body(self, mock_db):
-        sent = _edit_and_capture(mock_db, {"awake_count": 2})
-
-        expected = _stored().model_copy(update={"awake_count": 2})
-        health_sleep_sleep_scoring.calculate_and_set_sleep_scores(expected)
-        for field in health_sleep_sleep_scoring.SCORE_FIELDS:
-            assert getattr(sent, field) == getattr(expected, field), field
-        assert sent.sleep_score_duration == "EXCELLENT"
-        assert sent.awake_count_score == "GOOD"
-
-    def test_edit_without_a_scoring_input_leaves_every_score_alone(self, mock_db):
-        sent = _edit_and_capture(mock_db, {"resting_heart_rate": 50})
-
-        assert sent.model_fields_set == {"resting_heart_rate"}
-
-    def test_edit_ignores_scores_the_client_sends(self, mock_db):
-        sent = _edit_and_capture(mock_db, {"awake_count": 2, "sleep_score_overall": 1})
-
-        assert sent.sleep_score_overall != 1
-
-    def test_edit_of_a_missing_record_is_not_found(self, mock_db):
-        with (
-            patch(
-                f"{_PREFIX}.health_sleep_crud.get_health_sleep_by_id", side_effect=core_exceptions.NotFoundError("gone")
-            ),
-            pytest.raises(core_exceptions.NotFoundError),
-        ):
-            health_sleep_service.edit_health_sleep(_USER_ID, _ID, _update(), mock_db, if_match="*")
-
-        mock_db.commit.assert_not_called()
-
-    @patch(f"{_PREFIX}.health_sleep_crud.delete_health_sleep")
-    def test_delete_commits(self, mock_delete, mock_db):
-        health_sleep_service.delete_health_sleep(_USER_ID, _ID, mock_db, if_match="*")
-
-        mock_delete.assert_called_once_with(_USER_ID, _ID, mock_db, if_match="*")
-        mock_db.commit.assert_called_once()
+@pytest.fixture
+def user(db):
+    return make_user(db, timezone="UTC")
 
 
-class TestListHealthSleep:
-    @patch(f"{_PREFIX}.health_sleep_crud.get_health_sleep_list_items_by_user_id", return_value=[])
-    @patch(f"{_PREFIX}.health_sleep_crud.get_health_sleep_number_by_user_id", return_value=0)
-    @patch(f"{_PREFIX}.users_integration.local_today", return_value=datetime_date(2024, 1, 15))
-    def test_resolves_the_interval_in_the_users_calendar(self, _today, mock_number, mock_list, mock_db):
-        result = health_sleep_service.list_health_sleep(
-            _USER_ID,
-            mock_db,
-            page_number=2,
-            num_records=10,
-            interval=health_constants.Interval.LAST_30_DAYS,
-            date_range=_NO_RANGE,
+@pytest.fixture
+def other(db):
+    return make_user(db, timezone="UTC")
+
+
+class TestCreate:
+    def test_the_record_is_stored_and_scored(self, db, user):
+        created = _create(db, user, **_FULL_NIGHT)
+
+        assert health_sleep_service.get_health_sleep(user.id, created.id, db) == created
+        assert (created.user_id, created.date, created.source) == (user.id, _DAY, "manual")
+        assert created.sleep_score_overall is not None
+        assert created.sleep_score_duration == "EXCELLENT"
+
+    def test_without_a_date_the_record_is_for_the_users_today(self, db, user):
+        assert _create(db, user, date=None).date == _today()
+
+    def test_a_date_after_the_users_today_is_refused_and_nothing_is_stored(self, db, user):
+        with pytest.raises(core_exceptions.InvalidInputError, match="cannot be dated in the future"):
+            _create(db, user, date=_today() + timedelta(days=1))
+
+        assert health_sleep_service.list_health_sleep(user.id, db).total == 0
+
+    def test_a_day_that_has_a_record_is_a_conflict_and_the_record_is_unchanged(self, committed_sessions):
+        with committed_sessions() as db:
+            user = make_user(db, timezone="UTC")
+            first = make_health_sleep(db, user.id, date=_DAY, total_sleep_seconds=20000)
+            db.commit()
+
+        with committed_sessions() as db, pytest.raises(core_exceptions.ConflictError):
+            _create(db, user, total_sleep_seconds=30000)
+
+        with committed_sessions() as db:
+            assert _stored(db, first.id).total_sleep_seconds == 20000
+
+
+class TestGet:
+    def test_another_users_record_is_not_found(self, db, user, other):
+        theirs = make_health_sleep(db, other.id)
+
+        with pytest.raises(core_exceptions.NotFoundError):
+            health_sleep_service.get_health_sleep(user.id, theirs.id, db)
+
+    def test_a_record_that_does_not_exist_is_not_found(self, db, user):
+        with pytest.raises(core_exceptions.NotFoundError):
+            health_sleep_service.get_health_sleep(user.id, uuid.uuid4(), db)
+
+
+class TestEdit:
+    def test_the_change_is_stored_and_the_version_moves_on(self, db, user):
+        record = _create(db, user, **_FULL_NIGHT)
+
+        edited = _edit(db, user, record, resting_heart_rate=47)
+
+        assert (edited.resting_heart_rate, edited.version) == (47, record.version + 1)
+        assert _stored(db, record.id).resting_heart_rate == 47
+
+    def test_a_scoring_input_rescores_the_merged_record_not_the_partial_body(self, db, user):
+        record = _create(db, user, **_FULL_NIGHT)
+
+        edited = _edit(db, user, record, awake_count=2)
+
+        assert (edited.sleep_score_duration, edited.awake_count_score) == ("EXCELLENT", "GOOD")
+        assert edited.total_sleep_seconds == 28800
+
+    def test_a_change_without_a_scoring_input_keeps_every_score(self, db, user):
+        record = _create(db, user, **_FULL_NIGHT)
+
+        edited = _edit(db, user, record, resting_heart_rate=50)
+
+        assert edited.sleep_score_overall == record.sleep_score_overall
+        assert edited.awake_count_score == record.awake_count_score
+
+    def test_a_score_the_client_sends_is_ignored(self, db, user):
+        record = _create(db, user, **_FULL_NIGHT)
+
+        edited = health_sleep_service.edit_health_sleep(
+            user.id,
+            record.id,
+            health_sleep_schema.HealthSleepUpdate.model_construct(awake_count=2, sleep_score_overall=1),
+            db,
+            if_match='"1"',
         )
 
-        since = datetime_date(2023, 12, 16)
-        mock_number.assert_called_once_with(_USER_ID, mock_db, since, None, has_resting_heart_rate=None)
-        mock_list.assert_called_once_with(_USER_ID, mock_db, 2, 10, since, None, has_resting_heart_rate=None)
-        assert (result.total, result.page, result.num_records) == (0, 2, 10)
+        assert edited.sleep_score_overall != 1
 
-    @patch(f"{_PREFIX}.health_sleep_crud.get_health_sleep_list_items_by_user_id", return_value=[])
-    @patch(f"{_PREFIX}.health_sleep_crud.get_health_sleep_number_by_user_id", return_value=0)
-    def test_no_interval_means_no_lower_bound(self, mock_number, mock_list, mock_db):
-        health_sleep_service.list_health_sleep(_USER_ID, mock_db, date_range=_NO_RANGE)
+    def test_a_stale_version_is_refused_and_the_record_keeps_the_newer_value(self, db, user):
+        record = _create(db, user)
+        _edit(db, user, record, resting_heart_rate=47)
 
-        mock_number.assert_called_once_with(_USER_ID, mock_db, None, None, has_resting_heart_rate=None)
+        with pytest.raises(core_exceptions.PreconditionFailedError):
+            _edit(db, user, record, resting_heart_rate=99)
 
-    @patch(f"{_PREFIX}.health_sleep_crud.get_health_sleep_list_items_by_user_id", return_value=[])
-    @patch(f"{_PREFIX}.health_sleep_crud.get_health_sleep_number_by_user_id", return_value=0)
-    def test_the_resting_heart_rate_filter_reaches_the_count_and_the_page(self, mock_number, mock_list, mock_db):
-        health_sleep_service.list_health_sleep(_USER_ID, mock_db, date_range=_NO_RANGE, has_resting_heart_rate=True)
+        assert _stored(db, record.id).resting_heart_rate == 47
 
-        assert mock_number.call_args.kwargs == {"has_resting_heart_rate": True}
-        assert mock_list.call_args.kwargs == {"has_resting_heart_rate": True}
+    def test_a_date_after_the_users_today_is_refused_and_the_record_keeps_its_date(self, db, user):
+        record = _create(db, user)
+
+        with pytest.raises(core_exceptions.InvalidInputError, match="cannot be dated in the future"):
+            _edit(db, user, record, date=_today() + timedelta(days=1))
+
+        assert _stored(db, record.id).date == _DAY
+
+    def test_moving_to_a_taken_day_is_a_conflict_and_the_record_keeps_its_day(self, committed_sessions):
+        with committed_sessions() as db:
+            user = make_user(db, timezone="UTC")
+            make_health_sleep(db, user.id, date=date(2025, 3, 1))
+            moved = make_health_sleep(db, user.id, date=date(2025, 3, 2))
+            db.commit()
+
+        with committed_sessions() as db, pytest.raises(core_exceptions.ConflictError):
+            _edit(db, user, moved, date=date(2025, 3, 1))
+
+        with committed_sessions() as db:
+            row = _stored(db, moved.id)
+            assert (row.date, row.version) == (date(2025, 3, 2), 1)
+
+    def test_another_users_record_is_not_found_and_unchanged(self, db, user, other):
+        theirs = make_health_sleep(db, other.id, resting_heart_rate=50)
+
+        with pytest.raises(core_exceptions.NotFoundError):
+            _edit(db, user, theirs, resting_heart_rate=60)
+
+        assert _stored(db, theirs.id).resting_heart_rate == 50
+
+    def test_a_record_that_does_not_exist_is_not_found(self, db, user):
+        with pytest.raises(core_exceptions.NotFoundError):
+            health_sleep_service.edit_health_sleep(
+                user.id, uuid.uuid4(), health_sleep_schema.HealthSleepUpdate(resting_heart_rate=60), db, if_match='"1"'
+            )
 
 
-class TestListItems:
-    @patch(f"{_PREFIX}.health_sleep_crud.get_health_sleep_number_by_user_id", return_value=2)
-    @patch(f"{_PREFIX}.health_sleep_crud.get_health_sleep_list_items_by_user_id")
-    def test_the_page_holds_items_that_flag_the_stages_and_do_not_carry_them(self, mock_list, _number, mock_db):
-        mock_list.return_value = [
-            health_sleep_schema.HealthSleepListItem(
-                updated_at="2024-01-01T00:00:00Z", id=_ID, user_id=_USER_ID, has_sleep_stages=True
-            ),
-            health_sleep_schema.HealthSleepListItem(
-                updated_at="2024-01-01T00:00:00Z", id=_OTHER_ID, user_id=_USER_ID, has_sleep_stages=False
-            ),
-        ]
+class TestDelete:
+    def test_the_record_is_gone_afterwards(self, db, user):
+        record = _create(db, user)
 
-        page = health_sleep_service.list_health_sleep(_USER_ID, mock_db, date_range=_NO_RANGE)
+        health_sleep_service.delete_health_sleep(user.id, record.id, db, if_match='"1"')
 
-        assert [item.has_sleep_stages for item in page.items] == [True, False]
-        assert all("sleep_stages" not in item.model_dump() for item in page.items)
+        with pytest.raises(core_exceptions.NotFoundError):
+            health_sleep_service.get_health_sleep(user.id, record.id, db)
 
-    def test_the_item_read_still_carries_the_stages(self):
-        record = health_sleep_schema.HealthSleepRead(
-            updated_at="2024-01-01T00:00:00Z", id=_ID, user_id=_USER_ID, sleep_stages=[{"stage_type": "deep"}]
+    def test_a_stale_version_is_refused_and_the_record_stays(self, db, user):
+        record = _create(db, user)
+
+        with pytest.raises(core_exceptions.PreconditionFailedError):
+            health_sleep_service.delete_health_sleep(user.id, record.id, db, if_match='"7"')
+
+        assert _stored(db, record.id) is not None
+
+    def test_another_users_record_is_not_found_and_stays(self, db, user, other):
+        theirs = make_health_sleep(db, other.id)
+
+        with pytest.raises(core_exceptions.NotFoundError):
+            health_sleep_service.delete_health_sleep(user.id, theirs.id, db, if_match='"1"')
+
+        assert _stored(db, theirs.id) is not None
+
+
+class TestList:
+    @pytest.fixture
+    def records(self, db, user):
+        today = _today()
+        return {
+            offset: make_health_sleep(db, user.id, date=today - timedelta(days=offset)) for offset in (0, 3, 20, 400)
+        }
+
+    def _dates(self, page):
+        return [item.date for item in page.items]
+
+    def test_a_page_holds_its_slice_and_the_total_counts_every_record(self, db, user, records):
+        page = health_sleep_service.list_health_sleep(user.id, db, page_number=2, num_records=3)
+
+        assert (len(page.items), page.total) == (1, 4)
+
+    def test_an_interval_looks_back_from_the_users_today(self, db, user, records):
+        today = _today()
+
+        page = health_sleep_service.list_health_sleep(user.id, db, interval=health_constants.Interval.LAST_7_DAYS)
+
+        assert self._dates(page) == [today, today - timedelta(days=3)]
+        assert page.total == 2
+
+    def test_no_interval_means_no_lower_bound(self, db, user, records):
+        assert health_sleep_service.list_health_sleep(user.id, db).total == 4
+
+    def test_a_date_range_replaces_the_interval(self, db, user, records):
+        today = _today()
+        window = core_date_range.DateRange(start_date=today - timedelta(days=25), end_date=today - timedelta(days=10))
+
+        page = health_sleep_service.list_health_sleep(
+            user.id, db, interval=health_constants.Interval.LAST_7_DAYS, date_range=window
         )
 
-        assert len(record.model_dump()["sleep_stages"]) == 1
+        assert self._dates(page) == [today - timedelta(days=20)]
+
+    def test_the_resting_heart_rate_filter_reaches_the_count_and_the_page(self, db, user):
+        make_health_sleep(db, user.id, date=date(2025, 3, 1), resting_heart_rate=50)
+        make_health_sleep(db, user.id, date=date(2025, 3, 2))
+
+        page = health_sleep_service.list_health_sleep(user.id, db, has_resting_heart_rate=False)
+
+        assert (self._dates(page), page.total) == ([date(2025, 3, 2)], 1)
+
+    def test_another_users_records_are_not_listed(self, db, user, other):
+        make_health_sleep(db, other.id)
+
+        assert health_sleep_service.list_health_sleep(user.id, db).total == 0
 
 
-class TestMissingDate:
-    @patch(_SCORING)
-    @patch(f"{_PREFIX}.health_sleep_crud.create_health_sleep")
-    @patch(f"{_PREFIX}.health_sleep_crud.get_health_sleep_by_date_and_user_id", return_value=None)
-    @patch(f"{_PREFIX}.users_integration.local_today", return_value=datetime_date(2024, 1, 15))
-    def test_defaults_to_the_athletes_local_today(self, mock_today, _get_by_date, mock_create, _scoring, mock_db):
-        record = health_sleep_schema.HealthSleepCreate(total_sleep_seconds=28800)
+class TestChart:
+    def test_the_totals_of_the_window_are_charted_by_day(self, db, user):
+        today = _today()
+        make_health_sleep(db, user.id, date=today, total_sleep_seconds=30000, resting_heart_rate=48)
+        make_health_sleep(db, user.id, date=today - timedelta(days=1), total_sleep_seconds=20000)
+        make_health_sleep(db, user.id, date=today - timedelta(days=30), total_sleep_seconds=1)
 
-        health_sleep_service.create_health_sleep(_USER_ID, record, mock_db)
+        totals = health_sleep_service.get_health_sleep_chart(user.id, health_constants.Interval.LAST_7_DAYS, db)
+        rate = health_sleep_service.get_health_sleep_resting_heart_rate_chart(
+            user.id, health_constants.Interval.LAST_7_DAYS, db
+        )
 
-        assert mock_create.call_args.args[1].date == datetime_date(2024, 1, 15)
-        mock_today.assert_called_once_with(_USER_ID, mock_db)
+        assert [(p.date, p.value) for p in totals.points] == [(today - timedelta(days=1), 20000.0), (today, 30000.0)]
+        assert [(p.date, p.value) for p in rate.points] == [(today, 48.0)]
+
+
+class TestRestoreProfileRecords:
+    def test_an_archived_night_is_stored_and_a_second_one_of_the_day_updates_it(self, db, user):
+        archived = {"date": "2025-03-10", "total_sleep_seconds": 25000, "source": "garmin"}
+
+        assert health_sleep_service.restore_profile_records([archived], user.id, {}, db) == 1
+        assert (
+            health_sleep_service.restore_profile_records([{**archived, "total_sleep_seconds": 26000}], user.id, {}, db)
+            == 1
+        )
+
+        page = health_sleep_service.list_health_sleep(user.id, db)
+        assert [(i.total_sleep_seconds, i.source) for i in page.items] == [(26000, "garmin")]
+
+    def test_a_record_the_schema_refuses_is_skipped_and_the_rest_restored(self, db, user):
+        rows = [{"date": "2025-03-09", "total_sleep_seconds": -5}, {"date": "2025-03-10", "total_sleep_seconds": 3600}]
+
+        assert health_sleep_service.restore_profile_records(rows, user.id, {}, db) == 1
+
+        assert [i.date for i in health_sleep_service.list_health_sleep(user.id, db).items] == [_DAY]

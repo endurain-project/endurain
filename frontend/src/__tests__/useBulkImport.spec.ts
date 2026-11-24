@@ -157,22 +157,6 @@ describe('useBulkImportJob scoping', () => {
   })
 })
 
-describe('archive import idempotency', () => {
-  it('sends a fresh key for every submit', async () => {
-    vi.mocked(bulkImportFromArchive).mockResolvedValue(running)
-    const { archive } = mountComposables(new QueryClient())
-    const file = new File(['x'], 'a.zip')
-
-    await archive.mutateAsync({ file, source: 'generic' })
-    await archive.mutateAsync({ file, source: 'strava' })
-
-    const keys = vi.mocked(bulkImportFromArchive).mock.calls.map((call) => call[2]?.idempotencyKey)
-    expect(keys[0]).toMatch(/^[0-9a-f-]{36}$/)
-    expect(keys[1]).toMatch(/^[0-9a-f-]{36}$/)
-    expect(keys[0]).not.toBe(keys[1])
-  })
-})
-
 describe('BulkImportProgress', () => {
   function textFor(job: Partial<ActivityIngestionJob>): string {
     const view = mount(BulkImportProgress, {

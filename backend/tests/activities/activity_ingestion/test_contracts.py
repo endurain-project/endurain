@@ -12,10 +12,9 @@ activities importing a provider.
 
 import uuid
 
-from tests._helpers.auth import MOCK_USER_ID
-
 import modules.activities.activity.contracts as activity_contracts
 import modules.activities.activity_ingestion.contracts as sources
+from tests._helpers.auth import MOCK_USER_ID
 
 
 def _activity() -> activity_contracts.ActivityCore:

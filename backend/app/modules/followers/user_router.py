@@ -5,6 +5,7 @@ from typing import Annotated
 from fastapi import APIRouter, Query, Request, Security, status
 
 import core.dependencies as core_dependencies
+import core.idempotency as core_idempotency
 import core.pagination as core_pagination
 import core.rate_limit as core_rate_limit
 import modules.auth.dependencies as auth_dependencies
@@ -93,7 +94,7 @@ def read_user_relationship(
     "/{user_id}/followers",
     response_model=followers_schema.FollowRelationshipRead,
     status_code=status.HTTP_201_CREATED,
-    dependencies=[Security(auth_dependencies.check_scopes, scopes=["followers:write"])],
+    dependencies=[Security(auth_dependencies.check_scopes, scopes=["followers:write"]), core_idempotency.Idempotent],
 )
 @core_rate_limit.limiter.limit(core_rate_limit.WRITE)
 def follow_user(

@@ -1,713 +1,523 @@
-"""Tests for the activities' section of the profile data import."""
+"""The activities' section of the profile import, on the real database and the platform's storage."""
 
-import json
 import uuid
-import zipfile
-from io import BytesIO
-from unittest.mock import MagicMock, patch
+from typing import Any
 
+import jasil.providers as platform_providers
 import pytest
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
-from tests._helpers.auth import MOCK_USER_ID, OTHER_USER_ID
 
-import core.exceptions as core_exceptions
+import modules.activities.activity.events as activity_events
+import modules.activities.activity.integration_service as activity_integration
 import modules.activities.activity.schema as activity_schema
-import modules.activities.activity_profile_transfer.import_service as import_service
-import modules.users.users_profile.contracts as users_profile_contracts
+import modules.activities.activity_exercise_titles.models as titles_models
+import modules.activities.activity_file_storage.integration_service as file_storage
+import modules.activities.activity_laps.models as laps_models
+import modules.activities.activity_media.integration_service as media_integration
+import modules.activities.activity_media.models as media_models
+import modules.users.users_profile.exceptions as profile_exceptions
 import modules.users.users_profile.utils as profile_utils
-from modules.users.users_profile.exceptions import (
-    ActivityLimitError,
-    FileFormatError,
-    MemoryAllocationError,
+from tests._factories.activities import make_activity, make_activity_children, make_activity_media
+from tests._factories.gears import make_gear
+from tests._factories.users import make_user
+from tests.activities.activity_profile_transfer import support
+
+_PRIVACY_FLAGS = (
+    "hide_start_time",
+    "hide_location",
+    "hide_map",
+    "hide_hr",
+    "hide_power",
+    "hide_cadence",
+    "hide_elevation",
+    "hide_speed",
+    "hide_pace",
+    "hide_laps",
+    "hide_workout_sets_steps",
+    "hide_gear",
 )
+_ARCHIVED_ACTIVITY = uuid.UUID("00000000-0000-4000-8000-00000000a003")
+_ARCHIVED_GEAR = uuid.UUID("00000000-0000-4000-8000-00000000a001")
+_UNKNOWN_ACTIVITY = uuid.UUID("00000000-0000-4000-8000-00000000a005")
 
 
-def _zip(files: dict[str, object]) -> zipfile.ZipFile:
-    buf = BytesIO()
-    with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as z:
-        for name, data in files.items():
-            z.writestr(name, data if isinstance(data, bytes) else json.dumps(data))
-    return zipfile.ZipFile(BytesIO(buf.getvalue()))
+@pytest.fixture
+def storage(_publish_local_platform) -> platform_providers.StorageProvider:
+    return _publish_local_platform.storage
 
 
-_OLD_GEAR = uuid.uuid4()
-_NEW_GEAR = uuid.uuid4()
-_OLD_ACT = uuid.uuid4()
-_OTHER_ACT = uuid.uuid4()
-_UNKNOWN_ACT = uuid.uuid4()
-_NEW_ACT = uuid.uuid4()
+def _activity_row(**overrides: Any) -> dict[str, Any]:
+    """One archived activity, as an export writes it."""
+    row: dict[str, Any] = {
+        "id": str(_ARCHIVED_ACTIVITY),
+        "distance": 1000,
+        "name": "Morning Run",
+        "activity_type": 1,
+        "start_time": "2024-01-01T08:00:00",
+        "end_time": "2024-01-01T09:00:00",
+        "total_elapsed_time": 3600.0,
+        "total_timer_time": 3500.0,
+        "is_hidden": False,
+        **{flag: False for flag in _PRIVACY_FLAGS},
+    }
+    row.update(overrides)
+    return row
 
 
-def _ctx(
-    files: dict[str, object] | None = None,
-    *,
-    ids=None,
-    max_activities: int = 10000,
-    batch_size: int = 125,
-    storage=None,
-    check_memory=None,
-    check_timeout=None,
-):
-    archive = profile_utils.ZipArchiveReader(
-        _zip(files or {}),
-        max_json_bytes=128 * 1024 * 1024,
-        max_uncompressed_bytes=1024 * 1024 * 1024,
-        max_memory_mb=1024,
-        enable_memory_monitoring=False,
-    )
-
-    def check_activity_count(count: int) -> None:
-        if count > max_activities:
-            raise ActivityLimitError(f"Too many activities ({count})")
-
-    return users_profile_contracts.ProfileImportContext(
-        user_id=MOCK_USER_ID,
-        db=MagicMock(spec=Session),
-        storage=storage or MagicMock(),
-        archive=archive,
-        counts={},
-        ids=ids if ids is not None else {},
-        batch_size=batch_size,
-        check_memory=check_memory or MagicMock(),
-        check_timeout=check_timeout or MagicMock(),
-        check_activity_count=check_activity_count,
-    )
+def _restored(db: Session, user_id: uuid.UUID) -> list[activity_schema.ActivityRead]:
+    return activity_integration.list_user_activities_page(user_id, db, page_number=1, num_records=100)
 
 
-_ACTIVITY = {
-    "id": str(_OLD_ACT),
-    "distance": 1000,
-    "name": "Morning Run",
-    "activity_type": 1,
-    "start_time": "2024-01-01T08:00:00",
-    "end_time": "2024-01-01T09:00:00",
-}
-
-
-def _no_contributors():
-    registry = import_service.activities_contributor_registry
-    return (
-        patch.object(registry, "profile_activity_contributors", return_value=()),
-        patch.object(registry, "profile_global_contributors", return_value=()),
-    )
+def _seed_source(db: Session, storage: platform_providers.StorageProvider) -> tuple[uuid.UUID, dict[str, bytes]]:
+    """Export an account with two activities, each with children, a file and a media blob."""
+    source = make_user(db)
+    for index in range(2):
+        activity = make_activity(db, source.id, name=f"Ride {index}", distance=5000 + index)
+        make_activity_children(db, activity)
+        make_activity_media(db, activity, f"{activity.id}_photo.png")
+        file_storage.store_activity_file(activity.id, ".gpx", support.GPX, storage)
+        media_integration.store_media_blob(activity.id, "photo", ".png", support.png(index), storage)
+    return source.id, support.export_activities(db, source.id, storage, batch_size=2).entries
 
 
 class TestRestoreProfile:
-    def test_an_empty_archive_restores_nothing_and_reports_zero_counts(self) -> None:
-        import module_registry
+    def test_an_empty_archive_restores_nothing_and_reports_every_count_at_zero(self, db: Session, storage) -> None:
+        user = make_user(db)
 
-        module_registry.configure_activity_contributors()
-        ctx = _ctx({"data/activities.json": []})
+        restored = support.import_activities(db, user.id, storage, {"data/activities.json": []})
 
-        assert import_service.restore_profile(ctx) is None
+        assert restored.after_commit is None
+        assert set(restored.counts) >= support.COUNT_KEYS
+        assert all(restored.counts[key] == 0 for key in support.COUNT_KEYS)
+        assert _restored(db, user.id) == []
 
-        registry = import_service.activities_contributor_registry
-        expected = {"activities", "activity_files", "media"}
-        expected |= {c.count_key for c in registry.profile_activity_contributors()}
-        expected |= {c.count_key for c in registry.profile_global_contributors()}
-        assert expected <= set(ctx.counts)
-        assert all(ctx.counts[key] == 0 for key in expected)
+    def test_an_archive_that_carries_other_files_has_no_deferred_work(self, db: Session, storage) -> None:
+        user = make_user(db)
 
-    def test_there_is_no_after_commit_work_without_activity_files_or_media(self) -> None:
-        ctx = _ctx({"data/activities.json": [], "user_images/1.png": b"x"})
-        activity_patch, global_patch = _no_contributors()
-        with activity_patch, global_patch:
-            assert import_service.restore_profile(ctx) is None
+        restored = support.import_activities(
+            db, user.id, storage, {"data/activities.json": [], "user_images/1.png": b"x"}
+        )
 
-    @pytest.mark.parametrize("name", [f"activity_files/{_OLD_ACT}.gpx", f"activity_media/{_OLD_ACT}_a.png"])
-    def test_files_or_media_in_the_archive_return_the_after_commit_work(self, name) -> None:
-        ctx = _ctx({"data/activities.json": [], name: b"x"})
-        activity_patch, global_patch = _no_contributors()
-        with (
-            activity_patch,
-            global_patch,
-            patch.object(import_service, "_restore_activity_files") as files,
-            patch.object(import_service, "_restore_activity_media") as media,
-        ):
-            restore_files = import_service.restore_profile(ctx)
-            assert restore_files is not None
-            files.assert_not_called()
-            restore_files()
+        assert restored.after_commit is None
 
-        files.assert_called_once_with(ctx, {})
-        media.assert_called_once_with(ctx, {})
+    @pytest.mark.parametrize("folder", ["activity_files", "activity_media"])
+    def test_files_or_media_in_the_archive_give_deferred_work(self, db: Session, storage, folder: str) -> None:
+        user = make_user(db)
 
-    def test_the_after_commit_work_holds_the_restored_activity_ids(self) -> None:
-        ctx = _ctx({"data/activities.json": [_ACTIVITY], f"activity_files/{_OLD_ACT}.gpx": b"x"})
-        ctx.counts["activities"] = 0
-        activity_patch, global_patch = _no_contributors()
-        restored = MagicMock()
-        restored.id = _NEW_ACT
-        with (
-            activity_patch,
-            global_patch,
-            patch.object(import_service.activity_integration, "restore_activity", return_value=restored),
-            patch.object(import_service, "_restore_activity_files") as files,
-            patch.object(import_service, "_restore_activity_media"),
-        ):
-            restore_files = import_service.restore_profile(ctx)
-            assert restore_files is not None
-            restore_files()
+        restored = support.import_activities(
+            db,
+            user.id,
+            storage,
+            {"data/activities.json": [], f"{folder}/{_ARCHIVED_ACTIVITY}.gpx": b"x"},
+            run_after_commit=False,
+        )
 
-        files.assert_called_once_with(ctx, {_OLD_ACT: _NEW_ACT})
-        assert ctx.ids == {}
+        assert restored.after_commit is not None
 
-    def test_the_gear_ids_published_by_the_gear_section_are_read(self) -> None:
-        ctx = _ctx({"data/activities.json": []}, ids={"gears": {_OLD_GEAR: _NEW_GEAR}})
-        activity_patch, global_patch = _no_contributors()
-        with (
-            activity_patch,
-            global_patch,
-            patch.object(import_service, "_restore_activities", return_value={}) as restore,
-        ):
-            import_service.restore_profile(ctx)
+    def test_a_whole_export_is_restored_under_the_importing_user_with_new_ids(self, db: Session, storage) -> None:
+        source_id, entries = _seed_source(db, storage)
+        target = make_user(db)
 
-        restore.assert_called_once_with(ctx, {_OLD_GEAR: _NEW_GEAR})
+        restored = support.import_activities(db, target.id, storage, entries)
+
+        rows = sorted(_restored(db, target.id), key=lambda activity: activity.name)
+        assert [(activity.name, activity.distance) for activity in rows] == [("Ride 0", 5000), ("Ride 1", 5001)]
+        assert all(activity.user_id == target.id for activity in rows)
+        assert {activity.id for activity in rows}.isdisjoint({a.id for a in _restored(db, source_id)})
+        assert restored.counts["activities"] == 2
+        assert restored.counts["activity_laps"] == 2
+        assert restored.counts["activity_sets"] == 2
+        assert restored.counts["activity_streams"] == 2
+        assert restored.counts["activity_workout_steps"] == 2
+        assert restored.counts["activity_media"] == 2
+        lap_owners = db.scalars(select(laps_models.ActivityLaps.activity_id)).all()
+        assert {activity.id for activity in rows} <= set(lap_owners)
+
+    def test_the_files_and_media_are_stored_under_the_new_activity_ids(self, db: Session, storage) -> None:
+        _, entries = _seed_source(db, storage)
+        target = make_user(db)
+
+        restored = support.import_activities(db, target.id, storage, entries)
+
+        for activity in _restored(db, target.id):
+            assert file_storage.get_activity_file(activity.id, storage) == (f"{activity.id}.gpx", support.GPX)
+            blobs = media_integration.list_media_blobs(activity.id, storage)
+            assert [key for key, _ in blobs] == [f"{activity.id}_photo.png"]
+        assert restored.counts["activity_files"] == 2
+        assert restored.counts["media"] == 2
+
+    def test_the_files_wait_for_the_deferred_work(self, db: Session, storage) -> None:
+        _, entries = _seed_source(db, storage)
+        target = make_user(db)
+
+        restored = support.import_activities(db, target.id, storage, entries, run_after_commit=False)
+
+        activity = _restored(db, target.id)[0]
+        assert file_storage.get_activity_file(activity.id, storage) is None
+        assert restored.counts["activity_files"] == 0
+        assert restored.after_commit is not None
+        restored.after_commit()
+        assert file_storage.get_activity_file(activity.id, storage) is not None
+
+    def test_a_restore_publishes_no_activity_created_event(self, db: Session, storage, _publish_local_platform) -> None:
+        published: list[object] = []
+        _publish_local_platform.events.subscribe(activity_events.ACTIVITY_CREATED, published.append)
+        user = make_user(db)
+
+        support.import_activities(db, user.id, storage, {"data/activities.json": [_activity_row()]})
+
+        assert len(_restored(db, user.id)) == 1
+        assert published == []
 
 
 class TestRestoreActivities:
-    def test_an_archive_without_activities_gives_an_empty_mapping(self) -> None:
-        assert import_service._restore_activities(_ctx({"data/activities.json": []}), {}) == {}
-
-    def test_the_activity_limit_is_checked_by_the_context(self) -> None:
-        ctx = _ctx({"data/activities.json": [{"id": str(_OLD_ACT)}, {"id": str(_OTHER_ACT)}]}, max_activities=1)
-        activity_patch, global_patch = _no_contributors()
-        with activity_patch, global_patch, pytest.raises(ActivityLimitError):
-            import_service._restore_activities(ctx, {})
-
-    def test_a_batch_checks_the_timeout_and_memory_with_the_batch_operation_name(self) -> None:
-        check_memory = MagicMock()
-        check_timeout = MagicMock()
-        ctx = _ctx(
-            {"data/activities.json": [_ACTIVITY, {**_ACTIVITY, "id": str(_OTHER_ACT)}]},
-            batch_size=1,
-            check_memory=check_memory,
-            check_timeout=check_timeout,
-        )
-        ctx.counts["activities"] = 0
-        activity_patch, global_patch = _no_contributors()
-        restored = MagicMock()
-        restored.id = _NEW_ACT
-        with (
-            activity_patch,
-            global_patch,
-            patch.object(import_service.activity_integration, "restore_activity", return_value=restored),
-            patch.object(import_service, "_restore_activity_components"),
-        ):
-            import_service._restore_activities(ctx, {})
-
-        assert check_timeout.call_count == 2
-        assert [call.args[0] for call in check_memory.call_args_list] == ["activities batch 1", "activities batch 2"]
-
-    def test_a_single_batch_maps_gears_and_activity_ids(self) -> None:
-        ctx = _ctx(
-            {
-                "data/activities.json": [
-                    {
-                        "id": str(_OLD_ACT),
-                        "gear_id": str(_OLD_GEAR),
-                        "distance": 1000,
-                        "name": "Morning Run",
-                        "activity_type": 1,
-                        "start_time": "2024-01-01T08:00:00",
-                        "end_time": "2024-01-01T09:00:00",
-                    }
-                ],
-                "data/activity_laps_000.json": [{"activity_id": str(_OLD_ACT), "lap_index": 1}],
-            }
-        )
-        ctx.counts["activities"] = 0
-        activity_patch, global_patch = _no_contributors()
-        restored = MagicMock()
-        restored.id = _NEW_ACT
-        with (
-            activity_patch,
-            global_patch,
-            patch.object(import_service.activity_integration, "restore_activity", return_value=restored) as restore,
-            patch.object(import_service, "_restore_activity_components") as components,
-        ):
-            mapping = import_service._restore_activities(ctx, {_OLD_GEAR: _NEW_GEAR})
-
-        assert mapping == {_OLD_ACT: _NEW_ACT}
-        assert ctx.counts["activities"] == 1
-        assert restore.call_args.args[0].gear_id == _NEW_GEAR
-        components.assert_called_once()
-        # The restore functions only stage; the import commits once at the end.
-        ctx.db.commit.assert_not_called()
-
-    def test_an_activity_as_exported_is_imported(self) -> None:
-        """An archive's activity is the full read shape, with its version and the URLs and media the server derives."""
+    def test_an_activity_as_exported_is_imported_without_the_fields_the_server_derives(
+        self, db: Session, storage
+    ) -> None:
+        user = make_user(db)
+        stranger = make_user(db)
         exported = profile_utils.model_to_dict(
             activity_schema.ActivityRead(
-                id=_OLD_ACT,
-                user_id=OTHER_USER_ID,
-                version=2,
+                id=_ARCHIVED_ACTIVITY,
+                user_id=stranger.id,
+                version=7,
                 distance=1000,
                 name="Morning Run",
                 activity_type=1,
                 start_time="2024-01-01T08:00:00",
                 end_time="2024-01-01T09:00:00",
+                total_elapsed_time=3600.0,
+                total_timer_time=3500.0,
+                is_hidden=False,
+                **{flag: False for flag in _PRIVACY_FLAGS},
             )
         )
-        ctx = _ctx({"data/activities.json": [exported]})
-        ctx.counts["activities"] = 0
-        activity_patch, global_patch = _no_contributors()
-        restored = MagicMock()
-        restored.id = _NEW_ACT
-        with (
-            activity_patch,
-            global_patch,
-            patch.object(import_service.activity_integration, "restore_activity", return_value=restored) as restore,
-            patch.object(import_service, "_restore_activity_components"),
-        ):
-            mapping = import_service._restore_activities(ctx, {})
 
-        assert mapping == {_OLD_ACT: _NEW_ACT}
-        imported = restore.call_args.args[0]
-        assert (imported.user_id, imported.name) == (MOCK_USER_ID, "Morning Run")
+        support.import_activities(db, user.id, storage, {"data/activities.json": [exported]})
 
-    def test_an_activity_with_an_integer_id_is_restored_but_gets_no_components(self) -> None:
-        ctx = _ctx({"data/activities.json": [{**_ACTIVITY, "id": 1}]})
-        ctx.counts["activities"] = 0
-        activity_patch, global_patch = _no_contributors()
-        restored = MagicMock()
-        restored.id = _NEW_ACT
-        with (
-            activity_patch,
-            global_patch,
-            patch.object(import_service.activity_integration, "restore_activity", return_value=restored),
-            patch.object(import_service, "_restore_activity_components") as components,
-        ):
-            mapping = import_service._restore_activities(ctx, {})
+        [activity] = _restored(db, user.id)
+        assert (activity.user_id, activity.name) == (user.id, "Morning Run")
+        assert activity.id != _ARCHIVED_ACTIVITY
+        assert activity.version == 1
+        assert _restored(db, stranger.id) == []
 
-        assert mapping == {}
-        assert ctx.counts["activities"] == 1
-        components.assert_not_called()
+    def test_a_gear_restored_earlier_replaces_the_archived_gear_id(self, db: Session, storage) -> None:
+        user = make_user(db)
+        gear = make_gear(db, user.id)
 
-    def test_an_activity_without_an_id_is_restored_but_gets_no_components(self) -> None:
-        ctx = _ctx(
+        support.import_activities(
+            db,
+            user.id,
+            storage,
+            {"data/activities.json": [_activity_row(gear_id=str(_ARCHIVED_GEAR))]},
+            ids={"gears": {_ARCHIVED_GEAR: gear.id}},
+        )
+
+        [activity] = _restored(db, user.id)
+        assert activity.gear_id == gear.id
+
+    def test_a_gear_that_was_not_restored_leaves_the_activity_without_gear(self, db: Session, storage) -> None:
+        user = make_user(db)
+
+        support.import_activities(
+            db, user.id, storage, {"data/activities.json": [_activity_row(gear_id=str(_ARCHIVED_GEAR))]}
+        )
+
+        [activity] = _restored(db, user.id)
+        assert activity.gear_id is None
+
+    def test_an_activity_with_an_integer_id_is_restored_but_gets_no_components(self, db: Session, storage) -> None:
+        user = make_user(db)
+        restored = support.import_activities(
+            db,
+            user.id,
+            storage,
             {
-                "data/activities.json": [
-                    {
-                        "distance": 1000,
-                        "name": "Test",
-                        "activity_type": 1,
-                        "gear_id": str(_OLD_GEAR),
-                        "start_time": "2024-01-01T08:00:00",
-                        "end_time": "2024-01-01T09:00:00",
-                    }
-                ],
-            }
+                "data/activities.json": [_activity_row(id=1)],
+                "data/activity_laps.json": [{"activity_id": 1, "start_time": "2024-01-01T08:00:00"}],
+            },
         )
-        ctx.counts["activities"] = 0
-        activity_patch, global_patch = _no_contributors()
-        restored = MagicMock()
-        restored.id = _NEW_ACT
-        with (
-            activity_patch,
-            global_patch,
-            patch.object(import_service.activity_integration, "restore_activity", return_value=restored),
-            patch.object(import_service, "_restore_activity_components") as components,
-        ):
-            mapping = import_service._restore_activities(ctx, {_OLD_GEAR: _NEW_GEAR})
 
-        assert mapping == {}
-        assert ctx.counts["activities"] == 1
-        components.assert_not_called()
+        assert len(_restored(db, user.id)) == 1
+        assert restored.counts["activities"] == 1
+        assert restored.counts["activity_laps"] == 0
 
+    def test_an_activity_without_an_id_is_restored_but_gets_no_components(self, db: Session, storage) -> None:
+        user = make_user(db)
+        row = _activity_row()
+        del row["id"]
 
-class TestRestoreActivityComponents:
-    @pytest.mark.parametrize(
-        ("key", "count_key"),
-        [
-            ("laps", "activity_laps"),
-            ("sets", "activity_sets"),
-            ("streams", "activity_streams"),
-            ("workout_steps", "activity_workout_steps"),
-        ],
-    )
-    def test_the_contributor_restores_and_its_count_is_kept(self, key: str, count_key: str) -> None:
-        ctx = _ctx()
-        ctx.counts[count_key] = 0
-        contributor = MagicMock(key=key, count_key=count_key)
-        contributor.restore.return_value = 1
-        records = [{"activity_id": str(_OLD_ACT)}]
-        new_activity = MagicMock(id=_NEW_ACT, user_id=MOCK_USER_ID)
+        restored = support.import_activities(db, user.id, storage, {"data/activities.json": [row]})
 
-        with patch.object(
-            import_service.activities_contributor_registry, "profile_activity_contributors", return_value=(contributor,)
-        ):
-            import_service._restore_activity_components(ctx, {key: records}, _OLD_ACT, new_activity)
+        assert len(_restored(db, user.id)) == 1
+        assert restored.counts["activities"] == 1
+        assert restored.after_commit is None
 
-        contributor.restore.assert_called_once_with(records, _OLD_ACT, new_activity, ctx.db)
-        assert ctx.counts[count_key] == 1
+    def test_an_archive_over_the_activity_limit_stages_nothing(self, db: Session, storage) -> None:
+        user = make_user(db)
+        rows = [_activity_row(), _activity_row(id=str(_UNKNOWN_ACTIVITY))]
 
-    def test_a_contributor_without_records_gets_an_empty_list(self) -> None:
-        ctx = _ctx()
-        ctx.counts["activity_laps"] = 0
-        contributor = MagicMock(key="laps", count_key="activity_laps")
-        contributor.restore.return_value = 0
-        new_activity = MagicMock(id=_NEW_ACT, user_id=MOCK_USER_ID)
+        with pytest.raises(profile_exceptions.ActivityLimitError):
+            support.import_activities(db, user.id, storage, {"data/activities.json": rows}, max_activities=1)
 
-        with patch.object(
-            import_service.activities_contributor_registry, "profile_activity_contributors", return_value=(contributor,)
-        ):
-            import_service._restore_activity_components(ctx, {}, _OLD_ACT, new_activity)
+        assert _restored(db, user.id) == []
 
-        contributor.restore.assert_called_once_with([], _OLD_ACT, new_activity, ctx.db)
-        assert ctx.counts["activity_laps"] == 0
+    def test_activities_are_restored_batch_by_batch(self, db: Session, storage) -> None:
+        user = make_user(db)
+        rows = [_activity_row(id=str(uuid.UUID(int=index + 1)), name=f"Run {index}") for index in range(5)]
 
-    @staticmethod
-    def _media_restore(records):
-        import modules.activities.activity_media.integration_service as media_integration
+        restored = support.import_activities(db, user.id, storage, {"data/activities.json": rows}, batch_size=2)
 
-        ctx = _ctx()
-        ctx.counts["activity_media"] = 0
-        contributor = media_integration.profile_contributor()
-        with (
-            patch.object(
-                import_service.activities_contributor_registry,
-                "profile_activity_contributors",
-                return_value=(contributor,),
-            ),
-            patch.object(media_integration, "_restore_media_records") as restore_media,
-        ):
-            import_service._restore_activity_components(
-                ctx, {"media": records}, _OLD_ACT, MagicMock(id=_NEW_ACT, user_id=MOCK_USER_ID)
+        assert sorted(activity.name for activity in _restored(db, user.id)) == [f"Run {index}" for index in range(5)]
+        assert restored.counts["activities"] == 5
+
+    def test_the_time_limit_stops_the_restore_before_the_first_activity(self, db: Session, storage) -> None:
+        user = make_user(db)
+
+        def out_of_time() -> None:
+            raise profile_exceptions.ImportTimeoutError("out of time")
+
+        with pytest.raises(profile_exceptions.ImportTimeoutError):
+            support.import_activities(
+                db, user.id, storage, {"data/activities.json": [_activity_row()]}, check_timeout=out_of_time
             )
-        return ctx, restore_media
 
-    def test_media_with_a_valid_key_is_restored(self) -> None:
-        records = [{"activity_id": str(_OLD_ACT), "media_path": f"{_OLD_ACT}_photo.jpg", "media_type": 1}]
-        ctx, restore_media = self._media_restore(records)
+        assert _restored(db, user.id) == []
 
-        restore_media.assert_called_once()
-        assert records[0]["media_path"] == f"{_OLD_ACT}_photo.jpg"
-        assert ctx.counts["activity_media"] == 1
+    def test_a_memory_limit_hit_while_restoring_stops_the_import(self, db: Session, storage) -> None:
+        user = make_user(db)
 
-    def test_a_key_carrying_a_path_separator_is_skipped(self) -> None:
+        def too_much(_operation: str) -> None:
+            raise profile_exceptions.MemoryAllocationError("memory limit exceeded")
+
+        with pytest.raises(profile_exceptions.MemoryAllocationError):
+            support.import_activities(
+                db, user.id, storage, {"data/activities.json": [_activity_row()]}, check_memory=too_much
+            )
+
+
+class TestComponents:
+    def test_only_the_components_of_a_restored_activity_are_restored(self, db: Session, storage) -> None:
+        user = make_user(db)
+        record = {"activity_id": str(_ARCHIVED_ACTIVITY), "start_time": "2024-01-01T08:00:00"}
+        stray = {"activity_id": str(_UNKNOWN_ACTIVITY), "start_time": "2024-01-01T08:00:00"}
+
+        restored = support.import_activities(
+            db,
+            user.id,
+            storage,
+            {"data/activities.json": [_activity_row()], "data/activity_laps.json": [record, stray]},
+        )
+
+        [activity] = _restored(db, user.id)
+        laps = db.scalars(select(laps_models.ActivityLaps).where(laps_models.ActivityLaps.activity_id == activity.id))
+        assert len(laps.all()) == 1
+        assert restored.counts["activity_laps"] == 1
+
+    def test_split_parts_are_restored_in_name_order(self, db: Session, storage) -> None:
+        user = make_user(db)
+        archived = _ARCHIVED_ACTIVITY
+        laps = [{"activity_id": str(archived), "start_time": f"2024-01-01T08:0{index}:00"} for index in range(3)]
+
+        restored = support.import_activities(
+            db,
+            user.id,
+            storage,
+            {
+                "data/activities.json": [_activity_row()],
+                "data/activity_laps_001.json": [laps[1]],
+                "data/activity_laps_000.json": [laps[0]],
+                "data/activity_laps_002.json": [laps[2]],
+                "data/activity_laps.json": [laps[0]],
+            },
+        )
+
+        assert restored.counts["activity_laps"] == 3
+
+    def test_a_part_that_is_not_json_is_skipped_and_the_other_parts_are_restored(self, db: Session, storage) -> None:
+        user = make_user(db)
+        lap = {"activity_id": str(_ARCHIVED_ACTIVITY), "start_time": "2024-01-01T08:00:00"}
+
+        restored = support.import_activities(
+            db,
+            user.id,
+            storage,
+            {
+                "data/activities.json": [_activity_row()],
+                "data/activity_laps_000.json": b"not-valid-json",
+                "data/activity_laps_001.json": [lap],
+            },
+        )
+
+        assert restored.counts["activity_laps"] == 1
+        assert restored.counts["activities"] == 1
+
+    def test_a_part_larger_than_the_json_limit_is_skipped(self, db: Session, storage) -> None:
+        user = make_user(db)
+        lap = {"activity_id": str(_ARCHIVED_ACTIVITY), "start_time": "2024-01-01T08:00:00"}
+
+        restored = support.import_activities(
+            db,
+            user.id,
+            storage,
+            {
+                "data/activities.json": [_activity_row()],
+                "data/activity_laps_000.json": [lap] * 200,
+                "data/activity_laps_001.json": [lap],
+            },
+            max_json_bytes=1000,
+        )
+
+        assert restored.counts["activity_laps"] == 1
+
+    def test_a_part_that_is_not_a_list_is_skipped(self, db: Session, storage) -> None:
+        user = make_user(db)
+        lap = {"activity_id": str(_ARCHIVED_ACTIVITY), "start_time": "2024-01-01T08:00:00"}
+
+        restored = support.import_activities(
+            db,
+            user.id,
+            storage,
+            {
+                "data/activities.json": [_activity_row()],
+                "data/activity_laps_000.json": {"not": "a list"},
+                "data/activity_laps_001.json": [lap],
+            },
+        )
+
+        assert restored.counts["activity_laps"] == 1
+
+    def test_a_media_record_whose_key_leaves_the_media_area_is_not_restored(self, db: Session, storage) -> None:
         """The archive is untrusted: such a value would address a blob outside the flat media area."""
-        ctx, restore_media = self._media_restore(
-            [{"activity_id": str(_OLD_ACT), "media_path": f"../../etc/{_OLD_ACT}_passwd.jpg", "media_type": 1}]
-        )
-
-        restore_media.assert_not_called()
-        assert ctx.counts["activity_media"] == 0
-
-    def test_a_key_without_the_activity_prefix_is_skipped(self) -> None:
-        ctx, restore_media = self._media_restore(
-            [{"activity_id": str(_OLD_ACT), "media_path": "nounderscore.jpg", "media_type": 1}]
-        )
-
-        restore_media.assert_not_called()
-        assert ctx.counts["activity_media"] == 0
-
-    def test_only_the_records_of_the_activity_are_restored(self) -> None:
-        ctx, _ = self._media_restore(
-            [
-                {"activity_id": str(_OLD_ACT), "media_path": f"{_OLD_ACT}_a.jpg", "media_type": 1},
-                {"activity_id": str(_OLD_ACT), "media_path": f"{_OLD_ACT}_b.jpg", "media_type": 1},
-                {"activity_id": str(_OTHER_ACT), "media_path": f"{_OTHER_ACT}_c.jpg", "media_type": 1},
-            ]
-        )
-
-        assert ctx.counts["activity_media"] == 2
-
-
-class TestRestoreGlobalComponents:
-    def test_each_contribution_is_restored_once(self) -> None:
-        ctx = _ctx()
-        ctx.counts["activity_exercise_titles"] = 0
-        contributor = MagicMock(
-            key="exercise_titles",
-            archive_path="data/activity_exercise_titles.json",
-            count_key="activity_exercise_titles",
-        )
-        contributor.restore.return_value = 2
-        records = [{"exercise_name": 1}, {"exercise_name": 2}]
-        archive = MagicMock()
-        archive.load_json.return_value = records
-        ctx = users_profile_contracts.ProfileImportContext(
-            user_id=ctx.user_id,
-            db=ctx.db,
-            storage=ctx.storage,
-            archive=archive,
-            counts=ctx.counts,
-            ids=ctx.ids,
-            batch_size=ctx.batch_size,
-            check_memory=ctx.check_memory,
-            check_timeout=ctx.check_timeout,
-            check_activity_count=ctx.check_activity_count,
-        )
-
-        with patch.object(
-            import_service.activities_contributor_registry, "profile_global_contributors", return_value=(contributor,)
-        ):
-            import_service._restore_global_components(ctx)
-
-        archive.load_json.assert_called_once_with(contributor.archive_path, check_memory=False)
-        contributor.restore.assert_called_once_with(records, ctx.db)
-        assert ctx.counts["activity_exercise_titles"] == 2
-        # Restore only stages the rows; the whole import commits once, later.
-        ctx.db.commit.assert_not_called()
-
-
-class TestSplitFiles:
-    def test_split_files_are_returned_sorted(self) -> None:
-        file_list = frozenset(
+        user = make_user(db)
+        records = [
+            {"activity_id": str(_ARCHIVED_ACTIVITY), "media_path": f"{_ARCHIVED_ACTIVITY}_ok.jpg", "media_type": 1},
             {
-                "data/activity_laps_000.json",
-                "data/activity_laps_001.json",
-                "data/activity_laps.json",
-                "data/other.json",
-            }
-        )
-        assert import_service._get_split_files_list(file_list, "data/activity_laps") == [
-            "data/activity_laps_000.json",
-            "data/activity_laps_001.json",
+                "activity_id": str(_ARCHIVED_ACTIVITY),
+                "media_path": f"../../etc/{_ARCHIVED_ACTIVITY}_passwd.jpg",
+                "media_type": 1,
+            },
+            {"activity_id": str(_ARCHIVED_ACTIVITY), "media_path": "nounderscore.jpg", "media_type": 1},
         ]
 
-    def test_falls_back_to_the_single_file(self) -> None:
-        file_list = frozenset({"data/activity_laps.json", "data/other.json"})
-        assert import_service._get_split_files_list(file_list, "data/activity_laps") == ["data/activity_laps.json"]
-
-    def test_no_files_gives_an_empty_list(self) -> None:
-        assert import_service._get_split_files_list(frozenset(), "data/activity_laps") == []
-
-
-class TestLoadComponentsForBatch:
-    def test_no_files_gives_an_empty_list(self) -> None:
-        assert import_service._load_components_for_batch(_ctx(), [], [], "laps") == []
-
-    def test_only_the_components_of_the_batch_are_kept(self) -> None:
-        ctx = _ctx(
-            {
-                "data/activity_laps_000.json": [
-                    {"activity_id": str(_OLD_ACT), "lap_index": 1},
-                    {"activity_id": str(_OTHER_ACT), "lap_index": 1},
-                ]
-            }
-        )
-        result = import_service._load_components_for_batch(
-            ctx, ["data/activity_laps_000.json"], [{"id": str(_OLD_ACT)}, {"id": _UNKNOWN_ACT}], "laps"
+        restored = support.import_activities(
+            db,
+            user.id,
+            storage,
+            {"data/activities.json": [_activity_row()], "data/activity_media.json": records},
         )
 
-        assert len(result) == 1
-        assert result[0]["activity_id"] == str(_OLD_ACT)
+        assert restored.counts["activity_media"] == 1
+        [activity] = _restored(db, user.id)
+        stored = db.scalars(
+            select(media_models.ActivityMedia.media_path).where(media_models.ActivityMedia.activity_id == activity.id)
+        ).all()
+        assert stored == [f"{activity.id}_ok.jpg"]
 
-    def test_a_part_that_is_not_json_is_skipped(self) -> None:
-        ctx = _ctx({"data/bad.json": b"not-valid-json"})
-        assert import_service._load_components_for_batch(ctx, ["data/bad.json"], [{"id": str(_OLD_ACT)}], "laps") == []
+    def test_the_exercise_titles_are_restored_once(self, db: Session, storage) -> None:
+        user = make_user(db)
+        titles = [
+            {"exercise_category": 1, "exercise_name": 2, "wkt_step_name": "Bench"},
+            {"exercise_category": 3, "exercise_name": 4, "wkt_step_name": "Row"},
+        ]
+        before = db.scalar(select(func.count()).select_from(titles_models.ActivityExerciseTitles)) or 0
 
-    def test_a_part_the_reader_cannot_read_is_skipped(self) -> None:
-        ctx = _ctx({"data/laps.json": b"x" * 2048})
-        with patch.object(profile_utils.ZipArchiveReader, "_read", side_effect=FileFormatError("bad format")):
-            assert (
-                import_service._load_components_for_batch(ctx, ["data/laps.json"], [{"id": str(_OLD_ACT)}], "laps")
-                == []
-            )
+        restored = support.import_activities(
+            db, user.id, storage, {"data/activities.json": [], "data/activity_exercise_titles.json": titles}
+        )
 
-    def test_a_memory_error_propagates(self) -> None:
-        ctx = _ctx({"data/laps.json": [{"activity_id": str(_OLD_ACT)}]})
-        with (
-            patch.object(profile_utils.ZipArchiveReader, "_read", side_effect=MemoryAllocationError("oom")),
-            pytest.raises(MemoryAllocationError),
-        ):
-            import_service._load_components_for_batch(ctx, ["data/laps.json"], [{"id": str(_OLD_ACT)}], "laps")
-
-
-class TestRestoreActivityFiles:
-    def test_a_valid_file_is_stored_under_the_new_id(self) -> None:
-        ctx = _ctx({f"activity_files/{_OLD_ACT}.gpx": b"<gpx></gpx>"})
-        ctx.counts["activity_files"] = 0
-        validator = MagicMock()
-        validator.config.limits.max_activity_file_size = 1000000
-        with (
-            patch.object(import_service.file_uploads, "file_validator", validator),
-            patch.object(import_service.file_uploads, "validate_bytes_sync"),
-            patch.object(import_service.activity_file_storage_integration, "store_activity_file") as store,
-        ):
-            import_service._restore_activity_files(ctx, {_OLD_ACT: _NEW_ACT})
-
-        assert ctx.counts["activity_files"] == 1
-        store.assert_called_once_with(_NEW_ACT, ".gpx", b"<gpx></gpx>", ctx.storage)
-
-    def test_a_file_named_by_an_integer_id_is_skipped(self) -> None:
-        ctx = _ctx({"activity_files/1.gpx": b"<gpx></gpx>"})
-        ctx.counts["activity_files"] = 0
-        validator = MagicMock()
-        validator.config.limits.max_activity_file_size = 1000000
-        with (
-            patch.object(import_service.file_uploads, "file_validator", validator),
-            patch.object(import_service.file_uploads, "validate_bytes_sync"),
-            patch.object(import_service.activity_file_storage_integration, "store_activity_file") as store,
-        ):
-            import_service._restore_activity_files(ctx, {_OLD_ACT: _NEW_ACT})
-
-        store.assert_not_called()
-        assert ctx.counts["activity_files"] == 0
-
-    def test_the_memory_check_keeps_its_operation_name(self) -> None:
-        check_memory = MagicMock()
-        import_service._restore_activity_files(_ctx(check_memory=check_memory), {})
-
-        check_memory.assert_called_once_with("activity files import")
-
-    def test_a_file_without_a_mapping_is_skipped(self) -> None:
-        ctx = _ctx({f"activity_files/{_UNKNOWN_ACT}.gpx": b"<gpx></gpx>"})
-        ctx.counts["activity_files"] = 0
-        with patch.object(import_service.activity_file_storage_integration, "store_activity_file") as store:
-            import_service._restore_activity_files(ctx, {_OLD_ACT: _NEW_ACT})
-
-        store.assert_not_called()
-        assert ctx.counts["activity_files"] == 0
-
-    def test_an_invalid_file_is_dropped(self) -> None:
-        ctx = _ctx({f"activity_files/{_OLD_ACT}.gpx": b"<gpx></gpx>"})
-        ctx.counts["activity_files"] = 0
-        validator = MagicMock()
-        validator.config.limits.max_activity_file_size = 1000000
-        with (
-            patch.object(import_service.file_uploads, "file_validator", validator),
-            patch.object(
-                import_service.file_uploads,
-                "validate_bytes_sync",
-                side_effect=core_exceptions.InvalidInputError("invalid file"),
-            ),
-            patch.object(import_service.activity_file_storage_integration, "store_activity_file") as store,
-        ):
-            import_service._restore_activity_files(ctx, {_OLD_ACT: _NEW_ACT})
-
-        store.assert_not_called()
-        assert ctx.counts["activity_files"] == 0
-
-    def test_a_file_whose_name_is_not_an_archived_activity_is_skipped(self) -> None:
-        ctx = _ctx({"activity_files/notes.gpx": b"data"})
-        with (
-            patch.object(import_service.activity_file_storage_integration, "store_activity_file") as store,
-        ):
-            import_service._restore_activity_files(ctx, {_OLD_ACT: _NEW_ACT})
-
-        store.assert_not_called()
-
-    def test_a_value_error_from_storing_is_not_swallowed(self) -> None:
-        ctx = _ctx({f"activity_files/{_OLD_ACT}.gpx": b"data"})
-        with (
-            patch.object(import_service.file_uploads, "validate_bytes_sync"),
-            patch.object(
-                import_service.activity_file_storage_integration,
-                "store_activity_file",
-                side_effect=ValueError("storage rejected the key"),
-            ),
-            pytest.raises(ValueError, match="storage rejected"),
-        ):
-            import_service._restore_activity_files(ctx, {_OLD_ACT: _NEW_ACT})
+        after = db.scalar(select(func.count()).select_from(titles_models.ActivityExerciseTitles)) or 0
+        assert restored.counts["activity_exercise_titles"] == 2
+        assert after - before == 2
 
 
-class TestRestoreActivityMedia:
-    def test_a_valid_image_is_stored_under_the_new_id(self) -> None:
-        storage = MagicMock()
-        ctx = _ctx({f"activity_media/{_OLD_ACT}_photo.jpg": b"image-data"}, storage=storage)
-        ctx.counts["media"] = 0
-        validator = MagicMock()
-        validator.config.limits.max_image_size = 1000000
-        with (
-            patch.object(import_service.file_uploads, "file_validator", validator),
-            patch.object(import_service.file_uploads, "validate_bytes_sync"),
-        ):
-            import_service._restore_activity_media(ctx, {_OLD_ACT: _NEW_ACT})
+class TestRestoredFiles:
+    def _import_file(self, db: Session, storage, name: str, data: bytes, **kwargs: Any) -> tuple[Any, uuid.UUID]:
+        user = make_user(db)
+        restored = support.import_activities(
+            db,
+            user.id,
+            storage,
+            {"data/activities.json": [_activity_row()], name: data},
+            **kwargs,
+        )
+        [activity] = _restored(db, user.id)
+        return restored, activity.id
 
-        assert ctx.counts["media"] == 1
-        storage.save.assert_called_once_with("activity_media", f"{_NEW_ACT}_photo.jpg", b"image-data")
+    @pytest.mark.parametrize("extension", [".gpx"])
+    def test_a_valid_file_is_stored_under_the_new_id(self, db: Session, storage, extension: str) -> None:
+        restored, activity_id = self._import_file(
+            db, storage, f"activity_files/{_ARCHIVED_ACTIVITY}{extension}", support.GPX
+        )
 
-    def test_a_webp_image_is_stored_under_the_new_id(self) -> None:
-        storage = MagicMock()
-        ctx = _ctx({f"activity_media/{_OLD_ACT}_photo.webp": b"image-data"}, storage=storage)
-        ctx.counts["media"] = 0
-        validator = MagicMock()
-        validator.config.limits.max_image_size = 1000000
-        with (
-            patch.object(import_service.file_uploads, "file_validator", validator),
-            patch.object(import_service.file_uploads, "validate_bytes_sync"),
-        ):
-            import_service._restore_activity_media(ctx, {_OLD_ACT: _NEW_ACT})
+        assert file_storage.get_activity_file(activity_id, storage) == (f"{activity_id}{extension}", support.GPX)
+        assert restored.counts["activity_files"] == 1
 
-        assert ctx.counts["media"] == 1
-        storage.save.assert_called_once_with("activity_media", f"{_NEW_ACT}_photo.webp", b"image-data")
+    def test_an_invalid_file_is_dropped(self, db: Session, storage) -> None:
+        restored, activity_id = self._import_file(
+            db, storage, f"activity_files/{_ARCHIVED_ACTIVITY}.gpx", b"this is not an activity file"
+        )
+
+        assert file_storage.get_activity_file(activity_id, storage) is None
+        assert restored.counts["activity_files"] == 0
 
     @pytest.mark.parametrize(
-        ("member", "reason"),
+        "name",
         [
-            (f"activity_media/{_UNKNOWN_ACT}_photo.jpg", "not an imported activity"),
-            ("activity_media/abc_photo.png", "not an imported activity"),
-            ("activity_media/nounderscore.png", "unexpected file name"),
-            (f"activity_media/{_OLD_ACT}_photo.gif", "unsupported image type"),
+            f"activity_files/{_UNKNOWN_ACTIVITY}.gpx",
+            "activity_files/1.gpx",
+            "activity_files/notes.gpx",
+            f"activity_files/{_ARCHIVED_ACTIVITY}.txt",
         ],
     )
-    def test_a_skipped_media_member_is_logged_with_its_reason(self, member, reason) -> None:
-        ctx = _ctx({member: b"image-data"})
-        ctx.counts["media"] = 0
-        with patch.object(import_service.logger, "warning") as warning:
-            import_service._restore_activity_media(ctx, {_OLD_ACT: _NEW_ACT})
+    def test_a_file_that_names_no_restored_activity_is_skipped(self, db: Session, storage, name: str) -> None:
+        restored, activity_id = self._import_file(db, storage, name, support.GPX)
 
-        warning.assert_called_once()
-        assert warning.call_args.kwargs["extra"]["reason"] == reason
-        assert ctx.counts["media"] == 0
+        assert file_storage.get_activity_file(activity_id, storage) is None
+        assert restored.counts["activity_files"] == 0
 
-    def test_the_memory_check_keeps_its_operation_name(self) -> None:
-        check_memory = MagicMock()
-        import_service._restore_activity_media(_ctx(check_memory=check_memory), {})
+    def test_a_valid_image_is_stored_under_the_new_id(self, db: Session, storage) -> None:
+        restored, activity_id = self._import_file(
+            db, storage, f"activity_media/{_ARCHIVED_ACTIVITY}_photo.png", support.png()
+        )
 
-        check_memory.assert_called_once_with("activity media import")
+        assert media_integration.list_media_blobs(activity_id, storage) == [(f"{activity_id}_photo.png", support.png())]
+        assert restored.counts["media"] == 1
 
-    def test_an_image_without_a_mapping_is_skipped(self) -> None:
-        storage = MagicMock()
-        ctx = _ctx({f"activity_media/{_UNKNOWN_ACT}_photo.jpg": b"image-data"}, storage=storage)
-        ctx.counts["media"] = 0
-        import_service._restore_activity_media(ctx, {_OLD_ACT: _NEW_ACT})
+    def test_an_invalid_image_is_never_stored(self, db: Session, storage) -> None:
+        restored, activity_id = self._import_file(
+            db, storage, f"activity_media/{_ARCHIVED_ACTIVITY}_bad.png", b"not an image"
+        )
 
-        storage.save.assert_not_called()
-        assert ctx.counts["media"] == 0
+        assert media_integration.list_media_blobs(activity_id, storage) == []
+        assert restored.counts["media"] == 0
 
-    def test_an_invalid_image_is_never_stored(self) -> None:
-        storage = MagicMock()
-        ctx = _ctx({f"activity_media/{_OLD_ACT}_bad.jpg": b"image-data"}, storage=storage)
-        ctx.counts["media"] = 0
-        validator = MagicMock()
-        validator.config.limits.max_image_size = 1000000
-        with (
-            patch.object(import_service.file_uploads, "file_validator", validator),
-            patch.object(
-                import_service.file_uploads,
-                "validate_bytes_sync",
-                side_effect=core_exceptions.InvalidInputError("invalid image"),
-            ),
-        ):
-            import_service._restore_activity_media(ctx, {_OLD_ACT: _NEW_ACT})
+    @pytest.mark.parametrize(
+        "name",
+        [
+            f"activity_media/{_UNKNOWN_ACTIVITY}_photo.png",
+            "activity_media/abc_photo.png",
+            "activity_media/nounderscore.png",
+            f"activity_media/{_ARCHIVED_ACTIVITY}_photo.gif",
+        ],
+    )
+    def test_a_media_file_that_cannot_be_matched_is_skipped(self, db: Session, storage, name: str) -> None:
+        restored, activity_id = self._import_file(db, storage, name, support.png())
 
-        assert ctx.counts["media"] == 0
-        storage.save.assert_not_called()
+        assert media_integration.list_media_blobs(activity_id, storage) == []
+        assert restored.counts["media"] == 0
 
-    def test_an_image_whose_name_is_not_an_archived_activity_is_skipped(self) -> None:
-        ctx = _ctx({"activity_media/abc_photo.png": b"data"})
-        ctx.counts["media"] = 0
-        with (
-            patch.object(import_service.activity_media_integration, "store_media_blob") as store,
-        ):
-            import_service._restore_activity_media(ctx, {_OLD_ACT: _NEW_ACT})
+    def test_the_memory_check_runs_for_the_files_and_the_media(self, db: Session, storage) -> None:
+        user = make_user(db)
+        operations: list[str] = []
 
-        store.assert_not_called()
-        assert ctx.counts["media"] == 0
+        support.import_activities(
+            db,
+            user.id,
+            storage,
+            {"data/activities.json": [], f"activity_files/{_ARCHIVED_ACTIVITY}.gpx": support.GPX},
+            check_memory=operations.append,
+        )
 
-    def test_a_value_error_from_storing_is_not_swallowed(self) -> None:
-        ctx = _ctx({f"activity_media/{_OLD_ACT}_photo.png": b"data"})
-        with (
-            patch.object(import_service.file_uploads, "validate_bytes_sync"),
-            patch.object(
-                import_service.activity_media_integration,
-                "store_media_blob",
-                side_effect=ValueError("storage rejected the key"),
-            ),
-            pytest.raises(ValueError, match="storage rejected"),
-        ):
-            import_service._restore_activity_media(ctx, {_OLD_ACT: _NEW_ACT})
+        assert {"activity files import", "activity media import"} <= set(operations)

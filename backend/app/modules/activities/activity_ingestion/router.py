@@ -23,12 +23,12 @@ from fastapi import (
 
 import core.dependencies as core_dependencies
 import core.file_uploads as core_file_uploads
+import core.idempotency as core_idempotency
 import core.location as core_location
 import core.middleware_body_limit as core_middleware_body_limit
 import core.rate_limit as core_rate_limit
 import modules.activities.activity_ingestion.bulk_import_service as activity_ingestion_bulk_import_service
 import modules.activities.activity_ingestion.constants as activity_ingestion_constants
-import modules.activities.activity_ingestion.dependencies as activity_ingestion_dependencies
 import modules.activities.activity_ingestion.schema as activity_ingestion_schema
 import modules.activities.activity_ingestion.service as activity_ingestion_service
 import modules.auth.dependencies as auth_dependencies
@@ -57,7 +57,7 @@ def create_activity_with_uploaded_file(
     response: Response,
     db: core_dependencies.DbSession,
     storage: core_dependencies.Storage,
-    idempotency_key: activity_ingestion_dependencies.IdempotencyKey = None,
+    idempotency_key: core_idempotency.IdempotencyKey = None,
 ) -> activity_ingestion_schema.ActivityIngestionJobRead:
     """Upload an activity file (GPX, FIT, TCX, GZ) for import.
 
@@ -122,7 +122,7 @@ def create_bulk_import_from_archive(
             ),
         ),
     ] = activity_ingestion_bulk_import_service.GENERIC_FORMAT_NAME,
-    idempotency_key: activity_ingestion_dependencies.IdempotencyKey = None,
+    idempotency_key: core_idempotency.IdempotencyKey = None,
 ) -> activity_ingestion_schema.ActivityIngestionJobRead:
     """Import every activity file in an uploaded ZIP archive.
 
@@ -136,7 +136,7 @@ def create_bulk_import_from_archive(
     is answered ``409`` with the running job's ``job_id`` and a ``Content-Location`` naming it.
 
     Send an ``Idempotency-Key`` to make a retry safe: a repeat of the same archive and ``source`` returns the
-    original job instead of starting another, and the same key with a different archive is ``409``.
+    original job instead of starting another, and the same key with a different archive is ``422``.
     """
     job = activity_ingestion_bulk_import_service.accept_archive(
         token_user_id,

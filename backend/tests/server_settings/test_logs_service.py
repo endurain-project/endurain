@@ -1,25 +1,17 @@
-"""Tests for the admin log viewer service."""
+"""Reading the application log file for the admin log viewer."""
 
 import json
-import uuid
-from unittest.mock import MagicMock, patch
+from pathlib import Path
 
-import jasil.testing as jasil_testing
 import pytest
 
+import core.config as core_config
 import core.exceptions as core_exceptions
-import modules.auth.identity_providers.constants as identity_providers_constants
-import modules.auth.schema as auth_schema
-import modules.server_settings.audit_actions as server_settings_audit_actions
 import modules.server_settings.logs_schema as logs_schema
 import modules.server_settings.logs_service as logs_service
 
-ADMIN = uuid.UUID("2f6d8b52-47a0-4c3e-9a51-0c1e5d7b8a90")
-_STEP_UP = auth_schema.StepUpVerification(current_password="pw")
-_verify = MagicMock()
 
-
-def _json_line(level: str, message: str, **extra) -> str:
+def _json_line(level: str, message: str, **extra: object) -> str:
     return json.dumps(
         {
             "timestamp": "2026-01-01T00:00:00+00:00",
@@ -32,40 +24,37 @@ def _json_line(level: str, message: str, **extra) -> str:
 
 
 @pytest.fixture
-def logs_dir(tmp_path):
-    with (
-        patch("core.config.settings.LOGS_DIR", str(tmp_path)),
-        patch("core.config.Settings.logs_viewer_enabled", True),
-    ):
-        yield tmp_path
+def logs_dir(tmp_path, monkeypatch) -> Path:
+    """An empty log directory the viewer reads."""
+    monkeypatch.setattr(core_config.settings, "LOGS_DIR", str(tmp_path))
+    return tmp_path
 
 
-def _write(logs_dir, lines: list[str]) -> None:
+def _write(logs_dir: Path, lines: list[str]) -> None:
     (logs_dir / logs_service.LOG_FILE_NAME).write_text("".join(f"{line}\n" for line in lines))
 
 
 class TestReadLogs:
-    """Tests for read_logs."""
+    def test_a_disabled_viewer_is_not_found(self, logs_dir, monkeypatch):
+        monkeypatch.setattr(core_config.settings, "ENVIRONMENT", "demo")
 
-    def test_disabled_viewer_is_not_found(self, tmp_path):
-        with (
-            patch("core.config.settings.LOGS_DIR", str(tmp_path)),
-            patch("core.config.Settings.logs_viewer_enabled", False),
-            pytest.raises(core_exceptions.NotFoundError),
-        ):
+        with pytest.raises(core_exceptions.NotFoundError):
             logs_service.read_logs(10, None, None, None)
 
-    def test_missing_file_returns_an_empty_page(self, logs_dir):
+    def test_a_missing_file_returns_an_empty_page(self, logs_dir):
         page = logs_service.read_logs(10, None, None, None)
+
         assert page.items == []
         assert page.next_cursor == "0"
 
-    def test_parses_json_lines(self, logs_dir):
+    def test_json_lines_are_parsed(self, logs_dir):
         _write(logs_dir, [_json_line("INFO", "hello", request_id="r1", context={"user_id": 3})])
+
         entry = logs_service.read_logs(10, None, None, None).items[0]
+
         assert (entry.level, entry.message, entry.request_id, entry.context) == ("INFO", "hello", "r1", {"user_id": 3})
 
-    def test_parses_development_lines_and_folds_tracebacks(self, logs_dir):
+    def test_development_lines_are_parsed_and_tracebacks_fold_into_their_record(self, logs_dir):
         _write(
             logs_dir,
             [
@@ -75,168 +64,117 @@ class TestReadLogs:
                 "2026-01-01 10:00:01,000 - main_logger.x - INFO - [] - fine",
             ],
         )
+
         first, second = logs_service.read_logs(10, None, None, None).items
+
         assert (first.level, first.request_id, first.message) == ("ERROR", "abc", "boom | a=1")
         assert first.exception == "Traceback (most recent call last):\nValueError: bad"
         assert second.request_id is None
 
-    def test_returns_newest_entries_up_to_limit_oldest_first(self, logs_dir):
+    def test_a_line_that_starts_no_record_before_the_first_one_is_dropped(self, logs_dir):
+        _write(logs_dir, ["stray continuation line", _json_line("INFO", "first"), '{"no": "level"}'])
+
+        page = logs_service.read_logs(10, None, None, None)
+
+        assert [e.message for e in page.items] == ["first"]
+        assert page.items[0].exception == '{"no": "level"}'
+
+    def test_blank_lines_are_skipped_and_a_broken_json_line_folds_into_the_record_above(self, logs_dir):
+        _write(
+            logs_dir, [_json_line("INFO", "first"), "", "   ", '{"level": "INFO", "mess', _json_line("INFO", "last")]
+        )
+
+        page = logs_service.read_logs(10, None, None, None)
+
+        assert [e.message for e in page.items] == ["first", "last"]
+        assert page.items[0].exception == '{"level": "INFO", "mess'
+
+    def test_the_newest_entries_up_to_the_limit_are_returned_oldest_first(self, logs_dir):
         _write(logs_dir, [_json_line("INFO", f"m{i}") for i in range(5)])
+
         page = logs_service.read_logs(2, None, None, None)
+
         assert [e.message for e in page.items] == ["m3", "m4"]
 
-    def test_filters_by_minimum_level(self, logs_dir):
+    def test_the_minimum_level_filters_out_lower_ones(self, logs_dir):
         _write(logs_dir, [_json_line("DEBUG", "d"), _json_line("WARNING", "w"), _json_line("ERROR", "e")])
+
         page = logs_service.read_logs(10, logs_schema.LogLevel.WARNING, None, None)
+
         assert [e.message for e in page.items] == ["w", "e"]
 
-    def test_search_is_case_insensitive(self, logs_dir):
-        _write(logs_dir, [_json_line("INFO", "Strava Sync done"), _json_line("INFO", "other")])
-        page = logs_service.read_logs(10, None, "strava", None)
-        assert [e.message for e in page.items] == ["Strava Sync done"]
+    def test_the_text_filter_ignores_case_and_looks_in_the_message_logger_request_id_and_exception(self, logs_dir):
+        _write(
+            logs_dir,
+            [
+                _json_line("INFO", "Strava Sync done"),
+                _json_line("INFO", "other", request_id="REQ-strava"),
+                _json_line("INFO", "failed", exception="StravaError: nope"),
+                _json_line("INFO", "unrelated"),
+            ],
+        )
 
-    def test_after_cursor_returns_only_new_entries(self, logs_dir):
+        page = logs_service.read_logs(10, None, "strava", None)
+
+        assert [e.message for e in page.items] == ["Strava Sync done", "other", "failed"]
+
+    def test_a_cursor_returns_only_what_was_written_since(self, logs_dir):
         _write(logs_dir, [_json_line("INFO", "old")])
         cursor = int(logs_service.read_logs(10, None, None, None).next_cursor)
         with (logs_dir / logs_service.LOG_FILE_NAME).open("a") as log_file:
             log_file.write(_json_line("INFO", "new") + "\n")
+
         page = logs_service.read_logs(10, None, None, cursor)
+
         assert [e.message for e in page.items] == ["new"]
         assert logs_service.read_logs(10, None, None, int(page.next_cursor)).items == []
 
-    def test_partial_last_line_waits_for_its_newline(self, logs_dir):
+    def test_a_partial_last_line_waits_for_its_newline(self, logs_dir):
         path = logs_dir / logs_service.LOG_FILE_NAME
         path.write_text(_json_line("INFO", "done") + "\n" + '{"level": "INFO", "mess')
+
         page = logs_service.read_logs(10, None, None, None)
+
         assert [e.message for e in page.items] == ["done"]
         assert page.next_cursor == str(len(_json_line("INFO", "done")) + 1)
 
-    def test_cursor_past_the_end_after_rotation_restarts_from_the_new_file(self, logs_dir):
+    def test_a_cursor_past_the_end_after_rotation_restarts_from_the_new_file(self, logs_dir):
         _write(logs_dir, [_json_line("INFO", "fresh")])
+
         page = logs_service.read_logs(10, None, None, 10_000_000)
+
         assert [e.message for e in page.items] == ["fresh"]
 
-    def test_large_file_is_read_from_a_line_boundary(self, logs_dir):
-        with patch.object(logs_service, "MAX_READ_BYTES", 300):
-            _write(logs_dir, [_json_line("INFO", f"message-{i}") for i in range(20)])
-            page = logs_service.read_logs(100, None, None, None)
-        assert page.items
-        assert page.items[-1].message == "message-19"
+    def test_a_file_larger_than_the_read_window_is_read_from_a_line_boundary(self, logs_dir):
+        padding = "x" * 1000
+        count = logs_service.MAX_READ_BYTES // 1000 + 200
+        _write(logs_dir, [_json_line("INFO", f"message-{i}-{padding}") for i in range(count)])
+
+        page = logs_service.read_logs(100_000, None, None, None)
+
+        assert page.items[-1].message.startswith(f"message-{count - 1}-")
         assert all(e.message.startswith("message-") for e in page.items)
+        assert len(page.items) < count
+
+    def test_a_cursor_further_back_than_the_read_window_reads_the_newest_window(self, logs_dir):
+        padding = "x" * 1000
+        count = logs_service.MAX_READ_BYTES // 1000 + 200
+        _write(logs_dir, [_json_line("INFO", f"message-{i}-{padding}") for i in range(count)])
+
+        page = logs_service.read_logs(100_000, None, None, 0)
+
+        assert page.items[-1].message.startswith(f"message-{count - 1}-")
+        assert len(page.items) < count
 
 
 class TestGetLogFilePath:
-    """Tests for get_log_file_path."""
-
-    def test_returns_the_existing_file(self, logs_dir):
+    def test_a_disabled_viewer_is_not_found(self, logs_dir, monkeypatch):
         _write(logs_dir, [_json_line("INFO", "x")])
-        assert logs_service.get_log_file_path() == logs_dir / logs_service.LOG_FILE_NAME
+        monkeypatch.setattr(core_config.settings, "ENVIRONMENT", "demo")
 
-    def test_missing_file_is_not_found(self, logs_dir):
         with pytest.raises(core_exceptions.NotFoundError):
             logs_service.get_log_file_path()
 
-    def test_disabled_viewer_is_not_found(self, tmp_path):
-        with patch("core.config.Settings.logs_viewer_enabled", False), pytest.raises(core_exceptions.NotFoundError):
+    def test_a_missing_file_is_not_found(self, logs_dir):
+        with pytest.raises(core_exceptions.NotFoundError):
             logs_service.get_log_file_path()
-
-
-class TestClearLogs:
-    """Tests for clear_logs."""
-
-    def test_empties_the_file_and_removes_rotated_backups(self, logs_dir):
-        _write(logs_dir, [_json_line("INFO", "old")])
-        (logs_dir / "app.log.1").write_text("older")
-        (logs_dir / "app.log.2").write_text("oldest")
-        (logs_dir / "other.log").write_text("keep")
-
-        logs_service.clear_logs(ADMIN, _STEP_UP, _verify, MagicMock())
-
-        assert (logs_dir / logs_service.LOG_FILE_NAME).read_text() == ""
-        assert not (logs_dir / "app.log.1").exists()
-        assert not (logs_dir / "app.log.2").exists()
-        assert (logs_dir / "other.log").exists()
-
-    def test_records_who_cleared_the_logs(self, logs_dir):
-        with patch.object(logs_service.logger, "warning") as warning:
-            logs_service.clear_logs(ADMIN, _STEP_UP, _verify, MagicMock())
-        assert warning.call_args.kwargs["extra"] == {"admin_id": ADMIN}
-
-    def test_verifies_the_step_up_for_the_log_clear_action_and_commits_it(self, logs_dir):
-        verify = MagicMock()
-        db = MagicMock()
-
-        logs_service.clear_logs(ADMIN, _STEP_UP, verify, db)
-
-        verify.assert_called_once_with(_STEP_UP, identity_providers_constants.StepUpAction.ADMIN_SERVER_LOG_CLEAR)
-        db.commit.assert_called_once()
-
-    def test_a_refused_step_up_clears_nothing(self, logs_dir):
-        _write(logs_dir, [_json_line("INFO", "keep")])
-        (logs_dir / "app.log.1").write_text("older")
-        verify = MagicMock(side_effect=core_exceptions.StepUpFailedError("no"))
-
-        with pytest.raises(core_exceptions.StepUpFailedError):
-            logs_service.clear_logs(ADMIN, _STEP_UP, verify, MagicMock())
-
-        assert "keep" in (logs_dir / logs_service.LOG_FILE_NAME).read_text()
-        assert (logs_dir / "app.log.1").exists()
-
-    def test_missing_file_is_not_an_error(self, logs_dir):
-        logs_service.clear_logs(ADMIN, _STEP_UP, _verify, MagicMock())
-
-    def test_disabled_viewer_is_not_found(self, tmp_path):
-        with patch("core.config.Settings.logs_viewer_enabled", False), pytest.raises(core_exceptions.NotFoundError):
-            logs_service.clear_logs(ADMIN, _STEP_UP, _verify, MagicMock())
-
-
-class TestLogsRouteScopes:
-    """The log routes each require their own scope."""
-
-    def test_reading_and_clearing_need_different_scopes(self):
-        import modules.server_settings.logs_router as logs_router
-
-        def scopes(path: str, method: str) -> set[str]:
-            route = next(r for r in logs_router.router.routes if r.path == path and method in r.methods)
-            return {scope for dep in route.dependant.dependencies for scope in dep.own_oauth_scopes or []}
-
-        assert scopes("", "GET") == {"server-settings:logs"}
-        assert scopes("/download", "GET") == {"server-settings:logs"}
-        assert scopes("/clear", "POST") == {"server-settings:logs-clear"}
-
-
-class TestLogsAudit:
-    """The log file is not in the database, so each row is written on its own once the operation succeeded."""
-
-    def test_clearing_the_logs_is_audited(self, logs_dir):
-        _write(logs_dir, [_json_line("INFO", "hello")])
-        with jasil_testing.capture_audit() as audit:
-            logs_service.clear_logs(ADMIN, _STEP_UP, _verify, MagicMock())
-
-        entry = audit.assert_audited(server_settings_audit_actions.LOGS_CLEAR.id)
-        assert entry.details is None
-
-    def test_a_refused_clear_is_not_audited(self, tmp_path):
-        with (
-            patch("core.config.settings.LOGS_DIR", str(tmp_path)),
-            patch("core.config.Settings.logs_viewer_enabled", False),
-            jasil_testing.capture_audit() as audit,
-            pytest.raises(core_exceptions.NotFoundError),
-        ):
-            logs_service.clear_logs(ADMIN, _STEP_UP, _verify, MagicMock())
-
-        audit.assert_not_audited(server_settings_audit_actions.LOGS_CLEAR.id)
-
-    def test_a_download_is_audited_once_the_file_is_found(self, logs_dir):
-        _write(logs_dir, [_json_line("INFO", "hello")])
-        with jasil_testing.capture_audit() as audit:
-            logs_service.get_log_file_path()
-
-        entry = audit.assert_audited(server_settings_audit_actions.LOGS_DOWNLOAD.id)
-        assert entry.details is None
-
-    def test_a_download_with_no_log_file_is_not_audited(self, logs_dir):
-        with jasil_testing.capture_audit() as audit, pytest.raises(core_exceptions.NotFoundError):
-            logs_service.get_log_file_path()
-
-        audit.assert_not_audited(server_settings_audit_actions.LOGS_DOWNLOAD.id)

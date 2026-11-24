@@ -4,6 +4,7 @@ import uuid
 from datetime import datetime
 
 from sqlalchemy import Select, delete, func, select
+from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
@@ -19,7 +20,9 @@ import modules.gears.gear.serializers as gears_serializers
 
 _DUPLICATE_EXTERNAL_ID = "A gear with this Strava or Garmin Connect ID already exists"
 
-#: The unique index on ``(user_id, lower(nickname))``.
+_COLLATION = core_sanitization.CASE_INSENSITIVE_COLLATION
+
+#: The unique index on ``(user_id, nickname COLLATE case_insensitive)``.
 _UNIQUE_NICKNAME_INDEX = "uq_gear_user_nickname"
 
 
@@ -153,8 +156,8 @@ def _filter_gears[*Ts](
     if gear_type is not None:
         stmt = stmt.where(gears_models.Gear.gear_type == gear_type.stored)
     if nickname_contains:
-        pattern = f"%{core_sanitization.escape_like(gears_schema.normalize_nickname(nickname_contains))}%"
-        stmt = stmt.where(func.lower(gears_models.Gear.nickname).like(pattern, escape="\\"))
+        pattern = f"%{core_sanitization.escape_like(nickname_contains.strip())}%"
+        stmt = stmt.where(gears_models.Gear.nickname.collate(_COLLATION).like(pattern, escape="\\"))
     return stmt
 
 
@@ -254,31 +257,11 @@ def get_gear_user_by_nickname(user_id: uuid.UUID, nickname: str, db: Session) ->
         The gear, or None if there is no match.
     """
     stmt = select(gears_models.Gear).where(
-        func.lower(gears_models.Gear.nickname) == gears_schema.normalize_nickname(nickname),
+        gears_models.Gear.nickname.collate(_COLLATION) == nickname.strip(),
         gears_models.Gear.user_id == user_id,
     )
     db_gear = db.execute(stmt).scalar_one_or_none()
     return gears_serializers.to_read_schema(db_gear) if db_gear else None
-
-
-def get_existing_nicknames(user_id: uuid.UUID, nicknames: set[str], db: Session) -> set[str]:
-    """Return which of the given nicknames the user already has, lower-cased.
-
-    One query for the whole set instead of one per gear.
-
-    Args:
-        user_id: Owner user ID.
-        nicknames: Normalized (lower-cased, trimmed) nicknames to look for.
-        db: Database session.
-
-    Returns:
-        The subset that already exists for the user, normalized.
-    """
-    stmt = select(gears_models.Gear.nickname).where(
-        gears_models.Gear.user_id == user_id,
-        func.lower(gears_models.Gear.nickname).in_(nicknames),
-    )
-    return {gears_schema.normalize_nickname(row[0]) for row in db.execute(stmt).all()}
 
 
 def get_gear_by_strava_id_from_user_id(
@@ -323,34 +306,41 @@ def get_gear_by_garminconnect_id_from_user_id(
     return gears_serializers.to_read_schema(db_gear) if db_gear else None
 
 
-def create_gears(gears: list[gears_schema.GearCreate], user_id: uuid.UUID, db: Session) -> None:
-    """Stage new gears for a user.
+def create_gears(gears: list[gears_schema.GearCreate], user_id: uuid.UUID, db: Session) -> int:
+    """Stage new gears for a user, leaving out nicknames the user already has.
+
+    Each gear is one ``INSERT ... ON CONFLICT DO NOTHING`` on the unique nickname index, so PostgreSQL decides,
+    atomically, which nicknames are taken: one the user already has (in any case) and one repeated in the batch are
+    both skipped. A statement per gear, because each payload sets its own fields and a column it leaves out takes the
+    column's default; one multi-row ``VALUES`` would need the same columns in every row.
 
     Args:
         gears: Gear payloads to create.
         user_id: Owner user ID.
         db: Database session.
 
+    Returns:
+        How many gears were staged.
+
     Raises:
         ConflictError: If a Strava or Garmin Connect gear ID is already taken.
     """
+    created = 0
     try:
         with db.begin_nested():
-            db.add_all([gears_serializers.to_orm(gear, user_id) for gear in gears])
-            db.flush()
+            for gear in gears:
+                stmt = (
+                    pg_insert(gears_models.Gear)
+                    .values(gears_serializers.to_insert_values(gear, user_id))
+                    .on_conflict_do_nothing(
+                        index_elements=[gears_models.Gear.user_id, gears_models.Gear.nickname.collate(_COLLATION)]
+                    )
+                    .returning(gears_models.Gear.id)
+                )
+                created += len(db.execute(stmt).scalars().all())
     except IntegrityError as err:
-        if not _is_nickname_violation(err):
-            raise _conflict(err) from err
-        # A concurrent write took one of the nicknames after the caller's check: add the
-        # rest one by one and leave that gear out, as the check would have.
-        for gear in gears:
-            try:
-                with db.begin_nested():
-                    db.add(gears_serializers.to_orm(gear, user_id))
-                    db.flush()
-            except IntegrityError as row_err:
-                if not _is_nickname_violation(row_err):
-                    raise _conflict(row_err) from row_err
+        raise _conflict(err) from err
+    return created
 
 
 def create_gear(

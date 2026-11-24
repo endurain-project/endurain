@@ -89,7 +89,6 @@ export type GeocodingService = Schemas['GeocodingService']
  * @property apiKeyMaxLifetimeDays - Longest lifetime of a new API key, and its default, in days.
  * @property readNotificationRetentionDays - Days after which read notifications are purged (0 keeps them forever).
  * @property geocodingApiKeySet - Whether a geocoding API key is stored (the key itself is never returned).
- * @property envManaged - Field name (snake_case) to the environment variable that sets it; those fields are read-only.
  * @property stepUpFields - Keys (camelCase) of the settings whose change needs the administrator's step-up.
  * @property logsViewerEnabled - Whether the server log can be read through the API on this deployment (read-only).
  */
@@ -130,7 +129,6 @@ export interface ServerSettings {
   apiKeyMaxLifetimeDays: number
   readNotificationRetentionDays: number
   geocodingApiKeySet: boolean
-  envManaged: Record<string, string>
   stepUpFields: (keyof ServerSettings)[]
   logsViewerEnabled: boolean
 }
@@ -175,7 +173,6 @@ export type ServerSettingsFormValues = Omit<
   | 'loginPhotoSet'
   | 'tileserverApiKeySet'
   | 'geocodingApiKeySet'
-  | 'envManaged'
   | 'stepUpFields'
   | 'logsViewerEnabled'
   | 'geocodingHost'
@@ -207,7 +204,7 @@ export type ServerSettingsFormValues = Omit<
  */
 export type ServerSettingsUpdate = Omit<
   ServerSettings,
-  'tileserverApiKeySet' | 'geocodingApiKeySet' | 'envManaged' | 'stepUpFields' | 'logsViewerEnabled'
+  'tileserverApiKeySet' | 'geocodingApiKeySet' | 'stepUpFields' | 'logsViewerEnabled'
 > & {
   tileserverApiKey?: string | null
   geocodingApiKey?: string | null
@@ -239,7 +236,6 @@ export type MailSecurity = Schemas['MailSecurity']
  * @property username - Authentication username, or null.
  * @property fromAddress - Sender address, or null when the username is used.
  * @property passwordSet - Whether a password is stored (the password itself is never returned).
- * @property envManaged - Field name to the environment variable that sets it; those fields are read-only.
  * @property emailStatus - Whether outgoing email is usable with these settings, and why not when it is not (read-only).
  */
 export interface MailSettings {
@@ -250,7 +246,6 @@ export interface MailSettings {
   username: string | null
   fromAddress: string | null
   passwordSet: boolean
-  envManaged: Record<string, string>
   emailStatus: EmailStatusDto
 }
 
@@ -274,9 +269,6 @@ export interface MailSettingsFormValues {
  * Mail settings to persist. `password` is write-only: `undefined` keeps the
  * stored password, `null` removes it, a string replaces it.
  */
-export type MailSettingsUpdate = Omit<
-  MailSettings,
-  'passwordSet' | 'envManaged' | 'emailStatus'
-> & {
+export type MailSettingsUpdate = Omit<MailSettings, 'passwordSet' | 'emailStatus'> & {
   password?: string | null
 }

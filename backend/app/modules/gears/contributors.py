@@ -13,16 +13,16 @@ from sqlalchemy.orm import Session
 import modules.gears.contracts as gears_contracts
 import modules.gears.gear.schema as gears_schema
 
-#: ``(gear_id, user_id, db)`` -> the usage a user recorded against a gear.
-GearUsageReader = Callable[[uuid.UUID, uuid.UUID, Session], gears_contracts.UsageTotals]
+#: ``(gear_ids, user_id, db)`` -> the usage a user recorded against each gear, every id present.
+GearUsageReader = Callable[[Collection[uuid.UUID], uuid.UUID, Session], dict[uuid.UUID, gears_contracts.UsageTotals]]
 
 #: ``(gear_id, user_id, windows, db)`` -> the usage per window key, every key present.
 GearUsageByWindowReader = Callable[
     [uuid.UUID, uuid.UUID, Sequence[gears_contracts.UsageWindow], Session], dict[uuid.UUID, gears_contracts.UsageTotals]
 ]
 
-#: ``(gear_id, user_id, db)`` -> the summed purchase value of a gear's components.
-ComponentsCostReader = Callable[[uuid.UUID, uuid.UUID, Session], float]
+#: ``(gear_ids, user_id, db)`` -> the summed purchase value of each gear's components, every id present.
+ComponentsCostReader = Callable[[Collection[uuid.UUID], uuid.UUID, Session], dict[uuid.UUID, float]]
 
 #: ``(gear_id, user_id, gear_type, db)`` -> how many of a gear's components are not valid for a gear type.
 ComponentsOutsideTypeCounter = Callable[[uuid.UUID, uuid.UUID, gears_schema.GearType, Session], int]
@@ -44,9 +44,9 @@ class GearReaders:
     """The answers composition installs for the gears namespace.
 
     Attributes:
-        usage: Totals the usage a user recorded against a gear.
+        usage: Totals the usage a user recorded against each of a set of gears.
         usage_by_window: Totals a gear's usage per date window.
-        components_cost: Sums the purchase value of a gear's components.
+        components_cost: Sums the purchase value of the components of each of a set of gears.
         count_components_outside_type: Counts a gear's components whose type is not valid for a gear type.
         clear_activities_gear: Stages unassigning a gear from a batch of the activities that carry it.
         clear_default_gear: Stages unassigning gears from the user's default gear settings.

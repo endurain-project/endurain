@@ -169,7 +169,7 @@ function tileUrlValidator(requiredMessage: string, placeholderMessage: string): 
 
 /**
  * Owns the state of the server settings form: values, validation, saving, the
- * tile-server preset selection and the env-managed lookups. The tab components
+ * tile-server preset selection. The tab components
  * read it through {@link useServerSettingsFormContext}.
  *
  * @param props - The loaded settings and tile presets (the parent mounts the form only after load).
@@ -190,37 +190,6 @@ export function useServerSettingsForm(props: {
   const isStepUpOpen = ref(false)
   const idpReauth = ref<IdpReauth | null>(null)
   const pendingResume = useSettingsStepUpResume()
-
-  /**
-   * The environment variable that sets a field, or undefined when it is editable.
-   *
-   * @param field - The backend field name (snake_case, as in `env_managed`).
-   * @returns The variable name.
-   */
-  function envVar(field: string): string | undefined {
-    return props.settings.envManaged[field]
-  }
-
-  /**
-   * The hint under an env-managed field, naming the variable that sets it.
-   *
-   * @param field - The backend field name.
-   * @returns The hint, or undefined when the field is editable.
-   */
-  function envHint(field: string): string | undefined {
-    const name = envVar(field)
-    return name ? t('settings.server.envLocked', { name }) : undefined
-  }
-
-  /**
-   * The environment variables that set any of the given fields, without repeats.
-   *
-   * @param fields - Backend field names (snake_case, as in `env_managed`).
-   * @returns The variable names, empty when every field is editable.
-   */
-  function envNames(fields: string[]): string[] {
-    return [...new Set(fields.map(envVar).filter((name): name is string => Boolean(name)))]
-  }
 
   /**
    * Finds the preset whose URL matches the given template, or the `custom`
@@ -517,9 +486,6 @@ export function useServerSettingsForm(props: {
     ...form,
     settings: computed(() => props.settings),
     templates: computed(() => props.templates),
-    envVar,
-    envHint,
-    envNames,
     isGeocodeService,
     geocodingHostPlaceholder,
     selectedTemplate,

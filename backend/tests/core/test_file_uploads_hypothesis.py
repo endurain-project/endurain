@@ -1,21 +1,12 @@
-"""Property-based fuzzing of ``core.file_uploads._resolve_upload_path``.
-
-Skipped silently when ``hypothesis`` is not installed, since it is
-an optional development dependency.
-"""
-
-from __future__ import annotations
+"""Property-based fuzzing of ``core.file_uploads._resolve_upload_path``."""
 
 from pathlib import Path
 
-import pytest
+from hypothesis import given, settings
+from hypothesis import strategies as st
 
-hypothesis = pytest.importorskip("hypothesis")
-from hypothesis import given, settings  # noqa: E402
-from hypothesis import strategies as st  # noqa: E402
-
-import core.exceptions as core_exceptions  # noqa: E402
-from core.file_uploads import _resolve_upload_path  # noqa: E402
+import core.exceptions as core_exceptions
+from core.file_uploads import _resolve_upload_path
 
 # Filenames may contain anything a multipart parser could surface:
 # arbitrary unicode, NUL bytes, separators, leading dots, control

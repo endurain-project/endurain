@@ -55,7 +55,7 @@ const componentsQuery = useGearComponentsQuery(gearId)
 const componentTypesQuery = useGearComponentTypesQuery()
 const components = computed(() => componentsQuery.data.value ?? [])
 const supportsComponents = computed(() => gearTypeSupportsComponents(props.gear.gearType))
-// Inactive components are hidden by default, matching v1; the filter reveals them.
+// Inactive components are hidden by default; the filter reveals them.
 const showInactiveComponents = ref(false)
 const isComponentFilterOpen = ref(false)
 const visibleComponents = computed(() =>

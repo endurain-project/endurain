@@ -1,118 +1,108 @@
-"""Tests for the opt-in breached-password check against the Have I Been Pwned range API."""
+"""The opt-in breached-password check against the Have I Been Pwned range API, faked at the HTTP boundary."""
 
 import hashlib
 import logging
-from unittest.mock import MagicMock, patch
 
 import httpx2
 import pytest
 
 import modules.auth.credentials.contracts as credentials_contracts
+import modules.auth.credentials.integration_service as credentials_integration
 import modules.auth.credentials.password_breach as credentials_password_breach
-import modules.auth.credentials.service as credentials_service
+import modules.users.users.crud as users_crud
+from tests._factories.breach import fake_range_api
+from tests._factories.server_settings import edit_server_settings
+from tests._factories.users import make_user
 
 _PASSWORD = "correct horse battery staple"
 _DIGEST = hashlib.sha1(_PASSWORD.encode(), usedforsecurity=False).hexdigest().upper()
-_PREFIX, _SUFFIX = _DIGEST[:5], _DIGEST[5:]
+_PREFIX = _DIGEST[:5]
 
 
-def _response(body: str, status: int = 200) -> httpx2.Response:
-    return httpx2.Response(status, text=body, request=httpx2.Request("GET", credentials_password_breach.RANGE_API_URL))
-
-
-def _get(response: httpx2.Response | Exception):
-    if isinstance(response, Exception):
-        return patch.object(credentials_password_breach.httpx2, "get", side_effect=response)
-    return patch.object(credentials_password_breach.httpx2, "get", return_value=response)
+@pytest.fixture
+def range_api(monkeypatch):
+    return fake_range_api(monkeypatch)
 
 
 class TestIsBreached:
-    def test_suffix_found_is_breached(self):
-        with _get(_response(f"0018A45C4D1DEF81644B54AB7F969B88D65:3\r\n{_SUFFIX}:42\r\n")):
-            assert credentials_password_breach.is_breached(_PASSWORD) is True
+    def test_a_password_the_api_lists_is_breached(self, range_api):
+        range_api.breach(_PASSWORD)
 
-    def test_suffix_absent_is_allowed(self):
-        with _get(_response("0018A45C4D1DEF81644B54AB7F969B88D65:3\r\n")):
-            assert credentials_password_breach.is_breached(_PASSWORD) is False
+        assert credentials_password_breach.is_breached(_PASSWORD) is True
 
-    def test_padding_entry_with_count_zero_is_ignored(self):
-        with _get(_response(f"{_SUFFIX}:0\r\n")):
-            assert credentials_password_breach.is_breached(_PASSWORD) is False
+    def test_a_password_the_api_does_not_list_is_allowed(self, range_api):
+        assert credentials_password_breach.is_breached(_PASSWORD) is False
 
-    def test_only_the_prefix_is_sent(self):
-        with _get(_response("")) as get:
-            credentials_password_breach.is_breached(_PASSWORD)
-        (url,) = get.call_args.args
-        assert url == f"{credentials_password_breach.RANGE_API_URL}{_PREFIX}"
-        assert _SUFFIX not in repr(get.call_args)
-        assert _PASSWORD not in repr(get.call_args)
-        assert get.call_args.kwargs["headers"]["Add-Padding"] == "true"
-        assert get.call_args.kwargs["timeout"] == credentials_password_breach.REQUEST_TIMEOUT_SECONDS
-        assert get.call_args.kwargs["follow_redirects"] is False
+    def test_a_padding_entry_with_a_count_of_zero_is_not_a_breach(self, monkeypatch):
+        api = fake_range_api(monkeypatch)
+        api.fail_with(lambda request: httpx2.Response(200, text=f"{_DIGEST[5:]}:0\r\n", request=request))
 
-    def test_password_is_hashed_in_nfc_form(self):
-        composed, decomposed = "café-au-lait-noir", "café-au-lait-noir"
-        with _get(_response("")) as get:
-            credentials_password_breach.is_breached(decomposed)
-        digest = hashlib.sha1(composed.encode(), usedforsecurity=False).hexdigest().upper()
-        assert get.call_args.args[0].endswith(digest[:5])
+        assert credentials_password_breach.is_breached(_PASSWORD) is False
+
+    def test_only_the_five_character_prefix_leaves_the_server(self, range_api):
+        credentials_password_breach.is_breached(_PASSWORD)
+
+        (request,) = range_api.requests
+        assert str(request.url) == f"{credentials_password_breach.RANGE_API_URL}{_PREFIX}"
+        assert request.headers["Add-Padding"] == "true"
+        assert range_api.options == [
+            {"timeout": credentials_password_breach.REQUEST_TIMEOUT_SECONDS, "follow_redirects": False}
+        ]
+        assert _PASSWORD not in repr(request) and _DIGEST[5:] not in repr(request)
+
+    def test_the_password_is_hashed_in_its_nfc_form(self, range_api):
+        decomposed = "café-au-lait-noir"
+        composed = "café-au-lait-noir"
+        range_api.breach(composed)
+
+        assert credentials_password_breach.is_breached(decomposed) is True
 
     @pytest.mark.parametrize(
         "failure",
         [
-            httpx2.ReadTimeout("slow"),
-            httpx2.ConnectError("down"),
-            _response("", status=503),
+            pytest.param(lambda request: (_ for _ in ()).throw(httpx2.ReadTimeout("slow")), id="timeout"),
+            pytest.param(lambda request: (_ for _ in ()).throw(httpx2.ConnectError("down")), id="unreachable"),
+            pytest.param(lambda request: httpx2.Response(503, request=request), id="service-error"),
         ],
     )
-    def test_failure_allows_the_password_and_warns(self, failure, caplog):
-        with caplog.at_level(logging.WARNING), _get(failure):
+    def test_a_failing_service_allows_the_password_and_warns_without_leaking_it(self, range_api, failure, caplog):
+        range_api.fail_with(failure)
+
+        with caplog.at_level(logging.WARNING):
             assert credentials_password_breach.is_breached(_PASSWORD) is False
+
         assert any(record.levelno == logging.WARNING for record in caplog.records)
         logged = " ".join(f"{record.getMessage()} {record.__dict__}" for record in caplog.records)
-        assert _PASSWORD not in logged
-        assert _DIGEST not in logged
-        assert _PREFIX not in logged
+        assert _PASSWORD not in logged and _DIGEST not in logged and _PREFIX not in logged
 
 
 class TestRejectBreachedPassword:
-    def _settings(self, enabled: bool) -> MagicMock:
-        return MagicMock(password_breach_check_enabled=enabled)
+    def test_a_breached_password_is_refused_after_the_open_transaction_ends(self, db, range_api):
+        range_api.breach(_PASSWORD)
+        settings = edit_server_settings(db, password_breach_check_enabled=True)
+        in_transaction_at_request = []
+        range_api.on_request(lambda: in_transaction_at_request.append(db.in_transaction()))
+        user = make_user(db)
 
-    def test_disabled_does_not_call_out_or_end_the_transaction(self):
-        db = MagicMock()
-        with (
-            patch.object(credentials_service.credentials_password_breach, "is_breached") as is_breached,
-        ):
-            credentials_service.reject_breached_password(self._settings(False), _PASSWORD, db)
-        is_breached.assert_not_called()
-        db.rollback.assert_not_called()
+        with pytest.raises(credentials_contracts.PasswordBreachedError):
+            credentials_integration.reject_breached_password(settings, _PASSWORD, db)
 
-    def test_enabled_refuses_a_breached_password_after_ending_the_transaction(self):
-        db = MagicMock()
-        order: list[str] = []
-        db.rollback.side_effect = lambda: order.append("rollback")
-        with (
-            patch.object(
-                credentials_service.credentials_password_breach,
-                "is_breached",
-                side_effect=lambda _p: order.append("call") or True,
-            ),
-            pytest.raises(credentials_contracts.PasswordBreachedError),
-        ):
-            credentials_service.reject_breached_password(self._settings(True), _PASSWORD, db)
-        assert order == ["rollback", "call"]
+        assert in_transaction_at_request == [False]
+        assert users_crud.get_user_by_id(user.id, db) is None
 
-    def test_enabled_allows_a_password_that_is_not_breached(self):
-        with (
-            patch.object(credentials_service.credentials_password_breach, "is_breached", return_value=False),
-        ):
-            credentials_service.reject_breached_password(self._settings(True), _PASSWORD, MagicMock())
+    def test_a_password_that_is_not_breached_is_allowed(self, db, range_api):
+        settings = edit_server_settings(db, password_breach_check_enabled=True)
 
+        credentials_integration.reject_breached_password(settings, _PASSWORD, db)
 
-class TestBreachedError:
-    def test_code_and_status(self):
-        error = credentials_contracts.PasswordBreachedError
-        assert issubclass(error, credentials_contracts.PasswordPolicyError)
-        assert error.code == "password-breached"
-        assert error.status_code == 422
+        assert len(range_api.requests) == 1
+
+    def test_with_the_check_off_nothing_is_sent_and_the_transaction_stays_open(self, db, range_api):
+        range_api.breach(_PASSWORD)
+        settings = edit_server_settings(db, password_breach_check_enabled=False)
+        user = make_user(db)
+
+        credentials_integration.reject_breached_password(settings, _PASSWORD, db)
+
+        assert range_api.requests == []
+        assert users_crud.get_user_by_id(user.id, db) is not None

@@ -6,11 +6,10 @@ the boundary. Writes stage and the caller commits, except the listed units of wo
 """
 
 import uuid
-from collections.abc import Collection, Sequence
+from collections.abc import Callable, Collection, Sequence
 from datetime import date, datetime
 
 import jasil.providers as platform_providers
-from fastapi import UploadFile
 from pydantic import BaseModel
 from sqlalchemy import Select
 from sqlalchemy.orm import Session
@@ -405,7 +404,8 @@ def stage_synced_email_change(user_id: uuid.UUID, email: str, db: Session) -> No
 
 def upload_user_photo(
     user_id: uuid.UUID,
-    file: UploadFile,
+    filename: str | None,
+    read_data: Callable[[], bytes],
     storage: platform_providers.StorageProvider,
     db: Session,
 ) -> bool:
@@ -413,7 +413,8 @@ def upload_user_photo(
 
     Args:
         user_id: The user whose photo is being saved.
-        file: The uploaded image.
+        filename: The uploaded file's name.
+        read_data: Reads and validates the uploaded image once the user and the extension are accepted.
         storage: The platform storage provider.
         db: Database session.
 
@@ -425,7 +426,7 @@ def upload_user_photo(
         InvalidInputError: If the upload has no filename.
         UnsupportedMediaTypeError: If the extension is not an allowed image type.
     """
-    return users_photo_service.upload_photo(user_id, file, storage, db)
+    return users_photo_service.upload_photo(user_id, filename, read_data, storage, db)
 
 
 def store_user_photo(

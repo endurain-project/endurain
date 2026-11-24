@@ -1,202 +1,131 @@
-from datetime import UTC, date, datetime
-from types import SimpleNamespace
-from unittest.mock import patch
+"""The activity summaries through the production application: the period, the anchor day and the user's own week."""
 
+from datetime import UTC, datetime, timedelta
+
+import jasil.runtime as jasil_runtime
 import pytest
-from fastapi import FastAPI
-from fastapi.testclient import TestClient
 
-_SERVICE = "modules.activities.activity.summary_service"
+import core.config as core_config
+from tests._factories.activities import make_activity_at
+from tests._factories.users import make_user
 
-
-@pytest.fixture(autouse=True)
-def stub_user_local_today():
-    """Pin the fallback anchor.
-
-    Callers that omit ``date``/``year`` fall back to today in the *user's*
-    timezone, which is a DB read the mocked session cannot serve.
-    """
-    with patch(
-        f"{_SERVICE}.core_timezone.today_in",
-        return_value=date(2026, 3, 12),
-    ) as mock:
-        yield mock
+_URL = f"{core_config.ROOT_PATH}/activities/summaries"
+_DAY = datetime(2026, 7, 15, 9, tzinfo=UTC)  # a Wednesday
 
 
-@pytest.fixture(autouse=True)
-def stub_user_preferences():
-    """Provide the configured week start used by summary buckets."""
-    with patch(
-        f"{_SERVICE}.users_integration.require_user",
-        return_value=SimpleNamespace(first_day_of_week="sunday", timezone="UTC"),
-    ) as mock:
-        yield mock
-
-
-def _build_app(mock_db):
-    import core.database as core_db
-    import core.exceptions as core_exceptions
-    import modules.activities.activity.summary_router as router
-    import modules.auth.dependencies as auth_deps
-
-    app = FastAPI()
-    app.include_router(router.router, prefix="/activities/summaries")
-    # Same domain-error boundary the real app registers, so these tests assert
-    # the status codes clients actually receive.
-    core_exceptions.register_exception_handlers(app)
-
-    def _mock():
-        return None
-
-    def _uid():
-        return 1
-
-    app.dependency_overrides[auth_deps.check_scopes] = _mock
-    app.dependency_overrides[auth_deps.get_current_user_id] = _uid
-    app.dependency_overrides[core_db.get_db] = lambda: mock_db
-    return app
-
-
-class TestReadWeeklySummary:
-    @patch(f"{_SERVICE}.activity_summary_crud.get_weekly_summary")
-    def test_weekly_summary_success(self, mock_get, mock_db):
-        client = TestClient(_build_app(mock_db))
-        from modules.activities.activity.summary_schema import WeeklySummaryRead
-
-        mock_get.return_value = WeeklySummaryRead(breakdown=[], type_breakdown=None)
-
-        response = client.get(
-            "/activities/summaries?period=week&date=2024-01-15",
-            headers={"Authorization": "Bearer x"},
-        )
-        assert response.status_code == 200
-        # The route hands the parsed date straight through — no string parsing
-        # of its own, unlike the previous ``/{view_type}`` handler.
-        assert mock_get.call_args.kwargs["target_date"] == date(2024, 1, 15)
-        assert mock_get.call_args.kwargs["first_day_of_week"] == "sunday"
-
-    def test_week_is_the_default_period(self, mock_db):
-        from modules.activities.activity.summary_schema import WeeklySummaryRead
-
-        with patch(f"{_SERVICE}.activity_summary_crud.get_weekly_summary") as mock_get:
-            mock_get.return_value = WeeklySummaryRead(breakdown=[], type_breakdown=None)
-            response = TestClient(_build_app(mock_db)).get(
-                "/activities/summaries",
-                headers={"Authorization": "Bearer x"},
+class TestWeek:
+    def test_the_week_holding_the_date_is_totalled_per_day_and_per_type(self, me, owner, arrange):
+        arrange(
+            lambda db: (
+                make_activity_at(
+                    db, owner.id, _DAY, distance=10000, total_timer_time=3000.0, elevation_gain=100, calories=500
+                ),
+                make_activity_at(db, owner.id, _DAY + timedelta(hours=5), activity_type=4, distance=40000),
+                make_activity_at(db, owner.id, _DAY - timedelta(days=7), distance=999),
             )
-        assert response.status_code == 200
-        mock_get.assert_called_once()
-
-    def test_unknown_period_is_rejected(self, mock_db):
-        response = TestClient(_build_app(mock_db)).get(
-            "/activities/summaries?period=fortnight",
-            headers={"Authorization": "Bearer x"},
         )
-        assert response.status_code == 422
 
-    @pytest.mark.parametrize("query", ["type=curling", "type=1", "year=1899", "year=10000", "year=abc"])
-    def test_an_unknown_type_and_an_out_of_range_year_are_rejected(self, mock_db, query):
-        response = TestClient(_build_app(mock_db)).get(
-            f"/activities/summaries?period=year&{query}", headers={"Authorization": "Bearer x"}
+        body = me.client.get(_URL, params={"period": "week", "date": "2026-07-16"}).json()
+
+        assert (body["activity_count"], body["total_distance"], body["total_elevation_gain"]) == (2, 50000.0, 100.0)
+        assert body["total_calories"] == 500.0
+        assert {day["day_of_week"]: day["activity_count"] for day in body["breakdown"]}[2] == 2
+        assert {item["activity_type"]: item["activity_count"] for item in body["type_breakdown"]} == {
+            "run": 1,
+            "ride": 1,
+        }
+
+    def test_the_week_is_the_default_period_and_the_clock_gives_the_users_today(self, me, owner, arrange):
+        jasil_runtime.get_active_platform().clock.moment = _DAY
+        arrange(lambda db: make_activity_at(db, owner.id, _DAY - timedelta(hours=3), distance=1234))
+
+        body = me.client.get(_URL).json()
+
+        assert (body["activity_count"], body["total_distance"]) == (1, 1234.0)
+        assert len(body["breakdown"]) == 7
+
+    def test_a_week_opens_on_the_users_first_day_of_the_week(self, sign_in, arrange):
+        sunday_first = arrange(lambda db: make_user(db, timezone="UTC", first_day_of_week="sunday"))
+        arrange(lambda db: make_activity_at(db, sunday_first.id, datetime(2026, 7, 12, 10, tzinfo=UTC)))
+
+        body = sign_in(sunday_first).client.get(_URL, params={"date": "2026-07-15"}).json()
+
+        assert body["activity_count"] == 1
+
+    def test_the_type_filter_keeps_the_type_asked_for(self, me, owner, arrange):
+        arrange(
+            lambda db: (
+                make_activity_at(db, owner.id, _DAY, distance=1000),
+                make_activity_at(db, owner.id, _DAY + timedelta(hours=4), activity_type=4, distance=5000),
+            )
         )
-        assert response.status_code == 422
 
-    def test_unparseable_date_is_rejected(self, mock_db):
-        """FastAPI's ``date`` coercion replaced the hand-rolled parser."""
-        response = TestClient(_build_app(mock_db)).get(
-            "/activities/summaries?period=week&date=not-a-date",
-            headers={"Authorization": "Bearer x"},
+        body = me.client.get(_URL, params={"date": "2026-07-15", "type": "ride"}).json()
+
+        assert (body["activity_count"], body["total_distance"]) == (1, 5000.0)
+
+    def test_another_users_activities_are_not_summarised(self, me, other, arrange):
+        arrange(lambda db: make_activity_at(db, other.id, _DAY))
+
+        assert me.client.get(_URL, params={"date": "2026-07-15"}).json()["activity_count"] == 0
+
+
+class TestMonthYearAndLifetime:
+    @pytest.fixture(autouse=True)
+    def _activities(self, owner, arrange):
+        arrange(
+            lambda db: (
+                make_activity_at(db, owner.id, _DAY, distance=1000, timezone="UTC"),
+                make_activity_at(db, owner.id, datetime(2026, 2, 3, 9, tzinfo=UTC), distance=2000),
+                make_activity_at(db, owner.id, datetime(2025, 5, 3, 9, tzinfo=UTC), distance=4000),
+            )
         )
-        assert response.status_code == 422
+
+    def test_the_month_holding_the_date(self, me):
+        body = me.client.get(_URL, params={"period": "month", "date": "2026-07-31"}).json()
+
+        assert (body["activity_count"], body["total_distance"]) == (1, 1000.0)
+
+    def test_the_year_asked_for_with_its_months(self, me):
+        body = me.client.get(_URL, params={"period": "year", "year": 2026}).json()
+
+        assert (body["activity_count"], body["total_distance"]) == (2, 3000.0)
+        assert {m["month_number"]: m["activity_count"] for m in body["breakdown"] if m["activity_count"]} == {
+            2: 1,
+            7: 1,
+        }
+
+    def test_the_year_defaults_to_the_anchor_year(self, me):
+        body = me.client.get(_URL, params={"period": "year", "date": "2025-12-31"}).json()
+
+        assert body["total_distance"] == 4000.0
+
+    def test_the_lifetime_summary_counts_every_year(self, me):
+        body = me.client.get(_URL, params={"period": "lifetime"}).json()
+
+        assert (body["activity_count"], body["total_distance"]) == (3, 7000.0)
+        assert {y["year_number"]: y["activity_count"] for y in body["breakdown"]} == {2026: 2, 2025: 1}
 
 
-class TestReadMonthlySummary:
-    @patch(f"{_SERVICE}.activity_summary_crud.get_monthly_summary")
-    def test_monthly_summary_success(self, mock_get, mock_db):
-        client = TestClient(_build_app(mock_db))
-        from modules.activities.activity.summary_schema import MonthlySummaryRead
+class TestRefusals:
+    @pytest.mark.parametrize(
+        "params",
+        [
+            {"period": "decade"},
+            {"type": "unicycle"},
+            {"date": "not-a-date"},
+            {"period": "year", "year": 1899},
+            {"period": "year", "year": 10000},
+            {"date": "9999-12-31"},
+        ],
+    )
+    def test_a_query_the_route_does_not_accept_is_422(self, me, params):
+        assert me.client.get(_URL, params=params).status_code == 422
 
-        mock_get.return_value = MonthlySummaryRead(breakdown=[], type_breakdown=None)
+    def test_a_year_nobody_can_be_living_in_yet_is_400(self, me):
+        year = datetime.now(UTC).year + 2
 
-        response = client.get(
-            "/activities/summaries?period=month&date=2024-01-15",
-            headers={"Authorization": "Bearer x"},
-        )
-        assert response.status_code == 200
-        # A month summary always starts on the 1st, whatever day the caller sent.
-        assert mock_get.call_args.kwargs["target_date"] == date(2024, 1, 1)
-        assert mock_get.call_args.kwargs["first_day_of_week"] == "sunday"
+        assert me.client.get(_URL, params={"period": "year", "year": year}).status_code == 400
 
-
-class TestReadYearlySummary:
-    @patch(f"{_SERVICE}.activity_summary_crud.get_yearly_summary")
-    def test_yearly_summary_success(self, mock_get, mock_db):
-        client = TestClient(_build_app(mock_db))
-        from modules.activities.activity.summary_schema import YearlySummaryRead
-
-        mock_get.return_value = YearlySummaryRead(breakdown=[], type_breakdown=None)
-
-        response = client.get(
-            "/activities/summaries?period=year&year=2024",
-            headers={"Authorization": "Bearer x"},
-        )
-        assert response.status_code == 200
-        assert mock_get.call_args.kwargs["year"] == 2024
-
-    @patch(f"{_SERVICE}.activity_summary_crud.get_yearly_summary")
-    def test_year_defaults_to_the_anchor_year(self, mock_get, mock_db):
-        from modules.activities.activity.summary_schema import YearlySummaryRead
-
-        mock_get.return_value = YearlySummaryRead(breakdown=[], type_breakdown=None)
-
-        response = TestClient(_build_app(mock_db)).get(
-            "/activities/summaries?period=year",
-            headers={"Authorization": "Bearer x"},
-        )
-        assert response.status_code == 200
-        assert mock_get.call_args.kwargs["year"] == 2026
-
-
-class TestReadLifetimeSummary:
-    @patch(f"{_SERVICE}.activity_summary_crud.get_lifetime_summary")
-    def test_lifetime_summary_success(self, mock_get, mock_db):
-        client = TestClient(_build_app(mock_db))
-        from modules.activities.activity.summary_schema import LifetimeSummaryRead
-
-        mock_get.return_value = LifetimeSummaryRead(breakdown=[], type_breakdown=None)
-
-        response = client.get(
-            "/activities/summaries?period=lifetime",
-            headers={"Authorization": "Bearer x"},
-        )
-        assert response.status_code == 200
-
-
-class TestYearValidation:
-    """The year bound must not reject the caller's genuinely current year.
-
-    The request carries no timezone, so validating against the server's UTC year
-    rejected users east of UTC on 1 January (a UTC+13 user is already in the next
-    year for 13 hours before the server is).
-    """
-
-    def test_accepts_a_year_ahead_of_the_server_utc_year(self):
-        import modules.activities.activity.summary_service as service
-
-        assert service._latest_plausible_year() >= datetime.now(UTC).year
-
-    def test_new_year_boundary_east_of_utc_is_accepted(self):
-        import modules.activities.activity.summary_service as service
-
-        # 31 Dec 23:00 UTC -> already 1 Jan in UTC+13.
-        with patch.object(service, "datetime") as mock_dt:
-            mock_dt.now.return_value = datetime(2026, 12, 31, 23, 0, tzinfo=UTC)
-            assert service._latest_plausible_year() == 2027
-
-    def test_far_future_year_is_still_rejected(self, mock_db):
-        resp = TestClient(_build_app(mock_db)).get(
-            "/activities/summaries?period=year&year=3000",
-            headers={"Authorization": "Bearer x"},
-        )
-        assert resp.status_code == 400
-        assert "Invalid year" in resp.json()["detail"]
+    def test_the_current_year_is_accepted(self, me):
+        assert me.client.get(_URL, params={"period": "year", "year": datetime.now(UTC).year}).status_code == 200

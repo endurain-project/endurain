@@ -27,6 +27,15 @@ def test_a_wildcard_is_refused_so_a_client_cannot_skip_the_stale_write_check():
         core_dependencies.require_if_match_header('"3", *')
 
 
+def test_an_unquoted_tag_is_refused_before_the_route_runs():
+    with pytest.raises(core_exceptions.InvalidInputError):
+        core_dependencies.require_if_match_header("3")
+
+
+def test_a_quoted_asterisk_is_handed_through_as_an_ordinary_tag():
+    assert core_dependencies.require_if_match_header('"*"') == '"*"'
+
+
 def test_a_route_declaring_it_answers_428_without_the_header():
     app = FastAPI()
     core_exceptions.register_exception_handlers(app)
@@ -39,3 +48,4 @@ def test_a_route_declaring_it_answers_428_without_the_header():
 
     assert client.patch("/thing").status_code == 428
     assert client.patch("/thing", headers={"If-Match": '"3"'}).json() == {"if_match": '"3"'}
+    assert client.patch("/thing", headers={"If-Match": "3"}).status_code == 400

@@ -490,7 +490,14 @@ router.include_router(
     tags=["websocket"],
 )
 
-# PUBLIC ROUTES (alphabetical order)
+# PUBLIC ROUTES (alphabetical order, except that the literal
+# ``/public/activities/exercise-titles`` must be matched before the dynamic
+# ``/public/activities/{activity_id}``, as for the authenticated routes above)
+router.include_router(
+    activity_exercise_titles_public_router.router,
+    prefix=core_config.ROOT_PATH + "/public/activities/exercise-titles",
+    tags=["public_activity_exercise_titles"],
+)
 router.include_router(
     activity_public_router.router,
     prefix=core_config.ROOT_PATH + "/public/activities",
@@ -500,11 +507,6 @@ router.include_router(
     activity_detail_public_router.router,
     prefix=core_config.ROOT_PATH + "/public/activities/{activity_id}",
     tags=["public_activity_detail"],
-)
-router.include_router(
-    activity_exercise_titles_public_router.router,
-    prefix=core_config.ROOT_PATH + "/public/activities/exercise-titles",
-    tags=["public_activity_exercise_titles"],
 )
 router.include_router(
     activity_laps_public_router.router,

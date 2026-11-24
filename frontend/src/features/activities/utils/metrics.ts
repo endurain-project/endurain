@@ -90,7 +90,7 @@ export function distinctElapsedTime(activity: ActivitySummary): number | null {
 }
 
 /**
- * Builds the curated summary metric tiles for an activity, mirroring v1: at most
+ * Builds the curated summary metric tiles for an activity: at most
  * six type-specific stats for distance-based activities, and just calories/time/
  * avg-HR for non-distance sessions (gym/strength/racquet). Privacy-hidden stats
  * are omitted for the current viewer.

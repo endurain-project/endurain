@@ -31,7 +31,7 @@ import {
 import { followIngestionJob } from '@/features/upload/composables/useUpload'
 import type { ActivityIngestionJob } from '@/features/upload/types'
 
-/** Default number of activities fetched per feed page (matches v1's fallback). */
+/** Default number of activities fetched per feed page. */
 export const DEFAULT_FEED_PAGE_SIZE = 25
 
 /**
@@ -107,7 +107,7 @@ export function useUserActivitiesFeed(
 
 /**
  * A user's activities for a configured calendar week, backing the public profile's
- * week-by-week activity browser (v1 parity). Week `0` is the current week and
+ * week-by-week activity browser. Week `0` is the current week and
  * each increment steps one week into the past. Gated on a valid user id,
  * authentication, and the supplied `enabled` flag (e.g. "the Activities tab is
  * active") so it never fetches for an unselected tab.

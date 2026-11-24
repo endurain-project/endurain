@@ -331,8 +331,6 @@
     "staleError": "Keegi teine muutis neid seadeid, kui sa neid muutsid. Sinu muudatusi ei salvestatud. Praeguste väärtuste nägemiseks laadi leht uuesti.",
     "stepUpTitle": "Kinnita oma identiteet",
     "stepUpDescription": "Need muudatused mõjutavad, kes saab sellesse serverisse registreeruda, sisse logida või seanssi säilitada, kui kaua auditilogi säilitatakse ning kas avalikud lingid näitavad, kes need jagas. Jätkamiseks kinnita, et see oled sina.",
-    "envLocked": "Määratud muutujaga {name}",
-    "envSection": "Mõned siinsed seaded on määratud keskkonnamuutujatega ({names}). Eemalda need keskkonnast, et neid siin muuta.",
     "unsaved": "Salvestamata muudatused",
     "fixErrors": "Salvestamiseks paranda ülaltoodud vead",
     "discard": "Loobu",

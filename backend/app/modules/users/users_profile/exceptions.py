@@ -9,6 +9,7 @@ This module defines custom exceptions for profile operations:
 
 from http import HTTPStatus
 
+import jasil.providers as platform_providers
 from sqlalchemy.exc import SQLAlchemyError
 
 import core.exceptions as core_exceptions
@@ -228,9 +229,11 @@ def is_transient(error: BaseException) -> bool:
         error: What the import or export raised.
 
     Returns:
-        True for a database, storage or availability failure; the archive's own faults and resource
-        limits are final.
+        True for a database or file failure, a storage outage (not a refusal) or an unavailable service; the
+        archive's own faults and resource limits are final.
     """
+    if platform_providers.is_storage_unavailable(error):
+        return True
     cause: BaseException | None = error
     while cause is not None:
         if isinstance(cause, SQLAlchemyError | OSError | core_exceptions.ServiceUnavailableError):

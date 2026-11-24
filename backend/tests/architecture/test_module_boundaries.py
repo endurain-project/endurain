@@ -368,49 +368,10 @@ def _layer_imports(*, only_roles: frozenset[str] | None = None) -> list[tuple[pa
     return found
 
 
-#: Services and integration surfaces that still import FastAPI, as ``{"<dotted module>": reason}``.
-_SERVICE_FASTAPI_EXCEPTIONS: dict[str, str] = {
-    "modules.server_settings.login_photo_service": (
-        "Receives the UploadFile and hands it to core.file_uploads; it should take the stored bytes instead."
-    ),
-    "modules.strava.gear_service": (
-        "Receives the UploadFile and hands it to core.file_uploads; it should take the stored bytes instead."
-    ),
-    "modules.users.users.photo_service": (
-        "Receives the UploadFile and hands it to core.file_uploads; it should take the stored bytes instead."
-    ),
-    "modules.users.users_profile.photo_service": (
-        "Receives the UploadFile and hands it to users.users.integration_service; it should take the "
-        "stored bytes instead."
-    ),
-    "modules.users.users.integration_service": (
-        "Publishes upload_user_photo, which receives the UploadFile and hands it to users.users.photo_service; not "
-        "yet take the stored bytes."
-    ),
-    "modules.auth.authentication.integration_service": (
-        "Takes the Request for the sign-in's client address and user agent; auth does not yet take plain values."
-    ),
+#: Services that may import FastAPI, as ``{"<dotted module>": reason}``.
+_SERVICE_FASTAPI_ALLOWED: dict[str, str] = {
     "modules.websocket.service": (
         "The service is the WebSocket connection manager, so the socket and its close codes are its subject."
-    ),
-}
-
-
-#: Routers that import another package's ``integration_service``, as ``{"<dotted module>": reason}``.
-_ROUTER_PEER_INTEGRATION_EXCEPTIONS: dict[str, str] = {
-    "modules.auth.account_security.public_router": (
-        "The auth module's packages are one sign-in flow served by public routers, which call the sibling packages' "
-        "surfaces directly (access tokens, authentication, credentials); folding the flow into per-package services "
-        "is part of converting auth."
-    ),
-    "modules.auth.authentication.public_router": (
-        "The auth module's packages are one sign-in flow served by public routers, which call the sibling packages' "
-        "surfaces directly (access tokens, credentials); folding the flow into per-package services is part of "
-        "converting auth."
-    ),
-    "modules.auth.authentication.sso_public_router": (
-        "The single sign-on callback reads the access-token surface to finish the sign-in; folding that into the "
-        "authentication service is part of converting auth."
     ),
 }
 
@@ -488,11 +449,6 @@ _SURFACE_UNITS_OF_WORK: dict[str, str] = {
     "activity_media.integration_service.attach_media_bytes": (
         "A race on the unique media hash leaves the session unusable until it is rolled back, so the "
         "write has to own the rollback before it looks up the winner."
-    ),
-    "server_settings.integration_service.import_deprecated_env_settings": (
-        "The API's boot import of deprecated environment variables: it opens its own session at startup, "
-        "locks the settings rows, writes only what differs and commits once, so replicas booting together "
-        "serialise on the lock; there is no caller transaction to join."
     ),
 }
 
@@ -1003,10 +959,9 @@ class TestLayerRules:
             ):
                 continue
             offenders.add(importer)
-        unlisted = sorted(offenders - set(_ROUTER_PEER_INTEGRATION_EXCEPTIONS))
-        assert not unlisted, "A router calls its service, not a peer's integration_service:\n  " + "\n  ".join(unlisted)
-        stale = sorted(set(_ROUTER_PEER_INTEGRATION_EXCEPTIONS) - offenders)
-        assert not stale, "Remove from _ROUTER_PEER_INTEGRATION_EXCEPTIONS:\n  " + "\n  ".join(stale)
+        assert not offenders, "A router calls its service, not a peer's integration_service:\n  " + "\n  ".join(
+            sorted(offenders)
+        )
 
     def test_persistence_raises_domain_errors_not_http_ones(self):
         """Persistence describes what went wrong, not which status to send.
@@ -1044,13 +999,13 @@ class TestLayerRules:
                 dotted = _module_dotted(path)
                 if not any(target == "fastapi" or target.startswith("fastapi.") for target in _imported_modules(path)):
                     continue
-                if dotted in _SERVICE_FASTAPI_EXCEPTIONS:
+                if dotted in _SERVICE_FASTAPI_ALLOWED:
                     used.add(dotted)
                 else:
                     offenders.append(dotted)
         assert not offenders, "A service takes plain values, not FastAPI objects:\n  " + "\n  ".join(sorted(offenders))
-        stale = sorted(set(_SERVICE_FASTAPI_EXCEPTIONS) - used)
-        assert not stale, "Remove from _SERVICE_FASTAPI_EXCEPTIONS:\n  " + "\n  ".join(stale)
+        stale = sorted(set(_SERVICE_FASTAPI_ALLOWED) - used)
+        assert not stale, "Remove from _SERVICE_FASTAPI_ALLOWED:\n  " + "\n  ".join(stale)
 
     def test_persistence_asks_no_other_package(self):
         """A query that must ask another bounded context first is a service decision.

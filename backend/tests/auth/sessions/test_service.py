@@ -1,860 +1,541 @@
-"""Tests for session transaction and lifecycle orchestration."""
+"""Sessions are created, rotated, claimed, listed and ended against real rows, with their audit rows and events."""
 
 import uuid
 from datetime import UTC, datetime, timedelta
-from types import SimpleNamespace
-from unittest.mock import MagicMock, patch
 
 import pytest
 import sqlalchemy as sa
+from jasil.audit.models import AuditLog
 
+import core.config as core_config
+import core.database as core_database
 import core.exceptions as core_exceptions
 import core.pagination as core_pagination
+import modules.auth.constants as auth_constants
+import modules.auth.oauth_state.constants as oauth_state_constants
+import modules.auth.oauth_state.integration_service as oauth_state_integration
+import modules.auth.oauth_state.models as oauth_state_models
+import modules.auth.rotated_refresh_tokens.integration_service as rotated_refresh_tokens_integration
 import modules.auth.schema as auth_schema
-import modules.auth.sessions.contracts as sessions_contracts
+import modules.auth.security_generation.integration_service as security_generation_integration
+import modules.auth.sessions.audit_actions as sessions_audit_actions
+import modules.auth.sessions.crud as sessions_crud
+import modules.auth.sessions.events as sessions_events
+import modules.auth.sessions.models as sessions_models
 import modules.auth.sessions.service as sessions_service
-from modules.auth.constants import ClientType
-from tests._helpers.auth import MOCK_USER_ID, OTHER_USER_ID
+from tests._factories.auth import make_session
+from tests._factories.server_settings import edit_server_settings
+from tests._factories.users import make_user
 
-_THIRD_USER_ID = uuid.UUID("00000000-0000-4000-8000-000000000003")
-SESSION_ID = uuid.UUID("00000000-0000-4000-8000-0000000005e1")
-FAMILY_ID = uuid.UUID("00000000-0000-4000-8000-0000000000f1")
 _STEP_UP = auth_schema.StepUpVerification(current_password="admin-password")
-_FIREFOX_UA = "Mozilla/5.0 (X11; Linux x86_64; rv:120.0) Gecko/20100101 Firefox/120.0"
+_ABSOLUTE_TIMEOUT = timedelta(hours=720)
+_FIREFOX = "Mozilla/5.0 (X11; Linux x86_64; rv:120.0) Gecko/20100101 Firefox/120.0"
 
 
-def _id(name: str) -> uuid.UUID:
-    """Return the stable session or family id named ``name``."""
-    return uuid.uuid5(uuid.NAMESPACE_URL, f"session:{name}")
+def _accepting(step_up) -> None:
+    """A step-up verifier that accepts."""
 
 
-def _session(**updates):
-    data = {
-        "id": SESSION_ID,
-        "user_id": MOCK_USER_ID,
-        "refresh_token": "hashed-refresh",
-        "ip_address": "127.0.0.1",
-        "device_type": "PC",
-        "operating_system": "Linux",
-        "operating_system_version": "1",
-        "browser": "Firefox",
-        "browser_version": "1",
-        "created_at": datetime.now(UTC),
-        "last_activity_at": datetime.now(UTC),
-        "expires_at": datetime.now(UTC) + timedelta(days=1),
-        "oauth_state_id": None,
-        "tokens_exchanged": False,
-        "token_family_id": FAMILY_ID,
-        "rotation_count": 0,
-        "last_rotation_at": None,
-        "client_type": "web",
-        "auth_time": datetime.now(UTC),
-        "amr": ["pwd"],
-    }
-    data.update(updates)
-    return sessions_contracts.SessionRead(**data)
+def _refusing(step_up) -> None:
+    raise core_exceptions.StepUpFailedError
 
 
-def test_create_session_hashes_secrets_and_stages(mock_db):
-    user = SimpleNamespace(id=MOCK_USER_ID)
-    with (
-        _policy_patch(),
-        patch("modules.auth.sessions.service.hash_refresh_token", return_value="hashed-refresh") as hasher,
-        patch("modules.auth.sessions.service.sessions_crud.create_session", return_value=_session()) as create,
-    ):
-        result = sessions_service.create_session(
-            SESSION_ID,
-            user,
-            ClientType.MOBILE,
-            "127.0.0.1",
-            _FIREFOX_UA,
-            "plain-refresh",
-            datetime.now(UTC) + timedelta(days=1),
-            mock_db,
-            amr=["pwd", "otp", "mfa"],
-            device_hash=None,
+def _audit(db, action) -> list[AuditLog]:
+    return list(db.scalars(sa.select(AuditLog).where(AuditLog.action_id == action.id)))
+
+
+def _state(db, state_id: str) -> str:
+    oauth_state_integration.create_oauth_state(
+        state_id, "n" * 32, "web", "127.0.0.1", db, purpose=oauth_state_constants.OAuthStatePurpose.LOGIN
+    )
+    db.flush()
+    return state_id
+
+
+def _state_ids(db) -> set[str]:
+    return set(db.scalars(sa.select(oauth_state_models.OAuthState.id)))
+
+
+def _session_ids(db) -> set[uuid.UUID]:
+    return set(db.scalars(sa.select(sessions_models.UsersSessions.id)))
+
+
+_RAW_TOKEN = "raw-refresh-token"
+
+
+def _create(db, user, *, refresh_token: str | None = _RAW_TOKEN, expires_at=None, **kwargs):
+    return sessions_service.create_session(
+        kwargs.pop("session_id", uuid.uuid4()),
+        user,
+        auth_constants.ClientType.WEB,
+        "203.0.113.5",
+        _FIREFOX,
+        refresh_token,
+        expires_at or datetime.now(UTC) + timedelta(days=1),
+        db,
+        amr=["pwd"],
+        device_hash=kwargs.pop("device_hash", None),
+        **kwargs,
+    )
+
+
+class TestCreate:
+    def test_a_session_stores_a_digest_and_the_clients_details_not_the_token(self, db):
+        user = make_user(db)
+        session_id = uuid.uuid4()
+
+        session = _create(db, user, session_id=session_id, device_hash="d" * 64)
+
+        assert session.refresh_token == sessions_service.hash_refresh_token("raw-refresh-token")
+        assert "raw-refresh-token" not in repr(session)
+        assert (session.token_family_id, session.tokens_exchanged, session.rotation_count) == (session_id, True, 0)
+        assert (session.ip_address, session.browser, session.operating_system) == ("203.0.113.5", "Firefox", "Linux")
+        assert (session.device_hash, session.amr) == ("d" * 64, ["pwd"])
+        assert sessions_crud.get_session_by_id(session_id, db) == session
+
+    def test_a_session_created_without_a_refresh_token_awaits_its_exchange(self, db):
+        user = make_user(db)
+
+        session = _create(db, user, refresh_token=None, oauth_state_id=_state(db, "state-1"))
+
+        assert (session.refresh_token, session.tokens_exchanged) == (None, False)
+        assert session.oauth_state_id == "state-1"
+
+    def test_a_session_records_the_app_redirect_uri_of_a_native_sign_in(self, db):
+        session = _create(db, make_user(db), app_redirect_uri="endurain://callback")
+
+        assert sessions_crud.get_session_by_id(session.id, db).app_redirect_uri == "endurain://callback"
+
+    def test_the_expiry_is_capped_at_the_absolute_timeout(self, db):
+        session = _create(db, make_user(db), expires_at=datetime.now(UTC) + timedelta(days=3650))
+
+        assert session.expires_at == pytest.approx(session.created_at + _ABSOLUTE_TIMEOUT, abs=timedelta(seconds=1))
+
+    def test_an_earlier_expiry_is_kept(self, db):
+        expires_at = datetime.now(UTC) + timedelta(hours=2)
+
+        session = _create(db, make_user(db), expires_at=expires_at)
+
+        assert session.expires_at == expires_at
+
+
+class TestRotation:
+    def test_a_rotation_digests_the_new_token_counts_it_and_keeps_the_sessions_other_details(self, db):
+        session = _create(db, make_user(db), device_hash="d" * 64, app_redirect_uri="endurain://callback")
+
+        rotated = sessions_service.edit_session(
+            session,
+            "198.51.100.9",
+            "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X)",
+            "new-token",
+            session.expires_at,
+            db,
         )
-    assert result.id == SESSION_ID
-    assert create.call_args.args[0].amr == ["pwd", "otp", "mfa"]
-    assert create.call_args.args[0].auth_time == create.call_args.args[0].created_at
-    hasher.assert_called_once_with("plain-refresh")
-    assert create.call_args.args[0].refresh_token == "hashed-refresh"
-    assert create.call_args.args[0].ip_address == "127.0.0.1"
-    assert create.call_args.args[0].browser == "Firefox"
-    assert create.call_args.args[0].device_type == "PC"
-    assert create.call_args.args[0].client_type == ClientType.MOBILE
-    mock_db.commit.assert_not_called()
 
+        assert rotated.refresh_token == sessions_service.hash_refresh_token("new-token")
+        assert (rotated.rotation_count, rotated.ip_address) == (1, "198.51.100.9")
+        assert rotated.last_rotation_at is not None
+        assert rotated.device_type == "Mobile"
+        assert (rotated.device_hash, rotated.app_redirect_uri) == ("d" * 64, "endurain://callback")
+        assert (rotated.created_at, rotated.token_family_id) == (session.created_at, session.token_family_id)
 
-def test_create_session_records_the_device_hash(mock_db):
-    with (
-        _policy_patch(),
-        patch("modules.auth.sessions.service.sessions_crud.create_session", return_value=_session()) as create,
-    ):
-        sessions_service.create_session(
-            SESSION_ID,
-            SimpleNamespace(id=MOCK_USER_ID),
-            ClientType.WEB,
-            "127.0.0.1",
-            _FIREFOX_UA,
-            None,
-            datetime.now(UTC) + timedelta(days=1),
-            mock_db,
-            amr=["pwd"],
-            device_hash="a" * 64,
+    def test_the_rotated_expiry_is_capped_at_creation_plus_the_absolute_timeout(self, db):
+        user = make_user(db)
+        session = make_session(db, user, created_at=datetime.now(UTC) - timedelta(hours=700))
+
+        rotated = sessions_service.edit_session(
+            session, "127.0.0.1", _FIREFOX, "new", datetime.now(UTC) + timedelta(days=7), db
         )
-    assert create.call_args.args[0].device_hash == "a" * 64
+
+        assert rotated.expires_at == session.created_at + _ABSOLUTE_TIMEOUT
+
+    def test_an_earlier_rotated_expiry_is_kept(self, db):
+        session = make_session(db, make_user(db))
+        expires_at = datetime.now(UTC) + timedelta(hours=1)
+
+        rotated = sessions_service.edit_session(session, "127.0.0.1", _FIREFOX, "new", expires_at, db)
+
+        assert rotated.expires_at == expires_at
+
+    def test_rotating_a_session_that_is_gone_is_not_found(self, db):
+        session = make_session(db, make_user(db))
+        db.execute(sa.delete(sessions_models.UsersSessions))
+
+        with pytest.raises(core_exceptions.NotFoundError):
+            sessions_service.edit_session(session, "127.0.0.1", _FIREFOX, "new", session.expires_at, db)
 
 
-def test_deleting_the_sessions_of_a_device_cleans_up_each_one(mock_db):
-    first = _session(id=_id("one"), token_family_id=_id("family-one"), oauth_state_id="state-one")
-    second = _session(id=_id("two"), token_family_id=_id("family-two"))
-    with (
-        patch(
-            "modules.auth.sessions.service.sessions_crud.delete_sessions_by_device", return_value=[first, second]
-        ) as delete,
-        patch("modules.auth.sessions.service.oauth_state_integration") as oauth_state,
-        patch("modules.auth.sessions.service.rotated_refresh_tokens_integration") as rotated,
-        patch("modules.auth.sessions.service.sessions_event_publishers") as publishers,
-    ):
-        assert sessions_service.delete_sessions_by_device(MOCK_USER_ID, "a" * 64, mock_db) == 2
-
-    delete.assert_called_once_with(MOCK_USER_ID, "a" * 64, mock_db)
-    oauth_state.delete_oauth_state.assert_called_once_with("state-one", mock_db)
-    assert [call.args for call in rotated.delete_by_family.call_args_list] == [
-        (_id("family-one"), mock_db),
-        (_id("family-two"), mock_db),
-    ]
-    assert [call.kwargs["session_id"] for call in publishers.publish_sessions_revoked.call_args_list] == [
-        _id("one"),
-        _id("two"),
-    ]
-
-
-def test_create_session_records_the_app_redirect_uri(mock_db):
-    with (
-        _policy_patch(),
-        patch("modules.auth.sessions.service.sessions_crud.create_session", return_value=_session()) as create,
-    ):
-        sessions_service.create_session(
-            SESSION_ID,
-            SimpleNamespace(id=MOCK_USER_ID),
-            ClientType.MOBILE,
-            "127.0.0.1",
-            _FIREFOX_UA,
-            None,
-            datetime.now(UTC) + timedelta(days=1),
-            mock_db,
-            amr=["fed"],
-            device_hash=None,
-            app_redirect_uri="gadgetbridge://auth/sso/callback",
+class TestClaim:
+    def test_the_claim_stores_the_digest_extends_the_session_clears_its_state_and_marks_it_exchanged(self, db):
+        user = make_user(db)
+        state_id = _state(db, "state-1")
+        pending = make_session(
+            db, user, exchanged=False, expires_at=datetime.now(UTC) + timedelta(minutes=5), oauth_state_id=state_id
         )
-    assert create.call_args.args[0].app_redirect_uri == "gadgetbridge://auth/sso/callback"
+        refresh_exp = datetime.now(UTC) + timedelta(days=7)
 
-
-def test_a_rotation_keeps_the_app_redirect_uri(mock_db):
-    session = _session(app_redirect_uri="gadgetbridge://auth/sso/callback")
-    with (
-        _policy_patch(),
-        patch("modules.auth.sessions.service.sessions_crud.edit_session", return_value=session) as edit,
-    ):
-        sessions_service.edit_session(
-            session, "127.0.0.2", _FIREFOX_UA, "replacement", datetime.now(UTC) + timedelta(days=1), mock_db
-        )
-    assert edit.call_args.args[0].app_redirect_uri == "gadgetbridge://auth/sso/callback"
-
-
-def test_the_session_read_schema_shows_the_app_redirect_uri():
-    import modules.auth.sessions.schema as sessions_schema
-
-    read = sessions_schema.UserSessionsRead.model_validate(_session(app_redirect_uri="app:/cb"))
-
-    assert read.app_redirect_uri == "app:/cb"
-    assert sessions_schema.UserSessionsRead.model_validate(_session()).app_redirect_uri is None
-
-
-def test_a_rotation_keeps_the_device_hash(mock_db):
-    session = _session(device_hash="a" * 64)
-    with (
-        _policy_patch(),
-        patch("modules.auth.sessions.service.sessions_crud.edit_session", return_value=session) as edit,
-    ):
-        sessions_service.edit_session(
-            session, "127.0.0.2", _FIREFOX_UA, "replacement", datetime.now(UTC) + timedelta(days=1), mock_db
-        )
-    assert edit.call_args.args[0].device_hash == "a" * 64
-
-
-def test_edit_session_stages_rotation(mock_db):
-    session = _session()
-    with (
-        _policy_patch(),
-        patch(
-            "modules.auth.sessions.service.sessions_crud.edit_session", return_value=_session(rotation_count=1)
-        ) as edit,
-    ):
-        result = sessions_service.edit_session(
-            session, "127.0.0.2", _FIREFOX_UA, "replacement", datetime.now(UTC) + timedelta(days=1), mock_db
-        )
-    assert result.rotation_count == 1
-    assert edit.call_args.args[0].refresh_token == sessions_service.hash_refresh_token("replacement")
-    assert edit.call_args.args[0].rotation_count == 1
-    assert edit.call_args.args[0].ip_address == "127.0.0.2"
-    mock_db.commit.assert_not_called()
-
-
-def test_session_with_oauth_state_uses_integration_surface(mock_db):
-    with (
-        patch(
-            "modules.auth.sessions.service.sessions_crud.get_session_by_id_not_expired",
-            return_value=_session(oauth_state_id="state-id"),
-        ),
-        patch(
-            "modules.auth.sessions.service.oauth_state_integration.get_oauth_state_by_id_not_expired",
-            return_value="state",
-        ) as get_state,
-    ):
-        result = sessions_service.get_session_with_oauth_state(SESSION_ID, mock_db)
-    assert result is not None
-    assert result[0].id == SESSION_ID
-    assert result[1] == "state"
-    get_state.assert_called_once_with("state-id", mock_db)
-
-
-def test_claim_token_exchange_cleans_up_oauth_and_stages(mock_db):
-    wanted = datetime.now(UTC) + timedelta(days=1)
-    with (
-        patch(
-            "modules.auth.sessions.service.sessions_crud.get_session_by_id",
-            return_value=_session(oauth_state_id="state-id"),
-        ),
-        patch(
-            "modules.auth.sessions.service.server_settings_integration.get_session_policy",
-            return_value=SimpleNamespace(absolute_timeout=timedelta(days=30)),
-        ),
-        patch("modules.auth.sessions.service.sessions_crud.claim_session_for_token_exchange", return_value=True),
-        patch("modules.auth.sessions.service.sessions_crud.clear_oauth_state_reference") as clear_reference,
-        patch("modules.auth.sessions.service.oauth_state_integration.delete_oauth_state") as delete_state,
-    ):
-        assert (
-            sessions_service.claim_session_for_token_exchange(SESSION_ID, "hashed", wanted, ["fed"], mock_db) == wanted
-        )
-    clear_reference.assert_called_once_with(SESSION_ID, mock_db)
-    delete_state.assert_called_once_with("state-id", mock_db)
-    mock_db.commit.assert_not_called()
-
-
-def test_claim_caps_the_new_expiry_at_the_absolute_timeout(mock_db):
-    session = _session()
-    with (
-        patch("modules.auth.sessions.service.sessions_crud.get_session_by_id", return_value=session),
-        patch(
-            "modules.auth.sessions.service.server_settings_integration.get_session_policy",
-            return_value=SimpleNamespace(absolute_timeout=timedelta(hours=2)),
-        ),
-        patch(
-            "modules.auth.sessions.service.sessions_crud.claim_session_for_token_exchange", return_value=True
-        ) as claim,
-    ):
         expires_at = sessions_service.claim_session_for_token_exchange(
-            SESSION_ID, "hashed", session.created_at + timedelta(days=7), ["fed"], mock_db
+            pending.id, "digest", refresh_exp, ["fed", "otp", "mfa"], db
         )
-    assert expires_at == session.created_at + timedelta(hours=2)
-    claim.assert_called_once_with(SESSION_ID, "hashed", expires_at, ["fed"], mock_db)
 
+        claimed = sessions_crud.get_session_by_id(pending.id, db)
+        assert expires_at == refresh_exp
+        assert claimed.tokens_exchanged is True
+        assert (claimed.refresh_token, claimed.expires_at, claimed.amr) == (
+            "digest",
+            refresh_exp,
+            ["fed", "otp", "mfa"],
+        )
+        assert claimed.oauth_state_id is None
+        assert state_id not in _state_ids(db)
 
-def test_claim_lost_race_does_not_commit(mock_db):
-    with (
-        patch("modules.auth.sessions.service.sessions_crud.get_session_by_id", return_value=_session()),
-        patch(
-            "modules.auth.sessions.service.server_settings_integration.get_session_policy",
-            return_value=SimpleNamespace(absolute_timeout=timedelta(days=30)),
-        ),
-        patch("modules.auth.sessions.service.sessions_crud.claim_session_for_token_exchange", return_value=False),
-    ):
+    def test_the_new_expiry_is_capped_at_the_absolute_timeout(self, db):
+        pending = make_session(db, make_user(db), exchanged=False, created_at=datetime.now(UTC) - timedelta(hours=718))
+
+        expires_at = sessions_service.claim_session_for_token_exchange(
+            pending.id, "digest", datetime.now(UTC) + timedelta(days=7), ["pwd"], db
+        )
+
+        assert expires_at == pending.created_at + _ABSOLUTE_TIMEOUT
+
+    def test_a_second_claim_of_the_same_session_is_refused(self, db):
+        pending = make_session(db, make_user(db), exchanged=False)
+        refresh_exp = datetime.now(UTC) + timedelta(days=7)
+        assert sessions_service.claim_session_for_token_exchange(pending.id, "first", refresh_exp, ["pwd"], db)
+
+        assert sessions_service.claim_session_for_token_exchange(pending.id, "second", refresh_exp, ["pwd"], db) is None
+        assert sessions_crud.get_session_by_id(pending.id, db).refresh_token == "first"
+
+    def test_a_missing_session_is_refused(self, db):
+        refresh_exp = datetime.now(UTC) + timedelta(days=7)
+
         assert (
-            sessions_service.claim_session_for_token_exchange(SESSION_ID, "hash", datetime.now(UTC), ["fed"], mock_db)
-            is None
-        )
-    mock_db.commit.assert_not_called()
-
-
-def test_claim_of_a_missing_session_is_refused(mock_db):
-    with patch("modules.auth.sessions.service.sessions_crud.get_session_by_id", return_value=None):
-        assert (
-            sessions_service.claim_session_for_token_exchange(SESSION_ID, "hash", datetime.now(UTC), ["fed"], mock_db)
-            is None
+            sessions_service.claim_session_for_token_exchange(uuid.uuid4(), "digest", refresh_exp, ["pwd"], db) is None
         )
 
+    def test_the_session_and_its_oauth_state_are_read_together_until_the_state_is_cleared(self, db):
+        state_id = _state(db, "state-1")
+        pending = make_session(db, make_user(db), exchanged=False, oauth_state_id=state_id)
 
-@pytest.mark.parametrize(("refresh_token", "exchanged"), [("refresh", True), (None, False)])
-def test_a_session_created_with_a_refresh_token_needs_no_exchange(refresh_token, exchanged, mock_db):
-    with (
-        patch(
-            "modules.auth.sessions.service.server_settings_integration.get_session_policy",
-            return_value=SimpleNamespace(absolute_timeout=timedelta(days=30)),
-        ),
-        patch("modules.auth.sessions.service.sessions_crud.create_session") as create,
-    ):
-        sessions_service.create_session(
-            SESSION_ID,
-            SimpleNamespace(id=MOCK_USER_ID),
-            ClientType.WEB,
-            "127.0.0.1",
-            "agent",
-            refresh_token,
-            datetime.now(UTC) + timedelta(minutes=10),
-            mock_db,
-            amr=["pwd"],
-            device_hash=None,
+        found = sessions_service.get_session_with_oauth_state(pending.id, db)
+
+        assert found is not None
+        session, state = found
+        assert (session.id, state.id) == (pending.id, state_id)
+        sessions_service.claim_session_for_token_exchange(
+            pending.id, "digest", datetime.now(UTC) + timedelta(days=1), ["pwd"], db
         )
-    assert create.call_args.args[0].tokens_exchanged is exchanged
+        assert sessions_service.get_session_with_oauth_state(pending.id, db)[1] is None
 
+    def test_an_expired_session_is_not_found(self, db):
+        expired = make_session(db, make_user(db), expires_at=datetime.now(UTC) - timedelta(minutes=1))
 
-def test_delete_session_cleans_linked_records_and_commits(mock_db):
-    session = _session(oauth_state_id="state-id")
-    with (
-        patch("modules.auth.sessions.service.sessions_crud.delete_session", return_value=session),
-        patch("modules.auth.sessions.service.oauth_state_integration.delete_oauth_state") as delete_state,
-        patch("modules.auth.sessions.service.rotated_refresh_tokens_integration.delete_by_family") as delete_family,
-    ):
-        sessions_service.delete_session(SESSION_ID, MOCK_USER_ID, _STEP_UP, MagicMock(), mock_db)
-    delete_state.assert_called_once_with("state-id", mock_db)
-    delete_family.assert_called_once_with(FAMILY_ID, mock_db)
-    mock_db.commit.assert_called_once()
+        assert sessions_service.get_session_with_oauth_state(expired.id, db) is None
 
 
-def test_family_invalidation_stages_session_and_token_deletion(mock_db):
-    with (
-        patch("modules.auth.sessions.service.sessions_crud.delete_sessions_by_family", return_value=2),
-        patch("modules.auth.sessions.service.rotated_refresh_tokens_integration.delete_by_family", return_value=4),
-    ):
-        assert sessions_service.invalidate_token_family(FAMILY_ID, mock_db) == 2
-    mock_db.commit.assert_not_called()
-
-
-def test_family_invalidation_logs_a_fingerprint_not_the_family_id(mock_db, caplog):
-    import logging
-
-    import core.hashing as core_hashing
-
-    family_id = uuid.UUID("9f2c1d7e-0000-4000-8000-000000000001")
-    with (
-        patch("modules.auth.sessions.service.sessions_crud.delete_sessions_by_family", return_value=1),
-        patch("modules.auth.sessions.service.rotated_refresh_tokens_integration.delete_by_family", return_value=1),
-        caplog.at_level(logging.DEBUG),
-    ):
-        sessions_service.invalidate_token_family(family_id, mock_db)
-
-    assert caplog.records
-    for record in caplog.records:
-        assert str(family_id) not in record.getMessage()
-        assert str(family_id) not in str(record.__dict__)
-    assert any(core_hashing.log_fingerprint(str(family_id)) in str(record.__dict__) for record in caplog.records)
-
-
-def test_stage_delete_session_cleans_linked_records_without_committing(mock_db):
-    session = _session(oauth_state_id="state-id")
-    with (
-        patch("modules.auth.sessions.service.sessions_crud.delete_session", return_value=session),
-        patch("modules.auth.sessions.service.oauth_state_integration.delete_oauth_state") as delete_state,
-        patch("modules.auth.sessions.service.rotated_refresh_tokens_integration.delete_by_family") as delete_family,
-    ):
-        sessions_service.stage_delete_session(SESSION_ID, MOCK_USER_ID, mock_db)
-    delete_state.assert_called_once_with("state-id", mock_db)
-    delete_family.assert_called_once_with(FAMILY_ID, mock_db)
-    mock_db.commit.assert_not_called()
-
-
-def test_delete_user_sessions_stages_without_committing(mock_db):
-    with patch("modules.auth.sessions.service.sessions_crud.delete_sessions_by_user", return_value=3):
-        assert sessions_service.delete_sessions_by_user(MOCK_USER_ID, mock_db, _id("current")) == 3
-    mock_db.commit.assert_not_called()
-
-
-def test_delete_user_sessions_standalone_commits(mock_db):
-    with patch("modules.auth.sessions.service.sessions_crud.delete_sessions_by_user", return_value=3):
-        assert sessions_service.delete_sessions_by_user_and_commit(MOCK_USER_ID, _STEP_UP, MagicMock(), mock_db) == 3
-    mock_db.commit.assert_called_once()
-
-
-def test_missing_session_deletion_propagates_domain_not_found(mock_db):
-    with (
-        patch(
-            "modules.auth.sessions.service.sessions_crud.delete_session",
-            side_effect=core_exceptions.NotFoundError("Session not found"),
-        ),
-        pytest.raises(core_exceptions.NotFoundError),
-    ):
-        sessions_service.delete_session("missing", MOCK_USER_ID, _STEP_UP, MagicMock(), mock_db)
-    mock_db.commit.assert_not_called()
-
-
-def test_list_user_sessions_builds_a_page_from_the_window_and_count(mock_db):
-    page = core_pagination.PageParams(2, 1)
-    with (
-        patch("modules.auth.sessions.service.core_config.settings") as settings,
-        patch("modules.auth.sessions.service.sessions_crud.get_user_sessions_page", return_value=[_session()]) as rows,
-        patch("modules.auth.sessions.service.sessions_crud.count_user_sessions", return_value=3) as count,
-    ):
-        settings.ENVIRONMENT = "production"
-        result = sessions_service.list_user_sessions(MOCK_USER_ID, page, mock_db)
-    rows.assert_called_once_with(MOCK_USER_ID, mock_db, limit=1, offset=1)
-    count.assert_called_once_with(MOCK_USER_ID, mock_db)
-    assert [item.id for item in result.items] == [SESSION_ID]
-    assert (result.total, result.page, result.next) == (3, 2, 3)
-    assert not hasattr(result.items[0], "refresh_token")
-
-
-def test_list_user_sessions_marks_only_the_callers_own_session(mock_db):
-    own = _session()
-    other = _session(id=uuid.uuid4())
-    with (
-        patch("modules.auth.sessions.service.core_config.settings") as settings,
-        patch("modules.auth.sessions.service.sessions_crud.get_user_sessions_page", return_value=[own, other]),
-        patch("modules.auth.sessions.service.sessions_crud.count_user_sessions", return_value=2),
-    ):
-        settings.ENVIRONMENT = "production"
-        marked = sessions_service.list_user_sessions(
-            MOCK_USER_ID, core_pagination.PageParams(1, 25), mock_db, SESSION_ID
-        )
-        unmarked = sessions_service.list_user_sessions(MOCK_USER_ID, core_pagination.PageParams(1, 25), mock_db)
-    assert [item.is_current for item in marked.items] == [True, False]
-    assert [item.is_current for item in unmarked.items] == [False, False]
-
-
-def test_list_user_sessions_is_empty_in_demo(mock_db):
-    with (
-        patch("modules.auth.sessions.service.core_config.settings") as settings,
-        patch("modules.auth.sessions.service.sessions_crud.get_user_sessions_page") as rows,
-    ):
-        settings.ENVIRONMENT = "demo"
-        result = sessions_service.list_user_sessions(MOCK_USER_ID, core_pagination.PageParams(1, 25), mock_db)
-    rows.assert_not_called()
-    assert result.items == [] and result.total == 0
-
-
-def test_session_logs_carry_a_fingerprint_not_the_session_id(mock_db, caplog):
-    secret_id = uuid.UUID("9f2c1d7e-0000-4000-8000-000000000002")
-    with (
-        caplog.at_level("INFO"),
-        patch("modules.auth.sessions.service.sessions_crud.delete_session", return_value=_session()),
-        patch("modules.auth.sessions.service.rotated_refresh_tokens_integration.delete_by_family"),
-    ):
-        sessions_service.delete_session(secret_id, MOCK_USER_ID, _STEP_UP, MagicMock(), mock_db)
-    assert str(secret_id) not in caplog.text
-    assert str(secret_id) not in str([record.__dict__ for record in caplog.records])
-
-
-_ABSOLUTE = timedelta(hours=720)
-
-
-def _policy_patch():
-    policy = SimpleNamespace(idle_timeout=None, absolute_timeout=_ABSOLUTE)
-    return patch("modules.auth.sessions.service.server_settings_integration.get_session_policy", return_value=policy)
-
-
-def test_create_session_caps_expiry_at_the_absolute_timeout(mock_db):
-    before = datetime.now(UTC)
-    with (
-        _policy_patch(),
-        patch("modules.auth.sessions.service.sessions_crud.create_session", return_value=_session()) as create,
-    ):
-        sessions_service.create_session(
-            SESSION_ID,
-            SimpleNamespace(id=MOCK_USER_ID),
-            ClientType.WEB,
-            "127.0.0.1",
-            _FIREFOX_UA,
-            "r",
-            before + timedelta(days=3650),
-            mock_db,
-            amr=["pwd"],
-            device_hash=None,
-        )
-    staged = create.call_args.args[0]
-    assert staged.expires_at == staged.created_at + _ABSOLUTE
-
-
-def test_create_session_keeps_an_earlier_expiry(mock_db):
-    requested = datetime.now(UTC) + timedelta(days=1)
-    with (
-        _policy_patch(),
-        patch("modules.auth.sessions.service.sessions_crud.create_session", return_value=_session()) as create,
-    ):
-        sessions_service.create_session(
-            SESSION_ID,
-            SimpleNamespace(id=MOCK_USER_ID),
-            ClientType.WEB,
-            "127.0.0.1",
-            _FIREFOX_UA,
-            "r",
-            requested,
-            mock_db,
-            amr=["pwd"],
-            device_hash=None,
-        )
-    assert create.call_args.args[0].expires_at == requested
-
-
-def test_edit_session_caps_expiry_at_creation_plus_absolute_timeout(mock_db):
-    created = datetime.now(UTC) - timedelta(hours=700)
-    session = _session(created_at=created)
-    with (
-        _policy_patch(),
-        patch("modules.auth.sessions.service.sessions_crud.edit_session", return_value=session) as edit,
-    ):
-        sessions_service.edit_session(
-            session, "127.0.0.2", _FIREFOX_UA, "r", datetime.now(UTC) + timedelta(days=7), mock_db
-        )
-    assert edit.call_args.args[0].expires_at == created + _ABSOLUTE
-
-
-def test_edit_session_keeps_an_earlier_expiry(mock_db):
-    session = _session(created_at=datetime.now(UTC))
-    requested = datetime.now(UTC) + timedelta(days=7)
-    with (
-        _policy_patch(),
-        patch("modules.auth.sessions.service.sessions_crud.edit_session", return_value=session) as edit,
-    ):
-        sessions_service.edit_session(session, "127.0.0.2", _FIREFOX_UA, "r", requested, mock_db)
-    assert edit.call_args.args[0].expires_at == requested
-
-
-def test_stage_delete_session_announces_the_revoked_session(mock_db):
-    with (
-        patch("modules.auth.sessions.service.sessions_crud.delete_session", return_value=_session()),
-        patch("modules.auth.sessions.service.rotated_refresh_tokens_integration.delete_by_family"),
-        patch("modules.auth.sessions.service.sessions_event_publishers.publish_sessions_revoked") as publish,
-    ):
-        sessions_service.stage_delete_session(_id("sid"), MOCK_USER_ID, mock_db)
-
-    publish.assert_called_once_with(MOCK_USER_ID, mock_db, session_id=_id("sid"))
-
-
-def test_deleting_all_sessions_announces_a_user_wide_revocation(mock_db):
-    with (
-        patch("modules.auth.sessions.service.sessions_crud.delete_sessions_by_user", return_value=2),
-        patch("modules.auth.sessions.service.sessions_event_publishers.publish_sessions_revoked") as publish,
-    ):
-        sessions_service.delete_sessions_by_user(MOCK_USER_ID, mock_db)
-
-    publish.assert_called_once_with(MOCK_USER_ID, mock_db, except_session_id=None)
-
-
-def test_deleting_the_other_sessions_names_the_one_kept(mock_db):
-    with (
-        patch("modules.auth.sessions.service.sessions_crud.delete_sessions_by_user", return_value=1),
-        patch("modules.auth.sessions.service.sessions_event_publishers.publish_sessions_revoked") as publish,
-    ):
-        sessions_service.delete_sessions_by_user_and_commit(
-            MOCK_USER_ID, _STEP_UP, MagicMock(), mock_db, exclude_session_id=_id("keep")
-        )
-
-    publish.assert_called_once_with(MOCK_USER_ID, mock_db, except_session_id=_id("keep"))
-
-
-def test_family_invalidation_announces_each_revoked_session(mock_db):
-    with (
-        patch(
-            "modules.auth.sessions.service.sessions_crud.list_session_owners_by_family",
-            return_value=[(MOCK_USER_ID, _id("fam"))],
-        ),
-        patch("modules.auth.sessions.service.sessions_crud.delete_sessions_by_family", return_value=1),
-        patch("modules.auth.sessions.service.rotated_refresh_tokens_integration.delete_by_family", return_value=0),
-        patch("modules.auth.sessions.service.sessions_event_publishers.publish_sessions_revoked") as publish,
-    ):
-        sessions_service.invalidate_token_family(_id("fam"), mock_db)
-
-    publish.assert_called_once_with(MOCK_USER_ID, mock_db, session_id=_id("fam"))
-
-
-def test_deleting_no_sessions_announces_nothing(mock_db):
-    with (
-        patch("modules.auth.sessions.service.sessions_crud.delete_sessions_by_user", return_value=0),
-        patch("modules.auth.sessions.service.sessions_event_publishers.publish_sessions_revoked") as publish,
-    ):
-        sessions_service.delete_sessions_by_user(MOCK_USER_ID, mock_db)
-
-    publish.assert_not_called()
-
-
-class TestCsrfKeyRotation:
-    """A refresh-token digest stored under the old ``SECRET_KEY`` still verifies once the key list is ``new,old``."""
-
-    @pytest.fixture(autouse=True)
-    def _fresh_keys(self):
-        import core.key_derivation as core_key_derivation
-
-        core_key_derivation.derive_keys.cache_clear()
-        yield
-        core_key_derivation.derive_keys.cache_clear()
-
-    @staticmethod
-    def _with_secret(secret: str):
-        import core.key_derivation as core_key_derivation
-
-        core_key_derivation.derive_keys.cache_clear()
-        return patch("core.key_derivation.core_config.read_secret", return_value=secret)
-
-    def test_a_hash_made_under_the_old_key_verifies(self):
-        with self._with_secret("o" * 40):
-            stored = sessions_service.hash_refresh_token("token")
-        with self._with_secret(f"{'n' * 40},{'o' * 40}"):
-            assert sessions_service.verify_refresh_token("token", stored) is True
-            assert sessions_service.verify_refresh_token("other", stored) is False
-
-    def test_a_hash_made_under_a_key_that_left_the_list_does_not_verify(self):
-        with self._with_secret("o" * 40):
-            stored = sessions_service.hash_refresh_token("token")
-        with self._with_secret("n" * 40):
-            assert sessions_service.verify_refresh_token("token", stored) is False
-
-    def test_new_hashes_use_the_first_key(self):
-        with self._with_secret(f"{'n' * 40},{'o' * 40}"):
-            stored = sessions_service.hash_refresh_token("token")
-        with self._with_secret("n" * 40):
-            assert sessions_service.verify_refresh_token("token", stored) is True
-
-
-def _refusing() -> MagicMock:
-    return MagicMock(side_effect=core_exceptions.StepUpFailedError())
-
-
-def test_deleting_one_session_verifies_the_revoke_step_up_before_deleting(mock_db):
-    verifier = MagicMock()
-    order = MagicMock()
-    order.attach_mock(verifier, "step_up")
-    with patch("modules.auth.sessions.service.sessions_crud.delete_session", return_value=_session()) as delete:
-        order.attach_mock(delete, "delete")
-        with patch("modules.auth.sessions.service.rotated_refresh_tokens_integration.delete_by_family"):
-            sessions_service.delete_session(SESSION_ID, MOCK_USER_ID, _STEP_UP, verifier, mock_db)
-
-    assert [call[0] for call in order.mock_calls][:2] == ["step_up", "delete"]
-    verifier.assert_called_once_with(_STEP_UP)
-
-
-def test_a_refused_step_up_deletes_no_session(mock_db):
-    with (
-        patch("modules.auth.sessions.service.sessions_crud.delete_session") as delete,
-        pytest.raises(core_exceptions.StepUpFailedError),
-    ):
-        sessions_service.delete_session(SESSION_ID, MOCK_USER_ID, _STEP_UP, _refusing(), mock_db)
-
-    delete.assert_not_called()
-    mock_db.commit.assert_not_called()
-
-
-def test_deleting_all_sessions_verifies_the_revoke_step_up_before_deleting(mock_db):
-    verifier = MagicMock()
-    with patch("modules.auth.sessions.service.sessions_crud.delete_sessions_by_user", return_value=0):
-        sessions_service.delete_sessions_by_user_and_commit(MOCK_USER_ID, _STEP_UP, verifier, mock_db)
-
-    verifier.assert_called_once_with(_STEP_UP)
-
-
-def test_a_refused_step_up_deletes_no_sessions(mock_db):
-    with (
-        patch("modules.auth.sessions.service.sessions_crud.delete_sessions_by_user") as delete,
-        pytest.raises(core_exceptions.StepUpFailedError),
-    ):
-        sessions_service.delete_sessions_by_user_and_commit(MOCK_USER_ID, _STEP_UP, _refusing(), mock_db)
-
-    delete.assert_not_called()
-    mock_db.commit.assert_not_called()
-
-
-def test_an_administrator_revoking_all_sessions_bumps_before_the_commit(mock_db):
-    order = MagicMock()
-    order.attach_mock(mock_db.commit, "commit")
-    with (
-        patch("modules.auth.sessions.service.sessions_crud.delete_sessions_by_user", return_value=2) as delete,
-        patch("modules.auth.sessions.service.sessions_event_publishers.publish_sessions_revoked"),
-        patch("modules.auth.sessions.service.security_generation_integration.stage_bump") as bump,
-    ):
-        order.attach_mock(bump, "bump")
-        order.attach_mock(delete, "delete_sessions")
-        sessions_service.delete_sessions_by_user_and_commit(MOCK_USER_ID, _STEP_UP, MagicMock(), mock_db)
-
-    bump.assert_called_once_with(MOCK_USER_ID, mock_db)
-    assert [call[0] for call in order.mock_calls] == ["bump", "delete_sessions", "commit"]
-
-
-def test_an_administrator_revoking_all_sessions_bumps_when_none_were_open(mock_db):
-    with (
-        patch("modules.auth.sessions.service.sessions_crud.delete_sessions_by_user", return_value=0),
-        patch("modules.auth.sessions.service.security_generation_integration.stage_bump") as bump,
-    ):
-        sessions_service.delete_sessions_by_user_and_commit(MOCK_USER_ID, _STEP_UP, MagicMock(), mock_db)
-
-    bump.assert_called_once_with(MOCK_USER_ID, mock_db)
-
-
-def test_revoking_all_but_one_session_does_not_bump(mock_db):
-    with (
-        patch("modules.auth.sessions.service.sessions_crud.delete_sessions_by_user", return_value=1),
-        patch("modules.auth.sessions.service.sessions_event_publishers.publish_sessions_revoked"),
-        patch("modules.auth.sessions.service.security_generation_integration.stage_bump") as bump,
-    ):
-        sessions_service.delete_sessions_by_user_and_commit(
-            MOCK_USER_ID, _STEP_UP, MagicMock(), mock_db, exclude_session_id=_id("keep")
-        )
-
-    bump.assert_not_called()
-
-
-def test_a_refused_step_up_does_not_bump(mock_db):
-    with (
-        patch("modules.auth.sessions.service.security_generation_integration.stage_bump") as bump,
-        pytest.raises(core_exceptions.StepUpFailedError),
-    ):
-        sessions_service.delete_sessions_by_user_and_commit(MOCK_USER_ID, _STEP_UP, _refusing(), mock_db)
-
-    bump.assert_not_called()
-
-
-def test_revoking_one_session_does_not_bump(mock_db):
-    with (
-        patch("modules.auth.sessions.service.sessions_crud.delete_session", return_value=_session()),
-        patch("modules.auth.sessions.service.rotated_refresh_tokens_integration.delete_by_family"),
-        patch("modules.auth.sessions.service.sessions_event_publishers.publish_sessions_revoked"),
-        patch("modules.auth.sessions.service.security_generation_integration.stage_bump") as bump,
-    ):
-        sessions_service.stage_delete_session(_id("sid"), MOCK_USER_ID, mock_db)
-
-    bump.assert_not_called()
-
-
-class TestBulkDeleteRemovesOAuthStates:
-    """A bulk session delete also removes the OAuth state rows of the deleted sessions, and only those."""
-
-    @staticmethod
-    def _seed(db):
-        import modules.auth.oauth_state.constants as oauth_state_constants
-        import modules.auth.oauth_state.models as oauth_state_models
-        import modules.auth.sessions.models as sessions_models
-
+class TestListing:
+    def test_a_page_holds_the_exchanged_sessions_newest_first_with_the_total(self, db):
+        user = make_user(db)
         now = datetime.now(UTC)
-        for user_id, session_id, state_id in (
-            (MOCK_USER_ID, _id("s-kept"), "st-kept"),
-            (MOCK_USER_ID, _id("s-gone"), "st-gone"),
-            (OTHER_USER_ID, _id("s-other"), "st-other"),
-        ):
-            db.add(
-                oauth_state_models.OAuthState(
-                    id=state_id,
-                    nonce="n" * 32,
-                    client_type="web",
-                    purpose=oauth_state_constants.OAuthStatePurpose.LOGIN,
-                    expires_at=now + timedelta(minutes=5),
-                )
-            )
-            db.add(
-                sessions_models.UsersSessions(
-                    id=session_id,
-                    user_id=user_id,
-                    refresh_token="hash",
-                    ip_address="127.0.0.1",
-                    device_type="PC",
-                    operating_system="Linux",
-                    operating_system_version="1",
-                    browser="Firefox",
-                    browser_version="1",
-                    created_at=now,
-                    last_activity_at=now,
-                    expires_at=now + timedelta(days=1),
-                    tokens_exchanged=True,
-                    token_family_id=session_id,
-                    rotation_count=0,
-                    client_type="web",
-                    auth_time=now,
-                    amr=["pwd"],
-                    oauth_state_id=state_id,
-                )
-            )
-        db.commit()
+        oldest = make_session(db, user, created_at=now - timedelta(hours=3))
+        newest = make_session(db, user, created_at=now - timedelta(hours=1))
+        middle = make_session(db, user, created_at=now - timedelta(hours=2))
+        make_session(db, user, exchanged=False)
+        make_session(db, make_user(db))
 
-    @staticmethod
-    def _state_ids(db):
-        import modules.auth.oauth_state.models as oauth_state_models
+        page = sessions_service.list_user_sessions(
+            user.id, core_pagination.PageParams(page_number=1, num_records=2), db
+        )
+        second = sessions_service.list_user_sessions(
+            user.id, core_pagination.PageParams(page_number=2, num_records=2), db
+        )
 
-        return set(db.execute(sa.select(oauth_state_models.OAuthState.id)).scalars())
+        assert [item.id for item in page.items] == [newest.id, middle.id]
+        assert [item.id for item in second.items] == [oldest.id]
+        assert page.total == second.total == 3
 
-    def test_it_removes_the_states_of_the_deleted_sessions_only(self):
-        from tests._helpers.db import create_sqlite_session
+    def test_only_the_callers_own_session_is_marked_current(self, db):
+        user = make_user(db)
+        own, other = make_session(db, user), make_session(db, user)
 
-        db = create_sqlite_session()
-        self._seed(db)
-        with patch("modules.auth.sessions.service.sessions_event_publishers.publish_sessions_revoked"):
-            assert sessions_service.delete_sessions_by_user(MOCK_USER_ID, db) == 2
-        db.commit()
+        page = sessions_service.list_user_sessions(
+            user.id, core_pagination.PageParams(page_number=1, num_records=10), db, own.id
+        )
 
-        assert self._state_ids(db) == {"st-other"}
-        db.close()
+        assert {item.id: item.is_current for item in page.items} == {own.id: True, other.id: False}
 
-    def test_it_keeps_the_state_of_the_excluded_session(self):
-        from tests._helpers.db import create_sqlite_session
+    def test_the_demo_environment_lists_none(self, db, monkeypatch):
+        user = make_user(db)
+        make_session(db, user)
+        monkeypatch.setattr(core_config.settings, "ENVIRONMENT", "demo")
 
-        db = create_sqlite_session()
-        self._seed(db)
-        with patch("modules.auth.sessions.service.sessions_event_publishers.publish_sessions_revoked"):
-            assert sessions_service.delete_sessions_by_user(MOCK_USER_ID, db, _id("s-kept")) == 1
-        db.commit()
+        page = sessions_service.list_user_sessions(
+            user.id, core_pagination.PageParams(page_number=1, num_records=10), db
+        )
 
-        assert self._state_ids(db) == {"st-kept", "st-other"}
-        db.close()
+        assert (page.items, page.total) == ([], 0)
 
 
-class TestStaleSessionPurge:
-    """A session ended by the cleanup jobs is announced like any other revoked session."""
+class TestDeleteOne:
+    def test_an_administrators_delete_ends_the_session_cleans_its_records_audits_and_announces(self, db, published):
+        events = published(sessions_events.SESSIONS_REVOKED)
+        user = make_user(db)
+        state_id = _state(db, "state-1")
+        session = make_session(db, user, oauth_state_id=state_id)
+        rotated_refresh_tokens_integration.store_rotated_token(
+            "old-token",
+            session.token_family_id,
+            0,
+            db,
+            ip_address="127.0.0.1",
+            user_agent="agent",
+            refresh_token_exp=datetime.now(UTC) + timedelta(days=1),
+            replacement_refresh_token="new",
+            replacement_refresh_token_exp=datetime.now(UTC) + timedelta(days=1),
+        )
 
-    _PUBLISH = "modules.auth.sessions.service.sessions_event_publishers.publish_sessions_revoked"
+        sessions_service.delete_session(session.id, user.id, _STEP_UP, _accepting, db)
 
-    def test_the_expired_purge_announces_each_ended_session_and_commits_each_batch(self):
-        db = MagicMock()
-        batches = [
-            [(MOCK_USER_ID, _id(f"s{i}")) for i in range(sessions_service.core_database.PURGE_BATCH_SIZE)],
-            [(OTHER_USER_ID, _id("last"))],
-        ]
-        with (
-            patch("modules.auth.sessions.service.sessions_crud.delete_expired_sessions", side_effect=batches) as crud,
-            patch(self._PUBLISH) as publish,
-        ):
-            total = sessions_service.delete_expired_sessions(db)
-
-        assert total == sessions_service.core_database.PURGE_BATCH_SIZE + 1
-        assert crud.call_count == 2
-        assert db.commit.call_count == 2
-        assert publish.call_count == total
-        assert publish.call_args_list[-1].args == (OTHER_USER_ID, db)
-        assert publish.call_args_list[-1].kwargs == {"session_id": _id("last")}
-
-    def test_the_idle_purge_announces_each_ended_session(self):
-        db = MagicMock()
-        policy = MagicMock(idle_timeout=timedelta(hours=1))
-        with (
-            patch("modules.auth.sessions.service.server_settings_integration.get_session_policy", return_value=policy),
-            patch(
-                "modules.auth.sessions.service.sessions_crud.delete_idle_sessions",
-                return_value=[(MOCK_USER_ID, _id("a")), (_THIRD_USER_ID, _id("b"))],
-            ),
-            patch(self._PUBLISH) as publish,
-        ):
-            assert sessions_service.delete_idle_sessions(db) == 2
-
-        assert [(c.args[0], c.kwargs["session_id"]) for c in publish.call_args_list] == [
-            (MOCK_USER_ID, _id("a")),
-            (_THIRD_USER_ID, _id("b")),
+        assert session.id not in _session_ids(db)
+        assert state_id not in _state_ids(db)
+        assert rotated_refresh_tokens_integration.check_token_reuse(
+            "old-token", db, ip_address="127.0.0.1", user_agent="agent"
+        ) == (False, False)
+        (row,) = _audit(db, sessions_audit_actions.SESSION_REVOKE)
+        assert (row.target_type, row.target_id, row.target_owner_id) == ("session", str(session.id), str(user.id))
+        assert row.details == {"sessions_revoked": 1}
+        assert [e.payload for e in events] == [
+            {"user_id": str(user.id), "session_id": str(session.id), "except_session_id": None}
         ]
 
-    def test_no_idle_timeout_ends_nothing_and_announces_nothing(self):
-        policy = MagicMock(idle_timeout=None)
-        with (
-            patch("modules.auth.sessions.service.server_settings_integration.get_session_policy", return_value=policy),
-            patch("modules.auth.sessions.service.sessions_crud.delete_idle_sessions") as crud,
-            patch(self._PUBLISH) as publish,
-        ):
-            assert sessions_service.delete_idle_sessions(MagicMock()) == 0
+    def test_a_refused_step_up_deletes_nothing(self, db):
+        user = make_user(db)
+        session = make_session(db, user)
 
-        crud.assert_not_called()
-        publish.assert_not_called()
+        with pytest.raises(core_exceptions.StepUpFailedError):
+            sessions_service.delete_session(session.id, user.id, _STEP_UP, _refusing, db)
+
+        assert session.id in _session_ids(db)
+        assert _audit(db, sessions_audit_actions.SESSION_REVOKE) == []
+
+    def test_another_users_session_is_not_found_and_not_audited(self, db):
+        owner, other = make_user(db), make_user(db)
+        session = make_session(db, owner)
+
+        with pytest.raises(core_exceptions.NotFoundError):
+            sessions_service.delete_session(session.id, other.id, _STEP_UP, _accepting, db)
+
+        assert session.id in _session_ids(db)
+        assert _audit(db, sessions_audit_actions.SESSION_REVOKE) == []
+
+    def test_the_staged_delete_used_by_logout_adds_no_audit_row_and_announces(self, db, published):
+        events = published(sessions_events.SESSIONS_REVOKED)
+        user = make_user(db)
+        session = make_session(db, user)
+
+        sessions_service.stage_delete_session(session.id, user.id, db)
+        db.commit()
+
+        assert session.id not in _session_ids(db)
+        assert _audit(db, sessions_audit_actions.SESSION_REVOKE) == []
+        assert len(events) == 1
+
+    def test_deleting_a_session_that_may_be_gone_reports_whether_it_was_there(self, db):
+        user = make_user(db)
+        session = make_session(db, user)
+
+        assert sessions_service.stage_delete_session_if_present(session.id, user.id, db) is True
+        assert sessions_service.stage_delete_session_if_present(session.id, user.id, db) is False
+
+
+class TestDeleteAllOfAUser:
+    def test_an_administrators_revoke_ends_every_session_bumps_the_generation_audits_the_count_and_announces(
+        self, db, published
+    ):
+        events = published(sessions_events.SESSIONS_REVOKED)
+        user = make_user(db)
+        sessions = [make_session(db, user) for _ in range(3)]
+        other = make_session(db, make_user(db))
+        before = security_generation_integration.current_generation(user.id, db)
+
+        deleted = sessions_service.delete_sessions_by_user_and_commit(user.id, _STEP_UP, _accepting, db)
+
+        assert deleted == 3
+        assert _session_ids(db) == {other.id}
+        assert security_generation_integration.current_generation(user.id, db) == before + 1
+        (row,) = _audit(db, sessions_audit_actions.SESSION_REVOKE)
+        assert (row.target_type, row.target_id, row.details) == ("user", str(user.id), {"sessions_revoked": 3})
+        assert [e.payload["user_id"] for e in events] == [str(user.id)]
+        assert events[0].payload["session_id"] is None
+        assert all(s.id not in _session_ids(db) for s in sessions)
+
+    def test_revoking_when_none_are_open_still_bumps_the_generation_and_audits_nothing(self, db, published):
+        events = published(sessions_events.SESSIONS_REVOKED)
+        user = make_user(db)
+        before = security_generation_integration.current_generation(user.id, db)
+
+        assert sessions_service.delete_sessions_by_user_and_commit(user.id, _STEP_UP, _accepting, db) == 0
+
+        assert security_generation_integration.current_generation(user.id, db) == before + 1
+        assert _audit(db, sessions_audit_actions.SESSION_REVOKE) == []
+        assert events == []
+
+    def test_keeping_one_session_does_not_bump_the_generation_and_names_the_kept_session(self, db, published):
+        events = published(sessions_events.SESSIONS_REVOKED)
+        user = make_user(db)
+        kept, gone = make_session(db, user), make_session(db, user)
+        before = security_generation_integration.current_generation(user.id, db)
+
+        deleted = sessions_service.delete_sessions_by_user_and_commit(
+            user.id, _STEP_UP, _accepting, db, exclude_session_id=kept.id
+        )
+
+        assert deleted == 1
+        assert _session_ids(db) == {kept.id}
+        assert security_generation_integration.current_generation(user.id, db) == before
+        assert [e.payload["except_session_id"] for e in events] == [str(kept.id)]
+        assert gone.id not in _session_ids(db)
+
+    def test_a_refused_step_up_deletes_nothing_and_does_not_bump(self, db):
+        user = make_user(db)
+        session = make_session(db, user)
+        before = security_generation_integration.current_generation(user.id, db)
+
+        with pytest.raises(core_exceptions.StepUpFailedError):
+            sessions_service.delete_sessions_by_user_and_commit(user.id, _STEP_UP, _refusing, db)
+
+        assert session.id in _session_ids(db)
+        assert security_generation_integration.current_generation(user.id, db) == before
+
+    def test_the_oauth_states_of_the_deleted_sessions_go_and_the_kept_ones_stay(self, db):
+        user, other = make_user(db), make_user(db)
+        kept = make_session(db, user, exchanged=False, oauth_state_id=_state(db, "st-kept"))
+        make_session(db, user, exchanged=False, oauth_state_id=_state(db, "st-gone"))
+        make_session(db, other, exchanged=False, oauth_state_id=_state(db, "st-other"))
+
+        sessions_service.delete_sessions_by_user(user.id, db, kept.id)
+        db.commit()
+
+        assert _state_ids(db) == {"st-kept", "st-other"}
+
+    def test_a_staged_delete_of_nothing_announces_nothing(self, db, published):
+        events = published(sessions_events.SESSIONS_REVOKED)
+
+        assert sessions_service.delete_sessions_by_user(make_user(db).id, db) == 0
+
+        assert events == []
+
+
+class TestFamilyInvalidation:
+    def test_it_ends_the_family_sessions_and_their_rotated_tokens_and_announces_each(self, db, published):
+        events = published(sessions_events.SESSIONS_REVOKED)
+        user = make_user(db)
+        session = make_session(db, user)
+        kept = make_session(db, user)
+        rotated_refresh_tokens_integration.store_rotated_token(
+            "old-token",
+            session.token_family_id,
+            0,
+            db,
+            ip_address="127.0.0.1",
+            user_agent="agent",
+            refresh_token_exp=datetime.now(UTC) + timedelta(days=1),
+            replacement_refresh_token="new",
+            replacement_refresh_token_exp=datetime.now(UTC) + timedelta(days=1),
+        )
+
+        deleted = sessions_service.invalidate_token_family(session.token_family_id, db)
+        db.commit()
+
+        assert deleted == 1
+        assert _session_ids(db) == {kept.id}
+        assert rotated_refresh_tokens_integration.check_token_reuse(
+            "old-token", db, ip_address="127.0.0.1", user_agent="agent"
+        ) == (False, False)
+        assert [e.payload["session_id"] for e in events] == [str(session.id)]
+
+    def test_the_log_names_a_fingerprint_not_the_family_id(self, db, caplog):
+        session = make_session(db, make_user(db))
+
+        with caplog.at_level("WARNING"):
+            sessions_service.invalidate_token_family(session.token_family_id, db)
+
+        assert str(session.token_family_id) not in caplog.text
+
+
+class TestDeviceSessions:
+    def test_the_sessions_of_a_device_end_with_their_records_and_only_that_users(self, db, published):
+        events = published(sessions_events.SESSIONS_REVOKED)
+        user, other = make_user(db), make_user(db)
+        first = make_session(db, user, device_hash="a" * 64, oauth_state_id=_state(db, "st-1"))
+        second = make_session(db, user, device_hash="a" * 64)
+        elsewhere = make_session(db, user, device_hash="b" * 64)
+        theirs = make_session(db, other, device_hash="a" * 64)
+
+        deleted = sessions_service.delete_sessions_by_device(user.id, "a" * 64, db)
+        db.commit()
+
+        assert deleted == 2
+        assert _session_ids(db) == {elsewhere.id, theirs.id}
+        assert "st-1" not in _state_ids(db)
+        assert {e.payload["session_id"] for e in events} == {str(first.id), str(second.id)}
+
+    def test_a_session_is_tied_to_the_device_it_signed_in_from(self, db):
+        session = make_session(db, make_user(db))
+
+        sessions_service.set_session_device_hash(session.id, "c" * 64, db)
+
+        assert sessions_crud.get_session_by_id(session.id, db).device_hash == "c" * 64
+
+
+class TestPurge:
+    def test_the_expired_purge_ends_expired_sessions_in_batches_and_announces_each(self, db, published):
+        events = published(sessions_events.SESSIONS_REVOKED)
+        user = make_user(db)
+        now = datetime.now(UTC)
+        live = make_session(db, user)
+        count = core_database.PURGE_BATCH_SIZE + 1
+        template = {c.name: getattr(live, c.name, None) for c in sessions_models.UsersSessions.__table__.columns}
+        rows = []
+        for _ in range(count):
+            expired_id = uuid.uuid4()
+            rows.append(
+                template
+                | {
+                    "id": expired_id,
+                    "token_family_id": expired_id,
+                    "refresh_token": expired_id.hex,
+                    "expires_at": now - timedelta(minutes=1),
+                }
+            )
+        db.execute(sa.insert(sessions_models.UsersSessions), rows)
+
+        total = sessions_service.delete_expired_sessions(db)
+
+        assert total == count
+        assert _session_ids(db) == {live.id}
+        assert len(events) == count
+
+    def test_the_idle_purge_ends_sessions_idle_longer_than_the_timeout_and_announces_them(self, db, published):
+        events = published(sessions_events.SESSIONS_REVOKED)
+        edit_server_settings(
+            db, session_idle_timeout_enabled=True, session_idle_timeout_hours=1, access_token_expire_minutes=15
+        )
+        user = make_user(db)
+        idle = make_session(db, user, last_activity_at=datetime.now(UTC) - timedelta(hours=2))
+        active = make_session(db, user)
+
+        assert sessions_service.delete_idle_sessions(db) == 1
+
+        assert _session_ids(db) == {active.id}
+        assert [e.payload["session_id"] for e in events] == [str(idle.id)]
+
+    def test_without_an_idle_timeout_nothing_ends(self, db, published):
+        events = published(sessions_events.SESSIONS_REVOKED)
+        edit_server_settings(db, session_idle_timeout_enabled=False)
+        make_session(db, make_user(db), last_activity_at=datetime.now(UTC) - timedelta(days=100))
+
+        assert sessions_service.delete_idle_sessions(db) == 0
+
+        assert len(_session_ids(db)) == 1
+        assert events == []

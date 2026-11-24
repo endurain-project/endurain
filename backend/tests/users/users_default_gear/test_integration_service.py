@@ -1,49 +1,50 @@
-"""Tests for users.users_default_gear.integration_service module."""
+"""What other modules read from and write to the default gear settings."""
 
-import uuid
-from unittest.mock import MagicMock, patch
+import pytest
 
-import modules.users.users_default_gear.integration_service as user_default_gear_integration
-import modules.users.users_default_gear.models as user_default_gear_models
-from tests._helpers.auth import MOCK_USER_ID
+import core.exceptions as core_exceptions
+import modules.users.users_default_gear.integration_service as integration
+import modules.users.users_default_gear.schema as schema
+import modules.users.users_default_gear.service as service
+from tests._factories.gears import make_gear
 
-_GEAR_A = uuid.uuid4()
-_GEAR_B = uuid.uuid4()
+_RUN = 1
+_RIDE = 4
+_UNMAPPED = 999
 
 
-@patch("modules.users.users_default_gear.integration_service.users_default_gear_crud")
 class TestGetDefaultGearForActivityType:
-    def test_returns_the_gear_for_the_activity_type(self, mock_crud):
-        row = MagicMock(spec=user_default_gear_models.UsersDefaultGear)
-        row.run_gear_id = _GEAR_A
-        mock_crud.get_user_default_gear_by_user_id.return_value = row
+    def test_the_gear_assigned_to_the_type_is_returned(self, db, user):
+        gear = make_gear(db, user.id)
+        service.stage_default_gear_edit(schema.UserDefaultGearUpdate(run_gear_id=gear.id), user.id, db, if_match="*")
 
-        assert user_default_gear_integration.get_default_gear_for_activity_type(MOCK_USER_ID, 1, MagicMock()) == _GEAR_A
+        assert integration.get_default_gear_for_activity_type(user.id, _RUN, db) == gear.id
 
-    def test_returns_none_when_the_user_has_no_settings(self, mock_crud):
-        mock_crud.get_user_default_gear_by_user_id.return_value = None
+    def test_an_unassigned_type_has_no_gear(self, db, user):
+        assert integration.get_default_gear_for_activity_type(user.id, _RIDE, db) is None
 
-        assert user_default_gear_integration.get_default_gear_for_activity_type(MOCK_USER_ID, 1, MagicMock()) is None
+    def test_an_unknown_type_has_no_gear(self, db, user):
+        assert integration.get_default_gear_for_activity_type(user.id, _UNMAPPED, db) is None
 
-    def test_returns_none_for_an_unknown_activity_type(self, mock_crud):
-        mock_crud.get_user_default_gear_by_user_id.return_value = MagicMock(
-            spec=user_default_gear_models.UsersDefaultGear
-        )
+    def test_a_user_without_settings_has_no_gear(self, db):
+        import uuid
 
-        assert user_default_gear_integration.get_default_gear_for_activity_type(MOCK_USER_ID, 999, MagicMock()) is None
-
-    def test_returns_none_when_the_gear_is_unset(self, mock_crud):
-        row = MagicMock(spec=user_default_gear_models.UsersDefaultGear)
-        row.ride_gear_id = None
-        mock_crud.get_user_default_gear_by_user_id.return_value = row
-
-        assert user_default_gear_integration.get_default_gear_for_activity_type(MOCK_USER_ID, 4, MagicMock()) is None
+        assert integration.get_default_gear_for_activity_type(uuid.uuid4(), _RUN, db) is None
 
 
-@patch("modules.users.users_default_gear.integration_service.users_default_gear_crud")
-def test_clear_default_gears_stages_through_the_crud(mock_crud):
-    db = MagicMock()
+class TestClearDefaultGears:
+    def test_the_gear_is_unassigned(self, db, user):
+        gear = make_gear(db, user.id)
+        service.stage_default_gear_edit(schema.UserDefaultGearUpdate(run_gear_id=gear.id), user.id, db, if_match="*")
 
-    user_default_gear_integration.clear_default_gears([_GEAR_A, _GEAR_B], MOCK_USER_ID, db)
+        integration.clear_default_gears([gear.id], user.id, db)
+        db.expire_all()
 
-    mock_crud.clear_gears.assert_called_once_with([_GEAR_A, _GEAR_B], MOCK_USER_ID, db)
+        stored = integration.get_default_gear(user.id, db)
+        assert stored is not None
+        assert stored.run_gear_id is None
+
+
+def test_creating_the_settings_twice_is_a_conflict(db, user):
+    with pytest.raises(core_exceptions.ConflictError):
+        integration.create_default_gear(user.id, db)

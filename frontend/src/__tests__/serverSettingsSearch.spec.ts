@@ -34,11 +34,6 @@ describe('searchSettings', () => {
     expect(results[0]?.entry.id).toBe('session-idle-hours')
   })
 
-  it('finds a setting by the environment variable that sets it', () => {
-    const results = searchSettings('SMTP_HOST', translate, tabLabel)
-    expect(results.map((result) => result.entry.id)).toEqual(['email-host'])
-  })
-
   it('requires every word to match', () => {
     expect(searchSettings('idle banana', translate, tabLabel)).toEqual([])
   })

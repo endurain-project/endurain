@@ -1,30 +1,20 @@
 """The dedicated username change: schema, step-up, conflict, no-op, session revocation, audit and notice."""
 
-import uuid
-from unittest.mock import MagicMock, patch
-
-import jasil.testing as jasil_testing
 import pytest
+import sqlalchemy as sa
+from jasil.audit.models import AuditLog
 from pydantic import ValidationError
 
 import core.exceptions as core_exceptions
 import modules.auth.account_security.events as account_security_events
-import modules.auth.identity_providers.constants as identity_providers_constants
+import modules.auth.account_security.integration_service as account_security_integration
+import modules.auth.security_generation.integration_service as security_generation_integration
+import modules.auth.sessions.models as session_models
+import modules.users.users.integration_service as users_integration
 import modules.users.users.schema as users_schema
-import modules.users.users.service as users_service
 import modules.users.users_profile.audit_actions as profile_audit_actions
 import modules.users.users_profile.service as profile_service
-
-_SERVICE = "modules.users.users_profile.service"
-_USERS = "modules.users.users.service"
-_USER_ID = uuid.UUID(int=7)
-_TARGET = {"target_type": "user", "target_id": str(_USER_ID), "target_owner_id": str(_USER_ID)}
-
-
-def _change(username="New.Name", *, revoke=True) -> users_schema.UsernameChange:
-    return users_schema.UsernameChange(
-        username=username, step_up={"current_password": "pw"}, revoke_other_sessions=revoke
-    )
+from tests._factories.users import PASSWORD, make_user
 
 
 class TestUsernameChangeSchema:
@@ -49,109 +39,133 @@ class TestUsernameChangeSchema:
             users_schema.ProfileUpdate(username="ada")
 
 
-class TestStageUsernameChange:
-    def _stage(self, mock_db, new, *, current="old"):
-        with (
-            patch(f"{_USERS}.users_crud") as crud,
-            patch(f"{_USERS}.security_generation_integration") as generation,
-        ):
-            crud.get_user_by_id.return_value = users_schema.UserRead(
-                id=_USER_ID, name="N", username=current, email="a@example.com", active=True, access_type="regular"
-            )
-            result = users_service.stage_username_change(_USER_ID, new, mock_db)
-        return result, crud, generation
+@pytest.fixture
+def platform(_publish_local_platform):
+    return _publish_local_platform
 
-    def test_stores_the_lower_cased_username(self, mock_db):
-        changed, crud, _ = self._stage(mock_db, "New.Name")
 
-        assert changed is True
-        assert crud.update_user.call_args.args[:2] == (_USER_ID, {"username": "new.name"})
+@pytest.fixture
+def step_up_store(platform):
+    return account_security_integration.get_step_up_attempts(platform.state)
 
-    def test_the_same_username_in_any_case_changes_nothing(self, mock_db):
-        changed, crud, _ = self._stage(mock_db, "OLD")
 
-        assert changed is False
-        crud.update_user.assert_not_called()
+@pytest.fixture
+def owner(committed_sessions):
+    with committed_sessions() as db:
+        created = make_user(db, username="old")
+        db.commit()
+    return created
 
-    def test_does_not_bump_the_security_generation(self, mock_db):
-        _, _, generation = self._stage(mock_db, "new")
 
-        generation.stage_bump.assert_not_called()
+@pytest.fixture
+def notices(platform):
+    """The account-security notices the bus carries."""
+    seen = []
+    platform.events.subscribe(account_security_events.ACCOUNT_SECURITY_CHANGED, seen.append)
+    return seen
+
+
+def _change(
+    committed_sessions, step_up_store, owner, username="New.Name", *, revoke=True, session=None, password=PASSWORD
+):
+    change = users_schema.UsernameChange(
+        username=username, step_up={"current_password": password}, revoke_other_sessions=revoke
+    )
+    with committed_sessions() as db:
+        return profile_service.change_username(owner.id, change, session or owner.id, step_up_store, db)
+
+
+def _username(committed_sessions, user_id):
+    with committed_sessions() as db:
+        return users_integration.require_user(user_id, db).username
+
+
+def _audit(committed_sessions):
+    with committed_sessions() as db:
+        return list(
+            db.scalars(sa.select(AuditLog).where(AuditLog.action_id == profile_audit_actions.USERNAME_CHANGE.id))
+        )
+
+
+def _sessions(committed_sessions, user_id):
+    with committed_sessions() as db:
+        return set(db.scalars(sa.select(session_models.UsersSessions.id).filter_by(user_id=user_id)))
 
 
 class TestChangeUsername:
-    def _run(self, mock_db, change, *, staged=True, side_effect=None):
-        with (
-            patch(f"{_SERVICE}.account_security_integration") as security,
-            patch(f"{_SERVICE}.users_integration") as users,
-            patch(f"{_SERVICE}.get_profile") as get_profile,
-        ):
-            users.stage_username_change.return_value = staged
-            users.stage_username_change.side_effect = side_effect
-            result = profile_service.change_username(_USER_ID, change, "sid", MagicMock(), mock_db)
-        return result, security, users, get_profile
+    def test_the_lower_cased_username_is_stored_and_the_profile_comes_back(
+        self, committed_sessions, owner, step_up_store, notices
+    ):
+        profile = _change(committed_sessions, step_up_store, owner)
 
-    def test_verifies_step_up_for_the_username_change_action(self, mock_db):
-        _, security, _, _ = self._run(mock_db, _change())
+        assert profile.username == "new.name"
+        assert _username(committed_sessions, owner.id) == "new.name"
 
-        args = security.verify_step_up.call_args.args
-        assert args[1:3] == (_USER_ID, "sid")
-        assert args[3] == identity_providers_constants.StepUpAction.USERNAME_CHANGE
+    def test_a_failed_step_up_changes_nothing(self, committed_sessions, owner, step_up_store, notices):
+        with pytest.raises(core_exceptions.StepUpFailedError):
+            _change(committed_sessions, step_up_store, owner, password="wrong")
 
-    def test_stages_the_username_and_commits_once(self, mock_db):
-        _, _, users, get_profile = self._run(mock_db, _change())
+        assert _username(committed_sessions, owner.id) == "old"
+        assert notices == [] and _audit(committed_sessions) == []
 
-        assert users.stage_username_change.call_args.args[:2] == (_USER_ID, "New.Name")
-        mock_db.commit.assert_called_once()
-        get_profile.assert_called_once_with(_USER_ID, mock_db)
+    def test_a_taken_username_is_a_conflict_and_changes_nothing(
+        self, committed_sessions, owner, step_up_store, notices
+    ):
+        with committed_sessions() as db:
+            holder = make_user(db, username="taken")
+            db.commit()
 
-    def test_a_failed_step_up_changes_nothing(self, mock_db):
-        with (
-            patch(f"{_SERVICE}.account_security_integration") as security,
-            patch(f"{_SERVICE}.users_integration") as users,
-        ):
-            security.verify_step_up.side_effect = core_exceptions.StepUpFailedError("no")
-            with pytest.raises(core_exceptions.StepUpFailedError):
-                profile_service.change_username(_USER_ID, _change(), "sid", MagicMock(), mock_db)
-
-        users.stage_username_change.assert_not_called()
-
-    def test_a_taken_username_rolls_back_and_raises_a_conflict(self, mock_db):
         with pytest.raises(core_exceptions.ConflictError):
-            self._run(mock_db, _change(), side_effect=core_exceptions.ConflictError("taken"))
+            _change(committed_sessions, step_up_store, owner, "TAKEN")
 
-        mock_db.rollback.assert_called_once()
-        mock_db.commit.assert_not_called()
+        assert _username(committed_sessions, owner.id) == "old"
+        assert _username(committed_sessions, holder.id) == "taken"
+        assert _audit(committed_sessions) == []
 
-    def test_resubmitting_the_current_username_is_a_no_op(self, mock_db):
-        with jasil_testing.capture_audit() as audit:
-            _, security, _, _ = self._run(mock_db, _change(), staged=False)
+    def test_resubmitting_the_current_username_in_any_case_is_a_no_op(
+        self, committed_sessions, owner, step_up_store, notices, sign_in
+    ):
+        mine, other = sign_in(owner), sign_in(owner)
 
-        audit.assert_not_audited(profile_audit_actions.USERNAME_CHANGE.id)
-        security.stage_account_change_notice.assert_not_called()
-        security.delete_other_user_sessions.assert_not_called()
+        _change(committed_sessions, step_up_store, owner, "OLD", session=mine.session_id)
 
-    def test_revokes_other_sessions_when_asked(self, mock_db):
-        _, security, _, _ = self._run(mock_db, _change(revoke=True))
+        assert notices == [] and _audit(committed_sessions) == []
+        assert _sessions(committed_sessions, owner.id) == {mine.session_id, other.session_id}
 
-        security.delete_other_user_sessions.assert_called_once_with(_USER_ID, "sid", mock_db)
+    def test_other_sessions_end_when_asked_and_stay_when_the_client_opts_out(
+        self, committed_sessions, owner, step_up_store, notices, sign_in
+    ):
+        mine, other = sign_in(owner), sign_in(owner)
 
-    def test_keeps_other_sessions_when_the_client_opts_out(self, mock_db):
-        _, security, _, _ = self._run(mock_db, _change(revoke=False))
+        _change(committed_sessions, step_up_store, owner, "first", revoke=False, session=mine.session_id)
+        assert _sessions(committed_sessions, owner.id) == {mine.session_id, other.session_id}
 
-        security.delete_other_user_sessions.assert_not_called()
+        _change(committed_sessions, step_up_store, owner, "second", revoke=True, session=mine.session_id)
+        assert _sessions(committed_sessions, owner.id) == {mine.session_id}
 
-    def test_tells_the_account_owner(self, mock_db):
-        _, security, _, _ = self._run(mock_db, _change())
+    def test_the_account_owner_is_told(self, committed_sessions, owner, step_up_store, notices):
+        _change(committed_sessions, step_up_store, owner)
 
-        security.stage_account_change_notice.assert_called_once_with(
-            _USER_ID, account_security_events.AccountSecurityChange.USERNAME_CHANGED, mock_db
-        )
+        assert [(event.payload["user_id"], event.payload["change"]) for event in notices] == [
+            (str(owner.id), account_security_events.AccountSecurityChange.USERNAME_CHANGED.value)
+        ]
 
     @pytest.mark.parametrize("revoke", [True, False])
-    def test_audits_the_change_without_the_username(self, mock_db, revoke):
-        with jasil_testing.capture_audit() as audit:
-            self._run(mock_db, _change(revoke=revoke))
+    def test_the_change_is_audited_without_the_username(
+        self, committed_sessions, owner, step_up_store, notices, revoke
+    ):
+        _change(committed_sessions, step_up_store, owner, "audited.name", revoke=revoke)
 
-        entry = audit.assert_audited(profile_audit_actions.USERNAME_CHANGE.id, **_TARGET)
-        assert entry.details == {"other_sessions_revoked": revoke}
+        (row,) = _audit(committed_sessions)
+        assert row.details == {"other_sessions_revoked": revoke}
+        assert (row.target_id, row.target_owner_id) == (str(owner.id), str(owner.id))
+        assert "audited.name" not in str(row.details)
+
+    def test_the_security_generation_stays_as_it_is(self, committed_sessions, owner, step_up_store, notices):
+        with committed_sessions() as db:
+            before = security_generation_integration.current_generation(owner.id, db)
+
+        _change(committed_sessions, step_up_store, owner)
+
+        with committed_sessions() as db:
+            assert security_generation_integration.current_generation(owner.id, db) == before

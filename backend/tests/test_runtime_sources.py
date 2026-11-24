@@ -1,93 +1,85 @@
-"""Tests for the settings sources the substrate reloads its providers from."""
-
-from unittest.mock import MagicMock, patch
+"""The settings sources the substrate reloads its providers from, read from the stored operator settings."""
 
 import jasil.settings as jasil_settings
+import pytest
+from sqlalchemy import text
 
-import core.geocoding as core_geocoding
-import core.mail as core_mail
+import core.exceptions as core_exceptions
 import module_registry
+from tests._factories.server_settings import edit_mail_settings, edit_server_settings
 
 
-class TestRuntimeSources:
-    def test_mail_is_runtime_configured(self):
-        sources = module_registry.runtime_sources()
+def _store_mail(committed_sessions, **fields) -> None:
+    with committed_sessions() as db:
+        edit_mail_settings(db, **fields)
+        db.commit()
 
-        assert sources.mail is not None
-        assert sources.geocoding is not None
 
-    def test_the_mail_source_maps_the_stored_config(self):
-        config = core_mail.MailConfig(
-            host="mail.example.com",
-            port=465,
-            security=core_mail.MailSecurity.SSL,
-            from_address="me@example.com",
+class TestMailSource:
+    def test_the_stored_config_is_mapped(self, committed_sessions):
+        _store_mail(
+            committed_sessions, host="mail.example.com", port=465, security="ssl", from_address="me@example.com"
         )
-        with (
-            patch.object(module_registry.core_database, "SessionLocal") as session_local,
-            patch.object(module_registry.server_settings_integration, "get_mail_config", return_value=config) as read,
-        ):
-            result = module_registry.runtime_sources().mail()
+
+        result = module_registry.runtime_sources().mail()
 
         assert result.uri == "smtps://mail.example.com:465"
-        read.assert_called_once_with(session_local.return_value.__enter__.return_value)
 
-    def test_the_mail_source_is_unset_when_mail_is_disabled(self):
-        with (
-            patch.object(module_registry.core_database, "SessionLocal", return_value=MagicMock()),
-            patch.object(module_registry.server_settings_integration, "get_mail_config", return_value=None),
-        ):
-            assert module_registry.runtime_sources().mail() == jasil_settings.MailSettings()
+    def test_mail_is_unset_while_it_is_disabled(self, committed_sessions):
+        assert module_registry.runtime_sources().mail() == jasil_settings.MailSettings()
 
-    def test_the_mail_source_does_not_swallow_a_failed_read(self):
+    def test_a_change_is_seen_after_the_cache_window_not_before(self, committed_sessions, monkeypatch):
+        source = module_registry.runtime_sources().mail
+        assert source() == jasil_settings.MailSettings()
+        _store_mail(committed_sessions, host="mail.example.com", port=465, security="ssl", from_address="me@x.com")
+
+        assert source() == jasil_settings.MailSettings()
+        monkeypatch.setattr(module_registry, "_SETTINGS_CACHE_SECONDS", 0)
+        assert source().uri == "smtps://mail.example.com:465"
+
+    def test_a_failed_read_is_not_swallowed_nor_cached(self, committed_sessions):
         """The substrate decides what a failing source means; the host must let it see the error."""
-        with (
-            patch.object(module_registry.core_database, "SessionLocal", return_value=MagicMock()),
-            patch.object(module_registry.server_settings_integration, "get_mail_config", side_effect=RuntimeError),
-        ):
-            try:
-                module_registry.runtime_sources().mail()
-            except RuntimeError:
-                return
-        raise AssertionError("the failure was swallowed")
+        _store_mail(committed_sessions, host="mail.example.com", port=465, security="ssl", from_address="me@x.com")
+        with committed_sessions() as db:
+            db.execute(text("UPDATE mail_settings SET password = 'not-a-fernet-token'"))
+            db.commit()
+        source = module_registry.runtime_sources().mail
 
+        with pytest.raises(core_exceptions.ServiceUnavailableError):
+            source()
 
-class TestStoragePlainAreas:
-    def test_every_area_is_plain_on_local_storage(self):
-        assert module_registry.storage_plain_areas() == frozenset(
-            {
-                "activity_files",
-                "activity_media",
-                "activity_thumbnails",
-                "bulk_import_errors",
-                "profile_export_staging",
-                "profile_import_staging",
-                "server_images",
-                "identity_provider_icons",
-                "user_images",
-            }
-        )
+        with committed_sessions() as db:
+            db.execute(text("UPDATE mail_settings SET password = NULL"))
+            db.commit()
+        assert source().uri == "smtps://mail.example.com:465"
 
 
 class TestGeocodingSource:
-    def test_the_geocoding_source_maps_the_stored_config(self):
-        config = core_geocoding.GeocodingConfig(
-            service=core_geocoding.GeocodingService.PHOTON, host="photon.example.com", use_https=True, rate_limit=2.0
-        )
-        with (
-            patch.object(module_registry.core_database, "SessionLocal") as session_local,
-            patch.object(
-                module_registry.server_settings_integration, "get_geocoding_config", return_value=config
-            ) as read,
-        ):
-            result = module_registry.runtime_sources().geocoding()
+    def test_the_stored_config_is_mapped(self, committed_sessions):
+        with committed_sessions() as db:
+            edit_server_settings(
+                db,
+                geocoding_service="photon",
+                geocoding_host="photon.example.com",
+                geocoding_use_https=True,
+                geocoding_rate_limit=2.0,
+            )
+            db.commit()
+
+        result = module_registry.runtime_sources().geocoding()
 
         assert result.uri == "photon://photon.example.com"
-        read.assert_called_once_with(session_local.return_value.__enter__.return_value)
 
-    def test_the_geocoding_source_is_unset_without_a_config(self):
-        with (
-            patch.object(module_registry.core_database, "SessionLocal", return_value=MagicMock()),
-            patch.object(module_registry.server_settings_integration, "get_geocoding_config", return_value=None),
-        ):
-            assert module_registry.runtime_sources().geocoding() == jasil_settings.GeocodingSettings()
+    def test_a_service_without_a_host_uses_its_public_instance(self, committed_sessions):
+        with committed_sessions() as db:
+            edit_server_settings(db, geocoding_service="photon", geocoding_host=None)
+            db.commit()
+
+        assert module_registry.runtime_sources().geocoding().uri == "photon://photon.komoot.io"
+
+    def test_missing_settings_leave_geocoding_unset(self, committed_sessions):
+        with committed_sessions() as db:
+            db.execute(text("DELETE FROM server_settings"))
+            db.commit()
+
+        assert module_registry.runtime_sources().geocoding() == jasil_settings.GeocodingSettings()

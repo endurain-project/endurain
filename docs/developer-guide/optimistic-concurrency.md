@@ -146,13 +146,13 @@ Creating and action endpoints (approve a user, change a password, link an accoun
 
 | Test | Where | What it proves |
 | ---- | ----- | -------------- |
-| A write without the header is `428` | the router test | The route requires `IfMatch` and the service is not called. |
+| A write without the header is `428` | the router test | The route requires `IfMatch` and nothing changes. |
 | A stale tag is `412` | the router or service test | `require_if_match` is wired in. |
 | A single-record read carries the `ETag` | the router test | The tag equals the record's version. |
-| A write with the current version succeeds, the same write again is refused | `tests/postgres/` | The real `UPDATE ... WHERE version` guard, which a mocked session cannot exercise. |
-| A bulk update changes the version | `tests/postgres/` | The statement bumps it itself. |
+| A write with the current version succeeds, the same write again is refused | the module's tests, on the real database | The real `UPDATE ... WHERE version` guard. |
+| A bulk update changes the version | the module's tests, on the real database | The statement bumps it itself. |
 
-`tests/postgres/test_health_versions.py`, `test_users_versions.py` and `test_activity_concurrency.py` are the models to copy.
+`tests/health/test_record_versions.py`, `tests/users/users/test_versions.py` and `tests/activities/activity/test_concurrency.py` are the models to copy; every test of a route runs on the real application and database (see the backend skill's `references/testing.md`).
 
 ## Related
 

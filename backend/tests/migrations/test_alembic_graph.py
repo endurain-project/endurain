@@ -12,6 +12,7 @@ from pathlib import Path
 
 import pytest
 from alembic.script import ScriptDirectory
+
 from tests._helpers import alembic_chain
 
 _APP_DIR = Path(__file__).resolve().parents[2] / "app"
@@ -32,13 +33,33 @@ def test_revision_graph_has_exactly_one_head(script_directory: ScriptDirectory) 
     )
 
 
-def test_the_head_is_revision_95() -> None:
-    assert alembic_chain.script_directory().get_heads() == ["e95a7c1d4b36"]
+def test_the_head_is_the_v0_22_optional_workout_step_duration_type_revision() -> None:
+    assert alembic_chain.script_directory().get_heads() == ["3c9e5a7d1f20"]
 
 
-def test_the_v0_21_chain_starts_from_the_v0_20_head() -> None:
+def test_the_history_is_the_baseline_and_the_four_v0_22_revisions() -> None:
     script = alembic_chain.script_directory()
-    assert script.get_revision("c5cfe02a11c2").down_revision == alembic_chain.V0_20_HEAD
+    assert [revision.revision for revision in script.walk_revisions()] == [
+        "3c9e5a7d1f20",
+        "8d2f61b0c7a4",
+        "50ac9225ce4f",
+        "b6cf67a93d94",
+        alembic_chain.V0_21_HEAD,
+    ]
+
+
+def test_the_v0_22_chain_starts_from_the_v0_21_head() -> None:
+    script = alembic_chain.script_directory()
+    assert script.get_revision("b6cf67a93d94").down_revision == alembic_chain.V0_21_HEAD
+    assert script.get_revision("50ac9225ce4f").down_revision == "b6cf67a93d94"
+    assert script.get_revision("8d2f61b0c7a4").down_revision == "50ac9225ce4f"
+    assert script.get_revision("3c9e5a7d1f20").down_revision == "8d2f61b0c7a4"
+
+
+def test_the_baseline_is_the_only_revision_without_a_parent() -> None:
+    script = alembic_chain.script_directory()
+    roots = [revision.revision for revision in script.walk_revisions() if revision.down_revision is None]
+    assert roots == [alembic_chain.V0_21_HEAD]
 
 
 def test_every_down_revision_resolves(script_directory: ScriptDirectory) -> None:
@@ -55,17 +76,18 @@ def test_registered_data_migration_ids_are_unique() -> None:
     """Each ``INSERT INTO migrations`` must claim an unused id.
 
     The id is the primary key the data-migration runner keys off, so a duplicate
-    fails the Alembic upgrade with an integrity error at startup.
+    fails the Alembic upgrade with an integrity error at startup. The baseline
+    inserts its rows from a SQL script beside the revision, so both are read.
     """
     import re
 
-    pattern = re.compile(r"INSERT INTO migrations[^;]*?VALUES\s*\((\d+),", re.IGNORECASE | re.DOTALL)
+    pattern = re.compile(r"INSERT INTO (?:public\.)?migrations[^;]*?VALUES\s*\((\d+),", re.IGNORECASE | re.DOTALL)
     seen: dict[str, Path] = {}
-    for path in (_APP_DIR / "alembic" / "versions").rglob("*.py"):
+    versions = _APP_DIR / "alembic" / "versions"
+    for path in [*versions.rglob("*.py"), *versions.rglob("*.sql")]:
         for migration_id in pattern.findall(path.read_text()):
             assert migration_id not in seen, (
                 f"Data migration id {migration_id} is registered twice: {seen[migration_id].name} and {path.name}"
             )
             seen[migration_id] = path
-    assert "11" in seen, "Migration 11 must be registered by an Alembic revision"
-    assert "12" in seen, "Migration 12 must be registered by an Alembic revision"
+    assert "7" in seen, "The baseline must register the v0.19.0 data migration"

@@ -48,6 +48,22 @@ def _normalize_payload(data: dict[str, object]) -> dict[str, object]:
     return data
 
 
+def to_insert_values(
+    gear: gears_schema.GearCreateRequest | gears_schema.GearCreate, user_id: uuid.UUID
+) -> dict[str, object]:
+    """Return the columns a create payload inserts.
+
+    Args:
+        gear: The gear to create.
+        user_id: The owning user, which overrides any ``user_id`` in the payload.
+
+    Returns:
+        The normalized fields the client sent plus the owner; column defaults fill the rest.
+    """
+    data = _normalize_payload(core_stored_enum.to_stored(gear.model_dump(exclude_unset=True)))
+    return {**data, "user_id": user_id}
+
+
 def to_orm(gear: gears_schema.GearCreateRequest | gears_schema.GearCreate, user_id: uuid.UUID) -> gears_models.Gear:
     """Build an unsaved ORM row from a create payload.
 
@@ -58,8 +74,7 @@ def to_orm(gear: gears_schema.GearCreateRequest | gears_schema.GearCreate, user_
     Returns:
         An unsaved Gear instance.
     """
-    data = _normalize_payload(core_stored_enum.to_stored(gear.model_dump(exclude_unset=True)))
-    return gears_models.Gear(**{**data, "user_id": user_id})
+    return gears_models.Gear(**to_insert_values(gear, user_id))
 
 
 def to_update_values(gear: gears_schema.GearUpdate) -> dict[str, object]:

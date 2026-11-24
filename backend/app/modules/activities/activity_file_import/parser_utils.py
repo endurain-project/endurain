@@ -1,7 +1,5 @@
 """Shared utilities for activity file import normalization."""
 
-from __future__ import annotations
-
 import bisect
 import itertools
 import statistics
@@ -14,7 +12,7 @@ from geopy.distance import geodesic
 import core.timezone as core_timezone
 
 if TYPE_CHECKING:
-    # Annotation-only: the module already uses postponed evaluation, so the
+    # Annotation-only: annotations are evaluated lazily, so the
     # contracts are never imported at runtime and this file stays free of any
     # import the parsers do not actually execute.
     import modules.activities.activity.contracts as activity_contracts

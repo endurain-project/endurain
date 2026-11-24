@@ -10,8 +10,6 @@ Transaction contract: ``Principal`` is a pure value type; it carries no DB
 session and performs no I/O.
 """
 
-from __future__ import annotations
-
 import uuid
 from dataclasses import dataclass
 from datetime import datetime

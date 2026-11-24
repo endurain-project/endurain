@@ -101,10 +101,7 @@ def hash_password(password: str) -> str:
 def verify_and_update_password(
     password: str, stored_hash: str, password_hasher: credentials_password_hasher.PasswordHasher
 ) -> tuple[bool, str | None]:
-    """Verify a typed local password against its stored hash, tolerating hashes made before NFC normalisation.
-
-    The NFC form is tried first. A hash created from the raw text before passwords were normalised still verifies
-    against the raw input and is then replaced by a hash of the NFC form.
+    """Verify a typed local password against its stored hash by its NFC form.
 
     Args:
         password: The password as typed.
@@ -114,29 +111,7 @@ def verify_and_update_password(
     Returns:
         Whether the password is correct, and a replacement hash when the stored one should be updated.
     """
-    normalised = credentials_password_policy.hash_form(password)
-    verified, updated_hash = password_hasher.verify_and_update(normalised, stored_hash)
-    if verified or normalised == password:
-        return verified, updated_hash
-    verified, _ = password_hasher.verify_and_update(password, stored_hash)
-    if verified:
-        return True, password_hasher.hash_password(normalised)
-    return False, None
-
-
-def dummy_verify_password(password: str, password_hasher: credentials_password_hasher.PasswordHasher) -> None:
-    """Spend the Argon2 work of a failed :func:`verify_and_update_password` when there is no hash to verify against.
-
-    A wrong password costs one verify of its NFC form, plus one of the raw input when that differs. Running the same
-    number of dummy verifies keeps a missing or credential-less account indistinguishable by response time.
-
-    Args:
-        password: The password as typed.
-        password_hasher: The hasher that runs the dummy verifies.
-    """
-    password_hasher.dummy_verify()
-    if credentials_password_policy.hash_form(password) != password:
-        password_hasher.dummy_verify()
+    return password_hasher.verify_and_update(credentials_password_policy.hash_form(password), stored_hash)
 
 
 def generate_password_for_access_type(

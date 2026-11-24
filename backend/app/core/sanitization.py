@@ -1,5 +1,4 @@
-"""
-Sanitization utilities for user-generated content.
+"""Sanitization utilities for user-generated content.
 
 Provides functions to sanitize markdown and HTML content
 to prevent XSS attacks while preserving safe formatting, and to
@@ -54,13 +53,16 @@ ALLOWED_ATTRIBUTES = {
 # ``vbscript:``, ``file:`` — has the attribute dropped.
 ALLOWED_URL_SCHEMES = {"http", "https", "mailto"}
 
+#: The PostgreSQL ICU collation (created by an Alembic revision) that compares text case-insensitively at the
+#: secondary level: ``Σ`` equals ``ς``, composed equals decomposed, accents and ``ß`` stay different.
+CASE_INSENSITIVE_COLLATION = "case_insensitive"
+
 # Maximum length for markdown fields
 MAX_MARKDOWN_LENGTH = 2500
 
 
 def sanitize_markdown(content: str | None) -> str | None:
-    """
-    Sanitize markdown content to prevent XSS attacks.
+    """Sanitize markdown content to prevent XSS attacks.
 
     Strips dangerous HTML tags and attributes while preserving
     safe markdown formatting elements.
@@ -91,8 +93,7 @@ def sanitize_markdown(content: str | None) -> str | None:
 
 
 def sanitize_attribution(content: str | None) -> str | None:
-    """
-    Sanitize attribution text to prevent XSS attacks.
+    """Sanitize attribution text to prevent XSS attacks.
 
     Allows only <a> tags with safe attributes for
     attribution links.

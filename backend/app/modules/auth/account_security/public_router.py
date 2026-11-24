@@ -8,13 +8,12 @@ import core.dependencies as core_dependencies
 import core.network as core_network
 import core.openapi_contract as core_openapi_contract
 import core.rate_limit as core_rate_limit
-import modules.auth.access_tokens.integration_service as access_tokens_integration
+import modules.auth.access_tokens.dependencies as access_tokens_dependencies
 import modules.auth.account_security.account_security_service as account_security_service
 import modules.auth.authentication.dependencies as authentication_dependencies
-import modules.auth.authentication.integration_service as authentication_integration
 import modules.auth.authentication.schema as authentication_schema
 import modules.auth.constants as auth_constants
-import modules.auth.credentials.integration_service as credentials_integration
+import modules.auth.credentials.dependencies as credentials_dependencies
 import modules.auth.known_devices.dependencies as known_devices_dependencies
 
 router = APIRouter()
@@ -41,18 +40,9 @@ def complete_password_change(
     request: Request,
     change_request: authentication_schema.PasswordChangeLoginRequest,
     client_type: Annotated[auth_constants.ClientType, Depends(authentication_dependencies.get_client_type)],
-    password_change_store: Annotated[
-        authentication_integration.PendingPasswordChangeStore,
-        Depends(authentication_integration.get_pending_password_change_store),
-    ],
-    password_hasher: Annotated[
-        credentials_integration.PasswordHasher,
-        Depends(credentials_integration.get_password_hasher),
-    ],
-    token_manager: Annotated[
-        access_tokens_integration.TokenManager,
-        Depends(access_tokens_integration.get_token_manager),
-    ],
+    password_change_store: authentication_dependencies.PendingPasswordChangeStoreDep,
+    password_hasher: credentials_dependencies.PasswordHasherDep,
+    token_manager: access_tokens_dependencies.TokenManagerDep,
     db: core_dependencies.DbSession,
     device_id: known_devices_dependencies.DeviceId,
 ) -> authentication_schema.FinishedLoginRead:
