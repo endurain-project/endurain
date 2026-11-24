@@ -178,11 +178,20 @@ class TestResolveHostname:
             result = core_network._resolve_hostname("proxy.internal")
             assert result == ["10.0.0.5"]
 
-    def test_resolve_hostname_dns_failure(self):
+    def test_resolve_hostname_dns_failure(self, app_log):
         with patch("socket.getaddrinfo") as mock_getaddrinfo:
             mock_getaddrinfo.side_effect = socket.gaierror("Name resolution failed")
             result = core_network._resolve_hostname("nonexistent.hostname")
             assert result == []
+
+        # The minute-by-minute refresh repeats this line, so its text stays fixed and the details are fields.
+        [record] = [r for r in app_log.records if r.levelname == "WARNING"]
+        assert record.getMessage() == "Could not resolve a TRUSTED_PROXIES hostname"
+        assert (record.hostname, record.error, record.reason) == (
+            "nonexistent.hostname",
+            "gaierror",
+            "Name resolution failed",
+        )
 
     @pytest.mark.parametrize("hostname", ["proxy..internal", f"{'a' * 64}.internal"])
     def test_resolve_hostname_malformed_label_is_skipped(self, hostname):
@@ -618,9 +627,9 @@ class TestRejectPrivateUrl:
             mock_gai.return_value = [(socket.AF_INET, socket.SOCK_STREAM, 0, "", ("10.0.0.1", 0))]
             core_network.reject_private_url("http://internal.example.com", purpose="test")
 
-        hits = [r for r in caplog.records if r.levelname == "INFO"]
-        assert len(hits) == 1
-        assert "SSRF allowlist hit" in hits[0].getMessage()
+        [hit] = [r for r in caplog.records if r.levelname == "INFO"]
+        assert hit.getMessage() == "SSRF allowlist hit: dialing a private address"
+        assert (hit.hostname, hit.address, hit.purpose) == ("internal.example.com", "10.0.0.1", "test")
 
 
 class TestRequireTls:
@@ -775,9 +784,9 @@ class TestHostRejectionReason:
         ):
             core_network.host_rejection_reason("nominatim.internal", purpose="reverse_geocoding")
 
-        message = [r.getMessage() for r in caplog.records if r.levelname == "INFO"][-1]
-        assert "SSRF allowlist hit" in message
-        assert "reverse_geocoding" in message
+        record = [r for r in caplog.records if r.levelname == "INFO"][-1]
+        assert record.getMessage() == "SSRF allowlist hit: dialing a private address"
+        assert (record.hostname, record.purpose) == ("nominatim.internal", "reverse_geocoding")
 
 
 class TestUrlRejectionReasonBounded:

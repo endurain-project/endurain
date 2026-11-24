@@ -219,7 +219,9 @@ class TestABrokenServer:
         assert response.headers["retry-after"] == "5"
         assert all_jobs(committed_sessions) == []
         assert _incoming_files() == []
-        outage = [record for record in app_log.records if "StorageBackendUnavailableError" in record.getMessage()]
+        outage = [
+            record for record in app_log.records if getattr(record, "error", None) == "StorageBackendUnavailableError"
+        ]
         assert [(record.levelname, record.exc_info) for record in outage] == [("WARNING", None)]
 
     def test_a_storage_refusal_while_staging_answers_500_without_retry_after_and_queues_nothing(
@@ -234,7 +236,9 @@ class TestABrokenServer:
         assert "retry-after" not in response.headers
         assert all_jobs(committed_sessions) == []
         assert _incoming_files() == []
-        refusal = [record for record in app_log.records if "StorageBackendUnavailableError" in record.getMessage()]
+        refusal = [
+            record for record in app_log.records if getattr(record, "error", None) == "StorageBackendUnavailableError"
+        ]
         assert [(record.levelname, record.exc_info is not None) for record in refusal] == [("ERROR", True)]
 
     def test_a_storage_outage_while_importing_fails_the_job_since_nothing_retries_it(

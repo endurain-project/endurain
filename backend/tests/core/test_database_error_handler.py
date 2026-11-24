@@ -2,6 +2,7 @@
 
 import logging
 
+import jasil.providers as platform_providers
 import psycopg.errors
 import pytest
 from fastapi import FastAPI
@@ -105,3 +106,35 @@ class TestConflict:
 class TestOtherErrors:
     def test_a_generic_database_error_stays_an_opaque_500(self):
         assert _client(SQLAlchemyError(_STATEMENT)).get("/fail").status_code == 500
+
+
+class TestTheLogLineNamesTheFailureNotTheRequest:
+    """One failure logs one message whatever the URL, so a log aggregator groups it; the request is in the context."""
+
+    @pytest.mark.parametrize(
+        ("error", "message"),
+        [
+            (PoolTimeoutError("QueuePool limit of size 5 overflow 10 reached"), "Database error"),
+            (platform_providers.StorageBackendUnavailableError("storage is down"), "Storage unavailable"),
+            (RuntimeError("a bug"), "Unhandled error"),
+        ],
+        ids=["database", "storage", "unhandled"],
+    )
+    def test_two_paths_log_the_same_message_and_carry_their_own_path(self, app_log, error, message):
+        app = FastAPI()
+        core_exceptions.register_exception_handlers(app)
+
+        @app.get("/jobs/{job_id}")
+        def _fail(job_id: str):
+            raise error
+
+        client = TestClient(app, raise_server_exceptions=False)
+        client.get("/jobs/first")
+        client.get("/jobs/second")
+
+        records = [r for r in app_log.records if r.name.endswith("core.exceptions")]
+        assert [r.getMessage() for r in records] == [message, message]
+        assert [(r.method, r.path, r.error) for r in records] == [
+            ("GET", "/jobs/first", type(error).__name__),
+            ("GET", "/jobs/second", type(error).__name__),
+        ]

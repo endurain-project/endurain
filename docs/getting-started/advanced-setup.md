@@ -98,14 +98,14 @@ environment:
 **Debug Output:**
 When the application starts, it logs resolved hostnames at startup:
 ```
-INFO: Resolved TRUSTED_PROXIES hostname 'caddy' to ['10.0.0.5']
+INFO: Resolved a TRUSTED_PROXIES hostname | hostname='caddy' addresses=['10.0.0.5']
 INFO: Allowed trusted proxies: ['caddy', '192.168.1.0/24']
 INFO: Resolved trusted proxy IPs: ['10.0.0.5']
 ```
 
 If a hostname cannot be resolved, a warning is logged but the application continues:
 ```
-WARNING: Failed to resolve TRUSTED_PROXIES hostname 'nonexistent': [Errno -3] Temporary failure in name resolution
+WARNING: Could not resolve a TRUSTED_PROXIES hostname | hostname='nonexistent' error='gaierror' reason='[Errno -3] Temporary failure in name resolution'
 ```
 
 **Uvicorn forwarded headers:** with `BEHIND_PROXY=true` the container entrypoint also translates `TRUSTED_PROXIES` into uvicorn's `FORWARDED_ALLOW_IPS`, which is what makes `request.client` and the uvicorn access log (visible in `docker logs`) show the real client address instead of the proxy. Hostnames are resolved once at container start for this list, so a proxy that changes IP afterwards is only picked up on the next Endurain restart — the application's own client IP detection (rate limiting, sessions, audit logs) keeps working because it re-resolves hostnames every minute. With `BEHIND_PROXY=true`, the container refuses to start (exit status 1, with an error in the log) when `TRUSTED_PROXIES` is unset or has no usable entry, such as a list holding only a hostname that does not resolve. Setting `FORWARDED_ALLOW_IPS` explicitly in the container environment overrides this translation.

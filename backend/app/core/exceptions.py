@@ -812,9 +812,9 @@ async def database_error_handler(request: Request, exc: SQLAlchemyError) -> JSON
     only surfaced at commit, so it answers 409. Both are logged as warnings. Anything else is an opaque 500 logged as an
     error.
 
-    Only the exception class goes in the log message: SQLAlchemy error strings
-    embed the SQL statement and its parameters (OWASP A09), so they are never
-    interpolated and never returned to the client.
+    The log message is the same for every request, so the failure groups as one line; the method, path and
+    exception class are context fields. SQLAlchemy error strings embed the SQL statement and its parameters
+    (OWASP A09), so they are never logged and never returned to the client.
 
     Args:
         request: The incoming request (used for log context and ``instance``).
@@ -824,7 +824,7 @@ async def database_error_handler(request: Request, exc: SQLAlchemyError) -> JSON
         The problem document for the failure.
     """
     log_context = core_logger.context(path=request.url.path, method=request.method, error=type(exc).__name__)
-    message = f"Database error on {request.method} {request.url.path}: {type(exc).__name__}"
+    message = "Database error"
     headers: dict[str, str] | None = None
     if jasil_orm.is_database_unavailable(exc) or _is_database_busy(exc):
         logger.warning(message, extra=log_context)
@@ -867,7 +867,7 @@ async def storage_unavailable_handler(
     if not platform_providers.is_storage_unavailable(exc):
         return await unhandled_error_handler(request, exc)
     logger.warning(
-        f"Storage unavailable on {request.method} {request.url.path}: {type(exc).__name__}",
+        "Storage unavailable",
         extra=core_logger.context(path=request.url.path, method=request.method, error=type(exc).__name__),
     )
     return build_problem_response(
@@ -884,7 +884,7 @@ async def unhandled_error_handler(request: Request, exc: Exception) -> JSONRespo
     """Render an error nothing else handled as the same opaque problem document.
 
     Without it Starlette answers a plain-text 500, so clients would see a second error shape. Only the
-    exception class is logged in the message; the traceback goes in ``exc_info``.
+    exception class is logged, as a context field beside the method and path; the traceback goes in ``exc_info``.
 
     Args:
         request: The incoming request (used for log context and ``instance``).
@@ -894,7 +894,7 @@ async def unhandled_error_handler(request: Request, exc: Exception) -> JSONRespo
         The same problem document a :class:`ProcessingError` produces.
     """
     logger.error(
-        f"Unhandled error on {request.method} {request.url.path}: {type(exc).__name__}",
+        "Unhandled error",
         exc_info=exc,
         extra=core_logger.context(path=request.url.path, method=request.method, error=type(exc).__name__),
     )

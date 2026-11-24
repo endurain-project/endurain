@@ -117,7 +117,8 @@ def _resolve_hostname(hostname: str) -> list[str]:
         return unique_ips
     except (socket.gaierror, UnicodeError) as err:
         logger.warning(
-            f"Failed to resolve TRUSTED_PROXIES hostname '{hostname}': {err}", extra=core_logger.context(console=True)
+            "Could not resolve a TRUSTED_PROXIES hostname",
+            extra=core_logger.context(console=True, hostname=hostname, error=type(err).__name__, reason=str(err)),
         )
         return []
 
@@ -193,7 +194,8 @@ def refresh_trusted_proxy_hostnames(
             all_resolved_ips.update(ips)
             if log_success:
                 logger.info(
-                    f"Resolved TRUSTED_PROXIES hostname '{hostname}' to {ips}", extra=core_logger.context(console=True)
+                    "Resolved a TRUSTED_PROXIES hostname",
+                    extra=core_logger.context(console=True, hostname=hostname, addresses=ips),
                 )
 
         core_config.settings._resolved_trusted_proxy_ips = all_resolved_ips
@@ -486,8 +488,8 @@ def _resolve_checked_addresses(
                 # Audit trail: every allowlisted private destination is logged
                 # so operators can review what the SSRF exception is used for.
                 logger.info(
-                    f"SSRF allowlist hit: dialing private address {ip_text} for host "
-                    f"{hostname} (purpose={purpose or 'unspecified'})"
+                    "SSRF allowlist hit: dialing a private address",
+                    extra=core_logger.context(hostname=hostname, address=ip_text, purpose=purpose or "unspecified"),
                 )
             else:
                 return (), _NON_PUBLIC
