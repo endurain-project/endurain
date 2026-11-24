@@ -15,6 +15,7 @@ on:
   pull_request:
     branches:
       - master
+      - release/**
     paths:
       - backend/**
       - .github/workflows/test-backend-distributed.yml
