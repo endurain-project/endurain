@@ -90,7 +90,7 @@ class Activity(UpdatedAtMixin, Base):
         # Idempotency is enforced by the database, not just checked in the
         # ingestion service. That check is read-then-write, so two concurrent
         # imports of the same file or provider activity could both see "not
-        # found" and both insert — which the bulk-import ThreadPoolExecutor and
+        # found" and both insert — which the ingestion worker pool and
         # durable-job retries make a realistic race rather than a theoretical
         # one. The service catches the resulting IntegrityError and returns
         # the winning row, so the constraint is what makes re-import a true

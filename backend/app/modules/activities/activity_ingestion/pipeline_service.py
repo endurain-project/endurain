@@ -215,10 +215,9 @@ def store_activities_from_file(
     # to the pool instead of idling in it.
     db.commit()
 
-    # CPU-bound + sync I/O parsing (gpxpy, geopy, timezonefinder). This runs
-    # directly: every entry point reaches here on a worker thread (a sync route
-    # on Starlette's threadpool, the bulk-import ThreadPoolExecutor, or a provider
-    # sync job), never on the main event loop.
+    # CPU-bound and sync I/O parsing runs directly: every entry point reaches
+    # here on a worker thread (a sync route on Starlette's threadpool, the
+    # ingestion worker pool, or a durable job), never on the event loop.
     parsed_file = parse_file(
         token_user_id,
         file_extension,
