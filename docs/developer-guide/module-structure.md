@@ -785,8 +785,9 @@ code it describes changes.
 
 ### Runtime rules not yet met
 
-- **Storage lifecycle.** The hourly thumbnail reconciliation and the daily orphan sweep each walk the whole
-  thumbnail area: its keys are flat `{id}.webp`, so no prefix narrows the walk.
+- **Storage lifecycle.** The daily thumbnail sweep lists the whole thumbnail area twice, to delete orphaned
+  blobs and then to clear references to missing blobs: its keys are flat `{id}.webp`, so no prefix narrows the
+  walk.
 - **Broad exception handling.** The 87 `except Exception` and `BaseException` handlers outside the migrations
   sit in `core` and `main.py` (25), `activities` (18, mostly ingestion), `users` (13, mostly the profile
   import), `auth` (17, mostly the identity providers), the provider services of `strava` (10) and `garmin`

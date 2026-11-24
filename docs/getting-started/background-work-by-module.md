@@ -178,7 +178,7 @@ Recurring jobs are declared by each module and run by the scheduler of the API p
 | Job | Every | Lock | What it does |
 | --- | ----- | ---- | ------------ |
 | Request a thumbnail backfill | 60 min | yes | Net for thumbnail generation; a subscriber renders up to 200 missing thumbnails. Requests made in the same hour, by the tick or by replicas starting, share one pass |
-| Remove orphaned thumbnails | 24 h | yes | Net for thumbnail cleanup |
+| Reconcile the thumbnail storage | 24 h | yes | Net for thumbnail cleanup: removes thumbnails whose activity is gone and clears the reference of an activity whose thumbnail is missing, so the next backfill pass renders it again |
 | Backfill missing locations | 60 min | yes | Net for reverse geocoding |
 | Remove orphaned retained activity files | 24 h | yes | Net for file cleanup |
 | Remove orphaned activity photos | 24 h | yes | Net for photo cleanup |
@@ -224,7 +224,7 @@ Each section says what triggers the work, what happens locally and when distribu
 | Triggers | `activity.created` (render), `activity.deleted` (remove), and a change of the tile server (re-render everything, when that option is on) |
 | Local | The handler runs on the 2-thread subscriber pool, after the request has returned. A map needs tiles, so a slow tile server delays only thumbnails |
 | Distributed | One durable job per subscriber on a worker, with retries. Thumbnails are written to the bucket |
-| If dropped | The hourly net asks for a backfill pass, which renders up to 200 activities that still have no thumbnail, and the next hour's pass takes the rest. The pass runs on the subscriber pool, or on an enrichment worker when durable jobs are on, never on the scheduler. The daily sweep removes thumbnails whose activity is gone. The tile-change re-render has no net: it is an admin command, so repeat the settings save |
+| If dropped | The hourly net asks for a backfill pass, which renders up to 200 activities that still have no thumbnail, and the next hour's pass takes the rest. The pass runs on the subscriber pool, or on an enrichment worker when durable jobs are on, never on the scheduler. The daily sweep removes thumbnails whose activity is gone, and clears the reference of an activity whose thumbnail file is lost, so the next hourly pass renders it again (within a day, not within the hour). The tile-change re-render has no net: it is an admin command, so repeat the settings save |
 
 ### Reverse geocoding
 

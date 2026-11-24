@@ -14,6 +14,7 @@ from jasil.backends.storage_local import LocalStorage
 
 import core.config as core_config
 import core.scheduler as core_scheduler
+import modules.activities.activity.integration_service as activity_integration
 import modules.activities.activity.models as activity_models
 import modules.activities.activity_streams.constants as stream_constants
 import modules.activities.activity_thumbnail.constants as thumbnail_constants
@@ -91,7 +92,7 @@ def test_the_regeneration_entry_point_renders_every_thumbnail_again(db, routed):
     assert platform_runtime.get_active_platform().storage.get(_AREA, f"{routed.id}.webp") != b"stale"
 
 
-def test_the_sweep_entry_point_removes_an_old_thumbnail_whose_activity_is_gone(tmp_path):
+def test_the_sweep_entry_point_removes_an_old_thumbnail_whose_activity_is_gone(db, tmp_path):
     storage = LocalStorage(str(tmp_path / "plain"), plain_areas=frozenset({_AREA}))
     platform_runtime.set_active_platform(dataclasses.replace(platform_runtime.get_active_platform(), storage=storage))
     gone = f"{uuid.uuid4()}.webp"
@@ -102,6 +103,17 @@ def test_the_sweep_entry_point_removes_an_old_thumbnail_whose_activity_is_gone(t
     thumbnail_jobs.sweep_orphaned_thumbnails()
 
     assert not storage.exists(_AREA, gone)
+
+
+def test_the_sweep_entry_point_clears_the_key_of_an_activity_whose_blob_is_gone(db, routed):
+    storage = platform_runtime.get_active_platform().storage
+    key = f"{routed.id}.webp"
+    activity_integration.set_thumbnail_key(routed.id, key, db)
+    db.commit()
+
+    thumbnail_jobs.sweep_orphaned_thumbnails()
+
+    assert (_key_of(db, routed), storage.exists(_AREA, key)) == (None, False)
 
 
 def test_the_recurring_jobs_are_the_hourly_backfill_request_and_the_daily_sweep_under_their_own_locks():

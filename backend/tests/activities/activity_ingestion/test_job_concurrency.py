@@ -312,12 +312,13 @@ class TestRegenerationLock:
 
         assert storage.mock_calls == []
 
-    def test_the_backfill_pass_runs_once_the_lock_is_free(self, factory, lock, _publish_local_platform):
+    def test_the_backfill_pass_runs_once_the_lock_is_free(self, factory, lock, _publish_local_platform, monkeypatch):
         platform = _publish_local_platform
         storage = MagicMock()
-        storage.iter_objects.return_value = iter(())
+        run_pass = MagicMock()
+        monkeypatch.setattr(thumbnail_service, "_run_missing_thumbnail_generation", run_pass)
 
         with factory() as db:
             thumbnail_service.generate_missing_activity_thumbnails(storage, lock, platform.clock, db)
 
-        storage.iter_objects.assert_called_once()
+        run_pass.assert_called_once()

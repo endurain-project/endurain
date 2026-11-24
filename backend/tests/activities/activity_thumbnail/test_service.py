@@ -39,6 +39,16 @@ class UnavailableStorage(LocalStorage):
         raise platform_providers.StorageBackendUnavailableError("storage down")
 
 
+class ListingCountingStorage(LocalStorage):
+    """Local storage that counts how many times an area is listed."""
+
+    listings = 0
+
+    def iter_objects(self, area: str, prefix: str = ""):
+        self.listings += 1
+        return super().iter_objects(area, prefix)
+
+
 class HeldLock:
     """A lock provider whose locks another replica already holds."""
 
@@ -263,27 +273,16 @@ class TestBackfill:
 
         assert (_key_of(db, bad), _key_of(db, good)) == (None, f"{good.id}.webp")
 
-    def test_a_key_whose_blob_is_gone_is_cleared_and_one_whose_blob_exists_is_kept(
-        self, db, owner, storage, lock, clock, tiles
+    def test_a_pass_does_not_list_the_thumbnail_area_and_leaves_a_key_whose_blob_is_gone(
+        self, db, owner, lock, clock, tiles, tmp_path
     ):
-        gone, kept = _plain(db, owner, 0), _plain(db, owner, 1)
+        counting = ListingCountingStorage(str(tmp_path / "counting"), plain_areas=frozenset({_AREA}))
+        gone = _plain(db, owner)
         activity_integration.set_thumbnail_key(gone.id, f"{gone.id}.webp", db)
-        activity_integration.set_thumbnail_key(kept.id, f"{kept.id}.webp", db)
-        storage.save(_AREA, f"{kept.id}.webp", b"webp")
 
-        thumbnail_service.generate_missing_activity_thumbnails(storage, lock, clock, db)
+        thumbnail_service.generate_missing_activity_thumbnails(counting, lock, clock, db)
 
-        assert (_key_of(db, gone), _key_of(db, kept)) == (None, f"{kept.id}.webp")
-        assert tiles.requests == []
-
-    def test_a_key_outside_the_uuid_layout_whose_blob_exists_survives(self, db, owner, storage, lock, clock, tiles):
-        activity = _plain(db, owner)
-        activity_integration.set_thumbnail_key(activity.id, "custom-name.webp", db)
-        storage.save(_AREA, "custom-name.webp", b"webp")
-
-        thumbnail_service.generate_missing_activity_thumbnails(storage, lock, clock, db)
-
-        assert _key_of(db, activity) == "custom-name.webp"
+        assert (counting.listings, _key_of(db, gone)) == (0, f"{gone.id}.webp")
 
     def test_a_pass_renders_at_most_the_cap_and_leaves_the_rest_due_instead_of_deferred(
         self, db, owner, storage, lock, clock, tiles
@@ -391,6 +390,39 @@ class TestRegenerateAll:
         )
 
         assert _key_of(db, activity) is None
+
+
+class TestClearReferencesToMissingBlobs:
+    def test_a_key_whose_blob_is_gone_is_cleared_and_one_whose_blob_exists_is_kept(self, db, owner, storage, tiles):
+        gone, kept = _plain(db, owner, 0), _plain(db, owner, 1)
+        activity_integration.set_thumbnail_key(gone.id, f"{gone.id}.webp", db)
+        activity_integration.set_thumbnail_key(kept.id, f"{kept.id}.webp", db)
+        storage.save(_AREA, f"{kept.id}.webp", b"webp")
+
+        thumbnail_service.clear_references_to_missing_blobs(storage, db)
+
+        assert (_key_of(db, gone), _key_of(db, kept)) == (None, f"{kept.id}.webp")
+        assert tiles.requests == []
+
+    def test_a_key_outside_the_uuid_layout_whose_blob_exists_survives(self, db, owner, storage):
+        activity = _plain(db, owner)
+        activity_integration.set_thumbnail_key(activity.id, "custom-name.webp", db)
+        storage.save(_AREA, "custom-name.webp", b"webp")
+
+        thumbnail_service.clear_references_to_missing_blobs(storage, db)
+
+        assert _key_of(db, activity) == "custom-name.webp"
+
+    def test_a_cleared_activity_is_rendered_again_by_the_next_backfill_pass(
+        self, db, owner, storage, lock, clock, tiles
+    ):
+        activity = _routed(db, owner)
+        activity_integration.set_thumbnail_key(activity.id, f"{activity.id}.webp", db)
+
+        thumbnail_service.clear_references_to_missing_blobs(storage, db)
+        thumbnail_service.generate_missing_activity_thumbnails(storage, lock, clock, db)
+
+        assert list(storage.list_keys(_AREA, "")) == [f"{activity.id}.webp"]
 
 
 class TestSweep:

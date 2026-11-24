@@ -4,8 +4,9 @@ The behavioural core of the subsystem. Rendering (:mod:`render`) produces bytes;
 this module persists/removes them through the platform ``StorageProvider`` and
 records the storage *key* on the activity. It also owns the reconciling backfill
 (requested hourly, run by a subscriber of the request and capped per pass, guarded
-by the ``LockProvider`` so a single replica runs it) and the full regeneration
-triggered when tile settings change.
+by the ``LockProvider`` so a single replica runs it), the daily reconciliation of the storage area against
+the activity rows (:func:`sweep_orphaned_thumbnails` and :func:`clear_references_to_missing_blobs`) and
+the full regeneration triggered when tile settings change.
 
 Sessions are opened by the entry point (``integration_service``) and passed down.
 """
@@ -399,9 +400,9 @@ def generate_missing_activity_thumbnails(
     """Generate thumbnails for activities that are missing one, up to a cap.
 
     Takes :data:`BACKFILL_LOCK_NAME` and returns without doing anything when it is held, by a full
-    regeneration or another pass: the next request asks again. Reconciles stale references, then renders
-    and stores a thumbnail for each activity whose map_thumbnail_path is NULL. A failure on one activity is
-    logged and the pass continues. Activities past the cap stay due for the next pass.
+    regeneration or another pass: the next request asks again. Renders and stores a thumbnail for each
+    activity whose map_thumbnail_path is NULL. A failure on one activity is logged and the pass continues.
+    Activities past the cap stay due for the next pass.
 
     Args:
         storage: The blob-storage provider.
@@ -417,15 +418,15 @@ def generate_missing_activity_thumbnails(
         _run_missing_thumbnail_generation(storage, clock.now(), db, max_renders=max_renders)
 
 
-def _clear_references_to_missing_blobs(storage: platform_providers.StorageProvider, db: Session) -> None:
+def clear_references_to_missing_blobs(storage: platform_providers.StorageProvider, db: Session) -> None:
     """Clear thumbnail keys whose stored blob no longer exists.
 
-    One listing of the area answers for every activity, instead of an existence
-    check per activity per pass (a HEAD request each on object storage). Only the
-    activity ids are kept, one id per stored thumbnail, rather than the keys. A key
-    missing from the listing is confirmed individually before it is cleared: the
-    listing was taken before the page was read, so a blob a subscriber stored in
-    between would otherwise look missing.
+    Run by the daily sweep, not by the backfill pass, so the whole area is listed once a day rather than
+    every pass. A cleared activity is due again, so the next backfill pass renders it. One listing of the
+    area answers for every activity, instead of an existence check per activity (a HEAD request each on
+    object storage). Only the activity ids are kept, one id per stored thumbnail, rather than the keys. A
+    key missing from the listing is confirmed individually before it is cleared: the listing was taken
+    before the page was read, so a blob a subscriber stored in between would otherwise look missing.
 
     Args:
         storage: The blob-storage provider.
@@ -467,7 +468,7 @@ def _clear_references_to_missing_blobs(storage: platform_providers.StorageProvid
 def _run_missing_thumbnail_generation(
     storage: platform_providers.StorageProvider, now: datetime, db: Session, *, max_renders: int | None = None
 ) -> None:
-    """Reconcile stale references and render any missing thumbnails.
+    """Render the thumbnails that are missing.
 
     An activity that ends the pass without a thumbnail (no GPS, a skipped or
     failed render) is deferred by :data:`THUMBNAIL_RETRY_DELAY`, so the passes
@@ -480,8 +481,6 @@ def _run_missing_thumbnail_generation(
         max_renders: Maximum activities to render; ``None`` renders every one. An activity past the cap is
             neither rendered nor deferred, so the next pass finds it due.
     """
-    _clear_references_to_missing_blobs(storage, db)
-
     retry_at = now + THUMBNAIL_RETRY_DELAY
     generated = 0
     candidates = 0

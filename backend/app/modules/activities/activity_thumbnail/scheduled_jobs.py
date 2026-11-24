@@ -38,13 +38,17 @@ def regenerate_all_thumbnails() -> None:
 
 
 def sweep_orphaned_thumbnails() -> None:
-    """Delete thumbnail blobs whose activity no longer exists.
+    """Reconcile the thumbnail storage area with the activities in both directions.
 
-    The storage-side net for the cleanup subscriber. Scheduler-invoked, so this
-    entry point resolves the provider; the scheduler's lock keeps it to one replica.
+    Deletes thumbnail blobs whose activity no longer exists (the storage-side net for the cleanup
+    subscriber), then clears the keys of activities whose blob is gone so the next backfill pass renders
+    them again. Scheduler-invoked, so this entry point resolves the provider and opens the session; the
+    scheduler's lock keeps it to one replica.
     """
     platform = platform_runtime.get_active_platform()
     activity_thumbnail_service.sweep_orphaned_thumbnails(platform.storage)
+    with core_database.SessionLocal() as db:
+        activity_thumbnail_service.clear_references_to_missing_blobs(platform.storage, db)
 
 
 def recurring_jobs() -> tuple[core_scheduler.ScheduledJob, ...]:
@@ -63,7 +67,7 @@ def recurring_jobs() -> tuple[core_scheduler.ScheduledJob, ...]:
         core_scheduler.ScheduledJob(
             sweep_orphaned_thumbnails,
             1440,
-            "remove thumbnails whose activity is gone",
+            "remove thumbnails whose activity is gone and clear references to missing thumbnails",
             lock_name=SWEEP_LOCK_NAME,
         ),
     )
