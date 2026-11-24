@@ -19,6 +19,7 @@ import modules.activities.activity_media.signing as media_signing
 from tests._factories.activities import make_activity, make_stored_media
 from tests._factories.users import make_user
 from tests._helpers import images
+from tests._helpers.clock import platform_clock
 
 _AREA = media_constants.MEDIA_STORAGE_AREA
 _KEY = re.compile(r"[0-9a-f-]{36}_[0-9a-f]{32}\.(jpg|jpeg|png|webp)")
@@ -72,7 +73,7 @@ class FlakyStorage(LocalStorage):
 @pytest.fixture
 def plain_storage(tmp_path):
     """Local storage that keeps each blob under its own name, so a test can age one on disk."""
-    return LocalStorage(str(tmp_path / "plain"), plain_areas=frozenset({_AREA}))
+    return LocalStorage(str(tmp_path / "plain"), clock=platform_clock(), plain_areas=frozenset({_AREA}))
 
 
 class TestStoreUpload:
@@ -212,7 +213,9 @@ class TestStoreRaces:
                 )
                 other.commit()
 
-        return RacingStorage(str(tmp_path / "race"), plain_areas=frozenset({_AREA}), competitor=competitor)
+        return RacingStorage(
+            str(tmp_path / "race"), clock=platform_clock(), plain_areas=frozenset({_AREA}), competitor=competitor
+        )
 
     def test_the_loser_of_a_race_on_the_same_bytes_answers_the_winner_and_leaves_no_blob(
         self, committed_sessions, committed_activity, tmp_path
@@ -243,7 +246,7 @@ class TestStoreRaces:
     def test_a_blob_that_cannot_be_removed_after_a_failed_store_is_only_logged(
         self, db, activity, tmp_path, monkeypatch
     ):
-        down = UnavailableStorage(str(tmp_path / "down"), plain_areas=frozenset({_AREA}))
+        down = UnavailableStorage(str(tmp_path / "down"), clock=platform_clock(), plain_areas=frozenset({_AREA}))
 
         def refuse(*args, **kwargs):
             raise core_exceptions.NotFoundError("gone")
@@ -324,7 +327,7 @@ class TestDelete:
         assert storage.exists(_AREA, record.media_path)
 
     def test_a_storage_that_is_down_leaves_the_blob_but_the_row_is_still_deleted(self, db, owner, activity, tmp_path):
-        down = UnavailableStorage(str(tmp_path / "down"), plain_areas=frozenset({_AREA}))
+        down = UnavailableStorage(str(tmp_path / "down"), clock=platform_clock(), plain_areas=frozenset({_AREA}))
         record = media_service.store_activity_media_bytes(activity.id, "a.png", images.png_with_text(), down, db)
 
         media_service.delete_activity_media(activity.id, record.id, owner.id, down, db)
@@ -399,7 +402,7 @@ class TestCleanup:
         assert media_service.delete_media_files_for_activity(activity.id, storage) == 0
 
     def test_a_storage_failure_propagates_so_the_runner_retries(self, db, activity, tmp_path):
-        down = UnavailableStorage(str(tmp_path / "down"), plain_areas=frozenset({_AREA}))
+        down = UnavailableStorage(str(tmp_path / "down"), clock=platform_clock(), plain_areas=frozenset({_AREA}))
         media_service.store_activity_media_bytes(activity.id, "a.png", images.png_with_text(), down, db)
 
         with pytest.raises(platform_providers.StorageBackendUnavailableError):
@@ -417,7 +420,7 @@ class TestCleanup:
         assert len(blobs) == 2
 
     def test_a_blob_that_cannot_be_read_or_has_vanished_is_skipped_from_the_export(self, activity, tmp_path):
-        flaky = FlakyStorage(str(tmp_path / "flaky"), plain_areas=frozenset({_AREA}))
+        flaky = FlakyStorage(str(tmp_path / "flaky"), clock=platform_clock(), plain_areas=frozenset({_AREA}))
         for name in ("ok", "unreadable", "vanished"):
             flaky.save(_AREA, f"{activity.id}_{name}.png", b"x")
 

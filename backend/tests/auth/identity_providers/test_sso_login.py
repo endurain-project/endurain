@@ -1039,13 +1039,15 @@ class TestInitiatingALoginThroughTheService:
 
     @pytest.fixture
     def service(self):
+        import jasil.testing as jasil_testing
         from jasil.backends.state_memory import MemoryState
 
         import modules.auth.identity_providers.authorization_service as authorization_service
         import modules.auth.identity_providers.oidc_client_service as oidc_client_service
 
         return authorization_service.AuthorizationService(
-            oidc_client_service.OidcClientService(MemoryState(), "test"), "https://app.example.com"
+            oidc_client_service.OidcClientService(MemoryState(jasil_testing.FixedClock()), "test"),
+            "https://app.example.com",
         )
 
     def _idp(self, db, provider):

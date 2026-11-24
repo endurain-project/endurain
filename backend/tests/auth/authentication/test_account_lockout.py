@@ -4,6 +4,7 @@ import logging
 import secrets
 import uuid
 
+import jasil.testing as jasil_testing
 import sqlalchemy as sa
 from jasil.backends.state_memory import MemoryState
 
@@ -235,7 +236,7 @@ class TestLoginLockNotice:
 class TestLoginCounters:
     def test_the_lock_follows_the_user_id_across_a_username_change(self):
         user_id = uuid.uuid4()
-        store = failed_login_store.FailedLoginAttempts(MemoryState())
+        store = failed_login_store.FailedLoginAttempts(MemoryState(jasil_testing.FixedClock()))
         for i in range(100):
             store.record_failed_attempt("alice", f"198.51.100.{i}", user_id=user_id)
 
@@ -245,7 +246,7 @@ class TestLoginCounters:
 
     def test_the_failures_before_and_after_a_rename_count_together(self):
         user_id = uuid.uuid4()
-        store = failed_login_store.FailedLoginAttempts(MemoryState())
+        store = failed_login_store.FailedLoginAttempts(MemoryState(jasil_testing.FixedClock()))
         for i in range(50):
             store.record_failed_attempt("alice", f"198.51.100.{i}", user_id=user_id)
         records = [store.record_failed_attempt("alicia", f"198.51.101.{i}", user_id=user_id) for i in range(50)]
@@ -253,7 +254,7 @@ class TestLoginCounters:
         assert [r.account_locked_now for r in records] == [False] * 49 + [True]
 
     def test_an_unknown_username_locks_regardless_of_case_and_never_locks_an_account_whose_id_spells_it(self):
-        store = failed_login_store.FailedLoginAttempts(MemoryState())
+        store = failed_login_store.FailedLoginAttempts(MemoryState(jasil_testing.FixedClock()))
         records = [store.record_failed_attempt("ghost", f"198.51.100.{i}", user_id=None) for i in range(100)]
 
         assert [r.account_locked_now for r in records] == [False] * 99 + [True]
@@ -262,14 +263,14 @@ class TestLoginCounters:
         assert store.is_locked_out("ghost", _IP, user_id=uuid.uuid4()) is False
 
     def test_a_percent_encoded_variant_of_a_locked_unknown_username_is_not_locked(self):
-        store = failed_login_store.FailedLoginAttempts(MemoryState())
+        store = failed_login_store.FailedLoginAttempts(MemoryState(jasil_testing.FixedClock()))
         for i in range(100):
             store.record_failed_attempt("ghost", f"198.51.100.{i}", user_id=None)
 
         assert store.is_locked_out("%67host", _IP, user_id=None) is False
 
     def test_clear_all_clears_the_unknown_username_counters(self):
-        store = failed_login_store.FailedLoginAttempts(MemoryState())
+        store = failed_login_store.FailedLoginAttempts(MemoryState(jasil_testing.FixedClock()))
         for i in range(100):
             store.record_failed_attempt("ghost", f"198.51.100.{i}", user_id=None)
 

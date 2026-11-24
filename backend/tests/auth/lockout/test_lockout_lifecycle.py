@@ -1,10 +1,10 @@
 """Five failed password sign-ins lock the username on that client network; the lock lifts when its time passes."""
 
 import jasil.runtime
+import jasil.testing as jasil_testing
 from fastapi.testclient import TestClient
 
 import core.config as core_config
-import modules.auth.authentication.failed_login_store as failed_login_store
 import modules.auth.lockout.audit_actions as lockout_audit_actions
 import modules.auth.login_audit.audit_actions as login_audit_actions
 from tests._factories.tokens import audit_rows
@@ -12,8 +12,8 @@ from tests._factories.users import PASSWORD, make_user
 
 _LOGIN = f"{core_config.ROOT_PATH}/auth/login"
 _WRONG_PASSWORD = "Wrong-Password-0000!"
-_CLIENT_ADDRESS = "testclient"
 _FIRST_TIER_FAILURES = 5
+_FIRST_LOCK_SECONDS = 300
 
 
 def _sign_in(client: TestClient, username: str, password: str):
@@ -36,13 +36,11 @@ def _login_outcomes(committed_sessions) -> list[tuple[str, str | None]]:
     return [(row.outcome, row.details["reason"]) for row in rows]
 
 
-def _expire_lock(username: str, ip_address: str = _CLIENT_ADDRESS) -> None:
-    """Move the end of the username's lock on a client network into the past, as if its five minutes had passed."""
-    state = jasil.runtime.get_active_platform().state
-    store = failed_login_store.FailedLoginAttempts(state)
-    gate = store._by_client._gate_key(store._client_key(username, ip_address))
-    assert state.get(gate) is not None
-    state.set(gate, b"1")
+def _let_the_lock_pass() -> None:
+    """Advance the platform clock past the five minutes of the first lock tier."""
+    clock = jasil.runtime.get_active_platform().clock
+    assert isinstance(clock, jasil_testing.FixedClock)
+    clock.advance(_FIRST_LOCK_SECONDS + 1)
 
 
 class TestPasswordSignInLockout:
@@ -77,7 +75,7 @@ class TestPasswordSignInLockout:
         _fail(client, user.username, _FIRST_TIER_FAILURES)
         assert _sign_in(client, user.username, PASSWORD).status_code == 429
 
-        _expire_lock(user.username)
+        _let_the_lock_pass()
 
         assert _sign_in(client, user.username, PASSWORD).status_code == 200
 

@@ -9,7 +9,6 @@ The only jobs declared here are core's and the substrate's own.
 """
 
 import inspect
-import time
 from collections.abc import Callable, Generator, Sequence
 from contextlib import contextmanager
 from dataclasses import dataclass, field
@@ -207,9 +206,10 @@ def _mark_run(lock_name: str, minutes: int, started: float) -> None:
     Args:
         lock_name: Stable coordination-lock name, which also names the mark.
         minutes: The job's interval.
-        started: ``time.monotonic()`` when the run started.
+        started: The platform clock's ``monotonic()`` when the run started; the state expires the mark on that clock.
     """
-    ttl_seconds = int(minutes * 60 * _DUE_MARK_FRACTION - (time.monotonic() - started))
+    elapsed = platform_runtime.get_active_platform().clock.monotonic() - started
+    ttl_seconds = int(minutes * 60 * _DUE_MARK_FRACTION - elapsed)
     if ttl_seconds < 1:
         return
     try:
@@ -240,7 +240,7 @@ def run_due_job(lock_name: str, minutes: int, func: Callable[..., object], *args
     with _skipped_while_database_unavailable(lock_name=lock_name), _held_lock(lock_name) as acquired:
         if not acquired or not _is_due(lock_name):
             return None
-        started = time.monotonic()
+        started = platform_runtime.get_active_platform().clock.monotonic()
         result = func(*args)
         _mark_run(lock_name, minutes, started)
         return result
@@ -265,7 +265,7 @@ async def _run_due_async_job(lock_name: str, minutes: int, func: Callable[..., o
     with _skipped_while_database_unavailable(lock_name=lock_name), _held_lock(lock_name) as acquired:
         if not acquired or not _is_due(lock_name):
             return None
-        started = time.monotonic()
+        started = platform_runtime.get_active_platform().clock.monotonic()
         result = func(*args)
         if inspect.isawaitable(result):
             result = await result

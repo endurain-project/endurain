@@ -11,6 +11,7 @@ import modules.activities.activity_file_storage.scheduled_jobs as activity_file_
 from tests._factories.activities import make_activity
 from tests._factories.ingestion import age_stored_objects
 from tests._factories.users import make_user
+from tests._helpers.clock import platform_clock
 
 AREA = activity_file_storage_constants.ACTIVITY_FILE_STORAGE_AREA
 
@@ -26,7 +27,7 @@ ID_123 = uuid.UUID("00000000-0000-4000-8000-000000000123")
 
 def _plain_storage(root) -> LocalStorage:
     """A local backend configured the way the application configures it."""
-    return LocalStorage(str(root), plain_areas=frozenset({AREA}))
+    return LocalStorage(str(root), clock=platform_clock(), plain_areas=frozenset({AREA}))
 
 
 class TestActivityFileKey:
@@ -85,7 +86,9 @@ class TestDelete:
         assert activity_file_storage_integration.get_activity_file(ID_42, storage) is None
 
     def test_delete_removes_a_file_left_in_the_opaque_layout(self, tmp_path):
-        activity_file_storage_integration.store_activity_file(ID_7, ".fit", b"opaque", LocalStorage(str(tmp_path)))
+        activity_file_storage_integration.store_activity_file(
+            ID_7, ".fit", b"opaque", LocalStorage(str(tmp_path), clock=platform_clock())
+        )
 
         activity_file_storage_files.delete_activity_file(ID_7, _plain_storage(tmp_path))
 

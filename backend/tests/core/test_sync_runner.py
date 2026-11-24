@@ -5,7 +5,6 @@ from enum import StrEnum
 from typing import ClassVar
 
 import pytest
-from jasil.backends.state_memory import MemoryState
 from jasil.event_versioning import VersionedPayload
 from jasil.events import Event
 from jasil.jobs.registry import JobHandlerRegistry
@@ -14,6 +13,7 @@ import core.attempt_state as core_attempt_state
 import core.exceptions as core_exceptions
 import core.job_status as core_job_status
 import core.sync_runner as core_sync_runner
+from tests._helpers.clock import memory_state
 
 Status = core_job_status.JobState
 
@@ -39,7 +39,7 @@ class _Kinds(StrEnum):
 
 @pytest.fixture
 def states():
-    return core_attempt_state.SyncStateStore(MemoryState(), "feature", 60, job_kind=lambda kind: f"feature_{kind}")
+    return core_attempt_state.SyncStateStore(memory_state(), "feature", 60, job_kind=lambda kind: f"feature_{kind}")
 
 
 def _begin(states):
@@ -137,7 +137,7 @@ class TestRunRecorded:
         assert not _is_claimed(states)
 
     def test_a_superseded_sync_records_nothing_and_leaves_the_newer_sync_claimed(self):
-        state = MemoryState()
+        state = memory_state()
         states = core_attempt_state.SyncStateStore(state, "feature", 60, job_kind=lambda kind: f"feature_{kind}")
         old = _begin(states)
         state.delete(f"endurain:feature:sync:claim:{MOCK_USER_ID}:gear")

@@ -25,6 +25,7 @@ import modules.activities.activity_thumbnail.subscribers as thumbnail_subscriber
 from tests._factories.activities import make_activity, make_stream
 from tests._factories.server_settings import edit_server_settings
 from tests._factories.users import make_user
+from tests._helpers.clock import platform_clock
 
 _AREA = thumbnail_constants.THUMBNAIL_STORAGE_AREA
 _ROUTE = [{"lat": 38.70, "lon": -9.10}, {"lat": 38.72, "lon": -9.14}]
@@ -93,7 +94,7 @@ def test_the_regeneration_entry_point_renders_every_thumbnail_again(db, routed):
 
 
 def test_the_sweep_entry_point_removes_an_old_thumbnail_whose_activity_is_gone(db, tmp_path):
-    storage = LocalStorage(str(tmp_path / "plain"), plain_areas=frozenset({_AREA}))
+    storage = LocalStorage(str(tmp_path / "plain"), clock=platform_clock(), plain_areas=frozenset({_AREA}))
     platform_runtime.set_active_platform(dataclasses.replace(platform_runtime.get_active_platform(), storage=storage))
     gone = f"{uuid.uuid4()}.webp"
     storage.save(_AREA, gone, b"x")

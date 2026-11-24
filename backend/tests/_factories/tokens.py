@@ -5,6 +5,7 @@ from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 
 import jasil.audit as jasil_audit
+import jasil.testing as jasil_testing
 import pyotp
 import sqlalchemy as sa
 from jasil.audit.models import AuditLog
@@ -164,7 +165,7 @@ class _EnrolmentReplayGuard:
     """Records the TOTP step the enrolment code used, in a state of its own so the platform's replay store is clean."""
 
     def __init__(self) -> None:
-        self._state = MemoryState()
+        self._state = MemoryState(jasil_testing.FixedClock())
 
     def claim_totp_step(self, user_id: uuid.UUID, step: int) -> bool:
         return mfa_totp_replay_store.claim_totp_step(self._state, user_id, step)

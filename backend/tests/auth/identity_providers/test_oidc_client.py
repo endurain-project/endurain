@@ -5,6 +5,7 @@ outage is a state backend that is down.
 """
 
 import httpx2
+import jasil.testing as jasil_testing
 import pytest
 from jasil.backends.state_memory import MemoryState
 from jasil.providers import StateBackendUnavailableError
@@ -21,6 +22,9 @@ from tests.auth.identity_providers.test_state_stores import DownState
 
 class CooldownDown(MemoryState):
     """A state whose cooldown claims fail while its cache still answers."""
+
+    def __init__(self) -> None:
+        super().__init__(jasil_testing.FixedClock())
 
     def set_if_absent(self, key, value, *args, **kwargs):
         raise StateBackendUnavailableError("down")
@@ -42,7 +46,7 @@ def make_idp(committed_sessions, provider):
 
 @pytest.fixture
 def client() -> oidc_client_service.OidcClientService:
-    return oidc_client_service.OidcClientService(MemoryState(), "test")
+    return oidc_client_service.OidcClientService(MemoryState(jasil_testing.FixedClock()), "test")
 
 
 class TestDiscovery:
@@ -122,7 +126,7 @@ class TestDiscovery:
     def test_a_cache_that_is_down_or_holds_garbage_costs_a_fetch_and_nothing_more(self, make_idp, provider):
         idp = make_idp()
         down = oidc_client_service.OidcClientService(DownState(), "test")
-        garbage_state = MemoryState()
+        garbage_state = MemoryState(jasil_testing.FixedClock())
         garbage = oidc_client_service.OidcClientService(garbage_state, "test")
         garbage_state.set(garbage._discovery_key(idp.id), b"{not json", ttl_seconds=60)
 
@@ -149,7 +153,7 @@ class TestSigningKeys:
         assert len(provider.requests_to("/jwks")) == 2
 
     def test_a_refresh_while_the_cooldown_is_unavailable_uses_the_cached_set(self, provider):
-        state = MemoryState()
+        state = MemoryState(jasil_testing.FixedClock())
         working = oidc_client_service.OidcClientService(state, "test")
         working.fetch_jwks(provider.jwks_uri)
 

@@ -28,7 +28,8 @@ class TestWsTicketStore:
     """WsTicketStore backed by the platform StateProvider."""
 
     def _store(self) -> WsTicketStore:
-        return WsTicketStore(MemoryState(), FixedClock())
+        clock = FixedClock()
+        return WsTicketStore(MemoryState(clock), clock)
 
     def test_create_ticket_returns_string(self):
         ticket = self._store().create_ticket(user_id=USER, session_id=SESSION_1)
@@ -64,24 +65,25 @@ class TestWsTicketStore:
         ],
     )
     def test_consume_a_malformed_value_returns_none(self, value):
-        state = MemoryState()
+        clock = FixedClock()
+        state = MemoryState(clock)
         state.set_if_absent(_ticket_key("t"), value, ttl_seconds=TICKET_TTL_SECONDS)
 
-        assert WsTicketStore(state, FixedClock()).consume_ticket("t") is None
+        assert WsTicketStore(state, clock).consume_ticket("t") is None
 
-    def test_consume_expired_returns_none(self, monkeypatch):
-        store = WsTicketStore(MemoryState(), FixedClock())
-        now = [1000.0]
-        monkeypatch.setattr("jasil.backends.state_memory.time.monotonic", lambda: now[0])
+    def test_consume_expired_returns_none(self):
+        clock = FixedClock()
+        store = WsTicketStore(MemoryState(clock), clock)
         ticket = store.create_ticket(user_id=USER, session_id=SESSION_1)
 
-        now[0] += TICKET_TTL_SECONDS + 1
+        clock.advance(TICKET_TTL_SECONDS + 1)
 
         assert store.consume_ticket(ticket) is None
 
     def test_state_key_holds_hash_not_raw_ticket(self):
-        state = MemoryState()
-        ticket = WsTicketStore(state, FixedClock()).create_ticket(user_id=USER, session_id=SESSION_1)
+        clock = FixedClock()
+        state = MemoryState(clock)
+        ticket = WsTicketStore(state, clock).create_ticket(user_id=USER, session_id=SESSION_1)
         keys = list(state.iter_keys("endurain:websocket:ticket"))
         assert len(keys) == 1
         assert ticket not in keys[0]
@@ -93,8 +95,9 @@ class TestWsTicketStore:
         assert store.consume_ticket(ticket) == WsTicketOwner(user_id=USER, session_id=SESSION_1)
 
     def test_create_ticket_retries_on_collision(self):
-        state = CollidingState()
-        store = WsTicketStore(state, FixedClock())
+        clock = FixedClock()
+        state = CollidingState(clock)
+        store = WsTicketStore(state, clock)
 
         ticket = store.create_ticket(user_id=USER, session_id=SESSION_1)
 
@@ -102,11 +105,12 @@ class TestWsTicketStore:
         assert store.consume_ticket(ticket) == WsTicketOwner(user_id=USER, session_id=SESSION_1)
 
     def test_consume_corrupt_value_returns_none_and_does_not_leak(self, caplog):
-        state = MemoryState()
+        clock = FixedClock()
+        state = MemoryState(clock)
         state.set_if_absent(_ticket_key("secret-ticket-abc"), b"not-an-int", ttl_seconds=TICKET_TTL_SECONDS)
 
         with caplog.at_level(logging.WARNING):
-            assert WsTicketStore(state, FixedClock()).consume_ticket("secret-ticket-abc") is None
+            assert WsTicketStore(state, clock).consume_ticket("secret-ticket-abc") is None
 
         assert "secret-ticket-abc" not in caplog.text
         assert "endurain:websocket:ticket" not in caplog.text
@@ -116,19 +120,21 @@ class TestHandshakeLimit:
     """The per-network handshake counter in the platform state."""
 
     def test_a_network_is_allowed_up_to_the_limit_and_refused_past_it(self):
-        store = WsTicketStore(MemoryState(), FixedClock())
+        clock = FixedClock()
+        store = WsTicketStore(MemoryState(clock), clock)
         assert all(store.allow_handshake("203.0.113.5") for _ in range(MAX_HANDSHAKES_PER_WINDOW))
         assert not store.allow_handshake("203.0.113.5")
 
     def test_networks_are_counted_apart(self):
-        store = WsTicketStore(MemoryState(), FixedClock())
+        clock = FixedClock()
+        store = WsTicketStore(MemoryState(clock), clock)
         for _ in range(MAX_HANDSHAKES_PER_WINDOW + 1):
             store.allow_handshake("203.0.113.5")
         assert store.allow_handshake("203.0.113.6")
 
     def test_the_next_window_starts_fresh_even_if_attempts_never_paused(self):
         clock = FixedClock()
-        store = WsTicketStore(MemoryState(), clock)
+        store = WsTicketStore(MemoryState(clock), clock)
         for _ in range(MAX_HANDSHAKES_PER_WINDOW + 1):
             store.allow_handshake("203.0.113.5")
         assert not store.allow_handshake("203.0.113.5")
@@ -139,7 +145,7 @@ class TestHandshakeLimit:
 
     def test_attempts_do_not_extend_the_window(self):
         clock = FixedClock()
-        state = MemoryState()
+        state = MemoryState(clock)
         store = WsTicketStore(state, clock)
         for _ in range(MAX_HANDSHAKES_PER_WINDOW + 1):
             clock.advance(HANDSHAKE_WINDOW_SECONDS / (MAX_HANDSHAKES_PER_WINDOW + 5))
@@ -147,25 +153,25 @@ class TestHandshakeLimit:
         clock.advance(HANDSHAKE_WINDOW_SECONDS)
         assert store.allow_handshake("203.0.113.5")
 
-    def test_a_counter_always_expires(self, monkeypatch):
-        state = MemoryState()
-        now = [1000.0]
-        monkeypatch.setattr("jasil.backends.state_memory.time.monotonic", lambda: now[0])
-        WsTicketStore(state, FixedClock()).allow_handshake("203.0.113.5")
+    def test_a_counter_always_expires(self):
+        clock = FixedClock()
+        state = MemoryState(clock)
+        WsTicketStore(state, clock).allow_handshake("203.0.113.5")
 
-        now[0] += 2 * HANDSHAKE_WINDOW_SECONDS + 1
+        clock.advance(2 * HANDSHAKE_WINDOW_SECONDS + 1)
 
         assert list(state.iter_keys("endurain:websocket:handshakes")) == []
 
     def test_the_count_lives_in_the_shared_state(self):
-        state = MemoryState()
+        clock = FixedClock()
+        state = MemoryState(clock)
         for _ in range(MAX_HANDSHAKES_PER_WINDOW):
-            WsTicketStore(state, FixedClock()).allow_handshake("203.0.113.5")
-        assert not WsTicketStore(state, FixedClock()).allow_handshake("203.0.113.5")
+            WsTicketStore(state, clock).allow_handshake("203.0.113.5")
+        assert not WsTicketStore(state, clock).allow_handshake("203.0.113.5")
 
     def test_a_state_outage_surfaces_as_unavailable(self):
         with pytest.raises(core_attempt_state.StateUnavailableError):
-            WsTicketStore(UnavailableState(), FixedClock()).allow_handshake("203.0.113.5")
+            WsTicketStore(UnavailableState(FixedClock()), FixedClock()).allow_handshake("203.0.113.5")
 
 
 class TestWsTicketStoreUnavailable:
@@ -173,8 +179,10 @@ class TestWsTicketStoreUnavailable:
 
     def test_create_ticket_raises(self):
         with pytest.raises(core_attempt_state.StateUnavailableError):
-            WsTicketStore(UnavailableState(), FixedClock()).create_ticket(user_id=USER, session_id=SESSION_1)
+            WsTicketStore(UnavailableState(FixedClock()), FixedClock()).create_ticket(
+                user_id=USER, session_id=SESSION_1
+            )
 
     def test_consume_ticket_raises(self):
         with pytest.raises(core_attempt_state.StateUnavailableError):
-            WsTicketStore(UnavailableState(), FixedClock()).consume_ticket("some-ticket")
+            WsTicketStore(UnavailableState(FixedClock()), FixedClock()).consume_ticket("some-ticket")

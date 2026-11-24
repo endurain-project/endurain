@@ -4,13 +4,13 @@ import threading
 import uuid
 
 import pytest
-from jasil.backends.state_memory import MemoryState
 
 import modules.users.users_profile.constants as profile_constants
 import modules.users.users_profile.export_state_store as export_state_store
 import modules.users.users_profile.import_state_store as import_state_store
 import modules.users.users_profile.integration_service as profile_integration
 import modules.users.users_profile.transfer_pool as transfer_pool
+from tests._helpers.clock import memory_state
 
 _SESSION = uuid.UUID(int=601)
 
@@ -75,7 +75,7 @@ class TestReadJobs:
 
         assert profile_integration.read_export_job(first, platform.state) is None
         assert profile_integration.read_export_job(second, platform.state) is not None
-        assert profile_integration.read_export_job(second, MemoryState()) is None
+        assert profile_integration.read_export_job(second, memory_state()) is None
 
     def test_the_current_import_is_read_with_its_id_and_kind(self, platform):
         user_id = uuid.uuid4()
@@ -96,4 +96,4 @@ class TestReadJobs:
 
         assert profile_integration.read_import_job(first, platform.state) is None
         assert profile_integration.read_import_job(second, platform.state) is not None
-        assert profile_integration.read_import_job(second, MemoryState()) is None
+        assert profile_integration.read_import_job(second, memory_state()) is None

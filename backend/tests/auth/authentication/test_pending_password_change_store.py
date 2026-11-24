@@ -3,6 +3,7 @@
 import json
 import uuid
 
+import jasil.testing as jasil_testing
 import pytest
 from jasil.backends.state_memory import MemoryState
 
@@ -17,7 +18,7 @@ class _RecordingState(MemoryState):
     """The in-memory state, which also records the lifetime every key was written with."""
 
     def __init__(self) -> None:
-        super().__init__()
+        super().__init__(jasil_testing.FixedClock())
         self.ttls: dict[str, int | None] = {}
 
     def set(self, key: str, value: bytes, ttl_seconds: int | None = None) -> None:
@@ -38,7 +39,7 @@ def _record(**overrides) -> pending_store.PendingPasswordChange:
 
 
 def test_a_record_is_read_back_whole_and_claimed_once():
-    store = pending_store.PendingPasswordChanges(MemoryState())
+    store = pending_store.PendingPasswordChanges(MemoryState(jasil_testing.FixedClock()))
     challenge = store.add(_record())
 
     assert store.get(challenge) == _record()
@@ -48,14 +49,14 @@ def test_a_record_is_read_back_whole_and_claimed_once():
 
 
 def test_a_record_may_carry_no_pkce_values():
-    store = pending_store.PendingPasswordChanges(MemoryState())
+    store = pending_store.PendingPasswordChanges(MemoryState(jasil_testing.FixedClock()))
     record = _record(client_type=auth_constants.ClientType.WEB, code_challenge=None, code_challenge_method=None)
 
     assert store.get(store.add(record)) == record
 
 
 def test_the_generation_is_stored_and_an_entry_written_without_one_reads_back_unstamped():
-    state = MemoryState()
+    state = MemoryState(jasil_testing.FixedClock())
     store = pending_store.PendingPasswordChanges(state)
     challenge = store.add(_record())
     assert store.get(challenge).security_generation == 3
@@ -68,7 +69,7 @@ def test_the_generation_is_stored_and_an_entry_written_without_one_reads_back_un
 
 
 def test_each_change_gets_its_own_256_bit_challenge():
-    store = pending_store.PendingPasswordChanges(MemoryState())
+    store = pending_store.PendingPasswordChanges(MemoryState(jasil_testing.FixedClock()))
 
     first, second = store.add(_record()), store.add(_record())
 
@@ -89,7 +90,7 @@ def test_only_a_digest_of_the_challenge_is_kept_and_it_lives_ten_minutes():
 
 
 def test_a_corrupt_entry_is_removed_and_reads_as_unknown():
-    state = MemoryState()
+    state = MemoryState(jasil_testing.FixedClock())
     store = pending_store.PendingPasswordChanges(state)
     challenge = store.add(_record())
     (key,) = list(state.iter_keys(""))

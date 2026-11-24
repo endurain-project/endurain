@@ -4,12 +4,12 @@ import uuid
 from datetime import UTC, datetime, timedelta
 
 import pytest
-from jasil.backends.state_memory import MemoryState
 
 import core.attempt_state as core_attempt_state
 import core.exceptions as core_exceptions
 import modules.users.users_profile.constants as profile_constants
 import modules.users.users_profile.export_state_store as export_state_store
+from tests._helpers.clock import memory_state
 
 Status = profile_constants.ExportStatus
 _USER_ID = uuid.UUID(int=1)
@@ -18,7 +18,7 @@ _SESSION_ID = uuid.UUID(int=601)
 
 
 def test_begin_records_queued_and_refuses_a_second_export():
-    store = export_state_store.ProfileExportStateStore(MemoryState())
+    store = export_state_store.ProfileExportStateStore(memory_state())
 
     store.begin(_USER_ID, _SESSION_ID, conflict="held")
     assert store.get(_USER_ID) == export_state_store.ProfileExportState(status=Status.QUEUED, session_id=_SESSION_ID)
@@ -28,7 +28,7 @@ def test_begin_records_queued_and_refuses_a_second_export():
 
 
 def test_a_finished_export_releases_the_claim_and_keeps_its_size():
-    store = export_state_store.ProfileExportStateStore(MemoryState())
+    store = export_state_store.ProfileExportStateStore(memory_state())
     job = store.begin(_USER_ID, _SESSION_ID, conflict="held")
 
     store.set_status(_USER_ID, job.id, Status.SUCCEEDED, size_bytes=12)
@@ -38,14 +38,14 @@ def test_a_finished_export_releases_the_claim_and_keeps_its_size():
 
 
 def test_state_lives_under_the_users_namespace():
-    state = MemoryState()
+    state = memory_state()
     export_state_store.ProfileExportStateStore(state).begin(_USER_ID, _SESSION_ID, conflict="held")
 
     assert state.get(core_attempt_state.key("users", "profile_export:state", str(_USER_ID))) is not None
 
 
 def test_a_completed_export_records_when_its_download_stops_working():
-    store = export_state_store.ProfileExportStateStore(MemoryState(), ttl_seconds=600)
+    store = export_state_store.ProfileExportStateStore(memory_state(), ttl_seconds=600)
     job = store.begin(_USER_ID, _SESSION_ID, conflict="held")
     before = datetime.now(UTC)
 
@@ -57,7 +57,7 @@ def test_a_completed_export_records_when_its_download_stops_working():
 
 
 def test_an_export_that_is_not_downloadable_has_no_expiry():
-    store = export_state_store.ProfileExportStateStore(MemoryState())
+    store = export_state_store.ProfileExportStateStore(memory_state())
     job = store.begin(_USER_ID, _SESSION_ID, conflict="held")
     assert store.get(_USER_ID).expires_at is None
     store.set_status(_USER_ID, job.id, Status.FAILED, error_code=profile_constants.ExportFailure.TIMED_OUT)
@@ -74,13 +74,13 @@ def test_a_state_written_before_expires_at_existed_still_reads():
 
 
 def test_begin_names_the_export_job_and_its_owner():
-    job = export_state_store.ProfileExportStateStore(MemoryState()).begin(_USER_ID, _SESSION_ID, conflict="held")
+    job = export_state_store.ProfileExportStateStore(memory_state()).begin(_USER_ID, _SESSION_ID, conflict="held")
 
     assert (job.kind, job.owner_id, job.subject) == (profile_constants.EXPORT_JOB, _USER_ID, str(_USER_ID))
 
 
 def test_read_job_returns_the_export_until_a_later_one_replaces_it():
-    store = export_state_store.ProfileExportStateStore(MemoryState())
+    store = export_state_store.ProfileExportStateStore(memory_state())
     first = store.begin(_USER_ID, _SESSION_ID, conflict="held")
     store.set_status(_USER_ID, first.id, Status.SUCCEEDED, size_bytes=4)
     second = store.begin(_USER_ID, _SESSION_ID, conflict="held")
@@ -92,7 +92,7 @@ def test_read_job_returns_the_export_until_a_later_one_replaces_it():
 
 
 def test_the_requesting_session_is_kept_through_every_status_change():
-    store = export_state_store.ProfileExportStateStore(MemoryState())
+    store = export_state_store.ProfileExportStateStore(memory_state())
 
     job = store.begin(_USER_ID, _SESSION_ID, conflict="held")
     assert store.get(_USER_ID).session_id == _SESSION_ID

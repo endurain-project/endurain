@@ -2,9 +2,10 @@
 
 import hashlib
 import uuid
-from datetime import UTC, datetime, timedelta
+from datetime import timedelta
 from unittest.mock import patch
 
+import jasil.testing as jasil_testing
 import pytest
 from jasil.backends.state_memory import MemoryState
 
@@ -101,7 +102,8 @@ class TestFailedLoginAttempts:
     OTHER_IP = "203.0.113.2"
 
     def _store(self) -> failed_login_store.FailedLoginAttempts:
-        return failed_login_store.FailedLoginAttempts(state=MemoryState())
+        self.clock = jasil_testing.FixedClock()
+        return failed_login_store.FailedLoginAttempts(state=MemoryState(self.clock))
 
     def _fail(self, store, times, username="alice", ip=IP):
         for _ in range(times):
@@ -123,7 +125,7 @@ class TestFailedLoginAttempts:
         assert store.is_locked_out("alice", self.IP, user_id=_USER_ID_1) is True
         lockout = store.get_lockout_time("alice", self.IP, user_id=_USER_ID_1)
         assert lockout is not None
-        assert lockout > datetime.now(UTC)
+        assert lockout > self.clock.now()
 
     def test_locked_does_not_increment(self):
         store = self._store()
@@ -173,7 +175,7 @@ class TestFailedLoginAttempts:
         assert store.is_locked_out("alice", self.IP, user_id=_USER_ID_1) is False
         store.record_failed_attempt("alice", "198.51.100.200", user_id=_USER_ID_1)
         assert store.is_locked_out("alice", self.IP, user_id=_USER_ID_1) is True
-        assert store.get_lockout_time("alice", self.IP, user_id=_USER_ID_1) > datetime.now(UTC) + timedelta(days=29)
+        assert store.get_lockout_time("alice", self.IP, user_id=_USER_ID_1) > self.clock.now() + timedelta(days=29)
         assert store.is_locked_out("bob", self.IP, user_id=_USER_ID_2) is False
 
     def test_only_the_failure_that_reaches_100_reports_the_account_lock(self):
@@ -213,7 +215,7 @@ class TestFailedLoginAttempts:
         self._fail(store, 5)
         for i in range(100):
             store.record_failed_attempt("alice", f"198.51.100.{i}", user_id=_USER_ID_1)
-        assert store.get_lockout_time("alice", self.IP, user_id=_USER_ID_1) > datetime.now(UTC) + timedelta(days=29)
+        assert store.get_lockout_time("alice", self.IP, user_id=_USER_ID_1) > self.clock.now() + timedelta(days=29)
 
     def test_an_ipv6_address_counts_by_its_64_network(self):
         store = self._store()
@@ -238,7 +240,7 @@ class TestStepUpAttempts:
     """Step-up lockout (5/10/15); keys are stable user identifiers, not normalized."""
 
     def _store(self) -> step_up_store_module.StepUpAttempts:
-        return step_up_store_module.StepUpAttempts(state=MemoryState())
+        return step_up_store_module.StepUpAttempts(state=MemoryState(jasil_testing.FixedClock()))
 
     def test_lockout_applied_at_5(self):
         store = self._store()
@@ -311,7 +313,7 @@ class TestReportLockoutApplied:
         assert "alice@example.com" not in repr(caplog.records[0].__dict__)
 
     def test_a_store_does_not_log_when_it_locks(self, caplog):
-        store = failed_login_store.FailedLoginAttempts(state=MemoryState())
+        store = failed_login_store.FailedLoginAttempts(state=MemoryState(jasil_testing.FixedClock()))
         with caplog.at_level("DEBUG"):
             for _ in range(5):
                 store.record_failed_attempt("alice", "203.0.113.1", user_id=_USER_ID_1)

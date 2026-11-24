@@ -2,6 +2,7 @@
 
 from datetime import UTC, datetime
 
+import jasil.testing as jasil_testing
 import pyotp
 import pytest
 from jasil.backends.state_memory import MemoryState
@@ -45,13 +46,13 @@ class TestMatchingTotpStep:
 
 class TestClaimTotpStep:
     def test_a_step_is_accepted_once(self):
-        state = MemoryState()
+        state = MemoryState(jasil_testing.FixedClock())
 
         assert totp_replay_store.claim_totp_step(state, MOCK_USER_ID, 100) is True
         assert totp_replay_store.claim_totp_step(state, MOCK_USER_ID, 100) is False
 
     def test_steps_and_users_do_not_block_each_other(self):
-        state = MemoryState()
+        state = MemoryState(jasil_testing.FixedClock())
         totp_replay_store.claim_totp_step(state, MOCK_USER_ID, 100)
 
         assert totp_replay_store.claim_totp_step(state, MOCK_USER_ID, 101) is True

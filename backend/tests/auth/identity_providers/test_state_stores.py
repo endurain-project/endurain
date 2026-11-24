@@ -7,6 +7,7 @@ The state is the platform's in-memory backend; an outage is a backend that is do
 import logging
 import uuid
 
+import jasil.testing as jasil_testing
 import pytest
 from jasil.backends.state_memory import MemoryState
 from jasil.providers import StateBackendUnavailableError
@@ -27,6 +28,9 @@ IDP_ID = uuid.UUID(int=99)
 
 class DownState(MemoryState):
     """A state backend that cannot be reached, as when the Redis behind it is down."""
+
+    def __init__(self) -> None:
+        super().__init__(jasil_testing.FixedClock())
 
     def get(self, key, *args, **kwargs):
         raise StateBackendUnavailableError("down")
@@ -63,14 +67,14 @@ STAGED = idp_contracts.StagedSignIn(
 
 class TestLinkTickets:
     def test_a_ticket_redeems_once_to_what_was_issued(self):
-        store = LinkTicketStore(MemoryState())
+        store = LinkTicketStore(MemoryState(jasil_testing.FixedClock()))
         value = store.issue(LINK)
 
         assert store.redeem(value) == LINK
         assert store.redeem(value) is None
 
     def test_tickets_are_distinct_url_safe_and_unknown_ones_redeem_to_nothing(self):
-        store = LinkTicketStore(MemoryState())
+        store = LinkTicketStore(MemoryState(jasil_testing.FixedClock()))
 
         first, second = store.issue(LINK), store.issue(LINK)
 
@@ -79,7 +83,7 @@ class TestLinkTickets:
         assert store.redeem("unknown") is None
 
     def test_the_state_holds_the_digest_of_the_ticket_never_the_ticket(self):
-        state = MemoryState()
+        state = MemoryState(jasil_testing.FixedClock())
 
         value = LinkTicketStore(state).issue(LINK)
 
@@ -87,7 +91,7 @@ class TestLinkTickets:
         assert value not in _keys(state)[0]
 
     def test_a_malformed_stored_ticket_redeems_to_nothing(self):
-        state = MemoryState()
+        state = MemoryState(jasil_testing.FixedClock())
         value = LinkTicketStore(state).issue(LINK)
         (key,) = _keys(state)
         state.set(key, b"not json", ttl_seconds=60)
@@ -105,7 +109,7 @@ class TestLinkTickets:
 
 class TestStepUpTickets:
     def test_a_ticket_reads_back_what_was_issued_and_reading_does_not_redeem_it(self):
-        store = StepUpTicketStore(MemoryState())
+        store = StepUpTicketStore(MemoryState(jasil_testing.FixedClock()))
         value = store.issue(STEP_UP.model_copy(update={"security_generation": 5}))
 
         assert store.read(value).security_generation == 5
@@ -114,19 +118,19 @@ class TestStepUpTickets:
         assert store.read(value) is None
 
     def test_a_ticket_without_a_stamp_reads_back_without_one(self):
-        store = StepUpTicketStore(MemoryState())
+        store = StepUpTicketStore(MemoryState(jasil_testing.FixedClock()))
 
         assert store.read(store.issue(STEP_UP)).security_generation is None
 
     def test_the_state_holds_only_the_digest_of_the_ticket(self):
-        state = MemoryState()
+        state = MemoryState(jasil_testing.FixedClock())
 
         value = StepUpTicketStore(state).issue(STEP_UP)
 
         assert value not in _keys(state)[0]
 
     def test_an_unknown_or_malformed_ticket_reads_as_absent(self):
-        state = MemoryState()
+        state = MemoryState(jasil_testing.FixedClock())
         store = StepUpTicketStore(state)
         value = store.issue(STEP_UP)
         state.set(_keys(state)[0], b"not json", ttl_seconds=60)
@@ -144,7 +148,7 @@ class TestStepUpTickets:
 
 class TestStagedSignIns:
     def test_a_staged_sign_in_reads_back_until_it_is_discarded_and_only_for_its_session(self):
-        store = StagedSignInStore(MemoryState())
+        store = StagedSignInStore(MemoryState(jasil_testing.FixedClock()))
         store.stage(SESSION_ID, STAGED, ttl_seconds=600)
 
         assert store.read(SESSION_ID) == STAGED
@@ -154,7 +158,7 @@ class TestStagedSignIns:
         assert store.read(SESSION_ID) is None
 
     def test_the_record_is_stored_encrypted_under_a_key_that_hides_the_session(self):
-        state = MemoryState()
+        state = MemoryState(jasil_testing.FixedClock())
 
         StagedSignInStore(state).stage(SESSION_ID, STAGED, ttl_seconds=123)
 
@@ -165,7 +169,7 @@ class TestStagedSignIns:
             assert value.encode() not in payload
 
     def test_a_record_that_cannot_be_decrypted_reads_as_missing(self, caplog):
-        state = MemoryState()
+        state = MemoryState(jasil_testing.FixedClock())
         store = StagedSignInStore(state)
         store.stage(SESSION_ID, STAGED, ttl_seconds=600)
         state.set(_keys(state)[0], b"not a fernet token", ttl_seconds=600)
@@ -194,7 +198,7 @@ class TestStagedSignIns:
 
 class TestRefreshClaims:
     def test_one_refresh_of_a_session_holds_the_claim_until_it_is_released(self):
-        claims = refresh_claim_store.IdpRefreshClaimStore(MemoryState())
+        claims = refresh_claim_store.IdpRefreshClaimStore(MemoryState(jasil_testing.FixedClock()))
 
         assert claims.claim(SESSION_ID) is True
         assert claims.claim(SESSION_ID) is False
@@ -215,7 +219,7 @@ class TestRefreshClaims:
 
 class TestLogoutTokenReplay:
     def test_a_token_is_accepted_once_and_a_release_makes_its_retry_acceptable(self):
-        state = MemoryState()
+        state = MemoryState(jasil_testing.FixedClock())
 
         assert logout_token_replay_store.claim_logout_token(state, IDP_ID, "jti-1", 120) is True
         assert logout_token_replay_store.claim_logout_token(state, IDP_ID, "jti-1", 120) is False
@@ -223,14 +227,14 @@ class TestLogoutTokenReplay:
         assert logout_token_replay_store.claim_logout_token(state, IDP_ID, "jti-1", 120) is True
 
     def test_providers_and_tokens_do_not_block_each_other(self):
-        state = MemoryState()
+        state = MemoryState(jasil_testing.FixedClock())
         logout_token_replay_store.claim_logout_token(state, IDP_ID, "jti-1", 120)
 
         assert logout_token_replay_store.claim_logout_token(state, IDP_ID, "jti-2", 120) is True
         assert logout_token_replay_store.claim_logout_token(state, uuid.uuid4(), "jti-1", 120) is True
 
     def test_a_jti_the_provider_chose_never_becomes_part_of_a_key_as_it_is(self):
-        state = MemoryState()
+        state = MemoryState(jasil_testing.FixedClock())
 
         logout_token_replay_store.claim_logout_token(state, IDP_ID, "jti:with/odd chars", 95)
 

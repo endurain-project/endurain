@@ -3,11 +3,10 @@
 The route under test is ``POST /profile/api-keys``; every step-up route shares the check.
 """
 
-import time
 import uuid
 
-import jasil.backends.state_memory as state_memory
 import jasil.runtime as jasil_runtime
+import jasil.testing as jasil_testing
 import pytest
 
 import core.config as core_config
@@ -33,25 +32,11 @@ _LAST_TIER = lockout_contracts.STEP_UP_LOCKOUT_TIERS[-1][0]
 
 
 @pytest.fixture
-def elapse(monkeypatch):
-    """Return a function that moves the in-memory state's clock forward, so a lock's time passes without waiting."""
-    offset = [0.0]
-    real = time.monotonic
-
-    class _Time:
-        def __getattr__(self, name):
-            return getattr(time, name)
-
-        @staticmethod
-        def monotonic() -> float:
-            return real() + offset[0]
-
-    monkeypatch.setattr(state_memory, "time", _Time())
-
-    def advance(seconds: float) -> None:
-        offset[0] += seconds
-
-    return advance
+def elapse():
+    """Return a function that moves the platform clock forward, so a lock's time passes without waiting."""
+    clock = jasil_runtime.get_active_platform().clock
+    assert isinstance(clock, jasil_testing.FixedClock)
+    return clock.advance
 
 
 def _create_key(signed_in, step_up: dict):

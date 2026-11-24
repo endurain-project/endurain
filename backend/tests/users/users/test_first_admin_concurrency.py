@@ -9,7 +9,6 @@ import uuid
 from collections.abc import Callable
 
 import pytest
-from jasil.backends.state_memory import MemoryState
 from sqlalchemy import select, text
 
 import core.database as core_database
@@ -22,6 +21,7 @@ import modules.users.users.crud as users_crud
 import modules.users.users.models as users_models
 import modules.users.users.schema as users_schema
 import modules.users.users.service as users_service
+from tests._helpers.clock import memory_state
 
 _THREADS = 4
 
@@ -152,7 +152,7 @@ def test_a_rolled_back_attempt_leaves_the_installation_open_for_the_next_one(com
 
 
 def test_two_onboardings_with_two_valid_tokens_create_one_administrator(committed_sessions):
-    state = MemoryState()
+    state = memory_state()
     store = onboarding_token_store.OnboardingTokenStore(state)
     tokens = [store.issue() for _ in range(_THREADS)]
 

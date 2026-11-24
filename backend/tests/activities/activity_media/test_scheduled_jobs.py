@@ -10,12 +10,13 @@ from jasil.backends.storage_local import LocalStorage
 
 import modules.activities.activity_media.constants as media_constants
 import modules.activities.activity_media.scheduled_jobs as media_jobs
+from tests._helpers.clock import platform_clock
 
 _AREA = media_constants.MEDIA_STORAGE_AREA
 
 
 def test_the_sweep_removes_an_old_blob_whose_activity_is_gone_and_keeps_a_new_one(tmp_path):
-    storage = LocalStorage(str(tmp_path / "plain"), plain_areas=frozenset({_AREA}))
+    storage = LocalStorage(str(tmp_path / "plain"), clock=platform_clock(), plain_areas=frozenset({_AREA}))
     platform = platform_runtime.get_active_platform()
     platform_runtime.set_active_platform(dataclasses.replace(platform, storage=storage))
     gone = uuid.uuid4()
@@ -31,7 +32,7 @@ def test_the_sweep_removes_an_old_blob_whose_activity_is_gone_and_keeps_a_new_on
 
 
 def test_a_sweep_with_nothing_to_remove_leaves_the_blobs_alone(tmp_path):
-    storage = LocalStorage(str(tmp_path / "plain"), plain_areas=frozenset({_AREA}))
+    storage = LocalStorage(str(tmp_path / "plain"), clock=platform_clock(), plain_areas=frozenset({_AREA}))
     platform_runtime.set_active_platform(dataclasses.replace(platform_runtime.get_active_platform(), storage=storage))
     storage.save(_AREA, f"{uuid.uuid4()}_new.png", b"x")
 

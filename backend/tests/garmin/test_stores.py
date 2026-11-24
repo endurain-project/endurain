@@ -1,6 +1,5 @@
 """The shared Garmin Connect state (link attempts, MFA codes, syncs, rate limits) over the platform state."""
 
-import time
 import uuid
 from datetime import UTC, datetime, timedelta
 
@@ -17,6 +16,7 @@ import modules.garmin.link_state_store as link_state_store
 import modules.garmin.mfa_code_store as mfa_code_store
 import modules.garmin.rate_limit_store as garmin_rate_limit_store
 import modules.garmin.sync_state_store as sync_state_store
+from tests._helpers.clock import platform_clock
 from tests.garmin.conftest import UnavailableState
 
 USER = uuid.UUID(int=1)
@@ -33,16 +33,9 @@ def state() -> MemoryState:
 
 
 @pytest.fixture
-def advance(monkeypatch):
-    """Return a function that moves the monotonic clock the state provider expires keys by."""
-    offset = [0.0]
-    real = time.monotonic
-    monkeypatch.setattr(time, "monotonic", lambda: real() + offset[0])
-
-    def move(seconds: float) -> None:
-        offset[0] += seconds
-
-    return move
+def advance():
+    """Return a function that moves the platform clock the state provider expires keys by."""
+    return platform_clock().advance
 
 
 class TestLinkState:
@@ -129,7 +122,7 @@ class TestLinkState:
                     raise StateBackendUnavailableError("down")
                 super().set(key, value, ttl_seconds)
 
-        failing = StateWriteFails()
+        failing = StateWriteFails(platform_clock())
         with pytest.raises(core_attempt_state.StateUnavailableError):
             link_state_store.GarminLinkStateStore(failing).begin(USER, conflict="busy")
 

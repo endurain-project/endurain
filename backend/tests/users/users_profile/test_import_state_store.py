@@ -10,6 +10,7 @@ import core.attempt_state as core_attempt_state
 import core.exceptions as core_exceptions
 import modules.users.users_profile.constants as profile_constants
 import modules.users.users_profile.import_state_store as import_state_store
+from tests._helpers.clock import memory_state, platform_clock
 
 Status = profile_constants.ImportStatus
 _USER_ID = uuid.UUID(int=1)
@@ -17,7 +18,7 @@ _OTHER_USER_ID = uuid.UUID(int=2)
 
 
 def _store(state=None):
-    return import_state_store.ProfileImportStateStore(state or MemoryState())
+    return import_state_store.ProfileImportStateStore(state or memory_state())
 
 
 def test_begin_records_queued_and_refuses_a_second_import():
@@ -59,7 +60,7 @@ def test_a_failure_carries_its_code():
 
 
 def test_state_lives_under_the_users_namespace():
-    state = MemoryState()
+    state = memory_state()
     _store(state).begin(_USER_ID, conflict="held")
 
     assert state.get(core_attempt_state.key("users", "profile_import:state", str(_USER_ID))) is not None
@@ -74,7 +75,7 @@ def test_a_strict_status_raises_when_storage_is_down_and_a_plain_one_does_not():
                 raise StateBackendUnavailableError("down")
             return super().set(*args, **kwargs)
 
-    state = GoingDown()
+    state = GoingDown(platform_clock())
     store = _store(state)
     job = store.begin(_USER_ID, conflict="held")
     state.down = True
@@ -85,13 +86,13 @@ def test_a_strict_status_raises_when_storage_is_down_and_a_plain_one_does_not():
 
 
 def test_begin_names_the_import_job_and_its_owner():
-    job = _store(MemoryState()).begin(_USER_ID, conflict="held")
+    job = _store(memory_state()).begin(_USER_ID, conflict="held")
 
     assert (job.kind, job.owner_id, job.subject) == (profile_constants.IMPORT_JOB, _USER_ID, str(_USER_ID))
 
 
 def test_read_job_returns_the_import_until_a_later_one_replaces_it():
-    store = _store(MemoryState())
+    store = _store(memory_state())
     first = store.begin(_USER_ID, conflict="held")
     store.set_status(_USER_ID, first.id, Status.FAILED, error_code=profile_constants.ImportFailure.INVALID_FILE)
     second = store.begin(_USER_ID, conflict="held")

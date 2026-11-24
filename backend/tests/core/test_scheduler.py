@@ -6,7 +6,6 @@ import dataclasses
 import datetime
 import logging
 import threading
-from types import SimpleNamespace
 
 import jasil.audit as jasil_audit
 import jasil.retention as platform_retention
@@ -20,6 +19,7 @@ from sqlalchemy.exc import IntegrityError, OperationalError
 
 import core.database as core_database
 import core.scheduler as core_scheduler
+from tests._helpers import clock as test_clock
 from tests._helpers import database as test_database
 
 
@@ -51,19 +51,9 @@ def advisory_locks(committed_sessions):
 
 
 @pytest.fixture
-def clock(monkeypatch):
-    """A clock the test moves: the scheduler's own, and the state backend's that expires the run marks."""
-    import jasil.backends.state_memory as state_memory
-
-    now = [1000.0]
-    fake = SimpleNamespace(monotonic=lambda: now[0])
-    monkeypatch.setattr(core_scheduler, "time", fake)
-    monkeypatch.setattr(state_memory, "time", fake)
-
-    def advance(seconds: float) -> None:
-        now[0] += seconds
-
-    return advance
+def clock():
+    """Move the platform clock, which the state backend expires the run marks by and the scheduler times runs on."""
+    return test_clock.platform_clock().advance
 
 
 def _platform():

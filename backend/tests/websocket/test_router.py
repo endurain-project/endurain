@@ -72,7 +72,7 @@ class TestIssueTicket:
 
     def test_a_state_outage_is_a_503_not_a_ticket(self, signed_in):
         platform = jasil_runtime.get_active_platform()
-        jasil_runtime.set_active_platform(dataclasses.replace(platform, state=UnavailableState()))
+        jasil_runtime.set_active_platform(dataclasses.replace(platform, state=UnavailableState(platform.clock)))
 
         assert signed_in.client.post(_TICKET_URL).status_code == 503
 
@@ -148,7 +148,7 @@ class TestHandshake:
     def test_a_state_outage_closes_with_try_again_later(self, holding_client, signed_in):
         ticket = _ticket(signed_in)
         platform = jasil_runtime.get_active_platform()
-        jasil_runtime.set_active_platform(dataclasses.replace(platform, state=UnavailableState()))
+        jasil_runtime.set_active_platform(dataclasses.replace(platform, state=UnavailableState(platform.clock)))
 
         assert _refused_with(holding_client, ticket) == 1013
 

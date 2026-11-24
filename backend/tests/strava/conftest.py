@@ -1,5 +1,4 @@
 import dataclasses
-import time
 from collections.abc import Callable, Iterator
 
 import jasil.jobs.registry as jobs_registry
@@ -11,6 +10,7 @@ import core.config as core_config
 import modules.strava.rate_limit_store as strava_rate_limit_store
 import modules.strava.subscribers as strava_subscribers
 from tests._factories import strava as strava_factories
+from tests._helpers.clock import platform_clock
 
 
 @pytest.fixture
@@ -23,17 +23,9 @@ def strava(monkeypatch: pytest.MonkeyPatch) -> Iterator[strava_factories.FakeStr
 
 
 @pytest.fixture
-def advance_state_clock(monkeypatch: pytest.MonkeyPatch) -> Callable[[float], None]:
-    """Return a function that moves the in-memory state store's clock forward, so its TTL keys expire unslept."""
-    offset = 0.0
-    real_monotonic = time.monotonic
-
-    def advance(seconds: float) -> None:
-        nonlocal offset
-        offset += seconds
-
-    monkeypatch.setattr(time, "monotonic", lambda: real_monotonic() + offset)
-    return advance
+def advance_state_clock() -> Callable[[float], None]:
+    """Return a function that moves the platform clock the in-memory state store expires keys by, unslept."""
+    return platform_clock().advance
 
 
 @pytest.fixture

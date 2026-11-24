@@ -1,5 +1,6 @@
 """Tests for temporary MFA setup secret storage (provider-backed)."""
 
+import jasil.testing as jasil_testing
 import pytest
 from jasil.backends.state_memory import MemoryState
 
@@ -12,7 +13,7 @@ class TestMFASecretStore:
     """MFASecretStore backed by the platform StateProvider."""
 
     def _make_store(self) -> auth_mfa_setup_store.MFASecretStore:
-        return auth_mfa_setup_store.MFASecretStore(state=MemoryState())
+        return auth_mfa_setup_store.MFASecretStore(state=MemoryState(jasil_testing.FixedClock()))
 
     def test_lifecycle(self):
         store = self._make_store()
@@ -24,7 +25,7 @@ class TestMFASecretStore:
         assert store.has_secret(123) is False
 
     def test_stored_value_is_encrypted(self):
-        state = MemoryState()
+        state = MemoryState(jasil_testing.FixedClock())
         store = auth_mfa_setup_store.MFASecretStore(state=state)
         store.add_secret(123, "secret-value")
         raw = state.get(store._key(123))
@@ -80,7 +81,7 @@ class TestDecryptSecretFailure:
     """A secret that cannot be decrypted is reported and treated as absent."""
 
     def test_undecryptable_secret_logs_a_warning_without_the_value_and_returns_none(self, caplog):
-        state = MemoryState()
+        state = MemoryState(jasil_testing.FixedClock())
         store = auth_mfa_setup_store.MFASecretStore(state=state)
         state.set(store._key(MOCK_USER_ID), b"not-a-fernet-token", ttl_seconds=60)
 

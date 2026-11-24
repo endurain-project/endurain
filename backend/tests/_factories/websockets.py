@@ -5,7 +5,7 @@ from typing import Any
 
 from fastapi import WebSocketDisconnect
 from jasil.backends.state_memory import MemoryState
-from jasil.providers import StateBackendUnavailableError
+from jasil.providers import ClockProvider, StateBackendUnavailableError
 
 
 class FakeWebSocket:
@@ -104,9 +104,9 @@ class UnavailableState(MemoryState):
 class CollidingState(MemoryState):
     """A state backend whose first ``set_if_absent`` finds the key taken, as a ticket collision would."""
 
-    def __init__(self) -> None:
-        """Create the backend with one collision pending."""
-        super().__init__()
+    def __init__(self, clock: ClockProvider) -> None:
+        """Create the backend, reading time from ``clock``, with one collision pending."""
+        super().__init__(clock)
         self.collisions_left = 1
 
     def set_if_absent(self, key: str, value: bytes, ttl_seconds: int | None = None) -> bool:

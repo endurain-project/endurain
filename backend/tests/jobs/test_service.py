@@ -20,6 +20,7 @@ import modules.users.users.constants as users_constants
 import modules.users.users.deletion_state_store as deletion_state_store
 from tests._factories.jobs import make_ingestion_job_at
 from tests._factories.users import make_user
+from tests._helpers.clock import memory_state, platform_clock
 
 OTHER_USER = uuid.UUID("7b1c93e4-5d28-4f6a-8e03-a94d2c6f1b57")
 THIRD_USER = uuid.UUID("c3a85f19-0e72-4b4d-b6a8-3d9e17f4c250")
@@ -42,7 +43,7 @@ class _NeverScanned(MemoryState):
 
 @pytest.fixture
 def state():
-    return MemoryState()
+    return memory_state()
 
 
 @pytest.fixture
@@ -175,7 +176,7 @@ class TestListJobs:
         assert second.next_cursor is None
 
     def test_the_state_store_is_listed_from_the_owner_index_without_scanning_the_keyspace(self, db, user, monkeypatch):
-        state = _NeverScanned()
+        state = _NeverScanned(platform_clock())
         _at(monkeypatch, datetime(2026, 1, 10, 12, 0, tzinfo=UTC))
         first = _strava(state, user)
         _at(monkeypatch, datetime(2026, 1, 10, 12, 5, tzinfo=UTC))

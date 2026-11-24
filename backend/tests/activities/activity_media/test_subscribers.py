@@ -18,6 +18,7 @@ import modules.activities.activity_media.subscriber_registry as media_subscriber
 import modules.activities.activity_media.subscribers as media_subscribers
 from tests._factories.activities import make_stored_media
 from tests._helpers import images
+from tests._helpers.clock import platform_clock
 
 _AREA = media_constants.MEDIA_STORAGE_AREA
 
@@ -75,7 +76,7 @@ class TestOnTheBus:
     def test_a_storage_failure_never_reaches_the_publisher_and_the_blob_stays(self, make_owned_activity, tmp_path):
         activity = make_owned_activity(stage=_stage_photo)
         platform = platform_runtime.get_active_platform()
-        down = UnavailableStorage(str(tmp_path / "down"), plain_areas=frozenset({_AREA}))
+        down = UnavailableStorage(str(tmp_path / "down"), clock=platform_clock(), plain_areas=frozenset({_AREA}))
         platform_runtime.set_active_platform(dataclasses.replace(platform, storage=down))
 
         media_subscribers.on_activity_deleted_cleanup_media(_deleted(activity.id))

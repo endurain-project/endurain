@@ -26,6 +26,7 @@ import modules.server_settings.constants as server_settings_constants
 from tests._factories.activities import DEFAULT_START, make_activity, make_stream
 from tests._factories.server_settings import edit_server_settings
 from tests._factories.users import make_user
+from tests._helpers.clock import platform_clock
 
 _AREA = thumbnail_constants.THUMBNAIL_STORAGE_AREA
 _MAP = stream_constants.STREAM_TYPE_MAP
@@ -276,7 +277,9 @@ class TestBackfill:
     def test_a_pass_does_not_list_the_thumbnail_area_and_leaves_a_key_whose_blob_is_gone(
         self, db, owner, lock, clock, tiles, tmp_path
     ):
-        counting = ListingCountingStorage(str(tmp_path / "counting"), plain_areas=frozenset({_AREA}))
+        counting = ListingCountingStorage(
+            str(tmp_path / "counting"), clock=platform_clock(), plain_areas=frozenset({_AREA})
+        )
         gone = _plain(db, owner)
         activity_integration.set_thumbnail_key(gone.id, f"{gone.id}.webp", db)
 
@@ -380,7 +383,7 @@ class TestRegenerateAll:
     def test_a_blob_that_cannot_be_deleted_is_logged_and_the_keys_are_still_cleared(
         self, db, owner, clock, tiles, tmp_path
     ):
-        down = UnavailableStorage(str(tmp_path / "down"), plain_areas=frozenset({_AREA}))
+        down = UnavailableStorage(str(tmp_path / "down"), clock=platform_clock(), plain_areas=frozenset({_AREA}))
         activity = _plain(db, owner)
         activity_integration.set_thumbnail_key(activity.id, f"{activity.id}.webp", db)
         down.save(_AREA, f"{activity.id}.webp", b"stale")
@@ -427,7 +430,7 @@ class TestClearReferencesToMissingBlobs:
 
 class TestSweep:
     def test_an_old_thumbnail_of_a_deleted_activity_is_swept_and_the_rest_are_kept(self, db, owner, tmp_path):
-        plain = LocalStorage(str(tmp_path / "plain"), plain_areas=frozenset({_AREA}))
+        plain = LocalStorage(str(tmp_path / "plain"), clock=platform_clock(), plain_areas=frozenset({_AREA}))
         alive = _plain(db, owner)
         gone = uuid.uuid4()
         for name in (f"{alive.id}.webp", f"{gone}.webp", "not-a-thumbnail.webp", f"{gone}.png"):

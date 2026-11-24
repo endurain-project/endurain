@@ -5,13 +5,13 @@ import uuid
 from concurrent.futures import ThreadPoolExecutor
 
 import jasil.runtime
+import jasil.testing as jasil_testing
 import sqlalchemy as sa
 from fastapi.testclient import TestClient
 
 import core.config as core_config
 import modules.auth.lockout.audit_actions as lockout_audit_actions
 import modules.auth.login_audit.audit_actions as login_audit_actions
-import modules.auth.mfa.pending_login_store as pending_login_store
 import modules.auth.mfa_backup_codes.audit_actions as backup_codes_audit_actions
 import modules.auth.mfa_backup_codes.models as backup_codes_models
 import modules.auth.sessions.models as sessions_models
@@ -23,7 +23,7 @@ _LOGIN = f"{core_config.ROOT_PATH}/auth/login"
 _VERIFY = f"{core_config.ROOT_PATH}/auth/mfa/verify"
 _PROFILE = f"{core_config.ROOT_PATH}/profile"
 _WEB = {"X-Client-Type": "web"}
-_CLIENT_ADDRESS = "testclient"
+_FIRST_LOCK_SECONDS = 300
 
 
 def _enrolled_user(committed_sessions) -> tuple[users_schema.UserRead, MfaFactors]:
@@ -64,14 +64,11 @@ def _login_rows(committed_sessions):
     return audit_rows(committed_sessions, login_audit_actions.LOGIN)
 
 
-def _expire_mfa_lock(username: str) -> None:
-    """Move the end of the account's MFA lock into the past, as if its five minutes had passed."""
-    state = jasil.runtime.get_active_platform().state
-    store = pending_login_store.PendingMFALogin(state)
-    key = store._client_key(username, _CLIENT_ADDRESS)
-    gate = store._lockout._gate_key(key)
-    assert state.get(gate) is not None
-    state.set(gate, b"1")
+def _let_the_mfa_lock_pass() -> None:
+    """Advance the platform clock past the five minutes of the first lock tier."""
+    clock = jasil.runtime.get_active_platform().clock
+    assert isinstance(clock, jasil_testing.FixedClock)
+    clock.advance(_FIRST_LOCK_SECONDS + 1)
 
 
 class TestTotpCode:
@@ -217,9 +214,9 @@ class TestWrongCodesAndLockout:
         code = totp_code(factors.secret, steps_ahead=1)
         assert _verify(client, second, code).status_code == 429
 
-        _expire_mfa_lock(user.username)
+        _let_the_mfa_lock_pass()
 
-        response = _verify(client, second, code)
+        response = _verify(client, _challenge(client, user), code)
         assert response.status_code == 200
         assert _sessions_of(committed_sessions, user.id) == 1
 

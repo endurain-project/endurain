@@ -1,6 +1,5 @@
 """Activities are located when they are created, through the bus and the durable handler."""
 
-import time
 import uuid
 from datetime import timedelta
 
@@ -123,13 +122,13 @@ class TestWaitingForATurn:
         activity, event = created
         _take_the_free_turn(paced_geocoder)
 
-        started = time.monotonic()
+        started = clock.monotonic()
         with pytest.raises(DeferJob) as deferred:
             geocoding_subscribers.geocode_activity_for_event(event)
-        waited = time.monotonic() - started
+        waited = clock.monotonic() - started
 
         assert (waited < 0.5, _country(db, activity), len(geocoding_server.requests)) == (True, None, 1)
-        time.sleep(max((deferred.value.retry_at - clock.now()).total_seconds(), 0) + 0.05)
+        clock.advance(max((deferred.value.retry_at - clock.now()).total_seconds(), 0) + 0.05)
         geocoding_subscribers.geocode_activity_for_event(event)
         assert (_country(db, activity), len(geocoding_server.requests)) == ("Portugal", 2)
 

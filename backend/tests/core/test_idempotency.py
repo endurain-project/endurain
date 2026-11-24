@@ -8,7 +8,6 @@ import threading
 import uuid
 from types import SimpleNamespace
 
-import jasil.backends.state_memory as state_memory
 import jasil.runtime as platform_runtime
 import pytest
 from fastapi import Depends, FastAPI, Header, Request, Response
@@ -19,6 +18,7 @@ from pydantic import BaseModel
 
 import core.exceptions as core_exceptions
 import core.idempotency as core_idempotency
+from tests._helpers.clock import platform_clock
 
 _USER = uuid.UUID("00000000-0000-4000-8000-0000000000a1")
 _OTHER_USER = uuid.UUID("00000000-0000-4000-8000-0000000000a2")
@@ -41,15 +41,9 @@ def _state():
 
 
 @pytest.fixture
-def advance(monkeypatch):
-    """Return a function that moves the in-process state's clock forward, so a TTL passes without a sleep."""
-    now = [state_memory.time.monotonic()]
-    monkeypatch.setattr(state_memory, "time", SimpleNamespace(monotonic=lambda: now[0]))
-
-    def move(seconds: float) -> None:
-        now[0] += seconds
-
-    return move
+def advance():
+    """Return a function that moves the platform clock the in-process state expires keys by, so a TTL passes unslept."""
+    return platform_clock().advance
 
 
 class _ClaimThatExpiresBetweenTheReads:

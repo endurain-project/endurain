@@ -3,19 +3,18 @@
 import uuid
 from datetime import UTC, datetime, timedelta
 from enum import StrEnum
-from types import SimpleNamespace
 from unittest.mock import patch
 
-import jasil.backends.state_memory as state_memory
 import pytest
 from jasil.backends.state_memory import MemoryState
-from jasil.providers import StateBackendUnavailableError
+from jasil.providers import ClockProvider, StateBackendUnavailableError
 from pydantic import BaseModel, ValidationError
 
 import core.attempt_state as core_attempt_state
 import core.exceptions as core_exceptions
 import core.job_status as core_job_status
 from tests._helpers.auth import MOCK_USER_ID, OTHER_USER_ID
+from tests._helpers.clock import memory_state, platform_clock
 
 
 class _State(BaseModel):
@@ -33,19 +32,13 @@ class Announcements:
 
 
 @pytest.fixture
-def advance(monkeypatch):
-    """Return a function that moves the in-process state's clock forward, so a TTL passes without a sleep."""
-    now = [state_memory.time.monotonic()]
-    monkeypatch.setattr(state_memory, "time", SimpleNamespace(monotonic=lambda: now[0]))
-
-    def move(seconds: float) -> None:
-        now[0] += seconds
-
-    return move
+def advance():
+    """Return a function that moves the platform clock the in-process state expires keys by, so a TTL passes unslept."""
+    return platform_clock().advance
 
 
 def _store(state=None, ttl=60, announce=None) -> core_attempt_state.AttemptStateStore:
-    return core_attempt_state.AttemptStateStore(state or MemoryState(), "feature", "job", ttl, announce=announce)
+    return core_attempt_state.AttemptStateStore(state or memory_state(), "feature", "job", ttl, announce=announce)
 
 
 def _begin(store, subject="1", owner_id=MOCK_USER_ID):
@@ -53,7 +46,7 @@ def _begin(store, subject="1", owner_id=MOCK_USER_ID):
 
 
 def test_keys_are_namespaced_by_feature_and_kind():
-    state = MemoryState()
+    state = memory_state()
     store = _store(state)
     _begin(store)
 
@@ -63,7 +56,7 @@ def test_keys_are_namespaced_by_feature_and_kind():
 
 
 def test_begin_starts_a_job_with_its_own_id_and_indexes_it():
-    state = MemoryState()
+    state = memory_state()
     store = _store(state)
 
     job = _begin(store, owner_id=OTHER_USER_ID)
@@ -91,7 +84,7 @@ def test_a_second_begin_is_refused_with_the_running_job_until_the_attempt_finish
 
 
 def test_a_claim_whose_job_expired_is_refused_without_naming_a_job():
-    state = MemoryState()
+    state = memory_state()
     store = _store(state)
     state.set(core_attempt_state.key("feature", "job:claim", "1"), str(uuid.uuid4()).encode(), ttl_seconds=60)
 
@@ -108,7 +101,7 @@ def test_job_ids_are_uuids():
 
 
 def test_subjects_and_features_do_not_block_each_other():
-    state = MemoryState()
+    state = memory_state()
     store = _store(state)
     other_feature = core_attempt_state.AttemptStateStore(state, "other", "job", 60)
     _begin(store)
@@ -118,7 +111,7 @@ def test_subjects_and_features_do_not_block_each_other():
 
 
 def test_a_malformed_stored_state_raises_instead_of_reading_as_none():
-    state = MemoryState()
+    state = memory_state()
     store = _store(state)
     state.set(core_attempt_state.key("feature", "job:state", "1"), b'{"status":"running"}', ttl_seconds=60)
 
@@ -137,7 +130,7 @@ def test_read_returns_the_recorded_state_or_none():
 
 
 def test_a_finished_record_stamps_the_job_and_announces_it():
-    state = MemoryState()
+    state = memory_state()
     announce = Announcements()
     store = _store(state, announce=announce)
     job = _begin(store)
@@ -169,7 +162,7 @@ def test_read_job_returns_the_job_only_while_its_subject_still_holds_it():
 
 
 def test_a_record_without_a_job_keeps_no_state_but_still_frees_the_claim():
-    state = MemoryState()
+    state = memory_state()
     store = _store(state)
     job_id = uuid.uuid4()
     state.set(core_attempt_state.key("feature", "job:claim", "1"), str(job_id).encode(), ttl_seconds=60)
@@ -190,7 +183,7 @@ def _supersede(state, store):
 
 
 def test_a_superseded_attempt_neither_overwrites_the_newer_state_nor_frees_its_claim():
-    state = MemoryState()
+    state = memory_state()
     announce = Announcements()
     store = _store(state, announce=announce)
     first, second = _supersede(state, store)
@@ -208,7 +201,7 @@ def test_a_superseded_attempt_neither_overwrites_the_newer_state_nor_frees_its_c
 
 
 def test_a_superseded_attempt_does_not_renew_the_newer_claim_with_its_own():
-    state = MemoryState()
+    state = memory_state()
     store = _store(state)
     first, second = _supersede(state, store)
 
@@ -218,7 +211,7 @@ def test_a_superseded_attempt_does_not_renew_the_newer_claim_with_its_own():
 
 
 def test_the_owner_still_records_and_frees_its_claim_after_a_superseded_attempt_tried():
-    state = MemoryState()
+    state = memory_state()
     store = _store(state)
     first, second = _supersede(state, store)
     store.record("1", first.id, _State(step="first-done"), finished=True)
@@ -269,7 +262,7 @@ def test_release_frees_the_claim_without_touching_the_state():
 
 
 def test_discard_removes_the_claim_the_state_and_the_job():
-    state = MemoryState()
+    state = memory_state()
     store = _store(state)
     job = _begin(store)
 
@@ -282,7 +275,7 @@ def test_discard_removes_the_claim_the_state_and_the_job():
 
 
 def test_an_outage_while_discarding_is_swallowed():
-    state = MemoryState()
+    state = memory_state()
     store = _store(state)
     _begin(store)
     with patch.object(state, "delete", side_effect=StateBackendUnavailableError("down")):
@@ -290,7 +283,7 @@ def test_an_outage_while_discarding_is_swallowed():
 
 
 def test_a_claim_is_not_left_behind_when_the_first_state_cannot_be_written():
-    state = MemoryState()
+    state = memory_state()
     store = _store(state)
     with (
         patch.object(state, "set", side_effect=StateBackendUnavailableError("down")),
@@ -302,7 +295,7 @@ def test_a_claim_is_not_left_behind_when_the_first_state_cannot_be_written():
 
 
 def test_an_outage_on_read_is_a_service_unavailable_error():
-    state = MemoryState()
+    state = memory_state()
     store = _store(state)
     with (
         patch.object(state, "get", side_effect=StateBackendUnavailableError("down")),
@@ -312,7 +305,7 @@ def test_an_outage_on_read_is_a_service_unavailable_error():
 
 
 def test_an_outage_while_recording_or_releasing_is_swallowed():
-    state = MemoryState()
+    state = memory_state()
     store = _store(state)
     job = _begin(store)
     with patch.object(state, "set", side_effect=StateBackendUnavailableError("down")):
@@ -322,7 +315,7 @@ def test_an_outage_while_recording_or_releasing_is_swallowed():
 
 
 def test_an_outage_while_recording_strictly_raises():
-    state = MemoryState()
+    state = memory_state()
     store = _store(state)
     job = _begin(store)
     with (
@@ -333,7 +326,7 @@ def test_an_outage_while_recording_strictly_raises():
 
 
 def test_an_outage_reading_the_index_is_a_service_unavailable_error():
-    state = MemoryState()
+    state = memory_state()
     index = core_attempt_state.JobIndex(state)
 
     def down(*args, **kwargs):
@@ -357,7 +350,7 @@ def _no_scan(state):
 
 
 def test_listing_owned_jobs_reads_the_owner_index_newest_first_without_scanning_the_keyspace():
-    state = MemoryState()
+    state = memory_state()
     index = core_attempt_state.JobIndex(state)
     start = datetime(2026, 1, 1, tzinfo=UTC)
     refs = [_ref(start + timedelta(minutes=minute)) for minute in (2, 0, 1)]
@@ -371,7 +364,7 @@ def test_listing_owned_jobs_reads_the_owner_index_newest_first_without_scanning_
 
 
 def test_listing_resumes_after_a_position_across_jobs_created_at_the_same_instant():
-    state = MemoryState()
+    state = memory_state()
     index = core_attempt_state.JobIndex(state)
     at = datetime(2026, 1, 1, tzinfo=UTC)
     refs = sorted((_ref(at) for _ in range(5)), key=lambda ref: ref.id, reverse=True)
@@ -383,7 +376,7 @@ def test_listing_resumes_after_a_position_across_jobs_created_at_the_same_instan
 
 
 def test_a_reference_that_expired_after_the_range_is_skipped():
-    state = MemoryState()
+    state = memory_state()
     index = core_attempt_state.JobIndex(state)
     start = datetime(2026, 1, 1, tzinfo=UTC)
     refs = [_ref(start + timedelta(minutes=minute)) for minute in (2, 1, 0)]
@@ -395,7 +388,7 @@ def test_a_reference_that_expired_after_the_range_is_skipped():
 
 
 def test_a_removed_job_is_no_longer_listed():
-    state = MemoryState()
+    state = memory_state()
     index = core_attempt_state.JobIndex(state)
     kept = _ref(datetime(2026, 1, 1, tzinfo=UTC))
     gone = _ref(datetime(2026, 1, 2, tzinfo=UTC))
@@ -411,8 +404,8 @@ def test_a_removed_job_is_no_longer_listed():
 class _ClaimTakenOver(MemoryState):
     """A state whose claim is taken by a newer attempt just before the first attempt frees or renews it."""
 
-    def __init__(self, claim_key_part: str, taker: bytes) -> None:
-        super().__init__()
+    def __init__(self, clock: ClockProvider, claim_key_part: str, taker: bytes) -> None:
+        super().__init__(clock)
         self._part = claim_key_part
         self._taker = taker
         self.armed = False
@@ -428,7 +421,7 @@ class _ClaimTakenOver(MemoryState):
 @pytest.mark.parametrize("finished", [True, False])
 def test_a_superseded_attempt_neither_frees_nor_renews_the_new_owners_claim(finished):
     newer = uuid.uuid4()
-    state = _ClaimTakenOver(":claim:", str(newer).encode())
+    state = _ClaimTakenOver(platform_clock(), ":claim:", str(newer).encode())
     store = _store(state)
     job = _begin(store)
     state.armed = True
@@ -439,7 +432,7 @@ def test_a_superseded_attempt_neither_frees_nor_renews_the_new_owners_claim(fini
 
 
 def test_the_owning_attempt_frees_its_claim_when_finished_and_renews_it_otherwise(advance):
-    state = MemoryState()
+    state = memory_state()
     store = _store(state, ttl=60)
     job = _begin(store)
     claim = core_attempt_state.key("feature", "job:claim", "1")
@@ -463,7 +456,7 @@ Status = core_job_status.JobState
 
 def _syncs(state=None, announce=None) -> core_attempt_state.SyncStateStore:
     return core_attempt_state.SyncStateStore(
-        state or MemoryState(), "feature", 60, job_kind=lambda kind: f"feature_{kind.value}", announce=announce
+        state or memory_state(), "feature", 60, job_kind=lambda kind: f"feature_{kind.value}", announce=announce
     )
 
 
@@ -531,7 +524,7 @@ class TestSyncStateStore:
         _queue(syncs, MOCK_USER_ID, _Kind.GEAR)
 
     def test_kinds_users_and_features_do_not_block_each_other(self):
-        state = MemoryState()
+        state = memory_state()
         syncs = _syncs(state)
         _queue(syncs, MOCK_USER_ID, _Kind.GEAR)
 
@@ -541,7 +534,7 @@ class TestSyncStateStore:
         _queue(other, MOCK_USER_ID, _Kind.GEAR)
 
     def test_the_keys_are_the_ones_each_feature_always_used(self):
-        state = MemoryState()
+        state = memory_state()
         _queue(_syncs(state), MOCK_USER_ID, _Kind.GEAR)
 
         assert state.get(f"endurain:feature:sync:state:{MOCK_USER_ID}:gear") is not None
@@ -570,7 +563,7 @@ class TestSyncStateStore:
         assert syncs.get(MOCK_USER_ID, _Kind.GEAR).status == finished
 
     def test_a_sync_a_newer_one_superseded_is_neither_recorded_nor_closed(self):
-        state = MemoryState()
+        state = memory_state()
         syncs = _syncs(state)
         first = _queue(syncs, MOCK_USER_ID, _Kind.GEAR)
         state.delete(f"endurain:feature:sync:claim:{MOCK_USER_ID}:gear")
@@ -588,7 +581,7 @@ class TestSyncStateStore:
         assert _syncs().close_pending(MOCK_USER_ID, _Kind.GEAR, job_id=uuid.uuid4()) is False
 
     def test_an_unavailable_backend_fails_a_read_and_a_begin_but_not_a_recorded_outcome(self):
-        state = MemoryState()
+        state = memory_state()
 
         def down(*args, **kwargs):
             raise StateBackendUnavailableError("down")
@@ -607,7 +600,7 @@ class TestSyncStateStore:
 def test_an_outage_is_logged_as_a_warning_without_a_traceback(app_log):
     import logging
 
-    state = MemoryState()
+    state = memory_state()
     store = _store(state)
     with (
         patch.object(state, "get", side_effect=StateBackendUnavailableError("down")),
