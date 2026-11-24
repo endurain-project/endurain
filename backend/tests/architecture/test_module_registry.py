@@ -9,6 +9,8 @@ import module_registry as runtime_module_registry
 import modules.activities.activity.events as activity_events
 import modules.activities.activity_ingestion.events as ingestion_events
 import modules.activities.contributor_registry as activities_contributor_registry
+from tests._factories.activities import make_activity, make_activity_media
+from tests._factories.users import make_user
 
 _EXPECTED_CREATED_SUBSCRIBERS = {
     "activity_thumbnail.generate",
@@ -85,23 +87,26 @@ class TestRuntimeModuleRegistry:
         assert activities_contributor_registry.resolve_thumbnail_url("42.webp", 42) is not None
         assert activities_contributor_registry.resolve_thumbnail_url(None, 42) is None
 
-    def test_installs_the_media_resolver(self):
+    def test_installs_the_media_resolver(self, db):
         """Without it every activity list silently loses its photos.
 
         The root activity package asks the registry rather than importing the
         media package, so a missing registration is an empty ``media`` on every
         activity in the API.
         """
+        activity = make_activity(db, make_user(db).id)
+        stored = make_activity_media(db, activity, "0_photo.jpg")
+
         activities_contributor_registry.clear()
-        db = MagicMock()
-        assert activities_contributor_registry.resolve_media([1], db) == {}
-        db.scalars.assert_not_called()
+        try:
+            assert activities_contributor_registry.resolve_media([activity.id], db) == {}
 
-        runtime_module_registry.configure_activity_contributors()
-        db.scalars.return_value.all.return_value = []
+            runtime_module_registry.configure_activity_contributors()
+            media = activities_contributor_registry.resolve_media([activity.id], db)
+        finally:
+            runtime_module_registry.configure_activity_contributors()
 
-        assert activities_contributor_registry.resolve_media([1], db) == {}
-        db.scalars.assert_called_once()
+        assert [(item.id, item.activity_id) for item in media[activity.id]] == [(stored.id, activity.id)]
 
     def test_registers_every_activity_bus_subscriber(self):
         events = MagicMock()

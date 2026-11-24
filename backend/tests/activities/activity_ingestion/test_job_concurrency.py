@@ -6,14 +6,15 @@ connections, real row locks and a database-enforced unique index.
 
 import threading
 import uuid
+from collections.abc import Iterator
 from datetime import UTC, datetime, timedelta
-from unittest.mock import MagicMock
 
 import pytest
 from jasil.backends.lock_pg import PgAdvisoryLock
 from sqlalchemy import select, text
 from sqlalchemy.exc import IntegrityError
 
+import core.config as core_config
 import core.exceptions as core_exceptions
 import modules.activities.activity.contracts as activity_contracts
 import modules.activities.activity.crud as activity_crud
@@ -21,10 +22,16 @@ import modules.activities.activity.models as activity_models
 import modules.activities.activity_ingestion.constants as ingestion_constants
 import modules.activities.activity_ingestion.crud as ingestion_crud
 import modules.activities.activity_ingestion.models as ingestion_models
+import modules.activities.activity_streams.constants as stream_constants
+import modules.activities.activity_thumbnail.constants as thumbnail_constants
 import modules.activities.activity_thumbnail.service as thumbnail_service
+from tests._factories.activities import make_activity, make_stream
+from tests._factories.server_settings import edit_server_settings
 from tests._factories.users import make_user
+from tests._helpers.stand_ins import TileServer
 
 _LEASE = timedelta(seconds=300)
+_ROUTE = [{"lat": 38.70, "lon": -9.10}, {"lat": 38.72, "lon": -9.14}]
 _ACTIVITY_ID_1 = uuid.UUID("00000000-0000-4000-8000-0000000000c1")
 _ACTIVITY_ID_2 = uuid.UUID("00000000-0000-4000-8000-0000000000c2")
 _PRIVACY_FLAGS = (
@@ -297,28 +304,50 @@ class TestRegenerationLock:
         with factory() as db:
             thumbnail_service.delete_and_regenerate_all_activity_thumbnails(platform.storage, lock, platform.clock, db)
 
+    @pytest.fixture
+    def routed_activity(self, factory, user, monkeypatch) -> Iterator[uuid.UUID]:
+        """A committed activity with a GPS track and no thumbnail, and a loopback tile server to render it from."""
+        server = TileServer()
+        server.start()
+        monkeypatch.setattr(core_config.settings, "SSRF_ALLOWED_HOSTS", ["127.0.0.0/8"])
+        with factory() as db:
+            edit_server_settings(db, tileserver_url=server.url())
+            activity = make_activity(db, user)
+            make_stream(db, activity, stream_constants.STREAM_TYPE_MAP, _ROUTE)
+            db.commit()
+        yield activity.id
+        server.stop()
+
+    @staticmethod
+    def _thumbnail_key(factory, activity_id: uuid.UUID) -> str | None:
+        with factory() as db:
+            return db.scalar(
+                select(activity_models.Activity.map_thumbnail_path).where(activity_models.Activity.id == activity_id)
+            )
+
     def test_the_backfill_pass_skips_quietly_while_another_holder_has_the_lock(
-        self, factory, lock, _publish_local_platform
+        self, factory, lock, _publish_local_platform, routed_activity
     ):
         platform = _publish_local_platform
-        storage = MagicMock()
         release, thread = self._hold(lock, thumbnail_service.BACKFILL_LOCK_NAME)
         try:
             with factory() as db:
-                thumbnail_service.generate_missing_activity_thumbnails(storage, lock, platform.clock, db)
+                thumbnail_service.generate_missing_activity_thumbnails(platform.storage, lock, platform.clock, db)
         finally:
             release.set()
             thread.join(timeout=10)
 
-        assert storage.mock_calls == []
+        assert self._thumbnail_key(factory, routed_activity) is None
+        assert list(platform.storage.list_keys(thumbnail_constants.THUMBNAIL_STORAGE_AREA, "")) == []
 
-    def test_the_backfill_pass_runs_once_the_lock_is_free(self, factory, lock, _publish_local_platform, monkeypatch):
+    def test_the_backfill_pass_runs_once_the_lock_is_free(
+        self, factory, lock, _publish_local_platform, routed_activity
+    ):
         platform = _publish_local_platform
-        storage = MagicMock()
-        run_pass = MagicMock()
-        monkeypatch.setattr(thumbnail_service, "_run_missing_thumbnail_generation", run_pass)
 
         with factory() as db:
-            thumbnail_service.generate_missing_activity_thumbnails(storage, lock, platform.clock, db)
+            thumbnail_service.generate_missing_activity_thumbnails(platform.storage, lock, platform.clock, db)
 
-        run_pass.assert_called_once()
+        key = self._thumbnail_key(factory, routed_activity)
+        assert key == f"{routed_activity}.webp"
+        assert list(platform.storage.list_keys(thumbnail_constants.THUMBNAIL_STORAGE_AREA, "")) == [key]
