@@ -18,6 +18,7 @@ from sqlalchemy import create_engine, text
 from sqlalchemy.engine import Engine, make_url
 
 import modules.activities.activity_thumbnail.subscribers as thumbnail_subscribers
+from tests._helpers.stand_ins import GeocodingServer, TileServer
 
 _BACKEND_DIR = Path(__file__).resolve().parents[2]
 _APP_DIR = _BACKEND_DIR / "app"
@@ -87,6 +88,10 @@ class Cluster:
             connection.execute(text(f'CREATE DATABASE "{self._db_name}"'))
         self.engine: Engine = create_engine(url.set(database=self._db_name))
         self._reset_shared_services()
+        #: What the deployment's thumbnails and reverse geocoding call instead of the public OpenStreetMap services.
+        self.tiles = TileServer()
+        self.tiles.start()
+        self.geocoder = GeocodingServer()
 
     # -- environment ---------------------------------------------------------
 
@@ -150,6 +155,7 @@ class Cluster:
             JOBS_POLL_INTERVAL_SECONDS="1",
             JOBS_LEASE_SECONDS=str(LEASE_SECONDS),
             DEPLOYMENT_PROFILE="distributed" if distributed else "local",
+            SSRF_ALLOWED_HOSTS="127.0.0.1/32",
         )
         if distributed:
             env.update(STORAGE_URI=f"s3://{self._config.s3_bucket}", **self._s3_env)
@@ -194,7 +200,24 @@ class Cluster:
             assert self.wait_for(lambda process=process: _STARTUP_MARKER in process.log_path.read_text(), timeout), (
                 f"{process.label} did not start:\n{process.log_path.read_text()[-2000:]}"
             )
+        self._use_stand_ins()
         return processes
+
+    def _use_stand_ins(self) -> None:
+        """Point the migrated server settings at the loopback tile and geocoding stand-ins.
+
+        The geocoding rate limit stays at its default of one lookup a second. Processes read these settings per job
+        (geocoding reuses them for a few seconds), and no upload exists before a test drives one.
+        """
+        with self.engine.begin() as connection:
+            updated = connection.execute(
+                text(
+                    "UPDATE server_settings SET tileserver_url = :tiles, geocoding_host = :geocoder, "
+                    "geocoding_use_https = false"
+                ),
+                {"tiles": self.tiles.url(), "geocoder": f"127.0.0.1:{self.geocoder.port}"},
+            )
+        assert updated.rowcount == 1, "the migrated database holds one server_settings row"
 
     def start_worker(
         self, *, distributed: bool, slow_seconds: float | None = None, queues: str | None = None
@@ -301,6 +324,8 @@ class Cluster:
             except subprocess.TimeoutExpired:
                 with contextlib.suppress(ProcessLookupError, PermissionError):
                     os.killpg(process.popen.pid, signal.SIGKILL)
+        self.tiles.stop()
+        self.geocoder.stop()
         self.engine.dispose()
         with self._admin.connect() as connection:
             connection.execute(text(f'DROP DATABASE IF EXISTS "{self._db_name}" WITH (FORCE)'))

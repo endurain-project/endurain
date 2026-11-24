@@ -1,12 +1,9 @@
 """An owner, a follower and a stranger, the shared activities the tests read, and a real tile server to render from."""
 
-import io
 import socket
 import ssl
-import threading
 from collections.abc import Callable, Iterator
 from datetime import UTC, datetime, timedelta
-from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -15,7 +12,6 @@ from cryptography import x509
 from cryptography.hazmat.primitives import hashes, serialization
 from cryptography.hazmat.primitives.asymmetric import rsa
 from cryptography.x509.oid import NameOID
-from PIL import Image
 
 import core.config as core_config
 import modules.activities.activity.constants as activity_constants
@@ -24,6 +20,7 @@ from tests._factories.activities import make_activity
 from tests._factories.followers import make_follow
 from tests._factories.server_settings import edit_server_settings
 from tests._factories.users import make_user
+from tests._helpers.stand_ins import TileServer
 
 
 @pytest.fixture
@@ -63,60 +60,6 @@ def public_links(committed_sessions) -> None:
     with committed_sessions() as db:
         edit_server_settings(db, public_shareable_links=True)
         db.commit()
-
-
-class TileServer:
-    """A real HTTP tile server on the loopback interface, answering every tile with a small PNG.
-
-    Attributes:
-        port: The port it listens on.
-        status: The status every tile request is answered with.
-        requests: ``(path, headers)`` of each request, in arrival order.
-        on_request: Called with the request path before the answer, for a test that changes the world mid-render.
-    """
-
-    def __init__(self, tls: ssl.SSLContext | None = None) -> None:
-        buffer = io.BytesIO()
-        Image.new("RGB", (256, 256), (180, 200, 220)).save(buffer, "PNG")
-        self._tile = buffer.getvalue()
-        self.status = 200
-        self.requests: list[tuple[str, dict[str, str]]] = []
-        self.on_request: Callable[[str], None] | None = None
-        outer = self
-
-        class Handler(BaseHTTPRequestHandler):
-            def do_GET(self) -> None:
-                outer.requests.append((self.path, {k.lower(): v for k, v in self.headers.items()}))
-                if outer.on_request is not None:
-                    outer.on_request(self.path)
-                self.send_response(outer.status)
-                self.send_header("Content-Type", "image/png")
-                self.send_header("Content-Length", str(len(outer._tile)))
-                self.end_headers()
-                self.wfile.write(outer._tile)
-
-            def log_message(self, *args: object) -> None:
-                pass
-
-        self._server = ThreadingHTTPServer(("127.0.0.1", 0), Handler)
-        self.scheme = "http"
-        if tls is not None:
-            self._server.socket = tls.wrap_socket(self._server.socket, server_side=True)
-            self.scheme = "https"
-        self.port = self._server.server_address[1]
-        self._thread = threading.Thread(target=self._server.serve_forever, daemon=True)
-
-    def url(self, host: str = "127.0.0.1") -> str:
-        """Return the tile URL template of this server under a host name."""
-        return f"{self.scheme}://{host}:{self.port}/{{z}}/{{x}}/{{y}}.png"
-
-    def start(self) -> None:
-        self._thread.start()
-
-    def stop(self) -> None:
-        self._server.shutdown()
-        self._server.server_close()
-        self._thread.join(timeout=5)
 
 
 def _self_signed_certificate(directory: Path, host: str) -> Path:

@@ -9,13 +9,14 @@ storage.
 
 from tests.distributed.cluster import STARTUP_SUBSCRIBERS
 
+_GEOCODING_SUBSCRIBER = "activity_geocoding.reverse_geocode"
 _DERIVED_SUBSCRIBERS = {
-    "activity_geocoding.reverse_geocode",
+    _GEOCODING_SUBSCRIBER,
     "activity.notify_created",
     "activity_thumbnail.generate",
 }
 #: The derived work a dedicated enrichment worker takes.
-_ENRICHMENT_SUBSCRIBERS = {"activity_geocoding.reverse_geocode", "activity_thumbnail.generate"}
+_ENRICHMENT_SUBSCRIBERS = {_GEOCODING_SUBSCRIBER, "activity_thumbnail.generate"}
 
 
 def _assert_everything_completed_exactly_once(cluster, job_ids, *, workers: int) -> None:
@@ -35,9 +36,26 @@ def _assert_everything_completed_exactly_once(cluster, job_ids, *, workers: int)
     assert per_subscriber.pop("activity_ingestion.uploaded_file") == len(job_ids)
     assert per_subscriber == dict.fromkeys(_DERIVED_SUBSCRIBERS, len(job_ids))
 
-    outcomes = dict(cluster.query("SELECT outcome, count(*) FROM jasil_job_attempts GROUP BY 1"))
-    assert set(outcomes) == {"completed"}, f"no retries, reclaims or supersessions expected: {outcomes}"
-    assert not cluster.query("SELECT job_id FROM jasil_job_attempts GROUP BY 1 HAVING count(*) > 1"), "no job ran twice"
+    outcomes = cluster.query(
+        "SELECT p.subscriber_id, a.outcome, count(*) FROM jasil_job_attempts a "
+        "JOIN jasil_processing_jobs p ON p.id = a.job_id GROUP BY 1, 2"
+    )
+    # A lookup whose geocoding turn is not free yet defers to the turn it booked (one lookup a second), so several
+    # uploads at once defer some geocoding jobs; anything else that does not complete is a retry, reclaim or
+    # supersession.
+    unexpected = [
+        row for row in outcomes if row[1] != "completed" and (row[0], row[1]) != (_GEOCODING_SUBSCRIBER, "deferred")
+    ]
+    assert not unexpected, f"no retries, reclaims or supersessions expected: {outcomes}"
+    assert not cluster.query(
+        "SELECT job_id FROM jasil_job_attempts WHERE outcome = 'completed' GROUP BY 1 HAVING count(*) > 1"
+    ), "no job ran twice"
+
+    # The cluster's processes call its loopback stand-ins, never the public OpenStreetMap services: every activity
+    # was located by the geocoding stand-in, and the thumbnails were rendered from the tile stand-in.
+    assert cluster.scalar("SELECT count(*) FROM activities WHERE city = 'Lisbon'") == len(job_ids)
+    assert len(cluster.geocoder.requests) >= len(job_ids)
+    assert cluster.tiles.requests, "thumbnails fetched tiles from the stand-in"
 
     registered = cluster.query(
         "SELECT stopped_at IS NULL, now() - last_heartbeat_at < interval '30 seconds' FROM jasil_job_workers"
