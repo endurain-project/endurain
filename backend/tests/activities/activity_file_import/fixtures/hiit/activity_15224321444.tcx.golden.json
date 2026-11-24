@@ -1,0 +1,151 @@
+{
+  "activities": [
+    {
+      "activity": {
+        "activity_type": "workout",
+        "average_cad": null,
+        "average_hr": 130,
+        "average_power": null,
+        "average_speed": null,
+        "calories": 213,
+        "city": null,
+        "country": null,
+        "created_at": null,
+        "description": null,
+        "distance": 0,
+        "elevation_gain": null,
+        "elevation_loss": null,
+        "end_time": "2024-05-04T17:10:28Z",
+        "garminconnect_activity_id": null,
+        "garminconnect_gear_id": null,
+        "gear_id": null,
+        "hide_cadence": null,
+        "hide_elevation": null,
+        "hide_gear": null,
+        "hide_hr": null,
+        "hide_laps": null,
+        "hide_location": null,
+        "hide_map": null,
+        "hide_pace": null,
+        "hide_power": null,
+        "hide_speed": null,
+        "hide_start_time": null,
+        "hide_workout_sets_steps": null,
+        "import_info": null,
+        "is_hidden": false,
+        "max_cad": null,
+        "max_hr": 147,
+        "max_power": null,
+        "max_speed": null,
+        "name": "Workout",
+        "normalized_power": null,
+        "pace": null,
+        "private_notes": null,
+        "start_time": "2024-05-04T16:50:10Z",
+        "strava_activity_id": null,
+        "strava_gear_id": null,
+        "timezone": "Europe/Lisbon",
+        "total_cycles": null,
+        "total_elapsed_time": 1218.0,
+        "total_timer_time": 1218.0,
+        "town": null,
+        "tracker_manufacturer": null,
+        "tracker_model": null,
+        "visibility": null,
+        "workout_feeling": null,
+        "workout_rpe": null
+      },
+      "laps": [
+        {
+          "avg_cadence": null,
+          "avg_heart_rate": 130,
+          "avg_power": null,
+          "end_position_lat": null,
+          "end_position_long": null,
+          "enhanced_avg_pace": null,
+          "enhanced_avg_speed": null,
+          "enhanced_max_pace": null,
+          "enhanced_max_speed": null,
+          "max_cadence": null,
+          "max_heart_rate": 147,
+          "max_power": null,
+          "normalized_power": null,
+          "start_position_lat": null,
+          "start_position_long": null,
+          "start_time": "2024-05-04T16:50:10+00:00",
+          "total_ascent": null,
+          "total_calories": 213,
+          "total_descent": null,
+          "total_distance": null,
+          "total_elapsed_time": 1218.0,
+          "total_timer_time": 1218.0
+        }
+      ],
+      "sets": null,
+      "streams": [
+        {
+          "count": 586,
+          "fields": {
+            "hr": {
+              "max": 147,
+              "mean": 129.600683,
+              "min": 67
+            }
+          },
+          "first": {
+            "hr": 67,
+            "time": "2024-05-04T16:50:10"
+          },
+          "last": {
+            "hr": 127,
+            "time": "2024-05-04T17:10:28"
+          },
+          "sha256": "0afd829c7d3261b52ab32f6ac3add9bd9b5ae95f515f23c43292729c6ff535a5",
+          "stream_type": 1
+        },
+        {
+          "count": 586,
+          "fields": {
+            "vel": {
+              "max": 0,
+              "mean": 0.0,
+              "min": 0
+            }
+          },
+          "first": {
+            "time": "2024-05-04T16:50:10",
+            "vel": 0
+          },
+          "last": {
+            "time": "2024-05-04T17:10:28",
+            "vel": 0
+          },
+          "sha256": "a505d375ceb66d2b260edb4d89f1435d764317dd918237c903a89b2fba7d555d",
+          "stream_type": 5
+        },
+        {
+          "count": 586,
+          "fields": {
+            "pace": {
+              "max": 0,
+              "mean": 0.0,
+              "min": 0
+            }
+          },
+          "first": {
+            "pace": 0,
+            "time": "2024-05-04T16:50:10"
+          },
+          "last": {
+            "pace": 0,
+            "time": "2024-05-04T17:10:28"
+          },
+          "sha256": "45d3427e407b25de01a49f7eed15f866ea9c5b754d583f2ebe34a633d66b36e2",
+          "stream_type": 6
+        }
+      ],
+      "workout_steps": null
+    }
+  ],
+  "file_components": {}
+}

@@ -1,0 +1,4 @@
+{
+  "error": "InvalidInputError",
+  "message": "Invalid GPX file - no tracks found in the GPX file"
+}

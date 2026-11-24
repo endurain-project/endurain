@@ -1,0 +1,266 @@
+{
+  "activities": [
+    {
+      "activity": {
+        "activity_type": "open_water_swimming",
+        "average_cad": 27,
+        "average_hr": 104,
+        "average_power": null,
+        "average_speed": 0.690054,
+        "calories": null,
+        "city": null,
+        "country": null,
+        "created_at": null,
+        "description": null,
+        "distance": 1552,
+        "elevation_gain": null,
+        "elevation_loss": null,
+        "end_time": "2025-08-06T09:20:16Z",
+        "garminconnect_activity_id": null,
+        "garminconnect_gear_id": null,
+        "gear_id": null,
+        "hide_cadence": null,
+        "hide_elevation": null,
+        "hide_gear": null,
+        "hide_hr": null,
+        "hide_laps": null,
+        "hide_location": null,
+        "hide_map": null,
+        "hide_pace": null,
+        "hide_power": null,
+        "hide_speed": null,
+        "hide_start_time": null,
+        "hide_workout_sets_steps": null,
+        "import_info": null,
+        "is_hidden": false,
+        "max_cad": 36,
+        "max_hr": 124,
+        "max_power": null,
+        "max_speed": 1.268436,
+        "name": "Balearic Islands Open Water Swimming",
+        "normalized_power": null,
+        "pace": 1.448017,
+        "private_notes": null,
+        "start_time": "2025-08-06T08:41:26Z",
+        "strava_activity_id": null,
+        "strava_gear_id": null,
+        "timezone": "Europe/Madrid",
+        "total_cycles": null,
+        "total_elapsed_time": 2330.0,
+        "total_timer_time": 2247.0,
+        "town": null,
+        "tracker_manufacturer": null,
+        "tracker_model": null,
+        "visibility": null,
+        "workout_feeling": null,
+        "workout_rpe": null
+      },
+      "laps": [
+        {
+          "avg_cadence": 26,
+          "avg_heart_rate": 111,
+          "avg_power": null,
+          "end_position_lat": 39.506592,
+          "end_position_long": 2.536179,
+          "enhanced_avg_pace": 1.432483,
+          "enhanced_avg_speed": 0.698088,
+          "enhanced_max_pace": 0.863247,
+          "enhanced_max_speed": 1.158416,
+          "max_cadence": 31,
+          "max_heart_rate": 124,
+          "max_power": null,
+          "normalized_power": null,
+          "start_position_lat": 39.50482,
+          "start_position_long": 2.534066,
+          "start_time": "2025-08-06T08:41:26",
+          "total_ascent": null,
+          "total_descent": null,
+          "total_distance": 289.008628,
+          "total_elapsed_time": 414.0,
+          "total_timer_time": 414.0
+        },
+        {
+          "avg_cadence": 27,
+          "avg_heart_rate": 108,
+          "avg_power": null,
+          "end_position_lat": 39.508919,
+          "end_position_long": 2.541009,
+          "enhanced_avg_pace": 1.506246,
+          "enhanced_avg_speed": 0.663902,
+          "enhanced_max_pace": 0.938885,
+          "enhanced_max_speed": 1.065094,
+          "max_cadence": 36,
+          "max_heart_rate": 116,
+          "max_power": null,
+          "normalized_power": null,
+          "start_position_lat": 39.506636,
+          "start_position_long": 2.536238,
+          "start_time": "2025-08-06T08:48:45",
+          "total_ascent": null,
+          "total_descent": null,
+          "total_distance": 497.262817,
+          "total_elapsed_time": 749.0,
+          "total_timer_time": 749.0
+        },
+        {
+          "avg_cadence": 26,
+          "avg_heart_rate": 95,
+          "avg_power": null,
+          "end_position_lat": 39.507054,
+          "end_position_long": 2.536779,
+          "enhanced_avg_pace": 1.404939,
+          "enhanced_avg_speed": 0.711775,
+          "enhanced_max_pace": 0.788373,
+          "enhanced_max_speed": 1.268436,
+          "max_cadence": 32,
+          "max_heart_rate": 111,
+          "max_power": null,
+          "normalized_power": null,
+          "start_position_lat": 39.508924,
+          "start_position_long": 2.540946,
+          "start_time": "2025-08-06T09:01:53",
+          "total_ascent": null,
+          "total_descent": null,
+          "total_distance": 424.217682,
+          "total_elapsed_time": 596.0,
+          "total_timer_time": 596.0
+        },
+        {
+          "avg_cadence": 28,
+          "avg_heart_rate": 103,
+          "avg_power": null,
+          "end_position_lat": 39.504916,
+          "end_position_long": 2.534221,
+          "enhanced_avg_pace": 1.423219,
+          "enhanced_avg_speed": 0.702633,
+          "enhanced_max_pace": 0.974819,
+          "enhanced_max_speed": 1.025831,
+          "max_cadence": 32,
+          "max_heart_rate": 112,
+          "max_power": null,
+          "normalized_power": null,
+          "start_position_lat": 39.507017,
+          "start_position_long": 2.536759,
+          "start_time": "2025-08-06T09:12:08",
+          "total_ascent": null,
+          "total_descent": null,
+          "total_distance": 341.287904,
+          "total_elapsed_time": 488.0,
+          "total_timer_time": 488.0
+        }
+      ],
+      "sets": null,
+      "streams": [
+        {
+          "count": 2246,
+          "fields": {
+            "hr": {
+              "max": 124,
+              "mean": 104.069902,
+              "min": 60
+            }
+          },
+          "first": {
+            "hr": 61,
+            "time": "2025-08-06T08:41:26"
+          },
+          "last": {
+            "hr": 97,
+            "time": "2025-08-06T09:20:16"
+          },
+          "sha256": "409f555f6c468547f8e263f13eb75bf661ec5a5aafdbecc4e6792efb6e83424e",
+          "stream_type": 1
+        },
+        {
+          "count": 2246,
+          "fields": {
+            "cad": {
+              "max": 36,
+              "mean": 26.693232,
+              "min": 0
+            }
+          },
+          "first": {
+            "cad": 0,
+            "time": "2025-08-06T08:41:26"
+          },
+          "last": {
+            "cad": 26,
+            "time": "2025-08-06T09:20:16"
+          },
+          "sha256": "3a5cc00d27058073a475416cb0a7ca055a3afaad4ed89c5d25564621a687caa2",
+          "stream_type": 3
+        },
+        {
+          "count": 2246,
+          "fields": {
+            "vel": {
+              "max": 14.109227,
+              "mean": 0.690054,
+              "min": 0
+            }
+          },
+          "first": {
+            "time": "2025-08-06T08:41:26",
+            "vel": 0
+          },
+          "last": {
+            "time": "2025-08-06T09:20:16",
+            "vel": 0.205256
+          },
+          "sha256": "f1911ec345e606f3466cae3f55c797ccfca7fa25a92952f90ffab6bb071de89c",
+          "stream_type": 5
+        },
+        {
+          "count": 2246,
+          "fields": {
+            "pace": {
+              "max": 5.218178,
+              "mean": 1.504287,
+              "min": 0
+            }
+          },
+          "first": {
+            "pace": 0,
+            "time": "2025-08-06T08:41:26"
+          },
+          "last": {
+            "pace": 4.871969,
+            "time": "2025-08-06T09:20:16"
+          },
+          "sha256": "14e12b3e86fa88b4738ee4e579db0093fb11d3128fbce4087921ac218fafe68f",
+          "stream_type": 6
+        },
+        {
+          "count": 2246,
+          "fields": {
+            "lat": {
+              "max": 39.508924,
+              "mean": 39.507108,
+              "min": 39.504797
+            },
+            "lon": {
+              "max": 2.541009,
+              "mean": 2.537338,
+              "min": 2.534066
+            }
+          },
+          "first": {
+            "lat": 39.50482,
+            "lon": 2.534066,
+            "time": "2025-08-06T08:41:26"
+          },
+          "last": {
+            "lat": 39.504916,
+            "lon": 2.534221,
+            "time": "2025-08-06T09:20:16"
+          },
+          "sha256": "38ce7fddcbf0fc6e9d9c84ff1cae2a28e10440f7ddcbf6534e305371c7003231",
+          "stream_type": 7
+        }
+      ],
+      "workout_steps": null
+    }
+  ],
+  "file_components": {}
+}

@@ -1,0 +1,348 @@
+{
+  "activities": [
+    {
+      "activity": {
+        "activity_type": "open_water_swimming",
+        "average_cad": 26,
+        "average_hr": 104,
+        "average_power": null,
+        "average_speed": 0.683,
+        "calories": 223,
+        "city": null,
+        "country": null,
+        "created_at": null,
+        "description": null,
+        "distance": 1544,
+        "elevation_gain": null,
+        "elevation_loss": null,
+        "end_time": "2025-08-06T09:20:19Z",
+        "garminconnect_activity_id": null,
+        "garminconnect_gear_id": null,
+        "gear_id": null,
+        "hide_cadence": null,
+        "hide_elevation": null,
+        "hide_gear": null,
+        "hide_hr": null,
+        "hide_laps": null,
+        "hide_location": null,
+        "hide_map": null,
+        "hide_pace": null,
+        "hide_power": null,
+        "hide_speed": null,
+        "hide_start_time": null,
+        "hide_workout_sets_steps": null,
+        "import_info": null,
+        "is_hidden": false,
+        "max_cad": 36,
+        "max_hr": 124,
+        "max_power": null,
+        "max_speed": 2.706,
+        "name": "Workout",
+        "normalized_power": null,
+        "pace": 1.464354,
+        "private_notes": null,
+        "start_time": "2025-08-06T08:41:26Z",
+        "strava_activity_id": null,
+        "strava_gear_id": null,
+        "timezone": "Europe/Madrid",
+        "total_cycles": 996,
+        "total_elapsed_time": 2333.384,
+        "total_timer_time": 2260.86,
+        "town": null,
+        "tracker_manufacturer": "garmin",
+        "tracker_model": "fr955",
+        "visibility": null,
+        "workout_feeling": 50,
+        "workout_rpe": 40
+      },
+      "laps": [
+        {
+          "avg_cadence": 26,
+          "avg_fractional_cadence": 0.710938,
+          "avg_heart_rate": 110,
+          "avg_power": null,
+          "avg_stance_time": null,
+          "avg_step_length": null,
+          "avg_vertical_oscillation": null,
+          "avg_vertical_ratio": null,
+          "end_position_lat": 39.50802,
+          "end_position_long": 2.538032,
+          "enhanced_avg_pace": 1.494768,
+          "enhanced_avg_speed": 0.669,
+          "enhanced_max_altitude": null,
+          "enhanced_max_pace": 0.369549,
+          "enhanced_max_speed": 2.706,
+          "enhanced_min_altitude": null,
+          "intensity": "active",
+          "lap_trigger": "distance",
+          "max_cadence": 36,
+          "max_fractional_cadence": 0.0,
+          "max_heart_rate": 124,
+          "max_power": null,
+          "normalized_power": null,
+          "sport": "swimming",
+          "start_position_lat": 39.50482,
+          "start_position_long": 2.534066,
+          "start_time": "2025-08-06T08:41:26+00:00",
+          "sub_sport": "open_water",
+          "total_ascent": null,
+          "total_calories": 94,
+          "total_cycles": 334,
+          "total_descent": null,
+          "total_distance": 500.0,
+          "total_elapsed_time": 762.471,
+          "total_timer_time": 747.698,
+          "total_work": null
+        },
+        {
+          "avg_cadence": 26,
+          "avg_fractional_cadence": 0.0625,
+          "avg_heart_rate": 100,
+          "avg_power": null,
+          "avg_stance_time": null,
+          "avg_step_length": null,
+          "avg_vertical_oscillation": null,
+          "avg_vertical_ratio": null,
+          "end_position_lat": 39.508117,
+          "end_position_long": 2.538629,
+          "enhanced_avg_pace": 1.492537,
+          "enhanced_avg_speed": 0.67,
+          "enhanced_max_altitude": null,
+          "enhanced_max_pace": 1.103753,
+          "enhanced_max_speed": 0.906,
+          "enhanced_min_altitude": null,
+          "intensity": "active",
+          "lap_trigger": "distance",
+          "max_cadence": 31,
+          "max_fractional_cadence": 0.0,
+          "max_heart_rate": 115,
+          "max_power": null,
+          "normalized_power": null,
+          "sport": "swimming",
+          "start_position_lat": 39.508024,
+          "start_position_long": 2.538052,
+          "start_time": "2025-08-06T08:54:10+00:00",
+          "sub_sport": "open_water",
+          "total_ascent": null,
+          "total_calories": 64,
+          "total_cycles": 319,
+          "total_descent": null,
+          "total_distance": 500.0,
+          "total_elapsed_time": 785.483,
+          "total_timer_time": 746.582,
+          "total_work": null
+        },
+        {
+          "avg_cadence": 27,
+          "avg_fractional_cadence": 0.304688,
+          "avg_heart_rate": 103,
+          "avg_power": null,
+          "avg_stance_time": null,
+          "avg_step_length": null,
+          "avg_vertical_oscillation": null,
+          "avg_vertical_ratio": null,
+          "end_position_lat": 39.504848,
+          "end_position_long": 2.534672,
+          "enhanced_avg_pace": 1.392758,
+          "enhanced_avg_speed": 0.718,
+          "enhanced_max_altitude": null,
+          "enhanced_max_pace": 1.01626,
+          "enhanced_max_speed": 0.984,
+          "enhanced_min_altitude": null,
+          "intensity": "active",
+          "lap_trigger": "distance",
+          "max_cadence": 32,
+          "max_fractional_cadence": 0.0,
+          "max_heart_rate": 112,
+          "max_power": null,
+          "normalized_power": null,
+          "sport": "swimming",
+          "start_position_lat": 39.508116,
+          "start_position_long": 2.538625,
+          "start_time": "2025-08-06T09:07:15+00:00",
+          "sub_sport": "open_water",
+          "total_ascent": null,
+          "total_calories": 59,
+          "total_cycles": 312,
+          "total_descent": null,
+          "total_distance": 500.0,
+          "total_elapsed_time": 715.296,
+          "total_timer_time": 696.446,
+          "total_work": null
+        },
+        {
+          "avg_cadence": 26,
+          "avg_fractional_cadence": 0.75,
+          "avg_heart_rate": 100,
+          "avg_power": null,
+          "avg_stance_time": null,
+          "avg_step_length": null,
+          "avg_vertical_oscillation": null,
+          "avg_vertical_ratio": null,
+          "end_position_lat": 39.504916,
+          "end_position_long": 2.534221,
+          "enhanced_avg_pace": 1.597444,
+          "enhanced_avg_speed": 0.626,
+          "enhanced_max_altitude": null,
+          "enhanced_max_pace": 1.251564,
+          "enhanced_max_speed": 0.799,
+          "enhanced_min_altitude": null,
+          "intensity": "active",
+          "lap_trigger": "session_end",
+          "max_cadence": 30,
+          "max_fractional_cadence": 0.0,
+          "max_heart_rate": 103,
+          "max_power": null,
+          "normalized_power": null,
+          "sport": "swimming",
+          "start_position_lat": 39.504845,
+          "start_position_long": 2.534669,
+          "start_time": "2025-08-06T09:19:10+00:00",
+          "sub_sport": "open_water",
+          "total_ascent": null,
+          "total_calories": 5,
+          "total_cycles": 31,
+          "total_descent": null,
+          "total_distance": 43.93,
+          "total_elapsed_time": 70.134,
+          "total_timer_time": 70.134,
+          "total_work": null
+        }
+      ],
+      "sets": [],
+      "streams": [
+        {
+          "count": 2264,
+          "fields": {
+            "hr": {
+              "max": 124,
+              "mean": 104.031802,
+              "min": 60
+            }
+          },
+          "first": {
+            "hr": 61,
+            "time": "2025-08-06T08:41:26"
+          },
+          "last": {
+            "hr": 95,
+            "time": "2025-08-06T09:20:19"
+          },
+          "sha256": "c4a07fab1b0ca14fdd72db0de2b9a1d8f28a0fd0cf3bad41354ef40334873d73",
+          "stream_type": 1
+        },
+        {
+          "count": 2264,
+          "fields": {
+            "cad": {
+              "max": 36,
+              "mean": 26.68242,
+              "min": 0
+            }
+          },
+          "first": {
+            "cad": 0,
+            "time": "2025-08-06T08:41:26"
+          },
+          "last": {
+            "cad": 26,
+            "time": "2025-08-06T09:20:19"
+          },
+          "sha256": "714bf1533b29a1d0526ddf8cd118108eaa53ca7dbf073e14c9071f73b46e642d",
+          "stream_type": 3
+        },
+        {
+          "count": 2243,
+          "fields": {
+            "vel": {
+              "max": 14.109227,
+              "mean": 0.690973,
+              "min": 0.0
+            }
+          },
+          "first": {
+            "time": "2025-08-06T08:41:27",
+            "vel": 14.109227
+          },
+          "last": {
+            "time": "2025-08-06T09:20:16",
+            "vel": 0.205256
+          },
+          "sha256": "acb0a9ef6538644d141476187af13ef9ec8025189e4b78b38d2f5767364581be",
+          "stream_type": 5
+        },
+        {
+          "count": 2241,
+          "fields": {
+            "pace": {
+              "max": 7.191798,
+              "mean": 1.511579,
+              "min": 0.070876
+            }
+          },
+          "first": {
+            "pace": 0.070876,
+            "time": "2025-08-06T08:41:27"
+          },
+          "last": {
+            "pace": 4.871969,
+            "time": "2025-08-06T09:20:16"
+          },
+          "sha256": "431ae17d319cb3d017485d8aaa8b4741b64f94e1920f1a161c8cf98f117466d7",
+          "stream_type": 6
+        },
+        {
+          "count": 2246,
+          "fields": {
+            "lat": {
+              "max": 39.508924,
+              "mean": 39.507108,
+              "min": 39.504797
+            },
+            "lon": {
+              "max": 2.541009,
+              "mean": 2.537338,
+              "min": 2.534066
+            }
+          },
+          "first": {
+            "lat": 39.50482,
+            "lon": 2.534066,
+            "time": "2025-08-06T08:41:26"
+          },
+          "last": {
+            "lat": 39.504916,
+            "lon": 2.534221,
+            "time": "2025-08-06T09:20:16"
+          },
+          "sha256": "38ce7fddcbf0fc6e9d9c84ff1cae2a28e10440f7ddcbf6534e305371c7003231",
+          "stream_type": 7
+        },
+        {
+          "count": 2264,
+          "fields": {
+            "temp": {
+              "max": 32,
+              "mean": 27.205389,
+              "min": 27
+            }
+          },
+          "first": {
+            "temp": 32,
+            "time": "2025-08-06T08:41:26"
+          },
+          "last": {
+            "temp": 27,
+            "time": "2025-08-06T09:20:19"
+          },
+          "sha256": "6e2531f88eddebab8ba7c3c042ab9ea9ad44ea14422c9b34dc5d5ef4e357308f",
+          "stream_type": 8
+        }
+      ],
+      "workout_steps": []
+    }
+  ],
+  "file_components": {
+    "exercise_titles": []
+  }
+}

@@ -1,0 +1,4 @@
+{
+  "error": "InvalidInputError",
+  "message": "Can't parse FIT file sessions"
+}

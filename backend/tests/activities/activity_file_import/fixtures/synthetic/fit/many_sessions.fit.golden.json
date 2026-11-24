@@ -1,0 +1,2227 @@
+{
+  "activities": [
+    {
+      "activity": {
+        "activity_type": "run",
+        "average_cad": null,
+        "average_hr": 142,
+        "average_power": null,
+        "average_speed": 2.991781,
+        "calories": null,
+        "city": null,
+        "country": null,
+        "created_at": null,
+        "description": null,
+        "distance": 90,
+        "elevation_gain": null,
+        "elevation_loss": null,
+        "end_time": "2026-06-20T08:00:30Z",
+        "garminconnect_activity_id": null,
+        "garminconnect_gear_id": null,
+        "gear_id": null,
+        "hide_cadence": null,
+        "hide_elevation": null,
+        "hide_gear": null,
+        "hide_hr": null,
+        "hide_laps": null,
+        "hide_location": null,
+        "hide_map": null,
+        "hide_pace": null,
+        "hide_power": null,
+        "hide_speed": null,
+        "hide_start_time": null,
+        "hide_workout_sets_steps": null,
+        "import_info": null,
+        "is_hidden": false,
+        "max_cad": null,
+        "max_hr": 144,
+        "max_power": null,
+        "max_speed": 2.992402,
+        "name": "Workout",
+        "normalized_power": null,
+        "pace": 0.334249,
+        "private_notes": null,
+        "start_time": "2026-06-20T08:00:00Z",
+        "strava_activity_id": null,
+        "strava_gear_id": null,
+        "timezone": "Europe/Lisbon",
+        "total_cycles": null,
+        "total_elapsed_time": 30.0,
+        "total_timer_time": 30.0,
+        "town": null,
+        "tracker_manufacturer": "garmin",
+        "tracker_model": null,
+        "visibility": null,
+        "workout_feeling": null,
+        "workout_rpe": null
+      },
+      "laps": [
+        {
+          "avg_cadence": null,
+          "avg_fractional_cadence": null,
+          "avg_heart_rate": null,
+          "avg_power": null,
+          "avg_stance_time": null,
+          "avg_step_length": null,
+          "avg_vertical_oscillation": null,
+          "avg_vertical_ratio": null,
+          "end_position_lat": null,
+          "end_position_long": null,
+          "enhanced_avg_speed": null,
+          "enhanced_max_altitude": null,
+          "enhanced_max_speed": null,
+          "enhanced_min_altitude": null,
+          "intensity": null,
+          "lap_trigger": null,
+          "max_cadence": null,
+          "max_fractional_cadence": null,
+          "max_heart_rate": null,
+          "max_power": null,
+          "normalized_power": null,
+          "sport": null,
+          "start_position_lat": null,
+          "start_position_long": null,
+          "start_time": "2026-06-20T08:00:00+00:00",
+          "sub_sport": null,
+          "total_ascent": null,
+          "total_calories": null,
+          "total_cycles": null,
+          "total_descent": null,
+          "total_distance": null,
+          "total_elapsed_time": 30.0,
+          "total_timer_time": 30.0,
+          "total_work": null
+        }
+      ],
+      "sets": [],
+      "streams": [
+        {
+          "count": 4,
+          "fields": {
+            "hr": {
+              "max": 144,
+              "mean": 141.5,
+              "min": 140
+            }
+          },
+          "first": {
+            "hr": 140,
+            "time": "2026-06-20T08:00:00"
+          },
+          "last": {
+            "hr": 140,
+            "time": "2026-06-20T08:00:30"
+          },
+          "sha256": "78aab35c162f93e99c7d06ad8a987257938538184442757c6be7838c686636e6",
+          "stream_type": 1
+        },
+        {
+          "count": 3,
+          "fields": {
+            "vel": {
+              "max": 2.992402,
+              "mean": 2.991781,
+              "min": 2.991471
+            }
+          },
+          "first": {
+            "time": "2026-06-20T08:00:10",
+            "vel": 2.992402
+          },
+          "last": {
+            "time": "2026-06-20T08:00:30",
+            "vel": 2.991471
+          },
+          "sha256": "4652558c6d309e3c76ab3957d542e0b16c23ea7b389438f5e86b4d84dbe5e9d4",
+          "stream_type": 5
+        },
+        {
+          "count": 3,
+          "fields": {
+            "pace": {
+              "max": 0.334284,
+              "mean": 0.334249,
+              "min": 0.33418
+            }
+          },
+          "first": {
+            "pace": 0.33418,
+            "time": "2026-06-20T08:00:10"
+          },
+          "last": {
+            "pace": 0.334284,
+            "time": "2026-06-20T08:00:30"
+          },
+          "sha256": "c77cc69b847a35397d2186ff51bbf53ce6cf30a498361929917a57ce491c2fce",
+          "stream_type": 6
+        },
+        {
+          "count": 4,
+          "fields": {
+            "lat": {
+              "max": 38.700808,
+              "mean": 38.700404,
+              "min": 38.7
+            },
+            "lon": {
+              "max": -9.1,
+              "mean": -9.1,
+              "min": -9.1
+            }
+          },
+          "first": {
+            "lat": 38.7,
+            "lon": -9.1,
+            "time": "2026-06-20T08:00:00"
+          },
+          "last": {
+            "lat": 38.700808,
+            "lon": -9.1,
+            "time": "2026-06-20T08:00:30"
+          },
+          "sha256": "492d7c7301d5ce01b376043f052fb2d1eb41d05a3f04f2d6527839c05ec6e28c",
+          "stream_type": 7
+        }
+      ],
+      "workout_steps": []
+    },
+    {
+      "activity": {
+        "activity_type": "run",
+        "average_cad": null,
+        "average_hr": 142,
+        "average_power": null,
+        "average_speed": 2.991782,
+        "calories": null,
+        "city": null,
+        "country": null,
+        "created_at": null,
+        "description": null,
+        "distance": 90,
+        "elevation_gain": null,
+        "elevation_loss": null,
+        "end_time": "2026-06-20T08:01:30Z",
+        "garminconnect_activity_id": null,
+        "garminconnect_gear_id": null,
+        "gear_id": null,
+        "hide_cadence": null,
+        "hide_elevation": null,
+        "hide_gear": null,
+        "hide_hr": null,
+        "hide_laps": null,
+        "hide_location": null,
+        "hide_map": null,
+        "hide_pace": null,
+        "hide_power": null,
+        "hide_speed": null,
+        "hide_start_time": null,
+        "hide_workout_sets_steps": null,
+        "import_info": null,
+        "is_hidden": false,
+        "max_cad": null,
+        "max_hr": 144,
+        "max_power": null,
+        "max_speed": 2.992402,
+        "name": "Workout",
+        "normalized_power": null,
+        "pace": 0.334249,
+        "private_notes": null,
+        "start_time": "2026-06-20T08:01:00Z",
+        "strava_activity_id": null,
+        "strava_gear_id": null,
+        "timezone": "Europe/Lisbon",
+        "total_cycles": null,
+        "total_elapsed_time": 30.0,
+        "total_timer_time": 30.0,
+        "town": null,
+        "tracker_manufacturer": "garmin",
+        "tracker_model": null,
+        "visibility": null,
+        "workout_feeling": null,
+        "workout_rpe": null
+      },
+      "laps": [
+        {
+          "avg_cadence": null,
+          "avg_fractional_cadence": null,
+          "avg_heart_rate": null,
+          "avg_power": null,
+          "avg_stance_time": null,
+          "avg_step_length": null,
+          "avg_vertical_oscillation": null,
+          "avg_vertical_ratio": null,
+          "end_position_lat": null,
+          "end_position_long": null,
+          "enhanced_avg_speed": null,
+          "enhanced_max_altitude": null,
+          "enhanced_max_speed": null,
+          "enhanced_min_altitude": null,
+          "intensity": null,
+          "lap_trigger": null,
+          "max_cadence": null,
+          "max_fractional_cadence": null,
+          "max_heart_rate": null,
+          "max_power": null,
+          "normalized_power": null,
+          "sport": null,
+          "start_position_lat": null,
+          "start_position_long": null,
+          "start_time": "2026-06-20T08:01:00+00:00",
+          "sub_sport": null,
+          "total_ascent": null,
+          "total_calories": null,
+          "total_cycles": null,
+          "total_descent": null,
+          "total_distance": null,
+          "total_elapsed_time": 30.0,
+          "total_timer_time": 30.0,
+          "total_work": null
+        }
+      ],
+      "sets": [],
+      "streams": [
+        {
+          "count": 4,
+          "fields": {
+            "hr": {
+              "max": 144,
+              "mean": 141.5,
+              "min": 140
+            }
+          },
+          "first": {
+            "hr": 140,
+            "time": "2026-06-20T08:01:00"
+          },
+          "last": {
+            "hr": 140,
+            "time": "2026-06-20T08:01:30"
+          },
+          "sha256": "678a444efc4b29e503901783b6d23a18af2dae1d78bf0bf4eef37ab7ee265fb0",
+          "stream_type": 1
+        },
+        {
+          "count": 3,
+          "fields": {
+            "vel": {
+              "max": 2.992402,
+              "mean": 2.991782,
+              "min": 2.991472
+            }
+          },
+          "first": {
+            "time": "2026-06-20T08:01:10",
+            "vel": 2.992402
+          },
+          "last": {
+            "time": "2026-06-20T08:01:30",
+            "vel": 2.991472
+          },
+          "sha256": "789a5c4b2b926f674d55ddc683cd44740ab3a00cf67cdae8470580f879e86ba2",
+          "stream_type": 5
+        },
+        {
+          "count": 3,
+          "fields": {
+            "pace": {
+              "max": 0.334284,
+              "mean": 0.334249,
+              "min": 0.33418
+            }
+          },
+          "first": {
+            "pace": 0.33418,
+            "time": "2026-06-20T08:01:10"
+          },
+          "last": {
+            "pace": 0.334284,
+            "time": "2026-06-20T08:01:30"
+          },
+          "sha256": "3d807a471671b91dcadc5dc5b383a86786114eaf8bab933cb86f7b951f68bf8d",
+          "stream_type": 6
+        },
+        {
+          "count": 4,
+          "fields": {
+            "lat": {
+              "max": 38.702425,
+              "mean": 38.702021,
+              "min": 38.701617
+            },
+            "lon": {
+              "max": -9.1,
+              "mean": -9.1,
+              "min": -9.1
+            }
+          },
+          "first": {
+            "lat": 38.701617,
+            "lon": -9.1,
+            "time": "2026-06-20T08:01:00"
+          },
+          "last": {
+            "lat": 38.702425,
+            "lon": -9.1,
+            "time": "2026-06-20T08:01:30"
+          },
+          "sha256": "6471b8505cd7568fcf2a1d761455279fb86acd33a77e5be1048c4a36182e5123",
+          "stream_type": 7
+        }
+      ],
+      "workout_steps": []
+    },
+    {
+      "activity": {
+        "activity_type": "run",
+        "average_cad": null,
+        "average_hr": 142,
+        "average_power": null,
+        "average_speed": 2.991783,
+        "calories": null,
+        "city": null,
+        "country": null,
+        "created_at": null,
+        "description": null,
+        "distance": 90,
+        "elevation_gain": null,
+        "elevation_loss": null,
+        "end_time": "2026-06-20T08:02:30Z",
+        "garminconnect_activity_id": null,
+        "garminconnect_gear_id": null,
+        "gear_id": null,
+        "hide_cadence": null,
+        "hide_elevation": null,
+        "hide_gear": null,
+        "hide_hr": null,
+        "hide_laps": null,
+        "hide_location": null,
+        "hide_map": null,
+        "hide_pace": null,
+        "hide_power": null,
+        "hide_speed": null,
+        "hide_start_time": null,
+        "hide_workout_sets_steps": null,
+        "import_info": null,
+        "is_hidden": false,
+        "max_cad": null,
+        "max_hr": 144,
+        "max_power": null,
+        "max_speed": 2.992403,
+        "name": "Workout",
+        "normalized_power": null,
+        "pace": 0.334249,
+        "private_notes": null,
+        "start_time": "2026-06-20T08:02:00Z",
+        "strava_activity_id": null,
+        "strava_gear_id": null,
+        "timezone": "Europe/Lisbon",
+        "total_cycles": null,
+        "total_elapsed_time": 30.0,
+        "total_timer_time": 30.0,
+        "town": null,
+        "tracker_manufacturer": "garmin",
+        "tracker_model": null,
+        "visibility": null,
+        "workout_feeling": null,
+        "workout_rpe": null
+      },
+      "laps": [
+        {
+          "avg_cadence": null,
+          "avg_fractional_cadence": null,
+          "avg_heart_rate": null,
+          "avg_power": null,
+          "avg_stance_time": null,
+          "avg_step_length": null,
+          "avg_vertical_oscillation": null,
+          "avg_vertical_ratio": null,
+          "end_position_lat": null,
+          "end_position_long": null,
+          "enhanced_avg_speed": null,
+          "enhanced_max_altitude": null,
+          "enhanced_max_speed": null,
+          "enhanced_min_altitude": null,
+          "intensity": null,
+          "lap_trigger": null,
+          "max_cadence": null,
+          "max_fractional_cadence": null,
+          "max_heart_rate": null,
+          "max_power": null,
+          "normalized_power": null,
+          "sport": null,
+          "start_position_lat": null,
+          "start_position_long": null,
+          "start_time": "2026-06-20T08:02:00+00:00",
+          "sub_sport": null,
+          "total_ascent": null,
+          "total_calories": null,
+          "total_cycles": null,
+          "total_descent": null,
+          "total_distance": null,
+          "total_elapsed_time": 30.0,
+          "total_timer_time": 30.0,
+          "total_work": null
+        }
+      ],
+      "sets": [],
+      "streams": [
+        {
+          "count": 4,
+          "fields": {
+            "hr": {
+              "max": 144,
+              "mean": 141.5,
+              "min": 140
+            }
+          },
+          "first": {
+            "hr": 140,
+            "time": "2026-06-20T08:02:00"
+          },
+          "last": {
+            "hr": 140,
+            "time": "2026-06-20T08:02:30"
+          },
+          "sha256": "f4e3bf2f3002b6e73f73e4f9b2765fc621fc5d8ed90e1a643898c7304358e1c6",
+          "stream_type": 1
+        },
+        {
+          "count": 3,
+          "fields": {
+            "vel": {
+              "max": 2.992403,
+              "mean": 2.991783,
+              "min": 2.991473
+            }
+          },
+          "first": {
+            "time": "2026-06-20T08:02:10",
+            "vel": 2.992403
+          },
+          "last": {
+            "time": "2026-06-20T08:02:30",
+            "vel": 2.991473
+          },
+          "sha256": "f7c3886d74621fb0301c54f3466ddb681625f3a2a3c5863bb814c44c3f24c7f9",
+          "stream_type": 5
+        },
+        {
+          "count": 3,
+          "fields": {
+            "pace": {
+              "max": 0.334283,
+              "mean": 0.334249,
+              "min": 0.33418
+            }
+          },
+          "first": {
+            "pace": 0.33418,
+            "time": "2026-06-20T08:02:10"
+          },
+          "last": {
+            "pace": 0.334283,
+            "time": "2026-06-20T08:02:30"
+          },
+          "sha256": "8e8adc5ee969c0f880ee8438e20b5148325438d510f47b02effd3ba587eff3a7",
+          "stream_type": 6
+        },
+        {
+          "count": 4,
+          "fields": {
+            "lat": {
+              "max": 38.704042,
+              "mean": 38.703638,
+              "min": 38.703234
+            },
+            "lon": {
+              "max": -9.1,
+              "mean": -9.1,
+              "min": -9.1
+            }
+          },
+          "first": {
+            "lat": 38.703234,
+            "lon": -9.1,
+            "time": "2026-06-20T08:02:00"
+          },
+          "last": {
+            "lat": 38.704042,
+            "lon": -9.1,
+            "time": "2026-06-20T08:02:30"
+          },
+          "sha256": "390f095432616a1b726f1404d2513a0c582708006270ffa3f39fb2f2a59793d4",
+          "stream_type": 7
+        }
+      ],
+      "workout_steps": []
+    },
+    {
+      "activity": {
+        "activity_type": "run",
+        "average_cad": null,
+        "average_hr": 142,
+        "average_power": null,
+        "average_speed": 2.991474,
+        "calories": null,
+        "city": null,
+        "country": null,
+        "created_at": null,
+        "description": null,
+        "distance": 90,
+        "elevation_gain": null,
+        "elevation_loss": null,
+        "end_time": "2026-06-20T08:03:30Z",
+        "garminconnect_activity_id": null,
+        "garminconnect_gear_id": null,
+        "gear_id": null,
+        "hide_cadence": null,
+        "hide_elevation": null,
+        "hide_gear": null,
+        "hide_hr": null,
+        "hide_laps": null,
+        "hide_location": null,
+        "hide_map": null,
+        "hide_pace": null,
+        "hide_power": null,
+        "hide_speed": null,
+        "hide_start_time": null,
+        "hide_workout_sets_steps": null,
+        "import_info": null,
+        "is_hidden": false,
+        "max_cad": null,
+        "max_hr": 144,
+        "max_power": null,
+        "max_speed": 2.991474,
+        "name": "Workout",
+        "normalized_power": null,
+        "pace": 0.334283,
+        "private_notes": null,
+        "start_time": "2026-06-20T08:03:00Z",
+        "strava_activity_id": null,
+        "strava_gear_id": null,
+        "timezone": "Europe/Lisbon",
+        "total_cycles": null,
+        "total_elapsed_time": 30.0,
+        "total_timer_time": 30.0,
+        "town": null,
+        "tracker_manufacturer": "garmin",
+        "tracker_model": null,
+        "visibility": null,
+        "workout_feeling": null,
+        "workout_rpe": null
+      },
+      "laps": [
+        {
+          "avg_cadence": null,
+          "avg_fractional_cadence": null,
+          "avg_heart_rate": null,
+          "avg_power": null,
+          "avg_stance_time": null,
+          "avg_step_length": null,
+          "avg_vertical_oscillation": null,
+          "avg_vertical_ratio": null,
+          "end_position_lat": null,
+          "end_position_long": null,
+          "enhanced_avg_speed": null,
+          "enhanced_max_altitude": null,
+          "enhanced_max_speed": null,
+          "enhanced_min_altitude": null,
+          "intensity": null,
+          "lap_trigger": null,
+          "max_cadence": null,
+          "max_fractional_cadence": null,
+          "max_heart_rate": null,
+          "max_power": null,
+          "normalized_power": null,
+          "sport": null,
+          "start_position_lat": null,
+          "start_position_long": null,
+          "start_time": "2026-06-20T08:03:00+00:00",
+          "sub_sport": null,
+          "total_ascent": null,
+          "total_calories": null,
+          "total_cycles": null,
+          "total_descent": null,
+          "total_distance": null,
+          "total_elapsed_time": 30.0,
+          "total_timer_time": 30.0,
+          "total_work": null
+        }
+      ],
+      "sets": [],
+      "streams": [
+        {
+          "count": 4,
+          "fields": {
+            "hr": {
+              "max": 144,
+              "mean": 141.5,
+              "min": 140
+            }
+          },
+          "first": {
+            "hr": 140,
+            "time": "2026-06-20T08:03:00"
+          },
+          "last": {
+            "hr": 140,
+            "time": "2026-06-20T08:03:30"
+          },
+          "sha256": "09cfacb209d1a214ef2e98ef1f60bfb58dc3bb6370aa17727c4f9a0979ec1786",
+          "stream_type": 1
+        },
+        {
+          "count": 3,
+          "fields": {
+            "vel": {
+              "max": 2.991474,
+              "mean": 2.991474,
+              "min": 2.991474
+            }
+          },
+          "first": {
+            "time": "2026-06-20T08:03:10",
+            "vel": 2.991474
+          },
+          "last": {
+            "time": "2026-06-20T08:03:30",
+            "vel": 2.991474
+          },
+          "sha256": "36b89efed1f89b031091f1b4c2ec4b25bad873ceb0ef0d57034e4844dccc26f2",
+          "stream_type": 5
+        },
+        {
+          "count": 3,
+          "fields": {
+            "pace": {
+              "max": 0.334283,
+              "mean": 0.334283,
+              "min": 0.334283
+            }
+          },
+          "first": {
+            "pace": 0.334283,
+            "time": "2026-06-20T08:03:10"
+          },
+          "last": {
+            "pace": 0.334283,
+            "time": "2026-06-20T08:03:30"
+          },
+          "sha256": "e21a09d7cfb3dd5c449484b4a7fb7b23e75b52d230caac12fb1ddcadf50baab5",
+          "stream_type": 6
+        },
+        {
+          "count": 4,
+          "fields": {
+            "lat": {
+              "max": 38.705659,
+              "mean": 38.705255,
+              "min": 38.704851
+            },
+            "lon": {
+              "max": -9.1,
+              "mean": -9.1,
+              "min": -9.1
+            }
+          },
+          "first": {
+            "lat": 38.704851,
+            "lon": -9.1,
+            "time": "2026-06-20T08:03:00"
+          },
+          "last": {
+            "lat": 38.705659,
+            "lon": -9.1,
+            "time": "2026-06-20T08:03:30"
+          },
+          "sha256": "1e868e331cff2f7b7e12d97c563c4a10bfc76bf074219f6f80d65cb524b220ea",
+          "stream_type": 7
+        }
+      ],
+      "workout_steps": []
+    },
+    {
+      "activity": {
+        "activity_type": "run",
+        "average_cad": null,
+        "average_hr": 142,
+        "average_power": null,
+        "average_speed": 2.991474,
+        "calories": null,
+        "city": null,
+        "country": null,
+        "created_at": null,
+        "description": null,
+        "distance": 90,
+        "elevation_gain": null,
+        "elevation_loss": null,
+        "end_time": "2026-06-20T08:04:30Z",
+        "garminconnect_activity_id": null,
+        "garminconnect_gear_id": null,
+        "gear_id": null,
+        "hide_cadence": null,
+        "hide_elevation": null,
+        "hide_gear": null,
+        "hide_hr": null,
+        "hide_laps": null,
+        "hide_location": null,
+        "hide_map": null,
+        "hide_pace": null,
+        "hide_power": null,
+        "hide_speed": null,
+        "hide_start_time": null,
+        "hide_workout_sets_steps": null,
+        "import_info": null,
+        "is_hidden": false,
+        "max_cad": null,
+        "max_hr": 144,
+        "max_power": null,
+        "max_speed": 2.991475,
+        "name": "Workout",
+        "normalized_power": null,
+        "pace": 0.334283,
+        "private_notes": null,
+        "start_time": "2026-06-20T08:04:00Z",
+        "strava_activity_id": null,
+        "strava_gear_id": null,
+        "timezone": "Europe/Lisbon",
+        "total_cycles": null,
+        "total_elapsed_time": 30.0,
+        "total_timer_time": 30.0,
+        "town": null,
+        "tracker_manufacturer": "garmin",
+        "tracker_model": null,
+        "visibility": null,
+        "workout_feeling": null,
+        "workout_rpe": null
+      },
+      "laps": [
+        {
+          "avg_cadence": null,
+          "avg_fractional_cadence": null,
+          "avg_heart_rate": null,
+          "avg_power": null,
+          "avg_stance_time": null,
+          "avg_step_length": null,
+          "avg_vertical_oscillation": null,
+          "avg_vertical_ratio": null,
+          "end_position_lat": null,
+          "end_position_long": null,
+          "enhanced_avg_speed": null,
+          "enhanced_max_altitude": null,
+          "enhanced_max_speed": null,
+          "enhanced_min_altitude": null,
+          "intensity": null,
+          "lap_trigger": null,
+          "max_cadence": null,
+          "max_fractional_cadence": null,
+          "max_heart_rate": null,
+          "max_power": null,
+          "normalized_power": null,
+          "sport": null,
+          "start_position_lat": null,
+          "start_position_long": null,
+          "start_time": "2026-06-20T08:04:00+00:00",
+          "sub_sport": null,
+          "total_ascent": null,
+          "total_calories": null,
+          "total_cycles": null,
+          "total_descent": null,
+          "total_distance": null,
+          "total_elapsed_time": 30.0,
+          "total_timer_time": 30.0,
+          "total_work": null
+        }
+      ],
+      "sets": [],
+      "streams": [
+        {
+          "count": 4,
+          "fields": {
+            "hr": {
+              "max": 144,
+              "mean": 141.5,
+              "min": 140
+            }
+          },
+          "first": {
+            "hr": 140,
+            "time": "2026-06-20T08:04:00"
+          },
+          "last": {
+            "hr": 140,
+            "time": "2026-06-20T08:04:30"
+          },
+          "sha256": "6195531e5d8f1eaab759141bf9788538296d127c133cfb7908c6e62436fc388c",
+          "stream_type": 1
+        },
+        {
+          "count": 3,
+          "fields": {
+            "vel": {
+              "max": 2.991475,
+              "mean": 2.991474,
+              "min": 2.991474
+            }
+          },
+          "first": {
+            "time": "2026-06-20T08:04:10",
+            "vel": 2.991474
+          },
+          "last": {
+            "time": "2026-06-20T08:04:30",
+            "vel": 2.991475
+          },
+          "sha256": "ce764bc3172815974e4214dae5aa3c31c29ae5fa9a5f2e4b31ef3d8dc54b8102",
+          "stream_type": 5
+        },
+        {
+          "count": 3,
+          "fields": {
+            "pace": {
+              "max": 0.334283,
+              "mean": 0.334283,
+              "min": 0.334283
+            }
+          },
+          "first": {
+            "pace": 0.334283,
+            "time": "2026-06-20T08:04:10"
+          },
+          "last": {
+            "pace": 0.334283,
+            "time": "2026-06-20T08:04:30"
+          },
+          "sha256": "2b3f1eed358e1ba8d3f487f5d957905d4f35ec90d53908d0ae9e58ee41cc950a",
+          "stream_type": 6
+        },
+        {
+          "count": 4,
+          "fields": {
+            "lat": {
+              "max": 38.707276,
+              "mean": 38.706872,
+              "min": 38.706468
+            },
+            "lon": {
+              "max": -9.1,
+              "mean": -9.1,
+              "min": -9.1
+            }
+          },
+          "first": {
+            "lat": 38.706468,
+            "lon": -9.1,
+            "time": "2026-06-20T08:04:00"
+          },
+          "last": {
+            "lat": 38.707276,
+            "lon": -9.1,
+            "time": "2026-06-20T08:04:30"
+          },
+          "sha256": "c8ab7a06e5ec27c6a5184a01565c4c5431005e334abb210adec84725fdc68f8d",
+          "stream_type": 7
+        }
+      ],
+      "workout_steps": []
+    },
+    {
+      "activity": {
+        "activity_type": "run",
+        "average_cad": null,
+        "average_hr": 142,
+        "average_power": null,
+        "average_speed": 2.991475,
+        "calories": null,
+        "city": null,
+        "country": null,
+        "created_at": null,
+        "description": null,
+        "distance": 90,
+        "elevation_gain": null,
+        "elevation_loss": null,
+        "end_time": "2026-06-20T08:05:30Z",
+        "garminconnect_activity_id": null,
+        "garminconnect_gear_id": null,
+        "gear_id": null,
+        "hide_cadence": null,
+        "hide_elevation": null,
+        "hide_gear": null,
+        "hide_hr": null,
+        "hide_laps": null,
+        "hide_location": null,
+        "hide_map": null,
+        "hide_pace": null,
+        "hide_power": null,
+        "hide_speed": null,
+        "hide_start_time": null,
+        "hide_workout_sets_steps": null,
+        "import_info": null,
+        "is_hidden": false,
+        "max_cad": null,
+        "max_hr": 144,
+        "max_power": null,
+        "max_speed": 2.991475,
+        "name": "Workout",
+        "normalized_power": null,
+        "pace": 0.334283,
+        "private_notes": null,
+        "start_time": "2026-06-20T08:05:00Z",
+        "strava_activity_id": null,
+        "strava_gear_id": null,
+        "timezone": "Europe/Lisbon",
+        "total_cycles": null,
+        "total_elapsed_time": 30.0,
+        "total_timer_time": 30.0,
+        "town": null,
+        "tracker_manufacturer": "garmin",
+        "tracker_model": null,
+        "visibility": null,
+        "workout_feeling": null,
+        "workout_rpe": null
+      },
+      "laps": [
+        {
+          "avg_cadence": null,
+          "avg_fractional_cadence": null,
+          "avg_heart_rate": null,
+          "avg_power": null,
+          "avg_stance_time": null,
+          "avg_step_length": null,
+          "avg_vertical_oscillation": null,
+          "avg_vertical_ratio": null,
+          "end_position_lat": null,
+          "end_position_long": null,
+          "enhanced_avg_speed": null,
+          "enhanced_max_altitude": null,
+          "enhanced_max_speed": null,
+          "enhanced_min_altitude": null,
+          "intensity": null,
+          "lap_trigger": null,
+          "max_cadence": null,
+          "max_fractional_cadence": null,
+          "max_heart_rate": null,
+          "max_power": null,
+          "normalized_power": null,
+          "sport": null,
+          "start_position_lat": null,
+          "start_position_long": null,
+          "start_time": "2026-06-20T08:05:00+00:00",
+          "sub_sport": null,
+          "total_ascent": null,
+          "total_calories": null,
+          "total_cycles": null,
+          "total_descent": null,
+          "total_distance": null,
+          "total_elapsed_time": 30.0,
+          "total_timer_time": 30.0,
+          "total_work": null
+        }
+      ],
+      "sets": [],
+      "streams": [
+        {
+          "count": 4,
+          "fields": {
+            "hr": {
+              "max": 144,
+              "mean": 141.5,
+              "min": 140
+            }
+          },
+          "first": {
+            "hr": 140,
+            "time": "2026-06-20T08:05:00"
+          },
+          "last": {
+            "hr": 140,
+            "time": "2026-06-20T08:05:30"
+          },
+          "sha256": "a216015eb4f9c7ac7181ebca7b2e9a420006fe13f9db0bec9dbc0d7b494f69b4",
+          "stream_type": 1
+        },
+        {
+          "count": 3,
+          "fields": {
+            "vel": {
+              "max": 2.991475,
+              "mean": 2.991475,
+              "min": 2.991475
+            }
+          },
+          "first": {
+            "time": "2026-06-20T08:05:10",
+            "vel": 2.991475
+          },
+          "last": {
+            "time": "2026-06-20T08:05:30",
+            "vel": 2.991475
+          },
+          "sha256": "dd1937ea0ef57ab1533000142fcf716897fa31f43878fc27bc6d57c3e860dc83",
+          "stream_type": 5
+        },
+        {
+          "count": 3,
+          "fields": {
+            "pace": {
+              "max": 0.334283,
+              "mean": 0.334283,
+              "min": 0.334283
+            }
+          },
+          "first": {
+            "pace": 0.334283,
+            "time": "2026-06-20T08:05:10"
+          },
+          "last": {
+            "pace": 0.334283,
+            "time": "2026-06-20T08:05:30"
+          },
+          "sha256": "a3e4c28ea621387ea45510797a00f881149bd3064465575d0ef55be87474dc3c",
+          "stream_type": 6
+        },
+        {
+          "count": 4,
+          "fields": {
+            "lat": {
+              "max": 38.708893,
+              "mean": 38.708489,
+              "min": 38.708085
+            },
+            "lon": {
+              "max": -9.1,
+              "mean": -9.1,
+              "min": -9.1
+            }
+          },
+          "first": {
+            "lat": 38.708085,
+            "lon": -9.1,
+            "time": "2026-06-20T08:05:00"
+          },
+          "last": {
+            "lat": 38.708893,
+            "lon": -9.1,
+            "time": "2026-06-20T08:05:30"
+          },
+          "sha256": "dbd6df9dc3a83c64e23dd2fb26a5e7579a770d86ca2d35325c5c2700d8c165a4",
+          "stream_type": 7
+        }
+      ],
+      "workout_steps": []
+    },
+    {
+      "activity": {
+        "activity_type": "run",
+        "average_cad": null,
+        "average_hr": 142,
+        "average_power": null,
+        "average_speed": 2.991476,
+        "calories": null,
+        "city": null,
+        "country": null,
+        "created_at": null,
+        "description": null,
+        "distance": 90,
+        "elevation_gain": null,
+        "elevation_loss": null,
+        "end_time": "2026-06-20T08:06:30Z",
+        "garminconnect_activity_id": null,
+        "garminconnect_gear_id": null,
+        "gear_id": null,
+        "hide_cadence": null,
+        "hide_elevation": null,
+        "hide_gear": null,
+        "hide_hr": null,
+        "hide_laps": null,
+        "hide_location": null,
+        "hide_map": null,
+        "hide_pace": null,
+        "hide_power": null,
+        "hide_speed": null,
+        "hide_start_time": null,
+        "hide_workout_sets_steps": null,
+        "import_info": null,
+        "is_hidden": false,
+        "max_cad": null,
+        "max_hr": 144,
+        "max_power": null,
+        "max_speed": 2.991476,
+        "name": "Workout",
+        "normalized_power": null,
+        "pace": 0.334283,
+        "private_notes": null,
+        "start_time": "2026-06-20T08:06:00Z",
+        "strava_activity_id": null,
+        "strava_gear_id": null,
+        "timezone": "Europe/Lisbon",
+        "total_cycles": null,
+        "total_elapsed_time": 30.0,
+        "total_timer_time": 30.0,
+        "town": null,
+        "tracker_manufacturer": "garmin",
+        "tracker_model": null,
+        "visibility": null,
+        "workout_feeling": null,
+        "workout_rpe": null
+      },
+      "laps": [
+        {
+          "avg_cadence": null,
+          "avg_fractional_cadence": null,
+          "avg_heart_rate": null,
+          "avg_power": null,
+          "avg_stance_time": null,
+          "avg_step_length": null,
+          "avg_vertical_oscillation": null,
+          "avg_vertical_ratio": null,
+          "end_position_lat": null,
+          "end_position_long": null,
+          "enhanced_avg_speed": null,
+          "enhanced_max_altitude": null,
+          "enhanced_max_speed": null,
+          "enhanced_min_altitude": null,
+          "intensity": null,
+          "lap_trigger": null,
+          "max_cadence": null,
+          "max_fractional_cadence": null,
+          "max_heart_rate": null,
+          "max_power": null,
+          "normalized_power": null,
+          "sport": null,
+          "start_position_lat": null,
+          "start_position_long": null,
+          "start_time": "2026-06-20T08:06:00+00:00",
+          "sub_sport": null,
+          "total_ascent": null,
+          "total_calories": null,
+          "total_cycles": null,
+          "total_descent": null,
+          "total_distance": null,
+          "total_elapsed_time": 30.0,
+          "total_timer_time": 30.0,
+          "total_work": null
+        }
+      ],
+      "sets": [],
+      "streams": [
+        {
+          "count": 4,
+          "fields": {
+            "hr": {
+              "max": 144,
+              "mean": 141.5,
+              "min": 140
+            }
+          },
+          "first": {
+            "hr": 140,
+            "time": "2026-06-20T08:06:00"
+          },
+          "last": {
+            "hr": 140,
+            "time": "2026-06-20T08:06:30"
+          },
+          "sha256": "d365809f97b4d5222bcc921580a942afad2af9e66c1b8dba101fa83f085ffe4f",
+          "stream_type": 1
+        },
+        {
+          "count": 3,
+          "fields": {
+            "vel": {
+              "max": 2.991476,
+              "mean": 2.991476,
+              "min": 2.991476
+            }
+          },
+          "first": {
+            "time": "2026-06-20T08:06:10",
+            "vel": 2.991476
+          },
+          "last": {
+            "time": "2026-06-20T08:06:30",
+            "vel": 2.991476
+          },
+          "sha256": "46962c47d9f1dc738595a6bd66b3e0c177ec004c727f9bd1d946902400f381cf",
+          "stream_type": 5
+        },
+        {
+          "count": 3,
+          "fields": {
+            "pace": {
+              "max": 0.334283,
+              "mean": 0.334283,
+              "min": 0.334283
+            }
+          },
+          "first": {
+            "pace": 0.334283,
+            "time": "2026-06-20T08:06:10"
+          },
+          "last": {
+            "pace": 0.334283,
+            "time": "2026-06-20T08:06:30"
+          },
+          "sha256": "6fb65a97bd7ead681c0ef941dce907d0fe1606d1fe06bb0cc812e49be1fb8e2f",
+          "stream_type": 6
+        },
+        {
+          "count": 4,
+          "fields": {
+            "lat": {
+              "max": 38.71051,
+              "mean": 38.710106,
+              "min": 38.709702
+            },
+            "lon": {
+              "max": -9.1,
+              "mean": -9.1,
+              "min": -9.1
+            }
+          },
+          "first": {
+            "lat": 38.709702,
+            "lon": -9.1,
+            "time": "2026-06-20T08:06:00"
+          },
+          "last": {
+            "lat": 38.71051,
+            "lon": -9.1,
+            "time": "2026-06-20T08:06:30"
+          },
+          "sha256": "5c229ff9146c3a6c05091b844daf1bd88a0b1951d508e7ee5fd4b3a8fd56f86b",
+          "stream_type": 7
+        }
+      ],
+      "workout_steps": []
+    },
+    {
+      "activity": {
+        "activity_type": "run",
+        "average_cad": null,
+        "average_hr": 142,
+        "average_power": null,
+        "average_speed": 2.991477,
+        "calories": null,
+        "city": null,
+        "country": null,
+        "created_at": null,
+        "description": null,
+        "distance": 90,
+        "elevation_gain": null,
+        "elevation_loss": null,
+        "end_time": "2026-06-20T08:07:30Z",
+        "garminconnect_activity_id": null,
+        "garminconnect_gear_id": null,
+        "gear_id": null,
+        "hide_cadence": null,
+        "hide_elevation": null,
+        "hide_gear": null,
+        "hide_hr": null,
+        "hide_laps": null,
+        "hide_location": null,
+        "hide_map": null,
+        "hide_pace": null,
+        "hide_power": null,
+        "hide_speed": null,
+        "hide_start_time": null,
+        "hide_workout_sets_steps": null,
+        "import_info": null,
+        "is_hidden": false,
+        "max_cad": null,
+        "max_hr": 144,
+        "max_power": null,
+        "max_speed": 2.991477,
+        "name": "Workout",
+        "normalized_power": null,
+        "pace": 0.334283,
+        "private_notes": null,
+        "start_time": "2026-06-20T08:07:00Z",
+        "strava_activity_id": null,
+        "strava_gear_id": null,
+        "timezone": "Europe/Lisbon",
+        "total_cycles": null,
+        "total_elapsed_time": 30.0,
+        "total_timer_time": 30.0,
+        "town": null,
+        "tracker_manufacturer": "garmin",
+        "tracker_model": null,
+        "visibility": null,
+        "workout_feeling": null,
+        "workout_rpe": null
+      },
+      "laps": [
+        {
+          "avg_cadence": null,
+          "avg_fractional_cadence": null,
+          "avg_heart_rate": null,
+          "avg_power": null,
+          "avg_stance_time": null,
+          "avg_step_length": null,
+          "avg_vertical_oscillation": null,
+          "avg_vertical_ratio": null,
+          "end_position_lat": null,
+          "end_position_long": null,
+          "enhanced_avg_speed": null,
+          "enhanced_max_altitude": null,
+          "enhanced_max_speed": null,
+          "enhanced_min_altitude": null,
+          "intensity": null,
+          "lap_trigger": null,
+          "max_cadence": null,
+          "max_fractional_cadence": null,
+          "max_heart_rate": null,
+          "max_power": null,
+          "normalized_power": null,
+          "sport": null,
+          "start_position_lat": null,
+          "start_position_long": null,
+          "start_time": "2026-06-20T08:07:00+00:00",
+          "sub_sport": null,
+          "total_ascent": null,
+          "total_calories": null,
+          "total_cycles": null,
+          "total_descent": null,
+          "total_distance": null,
+          "total_elapsed_time": 30.0,
+          "total_timer_time": 30.0,
+          "total_work": null
+        }
+      ],
+      "sets": [],
+      "streams": [
+        {
+          "count": 4,
+          "fields": {
+            "hr": {
+              "max": 144,
+              "mean": 141.5,
+              "min": 140
+            }
+          },
+          "first": {
+            "hr": 140,
+            "time": "2026-06-20T08:07:00"
+          },
+          "last": {
+            "hr": 140,
+            "time": "2026-06-20T08:07:30"
+          },
+          "sha256": "5d44e5ddf2a98cf9809a4529db267f7cb230384bb3226e60238e32d40c74f282",
+          "stream_type": 1
+        },
+        {
+          "count": 3,
+          "fields": {
+            "vel": {
+              "max": 2.991477,
+              "mean": 2.991477,
+              "min": 2.991477
+            }
+          },
+          "first": {
+            "time": "2026-06-20T08:07:10",
+            "vel": 2.991477
+          },
+          "last": {
+            "time": "2026-06-20T08:07:30",
+            "vel": 2.991477
+          },
+          "sha256": "064837abef5a44daf6a454e95d3ff89032e52b3241aab62ddf0a6d6618154bb6",
+          "stream_type": 5
+        },
+        {
+          "count": 3,
+          "fields": {
+            "pace": {
+              "max": 0.334283,
+              "mean": 0.334283,
+              "min": 0.334283
+            }
+          },
+          "first": {
+            "pace": 0.334283,
+            "time": "2026-06-20T08:07:10"
+          },
+          "last": {
+            "pace": 0.334283,
+            "time": "2026-06-20T08:07:30"
+          },
+          "sha256": "3d151f95960ce2d11141f214d3ec2a2f74e3615e5e022e5dc91f0f745868adac",
+          "stream_type": 6
+        },
+        {
+          "count": 4,
+          "fields": {
+            "lat": {
+              "max": 38.712127,
+              "mean": 38.711723,
+              "min": 38.711319
+            },
+            "lon": {
+              "max": -9.1,
+              "mean": -9.1,
+              "min": -9.1
+            }
+          },
+          "first": {
+            "lat": 38.711319,
+            "lon": -9.1,
+            "time": "2026-06-20T08:07:00"
+          },
+          "last": {
+            "lat": 38.712127,
+            "lon": -9.1,
+            "time": "2026-06-20T08:07:30"
+          },
+          "sha256": "79f3afd8190742bf79cf3c5884e5e674d116b3281920372a00e63a76b75a2449",
+          "stream_type": 7
+        }
+      ],
+      "workout_steps": []
+    },
+    {
+      "activity": {
+        "activity_type": "run",
+        "average_cad": null,
+        "average_hr": 142,
+        "average_power": null,
+        "average_speed": 2.991788,
+        "calories": null,
+        "city": null,
+        "country": null,
+        "created_at": null,
+        "description": null,
+        "distance": 90,
+        "elevation_gain": null,
+        "elevation_loss": null,
+        "end_time": "2026-06-20T08:08:30Z",
+        "garminconnect_activity_id": null,
+        "garminconnect_gear_id": null,
+        "gear_id": null,
+        "hide_cadence": null,
+        "hide_elevation": null,
+        "hide_gear": null,
+        "hide_hr": null,
+        "hide_laps": null,
+        "hide_location": null,
+        "hide_map": null,
+        "hide_pace": null,
+        "hide_power": null,
+        "hide_speed": null,
+        "hide_start_time": null,
+        "hide_workout_sets_steps": null,
+        "import_info": null,
+        "is_hidden": false,
+        "max_cad": null,
+        "max_hr": 144,
+        "max_power": null,
+        "max_speed": 2.992408,
+        "name": "Workout",
+        "normalized_power": null,
+        "pace": 0.334248,
+        "private_notes": null,
+        "start_time": "2026-06-20T08:08:00Z",
+        "strava_activity_id": null,
+        "strava_gear_id": null,
+        "timezone": "Europe/Lisbon",
+        "total_cycles": null,
+        "total_elapsed_time": 30.0,
+        "total_timer_time": 30.0,
+        "town": null,
+        "tracker_manufacturer": "garmin",
+        "tracker_model": null,
+        "visibility": null,
+        "workout_feeling": null,
+        "workout_rpe": null
+      },
+      "laps": [
+        {
+          "avg_cadence": null,
+          "avg_fractional_cadence": null,
+          "avg_heart_rate": null,
+          "avg_power": null,
+          "avg_stance_time": null,
+          "avg_step_length": null,
+          "avg_vertical_oscillation": null,
+          "avg_vertical_ratio": null,
+          "end_position_lat": null,
+          "end_position_long": null,
+          "enhanced_avg_speed": null,
+          "enhanced_max_altitude": null,
+          "enhanced_max_speed": null,
+          "enhanced_min_altitude": null,
+          "intensity": null,
+          "lap_trigger": null,
+          "max_cadence": null,
+          "max_fractional_cadence": null,
+          "max_heart_rate": null,
+          "max_power": null,
+          "normalized_power": null,
+          "sport": null,
+          "start_position_lat": null,
+          "start_position_long": null,
+          "start_time": "2026-06-20T08:08:00+00:00",
+          "sub_sport": null,
+          "total_ascent": null,
+          "total_calories": null,
+          "total_cycles": null,
+          "total_descent": null,
+          "total_distance": null,
+          "total_elapsed_time": 30.0,
+          "total_timer_time": 30.0,
+          "total_work": null
+        }
+      ],
+      "sets": [],
+      "streams": [
+        {
+          "count": 4,
+          "fields": {
+            "hr": {
+              "max": 144,
+              "mean": 141.5,
+              "min": 140
+            }
+          },
+          "first": {
+            "hr": 140,
+            "time": "2026-06-20T08:08:00"
+          },
+          "last": {
+            "hr": 140,
+            "time": "2026-06-20T08:08:30"
+          },
+          "sha256": "405678d9a6904639c5661dc626e6b1287ce85d88f4d9833a814301f6fa280170",
+          "stream_type": 1
+        },
+        {
+          "count": 3,
+          "fields": {
+            "vel": {
+              "max": 2.992408,
+              "mean": 2.991788,
+              "min": 2.991478
+            }
+          },
+          "first": {
+            "time": "2026-06-20T08:08:10",
+            "vel": 2.991478
+          },
+          "last": {
+            "time": "2026-06-20T08:08:30",
+            "vel": 2.992408
+          },
+          "sha256": "6cddf83aeb3cf832608397d372ae4b4508d1c5246cb137c12208b88afca556d9",
+          "stream_type": 5
+        },
+        {
+          "count": 3,
+          "fields": {
+            "pace": {
+              "max": 0.334283,
+              "mean": 0.334248,
+              "min": 0.334179
+            }
+          },
+          "first": {
+            "pace": 0.334283,
+            "time": "2026-06-20T08:08:10"
+          },
+          "last": {
+            "pace": 0.334179,
+            "time": "2026-06-20T08:08:30"
+          },
+          "sha256": "e76f80d4d6545b9bc158df3e1efab79bb5ef66fa79da42a0eeba94c56c7f313e",
+          "stream_type": 6
+        },
+        {
+          "count": 4,
+          "fields": {
+            "lat": {
+              "max": 38.713744,
+              "mean": 38.71334,
+              "min": 38.712936
+            },
+            "lon": {
+              "max": -9.1,
+              "mean": -9.1,
+              "min": -9.1
+            }
+          },
+          "first": {
+            "lat": 38.712936,
+            "lon": -9.1,
+            "time": "2026-06-20T08:08:00"
+          },
+          "last": {
+            "lat": 38.713744,
+            "lon": -9.1,
+            "time": "2026-06-20T08:08:30"
+          },
+          "sha256": "08b1bc727e9c4ec244755ebda4aa0e427435b0d324b64828223a0f7c5ec247c5",
+          "stream_type": 7
+        }
+      ],
+      "workout_steps": []
+    },
+    {
+      "activity": {
+        "activity_type": "run",
+        "average_cad": null,
+        "average_hr": 142,
+        "average_power": null,
+        "average_speed": 2.991789,
+        "calories": null,
+        "city": null,
+        "country": null,
+        "created_at": null,
+        "description": null,
+        "distance": 90,
+        "elevation_gain": null,
+        "elevation_loss": null,
+        "end_time": "2026-06-20T08:09:30Z",
+        "garminconnect_activity_id": null,
+        "garminconnect_gear_id": null,
+        "gear_id": null,
+        "hide_cadence": null,
+        "hide_elevation": null,
+        "hide_gear": null,
+        "hide_hr": null,
+        "hide_laps": null,
+        "hide_location": null,
+        "hide_map": null,
+        "hide_pace": null,
+        "hide_power": null,
+        "hide_speed": null,
+        "hide_start_time": null,
+        "hide_workout_sets_steps": null,
+        "import_info": null,
+        "is_hidden": false,
+        "max_cad": null,
+        "max_hr": 144,
+        "max_power": null,
+        "max_speed": 2.992409,
+        "name": "Workout",
+        "normalized_power": null,
+        "pace": 0.334248,
+        "private_notes": null,
+        "start_time": "2026-06-20T08:09:00Z",
+        "strava_activity_id": null,
+        "strava_gear_id": null,
+        "timezone": "Europe/Lisbon",
+        "total_cycles": null,
+        "total_elapsed_time": 30.0,
+        "total_timer_time": 30.0,
+        "town": null,
+        "tracker_manufacturer": "garmin",
+        "tracker_model": null,
+        "visibility": null,
+        "workout_feeling": null,
+        "workout_rpe": null
+      },
+      "laps": [
+        {
+          "avg_cadence": null,
+          "avg_fractional_cadence": null,
+          "avg_heart_rate": null,
+          "avg_power": null,
+          "avg_stance_time": null,
+          "avg_step_length": null,
+          "avg_vertical_oscillation": null,
+          "avg_vertical_ratio": null,
+          "end_position_lat": null,
+          "end_position_long": null,
+          "enhanced_avg_speed": null,
+          "enhanced_max_altitude": null,
+          "enhanced_max_speed": null,
+          "enhanced_min_altitude": null,
+          "intensity": null,
+          "lap_trigger": null,
+          "max_cadence": null,
+          "max_fractional_cadence": null,
+          "max_heart_rate": null,
+          "max_power": null,
+          "normalized_power": null,
+          "sport": null,
+          "start_position_lat": null,
+          "start_position_long": null,
+          "start_time": "2026-06-20T08:09:00+00:00",
+          "sub_sport": null,
+          "total_ascent": null,
+          "total_calories": null,
+          "total_cycles": null,
+          "total_descent": null,
+          "total_distance": null,
+          "total_elapsed_time": 30.0,
+          "total_timer_time": 30.0,
+          "total_work": null
+        }
+      ],
+      "sets": [],
+      "streams": [
+        {
+          "count": 4,
+          "fields": {
+            "hr": {
+              "max": 144,
+              "mean": 141.5,
+              "min": 140
+            }
+          },
+          "first": {
+            "hr": 140,
+            "time": "2026-06-20T08:09:00"
+          },
+          "last": {
+            "hr": 140,
+            "time": "2026-06-20T08:09:30"
+          },
+          "sha256": "deb286bd49815c2d2ed4faea00e5b97a7b6448be4fad4c70a3f166b6901016ff",
+          "stream_type": 1
+        },
+        {
+          "count": 3,
+          "fields": {
+            "vel": {
+              "max": 2.992409,
+              "mean": 2.991789,
+              "min": 2.991479
+            }
+          },
+          "first": {
+            "time": "2026-06-20T08:09:10",
+            "vel": 2.991479
+          },
+          "last": {
+            "time": "2026-06-20T08:09:30",
+            "vel": 2.992409
+          },
+          "sha256": "95b97b6228ff2ab540b87cddbedb28bebf466e9bfe264505a26ee0ffc04ac49d",
+          "stream_type": 5
+        },
+        {
+          "count": 3,
+          "fields": {
+            "pace": {
+              "max": 0.334283,
+              "mean": 0.334248,
+              "min": 0.334179
+            }
+          },
+          "first": {
+            "pace": 0.334283,
+            "time": "2026-06-20T08:09:10"
+          },
+          "last": {
+            "pace": 0.334179,
+            "time": "2026-06-20T08:09:30"
+          },
+          "sha256": "c830e27649a41f14828b88426bbdedecc8ef22cf75a9124f6ab80f34ef6d23c3",
+          "stream_type": 6
+        },
+        {
+          "count": 4,
+          "fields": {
+            "lat": {
+              "max": 38.715361,
+              "mean": 38.714957,
+              "min": 38.714553
+            },
+            "lon": {
+              "max": -9.1,
+              "mean": -9.1,
+              "min": -9.1
+            }
+          },
+          "first": {
+            "lat": 38.714553,
+            "lon": -9.1,
+            "time": "2026-06-20T08:09:00"
+          },
+          "last": {
+            "lat": 38.715361,
+            "lon": -9.1,
+            "time": "2026-06-20T08:09:30"
+          },
+          "sha256": "7ae7bfa2c8541a18b6d4235dea63914d575fd2520030a3997d54df3c46e00216",
+          "stream_type": 7
+        }
+      ],
+      "workout_steps": []
+    },
+    {
+      "activity": {
+        "activity_type": "run",
+        "average_cad": null,
+        "average_hr": 142,
+        "average_power": null,
+        "average_speed": 2.99179,
+        "calories": null,
+        "city": null,
+        "country": null,
+        "created_at": null,
+        "description": null,
+        "distance": 90,
+        "elevation_gain": null,
+        "elevation_loss": null,
+        "end_time": "2026-06-20T08:10:30Z",
+        "garminconnect_activity_id": null,
+        "garminconnect_gear_id": null,
+        "gear_id": null,
+        "hide_cadence": null,
+        "hide_elevation": null,
+        "hide_gear": null,
+        "hide_hr": null,
+        "hide_laps": null,
+        "hide_location": null,
+        "hide_map": null,
+        "hide_pace": null,
+        "hide_power": null,
+        "hide_speed": null,
+        "hide_start_time": null,
+        "hide_workout_sets_steps": null,
+        "import_info": null,
+        "is_hidden": false,
+        "max_cad": null,
+        "max_hr": 144,
+        "max_power": null,
+        "max_speed": 2.99241,
+        "name": "Workout",
+        "normalized_power": null,
+        "pace": 0.334248,
+        "private_notes": null,
+        "start_time": "2026-06-20T08:10:00Z",
+        "strava_activity_id": null,
+        "strava_gear_id": null,
+        "timezone": "Europe/Lisbon",
+        "total_cycles": null,
+        "total_elapsed_time": 30.0,
+        "total_timer_time": 30.0,
+        "town": null,
+        "tracker_manufacturer": "garmin",
+        "tracker_model": null,
+        "visibility": null,
+        "workout_feeling": null,
+        "workout_rpe": null
+      },
+      "laps": [
+        {
+          "avg_cadence": null,
+          "avg_fractional_cadence": null,
+          "avg_heart_rate": null,
+          "avg_power": null,
+          "avg_stance_time": null,
+          "avg_step_length": null,
+          "avg_vertical_oscillation": null,
+          "avg_vertical_ratio": null,
+          "end_position_lat": null,
+          "end_position_long": null,
+          "enhanced_avg_speed": null,
+          "enhanced_max_altitude": null,
+          "enhanced_max_speed": null,
+          "enhanced_min_altitude": null,
+          "intensity": null,
+          "lap_trigger": null,
+          "max_cadence": null,
+          "max_fractional_cadence": null,
+          "max_heart_rate": null,
+          "max_power": null,
+          "normalized_power": null,
+          "sport": null,
+          "start_position_lat": null,
+          "start_position_long": null,
+          "start_time": "2026-06-20T08:10:00+00:00",
+          "sub_sport": null,
+          "total_ascent": null,
+          "total_calories": null,
+          "total_cycles": null,
+          "total_descent": null,
+          "total_distance": null,
+          "total_elapsed_time": 30.0,
+          "total_timer_time": 30.0,
+          "total_work": null
+        }
+      ],
+      "sets": [],
+      "streams": [
+        {
+          "count": 4,
+          "fields": {
+            "hr": {
+              "max": 144,
+              "mean": 141.5,
+              "min": 140
+            }
+          },
+          "first": {
+            "hr": 140,
+            "time": "2026-06-20T08:10:00"
+          },
+          "last": {
+            "hr": 140,
+            "time": "2026-06-20T08:10:30"
+          },
+          "sha256": "f656ed88953762c99216e3801e75530eb6bab3ab78bc22b2542228b92fb14773",
+          "stream_type": 1
+        },
+        {
+          "count": 3,
+          "fields": {
+            "vel": {
+              "max": 2.99241,
+              "mean": 2.99179,
+              "min": 2.991479
+            }
+          },
+          "first": {
+            "time": "2026-06-20T08:10:10",
+            "vel": 2.991479
+          },
+          "last": {
+            "time": "2026-06-20T08:10:30",
+            "vel": 2.99148
+          },
+          "sha256": "bb02445ef5bd59916a4c24c3fed813b4685f4e57c0fe16e0a90b7a71827c9404",
+          "stream_type": 5
+        },
+        {
+          "count": 3,
+          "fields": {
+            "pace": {
+              "max": 0.334283,
+              "mean": 0.334248,
+              "min": 0.334179
+            }
+          },
+          "first": {
+            "pace": 0.334283,
+            "time": "2026-06-20T08:10:10"
+          },
+          "last": {
+            "pace": 0.334283,
+            "time": "2026-06-20T08:10:30"
+          },
+          "sha256": "ed2f3e1b12d628e29a0128c8f0b47064ee7671d181a93347a882dde902c4f4be",
+          "stream_type": 6
+        },
+        {
+          "count": 4,
+          "fields": {
+            "lat": {
+              "max": 38.716978,
+              "mean": 38.716574,
+              "min": 38.71617
+            },
+            "lon": {
+              "max": -9.1,
+              "mean": -9.1,
+              "min": -9.1
+            }
+          },
+          "first": {
+            "lat": 38.71617,
+            "lon": -9.1,
+            "time": "2026-06-20T08:10:00"
+          },
+          "last": {
+            "lat": 38.716978,
+            "lon": -9.1,
+            "time": "2026-06-20T08:10:30"
+          },
+          "sha256": "5e73885053be9815245a6643ccc10d111e08353cc9870625c3d83bce5bc5135e",
+          "stream_type": 7
+        }
+      ],
+      "workout_steps": []
+    },
+    {
+      "activity": {
+        "activity_type": "run",
+        "average_cad": null,
+        "average_hr": 142,
+        "average_power": null,
+        "average_speed": 2.99179,
+        "calories": null,
+        "city": null,
+        "country": null,
+        "created_at": null,
+        "description": null,
+        "distance": 90,
+        "elevation_gain": null,
+        "elevation_loss": null,
+        "end_time": "2026-06-20T08:11:30Z",
+        "garminconnect_activity_id": null,
+        "garminconnect_gear_id": null,
+        "gear_id": null,
+        "hide_cadence": null,
+        "hide_elevation": null,
+        "hide_gear": null,
+        "hide_hr": null,
+        "hide_laps": null,
+        "hide_location": null,
+        "hide_map": null,
+        "hide_pace": null,
+        "hide_power": null,
+        "hide_speed": null,
+        "hide_start_time": null,
+        "hide_workout_sets_steps": null,
+        "import_info": null,
+        "is_hidden": false,
+        "max_cad": null,
+        "max_hr": 144,
+        "max_power": null,
+        "max_speed": 2.992411,
+        "name": "Workout",
+        "normalized_power": null,
+        "pace": 0.334248,
+        "private_notes": null,
+        "start_time": "2026-06-20T08:11:00Z",
+        "strava_activity_id": null,
+        "strava_gear_id": null,
+        "timezone": "Europe/Lisbon",
+        "total_cycles": null,
+        "total_elapsed_time": 30.0,
+        "total_timer_time": 30.0,
+        "town": null,
+        "tracker_manufacturer": "garmin",
+        "tracker_model": null,
+        "visibility": null,
+        "workout_feeling": null,
+        "workout_rpe": null
+      },
+      "laps": [
+        {
+          "avg_cadence": null,
+          "avg_fractional_cadence": null,
+          "avg_heart_rate": null,
+          "avg_power": null,
+          "avg_stance_time": null,
+          "avg_step_length": null,
+          "avg_vertical_oscillation": null,
+          "avg_vertical_ratio": null,
+          "end_position_lat": null,
+          "end_position_long": null,
+          "enhanced_avg_speed": null,
+          "enhanced_max_altitude": null,
+          "enhanced_max_speed": null,
+          "enhanced_min_altitude": null,
+          "intensity": null,
+          "lap_trigger": null,
+          "max_cadence": null,
+          "max_fractional_cadence": null,
+          "max_heart_rate": null,
+          "max_power": null,
+          "normalized_power": null,
+          "sport": null,
+          "start_position_lat": null,
+          "start_position_long": null,
+          "start_time": "2026-06-20T08:11:00+00:00",
+          "sub_sport": null,
+          "total_ascent": null,
+          "total_calories": null,
+          "total_cycles": null,
+          "total_descent": null,
+          "total_distance": null,
+          "total_elapsed_time": 30.0,
+          "total_timer_time": 30.0,
+          "total_work": null
+        }
+      ],
+      "sets": [],
+      "streams": [
+        {
+          "count": 4,
+          "fields": {
+            "hr": {
+              "max": 144,
+              "mean": 141.5,
+              "min": 140
+            }
+          },
+          "first": {
+            "hr": 140,
+            "time": "2026-06-20T08:11:00"
+          },
+          "last": {
+            "hr": 140,
+            "time": "2026-06-20T08:11:30"
+          },
+          "sha256": "0f4065ba81e7913a674f9bd0ae75ae569a39862be860b5516e386de8f485df90",
+          "stream_type": 1
+        },
+        {
+          "count": 3,
+          "fields": {
+            "vel": {
+              "max": 2.992411,
+              "mean": 2.99179,
+              "min": 2.99148
+            }
+          },
+          "first": {
+            "time": "2026-06-20T08:11:10",
+            "vel": 2.99148
+          },
+          "last": {
+            "time": "2026-06-20T08:11:30",
+            "vel": 2.99148
+          },
+          "sha256": "6132b39f353c54c6413fc5169bd786bbc65367e60e6110137cf7506f1ac5ff18",
+          "stream_type": 5
+        },
+        {
+          "count": 3,
+          "fields": {
+            "pace": {
+              "max": 0.334283,
+              "mean": 0.334248,
+              "min": 0.334179
+            }
+          },
+          "first": {
+            "pace": 0.334283,
+            "time": "2026-06-20T08:11:10"
+          },
+          "last": {
+            "pace": 0.334283,
+            "time": "2026-06-20T08:11:30"
+          },
+          "sha256": "406a867636c2e9377482fb2395649bb49d9d12d8f089ae4096152d40d9501633",
+          "stream_type": 6
+        },
+        {
+          "count": 4,
+          "fields": {
+            "lat": {
+              "max": 38.718595,
+              "mean": 38.718191,
+              "min": 38.717787
+            },
+            "lon": {
+              "max": -9.1,
+              "mean": -9.1,
+              "min": -9.1
+            }
+          },
+          "first": {
+            "lat": 38.717787,
+            "lon": -9.1,
+            "time": "2026-06-20T08:11:00"
+          },
+          "last": {
+            "lat": 38.718595,
+            "lon": -9.1,
+            "time": "2026-06-20T08:11:30"
+          },
+          "sha256": "1e2f741a6639de9a9204abcad9250732e54facf3cd289e6ee33bc8792ce53347",
+          "stream_type": 7
+        }
+      ],
+      "workout_steps": []
+    }
+  ],
+  "file_components": {
+    "exercise_titles": []
+  }
+}

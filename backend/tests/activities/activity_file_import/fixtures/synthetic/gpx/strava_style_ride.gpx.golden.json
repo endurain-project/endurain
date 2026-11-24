@@ -1,0 +1,237 @@
+{
+  "activities": [
+    {
+      "activity": {
+        "activity_type": "ride",
+        "average_cad": 87,
+        "average_hr": 140,
+        "average_power": 200,
+        "average_speed": 6.950727,
+        "calories": null,
+        "city": null,
+        "country": null,
+        "created_at": null,
+        "description": null,
+        "distance": 834,
+        "elevation_gain": 7,
+        "elevation_loss": 0,
+        "end_time": "2026-06-20T08:01:59Z",
+        "garminconnect_activity_id": null,
+        "garminconnect_gear_id": null,
+        "gear_id": null,
+        "hide_cadence": null,
+        "hide_elevation": null,
+        "hide_gear": null,
+        "hide_hr": null,
+        "hide_laps": null,
+        "hide_location": null,
+        "hide_map": null,
+        "hide_pace": null,
+        "hide_power": null,
+        "hide_speed": null,
+        "hide_start_time": null,
+        "hide_workout_sets_steps": null,
+        "import_info": null,
+        "is_hidden": false,
+        "max_cad": 89,
+        "max_hr": 149,
+        "max_power": 219,
+        "max_speed": 7.011476,
+        "name": "Lunch Ride",
+        "normalized_power": 200,
+        "pace": 0.142671,
+        "private_notes": null,
+        "start_time": "2026-06-20T08:00:00Z",
+        "strava_activity_id": null,
+        "strava_gear_id": null,
+        "timezone": "Europe/Lisbon",
+        "total_cycles": null,
+        "total_elapsed_time": 119.0,
+        "total_timer_time": 119.0,
+        "town": null,
+        "tracker_manufacturer": null,
+        "tracker_model": null,
+        "visibility": null,
+        "workout_feeling": null,
+        "workout_rpe": null
+      },
+      "laps": [
+        {
+          "avg_cadence": 87,
+          "avg_heart_rate": 140,
+          "avg_power": 200,
+          "end_position_lat": 38.7,
+          "end_position_long": -9.090412,
+          "enhanced_avg_pace": 0.142671,
+          "enhanced_avg_speed": 7.009137,
+          "enhanced_max_pace": 0.142623,
+          "enhanced_max_speed": 7.011476,
+          "max_cadence": 89,
+          "max_heart_rate": 149,
+          "max_power": 219,
+          "normalized_power": 200,
+          "start_position_lat": 38.7,
+          "start_position_long": -9.1,
+          "start_time": "2026-06-20T08:00:00",
+          "total_ascent": 7,
+          "total_descent": 0,
+          "total_distance": 834.087287,
+          "total_elapsed_time": 119.0,
+          "total_timer_time": 119.0
+        }
+      ],
+      "sets": null,
+      "streams": [
+        {
+          "count": 120,
+          "fields": {
+            "hr": {
+              "max": 149,
+              "mean": 139.5,
+              "min": 130
+            }
+          },
+          "first": {
+            "hr": 130,
+            "time": "2026-06-20T08:00:00"
+          },
+          "last": {
+            "hr": 149,
+            "time": "2026-06-20T08:01:59"
+          },
+          "sha256": "c200eec178811e54564f7680d1840e7765fa5f7a5349232c6eeea6d951ca5820",
+          "stream_type": 1
+        },
+        {
+          "count": 120,
+          "fields": {
+            "power": {
+              "max": 219,
+              "mean": 199.5,
+              "min": 180
+            }
+          },
+          "first": {
+            "power": 180,
+            "time": "2026-06-20T08:00:00"
+          },
+          "last": {
+            "power": 219,
+            "time": "2026-06-20T08:01:59"
+          },
+          "sha256": "3b9fc3c8c2446c47bbc4c7d21fe69a2f8e5d1e70f55082588fa5fefde624183e",
+          "stream_type": 2
+        },
+        {
+          "count": 120,
+          "fields": {
+            "cad": {
+              "max": 89,
+              "mean": 87.0,
+              "min": 85
+            }
+          },
+          "first": {
+            "cad": 85,
+            "time": "2026-06-20T08:00:00"
+          },
+          "last": {
+            "cad": 89,
+            "time": "2026-06-20T08:01:59"
+          },
+          "sha256": "7332fae93d8d2a7574e7d5cf6869a3f30a022098120e4f98df7683f665f60a09",
+          "stream_type": 3
+        },
+        {
+          "count": 120,
+          "fields": {
+            "ele": {
+              "max": 51.354545,
+              "mean": 45.95,
+              "min": 40.545455
+            }
+          },
+          "first": {
+            "ele": 40.545455,
+            "time": "2026-06-20T08:00:00"
+          },
+          "last": {
+            "ele": 51.354545,
+            "time": "2026-06-20T08:01:59"
+          },
+          "sha256": "fd5f4676f216518f1c155b8ca19408bd03d0329146b3c22b7665bd3b0d54ca4e",
+          "stream_type": 4
+        },
+        {
+          "count": 120,
+          "fields": {
+            "vel": {
+              "max": 7.011476,
+              "mean": 6.950727,
+              "min": 0
+            }
+          },
+          "first": {
+            "time": "2026-06-20T08:00:00",
+            "vel": 0
+          },
+          "last": {
+            "time": "2026-06-20T08:01:59",
+            "vel": 7.011476
+          },
+          "sha256": "39ea2be13628e968f34c0835a6cb0c92dfa6bc4bb6d08594a46ce8acfedaefd2",
+          "stream_type": 5
+        },
+        {
+          "count": 120,
+          "fields": {
+            "pace": {
+              "max": 0.1428,
+              "mean": 0.141482,
+              "min": 0
+            }
+          },
+          "first": {
+            "pace": 0,
+            "time": "2026-06-20T08:00:00"
+          },
+          "last": {
+            "pace": 0.142623,
+            "time": "2026-06-20T08:01:59"
+          },
+          "sha256": "7d8af019b75822a3a667c93dba507b499f506edabefef713346c95510d80ac0e",
+          "stream_type": 6
+        },
+        {
+          "count": 120,
+          "fields": {
+            "lat": {
+              "max": 38.7,
+              "mean": 38.7,
+              "min": 38.7
+            },
+            "lon": {
+              "max": -9.090412,
+              "mean": -9.095206,
+              "min": -9.1
+            }
+          },
+          "first": {
+            "lat": 38.7,
+            "lon": -9.1,
+            "time": "2026-06-20T08:00:00"
+          },
+          "last": {
+            "lat": 38.7,
+            "lon": -9.090412,
+            "time": "2026-06-20T08:01:59"
+          },
+          "sha256": "4478ad8f2ff7caba43d7a955cf6a54af9c3b13b99457ec931082e56dc7943a88",
+          "stream_type": 7
+        }
+      ],
+      "workout_steps": null
+    }
+  ],
+  "file_components": {}
+}

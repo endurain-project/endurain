@@ -1,0 +1,4 @@
+{
+  "error": "InvalidInputError",
+  "message": "Failed to parse GPX file"
+}

@@ -1,0 +1,4 @@
+{
+  "error": "InvalidInputError",
+  "message": "Invalid GPX file - no trackpoints with valid time data found"
+}

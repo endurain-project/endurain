@@ -1,0 +1,203 @@
+{
+  "activities": [
+    {
+      "activity": {
+        "activity_type": "workout",
+        "average_cad": null,
+        "average_hr": null,
+        "average_power": null,
+        "average_speed": 2.348191,
+        "calories": null,
+        "city": null,
+        "country": null,
+        "created_at": null,
+        "description": null,
+        "distance": 2113,
+        "elevation_gain": null,
+        "elevation_loss": null,
+        "end_time": "2026-06-20T08:14:59Z",
+        "garminconnect_activity_id": null,
+        "garminconnect_gear_id": null,
+        "gear_id": null,
+        "hide_cadence": null,
+        "hide_elevation": null,
+        "hide_gear": null,
+        "hide_hr": null,
+        "hide_laps": null,
+        "hide_location": null,
+        "hide_map": null,
+        "hide_pace": null,
+        "hide_power": null,
+        "hide_speed": null,
+        "hide_start_time": null,
+        "hide_workout_sets_steps": null,
+        "import_info": null,
+        "is_hidden": false,
+        "max_cad": null,
+        "max_hr": null,
+        "max_power": null,
+        "max_speed": 3.644226,
+        "name": "Workout",
+        "normalized_power": null,
+        "pace": 0.425387,
+        "private_notes": null,
+        "start_time": "2026-06-20T08:00:00Z",
+        "strava_activity_id": null,
+        "strava_gear_id": null,
+        "timezone": "Europe/Lisbon",
+        "total_cycles": null,
+        "total_elapsed_time": 899.0,
+        "total_timer_time": 899.0,
+        "town": null,
+        "tracker_manufacturer": null,
+        "tracker_model": null,
+        "visibility": null,
+        "workout_feeling": null,
+        "workout_rpe": null
+      },
+      "laps": [
+        {
+          "avg_cadence": null,
+          "avg_heart_rate": null,
+          "avg_power": null,
+          "end_position_lat": 38.700011,
+          "end_position_long": -9.100007,
+          "enhanced_avg_pace": 0.485666,
+          "enhanced_avg_speed": 2.059028,
+          "enhanced_max_pace": 0.274407,
+          "enhanced_max_speed": 3.644226,
+          "max_cadence": null,
+          "max_heart_rate": null,
+          "max_power": null,
+          "normalized_power": null,
+          "start_position_lat": 38.700004,
+          "start_position_long": -9.100009,
+          "start_time": "2026-06-20T08:00:00",
+          "total_ascent": null,
+          "total_descent": null,
+          "total_distance": 1002.746873,
+          "total_elapsed_time": 487.0,
+          "total_timer_time": 487.0
+        },
+        {
+          "avg_cadence": null,
+          "avg_heart_rate": null,
+          "avg_power": null,
+          "end_position_lat": 38.7,
+          "end_position_long": -9.090918,
+          "enhanced_avg_pace": 0.374884,
+          "enhanced_avg_speed": 2.667495,
+          "enhanced_max_pace": 0.305492,
+          "enhanced_max_speed": 3.273403,
+          "max_cadence": null,
+          "max_heart_rate": null,
+          "max_power": null,
+          "normalized_power": null,
+          "start_position_lat": 38.700011,
+          "start_position_long": -9.100007,
+          "start_time": "2026-06-20T08:08:07",
+          "total_ascent": null,
+          "total_descent": null,
+          "total_distance": 1002.486078,
+          "total_elapsed_time": 376.0,
+          "total_timer_time": 376.0
+        },
+        {
+          "avg_cadence": null,
+          "avg_heart_rate": null,
+          "avg_power": null,
+          "end_position_lat": 38.7,
+          "end_position_long": -9.089675,
+          "enhanced_avg_pace": 0.332888,
+          "enhanced_avg_speed": 3.004011,
+          "enhanced_max_pace": 0.333201,
+          "enhanced_max_speed": 3.00119,
+          "max_cadence": null,
+          "max_heart_rate": null,
+          "max_power": null,
+          "normalized_power": null,
+          "start_position_lat": 38.7,
+          "start_position_long": -9.090918,
+          "start_time": "2026-06-20T08:14:23",
+          "total_ascent": null,
+          "total_descent": null,
+          "total_distance": 108.138536,
+          "total_elapsed_time": 36.0,
+          "total_timer_time": 36.0
+        }
+      ],
+      "sets": null,
+      "streams": [
+        {
+          "count": 900,
+          "fields": {
+            "vel": {
+              "max": 4.9402,
+              "mean": 2.348191,
+              "min": 0
+            }
+          },
+          "first": {
+            "time": "2026-06-20T08:00:00",
+            "vel": 0
+          },
+          "last": {
+            "time": "2026-06-20T08:14:59",
+            "vel": 3.009889
+          },
+          "sha256": "8f8d09c4c913d7169dc32557b80030cf2b8adb345f2884258385602923dd8aad",
+          "stream_type": 5
+        },
+        {
+          "count": 900,
+          "fields": {
+            "pace": {
+              "max": 38.318139,
+              "mean": 0.645929,
+              "min": 0
+            }
+          },
+          "first": {
+            "pace": 0,
+            "time": "2026-06-20T08:00:00"
+          },
+          "last": {
+            "pace": 0.332238,
+            "time": "2026-06-20T08:14:59"
+          },
+          "sha256": "63531d0c3a4ad559d7c1f1f0e843cc955ed50d043503f9dd1933afce291094e0",
+          "stream_type": 6
+        },
+        {
+          "count": 900,
+          "fields": {
+            "lat": {
+              "max": 38.700018,
+              "mean": 38.700001,
+              "min": 38.699982
+            },
+            "lon": {
+              "max": -9.089675,
+              "mean": -9.09828,
+              "min": -9.100023
+            }
+          },
+          "first": {
+            "lat": 38.700004,
+            "lon": -9.100009,
+            "time": "2026-06-20T08:00:00"
+          },
+          "last": {
+            "lat": 38.7,
+            "lon": -9.089675,
+            "time": "2026-06-20T08:14:59"
+          },
+          "sha256": "d7e8e54f5d658f354c7b6aa79f1fc0d39cd65b39466a6a4aeb5477e124c500a6",
+          "stream_type": 7
+        }
+      ],
+      "workout_steps": null
+    }
+  ],
+  "file_components": {}
+}

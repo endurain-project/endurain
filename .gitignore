@@ -71,5 +71,8 @@ endurain_data/
 *.gz
 # the password blocklist is committed, see backend/scripts/build_password_blocklist.py
 !backend/app/modules/auth/credentials/data/password_blocklist.txt.gz
+!backend/tests/activities/activity_file_import/fixtures/**/*.fit
+!backend/tests/activities/activity_file_import/fixtures/**/*.gpx
+!backend/tests/activities/activity_file_import/fixtures/**/*.tcx
 # generated at docs build time
 docs/integrate/openapi.json

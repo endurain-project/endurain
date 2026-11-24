@@ -35,6 +35,16 @@ import module_registry as _module_registry  # noqa: E402
 _module_registry.configure_activity_contributors()
 
 
+def pytest_addoption(parser):
+    """Register ``--update-golden`` to rewrite the device file tests' golden files instead of comparing them."""
+    parser.addoption(
+        "--update-golden",
+        action="store_true",
+        default=False,
+        help="rewrite the golden files of the device file tests instead of comparing",
+    )
+
+
 def pytest_unconfigure(config):
     """Drop the template and stop the container once the whole run is over (the controller, or the only process)."""
     if hasattr(config, "workerinput"):

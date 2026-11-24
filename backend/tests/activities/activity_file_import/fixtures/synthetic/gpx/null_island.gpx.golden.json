@@ -1,0 +1,153 @@
+{
+  "activities": [
+    {
+      "activity": {
+        "activity_type": "workout",
+        "average_cad": null,
+        "average_hr": 142,
+        "average_power": null,
+        "average_speed": 0.0,
+        "calories": null,
+        "city": null,
+        "country": null,
+        "created_at": null,
+        "description": null,
+        "distance": 0,
+        "elevation_gain": null,
+        "elevation_loss": null,
+        "end_time": "2026-06-20T08:00:59Z",
+        "garminconnect_activity_id": null,
+        "garminconnect_gear_id": null,
+        "gear_id": null,
+        "hide_cadence": null,
+        "hide_elevation": null,
+        "hide_gear": null,
+        "hide_hr": null,
+        "hide_laps": null,
+        "hide_location": null,
+        "hide_map": null,
+        "hide_pace": null,
+        "hide_power": null,
+        "hide_speed": null,
+        "hide_start_time": null,
+        "hide_workout_sets_steps": null,
+        "import_info": null,
+        "is_hidden": false,
+        "max_cad": null,
+        "max_hr": 144,
+        "max_power": null,
+        "max_speed": 0.0,
+        "name": "Workout",
+        "normalized_power": null,
+        "pace": 0.0,
+        "private_notes": null,
+        "start_time": "2026-06-20T08:00:00Z",
+        "strava_activity_id": null,
+        "strava_gear_id": null,
+        "timezone": "Etc/GMT",
+        "total_cycles": null,
+        "total_elapsed_time": 59.0,
+        "total_timer_time": 59.0,
+        "town": null,
+        "tracker_manufacturer": null,
+        "tracker_model": null,
+        "visibility": null,
+        "workout_feeling": null,
+        "workout_rpe": null
+      },
+      "laps": [],
+      "sets": null,
+      "streams": [
+        {
+          "count": 60,
+          "fields": {
+            "hr": {
+              "max": 144,
+              "mean": 142.0,
+              "min": 140
+            }
+          },
+          "first": {
+            "hr": 140,
+            "time": "2026-06-20T08:00:00"
+          },
+          "last": {
+            "hr": 144,
+            "time": "2026-06-20T08:00:59"
+          },
+          "sha256": "4b83fcaa26cc09ac45615490277058091d4e954914412c698c1c7be601ed889c",
+          "stream_type": 1
+        },
+        {
+          "count": 60,
+          "fields": {
+            "vel": {
+              "max": 0,
+              "mean": 0.0,
+              "min": 0
+            }
+          },
+          "first": {
+            "time": "2026-06-20T08:00:00",
+            "vel": 0
+          },
+          "last": {
+            "time": "2026-06-20T08:00:59",
+            "vel": 0.0
+          },
+          "sha256": "0f28e017a0a3d49a0338dfecc9888b7bc224267b822b4e979785e2587a314de8",
+          "stream_type": 5
+        },
+        {
+          "count": 60,
+          "fields": {
+            "pace": {
+              "max": 0,
+              "mean": 0.0,
+              "min": 0
+            }
+          },
+          "first": {
+            "pace": 0,
+            "time": "2026-06-20T08:00:00"
+          },
+          "last": {
+            "pace": 0,
+            "time": "2026-06-20T08:00:59"
+          },
+          "sha256": "8638b0d01556bbab808fe879b7437c6e7a6d20dd8f8f1753752d55d442a9d2c0",
+          "stream_type": 6
+        },
+        {
+          "count": 60,
+          "fields": {
+            "lat": {
+              "max": 0.0,
+              "mean": 0.0,
+              "min": 0.0
+            },
+            "lon": {
+              "max": 0.0,
+              "mean": 0.0,
+              "min": 0.0
+            }
+          },
+          "first": {
+            "lat": 0.0,
+            "lon": 0.0,
+            "time": "2026-06-20T08:00:00"
+          },
+          "last": {
+            "lat": 0.0,
+            "lon": 0.0,
+            "time": "2026-06-20T08:00:59"
+          },
+          "sha256": "b1bfd7f548211c9ce71f8b924ec68cc3ffdae3b7bdf4fad600b4eada20aa3617",
+          "stream_type": 7
+        }
+      ],
+      "workout_steps": null
+    }
+  ],
+  "file_components": {}
+}

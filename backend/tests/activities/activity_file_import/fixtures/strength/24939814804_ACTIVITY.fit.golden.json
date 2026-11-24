@@ -1,0 +1,1067 @@
+{
+  "activities": [
+    {
+      "activity": {
+        "activity_type": "strength_training",
+        "average_cad": null,
+        "average_hr": 113,
+        "average_power": null,
+        "average_speed": 0.0,
+        "calories": 149,
+        "city": null,
+        "country": null,
+        "created_at": null,
+        "description": null,
+        "distance": 0,
+        "elevation_gain": null,
+        "elevation_loss": null,
+        "end_time": "2026-11-02T14:18:01Z",
+        "garminconnect_activity_id": null,
+        "garminconnect_gear_id": null,
+        "gear_id": null,
+        "hide_cadence": null,
+        "hide_elevation": null,
+        "hide_gear": null,
+        "hide_hr": null,
+        "hide_laps": null,
+        "hide_location": null,
+        "hide_map": null,
+        "hide_pace": null,
+        "hide_power": null,
+        "hide_speed": null,
+        "hide_start_time": null,
+        "hide_workout_sets_steps": null,
+        "import_info": null,
+        "is_hidden": false,
+        "max_cad": null,
+        "max_hr": 131,
+        "max_power": null,
+        "max_speed": null,
+        "name": "Total Body Circuit 3",
+        "normalized_power": null,
+        "pace": 0.0,
+        "private_notes": null,
+        "start_time": "2026-11-02T13:57:00Z",
+        "strava_activity_id": null,
+        "strava_gear_id": null,
+        "timezone": "Europe/Lisbon",
+        "total_cycles": 202,
+        "total_elapsed_time": 1261.275,
+        "total_timer_time": 1259.822,
+        "town": null,
+        "tracker_manufacturer": "garmin",
+        "tracker_model": "4565",
+        "visibility": null,
+        "workout_feeling": null,
+        "workout_rpe": null
+      },
+      "laps": [],
+      "sets": [
+        [
+          40.0,
+          null,
+          null,
+          "active",
+          "2026-11-02T13:57:00+00:00",
+          [
+            10,
+            10,
+            10
+          ],
+          [
+            11,
+            11,
+            11
+          ]
+        ],
+        [
+          20.0,
+          null,
+          null,
+          "rest",
+          "2026-11-02T13:57:39+00:00",
+          [
+            null,
+            null,
+            null
+          ],
+          [
+            null,
+            null,
+            null
+          ]
+        ],
+        [
+          40.0,
+          15,
+          null,
+          "active",
+          "2026-11-02T13:57:59+00:00",
+          [
+            22,
+            22,
+            22
+          ],
+          [
+            77,
+            77,
+            77
+          ]
+        ],
+        [
+          20.0,
+          null,
+          null,
+          "rest",
+          "2026-11-02T13:58:39+00:00",
+          [
+            null,
+            null,
+            null
+          ],
+          [
+            null,
+            null,
+            null
+          ]
+        ],
+        [
+          40.0,
+          14,
+          null,
+          "active",
+          "2026-11-02T13:58:59+00:00",
+          [
+            28,
+            28,
+            28
+          ],
+          [
+            61,
+            61,
+            61
+          ]
+        ],
+        [
+          20.0,
+          null,
+          null,
+          "rest",
+          "2026-11-02T13:59:39+00:00",
+          [
+            null,
+            null,
+            null
+          ],
+          [
+            null,
+            null,
+            null
+          ]
+        ],
+        [
+          40.0,
+          15,
+          null,
+          "active",
+          "2026-11-02T13:59:59+00:00",
+          [
+            19,
+            19,
+            19
+          ],
+          [
+            34,
+            34,
+            34
+          ]
+        ],
+        [
+          20.0,
+          null,
+          null,
+          "rest",
+          "2026-11-02T14:00:39+00:00",
+          [
+            null,
+            null,
+            null
+          ],
+          [
+            null,
+            null,
+            null
+          ]
+        ],
+        [
+          40.0,
+          7,
+          null,
+          "active",
+          "2026-11-02T14:00:59+00:00",
+          [
+            31,
+            31,
+            31
+          ],
+          [
+            14,
+            14,
+            14
+          ]
+        ],
+        [
+          20.0,
+          null,
+          null,
+          "rest",
+          "2026-11-02T14:01:39+00:00",
+          [
+            null,
+            null,
+            null
+          ],
+          [
+            null,
+            null,
+            null
+          ]
+        ],
+        [
+          40.0,
+          9,
+          null,
+          "active",
+          "2026-11-02T14:01:59+00:00",
+          [
+            28,
+            28,
+            28
+          ],
+          [
+            89,
+            89,
+            89
+          ]
+        ],
+        [
+          20.0,
+          null,
+          null,
+          "rest",
+          "2026-11-02T14:02:39+00:00",
+          [
+            null,
+            null,
+            null
+          ],
+          [
+            null,
+            null,
+            null
+          ]
+        ],
+        [
+          40.0,
+          16,
+          null,
+          "active",
+          "2026-11-02T14:02:59+00:00",
+          [
+            6,
+            6,
+            6
+          ],
+          [
+            0,
+            0,
+            0
+          ]
+        ],
+        [
+          26.32,
+          null,
+          null,
+          "rest",
+          "2026-11-02T14:03:39+00:00",
+          [
+            null,
+            null,
+            null
+          ],
+          [
+            null,
+            null,
+            null
+          ]
+        ],
+        [
+          40.0,
+          null,
+          null,
+          "active",
+          "2026-11-02T14:04:05+00:00",
+          [
+            10,
+            10,
+            10
+          ],
+          [
+            11,
+            11,
+            11
+          ]
+        ],
+        [
+          20.0,
+          null,
+          null,
+          "rest",
+          "2026-11-02T14:04:45+00:00",
+          [
+            null,
+            null,
+            null
+          ],
+          [
+            null,
+            null,
+            null
+          ]
+        ],
+        [
+          40.0,
+          17,
+          null,
+          "active",
+          "2026-11-02T14:05:05+00:00",
+          [
+            22,
+            22,
+            22
+          ],
+          [
+            77,
+            77,
+            77
+          ]
+        ],
+        [
+          20.0,
+          null,
+          null,
+          "rest",
+          "2026-11-02T14:05:45+00:00",
+          [
+            null,
+            null,
+            null
+          ],
+          [
+            null,
+            null,
+            null
+          ]
+        ],
+        [
+          40.0,
+          17,
+          null,
+          "active",
+          "2026-11-02T14:06:05+00:00",
+          [
+            28,
+            28,
+            28
+          ],
+          [
+            61,
+            61,
+            61
+          ]
+        ],
+        [
+          20.0,
+          null,
+          null,
+          "rest",
+          "2026-11-02T14:06:45+00:00",
+          [
+            null,
+            null,
+            null
+          ],
+          [
+            null,
+            null,
+            null
+          ]
+        ],
+        [
+          40.0,
+          null,
+          null,
+          "active",
+          "2026-11-02T14:07:05+00:00",
+          [
+            19,
+            19,
+            19
+          ],
+          [
+            34,
+            34,
+            34
+          ]
+        ],
+        [
+          20.0,
+          null,
+          null,
+          "rest",
+          "2026-11-02T14:07:45+00:00",
+          [
+            null,
+            null,
+            null
+          ],
+          [
+            null,
+            null,
+            null
+          ]
+        ],
+        [
+          40.0,
+          6,
+          null,
+          "active",
+          "2026-11-02T14:08:05+00:00",
+          [
+            31,
+            31,
+            31
+          ],
+          [
+            14,
+            14,
+            14
+          ]
+        ],
+        [
+          20.0,
+          null,
+          null,
+          "rest",
+          "2026-11-02T14:08:45+00:00",
+          [
+            null,
+            null,
+            null
+          ],
+          [
+            null,
+            null,
+            null
+          ]
+        ],
+        [
+          40.0,
+          20,
+          null,
+          "active",
+          "2026-11-02T14:09:05+00:00",
+          [
+            28,
+            28,
+            28
+          ],
+          [
+            89,
+            89,
+            89
+          ]
+        ],
+        [
+          20.0,
+          null,
+          null,
+          "rest",
+          "2026-11-02T14:09:45+00:00",
+          [
+            null,
+            null,
+            null
+          ],
+          [
+            null,
+            null,
+            null
+          ]
+        ],
+        [
+          40.0,
+          13,
+          null,
+          "active",
+          "2026-11-02T14:10:05+00:00",
+          [
+            6,
+            6,
+            6
+          ],
+          [
+            0,
+            0,
+            0
+          ]
+        ],
+        [
+          26.137,
+          null,
+          null,
+          "rest",
+          "2026-11-02T14:10:45+00:00",
+          [
+            null,
+            null,
+            null
+          ],
+          [
+            null,
+            null,
+            null
+          ]
+        ],
+        [
+          40.0,
+          null,
+          null,
+          "active",
+          "2026-11-02T14:11:12+00:00",
+          [
+            10,
+            10,
+            10
+          ],
+          [
+            11,
+            11,
+            11
+          ]
+        ],
+        [
+          20.0,
+          null,
+          null,
+          "rest",
+          "2026-11-02T14:11:52+00:00",
+          [
+            null,
+            null,
+            null
+          ],
+          [
+            null,
+            null,
+            null
+          ]
+        ],
+        [
+          40.0,
+          21,
+          null,
+          "active",
+          "2026-11-02T14:12:12+00:00",
+          [
+            22,
+            22,
+            22
+          ],
+          [
+            77,
+            77,
+            77
+          ]
+        ],
+        [
+          20.0,
+          null,
+          null,
+          "rest",
+          "2026-11-02T14:12:52+00:00",
+          [
+            null,
+            null,
+            null
+          ],
+          [
+            null,
+            null,
+            null
+          ]
+        ],
+        [
+          40.0,
+          12,
+          null,
+          "active",
+          "2026-11-02T14:13:12+00:00",
+          [
+            28,
+            28,
+            28
+          ],
+          [
+            61,
+            61,
+            61
+          ]
+        ],
+        [
+          20.0,
+          null,
+          null,
+          "rest",
+          "2026-11-02T14:13:52+00:00",
+          [
+            null,
+            null,
+            null
+          ],
+          [
+            null,
+            null,
+            null
+          ]
+        ],
+        [
+          40.0,
+          6,
+          null,
+          "active",
+          "2026-11-02T14:14:12+00:00",
+          [
+            19,
+            19,
+            19
+          ],
+          [
+            34,
+            34,
+            34
+          ]
+        ],
+        [
+          20.0,
+          null,
+          null,
+          "rest",
+          "2026-11-02T14:14:52+00:00",
+          [
+            null,
+            null,
+            null
+          ],
+          [
+            null,
+            null,
+            null
+          ]
+        ],
+        [
+          40.0,
+          5,
+          null,
+          "active",
+          "2026-11-02T14:15:12+00:00",
+          [
+            31,
+            31,
+            31
+          ],
+          [
+            14,
+            14,
+            14
+          ]
+        ],
+        [
+          20.0,
+          null,
+          null,
+          "rest",
+          "2026-11-02T14:15:52+00:00",
+          [
+            null,
+            null,
+            null
+          ],
+          [
+            null,
+            null,
+            null
+          ]
+        ],
+        [
+          40.0,
+          9,
+          null,
+          "active",
+          "2026-11-02T14:16:12+00:00",
+          [
+            28,
+            28,
+            28
+          ],
+          [
+            89,
+            89,
+            89
+          ]
+        ],
+        [
+          20.0,
+          null,
+          null,
+          "rest",
+          "2026-11-02T14:16:52+00:00",
+          [
+            null,
+            null,
+            null
+          ],
+          [
+            null,
+            null,
+            null
+          ]
+        ],
+        [
+          40.0,
+          null,
+          null,
+          "active",
+          "2026-11-02T14:17:12+00:00",
+          [
+            6,
+            6,
+            6
+          ],
+          [
+            0,
+            0,
+            0
+          ]
+        ],
+        [
+          3.789,
+          null,
+          null,
+          "rest",
+          "2026-11-02T14:17:52+00:00",
+          [
+            null,
+            null,
+            null
+          ],
+          [
+            null,
+            null,
+            null
+          ]
+        ],
+        [
+          3.576,
+          null,
+          null,
+          "rest",
+          "2026-11-02T14:17:55+00:00",
+          [
+            null,
+            null,
+            null
+          ],
+          [
+            null,
+            null,
+            null
+          ]
+        ]
+      ],
+      "streams": [
+        {
+          "count": 586,
+          "fields": {
+            "hr": {
+              "max": 131,
+              "mean": 112.71843,
+              "min": 87
+            }
+          },
+          "first": {
+            "hr": 95,
+            "time": "2026-11-02T13:57:00"
+          },
+          "last": {
+            "hr": 102,
+            "time": "2026-11-02T14:18:00"
+          },
+          "sha256": "5b2741fc75cc69a1b3f81c2603a9e06615ccc52787321713277596235fcbf2cd",
+          "stream_type": 1
+        }
+      ],
+      "workout_steps": [
+        {
+          "duration_type": "time",
+          "duration_value": 40.0,
+          "exercise_category": 10,
+          "exercise_name": 11,
+          "exercise_weight": null,
+          "intensity": "active",
+          "message_index": 0,
+          "notes": null,
+          "secondary_target_value": null,
+          "target_type": null,
+          "target_value": null,
+          "weight_display_unit": null
+        },
+        {
+          "duration_type": "time",
+          "duration_value": 20.0,
+          "exercise_category": null,
+          "exercise_name": null,
+          "exercise_weight": null,
+          "intensity": "rest",
+          "message_index": 1,
+          "notes": null,
+          "secondary_target_value": null,
+          "target_type": null,
+          "target_value": null,
+          "weight_display_unit": null
+        },
+        {
+          "duration_type": "time",
+          "duration_value": 40.0,
+          "exercise_category": 22,
+          "exercise_name": 77,
+          "exercise_weight": null,
+          "intensity": "active",
+          "message_index": 2,
+          "notes": null,
+          "secondary_target_value": null,
+          "target_type": null,
+          "target_value": null,
+          "weight_display_unit": null
+        },
+        {
+          "duration_type": "time",
+          "duration_value": 20.0,
+          "exercise_category": null,
+          "exercise_name": null,
+          "exercise_weight": null,
+          "intensity": "rest",
+          "message_index": 3,
+          "notes": null,
+          "secondary_target_value": null,
+          "target_type": null,
+          "target_value": null,
+          "weight_display_unit": null
+        },
+        {
+          "duration_type": "time",
+          "duration_value": 40.0,
+          "exercise_category": 28,
+          "exercise_name": 61,
+          "exercise_weight": null,
+          "intensity": "active",
+          "message_index": 4,
+          "notes": null,
+          "secondary_target_value": null,
+          "target_type": null,
+          "target_value": null,
+          "weight_display_unit": null
+        },
+        {
+          "duration_type": "time",
+          "duration_value": 20.0,
+          "exercise_category": null,
+          "exercise_name": null,
+          "exercise_weight": null,
+          "intensity": "rest",
+          "message_index": 5,
+          "notes": null,
+          "secondary_target_value": null,
+          "target_type": null,
+          "target_value": null,
+          "weight_display_unit": null
+        },
+        {
+          "duration_type": "time",
+          "duration_value": 40.0,
+          "exercise_category": 19,
+          "exercise_name": 34,
+          "exercise_weight": null,
+          "intensity": "active",
+          "message_index": 6,
+          "notes": null,
+          "secondary_target_value": null,
+          "target_type": null,
+          "target_value": null,
+          "weight_display_unit": null
+        },
+        {
+          "duration_type": "time",
+          "duration_value": 20.0,
+          "exercise_category": null,
+          "exercise_name": null,
+          "exercise_weight": null,
+          "intensity": "rest",
+          "message_index": 7,
+          "notes": null,
+          "secondary_target_value": null,
+          "target_type": null,
+          "target_value": null,
+          "weight_display_unit": null
+        },
+        {
+          "duration_type": "time",
+          "duration_value": 40.0,
+          "exercise_category": 31,
+          "exercise_name": 14,
+          "exercise_weight": null,
+          "intensity": "active",
+          "message_index": 8,
+          "notes": null,
+          "secondary_target_value": null,
+          "target_type": null,
+          "target_value": null,
+          "weight_display_unit": null
+        },
+        {
+          "duration_type": "time",
+          "duration_value": 20.0,
+          "exercise_category": null,
+          "exercise_name": null,
+          "exercise_weight": null,
+          "intensity": "rest",
+          "message_index": 9,
+          "notes": null,
+          "secondary_target_value": null,
+          "target_type": null,
+          "target_value": null,
+          "weight_display_unit": null
+        },
+        {
+          "duration_type": "time",
+          "duration_value": 40.0,
+          "exercise_category": 28,
+          "exercise_name": 89,
+          "exercise_weight": null,
+          "intensity": "active",
+          "message_index": 10,
+          "notes": null,
+          "secondary_target_value": null,
+          "target_type": null,
+          "target_value": null,
+          "weight_display_unit": null
+        },
+        {
+          "duration_type": "time",
+          "duration_value": 20.0,
+          "exercise_category": null,
+          "exercise_name": null,
+          "exercise_weight": null,
+          "intensity": "rest",
+          "message_index": 11,
+          "notes": null,
+          "secondary_target_value": null,
+          "target_type": null,
+          "target_value": null,
+          "weight_display_unit": null
+        },
+        {
+          "duration_type": "time",
+          "duration_value": 40.0,
+          "exercise_category": 6,
+          "exercise_name": 0,
+          "exercise_weight": null,
+          "intensity": "active",
+          "message_index": 12,
+          "notes": null,
+          "secondary_target_value": null,
+          "target_type": null,
+          "target_value": null,
+          "weight_display_unit": null
+        },
+        {
+          "duration_type": "open",
+          "duration_value": null,
+          "exercise_category": null,
+          "exercise_name": null,
+          "exercise_weight": null,
+          "intensity": "rest",
+          "message_index": 13,
+          "notes": null,
+          "secondary_target_value": null,
+          "target_type": null,
+          "target_value": null,
+          "weight_display_unit": null
+        },
+        {
+          "duration_type": "repeat_until_steps_cmplt",
+          "duration_value": 0.0,
+          "exercise_category": null,
+          "exercise_name": null,
+          "exercise_weight": null,
+          "intensity": null,
+          "message_index": 14,
+          "notes": null,
+          "secondary_target_value": null,
+          "target_type": null,
+          "target_value": 3,
+          "weight_display_unit": null
+        }
+      ]
+    }
+  ],
+  "file_components": {
+    "exercise_titles": [
+      {
+        "exercise_category": 6,
+        "exercise_name": 0,
+        "wkt_step_name": "Bicycle Crunch"
+      },
+      {
+        "exercise_category": 31,
+        "exercise_name": 14,
+        "wkt_step_name": "Opposite Arm and Leg Balance"
+      },
+      {
+        "exercise_category": 28,
+        "exercise_name": 61,
+        "wkt_step_name": "Squat"
+      },
+      {
+        "exercise_category": 10,
+        "exercise_name": 11,
+        "wkt_step_name": "Hip Raise"
+      },
+      {
+        "exercise_category": 28,
+        "exercise_name": 89,
+        "wkt_step_name": "Squat Jumps In N' Out"
+      },
+      {
+        "exercise_category": 19,
+        "exercise_name": 34,
+        "wkt_step_name": "Mountain Climber"
+      },
+      {
+        "exercise_category": 22,
+        "exercise_name": 77,
+        "wkt_step_name": "Push-up"
+      }
+    ]
+  }
+}

@@ -1,0 +1,215 @@
+{
+  "activities": [
+    {
+      "activity": {
+        "activity_type": "run",
+        "average_cad": 168,
+        "average_hr": 151,
+        "average_power": 297,
+        "average_speed": null,
+        "calories": 125,
+        "city": null,
+        "country": null,
+        "created_at": null,
+        "description": null,
+        "distance": 1778,
+        "elevation_gain": null,
+        "elevation_loss": null,
+        "end_time": "2026-09-08T07:03:48Z",
+        "garminconnect_activity_id": null,
+        "garminconnect_gear_id": null,
+        "gear_id": null,
+        "hide_cadence": null,
+        "hide_elevation": null,
+        "hide_gear": null,
+        "hide_hr": null,
+        "hide_laps": null,
+        "hide_location": null,
+        "hide_map": null,
+        "hide_pace": null,
+        "hide_power": null,
+        "hide_speed": null,
+        "hide_start_time": null,
+        "hide_workout_sets_steps": null,
+        "import_info": null,
+        "is_hidden": false,
+        "max_cad": 192,
+        "max_hr": 182,
+        "max_power": 426,
+        "max_speed": null,
+        "name": "Workout",
+        "normalized_power": 306,
+        "pace": null,
+        "private_notes": null,
+        "start_time": "2026-09-08T06:53:43Z",
+        "strava_activity_id": null,
+        "strava_gear_id": null,
+        "timezone": "Europe/Lisbon",
+        "total_cycles": null,
+        "total_elapsed_time": 605.0,
+        "total_timer_time": 605.0,
+        "town": null,
+        "tracker_manufacturer": null,
+        "tracker_model": null,
+        "visibility": null,
+        "workout_feeling": null,
+        "workout_rpe": null
+      },
+      "laps": [
+        {
+          "avg_cadence": 164,
+          "avg_heart_rate": 140,
+          "avg_power": 278,
+          "end_position_lat": null,
+          "end_position_long": null,
+          "enhanced_avg_pace": 0.369,
+          "enhanced_avg_speed": 2.710027,
+          "enhanced_max_pace": 0.320924,
+          "enhanced_max_speed": 3.116,
+          "max_cadence": 174,
+          "max_heart_rate": 156,
+          "max_power": 325,
+          "normalized_power": 280,
+          "start_position_lat": null,
+          "start_position_long": null,
+          "start_time": "2026-09-08T06:53:43+00:00",
+          "total_ascent": null,
+          "total_calories": 70,
+          "total_descent": null,
+          "total_distance": 1000,
+          "total_elapsed_time": 369.0,
+          "total_timer_time": 369.0
+        },
+        {
+          "avg_cadence": 176,
+          "avg_heart_rate": 167,
+          "avg_power": 326,
+          "end_position_lat": null,
+          "end_position_long": null,
+          "enhanced_avg_pace": 0.303202,
+          "enhanced_avg_speed": 3.298136,
+          "enhanced_max_pace": 0.235571,
+          "enhanced_max_speed": 4.245,
+          "max_cadence": 192,
+          "max_heart_rate": 182,
+          "max_power": 426,
+          "normalized_power": 337,
+          "start_position_lat": null,
+          "start_position_long": null,
+          "start_time": "2026-09-08T06:59:52+00:00",
+          "total_ascent": null,
+          "total_calories": 55,
+          "total_descent": null,
+          "total_distance": 778,
+          "total_elapsed_time": 236.0,
+          "total_timer_time": 236.0
+        }
+      ],
+      "sets": null,
+      "streams": [
+        {
+          "count": 607,
+          "fields": {
+            "hr": {
+              "max": 182,
+              "mean": 150.716639,
+              "min": 86
+            }
+          },
+          "first": {
+            "hr": 86,
+            "time": "2026-09-08T06:53:43"
+          },
+          "last": {
+            "hr": 159,
+            "time": "2026-09-08T07:03:48"
+          },
+          "sha256": "4dbf0cdcaa9f300084b7c0209b8098b441272cb86e7fc2a424b5dd10a21ef4f2",
+          "stream_type": 1
+        },
+        {
+          "count": 607,
+          "fields": {
+            "power": {
+              "max": 426,
+              "mean": 296.878089,
+              "min": 0
+            }
+          },
+          "first": {
+            "power": 0,
+            "time": "2026-09-08T06:53:43"
+          },
+          "last": {
+            "power": 279,
+            "time": "2026-09-08T07:03:48"
+          },
+          "sha256": "4848317ab66b8312984039f57600157cad74f17ab1c6b3b8612dc4d37dce5b04",
+          "stream_type": 2
+        },
+        {
+          "count": 607,
+          "fields": {
+            "cad": {
+              "max": 192,
+              "mean": 168.454695,
+              "min": 90
+            }
+          },
+          "first": {
+            "cad": 90,
+            "time": "2026-09-08T06:53:43"
+          },
+          "last": {
+            "cad": 168,
+            "time": "2026-09-08T07:03:48"
+          },
+          "sha256": "8fcd7bed0f689686e67ab718172dc4a48ce5d2f61b7fc70ba3ef43ba8963b8ca",
+          "stream_type": 3
+        },
+        {
+          "count": 607,
+          "fields": {
+            "vel": {
+              "max": 0,
+              "mean": 0.0,
+              "min": 0
+            }
+          },
+          "first": {
+            "time": "2026-09-08T06:53:43",
+            "vel": 0
+          },
+          "last": {
+            "time": "2026-09-08T07:03:48",
+            "vel": 0
+          },
+          "sha256": "422c7db531df5f41d74f83a1d766706b8e543c994b36c70e9155c528d671f268",
+          "stream_type": 5
+        },
+        {
+          "count": 607,
+          "fields": {
+            "pace": {
+              "max": 0,
+              "mean": 0.0,
+              "min": 0
+            }
+          },
+          "first": {
+            "pace": 0,
+            "time": "2026-09-08T06:53:43"
+          },
+          "last": {
+            "pace": 0,
+            "time": "2026-09-08T07:03:48"
+          },
+          "sha256": "2b6e53749e0a180dabfd480091a31fcdca14b756e94a0e71dcbbbe16d25e9f8b",
+          "stream_type": 6
+        }
+      ],
+      "workout_steps": null
+    }
+  ],
+  "file_components": {}
+}

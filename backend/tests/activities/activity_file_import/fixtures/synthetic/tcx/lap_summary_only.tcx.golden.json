@@ -1,0 +1,4 @@
+{
+  "error": "InvalidInputError",
+  "message": "Invalid TCX file - no activity start or end time found"
+}

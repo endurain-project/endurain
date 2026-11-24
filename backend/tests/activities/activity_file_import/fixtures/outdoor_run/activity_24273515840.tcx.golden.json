@@ -1,0 +1,358 @@
+{
+  "activities": [
+    {
+      "activity": {
+        "activity_type": "run",
+        "average_cad": 168,
+        "average_hr": 147,
+        "average_power": 277,
+        "average_speed": null,
+        "calories": 364,
+        "city": null,
+        "country": null,
+        "created_at": null,
+        "description": null,
+        "distance": 4648,
+        "elevation_gain": 14,
+        "elevation_loss": 20,
+        "end_time": "2026-09-07T16:40:09Z",
+        "garminconnect_activity_id": null,
+        "garminconnect_gear_id": null,
+        "gear_id": null,
+        "hide_cadence": null,
+        "hide_elevation": null,
+        "hide_gear": null,
+        "hide_hr": null,
+        "hide_laps": null,
+        "hide_location": null,
+        "hide_map": null,
+        "hide_pace": null,
+        "hide_power": null,
+        "hide_speed": null,
+        "hide_start_time": null,
+        "hide_workout_sets_steps": null,
+        "import_info": null,
+        "is_hidden": false,
+        "max_cad": 178,
+        "max_hr": 164,
+        "max_power": 378,
+        "max_speed": null,
+        "name": "Workout",
+        "normalized_power": 289,
+        "pace": 0.39006,
+        "private_notes": null,
+        "start_time": "2026-09-07T16:09:56Z",
+        "strava_activity_id": null,
+        "strava_gear_id": null,
+        "timezone": "Europe/Lisbon",
+        "total_cycles": null,
+        "total_elapsed_time": 1813.0,
+        "total_timer_time": 1813.0,
+        "town": null,
+        "tracker_manufacturer": null,
+        "tracker_model": null,
+        "visibility": null,
+        "workout_feeling": null,
+        "workout_rpe": null
+      },
+      "laps": [
+        {
+          "avg_cadence": 164,
+          "avg_heart_rate": 125,
+          "avg_power": 283,
+          "end_position_lat": 41.158521,
+          "end_position_long": -8.631721,
+          "enhanced_avg_pace": 0.383,
+          "enhanced_avg_speed": 2.610966,
+          "enhanced_max_pace": 0.157604,
+          "enhanced_max_speed": 6.345,
+          "max_cadence": 176,
+          "max_heart_rate": 152,
+          "max_power": 374,
+          "normalized_power": 299,
+          "start_position_lat": 41.161119,
+          "start_position_long": -8.640725,
+          "start_time": "2026-09-07T16:09:56+00:00",
+          "total_ascent": 0,
+          "total_calories": 70,
+          "total_descent": 0,
+          "total_distance": 1000,
+          "total_elapsed_time": 383.0,
+          "total_timer_time": 383.0
+        },
+        {
+          "avg_cadence": 158,
+          "avg_heart_rate": 149,
+          "avg_power": 259,
+          "end_position_lat": 41.157236,
+          "end_position_long": -8.62543,
+          "enhanced_avg_pace": 0.411,
+          "enhanced_avg_speed": 2.43309,
+          "enhanced_max_pace": 0.318979,
+          "enhanced_max_speed": 3.135,
+          "max_cadence": 178,
+          "max_heart_rate": 156,
+          "max_power": 349,
+          "normalized_power": 281,
+          "start_position_lat": 41.158521,
+          "start_position_long": -8.631721,
+          "start_time": "2026-09-07T16:16:19+00:00",
+          "total_ascent": 0,
+          "total_calories": 83,
+          "total_descent": 0,
+          "total_distance": 1000,
+          "total_elapsed_time": 411.0,
+          "total_timer_time": 411.0
+        },
+        {
+          "avg_cadence": 172,
+          "avg_heart_rate": 151,
+          "avg_power": 259,
+          "end_position_lat": 41.15251,
+          "end_position_long": -8.628073,
+          "enhanced_avg_pace": 0.373,
+          "enhanced_avg_speed": 2.680965,
+          "enhanced_max_pace": 0.301932,
+          "enhanced_max_speed": 3.312,
+          "max_cadence": 178,
+          "max_heart_rate": 162,
+          "max_power": 357,
+          "normalized_power": 267,
+          "start_position_lat": 41.157236,
+          "start_position_long": -8.62543,
+          "start_time": "2026-09-07T16:23:10+00:00",
+          "total_ascent": 0,
+          "total_calories": 76,
+          "total_descent": 20,
+          "total_distance": 1000,
+          "total_elapsed_time": 373.0,
+          "total_timer_time": 373.0
+        },
+        {
+          "avg_cadence": 174,
+          "avg_heart_rate": 158,
+          "avg_power": 300,
+          "end_position_lat": 41.15851,
+          "end_position_long": -8.633368,
+          "enhanced_avg_pace": 0.406,
+          "enhanced_avg_speed": 2.463054,
+          "enhanced_max_pace": 0.365764,
+          "enhanced_max_speed": 2.734,
+          "max_cadence": 176,
+          "max_heart_rate": 164,
+          "max_power": 378,
+          "normalized_power": 303,
+          "start_position_lat": 41.15251,
+          "start_position_long": -8.628073,
+          "start_time": "2026-09-07T16:29:23+00:00",
+          "total_ascent": 14,
+          "total_calories": 85,
+          "total_descent": 0,
+          "total_distance": 1000,
+          "total_elapsed_time": 406.0,
+          "total_timer_time": 406.0
+        },
+        {
+          "avg_cadence": 174,
+          "avg_heart_rate": 156,
+          "avg_power": 287,
+          "end_position_lat": 41.159695,
+          "end_position_long": -8.64046,
+          "enhanced_avg_pace": 0.369908,
+          "enhanced_avg_speed": 2.703377,
+          "enhanced_max_pace": 0.326797,
+          "enhanced_max_speed": 3.06,
+          "max_cadence": 178,
+          "max_heart_rate": 159,
+          "max_power": 343,
+          "normalized_power": 289,
+          "start_position_lat": 41.15851,
+          "start_position_long": -8.633368,
+          "start_time": "2026-09-07T16:36:09+00:00",
+          "total_ascent": 0,
+          "total_calories": 47,
+          "total_descent": 0,
+          "total_distance": 616,
+          "total_elapsed_time": 228.0,
+          "total_timer_time": 228.0
+        },
+        {
+          "avg_cadence": 170,
+          "avg_heart_rate": 155,
+          "avg_power": 272,
+          "end_position_lat": 41.159768,
+          "end_position_long": -8.640749,
+          "enhanced_avg_pace": 0.375117,
+          "enhanced_avg_speed": 2.665833,
+          "enhanced_max_pace": 0.364564,
+          "enhanced_max_speed": 2.743,
+          "max_cadence": 172,
+          "max_heart_rate": 156,
+          "max_power": 280,
+          "normalized_power": 272,
+          "start_position_lat": 41.159695,
+          "start_position_long": -8.64046,
+          "start_time": "2026-09-07T16:39:57+00:00",
+          "total_ascent": 0,
+          "total_calories": 3,
+          "total_descent": 0,
+          "total_distance": 32,
+          "total_elapsed_time": 12.0,
+          "total_timer_time": 12.0
+        }
+      ],
+      "sets": null,
+      "streams": [
+        {
+          "count": 1819,
+          "fields": {
+            "hr": {
+              "max": 164,
+              "mean": 147.280374,
+              "min": 80
+            }
+          },
+          "first": {
+            "hr": 81,
+            "time": "2026-09-07T16:09:56"
+          },
+          "last": {
+            "hr": 154,
+            "time": "2026-09-07T16:40:09"
+          },
+          "sha256": "63d8b61657a8f2ccb5553247bc5671af4c3357e8de506df0d8587ccbebbe8b28",
+          "stream_type": 1
+        },
+        {
+          "count": 1819,
+          "fields": {
+            "power": {
+              "max": 378,
+              "mean": 276.57834,
+              "min": 0
+            }
+          },
+          "first": {
+            "power": 0,
+            "time": "2026-09-07T16:09:56"
+          },
+          "last": {
+            "power": 270,
+            "time": "2026-09-07T16:40:09"
+          },
+          "sha256": "08cf9fb41f3d1bc8f4e02810f2039854d316e45b338f33d54c2318049ef93113",
+          "stream_type": 2
+        },
+        {
+          "count": 1819,
+          "fields": {
+            "cad": {
+              "max": 178,
+              "mean": 167.79989,
+              "min": 0
+            }
+          },
+          "first": {
+            "cad": 0,
+            "time": "2026-09-07T16:09:56"
+          },
+          "last": {
+            "cad": 170,
+            "time": "2026-09-07T16:40:09"
+          },
+          "sha256": "376255c2e8fed1460fc246f771dfc90268aab009c7d83e277dc70627a553e2df",
+          "stream_type": 3
+        },
+        {
+          "count": 1819,
+          "fields": {
+            "ele": {
+              "max": 96.552382,
+              "mean": 88.961414,
+              "min": 71.295237
+            }
+          },
+          "first": {
+            "ele": 83.172726,
+            "time": "2026-09-07T16:09:56"
+          },
+          "last": {
+            "ele": 83.563636,
+            "time": "2026-09-07T16:40:09"
+          },
+          "sha256": "1d5a2d204a8a271fdef52108776e1f71a4a941d451827b65c26bdf8f56be95e7",
+          "stream_type": 4
+        },
+        {
+          "count": 1819,
+          "fields": {
+            "vel": {
+              "max": 5.454887,
+              "mean": 2.590886,
+              "min": 0
+            }
+          },
+          "first": {
+            "time": "2026-09-07T16:09:56",
+            "vel": 0
+          },
+          "last": {
+            "time": "2026-09-07T16:40:09",
+            "vel": 1.049655
+          },
+          "sha256": "e7f6621905b9696cf6e324f160a07eaa1461d1992f9fa69bff7e412e2b1dbd01",
+          "stream_type": 5
+        },
+        {
+          "count": 1819,
+          "fields": {
+            "pace": {
+              "max": 10.457413,
+              "mean": 0.420315,
+              "min": 0
+            }
+          },
+          "first": {
+            "pace": 0,
+            "time": "2026-09-07T16:09:56"
+          },
+          "last": {
+            "pace": 0.952694,
+            "time": "2026-09-07T16:40:09"
+          },
+          "sha256": "2fde541f69880ee6b45e99ed0509bc429310cad0a054760cc0017bbf9068ea3e",
+          "stream_type": 6
+        },
+        {
+          "count": 1819,
+          "fields": {
+            "lat": {
+              "max": 41.161127,
+              "mean": 41.157421,
+              "min": 41.152471
+            },
+            "lon": {
+              "max": -8.623759,
+              "mean": -8.631314,
+              "min": -8.641445
+            }
+          },
+          "first": {
+            "lat": 41.161119,
+            "lon": -8.640725,
+            "time": "2026-09-07T16:09:56"
+          },
+          "last": {
+            "lat": 41.159768,
+            "lon": -8.640749,
+            "time": "2026-09-07T16:40:09"
+          },
+          "sha256": "258b1beafa9f114ac5433c866892fd15bfcf5dd4ffbd078f9b7e1b7428e0dba4",
+          "stream_type": 7
+        }
+      ],
+      "workout_steps": null
+    }
+  ],
+  "file_components": {}
+}
