@@ -68,7 +68,7 @@ class ParseState:
     cad_waypoints: list[activity_streams_contracts.CadenceWaypoint] = field(default_factory=list)
     power_waypoints: list[activity_streams_contracts.PowerWaypoint] = field(default_factory=list)
     vel_waypoints: list[activity_streams_contracts.VelocityWaypoint] = field(default_factory=list)
-    measured_vel_times: set[str] = field(default_factory=set)
+    measured_vel_indices: set[int] = field(default_factory=set)
     pace_waypoints: list[activity_streams_contracts.PaceWaypoint] = field(default_factory=list)
     prev_latitude: float | None = None
     prev_longitude: float | None = None
@@ -346,15 +346,15 @@ def _process_trackpoint(
 
     timestamp = core_timezone.format_utc(time)
 
-    # A segment's first point (and a non-advancing clock) yields a 0 placeholder,
-    # not a measurement; only max speed ignores it, the stored stream keeps it.
+    # A segment's first point (and a non-advancing clock) yields a 0 placeholder, not a
+    # measurement; lap and max speed skip it by stream index, the stored stream keeps it.
     if (
         state.prev_waypoint_time is not None
         and state.prev_latitude is not None
         and state.prev_longitude is not None
         and time > state.prev_waypoint_time
     ):
-        state.measured_vel_times.add(timestamp)
+        state.measured_vel_indices.add(len(state.vel_waypoints))
 
     if latitude is not None and longitude is not None:
         state.lat_lon_waypoints.append(
@@ -435,7 +435,12 @@ def _compute_derived_metrics(
             "vel",
         )
         state.max_speed = activities_computation.calculate_robust_max(
-            [waypoint["vel"] for waypoint in state.vel_waypoints if waypoint["time"] in state.measured_vel_times],
+            [
+                waypoint["vel"]
+                for waypoint in activity_file_import_parser_utils.measured_speed_samples(
+                    state.vel_waypoints, state.measured_vel_indices
+                )
+            ],
         )
 
     if state.power_waypoints:
@@ -605,7 +610,7 @@ def parse_gpx_file(
                     state.cad_waypoints,
                     state.vel_waypoints,
                     distance_per_lap_km=distance_per_lap_km,
-                    measured_vel_times=state.measured_vel_times,
+                    measured_vel_indices=state.measured_vel_indices,
                     smoothed_ele_waypoints=smoothed_ele_waypoints,
                 )
             )

@@ -775,7 +775,7 @@ def calculate_pace(
     return total_timer_time, 0
 
 
-def _timezone_from_offset(
+def timezone_from_offset(
     offset_seconds: int,
     reference_date: datetime,
     athlete_timezone: str | None,
