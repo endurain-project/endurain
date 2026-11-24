@@ -90,7 +90,11 @@ class ProgressiveLockout:
         return self.get_lockout_time(key) is not None
 
     def get_lockout_time(self, key: str) -> datetime | None:
-        """Return the active lockout expiry, if one exists."""
+        """Return the active lockout expiry, if one exists.
+
+        The state store expires the gate when its lock ends, on its own clock, so a gate that is present is a live
+        lock; the deadline it holds is only reported.
+        """
         gate_key = self._gate_key(key)
         try:
             raw_gate = self._state.get(gate_key)
@@ -101,9 +105,6 @@ class ProgressiveLockout:
         try:
             gate_until = int(raw_gate.decode())
         except TypeError, ValueError:
-            self._delete(gate_key)
-            return None
-        if gate_until <= int(datetime.now(UTC).timestamp()):
             self._delete(gate_key)
             return None
         return datetime.fromtimestamp(gate_until, tz=UTC)
