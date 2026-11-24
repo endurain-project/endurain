@@ -13,8 +13,10 @@ from typing import cast
 import pytest
 from jasil.providers import StorageBackendUnavailableError
 from sqlalchemy import text
+from sqlalchemy.orm import sessionmaker
 
 import core.config as core_config
+import core.database as core_database
 import core.exceptions as core_exceptions
 import core.job_status as core_job_status
 import core.local_pool as core_local_pool
@@ -38,6 +40,7 @@ from tests._factories.ingestion import (
 )
 from tests._factories.profile import FaultyStorage
 from tests._factories.users import make_user
+from tests._helpers import database as test_database
 
 _Kind = ingestion_constants.IngestionJobKind
 _ErrorCode = ingestion_constants.IngestionJobErrorCode
@@ -258,6 +261,30 @@ class TestABookkeepingFailureNeverMasksTheFailureBeingHandled:
             ingestion_service.release_ingestion_job(_NOT_A_JOB)
 
         assert any("Could not release an ingestion job" in record.getMessage() for record in caplog.records)
+
+    @pytest.fixture
+    def database_down(self, monkeypatch):
+        """The bookkeeping session opens on a database that refuses every connection, as during an outage."""
+        engine = test_database.unreachable_engine()
+        monkeypatch.setattr(core_database, "SessionLocal", sessionmaker(bind=engine))
+        yield
+        engine.dispose()
+
+    def test_releasing_a_job_during_an_outage_is_a_warning(self, database_down, app_log):
+        ingestion_service.release_ingestion_job(uuid.uuid4())
+
+        [record] = app_log.records
+        assert (record.getMessage(), record.levelno) == (
+            "Could not release an ingestion job for retry",
+            logging.WARNING,
+        )
+
+    def test_failing_a_job_during_an_outage_is_a_warning(self, database_down, app_log, storage):
+        ingestion_service.fail_ingestion_job(uuid.uuid4(), _ErrorCode.PROCESSING_FAILED, storage, "a.gpx")
+
+        [record] = app_log.records
+        assert (record.getMessage(), record.levelno) == ("Could not mark an upload job failed", logging.WARNING)
+        assert (record.exc_info, record.error) == (None, "OperationalError")
 
 
 class TestErrorCodeFor:

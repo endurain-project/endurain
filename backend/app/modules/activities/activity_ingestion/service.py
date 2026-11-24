@@ -21,6 +21,7 @@ from collections.abc import Callable, Collection, Iterator
 from datetime import UTC, datetime, timedelta
 from itertools import batched
 
+import jasil.orm as jasil_orm
 import jasil.providers as platform_providers
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from sqlalchemy.orm import Session
@@ -733,11 +734,16 @@ def release_ingestion_job(job_id: uuid.UUID) -> None:
             activity_ingestion_crud.release_job(job_id, db)
             db.commit()
     except SQLAlchemyError as err:
-        logger.error(
-            "Could not release an ingestion job for retry",
-            exc_info=err,
-            extra=core_logger.context(job_id=job_id),
-        )
+        # An unavailable database passes, and the lease brings the job back; any other database error is a fault.
+        if jasil_orm.is_database_unavailable(err):
+            logger.warning(
+                "Could not release an ingestion job for retry",
+                extra=core_logger.context(job_id=job_id, error=type(err).__name__),
+            )
+        else:
+            logger.error(
+                "Could not release an ingestion job for retry", exc_info=err, extra=core_logger.context(job_id=job_id)
+            )
 
 
 def defer_ingestion_job(job_id: uuid.UUID, retry_at: datetime) -> None:
@@ -825,12 +831,15 @@ def fail_ingestion_job(
             failed = activity_ingestion_crud.mark_failed(job_id, error_code, db)
             db.commit()
     except SQLAlchemyError as err:
-        # Never mask the original failure with a bookkeeping one.
-        logger.error(
-            "Could not mark an upload job failed",
-            exc_info=err,
-            extra=core_logger.context(job_id=job_id),
-        )
+        # Never mask the original failure with a bookkeeping one. An unavailable database passes, and the lease
+        # brings the job back; any other database error is a fault.
+        if jasil_orm.is_database_unavailable(err):
+            logger.warning(
+                "Could not mark an upload job failed",
+                extra=core_logger.context(job_id=job_id, error=type(err).__name__),
+            )
+        else:
+            logger.error("Could not mark an upload job failed", exc_info=err, extra=core_logger.context(job_id=job_id))
         return
 
     if failed is not None:
