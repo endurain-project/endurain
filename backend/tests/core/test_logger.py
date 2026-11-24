@@ -326,6 +326,21 @@ class TestSetupMainLogger:
             core_logger.setup_main_logger()
         assert logging.getLogger("safeuploads.audit").propagate is True
 
+    def test_jasil_records_reach_the_app_handlers_in_json(self, capsys):
+        with (
+            patch("core.config.settings.ENVIRONMENT", "production"),
+            patch("core.config.settings.LOG_LEVEL", "warning"),
+            patch("core.config.settings.LOGS_DIR", ""),
+        ):
+            core_logger.setup_main_logger()
+
+        jasil_logger = logging.getLogger("jasil.jobs.runner")
+        jasil_logger.warning("job failed")
+
+        parsed = json.loads(capsys.readouterr().out.strip().splitlines()[-1])
+        assert parsed["message"] == "job failed"
+        assert logging.getLogger("jasil").propagate is False
+
 
 class TestGetLogger:
     """Tests for get_logger function."""
