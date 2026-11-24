@@ -14,6 +14,10 @@ round trip.
 import uuid
 from datetime import UTC, datetime, timedelta
 
+import jasil.orm as jasil_orm
+import jasil.providers as platform_providers
+from sqlalchemy.exc import SQLAlchemyError
+
 import core.exceptions as core_exceptions
 import core.logger as core_logger
 import modules.activities.activity.schema as activity_schema
@@ -113,6 +117,21 @@ def sync_linked_providers(
             )
             clears = err.retry_at or datetime.now(UTC) + _DEFAULT_DEFERRAL
             retry_at = max(retry_at, clears) if retry_at else clears
+            continue
+        except (SQLAlchemyError, platform_providers.StorageBackendUnavailableError) as err:
+            if jasil_orm.is_database_unavailable(err) or platform_providers.is_storage_unavailable(err):
+                # An outage is a degraded dependency, not a defect: the job runner defers the refresh.
+                logger.warning(
+                    "Provider refresh failed; continuing with the remaining providers",
+                    extra=core_logger.context(user_id=user_id, provider=candidate.name, error=type(err).__name__),
+                )
+            else:
+                logger.error(
+                    "Provider refresh failed; continuing with the remaining providers",
+                    exc_info=err,
+                    extra=core_logger.context(user_id=user_id, provider=candidate.name),
+                )
+            first_failure = first_failure or err
             continue
         except Exception as err:
             logger.error(
