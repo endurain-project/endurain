@@ -8,7 +8,9 @@ from datetime import UTC, datetime, timedelta
 def gpx(vid: int, n: int, run_index: int, points: int = 600) -> bytes:
     """Build a unique, valid GPX run (a loop of ``points`` trackpoints with heart rate) for one upload.
 
-    The start time is unique per (virtual user, upload), because the server de-duplicates by content.
+    The start time is unique per (virtual user, upload), because the server de-duplicates by content. A run index
+    moves it by about 19 years, so the base year keeps every start in the past for indexes up to 10 (the fault
+    scenarios use 1 to 10).
 
     Args:
         vid: The virtual user's number.
@@ -20,7 +22,7 @@ def gpx(vid: int, n: int, run_index: int, points: int = 600) -> bytes:
         The file's bytes.
     """
     rng = random.Random(f"{vid}:{n}")
-    start = datetime(2012, 1, 1, tzinfo=UTC) + timedelta(minutes=10 * (run_index * 100_000 + vid * 1_000 + n))
+    start = datetime(1995, 1, 1, tzinfo=UTC) + timedelta(minutes=10 * (run_index * 100_000 + vid * 1_000 + n))
     lat0, lon0 = 38.70 + rng.uniform(-0.1, 0.1), -9.15 + rng.uniform(-0.1, 0.1)
     out = [
         (
