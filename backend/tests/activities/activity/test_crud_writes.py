@@ -4,7 +4,7 @@ import uuid
 from datetime import UTC, datetime, timedelta
 
 import pytest
-from sqlalchemy import select, update
+from sqlalchemy import select, text, update
 
 import core.exceptions as core_exceptions
 import core.sync as core_sync
@@ -270,6 +270,25 @@ class TestDelete:
         assert (len(first), len(second), third) == (2, 1, [])
         assert sorted(first + second) == sorted(ids)
         assert activity_crud.delete_all_strava_activities_for_user(owner.id, db, limit=5) == []
+
+    def test_a_batch_holds_its_limit_when_postgresql_runs_the_lookup_once_per_row(self, db, owner):
+        # A plan that runs the locking lookup again for every row it deletes: on a rescan, the lock step skips the
+        # rows this statement already deleted, so a lookup inside the DELETE would hand out rows past the limit.
+        ids = [make_activity_at(db, owner.id, _NOW + timedelta(days=n)).id for n in range(3)]
+        for setting in ("hashjoin", "mergejoin", "hashagg", "sort", "material", "indexscan", "bitmapscan"):
+            db.execute(text(f"SET LOCAL enable_{setting} = off"))
+
+        first = activity_crud.delete_activities_batch_for_user(owner.id, 2, db)
+
+        assert (len(first), set(first) <= set(ids)) == (2, True)
+        assert (
+            len(
+                db.scalars(
+                    select(activity_models.Activity.id).where(activity_models.Activity.user_id == owner.id)
+                ).all()
+            )
+            == 1
+        )
 
 
 class TestBulkWrites:

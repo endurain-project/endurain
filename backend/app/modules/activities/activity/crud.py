@@ -1700,6 +1700,8 @@ def delete_activities_batch_for_user(user_id: uuid.UUID, limit: int, db: Session
     thumbnail and stored source file behind — deleting them explicitly here yields the IDs needed to
     publish the cleanup events, so account deletion erases the user's stored artifacts too. The rows
     are locked in id order first, so two overlapping bulk writes wait their turn instead of deadlocking.
+    The locked ids are read before the delete: inside the DELETE, a plan that runs the locking lookup again
+    per row skips the rows the statement already deleted and hands out more than ``limit``.
 
     Args:
         user_id: Owner user ID.
@@ -1709,21 +1711,20 @@ def delete_activities_batch_for_user(user_id: uuid.UUID, limit: int, db: Session
     Returns:
         The IDs of the deleted activities; empty once the user has none.
     """
-    batch = (
-        select(activity_models.Activity.id)
-        .where(activity_models.Activity.user_id == user_id)
-        .order_by(activity_models.Activity.id)
-        .limit(limit)
-        .with_for_update()
+    batch_ids = list(
+        db.scalars(
+            select(activity_models.Activity.id)
+            .where(activity_models.Activity.user_id == user_id)
+            .order_by(activity_models.Activity.id)
+            .limit(limit)
+            .with_for_update()
+        ).all()
     )
-    stmt = (
-        sa_delete(activity_models.Activity)
-        .where(activity_models.Activity.id.in_(batch))
-        .returning(activity_models.Activity.id)
-    )
-    deleted_ids = [row_id for (row_id,) in db.execute(stmt).all()]
-    core_sync.record_deletions(db, activity_models.ActivityDeletion, user_id, deleted_ids)
-    return deleted_ids
+    if not batch_ids:
+        return []
+    db.execute(sa_delete(activity_models.Activity).where(activity_models.Activity.id.in_(batch_ids)))
+    core_sync.record_deletions(db, activity_models.ActivityDeletion, user_id, batch_ids)
+    return batch_ids
 
 
 def touch_activity(activity_id: uuid.UUID, db: Session) -> None:
