@@ -135,7 +135,7 @@ cd loadtest
 ./run.sh standard    # 2 APIs, 2 workers, 10 minutes, 50 users x 200 activities
 ./run.sh soak        # 2 APIs, 2 workers, 2 hours; watch memory, connections and queue depth
 ./run.sh scale       # the same load with 1, 2 and 4 API replicas; records throughput per step
-./run.sh faults      # 2 APIs, 2 workers: each fault scenario under a steady load, about 20 minutes
+./run.sh faults      # 2 APIs, 2 workers: each fault scenario under a steady load, about 25 minutes
 ./run.sh compare <run>   # p95 per group against loadtest/baseline.json
 ```
 
@@ -165,12 +165,17 @@ Strava answers 429 with Strava's rate-limit headers when a limit is set through 
 | Scenario | Fault | Asserted | Bound |
 | --- | --- | --- | --- |
 | `worker_kill` | SIGKILL the `default`-queue worker while it holds jobs of an upload burst, then start a new one | every job ends once: the lease (45 s here) expires and the reaper requeues it | 240 s |
+| `enrichment_kill` | SIGKILL the `enrichment` worker while it holds thumbnail and geocoding jobs of an upload burst, then start it | the attempts it held end by lease expiry and every job it held ends | 300 s |
+| `background_kill` | SIGKILL the `background` worker while it builds a profile export, then start it | the export succeeds after the restart and its download is a valid ZIP | 180 s |
 | `api_restart` | restart one API replica during load and an upload burst | the replica and the proxy serve again; requests in flight may fail, but no accepted job is lost or duplicated | 120 s |
+| `api_kill` | SIGKILL one API replica during load and an upload burst, then start it | as `api_restart`, without a graceful shutdown | 120 s |
 | `redis_outage` | stop Redis for 20 s | as documented in [Monitoring](../getting-started/monitoring.md): `/health` answers 200 with `degraded`, reads keep working, WebSocket tickets answer 503; afterwards `/health` is `ok` and tickets and sign-in work | 60 s |
+| `s3_outage` | stop the S3 store for 20 s right after an upload burst | uploads answer 503 with `Retry-After` (or 429 over the upload rate limit), an upload is accepted again once it is back, jobs that met the outage were deferred and every accepted upload ends without failing | 120 s |
 | `postgres_faults` | toxiproxy: 200 ms latency for 30 s, then every connection reset for 10 s | the application answers again, no connection is stuck idle in a transaction, every job ends | 90 s |
+| `postgres_outage` | stop PostgreSQL itself for 15 s during an upload burst | `/health` and reads answer 503 with `Retry-After` while it is down, the application serves again, no connection is stuck idle in a transaction, every accepted upload ends | 240 s |
 | `strava_429` | the stub answers 429 to every Strava call for 45 s | refreshes are deferred (with `retry_after`), not failed | n/a |
 
-Results go to `results/<run>/faults.json` (the outcome and notes of each scenario) and `results/<run>/<scenario>/` (Locust files, `ledger.json`, `invariants.json`). The scenarios that break connections or the shared state (`api_restart`, `redis_outage`, `postgres_faults`) run the invariants in fault mode: dead-lettered jobs and an upload job whose response the fault cut off are reported, not failed.
+Results go to `results/<run>/faults.json` (the outcome and notes of each scenario) and `results/<run>/<scenario>/` (Locust files, `ledger.json`, `invariants.json`). The scenarios that break connections or the shared state (`api_restart`, `api_kill`, `redis_outage`, `postgres_faults`, `postgres_outage`) run the invariants in fault mode: dead-lettered jobs and an upload job whose response the fault cut off are reported, not failed.
 
 ### Weekly workflow and baseline
 

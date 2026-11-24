@@ -5,7 +5,7 @@
 #   ./run.sh standard    2 api, 2 workers, 10 minutes, 50 users x 200 activities
 #   ./run.sh soak        2 api, 2 workers, 2 hours (watch memory, connections and queue depth)
 #   ./run.sh scale       the same load with 1, 2 and 4 api replicas; records throughput per step
-#   ./run.sh faults      2 api, 2 workers, small seed: each fault scenario under a steady load (faults.py), about 20 minutes
+#   ./run.sh faults      2 api, 2 workers, small seed: each fault scenario under a steady load (faults.py), about 25 minutes
 #   ./run.sh compare R   print how run R's p95 per group compares with baseline.json (compare.py); exit 1 on a regression
 #
 # Environment: LOADTEST_KEEP=1 keeps the stack up afterwards; LOADTEST_USERS and LOADTEST_RUNTIME override a
