@@ -254,7 +254,7 @@ classmethod-decorators = ["sqlalchemy.orm.declared_attr"]
 "app/modules/auth/authentication/dependencies.py" = ["S105", "S106"]  # false positive on cookie name constants
 "app/modules/auth/account_security/events.py" = ["S105"]  # false positive on the password-change event values
 "app/modules/auth/known_devices/events.py" = ["S105"]  # false positive on the password sign-in method value
-"app/main.py" = ["S105"]  # false positive on env var value
+"app/modules/strava/client_service.py" = ["S105"]  # false positive on the SILENCE_TOKEN_WARNINGS switch value
 "app/modules/**/audit_actions.py" = ["S105"]  # false positive on enum members naming a credential kind ("password")
 
 [tool.ruff.format]

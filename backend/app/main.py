@@ -1,15 +1,8 @@
 """FastAPI application entry point: lifespan and middleware wiring."""
 
-import os
 import time
 from collections.abc import AsyncGenerator, Awaitable, Callable
 from contextlib import asynccontextmanager
-
-# Silence stravalib token warnings as early as
-# possible: this env var is consulted at import time by
-# stravalib, so it must be set before any module that
-# transitively imports it runs.
-os.environ["SILENCE_TOKEN_WARNINGS"] = "TRUE"
 
 import jasil.audit as jasil_audit
 import jasil.container as platform_container

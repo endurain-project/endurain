@@ -1,7 +1,11 @@
 """The Strava client: stored credentials, token refresh, 401 confirmation and rate limits, against a fake Strava."""
 
+import asyncio
+import os
+import sys
 import uuid
 from datetime import UTC, datetime, timedelta
+from pathlib import Path
 
 import jasil.runtime as platform_runtime
 import pytest
@@ -681,3 +685,35 @@ class TestRateLimitRefusal:
 
     def test_no_limit_lets_the_call_through(self, rate_limits):
         strava_client_service.raise_if_rate_limit_active(strava_factories.CLIENT_ID, uuid.uuid4(), rate_limits)
+
+
+class TestClientConstruction:
+    def test_a_process_that_never_loaded_the_api_builds_a_client_without_stravalib_warnings(self):
+        """A worker imports the Strava module without main.py; stravalib must still not log its credential warnings."""
+        app_dir = Path(__file__).resolve().parents[2] / "app"
+        environment = {k: v for k, v in os.environ.items() if k != "SILENCE_TOKEN_WARNINGS"}
+        script = (
+            "import modules.strava.client_service as client_service\n"
+            "import modules.users.users_integrations.schema as schema\n"
+            "integrations = schema.UserIntegrationsRead.model_construct("
+            "strava_token=None, strava_refresh_token=None, strava_token_expires_at=None)\n"
+            "client_service.create_strava_client(integrations)\n"
+        )
+
+        async def run() -> tuple[int | None, str]:
+            process = await asyncio.create_subprocess_exec(
+                sys.executable,
+                "-c",
+                script,
+                cwd=app_dir,
+                env={**environment, "PYTHONPATH": str(app_dir)},
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE,
+            )
+            _, stderr = await asyncio.wait_for(process.communicate(), timeout=120)
+            return process.returncode, stderr.decode()
+
+        returncode, stderr = asyncio.run(run())
+
+        assert returncode == 0, stderr
+        assert "STRAVA_CLIENT_ID" not in stderr

@@ -1,6 +1,7 @@
 """Strava API access: the client, its token refresh and the rate-limit checks."""
 
 import calendar
+import os
 import uuid
 from collections.abc import Callable
 from datetime import UTC, datetime, timedelta
@@ -41,6 +42,12 @@ if TYPE_CHECKING:
         _Timeout,
         _Verify,
     )
+
+# stravalib checks the environment on every client it builds for one application's credentials to refresh tokens
+# itself, and logs two warnings to the root logger when they are missing. Endurain refreshes each user's token with
+# that user's own Strava application, so the check never applies; setting this once at import keeps it silent in
+# every process that builds a client, the API and the workers alike.
+os.environ["SILENCE_TOKEN_WARNINGS"] = "TRUE"
 
 logger = core_logger.get_logger(__name__)
 
