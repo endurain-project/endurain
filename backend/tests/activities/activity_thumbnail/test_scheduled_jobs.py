@@ -137,7 +137,7 @@ def test_the_recurring_jobs_are_the_hourly_backfill_request_and_the_daily_sweep_
         (
             thumbnail_jobs.schedule_full_thumbnail_regeneration,
             "endurain_regenerate_all_thumbnails",
-            thumbnail_jobs.regenerate_all_thumbnails,
+            core_scheduler.run_unlocked_job,
         ),
     ],
 )

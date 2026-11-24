@@ -6,9 +6,7 @@ import dataclasses
 import datetime
 import logging
 import threading
-from collections.abc import Callable
 from types import SimpleNamespace
-from typing import cast
 
 import jasil.audit as jasil_audit
 import jasil.retention as platform_retention
@@ -298,10 +296,6 @@ class TestRunOnce:
         job.func(*job.args)
         assert operation.calls == [()]
 
-    async def test_a_scheduler_failure_propagates(self, paused):
-        with pytest.raises(ValueError):
-            core_scheduler.run_once(cast(Callable[..., object], "not a reference"), job_id="job", description="job")
-
 
 class TestRunDueJob:
     """Every replica fires its own interval; a locked job still runs once per interval across them."""
@@ -449,6 +443,32 @@ class TestDatabaseOutage:
         assert operation.calls == []
         _assert_one_outage_warning(app_log, "sync")
 
+    async def test_a_job_without_a_lock_is_skipped_and_runs_at_the_next_tick(self, paused, app_log):
+        operation = Recorder(test_database.lost_connection_error(), "ran")
+        core_scheduler.start_scheduler([core_scheduler.ScheduledJob(operation, 5, "unlocked")])
+        job = paused.get_job("endurain_unlocked")
+
+        assert job.func(*job.args) is None
+        assert job.func(*job.args) == "ran"
+        _assert_one_unlocked_outage_warning(app_log, "unlocked")
+
+    async def test_an_async_job_without_a_lock_is_skipped_too(self, paused, app_log):
+        operation = AsyncRecorder(test_database.lost_connection_error(), "ran")
+        core_scheduler.start_scheduler([core_scheduler.ScheduledJob(operation.run, 5, "unlocked")])
+        job = paused.get_job("endurain_unlocked")
+
+        assert await job.func(*job.args) is None
+        assert await job.func(*job.args) == "ran"
+        _assert_one_unlocked_outage_warning(app_log, "unlocked")
+
+    async def test_a_one_shot_job_without_a_lock_is_skipped_too(self, paused, app_log):
+        operation = Recorder(test_database.lost_connection_error())
+        core_scheduler.run_once(operation, job_id="job", description="audit trail maintenance")
+        job = paused.get_job("job")
+
+        assert job.func(*job.args) is None
+        _assert_one_unlocked_outage_warning(app_log, "audit trail maintenance")
+
     def test_a_one_shot_locked_job_is_skipped_too(self, database_down, app_log):
         operation = Recorder()
 
@@ -465,6 +485,13 @@ def database_down():
     platform_runtime.set_active_platform(dataclasses.replace(_platform(), lock=PgAdvisoryLock(engine)))
     yield
     engine.dispose()
+
+
+def _assert_one_unlocked_outage_warning(app_log, description: str) -> None:
+    [record] = [record for record in app_log.records if record.levelno >= logging.WARNING]
+    assert record.levelno == logging.WARNING
+    assert record.exc_info is None
+    assert (record.job, record.error) == (description, "OperationalError")
 
 
 def _assert_one_outage_warning(app_log, lock_name: str) -> None:

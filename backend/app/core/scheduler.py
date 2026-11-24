@@ -76,15 +76,15 @@ def _held_lock(lock_name: str) -> Generator[bool]:
 
 
 @contextmanager
-def _skipped_while_database_unavailable(lock_name: str) -> Generator[None]:
-    """Skip a locked job's run when the database is out of reach, at its lock or during the run.
+def _skipped_while_database_unavailable(**job: str) -> Generator[None]:
+    """Skip a job's run when the database is out of reach, at its lock or during the run.
 
-    A locked job needs the database for its lock and its work, so an outage fails it on every replica. That is a
-    degraded dependency, not a defect: it logs one warning without a traceback, and since nothing marks the run as
-    done, the next tick of any replica runs it. Any other error reaches the scheduler, which logs it as an error.
+    An outage fails the run on every replica. That is a degraded dependency, not a defect: it logs one warning
+    without a traceback, and since nothing marks the run as done, the next tick of any replica runs it. Any other
+    error reaches the scheduler, which logs it as an error.
 
     Args:
-        lock_name: Stable coordination-lock name, for the log.
+        **job: The job's name for the log: ``lock_name`` for a locked job, ``job`` (its description) otherwise.
 
     Yields:
         None.
@@ -99,7 +99,7 @@ def _skipped_while_database_unavailable(lock_name: str) -> Generator[None]:
             raise
         logger.warning(
             "Scheduler job skipped because the database is unavailable; the next tick runs it",
-            extra=core_logger.context(lock_name=lock_name, error=type(err).__name__),
+            extra=core_logger.context({**job, "error": type(err).__name__}),
         )
 
 
@@ -114,8 +114,45 @@ def run_locked_job(lock_name: str, func: Callable[..., object], *args: object) -
     Returns:
         The operation result, or ``None`` when another replica holds the lock or the database is unavailable.
     """
-    with _skipped_while_database_unavailable(lock_name), _held_lock(lock_name) as acquired:
+    with _skipped_while_database_unavailable(lock_name=lock_name), _held_lock(lock_name) as acquired:
         return func(*args) if acquired else None
+    return None
+
+
+def run_unlocked_job(description: str, func: Callable[..., object], *args: object) -> object | None:
+    """Run a synchronous scheduled job that takes no scheduler lock, skipping it while the database is out of reach.
+
+    Such a job runs on every replica's scheduler, or coordinates itself, as jasil's own maintenance does.
+
+    Args:
+        description: The job's description, for the log.
+        func: Scheduled operation to run.
+        *args: Positional arguments forwarded to the operation.
+
+    Returns:
+        The operation result, or ``None`` when the database is unavailable.
+    """
+    with _skipped_while_database_unavailable(job=description):
+        return func(*args)
+    return None
+
+
+async def _run_unlocked_async_job(description: str, func: Callable[..., object], *args: object) -> object | None:
+    """Run an asynchronous scheduled job that takes no scheduler lock, skipping it while the database is out of reach.
+
+    Args:
+        description: The job's description, for the log.
+        func: Scheduled coroutine function to run.
+        *args: Positional arguments forwarded to the operation.
+
+    Returns:
+        The awaited result, or ``None`` when the database is unavailable.
+    """
+    with _skipped_while_database_unavailable(job=description):
+        result = func(*args)
+        if inspect.isawaitable(result):
+            result = await result
+        return result
     return None
 
 
@@ -200,7 +237,7 @@ def run_due_job(lock_name: str, minutes: int, func: Callable[..., object], *args
         The operation result, or ``None`` when another replica holds the lock or already ran the job, or the
         database is unavailable.
     """
-    with _skipped_while_database_unavailable(lock_name), _held_lock(lock_name) as acquired:
+    with _skipped_while_database_unavailable(lock_name=lock_name), _held_lock(lock_name) as acquired:
         if not acquired or not _is_due(lock_name):
             return None
         started = time.monotonic()
@@ -225,7 +262,7 @@ async def _run_due_async_job(lock_name: str, minutes: int, func: Callable[..., o
         The awaited result, or ``None`` when another replica holds the lock or already ran the job, or the
         database is unavailable.
     """
-    with _skipped_while_database_unavailable(lock_name), _held_lock(lock_name) as acquired:
+    with _skipped_while_database_unavailable(lock_name=lock_name), _held_lock(lock_name) as acquired:
         if not acquired or not _is_due(lock_name):
             return None
         started = time.monotonic()
@@ -281,12 +318,11 @@ def start_scheduler(jobs: Sequence[ScheduledJob] = ()) -> None:
         jobs: The recurring jobs to register, collected by the caller from each
             module's ``scheduled_jobs`` declaration.
 
+    Every job runs through a wrapper that skips the run while the database is out of reach: a locked job under
+    its lock once per interval across the replicas, any other job on every tick.
+
     Returns:
         None.
-
-    Raises:
-        LookupError: When a job's trigger is unknown.
-        ValueError: When the scheduler rejects a job's arguments.
     """
     if not scheduler.running:
         scheduler.start()
@@ -297,6 +333,9 @@ def start_scheduler(jobs: Sequence[ScheduledJob] = ()) -> None:
         if job.lock_name is not None:
             func = _run_due_async_job if inspect.iscoroutinefunction(job.func) else run_due_job
             args = (job.lock_name, job.minutes, job.func, *job.args)
+        else:
+            func = _run_unlocked_async_job if inspect.iscoroutinefunction(job.func) else run_unlocked_job
+            args = (job.description, job.func, *job.args)
         add_scheduler_job(func, "interval", job.minutes, args, job.description)
 
     # Clears any backlog promptly, so a frequently-restarted deployment does not
@@ -323,17 +362,16 @@ def run_once(func: Callable[..., object], *, job_id: str, description: str, lock
             single pending run.
         description: Human-readable description, used in log messages.
         lock_name: Distributed lock the run must hold, or ``None`` when every
-            replica may run it.
+            replica may run it. Either way the run is skipped while the database is out of reach.
 
     Returns:
         None.
-
-    Raises:
-        ValueError: When the scheduler rejects the job's arguments.
     """
-    args: tuple[object, ...] = ()
+    args: tuple[object, ...]
     if lock_name is not None:
         func, args = run_locked_job, (lock_name, func)
+    else:
+        func, args = run_unlocked_job, (description, func)
     scheduler.add_job(
         func,
         "date",
