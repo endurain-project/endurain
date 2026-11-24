@@ -951,6 +951,31 @@ class TestExtractExtensionData:
 
         assert gpx_parser._extract_extension_data(point) == (145, 77, 211)
 
+    def test_extract_extension_data_reads_power_in_watts(self):
+        """
+        Test the Garmin PowerInWatts extension element is read as power.
+        """
+        gpx = gpxpy.parse(
+            """
+            <gpx version="1.1" creator="pytest"
+              xmlns:gpxtpx="http://example.com/gpxtpx">
+              <trk><trkseg><trkpt lat="0" lon="0">
+                <time>2025-01-01T00:00:00Z</time>
+                <extensions>
+                  <gpxtpx:TrackPointExtension>
+                    <gpxtpx:hr>150</gpxtpx:hr>
+                    <gpxtpx:PowerInWatts>240</gpxtpx:PowerInWatts>
+                  </gpxtpx:TrackPointExtension>
+                </extensions>
+              </trkpt></trkseg></trk>
+            </gpx>
+            """
+        )
+
+        point = gpx.tracks[0].segments[0].points[0]
+
+        assert gpx_parser._extract_extension_data(point) == (150, None, 240)
+
     def test_extract_extension_data_ignores_invalid_numbers(self):
         """
         Test malformed extension values do not fail parsing.
