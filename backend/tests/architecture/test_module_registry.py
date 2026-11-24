@@ -2,13 +2,21 @@
 
 from unittest.mock import MagicMock
 
+import jasil.audit as jasil_audit
+import jasil.testing as jasil_testing
+import pytest
 from jasil.jobs.registry import JobHandlerRegistry
 
 import core.job_queues as core_job_queues
 import module_registry as runtime_module_registry
 import modules.activities.activity.events as activity_events
 import modules.activities.activity_ingestion.events as ingestion_events
+import modules.activities.activity_ingestion.provider_registry as activity_ingestion_provider_registry
 import modules.activities.contributor_registry as activities_contributor_registry
+import modules.garmin.constants as garmin_constants
+import modules.gears.contributor_registry as gears_contributor_registry
+import modules.strava.constants as strava_constants
+import modules.users.contributor_registry as users_contributor_registry
 from tests._factories.activities import make_activity, make_activity_media
 from tests._factories.users import make_user
 
@@ -156,21 +164,69 @@ class TestRuntimeModuleRegistry:
 class TestConfigureApplication:
     """The API and the standalone worker install the same seams through one call."""
 
-    def test_installs_contributors_erasers_and_providers_together(self):
-        from unittest.mock import patch
+    def test_installs_contributors_erasers_and_providers_together(self, db):
+        """A seam missing from this one call is a silent no-op in whichever process relies on it."""
+        activity = make_activity(db, make_user(db).id)
+        stored = make_activity_media(db, activity, "0_photo.jpg")
+        jasil_testing.reset_all()
+        activities_contributor_registry.clear()
+        gears_contributor_registry.clear()
+        users_contributor_registry.clear()
+        activity_ingestion_provider_registry.clear()
+        with pytest.raises(RuntimeError):
+            gears_contributor_registry.readers()
+        with pytest.raises(RuntimeError):
+            users_contributor_registry.erasers()
+        assert activity_ingestion_provider_registry.registered() == ()
 
-        with (
-            patch.object(runtime_module_registry, "configure_activity_contributors") as activity,
-            patch.object(runtime_module_registry, "configure_gear_contributors") as gear,
-            patch.object(runtime_module_registry, "configure_user_contributors") as users,
-            patch.object(runtime_module_registry.strava_integration, "register_activity_provider") as strava,
-            patch.object(runtime_module_registry.garmin_integration, "register_activity_provider") as garmin,
-            patch.object(runtime_module_registry, "configure_audit") as audit,
-        ):
-            runtime_module_registry.configure_application()
+        runtime_module_registry.configure_application()
 
-        for installed in (activity, gear, users, strava, garmin, audit):
-            installed.assert_called_once_with()
+        assert {item.key for item in activities_contributor_registry.activity_ingestion_contributors()} == {
+            "laps",
+            "sets",
+            "streams",
+            "workout_steps",
+        }
+        assert {item.key for item in activities_contributor_registry.profile_activity_contributors()} == {
+            "laps",
+            "sets",
+            "streams",
+            "workout_steps",
+            "media",
+        }
+        assert activities_contributor_registry.resolve_thumbnail_url("42.webp", 42) is not None
+        media = activities_contributor_registry.resolve_media([activity.id], db)
+        assert [(item.id, item.activity_id) for item in media[activity.id]] == [(stored.id, activity.id)]
+        assert gears_contributor_registry.readers() is not None
+        assert users_contributor_registry.erasers() is not None
+        assert users_contributor_registry.lifecycle_hooks() is not None
+        assert users_contributor_registry.profile_readers() is not None
+        assert [section.key for section in users_contributor_registry.profile_sections()] == [
+            "gears",
+            "gear_components",
+            "activities",
+            "health_weight",
+            "health_targets",
+            "health_sleep",
+            "health_steps",
+            "health_water",
+            "health_fasting",
+            "health_poop",
+        ]
+        assert {provider.name for provider in activity_ingestion_provider_registry.registered()} == {
+            strava_constants.PROVIDER_NAME,
+            garmin_constants.PROVIDER_NAME,
+        }
+        strava_format = activity_ingestion_provider_registry.get_bulk_format(strava_constants.BULK_IMPORT_FORMAT_NAME)
+        assert strava_format is not None
+        catalog = jasil_audit.get_catalog()
+        for module in runtime_module_registry.MODULES:
+            for action in module.audit_actions:
+                assert action.id in catalog
+        # Outside a request the installed provider says the worker is acting; the built-in default does not.
+        context = jasil_audit.get_context()
+        assert context.actor_type is jasil_audit.ActorType.SYSTEM
+        assert context.source is jasil_audit.Source.WORKER
 
 
 class TestConfigureUserContributors:
