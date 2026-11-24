@@ -99,7 +99,7 @@ The `custom` profile is held to the same rule: if it declares more than one proc
 | `DEPLOYMENT_PROFILE` | `local` | `local`, `distributed` or `custom`. Only `local` has defaults; the others must name every capability below. |
 | `WEB_WORKERS` | `1` | Number of web-server processes. Above 1 requires shared state and a shared lock. |
 | `STATE_URI` | unset | Shared ephemeral state: rate-limit counters, the geocoding rate limit, login lockout, pending MFA, MFA setup secrets, Garmin MFA codes, websocket tickets, background job status records and sync claims, and scheduled-job run marks. Falls back to `REDIS_URL`, then `memory://`. |
-| `EVENTS_URI` | unset | Event bus. Falls back to `REDIS_URL`, then `memory://` (in-process). `redis://…` uses Redis Streams. The same URI carries the live-update hints between processes (Redis pub/sub). |
+| `EVENTS_URI` | unset | Event bus. Falls back to `REDIS_URL`, then `memory://` (in-process). `redis://…` uses Redis Streams. The same URI carries the live-update hints between processes (Redis pub/sub). Run that Redis with persistence (`appendonly yes`): one restarted without it loses the events not yet handled, which the scheduled backfills and sweeps repair later, and the log shows an `Event bus consumer poll failed` error with `NOGROUP`. |
 | `REDIS_URL` | unset | Default DSN for every Redis-backed capability that has no explicit URI. |
 | `STORAGE_URI` | `local://` | Where blobs go (thumbnails, media, images, retained files). `local://` uses `DATA_DIR`; `s3://bucket/prefix` uses S3-compatible storage. |
 | `LOCK_URI` | profile default | `noop://` (single process) or `postgres-advisory://` (coordinates scheduled jobs across replicas). Defaults to `postgres-advisory://` when more than one process runs. |
