@@ -13,6 +13,7 @@ import time
 from collections.abc import Callable, Generator, Sequence
 from contextlib import contextmanager
 from dataclasses import dataclass, field
+from datetime import UTC
 
 import jasil.audit as jasil_audit
 import jasil.orm as jasil_orm
@@ -27,7 +28,7 @@ import core.network as core_network
 
 logger = core_logger.get_logger(__name__)
 
-scheduler = AsyncIOScheduler()
+scheduler = AsyncIOScheduler(timezone=UTC)
 
 #: How much of its interval, counted from the start of a run, a successful run of a locked job marks as done.
 #: Each replica's scheduler fires its own interval, so another replica's tick inside the mark skips, and the mark

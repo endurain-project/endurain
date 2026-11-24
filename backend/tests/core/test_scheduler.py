@@ -3,6 +3,7 @@
 import asyncio
 import contextlib
 import dataclasses
+import datetime
 import logging
 import threading
 from collections.abc import Callable
@@ -22,6 +23,10 @@ from sqlalchemy.exc import IntegrityError, OperationalError
 import core.database as core_database
 import core.scheduler as core_scheduler
 from tests._helpers import database as test_database
+
+
+def test_the_scheduler_runs_in_utc_whatever_the_host_zone():
+    assert core_scheduler.scheduler.timezone == datetime.UTC
 
 
 @pytest.fixture
