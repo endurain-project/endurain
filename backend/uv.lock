@@ -790,7 +790,7 @@ wheels = [
 
 [[package]]
 name = "endurain"
-version = "0.21.0b2"
+version = "0.21.0"
 source = { editable = "." }
 dependencies = [
     { name = "alembic" },
