@@ -8,6 +8,7 @@ import { bristolNumber } from '@/features/health/utils/bristol'
 import { FormDialog } from '@/components/ui/form-dialog'
 import { FormField } from '@/components/ui/form-field'
 import { inputFieldClass } from '@/components/ui/input/fieldClasses'
+import { Select } from '@/components/ui/select'
 import { useForm } from '@/composables/useForm'
 import { applyServerFieldErrors } from '@/services/fieldErrors'
 import { isStaleWrite } from '@/services/ifMatch'
@@ -222,33 +223,23 @@ watch(open, (isOpen) => {
       <div class="grid grid-cols-1 gap-2 sm:grid-cols-2">
         <FormField :label="t('health.poop.form.bristolType')">
           <template #default="{ fieldId }">
-            <select
-              :id="fieldId"
-              v-model="values.bristolType"
-              :class="inputFieldClass"
-              :disabled="isSubmitting"
-            >
+            <Select :id="fieldId" v-model="values.bristolType" :disabled="isSubmitting">
               <option value="">{{ t('health.poop.form.none') }}</option>
               <option v-for="type in BRISTOL_TYPES" :key="type" :value="String(type)">
                 {{ t('health.poop.list.bristolBadge', { type: bristolNumber(type) }) }}
               </option>
-            </select>
+            </Select>
           </template>
         </FormField>
 
         <FormField :label="t('health.poop.form.color')">
           <template #default="{ fieldId }">
-            <select
-              :id="fieldId"
-              v-model="values.color"
-              :class="inputFieldClass"
-              :disabled="isSubmitting"
-            >
+            <Select :id="fieldId" v-model="values.color" :disabled="isSubmitting">
               <option value="">{{ t('health.poop.form.none') }}</option>
               <option v-for="color in COLORS" :key="color" :value="color">
                 {{ t(`health.poop.form.colors.${color}`) }}
               </option>
-            </select>
+            </Select>
           </template>
         </FormField>
       </div>

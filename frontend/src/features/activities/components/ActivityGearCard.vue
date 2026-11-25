@@ -11,7 +11,7 @@ import { Card } from '@/components/ui/card'
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 import { FormDialog } from '@/components/ui/form-dialog'
 import { FormField } from '@/components/ui/form-field'
-import { inputFieldClass } from '@/components/ui/input/fieldClasses'
+import { Select } from '@/components/ui/select'
 import { useToasts } from '@/composables/useToasts'
 import { isStaleWrite } from '@/services/ifMatch'
 import {
@@ -144,17 +144,12 @@ async function removeGear(): Promise<void> {
     >
       <FormField :label="t('activities.gear.selectLabel')">
         <template #default="{ fieldId }">
-          <select
-            :id="fieldId"
-            v-model="selectedGearId"
-            :class="inputFieldClass"
-            :disabled="isSaving"
-          >
+          <Select :id="fieldId" v-model="selectedGearId" :disabled="isSaving">
             <option :value="null" disabled>{{ t('activities.gear.selectPlaceholder') }}</option>
             <option v-for="gear in options" :key="gear.id" :value="gear.id">
               {{ gear.nickname }}
             </option>
-          </select>
+          </Select>
         </template>
       </FormField>
       <p v-if="options.length === 0" class="text-hint">{{ t('activities.gear.noGears') }}</p>

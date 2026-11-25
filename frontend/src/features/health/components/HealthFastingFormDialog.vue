@@ -12,6 +12,7 @@ import type {
 import { FormDialog } from '@/components/ui/form-dialog'
 import { FormField } from '@/components/ui/form-field'
 import { inputFieldClass } from '@/components/ui/input/fieldClasses'
+import { Select } from '@/components/ui/select'
 import { useForm } from '@/composables/useForm'
 import { applyServerFieldErrors } from '@/services/fieldErrors'
 import { isProblem } from '@/services/problems'
@@ -282,16 +283,11 @@ watch(open, (isOpen) => {
     <div class="flex flex-col gap-2">
       <FormField :label="t('health.fasting.form.type')">
         <template #default="{ fieldId }">
-          <select
-            :id="fieldId"
-            v-model="values.type"
-            :class="inputFieldClass"
-            :disabled="isSubmitting"
-          >
+          <Select :id="fieldId" v-model="values.type" :disabled="isSubmitting">
             <option v-for="type in FASTING_TYPES" :key="type" :value="type">
               {{ fastingTypeLabel(t, type) }}
             </option>
-          </select>
+          </Select>
         </template>
       </FormField>
 
@@ -350,17 +346,16 @@ watch(open, (isOpen) => {
 
         <FormField :label="t('health.fasting.form.status')">
           <template #default="{ fieldId }">
-            <select
+            <Select
               :id="fieldId"
               v-model="values.status"
-              :class="inputFieldClass"
               :disabled="isSubmitting"
               @change="revalidateEndTime"
             >
               <option v-for="status in FASTING_STATUSES" :key="status" :value="status">
                 {{ t(`health.fasting.status.${status}`) }}
               </option>
-            </select>
+            </Select>
           </template>
         </FormField>
       </template>

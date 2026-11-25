@@ -8,7 +8,7 @@ import type { Gear, GearType } from '@/features/gears/types'
 
 import { Button } from '@/components/ui/button'
 import { FormField } from '@/components/ui/form-field'
-import { inputFieldClass } from '@/components/ui/input/fieldClasses'
+import { Select } from '@/components/ui/select'
 import { useForm } from '@/composables/useForm'
 import { isStaleWrite } from '@/services/ifMatch'
 import { useToasts } from '@/composables/useToasts'
@@ -81,17 +81,12 @@ const { values, isSubmitting, handleSubmit } = useForm<DefaultGearValues>({
         <p class="text-caption">{{ t(group.titleKey) }}</p>
         <FormField v-for="field in group.fields" :key="field.key" :label="t(field.labelKey)">
           <template #default="{ fieldId }">
-            <select
-              :id="fieldId"
-              v-model="values[field.key]"
-              :class="inputFieldClass"
-              :disabled="isSubmitting"
-            >
+            <Select :id="fieldId" v-model="values[field.key]" :disabled="isSubmitting">
               <option :value="null">{{ t('settings.profile.defaultGear.notDefined') }}</option>
               <option v-for="gear in gearsForType(field.gearType)" :key="gear.id" :value="gear.id">
                 {{ gear.nickname }}
               </option>
-            </select>
+            </Select>
           </template>
         </FormField>
       </div>

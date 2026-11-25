@@ -511,7 +511,7 @@ function refetchList(): void {
               <Select
                 id="summary-activity-sort"
                 v-model="sortBy"
-                class="h-9 w-auto"
+                class="w-auto"
                 :aria-label="t('activities.list.sort.label')"
               >
                 <option

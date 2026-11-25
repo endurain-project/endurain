@@ -17,6 +17,7 @@ import { FormDialog } from '@/components/ui/form-dialog'
 import { FormField } from '@/components/ui/form-field'
 import { inputFieldClass } from '@/components/ui/input/fieldClasses'
 import { LoadingState } from '@/components/ui/loading-state'
+import { Select } from '@/components/ui/select'
 import { useForm } from '@/composables/useForm'
 import { applyServerFieldErrors } from '@/services/fieldErrors'
 import { isProblem } from '@/services/problems'
@@ -947,17 +948,17 @@ watch([open, () => entryQuery.data.value, () => entryQuery.isStale.value], seedF
             <div class="grid grid-cols-1 gap-2 sm:grid-cols-2">
               <FormField :label="t('health.sleep.form.stageType')">
                 <template #default="{ fieldId }">
-                  <select
+                  <Select
                     :id="fieldId"
                     v-model="stage.stageType"
-                    :class="fieldClass"
+                    class="w-full min-w-0"
                     :disabled="isSubmitting"
                   >
                     <option value="deep">{{ t('health.sleep.form.stageDeep') }}</option>
                     <option value="light">{{ t('health.sleep.form.stageLight') }}</option>
                     <option value="rem">{{ t('health.sleep.form.stageRem') }}</option>
                     <option value="awake">{{ t('health.sleep.form.stageAwake') }}</option>
-                  </select>
+                  </Select>
                 </template>
               </FormField>
 

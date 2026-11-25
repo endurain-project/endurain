@@ -12,6 +12,7 @@ import { Label } from '@/components/ui/label'
 import { ListPanel } from '@/components/ui/list-panel'
 import { LoadingState } from '@/components/ui/loading-state'
 import { MetricPill } from '@/components/ui/metric-pill'
+import { Select } from '@/components/ui/select'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Spinner } from '@/components/ui/spinner'
 
@@ -28,6 +29,52 @@ describe('Input', () => {
     const className = wrapper.find('input').attributes('class') ?? ''
     expect(className).toContain('pe-10')
     expect(className).toContain('rounded-input')
+  })
+})
+
+describe('Select', () => {
+  const options = {
+    default: () => [h('option', { value: 'a' }, 'A'), h('option', { value: 'b' }, 'B')],
+  }
+
+  it('updates the v-model on change', async () => {
+    const wrapper = mount(Select, { props: { modelValue: 'a' }, slots: options })
+    await wrapper.find('select').setValue('b')
+    const events = wrapper.emitted('update:modelValue') ?? []
+    expect(events[events.length - 1]).toEqual(['b'])
+  })
+
+  it('forwards attributes to the native select, not the wrapper', () => {
+    const wrapper = mount(Select, {
+      props: { modelValue: 'a' },
+      attrs: { id: 'field-1', disabled: true, 'aria-label': 'Pick one' },
+      slots: options,
+    })
+    const select = wrapper.find('select')
+    expect(select.attributes('id')).toBe('field-1')
+    expect(select.attributes('disabled')).toBeDefined()
+    expect(select.attributes('aria-label')).toBe('Pick one')
+    expect(wrapper.attributes('id')).toBeUndefined()
+  })
+
+  it('drops the native control chrome so it matches the button heights', () => {
+    const wrapper = mount(Select, { props: { modelValue: 'a' }, slots: options })
+    expect(wrapper.attributes('class')).toContain('h-9')
+    const className = wrapper.find('select').attributes('class') ?? ''
+    expect(className).toContain('appearance-none')
+    expect(className).toContain('h-full')
+    expect(wrapper.find('svg[aria-hidden="true"]').exists()).toBe(true)
+  })
+
+  it('applies a custom class to the wrapper so it can size the control', () => {
+    const wrapper = mount(Select, {
+      props: { modelValue: 'a', class: 'h-8 w-full' },
+      slots: options,
+    })
+    const className = wrapper.attributes('class') ?? ''
+    expect(className).toContain('h-8')
+    expect(className).not.toContain('h-9')
+    expect(className).toContain('w-full')
   })
 })
 

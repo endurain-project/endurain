@@ -14,9 +14,9 @@ import { ErrorState } from '@/components/ui/error-state'
 import { FormDialog } from '@/components/ui/form-dialog'
 import { FormField } from '@/components/ui/form-field'
 import { Input } from '@/components/ui/input'
-import { inputFieldClass } from '@/components/ui/input'
 import { LoadingState } from '@/components/ui/loading-state'
 import { MarkdownEditor } from '@/components/ui/markdown-editor'
+import { Select } from '@/components/ui/select'
 import { Switch } from '@/components/ui/switch'
 import { isStaleWrite } from '@/services/ifMatch'
 import { useToasts } from '@/composables/useToasts'
@@ -267,16 +267,16 @@ async function submit(): Promise<void> {
 
       <FormField :label="t('activities.edit.type')">
         <template #default="{ fieldId }">
-          <select
+          <Select
             :id="fieldId"
             v-model="form.activityType"
-            :class="[inputFieldClass, 'w-full']"
+            class="w-full"
             :disabled="isSaving || isMultisport"
           >
             <option v-for="opt in activityTypeOptions" :key="opt.value" :value="opt.value">
               {{ t(opt.labelKey) }}
             </option>
-          </select>
+          </Select>
         </template>
       </FormField>
 
@@ -306,16 +306,16 @@ async function submit(): Promise<void> {
 
       <FormField :label="t('activities.edit.visibility')">
         <template #default="{ fieldId }">
-          <select
+          <Select
             :id="fieldId"
             v-model="form.visibility"
-            :class="[inputFieldClass, 'w-full']"
+            class="w-full"
             :disabled="isSaving || isLeg"
           >
             <option v-for="opt in visibilityOptions" :key="opt.value" :value="opt.value">
               {{ t(opt.labelKey) }}
             </option>
-          </select>
+          </Select>
         </template>
       </FormField>
 
