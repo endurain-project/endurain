@@ -239,10 +239,12 @@ class TestFailingAJob:
 class TestABookkeepingFailureNeverMasksTheFailureBeingHandled:
     """A database error while recording an outcome is logged and left to the retry, never raised over the cause.
 
-    The job id here is not a UUID, so the database layer refuses the statement with a real ``SQLAlchemyError``.
+    The job id here is not a UUID, so the database layer refuses the statement with a real ``SQLAlchemyError``. The
+    tests ask for the database (``committed_sessions``): on an unreachable one the same calls only warn, as the outage
+    tests below show.
     """
 
-    def test_failing_a_job_logs_the_error_and_keeps_the_blob(self, storage, caplog):
+    def test_failing_a_job_logs_the_error_and_keeps_the_blob(self, committed_sessions, storage, caplog):
         stage_blob(storage, "a.gpx", b"x")
 
         with caplog.at_level(logging.ERROR, logger=ingestion_service.logger.name):
@@ -256,7 +258,7 @@ class TestABookkeepingFailureNeverMasksTheFailureBeingHandled:
         assert any("Could not mark an upload job failed" in record.getMessage() for record in caplog.records)
         assert staged_keys(storage) == ["a.gpx"]
 
-    def test_releasing_a_job_logs_the_error(self, caplog):
+    def test_releasing_a_job_logs_the_error(self, committed_sessions, caplog):
         with caplog.at_level(logging.ERROR, logger=ingestion_service.logger.name):
             ingestion_service.release_ingestion_job(_NOT_A_JOB)
 
