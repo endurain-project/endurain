@@ -571,11 +571,11 @@ dependencies = [
     { name = "alembic" },
     { name = "apscheduler" },
     { name = "authlib" },
+    { name = "defusedxml" },
     { name = "fastapi" },
     { name = "fitdecode" },
     { name = "garminconnect" },
     { name = "geopy" },
-    { name = "gpxpy" },
     { name = "httpx2" },
     { name = "itsdangerous" },
     { name = "jasil", extra = ["audit", "fastapi", "geocoding", "jobs", "migrations"] },
@@ -600,7 +600,6 @@ dependencies = [
     { name = "sqlalchemy" },
     { name = "staticmap" },
     { name = "stravalib" },
-    { name = "tcxreader" },
     { name = "timezonefinder" },
     { name = "user-agents" },
     { name = "uvicorn" },
@@ -631,6 +630,7 @@ dev = [
     { name = "testcontainers" },
     { name = "ty" },
     { name = "types-authlib" },
+    { name = "types-defusedxml" },
     { name = "types-psutil" },
     { name = "types-qrcode" },
     { name = "types-requests" },
@@ -660,6 +660,7 @@ typecheck = [
     { name = "mypy" },
     { name = "ty" },
     { name = "types-authlib" },
+    { name = "types-defusedxml" },
     { name = "types-psutil" },
     { name = "types-qrcode" },
     { name = "types-requests" },
@@ -671,11 +672,11 @@ requires-dist = [
     { name = "apscheduler", specifier = ">=3.11.3" },
     { name = "authlib", specifier = ">=1.9.5" },
     { name = "boto3", marker = "extra == 'distributed'", specifier = ">=1.43.126" },
+    { name = "defusedxml", specifier = ">=0.7.1" },
     { name = "fastapi", specifier = ">=0.163.1" },
     { name = "fitdecode", specifier = ">=0.11.0" },
     { name = "garminconnect", specifier = ">=0.3.20" },
     { name = "geopy", specifier = ">=2.5.0" },
-    { name = "gpxpy", specifier = ">=1.6.2" },
     { name = "httpx2", specifier = ">=2.16.0" },
     { name = "itsdangerous", specifier = ">=2.2.0" },
     { name = "jasil", extras = ["audit", "fastapi", "geocoding", "jobs", "migrations"], specifier = ">=0.25.0,<0.26.0" },
@@ -702,7 +703,6 @@ requires-dist = [
     { name = "sqlalchemy", specifier = ">=2.1.8" },
     { name = "staticmap", specifier = ">=0.5.7" },
     { name = "stravalib", specifier = ">=2.6.0" },
-    { name = "tcxreader", specifier = ">=0.4.11" },
     { name = "timezonefinder", specifier = ">=9.2.0" },
     { name = "user-agents", specifier = ">=2.2.0" },
     { name = "uvicorn", specifier = ">=0.54.0" },
@@ -727,6 +727,7 @@ dev = [
     { name = "testcontainers", extras = ["postgres"], specifier = ">=4.15.0" },
     { name = "ty", specifier = ">=0.0.99" },
     { name = "types-authlib" },
+    { name = "types-defusedxml" },
     { name = "types-psutil" },
     { name = "types-qrcode" },
     { name = "types-requests" },
@@ -754,6 +755,7 @@ typecheck = [
     { name = "mypy", specifier = ">=2.4.1" },
     { name = "ty", specifier = ">=0.0.99" },
     { name = "types-authlib" },
+    { name = "types-defusedxml" },
     { name = "types-psutil" },
     { name = "types-qrcode" },
     { name = "types-requests" },
@@ -882,15 +884,6 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/d9/29/d40217cbe2f6b1359e00c6c307bb3fc876ba74068cbab3dde77f03ca0dc4/ghp-import-2.1.0.tar.gz", hash = "sha256:9c535c4c61193c2df8871222567d7fd7e5014d835f97dc7b7439069e2413d343", size = 10943, upload-time = "2022-05-02T15:47:16.11Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/f7/ec/67fbef5d497f86283db54c22eec6f6140243aae73265799baaaa19cd17fb/ghp_import-2.1.0-py3-none-any.whl", hash = "sha256:8337dd7b50877f163d4c0289bc1f1c7f127550241988d568c1db512c4324a619", size = 11034, upload-time = "2022-05-02T15:47:14.552Z" },
-]
-
-[[package]]
-name = "gpxpy"
-version = "1.6.2"
-source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/20/ad/6f1a34e702c72cb495bb258396f237ded76c00f9fe67054a44d778d24ed9/gpxpy-1.6.2.tar.gz", hash = "sha256:a72c484b97ec42b80834353b029cc8ee1b79f0ffca1179b2210bb3baf26c01ae", size = 111695, upload-time = "2023-11-29T17:25:38.391Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/44/9f/62df6c1e52462bdd04275b36cec49efa9e8af7e7b834499eb288f73dcfbc/gpxpy-1.6.2-py3-none-any.whl", hash = "sha256:289bc2d80f116c988d0a1e763fda22838f83005573ece2bbc6521817b26fb40a", size = 42649, upload-time = "2023-11-29T17:25:35.76Z" },
 ]
 
 [[package]]
@@ -2375,15 +2368,6 @@ wheels = [
 ]
 
 [[package]]
-name = "tcxreader"
-version = "0.4.11"
-source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/a6/b3/7316a0b6d208758dd4c31677ad19f6d88a536d504fb09d0ae06dd4cef5f1/tcxreader-0.4.11.tar.gz", hash = "sha256:27a79f48754a968b801ba80890cfb2ac1835ba27387a257c514b90db73edc20b", size = 13015, upload-time = "2025-03-04T15:22:01.659Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/3b/08/e1300bc8031935b178f81db53478ccedb93d3eabd0a09aaac408dbb0d7a5/tcxreader-0.4.11-py3-none-any.whl", hash = "sha256:fffff13f81c7f54fff734da91d61b6814d2b1422917a7011f6639281d150fd0e", size = 10845, upload-time = "2025-03-04T15:22:00.046Z" },
-]
-
-[[package]]
 name = "testcontainers"
 version = "4.15.0"
 source = { registry = "https://pypi.org/simple" }
@@ -2498,6 +2482,15 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/a4/5a/25fa0dfd1997dc845202e6edadf2ed4eff86a652e46b09bcb9ab867ffaba/types_authlib-1.8.0.20261106.tar.gz", hash = "sha256:09fa4dfc52923fa0190a522b829b79d61472cc9e9555a5dcbde54755d1482b4e", size = 52976, upload-time = "2026-11-06T08:40:35.627Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/2a/88/2d3067039cbb08e9b9e4ce5a17901447370eec4cc3736e68973c5f336845/types_authlib-1.8.0.20261106-py3-none-any.whl", hash = "sha256:1514fc80d66e80096b16c8a171eddd564b7b220d0121ef29ef6390efb83c93ad", size = 112386, upload-time = "2026-11-06T08:40:34.636Z" },
+]
+
+[[package]]
+name = "types-defusedxml"
+version = "0.7.0.20260504"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/da/d2/4553c8fa9cdebfe1e84b950cf790a4d2376a97fa016e43f7c65323fa6c7d/types_defusedxml-0.7.0.20260504.tar.gz", hash = "sha256:2ab2828a3f97111ba1c16cee273ad4124a831fc9198c41bf8368ff6ea48ad300", size = 10729, upload-time = "2026-05-04T05:22:50.192Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/bf/2d/8a4b5ba1d732b8bc691f0efbb1c6f77cb5f6f473b2afe181d83d910773c5/types_defusedxml-0.7.0.20260504-py3-none-any.whl", hash = "sha256:a959e3a0a43b93e464bd625d91ec9193a2703ddc10443bdd627792485fae0b10", size = 13467, upload-time = "2026-05-04T05:22:49.319Z" },
 ]
 
 [[package]]

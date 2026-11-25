@@ -133,7 +133,7 @@
           "total_work": 77368
         }
       ],
-      "sets": [],
+      "sets": null,
       "streams": [
         {
           "count": 606,
@@ -194,9 +194,49 @@
           },
           "sha256": "73f4b70b2bcee68957f8a6e596ef1635a40ac1ee83d2e8e245077bcfdc0dc1b9",
           "stream_type": 3
+        },
+        {
+          "count": 606,
+          "fields": {
+            "vel": {
+              "max": 4.245,
+              "mean": 2.934635,
+              "min": 0.0
+            }
+          },
+          "first": {
+            "time": "2026-09-08T06:53:43",
+            "vel": 0.0
+          },
+          "last": {
+            "time": "2026-09-08T07:03:48",
+            "vel": 2.743
+          },
+          "sha256": "5e83f7d92c9d4e7f2f8e3ad9ecbdc1dd14194eff4126a103c9a6bb6d58eebb2e",
+          "stream_type": 5
+        },
+        {
+          "count": 605,
+          "fields": {
+            "pace": {
+              "max": 0.653595,
+              "mean": 0.346608,
+              "min": 0.235571
+            }
+          },
+          "first": {
+            "pace": 0.653595,
+            "time": "2026-09-08T06:53:44"
+          },
+          "last": {
+            "pace": 0.364564,
+            "time": "2026-09-08T07:03:48"
+          },
+          "sha256": "3808ebc2c06d3fd77257ec5c04e1da89a221dd74e747041e642bb43056b2223f",
+          "stream_type": 6
         }
       ],
-      "workout_steps": []
+      "workout_steps": null
     }
   ],
   "file_components": {

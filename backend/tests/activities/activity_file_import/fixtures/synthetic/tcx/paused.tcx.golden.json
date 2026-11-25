@@ -6,7 +6,7 @@
         "average_cad": null,
         "average_hr": null,
         "average_power": null,
-        "average_speed": null,
+        "average_speed": 3.0,
         "calories": null,
         "city": null,
         "country": null,
@@ -36,7 +36,7 @@
         "max_cad": null,
         "max_hr": null,
         "max_power": null,
-        "max_speed": null,
+        "max_speed": 3.0,
         "name": "Workout",
         "normalized_power": null,
         "pace": 0.333333,
@@ -58,27 +58,41 @@
       "laps": [
         {
           "avg_cadence": null,
+          "avg_fractional_cadence": null,
           "avg_heart_rate": null,
           "avg_power": null,
+          "avg_stance_time": null,
+          "avg_step_length": null,
+          "avg_vertical_oscillation": null,
+          "avg_vertical_ratio": null,
           "end_position_lat": 38.7,
           "end_position_long": -9.097963,
-          "enhanced_avg_pace": 2.028249,
-          "enhanced_avg_speed": 0.493036,
+          "enhanced_avg_pace": 0.333333,
+          "enhanced_avg_speed": 3.0,
+          "enhanced_max_altitude": null,
           "enhanced_max_pace": 0.333333,
           "enhanced_max_speed": 3.0,
+          "enhanced_min_altitude": null,
+          "intensity": "active",
+          "lap_trigger": "manual",
           "max_cadence": null,
+          "max_fractional_cadence": null,
           "max_heart_rate": null,
           "max_power": null,
           "normalized_power": null,
+          "sport": null,
           "start_position_lat": 38.7,
           "start_position_long": -9.1,
           "start_time": "2026-06-20T08:00:00+00:00",
+          "sub_sport": null,
           "total_ascent": null,
           "total_calories": null,
+          "total_cycles": null,
           "total_descent": null,
-          "total_distance": 354,
+          "total_distance": 354.0,
           "total_elapsed_time": 718.0,
-          "total_timer_time": 118.0
+          "total_timer_time": 118.0,
+          "total_work": null
         }
       ],
       "sets": null,
@@ -87,40 +101,40 @@
           "count": 120,
           "fields": {
             "vel": {
-              "max": 3.009889,
-              "mean": 2.953925,
-              "min": 0
+              "max": 3.0,
+              "mean": 3.0,
+              "min": 3.0
             }
           },
           "first": {
             "time": "2026-06-20T08:00:00",
-            "vel": 0
+            "vel": 3.0
           },
           "last": {
             "time": "2026-06-20T08:11:58",
-            "vel": 3.009889
+            "vel": 3.0
           },
-          "sha256": "5f9e23ed3e4379d2c81ede2b7874eabb4ae25bad77c29b9512aa0e1d00e36f23",
+          "sha256": "74078365c6e8313e16f8856520c24ce1facc180a3795b9334d4ed624b460852a",
           "stream_type": 5
         },
         {
           "count": 120,
           "fields": {
             "pace": {
-              "max": 0.333201,
-              "mean": 0.327343,
-              "min": 0
+              "max": 0.333333,
+              "mean": 0.333333,
+              "min": 0.333333
             }
           },
           "first": {
-            "pace": 0,
+            "pace": 0.333333,
             "time": "2026-06-20T08:00:00"
           },
           "last": {
-            "pace": 0.332238,
+            "pace": 0.333333,
             "time": "2026-06-20T08:11:58"
           },
-          "sha256": "4f33979f5f4ab8672dd7514ecd14f2a3a9de08e7fd33fca71757d921c4389566",
+          "sha256": "2623107635d36fc7aa00a3045e266ce30bca57df7076e3c47acfe686258bf805",
           "stream_type": 6
         },
         {

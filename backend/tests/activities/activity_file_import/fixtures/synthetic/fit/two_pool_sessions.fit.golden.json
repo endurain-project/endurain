@@ -6,7 +6,7 @@
         "average_cad": null,
         "average_hr": null,
         "average_power": null,
-        "average_speed": 0.433526,
+        "average_speed": 0.882353,
         "calories": null,
         "city": null,
         "country": null,
@@ -39,7 +39,7 @@
         "max_speed": null,
         "name": "Workout",
         "normalized_power": null,
-        "pace": 2.306667,
+        "pace": 1.133333,
         "private_notes": null,
         "start_time": "2026-06-20T08:00:00Z",
         "strava_activity_id": null,
@@ -47,7 +47,7 @@
         "timezone": "UTC",
         "total_cycles": null,
         "total_elapsed_time": 120.0,
-        "total_timer_time": 173.0,
+        "total_timer_time": 85.0,
         "town": null,
         "tracker_manufacturer": "garmin",
         "tracker_model": null,
@@ -67,8 +67,10 @@
           "avg_vertical_ratio": null,
           "end_position_lat": null,
           "end_position_long": null,
+          "enhanced_avg_pace": null,
           "enhanced_avg_speed": null,
           "enhanced_max_altitude": null,
+          "enhanced_max_pace": null,
           "enhanced_max_speed": null,
           "enhanced_min_altitude": null,
           "intensity": null,
@@ -93,9 +95,9 @@
           "total_work": null
         }
       ],
-      "sets": [],
+      "sets": null,
       "streams": [],
-      "workout_steps": []
+      "workout_steps": null
     },
     {
       "activity": {
@@ -103,7 +105,7 @@
         "average_cad": null,
         "average_hr": null,
         "average_power": null,
-        "average_speed": 0.433526,
+        "average_speed": 0.852273,
         "calories": null,
         "city": null,
         "country": null,
@@ -136,7 +138,7 @@
         "max_speed": null,
         "name": "Workout",
         "normalized_power": null,
-        "pace": 2.306667,
+        "pace": 1.173333,
         "private_notes": null,
         "start_time": "2026-06-20T08:05:00Z",
         "strava_activity_id": null,
@@ -144,7 +146,7 @@
         "timezone": "UTC",
         "total_cycles": null,
         "total_elapsed_time": 120.0,
-        "total_timer_time": 173.0,
+        "total_timer_time": 88.0,
         "town": null,
         "tracker_manufacturer": "garmin",
         "tracker_model": null,
@@ -164,8 +166,10 @@
           "avg_vertical_ratio": null,
           "end_position_lat": null,
           "end_position_long": null,
+          "enhanced_avg_pace": null,
           "enhanced_avg_speed": null,
           "enhanced_max_altitude": null,
+          "enhanced_max_pace": null,
           "enhanced_max_speed": null,
           "enhanced_min_altitude": null,
           "intensity": null,
@@ -190,9 +194,9 @@
           "total_work": null
         }
       ],
-      "sets": [],
+      "sets": null,
       "streams": [],
-      "workout_steps": []
+      "workout_steps": null
     }
   ],
   "file_components": {

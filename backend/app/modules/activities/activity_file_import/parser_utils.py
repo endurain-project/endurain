@@ -1,23 +1,16 @@
-"""Shared utilities for activity file import normalization."""
+"""Shared math for assembling an imported activity: lap generation, distance, pauses and power."""
 
 import bisect
 import itertools
 import statistics
 from collections.abc import Iterable, Mapping, Sequence
 from datetime import UTC, datetime
-from typing import TYPE_CHECKING, Any, NotRequired, TypedDict
+from typing import Any, TypedDict
 
 from geopy.distance import geodesic
 
 import core.timezone as core_timezone
-
-if TYPE_CHECKING:
-    # Annotation-only: annotations are evaluated lazily, so the
-    # contracts are never imported at runtime and this file stays free of any
-    # import the parsers do not actually execute.
-    import modules.activities.activity.contracts as activity_contracts
-    import modules.activities.activity_streams.contracts as activity_streams_contracts
-    import modules.activities.activity_workout_steps.contracts as activity_workout_steps_contracts
+import modules.activities.activity_streams.contracts as activity_streams_contracts
 
 # ISO 8601 datetime format used throughout the import pipeline
 _DT_FMT = "%Y-%m-%dT%H:%M:%S"
@@ -39,149 +32,6 @@ PAUSE_DETECTION_THRESHOLD_SECONDS: float = 15.0
 # cannot tell sparse sampling from a pause, so the minimum threshold applies.
 PAUSE_DETECTION_SAMPLING_FACTOR: float = 3.0
 PAUSE_DETECTION_MIN_GAPS_FOR_MEDIAN: int = 3
-
-# Canonical keys present in every activity file payload's waypoint streams.
-# Used as documentation and for IDE hint support.
-STREAM_KEYS: tuple[str, ...] = (
-    "is_elevation_set",
-    "ele_waypoints",
-    "is_power_set",
-    "power_waypoints",
-    "is_heart_rate_set",
-    "hr_waypoints",
-    "is_velocity_set",
-    "vel_waypoints",
-    "pace_waypoints",
-    "is_cadence_set",
-    "cad_waypoints",
-    "is_lat_lon_set",
-    "lat_lon_waypoints",
-)
-
-
-class ActivityWaypoints(TypedDict, total=False):
-    """The waypoint streams a parser hands to ``build_activity_file_payload``, keyed by stream name.
-
-    A stream the format does not record is absent.
-    """
-
-    ele_waypoints: list[activity_streams_contracts.ElevationWaypoint]
-    power_waypoints: list[activity_streams_contracts.PowerWaypoint]
-    hr_waypoints: list[activity_streams_contracts.HeartRateWaypoint]
-    vel_waypoints: list[activity_streams_contracts.VelocityWaypoint]
-    pace_waypoints: list[activity_streams_contracts.PaceWaypoint]
-    cad_waypoints: list[activity_streams_contracts.CadenceWaypoint]
-    lat_lon_waypoints: list[activity_streams_contracts.LatLonWaypoint]
-    temp_waypoints: list[activity_streams_contracts.TemperatureWaypoint]
-
-
-class ActivityFileExtras(TypedDict):
-    """Format-specific components a FIT activity carries besides its streams and laps.
-
-    Attributes:
-        sets: The workout sets, each the raw row the FIT parser emits (see ``fit_frames.parse_frame_set``).
-        workout_steps: The planned workout steps.
-    """
-
-    sets: list[list[object]]
-    workout_steps: list[activity_workout_steps_contracts.ActivityWorkoutStepsCreate]
-
-
-class ActivityFilePayload[LapT](TypedDict):
-    """One parsed activity as a file parser hands it to the adapter.
-
-    Generic over the lap row, whose fields differ by format (``LapMetrics`` for GPX, ``TcxLap``,
-    ``FitLap``).
-
-    Attributes:
-        activity: The parsed ingestion contract.
-        is_elevation_set: Whether elevation data exists.
-        ele_waypoints: Elevation waypoints.
-        is_power_set: Whether power data exists.
-        power_waypoints: Power waypoints.
-        is_heart_rate_set: Whether heart-rate data exists.
-        hr_waypoints: Heart-rate waypoints.
-        is_velocity_set: Whether speed data exists (speed and pace share the flag).
-        vel_waypoints: Speed waypoints.
-        pace_waypoints: Pace waypoints.
-        is_cadence_set: Whether cadence data exists.
-        cad_waypoints: Cadence waypoints.
-        is_lat_lon_set: Whether GPS data exists.
-        lat_lon_waypoints: GPS waypoints.
-        is_temperature_set: Whether temperature data exists; absent for formats that record none (GPX).
-        temp_waypoints: Temperature waypoints; absent for formats that record none (GPX).
-        laps: The activity's laps.
-        sets: FIT workout sets; absent for other formats.
-        workout_steps: FIT workout steps; absent for other formats.
-    """
-
-    activity: activity_contracts.ActivityCore
-    is_elevation_set: bool
-    ele_waypoints: list[activity_streams_contracts.ElevationWaypoint]
-    is_power_set: bool
-    power_waypoints: list[activity_streams_contracts.PowerWaypoint]
-    is_heart_rate_set: bool
-    hr_waypoints: list[activity_streams_contracts.HeartRateWaypoint]
-    is_velocity_set: bool
-    vel_waypoints: list[activity_streams_contracts.VelocityWaypoint]
-    pace_waypoints: list[activity_streams_contracts.PaceWaypoint]
-    is_cadence_set: bool
-    cad_waypoints: list[activity_streams_contracts.CadenceWaypoint]
-    is_lat_lon_set: bool
-    lat_lon_waypoints: list[activity_streams_contracts.LatLonWaypoint]
-    is_temperature_set: NotRequired[bool]
-    temp_waypoints: NotRequired[list[activity_streams_contracts.TemperatureWaypoint]]
-    laps: list[LapT]
-    sets: NotRequired[list[list[object]]]
-    workout_steps: NotRequired[list[activity_workout_steps_contracts.ActivityWorkoutStepsCreate]]
-
-
-def build_activity_file_payload[LapT](
-    activity: activity_contracts.ActivityCore,
-    waypoints: ActivityWaypoints,
-    laps: list[LapT],
-    extras: ActivityFileExtras | None = None,
-) -> ActivityFilePayload[LapT]:
-    """Build normalized activity file import payload.
-
-    Args:
-        activity: The parsed ingestion contract. Every parser builds an
-            ``ActivityCore`` — the strict write shape — not the read
-            ``Activity``, which carries server-owned fields a parser can never
-            populate.
-        waypoints: Dict keyed by stream name (e.g. ``'lat_lon_waypoints'``,
-            ``'ele_waypoints'``, …) mapping to lists of waypoint dicts.
-        laps: List of lap dicts for the activity.
-        extras: Optional format-specific extras (FIT sets and workout steps).
-
-    Returns:
-        A dict containing the activity, all stream flags/lists, laps, and
-        any extras — matching the structure expected by
-        ``activities/activity/utils.py`` callers.
-    """
-    payload: ActivityFilePayload[LapT] = {
-        "activity": activity,
-        "is_elevation_set": bool(waypoints.get("ele_waypoints")),
-        "ele_waypoints": waypoints.get("ele_waypoints", []),
-        "is_power_set": bool(waypoints.get("power_waypoints")),
-        "power_waypoints": waypoints.get("power_waypoints", []),
-        "is_heart_rate_set": bool(waypoints.get("hr_waypoints")),
-        "hr_waypoints": waypoints.get("hr_waypoints", []),
-        "is_velocity_set": bool(waypoints.get("vel_waypoints")),
-        "vel_waypoints": waypoints.get("vel_waypoints", []),
-        "pace_waypoints": waypoints.get("pace_waypoints", []),
-        "is_cadence_set": bool(waypoints.get("cad_waypoints")),
-        "cad_waypoints": waypoints.get("cad_waypoints", []),
-        "is_lat_lon_set": bool(waypoints.get("lat_lon_waypoints")),
-        "lat_lon_waypoints": waypoints.get("lat_lon_waypoints", []),
-        "is_temperature_set": bool(waypoints.get("temp_waypoints")),
-        "temp_waypoints": waypoints.get("temp_waypoints", []),
-        "laps": laps,
-    }
-    if extras:
-        payload["sets"] = extras["sets"]
-        payload["workout_steps"] = extras["workout_steps"]
-    return payload
 
 
 class LapMetrics(TypedDict):
@@ -316,25 +166,6 @@ class _TimedStream:
         if first > 0 and self._times[first] > start_dt:
             first -= 1
         return self.waypoints[first : indices[-1] + 1]
-
-
-def filter_waypoints_by_time_range(
-    waypoints: Sequence[Mapping[str, Any]],
-    start_time: str,
-    end_time: str,
-) -> list[Mapping[str, Any]]:
-    """Return waypoints whose time falls within [start_time, end_time].
-
-    Args:
-        waypoints: List of waypoint dicts each containing a ``'time'``
-            key with an ISO 8601 string.
-        start_time: ISO 8601 start time string (inclusive).
-        end_time: ISO 8601 end time string (inclusive).
-
-    Returns:
-        Filtered list of waypoint dicts.
-    """
-    return _TimedStream(waypoints).between(start_time, end_time)
 
 
 def slice_lap_elevation(
@@ -584,34 +415,6 @@ def generate_activity_laps(
         )
 
     return laps
-
-
-def filter_waypoints_by_datetime_range[WaypointT: activity_streams_contracts.TimedWaypoint](
-    waypoints: Sequence[WaypointT],
-    start_time: datetime,
-    end_time: datetime,
-) -> list[WaypointT]:
-    """Filter a waypoint stream to a time range.
-
-    Handles both tz-naive and tz-aware ``start_time`` / ``end_time``.
-    Waypoint ``'time'`` values are parsed as ISO 8601 strings and treated
-    as UTC when no timezone info is present.
-
-    Args:
-        waypoints: The stream's waypoints, each containing a ``'time'`` key.
-        start_time: Inclusive lower bound (tz-aware or tz-naive UTC).
-        end_time: Inclusive upper bound (tz-aware or tz-naive UTC).
-
-    Returns:
-        The waypoints within the given time range, in their original order.
-    """
-    # Normalise bounds to UTC-aware for consistent comparisons.
-    if start_time.tzinfo is None:
-        start_time = start_time.replace(tzinfo=UTC)
-    if end_time.tzinfo is None:
-        end_time = end_time.replace(tzinfo=UTC)
-
-    return [wp for wp in waypoints if start_time <= _parse_utc(wp["time"]) <= end_time]
 
 
 def resolve_timezone_from_lat_lon(

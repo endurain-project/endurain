@@ -1,6 +1,4 @@
 {
-  "activities": [],
-  "file_components": {
-    "exercise_titles": []
-  }
+  "error": "InvalidInputError",
+  "message": "The FIT file has no session"
 }

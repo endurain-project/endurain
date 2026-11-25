@@ -47,7 +47,7 @@
         "timezone": "Europe/Lisbon",
         "total_cycles": null,
         "total_elapsed_time": 1218.0,
-        "total_timer_time": 1218.0,
+        "total_timer_time": 1218.593,
         "town": null,
         "tracker_manufacturer": null,
         "tracker_model": null,
@@ -58,27 +58,41 @@
       "laps": [
         {
           "avg_cadence": null,
-          "avg_heart_rate": 130,
+          "avg_fractional_cadence": null,
+          "avg_heart_rate": 131,
           "avg_power": null,
+          "avg_stance_time": null,
+          "avg_step_length": null,
+          "avg_vertical_oscillation": null,
+          "avg_vertical_ratio": null,
           "end_position_lat": null,
           "end_position_long": null,
           "enhanced_avg_pace": null,
           "enhanced_avg_speed": null,
+          "enhanced_max_altitude": null,
           "enhanced_max_pace": null,
           "enhanced_max_speed": null,
+          "enhanced_min_altitude": null,
+          "intensity": "active",
+          "lap_trigger": "manual",
           "max_cadence": null,
+          "max_fractional_cadence": null,
           "max_heart_rate": 147,
           "max_power": null,
           "normalized_power": null,
+          "sport": null,
           "start_position_lat": null,
           "start_position_long": null,
           "start_time": "2024-05-04T16:50:10+00:00",
+          "sub_sport": null,
           "total_ascent": null,
           "total_calories": 213,
+          "total_cycles": null,
           "total_descent": null,
-          "total_distance": null,
+          "total_distance": 0.0,
           "total_elapsed_time": 1218.0,
-          "total_timer_time": 1218.0
+          "total_timer_time": 1218.593,
+          "total_work": null
         }
       ],
       "sets": null,
@@ -102,46 +116,6 @@
           },
           "sha256": "0afd829c7d3261b52ab32f6ac3add9bd9b5ae95f515f23c43292729c6ff535a5",
           "stream_type": 1
-        },
-        {
-          "count": 586,
-          "fields": {
-            "vel": {
-              "max": 0,
-              "mean": 0.0,
-              "min": 0
-            }
-          },
-          "first": {
-            "time": "2024-05-04T16:50:10",
-            "vel": 0
-          },
-          "last": {
-            "time": "2024-05-04T17:10:28",
-            "vel": 0
-          },
-          "sha256": "a505d375ceb66d2b260edb4d89f1435d764317dd918237c903a89b2fba7d555d",
-          "stream_type": 5
-        },
-        {
-          "count": 586,
-          "fields": {
-            "pace": {
-              "max": 0,
-              "mean": 0.0,
-              "min": 0
-            }
-          },
-          "first": {
-            "pace": 0,
-            "time": "2024-05-04T16:50:10"
-          },
-          "last": {
-            "pace": 0,
-            "time": "2024-05-04T17:10:28"
-          },
-          "sha256": "45d3427e407b25de01a49f7eed15f866ea9c5b754d583f2ebe34a633d66b36e2",
-          "stream_type": 6
         }
       ],
       "workout_steps": null

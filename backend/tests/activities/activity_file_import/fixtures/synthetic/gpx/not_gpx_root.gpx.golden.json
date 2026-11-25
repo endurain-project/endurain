@@ -1,4 +1,4 @@
 {
   "error": "InvalidInputError",
-  "message": "Invalid GPX file - no tracks found in the GPX file"
+  "message": "Invalid GPX file - the root element is not gpx"
 }

@@ -2,11 +2,11 @@
   "activities": [
     {
       "activity": {
-        "activity_type": "workout",
+        "activity_type": "ride",
         "average_cad": 70,
         "average_hr": 143,
         "average_power": null,
-        "average_speed": 7.542118,
+        "average_speed": 7.532509,
         "calories": null,
         "city": null,
         "country": null,
@@ -1474,23 +1474,23 @@
           "stream_type": 5
         },
         {
-          "count": 7579,
+          "count": 7576,
           "fields": {
             "pace": {
               "max": 107.42722,
-              "mean": 0.185679,
-              "min": 0
+              "mean": 0.185753,
+              "min": 0.064418
             }
           },
           "first": {
-            "pace": 0,
-            "time": "2024-05-05T08:15:20"
+            "pace": 17.530774,
+            "time": "2024-05-05T08:15:21"
           },
           "last": {
             "pace": 3.990764,
             "time": "2024-05-05T10:22:56"
           },
-          "sha256": "682d4184013216c7bb370ac8597c245e8026183d51ee9855d614c6e50ff814aa",
+          "sha256": "4f6eb83f87a15142f488d8bd7c1c8f1a27b9bb0d20fd9558b6056f9ea031f273",
           "stream_type": 6
         },
         {
@@ -1519,6 +1519,26 @@
           },
           "sha256": "a713200a76b13ba122776e5cbbe3f3fbfe6b0c8f3c001f49b16d17d89aa3169d",
           "stream_type": 7
+        },
+        {
+          "count": 7579,
+          "fields": {
+            "temp": {
+              "max": 27,
+              "mean": 20.85882,
+              "min": 17
+            }
+          },
+          "first": {
+            "temp": 21,
+            "time": "2024-05-05T08:15:20"
+          },
+          "last": {
+            "temp": 21,
+            "time": "2024-05-05T10:22:56"
+          },
+          "sha256": "b7481b1849eea3a6fbde7d4d4f0df6a2e8af48d49e1c3088b784756dfc608717",
+          "stream_type": 8
         }
       ],
       "workout_steps": null

@@ -1,0 +1,603 @@
+"""Tests for the activity a GPX file assembles to: decode the file, then assemble it."""
+
+from datetime import UTC, datetime, timedelta
+from pathlib import Path
+
+import pytest
+from geopy.distance import geodesic
+
+from tests.activities.activity_file_import import assembled
+
+
+def _write_gpx(tmp_path: Path, body: str) -> str:
+    """Write GPX content to a temporary file.
+
+    Args:
+        tmp_path: Pytest temporary path fixture.
+        body: GPX XML content.
+
+    Returns:
+        Path to the written file.
+    """
+    path = tmp_path / "activity.gpx"
+    path.write_text(body.strip(), encoding="utf-8")
+    return str(path)
+
+
+def _gpx(tmp_path: Path, tracks: str, **kwargs):
+    """Write a GPX document of tracks and assemble it.
+
+    Args:
+        tmp_path: Pytest temporary path fixture.
+        tracks: The ``trk`` elements.
+        **kwargs: The keyword arguments of ``assemble_gpx``.
+
+    Returns:
+        The payload.
+    """
+    xml = f'<gpx version="1.1" creator="pytest" xmlns:gpxtpx="http://example.com/gpxtpx">{tracks}</gpx>'
+    return assembled.assemble_gpx(_write_gpx(tmp_path, xml), **kwargs)
+
+
+def _points(rows: list[tuple[float, str, str]], lat: float = 0.0) -> str:
+    """Build trackpoints.
+
+    Args:
+        rows: ``(longitude, time-of-day, inner XML)`` for each point.
+        lat: The latitude of every point.
+
+    Returns:
+        The ``trkpt`` elements.
+    """
+    return "".join(
+        f'<trkpt lat="{lat}" lon="{lon}"><time>2025-01-01T{clock}Z</time>{inner}</trkpt>' for lon, clock, inner in rows
+    )
+
+
+def _six_km_track(tmp_path: Path, **kwargs):
+    """Assemble a straight ~6 km east-west track of 100 m hops at the equator."""
+    start = datetime(2025, 1, 1, tzinfo=UTC)
+    points = "".join(
+        f'<trkpt lat="0.0" lon="{i * 0.0009:.4f}">'
+        f"<time>{(start + timedelta(seconds=i * 30)).strftime('%Y-%m-%dT%H:%M:%SZ')}</time></trkpt>"
+        for i in range(61)
+    )
+    return _gpx(tmp_path, f"<trk><name>Run</name><type>Run</type><trkseg>{points}</trkseg></trk>", **kwargs)
+
+
+class TestAutoLapDistance:
+    """GPX carries no device laps, so laps close at the caller's lap distance."""
+
+    def test_metric_laps_close_every_km(self, tmp_path):
+        result = _six_km_track(tmp_path)
+
+        full = [lap for lap in result["laps"] if lap["total_distance"] >= 990]
+        assert len(full) == 6
+
+    def test_imperial_laps_close_every_mile(self, tmp_path):
+        result = _six_km_track(tmp_path, lap_distance_km=1.609344)
+
+        distances = [lap["total_distance"] for lap in result["laps"]]
+        assert len(distances) == 4
+        assert all(1609 <= d < 1720 for d in distances[:3])
+        assert distances[3] < 1609
+
+
+class TestDistanceAndTime:
+    """Distance, timer time and pace of a track, with its breaks and glitches."""
+
+    def test_does_not_bridge_track_segments(self, tmp_path):
+        body = (
+            "<trk><name>Segmented run</name><type>Run</type>"
+            + f"<trkseg>{_points([(0.0, '00:00:00', ''), (0.001, '00:00:10', '')])}</trkseg>"
+            + f"<trkseg>{_points([(10.0, '00:00:20', ''), (10.001, '00:00:30', '')], lat=10.0)}</trkseg></trk>"
+        )
+
+        result = _gpx(tmp_path, body)
+
+        expected = geodesic((0.0, 0.0), (0.0, 0.001)).meters + geodesic((10.0, 10.0), (10.0, 10.001)).meters
+        assert result["activity"].distance == round(expected)
+        # The first point of each segment has no previous point: a 0 placeholder.
+        assert result["vel_waypoints"][0]["vel"] == 0
+        assert result["vel_waypoints"][2]["vel"] == 0
+        assert result["activity"].max_speed < 20
+        assert all(lap["total_distance"] < 1000 for lap in result["laps"])
+
+    def test_sums_distance_over_multiple_points_in_one_segment(self, tmp_path):
+        rows = [(0.0, "00:00:00", ""), (0.001, "00:00:10", ""), (0.002, "00:00:20", ""), (0.004, "00:00:30", "")]
+
+        result = _gpx(tmp_path, f"<trk><type>Run</type><trkseg>{_points(rows)}</trkseg></trk>")
+
+        expected = (
+            geodesic((0.0, 0.0), (0.0, 0.001)).meters
+            + geodesic((0.0, 0.001), (0.0, 0.002)).meters
+            + geodesic((0.0, 0.002), (0.0, 0.004)).meters
+        )
+        assert result["activity"].distance == round(expected)
+
+    def test_excludes_pause_gap_from_timer_and_distance(self, tmp_path):
+        """Issue #571: a 300 s recording pause inside one segment is not active time or distance."""
+        rows = [(0.0, "00:00:00", ""), (0.001, "00:00:10", ""), (0.010, "00:05:10", ""), (0.011, "00:05:20", "")]
+
+        result = _gpx(tmp_path, f"<trk><type>Run</type><trkseg>{_points(rows)}</trkseg></trk>")
+
+        expected = geodesic((0.0, 0.0), (0.0, 0.001)).meters + geodesic((0.0, 0.010), (0.0, 0.011)).meters
+        activity = result["activity"]
+        assert activity.distance == round(expected)
+        assert activity.total_elapsed_time == 320
+        assert activity.total_timer_time == 20
+        assert activity.pace == pytest.approx(20 / expected, rel=0.01)
+        assert result["vel_waypoints"][2]["vel"] == 0
+        assert all(lap["total_distance"] < 1000 for lap in result["laps"])
+
+    def test_sparse_track_is_not_split_into_pauses(self, tmp_path):
+        rows = [(0.001 * i, f"00:{(30 * i) // 60:02d}:{(30 * i) % 60:02d}", "") for i in range(5)]
+
+        result = _gpx(tmp_path, f"<trk><type>Run</type><trkseg>{_points(rows)}</trkseg></trk>")
+
+        expected = 4 * geodesic((0.0, 0.0), (0.0, 0.001)).meters
+        activity = result["activity"]
+        assert activity.distance == round(expected)
+        assert activity.total_timer_time == 120
+        assert activity.pace == pytest.approx(120 / expected, rel=0.01)
+        assert result["laps"]
+
+    def test_timer_excludes_inter_segment_gap(self, tmp_path):
+        body = (
+            "<trk><type>Run</type>"
+            + f"<trkseg>{_points([(0.0, '00:00:00', ''), (0.001, '00:00:10', '')])}</trkseg>"
+            + f"<trkseg>{_points([(0.010, '00:10:10', ''), (0.011, '00:10:20', '')])}</trkseg></trk>"
+        )
+
+        activity = _gpx(tmp_path, body)["activity"]
+
+        assert activity.total_elapsed_time == 620
+        assert activity.total_timer_time == 20
+
+    def test_gap_equal_to_threshold_counts_as_moving(self, tmp_path):
+        rows = [(0.0, "00:00:00", ""), (0.001, "00:00:15", ""), (0.002, "00:00:30", "")]
+
+        activity = _gpx(tmp_path, f"<trk><type>Run</type><trkseg>{_points(rows)}</trkseg></trk>")["activity"]
+
+        expected = geodesic((0.0, 0.0), (0.0, 0.001)).meters + geodesic((0.0, 0.001), (0.0, 0.002)).meters
+        assert activity.distance == round(expected)
+        assert activity.total_timer_time == 30
+
+    def test_all_paused_falls_back_to_elapsed_and_has_no_pace_or_speed(self, tmp_path):
+        rows = [(0.0, "00:00:00", ""), (0.001, "00:01:40", "")]
+
+        activity = _gpx(tmp_path, f"<trk><type>Run</type><trkseg>{_points(rows)}</trkseg></trk>")["activity"]
+
+        assert activity.total_elapsed_time == 100
+        assert activity.total_timer_time == 100
+        assert activity.distance == 0
+        # Zero distance gives no pace and no speeds (was 0).
+        assert activity.pace is None
+        assert activity.average_speed is None
+        assert activity.max_speed is None
+
+    def test_duplicate_timestamps_do_not_inflate_timer(self, tmp_path):
+        rows = [(0.0, "00:00:00", ""), (0.001, "00:00:00", ""), (0.002, "00:00:10", "")]
+
+        activity = _gpx(tmp_path, f"<trk><type>Run</type><trkseg>{_points(rows)}</trkseg></trk>")["activity"]
+
+        assert activity.total_elapsed_time == 10
+        assert activity.total_timer_time == 10
+
+    def test_out_of_order_timestamp_does_not_inflate_timer(self, tmp_path):
+        rows = [(0.0, "00:00:00", ""), (0.001, "00:00:10", ""), (0.002, "00:00:05", ""), (0.003, "00:00:15", "")]
+
+        activity = _gpx(tmp_path, f"<trk><type>Run</type><trkseg>{_points(rows)}</trkseg></trk>")["activity"]
+
+        assert activity.total_timer_time == 15
+
+    def test_average_speed_is_distance_over_timer_time(self, tmp_path):
+        rows = [(0.0, "00:00:00", ""), (0.001, "00:00:10", ""), (0.003, "00:00:20", "")]
+
+        result = _gpx(tmp_path, f"<trk><type>Run</type><trkseg>{_points(rows)}</trkseg></trk>")
+
+        activity = result["activity"]
+        expected = geodesic((0.0, 0.0), (0.0, 0.003)).meters / 20
+        assert activity.average_speed == pytest.approx(expected, rel=0.01)
+
+    def test_converts_offset_timestamps_to_utc(self, tmp_path):
+        """Issue #588: timestamps with a non-UTC offset are stored as UTC."""
+        trk = (
+            '<trk><type>Run</type><trkseg><trkpt lat="0.0" lon="0.0"><time>2026-03-28T08:19:19-07:00</time></trkpt>'
+            '<trkpt lat="0.0" lon="0.001"><time>2026-03-28T08:19:29-07:00</time></trkpt></trkseg></trk>'
+        )
+
+        result = _gpx(tmp_path, trk)
+
+        assert result["activity"].start_time == datetime(2026, 3, 28, 15, 19, 19, tzinfo=UTC)
+        assert result["activity"].end_time == datetime(2026, 3, 28, 15, 19, 29, tzinfo=UTC)
+        assert result["lat_lon_waypoints"][0]["time"] == "2026-03-28T15:19:19"
+        assert result["laps"][0]["start_time"] == "2026-03-28T15:19:19"
+
+
+class TestTrackMetadata:
+    """The name, type and description a GPX file gives."""
+
+    def test_first_track_gives_name_type_and_description(self, tmp_path):
+        first = _points([(0.0, "00:00:00", ""), (0.001, "00:00:10", "")])
+        second = _points([(0.002, "00:00:20", ""), (0.003, "00:00:30", "")])
+        body = (
+            f"<trk><name>First</name><desc>One</desc><type>running</type><trkseg>{first}</trkseg></trk>"
+            f"<trk><name>Second</name><desc>Two</desc><type>cycling</type><trkseg>{second}</trkseg></trk>"
+        )
+
+        result = _gpx(tmp_path, body)
+
+        assert result["activity"].name == "First"
+        assert result["activity"].description == "One"
+        assert result["activity"].activity_type == "run"
+
+    def test_road_biking_type_resolves_to_ride(self, tmp_path):
+        rows = [(0.0, "00:00:00", ""), (0.001, "00:00:10", "")]
+
+        result = _gpx(tmp_path, f"<trk><type>road_biking</type><trkseg>{_points(rows)}</trkseg></trk>")
+
+        assert result["activity"].activity_type == "ride"
+
+    def test_reads_track_level_calories(self, tmp_path):
+        rows = [(0.0, "00:00:00", ""), (0.001, "00:00:10", "")]
+        trk = (
+            "<trk><name>Calories ride</name><extensions><gpxtrkx:TrackStatsExtension "
+            'xmlns:gpxtrkx="http://example.com/gpxtrkx"><gpxtrkx:Calories>123.7</gpxtrkx:Calories>'
+            f"</gpxtrkx:TrackStatsExtension></extensions><trkseg>{_points(rows)}</trkseg></trk>"
+        )
+
+        assert _gpx(tmp_path, trk)["activity"].calories == 123
+
+
+class TestElevation:
+    """Elevation streams and the gain and loss computed from them."""
+
+    def test_sanitizes_elevation_values(self, tmp_path):
+        rows = [
+            (0.0, "00:00:00", "<ele>0</ele>"),
+            (0.001, "00:00:10", "<ele>10000</ele>"),
+            (0.002, "00:00:20", "<ele>-10000</ele>"),
+            (0.003, "00:00:30", "<ele>12.5</ele>"),
+        ]
+
+        result = _gpx(tmp_path, f"<trk><trkseg>{_points(rows)}</trkseg></trk>")
+
+        assert result["ele_waypoints"] == [
+            {"time": "2025-01-01T00:00:00", "ele": 0.0},
+            {"time": "2025-01-01T00:00:30", "ele": 12.5},
+        ]
+
+    def test_flat_track_stores_zero_elevation_gain(self, tmp_path):
+        points = "".join(
+            f'<trkpt lat="{40.0 + i * 0.001}" lon="-3.0"><ele>100.0</ele>'
+            f"<time>2025-01-01T00:{(10 * i) // 60:02d}:{(10 * i) % 60:02d}Z</time></trkpt>"
+            for i in range(15)
+        )
+
+        result = _gpx(tmp_path, f"<trk><name>Flat ride</name><trkseg>{points}</trkseg></trk>")
+
+        assert result["activity"].elevation_gain == 0
+        assert result["activity"].elevation_loss == 0
+        assert result["laps"]
+        assert all(lap["total_ascent"] == 0 for lap in result["laps"])
+        assert all(lap["total_descent"] == 0 for lap in result["laps"])
+
+    def test_invalid_elevation_stream_stores_none(self, tmp_path):
+        rows = [(0.0, "00:00:00", "<ele>n/a</ele>"), (0.001, "00:01:00", "<ele>n/a</ele>")]
+
+        result = _gpx(tmp_path, f"<trk><type>Ride</type><trkseg>{_points(rows)}</trkseg></trk>")
+
+        assert result["is_elevation_set"] is False
+        assert result["activity"].elevation_gain is None
+        assert result["activity"].elevation_loss is None
+
+
+class TestSensorStreams:
+    """Heart rate, cadence, power and temperature from the trackpoint extensions."""
+
+    def test_without_extensions_creates_no_sensor_streams(self, tmp_path):
+        rows = [(0.0, "00:00:00", ""), (0.001, "00:00:10", "")]
+
+        result = _gpx(tmp_path, f"<trk><name>Sensor-free run</name><trkseg>{_points(rows)}</trkseg></trk>")
+
+        assert result["is_heart_rate_set"] is False
+        assert result["hr_waypoints"] == []
+        assert result["is_cadence_set"] is False
+        assert result["cad_waypoints"] == []
+        assert result["is_power_set"] is False
+        assert result["is_temperature_set"] is False
+        assert result["activity"].average_hr is None
+        assert result["activity"].max_hr is None
+
+    def test_hr_only_extensions_omit_cadence_stream(self, tmp_path):
+        rows = [
+            (0.0, "00:00:00", "<extensions><TrackPointExtension><hr>140</hr></TrackPointExtension></extensions>"),
+            (0.001, "00:00:10", "<extensions><TrackPointExtension><hr>150</hr></TrackPointExtension></extensions>"),
+        ]
+
+        result = _gpx(tmp_path, f"<trk><trkseg>{_points(rows)}</trkseg></trk>")
+
+        assert result["is_heart_rate_set"] is True
+        assert len(result["hr_waypoints"]) == 2
+        assert result["activity"].average_hr == 145
+        assert result["activity"].max_hr == 150
+        assert result["is_cadence_set"] is False
+        assert result["cad_waypoints"] == []
+
+    def test_does_not_zero_fill_missing_cadence_samples(self, tmp_path):
+        rows = [
+            (0.0, "00:00:00", "<extensions><TrackPointExtension><cad>80</cad></TrackPointExtension></extensions>"),
+            (0.001, "00:00:10", ""),
+            (0.002, "00:00:20", "<extensions><TrackPointExtension><cad>90</cad></TrackPointExtension></extensions>"),
+        ]
+
+        result = _gpx(tmp_path, f"<trk><name>Cadence gap ride</name><trkseg>{_points(rows)}</trkseg></trk>")
+
+        assert result["is_cadence_set"] is True
+        assert [wp["cad"] for wp in result["cad_waypoints"]] == [80, 90]
+        assert result["activity"].average_cad == 85
+
+    def test_doubles_running_cadence_to_spm(self, tmp_path):
+        rows = [
+            (0.0, "00:00:00", "<extensions><TrackPointExtension><cad>85</cad></TrackPointExtension></extensions>"),
+            (0.001, "00:00:10", "<extensions><TrackPointExtension><cad>95</cad></TrackPointExtension></extensions>"),
+        ]
+
+        result = _gpx(
+            tmp_path, f"<trk><name>Cadence run</name><type>running</type><trkseg>{_points(rows)}</trkseg></trk>"
+        )
+
+        assert result["activity"].activity_type == "run"
+        assert [wp["cad"] for wp in result["cad_waypoints"]] == [170, 190]
+        assert result["activity"].average_cad == 180
+        assert result["activity"].max_cad == 190
+
+    def test_all_zero_hr_keeps_the_zero_stream_but_has_no_average(self, tmp_path):
+        rows = [
+            (0.0, "00:00:00", "<extensions><TrackPointExtension><hr>0</hr></TrackPointExtension></extensions>"),
+            (0.001, "00:00:10", "<extensions><TrackPointExtension><hr>0</hr></TrackPointExtension></extensions>"),
+        ]
+
+        result = _gpx(tmp_path, f"<trk><name>Dropout run</name><trkseg>{_points(rows)}</trkseg></trk>")
+
+        # The stream keeps its zeros (was dropped); the average and maximum still exclude them.
+        assert result["is_heart_rate_set"] is True
+        assert [wp["hr"] for wp in result["hr_waypoints"]] == [0, 0]
+        assert result["activity"].average_hr is None
+        assert result["activity"].max_hr is None
+
+    def test_zero_hr_samples_are_kept_but_left_out_of_average_and_maximum(self, tmp_path):
+        ext = "<extensions><TrackPointExtension><hr>{}</hr></TrackPointExtension></extensions>"
+        rows = [(0.001 * i, f"00:00:{10 * i:02d}", ext.format(hr)) for i, hr in enumerate((0, 140, 160))]
+
+        result = _gpx(tmp_path, f"<trk><trkseg>{_points(rows)}</trkseg></trk>")
+
+        assert [wp["hr"] for wp in result["hr_waypoints"]] == [0, 140, 160]
+        assert result["activity"].average_hr == 150
+        assert result["activity"].max_hr == 160
+
+    def test_reads_namespaced_nested_values(self, tmp_path):
+        ext = (
+            "<extensions><gpxtpx:TrackPointExtension><gpxtpx:hr>150</gpxtpx:hr><gpxtpx:cad>82</gpxtpx:cad>"
+            '<ns3:wrapper xmlns:ns3="http://example.com/custom"><ns3:power>250</ns3:power></ns3:wrapper>'
+            "</gpxtpx:TrackPointExtension></extensions>"
+        )
+        rows = [(0.0, "00:00:00", ext), (0.001, "00:00:10", ext)]
+
+        result = _gpx(tmp_path, f"<trk><trkseg>{_points(rows)}</trkseg></trk>")
+
+        assert [wp["hr"] for wp in result["hr_waypoints"]] == [150, 150]
+        assert [wp["cad"] for wp in result["cad_waypoints"]] == [82, 82]
+        assert [wp["power"] for wp in result["power_waypoints"]] == [250, 250]
+
+    def test_reads_unprefixed_values(self, tmp_path):
+        ext = (
+            "<extensions><TrackPointExtension><heartrate>145</heartrate><cad>77</cad><power>211</power>"
+            "</TrackPointExtension></extensions>"
+        )
+        rows = [(0.0, "00:00:00", ext), (0.001, "00:00:10", ext)]
+
+        result = _gpx(tmp_path, f"<trk><trkseg>{_points(rows)}</trkseg></trk>")
+
+        assert result["hr_waypoints"][0]["hr"] == 145
+        assert result["cad_waypoints"][0]["cad"] == 77
+        assert result["power_waypoints"][0]["power"] == 211
+
+    def test_reads_power_in_watts(self, tmp_path):
+        ext = (
+            "<extensions><gpxtpx:TrackPointExtension><gpxtpx:hr>150</gpxtpx:hr>"
+            "<gpxtpx:PowerInWatts>240</gpxtpx:PowerInWatts></gpxtpx:TrackPointExtension></extensions>"
+        )
+        rows = [(0.0, "00:00:00", ext), (0.001, "00:00:10", ext)]
+
+        result = _gpx(tmp_path, f"<trk><trkseg>{_points(rows)}</trkseg></trk>")
+
+        assert result["hr_waypoints"][0]["hr"] == 150
+        assert result["is_cadence_set"] is False
+        assert [wp["power"] for wp in result["power_waypoints"]] == [240, 240]
+
+    def test_invalid_numbers_are_none_for_their_channel_only(self, tmp_path):
+        ext = (
+            "<extensions><TrackPointExtension><hr>not-a-number</hr><cad></cad><power>205.8</power>"
+            "</TrackPointExtension></extensions>"
+        )
+        rows = [(0.0, "00:00:00", ext), (0.001, "00:00:10", ext)]
+
+        result = _gpx(tmp_path, f"<trk><trkseg>{_points(rows)}</trkseg></trk>")
+
+        # A bad value is missing for that channel (was 0); the others still read.
+        assert result["is_heart_rate_set"] is False
+        assert result["is_cadence_set"] is False
+        assert [wp["power"] for wp in result["power_waypoints"]] == [206, 206]
+
+    def test_atemp_gives_a_temperature_stream(self, tmp_path):
+        ext = "<extensions><TrackPointExtension><atemp>21.5</atemp></TrackPointExtension></extensions>"
+        rows = [(0.0, "00:00:00", ext), (0.001, "00:00:10", ext)]
+
+        result = _gpx(tmp_path, f"<trk><trkseg>{_points(rows)}</trkseg></trk>")
+
+        assert result["is_temperature_set"] is True
+        assert [wp["temp"] for wp in result["temp_waypoints"]] == [21.5, 21.5]
+
+
+def _steady_run(n_points: int, spikes: dict[int, float]) -> str:
+    """Build a ~3 m/s eastbound run with 1 s spacing.
+
+    Args:
+        n_points: Number of trackpoints.
+        spikes: Map of point index to extra longitude offset in degrees.
+
+    Returns:
+        The ``trk`` element.
+    """
+    step = 0.0000269  # ~3 m at the equator
+    points = "".join(
+        f'<trkpt lat="0.0" lon="{i * step + spikes.get(i, 0.0):.7f}"><time>2025-01-01T00:00:{i:02d}Z</time></trkpt>'
+        for i in range(n_points)
+    )
+    return f"<trk><type>Run</type><trkseg>{points}</trkseg></trk>"
+
+
+class TestMaxSpeed:
+    """Max speed is robust against GPS glitches."""
+
+    def test_single_gps_spike_does_not_set_max_speed(self, tmp_path):
+        result = _gpx(tmp_path, _steady_run(30, {15: 0.00045}))  # one fix ~50 m ahead
+
+        assert max(w["vel"] for w in result["vel_waypoints"]) > 40
+        assert result["activity"].max_speed == pytest.approx(3, abs=0.5)
+
+    def test_two_adjacent_spiked_fixes_are_ignored(self, tmp_path):
+        result = _gpx(tmp_path, _steady_run(30, {15: 0.00045, 16: 0.00045}))
+
+        assert result["activity"].max_speed == pytest.approx(3, abs=0.5)
+
+    def test_sustained_fast_stretch_is_reported(self, tmp_path):
+        step = 0.0000269
+        lons = [i * step for i in range(15)]
+        for _ in range(4):  # 4 samples at ~9 m/s
+            lons.append(lons[-1] + step * 3)
+        for _ in range(15):
+            lons.append(lons[-1] + step)
+        points = "".join(
+            f'<trkpt lat="0.0" lon="{lon:.7f}"><time>2025-01-01T00:00:{i:02d}Z</time></trkpt>'
+            for i, lon in enumerate(lons)
+        )
+
+        result = _gpx(tmp_path, f"<trk><type>Run</type><trkseg>{points}</trkseg></trk>")
+
+        assert result["activity"].max_speed == pytest.approx(9, abs=1)
+
+    def test_fewer_than_window_samples_use_plain_max(self, tmp_path):
+        result = _gpx(tmp_path, _steady_run(4, {2: 0.00045}))
+
+        assert result["activity"].max_speed == max(w["vel"] for w in result["vel_waypoints"])
+        assert result["activity"].max_speed > 40
+
+
+def _segments(segments: list[list[tuple[float, str]]]) -> str:
+    """Build a ``trk`` with one ``trkseg`` per entry.
+
+    Args:
+        segments: For each segment, ``(longitude, time-of-day)`` pairs on the equator.
+
+    Returns:
+        The ``trk`` element.
+    """
+    body = "".join(
+        "<trkseg>"
+        + "".join(f'<trkpt lat="0.0" lon="{lon:.7f}"><time>2025-01-01T{clock}Z</time></trkpt>' for lon, clock in seg)
+        + "</trkseg>"
+        for seg in segments
+    )
+    return f"<trk><type>Run</type>{body}</trk>"
+
+
+class TestMaxSpeedSegmentPlaceholders:
+    """The 0 placeholder at each segment start is not a measured speed."""
+
+    _STEP = 0.0000269  # ~3 m at the equator
+
+    def _short_segments(self) -> str:
+        """Five 2-point segments at ~3 m/s, each followed by a lone point (a pause)."""
+        segments = []
+        for i in range(5):
+            segments.append([(i * 0.001, f"00:{2 * i:02d}:00"), (i * 0.001 + self._STEP, f"00:{2 * i:02d}:01")])
+            segments.append([(i * 0.001 + 0.0005, f"00:{2 * i + 1:02d}:00")])
+        return _segments(segments)
+
+    def test_many_short_segments_report_the_measured_speed(self, tmp_path):
+        result = _gpx(tmp_path, self._short_segments())
+
+        assert result["activity"].max_speed == pytest.approx(3, abs=0.5)
+
+    def test_stored_speed_stream_keeps_the_placeholders_and_pace_has_none(self, tmp_path):
+        result = _gpx(tmp_path, self._short_segments())
+
+        vels = [w["vel"] for w in result["vel_waypoints"]]
+        assert len(vels) == 15
+        assert vels.count(0) == 10
+        assert set(result["vel_waypoints"][0]) == {"time", "vel"}
+        # The pace stream has a sample only where the speed is above zero.
+        assert len(result["pace_waypoints"]) == 5
+        assert all(w["pace"] == pytest.approx(1 / 3, rel=0.2) for w in result["pace_waypoints"])
+
+    def test_average_speed_is_distance_over_timer_not_the_mean_of_samples(self, tmp_path):
+        result = _gpx(tmp_path, self._short_segments())
+
+        activity = result["activity"]
+        assert activity.total_timer_time
+        assert activity.average_speed == pytest.approx(activity.distance / activity.total_timer_time, rel=0.01)
+        vels = [w["vel"] for w in result["vel_waypoints"]]
+        assert activity.average_speed != pytest.approx(sum(vels) / len(vels))
+
+    def test_a_lap_starting_at_a_segment_start_reports_the_measured_speed(self, tmp_path):
+        result = _gpx(tmp_path, self._short_segments())
+
+        assert len(result["laps"]) == 5
+        assert all(lap["enhanced_max_speed"] == pytest.approx(3, abs=0.5) for lap in result["laps"])
+
+    def test_non_advancing_clock_gives_no_measured_speed(self, tmp_path):
+        result = _gpx(
+            tmp_path,
+            _segments(
+                [
+                    [(0.0, "00:00:00"), (self._STEP, "00:00:00"), (2 * self._STEP, "00:00:00")],
+                    [(0.001, "00:01:00"), (0.001 + self._STEP, "00:01:00")],
+                ]
+            ),
+        )
+
+        assert result["activity"].max_speed is None
+
+    def test_single_point_segments_do_not_raise(self, tmp_path):
+        result = _gpx(
+            tmp_path,
+            _segments(
+                [
+                    [(0.0, "00:00:00")],
+                    [(0.001, "00:01:00")],
+                    [(0.002, "00:02:00"), (0.002 + self._STEP, "00:02:01")],
+                ]
+            ),
+        )
+
+        assert result["activity"].max_speed == pytest.approx(3, abs=0.5)
+
+    def test_repeated_timestamps_leave_lap_and_max_speed_at_the_measured_speed(self, tmp_path):
+        points = [(i * self._STEP, f"00:00:{i:02d}") for i in range(20) for _ in range(3)]
+
+        result = _gpx(tmp_path, _segments([points]))
+
+        assert result["activity"].max_speed == pytest.approx(3, abs=0.5)
+        assert result["laps"][0]["enhanced_avg_speed"] == pytest.approx(3, abs=0.05)
+
+    def test_sub_second_samples_sharing_a_second_all_count(self, tmp_path):
+        points = [(((k + 1) // 2) * self._STEP, f"00:00:{k / 2:04.1f}") for k in range(20)]
+
+        result = _gpx(tmp_path, _segments([points]))
+
+        assert result["activity"].max_speed == pytest.approx(3, abs=0.5)
+        assert result["laps"][0]["enhanced_avg_speed"] == pytest.approx(1.5, abs=0.3)
+        assert result["laps"][0]["enhanced_avg_pace"] is not None

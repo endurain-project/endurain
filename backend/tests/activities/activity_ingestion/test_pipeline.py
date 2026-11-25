@@ -64,12 +64,12 @@ class TestAFileWithSeveralActivities:
         assert len(activities_of(committed_sessions, me.user.id)) == 2
 
 
-class TestAFileThatYieldsNoActivity:
+class TestAFileWithRecordsButNoSession:
     def test_leaves_no_retained_file_and_no_temporary_file(self, me, pool, committed_sessions, storage, scratch):
         response = _upload(me, "nosession.fit", fit_file(with_session=False))
         pool.drain()
 
-        assert read_job(committed_sessions, uuid.UUID(response.json()["id"])).error_code == "no_activities_found"
+        assert read_job(committed_sessions, uuid.UUID(response.json()["id"])).error_code == "invalid_file"
         assert activities_of(committed_sessions, me.user.id) == []
         assert list(storage.list_keys("activity_files", "processed/")) == []
         assert os.listdir(scratch) == []
@@ -79,7 +79,7 @@ class TestAFileTheParserCannotRead:
     def test_is_the_files_fault_an_invalid_file_and_no_error_of_the_servers(
         self, me, pool, committed_sessions, caplog, scratch
     ):
-        broken = activity_gpx().replace(b'lat="38.700000"', b'lat="north"')
+        broken = activity_gpx().replace(b"<time>", b"<note>").replace(b"</time>", b"</note>")
 
         with caplog.at_level(logging.DEBUG):
             response = _upload(me, "broken.gpx", broken)

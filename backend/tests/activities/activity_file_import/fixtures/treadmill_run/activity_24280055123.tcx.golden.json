@@ -6,7 +6,7 @@
         "average_cad": 168,
         "average_hr": 151,
         "average_power": 297,
-        "average_speed": null,
+        "average_speed": 2.938433,
         "calories": 125,
         "city": null,
         "country": null,
@@ -36,10 +36,10 @@
         "max_cad": 192,
         "max_hr": 182,
         "max_power": 426,
-        "max_speed": null,
+        "max_speed": 4.236,
         "name": "Workout",
         "normalized_power": 306,
-        "pace": null,
+        "pace": 0.340317,
         "private_notes": null,
         "start_time": "2026-09-08T06:53:43Z",
         "strava_activity_id": null,
@@ -47,7 +47,7 @@
         "timezone": "Europe/Lisbon",
         "total_cycles": null,
         "total_elapsed_time": 605.0,
-        "total_timer_time": 605.0,
+        "total_timer_time": 605.207,
         "town": null,
         "tracker_manufacturer": null,
         "tracker_model": null,
@@ -58,51 +58,79 @@
       "laps": [
         {
           "avg_cadence": 164,
+          "avg_fractional_cadence": null,
           "avg_heart_rate": 140,
           "avg_power": 278,
+          "avg_stance_time": null,
+          "avg_step_length": null,
+          "avg_vertical_oscillation": null,
+          "avg_vertical_ratio": null,
           "end_position_lat": null,
           "end_position_long": null,
-          "enhanced_avg_pace": 0.369,
-          "enhanced_avg_speed": 2.710027,
+          "enhanced_avg_pace": 0.368324,
+          "enhanced_avg_speed": 2.715,
+          "enhanced_max_altitude": null,
           "enhanced_max_pace": 0.320924,
           "enhanced_max_speed": 3.116,
+          "enhanced_min_altitude": null,
+          "intensity": "active",
+          "lap_trigger": "manual",
           "max_cadence": 174,
+          "max_fractional_cadence": null,
           "max_heart_rate": 156,
           "max_power": 325,
           "normalized_power": 280,
+          "sport": null,
           "start_position_lat": null,
           "start_position_long": null,
           "start_time": "2026-09-08T06:53:43+00:00",
+          "sub_sport": null,
           "total_ascent": null,
           "total_calories": 70,
+          "total_cycles": null,
           "total_descent": null,
-          "total_distance": 1000,
+          "total_distance": 1000.0,
           "total_elapsed_time": 369.0,
-          "total_timer_time": 369.0
+          "total_timer_time": 368.34,
+          "total_work": null
         },
         {
           "avg_cadence": 176,
+          "avg_fractional_cadence": null,
           "avg_heart_rate": 167,
           "avg_power": 326,
+          "avg_stance_time": null,
+          "avg_step_length": null,
+          "avg_vertical_oscillation": null,
+          "avg_vertical_ratio": null,
           "end_position_lat": null,
           "end_position_long": null,
-          "enhanced_avg_pace": 0.303202,
-          "enhanced_avg_speed": 3.298136,
+          "enhanced_avg_pace": 0.304321,
+          "enhanced_avg_speed": 3.286,
+          "enhanced_max_altitude": null,
           "enhanced_max_pace": 0.235571,
           "enhanced_max_speed": 4.245,
+          "enhanced_min_altitude": null,
+          "intensity": "active",
+          "lap_trigger": "manual",
           "max_cadence": 192,
+          "max_fractional_cadence": null,
           "max_heart_rate": 182,
           "max_power": 426,
-          "normalized_power": 337,
+          "normalized_power": 336,
+          "sport": null,
           "start_position_lat": null,
           "start_position_long": null,
           "start_time": "2026-09-08T06:59:52+00:00",
+          "sub_sport": null,
           "total_ascent": null,
           "total_calories": 55,
+          "total_cycles": null,
           "total_descent": null,
-          "total_distance": 778,
+          "total_distance": 778.36,
           "total_elapsed_time": 236.0,
-          "total_timer_time": 236.0
+          "total_timer_time": 236.867,
+          "total_work": null
         }
       ],
       "sets": null,
@@ -171,40 +199,40 @@
           "count": 607,
           "fields": {
             "vel": {
-              "max": 0,
-              "mean": 0.0,
-              "min": 0
+              "max": 4.245,
+              "mean": 2.934919,
+              "min": 0.0
             }
           },
           "first": {
             "time": "2026-09-08T06:53:43",
-            "vel": 0
+            "vel": 0.0
           },
           "last": {
             "time": "2026-09-08T07:03:48",
-            "vel": 0
+            "vel": 2.743
           },
-          "sha256": "422c7db531df5f41d74f83a1d766706b8e543c994b36c70e9155c528d671f268",
+          "sha256": "18c30f1207219a408aea85237344624b86ae12043c819690a94ea53fc0a85b93",
           "stream_type": 5
         },
         {
-          "count": 607,
+          "count": 606,
           "fields": {
             "pace": {
-              "max": 0,
-              "mean": 0.0,
-              "min": 0
+              "max": 0.653595,
+              "mean": 0.346567,
+              "min": 0.235571
             }
           },
           "first": {
-            "pace": 0,
-            "time": "2026-09-08T06:53:43"
+            "pace": 0.653595,
+            "time": "2026-09-08T06:53:44"
           },
           "last": {
-            "pace": 0,
+            "pace": 0.364564,
             "time": "2026-09-08T07:03:48"
           },
-          "sha256": "2b6e53749e0a180dabfd480091a31fcdca14b756e94a0e71dcbbbe16d25e9f8b",
+          "sha256": "b68901df77206bb3b14398367d18d8b8553efa566aba0e879ada4d3d2341137e",
           "stream_type": 6
         }
       ],

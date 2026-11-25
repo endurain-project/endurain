@@ -1,7 +1,7 @@
 """Adapt parser output dicts into the canonical :class:`ParsedActivity` contract.
 
-The file parsers (``gpx_parser`` / ``tcx_parser`` / ``fit_parser``) build a
-``parsed_info`` dict (``parser_utils.ActivityFilePayload``) shaped like::
+``assembly`` builds a ``parsed_info`` dict (``assembly.ActivityFilePayload``) for each session of a decoded
+file, shaped like::
 
     {
         "activity": <ActivityCore>,
@@ -25,7 +25,7 @@ from typing import Any, Literal
 
 import core.logger as core_logger
 import modules.activities.activity.contracts as activity_contracts
-import modules.activities.activity_file_import.parser_utils as activity_file_import_parser_utils
+import modules.activities.activity_file_import.assembly as activity_file_import_assembly
 import modules.activities.activity_streams.constants as activity_streams_constants
 import modules.activities.activity_streams.contracts as activity_streams_contracts
 import modules.activities.computation as activities_computation
@@ -85,20 +85,17 @@ def _stream_waypoints(stream_type: int, waypoints: Sequence[Mapping[str, Any]]) 
     return waypoints
 
 
-def parsed_info_to_parsed_activity[LapT](
-    parsed_info: activity_file_import_parser_utils.ActivityFilePayload[LapT],
+def parsed_info_to_parsed_activity(
+    parsed_info: activity_file_import_assembly.ActivityFilePayload,
 ) -> activity_contracts.ParsedActivity:
     """Convert a parser output dict into a :class:`ParsedActivity`.
 
-    Provenance (:class:`ImportSource`) is deliberately *not* set here: a parser
-    knows what the file contains, not where it came from or what its content hash
+    Provenance (:class:`ImportSource`) is deliberately *not* set here: the file
+    parsing knows what the file contains, not where it came from or what its content hash
     is. The ingestion pipeline attaches that after parsing.
 
     Args:
-        parsed_info: The dict a parser builds for one activity (for a
-            multi-activity ``.fit``, one entry from
-            ``fit_parser.create_activity_objects``). Must contain an
-            ``"activity"`` key.
+        parsed_info: The payload ``assembly.assemble`` builds for one session.
 
     Returns:
         The canonical parsed activity, with one

@@ -6,7 +6,7 @@
         "average_cad": null,
         "average_hr": 130,
         "average_power": null,
-        "average_speed": 0.0,
+        "average_speed": null,
         "calories": 213,
         "city": null,
         "country": null,
@@ -39,7 +39,7 @@
         "max_speed": null,
         "name": "Workout",
         "normalized_power": null,
-        "pace": 0.0,
+        "pace": null,
         "private_notes": null,
         "start_time": "2024-05-04T16:50:10Z",
         "strava_activity_id": null,
@@ -1406,7 +1406,7 @@
           "stream_type": 1
         }
       ],
-      "workout_steps": []
+      "workout_steps": null
     }
   ],
   "file_components": {

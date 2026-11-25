@@ -6,7 +6,7 @@
         "average_cad": 70,
         "average_hr": 143,
         "average_power": null,
-        "average_speed": null,
+        "average_speed": 7.541186,
         "calories": 1375,
         "city": null,
         "country": null,
@@ -36,10 +36,10 @@
         "max_cad": 129,
         "max_hr": 176,
         "max_power": null,
-        "max_speed": null,
+        "max_speed": 14.929,
         "name": "Workout",
         "normalized_power": null,
-        "pace": 0.1328,
+        "pace": 0.132605,
         "private_notes": null,
         "start_time": "2024-05-05T08:15:20Z",
         "strava_activity_id": null,
@@ -47,7 +47,7 @@
         "timezone": "Europe/Lisbon",
         "total_cycles": null,
         "total_elapsed_time": 7656.0,
-        "total_timer_time": 7589.0,
+        "total_timer_time": 7577.876,
         "town": null,
         "tracker_manufacturer": null,
         "tracker_model": null,
@@ -58,27 +58,41 @@
       "laps": [
         {
           "avg_cadence": 70,
+          "avg_fractional_cadence": null,
           "avg_heart_rate": 143,
           "avg_power": null,
+          "avg_stance_time": null,
+          "avg_step_length": null,
+          "avg_vertical_oscillation": null,
+          "avg_vertical_ratio": null,
           "end_position_lat": 41.162303,
           "end_position_long": -7.792664,
-          "enhanced_avg_pace": 0.133972,
-          "enhanced_avg_speed": 7.464233,
+          "enhanced_avg_pace": 0.132608,
+          "enhanced_avg_speed": 7.541,
+          "enhanced_max_altitude": null,
           "enhanced_max_pace": 0.065789,
           "enhanced_max_speed": 15.2,
+          "enhanced_min_altitude": null,
+          "intensity": "active",
+          "lap_trigger": "manual",
           "max_cadence": 129,
+          "max_fractional_cadence": null,
           "max_heart_rate": 176,
           "max_power": null,
           "normalized_power": null,
+          "sport": null,
           "start_position_lat": 41.162926,
           "start_position_long": -7.795464,
           "start_time": "2024-05-05T08:15:20+00:00",
+          "sub_sport": null,
           "total_ascent": 632,
           "total_calories": 1375,
+          "total_cycles": 8881,
           "total_descent": 657,
-          "total_distance": 57146,
+          "total_distance": 57146.17,
           "total_elapsed_time": 7656.0,
-          "total_timer_time": 7589.0
+          "total_timer_time": 7577.876,
+          "total_work": null
         }
       ],
       "sets": null,
@@ -147,40 +161,40 @@
           "count": 7579,
           "fields": {
             "vel": {
-              "max": 15.52373,
-              "mean": 7.542118,
-              "min": 0
+              "max": 15.2,
+              "mean": 7.438077,
+              "min": 0.0
             }
           },
           "first": {
             "time": "2024-05-05T08:15:20",
-            "vel": 0
+            "vel": 0.0
           },
           "last": {
             "time": "2024-05-05T10:22:56",
-            "vel": 0.250579
+            "vel": 0.0
           },
-          "sha256": "dd70aed77172ca24d3533ec0a45def9f9330e241624601cae882ed8da0b70bdc",
+          "sha256": "46e3a5ab9a9c99f0c9de869cbb90d1d0f7f6d3d22288c9270bab68cc0df3b203",
           "stream_type": 5
         },
         {
-          "count": 7579,
+          "count": 7572,
           "fields": {
             "pace": {
-              "max": 107.42722,
-              "mean": 0.185679,
-              "min": 0
+              "max": 1.984127,
+              "mean": 0.171386,
+              "min": 0.065789
             }
           },
           "first": {
-            "pace": 0,
-            "time": "2024-05-05T08:15:20"
+            "pace": 1.984127,
+            "time": "2024-05-05T08:15:21"
           },
           "last": {
-            "pace": 3.990764,
-            "time": "2024-05-05T10:22:56"
+            "pace": 0.546747,
+            "time": "2024-05-05T10:22:54"
           },
-          "sha256": "682d4184013216c7bb370ac8597c245e8026183d51ee9855d614c6e50ff814aa",
+          "sha256": "4bbe845222d6746fd6089b0532f6742c17a374f3e325c1af858172efcd02b6b2",
           "stream_type": 6
         },
         {

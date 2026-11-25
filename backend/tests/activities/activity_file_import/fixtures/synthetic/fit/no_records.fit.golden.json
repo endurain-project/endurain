@@ -70,6 +70,7 @@
           "enhanced_avg_pace": 0.36,
           "enhanced_avg_speed": 2.777778,
           "enhanced_max_altitude": null,
+          "enhanced_max_pace": null,
           "enhanced_max_speed": null,
           "enhanced_min_altitude": null,
           "intensity": null,
@@ -94,9 +95,9 @@
           "total_work": null
         }
       ],
-      "sets": [],
+      "sets": null,
       "streams": [],
-      "workout_steps": []
+      "workout_steps": null
     }
   ],
   "file_components": {

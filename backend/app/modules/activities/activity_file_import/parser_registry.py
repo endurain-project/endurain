@@ -6,14 +6,10 @@ format-agnostic result the ingestion core consumes. Supporting a new file
 format is a **registration** here rather than an edit to the dispatch logic.
 
 Each registered parser is exposed through the uniform :class:`FileParser`
-signature ``(path, user_id, activity_name, default_timezone) -> ParsedFile``, and
-the thin adapters below absorb every per-parser difference:
-
-* GPX and TCX each return one ``ActivityFilePayload`` describing exactly one
-  activity.
-* FIT parses in two stages and can describe **several** activities in one file,
-  so its activity_file_import_adapter runs the split/build pipeline here rather than making the caller
-  do it. It also carries file-scoped exercise-title rows.
+signature ``(path, user_id, activity_name, default_timezone, lap_distance_km) -> ParsedFile``. A format's decoder
+reads the file into a :class:`~modules.activities.activity_file_import.recording.Recording`, ``assembly`` turns every
+session of the recording into an activity, and the adapter converts each into the canonical shape; only the decoder
+differs per format. A FIT file also carries file-scoped exercise-title rows.
 
 Returning a uniform ``ParsedFile`` is what keeps "how many activities are in this
 file" a parser detail: the ingestion core iterates ``parsed_file.activities`` and
@@ -24,21 +20,23 @@ The parsers stay pure of db/domain/provider coupling (enforced by the
 the sibling parser modules and the shared contracts.
 
 Note:
-    Parsers currently read from a filesystem path. Migrating them to a pure
+    Decoders currently read from a filesystem path. Migrating them to a pure
     ``bytes``/``BinaryIO`` contract (so file I/O lives entirely in the ingestion
-    activity_file_import_adapter) is a follow-up: FIT's two-stage parse and TCX's path-only reader
-    make it a larger, separate change. The registry is the seam that migration
+    adapter) is a follow-up. The registry is the seam that migration
     would slot into without touching the ingestion core's dispatch again.
 """
 
 import uuid
+from collections.abc import Callable
 from typing import Protocol
 
 import modules.activities.activity.contracts as activity_contracts
 import modules.activities.activity_file_import.adapter as activity_file_import_adapter
-import modules.activities.activity_file_import.fit_parser as activity_file_import_fit_parser
-import modules.activities.activity_file_import.gpx_parser as activity_file_import_gpx_parser
-import modules.activities.activity_file_import.tcx_parser as activity_file_import_tcx_parser
+import modules.activities.activity_file_import.assembly as activity_file_import_assembly
+import modules.activities.activity_file_import.fit_decoder as activity_file_import_fit_decoder
+import modules.activities.activity_file_import.gpx_decoder as activity_file_import_gpx_decoder
+import modules.activities.activity_file_import.recording as activity_file_import_recording
+import modules.activities.activity_file_import.tcx_decoder as activity_file_import_tcx_decoder
 
 
 class FileParser(Protocol):
@@ -72,104 +70,51 @@ class FileParser(Protocol):
         ...
 
 
-def _parse_gpx(
-    path: str,
-    user_id: uuid.UUID,
-    activity_name: str | None,
-    default_timezone: str,
-    lap_distance_km: float,
-) -> activity_contracts.ParsedFile:
-    """Adapter: parse a GPX file into the single activity it describes.
+def _parser(decode: Callable[[str], activity_file_import_recording.Recording]) -> FileParser:
+    """Build the parser of a format from its decoder.
 
     Args:
-        path: Path of the GPX file.
-        user_id: ID of the user the file belongs to.
-        activity_name: Optional activity name override.
-        default_timezone: Timezone to assume when the file carries none.
-        lap_distance_km: Distance of an automatic lap; only GPX uses it, as TCX and FIT carry device laps.
+        decode: Reads a file of the format into a recording.
 
     Returns:
-        The parsed file.
+        A :class:`FileParser` that decodes the file and builds the activities of its sessions.
     """
-    parsed_info = activity_file_import_gpx_parser.parse_gpx_file(
-        path,
-        user_id,
-        activity_name_input=activity_name,
-        default_timezone=default_timezone,
-        distance_per_lap_km=lap_distance_km,
-    )
-    return activity_contracts.ParsedFile(
-        activities=[activity_file_import_adapter.parsed_info_to_parsed_activity(parsed_info)]
-    )
 
+    def parse(
+        path: str,
+        user_id: uuid.UUID,
+        activity_name: str | None,
+        default_timezone: str,
+        lap_distance_km: float,
+    ) -> activity_contracts.ParsedFile:
+        """Parse the file at ``path`` for ``user_id``.
 
-def _parse_tcx(
-    path: str,
-    user_id: uuid.UUID,
-    activity_name: str | None,
-    default_timezone: str,
-    lap_distance_km: float,
-) -> activity_contracts.ParsedFile:
-    """Adapter: parse a TCX file into the single activity it describes.
+        Args:
+            path: Path of the file to parse.
+            user_id: ID of the user the file belongs to.
+            activity_name: Optional activity name override.
+            default_timezone: Timezone to assume when the file carries none.
+            lap_distance_km: Distance of an automatic lap, for a session with no device laps.
 
-    Args:
-        path: Path of the TCX file.
-        user_id: ID of the user the file belongs to.
-        activity_name: Optional activity name override.
-        default_timezone: Timezone to assume when the file carries none.
-        lap_distance_km: Distance of an automatic lap; only GPX uses it, as TCX and FIT carry device laps.
+        Returns:
+            The parsed file, one entry per session.
+        """
+        recording = decode(path)
+        payloads = activity_file_import_assembly.assemble(
+            recording, user_id, activity_name, default_timezone, lap_distance_km
+        )
+        return activity_contracts.ParsedFile(
+            activities=[activity_file_import_adapter.parsed_info_to_parsed_activity(payload) for payload in payloads],
+            components={"exercise_titles": list(recording.exercise_titles)} if recording.format == "fit" else {},
+        )
 
-    Returns:
-        The parsed file.
-    """
-    parsed_info = activity_file_import_tcx_parser.parse_tcx_file(
-        path, user_id, activity_name_input=activity_name, default_timezone=default_timezone
-    )
-    return activity_contracts.ParsedFile(
-        activities=[activity_file_import_adapter.parsed_info_to_parsed_activity(parsed_info)]
-    )
-
-
-def _parse_fit(
-    path: str,
-    user_id: uuid.UUID,
-    activity_name: str | None,
-    default_timezone: str,
-    lap_distance_km: float,
-) -> activity_contracts.ParsedFile:
-    """Adapter: parse a FIT file into the one *or more* activities it describes.
-
-    FIT's first stage is owner- and timezone-agnostic; splitting the records into
-    sessions and building each ``ActivityCore`` is the second stage, which is
-    where the owner and the fallback timezone apply. Both stages run here so that
-    a multi-session ``.fit`` looks exactly like a single-activity ``.gpx`` to the
-    caller.
-
-    Args:
-        path: Path of the FIT file.
-        user_id: ID of the user the file belongs to.
-        activity_name: Optional activity name override.
-        default_timezone: Timezone to assume when the file carries none.
-        lap_distance_km: Distance of an automatic lap; only GPX uses it, as TCX and FIT carry device laps.
-
-    Returns:
-        The parsed file, one entry per activity.
-    """
-    payload = activity_file_import_fit_parser.parse_fit_file(path, activity_name)
-    sessions = activity_file_import_fit_parser.split_records_by_activity(payload)
-    parsed_infos = activity_file_import_fit_parser.create_activity_objects(sessions, user_id, default_timezone)
-    return activity_contracts.ParsedFile(
-        activities=[
-            activity_file_import_adapter.parsed_info_to_parsed_activity(parsed_info) for parsed_info in parsed_infos
-        ],
-        components={"exercise_titles": payload.get("exercise_titles")},
-    )
+    return parse
 
 
 _PARSERS: dict[str, FileParser] = {
-    ".gpx": _parse_gpx,
-    ".tcx": _parse_tcx,
-    ".fit": _parse_fit,
+    ".gpx": _parser(activity_file_import_gpx_decoder.decode_gpx),
+    ".tcx": _parser(activity_file_import_tcx_decoder.decode_tcx),
+    ".fit": _parser(activity_file_import_fit_decoder.decode_fit),
 }
 
 

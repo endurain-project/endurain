@@ -95,7 +95,7 @@
           "total_work": null
         }
       ],
-      "sets": [],
+      "sets": null,
       "streams": [
         {
           "count": 7579,
@@ -158,43 +158,43 @@
           "stream_type": 4
         },
         {
-          "count": 7578,
+          "count": 7579,
           "fields": {
             "vel": {
-              "max": 15.52373,
-              "mean": 7.543122,
+              "max": 15.2,
+              "mean": 7.438077,
               "min": 0.0
             }
           },
           "first": {
-            "time": "2024-05-05T08:15:21",
-            "vel": 0.057043
+            "time": "2024-05-05T08:15:20",
+            "vel": 0.0
           },
           "last": {
             "time": "2024-05-05T10:22:56",
-            "vel": 0.250579
+            "vel": 0.0
           },
-          "sha256": "dabca9151b3098dbd20f9100dbc81350b91430b13c94bfefa551ecf7ca2b2a21",
+          "sha256": "a5d2c8197524f5887578c69bb463e3cef3af9b5b87412fb58f763e35363e575a",
           "stream_type": 5
         },
         {
-          "count": 7577,
+          "count": 7572,
           "fields": {
             "pace": {
-              "max": 107.42722,
-              "mean": 0.187792,
-              "min": 0.064418
+              "max": 1.984127,
+              "mean": 0.171386,
+              "min": 0.065789
             }
           },
           "first": {
-            "pace": 17.530774,
+            "pace": 1.984127,
             "time": "2024-05-05T08:15:21"
           },
           "last": {
-            "pace": 3.990764,
-            "time": "2024-05-05T10:22:56"
+            "pace": 0.546747,
+            "time": "2024-05-05T10:22:54"
           },
-          "sha256": "a51660351caf7ead30735d76d1df8aea1ad7c96cea824f6e02316cf017e3728d",
+          "sha256": "81eed4b0cf649b97ea87a33a2308b208f14841cea0310459134aeaf328922e75",
           "stream_type": 6
         },
         {
@@ -245,7 +245,7 @@
           "stream_type": 8
         }
       ],
-      "workout_steps": []
+      "workout_steps": null
     }
   ],
   "file_components": {

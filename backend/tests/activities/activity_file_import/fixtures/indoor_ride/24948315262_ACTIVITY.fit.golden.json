@@ -437,7 +437,7 @@
           "total_work": 142
         }
       ],
-      "sets": [],
+      "sets": null,
       "streams": [
         {
           "count": 3844,
@@ -498,6 +498,46 @@
           },
           "sha256": "4b8e3a6dd0e30d3165d7b2c2176e68e2b3e574cf1f16bd7f701e8d0f2c2a4de1",
           "stream_type": 3
+        },
+        {
+          "count": 3844,
+          "fields": {
+            "vel": {
+              "max": 12.251,
+              "mean": 11.249591,
+              "min": 0.0
+            }
+          },
+          "first": {
+            "time": "2026-11-03T06:57:08",
+            "vel": 3.275
+          },
+          "last": {
+            "time": "2026-11-03T08:01:11",
+            "vel": 9.704
+          },
+          "sha256": "550589e427d611f84a24faaf112cee9c86b50318c412e74a59a7e8e87c62800a",
+          "stream_type": 5
+        },
+        {
+          "count": 3839,
+          "fields": {
+            "pace": {
+              "max": 0.359583,
+              "mean": 0.089205,
+              "min": 0.081626
+            }
+          },
+          "first": {
+            "pace": 0.305344,
+            "time": "2026-11-03T06:57:08"
+          },
+          "last": {
+            "pace": 0.10305,
+            "time": "2026-11-03T08:01:11"
+          },
+          "sha256": "e08eafdd42e74fc6f008d95eb9c9880daaf90fc3e3aa47807a02227d61ae2f1b",
+          "stream_type": 6
         }
       ],
       "workout_steps": [

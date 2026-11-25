@@ -59,28 +59,30 @@
         {
           "avg_cadence": null,
           "avg_fractional_cadence": null,
-          "avg_heart_rate": null,
+          "avg_heart_rate": 142,
           "avg_power": null,
           "avg_stance_time": null,
           "avg_step_length": null,
           "avg_vertical_oscillation": null,
           "avg_vertical_ratio": null,
-          "end_position_lat": null,
-          "end_position_long": null,
+          "end_position_lat": 38.70159,
+          "end_position_long": -9.1,
+          "enhanced_avg_pace": null,
           "enhanced_avg_speed": null,
           "enhanced_max_altitude": null,
+          "enhanced_max_pace": null,
           "enhanced_max_speed": null,
           "enhanced_min_altitude": null,
           "intensity": null,
           "lap_trigger": null,
           "max_cadence": null,
           "max_fractional_cadence": null,
-          "max_heart_rate": null,
+          "max_heart_rate": 145,
           "max_power": null,
           "normalized_power": null,
           "sport": null,
-          "start_position_lat": null,
-          "start_position_long": null,
+          "start_position_lat": 38.7,
+          "start_position_long": -9.1,
           "start_time": "2026-06-20T08:00:00+00:00",
           "sub_sport": null,
           "total_ascent": null,
@@ -93,7 +95,7 @@
           "total_work": null
         }
       ],
-      "sets": [],
+      "sets": null,
       "streams": [
         {
           "count": 60,
@@ -116,23 +118,23 @@
           "stream_type": 1
         },
         {
-          "count": 59,
+          "count": 60,
           "fields": {
             "vel": {
               "max": 150.225887,
-              "mean": 7.982701,
-              "min": 2.986819
+              "mean": 7.849656,
+              "min": 0
             }
           },
           "first": {
-            "time": "2026-06-20T08:00:01",
-            "vel": 2.996123
+            "time": "2026-06-20T08:00:00",
+            "vel": 0
           },
           "last": {
             "time": "2026-06-20T08:00:59",
             "vel": 2.996124
           },
-          "sha256": "cccdcd20d636b40932bd8e67bf1bf215220753a65d09440b94c1b77b69d09e89",
+          "sha256": "b260aad98fda2ba35b01d9577f4a670587f96a037135c31b1d37d439c1d8c04f",
           "stream_type": 5
         },
         {
@@ -183,7 +185,7 @@
           "stream_type": 7
         }
       ],
-      "workout_steps": []
+      "workout_steps": null
     }
   ],
   "file_components": {

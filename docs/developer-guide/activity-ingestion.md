@@ -3,7 +3,7 @@
 This page describes how a file or a provider sync becomes stored activities. The code lives in `backend/app/modules/activities/`:
 
 - `activity_ingestion/` orchestrates the entry points and the shared pipeline.
-- `activity_file_import/` holds the format parsers (`.gpx`, `.tcx`, `.fit`); the pipeline decompresses a `.gz` before parsing.
+- `activity_file_import/` turns a file into activities (`.gpx`, `.tcx`, `.fit`): a decoder per format reads the file into a `Recording` (sessions with sample columns, laps and the device summary, no math), and one shared `assembly` builds an activity from each session, using the device's own totals and computing what the file leaves out. The pipeline decompresses a `.gz` before parsing.
 - `activity/` is the activities core. It never imports a parser or a provider.
 
 Three import-linter contracts enforce that split: `activities-provider-agnostic` (the activities module imports no provider), `activities-parsing-boundary` (the core imports no parser) and `ingestion-pipeline-format-agnostic` (the pipeline imports no parser directly).
@@ -31,7 +31,7 @@ On the local profile with one web worker the in-process pool is the only place a
 
 ## What happens to a parsed activity
 
-Parsers are pure functions. They return a canonical `ParsedFile` and know nothing about the database, privacy settings, gear or providers. The pipeline then applies these steps to each activity in the file:
+Decoding and assembly are pure functions. They return a canonical `ParsedFile` and know nothing about the database, privacy settings, gear or providers. The pipeline then applies these steps to each activity in the file:
 
 1. **Enrich:** re-attach the owner's privacy defaults, gear and provider ids (`enrichment_service`).
 2. **Source rules (bulk imports only):** the source's `should_import` hook decides whether to keep an activity, for example to skip duplicate listings in a Strava export. Then `apply_metadata` applies the manifest's name, description and gear.
@@ -79,6 +79,6 @@ Thumbnails and geocoding also have a scheduled backfill that repairs missed even
 
 ## Adding to the pipeline
 
-- **A new file format:** register a parser for its extension in `activity_file_import/parser_registry.py`. Return the canonical `ParsedFile`, with no database or provider coupling.
+- **A new file format:** write a decoder that returns a `Recording` and register it for its extension in `activity_file_import/parser_registry.py`; `assembly` and the adapter produce the canonical `ParsedFile`, with no database or provider coupling.
 - **A new component stored with each activity:** register an activity-ingestion contributor in `contributor_registry`. File-scoped reference data uses a file-ingestion contributor.
 - **A new provider export with its own rules:** subclass `BulkImportSource` and override `metadata_for`, `should_import`, `apply_metadata` or `import_side_artifacts` as needed; the Strava export overrides `metadata_for`, `should_import` and `import_side_artifacts`. Do not branch on the provider inside the pipeline.

@@ -6,7 +6,7 @@
         "average_cad": 87,
         "average_hr": 140,
         "average_power": 200,
-        "average_speed": 6.950727,
+        "average_speed": 7.009137,
         "calories": null,
         "city": null,
         "country": null,
@@ -183,23 +183,23 @@
           "stream_type": 5
         },
         {
-          "count": 120,
+          "count": 119,
           "fields": {
             "pace": {
               "max": 0.1428,
-              "mean": 0.141482,
-              "min": 0
+              "mean": 0.142671,
+              "min": 0.142623
             }
           },
           "first": {
-            "pace": 0,
-            "time": "2026-06-20T08:00:00"
+            "pace": 0.142623,
+            "time": "2026-06-20T08:00:01"
           },
           "last": {
             "pace": 0.142623,
             "time": "2026-06-20T08:01:59"
           },
-          "sha256": "7d8af019b75822a3a667c93dba507b499f506edabefef713346c95510d80ac0e",
+          "sha256": "a2e22b3f702729f9cdf7d46e575918cd1b8a89986bcd8d284f0c9e93a7e9516c",
           "stream_type": 6
         },
         {
@@ -228,6 +228,26 @@
           },
           "sha256": "4478ad8f2ff7caba43d7a955cf6a54af9c3b13b99457ec931082e56dc7943a88",
           "stream_type": 7
+        },
+        {
+          "count": 120,
+          "fields": {
+            "temp": {
+              "max": 22,
+              "mean": 22.0,
+              "min": 22
+            }
+          },
+          "first": {
+            "temp": 22,
+            "time": "2026-06-20T08:00:00"
+          },
+          "last": {
+            "temp": 22,
+            "time": "2026-06-20T08:01:59"
+          },
+          "sha256": "6fa9304892455512a3a71f72e7e55674a779bf82c777030f96a1ca52b35b554e",
+          "stream_type": 8
         }
       ],
       "workout_steps": null

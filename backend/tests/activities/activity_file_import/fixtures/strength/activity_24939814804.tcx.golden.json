@@ -47,7 +47,7 @@
         "timezone": "Europe/Lisbon",
         "total_cycles": null,
         "total_elapsed_time": 1260.0,
-        "total_timer_time": 1260.0,
+        "total_timer_time": 1259.822,
         "town": null,
         "tracker_manufacturer": null,
         "tracker_model": null,
@@ -58,27 +58,41 @@
       "laps": [
         {
           "avg_cadence": null,
-          "avg_heart_rate": 113,
+          "avg_fractional_cadence": null,
+          "avg_heart_rate": 114,
           "avg_power": null,
+          "avg_stance_time": null,
+          "avg_step_length": null,
+          "avg_vertical_oscillation": null,
+          "avg_vertical_ratio": null,
           "end_position_lat": null,
           "end_position_long": null,
           "enhanced_avg_pace": null,
           "enhanced_avg_speed": null,
+          "enhanced_max_altitude": null,
           "enhanced_max_pace": null,
           "enhanced_max_speed": null,
+          "enhanced_min_altitude": null,
+          "intensity": "active",
+          "lap_trigger": "manual",
           "max_cadence": null,
+          "max_fractional_cadence": null,
           "max_heart_rate": 131,
           "max_power": null,
           "normalized_power": null,
+          "sport": null,
           "start_position_lat": null,
           "start_position_long": null,
           "start_time": "2026-11-02T13:57:00+00:00",
+          "sub_sport": null,
           "total_ascent": null,
           "total_calories": 149,
+          "total_cycles": null,
           "total_descent": null,
-          "total_distance": null,
+          "total_distance": 0.0,
           "total_elapsed_time": 1260.0,
-          "total_timer_time": 1260.0
+          "total_timer_time": 1259.822,
+          "total_work": null
         }
       ],
       "sets": null,
@@ -102,46 +116,6 @@
           },
           "sha256": "5b2741fc75cc69a1b3f81c2603a9e06615ccc52787321713277596235fcbf2cd",
           "stream_type": 1
-        },
-        {
-          "count": 586,
-          "fields": {
-            "vel": {
-              "max": 0,
-              "mean": 0.0,
-              "min": 0
-            }
-          },
-          "first": {
-            "time": "2026-11-02T13:57:00",
-            "vel": 0
-          },
-          "last": {
-            "time": "2026-11-02T14:18:00",
-            "vel": 0
-          },
-          "sha256": "e358006a90df968f034a636c56e7d540fc22bb2cd7d50c45a67f86c50d1fcecb",
-          "stream_type": 5
-        },
-        {
-          "count": 586,
-          "fields": {
-            "pace": {
-              "max": 0,
-              "mean": 0.0,
-              "min": 0
-            }
-          },
-          "first": {
-            "pace": 0,
-            "time": "2026-11-02T13:57:00"
-          },
-          "last": {
-            "pace": 0,
-            "time": "2026-11-02T14:18:00"
-          },
-          "sha256": "6d5e8c2b1dde1237070637d4893ea1b0bc0bdceb53cbe33662871068e542588f",
-          "stream_type": 6
         }
       ],
       "workout_steps": null

@@ -164,7 +164,12 @@ class TestAFileThatPassesTheSignatureCheckButIsNotAnActivity:
         ("name", "content", "code"),
         [
             pytest.param("empty.gpx", EMPTY_GPX, _ErrorCode.INVALID_FILE, id="gpx-without-a-track"),
-            pytest.param("nosession.fit", fit_file(with_session=False), _ErrorCode.NO_ACTIVITIES_FOUND, id="fit"),
+            pytest.param(
+                "nosession.fit",
+                fit_file(with_session=False),
+                _ErrorCode.INVALID_FILE,
+                id="fit-records-without-a-session",
+            ),
         ],
     )
     def test_fails_its_job_with_a_specific_code_and_drops_the_staged_blob(

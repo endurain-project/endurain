@@ -274,9 +274,7 @@ class TestLapStreamWindows:
         times = self._times([0, 1, 2, 4, 5, 9, 10])
         for start in times:
             for end in times:
-                assert afi_utils.filter_waypoints_by_time_range(waypoints, start, end) == _scan_between(
-                    waypoints, start, end
-                )
+                assert afi_utils._TimedStream(waypoints).between(start, end) == _scan_between(waypoints, start, end)
 
     def test_lap_elevation_includes_the_sample_before_a_boundary_between_samples(self):
         waypoints = [{"time": t, "ele": 1.0} for t in self._times([0, 10, 20, 30])]

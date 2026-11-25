@@ -2,11 +2,11 @@
   "activities": [
     {
       "activity": {
-        "activity_type": "ride",
+        "activity_type": "run",
         "average_cad": null,
         "average_hr": 134,
         "average_power": null,
-        "average_speed": 4.909015,
+        "average_speed": 4.992219,
         "calories": 350,
         "city": null,
         "country": null,
@@ -37,7 +37,7 @@
         "max_hr": 149,
         "max_power": null,
         "max_speed": 6.982518,
-        "name": "Evening Ride",
+        "name": "Morning Run",
         "normalized_power": null,
         "pace": 0.200312,
         "private_notes": null,
@@ -146,23 +146,23 @@
           "stream_type": 5
         },
         {
-          "count": 120,
+          "count": 118,
           "fields": {
             "pace": {
               "max": 0.333201,
-              "mean": 0.234106,
-              "min": 0
+              "mean": 0.238074,
+              "min": 0.143215
             }
           },
           "first": {
-            "pace": 0,
-            "time": "2026-06-20T08:00:00"
+            "pace": 0.333201,
+            "time": "2026-06-20T08:00:01"
           },
           "last": {
             "pace": 0.143215,
             "time": "2026-06-20T10:00:59"
           },
-          "sha256": "e07914b42ad964e735389bc9829b388c3cbddd307d325a1fd45876b5e79a73df",
+          "sha256": "c509a664f6f30dc0e7e090910d55d94d7a6248809474723732abe4cd13d287e4",
           "stream_type": 6
         },
         {

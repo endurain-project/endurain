@@ -6,13 +6,13 @@
         "average_cad": null,
         "average_hr": null,
         "average_power": null,
-        "average_speed": 2.903833,
+        "average_speed": 3.003992,
         "calories": null,
         "city": null,
         "country": null,
         "created_at": null,
         "description": null,
-        "distance": 183,
+        "distance": 177,
         "elevation_gain": null,
         "elevation_loss": null,
         "end_time": "2026-06-20T08:00:59Z",
@@ -39,7 +39,7 @@
         "max_speed": 3.00119,
         "name": "Workout",
         "normalized_power": null,
-        "pace": 0.321955,
+        "pace": 0.33289,
         "private_notes": null,
         "start_time": "2026-06-20T08:00:00Z",
         "strava_activity_id": null,
@@ -62,8 +62,8 @@
           "avg_power": null,
           "end_position_lat": 38.7,
           "end_position_long": -9.097963,
-          "enhanced_avg_pace": 0.332893,
-          "enhanced_avg_speed": 3.003965,
+          "enhanced_avg_pace": 0.33289,
+          "enhanced_avg_speed": 3.003992,
           "enhanced_max_pace": 0.333201,
           "enhanced_max_speed": 3.00119,
           "max_cadence": null,
@@ -75,7 +75,7 @@
           "start_time": "2026-06-20T08:00:00",
           "total_ascent": null,
           "total_descent": null,
-          "total_distance": 183.25528,
+          "total_distance": 177.235502,
           "total_elapsed_time": 59.0,
           "total_timer_time": 59.0
         }
@@ -87,7 +87,7 @@
           "fields": {
             "vel": {
               "max": 3.009889,
-              "mean": 2.903833,
+              "mean": 2.953925,
               "min": 0
             }
           },
@@ -99,27 +99,27 @@
             "time": "2026-06-20T08:00:59",
             "vel": 3.009889
           },
-          "sha256": "e5feb571bde3600878915d4105253e7460466c7a2f2c3078e4957a07dda627e0",
+          "sha256": "f98fdf1007c9cc60828bada71e77c0276e7a48ade9eab10b9c00dc7390e204f5",
           "stream_type": 5
         },
         {
-          "count": 60,
+          "count": 59,
           "fields": {
             "pace": {
               "max": 0.333201,
-              "mean": 0.321798,
-              "min": 0
+              "mean": 0.332891,
+              "min": 0.332238
             }
           },
           "first": {
-            "pace": 0,
-            "time": "2026-06-20T08:00:00"
+            "pace": 0.333201,
+            "time": "2026-06-20T08:00:01"
           },
           "last": {
             "pace": 0.332238,
             "time": "2026-06-20T08:00:59"
           },
-          "sha256": "a863e617f9be985796c6079386f1f902aebb537e594d263d090dbd1ebd57ec3e",
+          "sha256": "64b2f9e51c03fe00bd51588f7bfbb160af838792603ba70caed43ee3360d89b2",
           "stream_type": 6
         },
         {
@@ -146,7 +146,7 @@
             "lon": -9.097963,
             "time": "2026-06-20T08:00:59"
           },
-          "sha256": "b6d6a4de20a76d6558dc5731e1bae70c638f3f8f1fb384e2017f828e88c9d480",
+          "sha256": "535f44cd425c820ad4a06c7440f2995e5504f6079085d58f9c98178c009e13a1",
           "stream_type": 7
         }
       ],

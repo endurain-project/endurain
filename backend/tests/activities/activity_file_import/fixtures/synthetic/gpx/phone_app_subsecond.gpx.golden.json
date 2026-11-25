@@ -6,7 +6,7 @@
         "average_cad": null,
         "average_hr": null,
         "average_power": null,
-        "average_speed": 1.38625,
+        "average_speed": 1.401826,
         "calories": null,
         "city": null,
         "country": null,
@@ -36,7 +36,7 @@
         "max_cad": null,
         "max_hr": null,
         "max_power": null,
-        "max_speed": 1.400555,
+        "max_speed": 1.4,
         "name": "Workout",
         "normalized_power": null,
         "pace": 0.713355,
@@ -62,10 +62,10 @@
           "avg_power": null,
           "end_position_lat": 38.7,
           "end_position_long": -9.098566,
-          "enhanced_avg_pace": 0.713355,
-          "enhanced_avg_speed": 1.401826,
-          "enhanced_max_pace": 0.714002,
-          "enhanced_max_speed": 1.400555,
+          "enhanced_avg_pace": 0.714286,
+          "enhanced_avg_speed": 1.4,
+          "enhanced_max_pace": 0.714286,
+          "enhanced_max_speed": 1.4,
           "max_cadence": null,
           "max_heart_rate": null,
           "max_power": null,
@@ -106,40 +106,40 @@
           "count": 90,
           "fields": {
             "vel": {
-              "max": 1.409255,
-              "mean": 1.38625,
-              "min": 0
+              "max": 1.4,
+              "mean": 1.4,
+              "min": 1.4
             }
           },
           "first": {
             "time": "2026-06-20T08:00:00",
-            "vel": 0
+            "vel": 1.4
           },
           "last": {
             "time": "2026-06-20T08:01:29",
-            "vel": 1.400555
+            "vel": 1.4
           },
-          "sha256": "8b197082cf17672dcc0cb3d0f3bdeddb054dde68ba98429193a727b561a7c375",
+          "sha256": "bf58b9f366284c29457e4253c4de1efbe8c02a1f69b5f94476ea2132b485f808",
           "stream_type": 5
         },
         {
           "count": 90,
           "fields": {
             "pace": {
-              "max": 0.714002,
-              "mean": 0.705432,
-              "min": 0
+              "max": 0.714286,
+              "mean": 0.714286,
+              "min": 0.714286
             }
           },
           "first": {
-            "pace": 0,
+            "pace": 0.714286,
             "time": "2026-06-20T08:00:00"
           },
           "last": {
-            "pace": 0.714002,
+            "pace": 0.714286,
             "time": "2026-06-20T08:01:29"
           },
-          "sha256": "88cee614270ff5426aa8ba223c39288507f0ed9a6e88b45f100c89d7eeed05ab",
+          "sha256": "1d25d46fb854060926b04b6decb9c8ca010c21a1ba8ec241ec5a525dba395cbc",
           "stream_type": 6
         },
         {

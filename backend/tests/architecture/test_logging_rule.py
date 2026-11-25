@@ -55,10 +55,6 @@ _HELPERS_THAT_LOG: dict[str, str] = {
     "activities/activity_file_import/adapter.py": (
         "Names the parser that produced a result, for diagnosing a missing chart."
     ),
-    "activities/activity_file_import/fit_frames.py": "Parser anomalies the file itself carries.",
-    "activities/activity_file_import/fit_parser.py": "Parser anomalies the file itself carries.",
-    "activities/activity_file_import/gpx_parser.py": "Parser anomalies the file itself carries.",
-    "activities/activity_file_import/tcx_parser.py": "Parser anomalies the file itself carries.",
     "activities/activity_thumbnail/render.py": "A failed render returns ``None``; the reason has to be said here.",
     "strava/rate_limit_store.py": (
         "Reports a rate limit it records or a storage outage it tolerates; the caller only sees a bool."

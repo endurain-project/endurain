@@ -105,8 +105,10 @@
           "avg_vertical_ratio": null,
           "end_position_lat": null,
           "end_position_long": null,
+          "enhanced_avg_pace": null,
           "enhanced_avg_speed": null,
           "enhanced_max_altitude": null,
+          "enhanced_max_pace": null,
           "enhanced_max_speed": null,
           "enhanced_min_altitude": null,
           "intensity": null,
@@ -179,8 +181,10 @@
           "avg_vertical_ratio": null,
           "end_position_lat": null,
           "end_position_long": null,
+          "enhanced_avg_pace": null,
           "enhanced_avg_speed": null,
           "enhanced_max_altitude": null,
+          "enhanced_max_pace": null,
           "enhanced_max_speed": null,
           "enhanced_min_altitude": null,
           "intensity": null,
@@ -253,8 +257,10 @@
           "avg_vertical_ratio": null,
           "end_position_lat": null,
           "end_position_long": null,
+          "enhanced_avg_pace": null,
           "enhanced_avg_speed": null,
           "enhanced_max_altitude": null,
+          "enhanced_max_pace": null,
           "enhanced_max_speed": null,
           "enhanced_min_altitude": null,
           "intensity": null,
@@ -327,8 +333,10 @@
           "avg_vertical_ratio": null,
           "end_position_lat": null,
           "end_position_long": null,
+          "enhanced_avg_pace": null,
           "enhanced_avg_speed": null,
           "enhanced_max_altitude": null,
+          "enhanced_max_pace": null,
           "enhanced_max_speed": null,
           "enhanced_min_altitude": null,
           "intensity": null,
@@ -393,7 +401,7 @@
         {
           "avg_cadence": 0,
           "avg_fractional_cadence": null,
-          "avg_heart_rate": null,
+          "avg_heart_rate": 131,
           "avg_power": null,
           "avg_stance_time": null,
           "avg_step_length": null,
@@ -401,15 +409,17 @@
           "avg_vertical_ratio": null,
           "end_position_lat": null,
           "end_position_long": null,
+          "enhanced_avg_pace": null,
           "enhanced_avg_speed": null,
           "enhanced_max_altitude": null,
+          "enhanced_max_pace": null,
           "enhanced_max_speed": null,
           "enhanced_min_altitude": null,
           "intensity": null,
           "lap_trigger": "manual",
           "max_cadence": null,
           "max_fractional_cadence": null,
-          "max_heart_rate": null,
+          "max_heart_rate": 133,
           "max_power": null,
           "normalized_power": null,
           "sport": "swimming",
@@ -427,7 +437,7 @@
           "total_work": null
         }
       ],
-      "sets": [],
+      "sets": null,
       "streams": [
         {
           "count": 2201,
@@ -450,7 +460,7 @@
           "stream_type": 1
         }
       ],
-      "workout_steps": []
+      "workout_steps": null
     }
   ],
   "file_components": {

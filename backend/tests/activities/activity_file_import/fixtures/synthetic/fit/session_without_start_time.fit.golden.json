@@ -1,4 +1,4 @@
 {
   "error": "InvalidInputError",
-  "message": "Can't parse FIT file"
+  "message": "A FIT session has no start time"
 }

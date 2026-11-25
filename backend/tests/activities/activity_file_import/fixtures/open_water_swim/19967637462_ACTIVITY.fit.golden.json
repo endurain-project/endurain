@@ -209,7 +209,7 @@
           "total_work": null
         }
       ],
-      "sets": [],
+      "sets": null,
       "streams": [
         {
           "count": 2264,
@@ -252,43 +252,43 @@
           "stream_type": 3
         },
         {
-          "count": 2243,
+          "count": 2253,
           "fields": {
             "vel": {
-              "max": 14.109227,
-              "mean": 0.690973,
+              "max": 2.706,
+              "mean": 0.686213,
               "min": 0.0
             }
           },
           "first": {
-            "time": "2025-08-06T08:41:27",
-            "vel": 14.109227
+            "time": "2025-08-06T08:41:26",
+            "vel": 0.0
           },
           "last": {
-            "time": "2025-08-06T09:20:16",
-            "vel": 0.205256
+            "time": "2025-08-06T09:20:19",
+            "vel": 0.616
           },
-          "sha256": "acb0a9ef6538644d141476187af13ef9ec8025189e4b78b38d2f5767364581be",
+          "sha256": "64442c748895b1b266703216470ffa7896210df7dee54952d5a53bceda73d1c5",
           "stream_type": 5
         },
         {
-          "count": 2241,
+          "count": 2240,
           "fields": {
             "pace": {
-              "max": 7.191798,
-              "mean": 1.511579,
-              "min": 0.070876
+              "max": 2.028398,
+              "mean": 1.466048,
+              "min": 0.369549
             }
           },
           "first": {
-            "pace": 0.070876,
-            "time": "2025-08-06T08:41:27"
+            "pace": 1.612903,
+            "time": "2025-08-06T08:41:30"
           },
           "last": {
-            "pace": 4.871969,
-            "time": "2025-08-06T09:20:16"
+            "pace": 1.623377,
+            "time": "2025-08-06T09:20:19"
           },
-          "sha256": "431ae17d319cb3d017485d8aaa8b4741b64f94e1920f1a161c8cf98f117466d7",
+          "sha256": "6a991befb623d07429f6a9ca6153223413f729f0306c5293690948a7a0c403bd",
           "stream_type": 6
         },
         {
@@ -339,7 +339,7 @@
           "stream_type": 8
         }
       ],
-      "workout_steps": []
+      "workout_steps": null
     }
   ],
   "file_components": {

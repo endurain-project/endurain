@@ -6,7 +6,7 @@
         "average_cad": null,
         "average_hr": 142,
         "average_power": null,
-        "average_speed": 0.0,
+        "average_speed": null,
         "calories": null,
         "city": null,
         "country": null,
@@ -36,10 +36,10 @@
         "max_cad": null,
         "max_hr": 144,
         "max_power": null,
-        "max_speed": 0.0,
+        "max_speed": null,
         "name": "Workout",
         "normalized_power": null,
-        "pace": 0.0,
+        "pace": null,
         "private_notes": null,
         "start_time": "2026-06-20T08:00:00Z",
         "strava_activity_id": null,
@@ -99,23 +99,11 @@
           "stream_type": 5
         },
         {
-          "count": 60,
-          "fields": {
-            "pace": {
-              "max": 0,
-              "mean": 0.0,
-              "min": 0
-            }
-          },
-          "first": {
-            "pace": 0,
-            "time": "2026-06-20T08:00:00"
-          },
-          "last": {
-            "pace": 0,
-            "time": "2026-06-20T08:00:59"
-          },
-          "sha256": "8638b0d01556bbab808fe879b7437c6e7a6d20dd8f8f1753752d55d442a9d2c0",
+          "count": 0,
+          "fields": {},
+          "first": null,
+          "last": null,
+          "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
           "stream_type": 6
         },
         {

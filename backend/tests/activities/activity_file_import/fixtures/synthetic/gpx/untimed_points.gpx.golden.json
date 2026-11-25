@@ -6,7 +6,7 @@
         "average_cad": null,
         "average_hr": 134,
         "average_power": null,
-        "average_speed": 2.953853,
+        "average_speed": 3.003958,
         "calories": null,
         "city": null,
         "country": null,
@@ -143,23 +143,23 @@
           "stream_type": 5
         },
         {
-          "count": 60,
+          "count": 59,
           "fields": {
             "pace": {
               "max": 0.333201,
-              "mean": 0.327351,
-              "min": 0
+              "mean": 0.332899,
+              "min": 0.332238
             }
           },
           "first": {
-            "pace": 0,
-            "time": "2026-06-20T08:00:01"
+            "pace": 0.332238,
+            "time": "2026-06-20T08:00:02"
           },
           "last": {
             "pace": 0.333201,
             "time": "2026-06-20T08:01:29"
           },
-          "sha256": "e68b4bd51149fc31ecd4393196342302cacd02a64ad160a440d8404127b2180a",
+          "sha256": "2aee8f5c4dc15487137194a0713dd7bcd6afdbda6a3a04d44ace70a61a422287",
           "stream_type": 6
         },
         {
