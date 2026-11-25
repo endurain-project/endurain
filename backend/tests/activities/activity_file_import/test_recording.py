@@ -77,3 +77,22 @@ def test_the_session_limit_refuses_the_file_past_it(monkeypatch):
 
     with pytest.raises(core_exceptions.InvalidInputError, match="more than 1 sessions"):
         limits.count_session()
+
+
+def test_split_at_pauses_starts_a_run_at_the_first_time_at_or_after_each_resume():
+    times = [_at(second) for second in (0, 1, 5, 6, 7, 20)]
+    pauses = [
+        recording.Pause(start=_at(1.5), end=_at(5)),
+        recording.Pause(start=_at(7.2), end=_at(10)),
+        recording.Pause(start=_at(11), end=_at(15)),
+    ]
+
+    assert recording.split_at_pauses(times, pauses) == [range(0, 2), range(2, 5), range(5, 6)]
+
+
+def test_split_at_pauses_ignores_a_pause_outside_the_times():
+    times = [_at(second) for second in (10, 11, 12)]
+    pauses = [recording.Pause(start=_at(0), end=_at(5)), recording.Pause(start=_at(20), end=_at(30))]
+
+    assert recording.split_at_pauses(times, pauses) == [range(0, 3)]
+    assert recording.split_at_pauses([], pauses) == []

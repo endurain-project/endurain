@@ -11,6 +11,7 @@ onto arrays.
 """
 
 import bisect
+from collections.abc import Sequence
 from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Literal
@@ -484,3 +485,31 @@ def samples_between(samples: Samples, start: datetime, end: datetime | None, *, 
         power=samples.power[first:last],
         temperature=samples.temperature[first:last],
     )
+
+
+def split_at_pauses(times: Sequence[datetime], pauses: Sequence[Pause]) -> list[range]:
+    """Split sample times into runs of recording, a new run starting at the first time at or after a pause's end.
+
+    Args:
+        times: Sample times in time order.
+        pauses: The pauses.
+
+    Returns:
+        The index range of each run into ``times``, each non-empty, in order; one run when no pause falls between the
+        times, none when there are no times.
+    """
+    ends = sorted(pause.end for pause in pauses)
+    runs: list[range] = []
+    first = 0
+    passed = 0
+    for index, time in enumerate(times):
+        resumed = False
+        while passed < len(ends) and ends[passed] <= time:
+            passed += 1
+            resumed = True
+        if resumed and index > first:
+            runs.append(range(first, index))
+            first = index
+    if times:
+        runs.append(range(first, len(times)))
+    return runs
