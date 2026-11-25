@@ -40,6 +40,7 @@ def make_activity(
     user_id: uuid.UUID,
     *,
     visibility: activity_constants.ActivityVisibility = activity_constants.ActivityVisibility.PRIVATE,
+    parent_activity_id: uuid.UUID | None = None,
     **overrides: object,
 ) -> activity_schema.ActivityRead:
     """Stage an activity through the module's create function (flushed, not committed).
@@ -48,6 +49,7 @@ def make_activity(
         db: Database session.
         user_id: The activity's owner.
         visibility: Who may see the activity; private by default, as for a new account.
+        parent_activity_id: The multisport activity the new activity is a leg of, when it is one.
         **overrides: Field values of :class:`~modules.activities.activity.contracts.ActivityCore`, which replace the
             defaults of a one-hour, 10 km run starting at :data:`DEFAULT_START` with nothing hidden.
 
@@ -80,7 +82,75 @@ def make_activity(
         "hide_gear": False,
     }
     values.update(overrides)
-    return activity_crud.create_activity(activity_contracts.ActivityCore.model_validate(values), db)
+    return activity_crud.create_activity(
+        activity_contracts.ActivityCore.model_validate(values), db, parent_activity_id=parent_activity_id
+    )
+
+
+#: The legs of a triathlon as ``make_multisport`` lays them out: swim, transition, bike, transition, run.
+TRIATHLON_LEGS: tuple[dict[str, object], ...] = (
+    {"activity_type": activity_constants.ActivityType.OPEN_WATER_SWIMMING.stored, "distance": 1500, "minutes": 30},
+    {"activity_type": activity_constants.ActivityType.TRANSITION.stored, "distance": 0, "minutes": 5},
+    {"activity_type": activity_constants.ActivityType.RIDE.stored, "distance": 40000, "minutes": 60},
+    {"activity_type": activity_constants.ActivityType.TRANSITION.stored, "distance": 0, "minutes": 3},
+    {"activity_type": activity_constants.ActivityType.RUN.stored, "distance": 10000, "minutes": 45},
+)
+
+
+def make_multisport(
+    db: Session,
+    user_id: uuid.UUID,
+    *,
+    start: datetime = DEFAULT_START,
+    legs: Sequence[Mapping[str, object]] = TRIATHLON_LEGS,
+    **overrides: object,
+) -> tuple[activity_schema.ActivityRead, list[activity_schema.ActivityRead]]:
+    """Stage a multisport activity and its legs, back to back from ``start`` (flushed, not committed).
+
+    The parent carries the sums of its legs, as a multisport file reports them.
+
+    Args:
+        db: Database session.
+        user_id: The activities' owner.
+        start: Where the first leg and the parent start.
+        legs: One mapping per leg: ``activity_type``, ``distance`` and ``minutes`` of duration, and any other
+            field of :func:`make_activity` (``calories``, ``elevation_gain``, ``gear_id`` ...) to set on the leg.
+        **overrides: Field values as for :func:`make_activity`, set on the parent and on every leg.
+
+    Returns:
+        The parent and its legs, in order.
+    """
+    durations = [timedelta(minutes=int(str(leg["minutes"]))) for leg in legs]
+    parent = make_activity(
+        db,
+        user_id,
+        name="Triathlon",
+        activity_type=activity_constants.ActivityType.MULTISPORT.stored,
+        distance=sum(int(str(leg["distance"])) for leg in legs),
+        start_time=start,
+        end_time=start + sum(durations, timedelta()),
+        total_elapsed_time=sum(duration.total_seconds() for duration in durations),
+        total_timer_time=sum(duration.total_seconds() for duration in durations),
+        **overrides,
+    )
+    leg_start = start
+    stored: list[activity_schema.ActivityRead] = []
+    for leg, duration in zip(legs, durations, strict=True):
+        fields = {name: value for name, value in leg.items() if name != "minutes"}
+        stored.append(
+            make_activity(
+                db,
+                user_id,
+                parent_activity_id=parent.id,
+                start_time=leg_start,
+                end_time=leg_start + duration,
+                total_elapsed_time=duration.total_seconds(),
+                total_timer_time=duration.total_seconds(),
+                **{**overrides, **fields},
+            )
+        )
+        leg_start += duration
+    return parent, stored
 
 
 def make_activity_children(db: Session, activity: activity_schema.ActivityRead) -> None:

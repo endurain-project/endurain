@@ -10,7 +10,7 @@ import migrations.startup as migrations_startup
 from tests._helpers import alembic_chain
 
 _RETIREMENT_REVISION = "50ac9225ce4f"
-_HEAD_REVISION = "86ddd2645a0c"
+_HEAD_REVISION = "daa50e9181bb"
 _DATA_MIGRATIONS = (11, 12, 13, 14)
 _SUBSTRATE_TABLES = ("event_log", "event_outbox", "processing_jobs", "job_attempts", "job_workers")
 
@@ -126,7 +126,13 @@ def test_the_baseline_alone_differs_from_the_models_only_where_v0_22_changes_the
 
     differences = alembic_chain.schema_differences(upgrade_db)
     # An index difference is a tuple; a column difference is a list of the column's changes.
-    indexes = {(entry[0], entry[1].name) for entry in differences if isinstance(entry, tuple)}
+    indexes = {(entry[0], entry[1].name) for entry in differences if isinstance(entry, tuple) and "index" in entry[0]}
+    added = {
+        (entry[0], entry[2], getattr(entry[3], "name", None))
+        for entry in differences
+        if isinstance(entry, tuple) and entry[0] == "add_column"
+    }
+    foreign_keys = [entry[0] for entry in differences if isinstance(entry, tuple) and entry[0] == "add_fk"]
     columns = [
         (change[0], change[2], change[3], change[5], change[6])
         for entry in differences
@@ -135,7 +141,14 @@ def test_the_baseline_alone_differs_from_the_models_only_where_v0_22_changes_the
     ]
     # The baseline's nickname index is ``lower(nickname)``, its workout step duration type is required, and its
     # speed columns are commented as seconds per meter.
-    assert indexes == {("remove_index", "uq_gear_user_nickname"), ("add_index", "uq_gear_user_nickname")}
+    assert indexes == {
+        ("remove_index", "uq_gear_user_nickname"),
+        ("add_index", "uq_gear_user_nickname"),
+        ("add_index", "ix_activities_user_id_parent_activity_id"),
+    }
+    # The baseline has no multisport parent column, nor the key on it.
+    assert added == {("add_column", "activities", "parent_activity_id")}
+    assert foreign_keys == ["add_fk"]
     assert columns == [
         (
             "modify_comment",

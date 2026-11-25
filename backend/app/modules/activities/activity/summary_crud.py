@@ -15,7 +15,7 @@ from datetime import date, timedelta
 from typing import Any
 
 from sqlalchemy import ColumnElement, Select, extract, func, select
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import InstrumentedAttribute, Session
 
 import core.calendar as core_calendar
 import modules.activities.activity.constants as activity_constants
@@ -40,6 +40,37 @@ def _apply_activity_type_filter[*Ts](
     if activity_type is None:
         return stmt
     return stmt.where(activity_models.Activity.activity_type == activity_type.stored)
+
+
+def _leaf_sum(column: InstrumentedAttribute[Any], default: float) -> ColumnElement[Any]:
+    """Add up a column over the activities that carry their own measurements.
+
+    A multisport activity holds the sums of its legs, so adding it up beside them would count everything twice.
+
+    Args:
+        column: The column to add up.
+        default: What the sum is when no activity matched.
+
+    Returns:
+        The aggregate expression.
+    """
+    return func.coalesce(func.sum(column).filter(activity_query.is_leaf()), default)
+
+
+def _activity_count(activity_type: activity_constants.ActivityType | None) -> ColumnElement[int]:
+    """Count the activities a summary reports.
+
+    Without a type filter a multisport activity counts once and its legs not at all. With one, each activity of
+    that type counts, so a leg is an activity of its sport.
+
+    Args:
+        activity_type: The type the summary is filtered to, or ``None`` for every activity.
+
+    Returns:
+        The aggregate expression.
+    """
+    counted = activity_query.is_top_level() if activity_type is None else activity_query.is_leaf()
+    return func.count(activity_models.Activity.id).filter(counted)
 
 
 def _get_type_breakdown(
@@ -72,7 +103,7 @@ def _get_type_breakdown(
         func.coalesce(func.sum(activity_models.Activity.elevation_gain), 0).label("total_elevation_gain"),
         func.coalesce(func.sum(activity_models.Activity.calories), 0).label("total_calories"),
         func.count(activity_models.Activity.id).label("activity_count"),
-    ).where(activity_models.Activity.user_id == user_id)
+    ).where(activity_models.Activity.user_id == user_id, activity_query.is_leaf())
 
     is_unbounded = start_date == date.min and end_date == date.max
     if not is_unbounded:
@@ -135,14 +166,11 @@ def get_weekly_summary(
 
     stmt = select(
         iso_dow.label("day_of_week"),
-        func.coalesce(func.sum(activity_models.Activity.distance), 0).label("total_distance"),
-        func.coalesce(
-            func.sum(activity_models.Activity.total_timer_time),
-            0.0,
-        ).label("total_duration"),
-        func.coalesce(func.sum(activity_models.Activity.elevation_gain), 0).label("total_elevation_gain"),
-        func.coalesce(func.sum(activity_models.Activity.calories), 0).label("total_calories"),
-        func.count(activity_models.Activity.id).label("activity_count"),
+        _leaf_sum(activity_models.Activity.distance, 0).label("total_distance"),
+        _leaf_sum(activity_models.Activity.total_timer_time, 0.0).label("total_duration"),
+        _leaf_sum(activity_models.Activity.elevation_gain, 0).label("total_elevation_gain"),
+        _leaf_sum(activity_models.Activity.calories, 0).label("total_calories"),
+        _activity_count(activity_type).label("activity_count"),
     ).where(
         activity_models.Activity.user_id == user_id,
         *activity_query.local_date_range_conditions(start_of_week, end_of_week, end_exclusive=True),
@@ -228,14 +256,11 @@ def get_monthly_summary(
 
     stmt = select(
         week_expr.label("week_number"),
-        func.coalesce(func.sum(activity_models.Activity.distance), 0).label("total_distance"),
-        func.coalesce(
-            func.sum(activity_models.Activity.total_timer_time),
-            0.0,
-        ).label("total_duration"),
-        func.coalesce(func.sum(activity_models.Activity.elevation_gain), 0).label("total_elevation_gain"),
-        func.coalesce(func.sum(activity_models.Activity.calories), 0).label("total_calories"),
-        func.count(activity_models.Activity.id).label("activity_count"),
+        _leaf_sum(activity_models.Activity.distance, 0).label("total_distance"),
+        _leaf_sum(activity_models.Activity.total_timer_time, 0.0).label("total_duration"),
+        _leaf_sum(activity_models.Activity.elevation_gain, 0).label("total_elevation_gain"),
+        _leaf_sum(activity_models.Activity.calories, 0).label("total_calories"),
+        _activity_count(activity_type).label("activity_count"),
     ).where(
         activity_models.Activity.user_id == user_id,
         *activity_query.local_date_range_conditions(start_of_month, end_of_month, end_exclusive=True),
@@ -308,14 +333,11 @@ def get_yearly_summary(
 
     stmt = select(
         month_expr.label("month_number"),
-        func.coalesce(func.sum(activity_models.Activity.distance), 0).label("total_distance"),
-        func.coalesce(
-            func.sum(activity_models.Activity.total_timer_time),
-            0.0,
-        ).label("total_duration"),
-        func.coalesce(func.sum(activity_models.Activity.elevation_gain), 0).label("total_elevation_gain"),
-        func.coalesce(func.sum(activity_models.Activity.calories), 0).label("total_calories"),
-        func.count(activity_models.Activity.id).label("activity_count"),
+        _leaf_sum(activity_models.Activity.distance, 0).label("total_distance"),
+        _leaf_sum(activity_models.Activity.total_timer_time, 0.0).label("total_duration"),
+        _leaf_sum(activity_models.Activity.elevation_gain, 0).label("total_elevation_gain"),
+        _leaf_sum(activity_models.Activity.calories, 0).label("total_calories"),
+        _activity_count(activity_type).label("activity_count"),
     ).where(
         activity_models.Activity.user_id == user_id,
         *activity_query.local_date_range_conditions(start_of_year, end_of_year, end_exclusive=True),
@@ -387,17 +409,11 @@ def get_lifetime_summary(
     """
     # Overall metrics
     metrics_stmt = select(
-        func.coalesce(func.sum(activity_models.Activity.distance), 0.0).label("total_distance"),
-        func.coalesce(
-            func.sum(activity_models.Activity.total_timer_time),
-            0.0,
-        ).label("total_duration"),
-        func.coalesce(
-            func.sum(activity_models.Activity.elevation_gain),
-            0.0,
-        ).label("total_elevation_gain"),
-        func.coalesce(func.sum(activity_models.Activity.calories), 0.0).label("total_calories"),
-        func.count(activity_models.Activity.id).label("activity_count"),
+        _leaf_sum(activity_models.Activity.distance, 0.0).label("total_distance"),
+        _leaf_sum(activity_models.Activity.total_timer_time, 0.0).label("total_duration"),
+        _leaf_sum(activity_models.Activity.elevation_gain, 0.0).label("total_elevation_gain"),
+        _leaf_sum(activity_models.Activity.calories, 0.0).label("total_calories"),
+        _activity_count(activity_type).label("activity_count"),
     ).where(activity_models.Activity.user_id == user_id)
 
     metrics_stmt = _apply_activity_type_filter(metrics_stmt, activity_type)
@@ -408,17 +424,11 @@ def get_lifetime_summary(
     year_expr = extract("year", activity_query.local_start_time_expression())
     yearly_stmt = select(
         year_expr.label("year_number"),
-        func.coalesce(func.sum(activity_models.Activity.distance), 0.0).label("total_distance"),
-        func.coalesce(
-            func.sum(activity_models.Activity.total_timer_time),
-            0.0,
-        ).label("total_duration"),
-        func.coalesce(
-            func.sum(activity_models.Activity.elevation_gain),
-            0.0,
-        ).label("total_elevation_gain"),
-        func.coalesce(func.sum(activity_models.Activity.calories), 0.0).label("total_calories"),
-        func.count(activity_models.Activity.id).label("activity_count"),
+        _leaf_sum(activity_models.Activity.distance, 0.0).label("total_distance"),
+        _leaf_sum(activity_models.Activity.total_timer_time, 0.0).label("total_duration"),
+        _leaf_sum(activity_models.Activity.elevation_gain, 0.0).label("total_elevation_gain"),
+        _leaf_sum(activity_models.Activity.calories, 0.0).label("total_calories"),
+        _activity_count(activity_type).label("activity_count"),
     ).where(activity_models.Activity.user_id == user_id)
 
     yearly_stmt = _apply_activity_type_filter(yearly_stmt, activity_type)

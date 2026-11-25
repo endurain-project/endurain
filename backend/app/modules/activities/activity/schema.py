@@ -287,6 +287,8 @@ class _ActivityServerFields(BaseModel):
 
     Attributes:
         id: Unique activity identifier, assigned on insert.
+        parent_activity_id: The multisport activity this one is a leg of; null on every other activity, including
+            the multisport activity itself.
         map_thumbnail_path: Storage key of the generated map thumbnail, written
             by the thumbnail subsystem reacting to ``activity.created``. Server-side
             only: it is excluded from serialization, so a client never receives it.
@@ -298,6 +300,7 @@ class _ActivityServerFields(BaseModel):
     """
 
     id: uuid.UUID
+    parent_activity_id: uuid.UUID | None = None
     map_thumbnail_path: str | None = Field(default=None, max_length=500, exclude=True)
     map_thumbnail_url: str | None = None
     version: int | None = Field(default=None, ge=1)
@@ -500,3 +503,23 @@ class ActivityEdit(core_partial_update.NotClearable, BaseModel):
     hide_laps: StrictBool | None = None
     hide_workout_sets_steps: StrictBool | None = None
     hide_gear: StrictBool | None = None
+
+    @field_validator("activity_type")
+    @classmethod
+    def _refuse_multisport(
+        cls, value: activity_constants.ActivityType | None
+    ) -> activity_constants.ActivityType | None:
+        """Refuse the multisport type, which the server gives an activity that has legs and no client sets.
+
+        Args:
+            value: The requested type, or None.
+
+        Returns:
+            The type, unchanged.
+
+        Raises:
+            ValueError: When the type is multisport.
+        """
+        if value is activity_constants.ActivityType.MULTISPORT:
+            raise ValueError("The multisport type is set by the server, never by a client")
+        return value

@@ -9,6 +9,7 @@ from sqlalchemy import (
     DECIMAL,
     JSON,
     BigInteger,
+    CheckConstraint,
     DateTime,
     ForeignKey,
     Index,
@@ -26,6 +27,7 @@ class Activity(UpdatedAtMixin, Base):
     Attributes:
         id: Primary key, a random UUID.
         user_id: Owner user ID.
+        parent_activity_id: The multisport parent of a leg; null on every other activity.
         name: Activity name.
         description: Public description.
         private_notes: Private notes (owner only).
@@ -100,6 +102,9 @@ class Activity(UpdatedAtMixin, Base):
         Index("ix_activities_user_id_updated_at_id", "user_id", "updated_at", "id"),
         # Strava ids are looked up for the owner only; two accounts may link the same Strava athlete.
         Index("ix_activities_user_id_strava_activity_id", "user_id", "strava_activity_id"),
+        # The legs of a multisport parent are read through it.
+        Index("ix_activities_user_id_parent_activity_id", "user_id", "parent_activity_id"),
+        CheckConstraint("parent_activity_id <> id", name="ck_activities_parent_not_self"),
     )
 
     id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
@@ -108,6 +113,11 @@ class Activity(UpdatedAtMixin, Base):
         nullable=False,
         index=True,
         comment="User ID that the activity belongs",
+    )
+    parent_activity_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("activities.id", ondelete="CASCADE"),
+        nullable=True,
+        comment="Multisport parent activity ID, set on a leg and null on every other activity",
     )
     name: Mapped[str | None] = mapped_column(
         String(250),

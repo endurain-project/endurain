@@ -70,6 +70,7 @@ export const ACTIVITY_TYPE_LABEL_KEYS: Record<ActivityType, string> = {
   inline_skating: 'activities.types.inlineSkating',
   hiit: 'activities.types.hiit',
   jump_rope: 'activities.types.jumpRope',
+  multisport: 'activities.types.multisport',
 }
 
 /**

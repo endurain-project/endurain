@@ -87,6 +87,7 @@ class ActivityType(StoredStrEnum):
     INLINE_SKATING = ("inline_skating", 45, "Inline skating")
     HIIT = ("hiit", 46, "HIIT")
     JUMP_ROPE = ("jump_rope", 47, "Jump rope")
+    MULTISPORT = ("multisport", 48, "Multisport")
 
 
 #: The name an activity is stored under when its file or provider gives it none.
@@ -193,6 +194,27 @@ class SummaryPeriod(StrEnum):
     YEAR = "year"
     LIFETIME = "lifetime"
 
+
+#: The activity fields that decide who may see an activity or a part of it. A multisport activity owns them for
+#: its legs.
+PRIVACY_FIELDS = frozenset(
+    {
+        "visibility",
+        "is_hidden",
+        "hide_start_time",
+        "hide_location",
+        "hide_map",
+        "hide_hr",
+        "hide_power",
+        "hide_cadence",
+        "hide_elevation",
+        "hide_speed",
+        "hide_pace",
+        "hide_laps",
+        "hide_workout_sets_steps",
+        "hide_gear",
+    }
+)
 
 #: The earliest year a yearly summary may be requested for.
 MIN_SUMMARY_YEAR = 1900

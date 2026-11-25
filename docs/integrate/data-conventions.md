@@ -40,11 +40,22 @@ The activity lists (`GET /activities`, `GET /users/{user_id}/activities` and `GE
 
 Three vocabularies name activities, and they do not all mean the same thing:
 
-- **Activity type**: one of the 47 keys of `GET /activities/types` (`run`, `trail_run`, `ride`, `alpine_ski`, `surf`, ...). Activities, the activity list filter `type` and the summaries use it.
+- **Activity type**: one of the 48 keys of `GET /activities/types` (`run`, `trail_run`, `ride`, `alpine_ski`, `surf`, ...). Activities, the activity list filter `type` and the summaries use it.
 - **Stats sport**: a group of activity types. The keys of the stats response (`GET /users/{user_id}/activities/stats`) are the activity type key when a sport is one type (`hike`, `rowing`, `snowboard`, `windsurf`, `stand_up_paddling`, `surf`, `kayaking`, `sailing`, `snow_shoeing`, `inline_skating`) and a group otherwise: `run` (run, trail run, virtual run, track run, treadmill), `bike` (every ride), `swim` (lap and open water), `walk` (walk and indoor walk) and `snow_ski` (alpine and nordic ski). Types that belong to no sport count under `other`.
 - **Goal activity type**: `run`, `bike`, `swim`, `walk`, `strength` or `cardio`, the sports a goal can target. A goal's `run`, `bike` and `swim` count the same types as the stats sport of that name. `walk` is wider: a walking goal also counts hiking and snowshoeing. `strength` and `cardio` have no stats sport; they count strength training and workouts, and cardio training, crossfit, HIIT and jump rope.
 
 So `run`, `bike`, `swim` and `walk` mean a group of types in the stats and in the goals, while the activity type `run` is only plain running.
+
+## Multisport activities
+
+A multisport activity, such as a triathlon, is stored as one activity of type `multisport` and its legs: ordinary activities (swim, transition, bike, transition, run) whose `parent_activity_id` is the id of the multisport activity. Every other activity has `parent_activity_id` `null`, and a leg of a leg does not exist. `parent_activity_id` is read-only: no request carries it. The multisport activity holds the sums of its legs and has no streams, laps, sets, workout steps or gear of its own.
+
+- **Lists show the multisport activity, not its legs.** `GET /activities`, `GET /users/{user_id}/activities`, `GET /activities/feed`, their `total` and the profile overview count, the name search and `GET /activities/types` leave the legs out, so a triathlon counts once. A list filtered by `gear_id` holds the legs on that gear, since a multisport activity carries no gear. `GET /activities/{activity_id}` and the routes under it read a leg like any activity, under the leg's own visibility, and `GET /sync` carries every leg with its `parent_activity_id`.
+- **Sums run over the legs.** The stats, the summaries, the goals and the gear usage add up distance, time, calories and elevation over the legs and never over the multisport activity, so nothing is counted twice. A leg counts as an activity of its own sport in per-type and per-sport counts (a run leg is a run), the activity count of a summary without a type filter counts the multisport activity once, and a summary filtered to `multisport` is empty.
+- **A client cannot set `multisport`.** `PATCH /activities/{activity_id}` with `activity_type` `multisport` is `422`.
+- **The type and gear of a multisport activity are its legs'.** `PATCH` with `activity_type` or `gear_id` on a multisport activity is `409`. Name, description and notes edit as usual, and each leg keeps its own type, gear, name and notes.
+- **Privacy belongs to the multisport activity.** `visibility`, `is_hidden` and every `hide_*` field of a leg are those of its parent: a `PATCH` that sets one on a leg is `409`. Setting one on the multisport activity gives the same values to every leg in the same transaction: each leg that changed gets a new `version` and `ETag`, and an `activity.updated` event. `PATCH /activities` with a `visibility` (the bulk edit) changes the legs of every multisport activity it changes and never a leg by itself.
+- **A leg is deleted with its multisport activity.** `DELETE /activities/{activity_id}` on a leg is `409`. On the multisport activity it deletes the legs too, and `GET /sync` lists a deletion for the multisport activity and for each leg.
 
 ## Units and money
 

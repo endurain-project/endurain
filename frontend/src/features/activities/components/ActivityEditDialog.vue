@@ -130,10 +130,12 @@ watch(open, (isOpen) => {
   }
 })
 
-/** Activity-type options, sorted by label, for the type selector. */
+/** Activity-type options, sorted by label, for the type selector; multisport is the server's to set. */
 const activityTypeOptions = computed(() =>
   sortActivityTypesByLabel(
-    Object.keys(ACTIVITY_TYPE_LABEL_KEYS).filter(isActivityType),
+    Object.keys(ACTIVITY_TYPE_LABEL_KEYS)
+      .filter(isActivityType)
+      .filter((value) => value !== 'multisport'),
     t,
     locale.value,
   ).map((value) => ({ value, labelKey: presentActivityType(value).labelKey })),

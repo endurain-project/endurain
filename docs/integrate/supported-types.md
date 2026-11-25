@@ -1,7 +1,7 @@
 # Supported types within Endurain
 
 ## Supported activity types
-The table below details the activity types supported by Endurain. `activity_type` in a response, an activity edit and the `type` filter of the activity lists is the key, a string; the API refuses the number.
+The table below details the activity types supported by Endurain. `activity_type` in a response, an activity edit and the `type` filter of the activity lists is the key, a string; the API refuses the number. `multisport` marks an activity made of legs (a triathlon); the server sets it and a client cannot, see [Multisport activities](data-conventions.md#multisport-activities).
 
 | Name | Key |
 | ---- | --- |
@@ -52,6 +52,7 @@ The table below details the activity types supported by Endurain. `activity_type
 | Inline skating | `inline_skating` |
 | HIIT | `hiit` |
 | Jump rope | `jump_rope` |
+| Multisport | `multisport` |
 
 
 ## Supported gear types

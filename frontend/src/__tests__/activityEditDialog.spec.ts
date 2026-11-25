@@ -55,6 +55,16 @@ describe('ActivityEditDialog name', () => {
   })
 })
 
+describe('ActivityEditDialog type', () => {
+  it('does not offer the multisport type, which only the server sets', async () => {
+    const wrapper = await openDialog()
+    const values = wrapper.findAll('option').map((option) => option.attributes('value'))
+
+    expect(values).toContain('run')
+    expect(values).not.toContain('multisport')
+  })
+})
+
 describe('ActivityEditDialog from a list row', () => {
   /** The full read of the activity: it carries the private notes and a newer version. */
   const fullDto = {

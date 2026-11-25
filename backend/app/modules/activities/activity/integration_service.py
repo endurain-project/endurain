@@ -178,7 +178,7 @@ def list_user_activities_page(
     page_number: int,
     num_records: int,
 ) -> list[activity_schema.ActivityRead]:
-    """Return one page of a user's own activities, newest first.
+    """Return one page of a user's own activities, newest first, the legs of multisport activities included.
 
     The profile export walks a user's whole library in batches; it is always the
     owner reading their own data, so no visibility mask applies.
@@ -201,6 +201,7 @@ def list_user_activities_page(
         sort_by="start_time",
         sort_order="desc",
         user_is_owner=True,
+        include_legs=True,
     )
 
 
@@ -264,6 +265,8 @@ def get_user_profile_summary(
 def restore_activity(
     activity: activity_contracts.ActivityCore,
     db: Session,
+    *,
+    parent_activity_id: uuid.UUID | None = None,
 ) -> activity_schema.ActivityRead:
     """Persist an activity from a profile restore **without** publishing events.
 
@@ -282,11 +285,12 @@ def restore_activity(
     Args:
         activity: The activity to persist.
         db: Database session.
+        parent_activity_id: The restored multisport activity this one is a leg of, or ``None`` for any other.
 
     Returns:
         The staged activity, with its generated id.
     """
-    return activity_crud.create_activity(activity, db)
+    return activity_crud.create_activity(activity, db, parent_activity_id=parent_activity_id)
 
 
 def store_parsed_activity(

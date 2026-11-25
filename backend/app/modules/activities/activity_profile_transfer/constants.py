@@ -14,3 +14,6 @@ ACTIVITY_MEDIA_FOLDER = "activity_media/"
 
 #: Fields an archived activity carries that a read resolves for the viewer; they are dropped on import.
 ACTIVITY_READ_FIELDS = frozenset({"map_thumbnail_url", "media"})
+
+#: The field of an archived activity that names the multisport activity it is a leg of; the import remaps it.
+ACTIVITY_PARENT_FIELD = "parent_activity_id"

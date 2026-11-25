@@ -113,6 +113,9 @@ def _restore_activities(
 ) -> dict[uuid.UUID, uuid.UUID]:
     """Restore the archived activities in batches to manage memory.
 
+    The activities that are not legs are restored first, so each leg finds its parent's new id in the mapping. A
+    leg whose parent is not in the archive is restored as a top-level activity.
+
     Args:
         ctx: The import context.
         gears_id_mapping: Mapping of old to new gear IDs.
@@ -132,6 +135,7 @@ def _restore_activities(
         return activities_id_mapping
 
     ctx.check_activity_count(len(activities_data))
+    activities_data.sort(key=lambda row: row.get(constants.ACTIVITY_PARENT_FIELD) is not None)
 
     contributors = activities_contributor_registry.profile_activity_contributors()
     component_files: dict[str, list[str]] = {}
@@ -186,16 +190,21 @@ def _restore_activities(
             activity_data["gear_id"] = gears_id_mapping.get(archived_gear_id) if archived_gear_id else None
 
             original_activity_id = users_profile_contracts.archived_id(activity_data.get("id"))
+            archived_parent_id = users_profile_contracts.archived_id(activity_data.get(constants.ACTIVITY_PARENT_FIELD))
             fields = {
                 key: value
                 for key, value in users_profile_contracts.without_row_identity(activity_data).items()
-                if key not in constants.ACTIVITY_READ_FIELDS
+                if key not in constants.ACTIVITY_READ_FIELDS and key != constants.ACTIVITY_PARENT_FIELD
             }
 
             activity = activity_contracts.ActivityCore(**fields, user_id=ctx.user_id)
             # Bulk restore deliberately does not publish activity.created;
             # see integration_service.restore_activity for why.
-            new_activity = activity_integration.restore_activity(activity, ctx.db)
+            new_activity = activity_integration.restore_activity(
+                activity,
+                ctx.db,
+                parent_activity_id=activities_id_mapping.get(archived_parent_id) if archived_parent_id else None,
+            )
 
             if original_activity_id is not None and new_activity.id is not None:
                 activities_id_mapping[original_activity_id] = new_activity.id

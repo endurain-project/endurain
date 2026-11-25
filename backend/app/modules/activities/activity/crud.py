@@ -199,10 +199,13 @@ def _apply_user_activity_filters[*Ts](
     user_is_owner: bool,
     followee_ids: Sequence[uuid.UUID] | None,
     gear_id: uuid.UUID | None = None,
+    include_legs: bool = False,
 ) -> Select[*Ts]:
     """Apply the filters shared by the activity list, page and count queries.
 
-    One definition, so a page and its total cannot disagree on what matched.
+    One definition, so a page and its total cannot disagree on what matched. A leg of a multisport activity is
+    not listed, since its parent stands for it, except under a gear filter: a multisport activity carries no gear
+    and its legs do.
 
     Args:
         stmt: SQLAlchemy select statement.
@@ -214,11 +217,14 @@ def _apply_user_activity_filters[*Ts](
         followee_ids: The requester's accepted-followee user ids, resolved by
             the caller.
         gear_id: Optional gear filter.
+        include_legs: Whether the legs of multisport activities are listed too; a gear filter always lists them.
 
     Returns:
         The filtered statement.
     """
     stmt = _apply_activity_visibility_filter(stmt, user_is_owner=user_is_owner, followee_ids=followee_ids)
+    if not include_legs and gear_id is None:
+        stmt = stmt.where(activity_query.is_top_level())
     if gear_id is not None:
         stmt = stmt.where(activity_models.Activity.gear_id == gear_id)
     if activity_type:
@@ -382,6 +388,7 @@ def get_user_activities_with_pagination(
     user_is_owner: bool,
     gear_id: uuid.UUID | None = None,
     followee_ids: Sequence[uuid.UUID] | None = None,
+    include_legs: bool = False,
 ) -> list[activity_schema.ActivityRead]:
     """Get a page of user activities with filters and sorting.
 
@@ -401,6 +408,8 @@ def get_user_activities_with_pagination(
         gear_id: Optional gear filter.
         followee_ids: The requester's accepted-followee user ids, resolved
             by the caller; ``None`` for an owner-only or anonymous read.
+        include_legs: Whether the legs of multisport activities are listed too, as a walk over the whole library
+            needs.
 
     Returns:
         The matching activity schemas, empty when there are none.
@@ -417,6 +426,7 @@ def get_user_activities_with_pagination(
         user_is_owner=user_is_owner,
         gear_id=gear_id,
         followee_ids=followee_ids,
+        include_legs=include_legs,
     )
 
     stmt = stmt.order_by(*_sort_order_by(sort_by, sort_order, mask_hidden_values=not user_is_owner))
@@ -434,7 +444,7 @@ def get_user_activities_with_pagination(
 
 
 def get_distinct_activity_types_for_user(user_id: uuid.UUID, db: Session) -> list[activity_constants.ActivityType]:
-    """List the distinct activity types owned by a user.
+    """List the distinct activity types of a user's listed activities, which leave out the legs of a multisport one.
 
     Args:
         user_id: Owner user ID.
@@ -445,7 +455,7 @@ def get_distinct_activity_types_for_user(user_id: uuid.UUID, db: Session) -> lis
     """
     stmt = (
         select(activity_models.Activity.activity_type)
-        .where(activity_models.Activity.user_id == user_id)
+        .where(activity_models.Activity.user_id == user_id, activity_query.is_top_level())
         .distinct()
         .order_by(activity_models.Activity.activity_type)
     )
@@ -464,7 +474,8 @@ def sum_user_activities_per_timeframe_by_type(
     """Add up a user's activities within a date range per activity type, in the database.
 
     Matches the activities a reader may see for the same range and visibility, without loading them; for a
-    non-owner that leaves out the activities whose start time is hidden, as the list's date filter does.
+    non-owner that leaves out the activities whose start time is hidden, as the list's date filter does. The legs
+    of a multisport activity count under their own types and the multisport activity itself adds nothing.
     Masking never touches distance, active time or calories, so a non-owner's totals equal the sum of
     the matching masked rows.
 
@@ -490,6 +501,7 @@ def sum_user_activities_per_timeframe_by_type(
         )
         .where(
             activity.user_id == user_id,
+            activity_query.is_leaf(),
             *activity_query.local_date_range_conditions(start.date(), end.date(), end_exclusive=False),
         )
         .group_by(activity.activity_type)
@@ -542,6 +554,7 @@ def sum_user_activities_per_timeframe_and_activity_types(
     ).where(
         activity.user_id == user_id,
         activity.activity_type.in_(activity_types),
+        activity_query.is_leaf(),
         *activity_query.local_date_range_conditions(start.date(), end.date(), end_exclusive=False),
     )
     if exclude_hidden:
@@ -697,6 +710,7 @@ def get_following_feed_after(
         ),
         activity.is_hidden.is_(False),
         _is_not_live_strava_api_activity(),
+        activity_query.is_top_level(),
     ]
     return _feed_slice(conditions, after, num_records, db, force_non_owner=True)
 
@@ -721,7 +735,13 @@ def get_own_feed_after(
     Returns:
         The slice, newest first (empty when there is nothing more).
     """
-    return _feed_slice([activity_models.Activity.user_id == user_id], after, num_records, db, requester_user_id=user_id)
+    return _feed_slice(
+        [activity_models.Activity.user_id == user_id, activity_query.is_top_level()],
+        after,
+        num_records,
+        db,
+        requester_user_id=user_id,
+    )
 
 
 def sum_gear_usage(
@@ -749,7 +769,11 @@ def sum_gear_usage(
             func.coalesce(func.sum(activity_models.Activity.distance), 0),
             func.coalesce(func.sum(activity_models.Activity.total_timer_time), 0),
         )
-        .where(activity_models.Activity.gear_id.in_(gear_ids), activity_models.Activity.user_id == user_id)
+        .where(
+            activity_models.Activity.gear_id.in_(gear_ids),
+            activity_models.Activity.user_id == user_id,
+            activity_query.is_leaf(),
+        )
         .group_by(activity_models.Activity.gear_id)
     )
     recorded = {
@@ -801,7 +825,9 @@ def sum_gear_usage_by_window(
         )
 
     stmt = select(*columns).where(
-        activity_models.Activity.gear_id == gear_id, activity_models.Activity.user_id == user_id
+        activity_models.Activity.gear_id == gear_id,
+        activity_models.Activity.user_id == user_id,
+        activity_query.is_leaf(),
     )
     row = db.execute(stmt).one()
 
@@ -950,7 +976,7 @@ def get_activity_by_id(activity_id: uuid.UUID, db: Session) -> activity_schema.A
 
 
 def get_activity_by_start_time(
-    start_time: str | datetime, user_id: uuid.UUID, db: Session
+    start_time: str | datetime, user_id: uuid.UUID, db: Session, *, ignoring_family_of: uuid.UUID | None = None
 ) -> activity_schema.ActivityRead | None:
     """Get a user's activity matching a specific start time.
 
@@ -958,6 +984,8 @@ def get_activity_by_start_time(
         start_time: ISO-format string or datetime.
         user_id: Owner user ID.
         db: Database session.
+        ignoring_family_of: A multisport activity whose own row and legs do not count as a match, because its
+            first leg starts at the instant it does.
 
     Returns:
         Activity schema or None when not found.
@@ -977,6 +1005,11 @@ def get_activity_by_start_time(
         )
         .order_by(activity_models.Activity.id)
     )
+    if ignoring_family_of is not None:
+        stmt = stmt.where(
+            activity_models.Activity.id != ignoring_family_of,
+            activity_models.Activity.parent_activity_id.is_distinct_from(ignoring_family_of),
+        )
     activity = db.scalars(stmt).first()
     if not activity:
         return None
@@ -1081,6 +1114,7 @@ def create_activity(
     db: Session,
     *,
     dedup_key: str | None = None,
+    parent_activity_id: uuid.UUID | None = None,
 ) -> activity_schema.ActivityRead:
     """Stage a new activity; duplicate start-times are marked hidden.
 
@@ -1094,6 +1128,7 @@ def create_activity(
         db: Database session.
         dedup_key: Optional stable idempotency key stored on the row so future
             re-imports of the same source can be recognised as duplicates.
+        parent_activity_id: The multisport activity the new activity is a leg of, or ``None`` for any other.
 
     Returns:
         The stored activity as the read schema, with the generated ``id`` and
@@ -1117,7 +1152,9 @@ def create_activity(
     # Best-effort: this check and the insert below are not atomic, so two concurrent
     # imports with the same start time can both stay visible. Idempotency does not
     # rest on it; ``dedup_key`` and its unique index do.
-    activity_start_time_exists = get_activity_by_start_time(normalized_start_time, activity.user_id, db)
+    activity_start_time_exists = get_activity_by_start_time(
+        normalized_start_time, activity.user_id, db, ignoring_family_of=parent_activity_id
+    )
 
     new_activity = activity_serializers.to_orm(activity)
     # Flagged on the ORM row rather than on the caller's input: ``create_activity``
@@ -1129,6 +1166,7 @@ def create_activity(
     # Persist the idempotency key alongside the row so future re-imports of
     # the same source can be recognised as duplicates.
     new_activity.dedup_key = dedup_key
+    new_activity.parent_activity_id = parent_activity_id
 
     db.add(new_activity)
     # Flush so the generated id / created_at are available. The caller owns the
@@ -1458,6 +1496,8 @@ def edit_activity(
     Raises:
         NotFoundError: When the activity is missing.
         PreconditionFailedError: When ``if_match`` does not name the row's version.
+        ConflictError: When the edit sets the privacy of a leg, which follows its multisport parent, or the
+            type or gear of a multisport activity, which are the legs' to carry.
     """
     stmt = select(activity_models.Activity).where(
         activity_models.Activity.user_id == user_id,
@@ -1468,7 +1508,16 @@ def edit_activity(
         raise core_exceptions.NotFoundError("Activity not found")
     core_etag.require_if_match(if_match, db_activity.version, "activity")
 
-    for key, value in activity_serializers.to_update_values(activity_attributes).items():
+    values = activity_serializers.to_update_values(activity_attributes)
+    if db_activity.parent_activity_id is not None and activity_constants.PRIVACY_FIELDS.intersection(values):
+        raise core_exceptions.ConflictError("The privacy of a leg is set on its multisport activity")
+    if db_activity.activity_type == activity_constants.ActivityType.MULTISPORT.stored and {
+        "activity_type",
+        "gear_id",
+    }.intersection(values):
+        raise core_exceptions.ConflictError("The type and gear of a multisport activity are those of its legs")
+
+    for key, value in values.items():
         setattr(db_activity, key, value)
 
     # The version bump lives in the ORM's UPDATE, so flush before reading it
@@ -1477,6 +1526,52 @@ def edit_activity(
     db.flush()
     db.refresh(db_activity)
     return activity_serializers.to_read_schema(db_activity)
+
+
+def edit_legs_privacy(
+    user_id: uuid.UUID,
+    parent_activity_id: uuid.UUID,
+    activity_attributes: activity_schema.ActivityEdit,
+    db: Session,
+) -> list[tuple[activity_schema.ActivityRead, activity_schema.ActivityRead]]:
+    """Stage the privacy fields of an edit on every leg of a multisport activity, in the edit's transaction.
+
+    A leg whose fields already hold the values is not written, so its version stays.
+
+    Args:
+        user_id: Owner user ID.
+        parent_activity_id: The multisport activity whose legs follow it.
+        activity_attributes: The edit of the multisport activity; only its privacy fields are applied.
+        db: Database session.
+
+    Returns:
+        The ``(before, after)`` of each leg the edit changed, in id order.
+    """
+    values = {
+        key: value
+        for key, value in activity_serializers.to_update_values(activity_attributes).items()
+        if key in activity_constants.PRIVACY_FIELDS
+    }
+    legs = db.scalars(
+        select(activity_models.Activity)
+        .where(
+            activity_models.Activity.user_id == user_id,
+            activity_models.Activity.parent_activity_id == parent_activity_id,
+        )
+        .order_by(activity_models.Activity.id)
+        .with_for_update()
+    ).all()
+    changed: list[tuple[activity_schema.ActivityRead, activity_schema.ActivityRead]] = []
+    for leg in legs:
+        if all(getattr(leg, key) == value for key, value in values.items()):
+            continue
+        before = activity_serializers.to_read_schema(leg)
+        for key, value in values.items():
+            setattr(leg, key, value)
+        db.flush()
+        db.refresh(leg)
+        changed.append((before, activity_serializers.to_read_schema(leg)))
+    return changed
 
 
 def _lock_user_activities(user_id: uuid.UUID, db: Session, activity_ids: Sequence[uuid.UUID] | None = None) -> None:
@@ -1500,26 +1595,28 @@ def _lock_user_activities(user_id: uuid.UUID, db: Session, activity_ids: Sequenc
 def edit_user_activities_visibility_batch(
     user_id: uuid.UUID, visibility: int, limit: int, db: Session
 ) -> list[uuid.UUID]:
-    """Stage a visibility update for up to ``limit`` of a user's activities that do not have it yet.
+    """Stage a visibility update for up to ``limit`` of a user's listed activities that do not have it yet.
 
     Only rows whose visibility differs are touched, so a repeated edit rewrites nothing and the batches of
-    a run shrink to none. The rows are locked in id order first, like every multi-row write here.
+    a run shrink to none. The rows are locked in id order first, like every multi-row write here. A leg is
+    not chosen by itself: the legs of each changed multisport activity follow it into the same batch.
 
     Args:
         user_id: Owner user ID.
         visibility: New visibility value (0, 1, 2).
-        limit: The most activities to change.
+        limit: The most listed activities to change; their legs come on top of it.
         db: Database session.
 
     Returns:
-        The IDs of the updated activities, so the caller can publish one event per row. Empty once every
-        activity has the visibility.
+        The IDs of the updated activities and legs, so the caller can publish one event per row. Empty once
+        every listed activity has the visibility.
     """
-    ids = list(
+    parent_ids = list(
         db.scalars(
             select(activity_models.Activity.id)
             .where(
                 activity_models.Activity.user_id == user_id,
+                activity_query.is_top_level(),
                 activity_models.Activity.visibility != visibility,
             )
             .order_by(activity_models.Activity.id)
@@ -1527,11 +1624,23 @@ def edit_user_activities_visibility_batch(
             .with_for_update()
         ).all()
     )
-    if not ids:
+    if not parent_ids:
         return []
+    leg_ids = list(
+        db.scalars(
+            select(activity_models.Activity.id)
+            .where(
+                activity_models.Activity.user_id == user_id,
+                activity_models.Activity.parent_activity_id.in_(parent_ids),
+                activity_models.Activity.visibility != visibility,
+            )
+            .order_by(activity_models.Activity.id)
+            .with_for_update()
+        ).all()
+    )
     stmt = (
         sa_update(activity_models.Activity)
-        .where(activity_models.Activity.user_id == user_id, activity_models.Activity.id.in_(ids))
+        .where(activity_models.Activity.user_id == user_id, activity_models.Activity.id.in_([*parent_ids, *leg_ids]))
         # Core UPDATEs bypass the ORM version bump, so an ETag would survive a
         # change it should have invalidated.
         .values(visibility=visibility, version=activity_models.Activity.version + 1)
@@ -1623,8 +1732,32 @@ def clear_gear_from_activities(gear_id: uuid.UUID, user_id: uuid.UUID, limit: in
     return sorted(row_id for (row_id,) in db.execute(stmt).all())
 
 
-def delete_activity(activity_id: uuid.UUID, user_id: uuid.UUID, db: Session, *, if_match: str) -> None:
-    """Stage the deletion of an activity owned by ``user_id``.
+def _leg_ids_of(parent_ids: Sequence[uuid.UUID], user_id: uuid.UUID, db: Session) -> list[uuid.UUID]:
+    """Lock and list the legs of some multisport activities, in id order.
+
+    Args:
+        parent_ids: The multisport activities.
+        user_id: Owner user ID.
+        db: Database session.
+
+    Returns:
+        The IDs of their legs.
+    """
+    return list(
+        db.scalars(
+            select(activity_models.Activity.id)
+            .where(
+                activity_models.Activity.user_id == user_id,
+                activity_models.Activity.parent_activity_id.in_(parent_ids),
+            )
+            .order_by(activity_models.Activity.id)
+            .with_for_update()
+        ).all()
+    )
+
+
+def delete_activity(activity_id: uuid.UUID, user_id: uuid.UUID, db: Session, *, if_match: str) -> list[uuid.UUID]:
+    """Stage the deletion of an activity owned by ``user_id``, with the legs it has.
 
     Ownership is part of the ``WHERE`` clause rather than a precondition the
     caller is trusted to have checked: an activity the owner does not match is
@@ -1641,9 +1774,14 @@ def delete_activity(activity_id: uuid.UUID, user_id: uuid.UUID, db: Session, *, 
             that is deleted; the flush's ``version_id_col`` guard then holds the
             ``DELETE`` to that version.
 
+    Returns:
+        The IDs of the legs the database deletes with a multisport activity, so the caller can publish one event
+        per row; empty for any other activity.
+
     Raises:
         NotFoundError: When the activity is missing or not owned by ``user_id``.
         PreconditionFailedError: When ``if_match`` does not name the row's version.
+        ConflictError: When the activity is a leg, which goes with its multisport parent.
     """
     stmt = select(activity_models.Activity).where(
         activity_models.Activity.id == activity_id,
@@ -1653,9 +1791,13 @@ def delete_activity(activity_id: uuid.UUID, user_id: uuid.UUID, db: Session, *, 
     if db_activity is None:
         raise core_exceptions.NotFoundError(f"Activity with id {activity_id} not found")
     core_etag.require_if_match(if_match, db_activity.version, "activity")
+    if db_activity.parent_activity_id is not None:
+        raise core_exceptions.ConflictError("A leg is deleted with its multisport activity")
+    leg_ids = _leg_ids_of([activity_id], user_id, db)
     db.delete(db_activity)
-    core_sync.record_deletions(db, activity_models.ActivityDeletion, user_id, [activity_id])
+    core_sync.record_deletions(db, activity_models.ActivityDeletion, user_id, [activity_id, *leg_ids])
     db.flush()
+    return leg_ids
 
 
 def delete_all_strava_activities_for_user(user_id: uuid.UUID, db: Session, *, limit: int) -> list[uuid.UUID]:
@@ -1679,6 +1821,8 @@ def delete_all_strava_activities_for_user(user_id: uuid.UUID, db: Session, *, li
             .where(
                 activity_models.Activity.user_id == user_id,
                 activity_models.Activity.strava_activity_id.isnot(None),
+                # A multisport activity goes with its legs, whose events this batch would not publish.
+                activity_query.is_leaf(),
             )
             .order_by(activity_models.Activity.id)
             .limit(limit)
@@ -1693,7 +1837,7 @@ def delete_all_strava_activities_for_user(user_id: uuid.UUID, db: Session, *, li
 
 
 def delete_activities_batch_for_user(user_id: uuid.UUID, limit: int, db: Session) -> list[uuid.UUID]:
-    """Stage the deletion of up to ``limit`` of a user's activities.
+    """Stage the deletion of up to ``limit`` of a user's listed activities, with the legs of the multisport ones.
 
     Used by account deletion, which repeats it, one transaction per batch, until nothing is left. The
     database FK cascade from ``users`` would remove the rows but tell nobody, leaving each activity's
@@ -1703,26 +1847,30 @@ def delete_activities_batch_for_user(user_id: uuid.UUID, limit: int, db: Session
     The locked ids are read before the delete: inside the DELETE, a plan that runs the locking lookup again
     per row skips the rows the statement already deleted and hands out more than ``limit``.
 
+    The database cascade removes a multisport activity's legs with it, so their ids are read first and returned
+    with the rest: every deleted row gets its tombstone and its event.
+
     Args:
         user_id: Owner user ID.
-        limit: The most activities to delete.
+        limit: The most listed activities to delete; the legs of the multisport ones come on top of it.
         db: Database session.
 
     Returns:
-        The IDs of the deleted activities; empty once the user has none.
+        The IDs of the deleted activities and legs; empty once the user has none.
     """
-    batch_ids = list(
+    top_level_ids = list(
         db.scalars(
             select(activity_models.Activity.id)
-            .where(activity_models.Activity.user_id == user_id)
+            .where(activity_models.Activity.user_id == user_id, activity_query.is_top_level())
             .order_by(activity_models.Activity.id)
             .limit(limit)
             .with_for_update()
         ).all()
     )
-    if not batch_ids:
+    if not top_level_ids:
         return []
-    db.execute(sa_delete(activity_models.Activity).where(activity_models.Activity.id.in_(batch_ids)))
+    batch_ids = [*top_level_ids, *_leg_ids_of(top_level_ids, user_id, db)]
+    db.execute(sa_delete(activity_models.Activity).where(activity_models.Activity.id.in_(top_level_ids)))
     core_sync.record_deletions(db, activity_models.ActivityDeletion, user_id, batch_ids)
     return batch_ids
 

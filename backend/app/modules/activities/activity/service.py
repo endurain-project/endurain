@@ -770,6 +770,31 @@ def _stage_visibility_update(
     )
 
 
+def _apply_privacy_to_legs(
+    parent_id: uuid.UUID,
+    user_id: uuid.UUID,
+    activity_attributes: activity_schema.ActivityEdit,
+    privacy_fields: list[str],
+    db: Session,
+) -> None:
+    """Give every leg of a multisport activity the privacy its edit set, with an event and an audit row per leg.
+
+    The legs are written in the edit's transaction. A leg that already held the values is left alone.
+
+    Args:
+        parent_id: ID of the edited multisport activity.
+        user_id: ID of the owner.
+        activity_attributes: The edit, of which only the privacy fields reach the legs.
+        privacy_fields: The privacy fields the edit set.
+        db: Database session.
+    """
+    for before, after in activity_crud.edit_legs_privacy(user_id, parent_id, activity_attributes, db):
+        _stage_visibility_update(
+            after.id, user_id, before, after, [field for field in privacy_fields if _is_visibility_field(field)], db
+        )
+        activity_event_publishers.publish_activity_updated(after.id, user_id, db, changed_fields=privacy_fields)
+
+
 def edit_activity(
     activity_id: uuid.UUID,
     user_id: uuid.UUID,
@@ -817,6 +842,9 @@ def edit_activity(
             if before is not None:
                 _stage_visibility_update(activity_id, user_id, before, updated, visibility_fields, db)
             activity_event_publishers.publish_activity_updated(activity_id, user_id, db, changed_fields=changed_fields)
+            privacy_fields = [field for field in changed_fields if field in activity_constants.PRIVACY_FIELDS]
+            if privacy_fields and updated.activity_type is activity_constants.ActivityType.MULTISPORT:
+                _apply_privacy_to_legs(activity_id, user_id, activity_attributes, privacy_fields, db)
             db.commit()
         except IntegrityError:
             # A gear deleted after the ownership check above fails the foreign key; report it as not found.
@@ -850,9 +878,13 @@ def delete_activity(activity_id: uuid.UUID, user_id: uuid.UUID, db: Session, *, 
         db: Database session.
         if_match: The ``If-Match`` precondition.
 
+    A multisport activity takes its legs with it, and each leg gets its own ``activity.deleted`` in the same
+    transaction.
+
     Raises:
         NotFoundError: When the activity is missing or not owned by ``user_id``.
         PreconditionFailedError: When the activity changed since the client read it.
+        ConflictError: When the activity is a leg, which is deleted with its multisport activity.
     """
     with core_etag.refuse_stale_write(
         db,
@@ -860,8 +892,9 @@ def delete_activity(activity_id: uuid.UUID, user_id: uuid.UUID, db: Session, *, 
         lambda: activity_crud.get_activity_by_id_from_user_id(activity_id, user_id, db) is not None,
         f"Activity {activity_id} not found",
     ):
-        activity_crud.delete_activity(activity_id, user_id, db, if_match=if_match)
+        leg_ids = activity_crud.delete_activity(activity_id, user_id, db, if_match=if_match)
         activity_event_publishers.publish_activity_deleted(activity_id, user_id, db)
+        activity_event_publishers.publish_activities_deleted(leg_ids, user_id, db, source="api:delete_activity")
         db.commit()
     logger.info(
         "Deleted an activity",

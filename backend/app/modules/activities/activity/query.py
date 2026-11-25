@@ -17,10 +17,31 @@ from sqlalchemy import ColumnElement, and_, func, or_
 
 import core.sanitization as core_sanitization
 import core.timezone as core_timezone
+import modules.activities.activity.constants as activity_constants
 import modules.activities.activity.models as activity_models
 
 #: Re-exported for the callers that reason about the widened pre-filter below.
 MAX_UTC_OFFSET = core_timezone.MAX_UTC_OFFSET
+
+
+def is_top_level() -> ColumnElement[bool]:
+    """Match the activities a reader lists: every one that is not a leg of a multisport activity.
+
+    Returns:
+        The condition; a multisport activity matches and its legs do not.
+    """
+    return activity_models.Activity.parent_activity_id.is_(None)
+
+
+def is_leaf() -> ColumnElement[bool]:
+    """Match the activities that carry their own measurements: every one that is not a multisport activity.
+
+    A multisport activity holds the sums of its legs, so adding it up beside them counts everything twice.
+
+    Returns:
+        The condition; a leg and a stand-alone activity match and a multisport activity does not.
+    """
+    return activity_models.Activity.activity_type != activity_constants.ActivityType.MULTISPORT.stored
 
 
 def name_search_condition(name_search: str, *, mask_hidden_location: bool) -> ColumnElement[bool]:

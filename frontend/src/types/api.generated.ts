@@ -5409,6 +5409,8 @@ export interface components {
              * @description Average pace in seconds per meter
              */
             pace?: number | null;
+            /** Parent Activity Id */
+            parent_activity_id?: string | null;
             /** Private Notes */
             private_notes?: string | null;
             /** Start Time */
@@ -5758,6 +5760,8 @@ export interface components {
              * @description Average pace in seconds per meter
              */
             pace?: number | null;
+            /** Parent Activity Id */
+            parent_activity_id?: string | null;
             /** Start Time */
             start_time?: string | null;
             /** Strava Activity Id */
@@ -5812,7 +5816,7 @@ export interface components {
          *     ``label`` is the English name used for generated activity names and the type catalogue.
          * @enum {string}
          */
-        ActivityType: "run" | "trail_run" | "virtual_run" | "ride" | "gravel_ride" | "mtb_ride" | "virtual_ride" | "lap_swimming" | "open_water_swimming" | "workout" | "walk" | "hike" | "rowing" | "yoga" | "alpine_ski" | "nordic_ski" | "snowboard" | "transition" | "strength_training" | "crossfit" | "tennis" | "table_tennis" | "badminton" | "squash" | "racquetball" | "pickleball" | "commuting_ride" | "indoor_ride" | "mixed_surface_ride" | "windsurf" | "indoor_walk" | "stand_up_paddling" | "surf" | "track_run" | "ebike_ride" | "ebike_mountain_ride" | "ice_skate" | "soccer" | "padel" | "treadmill_run" | "cardio_training" | "kayaking" | "sailing" | "snow_shoeing" | "inline_skating" | "hiit" | "jump_rope";
+        ActivityType: "run" | "trail_run" | "virtual_run" | "ride" | "gravel_ride" | "mtb_ride" | "virtual_ride" | "lap_swimming" | "open_water_swimming" | "workout" | "walk" | "hike" | "rowing" | "yoga" | "alpine_ski" | "nordic_ski" | "snowboard" | "transition" | "strength_training" | "crossfit" | "tennis" | "table_tennis" | "badminton" | "squash" | "racquetball" | "pickleball" | "commuting_ride" | "indoor_ride" | "mixed_surface_ride" | "windsurf" | "indoor_walk" | "stand_up_paddling" | "surf" | "track_run" | "ebike_ride" | "ebike_mountain_ride" | "ice_skate" | "soccer" | "padel" | "treadmill_run" | "cardio_training" | "kayaking" | "sailing" | "snow_shoeing" | "inline_skating" | "hiit" | "jump_rope" | "multisport";
         /**
          * ActivityVisibility
          * @description Who may see an activity; ``stored`` is the integer in ``activities.visibility``.
