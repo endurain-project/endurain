@@ -27,6 +27,7 @@ import {
 } from '@/features/activities/composables/useActivityDetail'
 import {
   ACTIVITY_TYPE_LABEL_KEYS,
+  activityTypeIsMultisport,
   isActivityType,
   presentActivityType,
   sortActivityTypesByLabel,
@@ -54,7 +55,7 @@ function isFullActivity(activity: ActivitySummary | Activity): activity is Activ
 }
 
 /** Projects an activity onto the editable form values; a summary has no private notes. */
-function toFormValues(activity: ActivitySummary | Activity): ActivityEditInput {
+function toFormValues(activity: ActivitySummary | Activity): Required<ActivityEditInput> {
   return {
     name: activity.name,
     activityType: activity.activityType,
@@ -77,7 +78,7 @@ function toFormValues(activity: ActivitySummary | Activity): ActivityEditInput {
   }
 }
 
-const form = reactive<ActivityEditInput>(toFormValues(props.activity))
+const form = reactive<Required<ActivityEditInput>>(toFormValues(props.activity))
 
 const readFullActivity = useFullActivityReader()
 /** The full activity read for a list row, once it arrives. */
@@ -130,12 +131,20 @@ watch(open, (isOpen) => {
   }
 })
 
-/** Activity-type options, sorted by label, for the type selector; multisport is the server's to set. */
+/** A leg takes its privacy from its multisport activity, so the form does not edit it. */
+const isLeg = computed(() => props.activity.parentActivityId !== null)
+/** A multisport activity's type is its legs', so the form does not edit it. */
+const isMultisport = computed(() => activityTypeIsMultisport(props.activity.activityType))
+
+/**
+ * Activity-type options, sorted by label, for the type selector. Multisport is the server's to set:
+ * it is offered only for the multisport activity itself, as the one (disabled) option.
+ */
 const activityTypeOptions = computed(() =>
   sortActivityTypesByLabel(
     Object.keys(ACTIVITY_TYPE_LABEL_KEYS)
       .filter(isActivityType)
-      .filter((value) => value !== 'multisport'),
+      .filter((value) => activityTypeIsMultisport(value) === isMultisport.value),
     t,
     locale.value,
   ).map((value) => ({ value, labelKey: presentActivityType(value).labelKey })),
@@ -163,6 +172,27 @@ const privacyFields = [
   { key: 'hideGear', labelKey: 'activities.edit.hideGear' },
 ] as const
 
+/** The form fields the server owns for a leg: its privacy. */
+const PRIVACY_FORM_KEYS = [
+  'visibility',
+  'isHidden',
+  ...privacyFields.map((field) => field.key),
+] as const
+
+/** The fields to send: the form, minus what the server refuses for a leg or a multisport activity. */
+function editInput(): ActivityEditInput {
+  const input: ActivityEditInput = { ...form }
+  if (isLeg.value) {
+    for (const key of PRIVACY_FORM_KEYS) {
+      delete input[key]
+    }
+  }
+  if (isMultisport.value) {
+    delete input.activityType
+  }
+  return input
+}
+
 const validateName = required<string>(t('activities.edit.nameRequired'))
 const nameTouched = ref(false)
 const nameError = computed(() =>
@@ -180,7 +210,7 @@ async function submit(): Promise<void> {
   try {
     await editMutation.mutateAsync({
       id: current.id,
-      input: { ...form },
+      input: editInput(),
       version: current.version,
     })
     open.value = false
@@ -241,7 +271,7 @@ async function submit(): Promise<void> {
             :id="fieldId"
             v-model="form.activityType"
             :class="[inputFieldClass, 'w-full']"
-            :disabled="isSaving"
+            :disabled="isSaving || isMultisport"
           >
             <option v-for="opt in activityTypeOptions" :key="opt.value" :value="opt.value">
               {{ t(opt.labelKey) }}
@@ -280,7 +310,7 @@ async function submit(): Promise<void> {
             :id="fieldId"
             v-model="form.visibility"
             :class="[inputFieldClass, 'w-full']"
-            :disabled="isSaving"
+            :disabled="isSaving || isLeg"
           >
             <option v-for="opt in visibilityOptions" :key="opt.value" :value="opt.value">
               {{ t(opt.labelKey) }}
@@ -289,18 +319,22 @@ async function submit(): Promise<void> {
         </template>
       </FormField>
 
-      <Switch v-model="form.isHidden" :disabled="isSaving">{{
+      <Switch v-model="form.isHidden" :disabled="isSaving || isLeg">{{
         t('activities.edit.isHidden')
       }}</Switch>
 
       <div class="flex flex-col gap-2 border-t border-border pt-4">
         <p class="text-caption">{{ t('activities.edit.privacyTitle') }}</p>
+        <p v-if="isLeg" class="text-hint">{{ t('activities.edit.legPrivacyNote') }}</p>
+        <p v-else-if="isMultisport" class="text-hint">
+          {{ t('activities.edit.multisportPrivacyNote') }}
+        </p>
         <div class="grid grid-cols-1 gap-x-6 sm:grid-cols-2">
           <Switch
             v-for="field in privacyFields"
             :key="field.key"
             v-model="form[field.key]"
-            :disabled="isSaving"
+            :disabled="isSaving || isLeg"
           >
             {{ t(field.labelKey) }}
           </Switch>

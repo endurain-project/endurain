@@ -157,7 +157,8 @@
     "cancel": "Avbryt",
     "close": "Stäng",
     "deleteSuccess": "Aktivitet borttagen",
-    "deleteError": "Kunde inte ta bort aktiviteten"
+    "deleteError": "Kunde inte ta bort aktiviteten",
+    "deleteMultisportBody": "Ta bort \"{name}\" och alla dess etapper? Det går inte att ångra."
   },
   "media": {
     "alt": "Aktivitetsfoto",
@@ -211,11 +212,22 @@
     "hideGear": "Dölj utrustning",
     "success": "Aktivitet uppdaterad",
     "error": "Kunde inte uppdatera aktiviteten",
-    "staleError": "Den här aktiviteten ändrades någon annanstans medan du redigerade den. Dina ändringar sparades inte. Öppna den igen för att se den aktuella versionen."
+    "staleError": "Den här aktiviteten ändrades någon annanstans medan du redigerade den. Dina ändringar sparades inte. Öppna den igen för att se den aktuella versionen.",
+    "legPrivacyNote": "Integriteten ställs in på multisportaktiviteten och gäller för varje etapp.",
+    "multisportPrivacyNote": "Integriteten gäller för varje etapp av den här aktiviteten."
   },
   "alerts": {
     "hidden": "Den här aktiviteten är dold. Bara du kan se den.",
     "privacy": "Vissa detaljer är dolda för andra."
+  },
+  "multisport": {
+    "switcher": "Växla mellan etapper",
+    "overview": "Översikt",
+    "numberedLeg": "{label} {number}",
+    "partOf": "Del av {name}",
+    "legs": "Etapper",
+    "leg": "Etapp",
+    "error": "Det gick inte att läsa in etapperna"
   },
   "error": {
     "title": "Kunde inte ladda den här aktiviteten",

@@ -157,7 +157,8 @@
     "cancel": "Atšaukti",
     "close": "Uždaryti",
     "deleteSuccess": "Veikla ištrinta",
-    "deleteError": "Nepavyko ištrinti veiklos"
+    "deleteError": "Nepavyko ištrinti veiklos",
+    "deleteMultisportBody": "Ištrinti \"{name}\" ir visus jos etapus? Šio veiksmo anuliuoti negalima."
   },
   "media": {
     "alt": "Veiklos nuotrauka",
@@ -211,11 +212,22 @@
     "hideGear": "Slėpti įrangą",
     "success": "Veikla atnaujinta",
     "error": "Nepavyko atnaujinti veiklos",
-    "staleError": "Ši veikla buvo pakeista kitur, kol ją redagavote. Jūsų pakeitimai neišsaugoti. Atidarykite ją iš naujo, kad pamatytumėte dabartinę versiją."
+    "staleError": "Ši veikla buvo pakeista kitur, kol ją redagavote. Jūsų pakeitimai neišsaugoti. Atidarykite ją iš naujo, kad pamatytumėte dabartinę versiją.",
+    "legPrivacyNote": "Privatumas nustatomas kelių sporto šakų veiklai ir galioja kiekvienam etapui.",
+    "multisportPrivacyNote": "Privatumas galioja kiekvienam šios veiklos etapui."
   },
   "alerts": {
     "hidden": "Ši veikla paslėpta. Tik jūs galite ją matyti.",
     "privacy": "Kai kurios detalės paslėptos nuo kitų žmonių."
+  },
+  "multisport": {
+    "switcher": "Perjungti tarp etapų",
+    "overview": "Apžvalga",
+    "numberedLeg": "{label} {number}",
+    "partOf": "{name} dalis",
+    "legs": "Etapai",
+    "leg": "Etapas",
+    "error": "Nepavyko įkelti etapų"
   },
   "error": {
     "title": "Nepavyko įkelti šios veiklos",

@@ -157,7 +157,8 @@
     "cancel": "Anuluj",
     "close": "Zamknij",
     "deleteSuccess": "Usunięto aktywność",
-    "deleteError": "Nie udało się usunąć aktywności"
+    "deleteError": "Nie udało się usunąć aktywności",
+    "deleteMultisportBody": "Usunąć \"{name}\" i wszystkie jej etapy? Tej czynności nie można cofnąć."
   },
   "media": {
     "alt": "Zdjęcie aktywności",
@@ -211,11 +212,22 @@
     "hideGear": "Ukryj sprzęt",
     "success": "Zaktualizowano aktywność",
     "error": "Nie udało się zaktualizować aktywności",
-    "staleError": "Ta aktywność została zmieniona w innym miejscu podczas Twojej edycji. Twoje zmiany nie zostały zapisane. Otwórz ją ponownie, aby zobaczyć aktualną wersję."
+    "staleError": "Ta aktywność została zmieniona w innym miejscu podczas Twojej edycji. Twoje zmiany nie zostały zapisane. Otwórz ją ponownie, aby zobaczyć aktualną wersję.",
+    "legPrivacyNote": "Prywatność ustawia się w aktywności wielosportowej i obowiązuje każdy etap.",
+    "multisportPrivacyNote": "Prywatność obowiązuje każdy etap tej aktywności."
   },
   "alerts": {
     "hidden": "Ta aktywność jest ukryta. Tylko Ty możesz ją zobaczyć.",
     "privacy": "Niektóre szczegóły są ukryte przed innymi osobami."
+  },
+  "multisport": {
+    "switcher": "Przełączaj między etapami",
+    "overview": "Przegląd",
+    "numberedLeg": "{label} {number}",
+    "partOf": "Część aktywności {name}",
+    "legs": "Etapy",
+    "leg": "Etap",
+    "error": "Nie udało się wczytać etapów"
   },
   "error": {
     "title": "Nie udało się wczytać tej aktywności",

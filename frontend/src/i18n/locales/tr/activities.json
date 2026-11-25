@@ -157,7 +157,8 @@
     "cancel": "İptal",
     "close": "Kapat",
     "deleteSuccess": "Etkinlik silindi",
-    "deleteError": "Etkinlik silinemedi"
+    "deleteError": "Etkinlik silinemedi",
+    "deleteMultisportBody": "\"{name}\" ve tüm etapları silinsin mi? Bu işlem geri alınamaz."
   },
   "media": {
     "alt": "Etkinlik fotoğrafı",
@@ -211,11 +212,22 @@
     "hideGear": "Ekipmanı gizle",
     "success": "Etkinlik güncellendi",
     "error": "Etkinlik güncellenemedi",
-    "staleError": "Bu etkinlik siz düzenlerken başka bir yerde değiştirildi. Değişiklikleriniz kaydedilmedi. Güncel sürümü görmek için etkinliği yeniden açın."
+    "staleError": "Bu etkinlik siz düzenlerken başka bir yerde değiştirildi. Değişiklikleriniz kaydedilmedi. Güncel sürümü görmek için etkinliği yeniden açın.",
+    "legPrivacyNote": "Gizlilik çok sporlu etkinlikte ayarlanır ve her etap için geçerlidir.",
+    "multisportPrivacyNote": "Gizlilik bu etkinliğin her etabı için geçerlidir."
   },
   "alerts": {
     "hidden": "Bu etkinlik gizli. Yalnızca siz görebilirsiniz.",
     "privacy": "Bazı ayrıntılar diğer kişilerden gizlenmiş."
+  },
+  "multisport": {
+    "switcher": "Etaplar arasında geçiş yap",
+    "overview": "Genel bakış",
+    "numberedLeg": "{label} {number}",
+    "partOf": "{name} etkinliğinin parçası",
+    "legs": "Etaplar",
+    "leg": "Etap",
+    "error": "Etaplar yüklenemedi"
   },
   "error": {
     "title": "Bu etkinlik yüklenemedi",

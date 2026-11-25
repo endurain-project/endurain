@@ -157,7 +157,8 @@
     "cancel": "Annullér",
     "close": "Luk",
     "deleteSuccess": "Aktivitet slettet",
-    "deleteError": "Kunne ikke slette aktiviteten"
+    "deleteError": "Kunne ikke slette aktiviteten",
+    "deleteMultisportBody": "Slet \"{name}\" og alle dens etaper? Denne handling kan ikke fortrydes."
   },
   "media": {
     "alt": "Aktivitetsbillede",
@@ -211,11 +212,22 @@
     "hideGear": "Skjul udstyr",
     "success": "Aktivitet opdateret",
     "error": "Kunne ikke opdatere aktiviteten",
-    "staleError": "Denne aktivitet blev ændret et andet sted, mens du redigerede. Dine ændringer blev ikke gemt. Åbn den igen for at se den aktuelle version."
+    "staleError": "Denne aktivitet blev ændret et andet sted, mens du redigerede. Dine ændringer blev ikke gemt. Åbn den igen for at se den aktuelle version.",
+    "legPrivacyNote": "Privatlivet indstilles på multisportaktiviteten og gælder for hver etape.",
+    "multisportPrivacyNote": "Privatlivet gælder for hver etape af denne aktivitet."
   },
   "alerts": {
     "hidden": "Denne aktivitet er skjult. Kun du kan se den.",
     "privacy": "Nogle detaljer er skjult for andre."
+  },
+  "multisport": {
+    "switcher": "Skift mellem etaper",
+    "overview": "Oversigt",
+    "numberedLeg": "{label} {number}",
+    "partOf": "Del af {name}",
+    "legs": "Etaper",
+    "leg": "Etape",
+    "error": "Kunne ikke indlæse etaperne"
   },
   "error": {
     "title": "Kunne ikke indlæse denne aktivitet",

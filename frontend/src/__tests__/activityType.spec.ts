@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest'
-import { Bike, Footprints, Sailboat, Waves } from '@lucide/vue'
+import { Bike, Footprints, Route, Sailboat, Waves } from '@lucide/vue'
+
+import { activityBadgeClasses } from '@/components/ui/activity-type-badge'
 
 import {
   activityBadgeCategory,
@@ -99,6 +101,14 @@ describe('activityBadgeCategory', () => {
     expect(activityBadgeCategory('walk')).toBe('hiking')
     expect(activityBadgeCategory('tennis')).toBe('other')
   })
+
+  it('gives multisport its own category instead of the fallback', () => {
+    expect(activityBadgeCategory('multisport')).toBe('multisport')
+    expect(activityBadgeClasses.multisport).toBe(
+      'bg-activity-multisport-bg text-activity-multisport-text',
+    )
+    expect(activityBadgeClasses.multisport).not.toBe(activityBadgeClasses.other)
+  })
 })
 
 describe('presentActivityType', () => {
@@ -111,6 +121,15 @@ describe('presentActivityType', () => {
     expect(presentActivityType('ride').icon).toBe(Bike)
     expect(presentActivityType('lap_swimming').icon).toBe(Waves)
     expect(presentActivityType('sailing').icon).toBe(Sailboat)
+  })
+
+  it('gives multisport a dedicated icon, badge and label', () => {
+    expect(presentActivityType('multisport')).toEqual({
+      labelKey: 'activities.types.multisport',
+      badge: 'multisport',
+      icon: Route,
+    })
+    expect(presentActivityType('multisport').icon).not.toBe(presentActivityType('workout').icon)
   })
 
   it('falls back to a generic workout label for unknown types', () => {

@@ -157,7 +157,8 @@
     "cancel": "Zrušit",
     "close": "Zavřít",
     "deleteSuccess": "Aktivita smazána",
-    "deleteError": "Nepodařilo se smazat aktivitu"
+    "deleteError": "Nepodařilo se smazat aktivitu",
+    "deleteMultisportBody": "Smazat \"{name}\" i všechny její úseky? Tuto akci nelze vrátit zpět."
   },
   "media": {
     "alt": "Fotografie aktivity",
@@ -211,11 +212,22 @@
     "hideGear": "Skrýt vybavení",
     "success": "Aktivita aktualizována",
     "error": "Nepodařilo se aktualizovat aktivitu",
-    "staleError": "Tato aktivita byla při úpravách změněna jinde. Vaše změny nebyly uloženy. Otevřete ji znovu a zobrazte aktuální verzi."
+    "staleError": "Tato aktivita byla při úpravách změněna jinde. Vaše změny nebyly uloženy. Otevřete ji znovu a zobrazte aktuální verzi.",
+    "legPrivacyNote": "Soukromí se nastavuje u multisportovní aktivity a platí pro každý úsek.",
+    "multisportPrivacyNote": "Soukromí platí pro každý úsek této aktivity."
   },
   "alerts": {
     "hidden": "Tato aktivita je skrytá. Vidíte ji pouze vy.",
     "privacy": "Některé podrobnosti jsou skryty před ostatními."
+  },
+  "multisport": {
+    "switcher": "Přepínání mezi úseky",
+    "overview": "Přehled",
+    "numberedLeg": "{label} {number}",
+    "partOf": "Součást aktivity {name}",
+    "legs": "Úseky",
+    "leg": "Úsek",
+    "error": "Úseky se nepodařilo načíst"
   },
   "error": {
     "title": "Nepodařilo se načíst tuto aktivitu",

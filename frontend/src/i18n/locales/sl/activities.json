@@ -157,7 +157,8 @@
     "cancel": "Prekliči",
     "close": "Zapri",
     "deleteSuccess": "Aktivnost izbrisana",
-    "deleteError": "Aktivnosti ni bilo mogoče izbrisati"
+    "deleteError": "Aktivnosti ni bilo mogoče izbrisati",
+    "deleteMultisportBody": "Želite izbrisati \"{name}\" in vse njene etape? Tega dejanja ni mogoče razveljaviti."
   },
   "media": {
     "alt": "Fotografija aktivnosti",
@@ -211,11 +212,22 @@
     "hideGear": "Skrij opremo",
     "success": "Aktivnost posodobljena",
     "error": "Aktivnosti ni bilo mogoče posodobiti",
-    "staleError": "Ta aktivnost je bila med urejanjem spremenjena drugje. Tvoje spremembe niso bile shranjene. Ponovno jo odpri, da vidiš trenutno različico."
+    "staleError": "Ta aktivnost je bila med urejanjem spremenjena drugje. Tvoje spremembe niso bile shranjene. Ponovno jo odpri, da vidiš trenutno različico.",
+    "legPrivacyNote": "Zasebnost se nastavi pri večšportni dejavnosti in velja za vsako etapo.",
+    "multisportPrivacyNote": "Zasebnost velja za vsako etapo te dejavnosti."
   },
   "alerts": {
     "hidden": "Ta aktivnost je skrita. Vidite jo samo ti.",
     "privacy": "Nekateri podatki so skriti pred drugimi."
+  },
+  "multisport": {
+    "switcher": "Preklop med etapami",
+    "overview": "Pregled",
+    "numberedLeg": "{label} {number}",
+    "partOf": "Del aktivnosti {name}",
+    "legs": "Etape",
+    "leg": "Etapa",
+    "error": "Etap ni bilo mogoče naložiti"
   },
   "error": {
     "title": "Te aktivnosti ni bilo mogoče naložiti",

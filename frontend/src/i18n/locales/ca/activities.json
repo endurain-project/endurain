@@ -157,7 +157,8 @@
     "cancel": "Cancel·la",
     "close": "Tanca",
     "deleteSuccess": "Activitat eliminada",
-    "deleteError": "No s'ha pogut eliminar l'activitat"
+    "deleteError": "No s'ha pogut eliminar l'activitat",
+    "deleteMultisportBody": "Vols eliminar \"{name}\" i tots els seus trams? Aquesta acció no es pot desfer."
   },
   "media": {
     "alt": "Foto de l'activitat",
@@ -211,11 +212,22 @@
     "hideGear": "Amaga l'equipament",
     "success": "Activitat actualitzada",
     "error": "No s'ha pogut actualitzar l'activitat",
-    "staleError": "Aquesta activitat s'ha modificat des d'un altre lloc mentre l'editaves. Els teus canvis no s'han desat. Torna-la a obrir per veure'n la versió actual."
+    "staleError": "Aquesta activitat s'ha modificat des d'un altre lloc mentre l'editaves. Els teus canvis no s'han desat. Torna-la a obrir per veure'n la versió actual.",
+    "legPrivacyNote": "La privadesa s'estableix a l'activitat multiesport i s'aplica a tots els trams.",
+    "multisportPrivacyNote": "La privadesa s'aplica a tots els trams d'aquesta activitat."
   },
   "alerts": {
     "hidden": "Aquesta activitat està oculta. Només tu la pots veure.",
     "privacy": "Alguns detalls estan ocults a les altres persones."
+  },
+  "multisport": {
+    "switcher": "Canvia entre trams",
+    "overview": "Resum",
+    "numberedLeg": "{label} {number}",
+    "partOf": "Part de {name}",
+    "legs": "Trams",
+    "leg": "Tram",
+    "error": "No s'han pogut carregar els trams"
   },
   "error": {
     "title": "No s'ha pogut carregar aquesta activitat",

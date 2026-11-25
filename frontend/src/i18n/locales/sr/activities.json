@@ -157,7 +157,8 @@
     "cancel": "Otkaži",
     "close": "Zatvori",
     "deleteSuccess": "Aktivnost je obrisana",
-    "deleteError": "Nije moguće obrisati aktivnost"
+    "deleteError": "Nije moguće obrisati aktivnost",
+    "deleteMultisportBody": "Obrisati \"{name}\" i sve njene deonice? Ova radnja se ne može poništiti."
   },
   "media": {
     "alt": "Fotografija aktivnosti",
@@ -211,11 +212,22 @@
     "hideGear": "Sakrij opremu",
     "success": "Aktivnost je ažurirana",
     "error": "Nije moguće ažurirati aktivnost",
-    "staleError": "Ova aktivnost je izmenjena na drugom mestu dok ste je uređivali. Vaše izmene nisu sačuvane. Ponovo je otvorite da biste videli trenutnu verziju."
+    "staleError": "Ova aktivnost je izmenjena na drugom mestu dok ste je uređivali. Vaše izmene nisu sačuvane. Ponovo je otvorite da biste videli trenutnu verziju.",
+    "legPrivacyNote": "Privatnost se podešava na multisport aktivnosti i važi za svaku deonicu.",
+    "multisportPrivacyNote": "Privatnost važi za svaku deonicu ove aktivnosti."
   },
   "alerts": {
     "hidden": "Ova aktivnost je skrivena. Samo vi je možete videti.",
     "privacy": "Neki detalji su skriveni od drugih ljudi."
+  },
+  "multisport": {
+    "switcher": "Prebacivanje između deonica",
+    "overview": "Pregled",
+    "numberedLeg": "{label} {number}",
+    "partOf": "Deo aktivnosti {name}",
+    "legs": "Deonice",
+    "leg": "Deonica",
+    "error": "Deonice nije moguće učitati"
   },
   "error": {
     "title": "Nije moguće učitati ovu aktivnost",

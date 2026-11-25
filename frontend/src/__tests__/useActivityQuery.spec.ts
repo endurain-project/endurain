@@ -9,12 +9,14 @@ import { queryKeys } from '@/services/queryKeys'
 import {
   fetchActivityDetail,
   fetchActivityLaps,
+  fetchActivityLegs,
   fetchActivitySets,
   fetchActivityWorkoutSteps,
 } from '@/features/activities/services/activities'
 import { fetchActivityMedia } from '@/features/activities/services/activityMedia'
 import {
   useActivityLapsQuery,
+  useActivityLegsQuery,
   useActivityMediaQuery,
   useActivityOwnerQuery,
   useActivityQuery,
@@ -22,7 +24,7 @@ import {
   useActivityWorkoutStepsQuery,
 } from '@/features/activities/composables/useActivityDetail'
 
-import { makeActivity, activityUuid, userUuid } from './fixtures/activity'
+import { makeActivity, makeActivitySummary, activityUuid, userUuid } from './fixtures/activity'
 
 const ACTIVITY_ID = activityUuid(5)
 
@@ -42,6 +44,7 @@ vi.mock('@/features/activities/services/activities', async (importOriginal) => (
   ...(await importOriginal<typeof import('@/features/activities/services/activities')>()),
   fetchActivityDetail: vi.fn<(id: string) => Promise<ActivityDetail | null>>(),
   fetchActivityLaps: vi.fn<(id: string) => Promise<unknown[]>>(),
+  fetchActivityLegs: vi.fn<(id: string) => Promise<unknown[]>>(),
   fetchActivitySets: vi.fn<(id: string) => Promise<unknown[]>>(),
   fetchActivityWorkoutSteps: vi.fn<(id: string) => Promise<unknown[]>>(),
 }))
@@ -53,6 +56,7 @@ const detail: ActivityDetail = {
   laps: [lap],
   sets: [],
   workoutSteps: [],
+  legs: [],
   owner: null,
 }
 
@@ -190,6 +194,60 @@ describe('useActivityQuery', () => {
 
     expect(fetchActivityLaps).toHaveBeenCalledOnce()
     expect(laps?.data.value).toEqual([lap, lap])
+  })
+
+  it('seeds the legs it carried, so the legs query makes no request', async () => {
+    const leg = makeActivitySummary({ id: activityUuid(8), parentActivityId: ACTIVITY_ID })
+    vi.mocked(fetchActivityDetail).mockResolvedValue({ ...detail, legs: [leg] })
+    const queryClient = new QueryClient()
+    mountWith(queryClient, () => {
+      useActivityQuery(ACTIVITY_ID)
+    })
+    await flushPromises()
+    wrapper?.unmount()
+
+    let legs: ReturnType<typeof useActivityLegsQuery> | undefined
+    mountWith(queryClient, () => {
+      legs = useActivityLegsQuery(ACTIVITY_ID, true)
+    })
+    await flushPromises()
+
+    expect(legs?.data.value).toEqual([leg])
+    expect(fetchActivityLegs).not.toHaveBeenCalled()
+  })
+
+  it('leaves an incomplete legs page to the legs query, which reads every page', async () => {
+    const leg = makeActivitySummary({ id: activityUuid(8), parentActivityId: ACTIVITY_ID })
+    vi.mocked(fetchActivityDetail).mockResolvedValue({ ...detail, legs: null })
+    vi.mocked(fetchActivityLegs).mockResolvedValue([leg, leg])
+    const queryClient = new QueryClient()
+    mountWith(queryClient, () => {
+      useActivityQuery(ACTIVITY_ID)
+    })
+    await flushPromises()
+    expect(queryClient.getQueryData(queryKeys.activities.legs(ACTIVITY_ID))).toBeUndefined()
+    wrapper?.unmount()
+
+    let legs: ReturnType<typeof useActivityLegsQuery> | undefined
+    mountWith(queryClient, () => {
+      legs = useActivityLegsQuery(ACTIVITY_ID, true)
+    })
+    await flushPromises()
+
+    expect(fetchActivityLegs).toHaveBeenCalledOnce()
+    expect(legs?.data.value).toEqual([leg, leg])
+  })
+
+  it('does not read the legs until enabled', async () => {
+    const queryClient = new QueryClient()
+    let legs: ReturnType<typeof useActivityLegsQuery> | undefined
+    mountWith(queryClient, () => {
+      legs = useActivityLegsQuery(ACTIVITY_ID, false)
+    })
+    await flushPromises()
+
+    expect(legs?.fetchStatus.value).toBe('idle')
+    expect(fetchActivityLegs).not.toHaveBeenCalled()
   })
 
   it('seeds nothing when there is no activity', async () => {

@@ -138,3 +138,110 @@ describe('ActivityEditDialog from a list row', () => {
     expect(notes).toContain('Already here')
   })
 })
+
+describe('ActivityEditDialog on a multisport activity', () => {
+  const parent = makeActivity({ activityType: 'multisport', name: 'Sunday triathlon' })
+
+  beforeEach(() => {
+    vi.clearAllMocks()
+    vi.mocked(apiFetch).mockResolvedValue({
+      id: parent.id,
+      version: 2,
+      name: 'Sunday triathlon',
+      activity_type: 'multisport',
+      distance: 1,
+      is_hidden: false,
+      visibility: 'public',
+    })
+  })
+
+  it('shows the multisport type in a disabled select', async () => {
+    const wrapper = await openDialog(parent)
+    const type = wrapper.findAll('select')[0]!
+
+    expect(type.attributes('disabled')).toBeDefined()
+    expect(type.findAll('option').map((option) => option.attributes('value'))).toEqual([
+      'multisport',
+    ])
+    expect(type.text()).toContain(i18n.global.t('activities.types.multisport'))
+  })
+
+  it('keeps the privacy editable and says it applies to every leg', async () => {
+    const wrapper = await openDialog(parent)
+
+    expect(wrapper.text()).toContain(i18n.global.t('activities.edit.multisportPrivacyNote'))
+    expect(wrapper.findAll('select')[1]!.attributes('disabled')).toBeUndefined()
+    const switches = wrapper.findAll('input[role="switch"]')
+    expect(switches.length).toBeGreaterThan(0)
+    expect(switches.every((toggle) => toggle.attributes('disabled') === undefined)).toBe(true)
+  })
+
+  it('sends the privacy fields but not the type', async () => {
+    const wrapper = await openDialog(parent)
+
+    await wrapper.find('form').trigger('submit')
+    await flushPromises()
+
+    const body = JSON.parse(vi.mocked(apiFetch).mock.calls[0]![1]!.body as string)
+    expect(body).not.toHaveProperty('activity_type')
+    expect(body).toMatchObject({ visibility: 'public', hide_map: false, is_hidden: false })
+  })
+})
+
+describe('ActivityEditDialog on a leg', () => {
+  const leg = makeActivity({ parentActivityId: activityUuid(9), activityType: 'run' })
+
+  beforeEach(() => {
+    vi.clearAllMocks()
+    vi.mocked(apiFetch).mockResolvedValue({
+      id: leg.id,
+      version: 2,
+      name: 'Morning run',
+      activity_type: 'run',
+      distance: 1,
+      is_hidden: false,
+      visibility: 'public',
+    })
+  })
+
+  it('disables the privacy controls with a note that privacy is set on the multisport activity', async () => {
+    const wrapper = await openDialog(leg)
+
+    expect(wrapper.text()).toContain(i18n.global.t('activities.edit.legPrivacyNote'))
+    expect(wrapper.findAll('select')[1]!.attributes('disabled')).toBeDefined()
+    const switches = wrapper.findAll('input[role="switch"]')
+    expect(switches.length).toBeGreaterThan(0)
+    expect(switches.every((toggle) => toggle.attributes('disabled') !== undefined)).toBe(true)
+  })
+
+  it('keeps the name, description, notes and type editable', async () => {
+    const wrapper = await openDialog(leg)
+
+    expect(wrapper.find('input').attributes('disabled')).toBeUndefined()
+    expect(wrapper.findAll('select')[0]!.attributes('disabled')).toBeUndefined()
+    expect(
+      wrapper.findAll('textarea').every((area) => area.attributes('disabled') === undefined),
+    ).toBe(true)
+  })
+
+  it('sends the editable fields and none of the privacy fields', async () => {
+    const wrapper = await openDialog(leg)
+    await wrapper.find('input').setValue('Easy run')
+
+    await wrapper.find('form').trigger('submit')
+    await flushPromises()
+
+    const body = JSON.parse(vi.mocked(apiFetch).mock.calls[0]![1]!.body as string)
+    expect(Object.keys(body).sort()).toEqual(
+      ['activity_type', 'description', 'name', 'private_notes'].sort(),
+    )
+    expect(body).toMatchObject({ name: 'Easy run', activity_type: 'run' })
+  })
+
+  it('does not offer the multisport type for an ordinary activity either', async () => {
+    const wrapper = await openDialog(leg)
+    const values = wrapper.findAll('select')[0]!.findAll('option')
+
+    expect(values.map((option) => option.attributes('value'))).not.toContain('multisport')
+  })
+})

@@ -4,15 +4,18 @@ import {
   type QueryClient,
   skipToken,
   useMutation,
+  useQueries,
   useQuery,
   useQueryClient,
 } from '@tanstack/vue-query'
 
+import type { GeoPoint } from '@/composables/useMapProvider'
 import type {
   Activity,
   ActivityEditInput,
   ActivityMedia,
   ActivityOwner,
+  ActivitySummary,
 } from '@/features/activities/types'
 import type { Gear, GearType } from '@/features/gears/types'
 import type { Units } from '@/features/activities/utils/format'
@@ -34,6 +37,7 @@ import {
   fetchActivityDetail,
   fetchActivityExerciseTitles,
   fetchActivityLaps,
+  fetchActivityLegs,
   fetchActivitySets,
   fetchActivityStreams,
   fetchActivityWorkoutSteps,
@@ -44,6 +48,8 @@ import {
   fetchActivityMedia,
   uploadActivityMedia,
 } from '@/features/activities/services/activityMedia'
+import { activityTypeIsMultisport } from '@/features/activities/utils/activityType'
+import { extractTrackPoints } from '@/features/activities/utils/streams'
 
 /** Resolves a reactive activity id to its string, or `''` when unavailable. */
 function resolveId(id: MaybeRefOrGetter<string | null>): string {
@@ -55,7 +61,7 @@ function resolveId(id: MaybeRefOrGetter<string | null>): string {
  * the public shareable-link endpoint otherwise, so the same route serves owners
  * and public viewers. Gated on a valid id.
  *
- * The response also carries the activity's laps, sets and workout steps, its media and its owner,
+ * The response also carries the activity's laps, sets, workout steps and legs, its media and its owner,
  * which are seeded into the caches of their own queries, so those make no request. A collection
  * that did not arrive in full is left to its own query, which reads every page. The media is
  * seeded for a signed-in viewer only (the media query is disabled for anonymous ones); it is empty
@@ -93,6 +99,9 @@ export function useActivityQuery(id: MaybeRefOrGetter<string | null>) {
       }
       if (detail.workoutSteps) {
         client.setQueryData(queryKeys.activities.workoutSteps(activityId), detail.workoutSteps)
+      }
+      if (detail.legs) {
+        client.setQueryData(queryKeys.activities.legs(activityId), detail.legs)
       }
       return detail.activity
     },
@@ -182,6 +191,59 @@ export function useActivityLapsQuery(
       fetchActivityLaps(resolveId(id), { authenticated: auth.isAuthenticated, signal }),
     enabled: computed(() => resolveId(id) !== '' && toValue(enabled)),
     staleTime: 5 * 60_000,
+  })
+}
+
+/**
+ * Loads the legs of a multisport activity, earliest start first. Gated like
+ * {@link useActivityStreamsQuery}; the view only enables it for a multisport activity or a leg.
+ *
+ * @param id - Reactive id of the multisport activity.
+ * @param enabled - Reactive gate (typically "the activity is a multisport activity or a leg").
+ * @returns The TanStack query result for the legs.
+ */
+export function useActivityLegsQuery(
+  id: MaybeRefOrGetter<string | null>,
+  enabled: MaybeRefOrGetter<boolean>,
+) {
+  const auth = useAuthStore()
+
+  return useQuery<ActivitySummary[]>({
+    queryKey: computed(() => queryKeys.activities.legs(resolveId(id))),
+    queryFn: ({ signal }) =>
+      fetchActivityLegs(resolveId(id), { authenticated: auth.isAuthenticated, signal }),
+    enabled: computed(() => resolveId(id) !== '' && toValue(enabled)),
+    staleTime: 5 * 60_000,
+  })
+}
+
+/**
+ * The route of a multisport activity: the map tracks of its legs joined in leg order. Each leg's
+ * streams are read through the same query (and key) as the leg's own page, so a leg page opened
+ * afterwards finds them cached.
+ *
+ * @param legIds - Reactive ids of the legs, in leg order.
+ * @param enabled - Reactive gate (typically "the viewer may see the map").
+ * @returns A reactive list of the joined track points; empty until the streams have loaded.
+ */
+export function useActivityLegsTrack(
+  legIds: MaybeRefOrGetter<string[]>,
+  enabled: MaybeRefOrGetter<boolean>,
+) {
+  const auth = useAuthStore()
+
+  return useQueries({
+    queries: computed(() =>
+      toValue(legIds).map((legId) => ({
+        queryKey: queryKeys.activities.streams(legId),
+        queryFn: ({ signal }: { signal: AbortSignal }) =>
+          fetchActivityStreams(legId, { authenticated: auth.isAuthenticated, signal }),
+        enabled: toValue(enabled),
+        staleTime: 5 * 60_000,
+      })),
+    ),
+    combine: (results): GeoPoint[] =>
+      results.flatMap((result) => extractTrackPoints(result.data ?? [])),
   })
 }
 
@@ -364,8 +426,8 @@ export function useDisplayUnits(): ComputedRef<Units> {
 }
 
 /**
- * Deletes an activity. On success it drops the activity and its sub-resources
- * from the cache instead of refetching them (the detail view is still mounted
+ * Deletes an activity. On success it drops the activity, its sub-resources and, for a
+ * multisport activity, its legs from the cache instead of refetching them (the detail view is still mounted
  * until the caller navigates away, and would otherwise request an activity that
  * no longer exists); on settle it marks the lists, aggregates and gear totals
  * stale so they drop the removed activity.
@@ -378,6 +440,11 @@ export function useDeleteActivityMutation() {
   return useMutation<void, Error, { id: string; version: number }>({
     mutationFn: ({ id, version }) => deleteActivity(id, version),
     onSuccess: (_data, { id }) => {
+      // Deleting a multisport activity deletes its legs; the legs query sits under the detail key.
+      for (const leg of client.getQueryData<ActivitySummary[]>(queryKeys.activities.legs(id)) ??
+        []) {
+        client.removeQueries({ queryKey: queryKeys.activities.detail(leg.id) })
+      }
       client.removeQueries({ queryKey: queryKeys.activities.detail(id) })
       unpinActivity(id)
     },
@@ -461,6 +528,14 @@ export function useEditActivityMutation() {
     mutationFn: ({ id, input, version }) => editActivity(id, input, version),
     onSuccess: (updated) => {
       client.setQueryData(queryKeys.activities.detail(updated.id), updated)
+      // A multisport activity's privacy is copied to its legs, and a leg's type is its tab's label.
+      const legsKey = queryKeys.activities.legs(updated.parentActivityId ?? updated.id)
+      if (activityTypeIsMultisport(updated.activityType)) {
+        for (const leg of client.getQueryData<ActivitySummary[]>(legsKey) ?? []) {
+          void client.invalidateQueries({ queryKey: queryKeys.activities.detail(leg.id) })
+        }
+      }
+      void client.invalidateQueries({ queryKey: legsKey })
     },
     onError: (_error, { id }) => refetchActivity(client, id),
     onSettled: () => invalidateActivityAggregates(client),

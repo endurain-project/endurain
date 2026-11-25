@@ -157,7 +157,8 @@
     "cancel": "Odustani",
     "close": "Zatvori",
     "deleteSuccess": "Aktivnost je izbrisana",
-    "deleteError": "Nije moguće izbrisati aktivnost"
+    "deleteError": "Nije moguće izbrisati aktivnost",
+    "deleteMultisportBody": "Izbrisati \"{name}\" i sve njezine dionice? Ova se radnja ne može poništiti."
   },
   "media": {
     "alt": "Fotografija aktivnosti",
@@ -211,11 +212,22 @@
     "hideGear": "Sakrij opremu",
     "success": "Aktivnost je ažurirana",
     "error": "Nije moguće ažurirati aktivnost",
-    "staleError": "Ova je aktivnost promijenjena na drugom mjestu dok ste je uređivali. Vaše promjene nisu spremljene. Ponovno je otvorite da vidite trenutnu verziju."
+    "staleError": "Ova je aktivnost promijenjena na drugom mjestu dok ste je uređivali. Vaše promjene nisu spremljene. Ponovno je otvorite da vidite trenutnu verziju.",
+    "legPrivacyNote": "Privatnost se postavlja na multisport aktivnosti i vrijedi za svaku dionicu.",
+    "multisportPrivacyNote": "Privatnost vrijedi za svaku dionicu ove aktivnosti."
   },
   "alerts": {
     "hidden": "Ova je aktivnost skrivena. Samo je vi možete vidjeti.",
     "privacy": "Neki su detalji skriveni od drugih osoba."
+  },
+  "multisport": {
+    "switcher": "Prebacivanje između dionica",
+    "overview": "Pregled",
+    "numberedLeg": "{label} {number}",
+    "partOf": "Dio aktivnosti {name}",
+    "legs": "Dionice",
+    "leg": "Dionica",
+    "error": "Dionice nije moguće učitati"
   },
   "error": {
     "title": "Ova se aktivnost nije mogla učitati",

@@ -10,6 +10,7 @@ import {
   fetchActivity,
   fetchActivityDetail,
   fetchActivityLaps,
+  fetchActivityLegs,
   fetchActivityStats,
   fetchActivityStreams,
   fetchFollowersActivities,
@@ -116,6 +117,15 @@ describe('mapActivitySummary', () => {
     })
     expect(summary.privacy.hideHr).toBe(true)
     expect(summary).not.toHaveProperty('privateNotes')
+  })
+
+  it('maps the parent of a leg, and null for every other activity', () => {
+    expect(
+      mapActivitySummary({ ...activityDto, parent_activity_id: activityUuid(2) }),
+    ).toMatchObject({
+      parentActivityId: activityUuid(2),
+    })
+    expect(mapActivitySummary(activityDto).parentActivityId).toBeNull()
   })
 
   it('is the base the full mapper builds on', () => {
@@ -256,6 +266,7 @@ describe('fetchActivityDetail', () => {
     laps: page([lapDto]),
     sets: page([setDto]),
     workout_steps: page([stepDto]),
+    legs: page([]),
     owner: null,
   }
 
@@ -305,6 +316,22 @@ describe('fetchActivityDetail', () => {
 
     expect(detail?.laps).toBeNull()
     expect(detail?.sets).toHaveLength(1)
+  })
+
+  it('maps the legs the detail carries, and reports an incomplete page as null', async () => {
+    const legDto = { ...activityDto, id: activityUuid(8), parent_activity_id: ACTIVITY_ID }
+    vi.mocked(apiFetch).mockResolvedValueOnce({ ...detailDto, legs: page([legDto]) })
+    vi.mocked(apiFetch).mockResolvedValueOnce({ ...detailDto, legs: page([legDto], 2) })
+
+    const complete = await fetchActivityDetail(ACTIVITY_ID, { authenticated: true })
+    const incomplete = await fetchActivityDetail(ACTIVITY_ID, { authenticated: true })
+
+    expect(complete?.legs).toHaveLength(1)
+    expect(complete?.legs?.[0]).toMatchObject({
+      id: activityUuid(8),
+      parentActivityId: ACTIVITY_ID,
+    })
+    expect(incomplete?.legs).toBeNull()
   })
 
   it('returns null on a 404/422 response', async () => {
@@ -484,6 +511,36 @@ describe('fetchActivityLaps', () => {
   })
 })
 
+describe('fetchActivityLegs', () => {
+  const legDto = { ...activityDto, id: activityUuid(8), parent_activity_id: ACTIVITY_ID }
+
+  it('requests the authenticated and public legs endpoints', async () => {
+    vi.mocked(apiFetch).mockResolvedValue({ items: [], next: null })
+    await fetchActivityLegs(ACTIVITY_ID, { authenticated: true })
+    expect(apiFetch).toHaveBeenCalledWith(
+      `/activities/${ACTIVITY_ID}/legs?num_records=200&page_number=1`,
+      expect.objectContaining({ auth: true }),
+    )
+    await fetchActivityLegs(ACTIVITY_ID, { authenticated: false })
+    expect(apiFetch).toHaveBeenCalledWith(
+      `/public/activities/${ACTIVITY_ID}/legs?num_records=200&page_number=1`,
+      expect.objectContaining({ auth: false }),
+    )
+  })
+
+  it('maps every leg through the summary mapper, following the pages', async () => {
+    vi.mocked(apiFetch)
+      .mockResolvedValueOnce({ items: [legDto], next: 2 })
+      .mockResolvedValueOnce({ items: [{ ...legDto, id: activityUuid(9) }], next: null })
+
+    const legs = await fetchActivityLegs(ACTIVITY_ID, { authenticated: true })
+
+    expect(legs.map((leg) => leg.id)).toEqual([activityUuid(8), activityUuid(9)])
+    expect(legs[0]).toMatchObject({ parentActivityId: ACTIVITY_ID })
+    expect(legs[0]).not.toHaveProperty('privateNotes')
+  })
+})
+
 describe('setActivityGear', () => {
   it('sends the required edit fields plus the gear id and maps the result', async () => {
     const activity = mapActivity(activityDto)
@@ -648,6 +705,18 @@ describe('editActivity', () => {
       }),
     })
     expect(updated.name).toBe('Evening run')
+  })
+
+  it('leaves out the type and the privacy fields an edit does not carry', async () => {
+    vi.mocked(apiFetch).mockResolvedValueOnce(activityDto)
+
+    await editActivity(ACTIVITY_ID, { name: 'Run', description: 'd', privateNotes: '' }, 3)
+
+    expect(apiFetch).toHaveBeenCalledWith(`/activities/${ACTIVITY_ID}`, {
+      method: 'PATCH',
+      headers: { 'If-Match': '"3"' },
+      body: JSON.stringify({ name: 'Run', description: 'd', private_notes: null }),
+    })
   })
 })
 

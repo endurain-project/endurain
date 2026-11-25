@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
 import { EllipsisVertical, ImagePlus, Pencil, Trash2 } from '@lucide/vue'
@@ -21,6 +21,7 @@ import {
   useDeleteActivityMutation,
   useUploadActivityMediaMutation,
 } from '@/features/activities/composables/useActivityDetail'
+import { activityTypeIsMultisport } from '@/features/activities/utils/activityType'
 import ActivityEditDialog from '@/features/activities/components/ActivityEditDialog.vue'
 
 const props = defineProps<{
@@ -36,6 +37,13 @@ const deleteMutation = useDeleteActivityMutation()
 const uploadMutation = useUploadActivityMediaMutation(() => props.activity.id)
 const isDeleteOpen = ref(false)
 const isEditOpen = ref(false)
+/** A leg is deleted only with its multisport activity, so it offers no delete. */
+const canDelete = computed(() => props.activity.parentActivityId === null)
+const deleteBodyKey = computed(() =>
+  activityTypeIsMultisport(props.activity.activityType)
+    ? 'activities.actions.deleteMultisportBody'
+    : 'activities.actions.deleteBody',
+)
 const fileInput = ref<HTMLInputElement | null>(null)
 
 /** Opens the native file picker for the Add photo action. */
@@ -99,8 +107,9 @@ async function confirmDelete(): Promise<void> {
         <Pencil class="size-4" />
         <span>{{ t('activities.actions.edit') }}</span>
       </DropdownMenuItem>
-      <DropdownMenuSeparator />
+      <DropdownMenuSeparator v-if="canDelete" />
       <DropdownMenuItem
+        v-if="canDelete"
         class="text-destructive hover:bg-destructive/10 hover:text-destructive focus:bg-destructive/10 focus:text-destructive data-[highlighted]:bg-destructive/10 data-[highlighted]:text-destructive"
         @select="isDeleteOpen = true"
       >
@@ -123,7 +132,7 @@ async function confirmDelete(): Promise<void> {
   <ConfirmDialog
     v-model:open="isDeleteOpen"
     :title="t('activities.actions.deleteTitle')"
-    :description="t('activities.actions.deleteBody', { name: activity.name })"
+    :description="t(deleteBodyKey, { name: activity.name })"
     :confirm-label="t('activities.actions.delete')"
     :cancel-label="t('activities.actions.cancel')"
     :close-label="t('activities.actions.close')"

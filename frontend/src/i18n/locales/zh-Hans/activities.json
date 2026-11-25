@@ -157,7 +157,8 @@
     "cancel": "取消",
     "close": "关闭",
     "deleteSuccess": "活动已删除",
-    "deleteError": "无法删除活动"
+    "deleteError": "无法删除活动",
+    "deleteMultisportBody": "要删除“{name}”及其所有分段吗？此操作无法撤销。"
   },
   "media": {
     "alt": "活动照片",
@@ -211,11 +212,22 @@
     "hideGear": "隐藏装备",
     "success": "活动已更新",
     "error": "无法更新活动",
-    "staleError": "编辑期间，此活动已在别处被修改。您的更改未保存。请重新打开以查看当前版本。"
+    "staleError": "编辑期间，此活动已在别处被修改。您的更改未保存。请重新打开以查看当前版本。",
+    "legPrivacyNote": "隐私在多项运动活动上设置，并适用于每个分段。",
+    "multisportPrivacyNote": "隐私适用于此活动的每个分段。"
   },
   "alerts": {
     "hidden": "此活动已隐藏，只有您可以看到。",
     "privacy": "部分详情对他人已隐藏。"
+  },
+  "multisport": {
+    "switcher": "在分段之间切换",
+    "overview": "概览",
+    "numberedLeg": "{label} {number}",
+    "partOf": "属于 {name}",
+    "legs": "分段",
+    "leg": "分段",
+    "error": "无法加载分段"
   },
   "error": {
     "title": "无法加载此活动",

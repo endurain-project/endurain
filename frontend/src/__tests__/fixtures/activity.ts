@@ -44,6 +44,7 @@ export function makeActivity(overrides: Partial<Activity> = {}): Activity {
     visibility: 'public',
     isHidden: false,
     gearId: null,
+    parentActivityId: null,
     startTime: '2024-05-01T07:00:00Z',
     timezone: 'Europe/Lisbon',
     city: 'Lisbon',

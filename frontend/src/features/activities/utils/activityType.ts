@@ -4,6 +4,7 @@ import {
   Dumbbell,
   Footprints,
   MountainSnow,
+  Route,
   Sailboat,
   Snowflake,
   Waves,
@@ -116,6 +117,7 @@ const RACQUET_TYPES = new Set<ActivityType>([
 const ROWING_TYPES = new Set<ActivityType>(['rowing', 'kayaking'])
 const SNOW_SKIING_TYPES = new Set<ActivityType>(['alpine_ski', 'nordic_ski', 'snow_shoeing'])
 
+const MULTISPORT_TYPE: ActivityType = 'multisport'
 const SNOWBOARD_TYPE: ActivityType = 'snowboard'
 const WINDSURF_TYPE: ActivityType = 'windsurf'
 const SAILING_TYPE: ActivityType = 'sailing'
@@ -149,6 +151,11 @@ export function activityTypeIsWalking(type: ActivityType): boolean {
 /** @returns Whether the type is a racquet sport. */
 export function activityTypeIsRacquet(type: ActivityType): boolean {
   return RACQUET_TYPES.has(type)
+}
+
+/** @returns Whether the type is a multisport activity, the parent of its legs. */
+export function activityTypeIsMultisport(type: ActivityType): boolean {
+  return type === MULTISPORT_TYPE
 }
 
 /** @returns Whether the type is a rowing/kayaking discipline. */
@@ -329,7 +336,7 @@ export function activityTypeIsDistanceBased(type: ActivityType): boolean {
 }
 
 /**
- * Maps an activity type to one of the five badge colour categories the
+ * Maps an activity type to one of the badge colour categories the
  * {@link ActivityTypeBadge} primitive supports.
  *
  * @param type - The activity type.
@@ -348,6 +355,9 @@ export function activityBadgeCategory(type: ActivityType): ActivityBadgeType {
   if (activityTypeIsWalking(type)) {
     return 'hiking'
   }
+  if (activityTypeIsMultisport(type)) {
+    return 'multisport'
+  }
   return 'other'
 }
 
@@ -359,6 +369,9 @@ export function activityBadgeCategory(type: ActivityType): ActivityBadgeType {
  * @returns The icon component.
  */
 export function activityTypeIcon(type: ActivityType): LucideIcon {
+  if (activityTypeIsMultisport(type)) {
+    return Route
+  }
   if (activityTypeIsRunning(type) || activityTypeIsWalking(type)) {
     return Footprints
   }

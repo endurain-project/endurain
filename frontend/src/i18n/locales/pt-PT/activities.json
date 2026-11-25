@@ -157,7 +157,8 @@
     "cancel": "Cancelar",
     "close": "Fechar",
     "deleteSuccess": "Atividade eliminada",
-    "deleteError": "Não foi possível eliminar a atividade"
+    "deleteError": "Não foi possível eliminar a atividade",
+    "deleteMultisportBody": "Eliminar \"{name}\" e todas as suas etapas? Esta ação não pode ser anulada."
   },
   "media": {
     "alt": "Foto da atividade",
@@ -211,11 +212,22 @@
     "hideGear": "Ocultar equipamento",
     "success": "Atividade atualizada",
     "error": "Não foi possível atualizar a atividade",
-    "staleError": "Esta atividade foi alterada noutro local enquanto a editavas. As tuas alterações não foram guardadas. Volta a abri-la para ver a versão atual."
+    "staleError": "Esta atividade foi alterada noutro local enquanto a editavas. As tuas alterações não foram guardadas. Volta a abri-la para ver a versão atual.",
+    "legPrivacyNote": "A privacidade é definida na atividade multidesporto e aplica-se a todas as etapas.",
+    "multisportPrivacyNote": "A privacidade aplica-se a todas as etapas desta atividade."
   },
   "alerts": {
     "hidden": "Esta atividade está oculta. Apenas tu a podes ver.",
     "privacy": "Alguns detalhes estão ocultos de outras pessoas."
+  },
+  "multisport": {
+    "switcher": "Alternar entre etapas",
+    "overview": "Resumo",
+    "numberedLeg": "{label} {number}",
+    "partOf": "Parte de {name}",
+    "legs": "Etapas",
+    "leg": "Etapa",
+    "error": "Não foi possível carregar as etapas"
   },
   "error": {
     "title": "Não foi possível carregar esta atividade",

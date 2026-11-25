@@ -157,7 +157,8 @@
     "cancel": "Annuleren",
     "close": "Sluiten",
     "deleteSuccess": "Activiteit verwijderd",
-    "deleteError": "Activiteit kon niet worden verwijderd"
+    "deleteError": "Activiteit kon niet worden verwijderd",
+    "deleteMultisportBody": "\"{name}\" en alle onderdelen verwijderen? Deze actie kan niet ongedaan worden gemaakt."
   },
   "media": {
     "alt": "Activiteitsfoto",
@@ -211,11 +212,22 @@
     "hideGear": "Uitrusting verbergen",
     "success": "Activiteit bijgewerkt",
     "error": "Activiteit kon niet worden bijgewerkt",
-    "staleError": "Deze activiteit is elders gewijzigd terwijl je hem bewerkte. Je wijzigingen zijn niet opgeslagen. Open hem opnieuw om de huidige versie te zien."
+    "staleError": "Deze activiteit is elders gewijzigd terwijl je hem bewerkte. Je wijzigingen zijn niet opgeslagen. Open hem opnieuw om de huidige versie te zien.",
+    "legPrivacyNote": "Privacy wordt ingesteld op de multisportactiviteit en geldt voor elk onderdeel.",
+    "multisportPrivacyNote": "Privacy geldt voor elk onderdeel van deze activiteit."
   },
   "alerts": {
     "hidden": "Deze activiteit is verborgen. Alleen jij kunt hem zien.",
     "privacy": "Sommige details zijn verborgen voor anderen."
+  },
+  "multisport": {
+    "switcher": "Wissel tussen onderdelen",
+    "overview": "Overzicht",
+    "numberedLeg": "{label} {number}",
+    "partOf": "Onderdeel van {name}",
+    "legs": "Onderdelen",
+    "leg": "Onderdeel",
+    "error": "De onderdelen konden niet worden geladen"
   },
   "error": {
     "title": "Deze activiteit kon niet worden geladen",

@@ -17,7 +17,7 @@ import {
 } from '@/features/activities/services/activities'
 import { queryKeys } from '@/services/queryKeys'
 
-import { makeActivity, activityUuid, userUuid } from './fixtures/activity'
+import { makeActivity, makeActivitySummary, activityUuid, userUuid } from './fixtures/activity'
 
 vi.mock('@/features/activities/services/activities', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@/features/activities/services/activities')>()),
@@ -193,6 +193,55 @@ describe('useEditActivityMutation', () => {
   })
 })
 
+describe('useEditActivityMutation on multisport activities', () => {
+  const LEG_ID = activityUuid(8)
+
+  it('marks the legs of an edited multisport activity stale, as its privacy is copied to them', async () => {
+    const queryClient = seededClient()
+    queryClient.setQueryData(queryKeys.activities.legs(ACTIVITY_ID), [])
+    vi.mocked(editActivity).mockResolvedValue(
+      makeActivity({ id: ACTIVITY_ID, activityType: 'multisport', version: 2 }),
+    )
+    const mutation = mountMutation(queryClient, useEditActivityMutation)
+
+    await mutation.mutateAsync({ id: ACTIVITY_ID, input: editInput, version: 1 })
+    await flushPromises()
+
+    expect(isInvalidated(queryClient, queryKeys.activities.legs(ACTIVITY_ID))).toBe(true)
+  })
+
+  it("marks each leg's own read stale after a multisport edit, as the legs take its privacy", async () => {
+    const queryClient = seededClient()
+    queryClient.setQueryData(queryKeys.activities.legs(ACTIVITY_ID), [
+      makeActivitySummary({ id: LEG_ID, parentActivityId: ACTIVITY_ID }),
+    ])
+    queryClient.setQueryData(queryKeys.activities.detail(LEG_ID), makeActivity({ id: LEG_ID }))
+    vi.mocked(editActivity).mockResolvedValue(
+      makeActivity({ id: ACTIVITY_ID, activityType: 'multisport', version: 2 }),
+    )
+    const mutation = mountMutation(queryClient, useEditActivityMutation)
+
+    await mutation.mutateAsync({ id: ACTIVITY_ID, input: editInput, version: 1 })
+    await flushPromises()
+
+    expect(isInvalidated(queryClient, queryKeys.activities.detail(LEG_ID))).toBe(true)
+  })
+
+  it('marks the legs of the parent stale after a leg edit, as its type labels its tab', async () => {
+    const queryClient = seededClient()
+    queryClient.setQueryData(queryKeys.activities.legs(ACTIVITY_ID), [])
+    vi.mocked(editActivity).mockResolvedValue(
+      makeActivity({ id: LEG_ID, parentActivityId: ACTIVITY_ID, version: 2 }),
+    )
+    const mutation = mountMutation(queryClient, useEditActivityMutation)
+
+    await mutation.mutateAsync({ id: LEG_ID, input: editInput, version: 1 })
+    await flushPromises()
+
+    expect(isInvalidated(queryClient, queryKeys.activities.legs(ACTIVITY_ID))).toBe(true)
+  })
+})
+
 describe('useSetActivityGearMutation', () => {
   it('marks the gear totals stale without refetching the activity sub-resources or gear lists', async () => {
     const queryClient = seededClient()
@@ -250,6 +299,25 @@ describe('useDeleteActivityMutation', () => {
       UNAFFECTED_ACTIVITY_KEYS.media,
     ]
     expect(activityKeys.filter((key) => queryClient.getQueryState(key) !== undefined)).toEqual([])
+  })
+
+  it('drops the legs of a deleted multisport activity with their own data', async () => {
+    const queryClient = seededClient()
+    const legId = activityUuid(8)
+    queryClient.setQueryData(queryKeys.activities.legs(ACTIVITY_ID), [
+      makeActivitySummary({ id: legId, parentActivityId: ACTIVITY_ID }),
+    ])
+    queryClient.setQueryData(queryKeys.activities.detail(legId), makeActivity({ id: legId }))
+    queryClient.setQueryData(queryKeys.activities.streams(legId), [])
+    vi.mocked(deleteActivity).mockResolvedValue()
+    const mutation = mountMutation(queryClient, useDeleteActivityMutation)
+
+    await mutation.mutateAsync({ id: ACTIVITY_ID, version: 4 })
+    await flushPromises()
+
+    expect(queryClient.getQueryState(queryKeys.activities.legs(ACTIVITY_ID))).toBeUndefined()
+    expect(queryClient.getQueryState(queryKeys.activities.detail(legId))).toBeUndefined()
+    expect(queryClient.getQueryState(queryKeys.activities.streams(legId))).toBeUndefined()
   })
 
   it('keeps unrelated activities and static data, and refreshes lists, aggregates and gear usage', async () => {

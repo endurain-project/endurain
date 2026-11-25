@@ -157,7 +157,8 @@
     "cancel": "Atcelt",
     "close": "Aizvērt",
     "deleteSuccess": "Aktivitāte dzēsta",
-    "deleteError": "Neizdevās dzēst aktivitāti"
+    "deleteError": "Neizdevās dzēst aktivitāti",
+    "deleteMultisportBody": "Vai dzēst \"{name}\" un visus tās posmus? Šo darbību nevar atsaukt."
   },
   "media": {
     "alt": "Aktivitātes fotoattēls",
@@ -211,11 +212,22 @@
     "hideGear": "Slēpt inventāru",
     "success": "Aktivitāte atjaunināta",
     "error": "Neizdevās atjaunināt aktivitāti",
-    "staleError": "Šī aktivitāte tika mainīta citur, kamēr Jūs to rediģējāt. Jūsu izmaiņas netika saglabātas. Atveriet to vēlreiz, lai redzētu pašreizējo versiju."
+    "staleError": "Šī aktivitāte tika mainīta citur, kamēr Jūs to rediģējāt. Jūsu izmaiņas netika saglabātas. Atveriet to vēlreiz, lai redzētu pašreizējo versiju.",
+    "legPrivacyNote": "Privātums tiek iestatīts vairāku sporta veidu aktivitātei un attiecas uz katru posmu.",
+    "multisportPrivacyNote": "Privātums attiecas uz katru šīs aktivitātes posmu."
   },
   "alerts": {
     "hidden": "Šī aktivitāte ir slēpta. Tikai jūs to varat redzēt.",
     "privacy": "Daži dati ir slēpti no citiem cilvēkiem."
+  },
+  "multisport": {
+    "switcher": "Pārslēgties starp posmiem",
+    "overview": "Pārskats",
+    "numberedLeg": "{label} {number}",
+    "partOf": "Aktivitātes {name} daļa",
+    "legs": "Posmi",
+    "leg": "Posms",
+    "error": "Neizdevās ielādēt posmus"
   },
   "error": {
     "title": "Neizdevās ielādēt šo aktivitāti",

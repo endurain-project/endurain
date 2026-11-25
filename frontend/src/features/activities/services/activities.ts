@@ -82,6 +82,7 @@ export function mapActivitySummary(dto: ActivitySummaryDto): ActivitySummary {
     visibility: dto.visibility ?? 'public',
     isHidden: dto.is_hidden,
     gearId: dto.gear_id ?? null,
+    parentActivityId: dto.parent_activity_id ?? null,
     version: rowVersion(dto.version),
 
     // The UTC instant plus the recording timezone. Views localize for display
@@ -237,7 +238,7 @@ function completeRows<Dto, T>(page: ChildPage<Dto>, map: (dto: Dto) => T): T[] |
 }
 
 /**
- * Fetches an activity together with its laps, sets and workout steps in one request (auth or
+ * Fetches an activity together with its laps, sets, workout steps and legs in one request (auth or
  * public endpoint), so the page needs neither the activity before the collections nor a request
  * for each. Returns `null` when the activity is missing or not publicly shareable.
  *
@@ -264,6 +265,7 @@ export async function fetchActivityDetail(
       laps: completeRows(dto.laps, mapActivityLap),
       sets: completeRows(dto.sets, mapActivitySet),
       workoutSteps: completeRows(dto.workout_steps, mapActivityWorkoutStep),
+      legs: completeRows(dto.legs, mapActivitySummary),
       owner: dto.owner ? mapActivityOwner(dto.owner) : null,
     }
   } catch (error) {
@@ -578,6 +580,27 @@ export async function fetchActivityLaps(
 }
 
 /**
+ * Fetches the legs of a multisport activity, earliest start first (auth or public endpoint). An
+ * activity with no legs, or one the viewer cannot read, has none.
+ *
+ * @param id - Activity identifier.
+ * @param context - Auth + cancellation context.
+ * @returns The activity's legs as list rows.
+ */
+export async function fetchActivityLegs(
+  id: string,
+  context: ActivityFetchContext,
+): Promise<ActivitySummary[]> {
+  const path = resourcePath(
+    context.authenticated,
+    `/activities/${id}/legs`,
+    `/public/activities/${id}/legs`,
+  )
+  const dtos = await fetchAllChildRows<ActivitySummaryDto>(path, context)
+  return dtos.map(mapActivitySummary)
+}
+
+/**
  * Maps a workout-step DTO to the domain model.
  *
  * @param dto - The workout-step wire payload.
@@ -779,6 +802,7 @@ export async function editActivity(
   input: ActivityEditInput,
   version: number,
 ): Promise<Activity> {
+  // An `undefined` field is left out of the JSON body, so the server never sees it.
   const body: ActivityEditDto = {
     name: input.name,
     activity_type: input.activityType,

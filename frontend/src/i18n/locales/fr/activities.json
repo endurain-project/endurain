@@ -157,7 +157,8 @@
     "cancel": "Annuler",
     "close": "Fermer",
     "deleteSuccess": "Activité supprimée",
-    "deleteError": "Impossible de supprimer l'activité"
+    "deleteError": "Impossible de supprimer l'activité",
+    "deleteMultisportBody": "Supprimer \"{name}\" et toutes ses étapes ? Cette action est irréversible."
   },
   "media": {
     "alt": "Photo de l'activité",
@@ -211,11 +212,22 @@
     "hideGear": "Masquer l'équipement",
     "success": "Activité mise à jour",
     "error": "Impossible de mettre à jour l'activité",
-    "staleError": "Cette activité a été modifiée ailleurs pendant que vous la modifiiez. Vos modifications n'ont pas été enregistrées. Rouvrez-la pour voir la version actuelle."
+    "staleError": "Cette activité a été modifiée ailleurs pendant que vous la modifiiez. Vos modifications n'ont pas été enregistrées. Rouvrez-la pour voir la version actuelle.",
+    "legPrivacyNote": "La confidentialité est définie sur l'activité multisport et s'applique à chaque étape.",
+    "multisportPrivacyNote": "La confidentialité s'applique à chaque étape de cette activité."
   },
   "alerts": {
     "hidden": "Cette activité est masquée. Seul vous pouvez la voir.",
     "privacy": "Certains détails sont masqués aux autres personnes."
+  },
+  "multisport": {
+    "switcher": "Passer d'une étape à l'autre",
+    "overview": "Aperçu",
+    "numberedLeg": "{label} {number}",
+    "partOf": "Fait partie de {name}",
+    "legs": "Étapes",
+    "leg": "Étape",
+    "error": "Impossible de charger les étapes"
   },
   "error": {
     "title": "Impossible de charger cette activité",

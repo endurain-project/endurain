@@ -157,7 +157,8 @@
     "cancel": "Avbryt",
     "close": "Lukk",
     "deleteSuccess": "Aktivitet slettet",
-    "deleteError": "Kunne ikke slette aktiviteten"
+    "deleteError": "Kunne ikke slette aktiviteten",
+    "deleteMultisportBody": "Slette \"{name}\" og alle etappene? Denne handlingen kan ikke angres."
   },
   "media": {
     "alt": "Aktivitetsbilde",
@@ -211,11 +212,22 @@
     "hideGear": "Skjul utstyr",
     "success": "Aktivitet oppdatert",
     "error": "Kunne ikke oppdatere aktiviteten",
-    "staleError": "Denne aktiviteten ble endret et annet sted mens du redigerte. Endringene dine ble ikke lagret. Åpne den på nytt for å se gjeldende versjon."
+    "staleError": "Denne aktiviteten ble endret et annet sted mens du redigerte. Endringene dine ble ikke lagret. Åpne den på nytt for å se gjeldende versjon.",
+    "legPrivacyNote": "Personvernet settes på multisportaktiviteten og gjelder for hver etappe.",
+    "multisportPrivacyNote": "Personvernet gjelder for hver etappe av denne aktiviteten."
   },
   "alerts": {
     "hidden": "Denne aktiviteten er skjult. Bare du kan se den.",
     "privacy": "Noen detaljer er skjult for andre personer."
+  },
+  "multisport": {
+    "switcher": "Bytt mellom etapper",
+    "overview": "Oversikt",
+    "numberedLeg": "{label} {number}",
+    "partOf": "Del av {name}",
+    "legs": "Etapper",
+    "leg": "Etappe",
+    "error": "Kunne ikke laste etappene"
   },
   "error": {
     "title": "Kunne ikke laste denne aktiviteten",

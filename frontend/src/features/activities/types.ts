@@ -221,6 +221,11 @@ export interface ActivitySummary {
   visibility: ActivityVisibility
   isHidden: boolean
   gearId: string | null
+  /**
+   * The multisport activity this activity is a leg of, or `null` for every other activity (a
+   * multisport activity included).
+   */
+  parentActivityId: string | null
 
   /**
    * Row version behind the `ETag`. Sent back as `If-Match` on save so an edit
@@ -325,26 +330,29 @@ export interface ActivityOwner {
   avatarUrl: string | null
 }
 
-/** The editable fields of an activity, as bound by the edit form. */
+/**
+ * The fields an edit sends. The type and the privacy fields are left out (`undefined`) where the
+ * server refuses them: the type of a multisport activity, the privacy of a leg.
+ */
 export interface ActivityEditInput {
   name: string
-  activityType: ActivityType
+  activityType?: ActivityType
   description: string
   privateNotes: string
-  visibility: ActivityVisibility
-  isHidden: boolean
-  hideStartTime: boolean
-  hideLocation: boolean
-  hideMap: boolean
-  hideHr: boolean
-  hidePower: boolean
-  hideCadence: boolean
-  hideElevation: boolean
-  hideSpeed: boolean
-  hidePace: boolean
-  hideLaps: boolean
-  hideWorkoutSetsSteps: boolean
-  hideGear: boolean
+  visibility?: ActivityVisibility
+  isHidden?: boolean
+  hideStartTime?: boolean
+  hideLocation?: boolean
+  hideMap?: boolean
+  hideHr?: boolean
+  hidePower?: boolean
+  hideCadence?: boolean
+  hideElevation?: boolean
+  hideSpeed?: boolean
+  hidePace?: boolean
+  hideLaps?: boolean
+  hideWorkoutSetsSteps?: boolean
+  hideGear?: boolean
 }
 
 /**
@@ -355,12 +363,15 @@ export interface ActivityEditInput {
  * @property sets - Every performed workout set, or `null` when the response held only the first page.
  * @property workoutSteps - Every planned workout step, or `null` when the response held only the
  *   first page.
+ * @property legs - Every leg of a multisport activity, or `null` when the response held only the
+ *   first page.
  */
 export interface ActivityDetail {
   activity: Activity
   laps: ActivityLap[] | null
   sets: ActivityWorkoutSet[] | null
   workoutSteps: ActivityWorkoutStep[] | null
+  legs: ActivitySummary[] | null
   owner: ActivityOwner | null
 }
 

@@ -4,6 +4,7 @@ import { computed } from 'vue'
 import { TabsList, type TabsListProps, useForwardProps } from 'reka-ui'
 
 import { cn } from '@/lib/utils'
+import { tabsListClass } from '.'
 
 const props = defineProps<TabsListProps & { class?: HTMLAttributes['class'] }>()
 
@@ -16,16 +17,7 @@ const forwarded = useForwardProps(delegatedProps)
 </script>
 
 <template>
-  <TabsList
-    data-slot="tabs-list"
-    v-bind="forwarded"
-    :class="
-      cn(
-        'inline-flex items-center gap-1 rounded-input border border-border bg-background p-1',
-        props.class,
-      )
-    "
-  >
+  <TabsList data-slot="tabs-list" v-bind="forwarded" :class="cn(tabsListClass, props.class)">
     <slot />
   </TabsList>
 </template>

@@ -157,7 +157,8 @@
     "cancel": "Abbrechen",
     "close": "Schließen",
     "deleteSuccess": "Aktivität gelöscht",
-    "deleteError": "Aktivität konnte nicht gelöscht werden"
+    "deleteError": "Aktivität konnte nicht gelöscht werden",
+    "deleteMultisportBody": "\"{name}\" und alle Abschnitte löschen? Diese Aktion kann nicht rückgängig gemacht werden."
   },
   "media": {
     "alt": "Aktivitätsfoto",
@@ -211,11 +212,22 @@
     "hideGear": "Ausrüstung verbergen",
     "success": "Aktivität aktualisiert",
     "error": "Aktivität konnte nicht aktualisiert werden",
-    "staleError": "Diese Aktivität wurde während der Bearbeitung an anderer Stelle geändert. Deine Änderungen wurden nicht gespeichert. Öffne sie erneut, um die aktuelle Version zu sehen."
+    "staleError": "Diese Aktivität wurde während der Bearbeitung an anderer Stelle geändert. Deine Änderungen wurden nicht gespeichert. Öffne sie erneut, um die aktuelle Version zu sehen.",
+    "legPrivacyNote": "Die Privatsphäre wird an der Multisport-Aktivität festgelegt und gilt für jeden Abschnitt.",
+    "multisportPrivacyNote": "Die Privatsphäre gilt für jeden Abschnitt dieser Aktivität."
   },
   "alerts": {
     "hidden": "Diese Aktivität ist versteckt. Nur du kannst sie sehen.",
     "privacy": "Einige Details sind vor anderen Personen verborgen."
+  },
+  "multisport": {
+    "switcher": "Zwischen Abschnitten wechseln",
+    "overview": "Übersicht",
+    "numberedLeg": "{label} {number}",
+    "partOf": "Teil von {name}",
+    "legs": "Abschnitte",
+    "leg": "Abschnitt",
+    "error": "Die Abschnitte konnten nicht geladen werden"
   },
   "error": {
     "title": "Diese Aktivität konnte nicht geladen werden",

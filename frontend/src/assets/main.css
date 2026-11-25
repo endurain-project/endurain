@@ -40,6 +40,8 @@
   --color-activity-swimming-text: #185fa5;
   --color-activity-hiking-bg: #faeeda;
   --color-activity-hiking-text: #854f0b;
+  --color-activity-multisport-bg: var(--color-brand-light);
+  --color-activity-multisport-text: var(--color-brand-mid);
   --color-activity-other-bg: #f1efe8;
   --color-activity-other-text: #5f5e5a;
 

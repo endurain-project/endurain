@@ -157,7 +157,8 @@
     "cancel": "Annulla",
     "close": "Chiudi",
     "deleteSuccess": "Attività eliminata",
-    "deleteError": "Impossibile eliminare l'attività"
+    "deleteError": "Impossibile eliminare l'attività",
+    "deleteMultisportBody": "Eliminare \"{name}\" e tutte le sue tappe? Questa azione non può essere annullata."
   },
   "media": {
     "alt": "Foto dell'attività",
@@ -211,11 +212,22 @@
     "hideGear": "Nascondi attrezzatura",
     "success": "Attività aggiornata",
     "error": "Impossibile aggiornare l'attività",
-    "staleError": "Questa attività è stata modificata altrove mentre la stavi modificando. Le tue modifiche non sono state salvate. Riaprila per vedere la versione attuale."
+    "staleError": "Questa attività è stata modificata altrove mentre la stavi modificando. Le tue modifiche non sono state salvate. Riaprila per vedere la versione attuale.",
+    "legPrivacyNote": "La privacy si imposta sull'attività multisport e vale per ogni tappa.",
+    "multisportPrivacyNote": "La privacy vale per ogni tappa di questa attività."
   },
   "alerts": {
     "hidden": "Questa attività è nascosta. Solo tu puoi vederla.",
     "privacy": "Alcuni dettagli sono nascosti agli altri."
+  },
+  "multisport": {
+    "switcher": "Passa da una tappa all'altra",
+    "overview": "Panoramica",
+    "numberedLeg": "{label} {number}",
+    "partOf": "Parte di {name}",
+    "legs": "Tappe",
+    "leg": "Tappa",
+    "error": "Impossibile caricare le tappe"
   },
   "error": {
     "title": "Impossibile caricare questa attività",

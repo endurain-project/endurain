@@ -157,7 +157,8 @@
     "cancel": "Anulează",
     "close": "Închide",
     "deleteSuccess": "Activitate ștearsă",
-    "deleteError": "Nu am putut șterge activitatea"
+    "deleteError": "Nu am putut șterge activitatea",
+    "deleteMultisportBody": "Ștergi \"{name}\" și toate etapele sale? Această acțiune nu poate fi anulată."
   },
   "media": {
     "alt": "Fotografie a activității",
@@ -211,11 +212,22 @@
     "hideGear": "Ascunde echipamentul",
     "success": "Activitate actualizată",
     "error": "Nu am putut actualiza activitatea",
-    "staleError": "Această activitate a fost modificată în altă parte în timp ce o editai. Modificările tale nu au fost salvate. Redeschide-o pentru a vedea versiunea curentă."
+    "staleError": "Această activitate a fost modificată în altă parte în timp ce o editai. Modificările tale nu au fost salvate. Redeschide-o pentru a vedea versiunea curentă.",
+    "legPrivacyNote": "Confidențialitatea se setează pe activitatea multisport și se aplică fiecărei etape.",
+    "multisportPrivacyNote": "Confidențialitatea se aplică fiecărei etape a acestei activități."
   },
   "alerts": {
     "hidden": "Această activitate este ascunsă. Doar tu o poți vedea.",
     "privacy": "Unele detalii sunt ascunse de celelalte persoane."
+  },
+  "multisport": {
+    "switcher": "Comută între etape",
+    "overview": "Prezentare generală",
+    "numberedLeg": "{label} {number}",
+    "partOf": "Parte din {name}",
+    "legs": "Etape",
+    "leg": "Etapă",
+    "error": "Etapele nu au putut fi încărcate"
   },
   "error": {
     "title": "Nu am putut încărca această activitate",

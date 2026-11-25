@@ -2,7 +2,7 @@
 import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { RouterLink, useRoute } from 'vue-router'
-import { ArrowLeft } from '@lucide/vue'
+import { ArrowLeft, Route } from '@lucide/vue'
 
 import type { ActivityOwner, HrZoneBucket } from '@/features/activities/types'
 import type { StreamChart } from '@/features/activities/utils/streams'
@@ -18,6 +18,8 @@ import ActivityDetailHeader from '@/features/activities/components/ActivityDetai
 import ActivityGallery from '@/features/activities/components/ActivityGallery.vue'
 import ActivityGearCard from '@/features/activities/components/ActivityGearCard.vue'
 import ActivityHrZones from '@/features/activities/components/ActivityHrZones.vue'
+import ActivityLegSwitcher from '@/features/activities/components/ActivityLegSwitcher.vue'
+import ActivityLegsTable from '@/features/activities/components/ActivityLegsTable.vue'
 import ActivityLapsTable from '@/features/activities/components/ActivityLapsTable.vue'
 import ActivityMetricsGrid from '@/features/activities/components/ActivityMetricsGrid.vue'
 import ActivityPrivacyAlerts from '@/features/activities/components/ActivityPrivacyAlerts.vue'
@@ -26,6 +28,8 @@ import ActivityWorkoutSets from '@/features/activities/components/ActivityWorkou
 import {
   useActivityExerciseTitlesQuery,
   useActivityLapsQuery,
+  useActivityLegsQuery,
+  useActivityLegsTrack,
   useActivityOwnerQuery,
   useActivityQuery,
   useActivitySetsQuery,
@@ -33,6 +37,7 @@ import {
   useActivityWorkoutStepsQuery,
   useDisplayUnits,
 } from '@/features/activities/composables/useActivityDetail'
+import { activityTypeIsMultisport } from '@/features/activities/utils/activityType'
 import {
   buildMetricVisibility,
   canViewField,
@@ -58,8 +63,13 @@ const activityId = computed(() => {
 const { data: activity, isLoading, isError, refetch } = useActivityQuery(activityId)
 
 const activityLoaded = computed(() => !!activity.value)
-const { data: streams } = useActivityStreamsQuery(activityId, activityLoaded)
-const { data: laps } = useActivityLapsQuery(activityId, activityLoaded)
+// A multisport activity has no streams of its own: its map is its legs' and the rest is its legs'.
+const isMultisport = computed(
+  () => !!activity.value && activityTypeIsMultisport(activity.value.activityType),
+)
+const ownDataLoaded = computed(() => activityLoaded.value && !isMultisport.value)
+const { data: streams } = useActivityStreamsQuery(activityId, ownDataLoaded)
+const { data: laps } = useActivityLapsQuery(activityId, ownDataLoaded)
 
 const currentUserId = computed(() => currentUser.value?.id ?? null)
 
@@ -91,13 +101,29 @@ const metricVisibility = computed(() =>
   activity.value ? buildMetricVisibility(activity.value, currentUserId.value) : null,
 )
 
-const trackPoints = computed(() => extractTrackPoints(streams.value ?? []))
-const showMap = computed(
-  () =>
-    !!activity.value &&
-    canViewField(activity.value, 'hideMap', currentUserId.value) &&
-    trackPoints.value.length > 0,
+// A leg opens under its multisport activity; the switcher and the legs table read the same legs.
+const parentId = computed(() => activity.value?.parentActivityId ?? null)
+const { data: parentActivity } = useActivityQuery(parentId)
+const multisportId = computed(() => (isMultisport.value ? activityId.value : parentId.value))
+const hasLegsContext = computed(() => multisportId.value !== null)
+const legsQuery = useActivityLegsQuery(multisportId, hasLegsContext)
+const legs = computed(() => legsQuery.data.value ?? [])
+/** The legs card shows while the legs load or fail to, and once loaded only when there are any. */
+const showLegsCard = computed(
+  () => isMultisport.value && (legsQuery.data.value === undefined || legs.value.length > 0),
 )
+
+const canViewMap = computed(
+  () => !!activity.value && canViewField(activity.value, 'hideMap', currentUserId.value),
+)
+const legsTrackPoints = useActivityLegsTrack(
+  () => legs.value.map((leg) => leg.id),
+  () => isMultisport.value && canViewMap.value,
+)
+const trackPoints = computed(() =>
+  isMultisport.value ? legsTrackPoints.value : extractTrackPoints(streams.value ?? []),
+)
+const showMap = computed(() => canViewMap.value && trackPoints.value.length > 0)
 
 const streamCharts = computed(() => {
   if (!activity.value) {
@@ -122,8 +148,8 @@ const showLaps = computed(
 // Workout steps/sets. Fetched for every activity (like laps/streams); the
 // section self-hides when there is no data, so data presence drives display
 // regardless of activity type.
-const { data: workoutSteps } = useActivityWorkoutStepsQuery(activityId, activityLoaded)
-const { data: workoutSets } = useActivitySetsQuery(activityId, activityLoaded)
+const { data: workoutSteps } = useActivityWorkoutStepsQuery(activityId, ownDataLoaded)
+const { data: workoutSets } = useActivitySetsQuery(activityId, ownDataLoaded)
 const hasWorkoutData = computed(
   () => (workoutSteps.value?.length ?? 0) > 0 || (workoutSets.value?.length ?? 0) > 0,
 )
@@ -279,6 +305,16 @@ const notFound = computed(() => !isLoading.value && !isError.value && !activity.
 
     <!-- Content -->
     <template v-else-if="activity && metricVisibility">
+      <!-- A leg links back to the multisport activity it is part of. -->
+      <RouterLink
+        v-if="parentActivity"
+        :to="{ name: 'activity', params: { id: parentActivity.id } }"
+        class="flex items-center gap-1.5 self-start text-body hover:underline"
+      >
+        <Route class="size-4 shrink-0" aria-hidden="true" />
+        {{ t('activities.multisport.partOf', { name: parentActivity.name }) }}
+      </RouterLink>
+
       <!-- Summary: title/user + at-a-glance metrics, before the map. -->
       <Card class="flex flex-col gap-3">
         <ActivityDetailHeader
@@ -292,6 +328,14 @@ const notFound = computed(() => !isLoading.value && !isError.value && !activity.
         </div>
       </Card>
 
+      <!-- Leg switcher: Overview plus one tab per leg. -->
+      <ActivityLegSwitcher
+        v-if="multisportId && legs.length > 0"
+        :parent-id="multisportId"
+        :legs="legs"
+        :active-id="activity.id"
+      />
+
       <ActivityPrivacyAlerts :activity="activity" :current-user-id="currentUserId" />
 
       <ActivityGallery
@@ -300,7 +344,26 @@ const notFound = computed(() => !isLoading.value && !isError.value && !activity.
         :is-owner="isOwner"
       />
 
-      <ActivityGearCard v-if="isOwner" :activity="activity" />
+      <Card v-if="showLegsCard" class="flex flex-col gap-3">
+        <h2 class="text-card-heading">{{ t('activities.multisport.legs') }}</h2>
+        <div v-if="legsQuery.isPending.value" class="space-y-2" aria-busy="true">
+          <Skeleton v-for="n in 3" :key="n" class="h-8 w-full" />
+        </div>
+        <ErrorState
+          v-else-if="legsQuery.isError.value"
+          :title="t('activities.multisport.error')"
+          class="py-4"
+        >
+          <template #action>
+            <Button variant="outline" size="sm" @click="legsQuery.refetch()">
+              {{ t('activities.error.retry') }}
+            </Button>
+          </template>
+        </ErrorState>
+        <ActivityLegsTable v-else :legs="legs" :units="units" :current-user-id="currentUserId" />
+      </Card>
+
+      <ActivityGearCard v-if="isOwner && !isMultisport" :activity="activity" />
 
       <div v-if="chartPanels.length > 0" class="grid gap-3 lg:grid-cols-2">
         <template v-for="panel in chartPanels" :key="panel.key">

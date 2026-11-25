@@ -157,7 +157,8 @@
     "cancel": "Tühista",
     "close": "Sulge",
     "deleteSuccess": "Tegevus kustutatud",
-    "deleteError": "Tegevust ei õnnestunud kustutada"
+    "deleteError": "Tegevust ei õnnestunud kustutada",
+    "deleteMultisportBody": "Kas kustutada \"{name}\" ja kõik selle etapid? Seda toimingut ei saa tagasi võtta."
   },
   "media": {
     "alt": "Tegevuse foto",
@@ -211,11 +212,22 @@
     "hideGear": "Peida varustus",
     "success": "Tegevus uuendatud",
     "error": "Tegevust ei õnnestunud uuendada",
-    "staleError": "Seda tegevust muudeti mujal, kui sa seda redigeerisid. Sinu muudatusi ei salvestatud. Ava see uuesti, et näha praegust versiooni."
+    "staleError": "Seda tegevust muudeti mujal, kui sa seda redigeerisid. Sinu muudatusi ei salvestatud. Ava see uuesti, et näha praegust versiooni.",
+    "legPrivacyNote": "Privaatsus määratakse mitmealatreeningul ja see kehtib igale etapile.",
+    "multisportPrivacyNote": "Privaatsus kehtib selle tegevuse igale etapile."
   },
   "alerts": {
     "hidden": "See tegevus on peidetud. Ainult sina näed seda.",
     "privacy": "Mõned üksikasjad on teiste eest peidetud."
+  },
+  "multisport": {
+    "switcher": "Lülitu etappide vahel",
+    "overview": "Ülevaade",
+    "numberedLeg": "{label} {number}",
+    "partOf": "Osa tegevusest {name}",
+    "legs": "Etapid",
+    "leg": "Etapp",
+    "error": "Etappe ei õnnestunud laadida"
   },
   "error": {
     "title": "Seda tegevust ei õnnestunud laadida",

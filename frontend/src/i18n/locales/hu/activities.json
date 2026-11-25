@@ -157,7 +157,8 @@
     "cancel": "Mégse",
     "close": "Bezárás",
     "deleteSuccess": "Tevékenység törölve",
-    "deleteError": "Nem sikerült törölni a tevékenységet"
+    "deleteError": "Nem sikerült törölni a tevékenységet",
+    "deleteMultisportBody": "Törli a(z) \"{name}\" tevékenységet és minden szakaszát? Ez a művelet nem vonható vissza."
   },
   "media": {
     "alt": "Tevékenység fényképe",
@@ -211,11 +212,22 @@
     "hideGear": "Felszerelés elrejtése",
     "success": "Tevékenység frissítve",
     "error": "Nem sikerült frissíteni a tevékenységet",
-    "staleError": "Ezt a tevékenységet máshol módosították, miközben szerkesztetted. A módosításaid nem lettek mentve. Nyisd meg újra a jelenlegi verzió megtekintéséhez."
+    "staleError": "Ezt a tevékenységet máshol módosították, miközben szerkesztetted. A módosításaid nem lettek mentve. Nyisd meg újra a jelenlegi verzió megtekintéséhez.",
+    "legPrivacyNote": "Az adatvédelmet a többsportos tevékenységen kell beállítani, és minden szakaszra vonatkozik.",
+    "multisportPrivacyNote": "Az adatvédelem a tevékenység minden szakaszára vonatkozik."
   },
   "alerts": {
     "hidden": "Ez a tevékenység rejtett. Csak te láthatod.",
     "privacy": "Néhány részlet rejtve van mások elől."
+  },
+  "multisport": {
+    "switcher": "Váltás a szakaszok között",
+    "overview": "Áttekintés",
+    "numberedLeg": "{label} {number}",
+    "partOf": "A(z) {name} része",
+    "legs": "Szakaszok",
+    "leg": "Szakasz",
+    "error": "A szakaszokat nem sikerült betölteni"
   },
   "error": {
     "title": "Nem sikerült betölteni ezt a tevékenységet",

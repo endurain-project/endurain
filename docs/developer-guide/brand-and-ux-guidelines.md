@@ -107,6 +107,7 @@ cycling green, swimming blue), apply them through the
 | Cycling | `--color-activity-cycling-bg` `#E9F4DC` | `--color-activity-cycling-text` `#466E15` |
 | Swimming | `--color-activity-swimming-bg` `#E6F1FB` | `--color-activity-swimming-text` `#185FA5` |
 | Hiking | `--color-activity-hiking-bg` `#FAEEDA` | `--color-activity-hiking-text` `#854F0B` |
+| Multisport | `--color-activity-multisport-bg` `#E1F5EE` (brand light) | `--color-activity-multisport-text` `#0F6E56` (brand mid) |
 | Other | `--color-activity-other-bg` `#F1EFE8` | `--color-activity-other-text` `#5F5E5A` |
 
 ### shadcn-vue semantic layer
@@ -207,7 +208,7 @@ specific primitives below.
 
 | Prop | Type | Notes |
 |---|---|---|
-| `type` | `running \| cycling \| swimming \| hiking \| other` | Drives the badge color |
+| `type` | `running \| cycling \| swimming \| hiking \| multisport \| other` | Drives the badge color |
 | `icon` | `LucideIcon?` | Optional leading icon |
 
 ```vue

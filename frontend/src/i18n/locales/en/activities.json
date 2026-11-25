@@ -157,7 +157,8 @@
     "cancel": "Cancel",
     "close": "Close",
     "deleteSuccess": "Activity deleted",
-    "deleteError": "Couldn't delete the activity"
+    "deleteError": "Couldn't delete the activity",
+    "deleteMultisportBody": "Delete \"{name}\" and all of its legs? This action can't be undone."
   },
   "media": {
     "alt": "Activity photo",
@@ -211,11 +212,22 @@
     "hideGear": "Hide gear",
     "success": "Activity updated",
     "error": "Couldn't update the activity",
-    "staleError": "This activity was changed elsewhere while you were editing. Your changes were not saved. Reopen it to see the current version."
+    "staleError": "This activity was changed elsewhere while you were editing. Your changes were not saved. Reopen it to see the current version.",
+    "legPrivacyNote": "Privacy is set on the multisport activity and applies to every leg.",
+    "multisportPrivacyNote": "Privacy applies to every leg of this activity."
   },
   "alerts": {
     "hidden": "This activity is hidden. Only you can see it.",
     "privacy": "Some details are hidden from other people."
+  },
+  "multisport": {
+    "switcher": "Switch between legs",
+    "overview": "Overview",
+    "numberedLeg": "{label} {number}",
+    "partOf": "Part of {name}",
+    "legs": "Legs",
+    "leg": "Leg",
+    "error": "Couldn't load the legs"
   },
   "error": {
     "title": "Couldn't load this activity",

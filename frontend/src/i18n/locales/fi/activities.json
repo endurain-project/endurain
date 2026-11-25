@@ -157,7 +157,8 @@
     "cancel": "Peruuta",
     "close": "Sulje",
     "deleteSuccess": "Aktiviteetti poistettu",
-    "deleteError": "Aktiviteettia ei voitu poistaa"
+    "deleteError": "Aktiviteettia ei voitu poistaa",
+    "deleteMultisportBody": "Poistetaanko \"{name}\" ja kaikki sen osuudet? Toimintoa ei voi perua."
   },
   "media": {
     "alt": "Aktiviteetin valokuva",
@@ -211,11 +212,22 @@
     "hideGear": "Piilota varusteet",
     "success": "Aktiviteetti päivitetty",
     "error": "Aktiviteettia ei voitu päivittää",
-    "staleError": "Tätä aktiviteettia muutettiin muualla, kun muokkasit sitä. Muutoksiasi ei tallennettu. Avaa se uudelleen nähdäksesi nykyisen version."
+    "staleError": "Tätä aktiviteettia muutettiin muualla, kun muokkasit sitä. Muutoksiasi ei tallennettu. Avaa se uudelleen nähdäksesi nykyisen version.",
+    "legPrivacyNote": "Yksityisyys asetetaan moniurheiluaktiviteetille ja se koskee jokaista osuutta.",
+    "multisportPrivacyNote": "Yksityisyys koskee tämän aktiviteetin jokaista osuutta."
   },
   "alerts": {
     "hidden": "Tämä aktiviteetti on piilotettu. Vain sinä näet sen.",
     "privacy": "Jotkin tiedot on piilotettu muilta."
+  },
+  "multisport": {
+    "switcher": "Vaihda osuuksien välillä",
+    "overview": "Yleiskatsaus",
+    "numberedLeg": "{label} {number}",
+    "partOf": "Osa aktiviteettia {name}",
+    "legs": "Osuudet",
+    "leg": "Osuus",
+    "error": "Osuuksien lataaminen epäonnistui"
   },
   "error": {
     "title": "Tätä aktiviteettia ei voitu ladata",

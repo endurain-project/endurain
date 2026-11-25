@@ -191,6 +191,11 @@ export const queryKeys = {
      * @returns A query key for an activity's laps.
      */
     laps: (id: string) => ['activities', 'detail', id, 'laps'] as const,
+    /**
+     * @param id - Multisport activity identifier.
+     * @returns A query key for a multisport activity's legs.
+     */
+    legs: (id: string) => ['activities', 'detail', id, 'legs'] as const,
     /** Planned workout steps for one activity. */
     workoutSteps: (id: string) => ['activities', 'detail', id, 'workout-steps'] as const,
     /** Performed workout sets for one activity. */

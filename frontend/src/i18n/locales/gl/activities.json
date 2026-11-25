@@ -157,7 +157,8 @@
     "cancel": "Cancelar",
     "close": "Pechar",
     "deleteSuccess": "Actividade eliminada",
-    "deleteError": "Non se puido eliminar a actividade"
+    "deleteError": "Non se puido eliminar a actividade",
+    "deleteMultisportBody": "Eliminar \"{name}\" e todos os seus tramos? Esta acción non se pode desfacer."
   },
   "media": {
     "alt": "Foto da actividade",
@@ -211,11 +212,22 @@
     "hideGear": "Ocultar equipamento",
     "success": "Actividade actualizada",
     "error": "Non se puido actualizar a actividade",
-    "staleError": "Esta actividade foi modificada noutro lugar mentres a editabas. Os teus cambios non se gardaron. Ábrea de novo para ver a versión actual."
+    "staleError": "Esta actividade foi modificada noutro lugar mentres a editabas. Os teus cambios non se gardaron. Ábrea de novo para ver a versión actual.",
+    "legPrivacyNote": "A privacidade defínese na actividade multideporte e aplícase a todos os tramos.",
+    "multisportPrivacyNote": "A privacidade aplícase a todos os tramos desta actividade."
   },
   "alerts": {
     "hidden": "Esta actividade está oculta. Só ti podes vela.",
     "privacy": "Algúns detalles están ocultos a outras persoas."
+  },
+  "multisport": {
+    "switcher": "Cambiar entre tramos",
+    "overview": "Resumo",
+    "numberedLeg": "{label} {number}",
+    "partOf": "Parte de {name}",
+    "legs": "Tramos",
+    "leg": "Tramo",
+    "error": "Non se puideron cargar os tramos"
   },
   "error": {
     "title": "Non se puido cargar esta actividade",
