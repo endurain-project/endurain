@@ -152,6 +152,10 @@ class FakeGarmin:
         listed = [a for a in self._account.activities if start <= a["startTimeLocal"][:10] <= end]
         return self._answer("get_activities_by_date", (start, end), listed)
 
+    def get_activity(self, activity_id: str) -> dict[str, Any]:
+        """Answer the detail of an activity, whose id the client takes as text."""
+        return self._answer("get_activity", int(activity_id), self._account.activity_details.get(int(activity_id), {}))
+
     def get_activity_gear(self, activity_id: int) -> object:
         """Answer the gear used on an activity."""
         return self._answer("get_activity_gear", activity_id, self._account.activity_gear.get(activity_id, []))
@@ -188,6 +192,7 @@ class GarminAccount:
         activities: The activity summaries ``get_activities_by_date`` lists, or ``None`` for an answer of none.
         archives: The archive ``download_activity`` answers, by activity id.
         activity_gear: The gear ``get_activity_gear`` answers, by activity id.
+        activity_details: The detail ``get_activity`` answers, by activity id.
         gear: The gear ``get_gear`` answers.
         body_composition: The ``dateWeightList`` of the body composition.
         daily_steps: The daily steps entries.
@@ -208,6 +213,7 @@ class GarminAccount:
         self.activities: list[dict[str, Any]] | None = []
         self.archives: dict[int, bytes] = {}
         self.activity_gear: dict[int, object] = {}
+        self.activity_details: dict[int, dict[str, Any]] = {}
         self.gear: object = []
         self.body_composition: list[dict[str, Any]] = []
         self.daily_steps: list[dict[str, Any]] = []
@@ -260,6 +266,30 @@ class GarminAccount:
         assert self.activities is not None
         self.activities.append(activity_summary(activity_id, name=name, start=started))
         self.archives[activity_id] = activity_archive(activity_id, start=started, name=name)
+
+    def add_multisport_activity(
+        self,
+        activity_id: int,
+        archive: bytes,
+        child_ids: list[int],
+        *,
+        name: str = "Morning Multisport",
+        start: datetime | None = None,
+    ) -> None:
+        """Hold a multisport activity as Garmin Connect lists it: one parent entry, its legs not listed.
+
+        Args:
+            activity_id: The parent's Garmin Connect activity id.
+            archive: The archive ``download_activity`` answers for it.
+            child_ids: The ids of its legs, in leg order, which ``get_activity`` answers.
+            name: The activity's name.
+            start: When it started; :data:`DEFAULT_ACTIVITY_START` by default.
+        """
+        assert self.activities is not None
+        summary = activity_summary(activity_id, name=name, start=start or DEFAULT_ACTIVITY_START)
+        self.activities.append({**summary, "isParent": True, "parentId": None})
+        self.archives[activity_id] = archive
+        self.activity_details[activity_id] = {"activityId": activity_id, "metadataDTO": {"childIds": child_ids}}
 
     def called(self, method: str) -> list[tuple[Any, ...]]:
         """List the arguments of every call to a method."""

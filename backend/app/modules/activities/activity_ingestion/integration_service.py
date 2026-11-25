@@ -33,6 +33,7 @@ import modules.users.users.integration_service as users_integration
 #: provider names one module rather than reaching for the package internals.
 UploadSource = activity_ingestion_contracts.UploadSource
 GarminSource = activity_ingestion_contracts.GarminSource
+LegGear = activity_ingestion_contracts.LegGear
 BulkImportSource = activity_ingestion_contracts.BulkImportSource
 BulkImportFormat = activity_ingestion_contracts.BulkImportFormat
 ArchiveMemberReader = activity_ingestion_contracts.ArchiveMemberReader

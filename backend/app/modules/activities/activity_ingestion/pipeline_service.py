@@ -278,13 +278,17 @@ def store_activities_from_file(
     )
     garmin_activity_id = garmin_source.activity_id if garmin_source else None
 
-    def enrich(parsed: activity_contracts.ParsedActivity) -> None:
+    def enrich(
+        parsed: activity_contracts.ParsedActivity,
+        gear: activity_ingestion_contracts.LegGear,
+    ) -> None:
         """Re-attach owner privacy defaults, gear, and Garmin ids to one parsed activity, in place.
 
         Done before the bulk-import metadata can override the gear.
 
         Args:
             parsed: The parsed activity, a multisport parent or leg included.
+            gear: The gear the source resolved for it.
         """
         activity_ingestion_enrichment_service.enrich_parsed_activity(
             parsed.activity,
@@ -292,12 +296,8 @@ def store_activities_from_file(
             user_privacy_settings=user_privacy_settings,
             db=db,
             from_garmin=garmin_source is not None,
-            # Read through the narrowed source rather than a separate boolean:
-            # only ``GarminSource`` carries gear, and a plain ``from_garmin``
-            # flag left that unprovable (and one refactor away from an
-            # AttributeError on the other two source types).
-            provider_gear_id=garmin_source.gear_id if garmin_source else None,
-            garminconnect_gear_id=garmin_source.provider_gear_id if garmin_source else None,
+            provider_gear_id=gear.gear_id,
+            garminconnect_gear_id=gear.provider_gear_id,
             garmin_connect_activity_id=garmin_activity_id,
         )
 
@@ -305,9 +305,11 @@ def store_activities_from_file(
     created_activities: list[activity_schema.ActivityRead] = []
     if parsed_file.parent is not None:
         parent = parsed_file.parent
-        enrich(parent)
-        for leg in parsed_file.activities:
-            enrich(leg)
+        no_gear = activity_ingestion_contracts.LegGear()
+        enrich(parent, no_gear)
+        leg_gear = _leg_gear(garmin_source, len(parsed_file.activities))
+        for leg, gear in zip(parsed_file.activities, leg_gear, strict=True):
+            enrich(leg, gear)
         # A Strava export ships one copy of the file per leg, each listed at its leg's start. Asking about the parent
         # imports the group from the one copy listed at the parent's start and skips the other copies.
         if bulk_source is None or bulk_source.should_import(
@@ -322,8 +324,14 @@ def store_activities_from_file(
             # One commit per group: the parent, its legs and their events land together.
             db.commit()
     else:
+        # Read through the narrowed source rather than a separate boolean: only ``GarminSource`` carries gear.
+        activity_gear = (
+            activity_ingestion_contracts.LegGear(garmin_source.gear_id, garmin_source.provider_gear_id)
+            if garmin_source
+            else activity_ingestion_contracts.LegGear()
+        )
         for parsed in parsed_file.activities:
-            enrich(parsed)
+            enrich(parsed, activity_gear)
 
             if bulk_source is not None:
                 if not bulk_source.should_import(
@@ -351,6 +359,35 @@ def store_activities_from_file(
         _finish_bulk_import_file(bulk_source, created_activities, file_base_name, db)
 
     return created_activities
+
+
+def _leg_gear(
+    garmin_source: activity_ingestion_contracts.GarminSource | None, leg_count: int
+) -> tuple[activity_ingestion_contracts.LegGear, ...]:
+    """Pair each leg of a multisport file with the gear the Garmin sync resolved for it.
+
+    Args:
+        garmin_source: The Garmin source of the file, when it came from the sync.
+        leg_count: How many legs the file holds.
+
+    Returns:
+        One entry per leg, in leg order; entries without gear for a file that is not from the sync, or when the
+        sync's count differs from the legs' (none at all included, as Garmin then named no legs).
+    """
+    no_gear = (activity_ingestion_contracts.LegGear(),) * leg_count
+    if garmin_source is None:
+        return no_gear
+    if len(garmin_source.leg_gear) != leg_count:
+        logger.warning(
+            "Garmin leg gear does not match the legs of the file, so no leg takes Garmin gear",
+            extra=core_logger.context(
+                activity_id=garmin_source.activity_id,
+                leg_gear_count=len(garmin_source.leg_gear),
+                leg_count=leg_count,
+            ),
+        )
+        return no_gear
+    return garmin_source.leg_gear
 
 
 def _finish_bulk_import_file(

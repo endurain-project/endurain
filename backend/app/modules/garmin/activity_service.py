@@ -23,6 +23,48 @@ import modules.garmin.service as garmin_service
 logger = core_logger.get_logger(__name__)
 
 
+def _child_activity_ids(detail: dict[str, Any]) -> list[int]:
+    """Read the ids of a multisport activity's legs from its Garmin detail, in leg order.
+
+    Args:
+        detail: What ``get_activity`` answered for the multisport activity.
+
+    Returns:
+        The legs' Garmin activity ids; empty when the detail names none.
+    """
+    child_ids = detail.get("childIds") or detail.get("metadataDTO", {}).get("childIds")
+    return [int(child_id) for child_id in child_ids or []]
+
+
+def _leg_gear(
+    garminconnect_client: garminconnect.Garmin, activity_id: int, user_id: uuid.UUID
+) -> tuple[activity_ingestion_integration.LegGear, ...]:
+    """Read the gear of each leg of a multisport activity and resolve it to local gear.
+
+    The Garmin round trips run with no database session open; each leg's gear is resolved in its own short one.
+
+    Args:
+        garminconnect_client: A client authenticated as the user.
+        activity_id: The multisport activity's Garmin id.
+        user_id: The user the activity belongs to.
+
+    Returns:
+        The gear of each leg, in leg order.
+    """
+    child_gear = [
+        garmin_gear_service.gear_list(garminconnect_client.get_activity_gear(child_id))
+        for child_id in _child_activity_ids(garminconnect_client.get_activity(str(activity_id)))
+    ]
+    leg_gear = []
+    for gear in child_gear:
+        with core_database.SessionLocal() as db:
+            gear_id = garmin_gear_service.resolve_synced_gear_id(user_id, gear, db)
+        leg_gear.append(
+            activity_ingestion_integration.LegGear(gear_id=gear_id, provider_gear_id=gear[0]["uuid"] if gear else None)
+        )
+    return tuple(leg_gear)
+
+
 def _download_and_ingest_activity(
     garminconnect_client: garminconnect.Garmin,
     activity: dict[str, Any],
@@ -46,6 +88,7 @@ def _download_and_ingest_activity(
     activity_name = activity["activityName"]
 
     activity_gear = garmin_gear_service.gear_list(garminconnect_client.get_activity_gear(activity_id))
+    leg_gear = _leg_gear(garminconnect_client, int(activity_id), user_id) if activity.get("isParent") else ()
     zip_data = garminconnect_client.download_activity(
         activity_id,
         dl_fmt=garminconnect_client.ActivityDownloadFormat.ORIGINAL,
@@ -100,6 +143,7 @@ def _download_and_ingest_activity(
                         gear_id=garmin_gear_service.resolve_synced_gear_id(user_id, activity_gear, db),
                         provider_gear_id=activity_gear[0]["uuid"] if activity_gear else None,
                         activity_name=activity_name,
+                        leg_gear=leg_gear,
                     ),
                 )
             # Ingestion logs a file it refuses and answers None, so the window moves on; an outage is raised.

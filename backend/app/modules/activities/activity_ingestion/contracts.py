@@ -107,6 +107,19 @@ class UploadSource:
 
 
 @dataclass(frozen=True)
+class LegGear:
+    """The gear one leg of a Garmin multisport activity was recorded on.
+
+    Attributes:
+        gear_id: Internal gear id the Garmin sync resolved from the leg's synced gear.
+        provider_gear_id: The Garmin Connect gear UUID of the leg's gear.
+    """
+
+    gear_id: uuid.UUID | None = None
+    provider_gear_id: str | None = None
+
+
+@dataclass(frozen=True)
 class GarminSource:
     """A file downloaded by the Garmin Connect sync.
 
@@ -121,12 +134,15 @@ class GarminSource:
             module anything.
         provider_gear_id: The Garmin Connect gear UUID, recorded on the activity.
         activity_name: Optional override for the parsed activity's name.
+        leg_gear: For a multisport activity, the gear of each leg in leg order; empty for any other activity.
+            A multisport activity's own ``gear_id`` and ``provider_gear_id`` are not spread over its legs.
     """
 
     activity_id: int
     gear_id: uuid.UUID | None = None
     provider_gear_id: str | None = None
     activity_name: str | None = None
+    leg_gear: tuple[LegGear, ...] = ()
 
     kind = "garmin"
 
