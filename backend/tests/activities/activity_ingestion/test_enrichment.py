@@ -67,6 +67,52 @@ class TestAnUploadedActivity:
         assert activity.visibility == activity_constants.ActivityVisibility.PRIVATE.stored
 
 
+class TestAMultisportFile:
+    def test_gives_the_parent_the_privacy_defaults_and_no_gear_while_the_legs_take_their_types_default_gear(
+        self, owner, pool, committed_sessions
+    ):
+        owner, shoes_id = owner
+        _upload(owner, fit_file(activities=2, multisport=True), "triathlon.fit")
+        pool.drain()
+
+        rows = activities_of(committed_sessions, owner.user.id)
+        [parent] = [row for row in rows if row.parent_activity_id is None]
+        legs = [row for row in rows if row.parent_activity_id is not None]
+        assert parent.gear_id is None
+        assert [leg.gear_id for leg in legs] == [shoes_id, shoes_id]
+        for row in rows:
+            assert row.hide_location is True
+            assert row.visibility == activity_constants.ActivityVisibility.FOLLOWERS.stored
+
+    def test_from_garmin_carries_the_providers_id_on_the_parent_and_each_leg_but_the_gear_only_on_the_legs(
+        self, owner, committed_sessions, tmp_path
+    ):
+        owner, _shoes = owner
+        with committed_sessions() as db:
+            synced_gear = make_gear(db, owner.user.id, nickname="Synced shoes", gear_type="shoes")
+            db.commit()
+        path = tmp_path / "555_ACTIVITY.fit"
+        path.write_bytes(fit_file(activities=2, multisport=True))
+
+        with committed_sessions() as db:
+            created = ingestion_integration.ingest_activity_file(
+                owner.user.id,
+                str(path),
+                db,
+                source=ingestion_integration.GarminSource(
+                    activity_id=555, gear_id=synced_gear.id, provider_gear_id="garmin-gear-1"
+                ),
+            )
+
+        assert created is not None
+        rows = activities_of(committed_sessions, owner.user.id)
+        [parent] = [row for row in rows if row.parent_activity_id is None]
+        legs = [row for row in rows if row.parent_activity_id is not None]
+        assert [(row.garminconnect_activity_id) for row in rows] == [555, 555, 555]
+        assert (parent.gear_id, parent.garminconnect_gear_id) == (None, None)
+        assert [(leg.gear_id, leg.garminconnect_gear_id) for leg in legs] == [(synced_gear.id, "garmin-gear-1")] * 2
+
+
 class TestAProviderSyncedActivity:
     def test_takes_the_owners_privacy_defaults_too(self, owner, providers, pool, committed_sessions):
         owner, _shoes = owner

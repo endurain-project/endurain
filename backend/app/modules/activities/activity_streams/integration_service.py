@@ -6,6 +6,7 @@ from typing import Any
 from pydantic import InstanceOf, TypeAdapter
 from sqlalchemy.orm import Session
 
+import modules.activities.activity.integration_service as activity_integration
 import modules.activities.activity.schema as activity_schema
 import modules.activities.activity_streams.contracts as activity_streams_contracts
 import modules.activities.activity_streams.crud as activity_streams_crud
@@ -144,39 +145,32 @@ def profile_contributor() -> activities_contributors.ProfileActivityContributor:
     )
 
 
-def get_stream_for_derivation(
-    activity_id: uuid.UUID,
-    stream_type: int,
-    db: Session,
-) -> activity_streams_schema.ActivityStreamsRead | None:
-    """Return one unmasked stream for an internal derived artifact.
-
-    No masking is applied: the caller derives an artifact for the owner rather
-    than serving a viewer.
-
-    Args:
-        activity_id: ID of the activity.
-        stream_type: The stream type code.
-        db: Database session.
-
-    Returns:
-        One unmasked stream for an internal derived artifact.
-    """
-    return activity_streams_crud.get_activity_stream_by_type(activity_id, stream_type, db)
-
-
-def get_gps_waypoints_for_activities(
+def get_route_waypoints_for_activities(
     activity_ids: list[uuid.UUID], db: Session
 ) -> dict[uuid.UUID, list[dict[str, Any]]]:
-    """Return GPS waypoints for several activities in one query.
+    """Return the route of several activities in one query: each one's own GPS waypoints.
 
-    Activities with no GPS stream are absent from the result.
+    A multisport activity has no stream of its own, so its route is its legs' GPS waypoints joined in the legs' start
+    order; a leg without a map adds nothing. An activity with no route is absent from the result.
 
     Args:
         activity_ids: IDs of the activities to read.
         db: Database session.
 
     Returns:
-        GPS waypoints for several activities in one query.
+        The route waypoints by activity ID.
     """
-    return activity_streams_crud.get_gps_stream_waypoints_for_activities(activity_ids, db)
+    legs = activity_integration.get_leg_ids_by_parent(activity_ids, db)
+    waypoints = activity_streams_crud.get_gps_stream_waypoints_for_activities(
+        [*activity_ids, *(leg_id for leg_ids in legs.values() for leg_id in leg_ids)], db
+    )
+    routes: dict[uuid.UUID, list[dict[str, Any]]] = {}
+    for activity_id in activity_ids:
+        route = (
+            [point for leg_id in legs[activity_id] for point in waypoints.get(leg_id, [])]
+            if activity_id in legs
+            else waypoints.get(activity_id)
+        )
+        if route:
+            routes[activity_id] = route
+    return routes

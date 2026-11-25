@@ -29,7 +29,6 @@ import core.logger as core_logger
 import core.pagination as core_pagination
 import modules.activities.activity.contracts as activity_contracts
 import modules.activities.activity.integration_service as activity_integration
-import modules.activities.activity_streams.constants as activity_streams_constants
 import modules.activities.activity_streams.integration_service as activity_streams_integration
 import modules.activities.activity_thumbnail.constants as activity_thumbnail_constants
 import modules.activities.activity_thumbnail.event_publishers as activity_thumbnail_event_publishers
@@ -236,10 +235,8 @@ def generate_thumbnail_for_activity(
             "Skipping thumbnail generation: already stored", extra=core_logger.context(activity_id=activity_id)
         )
         return existing_key
-    waypoints = activity_streams_integration.get_stream_for_derivation(
-        activity_id, activity_streams_constants.STREAM_TYPE_MAP, db
-    )
-    if waypoints is None or len(waypoints.stream_waypoints) < _MIN_WAYPOINTS:
+    waypoints = activity_streams_integration.get_route_waypoints_for_activities([activity_id], db).get(activity_id, [])
+    if len(waypoints) < _MIN_WAYPOINTS:
         # Logged because "my activity has no thumbnail" is otherwise
         # indistinguishable from a failure.
         logger.debug(
@@ -247,7 +244,7 @@ def generate_thumbnail_for_activity(
             extra=core_logger.context(
                 activity_id=activity_id,
                 user_id=user_id,
-                waypoint_count=0 if waypoints is None else len(waypoints.stream_waypoints),
+                waypoint_count=len(waypoints),
                 minimum_waypoints=_MIN_WAYPOINTS,
             ),
         )
@@ -255,7 +252,7 @@ def generate_thumbnail_for_activity(
     tile_url, background_color, api_key = resolve_tile_settings(db)
     return generate_and_store_thumbnail(
         activity_id,
-        waypoints.stream_waypoints,
+        waypoints,
         storage,
         db,
         tile_url=tile_url,
@@ -495,9 +492,9 @@ def _run_missing_thumbnail_generation(
             tile_settings = resolve_tile_settings(db)
         tile_url, background_color, api_key = tile_settings
 
-        # Batch-load MAP-stream waypoints through the streams service (the ORM
-        # stays confined to that package) as an {activity_id: waypoints} mapping.
-        waypoints_by_activity_id = activity_streams_integration.get_gps_waypoints_for_activities(
+        # Batch-load the routes through the streams service (the ORM stays confined to that
+        # package) as an {activity_id: waypoints} mapping; a multisport activity's is its legs'.
+        waypoints_by_activity_id = activity_streams_integration.get_route_waypoints_for_activities(
             [activity.id for activity in page],
             db,
         )

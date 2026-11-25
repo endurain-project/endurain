@@ -247,9 +247,12 @@ class ParsedFile:
 
     Attributes:
         activities: The parsed activities, in file order. Empty when the file held
-            nothing importable.
+            nothing importable. A multisport file's legs are here.
         components: Parsed file-scoped package data keyed by contributor key.
+        parent: The multisport activity the ``activities`` are the legs of; ``None``
+            for every other file.
     """
 
     activities: list[ParsedActivity] = field(default_factory=list)
     components: dict[str, object] = field(default_factory=dict)
+    parent: ParsedActivity | None = None

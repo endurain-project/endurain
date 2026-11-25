@@ -95,6 +95,8 @@ Reading an upload job needs the `activities:upload` scope. Starting a bulk impor
 
 `POST /activities/upload`, a multipart form with the file in `file`. It needs the `activities:upload` scope and accepts a bearer token or an [API key](api-keys.md). The file is stored and queued, then the route answers `202` with the job. Cheap refusals come back at once as errors instead of a job: an unsupported extension or a file whose content is not that type is `415`, a file over the limit is `413`, and a file that is empty or fails the other content checks is `400`.
 
+A FIT file the device recorded as one multisport activity (a triathlon) gives one `multisport` activity with its legs, not one activity per session. The job's `activity_ids` names the multisport activity only, the legs are listed under it by `parent_activity_id`, and the file is kept once, with the multisport activity. A file already imported leg by leg, before multisport activities existed, answers with those legs. See [Multisport activities](data-conventions.md#multisport-activities).
+
 A user may have at most 10 uploads open at once, counting those pending, processing or deferred. The 11th is `409` with `urn:endurain:error:conflict` and a `detail` that names the limit. It is refused before the file is stored, and no job is created. Poll your open uploads until one finishes, then upload again. A replay with an `Idempotency-Key` that already has a job answers with that job even at the limit.
 
 Send an [`Idempotency-Key`](idempotency.md) header, a quoted string of up to 255 characters, to make a retry safe. A client that never saw the `202` has no job id to poll, and a replay without a key would import the file twice.

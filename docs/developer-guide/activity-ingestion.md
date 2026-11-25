@@ -41,13 +41,15 @@ Decoding and assembly are pure functions. They return a canonical `ParsedFile` a
     | --- | --- |
     | An explicit key set by the source | That key, used as is |
     | Strava activity id | `strava:<id>` |
-    | Garmin activity id | `garmin:<id>:<start time>` (a multi-activity `.fit` shares one Garmin id) |
-    | File content | `file:<sha256>:<start time>` |
+    | Garmin activity id | `garmin:<id>:<start time>` (a multi-activity `.fit` shares one Garmin id); `garmin:<id>` for a multisport parent |
+    | File content | `file:<sha256>:<start time>`; `file:<sha256>` for a multisport parent |
     | None of these | Falls back to start-time matching: the activity is stored but hidden, with a notification |
 
     A unique index on `(user_id, dedup_key)` settles concurrent imports of the same activity. The loser rolls back and returns the winner.
 4. **Persist components:** the activity row and its children (laps, sets, streams, workout steps and so on) are staged through contributors registered in `contributor_registry`. A parsed component with no registered contributor fails the import instead of being dropped silently.
 5. **Publish `activity.created`:** staged in the same transaction as the rows. The pipeline commits once per activity, so a later failure does not undo earlier activities.
+
+A FIT file whose `activity` message marks it multisport (`auto_multi_sport`) is the exception: the parser returns a multisport parent with the sessions as its legs, and `store_parsed_group` stages the parent and every leg in one transaction, committed once. The legs copy the parent's privacy, only the parent runs the same-start duplicate check, the retained file is stored once under the parent, and the pipeline returns the parent alone. A file whose legs were stored on their own before groups existed is left as it is.
 
 ```mermaid
 sequenceDiagram

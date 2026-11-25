@@ -8,7 +8,7 @@ logging, no database and no provider.
 
 import bisect
 import uuid
-from collections.abc import Mapping, Sequence
+from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 from typing import NotRequired, TypedDict
@@ -25,6 +25,14 @@ import modules.activities.computation as activities_computation
 
 #: The sport name FIT gives a lap-swimming session, whose working time comes from its lengths or split summaries.
 _LAP_SWIMMING = "lap_swimming"
+
+#: The name of a multisport activity the file and the caller leave unnamed.
+_MULTISPORT_NAME = activity_constants.set_activity_name_based_on_activity_type(
+    activity_constants.ActivityType.MULTISPORT.stored
+)
+
+#: The fewest sessions a multisport file needs to become a parent with legs.
+_MIN_LEGS = 2
 
 #: The FIT split type of a rest interval.
 _REST_SPLIT = "interval_rest"
@@ -74,6 +82,20 @@ class ActivityFilePayload(TypedDict):
     laps: list[Mapping[str, object]]
     sets: NotRequired[list[list[object]]]
     workout_steps: NotRequired[list[activity_workout_steps_contracts.ActivityWorkoutStepsCreate]]
+
+
+@dataclass(frozen=True, slots=True)
+class AssembledFile:
+    """What a recording assembles into: the activities of its sessions, under a parent when it is multisport.
+
+    Attributes:
+        parent: The multisport activity over the legs; ``None`` unless the recording is multisport with at least two
+            sessions.
+        activities: One payload per session, in time order; the legs when there is a parent.
+    """
+
+    parent: ActivityFilePayload | None
+    activities: list[ActivityFilePayload]
 
 
 @dataclass(frozen=True, slots=True)
@@ -823,12 +845,17 @@ def _laps(
     return generated
 
 
-def _name(recording: activity_file_import_recording.Recording, activity_name: str | None) -> str:
+def _name(
+    recording: activity_file_import_recording.Recording,
+    activity_name: str | None,
+    default: str = activity_constants.DEFAULT_ACTIVITY_NAME,
+) -> str:
     """Pick the activity's name: the caller's, else the file's, else the default.
 
     Args:
         recording: The recording.
         activity_name: The name the caller gave, if any.
+        default: The name when neither the caller nor the file gives one.
 
     Returns:
         The name.
@@ -837,7 +864,7 @@ def _name(recording: activity_file_import_recording.Recording, activity_name: st
         return activity_name
     if recording.name and recording.name != activity_constants.DEFAULT_ACTIVITY_NAME:
         return recording.name
-    return activity_constants.DEFAULT_ACTIVITY_NAME
+    return default
 
 
 def _assemble_session(
@@ -847,6 +874,8 @@ def _assemble_session(
     activity_name: str | None,
     default_timezone: str,
     lap_distance_km: float,
+    *,
+    is_leg: bool,
 ) -> ActivityFilePayload:
     """Assemble one session into an activity payload.
 
@@ -857,6 +886,7 @@ def _assemble_session(
         activity_name: The name the caller gave, if any.
         default_timezone: The owner's timezone, used when the file yields none.
         lap_distance_km: Distance after which a generated lap closes.
+        is_leg: Whether the session is a leg of a multisport parent, which is named for its sport.
 
     Returns:
         The payload.
@@ -880,12 +910,13 @@ def _assemble_session(
     cadence = activities_computation.double_cadence_waypoints(streams.cadence) if running else streams.cadence
     laps = _laps(session, streams, cadence, running, lap_distance_km)
 
+    stored_type = activity_constants.ActivityType.from_stored(activity_type)
     activity = activity_contracts.ActivityCore(
         user_id=user_id,
-        name=_name(recording, activity_name),
+        name=stored_type.label if is_leg else _name(recording, activity_name),
         description=recording.description,
         distance=round(distance) if distance else 0,
-        activity_type=activity_constants.ActivityType.from_stored(activity_type),
+        activity_type=stored_type,
         start_time=core_timezone.to_utc_second(session.start_time),
         end_time=core_timezone.to_utc_second(session.start_time + timedelta(seconds=elapsed)),
         timezone=_timezone(recording, session, activity_type, streams, default_timezone),
@@ -936,14 +967,130 @@ def _assemble_session(
     return payload
 
 
+def _sum_or_none(values: Iterable[int | None]) -> int | None:
+    """Add up the values a total is made of.
+
+    Args:
+        values: The legs' values, ``None`` for a leg that has none.
+
+    Returns:
+        The sum of the values that exist; ``None`` when none does.
+    """
+    present = [value for value in values if value is not None]
+    return sum(present) if present else None
+
+
+def _max_or_none(values: Iterable[int | None]) -> int | None:
+    """Return the largest value that exists.
+
+    Args:
+        values: The legs' values, ``None`` for a leg that has none.
+
+    Returns:
+        The largest value; ``None`` when none exists.
+    """
+    present = [value for value in values if value is not None]
+    return max(present) if present else None
+
+
+def _timer_weighted_average(legs: Sequence[activity_contracts.ActivityCore], field: str) -> int | None:
+    """Average a leg field over the legs that have it, each weighted by its timer time.
+
+    Args:
+        legs: The legs' activities.
+        field: The name of the field to average.
+
+    Returns:
+        The rounded average; ``None`` when no leg has the field.
+    """
+    pairs = [(getattr(leg, field), leg.total_timer_time or 0.0) for leg in legs if getattr(leg, field) is not None]
+    if not pairs:
+        return None
+    weight = sum(timer for _, timer in pairs)
+    if weight <= 0:
+        return round(sum(value for value, _ in pairs) / len(pairs))
+    return round(sum(value * timer for value, timer in pairs) / weight)
+
+
+def _assemble_parent(
+    recording: activity_file_import_recording.Recording,
+    legs: Sequence[ActivityFilePayload],
+    user_id: uuid.UUID,
+    activity_name: str | None,
+) -> ActivityFilePayload:
+    """Assemble the multisport activity over a recording's legs.
+
+    Args:
+        recording: The recording.
+        legs: The assembled legs, in time order.
+        user_id: ID of the user the activity belongs to.
+        activity_name: The name the caller gave, if any.
+
+    Returns:
+        The parent payload: the legs' totals and no streams, laps, sets or workout steps.
+    """
+    activities = [leg["activity"] for leg in legs]
+    first, last = activities[0], activities[-1]
+    start = first.start_time
+    end = last.end_time
+    timer = (
+        recording.timer_time
+        if recording.timer_time is not None
+        else sum(leg.total_timer_time or 0.0 for leg in activities)
+    )
+    # A FIT session starts on a whole second, so back-to-back legs overlap by a fraction of one and their span can
+    # fall short of the timer; the elapsed time is never less than the time the device timed.
+    elapsed = max((end - start).total_seconds(), timer)
+    activity = activity_contracts.ActivityCore(
+        user_id=user_id,
+        name=_name(recording, activity_name, _MULTISPORT_NAME),
+        description=recording.description,
+        distance=sum(leg.distance for leg in activities),
+        activity_type=activity_constants.ActivityType.MULTISPORT,
+        start_time=start,
+        end_time=end,
+        timezone=first.timezone,
+        total_elapsed_time=elapsed,
+        total_timer_time=timer,
+        elevation_gain=_sum_or_none(leg.elevation_gain for leg in activities),
+        elevation_loss=_sum_or_none(leg.elevation_loss for leg in activities),
+        average_power=_timer_weighted_average(activities, "average_power"),
+        max_power=_max_or_none(leg.max_power for leg in activities),
+        average_hr=_timer_weighted_average(activities, "average_hr"),
+        max_hr=_max_or_none(leg.max_hr for leg in activities),
+        calories=_sum_or_none(leg.calories for leg in activities),
+        tracker_manufacturer=recording.manufacturer,
+        tracker_model=recording.product,
+    )
+    return {
+        "activity": activity,
+        "is_elevation_set": False,
+        "ele_waypoints": [],
+        "is_power_set": False,
+        "power_waypoints": [],
+        "is_heart_rate_set": False,
+        "hr_waypoints": [],
+        "is_velocity_set": False,
+        "vel_waypoints": [],
+        "pace_waypoints": [],
+        "is_cadence_set": False,
+        "cad_waypoints": [],
+        "is_lat_lon_set": False,
+        "lat_lon_waypoints": [],
+        "is_temperature_set": False,
+        "temp_waypoints": [],
+        "laps": [],
+    }
+
+
 def assemble(
     recording: activity_file_import_recording.Recording,
     user_id: uuid.UUID,
     activity_name: str | None,
     default_timezone: str,
     lap_distance_km: float,
-) -> list[ActivityFilePayload]:
-    """Assemble the activities of a recording, one per session.
+) -> AssembledFile:
+    """Assemble the activities of a recording, one per session, under a parent when it is multisport.
 
     Privacy defaults, gear and provider ids are attached later by the ``activity_ingestion`` enrichment seam.
 
@@ -955,9 +1102,13 @@ def assemble(
         lap_distance_km: Distance after which a generated lap closes, for a session with no device laps.
 
     Returns:
-        One payload per session, in time order.
+        The activities of the sessions in time order, and the multisport parent when the recording is multisport with
+        at least two sessions.
     """
-    return [
-        _assemble_session(recording, session, user_id, activity_name, default_timezone, lap_distance_km)
+    grouped = recording.multisport and len(recording.sessions) >= _MIN_LEGS
+    activities = [
+        _assemble_session(recording, session, user_id, activity_name, default_timezone, lap_distance_km, is_leg=grouped)
         for session in recording.sessions
     ]
+    parent = _assemble_parent(recording, activities, user_id, activity_name) if grouped else None
+    return AssembledFile(parent=parent, activities=activities)

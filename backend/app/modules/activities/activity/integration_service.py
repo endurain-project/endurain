@@ -312,6 +312,40 @@ def store_parsed_activity(
     return activity_ingestion_service.store_parsed_activity(parsed, db)
 
 
+def store_parsed_group(
+    parent: activity_contracts.ParsedActivity,
+    legs: list[activity_contracts.ParsedActivity],
+    db: Session,
+) -> list[activity_schema.ActivityRead]:
+    """Stage a multisport activity and its legs through the ingestion seam, in one unit of work.
+
+    The parent, the legs, their components and the ``activity.created`` events are staged together; the caller commits
+    once.
+
+    Args:
+        parent: The parsed multisport activity.
+        legs: Its parsed legs, in time order.
+        db: Database session.
+
+    Returns:
+        The stored parent, or, for a file whose legs were stored on their own before groups existed, those legs.
+    """
+    return activity_ingestion_service.store_parsed_group(parent, legs, db)
+
+
+def get_leg_ids_by_parent(parent_ids: Sequence[uuid.UUID], db: Session) -> dict[uuid.UUID, list[uuid.UUID]]:
+    """Return the legs of several multisport activities, each parent's in start order.
+
+    Args:
+        parent_ids: IDs of the activities to look the legs of up.
+        db: Database session.
+
+    Returns:
+        The leg IDs by parent, earliest start first; an activity with no legs is absent.
+    """
+    return activity_crud.get_leg_ids_by_parent(parent_ids, db)
+
+
 def resolve_readable_parent(
     activity_id: uuid.UUID,
     requester_user_id: uuid.UUID,

@@ -9,7 +9,7 @@ import modules.activities.activity_streams.constants as stream_constants
 import modules.activities.activity_streams.contracts as stream_contracts
 import modules.activities.activity_streams.crud as streams_crud
 import modules.activities.activity_streams.integration_service as streams_integration
-from tests._factories.activities import make_activity, make_stream
+from tests._factories.activities import make_activity, make_multisport, make_stream
 from tests._factories.users import make_user
 
 _HR = stream_constants.STREAM_TYPE_HR
@@ -84,18 +84,36 @@ class TestProfileArchive:
             streams_integration.profile_contributor().restore([record], archived_id, activity, db)
 
 
-class TestDerivation:
-    def test_one_stream_is_read_unmasked_for_a_derived_artifact(self, db, activity):
-        make_stream(db, activity, _MAP, [{"lat": 1.0, "lon": 2.0}])
-
-        stream = streams_integration.get_stream_for_derivation(activity.id, _MAP, db)
-
-        assert stream.stream_waypoints == [{"lat": 1.0, "lon": 2.0}]
-        assert streams_integration.get_stream_for_derivation(activity.id, _HR, db) is None
-
+class TestRoutes:
     def test_the_gps_samples_of_several_activities_are_read_in_one_call(self, db, activity):
         make_stream(db, activity, _MAP, [{"lat": 1.0, "lon": 2.0}])
 
-        found = streams_integration.get_gps_waypoints_for_activities([activity.id, uuid.uuid4()], db)
+        found = streams_integration.get_route_waypoints_for_activities([activity.id, uuid.uuid4()], db)
 
         assert found == {activity.id: [{"lat": 1.0, "lon": 2.0}]}
+
+    def test_a_multisport_activity_has_its_legs_routes_in_start_order_and_a_leg_its_own(self, db, activity):
+        parent, legs = make_multisport(db, activity.user_id)
+        make_stream(db, legs[4], _MAP, [{"lat": 5.0, "lon": 5.0}])
+        make_stream(db, legs[0], _MAP, [{"lat": 1.0, "lon": 1.0}, {"lat": 1.5, "lon": 1.5}])
+        make_stream(db, legs[2], _MAP, [{"lat": 3.0, "lon": 3.0}])
+
+        found = streams_integration.get_route_waypoints_for_activities([parent.id, legs[4].id], db)
+
+        assert found == {
+            parent.id: [
+                {"lat": 1.0, "lon": 1.0},
+                {"lat": 1.5, "lon": 1.5},
+                {"lat": 3.0, "lon": 3.0},
+                {"lat": 5.0, "lon": 5.0},
+            ],
+            legs[4].id: [{"lat": 5.0, "lon": 5.0}],
+        }
+
+    def test_a_multisport_activity_whose_legs_have_no_map_has_no_route(self, db, activity):
+        parent, _legs = make_multisport(db, activity.user_id)
+
+        assert streams_integration.get_route_waypoints_for_activities([parent.id], db) == {}
+
+    def test_no_activities_have_no_routes(self, db):
+        assert streams_integration.get_route_waypoints_for_activities([], db) == {}

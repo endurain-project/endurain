@@ -97,15 +97,20 @@ def _parser(decode: Callable[[str], activity_file_import_recording.Recording]) -
             lap_distance_km: Distance of an automatic lap, for a session with no device laps.
 
         Returns:
-            The parsed file, one entry per session.
+            The parsed file, one entry per session and the multisport parent when the file has one.
         """
         recording = decode(path)
-        payloads = activity_file_import_assembly.assemble(
+        assembled = activity_file_import_assembly.assemble(
             recording, user_id, activity_name, default_timezone, lap_distance_km
         )
         return activity_contracts.ParsedFile(
-            activities=[activity_file_import_adapter.parsed_info_to_parsed_activity(payload) for payload in payloads],
+            activities=[
+                activity_file_import_adapter.parsed_info_to_parsed_activity(payload) for payload in assembled.activities
+            ],
             components={"exercise_titles": list(recording.exercise_titles)} if recording.format == "fit" else {},
+            parent=None
+            if assembled.parent is None
+            else activity_file_import_adapter.parsed_info_to_parsed_activity(assembled.parent),
         )
 
     return parse

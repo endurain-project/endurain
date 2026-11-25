@@ -7,6 +7,7 @@ import pytest
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+import modules.activities.activity.constants as activity_constants
 import modules.activities.activity.integration_service as activity_integration
 import modules.activities.activity_file_import.integration_service as file_import_integration
 import modules.activities.activity_file_import.parser_registry as registry
@@ -234,6 +235,28 @@ class TestParsingFiles:
         # The second session has no GPS and no offset, so it takes the athlete's timezone and not the first one's.
         assert first.activity.timezone == "Europe/Madrid"
         assert second.activity.timezone == "Europe/Lisbon"
+
+    def test_a_multisport_fit_file_is_a_parent_over_its_legs(self, tmp_path):
+        later = _T0 + timedelta(seconds=60)
+        path = _fit(
+            tmp_path,
+            _fit_session(_T0, latitude=40.0),
+            _fit_session(later, latitude=40.1),
+            [fit_files.message("activity", timestamp=later + timedelta(seconds=40), type=1, num_sessions=2)],
+        )
+
+        parsed = registry.get_parser(".fit")(path, MOCK_USER_ID, None, "UTC", 1.0)
+
+        assert parsed.parent is not None
+        assert parsed.parent.activity.activity_type == activity_constants.ActivityType.MULTISPORT
+        assert parsed.parent.activity.start_time == _T0
+        assert parsed.parent.components["streams"] == []
+        assert [leg.activity.start_time for leg in parsed.activities] == [_T0, later]
+
+    def test_a_fit_file_with_two_sessions_but_no_multisport_type_has_no_parent(self, tmp_path):
+        path = _fit(tmp_path, _fit_session(_T0, latitude=40.0), _fit_session(_T0 + timedelta(hours=1), latitude=None))
+
+        assert registry.get_parser(".fit")(path, MOCK_USER_ID, None, "UTC", 1.0).parent is None
 
     def test_the_utc_offset_a_fit_file_reports_gives_the_timezone_when_it_has_no_gps(self, tmp_path):
         offset_message = fit_files.message(

@@ -87,8 +87,10 @@ def _notify_and_push(
 
 
 def notify_activity_created_for_event(event: Event) -> None:
-    """Create the notification for a newly stored activity."""
+    """Create the notification for a newly stored activity; a leg of a multisport activity has none, its parent does."""
     payload = platform_event_versioning.parse_payload(activity_events.ActivityCreatedPayload, event)
+    if payload.parent_activity_id is not None:
+        return
     created = _notify_and_push(
         event,
         payload.user_id,

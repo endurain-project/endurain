@@ -2,9 +2,10 @@
 
 Every ``.fit``, ``.gpx`` and ``.tcx`` under ``fixtures/`` is parsed through the parser registry exactly as ingestion
 does, and a summary of the result (activity fields, per-stream statistics and digest, laps, sets, workout steps, file
-components, or the domain error raised) is compared with the ``<file>.golden.json`` beside it. The edge cases no real
-file exists for are built in code by ``synthetic_files.py``, written to a temporary file and snapshotted the same
-way; their goldens live under ``fixtures/synthetic/<format>/``. A parser change shows up as a golden diff to review.
+components, the multisport parent when there is one, or the domain error raised) is compared with the
+``<file>.golden.json`` beside it. The edge cases no real file exists for are built in code by ``synthetic_files.py``,
+written to a temporary file and snapshotted the same way; their goldens live under ``fixtures/synthetic/<format>/``. A
+parser change shows up as a golden diff to review.
 Regenerate with::
 
     uv run pytest tests/activities/activity_file_import/test_device_files.py --update-golden
@@ -127,6 +128,8 @@ def _snapshot(path: Path) -> dict[str, object]:
         "activities": [_activity_snapshot(parsed) for parsed in parsed_file.activities],
         "file_components": _to_json(parsed_file.components),
     }
+    if parsed_file.parent is not None:
+        snapshot["parent"] = _activity_snapshot(parsed_file.parent)
     return _round_floats(snapshot)
 
 

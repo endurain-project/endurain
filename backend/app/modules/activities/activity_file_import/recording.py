@@ -436,6 +436,10 @@ class Recording:
             (``local_timestamp - timestamp``).
         device_time_offset: Seconds from UTC to the device's local time, as the FIT ``device_settings`` message gives
             it.
+        multisport: Whether the device recorded the file as one multisport activity (the FIT ``activity`` message
+            type is ``auto_multi_sport``); its sessions are the legs.
+        timer_time: Timed seconds of the whole file as the FIT ``activity`` message gives it, ``None`` when it gives
+            none.
         exercise_titles: The FIT exercise titles, file-scoped.
     """
 
@@ -448,6 +452,8 @@ class Recording:
     product: str | None = None
     local_time_offset: int | None = None
     device_time_offset: int | None = None
+    multisport: bool = False
+    timer_time: float | None = None
     exercise_titles: tuple[activity_exercise_titles_contracts.ActivityExerciseTitlesCreate, ...] = ()
 
 

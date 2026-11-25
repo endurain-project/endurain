@@ -7,10 +7,10 @@ on disk and persisted activities lives here.
 
 The pipeline is format-agnostic. It asks
 :mod:`~modules.activities.activity_file_import.parser_registry` for the parser
-registered to the extension and iterates whatever activities come back — a
-multi-session ``.fit`` is not special-cased, because the registry hands back the
-same :class:`~modules.activities.activity.contracts.ParsedFile` shape for every
-format. It is **provider-agnostic** too: everything a specific origin knows
+registered to the extension and stores whatever comes back: the registry hands
+back the same :class:`~modules.activities.activity.contracts.ParsedFile` shape for
+every format, its activities and, for a multisport file, the parent they are the
+legs of. It is **provider-agnostic** too: everything a specific origin knows
 (Strava export metadata, its sidecar photos, which duplicate listings to skip)
 is answered by the :mod:`sources` object it was handed, never by branching on the
 provider here. Keeping this module (rather than ``activity/``) responsible for
@@ -127,19 +127,20 @@ def _retain_source_file(
     activity_ids: list[uuid.UUID],
     storage: platform_providers.StorageProvider,
 ) -> None:
-    """Persist the source file against each activity parsed from it, then consume it.
+    """Persist the source file against each activity the athlete sees from it, then consume it.
 
     Written through the platform ``StorageProvider`` — the same abstraction
     thumbnails use — so file-based ingestion works unchanged on local disk or
     object storage instead of being pinned to this node's disk. Each activity owns
     its own copy keyed by id, so its lifecycle (profile export, deletion) is
     independent, including the several activities parsed from a single
-    multi-activity ``.fit``.
+    multi-activity ``.fit``. The legs of a multisport file have no copy: the
+    file is kept once, under their parent.
 
     Args:
         file_path: The parsed file on disk. Removed afterwards.
         file_extension: The file's extension, used for the stored object's name.
-        activity_ids: IDs of the activities parsed from the file.
+        activity_ids: IDs of the top-level activities stored from the file.
         storage: The blob-storage provider the file is retained in.
     """
     if activity_ids:
@@ -190,8 +191,10 @@ def store_activities_from_file(
         storage: The blob-storage provider the source file is retained in.
 
     Returns:
-        List of created activity schemas, or ``None`` if the file yielded no
-        parseable activity.
+        The top-level activities stored from the file: a multisport file's parent
+        rather than its legs, except a file whose legs were stored on their own
+        before groups existed, which returns those legs. ``None`` if the file
+        yielded no parseable activity.
 
     Raises:
         NotFoundError: When the user (or their privacy settings) cannot be found.
@@ -275,10 +278,14 @@ def store_activities_from_file(
     )
     garmin_activity_id = garmin_source.activity_id if garmin_source else None
 
-    created_activities: list[activity_schema.ActivityRead] = []
-    for parsed in parsed_file.activities:
-        # Re-attach owner privacy defaults, gear, and Garmin ids before the
-        # bulk-import metadata can override the gear.
+    def enrich(parsed: activity_contracts.ParsedActivity) -> None:
+        """Re-attach owner privacy defaults, gear, and Garmin ids to one parsed activity, in place.
+
+        Done before the bulk-import metadata can override the gear.
+
+        Args:
+            parsed: The parsed activity, a multisport parent or leg included.
+        """
         activity_ingestion_enrichment_service.enrich_parsed_activity(
             parsed.activity,
             user_id=token_user_id,
@@ -294,20 +301,44 @@ def store_activities_from_file(
             garmin_connect_activity_id=garmin_activity_id,
         )
 
-        if bulk_source is not None:
-            if not bulk_source.should_import(
-                parsed.activity,
-                activity_metadata,
-                activities_in_file=len(parsed_file.activities),
-            ):
-                continue
-            bulk_source.apply_metadata(parsed.activity, activity_metadata)
+    # What the athlete sees of the file: a multisport file's parent, not its legs.
+    created_activities: list[activity_schema.ActivityRead] = []
+    if parsed_file.parent is not None:
+        parent = parsed_file.parent
+        enrich(parent)
+        for leg in parsed_file.activities:
+            enrich(leg)
+        # A Strava export ships one copy of the file per leg, each listed at its leg's start. Asking about the parent
+        # imports the group from the one copy listed at the parent's start and skips the other copies.
+        if bulk_source is None or bulk_source.should_import(
+            parent.activity, activity_metadata, activities_in_file=len(parsed_file.activities)
+        ):
+            if bulk_source is not None:
+                bulk_source.apply_metadata(parent.activity, activity_metadata)
+            parent.source = import_source
+            for leg in parsed_file.activities:
+                leg.source = import_source
+            created_activities = activity_integration.store_parsed_group(parent, parsed_file.activities, db)
+            # One commit per group: the parent, its legs and their events land together.
+            db.commit()
+    else:
+        for parsed in parsed_file.activities:
+            enrich(parsed)
 
-        parsed.source = import_source
-        created_activities.append(activity_integration.store_parsed_activity(parsed, db))
-        # One commit per activity: the row, its components and the event land
-        # together, and a later file failing does not undo this one.
-        db.commit()
+            if bulk_source is not None:
+                if not bulk_source.should_import(
+                    parsed.activity,
+                    activity_metadata,
+                    activities_in_file=len(parsed_file.activities),
+                ):
+                    continue
+                bulk_source.apply_metadata(parsed.activity, activity_metadata)
+
+            parsed.source = import_source
+            created_activities.append(activity_integration.store_parsed_activity(parsed, db))
+            # One commit per activity: the row, its components and the event land
+            # together, and a later file failing does not undo this one.
+            db.commit()
 
     _retain_source_file(
         file_path,

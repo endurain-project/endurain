@@ -1016,6 +1016,30 @@ def get_activity_by_start_time(
     return activity_serializers.to_read_schema(activity)
 
 
+def get_leg_ids_by_parent(parent_ids: Sequence[uuid.UUID], db: Session) -> dict[uuid.UUID, list[uuid.UUID]]:
+    """Get the legs of several multisport activities, each parent's in start order.
+
+    Args:
+        parent_ids: IDs of the activities to look the legs of up.
+        db: Database session.
+
+    Returns:
+        The leg IDs by parent, earliest start first; an activity with no legs is absent.
+    """
+    if not parent_ids:
+        return {}
+    stmt = (
+        select(activity_models.Activity.parent_activity_id, activity_models.Activity.id)
+        .where(activity_models.Activity.parent_activity_id.in_(parent_ids))
+        .order_by(activity_models.Activity.start_time, activity_models.Activity.id)
+    )
+    legs: dict[uuid.UUID, list[uuid.UUID]] = {}
+    for parent_id, leg_id in db.execute(stmt).all():
+        if parent_id is not None:
+            legs.setdefault(parent_id, []).append(leg_id)
+    return legs
+
+
 def get_activity_by_dedup_key(dedup_key: str, user_id: uuid.UUID, db: Session) -> activity_schema.ActivityRead | None:
     """Get a user's activity by its idempotency dedup key.
 
@@ -1115,6 +1139,7 @@ def create_activity(
     *,
     dedup_key: str | None = None,
     parent_activity_id: uuid.UUID | None = None,
+    detect_duplicate_start: bool = True,
 ) -> activity_schema.ActivityRead:
     """Stage a new activity; duplicate start-times are marked hidden.
 
@@ -1129,6 +1154,8 @@ def create_activity(
         dedup_key: Optional stable idempotency key stored on the row so future
             re-imports of the same source can be recognised as duplicates.
         parent_activity_id: The multisport activity the new activity is a leg of, or ``None`` for any other.
+        detect_duplicate_start: Whether to hide the activity when another one starts at the same instant. ``False``
+            for a leg stored with its parent, which takes the parent's ``is_hidden`` from the caller.
 
     Returns:
         The stored activity as the read schema, with the generated ``id`` and
@@ -1152,7 +1179,7 @@ def create_activity(
     # Best-effort: this check and the insert below are not atomic, so two concurrent
     # imports with the same start time can both stay visible. Idempotency does not
     # rest on it; ``dedup_key`` and its unique index do.
-    activity_start_time_exists = get_activity_by_start_time(
+    activity_start_time_exists = detect_duplicate_start and get_activity_by_start_time(
         normalized_start_time, activity.user_id, db, ignoring_family_of=parent_activity_id
     )
 

@@ -23,7 +23,7 @@ import modules.activities.activity_thumbnail.constants as thumbnail_constants
 import modules.activities.activity_thumbnail.service as thumbnail_service
 import modules.activities.activity_thumbnail.signing as thumbnail_signing
 import modules.server_settings.constants as server_settings_constants
-from tests._factories.activities import DEFAULT_START, make_activity, make_stream
+from tests._factories.activities import DEFAULT_START, make_activity, make_multisport, make_stream
 from tests._factories.server_settings import edit_server_settings
 from tests._factories.users import make_user
 from tests._helpers.clock import platform_clock
@@ -194,6 +194,64 @@ class TestGenerateForActivity:
 
         assert key is None
         assert list(storage.list_keys(_AREA, "")) == []
+
+
+class _Renders:
+    """Stands in for the renderer: keeps the route it was asked to draw for each activity and draws nothing."""
+
+    def __init__(self) -> None:
+        self.routes: dict[uuid.UUID, list[dict]] = {}
+
+    def __call__(self, activity_id, waypoints, **_kwargs):
+        self.routes[activity_id] = [dict(waypoint) for waypoint in waypoints]
+
+
+@pytest.fixture
+def renders(monkeypatch):
+    renders = _Renders()
+    monkeypatch.setattr(thumbnail_service.activity_thumbnail_render, "render_activity_thumbnail", renders)
+    return renders
+
+
+_SWIM = [{"lat": 1.0, "lon": 1.0}, {"lat": 1.1, "lon": 1.1}]
+_RIDE = [{"lat": 2.0, "lon": 2.0}, {"lat": 2.1, "lon": 2.1}]
+_RUN = [{"lat": 3.0, "lon": 3.0}, {"lat": 3.1, "lon": 3.1}]
+
+
+def _triathlon(db, owner):
+    """A multisport activity whose swim, bike and run have a map, with transitions between that have none."""
+    parent, legs = make_multisport(db, owner.id)
+    for leg, route in zip((legs[0], legs[2], legs[4]), (_SWIM, _RIDE, _RUN), strict=True):
+        make_stream(db, leg, _MAP, route)
+    return parent, legs
+
+
+class TestAMultisportActivity:
+    def test_its_thumbnail_is_drawn_from_the_routes_of_its_legs_in_start_order(self, db, owner, storage, renders):
+        parent, _legs = _triathlon(db, owner)
+
+        thumbnail_service.generate_thumbnail_for_activity(parent.id, owner.id, storage, db)
+
+        assert renders.routes[parent.id] == [*_SWIM, *_RIDE, *_RUN]
+
+    def test_a_multisport_activity_whose_legs_have_no_map_stores_nothing(self, db, owner, storage, tiles):
+        parent, _legs = make_multisport(db, owner.id)
+
+        assert thumbnail_service.generate_thumbnail_for_activity(parent.id, owner.id, storage, db) is None
+
+        assert (_key_of(db, parent), tiles.requests) == (None, [])
+
+    def test_the_backfill_draws_it_from_its_legs_too_and_each_leg_from_its_own_route(
+        self, db, owner, storage, lock, clock, renders
+    ):
+        parent, legs = _triathlon(db, owner)
+
+        thumbnail_service.generate_missing_activity_thumbnails(storage, lock, clock, db)
+
+        assert renders.routes[parent.id] == [*_SWIM, *_RIDE, *_RUN]
+        assert renders.routes[legs[0].id] == _SWIM
+        assert renders.routes[legs[2].id] == _RIDE
+        assert legs[1].id not in renders.routes
 
 
 class TestReadAndDelete:

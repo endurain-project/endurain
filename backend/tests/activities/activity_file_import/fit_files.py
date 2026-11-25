@@ -22,7 +22,13 @@ _MESSAGES: dict[str, tuple[int, dict[str, tuple[int, int, float, float]]]] = {
     "workout": (26, {"wkt_name": (8, _STRING, 1, 0)}),
     "activity": (
         34,
-        {"timestamp": (253, _UINT32, 1, 0), "local_timestamp": (5, _UINT32, 1, 0)},
+        {
+            "timestamp": (253, _UINT32, 1, 0),
+            "local_timestamp": (5, _UINT32, 1, 0),
+            "total_timer_time": (0, _UINT32, 1000, 0),
+            "num_sessions": (1, _UINT16, 1, 0),
+            "type": (2, _ENUM, 1, 0),
+        },
     ),
     "record": (
         20,

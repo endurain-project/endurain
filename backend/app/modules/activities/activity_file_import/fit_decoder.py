@@ -467,6 +467,8 @@ class _FitContent:
     file_id: FitFileId = field(default_factory=FitFileId)
     local_time_offset: int | None = None
     device_time_offset: int | None = None
+    multisport: bool = False
+    timer_time: float | None = None
 
     def __post_init__(self) -> None:
         """Start the sample table against the file's limits."""
@@ -716,6 +718,8 @@ def _read_message(frame: fitdecode.FitDataMessage, content: _FitContent) -> None
         content.file_id = parse_frame_file_id(frame)
     elif name == "activity":
         content.local_time_offset = parse_frame_activity(frame)
+        content.multisport = get_value_from_frame(frame, "type") == "auto_multi_sport"
+        content.timer_time = get_value_from_frame(frame, "total_timer_time")
     elif name == "device_settings":
         content.device_time_offset = interpret_time_offset(parse_frame_device_settings(frame))
 
@@ -911,5 +915,7 @@ def decode_fit(path: str) -> activity_file_import_recording.Recording:
         product=None if product is None else str(product),
         local_time_offset=content.local_time_offset,
         device_time_offset=content.device_time_offset,
+        multisport=content.multisport,
+        timer_time=content.timer_time,
         exercise_titles=tuple(content.exercise_titles),
     )

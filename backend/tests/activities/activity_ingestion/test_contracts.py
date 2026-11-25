@@ -12,6 +12,7 @@ activities importing a provider.
 
 import uuid
 
+import modules.activities.activity.constants as activity_constants
 import modules.activities.activity.contracts as activity_contracts
 import modules.activities.activity_ingestion.contracts as sources
 from tests._helpers.auth import MOCK_USER_ID
@@ -86,6 +87,16 @@ class TestApplyBulkImportMetadata:
         assert activity.description == "Felt good"
         assert activity.gear_id == str(_GEAR_ID)
         assert activity.import_info == {"import_ISO_time": "2026-07-21T00:00:00"}
+
+    def test_a_multisport_activity_takes_the_manifests_name_and_description_but_never_its_gear(self):
+        activity = _activity()
+        activity.activity_type = activity_constants.ActivityType.MULTISPORT
+
+        sources.apply_bulk_import_metadata(
+            activity, {"name": "Race day", "description": "Felt good", "gear_id": str(_GEAR_ID)}
+        )
+
+        assert (activity.name, activity.description, activity.gear_id) == ("Race day", "Felt good", None)
 
     def test_absent_metadata_leaves_the_parsed_values_alone(self):
         activity = _activity()

@@ -23,7 +23,6 @@ from sqlalchemy.orm import Session
 import core.logger as core_logger
 import core.pagination as core_pagination
 import modules.activities.activity.integration_service as activity_integration
-import modules.activities.activity_streams.constants as activity_streams_constants
 import modules.activities.activity_streams.integration_service as activity_streams_integration
 
 logger = core_logger.get_logger(__name__)
@@ -76,9 +75,9 @@ def geocode_and_store_activity_location(
 ) -> datetime | None:
     """Resolve and persist a created activity's location from its GPS stream.
 
-    Loads the activity's first GPS waypoint, reverse-geocodes it, and writes
-    ``city``/``town``/``country`` back to the row. No-ops for non-GPS activities
-    (no map stream), when nothing resolves, or when the lookup was held back.
+    Loads the activity's first GPS waypoint (a multisport activity's is its first leg's that has a map),
+    reverse-geocodes it, and writes ``city``/``town``/``country`` back to the row. No-ops for non-GPS
+    activities (no map stream), when nothing resolves, or when the lookup was held back.
 
     Args:
         activity_id: The activity to geocode.
@@ -92,15 +91,11 @@ def geocode_and_store_activity_location(
         failure held the lookup back, else None (stored, nothing resolved, or no
         GPS stream).
     """
-    stream = activity_streams_integration.get_stream_for_derivation(
-        activity_id,
-        activity_streams_constants.STREAM_TYPE_MAP,
-        db,
-    )
-    if stream is None or not stream.stream_waypoints:
+    route = activity_streams_integration.get_route_waypoints_for_activities([activity_id], db).get(activity_id)
+    if not route:
         return None
 
-    first_waypoint = stream.stream_waypoints[0]
+    first_waypoint = route[0]
     # End the read transaction before the network call so no connection is held
     # while the geocoder answers.
     db.commit()
@@ -171,7 +166,7 @@ def backfill_missing_activity_locations(
             break
         after_id = candidates[-1].id
 
-        waypoints_by_activity = activity_streams_integration.get_gps_waypoints_for_activities(
+        waypoints_by_activity = activity_streams_integration.get_route_waypoints_for_activities(
             [ref.id for ref in candidates], db
         )
         unresolved = [ref.id for ref in candidates if not waypoints_by_activity.get(ref.id)]

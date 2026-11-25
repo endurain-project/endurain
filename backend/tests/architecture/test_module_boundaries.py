@@ -438,6 +438,11 @@ _SURFACE_UNITS_OF_WORK: dict[str, str] = {
         "only on failure: a lost race on the dedup key leaves the session unusable until it is rolled "
         "back, and it has to look up the winner before returning it."
     ),
+    "activity.integration_service.store_parsed_group": (
+        "Stages a multisport activity, its legs, their components and the events, and the caller commits once. It "
+        "rolls back only on failure: a lost race on the parent's dedup key leaves the session unusable until it is "
+        "rolled back, and it has to look up the winner before returning it."
+    ),
     "activity_ingestion.integration_service.ingest_activity_file": (
         "The background ingestion entry for provider syncs: it commits each activity and rolls back "
         "a refused file so the caller can keep using the session; any other failure is raised."

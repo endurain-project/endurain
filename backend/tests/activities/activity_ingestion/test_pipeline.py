@@ -11,6 +11,9 @@ from jasil.providers import StorageBackendUnavailableError
 from sqlalchemy import select, text
 
 import core.config as core_config
+import core.exceptions as core_exceptions
+import modules.activities.activity.constants as activity_constants
+import modules.activities.activity.event_publishers as activity_event_publishers
 import modules.activities.activity_exercise_titles.models as exercise_title_models
 import modules.activities.activity_file_storage.integration_service as file_storage
 import modules.activities.activity_ingestion.integration_service as ingestion_integration
@@ -62,6 +65,61 @@ class TestAFileWithSeveralActivities:
         pool.drain()
 
         assert len(activities_of(committed_sessions, me.user.id)) == 2
+
+
+class TestAMultisportFile:
+    def test_stores_one_multisport_activity_with_its_legs_and_names_only_it_in_the_job(
+        self, me, pool, committed_sessions
+    ):
+        response = _upload(me, "triathlon.fit", fit_file(activities=3, multisport=True))
+        pool.drain()
+
+        rows = activities_of(committed_sessions, me.user.id)
+        [parent] = [row for row in rows if row.parent_activity_id is None]
+        legs = [row for row in rows if row.parent_activity_id is not None]
+        state = me.client.get(f"{_API}/jobs/{response.json()['id']}").json()
+        assert parent.activity_type == activity_constants.ActivityType.MULTISPORT.stored
+        assert len(legs) == 3
+        assert {leg.parent_activity_id for leg in legs} == {parent.id}
+        assert state["activity_ids"] == [str(parent.id)]
+
+    def test_retains_the_file_once_under_the_parent(self, me, pool, committed_sessions, storage):
+        content = fit_file(activities=3, multisport=True)
+
+        _upload(me, "triathlon.fit", content)
+        pool.drain()
+
+        rows = activities_of(committed_sessions, me.user.id)
+        [parent] = [row for row in rows if row.parent_activity_id is None]
+        assert file_storage.get_activity_file(parent.id, storage) == (f"{parent.id}.fit", content)
+        assert len(list(storage.list_keys("activity_files", "processed/"))) == 1
+
+    def test_uploaded_again_it_adds_nothing(self, me, pool, committed_sessions):
+        _upload(me, "triathlon.fit", fit_file(activities=3, multisport=True))
+        pool.drain()
+        _upload(me, "again.fit", fit_file(activities=3, multisport=True))
+        pool.drain()
+
+        assert len(activities_of(committed_sessions, me.user.id)) == 4
+
+    def test_a_group_whose_last_leg_fails_leaves_none_of_it_stored(self, me, pool, committed_sessions, monkeypatch):
+        real = activity_event_publishers.publish_activity_created
+        published = []
+
+        def fail_on_the_last_leg(*args, **kwargs):
+            published.append(args)
+            if len(published) == 4:
+                raise core_exceptions.ProcessingError("boom")
+            real(*args, **kwargs)
+
+        monkeypatch.setattr(activity_event_publishers, "publish_activity_created", fail_on_the_last_leg)
+
+        response = _upload(me, "triathlon.fit", fit_file(activities=3, multisport=True))
+        pool.drain()
+
+        state = me.client.get(f"{_API}/jobs/{response.json()['id']}").json()
+        assert (state["status"], state["error_code"]) == ("failed", "processing_failed")
+        assert activities_of(committed_sessions, me.user.id) == []
 
 
 class TestAFileWithRecordsButNoSession:

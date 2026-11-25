@@ -19,6 +19,7 @@ from typing import Any
 
 from sqlalchemy.orm import Session
 
+import modules.activities.activity.constants as activity_constants
 import modules.activities.activity.contracts as activity_contracts
 import modules.activities.activity.schema as activity_schema
 
@@ -77,7 +78,8 @@ def apply_bulk_import_metadata(
     this function, so a provider subclass supplies richer values without needing
     its own applier. Anything the manifest supplies wins over what the file
     itself parsed to: an export's manifest generally carries the name and gear the
-    athlete actually curated, while the file holds whatever the device wrote.
+    athlete actually curated, while the file holds whatever the device wrote. A
+    multisport activity takes no gear.
 
     Args:
         activity: The parsed activity to enrich (mutated in place).
@@ -87,7 +89,8 @@ def apply_bulk_import_metadata(
         activity.name = activity_metadata["name"]
     if activity_metadata.get("description"):
         activity.description = activity_metadata["description"]
-    if activity_metadata.get("gear_id"):
+    # A multisport activity has no gear of its own; its legs carry it.
+    if activity_metadata.get("gear_id") and activity.activity_type is not activity_constants.ActivityType.MULTISPORT:
         activity.gear_id = activity_metadata["gear_id"]
     if activity_metadata.get("import_dict"):
         activity.import_info = activity_metadata["import_dict"]

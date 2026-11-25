@@ -110,7 +110,8 @@ def enrich_parsed_activity(
     """Populate owner privacy defaults, gear, and Garmin ids on a parsed activity in place.
 
     The parser produced a domain-free ``Activity`` (no privacy flags, gear, or
-    provider ids); this fills those from the owner's context before persistence.
+    provider ids); this fills those from the owner's context before persistence. A multisport
+    activity gets no gear, default or provider's: its legs carry the gear.
 
     Args:
         activity: The parsed activity to enrich (mutated in place).
@@ -127,16 +128,22 @@ def enrich_parsed_activity(
     for key, value in build_activity_privacy_kwargs(user_privacy_settings).items():
         setattr(activity, key, value)
 
-    activity.gear_id = resolve_gear_id(
-        activity.activity_type.stored,
-        user_id,
-        db,
-        provider_gear_id=provider_gear_id,
+    # A multisport activity has no gear of its own; its legs carry it.
+    has_gear = activity.activity_type is not activity_constants.ActivityType.MULTISPORT
+    activity.gear_id = (
+        resolve_gear_id(
+            activity.activity_type.stored,
+            user_id,
+            db,
+            provider_gear_id=provider_gear_id,
+        )
+        if has_gear
+        else None
     )
 
     if from_garmin:
         activity.garminconnect_activity_id = garmin_connect_activity_id
-        activity.garminconnect_gear_id = garminconnect_gear_id
+        activity.garminconnect_gear_id = garminconnect_gear_id if has_gear else None
         logger.debug(
             "Attached Garmin provider ids to a parsed activity",
             extra=core_logger.context(

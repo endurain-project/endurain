@@ -322,6 +322,29 @@ def test_an_event_for_a_user_that_is_gone_is_dropped_without_failing_the_job(db,
     assert hints == []
 
 
+def test_a_leg_of_a_multisport_activity_creates_no_notification_while_its_parent_does(db, scene, hints, durable):
+    handler = durable.get(notifications_subscribers.ACTIVITY_NOTIFICATION_SUBSCRIBER_ID)
+    parent_id = str(uuid.uuid4())
+
+    def created(activity_id: str, parent: str | None) -> Event:
+        payload = {"activity_id": activity_id, "user_id": str(scene.me.id), "parent_activity_id": parent}
+        return new_event(activity_events.ACTIVITY_CREATED, payload, source="test")
+
+    for _ in range(3):
+        handler(created(str(uuid.uuid4()), parent_id))
+    assert _stored(db) == []
+    assert hints == []
+
+    handler(created(parent_id, None))
+
+    (row,) = _stored(db)
+    assert (row.user_id, row.type, row.options) == (
+        scene.me.id,
+        _TYPES.NEW_ACTIVITY.stored,
+        {"activity_id": parent_id},
+    )
+
+
 def test_every_consumer_is_registered_for_both_delivery_paths(durable):
     registered = durable.subscriber_ids()
 

@@ -19,15 +19,15 @@ OWNER_TIMEZONE = "UTC"
 START = datetime(2025, 1, 1, tzinfo=UTC)
 
 
-def assemble_recording(
+def assemble_file(
     rec: recording.Recording,
     *,
     name: str | None = None,
     timezone: str = OWNER_TIMEZONE,
     lap_distance_km: float = 1.0,
     user_id: uuid.UUID = MOCK_USER_ID,
-) -> list[assembly.ActivityFilePayload]:
-    """Assemble every session of a recording.
+) -> assembly.AssembledFile:
+    """Assemble a recording into its multisport parent, when it has one, and its activities.
 
     Args:
         rec: The recording.
@@ -37,9 +37,22 @@ def assemble_recording(
         user_id: The owner.
 
     Returns:
-        One payload per session.
+        The assembled file.
     """
     return assembly.assemble(rec, user_id, name, timezone, lap_distance_km)
+
+
+def assemble_recording(rec: recording.Recording, **kwargs: Any) -> list[assembly.ActivityFilePayload]:
+    """Assemble every session of a recording.
+
+    Args:
+        rec: The recording.
+        **kwargs: The keyword arguments of :func:`assemble_file`.
+
+    Returns:
+        One payload per session.
+    """
+    return assemble_file(rec, **kwargs).activities
 
 
 def assemble_gpx(path: str, **kwargs: Any) -> assembly.ActivityFilePayload:

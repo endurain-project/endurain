@@ -57,6 +57,8 @@ class ActivityCreatedPayload(VersionedPayload):
         user_id: The owning user's ID (subscribers load the owner's data).
         duplicate_start_time: Whether the activity duplicated an existing
             activity's start time (marked hidden on store).
+        parent_activity_id: The multisport activity this one is a leg of;
+            ``None`` for the multisport activity itself and for any other.
     """
 
     model_config = ConfigDict(extra="ignore")
@@ -66,6 +68,7 @@ class ActivityCreatedPayload(VersionedPayload):
     activity_id: uuid.UUID
     user_id: uuid.UUID
     duplicate_start_time: bool = False
+    parent_activity_id: uuid.UUID | None = None
 
 
 class ActivityDeletedPayload(VersionedPayload):

@@ -113,6 +113,7 @@ def fit_file(
     with_session: bool = True,
     with_gps: bool = True,
     activities: int = 1,
+    multisport: bool = False,
     exercise_titles: tuple[tuple[str, int, int], ...] = (),
     workout_steps: tuple[int | None, ...] = (),
 ) -> bytes:
@@ -125,6 +126,7 @@ def fit_file(
         with_session: Whether the file holds the session summaries; a file without them holds no activity.
         with_gps: Whether the records carry a position.
         activities: How many sessions the file holds, an hour apart.
+        multisport: Whether the file's activity message names it one multisport activity, whose sessions are legs.
         exercise_titles: ``(step name, exercise category, exercise name)`` of each exercise title the file holds.
         workout_steps: The FIT ``duration_type`` of each planned workout step the file holds, ``None`` for a step
             that does not name one.
@@ -171,6 +173,8 @@ def fit_file(
                     (5, _ENUM, 1),
                 ],
             )
+    if multisport:
+        body += _message(4, 34, [(253, _UINT32, _fit_time(last)), (1, _UINT16, activities), (2, _ENUM, 1)])
     header = struct.pack("<BBHI4s", 14, 0x20, 2100, len(body), b".FIT")
     header += struct.pack("<H", _crc16(header))
     payload = header + body

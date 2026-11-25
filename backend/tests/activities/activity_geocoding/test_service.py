@@ -9,7 +9,7 @@ from sqlalchemy import delete as delete_statement
 import modules.activities.activity.models as activity_models
 import modules.activities.activity_geocoding.service as geocoding_service
 import modules.activities.activity_streams.constants as stream_constants
-from tests._factories.activities import DEFAULT_START, make_activity, make_stream
+from tests._factories.activities import DEFAULT_START, make_activity, make_multisport, make_stream
 from tests._factories.users import make_user
 
 _MAP = stream_constants.STREAM_TYPE_MAP
@@ -132,6 +132,35 @@ class TestGeocodeOneActivity:
 
         assert retry_at == clock.now() + timedelta(seconds=120)
         assert _place(db, activity) == (None, None, None)
+
+
+class TestAMultisportActivity:
+    def _group(self, db, owner):
+        """A multisport activity whose first leg has no map, whose second starts in Matosinhos and third in Lisbon."""
+        parent, legs = make_multisport(db, owner.id)
+        make_stream(db, legs[1], _MAP, [{"lat": 41.2, "lon": -8.7}, {"lat": 41.3, "lon": -8.8}])
+        make_stream(db, legs[2], _MAP, _LISBON)
+        return parent, legs
+
+    def test_it_is_located_by_the_first_waypoint_of_its_first_leg_that_has_a_map(self, db, owner, geocoder):
+        parent, legs = self._group(db, owner)
+
+        geocoding_service.geocode_and_store_activity_location(parent.id, geocoder, db)
+        geocoding_service.geocode_and_store_activity_location(legs[2].id, geocoder, db)
+
+        assert _place(db, parent) == ("Matosinhos", None, "Portugal")
+        assert _place(db, legs[2]) == ("Lisbon", "Alvalade", "Portugal")
+
+    def test_the_backfill_locates_it_and_each_leg_with_a_map(self, db, owner, geocoder, clock):
+        parent, legs = self._group(db, owner)
+
+        stored = geocoding_service.backfill_missing_activity_locations(geocoder, clock, db)
+
+        assert stored == 3
+        assert _place(db, parent) == ("Matosinhos", None, "Portugal")
+        assert _place(db, legs[1]) == ("Matosinhos", None, "Portugal")
+        assert _place(db, legs[2]) == ("Lisbon", "Alvalade", "Portugal")
+        assert _place(db, legs[0]) == (None, None, None)
 
 
 class TestActivityDeletedWhileLocating:

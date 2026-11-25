@@ -22,6 +22,7 @@ import modules.strava.bulk_import_service as strava_bulk
 import modules.strava.integration_service as strava_integration
 from tests._factories.activities import make_activity
 from tests._factories.gears import gear_payload
+from tests._factories.ingestion import fit_file
 from tests._factories.users import make_user
 
 _API = core_config.ROOT_PATH
@@ -139,6 +140,73 @@ class TestAStravaExportImport:
         assert activity.strava_activity_id is None, "the id only goes in the import record"
         assert activity.import_info["strava_activity_id"] == 987
         assert len(media) == 1
+
+    def _import_triathlon(self, sign_in, committed_sessions, row_date: str):
+        with committed_sessions() as db:
+            user = make_user(db)
+            gears_integration.create_multiple_gears([gear_payload("Pegasus", user_id=user.id)], user.id, db)
+            db.commit()
+        archive = _zip(
+            {
+                "activities.csv": _csv(
+                    _row(
+                        **{
+                            "Activity Date": row_date,
+                            "Activity Name": "Race day",
+                            "Activity Description": "From Strava",
+                            "Activity Gear": "Pegasus",
+                            "Filename": "activities/2.fit",
+                            "Media": "media/photo.jpg",
+                        }
+                    )
+                ),
+                "activities/2.fit": fit_file(activities=3, multisport=True),
+                "media/photo.jpg": _jpeg(),
+            }
+        )
+        client = sign_in(user).client
+        response = client.post(
+            f"{_API}/activities/bulk-import",
+            params={"source": "strava"},
+            files={"file": ("export.zip", archive, "application/zip")},
+        )
+        assert response.status_code == 202, response.text
+        ingestion_bulk_import.run_bulk_import_job(
+            uuid.UUID(response.json()["id"]), platform_runtime.get_active_platform().storage
+        )
+        assert client.get(f"{_API}/jobs/{response.json()['id']}").json()["status"] == "succeeded"
+        with committed_sessions() as db:
+            rows = list(
+                db.scalars(
+                    select(activity_models.Activity)
+                    .where(activity_models.Activity.user_id == user.id)
+                    .order_by(activity_models.Activity.start_time)
+                )
+            )
+            media = db.scalars(select(activity_media_models.ActivityMedia)).all()
+            gear_id = gears_integration.get_gear_user(user.id, db)[0].id
+        return rows, media, gear_id
+
+    def test_a_multisport_file_imports_once_as_a_parent_that_takes_the_listings_name_and_photos_but_no_gear(
+        self, sign_in, committed_sessions
+    ):
+        rows, media, _gear_id = self._import_triathlon(sign_in, committed_sessions, "Jan 15, 2026, 8:00:00 AM")
+
+        [parent] = [row for row in rows if row.parent_activity_id is None]
+        legs = [row for row in rows if row.parent_activity_id is not None]
+        assert len(legs) == 3
+        assert (parent.name, parent.description, parent.gear_id) == ("Race day", "From Strava", None)
+        assert parent.import_info["strava_activity_id"] == 1
+        assert [leg.name for leg in legs] == ["Run", "Run", "Run"]
+        assert [medium.activity_id for medium in media] == [parent.id]
+
+    def test_a_multisport_file_whose_listing_starts_elsewhere_than_the_parent_imports_nothing(
+        self, sign_in, committed_sessions
+    ):
+        rows, media, _gear_id = self._import_triathlon(sign_in, committed_sessions, "Jan 15, 2026, 9:00:00 AM")
+
+        assert rows == []
+        assert media == []
 
     def test_an_export_without_a_manifest_fails_the_job_and_imports_nothing(self, sign_in, committed_sessions):
         with committed_sessions() as db:

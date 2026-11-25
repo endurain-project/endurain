@@ -489,6 +489,38 @@ class TestParseFrameActivity:
         assert result.local_time_offset == 7200
 
 
+class TestMultisportActivityMessage:
+    """The FIT activity message says whether the file is one multisport activity and what its whole timer reads."""
+
+    def test_the_triathlon_file_is_multisport_with_the_devices_whole_timer(self):
+        result = _real("triathlon")
+
+        assert result.multisport is True
+        assert result.timer_time == pytest.approx(2302.548)
+
+    def test_an_auto_multi_sport_activity_message_marks_the_recording(self, tmp_path):
+        activity = fit_files.message("activity", 2, timestamp=_T0, type=1, num_sessions=2, total_timer_time=120.5)
+
+        result = _decode(tmp_path, fit_files.fit_file(activity, _session_message()))
+
+        assert result.multisport is True
+        assert result.timer_time == pytest.approx(120.5)
+
+    def test_a_manual_activity_message_is_not_multisport(self, tmp_path):
+        activity = fit_files.message("activity", 2, timestamp=_T0, type=0, num_sessions=2, total_timer_time=120)
+
+        result = _decode(tmp_path, fit_files.fit_file(activity, _session_message()))
+
+        assert result.multisport is False
+        assert result.timer_time == pytest.approx(120)
+
+    def test_a_file_without_an_activity_message_has_neither(self, tmp_path):
+        result = _decode(tmp_path, fit_files.fit_file(_session_message()))
+
+        assert result.multisport is False
+        assert result.timer_time is None
+
+
 class TestMalformedFitFile:
     """A file that is not a valid FIT is the uploader's fault, so retrying the job cannot help.
 
