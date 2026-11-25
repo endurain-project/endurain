@@ -172,10 +172,12 @@ class _ActivityReader:
         self._track_end: datetime | None = None
         self._previous_end: datetime | None = None
         self._lap_has_cadence = False
+        self._lap_has_track = False
 
     def start_lap(self) -> None:
         """Begin a ``Lap``."""
         self._lap_has_cadence = False
+        self._lap_has_track = False
 
     def start_track(self) -> None:
         """Begin a ``Track``."""
@@ -183,13 +185,17 @@ class _ActivityReader:
         self._track_end = None
 
     def end_track(self) -> None:
-        """End a ``Track``; a gap since the previous track's end is a pause."""
+        """End a ``Track``; a gap since the previous track of the same lap is a pause.
+
+        A lap's first track starts a new lap, not a resumed recording, so the gap before it is no pause.
+        """
         start, end = self._track_start, self._track_end
         if start is None or end is None:
             return
         previous = self._previous_end
-        if previous is not None and start > previous:
+        if self._lap_has_track and previous is not None and start > previous:
             self._pauses.append(activity_file_import_recording.Pause(start=previous, end=start))
+        self._lap_has_track = True
         if previous is None or end > previous:
             self._previous_end = end
 

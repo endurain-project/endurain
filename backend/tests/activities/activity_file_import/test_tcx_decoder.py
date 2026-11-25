@@ -132,6 +132,24 @@ def test_track_boundary_with_a_gap_is_a_pause(tmp_path: Path) -> None:
     )
 
 
+def test_a_lap_boundary_is_not_a_pause(tmp_path: Path) -> None:
+    def point(second: int) -> str:
+        return f"<Trackpoint><Time>2026-06-20T08:00:{second:02d}Z</Time></Trackpoint>"
+
+    def lap(first: int, last: int) -> str:
+        points = "".join(point(second) for second in range(first, last + 1))
+        return f'<Lap StartTime="2026-06-20T08:00:{first:02d}Z"><Track>{points}</Track></Lap>'
+
+    document = (
+        '<TrainingCenterDatabase xmlns="http://www.garmin.com/xmlschemas/TrainingCenterDatabase/v2"><Activities>'
+        f'<Activity Sport="Running"><Id>2026-06-20T08:00:00Z</Id>{lap(0, 9)}{lap(10, 19)}{lap(50, 59)}</Activity>'
+        "</Activities></TrainingCenterDatabase>"
+    )
+    session = _decode_text(tmp_path, document).sessions[0]
+    assert len(session.samples) == 30
+    assert session.pauses == ()
+
+
 def test_subsecond_keeps_milliseconds(tmp_path: Path) -> None:
     session = _decode_case(tmp_path, "subsecond").sessions[0]
     assert session.samples.time[0] == datetime(2026, 6, 20, 8, 0, 0, 250000, tzinfo=UTC)
