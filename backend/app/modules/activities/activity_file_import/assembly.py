@@ -17,6 +17,7 @@ from zoneinfo import ZoneInfo
 import core.timezone as core_timezone
 import modules.activities.activity.constants as activity_constants
 import modules.activities.activity.contracts as activity_contracts
+import modules.activities.activity_file_import.cleaning as activity_file_import_cleaning
 import modules.activities.activity_file_import.parser_utils as activity_file_import_parser_utils
 import modules.activities.activity_file_import.recording as activity_file_import_recording
 import modules.activities.activity_streams.contracts as activity_streams_contracts
@@ -1092,7 +1093,8 @@ def assemble(
 ) -> AssembledFile:
     """Assemble the activities of a recording, one per session, under a parent when it is multisport.
 
-    Privacy defaults, gear and provider ids are attached later by the ``activity_ingestion`` enrichment seam.
+    Each session is cleaned first, see ``cleaning``. Privacy defaults, gear and provider ids are attached later by
+    the ``activity_ingestion`` enrichment seam.
 
     Args:
         recording: The decoded file.
@@ -1107,7 +1109,15 @@ def assemble(
     """
     grouped = recording.multisport and len(recording.sessions) >= _MIN_LEGS
     activities = [
-        _assemble_session(recording, session, user_id, activity_name, default_timezone, lap_distance_km, is_leg=grouped)
+        _assemble_session(
+            recording,
+            activity_file_import_cleaning.clean_session(session),
+            user_id,
+            activity_name,
+            default_timezone,
+            lap_distance_km,
+            is_leg=grouped,
+        )
         for session in recording.sessions
     ]
     parent = _assemble_parent(recording, activities, user_id, activity_name) if grouped else None

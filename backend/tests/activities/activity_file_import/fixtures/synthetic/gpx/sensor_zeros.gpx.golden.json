@@ -83,12 +83,12 @@
       "sets": null,
       "streams": [
         {
-          "count": 120,
+          "count": 100,
           "fields": {
             "hr": {
               "max": 149,
-              "mean": 120.416667,
-              "min": 0
+              "mean": 144.5,
+              "min": 140
             }
           },
           "first": {
@@ -99,7 +99,7 @@
             "hr": 149,
             "time": "2026-06-20T08:01:59"
           },
-          "sha256": "d60930776a8c46c85f4065c65b1f3e8a28e3adc2b2120c6f1d5cfa4a24e38681",
+          "sha256": "59ad7421ea0d2612a17a466fcfb45aaf37a94331873b2acdcfb7e34562b55732",
           "stream_type": 1
         },
         {

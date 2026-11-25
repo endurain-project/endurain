@@ -212,11 +212,11 @@
       "sets": null,
       "streams": [
         {
-          "count": 2268,
+          "count": 2265,
           "fields": {
             "hr": {
               "max": 124,
-              "mean": 104.02425,
+              "mean": 104.027815,
               "min": 60
             }
           },
@@ -228,15 +228,15 @@
             "hr": 95,
             "time": "2025-08-06T09:20:20"
           },
-          "sha256": "0e55f97a3ab322f71de1563ab0201303ba7a88c49d2943a3892b43b595728268",
+          "sha256": "16ae75f3b44521c44ea0df5ba2a734225f60705c407551b89adc6ae011d9fb5c",
           "stream_type": 1
         },
         {
-          "count": 2257,
+          "count": 2254,
           "fields": {
             "vel": {
               "max": 2.706,
-              "mean": 0.68616,
+              "mean": 0.686182,
               "min": 0.0
             }
           },
@@ -248,15 +248,15 @@
             "time": "2025-08-06T09:20:20",
             "vel": 0.616
           },
-          "sha256": "cba462d6095ad0418cb82960e73e96c3d3639a59e934fb9dd30c22235172043f",
+          "sha256": "19696293c87f97b0bfde3d5e710eda0ceaae14d038fdda621cf9f0753bb9bab8",
           "stream_type": 5
         },
         {
-          "count": 2244,
+          "count": 2241,
           "fields": {
             "pace": {
               "max": 2.028398,
-              "mean": 1.466156,
+              "mean": 1.466118,
               "min": 0.369549
             }
           },
@@ -268,11 +268,11 @@
             "pace": 1.623377,
             "time": "2025-08-06T09:20:20"
           },
-          "sha256": "d18b300866ddc58c830e5060314bca216bdbef2e49509d49bba2711b9a442e50",
+          "sha256": "804f3cf9a0c4bf956d2442eb153e8d62d6d1b4a49774936df034c4bbec5211ec",
           "stream_type": 6
         },
         {
-          "count": 2249,
+          "count": 2246,
           "fields": {
             "lat": {
               "max": 39.508924,
@@ -295,7 +295,7 @@
             "lon": 2.534221,
             "time": "2025-08-06T09:20:16"
           },
-          "sha256": "6d570180da6d2a2cc4ec6bcf37a85b039cb0b58bbe6a129dbecbe85b16671bda",
+          "sha256": "38ce7fddcbf0fc6e9d9c84ff1cae2a28e10440f7ddcbf6534e305371c7003231",
           "stream_type": 7
         }
       ],

@@ -113,7 +113,7 @@ class TestUtcAndTimes:
 
     def test_start_comes_from_the_activity_id_not_the_first_positioned_point(self, tmp_path: Path) -> None:
         """A file whose first trackpoints lack a position still starts at the Activity Id time."""
-        points = _tp(0) + "".join(_tp(60 * minute, lat=40.0 + minute / 100, lon=-3.0) for minute in range(1, 4))
+        points = _tp(0) + "".join(_tp(60 * minute, lat=40.0 + minute / 200, lon=-3.0) for minute in range(1, 4))
 
         payload = _one(tmp_path, points, seconds=None)
 
@@ -155,8 +155,8 @@ class TestHeartRate:
         assert payload["is_heart_rate_set"] is False
         assert len(payload["lat_lon_waypoints"]) == 3
 
-    def test_summary_excludes_zeros_but_the_stream_keeps_them(self, tmp_path: Path) -> None:
-        """The HR summary is recomputed from the samples without sensor-off zeros; the stream keeps them."""
+    def test_summary_and_stream_leave_out_the_zero_dropouts(self, tmp_path: Path) -> None:
+        """The HR summary and the stream are built from the samples without sensor-off zeros."""
         points = "".join(_tp(10 * i, hr=hr, lat=40.0 + 0.0001 * i, lon=-3.0) for i, hr in enumerate((0, 150, 160)))
 
         payload = _one(tmp_path, points)
@@ -165,7 +165,7 @@ class TestHeartRate:
         # Zeros excluded: mean([150, 160]) = 155, max = 160.
         assert activity.average_hr == 155
         assert activity.max_hr == 160
-        assert [wp["hr"] for wp in payload["hr_waypoints"]] == [0, 150, 160]
+        assert [wp["hr"] for wp in payload["hr_waypoints"]] == [150, 160]
 
 
 class TestDistanceAndTimer:
@@ -237,12 +237,12 @@ class TestDistanceAndTimer:
         assert activity.pace == 1200 / 5000
 
     def test_distance_from_the_track_skips_the_pause_gap(self, tmp_path: Path) -> None:
-        moving = "".join(_tp(10 * i, lat=40.0 + 0.01 * i / 6, lon=-3.0) for i in range(7))
-        # A single fix after a ten-minute pause, ~1.1 km further on, forms no run of its own.
-        points = moving + _tp(600, lat=40.02, lon=-3.0)
+        moving = "".join(_tp(10 * i, lat=40.0 + 0.005 * i / 6, lon=-3.0) for i in range(7))
+        # A single fix after a ten-minute pause, ~0.55 km further on, forms no run of its own.
+        points = moving + _tp(600, lat=40.01, lon=-3.0)
 
-        # ~0.01 deg of latitude is about 1.1 km; the ~1.1 km pause hop is excluded.
-        assert 1000 < _one(tmp_path, points)["activity"].distance < 1200
+        # ~0.005 deg of latitude is about 555 m; the ~555 m pause hop is excluded.
+        assert 500 < _one(tmp_path, points)["activity"].distance < 600
 
     def test_points_that_every_pause_separates_have_no_distance(self, tmp_path: Path) -> None:
         """No run of two points means no distance, so no pace, average speed or maximum speed."""

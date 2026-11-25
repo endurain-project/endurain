@@ -83,11 +83,11 @@
       "sets": null,
       "streams": [
         {
-          "count": 60,
+          "count": 56,
           "fields": {
             "vel": {
               "max": 3.009889,
-              "mean": 2.753614,
+              "mean": 2.9503,
               "min": 0
             }
           },
@@ -99,7 +99,7 @@
             "time": "2026-06-20T08:00:59",
             "vel": 3.009889
           },
-          "sha256": "751701fe0b457ef8f6c4a5282cf83d6e0ca3427f77356a0c16c517235d59a640",
+          "sha256": "c68dbb0c414e72f23eb94296bb9323db05b7de324fff146403739c234fe5ada3",
           "stream_type": 5
         },
         {
@@ -123,7 +123,7 @@
           "stream_type": 6
         },
         {
-          "count": 60,
+          "count": 56,
           "fields": {
             "lat": {
               "max": 38.7,
@@ -132,7 +132,7 @@
             },
             "lon": {
               "max": -9.097963,
-              "mean": -9.098981,
+              "mean": -9.098964,
               "min": -9.1
             }
           },
@@ -146,7 +146,7 @@
             "lon": -9.097963,
             "time": "2026-06-20T08:00:59"
           },
-          "sha256": "5f78b393babed58d3b68d7843e3cec9799ff20910fd4021eb6b2850026dd3f67",
+          "sha256": "b8748246b0bf99ddb55a30abf2addb3e0fc57aab57e2adc99ad27d5cc23f9859",
           "stream_type": 7
         }
       ],

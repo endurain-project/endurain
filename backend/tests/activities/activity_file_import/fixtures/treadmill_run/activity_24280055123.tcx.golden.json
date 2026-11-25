@@ -117,7 +117,7 @@
           "max_fractional_cadence": null,
           "max_heart_rate": 182,
           "max_power": 426,
-          "normalized_power": 336,
+          "normalized_power": 337,
           "sport": null,
           "start_position_lat": null,
           "start_position_long": null,
@@ -136,11 +136,11 @@
       "sets": null,
       "streams": [
         {
-          "count": 607,
+          "count": 606,
           "fields": {
             "hr": {
               "max": 182,
-              "mean": 150.716639,
+              "mean": 150.707921,
               "min": 86
             }
           },
@@ -152,15 +152,15 @@
             "hr": 159,
             "time": "2026-09-08T07:03:48"
           },
-          "sha256": "4dbf0cdcaa9f300084b7c0209b8098b441272cb86e7fc2a424b5dd10a21ef4f2",
+          "sha256": "fae69adbb635c0ac56dc353af990cbf86db52aa7a08c36ce9f274f1ab0cb6b62",
           "stream_type": 1
         },
         {
-          "count": 607,
+          "count": 606,
           "fields": {
             "power": {
               "max": 426,
-              "mean": 296.878089,
+              "mean": 296.851485,
               "min": 0
             }
           },
@@ -172,15 +172,15 @@
             "power": 279,
             "time": "2026-09-08T07:03:48"
           },
-          "sha256": "4848317ab66b8312984039f57600157cad74f17ab1c6b3b8612dc4d37dce5b04",
+          "sha256": "87c8f00c219c9a2110ba7c349e0f076592e80d9531a2b66501b3f16e100e5581",
           "stream_type": 2
         },
         {
-          "count": 607,
+          "count": 606,
           "fields": {
             "cad": {
               "max": 192,
-              "mean": 168.454695,
+              "mean": 168.445545,
               "min": 90
             }
           },
@@ -192,15 +192,15 @@
             "cad": 168,
             "time": "2026-09-08T07:03:48"
           },
-          "sha256": "8fcd7bed0f689686e67ab718172dc4a48ce5d2f61b7fc70ba3ef43ba8963b8ca",
+          "sha256": "871b31190e44da9c9b944c9f61ad0f2f916cf45214014d6f60d55dac1ff1812a",
           "stream_type": 3
         },
         {
-          "count": 607,
+          "count": 606,
           "fields": {
             "vel": {
               "max": 4.245,
-              "mean": 2.934919,
+              "mean": 2.934635,
               "min": 0.0
             }
           },
@@ -212,15 +212,15 @@
             "time": "2026-09-08T07:03:48",
             "vel": 2.743
           },
-          "sha256": "18c30f1207219a408aea85237344624b86ae12043c819690a94ea53fc0a85b93",
+          "sha256": "af35df7349646c95225c86cec6b8b70374be2844f9f76b37c3d805ce76573c71",
           "stream_type": 5
         },
         {
-          "count": 606,
+          "count": 605,
           "fields": {
             "pace": {
               "max": 0.653595,
-              "mean": 0.346567,
+              "mean": 0.346608,
               "min": 0.235571
             }
           },
@@ -232,7 +232,7 @@
             "pace": 0.364564,
             "time": "2026-09-08T07:03:48"
           },
-          "sha256": "b68901df77206bb3b14398367d18d8b8553efa566aba0e879ada4d3d2341137e",
+          "sha256": "4c526942cdee5daf2884698745f88a08b7c940d63574c189407c8dd03d768bbf",
           "stream_type": 6
         }
       ],

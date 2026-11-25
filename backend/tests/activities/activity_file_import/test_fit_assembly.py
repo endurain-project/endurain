@@ -71,10 +71,10 @@ class TestHeartRate:
         assert activity.average_hr == 155
         assert activity.max_hr == 160
 
-    def test_the_stream_keeps_the_zero(self):
+    def test_the_stream_leaves_out_the_zero_dropout(self):
         payload = _assemble(_rows(3, heart_rate=[0, 150, 160]))
 
-        assert [w["hr"] for w in payload["hr_waypoints"]] == [0, 150, 160]
+        assert [w["hr"] for w in payload["hr_waypoints"]] == [150, 160]
 
     def test_device_values_are_kept_without_samples(self):
         activity = _activity()

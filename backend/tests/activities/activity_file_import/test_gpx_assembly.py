@@ -8,6 +8,10 @@ from geopy.distance import geodesic
 
 from tests.activities.activity_file_import import assembled
 
+#: Longitude added to every equator point a test builds, so none sits at (0, 0), which cleaning drops as null island.
+#: Distances along the equator do not depend on it.
+_LON_ORIGIN = 1.0
+
 
 def _write_gpx(tmp_path: Path, body: str) -> str:
     """Write GPX content to a temporary file.
@@ -50,7 +54,8 @@ def _points(rows: list[tuple[float, str, str]], lat: float = 0.0) -> str:
         The ``trkpt`` elements.
     """
     return "".join(
-        f'<trkpt lat="{lat}" lon="{lon}"><time>2025-01-01T{clock}Z</time>{inner}</trkpt>' for lon, clock, inner in rows
+        f'<trkpt lat="{lat}" lon="{lon + _LON_ORIGIN}"><time>2025-01-01T{clock}Z</time>{inner}</trkpt>'
+        for lon, clock, inner in rows
     )
 
 
@@ -58,7 +63,7 @@ def _six_km_track(tmp_path: Path, **kwargs):
     """Assemble a straight ~6 km east-west track of 100 m hops at the equator."""
     start = datetime(2025, 1, 1, tzinfo=UTC)
     points = "".join(
-        f'<trkpt lat="0.0" lon="{i * 0.0009:.4f}">'
+        f'<trkpt lat="0.0" lon="{_LON_ORIGIN + i * 0.0009:.4f}">'
         f"<time>{(start + timedelta(seconds=i * 30)).strftime('%Y-%m-%dT%H:%M:%SZ')}</time></trkpt>"
         for i in range(61)
     )
@@ -90,12 +95,12 @@ class TestDistanceAndTime:
         body = (
             "<trk><name>Segmented run</name><type>Run</type>"
             + f"<trkseg>{_points([(0.0, '00:00:00', ''), (0.001, '00:00:10', '')])}</trkseg>"
-            + f"<trkseg>{_points([(10.0, '00:00:20', ''), (10.001, '00:00:30', '')], lat=10.0)}</trkseg></trk>"
+            + f"<trkseg>{_points([(0.0, '00:20:20', ''), (0.001, '00:20:30', '')], lat=0.01)}</trkseg></trk>"
         )
 
         result = _gpx(tmp_path, body)
 
-        expected = geodesic((0.0, 0.0), (0.0, 0.001)).meters + geodesic((10.0, 10.0), (10.0, 10.001)).meters
+        expected = geodesic((0.0, 0.0), (0.0, 0.001)).meters + geodesic((0.01, 0.0), (0.01, 0.001)).meters
         assert result["activity"].distance == round(expected)
         # The first point of each segment has no previous point: a 0 placeholder.
         assert result["vel_waypoints"][0]["vel"] == 0
@@ -104,7 +109,7 @@ class TestDistanceAndTime:
         assert all(lap["total_distance"] < 1000 for lap in result["laps"])
 
     def test_sums_distance_over_multiple_points_in_one_segment(self, tmp_path):
-        rows = [(0.0, "00:00:00", ""), (0.001, "00:00:10", ""), (0.002, "00:00:20", ""), (0.004, "00:00:30", "")]
+        rows = [(0.0, "00:00:00", ""), (0.001, "00:00:10", ""), (0.002, "00:00:20", ""), (0.004, "00:00:40", "")]
 
         result = _gpx(tmp_path, f"<trk><type>Run</type><trkseg>{_points(rows)}</trkseg></trk>")
 
@@ -192,19 +197,19 @@ class TestDistanceAndTime:
         assert activity.total_timer_time == 15
 
     def test_average_speed_is_distance_over_timer_time(self, tmp_path):
-        rows = [(0.0, "00:00:00", ""), (0.001, "00:00:10", ""), (0.003, "00:00:20", "")]
+        rows = [(0.0, "00:00:00", ""), (0.001, "00:00:10", ""), (0.003, "00:00:30", "")]
 
         result = _gpx(tmp_path, f"<trk><type>Run</type><trkseg>{_points(rows)}</trkseg></trk>")
 
         activity = result["activity"]
-        expected = geodesic((0.0, 0.0), (0.0, 0.003)).meters / 20
+        expected = geodesic((0.0, 0.0), (0.0, 0.003)).meters / 30
         assert activity.average_speed == pytest.approx(expected, rel=0.01)
 
     def test_converts_offset_timestamps_to_utc(self, tmp_path):
         """Issue #588: timestamps with a non-UTC offset are stored as UTC."""
         trk = (
-            '<trk><type>Run</type><trkseg><trkpt lat="0.0" lon="0.0"><time>2026-03-28T08:19:19-07:00</time></trkpt>'
-            '<trkpt lat="0.0" lon="0.001"><time>2026-03-28T08:19:29-07:00</time></trkpt></trkseg></trk>'
+            '<trk><type>Run</type><trkseg><trkpt lat="0.0" lon="1.0"><time>2026-03-28T08:19:19-07:00</time></trkpt>'
+            '<trkpt lat="0.0" lon="1.001"><time>2026-03-28T08:19:29-07:00</time></trkpt></trkseg></trk>'
         )
 
         result = _gpx(tmp_path, trk)
@@ -353,7 +358,7 @@ class TestSensorStreams:
         assert result["activity"].average_cad == 180
         assert result["activity"].max_cad == 190
 
-    def test_all_zero_hr_keeps_the_zero_stream_but_has_no_average(self, tmp_path):
+    def test_all_zero_hr_has_no_stream_and_no_average(self, tmp_path):
         rows = [
             (0.0, "00:00:00", "<extensions><TrackPointExtension><hr>0</hr></TrackPointExtension></extensions>"),
             (0.001, "00:00:10", "<extensions><TrackPointExtension><hr>0</hr></TrackPointExtension></extensions>"),
@@ -361,19 +366,19 @@ class TestSensorStreams:
 
         result = _gpx(tmp_path, f"<trk><name>Dropout run</name><trkseg>{_points(rows)}</trkseg></trk>")
 
-        # The stream keeps its zeros (was dropped); the average and maximum still exclude them.
-        assert result["is_heart_rate_set"] is True
-        assert [wp["hr"] for wp in result["hr_waypoints"]] == [0, 0]
+        # Zero is a dropout, so the stream has no heart rate at all.
+        assert result["is_heart_rate_set"] is False
+        assert result["hr_waypoints"] == []
         assert result["activity"].average_hr is None
         assert result["activity"].max_hr is None
 
-    def test_zero_hr_samples_are_kept_but_left_out_of_average_and_maximum(self, tmp_path):
+    def test_zero_hr_samples_are_dropouts_left_out_of_stream_average_and_maximum(self, tmp_path):
         ext = "<extensions><TrackPointExtension><hr>{}</hr></TrackPointExtension></extensions>"
         rows = [(0.001 * i, f"00:00:{10 * i:02d}", ext.format(hr)) for i, hr in enumerate((0, 140, 160))]
 
         result = _gpx(tmp_path, f"<trk><trkseg>{_points(rows)}</trkseg></trk>")
 
-        assert [wp["hr"] for wp in result["hr_waypoints"]] == [0, 140, 160]
+        assert [wp["hr"] for wp in result["hr_waypoints"]] == [140, 160]
         assert result["activity"].average_hr == 150
         assert result["activity"].max_hr == 160
 
@@ -453,7 +458,8 @@ def _steady_run(n_points: int, spikes: dict[int, float]) -> str:
     """
     step = 0.0000269  # ~3 m at the equator
     points = "".join(
-        f'<trkpt lat="0.0" lon="{i * step + spikes.get(i, 0.0):.7f}"><time>2025-01-01T00:00:{i:02d}Z</time></trkpt>'
+        f'<trkpt lat="0.0" lon="{_LON_ORIGIN + i * step + spikes.get(i, 0.0):.7f}">'
+        f"<time>2025-01-01T00:00:{i:02d}Z</time></trkpt>"
         for i in range(n_points)
     )
     return f"<trk><type>Run</type><trkseg>{points}</trkseg></trk>"
@@ -465,7 +471,8 @@ class TestMaxSpeed:
     def test_single_gps_spike_does_not_set_max_speed(self, tmp_path):
         result = _gpx(tmp_path, _steady_run(30, {15: 0.00045}))  # one fix ~50 m ahead
 
-        assert max(w["vel"] for w in result["vel_waypoints"]) > 40
+        # The fix is dropped as a jump, so no speed between the neighbours' track shows it.
+        assert max(w["vel"] for w in result["vel_waypoints"]) < 4
         assert result["activity"].max_speed == pytest.approx(3, abs=0.5)
 
     def test_two_adjacent_spiked_fixes_are_ignored(self, tmp_path):
@@ -475,7 +482,7 @@ class TestMaxSpeed:
 
     def test_sustained_fast_stretch_is_reported(self, tmp_path):
         step = 0.0000269
-        lons = [i * step for i in range(15)]
+        lons = [_LON_ORIGIN + i * step for i in range(15)]
         for _ in range(4):  # 4 samples at ~9 m/s
             lons.append(lons[-1] + step * 3)
         for _ in range(15):
@@ -490,10 +497,10 @@ class TestMaxSpeed:
         assert result["activity"].max_speed == pytest.approx(9, abs=1)
 
     def test_fewer_than_window_samples_use_plain_max(self, tmp_path):
-        result = _gpx(tmp_path, _steady_run(4, {2: 0.00045}))
+        result = _gpx(tmp_path, _steady_run(4, {2: 0.00006}))  # one fix ~6.7 m ahead, a ~10 m/s step
 
         assert result["activity"].max_speed == max(w["vel"] for w in result["vel_waypoints"])
-        assert result["activity"].max_speed > 40
+        assert result["activity"].max_speed > 9
 
 
 def _segments(segments: list[list[tuple[float, str]]]) -> str:
@@ -507,7 +514,10 @@ def _segments(segments: list[list[tuple[float, str]]]) -> str:
     """
     body = "".join(
         "<trkseg>"
-        + "".join(f'<trkpt lat="0.0" lon="{lon:.7f}"><time>2025-01-01T{clock}Z</time></trkpt>' for lon, clock in seg)
+        + "".join(
+            f'<trkpt lat="0.0" lon="{_LON_ORIGIN + lon:.7f}"><time>2025-01-01T{clock}Z</time></trkpt>'
+            for lon, clock in seg
+        )
         + "</trkseg>"
         for seg in segments
     )

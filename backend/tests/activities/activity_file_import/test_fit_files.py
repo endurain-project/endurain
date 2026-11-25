@@ -517,15 +517,17 @@ class TestSessionSummaryFallbacks:
 
         assert (activity.average_power, activity.max_power, activity.normalized_power) == (150, 300, 160)
 
-    def test_heart_rate_records_of_zero_stay_in_the_stream_and_leave_the_devices_summary(self, tmp_path):
+    def test_heart_rate_records_of_zero_are_dropouts_left_out_of_the_stream_and_the_devices_summary_stay(
+        self, tmp_path
+    ):
         records = [_record(5 * i, (3, _UINT8, 0)) for i in range(8)]
 
         payload = _payload(tmp_path, *records, _session(40, (16, _UINT8, 120), (17, _UINT8, 150)))
 
         activity = payload["activity"]
         assert (activity.average_hr, activity.max_hr) == (120, 150)
-        # The stream keeps the zeros; only the average and maximum leave them out.
-        assert [waypoint["hr"] for waypoint in payload["hr_waypoints"]] == [0] * 8
+        # The zeros are dropouts, so the stream has no heart rate while the device's summary stays.
+        assert payload["hr_waypoints"] == []
 
     def test_heart_rate_zeros_do_not_count_in_the_average_computed_from_the_records(self, tmp_path):
         records = [_record(10 * i, (3, _UINT8, hr)) for i, hr in enumerate([0, 100, 140, 0])]

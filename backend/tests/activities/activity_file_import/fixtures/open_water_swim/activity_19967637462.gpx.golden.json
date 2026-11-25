@@ -6,13 +6,13 @@
         "average_cad": 27,
         "average_hr": 104,
         "average_power": null,
-        "average_speed": 0.690599,
+        "average_speed": 0.684313,
         "calories": null,
         "city": null,
         "country": null,
         "created_at": null,
         "description": null,
-        "distance": 1552,
+        "distance": 1538,
         "elevation_gain": null,
         "elevation_loss": null,
         "end_time": "2025-08-06T09:20:16Z",
@@ -39,7 +39,7 @@
         "max_speed": 1.268436,
         "name": "Balearic Islands Open Water Swimming",
         "normalized_power": null,
-        "pace": 1.448017,
+        "pace": 1.461321,
         "private_notes": null,
         "start_time": "2025-08-06T08:41:26Z",
         "strava_activity_id": null,
@@ -62,22 +62,22 @@
           "avg_power": null,
           "end_position_lat": 39.506592,
           "end_position_long": 2.536179,
-          "enhanced_avg_pace": 1.432483,
-          "enhanced_avg_speed": 0.698088,
+          "enhanced_avg_pace": 1.502368,
+          "enhanced_avg_speed": 0.665616,
           "enhanced_max_pace": 0.863247,
           "enhanced_max_speed": 1.158416,
           "max_cadence": 31,
           "max_heart_rate": 124,
           "max_power": null,
           "normalized_power": null,
-          "start_position_lat": 39.50482,
-          "start_position_long": 2.534066,
-          "start_time": "2025-08-06T08:41:26",
+          "start_position_lat": 39.504813,
+          "start_position_long": 2.534229,
+          "start_time": "2025-08-06T08:41:27",
           "total_ascent": null,
           "total_descent": null,
-          "total_distance": 289.008628,
-          "total_elapsed_time": 414.0,
-          "total_timer_time": 414.0
+          "total_distance": 274.899401,
+          "total_elapsed_time": 413.0,
+          "total_timer_time": 413.0
         },
         {
           "avg_cadence": 27,
@@ -108,8 +108,8 @@
           "avg_power": null,
           "end_position_lat": 39.507054,
           "end_position_long": 2.536779,
-          "enhanced_avg_pace": 1.404939,
-          "enhanced_avg_speed": 0.711775,
+          "enhanced_avg_pace": 1.413774,
+          "enhanced_avg_speed": 0.707327,
           "enhanced_max_pace": 0.788373,
           "enhanced_max_speed": 1.268436,
           "max_cadence": 32,
@@ -121,7 +121,7 @@
           "start_time": "2025-08-06T09:01:53",
           "total_ascent": null,
           "total_descent": null,
-          "total_distance": 424.217682,
+          "total_distance": 424.209262,
           "total_elapsed_time": 596.0,
           "total_timer_time": 596.0
         },
@@ -131,8 +131,8 @@
           "avg_power": null,
           "end_position_lat": 39.504916,
           "end_position_long": 2.534221,
-          "enhanced_avg_pace": 1.423219,
-          "enhanced_avg_speed": 0.702633,
+          "enhanced_avg_pace": 1.439845,
+          "enhanced_avg_speed": 0.694519,
           "enhanced_max_pace": 0.974819,
           "enhanced_max_speed": 1.025831,
           "max_cadence": 32,
@@ -144,7 +144,7 @@
           "start_time": "2025-08-06T09:12:08",
           "total_ascent": null,
           "total_descent": null,
-          "total_distance": 341.287904,
+          "total_distance": 341.278759,
           "total_elapsed_time": 488.0,
           "total_timer_time": 488.0
         }
@@ -192,47 +192,47 @@
           "stream_type": 3
         },
         {
-          "count": 2246,
+          "count": 2243,
           "fields": {
             "vel": {
-              "max": 14.109227,
-              "mean": 0.690054,
+              "max": 5.492053,
+              "mean": 0.681132,
               "min": 0
             }
           },
           "first": {
-            "time": "2025-08-06T08:41:26",
+            "time": "2025-08-06T08:41:27",
             "vel": 0
           },
           "last": {
             "time": "2025-08-06T09:20:16",
             "vel": 0.205256
           },
-          "sha256": "f1911ec345e606f3466cae3f55c797ccfca7fa25a92952f90ffab6bb071de89c",
+          "sha256": "3629fc86724a8824cbbb0388ae90eed0d40314a9eb3184a6aadaaf6316acfc26",
           "stream_type": 5
         },
         {
-          "count": 2240,
+          "count": 2237,
           "fields": {
             "pace": {
               "max": 5.218178,
-              "mean": 1.508316,
-              "min": 0.070876
+              "mean": 1.508362,
+              "min": 0.182081
             }
           },
           "first": {
-            "pace": 0.070876,
-            "time": "2025-08-06T08:41:27"
+            "pace": 1.860696,
+            "time": "2025-08-06T08:41:28"
           },
           "last": {
             "pace": 4.871969,
             "time": "2025-08-06T09:20:16"
           },
-          "sha256": "df6418dd6d1ccce515fb0b82af8545c5e40c248e688f495fd7ab017f79335c0e",
+          "sha256": "0e8c74dc38ac15b8d1ff5c0310cbf2ee85bcff69da0e75f7bb922b96d57eb7ef",
           "stream_type": 6
         },
         {
-          "count": 2246,
+          "count": 2243,
           "fields": {
             "lat": {
               "max": 39.508924,
@@ -242,20 +242,20 @@
             "lon": {
               "max": 2.541009,
               "mean": 2.537338,
-              "min": 2.534066
+              "min": 2.534221
             }
           },
           "first": {
-            "lat": 39.50482,
-            "lon": 2.534066,
-            "time": "2025-08-06T08:41:26"
+            "lat": 39.504813,
+            "lon": 2.534229,
+            "time": "2025-08-06T08:41:27"
           },
           "last": {
             "lat": 39.504916,
             "lon": 2.534221,
             "time": "2025-08-06T09:20:16"
           },
-          "sha256": "38ce7fddcbf0fc6e9d9c84ff1cae2a28e10440f7ddcbf6534e305371c7003231",
+          "sha256": "4ee6e4da18c5b0d6cde45cea623b617a6a590a9bec4c5f4e470847594e3e90cd",
           "stream_type": 7
         },
         {
