@@ -25,7 +25,7 @@ def read_activity_detail(
     db: core_dependencies.DbSession,
     response: Response,
 ) -> activity_detail_schema.ActivityDetailRead:
-    """Return an activity with its laps, sets and workout steps in one read.
+    """Return an activity with its laps, sets, workout steps and legs in one read.
 
     Equivalent to reading the activity and each collection separately, with the access decision made
     once. The activity carries its ``media`` when the caller owns it, and ``owner`` is the owner's

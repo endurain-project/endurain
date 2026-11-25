@@ -25,6 +25,8 @@ class ActivityDetailRead(BaseModel):
         laps: The activity's laps.
         sets: The activity's performed workout sets.
         workout_steps: The activity's planned workout steps.
+        legs: The legs of a multisport activity as list rows, earliest start first; an empty page for
+            any other activity.
     """
 
     activity: activity_schema.ActivityRead
@@ -32,3 +34,4 @@ class ActivityDetailRead(BaseModel):
     laps: activity_laps_schema.ActivityLapsPage
     sets: activity_sets_schema.ActivitySetsPage
     workout_steps: activity_workout_steps_schema.ActivityWorkoutStepsPage
+    legs: activity_schema.ActivityPage

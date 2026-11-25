@@ -254,6 +254,7 @@ CASES: list[Case] = [
     Case(f"DELETE {_ACTIVITY}"),
     # A child collection answers a refusal with the empty page, as it answers an activity that has none.
     Case(f"GET {_ACTIVITY}/laps", status=_EMPTY_PAGE_STATUS),
+    Case(f"GET {_ACTIVITY}/legs", status=_EMPTY_PAGE_STATUS),
     Case(f"GET {_ACTIVITY}/sets", status=_EMPTY_PAGE_STATUS),
     Case(f"GET {_ACTIVITY}/workout-steps", status=_EMPTY_PAGE_STATUS),
     Case(f"GET {_ACTIVITY}/media", status=_EMPTY_PAGE_STATUS),
@@ -306,6 +307,7 @@ REGISTER: dict[str, str] = {
     "GET /public/activities/{activity_id}": "public share link: served only while public links are on and public",
     "GET /public/activities/{activity_id}/detail": "public share link",
     "GET /public/activities/{activity_id}/laps": "public share link",
+    "GET /public/activities/{activity_id}/legs": "public share link",
     "GET /public/activities/{activity_id}/sets": "public share link",
     "GET /public/activities/{activity_id}/streams": "public share link",
     "GET /public/activities/{activity_id}/streams/{stream_type}": "public share link",

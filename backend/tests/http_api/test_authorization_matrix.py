@@ -72,6 +72,7 @@ _UNAUTHENTICATED_ROUTES = {
     "GET /api/v1/public/activities/{activity_id}/detail": "readable only when the activity is shared publicly",
     "GET /api/v1/public/activities/exercise-titles": "readable only for activities shared publicly",
     "GET /api/v1/public/activities/{activity_id}/laps": "readable only when the activity is shared publicly",
+    "GET /api/v1/public/activities/{activity_id}/legs": "readable only when the activity is shared publicly",
     "GET /api/v1/public/activities/{activity_id}/sets": "readable only when the activity is shared publicly",
     "GET /api/v1/public/activities/{activity_id}/streams": "readable only when the activity is shared publicly",
     "GET /api/v1/public/activities/{activity_id}/streams/{stream_type}": "readable only when shared publicly",

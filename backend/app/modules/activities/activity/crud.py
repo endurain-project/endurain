@@ -1040,6 +1040,55 @@ def get_leg_ids_by_parent(parent_ids: Sequence[uuid.UUID], db: Session) -> dict[
     return legs
 
 
+def get_legs_page(
+    parent_id: uuid.UUID,
+    db: Session,
+    *,
+    requester_user_id: uuid.UUID | None,
+    page_number: int,
+    num_records: int,
+) -> list[activity_schema.ActivityRead]:
+    """Get one page of a multisport activity's legs, earliest start first, masked for the requester.
+
+    Args:
+        parent_id: ID of the multisport activity.
+        db: Database session.
+        requester_user_id: The authenticated caller, or ``None`` for an anonymous one.
+        page_number: 1-based page number.
+        num_records: Records per page.
+
+    Returns:
+        The legs on the page, empty when the activity has none.
+    """
+    stmt = (
+        select(activity_models.Activity)
+        .where(activity_models.Activity.parent_activity_id == parent_id)
+        .order_by(activity_models.Activity.start_time, activity_models.Activity.id)
+        .offset((page_number - 1) * num_records)
+        .limit(num_records)
+    )
+    legs = db.execute(stmt).scalars().all()
+    return activity_serializers.serialize_and_mask(list(legs), requester_user_id=requester_user_id)
+
+
+def count_legs(parent_id: uuid.UUID, db: Session) -> int:
+    """Count the legs of a multisport activity.
+
+    Args:
+        parent_id: ID of the multisport activity.
+        db: Database session.
+
+    Returns:
+        The number of legs, zero for an activity that has none.
+    """
+    stmt = (
+        select(func.count())
+        .select_from(activity_models.Activity)
+        .where(activity_models.Activity.parent_activity_id == parent_id)
+    )
+    return db.execute(stmt).scalar_one()
+
+
 def get_activity_by_dedup_key(dedup_key: str, user_id: uuid.UUID, db: Session) -> activity_schema.ActivityRead | None:
     """Get a user's activity by its idempotency dedup key.
 

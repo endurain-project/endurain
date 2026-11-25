@@ -655,6 +655,22 @@ def get_public_activity(activity_id: uuid.UUID, db: Session) -> activity_schema.
     return activity_service.get_public_activity(activity_id, db)
 
 
+def list_legs_for_activity(
+    activity: activity_schema.ActivityRead, requester_user_id: uuid.UUID | None, db: Session
+) -> activity_schema.ActivityPage:
+    """Return the first page of the legs of an activity the viewer may already see.
+
+    Args:
+        activity: The parent activity, as the viewer is allowed to see it.
+        requester_user_id: The authenticated viewer, or ``None`` for an anonymous one.
+        db: Database session.
+
+    Returns:
+        The page envelope, empty for an activity with no legs.
+    """
+    return activity_service.list_legs_for_activity(activity, requester_user_id, db)
+
+
 def shutdown_bulk_edit_pool() -> None:
     """Stop the in-process pool bulk activity edits run on, without waiting for them."""
     activity_bulk_edit_job_service.shutdown_pool()

@@ -725,6 +725,98 @@ def get_public_activity(activity_id: uuid.UUID, db: Session) -> activity_schema.
     return _with_thumbnail_urls([_require_public_activity(activity_id, db)])[0]
 
 
+def list_legs_for_activity(
+    activity: activity_schema.ActivityRead,
+    requester_user_id: uuid.UUID | None,
+    db: Session,
+    *,
+    page_number: int = 1,
+    num_records: int = core_pagination.DEFAULT_CHILD_NUM_RECORDS,
+) -> activity_schema.ActivityPage:
+    """Return one page of the legs of an activity the viewer may already see.
+
+    Args:
+        activity: The parent activity, as the viewer is allowed to see it.
+        requester_user_id: The authenticated viewer, or ``None`` for an anonymous one.
+        db: Database session.
+        page_number: 1-based page number.
+        num_records: Page size.
+
+    Returns:
+        The page envelope: list rows masked as for the viewer, empty for an activity with no legs.
+    """
+    legs = _with_thumbnail_urls(
+        activity_crud.get_legs_page(
+            activity.id, db, requester_user_id=requester_user_id, page_number=page_number, num_records=num_records
+        )
+    )
+    if requester_user_id is not None:
+        legs = with_media(legs, requester_user_id, db)
+    return activity_schema.ActivityPage.build(
+        _to_summaries(legs), activity_crud.count_legs(activity.id, db), page_number, num_records
+    )
+
+
+def list_legs(
+    activity_id: uuid.UUID,
+    requester_user_id: uuid.UUID,
+    db: Session,
+    *,
+    page_number: int,
+    num_records: int,
+) -> activity_schema.ActivityPage:
+    """Return one page of the legs of an activity the requester owns or is permitted to see.
+
+    Args:
+        activity_id: The parent activity.
+        requester_user_id: The authenticated caller.
+        db: Database session.
+        page_number: 1-based page number.
+        num_records: Page size.
+
+    Returns:
+        The page envelope. An empty page when the activity does not exist or is not visible to the
+        caller, deliberately indistinguishable from one with no legs so the endpoint cannot be used
+        to probe which activities exist.
+    """
+    activity = activity_child_access_service.resolve_readable_parent(activity_id, requester_user_id, db)
+    if activity is None:
+        logger.debug(
+            "Refused an activity child read; answering with an empty page",
+            extra=core_logger.context(activity_id=activity_id, requester_user_id=requester_user_id, child="legs"),
+        )
+        return activity_schema.ActivityPage.build([], 0, page_number, num_records)
+    return list_legs_for_activity(activity, requester_user_id, db, page_number=page_number, num_records=num_records)
+
+
+def list_public_legs(
+    activity_id: uuid.UUID,
+    db: Session,
+    *,
+    page_number: int,
+    num_records: int,
+) -> activity_schema.ActivityPage:
+    """Return one page of the legs of a publicly shared activity.
+
+    Args:
+        activity_id: The parent activity.
+        db: Database session.
+        page_number: 1-based page number.
+        num_records: Page size.
+
+    Returns:
+        The page envelope, empty when the activity does not exist or is not publicly shareable.
+    """
+    activity = activity_child_access_service.resolve_public_parent(activity_id, db)
+    if activity is None:
+        logger.debug(
+            "Refused a public activity child read; answering with an empty page",
+            extra=core_logger.context(activity_id=activity_id, child="legs"),
+        )
+        return activity_schema.ActivityPage.build([], 0, page_number, num_records)
+    return list_legs_for_activity(activity, None, db, page_number=page_number, num_records=num_records)
+
+
 def _is_visibility_field(field: str) -> bool:
     """Return whether an activity field decides who can see the activity or a part of it.
 

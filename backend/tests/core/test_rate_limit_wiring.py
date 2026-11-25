@@ -353,6 +353,7 @@ _TIERED_ENDPOINTS = [
     pytest.param(users_goals_router.get_user_goals_results, core_rate_limit.EXPENSIVE_READ, id="goals-results"),
     pytest.param(activity_public_router.read_public_activity, core_rate_limit.PUBLIC_READ, id="public-activity"),
     pytest.param(activity_laps_public_router.list_public_activity_laps, core_rate_limit.PUBLIC_READ, id="public-laps"),
+    pytest.param(activity_public_router.list_public_activity_legs, core_rate_limit.PUBLIC_READ, id="public-legs"),
     pytest.param(
         activity_detail_public_router.read_public_activity_detail,
         core_rate_limit.PUBLIC_READ,

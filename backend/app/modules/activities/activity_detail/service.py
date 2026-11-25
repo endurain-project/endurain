@@ -103,4 +103,5 @@ def _with_children(
         laps=activity_laps_integration.list_for_activity(activity, requester_user_id, db),
         sets=activity_sets_integration.list_for_activity(activity, requester_user_id, db),
         workout_steps=activity_workout_steps_integration.list_for_activity(activity, requester_user_id, db),
+        legs=activity_integration.list_legs_for_activity(activity, requester_user_id, db),
     )

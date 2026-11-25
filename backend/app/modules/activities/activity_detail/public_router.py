@@ -21,7 +21,7 @@ def read_public_activity_detail(
     activity_id: activity_dependencies.ActivityId,
     db: core_dependencies.DbSession,
 ) -> activity_detail_schema.ActivityDetailRead:
-    """Return a shared activity with its laps, sets and workout steps in one read.
+    """Return a shared activity with its laps, sets, workout steps and legs in one read.
 
     Answers 404 when the activity does not exist *or* is not public, so it cannot be used to
     enumerate which ids exist. A collection the owner hides is an empty page. ``owner`` is the owner's

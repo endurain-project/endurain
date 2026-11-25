@@ -6,7 +6,7 @@ import core.config as core_config
 import core.exceptions as core_exceptions
 import modules.activities.activity.constants as activity_constants
 import modules.activities.activity_detail.service as detail_service
-from tests._factories.activities import make_activity, make_activity_children, make_activity_media
+from tests._factories.activities import make_activity, make_activity_children, make_activity_media, make_multisport
 from tests._factories.followers import make_follow
 from tests._factories.server_settings import edit_server_settings
 from tests._factories.users import make_user
@@ -89,6 +89,56 @@ class TestForASignedInViewer:
         mine = make_activity(db, gone.id)
 
         assert detail_service.get_activity_detail(mine.id, gone.id, db).owner is None
+
+
+class TestLegs:
+    def test_a_multisport_activity_carries_its_legs_in_start_order(self, db, owner, viewer):
+        parent, legs = make_multisport(db, owner.id, visibility=_Visibility.PUBLIC)
+
+        for requester in (owner.id, viewer.id):
+            detail = detail_service.get_activity_detail(parent.id, requester, db)
+
+            assert [leg.id for leg in detail.legs.items] == [leg.id for leg in legs]
+            assert detail.legs.total == len(legs)
+
+    def test_a_viewer_gets_the_legs_masked_as_a_list_row_is(self, db, owner, viewer):
+        parent, _ = make_multisport(db, owner.id, visibility=_Visibility.PUBLIC, hide_hr=True, average_hr=150)
+
+        seen = detail_service.get_activity_detail(parent.id, viewer.id, db)
+        own = detail_service.get_activity_detail(parent.id, owner.id, db)
+
+        assert {leg.average_hr for leg in seen.legs.items} == {None}
+        assert {leg.average_hr for leg in own.legs.items} == {150}
+
+    def test_an_activity_that_is_not_a_multisport_parent_has_an_empty_page(self, db, owner, activity):
+        detail = detail_service.get_activity_detail(activity.id, owner.id, db)
+
+        assert (detail.legs.items, detail.legs.total) == ([], 0)
+
+    def test_the_public_detail_carries_the_legs_masked(self, db, owner):
+        edit_server_settings(db, public_shareable_links=True)
+        parent, legs = make_multisport(db, owner.id, visibility=_Visibility.PUBLIC, hide_hr=True, average_hr=150)
+
+        detail = detail_service.get_public_activity_detail(parent.id, db)
+
+        assert [leg.id for leg in detail.legs.items] == [leg.id for leg in legs]
+        assert {leg.average_hr for leg in detail.legs.items} == {None}
+
+    def test_the_public_detail_of_an_activity_without_legs_has_an_empty_page(self, db, activity):
+        edit_server_settings(db, public_shareable_links=True)
+
+        assert detail_service.get_public_activity_detail(activity.id, db).legs.total == 0
+
+    def test_the_detail_routes_carry_the_legs(self, arrange, sign_in, client, owner):
+        parent, legs = arrange(lambda db: make_multisport(db, owner.id, visibility=_Visibility.PUBLIC))
+        arrange(lambda db: edit_server_settings(db, public_shareable_links=True))
+
+        signed = sign_in(owner).client.get(f"{_URL}/{parent.id}/detail").json()
+        public = client.get(f"{_PUBLIC_URL}/{parent.id}/detail").json()
+
+        expected = [str(leg.id) for leg in legs]
+        assert [item["id"] for item in signed["legs"]["items"]] == expected
+        assert [item["id"] for item in public["legs"]["items"]] == expected
 
 
 class TestForAnAnonymousViewer:

@@ -180,6 +180,27 @@ def read_activity(
     return activity
 
 
+@router.get(
+    "/{activity_id}/legs",
+    response_model=activity_schema.ActivityPage,
+    dependencies=[Security(auth_dependencies.check_scopes, scopes=["activities:read"])],
+)
+def list_activity_legs(
+    activity_id: activity_dependencies.ActivityId,
+    token_user_id: auth_dependencies.CurrentUserId,
+    db: core_dependencies.DbSession,
+    page: core_pagination.ChildPage,
+) -> activity_schema.ActivityPage:
+    """List the legs of a multisport activity the requester owns or is permitted to see.
+
+    Items are summaries, earliest start first, masked as the same rows are in a list. An activity that is
+    not a multisport activity has no legs and answers an empty page, as does one the caller may not see.
+    """
+    return activity_service.list_legs(
+        activity_id, token_user_id, db, page_number=page.page_number, num_records=page.num_records
+    )
+
+
 @router.patch(
     "/{activity_id}",
     response_model=activity_schema.ActivityRead,

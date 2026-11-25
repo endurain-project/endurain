@@ -316,7 +316,7 @@ export interface paths {
         };
         /**
          * Read Activity Detail
-         * @description Return an activity with its laps, sets and workout steps in one read.
+         * @description Return an activity with its laps, sets, workout steps and legs in one read.
          *
          *     Equivalent to reading the activity and each collection separately, with the access decision made
          *     once. The activity carries its ``media`` when the caller owns it, and ``owner`` is the owner's
@@ -344,6 +344,29 @@ export interface paths {
          * @description Return one page of the given activity's laps, with the matching total.
          */
         get: operations["list_activity_laps"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/activities/{activity_id}/legs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Activity Legs
+         * @description List the legs of a multisport activity the requester owns or is permitted to see.
+         *
+         *     Items are summaries, earliest start first, masked as the same rows are in a list. An activity that is
+         *     not a multisport activity has no legs and answers an empty page, as does one the caller may not see.
+         */
+        get: operations["list_activity_legs"];
         put?: never;
         post?: never;
         delete?: never;
@@ -3027,7 +3050,7 @@ export interface paths {
         };
         /**
          * Read Public Activity Detail
-         * @description Return a shared activity with its laps, sets and workout steps in one read.
+         * @description Return a shared activity with its laps, sets, workout steps and legs in one read.
          *
          *     Answers 404 when the activity does not exist *or* is not public, so it cannot be used to
          *     enumerate which ids exist. A collection the owner hides is an empty page. ``owner`` is the owner's
@@ -3054,6 +3077,30 @@ export interface paths {
          * @description Return one page of public laps for an activity exposed via shareable link.
          */
         get: operations["list_public_activity_laps"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/public/activities/{activity_id}/legs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Public Activity Legs
+         * @description List the legs of a public multisport activity.
+         *
+         *     Items are summaries, earliest start first. An activity that is not a multisport activity has no legs and
+         *     answers an empty page, as does one that does not exist or is not public, so the endpoint cannot be used to
+         *     enumerate activity ids.
+         */
+        get: operations["list_public_activity_legs"];
         put?: never;
         post?: never;
         delete?: never;
@@ -4774,10 +4821,13 @@ export interface components {
          *         laps: The activity's laps.
          *         sets: The activity's performed workout sets.
          *         workout_steps: The activity's planned workout steps.
+         *         legs: The legs of a multisport activity as list rows, earliest start first; an empty page for
+         *             any other activity.
          */
         ActivityDetailRead: {
             activity: components["schemas"]["ActivityRead"];
             laps: components["schemas"]["Page_ActivityLapsRead_"];
+            legs: components["schemas"]["Page_ActivitySummaryRead_"];
             owner: components["schemas"]["UserPublicRead"] | null;
             sets: components["schemas"]["Page_ActivitySetsRead_"];
             workout_steps: components["schemas"]["Page_ActivityWorkoutStepsRead_"];
@@ -16436,6 +16486,104 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Page_ActivityLapsRead_"];
+                };
+            };
+            /** @description The credential is missing, invalid or no longer valid. */
+            401: {
+                headers: {
+                    /** @description The authentication challenge. */
+                    "WWW-Authenticate"?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description The caller is signed in but not allowed, for example a scope is missing. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description The resource does not exist, or is concealed from the caller. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description The rate limit was reached. */
+            429: {
+                headers: {
+                    /** @description Seconds to wait before the request can succeed. */
+                    "Retry-After"?: number;
+                    /** @description The number of requests the limit that was reached allows in its window. */
+                    "X-RateLimit-Limit"?: number;
+                    /** @description The requests left in the window: always 0 on a 429. */
+                    "X-RateLimit-Remaining"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description A dependency is unavailable for a moment. */
+            503: {
+                headers: {
+                    /** @description Seconds to wait before the request can succeed. */
+                    "Retry-After"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Unexpected error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+        };
+    };
+    list_activity_legs: {
+        parameters: {
+            query?: {
+                page_number?: number | null;
+                num_records?: number | null;
+            };
+            header?: never;
+            path: {
+                activity_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Page_ActivitySummaryRead_"];
                 };
             };
             /** @description The credential is missing, invalid or no longer valid. */
@@ -31809,6 +31957,84 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Page_ActivityLapsRead_"];
+                };
+            };
+            /** @description The resource does not exist, or is concealed from the caller. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description The rate limit was reached. */
+            429: {
+                headers: {
+                    /** @description Seconds to wait before the request can succeed. */
+                    "Retry-After"?: number;
+                    /** @description The number of requests the limit that was reached allows in its window. */
+                    "X-RateLimit-Limit"?: number;
+                    /** @description The requests left in the window: always 0 on a 429. */
+                    "X-RateLimit-Remaining"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description A dependency is unavailable for a moment. */
+            503: {
+                headers: {
+                    /** @description Seconds to wait before the request can succeed. */
+                    "Retry-After"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Unexpected error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+        };
+    };
+    list_public_activity_legs: {
+        parameters: {
+            query?: {
+                page_number?: number | null;
+                num_records?: number | null;
+            };
+            header?: never;
+            path: {
+                activity_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Page_ActivitySummaryRead_"];
                 };
             };
             /** @description The resource does not exist, or is concealed from the caller. */

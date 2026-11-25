@@ -93,7 +93,7 @@ OPENAPI_SERVERS = [{"url": "/", "description": "This server. Every path starts w
 #: What each tag groups, as the OpenAPI document and the API reference show it.
 OPENAPI_TAGS = [
     {"name": "activities", "description": "Activities: list, read, edit, delete, import and upload."},
-    {"name": "activity_detail", "description": "An activity with the first page of its laps, sets and steps."},
+    {"name": "activity_detail", "description": "An activity with the first page of its laps, sets, steps and legs."},
     {"name": "activity_exercise_titles", "description": "Exercise titles of strength activities."},
     {"name": "activity_laps", "description": "Laps of an activity."},
     {"name": "activity_media", "description": "Photos and other media attached to an activity."},
