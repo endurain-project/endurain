@@ -3,7 +3,6 @@
   "username": "Naudotojo vardas",
   "password": "Slaptažodis",
   "mfaCode": "Autentifikavimo kodas",
-  "mfaCodeHelp": "Naudokite autentifikatoriaus programėlės kodą arba atsarginį kodą",
   "signInButton": "Prisijungti",
   "verifyMfaButton": "Patvirtinti kodą",
   "signingIn": "Jungiamasi",

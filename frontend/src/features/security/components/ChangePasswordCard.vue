@@ -7,11 +7,11 @@ import PasswordInput from '@/features/security/components/PasswordInput.vue'
 import PasswordStrengthMeter from '@/features/security/components/PasswordStrengthMeter.vue'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
-import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Switch } from '@/components/ui/switch'
 import { useToasts } from '@/composables/useToasts'
-import { normalizeMfaCode } from '@/features/auth/utils/mfaCode'
+import MfaCodeInput from '@/features/auth/components/MfaCodeInput.vue'
+import { isMfaCodeComplete, normalizeMfaCode } from '@/features/auth/utils/mfaCode'
 import { isStepUpFailed, isStepUpLocked } from '@/features/security/composables/useIdpStepUp'
 import { useChangePasswordMutation } from '@/features/security/composables/useSecurity'
 import {
@@ -57,7 +57,7 @@ const canSubmit = computed(
     currentPassword.value.length > 0 &&
     isValidPassword(newPassword.value) &&
     passwordsMatch.value &&
-    (!props.mfaEnabled || mfaCode.value.trim().length > 0) &&
+    (!props.mfaEnabled || isMfaCodeComplete(mfaCode.value)) &&
     !mutation.isPending.value,
 )
 
@@ -147,22 +147,18 @@ async function submit(): Promise<void> {
       </p>
     </div>
 
-    <div v-if="mfaEnabled" class="flex flex-col gap-1.5">
-      <Label for="security-password-mfa">{{ t('settings.security.mfaCode') }}</Label>
-      <Input
-        id="security-password-mfa"
-        v-model="mfaCode"
-        inputmode="numeric"
-        autocomplete="one-time-code"
-        :placeholder="t('settings.security.mfaCodePlaceholder')"
-        :disabled="mutation.isPending.value"
-        class="w-full"
-      />
-    </div>
-
     <Switch v-model="revokeOtherSessions" :disabled="mutation.isPending.value">
       {{ t('settings.security.password.revokeOthers') }}
     </Switch>
+
+    <div v-if="mfaEnabled" class="flex flex-col gap-1.5">
+      <Label for="security-password-mfa">{{ t('settings.security.mfaCode') }}</Label>
+      <MfaCodeInput
+        id="security-password-mfa"
+        v-model="mfaCode"
+        :disabled="mutation.isPending.value"
+      />
+    </div>
 
     <div class="flex justify-begin">
       <Button type="submit" class="w-full sm:w-auto" :disabled="!canSubmit">

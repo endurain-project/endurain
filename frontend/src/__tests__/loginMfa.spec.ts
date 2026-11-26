@@ -92,9 +92,9 @@ const SSO_MFA_STEP = {
 
 const SESSION_ENDED = new HttpError(401, 'Unauthorized', null, 'urn:endurain:error:session-ended')
 
+/** Types a code; a whole code submits the form by itself. */
 async function submitCode(wrapper: Wrapper, code: string): Promise<void> {
-  await wrapper.find('input[name="mfaCode"]').setValue(code)
-  await wrapper.find('form').trigger('submit')
+  await wrapper.find('#login-mfa-code').setValue(code)
   await flushPromises()
 }
 
@@ -147,7 +147,7 @@ describe('LoginView MFA step', () => {
     const wrapper = mountView()
     await toMfaStep(wrapper)
 
-    await submitCode(wrapper, '12')
+    await submitCode(wrapper, '123456')
 
     expect(wrapper.text()).toContain(i18n.global.t('login.genericError'))
     expect(wrapper.text()).not.toContain(i18n.global.t('login.invalidMfa'))
@@ -163,7 +163,7 @@ describe('LoginView MFA step', () => {
     await submitCode(wrapper, '123456')
 
     expect(wrapper.text()).toContain(i18n.global.t('login.invalidMfa'))
-    expect(wrapper.find('input[name="mfaCode"]').exists()).toBe(true)
+    expect(wrapper.find('#login-mfa-code').exists()).toBe(true)
   })
 
   it('returns to the sign-in form with an expiry message when the sign-in has ended', async () => {
@@ -175,7 +175,7 @@ describe('LoginView MFA step', () => {
 
     expect(wrapper.text()).toContain(i18n.global.t('login.mfaChallengeExpired'))
     expect(wrapper.text()).not.toContain(i18n.global.t('login.invalidMfa'))
-    expect(wrapper.find('input[name="mfaCode"]').exists()).toBe(false)
+    expect(wrapper.find('#login-mfa-code').exists()).toBe(false)
     expect(wrapper.find('input[name="username"]').exists()).toBe(true)
   })
 
@@ -191,7 +191,7 @@ describe('LoginView MFA step', () => {
 
     expect(wrapper.text()).toContain(i18n.global.t('login.invalidMfa'))
     expect(wrapper.text()).not.toContain(i18n.global.t('login.mfaChallengeExpired'))
-    expect(wrapper.find('input[name="mfaCode"]').exists()).toBe(true)
+    expect(wrapper.find('#login-mfa-code').exists()).toBe(true)
   })
 
   it('returns an ended SSO MFA step to the provider buttons', async () => {
@@ -201,13 +201,13 @@ describe('LoginView MFA step', () => {
     auth.verifyMfa.mockRejectedValue(SESSION_ENDED)
     const wrapper = mountView()
     await flushPromises()
-    expect(wrapper.find('input[name="mfaCode"]').exists()).toBe(true)
+    expect(wrapper.find('#login-mfa-code').exists()).toBe(true)
     expect(wrapper.text()).not.toContain(i18n.global.t('login.ssoButton', { provider: 'Acme' }))
 
     await submitCode(wrapper, '123456')
 
     expect(wrapper.text()).toContain(i18n.global.t('login.mfaChallengeExpired'))
-    expect(wrapper.find('input[name="mfaCode"]').exists()).toBe(false)
+    expect(wrapper.find('#login-mfa-code').exists()).toBe(false)
     expect(wrapper.text()).toContain(i18n.global.t('login.ssoButton', { provider: 'Acme' }))
   })
 
@@ -220,7 +220,7 @@ describe('LoginView MFA step', () => {
     await flushPromises()
 
     expect(wrapper.text()).toContain(i18n.global.t('login.unsupportedStep'))
-    expect(wrapper.find('input[name="mfaCode"]').exists()).toBe(false)
+    expect(wrapper.find('#login-mfa-code').exists()).toBe(false)
   })
 })
 

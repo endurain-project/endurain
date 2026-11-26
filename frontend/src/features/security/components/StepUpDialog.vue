@@ -10,7 +10,8 @@ import PasswordInput from '@/features/security/components/PasswordInput.vue'
 import { FormDialog } from '@/components/ui/form-dialog'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { normalizeMfaCode } from '@/features/auth/utils/mfaCode'
+import MfaCodeInput from '@/features/auth/components/MfaCodeInput.vue'
+import { isMfaCodeComplete, normalizeMfaCode } from '@/features/auth/utils/mfaCode'
 
 const open = defineModel<boolean>('open', { required: true })
 // The identity-provider sign-in proof, used when the account has no password.
@@ -69,7 +70,7 @@ const canSubmit = computed(
     (props.confirmPhrase === undefined || typedPhrase.value === props.confirmPhrase) &&
     (!props.requirePassword || password.value.length > 0) &&
     (props.requirePassword || reauth.value !== null) &&
-    (!props.requireMfa || mfaCode.value.trim().length > 0),
+    (!props.requireMfa || isMfaCodeComplete(mfaCode.value)),
 )
 
 // The confirmation phrase is not a secret, so the user does not retype it after signing in again with the
@@ -156,15 +157,7 @@ function onSubmit(): void {
       </div>
       <div v-if="requireMfa && (requirePassword || reauth)" class="flex flex-col gap-1.5">
         <Label for="stepup-mfa">{{ t('settings.security.mfaCode') }}</Label>
-        <Input
-          id="stepup-mfa"
-          v-model="mfaCode"
-          inputmode="numeric"
-          autocomplete="one-time-code"
-          :placeholder="t('settings.security.mfaCodePlaceholder')"
-          :disabled="pending"
-          class="w-full"
-        />
+        <MfaCodeInput id="stepup-mfa" v-model="mfaCode" :disabled="pending" />
       </div>
     </div>
   </FormDialog>

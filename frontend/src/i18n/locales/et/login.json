@@ -3,7 +3,6 @@
   "username": "Kasutajanimi",
   "password": "Parool",
   "mfaCode": "Autentimiskood",
-  "mfaCodeHelp": "Kasuta oma autentimisrakenduse koodi või varukoodi",
   "signInButton": "Logi sisse",
   "verifyMfaButton": "Kinnita kood",
   "signingIn": "Sisselogimine",

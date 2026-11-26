@@ -3,7 +3,6 @@
   "username": "Usuario",
   "password": "Contraseña",
   "mfaCode": "Código de autenticación",
-  "mfaCodeHelp": "Usa el código de tu aplicación de autenticación o un código de respaldo",
   "signInButton": "Iniciar sesión",
   "verifyMfaButton": "Verificar código",
   "signingIn": "Iniciando sesión",

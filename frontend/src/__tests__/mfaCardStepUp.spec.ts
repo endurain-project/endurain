@@ -43,7 +43,7 @@ async function mountCard() {
   return wrapper
 }
 
-/** Opens the dialog behind a button and fills its step-up fields; returns the open dialog. */
+/** Opens the dialog behind a button and fills its password; returns the open dialog. */
 async function openDialog(wrapper: Awaited<ReturnType<typeof mountCard>>, buttonLabel: string) {
   await wrapper
     .findAll('button')
@@ -52,7 +52,6 @@ async function openDialog(wrapper: Awaited<ReturnType<typeof mountCard>>, button
   await flushPromises()
   const dialog = wrapper.get('div[open="true"]')
   await dialog.get('#stepup-password').setValue('pw')
-  await dialog.get('#stepup-mfa').setValue('123456')
   return dialog
 }
 
@@ -84,7 +83,7 @@ describe('MfaCard refused step-up', () => {
       const wrapper = await mountCard()
 
       const dialog = await openDialog(wrapper, label)
-      await dialog.get('form').trigger('submit')
+      await dialog.get('#stepup-mfa').setValue('123456')
       await flushPromises()
 
       expect(mocks.toastError).toHaveBeenCalledWith(

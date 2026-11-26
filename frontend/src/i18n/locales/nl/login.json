@@ -3,7 +3,6 @@
   "username": "Gebruikersnaam",
   "password": "Wachtwoord",
   "mfaCode": "Authenticatiecode",
-  "mfaCodeHelp": "Gebruik de code van je authenticator-app of een herstelcode",
   "signInButton": "Inloggen",
   "verifyMfaButton": "Code verifiëren",
   "signingIn": "Inloggen",

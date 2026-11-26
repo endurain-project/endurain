@@ -3,7 +3,12 @@
   "username": "Username",
   "password": "Password",
   "mfaCode": "Authentication code",
-  "mfaCodeHelp": "Use your authenticator app code or a backup code",
+  "mfaCodeInput": {
+    "totpHint": "Enter the 6-digit code from your authenticator app",
+    "backupHint": "Enter one of your 8-character backup codes",
+    "useBackupCode": "Use a backup code",
+    "useAuthenticator": "Use your authenticator app"
+  },
   "signInButton": "Sign in",
   "verifyMfaButton": "Verify code",
   "signingIn": "Signing in",

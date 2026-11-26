@@ -3,7 +3,6 @@
   "username": "用户名",
   "password": "密码",
   "mfaCode": "验证码",
-  "mfaCodeHelp": "请使用验证器应用的验证码或备份码",
   "signInButton": "登录",
   "verifyMfaButton": "验证代码",
   "signingIn": "正在登录",

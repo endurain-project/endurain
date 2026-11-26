@@ -3,7 +3,6 @@
   "username": "Käyttäjänimi",
   "password": "Salasana",
   "mfaCode": "Todennuskoodi",
-  "mfaCodeHelp": "Käytä todennussovelluksesi koodia tai varakoodia",
   "signInButton": "Kirjaudu sisään",
   "verifyMfaButton": "Vahvista koodi",
   "signingIn": "Kirjaudutaan sisään",

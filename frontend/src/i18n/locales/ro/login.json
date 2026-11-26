@@ -3,7 +3,6 @@
   "username": "Nume de utilizator",
   "password": "Parolă",
   "mfaCode": "Cod de autentificare",
-  "mfaCodeHelp": "Folosește codul din aplicația de autentificare sau un cod de rezervă",
   "signInButton": "Autentificare",
   "verifyMfaButton": "Verifică codul",
   "signingIn": "Se autentifică",

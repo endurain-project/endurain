@@ -130,12 +130,11 @@ describe('LoginView next step', () => {
     const wrapper = mountView()
     await submitPassword(wrapper)
 
-    await wrapper.find('input[name="mfaCode"]').setValue('123456')
-    await wrapper.find('form').trigger('submit')
+    await wrapper.find('#login-mfa-code').setValue('123456')
     await flushPromises()
 
     expect(wrapper.find('input[name="newPassword"]').exists()).toBe(true)
-    expect(wrapper.find('input[name="mfaCode"]').exists()).toBe(false)
+    expect(wrapper.find('#login-mfa-code').exists()).toBe(false)
   })
 
   it('reports a step it does not know instead of failing', async () => {

@@ -10,3 +10,13 @@ export function normalizeMfaCode(raw: string): string {
   const backup = /^([A-Z0-9]{4})-?([A-Z0-9]{4})$/.exec(compact)
   return backup ? `${backup[1]}-${backup[2]}` : compact
 }
+
+/**
+ * Tells whether a typed second-factor code is whole: a 6-digit authenticator code or an 8-character backup code.
+ *
+ * @param raw - The code as typed.
+ * @returns Whether the code can be sent.
+ */
+export function isMfaCodeComplete(raw: string): boolean {
+  return /^(\d{6}|[A-Z0-9]{4}-[A-Z0-9]{4})$/.test(normalizeMfaCode(raw))
+}

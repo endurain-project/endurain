@@ -3,7 +3,6 @@
   "username": "Nom d'usuari",
   "password": "Contrasenya",
   "mfaCode": "Codi d'autenticació",
-  "mfaCodeHelp": "Fes servir el codi de la teva aplicació d'autenticació o un codi de seguretat",
   "signInButton": "Inicia sessió",
   "verifyMfaButton": "Verifica el codi",
   "signingIn": "Iniciant sessió",

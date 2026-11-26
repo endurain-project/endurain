@@ -3,7 +3,6 @@
   "username": "Felhasználónév",
   "password": "Jelszó",
   "mfaCode": "Hitelesítési kód",
-  "mfaCodeHelp": "Használd a hitelesítő alkalmazás kódját vagy egy tartalék kódot",
   "signInButton": "Bejelentkezés",
   "verifyMfaButton": "Kód ellenőrzése",
   "signingIn": "Bejelentkezés folyamatban",

@@ -44,7 +44,7 @@ function sentBody(path: string): Record<string, unknown> {
   return JSON.parse(String(calls[calls.length - 1]![1]?.body)) as Record<string, unknown>
 }
 
-/** Opens the dialog behind a button and fills its step-up fields; returns the open dialog. */
+/** Opens the dialog behind a button and fills its password; returns the open dialog. */
 async function openDialog(wrapper: Awaited<ReturnType<typeof mountCard>>, buttonLabel: string) {
   await wrapper
     .findAll('button')
@@ -53,7 +53,6 @@ async function openDialog(wrapper: Awaited<ReturnType<typeof mountCard>>, button
   await flushPromises()
   const dialog = wrapper.get('div[open="true"]')
   await dialog.get('#stepup-password').setValue('pw')
-  await dialog.get('#stepup-mfa').setValue('123456')
   return dialog
 }
 
@@ -85,7 +84,7 @@ describe('MfaCard sign out other devices', () => {
 
     const dialog = await openDialog(wrapper, 'Disable')
     expect(dialog.get<HTMLInputElement>('input[role="switch"]').element.checked).toBe(true)
-    await dialog.get('form').trigger('submit')
+    await dialog.get('#stepup-mfa').setValue('123456')
     await flushPromises()
 
     expect(sentBody('/profile/mfa/disable').revoke_other_sessions).toBe(true)
@@ -96,7 +95,7 @@ describe('MfaCard sign out other devices', () => {
 
     const dialog = await openDialog(wrapper, 'Disable')
     await dialog.get('input[role="switch"]').setValue(false)
-    await dialog.get('form').trigger('submit')
+    await dialog.get('#stepup-mfa').setValue('123456')
     await flushPromises()
 
     expect(sentBody('/profile/mfa/disable').revoke_other_sessions).toBe(false)
@@ -107,7 +106,7 @@ describe('MfaCard sign out other devices', () => {
 
     const dialog = await openDialog(wrapper, 'Regenerate backup codes')
     await dialog.get('input[role="switch"]').setValue(false)
-    await dialog.get('form').trigger('submit')
+    await dialog.get('#stepup-mfa').setValue('123456')
     await flushPromises()
 
     expect(sentBody('/profile/mfa/backup-codes').revoke_other_sessions).toBe(false)

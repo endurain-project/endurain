@@ -3,7 +3,6 @@
   "username": "Uporabniško ime",
   "password": "Geslo",
   "mfaCode": "Koda za preverjanje pristnosti",
-  "mfaCodeHelp": "Uporabi kodo iz aplikacije za preverjanje pristnosti ali varnostno kodo",
   "signInButton": "Prijava",
   "verifyMfaButton": "Preveri kodo",
   "signingIn": "Prijavljanje",

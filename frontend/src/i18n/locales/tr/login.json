@@ -3,7 +3,6 @@
   "username": "Kullanıcı adı",
   "password": "Parola",
   "mfaCode": "Kimlik doğrulama kodu",
-  "mfaCodeHelp": "Kimlik doğrulayıcı uygulamanızın kodunu veya bir yedek kodu kullanın",
   "signInButton": "Giriş yap",
   "verifyMfaButton": "Kodu doğrula",
   "signingIn": "Giriş yapılıyor",

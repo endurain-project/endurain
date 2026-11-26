@@ -3,7 +3,6 @@
   "username": "Brukernavn",
   "password": "Passord",
   "mfaCode": "Autentiseringskode",
-  "mfaCodeHelp": "Bruk koden fra autentiseringsappen din eller en reservekode",
   "signInButton": "Logg inn",
   "verifyMfaButton": "Bekreft kode",
   "signingIn": "Logger inn",

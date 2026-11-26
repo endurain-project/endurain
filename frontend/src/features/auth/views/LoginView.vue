@@ -5,6 +5,7 @@ import { useI18n } from 'vue-i18n'
 import { LoaderCircle } from '@lucide/vue'
 
 import ForgotPasswordDialog from '@/features/auth/components/ForgotPasswordDialog.vue'
+import MfaCodeInput from '@/features/auth/components/MfaCodeInput.vue'
 import AppLogo from '@/components/AppLogo.vue'
 import AuthScreenLayout from '@/components/layout/AuthScreenLayout.vue'
 import { Alert } from '@/components/ui/alert'
@@ -32,7 +33,7 @@ import { resolveProviderLogo } from '@/features/identityProviders/utils/provider
 import { HttpError } from '@/services/http'
 import { isProblem, retryWaitMessage } from '@/services/problems'
 import { type LoginResult, useAuthStore } from '@/features/auth/stores/auth'
-import { normalizeMfaCode } from '@/features/auth/utils/mfaCode'
+import { isMfaCodeComplete, normalizeMfaCode } from '@/features/auth/utils/mfaCode'
 
 const auth = useAuthStore()
 const { t } = useI18n()
@@ -96,7 +97,7 @@ const canSubmit = computed(() => {
     return isValidPassword(newPassword.value) && passwordsMatch.value
   }
   return isMfaStep.value
-    ? mfaCode.value.trim().length > 0
+    ? isMfaCodeComplete(mfaCode.value)
     : username.value.trim().length > 0 && password.value.length > 0
 })
 const statusText = computed(() => {
@@ -510,16 +511,7 @@ onMounted(async () => {
           <Label for="login-mfa-code">
             {{ t('login.mfaCode') }}
           </Label>
-          <Input
-            id="login-mfa-code"
-            v-model="mfaCode"
-            name="mfaCode"
-            type="text"
-            autocomplete="one-time-code"
-            required
-            :disabled="isLoading"
-          />
-          <p class="text-hint">{{ t('login.mfaCodeHelp') }}</p>
+          <MfaCodeInput id="login-mfa-code" v-model="mfaCode" :disabled="isLoading" />
         </div>
 
         <Button class="w-full" type="submit" :disabled="!canSubmit || isLoading">

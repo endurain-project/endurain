@@ -3,7 +3,6 @@
   "username": "Korisničko ime",
   "password": "Lozinka",
   "mfaCode": "Kod za autentifikaciju",
-  "mfaCodeHelp": "Koristite kod iz vaše aplikacije za autentifikaciju ili rezervni kod",
   "signInButton": "Prijavi se",
   "verifyMfaButton": "Potvrdi kod",
   "signingIn": "Prijavljivanje",

@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { computed } from 'vue'
-import { mount } from '@vue/test-utils'
+import { flushPromises, mount } from '@vue/test-utils'
 
 import i18n from '@/i18n'
 import StepUpDialog from '@/features/security/components/StepUpDialog.vue'
@@ -110,13 +110,15 @@ describe('StepUpDialog', () => {
     })
     expect(wrapper.text()).not.toContain('Continue with Keycloak')
     await wrapper.find('#stepup-mfa').setValue(' 123456 ')
-    await wrapper.find('form').trigger('submit')
-    expect(wrapper.emitted('confirm')?.[0]).toEqual([
-      {
-        currentPassword: null,
-        mfaCode: '123456',
-        idpReauth: { ticket: 't', codeVerifier: 'v' },
-      },
+    await flushPromises()
+    expect(wrapper.emitted('confirm')).toEqual([
+      [
+        {
+          currentPassword: null,
+          mfaCode: '123456',
+          idpReauth: { ticket: 't', codeVerifier: 'v' },
+        },
+      ],
     ])
   })
 
@@ -124,9 +126,9 @@ describe('StepUpDialog', () => {
     const wrapper = mountDialog({ requirePassword: true, requireMfa: true })
     await wrapper.find('#stepup-password').setValue('pw')
     await wrapper.find('#stepup-mfa').setValue('561 203')
-    await wrapper.find('form').trigger('submit')
+    await flushPromises()
     await wrapper.find('#stepup-mfa').setValue('abcd1234')
-    await wrapper.find('form').trigger('submit')
+    await flushPromises()
     expect(
       wrapper.emitted('confirm')?.map(([input]) => (input as { mfaCode: string }).mfaCode),
     ).toEqual(['561203', 'ABCD-1234'])

@@ -3,7 +3,6 @@
   "username": "Nom d'utilisateur",
   "password": "Mot de passe",
   "mfaCode": "Code d'authentification",
-  "mfaCodeHelp": "Utilisez le code de votre application d'authentification ou un code de secours",
   "signInButton": "Se connecter",
   "verifyMfaButton": "Vérifier le code",
   "signingIn": "Connexion en cours",

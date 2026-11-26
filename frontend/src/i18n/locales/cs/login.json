@@ -3,7 +3,6 @@
   "username": "Uživatelské jméno",
   "password": "Heslo",
   "mfaCode": "Ověřovací kód",
-  "mfaCodeHelp": "Použijte kód z aplikace autentizátoru nebo záložní kód",
   "signInButton": "Přihlásit se",
   "verifyMfaButton": "Ověřit kód",
   "signingIn": "Přihlašování",

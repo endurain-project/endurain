@@ -15,7 +15,8 @@ import { FormDialog } from '@/components/ui/form-dialog'
 import { Input } from '@/components/ui/input'
 import { inputFieldClass } from '@/components/ui/input/fieldClasses'
 import { Label } from '@/components/ui/label'
-import { normalizeMfaCode } from '@/features/auth/utils/mfaCode'
+import MfaCodeInput from '@/features/auth/components/MfaCodeInput.vue'
+import { isMfaCodeComplete, normalizeMfaCode } from '@/features/auth/utils/mfaCode'
 import { Switch } from '@/components/ui/switch'
 import {
   API_KEY_SCOPE_GROUPS,
@@ -78,7 +79,7 @@ const canSubmit = computed(
     selectedScopes.value.length > 0 &&
     (!props.requirePassword || password.value.length > 0) &&
     (props.requirePassword || reauth.value !== null) &&
-    (!props.requireMfa || mfaCode.value.trim().length > 0),
+    (!props.requireMfa || isMfaCodeComplete(mfaCode.value)),
 )
 
 // Restored with the draft so the identity-provider round-trip loses nothing typed.
@@ -194,15 +195,7 @@ function onSubmit(): void {
 
       <div v-if="requireMfa && (requirePassword || reauth)" class="flex flex-col gap-1.5">
         <Label for="apikey-mfa">{{ t('settings.security.mfaCode') }}</Label>
-        <Input
-          id="apikey-mfa"
-          v-model="mfaCode"
-          inputmode="numeric"
-          autocomplete="one-time-code"
-          :placeholder="t('settings.security.mfaCodePlaceholder')"
-          :disabled="pending"
-          class="w-full"
-        />
+        <MfaCodeInput id="apikey-mfa" v-model="mfaCode" :disabled="pending" />
       </div>
     </div>
   </FormDialog>

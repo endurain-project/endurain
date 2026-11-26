@@ -16,7 +16,8 @@ import { Switch } from '@/components/ui/switch'
 import { useToasts } from '@/composables/useToasts'
 import { applyServerFieldErrors } from '@/services/fieldErrors'
 import { isProblem } from '@/services/problems'
-import { normalizeMfaCode } from '@/features/auth/utils/mfaCode'
+import MfaCodeInput from '@/features/auth/components/MfaCodeInput.vue'
+import { isMfaCodeComplete, normalizeMfaCode } from '@/features/auth/utils/mfaCode'
 import {
   isStepUpFailed,
   isStepUpLocked,
@@ -78,7 +79,7 @@ const canSubmit = computed(
     !isCurrentUsername.value &&
     (!props.hasLocalPassword || currentPassword.value.length > 0) &&
     (props.hasLocalPassword || idpReauth.value !== null) &&
-    (!props.mfaEnabled || mfaCode.value.trim().length > 0) &&
+    (!props.mfaEnabled || isMfaCodeComplete(mfaCode.value)) &&
     !changeMutation.isPending.value,
 )
 
@@ -194,22 +195,18 @@ function submit(): void {
       />
     </div>
 
-    <div v-if="mfaEnabled && (hasLocalPassword || idpReauth)" class="flex flex-col gap-1.5">
-      <Label for="security-username-mfa">{{ t('settings.security.mfaCode') }}</Label>
-      <Input
-        id="security-username-mfa"
-        v-model="mfaCode"
-        inputmode="numeric"
-        autocomplete="one-time-code"
-        :placeholder="t('settings.security.mfaCodePlaceholder')"
-        :disabled="changeMutation.isPending.value"
-        class="w-full"
-      />
-    </div>
-
     <Switch v-model="revokeOtherSessions" :disabled="changeMutation.isPending.value">
       {{ t('settings.security.password.revokeOthers') }}
     </Switch>
+
+    <div v-if="mfaEnabled && (hasLocalPassword || idpReauth)" class="flex flex-col gap-1.5">
+      <Label for="security-username-mfa">{{ t('settings.security.mfaCode') }}</Label>
+      <MfaCodeInput
+        id="security-username-mfa"
+        v-model="mfaCode"
+        :disabled="changeMutation.isPending.value"
+      />
+    </div>
 
     <div class="flex justify-begin">
       <Button type="submit" class="w-full sm:w-auto" :disabled="!canSubmit">

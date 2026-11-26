@@ -3,7 +3,6 @@
   "username": "使用者名稱",
   "password": "密碼",
   "mfaCode": "驗證碼",
-  "mfaCodeHelp": "請使用您的驗證器應用程式代碼或備用代碼",
   "signInButton": "登入",
   "verifyMfaButton": "驗證代碼",
   "signingIn": "登入中",

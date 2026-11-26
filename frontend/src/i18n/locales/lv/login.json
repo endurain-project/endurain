@@ -3,7 +3,6 @@
   "username": "Lietotājvārds",
   "password": "Parole",
   "mfaCode": "Autentifikācijas kods",
-  "mfaCodeHelp": "Izmantojiet autentifikatora lietotnes kodu vai rezerves kodu",
   "signInButton": "Pieteikties",
   "verifyMfaButton": "Pārbaudīt kodu",
   "signingIn": "Notiek pieteikšanās",

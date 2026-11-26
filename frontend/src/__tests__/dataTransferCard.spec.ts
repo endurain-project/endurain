@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { computed, nextTick, ref } from 'vue'
-import { mount } from '@vue/test-utils'
+import { flushPromises, mount } from '@vue/test-utils'
 
 import type { ProfileImportStatus } from '@/features/profile/types'
 import type { IdpStepUpResume } from '@/features/security/composables/useIdpStepUp'
@@ -113,7 +113,7 @@ describe('DataTransferCard', () => {
 
     await wrapper.find('#stepup-password').setValue('pw')
     await wrapper.find('#stepup-mfa').setValue('123456')
-    await wrapper.find('form').trigger('submit')
+    await flushPromises()
 
     expect(exportMutate.mock.calls[0]![0]).toEqual({
       currentPassword: 'pw',
