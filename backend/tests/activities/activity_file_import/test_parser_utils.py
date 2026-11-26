@@ -8,130 +8,6 @@ import pytest
 import modules.activities.activity_file_import.parser_utils as afi_utils
 
 
-def _straight_track(num_points: int, ele_fn) -> tuple[list[dict], list[dict]]:
-    """Build a straight northbound track, ~111 m and 10 s per point.
-
-    Args:
-        num_points: Number of trackpoints.
-        ele_fn: Callable index -> elevation (or None to skip the point).
-
-    Returns:
-        Tuple of (lat_lon_waypoints, ele_waypoints).
-    """
-    start = datetime(2025, 1, 1, 8, 0, 0)
-    lat_lon_waypoints: list[dict] = []
-    ele_waypoints: list[dict] = []
-    for i in range(num_points):
-        timestamp = (start + timedelta(seconds=10 * i)).strftime("%Y-%m-%dT%H:%M:%S")
-        lat_lon_waypoints.append({"time": timestamp, "lat": 40.0 + i * 0.001, "lon": -3.0})
-        elevation = ele_fn(i)
-        if elevation is not None:
-            ele_waypoints.append({"time": timestamp, "ele": elevation})
-    return lat_lon_waypoints, ele_waypoints
-
-
-class TestGenerateActivityLapsElevation:
-    """Lap elevation gain/loss from the once-smoothed stream."""
-
-    def test_flat_track_stores_zero_ascent_not_none(self):
-        """A flat lap has 0 m ascent/descent, not a blank (None)."""
-        lat_lon, ele = _straight_track(25, lambda _i: 100.0)
-        laps = afi_utils.generate_activity_laps(lat_lon, ele, [], [], [], [])
-        assert len(laps) >= 2
-        assert all(lap["total_ascent"] == 0 for lap in laps)
-        assert all(lap["total_descent"] == 0 for lap in laps)
-
-    def test_lap_ascent_sums_match_activity_total(self):
-        """Lap gains are the sums of the activity's own per-sample counts, so they partition its gain."""
-        lat_lon, ele = _straight_track(
-            40,
-            lambda i: 100 + i * 1.0 + (2.0 if i % 2 else -2.0),
-        )
-        laps = afi_utils.generate_activity_laps(lat_lon, ele, [], [], [], [])
-        steps = afi_utils.elevation_step_waypoints(ele)
-        activity_gain = sum(wp["gain"] for wp in steps)
-        activity_loss = sum(wp["loss"] for wp in steps)
-        lap_gain_sum = sum(lap["total_ascent"] or 0 for lap in laps)
-        lap_loss_sum = sum(lap["total_descent"] or 0 for lap in laps)
-        assert len(laps) >= 2
-        assert activity_gain > 0
-        # Per-lap values are rounded ints; allow only rounding error.
-        assert abs(lap_gain_sum - activity_gain) <= 0.5 * len(laps)
-        assert abs(lap_loss_sum - activity_loss) <= 0.5 * len(laps)
-
-    def test_a_lap_holds_the_gain_counted_at_its_own_samples(self):
-        """A climb inside the second lap is in that lap only."""
-        lat_lon, ele = _straight_track(25, lambda i: 100.0 if i < 12 else 100.0 + 5 * (i - 12))
-        first, second = afi_utils.generate_activity_laps(lat_lon, ele, [], [], [], [])[:2]
-        assert first["total_ascent"] == 0
-        assert second["total_ascent"] > 0
-
-    def test_no_elevation_stream_keeps_none(self):
-        """Without elevation data laps keep total_ascent/total_descent as None."""
-        lat_lon, _ = _straight_track(25, lambda _i: None)
-        laps = afi_utils.generate_activity_laps(lat_lon, [], [], [], [], [])
-        assert laps
-        assert all(lap["total_ascent"] is None for lap in laps)
-        assert all(lap["total_descent"] is None for lap in laps)
-
-
-class TestGenerateActivityLapsSpeed:
-    """Lap average speed ignores placeholder velocity samples."""
-
-    def test_first_point_placeholder_zero_speed_is_not_averaged_into_lap_one(self):
-        """A constant-speed track gives every lap the same average speed, lap 1 included."""
-        lat_lon, _ = _straight_track(25, lambda _i: None)
-        speed = 111.2 / 10
-        vel = [{"time": point["time"], "vel": speed if i else 0} for i, point in enumerate(lat_lon)]
-        measured = set(range(1, len(vel)))
-
-        laps = afi_utils.generate_activity_laps(lat_lon, [], [], [], [], vel, measured_vel_indices=measured)
-
-        assert len(laps) >= 2
-        assert [lap["enhanced_avg_speed"] for lap in laps] == [pytest.approx(speed)] * len(laps)
-
-    def test_repeated_timestamp_placeholder_is_not_averaged_into_the_lap(self):
-        lat_lon, _ = _straight_track(25, lambda _i: None)
-        speed = 111.2 / 10
-        vel = []
-        measured = set()
-        for i, point in enumerate(lat_lon):
-            if i:
-                measured.add(len(vel))
-            vel.append({"time": point["time"], "vel": speed if i else 0})
-            vel.append({"time": point["time"], "vel": 0})
-
-        laps = afi_utils.generate_activity_laps(lat_lon, [], [], [], [], vel, measured_vel_indices=measured)
-
-        assert len(laps) >= 2
-        assert [lap["enhanced_avg_speed"] for lap in laps] == [pytest.approx(speed)] * len(laps)
-
-    def test_sub_second_samples_in_one_second_are_all_measured(self):
-        lat_lon, _ = _straight_track(25, lambda _i: None)
-        speed = 111.2 / 10
-        vel = []
-        for point in lat_lon:
-            vel.extend({"time": point["time"], "vel": v} for v in (0, speed))
-        measured = set(range(1, len(vel)))
-
-        laps = afi_utils.generate_activity_laps(lat_lon, [], [], [], [], vel, measured_vel_indices=measured)
-
-        assert len(laps) >= 2
-        # Both samples of a second share its stamp, so they share its time equally.
-        assert [lap["enhanced_avg_speed"] for lap in laps] == [pytest.approx(speed / 2, rel=0.1)] * len(laps)
-        # The two samples of a second share it, so the best 5 s window is their mean too.
-        assert all(lap["enhanced_max_speed"] == pytest.approx(speed / 2, rel=0.1) for lap in laps)
-
-    def test_every_sample_is_averaged_without_measured_times(self):
-        """Sources without placeholder samples keep averaging every sample."""
-        lat_lon, _ = _straight_track(25, lambda _i: None)
-        vel = [{"time": point["time"], "vel": 2.0} for point in lat_lon]
-
-        laps = afi_utils.generate_activity_laps(lat_lon, [], [], [], [], vel)
-
-        assert all(lap["enhanced_avg_speed"] == pytest.approx(2.0) for lap in laps)
-
-
 class TestComputeDistanceFromWaypoints:
     """Test suite for compute_distance_from_waypoints."""
 
@@ -260,11 +136,6 @@ class TestTimezoneFinderCache:
         assert afi_utils.resolve_timezone_from_lat_lon(38.7, -9.1, "UTC") == "Europe/Lisbon"
 
 
-def _scan_between(waypoints: list[dict], start: str, end: str) -> list[dict]:
-    """Reference window: a full scan comparing the timestamp strings, which sort like the instants."""
-    return [wp for wp in waypoints if start <= wp["time"] <= end]
-
-
 class TestLapStreamWindows:
     """Per-lap stream windows match a full scan and parse each timestamp once."""
 
@@ -272,22 +143,6 @@ class TestLapStreamWindows:
     def _times(seconds: list[int]) -> list[str]:
         start = datetime(2025, 1, 1, tzinfo=UTC)
         return [(start + timedelta(seconds=s)).strftime("%Y-%m-%dT%H:%M:%S") for s in seconds]
-
-    @pytest.mark.parametrize(
-        "seconds",
-        [
-            [0, 1, 2, 3, 4, 5, 6, 7, 8, 9],
-            [0, 1, 1, 2, 5, 5, 5, 9],
-            [5, 3, 4, 0, 9, 1, 2],
-        ],
-        ids=["ordered", "duplicates", "unordered"],
-    )
-    def test_filter_matches_a_full_scan(self, seconds):
-        waypoints = [{"time": t, "v": i} for i, t in enumerate(self._times(seconds))]
-        times = self._times([0, 1, 2, 4, 5, 9, 10])
-        for start in times:
-            for end in times:
-                assert afi_utils._TimedStream(waypoints).between(start, end) == _scan_between(waypoints, start, end)
 
     def test_a_sample_on_a_lap_boundary_belongs_to_the_earlier_lap_only(self):
         steps = [{"time": t, "ele": 1.0, "gain": 1.0, "loss": 0.5} for t in self._times([0, 10, 20, 30])]

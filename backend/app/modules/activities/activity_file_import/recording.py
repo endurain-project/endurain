@@ -68,6 +68,29 @@ class Samples:
         """
         return len(self.time)
 
+    def rows(self, first: int, last: int) -> Samples:
+        """Return the rows from ``first`` up to, not including, ``last``.
+
+        Args:
+            first: The index of the first row to keep.
+            last: The index where the range ends.
+
+        Returns:
+            The rows in the range.
+        """
+        return Samples(
+            time=self.time[first:last],
+            lat=self.lat[first:last],
+            lon=self.lon[first:last],
+            altitude=self.altitude[first:last],
+            distance=self.distance[first:last],
+            speed=self.speed[first:last],
+            heart_rate=self.heart_rate[first:last],
+            cadence=self.cadence[first:last],
+            power=self.power[first:last],
+            temperature=self.temperature[first:last],
+        )
+
 
 class FileLimits:
     """Counts what one file decodes and refuses a file past the sample or session limit.
@@ -479,18 +502,7 @@ def samples_between(samples: Samples, start: datetime, end: datetime | None, *, 
         last = bisect.bisect_right(samples.time, end)
     else:
         last = bisect.bisect_left(samples.time, end)
-    return Samples(
-        time=samples.time[first:last],
-        lat=samples.lat[first:last],
-        lon=samples.lon[first:last],
-        altitude=samples.altitude[first:last],
-        distance=samples.distance[first:last],
-        speed=samples.speed[first:last],
-        heart_rate=samples.heart_rate[first:last],
-        cadence=samples.cadence[first:last],
-        power=samples.power[first:last],
-        temperature=samples.temperature[first:last],
-    )
+    return samples.rows(first, last)
 
 
 def split_at_pauses(times: Sequence[datetime], pauses: Sequence[Pause]) -> list[range]:

@@ -129,8 +129,10 @@ class TestAutoLapDistance:
 
         distances = [lap["total_distance"] for lap in result["laps"]]
         assert len(distances) == 4
-        assert all(1609 <= d < 1720 for d in distances[:3])
+        # A lap closes at the first sample past a multiple of a mile and keeps the whole 100 m step that closes it.
+        assert all(1500 <= d < 1720 for d in distances[:3])
         assert distances[3] < 1609
+        assert sum(distances) == pytest.approx(result["activity"].distance, abs=0.5)
 
 
 class TestDistanceAndTime:
@@ -667,11 +669,12 @@ class TestMaxSpeedSegmentPlaceholders:
         vels = [w["vel"] for w in result["vel_waypoints"]]
         assert activity.average_speed != pytest.approx(sum(vels) / len(vels))
 
-    def test_a_lap_starting_at_a_segment_start_reports_the_measured_speed(self, tmp_path):
+    def test_a_lap_over_several_segments_reports_the_measured_speed(self, tmp_path):
         result = _gpx(tmp_path, self._short_segments())
 
-        assert len(result["laps"]) == 5
-        assert all(lap["enhanced_max_speed"] == pytest.approx(3, abs=0.5) for lap in result["laps"])
+        # The segments are one run of recording for the laps: 15 m of moving distance make one lap.
+        (lap,) = result["laps"]
+        assert lap["enhanced_max_speed"] == pytest.approx(3, abs=0.5)
 
     def test_non_advancing_clock_gives_no_measured_speed(self, tmp_path):
         result = _gpx(
@@ -708,16 +711,45 @@ class TestMaxSpeedSegmentPlaceholders:
         assert result["activity"].max_speed == pytest.approx(3, abs=0.5)
         assert result["laps"][0]["enhanced_avg_speed"] == pytest.approx(3, abs=0.05)
 
+    def test_a_dropped_gps_jump_leaves_the_step_across_it_its_full_time(self, tmp_path):
+        # 3 m/s, with the fix at 10 s 100 m off (cleaning drops it) and a 12 m step from 9 s to 11 s across it.
+        metre = 1 / 111_319.49
+
+        def x(i: int) -> float:
+            if i == 10:
+                return 100 * metre
+            return (3 * i + (6 if i > 10 else 0)) * metre
+
+        points = [(x(i), f"00:00:{i:02d}") for i in range(20)]
+
+        activity = _gpx(tmp_path, _segments([points]))["activity"]
+
+        # The best 5 s holds three 3 m/s seconds and the 2 s at 6 m/s: 4.2 m/s.
+        assert activity.max_speed == pytest.approx(4.2, rel=0.02)
+
+    def test_a_position_that_updates_every_other_sub_second_sample_moves_at_its_true_speed(self, tmp_path):
+        # Half-second samples whose position changes every other one: steps of 0 and 6 m/s, a 3 m/s rider.
+        points = [(((k + 1) // 2) * self._STEP, f"00:00:{k / 2:04.1f}") for k in range(20)]
+
+        activity = _gpx(tmp_path, _segments([points]))["activity"]
+
+        assert activity.total_timer_time == pytest.approx(9.5, abs=1.0)
+        # Not twice the speed, as when the 0 m/s steps were taken for standing still.
+        assert activity.average_speed == pytest.approx(3.0, rel=0.1)
+        assert activity.max_speed == pytest.approx(3.0, rel=0.05)
+
     def test_sub_second_samples_sharing_a_second_all_count(self, tmp_path):
         points = [(((k + 1) // 2) * self._STEP, f"00:00:{k / 2:04.1f}") for k in range(20)]
 
         result = _gpx(tmp_path, _segments([points]))
 
         assert result["activity"].max_speed == pytest.approx(3, abs=0.5)
-        # Lap waypoints carry whole-second stamps; the two samples of a second share its time, as the true
-        # half-second alternation does. The rider covers 3 m every second: 0 and 6 m/s over half-seconds.
-        assert result["laps"][0]["enhanced_avg_speed"] == pytest.approx(3, abs=0.5)
-        assert result["laps"][0]["enhanced_avg_pace"] is not None
+        # The rider covers 3 m every second: 0 and 6 m/s over half-seconds. A lap averages its distance over its timer,
+        # as the activity does, and the timer counts only the moving half-seconds.
+        lap = result["laps"][0]
+        assert lap["total_timer_time"] == pytest.approx(result["activity"].total_timer_time)
+        assert lap["enhanced_avg_speed"] == pytest.approx(lap["total_distance"] / lap["total_timer_time"])
+        assert lap["enhanced_avg_pace"] is not None
 
 
 class TestTimeWeightedAutoLaps:
@@ -749,6 +781,145 @@ class TestTimeWeightedAutoLaps:
         assert lap["avg_power"] == round((5 * 100 + 10 * 100 + 1 * 300) / 16)
         assert lap["avg_cadence"] == round((5 * 60 + 10 * 60 + 1 * 120) / 16 * 2)
         assert lap["max_heart_rate"] == 200
-        # The first speed is a placeholder; the second to fifth hold 1 s, the sixth 10 s, the seventh 1 s.
-        v = [w["vel"] for w in result["vel_waypoints"]]
-        assert lap["enhanced_avg_speed"] == pytest.approx((v[1] + v[2] + v[3] + v[4] + 10 * v[5] + v[6]) / 15)
+        # The lap's speed is its distance over its moving time: seven 10 m steps in 16 s.
+        assert lap["total_timer_time"] == 16
+        assert lap["enhanced_avg_speed"] == pytest.approx(lap["total_distance"] / 16)
+
+
+#: A 22.5 m step east along the equator, in degrees of longitude.
+_STEP_DEGREES = 0.000202
+#: The seconds between samples of the laps tracks: 22.5 m in 5 s is 4.5 m/s.
+_STEP_SECONDS = 5
+
+
+def _lap_track(
+    tmp_path: Path,
+    *,
+    steps: int = 156,
+    sport: str = "Run",
+    pause_at: int | None = None,
+    stand_at: int | None = None,
+    extra=None,
+    step_degrees: float = _STEP_DEGREES,
+    **kwargs,
+):
+    """Assemble a steady track east along the equator, optionally with a pause or a stand with GPS jitter.
+
+    Args:
+        tmp_path: Pytest temporary path fixture.
+        steps: The number of steps; the track has one more sample.
+        sport: The GPX activity type.
+        pause_at: The step after which the athlete stops for 10 minutes at the same place.
+        stand_at: The step after which the athlete stands 5 minutes, one jittering sample a second.
+        extra: Callable from the sample index to the extension XML the sample carries.
+        step_degrees: The longitude covered by one step.
+        **kwargs: The keyword arguments of ``assemble_gpx``.
+
+    Returns:
+        The payload.
+    """
+    start = datetime(2025, 1, 1, tzinfo=UTC)
+    rows: list[tuple[float, datetime, int]] = []
+    clock = start
+    for i in range(steps + 1):
+        rows.append((i * step_degrees, clock, i))
+        if pause_at == i:
+            clock += timedelta(minutes=10)
+            rows.append((i * step_degrees, clock, i))
+        if stand_at == i:
+            for second in range(1, 301):
+                clock += timedelta(seconds=1)
+                rows.append((i * step_degrees + (0.000014 if second % 2 else -0.000014), clock, i))
+        clock += timedelta(seconds=_STEP_SECONDS)
+    body = "".join(
+        f'<trkpt lat="0.0" lon="{_LON_ORIGIN + lon:.6f}"><time>{moment.strftime("%Y-%m-%dT%H:%M:%SZ")}</time>'
+        f"{extra(index) if extra else ''}</trkpt>"
+        for lon, moment, index in rows
+    )
+    return _gpx(tmp_path, f"<trk><type>{sport}</type><trkseg>{body}</trkseg></trk>", **kwargs)
+
+
+def _lap_km(result) -> list[float]:
+    return [lap["total_distance"] / 1000 for lap in result["laps"]]
+
+
+class TestAutoLapsOverTheWholeActivity:
+    """Auto laps close at multiples of the lap distance over the moving distance, whatever the pauses."""
+
+    def test_a_steady_run_gives_full_laps_and_the_remainder_which_sum_to_the_activity_distance(self, tmp_path):
+        result = _lap_track(tmp_path)
+
+        assert _lap_km(result) == pytest.approx([1.0, 1.0, 1.0, 0.5], abs=0.03)
+        assert sum(lap["total_distance"] for lap in result["laps"]) == pytest.approx(
+            result["activity"].distance, abs=0.5
+        )
+
+    def test_a_pause_inside_a_lap_changes_neither_the_laps_nor_their_distances(self, tmp_path):
+        steady = _lap_track(tmp_path)
+        paused = _lap_track(tmp_path, pause_at=70)
+
+        assert len(paused["laps"]) == 4
+        assert _lap_km(paused) == pytest.approx(_lap_km(steady), abs=1e-6)
+
+    def test_the_lap_across_a_pause_counts_it_as_elapsed_time_but_not_as_timer_time(self, tmp_path):
+        steady = _lap_track(tmp_path)["laps"][1]
+        paused = _lap_track(tmp_path, pause_at=70)["laps"][1]
+
+        assert paused["total_elapsed_time"] == steady["total_elapsed_time"] + 600
+        assert paused["total_timer_time"] == steady["total_timer_time"]
+        assert paused["enhanced_avg_speed"] == pytest.approx(paused["total_distance"] / paused["total_timer_time"])
+
+    def test_standing_with_gps_jitter_adds_no_distance_and_no_lap(self, tmp_path):
+        steady = _lap_track(tmp_path)
+        standing = _lap_track(tmp_path, stand_at=70)
+
+        assert len(standing["laps"]) == 4
+        # Only the seconds around the stop, where the window still sees the walk, add a few metres of jitter.
+        assert _lap_km(standing) == pytest.approx(_lap_km(steady), abs=0.06)
+        assert standing["activity"].distance == pytest.approx(steady["activity"].distance, abs=60)
+
+    def test_the_closing_sample_belongs_to_one_lap_only(self, tmp_path):
+        # Lap 1 closes at the 45th step (45 x 22.5 m = 1012.5 m), whose sample carries a heart-rate spike.
+        result = _lap_track(
+            tmp_path,
+            extra=lambda i: (
+                f"<extensions><TrackPointExtension><hr>{200 if i == 45 else 100}</hr>"
+                "</TrackPointExtension></extensions>"
+            ),
+        )
+
+        first, second, *_ = result["laps"]
+        assert first["max_heart_rate"] == 200
+        assert second["max_heart_rate"] == 100
+        assert second["avg_heart_rate"] == 100
+
+    def test_the_laps_elevation_adds_up_to_the_activity_gain(self, tmp_path):
+        result = _lap_track(tmp_path, extra=lambda i: f"<ele>{100 + 0.25 * i + (3 if i % 2 else 0)}</ele>")
+
+        gain = result["activity"].elevation_gain
+        assert gain
+        assert abs(sum(lap["total_ascent"] for lap in result["laps"]) - gain) <= 2
+
+    def test_the_laps_timers_add_up_to_the_activity_timer_across_a_pause(self, tmp_path):
+        result = _lap_track(tmp_path, pause_at=70)
+
+        assert sum(lap["total_timer_time"] for lap in result["laps"]) == pytest.approx(
+            result["activity"].total_timer_time
+        )
+        assert sum(lap["total_elapsed_time"] for lap in result["laps"]) == result["activity"].total_elapsed_time
+
+    def test_water_sports_move_from_0_3_metres_per_second_and_land_sports_from_0_5(self, tmp_path):
+        slow = 0.4 * _STEP_SECONDS / 111_320
+
+        swim = _lap_track(tmp_path, sport="swimming", step_degrees=slow, steps=300, lap_distance_km=0.2)
+        walk = _lap_track(tmp_path, sport="Run", step_degrees=slow, steps=300, lap_distance_km=0.2)
+
+        assert len(swim["laps"]) == 3
+        assert walk["laps"] == []
+
+    def test_a_flat_lap_has_zero_ascent_and_descent_and_no_elevation_leaves_them_none(self, tmp_path):
+        flat = _lap_track(tmp_path, extra=lambda i: "<ele>100</ele>")
+        without = _lap_track(tmp_path)
+
+        assert all(lap["total_ascent"] == 0 and lap["total_descent"] == 0 for lap in flat["laps"])
+        assert all(lap["total_ascent"] is None and lap["total_descent"] is None for lap in without["laps"])

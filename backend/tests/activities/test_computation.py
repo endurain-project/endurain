@@ -858,3 +858,47 @@ class TestRollingMaxSpeed:
     def test_no_measured_speed_gives_none(self):
         assert self._peak([0, 1, 2], [None, None, None]) is None
         assert self._peak([], []) is None
+
+
+class TestLapCloses:
+    """Laps close at multiples of the lap length over the cumulative distance."""
+
+    def test_the_step_that_reaches_a_multiple_closes_the_lap_and_the_remainder_is_the_last_lap(self):
+        steps = [0.0] + [400.0] * 7
+
+        assert activities_computation.lap_closes(steps, 1000.0) == [3, 5, 7]
+
+    def test_a_step_over_several_multiples_closes_one_lap_and_the_next_multiple_follows(self):
+        steps = [0.0, 2500.0, 400.0, 700.0]
+
+        assert activities_computation.lap_closes(steps, 1000.0) == [1, 3]
+
+    def test_standing_after_the_last_full_lap_belongs_to_that_lap(self):
+        steps = [0.0, 1000.0, 0.0, 0.0]
+
+        assert activities_computation.lap_closes(steps, 1000.0) == [3]
+
+    def test_no_distance_gives_no_lap(self):
+        assert activities_computation.lap_closes([0.0, 0.0, 0.0], 1000.0) == []
+        assert activities_computation.lap_closes([], 1000.0) == []
+
+    def test_distance_short_of_a_lap_is_one_lap(self):
+        assert activities_computation.lap_closes([0.0, 300.0, 200.0], 1000.0) == [2]
+
+
+class TestMovingSteps:
+    """The per-sample moving distances and durations add up to the totals."""
+
+    def test_distances_and_durations_sum_to_the_totals_and_leave_a_pause_out(self):
+        times = [0.0, 1.0, 2.0, 300.0, 301.0]
+        lats = [0.0] * 5
+        lons = [0.0, 0.0001, 0.0002, 0.0003, 0.0004]
+        speeds = [None, 11.1, 11.1, 0.0, 11.1]
+
+        distances = activities_computation.moving_step_distances(times, lats, lons, speeds, 15.0, {3})
+        durations = activities_computation.moving_durations(times, speeds, 15.0)
+
+        assert distances[3] == 0.0
+        assert durations == [0.0, 1.0, 1.0, 0.0, 1.0]
+        assert sum(distances) == activities_computation.moving_distance(times, lats, lons, speeds, 15.0, {3})
+        assert sum(durations) == activities_computation.moving_time(times, speeds, 15.0)

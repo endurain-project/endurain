@@ -36,6 +36,9 @@ MOVING_SPEED_MINIMUM_ON_WATER = 0.3
 #: The span in seconds of the window whose straight-line distance decides whether a recording is moving.
 MOVING_WINDOW_SECONDS = 10.0
 
+#: The shortest span in seconds a step's speed is measured over when it decides whether a recording is moving.
+MOVING_STEP_SECONDS = 1.0
+
 #: The length in seconds of the window whose mean speed is the maximum speed.
 MAX_SPEED_WINDOW_SECONDS = 5.0
 
@@ -501,6 +504,42 @@ def normalized_power(times: Sequence[float], values: Sequence[float | None], max
     return float(np.mean(rolling**4) ** 0.25)
 
 
+def trailing_speeds(
+    times: Sequence[float],
+    lats: Sequence[float | None],
+    lons: Sequence[float | None],
+    run_starts: Collection[int],
+) -> list[float | None]:
+    """Return each sample's speed over at least the last ``MOVING_STEP_SECONDS`` of its run.
+
+    The speed is the straight-line distance from the latest positioned sample at least that long before (the run's
+    first, early in the run) over the time between them. At 1 Hz it is the step's own speed; a sub-second recording
+    whose position updates every other sample, steps of 0 and twice the speed, gets its true speed instead.
+
+    Args:
+        times: Sample times in seconds, in recording order.
+        lats: Latitude of each sample, ``None`` where it has no position.
+        lons: Longitude of each sample, ``None`` where it has no position.
+        run_starts: The sample indexes that start a new run of recording, after a pause or a gap.
+
+    Returns:
+        The speed in m/s of each sample; ``None`` for a sample without a position, the first of its run, or one whose
+        span covers no time.
+    """
+    speeds: list[float | None] = [None] * len(times)
+    bounds = [0, *sorted(start for start in run_starts if 0 < start < len(times)), len(times)]
+    for first, last in pairwise(bounds):
+        rows = [row for row in range(first, last) if lats[row] is not None and lons[row] is not None]
+        run_times = [times[row] for row in rows]
+        for row in rows[1:]:
+            anchor = rows[max(bisect.bisect_right(run_times, times[row] - MOVING_STEP_SECONDS) - 1, 0)]
+            span = times[row] - times[anchor]
+            if span > 0:
+                metres = great_circle((lats[anchor], lons[anchor]), (lats[row], lons[row])).meters
+                speeds[row] = metres / span
+    return speeds
+
+
 def displacement_speeds(
     times: Sequence[float],
     lats: Sequence[float | None],
@@ -539,7 +578,7 @@ def displacement_speeds(
     return speeds
 
 
-def moving_distance(
+def moving_step_distances(
     times: Sequence[float],
     lats: Sequence[float | None],
     lons: Sequence[float | None],
@@ -548,8 +587,8 @@ def moving_distance(
     run_starts: Collection[int],
     *,
     min_speed: float = MOVING_SPEED_MINIMUM,
-) -> float:
-    """Return the geodesic distance in metres of the steps :func:`moving_time` counts as moving.
+) -> list[float]:
+    """Return the geodesic distance in metres each sample adds as the end of a moving step.
 
     A step runs between consecutive positioned samples of one run of recording; it counts when it is at most
     ``max_gap`` long and the speed of the sample that ends it is at least ``min_speed`` (or unknown), so the GPS
@@ -565,9 +604,9 @@ def moving_distance(
         min_speed: The slowest speed in m/s that is moving.
 
     Returns:
-        The distance in metres; 0 with fewer than two positioned samples.
+        One distance per sample: 0 for a sample that ends no moving step.
     """
-    total = 0.0
+    distances = [0.0] * len(times)
     previous: int | None = None
     for row, (lat, lon) in enumerate(zip(lats, lons, strict=True)):
         if row in run_starts:
@@ -578,19 +617,79 @@ def moving_distance(
             step = times[row] - times[previous]
             speed = speeds[row]
             if 0 < step <= max_gap and (speed is None or speed >= min_speed):
-                total += geodesic((lats[previous], lons[previous]), (lat, lon)).meters
+                distances[row] = geodesic((lats[previous], lons[previous]), (lat, lon)).meters
         previous = row
-    return total
+    return distances
 
 
-def moving_time(
+def moving_distance(
+    times: Sequence[float],
+    lats: Sequence[float | None],
+    lons: Sequence[float | None],
+    speeds: Sequence[float | None],
+    max_gap: float,
+    run_starts: Collection[int],
+    *,
+    min_speed: float = MOVING_SPEED_MINIMUM,
+) -> float:
+    """Return the geodesic distance in metres of the steps :func:`moving_time` counts as moving.
+
+    Args:
+        times: Sample times in seconds, in recording order.
+        lats: Latitude of each sample, ``None`` where it has no position.
+        lons: Longitude of each sample, ``None`` where it has no position.
+        speeds: The speed in m/s that decides whether the step ending at each sample is moving, ``None`` if unknown.
+        max_gap: The longest step in seconds that is still moving, the pause threshold.
+        run_starts: The sample indexes that start a new run of recording, after a pause or a gap.
+        min_speed: The slowest speed in m/s that is moving.
+
+    Returns:
+        The sum of :func:`moving_step_distances`; 0 with fewer than two positioned samples.
+    """
+    return sum(moving_step_distances(times, lats, lons, speeds, max_gap, run_starts, min_speed=min_speed))
+
+
+def lap_closes(step_distances: Sequence[float], lap_length: float) -> list[int]:
+    """Return the samples that close a lap when a lap holds ``lap_length`` metres of the cumulative distance.
+
+    A lap closes at the first sample where the cumulative distance reaches the next multiple of ``lap_length``, and the
+    whole step ending there belongs to the lap it closes, so the laps add up to the total exactly. A step that crosses
+    several multiples closes one lap. The distance left after the last full lap is the last lap and closes at the
+    final sample; standing that follows the last full lap, with no distance, belongs to that lap.
+
+    Args:
+        step_distances: The distance each sample adds, from :func:`moving_step_distances`.
+        lap_length: The cumulative distance in metres that makes a lap.
+
+    Returns:
+        The closing sample of each lap in order, the last being the final sample; empty without any distance.
+    """
+    closes: list[int] = []
+    total = 0.0
+    boundary = lap_length
+    for row, step in enumerate(step_distances):
+        total += step
+        if total >= boundary:
+            closes.append(row)
+            boundary = (total // lap_length + 1) * lap_length
+    if not total:
+        return []
+    last = len(step_distances) - 1
+    if closes and closes[-1] != last and not sum(step_distances[closes[-1] + 1 :]):
+        closes[-1] = last
+    elif not closes or closes[-1] != last:
+        closes.append(last)
+    return closes
+
+
+def moving_durations(
     times: Sequence[float],
     speeds: Sequence[float | None],
     max_gap: float,
     *,
     min_speed: float = MOVING_SPEED_MINIMUM,
-) -> float:
-    """Return the seconds spent moving: the steps at ``min_speed`` or more within ``max_gap``.
+) -> list[float]:
+    """Return the seconds of moving each sample adds as the end of a step: the steps at ``min_speed`` or more.
 
     A step runs from the latest earlier time to the next later one; its speed is that of the sample that ends it. A
     step counts when its time is at most ``max_gap`` (a longer one is a pause) and its speed is at least
@@ -605,11 +704,11 @@ def moving_time(
         min_speed: The slowest speed in m/s that is moving.
 
     Returns:
-        The moving time in seconds; 0 with fewer than two samples.
+        One duration per sample: 0 for a sample that ends no moving step.
     """
-    total = 0.0
+    durations = [0.0] * len(times)
     baseline = None
-    for time, speed in zip(times, speeds, strict=True):
+    for row, (time, speed) in enumerate(zip(times, speeds, strict=True)):
         if baseline is None:
             baseline = time
             continue
@@ -617,9 +716,30 @@ def moving_time(
         if step <= 0:
             continue
         if step <= max_gap and (speed is None or speed >= min_speed):
-            total += step
+            durations[row] = step
         baseline = time
-    return total
+    return durations
+
+
+def moving_time(
+    times: Sequence[float],
+    speeds: Sequence[float | None],
+    max_gap: float,
+    *,
+    min_speed: float = MOVING_SPEED_MINIMUM,
+) -> float:
+    """Return the seconds spent moving: the steps at ``min_speed`` or more within ``max_gap``.
+
+    Args:
+        times: Sample times in seconds, in recording order; sub-second values are allowed.
+        speeds: The speed in m/s at each time, ``None`` where there is none.
+        max_gap: The longest step in seconds that is still moving, the pause threshold.
+        min_speed: The slowest speed in m/s that is moving.
+
+    Returns:
+        The sum of :func:`moving_durations`; 0 with fewer than two samples.
+    """
+    return sum(moving_durations(times, speeds, max_gap, min_speed=min_speed))
 
 
 def rolling_max_speed(times: Sequence[float], speeds: Sequence[float | None], max_gap: float) -> float | None:

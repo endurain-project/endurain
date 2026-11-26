@@ -7,6 +7,7 @@ logging, no database and no provider.
 """
 
 import bisect
+import dataclasses
 import uuid
 from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass
@@ -114,7 +115,10 @@ class _Streams:
         speed: The speed samples, the device's or derived from positions.
         pace: The pace samples, one for each speed above zero.
         measured_speed: The positions in ``speed`` of real measurements; ``None`` when every sample is one.
-        sample_speed: The measured speed at each of the session's samples, ``None`` where a sample has none.
+        step_speed: The measured speed of the step ending at each of the session's samples, the device's when it
+            recorded any; ``None`` where a sample has none.
+        sample_speed: The speed that decides whether each sample is moving: ``step_speed`` for a device speed, else the
+            lower of the step's and the straight-line speed over a window around it.
     """
 
     lat_lon: list[activity_streams_contracts.LatLonWaypoint]
@@ -127,6 +131,7 @@ class _Streams:
     speed: list[activity_streams_contracts.VelocityWaypoint]
     pace: list[activity_streams_contracts.PaceWaypoint]
     measured_speed: set[int] | None
+    step_speed: list[float | None]
     sample_speed: list[float | None]
 
 
@@ -247,17 +252,19 @@ def _build_streams(session: activity_file_import_recording.Session) -> _Streams:
     if any(value is not None for value in samples.speed):
         speed = [{"time": s, "vel": v} for s, v in zip(stamps, samples.speed, strict=True) if v is not None]
         measured = None
-        by_sample = list(samples.speed)
+        step_speed = list(samples.speed)
+        by_sample = step_speed
     else:
         speed, measured, step_speed = _derived_speed(samples, stamps, breaks)
-        # A sample moves when both its own step and the distance covered over a window around it are fast enough:
-        # GPS jitter at a stop makes each step fast but covers no distance, and a window alone blurs a clean stop.
-        window_speed = activities_computation.displacement_speeds(
-            [time.timestamp() for time in samples.time], samples.lat, samples.lon, breaks
-        )
+        # A sample moves when both its last second and the distance covered over a window around it are fast enough:
+        # GPS jitter at a stop makes each step fast but covers no distance, a window alone blurs a clean stop, and a
+        # sub-second step alone can be 0 between two fixes of the same position.
+        seconds = [time.timestamp() for time in samples.time]
+        trailing = activities_computation.trailing_speeds(seconds, samples.lat, samples.lon, breaks)
+        window_speed = activities_computation.displacement_speeds(seconds, samples.lat, samples.lon, breaks)
         by_sample = [
             None if step is None or window is None else min(step, window)
-            for step, window in zip(step_speed, window_speed, strict=True)
+            for step, window in zip(trailing, window_speed, strict=True)
         ]
     return _Streams(
         lat_lon=lat_lon,
@@ -272,6 +279,7 @@ def _build_streams(session: activity_file_import_recording.Session) -> _Streams:
         speed=speed,
         pace=[{"time": w["time"], "pace": 1 / w["vel"]} for w in speed if w["vel"] > 0],
         measured_speed=measured,
+        step_speed=step_speed,
         sample_speed=by_sample,
     )
 
@@ -666,6 +674,32 @@ def _elevation(session: activity_file_import_recording.Session, streams: _Stream
     return gain, loss
 
 
+def _max_speed(
+    samples: activity_file_import_recording.Samples, speeds: Sequence[float | None], threshold: float
+) -> float | None:
+    """Return the best 5 s window mean of measured speeds, over the samples' own times.
+
+    A sample with neither a position nor a speed (its fix dropped by cleaning, or a sensor-only row) is left out, so
+    the step across it keeps its full time; a sample with a position but no speed starts a new run, as a placeholder.
+
+    Args:
+        samples: The samples.
+        speeds: The measured speed at each sample, ``None`` where it has none.
+        threshold: The pause threshold in seconds.
+
+    Returns:
+        The maximum speed in m/s; ``None`` when there is no measured speed.
+    """
+    rows = [
+        row
+        for row, speed in enumerate(speeds)
+        if speed is not None or (samples.lat[row] is not None and samples.lon[row] is not None)
+    ]
+    return activities_computation.rolling_max_speed(
+        [samples.time[row].timestamp() for row in rows], [speeds[row] for row in rows], threshold
+    )
+
+
 def _speeds(
     session: activity_file_import_recording.Session,
     streams: _Streams,
@@ -693,12 +727,8 @@ def _speeds(
     if avg is None and pace:
         avg = 1 / pace
     if peak is None:
-        peak = (
-            activity_file_import_parser_utils.max_speed_of_waypoints(
-                streams.speed, streams.measured_speed, threshold=threshold
-            )
-            or None
-        )
+        # Over the samples' own times, as the laps do: the stream's stamps drop the sub-second part.
+        peak = _max_speed(session.samples, streams.step_speed, threshold) or None
     return avg, peak
 
 
@@ -770,9 +800,7 @@ def _sampled_lap(window: activity_file_import_recording.Samples, running: bool, 
     avg_power = _sampled_mean(window.time, window.power, threshold)
     max_power = _present_max(window.power)
     normalized_power = _sampled_normalized_power(window.time, window.power, threshold)
-    max_speed = activities_computation.rolling_max_speed(
-        [time.timestamp() for time in window.time], window.speed, threshold
-    )
+    max_speed = _max_speed(window, window.speed, threshold)
     positions = [(lat, lon) for lat, lon in zip(window.lat, window.lon, strict=True) if lat is not None]
     return _LapSamples(
         avg_hr=round(avg_hr) if avg_hr else None,
@@ -928,20 +956,103 @@ def _fill_lap_elevation(laps: list[dict[str, object]], elevation: Sequence[Mappi
             lap["total_descent"] = round(loss)
 
 
-def _laps(
+def _auto_laps(
     session: activity_file_import_recording.Session,
     streams: _Streams,
-    cadence: list[activity_streams_contracts.CadenceWaypoint],
     running: bool,
     lap_distance_km: float,
     threshold: float,
 ) -> list[Mapping[str, object]]:
-    """Build a session's laps: the device's when it recorded any, else one per ``lap_distance_km`` of each run.
+    """Build laps of ``lap_distance_km`` over a session's whole moving distance, with no restart at a pause.
+
+    The cumulative distance is the one the activity has, the geodesic length of the moving steps, so the laps add up to
+    it and GPS jitter at a stop makes none. A lap closes at the first sample where the distance reaches the next
+    multiple of the lap distance; the step ending there belongs wholly to the lap it closes. The first lap starts at
+    the first sample and each later one at the closing sample of the one before, and a lap holds the samples after its
+    start up to its closing sample, so every sample, step and second of moving time falls in exactly one lap. The
+    last lap holds what remains.
 
     Args:
         session: The session.
         streams: The session's streams.
-        cadence: The cadence waypoints as stored (steps per minute for running).
+        running: Whether the activity is a running type.
+        lap_distance_km: The distance of a lap.
+        threshold: The session's pause threshold in seconds.
+
+    Returns:
+        The lap rows in time order; none when the session has no moving distance.
+    """
+    samples = session.samples
+    times = [time.timestamp() for time in samples.time]
+    minimum = _moving_speed_minimum(session)
+    distances = activities_computation.moving_step_distances(
+        times, samples.lat, samples.lon, streams.sample_speed, threshold, _breaks(session), min_speed=minimum
+    )
+    closes = activities_computation.lap_closes(distances, lap_distance_km * 1000)
+    if not closes:
+        return []
+    timers = activities_computation.moving_durations(times, streams.sample_speed, threshold, min_speed=minimum)
+    measured = dataclasses.replace(samples, speed=tuple(streams.step_speed))
+    steps = activity_file_import_parser_utils.elevation_step_waypoints(streams.elevation)
+    laps: list[Mapping[str, object]] = []
+    start = samples.time[0]
+    first = 0
+    start_position: tuple[float | None, float | None] | None = None
+    for close in closes:
+        end = samples.time[close]
+        window = measured.rows(first, close + 1)
+        sampled = _sampled_lap(window, running, threshold)
+        distance = sum(distances[first : close + 1])
+        timer = sum(timers[first : close + 1])
+        avg_speed = distance / timer if timer else None
+        elevation = activity_file_import_parser_utils.sum_lap_elevation(
+            steps, core_timezone.format_utc(start), core_timezone.format_utc(end)
+        )
+        start_position = start_position or sampled.start
+        laps.append(
+            {
+                "start_time": core_timezone.format_utc(start),
+                "start_position_lat": start_position[0],
+                "start_position_long": start_position[1],
+                "end_position_lat": sampled.end[0],
+                "end_position_long": sampled.end[1],
+                "total_elapsed_time": (end - start).total_seconds(),
+                "total_timer_time": timer,
+                "total_distance": distance,
+                "avg_heart_rate": sampled.avg_hr,
+                "max_heart_rate": sampled.max_hr,
+                "avg_cadence": sampled.avg_cad,
+                "max_cadence": sampled.max_cad,
+                "avg_power": sampled.avg_power,
+                "max_power": sampled.max_power,
+                # A flat lap has a genuine 0 m ascent and descent, distinct from missing data.
+                "total_ascent": None if elevation is None else round(elevation[0]),
+                "total_descent": None if elevation is None else round(elevation[1]),
+                "normalized_power": sampled.normalized_power,
+                "enhanced_avg_pace": 1 / avg_speed if avg_speed else None,
+                "enhanced_avg_speed": avg_speed,
+                "enhanced_max_pace": 1 / sampled.max_speed if sampled.max_speed else None,
+                "enhanced_max_speed": sampled.max_speed,
+            }
+        )
+        start = end
+        first = close + 1
+        start_position = sampled.end if sampled.end != (None, None) else None
+    return laps
+
+
+def _laps(
+    session: activity_file_import_recording.Session,
+    streams: _Streams,
+    running: bool,
+    lap_distance_km: float,
+    threshold: float,
+) -> list[Mapping[str, object]]:
+    """Build a session's laps: the device's when it recorded any, else one per ``lap_distance_km`` of moving distance.
+
+    Args:
+        session: The session.
+        streams: The session's streams.
         running: Whether the activity is a running type.
         lap_distance_km: Distance after which a generated lap closes.
         threshold: The session's pause threshold in seconds, for averaging a device lap's samples.
@@ -956,23 +1067,7 @@ def _laps(
         ]
         _fill_lap_elevation(rows, streams.elevation)
         return list(rows)
-    steps = activity_file_import_parser_utils.elevation_step_waypoints(streams.elevation)
-    generated: list[Mapping[str, object]] = []
-    for segment in streams.segments:
-        generated.extend(
-            activity_file_import_parser_utils.generate_activity_laps(
-                segment,
-                streams.elevation,
-                streams.power,
-                streams.heart_rate,
-                cadence,
-                streams.speed,
-                distance_per_lap_km=lap_distance_km,
-                measured_vel_indices=streams.measured_speed,
-                ele_step_waypoints=steps,
-            )
-        )
-    return generated
+    return _auto_laps(session, streams, running, lap_distance_km, threshold)
 
 
 def _name(
@@ -1039,7 +1134,7 @@ def _assemble_session(
     elevation_gain, elevation_loss = _elevation(session, streams)
 
     cadence = activities_computation.double_cadence_waypoints(streams.cadence) if running else streams.cadence
-    laps = _laps(session, streams, cadence, running, lap_distance_km, threshold)
+    laps = _laps(session, streams, running, lap_distance_km, threshold)
 
     stored_type = activity_constants.ActivityType.from_stored(activity_type)
     activity = activity_contracts.ActivityCore(
