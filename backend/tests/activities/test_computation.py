@@ -23,6 +23,7 @@ from modules.activities.computation import (
     double_running_cadence,
     smooth_elevation_stream,
     sum_elevation_deltas,
+    time_weighted_mean,
 )
 
 
@@ -378,3 +379,68 @@ class TestRunningCadenceNormalization:
             {"time": "t1", "cad": None},
             {"time": "t2", "cad": 175},
         ]
+
+
+class TestTimeWeightedMean:
+    def test_uniform_sampling_equals_the_plain_mean(self):
+        times = [float(i) for i in range(11)]
+        values = [100.0, 110.0, 120.0, 130.0, 140.0, 150.0, 160.0, 170.0, 180.0, 190.0, 200.0]
+
+        # The last sample weighs nothing: the mean of the first ten.
+        assert time_weighted_mean(times, values, 15.0) == pytest.approx(sum(values[:-1]) / 10)
+
+    def test_a_held_value_weighs_the_time_it_was_held(self):
+        # Smart recording: ten samples at 1 s of 100, then 200 held for 10 s before the next sample.
+        times = [float(i) for i in range(11)] + [20.0]
+        values = [100.0] * 10 + [200.0, 0.0]
+
+        # (10 * 1 * 100 + 10 * 200) / 20 = 150, not the sample mean of about 109.
+        assert time_weighted_mean(times, values, 15.0) == pytest.approx(150.0)
+
+    def test_a_gap_longer_than_the_threshold_weighs_only_the_threshold(self):
+        times = [0.0, 10.0, 1000.0]
+        values = [100.0, 200.0, 0.0]
+
+        # 100 weighs 10 s; 200 weighs 15 s (its 990 s gap capped); the last sample weighs nothing.
+        assert time_weighted_mean(times, values, 15.0) == pytest.approx((100 * 10 + 200 * 15) / 25)
+
+    def test_none_values_leave_out_their_time_and_the_previous_weight_runs_on(self):
+        times = [0.0, 1.0, 2.0, 3.0, 4.0]
+        values = [100.0, None, None, 200.0, 300.0]
+
+        # 100 runs to the next kept sample (3 s), 200 for 1 s; 300 is last.
+        assert time_weighted_mean(times, values, 15.0) == pytest.approx((100 * 3 + 200 * 1) / 4)
+
+    def test_a_skipped_stretch_is_still_capped(self):
+        times = [0.0, 1.0, 100.0, 101.0]
+        values = [100.0, None, 200.0, 300.0]
+
+        # 100 runs to 100 s, capped at 15 s; 200 for 1 s.
+        assert time_weighted_mean(times, values, 15.0) == pytest.approx((100 * 15 + 200 * 1) / 16)
+
+    def test_a_single_sample_averages_to_itself(self):
+        assert time_weighted_mean([5.0], [140.0], 15.0) == 140.0
+
+    def test_a_single_kept_sample_averages_to_itself(self):
+        assert time_weighted_mean([0.0, 1.0, 2.0], [None, 90.0, None], 15.0) == 90.0
+
+    def test_no_values_gives_none(self):
+        assert time_weighted_mean([], [], 15.0) is None
+        assert time_weighted_mean([0.0, 1.0], [None, None], 15.0) is None
+
+    def test_sub_second_steps_are_weighted_by_their_real_length(self):
+        times = [0.0, 0.5, 2.0]
+        values = [100.0, 200.0, 0.0]
+
+        # 100 for 0.5 s, 200 for 1.5 s.
+        assert time_weighted_mean(times, values, 15.0) == pytest.approx((100 * 0.5 + 200 * 1.5) / 2.0)
+
+    def test_samples_sharing_an_instant_share_its_time_equally(self):
+        # Two sensors' worth of samples on whole-second stamps: 0 and 3 at each second, each pair holding 1 s.
+        times = [0.0, 0.0, 1.0, 1.0, 2.0]
+        values = [0.0, 3.0, 0.0, 3.0, 9.0]
+
+        assert time_weighted_mean(times, values, 15.0) == pytest.approx(1.5)
+
+    def test_samples_all_on_one_instant_average_plainly(self):
+        assert time_weighted_mean([5.0, 5.0, 5.0], [100.0, 200.0, 300.0], 15.0) == pytest.approx(200.0)

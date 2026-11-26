@@ -106,6 +106,7 @@ class _TimedStream:
 
     Attributes:
         waypoints: The stream's waypoint dicts, in their original order.
+        pause_threshold: The gap in seconds above which the stream's own gaps are pauses.
     """
 
     def __init__(self, waypoints: Sequence[Mapping[str, Any]]) -> None:
@@ -117,6 +118,7 @@ class _TimedStream:
         self.waypoints = waypoints
         self._times = [_parse_utc(wp["time"]) for wp in waypoints]
         self._ordered = all(a <= b for a, b in itertools.pairwise(self._times))
+        self.pause_threshold = pause_threshold_seconds(self._times)
 
     def indices_between(self, start_dt: datetime, end_dt: datetime) -> range | list[int]:
         """Return the indices of the waypoints whose time falls within [start_dt, end_dt].
@@ -214,6 +216,30 @@ def measured_speed_samples(
     return [vel_waypoints[i] for i in candidates if i in measured_vel_indices]
 
 
+def _lap_mean(
+    waypoints: Sequence[Mapping[str, Any]], key: str, threshold: float, *, skip_zeros: bool = False
+) -> float | None:
+    """Average a lap's samples by the time each holds until the next.
+
+    Args:
+        waypoints: The lap's waypoints in time order.
+        key: The waypoint key holding the value.
+        threshold: The stream's pause threshold in seconds.
+        skip_zeros: Leave zero values out of the average, together with their time.
+
+    Returns:
+        The time-weighted mean; ``None`` when no waypoint has a value.
+    """
+    import modules.activities.computation as activities_computation
+
+    times = [_parse_utc(waypoint["time"]).timestamp() for waypoint in waypoints]
+    values = [
+        None if waypoint.get(key) is None or (skip_zeros and not waypoint[key]) else float(waypoint[key])
+        for waypoint in waypoints
+    ]
+    return activities_computation.time_weighted_mean(times, values, threshold)
+
+
 def _compute_lap_metrics(
     start_time: str,
     end_time: str,
@@ -262,31 +288,25 @@ def _compute_lap_metrics(
 
     avg_hr, max_hr = None, None
     if lap_hr:
-        avg_hr, max_hr = activities_computation.calculate_avg_and_max(
-            lap_hr,
-            "hr",
-        )
+        _, max_hr = activities_computation.calculate_avg_and_max(lap_hr, "hr")
+        avg_hr = _lap_mean(lap_hr, "hr", hr.pause_threshold, skip_zeros=True)
 
     avg_cad, max_cad = None, None
     if lap_cad:
-        avg_cad, max_cad = activities_computation.calculate_avg_and_max(
-            lap_cad,
-            "cad",
-        )
+        _, max_cad = activities_computation.calculate_avg_and_max(lap_cad, "cad")
+        avg_cad = _lap_mean(lap_cad, "cad", cad.pause_threshold, skip_zeros=True)
 
     avg_speed, max_speed = None, None
     # Placeholder samples (a segment's first point) are not speeds, so neither average nor max sees them.
     measured_vel = measured_speed_samples(vel.waypoints, measured_vel_indices, lap_vel_indices)
     if measured_vel:
-        avg_speed, _ = activities_computation.calculate_avg_and_max(measured_vel, "vel")
+        avg_speed = _lap_mean(measured_vel, "vel", vel.pause_threshold)
         max_speed = activities_computation.calculate_robust_max([waypoint["vel"] for waypoint in measured_vel])
 
     avg_power, max_power, norm_power = None, None, None
     if lap_power:
-        avg_power, max_power = activities_computation.calculate_avg_and_max(
-            lap_power,
-            "power",
-        )
+        _, max_power = activities_computation.calculate_avg_and_max(lap_power, "power")
+        avg_power = _lap_mean(lap_power, "power", power.pause_threshold)
         norm_power = activities_computation.calculate_np(lap_power)
 
     elapsed = (_parse_utc(end_time) - _parse_utc(start_time)).total_seconds()
@@ -434,27 +454,6 @@ def resolve_timezone_from_lat_lon(
         IANA timezone string (e.g. ``'Europe/Lisbon'``).
     """
     return core_timezone.from_lat_lon(latitude, longitude, fallback_tz)
-
-
-def calculate_power_metrics(
-    power_waypoints: Sequence[Mapping[str, Any]],
-) -> tuple[float | None, float | None, float | None]:
-    """Calculate average, max, and normalised power from a power stream.
-
-    Args:
-        power_waypoints: List of waypoint dicts each containing a
-            ``'power'`` key with a numeric value.  Must be non-empty.
-
-    Returns:
-        Tuple of ``(avg_power, max_power, normalized_power)``.  Any
-        value may be ``None`` if the stream contains no valid readings.
-    """
-    # The metric helpers live in this package's dependency-free computation module.
-    import modules.activities.computation as activities_computation
-
-    avg_power, max_power = activities_computation.calculate_avg_and_max(power_waypoints, "power")
-    normalized_power = activities_computation.calculate_np(power_waypoints)
-    return avg_power, max_power, normalized_power
 
 
 def compute_distance_from_waypoints(lat_lon_waypoints: Sequence[activity_streams_contracts.LatLonWaypoint]) -> float:

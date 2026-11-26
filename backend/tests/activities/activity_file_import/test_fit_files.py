@@ -500,10 +500,10 @@ class TestSessionSummaryFallbacks:
 
         assert (activity.average_power, activity.max_power, activity.normalized_power) == (200, 200, 200)
 
-    def test_a_session_with_power_but_no_normalised_power_gets_only_the_normalised_power_computed(self, tmp_path):
+    def test_a_session_with_only_an_average_power_gets_the_maximum_and_normalised_power_computed(self, tmp_path):
         activity = _payload(tmp_path, *self._power_records(200), _session(40, (20, _UINT16, 150)))["activity"]
 
-        assert (activity.average_power, activity.max_power, activity.normalized_power) == (150, None, 200)
+        assert (activity.average_power, activity.max_power, activity.normalized_power) == (150, 200, 200)
 
     def test_a_session_with_only_a_normalised_power_gets_the_average_and_maximum_computed(self, tmp_path):
         activity = _payload(tmp_path, *self._power_records(200), _session(40, (34, _UINT16, 160)))["activity"]
@@ -530,7 +530,7 @@ class TestSessionSummaryFallbacks:
         assert payload["hr_waypoints"] == []
 
     def test_heart_rate_zeros_do_not_count_in_the_average_computed_from_the_records(self, tmp_path):
-        records = [_record(10 * i, (3, _UINT8, hr)) for i, hr in enumerate([0, 100, 140, 0])]
+        records = [_record(10 * i, (3, _UINT8, hr)) for i, hr in enumerate([0, 100, 140, 140, 0])]
 
         activity = _payload(tmp_path, *records, _session())["activity"]
 
@@ -542,9 +542,9 @@ class TestSessionSummaryFallbacks:
         no_max = _payload(tmp_path, *records, _session(40, (18, _UINT8, 85)))["activity"]
         no_avg = _payload(tmp_path, *records, _session(40, (19, _UINT8, 99)))["activity"]
 
-        # The records run from 80 to 115 rpm, 97.5 on average.
+        # The records run from 80 to 115 rpm; the last holds no time, so the average of 80..110 is 95.
         assert (no_max.average_cad, no_max.max_cad) == (85, 115)
-        assert (no_avg.average_cad, no_avg.max_cad) == (98, 99)
+        assert (no_avg.average_cad, no_avg.max_cad) == (95, 99)
 
     def test_a_single_fast_fix_among_standing_ones_is_not_taken_for_the_maximum_speed(self, tmp_path):
         still = [(0, _SINT32, _semicircles(40)), (1, _SINT32, _semicircles(-3))]

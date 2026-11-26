@@ -4,7 +4,7 @@
       "activity": {
         "activity_type": "run",
         "average_cad": null,
-        "average_hr": 154,
+        "average_hr": 153,
         "average_power": 234,
         "average_speed": 3.0,
         "calories": 60,
@@ -59,7 +59,7 @@
         {
           "avg_cadence": null,
           "avg_fractional_cadence": null,
-          "avg_heart_rate": 154,
+          "avg_heart_rate": 153,
           "avg_power": 234,
           "avg_stance_time": null,
           "avg_step_length": null,

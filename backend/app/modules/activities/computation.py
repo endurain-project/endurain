@@ -19,6 +19,7 @@ from itertools import pairwise
 from statistics import mean
 from typing import Any
 
+import numpy as np
 from geopy.distance import geodesic
 
 import modules.activities.activity_streams.contracts as activity_streams_contracts
@@ -322,6 +323,37 @@ def calculate_avg_and_max(
     max_value = max(values)
 
     return avg_value, max_value
+
+
+def time_weighted_mean(times: Sequence[float], values: Sequence[float | None], max_gap: float) -> float | None:
+    """Return the mean of ``values`` with each sample weighted by the time it holds until the next one.
+
+    A sample that is ``None`` is left out together with its time: the weight of the previous kept sample runs to the
+    next kept one. Each weight is capped at ``max_gap``, so a pause weighs nothing beyond it. The last instant weighs
+    nothing unless it is the only one, which then is the mean. Samples sharing an instant share its time equally, so a
+    stream stamped to the whole second keeps every sample of a second.
+
+    Args:
+        times: Sample times in seconds, in recording order; sub-second values are allowed.
+        values: The value at each time, ``None`` where the channel has none.
+        max_gap: The longest weight in seconds a sample can hold, the pause threshold.
+
+    Returns:
+        The time-weighted mean; ``None`` when no sample has a value.
+    """
+    kept = [(time, value) for time, value in zip(times, values, strict=True) if value is not None]
+    if not kept:
+        return None
+    instants, group = np.unique(np.array([time for time, _ in kept], dtype=float), return_inverse=True)
+    sums = np.bincount(group, weights=np.array([value for _, value in kept], dtype=float))
+    means = sums / np.bincount(group)
+    if len(instants) == 1:
+        return float(means[0])
+    weights = np.clip(np.diff(instants), 0.0, max_gap)
+    total = weights.sum()
+    if total == 0.0:
+        return float(means.mean())
+    return float(np.dot(weights, means[:-1]) / total)
 
 
 def calculate_robust_max(values: list[float], window: int = 5) -> float:

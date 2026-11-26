@@ -62,14 +62,35 @@ class TestIdentity:
 
 
 class TestHeartRate:
-    def test_avg_and_max_are_recomputed_from_samples_without_zeros(self):
-        # One sensor-off zero, then real readings; the device values included the zero.
+    def test_device_avg_and_max_win_over_the_samples(self):
+        # One sensor-off zero, then real readings; the device reported its own values.
         rows = _rows(3, heart_rate=[0, 150, 160])
         activity = _activity(rows, summary=_summary(avg_heart_rate=103, max_heart_rate=160))
 
-        # Zeros excluded: mean([150, 160]) = 155, max = 160.
-        assert activity.average_hr == 155
+        assert activity.average_hr == 103
         assert activity.max_hr == 160
+
+    def test_a_device_max_is_kept_when_only_the_average_is_missing(self):
+        rows = _rows(3, heart_rate=[150, 160, 170])
+        activity = _activity(rows, summary=_summary(avg_heart_rate=None, max_heart_rate=165))
+
+        assert activity.average_hr == 155
+        assert activity.max_hr == 165
+
+    def test_without_device_values_the_samples_give_the_average_and_max_without_zeros(self):
+        rows = _rows(4, heart_rate=[0, 150, 160, 170])
+        activity = _activity(rows, summary=_summary(avg_heart_rate=None, max_heart_rate=None))
+
+        # The dropout is left out with its time: 150 holds 10 s, 160 holds 10 s, 170 is last.
+        assert activity.average_hr == 155
+        assert activity.max_hr == 170
+
+    def test_a_device_zero_is_a_dropout_and_the_samples_give_the_value(self):
+        rows = _rows(3, heart_rate=[150, 160, 170])
+        activity = _activity(rows, summary=_summary(avg_heart_rate=0, max_heart_rate=0))
+
+        assert activity.average_hr == 155
+        assert activity.max_hr == 170
 
     def test_the_stream_leaves_out_the_zero_dropout(self):
         payload = _assemble(_rows(3, heart_rate=[0, 150, 160]))
@@ -127,11 +148,11 @@ class TestSpeed:
 
 class TestCadence:
     def test_avg_and_max_fall_back_to_the_samples(self):
-        activity = _activity(_rows(2, cadence=[80, 90]))
+        activity = _activity(_rows(3, cadence=[80, 90, 100]))
 
-        # mean([80, 90]) = 85, max = 90.
+        # The last sample holds no time: (80 * 10 + 90 * 10) / 20 = 85; the maximum is 100.
         assert activity.average_cad == 85
-        assert activity.max_cad == 90
+        assert activity.max_cad == 100
 
     def test_device_cadence_is_used_verbatim(self):
         activity = _activity(_rows(2, cadence=[80, 90]), summary=_summary(avg_cadence=88, max_cadence=95))
@@ -171,12 +192,12 @@ class TestCadence:
     def test_running_zero_session_cadence_falls_back_to_the_samples(self):
         """A zero session cadence counts as missing, so the stream is used before doubling."""
         activity = _activity(
-            _rows(2, cadence=[84, 90]), sport="running", summary=_summary(avg_cadence=0, max_cadence=0)
+            _rows(3, cadence=[84, 90, 96]), sport="running", summary=_summary(avg_cadence=0, max_cadence=0)
         )
 
-        # mean([84, 90]) * 2 = 174 ; 90 * 2 = 180.
+        # The time-weighted mean of 84 and 90 is 87, doubled to 174 ; 96 * 2 = 192.
         assert activity.average_cad == 174
-        assert activity.max_cad == 180
+        assert activity.max_cad == 192
 
     def test_every_running_type_is_doubled_whatever_the_value(self):
         """FIT running cadence is per-leg by format, so every running type is doubled."""
@@ -197,10 +218,11 @@ class TestCadence:
         assert activity.max_cad == 186
 
     def test_stream_fallback_cadence_is_rounded_to_integers(self):
-        activity = _activity(_rows(2, cadence=[80, 85]), sport="cycling")
+        activity = _activity(_rows(4, cadence=[80, 85, 86, 86]), sport="cycling")
 
-        assert activity.average_cad == 82
-        assert activity.max_cad == 85
+        # (80 + 85 + 86) / 3 = 83.67.
+        assert activity.average_cad == 84
+        assert activity.max_cad == 86
 
     def test_cycling_cadence_is_stored_as_rpm(self):
         activity = _activity(sport="cycling", summary=_summary(avg_cadence=88, max_cadence=110))
@@ -594,3 +616,103 @@ class TestName:
         assert named["activity"].name == "Mine"
         assert from_file["activity"].name == "Base"
         assert default["activity"].name == "Workout"
+
+
+def _timed_rows(steps: list[tuple[float, dict]]) -> list[dict]:
+    """Build rows from ``(seconds from the start, channels)`` pairs, for unevenly sampled recordings."""
+    return [{"time": _START + timedelta(seconds=seconds), **channels} for seconds, channels in steps]
+
+
+def _smart_recording(channel: str, low: float, high: float) -> list[dict]:
+    """Ten 1 s samples of ``low``, then ``high`` held for 10 s, then the closing sample."""
+    steps = [(float(i), {channel: low}) for i in range(10)]
+    return _timed_rows([*steps, (10.0, {channel: high}), (20.0, {channel: high})])
+
+
+_NO_DEVICE_STATS = {
+    "avg_heart_rate": None,
+    "max_heart_rate": None,
+    "avg_power": None,
+    "max_power": None,
+    "normalized_power": None,
+    "avg_cadence": None,
+    "max_cadence": None,
+}
+
+
+class TestTimeWeightedAverages:
+    def test_heart_rate_average_weighs_each_sample_by_the_time_it_holds(self):
+        activity = _activity(_smart_recording("heart_rate", 100, 200), summary=_summary(**_NO_DEVICE_STATS))
+
+        # (10 * 100 + 10 * 200) / 20 = 150; the plain sample mean is 125.
+        assert activity.average_hr == 150
+        assert activity.max_hr == 200
+
+    def test_power_average_weighs_each_sample_by_the_time_it_holds(self):
+        activity = _activity(_smart_recording("power", 100, 200), summary=_summary(**_NO_DEVICE_STATS))
+
+        assert activity.average_power == 150
+        assert activity.max_power == 200
+
+    def test_cadence_average_weighs_each_sample_by_the_time_it_holds(self):
+        activity = _activity(
+            _smart_recording("cadence", 60, 120), summary=_summary(**_NO_DEVICE_STATS), sport="cycling"
+        )
+
+        assert activity.average_cad == 90
+        assert activity.max_cad == 120
+
+    def test_a_gap_over_the_pause_threshold_weighs_only_the_threshold(self):
+        steps = [(float(i), {"heart_rate": 100}) for i in range(10)]
+        rows = _timed_rows([*steps, (9.0 + 600.0, {"heart_rate": 200}), (9.0 + 601.0, {"heart_rate": 200})])
+
+        activity = _activity(rows, summary=_summary(**_NO_DEVICE_STATS))
+
+        # The 600 s pause weighs the 15 s threshold: (24 * 100 + 1 * 200) / 25 = 104.
+        assert activity.average_hr == 104
+
+    def test_cadence_zeros_stay_in_the_stream_and_out_of_the_average(self):
+        rows = _rows(5, step=1, cadence=[0, 60, 60, 0, 60])
+        payload = _assemble(rows, sport="cycling", summary=_summary(**_NO_DEVICE_STATS))
+
+        assert [w["cad"] for w in payload["cad_waypoints"]] == [0, 60, 60, 0, 60]
+        assert payload["activity"].average_cad == 60
+        assert payload["activity"].max_cad == 60
+
+    def test_power_zeros_count_in_the_average(self):
+        rows = _rows(5, step=1, power=[0, 200, 200, 200, 200])
+
+        activity = _activity(rows, summary=_summary(**_NO_DEVICE_STATS))
+
+        # (0 + 200 + 200 + 200) / 4 = 150.
+        assert activity.average_power == 150
+
+    def test_a_device_power_max_is_kept_when_only_the_average_is_missing(self):
+        rows = _rows(3, step=1, power=[100, 200, 300])
+
+        activity = _activity(rows, summary=_summary(**{**_NO_DEVICE_STATS, "max_power": 450}))
+
+        assert activity.average_power == 150
+        assert activity.max_power == 450
+
+    def test_a_device_cadence_max_is_kept_when_only_the_average_is_missing(self):
+        rows = _rows(3, step=1, cadence=[80, 90, 100])
+
+        activity = _activity(rows, sport="cycling", summary=_summary(**{**_NO_DEVICE_STATS, "max_cadence": 120}))
+
+        assert activity.average_cad == 85
+        assert activity.max_cad == 120
+
+    def test_device_laps_are_filled_with_time_weighted_values(self):
+        lap = recording.Lap(start_time=_START, total_elapsed_time=21.0)
+        rows = _smart_recording("heart_rate", 100, 200)
+        for row, power, cad in zip(rows, [100] * 10 + [200, 200], [0] * 10 + [90, 90], strict=True):
+            row["power"], row["cadence"] = power, cad
+
+        payload = _assemble(rows, sport="cycling", summary=_summary(**_NO_DEVICE_STATS), laps=(lap,))
+
+        (row,) = payload["laps"]
+        assert (row["avg_heart_rate"], row["max_heart_rate"]) == (150, 200)
+        assert (row["avg_power"], row["max_power"]) == (150, 200)
+        # The cadence zeros are left out of the average with their time: 90 is the only kept sample.
+        assert (row["avg_cadence"], row["max_cadence"]) == (90, 90)

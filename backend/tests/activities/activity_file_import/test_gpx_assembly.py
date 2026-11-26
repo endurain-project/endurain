@@ -325,7 +325,8 @@ class TestSensorStreams:
 
         assert result["is_heart_rate_set"] is True
         assert len(result["hr_waypoints"]) == 2
-        assert result["activity"].average_hr == 145
+        # The last sample holds no time.
+        assert result["activity"].average_hr == 140
         assert result["activity"].max_hr == 150
         assert result["is_cadence_set"] is False
         assert result["cad_waypoints"] == []
@@ -341,7 +342,8 @@ class TestSensorStreams:
 
         assert result["is_cadence_set"] is True
         assert [wp["cad"] for wp in result["cad_waypoints"]] == [80, 90]
-        assert result["activity"].average_cad == 85
+        # The 80 holds until the next kept sample, its 20 s capped at the 15 s pause threshold; 90 is last.
+        assert result["activity"].average_cad == 80
 
     def test_doubles_running_cadence_to_spm(self, tmp_path):
         rows = [
@@ -355,7 +357,7 @@ class TestSensorStreams:
 
         assert result["activity"].activity_type == "run"
         assert [wp["cad"] for wp in result["cad_waypoints"]] == [170, 190]
-        assert result["activity"].average_cad == 180
+        assert result["activity"].average_cad == 170
         assert result["activity"].max_cad == 190
 
     def test_all_zero_hr_has_no_stream_and_no_average(self, tmp_path):
@@ -374,11 +376,11 @@ class TestSensorStreams:
 
     def test_zero_hr_samples_are_dropouts_left_out_of_stream_average_and_maximum(self, tmp_path):
         ext = "<extensions><TrackPointExtension><hr>{}</hr></TrackPointExtension></extensions>"
-        rows = [(0.001 * i, f"00:00:{10 * i:02d}", ext.format(hr)) for i, hr in enumerate((0, 140, 160))]
+        rows = [(0.001 * i, f"00:00:{10 * i:02d}", ext.format(hr)) for i, hr in enumerate((0, 140, 160, 160))]
 
         result = _gpx(tmp_path, f"<trk><trkseg>{_points(rows)}</trkseg></trk>")
 
-        assert [wp["hr"] for wp in result["hr_waypoints"]] == [140, 160]
+        assert [wp["hr"] for wp in result["hr_waypoints"]] == [140, 160, 160]
         assert result["activity"].average_hr == 150
         assert result["activity"].max_hr == 160
 
@@ -609,5 +611,41 @@ class TestMaxSpeedSegmentPlaceholders:
         result = _gpx(tmp_path, _segments([points]))
 
         assert result["activity"].max_speed == pytest.approx(3, abs=0.5)
+        # Lap waypoints carry whole-second stamps; the two samples of a second share its time, as the true
+        # half-second alternation does.
         assert result["laps"][0]["enhanced_avg_speed"] == pytest.approx(1.5, abs=0.3)
         assert result["laps"][0]["enhanced_avg_pace"] is not None
+
+
+class TestTimeWeightedAutoLaps:
+    """Auto laps average their sensor samples weighted by the time each holds."""
+
+    def test_a_lap_averages_heart_rate_power_cadence_and_speed_by_time(self, tmp_path):
+        ext = (
+            "<extensions><TrackPointExtension><hr>{hr}</hr><cad>{cad}</cad></TrackPointExtension>"
+            "<power>{power}</power></extensions>"
+        )
+        # 10 m hops; the first six samples are 1 s apart (fast), the next one is held 10 s (slow).
+        clocks = [0, 1, 2, 3, 4, 5, 15, 16]
+        rows = [
+            (
+                i * 0.00009,
+                f"00:00:{clock:02d}",
+                ext.format(
+                    hr=100 if clock < 15 else 200, cad=60 if clock < 15 else 120, power=100 if clock < 15 else 300
+                ),
+            )
+            for i, clock in enumerate(clocks)
+        ]
+
+        result = _gpx(tmp_path, f"<trk><type>Run</type><trkseg>{_points(rows)}</trkseg></trk>", lap_distance_km=10.0)
+
+        (lap,) = result["laps"]
+        # Samples at 0..5 s hold 1 s (100 each, the 5 s one holds 10 s); 15 s holds 1 s; 16 s is last.
+        assert lap["avg_heart_rate"] == round((5 * 100 + 10 * 100 + 1 * 200) / 16)
+        assert lap["avg_power"] == round((5 * 100 + 10 * 100 + 1 * 300) / 16)
+        assert lap["avg_cadence"] == round((5 * 60 + 10 * 60 + 1 * 120) / 16 * 2)
+        assert lap["max_heart_rate"] == 200
+        # The first speed is a placeholder; the second to fifth hold 1 s, the sixth 10 s, the seventh 1 s.
+        v = [w["vel"] for w in result["vel_waypoints"]]
+        assert lap["enhanced_avg_speed"] == pytest.approx((v[1] + v[2] + v[3] + v[4] + 10 * v[5] + v[6]) / 15)

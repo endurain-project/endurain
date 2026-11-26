@@ -3,7 +3,7 @@
     {
       "activity": {
         "activity_type": "ride",
-        "average_cad": 70,
+        "average_cad": 77,
         "average_hr": 143,
         "average_power": null,
         "average_speed": 7.541186,
@@ -57,7 +57,7 @@
       },
       "laps": [
         {
-          "avg_cadence": 70,
+          "avg_cadence": 77,
           "avg_fractional_cadence": null,
           "avg_heart_rate": 143,
           "avg_power": null,

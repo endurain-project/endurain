@@ -106,6 +106,7 @@ class TestGenerateActivityLapsSpeed:
         laps = afi_utils.generate_activity_laps(lat_lon, [], [], [], [], vel, measured_vel_indices=measured)
 
         assert len(laps) >= 2
+        # Both samples of a second share its stamp, so they share its time equally.
         assert [lap["enhanced_avg_speed"] for lap in laps] == [pytest.approx(speed / 2, rel=0.1)] * len(laps)
         assert all(lap["enhanced_max_speed"] == pytest.approx(speed) for lap in laps)
 

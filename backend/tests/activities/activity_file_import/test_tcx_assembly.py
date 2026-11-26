@@ -157,7 +157,7 @@ class TestHeartRate:
 
     def test_summary_and_stream_leave_out_the_zero_dropouts(self, tmp_path: Path) -> None:
         """The HR summary and the stream are built from the samples without sensor-off zeros."""
-        points = "".join(_tp(10 * i, hr=hr, lat=40.0 + 0.0001 * i, lon=-3.0) for i, hr in enumerate((0, 150, 160)))
+        points = "".join(_tp(10 * i, hr=hr, lat=40.0 + 0.0001 * i, lon=-3.0) for i, hr in enumerate((0, 150, 160, 160)))
 
         payload = _one(tmp_path, points)
 
@@ -165,7 +165,7 @@ class TestHeartRate:
         # Zeros excluded: mean([150, 160]) = 155, max = 160.
         assert activity.average_hr == 155
         assert activity.max_hr == 160
-        assert [wp["hr"] for wp in payload["hr_waypoints"]] == [150, 160]
+        assert [wp["hr"] for wp in payload["hr_waypoints"]] == [150, 160, 160]
 
 
 class TestDistanceAndTimer:
@@ -287,29 +287,31 @@ class TestRunCadence:
         payload = self._assemble(tmp_path, (84, 86, 88, 90))
 
         activity = payload["activity"]
-        # mean([84, 86, 88, 90]) = 87 rpm, max 90 rpm.
-        assert activity.average_cad == 174
+        # The last sample holds no time: mean([84, 86, 88]) = 86 rpm, max 90 rpm.
+        assert activity.average_cad == 172
         assert activity.max_cad == 180
         assert [wp["cad"] for wp in payload["cad_waypoints"]] == [168, 172, 176, 180]
-        assert payload["laps"][0]["avg_cadence"] == 174
+        assert payload["laps"][0]["avg_cadence"] == 172
         assert payload["laps"][0]["max_cadence"] == 180
 
     def test_cadence_is_doubled_whatever_its_value(self, tmp_path: Path) -> None:
         """RunCadence is per-leg by format, so a high value is doubled too."""
         activity = self._assemble(tmp_path, (120, 122, 124, 126))["activity"]
 
-        assert activity.average_cad == 246
+        assert activity.average_cad == 244
         assert activity.max_cad == 252
 
     def test_a_lap_with_cadence_samples_takes_its_cadence_from_them(self, tmp_path: Path) -> None:
         """Garmin writes the lap's highest cadence in <Cadence>, so a lap whose samples carry cadence uses them."""
-        document = _document(_lap(0, _tp(0, cad=70) + _tp(10, cad=80), "<Cadence>95</Cadence>"), sport="Biking")
+        document = _document(
+            _lap(0, _tp(0, cad=70) + _tp(10, cad=80) + _tp(20, cad=90), "<Cadence>95</Cadence>"), sport="Biking"
+        )
 
         (payload,) = _assemble(tmp_path, document)
 
         lap = payload["laps"][0]
         assert lap["avg_cadence"] == 75
-        assert lap["max_cadence"] == 80
+        assert lap["max_cadence"] == 90
 
     def test_a_lap_without_cadence_samples_takes_the_cadence_element_as_its_average(self, tmp_path: Path) -> None:
         document = _document(_lap(0, _tp(0) + _tp(10), "<Cadence>88</Cadence>"), sport="Biking")
@@ -578,10 +580,11 @@ class TestLaps:
 
         (lap,) = _one(tmp_path, points, seconds=20, sport="Biking")["laps"]
 
-        assert (lap["avg_heart_rate"], lap["max_heart_rate"]) == (150, 160)
-        assert (lap["avg_power"], lap["max_power"]) == (200, 300)
+        # The last sample holds no time; the zero heart rate is a dropout left out with its time.
+        assert (lap["avg_heart_rate"], lap["max_heart_rate"]) == (140, 160)
+        assert (lap["avg_power"], lap["max_power"]) == (150, 300)
         assert lap["normalized_power"] is not None
-        assert (lap["avg_cadence"], lap["max_cadence"]) == (80, 90)
+        assert (lap["avg_cadence"], lap["max_cadence"]) == (75, 90)
         assert lap["start_position_lat"] == 40.0
         assert lap["end_position_lat"] == pytest.approx(40.0002)
 

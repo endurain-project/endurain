@@ -3,8 +3,8 @@
     {
       "activity": {
         "activity_type": "ride",
-        "average_cad": 86,
-        "average_hr": 142,
+        "average_cad": 87,
+        "average_hr": 143,
         "average_power": 215,
         "average_speed": 5.0,
         "calories": null,
@@ -35,7 +35,7 @@
         "is_hidden": false,
         "max_cad": 88,
         "max_hr": 145,
-        "max_power": null,
+        "max_power": 229,
         "max_speed": 5.0,
         "name": "Workout",
         "normalized_power": 215,
@@ -57,10 +57,10 @@
       },
       "laps": [
         {
-          "avg_cadence": 86,
+          "avg_cadence": 87,
           "avg_fractional_cadence": null,
-          "avg_heart_rate": 142,
-          "avg_power": 214,
+          "avg_heart_rate": 143,
+          "avg_power": 215,
           "avg_stance_time": null,
           "avg_step_length": null,
           "avg_vertical_oscillation": null,

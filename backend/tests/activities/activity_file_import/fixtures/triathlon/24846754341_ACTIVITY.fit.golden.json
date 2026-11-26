@@ -231,7 +231,7 @@
       "activity": {
         "activity_type": "transition",
         "average_cad": 46,
-        "average_hr": 133,
+        "average_hr": 136,
         "average_power": null,
         "average_speed": 1.772,
         "calories": 44,
@@ -763,7 +763,7 @@
       "activity": {
         "activity_type": "transition",
         "average_cad": 98,
-        "average_hr": 149,
+        "average_hr": 152,
         "average_power": null,
         "average_speed": 2.655,
         "calories": 10,
@@ -793,7 +793,7 @@
         "import_info": null,
         "is_hidden": false,
         "max_cad": 100,
-        "max_hr": 150,
+        "max_hr": 160,
         "max_power": null,
         "max_speed": 3.266,
         "name": "Transition",
@@ -1335,7 +1335,7 @@
     "activity": {
       "activity_type": "multisport",
       "average_cad": null,
-      "average_hr": 149,
+      "average_hr": 150,
       "average_power": 298,
       "average_speed": null,
       "calories": 499,

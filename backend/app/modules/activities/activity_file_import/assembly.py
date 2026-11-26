@@ -442,46 +442,79 @@ def _timezone(
     return default_timezone
 
 
-def _heart_rate(session: activity_file_import_recording.Session, streams: _Streams) -> tuple[int | None, int | None]:
+def _sampled_mean(times: Sequence[datetime], values: Sequence[float | None], threshold: float) -> float | None:
+    """Average samples by the time each holds until the next, a pause weighing no more than ``threshold``.
+
+    Args:
+        times: The samples' times.
+        values: The samples' values, ``None`` where the channel has none.
+        threshold: The pause threshold in seconds.
+
+    Returns:
+        The time-weighted mean; ``None`` when no sample has a value.
+    """
+    return activities_computation.time_weighted_mean([time.timestamp() for time in times], values, threshold)
+
+
+def _present_max(values: Iterable[float | None]) -> float | None:
+    """Return the largest value that exists.
+
+    Args:
+        values: The samples' values, ``None`` where the channel has none.
+
+    Returns:
+        The largest value; ``None`` when none exists.
+    """
+    present = [value for value in values if value is not None]
+    return max(present) if present else None
+
+
+def _heart_rate(session: activity_file_import_recording.Session, threshold: float) -> tuple[int | None, int | None]:
     """Return a session's average and maximum heart rate.
 
     Args:
         session: The session.
-        streams: The session's streams.
+        threshold: The pause threshold in seconds.
 
     Returns:
-        The values recomputed from the samples without zeros (a zero means a lost sensor) when there are any, else the
-        device's.
+        The device's values, with a missing or zero one computed from the samples (a zero is a dropout and is already
+        left out of them).
     """
-    avg, peak = session.summary.avg_heart_rate, session.summary.max_heart_rate
-    if streams.heart_rate:
-        sampled_avg, sampled_max = activities_computation.calculate_avg_and_max(streams.heart_rate, "hr")
-        avg = round(sampled_avg) if sampled_avg else avg
-        peak = round(sampled_max) if sampled_max else peak
+    samples = session.samples
+    # A device's 0 is a dropout like a sample's.
+    avg, peak = session.summary.avg_heart_rate or None, session.summary.max_heart_rate or None
+    if avg is None:
+        sampled_avg = _sampled_mean(samples.time, samples.heart_rate, threshold)
+        avg = round(sampled_avg) if sampled_avg else None
+    if peak is None:
+        sampled_max = _present_max(samples.heart_rate)
+        peak = round(sampled_max) if sampled_max else None
     return avg, peak
 
 
 def _power(
-    session: activity_file_import_recording.Session, streams: _Streams
+    session: activity_file_import_recording.Session, streams: _Streams, threshold: float
 ) -> tuple[int | None, int | None, int | None]:
     """Return a session's average, maximum and normalized power.
 
     Args:
         session: The session.
         streams: The session's streams.
+        threshold: The pause threshold in seconds.
 
     Returns:
-        The device's values, with a missing one computed from the samples.
+        The device's values, with a missing one computed from the samples; a zero reading counts in the average.
     """
+    samples = session.samples
     avg: float | None = session.summary.avg_power
     peak: float | None = session.summary.max_power
     normalized: float | None = session.summary.normalized_power
-    if streams.power and (avg is None or normalized is None):
-        sampled_avg, sampled_max, sampled_np = activity_file_import_parser_utils.calculate_power_metrics(streams.power)
-        if avg is None:
-            avg, peak = sampled_avg, sampled_max
-        if normalized is None:
-            normalized = sampled_np
+    if avg is None:
+        avg = _sampled_mean(samples.time, samples.power, threshold)
+    if peak is None:
+        peak = _present_max(samples.power)
+    if normalized is None and streams.power:
+        normalized = activities_computation.calculate_np(streams.power)
     return (
         round(avg) if avg else None,
         round(peak) if peak else None,
@@ -489,13 +522,15 @@ def _power(
     )
 
 
-def _cadence_stat(summary_value: float | None, fraction: float | None, sampled: float, running: bool) -> int | None:
+def _cadence_stat(
+    summary_value: float | None, fraction: float | None, sampled: float | None, running: bool
+) -> int | None:
     """Return one cadence statistic in the unit the activity stores.
 
     Args:
         summary_value: The device's whole-number value, or ``None``.
         fraction: The device's fractional part.
-        sampled: The value computed from the samples, ``0`` when there are none.
+        sampled: The value computed from the samples, ``None`` when there are none.
         running: Whether the activity is a running type, stored as steps per minute.
 
     Returns:
@@ -509,26 +544,42 @@ def _cadence_stat(summary_value: float | None, fraction: float | None, sampled: 
     return round(value) if value is not None else None
 
 
+def _moving_cadence(times: Sequence[datetime], values: Sequence[float | None], threshold: float) -> float | None:
+    """Average cadence samples, leaving out the zeros of a rider or runner who was not pedalling or stepping.
+
+    Args:
+        times: The samples' times.
+        values: The samples' cadence, ``None`` where there is none.
+        threshold: The pause threshold in seconds.
+
+    Returns:
+        The time-weighted mean of the non-zero samples; ``None`` when there are none.
+    """
+    return _sampled_mean(times, [value if value else None for value in values], threshold)
+
+
 def _cadence(
-    session: activity_file_import_recording.Session, streams: _Streams, running: bool
+    session: activity_file_import_recording.Session, running: bool, threshold: float
 ) -> tuple[int | None, int | None]:
     """Return a session's average and maximum cadence.
 
     Args:
-        session: The session.
-        streams: The session's streams, in the device's native cadence unit.
+        session: The session, its samples in the device's native cadence unit.
         running: Whether the activity is a running type.
+        threshold: The pause threshold in seconds.
 
     Returns:
         The device's values, with a missing or zero one computed from the samples; steps per minute for running.
     """
-    summary = session.summary
-    sampled_avg, sampled_max = (
-        activities_computation.calculate_avg_and_max(streams.cadence, "cad") if streams.cadence else (0, 0)
-    )
+    summary, samples = session.summary, session.samples
     return (
-        _cadence_stat(summary.avg_cadence, summary.avg_fractional_cadence, sampled_avg, running),
-        _cadence_stat(summary.max_cadence, summary.max_fractional_cadence, sampled_max, running),
+        _cadence_stat(
+            summary.avg_cadence,
+            summary.avg_fractional_cadence,
+            _moving_cadence(samples.time, samples.cadence, threshold),
+            running,
+        ),
+        _cadence_stat(summary.max_cadence, summary.max_fractional_cadence, _present_max(samples.cadence), running),
     )
 
 
@@ -606,7 +657,7 @@ class _LapSamples:
     """What a lap's own samples say, for the statistics its device message leaves out.
 
     Attributes:
-        avg_hr: Average heart rate without zeros.
+        avg_hr: Average heart rate, time-weighted.
         max_hr: Maximum heart rate.
         avg_cad: Average cadence as stored (steps per minute for running).
         max_cad: Maximum cadence as stored.
@@ -630,24 +681,25 @@ class _LapSamples:
     end: tuple[float | None, float | None]
 
 
-def _sampled_lap(window: activity_file_import_recording.Samples, running: bool) -> _LapSamples:
+def _sampled_lap(window: activity_file_import_recording.Samples, running: bool, threshold: float) -> _LapSamples:
     """Compute a lap's statistics from the samples inside it.
 
     Args:
         window: The samples inside the lap.
         running: Whether the activity is a running type.
+        threshold: The pause threshold in seconds.
 
     Returns:
         The statistics; ``None`` where the lap has no samples of the channel or the value is zero.
     """
-    hr = [{"hr": v} for v in window.heart_rate if v is not None]
-    avg_hr, max_hr = activities_computation.calculate_avg_and_max(hr, "hr") if hr else (0, 0)
-    cad = [{"cad": v} for v in window.cadence if v is not None]
-    avg_cad, max_cad = activities_computation.calculate_avg_and_max(cad, "cad") if cad else (0, 0)
+    avg_hr = _sampled_mean(window.time, window.heart_rate, threshold)
+    max_hr = _present_max(window.heart_rate)
+    avg_cad = _moving_cadence(window.time, window.cadence, threshold)
+    max_cad = _present_max(window.cadence)
+    avg_power = _sampled_mean(window.time, window.power, threshold)
+    max_power = _present_max(window.power)
     power = [{"power": v} for v in window.power if v is not None]
-    avg_power, max_power, normalized_power = (
-        activity_file_import_parser_utils.calculate_power_metrics(power) if power else (None, None, None)
-    )
+    normalized_power = activities_computation.calculate_np(power) if power else None
     speeds = [v for v in window.speed if v is not None]
     positions = [(lat, lon) for lat, lon in zip(window.lat, window.lon, strict=True) if lat is not None]
     return _LapSamples(
@@ -700,6 +752,7 @@ def _device_lap(
     session: activity_file_import_recording.Session,
     running: bool,
     last: bool,
+    threshold: float,
 ) -> dict[str, object]:
     """Map a device lap to the row a stored lap has.
 
@@ -710,6 +763,7 @@ def _device_lap(
         session: The session the lap belongs to.
         running: Whether the activity is a running type.
         last: Whether it is the session's last lap.
+        threshold: The session's pause threshold in seconds.
 
     Returns:
         The lap row; a statistic the device left out is computed from the samples inside the lap, and running cadence
@@ -718,7 +772,7 @@ def _device_lap(
     # A sample on the instant one lap ends and the next starts belongs to the later lap; the last lap keeps its end.
     end = start + timedelta(seconds=elapsed, microseconds=1 if last else 0)
     window = activity_file_import_recording.samples_between(session.samples, start, end)
-    sampled = _sampled_lap(window, running)
+    sampled = _sampled_lap(window, running, threshold)
     avg_speed, max_speed = _lap_speed(lap)
     max_speed = max_speed or sampled.max_speed or None
     if running:
@@ -807,6 +861,7 @@ def _laps(
     cadence: list[activity_streams_contracts.CadenceWaypoint],
     running: bool,
     lap_distance_km: float,
+    threshold: float,
 ) -> list[Mapping[str, object]]:
     """Build a session's laps: the device's when it recorded any, else one per ``lap_distance_km`` of each run.
 
@@ -816,13 +871,14 @@ def _laps(
         cadence: The cadence waypoints as stored (steps per minute for running).
         running: Whether the activity is a running type.
         lap_distance_km: Distance after which a generated lap closes.
+        threshold: The session's pause threshold in seconds, for averaging a device lap's samples.
 
     Returns:
         The lap rows in time order.
     """
     if session.laps:
         rows = [
-            _device_lap(lap, *_lap_window(session, i), session, running, i == len(session.laps) - 1)
+            _device_lap(lap, *_lap_window(session, i), session, running, i == len(session.laps) - 1, threshold)
             for i, lap in enumerate(session.laps)
         ]
         _fill_lap_elevation(rows, streams.elevation)
@@ -903,13 +959,14 @@ def _assemble_session(
     active_time = _active_time(session, distance, timer)
     pace = activities_computation.calculate_pace_from_duration(distance, active_time) or None
     avg_speed, max_speed = _speeds(session, streams, distance, pace)
-    avg_hr, max_hr = _heart_rate(session, streams)
-    avg_power, max_power, normalized_power = _power(session, streams)
-    avg_cadence, max_cadence = _cadence(session, streams, running)
+    threshold = activity_file_import_parser_utils.pause_threshold_seconds(list(session.samples.time))
+    avg_hr, max_hr = _heart_rate(session, threshold)
+    avg_power, max_power, normalized_power = _power(session, streams, threshold)
+    avg_cadence, max_cadence = _cadence(session, running, threshold)
     elevation_gain, elevation_loss = _elevation(session, streams)
 
     cadence = activities_computation.double_cadence_waypoints(streams.cadence) if running else streams.cadence
-    laps = _laps(session, streams, cadence, running, lap_distance_km)
+    laps = _laps(session, streams, cadence, running, lap_distance_km, threshold)
 
     stored_type = activity_constants.ActivityType.from_stored(activity_type)
     activity = activity_contracts.ActivityCore(

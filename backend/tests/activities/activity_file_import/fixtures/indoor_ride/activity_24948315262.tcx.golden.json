@@ -57,7 +57,7 @@
       },
       "laps": [
         {
-          "avg_cadence": 82,
+          "avg_cadence": 83,
           "avg_fractional_cadence": null,
           "avg_heart_rate": 120,
           "avg_power": 128,
@@ -323,7 +323,7 @@
           "total_work": null
         },
         {
-          "avg_cadence": 88,
+          "avg_cadence": 89,
           "avg_fractional_cadence": null,
           "avg_heart_rate": 140,
           "avg_power": 126,
@@ -399,7 +399,7 @@
           "total_work": null
         },
         {
-          "avg_cadence": 59,
+          "avg_cadence": 90,
           "avg_fractional_cadence": null,
           "avg_heart_rate": 138,
           "avg_power": 47,

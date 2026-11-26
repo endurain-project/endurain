@@ -4,7 +4,7 @@
       "activity": {
         "activity_type": "workout",
         "average_cad": null,
-        "average_hr": 142,
+        "average_hr": 141,
         "average_power": null,
         "average_speed": 3.00389,
         "calories": null,
@@ -58,12 +58,12 @@
       "laps": [
         {
           "avg_cadence": null,
-          "avg_heart_rate": 142,
+          "avg_heart_rate": 141,
           "avg_power": null,
           "end_position_lat": 38.7,
           "end_position_long": -9.098999,
-          "enhanced_avg_pace": 0.332902,
-          "enhanced_avg_speed": 3.00389,
+          "enhanced_avg_pace": 0.332891,
+          "enhanced_avg_speed": 3.003986,
           "enhanced_max_pace": 0.333201,
           "enhanced_max_speed": 3.00119,
           "max_cadence": null,
