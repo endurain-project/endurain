@@ -15,7 +15,7 @@ composition and contributor surfaces.
 import bisect
 import statistics
 from collections.abc import Collection, Mapping, Sequence
-from datetime import UTC, datetime
+from datetime import datetime
 from itertools import pairwise
 from statistics import mean
 from typing import Any
@@ -56,69 +56,6 @@ MOVING_STEP_SECONDS = 1.0
 
 #: The length in seconds of the window whose mean speed is the maximum speed.
 MAX_SPEED_WINDOW_SECONDS = 5.0
-
-
-def _elapsed_seconds(start: datetime, end: datetime) -> float:
-    """Return real elapsed seconds between two timestamps.
-
-    Both bounds are converted to UTC first. Subtracting them as-is is not enough:
-    when two aware datetimes share a ``tzinfo`` **object**, Python documents that
-    the offsets are ignored and the result is a plain wall-clock difference — so
-    an activity spanning a DST transition reported an hour more (or less) than it
-    actually took. Naive inputs are assumed UTC, which is the convention every
-    parser writes timestamps in.
-
-    Args:
-        start: Start timestamp.
-        end: End timestamp.
-
-    Returns:
-        Elapsed seconds.
-    """
-    if start.tzinfo is None:
-        start = start.replace(tzinfo=UTC)
-    if end.tzinfo is None:
-        end = end.replace(tzinfo=UTC)
-    return (end.astimezone(UTC) - start.astimezone(UTC)).total_seconds()
-
-
-def calculate_instant_speed(
-    prev_time: datetime | None,
-    waypoint_time: datetime,
-    latitude: float,
-    longitude: float,
-    prev_latitude: float | None,
-    prev_longitude: float | None,
-) -> float:
-    """Compute m/s speed between two GPS waypoints.
-
-    Args:
-        prev_time: Previous waypoint timestamp; ``None`` returns 0.
-        waypoint_time: Current waypoint timestamp.
-        latitude: Current latitude (decimal degrees).
-        longitude: Current longitude (decimal degrees).
-        prev_latitude: Previous latitude (decimal degrees).
-        prev_longitude: Previous longitude (decimal degrees).
-
-    Returns:
-        Instantaneous speed in m/s, or 0 when the time delta is
-        non-positive or ``prev_time`` is missing. Deltas shorter than one
-        second count as one second so near-simultaneous fixes cannot inflate
-        the speed.
-    """
-    if prev_time is None or prev_latitude is None or prev_longitude is None:
-        return 0
-
-    time_difference = (waypoint_time - prev_time).total_seconds()
-
-    if time_difference <= 0:
-        return 0
-
-    distance = geodesic(
-        (prev_latitude, prev_longitude),
-        (latitude, longitude),
-    ).meters
-    return distance / max(time_difference, 1)
 
 
 def calculate_step_speed(
@@ -359,34 +296,6 @@ def elevation_steps(values: Sequence[float]) -> tuple[list[float], list[float]]:
             losses[i] = -change
             reference = value
     return gains, losses
-
-
-def calculate_pace(
-    distance: float,
-    first_waypoint_time: datetime,
-    last_waypoint_time: datetime,
-) -> float:
-    """Compute average pace (seconds per meter).
-
-    Args:
-        distance: Total distance in meters.
-        first_waypoint_time: Datetime of the first waypoint.
-        last_waypoint_time: Datetime of the last waypoint.
-
-    Returns:
-        Pace in s/m, or 0 when ``distance`` is 0.
-    """
-    # If the distance is 0, return 0
-    if distance == 0:
-        return 0
-
-    total_time_in_seconds = _elapsed_seconds(first_waypoint_time, last_waypoint_time)
-
-    # Calculate pace in seconds per meter
-    pace_seconds_per_meter = total_time_in_seconds / distance
-
-    # Return the pace
-    return pace_seconds_per_meter
 
 
 def calculate_pace_from_duration(
@@ -843,28 +752,6 @@ def rolling_max_speed(times: Sequence[float], speeds: Sequence[float | None], ma
     if not full.any():
         return max(measured)
     return float(np.max(area[full] / held[full]))
-
-
-def calculate_robust_max(values: list[float], window: int = 5) -> float:
-    """Return the maximum of the sliding-window medians of ``values``.
-
-    A single GPS glitch never becomes the maximum because every candidate is the
-    median of ``window`` consecutive samples. Only full windows are considered;
-    the algorithm mirrors the mobile app so both report the same value.
-
-    Args:
-        values: Samples in chronological order.
-        window: Number of consecutive samples per median.
-
-    Returns:
-        The robust maximum, the plain maximum when fewer than ``window``
-        samples exist, or 0 when ``values`` is empty.
-    """
-    if not values:
-        return 0
-    if len(values) < window:
-        return max(values)
-    return max(statistics.median(values[i : i + window]) for i in range(len(values) - window + 1))
 
 
 def calculate_np(data: Sequence[Mapping[str, Any]]) -> float:

@@ -15,11 +15,8 @@ from geopy.distance import geodesic
 import modules.activities.computation as activities_computation
 from modules.activities.computation import (
     calculate_avg_and_max,
-    calculate_instant_speed,
     calculate_np,
-    calculate_pace,
     calculate_pace_from_duration,
-    calculate_robust_max,
     compute_elevation_gain_and_loss,
     double_cadence_waypoints,
     double_running_cadence,
@@ -28,89 +25,6 @@ from modules.activities.computation import (
     sum_elevation_deltas,
     time_weighted_mean,
 )
-
-
-class TestCalculateInstantSpeed:
-    def test_returns_zero_when_prev_time_none(self):
-        t = datetime(2024, 1, 15, 8, 0, 5)
-        result = calculate_instant_speed(
-            prev_time=None,
-            waypoint_time=t,
-            latitude=38.0,
-            longitude=-9.0,
-            prev_latitude=38.001,
-            prev_longitude=-9.001,
-        )
-        assert result == 0
-
-    def test_returns_zero_when_prev_coords_none(self):
-        t = datetime(2024, 1, 15, 8, 0, 5)
-        result = calculate_instant_speed(
-            prev_time=datetime(2024, 1, 15, 8, 0, 0),
-            waypoint_time=t,
-            latitude=38.0,
-            longitude=-9.0,
-            prev_latitude=None,
-            prev_longitude=None,
-        )
-        assert result == 0
-
-    def test_returns_zero_when_time_delta_zero(self):
-        t = datetime(2024, 1, 15, 8, 0, 0)
-        result = calculate_instant_speed(
-            prev_time=t,
-            waypoint_time=t,
-            latitude=38.0,
-            longitude=-9.0,
-            prev_latitude=38.001,
-            prev_longitude=-9.001,
-        )
-        assert result == 0
-
-    def test_returns_positive_speed(self):
-        result = calculate_instant_speed(
-            prev_time=datetime(2024, 1, 15, 8, 0, 0),
-            waypoint_time=datetime(2024, 1, 15, 8, 1, 0),
-            latitude=38.001,
-            longitude=-9.001,
-            prev_latitude=38.0,
-            prev_longitude=-9.0,
-        )
-        assert result > 0
-
-    def test_subsecond_delta_counts_as_one_second(self):
-        start = datetime(2024, 1, 15, 8, 0, 0)
-        distance = geodesic((0.0, 0.0), (0.0, 0.000135)).meters  # ~15 m
-        result = calculate_instant_speed(
-            prev_time=start,
-            waypoint_time=start + timedelta(milliseconds=300),
-            latitude=0.0,
-            longitude=0.000135,
-            prev_latitude=0.0,
-            prev_longitude=0.0,
-        )
-        assert result == pytest.approx(distance)
-        assert 14 < result < 16
-
-
-class TestCalculateRobustMax:
-    def test_empty_returns_zero(self):
-        assert calculate_robust_max([]) == 0
-
-    def test_fewer_than_window_returns_plain_max(self):
-        assert calculate_robust_max([1.0, 9.0, 2.0, 3.0]) == 9.0
-
-    def test_single_spike_is_ignored(self):
-        assert calculate_robust_max([3.0] * 10 + [50.0] + [3.0] * 10) == 3.0
-
-    def test_two_consecutive_spikes_are_ignored(self):
-        assert calculate_robust_max([3.0] * 10 + [50.0, 48.0] + [3.0] * 10) == 3.0
-
-    def test_sustained_fast_stretch_is_reported(self):
-        assert calculate_robust_max([3.0] * 10 + [8.0, 8.0, 8.0] + [3.0] * 10) == 8.0
-
-    def test_trailing_edge_is_not_clamped(self):
-        assert calculate_robust_max([3.0] * 10 + [50.0]) == 3.0
 
 
 class TestComputeElevationGainAndLoss:
@@ -173,29 +87,6 @@ class TestSumElevationDeltas:
         elevations = [{"ele": 100 + i * 0.5 + math.sin(i / 5) * 3 + (0.5 if i % 2 else -0.5)} for i in range(200)]
         expected = compute_elevation_gain_and_loss(elevations)
         assert sum_elevation_deltas(smooth_elevation_stream(elevations)) == expected
-
-
-class TestCalculatePace:
-    def test_returns_zero_when_distance_zero(self):
-        t = datetime(2024, 1, 15, 8, 0, 0)
-        result = calculate_pace(distance=0, first_waypoint_time=t, last_waypoint_time=t)
-        assert result == 0
-
-    def test_calculates_pace_correctly(self):
-        result = calculate_pace(
-            distance=10000,
-            first_waypoint_time=datetime(2024, 1, 15, 8, 0, 0),
-            last_waypoint_time=datetime(2024, 1, 15, 9, 0, 0),
-        )
-        assert result == 3600.0 / 10000
-
-    def test_calculates_pace_with_fractional_distance(self):
-        result = calculate_pace(
-            distance=5000,
-            first_waypoint_time=datetime(2024, 1, 15, 8, 0, 0),
-            last_waypoint_time=datetime(2024, 1, 15, 8, 25, 0),
-        )
-        assert result == 1500.0 / 5000
 
 
 class TestCalculatePaceFromDuration:
@@ -295,51 +186,6 @@ class TestCalculateNP:
     def test_returns_zero_on_key_error(self):
         result = calculate_np([{"no_power": 200}])
         assert result == 0
-
-
-class TestCalculatePaceAcrossDstAndOffsets:
-    """Duration math must run on the aware instants, not on stripped wall clocks.
-
-    Reformatting both bounds through ``strftime``/``fromisoformat`` dropped their
-    offsets purely to make them subtractable, which silently produced the wrong
-    elapsed time whenever the two carried different offsets.
-    """
-
-    def test_duration_is_correct_across_a_dst_transition(self):
-        from datetime import datetime
-        from zoneinfo import ZoneInfo
-
-        import modules.activities.computation as computation
-
-        lisbon = ZoneInfo("Europe/Lisbon")
-        # Lisbon springs forward 01:00 -> 02:00 on 2024-03-31: the wall clock
-        # advances 2h while only 1h of real time elapses.
-        start = datetime(2024, 3, 31, 0, 30, tzinfo=lisbon)
-        end = datetime(2024, 3, 31, 2, 30, tzinfo=lisbon)
-
-        pace = computation.calculate_pace(1000, start, end)
-
-        assert pace == 3600 / 1000  # one real hour, not two
-
-    def test_duration_is_correct_for_mixed_offsets(self):
-        from datetime import UTC, datetime, timedelta, timezone
-
-        import modules.activities.computation as computation
-
-        start = datetime(2024, 1, 15, 10, 0, tzinfo=timezone(timedelta(hours=2)))
-        end = datetime(2024, 1, 15, 8, 30, tzinfo=UTC)  # 30 minutes after 08:00Z
-
-        pace = computation.calculate_pace(600, start, end)
-
-        assert pace == 1800 / 600
-
-    def test_zero_distance_returns_zero(self):
-        from datetime import UTC, datetime
-
-        import modules.activities.computation as computation
-
-        now = datetime(2024, 1, 15, 10, 0, tzinfo=UTC)
-        assert computation.calculate_pace(0, now, now) == 0
 
 
 class TestElevationSmoothing:
@@ -854,13 +700,6 @@ class TestRollingMaxSpeed:
 
         # The window holds the spike and four ordinary seconds: (15 + 4 x 5) / 5.
         assert self._peak(range(61), speeds) == pytest.approx(7.0)
-
-    def test_the_old_five_sample_median_would_have_hidden_the_spike_entirely(self):
-        speeds = [5.0] * 61
-        speeds[30] = 15.0
-
-        assert activities_computation.calculate_robust_max(speeds) == 5.0
-        assert self._peak(range(61), speeds) > 6.9
 
     def test_the_window_is_over_time_not_samples_at_five_second_sampling(self):
         speeds = [5.0, 5.0, 9.0, 5.0, 5.0]

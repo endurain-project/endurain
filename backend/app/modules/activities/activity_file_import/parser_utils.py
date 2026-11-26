@@ -6,10 +6,7 @@ from collections.abc import Iterable, Mapping, Sequence
 from datetime import UTC, datetime
 from typing import Any
 
-from geopy.distance import geodesic
-
 import core.timezone as core_timezone
-import modules.activities.activity_streams.contracts as activity_streams_contracts
 import modules.activities.computation as activities_computation
 
 # ISO 8601 datetime format used throughout the import pipeline
@@ -90,7 +87,6 @@ def smooth_elevation_waypoints(ele_waypoints: Sequence[Mapping[str, Any]]) -> li
         New waypoints with the smoothed ``ele``; empty for an empty stream.
     """
     # The metric helpers live in this package's dependency-free computation module.
-    import modules.activities.computation as activities_computation
 
     times = [_parse_utc(waypoint["time"]).timestamp() for waypoint in ele_waypoints]
     smoothed = activities_computation.smooth_elevation(times, [waypoint["ele"] for waypoint in ele_waypoints])
@@ -110,7 +106,6 @@ def elevation_step_waypoints(ele_waypoints: Sequence[Mapping[str, Any]]) -> list
         The smoothed waypoints, each with ``gain`` and ``loss`` in metres; empty for an empty stream.
     """
     # The metric helpers live in this package's dependency-free computation module.
-    import modules.activities.computation as activities_computation
 
     smoothed = smooth_elevation_waypoints(ele_waypoints)
     gains, losses = activities_computation.elevation_steps([waypoint["ele"] for waypoint in smoothed])
@@ -156,66 +151,3 @@ def resolve_timezone_from_lat_lon(
         IANA timezone string (e.g. ``'Europe/Lisbon'``).
     """
     return core_timezone.from_lat_lon(latitude, longitude, fallback_tz)
-
-
-def compute_distance_from_waypoints(lat_lon_waypoints: Sequence[activity_streams_contracts.LatLonWaypoint]) -> float:
-    """Compute total distance in metres from a GPS track.
-
-    Sums the geodesic distance between consecutive waypoints. Used as a
-    fallback when a source file does not provide a summary distance (e.g. a
-    FIT session frame without ``total_distance``). Mirrors the accumulation
-    the GPX importer already performs point-by-point.
-
-    Args:
-        lat_lon_waypoints: Ordered list of dicts each containing ``'lat'``
-            and ``'lon'`` numeric keys.
-
-    Returns:
-        Total distance in metres. ``0.0`` if fewer than two valid points.
-    """
-    total = 0.0
-    for i in range(1, len(lat_lon_waypoints)):
-        prev_point = lat_lon_waypoints[i - 1]
-        current_point = lat_lon_waypoints[i]
-        if (
-            prev_point.get("lat") is None
-            or prev_point.get("lon") is None
-            or current_point.get("lat") is None
-            or current_point.get("lon") is None
-        ):
-            continue
-        total += geodesic(
-            (prev_point["lat"], prev_point["lon"]),
-            (current_point["lat"], current_point["lon"]),
-        ).meters
-    return total
-
-
-def compute_moving_time_from_times(times: list[datetime]) -> float:
-    """Compute moving time in seconds from ordered trackpoint timestamps.
-
-    Sums the delta from the latest timestamp seen so far to each next one,
-    skipping pause gaps (deltas above ``activities_computation.pause_threshold_seconds``, issue
-    #571). Duplicate or out-of-order timestamps add nothing and do not
-    become the baseline.
-
-    Args:
-        times: Trackpoint timestamps in recording order, without ``None``
-            entries.
-
-    Returns:
-        Moving time in seconds. ``0.0`` if fewer than two timestamps.
-    """
-    if not times:
-        return 0.0
-    threshold = activities_computation.pause_threshold_seconds(times)
-    moving_time = 0.0
-    baseline = times[0]
-    for time in times[1:]:
-        delta = (time - baseline).total_seconds()
-        if delta <= 0:
-            continue
-        if delta <= threshold:
-            moving_time += delta
-        baseline = time
-    return moving_time
