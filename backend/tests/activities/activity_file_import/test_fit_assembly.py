@@ -417,6 +417,179 @@ class TestLapSpeed:
         assert lap["enhanced_max_pace"] is None
 
 
+#: Metres in one degree of longitude on the equator, so a row's position encodes the distance walked.
+_METRES_PER_DEGREE = 111_319.49
+
+
+def _track(speeds: list[float], *, step: float = 1.0, **channels):
+    """Build rows along the equator, each a ``step``-second hop at the speed given for it.
+
+    Args:
+        speeds: The speed in m/s of the hop that ends at each row after the first.
+        step: Seconds between rows.
+        **channels: Extra channels; a list is taken row by row, anything else is shared by every row.
+
+    Returns:
+        The rows; the first sits at the start with no hop.
+    """
+    rows, lon = [], 1.0
+    for i in range(len(speeds) + 1):
+        if i:
+            lon += speeds[i - 1] * step / _METRES_PER_DEGREE
+        extra = {key: (value[i] if isinstance(value, list) else value) for key, value in channels.items()}
+        rows.append({"time": _START + timedelta(seconds=i * step), "lat": 0.0, "lon": lon, **extra})
+    return rows
+
+
+_NO_DEVICE_TIMES = recording.DeviceSummary()
+
+
+class TestMovingTime:
+    """Without a device timer the timer is the time spent moving at 0.5 m/s or more."""
+
+    def test_standing_still_before_a_walk_is_not_moving_time(self):
+        # 600 s of GPS jitter (0.1 m/s), then 60 s at 1.2 m/s; the gap-only rule counted all 660 s.
+        rows = _track([0.1] * 600 + [1.2] * 60)
+
+        activity = _activity(rows, sport="walking", summary=_NO_DEVICE_TIMES)
+
+        assert activity.total_elapsed_time == 660
+        assert activity.total_timer_time == pytest.approx(60.0)
+
+    def test_walking_counts_every_second(self):
+        activity = _activity(_track([1.2] * 600), sport="walking", summary=_NO_DEVICE_TIMES)
+
+        assert activity.total_timer_time == pytest.approx(600.0)
+
+    def test_a_stop_at_a_light_with_samples_running_is_not_moving_time(self):
+        rows = _track([5.0] * 100 + [0.0] * 120 + [5.0] * 100)
+
+        activity = _activity(rows, summary=_NO_DEVICE_TIMES)
+
+        assert activity.total_elapsed_time == 320
+        assert activity.total_timer_time == pytest.approx(200.0)
+
+    def test_a_gap_over_the_pause_threshold_is_not_moving_time(self):
+        rows = _track([5.0] * 60)
+        rows += [{**row, "time": row["time"] + timedelta(seconds=400)} for row in _track([5.0] * 60)[1:]]
+
+        activity = _activity(rows, summary=_NO_DEVICE_TIMES)
+
+        assert activity.total_timer_time == pytest.approx(119.0, abs=1.0)
+
+    def test_the_device_speed_decides_a_step_when_the_file_records_it(self):
+        # Positions say the rider keeps moving; the device speed says the middle minute was a stop.
+        rows = _track([5.0] * 180, speed=[5.0] * 60 + [0.0] * 60 + [5.0] * 61)
+
+        activity = _activity(rows, summary=_NO_DEVICE_TIMES)
+
+        assert activity.total_timer_time == pytest.approx(120.0)
+
+    def test_the_device_timer_still_wins(self):
+        rows = _track([0.1] * 600)
+
+        activity = _activity(rows, summary=recording.DeviceSummary(total_timer_time=555.0))
+
+        assert activity.total_timer_time == 555.0
+
+    def test_a_session_with_neither_positions_nor_speed_keeps_the_gap_only_rule(self):
+        rows = _rows(7, step=10, heart_rate=140)
+        rows += [{**row, "time": row["time"] + timedelta(seconds=600)} for row in _rows(7, step=10, heart_rate=140)]
+
+        activity = _activity(rows, summary=_NO_DEVICE_TIMES)
+
+        assert activity.total_timer_time == pytest.approx(120.0)
+
+    def test_average_speed_is_the_distance_over_the_moving_time(self):
+        rows = _track([5.0] * 100 + [0.0] * 120 + [5.0] * 100)
+
+        activity = _activity(rows, summary=_NO_DEVICE_TIMES)
+
+        assert activity.average_speed == pytest.approx(5.0, rel=0.01)
+        assert activity.pace is not None
+        assert activity.average_speed == pytest.approx(1 / activity.pace)
+
+
+class TestSpeedFromPositions:
+    """A speed derived from positions is the distance over the real time step."""
+
+    def test_a_subsecond_step_gives_its_real_speed(self):
+        rows = _track([5.0] * 20, step=0.2)
+
+        payload = _assemble(rows, summary=_NO_DEVICE_TIMES)
+
+        speeds = [w["vel"] for w in payload["vel_waypoints"][1:]]
+        assert speeds == pytest.approx([5.0] * 20, rel=0.01)
+        assert len(payload["pace_waypoints"]) == 20
+
+    def test_pace_has_a_sample_only_where_the_speed_is_above_zero(self):
+        payload = _assemble(_track([5.0] * 5 + [0.0] * 5), summary=_NO_DEVICE_TIMES)
+
+        assert len(payload["vel_waypoints"]) == 11
+        assert len(payload["pace_waypoints"]) == 5
+
+
+class TestMaxSpeed:
+    """Without a device value the maximum speed is the best 5 s time-window mean."""
+
+    @staticmethod
+    def _spike_ride():
+        speeds = [5.0] * 60
+        speeds[29] = 15.0
+        return speeds
+
+    def test_a_one_second_spike_in_derived_speed_raises_the_maximum_to_seven(self):
+        activity = _activity(_track(self._spike_ride()), summary=_NO_DEVICE_TIMES)
+
+        # (15 + 4 x 5) / 5; the old 5-sample median reported 5.
+        assert activity.max_speed == pytest.approx(7.0, rel=0.01)
+
+    def test_a_one_second_spike_in_device_speed_raises_the_maximum_to_seven(self):
+        device = [5.0, *self._spike_ride()]
+        rows = _track(self._spike_ride(), speed=device)
+
+        activity = _activity(rows, summary=_NO_DEVICE_TIMES)
+
+        assert activity.max_speed == pytest.approx(7.0, rel=0.01)
+
+    def test_at_five_second_sampling_one_sample_fills_the_window(self):
+        rows = _track([5.0, 5.0, 9.0, 5.0, 5.0], step=5.0)
+
+        activity = _activity(rows, summary=_NO_DEVICE_TIMES)
+
+        assert activity.max_speed == pytest.approx(9.0, rel=0.01)
+
+    def test_the_device_maximum_wins(self):
+        activity = _activity(_track(self._spike_ride()), summary=recording.DeviceSummary(max_speed=9.0))
+
+        assert activity.max_speed == 9.0
+
+    def test_a_device_lap_without_a_maximum_takes_the_window_mean_of_its_samples(self):
+        device = [5.0, *self._spike_ride()]
+        lap = recording.Lap(start_time=_START, total_elapsed_time=60.0)
+
+        payload = _assemble(_track(self._spike_ride(), speed=device), summary=_NO_DEVICE_TIMES, laps=(lap,))
+
+        assert payload["laps"][0]["enhanced_max_speed"] == pytest.approx(7.0, rel=0.01)
+
+    def test_a_device_lap_maximum_wins_over_the_samples(self):
+        device = [5.0, *self._spike_ride()]
+        lap = recording.Lap(start_time=_START, total_elapsed_time=60.0, max_speed=8.0)
+
+        payload = _assemble(_track(self._spike_ride(), speed=device), summary=_NO_DEVICE_TIMES, laps=(lap,))
+
+        assert payload["laps"][0]["enhanced_max_speed"] == 8.0
+
+    def test_an_automatic_lap_takes_the_window_mean_of_its_derived_speeds(self):
+        speeds = [5.0] * 400
+        speeds[49] = 15.0
+        one = session(_track(speeds), sport="cycling", summary=_NO_DEVICE_TIMES, start_time=_START)
+
+        (payload,) = assemble_recording(make_recording(one), timezone=_OWNER_TZ, lap_distance_km=0.5)
+
+        assert payload["laps"][0]["enhanced_max_speed"] == pytest.approx(7.0, rel=0.01)
+
+
 class TestLapSwimPace:
     """Active time and pace of a pool swim from its split summaries and lengths."""
 

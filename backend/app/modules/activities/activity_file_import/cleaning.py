@@ -35,6 +35,21 @@ _FOOT_SPORTS = ("run", "walk", "hike")
 _WATER_SPORTS = ("swim", "rowing", "kayaking", "stand_up_paddling", "surf", "windsurf", "sailing")
 
 
+def is_water_sport(sport: str | None) -> bool:
+    """Return whether a session's sport is done on water (swimming, rowing, paddling, sailing and the like).
+
+    Args:
+        sport: The session's sport name, ``None`` when the file names none.
+
+    Returns:
+        True for a sport of the water bucket.
+    """
+    if not sport:
+        return False
+    activity_type = activity_constants.define_activity_type(sport)
+    return any(activity_type in activity_constants.ACTIVITY_TYPES_BY_SPORT[name] for name in _WATER_SPORTS)
+
+
 def _max_speed(sport: str | None) -> float:
     """Return the speed cap of a session's sport.
 
@@ -52,7 +67,7 @@ def _max_speed(sport: str | None) -> float:
         return _FOOT_MAX_SPEED
     if activity_type in by_sport["bike"]:
         return _BIKE_MAX_SPEED
-    if any(activity_type in by_sport[name] for name in _WATER_SPORTS):
+    if is_water_sport(sport):
         return _WATER_MAX_SPEED
     return _OTHER_MAX_SPEED
 

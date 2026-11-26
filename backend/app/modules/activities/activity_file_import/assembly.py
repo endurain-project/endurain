@@ -114,6 +114,7 @@ class _Streams:
         speed: The speed samples, the device's or derived from positions.
         pace: The pace samples, one for each speed above zero.
         measured_speed: The positions in ``speed`` of real measurements; ``None`` when every sample is one.
+        sample_speed: The measured speed at each of the session's samples, ``None`` where a sample has none.
     """
 
     lat_lon: list[activity_streams_contracts.LatLonWaypoint]
@@ -126,6 +127,7 @@ class _Streams:
     speed: list[activity_streams_contracts.VelocityWaypoint]
     pace: list[activity_streams_contracts.PaceWaypoint]
     measured_speed: set[int] | None
+    sample_speed: list[float | None]
 
 
 def _tidy(value: float) -> float:
@@ -191,8 +193,8 @@ def _positions(
 
 def _derived_speed(
     samples: activity_file_import_recording.Samples, stamps: Sequence[str], breaks: frozenset[int]
-) -> tuple[list[activity_streams_contracts.VelocityWaypoint], set[int]]:
-    """Derive speed from consecutive positioned samples.
+) -> tuple[list[activity_streams_contracts.VelocityWaypoint], set[int], list[float | None]]:
+    """Derive speed from consecutive positioned samples, over the real time between them.
 
     The first positioned sample after a break, and a sample whose clock did not advance, get a 0 placeholder; the
     returned positions mark the samples that are real measurements.
@@ -203,10 +205,12 @@ def _derived_speed(
         breaks: The samples that start a run.
 
     Returns:
-        The speed samples and the positions of the measured ones.
+        The speed samples, the positions of the measured ones, and the measured speed at each sample of the session
+        (``None`` for the placeholders and the samples without a position).
     """
     speed: list[activity_streams_contracts.VelocityWaypoint] = []
     measured: set[int] = set()
+    by_sample: list[float | None] = [None] * len(samples.time)
     prev_time: datetime | None = None
     prev_lat: float | None = None
     prev_lon: float | None = None
@@ -215,17 +219,14 @@ def _derived_speed(
             prev_time = prev_lat = prev_lon = None
         if lat is None or lon is None:
             continue
+        vel = activities_computation.calculate_step_speed(prev_time, time, lat, lon, prev_lat, prev_lon)
         if prev_time is not None and time > prev_time:
             measured.add(len(speed))
-        speed.append(
-            {
-                "time": stamps[i],
-                "vel": activities_computation.calculate_instant_speed(prev_time, time, lat, lon, prev_lat, prev_lon),
-            }
-        )
+            by_sample[i] = vel
+        speed.append({"time": stamps[i], "vel": vel})
         if prev_time is None or time > prev_time:
             prev_time, prev_lat, prev_lon = time, lat, lon
-    return speed, measured
+    return speed, measured, by_sample
 
 
 def _build_streams(session: activity_file_import_recording.Session) -> _Streams:
@@ -246,8 +247,18 @@ def _build_streams(session: activity_file_import_recording.Session) -> _Streams:
     if any(value is not None for value in samples.speed):
         speed = [{"time": s, "vel": v} for s, v in zip(stamps, samples.speed, strict=True) if v is not None]
         measured = None
+        by_sample = list(samples.speed)
     else:
-        speed, measured = _derived_speed(samples, stamps, breaks)
+        speed, measured, step_speed = _derived_speed(samples, stamps, breaks)
+        # A sample moves when both its own step and the distance covered over a window around it are fast enough:
+        # GPS jitter at a stop makes each step fast but covers no distance, and a window alone blurs a clean stop.
+        window_speed = activities_computation.displacement_speeds(
+            [time.timestamp() for time in samples.time], samples.lat, samples.lon, breaks
+        )
+        by_sample = [
+            None if step is None or window is None else min(step, window)
+            for step, window in zip(step_speed, window_speed, strict=True)
+        ]
     return _Streams(
         lat_lon=lat_lon,
         segments=segments,
@@ -261,6 +272,7 @@ def _build_streams(session: activity_file_import_recording.Session) -> _Streams:
         speed=speed,
         pace=[{"time": w["time"], "pace": 1 / w["vel"]} for w in speed if w["vel"] > 0],
         measured_speed=measured,
+        sample_speed=by_sample,
     )
 
 
@@ -280,12 +292,16 @@ def _elapsed(session: activity_file_import_recording.Session) -> float:
     return max((session.samples.time[-1] - session.start_time).total_seconds(), 0.0)
 
 
-def _timer_time(session: activity_file_import_recording.Session, elapsed: float) -> float:
+def _timer_time(
+    session: activity_file_import_recording.Session, streams: _Streams, elapsed: float, threshold: float
+) -> float:
     """Return a session's timed seconds: the device's, else the sum of its laps' timers, else the moving time.
 
     Args:
         session: The session.
+        streams: The session's streams.
         elapsed: The session's elapsed seconds.
+        threshold: The pause threshold in seconds.
 
     Returns:
         The timed seconds; the elapsed seconds when nothing else gives a positive time.
@@ -297,21 +313,44 @@ def _timer_time(session: activity_file_import_recording.Session, elapsed: float)
     lap_timers = sum(lap.total_timer_time or 0.0 for lap in session.laps)
     if lap_timers > 0:
         return lap_timers
-    moving = activity_file_import_parser_utils.compute_moving_time_from_times(list(session.samples.time))
+    moving = activities_computation.moving_time(
+        [time.timestamp() for time in session.samples.time],
+        streams.sample_speed,
+        threshold,
+        min_speed=_moving_speed_minimum(session),
+    )
     return moving if moving > 0 else elapsed
 
 
-def _distance(session: activity_file_import_recording.Session, streams: _Streams, timer: float) -> float:
+def _moving_speed_minimum(session: activity_file_import_recording.Session) -> float:
+    """Return the slowest speed that is moving in a session's sport.
+
+    Args:
+        session: The session.
+
+    Returns:
+        The speed in m/s: lower on water, where swimmers and paddlers go slower than on land.
+    """
+    if activity_file_import_cleaning.is_water_sport(session.sport):
+        return activities_computation.MOVING_SPEED_MINIMUM_ON_WATER
+    return activities_computation.MOVING_SPEED_MINIMUM
+
+
+def _distance(
+    session: activity_file_import_recording.Session, streams: _Streams, timer: float, threshold: float
+) -> float:
     """Return a session's distance in metres.
 
     Args:
         session: The session.
         streams: The session's streams.
         timer: The session's timed seconds.
+        threshold: The pause threshold in seconds.
 
     Returns:
         The device's distance, else the last distance sample, else the sum of the laps' distances, else the geodesic
-        length of the position runs, else the average speed times the timer; ``0.0`` when none gives one.
+        length of the moving steps of the position runs, else the average speed times the timer; ``0.0`` when none
+        gives one.
     """
     if session.summary.distance:
         return session.summary.distance
@@ -320,8 +359,15 @@ def _distance(session: activity_file_import_recording.Session, streams: _Streams
         return recorded[-1]
     if lap_distance := sum(lap.total_distance or 0.0 for lap in session.laps):
         return lap_distance
-    walked = sum(
-        activity_file_import_parser_utils.compute_distance_from_waypoints(segment) for segment in streams.segments
+    samples = session.samples
+    walked = activities_computation.moving_distance(
+        [time.timestamp() for time in samples.time],
+        samples.lat,
+        samples.lon,
+        streams.sample_speed,
+        threshold,
+        _breaks(session),
+        min_speed=_moving_speed_minimum(session),
     )
     if walked:
         return walked
@@ -621,7 +667,11 @@ def _elevation(session: activity_file_import_recording.Session, streams: _Stream
 
 
 def _speeds(
-    session: activity_file_import_recording.Session, streams: _Streams, distance: float, pace: float | None
+    session: activity_file_import_recording.Session,
+    streams: _Streams,
+    distance: float,
+    pace: float | None,
+    threshold: float,
 ) -> tuple[float | None, float | None]:
     """Return a session's average and maximum speed in metres per second.
 
@@ -630,10 +680,11 @@ def _speeds(
         streams: The session's streams.
         distance: The session's distance in metres.
         pace: The session's pace in seconds per metre.
+        threshold: The pause threshold in seconds.
 
     Returns:
-        The device's values; otherwise the average is the inverse of the pace and the maximum is the robust maximum of
-        the measured speed samples. Both are ``None`` without a distance.
+        The device's values; otherwise the average is the inverse of the pace and the maximum is the best 5 s window
+        mean of the measured speed samples. Both are ``None`` without a distance.
     """
     if not distance:
         # A device writes an average speed of 0 for a session that covers no distance (strength, HIIT).
@@ -642,8 +693,12 @@ def _speeds(
     if avg is None and pace:
         avg = 1 / pace
     if peak is None:
-        measured = activity_file_import_parser_utils.measured_speed_samples(streams.speed, streams.measured_speed)
-        peak = activities_computation.calculate_robust_max([sample["vel"] for sample in measured]) or None
+        peak = (
+            activity_file_import_parser_utils.max_speed_of_waypoints(
+                streams.speed, streams.measured_speed, threshold=threshold
+            )
+            or None
+        )
     return avg, peak
 
 
@@ -680,7 +735,7 @@ class _LapSamples:
         avg_power: Average power.
         max_power: Maximum power.
         normalized_power: Normalized power.
-        max_speed: Highest device speed.
+        max_speed: Highest 5 s window mean of the device speed.
         start: Latitude and longitude of the first positioned sample.
         end: Latitude and longitude of the last positioned sample.
     """
@@ -715,7 +770,9 @@ def _sampled_lap(window: activity_file_import_recording.Samples, running: bool, 
     avg_power = _sampled_mean(window.time, window.power, threshold)
     max_power = _present_max(window.power)
     normalized_power = _sampled_normalized_power(window.time, window.power, threshold)
-    speeds = [v for v in window.speed if v is not None]
+    max_speed = activities_computation.rolling_max_speed(
+        [time.timestamp() for time in window.time], window.speed, threshold
+    )
     positions = [(lat, lon) for lat, lon in zip(window.lat, window.lon, strict=True) if lat is not None]
     return _LapSamples(
         avg_hr=round(avg_hr) if avg_hr else None,
@@ -725,7 +782,7 @@ def _sampled_lap(window: activity_file_import_recording.Samples, running: bool, 
         avg_power=round(avg_power) if avg_power else None,
         max_power=round(max_power) if max_power else None,
         normalized_power=round(normalized_power) if normalized_power else None,
-        max_speed=max(speeds) if speeds else None,
+        max_speed=max_speed,
         start=positions[0] if positions else (None, None),
         end=positions[-1] if positions else (None, None),
     )
@@ -970,12 +1027,12 @@ def _assemble_session(
     running = activity_constants.is_running_cadence_type(activity_type)
 
     elapsed = _elapsed(session)
-    timer = _timer_time(session, elapsed)
-    distance = _distance(session, streams, timer)
+    threshold = activity_file_import_parser_utils.pause_threshold_seconds(list(session.samples.time))
+    timer = _timer_time(session, streams, elapsed, threshold)
+    distance = _distance(session, streams, timer, threshold)
     active_time = _active_time(session, distance, timer)
     pace = activities_computation.calculate_pace_from_duration(distance, active_time) or None
-    avg_speed, max_speed = _speeds(session, streams, distance, pace)
-    threshold = activity_file_import_parser_utils.pause_threshold_seconds(list(session.samples.time))
+    avg_speed, max_speed = _speeds(session, streams, distance, pace, threshold)
     avg_hr, max_hr = _heart_rate(session, threshold)
     avg_power, max_power, normalized_power = _power(session, threshold)
     avg_cadence, max_cadence = _cadence(session, running, threshold)

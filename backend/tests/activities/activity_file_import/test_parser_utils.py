@@ -119,7 +119,8 @@ class TestGenerateActivityLapsSpeed:
         assert len(laps) >= 2
         # Both samples of a second share its stamp, so they share its time equally.
         assert [lap["enhanced_avg_speed"] for lap in laps] == [pytest.approx(speed / 2, rel=0.1)] * len(laps)
-        assert all(lap["enhanced_max_speed"] == pytest.approx(speed) for lap in laps)
+        # The two samples of a second share it, so the best 5 s window is their mean too.
+        assert all(lap["enhanced_max_speed"] == pytest.approx(speed / 2, rel=0.1) for lap in laps)
 
     def test_every_sample_is_averaged_without_measured_times(self):
         """Sources without placeholder samples keep averaging every sample."""

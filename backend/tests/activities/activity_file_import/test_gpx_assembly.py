@@ -265,6 +265,63 @@ class TestDistanceAndTime:
         assert result["laps"][0]["start_time"] == "2026-03-28T15:19:19"
 
 
+def _clock(seconds: int) -> str:
+    """Return the time of day ``seconds`` after midnight."""
+    return f"{seconds // 3600:02d}:{seconds // 60 % 60:02d}:{seconds % 60:02d}"
+
+
+class TestMovingTime:
+    """Without a device timer the timer counts only the steps made at 0.5 m/s or more."""
+
+    def test_standing_still_with_gps_jitter_before_a_walk_is_not_timed(self, tmp_path):
+        jitter = [(0.000001 * (i % 2), _clock(i), "") for i in range(300)]
+        step = 1.2 / 111_319.49
+        walk = [(step * (i + 1), _clock(300 + i), "") for i in range(60)]
+
+        activity = _gpx(tmp_path, f"<trk><type>Walk</type><trkseg>{_points(jitter + walk)}</trkseg></trk>")["activity"]
+
+        assert activity.total_elapsed_time == 359
+        assert activity.total_timer_time == pytest.approx(60.0, abs=1.0)
+
+    def test_standing_still_with_phone_sized_gps_jitter_is_not_timed(self, tmp_path):
+        # Fixes wandering 2.5 m either way every second: each step looks like 2.5 m/s, the place does not change.
+        wobble = 2.5 / 111_319.49
+        jitter = [(wobble * (i % 2), _clock(i), "") for i in range(300)]
+        step = 1.2 / 111_319.49
+        walk = [(step * (i + 1), _clock(300 + i), "") for i in range(60)]
+
+        activity = _gpx(tmp_path, f"<trk><type>Walk</type><trkseg>{_points(jitter + walk)}</trkseg></trk>")["activity"]
+
+        assert activity.total_timer_time == pytest.approx(60.0, abs=6.0)
+        # Only the walk covers ground: 60 steps of 1.2 m, not the 300 jitter steps of 2.5 m as well.
+        assert activity.distance == pytest.approx(72, abs=4)
+        assert activity.average_speed == pytest.approx(1.2, rel=0.1)
+
+    @pytest.mark.parametrize(("kind", "timed"), [("Swim", 120.0), ("Walk", 0.0)])
+    def test_water_sports_move_from_a_slower_speed(self, tmp_path, kind, timed):
+        # 0.4 m/s: a slow swimmer, but no walker.
+        step = 0.4 / 111_319.49
+        rows = [(step * i, _clock(i), "") for i in range(121)]
+
+        activity = _gpx(tmp_path, f"<trk><type>{kind}</type><trkseg>{_points(rows)}</trkseg></trk>")["activity"]
+
+        # A walk that never moves falls back to its elapsed time, so it is told by its distance instead.
+        if timed:
+            assert activity.total_timer_time == pytest.approx(timed, abs=1.0)
+        assert activity.distance == pytest.approx(0.4 * timed, abs=2)
+
+    def test_a_stop_with_samples_running_is_not_timed(self, tmp_path):
+        step = 5.0 / 111_319.49
+        rows = [(step * min(i, 100), _clock(i), "") for i in range(101)]
+        rows += [(step * 100, _clock(i), "") for i in range(101, 221)]
+        rows += [(step * (100 + i - 220), _clock(i), "") for i in range(221, 321)]
+
+        activity = _gpx(tmp_path, f"<trk><type>Ride</type><trkseg>{_points(rows)}</trkseg></trk>")["activity"]
+
+        assert activity.total_timer_time == pytest.approx(200.0, abs=1.0)
+        assert activity.average_speed == pytest.approx(5.0, rel=0.02)
+
+
 class TestTrackMetadata:
     """The name, type and description a GPX file gives."""
 
@@ -541,7 +598,8 @@ class TestMaxSpeed:
 
         result = _gpx(tmp_path, f"<trk><type>Run</type><trkseg>{points}</trkseg></trk>")
 
-        assert result["activity"].max_speed == pytest.approx(9, abs=1)
+        # Four seconds at ~9 m/s and one at ~3 fill the best 5 s window: (4 x 9 + 3) / 5.
+        assert result["activity"].max_speed == pytest.approx(7.8, abs=0.1)
 
     def test_fewer_than_window_samples_use_plain_max(self, tmp_path):
         result = _gpx(tmp_path, _steady_run(4, {2: 0.00006}))  # one fix ~6.7 m ahead, a ~10 m/s step
@@ -657,8 +715,8 @@ class TestMaxSpeedSegmentPlaceholders:
 
         assert result["activity"].max_speed == pytest.approx(3, abs=0.5)
         # Lap waypoints carry whole-second stamps; the two samples of a second share its time, as the true
-        # half-second alternation does.
-        assert result["laps"][0]["enhanced_avg_speed"] == pytest.approx(1.5, abs=0.3)
+        # half-second alternation does. The rider covers 3 m every second: 0 and 6 m/s over half-seconds.
+        assert result["laps"][0]["enhanced_avg_speed"] == pytest.approx(3, abs=0.5)
         assert result["laps"][0]["enhanced_avg_pace"] is not None
 
 

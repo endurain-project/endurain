@@ -12,19 +12,32 @@ says the activities namespace publishes its metric maths alongside its explicit
 composition and contributor surfaces.
 """
 
+import bisect
 import statistics
-from collections.abc import Mapping, Sequence
+from collections.abc import Collection, Mapping, Sequence
 from datetime import UTC, datetime
 from itertools import pairwise
 from statistics import mean
 from typing import Any
 
 import numpy as np
-from geopy.distance import geodesic
+from geopy.distance import geodesic, great_circle
 
 import modules.activities.activity_streams.contracts as activity_streams_contracts
 
 _NP_WINDOW_SECONDS = 30
+
+#: The slowest speed in m/s at which a step between two samples counts as moving.
+MOVING_SPEED_MINIMUM = 0.5
+
+#: The slowest speed in m/s that is still moving on water, where swimmers and paddlers go slower than on land.
+MOVING_SPEED_MINIMUM_ON_WATER = 0.3
+
+#: The span in seconds of the window whose straight-line distance decides whether a recording is moving.
+MOVING_WINDOW_SECONDS = 10.0
+
+#: The length in seconds of the window whose mean speed is the maximum speed.
+MAX_SPEED_WINDOW_SECONDS = 5.0
 
 
 def _elapsed_seconds(start: datetime, end: datetime) -> float:
@@ -88,6 +101,37 @@ def calculate_instant_speed(
         (latitude, longitude),
     ).meters
     return distance / max(time_difference, 1)
+
+
+def calculate_step_speed(
+    prev_time: datetime | None,
+    waypoint_time: datetime,
+    latitude: float,
+    longitude: float,
+    prev_latitude: float | None,
+    prev_longitude: float | None,
+) -> float:
+    """Compute the m/s speed between two positions over the real time step between them.
+
+    Args:
+        prev_time: Previous position timestamp; ``None`` returns 0.
+        waypoint_time: Current position timestamp.
+        latitude: Current latitude (decimal degrees).
+        longitude: Current longitude (decimal degrees).
+        prev_latitude: Previous latitude (decimal degrees).
+        prev_longitude: Previous longitude (decimal degrees).
+
+    Returns:
+        The distance over the elapsed seconds, sub-second steps included; 0 when the clock does not advance or a
+        previous position is missing.
+    """
+    if prev_time is None or prev_latitude is None or prev_longitude is None:
+        return 0
+    seconds = (waypoint_time - prev_time).total_seconds()
+    if seconds <= 0:
+        return 0
+    distance = geodesic((prev_latitude, prev_longitude), (latitude, longitude)).meters
+    return distance / seconds
 
 
 ELEVATION_MEDIAN_WINDOW = 9
@@ -455,6 +499,173 @@ def normalized_power(times: Sequence[float], values: Sequence[float | None], max
     seconds = np.diff(np.interp(np.arange(whole_seconds + 1, dtype=float), elapsed, energy))
     rolling = np.convolve(seconds, np.ones(_NP_WINDOW_SECONDS) / _NP_WINDOW_SECONDS, mode="valid")
     return float(np.mean(rolling**4) ** 0.25)
+
+
+def displacement_speeds(
+    times: Sequence[float],
+    lats: Sequence[float | None],
+    lons: Sequence[float | None],
+    run_starts: Collection[int],
+) -> list[float | None]:
+    """Return each sample's speed over a centred ``MOVING_WINDOW_SECONDS`` window of its run.
+
+    The speed is the straight-line distance between the first and the last positioned sample of the window over the
+    time between them. GPS jitter around a place where the athlete stands makes every step look fast but covers no
+    distance over the window, so this, not the step speed, tells standing from moving. The window never crosses into
+    another run, so a pause does not stretch it.
+
+    Args:
+        times: Sample times in seconds, in recording order.
+        lats: Latitude of each sample, ``None`` where it has no position.
+        lons: Longitude of each sample, ``None`` where it has no position.
+        run_starts: The sample indexes that start a new run of recording, after a pause or a gap.
+
+    Returns:
+        The speed in m/s of each sample; ``None`` for a sample without a position or whose window covers no time.
+    """
+    speeds: list[float | None] = [None] * len(times)
+    bounds = [0, *sorted(start for start in run_starts if 0 < start < len(times)), len(times)]
+    for first, last in pairwise(bounds):
+        rows = [row for row in range(first, last) if lats[row] is not None and lons[row] is not None]
+        run_times = [times[row] for row in rows]
+        half = MOVING_WINDOW_SECONDS / 2
+        for row, time in zip(rows, run_times, strict=True):
+            start = rows[bisect.bisect_left(run_times, time - half)]
+            end = rows[bisect.bisect_right(run_times, time + half) - 1]
+            span = times[end] - times[start]
+            if span > 0:
+                metres = great_circle((lats[start], lons[start]), (lats[end], lons[end])).meters
+                speeds[row] = metres / span
+    return speeds
+
+
+def moving_distance(
+    times: Sequence[float],
+    lats: Sequence[float | None],
+    lons: Sequence[float | None],
+    speeds: Sequence[float | None],
+    max_gap: float,
+    run_starts: Collection[int],
+    *,
+    min_speed: float = MOVING_SPEED_MINIMUM,
+) -> float:
+    """Return the geodesic distance in metres of the steps :func:`moving_time` counts as moving.
+
+    A step runs between consecutive positioned samples of one run of recording; it counts when it is at most
+    ``max_gap`` long and the speed of the sample that ends it is at least ``min_speed`` (or unknown), so the GPS
+    jitter of an athlete standing still adds no distance, as it adds no moving time.
+
+    Args:
+        times: Sample times in seconds, in recording order.
+        lats: Latitude of each sample, ``None`` where it has no position.
+        lons: Longitude of each sample, ``None`` where it has no position.
+        speeds: The speed in m/s that decides whether the step ending at each sample is moving, ``None`` if unknown.
+        max_gap: The longest step in seconds that is still moving, the pause threshold.
+        run_starts: The sample indexes that start a new run of recording, after a pause or a gap.
+        min_speed: The slowest speed in m/s that is moving.
+
+    Returns:
+        The distance in metres; 0 with fewer than two positioned samples.
+    """
+    total = 0.0
+    previous: int | None = None
+    for row, (lat, lon) in enumerate(zip(lats, lons, strict=True)):
+        if row in run_starts:
+            previous = None
+        if lat is None or lon is None:
+            continue
+        if previous is not None:
+            step = times[row] - times[previous]
+            speed = speeds[row]
+            if 0 < step <= max_gap and (speed is None or speed >= min_speed):
+                total += geodesic((lats[previous], lons[previous]), (lat, lon)).meters
+        previous = row
+    return total
+
+
+def moving_time(
+    times: Sequence[float],
+    speeds: Sequence[float | None],
+    max_gap: float,
+    *,
+    min_speed: float = MOVING_SPEED_MINIMUM,
+) -> float:
+    """Return the seconds spent moving: the steps at ``min_speed`` or more within ``max_gap``.
+
+    A step runs from the latest earlier time to the next later one; its speed is that of the sample that ends it. A
+    step counts when its time is at most ``max_gap`` (a longer one is a pause) and its speed is at least
+    ``min_speed``. A step whose sample has no speed counts by the gap rule alone, so a series with no
+    speeds at all gives the gap-only moving time. Duplicate and out-of-order times add nothing and do not become the
+    baseline.
+
+    Args:
+        times: Sample times in seconds, in recording order; sub-second values are allowed.
+        speeds: The speed in m/s at each time, ``None`` where there is none.
+        max_gap: The longest step in seconds that is still moving, the pause threshold.
+        min_speed: The slowest speed in m/s that is moving.
+
+    Returns:
+        The moving time in seconds; 0 with fewer than two samples.
+    """
+    total = 0.0
+    baseline = None
+    for time, speed in zip(times, speeds, strict=True):
+        if baseline is None:
+            baseline = time
+            continue
+        step = time - baseline
+        if step <= 0:
+            continue
+        if step <= max_gap and (speed is None or speed >= min_speed):
+            total += step
+        baseline = time
+    return total
+
+
+def rolling_max_speed(times: Sequence[float], speeds: Sequence[float | None], max_gap: float) -> float | None:
+    """Return the highest mean speed over a ``MAX_SPEED_WINDOW_SECONDS`` window of time.
+
+    Each measured speed holds over the step that ends at its sample, from the previous instant. Samples sharing an
+    instant share it as their mean. A placeholder (``None``) is not a measurement but still marks where the next step
+    starts, and a step longer than ``max_gap`` is a pause and is left out. The window ends at each step's end and is
+    the time-weighted mean of the steps it covers, so a single spike is averaged with the seconds around it whatever
+    the sampling rate. Only windows covered in full count, so a window never spans a pause; with no full window (under
+    5 s of contiguous speed) the plain maximum of the measured speeds is returned.
+
+    Args:
+        times: Sample times in seconds, in recording order; sub-second values are allowed.
+        speeds: The speed in m/s at each time, ``None`` for a placeholder.
+        max_gap: The longest step in seconds that is a measurement, the pause threshold.
+
+    Returns:
+        The maximum speed in m/s; ``None`` when there is no measured speed.
+    """
+    measured = [speed for speed in speeds if speed is not None]
+    if not measured:
+        return None
+    instants, group = np.unique(np.array(times, dtype=float), return_inverse=True)
+    present = np.array([speed is not None for speed in speeds], dtype=float)
+    sums = np.bincount(group, weights=np.array([0.0 if speed is None else speed for speed in speeds], dtype=float))
+    counts = np.bincount(group, weights=present)
+    gaps = np.diff(instants)
+    kept = (counts[1:] > 0) & (gaps <= max_gap)
+    if not kept.any():
+        return max(measured)
+    starts, ends = instants[:-1][kept], instants[1:][kept]
+    steps = (sums[1:] / np.maximum(counts[1:], 1.0))[kept]
+    edges = np.column_stack((starts, ends)).ravel()
+    lengths = ends - starts
+    length_total = np.concatenate(([0.0], np.cumsum(lengths)))[1:]
+    value_total = np.cumsum(lengths * steps)
+    covered = np.column_stack((length_total - lengths, length_total)).ravel()
+    integral = np.column_stack((value_total - lengths * steps, value_total)).ravel()
+    window_starts = ends - MAX_SPEED_WINDOW_SECONDS
+    held = np.interp(ends, edges, covered) - np.interp(window_starts, edges, covered, left=0.0)
+    area = np.interp(ends, edges, integral) - np.interp(window_starts, edges, integral, left=0.0)
+    full = held >= MAX_SPEED_WINDOW_SECONDS - 1e-3
+    if not full.any():
+        return max(measured)
+    return float(np.max(area[full] / held[full]))
 
 
 def calculate_robust_max(values: list[float], window: int = 5) -> float:

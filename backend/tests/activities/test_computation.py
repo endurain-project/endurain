@@ -652,3 +652,209 @@ class TestElevationFromNoisyStreams:
 
         assert gain == pytest.approx(20.0, abs=3.0)
         assert loss == 0.0
+
+
+class TestCalculateStepSpeed:
+    """Speed between two positions is the distance over the real time step."""
+
+    _START = datetime(2024, 1, 15, 8, 0, 0)
+
+    def _speed(self, seconds: float, lon: float = 0.000009) -> float:
+        return activities_computation.calculate_step_speed(
+            self._START, self._START + timedelta(seconds=seconds), 0.0, lon, 0.0, 0.0
+        )
+
+    def test_a_subsecond_step_is_not_clamped_to_one_second(self):
+        metres = geodesic((0.0, 0.0), (0.0, 0.000009)).meters
+
+        # 1 m in 0.2 s is 5 m/s; clamped to 1 s it would be 1 m/s.
+        assert self._speed(0.2) == pytest.approx(metres / 0.2)
+        assert self._speed(0.2) == pytest.approx(5.0, rel=0.02)
+
+    def test_a_whole_second_step_is_distance_over_seconds(self):
+        metres = geodesic((0.0, 0.0), (0.0, 0.000045)).meters
+
+        assert self._speed(2.0, lon=0.000045) == pytest.approx(metres / 2.0)
+
+    def test_a_step_whose_clock_does_not_advance_has_no_speed(self):
+        assert self._speed(0.0) == 0
+        assert self._speed(-3.0) == 0
+
+    def test_a_missing_previous_position_has_no_speed(self):
+        assert activities_computation.calculate_step_speed(None, self._START, 0.0, 0.1, None, None) == 0
+
+
+class TestDisplacementSpeeds:
+    """The speed over a centred 10 s window, from the straight-line distance it covers."""
+
+    @staticmethod
+    def _speeds(times, lons, run_starts=frozenset()):
+        return activities_computation.displacement_speeds(
+            [float(t) for t in times], [0.0 if lon is not None else None for lon in lons], lons, run_starts
+        )
+
+    def test_jitter_around_one_place_is_slow_though_every_step_is_fast(self):
+        wobble = 2.5 / 111_319.49
+        speeds = self._speeds(range(60), [1.0 + wobble * (i % 2) for i in range(60)])
+
+        assert max(speed for speed in speeds if speed is not None) < 0.5
+
+    def test_steady_walking_keeps_its_speed(self):
+        step = 1.2 / 111_319.49
+        speeds = self._speeds(range(60), [1.0 + step * i for i in range(60)])
+
+        assert speeds[30] == pytest.approx(1.2, rel=0.01)
+
+    def test_a_sample_without_a_position_has_no_speed(self):
+        speeds = self._speeds(range(3), [1.0, None, 1.00001])
+
+        assert speeds[1] is None
+
+    def test_the_window_stays_inside_its_run(self):
+        step = 3.0 / 111_319.49
+        # A run that ends standing, then a new run 100 m away: the window of the run's last sample ignores the jump.
+        lons = [1.0 + step * i for i in range(10)] + [1.0 + step * 9] * 5 + [1.001 + step * i for i in range(10)]
+        speeds = self._speeds(range(25), lons, frozenset({15}))
+
+        assert speeds[14] < 3.0
+        assert speeds[15] == pytest.approx(3.0, rel=0.05)
+
+
+class TestMovingTime:
+    """Moving time counts the steps at 0.5 m/s or more, within the pause threshold."""
+
+    @staticmethod
+    def _moving(times, speeds, max_gap=15.0) -> float:
+        return activities_computation.moving_time([float(t) for t in times], speeds, max_gap)
+
+    def test_standing_still_with_gps_jitter_is_not_moving(self):
+        speeds = [0.3 if i % 2 else 0.1 for i in range(601)]
+
+        # The old gap-only rule counted 600 s.
+        assert self._moving(range(601), speeds) == 0.0
+
+    def test_walking_counts_every_step(self):
+        assert self._moving(range(601), [1.2] * 601) == pytest.approx(600.0)
+
+    def test_a_stop_at_a_light_is_not_moving(self):
+        speeds = [5.0] * 300 + [0.0] * 120 + [5.0] * 181
+
+        assert self._moving(range(601), speeds) == pytest.approx(480.0)
+
+    def test_a_step_across_a_gap_over_the_threshold_is_not_moving(self):
+        times = [0, 1, 2, 202, 203, 204]
+
+        assert self._moving(times, [3.0] * 6) == pytest.approx(4.0)
+
+    def test_a_step_exactly_at_the_threshold_is_moving(self):
+        assert self._moving([0, 15, 30], [3.0] * 3) == pytest.approx(30.0)
+
+    def test_a_speed_of_exactly_half_a_metre_per_second_is_moving(self):
+        assert self._moving([0, 1, 2], [0.5, 0.5, 0.5]) == pytest.approx(2.0)
+
+    def test_the_speed_of_the_sample_ending_a_step_decides_it(self):
+        assert self._moving([0, 10, 20], [None, 0.0, 2.0]) == pytest.approx(10.0)
+
+    def test_steps_without_a_speed_count_by_the_gap_rule_alone(self):
+        times = [0, 10, 20, 400, 410]
+
+        assert self._moving(times, [None] * 5) == pytest.approx(30.0)
+
+    def test_a_step_with_no_speed_among_known_ones_counts_by_the_gap_rule(self):
+        assert self._moving([0, 5, 10, 15], [1.0, None, 0.0, 2.0]) == pytest.approx(10.0)
+
+    def test_duplicate_and_out_of_order_times_add_nothing(self):
+        assert self._moving([0, 10, 10, 5, 15], [1.0, 2.0, 2.0, 2.0, 2.0]) == pytest.approx(15.0)
+
+    def test_fewer_than_two_samples_have_no_moving_time(self):
+        assert self._moving([], []) == 0.0
+        assert self._moving([5], [3.0]) == 0.0
+
+    def test_subsecond_steps_sum_to_their_real_duration(self):
+        times = [0.0, 0.2, 0.4, 0.6]
+
+        assert activities_computation.moving_time(times, [2.0] * 4, 15.0) == pytest.approx(0.6)
+
+
+class TestRollingMaxSpeed:
+    """Max speed is the best 5 s time-window mean of the measured speeds."""
+
+    @staticmethod
+    def _peak(times, speeds, max_gap=15.0):
+        return activities_computation.rolling_max_speed([float(t) for t in times], speeds, max_gap)
+
+    def test_a_one_second_spike_is_averaged_over_five_seconds(self):
+        speeds = [5.0] * 61
+        speeds[30] = 15.0
+
+        # The window holds the spike and four ordinary seconds: (15 + 4 x 5) / 5.
+        assert self._peak(range(61), speeds) == pytest.approx(7.0)
+
+    def test_the_old_five_sample_median_would_have_hidden_the_spike_entirely(self):
+        speeds = [5.0] * 61
+        speeds[30] = 15.0
+
+        assert activities_computation.calculate_robust_max(speeds) == 5.0
+        assert self._peak(range(61), speeds) > 6.9
+
+    def test_the_window_is_over_time_not_samples_at_five_second_sampling(self):
+        speeds = [5.0, 5.0, 9.0, 5.0, 5.0]
+
+        # One sample spans the whole 5 s window, so it is the window's mean.
+        assert self._peak([0, 5, 10, 15, 20], speeds) == pytest.approx(9.0)
+
+    def test_a_faster_recording_averages_more_samples(self):
+        times = [i * 0.5 for i in range(121)]
+        speeds = [5.0] * 121
+        speeds[60] = 15.0
+
+        # Half a second of 15 and 4.5 s of 5.
+        assert self._peak(times, speeds) == pytest.approx((15 * 0.5 + 5 * 4.5) / 5)
+
+    def test_a_sustained_burst_is_reported_in_full(self):
+        speeds = [3.0] * 20 + [9.0] * 5 + [3.0] * 20
+
+        assert self._peak(range(45), speeds) == pytest.approx(9.0)
+
+    def test_a_placeholder_is_not_a_measurement(self):
+        speeds: list[float | None] = [None] + [4.0] * 10
+
+        assert self._peak(range(11), speeds) == pytest.approx(4.0)
+
+    def test_a_placeholder_zero_does_not_pull_a_window_down(self):
+        speeds: list[float | None] = [None, 6.0, 6.0, 6.0, 6.0, 6.0, 6.0]
+
+        assert self._peak(range(7), speeds) == pytest.approx(6.0)
+
+    def test_a_step_across_a_gap_over_the_threshold_is_not_a_measurement(self):
+        times = [*range(10), 200]
+        speeds: list[float | None] = [4.0] * 10 + [40.0]
+
+        assert self._peak(times, speeds) == pytest.approx(4.0)
+
+    def test_a_window_does_not_span_a_gap(self):
+        times = list(range(4)) + list(range(100, 104))
+        speeds: list[float | None] = [8.0] * 4 + [None] + [2.0] * 3
+
+        # Neither run holds 5 s: the plain maximum of the measured speeds.
+        assert self._peak(times, speeds) == pytest.approx(8.0)
+
+    def test_without_five_seconds_of_speed_the_plain_maximum_is_returned(self):
+        assert self._peak([0, 1, 2, 3], [None, 4.0, 10.0, 3.0]) == pytest.approx(10.0)
+
+    def test_samples_sharing_an_instant_share_it_as_their_mean(self):
+        # A pair 0 and 6 m/s in every second is 3 m/s over time, not 6.
+        times = [t for t in range(11) for _ in range(2)]
+        speeds = [v for _ in range(11) for v in (0.0, 6.0)]
+
+        assert self._peak(times, speeds) == pytest.approx(3.0)
+
+    def test_a_placeholder_sharing_an_instant_with_a_measurement_is_left_out(self):
+        times = [t for t in range(11) for _ in range(2)]
+        speeds = [v for _ in range(11) for v in (4.0, None)]
+
+        assert self._peak(times, speeds) == pytest.approx(4.0)
+
+    def test_no_measured_speed_gives_none(self):
+        assert self._peak([0, 1, 2], [None, None, None]) is None
+        assert self._peak([], []) is None

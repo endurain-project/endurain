@@ -258,6 +258,36 @@ def measured_speed_samples(
     return [vel_waypoints[i] for i in candidates if i in measured_vel_indices]
 
 
+def max_speed_of_waypoints(
+    vel_waypoints: Sequence[Mapping[str, Any]],
+    measured_vel_indices: set[int] | None,
+    indices: Iterable[int] | None = None,
+    *,
+    threshold: float,
+) -> float | None:
+    """Return the highest 5 s window mean of the measured speed samples.
+
+    Args:
+        vel_waypoints: Full velocity stream.
+        measured_vel_indices: Positions in ``vel_waypoints`` of the measured samples; ``None`` treats every sample as
+            measured. The others stay in the series as placeholders, so a measured sample after one is a real step.
+        indices: Positions to consider; ``None`` considers the whole stream.
+        threshold: The stream's pause threshold in seconds.
+
+    Returns:
+        The maximum speed in m/s; ``None`` when there is no measured sample.
+    """
+    import modules.activities.computation as activities_computation
+
+    positions = list(range(len(vel_waypoints)) if indices is None else indices)
+    times = [_parse_utc(vel_waypoints[i]["time"]).timestamp() for i in positions]
+    speeds = [
+        float(vel_waypoints[i]["vel"]) if measured_vel_indices is None or i in measured_vel_indices else None
+        for i in positions
+    ]
+    return activities_computation.rolling_max_speed(times, speeds, threshold)
+
+
 def _lap_mean(
     waypoints: Sequence[Mapping[str, Any]], key: str, threshold: float, *, skip_zeros: bool = False
 ) -> float | None:
@@ -362,7 +392,9 @@ def _compute_lap_metrics(
     measured_vel = measured_speed_samples(vel.waypoints, measured_vel_indices, lap_vel_indices)
     if measured_vel:
         avg_speed = _lap_mean(measured_vel, "vel", vel.pause_threshold)
-        max_speed = activities_computation.calculate_robust_max([waypoint["vel"] for waypoint in measured_vel])
+        max_speed = max_speed_of_waypoints(
+            vel.waypoints, measured_vel_indices, lap_vel_indices, threshold=vel.pause_threshold
+        )
 
     avg_power, max_power, norm_power = None, None, None
     if lap_power:

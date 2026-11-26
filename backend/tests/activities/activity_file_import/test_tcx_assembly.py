@@ -266,6 +266,26 @@ class TestDistanceAndTimer:
         assert activity.average_speed is None
         assert activity.max_speed is None
 
+    def test_a_stop_at_a_light_with_trackpoints_running_is_not_moving_time(self, tmp_path: Path) -> None:
+        degrees = 5.0 / 111_195.0  # 5 m/s along a meridian
+        lats = [40.0 + degrees * min(i, 100) for i in range(101)]
+        lats += [lats[-1]] * 120 + [lats[-1] + degrees * (i + 1) for i in range(100)]
+        points = "".join(_tp(i, lat=lat, lon=-3.0) for i, lat in enumerate(lats))
+
+        activity = _one(tmp_path, points, seconds=None)["activity"]
+
+        assert activity.total_elapsed_time == 320
+        assert activity.total_timer_time == pytest.approx(200.0, abs=1.0)
+
+    def test_a_one_second_spike_in_device_speed_raises_the_maximum_to_the_window_mean(self, tmp_path: Path) -> None:
+        speeds = [5.0] * 61
+        speeds[30] = 15.0
+        points = "".join(_tp(i, speed=speed) for i, speed in enumerate(speeds))
+
+        activity = _one(tmp_path, points, distance=300, sport="Biking")["activity"]
+
+        assert activity.max_speed == pytest.approx(7.0)
+
     def test_max_speed_is_the_robust_maximum_of_the_derived_speed(self, tmp_path: Path) -> None:
         points = "".join(_tp(10 * i, lat=40.0 + 0.0001 * i, lon=-3.0) for i in range(31))
 
