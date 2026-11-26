@@ -93,6 +93,11 @@ def calculate_instant_speed(
 ELEVATION_MEDIAN_WINDOW = 9
 ELEVATION_AVG_WINDOW = 21
 ELEVATION_THRESHOLD = 0.1
+ELEVATION_SMOOTHING_SECONDS = 10.0
+
+#: The fewest sample gaps the elevation smoothing window spans: ten, as 10 s does at 1 Hz.
+ELEVATION_SMOOTHING_SAMPLES = 10
+ELEVATION_HYSTERESIS = 3.0
 
 
 def _median_filter(values: list[float], window_size: int) -> list[float]:
@@ -233,6 +238,65 @@ def compute_elevation_gain_and_loss(
 
     filtered = _smooth_elevations(values, median_window, avg_window)
     return sum_elevation_deltas([{"ele": ele} for ele in filtered], threshold)
+
+
+def smooth_elevation(times: Sequence[float], values: Sequence[float]) -> list[float]:
+    """Smooth an elevation series with a centred time-window mean.
+
+    Each sample becomes the mean of every sample within half the window either side of it, ends included. The window
+    is ``ELEVATION_SMOOTHING_SECONDS``, widened to ``ELEVATION_SMOOTHING_SAMPLES`` times the median gap between samples
+    when the recording is sparser, so a 5 s or 10 s recording averages as many samples as a 1 Hz one and its noise is
+    smoothed alike instead of passing the hysteresis as climbs. The samples may come in any order; the result is in
+    the order given. Every value must be a number.
+
+    Args:
+        times: Sample times in seconds.
+        values: The altitude in metres at each time.
+
+    Returns:
+        The smoothed altitudes, one per sample; empty for no samples.
+    """
+    if not len(times):
+        return []
+    order = np.argsort(np.asarray(times, dtype=float), kind="stable")
+    instants = np.asarray(times, dtype=float)[order]
+    cumulative = np.concatenate(([0.0], np.cumsum(np.asarray(values, dtype=float)[order])))
+    gaps = np.diff(instants)
+    sampling = float(np.median(gaps)) if len(gaps) else 0.0
+    half = max(ELEVATION_SMOOTHING_SECONDS, ELEVATION_SMOOTHING_SAMPLES * sampling) / 2
+    first = np.searchsorted(instants, instants - half, side="left")
+    last = np.searchsorted(instants, instants + half, side="right")
+    smoothed = np.empty(len(instants))
+    smoothed[order] = (cumulative[last] - cumulative[first]) / (last - first)
+    return smoothed.tolist()
+
+
+def elevation_steps(values: Sequence[float]) -> tuple[list[float], list[float]]:
+    """Count the climbing and descending of a smoothed elevation series with a hysteresis.
+
+    A reference level starts at the first value. A value at least ``ELEVATION_HYSTERESIS`` metres above it counts the
+    rise as gain, and one at least that far below counts the drop as loss; either moves the reference to that value.
+    The gain and loss are returned at the sample that confirms them, so the total of any run of samples is the sum
+    of its entries and runs that follow one another add up to the whole series.
+
+    Args:
+        values: The smoothed altitudes in metres, in recording order.
+
+    Returns:
+        The gain and the loss counted at each sample, in metres; both empty for no samples.
+    """
+    gains = [0.0] * len(values)
+    losses = [0.0] * len(values)
+    reference = values[0] if len(values) else 0.0
+    for i, value in enumerate(values):
+        change = value - reference
+        if change >= ELEVATION_HYSTERESIS:
+            gains[i] = change
+            reference = value
+        elif change <= -ELEVATION_HYSTERESIS:
+            losses[i] = -change
+            reference = value
+    return gains, losses
 
 
 def calculate_pace(

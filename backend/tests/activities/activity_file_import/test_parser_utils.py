@@ -1,11 +1,11 @@
 """Tests for shared activity file import utilities."""
 
+import itertools
 from datetime import UTC, datetime, timedelta
 
 import pytest
 
 import modules.activities.activity_file_import.parser_utils as afi_utils
-import modules.activities.computation as activities_computation
 
 
 def _straight_track(num_points: int, ele_fn) -> tuple[list[dict], list[dict]]:
@@ -42,18 +42,29 @@ class TestGenerateActivityLapsElevation:
         assert all(lap["total_descent"] == 0 for lap in laps)
 
     def test_lap_ascent_sums_match_activity_total(self):
-        """Lap gains partition the activity-level smoothed gain (no boundary clipping)."""
+        """Lap gains are the sums of the activity's own per-sample counts, so they partition its gain."""
         lat_lon, ele = _straight_track(
             40,
             lambda i: 100 + i * 1.0 + (2.0 if i % 2 else -2.0),
         )
         laps = afi_utils.generate_activity_laps(lat_lon, ele, [], [], [], [])
-        activity_gain, activity_loss = activities_computation.compute_elevation_gain_and_loss(ele)
+        steps = afi_utils.elevation_step_waypoints(ele)
+        activity_gain = sum(wp["gain"] for wp in steps)
+        activity_loss = sum(wp["loss"] for wp in steps)
         lap_gain_sum = sum(lap["total_ascent"] or 0 for lap in laps)
         lap_loss_sum = sum(lap["total_descent"] or 0 for lap in laps)
+        assert len(laps) >= 2
+        assert activity_gain > 0
         # Per-lap values are rounded ints; allow only rounding error.
         assert abs(lap_gain_sum - activity_gain) <= 0.5 * len(laps)
         assert abs(lap_loss_sum - activity_loss) <= 0.5 * len(laps)
+
+    def test_a_lap_holds_the_gain_counted_at_its_own_samples(self):
+        """A climb inside the second lap is in that lap only."""
+        lat_lon, ele = _straight_track(25, lambda i: 100.0 if i < 12 else 100.0 + 5 * (i - 12))
+        first, second = afi_utils.generate_activity_laps(lat_lon, ele, [], [], [], [])[:2]
+        assert first["total_ascent"] == 0
+        assert second["total_ascent"] > 0
 
     def test_no_elevation_stream_keeps_none(self):
         """Without elevation data laps keep total_ascent/total_descent as None."""
@@ -277,8 +288,65 @@ class TestLapStreamWindows:
             for end in times:
                 assert afi_utils._TimedStream(waypoints).between(start, end) == _scan_between(waypoints, start, end)
 
-    def test_lap_elevation_includes_the_sample_before_a_boundary_between_samples(self):
-        waypoints = [{"time": t, "ele": 1.0} for t in self._times([0, 10, 20, 30])]
-        start, end = self._times([15, 30])
+    def test_a_sample_on_a_lap_boundary_belongs_to_the_earlier_lap_only(self):
+        steps = [{"time": t, "ele": 1.0, "gain": 1.0, "loss": 0.5} for t in self._times([0, 10, 20, 30])]
+        start, middle, end = self._times([0, 20, 30])
 
-        assert afi_utils.slice_lap_elevation(waypoints, start, end) == waypoints[1:]
+        assert afi_utils.sum_lap_elevation(steps, start, middle) == (2.0, 1.0)
+        assert afi_utils.sum_lap_elevation(steps, middle, end) == (1.0, 0.5)
+
+    def test_laps_that_follow_one_another_add_up_to_the_stream(self):
+        seconds = [0, 3, 7, 10, 12, 20, 21, 30]
+        steps = [{"time": t, "ele": 1.0, "gain": float(i), "loss": i / 2} for i, t in enumerate(self._times(seconds))]
+        cuts = self._times([0, 5, 10, 15, 30])
+
+        parts = [afi_utils.sum_lap_elevation(steps, a, b) for a, b in itertools.pairwise(cuts)]
+
+        assert sum(part[0] for part in parts if part) == sum(wp["gain"] for wp in steps)
+
+    def test_a_lap_without_samples_has_no_sum(self):
+        steps = [{"time": t, "ele": 1.0, "gain": 1.0, "loss": 0.0} for t in self._times([0, 30])]
+        start, end = self._times([10, 20])
+
+        assert afi_utils.sum_lap_elevation(steps, start, end) is None
+
+    def test_unordered_samples_are_summed_by_their_time(self):
+        steps = [{"time": t, "ele": 1.0, "gain": 1.0, "loss": 0.0} for t in self._times([20, 0, 10, 30])]
+        start, end = self._times([0, 20])
+
+        assert afi_utils.sum_lap_elevation(steps, start, end) == (2.0, 0.0)
+
+
+class TestElevationWaypoints:
+    """The stored elevation stream and the per-sample counts behind the gain."""
+
+    @staticmethod
+    def _stream(seconds: list[int], values: list[float]) -> list[dict]:
+        start = datetime(2025, 1, 1, tzinfo=UTC)
+        return [
+            {"time": (start + timedelta(seconds=s)).strftime("%Y-%m-%dT%H:%M:%S"), "ele": v}
+            for s, v in zip(seconds, values, strict=True)
+        ]
+
+    def test_smoothing_averages_by_time_and_keeps_the_other_keys(self):
+        stream = self._stream(list(range(21)), [0.0 if s < 10 else 11.0 for s in range(21)])
+
+        smoothed = afi_utils.smooth_elevation_waypoints(stream)
+
+        assert [wp["time"] for wp in smoothed] == [wp["time"] for wp in stream]
+        # At 1 Hz, 5 s to 15 s: five samples of 0 and six of 11.
+        assert smoothed[10]["ele"] == pytest.approx(6.0)
+
+    def test_no_samples_give_no_stream(self):
+        assert afi_utils.smooth_elevation_waypoints([]) == []
+        assert afi_utils.elevation_step_waypoints([]) == []
+
+    def test_steps_carry_the_smoothed_elevation_and_the_counts_at_each_sample(self):
+        stream = self._stream(list(range(0, 400, 20)), [100.0] * 10 + [110.0] * 10)
+
+        steps = afi_utils.elevation_step_waypoints(stream)
+
+        assert [wp["ele"] for wp in steps] == [wp["ele"] for wp in afi_utils.smooth_elevation_waypoints(stream)]
+        # The smoothed 10 m step counts to within the 3 m hysteresis of its height.
+        assert sum(wp["gain"] for wp in steps) == pytest.approx(10.0, abs=3.0)
+        assert sum(wp["loss"] for wp in steps) == 0.0

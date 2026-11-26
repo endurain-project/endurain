@@ -606,16 +606,17 @@ def _elevation(session: activity_file_import_recording.Session, streams: _Stream
         streams: The session's streams.
 
     Returns:
-        The device's values, with a missing one computed from the smoothed altitude samples.
+        The device's values, with a missing one computed from the altitude samples: smoothed over time, then counted
+        with a hysteresis.
     """
     gain, loss = session.summary.total_ascent, session.summary.total_descent
     if (gain is None or loss is None) and streams.elevation:
-        computed_gain, computed_loss = activities_computation.compute_elevation_gain_and_loss(streams.elevation)
+        steps = activity_file_import_parser_utils.elevation_step_waypoints(streams.elevation)
         # A computed 0 m on a flat ride is a real value, not missing data.
-        if gain is None and computed_gain is not None:
-            gain = round(computed_gain)
-        if loss is None and computed_loss is not None:
-            loss = round(computed_loss)
+        if gain is None:
+            gain = round(sum(step["gain"] for step in steps))
+        if loss is None:
+            loss = round(sum(step["loss"] for step in steps))
     return gain, loss
 
 
@@ -839,8 +840,9 @@ def _device_lap(
 def _fill_lap_elevation(laps: list[dict[str, object]], elevation: Sequence[Mapping[str, object]]) -> None:
     """Fill the ascent and descent a device left out of its laps.
 
-    Some exporters omit them from lap messages. They are summed from the once-smoothed altitude stream, so the laps
-    partition the activity's own gain and loss; a value the device reported, even a genuine 0, is never replaced.
+    Some exporters omit them from lap messages. They are summed from the per-sample gain and loss of the whole
+    altitude stream, so the laps partition the activity's own gain and loss; a value the device reported, even a
+    genuine 0, is never replaced.
 
     Args:
         laps: The lap rows; updated in place.
@@ -849,20 +851,20 @@ def _fill_lap_elevation(laps: list[dict[str, object]], elevation: Sequence[Mappi
     missing = [lap for lap in laps if lap["total_ascent"] is None or lap["total_descent"] is None]
     if not missing or not elevation:
         return
-    smoothed = activities_computation.smooth_elevation_stream(elevation)
+    steps = activity_file_import_parser_utils.elevation_step_waypoints(elevation)
     for lap in missing:
         start = lap["start_time"]
         elapsed = lap["total_elapsed_time"]
         if not isinstance(start, datetime) or not isinstance(elapsed, int | float):
             continue
-        sliced = activity_file_import_parser_utils.slice_lap_elevation(
-            smoothed,
+        summed = activity_file_import_parser_utils.sum_lap_elevation(
+            steps,
             core_timezone.format_utc(start),
             core_timezone.format_utc(start + timedelta(seconds=elapsed)),
         )
-        if not sliced:
+        if summed is None:
             continue
-        gain, loss = activities_computation.sum_elevation_deltas(sliced)
+        gain, loss = summed
         if lap["total_ascent"] is None:
             lap["total_ascent"] = round(gain)
         if lap["total_descent"] is None:
@@ -897,7 +899,7 @@ def _laps(
         ]
         _fill_lap_elevation(rows, streams.elevation)
         return list(rows)
-    smoothed = activities_computation.smooth_elevation_stream(streams.elevation)
+    steps = activity_file_import_parser_utils.elevation_step_waypoints(streams.elevation)
     generated: list[Mapping[str, object]] = []
     for segment in streams.segments:
         generated.extend(
@@ -910,7 +912,7 @@ def _laps(
                 streams.speed,
                 distance_per_lap_km=lap_distance_km,
                 measured_vel_indices=streams.measured_speed,
-                smoothed_ele_waypoints=smoothed,
+                ele_step_waypoints=steps,
             )
         )
     return generated

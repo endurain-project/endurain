@@ -13,7 +13,7 @@
         "created_at": null,
         "description": null,
         "distance": 357,
-        "elevation_gain": 0,
+        "elevation_gain": 3,
         "elevation_loss": 0,
         "end_time": "2026-06-20T08:01:59Z",
         "garminconnect_activity_id": null,
@@ -85,7 +85,7 @@
           "start_position_long": -9.1,
           "start_time": "2026-06-20T08:00:00+00:00",
           "sub_sport": null,
-          "total_ascent": 0,
+          "total_ascent": 3,
           "total_calories": 60,
           "total_cycles": null,
           "total_descent": 0,
@@ -141,20 +141,20 @@
           "count": 120,
           "fields": {
             "ele": {
-              "max": 35.677273,
+              "max": 35.825,
               "mean": 32.975,
-              "min": 30.272727
+              "min": 30.125
             }
           },
           "first": {
-            "ele": 30.272727,
+            "ele": 30.125,
             "time": "2026-06-20T08:00:00"
           },
           "last": {
-            "ele": 35.677273,
+            "ele": 35.825,
             "time": "2026-06-20T08:01:59"
           },
-          "sha256": "cefe2f2a6e6a01a3fe8ecc65dfaf02c95be242a7e7da368c96a686235ef0a54c",
+          "sha256": "15f146928554d4caa959c2837620db38f8628eb4e2114a4b38f67972e9077037",
           "stream_type": 4
         },
         {

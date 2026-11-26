@@ -150,48 +150,90 @@ class _TimedStream:
         indices = self.indices_between(_parse_utc(start_time), _parse_utc(end_time))
         return [self.waypoints[i] for i in indices]
 
-    def lap_elevation(self, start_time: str, end_time: str) -> Sequence[Mapping[str, Any]]:
-        """Return a lap's slice of this once-smoothed elevation stream (see ``slice_lap_elevation``).
+    def sum_between(self, start_time: str, end_time: str, keys: Sequence[str]) -> tuple[float, ...] | None:
+        """Sum the named values of the waypoints whose time falls in (start_time, end_time].
+
+        The lower bound is exclusive, so a sample on the boundary between two laps belongs to the earlier lap only and
+        laps that follow one another partition the stream.
 
         Args:
-            start_time: ISO 8601 lap start (inclusive).
-            end_time: ISO 8601 lap end (inclusive).
+            start_time: ISO 8601 exclusive lower bound.
+            end_time: ISO 8601 inclusive upper bound.
+            keys: The waypoint keys to sum.
 
         Returns:
-            The lap's elevation samples; empty when none fall within the lap.
+            One sum per key; ``None`` when no sample falls in the window.
         """
-        start_dt = _parse_utc(start_time)
-        indices = self.indices_between(start_dt, _parse_utc(end_time))
-        if not indices:
-            return []
-        first = indices[0]
-        if first > 0 and self._times[first] > start_dt:
-            first -= 1
-        return self.waypoints[first : indices[-1] + 1]
+        start_dt, end_dt = _parse_utc(start_time), _parse_utc(end_time)
+        if self._ordered:
+            indices: Iterable[int] = range(
+                bisect.bisect_right(self._times, start_dt), bisect.bisect_right(self._times, end_dt)
+            )
+        else:
+            indices = [i for i, time in enumerate(self._times) if start_dt < time <= end_dt]
+        picked = [self.waypoints[i] for i in indices]
+        if not picked:
+            return None
+        return tuple(sum(waypoint[key] for waypoint in picked) for key in keys)
 
 
-def slice_lap_elevation(
-    smoothed_ele_waypoints: Sequence[Mapping[str, Any]],
-    start_time: str,
-    end_time: str,
-) -> Sequence[Mapping[str, Any]]:
-    """Return a lap's slice of the once-smoothed elevation stream.
-
-    The slice is ``[start_time, end_time]`` plus the sample just before it when
-    the lap's first sample is later than ``start_time``. Laps whose boundary
-    falls between two samples then count the step across it once, in the later
-    lap, and consecutive lap sums add up to the activity total. A sample exactly
-    at ``start_time`` already ends the previous lap and is not extended.
+def smooth_elevation_waypoints(ele_waypoints: Sequence[Mapping[str, Any]]) -> list[dict[str, Any]]:
+    """Return an elevation stream with ``ele`` smoothed over time and the other keys unchanged.
 
     Args:
-        smoothed_ele_waypoints: Time-ordered smoothed elevation stream.
-        start_time: ISO 8601 lap start (inclusive).
+        ele_waypoints: Waypoints with an ISO 8601 ``time`` and a numeric ``ele`` in metres.
+
+    Returns:
+        New waypoints with the smoothed ``ele``; empty for an empty stream.
+    """
+    # The metric helpers live in this package's dependency-free computation module.
+    import modules.activities.computation as activities_computation
+
+    times = [_parse_utc(waypoint["time"]).timestamp() for waypoint in ele_waypoints]
+    smoothed = activities_computation.smooth_elevation(times, [waypoint["ele"] for waypoint in ele_waypoints])
+    return [{**waypoint, "ele": ele} for waypoint, ele in zip(ele_waypoints, smoothed, strict=True)]
+
+
+def elevation_step_waypoints(ele_waypoints: Sequence[Mapping[str, Any]]) -> list[dict[str, Any]]:
+    """Return the smoothed elevation stream with the gain and loss counted at each sample.
+
+    The hysteresis runs once over the whole activity, so any lap's gain is the sum of its samples' ``gain`` and the
+    laps add up to the activity's gain (see ``sum_lap_elevation``).
+
+    Args:
+        ele_waypoints: Waypoints with an ISO 8601 ``time`` and a numeric ``ele`` in metres.
+
+    Returns:
+        The smoothed waypoints, each with ``gain`` and ``loss`` in metres; empty for an empty stream.
+    """
+    # The metric helpers live in this package's dependency-free computation module.
+    import modules.activities.computation as activities_computation
+
+    smoothed = smooth_elevation_waypoints(ele_waypoints)
+    gains, losses = activities_computation.elevation_steps([waypoint["ele"] for waypoint in smoothed])
+    return [
+        {**waypoint, "gain": gain, "loss": loss} for waypoint, gain, loss in zip(smoothed, gains, losses, strict=True)
+    ]
+
+
+def sum_lap_elevation(
+    step_waypoints: Sequence[Mapping[str, Any]], start_time: str, end_time: str
+) -> tuple[float, float] | None:
+    """Return a lap's gain and loss from the activity's per-sample counts.
+
+    The lap holds the samples in (``start_time``, ``end_time``]: a sample on the boundary between two laps counts
+    in the earlier one, so laps that follow one another add up to the activity's gain and loss.
+
+    Args:
+        step_waypoints: The stream from ``elevation_step_waypoints``.
+        start_time: ISO 8601 lap start (exclusive).
         end_time: ISO 8601 lap end (inclusive).
 
     Returns:
-        The lap's elevation samples; empty when none fall within the lap.
+        The lap's (gain_m, loss_m); ``None`` when no sample falls within the lap.
     """
-    return _TimedStream(smoothed_ele_waypoints).lap_elevation(start_time, end_time)
+    sums = _TimedStream(step_waypoints).sum_between(start_time, end_time, ("gain", "loss"))
+    return None if sums is None else (sums[0], sums[1])
 
 
 def measured_speed_samples(
@@ -265,7 +307,7 @@ def _compute_lap_metrics(
     start_point: Mapping[str, Any],
     end_point: Mapping[str, Any],
     total_distance: float,
-    smoothed_ele: _TimedStream,
+    ele_steps: _TimedStream,
     power: _TimedStream,
     hr: _TimedStream,
     cad: _TimedStream,
@@ -280,7 +322,7 @@ def _compute_lap_metrics(
         start_point: Lat/lon dict of lap start.
         end_point: Lat/lon dict of lap end.
         total_distance: Lap distance in km.
-        smoothed_ele: Full elevation stream, already smoothed once (see smooth_elevation_stream).
+        ele_steps: Full elevation stream with the gain and loss counted at each sample (see elevation_step_waypoints).
         power: Full power stream.
         hr: Full HR stream.
         cad: Full cadence stream.
@@ -295,15 +337,15 @@ def _compute_lap_metrics(
     # The metric helpers live in this package's dependency-free computation module.
     import modules.activities.computation as activities_computation
 
-    lap_ele = smoothed_ele.lap_elevation(start_time, end_time)
     lap_power = power.between(start_time, end_time)
     lap_hr = hr.between(start_time, end_time)
     lap_cad = cad.between(start_time, end_time)
     lap_vel_indices = vel.indices_between(_parse_utc(start_time), _parse_utc(end_time))
 
     ele_gain, ele_loss = None, None
-    if lap_ele:
-        ele_gain, ele_loss = activities_computation.sum_elevation_deltas(lap_ele)
+    lap_elevation = ele_steps.sum_between(start_time, end_time, ("gain", "loss"))
+    if lap_elevation:
+        ele_gain, ele_loss = lap_elevation
 
     avg_hr, max_hr = None, None
     if lap_hr:
@@ -365,7 +407,7 @@ def generate_activity_laps(
     vel_waypoints: Sequence[Mapping[str, Any]],
     distance_per_lap_km: float = DEFAULT_LAP_DISTANCE_KM,
     measured_vel_indices: set[int] | None = None,
-    smoothed_ele_waypoints: Sequence[Mapping[str, Any]] | None = None,
+    ele_step_waypoints: Sequence[Mapping[str, Any]] | None = None,
 ) -> list[LapMetrics]:
     """Split waypoints into distance-based laps and compute metrics.
 
@@ -382,29 +424,24 @@ def generate_activity_laps(
         measured_vel_indices: Positions in ``vel_waypoints`` of samples that are real
             measurements, for sources that emit placeholder samples; ``None``
             treats every sample as measured.
-        smoothed_ele_waypoints: ``ele_waypoints`` already smoothed once (see
-            smooth_elevation_stream). Callers that build laps for several
-            segments of one activity pass it to avoid re-smoothing the stream;
-            when None, ``ele_waypoints`` is smoothed here.
+        ele_step_waypoints: ``elevation_step_waypoints(ele_waypoints)``. Callers that build laps for several
+            segments of one activity pass it so the hysteresis runs once over the whole activity; when None, it
+            is built here.
 
     Returns:
         List of lap dicts with computed metrics.
     """
-    # The metric helpers live in this package's dependency-free computation module.
-    import modules.activities.computation as activities_computation
-
     laps: list[LapMetrics] = []
     current_lap_distance = 0.0
     lap_start = None
 
-    # Smooth the elevation stream once for the whole activity so the per-lap
-    # slices partition the activity-level gain/loss exactly.
-    if smoothed_ele_waypoints is None:
-        smoothed_ele_waypoints = activities_computation.smooth_elevation_stream(ele_waypoints)
+    # Count the elevation once for the whole activity so the per-lap sums partition its gain/loss exactly.
+    if ele_step_waypoints is None:
+        ele_step_waypoints = elevation_step_waypoints(ele_waypoints)
 
     # Each stream's timestamps are parsed once here, not once per lap.
     streams = {
-        "smoothed_ele": _TimedStream(smoothed_ele_waypoints),
+        "ele_steps": _TimedStream(ele_step_waypoints),
         "power": _TimedStream(power_waypoints),
         "hr": _TimedStream(hr_waypoints),
         "cad": _TimedStream(cad_waypoints),

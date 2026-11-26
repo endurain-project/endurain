@@ -8,9 +8,11 @@ import itertools
 import math
 from datetime import datetime, timedelta
 
+import numpy as np
 import pytest
 from geopy.distance import geodesic
 
+import modules.activities.computation as activities_computation
 from modules.activities.computation import (
     calculate_avg_and_max,
     calculate_instant_speed,
@@ -540,3 +542,113 @@ class TestNormalizedPower:
 
         assert normalized_power(times, [200.0] * 40, 15.0) == pytest.approx(200.0)
         assert normalized_power(times[:20] + times[20:29], [200.0] * 29, 15.0) is None
+
+
+def _gain_and_loss(times, values) -> tuple[float, float]:
+    """Return the activity gain and loss of a series: the sums of its per-sample counts."""
+    smoothed = activities_computation.smooth_elevation(times, values)
+    gains, losses = activities_computation.elevation_steps(smoothed)
+    return sum(gains), sum(losses)
+
+
+class TestSmoothElevation:
+    """A centred 10 s time-window mean."""
+
+    def test_at_one_hertz_each_sample_averages_every_sample_within_five_seconds(self):
+        times = [float(t) for t in range(21)]
+        values = [0.0 if t < 10 else 11.0 for t in range(21)]
+
+        smoothed = activities_computation.smooth_elevation(times, values)
+
+        # 5 s to 15 s: five samples of 0 and six of 11.
+        assert smoothed[10] == pytest.approx(6.0)
+        assert smoothed[0] == pytest.approx(0.0)
+
+    def test_a_sample_six_seconds_away_is_outside_the_window_at_one_hertz(self):
+        smoothed = activities_computation.smooth_elevation([float(t) for t in range(7)], [0.0] * 6 + [10.0])
+
+        assert smoothed[0] == pytest.approx(0.0)
+
+    def test_sparse_sampling_widens_the_window_to_ten_samples(self):
+        # One sample every 10 s: the window spans 100 s, ten sample gaps, as 10 s does at 1 Hz.
+        times = [float(t) for t in range(0, 210, 10)]
+        values = [0.0 if t < 100 else 11.0 for t in range(0, 210, 10)]
+
+        smoothed = activities_computation.smooth_elevation(times, values)
+
+        # 50 s to 150 s: five samples of 0 and six of 11.
+        assert smoothed[10] == pytest.approx(6.0)
+
+    def test_sub_second_samples_all_count_in_the_window(self):
+        times = [i * 0.25 for i in range(81)]
+        values = [100.0 + 2.0 * t for t in times]
+
+        smoothed = activities_computation.smooth_elevation(times, values)
+
+        # A line is its own centred mean away from the ends.
+        assert smoothed[40] == pytest.approx(values[40])
+        assert len(smoothed) == len(values)
+
+    def test_the_result_does_not_depend_on_the_order_of_the_samples(self):
+        times = [0.0, 1.0, 2.0, 3.0, 9.0, 10.0]
+        values = [1.0, 5.0, 2.0, 8.0, 3.0, 4.0]
+        order = [3, 0, 5, 1, 4, 2]
+
+        smoothed = activities_computation.smooth_elevation(times, values)
+        shuffled = activities_computation.smooth_elevation([times[i] for i in order], [values[i] for i in order])
+
+        assert shuffled == pytest.approx([smoothed[i] for i in order])
+
+    def test_no_samples_give_no_series(self):
+        assert activities_computation.smooth_elevation([], []) == []
+
+
+class TestElevationSteps:
+    """A 3 m hysteresis, counted at the sample where each rise or drop is confirmed."""
+
+    def test_a_series_that_stays_within_three_metres_counts_nothing(self):
+        assert activities_computation.elevation_steps([100.0, 102.9, 97.1, 100.0]) == ([0.0] * 4, [0.0] * 4)
+
+    def test_a_rise_of_three_metres_is_counted_and_moves_the_reference(self):
+        gains, losses = activities_computation.elevation_steps([100.0, 103.0, 105.0, 106.0, 100.0])
+
+        assert gains == [0.0, 3.0, 0.0, 3.0, 0.0]
+        assert losses == [0.0, 0.0, 0.0, 0.0, 6.0]
+
+    def test_no_samples_count_nothing(self):
+        assert activities_computation.elevation_steps([]) == ([], [])
+
+
+class TestElevationFromNoisyStreams:
+    """The activity gain and loss follow the terrain, not the sampling rate or the noise."""
+
+    @staticmethod
+    def _flat_hour(step: int, noise: float) -> tuple[list[float], list[float]]:
+        rng = np.random.default_rng(7)
+        times = [float(t) for t in range(0, 3600, step)]
+        return times, [100.0 + float(rng.normal(0.0, noise)) for _ in times]
+
+    @pytest.mark.parametrize(("step", "noise"), [(1, 1.5), (5, 1.5), (10, 1.5)])
+    def test_a_flat_hour_with_noise_gains_and_loses_nothing(self, step, noise):
+        gain, loss = _gain_and_loss(*self._flat_hour(step, noise))
+
+        assert gain < 1.0
+        assert loss < 1.0
+
+    def test_a_climb_and_a_descent_count_their_height(self):
+        times = [float(t) for t in range(2001)]
+        values = [100.0 + min(t, 2000 - t) / 10.0 for t in times]
+
+        gain, loss = _gain_and_loss(times, values)
+
+        assert gain == pytest.approx(100.0, abs=3.0)
+        assert loss == pytest.approx(100.0, abs=3.0)
+
+    def test_a_staircase_of_steps_below_the_threshold_is_counted(self):
+        times = [float(t) for t in range(0, 600)]
+        values = [100.0 + 2.0 * min(t // 50, 10) for t in range(600)]
+
+        gain, loss = _gain_and_loss(times, values)
+
+        assert gain == pytest.approx(20.0, abs=3.0)
+        assert loss == 0.0

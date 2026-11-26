@@ -13,8 +13,8 @@
         "created_at": null,
         "description": null,
         "distance": 4713,
-        "elevation_gain": 14,
-        "elevation_loss": 20,
+        "elevation_gain": 30,
+        "elevation_loss": 28,
         "end_time": "2026-09-07T16:40:09Z",
         "garminconnect_activity_id": null,
         "garminconnect_gear_id": null,
@@ -73,7 +73,7 @@
           "start_position_lat": 41.161119,
           "start_position_long": -8.640725,
           "start_time": "2026-09-07T16:09:56",
-          "total_ascent": 0,
+          "total_ascent": 6,
           "total_descent": 0,
           "total_distance": 1003.108294,
           "total_elapsed_time": 378.0,
@@ -96,7 +96,7 @@
           "start_position_lat": 41.158489,
           "start_position_long": -8.631874,
           "start_time": "2026-09-07T16:16:14",
-          "total_ascent": 0,
+          "total_ascent": 6,
           "total_descent": 0,
           "total_distance": 1001.511467,
           "total_elapsed_time": 402.0,
@@ -120,7 +120,7 @@
           "start_position_long": -8.624981,
           "start_time": "2026-09-07T16:22:56",
           "total_ascent": 0,
-          "total_descent": 20,
+          "total_descent": 22,
           "total_distance": 1000.848823,
           "total_elapsed_time": 369.0,
           "total_timer_time": 369.0
@@ -142,7 +142,7 @@
           "start_position_lat": 41.152487,
           "start_position_long": -8.627508,
           "start_time": "2026-09-07T16:29:05",
-          "total_ascent": 14,
+          "total_ascent": 18,
           "total_descent": 0,
           "total_distance": 1000.303242,
           "total_elapsed_time": 400.0,
@@ -166,7 +166,7 @@
           "start_position_long": -8.632701,
           "start_time": "2026-09-07T16:35:45",
           "total_ascent": 0,
-          "total_descent": 0,
+          "total_descent": 6,
           "total_distance": 707.049374,
           "total_elapsed_time": 264.0,
           "total_timer_time": 264.0
@@ -218,20 +218,20 @@
           "count": 1814,
           "fields": {
             "ele": {
-              "max": 96.552382,
-              "mean": 88.966717,
-              "min": 71.295237
+              "max": 96.69091,
+              "mean": 88.966028,
+              "min": 71.218181
             }
           },
           "first": {
-            "ele": 83.172726,
+            "ele": 83.333332,
             "time": "2026-09-07T16:09:56"
           },
           "last": {
-            "ele": 83.563636,
+            "ele": 83.199999,
             "time": "2026-09-07T16:40:09"
           },
-          "sha256": "feea120bfef42233a94040a6d863e446b4399aee6b73700790d89b4155437093",
+          "sha256": "123c58f7017a1e98559506f566bf0246dd997829c18b704249f7d8ddfa6b901b",
           "stream_type": 4
         },
         {

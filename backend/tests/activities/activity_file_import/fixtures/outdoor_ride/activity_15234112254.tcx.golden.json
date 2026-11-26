@@ -13,8 +13,8 @@
         "created_at": null,
         "description": null,
         "distance": 57146,
-        "elevation_gain": 632,
-        "elevation_loss": 657,
+        "elevation_gain": 645,
+        "elevation_loss": 640,
         "end_time": "2024-05-05T10:22:56Z",
         "garminconnect_activity_id": null,
         "garminconnect_gear_id": null,
@@ -85,10 +85,10 @@
           "start_position_long": -7.795464,
           "start_time": "2024-05-05T08:15:20+00:00",
           "sub_sport": null,
-          "total_ascent": 632,
+          "total_ascent": 645,
           "total_calories": 1375,
           "total_cycles": 8881,
-          "total_descent": 657,
+          "total_descent": 640,
           "total_distance": 57146.17,
           "total_elapsed_time": 7656.0,
           "total_timer_time": 7577.876,
@@ -141,20 +141,20 @@
           "count": 7579,
           "fields": {
             "ele": {
-              "max": 616.647627,
-              "mean": 232.862275,
-              "min": 69.0
+              "max": 617.236378,
+              "mean": 232.8611,
+              "min": 69.018182
             }
           },
           "first": {
-            "ele": 69.0,
+            "ele": 69.033333,
             "time": "2024-05-05T08:15:20"
           },
           "last": {
-            "ele": 76.036364,
+            "ele": 76.366667,
             "time": "2024-05-05T10:22:56"
           },
-          "sha256": "6db57136fa5bb3e71f11bd9173ad4bea0674504b1ad394a00fe54260ff7a40fe",
+          "sha256": "cd229ac286887c96f33d20a243eb186a08e5e966408dccb4ee617bcf9024b1f2",
           "stream_type": 4
         },
         {

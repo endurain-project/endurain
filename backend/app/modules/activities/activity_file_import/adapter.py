@@ -26,9 +26,9 @@ from typing import Any, Literal
 import core.logger as core_logger
 import modules.activities.activity.contracts as activity_contracts
 import modules.activities.activity_file_import.assembly as activity_file_import_assembly
+import modules.activities.activity_file_import.parser_utils as activity_file_import_parser_utils
 import modules.activities.activity_streams.constants as activity_streams_constants
 import modules.activities.activity_streams.contracts as activity_streams_contracts
-import modules.activities.computation as activities_computation
 
 logger = core_logger.get_logger(__name__)
 
@@ -71,7 +71,7 @@ _STREAM_MAPPING: dict[int, tuple[_StreamFlagKey, _StreamWaypointsKey]] = {
 
 
 def _stream_waypoints(stream_type: int, waypoints: Sequence[Mapping[str, Any]]) -> Sequence[Mapping[str, Any]]:
-    """Return the waypoints to store, smoothing the elevation stream.
+    """Return the waypoints to store, smoothing the elevation stream over time.
 
     Args:
         stream_type: Stream type of the waypoints.
@@ -81,7 +81,7 @@ def _stream_waypoints(stream_type: int, waypoints: Sequence[Mapping[str, Any]]) 
         Smoothed waypoints for the elevation stream, unchanged otherwise.
     """
     if stream_type == activity_streams_constants.STREAM_TYPE_ELEVATION:
-        return activities_computation.smooth_elevation_stream(waypoints)
+        return activity_file_import_parser_utils.smooth_elevation_waypoints(waypoints)
     return waypoints
 
 

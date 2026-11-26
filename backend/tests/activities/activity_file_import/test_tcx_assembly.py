@@ -7,7 +7,7 @@ from typing import Any
 import pytest
 
 import modules.activities.activity_file_import.assembly as assembly
-import modules.activities.computation as activities_computation
+import modules.activities.activity_file_import.parser_utils as parser_utils
 from tests.activities.activity_file_import.assembled import assemble_tcx
 
 _T0 = datetime(2026, 6, 20, 8, 0, 0, tzinfo=UTC)
@@ -448,9 +448,10 @@ class TestElevation:
         payload = self._assemble(tmp_path, [100.0 + i for i in range(31)])
 
         activity = payload["activity"]
-        expected_gain, expected_loss = activities_computation.compute_elevation_gain_and_loss(payload["ele_waypoints"])
+        steps = parser_utils.elevation_step_waypoints(payload["ele_waypoints"])
+        expected_gain = sum(wp["gain"] for wp in steps)
         assert activity.elevation_gain == round(expected_gain) > 0
-        assert activity.elevation_loss == round(expected_loss) == 0
+        assert activity.elevation_loss == 0
 
     def test_no_altitude_keeps_elevation_none(self, tmp_path: Path) -> None:
         activity = self._assemble(tmp_path, [None] * 31)["activity"]
@@ -492,11 +493,11 @@ class TestLaps:
         return payload
 
     def test_lap_ascent_comes_from_the_smoothed_stream(self, tmp_path: Path) -> None:
-        """A sawtooth altitude has a huge raw sum of climbs, but the smoothed gain is small."""
+        """A 1 Hz sawtooth altitude has a huge raw sum of climbs, but the gain over its 30 m trend is small."""
         document = _document(
             _lap(
                 0,
-                "".join(_tp(10 * i, ele=100 + i * 1.0 + (5.0 if i % 2 else -5.0)) for i in range(31)),
+                "".join(_tp(i, ele=100 + i * 0.1 + (5.0 if i % 2 else -5.0)) for i in range(301)),
                 "<TotalTimeSeconds>300</TotalTimeSeconds>",
             ),
             sport="Biking",
@@ -505,19 +506,15 @@ class TestLaps:
         (payload,) = _assemble(tmp_path, document)
 
         (lap,) = payload["laps"]
-        assert lap["total_ascent"] is not None
-        assert lap["total_ascent"] < 100
-        assert lap["total_descent"] is not None
-        assert lap["total_descent"] < 100
+        assert lap["total_ascent"] == pytest.approx(30, abs=6)
+        assert lap["total_descent"] == 0
 
     def test_lap_sums_match_activity_when_boundary_falls_between_samples(self, tmp_path: Path) -> None:
         """The climb between lap 1's last sample and lap 2's first sample is counted once, in lap 2."""
         payload = self._two_laps(tmp_path, lambda i: 100.0 + 10 * i)
 
         laps = payload["laps"]
-        activity_gain, _ = activities_computation.sum_elevation_deltas(
-            activities_computation.smooth_elevation_stream(payload["ele_waypoints"])
-        )
+        activity_gain = sum(wp["gain"] for wp in parser_utils.elevation_step_waypoints(payload["ele_waypoints"]))
         assert abs(laps[0]["total_ascent"] + laps[1]["total_ascent"] - activity_gain) <= 1
 
     def test_flat_altitude_stores_zero(self, tmp_path: Path) -> None:

@@ -3,6 +3,9 @@
 from datetime import UTC, datetime, timedelta
 from zoneinfo import ZoneInfo
 
+import numpy as np
+import pytest
+
 import modules.activities.activity_file_import.assembly as assembly
 import modules.activities.activity_file_import.recording as recording
 from tests.activities.activity_file_import.assembled import assemble_recording, make_recording, session
@@ -248,6 +251,15 @@ class TestElevation:
         assert activity.elevation_gain == 250
         assert activity.elevation_loss == 240
 
+    def test_noisy_flat_altitude_without_a_device_total_gains_nothing(self):
+        rng = np.random.default_rng(7)
+        altitudes = [100.0 + float(rng.normal(0.0, 1.5)) for _ in range(3600)]
+
+        activity = _activity(_rows(3600, step=1, altitude=altitudes))
+
+        assert activity.elevation_gain == 0
+        assert activity.elevation_loss == 0
+
     def test_a_computed_zero_on_a_flat_ride_is_stored_as_zero(self):
         activity = _activity(_rows(6, altitude=100.0))
 
@@ -325,6 +337,24 @@ class TestLapElevation:
         assert payload["laps"][0]["total_ascent"] > 0
         assert payload["laps"][0]["total_descent"] is not None
         assert payload["laps"][0]["total_descent"] > 0
+
+    def test_laps_without_ascent_partition_the_activity_gain_and_loss(self):
+        # 1 Hz: 100 m up and 100 m down, cut into two laps at the top and a third of the way down.
+        altitudes = [100 + min(i, 200 - i) for i in range(201)]
+        laps = (
+            recording.Lap(start_time=_START, total_elapsed_time=100.0),
+            recording.Lap(start_time=_START + timedelta(seconds=100), total_elapsed_time=100.0),
+        )
+
+        payload = _assemble(_rows(201, step=1, altitude=altitudes), laps=laps)
+
+        first, second = payload["laps"]
+        # Each lap value is a rounded int, so the sums match the activity's within rounding.
+        assert abs(first["total_ascent"] + second["total_ascent"] - payload["activity"].elevation_gain) <= 1
+        assert abs(first["total_descent"] + second["total_descent"] - payload["activity"].elevation_loss) <= 1
+        # The smoothing shaves the sharp peak by about 2.5 m and the hysteresis leaves under 3 m uncounted at each end.
+        assert first["total_ascent"] == pytest.approx(100, abs=8)
+        assert second["total_descent"] == pytest.approx(100, abs=8)
 
     def test_a_device_lap_ascent_wins_and_only_the_missing_field_is_filled(self):
         lap = recording.Lap(start_time=_START, total_elapsed_time=40.0, total_ascent=250)
