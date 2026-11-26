@@ -222,6 +222,30 @@ class TestReimport:
         assert len(_rows(db)) == 1
 
 
+class TestALoserOfTheRace:
+    def test_that_finds_the_winners_legs_returns_the_winners_parent_not_its_legs(self, db, owner, monkeypatch):
+        parent, legs = _group(owner.id)
+        [winner] = ingestion_service.store_parsed_group(parent, legs, db)
+        db.commit()
+        # The other import looked for the parent before the winner committed, and for the legs after.
+        lookup = ingestion_service.activity_crud.get_activity_by_dedup_key
+        missed: list[str] = []
+
+        def parent_not_yet_committed(dedup_key, user_id, session):
+            if dedup_key == "file:abc" and not missed:
+                missed.append(dedup_key)
+                return None
+            return lookup(dedup_key, user_id, session)
+
+        monkeypatch.setattr(ingestion_service.activity_crud, "get_activity_by_dedup_key", parent_not_yet_committed)
+        parent, legs = _group(owner.id)
+
+        stored = ingestion_service.store_parsed_group(parent, legs, db)
+
+        assert [activity.id for activity in stored] == [winner.id]
+        assert len(_group_rows(db)) == 4
+
+
 class TestRace:
     def test_concurrent_imports_of_one_group_store_it_once_and_every_loser_returns_the_winner(
         self, committed_sessions, arrange

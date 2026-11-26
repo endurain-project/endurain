@@ -343,8 +343,9 @@ def store_parsed_group(
     its start, as a leg was keyed before groups existed. The legs copy the parent's privacy, and only the parent looks
     for a duplicate start.
 
-    A group already stored stages nothing and returns its parent. A file whose legs were stored on their own before
-    groups existed stages nothing either and returns those legs, which a later pass can regroup.
+    A group already stored stages nothing and returns its parent, also when another import committed it between this
+    one's look for the parent and its look for the legs. A file whose legs were stored on their own before groups
+    existed stages nothing either and returns those legs, which a later pass can regroup.
 
     Args:
         parent: The multisport activity.
@@ -367,13 +368,18 @@ def store_parsed_group(
         existing_parent = _existing_activity(parent_key, parent.activity.user_id, db)
         if existing_parent is not None:
             return [existing_parent]
-        standalone_legs = [
+        stored_legs = [
             existing
             for leg, key, _work in leg_work
             if (existing := _existing_activity(key, leg.activity.user_id, db)) is not None
         ]
-        if standalone_legs:
-            return standalone_legs
+        # A stored leg with a parent is a group another import committed after this one looked for the parent.
+        stored_parent_id = next((leg.parent_activity_id for leg in stored_legs if leg.parent_activity_id), None)
+        if stored_parent_id is not None:
+            stored_parent = activity_crud.get_activity_by_id(stored_parent_id, db)
+            return [stored_parent] if stored_parent is not None else []
+        if stored_legs:
+            return stored_legs
 
         staged_parent = _stage_activity(parent, parent_work, parent_key, db)
         for leg, key, work in leg_work:
