@@ -15,6 +15,7 @@ import numpy as np
 from pydantic import Field
 
 import core.timezone as core_timezone
+import modules.activities.computation as activities_computation
 
 _DEFAULT_MAX_HEART_RATE: int = 220
 _HR_ZONE_1_PERCENT: float = 0.6
@@ -27,14 +28,19 @@ class HrZone(TypedDict):
     """One heart-rate zone of a breakdown.
 
     Attributes:
-        percent: Share of the heart-rate samples in the zone, 0-100.
+        percent: Share of the recorded heart-rate time spent in the zone, 0-100.
         hr: The zone's heart-rate range, e.g. ``"120 - 139"``.
-        time_seconds: Timer time spent in the zone, in seconds.
+        time_seconds: Time spent in the zone, in seconds.
     """
 
-    percent: Annotated[float, Field(description="Share of the heart-rate samples in the zone, as a percentage (0-100)")]
+    percent: Annotated[
+        float, Field(description="Share of the recorded heart-rate time spent in the zone, as a percentage (0-100)")
+    ]
     hr: Annotated[str, Field(description="The zone's heart-rate range in beats per minute, such as 120 - 139")]
-    time_seconds: Annotated[int, Field(description="Timer time spent in the zone in seconds")]
+    time_seconds: Annotated[
+        int,
+        Field(description="Time spent in the zone in seconds, each sample counting the time it holds until the next"),
+    ]
 
 
 class HrZoneBreakdown(TypedDict):
@@ -92,22 +98,56 @@ def _age_in_years(birthdate: datetime.date, timezone_name: str | None) -> int:
     return today.year - birthdate.year - (0 if had_birthday else 1)
 
 
+def _instant(value: Any) -> datetime.datetime | None:
+    """Read a waypoint's ``time`` as an instant.
+
+    Args:
+        value: A UTC ``YYYY-MM-DDTHH:MM:SS`` string, or seconds from the start for a stream imported from Strava.
+
+    Returns:
+        The instant as an aware UTC datetime, or None when the waypoint has no usable time.
+    """
+    if isinstance(value, str):
+        try:
+            parsed = datetime.datetime.fromisoformat(value)
+        except ValueError:
+            return None
+        return parsed if parsed.tzinfo else parsed.replace(tzinfo=datetime.UTC)
+    if isinstance(value, int | float) and not isinstance(value, bool):
+        return datetime.datetime.fromtimestamp(value, datetime.UTC)
+    return None
+
+
 def compute_hr_zone_breakdown_sync(
     waypoints: list[dict[str, Any]],
     max_heart_rate: int,
-    total_timer_time: float | None,
 ) -> HrZoneBreakdown | None:
-    """Compute the HR zone breakdown for a set of waypoints.
+    """Compute the time spent in each heart-rate zone of a heart-rate stream.
+
+    Each sample holds its heart rate until the next sample, capped at the stream's pause threshold, so a smart
+    recording that stores a value for ten seconds counts ten seconds, and a pause adds no more than the threshold.
+    Samples sharing a second share it. A heart rate of 0 is a dropout: it is left out together with its time, as is a
+    sample without a heart rate or a usable time.
 
     Args:
-        waypoints: The stored heart-rate stream: JSON samples, each of which may contain an "hr" key.
+        waypoints: The stored heart-rate stream: JSON samples with a "time" and an "hr".
         max_heart_rate: The user's max heart rate.
-        total_timer_time: Activity total timer time in seconds (may be falsy).
 
     Returns:
-        A dict of zone_1..zone_5 entries, or None if it cannot be computed.
+        A dict of zone_1..zone_5 entries, or None when no zone holds any time (no heart rate, a single instant).
     """
     if not waypoints or not isinstance(waypoints, list):
+        return None
+
+    timed = [(instant, waypoint.get("hr")) for waypoint in waypoints if (instant := _instant(waypoint.get("time")))]
+    if not timed:
+        return None
+    origin = timed[0][0]
+    threshold = activities_computation.pause_threshold_seconds([instant for instant, _ in timed])
+    kept = [(instant, hr) for instant, hr in timed if hr]
+    held = activities_computation.held_seconds([(instant - origin).total_seconds() for instant, _ in kept], threshold)
+    total = float(held.sum())
+    if total == 0.0:
         return None
 
     zone_1 = max_heart_rate * _HR_ZONE_1_PERCENT
@@ -115,49 +155,10 @@ def compute_hr_zone_breakdown_sync(
     zone_3 = max_heart_rate * _HR_ZONE_3_PERCENT
     zone_4 = max_heart_rate * _HR_ZONE_4_PERCENT
 
-    def _compute_zone_counts(
-        waypoints: list[dict[str, Any]],
-        zone_1: float,
-        zone_2: float,
-        zone_3: float,
-        zone_4: float,
-    ) -> list[float] | None:
-        """Compute per-zone percentage counts from waypoints.
-
-        Args:
-            waypoints: List of waypoint dicts with optional "hr" key.
-            zone_1: Upper bound of zone 1.
-            zone_2: Upper bound of zone 2.
-            zone_3: Upper bound of zone 3.
-            zone_4: Upper bound of zone 4.
-
-        Returns:
-            List of five zone percentages (0-100), or None if no
-            HR data is present.
-        """
-        hr_values = np.array([float(hr) for wp in waypoints if (hr := wp.get("hr")) is not None])
-        total = len(hr_values)
-        if total == 0:
-            return None
-
-        zone_counts = [
-            np.sum(hr_values < zone_1),
-            np.sum((hr_values >= zone_1) & (hr_values < zone_2)),
-            np.sum((hr_values >= zone_2) & (hr_values < zone_3)),
-            np.sum((hr_values >= zone_3) & (hr_values < zone_4)),
-            np.sum(hr_values >= zone_4),
-        ]
-        return [round((count / total) * 100, 2) for count in zone_counts]
-
-    zone_percentages: list[float] | None = _compute_zone_counts(waypoints, zone_1, zone_2, zone_3, zone_4)
-
-    if zone_percentages is None:
-        return None
-
-    if total_timer_time:
-        zone_time_seconds = [int((percent / 100) * float(total_timer_time)) for percent in zone_percentages]
-    else:
-        zone_time_seconds = [0, 0, 0, 0, 0]
+    zone_of = np.searchsorted([zone_1, zone_2, zone_3, zone_4], np.array([float(hr) for _, hr in kept]), side="right")
+    zone_time = np.bincount(zone_of, weights=held, minlength=5)
+    zone_percentages = [round(float(seconds) / total * 100, 2) for seconds in zone_time]
+    zone_time_seconds = [round(float(seconds)) for seconds in zone_time]
 
     zone_hr = {
         "zone_1": f"< {int(zone_1)}",

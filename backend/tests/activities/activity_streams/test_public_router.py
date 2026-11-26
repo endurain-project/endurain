@@ -22,7 +22,16 @@ def _url(activity_id: uuid.UUID | str, stream_type: str = "") -> str:
 
 
 def _stage(db, activity):
-    make_stream(db, activity, _HR, [{"time": _TIME, "hr": 100}, {"time": _TIME, "hr": 190}])
+    make_stream(
+        db,
+        activity,
+        _HR,
+        [
+            {"time": _TIME, "hr": 100},
+            {"time": "2025-03-10T08:00:01", "hr": 190},
+            {"time": "2025-03-10T08:00:02", "hr": 190},
+        ],
+    )
     make_stream(db, activity, _POWER, [{"time": _TIME, "power": 250.5}])
 
 
@@ -47,6 +56,19 @@ class TestPublic:
 
         assert response.status_code == 200
         assert response.json()["zone_percentages"]["hr"]["zone_5"]["percent"] == 50.0
+
+    def test_the_hr_zones_survive_a_hidden_start_time(self, client, make_owned_activity):
+        activity = make_owned_activity(_VISIBILITY.PUBLIC, stage=_stage, hide_start_time=True)
+
+        for url in (_url(activity.id, "heart_rate"), _url(activity.id)):
+            body = client.get(url).json()
+            stream = (
+                body
+                if "zone_percentages" in body
+                else next(i for i in body["items"] if i["stream_type"] == "heart_rate")
+            )
+            assert stream["zone_percentages"]["hr"]["zone_5"]["time_seconds"] == 1
+            assert all("time" not in waypoint for waypoint in stream["stream_waypoints"])
 
     @pytest.mark.parametrize("visibility", [_VISIBILITY.FOLLOWERS, _VISIBILITY.PRIVATE])
     def test_an_activity_that_is_not_public_answers_as_a_missing_one_does(

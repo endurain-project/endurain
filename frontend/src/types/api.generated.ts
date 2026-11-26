@@ -9345,9 +9345,9 @@ export interface components {
          * @description One heart-rate zone of a breakdown.
          *
          *     Attributes:
-         *         percent: Share of the heart-rate samples in the zone, 0-100.
+         *         percent: Share of the recorded heart-rate time spent in the zone, 0-100.
          *         hr: The zone's heart-rate range, e.g. ``"120 - 139"``.
-         *         time_seconds: Timer time spent in the zone, in seconds.
+         *         time_seconds: Time spent in the zone, in seconds.
          */
         HrZone: {
             /**
@@ -9357,12 +9357,12 @@ export interface components {
             hr: string;
             /**
              * Percent
-             * @description Share of the heart-rate samples in the zone, as a percentage (0-100)
+             * @description Share of the recorded heart-rate time spent in the zone, as a percentage (0-100)
              */
             percent: number;
             /**
              * Time Seconds
-             * @description Timer time spent in the zone in seconds
+             * @description Time spent in the zone in seconds, each sample counting the time it holds until the next
              */
             time_seconds: number;
         };

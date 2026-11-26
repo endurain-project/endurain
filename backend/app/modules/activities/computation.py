@@ -27,6 +27,21 @@ import modules.activities.activity_streams.contracts as activity_streams_contrac
 
 _NP_WINDOW_SECONDS = 30
 
+# Minimum gap in seconds between two consecutive trackpoints that counts as a
+# recording pause. GPS devices record every 1-5 s (smart recording modes
+# occasionally stretch further), so 15 s tolerates dropped fixes while real
+# pauses (issue #571) are typically well above it. Gaps strictly greater than
+# the pause threshold are excluded from timer time and from the distance
+# accumulated across the gap.
+PAUSE_DETECTION_THRESHOLD_SECONDS: float = 15.0
+
+# Sparse tracks (e.g. 30 s or 60 s battery-saving recording) sample above the
+# minimum, so the pause threshold is this many times the track's median
+# sampling interval when that is larger. Below the minimum gap count a median
+# cannot tell sparse sampling from a pause, so the minimum threshold applies.
+PAUSE_DETECTION_SAMPLING_FACTOR: float = 3.0
+PAUSE_DETECTION_MIN_GAPS_FOR_MEDIAN: int = 3
+
 #: The slowest speed in m/s at which a step between two samples counts as moving.
 MOVING_SPEED_MINIMUM = 0.5
 
@@ -438,6 +453,52 @@ def calculate_avg_and_max(
     return avg_value, max_value
 
 
+def pause_threshold_seconds(times: list[datetime]) -> float:
+    """Return the gap in seconds above which a trackpoint gap is a pause.
+
+    The threshold is ``PAUSE_DETECTION_SAMPLING_FACTOR`` times the median
+    positive gap between consecutive timestamps, but never below
+    ``PAUSE_DETECTION_THRESHOLD_SECONDS``. The median is unaffected by the
+    few long gaps that real pauses produce. With fewer than
+    ``PAUSE_DETECTION_MIN_GAPS_FOR_MEDIAN`` positive gaps the minimum is
+    returned.
+
+    Args:
+        times: Trackpoint timestamps in recording order, without ``None``
+            entries.
+
+    Returns:
+        The pause threshold in seconds.
+    """
+    gaps = [(b - a).total_seconds() for a, b in pairwise(times)]
+    positive_gaps = [gap for gap in gaps if gap > 0]
+    if len(positive_gaps) < PAUSE_DETECTION_MIN_GAPS_FOR_MEDIAN:
+        return PAUSE_DETECTION_THRESHOLD_SECONDS
+    return max(
+        PAUSE_DETECTION_THRESHOLD_SECONDS,
+        PAUSE_DETECTION_SAMPLING_FACTOR * statistics.median(positive_gaps),
+    )
+
+
+def held_seconds(times: Sequence[float], max_gap: float) -> np.ndarray:
+    """Return the time each sample holds until the next one, capped at ``max_gap``.
+
+    Each weight is the gap to the next distinct instant, capped at ``max_gap`` so a pause weighs nothing beyond it.
+    The last instant holds nothing, so a series on one instant holds no time at all. Samples sharing an instant share
+    its time equally, so a stream stamped to the whole second keeps every sample of a second.
+
+    Args:
+        times: Sample times in seconds, in recording order; sub-second values are allowed.
+        max_gap: The longest weight in seconds a sample can hold, the pause threshold.
+
+    Returns:
+        One weight in seconds per sample, in the order of ``times``.
+    """
+    instants, group = np.unique(np.array(times, dtype=float), return_inverse=True)
+    per_instant = np.append(np.clip(np.diff(instants), 0.0, max_gap), 0.0)
+    return per_instant[group] / np.bincount(group)[group]
+
+
 def time_weighted_mean(times: Sequence[float], values: Sequence[float | None], max_gap: float) -> float | None:
     """Return the mean of ``values`` with each sample weighted by the time it holds until the next one.
 
@@ -457,16 +518,12 @@ def time_weighted_mean(times: Sequence[float], values: Sequence[float | None], m
     kept = [(time, value) for time, value in zip(times, values, strict=True) if value is not None]
     if not kept:
         return None
-    instants, group = np.unique(np.array([time for time, _ in kept], dtype=float), return_inverse=True)
-    sums = np.bincount(group, weights=np.array([value for _, value in kept], dtype=float))
-    means = sums / np.bincount(group)
-    if len(instants) == 1:
-        return float(means[0])
-    weights = np.clip(np.diff(instants), 0.0, max_gap)
+    weights = held_seconds([time for time, _ in kept], max_gap)
+    kept_values = np.array([value for _, value in kept], dtype=float)
     total = weights.sum()
     if total == 0.0:
-        return float(means.mean())
-    return float(np.dot(weights, means[:-1]) / total)
+        return float(kept_values.mean())
+    return float(np.dot(weights, kept_values) / total)
 
 
 def normalized_power(times: Sequence[float], values: Sequence[float | None], max_gap: float) -> float | None:

@@ -168,19 +168,17 @@ def _with_zones(
 ) -> list[activity_streams_schema.ActivityStreamsRead]:
     """Attach the heart-rate zone breakdown to the HR streams being served.
 
-    Zones are a function of the samples, the activity's timer time and the
-    owner's *current* max heart rate (which itself follows their age), so they are
-    computed here, per read, rather than stored: a stored value is stale the
-    moment the owner edits their profile or has a birthday, and keeping it
-    fresh costs a pass over every stream the user owns. The pass over one
-    stream's samples is cheap next to serializing them.
+    Zones are a function of the samples and the owner's *current* max heart rate
+    (which itself follows their age), so they are computed here, per read, rather than stored: a stored value is
+    stale the moment the owner edits their profile or has a birthday, and keeping it fresh costs a pass over every
+    stream the user owns. The pass over one stream's samples is cheap next to serializing them.
 
     Only streams the caller may see reach this, and the owner is looked up once,
     only when one of them is an HR stream.
 
     Args:
-        streams: The streams about to be served, already masked.
-        activity: The parent activity, for its owner and timer time.
+        streams: The streams about to be served, still carrying their sample times.
+        activity: The parent activity, for its owner.
         db: Database session.
 
     Returns:
@@ -201,7 +199,6 @@ def _with_zones(
             breakdown = activity_streams_hr_zones.compute_hr_zone_breakdown_sync(
                 stream.stream_waypoints,
                 max_heart_rate,
-                activity.total_timer_time,
             )
             if breakdown:
                 stream = stream.model_copy(
@@ -313,7 +310,7 @@ def list_public_activity_streams(
 
     streams = activity_streams_crud.get_activity_streams(activity_id, db)
     return _page_of(
-        _with_zones(_without_sample_times(_filter_visible_streams(streams, activity), activity), activity, db),
+        _without_sample_times(_with_zones(_filter_visible_streams(streams, activity), activity, db), activity),
         page_number,
         num_records,
     )
@@ -350,4 +347,4 @@ def get_public_activity_stream(
     if _is_stream_hidden(activity, stream.stream_type):
         raise core_exceptions.NotFoundError("Activity stream not found")
 
-    return _with_zones(_without_sample_times([stream], activity), activity, db)[0]
+    return _without_sample_times(_with_zones([stream], activity, db), activity)[0]

@@ -20,7 +20,16 @@ def _url(activity_id: uuid.UUID | str, stream_type: str = "") -> str:
 
 
 def _stage(db, activity):
-    make_stream(db, activity, _HR, [{"time": _TIME, "hr": 100}, {"time": _TIME, "hr": 190}])
+    make_stream(
+        db,
+        activity,
+        _HR,
+        [
+            {"time": _TIME, "hr": 100},
+            {"time": "2025-03-10T08:00:01", "hr": 190},
+            {"time": "2025-03-10T08:00:02", "hr": 190},
+        ],
+    )
     make_stream(db, activity, _POWER, [{"time": _TIME, "power": 250.5}])
 
 
@@ -37,7 +46,11 @@ class TestList:
         assert (body["total"], body["page"], body["num_records"], body["next"]) == (2, 1, 200, None)
         by_type = {item["stream_type"]: item for item in body["items"]}
         assert set(by_type) == {"heart_rate", "power"}
-        assert by_type["heart_rate"]["zone_percentages"]["hr"]["zone_1"]["percent"] == 50.0
+        assert by_type["heart_rate"]["zone_percentages"]["hr"]["zone_1"] == {
+            "percent": 50.0,
+            "hr": "< 120",
+            "time_seconds": 1,
+        }
         assert by_type["power"]["zone_percentages"] is None
         assert by_type["power"]["stream_waypoints"] == [{"time": _TIME, "power": 250.5}]
 

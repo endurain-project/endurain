@@ -14,6 +14,7 @@ from tests._factories.server_settings import edit_server_settings
 from tests._factories.users import make_user
 
 _VISIBILITY = activity_constants.ActivityVisibility
+_HR_SAMPLES = (100, 130, 150, 170, 190, 190)
 _TYPE = stream_constants.ActivityStreamType
 _TIME = "2025-03-10T08:00:00"
 
@@ -162,24 +163,25 @@ class TestAuthenticatedStream:
         assert stream.stream_waypoints == [{"vel": 3.5}]
 
 
-class TestHeartRateZones:
-    def _hr_stream(self, db, user, **activity_fields):
-        activity = make_activity(db, user.id, total_timer_time=100.0, **activity_fields)
-        samples = [{"time": _TIME, "hr": hr} for hr in (100, 130, 150, 170, 190)]
-        make_stream(db, activity, _TYPE.HEART_RATE.stored, samples)
-        return activity
+def _hr_stream_of(db, user, **activity_fields):
+    activity = make_activity(db, user.id, total_timer_time=100.0, **activity_fields)
+    samples = [{"time": f"2025-03-10T08:00:{second:02d}", "hr": hr} for second, hr in enumerate(_HR_SAMPLES)]
+    make_stream(db, activity, _TYPE.HEART_RATE.stored, samples)
+    return activity
 
+
+class TestHeartRateZones:
     def test_the_owner_gets_the_zone_breakdown_from_their_max_heart_rate(self, db, owner):
-        activity = self._hr_stream(db, owner)
+        activity = _hr_stream_of(db, owner)
 
         stream = streams_service.get_activity_stream(activity.id, _TYPE.HEART_RATE.stored, owner.id, db)
 
         assert stream.zone_percentages is not None
-        assert stream.zone_percentages.hr["zone_1"] == {"percent": 20.0, "hr": "< 120", "time_seconds": 20}
+        assert stream.zone_percentages.hr["zone_1"] == {"percent": 20.0, "hr": "< 120", "time_seconds": 1}
 
     def test_the_max_heart_rate_follows_the_birthdate_when_none_is_stored(self, db):
         user = make_user(db, max_heart_rate=None, birthdate=date(1990, 1, 1))
-        activity = self._hr_stream(db, user)
+        activity = _hr_stream_of(db, user)
 
         stream = streams_service.get_activity_stream(activity.id, _TYPE.HEART_RATE.stored, user.id, db)
 
@@ -188,7 +190,7 @@ class TestHeartRateZones:
 
     def test_an_owner_without_a_max_heart_rate_or_birthdate_gets_no_zones(self, db):
         user = make_user(db, max_heart_rate=None, birthdate=None)
-        activity = self._hr_stream(db, user)
+        activity = _hr_stream_of(db, user)
 
         stream = streams_service.get_activity_stream(activity.id, _TYPE.HEART_RATE.stored, user.id, db)
 
@@ -203,7 +205,10 @@ class TestHeartRateZones:
         assert page.items[0].zone_percentages is None
 
     def test_other_stream_types_carry_no_zones(self, db, owner):
-        activity = _shared(db, owner, _VISIBILITY.PRIVATE)
+        activity = _hr_stream_of(db, owner)
+        for stream_type, (sample, _) in _STREAMS.items():
+            if stream_type is not _TYPE.HEART_RATE:
+                make_stream(db, activity, stream_type.stored, [sample])
 
         page = streams_service.list_activity_streams(activity.id, owner.id, db)
 
@@ -211,7 +216,7 @@ class TestHeartRateZones:
         assert zoned == {_TYPE.HEART_RATE.stored}
 
     def test_a_follower_gets_the_zones_of_the_owners_max_heart_rate(self, db, owner, follower):
-        activity = self._hr_stream(db, owner, visibility=_VISIBILITY.FOLLOWERS)
+        activity = _hr_stream_of(db, owner, visibility=_VISIBILITY.FOLLOWERS)
 
         stream = streams_service.get_activity_stream(activity.id, _TYPE.HEART_RATE.stored, follower.id, db)
 
@@ -234,7 +239,16 @@ class TestPublic:
 
     def test_a_public_activity_serves_one_stream_with_its_zones(self, db, owner):
         activity = make_activity(db, owner.id, visibility=_VISIBILITY.PUBLIC, total_timer_time=100.0)
-        make_stream(db, activity, _TYPE.HEART_RATE.stored, [{"time": _TIME, "hr": 100}, {"time": _TIME, "hr": 190}])
+        make_stream(
+            db,
+            activity,
+            _TYPE.HEART_RATE.stored,
+            [
+                {"time": _TIME, "hr": 100},
+                {"time": "2025-03-10T08:00:01", "hr": 190},
+                {"time": "2025-03-10T08:00:02", "hr": 190},
+            ],
+        )
 
         stream = streams_service.get_public_activity_stream(activity.id, _TYPE.HEART_RATE.stored, db)
 

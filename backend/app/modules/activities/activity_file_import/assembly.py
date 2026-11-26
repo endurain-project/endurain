@@ -157,7 +157,7 @@ def _breaks(session: activity_file_import_recording.Session) -> frozenset[int]:
         The sample indexes that start a run.
     """
     times = session.samples.time
-    threshold = activity_file_import_parser_utils.pause_threshold_seconds(list(times))
+    threshold = activities_computation.pause_threshold_seconds(list(times))
     starts = {i for i in range(1, len(times)) if (times[i] - times[i - 1]).total_seconds() > threshold}
     for pause in session.pauses:
         resumed = bisect.bisect_left(times, pause.end)
@@ -1122,7 +1122,7 @@ def _assemble_session(
     running = activity_constants.is_running_cadence_type(activity_type)
 
     elapsed = _elapsed(session)
-    threshold = activity_file_import_parser_utils.pause_threshold_seconds(list(session.samples.time))
+    threshold = activities_computation.pause_threshold_seconds(list(session.samples.time))
     timer = _timer_time(session, streams, elapsed, threshold)
     distance = _distance(session, streams, timer, threshold)
     active_time = _active_time(session, distance, timer)

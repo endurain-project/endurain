@@ -6,7 +6,7 @@ package once the Strava adapter needed it too — it is a module-level surface n
 
 import itertools
 import math
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 
 import numpy as np
 import pytest
@@ -382,6 +382,71 @@ class TestRunningCadenceNormalization:
             {"time": "t1", "cad": None},
             {"time": "t2", "cad": 175},
         ]
+
+
+class TestPauseThresholdSeconds:
+    """Test suite for pause_threshold_seconds."""
+
+    def test_dense_track_uses_the_minimum(self):
+        """1 s sampling keeps the minimum threshold."""
+        t = datetime(2026, 1, 1, 8, 0, 0, tzinfo=UTC)
+        times = [t + timedelta(seconds=i) for i in range(10)]
+        assert (
+            activities_computation.pause_threshold_seconds(times)
+            == activities_computation.PAUSE_DETECTION_THRESHOLD_SECONDS
+        )
+
+    def test_sparse_track_scales_with_the_median_interval(self):
+        """30 s sampling raises the threshold to three intervals."""
+        t = datetime(2026, 1, 1, 8, 0, 0, tzinfo=UTC)
+        times = [t + timedelta(seconds=30 * i) for i in range(10)]
+        assert activities_computation.pause_threshold_seconds(times) == 90.0
+
+    def test_long_pauses_do_not_move_the_median(self):
+        """Two 600 s pauses in a 1 s track keep the minimum threshold."""
+        t = datetime(2026, 1, 1, 8, 0, 0, tzinfo=UTC)
+        offsets = [*range(10), 610, 611, 612, 1212, 1213, 1214]
+        times = [t + timedelta(seconds=s) for s in offsets]
+        assert (
+            activities_computation.pause_threshold_seconds(times)
+            == activities_computation.PAUSE_DETECTION_THRESHOLD_SECONDS
+        )
+
+    def test_no_positive_gap_uses_the_minimum(self):
+        """Empty, single or duplicate timestamps fall back to the minimum."""
+        t = datetime(2026, 1, 1, 8, 0, 0, tzinfo=UTC)
+        assert (
+            activities_computation.pause_threshold_seconds([])
+            == activities_computation.PAUSE_DETECTION_THRESHOLD_SECONDS
+        )
+        assert (
+            activities_computation.pause_threshold_seconds([t, t])
+            == activities_computation.PAUSE_DETECTION_THRESHOLD_SECONDS
+        )
+
+    def test_too_few_gaps_use_the_minimum(self):
+        """A single 300 s gap is a pause, not a sampling interval."""
+        t = datetime(2026, 1, 1, 8, 0, 0, tzinfo=UTC)
+        times = [t, t + timedelta(seconds=300)]
+        assert (
+            activities_computation.pause_threshold_seconds(times)
+            == activities_computation.PAUSE_DETECTION_THRESHOLD_SECONDS
+        )
+
+
+class TestHeldSeconds:
+    def test_each_sample_holds_the_time_to_the_next_and_the_last_holds_nothing(self):
+        assert activities_computation.held_seconds([0.0, 1.0, 3.0, 6.0], 15.0).tolist() == [1.0, 2.0, 3.0, 0.0]
+
+    def test_a_gap_over_the_threshold_is_capped_at_it(self):
+        assert activities_computation.held_seconds([0.0, 100.0, 101.0], 15.0).tolist() == [15.0, 1.0, 0.0]
+
+    def test_samples_on_one_instant_share_its_time_equally(self):
+        assert activities_computation.held_seconds([0.0, 0.0, 2.0, 2.0], 15.0).tolist() == [1.0, 1.0, 0.0, 0.0]
+
+    def test_a_single_instant_and_no_samples_hold_nothing(self):
+        assert activities_computation.held_seconds([5.0, 5.0], 15.0).tolist() == [0.0, 0.0]
+        assert activities_computation.held_seconds([], 15.0).tolist() == []
 
 
 class TestTimeWeightedMean:
