@@ -490,6 +490,17 @@ class TestSessionSport:
         assert activity.timezone == "Europe/Madrid"
 
 
+def _on_off_watts(seconds: int) -> list[int]:
+    """Return 1 Hz power alternating 30 s of 400 W and 30 s of 100 W."""
+    return [400 if (second // 30) % 2 == 0 else 100 for second in range(seconds)]
+
+
+def _coggan_np(watts: list[int]) -> float:
+    """Return the normalized power of a 1 Hz list in plain Python: 30 s rolling mean, 4th-power mean, 4th root."""
+    rolling = [sum(watts[i : i + 30]) / 30 for i in range(len(watts) - 29)]
+    return (sum(w**4 for w in rolling) / len(rolling)) ** 0.25
+
+
 class TestSessionSummaryFallbacks:
     @staticmethod
     def _power_records(watts: int, count: int = 20) -> list[bytes]:
@@ -499,6 +510,15 @@ class TestSessionSummaryFallbacks:
         activity = _payload(tmp_path, *self._power_records(200), _session())["activity"]
 
         assert (activity.average_power, activity.max_power, activity.normalized_power) == (200, 200, 200)
+
+    def test_a_session_without_a_normalised_power_gets_coggans_from_the_one_hertz_records(self, tmp_path):
+        watts = _on_off_watts(600)
+        records = [_record(i, (7, _UINT16, w)) for i, w in enumerate(watts)]
+
+        activity = _payload(tmp_path, *records, _session(600))["activity"]
+
+        # The raw 4th-power mean would give 331.
+        assert activity.normalized_power == round(_coggan_np(watts))
 
     def test_a_session_with_only_an_average_power_gets_the_maximum_and_normalised_power_computed(self, tmp_path):
         activity = _payload(tmp_path, *self._power_records(200), _session(40, (20, _UINT16, 150)))["activity"]

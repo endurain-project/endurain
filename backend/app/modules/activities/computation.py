@@ -24,6 +24,8 @@ from geopy.distance import geodesic
 
 import modules.activities.activity_streams.contracts as activity_streams_contracts
 
+_NP_WINDOW_SECONDS = 30
+
 
 def _elapsed_seconds(start: datetime, end: datetime) -> float:
     """Return real elapsed seconds between two timestamps.
@@ -354,6 +356,41 @@ def time_weighted_mean(times: Sequence[float], values: Sequence[float | None], m
     if total == 0.0:
         return float(means.mean())
     return float(np.dot(weights, means[:-1]) / total)
+
+
+def normalized_power(times: Sequence[float], values: Sequence[float | None], max_gap: float) -> float | None:
+    """Return the normalized power (Coggan) of a power series.
+
+    The series is resampled to 1 Hz over the time it was recorded: each sample holds its value until the next one,
+    and each second is the average power over that second, so a power meter faster than 1 Hz keeps every reading and
+    a smart-recording file its held values. A sample followed by a gap longer than ``max_gap``, and the last sample,
+    hold only their own second, so a pause adds no seconds and is not zero-filled. Samples sharing one instant are
+    averaged. A sample is left out together with its time when its power is ``None``; a power of 0 counts. The result
+    is the 4th root of the mean 4th power of the 30 s rolling mean.
+
+    Args:
+        times: Sample times in seconds, in recording order; sub-second values are allowed.
+        values: The power at each time, ``None`` where the channel has none.
+        max_gap: The longest gap in seconds that a sample still holds its value through, the pause threshold.
+
+    Returns:
+        The normalized power in watts; ``None`` when fewer than 30 seconds of power remain.
+    """
+    kept = [(time, value) for time, value in zip(times, values, strict=True) if value is not None]
+    if not kept:
+        return None
+    instants, group = np.unique(np.array([time for time, _ in kept], dtype=float), return_inverse=True)
+    means = np.bincount(group, weights=np.array([value for _, value in kept], dtype=float)) / np.bincount(group)
+    steps = np.diff(instants)
+    held = np.append(np.where(steps <= max_gap, steps, 1.0), 1.0)
+    elapsed = np.concatenate(([0.0], np.cumsum(held)))
+    energy = np.concatenate(([0.0], np.cumsum(means * held)))
+    whole_seconds = int(np.floor(elapsed[-1]))
+    if whole_seconds < _NP_WINDOW_SECONDS:
+        return None
+    seconds = np.diff(np.interp(np.arange(whole_seconds + 1, dtype=float), elapsed, energy))
+    rolling = np.convolve(seconds, np.ones(_NP_WINDOW_SECONDS) / _NP_WINDOW_SECONDS, mode="valid")
+    return float(np.mean(rolling**4) ** 0.25)
 
 
 def calculate_robust_max(values: list[float], window: int = 5) -> float:

@@ -70,6 +70,51 @@ def _six_km_track(tmp_path: Path, **kwargs):
     return _gpx(tmp_path, f"<trk><name>Run</name><type>Run</type><trkseg>{points}</trkseg></trk>", **kwargs)
 
 
+def _on_off_watts(seconds: int) -> list[int]:
+    """Return 1 Hz power alternating 30 s of 400 W and 30 s of 100 W."""
+    return [400 if (second // 30) % 2 == 0 else 100 for second in range(seconds)]
+
+
+def _coggan_np(watts: list[int]) -> float:
+    """Return the normalized power of a 1 Hz list in plain Python: 30 s rolling mean, 4th-power mean, 4th root."""
+    rolling = [sum(watts[i : i + 30]) / 30 for i in range(len(watts) - 29)]
+    return (sum(w**4 for w in rolling) / len(rolling)) ** 0.25
+
+
+def _powered_ride(tmp_path: Path, watts: list[int], **kwargs):
+    """Assemble a ride east along the equator at about 10 m/s, one trackpoint a second carrying power."""
+    start = datetime(2025, 1, 1, tzinfo=UTC)
+    points = "".join(
+        f'<trkpt lat="0.0" lon="{_LON_ORIGIN + i * 0.00009:.5f}">'
+        f"<time>{(start + timedelta(seconds=i)).strftime('%Y-%m-%dT%H:%M:%SZ')}</time>"
+        f"<extensions><TrackPointExtension><power>{w}</power></TrackPointExtension></extensions></trkpt>"
+        for i, w in enumerate(watts)
+    )
+    return _gpx(tmp_path, f"<trk><type>cycling</type><trkseg>{points}</trkseg></trk>", **kwargs)
+
+
+class TestNormalizedPower:
+    """GPX has no device normalized power, so the activity and its auto laps get Coggan's from the samples."""
+
+    def test_activity_normalised_power_is_coggans(self, tmp_path):
+        watts = _on_off_watts(600)
+
+        result = _powered_ride(tmp_path, watts)
+
+        assert result["activity"].normalized_power == round(_coggan_np(watts))
+
+    def test_a_full_auto_lap_gets_coggans_from_the_samples_inside_it(self, tmp_path):
+        watts = _on_off_watts(600)
+
+        first = _powered_ride(tmp_path, watts)["laps"][0]
+
+        # The lap is the first ~100 s; its window ends within a second of the lap's elapsed time.
+        window = watts[: round(first["total_elapsed_time"])]
+        assert first["normalized_power"] == pytest.approx(_coggan_np(window), abs=2)
+        # The raw 4th-power mean of these samples is far higher.
+        assert first["normalized_power"] < (sum(w**4 for w in window) / len(window)) ** 0.25 - 10
+
+
 class TestAutoLapDistance:
     """GPX carries no device laps, so laps close at the caller's lap distance."""
 

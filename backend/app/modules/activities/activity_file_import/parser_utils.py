@@ -240,6 +240,25 @@ def _lap_mean(
     return activities_computation.time_weighted_mean(times, values, threshold)
 
 
+def _lap_normalized_power(waypoints: Sequence[Mapping[str, Any]], threshold: float) -> float | None:
+    """Return the normalized power of a lap's power waypoints.
+
+    Args:
+        waypoints: The lap's power waypoints in time order.
+        threshold: The stream's pause threshold in seconds.
+
+    Returns:
+        The normalized power; ``None`` when fewer than 30 seconds of power exist.
+    """
+    import modules.activities.computation as activities_computation
+
+    return activities_computation.normalized_power(
+        [_parse_utc(waypoint["time"]).timestamp() for waypoint in waypoints],
+        [None if waypoint.get("power") is None else float(waypoint["power"]) for waypoint in waypoints],
+        threshold,
+    )
+
+
 def _compute_lap_metrics(
     start_time: str,
     end_time: str,
@@ -307,7 +326,7 @@ def _compute_lap_metrics(
     if lap_power:
         _, max_power = activities_computation.calculate_avg_and_max(lap_power, "power")
         avg_power = _lap_mean(lap_power, "power", power.pause_threshold)
-        norm_power = activities_computation.calculate_np(lap_power)
+        norm_power = _lap_normalized_power(lap_power, power.pause_threshold)
 
     elapsed = (_parse_utc(end_time) - _parse_utc(start_time)).total_seconds()
 

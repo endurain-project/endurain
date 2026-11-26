@@ -74,6 +74,17 @@ def _document(*laps: str, sport: str = "Running", activity_id: str | None = None
     )
 
 
+def _on_off_watts(seconds: int) -> list[int]:
+    """Return 1 Hz power alternating 30 s of 400 W and 30 s of 100 W."""
+    return [400 if (second // 30) % 2 == 0 else 100 for second in range(seconds)]
+
+
+def _coggan_np(watts: list[int]) -> float:
+    """Return the normalized power of a 1 Hz list in plain Python: 30 s rolling mean, 4th-power mean, 4th root."""
+    rolling = [sum(watts[i : i + 30]) / 30 for i in range(len(watts) - 29)]
+    return (sum(w**4 for w in rolling) / len(rolling)) ** 0.25
+
+
 def _assemble(tmp_path: Path, document: str, **kwargs: Any) -> list[assembly.ActivityFilePayload]:
     """Write a document to a file and assemble it."""
     path = tmp_path / "activity.tcx"
@@ -583,10 +594,27 @@ class TestLaps:
         # The last sample holds no time; the zero heart rate is a dropout left out with its time.
         assert (lap["avg_heart_rate"], lap["max_heart_rate"]) == (140, 160)
         assert (lap["avg_power"], lap["max_power"]) == (150, 300)
-        assert lap["normalized_power"] is not None
+        # Twenty seconds hold under the 30 s a normalized power needs.
+        assert lap["normalized_power"] is None
         assert (lap["avg_cadence"], lap["max_cadence"]) == (75, 90)
         assert lap["start_position_lat"] == 40.0
         assert lap["end_position_lat"] == pytest.approx(40.0002)
+
+    def test_a_lap_without_a_device_normalised_power_gets_coggans_from_its_samples(self, tmp_path: Path) -> None:
+        watts = _on_off_watts(600)
+        points = "".join(_tp(i, power=w) for i, w in enumerate(watts))
+
+        (lap,) = _one(tmp_path, points, seconds=599, sport="Biking")["laps"]
+
+        assert lap["normalized_power"] == round(_coggan_np(watts))
+
+    def test_activity_normalised_power_is_coggans(self, tmp_path: Path) -> None:
+        watts = _on_off_watts(600)
+        points = "".join(_tp(i, power=w) for i, w in enumerate(watts))
+
+        activity = _one(tmp_path, points, seconds=599, sport="Biking")["activity"]
+
+        assert activity.normalized_power == round(_coggan_np(watts))
 
     def test_short_laps_are_kept(self, tmp_path: Path) -> None:
         document = _document(

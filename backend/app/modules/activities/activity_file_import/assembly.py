@@ -456,6 +456,22 @@ def _sampled_mean(times: Sequence[datetime], values: Sequence[float | None], thr
     return activities_computation.time_weighted_mean([time.timestamp() for time in times], values, threshold)
 
 
+def _sampled_normalized_power(
+    times: Sequence[datetime], values: Sequence[float | None], threshold: float
+) -> float | None:
+    """Compute the normalized power of samples, a pause being left out beyond ``threshold``.
+
+    Args:
+        times: The samples' times.
+        values: The samples' power, ``None`` where the channel has none.
+        threshold: The pause threshold in seconds.
+
+    Returns:
+        The normalized power; ``None`` when fewer than 30 seconds of power exist.
+    """
+    return activities_computation.normalized_power([time.timestamp() for time in times], values, threshold)
+
+
 def _present_max(values: Iterable[float | None]) -> float | None:
     """Return the largest value that exists.
 
@@ -493,13 +509,12 @@ def _heart_rate(session: activity_file_import_recording.Session, threshold: floa
 
 
 def _power(
-    session: activity_file_import_recording.Session, streams: _Streams, threshold: float
+    session: activity_file_import_recording.Session, threshold: float
 ) -> tuple[int | None, int | None, int | None]:
     """Return a session's average, maximum and normalized power.
 
     Args:
         session: The session.
-        streams: The session's streams.
         threshold: The pause threshold in seconds.
 
     Returns:
@@ -513,8 +528,8 @@ def _power(
         avg = _sampled_mean(samples.time, samples.power, threshold)
     if peak is None:
         peak = _present_max(samples.power)
-    if normalized is None and streams.power:
-        normalized = activities_computation.calculate_np(streams.power)
+    if normalized is None:
+        normalized = _sampled_normalized_power(samples.time, samples.power, threshold)
     return (
         round(avg) if avg else None,
         round(peak) if peak else None,
@@ -698,8 +713,7 @@ def _sampled_lap(window: activity_file_import_recording.Samples, running: bool, 
     max_cad = _present_max(window.cadence)
     avg_power = _sampled_mean(window.time, window.power, threshold)
     max_power = _present_max(window.power)
-    power = [{"power": v} for v in window.power if v is not None]
-    normalized_power = activities_computation.calculate_np(power) if power else None
+    normalized_power = _sampled_normalized_power(window.time, window.power, threshold)
     speeds = [v for v in window.speed if v is not None]
     positions = [(lat, lon) for lat, lon in zip(window.lat, window.lon, strict=True) if lat is not None]
     return _LapSamples(
@@ -961,7 +975,7 @@ def _assemble_session(
     avg_speed, max_speed = _speeds(session, streams, distance, pace)
     threshold = activity_file_import_parser_utils.pause_threshold_seconds(list(session.samples.time))
     avg_hr, max_hr = _heart_rate(session, threshold)
-    avg_power, max_power, normalized_power = _power(session, streams, threshold)
+    avg_power, max_power, normalized_power = _power(session, threshold)
     avg_cadence, max_cadence = _cadence(session, running, threshold)
     elevation_gain, elevation_loss = _elevation(session, streams)
 

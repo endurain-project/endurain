@@ -21,6 +21,7 @@ from modules.activities.computation import (
     compute_elevation_gain_and_loss,
     double_cadence_waypoints,
     double_running_cadence,
+    normalized_power,
     smooth_elevation_stream,
     sum_elevation_deltas,
     time_weighted_mean,
@@ -444,3 +445,98 @@ class TestTimeWeightedMean:
 
     def test_samples_all_on_one_instant_average_plainly(self):
         assert time_weighted_mean([5.0, 5.0, 5.0], [100.0, 200.0, 300.0], 15.0) == pytest.approx(200.0)
+
+
+def _reference_normalized_power(watts: list[float]) -> float:
+    """Return Coggan's NP of a 1 Hz power list in plain Python: 30-sample rolling mean, 4th-power mean, 4th root."""
+    rolling = [sum(watts[i : i + 30]) / 30 for i in range(len(watts) - 29)]
+    return (sum(w**4 for w in rolling) / len(rolling)) ** 0.25
+
+
+def _on_off(seconds: int, on: float = 400.0, off: float = 100.0, period: int = 30) -> list[float]:
+    return [on if (second // period) % 2 == 0 else off for second in range(seconds)]
+
+
+class TestNormalizedPower:
+    def test_thirty_second_on_off_intervals_match_the_reference_and_the_plans_figure(self):
+        watts = _on_off(600)
+
+        result = normalized_power([float(i) for i in range(600)], watts, 15.0)
+
+        assert result == pytest.approx(_reference_normalized_power(watts))
+        # The plan's note quotes about 287.5 W for this ride.
+        assert result == pytest.approx(287.5, abs=1.0)
+
+    def test_steady_power_is_itself(self):
+        assert normalized_power([float(i) for i in range(120)], [200.0] * 120, 15.0) == pytest.approx(200.0)
+
+    def test_under_thirty_seconds_of_power_gives_none(self):
+        assert normalized_power([float(i) for i in range(29)], [200.0] * 29, 15.0) is None
+        assert normalized_power([], [], 15.0) is None
+        assert normalized_power([0.0, 1.0], [None, None], 15.0) is None
+
+    def test_exactly_thirty_seconds_give_one_window(self):
+        assert normalized_power([float(i) for i in range(30)], [250.0] * 30, 15.0) == pytest.approx(250.0)
+
+    def test_a_pause_leaves_the_result_unchanged(self):
+        watts = _on_off(600)
+        times = [float(i) for i in range(600)]
+        paused_times = times[:300] + [t + 600.0 for t in times[300:]]
+
+        assert normalized_power(paused_times, watts, 15.0) == pytest.approx(normalized_power(times, watts, 15.0))
+
+    def test_smart_recording_equals_the_one_hertz_profile(self):
+        watts = _on_off(600, period=30)
+        # Samples only where the value changes, plus a 5 s heartbeat: each holds its value until the next.
+        times = [float(i) for i in range(0, 600, 5)] + [599.0]
+        values = [watts[int(t)] for t in times]
+
+        assert normalized_power(times, values, 15.0) == pytest.approx(_reference_normalized_power(watts))
+
+    def test_missing_power_is_left_out_with_its_time(self):
+        # The None second is held by the previous sample, so it is the 1 Hz series with 200 W throughout.
+        times = [float(i) for i in range(60)]
+        values: list[float | None] = [200.0] * 60
+        values[10] = None
+        values[11] = None
+
+        assert normalized_power(times, values, 15.0) == pytest.approx(200.0)
+
+    def test_zeros_count(self):
+        coasting = [250.0] * 60 + [0.0] * 60 + [250.0] * 60
+        steady = [250.0] * 180
+
+        with_zeros = normalized_power([float(i) for i in range(180)], coasting, 15.0)
+
+        assert with_zeros == pytest.approx(_reference_normalized_power(coasting))
+        assert with_zeros < normalized_power([float(i) for i in range(180)], steady, 15.0)
+
+    def test_sub_second_samples_hold_the_latest_value_at_each_whole_second(self):
+        # Four samples per second; every second holds the latest sample at or before it: 100 W, then 300 W.
+        times = [i * 0.25 for i in range(480)]
+        values = [100.0 if t < 60.0 else 300.0 for t in times]
+
+        result = normalized_power(times, values, 15.0)
+
+        reference = [100.0] * 60 + [300.0] * 60
+        assert result == pytest.approx(_reference_normalized_power(reference))
+
+    def test_sub_second_samples_within_a_second_are_averaged_by_their_time(self):
+        # A 4 Hz power meter alternating 100 and 300 W: every second averages 200 W, none is one reading alone.
+        times = [i * 0.25 for i in range(480)]
+        values = [100.0 if i % 2 == 0 else 300.0 for i in range(480)]
+
+        assert normalized_power(times, values, 15.0) == pytest.approx(200.0)
+
+    def test_samples_on_one_instant_share_it_as_their_mean(self):
+        times = [float(i // 2) for i in range(120)]
+        values = [100.0, 300.0] * 60
+
+        assert normalized_power(times, values, 15.0) == pytest.approx(200.0)
+
+    def test_a_gap_longer_than_the_threshold_adds_no_seconds(self):
+        # 20 s before a 100 s pause and 20 s after: 40 s of power, not 140.
+        times = [float(i) for i in range(20)] + [float(i) + 120.0 for i in range(20)]
+
+        assert normalized_power(times, [200.0] * 40, 15.0) == pytest.approx(200.0)
+        assert normalized_power(times[:20] + times[20:29], [200.0] * 29, 15.0) is None
