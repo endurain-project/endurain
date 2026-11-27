@@ -266,18 +266,18 @@ class TestExportProfile:
 
 
 class TestWriteActivityComponents:
-    def test_components_loop_calls_chunked_and_simple(self) -> None:
+    def test_components_loop_calls_split_and_simple(self) -> None:
         import module_registry
 
         module_registry.configure_activity_contributors()
         ctx, _ = _ctx()
         with (
-            patch.object(export_service, "_write_component_chunked") as chunked,
+            patch.object(export_service, "_write_component_split") as split,
             patch.object(export_service, "_write_component_simple") as simple,
         ):
             export_service._write_activity_components(ctx, [_A])
 
-        assert chunked.call_count == 3
+        assert split.call_count == 3
         assert simple.call_count == 2
 
 
@@ -285,21 +285,69 @@ def _rows(n: int) -> list[_Row]:
     return [_Row(id=uuid.UUID(int=i + 1)) for i in range(n)]
 
 
-def _chunked(ctx, export, activity_ids, batch_size):
-    export_service._write_component_chunked(ctx, "laps", "data/activity_laps.json", export, activity_ids, batch_size)
+def _split(ctx, export, activity_ids, part_size):
+    export_service._write_component_split(ctx, "laps", "data/activity_laps.json", export, activity_ids, part_size)
 
 
-class TestWriteComponentChunked:
-    def test_a_single_batch_is_written_under_the_plain_name(self) -> None:
+class TestWriteComponentSplit:
+    def test_the_records_are_read_one_activity_at_a_time(self) -> None:
+        ctx, _ = _ctx()
+        reader = MagicMock(side_effect=lambda ids, db: _rows(len(ids)))
+        _split(ctx, reader, [_A, _B, _C], 5)
+
+        assert [call.args[0] for call in reader.call_args_list] == [[_A], [_B], [_C]]
+
+    def test_an_activity_is_written_before_the_next_one_is_read(self) -> None:
+        order: list[str] = []
         ctx, archive = _ctx()
-        _chunked(ctx, lambda ids, db: _rows(len(ids)), [_A, _B], 5)
 
-        assert list(archive.entries) == ["data/activity_laps.json"]
+        def read(ids, db):
+            order.append(f"read{ids[0].int}")
+            return [_Row(id=ids[0])]
+
+        original = archive.write_json_stream
+
+        def stream(path, batches):
+            def tracked():
+                for batch in batches:
+                    order.append(f"write{batch[0].id.int}")
+                    yield batch
+
+            original(path, tracked())
+
+        with patch.object(archive, "write_json_stream", stream):
+            _split(ctx, read, [_A, _B], 5)
+
+        assert order == ["read1", "write1", "read2", "write2"]
+
+    def test_a_single_part_is_numbered(self) -> None:
+        ctx, archive = _ctx()
+        _split(ctx, lambda ids, db: _rows(len(ids)), [_A, _B], 5)
+
+        assert list(archive.entries) == ["data/activity_laps_000.json"]
         assert ctx.counts["laps"] == 2
 
-    def test_full_chunks_and_the_remainder_are_numbered(self) -> None:
+    def test_an_activity_that_fills_a_part_continues_into_the_next(self) -> None:
         ctx, archive = _ctx()
-        _chunked(ctx, lambda ids, db: _rows(len(ids)), [_A, _B, _C], 2)
+        _split(ctx, lambda ids, db: _rows(3), [_A, _B], 2)
+
+        assert {path: len(rows) for path, rows in archive.entries.items()} == {
+            "data/activity_laps_000.json": 2,
+            "data/activity_laps_001.json": 2,
+            "data/activity_laps_002.json": 2,
+        }
+        assert ctx.counts["laps"] == 6
+
+    def test_activities_without_records_open_no_part(self) -> None:
+        ctx, archive = _ctx()
+        _split(ctx, lambda ids, db: _rows(1) if ids == [_B] else [], [_A, _B, _C], 1)
+
+        assert list(archive.entries) == ["data/activity_laps_000.json"]
+        assert ctx.counts["laps"] == 1
+
+    def test_full_parts_and_the_remainder_are_numbered(self) -> None:
+        ctx, archive = _ctx()
+        _split(ctx, lambda ids, db: _rows(len(ids)), [_A, _B, _C], 2)
 
         assert list(archive.entries) == ["data/activity_laps_000.json", "data/activity_laps_001.json"]
         assert len(archive.entries["data/activity_laps_000.json"]) == 2
@@ -308,15 +356,9 @@ class TestWriteComponentChunked:
         # Each part also counts under its own stem, as the legacy writer did.
         assert ctx.counts["activity_laps_000"] == 2
 
-    def test_buffer_overflow_across_batches_writes_several_chunks(self) -> None:
-        ctx, archive = _ctx()
-        _chunked(ctx, lambda ids, db: _rows(len(ids) + 1) if ids else [], [_A, _B], 2)
-
-        assert len(archive.entries) >= 2
-
     def test_an_empty_result_writes_an_empty_file(self) -> None:
         ctx, archive = _ctx()
-        _chunked(ctx, lambda ids, db: [], [_A, _B], 5)
+        _split(ctx, lambda ids, db: [], [_A, _B], 5)
 
         assert archive.entries == {"data/activity_laps.json": []}
         assert ctx.counts["laps"] == 0
@@ -328,15 +370,15 @@ class TestWriteComponentChunked:
             raise RuntimeError("fail")
 
         with pytest.raises(RuntimeError, match="fail"):
-            _chunked(ctx, fail, [_A, _B, _C], 2)
+            _split(ctx, fail, [_A, _B, _C], 2)
 
-    def test_a_memory_error_propagates_with_the_batch_operation_name(self) -> None:
+    def test_a_memory_error_propagates_with_the_activity_operation_name(self) -> None:
         check_memory = MagicMock(side_effect=MemoryAllocationError("oom"))
         ctx, _ = _ctx(check_memory=check_memory)
         with pytest.raises(MemoryAllocationError):
-            _chunked(ctx, lambda ids, db: [], [_A, _B], 5)
+            _split(ctx, lambda ids, db: [], [_A, _B], 5)
 
-        check_memory.assert_called_once_with("laps batch 1")
+        check_memory.assert_called_once_with("laps activity 1")
 
 
 def _simple(ctx, export, activity_ids, batch_size):
