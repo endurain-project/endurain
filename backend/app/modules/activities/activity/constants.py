@@ -216,8 +216,9 @@ PRIVACY_FIELDS = frozenset(
     }
 )
 
-#: The activity columns a file analysis computes, which a reprocess rewrites. Everything else is the owner's
-#: (``ActivityEdit``), a provider's (ids), geocoding's (city, town, country) or fixed at import (start time, owner).
+#: The activity columns a file analysis computes, which a reprocess rewrites; the start point is derived from the
+#: samples. Everything else is the owner's (``ActivityEdit``), a provider's (ids), geocoding's (city, town, country) or
+#: fixed at import (start time, owner).
 DERIVED_FIELDS = (
     "distance",
     "end_time",
@@ -242,6 +243,8 @@ DERIVED_FIELDS = (
     "tracker_manufacturer",
     "tracker_model",
     "total_cycles",
+    "start_latitude",
+    "start_longitude",
 )
 
 #: The earliest year a yearly summary may be requested for.

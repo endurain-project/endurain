@@ -1,5 +1,6 @@
 """Tests that each ingestion contributor stores the parsed payload it is handed, or refuses it, on PostgreSQL."""
 
+from datetime import timedelta
 from typing import Any
 
 import pytest
@@ -21,6 +22,7 @@ import modules.activities.activity_streams.integration_service as activity_strea
 import modules.activities.activity_workout_steps.contracts as activity_workout_steps_contracts
 import modules.activities.activity_workout_steps.crud as activity_workout_steps_crud
 import modules.activities.activity_workout_steps.integration_service as activity_workout_steps_integration
+import modules.activities.contributor_registry as contributor_registry
 from tests._factories import activities as activity_factory
 from tests._factories import users as user_factory
 
@@ -122,6 +124,45 @@ class TestActivityComponents:
             (30.0, None, None),
             (45.0, 8, 20.0),
         ]
+
+
+class TestSamplesComponent:
+    def test_a_parsed_samples_payload_is_stored_against_the_activity(self, db: Session):
+        activity = activity_factory.make_activity(db, user_factory.make_user(db).id)
+        samples = activity_streams_contracts.ParsedSamples(offsets_ms=[0, 1500], heart_rate=[140, None])
+
+        activity_streams_integration.samples_ingestion_contributor().persist(samples, activity, db)
+        db.flush()
+
+        stored = activity_streams_crud.get_activity_samples(activity.id, db)
+        assert stored is not None
+        assert (stored.offsets_ms, stored.heart_rate, stored.power) == ([0, 1500], [140, None], None)
+
+    def test_a_payload_of_another_shape_is_refused_before_anything_is_stored(self, db: Session):
+        activity = activity_factory.make_activity(db, user_factory.make_user(db).id)
+
+        with pytest.raises(ValidationError):
+            activity_streams_integration.samples_ingestion_contributor().persist({"offsets_ms": [0]}, activity, db)
+        db.flush()
+
+        assert activity_streams_crud.get_activity_samples(activity.id, db) is None
+
+    def test_clear_deletes_the_samples_of_the_activity_only(self, db: Session):
+        owner = user_factory.make_user(db).id
+        activity = activity_factory.make_activity(db, owner)
+        other = activity_factory.make_activity(db, owner, start_time=activity_factory.DEFAULT_START + timedelta(days=1))
+        activity_factory.make_samples(db, activity, [0], heart_rate=[1])
+        activity_factory.make_samples(db, other, [0], heart_rate=[2])
+
+        activity_streams_integration.samples_ingestion_contributor().clear(activity.id, db)
+
+        assert activity_streams_crud.get_activity_samples(activity.id, db) is None
+        assert activity_streams_crud.get_activity_samples(other.id, db) is not None
+
+    def test_the_samples_contributor_is_registered_next_to_the_streams_one(self):
+        keys = [contributor.key for contributor in contributor_registry.activity_ingestion_contributors()]
+
+        assert {"streams", "samples"} <= set(keys)
 
 
 class TestFileComponents:

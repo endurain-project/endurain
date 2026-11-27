@@ -72,6 +72,8 @@ _DERIVED = (
     "tracker_manufacturer",
     "tracker_model",
     "total_cycles",
+    "start_latitude",
+    "start_longitude",
 )
 
 #: What the owner, a provider or geocoding owns: a reprocess leaves every one as it is.
@@ -163,6 +165,7 @@ def _children(db: Session, activity_id: uuid.UUID) -> dict[str, list[str]]:
     snapshot: dict[str, list[str]] = {}
     for name, model in (
         ("streams", stream_models.ActivityStreams),
+        ("samples", stream_models.ActivitySamples),
         ("laps", lap_models.ActivityLaps),
         ("sets", set_models.ActivitySets),
         ("steps", step_models.ActivityWorkoutSteps),
@@ -225,6 +228,31 @@ class TestReprocessingOneActivity:
         migration_service.reprocess_activity(activity_id, storage)
 
         assert _children(db, activity_id) == expected
+
+    def test_replaces_the_samples_and_rewrites_the_start_point_of_a_track(self, db, owner, other, storage, tmp_path):
+        [activity_id] = import_fixture(db, owner.id, RUN, tmp_path, storage)
+        expected = _children(db, _fresh(db, other.id, RUN, tmp_path, storage))["samples"]
+        assert expected
+        degrade(db, activity_id)
+        assert _values(db, activity_id, ("start_latitude",)) == {"start_latitude": 1.0}
+
+        migration_service.reprocess_activity(activity_id, storage)
+
+        assert _children(db, activity_id)["samples"] == expected
+        start = _values(db, activity_id, ("start_latitude", "start_longitude"))
+        assert start["start_latitude"] != 1.0
+        assert None not in start.values()
+
+    def test_clears_the_start_point_of_an_indoor_activity(self, db, owner, storage, tmp_path):
+        [activity_id] = import_fixture(db, owner.id, TREADMILL, tmp_path, storage)
+        degrade(db, activity_id)
+
+        migration_service.reprocess_activity(activity_id, storage)
+
+        assert _values(db, activity_id, ("start_latitude", "start_longitude")) == {
+            "start_latitude": None,
+            "start_longitude": None,
+        }
 
     def test_never_writes_what_the_owner_edited(self, db, owner, storage, tmp_path):
         [activity_id] = import_fixture(db, owner.id, RUN, tmp_path, storage)

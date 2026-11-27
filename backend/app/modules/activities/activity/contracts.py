@@ -21,7 +21,7 @@ import uuid
 from dataclasses import dataclass, field
 from datetime import datetime
 
-from pydantic import field_validator
+from pydantic import Field, field_validator
 
 import core.timezone as core_timezone
 import modules.activities.activity.schema as activity_schema
@@ -161,6 +161,13 @@ class ActivityCore(activity_schema.ActivityFields, activity_schema.ActivityHeavy
       unchanged, while the stored value is always an aware
       ``datetime`` — and unlike the read schema, ``None`` is rejected rather than
       allowed through.
+
+    It also carries the start point of the activity, which the server derives from the samples and never accepts
+    from or returns to a client, so it is on this shape alone.
+
+    Attributes:
+        start_latitude: Latitude of where the activity starts, in degrees; ``None`` without a position.
+        start_longitude: Longitude of where the activity starts, in degrees; ``None`` without a position.
     """
 
     user_id: uuid.UUID
@@ -168,6 +175,8 @@ class ActivityCore(activity_schema.ActivityFields, activity_schema.ActivityHeavy
     # rejects a null/unparseable value and coerces the rest to aware UTC.
     start_time: datetime
     end_time: datetime
+    start_latitude: float | None = Field(default=None, ge=-90, le=90)
+    start_longitude: float | None = Field(default=None, ge=-180, le=180)
 
     @field_validator("start_time", "end_time", mode="before")
     @classmethod

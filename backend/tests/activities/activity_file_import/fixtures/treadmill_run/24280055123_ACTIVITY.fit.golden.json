@@ -41,6 +41,8 @@
         "normalized_power": 306,
         "pace": 0.340317,
         "private_notes": null,
+        "start_latitude": null,
+        "start_longitude": null,
         "start_time": "2026-09-08T06:53:43Z",
         "strava_activity_id": null,
         "strava_gear_id": null,

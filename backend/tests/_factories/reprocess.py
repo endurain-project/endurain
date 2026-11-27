@@ -5,7 +5,7 @@ import uuid
 from datetime import UTC, datetime
 from pathlib import Path
 
-from sqlalchemy import update
+from sqlalchemy import delete, update
 from sqlalchemy.orm import Session
 
 import modules.activities.activity.models as activity_models
@@ -50,6 +50,8 @@ BOGUS_DERIVED = {
     "tracker_manufacturer": "old",
     "tracker_model": "old",
     "total_cycles": 1,
+    "start_latitude": 1.0,
+    "start_longitude": 1.0,
 }
 
 
@@ -88,8 +90,10 @@ def degrade(db: Session, activity_id: uuid.UUID) -> None:
         .where(activity_models.Activity.id == activity_id)
         .values(**BOGUS_DERIVED, analysis_version=0, updated_at=OLD)
     )
+    db.execute(delete(stream_models.ActivitySamples).where(stream_models.ActivitySamples.activity_id == activity_id))
     db.add_all(
         [
+            stream_models.ActivitySamples(activity_id=activity_id, offsets_ms=[0], heart_rate=[1]),
             stream_models.ActivityStreams(
                 activity_id=activity_id,
                 stream_type=stream_constants.STREAM_TYPE_HR,

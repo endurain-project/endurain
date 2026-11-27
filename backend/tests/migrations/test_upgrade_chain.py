@@ -10,7 +10,7 @@ import migrations.startup as migrations_startup
 from tests._helpers import alembic_chain
 
 _RETIREMENT_REVISION = "50ac9225ce4f"
-_HEAD_REVISION = "3c1f5a7d9e24"
+_HEAD_REVISION = "5b8e2d4f6a13"
 _REPROCESS_MIGRATION = {15: False}
 _DATA_MIGRATIONS = (11, 12, 13, 14)
 _SUBSTRATE_TABLES = ("event_log", "event_outbox", "processing_jobs", "job_attempts", "job_workers")
@@ -152,6 +152,8 @@ def test_the_baseline_alone_differs_from_the_models_only_where_v0_22_changes_the
     assert added == {
         ("add_column", "activities", "parent_activity_id"),
         ("add_column", "activities", "analysis_version"),
+        ("add_column", "activities", "start_latitude"),
+        ("add_column", "activities", "start_longitude"),
     }
     assert foreign_keys == ["add_fk"]
     assert columns == [

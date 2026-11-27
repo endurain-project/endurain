@@ -95,6 +95,7 @@ class TestParsedInfoToParsedActivity:
         assert result.activity is activity
         assert result.components == {
             "streams": [],
+            "samples": None,
             "laps": [{"lap": 1}],
             "sets": [{"set": 1}],
             "workout_steps": [{"step": 1}],

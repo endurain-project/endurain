@@ -52,6 +52,12 @@ _PAYLOAD: TypeAdapter[list[activity_streams_contracts.ParsedStream]] = TypeAdapt
 )
 
 
+#: The parsed samples.
+_SAMPLES_PAYLOAD: TypeAdapter[activity_streams_contracts.ParsedSamples] = TypeAdapter(
+    InstanceOf[activity_streams_contracts.ParsedSamples]
+)
+
+
 def _persist_ingestion_component(
     data: object,
     activity: activity_schema.ActivityRead,
@@ -90,6 +96,37 @@ def ingestion_contributor() -> activities_contributors.ActivityIngestionContribu
         key="streams",
         persist=_persist_ingestion_component,
         clear=activity_streams_crud.delete_activity_streams,
+    )
+
+
+def _persist_samples(
+    data: object,
+    activity: activity_schema.ActivityRead,
+    db: Session,
+) -> None:
+    """Validate and persist parsed samples through the ingestion contract.
+
+    Args:
+        data: The parsed component payload.
+        activity: The newly created parent activity.
+        db: Database session.
+
+    Raises:
+        ValidationError: When the parser handed something other than parsed samples, before anything is staged.
+    """
+    activity_streams_crud.create_activity_samples(activity.id, _SAMPLES_PAYLOAD.validate_python(data), db)
+
+
+def samples_ingestion_contributor() -> activities_contributors.ActivityIngestionContributor:
+    """Return the activity-samples ingestion contribution.
+
+    Returns:
+        The contributor.
+    """
+    return activities_contributors.ActivityIngestionContributor(
+        key="samples",
+        persist=_persist_samples,
+        clear=activity_streams_crud.delete_activity_samples,
     )
 
 

@@ -570,6 +570,7 @@ def configure_activity_contributors() -> None:
         activity_laps_integration.ingestion_contributor(),
         activity_sets_integration.ingestion_contributor(),
         activity_streams_integration.ingestion_contributor(),
+        activity_streams_integration.samples_ingestion_contributor(),
         activity_workout_steps_integration.ingestion_contributor(),
     ):
         activities_contributor_registry.register_activity_ingestion(ingestion_contributor)

@@ -196,7 +196,12 @@ def create_activity_samples(
     Returns:
         The staged row.
     """
-    row = activity_streams_models.ActivitySamples(activity_id=activity_id, **asdict(samples))
+    values = asdict(samples)
+    # The driver refuses an array that mixes ints and floats, and a whole-number sample is an int.
+    for name in activity_streams_constants.SAMPLE_CHANNELS:
+        if values[name] is not None:
+            values[name] = [None if value is None else float(value) for value in values[name]]
+    row = activity_streams_models.ActivitySamples(activity_id=activity_id, **values)
     db.add(row)
     db.flush()
     return row

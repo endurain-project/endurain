@@ -121,6 +121,14 @@ class TestSamples:
         assert (stored.latitude, stored.longitude) == ([38.5, None, 38.6], [-9.1, None, -9.2])
         assert (stored.power, stored.speed, stored.elevation, stored.cadence, stored.temperature) == (None,) * 5
 
+    def test_a_channel_mixing_whole_numbers_and_decimals_is_stored(self, db, activity):
+        make_samples(db, activity, [0, 1000, 2000], heart_rate=[140, None, 141.5], cadence=[85, 86, 87])
+
+        stored = streams_crud.get_activity_samples(activity.id, db)
+
+        assert stored is not None
+        assert (stored.heart_rate, stored.cadence) == ([140, None, 141.5], [85, 86, 87])
+
     def test_an_activity_without_samples_reads_none(self, db, activity):
         assert streams_crud.get_activity_samples(activity.id, db) is None
 

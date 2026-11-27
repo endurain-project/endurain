@@ -10,6 +10,7 @@ file, shaped like::
         "workout_steps": [...] | None,
         "is_heart_rate_set": bool, "hr_waypoints": [...],
         "is_power_set": bool, "power_waypoints": [...],
+        "samples": <ParsedSamples> | None,
         ...
     }
 
@@ -100,7 +101,7 @@ def parsed_info_to_parsed_activity(
     Returns:
         The canonical parsed activity, with one
         :class:`~modules.activities.activity_streams.contracts.ParsedStream` per
-        stream that the parser flagged as set.
+        stream that the parser flagged as set, and the columnar samples assembly built, if any.
     """
     streams = [
         activity_streams_contracts.ParsedStream(
@@ -116,6 +117,7 @@ def parsed_info_to_parsed_activity(
     workout_steps = parsed_info.get("workout_steps")
     components: dict[str, object] = {
         "streams": streams,
+        "samples": parsed_info.get("samples"),
         "laps": laps,
         "sets": sets,
         "workout_steps": workout_steps,

@@ -295,6 +295,121 @@ class TestAnActivityThatIsIncomplete:
         assert (run.average_cad, run.max_cad) == (160, 172)
 
 
+def _samples_of(activity_id):
+    with core_database.SessionLocal() as db:
+        return db.get(activity_streams_models.ActivitySamples, activity_id)
+
+
+def _real(value):
+    """Return a value as the ``REAL`` column of the samples table stores it, to the precision it reads back with."""
+    return pytest.approx(value, rel=1e-6)
+
+
+_SAMPLES_DETAIL = {"start_latlng": [38.7, -9.1]}
+_SAMPLES_STREAMS = {
+    "time": [0, 10, 20, 30, 40],
+    "heartrate": [120, 0, 140, 150, 160],
+    "altitude": [100.0, 101.0, 103.0, 102.0, 104.0],
+    "cadence": [80, 82, 84, 86, 88],
+    "watts": [200, 210, 220, 230, 240],
+    "velocity_smooth": [2.0, 4.0, 0.0, 5.0, 3.0],
+    "latlng": [[38.7, -9.1], [38.71, -9.11], [38.72, -9.12], [38.73, -9.13], [38.74, -9.14]],
+}
+_SAMPLES_KEYS = {
+    activity_streams_constants.STREAM_TYPE_HR: ("heart_rate", "hr"),
+    activity_streams_constants.STREAM_TYPE_POWER: ("power", "power"),
+    activity_streams_constants.STREAM_TYPE_CADENCE: ("cadence", "cad"),
+    activity_streams_constants.STREAM_TYPE_ELEVATION: ("elevation", "ele"),
+    activity_streams_constants.STREAM_TYPE_SPEED: ("speed", "vel"),
+}
+
+
+class TestSamplesAgreeWithTheStreams:
+    """Every old waypoint has a sample at its second (``time`` is the second from the start) with its value."""
+
+    @pytest.fixture
+    def user(self, db):
+        return _linked(db)
+
+    def _store(self, user, strava, rate_limits, sport_type, streams):
+        _list(strava, 1001)
+        _activity(
+            strava,
+            1001,
+            detail=strava_factories.detailed_activity(1001, sport_type=sport_type, **_SAMPLES_DETAIL),
+            streams=strava_factories.streams_payload(**streams),
+        )
+        _sync(user, rate_limits)
+        (activity,) = _stored(user.id)
+        samples = _samples_of(activity.id)
+        assert samples is not None
+        return activity, samples, _streams_of(activity.id)
+
+    @pytest.mark.parametrize("sport_type", ["Ride", "Run"])
+    def test_each_channel_holds_the_values_its_stream_stores(self, user, strava, rate_limits, sport_type):
+        _, samples, streams = self._store(user, strava, rate_limits, sport_type, _SAMPLES_STREAMS)
+
+        seconds = [offset // 1000 for offset in samples.offsets_ms]
+        assert seconds == _SAMPLES_STREAMS["time"]
+        for stream_type, (channel, key) in _SAMPLES_KEYS.items():
+            stored = [
+                (second, value)
+                for second, value in zip(seconds, getattr(samples, channel), strict=True)
+                if value is not None
+            ]
+            assert stored == [(w["time"], _real(w[key])) for w in streams[stream_type]], channel
+        map_points = [
+            (second, lat, lon)
+            for second, lat, lon in zip(seconds, samples.latitude, samples.longitude, strict=True)
+            if lat is not None
+        ]
+        assert map_points == [
+            (w["time"], w["lat"], w["lon"]) for w in streams[activity_streams_constants.STREAM_TYPE_MAP]
+        ]
+        pace = [(w["time"], _real(w["pace"])) for w in streams[activity_streams_constants.STREAM_TYPE_PACE]]
+        assert pace
+        assert pace == [
+            (second, _real(1 / value)) for second, value in zip(seconds, samples.speed, strict=True) if value
+        ]
+
+    def test_a_dropout_is_a_none_element_and_the_running_cadence_is_doubled(self, user, strava, rate_limits):
+        _, samples, _ = self._store(user, strava, rate_limits, "Run", _SAMPLES_STREAMS)
+
+        assert samples.heart_rate == [120, None, 140, 150, 160]
+        assert samples.cadence == [160, 164, 168, 172, 176]
+
+    def test_a_channel_strava_did_not_send_is_none(self, user, strava, rate_limits):
+        _, samples, _ = self._store(user, strava, rate_limits, "Ride", {"time": [0, 1], "heartrate": [100, 110]})
+
+        assert samples.heart_rate == [100, 110]
+        assert (samples.power, samples.speed, samples.elevation, samples.latitude, samples.longitude) == (
+            None,
+            None,
+            None,
+            None,
+            None,
+        )
+
+    def test_the_start_point_is_the_first_position(self, user, strava, rate_limits):
+        activity, _, _ = self._store(user, strava, rate_limits, "Ride", _SAMPLES_STREAMS)
+
+        assert (activity.start_latitude, activity.start_longitude) == (38.7, -9.1)
+
+    def test_an_activity_without_a_position_has_no_start_point(self, user, strava, rate_limits):
+        activity, _, _ = self._store(user, strava, rate_limits, "Ride", {"time": [0, 1], "heartrate": [100, 110]})
+
+        assert (activity.start_latitude, activity.start_longitude) == (None, None)
+
+    def test_an_activity_without_streams_has_no_samples(self, user, strava, rate_limits):
+        _list(strava, 1001)
+        _activity(strava, 1001, streams=strava_factories.refused(404))
+
+        _sync(user, rate_limits)
+
+        (activity,) = _stored(user.id)
+        assert _samples_of(activity.id) is None
+
+
 class TestGearAndTimezone:
     def test_an_activity_gets_the_gear_the_user_synced_from_strava(self, db, strava, rate_limits):
         user = _linked(db, sync_gear=True)

@@ -452,6 +452,10 @@ def parse_activity(
     if power_waypoints:
         np = _normalized_power(power_waypoints, _pause_threshold(power_waypoints))
 
+    # The map stream is stored when Strava gives the activity a start point; the samples and the start point follow it.
+    is_map_set = detailed_activity.start_latlng is not None
+    start_point = lat_lon_waypoints[0] if is_map_set and lat_lon_waypoints else None
+
     # List of conditions, stream types, and corresponding waypoints
     stream_data: list[StravaStreamEntry] = [
         (is_heart_rate_set, activity_streams_constants.STREAM_TYPE_HR, hr_waypoints),
@@ -460,7 +464,7 @@ def parse_activity(
         (is_elevation_set, activity_streams_constants.STREAM_TYPE_ELEVATION, ele_waypoints),
         (is_velocity_set, activity_streams_constants.STREAM_TYPE_SPEED, vel_waypoints),
         (is_velocity_set, activity_streams_constants.STREAM_TYPE_PACE, pace_waypoints),
-        (detailed_activity.start_latlng is not None, activity_streams_constants.STREAM_TYPE_MAP, lat_lon_waypoints),
+        (is_map_set, activity_streams_constants.STREAM_TYPE_MAP, lat_lon_waypoints),
     ]
 
     gear_id: uuid.UUID | None = None
@@ -531,6 +535,8 @@ def parse_activity(
         hide_laps=user_privacy_settings.hide_activity_laps or False,
         hide_workout_sets_steps=user_privacy_settings.hide_activity_workout_sets_steps or False,
         hide_gear=user_privacy_settings.hide_activity_gear or False,
+        start_latitude=start_point["lat"] if start_point else None,
+        start_longitude=start_point["lon"] if start_point else None,
     )
 
     # Fetch and process activity laps
@@ -549,6 +555,69 @@ def parse_activity(
         "stream_data": stream_data,
         "laps": laps,
     }
+
+
+#: The samples channel and the waypoint key of each stream the samples hold, by stream type.
+_SAMPLE_CHANNELS: dict[int, tuple[str, str]] = {
+    activity_streams_constants.STREAM_TYPE_HR: ("heart_rate", "hr"),
+    activity_streams_constants.STREAM_TYPE_POWER: ("power", "power"),
+    activity_streams_constants.STREAM_TYPE_CADENCE: ("cadence", "cad"),
+    activity_streams_constants.STREAM_TYPE_ELEVATION: ("elevation", "ele"),
+    activity_streams_constants.STREAM_TYPE_SPEED: ("speed", "vel"),
+}
+
+
+def _parsed_samples(stream_data: list[StravaStreamEntry]) -> activity_streams_contracts.ParsedSamples | None:
+    """Merge the set streams onto one timeline of samples, each channel holding the values its stream stores.
+
+    Every stream is cut from the same time stream, so the timeline is the seconds any stream has a point at, in
+    milliseconds from the activity start. A channel no set stream feeds is ``None``; a second where a stream has no
+    point, such as a heart-rate dropout, is ``None`` in its channel. Pace has no channel: it is derived from speed.
+
+    Args:
+        stream_data: ``(is_set, stream_type, waypoints)`` tuples; only set streams are merged.
+
+    Returns:
+        The samples, or ``None`` when no set stream has a point.
+    """
+    by_type = {stream_type: waypoints for is_set, stream_type, waypoints in stream_data if is_set}
+    seconds = sorted(
+        {
+            point["time"]
+            for stream_type in (*_SAMPLE_CHANNELS, activity_streams_constants.STREAM_TYPE_MAP)
+            for point in by_type.get(stream_type, [])
+        }
+    )
+    if not seconds:
+        return None
+    index = {second: i for i, second in enumerate(seconds)}
+
+    def channel(stream_type: int, key: str) -> list[float | None] | None:
+        """Lay one stream's values on the timeline.
+
+        Args:
+            stream_type: The stream type.
+            key: The waypoint key the stream stores its value under.
+
+        Returns:
+            The values, or ``None`` when the stream is not set or has no point.
+        """
+        points = by_type.get(stream_type)
+        if not points:
+            return None
+        values: list[float | None] = [None] * len(seconds)
+        for point in points:
+            values[index[point["time"]]] = point[key]
+        return values
+
+    latitude = channel(activity_streams_constants.STREAM_TYPE_MAP, "lat")
+    longitude = channel(activity_streams_constants.STREAM_TYPE_MAP, "lon")
+    return activity_streams_contracts.ParsedSamples(
+        offsets_ms=[round(second * 1000) for second in seconds],
+        latitude=latitude,
+        longitude=longitude,
+        **{name: channel(stream_type, key) for stream_type, (name, key) in _SAMPLE_CHANNELS.items()},
+    )
 
 
 def save_activity_streams_laps(
@@ -587,7 +656,7 @@ def save_activity_streams_laps(
     ]
     parsed = activity_contracts.ParsedActivity(
         activity=activity,
-        components={"streams": parsed_streams, "laps": laps},
+        components={"streams": parsed_streams, "samples": _parsed_samples(stream_data), "laps": laps},
         source=activity_contracts.ImportSource(
             kind="strava",
             provider_activity_id=activity.strava_activity_id,

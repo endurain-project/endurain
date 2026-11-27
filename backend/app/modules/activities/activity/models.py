@@ -11,6 +11,7 @@ from sqlalchemy import (
     BigInteger,
     CheckConstraint,
     DateTime,
+    Double,
     ForeignKey,
     Index,
     SmallInteger,
@@ -85,6 +86,8 @@ class Activity(UpdatedAtMixin, Base):
         location_next_lookup_at: Earliest time the location backfill may look this activity up again.
         thumbnail_next_attempt_at: Earliest time the thumbnail backfill may try this activity again.
         analysis_version: The version of the file analysis that computed the derived values; 0 before versions.
+        start_latitude: Latitude of the activity's start point, in degrees; null without a position.
+        start_longitude: Longitude of the activity's start point, in degrees; null without a position.
         updated_at: When the activity last changed, including a derived change such as its thumbnail or media.
     """
 
@@ -206,6 +209,17 @@ class Activity(UpdatedAtMixin, Base):
             "The version of the file analysis that computed the activity's derived values; 0 for one computed "
             "before versions existed"
         ),
+    )
+
+    start_latitude: Mapped[float | None] = mapped_column(
+        Double,
+        nullable=True,
+        comment="Latitude of the activity's start point, in degrees; NULL when the activity has no position",
+    )
+    start_longitude: Mapped[float | None] = mapped_column(
+        Double,
+        nullable=True,
+        comment="Longitude of the activity's start point, in degrees; NULL when the activity has no position",
     )
 
     # SQLAlchemy bumps ``version`` on each ORM flush and adds it to the UPDATE's

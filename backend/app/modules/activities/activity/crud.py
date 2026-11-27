@@ -1355,6 +1355,8 @@ def create_activity(
     new_activity.dedup_key = dedup_key
     new_activity.parent_activity_id = parent_activity_id
     new_activity.analysis_version = analysis_version
+    new_activity.start_latitude = activity.start_latitude
+    new_activity.start_longitude = activity.start_longitude
     if activity_id is not None:
         new_activity.id = activity_id
 
