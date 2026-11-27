@@ -1,11 +1,12 @@
 """Activity collection for the profile data export.
 
 Streams the user's activities and their components (laps, sets, streams, workout steps, media
-records, file-global records) into the export archive a page or batch at a time, so memory stays
-bounded however many activities the user has. The retained source files and the media blobs are
-read from storage after the export's read transaction is committed.
+records, file-global records) into the export archive a page, a batch or an activity at a time, so
+memory stays bounded however many activities the user has. The retained source files and the media
+blobs are read from storage after the export's read transaction is committed.
 """
 
+import itertools
 import uuid
 from collections.abc import Callable, Iterator, Sequence
 
@@ -145,124 +146,89 @@ def _get_activities_batch(
 def _write_activity_components(
     ctx: users_profile_contracts.ProfileExportContext, activity_ids: list[uuid.UUID]
 ) -> None:
-    """Write the activity-scoped components, a batch of activities at a time.
+    """Write the activity-scoped components.
+
+    Large components are written as parts, an activity at a time; small ones are read a batch of
+    activities at a time and written as one entry.
 
     Args:
         ctx: The export context.
         activity_ids: IDs of the exported activities.
     """
-    # Smaller batches for components
-    batch_size = ctx.batch_size // 2
+    half_page = ctx.batch_size // 2
 
     for contributor in activities_contributor_registry.profile_activity_contributors():
-        # Large splittable components are written in chunks during collection
         if contributor.split:
-            _write_component_chunked(
-                ctx, contributor.count_key, contributor.archive_path, contributor.export, activity_ids, batch_size
+            _write_component_split(
+                ctx,
+                contributor.count_key,
+                contributor.archive_path,
+                contributor.export,
+                activity_ids,
+                part_size=half_page,
             )
         else:
             _write_component_simple(
-                ctx, contributor.count_key, contributor.archive_path, contributor.export, activity_ids, batch_size
+                ctx,
+                contributor.count_key,
+                contributor.archive_path,
+                contributor.export,
+                activity_ids,
+                batch_size=half_page,
             )
 
 
-def _chunk_path(base_filename: str, file_counter: int) -> str:
+def _part_path(base_filename: str, part: int) -> str:
     """Name one part of a split component entry.
 
     Args:
         base_filename: Archive path of the unsplit entry.
-        file_counter: Index of the part.
+        part: Index of the part.
 
     Returns:
         The part's archive path.
     """
-    return f"{base_filename.removesuffix('.json')}_{file_counter:03d}.json"
+    return f"{base_filename.removesuffix('.json')}_{part:03d}.json"
 
 
-def _write_component_chunked(
+def _write_component_split(
     ctx: users_profile_contracts.ProfileExportContext,
     component_key: str,
     base_filename: str,
     export: Callable[[list[uuid.UUID], Session], Sequence[BaseModel]],
     activity_ids: list[uuid.UUID],
-    batch_size: int,
+    part_size: int,
 ) -> None:
-    """Write a large component in chunks.
+    """Write a split component as numbered parts of ``part_size`` records, reading one activity at a time.
 
-    Args:
-        ctx: The export context.
-        component_key: Component type identifier.
-        base_filename: Base name for output files.
-        export: Reads the component's records for some activities.
-        activity_ids: List of activity IDs.
-        batch_size: Number of items per batch.
+    Only the activity being written is held, so memory is bounded by the largest activity rather than the
+    component; an activity's records continue into the next part once one is full. A component without records is
+    written as the plain entry holding an empty array, so the archive still names it.
     """
-    chunk_buffer: list[BaseModel] = []
-    file_counter = 0
-    max_items_per_file = batch_size
     total_items = 0
 
-    for i in range(0, len(activity_ids), batch_size):
-        batch_ids = activity_ids[i : i + batch_size]
+    def read_records() -> Iterator[BaseModel]:
+        """Yield the component's records, one activity's at a time."""
+        nonlocal total_items
+        for index, activity_id in enumerate(activity_ids, 1):
+            ctx.check_memory(f"{component_key} activity {index}")
+            for record in export([activity_id], ctx.db):
+                total_items += 1
+                yield record
 
-        ctx.check_memory(f"{component_key} batch {i // batch_size + 1}")
+    records = read_records()
+    parts = 0
+    while (first := next(records, None)) is not None:
+        part = itertools.chain([first], itertools.islice(records, part_size - 1))
+        ctx.archive.write_json_stream(_part_path(base_filename, parts), ([record] for record in part))
+        parts += 1
 
-        data = export(batch_ids, ctx.db)
-        if data:
-            chunk_buffer.extend(data)
-            total_items += len(data)
-
-            # Write chunks to the archive when the buffer reaches max size
-            while len(chunk_buffer) >= max_items_per_file:
-                chunk_to_write = chunk_buffer[:max_items_per_file]
-                chunk_buffer = chunk_buffer[max_items_per_file:]
-
-                ctx.archive.write_json(_chunk_path(base_filename, file_counter), chunk_to_write)
-                file_counter += 1
-
-                logger.debug(
-                    "Written a chunk of component items",
-                    extra=core_logger.context(
-                        file_counter=file_counter, component_key=component_key, count=len(chunk_to_write)
-                    ),
-                )
-
-        logger.debug(
-            "Processed a component batch",
-            extra=core_logger.context(
-                component_key=component_key, batch_number=i // batch_size + 1, count=len(batch_ids)
-            ),
-        )
-
-    # Write remaining data in buffer
-    if chunk_buffer:
-        if file_counter == 0:
-            # Only one chunk, use original filename
-            ctx.archive.write_json(base_filename, chunk_buffer)
-            logger.debug(
-                "Written component items to a single file",
-                extra=core_logger.context(count=len(chunk_buffer), component_key=component_key),
-            )
-        else:
-            # Multiple chunks, write with numbered filename
-            ctx.archive.write_json(_chunk_path(base_filename, file_counter), chunk_buffer)
-            file_counter += 1
-            logger.debug(
-                "Written the final chunk of component items",
-                extra=core_logger.context(component_key=component_key, count=len(chunk_buffer)),
-            )
-
-    if total_items == 0:
-        # Write empty file for component type
+    if parts == 0:
         ctx.archive.write_json(base_filename, [])
-        logger.debug(
-            "No component data found, written an empty file", extra=core_logger.context(component_key=component_key)
-        )
-    else:
-        logger.debug(
-            "Written component items to files",
-            extra=core_logger.context(total_items=total_items, component_key=component_key, file_counter=file_counter),
-        )
+    logger.debug(
+        "Written component items to the archive",
+        extra=core_logger.context(component_key=component_key, total_items=total_items, parts=parts),
+    )
     ctx.counts[component_key] = total_items
 
 
