@@ -31,11 +31,24 @@ Whatever the source, an activity goes through the same steps, so duplicates are 
 | Gear | The gear used, linking to its page |
 | Photos | The activity's gallery |
 
-Elevation is smoothed when the activity is stored, so the chart and the elevation gain agree. See [Importing data](importing.md#notes-on-the-generic-bulk-import).
+### How the numbers are computed
+
+What the device recorded wins: distance, timer time, ascent and descent, average and maximum speed, heart rate, power, cadence and laps come from the file when it holds them. Endurain computes a value only when the file lacks it, with the same rules for .fit, .gpx and .tcx files. Strava sync keeps Strava's own totals and computes what Strava does not send (the elevation chart and loss, normalized power, average cadence and lap power) with the same rules.
+
+- **Cleaning.** Before anything is computed from a file, a position at 0,0 is dropped, and so is a position or speed faster than the sport allows: 12 m/s on foot, 35 m/s on a bike, 6 m/s on water and 50 m/s otherwise. A heart rate of 0 is a dropout and counts as missing.
+- **Averages** of heart rate, power, cadence and speed weigh each sample by the time until the next one, so a watch that records more often while you move does not skew them. A cadence of 0 is left out of the average; a power of 0 counts.
+- **Pauses.** A gap between samples longer than both 15 seconds and three times the usual gap of the recording is a pause: it adds no moving time, and in an average or a heart-rate zone it counts as no more than that threshold.
+- **Moving time and distance.** You are moving while your speed is at least 0.5 m/s (0.3 m/s on water). For a GPS track, the straight-line distance covered over 10 seconds must also give that speed, so GPS jitter while you stand still counts neither as moving time nor as distance.
+- **Maximum speed** is the fastest 5 seconds, not the fastest single sample.
+- **Normalized power** is the standard 30-second rolling average of power; an activity or lap with less than 30 seconds of power has none.
+- **Elevation.** The elevation chart shows the recorded elevation smoothed over 10 seconds (at least ten samples on a sparse recording), and Endurain's gain and loss count only climbs and descents of at least 3 m on that series, so a flat route gains nothing from barometer or GPS noise. A device's own totals are kept and can differ from the chart.
+- **Laps.** The device's laps when it recorded any; otherwise one lap per kilometre (per mile when you use imperial units) of moving distance, over the whole activity, so the laps add up to the activity.
+
+Activities imported before v0.22 are recomputed from their original file after the upgrade; see [Changes from v0.21 to v0.22](../integrate/changes-v0.21-to-v0.22.md#before-you-upgrade).
 
 ### Heart-rate zones
 
-Zones are computed when you open the activity, not stored, so changing your maximum heart rate updates old activities too. The boundaries are 60, 70, 80 and 90 % of your maximum heart rate. The maximum is the value in your profile; without one, Endurain uses 220 minus your age from your birthdate. Without either there are no zones.
+Zones are computed when you open the activity, not stored, so changing your maximum heart rate updates old activities too. A zone holds the time spent in it, not a count of samples. The boundaries are 60, 70, 80 and 90 % of your maximum heart rate. The maximum is the value in your profile; without one, Endurain uses 220 minus your age from your birthdate. Without either there are no zones.
 
 ## Finding activities
 
