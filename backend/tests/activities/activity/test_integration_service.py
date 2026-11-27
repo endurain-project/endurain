@@ -157,6 +157,13 @@ class TestReadsForOtherModules:
         assert db.get(activity_models.Activity, restored.id) is not None
         assert published[activity_events.ACTIVITY_CREATED] == []
 
+    def test_a_restored_activity_keeps_analysis_version_zero_so_it_is_reprocessed(self, db, owner):
+        core = make_parsed_activity(owner.id).activity
+
+        restored = activity_integration.restore_activity(core, db)
+
+        assert db.get(activity_models.Activity, restored.id).analysis_version == 0
+
     def test_the_readable_activity_media_and_public_reads_go_through_the_service(self, db, owner, other):
         mine = make_activity(db, owner.id, visibility=activity_constants.ActivityVisibility.PUBLIC)
         make_activity_media(db, mine, "a.jpg")

@@ -13,6 +13,7 @@ from sqlalchemy import (
     DateTime,
     ForeignKey,
     Index,
+    SmallInteger,
     String,
 )
 from sqlalchemy.orm import Mapped, mapped_column
@@ -83,6 +84,7 @@ class Activity(UpdatedAtMixin, Base):
         dedup_key: Stable idempotency key (provider id now, content hash later) used to no-op re-imports.
         location_next_lookup_at: Earliest time the location backfill may look this activity up again.
         thumbnail_next_attempt_at: Earliest time the thumbnail backfill may try this activity again.
+        analysis_version: The version of the file analysis that computed the derived values; 0 before versions.
         updated_at: When the activity last changed, including a derived change such as its thumbnail or media.
     """
 
@@ -104,6 +106,8 @@ class Activity(UpdatedAtMixin, Base):
         Index("ix_activities_user_id_strava_activity_id", "user_id", "strava_activity_id"),
         # The legs of a multisport parent are read through it.
         Index("ix_activities_user_id_parent_activity_id", "user_id", "parent_activity_id"),
+        # The reprocess migration walks the activities below the current analysis version in id order.
+        Index("ix_activities_analysis_version_id", "analysis_version", "id"),
         CheckConstraint("parent_activity_id <> id", name="ck_activities_parent_not_self"),
     )
 
@@ -192,6 +196,16 @@ class Activity(UpdatedAtMixin, Base):
         server_default="1",
         default=1,
         comment="Optimistic-concurrency counter, surfaced to clients as the ETag",
+    )
+    analysis_version: Mapped[int] = mapped_column(
+        SmallInteger,
+        nullable=False,
+        server_default="0",
+        default=0,
+        comment=(
+            "The version of the file analysis that computed the activity's derived values; 0 for one computed "
+            "before versions existed"
+        ),
     )
 
     # SQLAlchemy bumps ``version`` on each ORM flush and adds it to the UPDATE's

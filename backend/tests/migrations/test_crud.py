@@ -28,4 +28,5 @@ def test_only_the_migrations_not_yet_executed_are_pending(db):
     make_migration(db, 1, executed=True)
     pending = make_migration(db, 2)
 
-    assert [row.id for row in migrations_crud.get_migrations_not_executed(db)] == [pending.id]
+    # The v0.22 reprocess (id 15) is pending in a freshly migrated database.
+    assert {row.id for row in migrations_crud.get_migrations_not_executed(db)} == {15, pending.id}

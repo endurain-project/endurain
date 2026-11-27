@@ -14,6 +14,7 @@ import modules.activities.activity.ingestion_service as ingestion_service
 import modules.activities.activity.models as activity_models
 import modules.activities.activity.schema as activity_schema
 import modules.activities.activity_laps.models as laps_models
+import modules.activities.computation as computation
 from tests._factories.activities import DEFAULT_START, make_parsed_activity
 from tests._factories.users import make_user
 
@@ -220,3 +221,23 @@ class TestIntegrityFailures:
         )
 
         assert ingestion_service._derive_dedup_key(activity, None) == "garmin:8"
+
+
+class TestAnalysisVersionStamp:
+    @pytest.mark.parametrize(
+        "source",
+        [
+            activity_contracts.ImportSource(kind="upload", content_hash="abc"),
+            activity_contracts.ImportSource(kind="bulk_import", content_hash="abd"),
+            activity_contracts.ImportSource(kind="garmin", provider_activity_id=7),
+            activity_contracts.ImportSource(kind="strava", provider_activity_id=8),
+        ],
+        ids=lambda source: source.kind,
+    )
+    def test_an_ingested_activity_is_stamped_with_the_current_analysis_version(self, db, source):
+        owner = make_user(db)
+
+        stored = ingestion_service.store_parsed_activity(make_parsed_activity(owner.id, source=source), db)
+
+        assert db.get(activity_models.Activity, stored.id).analysis_version == computation.ANALYSIS_VERSION
+        assert computation.ANALYSIS_VERSION >= 1

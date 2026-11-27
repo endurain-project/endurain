@@ -282,6 +282,9 @@ def restore_activity(
     activity's components against the returned id and commits the whole activity
     as one unit.
 
+    The row is not stamped with an analysis version, so it stays at 0 and the reprocess data migration recomputes it
+    from its restored file.
+
     Args:
         activity: The activity to persist.
         db: Database session.

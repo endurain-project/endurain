@@ -1189,6 +1189,7 @@ def create_activity(
     dedup_key: str | None = None,
     parent_activity_id: uuid.UUID | None = None,
     detect_duplicate_start: bool = True,
+    analysis_version: int = 0,
 ) -> activity_schema.ActivityRead:
     """Stage a new activity; duplicate start-times are marked hidden.
 
@@ -1205,6 +1206,8 @@ def create_activity(
         parent_activity_id: The multisport activity the new activity is a leg of, or ``None`` for any other.
         detect_duplicate_start: Whether to hide the activity when another one starts at the same instant. ``False``
             for a leg stored with its parent, which takes the parent's ``is_hidden`` from the caller.
+        analysis_version: The version of the file analysis that computed the activity's values, 0 for a row that no
+            analysis computed. The server owns it, so it is not part of ``activity``.
 
     Returns:
         The stored activity as the read schema, with the generated ``id`` and
@@ -1243,6 +1246,7 @@ def create_activity(
     # the same source can be recognised as duplicates.
     new_activity.dedup_key = dedup_key
     new_activity.parent_activity_id = parent_activity_id
+    new_activity.analysis_version = analysis_version
 
     db.add(new_activity)
     # Flush so the generated id / created_at are available. The caller owns the

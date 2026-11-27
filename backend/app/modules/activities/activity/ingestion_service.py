@@ -18,6 +18,7 @@ import modules.activities.activity.contracts as activity_contracts
 import modules.activities.activity.crud as activity_crud
 import modules.activities.activity.event_publishers as activity_event_publishers
 import modules.activities.activity.schema as activity_schema
+import modules.activities.computation as activities_computation
 import modules.activities.contributor_registry as activities_contributor_registry
 import modules.activities.contributors as activities_contributors
 
@@ -158,6 +159,7 @@ def _stage_activity(
         dedup_key=dedup_key,
         parent_activity_id=parent.id if parent is not None else None,
         detect_duplicate_start=parent is None,
+        analysis_version=activities_computation.ANALYSIS_VERSION,
     )
 
     if created_activity is None:

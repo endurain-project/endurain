@@ -12,6 +12,7 @@ import modules.activities.activity.events as activity_events
 import modules.activities.activity.ingestion_service as ingestion_service
 import modules.activities.activity.models as activity_models
 import modules.activities.activity_laps.models as laps_models
+import modules.activities.computation as computation
 from tests._factories.activities import DEFAULT_START, make_activity_at, make_parsed_activity
 from tests._factories.users import make_user
 
@@ -75,6 +76,13 @@ class TestStoringAGroup:
         leg_rows = [row for row in rows.values() if row.id != top.id]
         assert {row.parent_activity_id for row in leg_rows} == {top.id}
         assert db.scalar(select(func.count()).select_from(laps_models.ActivityLaps)) == 3
+
+    def test_the_parent_and_every_leg_are_stamped_with_the_current_analysis_version(self, db, owner):
+        parent, legs = _group(owner.id)
+
+        ingestion_service.store_parsed_group(parent, legs, db)
+
+        assert {row.analysis_version for row in _rows(db)} == {computation.ANALYSIS_VERSION}
 
     def test_a_session_closed_without_committing_leaves_nothing(self, committed_sessions, arrange):
         user = arrange(lambda db: make_user(db, timezone="UTC"))

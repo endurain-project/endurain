@@ -23,6 +23,11 @@ from geopy.distance import geodesic, great_circle
 
 import modules.activities.activity_streams.contracts as activity_streams_contracts
 
+#: The version of this analysis. Bump it whenever a change alters the values the analysis computes; the reprocess data
+#: migration then recomputes every activity stored below it from its retained file. Ingestion stamps each new activity
+#: with the current version, and a profile restore leaves 0 so a restored row is reprocessed from its restored file.
+ANALYSIS_VERSION = 1
+
 _NP_WINDOW_SECONDS = 30
 
 # Minimum gap in seconds between two consecutive trackpoints that counts as a

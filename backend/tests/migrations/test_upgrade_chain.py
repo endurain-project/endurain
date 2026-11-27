@@ -10,7 +10,8 @@ import migrations.startup as migrations_startup
 from tests._helpers import alembic_chain
 
 _RETIREMENT_REVISION = "50ac9225ce4f"
-_HEAD_REVISION = "daa50e9181bb"
+_HEAD_REVISION = "069908f3eab8"
+_REPROCESS_MIGRATION = {15: False}
 _DATA_MIGRATIONS = (11, 12, 13, 14)
 _SUBSTRATE_TABLES = ("event_log", "event_outbox", "processing_jobs", "job_attempts", "job_workers")
 
@@ -145,9 +146,13 @@ def test_the_baseline_alone_differs_from_the_models_only_where_v0_22_changes_the
         ("remove_index", "uq_gear_user_nickname"),
         ("add_index", "uq_gear_user_nickname"),
         ("add_index", "ix_activities_user_id_parent_activity_id"),
+        ("add_index", "ix_activities_analysis_version_id"),
     }
-    # The baseline has no multisport parent column, nor the key on it.
-    assert added == {("add_column", "activities", "parent_activity_id")}
+    # The baseline has no multisport parent column, nor the key on it, and no analysis version.
+    assert added == {
+        ("add_column", "activities", "parent_activity_id"),
+        ("add_column", "activities", "analysis_version"),
+    }
     assert foreign_keys == ["add_fk"]
     assert columns == [
         (
@@ -176,10 +181,10 @@ def test_a_fresh_install_holds_exactly_the_seed_rows(upgrade_db):
     alembic_chain.upgrade(upgrade_db, "head")
 
     counts = {name: count for name, count in alembic_chain.row_counts(upgrade_db).items() if count}
-    assert counts == {"mail_settings": 1, "server_settings": 1}
+    assert counts == {"mail_settings": 1, "migrations": 1, "server_settings": 1}
     assert _row(upgrade_db, "server_settings") == _SERVER_SETTINGS_SEED
     assert _row(upgrade_db, "mail_settings") == _MAIL_SETTINGS_SEED
-    assert _migrations_state(upgrade_db) == {}
+    assert _migrations_state(upgrade_db) == _REPROCESS_MIGRATION
 
 
 def test_the_baseline_seeds_the_rows_a_v0_21_install_has_before_its_data_migrations_run(upgrade_db):
@@ -212,7 +217,7 @@ def test_the_v0_22_upgrade_retires_the_v0_21_data_migrations_once_they_have_all_
 
     alembic_chain.upgrade(upgrade_db, "head")
 
-    assert _migrations_state(upgrade_db) == {}
+    assert _migrations_state(upgrade_db) == _REPROCESS_MIGRATION
     assert _scalar(upgrade_db, "SELECT to_regclass('uuid_migration_ids')") is None
     assert _scalar(upgrade_db, "SELECT count(*) FROM users") == 1
     assert _scalar(upgrade_db, "SELECT version_num FROM alembic_version") == _HEAD_REVISION
