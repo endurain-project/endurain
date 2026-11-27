@@ -3,8 +3,10 @@
 import dataclasses
 import json
 import uuid
+import weakref
 import zipfile
 from io import BytesIO
+from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -382,6 +384,35 @@ class TestRestoreActivityComponents:
             _restore_components(ctx, {}, _contributor())
 
         read.assert_not_called()
+
+    def test_a_parts_records_are_released_before_the_next_part_is_read(self) -> None:
+        class Record(dict):
+            """A record that can be weakly referenced."""
+
+        read: list[weakref.ref[Record]] = []
+        still_held: list[bool] = []
+
+        def load(_reader, _path):
+            still_held.extend(earlier() is not None for earlier in read)
+            record = Record(_lap(_OLD_ACT, 1))
+            read.append(weakref.ref(record))
+            return [record]
+
+        ctx = _ctx({"data/activity_laps_000.json": [], "data/activity_laps_001.json": []})
+        # Not a mock, which would keep the records it was called with.
+        contributor = SimpleNamespace(
+            key="laps",
+            archive_path="data/activity_laps.json",
+            count_key="activity_laps",
+            split=True,
+            restore=lambda records, *_: len(records),
+        )
+
+        with patch.object(profile_utils.ZipArchiveReader, "load_json_part", load):
+            _restore_components(ctx, {_OLD_ACT: _restored()}, contributor)
+
+        assert still_held == [False]
+        assert ctx.counts["activity_laps"] == 2
 
     def test_each_part_is_followed_by_the_time_and_memory_checks(self) -> None:
         checks: list[str] = []

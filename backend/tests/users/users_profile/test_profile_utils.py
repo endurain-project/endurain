@@ -479,10 +479,19 @@ class TestWriteJsonParts:
         assert counts == {"items_000": 2, "items_001": 1}
         assert total == 3
 
-    def test_a_batch_is_never_divided_between_parts(self, monkeypatch):
-        entries, _, total = self._write([[_Row(id=_ROW_A), _Row(id=_ROW_B)], [], [_Row(id=_ROW_C)]], 1, monkeypatch)
+    def test_a_batch_larger_than_a_part_is_divided_between_its_records(self, monkeypatch):
+        """One activity's records can outgrow what an import accepts for one entry."""
+        row = len(json.dumps({"id": str(_ROW_A)}))
 
-        assert [len(rows) for rows in entries.values()] == [2, 1]
+        entries, counts, total = self._write(
+            [[_Row(id=_ROW_A), _Row(id=_ROW_B), _Row(id=_ROW_C)]], row + 1, monkeypatch
+        )
+
+        assert entries == {
+            "data/items_000.json": [{"id": str(_ROW_A)}, {"id": str(_ROW_B)}],
+            "data/items_001.json": [{"id": str(_ROW_C)}],
+        }
+        assert counts == {"items_000": 2, "items_001": 1}
         assert total == 3
 
     @pytest.mark.parametrize("batches", [[], [[], []]])

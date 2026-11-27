@@ -159,7 +159,7 @@ def _small_export_batches(monkeypatch):
 
 @pytest.fixture(autouse=True)
 def _small_export_parts(monkeypatch):
-    """Close a part after every activity, so the split components come in several files."""
+    """Close a part after every record, so the split components come in several files and an activity spans them."""
     monkeypatch.setattr(profile_constants, "ARCHIVE_PART_TARGET_BYTES", 1)
 
 

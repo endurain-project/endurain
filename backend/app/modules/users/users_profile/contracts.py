@@ -87,8 +87,8 @@ class ProfileArchiveWriter(Protocol):
         """Write records as numbered JSON array entries of bounded size, holding one batch at a time.
 
         The parts of ``data/name.json`` are ``data/name_000.json`` onwards; without any record, ``path`` itself is
-        written as an empty array. A batch is never divided between parts. Nothing else may be written to the
-        archive while ``batches`` is consumed.
+        written as an empty array. A part is closed by the record that fills it, so a batch may be divided between
+        parts. Nothing else may be written to the archive while ``batches`` is consumed.
 
         Args:
             path: Entry path of the unsplit entry.

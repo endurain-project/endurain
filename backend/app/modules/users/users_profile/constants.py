@@ -24,9 +24,9 @@ IMPORT_STAGED_MAX_AGE_SECONDS = 24 * 60 * 60
 #: Who asked for the import, as recorded on the event.
 IMPORT_SOURCE_API = "api:profile_import"
 
-#: Uncompressed bytes at which a part of a split archive entry is closed and the next one starts. A batch is never
-#: divided, so a part passes this by at most one batch. An import holds one part at a time, and the size stays well
-#: below the smallest per-entry limit an import accepts.
+#: Uncompressed bytes at which a part of a split archive entry is closed and the next one starts. The record that
+#: reaches it closes the part, so a part passes this by at most one record. An import holds one part at a time, and
+#: the size leaves a single record tens of megabytes before a part passes the smallest per-entry limit it accepts.
 ARCHIVE_PART_TARGET_BYTES = 16 * 1024 * 1024
 
 #: Domain-owned storage area holding a finished export until the user has downloaded it.

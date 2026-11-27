@@ -204,6 +204,8 @@ class ZipArchiveWriter:
     def write_json_parts(self, path: str, batches: Iterable[Sequence[BaseModel]]) -> int:
         """Write records as numbered JSON array entries of bounded size, holding one batch at a time.
 
+        A part is closed by the record that fills it, whichever batch it came in.
+
         Args:
             path: Entry path of the unsplit entry.
             batches: The records to serialize, read lazily.
@@ -211,10 +213,11 @@ class ZipArchiveWriter:
         Returns:
             The number of records written.
         """
-        pending = ([model_to_dict(record) for record in batch] for batch in batches if batch)
+        # Each record is a batch of its own, so the size is checked after every record.
+        pending = ([model_to_dict(record)] for batch in batches for record in batch)
         stem = path.removesuffix(".json")
         total = 0
-        # Each turn takes the first batch of a part; the part then takes more from the same iterator until it is full.
+        # Each turn takes the first record of a part; the part then takes more from the same iterator until it is full.
         for part, first in enumerate(pending):
             total += write_json_array_to_zip(
                 self._zipf,

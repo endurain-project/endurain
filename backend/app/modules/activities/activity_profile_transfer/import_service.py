@@ -20,6 +20,7 @@ import modules.activities.activity_file_storage.integration_service as activity_
 import modules.activities.activity_media.integration_service as activity_media_integration
 import modules.activities.activity_profile_transfer.constants as constants
 import modules.activities.contributor_registry as activities_contributor_registry
+import modules.activities.contributors as activities_contributors
 import modules.gears.gear.constants as gear_constants
 import modules.users.users_profile.contracts as users_profile_contracts
 
@@ -173,18 +174,37 @@ def _restore_activity_components(
 
         for position, entry in enumerate(entries, start=1):
             ctx.check_timeout()
-            records = (
-                ctx.archive.load_json_part(entry)
-                if contributor.split
-                else ctx.archive.load_json(entry, check_memory=False)
-            )
-            for archived_id, activity_records in _group_by_activity(records).items():
-                if new_activity := restored.get(archived_id):
-                    ctx.counts[contributor.count_key] += contributor.restore(
-                        activity_records, archived_id, new_activity, ctx.db
-                    )
-            del records
+            _restore_component_entry(ctx, contributor, entry, restored)
             ctx.check_memory(f"{contributor.key} part {position}")
+
+
+def _restore_component_entry(
+    ctx: users_profile_contracts.ProfileImportContext,
+    contributor: activities_contributors.ProfileActivityContributor,
+    entry: str,
+    restored: dict[uuid.UUID, activity_schema.ActivityRead],
+) -> None:
+    """Restore the records one archive entry holds for the restored activities.
+
+    The records are released when this returns, before the next entry is read.
+
+    Args:
+        ctx: The import context.
+        contributor: The component the entry belongs to.
+        entry: Entry path inside the archive.
+        restored: The restored activities, keyed by their archived IDs.
+
+    Raises:
+        FileSizeError: If the entry or the archive exceeds the allowed size.
+    """
+    records = (
+        ctx.archive.load_json_part(entry) if contributor.split else ctx.archive.load_json(entry, check_memory=False)
+    )
+    for archived_id, activity_records in _group_by_activity(records).items():
+        if new_activity := restored.get(archived_id):
+            ctx.counts[contributor.count_key] += contributor.restore(
+                activity_records, archived_id, new_activity, ctx.db
+            )
 
 
 def _group_by_activity(records: list[dict[str, Any]]) -> dict[uuid.UUID, list[dict[str, Any]]]:
