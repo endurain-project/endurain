@@ -1,5 +1,6 @@
 """Tests for the activities' section of the profile data export."""
 
+import dataclasses
 import uuid
 from collections.abc import Iterable, Sequence
 from unittest.mock import MagicMock, patch
@@ -38,6 +39,12 @@ class _FakeArchive:
 
     def write_json_stream(self, path: str, batches: Iterable[Sequence[BaseModel]]) -> None:
         self._record(path, [r.model_dump(mode="json") for batch in batches for r in batch])
+
+    def write_json_parts(self, path: str, batches: Iterable[Sequence[BaseModel]]) -> int:
+        """Record the batches of a split entry as it is handed them; the real writer decides the parts."""
+        rows = [r.model_dump(mode="json") for batch in batches for r in batch]
+        self.entries[path] = rows
+        return len(rows)
 
     def write_bytes(self, path: str, data: bytes) -> None:
         self.entries[path] = data
@@ -285,15 +292,15 @@ def _rows(n: int) -> list[_Row]:
     return [_Row(id=uuid.UUID(int=i + 1)) for i in range(n)]
 
 
-def _split(ctx, export, activity_ids, part_size):
-    export_service._write_component_split(ctx, "laps", "data/activity_laps.json", export, activity_ids, part_size)
+def _split(ctx, export, activity_ids):
+    export_service._write_component_split(ctx, "laps", "data/activity_laps.json", export, activity_ids)
 
 
 class TestWriteComponentSplit:
     def test_the_records_are_read_one_activity_at_a_time(self) -> None:
-        ctx, _ = _ctx()
+        ctx, _ = _ctx(batch_size=250)
         reader = MagicMock(side_effect=lambda ids, db: _rows(len(ids)))
-        _split(ctx, reader, [_A, _B, _C], 5)
+        _split(ctx, reader, [_A, _B, _C])
 
         assert [call.args[0] for call in reader.call_args_list] == [[_A], [_B], [_C]]
 
@@ -305,63 +312,33 @@ class TestWriteComponentSplit:
             order.append(f"read{ids[0].int}")
             return [_Row(id=ids[0])]
 
-        original = archive.write_json_stream
+        original = archive.write_json_parts
 
-        def stream(path, batches):
+        def parts(path, batches):
             def tracked():
                 for batch in batches:
                     order.append(f"write{batch[0].id.int}")
                     yield batch
 
-            original(path, tracked())
+            return original(path, tracked())
 
-        with patch.object(archive, "write_json_stream", stream):
-            _split(ctx, read, [_A, _B], 5)
+        with patch.object(archive, "write_json_parts", parts):
+            _split(ctx, read, [_A, _B])
 
         assert order == ["read1", "write1", "read2", "write2"]
 
-    def test_a_single_part_is_numbered(self) -> None:
-        ctx, archive = _ctx()
-        _split(ctx, lambda ids, db: _rows(len(ids)), [_A, _B], 5)
+    def test_each_activity_is_one_batch_of_the_split_entry_and_the_records_are_counted(self) -> None:
+        ctx, _ = _ctx()
+        handed: list[tuple[str, list[int]]] = []
+        archive = MagicMock()
+        archive.write_json_parts.side_effect = lambda path, batches: (
+            handed.append((path, [len(batch) for batch in batches])) or 6
+        )
 
-        assert list(archive.entries) == ["data/activity_laps_000.json"]
-        assert ctx.counts["laps"] == 2
+        _split(dataclasses.replace(ctx, archive=archive), lambda ids, db: _rows(3), [_A, _B])
 
-    def test_an_activity_that_fills_a_part_continues_into_the_next(self) -> None:
-        ctx, archive = _ctx()
-        _split(ctx, lambda ids, db: _rows(3), [_A, _B], 2)
-
-        assert {path: len(rows) for path, rows in archive.entries.items()} == {
-            "data/activity_laps_000.json": 2,
-            "data/activity_laps_001.json": 2,
-            "data/activity_laps_002.json": 2,
-        }
+        assert handed == [("data/activity_laps.json", [3, 3])]
         assert ctx.counts["laps"] == 6
-
-    def test_activities_without_records_open_no_part(self) -> None:
-        ctx, archive = _ctx()
-        _split(ctx, lambda ids, db: _rows(1) if ids == [_B] else [], [_A, _B, _C], 1)
-
-        assert list(archive.entries) == ["data/activity_laps_000.json"]
-        assert ctx.counts["laps"] == 1
-
-    def test_full_parts_and_the_remainder_are_numbered(self) -> None:
-        ctx, archive = _ctx()
-        _split(ctx, lambda ids, db: _rows(len(ids)), [_A, _B, _C], 2)
-
-        assert list(archive.entries) == ["data/activity_laps_000.json", "data/activity_laps_001.json"]
-        assert len(archive.entries["data/activity_laps_000.json"]) == 2
-        assert len(archive.entries["data/activity_laps_001.json"]) == 1
-        assert ctx.counts["laps"] == 3
-        # Each part also counts under its own stem, as the legacy writer did.
-        assert ctx.counts["activity_laps_000"] == 2
-
-    def test_an_empty_result_writes_an_empty_file(self) -> None:
-        ctx, archive = _ctx()
-        _split(ctx, lambda ids, db: [], [_A, _B], 5)
-
-        assert archive.entries == {"data/activity_laps.json": []}
-        assert ctx.counts["laps"] == 0
 
     def test_a_reader_failure_propagates(self) -> None:
         ctx, _ = _ctx()
@@ -370,13 +347,13 @@ class TestWriteComponentSplit:
             raise RuntimeError("fail")
 
         with pytest.raises(RuntimeError, match="fail"):
-            _split(ctx, fail, [_A, _B, _C], 2)
+            _split(ctx, fail, [_A, _B, _C])
 
     def test_a_memory_error_propagates_with_the_activity_operation_name(self) -> None:
         check_memory = MagicMock(side_effect=MemoryAllocationError("oom"))
         ctx, _ = _ctx(check_memory=check_memory)
         with pytest.raises(MemoryAllocationError):
-            _split(ctx, lambda ids, db: [], [_A, _B], 5)
+            _split(ctx, lambda ids, db: [], [_A, _B])
 
         check_memory.assert_called_once_with("laps activity 1")
 

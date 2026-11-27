@@ -34,7 +34,7 @@ Because an import cannot be undone, back up your database first if you are unsur
 
 ### Limits
 
-An archive can be at most 500 MB, whatever the machine. The other limits depend on the memory available when the import starts, so a larger machine accepts more activities and has more time.
+Whatever the machine, an archive can be at most 500 MB, 8 GB once uncompressed, and hold at most 100,000 files. The other limits depend on the memory available when the import starts, so a larger machine accepts more activities and has more time.
 
 | Available memory | Maximum activities | Time limit |
 | ---------------- | ------------------ | ---------- |

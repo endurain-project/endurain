@@ -7,6 +7,7 @@ This module provides helper functions for:
 - Performance configuration management
 """
 
+import itertools
 import json
 import time
 import zipfile
@@ -17,6 +18,7 @@ import psutil
 from pydantic import BaseModel
 
 import core.logger as core_logger
+import modules.users.users_profile.constants as users_profile_constants
 from modules.users.users_profile.exceptions import (
     FileFormatError,
     FileSizeError,
@@ -130,12 +132,13 @@ def write_json_array_to_zip(
     batches: Iterable[Sequence[dict[str, Any]]],
     counts: dict[str, int],
     ensure_ascii: bool = False,
-) -> None:
+    max_bytes: int | None = None,
+) -> int:
     """Stream a JSON array into a ZIP entry one batch at a time and update counts.
 
     The entry is byte-for-byte what :func:`write_json_to_zip` writes for the same items, but only one
     batch is held at a time. Nothing else may be written to the archive while ``batches`` is consumed,
-    since the entry is open until it is exhausted.
+    since the entry is open until the writing stops.
 
     Args:
         zipf: ZipFile instance to write to.
@@ -143,8 +146,14 @@ def write_json_array_to_zip(
         batches: Batches of JSON-serializable items, read lazily.
         counts: Dictionary to update with the item count.
         ensure_ascii: Whether to ensure ASCII encoding.
+        max_bytes: When given, no further batch is taken once the items written reach this many
+            uncompressed bytes.
+
+    Returns:
+        The number of items written.
     """
     total = 0
+    written = 0
     # Its size is unknown until it is written, so zip64 is allowed up front.
     with zipf.open(filename, "w", force_zip64=True) as entry:
         entry.write(b"[")
@@ -152,10 +161,13 @@ def write_json_array_to_zip(
             for item in batch:
                 if total:
                     entry.write(b", ")
-                entry.write(json.dumps(item, default=str, ensure_ascii=ensure_ascii).encode("utf-8"))
+                written += entry.write(json.dumps(item, default=str, ensure_ascii=ensure_ascii).encode("utf-8"))
                 total += 1
+            if max_bytes is not None and written >= max_bytes:
+                break
         entry.write(b"]")
     counts[filename.split("/")[-1].replace(".json", "")] = total
+    return total
 
 
 class ZipArchiveWriter:
@@ -188,6 +200,32 @@ class ZipArchiveWriter:
         write_json_array_to_zip(
             self._zipf, path, ([model_to_dict(record) for record in batch] for batch in batches), self._counts
         )
+
+    def write_json_parts(self, path: str, batches: Iterable[Sequence[BaseModel]]) -> int:
+        """Write records as numbered JSON array entries of bounded size, holding one batch at a time.
+
+        Args:
+            path: Entry path of the unsplit entry.
+            batches: The records to serialize, read lazily.
+
+        Returns:
+            The number of records written.
+        """
+        pending = ([model_to_dict(record) for record in batch] for batch in batches if batch)
+        stem = path.removesuffix(".json")
+        total = 0
+        # Each turn takes the first batch of a part; the part then takes more from the same iterator until it is full.
+        for part, first in enumerate(pending):
+            total += write_json_array_to_zip(
+                self._zipf,
+                f"{stem}_{part:03d}.json",
+                itertools.chain([first], pending),
+                self._counts,
+                max_bytes=users_profile_constants.ARCHIVE_PART_TARGET_BYTES,
+            )
+        if not total:
+            write_json_to_zip(self._zipf, path, [], self._counts)
+        return total
 
     def write_bytes(self, path: str, data: bytes) -> None:
         """Write one entry as it is.
@@ -337,20 +375,23 @@ class ZipArchiveReader:
             raise JSONParseError(f"Failed to parse JSON from {path}: {err}") from err
 
     def load_json_part(self, path: str) -> list[dict[str, Any]]:
-        """Load one part of a split JSON array entry; a bad part is logged and skipped.
+        """Load one part of a split JSON array entry; a malformed part is logged and skipped.
 
         Args:
             path: Name of the part to load.
 
         Returns:
-            The JSON objects the part lists, or an empty list when it cannot be read.
+            The JSON objects the part lists, or an empty list when it cannot be parsed.
+
+        Raises:
+            FileSizeError: If the part or the archive exceeds the allowed size.
         """
         try:
             data = json.loads(self._read(path, self._max_json_bytes))
         except json.JSONDecodeError as err:
             logger.warning("Failed to parse a component file", extra=core_logger.context(filename=path, error=err))
             return []
-        except (FileFormatError, FileSizeError, OSError) as err:
+        except (FileFormatError, OSError) as err:
             logger.warning("Error loading a component file", extra=core_logger.context(filename=path, error=err))
             return []
         if not isinstance(data, list):

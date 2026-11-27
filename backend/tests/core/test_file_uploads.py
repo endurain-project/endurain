@@ -1533,6 +1533,31 @@ def test_a_profile_archive_may_hold_more_files_of_one_type_than_a_bulk_import():
         core_file_uploads.validate_bytes_sync(data, kind=UploadKind.ZIP, filename="bulk.zip")
 
 
+def test_a_profile_archive_may_hold_more_entries_than_the_librarys_default_caps():
+    """The library caps an archive at 10,000 entries and, counting nested archives, at 50,000."""
+    data = _zip_with_fit_entries(50_001)
+
+    core_file_uploads.validate_bytes_sync(data, kind=UploadKind.PROFILE_ARCHIVE, filename="profile.zip")
+
+
+def test_a_profile_archive_may_expand_further_than_a_bulk_import():
+    profile = core_file_uploads._profile_archive_validator.config.limits
+    bulk = core_file_uploads.file_validator.config.limits
+
+    assert profile.max_uncompressed_size == 8 * 1024 * 1024 * 1024
+    assert bulk.max_uncompressed_size == 2 * 1024 * 1024 * 1024
+    assert profile.max_compression_ratio == bulk.max_compression_ratio == 100
+
+
+def test_a_profile_archive_has_longer_to_be_checked_than_other_uploads():
+    """Checking an archive of the most entries it may hold takes longer than the library allows by default."""
+    profile = core_file_uploads._profile_archive_validator.config.limits
+    bulk = core_file_uploads.file_validator.config.limits
+
+    assert (profile.zip_analysis_timeout, profile.max_validation_time_seconds) == (60.0, 120.0)
+    assert (bulk.zip_analysis_timeout, bulk.max_validation_time_seconds) == (5.0, 30.0)
+
+
 def test_a_profile_archive_keeps_the_zip_byte_cap():
     assert core_file_uploads.max_bytes_for(UploadKind.PROFILE_ARCHIVE) == core_file_uploads.max_bytes_for(
         UploadKind.ZIP

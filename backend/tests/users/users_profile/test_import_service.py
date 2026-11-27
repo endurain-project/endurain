@@ -13,6 +13,7 @@ import pytest
 from sqlalchemy.orm import Session
 
 import core.exceptions as core_exceptions
+import core.file_uploads as core_file_uploads
 import modules.gears.gear.constants as gear_constants
 import modules.gears.gear.integration_service as gear_integration
 import modules.gears.gear_components.constants as gear_components_constants
@@ -87,6 +88,14 @@ class TestImportPerformanceConfig:
         assert config.max_memory_mb == 1024
         assert config.max_file_size_mb == 500
         assert config.max_json_mb == 128
+
+    @pytest.mark.parametrize("tier", ["high", "medium", "low"])
+    def test_every_tier_reads_what_the_upload_accepts(self, tier: str) -> None:
+        config = profile_import_service.ImportPerformanceConfig._get_tier_configs()[tier]
+        accepted = core_file_uploads._profile_archive_validator.config.limits
+
+        assert config.max_uncompressed_mb * 1024 * 1024 == accepted.max_uncompressed_size
+        assert config.max_entries == accepted.max_zip_entries == accepted.max_total_entries_recursive
 
     def test_get_auto_config(self, monkeypatch) -> None:
         monkeypatch.setattr(
