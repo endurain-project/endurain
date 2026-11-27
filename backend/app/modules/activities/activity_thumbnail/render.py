@@ -8,8 +8,7 @@ bytes-in/bytes-out means the read path never has to import the rendering stack.
 """
 
 import uuid
-from collections.abc import Mapping, Sequence
-from typing import Any
+from collections.abc import Sequence
 from urllib.parse import urlparse
 
 import core.exceptions as core_exceptions
@@ -68,7 +67,7 @@ DEFAULT_USER_AGENT = "Endurain - StaticMap backend thumbnail generator"
 
 def render_activity_thumbnail(
     activity_id: uuid.UUID,
-    waypoints: Sequence[Mapping[str, Any]],
+    route: Sequence[tuple[float, float]],
     *,
     tile_url: str = server_settings_constants.DEFAULT_TILE_URL,
     background_color: str = DEFAULT_BG_COLOR,
@@ -85,7 +84,7 @@ def render_activity_thumbnail(
 
     Args:
         activity_id: The activity ID (used only for logging).
-        waypoints: The stored GPS stream: JSON samples with 'lat' and 'lon' keys.
+        route: The route as ``(latitude, longitude)`` points, in order.
         tile_url: Leaflet-style tile URL template. {s} subdomains
             are normalised to 'a' automatically.
         background_color: Hex background color for the map canvas.
@@ -99,23 +98,23 @@ def render_activity_thumbnail(
 
     Returns:
         WebP-encoded bytes, or None when generation was deliberately skipped
-        (too few waypoints, a tile provider that needs a key).
+        (too few route points, a tile provider that needs a key).
 
     Raises:
         ProcessingError: When rendering was attempted and failed (tile server
-            unreachable, malformed waypoints). Distinct from a skip so a durable
+            unreachable, malformed route points). Distinct from a skip so a durable
             job is retried instead of recorded as done.
     """
-    if not waypoints or len(waypoints) < 2:
+    if len(route) < 2:
         logger.debug(
             "Skipping thumbnail render: fewer than 2 waypoints",
-            extra=core_logger.context(activity_id=activity_id, waypoint_count=len(waypoints or [])),
+            extra=core_logger.context(activity_id=activity_id, waypoint_count=len(route)),
         )
         return None
 
     try:
         # staticmap expects (longitude, latitude) order
-        coords = [(float(wp["lon"]), float(wp["lat"])) for wp in waypoints]
+        coords = [(float(lon), float(lat)) for lat, lon in route]
 
         normalised_url = normalise_tile_url(tile_url)
 

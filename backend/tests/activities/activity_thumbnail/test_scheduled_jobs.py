@@ -16,26 +16,25 @@ import core.config as core_config
 import core.scheduler as core_scheduler
 import modules.activities.activity.integration_service as activity_integration
 import modules.activities.activity.models as activity_models
-import modules.activities.activity_streams.constants as stream_constants
 import modules.activities.activity_thumbnail.constants as thumbnail_constants
 import modules.activities.activity_thumbnail.events as thumbnail_events
 import modules.activities.activity_thumbnail.scheduled_jobs as thumbnail_jobs
 import modules.activities.activity_thumbnail.service as thumbnail_service
 import modules.activities.activity_thumbnail.subscribers as thumbnail_subscribers
-from tests._factories.activities import make_activity, make_stream
+from tests._factories.activities import make_activity, make_samples
 from tests._factories.server_settings import edit_server_settings
 from tests._factories.users import make_user
 from tests._helpers.clock import platform_clock
 
 _AREA = thumbnail_constants.THUMBNAIL_STORAGE_AREA
-_ROUTE = [{"lat": 38.70, "lon": -9.10}, {"lat": 38.72, "lon": -9.14}]
+_ROUTE = [(38.70, -9.10), (38.72, -9.14)]
 
 
 @pytest.fixture
 def routed(db, tile_server):
     edit_server_settings(db, tileserver_url=tile_server.url())
     activity = make_activity(db, make_user(db).id)
-    make_stream(db, activity, stream_constants.STREAM_TYPE_MAP, _ROUTE)
+    make_samples(db, activity, [0, 1000], latitude=[lat for lat, _ in _ROUTE], longitude=[lon for _, lon in _ROUTE])
     return activity
 
 

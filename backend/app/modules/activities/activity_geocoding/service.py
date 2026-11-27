@@ -23,7 +23,6 @@ from sqlalchemy.orm import Session
 import core.logger as core_logger
 import core.pagination as core_pagination
 import modules.activities.activity.integration_service as activity_integration
-import modules.activities.activity_streams.integration_service as activity_streams_integration
 
 logger = core_logger.get_logger(__name__)
 
@@ -73,11 +72,11 @@ def reverse_geocode(
 def geocode_and_store_activity_location(
     activity_id: uuid.UUID, geocoding: GeocodingProvider, db: Session, *, reservation_key: str | None = None
 ) -> datetime | None:
-    """Resolve and persist a created activity's location from its GPS stream.
+    """Resolve and persist a created activity's location from its start point.
 
-    Loads the activity's first GPS waypoint (a multisport activity's is its first leg's that has a map),
-    reverse-geocodes it, and writes ``city``/``town``/``country`` back to the row. No-ops for non-GPS
-    activities (no map stream), when nothing resolves, or when the lookup was held back.
+    Reads the activity's start point (a multisport activity carries its first leg's that has one),
+    reverse-geocodes it, and writes ``city``/``town``/``country`` back to the row. No-ops for activities
+    without a start point, when nothing resolves, or when the lookup was held back.
 
     Args:
         activity_id: The activity to geocode.
@@ -89,19 +88,16 @@ def geocode_and_store_activity_location(
     Returns:
         When to look the location up again if the rate limit or an upstream
         failure held the lookup back, else None (stored, nothing resolved, or no
-        GPS stream).
+        start point).
     """
-    route = activity_streams_integration.get_route_waypoints_for_activities([activity_id], db).get(activity_id)
-    if not route:
+    start_point = activity_integration.get_activity_start_point(activity_id, db)
+    if start_point is None:
         return None
 
-    first_waypoint = route[0]
     # End the read transaction before the network call so no connection is held
     # while the geocoder answers.
     db.commit()
-    outcome = reverse_geocode(
-        geocoding, first_waypoint.get("lat"), first_waypoint.get("lon"), reservation_key=reservation_key
-    )
+    outcome = reverse_geocode(geocoding, *start_point, reservation_key=reservation_key)
     location = outcome.place
     if location is None:
         return outcome.retry_at
@@ -125,15 +121,14 @@ def backfill_missing_activity_locations(
     *,
     max_lookups: int = core_pagination.DEFAULT_EXTERNAL_IO_BATCH_SIZE,
 ) -> int:
-    """Resolve locations for GPS activities that still have none.
+    """Resolve locations for activities with a start point that still have none.
 
     Reconciliation net for the ``activity.created`` geocoding subscriber. It pages
-    through the activities with an all-NULL location that are due a lookup and
-    fetches each page's GPS waypoints in one batch. Only an activity with a GPS
-    stream costs a (rate-limited) geocoding request, so ``max_lookups`` bounds a
-    pass's external I/O.
+    through the activities with a start point and an all-NULL location that are due a
+    lookup; each costs a (rate-limited) geocoding request, so ``max_lookups`` bounds a
+    pass's external I/O. An activity without a start point is not a candidate.
 
-    An activity with no GPS stream, or whose lookup resolves nothing, is deferred
+    An activity whose lookup resolves nothing is deferred
     by :data:`LOOKUP_RETRY_DELAY` rather than retried every pass, so it neither
     occupies the budget nor is given up on. Geocoding that is not configured
     answers "nothing here" too, so the delay is bounded rather than permanent:
@@ -166,22 +161,15 @@ def backfill_missing_activity_locations(
             break
         after_id = candidates[-1].id
 
-        waypoints_by_activity = activity_streams_integration.get_route_waypoints_for_activities(
-            [ref.id for ref in candidates], db
-        )
-        unresolved = [ref.id for ref in candidates if not waypoints_by_activity.get(ref.id)]
+        unresolved: list[uuid.UUID] = []
         # The lookups below are network calls; do not hold the read transaction.
         db.commit()
         for ref in candidates:
-            waypoints = waypoints_by_activity.get(ref.id)
-            if not waypoints:
-                continue
             if lookups >= max_lookups:
                 # Not looked up, so not deferred: still due on the next pass.
                 break
             lookups += 1
-            first_waypoint = waypoints[0]
-            outcome = reverse_geocode(geocoding, first_waypoint.get("lat"), first_waypoint.get("lon"))
+            outcome = reverse_geocode(geocoding, ref.latitude, ref.longitude)
             if outcome.retry_at is not None:
                 # No final answer, so not deferred: still due on the next pass.
                 held_back = True

@@ -309,6 +309,9 @@ def make_samples(
 ) -> activity_streams_models.ActivitySamples:
     """Stage the columnar samples of an activity through the module's create function (flushed, not committed).
 
+    Positioned samples also set the activity's start point, and its multisport parent's when that has none yet, as an
+    import does.
+
     Args:
         db: Database session.
         activity: The parent activity.
@@ -318,9 +321,29 @@ def make_samples(
     Returns:
         The samples row as staged.
     """
-    return activity_streams_crud.create_activity_samples(
+    row = activity_streams_crud.create_activity_samples(
         activity.id, activity_streams_contracts.ParsedSamples(offsets_ms=list(offsets_ms), **channels), db
     )
+    start = next(
+        (
+            (lat, lon)
+            for lat, lon in zip(row.latitude or [], row.longitude or [], strict=True)
+            if lat is not None and lon is not None
+        ),
+        None,
+    )
+    if start is not None:
+        model = activity_models.Activity
+        point = {"start_latitude": start[0], "start_longitude": start[1]}
+        db.execute(update(model).where(model.id == activity.id).values(**point))
+        if activity.parent_activity_id is not None:
+            db.execute(
+                update(model)
+                .where(model.id == activity.parent_activity_id, model.start_latitude.is_(None))
+                .values(**point)
+            )
+        db.flush()
+    return row
 
 
 def make_stream(

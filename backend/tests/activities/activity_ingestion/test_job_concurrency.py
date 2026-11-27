@@ -22,16 +22,15 @@ import modules.activities.activity.models as activity_models
 import modules.activities.activity_ingestion.constants as ingestion_constants
 import modules.activities.activity_ingestion.crud as ingestion_crud
 import modules.activities.activity_ingestion.models as ingestion_models
-import modules.activities.activity_streams.constants as stream_constants
 import modules.activities.activity_thumbnail.constants as thumbnail_constants
 import modules.activities.activity_thumbnail.service as thumbnail_service
-from tests._factories.activities import make_activity, make_stream
+from tests._factories.activities import make_activity, make_samples
 from tests._factories.server_settings import edit_server_settings
 from tests._factories.users import make_user
 from tests._helpers.stand_ins import TileServer
 
 _LEASE = timedelta(seconds=300)
-_ROUTE = [{"lat": 38.70, "lon": -9.10}, {"lat": 38.72, "lon": -9.14}]
+_ROUTE = [(38.70, -9.10), (38.72, -9.14)]
 _ACTIVITY_ID_1 = uuid.UUID("00000000-0000-4000-8000-0000000000c1")
 _ACTIVITY_ID_2 = uuid.UUID("00000000-0000-4000-8000-0000000000c2")
 _PRIVACY_FLAGS = (
@@ -313,7 +312,9 @@ class TestRegenerationLock:
         with factory() as db:
             edit_server_settings(db, tileserver_url=server.url())
             activity = make_activity(db, user)
-            make_stream(db, activity, stream_constants.STREAM_TYPE_MAP, _ROUTE)
+            make_samples(
+                db, activity, [0, 1000], latitude=[lat for lat, _ in _ROUTE], longitude=[lon for _, lon in _ROUTE]
+            )
             db.commit()
         yield activity.id
         server.stop()

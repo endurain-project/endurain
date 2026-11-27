@@ -14,12 +14,8 @@ import modules.activities.activity.events as activity_events
 import modules.activities.activity.models as activity_models
 import modules.activities.activity_geocoding.subscriber_registry as geocoding_subscriber_registry
 import modules.activities.activity_geocoding.subscribers as geocoding_subscribers
-import modules.activities.activity_streams.constants as stream_constants
-from tests._factories.activities import make_activity, make_stream
+from tests._factories.activities import make_activity
 from tests._factories.users import make_user
-
-_MAP = stream_constants.STREAM_TYPE_MAP
-_LISBON = [{"lat": 38.7, "lon": -9.1}, {"lat": 38.8, "lon": -9.2}]
 
 
 @pytest.fixture
@@ -34,10 +30,9 @@ def clock():
 
 @pytest.fixture
 def created(db, geocoder):
-    """An activity with a GPS stream, and its ``activity.created`` event."""
+    """An activity with a start point, and its ``activity.created`` event."""
     user = make_user(db)
-    activity = make_activity(db, user.id)
-    make_stream(db, activity, _MAP, _LISBON)
+    activity = make_activity(db, user.id, start_latitude=38.7, start_longitude=-9.1)
     payload = activity_events.ActivityCreatedPayload(activity_id=activity.id, user_id=user.id)
     event = new_event(activity_events.ACTIVITY_CREATED, payload.model_dump(mode="json"), source="test")
     return activity, event

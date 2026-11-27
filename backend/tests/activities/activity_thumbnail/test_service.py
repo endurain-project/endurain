@@ -18,19 +18,17 @@ from sqlalchemy import delete
 import core.exceptions as core_exceptions
 import modules.activities.activity.integration_service as activity_integration
 import modules.activities.activity.models as activity_models
-import modules.activities.activity_streams.constants as stream_constants
 import modules.activities.activity_thumbnail.constants as thumbnail_constants
 import modules.activities.activity_thumbnail.service as thumbnail_service
 import modules.activities.activity_thumbnail.signing as thumbnail_signing
 import modules.server_settings.constants as server_settings_constants
-from tests._factories.activities import DEFAULT_START, make_activity, make_multisport, make_stream
+from tests._factories.activities import DEFAULT_START, make_activity, make_multisport, make_samples
 from tests._factories.server_settings import edit_server_settings
 from tests._factories.users import make_user
 from tests._helpers.clock import platform_clock
 
 _AREA = thumbnail_constants.THUMBNAIL_STORAGE_AREA
-_MAP = stream_constants.STREAM_TYPE_MAP
-_ROUTE = [{"lat": 38.70, "lon": -9.10}, {"lat": 38.72, "lon": -9.14}]
+_ROUTE = [(38.70, -9.10), (38.72, -9.14)]
 
 
 class UnavailableStorage(LocalStorage):
@@ -85,10 +83,21 @@ def tiles(db, tile_server):
     return tile_server
 
 
+def _positions(db, activity, route):
+    """Stage samples that carry ``route``, one sample per ``(latitude, longitude)`` point."""
+    make_samples(
+        db,
+        activity,
+        [1000 * index for index in range(len(route))],
+        latitude=[lat for lat, _ in route],
+        longitude=[lon for _, lon in route],
+    )
+
+
 def _routed(db, owner, day: int = 0):
     start = DEFAULT_START + timedelta(days=day)
     activity = make_activity(db, owner.id, start_time=start, end_time=start + timedelta(hours=1))
-    make_stream(db, activity, _MAP, _ROUTE)
+    _positions(db, activity, _ROUTE)
     return activity
 
 
@@ -147,13 +156,15 @@ class TestGenerateForActivity:
         assert key == f"{activity.id}.webp"
         assert (tiles.requests, storage.get(_AREA, f"{activity.id}.webp")) == ([], b"existing")
 
-    @pytest.mark.parametrize("waypoints", [None, [], _ROUTE[:1]])
+    @pytest.mark.parametrize("route", [None, _ROUTE[:1], "heart rate only"])
     def test_an_activity_without_a_route_of_two_points_stores_nothing_and_asks_for_no_tiles(
-        self, db, owner, storage, tiles, waypoints
+        self, db, owner, storage, tiles, route
     ):
         activity = _plain(db, owner)
-        if waypoints is not None:
-            make_stream(db, activity, _MAP, waypoints)
+        if route == "heart rate only":
+            make_samples(db, activity, [0, 1000], heart_rate=[120, 121])
+        elif route is not None:
+            _positions(db, activity, route)
 
         assert thumbnail_service.generate_thumbnail_for_activity(activity.id, owner.id, storage, db) is None
 
@@ -200,10 +211,10 @@ class _Renders:
     """Stands in for the renderer: keeps the route it was asked to draw for each activity and draws nothing."""
 
     def __init__(self) -> None:
-        self.routes: dict[uuid.UUID, list[dict]] = {}
+        self.routes: dict[uuid.UUID, list[tuple[float, float]]] = {}
 
-    def __call__(self, activity_id, waypoints, **_kwargs):
-        self.routes[activity_id] = [dict(waypoint) for waypoint in waypoints]
+    def __call__(self, activity_id, route, **_kwargs):
+        self.routes[activity_id] = list(route)
 
 
 @pytest.fixture
@@ -213,16 +224,16 @@ def renders(monkeypatch):
     return renders
 
 
-_SWIM = [{"lat": 1.0, "lon": 1.0}, {"lat": 1.1, "lon": 1.1}]
-_RIDE = [{"lat": 2.0, "lon": 2.0}, {"lat": 2.1, "lon": 2.1}]
-_RUN = [{"lat": 3.0, "lon": 3.0}, {"lat": 3.1, "lon": 3.1}]
+_SWIM = [(1.0, 1.0), (1.1, 1.1)]
+_RIDE = [(2.0, 2.0), (2.1, 2.1)]
+_RUN = [(3.0, 3.0), (3.1, 3.1)]
 
 
 def _triathlon(db, owner):
-    """A multisport activity whose swim, bike and run have a map, with transitions between that have none."""
+    """A multisport activity whose swim, bike and run have a route, with transitions between that have none."""
     parent, legs = make_multisport(db, owner.id)
     for leg, route in zip((legs[0], legs[2], legs[4]), (_SWIM, _RIDE, _RUN), strict=True):
-        make_stream(db, leg, _MAP, route)
+        _positions(db, leg, route)
     return parent, legs
 
 
@@ -295,12 +306,23 @@ class TestBackfill:
         assert _key_of(db, plain) is None
         assert sorted(storage.list_keys(_AREA, "")) == sorted([f"{first.id}.webp", f"{second.id}.webp"])
 
+    def test_the_backfill_picks_an_activity_with_positioned_samples_and_skips_one_with_none(
+        self, db, owner, storage, lock, clock, tiles
+    ):
+        positioned, heart_rate_only = _routed(db, owner, 0), _plain(db, owner, 1)
+        make_samples(db, heart_rate_only, [0, 1000], heart_rate=[120, 121])
+
+        thumbnail_service.generate_missing_activity_thumbnails(storage, lock, clock, db)
+
+        assert (_key_of(db, positioned), _key_of(db, heart_rate_only)) == (f"{positioned.id}.webp", None)
+
     def test_an_activity_that_ended_a_pass_without_a_thumbnail_waits_before_it_is_tried_again(
         self, db, owner, storage, lock, clock, tiles
     ):
-        activity = _plain(db, owner)
+        activity = _routed(db, owner)
+        tiles.status = 500
         thumbnail_service.generate_missing_activity_thumbnails(storage, lock, clock, db)
-        make_stream(db, activity, _MAP, _ROUTE)
+        tiles.status = 200
 
         thumbnail_service.generate_missing_activity_thumbnails(storage, lock, clock, db)
         still_waiting = _key_of(db, activity)
@@ -325,7 +347,7 @@ class TestBackfill:
 
     def test_one_activity_that_cannot_be_rendered_does_not_stop_the_pass(self, db, owner, storage, lock, clock, tiles):
         bad = _plain(db, owner, 0)
-        make_stream(db, bad, _MAP, [{"lat": 38.7}, {"lat": 38.8}])
+        _positions(db, bad, _ROUTE[:1])
         good = _routed(db, owner, 1)
 
         thumbnail_service.generate_missing_activity_thumbnails(storage, lock, clock, db)

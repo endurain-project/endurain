@@ -9,7 +9,7 @@ import modules.activities.activity_streams.constants as stream_constants
 import modules.activities.activity_streams.contracts as stream_contracts
 import modules.activities.activity_streams.crud as streams_crud
 import modules.activities.activity_streams.integration_service as streams_integration
-from tests._factories.activities import make_activity, make_multisport, make_stream
+from tests._factories.activities import make_activity, make_multisport, make_samples, make_stream
 from tests._factories.users import make_user
 
 _HR = stream_constants.STREAM_TYPE_HR
@@ -117,3 +117,37 @@ class TestRoutes:
 
     def test_no_activities_have_no_routes(self, db):
         assert streams_integration.get_route_waypoints_for_activities([], db) == {}
+
+
+class TestRoutesFromSamples:
+    def test_the_positioned_samples_of_several_activities_are_read_in_order_and_one_without_samples_is_absent(
+        self, db, activity
+    ):
+        make_samples(db, activity, [0, 1000, 2000], latitude=[1.0, None, 2.0], longitude=[3.0, None, 4.0])
+
+        found = streams_integration.get_routes_for_activities([activity.id, uuid.uuid4()], db)
+
+        assert found == {activity.id: [(1.0, 3.0), (2.0, 4.0)]}
+
+    def test_samples_without_a_position_have_no_route(self, db, activity):
+        make_samples(db, activity, [0, 1000], heart_rate=[120.0, 121.0])
+
+        assert streams_integration.get_routes_for_activities([activity.id], db) == {}
+
+    def test_a_multisport_activity_has_its_legs_routes_in_start_order_and_a_leg_its_own(self, db, activity):
+        parent, legs = make_multisport(db, activity.user_id)
+        make_samples(db, legs[4], [0], latitude=[5.0], longitude=[5.0])
+        make_samples(db, legs[0], [0, 1000], latitude=[1.0, 1.5], longitude=[1.0, 1.5])
+        make_samples(db, legs[2], [0], latitude=[3.0], longitude=[3.0])
+
+        found = streams_integration.get_routes_for_activities([parent.id, legs[4].id], db)
+
+        assert found == {parent.id: [(1.0, 1.0), (1.5, 1.5), (3.0, 3.0), (5.0, 5.0)], legs[4].id: [(5.0, 5.0)]}
+
+    def test_a_multisport_activity_whose_legs_have_no_position_has_no_route(self, db, activity):
+        parent, _legs = make_multisport(db, activity.user_id)
+
+        assert streams_integration.get_routes_for_activities([parent.id], db) == {}
+
+    def test_no_activities_have_no_routes(self, db):
+        assert streams_integration.get_routes_for_activities([], db) == {}

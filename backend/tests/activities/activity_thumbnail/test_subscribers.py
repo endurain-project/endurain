@@ -14,19 +14,17 @@ import core.scheduler as core_scheduler
 import modules.activities.activity.events as activity_events
 import modules.activities.activity.integration_service as activity_integration
 import modules.activities.activity.models as activity_models
-import modules.activities.activity_streams.constants as stream_constants
 import modules.activities.activity_thumbnail.constants as thumbnail_constants
 import modules.activities.activity_thumbnail.events as thumbnail_events
 import modules.activities.activity_thumbnail.subscriber_registry as thumbnail_subscriber_registry
 import modules.activities.activity_thumbnail.subscribers as thumbnail_subscribers
 import modules.server_settings.events as server_settings_events
-from tests._factories.activities import make_activity, make_stream
+from tests._factories.activities import make_activity, make_samples
 from tests._factories.server_settings import edit_server_settings
 from tests._factories.users import make_user
 
 _AREA = thumbnail_constants.THUMBNAIL_STORAGE_AREA
-_MAP = stream_constants.STREAM_TYPE_MAP
-_ROUTE = [{"lat": 38.70, "lon": -9.10}, {"lat": 38.72, "lon": -9.14}]
+_ROUTE = [(38.70, -9.10), (38.72, -9.14)]
 
 
 @pytest.fixture
@@ -62,7 +60,7 @@ def routed(db, tile_server):
     edit_server_settings(db, tileserver_url=tile_server.url())
     user = make_user(db)
     activity = make_activity(db, user.id)
-    make_stream(db, activity, _MAP, _ROUTE)
+    make_samples(db, activity, [0, 1000], latitude=[lat for lat, _ in _ROUTE], longitude=[lon for _, lon in _ROUTE])
     return user, activity
 
 

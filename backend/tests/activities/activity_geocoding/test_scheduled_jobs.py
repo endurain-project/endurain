@@ -3,14 +3,12 @@
 import core.scheduler as core_scheduler
 import modules.activities.activity.models as activity_models
 import modules.activities.activity_geocoding.scheduled_jobs as geocoding_jobs
-import modules.activities.activity_streams.constants as stream_constants
-from tests._factories.activities import make_activity, make_stream
+from tests._factories.activities import make_activity
 from tests._factories.users import make_user
 
 
-def test_the_entry_point_locates_the_gps_activities_that_have_no_place(db, geocoder):
-    activity = make_activity(db, make_user(db).id)
-    make_stream(db, activity, stream_constants.STREAM_TYPE_MAP, [{"lat": 38.7, "lon": -9.1}])
+def test_the_entry_point_locates_the_activities_with_a_start_point_that_have_no_place(db, geocoder):
+    activity = make_activity(db, make_user(db).id, start_latitude=38.7, start_longitude=-9.1)
 
     geocoding_jobs.run_missing_location_backfill()
 

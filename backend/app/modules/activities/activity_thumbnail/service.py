@@ -13,9 +13,9 @@ Sessions are opened by the entry point (``integration_service``) and passed down
 
 import functools
 import uuid
-from collections.abc import Iterator, Mapping, Sequence
+from collections.abc import Iterator, Sequence
 from datetime import UTC, datetime, timedelta
-from typing import Any, Protocol
+from typing import Protocol
 
 import jasil.jobs as platform_jobs
 import jasil.providers as platform_providers
@@ -95,10 +95,10 @@ def _iter_activities_without_thumbnail(
 ) -> Iterator[list[activity_contracts.ActivityThumbnailRef]]:
     """Yield pages of activities that have no thumbnail key and are due an attempt.
 
-    Pages rather than rows: the caller batch-loads each page's waypoints in one
+    Pages rather than rows: the caller batch-loads each page's routes in one
     query. The cursor always advances past the page it just read — re-reading
     from the last unrendered id would loop forever on a page whose activities
-    have no GPS stream to render.
+    have no route to render.
 
     Args:
         due_at: Activities deferred past this instant are skipped.
@@ -135,7 +135,7 @@ def resolve_tile_settings(db: Session) -> tuple[str, str, str | None]:
 
 def generate_and_store_thumbnail(
     activity_id: uuid.UUID,
-    waypoints: Sequence[Mapping[str, Any]],
+    route: Sequence[tuple[float, float]],
     storage: platform_providers.StorageProvider,
     db: Session,
     *,
@@ -150,7 +150,7 @@ def generate_and_store_thumbnail(
 
     Args:
         activity_id: Target activity ID.
-        waypoints: GPS ``{"lat", "lon"}`` waypoints for the route.
+        route: The route as ``(latitude, longitude)`` points.
         storage: The blob-storage provider.
         db: Database session used to persist the key.
         tile_url: Tile URL template.
@@ -165,7 +165,7 @@ def generate_and_store_thumbnail(
     db.commit()
     data = activity_thumbnail_render.render_activity_thumbnail(
         activity_id,
-        waypoints,
+        route,
         tile_url=tile_url,
         background_color=background_color,
         api_key=api_key,
@@ -213,7 +213,7 @@ def generate_thumbnail_for_activity(
     storage: platform_providers.StorageProvider,
     db: Session,
 ) -> str | None:
-    """Read an activity's GPS track and render and store its thumbnail.
+    """Read an activity's route and render and store its thumbnail.
 
     A no-op for an activity that already has a thumbnail key, so a thumbnail the backfill rendered first is
     not rendered again, and for an activity without at least two GPS waypoints, so non-GPS activities cost
@@ -235,8 +235,8 @@ def generate_thumbnail_for_activity(
             "Skipping thumbnail generation: already stored", extra=core_logger.context(activity_id=activity_id)
         )
         return existing_key
-    waypoints = activity_streams_integration.get_route_waypoints_for_activities([activity_id], db).get(activity_id, [])
-    if len(waypoints) < _MIN_WAYPOINTS:
+    route = activity_streams_integration.get_routes_for_activities([activity_id], db).get(activity_id, [])
+    if len(route) < _MIN_WAYPOINTS:
         # Logged because "my activity has no thumbnail" is otherwise
         # indistinguishable from a failure.
         logger.debug(
@@ -244,7 +244,7 @@ def generate_thumbnail_for_activity(
             extra=core_logger.context(
                 activity_id=activity_id,
                 user_id=user_id,
-                waypoint_count=len(waypoints),
+                waypoint_count=len(route),
                 minimum_waypoints=_MIN_WAYPOINTS,
             ),
         )
@@ -252,7 +252,7 @@ def generate_thumbnail_for_activity(
     tile_url, background_color, api_key = resolve_tile_settings(db)
     return generate_and_store_thumbnail(
         activity_id,
-        waypoints,
+        route,
         storage,
         db,
         tile_url=tile_url,
@@ -493,8 +493,8 @@ def _run_missing_thumbnail_generation(
         tile_url, background_color, api_key = tile_settings
 
         # Batch-load the routes through the streams service (the ORM stays confined to that
-        # package) as an {activity_id: waypoints} mapping; a multisport activity's is its legs'.
-        waypoints_by_activity_id = activity_streams_integration.get_route_waypoints_for_activities(
+        # package) as an {activity_id: route} mapping; a multisport activity's is its legs'.
+        routes_by_activity_id = activity_streams_integration.get_routes_for_activities(
             [activity.id for activity in page],
             db,
         )
@@ -504,9 +504,9 @@ def _run_missing_thumbnail_generation(
             if platform_jobs.lease_lost():
                 logger.warning("Thumbnail scheduler: lease lost; stopping the pass")
                 return
-            waypoints = waypoints_by_activity_id.get(activity.id)
+            route = routes_by_activity_id.get(activity.id)
 
-            if not waypoints:
+            if not route:
                 unrendered.append(activity.id)
                 continue
             if max_renders is not None and attempted >= max_renders:
@@ -516,7 +516,7 @@ def _run_missing_thumbnail_generation(
             try:
                 key = generate_and_store_thumbnail(
                     activity.id,
-                    waypoints,
+                    route,
                     storage,
                     db,
                     tile_url=tile_url,

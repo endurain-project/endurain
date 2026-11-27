@@ -107,7 +107,7 @@ def get_gps_stream_waypoints_for_activities(
 ) -> dict[uuid.UUID, list[dict[str, Any]]]:
     """Return each activity's GPS (map) stream waypoints, keyed by activity id.
 
-    Batch helper for the reverse-geocoding backfill: it fetches only the
+    Used by the reprocess, whose activities stored before v0.22 have no samples yet. It fetches only the
     ``STREAM_TYPE_MAP`` waypoints for the given activities in one query and keeps
     the ORM confined to this module (returning plain lists, not ORM rows).
     Activities without a GPS stream are simply absent from the result.
@@ -261,3 +261,27 @@ def delete_activity_samples(activity_id: uuid.UUID, db: Session) -> None:
         )
     )
     db.flush()
+
+
+def get_activities_positions(
+    activity_ids: list[uuid.UUID],
+    db: Session,
+) -> dict[uuid.UUID, tuple[list[float | None], list[float | None]]]:
+    """Get the latitude and longitude columns of several activities' samples in one query, and nothing else.
+
+    Performs no access check: which activities the caller may read is decided before this is reached.
+
+    Args:
+        activity_ids: The activities to read, already scoped to the caller.
+        db: Database session.
+
+    Returns:
+        ``(latitudes, longitudes)`` by activity identifier; an activity without positioned samples is absent.
+    """
+    if not activity_ids:
+        return {}
+    model = activity_streams_models.ActivitySamples
+    stmt = select(model.activity_id, model.latitude, model.longitude).where(
+        model.activity_id.in_(activity_ids), model.latitude.is_not(None)
+    )
+    return {row.activity_id: (row.latitude, row.longitude) for row in db.execute(stmt)}

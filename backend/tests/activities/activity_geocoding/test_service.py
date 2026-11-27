@@ -1,4 +1,4 @@
-"""Locating activities from their GPS stream, against a real database and a real reverse-geocoding service."""
+"""Locating activities from their start point, against a real database and a real reverse-geocoding service."""
 
 from datetime import timedelta
 
@@ -8,14 +8,12 @@ from sqlalchemy import delete as delete_statement
 
 import modules.activities.activity.models as activity_models
 import modules.activities.activity_geocoding.service as geocoding_service
-import modules.activities.activity_streams.constants as stream_constants
-from tests._factories.activities import DEFAULT_START, make_activity, make_multisport, make_stream
+from tests._factories.activities import DEFAULT_START, make_activity, make_multisport
 from tests._factories.users import make_user
 
-_MAP = stream_constants.STREAM_TYPE_MAP
-_LISBON = [{"lat": 38.7, "lon": -9.1}, {"lat": 38.8, "lon": -9.2}]
-_MATOSINHOS = [{"lat": 41.2, "lon": -8.7}]
-_NOWHERE = [{"lat": 0.5, "lon": 0.5}]
+_LISBON = (38.7, -9.1)
+_MATOSINHOS = (41.2, -8.7)
+_NOWHERE = (0.5, 0.5)
 
 
 @pytest.fixture
@@ -28,12 +26,19 @@ def owner(db):
     return make_user(db)
 
 
-def _activity(db, owner, route=None, day: int = 0, **fields):
+def _activity(db, owner, start_point=None, day: int = 0, **fields):
+    """An activity starting at ``(latitude, longitude)``, or without a start point when it is ``None``."""
     start = DEFAULT_START + timedelta(days=day)
-    activity = make_activity(db, owner.id, start_time=start, end_time=start + timedelta(hours=1), **fields)
-    if route is not None:
-        make_stream(db, activity, _MAP, route)
-    return activity
+    latitude, longitude = start_point or (None, None)
+    return make_activity(
+        db,
+        owner.id,
+        start_time=start,
+        end_time=start + timedelta(hours=1),
+        start_latitude=latitude,
+        start_longitude=longitude,
+        **fields,
+    )
 
 
 def _place(db, activity) -> tuple[str | None, str | None, str | None]:
@@ -89,7 +94,9 @@ class TestReverseGeocode:
 
 
 class TestGeocodeOneActivity:
-    def test_the_first_gps_point_of_the_activity_locates_it(self, db, owner, geocoder, geocoding_server):
+    def test_the_start_point_of_the_activity_locates_it_without_reading_any_stream(
+        self, db, owner, geocoder, geocoding_server
+    ):
         activity = _activity(db, owner, _LISBON)
 
         retry_at = geocoding_service.geocode_and_store_activity_location(activity.id, geocoder, db)
@@ -105,11 +112,8 @@ class TestGeocodeOneActivity:
 
         assert _place(db, activity) == ("Matosinhos", None, "Portugal")
 
-    @pytest.mark.parametrize("route", [None, []])
-    def test_an_activity_without_a_gps_stream_or_points_asks_the_service_nothing(
-        self, db, owner, geocoder, geocoding_server, route
-    ):
-        activity = _activity(db, owner, route)
+    def test_an_activity_without_a_start_point_asks_the_service_nothing(self, db, owner, geocoder, geocoding_server):
+        activity = _activity(db, owner)
 
         assert geocoding_service.geocode_and_store_activity_location(activity.id, geocoder, db) is None
 
@@ -136,13 +140,16 @@ class TestGeocodeOneActivity:
 
 class TestAMultisportActivity:
     def _group(self, db, owner):
-        """A multisport activity whose first leg has no map, whose second starts in Matosinhos and third in Lisbon."""
-        parent, legs = make_multisport(db, owner.id)
-        make_stream(db, legs[1], _MAP, [{"lat": 41.2, "lon": -8.7}, {"lat": 41.3, "lon": -8.8}])
-        make_stream(db, legs[2], _MAP, _LISBON)
+        """A multisport activity starting in Matosinhos, whose first leg has no position, whose second starts there
+        and whose third starts in Lisbon."""
+        parent, legs = make_multisport(db, owner.id, start_latitude=None, start_longitude=None)
+        for activity, point in ((parent, _MATOSINHOS), (legs[1], _MATOSINHOS), (legs[2], _LISBON)):
+            row = db.get(activity_models.Activity, activity.id)
+            row.start_latitude, row.start_longitude = point
+        db.flush()
         return parent, legs
 
-    def test_it_is_located_by_the_first_waypoint_of_its_first_leg_that_has_a_map(self, db, owner, geocoder):
+    def test_it_is_located_by_its_own_start_point_and_a_leg_by_its_own(self, db, owner, geocoder):
         parent, legs = self._group(db, owner)
 
         geocoding_service.geocode_and_store_activity_location(parent.id, geocoder, db)
@@ -151,7 +158,7 @@ class TestAMultisportActivity:
         assert _place(db, parent) == ("Matosinhos", None, "Portugal")
         assert _place(db, legs[2]) == ("Lisbon", "Alvalade", "Portugal")
 
-    def test_the_backfill_locates_it_and_each_leg_with_a_map(self, db, owner, geocoder, clock):
+    def test_the_backfill_locates_it_and_each_leg_with_a_start_point(self, db, owner, geocoder, clock):
         parent, legs = self._group(db, owner)
 
         stored = geocoding_service.backfill_missing_activity_locations(geocoder, clock, db)
@@ -240,20 +247,34 @@ class TestBackfill:
 
         assert (_place(db, located)[0], geocoding_server.requests) == ("Elsewhere", [])
 
-    def test_activities_with_no_route_or_no_known_place_wait_a_day_before_they_are_looked_up_again(
+    def test_an_activity_without_a_start_point_is_not_a_candidate_and_is_not_marked_as_looked_up(
+        self, db, owner, geocoder, geocoding_server, clock
+    ):
+        bare = _activity(db, owner, None)
+
+        stored = geocoding_service.backfill_missing_activity_locations(geocoder, clock, db)
+
+        assert (stored, geocoding_server.requests) == (0, [])
+        assert db.get(activity_models.Activity, bare.id).location_next_lookup_at is None
+
+    def test_an_activity_gaining_a_start_point_is_located_at_once_and_an_unknown_place_waits_a_day(
         self, db, owner, geocoder, geocoding_server, clock
     ):
         bare, unknown = _activity(db, owner, None, 0), _activity(db, owner, _NOWHERE, 1)
 
         first = geocoding_service.backfill_missing_activity_locations(geocoder, clock, db)
-        asked = len(geocoding_server.requests)
         again = geocoding_service.backfill_missing_activity_locations(geocoder, clock, db)
-        clock.advance(geocoding_service.LOOKUP_RETRY_DELAY.total_seconds() + 1)
-        make_stream(db, bare, _MAP, _LISBON)
+        asked = len(geocoding_server.requests)
+        row = db.get(activity_models.Activity, bare.id)
+        row.start_latitude, row.start_longitude = _LISBON
+        db.flush()
         later = geocoding_service.backfill_missing_activity_locations(geocoder, clock, db)
 
-        assert (first, asked, again, len(geocoding_server.requests)) == (0, 1, 0, 3)
+        assert (first, again, asked) == (0, 0, 1)
         assert (later, _place(db, bare)[0], _place(db, unknown)) == (1, "Lisbon", (None, None, None))
+        clock.advance(geocoding_service.LOOKUP_RETRY_DELAY.total_seconds() + 1)
+        geocoding_service.backfill_missing_activity_locations(geocoder, clock, db)
+        assert len(geocoding_server.requests) == 3
 
     def test_a_held_back_lookup_ends_the_pass_and_leaves_the_activity_due(
         self, db, owner, geocoder, geocoding_server, clock

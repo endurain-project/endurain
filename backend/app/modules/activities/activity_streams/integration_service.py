@@ -188,6 +188,9 @@ def get_route_waypoints_for_activities(
 ) -> dict[uuid.UUID, list[dict[str, Any]]]:
     """Return the route of several activities in one query: each one's own GPS waypoints.
 
+    Used by the reprocess, whose activities stored before v0.22 have no samples yet; everything else reads
+    :func:`get_routes_for_activities`.
+
     A multisport activity has no stream of its own, so its route is its legs' GPS waypoints joined in the legs' start
     order; a leg without a map adds nothing. An activity with no route is absent from the result.
 
@@ -208,6 +211,43 @@ def get_route_waypoints_for_activities(
             [point for leg_id in legs[activity_id] for point in waypoints.get(leg_id, [])]
             if activity_id in legs
             else waypoints.get(activity_id)
+        )
+        if route:
+            routes[activity_id] = route
+    return routes
+
+
+def get_routes_for_activities(activity_ids: list[uuid.UUID], db: Session) -> dict[uuid.UUID, list[tuple[float, float]]]:
+    """Return the route of several activities from their samples' positions, with one query that reads only those.
+
+    A route is the ``(latitude, longitude)`` of the samples that have a position, in order. A multisport activity
+    has no samples of its own, so its route is its legs' routes joined in the legs' start order; a leg without a
+    position adds nothing. An activity with no route is absent from the result.
+
+    Args:
+        activity_ids: IDs of the activities to read.
+        db: Database session.
+
+    Returns:
+        The route points by activity ID.
+    """
+    legs = activity_integration.get_leg_ids_by_parent(activity_ids, db)
+    positions = activity_streams_crud.get_activities_positions(
+        [*activity_ids, *(leg_id for leg_ids in legs.values() for leg_id in leg_ids)], db
+    )
+
+    def own_route(activity_id: uuid.UUID) -> list[tuple[float, float]]:
+        latitudes, longitudes = positions.get(activity_id, ([], []))
+        return [
+            (lat, lon) for lat, lon in zip(latitudes, longitudes, strict=True) if lat is not None and lon is not None
+        ]
+
+    routes: dict[uuid.UUID, list[tuple[float, float]]] = {}
+    for activity_id in activity_ids:
+        route = (
+            [point for leg_id in legs[activity_id] for point in own_route(leg_id)]
+            if activity_id in legs
+            else own_route(activity_id)
         )
         if route:
             routes[activity_id] = route

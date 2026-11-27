@@ -1,5 +1,6 @@
 """The activities surface other modules use (Strava, Garmin, gears, goals, account deletion, profile export)."""
 
+import uuid
 from datetime import UTC, datetime, timedelta
 
 import pytest
@@ -178,7 +179,7 @@ class TestReadsForOtherModules:
 
 class TestDerivedArtifactWritesStageOnly:
     def test_a_thumbnail_key_is_recorded_listed_and_cleared_without_ending_the_callers_transaction(self, db, owner):
-        activity = make_activity(db, owner.id)
+        activity = make_activity(db, owner.id, start_latitude=38.7, start_longitude=-9.1)
 
         assert activity_integration.set_thumbnail_key(activity.id, "k.webp", db) is True
         assert [ref.id for ref in activity_integration.list_activities_with_thumbnail(db)] == [activity.id]
@@ -189,19 +190,32 @@ class TestDerivedArtifactWritesStageOnly:
         ]
 
     def test_a_deferred_thumbnail_attempt_waits_for_its_time(self, db, owner):
-        activity = make_activity(db, owner.id)
+        activity = make_activity(db, owner.id, start_latitude=38.7, start_longitude=-9.1)
         activity_integration.defer_thumbnail_attempts([activity.id], _NOW + timedelta(hours=1), db)
 
         assert activity_integration.list_activities_without_thumbnail(db, due_at=_NOW) == []
         assert len(activity_integration.list_activities_without_thumbnail(db, due_at=_NOW + timedelta(hours=2))) == 1
 
     def test_a_location_is_written_only_while_none_is_set_and_a_deferred_lookup_waits(self, db, owner):
-        activity = make_activity(db, owner.id)
+        activity = make_activity(db, owner.id, start_latitude=38.7, start_longitude=-9.1)
+        assert [ref.id for ref in activity_integration.list_activities_missing_location(db, due_at=_NOW)] == [
+            activity.id
+        ]
         activity_integration.defer_location_lookups([activity.id], _NOW + timedelta(hours=1), db)
         assert activity_integration.list_activities_missing_location(db, due_at=_NOW) == []
 
         assert activity_integration.set_activity_location(activity.id, "Lisbon", None, "Portugal", db) is True
         assert activity_integration.set_activity_location(activity.id, "Porto", None, "Portugal", db) is False
+
+    def test_the_start_point_is_read_and_an_activity_without_one_is_not_a_location_candidate(self, db, owner):
+        placed = make_activity(db, owner.id, start_latitude=38.7, start_longitude=-9.1)
+        bare = make_activity(db, owner.id)
+
+        assert activity_integration.get_activity_start_point(placed.id, db) == (38.7, -9.1)
+        assert activity_integration.get_activity_start_point(bare.id, db) is None
+        assert activity_integration.get_activity_start_point(uuid.uuid4(), db) is None
+        [ref] = activity_integration.list_activities_missing_location(db, due_at=_NOW)
+        assert (ref.id, ref.latitude, ref.longitude) == (placed.id, 38.7, -9.1)
 
     def test_touching_an_activity_restamps_it_without_a_new_version(self, db, owner):
         activity = make_activity(db, owner.id)

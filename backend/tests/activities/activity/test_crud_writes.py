@@ -357,17 +357,27 @@ class TestBulkWrites:
         assert first_page[0].garminconnect_gear_id in {"g0", "g1"}
 
 
+_START = {"start_latitude": 38.7, "start_longitude": -9.1}
+
+
 class TestLocationLookupSchedule:
     def _ids(self, db, **kwargs):
         return [ref.id for ref in activity_crud.get_activities_missing_location(db, due_at=_NOW, **kwargs)]
 
-    def test_an_unresolved_activity_that_was_never_deferred_is_a_candidate(self, db, owner):
-        created = make_activity(db, owner.id)
+    def test_an_unresolved_activity_that_was_never_deferred_is_a_candidate_with_its_start_point(self, db, owner):
+        created = make_activity(db, owner.id, **_START)
 
-        assert self._ids(db) == [created.id]
+        [ref] = activity_crud.get_activities_missing_location(db, due_at=_NOW)
+
+        assert (ref.id, ref.latitude, ref.longitude) == (created.id, 38.7, -9.1)
+
+    def test_an_activity_without_a_start_point_is_not_a_candidate(self, db, owner):
+        make_activity(db, owner.id)
+
+        assert self._ids(db) == []
 
     def test_a_resolved_location_is_written_once_and_the_activity_stops_being_a_candidate(self, db, owner):
-        created = make_activity(db, owner.id)
+        created = make_activity(db, owner.id, **_START)
 
         assert activity_crud.update_activity_location(created.id, "Lisbon", None, "Portugal", db) is True
         assert activity_crud.update_activity_location(created.id, "Porto", None, "Portugal", db) is False
@@ -381,8 +391,8 @@ class TestLocationLookupSchedule:
         assert activity_crud.update_activity_location(uuid.uuid4(), "Lisbon", None, None, db) is False
 
     def test_a_deferred_activity_is_skipped_until_it_is_due(self, db, owner):
-        later = make_activity_at(db, owner.id, _NOW)
-        earlier = make_activity_at(db, owner.id, _NOW + timedelta(days=1))
+        later = make_activity_at(db, owner.id, _NOW, **_START)
+        earlier = make_activity_at(db, owner.id, _NOW + timedelta(days=1), **_START)
         activity_crud.defer_location_lookups([later.id], _NOW + timedelta(hours=1), db)
         activity_crud.defer_location_lookups([earlier.id], _NOW - timedelta(hours=1), db)
         activity_crud.defer_location_lookups([], _NOW, db)
@@ -391,7 +401,7 @@ class TestLocationLookupSchedule:
 
     def test_the_candidates_page_after_the_given_id(self, db, owner):
         first, second = sorted(
-            (make_activity_at(db, owner.id, _NOW + timedelta(days=n)) for n in range(2)), key=lambda a: a.id
+            (make_activity_at(db, owner.id, _NOW + timedelta(days=n), **_START) for n in range(2)), key=lambda a: a.id
         )
 
         assert self._ids(db, after_id=first.id) == [second.id]
@@ -403,7 +413,7 @@ class TestThumbnailSchedule:
         return [ref.id for ref in activity_crud.get_activities_without_thumbnail(db, due_at=_NOW, **kwargs)]
 
     def test_an_activity_with_no_thumbnail_is_a_candidate_until_it_gets_one(self, db, owner):
-        created = make_activity(db, owner.id)
+        created = make_activity(db, owner.id, **_START)
         assert self._ids(db) == [created.id]
 
         activity_crud.set_activity_thumbnail_key(created.id, f"{created.id}.webp", db)
@@ -411,17 +421,22 @@ class TestThumbnailSchedule:
         assert self._ids(db) == []
         assert [ref.id for ref in activity_crud.get_activities_with_thumbnail(db)] == [created.id]
 
+    def test_an_activity_without_a_start_point_has_no_route_and_is_never_a_candidate(self, db, owner):
+        make_activity(db, owner.id)
+
+        assert self._ids(db) == []
+
     def test_the_candidates_page_after_the_given_id(self, db, owner):
         first, second = sorted(
-            (make_activity_at(db, owner.id, _NOW + timedelta(days=n)) for n in range(2)), key=lambda a: a.id
+            (make_activity_at(db, owner.id, _NOW + timedelta(days=n), **_START) for n in range(2)), key=lambda a: a.id
         )
 
         assert self._ids(db, after_id=first.id) == [second.id]
         assert self._ids(db, limit=1) == [first.id]
 
     def test_a_deferred_activity_is_skipped_until_it_is_due(self, db, owner):
-        later = make_activity_at(db, owner.id, _NOW)
-        earlier = make_activity_at(db, owner.id, _NOW + timedelta(days=1))
+        later = make_activity_at(db, owner.id, _NOW, **_START)
+        earlier = make_activity_at(db, owner.id, _NOW + timedelta(days=1), **_START)
         activity_crud.defer_thumbnail_attempts([later.id], _NOW + timedelta(hours=1), db)
         activity_crud.defer_thumbnail_attempts([earlier.id], _NOW - timedelta(hours=1), db)
         activity_crud.defer_thumbnail_attempts([], _NOW, db)
@@ -429,7 +444,7 @@ class TestThumbnailSchedule:
         assert self._ids(db) == [earlier.id]
 
     def test_clearing_every_key_also_clears_the_deferral(self, db, owner):
-        created = make_activity(db, owner.id)
+        created = make_activity(db, owner.id, **_START)
         activity_crud.set_activity_thumbnail_key(created.id, "old.webp", db)
         activity_crud.defer_thumbnail_attempts([created.id], _NOW + timedelta(days=1), db)
 
@@ -439,7 +454,7 @@ class TestThumbnailSchedule:
 
     def test_the_keys_page_by_id_and_are_replaced_only_where_the_old_key_still_stands(self, db, owner):
         first, second = sorted(
-            (make_activity_at(db, owner.id, _NOW + timedelta(days=n)) for n in range(2)), key=lambda a: a.id
+            (make_activity_at(db, owner.id, _NOW + timedelta(days=n), **_START) for n in range(2)), key=lambda a: a.id
         )
         activity_crud.set_activity_thumbnail_key(first.id, "a.webp", db)
         activity_crud.set_activity_thumbnail_key(second.id, "b.webp", db)

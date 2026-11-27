@@ -609,7 +609,7 @@ def list_activities_missing_location(
     after_id: uuid.UUID | None = None,
     limit: int = core_pagination.DEFAULT_EXTERNAL_IO_BATCH_SIZE,
 ) -> list[activity_contracts.ActivityLocationRef]:
-    """Return one id-ordered page of activities whose location is unresolved and due a lookup.
+    """Return one id-ordered page of activities with a start point whose location is unresolved and due a lookup.
 
     Args:
         db: Database session.
@@ -621,6 +621,19 @@ def list_activities_missing_location(
         One page of activity references whose location is unresolved.
     """
     return activity_crud.get_activities_missing_location(db, due_at=due_at, after_id=after_id, limit=limit)
+
+
+def get_activity_start_point(activity_id: uuid.UUID, db: Session) -> tuple[float, float] | None:
+    """Return where an activity starts.
+
+    Args:
+        activity_id: ID of the activity.
+        db: Database session.
+
+    Returns:
+        The ``(latitude, longitude)`` start point, or None when the activity has none or does not exist.
+    """
+    return activity_crud.get_activity_start_point(activity_id, db)
 
 
 def defer_location_lookups(activity_ids: Sequence[uuid.UUID], retry_at: datetime, db: Session) -> None:

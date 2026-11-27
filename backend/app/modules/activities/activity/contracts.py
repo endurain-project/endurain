@@ -112,12 +112,19 @@ class ActivityThumbnailRef:
 class ActivityLocationRef:
     """Lightweight activity reference for the reverse-geocoding backfill.
 
-    Carries only the activity id so CRUD can hand out this DTO instead of leaking
+    Carries the activity id and its start point so CRUD can hand out this DTO instead of leaking
     an ORM ``Activity`` row when listing activities that still have no resolved
     city/town/country.
+
+    Attributes:
+        id: The activity.
+        latitude: Latitude of where the activity starts, in degrees.
+        longitude: Longitude of where the activity starts, in degrees.
     """
 
     id: uuid.UUID
+    latitude: float
+    longitude: float
 
 
 @dataclass(frozen=True)

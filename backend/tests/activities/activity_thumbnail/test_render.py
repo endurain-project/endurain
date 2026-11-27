@@ -11,7 +11,7 @@ import core.exceptions as core_exceptions
 import modules.activities.activity_thumbnail.render as thumbnail_render
 
 _ID = uuid.UUID("00000000-0000-4000-8000-000000000001")
-_ROUTE = [{"lat": 38.70, "lon": -9.10}, {"lat": 38.72, "lon": -9.14}]
+_ROUTE = [(38.70, -9.10), (38.72, -9.14)]
 
 
 def _render(tile_url: str, **kwargs):
@@ -34,8 +34,8 @@ class TestRender:
         assert all(len(path.strip("/").split("/")) == 3 and path.endswith(".png") for path in paths)
 
     def test_a_route_with_fewer_than_two_points_renders_nothing_and_asks_for_nothing(self, tile_server):
-        for waypoints in ([], [{"lat": 1.0, "lon": 2.0}]):
-            assert thumbnail_render.render_activity_thumbnail(_ID, waypoints, tile_url=tile_server.url()) is None
+        for route in ([], [(1.0, 2.0)]):
+            assert thumbnail_render.render_activity_thumbnail(_ID, route, tile_url=tile_server.url()) is None
 
         assert tile_server.requests == []
 
@@ -93,12 +93,6 @@ class TestRender:
             _render(tile_server.url())
 
         assert tile_server.requests == []
-
-    def test_a_waypoint_without_a_coordinate_is_a_processing_error(self, tile_server):
-        with pytest.raises(core_exceptions.ProcessingError):
-            thumbnail_render.render_activity_thumbnail(
-                _ID, [{"lat": 1.0, "lon": 2.0}, {"lat": 1.0}], tile_url=tile_server.url()
-            )
 
     def test_a_url_template_with_other_placeholders_still_renders(self, tile_server):
         url = tile_server.url().replace("{z}/", "{s}/{z}/").replace(".png", "{r}.png")
