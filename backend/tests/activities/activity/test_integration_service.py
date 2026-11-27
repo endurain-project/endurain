@@ -60,6 +60,18 @@ class TestIntegrationService:
             _USER_3, db, after_id=_AFTER_ID, limit=10
         )
 
+    @patch("modules.activities.activity.integration_service.activity_crud")
+    def test_list_user_activity_starts_delegates(self, mock_crud):
+        from modules.activities.activity import integration_service
+
+        db = MagicMock()
+        mock_crud.get_user_activity_starts.return_value = ["a"]
+
+        result = integration_service.list_user_activity_starts(_USER_3, db, activity_types=[1], user_is_owner=False)
+
+        assert result == ["a"]
+        mock_crud.get_user_activity_starts.assert_called_once_with(_USER_3, db, activity_types=[1], user_is_owner=False)
+
     @patch("modules.activities.activity.integration_service.activity_service")
     def test_bulk_set_activities_gear_delegates(self, mock_service):
         """The surface names the caller; the service arranges the write."""

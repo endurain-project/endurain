@@ -546,6 +546,49 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/activities_streaks": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read My Weekly Streak
+         * @description Read the authenticated user's weekly streak.
+         */
+        get: operations["read_my_weekly_streak"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/activities_streaks/user/{user_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read User Weekly Streak
+         * @description Read a user's weekly streak for their profile page.
+         *
+         *     The streak is returned to the owner, or to another user when the owner enabled "show on profile" in their
+         *     streak settings. Otherwise the response is ``null``, so the profile hides the streak card.
+         */
+        get: operations["read_user_weekly_streak"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/auth/login": {
         parameters: {
             query?: never;
@@ -2944,6 +2987,30 @@ export interface paths {
          * @description Delete user session from database.
          */
         delete: operations["delete_profile_session"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/profile/streak_settings": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read Streak Settings
+         * @description Read the authenticated user's weekly streak settings, or the defaults when never saved.
+         */
+        get: operations["read_streak_settings"];
+        /**
+         * Update Streak Settings
+         * @description Create or replace the authenticated user's streak settings; an omitted field resets to its default.
+         */
+        put: operations["update_streak_settings"];
+        post?: never;
+        delete?: never;
         options?: never;
         head?: never;
         patch?: never;
@@ -12550,6 +12617,33 @@ export interface components {
             user_id: string;
         };
         /**
+         * StreakWeek
+         * @description Activity count for one week of the streak history.
+         *
+         *     Attributes:
+         *         week_start: First day of the week.
+         *         activity_count: Counted activities in the week.
+         *         met: Whether the weekly target was reached.
+         */
+        StreakWeek: {
+            /**
+             * Activity Count
+             * @description Counted activities in the week
+             */
+            activity_count: number;
+            /**
+             * Met
+             * @description Whether the weekly target was reached
+             */
+            met: boolean;
+            /**
+             * Week Start
+             * Format: date
+             * @description First day of the week
+             */
+            week_start: string;
+        };
+        /**
          * SummaryPeriod
          * @description The periods an activity summary covers.
          *
@@ -14580,6 +14674,61 @@ export interface components {
             username: string;
         };
         /**
+         * UsersStreakSettingsRead
+         * @description Streak settings as returned by the API.
+         *
+         *     Attributes:
+         *         user_id: Owner of the settings.
+         */
+        UsersStreakSettingsRead: {
+            /**
+             * Activity Types
+             * @description Activity type IDs counted for the streak (null = all types)
+             */
+            activity_types?: number[] | null;
+            /**
+             * Min Activities Per Week
+             * @description Activities needed in a week to keep the streak
+             * @default 1
+             */
+            min_activities_per_week: number;
+            /**
+             * Show On Profile
+             * @description Show the streak to other users on the profile
+             * @default false
+             */
+            show_on_profile: boolean;
+            /**
+             * User Id
+             * Format: uuid
+             * @description User ID that owns the settings
+             */
+            user_id: string;
+        };
+        /**
+         * UsersStreakSettingsUpdate
+         * @description Request body for replacing the user's streak settings.
+         */
+        UsersStreakSettingsUpdate: {
+            /**
+             * Activity Types
+             * @description Activity type IDs counted for the streak (null = all types)
+             */
+            activity_types?: number[] | null;
+            /**
+             * Min Activities Per Week
+             * @description Activities needed in a week to keep the streak
+             * @default 1
+             */
+            min_activities_per_week: number;
+            /**
+             * Show On Profile
+             * @description Show the streak to other users on the profile
+             * @default false
+             */
+            show_on_profile: boolean;
+        };
+        /**
          * WeekDay
          * @description Days of the week enumeration.
          *
@@ -14637,6 +14786,57 @@ export interface components {
              * @description Calendar week number within the month
              */
             week_number: number;
+        };
+        /**
+         * WeeklyStreakResponse
+         * @description Weekly streak status for a user.
+         *
+         *     Attributes:
+         *         current_streak: Consecutive weeks meeting the target,
+         *             ending with the current week if it is already met,
+         *             otherwise with the previous week.
+         *         current_streak_start: First week of the current streak.
+         *         longest_streak: Longest run of consecutive weeks ever.
+         *         longest_streak_start: First week of the longest run.
+         *         longest_streak_end: Last week of the longest run.
+         *         current_week_start: First day of the current week.
+         *         current_week_count: Counted activities this week.
+         *         current_week_met: Whether this week's target is met.
+         *         at_risk: True when a streak is running but the current
+         *             week's target is not met yet.
+         *         min_activities_per_week: Weekly target in effect.
+         *         activity_types: Activity type IDs counted (None = all).
+         *         recent_weeks: Most recent weeks, oldest first, ending
+         *             with the current week.
+         */
+        WeeklyStreakResponse: {
+            /** Activity Types */
+            activity_types?: number[] | null;
+            /** At Risk */
+            at_risk: boolean;
+            /** Current Streak */
+            current_streak: number;
+            /** Current Streak Start */
+            current_streak_start?: string | null;
+            /** Current Week Count */
+            current_week_count: number;
+            /** Current Week Met */
+            current_week_met: boolean;
+            /**
+             * Current Week Start
+             * Format: date
+             */
+            current_week_start: string;
+            /** Longest Streak */
+            longest_streak: number;
+            /** Longest Streak End */
+            longest_streak_end?: string | null;
+            /** Longest Streak Start */
+            longest_streak_start?: string | null;
+            /** Min Activities Per Week */
+            min_activities_per_week: number;
+            /** Recent Weeks */
+            recent_weeks: components["schemas"]["StreakWeek"][];
         };
         /**
          * WeeklySummaryRead
@@ -17296,6 +17496,176 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Page_ActivityWorkoutStepsRead_"];
+                };
+            };
+            /** @description The credential is missing, invalid or no longer valid. */
+            401: {
+                headers: {
+                    /** @description The authentication challenge. */
+                    "WWW-Authenticate"?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description The caller is signed in but not allowed, for example a scope is missing. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description The resource does not exist, or is concealed from the caller. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description The rate limit was reached. */
+            429: {
+                headers: {
+                    /** @description Seconds to wait before the request can succeed. */
+                    "Retry-After"?: number;
+                    /** @description The number of requests the limit that was reached allows in its window. */
+                    "X-RateLimit-Limit"?: number;
+                    /** @description The requests left in the window: always 0 on a 429. */
+                    "X-RateLimit-Remaining"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description A dependency is unavailable for a moment. */
+            503: {
+                headers: {
+                    /** @description Seconds to wait before the request can succeed. */
+                    "Retry-After"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Unexpected error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+        };
+    };
+    read_my_weekly_streak: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WeeklyStreakResponse"];
+                };
+            };
+            /** @description The credential is missing, invalid or no longer valid. */
+            401: {
+                headers: {
+                    /** @description The authentication challenge. */
+                    "WWW-Authenticate"?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description The caller is signed in but not allowed, for example a scope is missing. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description The rate limit was reached. */
+            429: {
+                headers: {
+                    /** @description Seconds to wait before the request can succeed. */
+                    "Retry-After"?: number;
+                    /** @description The number of requests the limit that was reached allows in its window. */
+                    "X-RateLimit-Limit"?: number;
+                    /** @description The requests left in the window: always 0 on a 429. */
+                    "X-RateLimit-Remaining"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description A dependency is unavailable for a moment. */
+            503: {
+                headers: {
+                    /** @description Seconds to wait before the request can succeed. */
+                    "Retry-After"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Unexpected error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+        };
+    };
+    read_user_weekly_streak: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                user_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WeeklyStreakResponse"] | null;
                 };
             };
             /** @description The credential is missing, invalid or no longer valid. */
@@ -31258,6 +31628,187 @@ export interface operations {
             };
             /** @description The request conflicts with the current state. */
             409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description The rate limit was reached. */
+            429: {
+                headers: {
+                    /** @description Seconds to wait before the request can succeed. */
+                    "Retry-After"?: number;
+                    /** @description The number of requests the limit that was reached allows in its window. */
+                    "X-RateLimit-Limit"?: number;
+                    /** @description The requests left in the window: always 0 on a 429. */
+                    "X-RateLimit-Remaining"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description A dependency is unavailable for a moment. */
+            503: {
+                headers: {
+                    /** @description Seconds to wait before the request can succeed. */
+                    "Retry-After"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Unexpected error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+        };
+    };
+    read_streak_settings: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UsersStreakSettingsRead"];
+                };
+            };
+            /** @description The credential is missing, invalid or no longer valid. */
+            401: {
+                headers: {
+                    /** @description The authentication challenge. */
+                    "WWW-Authenticate"?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description The caller is signed in but not allowed, for example a scope is missing. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description The rate limit was reached. */
+            429: {
+                headers: {
+                    /** @description Seconds to wait before the request can succeed. */
+                    "Retry-After"?: number;
+                    /** @description The number of requests the limit that was reached allows in its window. */
+                    "X-RateLimit-Limit"?: number;
+                    /** @description The requests left in the window: always 0 on a 429. */
+                    "X-RateLimit-Remaining"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description A dependency is unavailable for a moment. */
+            503: {
+                headers: {
+                    /** @description Seconds to wait before the request can succeed. */
+                    "Retry-After"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description Unexpected error */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+        };
+    };
+    update_streak_settings: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UsersStreakSettingsUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UsersStreakSettingsRead"];
+                };
+            };
+            /** @description The credential is missing, invalid or no longer valid. */
+            401: {
+                headers: {
+                    /** @description The authentication challenge. */
+                    "WWW-Authenticate"?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description The caller is signed in but not allowed, for example a scope is missing. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description The request conflicts with the current state. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetail"];
+                };
+            };
+            /** @description The body is larger than the route accepts. */
+            413: {
                 headers: {
                     [name: string]: unknown;
                 };

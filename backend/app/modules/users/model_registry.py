@@ -5,6 +5,7 @@ import modules.users.users_default_gear.model_registry as users_default_gear_mod
 import modules.users.users_goals.model_registry as users_goals_model_registry
 import modules.users.users_integrations.model_registry as users_integrations_model_registry
 import modules.users.users_privacy_settings.model_registry as users_privacy_settings_model_registry
+import modules.users.users_streak_settings.model_registry as users_streak_settings_model_registry
 
 MODEL_MODULES = (
     *users_model_registry.MODEL_MODULES,
@@ -12,4 +13,5 @@ MODEL_MODULES = (
     *users_goals_model_registry.MODEL_MODULES,
     *users_integrations_model_registry.MODEL_MODULES,
     *users_privacy_settings_model_registry.MODEL_MODULES,
+    *users_streak_settings_model_registry.MODEL_MODULES,
 )

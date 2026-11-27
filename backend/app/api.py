@@ -63,6 +63,8 @@ import modules.users.users_default_gear.router as user_default_gear_router
 import modules.users.users_goals.router as user_goals_router
 import modules.users.users_profile.overview_router as profile_overview_router
 import modules.users.users_profile.router as profile_router
+import modules.users.users_streak_settings.router as user_streak_settings_router
+import modules.users.users_streaks.router as user_streaks_router
 import modules.websocket.router as websocket_router
 from modules.activities.activity_exercise_titles import (
     public_router as activity_exercise_titles_public_router,
@@ -135,6 +137,7 @@ OPENAPI_TAGS = [
     {"name": "sessions", "description": "Administration of user sessions."},
     {"name": "sign_up_tokens", "description": "Sign-up by email verification."},
     {"name": "strava", "description": "Link a Strava account and import its gear."},
+    {"name": "streaks", "description": "Weekly activity streaks of the signed-in user and shared profiles."},
     {"name": "sync", "description": "What changed in your records since a cursor, for a local copy."},
     {"name": "users", "description": "Users: list, read, edit, create, delete and their photos."},
     {"name": "websocket", "description": "Tickets to open the notification websocket."},
@@ -245,6 +248,12 @@ router.include_router(
     dependencies=[
         Depends(auth_dependencies.authenticate),
     ],
+)
+router.include_router(
+    user_streaks_router.router,
+    prefix=core_config.ROOT_PATH + "/activities_streaks",
+    tags=["streaks"],
+    dependencies=[Depends(auth_dependencies.authenticate)],
 )
 router.include_router(
     auth_router.router,
@@ -440,6 +449,12 @@ router.include_router(
     prefix=core_config.ROOT_PATH + "/profile/devices",
     tags=["profile"],
     dependencies=_PROFILE_SECURITY_DEPENDENCIES,
+)
+router.include_router(
+    user_streak_settings_router.router,
+    prefix=core_config.ROOT_PATH + "/profile/streak_settings",
+    tags=["profile"],
+    dependencies=[Depends(auth_dependencies.authenticate)],
 )
 router.include_router(
     auth_api_keys_router.router,

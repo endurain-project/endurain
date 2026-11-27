@@ -206,6 +206,14 @@ export const queryKeys = {
     /** The user's activity-type code→name map (type filter options and summary type filter). */
     types: () => ['activities', 'types'] as const,
     /**
+     * A user's weekly streak. Under the `activities` prefix so an `all()`
+     * invalidation after an upload/delete refetches it.
+     *
+     * @param scope - `'me'` for the viewer's own streak, or a profile user id.
+     * @returns A streak query key for that scope.
+     */
+    streak: (scope: string) => ['activities', 'streak', scope] as const,
+    /**
      * An aggregated activity summary for a view type + period + optional type
      * filter (the `/summary` view). Under the `activities` prefix so an `all()`
      * invalidation after an upload/delete refetches it.
@@ -478,6 +486,12 @@ export const queryKeys = {
     list: (filters: Record<string, unknown> = {}) => ['goals', 'list', filters] as const,
     /** Per-goal progress for the current interval (home dashboard panel). */
     results: () => ['goals', 'results'] as const,
+  },
+
+  /** The authenticated user's weekly streak settings (goals settings page). */
+  streakSettings: {
+    /** The single settings record. */
+    detail: () => ['streak-settings'] as const,
   },
 
   /**

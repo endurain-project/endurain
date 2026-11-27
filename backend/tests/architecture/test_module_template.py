@@ -81,6 +81,10 @@ _NO_CROSS_MODULE_SURFACE: dict[str, str] = {
         "Read-only and above every feature that runs a job: it resolves a job id to the feature that owns it "
         "and serves the job routes. Nothing calls it."
     ),
+    "users_streaks": (
+        "Read-only and above the streak settings and activities: it calculates the weekly streak for its own "
+        "routes. Nothing calls it."
+    ),
     "activity_geocoding": (
         "Purely reactive: it geocodes on the activity.created event (subscribers) and "
         "reconciles on a schedule (scheduled_jobs), both wired by app/module_registry.py. "

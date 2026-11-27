@@ -98,6 +98,23 @@ class ActivityGarminGearRef:
 
 
 @dataclass(frozen=True)
+class ActivityStartRef:
+    """Lightweight activity projection for the weekly streak.
+
+    Carries only the start time and timezone the streak needs to work out each
+    activity's local start date, so CRUD can hand out this DTO instead of
+    serializing every activity a user owns.
+
+    Attributes:
+        start_time: Activity start (timezone-aware UTC).
+        timezone: IANA timezone string stored on the activity, if any.
+    """
+
+    start_time: datetime
+    timezone: str | None = None
+
+
+@dataclass(frozen=True)
 class ActivityThumbnailRef:
     """Lightweight activity reference for thumbnail maintenance.
 

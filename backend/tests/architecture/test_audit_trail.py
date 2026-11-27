@@ -47,6 +47,7 @@ _UNAUDITED_ROUTERS: dict[str, str] = {
     "notifications/router.py": _PERSONAL,
     "users/users_default_gear/router.py": _PERSONAL,
     "users/users_goals/router.py": _PERSONAL,
+    "users/users_streak_settings/router.py": _PERSONAL,
 }
 
 #: Write routes and the audit actions they record, in the request or in the job it queues for what was asked.

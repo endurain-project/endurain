@@ -33,8 +33,8 @@ def test_revision_graph_has_exactly_one_head(script_directory: ScriptDirectory) 
     )
 
 
-def test_the_head_is_revision_95() -> None:
-    assert alembic_chain.script_directory().get_heads() == ["e95a7c1d4b36"]
+def test_the_head_is_revision_96() -> None:
+    assert alembic_chain.script_directory().get_heads() == ["4b8d2f6a9c13"]
 
 
 def test_the_v0_21_chain_starts_from_the_v0_20_head() -> None:

@@ -89,6 +89,32 @@ def list_garminconnect_gear_activity_refs(
     return activity_crud.get_garminconnect_gear_activity_refs(user_id, db, after_id=after_id, limit=limit)
 
 
+def list_user_activity_starts(
+    user_id: uuid.UUID,
+    db: Session,
+    *,
+    activity_types: Sequence[int] | None = None,
+    user_is_owner: bool,
+) -> list[activity_contracts.ActivityStartRef]:
+    """Return the start time and timezone of a user's non-hidden activities.
+
+    Used by the weekly streak, which only needs each activity's local start date.
+
+    Args:
+        user_id: The owning user id.
+        db: Database session.
+        activity_types: Sport type codes to include, or ``None`` for all.
+        user_is_owner: Whether the requester owns the activities; other
+            viewers never see live Strava API activities.
+
+    Returns:
+        The matching start references, empty when there are none.
+    """
+    return activity_crud.get_user_activity_starts(
+        user_id, db, activity_types=activity_types, user_is_owner=user_is_owner
+    )
+
+
 def bulk_set_activities_gear(
     user_id: uuid.UUID,
     gear_assignments: Mapping[uuid.UUID, uuid.UUID | None],

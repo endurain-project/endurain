@@ -93,6 +93,7 @@ import modules.users.users.router as users_router
 import modules.users.users_default_gear.router as users_default_gear_router
 import modules.users.users_goals.router as users_goals_router
 import modules.users.users_profile.router as users_profile_router
+import modules.users.users_streak_settings.router as users_streak_settings_router
 import modules.websocket.router as websocket_router
 
 
@@ -249,6 +250,9 @@ _TIERED_ENDPOINTS = [
     pytest.param(users_goals_router.update_user_goal, core_rate_limit.WRITE, id="goal-update"),
     pytest.param(users_goals_router.delete_user_goal, core_rate_limit.WRITE, id="goal-delete"),
     pytest.param(users_default_gear_router.edit_user_default_gear, core_rate_limit.WRITE, id="default-gear-edit"),
+    pytest.param(
+        users_streak_settings_router.update_streak_settings, core_rate_limit.WRITE, id="streak-settings-update"
+    ),
     pytest.param(
         ingestion_router.create_activity_with_uploaded_file,
         core_rate_limit.UPLOAD,
