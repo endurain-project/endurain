@@ -1,7 +1,7 @@
 """Strava activity sync: fetch a window, parse each activity with its streams and laps, and store it."""
 
 import uuid
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from typing import TypedDict
 
 from sqlalchemy.orm import Session
@@ -32,6 +32,9 @@ import modules.users.users_privacy_settings.integration_service as users_privacy
 import modules.users.users_privacy_settings.schema as users_privacy_settings_schema
 
 logger = core_logger.get_logger(__name__)
+
+#: Strava's stream times are seconds from the activity start; the shared pause rule reads datetimes.
+_STREAM_ORIGIN = datetime.fromtimestamp(0, UTC)
 
 #: One sample of a stream: its ``time`` in seconds and the stream's own values, such as ``lat`` and ``lon``.
 type StravaWaypoint = dict[str, float]
@@ -222,6 +225,53 @@ def _strava_activity_id(activity: SummaryActivity, user_id: uuid.UUID) -> int:
     return activity.id
 
 
+def _pause_threshold(waypoints: list[StravaWaypoint]) -> float:
+    """Return the gap in seconds above which a gap between a stream's samples is a pause.
+
+    Args:
+        waypoints: The whole stream, in recording order.
+
+    Returns:
+        The shared pause threshold for the stream's sample times.
+    """
+    return activities_computation.pause_threshold_seconds(
+        [_STREAM_ORIGIN + timedelta(seconds=point["time"]) for point in waypoints]
+    )
+
+
+def _mean_without_zeros(waypoints: list[StravaWaypoint], key: str, max_gap: float) -> float | None:
+    """Return the time-weighted mean of a stream's samples, a zero counting as no reading.
+
+    Args:
+        waypoints: The samples to average.
+        key: The waypoint key holding the value.
+        max_gap: The pause threshold in seconds.
+
+    Returns:
+        The mean, or ``None`` when every sample is zero or there are none.
+    """
+    return activities_computation.time_weighted_mean(
+        [point["time"] for point in waypoints],
+        [point[key] if point[key] != 0 else None for point in waypoints],
+        max_gap,
+    )
+
+
+def _normalized_power(waypoints: list[StravaWaypoint], max_gap: float) -> float | None:
+    """Return the normalized power of a power stream.
+
+    Args:
+        waypoints: The power samples.
+        max_gap: The pause threshold in seconds.
+
+    Returns:
+        The normalized power in watts, or ``None`` under 30 s of power.
+    """
+    return activities_computation.normalized_power(
+        [point["time"] for point in waypoints], [point["power"] for point in waypoints], max_gap
+    )
+
+
 def parse_activity(
     activity: SummaryActivity,
     user_id: uuid.UUID,
@@ -347,7 +397,8 @@ def parse_activity(
     ele_gain, ele_loss = None, None
     # Calculate elevation gain and loss
     if ele_waypoints:
-        ele_gain, ele_loss = activities_computation.compute_elevation_gain_and_loss(ele_waypoints)
+        gains, losses = activities_computation.elevation_steps([point["ele"] for point in ele_waypoints])
+        ele_gain, ele_loss = sum(gains), sum(losses)
 
         if detailed_activity.total_elevation_gain is not None:
             ele_gain = round(detailed_activity.total_elevation_gain)
@@ -375,10 +426,11 @@ def parse_activity(
     avg_cadence, max_cadence = None, None
     # Calculate average and maximum cadence
     if cad_waypoints:
-        avg_cadence, max_cadence = activities_computation.calculate_avg_and_max(cad_waypoints, "cad")
-
+        max_cadence = max(point["cad"] for point in cad_waypoints)
         if detailed_activity.average_cadence is not None:
             avg_cadence = detailed_activity.average_cadence
+        else:
+            avg_cadence = _mean_without_zeros(cad_waypoints, "cad", _pause_threshold(cad_waypoints))
 
     activity_type = activity_constants.define_activity_type(sport_type)
     if activity_constants.is_running_cadence_type(activity_type):
@@ -398,7 +450,7 @@ def parse_activity(
     # Calculate normalized power
     np = None
     if power_waypoints:
-        np = activities_computation.calculate_np(power_waypoints)
+        np = _normalized_power(power_waypoints, _pause_threshold(power_waypoints))
 
     # List of conditions, stream types, and corresponding waypoints
     stream_data: list[StravaStreamEntry] = [
@@ -528,11 +580,7 @@ def save_activity_streams_laps(
     parsed_streams = [
         activity_streams_contracts.ParsedStream(
             stream_type=stream_type,
-            stream_waypoints=(
-                activities_computation.smooth_elevation_stream(waypoints)
-                if stream_type == activity_streams_constants.STREAM_TYPE_ELEVATION
-                else waypoints
-            ),
+            stream_waypoints=waypoints,
         )
         for is_set, stream_type, waypoints in (stream_data or [])
         if is_set
@@ -709,14 +757,21 @@ def fetch_and_process_activity_streams(
     lat_lon_waypoints: list[StravaWaypoint] = [
         {"time": t, "lat": value[0], "lon": value[1]} for t, value in zip(time, lat_lon_values, strict=False)
     ]
-    ele_waypoints = waypoints("altitude", "ele")
-    hr_waypoints = waypoints("heartrate", "hr")
+    raw_ele_waypoints = waypoints("altitude", "ele")
+    smoothed_ele = activities_computation.smooth_elevation(
+        [point["time"] for point in raw_ele_waypoints], [point["ele"] for point in raw_ele_waypoints]
+    )
+    ele_waypoints: list[StravaWaypoint] = [
+        {"time": point["time"], "ele": ele} for point, ele in zip(raw_ele_waypoints, smoothed_ele, strict=True)
+    ]
+    # A heart rate of 0 is a sensor dropout, not a reading.
+    hr_waypoints = [point for point in waypoints("heartrate", "hr") if point["hr"] != 0]
     cad_waypoints = waypoints("cadence", "cad")
     power_waypoints = waypoints("watts", "power")
     vel_waypoints = waypoints("velocity_smooth", "vel")
-    # Pace is derived from velocity; a standstill has pace 0.
+    # Pace is derived from velocity and has no point at a standstill.
     pace_waypoints: list[StravaWaypoint] = [
-        {"time": point["time"], "pace": 1 / point["vel"] if point["vel"] != 0 else 0} for point in vel_waypoints
+        {"time": point["time"], "pace": 1 / point["vel"]} for point in vel_waypoints if point["vel"] > 0
     ]
 
     return (
@@ -792,11 +847,27 @@ def fetch_and_process_activity_laps(
             return None
         raise core_exceptions.DependencyFailedError("Not able to fetch Strava activity laps") from err
 
+    # The hysteresis runs once over the whole activity, so the laps' ascents and descents add up to the activity's.
+    ele_stream_all = _lap_stream(stream_data, activity_streams_constants.STREAM_TYPE_ELEVATION) or []
+    ele_gains, ele_losses = activities_computation.elevation_steps([point["ele"] for point in ele_stream_all])
+    cad_gap = _pause_threshold(_lap_stream(stream_data, activity_streams_constants.STREAM_TYPE_CADENCE) or [])
+    power_gap = _pause_threshold(_lap_stream(stream_data, activity_streams_constants.STREAM_TYPE_POWER) or [])
+
     # Create an array to store the processed laps
     laps_processed: list[StravaLap] = []
 
+    # A lap owns its samples from its start index up to the next lap's start index, so the laps partition the
+    # activity whether Strava gives consecutive laps a shared boundary index or adjacent ones; the last lap owns its
+    # samples through its end index.
+    owned_ends: list[int | None] = []
+    for position, lap in enumerate(laps):
+        following = laps[position + 1].start_index if position + 1 < len(laps) else None
+        owned_ends.append(
+            following if following is not None else (lap.end_index + 1 if lap.end_index is not None else None)
+        )
+
     # Process the laps
-    for lap in laps:
+    for lap, owned_end in zip(laps, owned_ends, strict=True):
         # A lap is stored at its start time, so one Strava sent without it is left out.
         if lap.start_date_local is None:
             logger.warning(
@@ -811,35 +882,49 @@ def fetch_and_process_activity_laps(
         ele_gain, ele_loss = None, None
 
         # The stream indexes cut the lap out of the activity's streams; a lap without them has no stream metrics.
-        filtered_stream_data: list[StravaStreamEntry] = (
-            [
-                (enabled, stream_id, waypoints[lap.start_index : lap.end_index + 1])
-                for enabled, stream_id, waypoints in stream_data
-                if enabled
-            ]
-            if lap.start_index is not None and lap.end_index is not None
-            else []
-        )
+        # An average also takes the next lap's first sample as the end of its last sample's time, which it does not
+        # weigh, so the lap's last sample holds its time.
+        filtered_stream_data: list[StravaStreamEntry] = []
+        timed_stream_data: list[StravaStreamEntry] = []
+        lap_range: tuple[int, int] | None = None
+        if lap.start_index is not None and owned_end is not None:
+            lap_range = (lap.start_index, owned_end)
+            for enabled, stream_id, waypoints in stream_data:
+                if enabled:
+                    filtered_stream_data.append((enabled, stream_id, waypoints[lap.start_index : owned_end]))
+                    timed_stream_data.append((enabled, stream_id, waypoints[lap.start_index : owned_end + 1]))
 
         lat_lon_stream = _lap_stream(filtered_stream_data, activity_streams_constants.STREAM_TYPE_MAP)
 
         cad_stream = _lap_stream(filtered_stream_data, activity_streams_constants.STREAM_TYPE_CADENCE)
 
         if cad_stream:
-            avg, peak = activities_computation.calculate_avg_and_max(cad_stream, "cad")
-            cad_avg, cad_max = round(avg), round(peak)
+            avg = _mean_without_zeros(
+                _lap_stream(timed_stream_data, activity_streams_constants.STREAM_TYPE_CADENCE) or cad_stream,
+                "cad",
+                cad_gap,
+            )
+            cad_avg = round(avg) if avg is not None else None
+            cad_max = round(max(point["cad"] for point in cad_stream))
 
         power_stream = _lap_stream(filtered_stream_data, activity_streams_constants.STREAM_TYPE_POWER)
 
         if power_stream:
-            avg, peak = activities_computation.calculate_avg_and_max(power_stream, "power")
-            power_avg, power_max = round(avg), round(peak)
-            np = activities_computation.calculate_np(power_stream)
+            timed_power = _lap_stream(timed_stream_data, activity_streams_constants.STREAM_TYPE_POWER) or power_stream
+            avg = activities_computation.time_weighted_mean(
+                [point["time"] for point in timed_power], [point["power"] for point in timed_power], power_gap
+            )
+            power_avg = round(avg) if avg is not None else None
+            power_max = round(max(point["power"] for point in power_stream))
+            np = _normalized_power(power_stream, power_gap)
 
-        ele_stream = _lap_stream(filtered_stream_data, activity_streams_constants.STREAM_TYPE_ELEVATION)
-
-        if ele_stream:
-            ele_gain, ele_loss = activities_computation.compute_elevation_gain_and_loss(ele_stream)
+        # The elevation steps confirmed at the lap's own samples, from the one activity-wide pass.
+        if ele_stream_all and lap_range is not None:
+            first, last = lap_range
+            lap_gains = ele_gains[first:last]
+            if lap_gains:
+                ele_gain = sum(lap_gains)
+                ele_loss = sum(ele_losses[first:last])
 
         laps_processed.append(
             {

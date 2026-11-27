@@ -4,8 +4,6 @@ The stream maths moved out of the activities core, then out of the parser
 package once the Strava adapter needed it too — it is a module-level surface now.
 """
 
-import itertools
-import math
 from datetime import UTC, datetime, timedelta
 
 import numpy as np
@@ -14,79 +12,12 @@ from geopy.distance import geodesic
 
 import modules.activities.computation as activities_computation
 from modules.activities.computation import (
-    calculate_avg_and_max,
-    calculate_np,
     calculate_pace_from_duration,
-    compute_elevation_gain_and_loss,
     double_cadence_waypoints,
     double_running_cadence,
     normalized_power,
-    smooth_elevation_stream,
-    sum_elevation_deltas,
     time_weighted_mean,
 )
-
-
-class TestComputeElevationGainAndLoss:
-    def test_returns_none_for_empty_list(self):
-        assert compute_elevation_gain_and_loss([]) == (None, None)
-
-    @pytest.mark.parametrize("waypoints", [[{"no_ele": 100}], [{"ele": "n/a"}], [{"ele": None}]])
-    def test_returns_none_for_invalid_data(self, waypoints):
-        assert compute_elevation_gain_and_loss(waypoints) == (None, None)
-
-    def test_flat_elevation_returns_zero(self):
-        result = compute_elevation_gain_and_loss([{"ele": 100}, {"ele": 100}, {"ele": 100}])
-        assert result == (0.0, 0.0)
-
-    def test_computes_gain(self):
-        gain, loss = compute_elevation_gain_and_loss(
-            [{"ele": 100}, {"ele": 110}, {"ele": 120}],
-            median_window=1,
-            avg_window=1,
-            threshold=0.1,
-        )
-        assert gain == 20.0
-        assert loss == 0.0
-
-    def test_computes_loss(self):
-        gain, loss = compute_elevation_gain_and_loss(
-            [{"ele": 120}, {"ele": 110}, {"ele": 100}],
-            median_window=1,
-            avg_window=1,
-            threshold=0.1,
-        )
-        assert gain == 0.0
-        assert loss == 20.0
-
-    def test_computes_gain_and_loss_with_threshold(self):
-        gain, loss = compute_elevation_gain_and_loss(
-            [{"ele": 100}, {"ele": 100.05}, {"ele": 120}, {"ele": 100}],
-            median_window=1,
-            avg_window=1,
-            threshold=0.1,
-        )
-        assert gain > 0
-        assert loss > 0
-
-    def test_median_window_large_handles_small_list(self):
-        gain, loss = compute_elevation_gain_and_loss([{"ele": 100}], median_window=10, avg_window=10, threshold=0.1)
-        assert gain == 0.0
-        assert loss == 0.0
-
-
-class TestSumElevationDeltas:
-    def test_flat_series_returns_zero_zero(self):
-        assert sum_elevation_deltas([{"ele": 100.0}, {"ele": 100.0}, {"ele": 100.0}]) == (0.0, 0.0)
-
-    def test_empty_returns_zero_zero(self):
-        assert sum_elevation_deltas([]) == (0.0, 0.0)
-
-    def test_composition_equals_compute_elevation_gain_and_loss(self):
-        # Synthetic noisy climb: linear trend + sinusoid + alternating jitter.
-        elevations = [{"ele": 100 + i * 0.5 + math.sin(i / 5) * 3 + (0.5 if i % 2 else -0.5)} for i in range(200)]
-        expected = compute_elevation_gain_and_loss(elevations)
-        assert sum_elevation_deltas(smooth_elevation_stream(elevations)) == expected
 
 
 class TestCalculatePaceFromDuration:
@@ -104,111 +35,6 @@ class TestCalculatePaceFromDuration:
     def test_calculates_pace_with_fractional_duration(self):
         result = calculate_pace_from_duration(distance=5000, duration_seconds=1500)
         assert result == 1500.0 / 5000
-
-
-class TestCalculateAvgAndMax:
-    def test_returns_zero_for_empty_data(self):
-        assert calculate_avg_and_max([], "hr") == (0.0, 0.0)
-
-    def test_returns_zero_for_all_none_values(self):
-        assert calculate_avg_and_max([{"hr": None}, {"hr": None}], "hr") == (0.0, 0.0)
-
-    def test_returns_zero_for_missing_key(self):
-        assert calculate_avg_and_max([{"other": 100}], "hr") == (0.0, 0.0)
-
-    def test_computes_avg_and_max(self):
-        avg, max_val = calculate_avg_and_max([{"hr": 140}, {"hr": 150}, {"hr": 160}], "hr")
-        assert avg == 150.0
-        assert max_val == 160.0
-
-    def test_handles_mixed_none_and_values(self):
-        avg, max_val = calculate_avg_and_max([{"hr": 140}, {"hr": None}, {"hr": 160}], "hr")
-        assert avg == 150.0
-        assert max_val == 160.0
-
-    def test_single_value(self):
-        avg, max_val = calculate_avg_and_max([{"hr": 145}], "hr")
-        assert avg == 145.0
-        assert max_val == 145.0
-
-    def test_returns_zero_on_value_error(self):
-        result = calculate_avg_and_max([{"hr": "not_a_number"}], "hr")
-        assert result == (0.0, 0.0)
-
-    def test_hr_zeros_are_excluded_from_avg_and_max(self):
-        # Zero is a sensor-off sentinel; the filter must drop it so
-        # only the real readings [150, 160] contribute.
-        avg, max_val = calculate_avg_and_max(
-            [{"hr": 0}, {"hr": 0}, {"hr": 150}, {"hr": 160}],
-            "hr",
-        )
-        assert avg == 155.0
-        assert max_val == 160.0
-
-    def test_all_hr_zeros_returns_zero_pair(self):
-        # After filtering all zeros the value list is empty → (0, 0).
-        assert calculate_avg_and_max([{"hr": 0}, {"hr": 0}], "hr") == (0.0, 0.0)
-
-    def test_exclude_zeros_flag_strips_zeros_for_non_hr_stream(self):
-        avg, max_val = calculate_avg_and_max(
-            [{"power": 0}, {"power": 200}, {"power": 300}],
-            "power",
-            exclude_zeros=True,
-        )
-        assert avg == 250.0
-        assert max_val == 300.0
-
-
-class TestCalculateNP:
-    def test_returns_zero_for_empty_data(self):
-        assert calculate_np([]) == 0
-
-    def test_returns_zero_for_missing_power_key(self):
-        assert calculate_np([{"hr": 140}]) == 0
-
-    def test_returns_zero_for_none_power(self):
-        assert calculate_np([{"power": None}]) == 0
-
-    def test_normalized_power_single_value(self):
-        assert calculate_np([{"power": 200}]) == 200.0
-
-    def test_normalized_power_multiple_values(self):
-        data = [{"power": 200}, {"power": 150}, {"power": 250}]
-        result = calculate_np(data)
-        expected = (200**4 + 150**4 + 250**4) / 3
-        expected = expected ** (1 / 4)
-        assert result == expected
-
-    def test_returns_zero_on_value_error(self):
-        result = calculate_np([{"power": "not_a_number"}])
-        assert result == 0
-
-    def test_returns_zero_on_key_error(self):
-        result = calculate_np([{"no_power": 200}])
-        assert result == 0
-
-
-class TestElevationSmoothing:
-    def test_parity_with_mobile_app(self):
-        elevations = [100 + 0.5 * i + (4 if i % 2 == 0 else -4) for i in range(60)]
-        gain, loss = compute_elevation_gain_and_loss([{"ele": e} for e in elevations])
-        assert gain == pytest.approx(22.3956043956, abs=1e-6)
-        assert loss == 0
-
-    def test_stream_smoothing_keeps_time_and_matches_gain(self):
-        elevations = [100 + 0.5 * i + (4 if i % 2 == 0 else -4) for i in range(60)]
-        stream = [{"time": f"t{i}", "ele": e} for i, e in enumerate(elevations)]
-        smoothed = smooth_elevation_stream(stream)
-        assert [w["time"] for w in smoothed] == [w["time"] for w in stream]
-        assert max(abs(b["ele"] - a["ele"]) for a, b in itertools.pairwise(smoothed)) < 1.3
-        gain, _ = compute_elevation_gain_and_loss(stream, median_window=1, avg_window=1)
-        assert gain > 100
-        smoothed_gain, _ = compute_elevation_gain_and_loss(smoothed, median_window=1, avg_window=1)
-        assert smoothed_gain == pytest.approx(22.3956043956, abs=1e-6)
-
-    def test_stream_smoothing_returns_input_on_invalid_data(self):
-        stream = [{"time": "t", "ele": None}]
-        assert smooth_elevation_stream(stream) == stream
 
 
 class TestRunningCadenceNormalization:

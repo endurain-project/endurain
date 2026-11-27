@@ -14,11 +14,9 @@ composition and contributor surfaces.
 
 import bisect
 import statistics
-from collections.abc import Collection, Mapping, Sequence
+from collections.abc import Collection, Sequence
 from datetime import datetime
 from itertools import pairwise
-from statistics import mean
-from typing import Any
 
 import numpy as np
 from geopy.distance import geodesic, great_circle
@@ -89,154 +87,11 @@ def calculate_step_speed(
     return distance / seconds
 
 
-ELEVATION_MEDIAN_WINDOW = 9
-ELEVATION_AVG_WINDOW = 21
-ELEVATION_THRESHOLD = 0.1
 ELEVATION_SMOOTHING_SECONDS = 10.0
 
 #: The fewest sample gaps the elevation smoothing window spans: ten, as 10 s does at 1 Hz.
 ELEVATION_SMOOTHING_SAMPLES = 10
 ELEVATION_HYSTERESIS = 3.0
-
-
-def _median_filter(values: list[float], window_size: int) -> list[float]:
-    """Smooth a series with a centred sliding median.
-
-    Args:
-        values: Samples to smooth.
-        window_size: Window width; below 2 returns a copy.
-
-    Returns:
-        The filtered series, the same length as the input.
-    """
-    if window_size < 2:
-        return values[:]
-    half = window_size // 2
-    n = len(values)
-    return [statistics.median(values[max(0, i - half) : min(n, i + half + 1)]) for i in range(n)]
-
-
-def _moving_average(values: list[float], window_size: int) -> list[float]:
-    """Smooth a series with a centred sliding mean.
-
-    Args:
-        values: Samples to smooth.
-        window_size: Window width; below 2 returns a copy.
-
-    Returns:
-        The smoothed series, the same length as the input.
-    """
-    if window_size < 2:
-        return values[:]
-    half = window_size // 2
-    n = len(values)
-    return [statistics.mean(values[max(0, i - half) : min(n, i + half + 1)]) for i in range(n)]
-
-
-def _smooth_elevations(
-    values: list[float],
-    median_window: int,
-    avg_window: int,
-) -> list[float]:
-    """Apply the median filter followed by the moving average.
-
-    Args:
-        values: Elevation samples in meters.
-        median_window: Window size for the median pre-filter.
-        avg_window: Window size for the moving-average smoother.
-
-    Returns:
-        The smoothed series, the same length as the input.
-    """
-    return _moving_average(_median_filter(values, median_window), avg_window)
-
-
-def smooth_elevation_stream(
-    elevations: Sequence[Mapping[str, Any]],
-    median_window: int = ELEVATION_MEDIAN_WINDOW,
-    avg_window: int = ELEVATION_AVG_WINDOW,
-) -> Sequence[Mapping[str, Any]]:
-    """Return an elevation stream with ``ele`` smoothed and other keys unchanged.
-
-    Uses the same series that :func:`compute_elevation_gain_and_loss` sums, so the
-    stored stream and the gain/loss agree. The whole stream is filtered at once.
-
-    Args:
-        elevations: List of dicts with ``time`` and ``ele`` keys (meters).
-        median_window: Window size for the median pre-filter.
-        avg_window: Window size for the moving-average smoother.
-
-    Returns:
-        New list of dicts with smoothed ``ele``; the input unchanged if any
-        ``ele`` value is missing or not numeric.
-    """
-    try:
-        values = [float(waypoint["ele"]) for waypoint in elevations]
-    except ValueError, KeyError, TypeError:
-        return elevations
-    smoothed = _smooth_elevations(values, median_window, avg_window)
-    return [{**waypoint, "ele": ele} for waypoint, ele in zip(elevations, smoothed, strict=True)]
-
-
-def sum_elevation_deltas(
-    elevations: Sequence[Mapping[str, Any]],
-    threshold: float = ELEVATION_THRESHOLD,
-) -> tuple[float, float]:
-    """Sum per-step elevation deltas above ``threshold``.
-
-    Expects an already-smoothed series and applies no smoothing itself. Laps
-    slice the stream smoothed once by :func:`smooth_elevation_stream`:
-    re-smoothing each slice clips gain at every lap boundary through filter
-    edge effects, so per-lap sums would no longer partition the activity total.
-
-    Args:
-        elevations: List of dicts with an ``ele`` key (meters).
-        threshold: Minimum |delta| (m) counted toward gain/loss.
-
-    Returns:
-        Tuple of (gain_m, loss_m); (0.0, 0.0) for empty input.
-    """
-    total_gain = 0.0
-    total_loss = 0.0
-    for previous, current in pairwise(elevations):
-        diff = current["ele"] - previous["ele"]
-        if diff > threshold:
-            total_gain += diff
-        elif diff < -threshold:
-            total_loss -= diff
-    return total_gain, total_loss
-
-
-def compute_elevation_gain_and_loss(
-    elevations: Sequence[Mapping[str, Any]],
-    median_window: int = ELEVATION_MEDIAN_WINDOW,
-    avg_window: int = ELEVATION_AVG_WINDOW,
-    threshold: float = ELEVATION_THRESHOLD,
-) -> tuple[float, float] | tuple[None, None]:
-    """Compute total elevation gain/loss in meters from waypoints.
-
-    Applies a median filter then a moving-average smoother before
-    summing per-step deltas above ``threshold``.
-
-    Args:
-        elevations: List of dicts with an ``ele`` key (meters).
-        median_window: Window size for the median pre-filter.
-        avg_window: Window size for the moving-average smoother.
-        threshold: Minimum |delta| (m) counted toward gain/loss.
-
-    Returns:
-        Tuple of (gain_m, loss_m); (0.0, 0.0) for a flat stream, and
-        (None, None) when the stream is empty or holds no valid values.
-    """
-    try:
-        values = [float(waypoint["ele"]) for waypoint in elevations]
-    except ValueError, KeyError, TypeError:
-        return None, None
-    if not values:
-        return None, None
-
-    filtered = _smooth_elevations(values, median_window, avg_window)
-    return sum_elevation_deltas([{"ele": ele} for ele in filtered], threshold)
 
 
 def smooth_elevation(times: Sequence[float], values: Sequence[float]) -> list[float]:
@@ -319,47 +174,6 @@ def calculate_pace_from_duration(
         return 0
 
     return duration_seconds / distance
-
-
-def calculate_avg_and_max(
-    data: Sequence[Mapping[str, Any]],
-    stream_type: str,
-    exclude_zeros: bool = False,
-) -> tuple[float, float]:
-    """Compute the mean and max of ``stream_type`` across waypoints.
-
-    Zero values are always excluded when ``stream_type`` is ``"hr"`` because
-    zero is not a physiologically valid heart rate — it is a sentinel emitted
-    by sensors when they lose signal. Callers may also set ``exclude_zeros``
-    explicitly for other stream types.
-
-    Args:
-        data: List of waypoint dicts.
-        stream_type: Key to read from each waypoint.
-        exclude_zeros: When ``True``, values equal to zero are excluded.
-            Automatically ``True`` when ``stream_type`` is ``"hr"``.
-
-    Returns:
-        Tuple of (avg, max), or (0, 0) when no values are present.
-    """
-    try:
-        # Get the values from the data
-        values = [float(waypoint[stream_type]) for waypoint in data if waypoint.get(stream_type) is not None]
-    except ValueError, KeyError, TypeError:
-        # If there are no valid values, return 0
-        return 0, 0
-
-    if exclude_zeros or stream_type == "hr":
-        values = [v for v in values if v != 0]
-
-    if not values:
-        return 0, 0
-
-    # Calculate the average and max values
-    avg_value = mean(values)
-    max_value = max(values)
-
-    return avg_value, max_value
 
 
 def pause_threshold_seconds(times: list[datetime]) -> float:
@@ -752,37 +566,6 @@ def rolling_max_speed(times: Sequence[float], speeds: Sequence[float | None], ma
     if not full.any():
         return max(measured)
     return float(np.max(area[full] / held[full]))
-
-
-def calculate_np(data: Sequence[Mapping[str, Any]]) -> float:
-    """Compute Normalized Power (NP) from power waypoints.
-
-    Args:
-        data: List of waypoint dicts with a ``power`` key.
-
-    Returns:
-        Normalized Power in watts, or 0 when no values are present.
-    """
-    try:
-        # Get the power values from the data
-        values = [float(waypoint["power"]) for waypoint in data if waypoint["power"] is not None]
-    except ValueError, KeyError, TypeError:
-        # If there are no valid values, return 0
-        return 0
-
-    if not values:
-        return 0
-
-    # Calculate the fourth power of each power value
-    fourth_powers = [p**4 for p in values]
-
-    # Calculate the average of the fourth powers
-    avg_fourth_power = sum(fourth_powers) / len(fourth_powers)
-
-    # Take the fourth root of the average of the fourth powers to get Normalized Power
-    normalized_power = avg_fourth_power ** (1 / 4)
-
-    return normalized_power
 
 
 def double_running_cadence(cadence: float | None, fractional: float | None = 0.0) -> int | None:

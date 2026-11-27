@@ -422,10 +422,30 @@ class TestStreamConversion:
         assert is_hr is True
         assert lat_lon == [{"time": 0, "lat": 1.0, "lon": 2.0}]
 
-    def test_pace_is_derived_from_velocity_with_zero_for_a_standstill(self, context, strava, rate_limits):
-        *_, pace = self._streams(context, rate_limits, strava, time=[0, 1], velocity_smooth=[4.0, 0.0])
+    def test_pace_is_derived_from_velocity_and_has_no_point_at_a_standstill(self, context, strava, rate_limits):
+        *_, pace = self._streams(context, rate_limits, strava, time=[0, 1, 2], velocity_smooth=[4.0, 0.0, 2.0])
 
-        assert pace == [{"time": 0, "pace": 0.25}, {"time": 1, "pace": 0}]
+        assert pace == [{"time": 0, "pace": 0.25}, {"time": 2, "pace": 0.5}]
+
+    def test_a_heart_rate_of_zero_is_a_dropout_and_is_not_stored(self, context, strava, rate_limits):
+        _, _, _, _, hr, is_hr, *_ = self._streams(context, rate_limits, strava, time=[0, 1, 2], heartrate=[100, 0, 120])
+
+        assert hr == [{"time": 0, "hr": 100}, {"time": 2, "hr": 120}]
+        assert is_hr is True
+
+    def test_a_heart_rate_stream_of_only_zeros_is_not_set(self, context, strava, rate_limits):
+        _, _, _, _, hr, is_hr, *_ = self._streams(context, rate_limits, strava, time=[0, 1], heartrate=[0, 0])
+
+        assert (hr, is_hr) == ([], False)
+
+    def test_the_elevation_stream_is_smoothed_over_time_and_keeps_its_shape(self, context, strava, rate_limits):
+        noisy = [100.0 + (1.5 if second % 2 else -1.5) for second in range(60)]
+
+        _, _, ele, *_ = self._streams(context, rate_limits, strava, time=list(range(60)), altitude=noisy)
+
+        assert [point["time"] for point in ele] == list(range(60))
+        assert all(set(point) == {"time", "ele"} for point in ele)
+        assert all(abs(point["ele"] - 100.0) < 0.3 for point in ele)
 
     def test_streams_strava_did_not_send_are_reported_as_not_set(self, context, strava, rate_limits):
         lat_lon, is_lat_lon, ele, is_ele, _hr, is_hr, cad, is_cad, power, is_power, vel, is_vel, pace = self._streams(
@@ -481,23 +501,18 @@ class TestLaps:
 
         (lap,) = self._laps(context, rate_limits, strava, stream_data, strava_factories.lap_payload(end_index=11))
 
-        assert (lap["avg_cadence"], lap["max_cadence"]) == (86, 91)
-        assert (lap["avg_power"], lap["max_power"]) == (255, 310)
+        assert (lap["avg_cadence"], lap["max_cadence"]) == (85, 91)
+        assert (lap["avg_power"], lap["max_power"]) == (250, 310)
         assert lap["total_ascent"] > 0
         assert lap["total_descent"] == 0
         assert (lap["enhanced_avg_speed"], lap["enhanced_avg_pace"]) == (3.0, pytest.approx(1 / 3))
 
-    def test_a_flat_altitude_stream_gives_a_genuine_zero_and_an_unreadable_one_gives_none(
-        self, context, strava, rate_limits
-    ):
+    def test_a_flat_altitude_stream_gives_a_genuine_zero(self, context, strava, rate_limits):
         flat = [(True, _STREAM_TYPES.STREAM_TYPE_ELEVATION, [{"time": i, "ele": 100.0} for i in range(4)])]
-        unreadable = [(True, _STREAM_TYPES.STREAM_TYPE_ELEVATION, [{"time": i, "ele": None} for i in range(4)])]
 
         (flat_lap,) = self._laps(context, rate_limits, strava, flat, strava_factories.lap_payload())
-        (unreadable_lap,) = self._laps(context, rate_limits, strava, unreadable, strava_factories.lap_payload())
 
         assert (flat_lap["total_ascent"], flat_lap["total_descent"]) == (0, 0)
-        assert (unreadable_lap["total_ascent"], unreadable_lap["total_descent"]) == (None, None)
 
     def test_a_lap_without_a_start_time_is_left_out(self, context, strava, rate_limits):
         laps = self._laps(
@@ -556,3 +571,289 @@ class TestLaps:
 
         with pytest.raises(core_exceptions.DependencyFailedError):
             strava_activity_service.fetch_and_process_activity_laps(client, 1, user.id, [], integrations, rate_limits)
+
+
+def _on_off(seconds, on=400, off=100, period=30):
+    return [on if (second // period) % 2 == 0 else off for second in range(seconds)]
+
+
+def _reference_normalized_power(watts):
+    """Return Coggan's NP of a 1 Hz power list in plain Python: 30-sample rolling mean, 4th-power mean, 4th root."""
+    rolling = [sum(watts[i : i + 30]) / 30 for i in range(len(watts) - 29)]
+    return (sum(w**4 for w in rolling) / len(rolling)) ** 0.25
+
+
+def _climb_and_descent(climb=60, descent=60, start=100.0):
+    """Return a 1 Hz altitude series that climbs 1 m a second, then descends 1 m a second."""
+    up = [start + second for second in range(climb)]
+    return up + [up[-1] - second for second in range(1, descent + 1)]
+
+
+class TestStravaStreamsThroughTheSharedAnalysis:
+    @pytest.fixture
+    def user(self, db):
+        return _linked(db)
+
+    def _stored_one(self, user, strava, rate_limits, *, detail, streams, laps=None):
+        _list(strava, 1001)
+        _activity(strava, 1001, detail=detail, streams=streams, laps=laps)
+        _sync(user, rate_limits)
+        (activity,) = _stored(user.id)
+        return activity
+
+    def test_the_cadence_average_is_time_weighted_without_zeros_and_the_max_is_the_peak_sample(
+        self, user, strava, rate_limits
+    ):
+        # Smart recording: 60 held 11 s, 90 held 11 s; the zeros are coasting and are left out of the average.
+        streams = strava_factories.streams_payload(time=[0, 10, 11, 21, 22], cadence=[60, 0, 90, 0, 90])
+
+        activity = self._stored_one(
+            user,
+            strava,
+            rate_limits,
+            detail=strava_factories.detailed_activity(1001, sport_type="Ride"),
+            streams=streams,
+        )
+
+        assert (activity.average_cad, activity.max_cad) == (75, 90)
+
+    def test_running_cadence_computed_here_is_doubled_to_steps_per_minute(self, user, strava, rate_limits):
+        streams = strava_factories.streams_payload(time=[0, 10, 11, 21, 22], cadence=[60, 0, 90, 0, 90])
+
+        activity = self._stored_one(
+            user,
+            strava,
+            rate_limits,
+            detail=strava_factories.detailed_activity(1001, sport_type="Run"),
+            streams=streams,
+        )
+
+        assert (activity.average_cad, activity.max_cad) == (150, 180)
+
+    def test_strava_own_average_cadence_wins_over_the_stream(self, user, strava, rate_limits):
+        streams = strava_factories.streams_payload(time=[0, 10, 11, 21, 22], cadence=[60, 0, 90, 0, 90])
+
+        activity = self._stored_one(
+            user,
+            strava,
+            rate_limits,
+            detail=strava_factories.detailed_activity(1001, sport_type="Ride", average_cadence=70.0),
+            streams=streams,
+        )
+
+        assert (activity.average_cad, activity.max_cad) == (70, 90)
+
+    def test_normalized_power_of_thirty_second_intervals_matches_the_reference(self, user, strava, rate_limits):
+        watts = _on_off(600)
+        streams = strava_factories.streams_payload(time=list(range(600)), watts=watts)
+
+        activity = self._stored_one(
+            user, strava, rate_limits, detail=strava_factories.detailed_activity(1001), streams=streams
+        )
+
+        assert activity.normalized_power == round(_reference_normalized_power(watts))
+        assert activity.normalized_power == pytest.approx(287.6, abs=1.0)
+
+    def test_strava_own_power_totals_win_over_the_stream(self, user, strava, rate_limits):
+        streams = strava_factories.streams_payload(time=list(range(600)), watts=_on_off(600))
+
+        activity = self._stored_one(
+            user,
+            strava,
+            rate_limits,
+            detail=strava_factories.detailed_activity(1001, average_watts=250.0, max_watts=900.0),
+            streams=streams,
+        )
+
+        assert (activity.average_power, activity.max_power) == (250, 900)
+
+    def test_a_noisy_flat_altitude_stream_gives_no_elevation_loss_or_gain(self, user, strava, rate_limits):
+        noisy = [100.0 + (1.5 if second % 2 else -1.5) for second in range(600)]
+        streams = strava_factories.streams_payload(time=list(range(600)), altitude=noisy)
+
+        activity = self._stored_one(
+            user,
+            strava,
+            rate_limits,
+            detail=strava_factories.detailed_activity(1001, total_elevation_gain=None),
+            streams=streams,
+        )
+
+        assert (activity.elevation_gain, activity.elevation_loss) == (None, None)
+
+    def test_a_clean_climb_and_descent_gives_their_gain_and_loss_and_strava_gain_still_wins(
+        self, user, strava, rate_limits
+    ):
+        altitude = _climb_and_descent()
+        streams = strava_factories.streams_payload(time=list(range(len(altitude))), altitude=altitude)
+
+        computed = self._stored_one(
+            user,
+            strava,
+            rate_limits,
+            detail=strava_factories.detailed_activity(1001, total_elevation_gain=None),
+            streams=streams,
+        )
+
+        assert 50 <= computed.elevation_gain <= 60
+        assert 50 <= computed.elevation_loss <= 60
+
+    def test_strava_total_elevation_gain_wins_and_the_loss_is_still_computed(self, user, strava, rate_limits):
+        altitude = _climb_and_descent()
+        streams = strava_factories.streams_payload(time=list(range(len(altitude))), altitude=altitude)
+
+        activity = self._stored_one(
+            user,
+            strava,
+            rate_limits,
+            detail=strava_factories.detailed_activity(1001, total_elevation_gain=77.0),
+            streams=streams,
+        )
+
+        assert activity.elevation_gain == 77
+        assert 50 <= activity.elevation_loss <= 60
+
+    def test_lap_ascents_and_descents_add_up_to_the_activity(self, user, strava, rate_limits):
+        altitude = _climb_and_descent(60, 60) + _climb_and_descent(60, 0, start=100.0)[1:]
+        streams = strava_factories.streams_payload(time=list(range(len(altitude))), altitude=altitude)
+        last = len(altitude) - 1
+        laps = [
+            strava_factories.lap_payload(1, start_index=0, end_index=40, start_date_local="2025-03-10T08:00:00Z"),
+            strava_factories.lap_payload(2, start_index=40, end_index=90, start_date_local="2025-03-10T08:00:40Z"),
+            strava_factories.lap_payload(3, start_index=90, end_index=last, start_date_local="2025-03-10T08:01:30Z"),
+        ]
+
+        activity = self._stored_one(
+            user,
+            strava,
+            rate_limits,
+            detail=strava_factories.detailed_activity(1001, total_elevation_gain=None),
+            streams=streams,
+            laps=laps,
+        )
+
+        stored_laps = _laps_of(activity.id)
+        assert len(stored_laps) == 3
+        # Each lap is rounded on its own, so the sums may differ from the whole by half a metre per lap.
+        assert abs(sum(lap.total_ascent for lap in stored_laps) - activity.elevation_gain) <= 2
+        assert abs(sum(lap.total_descent for lap in stored_laps) - activity.elevation_loss) <= 2
+        assert sum(lap.total_ascent for lap in stored_laps) > 100
+
+
+class TestLapsThroughTheSharedAnalysis:
+    @pytest.fixture
+    def context(self, db, strava, rate_limits):
+        user = _linked(db)
+        with core_database.SessionLocal() as session:
+            integrations = user_integrations_integration.require_user_integrations(user.id, session)
+        return user, integrations, strava_client_service.create_strava_client(integrations)
+
+    def _lap(self, context, rate_limits, strava, stream_data, **lap):
+        user, integrations, client = context
+        strava.on("GET", "/activities/1/laps", strava_factories.ok([strava_factories.lap_payload(**lap)]))
+        (processed,) = strava_activity_service.fetch_and_process_activity_laps(
+            client, 1, user.id, stream_data, integrations, rate_limits
+        )
+        return processed
+
+    def test_lap_cadence_is_time_weighted_without_zeros_and_power_is_time_weighted_with_them(
+        self, context, strava, rate_limits
+    ):
+        times = [0, 1, 11, 12, 22]
+        stream_data = [
+            (
+                True,
+                _STREAM_TYPES.STREAM_TYPE_CADENCE,
+                [{"time": t, "cad": c} for t, c in zip(times, [60, 0, 90, 0, 90], strict=True)],
+            ),
+            (
+                True,
+                _STREAM_TYPES.STREAM_TYPE_POWER,
+                [{"time": t, "power": p} for t, p in zip(times, [100, 300, 100, 300, 100], strict=True)],
+            ),
+        ]
+
+        lap = self._lap(context, rate_limits, strava, stream_data, start_index=0, end_index=4)
+
+        # Cadence: 60 held 11 s then 90 held 11 s; power: 6200 W.s over 22 s.
+        assert (lap["avg_cadence"], lap["max_cadence"]) == (75, 90)
+        assert (lap["avg_power"], lap["max_power"]) == (282, 300)
+
+    @pytest.mark.parametrize(
+        ("first_end", "second_start"),
+        [(1, 2), (2, 2)],
+        ids=["adjacent indexes", "shared boundary index"],
+    )
+    def test_a_laps_last_sample_holds_its_time_whether_laps_share_the_boundary_index_or_not(
+        self, context, strava, rate_limits, first_end, second_start
+    ):
+        times = [0, 10, 20, 30]
+        stream_data = [
+            (
+                True,
+                _STREAM_TYPES.STREAM_TYPE_CADENCE,
+                [{"time": t, "cad": c} for t, c in zip(times, [60, 120, 80, 80], strict=True)],
+            )
+        ]
+        user, integrations, client = context
+        strava.on(
+            "GET",
+            "/activities/1/laps",
+            strava_factories.ok(
+                [
+                    strava_factories.lap_payload(1, start_index=0, end_index=first_end),
+                    strava_factories.lap_payload(2, start_index=second_start, end_index=3),
+                ]
+            ),
+        )
+
+        first, second = strava_activity_service.fetch_and_process_activity_laps(
+            client, 1, user.id, stream_data, integrations, rate_limits
+        )
+
+        # 60 and 120 each hold 10 s before the next lap starts at 20 s.
+        assert first["avg_cadence"] == 90
+        assert first["max_cadence"] == 120
+        assert second["avg_cadence"] == 80
+
+    def test_lap_normalized_power_of_thirty_second_intervals_matches_the_reference(self, context, strava, rate_limits):
+        watts = _on_off(600)
+        stream_data = [(True, _STREAM_TYPES.STREAM_TYPE_POWER, [{"time": t, "power": w} for t, w in enumerate(watts)])]
+
+        lap = self._lap(context, rate_limits, strava, stream_data, start_index=0, end_index=599)
+
+        assert lap["normalized_power"] == round(_reference_normalized_power(watts))
+
+    def test_a_lap_with_under_thirty_seconds_of_power_has_no_normalized_power(self, context, strava, rate_limits):
+        stream_data = [(True, _STREAM_TYPES.STREAM_TYPE_POWER, [{"time": t, "power": 200} for t in range(20)])]
+
+        lap = self._lap(context, rate_limits, strava, stream_data, start_index=0, end_index=19)
+
+        assert lap["normalized_power"] is None
+        assert lap["avg_power"] == 200
+
+    def test_a_lap_counts_the_elevation_steps_after_its_start_index_up_to_its_end_index(
+        self, context, strava, rate_limits
+    ):
+        altitude = _climb_and_descent(60, 60)
+        smoothed = [{"time": t, "ele": a} for t, a in enumerate(altitude)]
+        stream_data = [(True, _STREAM_TYPES.STREAM_TYPE_ELEVATION, smoothed)]
+        user, integrations, client = context
+        strava.on(
+            "GET",
+            "/activities/1/laps",
+            strava_factories.ok(
+                [
+                    strava_factories.lap_payload(1, start_index=0, end_index=60),
+                    strava_factories.lap_payload(2, start_index=60, end_index=120),
+                ]
+            ),
+        )
+
+        first, second = strava_activity_service.fetch_and_process_activity_laps(
+            client, 1, user.id, stream_data, integrations, rate_limits
+        )
+
+        # The 3 m hysteresis confirms the climb up to 157 m (57 m) and the descent from there down to 100 m (57 m).
+        assert (first["total_ascent"], first["total_descent"]) == (57, 0)
+        assert (second["total_ascent"], second["total_descent"]) == (0, 57)
