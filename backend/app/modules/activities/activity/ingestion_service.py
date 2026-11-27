@@ -94,6 +94,18 @@ def _dedup_key(parsed: activity_contracts.ParsedActivity, *, salt_with_start: bo
     return _derive_dedup_key(parsed.activity, source, salt_with_start=salt_with_start)
 
 
+def parent_dedup_key(parsed: activity_contracts.ParsedActivity) -> str | None:
+    """Pick the idempotency key of a multisport activity: the file's alone, with no start-time salt.
+
+    Args:
+        parsed: The parsed multisport activity.
+
+    Returns:
+        ``garmin:<id>`` or ``file:<sha256>``, or None when there is nothing to key on.
+    """
+    return _dedup_key(parsed, salt_with_start=False)
+
+
 def _component_work(
     parsed: activity_contracts.ParsedActivity,
 ) -> list[tuple[activities_contributors.ActivityIngestionContributor, object]]:
@@ -363,7 +375,7 @@ def store_parsed_group(
     # Bound before the try so the IntegrityError handler can always read it.
     parent_key: str | None = None
     try:
-        parent_key = _dedup_key(parent, salt_with_start=False)
+        parent_key = parent_dedup_key(parent)
         parent_work = _component_work(parent)
         leg_work = [(leg, _dedup_key(leg), _component_work(leg)) for leg in legs]
 

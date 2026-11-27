@@ -15,8 +15,9 @@ one owner.
 """
 
 import calendar
+import dataclasses
 import uuid
-from collections.abc import Mapping
+from collections.abc import Collection, Mapping
 from datetime import UTC, date, datetime, time, timedelta
 
 import jasil.audit as jasil_audit
@@ -36,8 +37,10 @@ import modules.activities.activity.constants as activity_constants
 import modules.activities.activity.contracts as activity_contracts
 import modules.activities.activity.crud as activity_crud
 import modules.activities.activity.event_publishers as activity_event_publishers
+import modules.activities.activity.ingestion_service as activity_ingestion_service
 import modules.activities.activity.schema as activity_schema
 import modules.activities.activity.stats as activity_stats
+import modules.activities.computation as activities_computation
 import modules.activities.contributor_registry as activities_contributor_registry
 import modules.gears.gear.integration_service as gears_integration
 import modules.server_settings.integration_service as server_settings_integration
@@ -885,6 +888,96 @@ def _apply_privacy_to_legs(
             after.id, user_id, before, after, [field for field in privacy_fields if _is_visibility_field(field)], db
         )
         activity_event_publishers.publish_activity_updated(after.id, user_id, db, changed_fields=privacy_fields)
+
+
+def _shared[T](values: Collection[T | None]) -> T | None:
+    """Return the one value every item holds.
+
+    Args:
+        values: The values of the legs.
+
+    Returns:
+        The value all of them share, or ``None`` when they differ or none has one.
+    """
+    distinct = set(values)
+    return distinct.pop() if len(distinct) == 1 else None
+
+
+def _most_private(legs: list[activity_schema.ActivityRead]) -> activity_schema.ActivityEdit:
+    """Combine the privacy of several activities into the strictest of them.
+
+    Args:
+        legs: The activities.
+
+    Returns:
+        The lowest visibility, hidden when any is, and each ``hide_*`` flag set when any activity sets it.
+    """
+    values: dict[str, object] = {
+        field: any(getattr(leg, field) for leg in legs)
+        for field in activity_constants.PRIVACY_FIELDS
+        if field != "visibility"
+    }
+    stored_visibilities = [leg.visibility.stored for leg in legs if leg.visibility is not None]
+    values["visibility"] = activity_constants.ActivityVisibility.from_stored(
+        max(stored_visibilities, default=activity_constants.ActivityVisibility.PRIVATE.stored)
+    )
+    return activity_schema.ActivityEdit.model_validate(values)
+
+
+def regroup_legs(
+    parent: activity_contracts.ParsedActivity,
+    leg_ids: Collection[uuid.UUID],
+    db: Session,
+    *,
+    activity_id: uuid.UUID | None = None,
+) -> activity_schema.ActivityRead | None:
+    """Stage a multisport activity over activities that were stored on their own, as its legs.
+
+    The parent takes the legs' common name, description and Garmin id when they share one, else the parsed parent's,
+    and the strictest privacy of the legs; each leg adopts that privacy, and a leg whose visibility or ``hide_*``
+    flags change gets an audit row. Names, notes, types and gear of the legs are kept. Publishes no event. The
+    caller commits.
+
+    Args:
+        parent: The multisport activity as the file parsed, with the file's hash as its source.
+        leg_ids: The activities that become its legs.
+        db: Database session.
+        activity_id: The ID the parent is stored under, or ``None`` to generate one.
+
+    Returns:
+        The staged parent, or ``None`` when nothing was staged because a leg no longer exists or is no longer
+        standalone, or an activity already holds the parent's dedup key.
+    """
+    user_id = parent.activity.user_id
+    legs = activity_crud.lock_standalone_activities(user_id, leg_ids, db)
+    if len(legs) != len(set(leg_ids)):
+        return None
+    privacy = _most_private(legs)
+    description = _shared([leg.description for leg in legs])
+    activity = parent.activity.model_copy(
+        update={
+            **privacy.model_dump(exclude_unset=True),
+            "name": _shared([leg.name for leg in legs]) or parent.activity.name,
+            "description": description if description is not None else parent.activity.description,
+            "garminconnect_activity_id": _shared([leg.garminconnect_activity_id for leg in legs]),
+            "gear_id": None,
+        }
+    )
+    dedup_key = activity_ingestion_service.parent_dedup_key(dataclasses.replace(parent, activity=activity))
+    if dedup_key is not None and activity_crud.get_activity_by_dedup_key(dedup_key, user_id, db) is not None:
+        return None
+    created = activity_crud.create_activity(
+        activity,
+        db,
+        dedup_key=dedup_key,
+        detect_duplicate_start=False,
+        analysis_version=activities_computation.ANALYSIS_VERSION,
+        activity_id=activity_id,
+    )
+    visibility_fields = [field for field in activity_constants.PRIVACY_FIELDS if _is_visibility_field(field)]
+    for before, after in activity_crud.adopt_legs(user_id, leg_ids, created.id, privacy, db):
+        _stage_visibility_update(after.id, user_id, before, after, visibility_fields, db)
+    return created
 
 
 def edit_activity(

@@ -13,6 +13,8 @@ No database session is open while the file is read or parsed. A short session re
 transaction writes the activity (a multisport activity with its legs, as they were stored together) and commits.
 """
 
+import dataclasses
+import hashlib
 import os
 import tempfile
 import uuid
@@ -22,6 +24,7 @@ from datetime import datetime, timedelta
 from enum import StrEnum
 
 import jasil.providers as platform_providers
+from sqlalchemy.orm import Session
 
 import core.database as core_database
 import core.exceptions as core_exceptions
@@ -71,6 +74,7 @@ class _Target:
         user_id: The owner.
         start_time: When the activity starts.
         legs: The ID and start of each leg when the activity is a multisport activity, in start order.
+        is_leg: Whether the activity is a leg of a multisport activity.
         timezone: The parser's fallback timezone: the activity's stored one, which is the owner's at import for a file
             without a zone of its own, so an owner who moved since does not shift the activity's local times; the
             owner's current one only for an activity stored without a zone.
@@ -80,6 +84,7 @@ class _Target:
     user_id: uuid.UUID
     start_time: datetime
     legs: tuple[tuple[uuid.UUID, datetime], ...]
+    is_leg: bool
     timezone: str | None
     units: server_settings_schema.Units
 
@@ -139,6 +144,7 @@ def _read_target(activity_id: uuid.UUID) -> _Target | None:
             user_id=activity.user_id,
             start_time=_start_of(activity),
             legs=tuple(legs),
+            is_leg=activity.parent_activity_id is not None,
             timezone=activity.timezone or owner.timezone,
             units=server_settings_schema.Units(owner.units),
         )
@@ -218,6 +224,31 @@ def _match(
     return pairs
 
 
+def _components_of(
+    parsed: activity_contracts.ParsedActivity,
+) -> tuple[tuple[activities_contributors.ActivityIngestionContributor, object], ...]:
+    """Resolve the contributor of every component of a parsed activity before anything is written.
+
+    Args:
+        parsed: The parsed activity.
+
+    Returns:
+        The contributor and data of each component that has data.
+
+    Raises:
+        ProcessingError: When a component has no registered contributor, so parsed data is never dropped silently.
+    """
+    components = []
+    for key, data in parsed.components.items():
+        if data is None:
+            continue
+        contributor = activities_contributor_registry.get_activity_ingestion_contributor(key)
+        if contributor is None:
+            raise core_exceptions.ProcessingError(f"No contributor stores the {key} component")
+        components.append((contributor, data))
+    return tuple(components)
+
+
 def _plan(
     pairs: Sequence[tuple[uuid.UUID, activity_contracts.ParsedActivity]],
     parsed_file: activity_contracts.ParsedFile,
@@ -234,17 +265,7 @@ def _plan(
     Raises:
         ProcessingError: When a component has no registered contributor, so parsed data is never dropped silently.
     """
-    work = []
-    for activity_id, parsed in pairs:
-        components = []
-        for key, data in parsed.components.items():
-            if data is None:
-                continue
-            contributor = activities_contributor_registry.get_activity_ingestion_contributor(key)
-            if contributor is None:
-                raise core_exceptions.ProcessingError(f"No contributor stores the {key} component")
-            components.append((contributor, data))
-        work.append(_Work(activity_id, parsed, tuple(components)))
+    work = [_Work(activity_id, parsed, _components_of(parsed)) for activity_id, parsed in pairs]
     file_work = []
     for key, data in parsed_file.components.items():
         if data is None:
@@ -256,11 +277,12 @@ def _plan(
     return work, file_work
 
 
-def _write(
+def _stage(
     work: Sequence[_Work],
     file_work: Sequence[tuple[activities_contributors.FileIngestionContributor, object]],
+    db: Session,
 ) -> bool:
-    """Write the reprocessed activities in one transaction.
+    """Stage the reprocessed activities in the caller's transaction.
 
     Each activity takes the new derived columns and has its components replaced. The thumbnail key of an activity
     whose route changed is cleared, a multisport activity's route being its legs' joined, so a render of the old
@@ -269,42 +291,214 @@ def _write(
     Args:
         work: The stored activities and what the file yields for each.
         file_work: The file-scoped contributors with their data.
+        db: Database session; the caller commits.
+
+    Returns:
+        ``True`` when staged, ``False`` when an activity no longer exists.
+    """
+    activity_ids = [item.activity_id for item in work]
+    routes_before = activity_streams_integration.get_route_waypoints_for_activities(activity_ids, db)
+    for item in work:
+        activity = activity_integration.get_activity(item.activity_id, db)
+        if activity is None or not activity_integration.apply_reprocessed_analysis(
+            item.activity_id, item.parsed.activity, activities_computation.ANALYSIS_VERSION, db
+        ):
+            return False
+        for contributor in activities_contributor_registry.activity_ingestion_contributors():
+            contributor.clear(item.activity_id, db)
+        for contributor, data in item.components:
+            contributor.persist(data, activity, db)
+    for file_contributor, data in file_work:
+        file_contributor.persist(data, db)
+    routes_after = activity_streams_integration.get_route_waypoints_for_activities(activity_ids, db)
+    for activity_id in activity_ids:
+        if routes_before.get(activity_id) == routes_after.get(activity_id):
+            continue
+        stored_key = activity_integration.get_thumbnail_key(activity_id, db)
+        if stored_key is not None:
+            activity_integration.set_thumbnail_key(activity_id, None, db, expected_key=stored_key)
+            logger.debug(
+                "Cleared the thumbnail of an activity whose route changed",
+                extra=core_logger.context(activity_id=activity_id),
+            )
+    return True
+
+
+def _write(
+    work: Sequence[_Work],
+    file_work: Sequence[tuple[activities_contributors.FileIngestionContributor, object]],
+) -> bool:
+    """Write the reprocessed activities in one transaction.
+
+    Args:
+        work: The stored activities and what the file yields for each.
+        file_work: The file-scoped contributors with their data.
 
     Returns:
         ``True`` when committed, ``False`` when an activity no longer exists and nothing was written.
     """
-    activity_ids = [item.activity_id for item in work]
     with core_database.SessionLocal() as db:
-        routes_before = activity_streams_integration.get_route_waypoints_for_activities(activity_ids, db)
-        for item in work:
-            activity = activity_integration.get_activity(item.activity_id, db)
-            if activity is None or not activity_integration.apply_reprocessed_analysis(
-                item.activity_id, item.parsed.activity, activities_computation.ANALYSIS_VERSION, db
-            ):
-                db.rollback()
-                return False
-            for contributor in activities_contributor_registry.activity_ingestion_contributors():
-                contributor.clear(item.activity_id, db)
-            for contributor, data in item.components:
-                contributor.persist(data, activity, db)
-        for file_contributor, data in file_work:
-            file_contributor.persist(data, db)
-        routes_after = activity_streams_integration.get_route_waypoints_for_activities(activity_ids, db)
-        for activity_id in activity_ids:
-            if routes_before.get(activity_id) == routes_after.get(activity_id):
-                continue
-            stored_key = activity_integration.get_thumbnail_key(activity_id, db)
-            if stored_key is not None:
-                activity_integration.set_thumbnail_key(activity_id, None, db, expected_key=stored_key)
-                logger.debug(
-                    "Cleared the thumbnail of an activity whose route changed",
-                    extra=core_logger.context(activity_id=activity_id),
-                )
+        if not _stage(work, file_work, db):
+            db.rollback()
+            return False
         db.commit()
     logger.debug(
-        "Committed a reprocessed activity", extra=core_logger.context(activity_id=activity_ids[0], count=len(work))
+        "Committed a reprocessed activity", extra=core_logger.context(activity_id=work[0].activity_id, count=len(work))
     )
     return True
+
+
+def _write_regrouped(
+    parent_id: uuid.UUID,
+    parent: activity_contracts.ParsedActivity,
+    work: Sequence[_Work],
+    file_work: Sequence[tuple[activities_contributors.FileIngestionContributor, object]],
+) -> uuid.UUID | None:
+    """Write the new parent, its adopted legs and their reprocessed values in one transaction.
+
+    Args:
+        parent_id: The ID the parent is stored under.
+        parent: The parsed multisport activity, with the hash of its file as its source.
+        work: The stored legs and what the file yields for each, in start order.
+        file_work: The file-scoped contributors with their data.
+
+    Returns:
+        The new parent's ID when committed, ``None`` when nothing was written because a leg is gone or no longer
+        standalone, or the parent's key is already stored.
+    """
+    parent_components = _components_of(parent)
+    with core_database.SessionLocal() as db:
+        staged = activity_integration.regroup_legs(
+            parent, [item.activity_id for item in work], db, activity_id=parent_id
+        )
+        if staged is None:
+            db.rollback()
+            return None
+        for contributor, data in parent_components:
+            contributor.persist(data, staged, db)
+        if not _stage(work, file_work, db):
+            db.rollback()
+            return None
+        db.commit()
+    logger.debug(
+        "Committed a regrouped multisport activity",
+        extra=core_logger.context(activity_id=staged.id, count=len(work)),
+    )
+    return staged.id
+
+
+def _find_siblings(
+    target: _Target,
+    parsed_file: activity_contracts.ParsedFile,
+    content_hash: str,
+    storage: platform_providers.StorageProvider,
+) -> list[uuid.UUID] | None:
+    """Find the stored activity each parsed leg was stored as.
+
+    A sibling belongs to the same user, has no parent and no legs, starts within the tolerance of its leg and
+    retains a file with the same SHA-256 as the one being reprocessed. The files are read with no session open.
+
+    Args:
+        target: The activity being reprocessed.
+        parsed_file: What its file yields.
+        content_hash: The SHA-256 of the file.
+        storage: The blob-storage provider the files are retained in.
+
+    Returns:
+        The sibling of each leg of the file, in the legs' order, or ``None`` when any leg has none.
+    """
+    with core_database.SessionLocal() as db:
+        candidates = {
+            candidate.id: _start_of(candidate)
+            for leg in parsed_file.activities
+            for candidate in activity_integration.list_standalone_activities_starting_between(
+                target.user_id,
+                leg.activity.start_time - _START_TOLERANCE,
+                leg.activity.start_time + _START_TOLERANCE,
+                db,
+            )
+        }
+    same_file = {}
+    for candidate_id, start in candidates.items():
+        stored_file = activity_file_storage_integration.get_activity_file(candidate_id, storage)
+        if stored_file is not None and hashlib.sha256(stored_file[1]).hexdigest() == content_hash:
+            same_file[candidate_id] = start
+    siblings = []
+    for leg in parsed_file.activities:
+        closest = min(
+            same_file,
+            key=lambda candidate_id: abs(same_file[candidate_id] - leg.activity.start_time),
+            default=None,
+        )
+        if closest is None or abs(same_file[closest] - leg.activity.start_time) > _START_TOLERANCE:
+            return None
+        siblings.append(closest)
+        del same_file[closest]
+    return siblings
+
+
+def _regroup(
+    activity_id: uuid.UUID,
+    target: _Target,
+    parsed_file: activity_contracts.ParsedFile,
+    parent: activity_contracts.ParsedActivity,
+    key: str,
+    data: bytes,
+    storage: platform_providers.StorageProvider,
+) -> ReprocessOutcome | None:
+    """Regroup the legs a multi-session file was stored as under a new multisport activity, and reprocess them.
+
+    The file is stored under the parent's new ID first, with no session open, so the parent never exists without it.
+    The group is then written in one transaction; if that stages nothing or raises, the stored file is deleted again.
+    Only after the commit are the legs' copies deleted. A crash after the store leaves a file under an ID no activity
+    has, which the daily orphan sweep removes; a crash after the commit leaves spare leg copies.
+
+    Args:
+        activity_id: The activity being reprocessed, one of the legs.
+        target: What is known of it.
+        parsed_file: What its file yields.
+        parent: The file's multisport activity.
+        key: The retained file's storage key.
+        data: The retained file's bytes.
+        storage: The blob-storage provider the files are retained in.
+
+    Returns:
+        What was done, or ``None`` when the legs cannot be regrouped and the activity is to be reprocessed alone.
+
+    Raises:
+        DomainError: When a component has no registered contributor.
+    """
+    content_hash = hashlib.sha256(data).hexdigest()
+    siblings = _find_siblings(target, parsed_file, content_hash, storage)
+    if siblings is None or activity_id not in siblings:
+        logger.warning(
+            "Not regrouping a legacy multisport leg: a leg of its file has no stored sibling with the same file",
+            extra=core_logger.context(activity_id=activity_id, user_id=target.user_id),
+        )
+        return None
+    work, file_work = _plan(list(zip(siblings, parsed_file.activities, strict=True)), parsed_file)
+    source = activity_contracts.ImportSource(kind="reprocess", content_hash=content_hash)
+    parent_id = uuid.uuid4()
+    activity_file_storage_integration.store_activity_file(parent_id, os.path.splitext(key)[1], data, storage)
+    try:
+        written = _write_regrouped(parent_id, dataclasses.replace(parent, source=source), work, file_work)
+    except BaseException:
+        activity_file_storage_integration.delete_activity_file(parent_id, storage)
+        raise
+    if written is None:
+        activity_file_storage_integration.delete_activity_file(parent_id, storage)
+        logger.warning(
+            "Not regrouping a legacy multisport leg: the group changed or its key is taken",
+            extra=core_logger.context(activity_id=activity_id, user_id=target.user_id),
+        )
+        return None
+    for sibling in siblings:
+        activity_file_storage_integration.delete_activity_file(sibling, storage)
+    logger.info(
+        "Regrouped legacy multisport legs under a new parent",
+        extra=core_logger.context(activity_id=parent_id, user_id=target.user_id, count=len(siblings)),
+    )
+    return ReprocessOutcome.REPROCESSED
 
 
 def reprocess_activity(activity_id: uuid.UUID, storage: platform_providers.StorageProvider) -> ReprocessOutcome:
@@ -330,6 +524,10 @@ def reprocess_activity(activity_id: uuid.UUID, storage: platform_providers.Stora
 
     try:
         parsed_file = _parse(target, key, data)
+        if parsed_file is not None and parsed_file.parent is not None and not target.legs and not target.is_leg:
+            regrouped = _regroup(activity_id, target, parsed_file, parsed_file.parent, key, data, storage)
+            if regrouped is not None:
+                return regrouped
         pairs = None if parsed_file is None else _match(activity_id, target, parsed_file)
         plan = None if pairs is None or parsed_file is None else _plan(pairs, parsed_file)
     except core_exceptions.DomainError as err:

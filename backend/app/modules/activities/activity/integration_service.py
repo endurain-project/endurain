@@ -336,6 +336,48 @@ def store_parsed_group(
     return activity_ingestion_service.store_parsed_group(parent, legs, db)
 
 
+def list_standalone_activities_starting_between(
+    user_id: uuid.UUID, earliest: datetime, latest: datetime, db: Session
+) -> list[activity_schema.ActivityRead]:
+    """Return a user's activities that are neither a leg nor a multisport activity and start within a window.
+
+    Args:
+        user_id: The owner.
+        earliest: The earliest start, inclusive.
+        latest: The latest start, inclusive.
+        db: Database session.
+
+    Returns:
+        The activities, earliest start first.
+    """
+    return activity_crud.get_standalone_activities_starting_between(user_id, earliest, latest, db)
+
+
+def regroup_legs(
+    parent: activity_contracts.ParsedActivity,
+    leg_ids: Sequence[uuid.UUID],
+    db: Session,
+    *,
+    activity_id: uuid.UUID | None = None,
+) -> activity_schema.ActivityRead | None:
+    """Stage a multisport activity over activities that were stored on their own, which become its legs.
+
+    The parent, the legs' new parent and privacy, and the audit rows of the legs whose visibility changed are staged
+    together and no event is published; the caller commits.
+
+    Args:
+        parent: The parsed multisport activity, with the hash of its file as its source.
+        leg_ids: The activities that become its legs.
+        db: Database session.
+        activity_id: The ID the parent is stored under, or ``None`` to generate one.
+
+    Returns:
+        The staged parent, or ``None`` when nothing was staged: a leg is gone or is no longer standalone, or the
+        parent's dedup key is already stored.
+    """
+    return activity_service.regroup_legs(parent, leg_ids, db, activity_id=activity_id)
+
+
 def get_leg_ids_by_parent(parent_ids: Sequence[uuid.UUID], db: Session) -> dict[uuid.UUID, list[uuid.UUID]]:
     """Return the legs of several multisport activities, each parent's in start order.
 

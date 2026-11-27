@@ -1040,6 +1040,111 @@ def get_leg_ids_by_parent(parent_ids: Sequence[uuid.UUID], db: Session) -> dict[
     return legs
 
 
+def get_standalone_activities_starting_between(
+    user_id: uuid.UUID, earliest: datetime, latest: datetime, db: Session
+) -> list[activity_schema.ActivityRead]:
+    """Get a user's activities that are neither a leg nor a multisport activity and start within a window.
+
+    Args:
+        user_id: Owner user ID.
+        earliest: The earliest start, inclusive.
+        latest: The latest start, inclusive.
+        db: Database session.
+
+    Returns:
+        The activities, earliest start first.
+    """
+    parents = select(activity_models.Activity.parent_activity_id).where(
+        activity_models.Activity.parent_activity_id.is_not(None)
+    )
+    rows = db.scalars(
+        select(activity_models.Activity)
+        .where(
+            activity_models.Activity.user_id == user_id,
+            activity_models.Activity.parent_activity_id.is_(None),
+            activity_models.Activity.id.not_in(parents),
+            activity_models.Activity.start_time.between(earliest, latest),
+        )
+        .order_by(activity_models.Activity.start_time, activity_models.Activity.id)
+    )
+    return [activity_serializers.to_read_schema(row) for row in rows]
+
+
+def lock_standalone_activities(
+    user_id: uuid.UUID, activity_ids: Collection[uuid.UUID], db: Session
+) -> list[activity_schema.ActivityRead]:
+    """Lock the given activities of a user that are still neither a leg nor a multisport activity.
+
+    Args:
+        user_id: Owner user ID.
+        activity_ids: The activities to lock.
+        db: Database session.
+
+    Returns:
+        The locked activities, earliest start first; one that no longer exists, is a leg or has legs is absent.
+    """
+    parents = select(activity_models.Activity.parent_activity_id).where(
+        activity_models.Activity.parent_activity_id.is_not(None)
+    )
+    rows = db.scalars(
+        select(activity_models.Activity)
+        .where(
+            activity_models.Activity.user_id == user_id,
+            activity_models.Activity.id.in_(activity_ids),
+            activity_models.Activity.parent_activity_id.is_(None),
+            activity_models.Activity.id.not_in(parents),
+        )
+        .order_by(activity_models.Activity.id)
+        .with_for_update()
+    ).all()
+    return sorted((activity_serializers.to_read_schema(row) for row in rows), key=lambda leg: (leg.start_time, leg.id))
+
+
+def adopt_legs(
+    user_id: uuid.UUID,
+    leg_ids: Collection[uuid.UUID],
+    parent_activity_id: uuid.UUID,
+    privacy: activity_schema.ActivityEdit,
+    db: Session,
+) -> list[tuple[activity_schema.ActivityRead, activity_schema.ActivityRead]]:
+    """Stage a multisport activity as the parent of existing activities, with the privacy it owns for its legs.
+
+    Written through the ORM, so every leg's ``version`` moves and its ``updated_at`` is stamped: both the parent and
+    the privacy are user-visible.
+
+    Args:
+        user_id: Owner user ID.
+        leg_ids: The activities that become legs.
+        parent_activity_id: The multisport activity.
+        privacy: The edit whose privacy fields every leg takes.
+        db: Database session.
+
+    Returns:
+        The ``(before, after)`` of each leg, in id order.
+    """
+    values = {
+        key: value
+        for key, value in activity_serializers.to_update_values(privacy).items()
+        if key in activity_constants.PRIVACY_FIELDS
+    }
+    legs = db.scalars(
+        select(activity_models.Activity)
+        .where(activity_models.Activity.user_id == user_id, activity_models.Activity.id.in_(leg_ids))
+        .order_by(activity_models.Activity.id)
+        .with_for_update()
+    ).all()
+    adopted: list[tuple[activity_schema.ActivityRead, activity_schema.ActivityRead]] = []
+    for leg in legs:
+        before = activity_serializers.to_read_schema(leg)
+        leg.parent_activity_id = parent_activity_id
+        for key, value in values.items():
+            setattr(leg, key, value)
+        db.flush()
+        db.refresh(leg)
+        adopted.append((before, activity_serializers.to_read_schema(leg)))
+    return adopted
+
+
 def get_legs_page(
     parent_id: uuid.UUID,
     db: Session,
@@ -1190,6 +1295,7 @@ def create_activity(
     parent_activity_id: uuid.UUID | None = None,
     detect_duplicate_start: bool = True,
     analysis_version: int = 0,
+    activity_id: uuid.UUID | None = None,
 ) -> activity_schema.ActivityRead:
     """Stage a new activity; duplicate start-times are marked hidden.
 
@@ -1208,6 +1314,8 @@ def create_activity(
             for a leg stored with its parent, which takes the parent's ``is_hidden`` from the caller.
         analysis_version: The version of the file analysis that computed the activity's values, 0 for a row that no
             analysis computed. The server owns it, so it is not part of ``activity``.
+        activity_id: The ID to store the activity under, for a caller that must name it before the row exists (a file
+            stored under it first); ``None`` generates one. The server owns it, so it is not part of ``activity``.
 
     Returns:
         The stored activity as the read schema, with the generated ``id`` and
@@ -1247,6 +1355,8 @@ def create_activity(
     new_activity.dedup_key = dedup_key
     new_activity.parent_activity_id = parent_activity_id
     new_activity.analysis_version = analysis_version
+    if activity_id is not None:
+        new_activity.id = activity_id
 
     db.add(new_activity)
     # Flush so the generated id / created_at are available. The caller owns the

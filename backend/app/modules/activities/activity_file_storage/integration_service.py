@@ -99,3 +99,18 @@ def get_activity_file(
         if data is not None:
             return key, data
     return None
+
+
+def delete_activity_file(
+    activity_id: uuid.UUID,
+    storage: platform_providers.StorageProvider,
+) -> None:
+    """Delete an activity's retained source file, whichever extension it was stored under.
+
+    Idempotent: an activity with no retained file is left as it is.
+
+    Args:
+        activity_id: The owning activity id.
+        storage: The blob-storage provider.
+    """
+    activity_file_storage_files.delete_activity_file(activity_id, storage)

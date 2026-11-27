@@ -1,6 +1,7 @@
 """Reprocessing one activity in place from its retained file: what it recomputes, what it must never touch."""
 
 import dataclasses
+import hashlib
 import json
 import shutil
 import uuid
@@ -14,7 +15,10 @@ from sqlalchemy import delete, select, update
 from sqlalchemy.orm import Session
 
 import core.exceptions as core_exceptions
+import modules.activities.activity.audit_actions as activity_audit_actions
 import modules.activities.activity.constants as activity_constants
+import modules.activities.activity.crud as activity_crud
+import modules.activities.activity.integration_service as activity_integration
 import modules.activities.activity.models as activity_models
 import modules.activities.activity_exercise_titles.models as exercise_title_models
 import modules.activities.activity_file_storage.constants as file_storage_constants
@@ -30,8 +34,10 @@ import modules.activities.activity_streams.models as stream_models
 import modules.activities.activity_workout_steps.models as step_models
 import modules.activities.computation as activities_computation
 import modules.users.users.models as user_models
+from tests._factories.activities import make_activity
+from tests._factories.gears import make_gear
 from tests._factories.ingestion import fit_file
-from tests._factories.users import make_user
+from tests._factories.users import audit_rows_of, make_user
 
 _FIXTURES = Path(__file__).parents[1] / "activity_file_import" / "fixtures"
 _RUN = _FIXTURES / "outdoor_run" / "24273515840_ACTIVITY.fit"
@@ -521,7 +527,7 @@ class TestWhenNothingCanBeReprocessed:
 
 
 class TestAMultiSessionFile:
-    def test_each_legacy_activity_is_reprocessed_from_the_session_it_started(
+    def test_a_legacy_leg_whose_siblings_are_missing_is_reprocessed_alone_from_its_session(
         self, db, owner, other, storage, tmp_path, monkeypatch
     ):
         legacy = _import_legacy_legs(db, owner.id, _TRIATHLON, tmp_path, storage, monkeypatch)
@@ -546,16 +552,21 @@ class TestAMultiSessionFile:
             .all()
         )
         assert len(legacy_in_order) == len(legs) > 1
+        missing = legacy_in_order.pop()
+        file_storage.delete_activity_file(missing, storage)
+        db.execute(delete(activity_models.Activity).where(activity_models.Activity.id == missing))
+        db.commit()
         for activity_id in legacy_in_order:
             _degrade(db, activity_id)
 
         outcomes = [migration_service.reprocess_activity(activity_id, storage) for activity_id in legacy_in_order]
 
         assert set(outcomes) == {migration_service.ReprocessOutcome.REPROCESSED}
-        for activity_id, leg_id in zip(legacy_in_order, legs, strict=True):
+        for activity_id, leg_id in zip(legacy_in_order, legs[:-1], strict=True):
             assert _values(db, activity_id, _DERIVED) == _values(db, leg_id, _DERIVED)
             assert _children(db, activity_id) == _children(db, leg_id)
             assert _row(db, activity_id).parent_activity_id is None
+            assert file_storage.get_activity_file(activity_id, storage) is not None
 
     def test_a_multisport_activity_is_reprocessed_with_its_legs(self, db, owner, other, storage, tmp_path):
         [parent_id] = _import(db, owner.id, _TRIATHLON, tmp_path, storage)
@@ -621,3 +632,383 @@ class TestAMultiSessionFile:
 
         assert outcome is migration_service.ReprocessOutcome.NO_SESSION
         assert (_values(db, parent_id, _DERIVED), _children(db, parent_id)) == before
+
+
+_VISIBILITY = activity_constants.ActivityVisibility
+_HIDE_FLAGS = ("hide_hr", "hide_map", "hide_gear")
+
+
+def _start_ordered(db: Session, activity_ids: list[uuid.UUID]) -> list[uuid.UUID]:
+    """Return the activities in start order."""
+    db.expire_all()
+    return list(
+        db.execute(
+            select(activity_models.Activity.id)
+            .where(activity_models.Activity.id.in_(activity_ids))
+            .order_by(activity_models.Activity.start_time)
+        ).scalars()
+    )
+
+
+def _legs_of(db: Session, parent_id: uuid.UUID) -> list[uuid.UUID]:
+    """Return a parent's legs in start order."""
+    db.expire_all()
+    return list(
+        db.execute(
+            select(activity_models.Activity.id)
+            .where(activity_models.Activity.parent_activity_id == parent_id)
+            .order_by(activity_models.Activity.start_time)
+        ).scalars()
+    )
+
+
+def _legacy_group(db: Session, user_id: uuid.UUID, tmp_path: Path, storage, monkeypatch) -> list[uuid.UUID]:
+    """Return the five legacy legs of the triathlon, in start order."""
+    return _start_ordered(db, _import_legacy_legs(db, user_id, _TRIATHLON, tmp_path, storage, monkeypatch))
+
+
+def _parent_of(db: Session, leg_id: uuid.UUID) -> uuid.UUID | None:
+    return _row(db, leg_id).parent_activity_id
+
+
+def _set(db: Session, activity_ids: list[uuid.UUID], **values: object) -> None:
+    db.execute(update(activity_models.Activity).where(activity_models.Activity.id.in_(activity_ids)).values(**values))
+    db.commit()
+
+
+def _all_columns(db: Session, activity_id: uuid.UUID) -> dict[str, object]:
+    row = _row(db, activity_id)
+    return {column.key: getattr(row, column.key) for column in activity_models.Activity.__table__.columns}
+
+
+_SHA = hashlib.sha256(_TRIATHLON.read_bytes()).hexdigest()
+
+
+class TestRegroupingLegacyLegs:
+    def test_the_legs_end_under_one_multisport_parent_with_a_fresh_imports_totals(
+        self, db, owner, other, storage, tmp_path, monkeypatch
+    ):
+        legs = _legacy_group(db, owner.id, tmp_path, storage, monkeypatch)
+        [expected_id] = _import(db, other.id, _TRIATHLON, tmp_path, storage)
+        expected_legs = _legs_of(db, expected_id)
+        assert len(legs) == len(expected_legs) > 1
+
+        outcome = migration_service.reprocess_activity(legs[2], storage)
+
+        assert outcome is migration_service.ReprocessOutcome.REPROCESSED
+        parent_id = _parent_of(db, legs[0])
+        assert parent_id is not None
+        assert {_parent_of(db, leg) for leg in legs} == {parent_id}
+        parent = _row(db, parent_id)
+        assert parent.parent_activity_id is None
+        assert parent.activity_type == activity_constants.ActivityType.MULTISPORT.stored
+        assert parent.user_id == owner.id
+        assert parent.analysis_version == activities_computation.ANALYSIS_VERSION
+        assert parent.dedup_key == f"file:{_SHA}"
+        assert parent.map_thumbnail_path is None
+        assert parent.gear_id is None
+        assert _values(db, parent_id, _DERIVED) == _values(db, expected_id, _DERIVED)
+        assert _children(db, parent_id) == _children(db, expected_id)
+        for leg, expected_leg in zip(legs, expected_legs, strict=True):
+            assert _values(db, leg, _DERIVED) == _values(db, expected_leg, _DERIVED)
+            assert _children(db, leg) == _children(db, expected_leg)
+            assert _row(db, leg).analysis_version == activities_computation.ANALYSIS_VERSION
+            assert _row(db, leg).dedup_key is not None
+
+    def test_the_list_shows_the_parent_and_not_the_legs(self, db, owner, storage, tmp_path, monkeypatch):
+        legs = _legacy_group(db, owner.id, tmp_path, storage, monkeypatch)
+
+        migration_service.reprocess_activity(legs[0], storage)
+
+        listed = activity_crud.get_user_activities_with_pagination(owner.id, db, user_is_owner=True)
+        assert [activity.id for activity in listed] == [_parent_of(db, legs[0])]
+        with_legs = activity_crud.get_user_activities_with_pagination(
+            owner.id, db, user_is_owner=True, include_legs=True
+        )
+        assert {activity.id for activity in with_legs} == {_parent_of(db, legs[0]), *legs}
+
+    def test_the_most_private_combination_is_applied_to_the_parent_and_every_leg(
+        self, db, owner, storage, tmp_path, monkeypatch
+    ):
+        legs = _legacy_group(db, owner.id, tmp_path, storage, monkeypatch)
+        _set(db, [legs[0]], visibility=_VISIBILITY.PUBLIC.stored, hide_hr=True)
+        _set(db, [legs[1]], visibility=_VISIBILITY.FOLLOWERS.stored, hide_map=True)
+        _set(db, [legs[2]], visibility=_VISIBILITY.PUBLIC.stored, is_hidden=True)
+        _set(db, [legs[3]], visibility=_VISIBILITY.PUBLIC.stored, hide_gear=True)
+        _set(db, [legs[4]], visibility=_VISIBILITY.PUBLIC.stored)
+
+        migration_service.reprocess_activity(legs[0], storage)
+
+        parent_id = _parent_of(db, legs[0])
+        assert parent_id is not None
+        for activity_id in (parent_id, *legs):
+            row = _row(db, activity_id)
+            assert row.visibility == _VISIBILITY.FOLLOWERS.stored
+            assert row.is_hidden is True
+            assert {flag for flag in activity_constants.PRIVACY_FIELDS if getattr(row, flag) is True} == {
+                "is_hidden",
+                *_HIDE_FLAGS,
+            }
+
+    def test_each_leg_whose_visibility_changed_gets_one_audit_row_without_values(
+        self, db, owner, storage, tmp_path, monkeypatch
+    ):
+        legs = _legacy_group(db, owner.id, tmp_path, storage, monkeypatch)
+        _set(db, legs, visibility=_VISIBILITY.PRIVATE.stored)
+        _set(db, [legs[1]], visibility=_VISIBILITY.PUBLIC.stored, hide_hr=True)
+        _set(db, [legs[3]], hide_map=True)
+
+        migration_service.reprocess_activity(legs[0], storage)
+
+        rows = audit_rows_of(db, activity_audit_actions.VISIBILITY_UPDATE.id)
+        details = {row.target_id: sorted(row.details["changed_fields"]) for row in rows}
+        assert len(rows) == len(details)
+        assert details == {
+            str(legs[0]): ["hide_hr", "hide_map"],
+            str(legs[1]): ["hide_map", "visibility"],
+            str(legs[2]): ["hide_hr", "hide_map"],
+            str(legs[3]): ["hide_hr"],
+            str(legs[4]): ["hide_hr", "hide_map"],
+        }
+        assert {row.target_owner_id for row in rows} == {str(owner.id)}
+        assert {row.target_type for row in rows} == {"activity"}
+
+    def test_a_leg_with_nothing_to_change_in_privacy_has_no_audit_row(self, db, owner, storage, tmp_path, monkeypatch):
+        legs = _legacy_group(db, owner.id, tmp_path, storage, monkeypatch)
+        _set(db, legs, visibility=_VISIBILITY.FOLLOWERS.stored)
+
+        migration_service.reprocess_activity(legs[0], storage)
+
+        assert audit_rows_of(db, activity_audit_actions.VISIBILITY_UPDATE.id) == []
+
+    def test_leg_names_notes_types_and_gear_are_kept(self, db, owner, storage, tmp_path, monkeypatch):
+        legs = _legacy_group(db, owner.id, tmp_path, storage, monkeypatch)
+        gear = make_gear(db, owner.id)
+        db.commit()
+        for index, leg in enumerate(legs):
+            _set(
+                db,
+                [leg],
+                name=f"Leg {index}",
+                description=f"About {index}",
+                private_notes=f"Note {index}",
+                gear_id=gear.id if index == 1 else None,
+            )
+        before = {
+            leg: _values(db, leg, ("name", "description", "private_notes", "activity_type", "gear_id")) for leg in legs
+        }
+
+        migration_service.reprocess_activity(legs[0], storage)
+
+        for leg in legs:
+            assert _values(db, leg, ("name", "description", "private_notes", "activity_type", "gear_id")) == before[leg]
+
+    def test_the_parent_takes_the_name_and_description_the_legs_share(self, db, owner, storage, tmp_path, monkeypatch):
+        legs = _legacy_group(db, owner.id, tmp_path, storage, monkeypatch)
+        _set(db, legs, name="Race day", description="Sunny")
+
+        migration_service.reprocess_activity(legs[0], storage)
+
+        parent = _row(db, _parent_of(db, legs[0]))
+        assert (parent.name, parent.description) == ("Race day", "Sunny")
+
+    def test_the_parent_takes_the_files_name_when_the_legs_differ(
+        self, db, owner, other, storage, tmp_path, monkeypatch
+    ):
+        legs = _legacy_group(db, owner.id, tmp_path, storage, monkeypatch)
+        [expected_id] = _import(db, other.id, _TRIATHLON, tmp_path, storage)
+        _set(db, [legs[0]], name="First", description="One")
+        _set(db, [legs[1]], name="Second", description="Two")
+
+        migration_service.reprocess_activity(legs[0], storage)
+
+        parent = _row(db, _parent_of(db, legs[0]))
+        expected = _row(db, expected_id)
+        assert (parent.name, parent.description) == (expected.name, expected.description)
+
+    def test_a_leg_changed_in_parent_or_privacy_has_its_version_bumped_and_updated_at_stamped(
+        self, db, owner, storage, tmp_path, monkeypatch
+    ):
+        legs = _legacy_group(db, owner.id, tmp_path, storage, monkeypatch)
+        _set(db, legs, updated_at=_OLD)
+        versions = {leg: _row(db, leg).version for leg in legs}
+
+        migration_service.reprocess_activity(legs[0], storage)
+
+        for leg in legs:
+            assert _row(db, leg).version > versions[leg]
+            assert _row(db, leg).updated_at > _OLD
+
+    def test_the_file_is_kept_once_under_the_parent(self, db, owner, storage, tmp_path, monkeypatch):
+        legs = _legacy_group(db, owner.id, tmp_path, storage, monkeypatch)
+        assert all(file_storage.get_activity_file(leg, storage) is not None for leg in legs)
+
+        migration_service.reprocess_activity(legs[3], storage)
+
+        parent_id = _parent_of(db, legs[0])
+        assert parent_id is not None
+        stored = file_storage.get_activity_file(parent_id, storage)
+        assert stored is not None
+        assert stored[0] == f"{parent_id}.fit"
+        assert stored[1] == _TRIATHLON.read_bytes()
+        assert all(file_storage.get_activity_file(leg, storage) is None for leg in legs)
+
+    def test_the_parent_file_is_stored_before_the_group_commits(self, db, owner, storage, tmp_path, monkeypatch):
+        legs = _legacy_group(db, owner.id, tmp_path, storage, monkeypatch)
+        real = file_storage.store_activity_file
+        seen: list[tuple[uuid.UUID, int]] = []
+
+        def recording(activity_id, extension, data, provider):
+            db.expire_all()
+            parents = db.execute(
+                select(activity_models.Activity.id).where(
+                    activity_models.Activity.activity_type == activity_constants.ActivityType.MULTISPORT.stored
+                )
+            ).all()
+            seen.append((activity_id, len(parents)))
+            return real(activity_id, extension, data, provider)
+
+        monkeypatch.setattr(file_storage, "store_activity_file", recording)
+
+        migration_service.reprocess_activity(legs[0], storage)
+
+        assert [count for _, count in seen] == [0]
+        assert _parent_of(db, legs[0]) == seen[0][0]
+
+    def test_a_transaction_that_raises_leaves_no_parent_and_no_stored_file(
+        self, db, owner, storage, tmp_path, monkeypatch
+    ):
+        legs = _legacy_group(db, owner.id, tmp_path, storage, monkeypatch)
+        real = file_storage.store_activity_file
+        stored: list[uuid.UUID] = []
+
+        def recording(activity_id, extension, data, provider):
+            stored.append(activity_id)
+            return real(activity_id, extension, data, provider)
+
+        def boom(*args, **kwargs):
+            raise RuntimeError("database is down")
+
+        monkeypatch.setattr(file_storage, "store_activity_file", recording)
+        monkeypatch.setattr(activity_integration, "regroup_legs", boom)
+
+        with pytest.raises(RuntimeError, match="database is down"):
+            migration_service.reprocess_activity(legs[0], storage)
+
+        assert len(stored) == 1
+        assert file_storage.get_activity_file(stored[0], storage) is None
+        assert {_parent_of(db, leg) for leg in legs} == {None}
+        assert all(file_storage.get_activity_file(leg, storage) is not None for leg in legs)
+
+    def test_a_regroup_that_stages_nothing_removes_the_stored_file(self, db, owner, storage, tmp_path, monkeypatch):
+        legs = _legacy_group(db, owner.id, tmp_path, storage, monkeypatch)
+        taken = make_activity(db, owner.id, start_time=_OLD, end_time=_OLD + timedelta(hours=1))
+        _set(db, [taken.id], dedup_key=f"file:{_SHA}")
+        real = file_storage.store_activity_file
+        stored: list[uuid.UUID] = []
+
+        def recording(activity_id, extension, data, provider):
+            stored.append(activity_id)
+            return real(activity_id, extension, data, provider)
+
+        monkeypatch.setattr(file_storage, "store_activity_file", recording)
+
+        outcome = migration_service.reprocess_activity(legs[0], storage)
+
+        assert outcome is migration_service.ReprocessOutcome.REPROCESSED
+        assert len(stored) == 1
+        assert file_storage.get_activity_file(stored[0], storage) is None
+        assert all(file_storage.get_activity_file(leg, storage) is not None for leg in legs)
+
+    def test_a_second_run_changes_nothing_on_a_leg_or_the_parent(self, db, owner, storage, tmp_path, monkeypatch):
+        legs = _legacy_group(db, owner.id, tmp_path, storage, monkeypatch)
+        migration_service.reprocess_activity(legs[0], storage)
+        parent_id = _parent_of(db, legs[0])
+        assert parent_id is not None
+        everything = (parent_id, *legs)
+        before = {activity_id: _all_columns(db, activity_id) for activity_id in everything}
+        children = {activity_id: _children(db, activity_id) for activity_id in everything}
+        ids_before = set(db.execute(select(activity_models.Activity.id)).scalars())
+
+        for leg in legs:
+            migration_service.reprocess_activity(leg, storage)
+        parent_outcome = migration_service.reprocess_activity(parent_id, storage)
+
+        assert parent_outcome is migration_service.ReprocessOutcome.REPROCESSED
+        after = {activity_id: _all_columns(db, activity_id) for activity_id in everything}
+        for activity_id in everything:
+            assert {k: v for k, v in after[activity_id].items() if k != "updated_at"} == {
+                k: v for k, v in before[activity_id].items() if k != "updated_at"
+            }
+            assert _children(db, activity_id) == children[activity_id]
+        assert set(db.execute(select(activity_models.Activity.id)).scalars()) == ids_before
+
+    def test_profile_restored_legs_without_a_dedup_key_regroup_by_the_file_hash(
+        self, db, owner, storage, tmp_path, monkeypatch
+    ):
+        legs = _legacy_group(db, owner.id, tmp_path, storage, monkeypatch)
+        _set(db, legs, dedup_key=None)
+
+        outcome = migration_service.reprocess_activity(legs[1], storage)
+
+        assert outcome is migration_service.ReprocessOutcome.REPROCESSED
+        parent_id = _parent_of(db, legs[0])
+        assert parent_id is not None
+        assert {_parent_of(db, leg) for leg in legs} == {parent_id}
+        assert _row(db, parent_id).dedup_key == f"file:{_SHA}"
+
+    def test_a_garmin_legacy_group_gets_the_garmin_key_and_id(self, db, owner, storage, tmp_path, monkeypatch):
+        legs = _legacy_group(db, owner.id, tmp_path, storage, monkeypatch)
+        for leg in legs:
+            _set(
+                db,
+                [leg],
+                garminconnect_activity_id=987654321,
+                dedup_key=f"garmin:987654321:{int(_row(db, leg).start_time.timestamp())}",
+            )
+
+        migration_service.reprocess_activity(legs[0], storage)
+
+        parent = _row(db, _parent_of(db, legs[0]))
+        assert parent.dedup_key == "garmin:987654321"
+        assert parent.garminconnect_activity_id == 987654321
+
+    def test_a_different_file_with_the_same_start_times_is_not_grouped(self, db, owner, storage, tmp_path, monkeypatch):
+        legs = _legacy_group(db, owner.id, tmp_path, storage, monkeypatch)
+        file_storage.store_activity_file(legs[3], ".fit", b"another recording", storage)
+
+        outcome = migration_service.reprocess_activity(legs[0], storage)
+
+        assert outcome is migration_service.ReprocessOutcome.REPROCESSED
+        assert {_parent_of(db, leg) for leg in legs} == {None}
+        assert all(file_storage.get_activity_file(leg, storage) is not None for leg in legs)
+
+    def test_another_users_activity_with_the_same_file_is_not_a_sibling(
+        self, db, owner, other, storage, tmp_path, monkeypatch
+    ):
+        legs = _legacy_group(db, owner.id, tmp_path, storage, monkeypatch)
+        others = _legacy_group(db, other.id, tmp_path, storage, monkeypatch)
+
+        migration_service.reprocess_activity(legs[0], storage)
+
+        parent_id = _parent_of(db, legs[0])
+        assert {_parent_of(db, leg) for leg in legs} == {parent_id}
+        assert {_parent_of(db, leg) for leg in others} == {None}
+
+    def test_a_parent_key_that_is_already_stored_means_no_regroup(self, db, owner, storage, tmp_path, monkeypatch):
+        legs = _legacy_group(db, owner.id, tmp_path, storage, monkeypatch)
+        taken = make_activity(db, owner.id, start_time=_OLD, end_time=_OLD + timedelta(hours=1))
+        _set(db, [taken.id], dedup_key=f"file:{_SHA}")
+
+        outcome = migration_service.reprocess_activity(legs[0], storage)
+
+        assert outcome is migration_service.ReprocessOutcome.REPROCESSED
+        assert {_parent_of(db, leg) for leg in legs} == {None}
+
+    def test_publishes_no_event(self, db, owner, storage, tmp_path, monkeypatch, published):
+        legs = _legacy_group(db, owner.id, tmp_path, storage, monkeypatch)
+        published.reset_mock()
+
+        migration_service.reprocess_activity(legs[0], storage)
+
+        published.assert_not_called()
