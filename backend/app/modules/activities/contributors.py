@@ -40,6 +40,21 @@ class PersistActivityComponent(Protocol):
         """
 
 
+class ClearActivityComponent(Protocol):
+    """Stage the removal of one component of an activity, so a reprocess can store it again.
+
+    The caller owns the transaction.
+    """
+
+    def __call__(self, activity_id: uuid.UUID, db: Session) -> None:
+        """Stage the removal of every row of the component the activity has.
+
+        Args:
+            activity_id: ID of the activity.
+            db: Database session.
+        """
+
+
 class PersistFileComponent(Protocol):
     """Persist one file-scoped parsed component."""
 
@@ -157,6 +172,7 @@ class ActivityIngestionContributor:
 
     key: str
     persist: PersistActivityComponent
+    clear: ClearActivityComponent
 
 
 @dataclass(frozen=True, slots=True)
@@ -223,6 +239,7 @@ def child_ingestion_contributor[R](
     key: str,
     payload: TypeAdapter[R],
     store: StoreChildRecords[R],
+    clear: ClearActivityComponent,
 ) -> ActivityIngestionContributor:
     """Build the ingestion contribution for a plain child collection.
 
@@ -230,6 +247,7 @@ def child_ingestion_contributor[R](
         key: The parsed component key the contribution persists.
         payload: The shape of the parsed rows ``store`` takes.
         store: Stages the parsed rows for an activity.
+        clear: Stages the removal of the activity's rows.
 
     Returns:
         The contributor.
@@ -248,7 +266,7 @@ def child_ingestion_contributor[R](
         """
         store(payload.validate_python(data), activity.id, db)
 
-    return ActivityIngestionContributor(key=key, persist=persist)
+    return ActivityIngestionContributor(key=key, persist=persist, clear=clear)
 
 
 def child_profile_contributor[R](

@@ -77,7 +77,10 @@ def ingestion_contributor() -> activities_contributors.ActivityIngestionContribu
         The contributor.
     """
     return activities_contributors.child_ingestion_contributor(
-        key="workout_steps", payload=_PAYLOAD, store=_store_workout_steps
+        key="workout_steps",
+        payload=_PAYLOAD,
+        store=_store_workout_steps,
+        clear=activity_workout_steps_crud.delete_activity_workout_steps,
     )
 
 

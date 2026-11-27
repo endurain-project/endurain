@@ -71,7 +71,12 @@ def ingestion_contributor() -> activities_contributors.ActivityIngestionContribu
     Returns:
         The contributor.
     """
-    return activities_contributors.child_ingestion_contributor(key="laps", payload=_PAYLOAD, store=_store_laps)
+    return activities_contributors.child_ingestion_contributor(
+        key="laps",
+        payload=_PAYLOAD,
+        store=_store_laps,
+        clear=activity_laps_crud.delete_activity_laps,
+    )
 
 
 def profile_contributor() -> activities_contributors.ProfileActivityContributor:

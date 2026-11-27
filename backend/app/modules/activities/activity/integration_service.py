@@ -349,6 +349,43 @@ def get_leg_ids_by_parent(parent_ids: Sequence[uuid.UUID], db: Session) -> dict[
     return activity_crud.get_leg_ids_by_parent(parent_ids, db)
 
 
+def get_activity(activity_id: uuid.UUID, db: Session) -> activity_schema.ActivityRead | None:
+    """Return an activity without a permission check, for a system-level caller that has no requester.
+
+    Args:
+        activity_id: ID of the activity.
+        db: Database session.
+
+    Returns:
+        The activity, or ``None`` when it does not exist.
+    """
+    return activity_crud.get_activity_by_id(activity_id, db)
+
+
+def apply_reprocessed_analysis(
+    activity_id: uuid.UUID,
+    parsed: activity_contracts.ActivityCore,
+    analysis_version: int,
+    db: Session,
+) -> bool:
+    """Stage the values a fresh analysis of the activity's file computed, and stamp the analysis version.
+
+    Only the derived columns are written: whatever the owner, a provider or geocoding owns stays as it is, and
+    ``version`` does not change. Publishes no event: the activity is not new and nothing the owner edited moved,
+    and the thumbnail backfill re-renders a map whose key the reprocess cleared. The caller commits.
+
+    Args:
+        activity_id: ID of the activity.
+        parsed: The activity as the analysis parsed it; its ``user_id`` must be the activity's owner.
+        analysis_version: The version of the analysis that computed the values.
+        db: Database session.
+
+    Returns:
+        True when the owner's activity exists and was updated, False otherwise.
+    """
+    return activity_crud.update_derived_values(activity_id, parsed, analysis_version, db)
+
+
 def resolve_readable_parent(
     activity_id: uuid.UUID,
     requester_user_id: uuid.UUID,

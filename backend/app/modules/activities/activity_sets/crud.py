@@ -3,7 +3,7 @@
 import uuid
 from collections.abc import Sequence
 
-from sqlalchemy import func, select
+from sqlalchemy import delete, func, select
 from sqlalchemy.orm import Session
 
 import modules.activities.activity_sets.contracts as activity_sets_contracts
@@ -106,4 +106,17 @@ def create_activity_sets(
     sets = [activity_sets_serializers.to_orm(activity_set, activity_id) for activity_set in activity_sets]
 
     db.add_all(sets)
+    db.flush()
+
+
+def delete_activity_sets(activity_id: uuid.UUID, db: Session) -> None:
+    """Stage the removal of every set of an activity (flushed, not committed).
+
+    Args:
+        activity_id: The parent activity ID.
+        db: Database session.
+    """
+    db.execute(
+        delete(activity_sets_models.ActivitySets).where(activity_sets_models.ActivitySets.activity_id == activity_id)
+    )
     db.flush()

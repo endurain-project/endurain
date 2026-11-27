@@ -2,7 +2,7 @@
 
 import uuid
 
-from sqlalchemy import func, select
+from sqlalchemy import delete, func, select
 from sqlalchemy.orm import Session
 
 import modules.activities.activity_workout_steps.contracts as activity_workout_steps_contracts
@@ -108,4 +108,19 @@ def create_activity_workout_steps(
     workout_steps = [activity_workout_steps_serializers.to_orm(step, activity_id) for step in activity_workout_steps]
 
     db.add_all(workout_steps)
+    db.flush()
+
+
+def delete_activity_workout_steps(activity_id: uuid.UUID, db: Session) -> None:
+    """Stage the removal of every workout step of an activity (flushed, not committed).
+
+    Args:
+        activity_id: The parent activity ID.
+        db: Database session.
+    """
+    db.execute(
+        delete(activity_workout_steps_models.ActivityWorkoutSteps).where(
+            activity_workout_steps_models.ActivityWorkoutSteps.activity_id == activity_id
+        )
+    )
     db.flush()

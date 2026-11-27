@@ -216,6 +216,34 @@ PRIVACY_FIELDS = frozenset(
     }
 )
 
+#: The activity columns a file analysis computes, which a reprocess rewrites. Everything else is the owner's
+#: (``ActivityEdit``), a provider's (ids), geocoding's (city, town, country) or fixed at import (start time, owner).
+DERIVED_FIELDS = (
+    "distance",
+    "end_time",
+    "timezone",
+    "total_elapsed_time",
+    "total_timer_time",
+    "elevation_gain",
+    "elevation_loss",
+    "pace",
+    "average_speed",
+    "max_speed",
+    "average_power",
+    "max_power",
+    "normalized_power",
+    "average_hr",
+    "max_hr",
+    "average_cad",
+    "max_cad",
+    "workout_feeling",
+    "workout_rpe",
+    "calories",
+    "tracker_manufacturer",
+    "tracker_model",
+    "total_cycles",
+)
+
 #: The earliest year a yearly summary may be requested for.
 MIN_SUMMARY_YEAR = 1900
 

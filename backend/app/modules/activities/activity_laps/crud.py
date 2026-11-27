@@ -3,7 +3,7 @@
 import uuid
 from collections.abc import Mapping, Sequence
 
-from sqlalchemy import func, select
+from sqlalchemy import delete, func, select
 from sqlalchemy.orm import Session
 
 import modules.activities.activity_laps.models as activity_laps_models
@@ -104,4 +104,17 @@ def create_activity_laps(
     laps = [activity_laps_serializers.to_orm(lap, activity_id) for lap in activity_laps]
 
     db.add_all(laps)
+    db.flush()
+
+
+def delete_activity_laps(activity_id: uuid.UUID, db: Session) -> None:
+    """Stage the removal of every lap of an activity (flushed, not committed).
+
+    Args:
+        activity_id: The parent activity ID.
+        db: Database session.
+    """
+    db.execute(
+        delete(activity_laps_models.ActivityLaps).where(activity_laps_models.ActivityLaps.activity_id == activity_id)
+    )
     db.flush()

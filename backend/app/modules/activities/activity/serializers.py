@@ -23,6 +23,7 @@ from sqlalchemy import func
 import core.sanitization as core_sanitization
 import core.stored_enum as core_stored_enum
 import core.timezone as core_timezone
+import modules.activities.activity.constants as activity_constants
 import modules.activities.activity.contracts as activity_contracts
 import modules.activities.activity.models as activity_models
 import modules.activities.activity.schema as activity_schema
@@ -255,3 +256,21 @@ def to_orm(
     )
 
     return new_activity
+
+
+def to_derived_values(activity: activity_contracts.ActivityCore) -> dict[str, object]:
+    """Pick the columns a file analysis computes from a freshly parsed activity.
+
+    The same conversions as :func:`to_orm`, for the columns a reprocess rewrites in place.
+
+    Args:
+        activity: The parsed activity.
+
+    Returns:
+        The value of each column in :data:`~modules.activities.activity.constants.DERIVED_FIELDS`.
+    """
+    values: dict[str, object] = {field: getattr(activity, field) for field in activity_constants.DERIVED_FIELDS}
+    values["end_time"] = core_timezone.to_utc_aware(activity.end_time)
+    if activity.total_timer_time is None:
+        values["total_timer_time"] = activity.total_elapsed_time
+    return values

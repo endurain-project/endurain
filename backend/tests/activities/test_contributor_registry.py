@@ -19,9 +19,9 @@ def _reset_contributors():
 
 def test_duplicate_key_replaces_in_place() -> None:
     """A same-key registration is idempotent and keeps deterministic order."""
-    first = contributors.ActivityIngestionContributor("streams", MagicMock())
-    laps = contributors.ActivityIngestionContributor("laps", MagicMock())
-    replacement = contributors.ActivityIngestionContributor("streams", MagicMock())
+    first = contributors.ActivityIngestionContributor("streams", MagicMock(), MagicMock())
+    laps = contributors.ActivityIngestionContributor("laps", MagicMock(), MagicMock())
+    replacement = contributors.ActivityIngestionContributor("streams", MagicMock(), MagicMock())
 
     contributor_registry.register_activity_ingestion(first)
     contributor_registry.register_activity_ingestion(laps)
@@ -33,7 +33,7 @@ def test_duplicate_key_replaces_in_place() -> None:
 
 def test_all_contributor_kinds_have_ordered_accessors() -> None:
     """Each contributor kind preserves registration order independently."""
-    activity = contributors.ActivityIngestionContributor("laps", MagicMock())
+    activity = contributors.ActivityIngestionContributor("laps", MagicMock(), MagicMock())
     file = contributors.FileIngestionContributor("exercise_titles", MagicMock())
     profile_activity = contributors.ProfileActivityContributor(
         "media",
@@ -66,7 +66,9 @@ def test_all_contributor_kinds_have_ordered_accessors() -> None:
 
 def test_clear_removes_every_contributor_kind() -> None:
     """Composition reset removes contributors from all four registries."""
-    contributor_registry.register_activity_ingestion(contributors.ActivityIngestionContributor("laps", MagicMock()))
+    contributor_registry.register_activity_ingestion(
+        contributors.ActivityIngestionContributor("laps", MagicMock(), MagicMock())
+    )
     contributor_registry.register_file_ingestion(contributors.FileIngestionContributor("exercise_titles", MagicMock()))
 
     contributor_registry.mark_profile_installed()

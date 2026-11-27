@@ -3,7 +3,7 @@
 import uuid
 from typing import Any
 
-from sqlalchemy import select
+from sqlalchemy import delete, select
 from sqlalchemy.orm import Session
 
 import core.logger as core_logger
@@ -163,3 +163,18 @@ def create_activity_streams(
     if streams:
         db.add_all(streams)
         db.flush()
+
+
+def delete_activity_streams(activity_id: uuid.UUID, db: Session) -> None:
+    """Stage the removal of every stream of an activity (flushed, not committed).
+
+    Args:
+        activity_id: The parent activity ID.
+        db: Database session.
+    """
+    db.execute(
+        delete(activity_streams_models.ActivityStreams).where(
+            activity_streams_models.ActivityStreams.activity_id == activity_id
+        )
+    )
+    db.flush()

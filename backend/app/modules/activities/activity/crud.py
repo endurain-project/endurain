@@ -1303,6 +1303,37 @@ def set_activity_thumbnail_key(
     return True
 
 
+def update_derived_values(
+    activity_id: uuid.UUID,
+    parsed: activity_contracts.ActivityCore,
+    analysis_version: int,
+    db: Session,
+) -> bool:
+    """Stage the columns a file analysis computed and the version of that analysis.
+
+    Derived values, so they are written with a Core ``UPDATE`` that leaves ``version`` alone: a client mid-edit
+    keeps a valid ``ETag``. ``updated_at`` is stamped, so a syncing client refetches.
+
+    Args:
+        activity_id: Target activity ID.
+        parsed: The activity as the analysis parsed it. Only its derived columns are written, and its ``user_id``
+            must be the activity's owner, so another user's activity is never written.
+        analysis_version: The version of the analysis that computed them.
+        db: Database session.
+
+    Returns:
+        True when the owner's activity exists and was updated, False otherwise.
+    """
+    matched = core_database.rowcount(
+        db,
+        sa_update(activity_models.Activity)
+        .where(activity_models.Activity.id == activity_id, activity_models.Activity.user_id == parsed.user_id)
+        .values(**activity_serializers.to_derived_values(parsed), analysis_version=analysis_version),
+    )
+    db.flush()
+    return matched > 0
+
+
 def update_activity_location(
     activity_id: uuid.UUID,
     city: str | None,

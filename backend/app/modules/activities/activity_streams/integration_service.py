@@ -89,6 +89,7 @@ def ingestion_contributor() -> activities_contributors.ActivityIngestionContribu
     return activities_contributors.ActivityIngestionContributor(
         key="streams",
         persist=_persist_ingestion_component,
+        clear=activity_streams_crud.delete_activity_streams,
     )
 
 
