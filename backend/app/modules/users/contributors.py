@@ -26,6 +26,10 @@ NotificationsEraser = Callable[[uuid.UUID, Session], None]
 #: runs after the deletion is committed, so it logs a failure instead of raising.
 StagedFilesEraser = Callable[[uuid.UUID, platform_providers.StorageProvider], None]
 
+#: ``(user_id, storage)`` -> removes the files other modules keep for the user, and the rows that name them. Runs
+#: before the user row is deleted, so a failure propagates and the deletion runs again.
+OwnedFilesEraser = Callable[[uuid.UUID, platform_providers.StorageProvider], None]
+
 #: ``(user_id, db)`` -> stages the per-user rows other modules keep for a newly created user and returns what
 #: it staged; never commits, so the rows land in the creating transaction.
 NewUserStager = Callable[[uuid.UUID, Session], object]
@@ -61,12 +65,14 @@ class UserErasers:
     Attributes:
         delete_activities: Stages the deletion of a batch of a user's activities and their stored files.
         delete_notifications: Stages the deletion of the notifications, owned by anyone, that name the user.
+        delete_activity_files: Removes the user's retained activity files and their rows, once the activities are gone.
         delete_staged_files: Removes the archives staged for the user's profile export and imports.
         delete_bulk_import_errors: Removes the failed bulk-import files kept for the user.
     """
 
     delete_activities: ActivitiesEraser
     delete_notifications: NotificationsEraser
+    delete_activity_files: OwnedFilesEraser
     delete_staged_files: StagedFilesEraser
     delete_bulk_import_errors: StagedFilesEraser
 

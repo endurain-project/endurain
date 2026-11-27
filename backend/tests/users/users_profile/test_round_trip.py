@@ -78,6 +78,7 @@ import modules.users.users_profile.exceptions as profile_exceptions
 import modules.users.users_profile.export_service as profile_export_service
 import modules.users.users_profile.import_service as profile_import_service
 import modules.users.users_profile.service as profile_service
+from tests._factories.ingestion import retain_file
 from tests._factories.users import make_user
 
 #: The checked-in archive of an export written by a UUID-era release, which the import accepts.
@@ -291,7 +292,9 @@ def _seed_activities(
         )
         storage.save(media_constants.MEDIA_STORAGE_AREA, media_key, blob)
         if index != 1:
-            activity_file_storage_integration.store_activity_file(activity_id, ".gpx", _GPX, storage)
+            # Committed first: two activities with the same file take one row, and the second stage must see the first.
+            db.commit()
+            retain_file(user_id, activity_id, _GPX, storage, extension=".gpx")
 
 
 def _seed_health(db: Session, user_id: uuid.UUID) -> None:
@@ -415,7 +418,11 @@ def _import(
 
 
 def _wipe(factory: sessionmaker[Session], storage: platform_providers.StorageProvider, user_id: uuid.UUID) -> None:
-    """Delete the account's rows through the database cascade and every blob the account owned."""
+    """Delete the account's rows and every blob the account owned, activities and files first as erasure does."""
+    with factory() as db:
+        db.execute(text("DELETE FROM activities WHERE user_id = :id"), {"id": user_id})
+        db.commit()
+    activity_file_storage_integration.erase_user_files(user_id, storage)
     with factory() as db:
         users_crud.delete_user(user_id, db)
         db.commit()

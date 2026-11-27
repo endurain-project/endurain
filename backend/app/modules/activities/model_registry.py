@@ -2,6 +2,7 @@
 
 import modules.activities.activity.model_registry as activity_model_registry
 import modules.activities.activity_exercise_titles.model_registry as activity_exercise_titles_model_registry
+import modules.activities.activity_file_storage.model_registry as activity_file_storage_model_registry
 import modules.activities.activity_ingestion.model_registry as activity_ingestion_model_registry
 import modules.activities.activity_laps.model_registry as activity_laps_model_registry
 import modules.activities.activity_media.model_registry as activity_media_model_registry
@@ -12,6 +13,7 @@ import modules.activities.activity_workout_steps.model_registry as activity_work
 MODEL_MODULES = (
     *activity_model_registry.MODEL_MODULES,
     *activity_exercise_titles_model_registry.MODEL_MODULES,
+    *activity_file_storage_model_registry.MODEL_MODULES,
     *activity_ingestion_model_registry.MODEL_MODULES,
     *activity_laps_model_registry.MODEL_MODULES,
     *activity_media_model_registry.MODEL_MODULES,

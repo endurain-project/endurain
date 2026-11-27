@@ -14,7 +14,8 @@ import modules.activities.activity.crud as activity_crud
 import modules.activities.activity.models as activity_models
 import modules.activities.activity.scheduled_jobs as activity_scheduled_jobs
 import modules.activities.activity.schema as activity_schema
-from tests._factories.activities import make_activity, make_activity_at
+import modules.activities.activity_file_storage.models as file_models
+from tests._factories.activities import make_activity, make_activity_at, make_multisport
 from tests._factories.gears import make_gear
 from tests._factories.users import make_user
 
@@ -256,7 +257,7 @@ class TestDelete:
 
         deleted = activity_crud.delete_all_strava_activities_for_user(owner.id, db, limit=10)
 
-        assert sorted(deleted) == sorted(synced)
+        assert sorted(item.id for item in deleted) == sorted(synced)
         assert {kept, theirs} <= set(db.scalars(select(activity_models.Activity.id)).all())
         assert sorted(db.scalars(select(activity_models.ActivityDeletion.record_id)).all()) == sorted(synced)
 
@@ -268,7 +269,7 @@ class TestDelete:
         third = activity_crud.delete_activities_batch_for_user(owner.id, 2, db)
 
         assert (len(first), len(second), third) == (2, 1, [])
-        assert sorted(first + second) == sorted(ids)
+        assert sorted(item.id for item in first + second) == sorted(ids)
         assert activity_crud.delete_all_strava_activities_for_user(owner.id, db, limit=5) == []
 
     def test_a_batch_holds_its_limit_when_postgresql_runs_the_lookup_once_per_row(self, db, owner):
@@ -280,7 +281,7 @@ class TestDelete:
 
         first = activity_crud.delete_activities_batch_for_user(owner.id, 2, db)
 
-        assert (len(first), set(first) <= set(ids)) == (2, True)
+        assert (len(first), {item.id for item in first} <= set(ids)) == (2, True)
         assert (
             len(
                 db.scalars(
@@ -289,6 +290,55 @@ class TestDelete:
             )
             == 1
         )
+
+
+def _file_row(db, user_id) -> uuid.UUID:
+    """Stage a retained file row for a user and return its id."""
+    row = file_models.ActivityFile(
+        user_id=user_id,
+        sha256=uuid.uuid4().hex + uuid.uuid4().hex,
+        storage_key=f"files/{uuid.uuid4()}.fit",
+        extension=".fit",
+        size_bytes=1,
+        state="attached",
+    )
+    db.add(row)
+    db.flush()
+    return row.id
+
+
+class TestDeleteNamesTheRetainedFile:
+    def test_a_deleted_activity_is_returned_with_its_file_and_its_legs_with_none(self, db, owner):
+        parent, legs = make_multisport(db, owner.id)
+        file_id = _file_row(db, owner.id)
+        db.execute(
+            update(activity_models.Activity).where(activity_models.Activity.id == parent.id).values(file_id=file_id)
+        )
+        db.flush()
+        db.expire_all()
+
+        deleted = activity_crud.delete_activity(parent.id, owner.id, db, if_match="*")
+
+        assert deleted[0] == activity_contracts.DeletedActivity(parent.id, file_id)
+        assert sorted(deleted[1:]) == sorted(activity_contracts.DeletedActivity(leg.id, None) for leg in legs)
+
+    def test_the_bulk_deletes_return_each_activitys_file(self, db, owner):
+        strava = make_activity_at(db, owner.id, _NOW, strava_activity_id=7).id
+        plain = make_activity_at(db, owner.id, _NOW + timedelta(days=1)).id
+        files = {strava: _file_row(db, owner.id), plain: _file_row(db, owner.id)}
+        for activity_id, file_id in files.items():
+            db.execute(
+                update(activity_models.Activity)
+                .where(activity_models.Activity.id == activity_id)
+                .values(file_id=file_id)
+            )
+        db.flush()
+
+        from_strava = activity_crud.delete_all_strava_activities_for_user(owner.id, db, limit=10)
+        from_account = activity_crud.delete_activities_batch_for_user(owner.id, 10, db)
+
+        assert from_strava == [activity_contracts.DeletedActivity(strava, files[strava])]
+        assert from_account == [activity_contracts.DeletedActivity(plain, files[plain])]
 
 
 class TestBulkWrites:

@@ -1,4 +1,4 @@
-"""The ingestion pipeline: validate -> parse -> enrich -> store -> retain.
+"""The ingestion pipeline: validate -> parse -> enrich -> retain -> store.
 
 One path, shared by every source. The entry points in :mod:`upload_entry_service`,
 :mod:`provider_entry_service` and :mod:`bulk_import_service` differ only in how they
@@ -20,6 +20,7 @@ import-linter contracts.
 """
 
 import contextlib
+import dataclasses
 import gzip
 import os
 import uuid
@@ -121,40 +122,98 @@ def parse_file(
         raise core_exceptions.ProcessingError() from err
 
 
-def _retain_source_file(
-    file_path: str,
-    file_extension: str,
-    activity_ids: list[uuid.UUID],
-    storage: platform_providers.StorageProvider,
-) -> None:
-    """Persist the source file against each activity the athlete sees from it, then consume it.
+class _RetainedFile:
+    """The source file of one ingestion, staged as a retained file row when the first activity is about to be stored.
 
-    Written through the platform ``StorageProvider`` — the same abstraction
-    thumbnails use — so file-based ingestion works unchanged on local disk or
-    object storage instead of being pinned to this node's disk. Each activity owns
-    its own copy keyed by id, so its lifecycle (profile export, deletion) is
-    independent, including the several activities parsed from a single
-    multi-activity ``.fit``. The legs of a multisport file have no copy: the
-    file is kept once, under their parent.
+    Staging waits for the first activity that will be stored, so a file that yields nothing, or whose activities a
+    bulk source skips, leaves no row. One row serves every activity of a multi-activity file.
 
-    Args:
-        file_path: The parsed file on disk. Removed afterwards.
-        file_extension: The file's extension, used for the stored object's name.
-        activity_ids: IDs of the top-level activities stored from the file.
-        storage: The blob-storage provider the file is retained in.
+    Attributes:
+        file_id: The staged row's id, ``None`` until :meth:`stage` ran.
+        created: Whether this ingestion created the row.
+        attached: Whether an activity of this ingestion references the row.
     """
-    if activity_ids:
-        with open(file_path, "rb") as source_file:
-            file_bytes = source_file.read()
-        activity_file_storage_integration.store_activity_file_for_ids(
-            activity_ids,
-            file_extension,
-            file_bytes,
-            storage,
-        )
 
-    with contextlib.suppress(OSError):
-        os.remove(file_path)
+    def __init__(
+        self,
+        user_id: uuid.UUID,
+        file_path: str,
+        file_extension: str,
+        sha256: str,
+        storage: platform_providers.StorageProvider,
+    ) -> None:
+        """Describe the file to stage.
+
+        Args:
+            user_id: The owner.
+            file_path: The parsed file on disk.
+            file_extension: The file's extension, e.g. ``".fit"``.
+            sha256: Hex SHA-256 of the file.
+            storage: The blob-storage provider.
+        """
+        self._user_id = user_id
+        self._file_path = file_path
+        self._file_extension = file_extension
+        self._sha256 = sha256
+        self._storage = storage
+        self.file_id: uuid.UUID | None = None
+        self.created = False
+        self.attached = False
+
+    def stage(self, db: Session) -> uuid.UUID:
+        """Return the file row's id, staging the row and storing the blob on the first call.
+
+        Args:
+            db: The ingestion's session; its open transaction ends first, so no session is open across the blob write.
+
+        Returns:
+            The file row's id.
+        """
+        if self.file_id is None:
+            db.commit()
+            with open(self._file_path, "rb") as source_file:
+                file_bytes = source_file.read()
+            staged = activity_file_storage_integration.stage_file(
+                self._user_id, self._sha256, self._file_extension, file_bytes, self._storage
+            )
+            self.file_id = staged.ref.file_id
+            self.created = staged.created
+            logger.debug(
+                "Staged the source file of an ingestion",
+                extra=core_logger.context(file_id=self.file_id, user_id=self._user_id, created=self.created),
+            )
+        return self.file_id
+
+    def attach_if_referenced(self, db: Session) -> None:
+        """Mark the row attached when an activity staged in this transaction references it.
+
+        A duplicate import stages no activity, so it leaves the row as it found it.
+
+        Args:
+            db: The ingestion's session, in the transaction that stored the activity.
+        """
+        if self.file_id is not None and activity_integration.filter_referenced_file_ids([self.file_id], db):
+            activity_file_storage_integration.mark_attached(self.file_id, db)
+            self.attached = True
+
+    def release_if_unused(self, db: Session) -> None:
+        """Remove the row this ingestion created when no activity ended up referencing it.
+
+        Args:
+            db: The ingestion's session; its open transaction ends first.
+        """
+        if self.file_id is not None and self.created and not self.attached:
+            db.commit()
+            activity_file_storage_integration.release_unattached(self.file_id, self._storage)
+            logger.debug(
+                "Released the source file of an ingestion that stored no activity",
+                extra=core_logger.context(file_id=self.file_id, user_id=self._user_id),
+            )
+
+    def consume(self) -> None:
+        """Remove the file from disk, now that it is stored or not wanted."""
+        with contextlib.suppress(OSError):
+            os.remove(self._file_path)
 
 
 def store_activities_from_file(
@@ -272,10 +331,12 @@ def store_activities_from_file(
     # provider activity id, so their stable identity for idempotency is the
     # SHA-256 of the (already-decompressed) file. Garmin syncs key off the
     # provider id instead, so skip the hash there.
+    file_sha256 = core_file_uploads.sha256_file(file_path)
     import_source = activity_contracts.ImportSource(
         kind=source.kind,
-        content_hash=None if garmin_source else core_file_uploads.sha256_file(file_path),
+        content_hash=None if garmin_source else file_sha256,
     )
+    retained = _RetainedFile(token_user_id, file_path, file_extension, file_sha256, storage)
     garmin_activity_id = garmin_source.activity_id if garmin_source else None
 
     def enrich(
@@ -317,11 +378,12 @@ def store_activities_from_file(
         ):
             if bulk_source is not None:
                 bulk_source.apply_metadata(parent.activity, activity_metadata)
-            parent.source = import_source
+            parent.source = dataclasses.replace(import_source, retained_file_id=retained.stage(db))
             for leg in parsed_file.activities:
                 leg.source = import_source
             created_activities = activity_integration.store_parsed_group(parent, parsed_file.activities, db)
-            # One commit per group: the parent, its legs and their events land together.
+            retained.attach_if_referenced(db)
+            # One commit per group: the parent, its legs, the file's attachment and their events land together.
             db.commit()
     else:
         # Read through the narrowed source rather than a separate boolean: only ``GarminSource`` carries gear.
@@ -342,18 +404,15 @@ def store_activities_from_file(
                     continue
                 bulk_source.apply_metadata(parsed.activity, activity_metadata)
 
-            parsed.source = import_source
+            parsed.source = dataclasses.replace(import_source, retained_file_id=retained.stage(db))
             created_activities.append(activity_integration.store_parsed_activity(parsed, db))
-            # One commit per activity: the row, its components and the event land
-            # together, and a later file failing does not undo this one.
+            retained.attach_if_referenced(db)
+            # One commit per activity: the row, its components, the file's attachment and the event
+            # land together, and a later file failing does not undo this one.
             db.commit()
 
-    _retain_source_file(
-        file_path,
-        file_extension,
-        [activity.id for activity in created_activities if activity.id is not None],
-        storage,
-    )
+    retained.release_if_unused(db)
+    retained.consume()
 
     if bulk_source is not None:
         _finish_bulk_import_file(bulk_source, created_activities, file_base_name, db)

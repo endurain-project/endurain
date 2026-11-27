@@ -2,13 +2,13 @@
 
 Mirrors the thumbnail cleanup subscriber: a durable ``*_for_event`` core that
 **raises** so the durable-job runner can retry, and an ``on_*`` bus subscriber
-that **swallows** so a cleanup failure never breaks activity deletion. The
-storage key is derived from the activity id, so the already-deleted row is not
-needed and the delete is idempotent (safe when no file was ever retained).
+that **swallows** so a cleanup failure never breaks activity deletion. The event
+names the file row the deleted activity referenced; the file is removed unless
+another activity references it. An activity with no file row (its file was
+stored before rows existed) has its file deleted by activity id.
 
-The reconciliation net is a storage-side sweep (:mod:`scheduled_jobs`): once the
-activity row is gone nothing names the retained file, so it is found by scanning
-the area for keys whose activity no longer exists.
+The reconciliation net is a database sweep (:mod:`scheduled_jobs`): it finds the
+rows a lost event or a crash left ``pending``, unreferenced or ``deleting``.
 """
 
 import jasil.event_versioning as platform_event_versioning
@@ -21,6 +21,7 @@ from jasil.subscribers import best_effort
 import core.logger as core_logger
 import modules.activities.activity.events as activity_events
 import modules.activities.activity_file_storage.files as activity_file_storage_files
+import modules.activities.activity_file_storage.service as activity_file_storage_service
 
 logger = core_logger.get_logger(__name__)
 
@@ -33,18 +34,20 @@ def cleanup_activity_file_for_event(event: Event) -> None:
     """Delete a deleted activity's retained source file; raises on failure.
 
     The durable-job handler for ``activity.deleted``: errors propagate so the
-    runner retries. The storage key is derived from the activity id, so the
-    already-deleted row is not needed, and the delete is idempotent.
+    runner retries, and both removals are idempotent.
 
     Args:
         event: The ``activity.deleted`` event (payload ``{"activity_id": uuid}``).
     """
     payload = platform_event_versioning.parse_payload(activity_events.ActivityDeletedPayload, event)
     storage = platform_runtime.get_active_platform().storage
-    activity_file_storage_files.delete_activity_file(payload.activity_id, storage)
+    if payload.file_id is None:
+        activity_file_storage_files.delete_legacy_files(payload.activity_id, storage)
+    else:
+        activity_file_storage_service.release_unreferenced(payload.file_id, storage)
     logger.debug(
-        "Deleted retained source file for deleted activity",
-        extra=core_logger.context(activity_id=payload.activity_id),
+        "Cleaned up the retained source file of a deleted activity",
+        extra=core_logger.context(activity_id=payload.activity_id, file_id=payload.file_id),
     )
 
 

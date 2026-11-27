@@ -26,6 +26,7 @@ import modules.activities.activity.scheduled_jobs as activity_scheduled_jobs
 import modules.activities.activity.subscriber_registry as activity_subscriber_registry
 import modules.activities.activity_exercise_titles.integration_service as activity_exercise_titles_integration
 import modules.activities.activity_file_storage.constants as activity_file_storage_constants
+import modules.activities.activity_file_storage.integration_service as activity_file_storage_integration
 import modules.activities.activity_file_storage.scheduled_jobs as activity_file_storage_scheduled_jobs
 import modules.activities.activity_file_storage.subscriber_registry as activity_file_storage_subscriber_registry
 import modules.activities.activity_geocoding.scheduled_jobs as activity_geocoding_scheduled_jobs
@@ -645,6 +646,7 @@ def configure_user_contributors() -> None:
         users_contributors.UserErasers(
             delete_activities=activity_integration.delete_activities_batch_for_user,
             delete_notifications=notifications_integration.delete_notifications_naming_user,
+            delete_activity_files=activity_file_storage_integration.erase_user_files,
             delete_staged_files=users_profile_integration.delete_staged_transfers,
             delete_bulk_import_errors=activity_ingestion_integration.delete_bulk_import_errors,
         )

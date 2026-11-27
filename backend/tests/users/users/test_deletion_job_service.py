@@ -13,6 +13,7 @@ import core.config as core_config
 import core.exceptions as core_exceptions
 import core.local_pool as core_local_pool
 import modules.activities.activity.models as activity_models
+import modules.activities.activity_file_storage.integration_service as file_storage_integration
 import modules.auth.account_security.integration_service as account_security_integration
 import modules.auth.schema as auth_schema
 import modules.auth.security_generation.integration_service as security_generation_integration
@@ -29,6 +30,7 @@ import modules.users.users.models as users_models
 import modules.users.users.photo_service as users_photo_service
 import modules.users.users.subscribers as users_subscribers
 from tests._factories.activities import make_activity
+from tests._factories.ingestion import file_rows, retain_file
 from tests._factories.server_settings import edit_mail_settings
 from tests._factories.tokens import make_sign_up_token
 from tests._factories.users import PASSWORD, make_admin, make_user
@@ -367,6 +369,49 @@ class TestRunDeletion:
         assert _row(committed_sessions, user.id) is None
         assert _activity_count(committed_sessions, user.id) == 0
         assert list(platform.storage.list_keys(users_constants.USER_IMAGE_STORAGE_AREA)) == []
+
+    def test_the_retained_files_of_the_activities_and_a_crashed_upload_are_erased_before_the_row(
+        self, committed_sessions, platform, states, user
+    ):
+        with committed_sessions() as db:
+            activity = make_activity(db, user.id)
+            db.commit()
+        attached = retain_file(user.id, activity.id, b"attached", platform.storage)
+        crashed = file_storage_integration.stage_file(user.id, "f" * 64, ".fit", b"crashed", platform.storage)
+        with committed_sessions() as db:
+            bystander = make_user(db)
+            bystander_activity = make_activity(db, bystander.id)
+            db.commit()
+        kept = retain_file(bystander.id, bystander_activity.id, b"kept", platform.storage)
+        job = _queue(committed_sessions, states, user)
+
+        assert _run(platform, states, user, job) is False
+
+        assert states.get(user.id, _Kind, job_id=job.id).status == _Status.SUCCEEDED
+        assert _row(committed_sessions, user.id) is None
+        assert platform.storage.get("activity_files", f"files/{attached}.fit") is None
+        assert platform.storage.get("activity_files", crashed.ref.storage_key) is None
+        assert platform.storage.get("activity_files", f"files/{kept}.fit") == b"kept"
+        assert [row.id for row in file_rows(committed_sessions)] == [kept]
+
+    def test_a_file_storage_failure_keeps_the_user_row_so_the_deletion_runs_again(
+        self, committed_sessions, platform, states, user
+    ):
+        with committed_sessions() as db:
+            activity = make_activity(db, user.id)
+            db.commit()
+        retain_file(user.id, activity.id, b"attached", platform.storage)
+        job = _queue(committed_sessions, states, user)
+
+        def fail(_user_id, _storage) -> None:
+            raise RuntimeError("storage is down")
+
+        _erasers_with(delete_activity_files=fail)
+
+        with pytest.raises(RuntimeError, match="storage is down"):
+            _run(platform, states, user, job, will_retry=True)
+
+        assert _row(committed_sessions, user.id) is not None
 
     def test_another_users_data_is_left_alone(self, committed_sessions, platform, states, user):
         with committed_sessions() as db:

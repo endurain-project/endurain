@@ -359,6 +359,7 @@ def regroup_legs(
     db: Session,
     *,
     activity_id: uuid.UUID | None = None,
+    file_id: uuid.UUID | None = None,
 ) -> activity_schema.ActivityRead | None:
     """Stage a multisport activity over activities that were stored on their own, which become its legs.
 
@@ -370,12 +371,13 @@ def regroup_legs(
         leg_ids: The activities that become its legs.
         db: Database session.
         activity_id: The ID the parent is stored under, or ``None`` to generate one.
+        file_id: The retained source file row the parent references, or ``None``.
 
     Returns:
         The staged parent, or ``None`` when nothing was staged: a leg is gone or is no longer standalone, or the
         parent's dedup key is already stored.
     """
-    return activity_service.regroup_legs(parent, leg_ids, db, activity_id=activity_id)
+    return activity_service.regroup_legs(parent, leg_ids, db, activity_id=activity_id, file_id=file_id)
 
 
 def get_leg_ids_by_parent(parent_ids: Sequence[uuid.UUID], db: Session) -> dict[uuid.UUID, list[uuid.UUID]]:
@@ -724,6 +726,48 @@ def filter_existing_activity_ids(activity_ids: Sequence[uuid.UUID], db: Session)
         The subset of ``activity_ids`` that exist.
     """
     return activity_crud.get_existing_activity_ids(activity_ids, db)
+
+
+def get_file_ids(activity_ids: Sequence[uuid.UUID], db: Session) -> dict[uuid.UUID, uuid.UUID]:
+    """Return the retained source file row each of the given activities references.
+
+    Args:
+        activity_ids: The IDs to look up.
+        db: Database session.
+
+    Returns:
+        The file id by activity id; an activity with no file row, or that does not exist, is absent.
+    """
+    return activity_crud.get_file_ids(activity_ids, db)
+
+
+def filter_referenced_file_ids(file_ids: Sequence[uuid.UUID], db: Session) -> set[uuid.UUID]:
+    """Return which of the given retained source file rows some activity still references.
+
+    Args:
+        file_ids: The file ids to look up.
+        db: Database session.
+
+    Returns:
+        The subset of ``file_ids`` an activity references.
+    """
+    return activity_crud.get_referenced_file_ids(file_ids, db)
+
+
+def set_file_id(activity_id: uuid.UUID, file_id: uuid.UUID, db: Session) -> bool:
+    """Stage the retained source file row an activity with no file row references.
+
+    The caller commits.
+
+    Args:
+        activity_id: ID of the activity.
+        file_id: The retained file row.
+        db: Database session.
+
+    Returns:
+        ``True`` when the activity exists with no file row and was updated, ``False`` otherwise.
+    """
+    return activity_crud.set_activity_file_id(activity_id, file_id, db)
 
 
 def get_readable_activity(

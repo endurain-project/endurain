@@ -180,7 +180,7 @@ Recurring jobs are declared by each module and run by the scheduler of the API p
 | Request a thumbnail backfill | 60 min | yes | Net for thumbnail generation; a subscriber renders up to 200 missing thumbnails. Requests made in the same hour, by the tick or by replicas starting, share one pass |
 | Reconcile the thumbnail storage | 24 h | yes | Net for thumbnail cleanup: removes thumbnails whose activity is gone and clears the reference of an activity whose thumbnail is missing, so the next backfill pass renders it again |
 | Backfill missing locations | 60 min | yes | Net for reverse geocoding |
-| Remove orphaned retained activity files | 24 h | yes | Net for file cleanup |
+| Remove retained activity files nothing references | 24 h | yes | Net for file cleanup. A database query moves crashed uploads (`pending` over a day), files no activity references and failed deletions to `deleting`, then deletes each blob and row; it lists no storage. A second pass lists the `processed/` files stored before v0.22 |
 | Remove orphaned activity photos | 24 h | yes | Net for photo cleanup |
 | Remove activity deletion records past their retention | 24 h | yes | Retention |
 | Queue a provider refresh for every user with Strava or Garmin linked | 60 min | yes | Fan-out, one job per user |
@@ -235,7 +235,18 @@ Each section says what triggers the work, what happens locally and when distribu
 | Distributed | Durable job with retries. A lookup books its turn under the rate limit instead of waiting for it, and a lookup that the service refuses or fails also runs again when the service allows, without using up a retry. The rate limit holds for every replica and worker together |
 | If dropped | The hourly backfill fills in activities that still have no location, in batches that respect the rate limit |
 
-### Retained files and activity photos
+### Retained files
+
+| | |
+| --- | --- |
+| Trigger | `activity.deleted`, which names the file row the activity referenced |
+| Local | The handler locks the file row, asks whether another activity still references it and, if none does, marks it `deleting`, deletes the blob and then the row, on the subscriber pool |
+| Distributed | Durable job. A storage failure raises, so the runner retries; the retry finishes the removal |
+| If dropped | The daily sweep finds the unreferenced file or the `deleting` row in the database and removes it |
+
+A file stored before v0.22 has no row: its event carries no file, and the handler deletes `processed/<activity id>` by the activity id, with the daily `processed/` listing as its net.
+
+### Activity photos
 
 | | |
 | --- | --- |
@@ -300,7 +311,7 @@ This is a command with a state record that an administrator polls (the state liv
 | | |
 | --- | --- |
 | Local | Runs on a dedicated pool of 1 worker holding 5 deletions, in one pass to the end. A full pool refuses the request with `503` |
-| Distributed | Durable job. It runs in bounded passes (a third of the job lease, at least 30 seconds) and continues itself as the same job until the activities are gone, then erases the photo and the user. Between passes the deletion stays `running` and a reactivation still cancels it |
+| Distributed | Durable job. It runs in bounded passes (a third of the job lease, at least 30 seconds) and continues itself as the same job until the activities are gone, then erases the retained activity files and their rows, the photo and the user. Between passes the deletion stays `running` and a reactivation still cancels it |
 | If dropped | A dead-lettered deletion is closed as failed. The hourly sweep queues a stalled one again, up to 5 times, then an administrator deletes the account again |
 
 ### Server settings

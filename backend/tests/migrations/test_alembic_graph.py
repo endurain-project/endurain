@@ -33,13 +33,14 @@ def test_revision_graph_has_exactly_one_head(script_directory: ScriptDirectory) 
     )
 
 
-def test_the_head_is_the_v0_22_activity_start_point_revision() -> None:
-    assert alembic_chain.script_directory().get_heads() == ["5b8e2d4f6a13"]
+def test_the_head_is_the_v0_22_activity_files_revision() -> None:
+    assert alembic_chain.script_directory().get_heads() == ["7d4a9c1e6b52"]
 
 
-def test_the_history_is_the_baseline_and_the_nine_v0_22_revisions() -> None:
+def test_the_history_is_the_baseline_and_the_ten_v0_22_revisions() -> None:
     script = alembic_chain.script_directory()
     assert [revision.revision for revision in script.walk_revisions()] == [
+        "7d4a9c1e6b52",
         "5b8e2d4f6a13",
         "3c1f5a7d9e24",
         "069908f3eab8",
@@ -64,6 +65,7 @@ def test_the_v0_22_chain_starts_from_the_v0_21_head() -> None:
     assert script.get_revision("069908f3eab8").down_revision == "daa50e9181bb"
     assert script.get_revision("3c1f5a7d9e24").down_revision == "069908f3eab8"
     assert script.get_revision("5b8e2d4f6a13").down_revision == "3c1f5a7d9e24"
+    assert script.get_revision("7d4a9c1e6b52").down_revision == "5b8e2d4f6a13"
 
 
 def test_the_baseline_is_the_only_revision_without_a_parent() -> None:

@@ -8,8 +8,8 @@ import pytest
 from sqlalchemy.orm import Session
 
 import modules.activities.activity.integration_service as activity_integration
-import modules.activities.activity_file_storage.integration_service as activity_file_storage_integration
 from tests._factories.activities import make_activity, make_multisport
+from tests._factories.ingestion import retain_file
 from tests._factories.users import make_user
 from tests.activities.activity_profile_transfer import support
 
@@ -78,7 +78,7 @@ class TestExport:
     def test_the_one_retained_file_of_a_group_is_exported_once_under_the_parent(self, db: Session, storage) -> None:
         owner = make_user(db)
         parent, _legs = make_multisport(db, owner.id, start=_START)
-        activity_file_storage_integration.store_activity_file(parent.id, ".fit", b"fit-bytes", storage)
+        retain_file(owner.id, parent.id, b"fit-bytes", storage)
 
         exported = support.export_activities(db, owner.id, storage, batch_size=2)
 

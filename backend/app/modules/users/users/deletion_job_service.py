@@ -301,6 +301,7 @@ def run_deletion(
         if activities_left:
             logger.debug("Account deletion pass ended with activities left", extra=core_logger.context(user_id=user_id))
             return True
+        users_contributor_registry.erasers().delete_activity_files(user_id, storage)
         _erase_photo(user_id, storage)
         _delete_user_row(user_id)
     except _DeletionCancelledError:

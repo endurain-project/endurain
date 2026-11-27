@@ -12,7 +12,7 @@ import modules.activities.activity.events as activity_events
 import modules.activities.activity.integration_service as activity_integration
 import modules.activities.activity.schema as activity_schema
 import modules.activities.activity_exercise_titles.models as titles_models
-import modules.activities.activity_file_storage.integration_service as file_storage
+import modules.activities.activity_file_storage.models as file_models
 import modules.activities.activity_laps.models as laps_models
 import modules.activities.activity_media.integration_service as media_integration
 import modules.activities.activity_media.models as media_models
@@ -21,6 +21,7 @@ import modules.users.users_profile.exceptions as profile_exceptions
 import modules.users.users_profile.utils as profile_utils
 from tests._factories.activities import make_activity, make_activity_children, make_activity_media
 from tests._factories.gears import make_gear
+from tests._factories.ingestion import retain_file, retained_file
 from tests._factories.users import make_user
 from tests.activities.activity_profile_transfer import support
 
@@ -77,7 +78,7 @@ def _seed_source(db: Session, storage: platform_providers.StorageProvider) -> tu
         activity = make_activity(db, source.id, name=f"Ride {index}", distance=5000 + index)
         make_activity_children(db, activity)
         make_activity_media(db, activity, f"{activity.id}_photo.png")
-        file_storage.store_activity_file(activity.id, ".gpx", support.GPX, storage)
+        retain_file(source.id, activity.id, support.GPX, storage, extension=".gpx")
         media_integration.store_media_blob(activity.id, "photo", ".png", support.png(index), storage)
     return source.id, support.export_activities(db, source.id, storage, batch_size=2).entries
 
@@ -169,11 +170,23 @@ class TestRestoreProfile:
         restored = support.import_activities(db, target.id, storage, entries)
 
         for activity in _restored(db, target.id):
-            assert file_storage.get_activity_file(activity.id, storage) == (f"{activity.id}.gpx", support.GPX)
+            assert retained_file(activity.id, storage) == (".gpx", support.GPX)
             blobs = media_integration.list_media_blobs(activity.id, storage)
             assert [key for key, _ in blobs] == [f"{activity.id}_photo.png"]
         assert restored.counts["activity_files"] == 2
         assert restored.counts["media"] == 2
+
+    def test_identical_archived_files_share_one_attached_row(self, db: Session, storage) -> None:
+        _, entries = _seed_source(db, storage)
+        target = make_user(db)
+
+        support.import_activities(db, target.id, storage, entries)
+
+        restored = _restored(db, target.id)
+        rows = db.scalars(select(file_models.ActivityFile).where(file_models.ActivityFile.user_id == target.id)).all()
+        assert len(rows) == 1
+        assert rows[0].state == "attached"
+        assert {activity_integration.get_file_ids([a.id], db)[a.id] for a in restored} == {rows[0].id}
 
     def test_the_files_wait_for_the_deferred_work(self, db: Session, storage) -> None:
         _, entries = _seed_source(db, storage)
@@ -182,11 +195,11 @@ class TestRestoreProfile:
         restored = support.import_activities(db, target.id, storage, entries, run_after_commit=False)
 
         activity = _restored(db, target.id)[0]
-        assert file_storage.get_activity_file(activity.id, storage) is None
+        assert retained_file(activity.id, storage) is None
         assert restored.counts["activity_files"] == 0
         assert restored.after_commit is not None
         restored.after_commit()
-        assert file_storage.get_activity_file(activity.id, storage) is not None
+        assert retained_file(activity.id, storage) is not None
 
     def test_a_restore_publishes_no_activity_created_event(self, db: Session, storage, _publish_local_platform) -> None:
         published: list[object] = []
@@ -479,7 +492,7 @@ class TestRestoredFiles:
             db, storage, f"activity_files/{_ARCHIVED_ACTIVITY}{extension}", support.GPX
         )
 
-        assert file_storage.get_activity_file(activity_id, storage) == (f"{activity_id}{extension}", support.GPX)
+        assert retained_file(activity_id, storage) == (extension, support.GPX)
         assert restored.counts["activity_files"] == 1
 
     def test_an_invalid_file_is_dropped(self, db: Session, storage) -> None:
@@ -487,7 +500,7 @@ class TestRestoredFiles:
             db, storage, f"activity_files/{_ARCHIVED_ACTIVITY}.gpx", b"this is not an activity file"
         )
 
-        assert file_storage.get_activity_file(activity_id, storage) is None
+        assert retained_file(activity_id, storage) is None
         assert restored.counts["activity_files"] == 0
 
     @pytest.mark.parametrize(
@@ -502,7 +515,7 @@ class TestRestoredFiles:
     def test_a_file_that_names_no_restored_activity_is_skipped(self, db: Session, storage, name: str) -> None:
         restored, activity_id = self._import_file(db, storage, name, support.GPX)
 
-        assert file_storage.get_activity_file(activity_id, storage) is None
+        assert retained_file(activity_id, storage) is None
         assert restored.counts["activity_files"] == 0
 
     def test_a_valid_image_is_stored_under_the_new_id(self, db: Session, storage) -> None:

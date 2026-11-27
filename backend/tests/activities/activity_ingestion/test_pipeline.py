@@ -15,12 +15,11 @@ import core.exceptions as core_exceptions
 import modules.activities.activity.constants as activity_constants
 import modules.activities.activity.event_publishers as activity_event_publishers
 import modules.activities.activity_exercise_titles.models as exercise_title_models
-import modules.activities.activity_file_storage.integration_service as file_storage
 import modules.activities.activity_ingestion.integration_service as ingestion_integration
 import modules.activities.activity_laps.models as lap_models
 import modules.activities.contributor_registry as activities_contributor_registry
 from tests._factories.garmin import EMPTY_GPX, activity_gpx, zip_of
-from tests._factories.ingestion import activities_of, fit_file, long_gpx, read_job
+from tests._factories.ingestion import activities_of, file_rows, fit_file, long_gpx, read_job, retained_file
 
 _API = core_config.ROOT_PATH
 
@@ -45,7 +44,9 @@ def _upload(user, name: str, content: bytes):
 
 
 class TestAFileWithSeveralActivities:
-    def test_stores_each_activity_with_its_own_copy_of_the_source_file(self, me, pool, committed_sessions, storage):
+    def test_stores_each_activity_with_the_one_shared_copy_of_the_source_file(
+        self, me, pool, committed_sessions, storage
+    ):
         content = fit_file(activities=2)
 
         response = _upload(me, "double.fit", content)
@@ -56,7 +57,10 @@ class TestAFileWithSeveralActivities:
         assert len(activities) == 2
         assert sorted(state["activity_ids"]) == sorted(str(activity.id) for activity in activities)
         for activity in activities:
-            assert file_storage.get_activity_file(activity.id, storage) == (f"{activity.id}.fit", content)
+            assert retained_file(activity.id, storage) == (".fit", content)
+        assert len({activity.file_id for activity in activities}) == 1
+        assert len(file_rows(committed_sessions)) == 1
+        assert len(list(storage.list_keys("activity_files", "files/"))) == 1
 
     def test_uploaded_again_it_adds_nothing(self, me, pool, committed_sessions):
         _upload(me, "double.fit", fit_file(activities=2))
@@ -91,8 +95,11 @@ class TestAMultisportFile:
 
         rows = activities_of(committed_sessions, me.user.id)
         [parent] = [row for row in rows if row.parent_activity_id is None]
-        assert file_storage.get_activity_file(parent.id, storage) == (f"{parent.id}.fit", content)
-        assert len(list(storage.list_keys("activity_files", "processed/"))) == 1
+        legs = [row for row in rows if row.parent_activity_id is not None]
+        assert retained_file(parent.id, storage) == (".fit", content)
+        assert [leg.file_id for leg in legs] == [None, None, None]
+        assert len(file_rows(committed_sessions)) == 1
+        assert len(list(storage.list_keys("activity_files", "files/"))) == 1
 
     def test_uploaded_again_it_adds_nothing(self, me, pool, committed_sessions):
         _upload(me, "triathlon.fit", fit_file(activities=3, multisport=True))
@@ -129,7 +136,8 @@ class TestAFileWithRecordsButNoSession:
 
         assert read_job(committed_sessions, uuid.UUID(response.json()["id"])).error_code == "invalid_file"
         assert activities_of(committed_sessions, me.user.id) == []
-        assert list(storage.list_keys("activity_files", "processed/")) == []
+        assert list(storage.list_keys("activity_files", "files/")) == []
+        assert file_rows(committed_sessions) == []
         assert os.listdir(scratch) == []
 
 
@@ -231,7 +239,7 @@ class TestAGzippedFile:
         row = read_job(committed_sessions, uuid.UUID(response.json()["id"]))
         (activity,) = activities_of(committed_sessions, me.user.id)
         assert (row.files_done, row.files_failed) == (1, 0)
-        assert file_storage.get_activity_file(activity.id, storage) == (f"{activity.id}.gpx", activity_gpx())
+        assert retained_file(activity.id, storage) == (".gpx", activity_gpx())
         assert os.listdir(scratch) == []
 
     def test_one_that_decompresses_to_an_unsupported_payload_fails_and_leaves_no_temporary_copy(

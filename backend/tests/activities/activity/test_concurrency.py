@@ -224,7 +224,7 @@ class TestVersions:
             worker.join()
 
         assert worker.error is None
-        assert worker.result == [activity.id]
+        assert [item.id for item in worker.result] == [activity.id]
 
 
 class TestStravaId:

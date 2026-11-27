@@ -172,6 +172,7 @@ def _stage_activity(
         parent_activity_id=parent.id if parent is not None else None,
         detect_duplicate_start=parent is None,
         analysis_version=activities_computation.ANALYSIS_VERSION,
+        file_id=source.retained_file_id if source is not None and parent is None else None,
     )
 
     if created_activity is None:

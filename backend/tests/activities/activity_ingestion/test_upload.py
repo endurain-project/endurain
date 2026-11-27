@@ -17,7 +17,6 @@ from jasil.providers import StorageBackendUnavailableError
 import core.config as core_config
 import core.exceptions as core_exceptions
 import core.local_pool as core_local_pool
-import modules.activities.activity_file_storage.integration_service as file_storage
 import modules.activities.activity_ingestion.background as ingestion_background
 import modules.activities.activity_ingestion.constants as ingestion_constants
 import modules.activities.activity_ingestion.service as ingestion_service
@@ -28,6 +27,7 @@ from tests._factories.ingestion import (
     all_jobs,
     fit_file,
     read_job,
+    retained_file,
     staged_keys,
 )
 
@@ -78,7 +78,7 @@ class TestAnImportedFile:
         assert (state["kind"], state["status"], state["error_code"]) == ("activity_upload", "succeeded", None)
         (activity,) = activities_of(committed_sessions, me.user.id)
         assert state["activity_ids"] == [str(activity.id)]
-        assert file_storage.get_activity_file(activity.id, storage) == (f"{activity.id}.{name.split('.')[-1]}", content)
+        assert retained_file(activity.id, storage) == (f".{name.split('.')[-1]}", content)
         assert staged_keys(storage) == [], "the staged upload is consumed with the job"
 
     def test_a_fit_workout_step_without_a_duration_type_is_stored_without_one(self, me, pool, committed_sessions):

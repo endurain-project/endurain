@@ -4,6 +4,7 @@ The files are real: a GPX (``tests/_factories/garmin.py``), a TCX and a FIT buil
 parse in milliseconds and valid enough to take the production parsers' whole path.
 """
 
+import hashlib
 import io
 import os
 import struct
@@ -22,7 +23,10 @@ from sqlalchemy import select, text, update
 from sqlalchemy.orm import Session, sessionmaker
 
 import core.database as core_database
+import modules.activities.activity.integration_service as activity_integration
 import modules.activities.activity.models as activity_models
+import modules.activities.activity_file_storage.integration_service as file_storage_integration
+import modules.activities.activity_file_storage.models as file_storage_models
 import modules.activities.activity_ingestion.constants as ingestion_constants
 import modules.activities.activity_ingestion.crud as ingestion_crud
 import modules.activities.activity_ingestion.integration_service as ingestion_integration
@@ -622,3 +626,80 @@ class ConnectionProbe:
             return attribute(*args, **kwargs)
 
         return call
+
+
+def retain_file(
+    user_id: uuid.UUID,
+    activity_id: uuid.UUID,
+    data: bytes,
+    storage: platform_providers.StorageProvider,
+    *,
+    extension: str = ".fit",
+) -> uuid.UUID:
+    """Retain a file for a committed activity the way ingestion does: stage the row and blob, attach, commit.
+
+    Args:
+        user_id: The owner.
+        activity_id: The activity that references the file.
+        data: The file's bytes.
+        storage: The blob-storage provider.
+        extension: The file's extension.
+
+    Returns:
+        The file row's id.
+    """
+    staged = file_storage_integration.stage_file(user_id, hashlib.sha256(data).hexdigest(), extension, data, storage)
+    with core_database.SessionLocal() as db:
+        assert activity_integration.set_file_id(activity_id, staged.ref.file_id, db)
+        file_storage_integration.mark_attached(staged.ref.file_id, db)
+        db.commit()
+    return staged.ref.file_id
+
+
+def store_legacy_file(
+    activity_id: uuid.UUID, data: bytes, storage: platform_providers.StorageProvider, *, extension: str = ".fit"
+) -> None:
+    """Store a file the way it was stored before file rows existed: under ``processed/{activity_id}``.
+
+    Args:
+        activity_id: The activity the file belongs to.
+        data: The file's bytes.
+        storage: The blob-storage provider.
+        extension: The file's extension.
+    """
+    storage.save("activity_files", f"processed/{activity_id}{extension}", data)
+
+
+def retained_file(activity_id: uuid.UUID, storage: platform_providers.StorageProvider) -> tuple[str, bytes] | None:
+    """Read an activity's retained file as the application does: through its row, else under its own id.
+
+    Args:
+        activity_id: The activity.
+        storage: The blob-storage provider.
+
+    Returns:
+        The file's ``(extension, data)``, or ``None`` when the activity has none.
+    """
+    with core_database.SessionLocal() as db:
+        file_id = activity_integration.get_file_ids([activity_id], db).get(activity_id)
+        ref = file_storage_integration.resolve_refs([file_id], db).get(file_id) if file_id else None
+    return file_storage_integration.read_file(activity_id, ref, storage)
+
+
+def file_rows(sessions: sessionmaker[Session]) -> list[file_storage_models.ActivityFile]:
+    """List the retained file rows, oldest first, read through a new session.
+
+    Args:
+        sessions: The application's session factory.
+
+    Returns:
+        The rows, detached.
+    """
+    with sessions() as db:
+        return list(
+            db.scalars(
+                select(file_storage_models.ActivityFile).order_by(
+                    file_storage_models.ActivityFile.created_at, file_storage_models.ActivityFile.id
+                )
+            ).all()
+        )

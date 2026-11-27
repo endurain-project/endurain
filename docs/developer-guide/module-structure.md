@@ -754,8 +754,15 @@ one pattern. Recorded here so a review does not reopen them.
   input shape its `schema.py` does not (`activity_sets`, `activity_streams`,
   `activity_media`, `activity_workout_steps`, `activity_exercise_titles`, `activity_ingestion`);
   laps hand their contributor plain dicts, so they have none.
-- **`activity_file_storage` has no `service.py`.** It is a leaf over
-  `StorageProvider` with no decision to arrange, so a service would only forward.
+- **`activity_file_storage` owns the `activity_files` table.** One row per retained original file (owner, SHA-256,
+  storage key, size, `pending`/`attached`/`deleting`), one live row per user and SHA-256, so every activity imported
+  from the same bytes shares it. Its `service` arranges the lifecycle: `stage_file` commits the row and then writes
+  the blob with no session open, the ingestion transaction attaches the row (`mark_attached`) with the activity,
+  and the `activity.deleted` subscriber removes a file no activity references any more. The package stays above the
+  activity core: the core holds only the opaque `activities.file_id` (a foreign key declared by string, never read as
+  a file) and never imports the package, so the pipeline, which sits above both, stages and attaches. A file stored
+  before rows existed has no `file_id` and is still addressed by activity id (`processed/{activity id}`); the
+  subscriber, the reader and the `processed/` listing sweep keep that path until those files are adopted.
 - **Registration seams.** `RuntimeModule` in `app/module_registry.py` is the per-module manifest for bus,
   realtime and durable subscribers, nets, recurring jobs, startup tasks, audit actions and the shutdown of the
   module's in-process pools. Routers (`api.py`) and models (`model_registry.py`) remain separate composition

@@ -20,6 +20,7 @@ Neither group is ever serialized to a client, so keeping them out of
 import uuid
 from dataclasses import dataclass, field
 from datetime import datetime
+from typing import NamedTuple
 
 from pydantic import Field, field_validator
 
@@ -222,12 +223,27 @@ class ImportSource:
             ingestion service turns it into a ``file:{hash}:{start}`` dedup key so
             re-importing the exact same file is a true no-op. ``None`` for
             provider syncs (they key off the provider id).
+        retained_file_id: Opaque id of the retained source file row the activity is stored with. The core writes it
+            on the activity it creates and on no leg; ``None`` when the source retains no file.
     """
 
     kind: str
     provider_activity_id: int | None = None
     dedup_key: str | None = None
     content_hash: str | None = None
+    retained_file_id: uuid.UUID | None = None
+
+
+class DeletedActivity(NamedTuple):
+    """An activity a delete removed, as its ``activity.deleted`` event names it.
+
+    Attributes:
+        id: The id the activity had.
+        file_id: The retained source file row it referenced, ``None`` for a leg and an activity with no file row.
+    """
+
+    id: uuid.UUID
+    file_id: uuid.UUID | None
 
 
 @dataclass

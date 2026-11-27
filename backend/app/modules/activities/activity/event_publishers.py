@@ -19,6 +19,7 @@ import jasil.publisher as platform_publisher
 from sqlalchemy.orm import Session
 
 import core.event_metadata as core_event_metadata
+import modules.activities.activity.contracts as activity_contracts
 import modules.activities.activity.events as activity_events
 
 
@@ -135,7 +136,7 @@ def publish_activities_updated(
         changed_fields: The columns the bulk update wrote (identical for every
             row in the batch, which is what makes one field list correct here).
         db: The producer's DB session holding the staged updates.
-        source: Origin label identifying the bulk operation.
+        source: Origin label identifying the operation.
     """
     fields = sorted(changed_fields)
     platform_publisher.publish_many_on_commit(
@@ -156,57 +157,25 @@ def publish_activities_updated(
     )
 
 
-def publish_activity_deleted(
-    activity_id: uuid.UUID,
-    user_id: uuid.UUID | None,
-    db: Session,
-) -> None:
-    """Publish ``activity.deleted`` after an activity row has been removed.
-
-    Args:
-        activity_id: The removed activity's ID.
-        user_id: The owning user's ID, attached as correlation metadata.
-        db: The producer's DB session, used for durable outbox delivery when
-            durable jobs are enabled.
-    """
-    deleted = activity_events.ActivityDeletedPayload(activity_id=activity_id)
-    metadata = {
-        core_event_metadata.META_ACTIVITY_ID: str(activity_id),
-        core_event_metadata.META_USER_ID: str(user_id),
-    }
-    platform_publisher.publish_on_commit(
-        activity_events.ACTIVITY_DELETED,
-        deleted.model_dump(mode="json"),
-        source="api:delete_activity",
-        metadata=metadata,
-        db=db,
-        schema_version=deleted.SCHEMA_VERSION,
-    )
-
-
 def publish_activities_deleted(
-    activity_ids: Sequence[uuid.UUID],
+    deleted: Sequence[activity_contracts.DeletedActivity],
     user_id: uuid.UUID | None,
     db: Session,
     *,
     source: str,
 ) -> None:
-    """Publish one ``activity.deleted`` per activity removed by a bulk delete.
+    """Publish one ``activity.deleted`` per activity a delete removed, a multisport activity's legs included.
 
-    Bulk removals (unlinking Strava, deleting a user account) must publish too:
-    the cleanup subscribers key a blob off the deleted activity's id, and no row
-    remains to find it from afterwards. Their storage sweeps are the net for a
-    dropped event, but the event is what reclaims the blobs promptly. Emitting the
-    same fact the single-activity delete route emits keeps every consumer's
-    contract identical regardless of how the rows were removed.
+    Every delete (the route, unlinking Strava, deleting a user account) publishes the same fact: the cleanup
+    subscribers key a blob off the deleted activity's id and file row, and no row remains to find them from
+    afterwards. Their sweeps are the net for a dropped event, but the event is what reclaims the blobs promptly.
 
     The whole batch is staged in the caller's transaction and published with
     :func:`jasil.publisher.publish_many_on_commit`, so the deletes and their
     events commit together.
 
     Args:
-        activity_ids: IDs of the removed activities. May be empty, in which case
-            nothing is published.
+        deleted: The removed activities. May be empty, in which case nothing is published.
         user_id: The owning user's ID, attached as correlation metadata.
         db: The producer's DB session holding the staged deletes.
         source: Origin label identifying the bulk operation.
@@ -214,8 +183,8 @@ def publish_activities_deleted(
     platform_publisher.publish_many_on_commit(
         activity_events.ACTIVITY_DELETED,
         [
-            activity_events.ActivityDeletedPayload(activity_id=activity_id).model_dump(mode="json")
-            for activity_id in activity_ids
+            activity_events.ActivityDeletedPayload(activity_id=item.id, file_id=item.file_id).model_dump(mode="json")
+            for item in deleted
         ],
         source=source,
         metadata_for=lambda payload: {

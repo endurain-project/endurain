@@ -396,6 +396,18 @@ def _excepted(importer: str, imported: str) -> bool:
 #: surface write **stages** and its caller commits; what is listed here is
 #: deliberately a self-contained unit of work, with the reason it has to be.
 _SURFACE_UNITS_OF_WORK: dict[str, str] = {
+    "activity_file_storage.integration_service.stage_file": (
+        "Commits the file's row in its own short transaction before the blob is written, so no session is open "
+        "across the storage call and the blob never exists without a row naming it."
+    ),
+    "activity_file_storage.integration_service.release_unattached": (
+        "Commits the row's move to deleting before the blob is removed, and the row's removal after, so no session "
+        "is open across the storage call; it opens its own sessions because the caller's work is already committed."
+    ),
+    "activity_file_storage.integration_service.erase_user_files": (
+        "Removes each batch of blobs with no session open and commits the batch's rows after, so account erasure "
+        "never holds a connection across a storage call."
+    ),
     "credentials.integration_service.reject_breached_password": (
         "Ends the caller's open read transaction before the network call to the breach range service, so no "
         "connection is held across it; the rollback would discard a staged write, so callers invoke it before "

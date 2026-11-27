@@ -2,13 +2,15 @@
 
 Stages the archived activities and their components in batches, so memory stays bounded however many
 activities the archive lists. The retained source files and the media are written after the import has
-committed, because their storage keys name the restored activity ids.
+committed, because they attach to the restored activity ids.
 """
 
+import hashlib
 import os
 import uuid
 from typing import Any
 
+import core.database as core_database
 import core.exceptions as core_exceptions
 import core.file_uploads as file_uploads
 import core.logger as core_logger
@@ -358,8 +360,39 @@ def _restore_activity_files(
                     extra=core_logger.context(file_name=new_file_name, detail=err.detail),
                 )
                 continue
-            activity_file_storage_integration.store_activity_file(new_id, ext, file_bytes, ctx.storage)
-            ctx.counts["activity_files"] += 1
+            _attach_activity_file(ctx, new_id, ext, file_bytes)
+
+
+def _attach_activity_file(
+    ctx: users_profile_contracts.ProfileImportContext, activity_id: uuid.UUID, extension: str, file_bytes: bytes
+) -> None:
+    """Retain a restored activity's file and attach it to the activity in its own short transaction.
+
+    Runs once the restored rows are committed. Identical archived files share one row. A file that turns out to have
+    no activity to attach to is removed again when this call created its row.
+
+    Args:
+        ctx: The import context.
+        activity_id: The restored activity.
+        extension: The file's extension.
+        file_bytes: The file's bytes.
+    """
+    staged = activity_file_storage_integration.stage_file(
+        ctx.user_id, hashlib.sha256(file_bytes).hexdigest(), extension, file_bytes, ctx.storage
+    )
+    with core_database.SessionLocal() as db:
+        attached = activity_integration.set_file_id(activity_id, staged.ref.file_id, db)
+        if attached:
+            activity_file_storage_integration.mark_attached(staged.ref.file_id, db)
+        db.commit()
+    logger.debug(
+        "Retained the source file of a restored activity",
+        extra=core_logger.context(activity_id=activity_id, file_id=staged.ref.file_id, attached=attached),
+    )
+    if attached:
+        ctx.counts["activity_files"] += 1
+    elif staged.created:
+        activity_file_storage_integration.release_unattached(staged.ref.file_id, ctx.storage)
 
 
 def _restore_activity_media(

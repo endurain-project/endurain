@@ -6,13 +6,14 @@ import jasil.providers as platform_providers
 import pytest
 from sqlalchemy.orm import Session
 
+import modules.activities.activity.integration_service as activity_integration
 import modules.activities.activity_exercise_titles.contracts as titles_contracts
 import modules.activities.activity_exercise_titles.crud as titles_crud
-import modules.activities.activity_file_storage.integration_service as file_storage
 import modules.activities.activity_media.integration_service as media_integration
 import modules.users.users_profile.exceptions as profile_exceptions
 import modules.users.users_profile.utils as profile_utils
 from tests._factories.activities import make_activity, make_activity_children, make_activity_media
+from tests._factories.ingestion import retain_file
 from tests._factories.users import make_user
 from tests.activities.activity_profile_transfer import support
 
@@ -129,7 +130,7 @@ class TestFilesAndMedia:
     def test_the_files_and_media_are_written_after_the_rows_are_committed(self, db: Session, storage) -> None:
         owner = make_user(db)
         activity = make_activity(db, owner.id)
-        file_storage.store_activity_file(activity.id, ".gpx", support.GPX, storage)
+        retain_file(owner.id, activity.id, support.GPX, storage, extension=".gpx")
         media_integration.store_media_blob(activity.id, "photo", ".png", support.png(), storage)
 
         before = support.export_activities(db, owner.id, storage, run_after_commit=False)
@@ -157,7 +158,7 @@ class TestFilesAndMedia:
         owner = make_user(db)
         stranger = make_user(db)
         theirs = make_activity(db, stranger.id)
-        file_storage.store_activity_file(theirs.id, ".gpx", support.GPX, storage)
+        retain_file(stranger.id, theirs.id, support.GPX, storage, extension=".gpx")
         media_integration.store_media_blob(theirs.id, "photo", ".png", support.png(), storage)
         make_activity(db, owner.id)
 
@@ -165,15 +166,28 @@ class TestFilesAndMedia:
 
         assert not [name for name in exported.names if name.startswith(("activity_files/", "activity_media/"))]
 
+    def test_activities_sharing_one_file_row_each_get_an_entry(self, db: Session, storage) -> None:
+        owner = make_user(db)
+        first = make_activity(db, owner.id)
+        second = make_activity(db, owner.id)
+        shared = retain_file(owner.id, first.id, support.GPX, storage, extension=".gpx")
+        activity_integration.set_file_id(second.id, shared, db)
+
+        exported = support.export_activities(db, owner.id, storage)
+
+        assert exported.entries[f"activity_files/{first.id}.gpx"] == support.GPX
+        assert exported.entries[f"activity_files/{second.id}.gpx"] == support.GPX
+        assert exported.counts["activity_files"] == 2
+
     def test_a_file_that_cannot_be_read_is_skipped_and_the_others_are_exported(
         self, db: Session, storage, caplog: pytest.LogCaptureFixture
     ) -> None:
         owner = make_user(db)
         broken = make_activity(db, owner.id)
         fine = make_activity(db, owner.id)
-        for activity in (broken, fine):
-            file_storage.store_activity_file(activity.id, ".gpx", support.GPX, storage)
-        flaky = support.UnavailableStorage(storage, unreadable=(str(broken.id),))
+        broken_file = retain_file(owner.id, broken.id, b"broken", storage, extension=".gpx")
+        retain_file(owner.id, fine.id, support.GPX, storage, extension=".gpx")
+        flaky = support.UnavailableStorage(storage, unreadable=(str(broken_file),))
 
         with caplog.at_level(logging.WARNING):
             exported = support.export_activities(db, owner.id, flaky)
@@ -194,7 +208,7 @@ class TestFilesAndMedia:
     def test_a_media_listing_that_fails_skips_only_that_activitys_media(self, db: Session, storage) -> None:
         owner = make_user(db)
         activity = make_activity(db, owner.id)
-        file_storage.store_activity_file(activity.id, ".gpx", support.GPX, storage)
+        retain_file(owner.id, activity.id, support.GPX, storage, extension=".gpx")
         media_integration.store_media_blob(activity.id, "photo", ".png", support.png(), storage)
 
         exported = support.export_activities(db, owner.id, support.UnavailableStorage(storage, unlistable=True))
@@ -222,7 +236,7 @@ class TestFilesAndMedia:
     def test_a_full_archive_fails_the_export_instead_of_ending_partial(self, db: Session, storage) -> None:
         owner = make_user(db)
         activity = make_activity(db, owner.id)
-        file_storage.store_activity_file(activity.id, ".gpx", support.GPX, storage)
+        retain_file(owner.id, activity.id, support.GPX, storage, extension=".gpx")
 
         class FullDisk(profile_utils.ZipArchiveWriter):
             def write_bytes(self, path: str, data: bytes) -> None:
@@ -246,7 +260,7 @@ class TestFilesAndMedia:
     def test_the_time_limit_is_enforced_between_the_files_and_the_media(self, db: Session, storage) -> None:
         owner = make_user(db)
         activity = make_activity(db, owner.id)
-        file_storage.store_activity_file(activity.id, ".gpx", support.GPX, storage)
+        retain_file(owner.id, activity.id, support.GPX, storage, extension=".gpx")
         media_integration.store_media_blob(activity.id, "photo", ".png", support.png(), storage)
         make_activity_media(db, activity, f"{activity.id}_photo.png")
 

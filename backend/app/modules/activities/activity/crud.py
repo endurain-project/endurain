@@ -956,6 +956,68 @@ def get_existing_activity_ids(activity_ids: Sequence[uuid.UUID], db: Session) ->
     return set(db.scalars(stmt).all())
 
 
+def get_file_ids(activity_ids: Sequence[uuid.UUID], db: Session) -> dict[uuid.UUID, uuid.UUID]:
+    """Return the retained file row each of the given activities references.
+
+    Args:
+        activity_ids: The IDs to look up.
+        db: Database session.
+
+    Returns:
+        The file id by activity id; an activity with no file row, or that does not exist, is absent.
+    """
+    if not activity_ids:
+        return {}
+    rows = db.execute(
+        select(activity_models.Activity.id, activity_models.Activity.file_id).where(
+            activity_models.Activity.id.in_(activity_ids), activity_models.Activity.file_id.isnot(None)
+        )
+    ).all()
+    return {row.id: row.file_id for row in rows if row.file_id is not None}
+
+
+def get_referenced_file_ids(file_ids: Sequence[uuid.UUID], db: Session) -> set[uuid.UUID]:
+    """Return which of the given retained file rows some activity still references.
+
+    Args:
+        file_ids: The file ids to look up.
+        db: Database session.
+
+    Returns:
+        The subset of ``file_ids`` an activity references.
+    """
+    if not file_ids:
+        return set()
+    referenced = db.scalars(
+        select(activity_models.Activity.file_id).where(activity_models.Activity.file_id.in_(file_ids)).distinct()
+    ).all()
+    return {file_id for file_id in referenced if file_id is not None}
+
+
+def set_activity_file_id(activity_id: uuid.UUID, file_id: uuid.UUID, db: Session) -> bool:
+    """Stage the retained file row an activity references.
+
+    A derived value, so it is written with a Core ``UPDATE`` that leaves ``version`` alone, and only while the
+    activity has no file row.
+
+    Args:
+        activity_id: Target activity ID.
+        file_id: The retained file row.
+        db: Database session.
+
+    Returns:
+        ``True`` when the activity exists with no file row and was updated, ``False`` otherwise.
+    """
+    matched = core_database.rowcount(
+        db,
+        sa_update(activity_models.Activity)
+        .where(activity_models.Activity.id == activity_id, activity_models.Activity.file_id.is_(None))
+        .values(file_id=file_id),
+    )
+    db.flush()
+    return matched == 1
+
+
 def get_activity_by_id(activity_id: uuid.UUID, db: Session) -> activity_schema.ActivityRead | None:
     """Get an activity by ID without permission checks.
 
@@ -1296,6 +1358,7 @@ def create_activity(
     detect_duplicate_start: bool = True,
     analysis_version: int = 0,
     activity_id: uuid.UUID | None = None,
+    file_id: uuid.UUID | None = None,
 ) -> activity_schema.ActivityRead:
     """Stage a new activity; duplicate start-times are marked hidden.
 
@@ -1316,6 +1379,8 @@ def create_activity(
             analysis computed. The server owns it, so it is not part of ``activity``.
         activity_id: The ID to store the activity under, for a caller that must name it before the row exists (a file
             stored under it first); ``None`` generates one. The server owns it, so it is not part of ``activity``.
+        file_id: The retained source file row the activity is stored with, or ``None``. The server owns it, so it is
+            not part of ``activity``.
 
     Returns:
         The stored activity as the read schema, with the generated ``id`` and
@@ -1357,6 +1422,7 @@ def create_activity(
     new_activity.analysis_version = analysis_version
     new_activity.start_latitude = activity.start_latitude
     new_activity.start_longitude = activity.start_longitude
+    new_activity.file_id = file_id
     if activity_id is not None:
         new_activity.id = activity_id
 
@@ -2047,7 +2113,9 @@ def _leg_ids_of(parent_ids: Sequence[uuid.UUID], user_id: uuid.UUID, db: Session
     )
 
 
-def delete_activity(activity_id: uuid.UUID, user_id: uuid.UUID, db: Session, *, if_match: str) -> list[uuid.UUID]:
+def delete_activity(
+    activity_id: uuid.UUID, user_id: uuid.UUID, db: Session, *, if_match: str
+) -> list[activity_contracts.DeletedActivity]:
     """Stage the deletion of an activity owned by ``user_id``, with the legs it has.
 
     Ownership is part of the ``WHERE`` clause rather than a precondition the
@@ -2066,8 +2134,8 @@ def delete_activity(activity_id: uuid.UUID, user_id: uuid.UUID, db: Session, *, 
             ``DELETE`` to that version.
 
     Returns:
-        The IDs of the legs the database deletes with a multisport activity, so the caller can publish one event
-        per row; empty for any other activity.
+        The activity first, then the legs the database deletes with a multisport activity, so the caller can publish
+        one event per row.
 
     Raises:
         NotFoundError: When the activity is missing or not owned by ``user_id``.
@@ -2085,13 +2153,19 @@ def delete_activity(activity_id: uuid.UUID, user_id: uuid.UUID, db: Session, *, 
     if db_activity.parent_activity_id is not None:
         raise core_exceptions.ConflictError("A leg is deleted with its multisport activity")
     leg_ids = _leg_ids_of([activity_id], user_id, db)
+    deleted = [
+        activity_contracts.DeletedActivity(activity_id, db_activity.file_id),
+        *(activity_contracts.DeletedActivity(leg_id, None) for leg_id in leg_ids),
+    ]
     db.delete(db_activity)
     core_sync.record_deletions(db, activity_models.ActivityDeletion, user_id, [activity_id, *leg_ids])
     db.flush()
-    return leg_ids
+    return deleted
 
 
-def delete_all_strava_activities_for_user(user_id: uuid.UUID, db: Session, *, limit: int) -> list[uuid.UUID]:
+def delete_all_strava_activities_for_user(
+    user_id: uuid.UUID, db: Session, *, limit: int
+) -> list[activity_contracts.DeletedActivity]:
     """Stage the deletion of up to ``limit`` Strava-synced activities owned by a user.
 
     A caller that must remove them all calls this until fewer than ``limit`` come back,
@@ -2103,8 +2177,8 @@ def delete_all_strava_activities_for_user(user_id: uuid.UUID, db: Session, *, li
         limit: The most activities to delete in this call.
 
     Returns:
-        The IDs of the deleted activities, so the caller can publish the cleanup
-        events that reclaim each activity's thumbnail and stored source file.
+        The deleted activities, so the caller can publish the cleanup events that reclaim each activity's thumbnail
+        and stored source file.
     """
     batch_ids = list(
         db.scalars(
@@ -2122,12 +2196,18 @@ def delete_all_strava_activities_for_user(user_id: uuid.UUID, db: Session, *, li
     )
     if not batch_ids:
         return []
-    db.execute(sa_delete(activity_models.Activity).where(activity_models.Activity.id.in_(batch_ids)))
+    deleted = db.execute(
+        sa_delete(activity_models.Activity)
+        .where(activity_models.Activity.id.in_(batch_ids))
+        .returning(activity_models.Activity.id, activity_models.Activity.file_id)
+    ).all()
     core_sync.record_deletions(db, activity_models.ActivityDeletion, user_id, batch_ids)
-    return batch_ids
+    return [activity_contracts.DeletedActivity(row.id, row.file_id) for row in deleted]
 
 
-def delete_activities_batch_for_user(user_id: uuid.UUID, limit: int, db: Session) -> list[uuid.UUID]:
+def delete_activities_batch_for_user(
+    user_id: uuid.UUID, limit: int, db: Session
+) -> list[activity_contracts.DeletedActivity]:
     """Stage the deletion of up to ``limit`` of a user's listed activities, with the legs of the multisport ones.
 
     Used by account deletion, which repeats it, one transaction per batch, until nothing is left. The
@@ -2147,7 +2227,7 @@ def delete_activities_batch_for_user(user_id: uuid.UUID, limit: int, db: Session
         db: Database session.
 
     Returns:
-        The IDs of the deleted activities and legs; empty once the user has none.
+        The deleted activities and legs; empty once the user has none.
     """
     top_level_ids = list(
         db.scalars(
@@ -2160,10 +2240,17 @@ def delete_activities_batch_for_user(user_id: uuid.UUID, limit: int, db: Session
     )
     if not top_level_ids:
         return []
-    batch_ids = [*top_level_ids, *_leg_ids_of(top_level_ids, user_id, db)]
-    db.execute(sa_delete(activity_models.Activity).where(activity_models.Activity.id.in_(top_level_ids)))
-    core_sync.record_deletions(db, activity_models.ActivityDeletion, user_id, batch_ids)
-    return batch_ids
+    leg_ids = _leg_ids_of(top_level_ids, user_id, db)
+    deleted = db.execute(
+        sa_delete(activity_models.Activity)
+        .where(activity_models.Activity.id.in_(top_level_ids))
+        .returning(activity_models.Activity.id, activity_models.Activity.file_id)
+    ).all()
+    core_sync.record_deletions(db, activity_models.ActivityDeletion, user_id, [*top_level_ids, *leg_ids])
+    return [
+        *(activity_contracts.DeletedActivity(row.id, row.file_id) for row in deleted),
+        *(activity_contracts.DeletedActivity(leg_id, None) for leg_id in leg_ids),
+    ]
 
 
 def touch_activity(activity_id: uuid.UUID, db: Session) -> None:

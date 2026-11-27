@@ -33,6 +33,7 @@ import core.timezone as core_timezone
 import modules.activities.activity.contracts as activity_contracts
 import modules.activities.activity.integration_service as activity_integration
 import modules.activities.activity.schema as activity_schema
+import modules.activities.activity_file_storage.contracts as activity_file_storage_contracts
 import modules.activities.activity_file_storage.integration_service as activity_file_storage_integration
 import modules.activities.activity_ingestion.pipeline_service as activity_ingestion_pipeline_service
 import modules.activities.activity_streams.integration_service as activity_streams_integration
@@ -79,6 +80,7 @@ class _Target:
             without a zone of its own, so an owner who moved since does not shift the activity's local times; the
             owner's current one only for an activity stored without a zone.
         units: The owner's measurement units.
+        file: The retained file row the activity references, ``None`` for an activity whose file has no row.
     """
 
     user_id: uuid.UUID
@@ -87,6 +89,7 @@ class _Target:
     is_leg: bool
     timezone: str | None
     units: server_settings_schema.Units
+    file: activity_file_storage_contracts.ActivityFileRef | None
 
 
 @dataclass(frozen=True)
@@ -140,6 +143,8 @@ def _read_target(activity_id: uuid.UUID) -> _Target | None:
             leg = activity_integration.get_activity(leg_id, db)
             if leg is not None:
                 legs.append((leg_id, _start_of(leg)))
+        file_id = activity_integration.get_file_ids([activity_id], db).get(activity_id)
+        file = activity_file_storage_integration.resolve_refs([file_id], db).get(file_id) if file_id else None
         return _Target(
             user_id=activity.user_id,
             start_time=_start_of(activity),
@@ -147,15 +152,16 @@ def _read_target(activity_id: uuid.UUID) -> _Target | None:
             is_leg=activity.parent_activity_id is not None,
             timezone=activity.timezone or owner.timezone,
             units=server_settings_schema.Units(owner.units),
+            file=file,
         )
 
 
-def _parse(target: _Target, key: str, data: bytes) -> activity_contracts.ParsedFile | None:
+def _parse(target: _Target, extension: str, data: bytes) -> activity_contracts.ParsedFile | None:
     """Parse a retained file as an upload by its owner would have been.
 
     Args:
         target: The stored activity.
-        key: The retained file's storage key, whose extension names its format.
+        extension: The retained file's extension, which names its format.
         data: The retained file's bytes.
 
     Returns:
@@ -165,11 +171,11 @@ def _parse(target: _Target, key: str, data: bytes) -> activity_contracts.ParsedF
         DomainError: When the file cannot be parsed.
     """
     with tempfile.TemporaryDirectory(prefix="activity-reprocess-") as work_dir:
-        path = os.path.join(work_dir, f"activity{os.path.splitext(key)[1]}")
+        path = os.path.join(work_dir, f"activity{extension}")
         with open(path, "wb") as file:
             file.write(data)
         return activity_ingestion_pipeline_service.parse_file(
-            target.user_id, os.path.splitext(key)[1], path, None, target.timezone, target.units
+            target.user_id, extension, path, None, target.timezone, target.units
         )
 
 
@@ -353,6 +359,7 @@ def _write_regrouped(
     parent: activity_contracts.ParsedActivity,
     work: Sequence[_Work],
     file_work: Sequence[tuple[activities_contributors.FileIngestionContributor, object]],
+    file_id: uuid.UUID,
 ) -> uuid.UUID | None:
     """Write the new parent, its adopted legs and their reprocessed values in one transaction.
 
@@ -361,6 +368,7 @@ def _write_regrouped(
         parent: The parsed multisport activity, with the hash of its file as its source.
         work: The stored legs and what the file yields for each, in start order.
         file_work: The file-scoped contributors with their data.
+        file_id: The retained file row the parent references, attached in the same transaction.
 
     Returns:
         The new parent's ID when committed, ``None`` when nothing was written because a leg is gone or no longer
@@ -369,11 +377,12 @@ def _write_regrouped(
     parent_components = _components_of(parent)
     with core_database.SessionLocal() as db:
         staged = activity_integration.regroup_legs(
-            parent, [item.activity_id for item in work], db, activity_id=parent_id
+            parent, [item.activity_id for item in work], db, activity_id=parent_id, file_id=file_id
         )
         if staged is None:
             db.rollback()
             return None
+        activity_file_storage_integration.mark_attached(file_id, db)
         for contributor, data in parent_components:
             contributor.persist(data, staged, db)
         if not _stage(work, file_work, db):
@@ -396,7 +405,8 @@ def _find_siblings(
     """Find the stored activity each parsed leg was stored as.
 
     A sibling belongs to the same user, has no parent and no legs, starts within the tolerance of its leg and
-    retains a file with the same SHA-256 as the one being reprocessed. The files are read with no session open.
+    retains a file with the same SHA-256 as the one being reprocessed. A file with a row is compared by the row's
+    SHA-256; one without is read and hashed, with no session open.
 
     Args:
         target: The activity being reprocessed.
@@ -418,10 +428,17 @@ def _find_siblings(
                 db,
             )
         }
+        file_ids = activity_integration.get_file_ids(list(candidates), db)
+        refs = activity_file_storage_integration.resolve_refs(list(file_ids.values()), db)
     same_file = {}
     for candidate_id, start in candidates.items():
-        stored_file = activity_file_storage_integration.get_activity_file(candidate_id, storage)
-        if stored_file is not None and hashlib.sha256(stored_file[1]).hexdigest() == content_hash:
+        ref = refs.get(file_ids[candidate_id]) if candidate_id in file_ids else None
+        if ref is not None:
+            matches = ref.sha256 == content_hash
+        else:
+            stored_file = activity_file_storage_integration.read_file(candidate_id, None, storage)
+            matches = stored_file is not None and hashlib.sha256(stored_file[1]).hexdigest() == content_hash
+        if matches:
             same_file[candidate_id] = start
     siblings = []
     for leg in parsed_file.activities:
@@ -442,23 +459,24 @@ def _regroup(
     target: _Target,
     parsed_file: activity_contracts.ParsedFile,
     parent: activity_contracts.ParsedActivity,
-    key: str,
+    extension: str,
     data: bytes,
     storage: platform_providers.StorageProvider,
 ) -> ReprocessOutcome | None:
     """Regroup the legs a multi-session file was stored as under a new multisport activity, and reprocess them.
 
-    The file is stored under the parent's new ID first, with no session open, so the parent never exists without it.
-    The group is then written in one transaction; if that stages nothing or raises, the stored file is deleted again.
-    Only after the commit are the legs' copies deleted. A crash after the store leaves a file under an ID no activity
-    has, which the daily orphan sweep removes; a crash after the commit leaves spare leg copies.
+    The file is staged as a retained file row first, with no session open, so the parent never exists without it, and
+    attached in the transaction that writes the group. If that stages nothing or raises, a row this call created is
+    removed again. Only after the commit are the legs' copies, which the legs hold under their own IDs while their
+    file has no row, deleted. A crash after staging leaves a ``pending`` row the daily sweep removes; a crash after
+    the commit leaves spare leg copies, which the sweep of the ``processed`` files removes.
 
     Args:
         activity_id: The activity being reprocessed, one of the legs.
         target: What is known of it.
         parsed_file: What its file yields.
         parent: The file's multisport activity.
-        key: The retained file's storage key.
+        extension: The retained file's extension.
         data: The retained file's bytes.
         storage: The blob-storage provider the files are retained in.
 
@@ -479,21 +497,25 @@ def _regroup(
     work, file_work = _plan(list(zip(siblings, parsed_file.activities, strict=True)), parsed_file)
     source = activity_contracts.ImportSource(kind="reprocess", content_hash=content_hash)
     parent_id = uuid.uuid4()
-    activity_file_storage_integration.store_activity_file(parent_id, os.path.splitext(key)[1], data, storage)
+    staged_file = activity_file_storage_integration.stage_file(target.user_id, content_hash, extension, data, storage)
     try:
-        written = _write_regrouped(parent_id, dataclasses.replace(parent, source=source), work, file_work)
+        written = _write_regrouped(
+            parent_id, dataclasses.replace(parent, source=source), work, file_work, staged_file.ref.file_id
+        )
     except BaseException:
-        activity_file_storage_integration.delete_activity_file(parent_id, storage)
+        if staged_file.created:
+            activity_file_storage_integration.release_unattached(staged_file.ref.file_id, storage)
         raise
     if written is None:
-        activity_file_storage_integration.delete_activity_file(parent_id, storage)
+        if staged_file.created:
+            activity_file_storage_integration.release_unattached(staged_file.ref.file_id, storage)
         logger.warning(
             "Not regrouping a legacy multisport leg: the group changed or its key is taken",
             extra=core_logger.context(activity_id=activity_id, user_id=target.user_id),
         )
         return None
     for sibling in siblings:
-        activity_file_storage_integration.delete_activity_file(sibling, storage)
+        activity_file_storage_integration.delete_legacy_activity_file(sibling, storage)
     logger.info(
         "Regrouped legacy multisport legs under a new parent",
         extra=core_logger.context(activity_id=parent_id, user_id=target.user_id, count=len(siblings)),
@@ -513,19 +535,19 @@ def reprocess_activity(activity_id: uuid.UUID, storage: platform_providers.Stora
     """
     target = _read_target(activity_id)
     stored_file = (
-        activity_file_storage_integration.get_activity_file(activity_id, storage) if target is not None else None
+        activity_file_storage_integration.read_file(activity_id, target.file, storage) if target is not None else None
     )
     if target is None or stored_file is None:
         logger.debug(
             "Nothing to reprocess: no activity or no retained file", extra=core_logger.context(activity_id=activity_id)
         )
         return ReprocessOutcome.NO_FILE
-    key, data = stored_file
+    extension, data = stored_file
 
     try:
-        parsed_file = _parse(target, key, data)
+        parsed_file = _parse(target, extension, data)
         if parsed_file is not None and parsed_file.parent is not None and not target.legs and not target.is_leg:
-            regrouped = _regroup(activity_id, target, parsed_file, parsed_file.parent, key, data, storage)
+            regrouped = _regroup(activity_id, target, parsed_file, parsed_file.parent, extension, data, storage)
             if regrouped is not None:
                 return regrouped
         pairs = None if parsed_file is None else _match(activity_id, target, parsed_file)

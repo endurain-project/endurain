@@ -76,6 +76,8 @@ class ActivityDeletedPayload(VersionedPayload):
 
     Attributes:
         activity_id: The removed activity's ID.
+        file_id: The retained source file row the activity referenced; ``None`` for a leg, an activity with no file
+            row and an event published before the row existed.
     """
 
     model_config = ConfigDict(extra="ignore")
@@ -83,6 +85,7 @@ class ActivityDeletedPayload(VersionedPayload):
     SCHEMA_VERSION: ClassVar[int] = 1
 
     activity_id: uuid.UUID
+    file_id: uuid.UUID | None = None
 
 
 class ActivityUpdatedPayload(VersionedPayload):

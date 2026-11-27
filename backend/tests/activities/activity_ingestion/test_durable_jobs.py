@@ -19,7 +19,6 @@ from pydantic import ValidationError
 import core.config as core_config
 import core.exceptions as core_exceptions
 import core.local_pool as core_local_pool
-import modules.activities.activity_file_storage.integration_service as file_storage
 import modules.activities.activity_ingestion.background as ingestion_background
 import modules.activities.activity_ingestion.constants as ingestion_constants
 import modules.activities.activity_ingestion.events as ingestion_events
@@ -31,6 +30,7 @@ from tests._factories.ingestion import (
     all_jobs,
     queued_events,
     read_job,
+    retained_file,
     stage_job,
     staged_keys,
 )
@@ -98,7 +98,7 @@ class TestAnAcceptedUpload:
         row = read_job(committed_sessions, uuid.UUID(response.json()["id"]))
         (activity,) = activities_of(committed_sessions, me.user.id)
         assert (row.status, row.activity_ids) == ("completed", [str(activity.id)])
-        assert file_storage.get_activity_file(activity.id, storage) is not None
+        assert retained_file(activity.id, storage) is not None
         assert staged_keys(storage) == []
         assert [hint["message"] for _key, hint in hints] == ["JOB_STATUS_CHANGED"]
 

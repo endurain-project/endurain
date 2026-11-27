@@ -36,9 +36,9 @@ The blob store is `local://` by default, which means subfolders of `DATA_DIR` (`
 | `profile_import_staging`, `profile_export_staging` | Archives waiting to be imported or downloaded | Temporary |
 | `bulk_import_errors` | Files that failed in a bulk import, under `<user id>/<import id>/` | Kept for you to inspect, then removed after `JOBS_RETENTION_DAYS` (90 days by default) or when the account is deleted |
 
-The activity data itself (route, streams, laps, heart rate and so on) is in the database. The original file is retained alongside it and is what a profile export includes.
+The activity data itself (route, streams, laps, heart rate and so on) is in the database. The original file is retained alongside it and is what a profile export includes. The database also holds one `activity_files` row per retained file (owner, content hash, storage key, size and state), which is how Endurain finds the file again. An activity from the same bytes, or the activities of one multi-activity file, share one file.
 
-On local storage every area is browsable under the `data` directory the image creates at start: `activity_files/processed/<activity id>.<ext>` (the activity id is a UUID), `activity_media/`, `activity_thumbnails/`, `user_images/`, `server_images/`, the profile staging areas and `bulk_import_errors/`.
+On local storage every area is browsable under the `data` directory the image creates at start: `activity_files/files/<file id>.<ext>` (the id is a UUID; files imported before v0.22 stay at `activity_files/processed/<activity id>.<ext>`), `activity_media/`, `activity_thumbnails/`, `user_images/`, `server_images/`, the profile staging areas and `bulk_import_errors/`.
 
 ## What to back up
 
@@ -52,7 +52,7 @@ On local storage every area is browsable under the `data` directory the image cr
 
 The logs (`backend/logs`) are optional to back up.
 
-Take the database dump and the blob copy close together. They can disagree slightly if you take them hours apart: a file with no row is removed by a nightly sweep, and a row whose file is missing simply has no original to show.
+Take the database dump and the blob copy close together. They can disagree slightly if you take them hours apart: a retained file that the restored database has no row for stays in storage unused, because the nightly sweep reads the database and no longer lists storage (only the files stored before v0.22 are still listed), and a row whose file is missing simply has no original to show.
 
 ## Restoring
 
@@ -92,7 +92,8 @@ Leftovers do not pile up forever. Scheduled sweeps remove:
 
 | What | When it is removed |
 | ---- | ------------------ |
-| Thumbnails, photos and retained files whose activity is gone | Daily |
+| Thumbnails and photos whose activity is gone | Daily |
+| Retained files of crashed uploads, of activities that were deleted, and files no activity references (found by a database query, not by listing storage), plus the files stored before v0.22 whose activity is gone | Daily. A crashed upload is removed after a day |
 | Staged upload and bulk-import archives that no job references | After about 2 days |
 | Staged profile import archives that were never used | A sweep every 6 hours |
 | Profile export archives past their download window | A sweep every 6 hours (the download itself is available for 2 hours) |

@@ -1,9 +1,11 @@
 """The events an activity change publishes: type, payload, correlation metadata and payload version."""
 
+import uuid
 from datetime import timedelta
 
 import pytest
 
+import modules.activities.activity.contracts as activity_contracts
 import modules.activities.activity.event_publishers as event_publishers
 import modules.activities.activity.events as activity_events
 import modules.activities.activity.ingestion_service as ingestion_service
@@ -53,13 +55,16 @@ class TestSingleActivity:
 
         [event] = published[activity_events.ACTIVITY_DELETED]
         assert event.payload["activity_id"] == str(activity.id)
+        assert event.payload["file_id"] is None
         assert event.metadata["user_id"] == str(owner.id)
         assert event.source == "api:delete_activity"
         assert event.schema_version == activity_events.ActivityDeletedPayload.SCHEMA_VERSION
 
     def test_an_event_staged_in_a_session_that_is_rolled_back_is_never_delivered(self, db, owner, published):
         activity = make_activity(db, owner.id)
-        event_publishers.publish_activity_deleted(activity.id, owner.id, db)
+        event_publishers.publish_activities_deleted(
+            [activity_contracts.DeletedActivity(activity.id, None)], owner.id, db, source="job:test"
+        )
 
         db.rollback()
 
@@ -84,11 +89,21 @@ class TestBatches:
     def test_each_activity_of_a_bulk_delete_gets_its_own_event(self, db, owner, published):
         ids = [make_activity_at(db, owner.id, DEFAULT_START + timedelta(days=n)).id for n in range(2)]
 
-        event_publishers.publish_activities_deleted(ids, owner.id, db, source="job:test")
+        file_id = uuid.uuid4()
+        deleted = [
+            activity_contracts.DeletedActivity(ids[0], file_id),
+            activity_contracts.DeletedActivity(ids[1], None),
+        ]
+
+        event_publishers.publish_activities_deleted(deleted, owner.id, db, source="job:test")
         db.commit()
 
         events = published[activity_events.ACTIVITY_DELETED]
         assert sorted(e.payload["activity_id"] for e in events) == sorted(str(i) for i in ids)
+        assert {e.payload["activity_id"]: e.payload["file_id"] for e in events} == {
+            str(ids[0]): str(file_id),
+            str(ids[1]): None,
+        }
         assert {e.schema_version for e in events} == {activity_events.ActivityDeletedPayload.SCHEMA_VERSION}
 
     def test_an_empty_batch_publishes_nothing(self, db, owner, published):

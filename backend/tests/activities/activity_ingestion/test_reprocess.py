@@ -21,8 +21,8 @@ import modules.activities.activity.integration_service as activity_integration
 import modules.activities.activity.models as activity_models
 import modules.activities.activity_exercise_titles.models as exercise_title_models
 import modules.activities.activity_file_storage.constants as file_storage_constants
-import modules.activities.activity_file_storage.files as file_storage_files
 import modules.activities.activity_file_storage.integration_service as file_storage
+import modules.activities.activity_file_storage.models as file_models
 import modules.activities.activity_ingestion.migration_service as migration_service
 import modules.activities.activity_ingestion.pipeline_service as pipeline_service
 import modules.activities.activity_laps.models as lap_models
@@ -34,7 +34,7 @@ import modules.activities.computation as activities_computation
 import modules.users.users.models as user_models
 from tests._factories.activities import make_activity
 from tests._factories.gears import make_gear
-from tests._factories.ingestion import fit_file
+from tests._factories.ingestion import fit_file, retained_file, store_legacy_file
 from tests._factories.reprocess import (
     BOGUS_DERIVED,
     OLD,
@@ -146,7 +146,37 @@ def _import_legacy_legs(
 
     with monkeypatch.context() as patch:
         patch.setattr(pipeline_service, "parse_file", without_a_parent)
-        return import_fixture(db, user_id, source, tmp_path, storage)
+        activity_ids = import_fixture(db, user_id, source, tmp_path, storage)
+    _store_as_legacy_files(db, activity_ids, storage)
+    return activity_ids
+
+
+def _store_as_legacy_files(db: Session, activity_ids: list[uuid.UUID], storage) -> None:
+    """Move the files of activities to the layout used before file rows: one copy per activity, no row."""
+    copies = {activity_id: retained_file(activity_id, storage) for activity_id in activity_ids}
+    refs = list(_file_rows(db))
+    for activity_id, copy in copies.items():
+        assert copy is not None
+        store_legacy_file(activity_id, copy[1], storage, extension=copy[0])
+    db.execute(
+        update(activity_models.Activity).where(activity_models.Activity.id.in_(activity_ids)).values(file_id=None)
+    )
+    db.execute(delete(file_models.ActivityFile))
+    db.commit()
+    for ref in refs:
+        storage.delete(file_storage_constants.ACTIVITY_FILE_STORAGE_AREA, ref.storage_key)
+
+
+def _file_rows(db: Session) -> list[file_models.ActivityFile]:
+    """Return the retained file rows, read in the test's own session."""
+    db.expire_all()
+    return list(db.scalars(select(file_models.ActivityFile)).all())
+
+
+def _retained_ref(db: Session, activity_id: uuid.UUID):
+    """Return the file row an activity references."""
+    file_id = activity_integration.get_file_ids([activity_id], db)[activity_id]
+    return file_storage.resolve_refs([file_id], db)[file_id]
 
 
 def _row(db: Session, activity_id: uuid.UUID) -> activity_models.Activity:
@@ -462,8 +492,7 @@ class TestWhenNothingCanBeReprocessed:
     def test_an_activity_without_a_retained_file_is_left_as_it_is(self, db, owner, storage, tmp_path):
         [activity_id] = import_fixture(db, owner.id, RUN, tmp_path, storage)
         degrade(db, activity_id)
-        key, _data = file_storage.get_activity_file(activity_id, storage)
-        storage.delete(file_storage_constants.ACTIVITY_FILE_STORAGE_AREA, file_storage_files.processed_storage_key(key))
+        storage.delete(file_storage_constants.ACTIVITY_FILE_STORAGE_AREA, _retained_ref(db, activity_id).storage_key)
         before = (_values(db, activity_id, _DERIVED), _children(db, activity_id))
 
         outcome = migration_service.reprocess_activity(activity_id, storage)
@@ -478,7 +507,11 @@ class TestWhenNothingCanBeReprocessed:
     def test_a_corrupted_file_fails_and_changes_nothing(self, db, owner, storage, tmp_path, caplog):
         [activity_id] = import_fixture(db, owner.id, RUN, tmp_path, storage)
         degrade(db, activity_id)
-        file_storage.store_activity_file(activity_id, ".fit", b"this is not a fit file at all", storage)
+        storage.save(
+            file_storage_constants.ACTIVITY_FILE_STORAGE_AREA,
+            _retained_ref(db, activity_id).storage_key,
+            b"this is not a fit file at all",
+        )
         before = (_values(db, activity_id, _DERIVED), _children(db, activity_id))
 
         outcome = migration_service.reprocess_activity(activity_id, storage)
@@ -558,7 +591,7 @@ class TestAMultiSessionFile:
         )
         assert len(legacy_in_order) == len(legs) > 1
         missing = legacy_in_order.pop()
-        file_storage.delete_activity_file(missing, storage)
+        file_storage.delete_legacy_activity_file(missing, storage)
         db.execute(delete(activity_models.Activity).where(activity_models.Activity.id == missing))
         db.commit()
         for activity_id in legacy_in_order:
@@ -571,7 +604,7 @@ class TestAMultiSessionFile:
             assert _values(db, activity_id, _DERIVED) == _values(db, leg_id, _DERIVED)
             assert _children(db, activity_id) == _children(db, leg_id)
             assert _row(db, activity_id).parent_activity_id is None
-            assert file_storage.get_activity_file(activity_id, storage) is not None
+            assert retained_file(activity_id, storage) is not None
 
     def test_a_multisport_activity_is_reprocessed_with_its_legs(self, db, owner, other, storage, tmp_path):
         [parent_id] = import_fixture(db, owner.id, TRIATHLON, tmp_path, storage)
@@ -846,84 +879,74 @@ class TestRegroupingLegacyLegs:
 
     def test_the_file_is_kept_once_under_the_parent(self, db, owner, storage, tmp_path, monkeypatch):
         legs = _legacy_group(db, owner.id, tmp_path, storage, monkeypatch)
-        assert all(file_storage.get_activity_file(leg, storage) is not None for leg in legs)
+        assert all(retained_file(leg, storage) is not None for leg in legs)
 
         migration_service.reprocess_activity(legs[3], storage)
 
         parent_id = _parent_of(db, legs[0])
         assert parent_id is not None
-        stored = file_storage.get_activity_file(parent_id, storage)
+        stored = retained_file(parent_id, storage)
         assert stored is not None
-        assert stored[0] == f"{parent_id}.fit"
+        assert stored[0] == ".fit"
         assert stored[1] == TRIATHLON.read_bytes()
-        assert all(file_storage.get_activity_file(leg, storage) is None for leg in legs)
+        assert all(retained_file(leg, storage) is None for leg in legs)
 
-    def test_the_parent_file_is_stored_before_the_group_commits(self, db, owner, storage, tmp_path, monkeypatch):
+    def test_the_parent_file_is_staged_before_the_group_commits_and_attached_with_it(
+        self, db, owner, storage, tmp_path, monkeypatch
+    ):
         legs = _legacy_group(db, owner.id, tmp_path, storage, monkeypatch)
-        real = file_storage.store_activity_file
-        seen: list[tuple[uuid.UUID, int]] = []
+        real = file_storage.stage_file
+        seen: list[int] = []
 
-        def recording(activity_id, extension, data, provider):
+        def recording(*args, **kwargs):
             db.expire_all()
             parents = db.execute(
                 select(activity_models.Activity.id).where(
                     activity_models.Activity.activity_type == activity_constants.ActivityType.MULTISPORT.stored
                 )
             ).all()
-            seen.append((activity_id, len(parents)))
-            return real(activity_id, extension, data, provider)
+            seen.append(len(parents))
+            return real(*args, **kwargs)
 
-        monkeypatch.setattr(file_storage, "store_activity_file", recording)
+        monkeypatch.setattr(file_storage, "stage_file", recording)
 
         migration_service.reprocess_activity(legs[0], storage)
 
-        assert [count for _, count in seen] == [0]
-        assert _parent_of(db, legs[0]) == seen[0][0]
+        assert seen == [0]
+        parent_id = _parent_of(db, legs[0])
+        assert parent_id is not None
+        [row] = _file_rows(db)
+        assert (_row(db, parent_id).file_id, row.state) == (row.id, file_storage_constants.ActivityFileState.ATTACHED)
 
-    def test_a_transaction_that_raises_leaves_no_parent_and_no_stored_file(
+    def test_a_transaction_that_raises_leaves_no_parent_and_no_staged_file(
         self, db, owner, storage, tmp_path, monkeypatch
     ):
         legs = _legacy_group(db, owner.id, tmp_path, storage, monkeypatch)
-        real = file_storage.store_activity_file
-        stored: list[uuid.UUID] = []
-
-        def recording(activity_id, extension, data, provider):
-            stored.append(activity_id)
-            return real(activity_id, extension, data, provider)
 
         def boom(*args, **kwargs):
             raise RuntimeError("database is down")
 
-        monkeypatch.setattr(file_storage, "store_activity_file", recording)
         monkeypatch.setattr(activity_integration, "regroup_legs", boom)
 
         with pytest.raises(RuntimeError, match="database is down"):
             migration_service.reprocess_activity(legs[0], storage)
 
-        assert len(stored) == 1
-        assert file_storage.get_activity_file(stored[0], storage) is None
+        assert _file_rows(db) == []
+        assert list(storage.list_keys(file_storage_constants.ACTIVITY_FILE_STORAGE_AREA, "files/")) == []
         assert {_parent_of(db, leg) for leg in legs} == {None}
-        assert all(file_storage.get_activity_file(leg, storage) is not None for leg in legs)
+        assert all(retained_file(leg, storage) is not None for leg in legs)
 
-    def test_a_regroup_that_stages_nothing_removes_the_stored_file(self, db, owner, storage, tmp_path, monkeypatch):
+    def test_a_regroup_that_stages_nothing_removes_the_staged_file(self, db, owner, storage, tmp_path, monkeypatch):
         legs = _legacy_group(db, owner.id, tmp_path, storage, monkeypatch)
         taken = make_activity(db, owner.id, start_time=OLD, end_time=OLD + timedelta(hours=1))
         _set(db, [taken.id], dedup_key=f"file:{_SHA}")
-        real = file_storage.store_activity_file
-        stored: list[uuid.UUID] = []
-
-        def recording(activity_id, extension, data, provider):
-            stored.append(activity_id)
-            return real(activity_id, extension, data, provider)
-
-        monkeypatch.setattr(file_storage, "store_activity_file", recording)
 
         outcome = migration_service.reprocess_activity(legs[0], storage)
 
         assert outcome is migration_service.ReprocessOutcome.REPROCESSED
-        assert len(stored) == 1
-        assert file_storage.get_activity_file(stored[0], storage) is None
-        assert all(file_storage.get_activity_file(leg, storage) is not None for leg in legs)
+        assert _file_rows(db) == []
+        assert list(storage.list_keys(file_storage_constants.ACTIVITY_FILE_STORAGE_AREA, "files/")) == []
+        assert all(retained_file(leg, storage) is not None for leg in legs)
 
     def test_a_second_run_changes_nothing_on_a_leg_or_the_parent(self, db, owner, storage, tmp_path, monkeypatch):
         legs = _legacy_group(db, owner.id, tmp_path, storage, monkeypatch)
@@ -980,13 +1003,13 @@ class TestRegroupingLegacyLegs:
 
     def test_a_different_file_with_the_same_start_times_is_not_grouped(self, db, owner, storage, tmp_path, monkeypatch):
         legs = _legacy_group(db, owner.id, tmp_path, storage, monkeypatch)
-        file_storage.store_activity_file(legs[3], ".fit", b"another recording", storage)
+        store_legacy_file(legs[3], b"another recording", storage)
 
         outcome = migration_service.reprocess_activity(legs[0], storage)
 
         assert outcome is migration_service.ReprocessOutcome.REPROCESSED
         assert {_parent_of(db, leg) for leg in legs} == {None}
-        assert all(file_storage.get_activity_file(leg, storage) is not None for leg in legs)
+        assert all(retained_file(leg, storage) is not None for leg in legs)
 
     def test_another_users_activity_with_the_same_file_is_not_a_sibling(
         self, db, owner, other, storage, tmp_path, monkeypatch

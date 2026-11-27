@@ -6,6 +6,8 @@ This page describes how a file or a provider sync becomes stored activities. The
 - `activity_file_import/` turns a file into activities (`.gpx`, `.tcx`, `.fit`): a decoder per format reads the file into a `Recording` (sessions with sample columns, laps and the device summary, no math), and one shared `assembly` builds an activity from each session, using the device's own totals and computing what the file leaves out. The pipeline decompresses a `.gz` before parsing.
 - `activity/` is the activities core. It never imports a parser or a provider.
 
+Activities imported before file rows existed have no `file_id`; their file is still read and deleted by activity id (`processed/{activity id}`) until it is adopted into a row.
+
 Three import-linter contracts enforce that split: `activities-provider-agnostic` (the activities module imports no provider), `activities-parsing-boundary` (the core imports no parser) and `ingestion-pipeline-format-agnostic` (the pipeline imports no parser directly).
 
 ## One pipeline, three entry points
@@ -21,8 +23,8 @@ flowchart LR
     PA --> E[Enrich]
     E --> R{Source rule}
     R -- skip --> X[Not imported]
-    R -- import --> S[Store and dedup]
-    S --> RET[Retain source file]
+    R -- import --> RET[Retain source file]
+    RET --> S[Store and dedup]
 ```
 
 On failure the entry points differ: an upload cleans up and re-raises, a Garmin Connect sync logs a file the pipeline refuses and moves on (a database or storage outage is raised, so the refresh job retries the window), and a bulk import counts the file as failed and keeps its bytes (an outage is raised, so the batch resumes from its cursor).
@@ -47,9 +49,10 @@ Decoding and assembly are pure functions. They return a canonical `ParsedFile` a
 
     A unique index on `(user_id, dedup_key)` settles concurrent imports of the same activity. The loser rolls back and returns the winner.
 4. **Persist components:** the activity row and its children (laps, sets, streams, workout steps and so on) are staged through contributors registered in `contributor_registry`. A parsed component with no registered contributor fails the import instead of being dropped silently.
-5. **Publish `activity.created`:** staged in the same transaction as the rows. The pipeline commits once per activity, so a later failure does not undo earlier activities.
+5. **Retain the source file:** before the first activity of a file is stored, the pipeline stages the original file as an `activity_files` row (`pending`) in its own short transaction and writes the blob with no session open. The activity is stored with that row's id (`activities.file_id`; the activities core treats it as an opaque id and never imports `activity_file_storage`), and the same transaction marks the row `attached`. A user has one live row per SHA-256, so uploading bytes the user already has, or a multi-activity `.fit`, shares the row instead of writing another copy. A file that stores no activity (a duplicate, a skipped bulk-import member, an empty file) releases the row this import created. A crash between the blob and the activity leaves a `pending` row, which the next import of the same bytes takes over and the daily sweep removes after a day.
+6. **Publish `activity.created`:** staged in the same transaction as the rows. The pipeline commits once per activity, so a later failure does not undo earlier activities.
 
-A FIT file whose `activity` message marks it multisport (`auto_multi_sport`) is the exception: the parser returns a multisport parent with the sessions as its legs, and `store_parsed_group` stages the parent and every leg in one transaction, committed once. The legs copy the parent's privacy, only the parent runs the same-start duplicate check, the retained file is stored once under the parent, and the pipeline returns the parent alone. A Garmin multisport activity is listed once, so the sync reads its legs' Garmin ids and each leg's gear, resolves it to local gear and passes it as `GarminSource.leg_gear`; leg *i* takes entry *i* when the counts match, otherwise no leg takes Garmin gear (logged) and each falls back to its default. The parent never takes gear. A file whose legs were stored on their own before groups existed is left as it is.
+A FIT file whose `activity` message marks it multisport (`auto_multi_sport`) is the exception: the parser returns a multisport parent with the sessions as its legs, and `store_parsed_group` stages the parent and every leg in one transaction, committed once. The legs copy the parent's privacy, only the parent runs the same-start duplicate check, only the parent references the retained file (the legs have no `file_id`), and the pipeline returns the parent alone. A Garmin multisport activity is listed once, so the sync reads its legs' Garmin ids and each leg's gear, resolves it to local gear and passes it as `GarminSource.leg_gear`; leg *i* takes entry *i* when the counts match, otherwise no leg takes Garmin gear (logged) and each falls back to its default. The parent never takes gear. A file whose legs were stored on their own before groups existed is left as it is.
 
 ```mermaid
 sequenceDiagram

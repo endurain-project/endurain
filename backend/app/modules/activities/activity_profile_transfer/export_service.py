@@ -318,7 +318,8 @@ def _write_activity_files(ctx: users_profile_contracts.ProfileExportContext, act
     """Write each activity's retained source file into the archive.
 
     Reads the files through the platform ``StorageProvider`` (local disk or object storage) and writes
-    each under ``activity_files/{activity_id}{ext}``.
+    each under ``activity_files/{activity_id}{ext}``. Activities that share a file row (the several activities of one
+    multi-activity file) each get an entry, so the archive layout does not depend on how files are stored.
 
     Args:
         ctx: The export context.
@@ -327,21 +328,26 @@ def _write_activity_files(ctx: users_profile_contracts.ProfileExportContext, act
     Raises:
         OSError: When the archive cannot be written, so the export fails instead of ending partial.
     """
-    for activity_id in activity_ids:
-        try:
-            stored = activity_file_storage_integration.get_activity_file(activity_id, ctx.storage)
-        except platform_providers.StorageBackendUnavailableError as err:
-            logger.warning(
-                "Could not read an activity file; skipping it",
-                exc_info=err,
-                extra=core_logger.context(activity_id=activity_id),
-            )
-            continue
-        if stored is None:
-            continue
-        key, data = stored
-        ctx.archive.write_bytes(f"{constants.ACTIVITY_FILES_FOLDER}{key}", data)
-        ctx.counts["activity_files"] += 1
+    for start in range(0, len(activity_ids), ctx.batch_size):
+        batch = activity_ids[start : start + ctx.batch_size]
+        file_ids = activity_integration.get_file_ids(batch, ctx.db)
+        refs = activity_file_storage_integration.resolve_refs(list(set(file_ids.values())), ctx.db)
+        for activity_id in batch:
+            ref = refs.get(file_ids[activity_id]) if activity_id in file_ids else None
+            try:
+                stored = activity_file_storage_integration.read_file(activity_id, ref, ctx.storage)
+            except platform_providers.StorageBackendUnavailableError as err:
+                logger.warning(
+                    "Could not read an activity file; skipping it",
+                    exc_info=err,
+                    extra=core_logger.context(activity_id=activity_id),
+                )
+                continue
+            if stored is None:
+                continue
+            extension, data = stored
+            ctx.archive.write_bytes(f"{constants.ACTIVITY_FILES_FOLDER}{activity_id}{extension}", data)
+            ctx.counts["activity_files"] += 1
 
 
 def _write_activity_media(ctx: users_profile_contracts.ProfileExportContext, activity_ids: list[uuid.UUID]) -> None:

@@ -61,7 +61,7 @@ def _delete_until_done(committed_sessions, user_id, limit: int, barrier: threadi
         with committed_sessions() as db:
             batch = activity_crud.delete_all_strava_activities_for_user(user_id, db, limit=limit)
             db.commit()
-        deleted += batch
+        deleted += [item.id for item in batch]
         if len(batch) < limit:
             return deleted
 
@@ -85,7 +85,7 @@ class TestStravaDeletionOverlap:
             worker.join()
 
         assert worker.error is None
-        assert sorted(first_deleted) == sorted(synced)
+        assert sorted(item.id for item in first_deleted) == sorted(synced)
         assert worker.result == []
         assert _remaining(committed_sessions) == set(kept)
         assert _logged(committed_sessions) == Counter(synced)
@@ -127,6 +127,6 @@ class TestStravaDeletionOverlap:
 
         assert (strava.error, account.error) == (None, None)
         owners_activities = set(synced) | set(kept[:2])
-        assert Counter(strava.result + account.result) == Counter(owners_activities)
+        assert Counter(strava.result + [item.id for item in account.result]) == Counter(owners_activities)
         assert _remaining(committed_sessions) == {kept[2]}
         assert _logged(committed_sessions) == Counter(owners_activities)

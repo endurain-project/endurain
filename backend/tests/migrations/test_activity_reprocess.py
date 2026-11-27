@@ -25,7 +25,9 @@ import core.local_pool as core_local_pool
 import migrations.activity_reprocess as reprocess_job
 import migrations.events as migrations_events
 import migrations.models as migrations_models
+import modules.activities.activity.integration_service as activity_integration
 import modules.activities.activity.models as activity_models
+import modules.activities.activity_file_storage.constants as file_storage_constants
 import modules.activities.activity_file_storage.integration_service as file_storage
 import modules.activities.activity_ingestion.migration_service as ingestion_migration
 import modules.activities.activity_laps.models as lap_models
@@ -169,7 +171,12 @@ class TestRunningABatch:
 
     def test_a_corrupted_file_is_stamped_and_logged_and_the_run_goes_on(self, db, tmp_path, storage, caplog):
         broken, healthy = _old_activities(db, tmp_path, storage, users=1)
-        file_storage.store_activity_file(broken, ".fit", b"this is not a fit file at all", storage)
+        file_id = activity_integration.get_file_ids([broken], db)[broken]
+        storage.save(
+            file_storage_constants.ACTIVITY_FILE_STORAGE_AREA,
+            file_storage.resolve_refs([file_id], db)[file_id].storage_key,
+            b"this is not a fit file at all",
+        )
         before = _values(db, [broken])
 
         reprocess_job.run_batch(storage, None)

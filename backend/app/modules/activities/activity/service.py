@@ -930,6 +930,7 @@ def regroup_legs(
     db: Session,
     *,
     activity_id: uuid.UUID | None = None,
+    file_id: uuid.UUID | None = None,
 ) -> activity_schema.ActivityRead | None:
     """Stage a multisport activity over activities that were stored on their own, as its legs.
 
@@ -943,6 +944,7 @@ def regroup_legs(
         leg_ids: The activities that become its legs.
         db: Database session.
         activity_id: The ID the parent is stored under, or ``None`` to generate one.
+        file_id: The retained source file row the parent references, or ``None``.
 
     Returns:
         The staged parent, or ``None`` when nothing was staged because a leg no longer exists or is no longer
@@ -973,6 +975,7 @@ def regroup_legs(
         detect_duplicate_start=False,
         analysis_version=activities_computation.ANALYSIS_VERSION,
         activity_id=activity_id,
+        file_id=file_id,
     )
     visibility_fields = [field for field in activity_constants.PRIVACY_FIELDS if _is_visibility_field(field)]
     for before, after in activity_crud.adopt_legs(user_id, leg_ids, created.id, privacy, db):
@@ -1077,9 +1080,8 @@ def delete_activity(activity_id: uuid.UUID, user_id: uuid.UUID, db: Session, *, 
         lambda: activity_crud.get_activity_by_id_from_user_id(activity_id, user_id, db) is not None,
         f"Activity {activity_id} not found",
     ):
-        leg_ids = activity_crud.delete_activity(activity_id, user_id, db, if_match=if_match)
-        activity_event_publishers.publish_activity_deleted(activity_id, user_id, db)
-        activity_event_publishers.publish_activities_deleted(leg_ids, user_id, db, source="api:delete_activity")
+        deleted = activity_crud.delete_activity(activity_id, user_id, db, if_match=if_match)
+        activity_event_publishers.publish_activities_deleted(deleted, user_id, db, source="api:delete_activity")
         db.commit()
     logger.info(
         "Deleted an activity",
@@ -1165,15 +1167,15 @@ def delete_all_strava_activities(user_id: uuid.UUID, db: Session, *, source: str
     Returns:
         The number of activities deleted; fewer than ``limit`` means none are left.
     """
-    deleted_ids = activity_crud.delete_all_strava_activities_for_user(user_id, db, limit=limit)
-    activity_event_publishers.publish_activities_deleted(deleted_ids, user_id, db, source=source)
+    deleted = activity_crud.delete_all_strava_activities_for_user(user_id, db, limit=limit)
+    activity_event_publishers.publish_activities_deleted(deleted, user_id, db, source=source)
     # Irreversible and triggered from another module, so the count is recorded
     # here rather than left to the caller.
     logger.info(
         "Deleted Strava-sourced activities for user",
-        extra=core_logger.context(user_id=user_id, deleted_count=len(deleted_ids)),
+        extra=core_logger.context(user_id=user_id, deleted_count=len(deleted)),
     )
-    return len(deleted_ids)
+    return len(deleted)
 
 
 def delete_activities_batch_for_user(user_id: uuid.UUID, limit: int, db: Session, *, source: str) -> int:
@@ -1195,13 +1197,13 @@ def delete_activities_batch_for_user(user_id: uuid.UUID, limit: int, db: Session
     Returns:
         The number of activities deleted.
     """
-    deleted_ids = activity_crud.delete_activities_batch_for_user(user_id, limit, db)
-    activity_event_publishers.publish_activities_deleted(deleted_ids, user_id, db, source=source)
+    deleted = activity_crud.delete_activities_batch_for_user(user_id, limit, db)
+    activity_event_publishers.publish_activities_deleted(deleted, user_id, db, source=source)
     logger.debug(
         "Deleted a batch of a user's activities",
-        extra=core_logger.context(user_id=user_id, deleted_count=len(deleted_ids)),
+        extra=core_logger.context(user_id=user_id, deleted_count=len(deleted)),
     )
-    return len(deleted_ids)
+    return len(deleted)
 
 
 def owns_activity(activity_id: uuid.UUID, user_id: uuid.UUID, db: Session) -> bool:

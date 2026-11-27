@@ -1,10 +1,9 @@
 """Storage addressing and removal for retained activity source files.
 
-Package-private: the key layout and the delete are shared by the published
-surface (``integration_service``) and the cleanup subscriber, neither of which
-may import the other's private names. The database stores no key for these
-files: it is derived from the activity id plus one of the known source
-extensions.
+Package-private: the key layout is shared by the service and the cleanup subscriber, neither of which may import
+the other's private names. A file with a row is stored under ``files/{file_id}{ext}`` and the row holds the key.
+A file stored before rows existed has no row: its key is derived from the activity id plus one of the known source
+extensions, and is probed and deleted through the legacy functions below until those files are adopted.
 """
 
 import uuid
@@ -17,56 +16,88 @@ import modules.activities.activity_file_storage.constants as activity_file_stora
 # single namespace components.
 _PROCESSED_KEY_PREFIX = "processed"
 
-# The activity source-file extensions we retain and can address by activity id.
-# A ``.gz`` upload is decompressed before storage, so only the inner formats are
-# ever stored under an ``{id}`` key.
+# The activity source-file extensions we retain. A ``.gz`` upload is decompressed before storage, so only the inner
+# formats are ever stored.
 STORED_EXTENSIONS = (".gpx", ".fit", ".tcx")
 
 
-def activity_file_key(activity_id: uuid.UUID, extension: str) -> str:
-    """Return the storage key for an activity's retained source file.
+def normalize_extension(extension: str) -> str:
+    """Return an extension lowercased with its leading dot.
+
+    Args:
+        extension: The extension, with or without its dot (``".FIT"`` or ``"fit"``).
+
+    Returns:
+        The extension, e.g. ``".fit"``.
+    """
+    return extension.lower() if extension.startswith(".") else f".{extension.lower()}"
+
+
+def file_key(file_id: uuid.UUID, extension: str) -> str:
+    """Return the storage key of a retained file that has a row.
+
+    Args:
+        file_id: The file row's id.
+        extension: The source-file extension, with or without a leading dot.
+
+    Returns:
+        The storage key, e.g. ``"files/{file_id}.fit"``.
+    """
+    return f"{activity_file_storage_constants.FILE_KEY_PREFIX}/{file_id}{normalize_extension(extension)}"
+
+
+def legacy_file_key(activity_id: uuid.UUID, extension: str) -> str:
+    """Return the storage key of a file stored before rows existed.
 
     Args:
         activity_id: The owning activity id.
-        extension: The source-file extension, with or without a leading dot
-            (e.g. ``".fit"`` or ``"fit"``).
+        extension: The source-file extension, with or without a leading dot.
 
     Returns:
-        The storage key, e.g. ``"{activity_id}.fit"``.
+        The storage key, e.g. ``"processed/{activity_id}.fit"``.
     """
-    ext = extension if extension.startswith(".") else f".{extension}"
-    return f"{activity_id}{ext.lower()}"
+    return f"{_PROCESSED_KEY_PREFIX}/{activity_id}{normalize_extension(extension)}"
 
 
-def processed_storage_key(key: str) -> str:
-    """Return the storage key placed under the ``processed`` hierarchy.
-
-    Args:
-        key: The activity file key, e.g. ``"{activity_id}.fit"``.
-
-    Returns:
-        The prefixed storage key, e.g. ``"processed/{activity_id}.fit"``.
-    """
-    return f"{_PROCESSED_KEY_PREFIX}/{key}"
-
-
-def delete_activity_file(
+def delete_legacy_files(
     activity_id: uuid.UUID,
     storage: platform_providers.StorageProvider,
 ) -> None:
-    """Delete an activity's retained source file(s).
+    """Delete the file an activity without a row has stored, whichever extension it has.
 
-    Deletes every known-extension key for the activity. Deletes are idempotent
-    (a missing blob is a no-op on every backend), so this is safe to call for an
-    activity that never had a retained file.
+    Deletes are idempotent (a missing blob is a no-op on every backend), so this is safe to call for an activity
+    that never had a retained file.
 
     Args:
         activity_id: The owning activity id.
         storage: The blob-storage provider.
     """
     for extension in STORED_EXTENSIONS:
-        key = activity_file_key(activity_id, extension)
-        storage.delete(activity_file_storage_constants.ACTIVITY_FILE_STORAGE_AREA, processed_storage_key(key))
+        storage.delete(
+            activity_file_storage_constants.ACTIVITY_FILE_STORAGE_AREA, legacy_file_key(activity_id, extension)
+        )
+
+
+def read_legacy_file(
+    activity_id: uuid.UUID,
+    storage: platform_providers.StorageProvider,
+) -> tuple[str, bytes] | None:
+    """Read the file an activity without a row has stored, probing the known extensions.
+
+    Args:
+        activity_id: The owning activity id.
+        storage: The blob-storage provider.
+
+    Returns:
+        The ``(extension, data)`` of the first extension found, or ``None`` when there is none.
+    """
+    for extension in STORED_EXTENSIONS:
+        data = storage.get(
+            activity_file_storage_constants.ACTIVITY_FILE_STORAGE_AREA, legacy_file_key(activity_id, extension)
+        )
+        if data is not None:
+            return extension, data
+    return None
 
 
 def activity_id_of_processed_key(key: str) -> uuid.UUID | None:
@@ -78,8 +109,8 @@ def activity_id_of_processed_key(key: str) -> uuid.UUID | None:
         key: A storage key in the activity-files area.
 
     Returns:
-        The activity id, or ``None`` for any other key (staged uploads share the
-        area and must not be treated as retained files).
+        The activity id, or ``None`` for any other key (staged uploads and ``files/`` keys share the area and must
+        not be treated as legacy files).
     """
     stem, dot, extension = key.removeprefix(f"{_PROCESSED_KEY_PREFIX}/").rpartition(".")
     owned = key.startswith(f"{_PROCESSED_KEY_PREFIX}/") and f".{extension}" in STORED_EXTENSIONS

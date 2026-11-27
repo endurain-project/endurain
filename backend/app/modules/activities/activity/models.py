@@ -88,6 +88,8 @@ class Activity(UpdatedAtMixin, Base):
         analysis_version: The version of the file analysis that computed the derived values; 0 before versions.
         start_latitude: Latitude of the activity's start point, in degrees; null without a position.
         start_longitude: Longitude of the activity's start point, in degrees; null without a position.
+        file_id: Opaque id of the retained source file row, null for a leg, a provider activity and an activity whose
+            file was not adopted yet.
         updated_at: When the activity last changed, including a derived change such as its thumbnail or media.
     """
 
@@ -220,6 +222,12 @@ class Activity(UpdatedAtMixin, Base):
         Double,
         nullable=True,
         comment="Longitude of the activity's start point, in degrees; NULL when the activity has no position",
+    )
+    file_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("activity_files.id"),
+        nullable=True,
+        index=True,
+        comment="Retained source file the activity was imported from; NULL for a leg or an activity with no file row",
     )
 
     # SQLAlchemy bumps ``version`` on each ORM flush and adds it to the UPDATE's

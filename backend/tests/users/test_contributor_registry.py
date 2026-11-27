@@ -21,7 +21,11 @@ def _noop(*_args) -> int:
 
 def _erasers() -> users_contributors.UserErasers:
     return users_contributors.UserErasers(
-        delete_activities=_noop, delete_notifications=_noop, delete_staged_files=_noop, delete_bulk_import_errors=_noop
+        delete_activities=_noop,
+        delete_notifications=_noop,
+        delete_activity_files=_noop,
+        delete_staged_files=_noop,
+        delete_bulk_import_errors=_noop,
     )
 
 

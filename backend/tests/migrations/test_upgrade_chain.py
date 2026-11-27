@@ -10,7 +10,7 @@ import migrations.startup as migrations_startup
 from tests._helpers import alembic_chain
 
 _RETIREMENT_REVISION = "50ac9225ce4f"
-_HEAD_REVISION = "5b8e2d4f6a13"
+_HEAD_REVISION = "7d4a9c1e6b52"
 _REPROCESS_MIGRATION = {15: False}
 _DATA_MIGRATIONS = (11, 12, 13, 14)
 _SUBSTRATE_TABLES = ("event_log", "event_outbox", "processing_jobs", "job_attempts", "job_workers")
@@ -147,15 +147,20 @@ def test_the_baseline_alone_differs_from_the_models_only_where_v0_22_changes_the
         ("add_index", "uq_gear_user_nickname"),
         ("add_index", "ix_activities_user_id_parent_activity_id"),
         ("add_index", "ix_activities_analysis_version_id"),
+        ("add_index", "ix_activities_file_id"),
+        ("add_index", "ix_activity_files_user_id"),
+        ("add_index", "uq_activity_files_user_sha256_live"),
+        ("add_index", "ix_activity_files_state_updated_at"),
     }
-    # The baseline has no multisport parent column, nor the key on it, and no analysis version.
+    # The baseline has no multisport parent column, nor the key on it, no analysis version and no retained files.
     assert added == {
         ("add_column", "activities", "parent_activity_id"),
         ("add_column", "activities", "analysis_version"),
         ("add_column", "activities", "start_latitude"),
         ("add_column", "activities", "start_longitude"),
+        ("add_column", "activities", "file_id"),
     }
-    assert foreign_keys == ["add_fk"]
+    assert foreign_keys == ["add_fk", "add_fk"]
     assert columns == [
         (
             "modify_comment",

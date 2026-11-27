@@ -1,128 +1,221 @@
-"""Tests for the activity_file_storage integration service (storage-backed source files)."""
+"""Tests for the retained-file surface: staging, attaching, reading and releasing a file with a row."""
 
+import hashlib
 import uuid
 
-from jasil.backends.storage_local import LocalStorage
+import pytest
+from sqlalchemy import select, text
 
+import core.exceptions as core_exceptions
 import modules.activities.activity_file_storage.constants as activity_file_storage_constants
 import modules.activities.activity_file_storage.files as activity_file_storage_files
-import modules.activities.activity_file_storage.integration_service as activity_file_storage_integration
-import modules.activities.activity_file_storage.scheduled_jobs as activity_file_storage_scheduled_jobs
+import modules.activities.activity_file_storage.integration_service as file_storage
+import modules.activities.activity_file_storage.models as file_models
 from tests._factories.activities import make_activity
-from tests._factories.ingestion import age_stored_objects
+from tests._factories.ingestion import retain_file, store_legacy_file
 from tests._factories.users import make_user
-from tests._helpers.clock import platform_clock
 
 AREA = activity_file_storage_constants.ACTIVITY_FILE_STORAGE_AREA
-
-ID_1 = uuid.UUID("00000000-0000-4000-8000-000000000001")
-ID_2 = uuid.UUID("00000000-0000-4000-8000-000000000002")
-ID_3 = uuid.UUID("00000000-0000-4000-8000-000000000003")
-ID_5 = uuid.UUID("00000000-0000-4000-8000-000000000005")
-ID_7 = uuid.UUID("00000000-0000-4000-8000-000000000007")
-ID_42 = uuid.UUID("00000000-0000-4000-8000-000000000042")
-ID_99 = uuid.UUID("00000000-0000-4000-8000-000000000099")
-ID_123 = uuid.UUID("00000000-0000-4000-8000-000000000123")
+_State = activity_file_storage_constants.ActivityFileState
 
 
-def _plain_storage(root) -> LocalStorage:
-    """A local backend configured the way the application configures it."""
-    return LocalStorage(str(root), clock=platform_clock(), plain_areas=frozenset({AREA}))
+def _sha(data: bytes) -> str:
+    return hashlib.sha256(data).hexdigest()
 
 
-class TestActivityFileKey:
-    def test_adds_dot_and_lowercases(self):
-        assert activity_file_storage_files.activity_file_key(ID_42, "fit") == f"{ID_42}.fit"
-        assert activity_file_storage_files.activity_file_key(ID_42, ".FIT") == f"{ID_42}.fit"
-        assert activity_file_storage_files.activity_file_key(ID_7, ".gpx") == f"{ID_7}.gpx"
+def _rows(committed_sessions) -> list[file_models.ActivityFile]:
+    with committed_sessions() as db:
+        return list(db.scalars(select(file_models.ActivityFile).order_by(file_models.ActivityFile.created_at)).all())
 
 
-class TestStoreAndGet:
-    def test_store_then_get_round_trips(self, tmp_path):
-        storage = _plain_storage(tmp_path)
-        key = activity_file_storage_integration.store_activity_file(ID_42, ".fit", b"fitbytes", storage)
-        assert key == f"{ID_42}.fit"
-        assert activity_file_storage_integration.get_activity_file(ID_42, storage) == (f"{ID_42}.fit", b"fitbytes")
+def _user(committed_sessions):
+    with committed_sessions() as db:
+        user = make_user(db)
+        db.commit()
+        return user
 
-    def test_store_writes_a_browsable_file(self, tmp_path):
-        activity_file_storage_integration.store_activity_file(ID_42, ".fit", b"fitbytes", _plain_storage(tmp_path))
 
-        assert (tmp_path / "activity_files" / "processed" / f"{ID_42}.fit").read_bytes() == b"fitbytes"
+class TestStageFile:
+    def test_records_a_pending_row_and_stores_the_blob_under_the_files_prefix(self, storage, committed_sessions):
+        user = _user(committed_sessions)
 
-    def test_get_returns_none_when_missing(self, tmp_path):
-        storage = _plain_storage(tmp_path)
-        assert activity_file_storage_integration.get_activity_file(ID_99, storage) is None
+        staged = file_storage.stage_file(user.id, _sha(b"fit"), ".FIT", b"fit", storage)
 
-    def test_store_for_ids_writes_each(self, tmp_path):
-        storage = _plain_storage(tmp_path)
-        activity_file_storage_integration.store_activity_file_for_ids([ID_1, ID_2, ID_3], ".gpx", b"data", storage)
-        for activity_id in (ID_1, ID_2, ID_3):
-            assert activity_file_storage_integration.get_activity_file(activity_id, storage) == (
-                f"{activity_id}.gpx",
-                b"data",
-            )
-
-    def test_get_probes_known_extensions(self, tmp_path):
-        storage = _plain_storage(tmp_path)
-        activity_file_storage_integration.store_activity_file(ID_5, ".tcx", b"tcx", storage)
-        assert activity_file_storage_integration.get_activity_file(ID_5, storage) == (f"{ID_5}.tcx", b"tcx")
-
-    def test_reads_files_already_at_the_plain_processed_path(self, tmp_path):
-        plain_file = tmp_path / "activity_files" / "processed" / f"{ID_1}.gpx"
-        plain_file.parent.mkdir(parents=True)
-        plain_file.write_bytes(b"plain")
-
-        assert activity_file_storage_integration.get_activity_file(ID_1, _plain_storage(tmp_path)) == (
-            f"{ID_1}.gpx",
-            b"plain",
+        assert staged.created is True
+        assert staged.ref.storage_key == f"files/{staged.ref.file_id}.fit"
+        assert storage.get(AREA, staged.ref.storage_key) == b"fit"
+        (row,) = _rows(committed_sessions)
+        assert (row.user_id, row.sha256, row.extension, row.size_bytes, row.state) == (
+            user.id,
+            _sha(b"fit"),
+            ".fit",
+            3,
+            _State.PENDING,
         )
 
+    def test_the_same_bytes_of_the_same_user_share_one_row(self, storage, committed_sessions):
+        user = _user(committed_sessions)
+        first = file_storage.stage_file(user.id, _sha(b"fit"), ".fit", b"fit", storage)
 
-class TestDelete:
-    def test_delete_removes_stored_file(self, tmp_path):
-        storage = _plain_storage(tmp_path)
-        activity_file_storage_integration.store_activity_file(ID_42, ".fit", b"x", storage)
-        activity_file_storage_files.delete_activity_file(ID_42, storage)
-        assert activity_file_storage_integration.get_activity_file(ID_42, storage) is None
+        second = file_storage.stage_file(user.id, _sha(b"fit"), ".fit", b"fit", storage)
 
-    def test_delete_removes_a_file_left_in_the_opaque_layout(self, tmp_path):
-        activity_file_storage_integration.store_activity_file(
-            ID_7, ".fit", b"opaque", LocalStorage(str(tmp_path), clock=platform_clock())
-        )
+        assert second.created is False
+        assert second.ref.file_id == first.ref.file_id
+        assert len(_rows(committed_sessions)) == 1
 
-        activity_file_storage_files.delete_activity_file(ID_7, _plain_storage(tmp_path))
-
-        assert list((tmp_path / ".jasil-objects").rglob("object")) == []
-
-    def test_delete_is_idempotent_when_absent(self, tmp_path):
-        storage = _plain_storage(tmp_path)
-        # Must not raise even though nothing is stored.
-        activity_file_storage_files.delete_activity_file(ID_123, storage)
-        assert activity_file_storage_integration.get_activity_file(ID_123, storage) is None
-
-
-class TestOrphanSweep:
-    def test_deletes_the_files_of_activities_that_are_gone_and_leaves_everything_else(
-        self, storage, committed_sessions, tmp_path
-    ):
+    def test_an_attached_row_is_taken_without_writing_the_blob_again(self, storage, committed_sessions):
+        user = _user(committed_sessions)
         with committed_sessions() as db:
-            alive = make_activity(db, make_user(db).id)
+            activity = make_activity(db, user.id)
             db.commit()
-        orphan = uuid.uuid4()
-        activity_file_storage_integration.store_activity_file(alive.id, ".fit", b"alive", storage)
-        activity_file_storage_integration.store_activity_file(orphan, ".fit", b"orphan", storage)
-        storage.save(AREA, "upload_staging/staged.fit", b"staged")
-        storage.save(AREA, "processed/42.fit", b"integer layout")
-        age_stored_objects(tmp_path, 2 * 3600)
-        recent_orphan = uuid.uuid4()
-        activity_file_storage_integration.store_activity_file(recent_orphan, ".fit", b"just written", storage)
+        file_id = retain_file(user.id, activity.id, b"fit", storage)
+        storage.delete(AREA, f"files/{file_id}.fit")
 
-        activity_file_storage_scheduled_jobs.sweep_orphaned_activity_files()
+        staged = file_storage.stage_file(user.id, _sha(b"fit"), ".fit", b"fit", storage)
 
-        assert activity_file_storage_integration.get_activity_file(orphan, storage) is None
-        assert activity_file_storage_integration.get_activity_file(alive.id, storage) is not None
-        assert activity_file_storage_integration.get_activity_file(recent_orphan, storage) is not None, (
-            "a file written moments ago may belong to a row that has not committed yet"
-        )
-        assert storage.get(AREA, "upload_staging/staged.fit") == b"staged"
-        assert storage.get(AREA, "processed/42.fit") == b"integer layout"
+        assert staged.ref.file_id == file_id
+        assert storage.get(AREA, staged.ref.storage_key) is None, "an attached file's blob is not rewritten"
+
+    def test_the_same_bytes_of_another_user_get_their_own_row(self, storage, committed_sessions):
+        first_user, second_user = _user(committed_sessions), None
+        with committed_sessions() as db:
+            second_user = make_user(db)
+            db.commit()
+        first = file_storage.stage_file(first_user.id, _sha(b"fit"), ".fit", b"fit", storage)
+
+        second = file_storage.stage_file(second_user.id, _sha(b"fit"), ".fit", b"fit", storage)
+
+        assert second.created is True
+        assert second.ref.file_id != first.ref.file_id
+
+    def test_a_row_being_deleted_is_not_taken_so_the_new_blob_has_its_own_key(self, storage, committed_sessions):
+        user = _user(committed_sessions)
+        old = file_storage.stage_file(user.id, _sha(b"fit"), ".fit", b"fit", storage)
+        with committed_sessions() as db:
+            db.execute(text("UPDATE activity_files SET state = 'deleting'"))
+            db.commit()
+
+        new = file_storage.stage_file(user.id, _sha(b"fit"), ".fit", b"fit", storage)
+
+        assert new.created is True
+        assert new.ref.storage_key != old.ref.storage_key
+
+
+class TestMarkAttached:
+    def test_moves_a_pending_row_to_attached(self, storage, committed_sessions):
+        user = _user(committed_sessions)
+        staged = file_storage.stage_file(user.id, _sha(b"x"), ".gpx", b"x", storage)
+
+        with committed_sessions() as db:
+            file_storage.mark_attached(staged.ref.file_id, db)
+            db.commit()
+
+        assert _rows(committed_sessions)[0].state == _State.ATTACHED
+
+    def test_refuses_a_row_that_is_being_deleted_so_the_caller_stages_a_new_one(self, storage, committed_sessions):
+        user = _user(committed_sessions)
+        staged = file_storage.stage_file(user.id, _sha(b"x"), ".gpx", b"x", storage)
+        with committed_sessions() as db:
+            db.execute(text("UPDATE activity_files SET state = 'deleting'"))
+            db.commit()
+
+        with committed_sessions() as db, pytest.raises(core_exceptions.ProcessingError):
+            file_storage.mark_attached(staged.ref.file_id, db)
+
+    def test_refuses_a_row_that_is_gone(self, committed_sessions):
+        with committed_sessions() as db, pytest.raises(core_exceptions.ProcessingError):
+            file_storage.mark_attached(uuid.uuid4(), db)
+
+
+class TestReadFile:
+    def test_reads_the_blob_a_row_names(self, storage, committed_sessions):
+        user = _user(committed_sessions)
+        staged = file_storage.stage_file(user.id, _sha(b"gpx"), ".gpx", b"gpx", storage)
+
+        assert file_storage.read_file(uuid.uuid4(), staged.ref, storage) == (".gpx", b"gpx")
+
+    def test_a_row_whose_blob_is_missing_has_no_file(self, storage, committed_sessions):
+        user = _user(committed_sessions)
+        staged = file_storage.stage_file(user.id, _sha(b"gpx"), ".gpx", b"gpx", storage)
+        storage.delete(AREA, staged.ref.storage_key)
+
+        assert file_storage.read_file(uuid.uuid4(), staged.ref, storage) is None
+
+    @pytest.mark.parametrize("extension", [".gpx", ".fit", ".tcx"])
+    def test_an_activity_without_a_row_is_probed_under_its_own_id(self, storage, extension):
+        activity_id = uuid.uuid4()
+        store_legacy_file(activity_id, b"legacy", storage, extension=extension)
+
+        assert file_storage.read_file(activity_id, None, storage) == (extension, b"legacy")
+
+    def test_an_activity_with_no_file_at_all_has_none(self, storage):
+        assert file_storage.read_file(uuid.uuid4(), None, storage) is None
+
+    def test_resolves_the_references_of_the_given_rows(self, storage, committed_sessions):
+        user = _user(committed_sessions)
+        staged = file_storage.stage_file(user.id, _sha(b"gpx"), ".gpx", b"gpx", storage)
+
+        with committed_sessions() as db:
+            refs = file_storage.resolve_refs([staged.ref.file_id, uuid.uuid4()], db)
+
+        assert refs == {staged.ref.file_id: staged.ref}
+
+
+class TestRelease:
+    def test_releasing_an_unattached_row_removes_its_blob_and_row(self, storage, committed_sessions):
+        user = _user(committed_sessions)
+        staged = file_storage.stage_file(user.id, _sha(b"x"), ".fit", b"x", storage)
+
+        file_storage.release_unattached(staged.ref.file_id, storage)
+
+        assert storage.get(AREA, staged.ref.storage_key) is None
+        assert _rows(committed_sessions) == []
+
+    def test_an_attached_row_is_not_released_as_unattached(self, storage, committed_sessions):
+        user = _user(committed_sessions)
+        with committed_sessions() as db:
+            activity = make_activity(db, user.id)
+            db.commit()
+        file_id = retain_file(user.id, activity.id, b"x", storage)
+
+        file_storage.release_unattached(file_id, storage)
+
+        assert storage.get(AREA, f"files/{file_id}.fit") == b"x"
+        assert _rows(committed_sessions)[0].state == _State.ATTACHED
+
+    def test_deletes_the_file_an_activity_without_a_row_stored(self, storage):
+        activity_id = uuid.uuid4()
+        store_legacy_file(activity_id, b"x", storage)
+
+        file_storage.delete_legacy_activity_file(activity_id, storage)
+
+        assert file_storage.read_file(activity_id, None, storage) is None
+
+
+class TestEraseUserFiles:
+    def test_removes_every_file_of_the_user_in_any_state_and_no_other(self, storage, committed_sessions):
+        user, other = _user(committed_sessions), None
+        with committed_sessions() as db:
+            other = make_user(db)
+            db.commit()
+        pending = file_storage.stage_file(user.id, _sha(b"a"), ".fit", b"a", storage)
+        deleting = file_storage.stage_file(user.id, _sha(b"b"), ".fit", b"b", storage)
+        with committed_sessions() as db:
+            db.execute(
+                text("UPDATE activity_files SET state = 'deleting' WHERE id = :id"), {"id": deleting.ref.file_id}
+            )
+            db.commit()
+        kept = file_storage.stage_file(other.id, _sha(b"a"), ".fit", b"a", storage)
+
+        file_storage.erase_user_files(user.id, storage)
+
+        assert storage.get(AREA, pending.ref.storage_key) is None
+        assert storage.get(AREA, deleting.ref.storage_key) is None
+        assert storage.get(AREA, kept.ref.storage_key) == b"a"
+        assert [row.id for row in _rows(committed_sessions)] == [kept.ref.file_id]
+
+
+def test_the_legacy_key_parser_ignores_the_keys_of_files_with_a_row():
+    file_id = uuid.uuid4()
+    assert activity_file_storage_files.activity_id_of_processed_key(f"files/{file_id}.fit") is None
+    assert activity_file_storage_files.activity_id_of_processed_key(f"processed/{file_id}.fit") == file_id
