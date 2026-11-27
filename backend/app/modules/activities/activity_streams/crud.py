@@ -1,6 +1,7 @@
 """CRUD operations for activity stream data."""
 
 import uuid
+from dataclasses import asdict
 from typing import Any
 
 from sqlalchemy import delete, select
@@ -175,6 +176,83 @@ def delete_activity_streams(activity_id: uuid.UUID, db: Session) -> None:
     db.execute(
         delete(activity_streams_models.ActivityStreams).where(
             activity_streams_models.ActivityStreams.activity_id == activity_id
+        )
+    )
+    db.flush()
+
+
+def create_activity_samples(
+    activity_id: uuid.UUID,
+    samples: activity_streams_contracts.ParsedSamples,
+    db: Session,
+) -> activity_streams_models.ActivitySamples:
+    """Stage the columnar samples of an activity and flush; the caller commits.
+
+    Args:
+        activity_id: The activity the samples belong to.
+        samples: The validated samples.
+        db: Database session.
+
+    Returns:
+        The staged row.
+    """
+    row = activity_streams_models.ActivitySamples(activity_id=activity_id, **asdict(samples))
+    db.add(row)
+    db.flush()
+    return row
+
+
+def get_activity_samples(
+    activity_id: uuid.UUID,
+    db: Session,
+) -> activity_streams_models.ActivitySamples | None:
+    """Get the columnar samples of an activity.
+
+    Performs no access check and no masking: both are decided by the service that reads them.
+
+    Args:
+        activity_id: The activity identifier.
+        db: Database session.
+
+    Returns:
+        The samples row, or ``None`` when the activity has none.
+    """
+    return db.get(activity_streams_models.ActivitySamples, activity_id)
+
+
+def get_activities_samples(
+    activity_ids: list[uuid.UUID],
+    db: Session,
+) -> dict[uuid.UUID, activity_streams_models.ActivitySamples]:
+    """Get the columnar samples of several activities in one query.
+
+    Performs no access check: which activities the caller may read is decided before this is reached.
+
+    Args:
+        activity_ids: The activities to read, already scoped to the caller.
+        db: Database session.
+
+    Returns:
+        The samples keyed by activity identifier; an activity without samples is absent.
+    """
+    if not activity_ids:
+        return {}
+    stmt = select(activity_streams_models.ActivitySamples).where(
+        activity_streams_models.ActivitySamples.activity_id.in_(activity_ids)
+    )
+    return {row.activity_id: row for row in db.scalars(stmt).all()}
+
+
+def delete_activity_samples(activity_id: uuid.UUID, db: Session) -> None:
+    """Delete the columnar samples of an activity; the caller commits.
+
+    Args:
+        activity_id: The activity identifier.
+        db: Database session.
+    """
+    db.execute(
+        delete(activity_streams_models.ActivitySamples).where(
+            activity_streams_models.ActivitySamples.activity_id == activity_id
         )
     )
     db.flush()

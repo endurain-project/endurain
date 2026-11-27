@@ -37,3 +37,7 @@ STREAM_TYPE_SPEED: int = ActivityStreamType.SPEED.stored
 STREAM_TYPE_PACE: int = ActivityStreamType.PACE.stored
 STREAM_TYPE_MAP: int = ActivityStreamType.MAP.stored
 STREAM_TYPE_TEMPERATURE: int = ActivityStreamType.TEMPERATURE.stored
+
+
+#: The channel columns of ``activity_samples``, each an array aligned with ``offsets_ms``, in column order.
+SAMPLE_CHANNELS = ("latitude", "longitude", "elevation", "heart_rate", "power", "cadence", "speed", "temperature")

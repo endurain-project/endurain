@@ -26,6 +26,7 @@ import modules.activities.activity_sets.schema as activity_sets_schema
 import modules.activities.activity_streams.constants as activity_streams_constants
 import modules.activities.activity_streams.contracts as activity_streams_contracts
 import modules.activities.activity_streams.crud as activity_streams_crud
+import modules.activities.activity_streams.models as activity_streams_models
 import modules.activities.activity_streams.schema as activity_streams_schema
 import modules.activities.activity_workout_steps.contracts as activity_workout_steps_contracts
 import modules.activities.activity_workout_steps.crud as activity_workout_steps_crud
@@ -298,6 +299,28 @@ def make_workout_steps(
         db,
     )
     return activity_workout_steps_crud.get_activity_workout_steps(activity.id, db)
+
+
+def make_samples(
+    db: Session,
+    activity: activity_schema.ActivityRead,
+    offsets_ms: Sequence[int],
+    **channels: list[float | None] | None,
+) -> activity_streams_models.ActivitySamples:
+    """Stage the columnar samples of an activity through the module's create function (flushed, not committed).
+
+    Args:
+        db: Database session.
+        activity: The parent activity.
+        offsets_ms: Each sample's time in milliseconds from the activity start time.
+        **channels: The channels present, by name; any left out is absent.
+
+    Returns:
+        The samples row as staged.
+    """
+    return activity_streams_crud.create_activity_samples(
+        activity.id, activity_streams_contracts.ParsedSamples(offsets_ms=list(offsets_ms), **channels), db
+    )
 
 
 def make_stream(
