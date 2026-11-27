@@ -1,6 +1,8 @@
 """Account security generations, MFA factors and token hardening
 
-The steps run in this order.
+The steps run in this order. The steps before the rotated-token index are skipped on a database that already has
+them: v0.21.0 committed them on their own, so an upgrade it did not finish left them in place without recording this
+revision.
 
 Add account_security_generations and the generation an OAuth state was started under
 ------------------------------------------------------------------------------------
@@ -76,7 +78,8 @@ The purge job clears the replacement refresh token of records whose grace window
 a time. A partial index on the end of the grace window, limited to records that still hold a replacement, lets
 each batch find them without scanning the table; once cleared a record leaves the index.
 
-The index is built ``CONCURRENTLY`` outside the migration transaction, so rotations are not blocked while it builds.
+The index is built in the migration transaction, so a failed upgrade rolls back whole. An index of that name that
+already exists is rebuilt, because a build v0.21.0 did not finish leaves an invalid index behind.
 
 Record the native app an SSO session was handed to
 --------------------------------------------------
@@ -447,21 +450,18 @@ _INDEX = "ix_rotated_refresh_tokens_expires_at_with_replacement"
 
 def upgrade_rotated_tokens_replacement_index() -> None:
     """Create the partial index on the end of the grace window."""
-    with op.get_context().autocommit_block():
-        op.create_index(
-            _INDEX,
-            "rotated_refresh_tokens",
-            ["expires_at"],
-            postgresql_where=sa.text("replacement_refresh_token IS NOT NULL"),
-            postgresql_concurrently=True,
-            if_not_exists=True,
-        )
+    op.drop_index(_INDEX, table_name="rotated_refresh_tokens", if_exists=True)
+    op.create_index(
+        _INDEX,
+        "rotated_refresh_tokens",
+        ["expires_at"],
+        postgresql_where=sa.text("replacement_refresh_token IS NOT NULL"),
+    )
 
 
 def downgrade_rotated_tokens_replacement_index() -> None:
     """Drop the partial index."""
-    with op.get_context().autocommit_block():
-        op.drop_index(_INDEX, table_name="rotated_refresh_tokens", postgresql_concurrently=True, if_exists=True)
+    op.drop_index(_INDEX, table_name="rotated_refresh_tokens")
 
 
 def upgrade_session_app_redirect_uri() -> None:
@@ -534,15 +534,21 @@ def downgrade_require_mfa() -> None:
     op.drop_column("server_settings", "require_mfa")
 
 
+def _has_committed_security_steps() -> bool:
+    """Whether the steps before the index are applied; they are committed together, so the first table shows it."""
+    return sa.inspect(op.get_bind()).has_table(_ACCOUNT_SECURITY_GENERATIONS_TABLE)
+
+
 def upgrade() -> None:
-    """Run every step in order."""
-    upgrade_account_security_generations()
-    upgrade_signup_sso_enabled()
-    upgrade_sign_up_token_security_generation()
-    upgrade_session_auth_time_amr()
-    upgrade_mfa_factors()
-    upgrade_email_change_revert()
-    upgrade_known_device_security_generation()
+    """Run every step in order, leaving out the steps before the index that a database already has."""
+    if not _has_committed_security_steps():
+        upgrade_account_security_generations()
+        upgrade_signup_sso_enabled()
+        upgrade_sign_up_token_security_generation()
+        upgrade_session_auth_time_amr()
+        upgrade_mfa_factors()
+        upgrade_email_change_revert()
+        upgrade_known_device_security_generation()
     upgrade_rotated_tokens_replacement_index()
     upgrade_session_app_redirect_uri()
     upgrade_token_hash_unique()
