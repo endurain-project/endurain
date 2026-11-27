@@ -1,29 +1,15 @@
 """Application-layer orchestration for activity streams.
 
-Sits between the thin route and :mod:`crud`, matching the layering the activities
-core uses, and owns the access decision so ``crud`` is left with nothing but
-persistence.
+Sits between the thin route and :mod:`crud`, matching the layering the activities core uses, and owns the access
+decision so ``crud`` is left with nothing but persistence.
 
-Streams mask differently from the other child resources: there is no single
-``hide_streams`` flag, because each stream *type* is gated by its own parent flag
-(``hide_hr``, ``hide_power``, ``hide_cadence``, ...). So instead of the boolean
-gate the siblings use, this module resolves the parent activity through
-:mod:`modules.activities.activity.child_access_service` and decides per stream
-itself: an activity can hide its heart rate while still publishing its route.
+An activity's streams are one resource: its samples on one timeline, a list per channel. Each channel is gated by its
+own parent flag (``hide_hr``, ``hide_power``, ``hide_cadence``, ...), so an activity can hide its heart rate while
+still publishing its route; a hidden channel is ``null`` for a non-owner. ``hide_start_time`` strips nothing: the
+offsets count from the start and show only the duration, which the activity shows anyway.
 
-They are also the one child resource whose page is not cut in SQL, deliberately.
-Laps, sets and workout steps have no domain ceiling on their row count, so a read
-of "all of them" is unbounded work that has to be bounded by a ``LIMIT``. A stream
-row count is bounded by the closed ``stream_type`` enum (one row per type,
-validated on the way in), and the per-type mask is applied *after* the read, so a
-SQL window would page rows the caller may not see. They are therefore read whole,
-masked, and then cut in Python — the same
-:class:`~core.pagination.Page` envelope the siblings answer with, so a client has
-one list contract rather than one per child resource, over a total that already
-reflects the mask. What is large here is ``stream_waypoints`` — the samples inside
-one row — which page numbers cannot bound; reducing that is a downsampling
-question, not a pagination one, and is deliberately left alone rather than
-answered with a control that looks like a fix without being one.
+The samples are read whole and masked, then optionally averaged into ``max_points`` buckets, so a client can ask for a
+chart-sized series of a long activity. The heart-rate zones are always computed from every sample.
 """
 
 import uuid
@@ -32,124 +18,58 @@ from sqlalchemy.orm import Session
 
 import core.exceptions as core_exceptions
 import core.logger as core_logger
-import core.pagination as core_pagination
 import modules.activities.activity.integration_service as activity_integration
 import modules.activities.activity.schema as activity_schema
 import modules.activities.activity_streams.constants as activity_streams_constants
+import modules.activities.activity_streams.contracts as activity_streams_contracts
 import modules.activities.activity_streams.crud as activity_streams_crud
 import modules.activities.activity_streams.hr_zones as activity_streams_hr_zones
+import modules.activities.activity_streams.samples as activity_streams_samples
 import modules.activities.activity_streams.schema as activity_streams_schema
 import modules.users.users.integration_service as users_integration
 
 logger = core_logger.get_logger(__name__)
 
-#: The parent ``hide_*`` flag that withholds each stored stream type from a non-owner, or ``None`` for a
-#: type no flag covers. A type missing here is withheld, so a new stream type stays owner-only until it is
-#: given a rule.
-_STREAM_HIDE_MAP: dict[int, str | None] = {
-    activity_streams_constants.STREAM_TYPE_HR: "hide_hr",
-    activity_streams_constants.STREAM_TYPE_POWER: "hide_power",
-    activity_streams_constants.STREAM_TYPE_CADENCE: "hide_cadence",
-    activity_streams_constants.STREAM_TYPE_ELEVATION: "hide_elevation",
-    activity_streams_constants.STREAM_TYPE_SPEED: "hide_speed",
-    activity_streams_constants.STREAM_TYPE_PACE: "hide_pace",
-    activity_streams_constants.STREAM_TYPE_MAP: "hide_map",
-    # Ambient temperature is none of the data a flag covers; its sample times follow hide_start_time.
-    activity_streams_constants.STREAM_TYPE_TEMPERATURE: None,
+#: The parent ``hide_*`` flag that withholds each served channel from a non-owner, or ``None`` for a channel no flag
+#: covers. A channel missing here is withheld, so a new channel stays owner-only until it is given a rule.
+_CHANNEL_HIDE_FLAG: dict[str, str | None] = {
+    "latitude": "hide_map",
+    "longitude": "hide_map",
+    "elevation": "hide_elevation",
+    "heart_rate": "hide_hr",
+    "power": "hide_power",
+    "cadence": "hide_cadence",
+    "speed": "hide_speed",
+    "pace": "hide_pace",
+    # Ambient temperature is none of the data a flag covers.
+    "temperature": None,
 }
 
+#: Every channel the response carries: the stored ones, and pace derived from speed.
+_SERVED_CHANNELS = (*activity_streams_constants.SAMPLE_CHANNELS, "pace")
 
-def _is_stream_hidden(activity: activity_schema.ActivityRead, stream_type: int) -> bool:
-    """Return whether the activity hides a stream type from other viewers.
+
+def _is_channel_hidden(activity: activity_schema.ActivityRead, channel: str) -> bool:
+    """Return whether the activity hides a channel from other viewers.
 
     Args:
         activity: The parent activity.
-        stream_type: The stream type code.
+        channel: The served channel name.
 
     Returns:
-        True when the parent's hide flag for this stream type is set, or when the type has no rule.
+        True when the parent's hide flag for the channel is set, or when the channel has no rule.
     """
-    if stream_type not in _STREAM_HIDE_MAP:
+    if channel not in _CHANNEL_HIDE_FLAG:
         return True
-    attr = _STREAM_HIDE_MAP[stream_type]
-    return attr is not None and bool(getattr(activity, attr))
-
-
-def _filter_visible_streams(
-    streams: list[activity_streams_schema.ActivityStreamsRead],
-    activity: activity_schema.ActivityRead,
-) -> list[activity_streams_schema.ActivityStreamsRead]:
-    """Drop the streams the activity hides from other viewers.
-
-    Args:
-        streams: The activity's streams, as read schemas.
-        activity: The parent activity.
-
-    Returns:
-        The streams that are not hidden.
-    """
-    return [stream for stream in streams if not _is_stream_hidden(activity, stream.stream_type)]
-
-
-def _without_sample_times(
-    streams: list[activity_streams_schema.ActivityStreamsRead],
-    activity: activity_schema.ActivityRead,
-) -> list[activity_streams_schema.ActivityStreamsRead]:
-    """Drop each sample's absolute ``time`` when the activity hides its start from other viewers.
-
-    The first sample's instant is the start, so ``hide_start_time`` covers every sample's.
-
-    Args:
-        streams: The streams a non-owner is about to be served.
-        activity: The parent activity.
-
-    Returns:
-        The streams, their waypoints without ``time`` when the start is hidden.
-    """
-    if not activity.hide_start_time:
-        return streams
-    return [
-        stream.model_copy(
-            update={
-                "stream_waypoints": [
-                    {key: value for key, value in waypoint.items() if key != "time"}
-                    for waypoint in stream.stream_waypoints
-                ]
-            }
-        )
-        for stream in streams
-    ]
-
-
-def _page_of(
-    streams: list[activity_streams_schema.ActivityStreamsRead],
-    page_number: int,
-    num_records: int,
-) -> activity_streams_schema.ActivityStreamsPage:
-    """Cut an already-masked stream list into the shared page envelope.
-
-    Args:
-        streams: The streams the caller may see, in read order.
-        page_number: 1-based page number.
-        num_records: Page size.
-
-    Returns:
-        The page envelope, whose ``total`` counts only the visible streams.
-    """
-    start = (page_number - 1) * num_records
-    return activity_streams_schema.ActivityStreamsPage.build(
-        streams[start : start + num_records],
-        len(streams),
-        page_number,
-        num_records,
-    )
+    flag = _CHANNEL_HIDE_FLAG[channel]
+    return flag is not None and bool(getattr(activity, flag))
 
 
 def _max_heart_rate_of(user_id: uuid.UUID, db: Session) -> int | None:
     """Resolve a user's max heart rate, or ``None`` when it cannot be derived.
 
     Args:
-        user_id: ID of the stream's owner.
+        user_id: ID of the activity's owner.
         db: Database session.
 
     Returns:
@@ -161,191 +81,144 @@ def _max_heart_rate_of(user_id: uuid.UUID, db: Session) -> int | None:
     return activity_streams_hr_zones.resolve_max_heart_rate(user.max_heart_rate, user.birthdate, user.timezone)
 
 
-def _with_zones(
-    streams: list[activity_streams_schema.ActivityStreamsRead],
+def _zones_of(
+    samples: activity_streams_contracts.ParsedSamples,
     activity: activity_schema.ActivityRead,
     db: Session,
-) -> list[activity_streams_schema.ActivityStreamsRead]:
-    """Attach the heart-rate zone breakdown to the HR streams being served.
+) -> activity_streams_hr_zones.HrZoneBreakdown | None:
+    """Compute the heart-rate zone breakdown of an activity's samples.
 
-    Zones are a function of the samples and the owner's *current* max heart rate
-    (which itself follows their age), so they are computed here, per read, rather than stored: a stored value is
-    stale the moment the owner edits their profile or has a birthday, and keeping it fresh costs a pass over every
-    stream the user owns. The pass over one stream's samples is cheap next to serializing them.
-
-    Only streams the caller may see reach this, and the owner is looked up once,
-    only when one of them is an HR stream.
+    Zones are a function of the samples and the owner's *current* max heart rate (which itself follows their age), so
+    they are computed per read rather than stored: a stored value is stale the moment the owner edits their profile or
+    has a birthday.
 
     Args:
-        streams: The streams about to be served, still carrying their sample times.
+        samples: Every sample of the activity.
         activity: The parent activity, for its owner.
         db: Database session.
 
     Returns:
-        The streams, the HR one carrying ``zone_percentages`` when the owner's
-        max heart rate is known and the stream has samples.
+        The breakdown, or ``None`` when the samples have no heart rate, the activity has no owner or the owner's max
+        heart rate is unknown.
     """
-    if not any(stream.stream_type == activity_streams_constants.STREAM_TYPE_HR for stream in streams):
-        return streams
-    if activity.user_id is None:
-        return streams
+    if samples.heart_rate is None or activity.user_id is None:
+        return None
     max_heart_rate = _max_heart_rate_of(activity.user_id, db)
     if not max_heart_rate:
-        return streams
-
-    with_zones: list[activity_streams_schema.ActivityStreamsRead] = []
-    for stream in streams:
-        if stream.stream_type == activity_streams_constants.STREAM_TYPE_HR:
-            breakdown = activity_streams_hr_zones.compute_hr_zone_breakdown_sync(
-                stream.stream_waypoints,
-                max_heart_rate,
-            )
-            if breakdown:
-                stream = stream.model_copy(
-                    update={"zone_percentages": activity_streams_schema.ActivityStreamZones(hr=breakdown)}
-                )
-        with_zones.append(stream)
-    return with_zones
-
-
-def list_activity_streams(
-    activity_id: uuid.UUID,
-    requester_user_id: uuid.UUID,
-    db: Session,
-    *,
-    page_number: int = 1,
-    num_records: int = core_pagination.DEFAULT_CHILD_NUM_RECORDS,
-) -> activity_streams_schema.ActivityStreamsPage:
-    """Return an activity's streams for an authenticated caller, masked per type.
-
-    Args:
-        activity_id: The parent activity.
-        requester_user_id: The authenticated caller.
-        db: Database session.
-        page_number: 1-based page number.
-        num_records: Page size.
-
-    Returns:
-        The page envelope. An empty page when the activity is not visible to the
-        caller or has none.
-    """
-    activity = activity_integration.resolve_readable_parent(activity_id, requester_user_id, db)
-    if activity is None:
-        logger.debug(
-            "Refused a streams read; answering with an empty page",
-            extra=core_logger.context(activity_id=str(activity_id), requester_user_id=requester_user_id),
-        )
-        return _page_of([], page_number, num_records)
-
-    streams = activity_streams_crud.get_activity_streams(activity_id, db)
-    if requester_user_id == activity.user_id:
-        return _page_of(_with_zones(streams, activity, db), page_number, num_records)
-    # Zones need the sample times, so they are computed before a hidden start time takes them off.
-    visible = _with_zones(_filter_visible_streams(streams, activity), activity, db)
-    return _page_of(_without_sample_times(visible, activity), page_number, num_records)
-
-
-def get_activity_stream(
-    activity_id: uuid.UUID,
-    stream_type: int,
-    requester_user_id: uuid.UUID,
-    db: Session,
-) -> activity_streams_schema.ActivityStreamsRead:
-    """Return one stream type of an activity for an authenticated caller.
-
-    Args:
-        activity_id: The parent activity.
-        stream_type: The stream type code.
-        requester_user_id: The authenticated caller.
-        db: Database session.
-
-    Returns:
-        The stream.
-
-    Raises:
-        NotFoundError: When the activity is not visible, has no such
-        stream, or the stream is hidden from this caller — indistinguishable on purpose, so the
-            endpoint cannot be used to probe which activities exist.
-    """
-    activity = activity_integration.resolve_readable_parent(activity_id, requester_user_id, db)
-    if activity is None:
-        raise core_exceptions.NotFoundError("Activity stream not found")
-
-    stream = activity_streams_crud.get_activity_stream_by_type(activity_id, stream_type, db)
-    if stream is None:
-        raise core_exceptions.NotFoundError("Activity stream not found")
-
-    if requester_user_id == activity.user_id:
-        return _with_zones([stream], activity, db)[0]
-    if _is_stream_hidden(activity, stream.stream_type):
-        raise core_exceptions.NotFoundError("Activity stream not found")
-    # Zones need the sample times, so they are computed before a hidden start time takes them off.
-    return _without_sample_times(_with_zones([stream], activity, db), activity)[0]
-
-
-def list_public_activity_streams(
-    activity_id: uuid.UUID,
-    db: Session,
-    *,
-    page_number: int = 1,
-    num_records: int = core_pagination.DEFAULT_CHILD_NUM_RECORDS,
-) -> activity_streams_schema.ActivityStreamsPage:
-    """Return a publicly shared activity's streams, masked per type.
-
-    Args:
-        activity_id: The parent activity.
-        db: Database session.
-        page_number: 1-based page number.
-        num_records: Page size.
-
-    Returns:
-        The page envelope, empty when the activity is not publicly shareable.
-    """
-    activity = activity_integration.resolve_public_parent(activity_id, db)
-    if activity is None:
-        logger.debug(
-            "Refused a public streams read; answering with an empty page",
-            extra=core_logger.context(activity_id=str(activity_id)),
-        )
-        return _page_of([], page_number, num_records)
-
-    streams = activity_streams_crud.get_activity_streams(activity_id, db)
-    return _page_of(
-        _without_sample_times(_with_zones(_filter_visible_streams(streams, activity), activity, db), activity),
-        page_number,
-        num_records,
+        return None
+    return activity_streams_hr_zones.compute_hr_zone_breakdown_sync(
+        samples.offsets_ms, samples.heart_rate, max_heart_rate
     )
 
 
-def get_public_activity_stream(
-    activity_id: uuid.UUID,
-    stream_type: int,
-    db: Session,
-) -> activity_streams_schema.ActivityStreamsRead:
-    """Return one stream type of a publicly shared activity.
+def _stored_samples_of(
+    activity: activity_schema.ActivityRead, db: Session
+) -> activity_streams_contracts.ParsedSamples | None:
+    """Read an activity's samples.
+
+    An activity stored before v0.22 has no samples row until the reprocess converts it, so its old waypoint streams
+    are read and converted instead, without persisting the result.
 
     Args:
-        activity_id: The parent activity.
-        stream_type: The stream type code.
+        activity: The parent activity.
         db: Database session.
 
     Returns:
-        The stream.
+        The samples, or ``None`` when the activity has none.
+    """
+    stored = activity_streams_crud.get_activity_samples(activity.id, db)
+    if stored is not None:
+        return stored
+    if activity.start_time is None:
+        return None
+    return activity_streams_samples.samples_from_streams(
+        activity_streams_crud.get_activity_streams(activity.id, db), activity.start_time
+    )
+
+
+def _serve(
+    activity: activity_schema.ActivityRead,
+    *,
+    is_owner: bool,
+    max_points: int | None,
+    db: Session,
+) -> activity_streams_schema.ActivitySamplesRead:
+    """Build the streams of an activity as one viewer reads them.
+
+    Args:
+        activity: The parent activity, already readable by the viewer.
+        is_owner: Whether the viewer owns the activity and so sees every channel.
+        max_points: The most samples to return, or ``None`` for every sample.
+        db: Database session.
+
+    Returns:
+        The streams: an empty timeline with every channel ``null`` when the activity has no samples.
+    """
+    hidden = set() if is_owner else {channel for channel in _SERVED_CHANNELS if _is_channel_hidden(activity, channel)}
+    samples = _stored_samples_of(activity, db) or activity_streams_contracts.ParsedSamples(offsets_ms=[])
+    zones = None if "heart_rate" in hidden else _zones_of(samples, activity, db)
+    served = activity_streams_samples.downsample(samples, max_points) if max_points else samples
+
+    channels: dict[str, list[float | None] | None] = {
+        name: getattr(served, name) for name in activity_streams_constants.SAMPLE_CHANNELS
+    }
+    channels["pace"] = None if served.speed is None else activity_streams_samples.pace_from_speed(served.speed)
+    return activity_streams_schema.ActivitySamplesRead(
+        offsets_ms=served.offsets_ms,
+        heart_rate_zones=zones,
+        **{name: None if name in hidden else values for name, values in channels.items()},
+    )
+
+
+def get_activity_streams(
+    activity_id: uuid.UUID,
+    requester_user_id: uuid.UUID,
+    db: Session,
+    *,
+    max_points: int | None = None,
+) -> activity_streams_schema.ActivitySamplesRead:
+    """Return an activity's streams for an authenticated caller, masked per channel.
+
+    Args:
+        activity_id: The parent activity.
+        requester_user_id: The authenticated caller.
+        db: Database session.
+        max_points: The most samples to return, or ``None`` for every sample.
+
+    Returns:
+        The streams.
 
     Raises:
-        NotFoundError: When the activity is not publicly shareable, has
-        no such stream, or the stream is hidden — indistinguishable on purpose, so the
-            endpoint cannot be used to probe which activities exist.
+        NotFoundError: When the activity does not exist or is not visible to the caller, indistinguishable on purpose
+            so the endpoint cannot be used to probe which activities exist.
+    """
+    activity = activity_integration.resolve_readable_parent(activity_id, requester_user_id, db)
+    if activity is None:
+        raise core_exceptions.NotFoundError("Activity not found")
+    return _serve(activity, is_owner=requester_user_id == activity.user_id, max_points=max_points, db=db)
+
+
+def get_public_activity_streams(
+    activity_id: uuid.UUID,
+    db: Session,
+    *,
+    max_points: int | None = None,
+) -> activity_streams_schema.ActivitySamplesRead:
+    """Return a publicly shared activity's streams, masked per channel.
+
+    Args:
+        activity_id: The parent activity.
+        db: Database session.
+        max_points: The most samples to return, or ``None`` for every sample.
+
+    Returns:
+        The streams.
+
+    Raises:
+        NotFoundError: When the activity is not publicly shareable, indistinguishable on purpose since this endpoint
+            is unauthenticated.
     """
     activity = activity_integration.resolve_public_parent(activity_id, db)
     if activity is None:
-        raise core_exceptions.NotFoundError("Activity stream not found")
-
-    stream = activity_streams_crud.get_activity_stream_by_type(activity_id, stream_type, db)
-    if stream is None:
-        raise core_exceptions.NotFoundError("Activity stream not found")
-
-    if _is_stream_hidden(activity, stream.stream_type):
-        raise core_exceptions.NotFoundError("Activity stream not found")
-
-    return _without_sample_times(_with_zones([stream], activity, db), activity)[0]
+        raise core_exceptions.NotFoundError("Activity not found")
+    return _serve(activity, is_owner=False, max_points=max_points, db=db)

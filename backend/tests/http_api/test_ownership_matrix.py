@@ -184,7 +184,7 @@ def world(committed_sessions, sign_in) -> World:
         (laps_models.ActivityLaps, "activity_id", private.id),
         (sets_models.ActivitySets, "activity_id", private.id),
         (steps_models.ActivityWorkoutSteps, "activity_id", private.id),
-        (streams_models.ActivityStreams, "activity_id", private.id),
+        (streams_models.ActivitySamples, "activity_id", private.id),
         (laps_models.ActivityLaps, "activity_id", public.id),
         (gear_models.Gear, "id", gear.id),
         (gear_component_models.GearComponents, "id", component.id),
@@ -258,8 +258,8 @@ CASES: list[Case] = [
     Case(f"GET {_ACTIVITY}/sets", status=_EMPTY_PAGE_STATUS),
     Case(f"GET {_ACTIVITY}/workout-steps", status=_EMPTY_PAGE_STATUS),
     Case(f"GET {_ACTIVITY}/media", status=_EMPTY_PAGE_STATUS),
-    Case(f"GET {_ACTIVITY}/streams", status=_EMPTY_PAGE_STATUS),
-    Case(f"GET {_ACTIVITY}/streams/{{stream_type}}"),
+    # The streams are one object, so a refusal is the 404 a missing activity gets.
+    Case(f"GET {_ACTIVITY}/streams"),
     Case(f"POST {_ACTIVITY}/media", **_UPLOAD),
     Case(f"DELETE {_ACTIVITY}/media/{{media_id}}"),
     Case("GET /gears/{gear_id}"),
@@ -310,7 +310,6 @@ REGISTER: dict[str, str] = {
     "GET /public/activities/{activity_id}/legs": "public share link",
     "GET /public/activities/{activity_id}/sets": "public share link",
     "GET /public/activities/{activity_id}/streams": "public share link",
-    "GET /public/activities/{activity_id}/streams/{stream_type}": "public share link",
     "GET /public/activities/{activity_id}/workout-steps": "public share link",
     "GET /public/idp/callback/{idp_slug}": "provider sign-in flow, no user-owned resource",
     "GET /public/idp/login/{idp_slug}": "provider sign-in flow, no user-owned resource",
@@ -413,11 +412,9 @@ class TestResourcesOfAnotherUser:
         before = _snapshot(committed_sessions, world)
         ids = {name: str(value) for name, value in world.ids.items()}
         ids.update({name: ids[source] for name, source in case.use.items()})
-        ids["stream_type"] = "heart_rate"
         absent = dict(ids)
         for name in _PLACEHOLDER.findall(case.route):
             absent[name] = str(uuid.uuid4())
-        absent["stream_type"] = "heart_rate"
 
         refused = _send(world.b_client, case.route, ids, case.body, case.files)
         missing = _send(world.b_client, case.route, absent, case.body, case.files)

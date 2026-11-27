@@ -3,7 +3,6 @@
 from fastapi import APIRouter, Request
 
 import core.dependencies as core_dependencies
-import core.pagination as core_pagination
 import core.rate_limit as core_rate_limit
 import modules.activities.activity.dependencies as activity_dependencies
 import modules.activities.activity_streams.dependencies as activity_streams_dependencies
@@ -15,39 +14,19 @@ router = APIRouter()
 
 @router.get(
     "/streams",
-    response_model=activity_streams_schema.ActivityStreamResponsePage,
+    response_model=activity_streams_schema.ActivitySamplesRead,
 )
 @core_rate_limit.limiter.limit(core_rate_limit.EXPENSIVE_PUBLIC_READ)
-def list_public_activity_streams(
+def read_public_activity_streams(
     request: Request,
     activity_id: activity_dependencies.ActivityId,
     db: core_dependencies.DbSession,
-    page: core_pagination.ChildPage,
-) -> activity_streams_schema.ActivityStreamsPage:
-    """Return one page of a publicly shared activity's streams, with the matching total."""
-    return activity_streams_service.list_public_activity_streams(
-        activity_id,
-        db,
-        page_number=page.page_number,
-        num_records=page.num_records,
-    )
+    max_points: activity_streams_dependencies.MaxPoints = None,
+) -> activity_streams_schema.ActivitySamplesRead:
+    """Get the streams of a publicly shared activity: its samples on one timeline, a list per channel.
 
-
-@router.get(
-    "/streams/{stream_type}",
-    response_model=activity_streams_schema.ActivityStreamResponse,
-)
-@core_rate_limit.limiter.limit(core_rate_limit.EXPENSIVE_PUBLIC_READ)
-def read_public_activity_stream(
-    request: Request,
-    activity_id: activity_dependencies.ActivityId,
-    stream_type: activity_streams_dependencies.StreamType,
-    db: core_dependencies.DbSession,
-) -> activity_streams_schema.ActivityStreamsRead:
-    """Get a public stream by type for an activity.
-
-    Not found when the activity has no such stream, is not public, or public links
-    are disabled. The cases are indistinguishable on purpose, since this endpoint
-    is unauthenticated.
+    The shape and `max_points` are those of the authenticated route. A channel the owner hides is `null`. The activity
+    is `404` when it is not public, public links are disabled or it does not exist, indistinguishably, since this
+    endpoint is unauthenticated.
     """
-    return activity_streams_service.get_public_activity_stream(activity_id, stream_type.stored, db)
+    return activity_streams_service.get_public_activity_streams(activity_id, db, max_points=max_points)

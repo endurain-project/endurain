@@ -308,7 +308,7 @@ describe('useDeleteActivityMutation', () => {
       makeActivitySummary({ id: legId, parentActivityId: ACTIVITY_ID }),
     ])
     queryClient.setQueryData(queryKeys.activities.detail(legId), makeActivity({ id: legId }))
-    queryClient.setQueryData(queryKeys.activities.streams(legId), [])
+    queryClient.setQueryData(queryKeys.activities.streams(legId), null)
     vi.mocked(deleteActivity).mockResolvedValue()
     const mutation = mountMutation(queryClient, useDeleteActivityMutation)
 

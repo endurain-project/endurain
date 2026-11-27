@@ -23,7 +23,6 @@ import modules.activities.activity_media.service as activity_media_service
 import modules.activities.activity_sets.contracts as activity_sets_contracts
 import modules.activities.activity_sets.crud as activity_sets_crud
 import modules.activities.activity_sets.schema as activity_sets_schema
-import modules.activities.activity_streams.constants as activity_streams_constants
 import modules.activities.activity_streams.contracts as activity_streams_contracts
 import modules.activities.activity_streams.crud as activity_streams_crud
 import modules.activities.activity_streams.models as activity_streams_models
@@ -155,7 +154,7 @@ def make_multisport(
 
 
 def make_activity_children(db: Session, activity: activity_schema.ActivityRead) -> None:
-    """Stage one lap, one set, one workout step and one heart-rate stream for an activity (flushed, not committed).
+    """Stage one lap, one set, one workout step and one heart-rate sample for an activity (flushed, not committed).
 
     Args:
         db: Database session.
@@ -176,17 +175,7 @@ def make_activity_children(db: Session, activity: activity_schema.ActivityRead) 
         activity.id,
         db,
     )
-    activity_streams_crud.create_activity_streams(
-        [
-            activity_streams_contracts.ActivityStreamsCreate(
-                activity_id=activity.id,
-                stream_type=activity_streams_constants.STREAM_TYPE_HR,
-                stream_waypoints=[{"time": "2025-03-10T08:00:00", "hr": 120}],
-            )
-        ],
-        activity,
-        db,
-    )
+    make_samples(db, activity, [0], heart_rate=[120.0])
 
 
 def make_activity_media(
@@ -352,7 +341,9 @@ def make_stream(
     stream_type: int,
     waypoints: Sequence[Mapping[str, object]],
 ) -> activity_streams_schema.ActivityStreamsRead:
-    """Stage one stream for an activity through the module's create function (flushed, not committed).
+    """Stage one old-format stream for an activity, as an activity stored before v0.22 has it (flushed, not committed).
+
+    Nothing writes this format any more, so the row is added to the table directly.
 
     Args:
         db: Database session.
@@ -363,18 +354,12 @@ def make_stream(
     Returns:
         The stream as stored.
     """
-    activity_streams_crud.create_activity_streams(
-        [
-            activity_streams_contracts.ActivityStreamsCreate(
-                activity_id=activity.id, stream_type=stream_type, stream_waypoints=[dict(w) for w in waypoints]
-            )
-        ],
-        activity,
-        db,
+    row = activity_streams_models.ActivityStreams(
+        activity_id=activity.id, stream_type=stream_type, stream_waypoints=[dict(w) for w in waypoints]
     )
-    stored = activity_streams_crud.get_activity_stream_by_type(activity.id, stream_type, db)
-    assert stored is not None
-    return stored
+    db.add(row)
+    db.flush()
+    return activity_streams_schema.ActivityStreamsRead.model_validate(row)
 
 
 def make_exercise_titles(db: Session, titles: Sequence[tuple[int, int, str]]) -> None:

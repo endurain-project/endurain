@@ -1,7 +1,5 @@
 """Importing a file stores its columnar samples and the start point of its activity, on the real database."""
 
-from datetime import timedelta
-
 import pytest
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -37,29 +35,17 @@ def _streams(db: Session, activity_id) -> dict[int, list[dict]]:
 
 
 class TestAFileWithAGpsTrack:
-    def test_the_samples_are_stored_and_agree_with_the_streams(self, db, owner, storage, tmp_path):
+    def test_the_samples_are_stored_and_the_old_streams_are_not(self, db, owner, storage, tmp_path):
         [activity_id] = import_fixture(db, owner.id, RUN, tmp_path, storage)
 
-        activity = _activity(db, activity_id)
         samples = _samples(db, activity_id)
-        streams = _streams(db, activity_id)
 
         assert samples is not None
-        stamps = [
-            (activity.start_time + timedelta(milliseconds=offset)).strftime("%Y-%m-%dT%H:%M:%S")
-            for offset in samples.offsets_ms
-        ]
-        # An old waypoint is a sample cut to the second; HR is stream type 1.
-        stored_hr = [(s, v) for s, v in zip(stamps, samples.heart_rate, strict=True) if v is not None]
-        assert stored_hr == [(w["time"], w["hr"]) for w in streams[1]]
-        stored_ele = [(s, v) for s, v in zip(stamps, samples.elevation, strict=True) if v is not None]
-        assert stored_ele == [(w["time"], pytest.approx(w["ele"], rel=1e-6)) for w in streams[4]]
-        stored_map = [
-            (s, lat, lon)
-            for s, lat, lon in zip(stamps, samples.latitude, samples.longitude, strict=True)
-            if lat is not None
-        ]
-        assert stored_map == [(w["time"], w["lat"], w["lon"]) for w in streams[7]]
+        assert samples.offsets_ms == sorted(samples.offsets_ms)
+        for channel in (samples.heart_rate, samples.elevation, samples.latitude, samples.longitude):
+            assert channel is not None
+            assert len(channel) == len(samples.offsets_ms)
+        assert _streams(db, activity_id) == {}
 
     def test_the_start_point_is_the_first_position(self, db, owner, storage, tmp_path):
         [activity_id] = import_fixture(db, owner.id, RUN, tmp_path, storage)

@@ -1,84 +1,21 @@
-"""The JSON a stream read puts on the wire, pinned per stream type, through the production application.
-
-A stored waypoint is served exactly as stored: the same keys in the same order, an integer stays an integer and
-a float stays a float, a stored ``null`` stays ``null`` and a key the activity hides stays absent. The typed
-waypoint schemas describe the payload in OpenAPI; they must not change a byte of it.
-"""
+"""The JSON a streams read puts on the wire and how OpenAPI describes it, through the production application."""
 
 import json
-from typing import Any
 
 import pytest
 
 import core.config as core_config
 import modules.activities.activity.constants as activity_constants
-from modules.activities.activity_streams.constants import ActivityStreamType
-from tests._factories.activities import make_activity, make_stream
+from tests._factories.activities import make_activity, make_samples
 from tests._factories.users import make_user
 
-_TIME = "2026-06-20T08:20:00"
 _ROOT = core_config.ROOT_PATH
-
-# stream_type -> the waypoints as the writers store them.
-_STORED: dict[int, list[dict[str, Any]]] = {
-    1: [{"time": _TIME, "hr": 120}, {"time": "2026-06-20T08:20:01", "hr": 0}],
-    2: [{"time": _TIME, "power": 250.5}, {"time": "2026-06-20T08:20:01", "power": 300}],
-    3: [{"time": _TIME, "cad": 85}, {"time": "2026-06-20T08:20:01", "cad": 86.0}],
-    4: [{"time": _TIME, "ele": 1250.0}, {"time": "2026-06-20T08:20:01", "ele": 1250.25}],
-    5: [{"time": _TIME, "vel": 3.5}, {"time": "2026-06-20T08:20:01", "vel": 0}],
-    6: [{"time": _TIME, "pace": 0.2857142857142857}, {"time": "2026-06-20T08:20:01", "pace": 0}],
-    7: [{"time": _TIME, "lat": 38.7223, "lon": -9.1393}, {"time": "2026-06-20T08:20:01", "lat": 38.72, "lon": -9.14}],
-    8: [{"time": _TIME, "temp": 21.5}, {"time": "2026-06-20T08:20:01", "temp": 22}],
-}
-# Strava stores the offset in seconds from the start as the sample time.
-_STRAVA_TIMES: dict[int, list[dict[str, Any]]] = {
-    1: [{"time": 0, "hr": 120}, {"time": 1, "hr": 121}],
-    7: [{"time": 0.5, "lat": 38.7, "lon": -9.1}],
-}
-_NULL_VALUES: dict[int, list[dict[str, Any]]] = {
-    1: [{"time": _TIME, "hr": None}, {"time": "2026-06-20T08:20:01", "hr": 130}],
-    4: [{"time": _TIME, "ele": None}],
-}
-_WITHOUT_TIME: dict[int, list[dict[str, Any]]] = {
-    1: [{"hr": 120}, {"hr": 121}],
-    7: [{"lat": 38.7223, "lon": -9.1393}],
-}
-
-_CASES = [
-    pytest.param(stream_type, stored, id=f"{name}-{stream_type}")
-    for name, payloads in (
-        ("stored", _STORED),
-        ("strava-times", _STRAVA_TIMES),
-        ("null-values", _NULL_VALUES),
-        ("hidden-time", _WITHOUT_TIME),
-    )
-    for stream_type, stored in payloads.items()
-]
-
-
-def _key(stream_type: int) -> str:
-    return ActivityStreamType.from_stored(stream_type).value
-
-
-def _expected(stream, waypoints: list[dict[str, Any]]) -> dict[str, Any]:
-    """The stream as it has always been served, in the key order it has always had."""
-    return {
-        "activity_id": str(stream.activity_id),
-        "stream_type": _key(stream.stream_type),
-        "stream_waypoints": waypoints,
-        "strava_activity_stream_id": None,
-        "id": str(stream.id),
-        "zone_percentages": None,
-    }
-
-
-def _compact(value: object) -> bytes:
-    return json.dumps(value, separators=(",", ":")).encode()
+_CHANNELS = ("latitude", "longitude", "elevation", "heart_rate", "power", "cadence", "speed", "pace", "temperature")
 
 
 @pytest.fixture
 def owner(committed_sessions):
-    """A user with no max heart rate and no birthdate, so no zone breakdown is added to a heart-rate stream."""
+    """A user with no max heart rate and no birthdate, so no zone breakdown is added."""
     with committed_sessions() as db:
         user = make_user(db, timezone="UTC")
         db.commit()
@@ -86,101 +23,92 @@ def owner(committed_sessions):
 
 
 @pytest.fixture
-def stream_of(committed_sessions, owner):
-    """Return a function that commits a stream of one type on a public activity and returns the stored stream."""
+def activity_of(committed_sessions, owner):
+    """Return a function that commits a public activity with the given samples."""
 
-    def make(stream_type: int, stored: list[dict[str, Any]]):
+    def make(offsets_ms, **channels):
         with committed_sessions() as db:
             activity = make_activity(db, owner.id, visibility=activity_constants.ActivityVisibility.PUBLIC)
-            stream = make_stream(db, activity, stream_type, stored)
+            make_samples(db, activity, offsets_ms, **channels)
             db.commit()
-        return activity, stream
+        return activity
 
     return make
 
 
-@pytest.mark.parametrize(("stream_type", "stored"), _CASES)
-class TestAuthenticatedRouter:
-    def test_one_stream_is_served_as_stored(self, sign_in, owner, stream_of, stream_type, stored):
-        activity, stream = stream_of(stream_type, stored)
+def _compact(value: object) -> bytes:
+    return json.dumps(value, separators=(",", ":")).encode()
 
-        response = sign_in(owner).client.get(f"{_ROOT}/activities/{activity.id}/streams/{_key(stream_type)}")
 
-        assert response.status_code == 200
-        assert response.content == _compact(_expected(stream, stored))
+def _expected(offsets_ms, **channels) -> dict:
+    """The body in the key order it is served in: the timeline, the channels, then the zones."""
+    return {"offsets_ms": offsets_ms, **{name: channels.get(name) for name in _CHANNELS}, "heart_rate_zones": None}
 
-    def test_a_page_of_streams_is_served_as_stored(self, sign_in, owner, stream_of, stream_type, stored):
-        activity, stream = stream_of(stream_type, stored)
+
+class TestWire:
+    def test_the_body_is_served_with_its_nulls_and_in_its_documented_order(self, sign_in, owner, activity_of):
+        activity = activity_of(
+            [0, 500, 1000],
+            heart_rate=[120.0, None, 125.0],
+            speed=[4.0, 0.0, None],
+            latitude=[38.5, None, 38.75],
+            longitude=[-9.5, None, -9.25],
+        )
 
         response = sign_in(owner).client.get(f"{_ROOT}/activities/{activity.id}/streams")
 
         assert response.status_code == 200
         assert response.content == _compact(
-            {"items": [_expected(stream, stored)], "total": 1, "page": 1, "num_records": 200, "next": None}
+            _expected(
+                [0, 500, 1000],
+                heart_rate=[120.0, None, 125.0],
+                speed=[4.0, 0.0, None],
+                pace=[0.25, None, None],
+                latitude=[38.5, None, 38.75],
+                longitude=[-9.5, None, -9.25],
+            )
         )
 
+    @pytest.mark.usefixtures("public_links")
+    def test_the_public_body_has_the_same_shape(self, client, activity_of):
+        activity = activity_of([0, 1000], power=[200.0, 210.0])
 
-@pytest.mark.usefixtures("public_links")
-@pytest.mark.parametrize(("stream_type", "stored"), _CASES)
-class TestPublicRouter:
-    def test_one_stream_is_served_as_stored(self, client, stream_of, stream_type, stored):
-        activity, stream = stream_of(stream_type, stored)
+        response = client.get(f"{_ROOT}/public/activities/{activity.id}/streams")
 
-        response = client.get(f"{_ROOT}/public/activities/{activity.id}/streams/{_key(stream_type)}")
-
-        assert response.status_code == 200
-        assert response.content == _compact(_expected(stream, stored))
-
-
-# stream_type -> (the stream schema, the waypoint schema, the value keys it describes)
-_DESCRIBED = {
-    1: ("HeartRateStreamRead", "HeartRateWaypoint", {"hr"}),
-    2: ("PowerStreamRead", "PowerWaypoint", {"power"}),
-    3: ("CadenceStreamRead", "CadenceWaypoint", {"cad"}),
-    4: ("ElevationStreamRead", "ElevationWaypoint", {"ele"}),
-    5: ("SpeedStreamRead", "SpeedWaypoint", {"vel"}),
-    6: ("PaceStreamRead", "PaceWaypoint", {"pace"}),
-    7: ("MapStreamRead", "MapWaypoint", {"lat", "lon"}),
-    8: ("TemperatureStreamRead", "TemperatureWaypoint", {"temp"}),
-}
+        assert response.content == _compact(_expected([0, 1000], power=[200.0, 210.0]))
 
 
 class TestOpenApi:
-    def test_each_stream_type_describes_its_waypoints(self, app):
-        schemas = app.openapi()["components"]["schemas"]
+    _PATHS = (f"{_ROOT}/activities/{{activity_id}}/streams", f"{_ROOT}/public/activities/{{activity_id}}/streams")
 
-        for stream_type, (stream_name, waypoint_name, keys) in _DESCRIBED.items():
-            stream = schemas[stream_name]
-            waypoint = schemas[waypoint_name]
-            assert stream["properties"]["stream_type"] == {"$ref": "#/components/schemas/ActivityStreamType"}
-            assert stream["properties"]["stream_waypoints"]["items"] == {
-                "$ref": f"#/components/schemas/{waypoint_name}"
-            }, stream_type
-            assert set(waypoint["properties"]) == {"time", *keys}
-            for key in keys:
-                assert {"type": "number"} in waypoint["properties"][key]["anyOf"]
-
-    def test_the_stream_type_is_one_of_the_eight_keys(self, app):
-        schemas = app.openapi()["components"]["schemas"]
-
-        assert schemas["ActivityStreamType"]["enum"] == [_key(stream_type) for stream_type in sorted(_DESCRIBED)]
-
-    def test_a_stream_is_one_of_the_typed_streams_without_a_string_keyed_mapping(self, app):
-        union = app.openapi()["components"]["schemas"]["ActivityStreamResponse"]
-
-        assert [option["$ref"].rsplit("/", 1)[1] for option in union["oneOf"]] == [
-            _DESCRIBED[stream_type][0] for stream_type in sorted(_DESCRIBED)
-        ]
-        assert "discriminator" not in union
-
-    def test_the_routes_answer_with_the_typed_streams(self, app):
+    def test_both_routes_answer_with_the_samples_object(self, app):
         document = app.openapi()
 
-        for path in (
-            f"{_ROOT}/activities/{{activity_id}}/streams/{{stream_type}}",
-            f"{_ROOT}/public/activities/{{activity_id}}/streams/{{stream_type}}",
-        ):
+        for path in self._PATHS:
             ok = document["paths"][path]["get"]["responses"]["200"]["content"]["application/json"]["schema"]
-            assert ok == {"$ref": "#/components/schemas/ActivityStreamResponse"}
-        page = document["components"]["schemas"]["Page_ActivityStreamResponse_"]
-        assert page["properties"]["items"]["items"] == {"$ref": "#/components/schemas/ActivityStreamResponse"}
+            assert ok == {"$ref": "#/components/schemas/ActivitySamplesRead"}
+
+    def test_the_per_type_routes_and_models_are_gone(self, app):
+        document = app.openapi()
+
+        assert not [path for path in document["paths"] if "/streams/" in path]
+        assert not {"ActivityStreamResponse", "HeartRateStreamRead", "HeartRateWaypoint", "ActivityStreamType"} & set(
+            document["components"]["schemas"]
+        )
+
+    def test_every_channel_is_a_required_nullable_list_that_states_its_unit(self, app):
+        schema = app.openapi()["components"]["schemas"]["ActivitySamplesRead"]
+
+        assert set(schema["required"]) == {"offsets_ms", "heart_rate_zones", *_CHANNELS}
+        for name in _CHANNELS:
+            assert {"type": "null"} in schema["properties"][name]["anyOf"]
+            assert "per sample" in schema["properties"][name]["description"]
+        assert "milliseconds" in schema["properties"]["offsets_ms"]["description"]
+
+    def test_max_points_is_an_optional_bounded_integer_on_both_routes(self, app):
+        document = app.openapi()
+
+        for path in self._PATHS:
+            (parameter,) = [p for p in document["paths"][path]["get"]["parameters"] if p["name"] == "max_points"]
+            integer = next(option for option in parameter["schema"]["anyOf"] if option.get("type") == "integer")
+            assert (parameter["required"], integer["minimum"], integer["maximum"]) == (False, 2, 10000)

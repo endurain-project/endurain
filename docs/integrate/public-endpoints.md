@@ -18,8 +18,7 @@ These serve an activity that its owner made public. They work only when an admin
 | `GET /public/activities/{activity_id}/legs` | A page of the legs of a multisport activity, as list rows |
 | `GET /public/activities/{activity_id}/sets` | A page of workout sets |
 | `GET /public/activities/{activity_id}/workout-steps` | A page of workout steps |
-| `GET /public/activities/{activity_id}/streams` | A page of streams |
-| `GET /public/activities/{activity_id}/streams/{stream_type}` | One stream |
+| `GET /public/activities/{activity_id}/streams` | The streams: the samples on one timeline, one list per channel (see [Activity streams](health-and-streams.md#activity-streams)) |
 | `GET /public/activities/exercise-titles` | The exercise title reference table |
 
 ```mermaid
@@ -35,9 +34,9 @@ flowchart TD
 What to expect:
 
 - **404 for everything that is not shareable.** An activity that does not exist, is not public, is hidden, or whose links are switched off all answer `404` with the same body, so an id cannot be probed to see which activities exist.
-- **Hidden details are removed.** What the owner chose to [hide from others](../features/activities.md#visibility-and-hiding-details) (location, map, heart rate and so on) is missing from the response, and the laps, sets, streams and steps of an activity that hides them are not served.
+- **Hidden details are removed.** What the owner chose to [hide from others](../features/activities.md#visibility-and-hiding-details) (location, map, heart rate and so on) is missing from the response, and the laps, sets and steps of an activity that hides them are not served. The streams are one object whose hidden channels are `null`.
 - **The owner needs two settings.** `owner` in the detail is filled only when public links and **Show user info on public links** are both on; otherwise it is `null` and the rest of the detail is served. There is no public lookup of a user by id. It never includes an email, birthdate or access level.
-- **Lists are paged** with `page_number` and `num_records` (the same envelope as the authenticated lists).
+- **Lists are paged**, except the streams, which are one object, with `page_number` and `num_records` (the same envelope as the authenticated lists).
 
 ## Signed media links
 

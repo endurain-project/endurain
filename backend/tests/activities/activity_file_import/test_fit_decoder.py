@@ -410,11 +410,8 @@ class TestRecordCadence:
     def test_missing_cadence_stays_none(self, tmp_path):
         assert self._cadence(tmp_path, fraction=0.5) is None
 
-    def test_running_stream_doubles_the_folded_fraction(self, tmp_path):
-        waypoints = activities_computation.double_cadence_waypoints(
-            [{"time": "t0", "cad": self._cadence(tmp_path, cadence=85, fraction=0.5)}]
-        )
-        assert waypoints == [{"time": "t0", "cad": 171}]
+    def test_running_cadence_doubles_the_folded_fraction(self, tmp_path):
+        assert activities_computation.double_running_cadence(self._cadence(tmp_path, cadence=85, fraction=0.5)) == 171
 
 
 class TestLapSpeed:

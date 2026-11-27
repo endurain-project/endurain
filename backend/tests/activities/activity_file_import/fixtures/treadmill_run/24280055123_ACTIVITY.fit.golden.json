@@ -135,109 +135,51 @@
           "total_work": 77368
         }
       ],
+      "samples": {
+        "channels": {
+          "cadence": {
+            "count": 606,
+            "max": 192,
+            "mean": 169.19802,
+            "min": 90
+          },
+          "heart_rate": {
+            "count": 606,
+            "max": 182,
+            "mean": 150.707921,
+            "min": 86
+          },
+          "power": {
+            "count": 606,
+            "max": 426,
+            "mean": 296.851485,
+            "min": 0
+          },
+          "speed": {
+            "count": 606,
+            "max": 4.245,
+            "mean": 2.934635,
+            "min": 0.0
+          }
+        },
+        "count": 606,
+        "first": {
+          "cadence": 90,
+          "heart_rate": 86,
+          "offset_ms": 0,
+          "power": 0,
+          "speed": 0.0
+        },
+        "last": {
+          "cadence": 168,
+          "heart_rate": 159,
+          "offset_ms": 605000,
+          "power": 279,
+          "speed": 2.743
+        },
+        "sha256": "e1b339e7d7389f4f1bf2b3ecd249f8de2216c418cc80a1fda1beb3109b1e9afd"
+      },
       "sets": null,
-      "streams": [
-        {
-          "count": 606,
-          "fields": {
-            "hr": {
-              "max": 182,
-              "mean": 150.707921,
-              "min": 86
-            }
-          },
-          "first": {
-            "hr": 86,
-            "time": "2026-09-08T06:53:43"
-          },
-          "last": {
-            "hr": 159,
-            "time": "2026-09-08T07:03:48"
-          },
-          "sha256": "fae69adbb635c0ac56dc353af990cbf86db52aa7a08c36ce9f274f1ab0cb6b62",
-          "stream_type": 1
-        },
-        {
-          "count": 606,
-          "fields": {
-            "power": {
-              "max": 426,
-              "mean": 296.851485,
-              "min": 0
-            }
-          },
-          "first": {
-            "power": 0,
-            "time": "2026-09-08T06:53:43"
-          },
-          "last": {
-            "power": 279,
-            "time": "2026-09-08T07:03:48"
-          },
-          "sha256": "87c8f00c219c9a2110ba7c349e0f076592e80d9531a2b66501b3f16e100e5581",
-          "stream_type": 2
-        },
-        {
-          "count": 606,
-          "fields": {
-            "cad": {
-              "max": 192,
-              "mean": 169.19802,
-              "min": 90
-            }
-          },
-          "first": {
-            "cad": 90,
-            "time": "2026-09-08T06:53:43"
-          },
-          "last": {
-            "cad": 168,
-            "time": "2026-09-08T07:03:48"
-          },
-          "sha256": "73f4b70b2bcee68957f8a6e596ef1635a40ac1ee83d2e8e245077bcfdc0dc1b9",
-          "stream_type": 3
-        },
-        {
-          "count": 606,
-          "fields": {
-            "vel": {
-              "max": 4.245,
-              "mean": 2.934635,
-              "min": 0.0
-            }
-          },
-          "first": {
-            "time": "2026-09-08T06:53:43",
-            "vel": 0.0
-          },
-          "last": {
-            "time": "2026-09-08T07:03:48",
-            "vel": 2.743
-          },
-          "sha256": "5e83f7d92c9d4e7f2f8e3ad9ecbdc1dd14194eff4126a103c9a6bb6d58eebb2e",
-          "stream_type": 5
-        },
-        {
-          "count": 605,
-          "fields": {
-            "pace": {
-              "max": 0.653595,
-              "mean": 0.346608,
-              "min": 0.235571
-            }
-          },
-          "first": {
-            "pace": 0.653595,
-            "time": "2026-09-08T06:53:44"
-          },
-          "last": {
-            "pace": 0.364564,
-            "time": "2026-09-08T07:03:48"
-          },
-          "sha256": "3808ebc2c06d3fd77257ec5c04e1da89a221dd74e747041e642bb43056b2223f",
-          "stream_type": 6
-        }
-      ],
       "workout_steps": null
     }
   ],

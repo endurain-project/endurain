@@ -8,7 +8,7 @@ import type { Schemas } from '@/types'
  */
 export type ActivityDto = Schemas['ActivityRead']
 export type ActivitySummaryDto = Schemas['ActivitySummaryRead']
-export type ActivityStreamDto = Schemas['ActivityStreamResponse']
+export type ActivitySamplesDto = Schemas['ActivitySamplesRead']
 export type ActivityLapDto = Schemas['ActivityLapsRead']
 export type ActivityEditDto = Schemas['ActivityEdit']
 export type ActivityMediaDto = Schemas['ActivityMediaRead']
@@ -36,56 +36,9 @@ export type ActivitySportStats = Schemas['ActivitySportStats']
 /** A sport key present in {@link ActivityStats}. */
 export type ActivitySportKey = keyof ActivityStats
 
-/** The kind of data a stream holds, as the backend names it. */
-export type ActivityStreamType = Schemas['ActivityStreamType']
-
-/**
- * The backend stream type of each chart metric. A single activity exposes one
- * stream per available metric; the detail view fans these out into charts.
- */
-export const STREAM_TYPE = {
-  hr: 'heart_rate',
-  power: 'power',
-  cadence: 'cadence',
-  elevation: 'elevation',
-  velocity: 'speed',
-  pace: 'pace',
-  /**
-   * The `map` stream is the lat/lon (GPS) stream — not a chart metric. It is
-   * consumed by the map (see `extractTrackPoints`), so it is intentionally
-   * absent here.
-   */
-  temperature: 'temperature',
-} as const satisfies Record<string, ActivityStreamType>
-
 /** A metric kind that can be rendered as a stream chart. */
-export type StreamMetric = keyof typeof STREAM_TYPE
-
-/**
- * A single sampled point along a stream. The backend types waypoints per stream
- * type; this is the union of the value keys the detail view consumes. Every field
- * is optional because the present keys depend on the stream type.
- */
-export interface StreamWaypoint {
-  /** Heart rate in bpm. */
-  hr?: number | null
-  /** Power in watts. */
-  power?: number | null
-  /** Cadence (raw; running cadence is doubled for SPM at presentation time). */
-  cad?: number | null
-  /** Elevation in metres. */
-  ele?: number | null
-  /** Velocity in metres per second. */
-  vel?: number | null
-  /** Pace in seconds per metre. */
-  pace?: number | null
-  /** Temperature in degrees Celsius. */
-  temp?: number | null
-  /** Latitude in decimal degrees (present on the GPS/map stream). */
-  lat?: number | null
-  /** Longitude in decimal degrees (present on the GPS/map stream). */
-  lon?: number | null
-}
+export type StreamMetric =
+  'hr' | 'power' | 'cadence' | 'elevation' | 'velocity' | 'pace' | 'temperature'
 
 /** A single heart-rate zone bucket (zones 1–5). */
 export interface HrZoneBucket {
@@ -99,12 +52,35 @@ export interface HrZoneBucket {
   timeSeconds: number
 }
 
-/** One metric stream for an activity (e.g. the full heart-rate series). */
-export interface ActivityStream {
-  id: string
-  streamType: ActivityStreamType
-  waypoints: StreamWaypoint[]
-  /** Decoded heart-rate zone buckets, present only on the HR stream. */
+/** One sampled channel: a value per sample, `null` where a sample has none. */
+export type StreamChannel = (number | null)[]
+
+/**
+ * An activity's samples on one timeline. Every channel is aligned with `offsetsMs`; a channel is
+ * `null` when the activity has none or the server hides it from the viewer.
+ */
+export interface ActivityStreams {
+  /** Each sample's time in milliseconds from the activity start. */
+  offsetsMs: number[]
+  /** Latitude in decimal degrees. */
+  latitude: StreamChannel | null
+  /** Longitude in decimal degrees. */
+  longitude: StreamChannel | null
+  /** Elevation in metres. */
+  elevation: StreamChannel | null
+  /** Heart rate in bpm. */
+  heartRate: StreamChannel | null
+  /** Power in watts. */
+  power: StreamChannel | null
+  /** Cadence (rpm; steps per minute for running). */
+  cadence: StreamChannel | null
+  /** Speed in metres per second. */
+  speed: StreamChannel | null
+  /** Pace in seconds per metre. */
+  pace: StreamChannel | null
+  /** Temperature in degrees Celsius. */
+  temperature: StreamChannel | null
+  /** Heart-rate zone buckets, or `null` when none are available. */
   hrZones: HrZoneBucket[] | null
 }
 

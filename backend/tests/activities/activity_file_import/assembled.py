@@ -149,3 +149,63 @@ def make_recording(
         The recording.
     """
     return recording.Recording(format=fmt, sessions=sessions, **fields)
+
+
+def has(payload: assembly.ActivityFilePayload, channel: str) -> bool:
+    """Whether a payload's samples carry a channel.
+
+    Args:
+        payload: The assembled activity.
+        channel: A channel of the samples, such as ``heart_rate``.
+
+    Returns:
+        True when the payload has samples and the channel is not ``None``.
+    """
+    samples = payload["samples"]
+    return samples is not None and getattr(samples, channel) is not None
+
+
+def values(payload: assembly.ActivityFilePayload, channel: str) -> list[float]:
+    """The values a payload's samples hold on a channel, in order, leaving out the samples that have none.
+
+    Args:
+        payload: The assembled activity.
+        channel: A channel of the samples, such as ``heart_rate``.
+
+    Returns:
+        The values; empty when the payload has no such channel.
+    """
+    samples = payload["samples"]
+    column = None if samples is None else getattr(samples, channel)
+    return [] if column is None else [value for value in column if value is not None]
+
+
+def positions(payload: assembly.ActivityFilePayload) -> list[tuple[float, float]]:
+    """The ``(latitude, longitude)`` of the samples that have a position, in order.
+
+    Args:
+        payload: The assembled activity.
+
+    Returns:
+        The positions; empty when the payload has none.
+    """
+    samples = payload["samples"]
+    if samples is None or samples.latitude is None or samples.longitude is None:
+        return []
+    return [
+        (lat, lon)
+        for lat, lon in zip(samples.latitude, samples.longitude, strict=True)
+        if lat is not None and lon is not None
+    ]
+
+
+def pace(payload: assembly.ActivityFilePayload) -> list[float]:
+    """The pace of each sample whose speed is above zero, in s/m, derived from the speed channel.
+
+    Args:
+        payload: The assembled activity.
+
+    Returns:
+        The paces.
+    """
+    return [1 / speed for speed in values(payload, "speed") if speed > 0]

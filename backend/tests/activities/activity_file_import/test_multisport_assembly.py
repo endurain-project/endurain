@@ -139,22 +139,11 @@ class TestParentTotals:
         assert activity.tracker_manufacturer == "garmin"
         assert activity.tracker_model == "3990"
 
-    def test_the_parent_has_no_streams_laps_sets_or_steps(self):
+    def test_the_parent_has_no_samples_laps_sets_or_steps(self):
         parent = assemble_file(_multisport(_run(), _ride())).parent
 
         assert parent is not None
-        assert not any(
-            parent[flag]
-            for flag in (
-                "is_elevation_set",
-                "is_power_set",
-                "is_heart_rate_set",
-                "is_velocity_set",
-                "is_cadence_set",
-                "is_lat_lon_set",
-                "is_temperature_set",
-            )
-        )
+        assert parent["samples"] is None
         assert parent["laps"] == []
         assert "sets" not in parent
         assert "workout_steps" not in parent

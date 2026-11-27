@@ -44,7 +44,6 @@ import {
   isActivityOwner,
   streamMetricVisibility,
 } from '@/features/activities/utils/privacy'
-import { extractHrZones } from '@/features/activities/utils/hrZones'
 import { buildStreamCharts, extractTrackPoints } from '@/features/activities/utils/streams'
 import { isUuid } from '@/utils/validation'
 
@@ -121,16 +120,16 @@ const legsTrackPoints = useActivityLegsTrack(
   () => isMultisport.value && canViewMap.value,
 )
 const trackPoints = computed(() =>
-  isMultisport.value ? legsTrackPoints.value : extractTrackPoints(streams.value ?? []),
+  isMultisport.value ? legsTrackPoints.value : extractTrackPoints(streams.value),
 )
 const showMap = computed(() => canViewMap.value && trackPoints.value.length > 0)
 
 const streamCharts = computed(() => {
-  if (!activity.value) {
+  if (!activity.value || !streams.value) {
     return []
   }
   return buildStreamCharts(
-    streams.value ?? [],
+    streams.value,
     activity.value,
     units.value,
     unitLabel,
@@ -166,9 +165,9 @@ const showWorkout = computed(
 // Active tab when both laps and workout sets are available.
 const splitsTab = ref('laps')
 
-// HR zones live on the HR stream; gate them by the same HR visibility as the
+// HR zones come with the streams; gate them by the same HR visibility as the
 // HR chart so a privacy-restricted viewer never sees them.
-const hrZones = computed(() => extractHrZones(streams.value ?? []))
+const hrZones = computed(() => streams.value?.hrZones ?? null)
 const showHrZones = computed(
   () =>
     !!activity.value &&

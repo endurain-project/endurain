@@ -332,20 +332,12 @@ _TIERED_ENDPOINTS = [
         activity_summary_router.read_activity_summary, core_rate_limit.EXPENSIVE_READ, id="activity-summary-read"
     ),
     pytest.param(
-        activity_streams_router.list_activity_streams, core_rate_limit.EXPENSIVE_READ, id="activity-streams-list"
+        activity_streams_router.read_activity_streams, core_rate_limit.EXPENSIVE_READ, id="activity-streams-read"
     ),
     pytest.param(
-        activity_streams_router.read_activity_stream, core_rate_limit.EXPENSIVE_READ, id="activity-stream-read"
-    ),
-    pytest.param(
-        activity_streams_public_router.list_public_activity_streams,
+        activity_streams_public_router.read_public_activity_streams,
         core_rate_limit.EXPENSIVE_PUBLIC_READ,
-        id="public-activity-streams-list",
-    ),
-    pytest.param(
-        activity_streams_public_router.read_public_activity_stream,
-        core_rate_limit.EXPENSIVE_PUBLIC_READ,
-        id="public-activity-stream-read",
+        id="public-activity-streams-read",
     ),
     pytest.param(
         health_dashboard_router.read_health_daily_stats, core_rate_limit.EXPENSIVE_READ, id="health-dashboard"

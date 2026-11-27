@@ -8,6 +8,7 @@ import pytest
 
 import modules.activities.activity_file_import.assembly as assembly
 import modules.activities.activity_file_import.recording as recording
+from tests.activities.activity_file_import import assembled
 from tests.activities.activity_file_import.assembled import assemble_recording, make_recording, session
 
 _OWNER_TZ = "UTC"
@@ -98,7 +99,7 @@ class TestHeartRate:
     def test_the_stream_leaves_out_the_zero_dropout(self):
         payload = _assemble(_rows(3, heart_rate=[0, 150, 160]))
 
-        assert [w["hr"] for w in payload["hr_waypoints"]] == [150, 160]
+        assert assembled.values(payload, "heart_rate") == [150, 160]
 
     def test_device_values_are_kept_without_samples(self):
         activity = _activity()
@@ -126,7 +127,7 @@ class TestSpeed:
 
         assert payload["activity"].average_speed is None
         assert payload["activity"].max_speed is None
-        assert [w["vel"] for w in payload["vel_waypoints"]] == [2.0, 4.0]
+        assert assembled.values(payload, "speed") == [2.0, 4.0]
 
     def test_a_device_speed_of_zero_on_a_session_without_distance_is_no_speed(self):
         """A strength or HIIT session's device writes an average speed of 0; nothing was covered, so there is none."""
@@ -144,9 +145,9 @@ class TestSpeed:
     def test_no_speed_stream_without_positions_and_device_speed(self):
         payload = _assemble(_rows(3, heart_rate=140))
 
-        assert payload["is_velocity_set"] is False
-        assert payload["vel_waypoints"] == []
-        assert payload["pace_waypoints"] == []
+        assert not assembled.has(payload, "speed")
+        assert assembled.values(payload, "speed") == []
+        assert assembled.pace(payload) == []
 
 
 class TestCadence:
@@ -184,7 +185,7 @@ class TestCadence:
         # (85 + 0.328125) * 2 = 170.66 -> 171 ; (93 + 0) * 2 = 186.
         assert payload["activity"].average_cad == 171
         assert payload["activity"].max_cad == 186
-        assert [wp["cad"] for wp in payload["cad_waypoints"]] == [168, 180]
+        assert assembled.values(payload, "cadence") == [168, 180]
         # (84 + 0.5) * 2 = 169 ; (88 + 0) * 2 = 176.
         assert payload["laps"][0]["avg_cadence"] == 169
         assert payload["laps"][0]["max_cadence"] == 176
@@ -212,7 +213,7 @@ class TestCadence:
         assert payload["activity"].average_cad == 260
         assert payload["activity"].max_cad == 280
         # A sample with no cadence is not a stream point.
-        assert [wp["cad"] for wp in payload["cad_waypoints"]] == [256]
+        assert assembled.values(payload, "cadence") == [256]
 
     def test_running_max_without_avg_is_still_doubled(self):
         activity = _activity(sport="running", summary=_summary(max_cadence=93))
@@ -272,7 +273,7 @@ class TestElevation:
 
         assert payload["activity"].elevation_gain is None
         assert payload["activity"].elevation_loss is None
-        assert payload["is_elevation_set"] is False
+        assert not assembled.has(payload, "elevation")
         assert payload["laps"][0]["total_ascent"] is None
         assert payload["laps"][0]["total_descent"] is None
 
@@ -518,15 +519,15 @@ class TestSpeedFromPositions:
 
         payload = _assemble(rows, summary=_NO_DEVICE_TIMES)
 
-        speeds = [w["vel"] for w in payload["vel_waypoints"][1:]]
+        speeds = assembled.values(payload, "speed")[1:]
         assert speeds == pytest.approx([5.0] * 20, rel=0.01)
-        assert len(payload["pace_waypoints"]) == 20
+        assert len(assembled.pace(payload)) == 20
 
     def test_pace_has_a_sample_only_where_the_speed_is_above_zero(self):
         payload = _assemble(_track([5.0] * 5 + [0.0] * 5), summary=_NO_DEVICE_TIMES)
 
-        assert len(payload["vel_waypoints"]) == 11
-        assert len(payload["pace_waypoints"]) == 5
+        assert len(assembled.values(payload, "speed")) == 11
+        assert len(assembled.pace(payload)) == 5
 
 
 class TestMaxSpeed:
@@ -878,7 +879,7 @@ class TestTimeWeightedAverages:
         rows = _rows(5, step=1, cadence=[0, 60, 60, 0, 60])
         payload = _assemble(rows, sport="cycling", summary=_summary(**_NO_DEVICE_STATS))
 
-        assert [w["cad"] for w in payload["cad_waypoints"]] == [0, 60, 60, 0, 60]
+        assert assembled.values(payload, "cadence") == [0, 60, 60, 0, 60]
         assert payload["activity"].average_cad == 60
         assert payload["activity"].max_cad == 60
 

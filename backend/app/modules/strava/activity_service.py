@@ -43,7 +43,7 @@ type StravaWaypoint = dict[str, float]
 type StravaStreamEntry = tuple[bool, int, list[StravaWaypoint]]
 
 #: Each stream's waypoints followed by whether Strava sent it: lat/lon, elevation, heart rate, cadence, power and
-#: velocity, then the pace waypoints derived from velocity.
+#: velocity.
 type StravaStreams = tuple[
     list[StravaWaypoint],
     bool,
@@ -57,7 +57,6 @@ type StravaStreams = tuple[
     bool,
     list[StravaWaypoint],
     bool,
-    list[StravaWaypoint],
 ]
 
 
@@ -385,7 +384,6 @@ def parse_activity(
         is_power_set,
         vel_waypoints,
         is_velocity_set,
-        pace_waypoints,
     ) = fetch_and_process_activity_streams(
         strava_client,
         strava_activity_id,
@@ -463,7 +461,6 @@ def parse_activity(
         (is_cadence_set, activity_streams_constants.STREAM_TYPE_CADENCE, cad_waypoints),
         (is_elevation_set, activity_streams_constants.STREAM_TYPE_ELEVATION, ele_waypoints),
         (is_velocity_set, activity_streams_constants.STREAM_TYPE_SPEED, vel_waypoints),
-        (is_velocity_set, activity_streams_constants.STREAM_TYPE_PACE, pace_waypoints),
         (is_map_set, activity_streams_constants.STREAM_TYPE_MAP, lat_lon_waypoints),
     ]
 
@@ -639,24 +636,16 @@ def save_activity_streams_laps(
     Args:
         activity: The parsed Strava activity to persist.
         stream_data: ``(is_set, stream_type, waypoints)`` tuples; only set streams
-            are persisted.
+            become the stored samples.
         laps: Parsed lap dicts, or ``None`` when the activity has no laps.
         db: Database session.
 
     Returns:
         The created activity schema.
     """
-    parsed_streams = [
-        activity_streams_contracts.ParsedStream(
-            stream_type=stream_type,
-            stream_waypoints=waypoints,
-        )
-        for is_set, stream_type, waypoints in (stream_data or [])
-        if is_set
-    ]
     parsed = activity_contracts.ParsedActivity(
         activity=activity,
-        components={"streams": parsed_streams, "samples": _parsed_samples(stream_data), "laps": laps},
+        components={"samples": _parsed_samples(stream_data), "laps": laps},
         source=activity_contracts.ImportSource(
             kind="strava",
             provider_activity_id=activity.strava_activity_id,
@@ -752,8 +741,8 @@ def fetch_and_process_activity_streams(
         rate_limits: The shared Strava rate-limit state.
 
     Returns:
-        A flat tuple of each stream's waypoints and whether it is present, ending
-        with the pace waypoints. All empty when the activity has no streams.
+        A flat tuple of each stream's waypoints and whether it is present. All empty when the activity has no
+        streams.
 
     Raises:
         TooManyRequestsError: When Strava's rate limit is active or was just hit.
@@ -792,7 +781,7 @@ def fetch_and_process_activity_streams(
                 "No streams found for Strava activity (no sensor data), continuing without streams",
                 extra=core_logger.context(user_id=user_id, strava_activity_id=strava_activity_id),
             )
-            return ([], False, [], False, [], False, [], False, [], False, [], False, [])
+            return ([], False, [], False, [], False, [], False, [], False, [], False)
         raise core_exceptions.DependencyFailedError("Not able to fetch Strava activity streams") from err
 
     def stream_data(name: str) -> list[float]:
@@ -838,10 +827,6 @@ def fetch_and_process_activity_streams(
     cad_waypoints = waypoints("cadence", "cad")
     power_waypoints = waypoints("watts", "power")
     vel_waypoints = waypoints("velocity_smooth", "vel")
-    # Pace is derived from velocity and has no point at a standstill.
-    pace_waypoints: list[StravaWaypoint] = [
-        {"time": point["time"], "pace": 1 / point["vel"]} for point in vel_waypoints if point["vel"] > 0
-    ]
 
     return (
         lat_lon_waypoints,
@@ -856,7 +841,6 @@ def fetch_and_process_activity_streams(
         bool(power_waypoints),
         vel_waypoints,
         bool(vel_waypoints),
-        pace_waypoints,
     )
 
 

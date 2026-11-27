@@ -114,8 +114,12 @@ def _fit(tmp_path: Path, *sessions: list[bytes]) -> str:
     return str(path)
 
 
-def _stream_types(parsed_activity) -> set[int]:
-    return {stream.stream_type for stream in parsed_activity.components["streams"]}
+def _channels(parsed_activity) -> set[str]:
+    """The channels the parsed activity's samples carry."""
+    samples = parsed_activity.components["samples"]
+    if samples is None:
+        return set()
+    return {name for name in stream_constants.SAMPLE_CHANNELS if getattr(samples, name) is not None}
 
 
 class TestRegistry:
@@ -148,11 +152,7 @@ class TestParsingFiles:
         assert activity.activity.name == "Lunch ride"
         assert activity.activity.user_id == MOCK_USER_ID
         assert 2500 < activity.activity.distance < 3500
-        assert {
-            stream_constants.STREAM_TYPE_HR,
-            stream_constants.STREAM_TYPE_ELEVATION,
-            stream_constants.STREAM_TYPE_MAP,
-        } <= _stream_types(activity)
+        assert {"heart_rate", "elevation", "latitude", "longitude"} <= _channels(activity)
         assert len(activity.components["laps"]) >= 2
 
     def test_the_lap_distance_the_caller_gives_sets_the_gpx_laps(self, tmp_path):
@@ -201,7 +201,7 @@ class TestParsingFiles:
         [activity] = parsed.activities
         assert activity.activity.distance == 1000
         assert activity.activity.start_time == _T0
-        assert stream_constants.STREAM_TYPE_HR in _stream_types(activity)
+        assert "heart_rate" in _channels(activity)
 
     def test_a_fit_file_with_one_session_is_one_activity(self, tmp_path):
         parsed = registry.get_parser(".fit")(
@@ -213,7 +213,7 @@ class TestParsingFiles:
         assert activity.activity.start_time == _T0
         assert activity.activity.average_hr == 142
         assert activity.activity.timezone == "Europe/Madrid"
-        assert stream_constants.STREAM_TYPE_MAP in _stream_types(activity)
+        assert "latitude" in _channels(activity)
         assert len(activity.components["laps"]) == 1
         assert parsed.components == {"exercise_titles": []}
 
@@ -229,8 +229,8 @@ class TestParsingFiles:
 
         first, second = parsed.activities
         assert (first.activity.start_time, second.activity.start_time) == (_T0, later)
-        assert stream_constants.STREAM_TYPE_MAP in _stream_types(first)
-        assert stream_constants.STREAM_TYPE_MAP not in _stream_types(second)
+        assert "latitude" in _channels(first)
+        assert "latitude" not in _channels(second)
         assert len(first.components["laps"]) == len(second.components["laps"]) == 1
         # The second session has no GPS and no offset, so it takes the athlete's timezone and not the first one's.
         assert first.activity.timezone == "Europe/Madrid"
@@ -250,7 +250,7 @@ class TestParsingFiles:
         assert parsed.parent is not None
         assert parsed.parent.activity.activity_type == activity_constants.ActivityType.MULTISPORT
         assert parsed.parent.activity.start_time == _T0
-        assert parsed.parent.components["streams"] == []
+        assert parsed.parent.components["samples"] is None
         assert [leg.activity.start_time for leg in parsed.activities] == [_T0, later]
 
     def test_a_fit_file_with_two_sessions_but_no_multisport_type_has_no_parent(self, tmp_path):
@@ -272,7 +272,7 @@ class TestParsingFiles:
 
 class TestStoringParsedFiles:
     @pytest.mark.parametrize("extension", [".gpx", ".tcx", ".fit"])
-    def test_a_parsed_file_is_stored_with_its_streams_and_laps(self, db: Session, tmp_path, extension):
+    def test_a_parsed_file_is_stored_with_its_samples_and_laps(self, db: Session, tmp_path, extension):
         user = make_user(db)
         builders = {".gpx": _gpx, ".tcx": _tcx, ".fit": lambda path: _fit(path, _fit_session(_T0, latitude=40.0))}
         parsed = registry.get_parser(extension)(builders[extension](tmp_path), user.id, None, "UTC", 1.0)
@@ -288,12 +288,14 @@ class TestStoringParsedFiles:
         [activity] = stored
         assert activity.user_id == user.id
         assert activity.start_time == parsed.activities[0].activity.start_time
-        stream_rows = db.scalars(
-            select(streams_models.ActivityStreams.stream_type).where(
-                streams_models.ActivityStreams.activity_id == activity.id
-            )
+        stored_samples = db.get(streams_models.ActivitySamples, activity.id)
+        assert stored_samples is not None
+        assert {
+            name for name in stream_constants.SAMPLE_CHANNELS if getattr(stored_samples, name) is not None
+        } == _channels(parsed.activities[0])
+        assert not db.scalars(
+            select(streams_models.ActivityStreams).where(streams_models.ActivityStreams.activity_id == activity.id)
         ).all()
-        assert set(stream_rows) == _stream_types(parsed.activities[0])
         lap_count = len(
             db.scalars(
                 select(laps_models.ActivityLaps).where(laps_models.ActivityLaps.activity_id == activity.id)

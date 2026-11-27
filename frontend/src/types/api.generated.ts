@@ -490,35 +490,16 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * List Activity Streams
-         * @description Return one page of the given activity's streams, with the matching total.
-         */
-        get: operations["list_activity_streams"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/activities/{activity_id}/streams/{stream_type}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Read Activity Stream
-         * @description Get a specific stream type for an activity.
+         * Read Activity Streams
+         * @description Get an activity's streams: its samples on one timeline, a list per channel.
          *
-         *     Not found when the activity has no such stream or is not visible to the
-         *     caller. A single resource that does not exist is a ``404`` rather than
-         *     ``200 null``, and the two cases are indistinguishable so the endpoint cannot
-         *     be used to probe which activities exist.
+         *     Every list is aligned with `offsets_ms`, the sample times in milliseconds from the activity start. A channel the
+         *     activity does not have, or hides from the caller, is `null`. With `max_points` a longer activity is averaged over
+         *     that many equal-time buckets; the heart-rate zones always count every sample. The activity is `404` when it does
+         *     not exist or the caller cannot read it, and an activity with no samples has an empty `offsets_ms` and every channel
+         *     `null`.
          */
-        get: operations["read_activity_stream"];
+        get: operations["read_activity_streams"];
         put?: never;
         post?: never;
         delete?: never;
@@ -3137,34 +3118,14 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * List Public Activity Streams
-         * @description Return one page of a publicly shared activity's streams, with the matching total.
-         */
-        get: operations["list_public_activity_streams"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/public/activities/{activity_id}/streams/{stream_type}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Read Public Activity Stream
-         * @description Get a public stream by type for an activity.
+         * Read Public Activity Streams
+         * @description Get the streams of a publicly shared activity: its samples on one timeline, a list per channel.
          *
-         *     Not found when the activity has no such stream, is not public, or public links
-         *     are disabled. The cases are indistinguishable on purpose, since this endpoint
-         *     is unauthenticated.
+         *     The shape and `max_points` are those of the authenticated route. A channel the owner hides is `null`. The activity
+         *     is `404` when it is not public, public links are disabled or it does not exist, indistinguishably, since this
+         *     endpoint is unauthenticated.
          */
-        get: operations["read_public_activity_stream"];
+        get: operations["read_public_activity_streams"];
         put?: never;
         post?: never;
         delete?: never;
@@ -5511,6 +5472,82 @@ export interface components {
             workout_rpe?: number | null;
         };
         /**
+         * ActivitySamplesRead
+         * @description An activity's streams: its samples on one timeline, one list per channel, all aligned with ``offsets_ms``.
+         *
+         *     A channel is ``null`` when the activity has none or hides it from the viewer, and an element is ``null`` where a
+         *     sample has no value.
+         *
+         *     Attributes:
+         *         offsets_ms: Each sample's time in milliseconds from the activity start; empty when the activity has no
+         *             samples.
+         *         latitude: Latitude per sample, in degrees.
+         *         longitude: Longitude per sample, in degrees.
+         *         elevation: Elevation per sample, in meters.
+         *         heart_rate: Heart rate per sample, in beats per minute.
+         *         power: Power per sample, in watts.
+         *         cadence: Cadence per sample, in revolutions per minute (steps per minute for running).
+         *         speed: Speed per sample, in meters per second.
+         *         pace: Pace per sample, in seconds per meter, derived from the speed; ``null`` where the speed is not above 0.
+         *         temperature: Temperature per sample, in degrees Celsius.
+         *         heart_rate_zones: The time in each heart-rate zone, computed from the owner's current thresholds and every
+         *             sample, never stored; ``null`` when there is no heart-rate time or the heart rate is hidden.
+         */
+        ActivitySamplesRead: {
+            /**
+             * Cadence
+             * @description Cadence per sample in revolutions per minute (steps per minute for running)
+             */
+            cadence: (number | null)[] | null;
+            /**
+             * Elevation
+             * @description Elevation per sample in meters
+             */
+            elevation: (number | null)[] | null;
+            /**
+             * Heart Rate
+             * @description Heart rate per sample in beats per minute
+             */
+            heart_rate: (number | null)[] | null;
+            /** @description Time in each heart-rate zone, from the owner's current thresholds; null when there is none */
+            heart_rate_zones: components["schemas"]["HrZoneBreakdown"] | null;
+            /**
+             * Latitude
+             * @description Latitude per sample in degrees
+             */
+            latitude: (number | null)[] | null;
+            /**
+             * Longitude
+             * @description Longitude per sample in degrees
+             */
+            longitude: (number | null)[] | null;
+            /**
+             * Offsets Ms
+             * @description Each sample's time in milliseconds from the activity start; empty when there are no samples
+             */
+            offsets_ms: number[];
+            /**
+             * Pace
+             * @description Pace per sample in seconds per meter, derived from the speed; null where the speed is not above 0
+             */
+            pace: (number | null)[] | null;
+            /**
+             * Power
+             * @description Power per sample in watts
+             */
+            power: (number | null)[] | null;
+            /**
+             * Speed
+             * @description Speed per sample in meters per second
+             */
+            speed: (number | null)[] | null;
+            /**
+             * Temperature
+             * @description Temperature per sample in degrees Celsius
+             */
+            temperature: (number | null)[] | null;
+        };
+        /**
          * ActivitySetsRead
          * @description Schema for reading activity workout sets.
          *
@@ -5643,35 +5680,6 @@ export interface components {
             swim?: components["schemas"]["ActivitySportStats"];
             walk?: components["schemas"]["ActivitySportStats"];
             windsurf?: components["schemas"]["ActivitySportStats"];
-        };
-        ActivityStreamResponse: components["schemas"]["HeartRateStreamRead"] | components["schemas"]["PowerStreamRead"] | components["schemas"]["CadenceStreamRead"] | components["schemas"]["ElevationStreamRead"] | components["schemas"]["SpeedStreamRead"] | components["schemas"]["PaceStreamRead"] | components["schemas"]["MapStreamRead"] | components["schemas"]["TemperatureStreamRead"];
-        /**
-         * ActivityStreamType
-         * @description The kind of data a stream holds, which fixes the shape of the stream's waypoints.
-         *
-         *     ``stored`` is the integer in ``activity_streams.stream_type``.
-         *
-         *     Attributes:
-         *         HEART_RATE: Heart rate; waypoints carry ``hr``.
-         *         POWER: Power; waypoints carry ``power``.
-         *         CADENCE: Cadence; waypoints carry ``cad``.
-         *         ELEVATION: Elevation; waypoints carry ``ele``.
-         *         SPEED: Speed; waypoints carry ``vel``.
-         *         PACE: Pace; waypoints carry ``pace``.
-         *         MAP: GPS position; waypoints carry ``lat`` and ``lon``.
-         *         TEMPERATURE: Temperature; waypoints carry ``temp``.
-         * @enum {string}
-         */
-        ActivityStreamType: "heart_rate" | "power" | "cadence" | "elevation" | "speed" | "pace" | "map" | "temperature";
-        /**
-         * ActivityStreamZones
-         * @description A stream's zone breakdowns, by metric.
-         *
-         *     Attributes:
-         *         hr: The heart-rate zone breakdown.
-         */
-        ActivityStreamZones: {
-            hr: components["schemas"]["HrZoneBreakdown"];
         };
         /**
          * ActivitySummaryRead
@@ -6049,49 +6057,6 @@ export interface components {
             authorization_url: string;
         };
         /**
-         * CadenceStreamRead
-         * @description The cadence stream (`cadence`).
-         */
-        CadenceStreamRead: {
-            /**
-             * Activity Id
-             * Format: uuid
-             */
-            activity_id: string;
-            /**
-             * Id
-             * Format: uuid
-             */
-            readonly id: string;
-            /** Strava Activity Stream Id */
-            strava_activity_stream_id?: number | null;
-            stream_type: components["schemas"]["ActivityStreamType"];
-            /** Stream Waypoints */
-            stream_waypoints: components["schemas"]["CadenceWaypoint"][];
-            zone_percentages?: components["schemas"]["ActivityStreamZones"] | null;
-        };
-        /**
-         * CadenceWaypoint
-         * @description A sample of the cadence stream.
-         *
-         *     Attributes:
-         *         cad: Cadence in rpm (spm for running).
-         */
-        CadenceWaypoint: {
-            /**
-             * Cad
-             * @description Cadence in revolutions per minute (steps per minute for running)
-             */
-            cad?: number | null;
-            /**
-             * Time
-             * @description When the sample was taken: a UTC timestamp, or seconds from the start for a Strava stream
-             */
-            time?: string | number | null;
-        } & {
-            [key: string]: unknown;
-        };
-        /**
          * ChartBucket
          * @description Calendar span one chart point aggregates.
          *
@@ -6187,49 +6152,6 @@ export interface components {
              * @default 0
              */
             total_elevation_gain: number;
-        };
-        /**
-         * ElevationStreamRead
-         * @description The elevation stream (`elevation`).
-         */
-        ElevationStreamRead: {
-            /**
-             * Activity Id
-             * Format: uuid
-             */
-            activity_id: string;
-            /**
-             * Id
-             * Format: uuid
-             */
-            readonly id: string;
-            /** Strava Activity Stream Id */
-            strava_activity_stream_id?: number | null;
-            stream_type: components["schemas"]["ActivityStreamType"];
-            /** Stream Waypoints */
-            stream_waypoints: components["schemas"]["ElevationWaypoint"][];
-            zone_percentages?: components["schemas"]["ActivityStreamZones"] | null;
-        };
-        /**
-         * ElevationWaypoint
-         * @description A sample of the elevation stream.
-         *
-         *     Attributes:
-         *         ele: Elevation in meters.
-         */
-        ElevationWaypoint: {
-            /**
-             * Ele
-             * @description Elevation in meters
-             */
-            ele?: number | null;
-            /**
-             * Time
-             * @description When the sample was taken: a UTC timestamp, or seconds from the start for a Strava stream
-             */
-            time?: string | number | null;
-        } & {
-            [key: string]: unknown;
         };
         /**
          * EmailChange
@@ -9298,49 +9220,6 @@ export interface components {
             weight_kg?: number | null;
         };
         /**
-         * HeartRateStreamRead
-         * @description The heart-rate stream (`heart_rate`).
-         */
-        HeartRateStreamRead: {
-            /**
-             * Activity Id
-             * Format: uuid
-             */
-            activity_id: string;
-            /**
-             * Id
-             * Format: uuid
-             */
-            readonly id: string;
-            /** Strava Activity Stream Id */
-            strava_activity_stream_id?: number | null;
-            stream_type: components["schemas"]["ActivityStreamType"];
-            /** Stream Waypoints */
-            stream_waypoints: components["schemas"]["HeartRateWaypoint"][];
-            zone_percentages?: components["schemas"]["ActivityStreamZones"] | null;
-        };
-        /**
-         * HeartRateWaypoint
-         * @description A sample of the heart-rate stream.
-         *
-         *     Attributes:
-         *         hr: Heart rate in bpm.
-         */
-        HeartRateWaypoint: {
-            /**
-             * Hr
-             * @description Heart rate in beats per minute
-             */
-            hr?: number | null;
-            /**
-             * Time
-             * @description When the sample was taken: a UTC timestamp, or seconds from the start for a Strava stream
-             */
-            time?: string | number | null;
-        } & {
-            [key: string]: unknown;
-        };
-        /**
          * HrZone
          * @description One heart-rate zone of a breakdown.
          *
@@ -10622,55 +10501,6 @@ export interface components {
             username: string | null;
         };
         /**
-         * MapStreamRead
-         * @description The GPS map stream (`map`).
-         */
-        MapStreamRead: {
-            /**
-             * Activity Id
-             * Format: uuid
-             */
-            activity_id: string;
-            /**
-             * Id
-             * Format: uuid
-             */
-            readonly id: string;
-            /** Strava Activity Stream Id */
-            strava_activity_stream_id?: number | null;
-            stream_type: components["schemas"]["ActivityStreamType"];
-            /** Stream Waypoints */
-            stream_waypoints: components["schemas"]["MapWaypoint"][];
-            zone_percentages?: components["schemas"]["ActivityStreamZones"] | null;
-        };
-        /**
-         * MapWaypoint
-         * @description A GPS sample of the map stream.
-         *
-         *     Attributes:
-         *         lat: Latitude in decimal degrees.
-         *         lon: Longitude in decimal degrees.
-         */
-        MapWaypoint: {
-            /**
-             * Lat
-             * @description Latitude in decimal degrees
-             */
-            lat?: number | null;
-            /**
-             * Lon
-             * @description Longitude in decimal degrees
-             */
-            lon?: number | null;
-            /**
-             * Time
-             * @description When the sample was taken: a UTC timestamp, or seconds from the start for a Strava stream
-             */
-            time?: string | number | null;
-        } & {
-            [key: string]: unknown;
-        };
-        /**
          * MediaType
          * @description The kind of an activity media item; ``stored`` is the integer in ``activity_media.media_type``.
          *
@@ -10956,49 +10786,6 @@ export interface components {
              */
             onboarding_required: boolean;
         };
-        /**
-         * PaceStreamRead
-         * @description The pace stream (`pace`).
-         */
-        PaceStreamRead: {
-            /**
-             * Activity Id
-             * Format: uuid
-             */
-            activity_id: string;
-            /**
-             * Id
-             * Format: uuid
-             */
-            readonly id: string;
-            /** Strava Activity Stream Id */
-            strava_activity_stream_id?: number | null;
-            stream_type: components["schemas"]["ActivityStreamType"];
-            /** Stream Waypoints */
-            stream_waypoints: components["schemas"]["PaceWaypoint"][];
-            zone_percentages?: components["schemas"]["ActivityStreamZones"] | null;
-        };
-        /**
-         * PaceWaypoint
-         * @description A sample of the pace stream.
-         *
-         *     Attributes:
-         *         pace: Pace in s/m; 0 where the speed is 0.
-         */
-        PaceWaypoint: {
-            /**
-             * Pace
-             * @description Pace in seconds per meter; 0 where the speed is 0
-             */
-            pace?: number | null;
-            /**
-             * Time
-             * @description When the sample was taken: a UTC timestamp, or seconds from the start for a Strava stream
-             */
-            time?: string | number | null;
-        } & {
-            [key: string]: unknown;
-        };
         /** Page[ActivityExerciseTitlesRead] */
         Page_ActivityExerciseTitlesRead_: {
             /** Items */
@@ -11042,19 +10829,6 @@ export interface components {
         Page_ActivitySetsRead_: {
             /** Items */
             items: components["schemas"]["ActivitySetsRead"][];
-            /** Next */
-            next?: number | null;
-            /** Num Records */
-            num_records: number;
-            /** Page */
-            page: number;
-            /** Total */
-            total: number;
-        };
-        /** Page[ActivityStreamResponse] */
-        Page_ActivityStreamResponse_: {
-            /** Items */
-            items: components["schemas"]["ActivityStreamResponse"][];
             /** Next */
             next?: number | null;
             /** Num Records */
@@ -11416,49 +11190,6 @@ export interface components {
              * @description The reset token received by the user
              */
             token: string;
-        };
-        /**
-         * PowerStreamRead
-         * @description The power stream (`power`).
-         */
-        PowerStreamRead: {
-            /**
-             * Activity Id
-             * Format: uuid
-             */
-            activity_id: string;
-            /**
-             * Id
-             * Format: uuid
-             */
-            readonly id: string;
-            /** Strava Activity Stream Id */
-            strava_activity_stream_id?: number | null;
-            stream_type: components["schemas"]["ActivityStreamType"];
-            /** Stream Waypoints */
-            stream_waypoints: components["schemas"]["PowerWaypoint"][];
-            zone_percentages?: components["schemas"]["ActivityStreamZones"] | null;
-        };
-        /**
-         * PowerWaypoint
-         * @description A sample of the power stream.
-         *
-         *     Attributes:
-         *         power: Power in watts.
-         */
-        PowerWaypoint: {
-            /**
-             * Power
-             * @description Power in watts
-             */
-            power?: number | null;
-            /**
-             * Time
-             * @description When the sample was taken: a UTC timestamp, or seconds from the start for a Strava stream
-             */
-            time?: string | number | null;
-        } & {
-            [key: string]: unknown;
         };
         /**
          * ProblemDetail
@@ -12265,49 +11996,6 @@ export interface components {
          */
         SleepStageType: "deep" | "light" | "rem" | "awake";
         /**
-         * SpeedStreamRead
-         * @description The speed stream (`speed`).
-         */
-        SpeedStreamRead: {
-            /**
-             * Activity Id
-             * Format: uuid
-             */
-            activity_id: string;
-            /**
-             * Id
-             * Format: uuid
-             */
-            readonly id: string;
-            /** Strava Activity Stream Id */
-            strava_activity_stream_id?: number | null;
-            stream_type: components["schemas"]["ActivityStreamType"];
-            /** Stream Waypoints */
-            stream_waypoints: components["schemas"]["SpeedWaypoint"][];
-            zone_percentages?: components["schemas"]["ActivityStreamZones"] | null;
-        };
-        /**
-         * SpeedWaypoint
-         * @description A sample of the speed stream.
-         *
-         *     Attributes:
-         *         vel: Speed in m/s.
-         */
-        SpeedWaypoint: {
-            /**
-             * Time
-             * @description When the sample was taken: a UTC timestamp, or seconds from the start for a Strava stream
-             */
-            time?: string | number | null;
-            /**
-             * Vel
-             * @description Speed in meters per second
-             */
-            vel?: number | null;
-        } & {
-            [key: string]: unknown;
-        };
-        /**
          * StatsPeriod
          * @description The periods the per-sport stats cover.
          *
@@ -12630,49 +12318,6 @@ export interface components {
          * @enum {string}
          */
         SyncType: "activity" | "health_weight" | "health_steps" | "health_sleep" | "health_water" | "health_poop" | "health_fasting" | "health_targets" | "gear" | "gear_component";
-        /**
-         * TemperatureStreamRead
-         * @description The temperature stream (`temperature`).
-         */
-        TemperatureStreamRead: {
-            /**
-             * Activity Id
-             * Format: uuid
-             */
-            activity_id: string;
-            /**
-             * Id
-             * Format: uuid
-             */
-            readonly id: string;
-            /** Strava Activity Stream Id */
-            strava_activity_stream_id?: number | null;
-            stream_type: components["schemas"]["ActivityStreamType"];
-            /** Stream Waypoints */
-            stream_waypoints: components["schemas"]["TemperatureWaypoint"][];
-            zone_percentages?: components["schemas"]["ActivityStreamZones"] | null;
-        };
-        /**
-         * TemperatureWaypoint
-         * @description A sample of the temperature stream.
-         *
-         *     Attributes:
-         *         temp: Temperature in degrees Celsius.
-         */
-        TemperatureWaypoint: {
-            /**
-             * Temp
-             * @description Temperature in degrees Celsius
-             */
-            temp?: number | null;
-            /**
-             * Time
-             * @description When the sample was taken: a UTC timestamp, or seconds from the start for a Strava stream
-             */
-            time?: string | number | null;
-        } & {
-            [key: string]: unknown;
-        };
         /**
          * TileMapsTemplate
          * @description Schema representing available tile map templates.
@@ -17165,11 +16810,11 @@ export interface operations {
             };
         };
     };
-    list_activity_streams: {
+    read_activity_streams: {
         parameters: {
             query?: {
-                page_number?: number | null;
-                num_records?: number | null;
+                /** @description The most samples to return. A longer activity is averaged over this many equal-time buckets; omitted, every sample is returned */
+                max_points?: number | null;
             };
             header?: never;
             path: {
@@ -17185,103 +16830,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["Page_ActivityStreamResponse_"];
-                };
-            };
-            /** @description The credential is missing, invalid or no longer valid. */
-            401: {
-                headers: {
-                    /** @description The authentication challenge. */
-                    "WWW-Authenticate"?: string;
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetail"];
-                };
-            };
-            /** @description The caller is signed in but not allowed, for example a scope is missing. */
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetail"];
-                };
-            };
-            /** @description The resource does not exist, or is concealed from the caller. */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetail"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetail"];
-                };
-            };
-            /** @description The rate limit was reached. */
-            429: {
-                headers: {
-                    /** @description Seconds to wait before the request can succeed. */
-                    "Retry-After"?: number;
-                    /** @description The number of requests the limit that was reached allows in its window. */
-                    "X-RateLimit-Limit"?: number;
-                    /** @description The requests left in the window: always 0 on a 429. */
-                    "X-RateLimit-Remaining"?: number;
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetail"];
-                };
-            };
-            /** @description A dependency is unavailable for a moment. */
-            503: {
-                headers: {
-                    /** @description Seconds to wait before the request can succeed. */
-                    "Retry-After"?: number;
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetail"];
-                };
-            };
-            /** @description Unexpected error */
-            default: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetail"];
-                };
-            };
-        };
-    };
-    read_activity_stream: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                activity_id: string;
-                stream_type: components["schemas"]["ActivityStreamType"];
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ActivityStreamResponse"];
+                    "application/json": components["schemas"]["ActivitySamplesRead"];
                 };
             };
             /** @description The credential is missing, invalid or no longer valid. */
@@ -32170,11 +31719,11 @@ export interface operations {
             };
         };
     };
-    list_public_activity_streams: {
+    read_public_activity_streams: {
         parameters: {
             query?: {
-                page_number?: number | null;
-                num_records?: number | null;
+                /** @description The most samples to return. A longer activity is averaged over this many equal-time buckets; omitted, every sample is returned */
+                max_points?: number | null;
             };
             header?: never;
             path: {
@@ -32190,83 +31739,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["Page_ActivityStreamResponse_"];
-                };
-            };
-            /** @description The resource does not exist, or is concealed from the caller. */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetail"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetail"];
-                };
-            };
-            /** @description The rate limit was reached. */
-            429: {
-                headers: {
-                    /** @description Seconds to wait before the request can succeed. */
-                    "Retry-After"?: number;
-                    /** @description The number of requests the limit that was reached allows in its window. */
-                    "X-RateLimit-Limit"?: number;
-                    /** @description The requests left in the window: always 0 on a 429. */
-                    "X-RateLimit-Remaining"?: number;
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetail"];
-                };
-            };
-            /** @description A dependency is unavailable for a moment. */
-            503: {
-                headers: {
-                    /** @description Seconds to wait before the request can succeed. */
-                    "Retry-After"?: number;
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetail"];
-                };
-            };
-            /** @description Unexpected error */
-            default: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetail"];
-                };
-            };
-        };
-    };
-    read_public_activity_stream: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                activity_id: string;
-                stream_type: components["schemas"]["ActivityStreamType"];
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ActivityStreamResponse"];
+                    "application/json": components["schemas"]["ActivitySamplesRead"];
                 };
             };
             /** @description The resource does not exist, or is concealed from the caller. */

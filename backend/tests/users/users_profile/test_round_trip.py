@@ -257,19 +257,15 @@ def _seed_activities(
             activity_id,
             db,
         )
-        streams_crud.create_activity_streams(
-            [
-                streams_contracts.ActivityStreamsCreate(
-                    activity_id=activity_id,
-                    stream_type=stream_type,
-                    stream_waypoints=[
-                        {"time": f"2026-07-{20 + index}T09:00:0{sample}", "hr": 120 + sample + stream_type}
-                        for sample in range(2)
-                    ],
-                )
-                for stream_type in (1, 2)
-            ],
-            created,
+        streams_crud.create_activity_samples(
+            activity_id,
+            streams_contracts.ParsedSamples(
+                offsets_ms=[0, 1500, 3000],
+                heart_rate=[120.0 + index, None, 125.0 + index],
+                speed=[2.5, 3.0, 3.5],
+                latitude=[38.7 + index, 38.8 + index, None],
+                longitude=[-9.1 - index, -9.2 - index, None],
+            ),
             db,
         )
         steps_crud.create_activity_workout_steps(
@@ -536,6 +532,10 @@ def test_an_export_imported_into_a_fresh_account_exports_the_same_archive(commit
     second_data, second_binaries = _normalised(second)
 
     assert first_data.keys() == second_data.keys()
+    assert any(name.startswith("data/activity_samples") for name in first_data), "the samples are exported"
+    assert not any("activity_streams" in name for name in first_data), "the old streams are not"
+    assert "activity_samples" in first_data["counts.json"][0]
+    assert "activity_streams" not in first_data["counts.json"][0]
     assert any(re.fullmatch(r"data/activity_laps_\d{3}\.json \(size\)", name) for name in first_data), "no split files"
     assert first_binaries.keys() == second_binaries.keys()
     assert {name for name in first_binaries if name.startswith("activity_files/")}
@@ -590,7 +590,8 @@ def test_an_archive_written_by_a_uuid_era_release_still_imports(committed_sessio
     imported = _import(committed_sessions, storage, user_id, _archive_of(document))
 
     exported = document["counts.json"]["json"][0]
-    assert imported == {key: exported[key] for key in imported}
+    # The archive predates the samples, so it counts none of them.
+    assert imported == {key: exported.get(key, 0) for key in imported}
     assert imported["gears"] == 2
     assert imported["gear_components"] == 2
     assert imported["activities"] == 3
@@ -627,3 +628,13 @@ def test_an_archive_written_by_a_uuid_era_release_still_imports(committed_sessio
         ).one()
         assert (float(targets.weight_kg), targets.sleep_seconds) == (68.0, 28800)
         assert users_integration.require_user(user_id, db).city == "Lisbon"
+        # The streams of the old archive are stored as samples, and no old stream row is written.
+        owned = "FROM {table} t JOIN activities a ON a.id = t.activity_id WHERE a.user_id = :u"
+        assert (
+            db.execute(text("SELECT count(*) " + owned.format(table="activity_samples")), {"u": user_id}).scalar_one()
+            == 3
+        )
+        assert (
+            db.execute(text("SELECT count(*) " + owned.format(table="activities_streams")), {"u": user_id}).scalar_one()
+            == 0
+        )

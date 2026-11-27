@@ -184,7 +184,6 @@ Every enumerated value is a string. The API refuses the number the database stor
 | `stage_type` of a sleep stage | `deep`, `light`, `rem`, `awake` |
 | `period` of `GET /users/{user_id}/activities/stats` | `week`, `month` |
 | `period` of `GET /activities/summaries` | `week`, `month`, `year`, `lifetime` |
-| `stream_type` of an activity stream | `heart_rate`, `power`, `cadence`, `elevation`, `speed`, `pace`, `map`, `temperature` |
 
 `is_strava_linked` and `is_garminconnect_linked` of the signed-in user are booleans.
 

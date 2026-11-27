@@ -76,7 +76,8 @@ def _report_zero_counts(counts: dict[str, int]) -> None:
     counts["activity_files"] = 0
     counts["media"] = 0
     for contributor in activities_contributor_registry.profile_activity_contributors():
-        counts[contributor.count_key] = 0
+        if contributor.export is not None:
+            counts[contributor.count_key] = 0
     for global_contributor in activities_contributor_registry.profile_global_contributors():
         counts[global_contributor.count_key] = 0
 
@@ -156,6 +157,8 @@ def _write_activity_components(
     batch_size = ctx.batch_size // 2
 
     for contributor in activities_contributor_registry.profile_activity_contributors():
+        if contributor.export is None:
+            continue
         # Large splittable components are written in chunks during collection
         if contributor.split:
             _write_component_chunked(

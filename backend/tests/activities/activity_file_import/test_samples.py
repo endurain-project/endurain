@@ -1,10 +1,8 @@
-"""The columnar samples a file yields agree with the waypoint streams stored for the same file.
+"""The columnar samples a file yields: the invariants of every device file, and how the builder cuts them.
 
 Every ``.fit``, ``.gpx`` and ``.tcx`` under ``fixtures/`` and every synthetic case is parsed through the parser
-registry as ingestion does. The comparison rule: an old waypoint's ``time`` is its sample's instant cut to whole
-seconds, so a sample at ``start_time + offsets_ms[i]`` is stamped the same way, and for each stream the old waypoints
-equal, in order, the samples whose channel is not ``None`` (a sub-second file has several samples under one stamp, and
-each one has its own waypoint). Pace has no channel: its waypoints equal ``1 / speed`` for every speed above zero.
+registry as ingestion does, and what its samples hold is pinned in the goldens of ``test_device_files.py``. Here is
+what holds for all of them.
 """
 
 import uuid
@@ -25,17 +23,6 @@ _FIXTURES = Path(__file__).parent / "fixtures"
 _EXTENSIONS = {".fit", ".gpx", ".tcx"}
 _USER_ID = uuid.UUID("00000000-0000-0000-0000-000000000001")
 _START = datetime(2026, 6, 20, 8, 0, 0, tzinfo=UTC)
-_STAMP = "%Y-%m-%dT%H:%M:%S"
-
-#: stream type -> (samples channel, waypoint key)
-_SCALAR_STREAMS = {
-    activity_streams_constants.STREAM_TYPE_HR: ("heart_rate", "hr"),
-    activity_streams_constants.STREAM_TYPE_POWER: ("power", "power"),
-    activity_streams_constants.STREAM_TYPE_CADENCE: ("cadence", "cad"),
-    activity_streams_constants.STREAM_TYPE_ELEVATION: ("elevation", "ele"),
-    activity_streams_constants.STREAM_TYPE_SPEED: ("speed", "vel"),
-    activity_streams_constants.STREAM_TYPE_TEMPERATURE: ("temperature", "temp"),
-}
 
 
 def _fixture_paths() -> list[str]:
@@ -58,59 +45,28 @@ def _parse(name: str, tmp_path: Path) -> activity_contracts.ParsedFile:
     return parser(str(path), _USER_ID, None, "Europe/Lisbon", 1.0)
 
 
-def _stamps(parsed: activity_contracts.ParsedActivity) -> list[str]:
-    samples = parsed.components["samples"]
-    assert isinstance(samples, activity_streams_contracts.ParsedSamples)
-    return [
-        (parsed.activity.start_time + timedelta(milliseconds=offset)).strftime(_STAMP) for offset in samples.offsets_ms
-    ]
-
-
-def _present(stamps: list[str], channel: list[float | None] | None) -> list[tuple[str, float]]:
-    if channel is None:
-        return []
-    return [(stamp, value) for stamp, value in zip(stamps, channel, strict=True) if value is not None]
-
-
-def _assert_agrees(parsed: activity_contracts.ParsedActivity) -> None:
-    samples = parsed.components["samples"]
-    streams = {stream.stream_type: stream for stream in parsed.components["streams"]}
-    stamps = _stamps(parsed)
-    for stream_type, (channel, key) in _SCALAR_STREAMS.items():
-        stream = streams.get(stream_type)
-        old = [] if stream is None else [(w["time"], w[key]) for w in stream.stream_waypoints]
-        assert _present(stamps, getattr(samples, channel)) == old, channel
-        assert (getattr(samples, channel) is None) == (stream is None), channel
-
-    map_stream = streams.get(activity_streams_constants.STREAM_TYPE_MAP)
-    old_map = [] if map_stream is None else [(w["time"], (w["lat"], w["lon"])) for w in map_stream.stream_waypoints]
-    latitude = samples.latitude or [None] * len(stamps)
-    longitude = samples.longitude or [None] * len(stamps)
-    new_map = [
-        (stamp, (lat, lon))
-        for stamp, lat, lon in zip(stamps, latitude, longitude, strict=True)
-        if lat is not None and lon is not None
-    ]
-    assert new_map == old_map
-    assert all((lat is None) == (lon is None) for lat, lon in zip(latitude, longitude, strict=True))
-    assert (samples.latitude is None) == (map_stream is None)
-
-    pace_stream = streams.get(activity_streams_constants.STREAM_TYPE_PACE)
-    old_pace = [] if pace_stream is None else [(w["time"], w["pace"]) for w in pace_stream.stream_waypoints]
-    assert [(stamp, 1 / value) for stamp, value in _present(stamps, samples.speed) if value > 0] == old_pace
+def _assert_consistent(samples: activity_streams_contracts.ParsedSamples) -> None:
+    assert samples.offsets_ms == sorted(samples.offsets_ms)
+    present = [name for name in activity_streams_constants.SAMPLE_CHANNELS if getattr(samples, name) is not None]
+    assert present, "samples with no channel are not stored"
+    for name in present:
+        assert any(value is not None for value in getattr(samples, name)), name
+    # A position is both coordinates or neither.
+    if samples.latitude is not None and samples.longitude is not None:
+        assert all((lat is None) == (lon is None) for lat, lon in zip(samples.latitude, samples.longitude, strict=True))
 
 
 @pytest.mark.parametrize("name", _fixture_paths(), ids=lambda name: name)
-def test_samples_agree_with_the_streams_of_every_device_file(name: str, tmp_path: Path) -> None:
+def test_the_samples_of_every_device_file_are_consistent(name: str, tmp_path: Path) -> None:
     try:
         parsed_file = _parse(name, tmp_path)
     except core_exceptions.DomainError:
         pytest.skip("the file is refused by the parser")
     for parsed in parsed_file.activities:
-        if parsed.components.get("samples") is None:
-            assert not parsed.components["streams"], "a session with streams has samples"
-            continue
-        _assert_agrees(parsed)
+        assert "streams" not in parsed.components
+        samples = parsed.components.get("samples")
+        if samples is not None:
+            _assert_consistent(samples)
     if parsed_file.parent is not None:
         assert parsed_file.parent.components.get("samples") is None
         assert all(leg.components.get("samples") is not None for leg in parsed_file.activities)
@@ -178,6 +134,52 @@ class TestBuiltSamples:
         (payload,) = assemble_file(make_recording(session([]))).activities
 
         assert payload["samples"] is None
+
+
+class TestSpeedChannel:
+    def test_a_device_speed_is_stored_as_recorded_and_a_sample_without_one_has_none(self):
+        rec = make_recording(session(_rows(3, speed=[2.0, None, 4.0])))
+
+        (payload,) = assemble_file(rec).activities
+
+        assert payload["samples"].speed == [2.0, None, 4.0]
+
+    def test_a_speed_derived_from_positions_has_a_zero_placeholder_for_the_first_fix(self):
+        rec = make_recording(session(_rows(3, lat=[40.0, 40.0001, 40.0002], lon=[-3.0, -3.0, -3.0])))
+
+        (payload,) = assemble_file(rec).activities
+
+        speed = payload["samples"].speed
+        assert speed[0] == 0
+        assert speed[1:] == pytest.approx([11.1, 11.1], abs=0.2)
+
+    def test_a_track_without_positions_or_device_speed_has_no_speed_channel(self):
+        rec = make_recording(session(_rows(3, heart_rate=[100, 101, 102])))
+
+        (payload,) = assemble_file(rec).activities
+
+        assert payload["samples"].speed is None
+
+
+class TestElevationChannel:
+    def test_the_elevation_is_smoothed_over_time_at_the_samples_that_have_an_altitude(self):
+        altitude = [0.0] * 10 + [11.0] * 10
+        rec = make_recording(session(_rows(20, altitude=altitude)))
+
+        (payload,) = assemble_file(rec).activities
+
+        elevation = payload["samples"].elevation
+        assert len(elevation) == 20
+        # The step is averaged over the 10 s around each sample, so the middle of the step is no longer 0 or 11.
+        assert 0 < elevation[10] < 11
+        assert elevation[0] == pytest.approx(0.0, abs=1.5)
+
+    def test_a_sample_without_an_altitude_has_no_elevation(self):
+        rec = make_recording(session(_rows(3, altitude=[100.0, None, 102.0])))
+
+        (payload,) = assemble_file(rec).activities
+
+        assert payload["samples"].elevation[1] is None
 
 
 class TestStartPoint:

@@ -39,10 +39,6 @@ def _step_duration_types(db: Session, activity: activity_schema.ActivityRead) ->
     return [step.duration_type for step in activity_workout_steps_crud.get_activity_workout_steps(activity.id, db)]
 
 
-def _stream_waypoints(db: Session, activity: activity_schema.ActivityRead) -> list[Any]:
-    return [stream.stream_waypoints for stream in activity_streams_crud.get_activity_streams(activity.id, db)]
-
-
 _SET = activity_sets_contracts.ActivitySetsCreate(
     activity_id="00000000-0000-4000-8000-00000000000a",
     duration=30.0,
@@ -50,7 +46,6 @@ _SET = activity_sets_contracts.ActivitySetsCreate(
     start_time="2024-01-01T00:00:00Z",
 )
 _STEP = activity_workout_steps_contracts.ActivityWorkoutStepsCreate(message_index=0, duration_type="time")
-_STREAM = activity_streams_contracts.ParsedStream(stream_type=1, stream_waypoints=[{"hr": 140}])
 
 # (integration, payload, expected rows read back, how to read them)
 _ACTIVITY_CONTRIBUTORS = [
@@ -63,7 +58,6 @@ _ACTIVITY_CONTRIBUTORS = [
     ),
     pytest.param(activity_sets_integration, [_SET], 1, _set_durations, id="sets"),
     pytest.param(activity_workout_steps_integration, [_STEP], 1, _step_duration_types, id="workout-steps"),
-    pytest.param(activity_streams_integration, [_STREAM], 1, _stream_waypoints, id="streams"),
 ]
 
 
@@ -99,17 +93,14 @@ class TestActivityComponents:
         )
         activity_sets_integration.ingestion_contributor().persist([_SET], activity, db)
         activity_workout_steps_integration.ingestion_contributor().persist([_STEP], activity, db)
-        activity_streams_integration.ingestion_contributor().persist([_STREAM], activity, db)
         db.flush()
 
         (lap,) = activity_laps_crud.get_activity_laps(activity.id, db)
         (stored_set,) = activity_sets_crud.get_activity_sets(activity.id, db)
         (step,) = activity_workout_steps_crud.get_activity_workout_steps(activity.id, db)
-        (stream,) = activity_streams_crud.get_activity_streams(activity.id, db)
         assert lap.start_time is not None and lap.start_time.year == 2024
         assert (stored_set.activity_id, stored_set.duration, stored_set.set_type) == (activity.id, 30.0, "active")
         assert (step.activity_id, step.message_index, step.duration_type) == (activity.id, 0, "time")
-        assert (stream.activity_id, stream.stream_type, stream.stream_waypoints) == (activity.id, 1, [{"hr": 140}])
 
     def test_sets_are_stored_from_the_raw_rows_the_fit_parser_emits(self, db: Session):
         activity = activity_factory.make_activity(db, user_factory.make_user(db).id)
@@ -159,10 +150,24 @@ class TestSamplesComponent:
         assert activity_streams_crud.get_activity_samples(activity.id, db) is None
         assert activity_streams_crud.get_activity_samples(other.id, db) is not None
 
-    def test_the_samples_contributor_is_registered_next_to_the_streams_one(self):
+    def test_clear_also_deletes_the_old_waypoint_streams_a_reprocess_would_leave_behind(self, db: Session):
+        owner = user_factory.make_user(db).id
+        activity = activity_factory.make_activity(db, owner)
+        other = activity_factory.make_activity(db, owner, start_time=activity_factory.DEFAULT_START + timedelta(days=1))
+        activity_factory.make_samples(db, activity, [0], heart_rate=[1])
+        activity_factory.make_stream(db, activity, 1, [{"time": "2025-03-10T08:00:00", "hr": 1}])
+        activity_factory.make_stream(db, other, 1, [{"time": "2025-03-10T08:00:00", "hr": 2}])
+
+        activity_streams_integration.samples_ingestion_contributor().clear(activity.id, db)
+
+        assert activity_streams_crud.get_activity_streams(activity.id, db) == []
+        assert len(activity_streams_crud.get_activity_streams(other.id, db)) == 1
+
+    def test_only_the_samples_contributor_stores_streams(self):
         keys = [contributor.key for contributor in contributor_registry.activity_ingestion_contributors()]
 
-        assert {"streams", "samples"} <= set(keys)
+        assert "samples" in keys
+        assert "streams" not in keys
 
 
 class TestFileComponents:

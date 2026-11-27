@@ -8,13 +8,11 @@ import { formatFixed, formatNumber } from '@/utils/formatNumber'
 import type {
   Activity,
   ActivityPrivacy,
-  ActivityStream,
-  ActivityStreamType,
+  ActivityStreams,
   ActivityType,
+  StreamChannel,
   StreamMetric,
-  StreamWaypoint,
 } from '../types'
-import { STREAM_TYPE } from '../types'
 import {
   activityTypeIsRowing,
   activityTypeIsStandUpPaddling,
@@ -35,18 +33,18 @@ import {
   speedUnitLabel,
   type Units,
 } from './format'
-import { activityDuration, distinctElapsedTime } from './metrics'
+import { distinctElapsedTime } from './metrics'
 
-/** Maps a stream type to its metric kind; the map stream is no chart metric. */
-const METRIC_BY_TYPE: Partial<Record<ActivityStreamType, StreamMetric>> = {
-  [STREAM_TYPE.hr]: 'hr',
-  [STREAM_TYPE.power]: 'power',
-  [STREAM_TYPE.cadence]: 'cadence',
-  [STREAM_TYPE.elevation]: 'elevation',
-  [STREAM_TYPE.velocity]: 'velocity',
-  [STREAM_TYPE.pace]: 'pace',
-  [STREAM_TYPE.temperature]: 'temperature',
-}
+/** The channel of {@link ActivityStreams} each chart metric plots. */
+const METRIC_CHANNEL = {
+  hr: 'heartRate',
+  power: 'power',
+  cadence: 'cadence',
+  elevation: 'elevation',
+  velocity: 'speed',
+  pace: 'pace',
+  temperature: 'temperature',
+} as const satisfies Record<StreamMetric, keyof ActivityStreams>
 
 /** Stable display order for the metric charts. */
 export const STREAM_METRIC_ORDER: readonly StreamMetric[] = [
@@ -140,54 +138,38 @@ function paceThresholdSeconds(activityType: ActivityType, units: Units): number 
   return units === 'imperial' ? 20 * 1.60934 * 60 : 20 * 60
 }
 
-/** Reads a numeric waypoint field, returning `NaN` for missing values. */
+/** Reads a sample value, returning `NaN` for missing values. */
 function num(value: number | null | undefined): number {
   return value === null || value === undefined || !Number.isFinite(value) ? Number.NaN : value
 }
 
 /**
- * Extracts the converted chart value for a single waypoint and metric. Returns
- * `NaN` for missing or filtered samples so the chart renders a gap.
+ * Converts one sample of a metric's channel to its chart value. Returns `NaN` for missing or
+ * filtered samples so the chart renders a gap.
  */
 function extractValue(
-  waypoint: StreamWaypoint,
+  raw: number | null,
   metric: StreamMetric,
   activityType: ActivityType,
   units: Units,
 ): number {
+  const value = num(raw)
+  if (Number.isNaN(value)) {
+    return Number.NaN
+  }
   switch (metric) {
-    case 'hr':
-      return num(waypoint.hr)
-    case 'power':
-      return num(waypoint.power)
-    case 'cadence':
-      return num(waypoint.cad)
-    case 'elevation': {
-      const ele = num(waypoint.ele)
-      return Number.isNaN(ele) ? Number.NaN : elevationToDisplay(ele, units)
-    }
-    case 'velocity': {
-      const vel = num(waypoint.vel)
-      return Number.isNaN(vel) ? Number.NaN : speedToDisplay(vel, activityType, units)
-    }
+    case 'elevation':
+      return elevationToDisplay(value, units)
+    case 'velocity':
+      return speedToDisplay(value, activityType, units)
     case 'pace': {
-      const pace = num(waypoint.pace)
-      if (Number.isNaN(pace) || pace <= 0) {
-        return Number.NaN
-      }
-      const seconds = paceToDisplaySeconds(pace, activityType, units)
+      const seconds = paceToDisplaySeconds(value, activityType, units)
       return seconds > paceThresholdSeconds(activityType, units) ? Number.NaN : seconds
     }
-    case 'temperature': {
-      const temp = num(waypoint.temp)
-      return Number.isNaN(temp)
-        ? Number.NaN
-        : units === 'imperial'
-          ? celsiusToFahrenheit(temp)
-          : temp
-    }
+    case 'temperature':
+      return units === 'imperial' ? celsiusToFahrenheit(value) : value
     default:
-      return Number.NaN
+      return value
   }
 }
 
@@ -233,52 +215,33 @@ function buildDistanceLabels(pointCount: number, totalMeters: number, units: Uni
   return labels
 }
 
-/** Builds evenly-spaced time labels (H:MM:SS) aligned to the sample count. */
-function buildTimeLabels(pointCount: number, totalSeconds: number): string[] {
-  if (pointCount <= 0 || totalSeconds <= 0) {
-    return []
-  }
-  const labels: string[] = []
-  for (let i = 0; i < pointCount; i += 1) {
-    const fraction = pointCount === 1 ? 0 : i / (pointCount - 1)
-    labels.push(formatHmsDuration(Math.round(totalSeconds * fraction)))
-  }
-  return labels
+/** Builds time labels (H:MM:SS) from each sample's real offset from the activity start. */
+function buildTimeLabels(offsetsMs: number[]): string[] {
+  return offsetsMs.map((offset) => formatHmsDuration(Math.round(offset / 1000)))
 }
 
 /**
  * Builds the x-axis labels and their unit for a chart: distance (km/mi) when the
- * activity covers ground, otherwise the activity duration (strength/indoor sessions have
- * no distance), falling back to sample indices so a line always renders. An
- * empty label array leaves the category axis with no slots, so the line would
- * not draw at all — this is why strength activities showed an empty HR chart.
+ * activity covers ground, otherwise each sample's time from the activity start
+ * (strength/indoor sessions have no distance).
  *
- * @param pointCount - Number of samples in the series.
- * @param activity - The activity (distance / time basis).
+ * @param offsetsMs - Each sample's time in milliseconds from the activity start.
+ * @param activity - The activity (distance basis).
  * @param units - The user's unit system.
- * @returns Labels of length `pointCount` and their unit key (`null` for
- *   self-describing axes such as time, or the index fallback).
+ * @returns One label per sample and their unit key (`null` for the self-describing time axis).
  */
 function buildChartXAxis(
-  pointCount: number,
+  offsetsMs: number[],
   activity: Activity,
   units: Units,
 ): { labels: string[]; unit: UnitKey | null } {
   if (activity.distance > 0) {
     return {
-      labels: buildDistanceLabels(pointCount, activity.distance, units),
+      labels: buildDistanceLabels(offsetsMs.length, activity.distance, units),
       unit: units === 'imperial' ? 'mi' : 'km',
     }
   }
-  const seconds = activityDuration(activity)
-  if (seconds !== null) {
-    return { labels: buildTimeLabels(pointCount, seconds), unit: null }
-  }
-  const labels: string[] = []
-  for (let i = 0; i < pointCount; i += 1) {
-    labels.push(String(i + 1))
-  }
-  return { labels, unit: null }
+  return { labels: buildTimeLabels(offsetsMs), unit: null }
 }
 
 /** A single stat shown beneath a stream chart (e.g. avg/max for that metric). */
@@ -415,33 +378,35 @@ export interface StreamChart {
 }
 
 /**
- * Builds a renderable chart from a single stream, or `null` when the stream
- * type is unknown or carries no usable samples.
+ * Builds the chart of one metric from its channel, or `null` when the channel is missing or holds
+ * no usable sample.
  *
- * @param stream - The metric stream.
+ * @param streams - The activity's samples.
+ * @param metric - The metric to plot.
  * @param activity - The activity domain model (type, distance, aggregate stats).
  * @param units - The user's unit system.
  * @param unitLabel - Resolves a unit key to its localized symbol for the chart ticks and tooltips.
  * @returns The chart model, or `null`.
  */
 export function buildStreamChart(
-  stream: ActivityStream,
+  streams: ActivityStreams,
+  metric: StreamMetric,
   activity: Activity,
   units: Units,
   unitLabel: (unit: UnitKey) => string,
 ): StreamChart | null {
-  const metric = METRIC_BY_TYPE[stream.streamType]
-  if (!metric || stream.waypoints.length === 0) {
+  const channel: StreamChannel | null = streams[METRIC_CHANNEL[metric]]
+  if (!channel) {
     return null
   }
 
   const type = activity.activityType
-  const data = stream.waypoints.map((waypoint) => extractValue(waypoint, metric, type, units))
+  const data = channel.map((value) => extractValue(value, metric, type, units))
   if (data.every((value) => Number.isNaN(value))) {
     return null
   }
 
-  const xAxis = buildChartXAxis(data.length, activity, units)
+  const xAxis = buildChartXAxis(streams.offsetsMs, activity, units)
 
   return {
     metric,
@@ -466,7 +431,7 @@ export function buildStreamChart(
  * (1) per-field privacy flags the viewer may see and (2) type relevance (pace
  * vs. speed, no elevation for swimming).
  *
- * @param streams - The activity's metric streams.
+ * @param streams - The activity's samples.
  * @param activity - The activity domain model.
  * @param units - The user's unit system.
  * @param unitLabel - Resolves a unit key to its localized symbol for the chart ticks and tooltips.
@@ -475,55 +440,40 @@ export function buildStreamChart(
  * @returns The ordered, visible, type-relevant chart models.
  */
 export function buildStreamCharts(
-  streams: ActivityStream[],
+  streams: ActivityStreams,
   activity: Activity,
   units: Units,
   unitLabel: (unit: UnitKey) => string,
   isMetricVisible: (metric: StreamMetric) => boolean,
 ): StreamChart[] {
-  const type = activity.activityType
-  const byMetric = new Map<StreamMetric, StreamChart>()
-  for (const stream of streams) {
-    const metric = METRIC_BY_TYPE[stream.streamType]
-    if (
-      !metric ||
-      byMetric.has(metric) ||
-      !isMetricVisible(metric) ||
-      !isMetricRelevantForType(metric, type)
-    ) {
-      continue
-    }
-    const chart = buildStreamChart(stream, activity, units, unitLabel)
-    if (chart) {
-      byMetric.set(metric, chart)
-    }
-  }
   return STREAM_METRIC_ORDER.flatMap((metric) => {
-    const chart = byMetric.get(metric)
+    if (!isMetricVisible(metric) || !isMetricRelevantForType(metric, activity.activityType)) {
+      return []
+    }
+    const chart = buildStreamChart(streams, metric, activity, units, unitLabel)
     return chart ? [chart] : []
   })
 }
 
 /**
- * Extracts the GPS track polyline from whichever stream carries coordinates.
+ * Builds the GPS track polyline from the latitude and longitude channels, skipping samples
+ * without a full position.
  *
- * @param streams - The activity's metric streams.
+ * @param streams - The activity's samples, or `null`/`undefined` while they are unavailable.
  * @returns Ordered geo points, or an empty array when no coordinates exist.
  */
-export function extractTrackPoints(streams: ActivityStream[]): GeoPoint[] {
-  for (const stream of streams) {
-    const points: GeoPoint[] = []
-    for (const waypoint of stream.waypoints) {
-      const lat = num(waypoint.lat)
-      const lon = num(waypoint.lon)
-      if (!Number.isNaN(lat) && !Number.isNaN(lon)) {
-        // The map provider's GeoPoint uses `lng`; the backend stores `lon`.
-        points.push({ lat, lng: lon })
-      }
-    }
-    if (points.length > 0) {
-      return points
-    }
+export function extractTrackPoints(streams: ActivityStreams | null | undefined): GeoPoint[] {
+  const { latitude, longitude } = streams ?? {}
+  if (!latitude || !longitude) {
+    return []
   }
-  return []
+  const points: GeoPoint[] = []
+  latitude.forEach((lat, index) => {
+    const lon = longitude[index]
+    if (lat !== null && lon !== null && lon !== undefined) {
+      // The map provider's GeoPoint uses `lng`; the backend names it `longitude`.
+      points.push({ lat, lng: lon })
+    }
+  })
+  return points
 }

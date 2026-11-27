@@ -1,4 +1,4 @@
-"""The stream routes, through the production application: what a viewer reads, per stream type."""
+"""The streams route, through the production application: what a viewer reads of one activity."""
 
 import uuid
 
@@ -6,35 +6,29 @@ import pytest
 
 import core.config as core_config
 import modules.activities.activity.constants as activity_constants
-import modules.activities.activity_streams.constants as stream_constants
-from tests._factories.activities import make_stream
+from tests._factories.activities import make_samples
 
 _VISIBILITY = activity_constants.ActivityVisibility
-_HR = stream_constants.STREAM_TYPE_HR
-_POWER = stream_constants.STREAM_TYPE_POWER
-_TIME = "2025-03-10T08:00:00"
+_CHANNELS = ("latitude", "longitude", "elevation", "heart_rate", "power", "cadence", "speed", "pace", "temperature")
 
 
-def _url(activity_id: uuid.UUID | str, stream_type: str = "") -> str:
-    return f"{core_config.ROOT_PATH}/activities/{activity_id}/streams" + (f"/{stream_type}" if stream_type else "")
+def _url(activity_id: uuid.UUID | str) -> str:
+    return f"{core_config.ROOT_PATH}/activities/{activity_id}/streams"
 
 
 def _stage(db, activity):
-    make_stream(
+    make_samples(
         db,
         activity,
-        _HR,
-        [
-            {"time": _TIME, "hr": 100},
-            {"time": "2025-03-10T08:00:01", "hr": 190},
-            {"time": "2025-03-10T08:00:02", "hr": 190},
-        ],
+        [0, 1000, 2000],
+        heart_rate=[100.0, 190.0, 190.0],
+        power=[250.5, 260.0, 270.0],
+        speed=[4.0, 0.0, 2.0],
     )
-    make_stream(db, activity, _POWER, [{"time": _TIME, "power": 250.5}])
 
 
-class TestList:
-    def test_the_owner_gets_the_streams_in_a_page_envelope_with_the_hr_zones(
+class TestRead:
+    def test_the_owner_gets_one_object_with_the_timeline_the_channels_and_the_hr_zones(
         self, sign_in, people, make_owned_activity
     ):
         activity = make_owned_activity(stage=_stage, total_timer_time=100.0)
@@ -43,86 +37,78 @@ class TestList:
 
         assert response.status_code == 200
         body = response.json()
-        assert (body["total"], body["page"], body["num_records"], body["next"]) == (2, 1, 200, None)
-        by_type = {item["stream_type"]: item for item in body["items"]}
-        assert set(by_type) == {"heart_rate", "power"}
-        assert by_type["heart_rate"]["zone_percentages"]["hr"]["zone_1"] == {
-            "percent": 50.0,
-            "hr": "< 120",
-            "time_seconds": 1,
-        }
-        assert by_type["power"]["zone_percentages"] is None
-        assert by_type["power"]["stream_waypoints"] == [{"time": _TIME, "power": 250.5}]
+        assert set(body) == {"offsets_ms", "heart_rate_zones", *_CHANNELS}
+        assert body["offsets_ms"] == [0, 1000, 2000]
+        assert body["heart_rate"] == [100.0, 190.0, 190.0]
+        assert body["power"] == [250.5, 260.0, 270.0]
+        assert body["speed"] == [4.0, 0.0, 2.0]
+        assert body["pace"] == [0.25, None, 0.5]
+        assert [body[name] for name in ("latitude", "longitude", "elevation", "cadence", "temperature")] == [None] * 5
+        assert body["heart_rate_zones"]["zone_5"] == {"percent": 50.0, "hr": ">= 180", "time_seconds": 1}
 
-    def test_a_page_holds_its_slice_and_names_the_next_one(self, sign_in, people, make_owned_activity):
+    def test_a_value_is_served_as_recorded_not_with_the_noise_of_its_single_precision_storage(
+        self, sign_in, people, make_owned_activity
+    ):
+        def stage(db, activity):
+            make_samples(db, activity, [0, 1000], elevation=[12.3, 12.4], speed=[3.2, 2.7], temperature=[21.6, 21.7])
+
+        activity = make_owned_activity(stage=stage)
+
+        body = sign_in(people.owner).client.get(_url(activity.id)).json()
+
+        assert body["elevation"] == [12.3, 12.4]
+        assert body["speed"] == [3.2, 2.7]
+        assert body["temperature"] == [21.6, 21.7]
+
+    def test_max_points_averages_the_samples(self, sign_in, people, make_owned_activity):
         activity = make_owned_activity(stage=_stage)
 
-        first = sign_in(people.owner).client.get(_url(activity.id), params={"page_number": 1, "num_records": 1}).json()
+        body = sign_in(people.owner).client.get(_url(activity.id), params={"max_points": 2}).json()
 
-        assert (len(first["items"]), first["total"], first["next"]) == (1, 2, 2)
+        assert body["offsets_ms"] == [0, 1500]
+        assert body["heart_rate"] == [100.0, 190.0]
+        assert body["heart_rate_zones"] is not None
 
-    @pytest.mark.parametrize("params", [{"page_number": 0}, {"num_records": 0}, {"num_records": 201}])
-    def test_a_paging_value_out_of_range_is_a_validation_error(self, sign_in, people, make_owned_activity, params):
+    @pytest.mark.parametrize("max_points", [0, 1, 10001, -3, "many"])
+    def test_a_max_points_out_of_range_is_a_validation_error(self, sign_in, people, make_owned_activity, max_points):
         activity = make_owned_activity(stage=_stage)
 
-        assert sign_in(people.owner).client.get(_url(activity.id), params=params).status_code == 422
+        response = sign_in(people.owner).client.get(_url(activity.id), params={"max_points": max_points})
 
-    def test_a_stranger_gets_the_page_an_activity_that_does_not_exist_gets(self, sign_in, people, make_owned_activity):
+        assert response.status_code == 422
+
+    def test_an_activity_without_samples_is_a_200_with_an_empty_timeline(self, sign_in, people, make_owned_activity):
+        activity = make_owned_activity()
+
+        response = sign_in(people.owner).client.get(_url(activity.id))
+
+        assert response.status_code == 200
+        assert response.json() == {"offsets_ms": [], "heart_rate_zones": None} | {name: None for name in _CHANNELS}
+
+    def test_a_stranger_gets_the_404_a_missing_activity_gets(self, sign_in, people, make_owned_activity):
         shared = make_owned_activity(_VISIBILITY.PRIVATE, stage=_stage)
         client = sign_in(people.stranger).client
 
         refused = client.get(_url(shared.id))
         missing = client.get(_url(uuid.uuid4()))
 
-        assert refused.status_code == missing.status_code == 200
-        assert (
-            refused.json() == missing.json() == {"items": [], "total": 0, "page": 1, "num_records": 200, "next": None}
-        )
+        assert refused.status_code == missing.status_code == 404
+        assert refused.json()["type"] == missing.json()["type"] == "urn:endurain:error:not-found"
+        assert refused.json()["detail"] == missing.json()["detail"]
 
-    def test_a_follower_gets_the_streams_a_followers_only_activity_does_not_hide(
+    def test_a_follower_gets_the_channels_a_followers_only_activity_does_not_hide(
         self, sign_in, people, make_owned_activity
     ):
         activity = make_owned_activity(_VISIBILITY.FOLLOWERS, stage=_stage, hide_hr=True, hide_start_time=True)
 
         body = sign_in(people.follower).client.get(_url(activity.id)).json()
 
-        assert [item["stream_type"] for item in body["items"]] == ["power"]
-        assert body["items"][0]["stream_waypoints"] == [{"power": 250.5}]
-        assert body["total"] == 1
+        assert body["offsets_ms"] == [0, 1000, 2000]
+        assert body["heart_rate"] is None
+        assert body["heart_rate_zones"] is None
+        assert body["power"] == [250.5, 260.0, 270.0]
 
-
-class TestOne:
-    def test_the_owner_gets_one_stream_by_its_type_name(self, sign_in, people, make_owned_activity):
+    def test_the_old_per_type_route_is_gone(self, sign_in, people, make_owned_activity):
         activity = make_owned_activity(stage=_stage)
 
-        response = sign_in(people.owner).client.get(_url(activity.id, "power"))
-
-        assert response.status_code == 200
-        body = response.json()
-        assert (body["stream_type"], body["activity_id"]) == ("power", str(activity.id))
-
-    def test_a_stream_the_activity_does_not_have_is_a_404_problem(self, sign_in, people, make_owned_activity):
-        activity = make_owned_activity(stage=_stage)
-
-        response = sign_in(people.owner).client.get(_url(activity.id, "cadence"))
-
-        assert response.status_code == 404
-        assert response.json()["type"] == "urn:endurain:error:not-found"
-
-    def test_a_hidden_stream_is_the_same_404_for_a_follower_and_a_stream_for_the_owner(
-        self, sign_in, people, make_owned_activity
-    ):
-        activity = make_owned_activity(_VISIBILITY.FOLLOWERS, stage=_stage, hide_power=True)
-
-        hidden = sign_in(people.follower).client.get(_url(activity.id, "power"))
-        missing = sign_in(people.follower).client.get(_url(activity.id, "cadence"))
-
-        assert hidden.status_code == missing.status_code == 404
-        assert hidden.json()["detail"] == missing.json()["detail"]
-        assert sign_in(people.owner).client.get(_url(activity.id, "power")).status_code == 200
-
-    def test_a_type_that_is_not_a_stream_type_is_a_validation_error(self, sign_in, people, make_owned_activity):
-        activity = make_owned_activity(stage=_stage)
-
-        assert sign_in(people.owner).client.get(_url(activity.id, "3")).status_code == 422
-        assert sign_in(people.owner).client.get(_url(activity.id, "altitude")).status_code == 422
+        assert sign_in(people.owner).client.get(f"{_url(activity.id)}/power").status_code == 404

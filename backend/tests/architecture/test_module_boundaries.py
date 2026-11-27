@@ -101,7 +101,6 @@ _BULK_ACTIVITY_READS = {
     "get_activities_laps": "activity_laps",
     "get_activities_media": "activity_media",
     "get_activities_sets": "activity_sets",
-    "get_activities_streams": "activity_streams",
     "get_activities_workout_steps": "activity_workout_steps",
 }
 

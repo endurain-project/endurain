@@ -136,7 +136,6 @@ _CASES: dict[str, tuple[Arrange, int, tuple[str, ...]]] = {
             f"{_ROOT}/activities/{{activity_id}}/workout-steps?num_records=50",
             f"{_ROOT}/activities/{{activity_id}}/media?num_records=50",
             f"{_ROOT}/activities/{{activity_id}}/streams",
-            f"{_ROOT}/activities/{{activity_id}}/streams/heart_rate",
         ),
     ),
     "followers": (_followers, _ROWS, (f"{_ROOT}/users/{{user_id}}/followers?num_records=50",)),

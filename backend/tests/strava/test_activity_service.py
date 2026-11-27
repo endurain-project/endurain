@@ -126,15 +126,18 @@ class TestASyncedWindow:
         assert activity.timezone == "Europe/Lisbon"
         assert activity.start_time == datetime(2025, 3, 10, 8, 0, tzinfo=UTC)
         assert activity.end_time == activity.start_time + timedelta(seconds=3600)
-        assert set(_streams_of(activity.id)) == {
-            _STREAM_TYPES.STREAM_TYPE_HR,
-            _STREAM_TYPES.STREAM_TYPE_POWER,
-            _STREAM_TYPES.STREAM_TYPE_CADENCE,
-            _STREAM_TYPES.STREAM_TYPE_ELEVATION,
-            _STREAM_TYPES.STREAM_TYPE_SPEED,
-            _STREAM_TYPES.STREAM_TYPE_PACE,
-            _STREAM_TYPES.STREAM_TYPE_MAP,
+        samples = _samples_of(activity.id)
+        assert samples is not None
+        assert {name for name in activity_streams_constants.SAMPLE_CHANNELS if getattr(samples, name) is not None} == {
+            "heart_rate",
+            "power",
+            "cadence",
+            "elevation",
+            "speed",
+            "latitude",
+            "longitude",
         }
+        assert _streams_of(activity.id) == {}, "nothing writes the old waypoint streams"
         (lap,) = _laps_of(activity.id)
         assert (lap.avg_heart_rate, lap.max_heart_rate) == (140, 150)
 
@@ -215,6 +218,7 @@ class TestAnActivityThatIsIncomplete:
         _sync(user, rate_limits)
 
         (activity,) = _stored(user.id)
+        assert _samples_of(activity.id) is None
         assert _streams_of(activity.id) == {}
 
     def test_an_activity_without_laps_is_stored_without_them(self, user, strava, rate_limits):
@@ -315,17 +319,10 @@ _SAMPLES_STREAMS = {
     "velocity_smooth": [2.0, 4.0, 0.0, 5.0, 3.0],
     "latlng": [[38.7, -9.1], [38.71, -9.11], [38.72, -9.12], [38.73, -9.13], [38.74, -9.14]],
 }
-_SAMPLES_KEYS = {
-    activity_streams_constants.STREAM_TYPE_HR: ("heart_rate", "hr"),
-    activity_streams_constants.STREAM_TYPE_POWER: ("power", "power"),
-    activity_streams_constants.STREAM_TYPE_CADENCE: ("cadence", "cad"),
-    activity_streams_constants.STREAM_TYPE_ELEVATION: ("elevation", "ele"),
-    activity_streams_constants.STREAM_TYPE_SPEED: ("speed", "vel"),
-}
 
 
-class TestSamplesAgreeWithTheStreams:
-    """Every old waypoint has a sample at its second (``time`` is the second from the start) with its value."""
+class TestStoredSamples:
+    """The samples are the only stream data stored; ``time`` is the second from the start."""
 
     @pytest.fixture
     def user(self, db):
@@ -345,32 +342,24 @@ class TestSamplesAgreeWithTheStreams:
         assert samples is not None
         return activity, samples, _streams_of(activity.id)
 
-    @pytest.mark.parametrize("sport_type", ["Ride", "Run"])
-    def test_each_channel_holds_the_values_its_stream_stores(self, user, strava, rate_limits, sport_type):
+    @pytest.mark.parametrize(
+        ("sport_type", "cadence"), [("Ride", [80, 82, 84, 86, 88]), ("Run", [160, 164, 168, 172, 176])]
+    )
+    def test_each_channel_holds_the_values_strava_sent_on_the_timeline_of_its_seconds(
+        self, user, strava, rate_limits, sport_type, cadence
+    ):
         _, samples, streams = self._store(user, strava, rate_limits, sport_type, _SAMPLES_STREAMS)
 
-        seconds = [offset // 1000 for offset in samples.offsets_ms]
-        assert seconds == _SAMPLES_STREAMS["time"]
-        for stream_type, (channel, key) in _SAMPLES_KEYS.items():
-            stored = [
-                (second, value)
-                for second, value in zip(seconds, getattr(samples, channel), strict=True)
-                if value is not None
-            ]
-            assert stored == [(w["time"], _real(w[key])) for w in streams[stream_type]], channel
-        map_points = [
-            (second, lat, lon)
-            for second, lat, lon in zip(seconds, samples.latitude, samples.longitude, strict=True)
-            if lat is not None
+        assert samples.offsets_ms == [0, 10_000, 20_000, 30_000, 40_000]
+        assert samples.heart_rate == [120, None, 140, 150, 160]
+        assert samples.power == _SAMPLES_STREAMS["watts"]
+        assert samples.cadence == cadence
+        assert samples.speed == _SAMPLES_STREAMS["velocity_smooth"]
+        assert samples.elevation == pytest.approx(_SAMPLES_STREAMS["altitude"], abs=3)
+        assert list(zip(samples.latitude, samples.longitude, strict=True)) == [
+            tuple(point) for point in _SAMPLES_STREAMS["latlng"]
         ]
-        assert map_points == [
-            (w["time"], w["lat"], w["lon"]) for w in streams[activity_streams_constants.STREAM_TYPE_MAP]
-        ]
-        pace = [(w["time"], _real(w["pace"])) for w in streams[activity_streams_constants.STREAM_TYPE_PACE]]
-        assert pace
-        assert pace == [
-            (second, _real(1 / value)) for second, value in zip(seconds, samples.speed, strict=True) if value
-        ]
+        assert streams == {}
 
     def test_a_dropout_is_a_none_element_and_the_running_cadence_is_doubled(self, user, strava, rate_limits):
         _, samples, _ = self._store(user, strava, rate_limits, "Run", _SAMPLES_STREAMS)
@@ -537,11 +526,6 @@ class TestStreamConversion:
         assert is_hr is True
         assert lat_lon == [{"time": 0, "lat": 1.0, "lon": 2.0}]
 
-    def test_pace_is_derived_from_velocity_and_has_no_point_at_a_standstill(self, context, strava, rate_limits):
-        *_, pace = self._streams(context, rate_limits, strava, time=[0, 1, 2], velocity_smooth=[4.0, 0.0, 2.0])
-
-        assert pace == [{"time": 0, "pace": 0.25}, {"time": 2, "pace": 0.5}]
-
     def test_a_heart_rate_of_zero_is_a_dropout_and_is_not_stored(self, context, strava, rate_limits):
         _, _, _, _, hr, is_hr, *_ = self._streams(context, rate_limits, strava, time=[0, 1, 2], heartrate=[100, 0, 120])
 
@@ -563,12 +547,12 @@ class TestStreamConversion:
         assert all(abs(point["ele"] - 100.0) < 0.3 for point in ele)
 
     def test_streams_strava_did_not_send_are_reported_as_not_set(self, context, strava, rate_limits):
-        lat_lon, is_lat_lon, ele, is_ele, _hr, is_hr, cad, is_cad, power, is_power, vel, is_vel, pace = self._streams(
+        lat_lon, is_lat_lon, ele, is_ele, _hr, is_hr, cad, is_cad, power, is_power, vel, is_vel = self._streams(
             context, rate_limits, strava, time=[0, 1], heartrate=[100, 110]
         )
 
         assert (is_hr, is_lat_lon, is_ele, is_cad, is_power, is_vel) == (True, False, False, False, False, False)
-        assert (lat_lon, ele, cad, power, vel, pace) == ([], [], [], [], [], [])
+        assert (lat_lon, ele, cad, power, vel) == ([], [], [], [], [])
 
     def test_an_activity_with_no_streams_at_all_is_not_an_error(self, context, strava, rate_limits):
         user, integrations, client = context

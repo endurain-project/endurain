@@ -56,7 +56,8 @@ class TestWhatTheArchiveHolds:
 
         assert len(exported.json("data/activity_laps.json")) == 1
         assert len(exported.json("data/activity_sets.json")) == 1
-        assert len(exported.json("data/activity_streams.json")) == 1
+        assert len(exported.json("data/activity_samples.json")) == 1
+        assert "data/activity_streams.json" not in exported.names
         assert len(exported.json("data/activity_workout_steps.json")) == 1
         assert exported.counts["activity_laps"] == 1
         assert exported.counts["activity_workout_steps"] == 1

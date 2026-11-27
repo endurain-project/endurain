@@ -1,5 +1,3 @@
-import type { ActivityStream, HrZoneBucket } from '../types'
-import { STREAM_TYPE } from '../types'
 import { themeColor } from '@/lib/themeColor'
 
 /**
@@ -22,15 +20,4 @@ export function hrZoneColor(zone: number): string {
     default:
       return themeColor('--color-hr')
   }
-}
-
-/**
- * Extracts the decoded HR zone buckets from the HR stream, when present.
- *
- * @param streams - The activity's metric streams.
- * @returns The HR zone buckets, or `null` when no HR zones are available.
- */
-export function extractHrZones(streams: ActivityStream[]): HrZoneBucket[] | null {
-  const hrStream = streams.find((stream) => stream.streamType === STREAM_TYPE.hr)
-  return hrStream?.hrZones ?? null
 }

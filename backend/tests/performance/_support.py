@@ -12,7 +12,6 @@ from sqlalchemy.orm import Session
 import core.database as core_database
 import modules.activities.activity.constants as activity_constants
 import modules.activities.activity.models as activity_models
-import modules.activities.activity_streams.constants as streams_constants
 import modules.gears.gear.models as gear_models
 import modules.gears.gear_components.models as gear_component_models
 import modules.health.health_weight.models as weight_models
@@ -30,8 +29,6 @@ from tests._factories import users as user_factories
 
 #: Stamp that is old enough for ``/sync`` to report a record.
 LONG_AGO = datetime(2026, 1, 1, tzinfo=UTC)
-
-_STREAM_TYPES = tuple(streams_constants.ActivityStreamType)
 
 
 @dataclass(frozen=True)
@@ -135,10 +132,7 @@ def arrange_activities(
         activity_factories.make_workout_steps(
             db, activity, [{"message_index": step, "duration_type": "time"} for step in range(children)]
         )
-        for stream_type in _STREAM_TYPES[: min(children, len(_STREAM_TYPES))]:
-            activity_factories.make_stream(
-                db, activity, stream_type.stored, [{"time": "2025-03-10T08:00:00", "hr": 120}]
-            )
+        activity_factories.make_samples(db, activity, [0, 1000], heart_rate=[120.0, 121.0])
         for number in range(children):
             activity_factories.make_activity_media(db, activity, f"{activity.id}/{number}.jpg")
         ids.append(activity.id)

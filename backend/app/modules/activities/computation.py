@@ -21,8 +21,6 @@ from itertools import pairwise
 import numpy as np
 from geopy.distance import geodesic, great_circle
 
-import modules.activities.activity_streams.contracts as activity_streams_contracts
-
 #: The version of this analysis. Bump it whenever a change alters the values the analysis computes; the reprocess data
 #: migration then recomputes every activity stored below it from its retained file. Ingestion stamps each new activity
 #: with the current version, and a profile restore leaves 0 so a restored row is reprocessed from its restored file.
@@ -589,19 +587,3 @@ def double_running_cadence(cadence: float | None, fractional: float | None = 0.0
     if cadence is None:
         return None
     return round((float(cadence) + float(fractional or 0.0)) * 2)
-
-
-def double_cadence_waypoints(
-    waypoints: list[activity_streams_contracts.CadenceWaypoint],
-) -> list[activity_streams_contracts.CadenceWaypoint]:
-    """Return cadence waypoints with every ``cad`` converted from rpm to spm.
-
-    Waypoints whose ``cad`` is ``None`` are kept unchanged.
-
-    Args:
-        waypoints: Cadence waypoints (dicts with a ``cad`` key).
-
-    Returns:
-        New waypoint dicts with ``cad`` doubled and rounded.
-    """
-    return [{**wp, "cad": round(wp["cad"] * 2)} if wp.get("cad") is not None else wp for wp in waypoints]

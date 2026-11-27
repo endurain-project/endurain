@@ -46,21 +46,6 @@ class ActivityFilePayload(TypedDict):
 
     Attributes:
         activity: The ingestion contract.
-        is_elevation_set: Whether elevation data exists.
-        ele_waypoints: Elevation waypoints.
-        is_power_set: Whether power data exists.
-        power_waypoints: Power waypoints.
-        is_heart_rate_set: Whether heart-rate data exists.
-        hr_waypoints: Heart-rate waypoints.
-        is_velocity_set: Whether speed data exists (speed and pace share the flag).
-        vel_waypoints: Speed waypoints.
-        pace_waypoints: Pace waypoints.
-        is_cadence_set: Whether cadence data exists.
-        cad_waypoints: Cadence waypoints.
-        is_lat_lon_set: Whether GPS data exists.
-        lat_lon_waypoints: GPS waypoints.
-        is_temperature_set: Whether temperature data exists.
-        temp_waypoints: Temperature waypoints.
         samples: The session's columnar samples on one timeline; ``None`` when it has no sample with a value.
         laps: The activity's laps.
         sets: The workout sets; absent when the session has none.
@@ -68,21 +53,6 @@ class ActivityFilePayload(TypedDict):
     """
 
     activity: activity_contracts.ActivityCore
-    is_elevation_set: bool
-    ele_waypoints: list[activity_streams_contracts.ElevationWaypoint]
-    is_power_set: bool
-    power_waypoints: list[activity_streams_contracts.PowerWaypoint]
-    is_heart_rate_set: bool
-    hr_waypoints: list[activity_streams_contracts.HeartRateWaypoint]
-    is_velocity_set: bool
-    vel_waypoints: list[activity_streams_contracts.VelocityWaypoint]
-    pace_waypoints: list[activity_streams_contracts.PaceWaypoint]
-    is_cadence_set: bool
-    cad_waypoints: list[activity_streams_contracts.CadenceWaypoint]
-    is_lat_lon_set: bool
-    lat_lon_waypoints: list[activity_streams_contracts.LatLonWaypoint]
-    is_temperature_set: bool
-    temp_waypoints: list[activity_streams_contracts.TemperatureWaypoint]
     samples: activity_streams_contracts.ParsedSamples | None
     laps: list[Mapping[str, object]]
     sets: NotRequired[list[list[object]]]
@@ -105,52 +75,25 @@ class AssembledFile:
 
 @dataclass(frozen=True, slots=True)
 class _Streams:
-    """One session's waypoint streams, before any running-cadence conversion.
+    """The series of one session that its analysis reads, besides the sample table itself.
 
     Attributes:
-        lat_lon: The positioned samples.
-        segments: The position runs between breaks, each of at least two points.
-        elevation: The altitude samples.
-        heart_rate: The heart-rate samples.
-        cadence: The cadence samples in the device's native unit.
-        power: The power samples.
-        temperature: The temperature samples.
-        speed: The speed samples, the device's or derived from positions.
-        pace: The pace samples, one for each speed above zero.
-        measured_speed: The positions in ``speed`` of real measurements; ``None`` when every sample is one.
+        start_position: The ``(latitude, longitude)`` of the first positioned sample; ``None`` without a position.
+        elevation: The altitude samples, each stamped to its whole second.
         step_speed: The measured speed of the step ending at each of the session's samples, the device's when it
             recorded any; ``None`` where a sample has none.
         sample_speed: The speed that decides whether each sample is moving: ``step_speed`` for a device speed, else the
             lower of the step's and the straight-line speed over a window around it.
-        speed_samples: The value of the ``speed`` stream at each of the session's samples; ``None`` where the stream
-            has no point.
+        speed_samples: The speed each sample is stored with: the device's, else derived from positions, where a
+            positioned sample the clock did not advance on, and the first after a break, holds 0; ``None`` where the
+            sample has no speed.
     """
 
-    lat_lon: list[activity_streams_contracts.LatLonWaypoint]
-    segments: list[list[activity_streams_contracts.LatLonWaypoint]]
+    start_position: tuple[float, float] | None
     elevation: list[activity_streams_contracts.ElevationWaypoint]
-    heart_rate: list[activity_streams_contracts.HeartRateWaypoint]
-    cadence: list[activity_streams_contracts.CadenceWaypoint]
-    power: list[activity_streams_contracts.PowerWaypoint]
-    temperature: list[activity_streams_contracts.TemperatureWaypoint]
-    speed: list[activity_streams_contracts.VelocityWaypoint]
-    pace: list[activity_streams_contracts.PaceWaypoint]
-    measured_speed: set[int] | None
     step_speed: list[float | None]
     sample_speed: list[float | None]
     speed_samples: list[float | None]
-
-
-def _tidy(value: float) -> float:
-    """Return a whole number as an ``int`` so a stored stream reads ``85``, not ``85.0``.
-
-    Args:
-        value: The sample value.
-
-    Returns:
-        The value, an ``int`` when it is whole.
-    """
-    return int(value) if float(value).is_integer() else value
 
 
 def _breaks(session: activity_file_import_recording.Session) -> frozenset[int]:
@@ -172,56 +115,24 @@ def _breaks(session: activity_file_import_recording.Session) -> frozenset[int]:
     return frozenset(starts)
 
 
-def _positions(
-    samples: activity_file_import_recording.Samples, stamps: Sequence[str], breaks: frozenset[int]
-) -> tuple[list[activity_streams_contracts.LatLonWaypoint], list[list[activity_streams_contracts.LatLonWaypoint]]]:
-    """Collect the positioned samples and the position runs between breaks.
-
-    Args:
-        samples: The session's samples.
-        stamps: The formatted time of each sample.
-        breaks: The samples that start a run.
-
-    Returns:
-        The positioned samples, and the runs of at least two points.
-    """
-    lat_lon: list[activity_streams_contracts.LatLonWaypoint] = []
-    segments: list[list[activity_streams_contracts.LatLonWaypoint]] = []
-    run: list[activity_streams_contracts.LatLonWaypoint] = []
-    for i, (lat, lon) in enumerate(zip(samples.lat, samples.lon, strict=True)):
-        if i in breaks:
-            if len(run) >= 2:
-                segments.append(run)
-            run = []
-        if lat is not None and lon is not None:
-            waypoint: activity_streams_contracts.LatLonWaypoint = {"time": stamps[i], "lat": lat, "lon": lon}
-            lat_lon.append(waypoint)
-            run.append(waypoint)
-    if len(run) >= 2:
-        segments.append(run)
-    return lat_lon, segments
-
-
 def _derived_speed(
-    samples: activity_file_import_recording.Samples, stamps: Sequence[str], breaks: frozenset[int]
-) -> tuple[list[activity_streams_contracts.VelocityWaypoint], set[int], list[float | None]]:
+    samples: activity_file_import_recording.Samples, breaks: frozenset[int]
+) -> tuple[list[float | None], list[float | None]]:
     """Derive speed from consecutive positioned samples, over the real time between them.
 
-    The first positioned sample after a break, and a sample whose clock did not advance, get a 0 placeholder; the
-    returned positions mark the samples that are real measurements.
+    The first positioned sample after a break, and a sample whose clock did not advance, get a 0 placeholder in the
+    stored speed; only the real measurements are in the measured speed.
 
     Args:
         samples: The session's samples.
-        stamps: The formatted time of each sample.
         breaks: The samples that start a run.
 
     Returns:
-        The speed samples, the positions of the measured ones, and the measured speed at each sample of the session
-        (``None`` for the placeholders and the samples without a position).
+        The speed at each sample, 0 for a placeholder and ``None`` without a position, and the measured speed at each
+        sample, ``None`` for the placeholders and the samples without a position.
     """
-    speed: list[activity_streams_contracts.VelocityWaypoint] = []
-    measured: set[int] = set()
-    by_sample: list[float | None] = [None] * len(samples.time)
+    stored: list[float | None] = [None] * len(samples.time)
+    measured: list[float | None] = [None] * len(samples.time)
     prev_time: datetime | None = None
     prev_lat: float | None = None
     prev_lon: float | None = None
@@ -232,71 +143,58 @@ def _derived_speed(
             continue
         vel = activities_computation.calculate_step_speed(prev_time, time, lat, lon, prev_lat, prev_lon)
         if prev_time is not None and time > prev_time:
-            measured.add(len(speed))
-            by_sample[i] = vel
-        speed.append({"time": stamps[i], "vel": vel})
+            measured[i] = vel
+        stored[i] = vel
         if prev_time is None or time > prev_time:
             prev_time, prev_lat, prev_lon = time, lat, lon
-    return speed, measured, by_sample
+    return stored, measured
 
 
 def _build_streams(session: activity_file_import_recording.Session) -> _Streams:
-    """Cut a session's sample table into waypoint streams.
+    """Read the series a session's analysis needs from its sample table.
 
     Args:
         session: The session.
 
     Returns:
-        The streams; the speed is the device's when the session has any, else derived from positions.
+        The series; the speed is the device's when the session has any, else derived from positions.
     """
     samples = session.samples
-    stamps = [core_timezone.format_utc(time) for time in samples.time]
+    start_position = next(
+        ((lat, lon) for lat, lon in zip(samples.lat, samples.lon, strict=True) if lat is not None and lon is not None),
+        None,
+    )
+    elevation: list[activity_streams_contracts.ElevationWaypoint] = [
+        {"time": core_timezone.format_utc(time), "ele": altitude}
+        for time, altitude in zip(samples.time, samples.altitude, strict=True)
+        if altitude is not None
+    ]
     breaks = _breaks(session)
-    lat_lon, segments = _positions(samples, stamps, breaks)
-    speed: list[activity_streams_contracts.VelocityWaypoint]
-    measured: set[int] | None
     if any(value is not None for value in samples.speed):
-        speed = [{"time": s, "vel": v} for s, v in zip(stamps, samples.speed, strict=True) if v is not None]
-        measured = None
         step_speed = list(samples.speed)
-        by_sample = step_speed
-        speed_samples = step_speed
-    else:
-        speed, measured, step_speed = _derived_speed(samples, stamps, breaks)
-        # A sample moves when both its last second and the distance covered over a window around it are fast enough:
-        # GPS jitter at a stop makes each step fast but covers no distance, a window alone blurs a clean stop, and a
-        # sub-second step alone can be 0 between two fixes of the same position.
-        seconds = [time.timestamp() for time in samples.time]
-        trailing = activities_computation.trailing_speeds(seconds, samples.lat, samples.lon, breaks)
-        window_speed = activities_computation.displacement_speeds(seconds, samples.lat, samples.lon, breaks)
-        by_sample = [
-            None if step is None or window is None else min(step, window)
-            for step, window in zip(trailing, window_speed, strict=True)
-        ]
-        # The derived speed has a point at every positioned sample, in order.
-        speed_samples = [None] * len(samples.time)
-        positioned = (
-            i
-            for i, (lat, lon) in enumerate(zip(samples.lat, samples.lon, strict=True))
-            if lat is not None and lon is not None
+        return _Streams(
+            start_position=start_position,
+            elevation=elevation,
+            step_speed=step_speed,
+            sample_speed=step_speed,
+            speed_samples=step_speed,
         )
-        for i, waypoint in zip(positioned, speed, strict=True):
-            speed_samples[i] = waypoint["vel"]
+    speed_samples, step_speed = _derived_speed(samples, breaks)
+    # A sample moves when both its last second and the distance covered over a window around it are fast enough:
+    # GPS jitter at a stop makes each step fast but covers no distance, a window alone blurs a clean stop, and a
+    # sub-second step alone can be 0 between two fixes of the same position.
+    seconds = [time.timestamp() for time in samples.time]
+    trailing = activities_computation.trailing_speeds(seconds, samples.lat, samples.lon, breaks)
+    window_speed = activities_computation.displacement_speeds(seconds, samples.lat, samples.lon, breaks)
+    sample_speed = [
+        None if step is None or window is None else min(step, window)
+        for step, window in zip(trailing, window_speed, strict=True)
+    ]
     return _Streams(
-        lat_lon=lat_lon,
-        segments=segments,
-        elevation=[{"time": s, "ele": v} for s, v in zip(stamps, samples.altitude, strict=True) if v is not None],
-        heart_rate=[{"time": s, "hr": v} for s, v in zip(stamps, samples.heart_rate, strict=True) if v is not None],
-        cadence=[{"time": s, "cad": _tidy(v)} for s, v in zip(stamps, samples.cadence, strict=True) if v is not None],
-        power=[{"time": s, "power": v} for s, v in zip(stamps, samples.power, strict=True) if v is not None],
-        temperature=[
-            {"time": s, "temp": _tidy(v)} for s, v in zip(stamps, samples.temperature, strict=True) if v is not None
-        ],
-        speed=speed,
-        pace=[{"time": w["time"], "pace": 1 / w["vel"]} for w in speed if w["vel"] > 0],
-        measured_speed=measured,
+        start_position=start_position,
+        elevation=elevation,
         step_speed=step_speed,
-        sample_speed=by_sample,
+        sample_speed=sample_speed,
         speed_samples=speed_samples,
     )
 
@@ -331,9 +229,9 @@ def _channel(values: Iterable[float | None]) -> list[float | None] | None:
 
 
 def _smoothed_altitude(samples: activity_file_import_recording.Samples) -> list[float | None]:
-    """Return the altitude column smoothed over time, as the elevation stream stores it.
+    """Return the altitude column smoothed over time.
 
-    The smoothing reads the samples that have an altitude, each at its whole second, like the stream's waypoints.
+    The smoothing reads the samples that have an altitude, each at its whole second.
 
     Args:
         samples: The session's samples.
@@ -356,14 +254,15 @@ def _smoothed_altitude(samples: activity_file_import_recording.Samples) -> list[
 def _build_samples(
     session: activity_file_import_recording.Session, streams: _Streams, start: datetime, *, running: bool
 ) -> activity_streams_contracts.ParsedSamples | None:
-    """Cut a session's sample table into the columnar samples, with the values its waypoint streams store.
+    """Cut a session's sample table into the columnar samples.
 
-    Elevation is the smoothed series, running cadence is in steps per minute, speed is the ``speed`` stream's and a
-    position needs both coordinates. A heart rate the cleaning dropped is ``None``.
+    Elevation is the smoothed series, running cadence is in steps per minute rounded to a whole number, speed is the
+    device's else the one derived from positions, and a position needs both coordinates. A heart rate the cleaning
+    dropped is ``None``.
 
     Args:
         session: The cleaned session.
-        streams: The session's waypoint streams.
+        streams: The session's analysis series, which carry the speed to store.
         start: The activity's start, whole seconds, timezone-aware UTC.
         running: Whether the session's cadence is a single leg's rate, doubled to steps per minute.
 
@@ -378,7 +277,6 @@ def _build_samples(
     longitude = _channel(
         lon if has_position else None for lon, has_position in zip(samples.lon, positioned, strict=True)
     )
-    # Running cadence mirrors ``double_cadence_waypoints``.
     cadence = _channel(None if value is None else round(value * 2) if running else value for value in samples.cadence)
     parsed = activity_streams_contracts.ParsedSamples(
         offsets_ms=[_millis_since(start, time) for time in samples.time],
@@ -592,10 +490,9 @@ def _timezone(
     """
     if activity_type in activity_constants.VIRTUAL_ACTIVITY_TYPES:
         return default_timezone
-    if streams.lat_lon:
-        first = streams.lat_lon[0]
+    if streams.start_position:
         return activity_file_import_parser_utils.resolve_timezone_from_lat_lon(
-            first["lat"], first["lon"], default_timezone
+            *streams.start_position, default_timezone
         )
     local, device = recording.local_time_offset, recording.device_time_offset
     # Some writers set the local timestamp equal to the UTC one when the zone is unknown, so a 0 yields to a device
@@ -1244,10 +1141,8 @@ def _assemble_session(
     avg_cadence, max_cadence = _cadence(session, running, threshold)
     elevation_gain, elevation_loss = _elevation(session, streams)
 
-    cadence = activities_computation.double_cadence_waypoints(streams.cadence) if running else streams.cadence
     laps = _laps(session, streams, running, lap_distance_km, threshold)
     start = core_timezone.to_utc_second(session.start_time)
-    start_point = streams.lat_lon[0] if streams.lat_lon else None
 
     stored_type = activity_constants.ActivityType.from_stored(activity_type)
     activity = activity_contracts.ActivityCore(
@@ -1279,26 +1174,11 @@ def _assemble_session(
         tracker_manufacturer=recording.manufacturer,
         tracker_model=recording.product,
         total_cycles=summary.total_cycles,
-        start_latitude=start_point["lat"] if start_point else None,
-        start_longitude=start_point["lon"] if start_point else None,
+        start_latitude=streams.start_position[0] if streams.start_position else None,
+        start_longitude=streams.start_position[1] if streams.start_position else None,
     )
     payload: ActivityFilePayload = {
         "activity": activity,
-        "is_elevation_set": bool(streams.elevation),
-        "ele_waypoints": streams.elevation,
-        "is_power_set": bool(streams.power),
-        "power_waypoints": streams.power,
-        "is_heart_rate_set": bool(streams.heart_rate),
-        "hr_waypoints": streams.heart_rate,
-        "is_velocity_set": bool(streams.speed),
-        "vel_waypoints": streams.speed,
-        "pace_waypoints": streams.pace,
-        "is_cadence_set": bool(cadence),
-        "cad_waypoints": cadence,
-        "is_lat_lon_set": bool(streams.lat_lon),
-        "lat_lon_waypoints": streams.lat_lon,
-        "is_temperature_set": bool(streams.temperature),
-        "temp_waypoints": streams.temperature,
         "samples": _build_samples(session, streams, start, running=running),
         "laps": laps,
     }
@@ -1409,21 +1289,6 @@ def _assemble_parent(
     )
     return {
         "activity": activity,
-        "is_elevation_set": False,
-        "ele_waypoints": [],
-        "is_power_set": False,
-        "power_waypoints": [],
-        "is_heart_rate_set": False,
-        "hr_waypoints": [],
-        "is_velocity_set": False,
-        "vel_waypoints": [],
-        "pace_waypoints": [],
-        "is_cadence_set": False,
-        "cad_waypoints": [],
-        "is_lat_lon_set": False,
-        "lat_lon_waypoints": [],
-        "is_temperature_set": False,
-        "temp_waypoints": [],
         "samples": None,
         "laps": [],
     }

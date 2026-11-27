@@ -6,6 +6,7 @@ import pytest
 
 import modules.activities.activity_file_import.cleaning as cleaning
 import modules.activities.activity_file_import.recording as recording
+from tests.activities.activity_file_import import assembled
 from tests.activities.activity_file_import.assembled import assemble_recording, make_recording, session
 
 _T0 = datetime(2026, 6, 20, 8, 0, 0, tzinfo=UTC)
@@ -194,4 +195,4 @@ def test_assembly_cleans_a_session_before_it_builds_its_streams():
 
     (payload,) = assemble_recording(make_recording(session(rows)))
 
-    assert [point["hr"] for point in payload["hr_waypoints"]] == [140, 140]
+    assert assembled.values(payload, "heart_rate") == [140, 140]

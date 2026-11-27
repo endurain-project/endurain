@@ -1,11 +1,11 @@
 """Golden snapshots of what the file parsers produce for real device files and synthetic edge cases.
 
 Every ``.fit``, ``.gpx`` and ``.tcx`` under ``fixtures/`` is parsed through the parser registry exactly as ingestion
-does, and a summary of the result (activity fields, per-stream statistics and digest, laps, sets, workout steps, file
-components, the multisport parent when there is one, or the domain error raised) is compared with the
-``<file>.golden.json`` beside it. The edge cases no real file exists for are built in code by ``synthetic_files.py``,
-written to a temporary file and snapshotted the same way; their goldens live under ``fixtures/synthetic/<format>/``. A
-parser change shows up as a golden diff to review.
+does, and a summary of the result (activity fields, the samples' per-channel statistics and digest, laps, sets,
+workout steps, file components, the multisport parent when there is one, or the domain error raised) is compared
+with the ``<file>.golden.json`` beside it. The edge cases no real file exists for are built in code by
+``synthetic_files.py``, written to a temporary file and snapshotted the same way; their goldens live under
+``fixtures/synthetic/<format>/``. A parser change shows up as a golden diff to review.
 Regenerate with::
 
     uv run pytest tests/activities/activity_file_import/test_device_files.py --update-golden
@@ -23,6 +23,7 @@ import pytest
 
 import core.exceptions as core_exceptions
 import modules.activities.activity_file_import.parser_registry as registry
+import modules.activities.activity_streams.constants as activity_streams_constants
 from tests.activities.activity_file_import import synthetic_files
 
 _FIXTURES = Path(__file__).parent / "fixtures"
@@ -77,40 +78,46 @@ def _to_json(value: object) -> object:
     raise TypeError(f"cannot serialise {type(value).__name__}")
 
 
-def _field_stats(waypoints: list[dict]) -> dict[str, dict[str, float]]:
-    """Return min, max and mean of every numeric non-time key across the waypoints."""
-    keys = sorted({key for waypoint in waypoints for key in waypoint if key != "time"})
-    stats = {}
-    for key in keys:
-        values = [
-            waypoint[key]
-            for waypoint in waypoints
-            if isinstance(waypoint.get(key), int | float) and not isinstance(waypoint.get(key), bool)
-        ]
-        if values:
-            stats[key] = {"min": min(values), "max": max(values), "mean": fmean(values)}
-    return stats
+def _channel_stats(values: list[float | None]) -> dict[str, float]:
+    """Return the number of values, and min, max and mean of those that exist."""
+    present = [value for value in values if value is not None]
+    return {"count": len(present), "min": min(present), "max": max(present), "mean": fmean(present)}
 
 
-def _stream_snapshot(stream) -> dict[str, object]:
-    waypoints = [dict(waypoint) for waypoint in stream.stream_waypoints]
-    digest = hashlib.sha256(json.dumps(waypoints, sort_keys=True, separators=(",", ":"), default=str).encode())
+def _sample_at(samples, index: int) -> dict[str, object]:
+    """Return one sample as its offset and the channels that have a value there."""
+    sample: dict[str, object] = {"offset_ms": samples.offsets_ms[index]}
+    for name in activity_streams_constants.SAMPLE_CHANNELS:
+        values = getattr(samples, name)
+        if values is not None and values[index] is not None:
+            sample[name] = values[index]
+    return sample
+
+
+def _samples_snapshot(samples) -> dict[str, object] | None:
+    if samples is None:
+        return None
+    digest = hashlib.sha256(
+        json.dumps(dataclasses.asdict(samples), sort_keys=True, separators=(",", ":"), default=str).encode()
+    )
     return {
-        "stream_type": stream.stream_type,
-        "count": len(waypoints),
-        "first": _to_json(waypoints[0]) if waypoints else None,
-        "last": _to_json(waypoints[-1]) if waypoints else None,
-        "fields": _field_stats(waypoints),
+        "count": len(samples.offsets_ms),
+        "first": _to_json(_sample_at(samples, 0)),
+        "last": _to_json(_sample_at(samples, len(samples.offsets_ms) - 1)),
+        "channels": {
+            name: _channel_stats(getattr(samples, name))
+            for name in activity_streams_constants.SAMPLE_CHANNELS
+            if getattr(samples, name) is not None
+        },
         "sha256": digest.hexdigest(),
     }
 
 
 def _activity_snapshot(parsed) -> dict[str, object]:
     components = parsed.components
-    streams = sorted(components.get("streams") or [], key=lambda stream: stream.stream_type)
     return {
         "activity": parsed.activity.model_dump(mode="json", exclude={"user_id"}),
-        "streams": [_stream_snapshot(stream) for stream in streams],
+        "samples": _samples_snapshot(components.get("samples")),
         "laps": _to_json(components.get("laps")),
         "sets": _to_json(components.get("sets")),
         "workout_steps": _to_json(components.get("workout_steps")),

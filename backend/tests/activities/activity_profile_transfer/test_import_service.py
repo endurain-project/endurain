@@ -16,6 +16,7 @@ import modules.activities.activity_file_storage.integration_service as file_stor
 import modules.activities.activity_laps.models as laps_models
 import modules.activities.activity_media.integration_service as media_integration
 import modules.activities.activity_media.models as media_models
+import modules.activities.activity_streams.crud as streams_crud
 import modules.users.users_profile.exceptions as profile_exceptions
 import modules.users.users_profile.utils as profile_utils
 from tests._factories.activities import make_activity, make_activity_children, make_activity_media
@@ -128,11 +129,38 @@ class TestRestoreProfile:
         assert restored.counts["activities"] == 2
         assert restored.counts["activity_laps"] == 2
         assert restored.counts["activity_sets"] == 2
-        assert restored.counts["activity_streams"] == 2
+        assert restored.counts["activity_samples"] == 2
+        assert restored.counts["activity_streams"] == 0
         assert restored.counts["activity_workout_steps"] == 2
         assert restored.counts["activity_media"] == 2
         lap_owners = db.scalars(select(laps_models.ActivityLaps.activity_id)).all()
         assert {activity.id for activity in rows} <= set(lap_owners)
+
+    def test_an_archive_with_old_streams_is_restored_as_samples(self, db: Session, storage) -> None:
+        target = make_user(db)
+        entries = {
+            "data/activities.json": [_activity_row()],
+            "data/activity_streams.json": [
+                {
+                    "id": str(uuid.uuid4()),
+                    "activity_id": str(_ARCHIVED_ACTIVITY),
+                    "stream_type": 1,
+                    "stream_waypoints": [
+                        {"time": "2024-01-01T08:00:00", "hr": 120},
+                        {"time": "2024-01-01T08:00:02", "hr": 130},
+                    ],
+                }
+            ],
+        }
+
+        restored = support.import_activities(db, target.id, storage, entries)
+
+        [activity] = _restored(db, target.id)
+        samples = streams_crud.get_activity_samples(activity.id, db)
+        assert samples is not None
+        assert (samples.offsets_ms, samples.heart_rate) == ([0, 2000], [120.0, 130.0])
+        assert (restored.counts["activity_streams"], restored.counts["activity_samples"]) == (1, 0)
+        assert streams_crud.get_activity_streams(activity.id, db) == []
 
     def test_the_files_and_media_are_stored_under_the_new_activity_ids(self, db: Session, storage) -> None:
         _, entries = _seed_source(db, storage)

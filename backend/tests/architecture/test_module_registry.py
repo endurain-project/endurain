@@ -65,7 +65,6 @@ class TestRuntimeModuleRegistry:
         assert {item.key for item in activities_contributor_registry.activity_ingestion_contributors()} == {
             "laps",
             "sets",
-            "streams",
             "samples",
             "workout_steps",
         }
@@ -76,6 +75,7 @@ class TestRuntimeModuleRegistry:
             "laps",
             "sets",
             "streams",
+            "samples",
             "workout_steps",
             "media",
         }
@@ -187,7 +187,6 @@ class TestConfigureApplication:
         assert {item.key for item in activities_contributor_registry.activity_ingestion_contributors()} == {
             "laps",
             "sets",
-            "streams",
             "samples",
             "workout_steps",
         }
@@ -195,6 +194,7 @@ class TestConfigureApplication:
             "laps",
             "sets",
             "streams",
+            "samples",
             "workout_steps",
             "media",
         }

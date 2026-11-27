@@ -222,7 +222,8 @@ class TestReprocessingOneActivity:
     def test_replaces_the_children_of_a_run_with_a_track(self, db, owner, other, storage, tmp_path):
         [activity_id] = import_fixture(db, owner.id, RUN, tmp_path, storage)
         expected = _children(db, _fresh(db, other.id, RUN, tmp_path, storage))
-        assert expected["streams"] and expected["laps"]
+        assert expected["samples"] and expected["laps"]
+        assert expected["streams"] == []
         degrade(db, activity_id)
 
         migration_service.reprocess_activity(activity_id, storage)
@@ -368,14 +369,33 @@ class TestReprocessingOneActivity:
 
 
 class TestTheThumbnail:
-    def _map_stream(self, db: Session, activity_id: uuid.UUID) -> stream_models.ActivityStreams:
+    def _samples(self, db: Session, activity_id: uuid.UUID) -> stream_models.ActivitySamples:
         db.expire_all()
         return db.execute(
-            select(stream_models.ActivityStreams).where(
-                stream_models.ActivityStreams.activity_id == activity_id,
-                stream_models.ActivityStreams.stream_type == stream_constants.STREAM_TYPE_MAP,
-            )
+            select(stream_models.ActivitySamples).where(stream_models.ActivitySamples.activity_id == activity_id)
         ).scalar_one()
+
+    def _as_old_streams(self, db: Session, activity_id: uuid.UUID, *, shift: float = 0.0) -> None:
+        """Store the track the way an activity stored before v0.22 has it: an old map stream and no samples row."""
+        samples = self._samples(db, activity_id)
+        start = _row(db, activity_id).start_time
+        db.add(
+            stream_models.ActivityStreams(
+                activity_id=activity_id,
+                stream_type=stream_constants.STREAM_TYPE_MAP,
+                stream_waypoints=[
+                    {
+                        "time": (start + timedelta(milliseconds=offset)).strftime("%Y-%m-%dT%H:%M:%S"),
+                        "lat": lat + shift,
+                        "lon": lon,
+                    }
+                    for offset, lat, lon in zip(samples.offsets_ms, samples.latitude, samples.longitude, strict=True)
+                    if lat is not None and lon is not None
+                ],
+            )
+        )
+        db.delete(samples)
+        db.commit()
 
     def _set_key(self, db: Session, activity_id: uuid.UUID, key: str | None) -> None:
         db.execute(
@@ -402,13 +422,32 @@ class TestTheThumbnail:
     def test_is_cleared_when_the_track_changed(self, db, owner, storage, tmp_path):
         [activity_id] = import_fixture(db, owner.id, RUN, tmp_path, storage)
         self._set_key(db, activity_id, f"{activity_id}.webp")
-        track = self._map_stream(db, activity_id)
-        track.stream_waypoints = [{**point, "lat": point["lat"] + 1} for point in track.stream_waypoints]
+        samples = self._samples(db, activity_id)
+        samples.latitude = [None if lat is None else lat + 1 for lat in samples.latitude]
         db.commit()
 
         migration_service.reprocess_activity(activity_id, storage)
 
         assert _row(db, activity_id).map_thumbnail_path is None
+
+    def test_is_cleared_when_an_activity_with_only_old_streams_gets_another_track(self, db, owner, storage, tmp_path):
+        [activity_id] = import_fixture(db, owner.id, RUN, tmp_path, storage)
+        self._as_old_streams(db, activity_id, shift=1.0)
+        self._set_key(db, activity_id, f"{activity_id}.webp")
+
+        migration_service.reprocess_activity(activity_id, storage)
+
+        assert _row(db, activity_id).map_thumbnail_path is None
+
+    def test_is_kept_when_the_old_streams_hold_the_track_the_reprocess_stores(self, db, owner, storage, tmp_path):
+        [activity_id] = import_fixture(db, owner.id, RUN, tmp_path, storage)
+        self._as_old_streams(db, activity_id)
+        self._set_key(db, activity_id, f"{activity_id}.webp")
+
+        migration_service.reprocess_activity(activity_id, storage)
+
+        assert _row(db, activity_id).map_thumbnail_path == f"{activity_id}.webp"
+        assert self._samples(db, activity_id).latitude is not None
 
     def test_is_kept_for_an_activity_with_no_track(self, db, owner, storage, tmp_path):
         [activity_id] = import_fixture(db, owner.id, TREADMILL, tmp_path, storage)

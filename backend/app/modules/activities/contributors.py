@@ -185,13 +185,17 @@ class FileIngestionContributor:
 
 @dataclass(frozen=True, slots=True)
 class ProfileActivityContributor:
-    """Package contribution for activity-scoped profile JSON records."""
+    """Package contribution for activity-scoped profile JSON records.
+
+    ``export`` is ``None`` for records an older archive carries and the export no longer writes: the import reads
+    them, the export skips them.
+    """
 
     key: str
     archive_path: str
     count_key: str
     split: bool
-    export: ExportActivityRecords
+    export: ExportActivityRecords | None
     restore: RestoreActivityRecords
 
 

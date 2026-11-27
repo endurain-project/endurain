@@ -58,6 +58,26 @@
         "workout_rpe": null
       },
       "laps": [],
+      "samples": {
+        "channels": {
+          "heart_rate": {
+            "count": 586,
+            "max": 131,
+            "mean": 112.71843,
+            "min": 87
+          }
+        },
+        "count": 586,
+        "first": {
+          "heart_rate": 95,
+          "offset_ms": 0
+        },
+        "last": {
+          "heart_rate": 102,
+          "offset_ms": 1260000
+        },
+        "sha256": "919aabf7e0660fa4dc66e43e5ac82f28cdc91cc0095f70ebba491a27ea56b5f4"
+      },
       "sets": [
         [
           40.0,
@@ -790,28 +810,6 @@
             null
           ]
         ]
-      ],
-      "streams": [
-        {
-          "count": 586,
-          "fields": {
-            "hr": {
-              "max": 131,
-              "mean": 112.71843,
-              "min": 87
-            }
-          },
-          "first": {
-            "hr": 95,
-            "time": "2026-11-02T13:57:00"
-          },
-          "last": {
-            "hr": 102,
-            "time": "2026-11-02T14:18:00"
-          },
-          "sha256": "5b2741fc75cc69a1b3f81c2603a9e06615ccc52787321713277596235fcbf2cd",
-          "stream_type": 1
-        }
       ],
       "workout_steps": [
         {

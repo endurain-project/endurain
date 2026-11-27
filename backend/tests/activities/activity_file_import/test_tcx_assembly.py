@@ -8,6 +8,7 @@ import pytest
 
 import modules.activities.activity_file_import.assembly as assembly
 import modules.activities.activity_file_import.parser_utils as parser_utils
+from tests.activities.activity_file_import import assembled
 from tests.activities.activity_file_import.assembled import assemble_tcx
 
 _T0 = datetime(2026, 6, 20, 8, 0, 0, tzinfo=UTC)
@@ -119,8 +120,8 @@ class TestUtcAndTimes:
 
         assert payload["activity"].start_time == datetime(2026, 3, 28, 15, 19, 19, tzinfo=UTC)
         assert payload["activity"].end_time == datetime(2026, 3, 28, 15, 49, 19, tzinfo=UTC)
-        assert payload["lat_lon_waypoints"][0]["time"] == "2026-03-28T15:19:19"
-        assert payload["hr_waypoints"][0]["time"] == "2026-03-28T15:19:19"
+        # The samples count from the UTC start, so both offsets are as long after it as the offsets in the file say.
+        assert payload["samples"].offsets_ms == [0, 1_800_000]
 
     def test_start_comes_from_the_activity_id_not_the_first_positioned_point(self, tmp_path: Path) -> None:
         """A file whose first trackpoints lack a position still starts at the Activity Id time."""
@@ -130,8 +131,8 @@ class TestUtcAndTimes:
 
         assert payload["activity"].start_time == _T0
         assert payload["activity"].end_time == _T0 + timedelta(minutes=3)
-        assert payload["is_lat_lon_set"] is True
-        assert len(payload["lat_lon_waypoints"]) == 3
+        assert assembled.has(payload, "latitude")
+        assert len(assembled.positions(payload)) == 3
 
     def test_elapsed_falls_back_to_timer_when_no_moving_time(self, tmp_path: Path) -> None:
         """Two samples an hour apart have no moving time, so the timer is the elapsed time."""
@@ -162,9 +163,9 @@ class TestHeartRate:
 
         payload = _one(tmp_path, points)
 
-        assert payload["hr_waypoints"] == []
-        assert payload["is_heart_rate_set"] is False
-        assert len(payload["lat_lon_waypoints"]) == 3
+        assert assembled.values(payload, "heart_rate") == []
+        assert not assembled.has(payload, "heart_rate")
+        assert len(assembled.positions(payload)) == 3
 
     def test_summary_and_stream_leave_out_the_zero_dropouts(self, tmp_path: Path) -> None:
         """The HR summary and the stream are built from the samples without sensor-off zeros."""
@@ -176,7 +177,7 @@ class TestHeartRate:
         # Zeros excluded: mean([150, 160]) = 155, max = 160.
         assert activity.average_hr == 155
         assert activity.max_hr == 160
-        assert [wp["hr"] for wp in payload["hr_waypoints"]] == [150, 160, 160]
+        assert assembled.values(payload, "heart_rate") == [150, 160, 160]
 
 
 class TestDistanceAndTimer:
@@ -209,11 +210,11 @@ class TestDistanceAndTimer:
 
         activity = payload["activity"]
         assert activity.total_timer_time == 20
-        assert len(payload["lat_lon_waypoints"]) == 4
+        assert len(assembled.positions(payload)) == 4
         # Two hops of ~111 m; the ~1 km hop across the pause is not counted.
         assert 200 < activity.distance < 240
-        assert payload["vel_waypoints"][2]["vel"] == 0
-        assert [wp["pace"] for wp in payload["pace_waypoints"]] == pytest.approx([10 / 111.2, 10 / 111.2], rel=0.01)
+        assert assembled.values(payload, "speed")[2] == 0
+        assert assembled.pace(payload) == pytest.approx([10 / 111.2, 10 / 111.2], rel=0.01)
 
     def test_sparse_track_is_one_segment_and_all_moving_time(self, tmp_path: Path) -> None:
         """A track sampled every 30 s is one run, all of it moving time."""
@@ -223,7 +224,7 @@ class TestDistanceAndTimer:
 
         assert payload["activity"].total_timer_time == 120
         assert 400 < payload["activity"].distance < 500
-        assert all(wp["vel"] > 0 for wp in payload["vel_waypoints"][1:])
+        assert all(speed > 0 for speed in assembled.values(payload, "speed")[1:])
 
     def test_sparse_track_without_summary_distance(self, tmp_path: Path) -> None:
         """A 30 s sampled TCX without DistanceMeters gets a non-zero distance and pace."""
@@ -299,8 +300,8 @@ class TestDistanceAndTimer:
 
         payload = _one(tmp_path, points, distance=50)
 
-        assert [wp["vel"] for wp in payload["vel_waypoints"]] == [0.0, 2.0, 4.0]
-        assert [wp["pace"] for wp in payload["pace_waypoints"]] == [0.5, 0.25]
+        assert assembled.values(payload, "speed") == [0.0, 2.0, 4.0]
+        assert assembled.pace(payload) == [0.5, 0.25]
         assert payload["activity"].max_speed == 4.0
 
 
@@ -321,7 +322,7 @@ class TestRunCadence:
         # The last sample holds no time: mean([84, 86, 88]) = 86 rpm, max 90 rpm.
         assert activity.average_cad == 172
         assert activity.max_cad == 180
-        assert [wp["cad"] for wp in payload["cad_waypoints"]] == [168, 172, 176, 180]
+        assert assembled.values(payload, "cadence") == [168, 172, 176, 180]
         assert payload["laps"][0]["avg_cadence"] == 172
         assert payload["laps"][0]["max_cadence"] == 180
 
@@ -370,27 +371,27 @@ class TestStreamsWithoutPositions:
 
         payload = _one(tmp_path, points, sport="Biking")
 
-        assert payload["lat_lon_waypoints"] == []
-        assert len(payload["hr_waypoints"]) == 2
-        assert len(payload["ele_waypoints"]) == 2
-        assert len(payload["cad_waypoints"]) == 2
-        assert len(payload["power_waypoints"]) == 2
+        assert assembled.positions(payload) == []
+        assert len(assembled.values(payload, "heart_rate")) == 2
+        assert len(assembled.values(payload, "elevation")) == 2
+        assert len(assembled.values(payload, "cadence")) == 2
+        assert len(assembled.values(payload, "power")) == 2
 
     def test_no_speed_stream_without_positions_and_without_device_speed(self, tmp_path: Path) -> None:
         payload = _one(tmp_path, _tp(0, hr=150) + _tp(10, hr=152))
 
-        assert payload["is_velocity_set"] is False
-        assert payload["vel_waypoints"] == []
-        assert payload["pace_waypoints"] == []
+        assert not assembled.has(payload, "speed")
+        assert assembled.values(payload, "speed") == []
+        assert assembled.pace(payload) == []
 
     def test_mixed_positioned_and_position_less_trackpoints(self, tmp_path: Path) -> None:
         points = _tp(0, lat=40.0, lon=-3.0, hr=140) + _tp(10, hr=141) + _tp(20, lat=40.001, lon=-3.0, hr=142)
 
         payload = _one(tmp_path, points)
 
-        assert len(payload["lat_lon_waypoints"]) == 2
-        assert len(payload["hr_waypoints"]) == 3
-        vel = [wp["vel"] for wp in payload["vel_waypoints"]]
+        assert len(assembled.positions(payload)) == 2
+        assert len(assembled.values(payload, "heart_rate")) == 3
+        vel = assembled.values(payload, "speed")
         assert vel[0] == 0
         # 0.001 deg of latitude is ~111 m, covered over the 20 s since the last positioned point.
         assert vel[1] == pytest.approx(111.2 / 20, rel=0.01)
@@ -407,16 +408,16 @@ class TestStreamsWithoutPositions:
         payload = _one(tmp_path, points)
 
         # 0.0005 deg of latitude is ~55.6 m, covered in the 10 s since the point at 10 s.
-        assert payload["vel_waypoints"][-1]["vel"] == pytest.approx(55.6 / 10, rel=0.01)
+        assert assembled.values(payload, "speed")[-1] == pytest.approx(55.6 / 10, rel=0.01)
 
     def test_without_gps_the_default_timezone_is_used(self, tmp_path: Path) -> None:
         points = _tp(0, hr=120) + _tp(1800, hr=130) + _tp(3600, hr=140)
 
         payload = _one(tmp_path, points, timezone="Europe/Lisbon")
 
-        assert payload["is_lat_lon_set"] is False
-        assert payload["lat_lon_waypoints"] == []
-        assert payload["is_heart_rate_set"] is True
+        assert not assembled.has(payload, "latitude")
+        assert assembled.positions(payload) == []
+        assert assembled.has(payload, "heart_rate")
         assert payload["activity"].timezone == "Europe/Lisbon"
 
     def test_timezone_comes_from_the_first_positioned_point(self, tmp_path: Path) -> None:
@@ -435,11 +436,11 @@ class TestStreamsWithoutPositions:
         # The device lap timer, not the elapsed time.
         assert activity.total_timer_time == 180
         assert activity.timezone == "Europe/Lisbon"
-        assert payload["is_lat_lon_set"] is False
-        assert payload["is_heart_rate_set"] is True
-        assert [wp["hr"] for wp in payload["hr_waypoints"]] == [120, 121, 122]
-        assert payload["is_elevation_set"] is False
-        assert payload["ele_waypoints"] == []
+        assert not assembled.has(payload, "latitude")
+        assert assembled.has(payload, "heart_rate")
+        assert assembled.values(payload, "heart_rate") == [120, 121, 122]
+        assert not assembled.has(payload, "elevation")
+        assert assembled.values(payload, "elevation") == []
 
     def test_gps_less_file_without_a_lap_timer_has_moving_time(self, tmp_path: Path) -> None:
         points = "".join(_tp(60 * minute, hr=120 + minute) for minute in range(3))
@@ -453,7 +454,7 @@ class TestStreamsWithoutPositions:
 
         assert payload["activity"].start_time == _T0
         assert payload["activity"].end_time == _T0 + timedelta(minutes=2)
-        assert len(payload["lat_lon_waypoints"]) == 1
+        assert len(assembled.positions(payload)) == 1
 
 
 class TestElevation:
@@ -468,7 +469,11 @@ class TestElevation:
         payload = self._assemble(tmp_path, [100.0 + i for i in range(31)])
 
         activity = payload["activity"]
-        steps = parser_utils.elevation_step_waypoints(payload["ele_waypoints"])
+        raw = [
+            {"time": (_T0 + timedelta(seconds=10 * i)).strftime("%Y-%m-%dT%H:%M:%S"), "ele": 100.0 + i}
+            for i in range(31)
+        ]
+        steps = parser_utils.elevation_step_waypoints(raw)
         expected_gain = sum(wp["gain"] for wp in steps)
         assert activity.elevation_gain == round(expected_gain) > 0
         assert activity.elevation_loss == 0
@@ -492,8 +497,7 @@ class TestElevation:
 
         payload = _one(tmp_path, points)
 
-        assert len(payload["ele_waypoints"]) == 20
-        assert all(wp["ele"] is not None for wp in payload["ele_waypoints"])
+        assert len(assembled.values(payload, "elevation")) == 20
         assert payload["activity"].elevation_gain is not None
 
 
@@ -534,7 +538,11 @@ class TestLaps:
         payload = self._two_laps(tmp_path, lambda i: 100.0 + 10 * i)
 
         laps = payload["laps"]
-        activity_gain = sum(wp["gain"] for wp in parser_utils.elevation_step_waypoints(payload["ele_waypoints"]))
+        raw = [
+            {"time": (_T0 + timedelta(seconds=10 * i)).strftime("%Y-%m-%dT%H:%M:%S"), "ele": 100.0 + 10 * i}
+            for i in range(31)
+        ]
+        activity_gain = sum(wp["gain"] for wp in parser_utils.elevation_step_waypoints(raw))
         assert abs(laps[0]["total_ascent"] + laps[1]["total_ascent"] - activity_gain) <= 1
 
     def test_flat_altitude_stores_zero(self, tmp_path: Path) -> None:

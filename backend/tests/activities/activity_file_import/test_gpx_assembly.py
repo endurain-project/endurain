@@ -150,8 +150,8 @@ class TestDistanceAndTime:
         expected = geodesic((0.0, 0.0), (0.0, 0.001)).meters + geodesic((0.01, 0.0), (0.01, 0.001)).meters
         assert result["activity"].distance == round(expected)
         # The first point of each segment has no previous point: a 0 placeholder.
-        assert result["vel_waypoints"][0]["vel"] == 0
-        assert result["vel_waypoints"][2]["vel"] == 0
+        assert assembled.values(result, "speed")[0] == 0
+        assert assembled.values(result, "speed")[2] == 0
         assert result["activity"].max_speed < 20
         assert all(lap["total_distance"] < 1000 for lap in result["laps"])
 
@@ -179,7 +179,7 @@ class TestDistanceAndTime:
         assert activity.total_elapsed_time == 320
         assert activity.total_timer_time == 20
         assert activity.pace == pytest.approx(20 / expected, rel=0.01)
-        assert result["vel_waypoints"][2]["vel"] == 0
+        assert assembled.values(result, "speed")[2] == 0
         assert all(lap["total_distance"] < 1000 for lap in result["laps"])
 
     def test_sparse_track_is_not_split_into_pauses(self, tmp_path):
@@ -263,7 +263,7 @@ class TestDistanceAndTime:
 
         assert result["activity"].start_time == datetime(2026, 3, 28, 15, 19, 19, tzinfo=UTC)
         assert result["activity"].end_time == datetime(2026, 3, 28, 15, 19, 29, tzinfo=UTC)
-        assert result["lat_lon_waypoints"][0]["time"] == "2026-03-28T15:19:19"
+        assert result["samples"].offsets_ms == [0, 10_000]
         assert result["laps"][0]["start_time"] == "2026-03-28T15:19:19"
 
 
@@ -372,10 +372,10 @@ class TestElevation:
 
         result = _gpx(tmp_path, f"<trk><trkseg>{_points(rows)}</trkseg></trk>")
 
-        assert result["ele_waypoints"] == [
-            {"time": "2025-01-01T00:00:00", "ele": 0.0},
-            {"time": "2025-01-01T00:00:30", "ele": 12.5},
-        ]
+        # Only the two plausible altitudes are samples' values, each at its own time.
+        assert result["samples"].offsets_ms[0] == 0
+        assert result["samples"].offsets_ms[-1] == 30_000
+        assert [value is not None for value in result["samples"].elevation] == [True, False, False, True]
 
     def test_flat_track_stores_zero_elevation_gain(self, tmp_path):
         points = "".join(
@@ -397,7 +397,7 @@ class TestElevation:
 
         result = _gpx(tmp_path, f"<trk><type>Ride</type><trkseg>{_points(rows)}</trkseg></trk>")
 
-        assert result["is_elevation_set"] is False
+        assert not assembled.has(result, "elevation")
         assert result["activity"].elevation_gain is None
         assert result["activity"].elevation_loss is None
 
@@ -410,12 +410,12 @@ class TestSensorStreams:
 
         result = _gpx(tmp_path, f"<trk><name>Sensor-free run</name><trkseg>{_points(rows)}</trkseg></trk>")
 
-        assert result["is_heart_rate_set"] is False
-        assert result["hr_waypoints"] == []
-        assert result["is_cadence_set"] is False
-        assert result["cad_waypoints"] == []
-        assert result["is_power_set"] is False
-        assert result["is_temperature_set"] is False
+        assert not assembled.has(result, "heart_rate")
+        assert assembled.values(result, "heart_rate") == []
+        assert not assembled.has(result, "cadence")
+        assert assembled.values(result, "cadence") == []
+        assert not assembled.has(result, "power")
+        assert not assembled.has(result, "temperature")
         assert result["activity"].average_hr is None
         assert result["activity"].max_hr is None
 
@@ -427,13 +427,13 @@ class TestSensorStreams:
 
         result = _gpx(tmp_path, f"<trk><trkseg>{_points(rows)}</trkseg></trk>")
 
-        assert result["is_heart_rate_set"] is True
-        assert len(result["hr_waypoints"]) == 2
+        assert assembled.has(result, "heart_rate")
+        assert len(assembled.values(result, "heart_rate")) == 2
         # The last sample holds no time.
         assert result["activity"].average_hr == 140
         assert result["activity"].max_hr == 150
-        assert result["is_cadence_set"] is False
-        assert result["cad_waypoints"] == []
+        assert not assembled.has(result, "cadence")
+        assert assembled.values(result, "cadence") == []
 
     def test_does_not_zero_fill_missing_cadence_samples(self, tmp_path):
         rows = [
@@ -444,8 +444,8 @@ class TestSensorStreams:
 
         result = _gpx(tmp_path, f"<trk><name>Cadence gap ride</name><trkseg>{_points(rows)}</trkseg></trk>")
 
-        assert result["is_cadence_set"] is True
-        assert [wp["cad"] for wp in result["cad_waypoints"]] == [80, 90]
+        assert assembled.has(result, "cadence")
+        assert assembled.values(result, "cadence") == [80, 90]
         # The 80 holds until the next kept sample, its 20 s capped at the 15 s pause threshold; 90 is last.
         assert result["activity"].average_cad == 80
 
@@ -460,7 +460,7 @@ class TestSensorStreams:
         )
 
         assert result["activity"].activity_type == "run"
-        assert [wp["cad"] for wp in result["cad_waypoints"]] == [170, 190]
+        assert assembled.values(result, "cadence") == [170, 190]
         assert result["activity"].average_cad == 170
         assert result["activity"].max_cad == 190
 
@@ -473,8 +473,8 @@ class TestSensorStreams:
         result = _gpx(tmp_path, f"<trk><name>Dropout run</name><trkseg>{_points(rows)}</trkseg></trk>")
 
         # Zero is a dropout, so the stream has no heart rate at all.
-        assert result["is_heart_rate_set"] is False
-        assert result["hr_waypoints"] == []
+        assert not assembled.has(result, "heart_rate")
+        assert assembled.values(result, "heart_rate") == []
         assert result["activity"].average_hr is None
         assert result["activity"].max_hr is None
 
@@ -484,7 +484,7 @@ class TestSensorStreams:
 
         result = _gpx(tmp_path, f"<trk><trkseg>{_points(rows)}</trkseg></trk>")
 
-        assert [wp["hr"] for wp in result["hr_waypoints"]] == [140, 160, 160]
+        assert assembled.values(result, "heart_rate") == [140, 160, 160]
         assert result["activity"].average_hr == 150
         assert result["activity"].max_hr == 160
 
@@ -498,9 +498,9 @@ class TestSensorStreams:
 
         result = _gpx(tmp_path, f"<trk><trkseg>{_points(rows)}</trkseg></trk>")
 
-        assert [wp["hr"] for wp in result["hr_waypoints"]] == [150, 150]
-        assert [wp["cad"] for wp in result["cad_waypoints"]] == [82, 82]
-        assert [wp["power"] for wp in result["power_waypoints"]] == [250, 250]
+        assert assembled.values(result, "heart_rate") == [150, 150]
+        assert assembled.values(result, "cadence") == [82, 82]
+        assert assembled.values(result, "power") == [250, 250]
 
     def test_reads_unprefixed_values(self, tmp_path):
         ext = (
@@ -511,9 +511,9 @@ class TestSensorStreams:
 
         result = _gpx(tmp_path, f"<trk><trkseg>{_points(rows)}</trkseg></trk>")
 
-        assert result["hr_waypoints"][0]["hr"] == 145
-        assert result["cad_waypoints"][0]["cad"] == 77
-        assert result["power_waypoints"][0]["power"] == 211
+        assert assembled.values(result, "heart_rate")[0] == 145
+        assert assembled.values(result, "cadence")[0] == 77
+        assert assembled.values(result, "power")[0] == 211
 
     def test_reads_power_in_watts(self, tmp_path):
         ext = (
@@ -524,9 +524,9 @@ class TestSensorStreams:
 
         result = _gpx(tmp_path, f"<trk><trkseg>{_points(rows)}</trkseg></trk>")
 
-        assert result["hr_waypoints"][0]["hr"] == 150
-        assert result["is_cadence_set"] is False
-        assert [wp["power"] for wp in result["power_waypoints"]] == [240, 240]
+        assert assembled.values(result, "heart_rate")[0] == 150
+        assert not assembled.has(result, "cadence")
+        assert assembled.values(result, "power") == [240, 240]
 
     def test_invalid_numbers_are_none_for_their_channel_only(self, tmp_path):
         ext = (
@@ -538,9 +538,9 @@ class TestSensorStreams:
         result = _gpx(tmp_path, f"<trk><trkseg>{_points(rows)}</trkseg></trk>")
 
         # A bad value is missing for that channel (was 0); the others still read.
-        assert result["is_heart_rate_set"] is False
-        assert result["is_cadence_set"] is False
-        assert [wp["power"] for wp in result["power_waypoints"]] == [206, 206]
+        assert not assembled.has(result, "heart_rate")
+        assert not assembled.has(result, "cadence")
+        assert assembled.values(result, "power") == [206, 206]
 
     def test_atemp_gives_a_temperature_stream(self, tmp_path):
         ext = "<extensions><TrackPointExtension><atemp>21.5</atemp></TrackPointExtension></extensions>"
@@ -548,8 +548,8 @@ class TestSensorStreams:
 
         result = _gpx(tmp_path, f"<trk><trkseg>{_points(rows)}</trkseg></trk>")
 
-        assert result["is_temperature_set"] is True
-        assert [wp["temp"] for wp in result["temp_waypoints"]] == [21.5, 21.5]
+        assert assembled.has(result, "temperature")
+        assert assembled.values(result, "temperature") == [21.5, 21.5]
 
 
 def _steady_run(n_points: int, spikes: dict[int, float]) -> str:
@@ -578,7 +578,7 @@ class TestMaxSpeed:
         result = _gpx(tmp_path, _steady_run(30, {15: 0.00045}))  # one fix ~50 m ahead
 
         # The fix is dropped as a jump, so no speed between the neighbours' track shows it.
-        assert max(w["vel"] for w in result["vel_waypoints"]) < 4
+        assert max(assembled.values(result, "speed")) < 4
         assert result["activity"].max_speed == pytest.approx(3, abs=0.5)
 
     def test_two_adjacent_spiked_fixes_are_ignored(self, tmp_path):
@@ -606,7 +606,7 @@ class TestMaxSpeed:
     def test_fewer_than_window_samples_use_plain_max(self, tmp_path):
         result = _gpx(tmp_path, _steady_run(4, {2: 0.00006}))  # one fix ~6.7 m ahead, a ~10 m/s step
 
-        assert result["activity"].max_speed == max(w["vel"] for w in result["vel_waypoints"])
+        assert result["activity"].max_speed == max(assembled.values(result, "speed"))
         assert result["activity"].max_speed > 9
 
 
@@ -652,13 +652,12 @@ class TestMaxSpeedSegmentPlaceholders:
     def test_stored_speed_stream_keeps_the_placeholders_and_pace_has_none(self, tmp_path):
         result = _gpx(tmp_path, self._short_segments())
 
-        vels = [w["vel"] for w in result["vel_waypoints"]]
+        vels = assembled.values(result, "speed")
         assert len(vels) == 15
         assert vels.count(0) == 10
-        assert set(result["vel_waypoints"][0]) == {"time", "vel"}
-        # The pace stream has a sample only where the speed is above zero.
-        assert len(result["pace_waypoints"]) == 5
-        assert all(w["pace"] == pytest.approx(1 / 3, rel=0.2) for w in result["pace_waypoints"])
+        # Pace is derived from the speed, so it has a value only where the speed is above zero.
+        assert len(assembled.pace(result)) == 5
+        assert all(value == pytest.approx(1 / 3, rel=0.2) for value in assembled.pace(result))
 
     def test_average_speed_is_distance_over_timer_not_the_mean_of_samples(self, tmp_path):
         result = _gpx(tmp_path, self._short_segments())
@@ -666,7 +665,7 @@ class TestMaxSpeedSegmentPlaceholders:
         activity = result["activity"]
         assert activity.total_timer_time
         assert activity.average_speed == pytest.approx(activity.distance / activity.total_timer_time, rel=0.01)
-        vels = [w["vel"] for w in result["vel_waypoints"]]
+        vels = assembled.values(result, "speed")
         assert activity.average_speed != pytest.approx(sum(vels) / len(vels))
 
     def test_a_lap_over_several_segments_reports_the_measured_speed(self, tmp_path):

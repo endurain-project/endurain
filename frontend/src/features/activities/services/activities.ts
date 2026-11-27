@@ -29,8 +29,8 @@ import type {
   ActivityLapDto,
   ActivitySetDto,
   ActivityStats,
-  ActivityStream,
-  ActivityStreamDto,
+  ActivitySamplesDto,
+  ActivityStreams,
   ActivitySummary,
   ActivitySummaryDto,
   ActivityType,
@@ -47,6 +47,9 @@ export interface ActivityFetchContext {
   /** Optional abort signal (e.g. TanStack Query cancellation). */
   signal?: AbortSignal
 }
+
+/** How many equal-time buckets the server averages a longer activity's samples into. */
+const STREAM_MAX_POINTS = 2000
 
 /** Builds the authenticated or public path for an activity sub-resource. */
 function resourcePath(authenticated: boolean, authedPath: string, publicPath: string): string {
@@ -147,40 +150,46 @@ export function mapActivity(dto: ActivityDto): Activity {
 }
 
 /**
- * Flattens the HR stream's `zone_percentages.hr` breakdown into ordered zone
- * buckets (zones 1–5). Returns `null` when the stream carries no breakdown.
+ * Flattens the `heart_rate_zones` breakdown into ordered zone buckets (zones 1–5). Returns `null`
+ * when the activity has no breakdown.
  *
- * @param zonePercentages - The stream's `zone_percentages` field.
+ * @param zones - The samples' `heart_rate_zones` field.
  * @returns Ordered zone buckets, or `null`.
  */
-function mapHrZones(zonePercentages: ActivityStreamDto['zone_percentages']): HrZoneBucket[] | null {
-  if (!zonePercentages) {
+function mapHrZones(zones: ActivitySamplesDto['heart_rate_zones']): HrZoneBucket[] | null {
+  if (!zones) {
     return null
   }
-  const { hr } = zonePercentages
-  return [hr.zone_1, hr.zone_2, hr.zone_3, hr.zone_4, hr.zone_5].map((entry, index) => ({
-    zone: index + 1,
-    percent: entry.percent,
-    hrRange: entry.hr,
-    timeSeconds: entry.time_seconds,
-  }))
+  return [zones.zone_1, zones.zone_2, zones.zone_3, zones.zone_4, zones.zone_5].map(
+    (entry, index) => ({
+      zone: index + 1,
+      percent: entry.percent,
+      hrRange: entry.hr,
+      timeSeconds: entry.time_seconds,
+    }),
+  )
 }
 
 /**
- * Maps a stream DTO to the domain model. The wire `stream_waypoints` are typed
- * per stream type; every shape fits the domain `StreamWaypoint`, whose keys are read
- * defensively downstream. The HR stream's zone percentages are decoded into
- * {@link HrZoneBucket}s.
+ * Maps the samples DTO to the domain model, renaming the channels and decoding the heart-rate
+ * zones into {@link HrZoneBucket}s.
  *
- * @param dto - The stream wire payload.
- * @returns The stream domain model.
+ * @param dto - The samples wire payload.
+ * @returns The streams domain model.
  */
-export function mapActivityStream(dto: ActivityStreamDto): ActivityStream {
+export function mapActivityStreams(dto: ActivitySamplesDto): ActivityStreams {
   return {
-    id: dto.id,
-    streamType: dto.stream_type,
-    waypoints: dto.stream_waypoints,
-    hrZones: mapHrZones(dto.zone_percentages),
+    offsetsMs: dto.offsets_ms,
+    latitude: dto.latitude,
+    longitude: dto.longitude,
+    elevation: dto.elevation,
+    heartRate: dto.heart_rate,
+    power: dto.power,
+    cadence: dto.cadence,
+    speed: dto.speed,
+    pace: dto.pace,
+    temperature: dto.temperature,
+    hrZones: mapHrZones(dto.heart_rate_zones),
   }
 }
 
@@ -540,23 +549,36 @@ export async function refreshActivities(signal?: AbortSignal): Promise<ActivityI
 }
 
 /**
- * Fetches all metric streams for an activity (auth or public endpoint).
+ * Fetches an activity's samples (auth or public endpoint) in one request. The server averages a
+ * longer activity into {@link STREAM_MAX_POINTS} equal-time buckets.
  *
  * @param id - Activity identifier.
  * @param context - Auth + cancellation context.
- * @returns The activity's streams.
+ * @returns The activity's streams, or `null` when it is missing or not readable.
+ * @throws {HttpError} When the request fails for any other reason.
  */
 export async function fetchActivityStreams(
   id: string,
   context: ActivityFetchContext,
-): Promise<ActivityStream[]> {
+): Promise<ActivityStreams | null> {
+  const query = `?max_points=${STREAM_MAX_POINTS}`
   const path = resourcePath(
     context.authenticated,
-    `/activities/${id}/streams`,
-    `/public/activities/${id}/streams`,
+    `/activities/${id}/streams${query}`,
+    `/public/activities/${id}/streams${query}`,
   )
-  const dtos = await fetchAllChildRows<ActivityStreamDto>(path, context)
-  return dtos.map(mapActivityStream)
+  try {
+    const dto = await apiFetch<ActivitySamplesDto>(path, {
+      auth: context.authenticated,
+      signal: context.signal,
+    })
+    return mapActivityStreams(dto)
+  } catch (error) {
+    if (isProblem(error, 'not-found')) {
+      return null
+    }
+    throw error
+  }
 }
 
 /**

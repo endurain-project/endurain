@@ -1,34 +1,6 @@
 import { afterEach, describe, expect, it } from 'vitest'
 
-import type { ActivityStream, ActivityStreamType, HrZoneBucket } from '@/features/activities/types'
-
-import { extractHrZones, hrZoneColor } from '@/features/activities/utils/hrZones'
-
-import { activityUuid } from './fixtures/activity'
-
-/** Builds a stream fixture carrying optional HR zones. */
-function stream(
-  streamType: ActivityStreamType,
-  hrZones: HrZoneBucket[] | null = null,
-): ActivityStream {
-  return { id: activityUuid(1), streamType, waypoints: [], hrZones }
-}
-
-const ZONES: HrZoneBucket[] = [
-  { zone: 1, percent: 25, hrRange: '< 100', timeSeconds: 900 },
-  { zone: 2, percent: 30, hrRange: '100 - 129', timeSeconds: 1200 },
-]
-
-describe('extractHrZones', () => {
-  it('returns the HR stream zones', () => {
-    expect(extractHrZones([stream('elevation'), stream('heart_rate', ZONES)])).toEqual(ZONES)
-  })
-
-  it('returns null when the HR stream lacks zones or is absent', () => {
-    expect(extractHrZones([stream('heart_rate', null)])).toBeNull()
-    expect(extractHrZones([stream('elevation')])).toBeNull()
-  })
-})
+import { hrZoneColor } from '@/features/activities/utils/hrZones'
 
 describe('hrZoneColor', () => {
   afterEach(() => {

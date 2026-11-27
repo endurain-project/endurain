@@ -97,96 +97,51 @@
           "total_work": null
         }
       ],
+      "samples": {
+        "channels": {
+          "heart_rate": {
+            "count": 60,
+            "max": 125,
+            "mean": 122.5,
+            "min": 120
+          },
+          "latitude": {
+            "count": 60,
+            "max": 38.700071,
+            "mean": 38.700001,
+            "min": 38.69993
+          },
+          "longitude": {
+            "count": 60,
+            "max": -9.099955,
+            "mean": -9.100002,
+            "min": -9.100043
+          },
+          "speed": {
+            "count": 60,
+            "max": 14.879266,
+            "mean": 6.876217,
+            "min": 0
+          }
+        },
+        "count": 60,
+        "first": {
+          "heart_rate": 120,
+          "latitude": 38.70001,
+          "longitude": -9.100022,
+          "offset_ms": 0,
+          "speed": 0
+        },
+        "last": {
+          "heart_rate": 125,
+          "latitude": 38.699963,
+          "longitude": -9.099959,
+          "offset_ms": 59000,
+          "speed": 10.869128
+        },
+        "sha256": "69d954c0c6d8d302245780461785855ee577c5db939a648296936b407fb4fc79"
+      },
       "sets": null,
-      "streams": [
-        {
-          "count": 60,
-          "fields": {
-            "hr": {
-              "max": 125,
-              "mean": 122.5,
-              "min": 120
-            }
-          },
-          "first": {
-            "hr": 120,
-            "time": "2026-06-20T08:00:00"
-          },
-          "last": {
-            "hr": 125,
-            "time": "2026-06-20T08:00:59"
-          },
-          "sha256": "03daea90ef9c359870999f3140bd5f5e372611353f9ef2e7f72340fd00911d84",
-          "stream_type": 1
-        },
-        {
-          "count": 60,
-          "fields": {
-            "vel": {
-              "max": 14.879266,
-              "mean": 6.876217,
-              "min": 0
-            }
-          },
-          "first": {
-            "time": "2026-06-20T08:00:00",
-            "vel": 0
-          },
-          "last": {
-            "time": "2026-06-20T08:00:59",
-            "vel": 10.869128
-          },
-          "sha256": "8156b8684812a25de76f171de598e05cbb3eca1b8493b022b7f72dbb844f1b64",
-          "stream_type": 5
-        },
-        {
-          "count": 59,
-          "fields": {
-            "pace": {
-              "max": 1.281647,
-              "mean": 0.232174,
-              "min": 0.067208
-            }
-          },
-          "first": {
-            "pace": 0.14416,
-            "time": "2026-06-20T08:00:01"
-          },
-          "last": {
-            "pace": 0.092004,
-            "time": "2026-06-20T08:00:59"
-          },
-          "sha256": "b7bcbcc7144eaf2429027c2a7789b62e0a816721533e516f24003fa37b0de396",
-          "stream_type": 6
-        },
-        {
-          "count": 60,
-          "fields": {
-            "lat": {
-              "max": 38.700071,
-              "mean": 38.700001,
-              "min": 38.69993
-            },
-            "lon": {
-              "max": -9.099955,
-              "mean": -9.100002,
-              "min": -9.100043
-            }
-          },
-          "first": {
-            "lat": 38.70001,
-            "lon": -9.100022,
-            "time": "2026-06-20T08:00:00"
-          },
-          "last": {
-            "lat": 38.699963,
-            "lon": -9.099959,
-            "time": "2026-06-20T08:00:59"
-          },
-          "sha256": "c8ce111dbba6bcf187d3dbf6379c6327c0eb2e0858959f4bfdd9ff3031b9e06d",
-          "stream_type": 7
-        }
-      ],
       "workout_steps": null
     }
   ],

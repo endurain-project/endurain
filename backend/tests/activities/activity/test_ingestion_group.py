@@ -43,7 +43,7 @@ def _group(user_id, *, hash_="abc", parent_fields=None, leg_fields=None):
         end_time=DEFAULT_START + timedelta(hours=1),
         activity_type=_Type.MULTISPORT.stored,
         name="Triathlon",
-        components={"streams": [], "laps": []},
+        components={"samples": None, "laps": []},
         **(parent_fields or {}),
     )
     return parent, legs

@@ -6,6 +6,8 @@ persistence layer. Visibility masking is an access decision and lives in
 :mod:`modules.activities.activity_streams.service`.
 """
 
+import modules.activities.activity_streams.constants as activity_streams_constants
+import modules.activities.activity_streams.contracts as activity_streams_contracts
 import modules.activities.activity_streams.models as activity_streams_models
 import modules.activities.activity_streams.schema as activity_streams_schema
 
@@ -36,3 +38,20 @@ def to_read_schemas(
         The activity streams as schemas.
     """
     return [to_read_schema(stream) for stream in activity_streams]
+
+
+def to_parsed_samples(
+    samples: activity_streams_models.ActivitySamples,
+) -> activity_streams_contracts.ParsedSamples:
+    """Transform a samples row to its contract.
+
+    Args:
+        samples: The samples ORM instance.
+
+    Returns:
+        The samples with their arrays copied out of the row.
+    """
+    return activity_streams_contracts.ParsedSamples(
+        offsets_ms=list(samples.offsets_ms),
+        **{name: getattr(samples, name) for name in activity_streams_constants.SAMPLE_CHANNELS},
+    )

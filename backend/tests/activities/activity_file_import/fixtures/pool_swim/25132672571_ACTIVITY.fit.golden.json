@@ -439,29 +439,27 @@
           "total_work": null
         }
       ],
+      "samples": {
+        "channels": {
+          "heart_rate": {
+            "count": 2201,
+            "max": 149,
+            "mean": 114.839618,
+            "min": 71
+          }
+        },
+        "count": 2201,
+        "first": {
+          "heart_rate": 71,
+          "offset_ms": 1000
+        },
+        "last": {
+          "heart_rate": 125,
+          "offset_ms": 2201000
+        },
+        "sha256": "ea96a9bd4c4af2cfaa74a4d093027673d107115574d0964f0533766ced557410"
+      },
       "sets": null,
-      "streams": [
-        {
-          "count": 2201,
-          "fields": {
-            "hr": {
-              "max": 149,
-              "mean": 114.839618,
-              "min": 71
-            }
-          },
-          "first": {
-            "hr": 71,
-            "time": "2026-11-17T17:48:55"
-          },
-          "last": {
-            "hr": 125,
-            "time": "2026-11-17T18:25:35"
-          },
-          "sha256": "1b38cea71053ae4c8c6e549fec10c06277a15c43f3ffef1de2a58dce7c430579",
-          "stream_type": 1
-        }
-      ],
       "workout_steps": null
     }
   ],

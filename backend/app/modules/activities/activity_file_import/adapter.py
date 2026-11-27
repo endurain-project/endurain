@@ -8,10 +8,7 @@ file, shaped like::
         "laps": [...] | None,
         "sets": [...] | None,
         "workout_steps": [...] | None,
-        "is_heart_rate_set": bool, "hr_waypoints": [...],
-        "is_power_set": bool, "power_waypoints": [...],
         "samples": <ParsedSamples> | None,
-        ...
     }
 
 This module converts that dict into a typed
@@ -21,69 +18,11 @@ the ingestion core receives :class:`ParsedActivity` objects and never sees the
 intermediate dict.
 """
 
-from collections.abc import Mapping, Sequence
-from typing import Any, Literal
-
 import core.logger as core_logger
 import modules.activities.activity.contracts as activity_contracts
 import modules.activities.activity_file_import.assembly as activity_file_import_assembly
-import modules.activities.activity_file_import.parser_utils as activity_file_import_parser_utils
-import modules.activities.activity_streams.constants as activity_streams_constants
-import modules.activities.activity_streams.contracts as activity_streams_contracts
 
 logger = core_logger.get_logger(__name__)
-
-#: A payload key naming whether a stream is set.
-type _StreamFlagKey = Literal[
-    "is_heart_rate_set",
-    "is_power_set",
-    "is_cadence_set",
-    "is_elevation_set",
-    "is_velocity_set",
-    "is_lat_lon_set",
-    "is_temperature_set",
-]
-
-#: A payload key holding a stream's waypoints.
-type _StreamWaypointsKey = Literal[
-    "hr_waypoints",
-    "power_waypoints",
-    "cad_waypoints",
-    "ele_waypoints",
-    "vel_waypoints",
-    "pace_waypoints",
-    "lat_lon_waypoints",
-    "temp_waypoints",
-]
-
-# stream_type -> (is-set flag key, waypoints key) in the parser output dict.
-# Mirrors the mapping the parsers populate. Stream types 5 and 6 both derive from
-# ``is_velocity_set`` (speed and pace share the velocity flag).
-_STREAM_MAPPING: dict[int, tuple[_StreamFlagKey, _StreamWaypointsKey]] = {
-    activity_streams_constants.STREAM_TYPE_HR: ("is_heart_rate_set", "hr_waypoints"),
-    activity_streams_constants.STREAM_TYPE_POWER: ("is_power_set", "power_waypoints"),
-    activity_streams_constants.STREAM_TYPE_CADENCE: ("is_cadence_set", "cad_waypoints"),
-    activity_streams_constants.STREAM_TYPE_ELEVATION: ("is_elevation_set", "ele_waypoints"),
-    activity_streams_constants.STREAM_TYPE_SPEED: ("is_velocity_set", "vel_waypoints"),
-    activity_streams_constants.STREAM_TYPE_PACE: ("is_velocity_set", "pace_waypoints"),
-    activity_streams_constants.STREAM_TYPE_MAP: ("is_lat_lon_set", "lat_lon_waypoints"),
-    activity_streams_constants.STREAM_TYPE_TEMPERATURE: ("is_temperature_set", "temp_waypoints"),
-}
-
-
-def _stream_waypoints(stream_type: int, waypoints: Sequence[Mapping[str, Any]]) -> Sequence[Mapping[str, Any]]:
-    """Return the waypoints to store, smoothing the elevation stream over time.
-
-    Args:
-        stream_type: Stream type of the waypoints.
-        waypoints: Raw parsed waypoints.
-
-    Returns:
-        Smoothed waypoints for the elevation stream, unchanged otherwise.
-    """
-    if stream_type == activity_streams_constants.STREAM_TYPE_ELEVATION:
-        return activity_file_import_parser_utils.smooth_elevation_waypoints(waypoints)
-    return waypoints
 
 
 def parsed_info_to_parsed_activity(
@@ -99,25 +38,14 @@ def parsed_info_to_parsed_activity(
         parsed_info: The payload ``assembly.assemble`` builds for one session.
 
     Returns:
-        The canonical parsed activity, with one
-        :class:`~modules.activities.activity_streams.contracts.ParsedStream` per
-        stream that the parser flagged as set, and the columnar samples assembly built, if any.
+        The canonical parsed activity, with the columnar samples assembly built, if any.
     """
-    streams = [
-        activity_streams_contracts.ParsedStream(
-            stream_type=stream_type,
-            stream_waypoints=_stream_waypoints(stream_type, parsed_info.get(waypoints_key, [])),
-        )
-        for stream_type, (is_set_key, waypoints_key) in _STREAM_MAPPING.items()
-        if parsed_info.get(is_set_key, False)
-    ]
-
+    samples = parsed_info.get("samples")
     laps = parsed_info.get("laps")
     sets = parsed_info.get("sets")
     workout_steps = parsed_info.get("workout_steps")
     components: dict[str, object] = {
-        "streams": streams,
-        "samples": parsed_info.get("samples"),
+        "samples": samples,
         "laps": laps,
         "sets": sets,
         "workout_steps": workout_steps,
@@ -131,9 +59,8 @@ def parsed_info_to_parsed_activity(
     logger.debug(
         "Adapted parser output into a ParsedActivity",
         extra=core_logger.context(
-            stream_types=[stream.stream_type for stream in streams],
             component_counts={
-                "streams": len(streams),
+                "samples": len(samples.offsets_ms) if samples else 0,
                 "laps": len(laps) if laps else 0,
                 "sets": len(sets) if sets else 0,
                 "workout_steps": len(workout_steps) if workout_steps else 0,

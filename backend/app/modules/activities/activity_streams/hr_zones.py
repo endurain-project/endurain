@@ -9,7 +9,8 @@ are computed.
 """
 
 import datetime
-from typing import Annotated, Any, TypedDict
+from collections.abc import Sequence
+from typing import Annotated, TypedDict
 
 import numpy as np
 from pydantic import Field
@@ -17,6 +18,8 @@ from pydantic import Field
 import core.timezone as core_timezone
 import modules.activities.computation as activities_computation
 
+#: The instant offsets are counted from; only the gaps between samples matter to the zones.
+_EPOCH = datetime.datetime(1970, 1, 1, tzinfo=datetime.UTC)
 _DEFAULT_MAX_HEART_RATE: int = 220
 _HR_ZONE_1_PERCENT: float = 0.6
 _HR_ZONE_2_PERCENT: float = 0.7
@@ -98,54 +101,36 @@ def _age_in_years(birthdate: datetime.date, timezone_name: str | None) -> int:
     return today.year - birthdate.year - (0 if had_birthday else 1)
 
 
-def _instant(value: Any) -> datetime.datetime | None:
-    """Read a waypoint's ``time`` as an instant.
-
-    Args:
-        value: A UTC ``YYYY-MM-DDTHH:MM:SS`` string, or seconds from the start for a stream imported from Strava.
-
-    Returns:
-        The instant as an aware UTC datetime, or None when the waypoint has no usable time.
-    """
-    if isinstance(value, str):
-        try:
-            parsed = datetime.datetime.fromisoformat(value)
-        except ValueError:
-            return None
-        return parsed if parsed.tzinfo else parsed.replace(tzinfo=datetime.UTC)
-    if isinstance(value, int | float) and not isinstance(value, bool):
-        return datetime.datetime.fromtimestamp(value, datetime.UTC)
-    return None
-
-
 def compute_hr_zone_breakdown_sync(
-    waypoints: list[dict[str, Any]],
+    offsets_ms: Sequence[int],
+    heart_rate: Sequence[float | None],
     max_heart_rate: int,
 ) -> HrZoneBreakdown | None:
-    """Compute the time spent in each heart-rate zone of a heart-rate stream.
+    """Compute the time spent in each heart-rate zone of an activity's samples.
 
-    Each sample holds its heart rate until the next sample, capped at the stream's pause threshold, so a smart
-    recording that stores a value for ten seconds counts ten seconds, and a pause adds no more than the threshold.
-    Samples sharing a second share it. A heart rate of 0 is a dropout: it is left out together with its time, as is a
-    sample without a heart rate or a usable time.
+    Each sample holds its heart rate until the next sample, capped at the pause threshold of the heart-rate samples,
+    so a smart recording that stores a value for ten seconds counts ten seconds, and a pause adds no more than the
+    threshold.
+    Samples sharing an instant share it. A heart rate of 0 is a dropout: it is left out together with its time, as is
+    a sample without a heart rate.
 
     Args:
-        waypoints: The stored heart-rate stream: JSON samples with a "time" and an "hr".
-        max_heart_rate: The user's max heart rate.
+        offsets_ms: Each sample's time, in milliseconds from the activity start.
+        heart_rate: Each sample's heart rate in bpm, ``None`` where it has none; aligned with ``offsets_ms``.
+        max_heart_rate: The user's max heart rate, in bpm.
 
     Returns:
         A dict of zone_1..zone_5 entries, or None when no zone holds any time (no heart rate, a single instant).
     """
-    if not waypoints or not isinstance(waypoints, list):
+    measured = [(offset, hr) for offset, hr in zip(offsets_ms, heart_rate, strict=True) if hr is not None]
+    # The heart rate's own sampling sets the threshold, not the samples of the other channels in between.
+    threshold = activities_computation.pause_threshold_seconds(
+        [_EPOCH + datetime.timedelta(milliseconds=offset) for offset, _ in measured]
+    )
+    kept = [(offset / 1000, hr) for offset, hr in measured if hr]
+    if not kept:
         return None
-
-    timed = [(instant, waypoint.get("hr")) for waypoint in waypoints if (instant := _instant(waypoint.get("time")))]
-    if not timed:
-        return None
-    origin = timed[0][0]
-    threshold = activities_computation.pause_threshold_seconds([instant for instant, _ in timed])
-    kept = [(instant, hr) for instant, hr in timed if hr]
-    held = activities_computation.held_seconds([(instant - origin).total_seconds() for instant, _ in kept], threshold)
+    held = activities_computation.held_seconds([seconds for seconds, _ in kept], threshold)
     total = float(held.sum())
     if total == 0.0:
         return None

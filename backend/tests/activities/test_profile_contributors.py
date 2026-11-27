@@ -6,6 +6,7 @@ from copy import deepcopy
 from typing import Any
 
 import pytest
+from pydantic import ValidationError
 from sqlalchemy.orm import Session
 
 import modules.activities.activity.schema as activity_schema
@@ -41,8 +42,9 @@ def _stored_sets(db: Session, activity_id: uuid.UUID) -> list[Any]:
     return activity_sets_crud.get_activity_sets(activity_id, db)
 
 
-def _stored_streams(db: Session, activity_id: uuid.UUID) -> list[Any]:
-    return activity_streams_crud.get_activity_streams(activity_id, db)
+def _stored_samples(db: Session, activity_id: uuid.UUID) -> list[Any]:
+    samples = activity_streams_crud.get_activity_samples(activity_id, db)
+    return [] if samples is None else [samples]
 
 
 def _stored_workout_steps(db: Session, activity_id: uuid.UUID) -> list[Any]:
@@ -69,17 +71,6 @@ def _stored_workout_steps(db: Session, activity_id: uuid.UUID) -> list[Any]:
                 "start_time": "2024-01-01T00:00:00Z",
             },
             id="sets",
-        ),
-        pytest.param(
-            activity_streams_integration,
-            _stored_streams,
-            {
-                "id": str(uuid.UUID(int=13)),
-                "activity_id": str(_OLD_ID),
-                "stream_type": 1,
-                "stream_waypoints": [{"hr": 140}],
-            },
-            id="streams",
         ),
         pytest.param(
             activity_workout_steps_integration,
@@ -116,6 +107,70 @@ def test_activity_profile_contributor_filters_copies_and_rekeys(
     # The record exported under another activity went nowhere, not onto the new one and not onto the old id.
     assert read_rows(db, _OLD_ID) == []
     assert read_rows(db, _OTHER_ID) == []
+
+
+def test_samples_profile_contributor_restores_only_its_activitys_record_onto_the_new_activity(db: Session) -> None:
+    """The samples record exported under the old activity is stored for the new one; another activity's goes nowhere."""
+    record = {"activity_id": str(_OLD_ID), "offsets_ms": [0, 1000], "heart_rate": [140.0, None]}
+    source_records = [record, {**record, "activity_id": str(_OTHER_ID)}]
+    original_records = deepcopy(source_records)
+    activity = _new_activity(db)
+
+    restored = activity_streams_integration.profile_contributor().restore(source_records, _OLD_ID, activity, db)
+    db.flush()
+
+    assert restored == 1
+    assert source_records == original_records
+    ((samples),) = _stored_samples(db, activity.id)
+    assert (samples.offsets_ms, samples.heart_rate, samples.power) == ([0, 1000], [140.0, None], None)
+    assert _stored_samples(db, _OLD_ID) == _stored_samples(db, _OTHER_ID) == []
+
+
+def test_samples_profile_contributor_refuses_a_channel_that_does_not_match_the_timeline(db: Session) -> None:
+    record = {"activity_id": str(_OLD_ID), "offsets_ms": [0, 1000], "heart_rate": [140.0]}
+
+    with pytest.raises(ValidationError):
+        activity_streams_integration.profile_contributor().restore([record], _OLD_ID, _new_activity(db), db)
+
+
+def test_legacy_profile_contributor_restores_old_stream_records_as_samples_from_the_restored_start(db: Session) -> None:
+    """A v0.21 archive carries one record per stream type; they become one samples row on the new activity."""
+    activity = _new_activity(db)
+    start = activity.start_time.strftime("%Y-%m-%dT%H:%M")
+    records = [
+        {
+            "id": str(uuid.UUID(int=13)),
+            "activity_id": str(_OLD_ID),
+            "stream_type": 1,
+            "stream_waypoints": [{"time": f"{start}:00", "hr": 140}, {"time": f"{start}:02", "hr": 150}],
+            "zone_percentages": None,
+        },
+        {
+            "id": str(uuid.UUID(int=14)),
+            "activity_id": str(_OLD_ID),
+            "stream_type": 5,
+            "stream_waypoints": [{"time": f"{start}:01", "vel": 3.0}],
+        },
+        {"id": str(uuid.UUID(int=15)), "activity_id": str(_OTHER_ID), "stream_type": 2, "stream_waypoints": []},
+    ]
+
+    restored = activity_streams_integration.legacy_profile_contributor().restore(records, _OLD_ID, activity, db)
+    db.flush()
+
+    assert restored == 2
+    ((samples),) = _stored_samples(db, activity.id)
+    assert samples.offsets_ms == [0, 1000, 2000]
+    assert (samples.heart_rate, samples.speed) == ([140.0, None, 150.0], [None, 3.0, None])
+    assert activity_streams_crud.get_activity_streams(activity.id, db) == []
+
+
+def test_the_legacy_contributor_only_restores_and_the_samples_one_exports() -> None:
+    legacy = activity_streams_integration.legacy_profile_contributor()
+    current = activity_streams_integration.profile_contributor()
+
+    assert legacy.export is None
+    assert current.export is not None
+    assert (legacy.archive_path, current.archive_path) == ("data/activity_streams.json", "data/activity_samples.json")
 
 
 def test_media_profile_contributor_rekeys_without_mutating_source(db: Session) -> None:

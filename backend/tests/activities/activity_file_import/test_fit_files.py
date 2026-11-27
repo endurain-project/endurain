@@ -547,7 +547,7 @@ class TestSessionSummaryFallbacks:
         activity = payload["activity"]
         assert (activity.average_hr, activity.max_hr) == (120, 150)
         # The zeros are dropouts, so the stream has no heart rate while the device's summary stays.
-        assert payload["hr_waypoints"] == []
+        assert assembled.values(payload, "heart_rate") == []
 
     def test_heart_rate_zeros_do_not_count_in_the_average_computed_from_the_records(self, tmp_path):
         records = [_record(10 * i, (3, _UINT8, hr)) for i, hr in enumerate([0, 100, 140, 140, 0])]
@@ -657,9 +657,9 @@ class TestSplittingSessions:
 
         payload = _payload(tmp_path, _record(0, *position), _session())
 
-        first = payload["lat_lon_waypoints"][0]
-        assert first["lat"] == pytest.approx(40, abs=1e-6)
-        assert first["lon"] == pytest.approx(-3, abs=1e-6)
+        first = assembled.positions(payload)[0]
+        assert first[0] == pytest.approx(40, abs=1e-6)
+        assert first[1] == pytest.approx(-3, abs=1e-6)
 
     @staticmethod
     def _two_sessions() -> list[bytes]:
@@ -690,21 +690,21 @@ class TestSplittingSessions:
     def test_every_stream_is_cut_to_its_sessions_time_range(self, tmp_path):
         first, second = _assemble(tmp_path, *self._two_sessions())
 
-        for stream in ("lat_lon_waypoints", "ele_waypoints", "hr_waypoints", "cad_waypoints", "power_waypoints"):
-            assert [waypoint["time"] for waypoint in first[stream]] == [
-                "2026-06-20T08:00:00",
-                "2026-06-20T08:00:10",
-            ]
-            assert [waypoint["time"] for waypoint in second[stream]] == ["2026-06-20T09:00:00"]
-        assert [waypoint["temp"] for waypoint in first["temp_waypoints"]] == [21, 21]
-        assert second["is_temperature_set"] is True
+        for channel in ("latitude", "elevation", "heart_rate", "cadence", "power"):
+            assert assembled.has(first, channel)
+            assert len(assembled.values(first, channel)) == 2
+            assert len(assembled.values(second, channel)) == 1
+        # Each session's samples count from its own start.
+        assert (first["samples"].offsets_ms, second["samples"].offsets_ms) == ([0, 10_000], [0])
+        assert assembled.values(first, "temperature") == [21, 21]
+        assert assembled.has(second, "temperature")
 
     def test_a_record_after_the_sessions_end_belongs_to_no_session(self, tmp_path):
         records = [_record(0, (3, _UINT8, 100)), _record(20, (3, _UINT8, 105)), _record(30, (3, _UINT8, 110))]
 
         payload = _payload(tmp_path, *records, _session(20))
 
-        assert [waypoint["hr"] for waypoint in payload["hr_waypoints"]] == [100, 105]
+        assert assembled.values(payload, "heart_rate") == [100, 105]
 
     def test_a_record_before_the_first_session_starts_belongs_to_no_session(self, tmp_path):
         later = fit_files.raw_message(
@@ -715,7 +715,8 @@ class TestSplittingSessions:
 
         payload = _payload(tmp_path, _record(0, (3, _UINT8, 100)), _record(55, (3, _UINT8, 120)), later)
 
-        assert [waypoint["time"] for waypoint in payload["hr_waypoints"]] == ["2026-06-20T08:00:55"]
+        assert assembled.values(payload, "heart_rate") == [120]
+        assert payload["samples"].offsets_ms == [5_000]
 
 
 class TestRecordEncodings:
@@ -727,22 +728,20 @@ class TestRecordEncodings:
             _RECORD, [(3, _UINT8, 120)], local_type=1, with_definition=False, time_offset=(base + 30) & 31
         )
 
-        readings = _payload(tmp_path, full, second, third, _session())["hr_waypoints"]
+        payload = _payload(tmp_path, full, second, third, _session())
 
-        assert readings == [
-            {"time": "2026-06-20T08:00:00", "hr": 100},
-            {"time": "2026-06-20T08:00:05", "hr": 110},
-            {"time": "2026-06-20T08:00:30", "hr": 120},
-        ]
+        assert payload["samples"].offsets_ms == [0, 5_000, 30_000]
+        assert assembled.values(payload, "heart_rate") == [100, 110, 120]
 
     def test_a_compressed_timestamp_offset_that_wrapped_carries_into_the_next_block(self, tmp_path):
         base = (_fit_time(_T0) & ~31) | 28
         full = fit_files.raw_message(_RECORD, [(253, _UINT32, base), (3, _UINT8, 100)])
         wrapped = fit_files.raw_message(_RECORD, [(3, _UINT8, 110)], local_type=1, time_offset=(base + 6) & 31)
 
-        first, second = _payload(tmp_path, full, wrapped, _session())["hr_waypoints"]
+        payload = _payload(tmp_path, full, wrapped, _session())
 
-        assert datetime.fromisoformat(second["time"]) - datetime.fromisoformat(first["time"]) == timedelta(seconds=6)
+        first, second = payload["samples"].offsets_ms
+        assert second - first == 6_000
 
     def test_a_big_endian_file_decodes_like_a_little_endian_one(self, tmp_path):
         record = fit_files.raw_message(
@@ -760,12 +759,11 @@ class TestRecordEncodings:
 
         payload = _payload(tmp_path, record, _session(60))
 
-        time = "2026-06-20T08:01:00"
-        assert payload["hr_waypoints"] == [{"time": time, "hr": 90}]
-        assert payload["power_waypoints"] == [{"time": time, "power": 250}]
-        assert payload["ele_waypoints"] == [{"time": time, "ele": 300.0}]
-        [position] = payload["lat_lon_waypoints"]
-        assert (position["lat"], position["lon"]) == (pytest.approx(40, abs=1e-6), pytest.approx(-3, abs=1e-6))
+        assert assembled.values(payload, "heart_rate") == [90]
+        assert assembled.values(payload, "power") == [250]
+        assert assembled.values(payload, "elevation") == [300.0]
+        [position] = assembled.positions(payload)
+        assert position == (pytest.approx(40, abs=1e-6), pytest.approx(-3, abs=1e-6))
 
     def test_a_field_holding_its_invalid_value_is_absent_and_not_a_reading(self, tmp_path):
         record = _record(
@@ -781,24 +779,17 @@ class TestRecordEncodings:
 
         payload = _payload(tmp_path, record, _session())
 
-        assert payload["hr_waypoints"] == payload["power_waypoints"] == payload["ele_waypoints"] == []
-        assert payload["lat_lon_waypoints"] == payload["temp_waypoints"] == payload["cad_waypoints"] == []
+        assert payload["samples"] is None
         assert not any(
-            (
-                payload["is_heart_rate_set"],
-                payload["is_power_set"],
-                payload["is_elevation_set"],
-                payload["is_lat_lon_set"],
-                payload["is_temperature_set"],
-                payload["is_cadence_set"],
-            )
+            assembled.has(payload, channel)
+            for channel in ("heart_rate", "power", "elevation", "latitude", "temperature", "cadence")
         )
 
     def test_the_plain_altitude_field_gives_the_elevation_too(self, tmp_path):
         payload = _payload(tmp_path, _record(0, (2, _UINT16, (300 + 500) * 5)), _session())
 
-        assert payload["ele_waypoints"] == [{"time": "2026-06-20T08:00:00", "ele": 300.0}]
-        assert payload["is_elevation_set"] is True
+        assert assembled.values(payload, "elevation") == [300.0]
+        assert payload["samples"].offsets_ms == [0]
 
     def test_a_developer_field_leaves_the_standard_fields_decoded(self, tmp_path):
         developer_id = fit_files.raw_message(_DEVELOPER_DATA_ID, [(3, _UINT8, 0)], local_type=4)
@@ -817,7 +808,7 @@ class TestRecordEncodings:
         payloads = _assemble(tmp_path, developer_id, description, record, _session())
 
         assert len(payloads) == 1
-        assert payloads[0]["hr_waypoints"] == [{"time": "2026-06-20T08:00:00", "hr": 100}]
+        assert assembled.values(payloads[0], "heart_rate") == [100]
 
     def test_the_speed_of_a_moving_track_is_derived_from_the_positions(self, tmp_path):
         records = [
@@ -829,30 +820,30 @@ class TestRecordEncodings:
 
         # The first fix has nothing to measure against and keeps a 0 placeholder; 0.0001 degrees of latitude are about
         # 11.1 m, covered each second after it.
-        assert [waypoint["vel"] for waypoint in payload["vel_waypoints"]] == [
+        assert assembled.values(payload, "speed") == [
             0,
             pytest.approx(11.1, abs=0.1),
             pytest.approx(11.1, abs=0.1),
         ]
-        assert [waypoint["pace"] for waypoint in payload["pace_waypoints"]] == [
+        assert assembled.pace(payload) == [
             pytest.approx(1 / 11.1, abs=0.001),
             pytest.approx(1 / 11.1, abs=0.001),
         ]
-        assert payload["is_velocity_set"] is True
+        assert assembled.has(payload, "speed")
 
     def test_a_track_without_positions_or_device_speed_has_no_speed_stream(self, tmp_path):
         payload = _payload(tmp_path, _record(0, (3, _UINT8, 100)), _record(1, (3, _UINT8, 101)), _session())
 
-        assert payload["vel_waypoints"] == payload["pace_waypoints"] == []
-        assert payload["is_velocity_set"] is False
+        assert assembled.values(payload, "speed") == assembled.pace(payload) == []
+        assert not assembled.has(payload, "speed")
 
     def test_the_device_speed_channel_is_the_speed_stream_and_zero_speed_has_no_pace(self, tmp_path):
         records = [_record(0, (6, _UINT16, 0)), _record(1, (6, _UINT16, 2_000))]
 
         payload = _payload(tmp_path, *records, _session())
 
-        assert [waypoint["vel"] for waypoint in payload["vel_waypoints"]] == [0, 2.0]
-        assert [waypoint["pace"] for waypoint in payload["pace_waypoints"]] == [0.5]
+        assert assembled.values(payload, "speed") == [0, 2.0]
+        assert assembled.pace(payload) == [0.5]
 
 
 class TestDamagedFiles:

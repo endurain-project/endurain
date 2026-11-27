@@ -13,7 +13,6 @@ from geopy.distance import geodesic
 import modules.activities.computation as activities_computation
 from modules.activities.computation import (
     calculate_pace_from_duration,
-    double_cadence_waypoints,
     double_running_cadence,
     normalized_power,
     time_weighted_mean,
@@ -45,15 +44,6 @@ class TestRunningCadenceNormalization:
         assert double_running_cadence(90) == 180
         assert double_running_cadence(85, None) == 170
         assert double_running_cadence(None) is None
-
-    def test_double_cadence_waypoints_keeps_none_samples(self):
-        waypoints = [{"time": "t0", "cad": 85}, {"time": "t1", "cad": None}, {"time": "t2", "cad": 87.4}]
-
-        assert double_cadence_waypoints(waypoints) == [
-            {"time": "t0", "cad": 170},
-            {"time": "t1", "cad": None},
-            {"time": "t2", "cad": 175},
-        ]
 
 
 class TestPauseThresholdSeconds:

@@ -297,7 +297,7 @@ def _stage(
         ``True`` when staged, ``False`` when an activity no longer exists.
     """
     activity_ids = [item.activity_id for item in work]
-    routes_before = activity_streams_integration.get_route_waypoints_for_activities(activity_ids, db)
+    routes_before = activity_streams_integration.get_routes_for_reprocess(activity_ids, db)
     for item in work:
         activity = activity_integration.get_activity(item.activity_id, db)
         if activity is None or not activity_integration.apply_reprocessed_analysis(
@@ -310,7 +310,7 @@ def _stage(
             contributor.persist(data, activity, db)
     for file_contributor, data in file_work:
         file_contributor.persist(data, db)
-    routes_after = activity_streams_integration.get_route_waypoints_for_activities(activity_ids, db)
+    routes_after = activity_streams_integration.get_routes_for_reprocess(activity_ids, db)
     for activity_id in activity_ids:
         if routes_before.get(activity_id) == routes_after.get(activity_id):
             continue

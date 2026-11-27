@@ -2,13 +2,15 @@
 
 Moved from ``tests/activities/activity/test_utils.py`` when ``parse_activity_streams_from_file``
 was replaced by :func:`~modules.activities.activity_file_import.adapter.parsed_info_to_parsed_activity`.
-The adapter builds ``ParsedStream`` objects (without an ``activity_id`` — that is assigned
-later by ``ingestion_service.store_parsed_activity``).
+The adapter hands the samples assembly built over as the ``samples`` component; the activity id is assigned
+later by ``ingestion_service.store_parsed_activity``.
 """
 
 import uuid
 
 import modules.activities.activity.schema as activity_schema
+import modules.activities.activity_streams.contracts as activity_streams_contracts
+from modules.activities.activity_file_import.adapter import parsed_info_to_parsed_activity
 
 
 def _activity() -> activity_schema.ActivityRead:
@@ -19,69 +21,20 @@ def _activity() -> activity_schema.ActivityRead:
 
 
 class TestParsedInfoToParsedActivity:
-    def test_parse_streams_hr_set(self):
-        from modules.activities.activity_file_import.adapter import parsed_info_to_parsed_activity
+    def test_the_samples_are_the_samples_component_and_no_old_streams_are_built(self):
+        samples = activity_streams_contracts.ParsedSamples(offsets_ms=[0, 1000], heart_rate=[145.0, 146.0])
 
-        parsed_info = {
-            "activity": _activity(),
-            "is_heart_rate_set": True,
-            "hr_waypoints": [{"time": "2024-01-15T08:00:00", "hr": 145}],
-            "is_power_set": False,
-            "is_cadence_set": False,
-            "is_elevation_set": False,
-            "is_velocity_set": False,
-            "is_lat_lon_set": False,
-            "is_temperature_set": False,
-        }
+        result = parsed_info_to_parsed_activity({"activity": _activity(), "samples": samples})
 
-        result = parsed_info_to_parsed_activity(parsed_info).components["streams"]
+        assert result.components["samples"] is samples
+        assert "streams" not in result.components
 
-        assert len(result) == 1
-        assert result[0].stream_type == 1
-        assert result[0].stream_waypoints == [{"time": "2024-01-15T08:00:00", "hr": 145}]
+    def test_a_session_without_samples_has_none(self):
+        result = parsed_info_to_parsed_activity({"activity": _activity(), "samples": None})
 
-    def test_parse_streams_multiple(self):
-        from modules.activities.activity_file_import.adapter import parsed_info_to_parsed_activity
-
-        parsed_info = {
-            "activity": _activity(),
-            "is_heart_rate_set": True,
-            "hr_waypoints": [{"hr": 145}],
-            "is_power_set": True,
-            "power_waypoints": [{"power": 200}],
-            "is_cadence_set": False,
-            "is_elevation_set": False,
-            "is_velocity_set": False,
-            "is_lat_lon_set": True,
-            "lat_lon_waypoints": [{"lat": 38.0, "lon": -9.0}],
-            "is_temperature_set": False,
-        }
-
-        result = parsed_info_to_parsed_activity(parsed_info).components["streams"]
-
-        assert len(result) == 3
-
-    def test_parse_streams_no_streams(self):
-        from modules.activities.activity_file_import.adapter import parsed_info_to_parsed_activity
-
-        parsed_info = {
-            "activity": _activity(),
-            "is_heart_rate_set": False,
-            "is_power_set": False,
-            "is_cadence_set": False,
-            "is_elevation_set": False,
-            "is_velocity_set": False,
-            "is_lat_lon_set": False,
-            "is_temperature_set": False,
-        }
-
-        result = parsed_info_to_parsed_activity(parsed_info).components["streams"]
-
-        assert len(result) == 0
+        assert result.components["samples"] is None
 
     def test_carries_activity_and_children(self):
-        from modules.activities.activity_file_import.adapter import parsed_info_to_parsed_activity
-
         activity = _activity()
         parsed_info = {
             "activity": activity,
@@ -94,7 +47,6 @@ class TestParsedInfoToParsedActivity:
 
         assert result.activity is activity
         assert result.components == {
-            "streams": [],
             "samples": None,
             "laps": [{"lap": 1}],
             "sets": [{"set": 1}],

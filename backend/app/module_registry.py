@@ -569,7 +569,6 @@ def configure_activity_contributors() -> None:
     for ingestion_contributor in (
         activity_laps_integration.ingestion_contributor(),
         activity_sets_integration.ingestion_contributor(),
-        activity_streams_integration.ingestion_contributor(),
         activity_streams_integration.samples_ingestion_contributor(),
         activity_workout_steps_integration.ingestion_contributor(),
     ):
@@ -581,6 +580,7 @@ def configure_activity_contributors() -> None:
         activity_laps_integration.profile_contributor(),
         activity_sets_integration.profile_contributor(),
         activity_streams_integration.profile_contributor(),
+        activity_streams_integration.legacy_profile_contributor(),
         activity_workout_steps_integration.profile_contributor(),
         activity_media_integration.profile_contributor(),
     ):

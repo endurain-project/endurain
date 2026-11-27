@@ -97,136 +97,65 @@
           "total_work": null
         }
       ],
+      "samples": {
+        "channels": {
+          "cadence": {
+            "count": 350,
+            "max": 41.0,
+            "mean": 33.414286,
+            "min": 0.0
+          },
+          "heart_rate": {
+            "count": 350,
+            "max": 148,
+            "mean": 132.171429,
+            "min": 95
+          },
+          "latitude": {
+            "count": 349,
+            "max": 38.510287,
+            "mean": 38.509894,
+            "min": 38.508796
+          },
+          "longitude": {
+            "count": 349,
+            "max": -9.174084,
+            "mean": -9.175301,
+            "min": -9.176092
+          },
+          "speed": {
+            "count": 350,
+            "max": 1.577,
+            "mean": 0.923943,
+            "min": 0.0
+          },
+          "temperature": {
+            "count": 350,
+            "max": 32.0,
+            "mean": 20.771429,
+            "min": 17.0
+          }
+        },
+        "count": 350,
+        "first": {
+          "cadence": 0.0,
+          "heart_rate": 98,
+          "offset_ms": 0,
+          "speed": 0.0,
+          "temperature": 32.0
+        },
+        "last": {
+          "cadence": 33.0,
+          "heart_rate": 144,
+          "latitude": 38.509813,
+          "longitude": -9.174084,
+          "offset_ms": 349000,
+          "speed": 0.801,
+          "temperature": 17.0
+        },
+        "sha256": "a696ecc2b2b5c8dad1fcb3bd3c7929e39b9e4a79d2b28dfc9a0168f9d25abd45"
+      },
       "sets": null,
-      "streams": [
-        {
-          "count": 350,
-          "fields": {
-            "hr": {
-              "max": 148,
-              "mean": 132.171429,
-              "min": 95
-            }
-          },
-          "first": {
-            "hr": 98,
-            "time": "2026-10-25T12:04:15"
-          },
-          "last": {
-            "hr": 144,
-            "time": "2026-10-25T12:10:04"
-          },
-          "sha256": "7d6e51aea69dd1379e482709e8ae07f8041ea97a820c6dd786178d24854ec471",
-          "stream_type": 1
-        },
-        {
-          "count": 350,
-          "fields": {
-            "cad": {
-              "max": 41,
-              "mean": 33.414286,
-              "min": 0
-            }
-          },
-          "first": {
-            "cad": 0,
-            "time": "2026-10-25T12:04:15"
-          },
-          "last": {
-            "cad": 33,
-            "time": "2026-10-25T12:10:04"
-          },
-          "sha256": "3ca60f65f4fe6578df46ceb4120c359dc5dc02de74adbbdba35fe9b61f4a38f9",
-          "stream_type": 3
-        },
-        {
-          "count": 350,
-          "fields": {
-            "vel": {
-              "max": 1.577,
-              "mean": 0.923943,
-              "min": 0.0
-            }
-          },
-          "first": {
-            "time": "2026-10-25T12:04:15",
-            "vel": 0.0
-          },
-          "last": {
-            "time": "2026-10-25T12:10:04",
-            "vel": 0.801
-          },
-          "sha256": "b350c2bd00f451be4f5c3c26afebe86f061a5aa683dd2d9ffc19bd36351cac7c",
-          "stream_type": 5
-        },
-        {
-          "count": 349,
-          "fields": {
-            "pace": {
-              "max": 1.612903,
-              "mean": 1.128276,
-              "min": 0.634115
-            }
-          },
-          "first": {
-            "pace": 1.612903,
-            "time": "2026-10-25T12:04:16"
-          },
-          "last": {
-            "pace": 1.248439,
-            "time": "2026-10-25T12:10:04"
-          },
-          "sha256": "5cf107bae7d6d24405415c5a0b68b1ccd6c2ad0152409ecd67e9b9683ea8aaac",
-          "stream_type": 6
-        },
-        {
-          "count": 349,
-          "fields": {
-            "lat": {
-              "max": 38.510287,
-              "mean": 38.509894,
-              "min": 38.508796
-            },
-            "lon": {
-              "max": -9.174084,
-              "mean": -9.175301,
-              "min": -9.176092
-            }
-          },
-          "first": {
-            "lat": 38.508796,
-            "lon": -9.176007,
-            "time": "2026-10-25T12:04:16"
-          },
-          "last": {
-            "lat": 38.509813,
-            "lon": -9.174084,
-            "time": "2026-10-25T12:10:04"
-          },
-          "sha256": "12ad54504dc5221161e66101e10a801de9e769467afdc53b3b85494a9c6cf83c",
-          "stream_type": 7
-        },
-        {
-          "count": 350,
-          "fields": {
-            "temp": {
-              "max": 32,
-              "mean": 20.771429,
-              "min": 17
-            }
-          },
-          "first": {
-            "temp": 32,
-            "time": "2026-10-25T12:04:15"
-          },
-          "last": {
-            "temp": 17,
-            "time": "2026-10-25T12:10:04"
-          },
-          "sha256": "8035dae13857d45985bc204a63ada151dd39af35337cd19e9852137c5bcc2957",
-          "stream_type": 8
-        }
-      ],
       "workout_steps": null
     },
     {
@@ -326,156 +255,74 @@
           "total_work": null
         }
       ],
+      "samples": {
+        "channels": {
+          "cadence": {
+            "count": 93,
+            "max": 97.0,
+            "mean": 43.215054,
+            "min": 0.0
+          },
+          "elevation": {
+            "count": 82,
+            "max": 17.133333,
+            "mean": 11.544863,
+            "min": 1.25
+          },
+          "heart_rate": {
+            "count": 93,
+            "max": 159,
+            "mean": 132.591398,
+            "min": 68
+          },
+          "latitude": {
+            "count": 93,
+            "max": 38.509806,
+            "mean": 38.509061,
+            "min": 38.508432
+          },
+          "longitude": {
+            "count": 93,
+            "max": -9.172906,
+            "mean": -9.173878,
+            "min": -9.1753
+          },
+          "speed": {
+            "count": 92,
+            "max": 3.21,
+            "mean": 1.725087,
+            "min": 0.0
+          },
+          "temperature": {
+            "count": 93,
+            "max": 19.0,
+            "mean": 18.419355,
+            "min": 17.0
+          }
+        },
+        "count": 93,
+        "first": {
+          "cadence": 33.0,
+          "heart_rate": 144,
+          "latitude": 38.509806,
+          "longitude": -9.174066,
+          "offset_ms": 0,
+          "speed": 0.839,
+          "temperature": 17.0
+        },
+        "last": {
+          "cadence": 0.0,
+          "elevation": 13.2,
+          "heart_rate": 132,
+          "latitude": 38.508432,
+          "longitude": -9.1753,
+          "offset_ms": 227000,
+          "speed": 2.501,
+          "temperature": 19.0
+        },
+        "sha256": "56c5de6126f501604e97f6213eb4f5d35ccce36ba8c1ce8f8aa53305bfb8c1db"
+      },
       "sets": null,
-      "streams": [
-        {
-          "count": 93,
-          "fields": {
-            "hr": {
-              "max": 159,
-              "mean": 132.591398,
-              "min": 68
-            }
-          },
-          "first": {
-            "hr": 144,
-            "time": "2026-10-25T12:10:05"
-          },
-          "last": {
-            "hr": 132,
-            "time": "2026-10-25T12:13:52"
-          },
-          "sha256": "0b47d8dc526f70a7a888bb7f2a398fc84277df09058bd4cb48bc8c308f8fffb2",
-          "stream_type": 1
-        },
-        {
-          "count": 93,
-          "fields": {
-            "cad": {
-              "max": 97,
-              "mean": 43.215054,
-              "min": 0
-            }
-          },
-          "first": {
-            "cad": 33,
-            "time": "2026-10-25T12:10:05"
-          },
-          "last": {
-            "cad": 0,
-            "time": "2026-10-25T12:13:52"
-          },
-          "sha256": "7856c3649e0028d75a2dd8f34468fb1a29a935170e71339e1492a7427f25954b",
-          "stream_type": 3
-        },
-        {
-          "count": 82,
-          "fields": {
-            "ele": {
-              "max": 17.133333,
-              "mean": 11.544863,
-              "min": 1.25
-            }
-          },
-          "first": {
-            "ele": 1.3,
-            "time": "2026-10-25T12:10:16"
-          },
-          "last": {
-            "ele": 13.2,
-            "time": "2026-10-25T12:13:52"
-          },
-          "sha256": "2c01e2b10f918ff732a7ab3c96d9239207bc29b65fa349d6aa0491be9be72169",
-          "stream_type": 4
-        },
-        {
-          "count": 92,
-          "fields": {
-            "vel": {
-              "max": 3.21,
-              "mean": 1.725087,
-              "min": 0.0
-            }
-          },
-          "first": {
-            "time": "2026-10-25T12:10:05",
-            "vel": 0.839
-          },
-          "last": {
-            "time": "2026-10-25T12:13:52",
-            "vel": 2.501
-          },
-          "sha256": "a8571740e066078c1f32eedf564a91b411c523bf7ce48d0b884f8a676dd98e47",
-          "stream_type": 5
-        },
-        {
-          "count": 73,
-          "fields": {
-            "pace": {
-              "max": 2.331002,
-              "mean": 0.554421,
-              "min": 0.311526
-            }
-          },
-          "first": {
-            "pace": 1.191895,
-            "time": "2026-10-25T12:10:05"
-          },
-          "last": {
-            "pace": 0.39984,
-            "time": "2026-10-25T12:13:52"
-          },
-          "sha256": "6f050e9bd363de434120008929c7b91148689777f5ceb625222342a14f4c1073",
-          "stream_type": 6
-        },
-        {
-          "count": 93,
-          "fields": {
-            "lat": {
-              "max": 38.509806,
-              "mean": 38.509061,
-              "min": 38.508432
-            },
-            "lon": {
-              "max": -9.172906,
-              "mean": -9.173878,
-              "min": -9.1753
-            }
-          },
-          "first": {
-            "lat": 38.509806,
-            "lon": -9.174066,
-            "time": "2026-10-25T12:10:05"
-          },
-          "last": {
-            "lat": 38.508432,
-            "lon": -9.1753,
-            "time": "2026-10-25T12:13:52"
-          },
-          "sha256": "0e9fb0d0729d23b466598bc60a81cb0efe397755592ca83a6d06ecfa1712e983",
-          "stream_type": 7
-        },
-        {
-          "count": 93,
-          "fields": {
-            "temp": {
-              "max": 19,
-              "mean": 18.419355,
-              "min": 17
-            }
-          },
-          "first": {
-            "temp": 17,
-            "time": "2026-10-25T12:10:05"
-          },
-          "last": {
-            "temp": 19,
-            "time": "2026-10-25T12:13:52"
-          },
-          "sha256": "e660f8a476b3b37ddbb4e0eac9e2ee43a9f33461cf1b7670236df6374e4b1e64",
-          "stream_type": 8
-        }
-      ],
       "workout_steps": null
     },
     {
@@ -613,156 +460,73 @@
           "total_work": null
         }
       ],
+      "samples": {
+        "channels": {
+          "cadence": {
+            "count": 17,
+            "max": 113.0,
+            "mean": 25.470588,
+            "min": 0.0
+          },
+          "elevation": {
+            "count": 346,
+            "max": 61.68,
+            "mean": 35.572222,
+            "min": 12.057143
+          },
+          "heart_rate": {
+            "count": 346,
+            "max": 164,
+            "mean": 152.696532,
+            "min": 130
+          },
+          "latitude": {
+            "count": 346,
+            "max": 38.513889,
+            "mean": 38.505635,
+            "min": 38.495047
+          },
+          "longitude": {
+            "count": 346,
+            "max": -9.154398,
+            "mean": -9.165208,
+            "min": -9.175655
+          },
+          "speed": {
+            "count": 345,
+            "max": 12.205,
+            "mean": 7.345678,
+            "min": 2.594
+          },
+          "temperature": {
+            "count": 17,
+            "max": 20.0,
+            "mean": 19.352941,
+            "min": 19.0
+          }
+        },
+        "count": 346,
+        "first": {
+          "cadence": 94.0,
+          "elevation": 12.057143,
+          "heart_rate": 130,
+          "latitude": 38.508405,
+          "longitude": -9.175409,
+          "offset_ms": 0,
+          "speed": 2.706,
+          "temperature": 19.0
+        },
+        "last": {
+          "elevation": 14.566667,
+          "heart_rate": 148,
+          "latitude": 38.509271,
+          "longitude": -9.172655,
+          "offset_ms": 969000,
+          "speed": 3.042
+        },
+        "sha256": "acfee930bbf354e2e619ee24aaaa57888eef2a9a331e7de304c5e51b86edb45c"
+      },
       "sets": null,
-      "streams": [
-        {
-          "count": 346,
-          "fields": {
-            "hr": {
-              "max": 164,
-              "mean": 152.696532,
-              "min": 130
-            }
-          },
-          "first": {
-            "hr": 130,
-            "time": "2026-10-25T12:13:55"
-          },
-          "last": {
-            "hr": 148,
-            "time": "2026-10-25T12:30:04"
-          },
-          "sha256": "f4d442bb0cec72e030ff144f9e4aca20eafce406b8f123ee62e0b9f23f99e006",
-          "stream_type": 1
-        },
-        {
-          "count": 17,
-          "fields": {
-            "cad": {
-              "max": 113,
-              "mean": 25.470588,
-              "min": 0
-            }
-          },
-          "first": {
-            "cad": 94,
-            "time": "2026-10-25T12:13:55"
-          },
-          "last": {
-            "cad": 0,
-            "time": "2026-10-25T12:14:36"
-          },
-          "sha256": "51d6aa19febbcb2fa74c2ec997cc42f4a5a5551aec57ee072a03e675474f0f37",
-          "stream_type": 3
-        },
-        {
-          "count": 346,
-          "fields": {
-            "ele": {
-              "max": 61.68,
-              "mean": 35.572222,
-              "min": 12.057143
-            }
-          },
-          "first": {
-            "ele": 12.057143,
-            "time": "2026-10-25T12:13:55"
-          },
-          "last": {
-            "ele": 14.566667,
-            "time": "2026-10-25T12:30:04"
-          },
-          "sha256": "1d03d0e474de449619e17d1ac0d93ddb7eb01317364abcc9b59f632587c86ef8",
-          "stream_type": 4
-        },
-        {
-          "count": 345,
-          "fields": {
-            "vel": {
-              "max": 12.205,
-              "mean": 7.345678,
-              "min": 2.594
-            }
-          },
-          "first": {
-            "time": "2026-10-25T12:13:55",
-            "vel": 2.706
-          },
-          "last": {
-            "time": "2026-10-25T12:30:04",
-            "vel": 3.042
-          },
-          "sha256": "5f54c48a8c15d661517c535562905ef3418b7a20b2ccfac5fad54ee75d471325",
-          "stream_type": 5
-        },
-        {
-          "count": 345,
-          "fields": {
-            "pace": {
-              "max": 0.385505,
-              "mean": 0.148587,
-              "min": 0.081934
-            }
-          },
-          "first": {
-            "pace": 0.369549,
-            "time": "2026-10-25T12:13:55"
-          },
-          "last": {
-            "pace": 0.328731,
-            "time": "2026-10-25T12:30:04"
-          },
-          "sha256": "be777278a3e187e1c31310554fae0fb4147622ee23ef8fa874bc7faf1f160b5c",
-          "stream_type": 6
-        },
-        {
-          "count": 346,
-          "fields": {
-            "lat": {
-              "max": 38.513889,
-              "mean": 38.505635,
-              "min": 38.495047
-            },
-            "lon": {
-              "max": -9.154398,
-              "mean": -9.165208,
-              "min": -9.175655
-            }
-          },
-          "first": {
-            "lat": 38.508405,
-            "lon": -9.175409,
-            "time": "2026-10-25T12:13:55"
-          },
-          "last": {
-            "lat": 38.509271,
-            "lon": -9.172655,
-            "time": "2026-10-25T12:30:04"
-          },
-          "sha256": "944d5f6d51abf45ac27ddd1514866a4d31734b68f76cb0703e82d9047ea26150",
-          "stream_type": 7
-        },
-        {
-          "count": 17,
-          "fields": {
-            "temp": {
-              "max": 20,
-              "mean": 19.352941,
-              "min": 19
-            }
-          },
-          "first": {
-            "temp": 19,
-            "time": "2026-10-25T12:13:55"
-          },
-          "last": {
-            "temp": 20,
-            "time": "2026-10-25T12:14:36"
-          },
-          "sha256": "cbd1394013cf982a70414600604705adc25f27425dc5639cd255b5b4291005ff",
-          "stream_type": 8
-        }
-      ],
       "workout_steps": null
     },
     {
@@ -862,116 +626,59 @@
           "total_work": null
         }
       ],
+      "samples": {
+        "channels": {
+          "elevation": {
+            "count": 3,
+            "max": 14.066667,
+            "mean": 14.066667,
+            "min": 14.066667
+          },
+          "heart_rate": {
+            "count": 3,
+            "max": 150,
+            "mean": 149.0,
+            "min": 148
+          },
+          "latitude": {
+            "count": 3,
+            "max": 38.509257,
+            "mean": 38.509239,
+            "min": 38.509213
+          },
+          "longitude": {
+            "count": 3,
+            "max": -9.172676,
+            "mean": -9.172718,
+            "min": -9.172778
+          },
+          "speed": {
+            "count": 3,
+            "max": 2.818,
+            "mean": 1.897,
+            "min": 0.634
+          }
+        },
+        "count": 3,
+        "first": {
+          "elevation": 14.066667,
+          "heart_rate": 148,
+          "latitude": 38.509257,
+          "longitude": -9.172676,
+          "offset_ms": 2000,
+          "speed": 0.634
+        },
+        "last": {
+          "elevation": 14.066667,
+          "heart_rate": 150,
+          "latitude": 38.509213,
+          "longitude": -9.172778,
+          "offset_ms": 6000,
+          "speed": 2.818
+        },
+        "sha256": "dc6457b30c0968114a1641df3c41136d1168403d358298fe6e4b2f15de3191ac"
+      },
       "sets": null,
-      "streams": [
-        {
-          "count": 3,
-          "fields": {
-            "hr": {
-              "max": 150,
-              "mean": 149.0,
-              "min": 148
-            }
-          },
-          "first": {
-            "hr": 148,
-            "time": "2026-10-25T12:30:07"
-          },
-          "last": {
-            "hr": 150,
-            "time": "2026-10-25T12:30:11"
-          },
-          "sha256": "aadea655e0014a1bcb58531b9d9e4a77edc6103d1465ea1284b0dc7496367a49",
-          "stream_type": 1
-        },
-        {
-          "count": 3,
-          "fields": {
-            "ele": {
-              "max": 14.066667,
-              "mean": 14.066667,
-              "min": 14.066667
-            }
-          },
-          "first": {
-            "ele": 14.066667,
-            "time": "2026-10-25T12:30:07"
-          },
-          "last": {
-            "ele": 14.066667,
-            "time": "2026-10-25T12:30:11"
-          },
-          "sha256": "f7755c0973cdefd1d435b0cc841c6d58afa19e8336ec522f4b9e14af7a3ec399",
-          "stream_type": 4
-        },
-        {
-          "count": 3,
-          "fields": {
-            "vel": {
-              "max": 2.818,
-              "mean": 1.897,
-              "min": 0.634
-            }
-          },
-          "first": {
-            "time": "2026-10-25T12:30:07",
-            "vel": 0.634
-          },
-          "last": {
-            "time": "2026-10-25T12:30:11",
-            "vel": 2.818
-          },
-          "sha256": "def05f5d18354bbcc1c6b8aca3a1af07e1d322eea1f3c68d0c2b02638d03018d",
-          "stream_type": 5
-        },
-        {
-          "count": 3,
-          "fields": {
-            "pace": {
-              "max": 1.577287,
-              "mean": 0.792926,
-              "min": 0.354862
-            }
-          },
-          "first": {
-            "pace": 1.577287,
-            "time": "2026-10-25T12:30:07"
-          },
-          "last": {
-            "pace": 0.354862,
-            "time": "2026-10-25T12:30:11"
-          },
-          "sha256": "9217307b41927dab28376f260116e807bd74d52935505e4852843d998c1d1e38",
-          "stream_type": 6
-        },
-        {
-          "count": 3,
-          "fields": {
-            "lat": {
-              "max": 38.509257,
-              "mean": 38.509239,
-              "min": 38.509213
-            },
-            "lon": {
-              "max": -9.172676,
-              "mean": -9.172718,
-              "min": -9.172778
-            }
-          },
-          "first": {
-            "lat": 38.509257,
-            "lon": -9.172676,
-            "time": "2026-10-25T12:30:07"
-          },
-          "last": {
-            "lat": 38.509213,
-            "lon": -9.172778,
-            "time": "2026-10-25T12:30:11"
-          },
-          "sha256": "ac53c4fd1daa2929dd8911e448f8d8441fa1cc71eb4610754041684b564ef7c4",
-          "stream_type": 7
-        }
-      ],
       "workout_steps": null
     },
     {
@@ -1185,156 +892,73 @@
           "total_work": 0
         }
       ],
+      "samples": {
+        "channels": {
+          "cadence": {
+            "count": 716,
+            "max": 200,
+            "mean": 169.26257,
+            "min": 0
+          },
+          "elevation": {
+            "count": 717,
+            "max": 30.327273,
+            "mean": 17.774877,
+            "min": 8.127273
+          },
+          "heart_rate": {
+            "count": 717,
+            "max": 191,
+            "mean": 157.715481,
+            "min": 90
+          },
+          "latitude": {
+            "count": 717,
+            "max": 38.509156,
+            "mean": 38.507331,
+            "min": 38.505416
+          },
+          "longitude": {
+            "count": 717,
+            "max": -9.172943,
+            "mean": -9.176911,
+            "min": -9.180656
+          },
+          "power": {
+            "count": 700,
+            "max": 450,
+            "mean": 298.78,
+            "min": 0
+          },
+          "speed": {
+            "count": 715,
+            "max": 3.462,
+            "mean": 2.891864,
+            "min": 0.0
+          }
+        },
+        "count": 717,
+        "first": {
+          "elevation": 13.666667,
+          "heart_rate": 151,
+          "latitude": 38.509156,
+          "longitude": -9.172943,
+          "offset_ms": 0,
+          "speed": 3.088
+        },
+        "last": {
+          "cadence": 0,
+          "elevation": 9.066667,
+          "heart_rate": 159,
+          "latitude": 38.50855,
+          "longitude": -9.176041,
+          "offset_ms": 740000,
+          "power": 0,
+          "speed": 0.0
+        },
+        "sha256": "a3912078ace52fba971ab22cd5bfa859fb4d2f9356a811f9c473c92a7f75d94c"
+      },
       "sets": null,
-      "streams": [
-        {
-          "count": 717,
-          "fields": {
-            "hr": {
-              "max": 191,
-              "mean": 157.715481,
-              "min": 90
-            }
-          },
-          "first": {
-            "hr": 151,
-            "time": "2026-10-25T12:30:16"
-          },
-          "last": {
-            "hr": 159,
-            "time": "2026-10-25T12:42:36"
-          },
-          "sha256": "2121de55a5a8ec2ac3d007473222ee7484e8d3375e0e7714398b126fe8076b43",
-          "stream_type": 1
-        },
-        {
-          "count": 700,
-          "fields": {
-            "power": {
-              "max": 450,
-              "mean": 298.78,
-              "min": 0
-            }
-          },
-          "first": {
-            "power": 0,
-            "time": "2026-10-25T12:30:57"
-          },
-          "last": {
-            "power": 0,
-            "time": "2026-10-25T12:42:36"
-          },
-          "sha256": "800a971b5a0994bcb49e94ada172a210b35014d15ceeb3a5823c07324d5ecdb7",
-          "stream_type": 2
-        },
-        {
-          "count": 716,
-          "fields": {
-            "cad": {
-              "max": 200,
-              "mean": 169.26257,
-              "min": 0
-            }
-          },
-          "first": {
-            "cad": 0,
-            "time": "2026-10-25T12:30:19"
-          },
-          "last": {
-            "cad": 0,
-            "time": "2026-10-25T12:42:36"
-          },
-          "sha256": "2f816477ea9c2ea4a5455c0f2c882c031b7f7373c4987f70298060a89ea2d662",
-          "stream_type": 3
-        },
-        {
-          "count": 717,
-          "fields": {
-            "ele": {
-              "max": 30.327273,
-              "mean": 17.774877,
-              "min": 8.127273
-            }
-          },
-          "first": {
-            "ele": 13.666667,
-            "time": "2026-10-25T12:30:16"
-          },
-          "last": {
-            "ele": 9.066667,
-            "time": "2026-10-25T12:42:36"
-          },
-          "sha256": "5b9175d705d7dfdddd5db9a06ab414e6de4b243bc4ad33816308a0983a583e11",
-          "stream_type": 4
-        },
-        {
-          "count": 715,
-          "fields": {
-            "vel": {
-              "max": 3.462,
-              "mean": 2.891864,
-              "min": 0.0
-            }
-          },
-          "first": {
-            "time": "2026-10-25T12:30:16",
-            "vel": 3.088
-          },
-          "last": {
-            "time": "2026-10-25T12:42:36",
-            "vel": 0.0
-          },
-          "sha256": "8dfa1d26f0bae0813addf35ce35acee2fe5ffa82e334adf6449ee395eca10cd7",
-          "stream_type": 5
-        },
-        {
-          "count": 672,
-          "fields": {
-            "pace": {
-              "max": 3.968254,
-              "mean": 0.343733,
-              "min": 0.28885
-            }
-          },
-          "first": {
-            "pace": 0.323834,
-            "time": "2026-10-25T12:30:16"
-          },
-          "last": {
-            "pace": 3.690037,
-            "time": "2026-10-25T12:42:25"
-          },
-          "sha256": "d2345ecbbf74ca17a8a5a623afb52800904edbbfa1d73aa2d5667555fd5e94e3",
-          "stream_type": 6
-        },
-        {
-          "count": 717,
-          "fields": {
-            "lat": {
-              "max": 38.509156,
-              "mean": 38.507331,
-              "min": 38.505416
-            },
-            "lon": {
-              "max": -9.172943,
-              "mean": -9.176911,
-              "min": -9.180656
-            }
-          },
-          "first": {
-            "lat": 38.509156,
-            "lon": -9.172943,
-            "time": "2026-10-25T12:30:16"
-          },
-          "last": {
-            "lat": 38.50855,
-            "lon": -9.176041,
-            "time": "2026-10-25T12:42:36"
-          },
-          "sha256": "876f8d5f318d9bb14ffe8a589539d63f635a1266b3c4aa65042b7acc7dbba317",
-          "stream_type": 7
-        }
-      ],
       "workout_steps": null
     }
   ],
@@ -1399,8 +1023,8 @@
       "workout_rpe": null
     },
     "laps": [],
+    "samples": null,
     "sets": null,
-    "streams": [],
     "workout_steps": null
   }
 }

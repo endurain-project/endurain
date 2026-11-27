@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-import type { ActivityDto, ActivityLapDto, ActivityStreamDto } from '@/features/activities/types'
+import type { ActivityDto, ActivityLapDto, ActivitySamplesDto } from '@/features/activities/types'
 
 import { apiFetch } from '@/services/http'
 import { queryKeys } from '@/services/queryKeys'
@@ -20,7 +20,7 @@ import {
   mapActivity,
   mapActivitySummary,
   mapActivityLap,
-  mapActivityStream,
+  mapActivityStreams,
   searchActivitiesByName,
   setActivityGear,
   updateUserActivitiesVisibility,
@@ -138,66 +138,56 @@ describe('mapActivitySummary', () => {
   })
 })
 
-describe('mapActivityStream', () => {
-  it('maps stream type and waypoints with no HR zones', () => {
-    const dto: ActivityStreamDto = {
-      id: activityUuid(3),
-      activity_id: ACTIVITY_ID,
-      stream_type: 'heart_rate',
-      stream_waypoints: [{ hr: 120 }],
-    }
-    expect(mapActivityStream(dto)).toEqual({
-      id: activityUuid(3),
-      streamType: 'heart_rate',
-      waypoints: [{ hr: 120 }],
+const SAMPLES_DTO: ActivitySamplesDto = {
+  offsets_ms: [0, 1000, 3000],
+  latitude: [38.7, null, 38.8],
+  longitude: [-9.1, null, -9.2],
+  elevation: [10, 11, null],
+  heart_rate: [120, 130, 140],
+  power: null,
+  cadence: null,
+  speed: [3, 3.5, 0],
+  pace: [0.33, 0.28, null],
+  temperature: null,
+  heart_rate_zones: null,
+}
+
+describe('mapActivityStreams', () => {
+  it('renames the channels, keeps nulls and leaves the zones null', () => {
+    expect(mapActivityStreams(SAMPLES_DTO)).toEqual({
+      offsetsMs: [0, 1000, 3000],
+      latitude: [38.7, null, 38.8],
+      longitude: [-9.1, null, -9.2],
+      elevation: [10, 11, null],
+      heartRate: [120, 130, 140],
+      power: null,
+      cadence: null,
+      speed: [3, 3.5, 0],
+      pace: [0.33, 0.28, null],
+      temperature: null,
       hrZones: null,
     })
   })
 
-  it('keeps the typed waypoints of a map stream, whatever its sample times', () => {
-    const dto: ActivityStreamDto = {
-      id: activityUuid(4),
-      activity_id: ACTIVITY_ID,
-      stream_type: 'map',
-      stream_waypoints: [
-        { time: '2026-06-20T08:20:00', lat: 38.7223, lon: -9.1393 },
-        { time: 0.5, lat: 38.72, lon: -9.14 },
-        { lat: 38.7, lon: -9.1 },
-      ],
-    }
-    expect(mapActivityStream(dto)).toEqual({
-      id: activityUuid(4),
-      streamType: 'map',
-      waypoints: dto.stream_waypoints,
-      hrZones: null,
-    })
-  })
-
-  it('decodes the HR zone_percentages block into ordered buckets', () => {
-    const dto: ActivityStreamDto = {
-      id: activityUuid(3),
-      activity_id: ACTIVITY_ID,
-      stream_type: 'heart_rate',
-      stream_waypoints: [{ hr: 120 }],
-      zone_percentages: {
-        hr: {
-          zone_1: { percent: 25, hr: '< 100', time_seconds: 900 },
-          zone_2: { percent: 30, hr: '100 - 129', time_seconds: 1200 },
-          zone_3: { percent: 25, hr: '130 - 149', time_seconds: 900 },
-          zone_4: { percent: 15, hr: '150 - 169', time_seconds: 540 },
-          zone_5: { percent: 5, hr: '>= 170', time_seconds: 180 },
-        },
+  it('decodes the heart_rate_zones block into ordered buckets', () => {
+    const streams = mapActivityStreams({
+      ...SAMPLES_DTO,
+      heart_rate_zones: {
+        zone_1: { percent: 25, hr: '< 100', time_seconds: 900 },
+        zone_2: { percent: 30, hr: '100 - 129', time_seconds: 1200 },
+        zone_3: { percent: 25, hr: '130 - 149', time_seconds: 900 },
+        zone_4: { percent: 15, hr: '150 - 169', time_seconds: 540 },
+        zone_5: { percent: 5, hr: '>= 170', time_seconds: 180 },
       },
-    }
-    const stream = mapActivityStream(dto)
-    expect(stream.hrZones).toHaveLength(5)
-    expect(stream.hrZones?.[0]).toEqual({
+    })
+    expect(streams.hrZones).toHaveLength(5)
+    expect(streams.hrZones?.[0]).toEqual({
       zone: 1,
       percent: 25,
       hrRange: '< 100',
       timeSeconds: 900,
     })
-    expect(stream.hrZones?.[4]).toEqual({
+    expect(streams.hrZones?.[4]).toEqual({
       zone: 5,
       percent: 5,
       hrRange: '>= 170',
@@ -454,23 +444,43 @@ describe('fetchUserWeekActivities', () => {
 })
 
 describe('fetchActivityStreams', () => {
-  it('requests the authenticated and public stream endpoints', async () => {
-    vi.mocked(apiFetch).mockResolvedValue({ items: [], next: null })
+  it('makes one request per endpoint, carrying max_points', async () => {
+    vi.mocked(apiFetch).mockResolvedValue(SAMPLES_DTO)
     await fetchActivityStreams(ACTIVITY_ID, { authenticated: true })
-    expect(apiFetch).toHaveBeenCalledWith(
-      `/activities/${ACTIVITY_ID}/streams?num_records=200&page_number=1`,
+    expect(apiFetch).toHaveBeenCalledTimes(1)
+    expect(apiFetch).toHaveBeenLastCalledWith(
+      `/activities/${ACTIVITY_ID}/streams?max_points=2000`,
       expect.objectContaining({ auth: true }),
     )
     await fetchActivityStreams(ACTIVITY_ID, { authenticated: false })
-    expect(apiFetch).toHaveBeenCalledWith(
-      `/public/activities/${ACTIVITY_ID}/streams?num_records=200&page_number=1`,
+    expect(apiFetch).toHaveBeenCalledTimes(2)
+    expect(apiFetch).toHaveBeenLastCalledWith(
+      `/public/activities/${ACTIVITY_ID}/streams?max_points=2000`,
       expect.objectContaining({ auth: false }),
     )
   })
 
-  it('maps an empty page to an empty array', async () => {
-    vi.mocked(apiFetch).mockResolvedValueOnce({ items: null, next: null })
-    expect(await fetchActivityStreams(ACTIVITY_ID, { authenticated: true })).toEqual([])
+  it('maps the response to the domain model', async () => {
+    vi.mocked(apiFetch).mockResolvedValueOnce(SAMPLES_DTO)
+    expect(await fetchActivityStreams(ACTIVITY_ID, { authenticated: true })).toEqual(
+      mapActivityStreams(SAMPLES_DTO),
+    )
+  })
+
+  it('returns null on a not-found problem', async () => {
+    const { HttpError } = await import('@/services/http')
+    vi.mocked(apiFetch).mockRejectedValueOnce(
+      new HttpError(404, 'Not Found', null, 'urn:endurain:error:not-found'),
+    )
+    expect(await fetchActivityStreams(ACTIVITY_ID, { authenticated: true })).toBeNull()
+  })
+
+  it('rethrows other errors', async () => {
+    const { HttpError } = await import('@/services/http')
+    vi.mocked(apiFetch).mockRejectedValueOnce(new HttpError(500, 'Server Error'))
+    await expect(fetchActivityStreams(ACTIVITY_ID, { authenticated: true })).rejects.toBeInstanceOf(
+      HttpError,
+    )
   })
 })
 

@@ -45,20 +45,23 @@ Weight, steps, sleep, water, poop and fasting each have a list (`GET /health/{me
 
 ## Activity streams
 
-`GET /activities/{activity_id}/streams` returns a page of the activity's streams and `GET /activities/{activity_id}/streams/{stream_type}` returns one; the public activity has the same two routes under `/public`. Each stream has a `stream_type`, a string, and a list of `stream_waypoints`, whose shape follows the type. `{stream_type}` in the path takes the same string.
+`GET /activities/{activity_id}/streams` returns the activity's streams as one object, and the public activity has the same route under `/public`. The samples sit on one timeline: `offsets_ms` holds each sample's time in milliseconds from the start of the activity, and every other field is a list with one value per sample, in the same order.
 
-| `stream_type` | Stream | Waypoint value keys |
-| ------------- | ------ | ------------------- |
-| `heart_rate` | Heart rate | `hr` (bpm) |
-| `power` | Power | `power` (watts) |
-| `cadence` | Cadence | `cad` (rpm, spm for running) |
-| `elevation` | Elevation | `ele` (meters) |
-| `speed` | Speed | `vel` (m/s) |
-| `pace` | Pace | `pace` (s/m, 0 at a standstill) |
-| `map` | Map | `lat`, `lon` (decimal degrees) |
-| `temperature` | Temperature | `temp` (degrees Celsius) |
+| Field | Holds | Unit |
+| ----- | ----- | ---- |
+| `offsets_ms` | Each sample's time from the activity start | milliseconds |
+| `latitude`, `longitude` | The position | decimal degrees |
+| `elevation` | Elevation | meters |
+| `heart_rate` | Heart rate | beats per minute |
+| `power` | Power | watts |
+| `cadence` | Cadence | rpm (spm for running) |
+| `speed` | Speed | m/s |
+| `pace` | Pace, derived from `speed` | s/m; `null` where the speed is not above 0 |
+| `temperature` | Temperature | degrees Celsius |
+| `heart_rate_zones` | Time in each heart-rate zone | see below |
 
-- **Every waypoint has a `time`**: a UTC `YYYY-MM-DDTHH:MM:SS` string, or the seconds from the start as a number for a stream imported from Strava. When the owner hides the start time of the activity, `time` is missing from the waypoints other viewers get.
-- **Values are numbers as stored**, so an integer such as `120` stays `120` and is not turned into `120.0`. A value can be `null` where the source recorded none.
-- **A stream is served whole.** There is no downsampling, and a long activity has many waypoints; the page parameters count streams, not waypoints.
-- The heart-rate stream also carries `zone_percentages`, computed from the owner's current thresholds. Each zone has `time_seconds`, the time spent in the zone, and `percent`, its share of the recorded heart-rate time. A sample counts the time it holds until the next one, at most the pause threshold, so a pause does not inflate a zone; a heart rate of `0` is a dropout and adds no time. Streams of other types, and a heart-rate stream with no time in any zone, have `null` there.
+- **A channel is `null`** when the activity has none or hides it from the viewer: the list is not there, and the field is `null`. Inside a list, a value is `null` where a sample has none, such as a heart-rate dropout. The position is `null` as a pair. The owner hides the map, heart rate, power, cadence, elevation, speed and pace one by one; the temperature is never hidden.
+- **`hide_start_time` removes nothing from the streams.** `offsets_ms` counts from the start and shows only the duration, which the activity shows anyway. The route and its other values are served as the other flags allow.
+- **An activity with no samples** answers `200` with an empty `offsets_ms` and every channel `null`. An activity that does not exist, or that you may not read, is `404` with `urn:endurain:error:not-found`, the same answer for both.
+- **`max_points` reduces a long activity.** An integer from 2 to 10000. When the activity has more samples, its time from the first to the last sample is split into `max_points` equal buckets, and each bucket that holds a sample becomes one: its offset is the mean of the offsets (a whole number of milliseconds) and a channel is the mean of its values that exist (`null` when none does). A pause leaves empty buckets, so fewer samples can come back. The position is averaged over the samples that have both coordinates, and `pace` comes from the bucket's mean speed. Omitted, every sample is returned. A value out of range is `422`.
+- **`heart_rate_zones` always counts every sample**, whatever `max_points` says, and is computed from the owner's current thresholds. Each zone has `time_seconds`, the time spent in the zone, and `percent`, its share of the recorded heart-rate time. A sample counts the time it holds until the next one, at most the pause threshold, so a pause does not inflate a zone; a heart rate of `0` is a dropout and adds no time. It is `null` when no zone holds any time, when the owner's maximum heart rate is unknown, and when the heart rate is hidden from you.

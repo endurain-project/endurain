@@ -115,7 +115,7 @@ const parentDto = {
   average_speed: null,
 }
 
-/** One map stream per leg, so the leg order shows in the joined route. */
+/** One GPS track per leg, so the leg order shows in the joined route. */
 const TRACKS: Record<string, { lat: number; lon: number }[]> = {
   [SWIM_ID]: [
     { lat: 1, lon: 1 },
@@ -126,6 +126,24 @@ const TRACKS: Record<string, { lat: number; lon: number }[]> = {
     { lat: 3, lon: 2 },
   ],
   [RUN_ID]: [{ lat: 5, lon: 1 }],
+}
+
+/** The samples answer for a track: its positions on the lat/lon channels, null without a track. */
+function samples(track: { lat: number; lon: number }[]) {
+  const channel = (values: number[] | null) => (track.length > 0 ? values : null)
+  return {
+    offsets_ms: track.map((_, index) => index * 1000),
+    latitude: channel(track.map((point) => point.lat)),
+    longitude: channel(track.map((point) => point.lon)),
+    elevation: null,
+    heart_rate: null,
+    power: null,
+    cadence: null,
+    speed: null,
+    pace: null,
+    temperature: null,
+    heart_rate_zones: null,
+  }
 }
 
 /** Answers the activity routes the detail page reads. */
@@ -150,21 +168,7 @@ function serve(overrides: Record<string, unknown> = {}) {
       return Promise.resolve(page(id === PARENT_ID ? LEG_DTOS : []))
     }
     if (url.endsWith('/streams')) {
-      const track = TRACKS[id]
-      return Promise.resolve(
-        page(
-          track
-            ? [
-                {
-                  id: activityUuid(90),
-                  stream_type: 'map',
-                  stream_waypoints: track,
-                  zone_percentages: null,
-                },
-              ]
-            : [],
-        ),
-      )
+      return Promise.resolve(samples(TRACKS[id] ?? []))
     }
     return Promise.resolve([])
   }) as never

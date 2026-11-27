@@ -242,8 +242,7 @@ export function useActivityLegsTrack(
         staleTime: 5 * 60_000,
       })),
     ),
-    combine: (results): GeoPoint[] =>
-      results.flatMap((result) => extractTrackPoints(result.data ?? [])),
+    combine: (results): GeoPoint[] => results.flatMap((result) => extractTrackPoints(result.data)),
   })
 }
 
