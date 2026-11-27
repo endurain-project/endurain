@@ -428,6 +428,33 @@ def apply_reprocessed_analysis(
     return activity_crud.update_derived_values(activity_id, parsed, analysis_version, db)
 
 
+def list_ids_below_analysis_version(analysis_version: int, limit: int, db: Session) -> list[uuid.UUID]:
+    """Return the IDs of the activities whose analysis version is below the given one, in ID order.
+
+    Args:
+        analysis_version: The analysis version an activity must be below to be listed.
+        limit: Maximum number of IDs to return.
+        db: Database session.
+
+    Returns:
+        Up to ``limit`` IDs, smallest first.
+    """
+    return activity_crud.list_ids_below_analysis_version(analysis_version, limit, db)
+
+
+def stamp_analysis_version(activity_id: uuid.UUID, analysis_version: int, db: Session) -> None:
+    """Stage the analysis version on an activity whose values were not recomputed, leaving everything else as it is.
+
+    The caller commits.
+
+    Args:
+        activity_id: ID of the activity.
+        analysis_version: The version to stamp; an activity already at it or above it is left as it is.
+        db: Database session.
+    """
+    activity_crud.stamp_analysis_version(activity_id, analysis_version, db)
+
+
 def resolve_readable_parent(
     activity_id: uuid.UUID,
     requester_user_id: uuid.UUID,

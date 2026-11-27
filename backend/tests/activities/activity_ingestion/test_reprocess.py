@@ -3,9 +3,8 @@
 import dataclasses
 import hashlib
 import json
-import shutil
 import uuid
-from datetime import UTC, datetime, timedelta
+from datetime import timedelta
 from pathlib import Path
 from unittest.mock import MagicMock
 
@@ -24,7 +23,6 @@ import modules.activities.activity_exercise_titles.models as exercise_title_mode
 import modules.activities.activity_file_storage.constants as file_storage_constants
 import modules.activities.activity_file_storage.files as file_storage_files
 import modules.activities.activity_file_storage.integration_service as file_storage
-import modules.activities.activity_ingestion.contracts as ingestion_contracts
 import modules.activities.activity_ingestion.migration_service as migration_service
 import modules.activities.activity_ingestion.pipeline_service as pipeline_service
 import modules.activities.activity_laps.models as lap_models
@@ -37,13 +35,17 @@ import modules.users.users.models as user_models
 from tests._factories.activities import make_activity
 from tests._factories.gears import make_gear
 from tests._factories.ingestion import fit_file
+from tests._factories.reprocess import (
+    BOGUS_DERIVED,
+    OLD,
+    RUN,
+    STRENGTH,
+    TREADMILL,
+    TRIATHLON,
+    degrade,
+    import_fixture,
+)
 from tests._factories.users import audit_rows_of, make_user
-
-_FIXTURES = Path(__file__).parents[1] / "activity_file_import" / "fixtures"
-_RUN = _FIXTURES / "outdoor_run" / "24273515840_ACTIVITY.fit"
-_STRENGTH = _FIXTURES / "strength" / "24939814804_ACTIVITY.fit"
-_TRIATHLON = _FIXTURES / "triathlon" / "24846754341_ACTIVITY.fit"
-_TREADMILL = _FIXTURES / "treadmill_run" / "24280055123_ACTIVITY.fit"
 
 #: Written independently of ``activity_constants.DERIVED_FIELDS``, so a column the code forgets shows as a failure.
 _DERIVED = (
@@ -106,34 +108,6 @@ _OWNED = (
     "parent_activity_id",
 )
 
-_OLD = datetime(2020, 1, 1, tzinfo=UTC)
-
-_BOGUS_DERIVED = {
-    "distance": 1,
-    "end_time": _OLD,
-    "timezone": "Etc/GMT",
-    "total_elapsed_time": 1,
-    "total_timer_time": 1,
-    "elevation_gain": 999,
-    "elevation_loss": 999,
-    "pace": 9,
-    "average_speed": 9,
-    "max_speed": 9,
-    "average_power": 999,
-    "max_power": 999,
-    "normalized_power": 999,
-    "average_hr": 99,
-    "max_hr": 99,
-    "average_cad": 99,
-    "max_cad": 99,
-    "workout_feeling": 1,
-    "workout_rpe": 10,
-    "calories": 1,
-    "tracker_manufacturer": "old",
-    "tracker_model": "old",
-    "total_cycles": 1,
-}
-
 
 @pytest.fixture
 def owner(db: Session):
@@ -159,18 +133,6 @@ def published(monkeypatch) -> MagicMock:
     return spy
 
 
-def _import(db: Session, user_id: uuid.UUID, source: Path, tmp_path: Path, storage) -> list[uuid.UUID]:
-    """Import a fixture file through the real pipeline and return the stored top-level activity ids."""
-    staged = tmp_path / f"{uuid.uuid4().hex}{source.suffix}"
-    shutil.copyfile(source, staged)
-    created = pipeline_service.validate_prepare_and_store_file(
-        user_id, str(staged), db, source=ingestion_contracts.UploadSource(), storage=storage
-    )
-    db.commit()
-    assert created
-    return [activity.id for activity in created]
-
-
 def _import_legacy_legs(
     db: Session, user_id: uuid.UUID, source: Path, tmp_path: Path, storage, monkeypatch
 ) -> list[uuid.UUID]:
@@ -182,7 +144,7 @@ def _import_legacy_legs(
 
     with monkeypatch.context() as patch:
         patch.setattr(pipeline_service, "parse_file", without_a_parent)
-        return _import(db, user_id, source, tmp_path, storage)
+        return import_fixture(db, user_id, source, tmp_path, storage)
 
 
 def _row(db: Session, activity_id: uuid.UUID) -> activity_models.Activity:
@@ -214,30 +176,6 @@ def _children(db: Session, activity_id: uuid.UUID) -> dict[str, list[str]]:
     return snapshot
 
 
-def _degrade(db: Session, activity_id: uuid.UUID) -> None:
-    """Make an activity look like one an older analysis stored: version 0, old values, an extra child of each kind."""
-    db.execute(
-        update(activity_models.Activity)
-        .where(activity_models.Activity.id == activity_id)
-        .values(**_BOGUS_DERIVED, analysis_version=0, updated_at=_OLD)
-    )
-    db.add_all(
-        [
-            stream_models.ActivityStreams(
-                activity_id=activity_id,
-                stream_type=stream_constants.STREAM_TYPE_HR,
-                stream_waypoints=[{"time": "2000-01-01T00:00:00", "hr": 1}],
-            ),
-            lap_models.ActivityLaps(activity_id=activity_id, start_time=_OLD, total_distance=1),
-            set_models.ActivitySets(
-                activity_id=activity_id, duration=1, set_type="old", start_time=_OLD, repetitions=1
-            ),
-            step_models.ActivityWorkoutSteps(activity_id=activity_id, message_index=99),
-        ]
-    )
-    db.commit()
-
-
 def _store_timezone(db: Session, activity_id: uuid.UUID, timezone: str | None) -> None:
     """Set the timezone an older analysis stored for an activity."""
     db.execute(
@@ -253,15 +191,15 @@ def _logged(caplog, activity_id: uuid.UUID) -> bool:
 
 def _fresh(db: Session, user_id: uuid.UUID, source: Path, tmp_path: Path, storage) -> uuid.UUID:
     """Return the activity a fresh import of the file stores for another user."""
-    [activity_id] = _import(db, user_id, source, tmp_path, storage)
+    [activity_id] = import_fixture(db, user_id, source, tmp_path, storage)
     return activity_id
 
 
 class TestReprocessingOneActivity:
     def test_recomputes_what_a_fresh_import_stores(self, db, owner, other, storage, tmp_path):
-        [activity_id] = _import(db, owner.id, _RUN, tmp_path, storage)
-        expected = _fresh(db, other.id, _RUN, tmp_path, storage)
-        _degrade(db, activity_id)
+        [activity_id] = import_fixture(db, owner.id, RUN, tmp_path, storage)
+        expected = _fresh(db, other.id, RUN, tmp_path, storage)
+        degrade(db, activity_id)
 
         outcome = migration_service.reprocess_activity(activity_id, storage)
 
@@ -269,27 +207,27 @@ class TestReprocessingOneActivity:
         assert _values(db, activity_id, _DERIVED) == _values(db, expected, _DERIVED)
 
     def test_replaces_streams_laps_sets_and_steps_exactly_once(self, db, owner, other, storage, tmp_path):
-        [activity_id] = _import(db, owner.id, _STRENGTH, tmp_path, storage)
-        expected = _children(db, _fresh(db, other.id, _STRENGTH, tmp_path, storage))
+        [activity_id] = import_fixture(db, owner.id, STRENGTH, tmp_path, storage)
+        expected = _children(db, _fresh(db, other.id, STRENGTH, tmp_path, storage))
         assert expected["sets"] and expected["steps"]
-        _degrade(db, activity_id)
+        degrade(db, activity_id)
 
         migration_service.reprocess_activity(activity_id, storage)
 
         assert _children(db, activity_id) == expected
 
     def test_replaces_the_children_of_a_run_with_a_track(self, db, owner, other, storage, tmp_path):
-        [activity_id] = _import(db, owner.id, _RUN, tmp_path, storage)
-        expected = _children(db, _fresh(db, other.id, _RUN, tmp_path, storage))
+        [activity_id] = import_fixture(db, owner.id, RUN, tmp_path, storage)
+        expected = _children(db, _fresh(db, other.id, RUN, tmp_path, storage))
         assert expected["streams"] and expected["laps"]
-        _degrade(db, activity_id)
+        degrade(db, activity_id)
 
         migration_service.reprocess_activity(activity_id, storage)
 
         assert _children(db, activity_id) == expected
 
     def test_never_writes_what_the_owner_edited(self, db, owner, storage, tmp_path):
-        [activity_id] = _import(db, owner.id, _RUN, tmp_path, storage)
+        [activity_id] = import_fixture(db, owner.id, RUN, tmp_path, storage)
         edits = {
             "name": "My long run",
             "description": "felt great",
@@ -301,7 +239,7 @@ class TestReprocessingOneActivity:
         }
         db.execute(update(activity_models.Activity).where(activity_models.Activity.id == activity_id).values(**edits))
         db.commit()
-        _degrade(db, activity_id)
+        degrade(db, activity_id)
         before = _values(db, activity_id, _OWNED)
 
         migration_service.reprocess_activity(activity_id, storage)
@@ -310,8 +248,8 @@ class TestReprocessingOneActivity:
         assert all(_values(db, activity_id, tuple(edits)).get(field) == value for field, value in edits.items())
 
     def test_keeps_the_version_and_stamps_the_analysis_version_and_updated_at(self, db, owner, storage, tmp_path):
-        [activity_id] = _import(db, owner.id, _RUN, tmp_path, storage)
-        _degrade(db, activity_id)
+        [activity_id] = import_fixture(db, owner.id, RUN, tmp_path, storage)
+        degrade(db, activity_id)
         before = _row(db, activity_id)
         version = before.version
         assert before.analysis_version == 0
@@ -321,11 +259,11 @@ class TestReprocessingOneActivity:
         after = _row(db, activity_id)
         assert after.version == version
         assert after.analysis_version == activities_computation.ANALYSIS_VERSION
-        assert after.updated_at > _OLD
+        assert after.updated_at > OLD
 
     def test_is_idempotent(self, db, owner, storage, tmp_path):
-        [activity_id] = _import(db, owner.id, _STRENGTH, tmp_path, storage)
-        _degrade(db, activity_id)
+        [activity_id] = import_fixture(db, owner.id, STRENGTH, tmp_path, storage)
+        degrade(db, activity_id)
 
         migration_service.reprocess_activity(activity_id, storage)
         once = (_values(db, activity_id, _DERIVED), _children(db, activity_id))
@@ -335,9 +273,9 @@ class TestReprocessingOneActivity:
         assert (_values(db, activity_id, _DERIVED), _children(db, activity_id)) == once
 
     def test_publishes_no_event(self, db, owner, storage, tmp_path, published):
-        [activity_id] = _import(db, owner.id, _RUN, tmp_path, storage)
+        [activity_id] = import_fixture(db, owner.id, RUN, tmp_path, storage)
         published.reset_mock()
-        _degrade(db, activity_id)
+        degrade(db, activity_id)
 
         migration_service.reprocess_activity(activity_id, storage)
 
@@ -348,8 +286,8 @@ class TestReprocessingOneActivity:
         db.commit()
         without_a_zone = tmp_path / "no_gps.fit"
         without_a_zone.write_bytes(fit_file(with_gps=False))
-        [activity_id] = _import(db, tokyo.id, without_a_zone, tmp_path, storage)
-        _degrade(db, activity_id)
+        [activity_id] = import_fixture(db, tokyo.id, without_a_zone, tmp_path, storage)
+        degrade(db, activity_id)
         _store_timezone(db, activity_id, None)
 
         migration_service.reprocess_activity(activity_id, storage)
@@ -361,8 +299,8 @@ class TestReprocessingOneActivity:
         db.commit()
         without_a_zone = tmp_path / "no_gps.fit"
         without_a_zone.write_bytes(fit_file(with_gps=False))
-        [activity_id] = _import(db, traveller.id, without_a_zone, tmp_path, storage)
-        _degrade(db, activity_id)
+        [activity_id] = import_fixture(db, traveller.id, without_a_zone, tmp_path, storage)
+        degrade(db, activity_id)
         # An old row holds the zone it was imported in; the owner moved since.
         _store_timezone(db, activity_id, "Asia/Tokyo")
         db.execute(
@@ -375,21 +313,21 @@ class TestReprocessingOneActivity:
         assert _row(db, activity_id).timezone == "Asia/Tokyo"
 
     def test_re_adds_the_exercise_titles_of_the_file(self, db, owner, storage, tmp_path):
-        [activity_id] = _import(db, owner.id, _STRENGTH, tmp_path, storage)
+        [activity_id] = import_fixture(db, owner.id, STRENGTH, tmp_path, storage)
         stored = db.execute(select(exercise_title_models.ActivityExerciseTitles)).scalars().all()
         assert stored
         db.execute(delete(exercise_title_models.ActivityExerciseTitles))
-        _degrade(db, activity_id)
+        degrade(db, activity_id)
 
         migration_service.reprocess_activity(activity_id, storage)
 
         assert len(db.execute(select(exercise_title_models.ActivityExerciseTitles)).scalars().all()) == len(stored)
 
     def test_leaves_another_users_activity_alone(self, db, owner, other, storage, tmp_path):
-        [activity_id] = _import(db, owner.id, _RUN, tmp_path, storage)
-        neighbour = _fresh(db, other.id, _RUN, tmp_path, storage)
-        _degrade(db, activity_id)
-        _degrade(db, neighbour)
+        [activity_id] = import_fixture(db, owner.id, RUN, tmp_path, storage)
+        neighbour = _fresh(db, other.id, RUN, tmp_path, storage)
+        degrade(db, activity_id)
+        degrade(db, neighbour)
         before = (_values(db, neighbour, _DERIVED), _children(db, neighbour), _row(db, neighbour).analysis_version)
 
         migration_service.reprocess_activity(activity_id, storage)
@@ -420,12 +358,12 @@ class TestTheThumbnail:
         db.commit()
 
     def test_is_kept_when_the_track_is_the_same(self, db, owner, storage, tmp_path):
-        [activity_id] = _import(db, owner.id, _RUN, tmp_path, storage)
+        [activity_id] = import_fixture(db, owner.id, RUN, tmp_path, storage)
         self._set_key(db, activity_id, f"{activity_id}.webp")
         db.execute(
             update(activity_models.Activity)
             .where(activity_models.Activity.id == activity_id)
-            .values(**_BOGUS_DERIVED, analysis_version=0)
+            .values(**BOGUS_DERIVED, analysis_version=0)
         )
         db.commit()
 
@@ -434,7 +372,7 @@ class TestTheThumbnail:
         assert _row(db, activity_id).map_thumbnail_path == f"{activity_id}.webp"
 
     def test_is_cleared_when_the_track_changed(self, db, owner, storage, tmp_path):
-        [activity_id] = _import(db, owner.id, _RUN, tmp_path, storage)
+        [activity_id] = import_fixture(db, owner.id, RUN, tmp_path, storage)
         self._set_key(db, activity_id, f"{activity_id}.webp")
         track = self._map_stream(db, activity_id)
         track.stream_waypoints = [{**point, "lat": point["lat"] + 1} for point in track.stream_waypoints]
@@ -445,7 +383,7 @@ class TestTheThumbnail:
         assert _row(db, activity_id).map_thumbnail_path is None
 
     def test_is_kept_for_an_activity_with_no_track(self, db, owner, storage, tmp_path):
-        [activity_id] = _import(db, owner.id, _TREADMILL, tmp_path, storage)
+        [activity_id] = import_fixture(db, owner.id, TREADMILL, tmp_path, storage)
         self._set_key(db, activity_id, f"{activity_id}.webp")
 
         migration_service.reprocess_activity(activity_id, storage)
@@ -455,8 +393,8 @@ class TestTheThumbnail:
 
 class TestWhenNothingCanBeReprocessed:
     def test_an_activity_without_a_retained_file_is_left_as_it_is(self, db, owner, storage, tmp_path):
-        [activity_id] = _import(db, owner.id, _RUN, tmp_path, storage)
-        _degrade(db, activity_id)
+        [activity_id] = import_fixture(db, owner.id, RUN, tmp_path, storage)
+        degrade(db, activity_id)
         key, _data = file_storage.get_activity_file(activity_id, storage)
         storage.delete(file_storage_constants.ACTIVITY_FILE_STORAGE_AREA, file_storage_files.processed_storage_key(key))
         before = (_values(db, activity_id, _DERIVED), _children(db, activity_id))
@@ -471,8 +409,8 @@ class TestWhenNothingCanBeReprocessed:
         assert migration_service.reprocess_activity(uuid.uuid4(), storage) is migration_service.ReprocessOutcome.NO_FILE
 
     def test_a_corrupted_file_fails_and_changes_nothing(self, db, owner, storage, tmp_path, caplog):
-        [activity_id] = _import(db, owner.id, _RUN, tmp_path, storage)
-        _degrade(db, activity_id)
+        [activity_id] = import_fixture(db, owner.id, RUN, tmp_path, storage)
+        degrade(db, activity_id)
         file_storage.store_activity_file(activity_id, ".fit", b"this is not a fit file at all", storage)
         before = (_values(db, activity_id, _DERIVED), _children(db, activity_id))
 
@@ -484,7 +422,7 @@ class TestWhenNothingCanBeReprocessed:
         assert _logged(caplog, activity_id)
 
     def test_a_parse_refusal_fails(self, db, owner, storage, tmp_path, monkeypatch):
-        [activity_id] = _import(db, owner.id, _RUN, tmp_path, storage)
+        [activity_id] = import_fixture(db, owner.id, RUN, tmp_path, storage)
 
         def refuse(*_args, **_kwargs):
             raise core_exceptions.InvalidInputError("no")
@@ -494,8 +432,8 @@ class TestWhenNothingCanBeReprocessed:
         assert migration_service.reprocess_activity(activity_id, storage) is migration_service.ReprocessOutcome.FAILED
 
     def test_a_file_with_no_session_at_the_start_has_no_session(self, db, owner, storage, tmp_path, caplog):
-        [activity_id] = _import(db, owner.id, _RUN, tmp_path, storage)
-        _degrade(db, activity_id)
+        [activity_id] = import_fixture(db, owner.id, RUN, tmp_path, storage)
+        degrade(db, activity_id)
         db.execute(
             update(activity_models.Activity)
             .where(activity_models.Activity.id == activity_id)
@@ -512,8 +450,8 @@ class TestWhenNothingCanBeReprocessed:
         assert _logged(caplog, activity_id)
 
     def test_a_start_stored_in_whole_seconds_still_matches(self, db, owner, storage, tmp_path):
-        [activity_id] = _import(db, owner.id, _RUN, tmp_path, storage)
-        _degrade(db, activity_id)
+        [activity_id] = import_fixture(db, owner.id, RUN, tmp_path, storage)
+        degrade(db, activity_id)
         db.execute(
             update(activity_models.Activity)
             .where(activity_models.Activity.id == activity_id)
@@ -530,8 +468,8 @@ class TestAMultiSessionFile:
     def test_a_legacy_leg_whose_siblings_are_missing_is_reprocessed_alone_from_its_session(
         self, db, owner, other, storage, tmp_path, monkeypatch
     ):
-        legacy = _import_legacy_legs(db, owner.id, _TRIATHLON, tmp_path, storage, monkeypatch)
-        [parent_id] = _import(db, other.id, _TRIATHLON, tmp_path, storage)
+        legacy = _import_legacy_legs(db, owner.id, TRIATHLON, tmp_path, storage, monkeypatch)
+        [parent_id] = import_fixture(db, other.id, TRIATHLON, tmp_path, storage)
         db.expire_all()
         legs = (
             db.execute(
@@ -557,7 +495,7 @@ class TestAMultiSessionFile:
         db.execute(delete(activity_models.Activity).where(activity_models.Activity.id == missing))
         db.commit()
         for activity_id in legacy_in_order:
-            _degrade(db, activity_id)
+            degrade(db, activity_id)
 
         outcomes = [migration_service.reprocess_activity(activity_id, storage) for activity_id in legacy_in_order]
 
@@ -569,8 +507,8 @@ class TestAMultiSessionFile:
             assert file_storage.get_activity_file(activity_id, storage) is not None
 
     def test_a_multisport_activity_is_reprocessed_with_its_legs(self, db, owner, other, storage, tmp_path):
-        [parent_id] = _import(db, owner.id, _TRIATHLON, tmp_path, storage)
-        [expected_parent] = _import(db, other.id, _TRIATHLON, tmp_path, storage)
+        [parent_id] = import_fixture(db, owner.id, TRIATHLON, tmp_path, storage)
+        [expected_parent] = import_fixture(db, other.id, TRIATHLON, tmp_path, storage)
 
         def legs_of(activity_id: uuid.UUID) -> list[uuid.UUID]:
             db.expire_all()
@@ -587,7 +525,7 @@ class TestAMultiSessionFile:
         edited = {"name": "Race day", "visibility": activity_constants.ActivityVisibility.PRIVATE.stored}
         db.execute(update(activity_models.Activity).where(activity_models.Activity.id.in_(legs)).values(**edited))
         for activity_id in (parent_id, *legs):
-            _degrade(db, activity_id)
+            degrade(db, activity_id)
 
         outcome = migration_service.reprocess_activity(parent_id, storage)
 
@@ -599,7 +537,7 @@ class TestAMultiSessionFile:
         assert {_row(db, leg_id).name for leg_id in legs} == {"Race day"}
 
     def test_a_leg_has_no_file_of_its_own(self, db, owner, storage, tmp_path):
-        [parent_id] = _import(db, owner.id, _TRIATHLON, tmp_path, storage)
+        [parent_id] = import_fixture(db, owner.id, TRIATHLON, tmp_path, storage)
         leg_id = (
             db.execute(
                 select(activity_models.Activity.id).where(activity_models.Activity.parent_activity_id == parent_id)
@@ -611,7 +549,7 @@ class TestAMultiSessionFile:
         assert migration_service.reprocess_activity(leg_id, storage) is migration_service.ReprocessOutcome.NO_FILE
 
     def test_a_group_with_a_leg_the_file_lacks_changes_nothing(self, db, owner, storage, tmp_path):
-        [parent_id] = _import(db, owner.id, _TRIATHLON, tmp_path, storage)
+        [parent_id] = import_fixture(db, owner.id, TRIATHLON, tmp_path, storage)
         leg_id = (
             db.execute(
                 select(activity_models.Activity.id).where(activity_models.Activity.parent_activity_id == parent_id)
@@ -619,7 +557,7 @@ class TestAMultiSessionFile:
             .scalars()
             .first()
         )
-        _degrade(db, parent_id)
+        degrade(db, parent_id)
         db.execute(
             update(activity_models.Activity)
             .where(activity_models.Activity.id == leg_id)
@@ -664,7 +602,7 @@ def _legs_of(db: Session, parent_id: uuid.UUID) -> list[uuid.UUID]:
 
 def _legacy_group(db: Session, user_id: uuid.UUID, tmp_path: Path, storage, monkeypatch) -> list[uuid.UUID]:
     """Return the five legacy legs of the triathlon, in start order."""
-    return _start_ordered(db, _import_legacy_legs(db, user_id, _TRIATHLON, tmp_path, storage, monkeypatch))
+    return _start_ordered(db, _import_legacy_legs(db, user_id, TRIATHLON, tmp_path, storage, monkeypatch))
 
 
 def _parent_of(db: Session, leg_id: uuid.UUID) -> uuid.UUID | None:
@@ -681,7 +619,7 @@ def _all_columns(db: Session, activity_id: uuid.UUID) -> dict[str, object]:
     return {column.key: getattr(row, column.key) for column in activity_models.Activity.__table__.columns}
 
 
-_SHA = hashlib.sha256(_TRIATHLON.read_bytes()).hexdigest()
+_SHA = hashlib.sha256(TRIATHLON.read_bytes()).hexdigest()
 
 
 class TestRegroupingLegacyLegs:
@@ -689,7 +627,7 @@ class TestRegroupingLegacyLegs:
         self, db, owner, other, storage, tmp_path, monkeypatch
     ):
         legs = _legacy_group(db, owner.id, tmp_path, storage, monkeypatch)
-        [expected_id] = _import(db, other.id, _TRIATHLON, tmp_path, storage)
+        [expected_id] = import_fixture(db, other.id, TRIATHLON, tmp_path, storage)
         expected_legs = _legs_of(db, expected_id)
         assert len(legs) == len(expected_legs) > 1
 
@@ -816,7 +754,7 @@ class TestRegroupingLegacyLegs:
         self, db, owner, other, storage, tmp_path, monkeypatch
     ):
         legs = _legacy_group(db, owner.id, tmp_path, storage, monkeypatch)
-        [expected_id] = _import(db, other.id, _TRIATHLON, tmp_path, storage)
+        [expected_id] = import_fixture(db, other.id, TRIATHLON, tmp_path, storage)
         _set(db, [legs[0]], name="First", description="One")
         _set(db, [legs[1]], name="Second", description="Two")
 
@@ -830,14 +768,14 @@ class TestRegroupingLegacyLegs:
         self, db, owner, storage, tmp_path, monkeypatch
     ):
         legs = _legacy_group(db, owner.id, tmp_path, storage, monkeypatch)
-        _set(db, legs, updated_at=_OLD)
+        _set(db, legs, updated_at=OLD)
         versions = {leg: _row(db, leg).version for leg in legs}
 
         migration_service.reprocess_activity(legs[0], storage)
 
         for leg in legs:
             assert _row(db, leg).version > versions[leg]
-            assert _row(db, leg).updated_at > _OLD
+            assert _row(db, leg).updated_at > OLD
 
     def test_the_file_is_kept_once_under_the_parent(self, db, owner, storage, tmp_path, monkeypatch):
         legs = _legacy_group(db, owner.id, tmp_path, storage, monkeypatch)
@@ -850,7 +788,7 @@ class TestRegroupingLegacyLegs:
         stored = file_storage.get_activity_file(parent_id, storage)
         assert stored is not None
         assert stored[0] == f"{parent_id}.fit"
-        assert stored[1] == _TRIATHLON.read_bytes()
+        assert stored[1] == TRIATHLON.read_bytes()
         assert all(file_storage.get_activity_file(leg, storage) is None for leg in legs)
 
     def test_the_parent_file_is_stored_before_the_group_commits(self, db, owner, storage, tmp_path, monkeypatch):
@@ -902,7 +840,7 @@ class TestRegroupingLegacyLegs:
 
     def test_a_regroup_that_stages_nothing_removes_the_stored_file(self, db, owner, storage, tmp_path, monkeypatch):
         legs = _legacy_group(db, owner.id, tmp_path, storage, monkeypatch)
-        taken = make_activity(db, owner.id, start_time=_OLD, end_time=_OLD + timedelta(hours=1))
+        taken = make_activity(db, owner.id, start_time=OLD, end_time=OLD + timedelta(hours=1))
         _set(db, [taken.id], dedup_key=f"file:{_SHA}")
         real = file_storage.store_activity_file
         stored: list[uuid.UUID] = []
@@ -997,7 +935,7 @@ class TestRegroupingLegacyLegs:
 
     def test_a_parent_key_that_is_already_stored_means_no_regroup(self, db, owner, storage, tmp_path, monkeypatch):
         legs = _legacy_group(db, owner.id, tmp_path, storage, monkeypatch)
-        taken = make_activity(db, owner.id, start_time=_OLD, end_time=_OLD + timedelta(hours=1))
+        taken = make_activity(db, owner.id, start_time=OLD, end_time=OLD + timedelta(hours=1))
         _set(db, [taken.id], dedup_key=f"file:{_SHA}")
 
         outcome = migration_service.reprocess_activity(legs[0], storage)

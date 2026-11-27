@@ -19,6 +19,7 @@ import core.local_pool as core_local_pool
 import core.logger as core_logger
 import core.mail as core_mail
 import core.scheduler as core_scheduler
+import migrations.activity_reprocess as migrations_activity_reprocess
 import modules.activities.activity.audit_actions as activity_audit_actions
 import modules.activities.activity.integration_service as activity_integration
 import modules.activities.activity.scheduled_jobs as activity_scheduled_jobs
@@ -539,6 +540,19 @@ MODULES: tuple[RuntimeModule, ...] = (
         ),
     ),
     RuntimeModule(name="followers", audit_actions=followers_audit_actions.ACTIONS),
+    RuntimeModule(
+        name="migrations",
+        register_durable=migrations_activity_reprocess.register_durable_handlers,
+        nets=migrations_activity_reprocess.DURABLE_SUBSCRIBER_NETS,
+        startup_tasks=(
+            StartupTask(
+                "request_activity_reprocess",
+                "Requesting the activity reprocess",
+                migrations_activity_reprocess.request_reprocess,
+            ),
+        ),
+        shutdown=migrations_activity_reprocess.shutdown_pool,
+    ),
     RuntimeModule(
         name="websocket",
         register_bus=websocket_subscriber_registry.register_bus_subscribers,

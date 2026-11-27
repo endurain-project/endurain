@@ -8,6 +8,7 @@ import pytest
 from jasil.jobs.registry import JobHandlerRegistry
 
 import core.job_queues as core_job_queues
+import migrations.activity_reprocess as migrations_activity_reprocess
 import module_registry as runtime_module_registry
 import modules.activities.activity.events as activity_events
 import modules.activities.activity_ingestion.events as ingestion_events
@@ -38,6 +39,7 @@ _BACKGROUND_SUBSCRIBERS = {
     "users.profile_import_requested",
     "gears.deletion_requested",
     "users.deletion_requested",
+    "migrations.activity_reprocess",
 }
 
 #: Work derived from a stored activity that calls an outside provider at its pace, which nobody waits on.
@@ -342,7 +344,28 @@ class TestShutdownModulePools:
     def test_the_modules_that_run_pools_declare_their_release(self):
         declared = {module.name for module in runtime_module_registry.MODULES if module.shutdown is not None}
 
-        assert {"activity", "activity_ingestion", "garmin", "strava", "users", "users_profile"} <= declared
+        assert {
+            "activity",
+            "activity_ingestion",
+            "garmin",
+            "strava",
+            "users",
+            "users_profile",
+            "migrations",
+        } <= declared
+
+
+class TestActivityReprocessWiring:
+    def test_the_request_is_a_startup_task_that_takes_no_lock_of_its_own(self):
+        tasks = {task.name: task for task in runtime_module_registry.startup_tasks()}
+
+        task = tasks["request_activity_reprocess"]
+        assert (task.func, task.lock_name) == (migrations_activity_reprocess.request_reprocess, None)
+
+    def test_the_pool_is_released_at_shutdown(self):
+        module = next(module for module in runtime_module_registry.MODULES if module.name == "migrations")
+
+        assert module.shutdown is migrations_activity_reprocess.shutdown_pool
 
 
 class TestJobQueues:

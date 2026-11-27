@@ -40,7 +40,7 @@ def process_deletion_requested_for_event(event: Event) -> None:
         platform.mail,
         first_pass=event.attempt == 1 and event.continuation_count == 0,
         will_retry=not event.is_last_attempt,
-        time_budget=users_deletion_job_service.durable_pass_seconds(),
+        time_budget=core_job_queues.durable_pass_seconds(),
     )
     if activities_left:
         raise ContinueJob(reason="account deletion pass finished with activities left")

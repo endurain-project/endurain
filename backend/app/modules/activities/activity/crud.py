@@ -1444,6 +1444,45 @@ def update_derived_values(
     return matched > 0
 
 
+def list_ids_below_analysis_version(analysis_version: int, limit: int, db: Session) -> list[uuid.UUID]:
+    """Return the IDs of the activities whose analysis version is below the given one, in ID order.
+
+    Args:
+        analysis_version: The analysis version an activity must be below to be listed.
+        limit: Maximum number of IDs to return.
+        db: Database session.
+
+    Returns:
+        Up to ``limit`` IDs, smallest first.
+    """
+    stmt = (
+        select(activity_models.Activity.id)
+        .where(activity_models.Activity.analysis_version < analysis_version)
+        .order_by(activity_models.Activity.id)
+        .limit(limit)
+    )
+    return list(db.execute(stmt).scalars().all())
+
+
+def stamp_analysis_version(activity_id: uuid.UUID, analysis_version: int, db: Session) -> None:
+    """Stage the analysis version on an activity whose values were not recomputed.
+
+    A Core ``UPDATE`` that leaves ``version`` alone, and ``updated_at`` too: nothing the client shows changed, so
+    a syncing client has nothing to refetch. An activity already at the version or above it is left as it is.
+
+    Args:
+        activity_id: Target activity ID.
+        analysis_version: The version to stamp.
+        db: Database session.
+    """
+    db.execute(
+        sa_update(activity_models.Activity)
+        .where(activity_models.Activity.id == activity_id, activity_models.Activity.analysis_version < analysis_version)
+        .values(analysis_version=analysis_version, updated_at=activity_models.Activity.updated_at)
+    )
+    db.flush()
+
+
 def update_activity_location(
     activity_id: uuid.UUID,
     city: str | None,

@@ -610,12 +610,6 @@ class TestRunDeletionInPasses:
         assert states.get(user.id, _Kind) is None
         assert _activity_count(committed_sessions, user.id) == 3
 
-    @pytest.mark.parametrize(("lease", "expected"), [(300, 100.0), (3000, 1000.0), (30, 30.0)])
-    def test_the_pass_budget_is_a_third_of_the_lease_with_a_floor(self, monkeypatch, lease, expected):
-        monkeypatch.setattr(core_config.settings, "JOBS_LEASE_SECONDS", lease)
-
-        assert job_service.durable_pass_seconds() == expected
-
 
 class TestDeadLetter:
     def test_a_dead_lettered_deletion_is_failed_and_its_claim_freed(self, committed_sessions, states, user):

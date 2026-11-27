@@ -7,8 +7,8 @@ runs on a small in-process pool that is not the request threadpool. Either way t
 state store is what an administrator polls, and its claim stops a user being queued twice.
 
 The job erases the activities a batch per transaction, so no transaction holds the whole account. On the
-durable profile a pass stops at a time budget with activities left and the worker continues the same job
-(see :func:`durable_pass_seconds`). Once no activities are left it erases the profile photo, then deletes
+durable profile a pass stops at a time budget with activities left and the worker continues the same job (see
+:func:`core.job_queues.durable_pass_seconds`). Once no activities are left it erases the profile photo, then deletes
 the user row, which removes everything else through the database cascade. Every step can be repeated, so a job a worker
 died in is simply run again, and every step
 that can fail runs while the row still marks the deletion, so the stalled-deletion sweep finds it.
@@ -245,17 +245,6 @@ def _dispatch(
     logger.debug(
         "Account deletion queued on the in-process pool", extra=core_logger.context(user_id=user_id, source=source)
     )
-
-
-def durable_pass_seconds() -> float:
-    """Return the time budget of one deletion pass on the durable profile.
-
-    Returns:
-        A fraction of ``JOBS_LEASE_SECONDS``, never below ``DELETION_PASS_MIN_SECONDS``, so a pass cannot
-        outlive the lease it holds.
-    """
-    lease = core_config.settings.JOBS_LEASE_SECONDS
-    return float(max(users_constants.DELETION_PASS_MIN_SECONDS, lease // users_constants.DELETION_PASS_LEASE_FRACTION))
 
 
 def run_deletion(

@@ -10,6 +10,7 @@ from jasil.jobs import ContinueJob
 from jasil.jobs.registry import JobHandlerRegistry
 
 import core.config as core_config
+import core.job_queues as core_job_queues
 import modules.users.contributor_registry as users_contributor_registry
 import modules.users.users.constants as users_constants
 import modules.users.users.crud as users_crud
@@ -94,7 +95,7 @@ class TestDurableHandler:
     ):
         user, job = queued
         monkeypatch.setattr(users_constants, "DELETION_BATCH_SIZE", 1)
-        monkeypatch.setattr(users_constants, "DELETION_PASS_MIN_SECONDS", 0)
+        monkeypatch.setattr(core_job_queues, "PASS_MIN_SECONDS", 0)
         monkeypatch.setattr(core_config.settings, "JOBS_LEASE_SECONDS", 0)
         with committed_sessions() as db:
             for _ in range(3):
